@@ -259,37 +259,37 @@ class MultiSourceScanner:
 
         try:
             url = f"{BIRDEYE_API}/tokenlist"
-            params = {
-                "sort_by": "v24hChangePercent",
-                "sort_type": "desc",
-                "offset": 0,
-                "limit": 50,
-                "min_liquidity": self.min_mcap / 10,
-                "chain": birdeye_chain
-            }
             headers = {
                 "X-API-KEY": self.birdeye_api_key,
                 "x-chain": birdeye_chain,
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                 "Accept": "application/json",
             }
+            # Fetch two pages with different sort criteria to maximise token coverage
+            fetch_params = [
+                {"sort_by": "v24hChangePercent", "sort_type": "desc", "offset": 0,  "limit": 50, "min_liquidity": self.min_mcap / 10},
+                {"sort_by": "v24hUSD",           "sort_type": "desc", "offset": 0,  "limit": 50, "min_liquidity": self.min_mcap / 10},
+            ]
+            all_tokens: Dict[str, dict] = {}
             async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    url, params=params, headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=15)
-                ) as resp:
-                    if resp.status != 200:
-                        text = await resp.text()
-                        logger.warning(f"[{self.chain.name}] Birdeye HTTP {resp.status}: {text[:100]}")
-                        return {}
-                    data = await resp.json()
-                    tokens = data.get("data", {}).get("tokens", [])
-                    # Key by address for fast lookup
-                    return {
-                        t.get("address", "").lower(): t
-                        for t in tokens
-                        if t.get("address")
-                    }
+                for params in fetch_params:
+                    async with session.get(
+                        url, params=params, headers=headers,
+                        timeout=aiohttp.ClientTimeout(total=15)
+                    ) as resp:
+                        if resp.status != 200:
+                            text = await resp.text()
+                            logger.warning(f"[{self.chain.name}] Birdeye HTTP {resp.status}: {text[:100]}")
+                            continue
+                        data = await resp.json()
+                        tokens = data.get("data", {}).get("tokens", [])
+                        all_tokens.update({
+                            t.get("address", "").lower(): t
+                            for t in tokens
+                            if t.get("address")
+                        })
+                    await asyncio.sleep(1)  # small delay between pages
+            return all_tokens
         except Exception as e:
             logger.debug(f"[{self.chain.name}] Birdeye error: {e}")
             return {}
