@@ -288,9 +288,9 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       <div class="sub" id="sc-trades-sub">0 open</div>
     </div>
     <div class="stat-card">
-      <div class="label">Capital Deployed</div>
-      <div class="value" id="sc-deployed">$0</div>
-      <div class="sub" id="sc-deployed-sub">across all chains</div>
+      <div class="label">Account Balance</div>
+      <div class="value" id="sc-balance">$2,000</div>
+      <div class="sub" id="sc-balance-sub">$0 deployed &bull; $2,000 available</div>
     </div>
   </div>
 
@@ -634,14 +634,14 @@ function updateStatCards(d) {
   document.getElementById('sc-trades').textContent = ov.total_trades || 0;
   document.getElementById('sc-trades-sub').textContent = positions.length + ' open';
 
-  // Capital deployed = sum of chain capitals
-  let deployed = 0;
-  ['sol','base','bnb'].forEach(k => {
-    deployed += (chains[k] || {}).capital || 0;
-  });
-  document.getElementById('sc-deployed').textContent = '$' + deployed.toFixed(0);
-  document.getElementById('sc-deployed-sub').textContent =
-    ['sol','base','bnb'].filter(k => (chains[k]||{}).capital > 0).length + ' chains active';
+  // Account balance from risk managers
+  const cap = d.capital || {};
+  const totalCap  = cap.total     || 2000;
+  const available = cap.available || totalCap;
+  const deployed  = cap.deployed  || 0;
+  document.getElementById('sc-balance').textContent = '$' + totalCap.toFixed(0);
+  document.getElementById('sc-balance-sub').textContent =
+    '$' + deployed.toFixed(0) + ' deployed • $' + available.toFixed(0) + ' available';
 }
 
 // ── P&L Chart ──────────────────────────────────────────────────────────────
@@ -956,6 +956,7 @@ class WebDashboard:
                 "base": {"pnl": 0, "capital": 0, "positions": 0},
                 "bnb":  {"pnl": 0, "capital": 0, "positions": 0},
             },
+            "capital":    {"total": 0, "available": 0, "deployed": 0},
             "security":   {},
             "price_feed": {},
             "positions":  [],

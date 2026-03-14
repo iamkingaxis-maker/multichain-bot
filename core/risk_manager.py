@@ -71,6 +71,19 @@ class RiskManager:
             "daily_limit_remaining": self.daily_loss_limit + self.daily_pnl
         }
 
+    def get_dashboard_stats(self) -> dict:
+        """Return stats in format expected by web dashboard."""
+        s = self.get_summary()
+        deployed = s["total_capital"] - s["available_capital"]
+        return {
+            "capital": {
+                "total": s["total_capital"],
+                "available": s["available_capital"],
+                "deployed": deployed,
+            },
+            "daily_pnl": s["daily_pnl"],
+        }
+
     def _reset_daily_if_needed(self):
         """Reset daily stats at midnight."""
         today = date.today()

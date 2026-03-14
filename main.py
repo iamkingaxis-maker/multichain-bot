@@ -164,6 +164,7 @@ async def main():
 
         sol_risk = RiskManager(sol_cap, config.max_position_pct,
                                config.daily_loss_limit * split)
+        dashboard.register_provider(sol_risk)
         SOLANA.rpc_url = config.solana_rpc_url
         sol_trader = Trader(config.solana_private_key, config.solana_rpc_url,
                             tracker, telegram, sol_risk)
@@ -253,6 +254,7 @@ async def main():
 
         base_risk = RiskManager(base_cap, config.max_position_pct,
                                 config.daily_loss_limit * split)
+        dashboard.register_provider(base_risk)
         BASE.rpc_url = config.base_rpc_url
         base_trader = EVMTrader(BASE, config.evm_private_key, tracker,
                                 telegram, base_risk,
@@ -338,6 +340,7 @@ async def main():
 
         bnb_risk = RiskManager(bnb_cap, config.max_position_pct,
                                config.daily_loss_limit * split)
+        dashboard.register_provider(bnb_risk)
         BNB.rpc_url = config.bnb_rpc_url
         bnb_trader = EVMTrader(BNB, config.evm_private_key, tracker,
                                telegram, bnb_risk,
