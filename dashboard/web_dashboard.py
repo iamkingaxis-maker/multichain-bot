@@ -969,6 +969,12 @@ class WebDashboard:
         for provider in self._stats_providers:
             try:
                 provider_stats = provider.get_dashboard_stats()
+                # Accumulate capital across all risk managers instead of overwriting
+                if "capital" in provider_stats:
+                    cap = provider_stats.pop("capital")
+                    stats["capital"]["total"]     += cap.get("total", 0)
+                    stats["capital"]["available"] += cap.get("available", 0)
+                    stats["capital"]["deployed"]  += cap.get("deployed", 0)
                 self._deep_merge(stats, provider_stats)
             except Exception as e:
                 logger.debug(f"[Dashboard] Stats provider error: {e}")
