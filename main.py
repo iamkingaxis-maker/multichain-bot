@@ -179,7 +179,8 @@ async def main():
             birdeye_api_key=config.birdeye_api_key,
             min_mcap=config.min_mcap, max_mcap=config.max_mcap,
             min_combined_score=adaptive_threshold.get_threshold("solana"),
-            require_both_sources=config.require_both_sources
+            require_both_sources=config.require_both_sources,
+            startup_delay=0
         )
         sol_copy = CopyTrader(
             wallets=config.solana_copy_wallets,
@@ -286,7 +287,8 @@ async def main():
             birdeye_api_key=config.birdeye_api_key,
             min_mcap=config.min_mcap, max_mcap=config.max_mcap,
             min_combined_score=adaptive_threshold.get_threshold("base"),
-            require_both_sources=config.require_both_sources
+            require_both_sources=config.require_both_sources,
+            startup_delay=20
         )
         base_scalper = PositionScalper(
             chain_name="Base", chain_id="base",
@@ -372,7 +374,8 @@ async def main():
             birdeye_api_key=config.birdeye_api_key,
             min_mcap=config.min_mcap, max_mcap=config.max_mcap,
             min_combined_score=adaptive_threshold.get_threshold("bsc"),
-            require_both_sources=config.require_both_sources
+            require_both_sources=config.require_both_sources,
+            startup_delay=40
         )
         bnb_scalper = PositionScalper(
             chain_name="BNB", chain_id="bsc",

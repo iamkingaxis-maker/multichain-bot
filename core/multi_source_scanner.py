@@ -69,7 +69,8 @@ class MultiSourceScanner:
                  min_mcap: float = 200_000,
                  max_mcap: float = 1_000_000,
                  min_combined_score: int = 65,
-                 require_both_sources: bool = True):
+                 require_both_sources: bool = True,
+                 startup_delay: float = 0):
         self.chain = chain
         self.trader = trader
         self.security_checker = security_checker
@@ -79,6 +80,7 @@ class MultiSourceScanner:
         self.max_mcap = max_mcap
         self.min_combined_score = min_combined_score
         self.require_both_sources = require_both_sources
+        self.startup_delay = startup_delay
 
         self.seen_tokens: set = set()
         self.evaluator = TokenSignalEvaluator(
@@ -95,8 +97,10 @@ class MultiSourceScanner:
 
     async def run(self):
         """Main scanner loop."""
+        if self.startup_delay:
+            await asyncio.sleep(self.startup_delay)
         logger.info(
-            f"[{self.chain.name}] 📡 Multi-Source Scanner started — "
+            f"[{self.chain.name}] Multi-Source Scanner started — "
             f"${self.min_mcap/1000:.0f}k-${self.max_mcap/1000:.0f}k | "
             f"Min score: {self.min_combined_score}"
         )
