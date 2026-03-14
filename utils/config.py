@@ -200,7 +200,7 @@ class Config:
         # This is how Railway injects secrets safely
         _apply_env_overrides(config)
 
-        config._validate()
+        _validate(config)
         return config
 
 
@@ -279,27 +279,23 @@ def _apply_env_overrides(config: Config):
         config.dashboard_port = env_int("PORT", config.dashboard_port)
 
 
-    def _validate(self):
-        errors = []
-        if not self.telegram_token:
-            errors.append("TELEGRAM_TOKEN missing (set in Railway Variables)")
-        if not self.telegram_chat_id:
-            errors.append("TELEGRAM_CHAT_ID missing (set in Railway Variables)")
-        if self.enable_solana and "YOUR_HELIUS" in self.solana_rpc_url:
-            errors.append(
-                "SOLANA_RPC_URL missing — set SOLANA_RPC_URL in Railway Variables"
-            )
-        if abs(sum(self.capital_split.values()) - 1.0) > 0.01:
-            errors.append("capital_split must add to 1.0")
-        if self.avg_down_max_loss_pct > self.stop_loss_pct:
-            errors.append(
-                f"avg_down_max_loss ({self.avg_down_max_loss_pct}%) must be "
-                f"less than stop_loss ({self.stop_loss_pct}%)"
-            )
-        if not self.birdeye_api_key:
-            print("Warning: BIRDEYE_API_KEY not set — DexScreener only")
-        if errors:
-            print("\nCONFIG ERRORS:")
-            for e in errors:
-                print(f"  - {e}")
-            raise SystemExit("Fix config errors before running.")
+def _validate(config: "Config"):
+    errors = []
+    if config.enable_solana and "YOUR_HELIUS" in (config.solana_rpc_url or ""):
+        errors.append(
+            "SOLANA_RPC_URL missing — set SOLANA_RPC_URL in Railway Variables"
+        )
+    if abs(sum(config.capital_split.values()) - 1.0) > 0.01:
+        errors.append("capital_split must add to 1.0")
+    if config.avg_down_max_loss_pct > config.stop_loss_pct:
+        errors.append(
+            f"avg_down_max_loss ({config.avg_down_max_loss_pct}%) must be "
+            f"less than stop_loss ({config.stop_loss_pct}%)"
+        )
+    if not config.birdeye_api_key:
+        print("Warning: BIRDEYE_API_KEY not set — DexScreener only")
+    if errors:
+        print("\nCONFIG ERRORS:")
+        for e in errors:
+            print(f"  - {e}")
+        raise SystemExit("Fix config errors before running.")
