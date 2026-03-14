@@ -191,7 +191,9 @@ class MultiSourceScanner:
             }
             headers = {
                 "X-API-KEY": self.birdeye_api_key,
-                "x-chain": birdeye_chain
+                "x-chain": birdeye_chain,
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "application/json",
             }
             async with aiohttp.ClientSession() as session:
                 async with session.get(
@@ -199,6 +201,8 @@ class MultiSourceScanner:
                     timeout=aiohttp.ClientTimeout(total=15)
                 ) as resp:
                     if resp.status != 200:
+                        text = await resp.text()
+                        logger.warning(f"[{self.chain.name}] Birdeye HTTP {resp.status}: {text[:100]}")
                         return {}
                     data = await resp.json()
                     tokens = data.get("data", {}).get("tokens", [])
