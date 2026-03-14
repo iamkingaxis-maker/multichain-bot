@@ -64,7 +64,7 @@ class Config:
     scalper_evm_private_key: str = ""
 
     # ── RPC Endpoints ────────────────────────────────────────
-    solana_rpc_url: str = "https://mainnet.helius-rpc.com/?api-key=YOUR_HELIUS_API_KEY"
+    solana_rpc_url: str = "https://api.mainnet-beta.solana.com"
     base_rpc_url: str = "https://mainnet.base.org"
     bnb_rpc_url: str = "https://bsc-dataseed1.binance.org"
 
