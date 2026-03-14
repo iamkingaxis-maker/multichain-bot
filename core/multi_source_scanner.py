@@ -125,14 +125,13 @@ class MultiSourceScanner:
         if isinstance(birdeye_tokens, Exception):
             birdeye_tokens = {}
 
-        if not dex_tokens:
-            return
-
         logger.info(
             f"[{self.chain.name}] 🔍 DexScreener: {len(dex_tokens)} tokens | "
             f"Birdeye: {len(birdeye_tokens)} tokens"
         )
 
+        # Build a set of addresses already covered by DexScreener
+        dex_addrs = set()
         for token in dex_tokens:
             try:
                 addr = token.get("baseToken", {}).get("address", "").lower()
@@ -140,6 +139,7 @@ class MultiSourceScanner:
                 if cache_key in self.seen_tokens:
                     continue
                 self.seen_tokens.add(cache_key)
+                dex_addrs.add(addr)
 
                 birdeye_data = birdeye_tokens.get(addr, {})
                 signal = self._build_signal(token, birdeye_data)
@@ -148,22 +148,96 @@ class MultiSourceScanner:
             except Exception as e:
                 logger.debug(f"[{self.chain.name}] Token eval error: {e}")
 
-    async def _fetch_dexscreener(self) -> list:
-        """Fetch tokens in range from DexScreener."""
+        # Also evaluate Birdeye-only tokens by fetching their DexScreener pair data
+        birdeye_only = [
+            (addr, bdata) for addr, bdata in birdeye_tokens.items()
+            if addr not in dex_addrs
+        ]
+        if birdeye_only:
+            await self._evaluate_birdeye_tokens(birdeye_only)
+
+    async def _evaluate_birdeye_tokens(self, birdeye_only: list):
+        """Fetch DexScreener pair data for Birdeye-discovered tokens and evaluate."""
+        # Batch addresses (DexScreener allows up to 30)
+        batch = [addr for addr, _ in birdeye_only[:30]]
+        birdeye_map = {addr: bdata for addr, bdata in birdeye_only[:30]}
         try:
-            url = f"{DEXSCREENER_API}/search?q={self.chain.dexscreener_chain}"
+            addresses = ",".join(batch)
+            url = f"{DEXSCREENER_API}/tokens/{addresses}"
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    url, timeout=aiohttp.ClientTimeout(total=15)
+                    url,
+                    headers={"User-Agent": "Mozilla/5.0"},
+                    timeout=aiohttp.ClientTimeout(total=15)
+                ) as resp:
+                    if resp.status != 200:
+                        return
+                    data = await resp.json()
+                    pairs = data.get("pairs") or []
+
+            for pair in pairs:
+                if pair.get("chainId") != self.chain.dexscreener_chain:
+                    continue
+                mcap = pair.get("marketCap") or 0
+                if not (self.min_mcap <= mcap <= self.max_mcap):
+                    continue
+                addr = pair.get("baseToken", {}).get("address", "").lower()
+                cache_key = f"{self.chain.chain_id}:{addr}"
+                if cache_key in self.seen_tokens:
+                    continue
+                self.seen_tokens.add(cache_key)
+                birdeye_data = birdeye_map.get(addr, {})
+                signal = self._build_signal(pair, birdeye_data)
+                if signal:
+                    await self._evaluate_signal(signal)
+        except Exception as e:
+            logger.debug(f"[{self.chain.name}] Birdeye-only eval error: {e}")
+
+    async def _fetch_dexscreener(self) -> list:
+        """Fetch new tokens from DexScreener token profiles then enrich with pair data."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Step 1: get latest token profiles (newly listed tokens)
+                profiles_url = "https://api.dexscreener.com/token-profiles/latest/v1"
+                async with session.get(
+                    profiles_url,
+                    headers={"User-Agent": "Mozilla/5.0"},
+                    timeout=aiohttp.ClientTimeout(total=15)
                 ) as resp:
                     if resp.status != 200:
                         return []
-                    data = await resp.json()
-                    return [
-                        p for p in data.get("pairs", [])
-                        if (p.get("chainId") == self.chain.dexscreener_chain and
-                            self.min_mcap <= p.get("marketCap", 0) <= self.max_mcap)
-                    ]
+                    profiles = await resp.json()
+
+                # Filter to this chain only
+                chain_profiles = [
+                    p for p in (profiles if isinstance(profiles, list) else [])
+                    if p.get("chainId") == self.chain.dexscreener_chain
+                ]
+                if not chain_profiles:
+                    return []
+
+                # Step 2: fetch pair data for those token addresses (batch up to 30)
+                addresses = ",".join(
+                    p["tokenAddress"] for p in chain_profiles[:30]
+                    if p.get("tokenAddress")
+                )
+                pairs_url = f"{DEXSCREENER_API}/tokens/{addresses}"
+                async with session.get(
+                    pairs_url,
+                    headers={"User-Agent": "Mozilla/5.0"},
+                    timeout=aiohttp.ClientTimeout(total=15)
+                ) as resp2:
+                    if resp2.status != 200:
+                        return []
+                    data = await resp2.json()
+                    pairs = data.get("pairs") or []
+
+                # Return pairs on this chain within mcap range
+                return [
+                    p for p in pairs
+                    if (p.get("chainId") == self.chain.dexscreener_chain and
+                        self.min_mcap <= (p.get("marketCap") or 0) <= self.max_mcap)
+                ]
         except Exception as e:
             logger.error(f"[{self.chain.name}] DexScreener error: {e}")
             return []
