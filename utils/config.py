@@ -101,7 +101,7 @@ class Config:
     take_profit_3_sell: float = 0.75
 
     # ── Stop Loss ────────────────────────────────────────────
-    stop_loss_pct: float = 28.0
+    stop_loss_pct: float = 20.0
 
     # ── Stall Detection ──────────────────────────────────────
     stall_check_interval_min: int = 30
@@ -122,8 +122,9 @@ class Config:
     # ── Scanner ──────────────────────────────────────────────
     min_mcap: float = 200_000
     max_mcap: float = 1_000_000
-    min_combined_score: int = 65
-    require_both_sources: bool = True
+    min_combined_score: int = 40
+    require_both_sources: bool = False
+    single_source_min_score: int = 40
     min_liquidity_usd: float = 50_000
     max_dev_wallet_pct: float = 5.0
     preferred_age_min_hours: float = 3.0
@@ -257,6 +258,11 @@ def _apply_env_overrides(config: Config):
         config.total_capital = env_float("TOTAL_CAPITAL", config.total_capital)
     if os.environ.get("DAILY_LOSS_LIMIT"):
         config.daily_loss_limit = env_float("DAILY_LOSS_LIMIT", config.daily_loss_limit)
+
+    # Scanner score threshold
+    if os.environ.get("MIN_COMBINED_SCORE"):
+        config.min_combined_score = int(os.environ["MIN_COMBINED_SCORE"])
+        config.single_source_min_score = int(os.environ["MIN_COMBINED_SCORE"])
 
     # Chain toggles
     if os.environ.get("ENABLE_SOLANA"):

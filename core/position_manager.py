@@ -17,7 +17,7 @@ STALL DETECTION:
   - → Sell 75%, hold 25% moon bag
 
 STOP LOSS:
-  - Hard stop at -28% from entry — no exceptions
+  - Hard stop at -20% from entry — no exceptions
   - No conditional skipping — clean and simple
 
 AVERAGE DOWN:
@@ -25,7 +25,7 @@ AVERAGE DOWN:
   - Only if current volume is still above 50% of entry volume (fundamentals hold)
   - Only once per position — never twice
   - Add 50% of original position size
-  - If average down triggers and position still hits -28% → stop out normally
+  - If average down triggers and position still hits -20% → stop out normally
 
 MARKET CONDITIONS:
   - Monitor BTC 24h price change every 15 minutes
@@ -339,7 +339,7 @@ class PositionManager:
                  tp3_sell: float = 0.75,
 
                  # Stop loss
-                 stop_loss_pct: float = 28.0,   # Hard -28%, no exceptions
+                 stop_loss_pct: float = 20.0,   # Hard -20%, no exceptions
 
                  # Stall detection
                  stall_check_interval_min: int = 30,

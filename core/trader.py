@@ -60,7 +60,7 @@ class Position:
 
 class Trader:
     def __init__(self, private_key: str, rpc_url: str, tracker, telegram, risk_manager,
-                 tp1: float = 1.5, tp2: float = 2.0, tp3: float = 2.5, stop_loss: float = 0.28):
+                 tp1: float = 1.5, tp2: float = 2.0, tp3: float = 2.5, stop_loss: float = 0.20):
         self.private_key = private_key
         self.rpc_url = rpc_url
         self.tracker = tracker
