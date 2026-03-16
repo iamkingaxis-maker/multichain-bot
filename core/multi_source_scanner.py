@@ -781,6 +781,10 @@ class MultiSourceScanner:
             import time as _time
             pair_age_minutes = (_time.time() - pair_created_ms / 1000) / 60
             if pair_age_minutes < 10:
+                logger.info(
+                    f"[{self.chain.name}] Rug filter (too new): {token_symbol} "
+                    f"pair age {pair_age_minutes:.1f}min < 10min"
+                )
                 return None
 
         # 2. Require at least 10 sell transactions in h1.
@@ -788,6 +792,10 @@ class MultiSourceScanner:
         #    almost zero sells — everyone holds until the dev dumps.
         #    Legitimate organic volume has both sides of the book.
         if buys_h1 > 0 and sells_h1 < 10:
+            logger.info(
+                f"[{self.chain.name}] Rug filter (no sellers): {token_symbol} "
+                f"buys={buys_h1} sells={sells_h1} — no organic sell-side"
+            )
             return None
         price_usd = float(dex_pair.get("priceUsd", 0) or 0)
         info = dex_pair.get("info", {})
