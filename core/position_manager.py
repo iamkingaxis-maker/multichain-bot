@@ -7,7 +7,7 @@ Rules (from trader experience):
 TAKE PROFIT:
   TP1: +50%  → sell 50% of position (lock in fast)
   TP2: +100% → sell 75% of remaining (sell most quickly)
-  TP3: +150% → sell 75% of remaining (rare but happens)
+  TP3: +150% → sell 50% of remaining (leaves larger moon bag for 10x+ runners)
   Moon bag: whatever is left rides indefinitely
 
 STALL DETECTION:
@@ -125,18 +125,24 @@ class PositionState:
     @property
     def is_stalled(self) -> bool:
         """
-        True when BOTH conditions are met simultaneously:
+        True when BOTH conditions are met simultaneously for 2 consecutive
+        30-minute windows (60 min of confirmed stall before selling).
+
+        Requiring 2 windows prevents false exits on tokens that pause briefly
+        then resume — 27% win rate on 1-window stall exits showed too many
+        early exits on still-active tokens.
+
           1. m5 run-rate (m5 × 12 = hourly equivalent) is below threshold
           2. h1 volume is also below threshold
           3. Price is flat or down (no point exiting a rising token)
           4. Entry volume baseline is set (guard against false early triggers)
-          5. Only 1 window needed — 30 min of combined low volume is enough
+          5. 2 consecutive low-volume windows required (was 1)
         """
         if self.entry_volume_usd <= 0:
             return False   # Baseline not set yet
 
-        if not self.volume_windows:
-            return False   # No windows recorded yet
+        if len(self.volume_windows) < 2:
+            return False   # Need at least 2 windows recorded
 
         threshold = self.entry_volume_usd * self.stall_threshold
 
@@ -152,7 +158,13 @@ class PositionState:
         # Condition 3: Price flat or down — no exit if still making highs
         price_not_rising = self.current_price <= self.peak_price * 0.99
 
-        stalled = m5_stalled and h1_stalled and price_not_rising
+        # Condition 4: Last 2 recorded volume windows were both below threshold
+        last_two_low = all(
+            w.volume_usd < threshold
+            for w in self.volume_windows[-2:]
+        )
+
+        stalled = m5_stalled and h1_stalled and price_not_rising and last_two_low
 
         if stalled:
             logger.debug(
@@ -335,8 +347,8 @@ class PositionManager:
                  tp1_sell: float = 0.50,
                  tp2_pct: float = 100.0,   # +100% → sell 75% of remaining
                  tp2_sell: float = 0.75,
-                 tp3_pct: float = 150.0,   # +150% → sell 75% of remaining
-                 tp3_sell: float = 0.75,
+                 tp3_pct: float = 150.0,   # +150% → sell 50% of remaining (more moon bag)
+                 tp3_sell: float = 0.50,
 
                  # Stop loss
                  stop_loss_pct: float = 20.0,   # Hard -20%, no exceptions
