@@ -48,8 +48,8 @@ class RiskManager:
         logger.info(f"📊 Capital remaining: ${self.available_capital:.0f}")
 
     def record_sell(self, usd_received: float, pnl: float):
-        """Record a sell and update capital and PnL."""
-        self.available_capital += usd_received
+        """Record a sell and update capital and PnL. Profit is never recycled — cap at starting capital."""
+        self.available_capital = min(self.available_capital + usd_received, self.total_capital)
         self.daily_pnl += pnl
         self.total_pnl += pnl
         logger.info(
@@ -83,6 +83,15 @@ class RiskManager:
             },
             "daily_pnl": s["daily_pnl"],
         }
+
+    def reset(self):
+        """Reset all in-memory state — used when dashboard reset is triggered."""
+        self.available_capital = self.total_capital
+        self.daily_pnl = 0.0
+        self.total_pnl = 0.0
+        self.trades_today = 0
+        self.daily_date = date.today()
+        logger.info("[RiskManager] State reset to zero.")
 
     def _reset_daily_if_needed(self):
         """Reset daily stats at midnight."""

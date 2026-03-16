@@ -17,12 +17,40 @@ import asyncio
 import json
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
 from aiohttp import web
 
 logger = logging.getLogger(__name__)
+
+# Keywords that are worth showing in the feed
+_FEED_KEYWORDS = re.compile(
+    r"bought|sold|buy signal|stop loss|tp1|tp2|tp3|stall|avg down|"
+    r"pyramid|moon bag|security|honeypot|blocked|rug|error|warning|"
+    r"market restricted|market conditions|kill switch|manual sell",
+    re.IGNORECASE
+)
+
+
+class DashboardLogHandler(logging.Handler):
+    """Captures matching log lines and pushes them to the dashboard feed."""
+
+    def __init__(self, dashboard):
+        super().__init__()
+        self._dashboard = dashboard
+
+    def emit(self, record: logging.LogRecord):
+        try:
+            msg = record.getMessage()
+            if _FEED_KEYWORDS.search(msg):
+                # Strip PAPER/TELEGRAM DISABLED noise, keep it short
+                clean = re.sub(r"\[TELEGRAM DISABLED\]\s*", "", msg)
+                clean = re.sub(r"\[PAPER\]\s*", "", clean)
+                self._dashboard.add_alert(clean.strip())
+        except Exception:
+            pass
 
 # ── HTML ─────────────────────────────────────────────────────────────────────
 
@@ -244,6 +272,16 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   .progress-fill.tp1 { background: var(--yellow); }
   .progress-fill.tp2 { background: #f0883e; }
   .progress-fill.tp3 { background: var(--green); }
+
+  /* Manual sell button */
+  .sell-btn {
+    background: #f8514915; border: 1px solid #f8514940;
+    color: var(--red); border-radius: 5px; padding: 3px 10px;
+    font-size: 11px; font-family: inherit; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .sell-btn:hover { background: #f8514930; }
+  .sell-btn:disabled { opacity: 0.4; cursor: default; }
 </style>
 </head>
 <body>
@@ -313,11 +351,11 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           <thead>
             <tr>
               <th>Token</th><th>Chain</th><th>Strategy</th>
-              <th>Entry</th><th>Unrealized</th><th>Hold</th><th>TP</th>
+              <th>Entry</th><th>Unrealized</th><th>Hold</th><th>TP</th><th></th>
             </tr>
           </thead>
           <tbody id="positions-body">
-            <tr><td colspan="7" class="empty">No open positions</td></tr>
+            <tr><td colspan="8" class="empty">No open positions</td></tr>
           </tbody>
         </table>
       </div>
@@ -662,7 +700,7 @@ function updatePnlChart(series) {
 function updatePositions(positions) {
   const tbody = document.getElementById('positions-body');
   if (!positions.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">No open positions</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">No open positions</td></tr>';
     return;
   }
   tbody.innerHTML = positions.map(p => {
@@ -670,21 +708,55 @@ function updatePositions(positions) {
     const mult = p.multiplier || 1;
     // Progress toward TP levels: 1.5x=TP1, 2x=TP2, 2.5x=TP3
     const pct = Math.min(((mult - 1) / 1.5) * 100, 100);
-    const tpCls = mult >= 2.5 ? 'tp3' : mult >= 2 ? 'tp2' : 'tp1';
+    const tpCls = mult >= 2.5 ? 'tp3' : mult >= 2 ? 'tp2' : mult >= 1.5 ? 'tp1' : '';
+    // Label: show next TP target or moon bag if past TP3
+    const tpLabel = mult >= 2.5 ? '🌙' : mult >= 2.0 ? '→TP3' : mult >= 1.5 ? '→TP2' : mult >= 1.0 ? '→TP1' : 'SL';
+    const addr = escHtml(p.token_address || '');
+    const sym  = escHtml(p.symbol || '?');
+    const chain = escHtml(p.chain || '');
     return `<tr>
-      <td style="font-weight:600">$${p.symbol||'?'}</td>
+      <td style="font-weight:600">$${sym}</td>
       <td>${chainBadge(p.chain)}</td>
       <td>${stratBadge(p.strategy)}</td>
       <td class="muted">$${(p.entry_price||0).toFixed(6)}</td>
       <td class="${pnlCls}">${fmtUsd(p.pnl_usd)}</td>
       <td class="muted">${fmtHold(p.hold_secs)}</td>
-      <td>
-        <div class="progress-wrap" title="${mult.toFixed(2)}x">
+      <td style="white-space:nowrap">
+        <div class="progress-wrap" style="vertical-align:middle">
           <div class="progress-fill ${tpCls}" style="width:${pct.toFixed(0)}%"></div>
         </div>
+        <span style="font-size:11px;margin-left:4px;color:var(--muted)">${mult.toFixed(2)}× ${tpLabel}</span>
       </td>
+      <td>${addr ? `<button class="sell-btn" onclick="sellPosition('${addr}','${chain}','${sym}',this)">SELL</button>` : ''}</td>
     </tr>`;
   }).join('');
+}
+
+async function sellPosition(tokenAddress, chain, symbol, btn) {
+  if (!confirm(`Sell ALL $${symbol} on ${chain}?`)) return;
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const resp = await fetch('/api/sell', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({token_address: tokenAddress, chain, symbol})
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      btn.textContent = '✓';
+      btn.style.color = 'var(--green-lt)';
+    } else {
+      btn.textContent = 'ERR';
+      btn.style.color = 'var(--red)';
+      btn.disabled = false;
+      alert('Sell failed: ' + (data.error || 'unknown error'));
+    }
+  } catch(e) {
+    btn.textContent = 'ERR';
+    btn.disabled = false;
+    alert('Sell request failed: ' + e.message);
+  }
 }
 
 // ── Event Feed ─────────────────────────────────────────────────────────────
@@ -843,10 +915,15 @@ class WebDashboard:
         self._alert_buffer: list = []
         self._start_time = datetime.now(timezone.utc)
 
-        self.app.router.add_get("/",          self._handle_index)
-        self.app.router.add_get("/api/stats", self._handle_stats)
-        self.app.router.add_get("/api/trades", self._handle_trades)
-        self.app.router.add_get("/events",    self._handle_sse)
+        self._sell_traders: dict = {}   # chain_name.lower() → trader instance
+
+        self.app.router.add_get("/",                  self._handle_index)
+        self.app.router.add_get("/api/stats",         self._handle_stats)
+        self.app.router.add_get("/api/trades",        self._handle_trades)
+        self.app.router.add_get("/api/score-stats",   self._handle_score_stats)
+        self.app.router.add_get("/events",            self._handle_sse)
+        self.app.router.add_post("/api/reset",        self._handle_reset)
+        self.app.router.add_post("/api/sell",         self._handle_sell)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -857,6 +934,10 @@ class WebDashboard:
         if self._tracker is None and hasattr(provider, "get_all_trades"):
             self._tracker = provider
 
+    def register_sell_trader(self, chain_name: str, trader):
+        """Register a trader so the dashboard can trigger manual sells."""
+        self._sell_traders[chain_name.lower()] = trader
+
     def add_alert(self, message: str):
         """Buffer a live alert for the event feed."""
         self._alert_buffer.append(message)
@@ -865,6 +946,9 @@ class WebDashboard:
 
     async def run(self):
         """Start the aiohttp server."""
+        # Attach log handler so bot activity flows to the event feed automatically
+        logging.getLogger().addHandler(DashboardLogHandler(self))
+
         runner = web.AppRunner(self.app)
         await runner.setup()
         site = web.TCPSite(runner, "0.0.0.0", self.port)
@@ -883,6 +967,96 @@ class WebDashboard:
             content_type="application/json",
             headers={"Access-Control-Allow-Origin": "*"}
         )
+
+    async def _handle_reset(self, request):
+        """Clear all trade history and reset stats to zero."""
+        if self._tracker is not None:
+            try:
+                self._tracker.trades.clear()
+                import sqlite3, os
+                db = os.path.join(os.environ.get("DATA_DIR", "."), "trades.db")
+                with sqlite3.connect(db) as conn:
+                    conn.execute("DELETE FROM trades")
+                    conn.commit()
+            except Exception as e:
+                logger.warning(f"[Dashboard] Reset error: {e}")
+
+        # Reset all registered traders' risk managers so in-memory PnL/capital
+        # is zeroed out — otherwise daily_pnl bleeds through after a DB reset.
+        for trader in self._sell_traders.values():
+            try:
+                trader.risk_manager.reset()
+            except Exception as e:
+                logger.warning(f"[Dashboard] Risk manager reset error: {e}")
+
+        self._alert_buffer.clear()
+        self._start_time = datetime.now(timezone.utc)
+        logger.info("[Dashboard] Stats reset via /api/reset")
+        return web.Response(
+            text=json.dumps({"ok": True}),
+            content_type="application/json",
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+
+    async def _handle_sell(self, request):
+        """Manually sell all of a position by token_address and chain."""
+        try:
+            body = await request.json()
+            token_address = body.get("token_address", "").strip()
+            chain = body.get("chain", "").strip().lower()
+            symbol = body.get("symbol", "?").strip()
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json",
+                headers={"Access-Control-Allow-Origin": "*"}
+            )
+
+        # Normalize chain key
+        if chain in ("solana", "sol"):
+            chain = "solana"
+        elif chain == "base":
+            chain = "base"
+        elif chain in ("bsc", "bnb", "bnb chain"):
+            chain = "bnb chain"
+
+        trader = self._sell_traders.get(chain)
+        if trader is None:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": f"No trader for chain: {chain}"}),
+                status=404, content_type="application/json",
+                headers={"Access-Control-Allow-Origin": "*"}
+            )
+
+        try:
+            await trader.sell(token_address, symbol, reason="Manual sell via dashboard", pct=1.0)
+            logger.info(f"[Dashboard] Manual sell: {symbol} ({token_address}) on {chain}")
+            return web.Response(
+                text=json.dumps({"ok": True}),
+                content_type="application/json",
+                headers={"Access-Control-Allow-Origin": "*"}
+            )
+        except Exception as e:
+            logger.error(f"[Dashboard] Manual sell error: {e}")
+            return web.Response(
+                text=json.dumps({"ok": False, "error": str(e)}),
+                status=500, content_type="application/json",
+                headers={"Access-Control-Allow-Origin": "*"}
+            )
+
+    async def _handle_score_stats(self, request):
+        """Return win/loss/pnl broken down by score bucket."""
+        if self._tracker is None:
+            return web.Response(text=json.dumps([]), content_type="application/json",
+                                headers={"Access-Control-Allow-Origin": "*"})
+        buckets = [(0,49),(50,59),(60,69),(70,79),(80,89),(90,100)]
+        result = []
+        for lo, hi in buckets:
+            s = self._tracker.get_stats_by_score_range(lo, hi)
+            s["range"] = f"{lo}–{hi}"
+            result.append(s)
+        return web.Response(text=json.dumps(result), content_type="application/json",
+                            headers={"Access-Control-Allow-Origin": "*"})
 
     async def _handle_trades(self, request):
         trades = []
