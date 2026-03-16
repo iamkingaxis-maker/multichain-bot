@@ -89,6 +89,9 @@ class PositionState:
     pyramid_signal_score: int = 0
     hh_hl_confirmed: bool = False
 
+    # Moon bag trailing stop
+    moonbag_trailing_active: bool = False
+
     # Current state
     current_price: float = 0.0
     current_volume_usd: float = 0.0
@@ -301,30 +304,6 @@ class MarketConditionMonitor:
         return signal_score >= self.get_current_threshold(signal_score)
 
 
-    async def _execute_pyramid(self, token_address: str,
-                               state, pnl_pct: float):
-        """Add 30% of original position after TP1 on 90+ score signals."""
-        try:
-            add_usd = state.position_size_usd * 0.30
-            logger.info(
-                f"[PositionManager/{self.chain_name}] PYRAMID: "
-                f"{state.token_symbol} +{pnl_pct:.1f}% "
-                f"score {state.pyramid_signal_score} adding ${add_usd:.0f}"
-            )
-            await self.trader.buy(
-                token_address=token_address,
-                token_symbol=f"{state.token_symbol}[PYRAMID]",
-                reason=f"Pyramid TP1 score {state.pyramid_signal_score} HH+HL"
-            )
-            state.pyramided = True
-            await self.telegram.send(
-                f"PYRAMID [{self.chain_name}] "
-                f"${state.token_symbol} +{pnl_pct:.1f}% "
-                f"score {state.pyramid_signal_score} +${add_usd:.0f}"
-            )
-        except Exception as e:
-            logger.error(f"[PositionManager] Pyramid error: {e}")
-
     def get_stats(self) -> dict:
         return {
             "btc_24h_change": round(self.btc_change_24h, 2),
@@ -371,7 +350,10 @@ class PositionManager:
                  # Average down
                  avg_down_max_loss_pct: float = 15.0,
                  avg_down_min_volume_pct: float = 0.50,
-                 avg_down_size_pct: float = 0.50):
+                 avg_down_size_pct: float = 0.50,
+
+                 # Moon bag trailing stop
+                 moonbag_trailing_stop_pct: float = 25.0):
 
         self.chain_name = chain_name
         self.chain_id = chain_id
@@ -403,6 +385,9 @@ class PositionManager:
         self.avg_down_min_volume = avg_down_min_volume_pct
         self.avg_down_size = avg_down_size_pct
 
+        # Moon bag trailing stop
+        self.moonbag_trailing_stop_pct = moonbag_trailing_stop_pct
+
         self._states: Dict[str, PositionState] = {}
         self._last_volume_check: Dict[str, datetime] = {}
 
@@ -429,7 +414,7 @@ class PositionManager:
                 await self._management_cycle()
             except Exception as e:
                 logger.error(f"[PositionManager/{self.chain_name}] Error: {e}")
-            await asyncio.sleep(30)
+            await asyncio.sleep(5)
 
     async def _management_cycle(self):
         """One full management cycle across all open positions."""
@@ -496,12 +481,32 @@ class PositionManager:
                     volume_m5 = volume_data.get("m5", 0) or 0
 
                     if price > 0:
+                        # Sanity check: cap upward price jumps to 20x per cycle.
+                        # Pump.fun→Raydium graduation can create a new pool with a
+                        # wildly different price ratio that DexScreener briefly shows
+                        # as "highest liquidity", causing phantom TP fires.
+                        # Downward moves are unrestricted (rug pulls are real losses).
+                        prev = state.current_price or state.entry_price
+                        if prev > 0 and price / prev > 20:
+                            logger.warning(
+                                f"[PositionManager/{self.chain_name}] "
+                                f"⚠️ Price spike rejected for {state.token_symbol}: "
+                                f"{prev:.8f} → {price:.8f} "
+                                f"({price/prev:.0f}x jump — likely pool migration artifact)"
+                            )
+                            return
+
                         state.current_price = price
                         state.current_volume_usd = volume_h1
                         state.current_h1_volume = volume_h1
                         state.current_m5_volume = volume_m5
                         if price > state.peak_price:
                             state.peak_price = price
+
+                        # Write back to position object so dashboard shows live P&L
+                        pos = self.open_positions_ref.get(token_address)
+                        if pos:
+                            pos.current_price_usd = price
 
                         # Set entry volume baseline on first update (h1 snapshot)
                         if state.entry_volume_usd == 0 and volume_h1 > 0:
@@ -556,9 +561,10 @@ class PositionManager:
         # ── TAKE PROFIT TIERS ────────────────────────────────────────────
         if pnl_pct >= self.tp3_pct and not state.tp3_hit:
             state.tp3_hit = True
+            state.moonbag_trailing_active = True
             logger.info(
                 f"[PositionManager/{self.chain_name}] 🎯 TP3: "
-                f"{state.token_symbol} +{pnl_pct:.1f}%"
+                f"{state.token_symbol} +{pnl_pct:.1f}% — moon bag trailing stop armed"
             )
             await self._execute_sell(
                 token_address, state,
@@ -567,6 +573,21 @@ class PositionManager:
             )
             self.tp3_hits += 1
             return
+
+        # ── MOON BAG TRAILING STOP ────────────────────────────────────────
+        if state.moonbag_trailing_active and state.peak_price > 0:
+            trail_floor = state.peak_price * (1 - self.moonbag_trailing_stop_pct / 100)
+            if state.current_price <= trail_floor:
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] 🌙 MOON BAG TRAIL: "
+                    f"{state.token_symbol} dropped {self.moonbag_trailing_stop_pct:.0f}% "
+                    f"from peak ${state.peak_price:.6f} → ${state.current_price:.6f}"
+                )
+                await self._execute_sell(
+                    token_address, state, pct=1.0,
+                    reason=f"Moon bag trail -{self.moonbag_trailing_stop_pct:.0f}% from peak"
+                )
+                return
 
         if pnl_pct >= self.tp2_pct and not state.tp2_hit:
             state.tp2_hit = True
@@ -631,6 +652,7 @@ class PositionManager:
                 )
             )
             state.stall_exit_done = True
+            state.moonbag_trailing_active = True
             self.stall_exits += 1
             await self.telegram.send(
                 f"😴 *Stall Exit* [{self.chain_name}]\n\n"
@@ -646,7 +668,9 @@ class PositionManager:
             return
 
         # ── AVERAGE DOWN ─────────────────────────────────────────────────
+        minutes_open = (datetime.now(timezone.utc) - state.entry_time).total_seconds() / 60
         if (not state.averaged_down and
+                minutes_open >= 30 and  # must be open at least 30 min before avg-down
                 -self.avg_down_max_loss <= pnl_pct < 0):
             # Check volume is still healthy
             vol_ratio = (
@@ -667,7 +691,8 @@ class PositionManager:
                     reason=(
                         f"Avg down at {pnl_pct:.1f}% — "
                         f"volume still {vol_ratio:.1f}x entry"
-                    )
+                    ),
+                    price_hint=state.current_price
                 )
                 state.averaged_down = True
                 state.avg_down_price = state.current_price
@@ -680,6 +705,31 @@ class PositionManager:
                     f"💰 Added: ${add_usd:.0f} (50% of original)\n"
                     f"⚠️ One time only — no second avg down"
                 )
+
+    async def _execute_pyramid(self, token_address: str,
+                               state: PositionState, pnl_pct: float):
+        """Add to a winning position after TP1 fires on a 90+ scored signal."""
+        try:
+            add_usd = state.original_size_usd * 0.30
+            logger.info(
+                f"[PositionManager/{self.chain_name}] PYRAMID: "
+                f"{state.token_symbol} +{pnl_pct:.1f}% "
+                f"score {state.pyramid_signal_score} adding ${add_usd:.0f}"
+            )
+            await self.trader.buy(
+                token_address=token_address,
+                token_symbol=f"{state.token_symbol}[PYRAMID]",
+                reason=f"Pyramid TP1 score {state.pyramid_signal_score} HH+HL",
+                price_hint=state.current_price
+            )
+            state.pyramided = True
+            await self.telegram.send(
+                f"PYRAMID [{self.chain_name}] "
+                f"${state.token_symbol} +{pnl_pct:.1f}% "
+                f"score {state.pyramid_signal_score} +${add_usd:.0f}"
+            )
+        except Exception as e:
+            logger.error(f"[PositionManager/{self.chain_name}] Pyramid error: {e}")
 
     async def _execute_sell(self, token_address: str,
                              state: PositionState,
