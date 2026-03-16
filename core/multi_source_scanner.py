@@ -772,6 +772,23 @@ class MultiSourceScanner:
         txns_h1 = dex_pair.get("txns", {}).get("h1", {})
         buys_h1 = txns_h1.get("buys", 0)
         sells_h1 = txns_h1.get("sells", 0)
+
+        # ── Rug prevention: hard filters before scoring ───────────────────
+        # 1. Require pair to be at least 10 minutes old.
+        #    Instant rugs dump within the first few minutes of listing.
+        pair_created_ms = dex_pair.get("pairCreatedAt", 0) or 0
+        if pair_created_ms > 0:
+            import time as _time
+            pair_age_minutes = (_time.time() - pair_created_ms / 1000) / 60
+            if pair_age_minutes < 10:
+                return None
+
+        # 2. Require at least 10 sell transactions in h1.
+        #    Coordinated pump-and-dump setups have hundreds of buys but
+        #    almost zero sells — everyone holds until the dev dumps.
+        #    Legitimate organic volume has both sides of the book.
+        if buys_h1 > 0 and sells_h1 < 10:
+            return None
         price_usd = float(dex_pair.get("priceUsd", 0) or 0)
         info = dex_pair.get("info", {})
         has_social = bool(info.get("socials") or info.get("websites"))
@@ -797,13 +814,17 @@ class MultiSourceScanner:
             birdeye_score, holder_count, holder_growth_pct, smart_money_buying = \
                 self._score_birdeye(birdeye_data)
 
-        # Combined score — always apply weighted formula.
-        # When Birdeye data is absent (token not on Birdeye trending), birdeye_score=0.
-        # This naturally penalises single-source tokens: DEX:70/BE:0 → combined=42.
-        # Previously "else: combined = dex_score" let DEX:70/BE:0 → combined=70,
-        # bypassing the threshold and buying high-rug-risk tokens.
-        combined = int(dex_score * 0.6 + birdeye_score * 0.4)
-        confirmed_by_both = dex_score >= 55 and birdeye_score >= 55
+        # Combined score — weighted average when Birdeye data is present,
+        # raw DEX score when Birdeye has no data for this token.
+        # NOTE: ~99% of early pump.fun tokens are absent from Birdeye trending,
+        # so forcing the weighted formula would block nearly all trades.
+        # Rug prevention is handled by the security gate instead.
+        if birdeye_data:
+            combined = int(dex_score * 0.6 + birdeye_score * 0.4)
+            confirmed_by_both = dex_score >= 55 and birdeye_score >= 55
+        else:
+            combined = dex_score
+            confirmed_by_both = False
 
         return TokenSignal(
             token_address=token_address,
