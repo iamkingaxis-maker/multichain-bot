@@ -80,6 +80,12 @@ class Config:
     telegram_chat_id: str = ""
     dashboard_port: int = 8080
 
+    # ── Telegram Channel Monitor ──────────────────────────────
+    telegram_api_id: int = 0
+    telegram_api_hash: str = ""
+    telegram_session: str = ""
+    telegram_monitor_channels: List[str] = field(default_factory=list)
+
     # ── Chains ───────────────────────────────────────────────
     enable_solana: bool = True
     enable_base: bool = True
@@ -320,6 +326,16 @@ def _apply_env_overrides(config: Config):
     # Dashboard port (Railway assigns this automatically)
     if os.environ.get("PORT"):
         config.dashboard_port = env_int("PORT", config.dashboard_port)
+
+    # Telegram channel monitor credentials
+    if os.environ.get("TELEGRAM_API_ID"):
+        config.telegram_api_id = env_int("TELEGRAM_API_ID")
+    if os.environ.get("TELEGRAM_API_HASH"):
+        config.telegram_api_hash = env("TELEGRAM_API_HASH")
+    if os.environ.get("TELEGRAM_SESSION"):
+        config.telegram_session = env("TELEGRAM_SESSION")
+    if os.environ.get("TELEGRAM_MONITOR_CHANNELS"):
+        config.telegram_monitor_channels = env_list("TELEGRAM_MONITOR_CHANNELS")
 
 
 def _validate(config: "Config"):

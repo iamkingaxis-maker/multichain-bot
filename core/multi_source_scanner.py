@@ -2879,6 +2879,55 @@ class MultiSourceScanner:
                 logger.error(f"[{self.chain.name}] Watchlist poller error: {e}")
             await asyncio.sleep(60)
 
+    async def inject_token_from_address(self, address: str, source: str = "telegram"):
+        """
+        Inject a token address directly into the evaluation pipeline.
+        Called by the Telegram channel monitor when a contract address is spotted
+        in an alpha/caller channel. Fetches DexScreener data and runs through
+        the full pipeline: score → Birdeye enrichment → security → dip check → buy.
+        """
+        chain_id = self.chain.chain_id
+        try:
+            url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url, timeout=aiohttp.ClientTimeout(total=8)
+                ) as resp:
+                    if resp.status != 200:
+                        return
+                    data = await resp.json()
+
+            pairs = data.get("pairs") or []
+            # Filter to this chain, pick the most liquid pair
+            chain_pairs = [
+                p for p in pairs
+                if p.get("chainId", "").lower() == chain_id
+            ]
+            if not chain_pairs:
+                logger.debug(
+                    f"[{self.chain.name}] TG inject: {address[:8]}… "
+                    f"not found on {chain_id} (from @{source})"
+                )
+                return
+
+            pair = max(chain_pairs, key=lambda p: p.get("liquidity", {}).get("usd", 0))
+            signal = self._build_signal(pair, self._birdeye_cache)
+            if signal is None:
+                return
+
+            logger.info(
+                f"[{self.chain.name}] 📡 TG signal [@{source}]: "
+                f"{signal.token_symbol} score={signal.combined_score} "
+                f"mcap=${signal.mcap:,.0f}"
+            )
+            await self._evaluate_signal(signal)
+
+        except Exception as e:
+            logger.debug(
+                f"[{self.chain.name}] inject_token_from_address error "
+                f"{address[:8]}: {e}"
+            )
+
     def get_stats(self) -> dict:
         return {
             "chain": self.chain.name,

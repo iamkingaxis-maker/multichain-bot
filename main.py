@@ -48,6 +48,7 @@ from chains.evm_copy_trader import EVMCopyTrader
 from security.honeypot import SecurityChecker
 from security.tax_detector import TaxDetector
 from feeds.price_feed import PriceFeed
+from feeds.telegram_monitor import TelegramChannelMonitor
 from analytics.wallet_scorer import WalletScorer
 from analytics.kelly_sizer import KellySizer
 from analytics.adaptive_threshold import AdaptiveThresholdManager
@@ -158,6 +159,7 @@ async def main():
     dashboard.register_provider(security)
     tasks = []
     chain_summaries = []
+    sol_scanner = base_scanner = bnb_scanner = None
 
     # Normalize capital splits to only active chains
     active_chains = (
@@ -491,6 +493,23 @@ async def main():
     if not tasks:
         logger.error("No chains enabled in config.json")
         return
+
+    # ── Telegram Alpha Channel Monitor ──────────────────────────────────
+    tg_monitor = TelegramChannelMonitor(
+        api_id=config.telegram_api_id,
+        api_hash=config.telegram_api_hash,
+        session_string=config.telegram_session,
+        channels=config.telegram_monitor_channels,
+        sol_scanner=sol_scanner  if config.enable_solana else None,
+        base_scanner=base_scanner if config.enable_base   else None,
+        bnb_scanner=bnb_scanner  if config.enable_bnb    else None,
+    )
+    if config.telegram_session and config.telegram_monitor_channels:
+        tasks.append(tg_monitor.run())
+        logger.info(
+            f"[TelegramMonitor] Enabled — "
+            f"{len(config.telegram_monitor_channels)} channels"
+        )
 
     # ── Cloudflare Bypass — disabled: Railway IPs are blocked at IP level by Cloudflare
     # io.dexscreener.com returns "Attention Required!" for datacenter IPs regardless of
