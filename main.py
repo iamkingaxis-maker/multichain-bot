@@ -40,7 +40,7 @@ from core.risk_manager import RiskManager
 from core.trader import Trader
 from core.copy_trader import CopyTrader
 from core.scalper import PositionScalper
-from core.multi_source_scanner import MultiSourceScanner
+from core.multi_source_scanner import MultiSourceScanner, PumpFunMonitor
 from core.position_manager import PositionManager, MarketConditionMonitor
 from chains.chain_config import BASE, BNB, SOLANA
 from chains.evm_trader import EVMTrader
@@ -93,7 +93,8 @@ async def main():
     )
     sentiment = SentimentAnalyzer(
         min_sentiment_score=config.min_sentiment_score,
-        require_twitter=config.require_twitter
+        require_twitter=config.require_twitter,
+        lunarcrush_api_key=config.lunarcrush_api_key
     )
     adaptive_threshold = AdaptiveThresholdManager(
         baseline_threshold=config.min_combined_score,
@@ -154,12 +155,23 @@ async def main():
         adaptive_threshold.register_chain(chain_id)
 
     dashboard.register_provider(tracker)
+    dashboard.register_provider(security)
     tasks = []
     chain_summaries = []
 
+    # Normalize capital splits to only active chains
+    active_chains = (
+        (["solana"] if config.enable_solana else []) +
+        (["base"]   if config.enable_base   else []) +
+        (["bnb"]    if config.enable_bnb    else [])
+    )
+    raw = {k: config.capital_split.get(k, 0) for k in active_chains}
+    total_raw = sum(raw.values()) or 1.0
+    norm_split = {k: v / total_raw for k, v in raw.items()}
+
     # ── SOLANA ──────────────────────────────────────────────────────────
     if config.enable_solana:
-        split = config.capital_split.get("solana", 0.50)
+        split = norm_split.get("solana", 1.0)
         sol_cap = config.total_capital * split
 
         sol_risk = RiskManager(sol_cap, config.max_position_pct,
@@ -167,8 +179,15 @@ async def main():
         dashboard.register_provider(sol_risk)
         SOLANA.rpc_url = config.solana_rpc_url
         sol_trader = Trader(config.solana_private_key, config.solana_rpc_url,
-                            tracker, telegram, sol_risk)
+                            tracker, telegram, sol_risk,
+                            tp1=config.take_profit_1_pct / 100 + 1,
+                            tp2=config.take_profit_2_pct / 100 + 1,
+                            tp3=config.take_profit_3_pct / 100 + 1,
+                            stop_loss=config.stop_loss_pct / 100)
         kill_switch.register_trader(sol_trader)
+        tracker.register_trader(sol_trader)
+        dashboard.register_sell_trader("solana", sol_trader)
+        sol_trader.restore_positions()
 
         for w in config.solana_copy_wallets:
             wallet_scorer.register_wallet(w, "solana")
@@ -178,10 +197,24 @@ async def main():
             security_checker=security, telegram=telegram,
             birdeye_api_key=config.birdeye_api_key,
             min_mcap=config.min_mcap, max_mcap=config.max_mcap,
+            min_liquidity_usd=config.min_liquidity_usd,
+            min_volume_h1_usd=config.min_volume_h1_usd,
             min_combined_score=adaptive_threshold.get_threshold("solana"),
+            max_combined_score=config.max_combined_score,
             require_both_sources=config.require_both_sources,
+            min_holder_count=config.min_holder_count,
+            single_source_min_score=config.single_source_min_score,
+            max_dev_wallet_pct=config.max_dev_wallet_pct,
+            pyramid_score_threshold=config.pyramid_score_threshold,
+            preferred_age_min_hours=config.preferred_age_min_hours,
+            preferred_age_max_hours=config.preferred_age_max_hours,
+            hard_skip_age_hours=config.hard_skip_age_hours,
+            rug_classifier=rug_classifier,
+            tracker=tracker,
             startup_delay=0
         )
+        if config.solanatracker_api_key:
+            sol_scanner.set_solanatracker_key(config.solanatracker_api_key)
         sol_copy = CopyTrader(
             wallets=config.solana_copy_wallets,
             trader=sol_trader, telegram=telegram, tracker=tracker,
@@ -225,7 +258,8 @@ async def main():
             stall_sell_pct=config.stall_sell_pct,
             avg_down_max_loss_pct=config.avg_down_max_loss_pct,
             avg_down_min_volume_pct=config.avg_down_min_volume_pct,
-            avg_down_size_pct=config.avg_down_size_pct
+            avg_down_size_pct=config.avg_down_size_pct,
+            max_hold_hours=config.max_hold_hours
         )
         kill_switch.register_scalper(sol_scalper)
         tracker.register_scalper(sol_scalper)
@@ -237,11 +271,15 @@ async def main():
             large_buy_threshold_sol=config.large_buy_threshold_sol
         ) if helius_key else None
 
+        pump_monitor = PumpFunMonitor(scanner=sol_scanner, price_feed=price_feed)
+
         tasks += [
             sol_scanner.run(),
             sol_copy.run(),
             sol_scalper.run(),
-            sol_position_mgr.run()
+            sol_position_mgr.run(),
+            pump_monitor.run(),
+            sol_trader.run_wallet_sync()
         ]
         if sol_monitor:
             tasks.append(sol_monitor.run())
@@ -250,7 +288,7 @@ async def main():
 
     # ── BASE ────────────────────────────────────────────────────────────
     if config.enable_base:
-        split = config.capital_split.get("base", 0.30)
+        split = norm_split.get("base", 0.30)
         base_cap = config.total_capital * split
 
         base_risk = RiskManager(base_cap, config.max_position_pct,
@@ -264,6 +302,8 @@ async def main():
                                 config.take_profit_3_pct / 100 + 1,
                                 config.stop_loss_pct / 100)
         kill_switch.register_trader(base_trader)
+        tracker.register_trader(base_trader)
+        dashboard.register_sell_trader("base", base_trader)
 
         for w in config.base_copy_wallets:
             wallet_scorer.register_wallet(w, "base")
@@ -286,8 +326,19 @@ async def main():
             security_checker=security, telegram=telegram,
             birdeye_api_key=config.birdeye_api_key,
             min_mcap=config.min_mcap, max_mcap=config.max_mcap,
+            min_liquidity_usd=config.min_liquidity_usd,
+            min_volume_h1_usd=config.min_volume_h1_usd,
             min_combined_score=adaptive_threshold.get_threshold("base"),
+            max_combined_score=config.max_combined_score,
             require_both_sources=config.require_both_sources,
+            single_source_min_score=config.single_source_min_score,
+            max_dev_wallet_pct=config.max_dev_wallet_pct,
+            pyramid_score_threshold=config.pyramid_score_threshold,
+            preferred_age_min_hours=config.preferred_age_min_hours,
+            preferred_age_max_hours=config.preferred_age_max_hours,
+            hard_skip_age_hours=config.hard_skip_age_hours,
+            rug_classifier=rug_classifier,
+            tracker=tracker,
             startup_delay=20
         )
         base_scalper = PositionScalper(
@@ -322,7 +373,8 @@ async def main():
             stall_sell_pct=config.stall_sell_pct,
             avg_down_max_loss_pct=config.avg_down_max_loss_pct,
             avg_down_min_volume_pct=config.avg_down_min_volume_pct,
-            avg_down_size_pct=config.avg_down_size_pct
+            avg_down_size_pct=config.avg_down_size_pct,
+            max_hold_hours=config.max_hold_hours
         )
         kill_switch.register_scalper(base_scalper)
         tracker.register_scalper(base_scalper)
@@ -337,7 +389,7 @@ async def main():
 
     # ── BNB ─────────────────────────────────────────────────────────────
     if config.enable_bnb:
-        split = config.capital_split.get("bnb", 0.20)
+        split = norm_split.get("bnb", 0.20)
         bnb_cap = config.total_capital * split
 
         bnb_risk = RiskManager(bnb_cap, config.max_position_pct,
@@ -351,6 +403,8 @@ async def main():
                                config.take_profit_3_pct / 100 + 1,
                                config.stop_loss_pct / 100)
         kill_switch.register_trader(bnb_trader)
+        tracker.register_trader(bnb_trader)
+        dashboard.register_sell_trader("bnb chain", bnb_trader)
 
         for w in config.bnb_copy_wallets:
             wallet_scorer.register_wallet(w, "bnb")
@@ -373,8 +427,19 @@ async def main():
             security_checker=security, telegram=telegram,
             birdeye_api_key=config.birdeye_api_key,
             min_mcap=config.min_mcap, max_mcap=config.max_mcap,
+            min_liquidity_usd=config.min_liquidity_usd,
+            min_volume_h1_usd=config.min_volume_h1_usd,
             min_combined_score=adaptive_threshold.get_threshold("bsc"),
+            max_combined_score=config.max_combined_score,
             require_both_sources=config.require_both_sources,
+            single_source_min_score=config.single_source_min_score,
+            max_dev_wallet_pct=config.max_dev_wallet_pct,
+            pyramid_score_threshold=config.pyramid_score_threshold,
+            preferred_age_min_hours=config.preferred_age_min_hours,
+            preferred_age_max_hours=config.preferred_age_max_hours,
+            hard_skip_age_hours=config.hard_skip_age_hours,
+            rug_classifier=rug_classifier,
+            tracker=tracker,
             startup_delay=40
         )
         bnb_scalper = PositionScalper(
@@ -409,7 +474,8 @@ async def main():
             stall_sell_pct=config.stall_sell_pct,
             avg_down_max_loss_pct=config.avg_down_max_loss_pct,
             avg_down_min_volume_pct=config.avg_down_min_volume_pct,
-            avg_down_size_pct=config.avg_down_size_pct
+            avg_down_size_pct=config.avg_down_size_pct,
+            max_hold_hours=config.max_hold_hours
         )
         kill_switch.register_scalper(bnb_scalper)
         tracker.register_scalper(bnb_scalper)
@@ -425,6 +491,12 @@ async def main():
     if not tasks:
         logger.error("No chains enabled in config.json")
         return
+
+    # ── Cloudflare Bypass — disabled: Railway IPs are blocked at IP level by Cloudflare
+    # io.dexscreener.com returns "Attention Required!" for datacenter IPs regardless of
+    # browser fingerprinting. Playwright cannot solve an IP-level block.
+    # Keeping the code but skipping launch to avoid wasting a Chromium instance.
+    logger.info("CF bypass: skipped — io.dexscreener.com IP-blocks Railway datacenter addresses")
 
     tasks += [
         price_feed.run(),

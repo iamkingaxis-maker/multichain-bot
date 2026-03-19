@@ -72,6 +72,8 @@ class Config:
     basescan_api_key: str = ""
     bscscan_api_key: str = ""
     birdeye_api_key: str = ""
+    lunarcrush_api_key: str = ""
+    solanatracker_api_key: str = ""
 
     # ── Telegram ─────────────────────────────────────────────
     telegram_token: str = ""
@@ -85,7 +87,7 @@ class Config:
 
     # ── Capital ──────────────────────────────────────────────
     total_capital: float = 2000.0
-    max_position_pct: float = 0.08
+    max_position_pct: float = 0.25
     min_position_pct: float = 0.02
     daily_loss_limit: float = 200.0
     capital_split: Dict = field(default_factory=lambda: {
@@ -123,13 +125,17 @@ class Config:
     min_mcap: float = 200_000
     max_mcap: float = 1_000_000
     min_combined_score: int = 40
+    max_combined_score: int = 85
     require_both_sources: bool = False
+    min_holder_count: int = 100
     single_source_min_score: int = 40
     min_liquidity_usd: float = 50_000
+    min_volume_h1_usd: float = 5_000
     max_dev_wallet_pct: float = 5.0
     preferred_age_min_hours: float = 3.0
     preferred_age_max_hours: float = 12.0
     hard_skip_age_hours: float = 24.0
+    max_hold_hours: float = 24.0
     pyramid_score_threshold: int = 90
     volume_acceleration_candles: int = 3
 
@@ -221,6 +227,31 @@ def _apply_env_overrides(config: Config):
       BIRDEYE_API_KEY
       (and any others you want to override)
     """
+    # Paper mode — set PAPER_MODE=true to simulate all trades without using real keys
+    if os.environ.get("PAPER_MODE", "").lower() in ("1", "true", "yes"):
+        # Clear wallet keys — no real trades
+        config.solana_private_key = ""
+        config.evm_private_key = ""
+        config.scalper_solana_private_key = ""
+        config.scalper_evm_private_key = ""
+        # Reserve $10 for simulated gas (mirrors live 0.05 SOL gas reserve)
+        GAS_RESERVE_USD = 10.0
+        config.total_capital = max(0.0, config.total_capital - GAS_RESERVE_USD)
+        # Still load API keys and Telegram so scanning/alerts work in paper mode
+        if os.environ.get("BIRDEYE_API_KEY"):
+            config.birdeye_api_key = env("BIRDEYE_API_KEY")
+        if os.environ.get("LUNARCRUSH_API_KEY"):
+            config.lunarcrush_api_key = env("LUNARCRUSH_API_KEY")
+        if os.environ.get("SOLANATRACKER_API_KEY"):
+            config.solanatracker_api_key = env("SOLANATRACKER_API_KEY")
+        if os.environ.get("TELEGRAM_TOKEN"):
+            config.telegram_token = env("TELEGRAM_TOKEN")
+        if os.environ.get("TELEGRAM_CHAT_ID"):
+            config.telegram_chat_id = env("TELEGRAM_CHAT_ID")
+        if os.environ.get("SOLANA_RPC_URL"):
+            config.solana_rpc_url = env("SOLANA_RPC_URL")
+        return config
+
     # Wallet keys — most sensitive, always from env on Railway
     if os.environ.get("SOLANA_PRIVATE_KEY"):
         config.solana_private_key = env("SOLANA_PRIVATE_KEY")
@@ -246,6 +277,10 @@ def _apply_env_overrides(config: Config):
         config.bscscan_api_key = env("BSCSCAN_API_KEY")
     if os.environ.get("BIRDEYE_API_KEY"):
         config.birdeye_api_key = env("BIRDEYE_API_KEY")
+    if os.environ.get("LUNARCRUSH_API_KEY"):
+        config.lunarcrush_api_key = env("LUNARCRUSH_API_KEY")
+    if os.environ.get("SOLANATRACKER_API_KEY"):
+        config.solanatracker_api_key = env("SOLANATRACKER_API_KEY")
 
     # Telegram
     if os.environ.get("TELEGRAM_TOKEN"):
@@ -258,6 +293,8 @@ def _apply_env_overrides(config: Config):
         config.total_capital = env_float("TOTAL_CAPITAL", config.total_capital)
     if os.environ.get("DAILY_LOSS_LIMIT"):
         config.daily_loss_limit = env_float("DAILY_LOSS_LIMIT", config.daily_loss_limit)
+    if os.environ.get("STOP_LOSS_PCT"):
+        config.stop_loss_pct = env_float("STOP_LOSS_PCT", config.stop_loss_pct)
 
     # Scanner score threshold
     if os.environ.get("MIN_COMBINED_SCORE"):
