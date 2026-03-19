@@ -155,6 +155,11 @@ class MultiSourceScanner:
         # Format: addr_lower → expiry_monotonic_time
         self._sl_cooldown: Dict[str, float] = {}
 
+        # SOL macro cache: cache the SOL h1 price change for 5 minutes
+        # so we don't hit DexScreener on every single dip check.
+        self._sol_macro_ts: float = 0
+        self._sol_macro_ok: bool = True
+
     def set_solanatracker_key(self, api_key: str):
         """Set the SolanaTracker API key for enhanced pump.fun discovery."""
         self.solanatracker_api_key = api_key
@@ -2525,6 +2530,60 @@ class MultiSourceScanner:
 
         await self._fire_chart_buy(signal, sec_result.risk_level)
 
+    async def _sol_macro_ok_check(self) -> bool:
+        """
+        Returns True if SOL's h1 price change is better than -3%.
+        Result is cached for 5 minutes to avoid excessive API calls.
+        On any fetch error, returns True (don't block on uncertainty).
+        """
+        now = time.monotonic()
+        if now - self._sol_macro_ts < 300:  # 5-minute cache
+            return self._sol_macro_ok
+
+        try:
+            SOL_MINT = "So11111111111111111111111111111111111111112"
+            url = f"https://api.dexscreener.com/latest/dex/tokens/{SOL_MINT}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url, timeout=aiohttp.ClientTimeout(total=6)
+                ) as resp:
+                    if resp.status != 200:
+                        return True
+                    data = await resp.json()
+
+            pairs = data.get("pairs") or []
+            # Pick the most liquid SOL/USDC or SOL/USDT pair
+            sol_pairs = [
+                p for p in pairs
+                if p.get("chainId") == "solana"
+                and p.get("quoteToken", {}).get("symbol", "").upper()
+                in ("USDC", "USDT", "USD")
+            ]
+            if not sol_pairs:
+                return True
+
+            best = max(sol_pairs, key=lambda p: p.get("liquidity", {}).get("usd", 0))
+            h1_change = best.get("priceChange", {}).get("h1", 0) or 0
+
+            ok = h1_change > -3.0
+            self._sol_macro_ok = ok
+            self._sol_macro_ts = now
+
+            if not ok:
+                logger.info(
+                    f"[{self.chain.name}] SOL macro: h1={h1_change:+.1f}% — "
+                    f"market dumping, dip buys paused"
+                )
+            else:
+                logger.debug(
+                    f"[{self.chain.name}] SOL macro: h1={h1_change:+.1f}% — OK"
+                )
+            return ok
+
+        except Exception as e:
+            logger.debug(f"[{self.chain.name}] SOL macro check error: {e}")
+            return True  # fail open — don't block on uncertainty
+
     async def _chart_dip_check(self, signal: TokenSignal, risk_level: str = "UNKNOWN") -> bool:
         """
         Fetch 5m+1m candles and run all dip/recovery filters.
@@ -2534,6 +2593,17 @@ class MultiSourceScanner:
         """
         if not signal.token_address:
             return False
+
+        # ── SOL macro check (Solana only) ─────────────────────────────────────
+        # If SOL itself is down >3% in the last hour, the whole market is dumping.
+        # Any "recovery" on individual token charts is likely a dead cat bounce.
+        if self.chain.chain_id == "solana":
+            if not await self._sol_macro_ok_check():
+                logger.info(
+                    f"[{self.chain.name}] Macro blocked: {signal.token_symbol} "
+                    f"— SOL down >3% h1, skipping dip buys during market dump"
+                )
+                return False
 
         # Fetch 5-min and 1-min candles concurrently
         candles_5m, candles_1m = await asyncio.gather(
@@ -2736,10 +2806,10 @@ class MultiSourceScanner:
             f"{dip_pct:+.1f}% from peak | recovery {recovery_score}/6 [{rec_str}]"
         )
 
-        if recovery_score < 3:
+        if recovery_score < 4:
             logger.info(
                 f"[{self.chain.name}] Weak recovery: {signal.token_symbol} "
-                f"{recovery_score}/6 signals — need 3, watching"
+                f"{recovery_score}/6 signals — need 4, watching"
             )
             self._dip_watchlist[addr_lower] = {
                 "peak_price": peak,
