@@ -136,7 +136,7 @@ class Config:
     min_holder_count: int = 100
     single_source_min_score: int = 40
     min_liquidity_usd: float = 50_000
-    min_volume_h1_usd: float = 5_000
+    min_volume_h1_usd: float = 20_000
     max_dev_wallet_pct: float = 5.0
     preferred_age_min_hours: float = 3.0
     preferred_age_max_hours: float = 12.0

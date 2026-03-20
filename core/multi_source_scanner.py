@@ -2780,6 +2780,26 @@ class MultiSourceScanner:
             }
             return False
 
+        # bounce_volume: mandatory — last candle volume must exceed avg of prior 3.
+        # Real buyers stepping in = volume increases on the recovery candle.
+        # A bounce on declining volume is just absence of sellers, not real demand.
+        bounce_volume = False
+        if len(volumes) >= 4:
+            prior_vol_avg = sum(volumes[-4:-1]) / 3
+            bounce_volume = prior_vol_avg > 0 and volumes[-1] > prior_vol_avg
+        if not bounce_volume:
+            logger.info(
+                f"[{self.chain.name}] Bounce volume weak: {signal.token_symbol} "
+                f"recovery candle has no volume surge — waiting for real buyers"
+            )
+            self._dip_watchlist[addr_lower] = {
+                "peak_price": peak,
+                "added_at":   (watchlist_entry or {}).get("added_at", time.monotonic()),
+                "signal":     signal,
+                "risk_level": risk_level,
+            }
+            return False
+
         # rsi_reset: optional signal (counted in recovery score below)
         rsi_reset = rsi is not None and 30.0 <= rsi <= 60.0
 
@@ -2808,10 +2828,11 @@ class MultiSourceScanner:
             )
             momentum_1m = up_count >= 3
 
-        # Optional signals — need 3/6 on top of the 2 mandatory checks above
+        # Optional signals — 3 mandatory already passed, need 1 more from these
         recovery_signals = {
             "Last green":  last_green,
             "Bounce ≥2%":  bounce_confirmed,
+            "Bounce vol":  bounce_volume,
             "RSI reset":   rsi_reset,
             "Vol easing":  vol_easing,
             "Stabilizing": stabilizing,
@@ -2825,13 +2846,13 @@ class MultiSourceScanner:
 
         logger.info(
             f"[{self.chain.name}] 🎯 DIP CHECK: {signal.token_symbol} "
-            f"{dip_pct:+.1f}% from peak | recovery {recovery_score}/7 [{rec_str}]"
+            f"{dip_pct:+.1f}% from peak | recovery {recovery_score}/8 [{rec_str}]"
         )
 
         if recovery_score < 4:
             logger.info(
                 f"[{self.chain.name}] Weak recovery: {signal.token_symbol} "
-                f"{recovery_score}/7 signals — need 4, watching"
+                f"{recovery_score}/8 signals — need 4, watching"
             )
             self._dip_watchlist[addr_lower] = {
                 "peak_price": peak,
@@ -2843,7 +2864,7 @@ class MultiSourceScanner:
 
         logger.info(
             f"[{self.chain.name}] ✅ DIP ENTRY confirmed: {signal.token_symbol} "
-            f"{dip_pct:+.1f}% from peak, {recovery_score}/7 recovery"
+            f"{dip_pct:+.1f}% from peak, {recovery_score}/8 recovery"
         )
         self._dip_watchlist.pop(addr_lower, None)
         return True
