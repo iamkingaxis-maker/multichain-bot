@@ -3030,6 +3030,39 @@ class MultiSourceScanner:
                 f"{address[:8]}: {e}"
             )
 
+    def get_watchlist_recommendations(self) -> list:
+        """Return watchlist tokens with signals for the recommendations dashboard panel."""
+        now = time.monotonic()
+        result = []
+        for addr_lower, entry in self._dip_watchlist.items():
+            signal = entry.get("signal")
+            if not signal:
+                continue
+            peak = entry.get("peak_price", 0)
+            dip_pct = ((signal.price_usd - peak) / peak * 100) if peak > 0 else 0
+            age_min = int((now - entry["added_at"]) / 60)
+            result.append({
+                "token_address": signal.token_address,
+                "token_symbol":  signal.token_symbol,
+                "token_name":    signal.token_name,
+                "chain":         self.chain.name,
+                "chain_id":      self.chain.chain_id,
+                "mcap":          signal.mcap,
+                "volume_h1":     signal.volume_h1,
+                "score":         signal.combined_score,
+                "dex_score":     signal.dex_score,
+                "birdeye_score": signal.birdeye_score,
+                "price_usd":     signal.price_usd,
+                "price_change_h1": signal.price_change_h1,
+                "price_change_h6": signal.price_change_h6,
+                "dip_pct":       round(dip_pct, 1),
+                "dex_url":       signal.dex_url,
+                "risk_level":    entry.get("risk_level", "UNKNOWN"),
+                "watching_min":  age_min,
+            })
+        result.sort(key=lambda x: x["score"], reverse=True)
+        return result
+
     def get_stats(self) -> dict:
         return {
             "chain": self.chain.name,

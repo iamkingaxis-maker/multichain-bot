@@ -217,6 +217,7 @@ async def main():
         )
         if config.solanatracker_api_key:
             sol_scanner.set_solanatracker_key(config.solanatracker_api_key)
+        dashboard.register_scanner("solana", sol_scanner)
         sol_copy = CopyTrader(
             wallets=config.solana_copy_wallets,
             trader=sol_trader, telegram=telegram, tracker=tracker,
@@ -343,6 +344,7 @@ async def main():
             tracker=tracker,
             startup_delay=20
         )
+        dashboard.register_scanner("base", base_scanner)
         base_scalper = PositionScalper(
             chain_name="Base", chain_id="base",
             trader=base_trader,
@@ -444,6 +446,7 @@ async def main():
             tracker=tracker,
             startup_delay=40
         )
+        dashboard.register_scanner("bnb", bnb_scanner)
         bnb_scalper = PositionScalper(
             chain_name="BNB", chain_id="bsc",
             trader=bnb_trader,
