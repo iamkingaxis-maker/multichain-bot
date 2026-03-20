@@ -2706,7 +2706,7 @@ class MultiSourceScanner:
             return False
 
         dip_pct      = (current - peak) / peak * 100
-        in_dip_range = -45.0 <= dip_pct <= -12.0
+        in_dip_range = -45.0 <= dip_pct <= -20.0
 
         if not in_dip_range:
             self._dip_watchlist[addr_lower] = {
@@ -2717,7 +2717,7 @@ class MultiSourceScanner:
             }
             logger.info(
                 f"[{self.chain.name}] No dip yet: {signal.token_symbol} "
-                f"{dip_pct:+.1f}% from peak — watching (need -12% to -45%)"
+                f"{dip_pct:+.1f}% from peak — watching (need -20% to -45%)"
             )
             return False
 
@@ -2747,6 +2747,7 @@ class MultiSourceScanner:
             return False
 
         # ── Recovery signals ──────────────────────────────────────────────────
+        # last_green: mandatory — last 5m candle must be green
         last_green = len(closes) >= 2 and closes[-1] > closes[-2]
         if not last_green:
             logger.info(
@@ -2761,7 +2762,38 @@ class MultiSourceScanner:
             }
             return False
 
-        rsi_reset   = rsi is not None and 30.0 <= rsi <= 55.0
+        # bounce_confirmed: mandatory — current price must be ≥4% above candle low.
+        # One green tick is not enough; require a real bounce off the bottom.
+        candle_low   = min(lows)
+        bounce_pct   = (current - candle_low) / candle_low * 100 if candle_low > 0 else 0
+        bounce_confirmed = bounce_pct >= 4.0
+        if not bounce_confirmed:
+            logger.info(
+                f"[{self.chain.name}] Bounce too weak: {signal.token_symbol} "
+                f"only {bounce_pct:+.1f}% off candle low — need ≥4%, watching"
+            )
+            self._dip_watchlist[addr_lower] = {
+                "peak_price": peak,
+                "added_at":   (watchlist_entry or {}).get("added_at", time.monotonic()),
+                "signal":     signal,
+                "risk_level": risk_level,
+            }
+            return False
+
+        # rsi_reset: mandatory — RSI 30-55 confirms selling pressure is exhausted.
+        rsi_reset = rsi is not None and 30.0 <= rsi <= 55.0
+        if not rsi_reset:
+            logger.info(
+                f"[{self.chain.name}] RSI not reset: {signal.token_symbol} "
+                f"RSI={rsi_str} — need 30-55 to confirm exhaustion, watching"
+            )
+            self._dip_watchlist[addr_lower] = {
+                "peak_price": peak,
+                "added_at":   (watchlist_entry or {}).get("added_at", time.monotonic()),
+                "signal":     signal,
+                "risk_level": risk_level,
+            }
+            return False
 
         vol_easing  = False
         if len(volumes) >= 10:
@@ -2788,9 +2820,11 @@ class MultiSourceScanner:
             )
             momentum_1m = up_count >= 3
 
+        # Remaining optional signals (need 4/6 total including the 3 mandatory above)
         recovery_signals = {
             "Last green":  last_green,
             "RSI reset":   rsi_reset,
+            "Bounce ≥4%":  bounce_confirmed,
             "Vol easing":  vol_easing,
             "Stabilizing": stabilizing,
             "Higher low":  higher_low,
@@ -2803,13 +2837,13 @@ class MultiSourceScanner:
 
         logger.info(
             f"[{self.chain.name}] 🎯 DIP CHECK: {signal.token_symbol} "
-            f"{dip_pct:+.1f}% from peak | recovery {recovery_score}/6 [{rec_str}]"
+            f"{dip_pct:+.1f}% from peak | recovery {recovery_score}/7 [{rec_str}]"
         )
 
         if recovery_score < 4:
             logger.info(
                 f"[{self.chain.name}] Weak recovery: {signal.token_symbol} "
-                f"{recovery_score}/6 signals — need 4, watching"
+                f"{recovery_score}/7 signals — need 4 (3 mandatory + 1 optional), watching"
             )
             self._dip_watchlist[addr_lower] = {
                 "peak_price": peak,
@@ -2821,7 +2855,7 @@ class MultiSourceScanner:
 
         logger.info(
             f"[{self.chain.name}] ✅ DIP ENTRY confirmed: {signal.token_symbol} "
-            f"{dip_pct:+.1f}% from peak, {recovery_score}/6 recovery"
+            f"{dip_pct:+.1f}% from peak, {recovery_score}/7 recovery"
         )
         self._dip_watchlist.pop(addr_lower, None)
         return True
