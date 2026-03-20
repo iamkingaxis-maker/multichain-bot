@@ -2594,17 +2594,6 @@ class MultiSourceScanner:
         if not signal.token_address:
             return False
 
-        # ── SOL macro check (Solana only) ─────────────────────────────────────
-        # If SOL itself is down >3% in the last hour, the whole market is dumping.
-        # Any "recovery" on individual token charts is likely a dead cat bounce.
-        if self.chain.chain_id == "solana":
-            if not await self._sol_macro_ok_check():
-                logger.info(
-                    f"[{self.chain.name}] Macro blocked: {signal.token_symbol} "
-                    f"— SOL down >3% h1, skipping dip buys during market dump"
-                )
-                return False
-
         # Fetch 5-min and 1-min candles concurrently
         candles_5m, candles_1m = await asyncio.gather(
             self._fetch_ohlcv(signal.token_address),
