@@ -176,13 +176,12 @@ async def main():
         sol_scanner = MultiSourceScanner(
             chain=SOLANA, trader=sol_trader,
             security_checker=security, telegram=telegram,
-            birdeye_api_key=config.birdeye_api_key,
             min_mcap=config.min_mcap, max_mcap=config.max_mcap,
             min_combined_score=adaptive_threshold.get_threshold("solana"),
-            require_both_sources=config.require_both_sources,
             startup_delay=0,
             sentiment_analyzer=sentiment,
             rug_classifier=rug_classifier,
+            tracker=tracker,
             scanner_keywords=config.scanner_keywords
         )
         # Load seed wallets from /data/seed_wallets.json (dashboard-managed)
