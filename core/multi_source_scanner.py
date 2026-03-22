@@ -247,7 +247,7 @@ class MultiSourceScanner:
             )
 
         # Seed dip watchlist from bad entries (tokens where timing-based stop fired).
-        if self.tracker:
+        if self.tracker and hasattr(self.tracker, 'get_bad_entries'):
             for entry in self.tracker.get_bad_entries():
                 addr = entry["token_address"]
                 if addr not in self._dip_watchlist:
