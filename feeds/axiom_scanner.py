@@ -37,9 +37,11 @@ logger = logging.getLogger(__name__)
 
 # Attempt to import axiomtradeapi — graceful fallback if not installed
 try:
-    from axiomtradeapi import AxiomTradeClient
-    from axiomtradeapi.auth import AxiomAuth
-    from axiomtradeapi.exceptions import APIError, NetworkError, AuthenticationError
+    from axiomtradeapi import AxiomTradeClient, AxiomAuth, AxiomTradeWebSocketClient
+    # Stub exception classes — actual package doesn't define them separately
+    class AuthenticationError(Exception): pass
+    class NetworkError(Exception): pass
+    class APIError(Exception): pass
     AXIOM_AVAILABLE = True
 except ImportError:
     AXIOM_AVAILABLE = False
@@ -145,52 +147,38 @@ class AxiomAuthManager:
         self.password      = password or os.environ.get("AXIOM_PASSWORD", "")
         self.auth_token    = auth_token or os.environ.get("AXIOM_AUTH_TOKEN", "")
         self.refresh_token = refresh_token or os.environ.get("AXIOM_REFRESH_TOKEN", "")
-        self._auth         = AxiomAuth() if AXIOM_AVAILABLE else None
+        # AxiomTradeClient handles auth internally — we just store credentials
+        self._client: Optional["AxiomTradeClient"] = None
 
     @property
     def has_credentials(self) -> bool:
         return bool((self.email and self.password) or self.auth_token)
 
+    def get_client(self) -> Optional["AxiomTradeClient"]:
+        """Get or create an authenticated AxiomTradeClient."""
+        if not AXIOM_AVAILABLE:
+            return None
+        if not self._client:
+            self._client = AxiomTradeClient(
+                username=self.email or None,
+                password=self.password or None,
+                auth_token=self.auth_token or None,
+                refresh_token=self.refresh_token or None,
+            )
+        return self._client
+
     async def ensure_valid_token(self) -> bool:
-        """Ensure we have a valid auth token, logging in or refreshing if needed."""
+        """Ensure we have a valid client. Returns True if credentials exist."""
         if not AXIOM_AVAILABLE:
             return False
-
-        # Try refresh first if we have a refresh token
-        if self.refresh_token:
-            try:
-                result = await self._auth.refresh_tokens(self.refresh_token)
-                if result.get("success"):
-                    self.auth_token    = result["auth_token"]
-                    self.refresh_token = result["refresh_token"]
-                    logger.info("[AxiomAuth] Token refreshed successfully")
-                    return True
-            except Exception as e:
-                logger.debug(f"[AxiomAuth] Refresh failed: {e} — trying login")
-
-        # Fall back to email/password login
-        if self.email and self.password:
-            try:
-                result = await self._auth.login(self.email, self.password)
-                if result.get("success"):
-                    self.auth_token    = result["auth_token"]
-                    self.refresh_token = result["refresh_token"]
-                    logger.info("[AxiomAuth] Logged in successfully")
-                    return True
-            except Exception as e:
-                logger.error(f"[AxiomAuth] Login failed: {e}")
-                return False
-
-        if self.auth_token:
-            # Have a token but couldn't refresh — try using it as-is
-            return True
-
-        logger.error(
-            "[AxiomAuth] No credentials available. "
-            "Set AXIOM_EMAIL + AXIOM_PASSWORD or AXIOM_AUTH_TOKEN "
-            "in Railway Variables."
-        )
-        return False
+        if not self.has_credentials:
+            logger.error(
+                "[AxiomAuth] No credentials available. "
+                "Set AXIOM_EMAIL + AXIOM_PASSWORD or AXIOM_AUTH_TOKEN "
+                "in Railway Variables."
+            )
+            return False
+        return True
 
 
 class AxiomScanner:
@@ -307,16 +295,15 @@ class AxiomScanner:
 
     async def _connect_and_stream(self):
         """Establish connection and stream tokens until disconnected."""
-        # Refresh token before connecting
         token_valid = await self.auth.ensure_valid_token()
         if not token_valid:
             raise AuthenticationError("Could not obtain valid token")
 
-        self._client = AxiomTradeClient(
-            auth_token=self.auth.auth_token,
-            refresh_token=self.auth.refresh_token,
-            max_retries=3
-        )
+        client = self.auth.get_client()
+        if not client:
+            raise AuthenticationError("Could not create AxiomTradeClient")
+
+        ws = client.get_websocket_client()
 
         logger.info("[AxiomScanner] Connected to Axiom WebSocket feed")
         await self.telegram.send(
@@ -324,8 +311,8 @@ class AxiomScanner:
             "Real-time token feed active — no more polling delays"
         )
 
-        await self._client.subscribe_new_tokens(self._handle_token_batch)
-        await self._client.ws.start()
+        await ws.subscribe_new_tokens(self._handle_token_batch)
+        await ws.start()
 
     async def _handle_token_batch(self, raw_tokens: list):
         """Process a batch of tokens from Axiom WebSocket."""

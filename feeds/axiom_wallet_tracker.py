@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 try:
     from axiomtradeapi import AxiomTradeClient
-    from axiomtradeapi.batch import BatchProcessor
     AXIOM_AVAILABLE = True
 except ImportError:
     AXIOM_AVAILABLE = False
@@ -127,7 +126,6 @@ class AxiomWalletTracker:
         self.concurrent_batches = concurrent_batches
 
         self._client: Optional[AxiomTradeClient] = None
-        self._processor: Optional[BatchProcessor] = None
 
         # Wallet tracking
         self._wallets: Dict[str, WalletActivity] = {}
@@ -198,28 +196,28 @@ class AxiomWalletTracker:
             logger.warning("[AxiomWalletTracker] No valid auth token")
             return
 
-        # Initialize or refresh client
+        # Initialize client from auth manager
         if not self._client:
-            self._client = AxiomTradeClient(
-                auth_token=self.auth.auth_token,
-                refresh_token=self.auth.refresh_token
-            )
-            self._processor = BatchProcessor(self._client)
+            self._client = self.auth.get_client()
+
+        if not self._client:
+            logger.warning("[AxiomWalletTracker] No Axiom client available")
+            return
 
         addresses = list(self._wallets.keys())
 
         try:
-            # Batch balance check — up to 100 wallets per request
-            results = await self._processor.process_wallets(
-                addresses,
-                batch_size=self.batch_size,
-                concurrent_batches=self.concurrent_batches
+            # Batch SOL balance check — get_batched_sol_balance takes list, returns dict
+            loop = asyncio.get_event_loop()
+            results_raw = await loop.run_in_executor(
+                None, self._client.get_batched_sol_balance, addresses
             )
+            # results_raw: {address: sol_float}
+            results = {addr: {"sol": bal} for addr, bal in (results_raw or {}).items()}
 
             self.polls_completed += 1
             self.wallets_checked += len(addresses)
 
-            # Process results
             for addr, balance_data in results.items():
                 if balance_data is None:
                     continue
@@ -227,9 +225,7 @@ class AxiomWalletTracker:
 
         except Exception as e:
             logger.error(f"[AxiomWalletTracker] Batch error: {e}")
-            # Reset client on error
             self._client = None
-            self._processor = None
 
     async def _update_wallet(self, address: str, balance_data: dict):
         """Update a wallet's activity record with new balance data."""
@@ -288,18 +284,16 @@ class AxiomWalletTracker:
             return {}
 
         if not self._client:
-            self._client = AxiomTradeClient(
-                auth_token=self.auth.auth_token,
-                refresh_token=self.auth.refresh_token
-            )
+            self._client = self.auth.get_client()
+        if not self._client:
+            return {}
 
         try:
-            results = self._client.GetBatchedBalance(addresses)
-            return {
-                addr: data.get("sol", 0)
-                for addr, data in results.items()
-                if data is not None
-            }
+            loop = asyncio.get_event_loop()
+            results = await loop.run_in_executor(
+                None, self._client.get_batched_sol_balance, addresses
+            )
+            return {addr: float(bal) for addr, bal in (results or {}).items()}
         except Exception as e:
             logger.error(f"[AxiomWalletTracker] Batch balance error: {e}")
             return {}
