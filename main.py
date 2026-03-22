@@ -45,6 +45,7 @@ from chains.chain_config import SOLANA
 from security.honeypot import SecurityChecker
 from security.tax_detector import TaxDetector
 from feeds.price_feed import PriceFeed
+from feeds.axiom_integration import AxiomIntegration
 from analytics.wallet_scorer import WalletScorer
 from analytics.kelly_sizer import KellySizer
 from analytics.adaptive_threshold import AdaptiveThresholdManager
@@ -287,6 +288,18 @@ async def main():
             min_setup_quality=65.0, scan_interval_seconds=60,
         )
         tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run()]
+
+        # ── Axiom Real-Time Feed ──────────────────────────────────────────
+        axiom = AxiomIntegration(config=config)
+        axiom.connect_to_bot(
+            trader=sol_trader,
+            telegram=telegram,
+            tracker=tracker,
+            market_monitor=market_monitor,
+            copy_trader=sol_copy,
+            edge_strategies=sol_convergence,
+        )
+        tasks += axiom.get_tasks()
 
         chain_summaries.append(f"Solana — ${sol_cap:,.0f}")
 

@@ -67,6 +67,12 @@ class Config:
     # ── API Keys ─────────────────────────────────────────────
     birdeye_api_key: str = ""
 
+    # ── Axiom ────────────────────────────────────────────────
+    axiom_email: str = ""
+    axiom_password: str = ""
+    axiom_auth_token: str = ""
+    axiom_refresh_token: str = ""
+
     # ── Telegram ─────────────────────────────────────────────
     telegram_token: str = ""
     telegram_chat_id: str = ""
@@ -243,6 +249,16 @@ def _apply_env_overrides(config: Config):
     # API keys
     if os.environ.get("BIRDEYE_API_KEY"):
         config.birdeye_api_key = env("BIRDEYE_API_KEY")
+
+    # Axiom credentials
+    if os.environ.get("AXIOM_EMAIL"):
+        config.axiom_email = env("AXIOM_EMAIL")
+    if os.environ.get("AXIOM_PASSWORD"):
+        config.axiom_password = env("AXIOM_PASSWORD")
+    if os.environ.get("AXIOM_AUTH_TOKEN"):
+        config.axiom_auth_token = env("AXIOM_AUTH_TOKEN")
+    if os.environ.get("AXIOM_REFRESH_TOKEN"):
+        config.axiom_refresh_token = env("AXIOM_REFRESH_TOKEN")
 
     # Telegram
     if os.environ.get("TELEGRAM_TOKEN"):
