@@ -51,17 +51,39 @@ class CopyTrader:
         self._known_sigs: Dict[str, Set[str]] = {w: set() for w in wallets}
         self._session: Optional[aiohttp.ClientSession] = None
 
-    async def run(self):
-        if not self.wallets:
-            logger.info("[CopyTrader/Solana] No wallets — skipping")
+    def add_wallet(self, address: str):
+        """Dynamically add a wallet to monitor (called from dashboard)."""
+        if address in self.wallets:
             return
+        self.wallets.append(address)
+        self._known_sigs[address] = set()
+        if address not in self.engine.profiles:
+            from core.enhanced_copy_trader import WalletProfile
+            label = address[:6] + "..." + address[-4:]
+            self.engine.profiles[address] = WalletProfile(
+                address=address, label=label, chain_id=self.engine.chain_id
+            )
+        logger.info(f"[CopyTrader/Solana] Added wallet {address[:8]}…")
 
-        logger.info(f"[CopyTrader/Solana] Watching {len(self.wallets)} wallets")
+    def remove_wallet(self, address: str):
+        """Dynamically remove a wallet (called from dashboard)."""
+        if address not in self.wallets:
+            return
+        self.wallets.remove(address)
+        self._known_sigs.pop(address, None)
+        self.engine.profiles.pop(address, None)
+        logger.info(f"[CopyTrader/Solana] Removed wallet {address[:8]}…")
+
+    async def run(self):
+        logger.info(f"[CopyTrader/Solana] Started — watching {len(self.wallets)} wallets (dynamic)")
         async with aiohttp.ClientSession() as session:
             self._session = session
             await self._initialize_wallets()
             while True:
-                for wallet in self.wallets:
+                if not self.wallets:
+                    await asyncio.sleep(10)
+                    continue
+                for wallet in list(self.wallets):
                     try:
                         await self._check_wallet(wallet)
                     except Exception as e:
@@ -69,9 +91,10 @@ class CopyTrader:
                 await asyncio.sleep(10)
 
     async def _initialize_wallets(self):
-        for wallet in self.wallets:
-            sigs = await self._get_signatures(wallet, limit=20)
-            self._known_sigs[wallet] = set(sigs)
+        for wallet in list(self.wallets):
+            if not self._known_sigs.get(wallet):
+                sigs = await self._get_signatures(wallet, limit=20)
+                self._known_sigs[wallet] = set(sigs)
 
     async def _check_wallet(self, wallet: str):
         sigs = await self._get_signatures(wallet, limit=10)
@@ -161,9 +184,9 @@ class CopyTrader:
         async with self._session.post(
             self.rpc_url, json=payload,
             timeout=aiohttp.ClientTimeout(total=10)
-        ) as r:
-            data = await r.json()
-            return [r["signature"] for r in data.get("result", [])]
+        ) as resp:
+            data = await resp.json()
+            return [item["signature"] for item in data.get("result", [])]
 
     async def _get_transaction(self, signature: str) -> Optional[dict]:
         api_key = self.rpc_url.split("api-key=")[-1] \

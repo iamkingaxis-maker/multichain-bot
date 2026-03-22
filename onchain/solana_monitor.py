@@ -90,48 +90,20 @@ class SolanaProgramMonitor:
         self.large_buys_detected = 0
 
     async def run(self):
-        """Main monitoring loop with exponential backoff on errors."""
+        """Main monitoring loop with auto-reconnect."""
         self._running = True
         logger.info("[SolanaProgramMonitor] Starting on-chain monitoring...")
-
-        backoff = 5
-        consecutive_failures = 0
 
         while self._running:
             try:
                 await self._connect_and_monitor()
-                # Successful connection — reset backoff
-                backoff = 5
-                consecutive_failures = 0
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                consecutive_failures += 1
-                err_str = str(e)
-                is_rate_limit = "429" in err_str
+                logger.error(f"[SolanaProgramMonitor] Connection error: {e}")
 
-                if is_rate_limit:
-                    # 429 = rate limit — back off aggressively
-                    backoff = min(backoff * 2, 300)
-                    logger.warning(
-                        f"[SolanaProgramMonitor] Rate limited (429). "
-                        f"Backing off {backoff}s (failure #{consecutive_failures})"
-                    )
-                    if consecutive_failures >= 5:
-                        logger.error(
-                            "[SolanaProgramMonitor] Persistent 429 — Helius WebSocket "
-                            "may not be available on your plan. Pausing for 10 min."
-                        )
-                        await asyncio.sleep(600)
-                        backoff = 5
-                        consecutive_failures = 0
-                        continue
-                else:
-                    logger.error(f"[SolanaProgramMonitor] Connection error: {e}")
-                    backoff = min(backoff * 1.5, 60)
-
-            logger.info(f"[SolanaProgramMonitor] Reconnecting in {backoff}s...")
-            await asyncio.sleep(backoff)
+            logger.info("[SolanaProgramMonitor] Reconnecting in 5s...")
+            await asyncio.sleep(5)
 
     async def _connect_and_monitor(self):
         """Connect to Helius WebSocket and subscribe to programs."""

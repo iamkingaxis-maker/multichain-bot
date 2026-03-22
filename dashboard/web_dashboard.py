@@ -17,40 +17,12 @@ import asyncio
 import json
 import logging
 import os
-import re
 from datetime import datetime, timezone
 from typing import Optional
 
 from aiohttp import web
 
 logger = logging.getLogger(__name__)
-
-# Keywords that are worth showing in the feed
-_FEED_KEYWORDS = re.compile(
-    r"bought|sold|buy signal|stop loss|tp1|tp2|tp3|stall|avg down|"
-    r"pyramid|moon bag|security|honeypot|blocked|rug|error|warning|"
-    r"market restricted|market conditions|kill switch|manual sell",
-    re.IGNORECASE
-)
-
-
-class DashboardLogHandler(logging.Handler):
-    """Captures matching log lines and pushes them to the dashboard feed."""
-
-    def __init__(self, dashboard):
-        super().__init__()
-        self._dashboard = dashboard
-
-    def emit(self, record: logging.LogRecord):
-        try:
-            msg = record.getMessage()
-            if _FEED_KEYWORDS.search(msg):
-                # Strip PAPER/TELEGRAM DISABLED noise, keep it short
-                clean = re.sub(r"\[TELEGRAM DISABLED\]\s*", "", msg)
-                clean = re.sub(r"\[PAPER\]\s*", "", clean)
-                self._dashboard.add_alert(clean.strip())
-        except Exception:
-            pass
 
 # ── HTML ─────────────────────────────────────────────────────────────────────
 
@@ -77,8 +49,6 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     --red:       #f85149;
     --yellow:    #d29922;
     --sol:       #9945ff;
-    --base:      #0052ff;
-    --bnb:       #f3ba2f;
   }
 
   html { scroll-behavior: smooth; }
@@ -201,15 +171,9 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     font-size: 10px; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap;
   }
   .badge-sol  { background: #9945ff22; color: var(--sol); }
-  .badge-base { background: #0052ff22; color: #4f8cff; }
-  .badge-bnb  { background: #f3ba2f22; color: var(--bnb); }
   .badge-scanner { background: #58a6ff22; color: var(--accent); }
   .badge-copy    { background: #2ea04322; color: var(--green-lt); }
   .badge-scalper { background: #d2992222; color: var(--yellow); }
-
-  /* ── Token links ── */
-  a.token-link { color: inherit; text-decoration: none; }
-  a.token-link:hover { text-decoration: underline; color: var(--accent); }
 
   /* ── Progress bar ── */
   .progress-wrap { width: 80px; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; }
@@ -276,17 +240,6 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   .progress-fill.tp1 { background: var(--yellow); }
   .progress-fill.tp2 { background: #f0883e; }
   .progress-fill.tp3 { background: var(--green); }
-  .progress-fill.sl  { background: var(--red); }
-
-  /* Manual sell button */
-  .sell-btn {
-    background: #f8514915; border: 1px solid #f8514940;
-    color: var(--red); border-radius: 5px; padding: 3px 10px;
-    font-size: 11px; font-family: inherit; cursor: pointer;
-    transition: background 0.15s;
-  }
-  .sell-btn:hover { background: #f8514930; }
-  .sell-btn:disabled { opacity: 0.4; cursor: default; }
 </style>
 </head>
 <body>
@@ -302,12 +255,6 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   </div>
   <div class="header-right">
     <span>Uptime: <span id="uptime">—</span></span>
-    <button id="pause-btn" onclick="togglePause()" style="
-      padding:5px 14px; border-radius:6px; border:none; cursor:pointer;
-      font-size:12px; font-weight:700; letter-spacing:0.5px;
-      background:var(--green); color:#0d1117; transition:background 0.2s;">
-      ▶ BUYING ON
-    </button>
     <span id="clock">—</span>
   </div>
 </div>
@@ -362,7 +309,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           <thead>
             <tr>
               <th>Token</th><th>Chain</th><th>Strategy</th>
-              <th>Entry</th><th>Size</th><th>Unrealized</th><th>Hold</th><th>TP</th><th></th>
+              <th>Entry</th><th>Unrealized</th><th>Hold</th><th>TP</th><th></th>
             </tr>
           </thead>
           <tbody id="positions-body">
@@ -385,22 +332,41 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
   </div>
 
-  <!-- ── Token Recommendations ── -->
+  <!-- ── Seed Wallets ── -->
   <div class="card">
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-      <span><span class="dot" style="background:#a78bfa"></span> Token Recommendations</span>
-      <span style="font-size:11px;color:var(--muted);font-weight:400;">Tokens the bot is watching — buy manually or wait for auto-entry</span>
+      <span><span class="dot" style="background:#34d399"></span> Copy Wallets <span style="font-size:11px;color:var(--muted);font-weight:400;">— add/remove live</span></span>
+      <span id="seed-wallet-count" style="font-size:11px;color:var(--muted);font-weight:400;">0 wallets</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input id="seed-wallet-address" type="text" placeholder="Solana wallet address…"
+        style="flex:2;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:13px;outline:none;" />
+      <input id="seed-wallet-score" type="number" min="0" max="100" value="75" placeholder="Score"
+        style="width:70px;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:13px;outline:none;" />
+      <button onclick="addSeedWallet()"
+        style="background:#34d399;color:#0f172a;border:none;border-radius:6px;padding:6px 16px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap;">+ Add</button>
     </div>
     <div class="tbl-wrap">
-      <table id="recs-table">
-        <thead>
-          <tr>
-            <th>Token</th><th>Chain</th><th>Score</th><th>MCap</th>
-            <th>h1 Vol</th><th>Dip%</th><th>h1%</th><th>Watching</th><th>Risk</th><th></th>
-          </tr>
-        </thead>
-        <tbody id="recs-body">
-          <tr><td colspan="10" class="empty">No tokens being watched yet</td></tr>
+      <table>
+        <thead><tr><th>Wallet</th><th>Quality</th><th>Solscan</th><th></th></tr></thead>
+        <tbody id="seed-wallets-body">
+          <tr><td colspan="4" style="color:var(--muted);padding:12px;text-align:center;">No seed wallets yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Recommended Tokens (Watchlist) ── -->
+  <div class="card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span><span class="dot" style="background:var(--yellow)"></span> Recommended Tokens <span style="font-size:11px;color:var(--muted);font-weight:400;">— near-miss signals (score 45-64)</span></span>
+      <span id="watchlist-count" style="font-size:11px;color:var(--muted);font-weight:400;">0 tokens</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Token</th><th>Score</th><th>MCap</th><th>Price</th><th>Reason</th><th>Age</th><th></th></tr></thead>
+        <tbody id="watchlist-body">
+          <tr><td colspan="7" style="color:var(--muted);padding:12px;text-align:center;">No recommended tokens yet</td></tr>
         </tbody>
       </table>
     </div>
@@ -438,28 +404,12 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   </div>
 
   <!-- ── Chain Breakdown ── -->
-  <div class="three-col">
-    <div class="card breakdown-card">
-      <div class="card-label">Chain</div>
-      <div class="card-name" style="color:var(--sol)">Solana</div>
-      <div class="stat-line"><span class="k">P&amp;L</span><span id="ch-sol-pnl">$0.00</span></div>
-      <div class="stat-line"><span class="k">Capital In</span><span id="ch-sol-cap">$0</span></div>
-      <div class="stat-line"><span class="k">Open Positions</span><span id="ch-sol-pos">0</span></div>
-    </div>
-    <div class="card breakdown-card">
-      <div class="card-label">Chain</div>
-      <div class="card-name" style="color:#4f8cff">Base</div>
-      <div class="stat-line"><span class="k">P&amp;L</span><span id="ch-base-pnl">$0.00</span></div>
-      <div class="stat-line"><span class="k">Capital In</span><span id="ch-base-cap">$0</span></div>
-      <div class="stat-line"><span class="k">Open Positions</span><span id="ch-base-pos">0</span></div>
-    </div>
-    <div class="card breakdown-card">
-      <div class="card-label">Chain</div>
-      <div class="card-name" style="color:var(--bnb)">BNB Chain</div>
-      <div class="stat-line"><span class="k">P&amp;L</span><span id="ch-bnb-pnl">$0.00</span></div>
-      <div class="stat-line"><span class="k">Capital In</span><span id="ch-bnb-cap">$0</span></div>
-      <div class="stat-line"><span class="k">Open Positions</span><span id="ch-bnb-pos">0</span></div>
-    </div>
+  <div class="card breakdown-card">
+    <div class="card-label">Chain</div>
+    <div class="card-name" style="color:var(--sol)">Solana</div>
+    <div class="stat-line"><span class="k">P&amp;L</span><span id="ch-sol-pnl">$0.00</span></div>
+    <div class="stat-line"><span class="k">Capital In</span><span id="ch-sol-cap">$0</span></div>
+    <div class="stat-line"><span class="k">Open Positions</span><span id="ch-sol-pos">0</span></div>
   </div>
 
   <!-- ── Trade History ── -->
@@ -470,8 +420,6 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       <select class="filter-select" id="trade-chain-filter" onchange="filterTrades()">
         <option value="">All Chains</option>
         <option value="sol">Solana</option>
-        <option value="base">Base</option>
-        <option value="bnb">BNB</option>
       </select>
       <select class="filter-select" id="trade-strat-filter" onchange="filterTrades()">
         <option value="">All Strategies</option>
@@ -619,8 +567,6 @@ function fmtTime(iso) {
 function chainBadge(chain) {
   const c = (chain||'').toLowerCase();
   if (c === 'solana' || c === 'sol') return '<span class="badge badge-sol">SOL</span>';
-  if (c === 'base')                   return '<span class="badge badge-base">BASE</span>';
-  if (c === 'bsc' || c === 'bnb')    return '<span class="badge badge-bnb">BNB</span>';
   return '<span class="badge">' + (chain||'?').toUpperCase() + '</span>';
 }
 function stratBadge(s) {
@@ -666,41 +612,12 @@ function updateDashboard(d) {
   updateStrategies(d.strategies || {});
   updateChains(d.chains || {});
   updateSecurity(d.security || {}, d.price_feed || {});
-  updatePauseBtn(d.buying_paused || false);
 
   // Reload all trades for history table
   if (d.all_trades !== undefined) {
     allTrades = d.all_trades;
     filterTrades();
   }
-}
-
-// ── Pause buying toggle ────────────────────────────────────────────────────
-function updatePauseBtn(paused) {
-  const btn = document.getElementById('pause-btn');
-  if (!btn) return;
-  if (paused) {
-    btn.textContent = '⏸ BUYING PAUSED';
-    btn.style.background = '#f85149';
-    btn.style.color = '#fff';
-  } else {
-    btn.textContent = '▶ BUYING ON';
-    btn.style.background = 'var(--green)';
-    btn.style.color = '#0d1117';
-  }
-}
-
-async function togglePause() {
-  const btn = document.getElementById('pause-btn');
-  btn.disabled = true;
-  try {
-    const resp = await fetch('/api/pause', {method: 'POST'});
-    const data = await resp.json();
-    if (data.ok) updatePauseBtn(data.paused);
-  } catch(e) {
-    console.warn('pause toggle failed', e);
-  }
-  btn.disabled = false;
 }
 
 function updateUptime(u) {
@@ -761,65 +678,105 @@ function updatePnlChart(series) {
 function updatePositions(positions) {
   const tbody = document.getElementById('positions-body');
   if (!positions.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">No open positions</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">No open positions</td></tr>';
     return;
   }
   tbody.innerHTML = positions.map(p => {
     const pnlCls = pnlClass(p.pnl_usd);
     const mult = p.multiplier || 1;
     // Progress toward TP levels: 1.5x=TP1, 2x=TP2, 2.5x=TP3
-    const pct = Math.max(0, Math.min(((mult - 1) / 1.5) * 100, 100));
-    const tpCls = mult >= 2.5 ? 'tp3' : mult >= 2 ? 'tp2' : mult >= 1.5 ? 'tp1' : mult < 1 ? 'sl' : '';
-    // Label: show next TP target or moon bag if past TP3
-    const tpLabel = mult >= 2.5 ? '🌙' : mult >= 2.0 ? '→TP3' : mult >= 1.5 ? '→TP2' : mult >= 1.0 ? '→TP1' : 'SL';
-    const addr = escHtml(p.token_address || '');
-    const sym  = escHtml(p.symbol || '?');
-    const chain = escHtml(p.chain || '');
+    const pct = Math.min(((mult - 1) / 1.5) * 100, 100);
+    const tpCls = mult >= 2.5 ? 'tp3' : mult >= 2 ? 'tp2' : 'tp1';
+    const addr = p.token_address || '';
     return `<tr>
-      <td style="font-weight:600">${tokenLink(p.symbol, p.chain, p.token_address)}</td>
+      <td style="font-weight:600">$${p.symbol||'?'}</td>
       <td>${chainBadge(p.chain)}</td>
       <td>${stratBadge(p.strategy)}</td>
       <td class="muted">$${(p.entry_price||0).toFixed(6)}</td>
-      <td class="muted">$${(p.amount_usd||0).toFixed(0)}</td>
       <td class="${pnlCls}">${fmtUsd(p.pnl_usd)}</td>
       <td class="muted">${fmtHold(p.hold_secs)}</td>
-      <td style="white-space:nowrap">
-        <div class="progress-wrap" style="vertical-align:middle">
+      <td>
+        <div class="progress-wrap" title="${mult.toFixed(2)}x">
           <div class="progress-fill ${tpCls}" style="width:${pct.toFixed(0)}%"></div>
         </div>
-        <span style="font-size:11px;margin-left:4px;color:var(--muted)">${mult.toFixed(2)}× ${tpLabel}</span>
       </td>
-      <td>${addr ? `<button class="sell-btn" onclick="sellPosition('${addr}','${chain}','${sym}',this)">SELL</button>` : ''}</td>
+      <td>
+        <button onclick="manualSell('${addr}')"
+          style="background:#f85149;color:#fff;border:none;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;">Sell</button>
+      </td>
     </tr>`;
   }).join('');
 }
 
-async function sellPosition(tokenAddress, chain, symbol, btn) {
-  if (!confirm(`Sell ALL $${symbol} on ${chain}?`)) return;
-  btn.disabled = true;
-  btn.textContent = '...';
+// ── Manual Sell ──────────────────────────────────────────────────────────
+async function manualSell(tokenAddress) {
+  if (!tokenAddress) return;
+  if (!confirm('Sell 100% of this position?')) return;
   try {
-    const resp = await fetch('/api/sell', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({token_address: tokenAddress, chain, symbol})
+    const res = await fetch('/api/sell', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({token_address: tokenAddress, pct: 1.0})
     });
-    const data = await resp.json();
+    const data = await res.json();
     if (data.ok) {
-      btn.textContent = '✓';
-      btn.style.color = 'var(--green-lt)';
+      alert('Sell order sent for ' + (data.symbol || 'token'));
     } else {
-      btn.textContent = 'ERR';
-      btn.style.color = 'var(--red)';
-      btn.disabled = false;
-      alert('Sell failed: ' + (data.error || 'unknown error'));
+      alert('Sell failed: ' + (data.error || 'Unknown error'));
     }
-  } catch(e) {
-    btn.textContent = 'ERR';
-    btn.disabled = false;
-    alert('Sell request failed: ' + e.message);
-  }
+  } catch(e) { alert('Request failed: ' + e); }
 }
+
+// ── Manual Buy ──────────────────────────────────────────────────────────
+async function manualBuy(tokenAddress, tokenSymbol) {
+  if (!tokenAddress) return;
+  if (!confirm('Buy ' + tokenSymbol + '?')) return;
+  try {
+    const res = await fetch('/api/buy', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({token_address: tokenAddress, token_symbol: tokenSymbol})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert('Buy order sent for ' + (data.symbol || tokenSymbol));
+    } else {
+      alert('Buy failed: ' + (data.error || 'Unknown error'));
+    }
+  } catch(e) { alert('Request failed: ' + e); }
+}
+
+// ── Watchlist (Recommended Tokens) ──────────────────────────────────────
+async function loadWatchlist() {
+  try {
+    const res = await fetch('/api/watchlist');
+    const data = await res.json();
+    const list = data.watchlist || [];
+    const body = document.getElementById('watchlist-body');
+    const count = document.getElementById('watchlist-count');
+    if (count) count.textContent = list.length + ' token' + (list.length !== 1 ? 's' : '');
+    if (!list.length) {
+      body.innerHTML = '<tr><td colspan="7" style="color:var(--muted);padding:12px;text-align:center;">No recommended tokens — waiting for near-miss signals</td></tr>';
+      return;
+    }
+    body.innerHTML = list.map(t => {
+      const ageMins = Math.floor((t.age_seconds || 0) / 60);
+      const ageStr = ageMins >= 60 ? Math.floor(ageMins/60) + 'h ' + (ageMins%60) + 'm' : ageMins + 'm';
+      const scoreColor = t.score >= 55 ? 'var(--yellow)' : 'var(--muted)';
+      return `<tr>
+        <td style="font-weight:600">$${t.symbol||'?'}</td>
+        <td style="color:${scoreColor};font-weight:700">${t.score}</td>
+        <td class="muted">$${(t.mcap||0).toLocaleString()}</td>
+        <td class="muted">$${(t.price||0).toFixed(8)}</td>
+        <td class="muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(t.reason||'')}">${escHtml((t.reason||'').slice(0,40))}</td>
+        <td class="muted">${ageStr}</td>
+        <td><button onclick="manualBuy('${t.token_address}','${escHtml(t.symbol||'?')}')"
+          style="background:#2ea043;color:#fff;border:none;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;">Buy</button></td>
+      </tr>`;
+    }).join('');
+  } catch(e) { console.warn('Watchlist load error', e); }
+}
+
+loadWatchlist();
+setInterval(loadWatchlist, 30000);
 
 // ── Event Feed ─────────────────────────────────────────────────────────────
 function updateFeed(alerts) {
@@ -855,23 +812,6 @@ function escHtml(s) {
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function dexLink(chain, addr) {
-  const c = (chain || '').toLowerCase();
-  const path = (c === 'solana' || c === 'sol') ? 'solana'
-             : (c === 'base')                  ? 'base'
-             : (c === 'bsc' || c === 'bnb')    ? 'bsc'
-             :                                   'solana';
-  return `https://dexscreener.com/${path}/${addr}`;
-}
-
-function tokenLink(symbol, chain, addr) {
-  const sym = escHtml(symbol || '?');
-  if (!addr) return `$${sym}`;
-  const url  = dexLink(chain, addr);
-  const tip  = escHtml(addr);
-  return `<a class="token-link" href="${url}" target="_blank" rel="noopener" title="${tip}">$${sym}</a>`;
-}
-
 // ── Strategy breakdown ─────────────────────────────────────────────────────
 function updateStrategies(strategies) {
   const map = {
@@ -893,14 +833,12 @@ function updateStrategies(strategies) {
 
 // ── Chain breakdown ────────────────────────────────────────────────────────
 function updateChains(chains) {
-  ['sol','base','bnb'].forEach(k => {
-    const c = chains[k] || {};
-    const pnlEl = document.getElementById('ch-' + k + '-pnl');
-    pnlEl.textContent = fmtUsd(c.pnl || 0);
-    pnlEl.className = pnlClass(c.pnl || 0);
-    document.getElementById('ch-' + k + '-cap').textContent = '$' + (c.capital || 0).toFixed(0);
-    document.getElementById('ch-' + k + '-pos').textContent = c.positions || 0;
-  });
+  const c = chains['sol'] || {};
+  const pnlEl = document.getElementById('ch-sol-pnl');
+  pnlEl.textContent = fmtUsd(c.pnl || 0);
+  pnlEl.className = pnlClass(c.pnl || 0);
+  document.getElementById('ch-sol-cap').textContent = '$' + (c.capital || 0).toFixed(0);
+  document.getElementById('ch-sol-pos').textContent = c.positions || 0;
 }
 
 // ── Security stats ─────────────────────────────────────────────────────────
@@ -950,7 +888,7 @@ function filterTrades() {
     const rowCls = pnl >= 0 ? 'row-win' : 'row-loss';
     return `<tr class="${rowCls}">
       <td class="muted">${fmtTime(t.time)}</td>
-      <td style="font-weight:600">${tokenLink(t.token, t.chain, t.address)}</td>
+      <td style="font-weight:600">$${t.token || t.address?.slice(0,8) || '?'}</td>
       <td>${chainBadge(t.chain)}</td>
       <td>${stratBadge(t.strategy)}</td>
       <td class="muted">${entry ? '$' + entry.toFixed(6) : '—'}</td>
@@ -967,67 +905,84 @@ function filterTrades() {
 function normalizeChainKey(c) {
   const s = c.toLowerCase();
   if (s === 'solana' || s === 'sol') return 'sol';
-  if (s === 'base') return 'base';
-  if (s === 'bsc' || s === 'bnb') return 'bnb';
   return s;
 }
 
-// ── Token Recommendations ───────────────────────────────────────────────────
-async function loadRecommendations() {
+// ── Seed Wallets ────────────────────────────────────────────────────────────
+async function loadSeedWallets() {
   try {
-    const res = await fetch('/api/recommendations');
-    const recs = await res.json();
-    const tbody = document.getElementById('recs-body');
-    if (!recs.length) {
-      tbody.innerHTML = '<tr><td colspan="10" class="empty">No tokens being watched yet</td></tr>';
+    const res  = await fetch('/api/seed-wallets');
+    const data = await res.json();
+    const wallets = data.wallets || {};
+    const body  = document.getElementById('seed-wallets-body');
+    if (!body) return;
+    const count = document.getElementById('seed-wallet-count');
+    const entries = Object.entries(wallets);
+    if (count) count.textContent = `${entries.length} wallet${entries.length !== 1 ? 's' : ''}`;
+    if (!entries.length) {
+      body.innerHTML = '<tr><td colspan="4" style="color:var(--muted);padding:12px;text-align:center;">No seed wallets — add one above</td></tr>';
       return;
     }
-    tbody.innerHTML = recs.map(r => {
-      const chainColor = r.chain_id === 'solana' ? 'var(--sol)' : r.chain_id === 'base' ? '#4f8cff' : 'var(--bnb)';
-      const dipColor   = r.dip_pct < -20 ? 'var(--green)' : r.dip_pct < -10 ? 'var(--yellow)' : 'var(--red)';
-      const h1Color    = r.price_change_h1 >= 0 ? 'var(--green)' : 'var(--red)';
-      const riskColor  = r.risk_level === 'LOW' ? 'var(--green)' : r.risk_level === 'MEDIUM' ? 'var(--yellow)' : 'var(--red)';
-      const watching   = r.watching_min < 60 ? `${r.watching_min}m` : `${Math.floor(r.watching_min/60)}h`;
-      const mcap       = r.mcap >= 1000000 ? `$${(r.mcap/1000000).toFixed(1)}M` : `$${Math.round(r.mcap/1000)}k`;
-      const vol        = r.volume_h1 >= 1000 ? `$${Math.round(r.volume_h1/1000)}k` : `$${Math.round(r.volume_h1)}`;
-      return `<tr>
-        <td><a href="${r.dex_url}" target="_blank" style="color:var(--accent);text-decoration:none;">$${r.token_symbol}</a></td>
-        <td><span style="color:${chainColor};font-weight:600;">${r.chain}</span></td>
-        <td>${r.score}</td>
-        <td>${mcap}</td>
-        <td>${vol}</td>
-        <td style="color:${dipColor};font-weight:600;">${r.dip_pct > 0 ? '+' : ''}${r.dip_pct}%</td>
-        <td style="color:${h1Color}">${r.price_change_h1 > 0 ? '+' : ''}${r.price_change_h1.toFixed(1)}%</td>
-        <td style="color:var(--muted)">${watching}</td>
-        <td style="color:${riskColor};font-size:11px;">${r.risk_level}</td>
-        <td><button onclick="manualBuy('${r.token_address}','${r.chain_id}','${r.token_symbol}')"
-            style="background:#a78bfa;color:#fff;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:12px;">
-            Buy</button></td>
-      </tr>`;
-    }).join('');
-  } catch(e) { console.warn('Recs load error', e); }
+    body.innerHTML = entries.map(([addr, score]) => `
+      <tr>
+        <td style="font-family:monospace;font-size:12px;">${addr.slice(0,8)}…${addr.slice(-6)}</td>
+        <td>
+          <input type="number" min="0" max="100" value="${score}"
+            style="width:52px;background:#1a1a2e;border:1px solid #444;border-radius:4px;padding:2px 6px;color:#e2e8f0;font-size:12px;text-align:center;"
+            onchange="updateSeedWalletScore('${addr}', this.value)"
+            onkeydown="if(event.key==='Enter')this.blur()" />
+          <span style="color:var(--muted);font-size:11px;">/100</span>
+        </td>
+        <td><a href="https://solscan.io/account/${addr}" target="_blank" style="color:#a78bfa;font-size:11px;">Solscan ↗</a></td>
+        <td><button onclick="removeSeedWallet('${addr}')"
+              style="background:transparent;color:var(--muted);border:none;cursor:pointer;font-size:14px;padding:2px 6px;">×</button></td>
+      </tr>`).join('');
+  } catch(e) { console.warn('Seed wallets load error', e); }
 }
 
-async function manualBuy(tokenAddress, chainId, symbol) {
-  if (!confirm(`Manually buy $${symbol} on ${chainId}?`)) return;
+async function addSeedWallet() {
+  const addr  = document.getElementById('seed-wallet-address').value.trim();
+  const score = parseFloat(document.getElementById('seed-wallet-score').value) || 75;
+  if (!addr) { alert('Paste a wallet address first'); return; }
+  if (addr.length < 32) { alert("That doesn't look like a valid Solana address"); return; }
   try {
-    const res = await fetch('/api/manual-buy', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({token_address: tokenAddress, chain_id: chainId})
+    const res  = await fetch('/api/seed-wallets/add', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({address: addr, score})
     });
     const data = await res.json();
     if (data.ok) {
-      alert(`Buy order sent for $${symbol}`);
-      loadRecommendations();
-    } else {
-      alert(`Error: ${data.error}`);
-    }
+      document.getElementById('seed-wallet-address').value = '';
+      await loadSeedWallets();
+    } else { alert(`Error: ${data.error}`); }
   } catch(e) { alert('Request failed'); }
 }
 
-loadRecommendations();
-setInterval(loadRecommendations, 30000);
+async function removeSeedWallet(addr) {
+  try {
+    const res  = await fetch('/api/seed-wallets/remove', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({address: addr})
+    });
+    const data = await res.json();
+    if (data.ok) { await loadSeedWallets(); }
+    else { alert(`Error: ${data.error}`); }
+  } catch(e) { alert('Request failed'); }
+}
+
+async function updateSeedWalletScore(addr, newScore) {
+  const score = parseFloat(newScore);
+  if (isNaN(score) || score < 0 || score > 100) return;
+  try {
+    await fetch('/api/seed-wallets/add', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({address: addr, score})
+    });
+  } catch(e) {}
+}
+
+loadSeedWallets();
+setInterval(loadSeedWallets, 60000);
 </script>
 </body>
 </html>
@@ -1050,24 +1005,29 @@ class WebDashboard:
         self._stats_providers = []
         self._alert_buffer: list = []
         self._start_time = datetime.now(timezone.utc)
+        self._scanners = {}              # chain_id → scanner, for live wallet reload
+        self._seed_wallets_path = os.path.join(
+            os.environ.get("DATA_DIR", "/data"), "seed_wallets.json"
+        )
 
-        self._sell_traders: dict = {}   # chain_name.lower() → trader instance
-        self._scanners: dict = {}       # chain_name.lower() → scanner instance
+        self._trader = None  # registered via register_trader()
 
-        self.app.router.add_get("/",                  self._handle_index)
-        self.app.router.add_get("/api/stats",         self._handle_stats)
-        self.app.router.add_get("/api/trades",        self._handle_trades)
-        self.app.router.add_get("/api/score-stats",   self._handle_score_stats)
-        self.app.router.add_get("/events",            self._handle_sse)
-        self.app.router.add_post("/api/reset",        self._handle_reset)
-        self.app.router.add_post("/api/sell",         self._handle_sell)
-        self.app.router.add_post("/api/pause",        self._handle_pause)
-        self.app.router.add_get("/api/blacklist",     self._handle_blacklist_get)
-        self.app.router.add_post("/api/blacklist/remove", self._handle_blacklist_remove)
-        self.app.router.add_get("/api/recommendations",  self._handle_recommendations)
-        self.app.router.add_post("/api/manual-buy",       self._handle_manual_buy)
+        self.app.router.add_get("/",                        self._handle_index)
+        self.app.router.add_get("/api/stats",               self._handle_stats)
+        self.app.router.add_get("/api/trades",              self._handle_trades)
+        self.app.router.add_get("/events",                  self._handle_sse)
+        self.app.router.add_get("/api/seed-wallets",        self._handle_seed_wallets_get)
+        self.app.router.add_post("/api/seed-wallets/add",   self._handle_seed_wallets_add)
+        self.app.router.add_post("/api/seed-wallets/remove",self._handle_seed_wallets_remove)
+        self.app.router.add_post("/api/sell",               self._handle_sell)
+        self.app.router.add_get("/api/watchlist",           self._handle_watchlist)
+        self.app.router.add_post("/api/buy",                self._handle_buy)
 
     # ── Public API ──────────────────────────────────────────────────────────
+
+    def register_scanner(self, chain_id: str, scanner):
+        """Register a scanner so the dashboard can live-reload wallets into it."""
+        self._scanners[chain_id] = scanner
 
     def register_provider(self, provider):
         """Register an object that provides stats via get_dashboard_stats()."""
@@ -1076,13 +1036,9 @@ class WebDashboard:
         if self._tracker is None and hasattr(provider, "get_all_trades"):
             self._tracker = provider
 
-    def register_sell_trader(self, chain_name: str, trader):
-        """Register a trader so the dashboard can trigger manual sells."""
-        self._sell_traders[chain_name.lower()] = trader
-
-    def register_scanner(self, chain_name: str, scanner):
-        """Register a scanner so the dashboard can surface its watchlist recommendations."""
-        self._scanners[chain_name.lower()] = scanner
+    def register_trader(self, trader):
+        """Register the trader for manual sell/buy actions from the dashboard."""
+        self._trader = trader
 
     def add_alert(self, message: str):
         """Buffer a live alert for the event feed."""
@@ -1092,9 +1048,6 @@ class WebDashboard:
 
     async def run(self):
         """Start the aiohttp server."""
-        # Attach log handler so bot activity flows to the event feed automatically
-        logging.getLogger().addHandler(DashboardLogHandler(self))
-
         runner = web.AppRunner(self.app)
         await runner.setup()
         site = web.TCPSite(runner, "0.0.0.0", self.port)
@@ -1114,236 +1067,6 @@ class WebDashboard:
             headers={"Access-Control-Allow-Origin": "*"}
         )
 
-    async def _handle_reset(self, request):
-        """Clear all trade history, open positions, and reset stats to zero."""
-        import sqlite3, os
-        db = os.path.join(os.environ.get("DATA_DIR", "."), "trades.db")
-
-        # 1. Clear trade history (in-memory + DB)
-        if self._tracker is not None:
-            try:
-                self._tracker.trades.clear()
-                with sqlite3.connect(db) as conn:
-                    conn.execute("DELETE FROM trades")
-                    conn.commit()
-            except Exception as e:
-                logger.warning(f"[Dashboard] Reset trades error: {e}")
-
-        # 2. Close all open positions — wipe in-memory dicts and DB table
-        for trader in self._sell_traders.values():
-            try:
-                trader.open_positions.clear()
-            except Exception as e:
-                logger.warning(f"[Dashboard] Clear positions error: {e}")
-        try:
-            with sqlite3.connect(db) as conn:
-                conn.execute("DELETE FROM open_positions")
-                conn.commit()
-        except Exception as e:
-            logger.warning(f"[Dashboard] Reset open_positions error: {e}")
-
-        # 3. Reset risk managers so capital and daily PnL return to baseline
-        for trader in self._sell_traders.values():
-            try:
-                trader.risk_manager.reset()
-            except Exception as e:
-                logger.warning(f"[Dashboard] Risk manager reset error: {e}")
-
-        # Write a flag file so restore_positions() skips loading on the next restart.
-        # This is needed because PositionManager background tasks re-save positions
-        # to the DB in the seconds between reset and restart, undoing the DB delete.
-        # The flag ensures the restart starts with 0 positions regardless.
-        try:
-            flag = os.path.join(os.environ.get("DATA_DIR", "."), ".positions_reset")
-            with open(flag, "w") as f:
-                f.write("1")
-        except Exception as e:
-            logger.warning(f"[Dashboard] Reset flag write error: {e}")
-
-        self._alert_buffer.clear()
-        self._start_time = datetime.now(timezone.utc)
-        logger.info("[Dashboard] Full reset via /api/reset — trades, positions, capital cleared")
-        return web.Response(
-            text=json.dumps({"ok": True}),
-            content_type="application/json",
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
-
-    async def _handle_pause(self, request):
-        """Toggle buy pause on/off."""
-        if self._tracker is None:
-            return web.Response(
-                text=json.dumps({"ok": False, "error": "no tracker"}),
-                content_type="application/json",
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-        if self._tracker.buying_paused:
-            self._tracker.resume_buying()
-            state = "resumed"
-        else:
-            self._tracker.pause_buying()
-            state = "paused"
-        return web.Response(
-            text=json.dumps({"ok": True, "state": state, "paused": self._tracker.buying_paused}),
-            content_type="application/json",
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
-
-    async def _handle_blacklist_get(self, request):
-        """List all active rug blacklist entries."""
-        entries = self._tracker.get_blacklist() if self._tracker else []
-        return web.Response(
-            text=json.dumps({"ok": True, "entries": entries}),
-            content_type="application/json",
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
-
-    async def _handle_blacklist_remove(self, request):
-        """Remove a token from the rug blacklist by address."""
-        try:
-            body = await request.json()
-            addr = body.get("token_address", "").strip()
-            if not addr:
-                return web.Response(
-                    text=json.dumps({"ok": False, "error": "token_address required"}),
-                    content_type="application/json",
-                    headers={"Access-Control-Allow-Origin": "*"}
-                )
-            removed = self._tracker.remove_from_blacklist(addr) if self._tracker else False
-            logger.info(f"[Dashboard] Blacklist cleared for {addr} (was_present={removed})")
-            return web.Response(
-                text=json.dumps({"ok": True, "removed": removed}),
-                content_type="application/json",
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-        except Exception as e:
-            return web.Response(
-                text=json.dumps({"ok": False, "error": str(e)}),
-                content_type="application/json",
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-
-    async def _handle_recommendations(self, request):
-        """Return tokens the bot is watching, eligible for manual buy."""
-        recs = []
-        for scanner in self._scanners.values():
-            try:
-                recs.extend(scanner.get_watchlist_recommendations())
-            except Exception:
-                pass
-        recs.sort(key=lambda x: x["score"], reverse=True)
-        return web.Response(
-            text=json.dumps(recs),
-            content_type="application/json",
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
-
-    async def _handle_manual_buy(self, request):
-        """Manually buy a watchlist token, bypassing the dip-entry check."""
-        try:
-            body = await request.json()
-            token_address = body.get("token_address", "").strip()
-            chain_id      = body.get("chain_id", "").strip().lower()
-        except Exception:
-            return web.Response(
-                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
-                status=400, content_type="application/json",
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-
-        scanner = self._scanners.get(chain_id)
-        if not scanner:
-            return web.Response(
-                text=json.dumps({"ok": False, "error": f"No scanner for chain: {chain_id}"}),
-                status=404, content_type="application/json",
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-
-        entry = scanner._dip_watchlist.get(token_address.lower())
-        if not entry or not entry.get("signal"):
-            return web.Response(
-                text=json.dumps({"ok": False, "error": "Token not in watchlist"}),
-                status=404, content_type="application/json",
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-
-        signal     = entry["signal"]
-        risk_level = entry.get("risk_level", "UNKNOWN")
-        scanner._dip_watchlist.pop(token_address.lower(), None)
-
-        import asyncio
-        asyncio.create_task(scanner._fire_chart_buy(signal, risk_level))
-
-        logger.info(
-            f"[Dashboard] Manual buy triggered: {signal.token_symbol} "
-            f"on {scanner.chain.name}"
-        )
-        return web.Response(
-            text=json.dumps({"ok": True}),
-            content_type="application/json",
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
-
-    async def _handle_sell(self, request):
-        """Manually sell all of a position by token_address and chain."""
-        try:
-            body = await request.json()
-            token_address = body.get("token_address", "").strip()
-            chain = body.get("chain", "").strip().lower()
-            symbol = body.get("symbol", "?").strip()
-        except Exception:
-            return web.Response(
-                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
-                status=400, content_type="application/json",
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-
-        # Normalize chain key
-        if chain in ("solana", "sol"):
-            chain = "solana"
-        elif chain == "base":
-            chain = "base"
-        elif chain in ("bsc", "bnb", "bnb chain"):
-            chain = "bnb chain"
-
-        trader = self._sell_traders.get(chain)
-        if trader is None:
-            return web.Response(
-                text=json.dumps({"ok": False, "error": f"No trader for chain: {chain}"}),
-                status=404, content_type="application/json",
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-
-        try:
-            await trader.sell(token_address, symbol, reason="Manual sell via dashboard", pct=1.0)
-            logger.info(f"[Dashboard] Manual sell: {symbol} ({token_address}) on {chain}")
-            return web.Response(
-                text=json.dumps({"ok": True}),
-                content_type="application/json",
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-        except Exception as e:
-            logger.error(f"[Dashboard] Manual sell error: {e}")
-            return web.Response(
-                text=json.dumps({"ok": False, "error": str(e)}),
-                status=500, content_type="application/json",
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-
-    async def _handle_score_stats(self, request):
-        """Return win/loss/pnl broken down by score bucket."""
-        if self._tracker is None:
-            return web.Response(text=json.dumps([]), content_type="application/json",
-                                headers={"Access-Control-Allow-Origin": "*"})
-        buckets = [(0,49),(50,59),(60,69),(70,79),(80,89),(90,100)]
-        result = []
-        for lo, hi in buckets:
-            s = self._tracker.get_stats_by_score_range(lo, hi)
-            s["range"] = f"{lo}–{hi}"
-            result.append(s)
-        return web.Response(text=json.dumps(result), content_type="application/json",
-                            headers={"Access-Control-Allow-Origin": "*"})
-
     async def _handle_trades(self, request):
         trades = []
         if self._tracker is not None:
@@ -1356,6 +1079,200 @@ class WebDashboard:
             content_type="application/json",
             headers={"Access-Control-Allow-Origin": "*"}
         )
+
+    # ── Seed Wallet Helpers ──────────────────────────────────────────────────
+
+    def _load_seed_wallets(self) -> dict:
+        try:
+            with open(self._seed_wallets_path) as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return {}
+        except Exception as e:
+            logger.warning(f"[Dashboard] Could not load seed_wallets.json: {e}")
+            return {}
+
+    def _save_seed_wallets(self, wallets: dict):
+        try:
+            os.makedirs(os.path.dirname(self._seed_wallets_path), exist_ok=True)
+            with open(self._seed_wallets_path, "w") as f:
+                json.dump(wallets, f, indent=2)
+        except Exception as e:
+            logger.warning(f"[Dashboard] Could not save seed_wallets.json: {e}")
+
+    async def _handle_seed_wallets_get(self, request):
+        wallets = self._load_seed_wallets()
+        return web.Response(
+            text=json.dumps({"ok": True, "wallets": wallets}),
+            content_type="application/json",
+            headers={"Access-Control-Allow-Origin": "*"},
+        )
+
+    async def _handle_seed_wallets_add(self, request):
+        try:
+            body    = await request.json()
+            address = body.get("address", "").strip()
+            score   = float(body.get("score", 75.0))
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json",
+                headers={"Access-Control-Allow-Origin": "*"},
+            )
+        if not address or len(address) < 32:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid wallet address"}),
+                status=400, content_type="application/json",
+                headers={"Access-Control-Allow-Origin": "*"},
+            )
+        score = max(0.0, min(100.0, score))
+        wallets = self._load_seed_wallets()
+        wallets[address] = score
+        self._save_seed_wallets(wallets)
+        # Live-reload into running strategies
+        for scanner in self._scanners.values():
+            cwcs = getattr(scanner, "_convergence_strategy", None)
+            if cwcs and hasattr(cwcs, "add_wallet"):
+                cwcs.add_wallet(address, quality_score=score)
+            copy_trader = getattr(scanner, "_copy_trader", None)
+            if copy_trader and hasattr(copy_trader, "add_wallet"):
+                copy_trader.add_wallet(address)
+        logger.info(f"[Dashboard] Seed wallet added: {address[:12]}… score={score:.0f}")
+        return web.Response(
+            text=json.dumps({"ok": True, "address": address, "score": score}),
+            content_type="application/json",
+            headers={"Access-Control-Allow-Origin": "*"},
+        )
+
+    async def _handle_seed_wallets_remove(self, request):
+        try:
+            body    = await request.json()
+            address = body.get("address", "").strip()
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json",
+                headers={"Access-Control-Allow-Origin": "*"},
+            )
+        wallets = self._load_seed_wallets()
+        removed = address in wallets
+        wallets.pop(address, None)
+        self._save_seed_wallets(wallets)
+        for scanner in self._scanners.values():
+            strategy = getattr(scanner, "_convergence_strategy", None)
+            if strategy and hasattr(strategy, "remove_wallet"):
+                strategy.remove_wallet(address)
+            copy_trader = getattr(scanner, "_copy_trader", None)
+            if copy_trader and hasattr(copy_trader, "remove_wallet"):
+                copy_trader.remove_wallet(address)
+        logger.info(f"[Dashboard] Seed wallet removed: {address[:12]}… (was_present={removed})")
+        return web.Response(
+            text=json.dumps({"ok": True, "removed": removed}),
+            content_type="application/json",
+            headers={"Access-Control-Allow-Origin": "*"},
+        )
+
+    async def _handle_sell(self, request):
+        """POST /api/sell — manually sell an open position."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        try:
+            body = await request.json()
+            token_address = body.get("token_address", "").strip()
+            pct = float(body.get("pct", 1.0))
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        if not self._trader:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Trader not registered"}),
+                status=500, content_type="application/json", headers=cors,
+            )
+        position = self._trader.open_positions.get(token_address)
+        if not position:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Position not found"}),
+                status=404, content_type="application/json", headers=cors,
+            )
+        pct = max(0.01, min(1.0, pct))
+        try:
+            await self._trader.sell(
+                token_address, position.token_symbol,
+                f"Manual sell from dashboard ({pct*100:.0f}%)", pct=pct
+            )
+            self.add_alert(f"Manual sell: {position.token_symbol} ({pct*100:.0f}%)")
+            return web.Response(
+                text=json.dumps({"ok": True, "symbol": position.token_symbol, "pct": pct}),
+                content_type="application/json", headers=cors,
+            )
+        except Exception as e:
+            logger.error(f"[Dashboard] Manual sell error: {e}")
+            return web.Response(
+                text=json.dumps({"ok": False, "error": str(e)}),
+                status=500, content_type="application/json", headers=cors,
+            )
+
+    async def _handle_watchlist(self, request):
+        """GET /api/watchlist — return recommended tokens from scanner watchlists."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        combined = []
+        for chain_id, scanner in self._scanners.items():
+            if hasattr(scanner, "get_watchlist"):
+                for item in scanner.get_watchlist():
+                    item["chain"] = chain_id
+                    combined.append(item)
+        combined.sort(key=lambda x: x["score"], reverse=True)
+        return web.Response(
+            text=json.dumps({"ok": True, "watchlist": combined[:20]}),
+            content_type="application/json", headers=cors,
+        )
+
+    async def _handle_buy(self, request):
+        """POST /api/buy — manually buy a token from the watchlist."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        try:
+            body = await request.json()
+            token_address = body.get("token_address", "").strip()
+            token_symbol = body.get("token_symbol", "").strip()
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        if not self._trader:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Trader not registered"}),
+                status=500, content_type="application/json", headers=cors,
+            )
+        if not token_address:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Missing token_address"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        if token_address in self._trader.open_positions:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Already holding this token"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        try:
+            await self._trader.buy(
+                token_address=token_address,
+                token_symbol=token_symbol or "MANUAL",
+                reason="Manual buy from dashboard",
+                signal_score=0
+            )
+            self.add_alert(f"Manual buy: {token_symbol or token_address[:8]}")
+            return web.Response(
+                text=json.dumps({"ok": True, "symbol": token_symbol}),
+                content_type="application/json", headers=cors,
+            )
+        except Exception as e:
+            logger.error(f"[Dashboard] Manual buy error: {e}")
+            return web.Response(
+                text=json.dumps({"ok": False, "error": str(e)}),
+                status=500, content_type="application/json", headers=cors,
+            )
 
     async def _handle_sse(self, request):
         """Server-Sent Events stream — pushes fresh stats every 3 seconds."""
@@ -1398,7 +1315,6 @@ class WebDashboard:
 
         stats = {
             "uptime": f"{hours}h {minutes}m",
-            "buying_paused": self._tracker.buying_paused if self._tracker else False,
             "new_alerts": new_alerts,
             "overall": {
                 "total_trades": 0, "wins": 0, "losses": 0,
@@ -1414,8 +1330,6 @@ class WebDashboard:
             },
             "chains": {
                 "sol":  {"pnl": 0, "capital": 0, "positions": 0},
-                "base": {"pnl": 0, "capital": 0, "positions": 0},
-                "bnb":  {"pnl": 0, "capital": 0, "positions": 0},
             },
             "capital":    {"total": 0, "available": 0, "deployed": 0},
             "security":   {},

@@ -4,9 +4,9 @@ Tests scanner signal thresholds against real historical data
 from DexScreener before risking any real money.
 
 Usage:
-  python backtest/run_backtest.py --chain solana --days 30
-  python backtest/run_backtest.py --chain base --score 60 --days 60
-  python backtest/run_backtest.py --all-chains --days 45
+  python backtest/run_backtest.py --days 30
+  python backtest/run_backtest.py --score 60 --days 60
+  python backtest/run_backtest.py --find-optimal --days 45
 
 What it does:
   1. Fetches historical token data from DexScreener
@@ -154,8 +154,6 @@ class BacktestEngine:
         # DexScreener chain slugs
         self.dex_chains = {
             "solana": "solana",
-            "base": "base",
-            "bsc": "bsc"
         }
 
     async def run(self,

@@ -125,6 +125,10 @@ class PriceFeed:
             except asyncio.CancelledError:
                 break
             except Exception as e:
+                err_str = str(e)
+                if "403" in err_str:
+                    logger.warning("[PriceFeed] DexScreener WebSocket blocked (403) — using polling only")
+                    return  # Don't retry — polling fallback handles it
                 logger.error(f"[PriceFeed] DexScreener WS error: {e}")
 
             logger.info("[PriceFeed] WebSocket disconnected — reconnecting in 5s...")

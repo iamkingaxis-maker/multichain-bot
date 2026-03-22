@@ -4,10 +4,10 @@ Run this script to test your strategy before going live.
 
 Examples:
   python run_backtest.py
-  python run_backtest.py --chain solana --days 30
-  python run_backtest.py --chain base --score 70
-  python run_backtest.py --all-chains --find-optimal
-  python run_backtest.py --all-chains --days 60 --capital 2000
+  python run_backtest.py --days 30
+  python run_backtest.py --score 70
+  python run_backtest.py --find-optimal
+  python run_backtest.py --days 60 --capital 2000
 """
 
 import asyncio
@@ -22,16 +22,13 @@ from backtest.engine import BacktestEngine
 
 
 async def run(args):
-    chains = ["solana", "base", "bsc"] if args.all_chains else [args.chain]
+    print(f"\n{'='*60}")
+    print(f"  Running backtest: SOLANA")
+    print(f"{'='*60}")
 
     all_results = []
-    for chain_id in chains:
-        print(f"\n{'='*60}")
-        print(f"  Running backtest: {chain_id.upper()}")
-        print(f"{'='*60}")
-
-        engine = BacktestEngine(
-            chain_id=chain_id,
+    engine = BacktestEngine(
+            chain_id="solana",
             min_mcap=args.min_mcap,
             max_mcap=args.max_mcap,
             position_size_usd=args.capital / 20,  # ~5% per trade
@@ -41,48 +38,31 @@ async def run(args):
             stop_loss_pct=args.stop_loss / 100
         )
 
-        result = await engine.run(
-            days=args.days,
-            score_threshold=args.score,
-            find_optimal=args.find_optimal
-        )
+    result = await engine.run(
+        days=args.days,
+        score_threshold=args.score,
+        find_optimal=args.find_optimal
+    )
 
-        result.print_report()
-        engine.save_results(result)
-        all_results.append(result)
+    result.print_report()
+    engine.save_results(result)
+    all_results.append(result)
 
-    # Multi-chain summary
-    if len(all_results) > 1:
-        print("\n" + "="*60)
-        print("  MULTI-CHAIN SUMMARY")
-        print("="*60)
-        total_pnl = sum(r.total_pnl_usd for r in all_results)
-        avg_wr = sum(r.win_rate for r in all_results) / len(all_results)
-        print(f"  Combined PnL:    ${total_pnl:+,.2f}")
-        print(f"  Avg Win Rate:    {avg_wr:.1f}%")
-        print(f"  Best Chain:      {max(all_results, key=lambda r: r.total_pnl_usd).chain_id}")
-        print("="*60)
-
-        # Recommendation
-        print("\n  RECOMMENDATIONS:")
-        for r in all_results:
-            if r.profit_factor < 1.0:
-                print(f"  ⚠️  {r.chain_id}: Strategy losing — raise score threshold or disable")
-            elif r.profit_factor < 1.3:
-                print(f"  🟡  {r.chain_id}: Marginal — consider raising threshold to {r.score_threshold + 5}")
-            else:
-                print(f"  ✅  {r.chain_id}: Profitable — score {r.score_threshold} looks good")
+    # Recommendation
+    r = all_results[0]
+    print("\n  RECOMMENDATION:")
+    if r.profit_factor < 1.0:
+        print(f"  Strategy losing — raise score threshold or review rules")
+    elif r.profit_factor < 1.3:
+        print(f"  Marginal — consider raising threshold to {r.score_threshold + 5}")
+    else:
+        print(f"  Profitable — score {r.score_threshold} looks good")
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="Backtest the Multi-Chain Memecoin Bot strategy"
     )
-    parser.add_argument("--chain", default="solana",
-                        choices=["solana", "base", "bsc"],
-                        help="Chain to backtest (default: solana)")
-    parser.add_argument("--all-chains", action="store_true",
-                        help="Backtest all chains")
     parser.add_argument("--days", type=int, default=30,
                         help="Days of history to test (default: 30)")
     parser.add_argument("--score", type=int, default=65,

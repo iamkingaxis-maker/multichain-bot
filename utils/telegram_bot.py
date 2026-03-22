@@ -19,16 +19,28 @@ TELEGRAM_API = "https://api.telegram.org/bot"
 
 
 class TelegramNotifier:
-    def __init__(self, token: str, chat_id: str):
+    def __init__(self, token: str, chat_id: str, on_alert=None):
         self.token = token
         self.chat_id = chat_id
         self.enabled = bool(token and chat_id)
+        self._on_alert = on_alert  # Optional callback → dashboard.add_alert
 
         if not self.enabled:
             logger.warning("Telegram not configured — alerts disabled")
 
+    def register_dashboard(self, dashboard):
+        """Wire dashboard so all alerts also appear in the live event feed."""
+        self._on_alert = dashboard.add_alert
+
     async def send(self, message: str):
-        """Send a message to Telegram."""
+        """Send a message to Telegram and push to dashboard event feed."""
+        # Always push to dashboard feed regardless of Telegram status
+        if self._on_alert:
+            try:
+                self._on_alert(message)
+            except Exception:
+                pass
+
         if not self.enabled:
             logger.info(f"[TELEGRAM DISABLED] {message[:100]}")
             return

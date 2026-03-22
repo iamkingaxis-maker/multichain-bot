@@ -76,8 +76,6 @@ class SecurityChecker:
                  max_sell_tax: float = 10.0,
                  max_top10_concentration: float = 80.0,
                  max_dev_holding_pct: float = 15.0,
-                 min_holder_count: int = 50,
-                 min_liquidity_usd: float = 8_000.0,
                  block_mintable: bool = True,
                  block_honeypot: bool = True,
                  block_blacklist: bool = True,
@@ -86,8 +84,6 @@ class SecurityChecker:
         self.max_sell_tax = max_sell_tax
         self.max_top10_concentration = max_top10_concentration
         self.max_dev_holding_pct = max_dev_holding_pct
-        self.min_holder_count = min_holder_count
-        self.min_liquidity_usd = min_liquidity_usd
         self.block_mintable = block_mintable
         self.block_honeypot = block_honeypot
         self.block_blacklist = block_blacklist
@@ -241,13 +237,6 @@ class SecurityChecker:
         if result.is_proxy:
             result.warnings.append("Proxy contract — hidden logic possible")
 
-        # Holder count — very few holders = dev dump setup
-        holder_count = int(data.get("holder_count", 0) or 0)
-        if holder_count > 0 and holder_count < self.min_holder_count:
-            result.flags.append(
-                f"Only {holder_count} holders — dump risk"
-            )
-
         # Holder concentration
         holders = data.get("holders", [])
         if holders:
@@ -319,12 +308,10 @@ class SecurityChecker:
                         result.risk_level = "BLOCK"
                         return
 
-                    pair = max(pairs, key=lambda p: p.get("liquidity", {}).get("usd", 0))
+                    pair = pairs[0]
                     liquidity = pair.get("liquidity", {}).get("usd", 0)
-                    if liquidity < self.min_liquidity_usd:
-                        result.flags.append(
-                            f"Low liquidity ${liquidity:,.0f} (min ${self.min_liquidity_usd:,.0f})"
-                        )
+                    if liquidity < 5000:
+                        result.flags.append(f"Very low liquidity ${liquidity:,.0f}")
 
                     result.risk_level = "CAUTION"
         except Exception as e:
@@ -350,10 +337,6 @@ class SecurityChecker:
             return False
         if result.risk_level == "BLOCK":
             return False
-        # Block tokens flagged for low holder count or low liquidity
-        for flag in result.flags:
-            if "holders" in flag.lower() or "liquidity" in flag.lower():
-                return False
 
         return True
 

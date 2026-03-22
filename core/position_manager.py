@@ -7,7 +7,7 @@ Rules (from trader experience):
 TAKE PROFIT:
   TP1: +50%  → sell 50% of position (lock in fast)
   TP2: +100% → sell 75% of remaining (sell most quickly)
-  TP3: +150% → sell 50% of remaining (leaves larger moon bag for 10x+ runners)
+  TP3: +150% → sell 75% of remaining (rare but happens)
   Moon bag: whatever is left rides indefinitely
 
 STALL DETECTION:
@@ -17,7 +17,7 @@ STALL DETECTION:
   - → Sell 75%, hold 25% moon bag
 
 STOP LOSS:
-  - Hard stop at -20% from entry — no exceptions
+  - Hard stop at -28% from entry — no exceptions
   - No conditional skipping — clean and simple
 
 AVERAGE DOWN:
@@ -25,7 +25,7 @@ AVERAGE DOWN:
   - Only if current volume is still above 50% of entry volume (fundamentals hold)
   - Only once per position — never twice
   - Add 50% of original position size
-  - If average down triggers and position still hits -20% → stop out normally
+  - If average down triggers and position still hits -28% → stop out normally
 
 MARKET CONDITIONS:
   - Monitor BTC 24h price change every 15 minutes
@@ -89,9 +89,6 @@ class PositionState:
     pyramid_signal_score: int = 0
     hh_hl_confirmed: bool = False
 
-    # Moon bag trailing stop
-    moonbag_trailing_active: bool = False
-
     # Current state
     current_price: float = 0.0
     current_volume_usd: float = 0.0
@@ -125,24 +122,18 @@ class PositionState:
     @property
     def is_stalled(self) -> bool:
         """
-        True when BOTH conditions are met simultaneously for 2 consecutive
-        30-minute windows (60 min of confirmed stall before selling).
-
-        Requiring 2 windows prevents false exits on tokens that pause briefly
-        then resume — 27% win rate on 1-window stall exits showed too many
-        early exits on still-active tokens.
-
+        True when BOTH conditions are met simultaneously:
           1. m5 run-rate (m5 × 12 = hourly equivalent) is below threshold
           2. h1 volume is also below threshold
           3. Price is flat or down (no point exiting a rising token)
           4. Entry volume baseline is set (guard against false early triggers)
-          5. 2 consecutive low-volume windows required (was 1)
+          5. Only 1 window needed — 30 min of combined low volume is enough
         """
         if self.entry_volume_usd <= 0:
             return False   # Baseline not set yet
 
-        if len(self.volume_windows) < 2:
-            return False   # Need at least 2 windows recorded
+        if not self.volume_windows:
+            return False   # No windows recorded yet
 
         threshold = self.entry_volume_usd * self.stall_threshold
 
@@ -158,13 +149,7 @@ class PositionState:
         # Condition 3: Price flat or down — no exit if still making highs
         price_not_rising = self.current_price <= self.peak_price * 0.99
 
-        # Condition 4: Last 2 recorded volume windows were both below threshold
-        last_two_low = all(
-            w.volume_usd < threshold
-            for w in self.volume_windows[-2:]
-        )
-
-        stalled = m5_stalled and h1_stalled and price_not_rising and last_two_low
+        stalled = m5_stalled and h1_stalled and price_not_rising
 
         if stalled:
             logger.debug(
@@ -315,7 +300,6 @@ class MarketConditionMonitor:
         """True if this signal should fire given current conditions."""
         return signal_score >= self.get_current_threshold(signal_score)
 
-
     def get_stats(self) -> dict:
         return {
             "btc_24h_change": round(self.btc_change_24h, 2),
@@ -347,11 +331,11 @@ class PositionManager:
                  tp1_sell: float = 0.50,
                  tp2_pct: float = 100.0,   # +100% → sell 75% of remaining
                  tp2_sell: float = 0.75,
-                 tp3_pct: float = 150.0,   # +150% → sell 50% of remaining (more moon bag)
-                 tp3_sell: float = 0.50,
+                 tp3_pct: float = 150.0,   # +150% → sell 75% of remaining
+                 tp3_sell: float = 0.75,
 
                  # Stop loss
-                 stop_loss_pct: float = 20.0,   # Hard -20%, no exceptions
+                 stop_loss_pct: float = 28.0,   # Hard -28%, no exceptions
 
                  # Stall detection
                  stall_check_interval_min: int = 30,
@@ -362,10 +346,7 @@ class PositionManager:
                  # Average down
                  avg_down_max_loss_pct: float = 15.0,
                  avg_down_min_volume_pct: float = 0.50,
-                 avg_down_size_pct: float = 0.50,
-
-                 # Moon bag trailing stop
-                 moonbag_trailing_stop_pct: float = 25.0):
+                 avg_down_size_pct: float = 0.50):
 
         self.chain_name = chain_name
         self.chain_id = chain_id
@@ -397,9 +378,6 @@ class PositionManager:
         self.avg_down_min_volume = avg_down_min_volume_pct
         self.avg_down_size = avg_down_size_pct
 
-        # Moon bag trailing stop
-        self.moonbag_trailing_stop_pct = moonbag_trailing_stop_pct
-
         self._states: Dict[str, PositionState] = {}
         self._last_volume_check: Dict[str, datetime] = {}
 
@@ -426,7 +404,7 @@ class PositionManager:
                 await self._management_cycle()
             except Exception as e:
                 logger.error(f"[PositionManager/{self.chain_name}] Error: {e}")
-            await asyncio.sleep(5)
+            await asyncio.sleep(30)
 
     async def _management_cycle(self):
         """One full management cycle across all open positions."""
@@ -493,32 +471,12 @@ class PositionManager:
                     volume_m5 = volume_data.get("m5", 0) or 0
 
                     if price > 0:
-                        # Sanity check: cap upward price jumps to 20x per cycle.
-                        # Pump.fun→Raydium graduation can create a new pool with a
-                        # wildly different price ratio that DexScreener briefly shows
-                        # as "highest liquidity", causing phantom TP fires.
-                        # Downward moves are unrestricted (rug pulls are real losses).
-                        prev = state.current_price or state.entry_price
-                        if prev > 0 and price / prev > 20:
-                            logger.warning(
-                                f"[PositionManager/{self.chain_name}] "
-                                f"⚠️ Price spike rejected for {state.token_symbol}: "
-                                f"{prev:.8f} → {price:.8f} "
-                                f"({price/prev:.0f}x jump — likely pool migration artifact)"
-                            )
-                            return
-
                         state.current_price = price
                         state.current_volume_usd = volume_h1
                         state.current_h1_volume = volume_h1
                         state.current_m5_volume = volume_m5
                         if price > state.peak_price:
                             state.peak_price = price
-
-                        # Write back to position object so dashboard shows live P&L
-                        pos = self.open_positions_ref.get(token_address)
-                        if pos:
-                            pos.current_price_usd = price
 
                         # Set entry volume baseline on first update (h1 snapshot)
                         if state.entry_volume_usd == 0 and volume_h1 > 0:
@@ -573,10 +531,9 @@ class PositionManager:
         # ── TAKE PROFIT TIERS ────────────────────────────────────────────
         if pnl_pct >= self.tp3_pct and not state.tp3_hit:
             state.tp3_hit = True
-            state.moonbag_trailing_active = True
             logger.info(
                 f"[PositionManager/{self.chain_name}] 🎯 TP3: "
-                f"{state.token_symbol} +{pnl_pct:.1f}% — moon bag trailing stop armed"
+                f"{state.token_symbol} +{pnl_pct:.1f}%"
             )
             await self._execute_sell(
                 token_address, state,
@@ -585,21 +542,6 @@ class PositionManager:
             )
             self.tp3_hits += 1
             return
-
-        # ── MOON BAG TRAILING STOP ────────────────────────────────────────
-        if state.moonbag_trailing_active and state.peak_price > 0:
-            trail_floor = state.peak_price * (1 - self.moonbag_trailing_stop_pct / 100)
-            if state.current_price <= trail_floor:
-                logger.info(
-                    f"[PositionManager/{self.chain_name}] 🌙 MOON BAG TRAIL: "
-                    f"{state.token_symbol} dropped {self.moonbag_trailing_stop_pct:.0f}% "
-                    f"from peak ${state.peak_price:.6f} → ${state.current_price:.6f}"
-                )
-                await self._execute_sell(
-                    token_address, state, pct=1.0,
-                    reason=f"Moon bag trail -{self.moonbag_trailing_stop_pct:.0f}% from peak"
-                )
-                return
 
         if pnl_pct >= self.tp2_pct and not state.tp2_hit:
             state.tp2_hit = True
@@ -664,7 +606,6 @@ class PositionManager:
                 )
             )
             state.stall_exit_done = True
-            state.moonbag_trailing_active = True
             self.stall_exits += 1
             await self.telegram.send(
                 f"😴 *Stall Exit* [{self.chain_name}]\n\n"
@@ -680,9 +621,7 @@ class PositionManager:
             return
 
         # ── AVERAGE DOWN ─────────────────────────────────────────────────
-        minutes_open = (datetime.now(timezone.utc) - state.entry_time).total_seconds() / 60
         if (not state.averaged_down and
-                minutes_open >= 30 and  # must be open at least 30 min before avg-down
                 -self.avg_down_max_loss <= pnl_pct < 0):
             # Check volume is still healthy
             vol_ratio = (
@@ -703,8 +642,7 @@ class PositionManager:
                     reason=(
                         f"Avg down at {pnl_pct:.1f}% — "
                         f"volume still {vol_ratio:.1f}x entry"
-                    ),
-                    price_hint=state.current_price
+                    )
                 )
                 state.averaged_down = True
                 state.avg_down_price = state.current_price
@@ -717,31 +655,6 @@ class PositionManager:
                     f"💰 Added: ${add_usd:.0f} (50% of original)\n"
                     f"⚠️ One time only — no second avg down"
                 )
-
-    async def _execute_pyramid(self, token_address: str,
-                               state: PositionState, pnl_pct: float):
-        """Add to a winning position after TP1 fires on a 90+ scored signal."""
-        try:
-            add_usd = state.original_size_usd * 0.30
-            logger.info(
-                f"[PositionManager/{self.chain_name}] PYRAMID: "
-                f"{state.token_symbol} +{pnl_pct:.1f}% "
-                f"score {state.pyramid_signal_score} adding ${add_usd:.0f}"
-            )
-            await self.trader.buy(
-                token_address=token_address,
-                token_symbol=f"{state.token_symbol}[PYRAMID]",
-                reason=f"Pyramid TP1 score {state.pyramid_signal_score} HH+HL",
-                price_hint=state.current_price
-            )
-            state.pyramided = True
-            await self.telegram.send(
-                f"PYRAMID [{self.chain_name}] "
-                f"${state.token_symbol} +{pnl_pct:.1f}% "
-                f"score {state.pyramid_signal_score} +${add_usd:.0f}"
-            )
-        except Exception as e:
-            logger.error(f"[PositionManager/{self.chain_name}] Pyramid error: {e}")
 
     async def _execute_sell(self, token_address: str,
                              state: PositionState,
@@ -760,6 +673,30 @@ class PositionManager:
             logger.error(
                 f"[PositionManager/{self.chain_name}] Sell error: {e}"
             )
+
+    async def _execute_pyramid(self, token_address: str,
+                               state, pnl_pct: float):
+        """Add 30% of original position after TP1 on 90+ score signals."""
+        try:
+            add_usd = state.position_size_usd * 0.30
+            logger.info(
+                f"[PositionManager/{self.chain_name}] PYRAMID: "
+                f"{state.token_symbol} +{pnl_pct:.1f}% "
+                f"score {state.pyramid_signal_score} adding ${add_usd:.0f}"
+            )
+            await self.trader.buy(
+                token_address=token_address,
+                token_symbol=f"{state.token_symbol}[PYRAMID]",
+                reason=f"Pyramid TP1 score {state.pyramid_signal_score} HH+HL"
+            )
+            state.pyramided = True
+            await self.telegram.send(
+                f"PYRAMID [{self.chain_name}] "
+                f"${state.token_symbol} +{pnl_pct:.1f}% "
+                f"score {state.pyramid_signal_score} +${add_usd:.0f}"
+            )
+        except Exception as e:
+            logger.error(f"[PositionManager] Pyramid error: {e}")
 
     def get_stats(self) -> dict:
         return {

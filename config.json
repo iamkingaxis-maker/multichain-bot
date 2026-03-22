@@ -17,12 +17,12 @@
     "bnb": 0.20
   },
 
-  "take_profit_1_pct": 50.0,
+  "take_profit_1_pct": 10.0,
   "take_profit_1_sell": 0.50,
-  "take_profit_2_pct": 100.0,
+  "take_profit_2_pct": 25.0,
   "take_profit_2_sell": 0.75,
-  "take_profit_3_pct": 150.0,
-  "take_profit_3_sell": 0.75,
+  "take_profit_3_pct": 50.0,
+  "take_profit_3_sell": 1.0,
 
   "stop_loss_pct": 28.0,
 
@@ -42,7 +42,7 @@
   "min_mcap": 200000,
   "max_mcap": 1000000,
   "min_combined_score": 65,
-  "require_both_sources": true,
+  "require_both_sources": false,
   "min_liquidity_usd": 50000,
   "max_dev_wallet_pct": 5.0,
   "preferred_age_min_hours": 3.0,
@@ -85,5 +85,7 @@
   "min_sentiment_score": 30,
   "require_twitter": true,
   "use_flashbots": true,
-  "large_buy_threshold_sol": 5.0
+  "large_buy_threshold_sol": 5.0,
+
+  "scanner_keywords": ["solana", "sol meme", "new launch", "pump", "moon", "pepe", "doge", "cat", "ai", "trump"]
 }

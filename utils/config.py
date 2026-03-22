@@ -12,7 +12,7 @@ they go in Railway's Variables tab instead.
 import json
 import os
 from dataclasses import dataclass, field
-from typing import List, Dict
+from typing import List
 
 
 def env(key: str, default=None):
@@ -59,46 +59,27 @@ def env_list(key: str, default: list = None) -> list:
 class Config:
     # ── Wallets ──────────────────────────────────────────────
     solana_private_key: str = ""
-    evm_private_key: str = ""
     scalper_solana_private_key: str = ""
-    scalper_evm_private_key: str = ""
 
     # ── RPC Endpoints ────────────────────────────────────────
     solana_rpc_url: str = "https://api.mainnet-beta.solana.com"
-    base_rpc_url: str = "https://mainnet.base.org"
-    bnb_rpc_url: str = "https://bsc-dataseed1.binance.org"
 
     # ── API Keys ─────────────────────────────────────────────
-    basescan_api_key: str = ""
-    bscscan_api_key: str = ""
     birdeye_api_key: str = ""
-    lunarcrush_api_key: str = ""
-    solanatracker_api_key: str = ""
 
     # ── Telegram ─────────────────────────────────────────────
     telegram_token: str = ""
     telegram_chat_id: str = ""
     dashboard_port: int = 8080
 
-    # ── Telegram Channel Monitor ──────────────────────────────
-    telegram_api_id: int = 0
-    telegram_api_hash: str = ""
-    telegram_session: str = ""
-    telegram_monitor_channels: List[str] = field(default_factory=list)
-
     # ── Chains ───────────────────────────────────────────────
     enable_solana: bool = True
-    enable_base: bool = True
-    enable_bnb: bool = True
 
     # ── Capital ──────────────────────────────────────────────
     total_capital: float = 2000.0
-    max_position_pct: float = 0.25
+    max_position_pct: float = 0.08
     min_position_pct: float = 0.02
     daily_loss_limit: float = 200.0
-    capital_split: Dict = field(default_factory=lambda: {
-        "solana": 0.50, "base": 0.30, "bnb": 0.20
-    })
 
     # ── Take Profit ──────────────────────────────────────────
     take_profit_1_pct: float = 50.0
@@ -109,7 +90,7 @@ class Config:
     take_profit_3_sell: float = 0.75
 
     # ── Stop Loss ────────────────────────────────────────────
-    stop_loss_pct: float = 20.0
+    stop_loss_pct: float = 28.0
 
     # ── Stall Detection ──────────────────────────────────────
     stall_check_interval_min: int = 30
@@ -130,18 +111,13 @@ class Config:
     # ── Scanner ──────────────────────────────────────────────
     min_mcap: float = 200_000
     max_mcap: float = 1_000_000
-    min_combined_score: int = 40
-    max_combined_score: int = 85
-    require_both_sources: bool = False
-    min_holder_count: int = 100
-    single_source_min_score: int = 40
+    min_combined_score: int = 65
+    require_both_sources: bool = True
     min_liquidity_usd: float = 50_000
-    min_volume_h1_usd: float = 20_000
     max_dev_wallet_pct: float = 5.0
     preferred_age_min_hours: float = 3.0
     preferred_age_max_hours: float = 12.0
     hard_skip_age_hours: float = 24.0
-    max_hold_hours: float = 24.0
     pyramid_score_threshold: int = 90
     volume_acceleration_candles: int = 3
 
@@ -162,8 +138,6 @@ class Config:
     wallet_pause_minutes: int = 60
     auto_block_after_pauses: int = 3
     solana_copy_wallets: List[str] = field(default_factory=list)
-    base_copy_wallets: List[str] = field(default_factory=list)
-    bnb_copy_wallets: List[str] = field(default_factory=list)
     copy_trade_delay_seconds: int = 5
     copy_min_trade_size_native: float = 0.01
     copy_max_price_move_pct: float = 15.0
@@ -188,6 +162,12 @@ class Config:
     require_twitter: bool = True
     use_flashbots: bool = True
     large_buy_threshold_sol: float = 5.0
+
+    # ── Scanner Keywords ──────────────────────────────────────
+    scanner_keywords: List[str] = field(default_factory=lambda: [
+        "solana", "sol meme", "new launch", "pump", "moon",
+        "pepe", "doge", "cat", "ai", "trump"
+    ])
 
     @classmethod
     def load(cls, path: str = "config.json") -> "Config":
@@ -224,28 +204,18 @@ def _apply_env_overrides(config: Config):
 
     Set these in Railway's Variables tab:
       SOLANA_PRIVATE_KEY
-      EVM_PRIVATE_KEY
       TELEGRAM_TOKEN
       TELEGRAM_CHAT_ID
       SOLANA_RPC_URL
-      BASESCAN_API_KEY
-      BSCSCAN_API_KEY
       BIRDEYE_API_KEY
       (and any others you want to override)
     """
-    # Paper mode — set PAPER_MODE=true to simulate all trades without using real keys
+    # Paper mode — simulate all trades without using real keys
     if os.environ.get("PAPER_MODE", "").lower() in ("1", "true", "yes"):
-        # Clear wallet keys — no real trades
         config.solana_private_key = ""
-        config.evm_private_key = ""
         config.scalper_solana_private_key = ""
-        config.scalper_evm_private_key = ""
-        # Reserve $10 for simulated gas (mirrors live 0.05 SOL gas reserve)
         GAS_RESERVE_USD = 10.0
         config.total_capital = max(0.0, config.total_capital - GAS_RESERVE_USD)
-        # Still load API keys and Telegram so scanning/alerts work in paper mode
-        if os.environ.get("BIRDEYE_API_KEY"):
-            config.birdeye_api_key = env("BIRDEYE_API_KEY")
         if os.environ.get("LUNARCRUSH_API_KEY"):
             config.lunarcrush_api_key = env("LUNARCRUSH_API_KEY")
         if os.environ.get("SOLANATRACKER_API_KEY"):
@@ -256,37 +226,23 @@ def _apply_env_overrides(config: Config):
             config.telegram_chat_id = env("TELEGRAM_CHAT_ID")
         if os.environ.get("SOLANA_RPC_URL"):
             config.solana_rpc_url = env("SOLANA_RPC_URL")
+        if os.environ.get("SOLANA_COPY_WALLETS"):
+            config.solana_copy_wallets = env_list("SOLANA_COPY_WALLETS")
         return config
 
     # Wallet keys — most sensitive, always from env on Railway
     if os.environ.get("SOLANA_PRIVATE_KEY"):
         config.solana_private_key = env("SOLANA_PRIVATE_KEY")
-    if os.environ.get("EVM_PRIVATE_KEY"):
-        config.evm_private_key = env("EVM_PRIVATE_KEY")
     if os.environ.get("SCALPER_SOLANA_PRIVATE_KEY"):
         config.scalper_solana_private_key = env("SCALPER_SOLANA_PRIVATE_KEY")
-    if os.environ.get("SCALPER_EVM_PRIVATE_KEY"):
-        config.scalper_evm_private_key = env("SCALPER_EVM_PRIVATE_KEY")
 
     # RPC URLs
     if os.environ.get("SOLANA_RPC_URL"):
         config.solana_rpc_url = env("SOLANA_RPC_URL")
-    if os.environ.get("BASE_RPC_URL"):
-        config.base_rpc_url = env("BASE_RPC_URL")
-    if os.environ.get("BNB_RPC_URL"):
-        config.bnb_rpc_url = env("BNB_RPC_URL")
 
     # API keys
-    if os.environ.get("BASESCAN_API_KEY"):
-        config.basescan_api_key = env("BASESCAN_API_KEY")
-    if os.environ.get("BSCSCAN_API_KEY"):
-        config.bscscan_api_key = env("BSCSCAN_API_KEY")
     if os.environ.get("BIRDEYE_API_KEY"):
         config.birdeye_api_key = env("BIRDEYE_API_KEY")
-    if os.environ.get("LUNARCRUSH_API_KEY"):
-        config.lunarcrush_api_key = env("LUNARCRUSH_API_KEY")
-    if os.environ.get("SOLANATRACKER_API_KEY"):
-        config.solanatracker_api_key = env("SOLANATRACKER_API_KEY")
 
     # Telegram
     if os.environ.get("TELEGRAM_TOKEN"):
@@ -299,43 +255,18 @@ def _apply_env_overrides(config: Config):
         config.total_capital = env_float("TOTAL_CAPITAL", config.total_capital)
     if os.environ.get("DAILY_LOSS_LIMIT"):
         config.daily_loss_limit = env_float("DAILY_LOSS_LIMIT", config.daily_loss_limit)
-    if os.environ.get("STOP_LOSS_PCT"):
-        config.stop_loss_pct = env_float("STOP_LOSS_PCT", config.stop_loss_pct)
 
-    # Scanner score threshold
-    if os.environ.get("MIN_COMBINED_SCORE"):
-        config.min_combined_score = int(os.environ["MIN_COMBINED_SCORE"])
-        config.single_source_min_score = int(os.environ["MIN_COMBINED_SCORE"])
-
-    # Chain toggles
+    # Chain toggle
     if os.environ.get("ENABLE_SOLANA"):
         config.enable_solana = env_bool("ENABLE_SOLANA", config.enable_solana)
-    if os.environ.get("ENABLE_BASE"):
-        config.enable_base = env_bool("ENABLE_BASE", config.enable_base)
-    if os.environ.get("ENABLE_BNB"):
-        config.enable_bnb = env_bool("ENABLE_BNB", config.enable_bnb)
 
     # Copy wallets (comma-separated in env)
     if os.environ.get("SOLANA_COPY_WALLETS"):
         config.solana_copy_wallets = env_list("SOLANA_COPY_WALLETS")
-    if os.environ.get("BASE_COPY_WALLETS"):
-        config.base_copy_wallets = env_list("BASE_COPY_WALLETS")
-    if os.environ.get("BNB_COPY_WALLETS"):
-        config.bnb_copy_wallets = env_list("BNB_COPY_WALLETS")
 
     # Dashboard port (Railway assigns this automatically)
     if os.environ.get("PORT"):
         config.dashboard_port = env_int("PORT", config.dashboard_port)
-
-    # Telegram channel monitor credentials
-    if os.environ.get("TELEGRAM_API_ID"):
-        config.telegram_api_id = env_int("TELEGRAM_API_ID")
-    if os.environ.get("TELEGRAM_API_HASH"):
-        config.telegram_api_hash = env("TELEGRAM_API_HASH")
-    if os.environ.get("TELEGRAM_SESSION"):
-        config.telegram_session = env("TELEGRAM_SESSION")
-    if os.environ.get("TELEGRAM_MONITOR_CHANNELS"):
-        config.telegram_monitor_channels = env_list("TELEGRAM_MONITOR_CHANNELS")
 
 
 def _validate(config: "Config"):
@@ -344,8 +275,6 @@ def _validate(config: "Config"):
         errors.append(
             "SOLANA_RPC_URL missing — set SOLANA_RPC_URL in Railway Variables"
         )
-    if abs(sum(config.capital_split.values()) - 1.0) > 0.01:
-        errors.append("capital_split must add to 1.0")
     if config.avg_down_max_loss_pct > config.stop_loss_pct:
         errors.append(
             f"avg_down_max_loss ({config.avg_down_max_loss_pct}%) must be "

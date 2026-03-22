@@ -37,6 +37,22 @@ class EVMPosition:
     # Signal quality at entry — used by PositionManager for pyramid decisions
     signal_score: int = 0
     hh_hl_confirmed: bool = False
+    # Entry metadata from scanner signal — used for trade analysis
+    entry_mcap: float = 0.0
+    entry_liquidity: float = 0.0
+    entry_volume_h1: float = 0.0
+    entry_buys_h1: int = 0
+    entry_sells_h1: int = 0
+    holder_count: int = 0
+    dex_score: int = 0
+    birdeye_score: int = 0
+    # Peak tracking — updated by position manager during monitoring
+    peak_price_usd: float = 0.0
+    # Exit-state flags — persisted so restarts don't re-fire events
+    tp3_hit: bool = False
+    stall_exit_done: bool = False
+    averaged_down: bool = False
+    moonbag_trailing_active: bool = False
 
 
 class EVMTrader:
@@ -60,11 +76,122 @@ class EVMTrader:
         # Paper trading slippage simulator
         self.paper_slippage = PaperSlippageSimulator(chain.chain_id)
 
-        asyncio.create_task(self._monitor_positions())
+    def save_position(self, token_address: str):
+        """Persist current position state to DB — call after updating flags."""
+        pos = self.open_positions.get(token_address.lower())
+        if pos:
+            self.tracker.save_position(pos)
+
+    async def avg_down(self, token_address: str, add_usd: float) -> float:
+        """
+        Add to an existing EVM position at current price.
+        Merges into existing EVMPosition with weighted average entry.
+        Returns the new average entry price (0 on failure).
+        """
+        token_address = token_address.lower()
+        position = self.open_positions.get(token_address)
+        if not position:
+            logger.warning(f"[{self.chain.name}] avg_down: no open position for {token_address}")
+            return 0
+
+        available = self.risk_manager.available_capital
+        add_usd = min(add_usd, available)
+        if add_usd <= 0:
+            logger.warning(f"[{self.chain.name}] avg_down: no capital for {position.token_symbol}")
+            return 0
+
+        try:
+            if not self.private_key:
+                current_price = await self._get_token_price_usd(token_address)
+                if current_price <= 0:
+                    current_price = position.current_price_usd or position.entry_price_usd
+                if current_price <= 0:
+                    return 0
+
+                liquidity_usd = await self._get_token_liquidity(token_address)
+                adj_price, tokens_received, slip_est = \
+                    self.paper_slippage.apply_to_buy(
+                        add_usd, liquidity_usd, current_price, position.token_symbol
+                    )
+                native_price = await self._get_native_price()
+                native_amount = add_usd / native_price if native_price > 0 else 0
+
+                total_tokens = position.amount_tokens + tokens_received
+                total_cost   = position.entry_usd_value + add_usd
+                new_avg      = total_cost / total_tokens if total_tokens > 0 else adj_price
+
+                position.amount_tokens       = total_tokens
+                position.amount_native_spent += native_amount
+                position.entry_price_usd     = new_avg
+                position.entry_usd_value     = total_cost
+
+                self.risk_manager.record_buy(add_usd)
+                self.tracker.save_position(position)
+
+                await self.telegram.send(
+                    f"📉 *[PAPER] Avg Down ${position.token_symbol}* [{self.chain.name}]\n\n"
+                    f"💵 Added: ${add_usd:.0f}\n"
+                    f"📊 New avg entry: ${new_avg:.8f}\n"
+                    f"💰 Total cost: ${total_cost:.0f}"
+                )
+                logger.info(
+                    f"[{self.chain.name}] 📉 [PAPER] Avg down {position.token_symbol} — "
+                    f"added ${add_usd:.0f} | new avg entry: ${new_avg:.8f}"
+                )
+                return new_avg
+
+            # Live path
+            native_price = await self._get_native_price()
+            if native_price <= 0:
+                return 0
+            native_amount = add_usd / native_price
+
+            quote = await self._evm_swap_with_retry(
+                sell_token=self.chain.weth_address,
+                buy_token=token_address,
+                sell_amount=int(native_amount * 1e18),
+                symbol=position.token_symbol
+            )
+            if not quote:
+                logger.error(f"[{self.chain.name}] avg_down swap failed: {position.token_symbol}")
+                return 0
+
+            tokens_received = int(quote.get("buyAmount", 0)) / 1e18
+            total_tokens = position.amount_tokens + tokens_received
+            total_cost   = position.entry_usd_value + add_usd
+            new_avg      = total_cost / total_tokens if total_tokens > 0 else position.entry_price_usd
+
+            position.amount_tokens       = total_tokens
+            position.amount_native_spent += native_amount
+            position.entry_price_usd     = new_avg
+            position.entry_usd_value     = total_cost
+
+            self.risk_manager.record_buy(add_usd)
+            self.tracker.save_position(position)
+
+            await self.telegram.send(
+                f"📉 *Avg Down ${position.token_symbol}* [{self.chain.name}]\n\n"
+                f"💵 Added: ${add_usd:.0f}\n"
+                f"📊 New avg entry: ${new_avg:.8f}\n"
+                f"💰 Total cost: ${total_cost:.0f}"
+            )
+            logger.info(
+                f"[{self.chain.name}] 📉 Avg down {position.token_symbol} — "
+                f"new avg entry: ${new_avg:.8f} | total cost: ${total_cost:.0f}"
+            )
+            return new_avg
+
+        except Exception as e:
+            logger.error(f"[{self.chain.name}] avg_down failed for {position.token_symbol}: {e}")
+            return 0
 
     async def buy(self, token_address: str, token_symbol: str,
                   reason: str, signal_score: int = 0,
-                  hh_hl_confirmed: bool = False):
+                  hh_hl_confirmed: bool = False, price_hint: float = 0,
+                  entry_mcap: float = 0, entry_liquidity: float = 0,
+                  entry_volume_h1: float = 0, entry_buys_h1: int = 0,
+                  entry_sells_h1: int = 0, holder_count: int = 0,
+                  dex_score: int = 0, birdeye_score: int = 0):
         """Execute a buy on an EVM chain."""
         position_size_usd = self.risk_manager.get_position_size()
         if position_size_usd <= 0:
@@ -73,6 +200,11 @@ class EVMTrader:
         # ── PAPER TRADING MODE ────────────────────────────────────────
         if not self.private_key:
             current_price = await self._get_token_price_usd(token_address)
+            if current_price <= 0:
+                current_price = price_hint
+            if current_price <= 0:
+                logger.warning(f"Skipping {token_symbol} [{self.chain.name}] — price unavailable on DexScreener")
+                return
             liquidity_usd = await self._get_token_liquidity(token_address)
             native_price = await self._get_native_price()
             native_amount = position_size_usd / native_price if native_price > 0 else 0
@@ -82,7 +214,6 @@ class EVMTrader:
                     current_price, token_symbol
                 )
 
-            from dataclasses import dataclass
             position = EVMPosition(
                 token_address=token_address.lower(),
                 token_symbol=token_symbol,
@@ -94,10 +225,19 @@ class EVMTrader:
                 reason=reason,
                 chain_id=self.chain.chain_id,
                 signal_score=signal_score,
-                hh_hl_confirmed=hh_hl_confirmed
+                hh_hl_confirmed=hh_hl_confirmed,
+                entry_mcap=entry_mcap,
+                entry_liquidity=entry_liquidity,
+                entry_volume_h1=entry_volume_h1,
+                entry_buys_h1=entry_buys_h1,
+                entry_sells_h1=entry_sells_h1,
+                holder_count=holder_count,
+                dex_score=dex_score,
+                birdeye_score=birdeye_score,
             )
             self.open_positions[token_address.lower()] = position
             self.risk_manager.record_buy(position_size_usd)
+            self.tracker.save_position(position)
             await self.telegram.send(
                 f"📄 *[PAPER] Bought ${token_symbol}* [{self.chain.name}]\n\n"
                 f"💵 Size: ${position_size_usd:.0f}\n"
@@ -121,22 +261,18 @@ class EVMTrader:
                 return
             native_amount = position_size_usd / native_price
 
-            # Get 0x quote
-            quote = await self._get_0x_quote(
+            quote = await self._evm_swap_with_retry(
                 sell_token=self.chain.weth_address,
                 buy_token=token_address,
-                sell_amount=int(native_amount * 1e18)
+                sell_amount=int(native_amount * 1e18),
+                symbol=token_symbol
             )
             if not quote:
-                logger.error(f"No quote for {token_symbol} on {self.chain.name}")
+                logger.error(f"Buy failed after retries: {token_symbol} [{self.chain.name}]")
                 return
 
             buy_amount = int(quote.get("buyAmount", 0))
             entry_price = position_size_usd / (buy_amount / 1e18) if buy_amount > 0 else 0
-
-            success = await self._execute_evm_swap(quote, token_address)
-            if not success:
-                return
 
             position = EVMPosition(
                 token_address=token_address.lower(),
@@ -149,17 +285,24 @@ class EVMTrader:
                 reason=reason,
                 chain_id=self.chain.chain_id,
                 signal_score=signal_score,
-                hh_hl_confirmed=hh_hl_confirmed
+                hh_hl_confirmed=hh_hl_confirmed,
+                entry_mcap=entry_mcap,
+                entry_liquidity=entry_liquidity,
+                entry_volume_h1=entry_volume_h1,
+                entry_buys_h1=entry_buys_h1,
+                entry_sells_h1=entry_sells_h1,
+                holder_count=holder_count,
+                dex_score=dex_score,
+                birdeye_score=birdeye_score,
             )
             self.open_positions[token_address.lower()] = position
             self.risk_manager.record_buy(position_size_usd)
+            self.tracker.save_position(position)
 
             await self.telegram.send(
                 f"✅ *Bought ${token_symbol}* [{self.chain.name}]\n\n"
                 f"💵 Size: ${position_size_usd:.0f}\n"
-                f"📝 Reason: {reason}\n"
-                f"🎯 TP1: {self.tp1_multiplier}x | TP2: {self.tp2_multiplier}x | TP3: {self.tp3_multiplier}x\n"
-                f"🛑 Stop: -{self.stop_loss_pct*100:.0f}%"
+                f"📝 Reason: {reason}"
             )
             self.tracker.record_buy(position)
 
@@ -173,15 +316,78 @@ class EVMTrader:
         if not position:
             return
 
+        # ── PAPER TRADING MODE ────────────────────────────────────────
+        if not self.private_key:
+            current_price = await self._get_token_price_usd(token_address)
+            if current_price <= 0:
+                current_price = getattr(position, "current_price_usd", 0) or position.entry_price_usd
+
+            # Sanity check: reject upward price spikes > 20x from last known
+            prev = position.current_price_usd or position.entry_price_usd
+            if prev > 0 and current_price / prev > 20:
+                logger.warning(
+                    f"[{self.chain.name}] ⚠️ Sell spike rejected {token_symbol}: "
+                    f"{prev:.8f} → {current_price:.8f}. Using last known."
+                )
+                current_price = prev
+
+            liquidity_usd = await self._get_token_liquidity(token_address)
+            tokens_to_sell = position.amount_tokens * pct
+            adj_price, usd_received, slip_est = \
+                self.paper_slippage.apply_to_sell(
+                    tokens_to_sell, liquidity_usd, current_price, token_symbol
+                )
+
+            cost_basis = position.entry_usd_value * pct
+            pnl = usd_received - cost_basis
+            pnl_pct = (pnl / cost_basis) * 100 if cost_basis > 0 else 0
+
+            # Capture exit metadata before mutating/deleting
+            peak = position.peak_price_usd or position.entry_price_usd
+            peak_mult = (peak / position.entry_price_usd) if position.entry_price_usd > 0 else 1.0
+            hold_minutes = int((datetime.now(timezone.utc) - position.entry_time).total_seconds() / 60)
+            tp1_hit = position.take_profit_1_hit
+            tp2_hit = position.take_profit_2_hit
+
+            if pct >= 1.0:
+                del self.open_positions[token_address.lower()]
+                self.tracker.delete_position(token_address.lower(), self.chain.chain_id)
+            else:
+                position.amount_tokens   *= (1 - pct)
+                position.entry_usd_value *= (1 - pct)
+                self.tracker.save_position(position)
+
+            self.risk_manager.record_sell(usd_received, pnl)
+
+            emoji = "🟢" if pnl >= 0 else "🔴"
+            await self.telegram.send(
+                f"{emoji} *[PAPER] Sold ${token_symbol}* [{self.chain.name}] ({pct*100:.0f}%)\n\n"
+                f"💵 Received: ${usd_received:.0f}\n"
+                f"📊 PnL: ${pnl:+.0f} ({pnl_pct:+.1f}%)\n"
+                f"📝 Reason: {reason}"
+            )
+            self.tracker.record_sell(token_address, usd_received, pnl, reason, extra={
+                "peak_price": peak,
+                "peak_multiplier": round(peak_mult, 4),
+                "pnl_pct": round(pnl_pct, 2),
+                "hold_minutes": hold_minutes,
+                "tp1_hit": int(tp1_hit),
+                "tp2_hit": int(tp2_hit),
+            })
+            logger.info(
+                f"📄 [PAPER] Sold {token_symbol} [{self.chain.name}] {pct*100:.0f}% — "
+                f"PnL: ${pnl:+.0f} ({pnl_pct:+.1f}%) | {reason}"
+            )
+            return
+
         try:
             tokens_to_sell = int(position.amount_tokens * pct * 1e18)
-            quote = await self._get_0x_quote(
+            quote = await self._evm_sell_with_retry(
                 sell_token=token_address,
                 buy_token=self.chain.weth_address,
-                sell_amount=tokens_to_sell
+                sell_amount=tokens_to_sell,
+                symbol=token_symbol
             )
-            if not quote:
-                return
 
             native_received = int(quote.get("buyAmount", 0)) / 1e18
             native_price = await self._get_native_price()
@@ -190,15 +396,20 @@ class EVMTrader:
             pnl = usd_received - cost_basis
             pnl_pct = (pnl / cost_basis) * 100 if cost_basis > 0 else 0
 
-            success = await self._execute_evm_swap(quote, self.chain.weth_address)
-            if not success:
-                return
+            # Capture exit metadata before mutating/deleting
+            peak = position.peak_price_usd or position.entry_price_usd
+            peak_mult = (peak / position.entry_price_usd) if position.entry_price_usd > 0 else 1.0
+            hold_minutes = int((datetime.now(timezone.utc) - position.entry_time).total_seconds() / 60)
+            tp1_hit = position.take_profit_1_hit
+            tp2_hit = position.take_profit_2_hit
 
             if pct >= 1.0:
                 del self.open_positions[token_address.lower()]
+                self.tracker.delete_position(token_address.lower(), self.chain.chain_id)
             else:
-                position.amount_tokens *= (1 - pct)
+                position.amount_tokens   *= (1 - pct)
                 position.entry_usd_value *= (1 - pct)
+                self.tracker.save_position(position)
 
             self.risk_manager.record_sell(usd_received, pnl)
 
@@ -209,7 +420,14 @@ class EVMTrader:
                 f"📊 PnL: ${pnl:+.0f} ({pnl_pct:+.1f}%)\n"
                 f"📝 Reason: {reason}"
             )
-            self.tracker.record_sell(token_address, usd_received, pnl, reason)
+            self.tracker.record_sell(token_address, usd_received, pnl, reason, extra={
+                "peak_price": peak,
+                "peak_multiplier": round(peak_mult, 4),
+                "pnl_pct": round(pnl_pct, 2),
+                "hold_minutes": hold_minutes,
+                "tp1_hit": int(tp1_hit),
+                "tp2_hit": int(tp2_hit),
+            })
 
         except Exception as e:
             logger.error(f"[{self.chain.name}] Sell failed for {token_symbol}: {e}")
@@ -335,6 +553,70 @@ class EVMTrader:
         except Exception as e:
             logger.error(f"[{self.chain.name}] EVM swap error: {e}")
             return False
+
+    async def _evm_swap_with_retry(self, sell_token: str, buy_token: str,
+                                    sell_amount: int, symbol: str) -> Optional[dict]:
+        """Get a 0x quote and execute, retrying up to 3× with increasing gas."""
+        gas_multipliers = [1.0, 1.3, 1.7]
+        for attempt, gas_mult in enumerate(gas_multipliers, 1):
+            quote = await self._get_0x_quote(sell_token, buy_token, sell_amount)
+            if not quote:
+                logger.warning(f"[{self.chain.name}] {symbol}: No quote attempt {attempt}/3")
+                await asyncio.sleep(1)
+                continue
+            # Patch gas price in quote for the retry multiplier (used in _execute_evm_swap)
+            if gas_mult != 1.0:
+                try:
+                    orig = int(quote.get("gasPrice", 0))
+                    if orig:
+                        quote = dict(quote)
+                        quote["gasPrice"] = str(int(orig * gas_mult))
+                except Exception:
+                    pass
+            success = await self._execute_evm_swap(quote, buy_token)
+            if success:
+                if attempt > 1:
+                    logger.info(f"[{self.chain.name}] {symbol}: Swap succeeded "
+                                f"attempt {attempt}/3 (gas {gas_mult}x)")
+                return quote
+            logger.warning(f"[{self.chain.name}] {symbol}: Swap failed attempt "
+                           f"{attempt}/3 (gas {gas_mult}x) — retrying")
+            await asyncio.sleep(1.5)
+        logger.error(f"[{self.chain.name}] {symbol}: All 3 swap attempts failed")
+        return None
+
+    async def _evm_sell_with_retry(self, sell_token: str, buy_token: str,
+                                    sell_amount: int, symbol: str) -> Optional[dict]:
+        """Sell with unlimited retries — keeps trying until the transaction lands.
+        Gas multiplier escalates 1.0→1.3→1.7→2.0 then holds at 2.0×."""
+        gas_schedule = [1.0, 1.3, 1.7, 2.0]
+        attempt = 0
+        while True:
+            attempt += 1
+            gas_mult = gas_schedule[min(attempt - 1, len(gas_schedule) - 1)]
+            quote = await self._get_0x_quote(sell_token, buy_token, sell_amount)
+            if not quote:
+                logger.warning(f"[{self.chain.name}] {symbol}: Sell no quote "
+                               f"(attempt {attempt}, gas {gas_mult}x) — retrying in 2s")
+                await asyncio.sleep(2)
+                continue
+            if gas_mult != 1.0:
+                try:
+                    orig = int(quote.get("gasPrice", 0))
+                    if orig:
+                        quote = dict(quote)
+                        quote["gasPrice"] = str(int(orig * gas_mult))
+                except Exception:
+                    pass
+            success = await self._execute_evm_swap(quote, buy_token)
+            if success:
+                if attempt > 1:
+                    logger.info(f"[{self.chain.name}] {symbol}: Sell succeeded "
+                                f"attempt {attempt} (gas {gas_mult}x)")
+                return quote
+            logger.warning(f"[{self.chain.name}] {symbol}: Sell failed attempt "
+                           f"{attempt} (gas {gas_mult}x) — retrying in 2s")
+            await asyncio.sleep(2)
 
     async def _approve_token(self, w3, account, token_address: str, spender: str):
         """Approve a token for spending by the swap router."""

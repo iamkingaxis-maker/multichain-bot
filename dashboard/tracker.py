@@ -234,6 +234,7 @@ class PerformanceTracker:
                         except Exception:
                             hold_secs = 0
                     open_positions.append({
+                        "token_address": addr,
                         "symbol": symbol,
                         "chain": chain_raw,
                         "strategy": getattr(pos, "strategy", "scanner"),

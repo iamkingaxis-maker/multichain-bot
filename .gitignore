@@ -1,25 +1,29 @@
-# Secrets & keys - NEVER commit these
+# Secrets — never commit these
+config.json
 *.env
 .env*
-config.local.json
 
-# Runtime data
-trades.json
-bot.log
-kill_switch.log
-ml/training_data.json
-ml/rug_classifier.pkl
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
-*.pyd
 .Python
-*.egg-info/
+venv/
+env/
+.venv/
 
-# Windows
-*.bat
-Thumbs.db
+# Bot runtime files
+bot.log
+*.log
+ml/rug_classifier.pkl
+ml/training_data.json
+
+# Data (persisted on Railway volume)
+data/
 
 # IDE
 .vscode/
 .idea/
+
+# Claude worktrees — never commit these
+.claude/worktrees/

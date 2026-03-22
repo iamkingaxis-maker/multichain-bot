@@ -81,7 +81,8 @@ class WalletProfile:
 
     @property
     def completed_trades(self) -> List[WalletTradeRecord]:
-        return [t for t in self.trades if t.action == "sell" and t.pnl_pct != 0]
+        # Include all sells — pnl_pct=0 is now a real breakeven, not missing data
+        return [t for t in self.trades if t.action == "sell"]
 
     @property
     def recent_trades(self) -> List[WalletTradeRecord]:
@@ -418,12 +419,12 @@ class EnhancedCopyTrader:
         if not profile:
             return
 
-        # Record hold time for this wallet
-        entry_price = profile.open_positions.pop(token_address, 0)
-        if entry_price > 0:
-            # We don't have exact timestamps per position here
-            # Hold time is approximated from wallet scorer data
-            pass
+        # Compute real PnL using wallet's tracked entry price vs current price
+        entry_price = profile.open_positions.pop(token_address, 0.0)
+        if entry_price > 0 and pnl_pct == 0.0:
+            current_price = await self._get_current_price(token_address)
+            if current_price > 0:
+                pnl_pct = (current_price - entry_price) / entry_price * 100
 
         # Only sell if we actually hold this token
         if token_address not in self.trader.open_positions:
