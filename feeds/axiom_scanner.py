@@ -275,7 +275,7 @@ class AxiomScanner:
         )
 
         _auth_failures = 0
-        _max_auth_failures = 3
+        _max_auth_failures = 2
         _backoff = self.reconnect_delay
 
         while self._running:
@@ -321,7 +321,10 @@ class AxiomScanner:
             raise
         except Exception as e:
             err = str(e).lower()
-            if any(k in err for k in ("404", "401", "auth", "login", "password", "credential")):
+            if "404" in err:
+                # 404 = API endpoint not found (package version mismatch), no point retrying
+                raise AuthenticationError(f"Axiom API endpoint not found (404) — package may be outdated: {e}")
+            if any(k in err for k in ("401", "auth", "login", "password", "credential")):
                 raise AuthenticationError(f"Login failed: {e}")
             raise
 
