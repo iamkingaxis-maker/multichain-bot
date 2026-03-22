@@ -275,7 +275,7 @@ class AxiomScanner:
         )
 
         _auth_failures = 0
-        _max_auth_failures = 2
+        _max_auth_failures = 1  # Give up immediately on first auth failure
         _backoff = self.reconnect_delay
 
         while self._running:
