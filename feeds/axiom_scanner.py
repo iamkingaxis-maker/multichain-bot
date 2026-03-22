@@ -311,6 +311,20 @@ class AxiomScanner:
         if not client:
             raise AuthenticationError("Could not create AxiomTradeClient")
 
+        # Test credentials synchronously before attempting WebSocket
+        loop = asyncio.get_event_loop()
+        try:
+            authenticated = await loop.run_in_executor(None, client.login)
+            if not authenticated:
+                raise AuthenticationError("Login returned False — check email/password")
+        except AuthenticationError:
+            raise
+        except Exception as e:
+            err = str(e).lower()
+            if any(k in err for k in ("404", "401", "auth", "login", "password", "credential")):
+                raise AuthenticationError(f"Login failed: {e}")
+            raise
+
         ws = client.get_websocket_client()
 
         logger.info("[AxiomScanner] Connected to Axiom WebSocket feed")
@@ -319,14 +333,24 @@ class AxiomScanner:
             "Real-time token feed active — no more polling delays"
         )
 
-        await ws.subscribe_new_tokens(self._handle_token_batch)
+        # Block until WebSocket disconnects using an event
+        _disconnect_event = asyncio.Event()
+
+        async def _on_token_batch(raw_tokens):
+            await self._handle_token_batch(raw_tokens)
+
+        await ws.subscribe_new_tokens(_on_token_batch)
+
         try:
             await ws.start()
         except Exception as e:
             err = str(e).lower()
-            if "auth" in err or "login" in err or "password" in err or "404" in err or "token" in err:
+            if any(k in err for k in ("auth", "login", "password", "404", "token")):
                 raise AuthenticationError(f"WebSocket auth failed: {e}")
             raise
+
+        # ws.start() returned — connection closed cleanly, raise to trigger reconnect
+        raise NetworkError("WebSocket connection closed")
 
     async def _handle_token_batch(self, raw_tokens: list):
         """Process a batch of tokens from Axiom WebSocket."""
