@@ -162,6 +162,7 @@ class MultiSourceScanner:
         self.signals_fired: int = 0
         self.signals_blocked_security: int = 0
         self.signals_blocked_score: int = 0
+        self.signals_blocked_age: int = 0
 
         self._solanatracker_last_fetch: float = 0
         self._solanatracker_cache: list = []
@@ -365,9 +366,9 @@ class MultiSourceScanner:
 
         # Send scan summary AFTER evaluation so counts are accurate
         await self.telegram.send(
-            f"🔍 Scan complete | New tokens: {len(_cycle_seen)} | "
-            f"Seen total: {len(self.seen_tokens)} | "
+            f"🔍 Scan complete | Evaluated: {len(_cycle_seen)} | "
             f"Signals fired: {self.signals_fired} | "
+            f"Blocked age: {self.signals_blocked_age} | "
             f"Blocked score: {self.signals_blocked_score} | "
             f"Blocked security: {self.signals_blocked_security}"
         )
@@ -394,6 +395,9 @@ class MultiSourceScanner:
                 return None
 
         async def _enrich_addresses(session, addresses: list) -> list:
+            import time as _time
+            _now_ms = _time.time() * 1000
+            _max_age_ms = self.hard_skip_age_hours * 3600 * 1000
             pairs_out = []
             for i in range(0, len(addresses), 30):
                 batch = addresses[i:i + 30]
@@ -406,6 +410,10 @@ class MultiSourceScanner:
                         continue
                     mcap = p.get("marketCap") or 0
                     if mcap != 0 and not (self.min_mcap <= mcap <= self.max_mcap):
+                        continue
+                    # Drop tokens older than hard_skip_age before expensive evaluation
+                    created_ms = p.get("pairCreatedAt") or 0
+                    if created_ms > 0 and (_now_ms - created_ms) > _max_age_ms:
                         continue
                     pairs_out.append(p)
             return pairs_out
@@ -462,6 +470,10 @@ class MultiSourceScanner:
                 enriched_pairs = await _enrich_addresses(session, stub_addresses)
 
                 # Collect search pairs (already full pair data)
+                # Pre-filter by age here so we don't waste time on old tokens
+                import time as _time
+                _now_ms = _time.time() * 1000
+                _max_age_ms = self.hard_skip_age_hours * 3600 * 1000
                 direct_pairs = []
                 for data in search_results:
                     if isinstance(data, Exception) or not data:
@@ -471,6 +483,10 @@ class MultiSourceScanner:
                             continue
                         mcap = p.get("marketCap") or 0
                         if mcap != 0 and not (self.min_mcap <= mcap <= self.max_mcap):
+                            continue
+                        # Drop tokens older than hard_skip_age before enrichment
+                        created_ms = p.get("pairCreatedAt") or 0
+                        if created_ms > 0 and (_now_ms - created_ms) > _max_age_ms:
                             continue
                         direct_pairs.append(p)
 
@@ -1148,10 +1164,7 @@ class MultiSourceScanner:
                     )
                     return None
                 if pair_age_hours > self.hard_skip_age_hours:
-                    logger.info(
-                        f"[{self.chain.name}] Age filter (too old): {token_symbol} "
-                        f"pair age {pair_age_hours:.0f}h > {self.hard_skip_age_hours:.0f}h hard skip"
-                    )
+                    self.signals_blocked_age += 1
                     return None
 
             if buys_h1 > 0 and sells_h1 < 3:
