@@ -274,24 +274,32 @@ class AxiomScanner:
             f"Min score: {self.min_score}"
         )
 
+        _auth_failures = 0
+        _max_auth_failures = 3
+        _backoff = self.reconnect_delay
+
         while self._running:
             try:
                 await self._connect_and_stream()
+                _auth_failures = 0  # reset on success
+                _backoff = self.reconnect_delay
             except AuthenticationError as e:
-                logger.warning(f"[AxiomScanner] Auth expired — refreshing: {e}")
-                await self.auth.ensure_valid_token()
-                await asyncio.sleep(2)
-            except NetworkError as e:
-                logger.warning(
-                    f"[AxiomScanner] Network error — reconnecting in "
-                    f"{self.reconnect_delay}s: {e}"
-                )
-                self.reconnect_count += 1
-                await asyncio.sleep(self.reconnect_delay)
+                _auth_failures += 1
+                if _auth_failures >= _max_auth_failures:
+                    logger.error(
+                        f"[AxiomScanner] Auth failed {_auth_failures} times — "
+                        f"check AXIOM_EMAIL/AXIOM_PASSWORD. Falling back to DexScreener."
+                    )
+                    if self.fallback:
+                        await self._run_dexscreener_fallback()
+                    return
+                logger.warning(f"[AxiomScanner] Auth failed ({_auth_failures}/{_max_auth_failures}): {e} — retrying in 60s")
+                await asyncio.sleep(60)
             except Exception as e:
-                logger.error(f"[AxiomScanner] Unexpected error: {e}")
                 self.reconnect_count += 1
-                await asyncio.sleep(self.reconnect_delay)
+                logger.warning(f"[AxiomScanner] Disconnected — reconnecting in {_backoff}s: {e}")
+                await asyncio.sleep(_backoff)
+                _backoff = min(_backoff * 2, 300)  # exponential backoff, cap at 5min
 
     async def _connect_and_stream(self):
         """Establish connection and stream tokens until disconnected."""
@@ -312,7 +320,13 @@ class AxiomScanner:
         )
 
         await ws.subscribe_new_tokens(self._handle_token_batch)
-        await ws.start()
+        try:
+            await ws.start()
+        except Exception as e:
+            err = str(e).lower()
+            if "auth" in err or "login" in err or "password" in err or "404" in err or "token" in err:
+                raise AuthenticationError(f"WebSocket auth failed: {e}")
+            raise
 
     async def _handle_token_batch(self, raw_tokens: list):
         """Process a batch of tokens from Axiom WebSocket."""
