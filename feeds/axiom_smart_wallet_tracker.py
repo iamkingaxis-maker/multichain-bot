@@ -376,7 +376,7 @@ class AxiomSmartWalletTracker:
 
     async def _check_wallet_positions(self, wallet_address: str):
         """Detect when a tracked wallet closes a position we may also hold."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             client = self.auth.get_client()
             if not client:
