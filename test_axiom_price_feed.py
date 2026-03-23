@@ -13,7 +13,5 @@ def test_active_user_spike_logged(caplog):
     feed._user_baseline_window["TESTADDR"] = [100, 100, 100]
 
     with caplog.at_level(logging.WARNING):
-        asyncio.get_event_loop().run_until_complete(
-            feed._handle_user_count_update("TESTADDR", "TEST", 320)
-        )
+        asyncio.run(feed._handle_user_count_update("TESTADDR", "TEST", 320))
     assert "USER SPIKE" in caplog.text

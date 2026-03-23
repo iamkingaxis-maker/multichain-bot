@@ -83,6 +83,8 @@ class AxiomPriceFeed:
         self._pending_unsubscribe.add(token_address)
         self._subscribed.discard(token_address)
         self.price_cache.pop(token_address, None)
+        self.user_cache.pop(token_address, None)
+        self._user_baseline_window.pop(token_address, None)
         logger.debug(f"[AxiomPriceFeed] Unsubscribed: {token_address[:8]}…")
 
     async def run(self):
@@ -239,7 +241,7 @@ class AxiomPriceFeed:
             history.pop(0)
         self.user_cache[token_address] = count
 
-        if len(history) >= 3:
+        if len(history) >= 4:
             baseline = sum(history[:-1]) / len(history[:-1])
             if baseline > 0 and count >= baseline * 3:
                 logger.warning(
