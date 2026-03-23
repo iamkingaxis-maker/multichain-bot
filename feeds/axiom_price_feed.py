@@ -48,6 +48,9 @@ class AxiomPriceFeed:
 
         # Shared price cache — key: token_address, value: latest price in USD
         self.price_cache: Dict[str, float] = {}
+        self.volume_cache: Dict[str, float] = {}
+        self.liquidity_cache: Dict[str, float] = {}
+        self.change_cache: Dict[str, float] = {}
 
         # Tokens currently subscribed
         self._subscribed: Set[str] = set()
@@ -85,6 +88,9 @@ class AxiomPriceFeed:
         self.price_cache.pop(token_address, None)
         self.user_cache.pop(token_address, None)
         self._user_baseline_window.pop(token_address, None)
+        self.volume_cache.pop(token_address, None)
+        self.liquidity_cache.pop(token_address, None)
+        self.change_cache.pop(token_address, None)
         logger.debug(f"[AxiomPriceFeed] Unsubscribed: {token_address[:8]}…")
 
     async def run(self):
@@ -219,6 +225,25 @@ class AxiomPriceFeed:
                 return
 
             self.price_cache[token_address] = price_usd
+
+            volume_usd = float(
+                price_data.get("volume") or price_data.get("volumeUsd") or
+                price_data.get("volume_usd") or 0
+            )
+            liquidity_usd = float(
+                price_data.get("liquidity") or price_data.get("liquidityUsd") or
+                price_data.get("liquidity_usd") or 0
+            )
+            change_pct = float(
+                price_data.get("priceChange") or price_data.get("price_change") or
+                price_data.get("change") or 0
+            )
+            if volume_usd > 0:
+                self.volume_cache[token_address] = volume_usd
+            if liquidity_usd > 0:
+                self.liquidity_cache[token_address] = liquidity_usd
+            if change_pct != 0:
+                self.change_cache[token_address] = change_pct
 
             logger.debug(
                 f"[AxiomPriceFeed] {ticker}: ${price_usd:.8f}"
