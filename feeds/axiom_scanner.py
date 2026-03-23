@@ -1455,6 +1455,27 @@ async def axiom_enrich_check(auth_manager,
                             False,
                             f"Top holder concentration too high ({top_pct:.1f}%)"
                         )
+                # Secondary: tracked wallet presence (only_tracked_wallets=True)
+                try:
+                    tracked_holders = await loop.run_in_executor(
+                        None, client.get_holder_data, pair_address, True
+                    )
+                    tracked_list = []
+                    if isinstance(tracked_holders, list):
+                        tracked_list = tracked_holders
+                    elif isinstance(tracked_holders, dict):
+                        tracked_list = (
+                            tracked_holders.get("holders") or
+                            tracked_holders.get("data") or []
+                        )
+                    tracked_count = len(tracked_list)
+                    if tracked_count >= 3:
+                        logger.debug(
+                            f"[AxiomEnrich] {pair_address[:8]}: "
+                            f"{tracked_count} tracked wallets holding — positive signal"
+                        )
+                except Exception as e:
+                    logger.debug(f"[AxiomEnrich] Tracked holder check failed: {e}")
         except Exception as e:
             logger.debug(f"[AxiomEnrich] Holder check failed for {pair_address[:8]}: {e}")
             # Fail open — don't block on API errors
