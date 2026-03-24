@@ -18,6 +18,8 @@ HARD SKIP CONDITIONS (any one kills the trade):
   - High volume but very low holder count (bot manipulation)
   - Dev wallet > 5% of supply
   - Token > 24 hours old with no new highs in last 4 hours
+  - h1 price change > 75% (overbought — pump likely over)
+  - m5 price change < 0% (price falling right now — no entry)
 
 PYRAMID UP:
   Only if original signal score was 90+
@@ -79,9 +81,12 @@ class TokenEvaluation:
     hh_hl_confirmed: bool = False         # Both required
     price_structure_score: int = 0        # 0-25 points
 
-    # Holder growth
+    # Holder growth (Birdeye disabled — kept for compat but not scored)
     holder_growth_fast: bool = False
-    holder_growth_score: int = 0          # 0-20 points
+    holder_growth_score: int = 0          # unused — Birdeye disabled
+
+    # Buy pressure (m5 buy/sell ratio)
+    buy_pressure_m5_score: int = 0        # 0-20 points (replaces holder_growth)
 
     # Social
     has_telegram: bool = False
@@ -111,7 +116,7 @@ class TokenEvaluation:
         self.total_score = (
             self.volume_acceleration_score +
             self.price_structure_score +
-            self.holder_growth_score +
+            self.buy_pressure_m5_score +
             self.social_score +
             self.liquidity_score +
             self.age_bonus
@@ -134,8 +139,10 @@ class TokenEvaluation:
             parts.append("HH+HL ✅")
         if self.volume_accelerating:
             parts.append("Vol↑ ✅")
-        if self.holder_growth_fast:
-            parts.append("Holders↑ ✅")
+        if self.buy_pressure_m5_score >= 12:
+            parts.append(f"BuyPressure↑ ✅")
+        elif self.buy_pressure_m5_score == 0:
+            parts.append("SellPressure ⚠️")
         if self.telegram_active:
             parts.append("TG Active ✅")
         return " | ".join(parts)
@@ -264,6 +271,22 @@ class TokenSignalEvaluator:
                     f"Token {age_hours:.0f}h old, no new highs in 4-6h"
                 )
 
+        # 4. Overbought — h1 > 75% means the pump is likely over
+        pc_h1 = price_change.get("h1", 0) or 0
+        if pc_h1 > 75:
+            eval_result.hard_skip = True
+            eval_result.skip_reasons.append(
+                f"Overbought: h1={pc_h1:+.0f}% — pump likely over"
+            )
+
+        # 5. Price falling right now — m5 < 0 means no current momentum
+        pc_m5 = price_change.get("m5", 0) or 0
+        if pc_m5 < 0:
+            eval_result.hard_skip = True
+            eval_result.skip_reasons.append(
+                f"Price falling: m5={pc_m5:+.1f}% — wait for floor"
+            )
+
         if eval_result.hard_skip:
             self._hard_skips += 1
             eval_result.calculate_total()
@@ -296,6 +319,27 @@ class TokenSignalEvaluator:
             eval_result.warnings.append("Higher high but no higher low")
         else:
             eval_result.price_structure_score = 0
+
+        # ── BUY PRESSURE M5 (0-20 points) — replaces dead holder_growth ─────
+        m5_txns = txns.get("m5", {})
+        m5_buys = m5_txns.get("buys", 0)
+        m5_sells = m5_txns.get("sells", 0)
+        m5_total = m5_buys + m5_sells
+        if m5_total > 0:
+            m5_ratio = m5_buys / m5_total
+            if m5_ratio >= 0.65:
+                eval_result.buy_pressure_m5_score = 20
+            elif m5_ratio >= 0.55:
+                eval_result.buy_pressure_m5_score = 12
+            elif m5_ratio >= 0.45:
+                eval_result.buy_pressure_m5_score = 6
+            else:
+                eval_result.buy_pressure_m5_score = 0
+                eval_result.warnings.append(
+                    f"Sell pressure: m5 buy ratio {m5_ratio:.0%}"
+                )
+        else:
+            eval_result.buy_pressure_m5_score = 7  # no data — neutral
 
         # ── HOLDER GROWTH (0-20 points) ───────────────────────────────────
         if holder_count >= 500 and holder_change > 20:
