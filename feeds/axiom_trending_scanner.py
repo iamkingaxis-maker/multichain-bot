@@ -303,7 +303,7 @@ class AxiomTrendingScanner:
             # Hard MCap check using real DexScreener data (Axiom API tokens often lack marketCap)
             actual_mcap = float(pair_data.get("marketCap") or 0)
             if actual_mcap > 0 and actual_mcap < self.min_mcap:
-                logger.debug(
+                logger.info(
                     f"[EstablishedScanner] MCap filter drop (real): {ticker} — ${actual_mcap:,.0f}"
                 )
                 return False
@@ -325,7 +325,7 @@ class AxiomTrendingScanner:
             if self.evaluator:
                 evaluation = await self.evaluator.evaluate(pair_data)
                 if evaluation.hard_skip:
-                    logger.debug(
+                    logger.info(
                         f"[EstablishedScanner] Hard skip: {ticker} — "
                         f"{', '.join(evaluation.skip_reasons)}"
                     )
