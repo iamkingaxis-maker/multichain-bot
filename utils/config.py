@@ -96,7 +96,10 @@ class Config:
     take_profit_3_sell: float = 0.75
 
     # ── Stop Loss ────────────────────────────────────────────
-    stop_loss_pct: float = 28.0
+    stop_loss_pct: float = 10.0
+
+    # ── Winner Protection ────────────────────────────────────
+    winner_trail_pct: float = 10.0  # Close 100% if drops 10% from peak after TP1
 
     # ── Stall Detection ──────────────────────────────────────
     stall_check_interval_min: int = 30
@@ -105,7 +108,7 @@ class Config:
     stall_sell_pct: float = 0.75
 
     # ── Average Down ─────────────────────────────────────────
-    avg_down_max_loss_pct: float = 15.0
+    avg_down_max_loss_pct: float = 7.0
     avg_down_min_volume_pct: float = 0.50
     avg_down_size_pct: float = 0.50
 
@@ -117,7 +120,7 @@ class Config:
     # ── Scanner ──────────────────────────────────────────────
     min_mcap: float = 200_000
     max_mcap: float = 1_000_000
-    min_combined_score: int = 65
+    min_combined_score: int = 45
     require_both_sources: bool = True
     min_liquidity_usd: float = 50_000
     max_dev_wallet_pct: float = 5.0
@@ -130,7 +133,7 @@ class Config:
     # ── Security ─────────────────────────────────────────────
     max_buy_tax: float = 10.0
     max_sell_tax: float = 10.0
-    max_top10_concentration: float = 80.0
+    max_top10_concentration: float = 95.0
     max_dev_holding_pct: float = 15.0
     block_mintable: bool = True
     base_slippage: float = 2.0
@@ -266,11 +269,23 @@ def _apply_env_overrides(config: Config):
     if os.environ.get("TELEGRAM_CHAT_ID"):
         config.telegram_chat_id = env("TELEGRAM_CHAT_ID")
 
+    # Scanner score threshold
+    if os.environ.get("MIN_COMBINED_SCORE"):
+        config.min_combined_score = env_int("MIN_COMBINED_SCORE", config.min_combined_score)
+
     # Capital settings (optional overrides)
     if os.environ.get("TOTAL_CAPITAL"):
         config.total_capital = env_float("TOTAL_CAPITAL", config.total_capital)
     if os.environ.get("DAILY_LOSS_LIMIT"):
         config.daily_loss_limit = env_float("DAILY_LOSS_LIMIT", config.daily_loss_limit)
+
+    # Risk / exit settings
+    if os.environ.get("STOP_LOSS_PCT"):
+        config.stop_loss_pct = env_float("STOP_LOSS_PCT", config.stop_loss_pct)
+    if os.environ.get("AVG_DOWN_MAX_LOSS_PCT"):
+        config.avg_down_max_loss_pct = env_float("AVG_DOWN_MAX_LOSS_PCT", config.avg_down_max_loss_pct)
+    if os.environ.get("WINNER_TRAIL_PCT"):
+        config.winner_trail_pct = env_float("WINNER_TRAIL_PCT", config.winner_trail_pct)
 
     # Chain toggle
     if os.environ.get("ENABLE_SOLANA"):
