@@ -214,12 +214,14 @@ class AxiomTrendingScanner:
                         if addr and addr not in result:
                             result[addr] = t
                 except Exception as e:
-                    logger.debug(f"[AxiomTrending] {period} fetch failed: {e}")
+                    logger.info(f"[AxiomTrending] {period} fetch failed: {e}")
             if result:
                 logger.info(f"[AxiomTrending] Axiom trending (1h+6h+24h): {len(result)} tokens")
+            else:
+                logger.info("[AxiomTrending] No trending tokens returned — DexScreener fallback only")
             return result
         except Exception as e:
-            logger.debug(f"[AxiomTrending] Axiom trending unavailable (DexScreener fallback): {e}")
+            logger.info(f"[AxiomTrending] Axiom trending unavailable: {e}")
             return {}
 
     async def _evaluate_token(self, token_address: str, token_dict: dict) -> bool:
