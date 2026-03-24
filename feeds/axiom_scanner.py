@@ -1203,6 +1203,10 @@ class AxiomScanner:
                 if self.market_monitor and self.market_monitor.market_restricted:
                     effective_min = self.market_monitor.restricted_threshold
                 if score < effective_min:
+                    logger.info(
+                        f"[AxiomScanner] Score too low: {event.token_symbol} — "
+                        f"{score:.0f} < {effective_min:.0f}"
+                    )
                     return
             else:
                 if not event.has_twitter and not event.has_telegram:

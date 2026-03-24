@@ -111,7 +111,7 @@ class AxiomIntegration:
             telegram=telegram,
             tracker=tracker,
             market_monitor=market_monitor,
-            min_mcap_usd=70_000,     # $70k min — filter micro-cap rugs
+            min_mcap_usd=50_000,     # $50k min — filter micro-cap rugs
             max_mcap_usd=float("inf"),  # no upper cap
             min_liquidity_usd=5_000, # $5k min liquidity
             min_score=getattr(self.config, "min_combined_score", 65.0),
@@ -167,7 +167,7 @@ class AxiomIntegration:
             telegram=telegram,
             tracker=tracker,
             market_monitor=market_monitor,
-            min_mcap_usd=70_000,
+            min_mcap_usd=50_000,
             min_liquidity_usd=5_000,
             min_score=getattr(self.config, "min_combined_score", 65.0),
             poll_interval=60,

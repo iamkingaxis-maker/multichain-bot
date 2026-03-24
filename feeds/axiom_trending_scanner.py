@@ -181,8 +181,8 @@ class AxiomTrendingScanner:
 
     async def _fetch_axiom_trending(self) -> dict:
         """
-        Try get_trending_tokens('1h'). Returns {token_address: token_dict} or {} on failure.
-        Returns a dict keyed by address so it can be merged into tokens_by_address in _poll_once.
+        Fetch trending tokens across 1h, 6h, and 24h windows and merge.
+        Returns {token_address: token_dict} or {} on failure.
         """
         if not self.auth_manager:
             return {}
@@ -198,19 +198,25 @@ class AxiomTrendingScanner:
             if not client:
                 return {}
             loop = asyncio.get_running_loop()
-            data = await loop.run_in_executor(None, client.get_trending_tokens, "1h")
-            tokens = []
-            if isinstance(data, list):
-                tokens = data
-            elif isinstance(data, dict):
-                tokens = data.get("tokens") or data.get("data") or []
             result = {}
-            for t in tokens:
-                addr = t.get("tokenAddress") or t.get("address") or ""
-                if addr:
-                    result[addr] = t
+            for period in ("1h", "6h", "24h"):
+                try:
+                    data = await loop.run_in_executor(
+                        None, client.get_trending_tokens, period
+                    )
+                    tokens = []
+                    if isinstance(data, list):
+                        tokens = data
+                    elif isinstance(data, dict):
+                        tokens = data.get("tokens") or data.get("data") or []
+                    for t in tokens:
+                        addr = t.get("tokenAddress") or t.get("address") or ""
+                        if addr and addr not in result:
+                            result[addr] = t
+                except Exception as e:
+                    logger.debug(f"[AxiomTrending] {period} fetch failed: {e}")
             if result:
-                logger.info(f"[AxiomTrending] Axiom trending: {len(result)} tokens")
+                logger.info(f"[AxiomTrending] Axiom trending (1h+6h+24h): {len(result)} tokens")
             return result
         except Exception as e:
             logger.debug(f"[AxiomTrending] Axiom trending unavailable (DexScreener fallback): {e}")
