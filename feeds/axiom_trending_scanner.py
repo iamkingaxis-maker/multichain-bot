@@ -11,6 +11,7 @@ We use DexScreener profiles/boosts as the established-token discovery channel.
 
 import asyncio
 import logging
+import time as _time
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -306,6 +307,17 @@ class AxiomTrendingScanner:
                     f"[EstablishedScanner] MCap filter drop (real): {ticker} — ${actual_mcap:,.0f}"
                 )
                 return False
+
+            # Minimum age check — skip tokens younger than 1 hour (rug-prone new launches)
+            pair_created_ms = pair_data.get("pairCreatedAt") or 0
+            if pair_created_ms > 0:
+                age_hours = (_time.time() - pair_created_ms / 1000) / 3600
+                if age_hours < 1.0:
+                    logger.debug(
+                        f"[EstablishedScanner] Age filter drop: {ticker} — "
+                        f"{age_hours*60:.0f}min old (need 60min)"
+                    )
+                    return False
 
             self.tokens_evaluated += 1
 
