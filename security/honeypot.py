@@ -50,6 +50,7 @@ class SecurityResult:
     top10_concentration: float = 0.0
     dev_holding_pct: float = 0.0
     liquidity_locked: bool = False
+    lp_lock_data_available: bool = False   # True only when GoPlus returned LP lock data
     flags: list = field(default_factory=list)
     warnings: list = field(default_factory=list)
     checked_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -271,12 +272,15 @@ class SecurityChecker:
 
         # Liquidity lock
         lp_locked = data.get("lp_locked_percent")
+        result.lp_lock_data_available = lp_locked is not None
         result.liquidity_locked = (
             lp_locked is not None and
             float(lp_locked or 0) > 50
         )
-        if not result.liquidity_locked:
-            result.warnings.append("Liquidity not locked")
+        if result.lp_lock_data_available and not result.liquidity_locked:
+            result.flags.append("Liquidity not locked — rug risk")
+        elif not result.lp_lock_data_available:
+            result.warnings.append("LP lock data unavailable")
 
         # Risk level
         if result.flags:
@@ -334,6 +338,8 @@ class SecurityChecker:
         if result.top10_concentration > self.max_top10_concentration:
             return False
         if result.dev_holding_pct > self.max_dev_holding_pct:
+            return False
+        if result.lp_lock_data_available and not result.liquidity_locked:
             return False
         if result.risk_level == "BLOCK":
             return False
