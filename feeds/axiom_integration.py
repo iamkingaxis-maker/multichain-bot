@@ -40,6 +40,9 @@ import logging
 from typing import Optional
 from feeds.axiom_scanner import AxiomScanner, AxiomAuthManager
 from feeds.axiom_wallet_tracker import AxiomWalletTracker
+from feeds.axiom_trending_scanner import AxiomTrendingScanner
+from feeds.axiom_smart_wallet_tracker import AxiomSmartWalletTracker
+from feeds.axiom_price_feed import AxiomPriceFeed
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +69,11 @@ class AxiomIntegration:
         self.config  = config
         self.scanner: Optional[AxiomScanner] = None
         self.tracker: Optional[AxiomWalletTracker] = None
+
+        # Phase 1-4 additions
+        self.trending_scanner: Optional[AxiomTrendingScanner] = None
+        self.wallet_tracker: Optional[AxiomSmartWalletTracker] = None
+        self.price_feed: Optional[AxiomPriceFeed] = None
 
         self._tasks = []
 
@@ -103,9 +111,9 @@ class AxiomIntegration:
             telegram=telegram,
             tracker=tracker,
             market_monitor=market_monitor,
-            min_mcap_usd=getattr(self.config, "min_mcap", 200_000),
-            max_mcap_usd=getattr(self.config, "max_mcap", 1_000_000),
-            min_liquidity_usd=getattr(self.config, "min_liquidity_usd", 50_000),
+            min_mcap_usd=70_000,     # $70k min — filter micro-cap rugs
+            max_mcap_usd=float("inf"),  # no upper cap
+            min_liquidity_usd=5_000, # $5k min liquidity
             min_score=getattr(self.config, "min_combined_score", 65.0),
             fallback_to_dexscreener=True
         )
@@ -150,9 +158,46 @@ class AxiomIntegration:
 
             self.tracker_instance.on_wallet_qualified(on_wallet_qualified)
 
+        # ── Phase 1: Trending Scanner ─────────────────────────────────────────
+        self.trending_scanner = AxiomTrendingScanner(
+            auth_manager=self.auth,
+            trader=trader,
+            signal_evaluator=signal_evaluator,
+            security_checker=security_checker,
+            telegram=telegram,
+            tracker=tracker,
+            market_monitor=market_monitor,
+            min_mcap_usd=70_000,
+            min_liquidity_usd=5_000,
+            min_score=getattr(self.config, "min_combined_score", 65.0),
+            poll_interval=60,
+        )
+
+        # ── Phase 2: Smart Wallet WebSocket Tracker ───────────────────────────
+        self.wallet_tracker = AxiomSmartWalletTracker(
+            auth_manager=self.auth,
+            trader=trader,
+            signal_evaluator=signal_evaluator,
+            security_checker=security_checker,
+            telegram=telegram,
+            tracker=tracker,
+            market_monitor=market_monitor,
+            wallets=copy_wallets,
+            min_score=getattr(self.config, "min_combined_score", 65.0),
+        )
+
+        # ── Phase 4: Real-Time Price Feed ─────────────────────────────────────
+        self.price_feed = AxiomPriceFeed(
+            auth_manager=self.auth,
+            trader=trader,
+        )
+
         self._tasks = [
             self.scanner.run(),
-            self.tracker_instance.run()
+            self.tracker_instance.run(),
+            self.trending_scanner.run(),
+            self.wallet_tracker.run(),
+            self.price_feed.run(),
         ]
 
         logger.info(
@@ -171,4 +216,10 @@ class AxiomIntegration:
             stats["axiom"]["scanner"] = self.scanner.get_stats()
         if hasattr(self, "tracker_instance"):
             stats["axiom"]["wallet_tracker"] = self.tracker_instance.get_stats()
+        if self.trending_scanner:
+            stats["axiom"]["trending_scanner"] = self.trending_scanner.get_stats()
+        if self.wallet_tracker:
+            stats["axiom"]["smart_wallet_tracker"] = self.wallet_tracker.get_stats()
+        if self.price_feed:
+            stats["axiom"]["price_feed"] = self.price_feed.get_stats()
         return stats

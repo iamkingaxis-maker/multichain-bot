@@ -1179,6 +1179,14 @@ class AxiomScanner:
                 )
                 return
 
+            # Hard MCap check using real DexScreener data (Axiom WebSocket tokens often lack marketCap)
+            actual_mcap = float(pair_data.get("marketCap") or 0)
+            if actual_mcap > 0 and actual_mcap < self.min_mcap:
+                logger.debug(
+                    f"[AxiomScanner] MCap filter drop (real): {event.token_symbol} — ${actual_mcap:,.0f}"
+                )
+                return
+
             # Full signal evaluation with real mcap/volume/liquidity
             self.tokens_evaluated += 1
 

@@ -299,6 +299,14 @@ class AxiomTrendingScanner:
             if real_ticker and real_ticker != "?":
                 ticker = real_ticker
 
+            # Hard MCap check using real DexScreener data (Axiom API tokens often lack marketCap)
+            actual_mcap = float(pair_data.get("marketCap") or 0)
+            if actual_mcap > 0 and actual_mcap < self.min_mcap:
+                logger.debug(
+                    f"[EstablishedScanner] MCap filter drop (real): {ticker} — ${actual_mcap:,.0f}"
+                )
+                return False
+
             self.tokens_evaluated += 1
 
             # Full signal evaluation
