@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 
 from core.paper_slippage import PaperSlippageSimulator
 
+logger = logging.getLogger(__name__)
+
 JUPITER_QUOTE_API = "https://quote-api.jup.ag/v6/quote"
 JUPITER_SWAP_API = "https://quote-api.jup.ag/v6/swap"
 SOL_MINT = "So11111111111111111111111111111111111111112"
@@ -37,10 +39,15 @@ class Position:
     # Signal quality at entry — used by PositionManager for pyramid decisions
     signal_score: int = 0
     hh_hl_confirmed: bool = False
+    # Metadata for dashboard and tracker
+    chain_id: str = "solana"
+    amount_usd: float = 0.0   # USD position size at entry (not SOL)
+    strategy: str = "scanner"  # Which strategy placed this trade
 
 
 class Trader:
-    def __init__(self, private_key: str, rpc_url: str, tracker, telegram, risk_manager):
+    def __init__(self, private_key: str, rpc_url: str, tracker, telegram, risk_manager,
+                 stop_loss_pct: float = 10.0):
         self.private_key = private_key
         self.rpc_url = rpc_url
         self.tracker = tracker
@@ -53,7 +60,7 @@ class Trader:
         self.tp1_multiplier = 2.0    # Sell 50% at 2x
         self.tp2_multiplier = 5.0    # Sell 30% at 5x
         self.tp3_multiplier = 10.0   # Sell rest at 10x
-        self.stop_loss_pct = 0.30    # Stop loss at -30%
+        self.stop_loss_pct = stop_loss_pct
 
         # Paper trading slippage simulator
         self.paper_slippage = PaperSlippageSimulator("solana")
@@ -61,13 +68,33 @@ class Trader:
         # Sell dedup — prevents CopyTrader and PositionManager racing on same token
         self._selling: set = set()
 
+        # Optional Axiom auth — registered externally for Axiom-based price lookups
+        self._axiom_auth = None
+
+        # Optional Axiom real-time price feed (Phase 4)
+        self._axiom_price_feed = None
+
         # NOTE: Internal _monitor_positions is DISABLED — PositionManager handles
         # all TP/SL logic with the user's exact config-driven rules.
         # asyncio.create_task(self._monitor_positions())
 
+    def register_axiom_auth(self, auth):
+        """Register Axiom auth manager for Axiom-based price lookups."""
+        self._axiom_auth = auth
+
+    def register_axiom_price_feed(self, feed):
+        """
+        Register the AxiomPriceFeed instance for real-time price updates.
+        The position manager can call:
+            price = self.trader._axiom_price_feed.price_cache.get(token_address)
+        before falling back to DexScreener.
+        """
+        self._axiom_price_feed = feed
+
     async def buy(self, token_address: str, token_symbol: str,
                   reason: str, signal_score: int = 0,
-                  hh_hl_confirmed: bool = False):
+                  hh_hl_confirmed: bool = False,
+                  chain_id: str = "solana", strategy: str = "scanner"):
         """Execute a buy order."""
         position_size_usd = self.risk_manager.get_position_size()
         if position_size_usd <= 0:
@@ -80,6 +107,9 @@ class Trader:
             # ── PAPER TRADING MODE ────────────────────────────────────
             if not self.private_key:
                 current_price = await self._get_token_price(token_address)
+                if current_price <= 0:
+                    logger.error(f"Could not get price for {token_symbol} — buy aborted")
+                    return
                 liquidity_usd = await self._get_token_liquidity(token_address)
 
                 adjusted_price, tokens_received, slip_est = \
@@ -98,7 +128,10 @@ class Trader:
                     entry_time=datetime.now(timezone.utc),
                     reason=reason,
                     signal_score=signal_score,
-                    hh_hl_confirmed=hh_hl_confirmed
+                    hh_hl_confirmed=hh_hl_confirmed,
+                    chain_id=chain_id,
+                    amount_usd=position_size_usd,
+                    strategy=strategy,
                 )
                 self.open_positions[token_address] = position
                 self.risk_manager.record_buy(position_size_usd)
@@ -154,7 +187,10 @@ class Trader:
                 entry_time=datetime.now(timezone.utc),
                 reason=reason,
                 signal_score=signal_score,
-                hh_hl_confirmed=hh_hl_confirmed
+                hh_hl_confirmed=hh_hl_confirmed,
+                chain_id=chain_id,
+                amount_usd=position_size_usd,
+                strategy=strategy,
             )
             self.open_positions[token_address] = position
             self.risk_manager.record_buy(position_size_usd)
@@ -218,7 +254,7 @@ class Trader:
                     f"📉 Exit slippage: {slip_est.total_slippage_pct:.2f}%\n"
                     f"📝 {reason}"
                 )
-                self.tracker.record_sell(token_address, usd_received, pnl, reason)
+                self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2))
                 logger.info(
                     f"{emoji} [PAPER] Sold {pct*100:.0f}% of {token_symbol} — "
                     f"PnL: ${pnl:+.2f} | Slippage: {slip_est.total_slippage_pct:.2f}%"
@@ -238,8 +274,9 @@ class Trader:
 
             sol_received = int(quote.get("outAmount", 0)) / 1e9
             usd_received = await self._sol_to_usd(sol_received)
-            pnl = usd_received - (position.amount_sol_spent * pct * await self._sol_to_usd(1))
-            pnl_pct = (pnl / (position.amount_sol_spent * pct * await self._sol_to_usd(1))) * 100
+            cost_basis = position.amount_usd * pct
+            pnl = usd_received - cost_basis
+            pnl_pct = (pnl / cost_basis * 100) if cost_basis > 0 else 0
 
             success = await self._execute_swap(quote)
             if not success:
@@ -260,7 +297,7 @@ class Trader:
                 f"📊 PnL: ${pnl:+.0f} ({pnl_pct:+.1f}%)\n"
                 f"📝 Reason: {reason}"
             )
-            self.tracker.record_sell(token_address, usd_received, pnl, reason)
+            self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2))
             logger.info(f"{emoji} Sold {pct*100:.0f}% of {token_symbol} — PnL: ${pnl:+.0f}")
 
         except Exception as e:
@@ -287,7 +324,7 @@ class Trader:
 
         position.current_price_usd = current_price
         multiplier = current_price / position.entry_price_usd if position.entry_price_usd > 0 else 1
-        position.pnl_usd = (multiplier - 1) * position.amount_sol_spent * await self._sol_to_usd(1)
+        position.pnl_usd = (multiplier - 1) * position.amount_usd
 
         # Stop loss
         if multiplier <= (1 - self.stop_loss_pct):
@@ -407,7 +444,7 @@ class Trader:
                 async with session.get(
                     url, timeout=aiohttp.ClientTimeout(total=5)
                 ) as resp:
-                    data = await resp.json()
+                    data = await resp.json(content_type=None)
                     pairs = data.get("pairs", [])
                     if pairs:
                         return float(
@@ -418,15 +455,47 @@ class Trader:
         return 50_000  # Fallback if unavailable
 
     async def _get_token_price(self, token_address: str) -> float:
-        """Get current token price in USD from Jupiter."""
+        """Get current token price in USD — tries Axiom, Jupiter, then DexScreener."""
+        # 1. Axiom token info (most reliable for tokens the bot trades)
+        if self._axiom_auth is not None:
+            try:
+                client = self._axiom_auth.get_client()
+                if client:
+                    loop = asyncio.get_event_loop()
+                    info = await loop.run_in_executor(None, client.get_token_info, token_address)
+                    price = float(
+                        info.get("priceUsd") or info.get("price_usd") or
+                        info.get("price") or 0
+                    )
+                    if price > 0:
+                        return price
+            except Exception as e:
+                logger.debug(f"[Trader] Axiom price lookup failed for {token_address[:8]}: {e}")
+        # 2. Jupiter price API
         try:
             url = f"https://price.jup.ag/v4/price?ids={token_address}"
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
                     data = await resp.json()
-                    return data.get("data", {}).get(token_address, {}).get("price", 0)
+                    price = data.get("data", {}).get(token_address, {}).get("price", 0)
+                    if price and price > 0:
+                        return float(price)
         except Exception:
-            return 0
+            pass
+        # DexScreener fallback (captures new pump.fun tokens not yet on Jupiter)
+        try:
+            url = f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                    data = await resp.json(content_type=None)
+                    pairs = data.get("pairs") or []
+                    if pairs:
+                        price = float(pairs[0].get("priceUsd", 0) or 0)
+                        if price > 0:
+                            return price
+        except Exception as e:
+            logger.debug(f"[Trader] DexScreener price fallback failed for {token_address[:8]}: {e}")
+        return 0
 
     async def _usd_to_sol(self, usd_amount: float) -> float:
         """Convert USD amount to SOL."""
