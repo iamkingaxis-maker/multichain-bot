@@ -29,3 +29,29 @@ def test_position_close_detected(caplog):
         # Second call: TOKEN1 gone
         asyncio.run(tracker_obj._check_wallet_positions("WALLET1"))
     assert "closed position" in caplog.text.lower()
+
+
+def test_stale_transaction_skipped():
+    """Transactions older than 60s are skipped — token not added to _seen_tokens."""
+    import asyncio, time
+    from unittest.mock import MagicMock, AsyncMock
+    from feeds.axiom_smart_wallet_tracker import AxiomSmartWalletTracker
+
+    auth = MagicMock()
+    tracker_obj = AxiomSmartWalletTracker(
+        auth_manager=auth, trader=MagicMock(),
+        signal_evaluator=None, security_checker=None,
+        telegram=AsyncMock(), tracker=MagicMock(),
+    )
+
+    old_ts_ms = int((time.time() - 90) * 1000)  # 90 seconds ago
+    tx_data = {
+        "type": "buy",
+        "total_sol": 1.0,
+        "created_at": str(old_ts_ms),
+        "pair": {"tokenAddress": "ADDR1", "tokenTicker": "TST"},
+    }
+
+    asyncio.run(tracker_obj._handle_transaction("WALLET1", tx_data))
+    # Stale tx must not add token to seen set
+    assert "ADDR1" not in tracker_obj._seen_tokens

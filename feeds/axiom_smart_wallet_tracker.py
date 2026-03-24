@@ -10,6 +10,7 @@ This one uses the subscribe_wallet_transactions WebSocket for real-time buy sign
 
 import asyncio
 import logging
+import time as _time
 from typing import Optional, List, Dict
 
 logger = logging.getLogger(__name__)
@@ -200,6 +201,19 @@ class AxiomSmartWalletTracker:
 
             if not token_address:
                 return
+
+            # Staleness check — skip replayed/old transactions (older than 60s)
+            created_at_raw = tx_data.get("created_at") or tx_data.get("createdAt") or ""
+            if created_at_raw:
+                try:
+                    ts_ms = float(created_at_raw)
+                    age_sec = (_time.time() * 1000 - ts_ms) / 1000
+                    if age_sec > 60:
+                        logger.debug(f"[AxiomWallets] Skipping stale tx ({age_sec:.0f}s old)")
+                        return
+                    logger.debug(f"[AxiomWallets] Tx latency: {age_sec:.1f}s")
+                except (ValueError, TypeError):
+                    pass
 
             self.wallet_buys_seen += 1
 
