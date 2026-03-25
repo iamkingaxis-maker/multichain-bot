@@ -185,18 +185,26 @@ class AxiomTrendingScanner:
             f"polled={polled} | new={new_count} | signals={signals_this_poll}"
         )
 
-    # New endpoint discovered 2026-03 — old api6.axiom.trade/meme-trending was removed
-    _AXIOM_TRENDING_URL = "https://axiom.trade/api/axiom-trending"
+    # Endpoint confirmed from JS source (2026-03):
+    #   axiomApiV2.get("/meme-trending-v2", {timePeriod}) on one of the api servers
+    _AXIOM_API_SERVERS = [
+        "https://api3.axiom.trade",
+        "https://api7.axiom.trade",
+        "https://api8.axiom.trade",
+        "https://api9.axiom.trade",
+        "https://api10.axiom.trade",
+    ]
 
     async def _fetch_axiom_trending(self) -> dict:
         """
         Fetch trending tokens across 1h, 6h, and 24h windows and merge.
-        Calls axiom.trade/api/axiom-trending directly (bypasses broken library).
+        Uses /meme-trending-v2 endpoint (confirmed from JS source).
+        Auth via cookie header (same tokens managed by AxiomAuthManager).
         Returns {token_address: token_dict} or {} on failure.
         """
         if not self.auth_manager:
             return {}
-        import aiohttp
+        import aiohttp, random
         try:
             token_valid = await self.auth_manager.ensure_valid_token()
             if not token_valid:
@@ -213,10 +221,11 @@ class AxiomTrendingScanner:
                 "Cookie": cookie,
             }
 
+            base = random.choice(self._AXIOM_API_SERVERS)
             result = {}
             async with aiohttp.ClientSession() as session:
                 for period in ("1h", "6h", "24h"):
-                    url = f"{self._AXIOM_TRENDING_URL}?timePeriod={period}"
+                    url = f"{base}/meme-trending-v2?timePeriod={period}"
                     try:
                         async with session.get(
                             url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
