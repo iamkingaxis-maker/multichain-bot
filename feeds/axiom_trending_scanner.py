@@ -54,7 +54,10 @@ class AxiomTrendingScanner:
         self.min_score       = min_score
         self.poll_interval   = poll_interval
 
-        self._seen_tokens: set = set()
+        # TTL cache: {address: last_evaluated_timestamp}
+        # Tokens are re-evaluated after REEVAL_HOURS — their conditions change over time
+        self._seen_tokens: dict = {}
+        self._REEVAL_HOURS = 2.0
 
         # Stats
         self.tokens_polled    = 0
@@ -159,15 +162,18 @@ class AxiomTrendingScanner:
             if not token_address:
                 continue
 
-            if token_address in self._seen_tokens:
+            last_eval = self._seen_tokens.get(token_address, 0)
+            if _time.time() - last_eval < self._REEVAL_HOURS * 3600:
                 continue
 
-            self._seen_tokens.add(token_address)
+            self._seen_tokens[token_address] = _time.time()
             new_count += 1
 
-            # Keep seen set bounded
+            # Keep cache bounded — evict oldest entries
             if len(self._seen_tokens) > 20_000:
-                self._seen_tokens = set(list(self._seen_tokens)[-10_000:])
+                oldest = sorted(self._seen_tokens, key=lambda a: self._seen_tokens[a])[:10_000]
+                for addr in oldest:
+                    del self._seen_tokens[addr]
 
             fired = await self._evaluate_token(token_address, token_dict)
             if fired:
@@ -412,5 +418,5 @@ class AxiomTrendingScanner:
             "tokens_polled":    self.tokens_polled,
             "tokens_evaluated": self.tokens_evaluated,
             "signals_fired":    self.signals_fired,
-            "seen_tokens":      len(self._seen_tokens),
+            "seen_tokens":      len(self._seen_tokens),  # unique addresses evaluated (TTL 2h)
         }
