@@ -239,13 +239,15 @@ class AxiomTrendingScanner:
                 "Cookie": cookie,
             }
 
+            import time as _time
             loop = asyncio.get_running_loop()
             result = {}
 
             for period in ("1h", "6h", "24h"):
                 status, body = 0, ""
+                v = int(_time.time() * 1000)
                 for base in self._AXIOM_API_SERVERS:
-                    url = f"{base}/meme-trending-v2?timePeriod={period}"
+                    url = f"{base}/meme-trending-v2?timePeriod={period}&v={v}"
                     logger.info(f"[AxiomTrending] GET {url}")
                     def _fetch(url=url, headers=headers):
                         r = cffi_requests.get(url, headers=headers, impersonate="chrome110", timeout=10)
