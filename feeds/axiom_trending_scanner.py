@@ -272,20 +272,32 @@ class AxiomTrendingScanner:
                     try:
                         import json as _json
                         data = _json.loads(body)
-                        tokens = data if isinstance(data, list) else (
+                        raw_list = data if isinstance(data, list) else (
                             data.get("tokens") or data.get("data") or []
                         )
                         before = len(result)
-                        for t in tokens:
-                            addr = (
-                                t.get("tokenAddress") or
-                                t.get("token_address") or
-                                t.get("address") or ""
-                            )
+                        for t in raw_list:
+                            # v2 endpoint returns compact arrays: [pairAddress, tokenAddress, name, ticker, ...]
+                            if isinstance(t, list):
+                                addr = t[1] if len(t) > 1 else ""
+                                token_dict = {
+                                    "tokenAddress": addr,
+                                    "pairAddress": t[0] if len(t) > 0 else "",
+                                    "tokenName": t[2] if len(t) > 2 else "",
+                                    "tokenTicker": t[3] if len(t) > 3 else "",
+                                    "marketCapSol": t[9] if len(t) > 9 else 0,
+                                }
+                            else:
+                                addr = (
+                                    t.get("tokenAddress") or
+                                    t.get("token_address") or
+                                    t.get("address") or ""
+                                )
+                                token_dict = t
                             if addr and addr not in result:
-                                result[addr] = t
+                                result[addr] = token_dict
                         logger.info(
-                            f"[AxiomTrending] {period}: {len(tokens)} tokens "
+                            f"[AxiomTrending] {period}: {len(raw_list)} tokens "
                             f"(+{len(result)-before} new)"
                         )
                     except Exception as e:
