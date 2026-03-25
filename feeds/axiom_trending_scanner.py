@@ -185,49 +185,76 @@ class AxiomTrendingScanner:
             f"polled={polled} | new={new_count} | signals={signals_this_poll}"
         )
 
+    # New endpoint discovered 2026-03 — old api6.axiom.trade/meme-trending was removed
+    _AXIOM_TRENDING_URL = "https://axiom.trade/api/axiom-trending"
+
     async def _fetch_axiom_trending(self) -> dict:
         """
         Fetch trending tokens across 1h, 6h, and 24h windows and merge.
+        Calls axiom.trade/api/axiom-trending directly (bypasses broken library).
         Returns {token_address: token_dict} or {} on failure.
         """
         if not self.auth_manager:
             return {}
-        try:
-            from axiomtradeapi import AxiomTradeClient  # noqa — just checking available
-        except ImportError:
-            return {}
+        import aiohttp
         try:
             token_valid = await self.auth_manager.ensure_valid_token()
             if not token_valid:
                 return {}
-            client = self.auth_manager.get_client()
-            if not client:
-                return {}
-            loop = asyncio.get_running_loop()
+
+            cookie = (
+                f"auth-refresh-token={self.auth_manager.refresh_token}; "
+                f"auth-access-token={self.auth_manager.auth_token or ''}"
+            )
+            headers = {
+                "Accept": "application/json, text/plain, */*",
+                "Origin": "https://axiom.trade",
+                "Referer": "https://axiom.trade/",
+                "Cookie": cookie,
+            }
+
             result = {}
-            for period in ("1h", "6h", "24h"):
-                try:
-                    data = await loop.run_in_executor(
-                        None, client.get_trending_tokens, period
-                    )
-                    tokens = []
-                    if isinstance(data, list):
-                        tokens = data
-                    elif isinstance(data, dict):
-                        tokens = data.get("tokens") or data.get("data") or []
-                    for t in tokens:
-                        addr = t.get("tokenAddress") or t.get("address") or ""
-                        if addr and addr not in result:
-                            result[addr] = t
-                except Exception as e:
-                    logger.info(f"[AxiomTrending] {period} fetch failed: {e}")
+            async with aiohttp.ClientSession() as session:
+                for period in ("1h", "6h", "24h"):
+                    url = f"{self._AXIOM_TRENDING_URL}?timePeriod={period}"
+                    try:
+                        async with session.get(
+                            url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                        ) as resp:
+                            if resp.status == 200:
+                                data = await resp.json(content_type=None)
+                                tokens = data if isinstance(data, list) else (
+                                    data.get("tokens") or data.get("data") or []
+                                )
+                                before = len(result)
+                                for t in tokens:
+                                    addr = (
+                                        t.get("tokenAddress") or
+                                        t.get("token_address") or
+                                        t.get("address") or ""
+                                    )
+                                    if addr and addr not in result:
+                                        result[addr] = t
+                                logger.info(
+                                    f"[AxiomTrending] {period}: {len(tokens)} tokens "
+                                    f"(+{len(result)-before} new)"
+                                )
+                            else:
+                                body = await resp.text()
+                                logger.info(
+                                    f"[AxiomTrending] {period} HTTP {resp.status}: "
+                                    f"{body[:120]}"
+                                )
+                    except Exception as e:
+                        logger.info(f"[AxiomTrending] {period} fetch failed: {e}")
+
             if result:
-                logger.info(f"[AxiomTrending] Axiom trending (1h+6h+24h): {len(result)} tokens")
+                logger.info(f"[AxiomTrending] Total: {len(result)} trending tokens (1h+6h+24h)")
             else:
                 logger.info("[AxiomTrending] No trending tokens returned — DexScreener fallback only")
             return result
         except Exception as e:
-            logger.info(f"[AxiomTrending] Axiom trending unavailable: {e}")
+            logger.info(f"[AxiomTrending] Unavailable: {e}")
             return {}
 
     async def _evaluate_token(self, token_address: str, token_dict: dict) -> bool:
