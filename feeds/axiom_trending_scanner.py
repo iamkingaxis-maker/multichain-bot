@@ -198,13 +198,17 @@ class AxiomTrendingScanner:
     async def _fetch_axiom_trending(self) -> dict:
         """
         Fetch trending tokens across 1h, 6h, and 24h windows and merge.
-        Uses /meme-trending-v2 endpoint (confirmed from JS source).
-        Auth via cookie header (same tokens managed by AxiomAuthManager).
+        Uses /meme-trending-v2 endpoint (confirmed from Axiom JS source).
+        Uses curl_cffi to bypass Cloudflare TLS fingerprint checks on datacenter IPs.
         Returns {token_address: token_dict} or {} on failure.
         """
         if not self.auth_manager:
             return {}
-        import aiohttp, random
+        try:
+            from curl_cffi import requests as cffi_requests
+        except ImportError:
+            logger.info("[AxiomTrending] curl_cffi not available — install it to enable trending")
+            return {}
         try:
             token_valid = await self.auth_manager.ensure_valid_token()
             if not token_valid:
@@ -218,44 +222,51 @@ class AxiomTrendingScanner:
                 "Accept": "application/json, text/plain, */*",
                 "Origin": "https://axiom.trade",
                 "Referer": "https://axiom.trade/",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-site",
                 "Cookie": cookie,
             }
 
-            base = random.choice(self._AXIOM_API_SERVERS)
+            import random
+            loop = asyncio.get_running_loop()
             result = {}
-            async with aiohttp.ClientSession() as session:
-                for period in ("1h", "6h", "24h"):
-                    url = f"{base}/meme-trending-v2?timePeriod={period}"
-                    try:
-                        async with session.get(
-                            url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
-                        ) as resp:
-                            if resp.status == 200:
-                                data = await resp.json(content_type=None)
-                                tokens = data if isinstance(data, list) else (
-                                    data.get("tokens") or data.get("data") or []
-                                )
-                                before = len(result)
-                                for t in tokens:
-                                    addr = (
-                                        t.get("tokenAddress") or
-                                        t.get("token_address") or
-                                        t.get("address") or ""
-                                    )
-                                    if addr and addr not in result:
-                                        result[addr] = t
-                                logger.info(
-                                    f"[AxiomTrending] {period}: {len(tokens)} tokens "
-                                    f"(+{len(result)-before} new)"
-                                )
-                            else:
-                                body = await resp.text()
-                                logger.info(
-                                    f"[AxiomTrending] {period} HTTP {resp.status}: "
-                                    f"{body[:120]}"
-                                )
-                    except Exception as e:
-                        logger.info(f"[AxiomTrending] {period} fetch failed: {e}")
+
+            for period in ("1h", "6h", "24h"):
+                base = random.choice(self._AXIOM_API_SERVERS)
+                url = f"{base}/meme-trending-v2?timePeriod={period}"
+
+                def _fetch(url=url, headers=headers):
+                    r = cffi_requests.get(url, headers=headers, impersonate="chrome110", timeout=10)
+                    return r.status_code, r.text
+
+                try:
+                    status, body = await loop.run_in_executor(None, _fetch)
+                    if status == 200:
+                        import json as _json
+                        data = _json.loads(body)
+                        tokens = data if isinstance(data, list) else (
+                            data.get("tokens") or data.get("data") or []
+                        )
+                        before = len(result)
+                        for t in tokens:
+                            addr = (
+                                t.get("tokenAddress") or
+                                t.get("token_address") or
+                                t.get("address") or ""
+                            )
+                            if addr and addr not in result:
+                                result[addr] = t
+                        logger.info(
+                            f"[AxiomTrending] {period}: {len(tokens)} tokens "
+                            f"(+{len(result)-before} new)"
+                        )
+                    else:
+                        logger.info(
+                            f"[AxiomTrending] {period} HTTP {status}: {body[:120]}"
+                        )
+                except Exception as e:
+                    logger.info(f"[AxiomTrending] {period} fetch failed: {e}")
 
             if result:
                 logger.info(f"[AxiomTrending] Total: {len(result)} trending tokens (1h+6h+24h)")
