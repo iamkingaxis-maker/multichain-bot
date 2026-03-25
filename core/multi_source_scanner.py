@@ -104,18 +104,18 @@ class MultiSourceScanner:
                  max_mcap: float = 1_000_000,
                  mcap_dead_zone_min: float = 300_000,
                  mcap_dead_zone_max: float = 550_000,
-                 min_liquidity_usd: float = 15_000,
+                 min_liquidity_usd: float = 10_000,
                  min_volume_h1_usd: float = 5_000,
-                 min_combined_score: int = 65,
+                 min_combined_score: int = 50,
                  max_combined_score: int = 85,
                  require_both_sources: bool = False,
                  min_holder_count: int = 100,
                  single_source_min_score: int = 70,
                  max_dev_wallet_pct: float = 5.0,
                  pyramid_score_threshold: int = 90,
-                 preferred_age_min_hours: float = 0.5,
-                 preferred_age_max_hours: float = 12.0,
-                 hard_skip_age_hours: float = 24.0,
+                 preferred_age_min_hours: float = 0.0,
+                 preferred_age_max_hours: float = 999.0,
+                 hard_skip_age_hours: float = 999.0,
                  rug_classifier=None,
                  sentiment_analyzer=None,
                  tracker=None,
@@ -163,6 +163,8 @@ class MultiSourceScanner:
         self.signals_blocked_security: int = 0
         self.signals_blocked_score: int = 0
         self.signals_blocked_age: int = 0
+        self.signals_blocked_mcap: int = 0
+        self.signals_blocked_rug: int = 0
 
         self._solanatracker_last_fetch: float = 0
         self._solanatracker_cache: list = []
@@ -365,6 +367,12 @@ class MultiSourceScanner:
                 logger.debug(f"[{self.chain.name}] GeckoTerminal token eval error: {e}")
 
         # Send scan summary AFTER evaluation so counts are accurate
+        logger.info(
+            f"[{self.chain.name}] SUMMARY eval={len(_cycle_seen)} "
+            f"fired={self.signals_fired} age={self.signals_blocked_age} "
+            f"mcap={self.signals_blocked_mcap} rug={self.signals_blocked_rug} "
+            f"score={self.signals_blocked_score} sec={self.signals_blocked_security}"
+        )
         await self.telegram.send(
             f"🔍 Scan complete | Evaluated: {len(_cycle_seen)} | "
             f"Signals fired: {self.signals_fired} | "
@@ -1134,12 +1142,14 @@ class MultiSourceScanner:
 
         mcap = dex_pair.get("marketCap", 0)
         if mcap != 0 and not (self.min_mcap <= mcap <= self.max_mcap):
+            self.signals_blocked_mcap += 1
             return None
 
         liquidity_for_estimate = dex_pair.get("liquidity", {}).get("usd", 0)
         if mcap == 0 and liquidity_for_estimate > 0:
             mcap = liquidity_for_estimate * 6
             if mcap < self.min_mcap:
+                self.signals_blocked_mcap += 1
                 return None
 
         volume_h1 = dex_pair.get("volume", {}).get("h1", 0)
@@ -1162,6 +1172,7 @@ class MultiSourceScanner:
                         f"[{self.chain.name}] Rug filter (too new): {token_symbol} "
                         f"pair age {pair_age_hours*60:.1f}min < {self.min_age_hours*60:.0f}min"
                     )
+                    self.signals_blocked_rug += 1
                     return None
                 if pair_age_hours > self.hard_skip_age_hours:
                     self.signals_blocked_age += 1
@@ -1172,6 +1183,7 @@ class MultiSourceScanner:
                     f"[{self.chain.name}] Rug filter (no sellers): {token_symbol} "
                     f"buys={buys_h1} sells={sells_h1} — no organic sell-side"
                 )
+                self.signals_blocked_rug += 1
                 return None
 
             total_txns = buys_h1 + sells_h1
@@ -1180,6 +1192,7 @@ class MultiSourceScanner:
                     f"[{self.chain.name}] Rug filter (low sell ratio): {token_symbol} "
                     f"sells={sells_h1}/{total_txns} ({sells_h1/total_txns:.1%}) < 15%"
                 )
+                self.signals_blocked_rug += 1
                 return None
 
         price_usd = float(dex_pair.get("priceUsd", 0) or 0)
@@ -1351,7 +1364,7 @@ class MultiSourceScanner:
     async def _evaluate_signal(self, signal: TokenSignal):
         """Evaluate a signal and decide whether to buy."""
         # Respect manual pause
-        if self.tracker and self.tracker.buying_paused:
+        if self.tracker and getattr(self.tracker, 'buying_paused', False):
             return
 
         # Skip if already holding
@@ -1368,17 +1381,24 @@ class MultiSourceScanner:
             logger.debug(f"[{self.chain.name}] Skipping {signal.token_symbol} — base asset, not a memecoin")
             return
 
-        # Block free-falling tokens
-        if signal.price_change_h1 <= -15:
-            logger.debug(
-                f"[{self.chain.name}] Skipping {signal.token_symbol} — "
-                f"free-falling: {signal.price_change_h1:.1f}% on 1h"
-            )
-            return
-
         # Score gate
         if signal.combined_score < self.min_combined_score:
             self.signals_blocked_score += 1
+
+            # Pump chaser: strong momentum tokens can enter below normal threshold.
+            # Requires pump_setup flag (≥20% 1h gain, ≥65% buy ratio, ≥$20k vol)
+            # and score ≥ 57. Skips dip-recovery checks — we're chasing the move.
+            _PUMP_MIN = 57
+            if (
+                "pump_setup" in signal.flags
+                and signal.combined_score >= _PUMP_MIN
+                and not self.trader.risk_manager.is_daily_limit_hit()
+                and signal.token_address not in self.trader.open_positions
+                and signal.liquidity_usd >= self.min_liquidity_usd
+                and signal.volume_h1 >= self.min_volume_h1_usd
+            ):
+                await self._fire_pump_chaser(signal)
+                return
 
             # Dashboard watchlist: near-miss tokens scoring 45 to threshold
             if 45 <= signal.combined_score < self.min_combined_score:
@@ -1610,7 +1630,9 @@ class MultiSourceScanner:
             token_address=token_address,
             token_symbol=token_symbol,
             reason=f"[{self.chain.name}] {strategy_tag}: {reason}",
-            signal_score=signal_score
+            signal_score=signal_score,
+            chain_id=self.chain.chain_id,
+            strategy=strategy_tag.lower().replace(" ", "_"),
         )
         return True
 
@@ -2124,15 +2146,59 @@ class MultiSourceScanner:
             ),
             signal_score=signal.combined_score,
             hh_hl_confirmed=getattr(signal, "hh_hl_confirmed", False),
-            price_hint=signal.price_usd,
-            entry_mcap=signal.mcap,
-            entry_liquidity=signal.liquidity_usd,
-            entry_volume_h1=signal.volume_h1,
-            entry_buys_h1=signal.buy_count_h1,
-            entry_sells_h1=signal.sell_count_h1,
-            holder_count=signal.holder_count,
-            dex_score=signal.dex_score,
-            birdeye_score=0,
+            chain_id=self.chain.chain_id,
+            strategy="pump" if "pump_setup" in signal.flags else "scanner",
+        )
+
+    async def _fire_pump_chaser(self, signal: "TokenSignal"):
+        """
+        Momentum entry for tokens flagged pump_setup that score below the normal
+        dip-recovery threshold. Skips chart/dip checks — we're chasing the move.
+        Still runs security check to block honeypots.
+        """
+        if signal.token_address in self.trader.open_positions:
+            return
+
+        # Resolve correct-case mint for Jupiter
+        if self.chain.chain_id == "solana":
+            resolved = self._mint_map.get(signal.token_address.lower()) or signal.token_address
+            signal.token_address = resolved
+
+        # Security check — non-negotiable even for momentum plays
+        sec_result = await self.security_checker.check(
+            signal.token_address, self.chain.chain_id, signal.token_symbol
+        )
+        if not sec_result.passed:
+            self.signals_blocked_security += 1
+            logger.info(
+                f"[{self.chain.name}] [PumpChaser] 🛑 Security blocked "
+                f"{signal.token_symbol} — {sec_result.risk_level}"
+            )
+            return
+
+        self.signals_fired += 1
+        logger.info(
+            f"[{self.chain.name}] [PumpChaser] 🚀 PUMP BUY: {signal.token_symbol} | "
+            f"Score: {signal.combined_score} | 1h: {signal.price_change_h1:+.1f}% | "
+            f"Vol: ${signal.volume_h1:,.0f}"
+        )
+
+        await self.telegram.send(
+            f"🚀 *Pump Chaser: ${signal.token_symbol}*\n"
+            f"Chain: {self.chain.name}\n\n"
+            f"1h Change: {signal.price_change_h1:+.1f}%\n"
+            f"1h Vol: ${signal.volume_h1:,.0f} | MCap: ${signal.mcap:,.0f}\n"
+            f"Score: {signal.combined_score}/100 | Security: {sec_result.risk_level}\n\n"
+            f"[View on DexScreener]({signal.dex_url})"
+        )
+
+        await self.trader.buy(
+            token_address=signal.token_address,
+            token_symbol=signal.token_symbol,
+            reason=f"[{self.chain.name}] Pump chaser {signal.combined_score} | {signal.price_change_h1:+.1f}% 1h",
+            signal_score=signal.combined_score,
+            chain_id=self.chain.chain_id,
+            strategy="pump",
         )
 
     async def _watchlist_poll_cycle(self):
@@ -2152,7 +2218,7 @@ class MultiSourceScanner:
                 to_remove.append(addr_lower)
                 continue
 
-            if self.tracker and self.tracker.buying_paused:
+            if self.tracker and getattr(self.tracker, 'buying_paused', False):
                 continue
 
             try:

@@ -120,13 +120,13 @@ class Config:
     # ── Scanner ──────────────────────────────────────────────
     min_mcap: float = 200_000
     max_mcap: float = 1_000_000
-    min_combined_score: int = 45
+    min_combined_score: int = 50
     require_both_sources: bool = True
-    min_liquidity_usd: float = 50_000
+    min_liquidity_usd: float = 10_000
     max_dev_wallet_pct: float = 5.0
-    preferred_age_min_hours: float = 3.0
-    preferred_age_max_hours: float = 12.0
-    hard_skip_age_hours: float = 24.0
+    preferred_age_min_hours: float = 0.0
+    preferred_age_max_hours: float = 999.0
+    hard_skip_age_hours: float = 999.0
     pyramid_score_threshold: int = 90
     volume_acceleration_candles: int = 3
 

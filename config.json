@@ -24,14 +24,15 @@
   "take_profit_3_pct": 50.0,
   "take_profit_3_sell": 1.0,
 
-  "stop_loss_pct": 28.0,
+  "stop_loss_pct": 10.0,
+  "winner_trail_pct": 10.0,
 
   "stall_check_interval_min": 30,
   "stall_volume_threshold": 0.20,
   "stall_min_hours": 1.0,
   "stall_sell_pct": 0.75,
 
-  "avg_down_max_loss_pct": 15.0,
+  "avg_down_max_loss_pct": 7.0,
   "avg_down_min_volume_pct": 0.50,
   "avg_down_size_pct": 0.50,
 
@@ -41,13 +42,10 @@
 
   "min_mcap": 200000,
   "max_mcap": 1000000,
-  "min_combined_score": 65,
+  "min_combined_score": 50,
   "require_both_sources": false,
-  "min_liquidity_usd": 50000,
+  "min_liquidity_usd": 10000,
   "max_dev_wallet_pct": 5.0,
-  "preferred_age_min_hours": 3.0,
-  "preferred_age_max_hours": 12.0,
-  "hard_skip_age_hours": 24.0,
   "pyramid_score_threshold": 90,
 
   "max_buy_tax": 10.0,
