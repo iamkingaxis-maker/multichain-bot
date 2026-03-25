@@ -215,19 +215,12 @@ class AxiomTrendingScanner:
             return {}
         try:
             token_valid = await self.auth_manager.ensure_valid_token()
-            at = self.auth_manager.auth_token or ""
-            rt = self.auth_manager.refresh_token or ""
-            logger.info(
-                f"[AxiomTrending] token_valid={token_valid} "
-                f"at={'ok('+str(len(at))+'chars)' if at else 'EMPTY'} "
-                f"rt={'ok('+str(len(rt))+'chars)' if rt else 'EMPTY'}"
-            )
             if not token_valid:
                 return {}
 
             cookie = (
-                f"auth-refresh-token={rt}; "
-                f"auth-access-token={at}"
+                f"auth-refresh-token={self.auth_manager.refresh_token}; "
+                f"auth-access-token={self.auth_manager.auth_token or ''}"
             )
             headers = {
                 "Accept": "application/json, text/plain, */*",
@@ -242,7 +235,6 @@ class AxiomTrendingScanner:
             import time as _time
             import os as _os
             proxy_url = _os.environ.get("AXIOM_PROXY_URL", "").strip() or None
-            logger.info(f"[AxiomTrending] proxy={'set' if proxy_url else 'none'}")
 
             loop = asyncio.get_running_loop()
             result = {}
@@ -252,7 +244,7 @@ class AxiomTrendingScanner:
                 v = int(_time.time() * 1000)
                 for base in self._AXIOM_API_SERVERS:
                     url = f"{base}/meme-trending-v2?timePeriod={period}&v={v}"
-                    logger.info(f"[AxiomTrending] GET {url}")
+                    logger.debug(f"[AxiomTrending] GET {url}")
                     def _fetch(url=url, headers=headers, proxy_url=proxy_url):
                         kwargs = dict(headers=headers, impersonate="chrome110", timeout=10)
                         if proxy_url:
