@@ -187,8 +187,12 @@ class AxiomTrendingScanner:
 
     # Endpoint confirmed from JS source (2026-03):
     #   axiomApiV2.get("/meme-trending-v2", {timePeriod}) on one of the api servers
+    # Primary server first (highest priority, matches JS getCurrentApiUrl default)
     _AXIOM_API_SERVERS = [
+        "https://api.axiom.trade",
+        "https://api2.axiom.trade",
         "https://api3.axiom.trade",
+        "https://api6.axiom.trade",
         "https://api7.axiom.trade",
         "https://api8.axiom.trade",
         "https://api9.axiom.trade",
@@ -235,22 +239,28 @@ class AxiomTrendingScanner:
                 "Cookie": cookie,
             }
 
-            import random
             loop = asyncio.get_running_loop()
             result = {}
 
             for period in ("1h", "6h", "24h"):
-                base = random.choice(self._AXIOM_API_SERVERS)
-                url = f"{base}/meme-trending-v2?timePeriod={period}"
-
-                logger.info(f"[AxiomTrending] GET {url}")
-                def _fetch(url=url, headers=headers):
-                    r = cffi_requests.get(url, headers=headers, impersonate="chrome110", timeout=10)
-                    return r.status_code, r.text
-
-                try:
-                    status, body = await loop.run_in_executor(None, _fetch)
+                status, body = 0, ""
+                for base in self._AXIOM_API_SERVERS:
+                    url = f"{base}/meme-trending-v2?timePeriod={period}"
+                    logger.info(f"[AxiomTrending] GET {url}")
+                    def _fetch(url=url, headers=headers):
+                        r = cffi_requests.get(url, headers=headers, impersonate="chrome110", timeout=10)
+                        return r.status_code, r.text
+                    try:
+                        status, body = await loop.run_in_executor(None, _fetch)
+                    except Exception as e:
+                        logger.info(f"[AxiomTrending] {url} error: {e}")
+                        continue
                     if status == 200:
+                        break  # got data, stop trying servers
+                    logger.info(f"[AxiomTrending] {base} → {status}: {body[:60]}")
+
+                if status == 200:
+                    try:
                         import json as _json
                         data = _json.loads(body)
                         tokens = data if isinstance(data, list) else (
@@ -269,12 +279,8 @@ class AxiomTrendingScanner:
                             f"[AxiomTrending] {period}: {len(tokens)} tokens "
                             f"(+{len(result)-before} new)"
                         )
-                    else:
-                        logger.info(
-                            f"[AxiomTrending] {period} HTTP {status}: {body[:120]}"
-                        )
-                except Exception as e:
-                    logger.info(f"[AxiomTrending] {period} fetch failed: {e}")
+                    except Exception as e:
+                        logger.info(f"[AxiomTrending] {period} parse failed: {e}")
 
             if result:
                 logger.info(f"[AxiomTrending] Total: {len(result)} trending tokens (1h+6h+24h)")
