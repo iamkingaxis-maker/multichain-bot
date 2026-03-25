@@ -211,12 +211,19 @@ class AxiomTrendingScanner:
             return {}
         try:
             token_valid = await self.auth_manager.ensure_valid_token()
+            at = self.auth_manager.auth_token or ""
+            rt = self.auth_manager.refresh_token or ""
+            logger.info(
+                f"[AxiomTrending] token_valid={token_valid} "
+                f"at={'ok('+str(len(at))+'chars)' if at else 'EMPTY'} "
+                f"rt={'ok('+str(len(rt))+'chars)' if rt else 'EMPTY'}"
+            )
             if not token_valid:
                 return {}
 
             cookie = (
-                f"auth-refresh-token={self.auth_manager.refresh_token}; "
-                f"auth-access-token={self.auth_manager.auth_token or ''}"
+                f"auth-refresh-token={rt}; "
+                f"auth-access-token={at}"
             )
             headers = {
                 "Accept": "application/json, text/plain, */*",
@@ -236,6 +243,7 @@ class AxiomTrendingScanner:
                 base = random.choice(self._AXIOM_API_SERVERS)
                 url = f"{base}/meme-trending-v2?timePeriod={period}"
 
+                logger.info(f"[AxiomTrending] GET {url}")
                 def _fetch(url=url, headers=headers):
                     r = cffi_requests.get(url, headers=headers, impersonate="chrome110", timeout=10)
                     return r.status_code, r.text
