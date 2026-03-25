@@ -167,7 +167,8 @@ async def main():
         dashboard.register_provider(sol_risk)
         SOLANA.rpc_url = config.solana_rpc_url
         sol_trader = Trader(config.solana_private_key, config.solana_rpc_url,
-                            tracker, telegram, sol_risk)
+                            tracker, telegram, sol_risk,
+                            stop_loss_pct=config.stop_loss_pct)
         dashboard.register_trader(sol_trader)
         kill_switch.register_trader(sol_trader)
 
@@ -238,13 +239,15 @@ async def main():
             tp3_pct=config.take_profit_3_pct,
             tp3_sell=config.take_profit_3_sell,
             stop_loss_pct=config.stop_loss_pct,
+            winner_trail_pct=config.winner_trail_pct,
             stall_check_interval_min=config.stall_check_interval_min,
             stall_volume_threshold=config.stall_volume_threshold,
             stall_min_hours=config.stall_min_hours,
             stall_sell_pct=config.stall_sell_pct,
             avg_down_max_loss_pct=config.avg_down_max_loss_pct,
             avg_down_min_volume_pct=config.avg_down_min_volume_pct,
-            avg_down_size_pct=config.avg_down_size_pct
+            avg_down_size_pct=config.avg_down_size_pct,
+            scalper=sol_scalper
         )
         kill_switch.register_scalper(sol_scalper)
         tracker.register_scalper(sol_scalper)
@@ -295,11 +298,17 @@ async def main():
             trader=sol_trader,
             telegram=telegram,
             tracker=tracker,
+            signal_evaluator=sol_scanner.evaluator,   # reuse scanner's evaluator
+            security_checker=security,                # reuse security checker
             market_monitor=market_monitor,
             copy_trader=sol_copy,
             edge_strategies=sol_convergence,
         )
         tasks += axiom.get_tasks()
+        dashboard.register_axiom_auth(axiom.auth)
+        sol_trader.register_axiom_auth(axiom.auth)   # Axiom-first price lookups
+        if axiom.price_feed:
+            sol_trader.register_axiom_price_feed(axiom.price_feed)
 
         chain_summaries.append(f"Solana — ${sol_cap:,.0f}")
 

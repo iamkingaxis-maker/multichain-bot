@@ -17,7 +17,7 @@ STALL DETECTION:
   - → Sell 75%, hold 25% moon bag
 
 STOP LOSS:
-  - Hard stop at -28% from entry — no exceptions
+  - Hard stop at -10% from entry — no exceptions
   - No conditional skipping — clean and simple
 
 AVERAGE DOWN:
@@ -25,7 +25,7 @@ AVERAGE DOWN:
   - Only if current volume is still above 50% of entry volume (fundamentals hold)
   - Only once per position — never twice
   - Add 50% of original position size
-  - If average down triggers and position still hits -28% → stop out normally
+  - If average down triggers and position still hits -10% → stop out normally
 
 MARKET CONDITIONS:
   - Monitor BTC 24h price change every 15 minutes
@@ -335,7 +335,10 @@ class PositionManager:
                  tp3_sell: float = 0.75,
 
                  # Stop loss
-                 stop_loss_pct: float = 28.0,   # Hard -28%, no exceptions
+                 stop_loss_pct: float = 10.0,   # Hard stop, no exceptions
+
+                 # Winner protection — trail from peak after TP1
+                 winner_trail_pct: float = 10.0,  # Close 100% if drops 10% from peak post-TP1
 
                  # Stall detection
                  stall_check_interval_min: int = 30,
@@ -344,9 +347,12 @@ class PositionManager:
                  stall_sell_pct: float = 0.75,
 
                  # Average down
-                 avg_down_max_loss_pct: float = 15.0,
+                 avg_down_max_loss_pct: float = 7.0,
                  avg_down_min_volume_pct: float = 0.50,
-                 avg_down_size_pct: float = 0.50):
+                 avg_down_size_pct: float = 0.50,
+
+                 # Scalper reference — for breakeven-after-scalp check
+                 scalper=None):
 
         self.chain_name = chain_name
         self.chain_id = chain_id
@@ -366,6 +372,7 @@ class PositionManager:
 
         # SL
         self.stop_loss_pct = stop_loss_pct
+        self.winner_trail_pct = winner_trail_pct
 
         # Stall
         self.stall_interval = stall_check_interval_min
@@ -377,6 +384,8 @@ class PositionManager:
         self.avg_down_max_loss = avg_down_max_loss_pct
         self.avg_down_min_volume = avg_down_min_volume_pct
         self.avg_down_size = avg_down_size_pct
+
+        self.scalper = scalper
 
         self._states: Dict[str, PositionState] = {}
         self._last_volume_check: Dict[str, datetime] = {}
@@ -478,6 +487,17 @@ class PositionManager:
                         if price > state.peak_price:
                             state.peak_price = price
 
+                        # Sync live price/PnL back to the trader Position object
+                        # so the dashboard can display real-time unrealized P&L
+                        if token_address in self.open_positions_ref:
+                            tp = self.open_positions_ref[token_address]
+                            tp.current_price_usd = price
+                            if state.entry_price > 0:
+                                tp.pnl_usd = (
+                                    (price / state.entry_price - 1)
+                                    * getattr(tp, "amount_usd", state.position_size_usd)
+                                )
+
                         # Set entry volume baseline on first update (h1 snapshot)
                         if state.entry_volume_usd == 0 and volume_h1 > 0:
                             state.entry_volume_usd = volume_h1
@@ -514,7 +534,40 @@ class PositionManager:
 
         pnl_pct = state.pnl_pct
 
-        # ── STOP LOSS — Hard -28%, no exceptions ────────────────────────
+        # ── WINNER PROTECTION — close 100% if price drops 10% from peak after TP1 ──
+        if (state.tp1_hit and
+                state.peak_price > 0 and
+                state.current_price <= state.peak_price * (1 - self.winner_trail_pct / 100)):
+            drop_from_peak = (state.peak_price - state.current_price) / state.peak_price * 100
+            logger.info(
+                f"[PositionManager/{self.chain_name}] 🔒 WINNER TRAIL: "
+                f"{state.token_symbol} -{drop_from_peak:.1f}% from peak"
+            )
+            await self._execute_sell(
+                token_address, state,
+                pct=1.0,
+                reason=f"Winner trail -{drop_from_peak:.1f}% from peak"
+            )
+            return
+
+        # ── BREAKEVEN AFTER SCALP — if scalp has fired and price returns to entry ──
+        if self.scalper is not None:
+            scalp_state = self.scalper._states.get(token_address)
+            if (scalp_state is not None and
+                    (scalp_state.completed_cycles or scalp_state.active_cycle is not None) and
+                    state.current_price <= state.entry_price):
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] 🔁 BREAKEVEN-AFTER-SCALP: "
+                    f"{state.token_symbol} back at entry after scalp fired — closing 100%"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=1.0,
+                    reason="Breakeven after scalp"
+                )
+                return
+
+        # ── STOP LOSS — Hard stop, no exceptions ─────────────────────────
         if pnl_pct <= -self.stop_loss_pct:
             logger.warning(
                 f"[PositionManager/{self.chain_name}] 🛑 STOP LOSS: "
@@ -621,7 +674,10 @@ class PositionManager:
             return
 
         # ── AVERAGE DOWN ─────────────────────────────────────────────────
+        # Require >= 5 minutes open — prevents triggering on the very first price
+        # update where entry_volume and current_volume are the same snapshot.
         if (not state.averaged_down and
+                state.hours_open >= (5 / 60) and
                 -self.avg_down_max_loss <= pnl_pct < 0):
             # Check volume is still healthy
             vol_ratio = (
@@ -638,7 +694,7 @@ class PositionManager:
                 add_usd = state.original_size_usd * self.avg_down_size
                 await self.trader.buy(
                     token_address=token_address,
-                    token_symbol=f"{state.token_symbol}[AVG-DOWN]",
+                    token_symbol=state.token_symbol,
                     reason=(
                         f"Avg down at {pnl_pct:.1f}% — "
                         f"volume still {vol_ratio:.1f}x entry"
