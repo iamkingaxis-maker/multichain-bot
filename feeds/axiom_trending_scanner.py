@@ -240,6 +240,10 @@ class AxiomTrendingScanner:
             }
 
             import time as _time
+            import os as _os
+            proxy_url = _os.environ.get("AXIOM_PROXY_URL", "").strip() or None
+            logger.info(f"[AxiomTrending] proxy={'set' if proxy_url else 'none'}")
+
             loop = asyncio.get_running_loop()
             result = {}
 
@@ -249,8 +253,11 @@ class AxiomTrendingScanner:
                 for base in self._AXIOM_API_SERVERS:
                     url = f"{base}/meme-trending-v2?timePeriod={period}&v={v}"
                     logger.info(f"[AxiomTrending] GET {url}")
-                    def _fetch(url=url, headers=headers):
-                        r = cffi_requests.get(url, headers=headers, impersonate="chrome110", timeout=10)
+                    def _fetch(url=url, headers=headers, proxy_url=proxy_url):
+                        kwargs = dict(headers=headers, impersonate="chrome110", timeout=10)
+                        if proxy_url:
+                            kwargs["proxies"] = {"https": proxy_url, "http": proxy_url}
+                        r = cffi_requests.get(url, **kwargs)
                         return r.status_code, r.text
                     try:
                         status, body = await loop.run_in_executor(None, _fetch)
