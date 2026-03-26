@@ -261,6 +261,8 @@ def _apply_env_overrides(config: Config):
     # Capital settings (optional overrides)
     if os.environ.get("TOTAL_CAPITAL"):
         config.total_capital = env_float("TOTAL_CAPITAL", config.total_capital)
+    GAS_RESERVE_USD = 10.0
+    config.total_capital = max(0.0, config.total_capital - GAS_RESERVE_USD)
     if os.environ.get("DAILY_LOSS_LIMIT"):
         config.daily_loss_limit = env_float("DAILY_LOSS_LIMIT", config.daily_loss_limit)
 
