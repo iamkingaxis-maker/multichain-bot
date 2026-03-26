@@ -87,6 +87,19 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 #2ea04360} 50%{opacity:.7;box-shadow:0 0 0 4px #2ea04310} }
   .header-right { display: flex; align-items: center; gap: 16px; color: var(--muted); font-size: 11px; }
   #clock { color: var(--text); font-size: 12px; }
+  .mode-badge {
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    padding: 3px 10px; border-radius: 20px; text-transform: uppercase;
+  }
+  .mode-badge.paper { background: #1f3a5f; color: #58a6ff; border: 1px solid #388bfd40; }
+  .mode-badge.live  { background: #3d1f1f; color: #f85149; border: 1px solid #f8514940; }
+  .pause-btn {
+    font-size: 11px; font-weight: 600; padding: 4px 14px; border-radius: 6px;
+    border: 1px solid var(--border2); cursor: pointer; transition: all .15s;
+    background: var(--card); color: var(--text);
+  }
+  .pause-btn:hover { background: var(--border2); }
+  .pause-btn.paused { background: #3d1f1f; color: #f85149; border-color: #f8514940; }
 
   /* ── Layout ── */
   .main { padding: 20px 20px 40px; display: flex; flex-direction: column; gap: 20px; max-width: 1800px; margin: 0 auto; }
@@ -255,6 +268,8 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
   </div>
   <div class="header-right">
+    <span id="mode-badge" class="mode-badge paper">PAPER</span>
+    <button id="pause-btn" class="pause-btn" onclick="togglePause()">⏸ Pause Trading</button>
     <span>Uptime: <span id="uptime">—</span></span>
     <span id="clock">—</span>
   </div>
@@ -615,6 +630,7 @@ connect();
 // ── Main update function ───────────────────────────────────────────────────
 function updateDashboard(d) {
   updateUptime(d.uptime);
+  updateModeAndPause(d);
   updateStatCards(d);
   updatePnlChart(d.cumulative_pnl || []);
   updatePositions(d.positions || []);
@@ -632,6 +648,31 @@ function updateDashboard(d) {
 
 function updateUptime(u) {
   if (u) document.getElementById('uptime').textContent = u;
+}
+
+// ── Mode badge + pause button ───────────────────────────────────────────────
+function updateModeAndPause(d) {
+  const badge = document.getElementById('mode-badge');
+  const btn   = document.getElementById('pause-btn');
+  if (badge) {
+    const live = d.live_mode === true;
+    badge.textContent = live ? 'LIVE' : 'PAPER';
+    badge.className   = 'mode-badge ' + (live ? 'live' : 'paper');
+  }
+  if (btn) {
+    const paused = d.trading_paused === true;
+    btn.textContent = paused ? '▶ Resume Trading' : '⏸ Pause Trading';
+    btn.className   = 'pause-btn' + (paused ? ' paused' : '');
+  }
+}
+
+async function togglePause() {
+  const btn    = document.getElementById('pause-btn');
+  const paused = btn.classList.contains('paused');
+  const url    = paused ? '/api/resume' : '/api/pause';
+  try {
+    await fetch(url, { method: 'POST' });
+  } catch(e) { console.error('pause/resume error', e); }
 }
 
 // ── Stat cards ─────────────────────────────────────────────────────────────
@@ -1055,6 +1096,8 @@ class WebDashboard:
 
         self._trader = None  # registered via register_trader()
         self._axiom_auth = None  # registered via register_axiom_auth()
+        self._trading_paused = False  # pause/resume state
+        self._live_mode = False  # set via register_trader
 
         self.app.router.add_get("/",                        self._handle_index)
         self.app.router.add_get("/api/stats",               self._handle_stats)
@@ -1071,6 +1114,8 @@ class WebDashboard:
         self.app.router.add_post("/api/update-axiom-token", self._handle_update_axiom_token)
         self.app.router.add_post("/api/reset",              self._handle_reset)
         self.app.router.add_get("/api/closed-positions",   self._handle_closed_positions)
+        self.app.router.add_post("/api/pause",              self._handle_pause)
+        self.app.router.add_post("/api/resume",             self._handle_resume)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -1088,6 +1133,7 @@ class WebDashboard:
     def register_trader(self, trader):
         """Register the trader for manual sell/buy actions from the dashboard."""
         self._trader = trader
+        self._live_mode = bool(getattr(trader, "private_key", ""))
 
     def register_axiom_auth(self, auth_manager):
         """Register the Axiom auth manager so tokens can be hot-updated via API."""
@@ -1516,6 +1562,30 @@ class WebDashboard:
             content_type="application/json", headers=cors,
         )
 
+    async def _handle_pause(self, request):
+        """POST /api/pause — pause all new trade entries."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        self._trading_paused = True
+        if self._tracker:
+            self._tracker.buying_paused = True
+        logger.info("[Dashboard] Trading PAUSED via dashboard")
+        return web.Response(
+            text=json.dumps({"ok": True, "paused": True}),
+            content_type="application/json", headers=cors,
+        )
+
+    async def _handle_resume(self, request):
+        """POST /api/resume — resume trade entries."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        self._trading_paused = False
+        if self._tracker:
+            self._tracker.buying_paused = False
+        logger.info("[Dashboard] Trading RESUMED via dashboard")
+        return web.Response(
+            text=json.dumps({"ok": True, "paused": False}),
+            content_type="application/json", headers=cors,
+        )
+
     async def _handle_sse(self, request):
         """Server-Sent Events stream — pushes fresh stats every 3 seconds."""
         response = web.StreamResponse(
@@ -1558,6 +1628,8 @@ class WebDashboard:
         stats = {
             "uptime": f"{hours}h {minutes}m",
             "new_alerts": new_alerts,
+            "live_mode": self._live_mode,
+            "trading_paused": self._trading_paused,
             "overall": {
                 "total_trades": 0, "wins": 0, "losses": 0,
                 "win_rate": 0, "total_pnl": 0,
