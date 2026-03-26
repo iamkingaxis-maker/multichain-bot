@@ -82,10 +82,10 @@ class Config:
     enable_solana: bool = True
 
     # ── Capital ──────────────────────────────────────────────
-    total_capital: float = 80.0
+    total_capital: float = 2000.0
     max_position_pct: float = 0.08
     min_position_pct: float = 0.02
-    daily_loss_limit: float = 20.0
+    daily_loss_limit: float = 200.0
 
     # ── Take Profit ──────────────────────────────────────────
     take_profit_1_pct: float = 10.0
