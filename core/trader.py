@@ -17,8 +17,18 @@ from core.paper_slippage import PaperSlippageSimulator
 
 logger = logging.getLogger(__name__)
 
-JUPITER_QUOTE_API = "https://quote-api.jup.ag/v6/quote"
-JUPITER_SWAP_API = "https://quote-api.jup.ag/v6/swap"
+# Paid API key endpoints (api.jup.ag) — more reliable, higher rate limits
+# Falls back to free tier (quote-api.jup.ag) if no key is set
+import os as _os
+_JUPITER_API_KEY = _os.environ.get("JUPITER_API_KEY", "")
+if _JUPITER_API_KEY:
+    JUPITER_QUOTE_API = f"https://api.jup.ag/swap/v1/quote"
+    JUPITER_SWAP_API = f"https://api.jup.ag/swap/v1/swap"
+    _JUPITER_HEADERS = {"x-api-key": _JUPITER_API_KEY}
+else:
+    JUPITER_QUOTE_API = "https://quote-api.jup.ag/v6/quote"
+    JUPITER_SWAP_API = "https://quote-api.jup.ag/v6/swap"
+    _JUPITER_HEADERS = {}
 SOL_MINT = "So11111111111111111111111111111111111111112"
 USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 
@@ -351,19 +361,26 @@ class Trader:
                           f"TP3 at {multiplier:.1f}x", pct=1.0)
 
     async def _get_quote(self, input_mint: str, output_mint: str, amount: int) -> Optional[dict]:
-        """Get a swap quote from Jupiter."""
+        """Get a swap quote from Jupiter, with retries for transient DNS/network errors."""
         params = {
             "inputMint": input_mint,
             "outputMint": output_mint,
             "amount": amount,
             "slippageBps": 100  # 1% slippage
         }
-        async with aiohttp.ClientSession() as session:
-            async with session.get(JUPITER_QUOTE_API, params=params,
-                                   timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status == 200:
-                    return await resp.json()
-                return None
+        for attempt in range(3):
+            try:
+                async with aiohttp.ClientSession(headers=_JUPITER_HEADERS) as session:
+                    async with session.get(JUPITER_QUOTE_API, params=params,
+                                           timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                        if resp.status == 200:
+                            return await resp.json()
+                        logger.warning(f"Jupiter quote HTTP {resp.status} (attempt {attempt+1}/3)")
+            except Exception as e:
+                logger.warning(f"Jupiter quote error (attempt {attempt+1}/3): {e}")
+                if attempt < 2:
+                    await asyncio.sleep(2 ** attempt)  # 1s, 2s backoff
+        return None
 
     async def _execute_swap(self, quote: dict) -> bool:
         """Execute a swap using Jupiter."""
@@ -372,7 +389,7 @@ class Trader:
             return True  # Paper trading mode
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(headers=_JUPITER_HEADERS) as session:
                 payload = {
                     "quoteResponse": quote,
                     "userPublicKey": self._get_public_key(),
