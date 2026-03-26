@@ -1151,7 +1151,7 @@ class AxiomScanner:
             # Security gate
             if self.security:
                 sec_result = await self.security.check(
-                    event.token_address, "solana"
+                    event.token_address, "solana", event.token_symbol
                 )
                 if sec_result and not sec_result.passed:
                     logger.info(

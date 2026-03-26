@@ -349,7 +349,7 @@ class AxiomTrendingScanner:
 
             # Security check
             if self.security:
-                sec_result = await self.security.check(token_address, "solana")
+                sec_result = await self.security.check(token_address, "solana", ticker)
                 if sec_result and not sec_result.passed:
                     logger.info(
                         f"[EstablishedScanner] Security blocked: {ticker} — "

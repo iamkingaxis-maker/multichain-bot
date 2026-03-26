@@ -273,7 +273,7 @@ class AxiomSmartWalletTracker:
 
             # Security gate
             if self.security:
-                sec_result = await self.security.check(token_address, "solana")
+                sec_result = await self.security.check(token_address, "solana", ticker)
                 if sec_result and not sec_result.passed:
                     logger.info(
                         f"[AxiomWallets] Security blocked: {ticker} — "
