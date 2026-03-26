@@ -2382,6 +2382,9 @@ class MultiSourceScanner:
 
     def _add_to_watchlist(self, signal: TokenSignal, reason: str):
         """Add a near-miss token to the dashboard watchlist (cap at 20, drop lowest)."""
+        # Skip tokens with no market cap data — unverifiable risk
+        if not signal.mcap or signal.mcap <= 0:
+            return
         entry = {
             "symbol": signal.token_symbol,
             "score": signal.combined_score,

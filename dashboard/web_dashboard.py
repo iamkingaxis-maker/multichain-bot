@@ -372,10 +372,10 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- ── Recommended Tokens (Watchlist) ── -->
+  <!-- ── Near-Miss Watchlist ── -->
   <div class="card">
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-      <span><span class="dot" style="background:var(--yellow)"></span> Recommended Tokens <span style="font-size:11px;color:var(--muted);font-weight:400;">— near-miss signals (score 45-64)</span></span>
+      <span><span class="dot" style="background:var(--yellow)"></span> Near-Miss Watchlist <span style="font-size:11px;color:#f59e0b;font-weight:400;">— scanner BLOCKED these (score below minimum)</span></span>
       <span id="watchlist-count" style="font-size:11px;color:var(--muted);font-weight:400;">0 tokens</span>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:10px;">
@@ -390,7 +390,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       <table>
         <thead><tr><th>Token</th><th>Score</th><th>MCap</th><th>Price</th><th>Reason</th><th>Age</th><th></th></tr></thead>
         <tbody id="watchlist-body">
-          <tr><td colspan="7" style="color:var(--muted);padding:12px;text-align:center;">No recommended tokens yet</td></tr>
+          <tr><td colspan="7" style="color:var(--muted);padding:12px;text-align:center;">No near-miss tokens yet</td></tr>
         </tbody>
       </table>
     </div>
@@ -803,7 +803,18 @@ async function manualBuy(tokenAddress, tokenSymbol) {
   } catch(e) { alert('Request failed: ' + e); }
 }
 
-// ── Watchlist (Recommended Tokens) ──────────────────────────────────────
+async function overrideBuy(tokenAddress, tokenSymbol, score, reason) {
+  if (!tokenAddress) return;
+  const msg = '⚠ SCANNER BLOCKED THIS TOKEN\\n\\n' +
+    'Score: ' + score + ' (minimum needed: 50)\\n' +
+    'Reason blocked: ' + reason + '\\n\\n' +
+    'The bot rejected $' + tokenSymbol + ' — buying it manually overrides all scanner filters.\\n\\n' +
+    'Are you sure you want to buy?';
+  if (!confirm(msg)) return;
+  await manualBuy(tokenAddress, tokenSymbol);
+}
+
+// ── Watchlist (Near-Miss Signals) ────────────────────────────────────────
 async function loadWatchlist() {
   try {
     const res = await fetch('/api/watchlist');
@@ -813,7 +824,7 @@ async function loadWatchlist() {
     const count = document.getElementById('watchlist-count');
     if (count) count.textContent = list.length + ' token' + (list.length !== 1 ? 's' : '');
     if (!list.length) {
-      body.innerHTML = '<tr><td colspan="7" style="color:var(--muted);padding:12px;text-align:center;">No recommended tokens — waiting for near-miss signals</td></tr>';
+      body.innerHTML = '<tr><td colspan="7" style="color:var(--muted);padding:12px;text-align:center;">No near-miss tokens — waiting for signals</td></tr>';
       return;
     }
     body.innerHTML = list.map(t => {
@@ -829,8 +840,8 @@ async function loadWatchlist() {
         <td class="muted">$${(t.price||0).toFixed(8)}</td>
         <td class="muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(t.reason||'')}">${escHtml((t.reason||'').slice(0,40))}</td>
         <td class="muted">${ageStr}</td>
-        <td><button onclick="manualBuy('${t.token_address}','${escHtml(t.symbol||'?')}')"
-          style="background:#2ea043;color:#fff;border:none;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;">Buy</button></td>
+        <td><button onclick="overrideBuy('${t.token_address}','${escHtml(t.symbol||'?')}',${t.score},'${escHtml(t.reason||'')}')"
+          style="background:#b45309;color:#fff;border:none;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;" title="Scanner blocked this token — override at your own risk">Override</button></td>
       </tr>`;
     }).join('');
   } catch(e) { console.warn('Watchlist load error', e); }
