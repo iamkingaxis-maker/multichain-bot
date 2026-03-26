@@ -242,7 +242,8 @@ async def main():
             avg_down_max_loss_pct=config.avg_down_max_loss_pct,
             avg_down_min_volume_pct=config.avg_down_min_volume_pct,
             avg_down_size_pct=config.avg_down_size_pct,
-            scalper=sol_scalper
+            scalper=sol_scalper,
+            scanner=sol_scanner
         )
         kill_switch.register_scalper(sol_scalper)
         tracker.register_scalper(sol_scalper)

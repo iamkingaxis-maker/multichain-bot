@@ -352,7 +352,9 @@ class PositionManager:
                  avg_down_size_pct: float = 0.50,
 
                  # Scalper reference — for breakeven-after-scalp check
-                 scalper=None):
+                 scalper=None,
+                 # Scanner reference — for stop-loss cooldown registration
+                 scanner=None):
 
         self.chain_name = chain_name
         self.chain_id = chain_id
@@ -361,6 +363,7 @@ class PositionManager:
         self.telegram = telegram
         self.tracker = tracker
         self.market_monitor = market_monitor
+        self.scanner = scanner
 
         # TP settings
         self.tp1_pct = tp1_pct
@@ -579,6 +582,9 @@ class PositionManager:
                 reason=f"Stop loss -{self.stop_loss_pct}%"
             )
             self.stop_loss_hits += 1
+            # Block re-entry on this token for 4h
+            if self.scanner:
+                self.scanner.register_stop_loss(token_address, state.token_symbol, state.current_price)
             return
 
         # ── TAKE PROFIT TIERS ────────────────────────────────────────────
