@@ -1427,13 +1427,17 @@ class MultiSourceScanner:
             return
 
         # Score cap: over-pumped / late entry
+        # pump_setup tokens bypass and go straight to pump chaser (momentum is the signal)
         if signal.combined_score > self.max_combined_score:
-            logger.info(
-                f"[{self.chain.name}] Score-cap blocked: {signal.token_symbol} "
-                f"score={signal.combined_score} > max {self.max_combined_score} "
-                f"(over-pumped / rug risk)"
-            )
-            self.signals_blocked_score += 1
+            if "pump_setup" in signal.flags:
+                await self._fire_pump_chaser(signal)
+            else:
+                logger.info(
+                    f"[{self.chain.name}] Score-cap blocked: {signal.token_symbol} "
+                    f"score={signal.combined_score} > max {self.max_combined_score} "
+                    f"(over-pumped / rug risk)"
+                )
+                self.signals_blocked_score += 1
             return
 
         # Rug blacklist
