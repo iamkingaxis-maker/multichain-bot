@@ -2212,13 +2212,9 @@ class MultiSourceScanner:
             )
             return
 
-        # Chart analysis — verify momentum is confirmed on candles before buying
-        confirmed = await self._chart_dip_check(signal, sec_result.risk_level)
+        # Momentum check — verify pump is still running, not reversing
+        confirmed = await self._chart_momentum_check(signal)
         if not confirmed:
-            logger.info(
-                f"[{self.chain.name}] [PumpChaser] 📉 Chart check failed: "
-                f"{signal.token_symbol} — waiting for better entry"
-            )
             return
 
         self.signals_fired += 1
@@ -2245,6 +2241,81 @@ class MultiSourceScanner:
             chain_id=self.chain.chain_id,
             strategy="pump",
         )
+
+    async def _chart_momentum_check(self, signal: TokenSignal) -> bool:
+        """
+        Momentum confirmation for pump-chaser entries.
+        Checks that the pump is still running — NOT that there's a dip.
+        Blocks if already reversing (consecutive red candles) or RSI parabolic (>90).
+        """
+        candles_5m, candles_1m = await asyncio.gather(
+            self._fetch_ohlcv(signal.token_address),
+            self._fetch_ohlcv_gecko(signal.token_address, aggregate="1", limit=15),
+            return_exceptions=True,
+        )
+        if isinstance(candles_5m, Exception):
+            candles_5m = None
+        if isinstance(candles_1m, Exception):
+            candles_1m = None
+
+        if not candles_5m or len(candles_5m) < 5:
+            # No candle data — token too new for GeckoTerminal, allow on score
+            logger.info(
+                f"[{self.chain.name}] [PumpChaser] No candle data for "
+                f"{signal.token_symbol} — allowing on momentum signal"
+            )
+            return True
+
+        def _sf(val):
+            try:
+                return float(val) if val is not None else 0.0
+            except (TypeError, ValueError):
+                return 0.0
+
+        closes_5m = [_sf(c[4]) for c in candles_5m]
+        closes_1m = [_sf(c[4]) for c in candles_1m] if candles_1m else []
+
+        chart = self._analyze_chart(candles_5m)
+        rsi = chart.get("rsi")
+
+        # Block: RSI > 90 — absolute top, likely to reverse immediately
+        if rsi is not None and rsi > 90:
+            logger.info(
+                f"[{self.chain.name}] [PumpChaser] Blocked {signal.token_symbol} "
+                f"RSI={rsi:.1f} — too overbought for safe entry"
+            )
+            return False
+
+        # Block: 5 consecutive red 5m candles — pump already reversing
+        if len(closes_5m) >= 5:
+            last5_red = all(
+                _sf(candles_5m[i][4]) < _sf(candles_5m[i][1]) for i in range(-5, 0)
+            )
+            if last5_red:
+                logger.info(
+                    f"[{self.chain.name}] [PumpChaser] Blocked {signal.token_symbol} "
+                    f"— 5 red 5m candles, pump reversing"
+                )
+                return False
+
+        # Block: 5 consecutive red 1m candles — micro-reversal underway
+        if len(closes_1m) >= 5:
+            last5_1m_red = all(
+                _sf(candles_1m[i][4]) < _sf(candles_1m[i][1]) for i in range(-5, 0)
+            )
+            if last5_1m_red:
+                logger.info(
+                    f"[{self.chain.name}] [PumpChaser] Blocked {signal.token_symbol} "
+                    f"— 5 red 1m candles, losing momentum"
+                )
+                return False
+
+        rsi_str = f"{rsi:.1f}" if rsi is not None else "n/a"
+        logger.info(
+            f"[{self.chain.name}] [PumpChaser] Momentum confirmed: "
+            f"{signal.token_symbol} RSI={rsi_str} — entering pump"
+        )
+        return True
 
     async def _watchlist_poll_cycle(self):
         """Re-check dip/recovery conditions for all dip watchlist tokens with a stored signal."""
