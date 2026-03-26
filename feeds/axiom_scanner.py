@@ -909,7 +909,7 @@ class AxiomScanner:
 
     Architecture:
       Axiom WebSocket → token filter → signal evaluator → security check
-      → trader.buy() (same pipeline as DexScreener scanner)
+      → scanner.process_external_signal() → chart analysis → trader.buy()
 
     Falls back to DexScreener polling if Axiom connection is unavailable.
     """
@@ -947,6 +947,9 @@ class AxiomScanner:
         self.min_score     = min_score
         self.reconnect_delay = reconnect_delay_seconds
         self.fallback      = fallback_to_dexscreener
+
+        # Set by connect_to_bot() — routes buys through chart analysis gate
+        self.scanner = None
 
         # Raw Axiom API response log (first N tokens for debugging)
         self._axiom_api_logged = 0
@@ -1224,25 +1227,38 @@ class AxiomScanner:
                 f"Protocol: {event.protocol}"
             )
 
-            await self.telegram.send(
-                f"🚀 *Axiom Signal* [Solana]\n\n"
-                f"🪙 ${event.token_symbol} — {event.token_name}\n"
-                f"📊 MCap: ${mcap:,.0f}\n"
-                f"💧 Liquidity: ${liq:,.0f}\n"
-                f"📈 Volume 1h: ${vol_h1:,.0f}\n"
-                f"⭐ Score: {score:.0f}/100\n"
-                f"🔗 Protocol: {event.protocol}\n"
-                f"⚡ Axiom — graduated pool"
-            )
-
-            await self.trader.buy(
-                token_address=event.token_address,
-                token_symbol=event.token_symbol,
-                reason=f"Axiom signal | score {score:.0f} | {event.protocol}",
-                signal_score=int(score),
-                hh_hl_confirmed=getattr(evaluation, "hh_hl_confirmed", False)
-                if self.evaluator else False
-            )
+            if self.scanner:
+                # Route through scanner's chart analysis — no buy on score alone
+                await self.scanner.process_external_signal(
+                    token_address=event.token_address,
+                    token_symbol=event.token_symbol,
+                    reason=f"Axiom signal | score {score:.0f} | {event.protocol}",
+                    signal_score=int(score),
+                    strategy_tag="AxiomScanner",
+                    skip_security=True,
+                    price_usd=float(pair_data.get("priceUsd") or 0),
+                    liquidity_usd=liq,
+                    volume_h1=vol_h1,
+                )
+            else:
+                await self.telegram.send(
+                    f"🚀 *Axiom Signal* [Solana]\n\n"
+                    f"🪙 ${event.token_symbol} — {event.token_name}\n"
+                    f"📊 MCap: ${mcap:,.0f}\n"
+                    f"💧 Liquidity: ${liq:,.0f}\n"
+                    f"📈 Volume 1h: ${vol_h1:,.0f}\n"
+                    f"⭐ Score: {score:.0f}/100\n"
+                    f"🔗 Protocol: {event.protocol}\n"
+                    f"⚡ Axiom — graduated pool"
+                )
+                await self.trader.buy(
+                    token_address=event.token_address,
+                    token_symbol=event.token_symbol,
+                    reason=f"Axiom signal | score {score:.0f} | {event.protocol}",
+                    signal_score=int(score),
+                    hh_hl_confirmed=getattr(evaluation, "hh_hl_confirmed", False)
+                    if self.evaluator else False
+                )
 
         except Exception as e:
             logger.error(f"[AxiomScanner] Evaluate/trade error for "

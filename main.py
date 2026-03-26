@@ -4,10 +4,9 @@ Solana Memecoin Bot v7 — Trader-Calibrated
 All systems active with trader-specific rules:
 
 TAKE PROFIT (your exact style):
-  TP1: +50%  → sell 50% (lock in fast)
-  TP2: +100% → sell 75% of remaining (don't get greedy)
-  TP3: +150% → sell 75% of remaining (rare bonus)
-  Moon bag: remainder rides indefinitely
+  TP1: +10%  → sell 50% (lock in fast)
+  TP2: +25%  → sell 75% of remaining (don't get greedy)
+  TP3: +50%  → sell 100% (full exit)
 
 STALL DETECTION (your rule):
   Volume drops below 20% of entry for 2x 30-min windows
@@ -304,6 +303,7 @@ async def main():
             security_checker=security,                # reuse security checker
             market_monitor=market_monitor,
             edge_strategies=sol_convergence,
+            scanner=sol_scanner,                      # routes all buys through chart analysis
         )
         tasks += axiom.get_tasks()
         dashboard.register_axiom_auth(axiom.auth)

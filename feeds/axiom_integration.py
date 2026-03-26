@@ -85,7 +85,8 @@ class AxiomIntegration:
                         security_checker=None,
                         market_monitor=None,
                         copy_trader=None,
-                        edge_strategies=None):
+                        edge_strategies=None,
+                        scanner=None):
         """
         Wire Axiom into your existing bot components.
 
@@ -191,6 +192,13 @@ class AxiomIntegration:
             auth_manager=self.auth,
             trader=trader,
         )
+
+        # Wire chart analysis gate — all Axiom buy signals route through scanner
+        # so they pass _chart_dip_check before any buy executes
+        if scanner:
+            self.scanner.scanner         = scanner
+            self.trending_scanner.scanner = scanner
+            self.wallet_tracker.scanner   = scanner
 
         self._tasks = [
             self.scanner.run(),

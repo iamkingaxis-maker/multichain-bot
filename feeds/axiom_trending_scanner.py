@@ -50,9 +50,13 @@ class AxiomTrendingScanner:
         self.market_monitor  = market_monitor
 
         self.min_mcap        = min_mcap_usd
+        self.max_mcap        = 1_000_000  # Hard cap — trending tokens above $1M are late/overbought
         self.min_liquidity   = min_liquidity_usd
         self.min_score       = min_score
         self.poll_interval   = poll_interval
+
+        # Set by connect_to_bot() — routes buys through chart analysis gate
+        self.scanner = None
 
         # TTL cache: {address: last_evaluated_timestamp}
         # Tokens are re-evaluated after REEVAL_HOURS — their conditions change over time
@@ -395,6 +399,12 @@ class AxiomTrendingScanner:
                     f"[EstablishedScanner] MCap filter drop (real): {ticker} — ${actual_mcap:,.0f}"
                 )
                 return False
+            if actual_mcap > 0 and actual_mcap > self.max_mcap:
+                logger.info(
+                    f"[EstablishedScanner] MCap too high (late entry risk): "
+                    f"{ticker} — ${actual_mcap:,.0f} > ${self.max_mcap:,.0f}"
+                )
+                return False
 
             # Minimum age check — skip tokens younger than 1 hour (rug-prone new launches)
             pair_created_ms = pair_data.get("pairCreatedAt") or 0
@@ -436,25 +446,39 @@ class AxiomTrendingScanner:
                 f"MCap: ${mcap:,.0f} | Score: {score:.0f}"
             )
 
-            await self.telegram.send(
-                f"📈 *Axiom Trending Signal* [Solana]\n\n"
-                f"🪙 ${ticker}\n"
-                f"📊 MCap: ${mcap:,.0f}\n"
-                f"💧 Liquidity: ${liq:,.0f}\n"
-                f"📈 Volume 1h: ${vol_h1:,.0f}\n"
-                f"⭐ Score: {score:.0f}/100\n"
-                f"⚡ Source: Axiom 1h Trending"
-            )
-
-            await self.trader.buy(
-                token_address=token_address,
-                token_symbol=ticker,
-                reason=f"Axiom trending (1h) | score {score:.0f}",
-                signal_score=int(score),
-                hh_hl_confirmed=getattr(evaluation, "hh_hl_confirmed", False)
-                if self.evaluator else False
-            )
-            return True
+            if self.scanner:
+                # Route through scanner's chart analysis — no buy on score alone
+                bought = await self.scanner.process_external_signal(
+                    token_address=token_address,
+                    token_symbol=ticker,
+                    reason=f"Axiom trending | score {score:.0f}",
+                    signal_score=int(score),
+                    strategy_tag="AxiomTrending",
+                    skip_security=True,
+                    price_usd=float(pair_data.get("priceUsd") or 0),
+                    liquidity_usd=liq,
+                    volume_h1=vol_h1,
+                )
+                return bought
+            else:
+                await self.telegram.send(
+                    f"📈 *Axiom Trending Signal* [Solana]\n\n"
+                    f"🪙 ${ticker}\n"
+                    f"📊 MCap: ${mcap:,.0f}\n"
+                    f"💧 Liquidity: ${liq:,.0f}\n"
+                    f"📈 Volume 1h: ${vol_h1:,.0f}\n"
+                    f"⭐ Score: {score:.0f}/100\n"
+                    f"⚡ Source: Axiom 1h Trending"
+                )
+                await self.trader.buy(
+                    token_address=token_address,
+                    token_symbol=ticker,
+                    reason=f"Axiom trending (1h) | score {score:.0f}",
+                    signal_score=int(score),
+                    hh_hl_confirmed=getattr(evaluation, "hh_hl_confirmed", False)
+                    if self.evaluator else False
+                )
+                return True
 
         except Exception as e:
             logger.error(f"[EstablishedScanner] Evaluate error for {ticker}: {e}")

@@ -37,24 +37,24 @@ class TokenSignal:
     token_symbol: str
     token_name: str
     chain_id: str
-    mcap: float
-    price_usd: float
-    volume_h1: float
-    volume_h6: float
-    price_change_h1: float
-    price_change_h6: float
-    liquidity_usd: float
-    buy_count_h1: int
-    sell_count_h1: int
-    holder_count: int
-    holder_growth_pct: float    # Holder growth in last hour
-    smart_money_buying: bool    # Large wallets accumulating
-    dex_score: int              # 0-100 from DexScreener data
-    birdeye_score: int          # Kept for interface compatibility — always 0 (Birdeye removed)
-    combined_score: int         # Final combined score
-    has_social: bool
-    dex_url: str
-    confirmed_by_both: bool     # True only if both sources agree
+    mcap: float = 0.0
+    price_usd: float = 0.0
+    volume_h1: float = 0.0
+    volume_h6: float = 0.0
+    price_change_h1: float = 0.0
+    price_change_h6: float = 0.0
+    liquidity_usd: float = 0.0
+    buy_count_h1: int = 0
+    sell_count_h1: int = 0
+    holder_count: int = 0
+    holder_growth_pct: float = 0.0  # Holder growth in last hour
+    smart_money_buying: bool = False  # Large wallets accumulating
+    dex_score: int = 0              # 0-100 from DexScreener data
+    birdeye_score: int = 0          # Kept for interface compatibility — always 0 (Birdeye removed)
+    combined_score: int = 0         # Final combined score
+    has_social: bool = False
+    dex_url: str = ""
+    confirmed_by_both: bool = False  # True only if both sources agree
     hh_hl_confirmed: bool = False  # From signal evaluator — HH+HL structure
     pair_address: str = ""          # DEX pool address (used for GeckoTerminal OHLCV)
     flags: List[str] = field(default_factory=list)
@@ -1634,27 +1634,36 @@ class MultiSourceScanner:
                 )
                 return False
 
+        # Build a minimal TokenSignal and run through chart dip check
+        # before executing — no buy happens on score alone
+        signal = TokenSignal(
+            token_address=token_address,
+            token_symbol=token_symbol,
+            token_name=token_symbol,
+            chain_id=self.chain.chain_id,
+            combined_score=signal_score,
+            dex_score=signal_score,
+            price_usd=price_usd,
+            liquidity_usd=liquidity_usd,
+            volume_h1=volume_h1,
+        )
+
+        risk_level = sec_result.risk_level if not skip_security else "UNKNOWN"
+        confirmed = await self._chart_dip_check(signal, risk_level)
+        if not confirmed:
+            logger.info(
+                f"[{self.chain.name}] [{strategy_tag}] 📉 Chart check failed: "
+                f"{token_symbol} — waiting for better entry"
+            )
+            return False
+
         self.signals_fired += 1
         logger.info(
             f"[{self.chain.name}] [{strategy_tag}] 🎯 BUY SIGNAL: "
             f"{token_symbol} | Score: {signal_score} | {reason}"
         )
 
-        await self.telegram.send(
-            f"🎯 *{strategy_tag} Signal: ${token_symbol}*\n"
-            f"🔗 Chain: {self.chain.name}\n"
-            f"⭐ Score: {signal_score}\n"
-            f"📝 {reason}"
-        )
-
-        await self.trader.buy(
-            token_address=token_address,
-            token_symbol=token_symbol,
-            reason=f"[{self.chain.name}] {strategy_tag}: {reason}",
-            signal_score=signal_score,
-            chain_id=self.chain.chain_id,
-            strategy=strategy_tag.lower().replace(" ", "_"),
-        )
+        await self._fire_chart_buy(signal, risk_level)
         return True
 
     async def _sol_macro_ok_check(self) -> bool:
@@ -2180,9 +2189,8 @@ class MultiSourceScanner:
 
     async def _fire_pump_chaser(self, signal: "TokenSignal"):
         """
-        Momentum entry for tokens flagged pump_setup that score below the normal
-        dip-recovery threshold. Skips chart/dip checks — we're chasing the move.
-        Still runs security check to block honeypots.
+        Momentum entry for tokens flagged pump_setup.
+        Runs security check + chart analysis — no buy on score alone.
         """
         if signal.token_address in self.trader.open_positions:
             return
@@ -2192,7 +2200,7 @@ class MultiSourceScanner:
             resolved = self._mint_map.get(signal.token_address.lower()) or signal.token_address
             signal.token_address = resolved
 
-        # Security check — non-negotiable even for momentum plays
+        # Security check — non-negotiable
         sec_result = await self.security_checker.check(
             signal.token_address, self.chain.chain_id, signal.token_symbol
         )
@@ -2201,6 +2209,15 @@ class MultiSourceScanner:
             logger.info(
                 f"[{self.chain.name}] [PumpChaser] 🛑 Security blocked "
                 f"{signal.token_symbol} — {sec_result.risk_level}"
+            )
+            return
+
+        # Chart analysis — verify momentum is confirmed on candles before buying
+        confirmed = await self._chart_dip_check(signal, sec_result.risk_level)
+        if not confirmed:
+            logger.info(
+                f"[{self.chain.name}] [PumpChaser] 📉 Chart check failed: "
+                f"{signal.token_symbol} — waiting for better entry"
             )
             return
 
