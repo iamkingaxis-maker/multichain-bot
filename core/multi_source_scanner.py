@@ -1233,16 +1233,20 @@ class MultiSourceScanner:
                 f"Score +15 -> {combined}"
             )
 
-        # Pump Chaser: 1h change >= 20% AND buy ratio >= 0.65 AND vol >= $20k
+        # Pump Chaser: 1h change >= 20% AND vol >= $20k
+        # For DexScreener sources (txns_available=True): also require buy_ratio >= 0.65
+        # For GeckoTerminal sources (txns_available=False): buy/sell counts are unavailable,
+        # so rely on price momentum + volume alone — buy_ratio check skipped
         total_txns = buys_h1 + sells_h1
         buy_ratio = buys_h1 / total_txns if total_txns > 0 else 0
-        if price_change_h1 >= 20 and buy_ratio >= 0.65 and volume_h1 >= 20_000:
+        _pump_ratio_ok = (not txns_available) or (buy_ratio >= 0.65)
+        if price_change_h1 >= 20 and _pump_ratio_ok and volume_h1 >= 20_000:
             combined += 10
             combined = min(combined, 100)
             flags.append("pump_setup")
             logger.info(
                 f"[{self.chain.name}] PUMP DETECTED: {token_symbol} | "
-                f"1h: {price_change_h1:+.1f}% | Buy ratio: {buy_ratio:.2f} | "
+                f"1h: {price_change_h1:+.1f}% | Buy ratio: {'N/A (gecko)' if not txns_available else f'{buy_ratio:.2f}'} | "
                 f"Vol: ${volume_h1:,.0f} | Score +10 -> {combined}"
             )
 
