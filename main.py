@@ -37,7 +37,6 @@ from utils.config import Config
 from utils.telegram_bot import TelegramNotifier
 from core.risk_manager import RiskManager
 from core.trader import Trader
-from core.copy_trader import CopyTrader
 from core.scalper import PositionScalper
 from core.multi_source_scanner import MultiSourceScanner
 from core.position_manager import PositionManager, MarketConditionMonitor
@@ -210,20 +209,6 @@ async def main():
         except Exception as _e:
             logger.warning(f"[Main] Could not load seed_wallets.json: {_e}")
 
-        # Merge env-var wallets + seed_wallets.json deduplicated
-        _all_copy_wallets = list({*config.solana_copy_wallets, *_seed_wallets.keys()})
-
-        sol_copy = CopyTrader(
-            wallets=_all_copy_wallets,
-            trader=sol_trader, telegram=telegram, tracker=tracker,
-            kelly_sizer=kelly_sizer,
-            max_price_move_pct=config.copy_max_price_move_pct,
-            min_hold_hours=config.copy_min_hold_hours,
-            max_hold_hours=config.copy_max_hold_hours,
-            min_win_rate=config.copy_min_win_rate,
-            min_range_concentration=config.copy_min_range_concentration,
-            copy_delay_seconds=config.copy_trade_delay_seconds
-        )
         sol_scalper = PositionScalper(
             chain_name="Solana", chain_id="solana",
             trader=sol_trader,
@@ -279,7 +264,6 @@ async def main():
 
         tasks += [
             sol_scanner.run(),
-            sol_copy.run(),
             sol_scalper.run(),
             sol_position_mgr.run(),
             sol_rt_layer.run()
@@ -295,7 +279,6 @@ async def main():
             poll_interval_sec=120,  # was 30s — cuts Helius usage 4x
         )
         sol_scanner._convergence_strategy = sol_convergence
-        sol_scanner._copy_trader = sol_copy
         dashboard.register_scanner("solana", sol_scanner)
 
         sol_clustering = WalletClusteringStrategy(
@@ -320,7 +303,6 @@ async def main():
             signal_evaluator=sol_scanner.evaluator,   # reuse scanner's evaluator
             security_checker=security,                # reuse security checker
             market_monitor=market_monitor,
-            copy_trader=sol_copy,
             edge_strategies=sol_convergence,
         )
         tasks += axiom.get_tasks()
