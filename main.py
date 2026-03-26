@@ -60,6 +60,7 @@ from dashboard.web_dashboard import WebDashboard
 from core.strategies.cross_wallet_convergence import CrossWalletConvergenceStrategy
 from core.strategies.wallet_clustering import WalletClusteringStrategy
 from core.strategies.capitulation_reversal import CapitulationReversalStrategy
+from core.realtime_signal import RealTimeSignalLayer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -252,6 +253,13 @@ async def main():
         kill_switch.register_scalper(sol_scalper)
         tracker.register_scalper(sol_scalper)
 
+        # ── Real-Time Signal Layer ────────────────────────────────────────
+        sol_rt_layer = RealTimeSignalLayer(
+            chain_name="Solana",
+            position_manager=sol_position_mgr
+        )
+        sol_scanner.realtime_signal_layer = sol_rt_layer
+
         helius_key = config.solana_rpc_url.split("api-key=")[-1] \
             if "api-key=" in config.solana_rpc_url else ""
         sol_monitor = SolanaProgramMonitor(
@@ -263,7 +271,8 @@ async def main():
             sol_scanner.run(),
             sol_copy.run(),
             sol_scalper.run(),
-            sol_position_mgr.run()
+            sol_position_mgr.run(),
+            sol_rt_layer.run()
         ]
         if sol_monitor:
             tasks.append(sol_monitor.run())
@@ -309,6 +318,7 @@ async def main():
         sol_trader.register_axiom_auth(axiom.auth)   # Axiom-first price lookups
         if axiom.price_feed:
             sol_trader.register_axiom_price_feed(axiom.price_feed)
+            sol_rt_layer.ob_scorer._axiom_feed = axiom.price_feed
 
         chain_summaries.append(f"Solana — ${sol_cap:,.0f}")
 

@@ -120,7 +120,8 @@ class MultiSourceScanner:
                  sentiment_analyzer=None,
                  tracker=None,
                  startup_delay: float = 0,
-                 scanner_keywords: List[str] = None):
+                 scanner_keywords: List[str] = None,
+                 realtime_signal_layer=None):
         self.chain = chain
         self.trader = trader
         self.min_age_hours = preferred_age_min_hours
@@ -146,6 +147,9 @@ class MultiSourceScanner:
 
         # scanner_keywords: if provided, overrides the rotating pool for keyword search
         self.scanner_keywords = scanner_keywords  # None = use _DEXSCREENER_KEYWORDS rotation
+
+        # Real-time signal layer (TickPatternDetector + OrderBookScorer)
+        self.realtime_signal_layer = realtime_signal_layer
 
         # LRU-bounded seen_tokens — evict oldest when >500 entries
         self.seen_tokens: set = set()
@@ -1561,6 +1565,19 @@ class MultiSourceScanner:
             self.signals_blocked_score += 1
             return
 
+        # Real-time signal boost (tick patterns + order book scoring)
+        if self.realtime_signal_layer is not None:
+            try:
+                rt_score = self.realtime_signal_layer.score(signal.token_address, signal.price_usd)
+                if rt_score > 0:
+                    signal.combined_score = min(100, signal.combined_score + rt_score)
+                    logger.info(
+                        f"[{self.chain.name}] RT signal +{rt_score}: "
+                        f"{signal.token_symbol} -> score now {signal.combined_score}"
+                    )
+            except Exception as _rt_err:
+                logger.debug(f"[{self.chain.name}] RT signal error: {_rt_err}")
+
         await self._fire_chart_buy(signal, sec_result.risk_level)
 
     async def process_external_signal(self,
@@ -1851,6 +1868,13 @@ class MultiSourceScanner:
         """Fetch 5m+1m candles and run all dip/recovery filters."""
         if not signal.token_address:
             return False
+
+        # Register token with real-time signal layer for pattern tracking
+        if self.realtime_signal_layer is not None:
+            try:
+                self.realtime_signal_layer.watch(signal.token_address)
+            except Exception:
+                pass
 
         candles_5m, candles_1m = await asyncio.gather(
             self._fetch_ohlcv(signal.token_address),
