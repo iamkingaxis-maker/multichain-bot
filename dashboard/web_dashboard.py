@@ -174,6 +174,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   .badge-scanner { background: #58a6ff22; color: var(--accent); }
   .badge-copy    { background: #2ea04322; color: var(--green-lt); }
   .badge-scalper { background: #d2992222; color: var(--yellow); }
+  .badge-pump    { background: #ff6b3522; color: #ff6b35; }
 
   /* ── Progress bar ── */
   .progress-wrap { width: 80px; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; }
@@ -309,7 +310,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           <thead>
             <tr>
               <th>Token</th><th>Chain</th><th>Strategy</th>
-              <th>Entry</th><th>Unrealized</th><th>Hold</th><th>TP</th><th></th>
+              <th>Entry</th><th>Size</th><th>Unrealized</th><th>Hold</th><th>TP</th><th></th>
             </tr>
           </thead>
           <tbody id="positions-body">
@@ -361,6 +362,14 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
       <span><span class="dot" style="background:var(--yellow)"></span> Recommended Tokens <span style="font-size:11px;color:var(--muted);font-weight:400;">— near-miss signals (score 45-64)</span></span>
       <span id="watchlist-count" style="font-size:11px;color:var(--muted);font-weight:400;">0 tokens</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input id="watchlist-add-address" type="text" placeholder="Token address to monitor…"
+        style="flex:2;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:13px;outline:none;" />
+      <input id="watchlist-add-symbol" type="text" placeholder="Symbol (optional)"
+        style="width:100px;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:13px;outline:none;" />
+      <button onclick="addToWatchlist()"
+        style="background:var(--yellow);color:#0f172a;border:none;border-radius:6px;padding:6px 16px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap;">+ Watch</button>
     </div>
     <div class="tbl-wrap">
       <table>
@@ -573,6 +582,7 @@ function stratBadge(s) {
   const st = (s||'scanner').toLowerCase();
   if (st === 'copy')    return '<span class="badge badge-copy">COPY</span>';
   if (st === 'scalper') return '<span class="badge badge-scalper">SCALP</span>';
+  if (st === 'pump')    return '<span class="badge badge-pump">PUMP</span>';
   return '<span class="badge badge-scanner">SCAN</span>';
 }
 
@@ -688,11 +698,15 @@ function updatePositions(positions) {
     const pct = Math.min(((mult - 1) / 1.5) * 100, 100);
     const tpCls = mult >= 2.5 ? 'tp3' : mult >= 2 ? 'tp2' : 'tp1';
     const addr = p.token_address || '';
+    const chartUrl = addr ? `https://dexscreener.com/solana/${addr}` : '';
     return `<tr>
-      <td style="font-weight:600">$${p.symbol||'?'}</td>
+      <td style="font-weight:600">${chartUrl
+        ? `<a href="${chartUrl}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" title="View chart">$${p.symbol||'?'} ↗</a>`
+        : `$${p.symbol||'?'}`}</td>
       <td>${chainBadge(p.chain)}</td>
       <td>${stratBadge(p.strategy)}</td>
       <td class="muted">$${(p.entry_price||0).toFixed(6)}</td>
+      <td class="muted">$${(p.amount_usd||0).toFixed(0)}</td>
       <td class="${pnlCls}">${fmtUsd(p.pnl_usd)}</td>
       <td class="muted">${fmtHold(p.hold_secs)}</td>
       <td>
@@ -709,9 +723,12 @@ function updatePositions(positions) {
 }
 
 // ── Manual Sell ──────────────────────────────────────────────────────────
+const _sellInFlight = new Set();
 async function manualSell(tokenAddress) {
   if (!tokenAddress) return;
+  if (_sellInFlight.has(tokenAddress)) return; // prevent double-fire
   if (!confirm('Sell 100% of this position?')) return;
+  _sellInFlight.add(tokenAddress);
   try {
     const res = await fetch('/api/sell', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -724,6 +741,7 @@ async function manualSell(tokenAddress) {
       alert('Sell failed: ' + (data.error || 'Unknown error'));
     }
   } catch(e) { alert('Request failed: ' + e); }
+  finally { _sellInFlight.delete(tokenAddress); }
 }
 
 // ── Manual Buy ──────────────────────────────────────────────────────────
@@ -762,7 +780,9 @@ async function loadWatchlist() {
       const ageStr = ageMins >= 60 ? Math.floor(ageMins/60) + 'h ' + (ageMins%60) + 'm' : ageMins + 'm';
       const scoreColor = t.score >= 55 ? 'var(--yellow)' : 'var(--muted)';
       return `<tr>
-        <td style="font-weight:600">$${t.symbol||'?'}</td>
+        <td style="font-weight:600">${t.token_address
+        ? `<a href="https://dexscreener.com/solana/${t.token_address}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" title="View chart">$${t.symbol||'?'} ↗</a>`
+        : `$${t.symbol||'?'}`}</td>
         <td style="color:${scoreColor};font-weight:700">${t.score}</td>
         <td class="muted">$${(t.mcap||0).toLocaleString()}</td>
         <td class="muted">$${(t.price||0).toFixed(8)}</td>
@@ -777,6 +797,24 @@ async function loadWatchlist() {
 
 loadWatchlist();
 setInterval(loadWatchlist, 30000);
+
+async function addToWatchlist() {
+  const addr = document.getElementById('watchlist-add-address').value.trim();
+  const sym  = document.getElementById('watchlist-add-symbol').value.trim();
+  if (!addr) { alert('Paste a token address first'); return; }
+  try {
+    const res  = await fetch('/api/watchlist/add', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({token_address: addr, token_symbol: sym})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('watchlist-add-address').value = '';
+      document.getElementById('watchlist-add-symbol').value = '';
+      await loadWatchlist();
+    } else { alert('Error: ' + (data.error || 'Unknown')); }
+  } catch(e) { alert('Request failed: ' + e); }
+}
 
 // ── Event Feed ─────────────────────────────────────────────────────────────
 function updateFeed(alerts) {
@@ -884,11 +922,16 @@ function filterTrades() {
     const pnl    = t.pnl || 0;
     const entry  = t.entry_price || 0;
     const exit   = t.exit_price || t.usd_received || 0;
-    const pnlPct = entry > 0 ? ((exit / entry) - 1) * 100 : 0;
+    // pnl_pct is saved directly by the bot since the fix; fall back to pnl/amount_usd
+    const pnlPct = t.pnl_pct != null && t.pnl_pct !== 0
+      ? t.pnl_pct
+      : (t.amount_usd > 0 ? (pnl / t.amount_usd * 100) : 0);
     const rowCls = pnl >= 0 ? 'row-win' : 'row-loss';
     return `<tr class="${rowCls}">
       <td class="muted">${fmtTime(t.time)}</td>
-      <td style="font-weight:600">$${t.token || t.address?.slice(0,8) || '?'}</td>
+      <td style="font-weight:600">${(t.address)
+        ? `<a href="https://dexscreener.com/solana/${t.address}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" title="View chart">$${t.token || t.address.slice(0,8) || '?'} ↗</a>`
+        : `$${t.token || '?'}`}</td>
       <td>${chainBadge(t.chain)}</td>
       <td>${stratBadge(t.strategy)}</td>
       <td class="muted">${entry ? '$' + entry.toFixed(6) : '—'}</td>
@@ -1011,6 +1054,7 @@ class WebDashboard:
         )
 
         self._trader = None  # registered via register_trader()
+        self._axiom_auth = None  # registered via register_axiom_auth()
 
         self.app.router.add_get("/",                        self._handle_index)
         self.app.router.add_get("/api/stats",               self._handle_stats)
@@ -1021,7 +1065,12 @@ class WebDashboard:
         self.app.router.add_post("/api/seed-wallets/remove",self._handle_seed_wallets_remove)
         self.app.router.add_post("/api/sell",               self._handle_sell)
         self.app.router.add_get("/api/watchlist",           self._handle_watchlist)
+        self.app.router.add_post("/api/watchlist/add",      self._handle_watchlist_add)
+        self.app.router.add_get("/api/positions",           self._handle_positions)
         self.app.router.add_post("/api/buy",                self._handle_buy)
+        self.app.router.add_post("/api/update-axiom-token", self._handle_update_axiom_token)
+        self.app.router.add_post("/api/reset",              self._handle_reset)
+        self.app.router.add_get("/api/closed-positions",   self._handle_closed_positions)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -1039,6 +1088,10 @@ class WebDashboard:
     def register_trader(self, trader):
         """Register the trader for manual sell/buy actions from the dashboard."""
         self._trader = trader
+
+    def register_axiom_auth(self, auth_manager):
+        """Register the Axiom auth manager so tokens can be hot-updated via API."""
+        self._axiom_auth = auth_manager
 
     def add_alert(self, message: str):
         """Buffer a live alert for the event feed."""
@@ -1213,6 +1266,38 @@ class WebDashboard:
                 status=500, content_type="application/json", headers=cors,
             )
 
+    async def _handle_positions(self, request):
+        """GET /api/positions — direct read of all open positions from the trader."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        positions = []
+        if self._trader:
+            now = datetime.now(timezone.utc)
+            for addr, pos in self._trader.open_positions.items():
+                entry = getattr(pos, "entry_price_usd", 0)
+                current = getattr(pos, "current_price_usd", 0) or entry
+                amount = getattr(pos, "amount_usd", 0) or getattr(pos, "amount_sol_spent", 0)
+                multiplier = (current / entry) if entry > 0 else 1.0
+                pnl_usd = getattr(pos, "pnl_usd", (multiplier - 1) * amount)
+                entry_time = getattr(pos, "entry_time", None)
+                hold_secs = int((now - entry_time).total_seconds()) if entry_time else 0
+                positions.append({
+                    "token_address": addr,
+                    "symbol": getattr(pos, "token_symbol", addr[:8]),
+                    "chain": getattr(pos, "chain_id", "solana"),
+                    "strategy": getattr(pos, "strategy", "scanner"),
+                    "entry_price": entry,
+                    "current_price": current,
+                    "pnl_usd": round(pnl_usd, 2),
+                    "multiplier": round(multiplier, 4),
+                    "hold_secs": hold_secs,
+                    "amount_usd": amount,
+                    "reason": getattr(pos, "reason", ""),
+                })
+        return web.Response(
+            text=json.dumps({"ok": True, "positions": positions, "count": len(positions)}),
+            content_type="application/json", headers=cors,
+        )
+
     async def _handle_watchlist(self, request):
         """GET /api/watchlist — return recommended tokens from scanner watchlists."""
         cors = {"Access-Control-Allow-Origin": "*"}
@@ -1225,6 +1310,49 @@ class WebDashboard:
         combined.sort(key=lambda x: x["score"], reverse=True)
         return web.Response(
             text=json.dumps({"ok": True, "watchlist": combined[:20]}),
+            content_type="application/json", headers=cors,
+        )
+
+    async def _handle_watchlist_add(self, request):
+        """POST /api/watchlist/add — manually pin a token to the recommended watchlist."""
+        import time as _time
+        cors = {"Access-Control-Allow-Origin": "*"}
+        try:
+            body = await request.json()
+            token_address = body.get("token_address", "").strip()
+            token_symbol  = body.get("token_symbol", "").strip() or token_address[:8]
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        if not token_address:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Missing token_address"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        entry = {
+            "symbol": token_symbol,
+            "score": 60,   # placeholder — manual entry
+            "timestamp": _time.time(),
+            "price": 0.0,
+            "mcap": 0,
+            "reason": "Manual — pinned from dashboard",
+            "dex_url": f"https://dexscreener.com/solana/{token_address}",
+            "age_seconds": 0,
+        }
+        added = False
+        for scanner in self._scanners.values():
+            if hasattr(scanner, "watchlist"):
+                scanner.watchlist[token_address] = entry
+                added = True
+        if not added:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "No scanners available"}),
+                status=500, content_type="application/json", headers=cors,
+            )
+        return web.Response(
+            text=json.dumps({"ok": True, "symbol": token_symbol}),
             content_type="application/json", headers=cors,
         )
 
@@ -1262,6 +1390,11 @@ class WebDashboard:
                 reason="Manual buy from dashboard",
                 signal_score=0
             )
+            if token_address not in self._trader.open_positions:
+                return web.Response(
+                    text=json.dumps({"ok": False, "error": "Buy failed — check logs (price unavailable or risk limit hit)"}),
+                    status=400, content_type="application/json", headers=cors,
+                )
             self.add_alert(f"Manual buy: {token_symbol or token_address[:8]}")
             return web.Response(
                 text=json.dumps({"ok": True, "symbol": token_symbol}),
@@ -1273,6 +1406,115 @@ class WebDashboard:
                 text=json.dumps({"ok": False, "error": str(e)}),
                 status=500, content_type="application/json", headers=cors,
             )
+
+    async def _handle_update_axiom_token(self, request):
+        """POST /api/update-axiom-token — hot-update Axiom tokens without restart.
+        Body: {"access_token": "...", "refresh_token": "...", "secret": "..."}
+        The secret must match TOKEN_UPDATE_SECRET env var (defaults to 'changeme').
+        """
+        import os as _os
+        import base64 as _b64, json as _json, time as _t
+        cors = {"Access-Control-Allow-Origin": "*"}
+        expected_secret = _os.environ.get("TOKEN_UPDATE_SECRET", "changeme")
+        try:
+            body = await request.json()
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        if body.get("secret") != expected_secret:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Unauthorized"}),
+                status=401, content_type="application/json", headers=cors,
+            )
+        access = body.get("access_token", "").strip()
+        refresh = body.get("refresh_token", "").strip()
+        if not access:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Missing access_token"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        if not self._axiom_auth:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Axiom auth not registered"}),
+                status=500, content_type="application/json", headers=cors,
+            )
+        # Update in-memory tokens
+        self._axiom_auth.auth_token = access
+        if refresh:
+            self._axiom_auth.refresh_token = refresh
+        # Reset the cached client so it rebuilds with new token
+        self._axiom_auth._client = None
+        # Parse real expiry from JWT
+        try:
+            payload = access.split('.')[1]
+            payload += '=' * (4 - len(payload) % 4)
+            data = _json.loads(_b64.urlsafe_b64decode(payload))
+            exp = float(data.get('exp', 0))
+            ttl = exp - _t.time()
+        except Exception:
+            ttl = 0
+        logger.info(
+            f"[Dashboard] Axiom token hot-updated via API — "
+            f"TTL={ttl:.0f}s ({ttl/60:.1f} min)"
+        )
+        return web.Response(
+            text=json.dumps({"ok": True, "ttl_seconds": int(ttl)}),
+            content_type="application/json", headers=cors,
+        )
+
+    async def _handle_closed_positions(self, request):
+        """GET /api/closed-positions — returns append-only closed position history."""
+        import csv, os as _os
+        from dashboard.tracker import CLOSED_LOG_FILE
+        cors = {"Access-Control-Allow-Origin": "*"}
+        rows = []
+        if _os.path.exists(CLOSED_LOG_FILE):
+            try:
+                with open(CLOSED_LOG_FILE, newline="") as f:
+                    reader = csv.DictReader(f)
+                    rows = list(reader)
+            except Exception as e:
+                return web.Response(text=json.dumps({"error": str(e)}),
+                                    status=500, content_type="application/json", headers=cors)
+        return web.Response(text=json.dumps(rows), content_type="application/json", headers=cors)
+
+    async def _handle_reset(self, request):
+        """POST /api/reset — clear all trade history and reset P&L to zero.
+        Body: {"secret": "..."}
+        """
+        import os as _os
+        cors = {"Access-Control-Allow-Origin": "*"}
+        expected_secret = _os.environ.get("TOKEN_UPDATE_SECRET", "changeme")
+        try:
+            body = await request.json()
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        if body.get("secret") != expected_secret:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Unauthorized"}),
+                status=401, content_type="application/json", headers=cors,
+            )
+        # Clear tracker in memory and on disk
+        if self._tracker:
+            self._tracker.trades.clear()
+            self._tracker._save_trades()
+        # Also wipe the file directly in case tracker ref is stale
+        trade_log = _os.path.join(_os.environ.get("DATA_DIR", "."), "trades.json")
+        try:
+            with open(trade_log, "w") as f:
+                import json as _json
+                _json.dump([], f)
+        except Exception:
+            pass
+        return web.Response(
+            text=json.dumps({"ok": True, "message": "Trade history cleared"}),
+            content_type="application/json", headers=cors,
+        )
 
     async def _handle_sse(self, request):
         """Server-Sent Events stream — pushes fresh stats every 3 seconds."""
@@ -1364,6 +1606,31 @@ class WebDashboard:
                 stats["all_trades"] = self._tracker.get_all_trades()
             except Exception:
                 pass
+
+        # Override positions list with direct trader view — always fresh, no indirection
+        if self._trader is not None:
+            now = datetime.now(timezone.utc)
+            direct_positions = []
+            for addr, pos in self._trader.open_positions.items():
+                entry = getattr(pos, "entry_price_usd", 0)
+                current = getattr(pos, "current_price_usd", 0) or entry
+                amount = getattr(pos, "amount_usd", 0) or getattr(pos, "amount_sol_spent", 0)
+                multiplier = (current / entry) if entry > 0 else 1.0
+                pnl_usd = getattr(pos, "pnl_usd", (multiplier - 1) * amount)
+                entry_time = getattr(pos, "entry_time", None)
+                hold_secs = int((now - entry_time).total_seconds()) if entry_time else 0
+                direct_positions.append({
+                    "token_address": addr,
+                    "symbol": getattr(pos, "token_symbol", addr[:8]),
+                    "chain": getattr(pos, "chain_id", "solana"),
+                    "strategy": getattr(pos, "strategy", "scanner"),
+                    "entry_price": entry,
+                    "pnl_usd": round(pnl_usd, 2),
+                    "multiplier": round(multiplier, 4),
+                    "hold_secs": hold_secs,
+                    "amount_usd": amount,
+                })
+            stats["positions"] = direct_positions
 
         return stats
 

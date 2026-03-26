@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 DATA_DIR = os.environ.get("DATA_DIR", ".")
 TRADE_LOG_FILE = os.path.join(DATA_DIR, "trades.json")
+CLOSED_LOG_FILE = os.path.join(DATA_DIR, "closed_positions.csv")  # append-only, never reset
 
 
 class PerformanceTracker:
@@ -33,15 +34,18 @@ class PerformanceTracker:
     # ── Trade Recording ──────────────────────────────────────────────────
 
     def record_buy(self, position):
+        # Prefer strategy field if set; fall back to detecting from reason string
+        strategy = getattr(position, "strategy", None) or self._detect_strategy(
+            getattr(position, "reason", "")
+        )
         trade = {
             "type": "buy",
-            "strategy": self._detect_strategy(getattr(position, "reason", "")),
-            "chain": getattr(position, "chain_id", "unknown"),
+            "strategy": strategy,
+            "chain": getattr(position, "chain_id", "solana"),
             "token": getattr(position, "token_symbol", "?"),
             "address": getattr(position, "token_address", ""),
             "entry_price": getattr(position, "entry_price_usd", 0),
-            "amount_usd": getattr(position, "entry_usd_value",
-                          getattr(position, "amount_sol_spent", 0)),
+            "amount_usd": getattr(position, "amount_usd", 0) or getattr(position, "amount_sol_spent", 0),
             "time": datetime.now(timezone.utc).isoformat(),
             "reason": getattr(position, "reason", "")
         }
@@ -49,19 +53,24 @@ class PerformanceTracker:
         self._save_trades()
 
     def record_sell(self, token_address: str, usd_received: float,
-                    pnl: float, reason: str):
+                    pnl: float, reason: str, pnl_pct: float = 0.0, **extra):
         # Try to get token symbol and chain from matching buy
         token_symbol = "?"
         chain = "unknown"
         entry_price = 0.0
+        amount_usd = 0.0
         for t in reversed(self.trades):
             if t.get("type") == "buy" and t.get("address") == token_address:
                 token_symbol = t.get("token", "?")
                 chain = t.get("chain", "unknown")
                 entry_price = t.get("entry_price", 0.0)
+                amount_usd = t.get("amount_usd", 0.0)
                 break
 
-        # Compute exit price roughly from usd_received if we have amount
+        # Derive pnl_pct from cost basis if caller didn't supply it
+        if pnl_pct == 0.0 and amount_usd > 0 and pnl != 0.0:
+            pnl_pct = round(pnl / amount_usd * 100, 2)
+
         exit_price = usd_received  # caller passes total USD, store as-is
 
         trade = {
@@ -74,11 +83,14 @@ class PerformanceTracker:
             "exit_price": exit_price,
             "usd_received": usd_received,
             "pnl": pnl,
+            "pnl_pct": pnl_pct,
             "time": datetime.now(timezone.utc).isoformat(),
-            "reason": reason
+            "reason": reason,
+            **extra,
         }
         self.trades.append(trade)
         self._save_trades()
+        self._append_closed_position(trade)
 
     # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -88,6 +100,8 @@ class PerformanceTracker:
             return "scalper"
         elif "COPY" in r:
             return "copy"
+        elif "PUMP" in r:
+            return "pump"
         else:
             return "scanner"
 
@@ -213,13 +227,20 @@ class PerformanceTracker:
                 for addr, pos in (sc.open_positions_ref or {}).items():
                     symbol = getattr(pos, "token_symbol", addr[:8])
                     entry = getattr(pos, "entry_price_usd", 0)
-                    current = getattr(pos, "current_price_usd", entry)
-                    amount = getattr(pos, "entry_usd_value",
-                                     getattr(pos, "amount_sol_spent", 0))
-                    multiplier = (current / entry) if entry else 1.0
-                    pnl_usd = (multiplier - 1) * amount
-                    opened_at = getattr(pos, "buy_time",
-                                        getattr(pos, "open_time", None))
+                    # Use synced live price (updated by PositionManager every 30s)
+                    current = getattr(pos, "current_price_usd", 0)
+                    if current <= 0:
+                        current = entry  # fall back to entry price until first update
+                    # Use USD amount stored at entry (not SOL amount)
+                    amount = getattr(pos, "amount_usd", 0) or getattr(pos, "amount_sol_spent", 0)
+                    multiplier = (current / entry) if entry > 0 else 1.0
+                    # Use stored pnl_usd if available (synced by PositionManager)
+                    pnl_usd = getattr(pos, "pnl_usd", None)
+                    if pnl_usd is None:
+                        pnl_usd = (multiplier - 1) * amount
+                    opened_at = getattr(pos, "entry_time",
+                                        getattr(pos, "buy_time",
+                                                getattr(pos, "open_time", None)))
                     hold_secs = 0
                     if opened_at:
                         try:
@@ -236,7 +257,7 @@ class PerformanceTracker:
                     open_positions.append({
                         "token_address": addr,
                         "symbol": symbol,
-                        "chain": chain_raw,
+                        "chain": getattr(pos, "chain_id", chain_raw),
                         "strategy": getattr(pos, "strategy", "scanner"),
                         "entry_price": entry,
                         "pnl_usd": round(pnl_usd, 2),
@@ -279,6 +300,33 @@ class PerformanceTracker:
                 logger.info(f"Loaded {len(self.trades)} historical trades from {TRADE_LOG_FILE}")
             except Exception:
                 self.trades = []
+
+    def _append_closed_position(self, trade: dict):
+        """Append-only CSV log — never cleared by reset, survives restarts."""
+        import csv
+        try:
+            os.makedirs(DATA_DIR, exist_ok=True)
+            write_header = not os.path.exists(CLOSED_LOG_FILE)
+            with open(CLOSED_LOG_FILE, "a", newline="") as f:
+                writer = csv.writer(f)
+                if write_header:
+                    writer.writerow(["time", "chain", "token", "address",
+                                     "entry_price", "exit_price", "pnl", "pnl_pct",
+                                     "reason", "strategy"])
+                writer.writerow([
+                    trade.get("time", ""),
+                    trade.get("chain", ""),
+                    trade.get("token", ""),
+                    trade.get("address", ""),
+                    trade.get("entry_price", ""),
+                    trade.get("exit_price", ""),
+                    trade.get("pnl", ""),
+                    trade.get("pnl_pct", ""),
+                    trade.get("reason", ""),
+                    trade.get("strategy", ""),
+                ])
+        except Exception as e:
+            logger.error(f"Failed to append closed position: {e}")
 
     # ── Console Dashboard (background task) ───────────────────────────────
 
