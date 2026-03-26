@@ -549,7 +549,7 @@ class MultiSourceScanner:
                 async with session.post(rpc_url, json={
                     "jsonrpc": "2.0", "id": 1,
                     "method": "getSignaturesForAddress",
-                    "params": [PUMP_MIGRATION, {"limit": 50, "commitment": "finalized"}]
+                    "params": [PUMP_MIGRATION, {"limit": 15, "commitment": "finalized"}]
                 }, timeout=aiohttp.ClientTimeout(total=10)) as r:
                     if r.status != 200:
                         return []
@@ -765,7 +765,7 @@ class MultiSourceScanner:
                 async with session.post(rpc_url, json={
                     "jsonrpc": "2.0", "id": 1,
                     "method": "getSignaturesForAddress",
-                    "params": [RAYDIUM_AMM, {"limit": 50, "commitment": "finalized"}]
+                    "params": [RAYDIUM_AMM, {"limit": 15, "commitment": "finalized"}]
                 }, timeout=aiohttp.ClientTimeout(total=10)) as r:
                     if r.status != 200:
                         return []

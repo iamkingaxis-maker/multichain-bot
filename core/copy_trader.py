@@ -81,14 +81,14 @@ class CopyTrader:
             await self._initialize_wallets()
             while True:
                 if not self.wallets:
-                    await asyncio.sleep(10)
+                    await asyncio.sleep(30)
                     continue
                 for wallet in list(self.wallets):
                     try:
                         await self._check_wallet(wallet)
                     except Exception as e:
                         logger.error(f"[CopyTrader/Solana] {wallet[:8]}: {e}")
-                await asyncio.sleep(10)
+                await asyncio.sleep(30)  # was 10s — cuts Helius getSignaturesForAddress 3x
 
     async def _initialize_wallets(self):
         for wallet in list(self.wallets):

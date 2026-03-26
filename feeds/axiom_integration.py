@@ -170,7 +170,7 @@ class AxiomIntegration:
             min_mcap_usd=50_000,
             min_liquidity_usd=5_000,
             min_score=getattr(self.config, "min_combined_score", 65.0),
-            poll_interval=60,
+            poll_interval=300,  # 5 min — was 60s (180 proxy req/hr → 36/hr)
         )
 
         # ── Phase 2: Smart Wallet WebSocket Tracker ───────────────────────────

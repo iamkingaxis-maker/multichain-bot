@@ -292,7 +292,7 @@ async def main():
             scanner=sol_scanner, telegram=telegram,
             helius_api_key=helius_key,
             wallet_quality_scores=_seed_wallets,
-            poll_interval_sec=30,
+            poll_interval_sec=120,  # was 30s — cuts Helius usage 4x
         )
         sol_scanner._convergence_strategy = sol_convergence
         sol_scanner._copy_trader = sol_copy
