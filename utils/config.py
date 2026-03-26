@@ -82,18 +82,18 @@ class Config:
     enable_solana: bool = True
 
     # ── Capital ──────────────────────────────────────────────
-    total_capital: float = 2000.0
+    total_capital: float = 80.0
     max_position_pct: float = 0.08
     min_position_pct: float = 0.02
-    daily_loss_limit: float = 200.0
+    daily_loss_limit: float = 20.0
 
     # ── Take Profit ──────────────────────────────────────────
-    take_profit_1_pct: float = 50.0
+    take_profit_1_pct: float = 10.0
     take_profit_1_sell: float = 0.50
-    take_profit_2_pct: float = 100.0
+    take_profit_2_pct: float = 25.0
     take_profit_2_sell: float = 0.75
-    take_profit_3_pct: float = 150.0
-    take_profit_3_sell: float = 0.75
+    take_profit_3_pct: float = 50.0
+    take_profit_3_sell: float = 1.0
 
     # ── Stop Loss ────────────────────────────────────────────
     stop_loss_pct: float = 10.0
@@ -219,25 +219,10 @@ def _apply_env_overrides(config: Config):
       BIRDEYE_API_KEY
       (and any others you want to override)
     """
-    # Paper mode — simulate all trades without using real keys
+    # Paper mode — disable real wallet keys, fall through to apply all other env overrides
     if os.environ.get("PAPER_MODE", "").lower() in ("1", "true", "yes"):
         config.solana_private_key = ""
         config.scalper_solana_private_key = ""
-        GAS_RESERVE_USD = 10.0
-        config.total_capital = max(0.0, config.total_capital - GAS_RESERVE_USD)
-        if os.environ.get("LUNARCRUSH_API_KEY"):
-            config.lunarcrush_api_key = env("LUNARCRUSH_API_KEY")
-        if os.environ.get("SOLANATRACKER_API_KEY"):
-            config.solanatracker_api_key = env("SOLANATRACKER_API_KEY")
-        if os.environ.get("TELEGRAM_TOKEN"):
-            config.telegram_token = env("TELEGRAM_TOKEN")
-        if os.environ.get("TELEGRAM_CHAT_ID"):
-            config.telegram_chat_id = env("TELEGRAM_CHAT_ID")
-        if os.environ.get("SOLANA_RPC_URL"):
-            config.solana_rpc_url = env("SOLANA_RPC_URL")
-        if os.environ.get("SOLANA_COPY_WALLETS"):
-            config.solana_copy_wallets = env_list("SOLANA_COPY_WALLETS")
-        return config
 
     # Wallet keys — most sensitive, always from env on Railway
     if os.environ.get("SOLANA_PRIVATE_KEY"):
