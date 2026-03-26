@@ -219,16 +219,18 @@ def _apply_env_overrides(config: Config):
       BIRDEYE_API_KEY
       (and any others you want to override)
     """
-    # Paper mode — disable real wallet keys, fall through to apply all other env overrides
-    if os.environ.get("PAPER_MODE", "").lower() in ("1", "true", "yes"):
-        config.solana_private_key = ""
-        config.scalper_solana_private_key = ""
+    _paper_mode = os.environ.get("PAPER_MODE", "").lower() in ("1", "true", "yes")
 
     # Wallet keys — most sensitive, always from env on Railway
     if os.environ.get("SOLANA_PRIVATE_KEY"):
         config.solana_private_key = env("SOLANA_PRIVATE_KEY")
     if os.environ.get("SCALPER_SOLANA_PRIVATE_KEY"):
         config.scalper_solana_private_key = env("SCALPER_SOLANA_PRIVATE_KEY")
+
+    # Paper mode applied LAST so it always wins over the private key env vars above
+    if _paper_mode:
+        config.solana_private_key = ""
+        config.scalper_solana_private_key = ""
 
     # RPC URLs
     if os.environ.get("SOLANA_RPC_URL"):
