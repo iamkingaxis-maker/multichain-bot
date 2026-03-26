@@ -76,6 +76,16 @@ async def main():
     logger.info("=" * 60)
 
     config = Config.load()
+    logger.info(
+        f"[Config] Effective settings:\n"
+        f"  Capital: ${config.total_capital:.0f} | Daily loss limit: ${config.daily_loss_limit:.0f}\n"
+        f"  Score: {config.min_combined_score} | Liquidity: ${config.min_liquidity_usd:,.0f}\n"
+        f"  TP1: +{config.take_profit_1_pct}% → sell {config.take_profit_1_sell*100:.0f}%\n"
+        f"  TP2: +{config.take_profit_2_pct}% → sell {config.take_profit_2_sell*100:.0f}%\n"
+        f"  TP3: +{config.take_profit_3_pct}% → sell {config.take_profit_3_sell*100:.0f}%\n"
+        f"  Stop loss: -{config.stop_loss_pct}% | Winner trail: -{config.winner_trail_pct}%\n"
+        f"  Paper mode: {not bool(config.solana_private_key)}"
+    )
     telegram = TelegramNotifier(config.telegram_token, config.telegram_chat_id)
     tracker = PerformanceTracker()
     dashboard = WebDashboard(port=config.dashboard_port)
