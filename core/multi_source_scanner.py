@@ -1594,6 +1594,7 @@ class MultiSourceScanner:
                                      price_usd: float = 0.0,
                                      liquidity_usd: float = 0.0,
                                      volume_h1: float = 0.0,
+                                     mcap: float = 0.0,
                                      ) -> bool:
         """
         Entry point for edge strategies (CrossWalletConvergence, CapitulationReversal)
@@ -1646,6 +1647,7 @@ class MultiSourceScanner:
             price_usd=price_usd,
             liquidity_usd=liquidity_usd,
             volume_h1=volume_h1,
+            mcap=mcap,
         )
 
         risk_level = sec_result.risk_level if not skip_security else "UNKNOWN"
@@ -2123,10 +2125,24 @@ class MultiSourceScanner:
             f"{dip_pct:+.1f}% from peak | recovery {recovery_score}/8 [{rec_str}]"
         )
 
-        if recovery_score < 4:
+        # Require Stabilizing — price must have stopped making new lows
+        if not stabilizing:
+            logger.info(
+                f"[{self.chain.name}] No floor: {signal.token_symbol} "
+                f"{dip_pct:+.1f}% dip but price still making new lows — waiting"
+            )
+            self._dip_watchlist[addr_lower] = {
+                "peak_price": peak,
+                "added_at":   (watchlist_entry or {}).get("added_at", time.monotonic()),
+                "signal":     signal,
+                "risk_level": risk_level,
+            }
+            return False
+
+        if recovery_score < 6:
             logger.info(
                 f"[{self.chain.name}] Weak recovery: {signal.token_symbol} "
-                f"{recovery_score}/8 signals — need 4, watching"
+                f"{recovery_score}/8 signals — need 6, watching"
             )
             self._dip_watchlist[addr_lower] = {
                 "peak_price": peak,
@@ -2146,6 +2162,14 @@ class MultiSourceScanner:
     async def _fire_chart_buy(self, signal: TokenSignal, risk_level: str):
         """Execute the buy after all dip/chart checks have passed."""
         if signal.token_address.lower() in self.trader.open_positions:
+            return
+
+        # Block unverifiable tokens — can't size a position without MCap
+        if not signal.mcap or signal.mcap <= 0:
+            logger.info(
+                f"[{self.chain.name}] ❌ MCap unverifiable: {signal.token_symbol} "
+                f"— blocked (DexScreener returned $0, cannot assess risk)"
+            )
             return
 
         # Resolve correct-case mint for Jupiter

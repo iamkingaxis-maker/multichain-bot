@@ -341,6 +341,7 @@ class AxiomSmartWalletTracker:
                     price_usd=float(pair_data.get("priceUsd") or 0),
                     liquidity_usd=liq,
                     volume_h1=float((pair_data.get("volume") or {}).get("h1") or 0),
+                    mcap=mcap,
                 )
                 return bought
             else:

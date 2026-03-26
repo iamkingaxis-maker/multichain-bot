@@ -458,6 +458,7 @@ class AxiomTrendingScanner:
                     price_usd=float(pair_data.get("priceUsd") or 0),
                     liquidity_usd=liq,
                     volume_h1=vol_h1,
+                    mcap=mcap,
                 )
                 return bought
             else:
