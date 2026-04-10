@@ -59,6 +59,9 @@ class TokenSignal:
     pair_address: str = ""          # DEX pool address (used for GeckoTerminal OHLCV)
     flags: List[str] = field(default_factory=list)
     raw_pair_data: dict = field(default_factory=dict)  # Original DexScreener pair data
+    chart_score: int = 0
+    chart_pattern: str = ""
+    age_hours: float = 0.0  # Token pair age in hours at signal time
 
 
 class MultiSourceScanner:
@@ -105,7 +108,8 @@ class MultiSourceScanner:
                  mcap_dead_zone_min: float = 300_000,
                  mcap_dead_zone_max: float = 550_000,
                  min_liquidity_usd: float = 10_000,
-                 min_volume_h1_usd: float = 5_000,
+                 min_volume_h1_usd: float = 15_000,
+                 max_volume_h1_usd: float = 150_000,
                  min_combined_score: int = 50,
                  max_combined_score: int = 85,
                  require_both_sources: bool = False,
@@ -113,18 +117,19 @@ class MultiSourceScanner:
                  single_source_min_score: int = 70,
                  max_dev_wallet_pct: float = 5.0,
                  pyramid_score_threshold: int = 90,
-                 preferred_age_min_hours: float = 0.0,
-                 preferred_age_max_hours: float = 999.0,
                  hard_skip_age_hours: float = 999.0,
                  rug_classifier=None,
                  sentiment_analyzer=None,
                  tracker=None,
                  startup_delay: float = 0,
                  scanner_keywords: List[str] = None,
-                 realtime_signal_layer=None):
+                 realtime_signal_layer=None,
+                 chart_min_score: int = 10,
+                 chart_chaos_range_pct: float = 30.0,
+                 chart_dead_vol_ratio: float = 0.3):
         self.chain = chain
         self.trader = trader
-        self.min_age_hours = preferred_age_min_hours
+        self.min_age_hours = 0.0
         self.hard_skip_age_hours = hard_skip_age_hours
         self.rug_classifier = rug_classifier
         self.sentiment_analyzer = sentiment_analyzer
@@ -137,6 +142,7 @@ class MultiSourceScanner:
         self.mcap_dead_zone_max = mcap_dead_zone_max
         self.min_liquidity_usd = min_liquidity_usd
         self.min_volume_h1_usd = min_volume_h1_usd
+        self.max_volume_h1_usd = max_volume_h1_usd
         self.min_combined_score = min_combined_score
         self.max_combined_score = max_combined_score
         self.require_both_sources = require_both_sources
@@ -151,6 +157,11 @@ class MultiSourceScanner:
         # Real-time signal layer (TickPatternDetector + OrderBookScorer)
         self.realtime_signal_layer = realtime_signal_layer
 
+        # Chart quality gates
+        self.chart_min_score = chart_min_score
+        self.chart_chaos_range_pct = chart_chaos_range_pct
+        self.chart_dead_vol_ratio = chart_dead_vol_ratio
+
         # LRU-bounded seen_tokens — evict oldest when >500 entries
         self.seen_tokens: set = set()
         self._seen_tokens_order: list = []
@@ -158,8 +169,6 @@ class MultiSourceScanner:
         self.evaluator = TokenSignalEvaluator(
             min_liquidity_usd=min_liquidity_usd,
             max_dev_wallet_pct=max_dev_wallet_pct,
-            preferred_age_min_hours=preferred_age_min_hours,
-            preferred_age_max_hours=preferred_age_max_hours,
             hard_skip_age_hours=hard_skip_age_hours,
             pyramid_score_threshold=pyramid_score_threshold
         )
@@ -169,6 +178,8 @@ class MultiSourceScanner:
         self.signals_blocked_age: int = 0
         self.signals_blocked_mcap: int = 0
         self.signals_blocked_rug: int = 0
+        self._last_buy_time: float = 0.0        # monotonic time of most recent buy signal fired
+        self._start_monotonic: float = time.monotonic()  # for watchdog uptime calc
 
         self._solanatracker_last_fetch: float = 0
         self._solanatracker_cache: list = []
@@ -184,9 +195,28 @@ class MultiSourceScanner:
         # Format: addr_lower → {"peak_price": float, "added_at": float}
         self._dip_watchlist: Dict[str, dict] = {}
 
-        # Stop-loss cooldown: after a stop-loss fires, block that token for 4h.
+        # In-flight buy guard: tokens currently being bought across any scanner path.
+        # Prevents race-condition duplicate buys when Axiom + EstablishedScanner fire simultaneously.
+        # Format: set of addr_lower strings
+        self._pending_buys: set = set()
+
+        # Chaos block history: tokens that failed the chaos check recently.
+        # Prevents fallback path from bypassing the chaos gate.
+        # Format: addr_lower → expiry_monotonic_time (30 min)
+        self._chaos_blocked: Dict[str, float] = {}
+
+        # Stop-loss cooldown: after a stop-loss fires, block that token for 1h.
         # Format: addr_lower → expiry_monotonic_time
         self._sl_cooldown: Dict[str, float] = {}
+        self._sl_cooldown_path = os.path.join(
+            os.environ.get("DATA_DIR", "."), "sl_cooldowns.json"
+        )
+        self._load_sl_cooldowns()
+
+        # No-candle block: after 3 failed GeckoTerminal attempts, block re-adding
+        # to watchlist for 1 hour so the main scanner doesn't reset the counter.
+        # Format: addr_lower → expiry_monotonic_time
+        self._no_candle_block: Dict[str, float] = {}
 
         # SOL macro cache: cache the SOL h1 price change for 5 minutes
         self._sol_macro_ts: float = 0
@@ -197,22 +227,114 @@ class MultiSourceScanner:
         self._watchlist_max = 20
         self._watchlist_ttl = 7200  # 2 hours in seconds
 
+        # GeckoTerminal pool address cache: token_address.lower() → pool_address
+        # Pool addresses are permanent on-chain. Bounded to 512 entries.
+        # One MultiSourceScanner instance per chain — no namespace needed.
+        self._gecko_pool_cache: Dict[str, str] = {}
+        self._gecko_pool_cache_max: int = 512
+
+        # Axiom real-time price feed — set externally after construction.
+        # When set, overrides stale DexScreener price/volume/liquidity with live data.
+        self.axiom_price_feed = None
+
     def set_solanatracker_key(self, api_key: str):
         """Set the SolanaTracker API key for enhanced pump.fun discovery."""
         self.solanatracker_api_key = api_key
 
-    def register_stop_loss(self, token_address: str, token_symbol: str, exit_price: float):
+    def _apply_axiom_overrides(self, dex_tokens: list):
         """
-        Called by the position manager when a stop-loss fires.
-        Blocks re-entry on this token for 4 hours.
+        Override stale DexScreener price/volume/liquidity fields with live
+        Axiom data for any token that AxiomPriceFeed has in its caches.
+        Only runs when self.axiom_price_feed is set.
+        """
+        if self.axiom_price_feed is None:
+            return
+        feed = self.axiom_price_feed
+        override_count = 0
+        for t in dex_tokens:
+            token_address = t.get("baseToken", {}).get("address", "").lower()
+            if not token_address:
+                continue
+            if token_address not in feed.price_cache:
+                continue
+            t["priceUsd"] = feed.price_cache[token_address]
+            if token_address in feed.volume_cache:
+                vol = t.get("volume")
+                if not isinstance(vol, dict):
+                    t["volume"] = {}
+                t["volume"]["h1"] = feed.volume_cache[token_address]
+            if token_address in feed.liquidity_cache:
+                liq = t.get("liquidity")
+                if not isinstance(liq, dict):
+                    t["liquidity"] = {}
+                t["liquidity"]["usd"] = feed.liquidity_cache[token_address]
+            if token_address in feed.change_cache:
+                chg = t.get("priceChange")
+                if not isinstance(chg, dict):
+                    t["priceChange"] = {}
+                t["priceChange"]["h1"] = feed.change_cache[token_address]
+            override_count += 1
+        if override_count:
+            logger.debug(
+                f"[{self.chain.name}] Axiom price overrides applied: {override_count} token(s)"
+            )
+
+    def register_stop_loss(self, token_address: str, token_symbol: str, exit_price: float,
+                           cooldown_seconds: int = 3600):
+        """
+        Called by the position manager when any losing exit fires.
+        Blocks re-entry on this token for cooldown_seconds (default 1h).
+        After cooldown expires the token must pass a full fresh scan — it is NOT auto-bought.
         """
         addr_lower = token_address.lower()
-        cooldown_until = time.monotonic() + 4 * 3600
+        cooldown_until = time.monotonic() + cooldown_seconds
         self._sl_cooldown[addr_lower] = cooldown_until
+        # Also evict from dip watchlist so it can't auto-buy from a stale watchlist entry
+        if addr_lower in self._dip_watchlist:
+            del self._dip_watchlist[addr_lower]
+            logger.info(
+                f"[{self.chain.name}] Loss cooldown: {token_symbol} removed from dip watchlist"
+            )
+        label = f"{cooldown_seconds // 60}min" if cooldown_seconds < 3600 else f"{cooldown_seconds // 3600}h"
         logger.info(
-            f"[{self.chain.name}] Stop-loss cooldown: {token_symbol} blocked for 4h "
-            f"(addr={addr_lower[:8]}…)"
+            f"[{self.chain.name}] Loss cooldown: {token_symbol} blocked for {label} — "
+            f"must pass fresh scan to re-enter (addr={addr_lower[:8]}…)"
         )
+        self._save_sl_cooldowns()
+
+    def _save_sl_cooldowns(self):
+        """Persist active cooldowns to disk so they survive Railway restarts."""
+        now_wall = time.time()
+        now_mono = time.monotonic()
+        # Store wall-clock expiry (time.time()) — monotonic can't survive restarts
+        data = {
+            addr: now_wall + (expiry_mono - now_mono)
+            for addr, expiry_mono in self._sl_cooldown.items()
+            if expiry_mono > now_mono
+        }
+        try:
+            with open(self._sl_cooldown_path, "w") as f:
+                json.dump(data, f)
+        except Exception as e:
+            logger.warning(f"[{self.chain.name}] Could not save sl_cooldowns: {e}")
+
+    def _load_sl_cooldowns(self):
+        """Load persisted cooldowns on startup and convert back to monotonic time."""
+        try:
+            with open(self._sl_cooldown_path) as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return
+        now_wall = time.time()
+        now_mono = time.monotonic()
+        loaded = 0
+        for addr, expiry_wall in data.items():
+            remaining = expiry_wall - now_wall
+            if remaining > 0:
+                self._sl_cooldown[addr] = now_mono + remaining
+                loaded += 1
+        if loaded:
+            logger.info(f"Restored {loaded} sl_cooldown(s) from disk")
 
     async def run(self):
         """Main scanner loop."""
@@ -241,12 +363,15 @@ class MultiSourceScanner:
         # Expire stale dip watchlist entries (older than 4 hours)
         _WATCHLIST_TTL = 4 * 3600
         expired = [a for a, e in self._dip_watchlist.items()
-                   if now - e["added_at"] > _WATCHLIST_TTL]
+                   if now - e.get("added_at", now) > _WATCHLIST_TTL]
         for addr in expired:
             del self._dip_watchlist[addr]
 
         # Expire elapsed stop-loss cooldowns
         self._sl_cooldown = {a: t for a, t in self._sl_cooldown.items() if t > now}
+
+        # Expire elapsed no-candle blocks
+        self._no_candle_block = {a: t for a, t in self._no_candle_block.items() if t > now}
         if expired:
             logger.debug(
                 f"[{self.chain.name}] Dip watchlist: expired {len(expired)} entries, "
@@ -332,6 +457,9 @@ class MultiSourceScanner:
         # Prune stale dashboard watchlist entries
         self._prune_watchlist()
 
+        # Override stale DexScreener prices with live Axiom data where available
+        self._apply_axiom_overrides(dex_tokens)
+
         # Evaluate DexScreener + merged tokens
         dex_addrs = set()
         for token in dex_tokens:
@@ -355,7 +483,7 @@ class MultiSourceScanner:
                 if signal:
                     await self._evaluate_signal(signal)
             except Exception as e:
-                logger.debug(f"[{self.chain.name}] Token eval error: {e}")
+                logger.warning(f"[{self.chain.name}] Token eval error: {e}", exc_info=True)
 
         # Evaluate GeckoTerminal-only tokens
         for addr, gecko_data in gecko_tokens.items():
@@ -368,7 +496,7 @@ class MultiSourceScanner:
                 if signal:
                     await self._evaluate_signal(signal)
             except Exception as e:
-                logger.debug(f"[{self.chain.name}] GeckoTerminal token eval error: {e}")
+                logger.warning(f"[{self.chain.name}] GeckoTerminal token eval error: {e}", exc_info=True)
 
         # Send scan summary AFTER evaluation so counts are accurate
         logger.info(
@@ -464,8 +592,10 @@ class MultiSourceScanner:
                 search_results = all_results[4:4 + n_kw]
 
                 # Collect stub addresses for enrichment
+                # Track boosted addresses (from token-boosts endpoints only)
+                _boost_addrs: set = set()
                 stub_addresses: list = []
-                for raw in stub_results:
+                for idx, raw in enumerate(stub_results):
                     if isinstance(raw, Exception) or not raw:
                         continue
                     items = raw if isinstance(raw, list) else []
@@ -477,9 +607,18 @@ class MultiSourceScanner:
                             stub_addresses.append(addr)
                             if self.chain.chain_id == "solana" and addr != addr.lower():
                                 self._mint_map[addr.lower()] = addr
+                            # stub_results[0] = top boosts, stub_results[1] = latest boosts
+                            if idx < 2:
+                                _boost_addrs.add(addr.lower())
 
                 stub_addresses = list(dict.fromkeys(stub_addresses))
                 enriched_pairs = await _enrich_addresses(session, stub_addresses)
+
+                # Mark boosted pairs
+                for p in enriched_pairs:
+                    addr_raw = p.get("baseToken", {}).get("address", "")
+                    if addr_raw.lower() in _boost_addrs:
+                        p["_boosted"] = True
 
                 # Collect search pairs (already full pair data)
                 # Pre-filter by age here so we don't waste time on old tokens
@@ -539,6 +678,9 @@ class MultiSourceScanner:
         if self.chain.chain_id != "solana":
             return []
 
+        # pump.fun → Raydium migration program (dedicated graduation program — every tx = one grad)
+        # PumpSwap graduates are caught via Axiom WS + DexScreener polling; the PumpSwap AMM
+        # program handles all swaps across all pools and can't be cleanly filtered for grads only.
         PUMP_MIGRATION = "39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg"
         SOL_MINT = "So11111111111111111111111111111111111111112"
         rpc_url = self.trader.rpc_url
@@ -621,7 +763,10 @@ class MultiSourceScanner:
                                 if p.get("chainId") != dex_chain:
                                     continue
                                 mcap = p.get("marketCap") or 0
-                                if mcap != 0 and not (self.min_mcap <= mcap <= self.max_mcap):
+                                # Use $50k floor to catch PumpSwap graduates (~$67k at graduation)
+                                # which land below the standard min_mcap of $70k.
+                                grad_min = min(self.min_mcap, 50_000)
+                                if mcap != 0 and not (grad_min <= mcap <= self.max_mcap):
                                     continue
                                 enriched.append(p)
                     except Exception as e:
@@ -1144,6 +1289,11 @@ class MultiSourceScanner:
         token_symbol = base.get("symbol", "?")
         token_name = base.get("name", "Unknown")
 
+        # Spam blacklist — dead tokens that flood DexScreener search results
+        _SPAM_SYMBOLS = {"VANGUARD", "AI", "RSCOIN", "RSCOIN"}
+        if token_symbol.upper() in _SPAM_SYMBOLS:
+            return None
+
         mcap = dex_pair.get("marketCap", 0)
         if mcap != 0 and not (self.min_mcap <= mcap <= self.max_mcap):
             self.signals_blocked_mcap += 1
@@ -1165,7 +1315,19 @@ class MultiSourceScanner:
         buys_h1 = txns_h1.get("buys", 0)
         sells_h1 = txns_h1.get("sells", 0)
 
+        # SolanaTracker rug flag: skip tokens flagged as rugged or very high risk
+        st_risk = dex_pair.get("_st_risk") or {}
+        if st_risk:
+            if st_risk.get("rugged") is True or float(st_risk.get("score") or 0) >= 0.8:
+                logger.info(
+                    f"[{self.chain.name}] Rug flag (SolanaTracker): {token_symbol} — "
+                    f"rugged={st_risk.get('rugged')} score={st_risk.get('score')}"
+                )
+                self.signals_blocked_rug += 1
+                return None
+
         # Rug prevention: hard filters before scoring
+        pair_age_hours = 0.0
         if not from_pumpfun:
             pair_created_ms = dex_pair.get("pairCreatedAt", 0) or 0
             if pair_created_ms > 0:
@@ -1220,8 +1382,17 @@ class MultiSourceScanner:
         combined = dex_score
         confirmed_by_both = False
 
-        # Dip Sniper: 24h drop >= 25% AND 1h recovering >= 5%
+        # Boosted token bonus: +5 for tokens from DexScreener token-boost endpoints
         flags = []
+        if dex_pair.get("_boosted"):
+            combined += 5
+            combined = min(combined, 100)
+            flags.append("boosted")
+            logger.info(
+                f"[{self.chain.name}] BOOSTED: {token_symbol} | Score +5 -> {combined}"
+            )
+
+        # Dip Sniper: 24h drop >= 25% AND 1h recovering >= 5%
         price_change_h24 = dex_pair.get("priceChange", {}).get("h24", 0) or 0
         if price_change_h24 <= -25 and price_change_h1 >= 5:
             combined += 15
@@ -1233,14 +1404,15 @@ class MultiSourceScanner:
                 f"Score +15 -> {combined}"
             )
 
-        # Pump Chaser: 1h change >= 20% AND vol >= $20k
+        # Pump Chaser: 1h change >= 20% and <= 75% AND vol >= $20k
+        # Cap at 75% — tokens already up >75% in 1h are usually topping out.
         # For DexScreener sources (txns_available=True): also require buy_ratio >= 0.65
         # For GeckoTerminal sources (txns_available=False): buy/sell counts are unavailable,
         # so rely on price momentum + volume alone — buy_ratio check skipped
         total_txns = buys_h1 + sells_h1
         buy_ratio = buys_h1 / total_txns if total_txns > 0 else 0
         _pump_ratio_ok = (not txns_available) or (buy_ratio >= 0.65)
-        if price_change_h1 >= 20 and _pump_ratio_ok and volume_h1 >= 20_000:
+        if 15 <= price_change_h1 <= 35 and _pump_ratio_ok and volume_h1 >= 20_000:
             combined += 10
             combined = min(combined, 100)
             flags.append("pump_setup")
@@ -1275,7 +1447,8 @@ class MultiSourceScanner:
             pair_address=pair_address,
             confirmed_by_both=confirmed_by_both,
             flags=flags,
-            raw_pair_data=dex_pair
+            raw_pair_data=dex_pair,
+            age_hours=round(pair_age_hours, 2),
         )
 
     def _score_dexscreener(self, mcap, volume_h1, volume_h6, price_change_h1, price_change_h6,
@@ -1300,15 +1473,19 @@ class MultiSourceScanner:
         elif volume_h1 >= 5_000:
             score += 6
 
-        # 1h price momentum
-        if price_change_h1 > 20:
-            score += 20
-        elif price_change_h1 > 10:
-            score += 14
+        # 1h price momentum — reward pre-move accumulation, penalize pumped tokens
+        if price_change_h1 > 30:
+            score -= 15   # Parabolic = exit liquidity — penalize hard
+        elif price_change_h1 > 15:
+            score += 0    # Late — skip the bonus
         elif price_change_h1 > 5:
-            score += 8
+            score += 7    # Reasonable moderate move, still early
+        elif price_change_h1 >= 0:
+            # Pre-move accumulation — only reward if volume confirms it
+            if volume_h1 > 30_000:
+                score += 14   # Volume building without price yet = ideal entry
         elif price_change_h1 < -15:
-            score -= 15
+            score -= 15   # Downtrend
 
         # 6h trend
         if price_change_h6 > 50:
@@ -1375,9 +1552,17 @@ class MultiSourceScanner:
         if self.tracker and getattr(self.tracker, 'buying_paused', False):
             return
 
-        # Skip if already holding
-        if signal.token_address.lower() in self.trader.open_positions:
+        # Skip if already holding or buy already in-flight (race-condition guard)
+        addr_lower = signal.token_address.lower()
+        if addr_lower in self.trader.open_positions or addr_lower in self._pending_buys:
             return
+
+        # SOL macro gate — don't buy when SOL 1h is < -3% (meme market cooling)
+        if not await self._sol_macro_ok_check():
+            return
+
+        # Re-entry filter removed — score already incorporates price trend.
+        # A score ≥70 on a previously-held token means the scorer judged it worth buying.
 
         # Skip well-known non-memecoin tokens
         _SKIP_MINTS = {
@@ -1393,23 +1578,8 @@ class MultiSourceScanner:
         if signal.combined_score < self.min_combined_score:
             self.signals_blocked_score += 1
 
-            # Pump chaser: strong momentum tokens can enter below normal threshold.
-            # Requires pump_setup flag (≥20% 1h gain, ≥65% buy ratio, ≥$20k vol)
-            # and score ≥ 57. Skips dip-recovery checks — we're chasing the move.
-            _PUMP_MIN = 57
-            if (
-                "pump_setup" in signal.flags
-                and signal.combined_score >= _PUMP_MIN
-                and not self.trader.risk_manager.is_daily_limit_hit()
-                and signal.token_address not in self.trader.open_positions
-                and signal.liquidity_usd >= self.min_liquidity_usd
-                and signal.volume_h1 >= self.min_volume_h1_usd
-            ):
-                await self._fire_pump_chaser(signal)
-                return
-
-            # Dashboard watchlist: near-miss tokens scoring 45 to threshold
-            if 45 <= signal.combined_score < self.min_combined_score:
+            # Dashboard watchlist: near-miss tokens scoring 30 to threshold
+            if 30 <= signal.combined_score < self.min_combined_score:
                 setup_tags = []
                 if "dip_setup" in signal.flags:
                     setup_tags.append("Dip recovery")
@@ -1430,18 +1600,18 @@ class MultiSourceScanner:
             )
             return
 
-        # Score cap: over-pumped / late entry
-        # pump_setup tokens bypass and go straight to pump chaser (momentum is the signal)
-        if signal.combined_score > self.max_combined_score:
-            if "pump_setup" in signal.flags:
-                await self._fire_pump_chaser(signal)
-            else:
-                logger.info(
-                    f"[{self.chain.name}] Score-cap blocked: {signal.token_symbol} "
-                    f"score={signal.combined_score} > max {self.max_combined_score} "
-                    f"(over-pumped / rug risk)"
-                )
-                self.signals_blocked_score += 1
+        # Trading hours gate DISABLED — trading 24/7
+
+        # Score cap: over-pumped / late entry — pump chaser DISABLED (7% WR, -$109 loss)
+        # Dip recoveries are exempt: a high score on a dip_setup means strong fundamentals
+        # + recovery signal — NOT an over-pumped entry.
+        if signal.combined_score > self.max_combined_score and "dip_setup" not in signal.flags:
+            logger.info(
+                f"[{self.chain.name}] Score-cap blocked: {signal.token_symbol} "
+                f"score={signal.combined_score} > max {self.max_combined_score} "
+                f"(over-pumped / rug risk)"
+            )
+            self.signals_blocked_score += 1
             return
 
         # Rug blacklist
@@ -1469,13 +1639,33 @@ class MultiSourceScanner:
             )
             return
 
-        # Volume floor
-        if signal.volume_h1 < self.min_volume_h1_usd:
+        # Volume floor — dip_setup tokens are exempt: a 24h crash naturally suppresses
+        # 1h volume; recovery volume builds after the bounce begins.
+        if signal.volume_h1 < self.min_volume_h1_usd and "dip_setup" not in signal.flags:
             logger.info(
                 f"[{self.chain.name}] Volume floor blocked: {signal.token_symbol} "
                 f"${signal.volume_h1:,.0f}/hr < ${self.min_volume_h1_usd:,.0f}/hr"
             )
             return
+
+        # Volume ceiling — high h1 volume on small mcap means token is already in frenzy/exhaustion
+        if signal.volume_h1 > self.max_volume_h1_usd and "dip_setup" not in signal.flags:
+            logger.info(
+                f"[{self.chain.name}] Volume ceiling blocked: {signal.token_symbol} "
+                f"${signal.volume_h1:,.0f}/hr > ${self.max_volume_h1_usd:,.0f}/hr — already pumped"
+            )
+            return
+
+        # Volume/MCap ratio — <1% = dead token (60-80% of volume is bots; ratio reveals organic activity)
+        if signal.mcap > 0:
+            vol_mcap_ratio = signal.volume_h1 / signal.mcap
+            if vol_mcap_ratio < 0.01:
+                logger.info(
+                    f"[{self.chain.name}] Dead volume blocked: {signal.token_symbol} "
+                    f"vol/mcap={vol_mcap_ratio*100:.2f}% < 1% "
+                    f"(vol=${signal.volume_h1:,.0f} mcap=${signal.mcap:,.0f})"
+                )
+                return
 
         # Sentiment check
         if self.sentiment_analyzer:
@@ -1535,11 +1725,13 @@ class MultiSourceScanner:
                     f"{_rc_err} — skipping classifier, continuing"
                 )
 
-        # Security check
+        # Security check — use relaxed micro_cap mode for fresh small-cap tokens
+        _is_micro = signal.mcap > 0 and signal.mcap <= 80_000
         sec_result = await self.security_checker.check(
             signal.token_address,
             self.chain.chain_id,
-            signal.token_symbol
+            signal.token_symbol,
+            micro_cap=_is_micro
         )
         if not sec_result.passed:
             self.signals_blocked_security += 1
@@ -1550,7 +1742,6 @@ class MultiSourceScanner:
             return
 
         # Stop-loss cooldown
-        addr_lower = signal.token_address.lower()
         if addr_lower in self._sl_cooldown:
             remaining_min = int((self._sl_cooldown[addr_lower] - time.monotonic()) / 60)
             logger.debug(
@@ -1559,11 +1750,79 @@ class MultiSourceScanner:
             )
             return
 
-        # Macro trend filter
-        if signal.price_change_h6 < -20:
+        # H1 and H6 must both be green — if either is red the trend is not with us.
+        # Exempt dip_setup: those are intentional recovery plays off a 24h drop.
+        if "dip_setup" not in signal.flags:
+            if signal.price_change_h1 <= 0:
+                logger.info(
+                    f"[{self.chain.name}] Red h1 blocked: {signal.token_symbol} "
+                    f"h1={signal.price_change_h1:+.1f}% — must be green before entry"
+                )
+                self.signals_blocked_score += 1
+                return
+            if signal.price_change_h6 <= 0:
+                logger.info(
+                    f"[{self.chain.name}] Red h6 blocked: {signal.token_symbol} "
+                    f"h6={signal.price_change_h6:+.1f}% — must be green before entry"
+                )
+                self.signals_blocked_score += 1
+                return
+
+        # Late-entry guard: if the token has already pumped hard in the last hour, skip it.
+        # High h1 scores well but by the time the signal fires, early buyers are already exiting.
+        # The DipWatcher can re-catch these after they pull back.
+        if signal.price_change_h1 > 35 and "dip_setup" not in signal.flags:
+            logger.info(
+                f"[{self.chain.name}] Late-entry blocked: {signal.token_symbol} "
+                f"h1={signal.price_change_h1:+.1f}% — pump already happened, skip"
+            )
+            self.signals_blocked_score += 1
+            return
+
+        # Macro trend filter — exempt dip_setup: a 24h crash will always show negative h6;
+        # _chart_dip_check downstream will validate the actual recovery candles.
+        if signal.price_change_h6 < -20 and "dip_setup" not in signal.flags:
             logger.info(
                 f"[{self.chain.name}] Macro trend blocked: {signal.token_symbol} "
                 f"h6={signal.price_change_h6:+.1f}% — sustained downtrend, not a dip"
+            )
+            self.signals_blocked_score += 1
+            return
+
+        # Dump-in-progress guard: m5 too negative means active selling, not a dip
+        # Healthy dips are -2% to -10%; below -12% is a crash or dev dump
+        _pc_m5 = float((signal.raw_pair_data or {}).get("priceChange", {}).get("m5", 0) or 0)
+
+        if _pc_m5 < -12:
+            logger.info(
+                f"[{self.chain.name}] Dump guard blocked: {signal.token_symbol} "
+                f"m5={_pc_m5:+.1f}% — crash in progress, not a dip"
+            )
+            self.signals_blocked_score += 1
+            return
+
+        # Momentum entry guard: require m5 to be positive or near-flat at entry.
+        # Entering into active decline (m5 < -3%) means buying a reversal, not a dip.
+        # Data shows winners move within minutes of entry — losers are already falling when we buy.
+        # Exempt dip_setup (recovery plays where positive m5 after a crash is the signal).
+        if "dip_setup" not in signal.flags:
+            if _pc_m5 < -3:
+                logger.info(
+                    f"[{self.chain.name}] Declining m5 blocked: {signal.token_symbol} "
+                    f"m5={_pc_m5:+.1f}% — price actively falling, not entering into decline"
+                )
+                self.signals_blocked_score += 1
+                return
+
+        # Trap-pump guard: h1 looks positive only because of an earlier pump inside
+        # a multi-hour downtrend. Cross-check h6 vs h1 — if h6 is significantly
+        # negative but h1 is only modest, the h1 signal is deceptive.
+        # Exempt dip_setup: the 24h drop is intentional; _chart_dip_check validates the recovery.
+        if signal.price_change_h6 < -10 and signal.price_change_h1 < 20 and "dip_setup" not in signal.flags:
+            logger.info(
+                f"[{self.chain.name}] Trap-pump blocked: {signal.token_symbol} "
+                f"h6={signal.price_change_h6:+.1f}% h1={signal.price_change_h1:+.1f}% "
+                f"— brief pump inside multi-hour downtrend"
             )
             self.signals_blocked_score += 1
             return
@@ -1586,7 +1845,171 @@ class MultiSourceScanner:
             except Exception as _rt_err:
                 logger.debug(f"[{self.chain.name}] RT signal error: {_rt_err}")
 
-        await self._fire_chart_buy(signal, sec_result.risk_level)
+        # 90-second bounce confirmation — non-blocking
+        # If price fades more than 1.5% in 90s after dip check passes, skip the buy.
+        # Catches "entering into continued dumps" that stop out within 2 minutes.
+        if signal.price_usd <= 0:
+            logger.info(
+                f"[{self.chain.name}] ⏭ Skipping bounce confirmation for {signal.token_symbol} "
+                f"— no price data (price_usd=0), cannot verify fade"
+            )
+            return
+        asyncio.create_task(
+            self._confirm_and_buy(signal, sec_result.risk_level, signal.price_usd)
+        )
+
+    async def _confirm_and_buy(
+        self, signal: "TokenSignal", risk_level: str, price_at_check: float
+    ):
+        """
+        Wait 45 seconds after the dip check passes, then verify the bounce is still holding.
+        If price has dropped >1.5% from the dip-check snapshot, abort — the bounce faded.
+        Reduced from 90s: chart dip check already validates 7 recovery signals; 150s total
+        delay was causing missed entries in fast-moving memecoins.
+        """
+        sym = signal.token_symbol
+        addr = signal.token_address
+        logger.info(
+            f"[{self.chain.name}] ⏳ Confirming bounce: {sym} — "
+            f"waiting 45s to verify recovery holds (price=${price_at_check:.6f})"
+        )
+        await asyncio.sleep(45)
+
+        # Skip if we're already in this position (another path bought it)
+        if addr.lower() in self.trader.open_positions:
+            logger.info(
+                f"[{self.chain.name}] ⏭ {sym} already held — skipping delayed buy"
+            )
+            return
+
+        # Re-fetch current price — try DexScreener first, fall back to price feed caches
+        current_price: float = 0.0
+        try:
+            url = f"https://api.dexscreener.com/latest/dex/tokens/{addr}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url, timeout=aiohttp.ClientTimeout(total=8)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        pairs = data.get("pairs") or []
+                        chain_pairs = [
+                            p for p in pairs
+                            if p.get("chainId", "").lower() == self.chain.chain_id
+                        ]
+                        if chain_pairs:
+                            _grad = [p for p in chain_pairs if p.get("dexId", "") != "pump-fun" and p.get("liquidity", {}).get("usd", 0) > 1000]
+                            pair = max(
+                                _grad or chain_pairs,
+                                key=lambda p: p.get("liquidity", {}).get("usd", 0),
+                            )
+                            current_price = float(
+                                pair.get("priceUsd") or pair.get("price", 0) or 0
+                            )
+        except Exception as _e:
+            logger.debug(f"[{self.chain.name}] Confirm-buy price fetch error: {_e}")
+
+        # Fall back to live price feed caches (DexScreener poller, Axiom feed)
+        if current_price <= 0:
+            _dex = getattr(self.trader, "_dex_price_feed", None)
+            if _dex is not None:
+                current_price = (
+                    getattr(_dex, "price_cache", {}).get(addr.lower(), 0.0)
+                    or getattr(_dex, "price_cache", {}).get(addr, 0.0)
+                )
+        if current_price <= 0:
+            _axiom = getattr(self.trader, "_axiom_price_feed", None)
+            if _axiom is not None:
+                current_price = getattr(_axiom, "price_cache", {}).get(addr, 0.0)
+
+        if current_price > 0 and price_at_check > 0:
+            change_pct = (current_price - price_at_check) / price_at_check * 100
+            if change_pct < -1.0:
+                logger.info(
+                    f"[{self.chain.name}] ❌ Bounce faded: {sym} "
+                    f"dropped {change_pct:.1f}% in 45s — aborting entry"
+                )
+                # Re-add to dip watchlist so it can re-qualify if it recovers
+                addr_lower = addr.lower()
+                self._dip_watchlist[addr_lower] = {
+                    "symbol": sym,
+                    "added_at": time.monotonic(),
+                    "reason": "bounce_faded",
+                    "signal": signal,
+                    "risk_level": risk_level,
+                }
+                return
+            logger.info(
+                f"[{self.chain.name}] ✅ Bounce confirmed: {sym} "
+                f"{change_pct:+.1f}% in 45s — holding 30s to verify price holds"
+            )
+        else:
+            # No price from any source — proceed using check price as baseline.
+            # Can't verify fading, so consistent with hold-check behavior (proceeds if unavailable).
+            logger.info(
+                f"[{self.chain.name}] ⚠️ Bounce price unavailable after 45s: {sym} "
+                f"— proceeding with check price ${price_at_check:.6f}"
+            )
+            current_price = price_at_check
+
+        # ── Second confirmation: wait 30s, ensure price holds within 3% ──
+        # Catches dead-cat bounces where we'd buy at the peak of a brief recovery.
+        price_at_confirm = current_price
+        await asyncio.sleep(30)
+
+        if addr.lower() in self.trader.open_positions:
+            logger.info(f"[{self.chain.name}] ⏭ {sym} already held — skipping delayed buy")
+            return
+
+        hold_price: float = 0.0
+        try:
+            url = f"https://api.dexscreener.com/latest/dex/tokens/{addr}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url, timeout=aiohttp.ClientTimeout(total=8)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        pairs = data.get("pairs") or []
+                        chain_pairs = [
+                            p for p in pairs
+                            if p.get("chainId", "").lower() == self.chain.chain_id
+                        ]
+                        if chain_pairs:
+                            _grad = [p for p in chain_pairs if p.get("dexId", "") != "pump-fun" and p.get("liquidity", {}).get("usd", 0) > 1000]
+                            pair = max(
+                                _grad or chain_pairs,
+                                key=lambda p: p.get("liquidity", {}).get("usd", 0),
+                            )
+                            hold_price = float(
+                                pair.get("priceUsd") or pair.get("price", 0) or 0
+                            )
+        except Exception as _e:
+            logger.debug(f"[{self.chain.name}] Hold-check price fetch error: {_e}")
+
+        if hold_price > 0 and price_at_confirm > 0:
+            hold_change_pct = (hold_price - price_at_confirm) / price_at_confirm * 100
+            if hold_change_pct < -3.0:
+                logger.info(
+                    f"[{self.chain.name}] ❌ Hold check failed: {sym} "
+                    f"dropped {hold_change_pct:.1f}% after bounce confirm — dead-cat, aborting"
+                )
+                addr_lower = addr.lower()
+                self._dip_watchlist[addr_lower] = {
+                    "symbol": sym,
+                    "added_at": time.monotonic(),
+                    "reason": "bounce_faded",
+                    "signal": signal,
+                    "risk_level": risk_level,
+                }
+                return
+            logger.info(
+                f"[{self.chain.name}] ✅ Hold check passed: {sym} "
+                f"{hold_change_pct:+.1f}% — price stable, proceeding with buy"
+            )
+        # If hold price unavailable, proceed anyway (can't confirm but won't block)
+
+        await self._fire_chart_buy(signal, risk_level)
 
     async def process_external_signal(self,
                                      token_address: str,
@@ -1615,7 +2038,7 @@ class MultiSourceScanner:
             )
             return False
 
-        if token_address in self.trader.open_positions:
+        if token_address.lower() in self.trader.open_positions:
             logger.info(
                 f"[{self.chain.name}] [{strategy_tag}] "
                 f"Already holding {token_symbol} — skipping"
@@ -1664,6 +2087,7 @@ class MultiSourceScanner:
             return False
 
         self.signals_fired += 1
+        self._last_buy_time = time.monotonic()
         logger.info(
             f"[{self.chain.name}] [{strategy_tag}] 🎯 BUY SIGNAL: "
             f"{token_symbol} | Score: {signal_score} | {reason}"
@@ -1719,37 +2143,81 @@ class MultiSourceScanner:
             logger.debug(f"[{self.chain.name}] SOL macro check error: {e}")
             return True
 
-    async def _fetch_ohlcv(self, token_address: str) -> Optional[list]:
+    async def _fetch_ohlcv(self, token_address: str, pool_address: str = "") -> Optional[list]:
         """Fetch 30 × 5-minute OHLCV candles via GeckoTerminal (free, no key)."""
         if not token_address:
             return None
-        candles = await self._fetch_ohlcv_gecko(token_address)
+        resolved = pool_address.strip() or self._gecko_pool_cache.get(token_address.lower(), "")
+        candles = await self._fetch_ohlcv_gecko(token_address, pool_address=resolved)
         return candles
 
     async def _fetch_ohlcv_gecko(self, token_address: str,
                                    aggregate: str = "5",
-                                   limit: int = 30) -> Optional[list]:
-        """Fetch OHLCV candles from GeckoTerminal (free, no key)."""
+                                   limit: int = 30,
+                                   pool_address: str = "") -> Optional[list]:
+        """Fetch OHLCV candles from GeckoTerminal (free, no key).
+
+        If pool_address is supplied (from signal.pair_address or cache), skips
+        the pool-lookup HTTP call entirely. Falls back to lookup if the supplied
+        address is rejected by GeckoTerminal.
+        """
         try:
             async with aiohttp.ClientSession() as session:
-                pools_url = (
-                    f"{GECKO_API}/networks/solana/tokens/{token_address}/pools"
-                )
-                async with session.get(
-                    pools_url,
-                    params={"page": "1"},
-                    headers={"Accept": "application/json"},
-                    timeout=aiohttp.ClientTimeout(total=8),
-                ) as resp:
-                    if resp.status != 200:
-                        return None
-                    pools_data = await resp.json()
-                    pools = pools_data.get("data", [])
-                    if not pools:
-                        return None
-                    pool_addr = pools[0].get("attributes", {}).get("address", "")
-                    if not pool_addr:
-                        return None
+                pool_addr = pool_address.strip()
+
+                if not pool_addr:
+                    # Pool lookup — try each pool in the list until we find one
+                    # with actual OHLCV data. Migrated tokens (pump.fun → Meteora)
+                    # often have the new pool listed first (more volume) but no
+                    # candles yet; the established pool is further down the list.
+                    pools_url = (
+                        f"{GECKO_API}/networks/solana/tokens/{token_address}/pools"
+                    )
+                    async with session.get(
+                        pools_url,
+                        params={"page": "1"},
+                        headers={"Accept": "application/json"},
+                        timeout=aiohttp.ClientTimeout(total=8),
+                    ) as resp:
+                        if resp.status != 200:
+                            return None
+                        pools_data = await resp.json()
+                        pools = pools_data.get("data", [])
+                        if not pools:
+                            return None
+                    # Try each pool (up to 5) until one returns candles.
+                    candidate_pools = [
+                        p.get("attributes", {}).get("address", "")
+                        for p in pools[:5]
+                    ]
+                    for candidate in candidate_pools:
+                        if not candidate:
+                            continue
+                        ohlcv_url = (
+                            f"{GECKO_API}/networks/solana/pools/{candidate}/ohlcv/minute"
+                        )
+                        async with session.get(
+                            ohlcv_url,
+                            params={"aggregate": aggregate, "limit": str(limit), "currency": "usd"},
+                            headers={"Accept": "application/json"},
+                            timeout=aiohttp.ClientTimeout(total=8),
+                        ) as ohlcv_resp:
+                            if ohlcv_resp.status != 200:
+                                continue
+                            ohlcv_data = await ohlcv_resp.json()
+                            candidate_candles = (
+                                ohlcv_data.get("data", {})
+                                .get("attributes", {})
+                                .get("ohlcv_list", [])
+                            )
+                            if candidate_candles:
+                                pool_addr = candidate
+                                if len(self._gecko_pool_cache) >= self._gecko_pool_cache_max:
+                                    oldest = next(iter(self._gecko_pool_cache))
+                                    del self._gecko_pool_cache[oldest]
+                                self._gecko_pool_cache[token_address.lower()] = pool_addr
+                                return list(reversed(candidate_candles))
+                    return None  # No pool in the list had candle data
 
                 ohlcv_url = (
                     f"{GECKO_API}/networks/solana/pools/{pool_addr}/ohlcv/minute"
@@ -1761,6 +2229,14 @@ class MultiSourceScanner:
                     timeout=aiohttp.ClientTimeout(total=8),
                 ) as resp:
                     if resp.status != 200:
+                        # Supplied pool address rejected — clear cache entry and retry with lookup
+                        if pool_address.strip():
+                            logger.debug(
+                                f"[GeckoTerminal] Supplied pool_address rejected "
+                                f"(HTTP {resp.status}), falling back to lookup"
+                            )
+                            self._gecko_pool_cache.pop(token_address.lower(), None)
+                            return await self._fetch_ohlcv_gecko(token_address, aggregate, limit)
                         return None
                     data = await resp.json()
                     candles = (
@@ -1768,7 +2244,16 @@ class MultiSourceScanner:
                         .get("attributes", {})
                         .get("ohlcv_list", [])
                     )
-                    return list(reversed(candles)) if candles else None
+                    if candles:
+                        return list(reversed(candles))
+                    # Supplied pool exists but has no OHLCV data yet (new pool /
+                    # pool migration — e.g. pump.fun → Meteora AMM V2).
+                    # Fall back to a token-address lookup so we can find an
+                    # older established pool that already has candle history.
+                    if pool_address.strip():
+                        self._gecko_pool_cache.pop(token_address.lower(), None)
+                        return await self._fetch_ohlcv_gecko(token_address, aggregate, limit)
+                    return None
         except Exception:
             return None
 
@@ -1883,6 +2368,154 @@ class MultiSourceScanner:
             "vol_surge_ratio":   vol_surge_ratio,
         }
 
+    def _compute_chart_score(self, candles: list) -> dict:
+        """
+        Compute a 0-30 chart quality score from OHLCV candles.
+        candles: list of [timestamp, open, high, low, close, volume_usd]
+        """
+        if len(candles) < 6:
+            return {
+                "chart_score": 0, "pattern": "insufficient_data",
+                "obv_trend": "unknown", "distribution_detected": False,
+                "volume_accumulation_ratio": 1.0, "range_compression_pct": 0.0,
+                "wick_absorption": 0.0, "vol_below_pct": 0.5,
+            }
+
+        def _sf(v):
+            try:
+                return float(v) if v is not None else 0.0
+            except (TypeError, ValueError):
+                return 0.0
+
+        highs   = [_sf(c[2]) for c in candles]
+        lows    = [_sf(c[3]) for c in candles]
+        closes  = [_sf(c[4]) for c in candles]
+        volumes = [_sf(c[5]) for c in candles]
+
+        def _mean(lst):
+            return sum(lst) / len(lst) if lst else 0.0
+
+        # ── Volume Accumulation Ratio (score: -5 to +10) ──────────────────
+        recent_vol_avg = _mean(volumes[-3:])
+        prior_vols     = volumes[-min(10, len(volumes)):-3]
+        prior_vol_avg  = _mean(prior_vols) if prior_vols else (recent_vol_avg or 1.0)
+        var = recent_vol_avg / prior_vol_avg if prior_vol_avg > 0 else 1.0
+
+        recent_price_change = (
+            (closes[-1] - closes[-4]) / closes[-4] * 100
+            if len(closes) >= 4 and closes[-4] > 0 else 0.0
+        )
+        if var >= 2.0 and -5 <= recent_price_change <= 10:
+            var_score = 10
+        elif var >= 1.5 and -5 <= recent_price_change <= 15:
+            var_score = 5
+        elif var < 0.3:
+            var_score = -5
+        else:
+            var_score = 0
+
+        # ── On-Balance Volume trend (score: -8 to +8) ────────────────────
+        obv = [0.0]
+        for i in range(1, len(closes)):
+            if closes[i] > closes[i - 1]:
+                obv.append(obv[-1] + volumes[i])
+            elif closes[i] < closes[i - 1]:
+                obv.append(obv[-1] - volumes[i])
+            else:
+                obv.append(obv[-1])
+
+        obv_recent = _mean(obv[-3:])
+        obv_prior  = _mean(obv[-6:-3]) if len(obv) >= 6 else obv[0]
+        if obv_recent > obv_prior * 1.1:
+            obv_trend = "rising"
+            obv_score = 8
+        elif obv_recent < obv_prior * 0.9:
+            obv_trend = "falling"
+            obv_score = -8
+        else:
+            obv_trend = "flat"
+            obv_score = 0
+
+        price_rising = closes[-1] > closes[-4] if len(closes) >= 4 else False
+        distribution_detected = (obv_trend == "falling" and price_rising)
+
+        # ── Range Compression (score: -3 to +7) ─────────────────────────
+        lookback  = min(6, len(candles))
+        range_pct = (
+            (max(highs[-lookback:]) - min(lows[-lookback:])) / closes[-1] * 100
+            if closes[-1] > 0 else 999.0
+        )
+        if range_pct <= 5.0 and var >= 1.0:
+            compression_score = 7
+        elif range_pct <= 10.0:
+            compression_score = 3
+        elif range_pct > 30.0:
+            compression_score = -3
+        else:
+            compression_score = 0
+
+        # ── Wick Absorption (score: 0 to +5) ────────────────────────────
+        wick_ratios = []
+        for i in range(-min(3, len(candles)), 0):
+            h, l, c = highs[i], lows[i], closes[i]
+            candle_range = h - l
+            if candle_range > 0:
+                wick_ratios.append((c - l) / candle_range)
+        avg_wick   = _mean(wick_ratios) if wick_ratios else 0.0
+        wick_score = 5 if avg_wick > 0.65 else (2 if avg_wick > 0.50 else 0)
+
+        # ── Volume-Weighted Price Position (score: 0 to +5) ─────────────
+        vol_below = sum(v for cv, v in zip(closes, volumes) if cv < closes[-1])
+        vol_total = sum(volumes)
+        pct_below = vol_below / vol_total if vol_total > 0 else 0.5
+        vwpp_score = 5 if pct_below >= 0.70 else (2 if pct_below >= 0.50 else 0)
+
+        # ── Final score ──────────────────────────────────────────────────
+        raw         = var_score + max(0, obv_score) + compression_score + wick_score + vwpp_score
+        chart_score = max(0, min(30, raw))
+
+        if distribution_detected:
+            pattern = "distribution"
+        elif range_pct > 30:
+            pattern = "chaos"
+        elif compression_score >= 5 and var_score >= 5:
+            pattern = "accumulation"
+        elif compression_score >= 7:
+            pattern = "consolidation_base"
+        elif var_score >= 10:
+            pattern = "breakout_setup"
+        else:
+            pattern = "neutral"
+
+        return {
+            "chart_score":              chart_score,
+            "pattern":                  pattern,
+            "obv_trend":                obv_trend,
+            "distribution_detected":    distribution_detected,
+            "volume_accumulation_ratio": var,
+            "range_compression_pct":    range_pct,
+            "wick_absorption":          avg_wick,
+            "vol_below_pct":            pct_below,
+        }
+
+    async def _fetch_live_liquidity(self, token_address: str) -> Optional[float]:
+        """Fetch current liquidity from DexScreener for a token.
+        Returns USD liquidity or None if fetch fails (caller should fail-open on None)."""
+        try:
+            url = f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                    if resp.status != 200:
+                        return None
+                    data = await resp.json(content_type=None)
+                    pairs = [p for p in (data.get("pairs") or []) if p.get("chainId") == "solana"]
+                    if not pairs:
+                        return None
+                    best = max(pairs, key=lambda p: (p.get("liquidity") or {}).get("usd") or 0)
+                    return float((best.get("liquidity") or {}).get("usd") or 0)
+        except Exception:
+            return None
+
     async def _chart_dip_check(self, signal: TokenSignal, risk_level: str = "UNKNOWN") -> bool:
         """Fetch 5m+1m candles and run all dip/recovery filters."""
         if not signal.token_address:
@@ -1895,9 +2528,12 @@ class MultiSourceScanner:
             except Exception:
                 pass
 
+        _pool = signal.pair_address.strip() or self._gecko_pool_cache.get(
+            signal.token_address.lower(), ""
+        )
         candles_5m, candles_1m = await asyncio.gather(
-            self._fetch_ohlcv(signal.token_address),
-            self._fetch_ohlcv_gecko(signal.token_address, aggregate="1", limit=30),
+            self._fetch_ohlcv(signal.token_address, pool_address=_pool),
+            self._fetch_ohlcv_gecko(signal.token_address, aggregate="1", limit=30, pool_address=_pool),
             return_exceptions=True,
         )
         if isinstance(candles_5m, Exception):
@@ -1905,13 +2541,108 @@ class MultiSourceScanner:
         if isinstance(candles_1m, Exception):
             candles_1m = None
 
-        if not candles_5m or len(candles_5m) < 10:
+        if not candles_5m or len(candles_5m) < 3:
             if not candles_5m:
-                reason = "no candles from GeckoTerminal — pool not indexed yet"
+                reason = "no candles — pool not indexed yet"
             else:
-                reason = f"only {len(candles_5m)} candles — need ≥10 (token too new)"
+                reason = f"only {len(candles_5m)} candles — token too new for chart analysis"
+            # No candle data — pool not indexed on GeckoTerminal (common for
+            # Raydium/Meteora pools). Two-stage handling:
+            #   Stage 1 (<5 min): queue in watchlist, wait for candles to appear.
+            #   Stage 2 (≥5 min): GeckoTerminal likely won't index this pool.
+            #             Allow through only if score ≥ 75, liq ≥ $15k, AND
+            #             an explicit dip_setup or pump_setup flag fired — never
+            #             on a plain score signal alone.
+            addr_lower = signal.token_address.lower()
+
+            # If this token already burned through its 3 attempts, don't re-add
+            if addr_lower in self._no_candle_block:
+                return False
+
+            watchlist_entry = self._dip_watchlist.get(addr_lower)
+            waited_sec = time.monotonic() - (watchlist_entry or {}).get("added_at", time.monotonic())
+
+            # Always keep watchlist entry up to date (preserve attempt counter)
+            _prev_attempts = (watchlist_entry or {}).get("no_candle_attempts", 0)
+            self._dip_watchlist[addr_lower] = {
+                "peak_price":        signal.price_usd,
+                "added_at":          (watchlist_entry or {}).get("added_at", time.monotonic()),
+                "signal":            signal,
+                "risk_level":        risk_level,
+                "no_candle_attempts": _prev_attempts,
+            }
+
+            if waited_sec < 300:  # less than 5 minutes
+                logger.info(
+                    f"[{self.chain.name}] Chart pending: {signal.token_symbol} — "
+                    f"{reason}, queued for watchlist retry in "
+                    f"{int(300 - waited_sec)}s "
+                    f"(score {signal.combined_score}, liq ${signal.liquidity_usd:,.0f})"
+                )
+                return False
+
+            # Waited ≥5 min — GeckoTerminal likely won't index this pool.
+            # Fallback for high-confidence dip_setup signals: use DexScreener aggregate data
+            # (h1, h24, m5) as a candle substitute. The dip_setup flag already validated
+            # h24 ≤ -25 AND h1 ≥ 5, so we just need m5 not actively crashing.
+            _pc_m5 = float((signal.raw_pair_data or {}).get("priceChange", {}).get("m5", 0) or 0)
+            # Skip fallback if this token was recently chaos-blocked
+            _chaos_expiry = self._chaos_blocked.get(addr_lower, 0)
+            _chaos_still_blocked = time.monotonic() < _chaos_expiry
+            if _chaos_still_blocked:
+                logger.info(
+                    f"[{self.chain.name}] Fallback skipped (chaos history): {signal.token_symbol}"
+                )
+            if (not _chaos_still_blocked
+                    and "dip_setup" in signal.flags
+                    and signal.combined_score >= 75
+                    and signal.liquidity_usd >= 15_000
+                    and _pc_m5 > -10):
+                logger.info(
+                    f"[{self.chain.name}] Chart fallback (no candles, {int(waited_sec/60)}min): "
+                    f"{signal.token_symbol} — dip_setup via aggregate data "
+                    f"(score {signal.combined_score}, m5={_pc_m5:+.1f}%, liq ${signal.liquidity_usd:,.0f})"
+                )
+                self._dip_watchlist.pop(addr_lower, None)
+                return True
+
+            # Secondary fallback (6 min): score ≥ 70, liq ≥ $15k, h1 not crashing, m5 not crashing.
+            # Threshold set to 360s so it fires at attempt 2/3 (before eviction at attempt 3/3).
+            # Timeline: Stage1=0-5min, attempt1@5min, attempt2@6min → fallback fires here.
+            _pc_m5 = float((signal.raw_pair_data or {}).get("priceChange", {}).get("m5", 0) or 0)
+            if (not _chaos_still_blocked
+                    and waited_sec >= 360
+                    and signal.combined_score >= 70
+                    and signal.liquidity_usd >= 15_000
+                    and signal.price_change_h1 > 0
+                    and signal.price_change_h6 > 0
+                    and _pc_m5 > -8):
+                logger.info(
+                    f"[{self.chain.name}] Chart fallback (no candles, {int(waited_sec/60)}min): "
+                    f"{signal.token_symbol} — score signal via aggregate data "
+                    f"(score {signal.combined_score}, h1={signal.price_change_h1:+.1f}%, "
+                    f"m5={_pc_m5:+.1f}%, liq ${signal.liquidity_usd:,.0f})"
+                )
+                self._dip_watchlist.pop(addr_lower, None)
+                return True
+
+            # No candle data and fundamentals don't meet fallback bar — evict after 3 attempts.
+            _attempts = _prev_attempts + 1
+            self._dip_watchlist[addr_lower]["no_candle_attempts"] = _attempts
+            if _attempts >= 3:
+                self._dip_watchlist.pop(addr_lower, None)
+                self._no_candle_block[addr_lower] = time.monotonic() + 3600  # block for 1 hour
+                logger.info(
+                    f"[{self.chain.name}] Chart give-up ({int(waited_sec/60)}min, "
+                    f"{_attempts} attempts): {signal.token_symbol} — "
+                    f"pool not indexed by GeckoTerminal, dropping from watchlist"
+                )
+                return False
+
             logger.info(
-                f"[{self.chain.name}] Chart blocked: {signal.token_symbol} — {reason}"
+                f"[{self.chain.name}] Chart blocked (no candles after "
+                f"{int(waited_sec/60)}min, attempt {_attempts}/3): {signal.token_symbol} — "
+                f"score {signal.combined_score}, no chart data available"
             )
             return False
 
@@ -1936,6 +2667,82 @@ class MultiSourceScanner:
         current = closes[-1]
 
         closes_1m = [_safe_float(c[4]) for c in candles_1m] if candles_1m else []
+
+        # ── Pump exhaustion: token already 3x+ from its candle-range low ────────
+        # A token that has pumped 300%+ is deep in distribution territory — even a
+        # 15% dip and recovery doesn't make it a safe entry at that altitude.
+        if len(lows) >= 3 and len(highs) >= 3:
+            _candle_low  = min(lows)
+            _candle_high = max(highs)
+            if _candle_low > 0:
+                _pump_mag = (_candle_high / _candle_low - 1) * 100
+                if _pump_mag > 300:
+                    logger.info(
+                        f"[{self.chain.name}] Pump exhaustion: {signal.token_symbol} "
+                        f"— candle range {_pump_mag:.0f}% (max 300%) — exit liquidity risk"
+                    )
+                    return False
+
+        # ── Volume deceleration: recent candles drying up candle-by-candle ──────
+        # Tightened from the old 15% floor — catches tokens where buyers are
+        # quietly leaving even before volume totally collapses.
+        if len(volumes) >= 5:
+            _recent_vol = sum(volumes[-2:]) / 2
+            _prior_vol  = sum(volumes[-5:-2]) / 3
+            if _prior_vol > 0 and _recent_vol < _prior_vol * 0.25:
+                logger.info(
+                    f"[{self.chain.name}] Volume decelerating: {signal.token_symbol} "
+                    f"— recent ${_recent_vol:,.0f}/candle vs prior ${_prior_vol:,.0f}/candle "
+                    f"({_recent_vol/_prior_vol*100:.0f}%) — buyers leaving"
+                )
+                return False
+
+        # ── Chart quality score ──────────────────────────────────────────────
+        chart_quality = self._compute_chart_score(candles)
+        cq_score      = chart_quality["chart_score"]
+        cq_pattern    = chart_quality["pattern"]
+
+        if chart_quality["distribution_detected"]:
+            logger.info(
+                f"[{self.chain.name}] Distribution blocked: {signal.token_symbol} "
+                f"— OBV falling while price rising"
+            )
+            return False
+
+        if chart_quality["range_compression_pct"] > self.chart_chaos_range_pct:
+            logger.info(
+                f"[{self.chain.name}] Chaos blocked: {signal.token_symbol} "
+                f"— {chart_quality['range_compression_pct']:.0f}% range"
+            )
+            # Record so fallback path can't bypass this gate
+            _addr_l = signal.token_address.lower()
+            self._chaos_blocked[_addr_l] = time.monotonic() + 1800  # 30 min
+            return False
+
+        if chart_quality["volume_accumulation_ratio"] < self.chart_dead_vol_ratio:
+            logger.info(
+                f"[{self.chain.name}] Dead volume blocked: {signal.token_symbol} "
+                f"— VAR {chart_quality['volume_accumulation_ratio']:.2f}"
+            )
+            return False
+
+        if cq_score < self.chart_min_score:
+            logger.info(
+                f"[{self.chain.name}] Weak chart: {signal.token_symbol} "
+                f"chart_score={cq_score}/30 ({cq_pattern}) — need {self.chart_min_score}+"
+            )
+            return False
+
+        logger.info(
+            f"[{self.chain.name}] Chart quality: {signal.token_symbol} "
+            f"score={cq_score}/30 ({cq_pattern}) "
+            f"VAR={chart_quality['volume_accumulation_ratio']:.1f} "
+            f"OBV={chart_quality['obv_trend']} "
+            f"range={chart_quality['range_compression_pct']:.1f}%"
+        )
+        signal.chart_score   = cq_score
+        signal.chart_pattern = cq_pattern
+        # ── End chart quality score ──────────────────────────────────────────
 
         logger.info(
             f"[{self.chain.name}] Chart {signal.token_symbol}: "
@@ -1975,17 +2782,8 @@ class MultiSourceScanner:
             )
             return False
 
-        # Grinder filter
-        candle_peak  = max(highs)
-        candle_floor = min(lows)
-        if candle_floor > 0 and candle_peak / candle_floor < 1.15:
-            logger.info(
-                f"[{self.chain.name}] Grinder filtered: {signal.token_symbol} "
-                f"range {candle_peak / candle_floor:.2f}x — no meaningful price action"
-            )
-            return False
-
         # Dip range check
+        candle_peak = max(highs) if highs else 0.0
         peak = candle_peak
         if peak <= 0 or current <= 0:
             logger.info(
@@ -1994,7 +2792,7 @@ class MultiSourceScanner:
             return False
 
         dip_pct      = (current - peak) / peak * 100
-        in_dip_range = -45.0 <= dip_pct <= -15.0
+        in_dip_range = -45.0 <= dip_pct <= -10.0
 
         if not in_dip_range:
             self._dip_watchlist[addr_lower] = {
@@ -2005,7 +2803,7 @@ class MultiSourceScanner:
             }
             logger.info(
                 f"[{self.chain.name}] No dip yet: {signal.token_symbol} "
-                f"{dip_pct:+.1f}% from peak — watching (need -15% to -45%)"
+                f"{dip_pct:+.1f}% from peak — watching (need -10% to -45%)"
             )
             return False
 
@@ -2069,18 +2867,7 @@ class MultiSourceScanner:
         if len(volumes) >= 4:
             prior_vol_avg = sum(volumes[-4:-1]) / 3
             bounce_volume = prior_vol_avg > 0 and volumes[-1] > prior_vol_avg
-        if not bounce_volume:
-            logger.info(
-                f"[{self.chain.name}] Bounce volume weak: {signal.token_symbol} "
-                f"recovery candle has no volume surge — waiting for real buyers"
-            )
-            self._dip_watchlist[addr_lower] = {
-                "peak_price": peak,
-                "added_at":   (watchlist_entry or {}).get("added_at", time.monotonic()),
-                "signal":     signal,
-                "risk_level": risk_level,
-            }
-            return False
+        # bounce_volume is scored but no longer a hard gate — contributes to recovery_score
 
         rsi_reset = rsi is not None and 30.0 <= rsi <= 60.0
 
@@ -2109,15 +2896,18 @@ class MultiSourceScanner:
             )
             momentum_1m = up_count >= 3
 
+        # Stabilizing moved from hard gate to 7th scored signal.
+        # Threshold stays at 5 — so a token can pass without stabilizing if
+        # the other 6 signals are strong. Prevents permanent blocks on volatile
+        # memecoins that oscillate but are genuinely recovering.
         recovery_signals = {
             "Last green":  last_green,
             "Bounce ≥2%":  bounce_confirmed,
             "Bounce vol":  bounce_volume,
             "RSI reset":   rsi_reset,
-            "Vol easing":  vol_easing,
-            "Stabilizing": stabilizing,
             "Higher low":  higher_low,
             "1m momentum": momentum_1m,
+            "Stabilizing": stabilizing,
         }
         recovery_score = sum(recovery_signals.values())
         rec_str = " | ".join(
@@ -2126,27 +2916,13 @@ class MultiSourceScanner:
 
         logger.info(
             f"[{self.chain.name}] 🎯 DIP CHECK: {signal.token_symbol} "
-            f"{dip_pct:+.1f}% from peak | recovery {recovery_score}/8 [{rec_str}]"
+            f"{dip_pct:+.1f}% from peak | recovery {recovery_score}/7 [{rec_str}]"
         )
 
-        # Require Stabilizing — price must have stopped making new lows
-        if not stabilizing:
-            logger.info(
-                f"[{self.chain.name}] No floor: {signal.token_symbol} "
-                f"{dip_pct:+.1f}% dip but price still making new lows — waiting"
-            )
-            self._dip_watchlist[addr_lower] = {
-                "peak_price": peak,
-                "added_at":   (watchlist_entry or {}).get("added_at", time.monotonic()),
-                "signal":     signal,
-                "risk_level": risk_level,
-            }
-            return False
-
-        if recovery_score < 6:
+        if recovery_score < 5:
             logger.info(
                 f"[{self.chain.name}] Weak recovery: {signal.token_symbol} "
-                f"{recovery_score}/8 signals — need 6, watching"
+                f"{recovery_score}/6 signals — need 5, watching"
             )
             self._dip_watchlist[addr_lower] = {
                 "peak_price": peak,
@@ -2158,14 +2934,26 @@ class MultiSourceScanner:
 
         logger.info(
             f"[{self.chain.name}] ✅ DIP ENTRY confirmed: {signal.token_symbol} "
-            f"{dip_pct:+.1f}% from peak, {recovery_score}/8 recovery"
+            f"{dip_pct:+.1f}% from peak, {recovery_score}/6 recovery"
         )
         self._dip_watchlist.pop(addr_lower, None)
         return True
 
     async def _fire_chart_buy(self, signal: TokenSignal, risk_level: str):
         """Execute the buy after all dip/chart checks have passed."""
-        if signal.token_address.lower() in self.trader.open_positions:
+        addr_lower = signal.token_address.lower()
+        if addr_lower in self.trader.open_positions or addr_lower in self._pending_buys:
+            return
+        self._pending_buys.add(addr_lower)
+
+        # Re-validate score at fire time — the signal may have been cached in the dip
+        # watchlist or bounce confirmer queue and the score could have drifted below
+        # threshold by the time we actually execute.
+        if signal.combined_score < self.min_combined_score:
+            logger.info(
+                f"[{self.chain.name}] ⏭ Stale signal blocked: {signal.token_symbol} "
+                f"score {signal.combined_score} < {self.min_combined_score} at fire time"
+            )
             return
 
         # Block unverifiable tokens — can't size a position without MCap
@@ -2176,16 +2964,49 @@ class MultiSourceScanner:
             )
             return
 
+        # Block tokens with no name — not yet indexed, nothing to identify them by
+        if not signal.token_symbol or signal.token_symbol in ("?", "UNKNOWN", "unknown"):
+            logger.info(
+                f"[{self.chain.name}] ❌ No symbol: {signal.token_address[:8]}... "
+                f"— blocked (token not indexed yet)"
+            )
+            return
+
+        # Block DANGER-rated tokens — LP not locked or rugcheck flagged high risk
+        if risk_level == "DANGER":
+            logger.info(
+                f"[{self.chain.name}] ❌ DANGER blocked: {signal.token_symbol} "
+                f"— rugcheck rated DANGER (LP likely unlocked or high-risk flags)"
+            )
+            return
+
+        # Vol/MCap ratio — same 1% floor as standard scanner path
+        # Catches inflated-mcap new launches where mcap >> actual liquidity/activity
+        if signal.mcap > 0 and signal.volume_h1 > 0:
+            vol_mcap_ratio = signal.volume_h1 / signal.mcap
+            if vol_mcap_ratio < 0.01:
+                logger.info(
+                    f"[{self.chain.name}] ❌ Dead volume: {signal.token_symbol} "
+                    f"vol/mcap={vol_mcap_ratio*100:.2f}% < 1% "
+                    f"(vol=${signal.volume_h1:,.0f} mcap=${signal.mcap:,.0f})"
+                )
+                return
+
         # Resolve correct-case mint for Jupiter
         if self.chain.chain_id == "solana":
             resolved = self._mint_map.get(signal.token_address.lower()) or signal.token_address
             signal.token_address = resolved
 
+        if signal.chart_score > 0:
+            signal.combined_score = min(100, signal.combined_score + signal.chart_score)
+
         self.signals_fired += 1
+        self._last_buy_time = time.monotonic()
         logger.info(
             f"[{self.chain.name}] BUY SIGNAL: {signal.token_symbol} | "
             f"Score: {signal.combined_score} | "
             f"DEX:{signal.dex_score} | "
+            f"Chart:{signal.chart_score}/30 ({signal.chart_pattern}) | "
             f"MCap: ${signal.mcap:,.0f}"
         )
 
@@ -2201,149 +3022,27 @@ class MultiSourceScanner:
             f"[View on DexScreener]({signal.dex_url})"
         )
 
-        await self.trader.buy(
-            token_address=signal.token_address,
-            token_symbol=signal.token_symbol,
-            reason=(
-                f"[{self.chain.name}] Multi-source score "
-                f"{signal.combined_score} "
-                f"(DEX:{signal.dex_score})"
-            ),
-            signal_score=signal.combined_score,
-            hh_hl_confirmed=getattr(signal, "hh_hl_confirmed", False),
-            chain_id=self.chain.chain_id,
-            strategy="pump" if "pump_setup" in signal.flags else "scanner",
-        )
-
-    async def _fire_pump_chaser(self, signal: "TokenSignal"):
-        """
-        Momentum entry for tokens flagged pump_setup.
-        Runs security check + chart analysis — no buy on score alone.
-        """
-        if signal.token_address in self.trader.open_positions:
-            return
-
-        # Resolve correct-case mint for Jupiter
-        if self.chain.chain_id == "solana":
-            resolved = self._mint_map.get(signal.token_address.lower()) or signal.token_address
-            signal.token_address = resolved
-
-        # Security check — non-negotiable
-        sec_result = await self.security_checker.check(
-            signal.token_address, self.chain.chain_id, signal.token_symbol
-        )
-        if not sec_result.passed:
-            self.signals_blocked_security += 1
-            logger.info(
-                f"[{self.chain.name}] [PumpChaser] 🛑 Security blocked "
-                f"{signal.token_symbol} — {sec_result.risk_level}"
+        self.trader.reentry.last_h1_pct[signal.token_address.lower()] = signal.price_change_h1
+        try:
+            await self.trader.buy(
+                token_address=signal.token_address,
+                token_symbol=signal.token_symbol,
+                reason=(
+                    f"[{self.chain.name}] Multi-source score "
+                    f"{signal.combined_score} "
+                    f"(DEX:{signal.dex_score})"
+                ),
+                signal_score=signal.combined_score,
+                hh_hl_confirmed=getattr(signal, "hh_hl_confirmed", False),
+                chain_id=self.chain.chain_id,
+                strategy="scanner",
+                pair_address=signal.pair_address or "",
+                market_cap_usd=signal.mcap,
+                age_hours=signal.age_hours,
+                volume_h1_usd=signal.volume_h1,
             )
-            return
-
-        # Momentum check — verify pump is still running, not reversing
-        confirmed = await self._chart_momentum_check(signal)
-        if not confirmed:
-            return
-
-        self.signals_fired += 1
-        logger.info(
-            f"[{self.chain.name}] [PumpChaser] 🚀 PUMP BUY: {signal.token_symbol} | "
-            f"Score: {signal.combined_score} | 1h: {signal.price_change_h1:+.1f}% | "
-            f"Vol: ${signal.volume_h1:,.0f}"
-        )
-
-        await self.telegram.send(
-            f"🚀 *Pump Chaser: ${signal.token_symbol}*\n"
-            f"Chain: {self.chain.name}\n\n"
-            f"1h Change: {signal.price_change_h1:+.1f}%\n"
-            f"1h Vol: ${signal.volume_h1:,.0f} | MCap: ${signal.mcap:,.0f}\n"
-            f"Score: {signal.combined_score}/100 | Security: {sec_result.risk_level}\n\n"
-            f"[View on DexScreener]({signal.dex_url})"
-        )
-
-        await self.trader.buy(
-            token_address=signal.token_address,
-            token_symbol=signal.token_symbol,
-            reason=f"[{self.chain.name}] Pump chaser {signal.combined_score} | {signal.price_change_h1:+.1f}% 1h",
-            signal_score=signal.combined_score,
-            chain_id=self.chain.chain_id,
-            strategy="pump",
-        )
-
-    async def _chart_momentum_check(self, signal: TokenSignal) -> bool:
-        """
-        Momentum confirmation for pump-chaser entries.
-        Checks that the pump is still running — NOT that there's a dip.
-        Blocks if already reversing (consecutive red candles) or RSI parabolic (>90).
-        """
-        candles_5m, candles_1m = await asyncio.gather(
-            self._fetch_ohlcv(signal.token_address),
-            self._fetch_ohlcv_gecko(signal.token_address, aggregate="1", limit=15),
-            return_exceptions=True,
-        )
-        if isinstance(candles_5m, Exception):
-            candles_5m = None
-        if isinstance(candles_1m, Exception):
-            candles_1m = None
-
-        if not candles_5m or len(candles_5m) < 5:
-            # No candle data — token too new for GeckoTerminal, allow on score
-            logger.info(
-                f"[{self.chain.name}] [PumpChaser] No candle data for "
-                f"{signal.token_symbol} — allowing on momentum signal"
-            )
-            return True
-
-        def _sf(val):
-            try:
-                return float(val) if val is not None else 0.0
-            except (TypeError, ValueError):
-                return 0.0
-
-        closes_5m = [_sf(c[4]) for c in candles_5m]
-        closes_1m = [_sf(c[4]) for c in candles_1m] if candles_1m else []
-
-        chart = self._analyze_chart(candles_5m)
-        rsi = chart.get("rsi")
-
-        # Block: RSI > 90 — absolute top, likely to reverse immediately
-        if rsi is not None and rsi > 90:
-            logger.info(
-                f"[{self.chain.name}] [PumpChaser] Blocked {signal.token_symbol} "
-                f"RSI={rsi:.1f} — too overbought for safe entry"
-            )
-            return False
-
-        # Block: 5 consecutive red 5m candles — pump already reversing
-        if len(closes_5m) >= 5:
-            last5_red = all(
-                _sf(candles_5m[i][4]) < _sf(candles_5m[i][1]) for i in range(-5, 0)
-            )
-            if last5_red:
-                logger.info(
-                    f"[{self.chain.name}] [PumpChaser] Blocked {signal.token_symbol} "
-                    f"— 5 red 5m candles, pump reversing"
-                )
-                return False
-
-        # Block: 5 consecutive red 1m candles — micro-reversal underway
-        if len(closes_1m) >= 5:
-            last5_1m_red = all(
-                _sf(candles_1m[i][4]) < _sf(candles_1m[i][1]) for i in range(-5, 0)
-            )
-            if last5_1m_red:
-                logger.info(
-                    f"[{self.chain.name}] [PumpChaser] Blocked {signal.token_symbol} "
-                    f"— 5 red 1m candles, losing momentum"
-                )
-                return False
-
-        rsi_str = f"{rsi:.1f}" if rsi is not None else "n/a"
-        logger.info(
-            f"[{self.chain.name}] [PumpChaser] Momentum confirmed: "
-            f"{signal.token_symbol} RSI={rsi_str} — entering pump"
-        )
-        return True
+        finally:
+            self._pending_buys.discard(signal.token_address.lower())
 
     async def _watchlist_poll_cycle(self):
         """Re-check dip/recovery conditions for all dip watchlist tokens with a stored signal."""
@@ -2362,18 +3061,53 @@ class MultiSourceScanner:
                 to_remove.append(addr_lower)
                 continue
 
+            # Re-entry block removed — score already accounts for price trend.
+
             if self.tracker and getattr(self.tracker, 'buying_paused', False):
                 continue
 
             try:
-                passed = await self._chart_dip_check(signal, entry.get("risk_level", "UNKNOWN"))
+                # Re-validate volume before firing — the initial scan path gates on
+                # min_volume_h1_usd, but the watchlist path bypasses it.
+                # dip_setup tokens are exempt: crash suppresses 1h volume temporarily.
+                if (0 < signal.volume_h1 < self.min_volume_h1_usd
+                        and "dip_setup" not in signal.flags):
+                    logger.info(
+                        f"[{self.chain.name}] Volume floor blocked (watchlist): "
+                        f"{signal.token_symbol} ${signal.volume_h1:,.0f}/hr "
+                        f"< ${self.min_volume_h1_usd:,.0f}/hr"
+                    )
+                    to_remove.append(addr_lower)
+                    continue
+
+                # Re-run security at fire time — the stored risk_level may be stale
+                # (token could have been queued before a later security check blocked it)
+                _is_micro = signal.mcap > 0 and signal.mcap <= 80_000
+                fresh_sec = await self.security_checker.check(
+                    signal.token_address,
+                    self.chain.chain_id,
+                    signal.token_symbol,
+                    micro_cap=_is_micro,
+                )
+                if not fresh_sec.passed:
+                    self.signals_blocked_security += 1
+                    logger.warning(
+                        f"[{self.chain.name}] 🛑 Watchlist security re-check blocked "
+                        f"{signal.token_symbol} — {fresh_sec.risk_level} (evicting)"
+                    )
+                    to_remove.append(addr_lower)
+                    continue
+
+                risk_level = fresh_sec.risk_level
+
+                passed = await self._chart_dip_check(signal, risk_level)
                 if passed:
                     to_remove.append(addr_lower)
                     logger.info(
                         f"[{self.chain.name}] 🔔 Watchlist dip triggered: "
                         f"{signal.token_symbol} — firing buy from poller"
                     )
-                    await self._fire_chart_buy(signal, entry.get("risk_level", "UNKNOWN"))
+                    await self._fire_chart_buy(signal, risk_level)
             except Exception as e:
                 logger.debug(
                     f"[{self.chain.name}] Watchlist poll error for "
@@ -2385,7 +3119,7 @@ class MultiSourceScanner:
 
     async def _watchlist_poller(self):
         """Background task: poll dip watchlist tokens for dip entries every 60 seconds."""
-        await asyncio.sleep(90)
+        await asyncio.sleep(30)
         while True:
             try:
                 watchable = sum(
@@ -2426,7 +3160,8 @@ class MultiSourceScanner:
                 )
                 return
 
-            pair = max(chain_pairs, key=lambda p: p.get("liquidity", {}).get("usd", 0))
+            _graduated = [p for p in chain_pairs if p.get("dexId", "") != "pump-fun" and p.get("liquidity", {}).get("usd", 0) > 1000]
+            pair = max(_graduated or chain_pairs, key=lambda p: p.get("liquidity", {}).get("usd", 0))
             signal = self._build_signal(pair, {})
             if signal is None:
                 return
@@ -2454,7 +3189,7 @@ class MultiSourceScanner:
                 continue
             peak = entry.get("peak_price", 0)
             dip_pct = ((signal.price_usd - peak) / peak * 100) if peak > 0 else 0
-            age_min = int((now - entry["added_at"]) / 60)
+            age_min = int((now - entry.get("added_at", now)) / 60)
             result.append({
                 "token_address": signal.token_address,
                 "token_symbol":  signal.token_symbol,
@@ -2492,7 +3227,7 @@ class MultiSourceScanner:
             "reason": reason,
             "timestamp": time.time(),
             "flags": signal.flags,
-            "dex_url": signal.dex_url,
+            "dex_url": signal.dex_url or f"https://dexscreener.com/solana/{signal.token_address}",
         }
         self.watchlist[signal.token_address] = entry
 
