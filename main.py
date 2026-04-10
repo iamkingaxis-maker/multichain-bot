@@ -259,6 +259,7 @@ async def main():
             chain=SOLANA, trader=sol_trader,
             security_checker=security, telegram=telegram,
             min_mcap=config.min_mcap, max_mcap=config.max_mcap,
+            min_volume_h1_usd=config.min_volume_h1_usd,
             max_volume_h1_usd=config.max_volume_h1_usd,
             min_combined_score=config.min_combined_score,  # Hard floor — bypass adaptive threshold
             max_combined_score=config.max_combined_score,
