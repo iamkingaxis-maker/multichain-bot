@@ -44,6 +44,7 @@ from chains.chain_config import SOLANA
 from security.honeypot import SecurityChecker
 from security.tax_detector import TaxDetector
 from feeds.price_feed import PriceFeed
+from feeds.solana_rpc_price_feed import SolanaRpcPriceFeed
 from feeds.axiom_integration import AxiomIntegration
 from analytics.wallet_scorer import WalletScorer
 from analytics.kelly_sizer import KellySizer
@@ -424,6 +425,14 @@ async def main():
         price_feed.position_manager = sol_position_mgr
         sol_position_mgr.dex_price_feed = price_feed   # 1s-poll cache for price fallback
         sol_trader.register_dex_price_feed(price_feed)
+
+        # Solana RPC + Jupiter price feed — covers ALL pool types at 0.5s intervals.
+        # Eliminates the 5-15s DexScreener aggregator lag when Axiom WS isn't available.
+        rpc_feed = SolanaRpcPriceFeed(rpc_url=config.solana_rpc_url)
+        rpc_feed.position_manager = sol_position_mgr
+        sol_position_mgr.rpc_price_feed = rpc_feed
+        sol_trader.register_rpc_price_feed(rpc_feed)
+        tasks.append(rpc_feed.run())
 
         # Register AxiomScanner for relay mode token injection
         if axiom.scanner:

@@ -2301,15 +2301,17 @@ class WebDashboard:
         # Override positions list with direct trader view — always fresh, no indirection
         if self._trader is not None:
             now = datetime.now(timezone.utc)
-            # Price priority: Axiom WS cache → DexScreener 1s-poll cache → pos.current_price_usd → entry
+            # Price priority: Axiom WS → Solana RPC/Jupiter → DexScreener → pos.current_price_usd → entry
             _axiom_feed = getattr(self._trader, "_axiom_price_feed", None)
+            _rpc_feed   = getattr(self._trader, "_rpc_price_feed",   None)
             _dex_feed   = getattr(self._trader, "_dex_price_feed",   None)
             direct_positions = []
             for addr, pos in self._trader.open_positions.items():
                 entry = getattr(pos, "entry_price_usd", 0)
                 axiom_price = _axiom_feed.price_cache.get(addr, 0) if _axiom_feed else 0
+                rpc_price   = _rpc_feed.price_cache.get(addr, 0)   if _rpc_feed   else 0
                 dex_price   = _dex_feed.price_cache.get(addr, 0)   if _dex_feed   else 0
-                current = axiom_price or dex_price or getattr(pos, "current_price_usd", 0) or entry
+                current = axiom_price or rpc_price or dex_price or getattr(pos, "current_price_usd", 0) or entry
                 amount = getattr(pos, "amount_usd", 0) or getattr(pos, "amount_sol_spent", 0)
                 multiplier = (current / entry) if entry > 0 else 1.0
                 pnl_usd = (multiplier - 1) * amount if entry > 0 else getattr(pos, "pnl_usd", 0)

@@ -330,6 +330,7 @@ class PositionManager:
         self._stop_triggered: set = set()  # De-dup for realtime stops
         self._last_rest_fetch: Dict[str, float] = {}  # token → unix ts of last REST call
         self.axiom_price_feed = None  # Set by main.py — socket8 real-time cache (~ms latency)
+        self.rpc_price_feed   = None  # Set by main.py — Solana RPC + Jupiter 0.5s poll
         self.dex_price_feed = None    # Set by main.py — DexScreener 1s poll cache (fallback)
 
         # Stats
@@ -446,7 +447,22 @@ class PositionManager:
                     liquidity_usd=self.axiom_price_feed.liquidity_cache.get(addr_lower, state.current_liquidity_usd),
                 )
 
-        # ── Fast path 2: DexScreener 1s-poll cache ───────────────────────────
+        # ── Fast path 2: Solana RPC + Jupiter 0.5s-poll cache ────────────────
+        # Covers all pool types: Pump.fun (direct RPC), PumpSwap, Raydium,
+        # Meteora, Orca, LaunchLab (Jupiter API). ~1s latency vs 5-15s DexScreener.
+        if live_price <= 0 and self.rpc_price_feed is not None:
+            _p = self.rpc_price_feed.price_cache.get(addr_lower, 0)
+            _t = self.rpc_price_feed.price_timestamps.get(addr_lower, 0)
+            if _p > 0 and (now_ts - _t) < 2.0:
+                live_price = _p
+                self._apply_price_update(
+                    token_address, state, live_price,
+                    volume_h1=state.current_volume_usd,
+                    volume_m5=state.current_m5_volume,
+                    liquidity_usd=state.current_liquidity_usd,
+                )
+
+        # ── Fast path 3: DexScreener 1s-poll cache ───────────────────────────
         if live_price <= 0 and self.dex_price_feed is not None:
             _p = self.dex_price_feed.price_cache.get(addr_lower, 0)
             _t = self.dex_price_feed.price_timestamps.get(addr_lower, 0)
@@ -459,8 +475,8 @@ class PositionManager:
                     liquidity_usd=self.dex_price_feed.liquidity_cache.get(addr_lower, state.current_liquidity_usd),
                 )
 
-        # ── Fast path 3: Jupiter Price API (throttled to 2s) ─────────────────
-        # Queries AMM state directly — sub-second, much fresher than DexScreener
+        # ── Fast path 4: Jupiter Price API (throttled to 2s) ─────────────────
+        # Fallback when RPC feed hasn't seen the token yet
         last_jup = self._last_rest_fetch.get(f"jup_{addr_lower}", 0)
         if live_price <= 0 and (now_ts - last_jup) >= 2.0:
             self._last_rest_fetch[f"jup_{addr_lower}"] = now_ts
@@ -505,8 +521,8 @@ class PositionManager:
                         (pair.get("liquidity") or {}).get("usd", 0) or 0
                     )
 
-                    # Use REST price only if Axiom had nothing fresh
-                    price_to_apply = axiom_price if axiom_price > 0 else rest_price
+                    # Use REST price only if faster sources had nothing fresh
+                    price_to_apply = live_price if live_price > 0 else rest_price
                     if price_to_apply > 0:
                         self._apply_price_update(token_address, state, price_to_apply,
                                                  volume_h1, volume_m5, liquidity_usd)

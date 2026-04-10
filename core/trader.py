@@ -170,6 +170,9 @@ class Trader:
         # Optional DexScreener real-time price feed (sub-second stop-loss accuracy)
         self._dex_price_feed = None
 
+        # Optional Solana RPC + Jupiter price feed (0.5s, covers all pool types)
+        self._rpc_price_feed = None
+
         # NOTE: Internal _monitor_positions is DISABLED — PositionManager handles
         # all TP/SL logic with the user's exact config-driven rules.
         # asyncio.create_task(self._monitor_positions())
@@ -190,6 +193,10 @@ class Trader:
     def register_dex_price_feed(self, feed):
         """Register the DexScreener real-time PriceFeed for sub-second stop-loss accuracy."""
         self._dex_price_feed = feed
+
+    def register_rpc_price_feed(self, feed):
+        """Register the Solana RPC + Jupiter price feed (0.5s, covers all pool types)."""
+        self._rpc_price_feed = feed
 
     async def buy(self, token_address: str, token_symbol: str,
                   reason: str, signal_score: int = 0,
@@ -245,6 +252,12 @@ class Trader:
                     self._axiom_price_feed.subscribe_token(token_address)
                 if self._dex_price_feed is not None:
                     self._dex_price_feed.subscribe_token(token_address)
+                # RPC + Jupiter feed: pass pool_type hint from reason for pump.fun detection
+                if self._rpc_price_feed is not None:
+                    _proto = ""
+                    if "pump amm" in reason.lower():
+                        _proto = "pump amm"
+                    self._rpc_price_feed.subscribe_token(token_address, pool_type=_proto)
 
                 sol_amount = await self._usd_to_sol(position_size_usd)
                 if sol_amount <= 0:
@@ -372,6 +385,15 @@ class Trader:
             self.reentry.buy_counts[token_address.lower()] = self.reentry.buy_counts.get(token_address.lower(), 0) + 1
             self.risk_manager.record_buy(position_size_usd)
 
+            # Subscribe real-time price feeds for live position
+            if self._axiom_price_feed is not None:
+                self._axiom_price_feed.subscribe_token(token_address)
+            if self._dex_price_feed is not None:
+                self._dex_price_feed.subscribe_token(token_address)
+            if self._rpc_price_feed is not None:
+                _proto = "pump amm" if "pump amm" in reason.lower() else ""
+                self._rpc_price_feed.subscribe_token(token_address, pool_type=_proto)
+
             await self.telegram.send(
                 f"✅ *Bought ${token_symbol}*\n\n"
                 f"💵 Size: ${position_size_usd:.0f}\n"
@@ -486,6 +508,8 @@ class Trader:
                         self._axiom_price_feed.unsubscribe_token(token_address)
                     if self._dex_price_feed is not None:
                         self._dex_price_feed.unsubscribe_token(token_address)
+                    if self._rpc_price_feed is not None:
+                        self._rpc_price_feed.unsubscribe_token(token_address)
                 else:
                     position.amount_tokens *= (1 - pct)
                     position.amount_sol_spent *= (1 - pct)
@@ -539,6 +563,12 @@ class Trader:
                 del self.open_positions[token_address]
                 self.reentry.previously_held.add(token_address.lower())
                 self.reentry.save()
+                if self._axiom_price_feed is not None:
+                    self._axiom_price_feed.unsubscribe_token(token_address)
+                if self._dex_price_feed is not None:
+                    self._dex_price_feed.unsubscribe_token(token_address)
+                if self._rpc_price_feed is not None:
+                    self._rpc_price_feed.unsubscribe_token(token_address)
             else:
                 position.amount_tokens *= (1 - pct)
                 position.amount_sol_spent *= (1 - pct)
