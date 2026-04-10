@@ -90,9 +90,10 @@ class AxiomPriceFeed:
         Subscribe to real-time price updates for a token.
         Safe to call before the WebSocket connects — queued and applied on connect.
         """
-        if token_address not in self._subscribed:
-            self._pending_subscribe.add(token_address)
-            logger.debug(f"[AxiomPriceFeed] Queued subscribe: {token_address[:8]}…")
+        addr = token_address.lower()  # normalize — message handler compares lowercase
+        if addr not in self._subscribed:
+            self._pending_subscribe.add(addr)
+            logger.debug(f"[AxiomPriceFeed] Queued subscribe: {addr[:8]}…")
 
     def unsubscribe_token(self, token_address: str):
         """
