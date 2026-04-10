@@ -129,7 +129,7 @@ class Config:
     override_score: int = 90
 
     # ── Scanner ──────────────────────────────────────────────
-    min_mcap: float = 200_000
+    min_mcap: float = 80_000
     max_mcap: float = 1_000_000
     max_volume_h1_usd: float = 300_000
 
