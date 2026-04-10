@@ -6,6 +6,7 @@ Encodes the trader's exact rules for managing open positions.
 import asyncio
 import logging
 import aiohttp
+import time
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass, field
@@ -327,6 +328,8 @@ class PositionManager:
         self._states: Dict[str, PositionState] = {}
         self._last_volume_check: Dict[str, datetime] = {}
         self._stop_triggered: set = set()  # De-dup for realtime stops
+        self._last_rest_fetch: Dict[str, float] = {}  # token → unix ts of last REST call
+        self.axiom_price_feed = None  # Set by main.py for real-time price cache
 
         # Stats
         self.tp1_hits = 0
@@ -337,7 +340,7 @@ class PositionManager:
         self.avg_downs = 0
 
     async def run(self):
-        """Main position management loop — checks every 30 seconds."""
+        """Main position management loop — checks every 5 seconds (price from Axiom cache, REST throttled to 30s)."""
         logger.info(
             f"[PositionManager/{self.chain_name}] Started\n"
             f"  TP1: +{self.tp1_pct}% → sell {self.tp1_sell*100:.0f}%\n"
@@ -353,7 +356,7 @@ class PositionManager:
                 await self._management_cycle()
             except Exception as e:
                 logger.error(f"[PositionManager/{self.chain_name}] Error: {e}")
-            await asyncio.sleep(30)
+            await asyncio.sleep(5)
 
     async def _management_cycle(self):
         """One full management cycle across all open positions."""
@@ -397,7 +400,32 @@ class PositionManager:
                 await self._evaluate_position(addr, state)
 
     async def _update_price(self, token_address: str, state: PositionState):
-        """Fetch current price and volume from DexScreener."""
+        """
+        Fetch current price — uses AxiomPriceFeed cache when fresh (<5s),
+        falls back to DexScreener REST. REST is throttled to once per 30s so
+        volume/liquidity stay current without hitting rate limits every 5s cycle.
+        """
+        now_ts = time.time()
+        addr_lower = token_address.lower()
+
+        # ── Fast path: Axiom real-time cache ─────────────────────────────────
+        axiom_price = 0.0
+        if self.axiom_price_feed is not None:
+            _cached_price = self.axiom_price_feed.price_cache.get(addr_lower, 0)
+            _cached_ts    = self.axiom_price_feed.price_timestamps.get(addr_lower, 0)
+            if _cached_price > 0 and (now_ts - _cached_ts) < 5.0:
+                axiom_price = _cached_price
+                self._apply_price_update(token_address, state, axiom_price,
+                                         volume_h1=self.axiom_price_feed.volume_cache.get(addr_lower, state.current_volume_usd),
+                                         volume_m5=state.current_m5_volume,
+                                         liquidity_usd=self.axiom_price_feed.liquidity_cache.get(addr_lower, state.current_liquidity_usd))
+
+        # ── REST fetch for volume/liquidity (throttled to 30s) ───────────────
+        last_rest = self._last_rest_fetch.get(addr_lower, 0)
+        if (now_ts - last_rest) < 30.0:
+            return  # Skip REST — volume data still fresh enough
+        self._last_rest_fetch[addr_lower] = now_ts
+
         try:
             url = f"{DEXSCREENER_TOKEN}{token_address}"
             async with aiohttp.ClientSession() as session:
@@ -417,7 +445,7 @@ class PositionManager:
                         pairs,
                         key=lambda p: p.get("liquidity", {}).get("usd", 0)
                     )
-                    price = float(pair.get("priceUsd", 0) or 0)
+                    rest_price = float(pair.get("priceUsd", 0) or 0)
                     volume_data = pair.get("volume", {})
                     volume_h1 = volume_data.get("h1", 0) or 0
                     volume_m5 = volume_data.get("m5", 0) or 0
@@ -425,51 +453,13 @@ class PositionManager:
                         (pair.get("liquidity") or {}).get("usd", 0) or 0
                     )
 
-                    if price > 0:
-                        state.current_price = price
-                        state.current_volume_usd = volume_h1
-                        state.current_h1_volume = volume_h1
-                        state.current_m5_volume = volume_m5
-                        state.current_liquidity_usd = liquidity_usd
-                        if price > state.peak_price:
-                            state.peak_price = price
-                        if state.min_price_usd <= 0 or price < state.min_price_usd:
-                            state.min_price_usd = price
+                    # Use REST price only if Axiom had nothing fresh
+                    price_to_apply = axiom_price if axiom_price > 0 else rest_price
+                    if price_to_apply > 0:
+                        self._apply_price_update(token_address, state, price_to_apply,
+                                                 volume_h1, volume_m5, liquidity_usd)
 
-                        # Update liquidity confirmed flag
-                        MIN_EXIT_LIQUIDITY = 1000
-                        age_seconds = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
-                        if (state.liquidity_confirmed
-                                and liquidity_usd < MIN_EXIT_LIQUIDITY
-                                and age_seconds > 15):
-                            if state.dead_liquidity_since is None:
-                                state.dead_liquidity_since = datetime.now(timezone.utc)
-                        elif liquidity_usd >= MIN_EXIT_LIQUIDITY:
-                            state.dead_liquidity_since = None
-
-                        # Sync live price/PnL back to the trader Position object
-                        if token_address in self.open_positions_ref:
-                            tp = self.open_positions_ref[token_address]
-                            tp.current_price_usd = price
-                            if state.entry_price > 0:
-                                tp.pnl_usd = (
-                                    (price / state.entry_price - 1)
-                                    * getattr(tp, "amount_usd", state.position_size_usd)
-                                )
-
-                        # Set entry volume baseline on first update
-                        if state.entry_volume_usd == 0 and volume_h1 > 0:
-                            state.entry_volume_usd = volume_h1
-                            logger.info(
-                                f"[PositionManager/{self.chain_name}] "
-                                f"📊 Baseline set: {state.token_symbol} "
-                                f"${volume_h1:,.0f}/hr — "
-                                f"stall threshold: "
-                                f"{state.stall_threshold*100:.0f}% "
-                                f"(${volume_h1 * state.stall_threshold:,.0f}/hr)"
-                            )
-
-                    # Add to volume window every N minutes
+                    # Volume window for stall detection (uses REST data only)
                     last_check = self._last_volume_check.get(token_address)
                     if (not last_check or
                             (datetime.now(timezone.utc) - last_check).total_seconds()
@@ -479,11 +469,57 @@ class PositionManager:
                             buys=pair.get("txns", {}).get("h1", {}).get("buys", 0),
                             sells=pair.get("txns", {}).get("h1", {}).get("sells", 0)
                         )
-                        self._last_volume_check[token_address] = \
-                            datetime.now(timezone.utc)
+                        self._last_volume_check[token_address] = datetime.now(timezone.utc)
 
         except Exception as e:
-            logger.debug(f"[PositionManager/{self.chain_name}] Price: {e}")
+            logger.debug(f"[PositionManager/{self.chain_name}] Price REST: {e}")
+
+    def _apply_price_update(self, token_address: str, state: PositionState,
+                             price: float, volume_h1: float,
+                             volume_m5: float, liquidity_usd: float):
+        """Apply a price update to state and sync back to the open position object."""
+        state.current_price = price
+        state.current_volume_usd = volume_h1
+        state.current_h1_volume = volume_h1
+        state.current_m5_volume = volume_m5
+        state.current_liquidity_usd = liquidity_usd
+        if price > state.peak_price:
+            state.peak_price = price
+        if state.min_price_usd <= 0 or price < state.min_price_usd:
+            state.min_price_usd = price
+
+        # Update liquidity confirmed flag
+        MIN_EXIT_LIQUIDITY = 1000
+        age_seconds = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
+        if (state.liquidity_confirmed
+                and liquidity_usd < MIN_EXIT_LIQUIDITY
+                and age_seconds > 15):
+            if state.dead_liquidity_since is None:
+                state.dead_liquidity_since = datetime.now(timezone.utc)
+        elif liquidity_usd >= MIN_EXIT_LIQUIDITY:
+            state.dead_liquidity_since = None
+
+        # Sync live price/PnL back to the trader Position object
+        if token_address in self.open_positions_ref:
+            tp = self.open_positions_ref[token_address]
+            tp.current_price_usd = price
+            if state.entry_price > 0:
+                tp.pnl_usd = (
+                    (price / state.entry_price - 1)
+                    * getattr(tp, "amount_usd", state.position_size_usd)
+                )
+
+        # Set entry volume baseline on first update
+        if state.entry_volume_usd == 0 and volume_h1 > 0:
+            state.entry_volume_usd = volume_h1
+            logger.info(
+                f"[PositionManager/{self.chain_name}] "
+                f"📊 Baseline set: {state.token_symbol} "
+                f"${volume_h1:,.0f}/hr — "
+                f"stall threshold: "
+                f"{state.stall_threshold*100:.0f}% "
+                f"(${volume_h1 * state.stall_threshold:,.0f}/hr)"
+            )
 
     async def _evaluate_position(self, token_address: str, state: PositionState):
         """Check all exit and management rules for one position."""

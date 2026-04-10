@@ -415,6 +415,7 @@ async def main():
             sol_rt_layer.ob_scorer._axiom_feed = axiom.price_feed
             sol_scanner.axiom_price_feed = axiom.price_feed
             axiom.price_feed.position_manager = sol_position_mgr  # event-driven stop loss
+            sol_position_mgr.axiom_price_feed = axiom.price_feed  # fast price cache for mgmt cycle
 
         # DexScreener real-time WebSocket feed — sub-second stop accuracy
         # price_feed is already started in tasks; wire it to the position manager
