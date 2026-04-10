@@ -32,6 +32,7 @@ Backtest:  python backtest/run_backtest.py
 
 import asyncio
 import logging
+import time as _time
 from utils.config import Config
 from utils.telegram_bot import TelegramNotifier
 from core.risk_manager import RiskManager
@@ -66,6 +67,74 @@ logging.basicConfig(
     handlers=[logging.FileHandler("bot.log"), logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
+
+_ANOMALY_NO_BUYS_HOURS   = 2.0    # alert if no buy in this many hours
+_ANOMALY_SILENT_MINS     = 30     # alert if scanner evaluated=0 for this long
+_ANOMALY_WS_FAILURES     = 10     # already logged as ERROR in price_feed, but also surface here
+_WATCHDOG_INTERVAL_SECS  = 300    # check every 5 minutes
+
+
+async def _anomaly_watchdog(scanners: list, price_feed, dashboard, telegram):
+    """
+    Background task: checks for persistent bot health problems every 5 minutes.
+    Fires [ANOMALY] log lines (ERROR level) and appends to dashboard._anomaly_log.
+    Covers the gaps where silent failures would otherwise go unnoticed.
+    """
+    await asyncio.sleep(60)  # let bot fully start before first check
+    last_silent_alert: float = 0.0
+
+    while True:
+        await asyncio.sleep(_WATCHDOG_INTERVAL_SECS)
+        now = _time.monotonic()
+        anomalies = []
+
+        for scanner in scanners:
+            chain = getattr(getattr(scanner, "chain", None), "name", "unknown")
+
+            # ── No buys in N hours ────────────────────────────────────────────
+            last_buy = getattr(scanner, "_last_buy_time", 0)
+            if last_buy > 0:
+                hours_since = (now - last_buy) / 3600
+                if hours_since >= _ANOMALY_NO_BUYS_HOURS:
+                    anomalies.append(
+                        f"[{chain}] No buy in {hours_since:.1f}h "
+                        f"(signals_fired={getattr(scanner, 'signals_fired', 0)})"
+                    )
+
+            # ── Scanner evaluated=0 — completely silent ───────────────────────
+            # signals_fired hasn't moved AND scanner has been running > SILENT_MINS
+            # We check this by comparing signals_blocked_score (proxy for "scanner is running")
+            # If both fired and all blocked counts are 0 and uptime > threshold, scanner may be stuck
+            fired   = getattr(scanner, "signals_fired", 0)
+            blocked = (getattr(scanner, "signals_blocked_score", 0) +
+                       getattr(scanner, "signals_blocked_age", 0) +
+                       getattr(scanner, "signals_blocked_security", 0))
+            uptime_mins = (now - getattr(scanner, "_start_monotonic", now)) / 60
+            if fired == 0 and blocked == 0 and uptime_mins > _ANOMALY_SILENT_MINS:
+                if (now - last_silent_alert) > 3600:  # don't repeat within 1h
+                    last_silent_alert = now
+                    anomalies.append(
+                        f"[{chain}] Scanner evaluated 0 tokens in {uptime_mins:.0f}min — "
+                        f"may be stuck or misconfigured"
+                    )
+
+        # ── DexScreener WS broken ─────────────────────────────────────────────
+        ws_failures = getattr(price_feed, "ws_consecutive_failures", 0)
+        ws_connected = getattr(price_feed, "ws_connected", False)
+        if not ws_connected and ws_failures >= _ANOMALY_WS_FAILURES:
+            anomalies.append(
+                f"DexScreener WS down ({ws_failures} consecutive failures) — "
+                f"endpoint may have changed, polling-only mode"
+            )
+
+        # ── Fire alerts ───────────────────────────────────────────────────────
+        for msg in anomalies:
+            logger.error(f"[ANOMALY] {msg}")
+            # Push to dashboard anomaly log (rolling 20)
+            if hasattr(dashboard, "_anomaly_log"):
+                dashboard._anomaly_log.append(msg)
+                if len(dashboard._anomaly_log) > 20:
+                    dashboard._anomaly_log.pop(0)
 
 
 async def main():
@@ -172,12 +241,14 @@ async def main():
         sol_cap = config.total_capital
 
         sol_risk = RiskManager(sol_cap, config.max_position_pct,
-                               config.daily_loss_limit)
+                               config.daily_loss_limit,
+                               max_position_usd=config.max_position_usd)
         dashboard.register_provider(sol_risk)
         SOLANA.rpc_url = config.solana_rpc_url
         sol_trader = Trader(config.solana_private_key, config.solana_rpc_url,
                             tracker, telegram, sol_risk,
-                            stop_loss_pct=config.stop_loss_pct)
+                            stop_loss_pct=config.stop_loss_pct,
+                            kill_switch=kill_switch)
         dashboard.register_trader(sol_trader)
         kill_switch.register_trader(sol_trader)
 
@@ -188,12 +259,17 @@ async def main():
             chain=SOLANA, trader=sol_trader,
             security_checker=security, telegram=telegram,
             min_mcap=config.min_mcap, max_mcap=config.max_mcap,
-            min_combined_score=adaptive_threshold.get_threshold("solana"),
+            max_volume_h1_usd=config.max_volume_h1_usd,
+            min_combined_score=config.min_combined_score,  # Hard floor — bypass adaptive threshold
+            max_combined_score=config.max_combined_score,
             startup_delay=0,
             sentiment_analyzer=sentiment,
             rug_classifier=rug_classifier,
             tracker=tracker,
-            scanner_keywords=config.scanner_keywords
+            scanner_keywords=config.scanner_keywords,
+            chart_min_score=config.chart_min_score,
+            chart_chaos_range_pct=config.chart_chaos_range_pct,
+            chart_dead_vol_ratio=config.chart_dead_vol_ratio
         )
         # Load seed wallets from /data/seed_wallets.json (dashboard-managed)
         import json as _json, os as _os
@@ -242,6 +318,14 @@ async def main():
             avg_down_max_loss_pct=config.avg_down_max_loss_pct,
             avg_down_min_volume_pct=config.avg_down_min_volume_pct,
             avg_down_size_pct=config.avg_down_size_pct,
+            mc_tp1_pct=config.mc_tp1_pct,
+            mc_tp1_sell=config.mc_tp1_sell,
+            mc_tp2_pct=config.mc_tp2_pct,
+            mc_tp2_sell=config.mc_tp2_sell,
+            mc_tp3_pct=config.mc_tp3_pct,
+            mc_tp3_sell=config.mc_tp3_sell,
+            mc_stop_loss_pct=config.mc_stop_loss_pct,
+            mc_winner_trail_pct=config.mc_winner_trail_pct,
             scalper=sol_scalper,
             scanner=sol_scanner
         )
@@ -257,16 +341,25 @@ async def main():
 
         helius_key = config.solana_rpc_url.split("api-key=")[-1] \
             if "api-key=" in config.solana_rpc_url else ""
-        sol_monitor = SolanaProgramMonitor(
-            helius_api_key=helius_key,
-            large_buy_threshold_sol=config.large_buy_threshold_sol
-        ) if helius_key else None
+        # SolanaProgramMonitor requires Helius WebSocket — disabled until Helius
+        # quota is restored (constant 429s cause log spam and waste reconnect cycles)
+        sol_monitor = None
+
+        async def _auto_kill_check():
+            while True:
+                await asyncio.sleep(60)
+                reason = kill_switch.check_auto_triggers(
+                    sol_risk.daily_pnl, config.total_capital
+                )
+                if reason:
+                    await kill_switch.trigger(reason)
 
         tasks += [
             sol_scanner.run(),
             sol_scalper.run(),
             sol_position_mgr.run(),
-            sol_rt_layer.run()
+            sol_rt_layer.run(),
+            _auto_kill_check()
         ]
         if sol_monitor:
             tasks.append(sol_monitor.run())
@@ -274,7 +367,7 @@ async def main():
         # ── Edge Strategies ──────────────────────────────────────────────
         sol_convergence = CrossWalletConvergenceStrategy(
             scanner=sol_scanner, telegram=telegram,
-            helius_api_key=helius_key,
+            helius_api_key="",  # Helius disabled — no credits
             wallet_quality_scores=_seed_wallets,
             poll_interval_sec=120,  # was 30s — cuts Helius usage 4x
         )
@@ -282,7 +375,7 @@ async def main():
         dashboard.register_scanner("solana", sol_scanner)
 
         sol_clustering = WalletClusteringStrategy(
-            helius_api_key=helius_key,
+            helius_api_key="",  # Helius disabled — no credits
             telegram=telegram,
             convergence_strategy=sol_convergence,
             min_cluster_score=60.0,
@@ -293,6 +386,14 @@ async def main():
             min_setup_quality=65.0, scan_interval_seconds=60,
         )
         tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run()]
+
+        dashboard.register_strategies(
+            scanner=sol_scanner,
+            scalper=sol_scalper,
+            convergence=sol_convergence,
+            clustering=sol_clustering,
+            capitulation=sol_capitulation,
+        )
 
         # ── Axiom Real-Time Feed ──────────────────────────────────────────
         axiom = AxiomIntegration(config=config)
@@ -312,6 +413,21 @@ async def main():
         if axiom.price_feed:
             sol_trader.register_axiom_price_feed(axiom.price_feed)
             sol_rt_layer.ob_scorer._axiom_feed = axiom.price_feed
+            sol_scanner.axiom_price_feed = axiom.price_feed
+            axiom.price_feed.position_manager = sol_position_mgr  # event-driven stop loss
+
+        # DexScreener real-time WebSocket feed — sub-second stop accuracy
+        # price_feed is already started in tasks; wire it to the position manager
+        # so every tick fires check_stop_loss_realtime() directly.
+        price_feed.position_manager = sol_position_mgr
+        sol_trader.register_dex_price_feed(price_feed)
+
+        # Register AxiomScanner for relay mode token injection
+        if axiom.scanner:
+            dashboard.register_axiom_scanner(axiom.scanner)
+        # Register EstablishedScanner for MC Radar panel
+        if axiom.trending_scanner:
+            dashboard.register_established_scanner(axiom.trending_scanner)
 
         chain_summaries.append(f"Solana — ${sol_cap:,.0f}")
 
@@ -319,12 +435,16 @@ async def main():
         logger.error("No chains enabled in config.json")
         return
 
+    # Collect all scanner instances for the anomaly watchdog
+    all_scanners = list(dashboard._scanners.values())
+
     tasks += [
         price_feed.run(),
         market_monitor.run(),
         dashboard.run(),
         tracker.run_dashboard(),
-        kill_handler.run()
+        kill_handler.run(),
+        _anomaly_watchdog(all_scanners, price_feed, dashboard, telegram),
     ]
 
     await telegram.send(

@@ -3,17 +3,24 @@ Risk Manager
 Controls position sizing, daily loss limits, and overall capital protection.
 """
 
+import json
 import logging
+import os
 from datetime import datetime, timezone, date
 
 logger = logging.getLogger(__name__)
 
+_DATA_DIR = os.environ.get("DATA_DIR", ".")
+_RISK_STATE_FILE = os.path.join(_DATA_DIR, "risk_state.json")
+
 
 class RiskManager:
-    def __init__(self, total_capital: float, max_position_pct: float, daily_loss_limit: float):
+    def __init__(self, total_capital: float, max_position_pct: float, daily_loss_limit: float,
+                 max_position_usd: float = 0.0):
         self.total_capital = total_capital
         self.available_capital = total_capital
         self.max_position_pct = max_position_pct
+        self.max_position_usd = max_position_usd  # hard cap — prevents compounding runaway
         self.daily_loss_limit = daily_loss_limit
 
         self.daily_pnl = 0.0
@@ -21,6 +28,60 @@ class RiskManager:
         self.total_pnl = 0.0
         self.trades_today = 0
         self.config_min_copy_sol = 0.5  # Minimum SOL size to copy
+
+        # Restore available_capital from disk so restarts don't over-allocate
+        self._load_state()
+
+    def _load_state(self):
+        """Restore available_capital from disk (survives restarts).
+
+        On restart, open positions from the previous session are NOT restored
+        (they only live in memory). Any deployed_capital saved in the state file
+        represents positions that are now gone, so we return it to available.
+        This prevents capital from leaking on every redeploy.
+
+        One-time migration: old state files have no deployed_capital field.
+        On first run with this code, reset to total_capital (abandoned positions
+        from previous sessions are treated as liquidated at cost, P&L = 0).
+        """
+        try:
+            if os.path.exists(_RISK_STATE_FILE):
+                with open(_RISK_STATE_FILE) as f:
+                    state = json.load(f)
+
+                if "deployed_capital" not in state:
+                    # Old format — one-time migration: return all capital
+                    self.available_capital = self.total_capital
+                    logger.info(
+                        f"[RiskManager] Capital migration: reset to ${self.total_capital:.0f} "
+                        f"(old state had no position tracking; abandoned positions cleared)"
+                    )
+                    self._save_state()
+                    return
+
+                saved = float(state.get("available_capital", self.total_capital))
+                # Deployed capital = positions that were open at shutdown.
+                # Since positions are not persisted, they're gone — return that capital.
+                deployed = float(state.get("deployed_capital", 0.0))
+                restored = min(saved + deployed, self.total_capital)
+                self.available_capital = restored
+                logger.info(
+                    f"[RiskManager] Restored available_capital: ${self.available_capital:.0f} "
+                    f"(total: ${self.total_capital:.0f}, reclaimed deployed: ${deployed:.0f})"
+                )
+        except Exception as e:
+            logger.warning(f"[RiskManager] Could not load risk state: {e}")
+
+    def _save_state(self):
+        """Persist available_capital to disk after every buy/sell."""
+        try:
+            with open(_RISK_STATE_FILE, "w") as f:
+                json.dump({
+                    "available_capital": self.available_capital,
+                    "deployed_capital": self.total_capital - self.available_capital,
+                }, f)
+        except Exception as e:
+            logger.warning(f"[RiskManager] Could not save risk state: {e}")
 
     def get_position_size(self) -> float:
         """Calculate safe position size in USD."""
@@ -33,6 +94,9 @@ class RiskManager:
         max_position = self.available_capital * self.max_position_pct
         # Never risk more than available capital
         position = min(max_position, self.available_capital * 0.10)
+        # Hard cap — prevents position sizes from compounding as paper capital grows
+        if self.max_position_usd > 0:
+            position = min(position, self.max_position_usd)
         logger.info(f"💰 Position size: ${position:.0f} ({self.max_position_pct*100:.0f}% of ${self.available_capital:.0f})")
         return position
 
@@ -45,6 +109,7 @@ class RiskManager:
         """Record a buy and reduce available capital."""
         self.available_capital -= usd_spent
         self.trades_today += 1
+        self._save_state()
         logger.info(f"📊 Capital remaining: ${self.available_capital:.0f}")
 
     def record_sell(self, usd_received: float, pnl: float):
@@ -52,6 +117,7 @@ class RiskManager:
         self.available_capital += usd_received
         self.daily_pnl += pnl
         self.total_pnl += pnl
+        self._save_state()
         logger.info(
             f"📊 PnL today: ${self.daily_pnl:+.0f} | "
             f"Total: ${self.total_pnl:+.0f} | "

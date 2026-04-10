@@ -107,7 +107,17 @@ class AxiomSmartWalletTracker:
             except Exception as e:
                 err = str(e).lower()
                 is_auth = any(k in err for k in ("auth", "401", "403", "token", "login", "credential"))
-                if is_auth:
+                is_404  = "404" in err
+                if is_404:
+                    # cluster6.axiom.trade returns 404 on Railway datacenter IPs.
+                    # No point retrying fast — back off 1 hour to stop log spam.
+                    logger.warning(
+                        "[AxiomWallets] cluster6 returned 404 (datacenter IP block) — "
+                        "pausing 1h. Wallet WebSocket signals unavailable; "
+                        "AxiomScanner + CrossWalletConvergence still active."
+                    )
+                    await asyncio.sleep(3600)
+                elif is_auth:
                     _auth_failures += 1
                     if _auth_failures >= _MAX_AUTH_FAILURES:
                         logger.warning(
@@ -115,7 +125,7 @@ class AxiomSmartWalletTracker:
                             "token expired or invalid. Pausing 30 min. "
                             "Update AXIOM_AUTH_TOKEN + AXIOM_REFRESH_TOKEN in Railway Variables to restore."
                         )
-                        await asyncio.sleep(1800)  # 30 min — stop spamming
+                        await asyncio.sleep(1800)
                         _auth_failures = 0
                         continue
                     logger.warning(
@@ -132,40 +142,104 @@ class AxiomSmartWalletTracker:
 
     async def _connect_and_stream(self):
         """Establish connection, subscribe all wallets, stream until disconnect."""
+        import os
+
         token_valid = await self.auth.ensure_valid_token()
         if not token_valid:
             raise Exception("Could not obtain valid Axiom token")
 
+        relay_url    = os.environ.get("AXIOM_REFRESH_RELAY_URL", "")
+        relay_secret = os.environ.get("AXIOM_REFRESH_RELAY_SECRET", "")
+        worker_base  = relay_url.replace("/refresh", "").rstrip("/") if relay_url else ""
+
+        if worker_base and relay_secret:
+            await self._worker_proxy_stream(worker_base, relay_secret)
+            return
+
+        # ── Fallback: library direct (may be 404-blocked on Railway) ─────────────
+        logger.warning(
+            "[AxiomWallets] AXIOM_REFRESH_RELAY_URL not set — "
+            "connecting directly (may be blocked on Railway)"
+        )
         client = self.auth.get_client()
         if not client:
             raise Exception("Could not create AxiomTradeClient")
 
         ws = client.get_websocket_client()
+        ws.ws_url = "wss://cluster9.axiom.trade/"
 
-        logger.info(
-            f"[AxiomWallets] Subscribing to {len(self.wallets)} wallet feeds"
-        )
-
-        # Subscribe to each wallet BEFORE calling start()
         for wallet_address in self.wallets:
-            # Build a closure to capture wallet_address correctly
             def make_callback(addr):
                 async def _on_tx(tx_data: dict):
                     await self._handle_transaction(addr, tx_data)
                 return _on_tx
+            await ws.subscribe_wallet_transactions(wallet_address, make_callback(wallet_address))
 
-            await ws.subscribe_wallet_transactions(
-                wallet_address, make_callback(wallet_address)
-            )
+        logger.info("[AxiomWallets] All wallet subscriptions active — listening for buys")
+        await ws.start()
+        raise Exception("WebSocket closed cleanly")
+
+    async def _worker_proxy_stream(self, worker_base: str, secret: str):
+        """
+        Stream wallet transactions via the Cloudflare Worker relay.
+
+        Axiom protocol for wallet transactions:
+          subscribe: {"action": "join", "room": "v:<wallet_address>"}
+          messages:  {"room": "v:<wallet_address>", "content": {tx_data}}
+        """
+        import json as _json
+        import urllib.parse as _up
+        import websockets as _ws_lib
+
+        access  = self.auth.auth_token    or ""
+        refresh = self.auth.refresh_token or ""
+        qs = _up.urlencode({
+            "s":             secret,
+            "access_token":  access,
+            "refresh_token": refresh,
+        })
+        ws_base   = worker_base.replace("https://", "wss://").replace("http://", "ws://")
+        proxy_url = f"{ws_base}/ws-proxy?{qs}"
 
         logger.info(
-            f"[AxiomWallets] All wallet subscriptions active — listening for buys"
+            f"[AxiomWallets] Connecting via Cloudflare Worker proxy "
+            f"({len(self.wallets)} wallets)"
         )
+        try:
+            async with _ws_lib.connect(proxy_url) as ws:
+                for wallet_address in self.wallets:
+                    await ws.send(_json.dumps({
+                        "action": "join",
+                        "room":   f"v:{wallet_address}",
+                    }))
 
-        # start() blocks until disconnect
-        await ws.start()
+                logger.info(
+                    f"[AxiomWallets] Worker proxy connected — "
+                    f"listening for buys on {len(self.wallets)} wallets"
+                )
 
-        # If start() returns cleanly, connection closed — trigger reconnect
+                async for message in ws:
+                    try:
+                        data    = _json.loads(message)
+                        room    = data.get("room", "")
+                        content = data.get("content")
+
+                        if content and room.startswith("v:"):
+                            wallet_addr = room[2:]
+                            if wallet_addr in self.wallets:
+                                await self._handle_transaction(wallet_addr, content)
+
+                    except _json.JSONDecodeError:
+                        pass
+                    except Exception as e:
+                        logger.debug(f"[AxiomWallets] Message error: {e}")
+
+        except Exception as e:
+            err = str(e).lower()
+            if "401" in err or "unauthorized" in err:
+                raise Exception(f"Worker proxy auth failed: {e}")
+            raise Exception(f"Worker proxy WebSocket error: {e}")
+
         raise Exception("WebSocket closed cleanly")
 
     async def _handle_transaction(self, wallet_address: str, tx_data: dict):
@@ -284,7 +358,7 @@ class AxiomSmartWalletTracker:
             # Enrichment check (holder concentration + dev history)
             if pair_address:
                 from feeds.axiom_scanner import axiom_enrich_check
-                passed, reason = await axiom_enrich_check(
+                passed, reason, _ = await axiom_enrich_check(
                     self.auth, pair_address, deployer_address
                 )
                 if not passed:

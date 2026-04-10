@@ -96,6 +96,7 @@ class WalletClusteringStrategy:
 
         self.helius_rpc    = HELIUS_RPC_TPL.format(api_key=helius_api_key)
         self.helius_txn    = HELIUS_TXN_TPL.format(api_key=helius_api_key)
+        self._helius_enabled = bool(helius_api_key)
         self.telegram      = telegram
         self.convergence   = convergence_strategy   # CrossWalletConvergenceStrategy
         self.min_score     = min_cluster_score
@@ -132,6 +133,8 @@ class WalletClusteringStrategy:
             await asyncio.sleep(self.rescan_secs)
 
     async def _scan_cycle(self):
+        if not self._helius_enabled:
+            return
         logger.info("[WalletClustering] Starting scan cycle…")
         winners = await self._find_winning_tokens()
         logger.info(f"[WalletClustering] Found {len(winners)} winning tokens to analyse")
@@ -147,10 +150,10 @@ class WalletClusteringStrategy:
             self.tokens_scanned += 1
 
             buyers = await self._find_early_buyers(token)
-            token.early_buyers = buyers
+            token.early_buyers = [b for b, _ in buyers]
 
-            for wallet in buyers:
-                await self._score_wallet(wallet, token)
+            for wallet, tx_time in buyers:
+                await self._score_wallet(wallet, token, tx_time)
 
         await self._evaluate_wallets()
 
@@ -227,12 +230,12 @@ class WalletClusteringStrategy:
                     continue
                 tx_time = datetime.fromtimestamp(block_time, tz=timezone.utc)
                 if token.launch_time <= tx_time <= cutoff:
-                    early_sigs.append(sig_info["signature"])
+                    early_sigs.append((sig_info["signature"], tx_time))
 
-            for sig in early_sigs[:MAX_TXS_PER_TOKEN]:
+            for sig, tx_time in early_sigs[:MAX_TXS_PER_TOKEN]:
                 buyer = await self._parse_buyer_from_tx(sig)
                 if buyer and buyer not in early_buyers:
-                    early_buyers.append(buyer)
+                    early_buyers.append((buyer, tx_time))
 
         except Exception as e:
             logger.debug(f"[WalletClustering] Early buyer error {token.symbol}: {e}")
@@ -267,7 +270,8 @@ class WalletClusteringStrategy:
             pass
         return None
 
-    async def _score_wallet(self, wallet: str, token: WinningToken):
+    async def _score_wallet(self, wallet: str, token: WinningToken,
+                            tx_time: datetime):
         if wallet not in self.wallet_scores:
             self.wallet_scores[wallet] = WalletScore(
                 address=wallet,
@@ -283,7 +287,8 @@ class WalletClusteringStrategy:
             / score.wins
         )
         score.last_seen = datetime.now(timezone.utc)
-        score.earliest_buy_minutes.append(float(EARLY_BUYER_MINUTES / 2))
+        minutes_from_launch = (tx_time - token.launch_time).total_seconds() / 60
+        score.earliest_buy_minutes.append(minutes_from_launch)
 
     async def _evaluate_wallets(self):
         for wallet, score in self.wallet_scores.items():

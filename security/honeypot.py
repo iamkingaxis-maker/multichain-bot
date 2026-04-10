@@ -1,11 +1,11 @@
 """
 Honeypot & Token Security Checker
 Runs every token through multiple security checks before any buy.
-Uses GoPlus Security API + on-chain analysis.
+Uses Rugcheck.xyz for Solana tokens; GoPlus Security API for EVM chains (Base, BSC).
 
 Checks performed:
   - Honeypot detection (can you actually sell?)
-  - Buy/sell tax detection
+  - Buy/sell tax / transfer fee detection
   - Mint authority (can dev print more tokens?)
   - Freeze authority (can dev freeze wallets?)
   - Blacklist function (can dev block sellers?)
@@ -13,6 +13,8 @@ Checks performed:
   - Top holder concentration
   - Dev wallet holdings
   - Liquidity lock status
+  - Known rug detection (Rugcheck rugged flag)
+  - Danger-level risk flags from Rugcheck
 """
 
 import asyncio
@@ -25,13 +27,41 @@ from datetime import datetime, timezone, timedelta
 logger = logging.getLogger(__name__)
 
 GOPLUS_API = "https://api.gopluslabs.io/api/v1"
+RUGCHECK_API = "https://api.rugcheck.xyz/v1"
 
-# GoPlus chain IDs
+# GoPlus chain IDs (EVM only — Solana uses Rugcheck)
 GOPLUS_CHAIN_IDS = {
-    "solana": "solana",
-    "base":   "8453",
-    "bsc":    "56"
+    "base": "8453",
+    "bsc":  "56"
 }
+
+# Known Solana AMM/DEX pool program addresses — these hold token supply
+# as part of normal LP mechanics and should not count toward whale concentration.
+_SOLANA_POOL_ADDRESSES_RAW = [
+    # Raydium
+    "5Q2hXp3CN4L8RG4A84RK5L6W3nNm9J5dHKGFwqXQEYq",  # Raydium AMM authority
+    "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",  # Raydium AMM program
+    "HVh24gnqJTR46BUKiU8sSUDRFLCYGqxWqhCzl4WM4sv",  # Raydium CLMM authority
+    # Orca Whirlpools
+    "2LMKSFm7U4NRQgE3NJmEjw2MpJqHvbxnbejhZuRkC3B",  # Orca Whirlpool authority
+    "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",  # Orca Whirlpool program
+    # Meteora
+    "Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EkAXqzn",  # Meteora DLMM
+    "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",  # Meteora LB pair program
+    # pump.fun bonding curve & migration
+    "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",  # pump.fun program
+    "Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1", # pump.fun bonding curve authority
+    "39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg",  # pump.fun migration authority
+    # Jupiter aggregator vaults
+    "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",  # Jupiter v6 program
+]
+# Normalize to lowercase once at import time
+SOLANA_POOL_ADDRESSES = {a.lower() for a in _SOLANA_POOL_ADDRESSES_RAW}
+
+
+def _is_pool_address(address: str) -> bool:
+    """Return True if the address is a known AMM pool/program (not a real holder)."""
+    return address.lower() in SOLANA_POOL_ADDRESSES
 
 
 @dataclass
@@ -51,6 +81,7 @@ class SecurityResult:
     dev_holding_pct: float = 0.0
     liquidity_locked: bool = False
     lp_lock_data_available: bool = False   # True only when GoPlus returned LP lock data
+    _micro_cap: bool = False               # Passed through from check() call
     flags: list = field(default_factory=list)
     warnings: list = field(default_factory=list)
     checked_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -91,30 +122,39 @@ class SecurityChecker:
         self.cache_ttl = cache_ttl_seconds
 
         # Cache results to avoid re-checking same token
-        self._cache: Dict[str, SecurityResult] = {}
+        # Format: cache_key → (result, expires_at) where expires_at is time.time() + TTL
+        self._cache: dict = {}
         self._check_count = 0
         self._block_count = 0
 
     async def check(self, token_address: str, chain_id: str,
-                    token_symbol: str = "?") -> SecurityResult:
+                    token_symbol: str = "?",
+                    micro_cap: bool = False) -> SecurityResult:
         """
         Main entry point. Run all security checks on a token.
         Returns SecurityResult with passed=True only if safe to trade.
-        """
-        cache_key = f"{chain_id}:{token_address.lower()}"
 
-        # Return cached result if still fresh
-        if cache_key in self._cache:
-            cached = self._cache[cache_key]
-            age = (datetime.now(timezone.utc) - cached.checked_at).total_seconds()
-            if age < self.cache_ttl:
-                return cached
+        micro_cap=True: relaxes LP lock and holder concentration checks for
+        freshly launched tokens where these are structurally expected.
+        Still blocks on honeypot, mintable, freeze authority, and high taxes.
+        """
+        import time as _t
+        cache_key = f"{token_address.lower()}:{chain_id}:{'mc' if micro_cap else 'std'}"
+        cached = self._cache.get(cache_key)
+        if cached:
+            result, expires_at = cached
+            if _t.time() < expires_at:
+                return result
 
         self._check_count += 1
         logger.info(f"🔍 Security check #{self._check_count}: {token_symbol} on {chain_id}")
 
-        result = await self._run_checks(token_address, chain_id)
-        self._cache[cache_key] = result
+        result = await self._run_checks(token_address, chain_id, micro_cap=micro_cap)
+
+        self._cache[cache_key] = (result, _t.time() + 300)
+        if len(self._cache) > 500:
+            for old_key in list(self._cache.keys())[:100]:
+                self._cache.pop(old_key, None)
 
         if not result.passed:
             self._block_count += 1
@@ -131,23 +171,34 @@ class SecurityChecker:
 
         return result
 
-    async def _run_checks(self, token_address: str, chain_id: str) -> SecurityResult:
+    async def _run_checks(self, token_address: str, chain_id: str,
+                          micro_cap: bool = False) -> SecurityResult:
         """Run all checks and build the result."""
         result = SecurityResult(
             token_address=token_address,
             chain_id=chain_id,
             passed=False,
-            risk_level="UNKNOWN"
+            risk_level="UNKNOWN",
+            _micro_cap=micro_cap
         )
 
         try:
-            goplus_data = await self._fetch_goplus(token_address, chain_id)
-            if goplus_data:
-                self._parse_goplus(goplus_data, result)
+            if chain_id == "solana":
+                # Use Rugcheck for Solana — GoPlus returns null for SPL tokens
+                rugcheck_data = await self._fetch_rugcheck(token_address)
+                if rugcheck_data:
+                    self._parse_rugcheck(rugcheck_data, result, micro_cap=micro_cap)
+                else:
+                    result.warnings.append("Rugcheck unavailable — basic checks only")
+                    await self._basic_dexscreener_check(token_address, chain_id, result)
             else:
-                # If GoPlus unavailable, run basic checks only
-                result.warnings.append("GoPlus unavailable — basic checks only")
-                await self._basic_dexscreener_check(token_address, chain_id, result)
+                # EVM chains (Base, BSC) — use GoPlus
+                goplus_data = await self._fetch_goplus(token_address, chain_id)
+                if goplus_data:
+                    self._parse_goplus(goplus_data, result)
+                else:
+                    result.warnings.append("GoPlus unavailable — basic checks only")
+                    await self._basic_dexscreener_check(token_address, chain_id, result)
 
         except Exception as e:
             logger.error(f"Security check error for {token_address}: {e}")
@@ -160,14 +211,198 @@ class SecurityChecker:
         result.passed = self._make_decision(result)
         return result
 
-    async def _fetch_goplus(self, token_address: str, chain_id: str) -> Optional[dict]:
-        """Fetch token security data from GoPlus API."""
-        goplus_chain = GOPLUS_CHAIN_IDS.get(chain_id, chain_id)
+    async def _fetch_rugcheck(self, mint: str) -> Optional[dict]:
+        """Fetch Solana token security data from Rugcheck.xyz API (no key required)."""
+        url = f"{RUGCHECK_API}/tokens/{mint}/report/summary"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url, timeout=aiohttp.ClientTimeout(total=5)
+                ) as resp:
+                    if resp.status == 400:
+                        # 400 = invalid address format (e.g. lowercase 'l' in base58)
+                        # This is not a transient API error — the address itself is bad.
+                        # Return a sentinel so the caller can BLOCK rather than fall back.
+                        logger.warning(
+                            f"Rugcheck HTTP 400 (invalid address) for {mint[:10]} — blocking"
+                        )
+                        return {"_invalid_address": True}
+                    if resp.status != 200:
+                        logger.warning(
+                            f"Rugcheck HTTP {resp.status} for {mint[:10]}..."
+                        )
+                        return None
+                    data = await resp.json()
+                    logger.debug(
+                        f"Rugcheck raw for {mint[:10]}: "
+                        f"score={data.get('score_normalised')} "
+                        f"rugged={data.get('rugged')} "
+                        f"lpLockedPct={data.get('lpLockedPct')} "
+                        f"mint={data.get('mintAuthority')} "
+                        f"freeze={data.get('freezeAuthority')} "
+                        f"risks={[r.get('name') for r in data.get('risks', [])]}"
+                    )
+                    return data
+        except asyncio.TimeoutError:
+            logger.warning(f"Rugcheck timeout for {mint[:10]}...")
+            return None
+        except Exception as e:
+            logger.debug(f"Rugcheck fetch error: {e}")
+            return None
 
-        if chain_id == "solana":
-            url = f"{GOPLUS_API}/solana/token_security?contract_addresses={token_address}"
+    def _parse_rugcheck(self, data: dict, result: SecurityResult, micro_cap: bool = False):
+        """Parse Rugcheck.xyz summary response into SecurityResult."""
+
+        # Invalid address sentinel — address format rejected by Rugcheck (e.g. bad base58)
+        if data.get("_invalid_address"):
+            result.flags.append("BLOCK: invalid token address — rugcheck rejected (bad base58)")
+            result.risk_level = "BLOCK"
+            return
+
+        # Known rug — hard block
+        if data.get("rugged"):
+            result.honeypot = True
+            result.flags.append("HONEYPOT: known rug (Rugcheck rugged=True)")
+
+        # Mint authority — None means revoked (safe)
+        result.can_mint = data.get("mintAuthority") is not None
+        if result.can_mint:
+            result.flags.append("Mintable token — dev can mint")
+
+        # Freeze authority — None means revoked (safe)
+        result.can_freeze = data.get("freezeAuthority") is not None
+        if result.can_freeze:
+            result.flags.append("Freeze authority active")
+
+        # Transfer fee (acts like sell tax on Solana)
+        transfer_fee_pct = 0.0
+        tf = data.get("transferFee")
+        if isinstance(tf, dict):
+            try:
+                transfer_fee_pct = float(tf.get("pct", 0) or 0)
+            except (ValueError, TypeError):
+                transfer_fee_pct = 0.0
+        result.sell_tax = transfer_fee_pct  # map to sell_tax field for downstream logic
+        if transfer_fee_pct > self.max_sell_tax:
+            result.flags.append(f"High transfer fee {transfer_fee_pct:.1f}% — acts as sell tax")
+        elif transfer_fee_pct > 5:
+            result.warnings.append(f"Transfer fee {transfer_fee_pct:.1f}%")
+
+        # LP lock
+        lp_locked_pct = data.get("lpLockedPct")
+        result.lp_lock_data_available = lp_locked_pct is not None
+        if lp_locked_pct is not None:
+            result.liquidity_locked = float(lp_locked_pct or 0) > 0
+            if not result.liquidity_locked:
+                if micro_cap:
+                    # Fresh micro-cap launches rarely have LP locked immediately —
+                    # treat as warning only, not a hard block
+                    result.warnings.append("LP not locked (micro-cap — expected for fresh launch)")
+                else:
+                    result.flags.append("Liquidity not locked — rug risk")
+            else:
+                logger.info(
+                    f"Rugcheck: LP locked {lp_locked_pct:.1f}% "
+                    f"for {result.token_address[:10]}..."
+                )
         else:
-            url = f"{GOPLUS_API}/token_security/{goplus_chain}?contract_addresses={token_address}"
+            result.warnings.append("LP lock data unavailable")
+
+        # Top holder concentration — sum top 10 real holders
+        top_holders = data.get("topHolders", [])
+        if top_holders:
+            _LP_TAGS = {"lp", "liquidity", "liquiditypool", "pool", "amm", "bonding curve"}
+            real_holders = [
+                h for h in top_holders
+                if h.get("insider", False) is not True
+                and h.get("tag", "").lower().strip() not in _LP_TAGS
+                and not _is_pool_address(h.get("address", "") or "")
+            ]
+            top10_pct = sum(
+                float(h.get("pct", 0) or 0)
+                for h in real_holders[:10]
+            )
+            result.top10_concentration = top10_pct
+            # micro_cap: slightly relaxed (80%) vs standard threshold, but still hard blocks
+            # 95% was too loose — 80%+ concentration is a rug setup regardless of age
+            mc_threshold = 80.0 if micro_cap else self.max_top10_concentration
+            if top10_pct > mc_threshold:
+                result.flags.append(
+                    f"Top10 hold {top10_pct:.1f}% — dump risk"
+                )
+            elif top10_pct > 60:
+                result.warnings.append(f"Top10 concentration {top10_pct:.1f}%")
+
+        # Danger-level risks from Rugcheck risks[]
+        risks = data.get("risks", [])
+        danger_risks = [r for r in risks if r.get("level") == "danger"]
+        warn_risks = [r for r in risks if r.get("level") == "warn"]
+
+        # In micro_cap mode, only LP-structure risks are expected for fresh launches
+        # (owner hasn't had time to lock LP yet). Concentration and liquidity danger
+        # flags are NOT structural — a single holder with 80%+ and low liquidity is
+        # a rug setup regardless of token age. Keep those as hard blocks.
+        _MC_WARN_KEYWORDS = (
+            "lp unlocked", "liquidity not locked",
+            "large amount of lp",
+        )
+
+        for risk in danger_risks:
+            name = risk.get("name", "Unknown risk")
+            desc = risk.get("description", "")
+            flag_text = f"{name}: {desc}" if desc else name
+            flag_lower = flag_text.lower()
+
+            if micro_cap and any(kw in flag_lower for kw in _MC_WARN_KEYWORDS):
+                # Structural for fresh launches — warn, don't block
+                result.warnings.append(flag_text)
+            else:
+                result.flags.append(flag_text)
+            logger.info(
+                f"Rugcheck danger risk for {result.token_address[:10]}: {flag_text}"
+            )
+
+        for risk in warn_risks:
+            name = risk.get("name", "Unknown warning")
+            desc = risk.get("description", "")
+            warn_text = f"{name}: {desc}" if desc else name
+            result.warnings.append(warn_text)
+
+        # Overall risk score (informational)
+        score = data.get("score_normalised")
+        if score is not None:
+            try:
+                score_val = float(score)
+                if score_val >= 80:
+                    result.warnings.append(f"Rugcheck risk score {score_val:.0f}/100 (high)")
+                elif score_val >= 50:
+                    result.warnings.append(f"Rugcheck risk score {score_val:.0f}/100 (medium)")
+            except (ValueError, TypeError):
+                pass
+
+        # Risk level determination: any danger flag from Rugcheck → BLOCK.
+        # Danger flags include LP unlocked, creator rug history, mint/freeze authority,
+        # high concentration. All are serious enough to skip the token.
+        if result.flags:
+            result.risk_level = "BLOCK"
+        elif len(result.warnings) >= 3:
+            result.risk_level = "CAUTION"
+        else:
+            result.risk_level = "SAFE"
+
+        logger.info(
+            f"Rugcheck parsed {result.token_address[:10]}: "
+            f"risk={result.risk_level} "
+            f"mint={result.can_mint} freeze={result.can_freeze} "
+            f"lp_locked={result.liquidity_locked} "
+            f"top10={result.top10_concentration:.1f}% "
+            f"flags={result.flags}"
+        )
+
+    async def _fetch_goplus(self, token_address: str, chain_id: str) -> Optional[dict]:
+        """Fetch token security data from GoPlus API (EVM chains only)."""
+        goplus_chain = GOPLUS_CHAIN_IDS.get(chain_id, chain_id)
+        url = f"{GOPLUS_API}/token_security/{goplus_chain}?contract_addresses={token_address}"
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -238,12 +473,20 @@ class SecurityChecker:
         if result.is_proxy:
             result.warnings.append("Proxy contract — hidden logic possible")
 
-        # Holder concentration
+        # Holder concentration — skip holders tagged as LP/pool by GoPlus or
+        # matching known Solana AMM program addresses.
+        # GoPlus Solana uses "account" as the address key.
         holders = data.get("holders", [])
         if holders:
+            _LP_TAGS = {"lp", "liquidity", "liquiditypool", "pool", "amm", "bonding curve"}
+            real_holders = [
+                h for h in holders
+                if h.get("tag", "").lower().strip() not in _LP_TAGS
+                and not _is_pool_address(h.get("account", "") or h.get("address", ""))
+            ]
             top10_pct = sum(
                 float(h.get("percent", 0)) * 100
-                for h in holders[:10]
+                for h in real_holders[:10]
             )
             result.top10_concentration = top10_pct
             if top10_pct > self.max_top10_concentration:
@@ -261,7 +504,8 @@ class SecurityChecker:
             dev_holding = next(
                 (float(h.get("percent", 0)) * 100
                  for h in holders
-                 if h.get("address", "").lower() == creator.lower()),
+                 if (h.get("account", "") or h.get("address", "")).lower() == creator.lower()
+                 and not _is_pool_address(h.get("account", "") or h.get("address", ""))),
                 0
             )
             result.dev_holding_pct = dev_holding
@@ -339,9 +583,12 @@ class SecurityChecker:
             return False
         if result.dev_holding_pct > self.max_dev_holding_pct:
             return False
-        if result.lp_lock_data_available and not result.liquidity_locked:
-            return False
         if result.risk_level == "BLOCK":
+            return False
+
+        # Unlocked LP is a hard block for established tokens.
+        # Micro-cap fresh launches are exempt — LP lock rarely indexed immediately.
+        if result.lp_lock_data_available and not result.liquidity_locked and not result._micro_cap:
             return False
 
         return True

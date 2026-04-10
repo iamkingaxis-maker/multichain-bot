@@ -10,8 +10,10 @@ We use DexScreener profiles/boosts as the established-token discovery channel.
 """
 
 import asyncio
+import datetime as _dt
 import logging
 import time as _time
+from collections import deque as _deque
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -38,7 +40,14 @@ class AxiomTrendingScanner:
                  min_mcap_usd: float = 50_000,
                  min_liquidity_usd: float = 5_000,
                  min_score: float = 65.0,
-                 poll_interval: int = 60):
+                 poll_interval: int = 15,
+                 micro_cap_enabled: bool = False,
+                 micro_cap_min_usd: float = 10_000,
+                 micro_cap_max_usd: float = 50_000,
+                 micro_cap_position_usd: float = 80.0,
+                 micro_cap_max_snipers_pct: float = 30.0,
+                 micro_cap_max_dev_pct: float = 50.0,
+                 dip_watcher=None):
 
         self.auth            = auth_manager
         self.auth_manager    = auth_manager  # second alias for Axiom-first methods
@@ -55,6 +64,16 @@ class AxiomTrendingScanner:
         self.min_score       = min_score
         self.poll_interval   = poll_interval
 
+        self.micro_cap_enabled      = micro_cap_enabled
+        self.micro_cap_min          = micro_cap_min_usd
+        self.micro_cap_max          = micro_cap_max_usd
+        self.micro_cap_position_usd = micro_cap_position_usd
+        self.micro_cap_max_snipers  = micro_cap_max_snipers_pct
+        self.micro_cap_max_dev      = micro_cap_max_dev_pct
+
+        # Optional dip-watcher — intercepts micro-cap buys to wait for dip+recovery
+        self.dip_watcher = dip_watcher
+
         # Set by connect_to_bot() — routes buys through chart analysis gate
         self.scanner = None
 
@@ -62,6 +81,9 @@ class AxiomTrendingScanner:
         # Tokens are re-evaluated after REEVAL_HOURS — their conditions change over time
         self._seen_tokens: dict = {}
         self._REEVAL_HOURS = 2.0
+
+        # Micro-cap candidates seen but not bought (for dashboard Radar panel)
+        self.mc_candidates: _deque = _deque(maxlen=40)
 
         # Stats
         self.tokens_polled    = 0
@@ -189,124 +211,12 @@ class AxiomTrendingScanner:
             f"polled={polled} | new={new_count} | signals={signals_this_poll}"
         )
 
-    # Endpoint confirmed from JS source (2026-03):
-    #   axiomApiV2.get("/meme-trending-v2", {timePeriod}) on one of the api servers
-    # Primary server first (highest priority, matches JS getCurrentApiUrl default)
-    _AXIOM_API_SERVERS = [
-        "https://api.axiom.trade",
-        "https://api2.axiom.trade",
-        "https://api3.axiom.trade",
-        "https://api6.axiom.trade",
-        "https://api7.axiom.trade",
-        "https://api8.axiom.trade",
-        "https://api9.axiom.trade",
-        "https://api10.axiom.trade",
-    ]
-
     async def _fetch_axiom_trending(self) -> dict:
         """
-        Fetch trending tokens across 1h, 6h, and 24h windows and merge.
-        Uses /meme-trending-v2 endpoint (confirmed from Axiom JS source).
-        Uses curl_cffi to bypass Cloudflare TLS fingerprint checks on datacenter IPs.
-        Returns {token_address: token_dict} or {} on failure.
+        Axiom /meme-trending-v2 endpoint removed — all servers return 404.
+        DexScreener profiles/boosts/volume-search are the discovery channel.
         """
-        if not self.auth_manager:
-            return {}
-        try:
-            from curl_cffi import requests as cffi_requests
-        except ImportError:
-            logger.info("[AxiomTrending] curl_cffi not available — install it to enable trending")
-            return {}
-        try:
-            token_valid = await self.auth_manager.ensure_valid_token()
-            if not token_valid:
-                return {}
-
-            cookie = (
-                f"auth-refresh-token={self.auth_manager.refresh_token}; "
-                f"auth-access-token={self.auth_manager.auth_token or ''}"
-            )
-            headers = {
-                "Accept": "application/json, text/plain, */*",
-                "Origin": "https://axiom.trade",
-                "Referer": "https://axiom.trade/",
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "same-site",
-                "Cookie": cookie,
-            }
-
-            import time as _time
-            import os as _os
-            proxy_url = _os.environ.get("AXIOM_PROXY_URL", "").strip() or None
-
-            loop = asyncio.get_running_loop()
-            result = {}
-
-            for period in ("1h", "6h", "24h"):
-                status, body = 0, ""
-                v = int(_time.time() * 1000)
-                for base in self._AXIOM_API_SERVERS:
-                    url = f"{base}/meme-trending-v2?timePeriod={period}&v={v}"
-                    logger.debug(f"[AxiomTrending] GET {url}")
-                    def _fetch(url=url, headers=headers, proxy_url=proxy_url):
-                        kwargs = dict(headers=headers, impersonate="chrome110", timeout=10)
-                        if proxy_url:
-                            kwargs["proxies"] = {"https": proxy_url, "http": proxy_url}
-                        r = cffi_requests.get(url, **kwargs)
-                        return r.status_code, r.text
-                    try:
-                        status, body = await loop.run_in_executor(None, _fetch)
-                    except Exception as e:
-                        logger.info(f"[AxiomTrending] {url} error: {e}")
-                        continue
-                    if status == 200:
-                        break  # got data, stop trying servers
-                    logger.info(f"[AxiomTrending] {base} → {status}: {body[:60]}")
-
-                if status == 200:
-                    try:
-                        import json as _json
-                        data = _json.loads(body)
-                        raw_list = data if isinstance(data, list) else (
-                            data.get("tokens") or data.get("data") or []
-                        )
-                        before = len(result)
-                        for t in raw_list:
-                            # v2 endpoint returns compact arrays: [pairAddress, tokenAddress, name, ticker, ...]
-                            if isinstance(t, list):
-                                addr = t[1] if len(t) > 1 else ""
-                                token_dict = {
-                                    "tokenAddress": addr,
-                                    "pairAddress": t[0] if len(t) > 0 else "",
-                                    "tokenName": t[2] if len(t) > 2 else "",
-                                    "tokenTicker": t[3] if len(t) > 3 else "",
-                                    "marketCapSol": t[9] if len(t) > 9 else 0,
-                                }
-                            else:
-                                addr = (
-                                    t.get("tokenAddress") or
-                                    t.get("token_address") or
-                                    t.get("address") or ""
-                                )
-                                token_dict = t
-                            if addr and addr not in result:
-                                result[addr] = token_dict
-                        logger.info(
-                            f"[AxiomTrending] {period}: {len(raw_list)} tokens "
-                            f"(+{len(result)-before} new)"
-                        )
-                    except Exception as e:
-                        logger.info(f"[AxiomTrending] {period} parse failed: {e}")
-
-            if result:
-                logger.info(f"[AxiomTrending] Total: {len(result)} trending tokens (1h+6h+24h)")
-            else:
-                logger.info("[AxiomTrending] No trending tokens returned — DexScreener fallback only")
-            return result
-        except Exception as e:
-            logger.info(f"[AxiomTrending] Unavailable: {e}")
-            return {}
+        return {}
 
     async def _evaluate_token(self, token_address: str, token_dict: dict) -> bool:
         """
@@ -330,7 +240,10 @@ class AxiomTrendingScanner:
                 token_dict.get("market_cap") or
                 token_dict.get("marketCapUsd") or 0
             )
-            if mcap_usd > 0 and mcap_usd < self.min_mcap:
+            effective_min_mcap = (
+                self.micro_cap_min if self.micro_cap_enabled else self.min_mcap
+            )
+            if mcap_usd > 0 and mcap_usd < effective_min_mcap:
                 logger.debug(
                     f"[EstablishedScanner] MCap filter drop: {ticker} — ${mcap_usd:,.0f}"
                 )
@@ -347,9 +260,16 @@ class AxiomTrendingScanner:
                 )
                 return False
 
-            # Security check
+            # Security check — use relaxed micro_cap mode for fresh small tokens
+            is_mc_range = (
+                self.micro_cap_enabled
+                and mcap_usd > 0
+                and self.micro_cap_min <= mcap_usd <= self.micro_cap_max
+            )
             if self.security:
-                sec_result = await self.security.check(token_address, "solana", ticker)
+                sec_result = await self.security.check(
+                    token_address, "solana", ticker, micro_cap=is_mc_range
+                )
                 if sec_result and not sec_result.passed:
                     logger.info(
                         f"[EstablishedScanner] Security blocked: {ticker} — "
@@ -369,7 +289,7 @@ class AxiomTrendingScanner:
                 token_dict.get("devAddress") or ""
             )
             if pair_address:
-                passed, reason = await axiom_enrich_check(
+                passed, reason, _ = await axiom_enrich_check(
                     self.auth, pair_address, deployer
                 )
                 if not passed:
@@ -394,6 +314,128 @@ class AxiomTrendingScanner:
 
             # Hard MCap check using real DexScreener data (Axiom API tokens often lack marketCap)
             actual_mcap = float(pair_data.get("marketCap") or 0)
+
+            # ── Micro-cap path ($10k-$50k) ──────────────────────────────────
+            if (
+                self.micro_cap_enabled
+                and actual_mcap > 0
+                and self.micro_cap_min <= actual_mcap <= self.micro_cap_max
+            ):
+                # Gate 1: token must be < 4 hours old — filters stale/dead tokens
+                pair_created_ms = pair_data.get("pairCreatedAt") or 0
+                age_hours = 0.0
+                if pair_created_ms > 0:
+                    age_hours = (_time.time() - pair_created_ms / 1000) / 3600
+                    if age_hours > 4.0:
+                        logger.info(
+                            f"[EstablishedScanner] Micro-cap age drop: {ticker} — "
+                            f"{age_hours:.1f}h old (max 4h)"
+                        )
+                        _liq_rej = (pair_data.get("liquidity") or {}).get("usd") or 0
+                        self.mc_candidates.appendleft({
+                            "time": _dt.datetime.utcnow().strftime("%H:%M:%S"),
+                            "symbol": ticker,
+                            "name": (pair_data.get("baseToken") or {}).get("name") or ticker,
+                            "address": token_address,
+                            "mcap": actual_mcap,
+                            "liquidity": _liq_rej,
+                            "dev_pct": 0,
+                            "snipers_pct": 0,
+                            "lp_burned": False,
+                            "protocol": "DexScreener",
+                            "reject_reason": f"Too old: {age_hours:.1f}h",
+                            "dex_url": f"https://dexscreener.com/solana/{token_address}",
+                        })
+                        return False
+
+                # Gate 2: m5 price check — allow positive momentum OR a dip entry.
+                # MC tokens are volatile; -50% is the crash threshold (dump in
+                # progress). The dead zone (-3% to 0%) is flat/noise with no
+                # clear direction. Everything else is either momentum (> 0) or a
+                # meaningful dip (-3% to -50%) worth entering.
+                pc_m5 = float((pair_data.get("priceChange") or {}).get("m5") or 0)
+                _liq_rej = (pair_data.get("liquidity") or {}).get("usd") or 0
+                if pc_m5 < -50:
+                    logger.info(
+                        f"[EstablishedScanner] Micro-cap dump guard: {ticker} — "
+                        f"m5={pc_m5:+.1f}% (crash, max -50%)"
+                    )
+                    self.mc_candidates.appendleft({
+                        "time": _dt.datetime.utcnow().strftime("%H:%M:%S"),
+                        "symbol": ticker,
+                        "name": (pair_data.get("baseToken") or {}).get("name") or ticker,
+                        "address": token_address,
+                        "mcap": actual_mcap,
+                        "liquidity": _liq_rej,
+                        "dev_pct": 0,
+                        "snipers_pct": 0,
+                        "lp_burned": False,
+                        "protocol": "DexScreener",
+                        "reject_reason": f"Dump: m5={pc_m5:+.1f}% < -50%",
+                        "dex_url": f"https://dexscreener.com/solana/{token_address}",
+                    })
+                    return False
+                if -3 < pc_m5 <= 0:
+                    logger.info(
+                        f"[EstablishedScanner] Micro-cap flat: {ticker} — "
+                        f"m5={pc_m5:+.1f}% (dead zone -3% to 0%, no direction)"
+                    )
+                    self.mc_candidates.appendleft({
+                        "time": _dt.datetime.utcnow().strftime("%H:%M:%S"),
+                        "symbol": ticker,
+                        "name": (pair_data.get("baseToken") or {}).get("name") or ticker,
+                        "address": token_address,
+                        "mcap": actual_mcap,
+                        "liquidity": _liq_rej,
+                        "dev_pct": 0,
+                        "snipers_pct": 0,
+                        "lp_burned": False,
+                        "protocol": "DexScreener",
+                        "reject_reason": f"Flat: m5={pc_m5:+.1f}% (dead zone)",
+                        "dex_url": f"https://dexscreener.com/solana/{token_address}",
+                    })
+                    return False
+                # pc_m5 > 0 (momentum) or pc_m5 <= -3 (dip entry) — proceed
+
+                liq = (pair_data.get("liquidity") or {}).get("usd") or 0
+
+                # Gate 3: minimum liquidity — pools under $3k have slippage so
+                # severe that a -15% stop executes closer to -30% in practice
+                if liq < 3_000:
+                    logger.info(
+                        f"[EstablishedScanner] Micro-cap liquidity drop: {ticker} — "
+                        f"${liq:,.0f} liquidity (need $3k min)"
+                    )
+                    return False
+
+                logger.info(
+                    f"[EstablishedScanner] 🌱 MICRO-CAP SIGNAL: {ticker} | "
+                    f"MCap: ${actual_mcap:,.0f} | m5: {pc_m5:+.1f}% | Liq: ${liq:,.0f}"
+                )
+                self.tokens_evaluated += 1
+                self.signals_fired += 1
+                # Route through DipWatcher if configured, otherwise buy direct
+                _signal_price = float(pair_data.get("priceUsd") or 0)
+                _mc_reason = f"Micro-cap established | ${actual_mcap:,.0f} mcap"
+                if self.dip_watcher:
+                    await self.dip_watcher.watch(
+                        token_address=token_address,
+                        token_symbol=ticker,
+                        reason=_mc_reason,
+                        override_usd=self.micro_cap_position_usd,
+                        signal_price=_signal_price,
+                    )
+                else:
+                    await self.trader.buy(
+                        token_address=token_address,
+                        token_symbol=ticker,
+                        reason=_mc_reason,
+                        signal_score=50,
+                        override_usd=self.micro_cap_position_usd,
+                    )
+                return True
+            # ── End micro-cap path ──────────────────────────────────────────
+
             if actual_mcap > 0 and actual_mcap < self.min_mcap:
                 logger.info(
                     f"[EstablishedScanner] MCap filter drop (real): {ticker} — ${actual_mcap:,.0f}"
@@ -501,7 +543,9 @@ class AxiomTrendingScanner:
                     ]
                     if not pairs:
                         return None
-                    return max(pairs, key=lambda p: (
+                    # Prefer graduated DEX pools over PumpFun pre-graduation pool
+                    _grad = [p for p in pairs if p.get("dexId", "") != "pump-fun" and (p.get("liquidity") or {}).get("usd", 0) > 1000]
+                    return max(_grad or pairs, key=lambda p: (
                         p.get("liquidity", {}).get("usd") or 0
                     ))
         except Exception as e:
@@ -519,3 +563,116 @@ class AxiomTrendingScanner:
             "signals_fired":    self.signals_fired,
             "seen_tokens":      len(self._seen_tokens),  # unique addresses evaluated (TTL 2h)
         }
+
+
+class AxiomSurgeScanner(AxiomTrendingScanner):
+    """
+    Scans for established Solana tokens showing unusual price/volume surges
+    (the Axiom "Surging" tab equivalent).
+
+    Reuses AxiomTrendingScanner's full evaluation pipeline but with:
+      - Higher max_mcap ($5M vs $1M)
+      - Shorter re-eval window (30 min vs 2h) — surge events are time-sensitive
+      - Surge-specific discovery: DexScreener results filtered by h1 price change > 15%
+      - Polls every 30 seconds
+    """
+
+    _SURGE_MIN_H1_PCT   = 15.0        # minimum h1 price change to qualify as surging
+    _SURGE_MAX_MCAP     = 5_000_000   # $5M
+    _SURGE_REEVAL_SECS  = 1800        # 30 min
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_mcap      = self._SURGE_MAX_MCAP
+        self._REEVAL_HOURS = self._SURGE_REEVAL_SECS / 3600  # 0.5h
+
+    async def run(self):
+        """Surge polling loop — runs every 30 seconds."""
+        logger.info(
+            f"[SurgeScanner] Starting | "
+            f"min_h1={self._SURGE_MIN_H1_PCT}% | "
+            f"max_mcap=${self._SURGE_MAX_MCAP:,.0f}"
+        )
+        while True:
+            try:
+                await self._poll_surge()
+            except Exception as e:
+                logger.warning(f"[SurgeScanner] Poll error: {e}")
+            await asyncio.sleep(30)
+
+    async def _poll_surge(self):
+        """Fetch surge candidates from DexScreener and run them through the eval pipeline."""
+        import aiohttp
+        candidates: dict = {}
+
+        async with aiohttp.ClientSession() as session:
+            # Strategy 1: DexScreener gainers endpoint (may or may not exist)
+            for url in (
+                "https://api.dexscreener.com/latest/dex/gainers/solana",
+                "https://api.dexscreener.com/token-boosts/top/v1",
+            ):
+                try:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                        if resp.status == 200:
+                            data = await resp.json(content_type=None)
+                            pairs = data if isinstance(data, list) else (data.get("pairs") or [])
+                            for pair in pairs:
+                                if pair.get("chainId") != "solana":
+                                    continue
+                                addr = (pair.get("baseToken") or {}).get("address") or ""
+                                if addr and addr not in candidates:
+                                    candidates[addr] = self._pair_to_token_dict(pair)
+                except Exception as e:
+                    logger.debug(f"[SurgeScanner] {url} error: {e}")
+
+            # Strategy 2: DexScreener search sorted by trending/volume — keep only h1 gainers
+            for order in ("trending", "volume"):
+                try:
+                    url = f"https://api.dexscreener.com/latest/dex/search?q=solana&order={order}"
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                        if resp.status == 200:
+                            data = await resp.json(content_type=None)
+                            for pair in (data.get("pairs") or [])[:60]:
+                                if pair.get("chainId") != "solana":
+                                    continue
+                                h1_chg = float((pair.get("priceChange") or {}).get("h1", 0) or 0)
+                                if h1_chg < self._SURGE_MIN_H1_PCT:
+                                    continue
+                                addr = (pair.get("baseToken") or {}).get("address") or ""
+                                if addr and addr not in candidates:
+                                    candidates[addr] = self._pair_to_token_dict(pair)
+                except Exception as e:
+                    logger.debug(f"[SurgeScanner] search ({order}) error: {e}")
+
+        if not candidates:
+            return
+
+        now = _time.time()
+        new_count = 0
+        for addr, token_dict in candidates.items():
+            if now - self._seen_tokens.get(addr, 0) < self._SURGE_REEVAL_SECS:
+                continue
+            self._seen_tokens[addr] = now
+            new_count += 1
+            await self._evaluate_token(addr, token_dict)
+
+        if new_count:
+            logger.info(
+                f"[SurgeScanner] Evaluated {new_count} surge candidates "
+                f"({len(candidates)} total found)"
+            )
+
+    @staticmethod
+    def _pair_to_token_dict(pair: dict) -> dict:
+        return {
+            "tokenAddress": (pair.get("baseToken") or {}).get("address") or "",
+            "tokenTicker":  (pair.get("baseToken") or {}).get("symbol") or "",
+            "marketCap":    pair.get("marketCap"),
+            "liquidityUsd": (pair.get("liquidity") or {}).get("usd"),
+            "pairAddress":  pair.get("pairAddress") or "",
+        }
+
+    def get_stats(self) -> dict:
+        stats = super().get_stats()
+        stats["type"] = "surge"
+        return stats

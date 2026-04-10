@@ -13,6 +13,7 @@ import asyncio
 import logging
 import aiohttp
 import json
+import os
 import time
 from typing import Dict, Callable, Optional, Set
 from datetime import datetime, timezone
@@ -21,7 +22,7 @@ from dataclasses import dataclass, field
 logger = logging.getLogger(__name__)
 
 # WebSocket endpoints
-DEXSCREENER_WS = "wss://io.dexscreener.com/dex/screener/pairs/h24/1"
+DEXSCREENER_WS = "wss://io.dexscreener.com/dex/screener/v7/pairs/h24/1"
 HELIUS_WS_BASE = "wss://mainnet.helius-rpc.com/?api-key="
 
 
@@ -42,6 +43,13 @@ class PriceFeed:
     """
     Unified real-time price feed for all chains.
     Subscribers register callbacks that fire on every price tick.
+
+    Also exposes an AxiomPriceFeed-compatible interface so position_manager
+    can use it as a drop-in replacement for the Axiom cache:
+      price_cache[token_address]      → latest price in USD
+      price_timestamps[token_address] → unix timestamp of last update
+      subscribe_token(addr)           → start watching
+      unsubscribe_token(addr)         → stop watching
     """
 
     def __init__(self, helius_api_key: str = ""):
@@ -51,9 +59,61 @@ class PriceFeed:
         self._watched: Set[str] = set()            # tokens currently watched
         self._watch_chains: Dict[str, str] = {}    # token_address -> chain_id
         self._poll_interval: Dict[str, float] = {} # token_address -> poll interval
+        self._pair_addresses: Dict[str, str] = {}  # token_address -> pair_address (for direct pair lookup)
         self._running = False
         self._tick_count = 0
         self._ws_tick_count = 0
+        self.ws_connected = False          # True while DexScreener WS is live
+        self.ws_consecutive_failures = 0   # reset on each successful connect
+        self._active_ws = None             # live WebSocket object for mid-session subscriptions
+
+        # AxiomPriceFeed-compatible caches — populated on every tick so that
+        # position_manager._update_price() can read them with the same staleness logic.
+        self.price_cache: Dict[str, float] = {}
+        self.price_timestamps: Dict[str, float] = {}
+        self.volume_cache: Dict[str, float] = {}
+        self.liquidity_cache: Dict[str, float] = {}
+
+        # Set by caller so we can fire check_stop_loss_realtime on every tick.
+        self.position_manager = None
+
+    # ── AxiomPriceFeed-compatible subscription API ──────────────────────────
+
+    def subscribe_token(self, token_address: str, chain_id: str = "solana", pair_address: str = ""):
+        """Subscribe to price updates for a token (AxiomPriceFeed-compatible API)."""
+        addr = token_address.lower()
+        is_new = addr not in self._watched
+        if is_new:
+            self._watched.add(addr)
+            self._watch_chains[addr] = chain_id
+            logger.debug(f"[PriceFeed] Subscribed: {addr[:8]}…")
+        if pair_address:
+            self._pair_addresses[addr] = pair_address
+        # Push subscription to live WebSocket immediately so new positions get
+        # real-time ticks instead of waiting for the next poll cycle.
+        if is_new and self._active_ws is not None:
+            import asyncio
+            sub_msg = json.dumps({"type": "subscribe", "payload": {"tokenAddresses": [addr]}})
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.ensure_future(self._active_ws.send_str(sub_msg))
+            except Exception:
+                pass  # polling fallback still covers it
+
+    def unsubscribe_token(self, token_address: str):
+        """Stop watching a token and clear its caches (AxiomPriceFeed-compatible API)."""
+        addr = token_address.lower()
+        self._watched.discard(addr)
+        self._subscribers.pop(addr, None)
+        self._watch_chains.pop(addr, None)
+        self._poll_interval.pop(addr, None)
+        self._pair_addresses.pop(addr, None)
+        self.price_cache.pop(addr, None)
+        self.price_timestamps.pop(addr, None)
+        self.volume_cache.pop(addr, None)
+        self.liquidity_cache.pop(addr, None)
+        logger.debug(f"[PriceFeed] Unsubscribed: {addr[:8]}…")
 
     def subscribe(self, token_address: str, chain_id: str,
                   callback: Callable[[PriceTick], None],
@@ -94,21 +154,52 @@ class PriceFeed:
             self._run_stats_logger()
         )
 
+    def _get_ws_url(self) -> str:
+        """
+        Return the WebSocket URL to use for DexScreener.
+        Prefers the Cloudflare Worker proxy (bypasses Railway IP block).
+        Falls back to direct connection if proxy env vars are not set.
+        """
+        relay_url    = os.environ.get("AXIOM_REFRESH_RELAY_URL", "")
+        relay_secret = os.environ.get("AXIOM_REFRESH_RELAY_SECRET", "")
+        if relay_url and relay_secret:
+            worker_base = relay_url.replace("/refresh", "").rstrip("/")
+            ws_base     = worker_base.replace("https://", "wss://").replace("http://", "ws://")
+            return f"{ws_base}/ds-proxy?s={relay_secret}"
+        return DEXSCREENER_WS
+
     async def _run_dexscreener_ws(self):
         """
         Connect to DexScreener WebSocket for real-time pair updates.
-        Reconnects automatically on disconnect.
+        Tries direct connection first; falls back to Cloudflare Worker proxy if blocked.
+        Polling fallback always runs concurrently at 1s intervals as a safety net.
+        Does not give up — keeps retrying with exponential backoff (max 60s).
         """
+        consecutive_failures = 0
+        ws_gave_up = False
         while self._running:
+            # Try direct first; only use proxy after direct fails with 403
+            if consecutive_failures == 0 or not ws_gave_up:
+                ws_url = DEXSCREENER_WS
+                via = "direct"
+            else:
+                ws_url = self._get_ws_url()
+                via = "proxy" if "ds-proxy" in ws_url else "direct"
+
             try:
-                logger.info("[PriceFeed] Connecting to DexScreener WebSocket...")
+                logger.info(f"[PriceFeed] Connecting to DexScreener WebSocket ({via})...")
                 async with aiohttp.ClientSession() as session:
                     async with session.ws_connect(
-                        DEXSCREENER_WS,
+                        ws_url,
                         heartbeat=30,
                         timeout=aiohttp.ClientWSTimeout(ws_close=60)
                     ) as ws:
-                        logger.info("[PriceFeed] DexScreener WebSocket connected")
+                        logger.info(f"[PriceFeed] DexScreener WebSocket connected ({via})")
+                        consecutive_failures = 0
+                        self.ws_consecutive_failures = 0
+                        self.ws_connected = True
+                        self._active_ws = ws
+                        ws_gave_up = False
 
                         # Subscribe to watched tokens
                         await self._send_dexscreener_subscriptions(ws)
@@ -122,16 +213,32 @@ class PriceFeed:
                             elif msg.type == aiohttp.WSMsgType.CLOSED:
                                 break
 
+                        self._active_ws = None
+
             except asyncio.CancelledError:
+                self._active_ws = None
                 break
             except Exception as e:
-                err_str = str(e)
-                if "403" in err_str:
-                    logger.warning("[PriceFeed] DexScreener WebSocket blocked (403) — using polling only")
-                    return  # Don't retry — polling fallback handles it
-                logger.error(f"[PriceFeed] DexScreener WS error: {e}")
+                self._active_ws = None
+                consecutive_failures += 1
+                self.ws_consecutive_failures = consecutive_failures
+                self.ws_connected = False
+                backoff = min(5 * consecutive_failures, 60)
+                # Escalate to ERROR after 10 failures — this is a broken endpoint, not a blip
+                log_fn = logger.error if consecutive_failures >= 10 else logger.info
+                log_fn(
+                    f"[PriceFeed] DexScreener WS failed ({via}, attempt {consecutive_failures}): "
+                    f"{type(e).__name__} — polling covers stops, retry in {backoff}s"
+                    + (" *** PERSISTENT FAILURE — endpoint may have changed ***" if consecutive_failures == 10 else "")
+                )
+                if consecutive_failures == 3 and via == "direct":
+                    # Switch to proxy path for subsequent retries
+                    ws_gave_up = True
+                await asyncio.sleep(backoff)
+                continue
+            finally:
+                self.ws_connected = False
 
-            logger.info("[PriceFeed] WebSocket disconnected — reconnecting in 5s...")
             await asyncio.sleep(5)
 
     async def _send_dexscreener_subscriptions(self, ws):
@@ -203,6 +310,18 @@ class PriceFeed:
             if source == "websocket":
                 self._ws_tick_count += 1
 
+            # Populate AxiomPriceFeed-compatible caches
+            self.price_cache[token_address] = price
+            self.price_timestamps[token_address] = time.time()
+            if volume:
+                self.volume_cache[token_address] = volume
+            if liquidity:
+                self.liquidity_cache[token_address] = liquidity
+
+            # Fire realtime stop-loss check — same pattern as AxiomPriceFeed
+            if self.position_manager is not None:
+                self.position_manager.check_stop_loss_realtime(token_address, price)
+
             # Notify all subscribers
             callbacks = self._subscribers.get(token_address, [])
             for callback in callbacks:
@@ -220,7 +339,8 @@ class PriceFeed:
     async def _run_polling_fallback(self):
         """
         Poll DexScreener REST API for tokens not covered by WebSocket.
-        Runs at 3-second intervals per token — much faster than the old 10s.
+        Runs at 1-second intervals when tokens are being watched (position open).
+        Uses 3-second intervals when nothing is watched to avoid unnecessary calls.
         """
         while self._running:
             if not self._watched:
@@ -232,9 +352,11 @@ class PriceFeed:
             for i in range(0, len(tokens_to_poll), 30):
                 batch = tokens_to_poll[i:i+30]
                 await self._poll_batch(batch)
-                await asyncio.sleep(0.5)
+                if len(tokens_to_poll) > 30:
+                    await asyncio.sleep(0.5)
 
-            await asyncio.sleep(3)
+            # 1s cycle when watching positions — stop-loss latency matters
+            await asyncio.sleep(1)
 
     async def _poll_batch(self, addresses: list):
         """Poll a batch of token addresses from DexScreener."""
@@ -262,8 +384,34 @@ class PriceFeed:
                             seen.add(addr)
                             await self._process_pair_update(pair, source="poll")
 
+                    # For tokens with known pair addresses that weren't found above,
+                    # poll the pair endpoint directly (helps very new tokens not yet indexed)
+                    missing = [a for a in addresses if a not in seen and a in self._pair_addresses]
+                    for token_addr in missing:
+                        pair_addr = self._pair_addresses[token_addr]
+                        await self._poll_pair_direct(token_addr, pair_addr)
+
         except Exception as e:
             logger.debug(f"[PriceFeed] Poll batch error: {e}")
+
+    async def _poll_pair_direct(self, token_address: str, pair_address: str):
+        """Poll a specific pair address directly — used for tokens not yet in DexScreener index."""
+        try:
+            url = f"https://api.dexscreener.com/latest/dex/pairs/solana/{pair_address}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                    if resp.status != 200:
+                        return
+                    data = await resp.json()
+                    pair = data.get("pair") or (data.get("pairs") or [None])[0]
+                    if pair:
+                        # Override baseToken address to match our tracked token
+                        if "baseToken" not in pair:
+                            pair["baseToken"] = {}
+                        pair["baseToken"]["address"] = token_address
+                        await self._process_pair_update(pair, source="poll")
+        except Exception as e:
+            logger.debug(f"[PriceFeed] Direct pair poll error: {e}")
 
     async def _run_helius_ws(self, api_key: str, token_address: str):
         """

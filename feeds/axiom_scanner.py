@@ -87,8 +87,16 @@ class AxiomTokenEvent:
         self.has_website    = bool(raw.get("website"))
         self.created_at     = (raw.get("createdAt") or
                                raw.get("created_at") or "")
-        self.chain_id       = "solana"
-        self._raw           = raw  # keep for debugging
+        self.chain_id           = "solana"
+        self._raw               = raw  # keep for debugging
+        # Fresh-pair fields — present in Axiom WS new_pairs events
+        self.snipers_hold_pct   = float(raw.get("snipers_hold_percent") or 0)
+        self.dev_holds_pct      = float(raw.get("dev_holds_percent") or 0)
+        # lp_burned is a percentage (0–100); treat > 0 as burned
+        self.lp_burned          = float(raw.get("lp_burned") or 0) > 0
+        # mint/freeze authority — None means revoked (safe); any address means active (risky)
+        self.mint_authority     = raw.get("mint_authority")   # None = revoked
+        self.freeze_authority   = raw.get("freeze_authority") # None = revoked
 
     @property
     def mcap_usd(self) -> float:
@@ -105,7 +113,9 @@ class AxiomTokenEvent:
 
     # Protocols that fire AFTER indexing (graduated/established pools — have DexScreener data)
     # "Pump V1" and "Virtual Curve" are brand-new launches with zero data — skip them.
-    _DATA_READY_PROTOCOLS = ("pump amm", "raydium", "meteora", "orca", "launchlab")
+    # "pump swap" / "pumpswap" = PumpSwap, pump.fun's native AMM DEX (launched Mar 2025),
+    # the new graduation destination replacing Raydium for most pump.fun tokens.
+    _DATA_READY_PROTOCOLS = ("pump amm", "pump swap", "pumpswap", "raydium", "meteora", "orca", "launchlab")
 
     def passes_basic_filters(self, min_mcap_usd: float,
                               max_mcap_usd: float,
@@ -163,7 +173,8 @@ class AxiomTokenEvent:
                     [{"type": "telegram", "url": ""}] if self.has_telegram else []
                 )
             },
-            "pairCreatedAt": None
+            "pairCreatedAt": None,
+            "_axiom_ws_fallback": True,  # signals that real DexScreener data wasn't available yet
         }
 
 
@@ -614,12 +625,14 @@ class AxiomAuthManager:
         Get fresh tokens by doing a full Axiom login with email+password+OTP.
         Reads the OTP automatically from Gmail using IMAP.
 
+        Tries two strategies in order:
+          1. Direct login via proxy+curl_cffi (residential IP + Chrome fingerprint)
+          2. Worker relay fallback (if AXIOM_REFRESH_RELAY_URL is configured)
+
         Requires:
           AXIOM_EMAIL    — your Axiom account email
           AXIOM_PASSWORD — your Axiom account password
           GMAIL_APP_PASSWORD — Gmail App Password for IMAP access
-                              (generate at myaccount.google.com/apppasswords)
-                              Falls back to AXIOM_PASSWORD if not set.
         """
         import hashlib, base64 as _b64, time as _t
         try:
@@ -640,39 +653,125 @@ class AxiomAuthManager:
             logger.debug("[AxiomAuth] No Gmail app password for OTP reading")
             return False
 
-        logger.info(f"[AxiomAuth] Attempting fresh login for {email_addr} via email OTP...")
+        logger.info(f"[AxiomAuth] Attempting fresh login for {email_addr}...")
 
+        # Hash password using Axiom's PBKDF2 method
+        SALT = bytes([
+            217, 3, 161, 123, 53, 200, 206, 36, 143, 2, 220, 252, 240, 109, 204, 23,
+            217, 174, 79, 158, 18, 76, 149, 117, 73, 40, 207, 77, 34, 194, 196, 163
+        ])
+        derived_key = hashlib.pbkdf2_hmac('sha256', axiom_pass.encode('utf-8'), SALT, 600_000, dklen=32)
+        b64_password = _b64.b64encode(derived_key).decode('ascii')
+
+        _login_base_urls = [
+            "https://api6.axiom.trade",
+            "https://api.axiom.trade",
+            "https://api3.axiom.trade",
+        ]
+        _login_headers = {
+            "accept": "application/json, text/plain, */*",
+            "accept-language": "en-US,en;q=0.9",
+            "content-type": "application/json",
+            "origin": "https://axiom.trade",
+            "referer": "https://axiom.trade/",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-site",
+            "user-agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
+            ),
+        }
+
+        # ── Strategy 1: proxy + curl_cffi (residential IP + Chrome TLS fingerprint) ──
+        proxy_url = os.environ.get("AXIOM_PROXY_URL", "").strip()
+        try:
+            from curl_cffi import requests as cffi_requests
+
+            proxies = {"https": proxy_url, "http": proxy_url} if proxy_url else None
+
+            otp_jwt = None
+            login_base_used = None
+
+            for base in _login_base_urls:
+                try:
+                    step1_headers = dict(_login_headers)
+                    step1_headers["Cookie"] = "auth-otp-login-token="
+                    resp1 = cffi_requests.post(
+                        f"{base}/login-password-v2",
+                        headers=step1_headers,
+                        json={"email": email_addr, "b64Password": b64_password},
+                        impersonate="chrome110",
+                        proxies=proxies,
+                        timeout=15,
+                    )
+                    if resp1.status_code == 200:
+                        otp_jwt = resp1.cookies.get("auth-otp-login-token")
+                        if otp_jwt:
+                            login_base_used = base
+                            logger.info(f"[AxiomAuth] Login step1 OK via curl_cffi ({base}) — reading OTP from Gmail...")
+                            break
+                    logger.info(f"[AxiomAuth] Login step1 curl_cffi {base} → {resp1.status_code} (no otp_jwt)")
+                except Exception as e:
+                    logger.info(f"[AxiomAuth] Login step1 curl_cffi {base} error: {e}")
+                    continue
+
+            if otp_jwt and login_base_used:
+                otp_handler = EmailOTPHandler(
+                    email_address=email_addr,
+                    email_password=gmail_pass,
+                    imap_server="imap.gmail.com",
+                    timeout=60.0,
+                )
+                otp_code = otp_handler.get_otp()
+                if not otp_code:
+                    logger.warning("[AxiomAuth] Could not read OTP from Gmail — check GMAIL_APP_PASSWORD")
+                else:
+                    try:
+                        step2_headers = dict(_login_headers)
+                        step2_headers["Cookie"] = f"auth-otp-login-token={otp_jwt}"
+                        resp2 = cffi_requests.post(
+                            f"{login_base_used}/login-otp",
+                            headers=step2_headers,
+                            json={"email": email_addr, "code": otp_code},
+                            impersonate="chrome110",
+                            proxies=proxies,
+                            timeout=15,
+                        )
+                        if resp2.status_code == 200:
+                            new_token = resp2.cookies.get("auth-access-token")
+                            new_rt    = resp2.cookies.get("auth-refresh-token") or self.refresh_token
+                            if new_token:
+                                logger.info("[AxiomAuth] Fresh login successful via curl_cffi!")
+                                return self._apply_new_tokens(new_token, new_rt, "email-otp-login-curlffi")
+                        logger.info(f"[AxiomAuth] Login step2 curl_cffi → {resp2.status_code}")
+                    except Exception as e:
+                        logger.info(f"[AxiomAuth] Login step2 curl_cffi error: {e}")
+        except ImportError:
+            logger.debug("[AxiomAuth] curl_cffi not available for direct login")
+        except Exception as e:
+            logger.warning(f"[AxiomAuth] Direct login error: {e}")
+
+        # ── Strategy 2: Worker relay fallback ─────────────────────────────────────
         try:
             import urllib3 as _u3, json as _json
-            # Hash password using the library's PBKDF2 method
-            SALT = bytes([
-                217, 3, 161, 123, 53, 200, 206, 36, 143, 2, 220, 252, 240, 109, 204, 23,
-                217, 174, 79, 158, 18, 76, 149, 117, 73, 40, 207, 77, 34, 194, 196, 163
-            ])
-            derived_key = hashlib.pbkdf2_hmac('sha256', axiom_pass.encode('utf-8'), SALT, 600_000, dklen=32)
-            b64_password = _b64.b64encode(derived_key).decode('ascii')
-
-            http = _u3.PoolManager(timeout=_u3.Timeout(connect=10, read=30))
 
             relay_url    = os.environ.get("AXIOM_REFRESH_RELAY_URL", "").strip()
             relay_secret = os.environ.get("AXIOM_REFRESH_RELAY_SECRET", "").strip()
 
             if not relay_url or not relay_secret:
-                logger.warning("[AxiomAuth] No Worker relay configured — fresh login requires AXIOM_REFRESH_RELAY_URL + AXIOM_REFRESH_RELAY_SECRET")
+                logger.warning("[AxiomAuth] No Worker relay — fresh login failed")
                 return False
 
-            # Derive Worker login URLs from relay URL base
             relay_base = relay_url.rstrip("/").removesuffix("/refresh") if relay_url.endswith("/refresh") else relay_url.rstrip("/")
             step1_url  = f"{relay_base}/login/step1"
             step2_url  = f"{relay_base}/login/step2"
-
             relay_headers = {"Content-Type": "application/json"}
 
-            # Step 1: Worker forwards email+password to Axiom → Axiom emails OTP
+            http = _u3.PoolManager(timeout=_u3.Timeout(connect=10, read=30))
+
             step1_body = _json.dumps({
-                "secret":       relay_secret,
-                "email":        email_addr,
-                "b64_password": b64_password,
+                "secret": relay_secret, "email": email_addr, "b64_password": b64_password,
             }).encode()
             resp1 = http.request("POST", step1_url, body=step1_body, headers=relay_headers)
             data1 = _json.loads(resp1.data)
@@ -681,29 +780,20 @@ class AxiomAuthManager:
                 return False
 
             otp_jwt = data1.get("otp_jwt") or ""
-            logger.info(f"[AxiomAuth] OTP email sent via Worker (endpoint: {data1.get('endpoint')}) — reading from Gmail IMAP...")
+            logger.info(f"[AxiomAuth] OTP email sent via Worker — reading from Gmail IMAP...")
 
-            # Step 2: read OTP from Gmail (IMAP works fine from Railway)
             otp_handler = EmailOTPHandler(
-                email_address=email_addr,
-                email_password=gmail_pass,
-                imap_server="imap.gmail.com",
-                timeout=60.0,
+                email_address=email_addr, email_password=gmail_pass,
+                imap_server="imap.gmail.com", timeout=60.0,
             )
             otp_code = otp_handler.get_otp()
             if not otp_code:
-                logger.warning("[AxiomAuth] Could not read OTP from Gmail — check GMAIL_APP_PASSWORD")
+                logger.warning("[AxiomAuth] Could not read OTP from Gmail")
                 return False
 
-            logger.info("[AxiomAuth] OTP received — completing login via Worker...")
-
-            # Step 3: Worker forwards OTP to Axiom → returns fresh tokens
             step2_body = _json.dumps({
-                "secret":       relay_secret,
-                "email":        email_addr,
-                "otp":          otp_code,
-                "otp_jwt":      otp_jwt,
-                "b64_password": b64_password,
+                "secret": relay_secret, "email": email_addr,
+                "otp": otp_code, "otp_jwt": otp_jwt, "b64_password": b64_password,
             }).encode()
             resp2 = http.request("POST", step2_url, body=step2_body, headers=relay_headers)
             data2 = _json.loads(resp2.data)
@@ -711,20 +801,31 @@ class AxiomAuthManager:
             if data2.get("ok") and data2.get("access_token"):
                 new_token = data2["access_token"]
                 new_rt    = data2.get("refresh_token") or self.refresh_token
-                logger.info(f"[AxiomAuth] Fresh login successful via Worker (endpoint: {data2.get('endpoint')})!")
+                logger.info(f"[AxiomAuth] Fresh login successful via Worker!")
                 return self._apply_new_tokens(new_token, new_rt, "email-otp-login-worker")
             else:
                 logger.warning(f"[AxiomAuth] Login step2 via Worker failed: {data2}")
                 return False
 
         except Exception as e:
-            logger.warning(f"[AxiomAuth] Fresh login error: {e}")
+            logger.warning(f"[AxiomAuth] Worker login error: {e}")
             return False
 
     async def refresh(self) -> bool:
         """Async wrapper for token refresh."""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self._try_refresh_sync)
+
+    async def full_relogin(self) -> bool:
+        """
+        Force a full email+OTP re-login, bypassing the proxy/JWT refresh.
+        Used when the JWT is technically valid but the WebSocket session has
+        expired server-side (manifests as persistent HTTP 404 on WS connect
+        despite successful proxy token refresh).
+        """
+        logger.info("[AxiomAuth] Forcing full re-login via Worker relay (WS session expired)...")
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self._try_fresh_login)
 
     async def keep_alive(self):
         """
@@ -754,20 +855,29 @@ class AxiomAuthManager:
                     _check_interval = 30  # reset to normal check frequency
                 else:
                     _fail_count += 1
-                    # Exponential backoff: 2min, 4min, 8min … cap at 30min
-                    _check_interval = min(120 * (2 ** (_fail_count - 1)), 1800)
-                    if _fail_count == 1:
+                    if ttl < 0:
+                        # Token already expired — this is an active outage.
+                        # Retry every 60s regardless of fail count; do not back off.
+                        _check_interval = 60
                         logger.warning(
-                            "[AxiomAuth] Refresh failed — token may be expired or "
-                            "Axiom changed their refresh endpoint path. "
-                            "Retrying with longer backoff."
+                            f"[AxiomAuth] Token EXPIRED and refresh failing "
+                            f"(attempt {_fail_count}) — retrying in 60s"
                         )
-                    elif _fail_count >= 5:
-                        logger.error(
-                            "[AxiomAuth] Token refresh failed 5+ times. "
-                            "Paste fresh AXIOM_AUTH_TOKEN + AXIOM_REFRESH_TOKEN from "
-                            "your browser into Railway Variables to restore real-time feed."
-                        )
+                    else:
+                        # Token not yet expired — exponential backoff: 2min, 4min, 8min … cap at 10min
+                        _check_interval = min(120 * (2 ** (_fail_count - 1)), 600)
+                        if _fail_count == 1:
+                            logger.warning(
+                                "[AxiomAuth] Refresh failed — token may be expired or "
+                                "Axiom changed their refresh endpoint path. "
+                                "Retrying with longer backoff."
+                            )
+                        elif _fail_count >= 5:
+                            logger.error(
+                                "[AxiomAuth] Token refresh failed 5+ times. "
+                                "Paste fresh AXIOM_AUTH_TOKEN + AXIOM_REFRESH_TOKEN from "
+                                "your browser into Railway Variables to restore real-time feed."
+                            )
 
     def get_client(self) -> Optional["AxiomTradeClient"]:
         """Get or create an authenticated AxiomTradeClient with correct expiry."""
@@ -929,9 +1039,20 @@ class AxiomScanner:
                  min_liquidity_usd: float = 50_000,
                  min_score: float = 65.0,
 
+                 # Micro-cap mode
+                 micro_cap_enabled: bool = False,
+                 micro_cap_min_usd: float = 10_000,
+                 micro_cap_max_usd: float = 50_000,
+                 micro_cap_position_usd: float = 80.0,
+                 micro_cap_max_snipers_pct: float = 30.0,
+                 micro_cap_max_dev_pct: float = 15.0,
+
                  # Behavior
                  reconnect_delay_seconds: int = 10,
-                 fallback_to_dexscreener: bool = True):
+                 fallback_to_dexscreener: bool = True,
+
+                 # Optional dip-watcher (intercepts micro-cap buys)
+                 dip_watcher=None):
 
         self.auth          = auth_manager
         self.trader        = trader
@@ -948,16 +1069,36 @@ class AxiomScanner:
         self.reconnect_delay = reconnect_delay_seconds
         self.fallback      = fallback_to_dexscreener
 
+        self.micro_cap_enabled        = micro_cap_enabled
+        self.micro_cap_min            = micro_cap_min_usd
+        self.micro_cap_max            = micro_cap_max_usd
+        self.micro_cap_position_usd   = micro_cap_position_usd
+        self.micro_cap_max_snipers    = micro_cap_max_snipers_pct
+        self.micro_cap_max_dev        = micro_cap_max_dev_pct
+
+        # Micro-cap candidates seen but not bought — for dashboard recommendations
+        from collections import deque as _deque
+        import datetime as _dt
+        self._dt = _dt
+        self.mc_candidates: _deque = _deque(maxlen=40)
+
+        # Optional dip-watcher — intercepts micro-cap buys to wait for dip+recovery
+        self.dip_watcher = dip_watcher
+
         # Set by connect_to_bot() — routes buys through chart analysis gate
         self.scanner = None
+
+        # Set externally to share spike data from AxiomPriceFeed
+        self.price_feed = None
 
         # Raw Axiom API response log (first N tokens for debugging)
         self._axiom_api_logged = 0
 
         # State
         self._client: Optional[AxiomTradeClient] = None
-        self._seen_tokens: set = set()
+        self._seen_tokens: dict = {}
         self._running = False
+        self._heartbeat_task = None
 
         # Stats
         self.tokens_received    = 0
@@ -965,6 +1106,15 @@ class AxiomScanner:
         self.tokens_evaluated   = 0
         self.signals_fired      = 0
         self.reconnect_count    = 0
+        self._ws_down_since: Optional[float] = None   # set when scanner drops, cleared on recovery
+        self._ws_down_alerted: float = 0.0            # timestamp of last "still down" alert
+
+        # Deferred retry queue: token_address → (retry_at_monotonic, queued_at_monotonic, event)
+        # Tokens with no DexScreener data at event time are queued here and retried 60s later.
+        # Security + enrich checks were already passed before a token is queued here.
+        # Hard cap: 300 entries — oldest evicted on overflow to prevent OOM during mania periods.
+        self._deferred: dict = {}
+        self._DEFERRED_MAX = 300
 
     async def run(self):
         """
@@ -991,6 +1141,17 @@ class AxiomScanner:
                 await self._run_dexscreener_fallback()
             return
 
+        if os.environ.get("AXIOM_RELAY_MODE", "").lower() in ("true", "1"):
+            logger.info(
+                "[AxiomScanner] Relay mode active — "
+                "inbound tokens via /api/axiom-relay | DexScreener fallback running"
+            )
+            self._running = True
+            asyncio.ensure_future(self.auth.keep_alive())
+            if self.fallback:
+                await self._run_dexscreener_fallback()
+            return
+
         self._running = True
         logger.info(
             "[AxiomScanner] Starting real-time token feed | "
@@ -1003,12 +1164,14 @@ class AxiomScanner:
 
         _auth_failures = 0
         _max_auth_failures = 3  # allow a few failures before falling back
+        _ws_404_count = 0       # consecutive WS 404s despite valid JWT → session expired
         _backoff = self.reconnect_delay
 
         while self._running:
             try:
                 await self._connect_and_stream()
                 _auth_failures = 0  # reset on success
+                _ws_404_count = 0
                 _backoff = self.reconnect_delay
             except AuthenticationError as e:
                 _auth_failures += 1
@@ -1017,14 +1180,38 @@ class AxiomScanner:
                         f"[AxiomScanner] Auth failed {_auth_failures} times — "
                         f"check AXIOM_AUTH_TOKEN/AXIOM_REFRESH_TOKEN. Falling back to DexScreener."
                     )
+                    await self._alert_scanner_down(f"Auth failed {_auth_failures}× — falling back to DexScreener polling. Check credentials.")
                     if self.fallback:
                         await self._run_dexscreener_fallback()
                     return
                 logger.warning(f"[AxiomScanner] Auth failed ({_auth_failures}/{_max_auth_failures}): {e} — retrying in 60s")
+                await self._alert_scanner_down(str(e))
                 await asyncio.sleep(60)
             except Exception as e:
                 self.reconnect_count += 1
+                err_str = str(e).lower()
+                # Detect persistent WS 404 — JWT is valid but server session has expired.
+                # Proxy refresh renews the JWT but not the session; only full re-login fixes it.
+                if "404" in err_str or "websocket connection closed" in err_str:
+                    _ws_404_count += 1
+                    if _ws_404_count >= 3:
+                        logger.warning(
+                            f"[AxiomScanner] {_ws_404_count} consecutive WS 404s — "
+                            "session expired server-side. Triggering full re-login..."
+                        )
+                        relogin_ok = await self.auth.full_relogin()
+                        if relogin_ok:
+                            logger.info("[AxiomScanner] Re-login succeeded — reconnecting immediately")
+                            _ws_404_count = 0
+                            _backoff = self.reconnect_delay
+                            continue
+                        else:
+                            logger.warning("[AxiomScanner] Re-login failed — will retry next cycle")
+                            _ws_404_count = 0  # reset to avoid hammering login
+                else:
+                    _ws_404_count = 0
                 logger.warning(f"[AxiomScanner] Disconnected — reconnecting in {_backoff}s: {e}")
+                await self._alert_scanner_down(str(e))
                 await asyncio.sleep(_backoff)
                 _backoff = min(_backoff * 2, 300)  # exponential backoff, cap at 5min
 
@@ -1034,26 +1221,21 @@ class AxiomScanner:
         if not token_valid:
             raise AuthenticationError("Could not obtain valid token")
 
-        client = self.auth.get_client()
-        if not client:
-            raise AuthenticationError("Could not create AxiomTradeClient")
-
-        # Do NOT call client.login() — it uses the broken login-password-v2 endpoint.
-        # The WebSocket client calls auth_manager.ensure_valid_authentication() before
-        # connecting, which uses the WORKING refresh endpoint:
-        #   https://api.axiom.trade/refresh-access-token
-        # As long as expires_at is set correctly (done in get_client), refresh is
-        # triggered automatically whenever the token is within 15 min of expiry.
-        ws = client.get_websocket_client()
-
-        logger.info("[AxiomScanner] Connected to Axiom WebSocket feed")
-        await self.telegram.send(
-            "🔌 *Axiom Scanner Connected*\n"
-            "Real-time token feed active — no more polling delays"
-        )
-
-        # Block until WebSocket disconnects using an event
-        _disconnect_event = asyncio.Event()
+        logger.info("[AxiomScanner] Connecting to Axiom WebSocket feed")
+        if self._ws_down_since is not None:
+            import time as _time
+            down_mins = int((_time.time() - self._ws_down_since) / 60)
+            self._ws_down_since = None
+            self._ws_down_alerted = 0.0
+            await self.telegram.send(
+                f"✅ *Axiom Scanner Recovered*\n"
+                f"Was down for {down_mins} min — real-time feed restored"
+            )
+        else:
+            await self.telegram.send(
+                "🔌 *Axiom Scanner Connected*\n"
+                "Real-time token feed active — no more polling delays"
+            )
 
         _batch_count = 0
 
@@ -1068,10 +1250,13 @@ class AxiomScanner:
                 )
             await self._handle_token_batch(raw_tokens)
 
-        await ws.subscribe_new_tokens(_on_token_batch)
+        # Heartbeat task — logs every 60s and raises if recv is frozen 5+ min
+        _hb_last_recv = self.tokens_received
+        _hb_frozen_ticks = 0
+        _HB_STALE_TICKS = 5  # 5 × 60s = 5 min with no new tokens → force reconnect
 
-        # Heartbeat task — logs every 60s
         async def _heartbeat():
+            nonlocal _hb_last_recv, _hb_frozen_ticks
             while True:
                 await asyncio.sleep(60)
                 logger.info(
@@ -1079,20 +1264,161 @@ class AxiomScanner:
                     f"recv={self.tokens_received} | "
                     f"filtered={self.tokens_passed_filter} | "
                     f"evaluated={self.tokens_evaluated} | "
-                    f"signals={self.signals_fired}"
+                    f"signals={self.signals_fired} | "
+                    f"deferred={len(self._deferred)}"
                 )
+                if self.tokens_received == _hb_last_recv:
+                    _hb_frozen_ticks += 1
+                    if _hb_frozen_ticks >= _HB_STALE_TICKS:
+                        logger.warning(
+                            f"[AxiomScanner] recv frozen at {self.tokens_received} for "
+                            f"{_hb_frozen_ticks} min — WS appears stale, forcing reconnect"
+                        )
+                        raise RuntimeError("AxiomScanner WS stale — no tokens received for 5+ min")
+                else:
+                    _hb_last_recv = self.tokens_received
+                    _hb_frozen_ticks = 0
 
-        asyncio.ensure_future(_heartbeat())
+        # Deferred retry task — runs every 15s so tokens are retried promptly after their 60s wait
+        async def _deferred_retry_loop():
+            while True:
+                await asyncio.sleep(15)
+                await self._retry_deferred()
 
+        if self._heartbeat_task and not self._heartbeat_task.done():
+            self._heartbeat_task.cancel()
+        self._heartbeat_task = asyncio.ensure_future(_heartbeat())
+        asyncio.ensure_future(_deferred_retry_loop())
+
+        # Primary: connect via Cloudflare Worker proxy.
+        # The Worker runs on Cloudflare's own network so cluster9 never sees a
+        # datacenter IP — Railway can reach workers.dev without being blocked.
+        relay_url    = os.environ.get("AXIOM_REFRESH_RELAY_URL", "")
+        relay_secret = os.environ.get("AXIOM_REFRESH_RELAY_SECRET", "")
+        worker_base  = relay_url.replace("/refresh", "").rstrip("/") if relay_url else ""
+        if worker_base and relay_secret:
+            await self._worker_proxy_ws_stream(worker_base, relay_secret, _on_token_batch)
+            return  # raises NetworkError on disconnect — caught by caller
+
+        # Fallback: curl_cffi (Chrome TLS fingerprint) — works on residential IPs
+        logger.warning("[AxiomScanner] AXIOM_REFRESH_RELAY_URL not set — trying curl_cffi direct")
         try:
-            await ws.start()
+            from curl_cffi import requests as _cffi_req
+            await self._curl_cffi_ws_stream(_cffi_req, _on_token_batch)
+        except ImportError:
+            logger.warning("[AxiomScanner] curl_cffi unavailable — using standard WebSocket")
+            client = self.auth.get_client()
+            if not client:
+                raise AuthenticationError("Could not create AxiomTradeClient")
+            ws = client.get_websocket_client()
+            await ws.subscribe_new_tokens(_on_token_batch)
+            try:
+                await ws.start()
+            except Exception as e:
+                err = str(e).lower()
+                if any(k in err for k in ("auth", "login", "password", "404", "token")):
+                    raise AuthenticationError(f"WebSocket auth failed: {e}")
+                raise
+            raise NetworkError("WebSocket connection closed")
+
+    async def _worker_proxy_ws_stream(self, worker_base: str, secret: str, callback):
+        """Connect to Axiom new_pairs feed via the Cloudflare Worker WebSocket proxy.
+
+        The Worker (at workers.dev) runs inside Cloudflare's own network, so it can
+        reach cluster9.axiom.trade without the datacenter-IP block that Railway gets.
+        Auth tokens are passed as query params so no special header tricks are needed.
+        """
+        import urllib.parse as _up
+        import websockets as _ws
+
+        access  = self.auth.auth_token    or ""
+        refresh = self.auth.refresh_token or ""
+        qs = _up.urlencode({
+            "s":             secret,
+            "access_token":  access,
+            "refresh_token": refresh,
+        })
+        # Convert https:// base URL to wss://
+        ws_base = worker_base.replace("https://", "wss://").replace("http://", "ws://")
+        proxy_url = f"{ws_base}/ws-proxy?{qs}"
+
+        logger.info("[AxiomScanner] Connecting via Cloudflare Worker proxy")
+        try:
+            async with _ws.connect(proxy_url) as ws:
+                await ws.send(json.dumps({"action": "join", "room": "new_pairs"}))
+                logger.info("[AxiomScanner] Worker proxy connected — subscribed to new_pairs")
+                async for message in ws:
+                    try:
+                        data = json.loads(message)
+                        if data.get("room") == "new_pairs" and data.get("content"):
+                            await callback([data["content"]])
+                    except Exception as parse_err:
+                        logger.debug(f"[AxiomScanner] WS parse error: {parse_err}")
         except Exception as e:
             err = str(e).lower()
-            if any(k in err for k in ("auth", "login", "password", "404", "token")):
-                raise AuthenticationError(f"WebSocket auth failed: {e}")
-            raise
+            if "401" in err or "unauthorized" in err:
+                raise AuthenticationError(f"Worker proxy auth failed: {e}")
+            raise NetworkError(f"Worker proxy WebSocket error: {e}")
+        raise NetworkError("Worker proxy WebSocket closed")
 
-        # ws.start() returned — connection closed cleanly, raise to trigger reconnect
+    async def _curl_cffi_ws_stream(self, cffi_req, callback):
+        """Connect via curl_cffi WebSocket with Chrome TLS fingerprint to bypass Cloudflare."""
+        import json as _json
+        import threading as _threading
+
+        loop = asyncio.get_event_loop()
+        cf_clearance = os.environ.get("AXIOM_CF_CLEARANCE", "")
+        cookie = (
+            f"auth-access-token={self.auth.auth_token}; "
+            f"auth-refresh-token={self.auth.refresh_token}"
+            + (f"; cf_clearance={cf_clearance}" if cf_clearance else "")
+        )
+        headers = {
+            "Origin": "https://axiom.trade",
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/135.0.0.0 Safari/537.36"
+            ),
+            "Cookie": cookie,
+        }
+
+        _error = [None]
+
+        def _run_sync():
+            ws = cffi_req.WebSocket()
+            try:
+                ws.connect(
+                    "wss://cluster9.axiom.trade/",
+                    headers=headers,
+                    impersonate="chrome131",
+                )
+                logger.info("[AxiomScanner] curl_cffi WebSocket connected to cluster9")
+                ws.send_str(_json.dumps({"action": "join", "room": "new_pairs"}))
+                while True:
+                    msg = ws.recv_str()
+                    if msg is None or msg == "":
+                        break
+                    try:
+                        data = _json.loads(msg)
+                        if data.get("room") == "new_pairs" and data.get("content"):
+                            asyncio.run_coroutine_threadsafe(
+                                callback([data["content"]]), loop
+                            )
+                    except Exception as parse_err:
+                        logger.debug(f"[AxiomScanner] WS parse error: {parse_err}")
+            except Exception as e:
+                _error[0] = e
+            finally:
+                try:
+                    ws.close()
+                except Exception:
+                    pass
+
+        await loop.run_in_executor(None, _run_sync)
+
+        if _error[0]:
+            raise NetworkError(f"WebSocket error: {_error[0]}")
         raise NetworkError("WebSocket connection closed")
 
     async def _handle_token_batch(self, raw_tokens: list):
@@ -1109,15 +1435,20 @@ class AxiomScanner:
             # Skip if already seen
             if event.token_address in self._seen_tokens:
                 return
-            self._seen_tokens.add(event.token_address)
+            self._seen_tokens[event.token_address] = None
 
-            # Keep seen set bounded
+            # Keep seen dict bounded (preserves insertion order — evicts oldest)
             if len(self._seen_tokens) > 10_000:
-                self._seen_tokens = set(list(self._seen_tokens)[-5_000:])
+                keys = list(self._seen_tokens.keys())
+                self._seen_tokens = {k: None for k in keys[-5_000:]}
 
             # Basic filter — quick and cheap
+            # Micro-cap mode lowers the effective floor to allow $10k-$50k tokens through
+            effective_min_mcap = (
+                self.micro_cap_min if self.micro_cap_enabled else self.min_mcap
+            )
             if not event.passes_basic_filters(
-                self.min_mcap, self.max_mcap, self.min_liquidity
+                effective_min_mcap, self.max_mcap, self.min_liquidity
             ):
                 logger.debug(
                     f"[AxiomScanner] Filter drop: "
@@ -1148,10 +1479,11 @@ class AxiomScanner:
                 if not self.market_monitor.should_trade(signal_score=0):
                     return
 
-            # Security gate
+            # Security gate — AxiomScanner only sees micro-cap launches,
+            # so use relaxed security (LP lock/concentration are expected for fresh tokens)
             if self.security:
                 sec_result = await self.security.check(
-                    event.token_address, "solana", event.token_symbol
+                    event.token_address, "solana", event.token_symbol, micro_cap=True
                 )
                 if sec_result and not sec_result.passed:
                     logger.info(
@@ -1164,7 +1496,7 @@ class AxiomScanner:
             deployer_address = event._raw.get("deployer_address", "") or \
                                event._raw.get("deployer", "") or ""
             if event.pair_address:
-                enrich_passed, enrich_reason = await axiom_enrich_check(
+                enrich_passed, enrich_reason, tracked_count = await axiom_enrich_check(
                     self.auth, event.pair_address, deployer_address
                 )
                 if not enrich_passed:
@@ -1173,17 +1505,197 @@ class AxiomScanner:
                         f"{event.token_symbol} — {enrich_reason}"
                     )
                     return
+            else:
+                tracked_count = 0
 
-            # Fetch DexScreener data — should be available for graduated protocols
-            pair_data = await self._fetch_dexscreener_pair(event)
+            # Fetch token data — Axiom API first (available immediately), DexScreener fallback
+            pair_data = await self._fetch_axiom_data(event)
             if pair_data is None:
                 logger.debug(
-                    f"[AxiomScanner] No DexScreener data for {event.token_symbol} — skipping"
+                    f"[AxiomScanner] No token data for {event.token_symbol} — skipping"
+                )
+                return
+
+            # If only WebSocket event data is available (no DexScreener/Axiom API yet), defer
+            # for 60s so DexScreener has time to index the token and return real price/txn data.
+            # Security + enrich checks have already passed above — safe to skip on retry.
+            if pair_data.get("_axiom_ws_fallback") and event.token_address not in self._deferred:
+                import time as _mt
+                # Evict oldest entry if at cap to prevent unbounded memory growth
+                if len(self._deferred) >= self._DEFERRED_MAX:
+                    oldest = next(iter(self._deferred))
+                    self._deferred.pop(oldest)
+                now_mt = _mt.monotonic()
+                self._deferred[event.token_address] = (now_mt + 60.0, now_mt, event)
+                logger.debug(
+                    f"[AxiomScanner] Deferred {event.token_symbol} — "
+                    f"awaiting DexScreener index in 60s "
+                    f"(queue={len(self._deferred)}/{self._DEFERRED_MAX})"
                 )
                 return
 
             # Hard MCap check using real DexScreener data (Axiom WebSocket tokens often lack marketCap)
             actual_mcap = float(pair_data.get("marketCap") or 0)
+
+            # ── Micro-cap path ($10k-$50k) ──────────────────────────────────
+            if (
+                self.micro_cap_enabled
+                and actual_mcap > 0
+                and self.micro_cap_min <= actual_mcap <= self.micro_cap_max
+            ):
+                snipers_pct = event.snipers_hold_pct
+                dev_pct     = event.dev_holds_pct
+                liq         = (pair_data.get("liquidity") or {}).get("usd") or 0
+                _dex_url    = f"https://dexscreener.com/solana/{event.token_address}"
+
+                def _log_mc_candidate(reject_reason):
+                    self.mc_candidates.appendleft({
+                        "time":         self._dt.datetime.now(self._dt.timezone.utc).isoformat(),
+                        "symbol":       event.token_symbol,
+                        "name":         getattr(event, "token_name", event.token_symbol),
+                        "address":      event.token_address,
+                        "mcap":         round(actual_mcap),
+                        "liquidity":    round(liq),
+                        "dev_pct":      round(dev_pct, 1),
+                        "snipers_pct":  round(snipers_pct, 1),
+                        "lp_burned":    bool(event.lp_burned),
+                        "protocol":     event.protocol,
+                        "reject_reason": reject_reason,
+                        "dex_url":      _dex_url,
+                    })
+
+                # Require token to be at least 10 minutes old — the 5-10 min window
+                # has 0% win rate empirically (dead zone after initial excitement fades).
+                # Win rate stabilises to ~50% only after 10 minutes of price history.
+                _MIN_AGE_SECONDS = 600
+                _age_seconds: float = -1  # sentinel — unresolved
+
+                # Strategy 1: parse event.created_at (ISO string from Axiom WS)
+                _created_at_str = event.created_at
+                if _created_at_str:
+                    try:
+                        import dateutil.parser as _dp
+                        _created_dt = _dp.parse(_created_at_str)
+                        if _created_dt.tzinfo is None:
+                            from datetime import timezone as _tz
+                            _created_dt = _created_dt.replace(tzinfo=_tz.utc)
+                        _age_seconds = (self._dt.datetime.now(self._dt.timezone.utc) - _created_dt).total_seconds()
+                    except Exception:
+                        pass  # fall through to strategy 2
+
+                # Strategy 2: use pairCreatedAt from DexScreener (Unix ms)
+                if _age_seconds < 0:
+                    _pair_created_ms = float(pair_data.get("pairCreatedAt") or 0)
+                    if _pair_created_ms > 0:
+                        import time as _time
+                        _age_seconds = _time.time() - _pair_created_ms / 1000
+                        logger.debug(
+                            f"[AxiomScanner] {event.token_symbol} — used pairCreatedAt fallback "
+                            f"(event.created_at unparseable): age={_age_seconds:.0f}s"
+                        )
+
+                if _age_seconds < 0:
+                    # No usable timestamp from any source — block
+                    logger.info(
+                        f"[AxiomScanner] Micro-cap blocked: {event.token_symbol} — "
+                        f"no parseable creation timestamp (cannot verify {_MIN_AGE_SECONDS//60}min minimum age)"
+                    )
+                    _log_mc_candidate("No parseable timestamp — age unverifiable")
+                    return
+
+                if _age_seconds < _MIN_AGE_SECONDS:
+                    logger.info(
+                        f"[AxiomScanner] Micro-cap blocked: {event.token_symbol} — "
+                        f"token only {_age_seconds:.0f}s old (need {_MIN_AGE_SECONDS}s)"
+                    )
+                    _log_mc_candidate(f"Too new: {_age_seconds/60:.1f}min < {_MIN_AGE_SECONDS//60}min")
+                    return
+
+                if snipers_pct > self.micro_cap_max_snipers:
+                    logger.info(
+                        f"[AxiomScanner] Micro-cap blocked: {event.token_symbol} — "
+                        f"snipers hold {snipers_pct:.0f}% (max {self.micro_cap_max_snipers:.0f}%)"
+                    )
+                    _log_mc_candidate(f"Snipers {snipers_pct:.0f}% > {self.micro_cap_max_snipers:.0f}% max")
+                    return
+
+                if dev_pct > self.micro_cap_max_dev:
+                    logger.info(
+                        f"[AxiomScanner] Micro-cap blocked: {event.token_symbol} — "
+                        f"dev holds {dev_pct:.0f}% (max {self.micro_cap_max_dev:.0f}%)"
+                    )
+                    _log_mc_candidate(f"Dev holds {dev_pct:.0f}% > {self.micro_cap_max_dev:.0f}% max")
+                    return
+
+                lp_locked = sec_result and sec_result.liquidity_locked
+                if not event.lp_burned and not lp_locked:
+                    logger.info(
+                        f"[AxiomScanner] Micro-cap blocked: {event.token_symbol} — "
+                        f"LP not burned and not locked (rug risk)"
+                    )
+                    _log_mc_candidate("LP not burned & not locked")
+                    return
+
+                # Minimum active buyers in last 5m — dead tokens have zero
+                _txns_m5 = (pair_data.get("txns") or {}).get("m5") or {}
+                _m5_buys = int(_txns_m5.get("buys") or 0)
+                if _m5_buys < 50:
+                    logger.info(
+                        f"[AxiomScanner] Micro-cap blocked: {event.token_symbol} — "
+                        f"only {_m5_buys} buyers in last 5m (need 50+)"
+                    )
+                    _log_mc_candidate(f"Dead: {_m5_buys} m5 buys < 50")
+                    return
+
+                # Minimum 1h volume — only meaningful once the token has been
+                # trading for a full hour. Tokens under 60min old will always
+                # show near-zero h1 volume on DexScreener since the window
+                # isn't filled yet; the m5 buys check already covers freshness.
+                _vol_h1 = float((pair_data.get("volume") or {}).get("h1") or 0)
+                if _age_seconds >= 3600 and _vol_h1 < 1000:
+                    logger.info(
+                        f"[AxiomScanner] Micro-cap blocked: {event.token_symbol} — "
+                        f"1h volume ${_vol_h1:,.0f} < $1,000 (token is {_age_seconds/3600:.1f}h old)"
+                    )
+                    _log_mc_candidate(f"Low vol: ${_vol_h1:,.0f} < $1k")
+                    return
+
+                logger.info(
+                    f"[AxiomScanner] 🌱 MICRO-CAP SIGNAL: {event.token_symbol} | "
+                    f"MCap: ${actual_mcap:,.0f} | "
+                    f"Dev: {dev_pct:.0f}% | Snipers: {snipers_pct:.0f}% | "
+                    f"LP burned: {event.lp_burned} | LP locked: {bool(lp_locked)}"
+                )
+                self.signals_fired += 1
+                self.tokens_evaluated += 1
+
+                # Micro-cap fresh launches skip chart analysis (no history yet)
+                # Route through DipWatcher if configured, otherwise buy direct
+                _mc_reason = (
+                    f"Micro-cap | ${actual_mcap:,.0f} mcap | "
+                    f"dev {dev_pct:.0f}% | snipers {snipers_pct:.0f}%"
+                )
+                if self.dip_watcher:
+                    _signal_price = float(pair_data.get("priceUsd") or 0)
+                    await self.dip_watcher.watch(
+                        token_address=event.token_address,
+                        token_symbol=event.token_symbol,
+                        reason=_mc_reason,
+                        override_usd=self.micro_cap_position_usd,
+                        signal_price=_signal_price,
+                    )
+                else:
+                    await self.trader.buy(
+                        token_address=event.token_address,
+                        token_symbol=event.token_symbol,
+                        reason=_mc_reason,
+                        signal_score=50,
+                        override_usd=self.micro_cap_position_usd,
+                        pair_address=event.pair_address or "",
+                    )
+                return
+            # ── End micro-cap path ──────────────────────────────────────────
+
             if actual_mcap > 0 and actual_mcap < self.min_mcap:
                 logger.info(
                     f"[AxiomScanner] MCap filter drop (real): {event.token_symbol} — ${actual_mcap:,.0f}"
@@ -1215,6 +1727,31 @@ class AxiomScanner:
                 if not event.has_twitter and not event.has_telegram:
                     return
                 score = 70
+
+            # User spike bonus
+            user_spike = (
+                self.price_feed is not None
+                and event.token_address in self.price_feed._user_count_spikes
+            )
+            if user_spike:
+                score += 6
+                logger.info(
+                    f"[AxiomScanner] User spike bonus: {event.token_symbol} +6"
+                )
+
+            # Tracked wallet bonus
+            if tracked_count >= 3:
+                score += 8
+                logger.info(
+                    f"[AxiomScanner] Tracked wallet bonus: {event.token_symbol} "
+                    f"+8 ({tracked_count} smart wallets holding)"
+                )
+            elif tracked_count >= 1:
+                score += 4
+                logger.info(
+                    f"[AxiomScanner] Tracked wallet bonus: {event.token_symbol} "
+                    f"+4 ({tracked_count} smart wallet holding)"
+                )
 
             # Signal fires
             self.signals_fired += 1
@@ -1258,27 +1795,122 @@ class AxiomScanner:
                     reason=f"Axiom signal | score {score:.0f} | {event.protocol}",
                     signal_score=int(score),
                     hh_hl_confirmed=getattr(evaluation, "hh_hl_confirmed", False)
-                    if self.evaluator else False
+                    if self.evaluator else False,
+                    pair_address=event.pair_address or "",
                 )
 
         except Exception as e:
             logger.error(f"[AxiomScanner] Evaluate/trade error for "
                          f"{event.token_symbol}: {e}")
 
+    async def _retry_deferred(self):
+        """
+        Re-evaluate tokens that had no DexScreener data when first seen.
+        Runs every 15s (independent task). Tokens are retried once after their 60s delay;
+        if DexScreener still has no data they are dropped (too new / dead pool).
+        Security + enrich checks were already passed before queuing — not re-run here.
+        """
+        import time as _mt
+        now = _mt.monotonic()
+        ready = [addr for addr, (t, _qt, _ev) in list(self._deferred.items()) if t <= now]
+        if not ready:
+            return
+        logger.info(f"[AxiomScanner] Retrying {len(ready)} deferred tokens")
+        for addr in ready:
+            _, _queued_at, event = self._deferred.pop(addr)
+            try:
+                pair_data = await self._fetch_dexscreener_pair(event)
+                if pair_data is None:
+                    logger.info(
+                        f"[AxiomScanner] Deferred drop: {event.token_symbol} "
+                        f"— no DexScreener data after 60s (dead pool or too new)"
+                    )
+                    continue
+
+                actual_mcap = float(pair_data.get("marketCap") or 0)
+                if actual_mcap > 0 and actual_mcap < self.min_mcap:
+                    logger.debug(
+                        f"[AxiomScanner] Deferred MCap drop: {event.token_symbol} "
+                        f"${actual_mcap:,.0f}"
+                    )
+                    continue
+
+                self.tokens_evaluated += 1
+
+                if self.evaluator:
+                    evaluation = await self.evaluator.evaluate(pair_data)
+                    if evaluation.hard_skip:
+                        continue
+                    score = evaluation.total_score
+                    effective_min = self.min_score
+                    if self.market_monitor and self.market_monitor.market_restricted:
+                        effective_min = self.market_monitor.restricted_threshold
+                    if score < effective_min:
+                        logger.info(
+                            f"[AxiomScanner] Deferred score low: {event.token_symbol} "
+                            f"— {score:.0f} < {effective_min:.0f}"
+                        )
+                        continue
+                else:
+                    if not event.has_twitter and not event.has_telegram:
+                        continue
+                    score = 70
+
+                self.signals_fired += 1
+                mcap   = pair_data.get("marketCap") or 0
+                liq    = (pair_data.get("liquidity") or {}).get("usd") or 0
+                vol_h1 = (pair_data.get("volume") or {}).get("h1") or 0
+                logger.info(
+                    f"[AxiomScanner] 🚀 DEFERRED SIGNAL: {event.token_symbol} | "
+                    f"MCap: ${mcap:,.0f} | Score: {score:.0f} | "
+                    f"Protocol: {event.protocol}"
+                )
+                if self.scanner:
+                    await self.scanner.process_external_signal(
+                        token_address=event.token_address,
+                        token_symbol=event.token_symbol,
+                        reason=f"Axiom signal | score {score:.0f} | {event.protocol}",
+                        signal_score=int(score),
+                        strategy_tag="AxiomScanner",
+                        skip_security=True,
+                        price_usd=float(pair_data.get("priceUsd") or 0),
+                        liquidity_usd=liq,
+                        volume_h1=vol_h1,
+                        mcap=mcap,
+                    )
+                else:
+                    await self.trader.buy(
+                        token_address=event.token_address,
+                        token_symbol=event.token_symbol,
+                        reason=f"Axiom signal | score {score:.0f} | {event.protocol}",
+                        signal_score=int(score),
+                    )
+            except Exception as e:
+                logger.debug(
+                    f"[AxiomScanner] Deferred retry error for {event.token_symbol}: {e}"
+                )
+
     async def _fetch_axiom_data(self, event: "AxiomTokenEvent") -> Optional[dict]:
         """
         Fetch token metrics from Axiom API and convert to DexScreener format
         so the existing signal evaluator can score it without changes.
 
-        Uses get_token_info_by_pair (api10) which returns rich data for the
-        specific pair address we received from the WebSocket.
-        Falls back to get_token_info (api6) by token address.
+        Fallback chain:
+          1. api10 token-info by pair (skip for LaunchLab — always 404)
+          2. api6 token by address  (skip for LaunchLab — always 404)
+          3. api3 token-info by pair (supports LaunchLab + newer protocols)
+          4. DexScreener
+          5. WS event data (deferred for real scoring later)
         """
+        import aiohttp as _aio
         loop = asyncio.get_event_loop()
         raw_info = None
 
+        proto_lower = event.protocol.lower()
+        _skip_legacy_api = "launchlab" in proto_lower  # api10/api6 always 404 for LaunchLab
+
         # Try pair-specific endpoint first (more accurate for new tokens)
-        if event.pair_address and AXIOM_AVAILABLE:
+        if not _skip_legacy_api and event.pair_address and AXIOM_AVAILABLE:
             try:
                 client = self.auth.get_client()
                 if client:
@@ -1286,11 +1918,11 @@ class AxiomScanner:
                         None, client.get_token_info_by_pair, event.pair_address
                     )
             except Exception as e:
-                logger.info(f"[AxiomScanner] get_token_info_by_pair failed "
-                            f"for {event.token_symbol}: {e}")
+                logger.debug(f"[AxiomScanner] get_token_info_by_pair failed "
+                             f"for {event.token_symbol}: {e}")
 
         # Fallback to token-address endpoint
-        if not raw_info and AXIOM_AVAILABLE:
+        if not raw_info and not _skip_legacy_api and AXIOM_AVAILABLE:
             try:
                 client = self.auth.get_client()
                 if client:
@@ -1298,12 +1930,86 @@ class AxiomScanner:
                         None, client.get_token_info, event.token_address
                     )
             except Exception as e:
-                logger.info(f"[AxiomScanner] get_token_info failed "
-                            f"for {event.token_symbol}: {e}")
+                logger.debug(f"[AxiomScanner] get_token_info failed "
+                             f"for {event.token_symbol}: {e}")
 
-        if not raw_info:
-            # Try DexScreener as final fallback (token should be indexed by now)
-            return await self._fetch_dexscreener_pair(event)
+        # api3 supports LaunchLab and newer protocols that api10/api6 don't
+        if not raw_info and event.pair_address:
+            try:
+                import time as _t
+                url = (
+                    f"https://api3.axiom.trade/token-info"
+                    f"?pairAddress={event.pair_address}&v={int(_t.time() * 1000)}"
+                )
+                cookie = f"auth-access-token={self.auth.auth_token or ''}"
+                headers = {
+                    "Cookie": cookie,
+                    "Accept": "application/json",
+                    "Origin": "https://axiom.trade",
+                    "Referer": "https://axiom.trade/",
+                }
+                async with _aio.ClientSession() as session:
+                    async with session.get(
+                        url, headers=headers, timeout=_aio.ClientTimeout(total=5)
+                    ) as resp:
+                        if resp.status == 200:
+                            raw_info = await resp.json(content_type=None)
+                            logger.debug(
+                                f"[AxiomScanner] api3 data for {event.token_symbol}"
+                            )
+            except Exception as e:
+                logger.debug(f"[AxiomScanner] api3 failed for {event.token_symbol}: {e}")
+
+        # If Axiom returned data, convert to DexScreener-compatible format
+        if raw_info:
+            return self._axiom_raw_to_dex(event, raw_info)
+
+        # Try DexScreener (token may be indexed by now)
+        ds_data = await self._fetch_dexscreener_pair(event)
+        if ds_data:
+            return ds_data
+        # Last resort: use the data Axiom already sent in the WebSocket event.
+        # New tokens are never in external APIs immediately — the WebSocket event
+        # itself carries mcap/liquidity/volume from Axiom, which is enough to score.
+        return event.to_dexscreener_format()
+
+    def _axiom_raw_to_dex(self, event: "AxiomTokenEvent", raw: dict) -> dict:
+        """Convert Axiom API token-info response to DexScreener pair format."""
+        mcap    = float(raw.get("marketCap") or raw.get("market_cap") or
+                        raw.get("marketCapUsd") or event.mcap_usd or 0)
+        liq     = float(raw.get("liquidity") or raw.get("liquidityUsd") or
+                        raw.get("liquidity_usd") or event.liquidity_usd or 0)
+        vol_h1  = float(raw.get("volume1h") or raw.get("volumeH1") or
+                        raw.get("volume_1h") or 0)
+        vol_h6  = float(raw.get("volume6h") or raw.get("volumeH6") or 0)
+        vol_h24 = float(raw.get("volume24h") or raw.get("volumeH24") or 0)
+        price   = float(raw.get("price") or raw.get("priceUsd") or
+                        raw.get("price_usd") or 0)
+        ch_h1   = float(raw.get("priceChange1h") or raw.get("change1h") or 0)
+        ch_h6   = float(raw.get("priceChange6h") or raw.get("change6h") or 0)
+        ch_h24  = float(raw.get("priceChange24h") or raw.get("change24h") or 0)
+        buys_h1 = int(raw.get("buys1h") or raw.get("buysH1") or 0)
+        sells_h1= int(raw.get("sells1h") or raw.get("sellsH1") or 0)
+        return {
+            "chainId":    "solana",
+            "pairAddress": event.pair_address,
+            "baseToken":  {
+                "address": event.token_address,
+                "symbol":  event.token_symbol,
+                "name":    event.token_name,
+            },
+            "priceUsd":   str(price) if price else "0",
+            "marketCap":  mcap,
+            "liquidity":  {"usd": liq},
+            "volume":     {"h1": vol_h1, "h6": vol_h6, "h24": vol_h24, "m5": 0},
+            "priceChange":{"h1": ch_h1, "h6": ch_h6, "h24": ch_h24, "m5": 0},
+            "txns": {
+                "h1": {"buys": buys_h1, "sells": sells_h1},
+                "m5": {"buys": 0, "sells": 0},
+            },
+            "pairCreatedAt": 0,
+            "_axiom_source": True,
+        }
 
     async def _fetch_dexscreener_pair(self, event: "AxiomTokenEvent") -> Optional[dict]:
         """Fetch DexScreener pair data. Returns DexScreener pair dict or None."""
@@ -1326,6 +2032,29 @@ class AxiomScanner:
             logger.debug(f"[AxiomScanner] DexScreener fallback failed for "
                          f"{event.token_address[:8]}: {e}")
             return None
+
+    async def _alert_scanner_down(self, reason: str):
+        """Send a Telegram alert when the scanner drops, then hourly reminders if still down."""
+        import time as _time
+        now = _time.time()
+        if self._ws_down_since is None:
+            # First failure — alert immediately
+            self._ws_down_since = now
+            self._ws_down_alerted = now
+            short_reason = reason[:200] if reason else "unknown"
+            await self.telegram.send(
+                f"⚠️ *Axiom Scanner Disconnected*\n"
+                f"Reason: {short_reason}\n"
+                f"Reconnecting automatically..."
+            )
+        elif now - self._ws_down_alerted >= 3600:
+            # Hourly reminder while still down
+            self._ws_down_alerted = now
+            down_mins = int((now - self._ws_down_since) / 60)
+            await self.telegram.send(
+                f"⚠️ *Axiom Scanner Still Down* ({down_mins} min)\n"
+                f"Still reconnecting — check Railway logs if this persists"
+            )
 
     async def _run_dexscreener_fallback(self):
         """
@@ -1371,7 +2100,7 @@ class AxiomScanner:
                                     "baseToken", {}
                                 ).get("address", "")
                                 if token_addr and token_addr not in self._seen_tokens:
-                                    self._seen_tokens.add(token_addr)
+                                    self._seen_tokens[token_addr] = None
                                     raw = {
                                         "tokenAddress": token_addr,
                                         "tokenTicker": pair.get(
@@ -1432,7 +2161,7 @@ async def axiom_enrich_check(auth_manager,
                               deployer_address: str = "") -> tuple:
     """
     Enrichment check using Axiom's holder and dev APIs.
-    Returns (passed: bool, reason: str).
+    Returns (passed: bool, reason: str, tracked_count: int).
 
     Fails open on any API error — never blocks a trade due to enrichment failure.
 
@@ -1441,6 +2170,7 @@ async def axiom_enrich_check(auth_manager,
       2. Dev history — serial rugger (3+ dead tokens from same dev) → reject
     """
     loop = asyncio.get_event_loop()
+    tracked_count = 0
 
     # ── 1. Holder concentration ───────────────────────────────────────────────
     if pair_address and AXIOM_AVAILABLE:
@@ -1482,7 +2212,8 @@ async def axiom_enrich_check(auth_manager,
                     if top_pct > 20.0:
                         return (
                             False,
-                            f"Top holder concentration too high ({top_pct:.1f}%)"
+                            f"Top holder concentration too high ({top_pct:.1f}%)",
+                            0
                         )
                 # Secondary: tracked wallet presence (only_tracked_wallets=True)
                 try:
@@ -1552,19 +2283,19 @@ async def axiom_enrich_check(auth_manager,
                             lifetimes_days.append(min(age_days, 90))
 
                     if dead_count >= 3:
-                        return (False, f"Serial rugger — dev has {dead_count} dead tokens")
+                        return (False, f"Serial rugger — dev has {dead_count} dead tokens", 0)
 
                     if recent_launches >= 10:
-                        return (False, f"High-frequency deployer — {recent_launches} tokens in 30 days")
+                        return (False, f"High-frequency deployer — {recent_launches} tokens in 30 days", 0)
 
                     if len(lifetimes_days) >= 3:
                         avg_lifetime = sum(lifetimes_days) / len(lifetimes_days)
                         if avg_lifetime < 2.0:
-                            return (False, f"Rug pattern — avg token lifetime {avg_lifetime:.1f} days")
+                            return (False, f"Rug pattern — avg token lifetime {avg_lifetime:.1f} days", 0)
         except Exception as e:
             logger.debug(
                 f"[AxiomEnrich] Dev check failed for {deployer_address[:8]}: {e}"
             )
             # Fail open — don't block on API errors
 
-    return (True, "")
+    return (True, "", tracked_count)

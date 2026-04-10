@@ -23,7 +23,18 @@ class PerformanceTracker:
     def __init__(self):
         self.trades: List[dict] = []
         self.scalpers = []          # registered scalper instances
+        self._rug_blacklist: Dict[str, datetime] = {}  # token_address.lower() → expiry
         self._load_trades()
+
+    def is_rugged(self, token_address: str) -> bool:
+        """Return True if this token is in the rug blacklist and the ban hasn't expired."""
+        expiry = self._rug_blacklist.get(token_address.lower())
+        if expiry is None:
+            return False
+        if datetime.now(timezone.utc) >= expiry:
+            del self._rug_blacklist[token_address.lower()]
+            return False
+        return True
 
     # ── Registration ─────────────────────────────────────────────────────
 
@@ -164,6 +175,32 @@ class PerformanceTracker:
             })
         return result
 
+    def get_drawdown_stats(self) -> dict:
+        """Return peak P&L, current drawdown, and max drawdown from trade history."""
+        series = self.get_cumulative_pnl()
+        if not series:
+            return {"peak_pnl": 0.0, "current_pnl": 0.0,
+                    "current_drawdown": 0.0, "max_drawdown": 0.0, "max_drawdown_pct": 0.0}
+        peak = 0.0
+        max_dd = 0.0
+        for pt in series:
+            val = pt["cumulative"]
+            if val > peak:
+                peak = val
+            dd = peak - val
+            if dd > max_dd:
+                max_dd = dd
+        current = series[-1]["cumulative"]
+        current_dd = max(0.0, peak - current)
+        max_dd_pct = (max_dd / peak * 100) if peak > 0 else 0.0
+        return {
+            "peak_pnl":         round(peak, 2),
+            "current_pnl":      round(current, 2),
+            "current_drawdown": round(current_dd, 2),
+            "max_drawdown":     round(max_dd, 2),
+            "max_drawdown_pct": round(max_dd_pct, 1),
+        }
+
     def get_daily_pnl(self) -> float:
         """Return today's realized P&L (UTC date)."""
         today = datetime.now(timezone.utc).date().isoformat()
@@ -301,30 +338,50 @@ class PerformanceTracker:
             except Exception:
                 self.trades = []
 
+    _CSV_COLUMNS = ["time", "chain", "token", "address",
+                    "entry_price", "exit_price", "pnl", "pnl_pct",
+                    "reason", "strategy", "max_drawdown_pct", "hold_secs",
+                    "entry_market_cap_usd", "entry_age_hours", "entry_volume_h1_usd"]
+
     def _append_closed_position(self, trade: dict):
         """Append-only CSV log — never cleared by reset, survives restarts."""
         import csv
         try:
             os.makedirs(DATA_DIR, exist_ok=True)
-            write_header = not os.path.exists(CLOSED_LOG_FILE)
+            cols = self._CSV_COLUMNS
+            if not os.path.exists(CLOSED_LOG_FILE):
+                # Fresh file — write header then row.
+                with open(CLOSED_LOG_FILE, "w", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(cols)
+                    writer.writerow([trade.get(c, "") for c in cols])
+                return
+            # File exists — check if header has all current columns.
+            with open(CLOSED_LOG_FILE, "r", newline="") as f:
+                existing_cols = next(csv.reader(f), [])
+            if existing_cols != cols:
+                # One-time migration: rewrite with new header, padding missing columns.
+                # New columns that were being written before the header was updated
+                # land in DictReader's restkey (None) as a list — rescue them.
+                new_cols = [c for c in cols if c not in existing_cols]
+                with open(CLOSED_LOG_FILE, "r", newline="") as f:
+                    reader = csv.DictReader(f)
+                    rows = []
+                    for row in reader:
+                        overflow = row.pop(None, None) or []
+                        for i, col in enumerate(new_cols):
+                            row[col] = overflow[i] if i < len(overflow) else ""
+                        rows.append(row)
+                with open(CLOSED_LOG_FILE, "w", newline="") as f:
+                    writer = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
+                    writer.writeheader()
+                    for row in rows:
+                        writer.writerow({c: row.get(c, "") for c in cols})
+                logger.info(f"[Tracker] Migrated closed_positions.csv to add: "
+                            f"{set(cols) - set(existing_cols)}")
             with open(CLOSED_LOG_FILE, "a", newline="") as f:
                 writer = csv.writer(f)
-                if write_header:
-                    writer.writerow(["time", "chain", "token", "address",
-                                     "entry_price", "exit_price", "pnl", "pnl_pct",
-                                     "reason", "strategy"])
-                writer.writerow([
-                    trade.get("time", ""),
-                    trade.get("chain", ""),
-                    trade.get("token", ""),
-                    trade.get("address", ""),
-                    trade.get("entry_price", ""),
-                    trade.get("exit_price", ""),
-                    trade.get("pnl", ""),
-                    trade.get("pnl_pct", ""),
-                    trade.get("reason", ""),
-                    trade.get("strategy", ""),
-                ])
+                writer.writerow([trade.get(c, "") for c in cols])
         except Exception as e:
             logger.error(f"Failed to append closed position: {e}")
 

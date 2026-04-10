@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 # Solana program addresses
 PROGRAMS = {
     "pump_fun":          "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+    "pumpswap":          "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",  # PumpSwap AMM (Mar 2025)
     "raydium_amm":       "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
     "raydium_clmm":      "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
     "orca_whirlpool":    "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
@@ -119,6 +120,7 @@ class SolanaProgramMonitor:
 
                 # Subscribe to key programs
                 await self._subscribe_to_program(ws, PROGRAMS["pump_fun"], "pump_fun")
+                await self._subscribe_to_program(ws, PROGRAMS["pumpswap"], "pumpswap")
                 await self._subscribe_to_program(ws, PROGRAMS["raydium_amm"], "raydium_amm")
                 await self._subscribe_to_program(ws, PROGRAMS["raydium_clmm"], "raydium_clmm")
                 await self._subscribe_to_program(ws, PROGRAMS["orca_whirlpool"], "orca")

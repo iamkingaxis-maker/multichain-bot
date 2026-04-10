@@ -222,7 +222,7 @@ class KillSwitch:
                     )
                     positions_closed += 1
                     # Estimate recovery (will be logged by trader)
-                    total_recovered += getattr(position, "entry_usd_value", 0)
+                    total_recovered += getattr(position, "amount_usd", 0)
                 except Exception as e:
                     logger.error(
                         f"[KillSwitch] Failed to close {addr[:10]}: {e}"

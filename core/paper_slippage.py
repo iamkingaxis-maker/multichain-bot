@@ -130,7 +130,8 @@ class PaperSlippageSimulator:
                   position_usd: float,
                   liquidity_usd: float,
                   current_price: float,
-                  action: str = "buy") -> SlippageEstimate:
+                  action: str = "buy",
+                  is_stop_loss: bool = False) -> SlippageEstimate:
         """
         Calculate slippage for a paper trade.
 
@@ -159,8 +160,23 @@ class PaperSlippageSimulator:
         size_ratio = position_usd / liquidity_usd
         market_impact = coefficient * math.sqrt(size_ratio) * 100
 
+        # ── COMPONENT 4: TX execution penalty ────────────────────────
+        # Simulates the 5-20s price drift between quote and TX settlement.
+        # Live trades never fill at the quoted price — Solana block time
+        # and mempool queue mean price moves before your TX lands on-chain.
+        tx_penalty = 0.50  # 0.50% flat penalty on every entry and exit
+
+        # ── COMPONENT 5: Volatility exit multiplier ───────────────────
+        # Normal sell: 1.5× — liquidity thins when dumping.
+        # Stop-loss sell: 2.5× — price already falling when stop fires,
+        # real Jupiter fills on memecoins gap 3-8% worse at exit.
+        if action == "sell":
+            volatility_multiplier = 2.5 if is_stop_loss else 1.5
+        else:
+            volatility_multiplier = 1.0
+
         # ── TOTAL ─────────────────────────────────────────────────────
-        total = spread + fee + market_impact
+        total = (spread + fee + market_impact) * volatility_multiplier + tx_penalty
 
         # Apply caps
         min_slip = MIN_SLIPPAGE.get(self.chain_id, 0.30)
@@ -233,7 +249,8 @@ class PaperSlippageSimulator:
                       tokens_sold: float,
                       liquidity_usd: float,
                       exit_price: float,
-                      token_symbol: str = "?") -> tuple:
+                      token_symbol: str = "?",
+                      is_stop_loss: bool = False) -> tuple:
         """
         Apply slippage to a paper sell.
         Returns (adjusted_exit_price, usd_received, slippage_estimate)
@@ -243,7 +260,7 @@ class PaperSlippageSimulator:
         """
         position_usd = tokens_sold * exit_price
         estimate = self.calculate(
-            position_usd, liquidity_usd, exit_price, "sell"
+            position_usd, liquidity_usd, exit_price, "sell", is_stop_loss=is_stop_loss
         )
         usd_received = tokens_sold * estimate.adjusted_price
 

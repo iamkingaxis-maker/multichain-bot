@@ -19,7 +19,8 @@ HARD SKIP CONDITIONS (any one kills the trade):
   - Dev wallet > 5% of supply
   - Token > 24 hours old with no new highs in last 4 hours
   - h1 price change > 75% (overbought — pump likely over)
-  - m5 price change < 0% (price falling right now — no entry)
+  - m5 price change ≥ 0% (not a dip — momentum chase, skipped)
+  - m5 price change < 0% AND h1 ≤ 5% (genuine downtrend — no momentum)
 
 PYRAMID UP:
   Only if original signal score was 90+
@@ -103,7 +104,7 @@ class TokenEvaluation:
     skip_reasons: List[str] = field(default_factory=list)
 
     # Bonus signals
-    age_bonus: int = 0                    # +5 for 3-12h sweet spot
+    age_bonus: int = 0                    # unused — kept for API compatibility
     warnings: List[str] = field(default_factory=list)
 
     # Final
@@ -118,8 +119,7 @@ class TokenEvaluation:
             self.price_structure_score +
             self.buy_pressure_m5_score +
             self.social_score +
-            self.liquidity_score +
-            self.age_bonus
+            self.liquidity_score
         )
         if self.total_score >= 90:
             self.confidence = "VERY_HIGH"
@@ -157,8 +157,6 @@ class TokenSignalEvaluator:
     def __init__(self,
                  min_liquidity_usd: float = 50_000,
                  max_dev_wallet_pct: float = 5.0,
-                 preferred_age_min_hours: float = 3.0,
-                 preferred_age_max_hours: float = 12.0,
                  hard_skip_age_hours: float = 24.0,
                  pyramid_score_threshold: int = 90,
                  min_holder_count: int = 100,
@@ -166,8 +164,6 @@ class TokenSignalEvaluator:
 
         self.min_liquidity = min_liquidity_usd
         self.max_dev_pct = max_dev_wallet_pct
-        self.preferred_age_min = preferred_age_min_hours
-        self.preferred_age_max = preferred_age_max_hours
         self.hard_skip_age = hard_skip_age_hours
         self.pyramid_threshold = pyramid_score_threshold
         self.min_holders = min_holder_count
@@ -279,13 +275,41 @@ class TokenSignalEvaluator:
                 f"Overbought: h1={pc_h1:+.0f}% — pump likely over"
             )
 
-        # 5. Price falling right now — m5 < 0 means no current momentum
+        # 5. Dip-only mode: require red m5 (short-term pullback) into green h1 (macro uptrend)
+        #    Green m5 = momentum chase. Red m5 + flat/red h1 = downtrend. Both skip.
+        #    Guard against deceptive h1: after a pump+dump, h1 stays positive for up to
+        #    an hour even while the token is actively crashing. Two checks catch this:
+        #      a) m5 < -12% = dumping, not dipping — dev dump or capitulation in progress
+        #      b) h6 < -20% with modest h1 = brief pump inside a multi-hour downtrend
         pc_m5 = price_change.get("m5", 0) or 0
-        if pc_m5 < 0:
+        pc_h6 = price_change.get("h6", 0) or 0
+        if pc_m5 >= 0:
+            # m5 is green — not a dip entry, skip
             eval_result.hard_skip = True
             eval_result.skip_reasons.append(
-                f"Price falling: m5={pc_m5:+.1f}% — wait for floor"
+                f"Not a dip: m5={pc_m5:+.1f}% — wait for pullback"
             )
+        elif pc_h1 <= 5:
+            # m5 red but h1 flat/red too — genuine downtrend, no macro support
+            eval_result.hard_skip = True
+            eval_result.skip_reasons.append(
+                f"Downtrend: h1={pc_h1:+.1f}% m5={pc_m5:+.1f}% — no momentum"
+            )
+        elif pc_m5 < -12:
+            # m5 too negative — this is a dump, not a dip
+            # Healthy dips are -2% to -10%; below -12% means active selling/crash
+            eval_result.hard_skip = True
+            eval_result.skip_reasons.append(
+                f"Dump in progress: m5={pc_m5:+.1f}% — crash not a dip (h1={pc_h1:+.1f}%)"
+            )
+        elif pc_h6 < -20 and pc_h1 < 25:
+            # h6 strongly negative but h1 only modestly positive = brief pump inside
+            # a multi-hour downtrend. h1 is deceptive — the token is still declining.
+            eval_result.hard_skip = True
+            eval_result.skip_reasons.append(
+                f"Trap pump: h6={pc_h6:+.1f}% h1={pc_h1:+.1f}% — pump inside downtrend"
+            )
+        # else: h1 positive + m5 small red + h6 not deeply negative = valid dip
 
         if eval_result.hard_skip:
             self._hard_skips += 1
@@ -341,6 +365,22 @@ class TokenSignalEvaluator:
         else:
             eval_result.buy_pressure_m5_score = 7  # no data — neutral
 
+        # ── H1 BUY RATIO — secondary sustained demand signal ──────────────
+        h1_txns = txns.get("h1", {})
+        h1_buys = h1_txns.get("buys", 0)
+        h1_sells = h1_txns.get("sells", 0)
+        h1_total = h1_buys + h1_sells
+        if h1_total >= 20:
+            h1_ratio = h1_buys / h1_total
+            if h1_ratio >= 0.65:
+                eval_result.buy_pressure_m5_score = min(
+                    eval_result.buy_pressure_m5_score + 5, 20
+                )
+            elif h1_ratio < 0.40:
+                eval_result.buy_pressure_m5_score = max(
+                    eval_result.buy_pressure_m5_score - 5, 0
+                )
+
         # ── HOLDER GROWTH (0-20 points) ───────────────────────────────────
         if holder_count >= 500 and holder_change > 20:
             eval_result.holder_growth_fast = True
@@ -375,6 +415,11 @@ class TokenSignalEvaluator:
             eval_result.social_score = 0
             eval_result.warnings.append("No social presence")
 
+        # Website presence bonus: +2 if at least one website URL listed
+        websites = info.get("websites", [])
+        if websites and any(w.get("url") for w in websites):
+            eval_result.social_score = min(eval_result.social_score + 2, 15)
+
         # ── LIQUIDITY (0-10 points) ───────────────────────────────────────
         eval_result.liquidity_ok = liquidity >= self.min_liquidity
 
@@ -388,18 +433,6 @@ class TokenSignalEvaluator:
             eval_result.liquidity_score = 0
             eval_result.warnings.append(
                 f"Low liquidity ${liquidity:,.0f} (min ${self.min_liquidity:,.0f})"
-            )
-
-        # ── TOKEN AGE BONUS (+5 for sweet spot) ──────────────────────────
-        if self.preferred_age_min <= age_hours <= self.preferred_age_max:
-            eval_result.age_bonus = 5
-        elif age_hours < self.preferred_age_min:
-            eval_result.warnings.append(
-                f"Very fresh ({age_hours:.1f}h) — initial dump not confirmed"
-            )
-        elif age_hours > self.preferred_age_max:
-            eval_result.warnings.append(
-                f"Older token ({age_hours:.0f}h) — check for new highs"
             )
 
         eval_result.calculate_total()

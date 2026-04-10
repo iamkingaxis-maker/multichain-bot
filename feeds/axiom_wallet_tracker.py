@@ -137,6 +137,11 @@ class AxiomWalletTracker:
         self.wallets_checked  = 0
         self.activity_detected = 0
 
+        # Failure tracking — disable after repeated 404s (API not available)
+        self._consecutive_failures = 0
+        self._max_failures = 3
+        self._disabled = False
+
     def add_wallet(self, address: str, label: str = ""):
         """Register a wallet for balance tracking."""
         if address not in self._wallets:
@@ -187,7 +192,7 @@ class AxiomWalletTracker:
 
     async def _poll_all_wallets(self):
         """Poll all tracked wallets in batches."""
-        if not self._wallets:
+        if self._disabled or not self._wallets:
             return
 
         # Ensure valid auth
@@ -212,11 +217,15 @@ class AxiomWalletTracker:
             results_raw = await loop.run_in_executor(
                 None, self._client.get_batched_sol_balance, addresses
             )
-            # results_raw: {address: sol_float}
-            results = {addr: {"sol": bal} for addr, bal in (results_raw or {}).items()}
+            # Library may catch 404 internally and return None or {} instead of raising.
+            # Treat any falsy result as a 404-style failure so the disable logic fires.
+            if not results_raw:
+                raise RuntimeError("404 - batched-sol-balance returned empty/None (endpoint unavailable)")
+            results = {addr: {"sol": bal} for addr, bal in results_raw.items()}
 
             self.polls_completed += 1
             self.wallets_checked += len(addresses)
+            self._consecutive_failures = 0
 
             for addr, balance_data in results.items():
                 if balance_data is None:
@@ -224,8 +233,19 @@ class AxiomWalletTracker:
                 await self._update_wallet(addr, balance_data)
 
         except Exception as e:
-            logger.error(f"[AxiomWalletTracker] Batch error: {e}")
+            self._consecutive_failures += 1
             self._client = None
+            if "404" in str(e):
+                if self._consecutive_failures >= self._max_failures:
+                    logger.warning(
+                        "[AxiomWalletTracker] Batched balance API not available (404) — "
+                        "disabling wallet tracker. Axiom WebSocket scanner still active."
+                    )
+                    self._disabled = True
+                else:
+                    logger.debug(f"[AxiomWalletTracker] Batch error: {e}")
+            else:
+                logger.error(f"[AxiomWalletTracker] Batch error: {e}")
 
     async def _update_wallet(self, address: str, balance_data: dict):
         """Update a wallet's activity record with new balance data."""

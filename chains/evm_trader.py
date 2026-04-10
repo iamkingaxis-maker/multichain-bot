@@ -366,14 +366,14 @@ class EVMTrader:
                 f"📊 PnL: ${pnl:+.0f} ({pnl_pct:+.1f}%)\n"
                 f"📝 Reason: {reason}"
             )
-            self.tracker.record_sell(token_address, usd_received, pnl, reason, extra={
-                "peak_price": peak,
-                "peak_multiplier": round(peak_mult, 4),
-                "pnl_pct": round(pnl_pct, 2),
-                "hold_minutes": hold_minutes,
-                "tp1_hit": int(tp1_hit),
-                "tp2_hit": int(tp2_hit),
-            })
+            self.tracker.record_sell(token_address, usd_received, pnl, reason,
+                pnl_pct=round(pnl_pct, 2),
+                peak_price=peak,
+                peak_multiplier=round(peak_mult, 4),
+                hold_minutes=hold_minutes,
+                tp1_hit=int(tp1_hit),
+                tp2_hit=int(tp2_hit),
+            )
             logger.info(
                 f"📄 [PAPER] Sold {token_symbol} [{self.chain.name}] {pct*100:.0f}% — "
                 f"PnL: ${pnl:+.0f} ({pnl_pct:+.1f}%) | {reason}"
@@ -420,14 +420,14 @@ class EVMTrader:
                 f"📊 PnL: ${pnl:+.0f} ({pnl_pct:+.1f}%)\n"
                 f"📝 Reason: {reason}"
             )
-            self.tracker.record_sell(token_address, usd_received, pnl, reason, extra={
-                "peak_price": peak,
-                "peak_multiplier": round(peak_mult, 4),
-                "pnl_pct": round(pnl_pct, 2),
-                "hold_minutes": hold_minutes,
-                "tp1_hit": int(tp1_hit),
-                "tp2_hit": int(tp2_hit),
-            })
+            self.tracker.record_sell(token_address, usd_received, pnl, reason,
+                pnl_pct=round(pnl_pct, 2),
+                peak_price=peak,
+                peak_multiplier=round(peak_mult, 4),
+                hold_minutes=hold_minutes,
+                tp1_hit=int(tp1_hit),
+                tp2_hit=int(tp2_hit),
+            )
 
         except Exception as e:
             logger.error(f"[{self.chain.name}] Sell failed for {token_symbol}: {e}")

@@ -58,7 +58,7 @@ class SentimentScore:
 
     @property
     def passed(self) -> bool:
-        return self.sentiment_score >= 30  # Minimum social presence required
+        return self.sentiment_score >= 20  # Minimum social presence required
 
     def summary(self) -> str:
         return (

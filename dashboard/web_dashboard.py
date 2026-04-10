@@ -221,6 +221,41 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   .breakdown-card .stat-line:last-child { border-bottom: none; }
   .breakdown-card .stat-line .k { color: var(--muted); }
 
+  /* ── Active Strategies panel ── */
+  .strategies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  .strat-status-card {
+    background: #1c2128;
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .strat-status-card .strat-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .strat-status-card .strat-dot {
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  }
+  .strat-status-card .strat-name {
+    font-size: 13px; font-weight: 700; flex: 1;
+  }
+  .strat-status-card .strat-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    padding: 2px 7px; border-radius: 8px;
+  }
+  .strat-status-card .strat-stat {
+    display: flex; justify-content: space-between;
+    font-size: 11px; padding: 3px 0;
+    border-bottom: 1px solid #21262d;
+  }
+  .strat-status-card .strat-stat:last-child { border-bottom: none; }
+  .strat-status-card .strat-stat .sk { color: var(--muted); }
+  .badge-running { background: #2ea04322; color: var(--green-lt); }
+  .badge-stopped { background: #f8514920; color: var(--red); }
+
   /* ── Trade History filter ── */
   .filter-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
   .filter-input {
@@ -283,6 +318,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       <div class="label">Total P&amp;L</div>
       <div class="value" id="sc-total-pnl">$0.00</div>
       <div class="sub" id="sc-total-pnl-sub">all time</div>
+      <div class="sub" id="sc-total-pnl-live" style="font-size:10px;opacity:0.7;">live est: $0.00</div>
     </div>
     <div class="stat-card">
       <div class="label">Daily P&amp;L</div>
@@ -303,6 +339,21 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       <div class="label">Account Balance</div>
       <div class="value" id="sc-balance">$2,000</div>
       <div class="sub" id="sc-balance-sub">$0 deployed &bull; $2,000 available</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Max Drawdown</div>
+      <div class="value" id="sc-max-dd">$0.00</div>
+      <div class="sub" id="sc-max-dd-sub">0.0% from peak</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Slippage Cost</div>
+      <div class="value" id="sc-slippage">$0.00</div>
+      <div class="sub" id="sc-slippage-sub">avg 0.00% per trade</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">DEX WS</div>
+      <div class="value" id="sc-dex-ws" style="font-size:18px;">—</div>
+      <div class="sub" id="sc-dex-ws-sub">checking...</div>
     </div>
   </div>
 
@@ -427,6 +478,14 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- ── Active Strategies ── -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:#a78bfa"></span> Active Strategies</div>
+    <div class="strategies-grid" id="active-strategies-grid">
+      <div class="empty">Loading strategy status...</div>
+    </div>
+  </div>
+
   <!-- ── Chain Breakdown ── -->
   <div class="card breakdown-card">
     <div class="card-label">Chain</div>
@@ -434,6 +493,20 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     <div class="stat-line"><span class="k">P&amp;L</span><span id="ch-sol-pnl">$0.00</span></div>
     <div class="stat-line"><span class="k">Capital In</span><span id="ch-sol-cap">$0</span></div>
     <div class="stat-line"><span class="k">Open Positions</span><span id="ch-sol-pos">0</span></div>
+  </div>
+
+  <!-- ── MC Recommendations ── -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:#a78bfa"></span> Micro-Cap Radar <span style="font-size:10px;opacity:0.5;margin-left:6px">seen but not bought</span></div>
+    <div class="tbl-wrap">
+      <table id="mc-rec-table">
+        <thead><tr>
+          <th>Time</th><th>Token</th><th>MCap</th><th>Liq</th>
+          <th>Dev%</th><th>Snipers%</th><th>LP</th><th>Reason</th>
+        </tr></thead>
+        <tbody id="mc-rec-body"><tr><td colspan="9" style="text-align:center;opacity:0.4">Loading...</td></tr></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- ── Trade History ── -->
@@ -571,7 +644,7 @@ updateClock();
 // ── Formatting helpers ─────────────────────────────────────────────────────
 function fmtUsd(v) {
   const n = parseFloat(v) || 0;
-  const sign = n >= 0 ? '+' : '';
+  const sign = n >= 0 ? '+' : '-';
   return sign + '$' + Math.abs(n).toFixed(2);
 }
 function pnlClass(v) { return parseFloat(v) >= 0 ? 'green' : 'red'; }
@@ -636,6 +709,7 @@ function updateDashboard(d) {
   updatePositions(d.positions || []);
   updateFeed(d.new_alerts || []);
   updateStrategies(d.strategies || {});
+  updateActiveStrategies(d.active_strategies || {});
   updateChains(d.chains || {});
   updateSecurity(d.security || {}, d.price_feed || {});
 
@@ -686,6 +760,9 @@ function updateStatCards(d) {
   const totalPnlEl = document.getElementById('sc-total-pnl');
   totalPnlEl.textContent = fmtUsd(pnl);
   totalPnlEl.className = 'value ' + pnlClass(pnl);
+  const liveEst = pnl * 0.75;
+  const liveEl = document.getElementById('sc-total-pnl-live');
+  if (liveEl) { liveEl.textContent = 'live est: ' + fmtUsd(liveEst); liveEl.style.color = liveEst >= 0 ? '#4caf50' : '#f44336'; }
 
   const dailyEl = document.getElementById('sc-daily-pnl');
   dailyEl.textContent = fmtUsd(daily);
@@ -709,6 +786,50 @@ function updateStatCards(d) {
   document.getElementById('sc-balance').textContent = '$' + totalCap.toFixed(0);
   document.getElementById('sc-balance-sub').textContent =
     '$' + deployed.toFixed(0) + ' deployed • $' + available.toFixed(0) + ' available';
+
+  // Drawdown
+  const dd = d.drawdown || {};
+  const maxDd = dd.max_drawdown || 0;
+  const maxDdPct = dd.max_drawdown_pct || 0;
+  const curDd = dd.current_drawdown || 0;
+  const ddEl = document.getElementById('sc-max-dd');
+  ddEl.textContent = '-$' + maxDd.toFixed(2);
+  ddEl.style.color = maxDd > 0 ? 'var(--red)' : 'var(--muted)';
+  document.getElementById('sc-max-dd-sub').textContent =
+    maxDdPct.toFixed(1) + '% from peak' + (curDd > 0 ? ' • now -$' + curDd.toFixed(2) : '');
+
+  // Slippage
+  const sl = d.slippage || {};
+  const slCost = sl.total_slippage_cost_usd || 0;
+  const slAvg  = sl.avg_slippage_pct || 0;
+  const slEl = document.getElementById('sc-slippage');
+  slEl.textContent = '-$' + slCost.toFixed(2);
+  slEl.style.color = slCost > 0 ? 'var(--yellow)' : 'var(--muted)';
+  document.getElementById('sc-slippage-sub').textContent =
+    'avg ' + slAvg.toFixed(2) + '% per trade';
+
+  // DexScreener WS health indicator
+  const ws = d.dexscreener_ws || {};
+  const wsEl = document.getElementById('sc-dex-ws');
+  const wsSubEl = document.getElementById('sc-dex-ws-sub');
+  if (wsEl && wsSubEl) {
+    if (ws.status === 'ok') {
+      wsEl.textContent = '🟢 Live';
+      wsEl.style.color = 'var(--green)';
+      wsSubEl.textContent = 'connected';
+    } else if (ws.status === 'broken') {
+      wsEl.textContent = '🔴 Down';
+      wsEl.style.color = 'var(--red)';
+      wsSubEl.textContent = (ws.consecutive_failures || 0) + ' failures — endpoint broken';
+    } else if (ws.status === 'reconnecting') {
+      wsEl.textContent = '🟡 Retry';
+      wsEl.style.color = 'var(--yellow)';
+      wsSubEl.textContent = 'attempt ' + (ws.consecutive_failures || 0);
+    } else {
+      wsEl.textContent = '—';
+      wsSubEl.textContent = 'polling only';
+    }
+  }
 }
 
 // ── P&L Chart ──────────────────────────────────────────────────────────────
@@ -739,7 +860,8 @@ function updatePositions(positions) {
     const pct = Math.min(((mult - 1) / 1.5) * 100, 100);
     const tpCls = mult >= 2.5 ? 'tp3' : mult >= 2 ? 'tp2' : 'tp1';
     const addr = p.token_address || '';
-    const chartUrl = addr ? `https://dexscreener.com/solana/${addr}` : '';
+    const chartAddr = p.pair_address || addr;
+    const chartUrl = chartAddr ? `https://dexscreener.com/solana/${chartAddr}` : '';
     return `<tr>
       <td style="font-weight:600">${chartUrl
         ? `<a href="${chartUrl}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" title="View chart">$${p.symbol||'?'} ↗</a>`
@@ -921,6 +1043,68 @@ function updateStrategies(strategies) {
   });
 }
 
+// ── Active Strategies status ───────────────────────────────────────────────
+function timeAgo(isoStr) {
+  if (!isoStr) return 'Never';
+  try {
+    const diffMs = Date.now() - new Date(isoStr).getTime();
+    if (diffMs < 0) return 'Just now';
+    const s = Math.floor(diffMs / 1000);
+    if (s < 60)  return s + 's ago';
+    const m = Math.floor(s / 60);
+    if (m < 60)  return m + 'm ago';
+    const h = Math.floor(m / 60);
+    if (h < 24)  return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  } catch { return '—'; }
+}
+
+function updateActiveStrategies(strategies) {
+  const grid = document.getElementById('active-strategies-grid');
+  if (!grid) return;
+  const list = Object.entries(strategies);
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty">No strategy data yet</div>';
+    return;
+  }
+  grid.innerHTML = list.map(([key, s]) => {
+    const running = s.running !== false;
+    const dotColor = running ? 'var(--green-lt)' : 'var(--red)';
+    const badgeCls = running ? 'badge-running' : 'badge-stopped';
+    const badgeTxt = running ? 'RUNNING' : 'STOPPED';
+    const pnlCls   = (s.total_pnl || 0) >= 0 ? 'green' : 'red';
+    const wr        = (s.win_rate || 0).toFixed(1);
+    const wrCls     = (s.win_rate || 0) >= 50 ? 'green' : (s.win_rate || 0) >= 35 ? 'yellow' : 'red';
+
+    // Build extra strategy-specific rows
+    let extraRows = '';
+    if (s.tokens_received != null)
+      extraRows += `<div class="strat-stat"><span class="sk">Tokens received</span><span>${s.tokens_received}</span></div>`;
+    if (s.active_cycles != null)
+      extraRows += `<div class="strat-stat"><span class="sk">Active cycles</span><span>${s.active_cycles}</span></div>`;
+    if (s.active_positions != null)
+      extraRows += `<div class="strat-stat"><span class="sk">Active positions</span><span>${s.active_positions}</span></div>`;
+    if (s.signals_fired != null)
+      extraRows += `<div class="strat-stat"><span class="sk">Signals fired</span><span>${s.signals_fired}</span></div>`;
+    if (s.reconnect_count != null)
+      extraRows += `<div class="strat-stat"><span class="sk">Reconnects</span><span>${s.reconnect_count}</span></div>`;
+
+    return `<div class="strat-status-card">
+      <div class="strat-header">
+        <span class="strat-dot" style="background:${dotColor}"></span>
+        <span class="strat-name">${escHtml(s.display_name || key)}</span>
+        <span class="strat-badge ${badgeCls}">${badgeTxt}</span>
+      </div>
+      <div class="strat-stat"><span class="sk">Last Buy</span><span>${timeAgo(s.last_buy)}</span></div>
+      <div class="strat-stat"><span class="sk">Last Sell</span><span>${timeAgo(s.last_sell)}</span></div>
+      <div class="strat-stat"><span class="sk">Trades today</span><span>${s.trades_today || 0}</span></div>
+      <div class="strat-stat"><span class="sk">Win Rate</span><span class="${wrCls}">${wr}%</span></div>
+      <div class="strat-stat"><span class="sk">Total P&amp;L</span><span class="${pnlCls}">${fmtUsd(s.total_pnl || 0)}</span></div>
+      ${extraRows}
+    </div>`;
+  }).join('');
+}
+
 // ── Chain breakdown ────────────────────────────────────────────────────────
 function updateChains(chains) {
   const c = chains['sol'] || {};
@@ -940,6 +1124,38 @@ function updateSecurity(sec, feed) {
   document.getElementById('sec-cache').textContent   = sec.cache_size || 0;
   document.getElementById('feed-ticks').textContent  = feed.total_ticks || 0;
 }
+
+// ── MC Recommendations ─────────────────────────────────────────────────────
+async function loadMcRecommendations() {
+  try {
+    const res  = await fetch('/api/mc-recommendations');
+    const data = await res.json();
+    const tbody = document.getElementById('mc-rec-body');
+    if (!data || !data.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;opacity:0.4">No micro-caps seen yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(r => {
+      const t    = r.time ? r.time.substring(11,16) : '—';
+      const mcap = r.mcap >= 1000 ? '$' + (r.mcap/1000).toFixed(0) + 'k' : '$' + r.mcap;
+      const liq  = r.liquidity >= 1000 ? '$' + (r.liquidity/1000).toFixed(0) + 'k' : '$' + r.liquidity;
+      const lp   = r.lp_burned ? '<span style="color:var(--green)">burned</span>' : '<span style="color:var(--red)">unlocked</span>';
+      const reason = r.reject_reason || '—';
+      return `<tr>
+        <td style="opacity:0.6">${t}</td>
+        <td><strong>${r.dex_url ? `<a href="${r.dex_url}" target="_blank" style="color:var(--accent);text-decoration:none">${r.symbol || '?'}</a>` : (r.symbol || '?')}</strong></td>
+        <td>${mcap}</td>
+        <td>${liq}</td>
+        <td style="color:${r.dev_pct > 20 ? 'var(--red)' : 'inherit'}">${r.dev_pct}%</td>
+        <td style="color:${r.snipers_pct > 20 ? 'var(--red)' : 'inherit'}">${r.snipers_pct}%</td>
+        <td>${lp}</td>
+        <td style="opacity:0.7;font-size:10px">${reason}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) { console.warn('MC rec error', e); }
+}
+setInterval(loadMcRecommendations, 15000);
+loadMcRecommendations();
 
 // ── Trade History ──────────────────────────────────────────────────────────
 function filterTrades() {
@@ -1107,8 +1323,18 @@ class WebDashboard:
 
         self._trader = None  # registered via register_trader()
         self._axiom_auth = None  # registered via register_axiom_auth()
+        self._axiom_scanner = None  # registered via register_axiom_scanner()
+        self._established_scanner = None  # registered via register_established_scanner()
         self._trading_paused = False  # pause/resume state
         self._live_mode = False  # set via register_trader
+        self._anomaly_log: list = []  # rolling last-20 anomaly messages from watchdog
+
+        # Strategy instances registered via register_strategies()
+        self._strat_scanner = None
+        self._strat_scalper = None
+        self._strat_convergence = None
+        self._strat_clustering = None
+        self._strat_capitulation = None
 
         self.app.router.add_get("/",                        self._handle_index)
         self.app.router.add_get("/api/stats",               self._handle_stats)
@@ -1123,10 +1349,14 @@ class WebDashboard:
         self.app.router.add_get("/api/positions",           self._handle_positions)
         self.app.router.add_post("/api/buy",                self._handle_buy)
         self.app.router.add_post("/api/update-axiom-token", self._handle_update_axiom_token)
+        self.app.router.add_post("/api/axiom-relay",        self._handle_axiom_relay)
         self.app.router.add_post("/api/reset",              self._handle_reset)
         self.app.router.add_get("/api/closed-positions",   self._handle_closed_positions)
+        self.app.router.add_get("/api/mc-recommendations", self._handle_mc_recommendations)
         self.app.router.add_post("/api/pause",              self._handle_pause)
         self.app.router.add_post("/api/resume",             self._handle_resume)
+        self.app.router.add_get("/api/strategies",          self._handle_strategies)
+        self.app.router.add_get("/api/diagnostics",         self._handle_diagnostics)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -1149,6 +1379,34 @@ class WebDashboard:
     def register_axiom_auth(self, auth_manager):
         """Register the Axiom auth manager so tokens can be hot-updated via API."""
         self._axiom_auth = auth_manager
+
+    def register_axiom_scanner(self, scanner):
+        """Register the AxiomScanner so relay tokens can be injected via /api/axiom-relay."""
+        self._axiom_scanner = scanner
+
+    def register_established_scanner(self, scanner):
+        """Register the AxiomTrendingScanner so mc_candidates feed into the Radar panel."""
+        self._established_scanner = scanner
+
+    def register_strategies(
+        self,
+        scanner=None,
+        scalper=None,
+        convergence=None,
+        clustering=None,
+        capitulation=None,
+    ):
+        """Register strategy instances so the Active Strategies panel can show live status."""
+        if scanner is not None:
+            self._strat_scanner = scanner
+        if scalper is not None:
+            self._strat_scalper = scalper
+        if convergence is not None:
+            self._strat_convergence = convergence
+        if clustering is not None:
+            self._strat_clustering = clustering
+        if capitulation is not None:
+            self._strat_capitulation = capitulation
 
     def add_alert(self, message: str):
         """Buffer a live alert for the event feed."""
@@ -1349,6 +1607,7 @@ class WebDashboard:
                     "hold_secs": hold_secs,
                     "amount_usd": amount,
                     "reason": getattr(pos, "reason", ""),
+                    "pair_address": getattr(pos, "pair_address", ""),
                 })
         return web.Response(
             text=json.dumps({"ok": True, "positions": positions, "count": len(positions)}),
@@ -1373,11 +1632,12 @@ class WebDashboard:
     async def _handle_watchlist_add(self, request):
         """POST /api/watchlist/add — manually pin a token to the recommended watchlist."""
         import time as _time
+        import aiohttp as _aiohttp
         cors = {"Access-Control-Allow-Origin": "*"}
         try:
             body = await request.json()
             token_address = body.get("token_address", "").strip()
-            token_symbol  = body.get("token_symbol", "").strip() or token_address[:8]
+            token_symbol  = body.get("token_symbol", "").strip()
         except Exception:
             return web.Response(
                 text=json.dumps({"ok": False, "error": "Invalid JSON"}),
@@ -1388,6 +1648,21 @@ class WebDashboard:
                 text=json.dumps({"ok": False, "error": "Missing token_address"}),
                 status=400, content_type="application/json", headers=cors,
             )
+        # If no symbol provided, look it up from DexScreener
+        if not token_symbol:
+            try:
+                dex_url = f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+                async with _aiohttp.ClientSession() as _sess:
+                    async with _sess.get(dex_url, timeout=_aiohttp.ClientTimeout(total=5)) as _r:
+                        if _r.status == 200:
+                            _data = await _r.json(content_type=None)
+                            _pairs = _data.get("pairs") or []
+                            if _pairs:
+                                token_symbol = _pairs[0].get("baseToken", {}).get("symbol", "") or ""
+            except Exception:
+                pass
+            if not token_symbol:
+                token_symbol = token_address[:8]
         entry = {
             "symbol": token_symbol,
             "score": 60,   # placeholder — manual entry
@@ -1415,6 +1690,7 @@ class WebDashboard:
 
     async def _handle_buy(self, request):
         """POST /api/buy — manually buy a token from the watchlist."""
+        import aiohttp as _aiohttp
         cors = {"Access-Control-Allow-Origin": "*"}
         try:
             body = await request.json()
@@ -1440,14 +1716,29 @@ class WebDashboard:
                 text=json.dumps({"ok": False, "error": "Already holding this token"}),
                 status=400, content_type="application/json", headers=cors,
             )
+        # Resolve symbol if missing or looks like an address fragment
+        if not token_symbol or token_symbol.lower() == token_address[:len(token_symbol)].lower():
+            try:
+                dex_url = f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+                async with _aiohttp.ClientSession() as _sess:
+                    async with _sess.get(dex_url, timeout=_aiohttp.ClientTimeout(total=5)) as _r:
+                        if _r.status == 200:
+                            _data = await _r.json(content_type=None)
+                            _pairs = _data.get("pairs") or []
+                            if _pairs:
+                                token_symbol = _pairs[0].get("baseToken", {}).get("symbol", "") or token_symbol
+            except Exception:
+                pass
+            if not token_symbol:
+                token_symbol = "MANUAL"
         try:
             await self._trader.buy(
                 token_address=token_address,
-                token_symbol=token_symbol or "MANUAL",
+                token_symbol=token_symbol,
                 reason="Manual buy from dashboard",
                 signal_score=0
             )
-            if token_address not in self._trader.open_positions:
+            if token_address.lower() not in self._trader.open_positions:
                 return web.Response(
                     text=json.dumps({"ok": False, "error": "Buy failed — check logs (price unavailable or risk limit hit)"}),
                     status=400, content_type="application/json", headers=cors,
@@ -1521,6 +1812,45 @@ class WebDashboard:
             content_type="application/json", headers=cors,
         )
 
+    async def _handle_axiom_relay(self, request):
+        """POST /api/axiom-relay — ingest token events forwarded from local relay script.
+        Body: {"secret": "...", "tokens": [<raw_token_dict>, ...]}
+        The secret must match TOKEN_UPDATE_SECRET env var.
+        """
+        import os as _os
+        cors = {"Access-Control-Allow-Origin": "*"}
+        expected_secret = _os.environ.get("TOKEN_UPDATE_SECRET", "changeme")
+        try:
+            body = await request.json()
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        if body.get("secret") != expected_secret:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Unauthorized"}),
+                status=401, content_type="application/json", headers=cors,
+            )
+        if not self._axiom_scanner:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Scanner not registered"}),
+                status=503, content_type="application/json", headers=cors,
+            )
+        tokens = body.get("tokens", [])
+        processed = 0
+        for raw in tokens:
+            try:
+                await self._axiom_scanner._process_token(raw)
+                processed += 1
+            except Exception as e:
+                logger.warning(f"[Dashboard] axiom-relay token error: {e}")
+        logger.info(f"[Dashboard] /api/axiom-relay — processed {processed}/{len(tokens)} tokens")
+        return web.Response(
+            text=json.dumps({"ok": True, "processed": processed}),
+            content_type="application/json", headers=cors,
+        )
+
     async def _handle_closed_positions(self, request):
         """GET /api/closed-positions — returns append-only closed position history."""
         import csv, os as _os
@@ -1531,11 +1861,36 @@ class WebDashboard:
             try:
                 with open(CLOSED_LOG_FILE, newline="") as f:
                     reader = csv.DictReader(f)
-                    rows = list(reader)
+                    has_drawdown = "max_drawdown_pct" in (reader.fieldnames or [])
+                    for row in reader:
+                        if not has_drawdown:
+                            # Old header — grab overflow value from restkey (None)
+                            overflow = row.pop(None, None)
+                            row["max_drawdown_pct"] = overflow[0] if isinstance(overflow, list) and overflow else ""
+                        rows.append(row)
             except Exception as e:
                 return web.Response(text=json.dumps({"error": str(e)}),
                                     status=500, content_type="application/json", headers=cors)
         return web.Response(text=json.dumps(rows), content_type="application/json", headers=cors)
+
+    async def _handle_mc_recommendations(self, request):
+        """GET /api/mc-recommendations — micro-caps seen but not bought."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        candidates = []
+        if self._axiom_scanner is not None:
+            raw = getattr(self._axiom_scanner, "mc_candidates", [])
+            candidates.extend(raw)
+        if self._established_scanner is not None:
+            raw2 = getattr(self._established_scanner, "mc_candidates", [])
+            candidates.extend(raw2)
+        # Sort newest first by time string (HH:MM:SS)
+        candidates.sort(key=lambda c: c.get("time", ""), reverse=True)
+        candidates = candidates[:40]
+        return web.Response(
+            text=json.dumps(candidates),
+            content_type="application/json",
+            headers=cors,
+        )
 
     async def _handle_reset(self, request):
         """POST /api/reset — clear all trade history and reset P&L to zero.
@@ -1568,9 +1923,177 @@ class WebDashboard:
                 _json.dump([], f)
         except Exception:
             pass
+        # Reset RiskManager capital back to total_capital so the dashboard
+        # and position sizing start fresh from the configured capital amount.
+        rm = getattr(self._trader, "risk_manager", None) if self._trader else None
+        if rm is not None:
+            rm.available_capital = rm.total_capital
+            rm.daily_pnl = 0.0
+            rm.total_pnl = 0.0
+            rm.trades_today = 0
+            rm._save_state()
+            logger.info(f"[Reset] RiskManager capital restored to ${rm.total_capital:.0f}")
+        # Also wipe the risk_state.json so a restart doesn't reload old state
+        risk_state_file = _os.path.join(_os.environ.get("DATA_DIR", "."), "risk_state.json")
+        try:
+            with open(risk_state_file, "w") as f:
+                import json as _json
+                _json.dump({"available_capital": rm.total_capital if rm else 2000.0}, f)
+        except Exception:
+            pass
         return web.Response(
-            text=json.dumps({"ok": True, "message": "Trade history cleared"}),
+            text=json.dumps({"ok": True, "message": "Trade history and capital reset"}),
             content_type="application/json", headers=cors,
+        )
+
+    def _build_active_strategies(self) -> dict:
+        """Return a dict of strategy_key → status dict for the Active Strategies panel."""
+        import time as _time
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        today_prefix = datetime.now(timezone.utc).date().isoformat()
+
+        def _last_trade_times(strategy_key: str):
+            """Scan tracker trades to find last buy/sell ISO timestamps for a strategy."""
+            last_buy = None
+            last_sell = None
+            if self._tracker is None:
+                return last_buy, last_sell
+            for t in reversed(self._tracker.trades):
+                strat = t.get("strategy", "")
+                ttype = t.get("type", "")
+                if strat != strategy_key:
+                    continue
+                ts = t.get("time")
+                if ttype == "buy" and last_buy is None:
+                    last_buy = ts
+                elif ttype == "sell" and last_sell is None:
+                    last_sell = ts
+                if last_buy and last_sell:
+                    break
+            return last_buy, last_sell
+
+        def _trades_today(strategy_key: str) -> int:
+            if self._tracker is None:
+                return 0
+            return sum(
+                1 for t in self._tracker.trades
+                if t.get("strategy") == strategy_key
+                and t.get("type") == "sell"
+                and t.get("time", "")[:10] == today_prefix
+            )
+
+        def _strategy_pnl_and_wr(strategy_key: str):
+            if self._tracker is None:
+                return 0.0, 0.0
+            sells = [t for t in self._tracker.trades
+                     if t.get("type") == "sell" and t.get("strategy") == strategy_key]
+            if not sells:
+                return 0.0, 0.0
+            total_pnl = sum(t.get("pnl", 0) for t in sells)
+            wins = sum(1 for t in sells if t.get("pnl", 0) > 0)
+            win_rate = wins / len(sells) * 100
+            return total_pnl, win_rate
+
+        result = {}
+
+        # ── MultiSourceScanner / Axiom feed ──────────────────────────────
+        last_buy, last_sell = _last_trade_times("scanner")
+        total_pnl, win_rate = _strategy_pnl_and_wr("scanner")
+        scanner_running = self._strat_scanner is not None
+        axiom_extra = {}
+        if self._axiom_scanner is not None:
+            axiom_extra = {
+                "tokens_received":  getattr(self._axiom_scanner, "tokens_received", None),
+                "signals_fired":    getattr(self._axiom_scanner, "signals_fired", None),
+                "reconnect_count":  getattr(self._axiom_scanner, "reconnect_count", None),
+            }
+            axiom_extra = {k: v for k, v in axiom_extra.items() if v is not None}
+        result["scanner"] = {
+            "display_name": "Scanner",
+            "running": scanner_running,
+            "last_buy": last_buy,
+            "last_sell": last_sell,
+            "trades_today": _trades_today("scanner"),
+            "total_pnl": round(total_pnl, 2),
+            "win_rate": round(win_rate, 1),
+            **axiom_extra,
+        }
+
+        # ── Scalper ────────────────────────────────────────────────────────
+        last_buy, last_sell = _last_trade_times("scalper")
+        total_pnl, win_rate = _strategy_pnl_and_wr("scalper")
+        scalper_extra = {}
+        if self._strat_scalper is not None:
+            try:
+                sc_stats = self._strat_scalper.get_stats()
+                scalper_extra = {
+                    "active_positions": sc_stats.get("active_positions"),
+                    "active_cycles":    sc_stats.get("active_cycles"),
+                }
+                scalper_extra = {k: v for k, v in scalper_extra.items() if v is not None}
+            except Exception:
+                pass
+        result["scalper"] = {
+            "display_name": "Position Scalper",
+            "running": self._strat_scalper is not None,
+            "last_buy": last_buy,
+            "last_sell": last_sell,
+            "trades_today": _trades_today("scalper"),
+            "total_pnl": round(total_pnl, 2),
+            "win_rate": round(win_rate, 1),
+            **scalper_extra,
+        }
+
+        # ── CrossWalletConvergence ─────────────────────────────────────────
+        last_buy, last_sell = _last_trade_times("convergence")
+        total_pnl, win_rate = _strategy_pnl_and_wr("convergence")
+        result["convergence"] = {
+            "display_name": "Cross-Wallet Convergence",
+            "running": self._strat_convergence is not None,
+            "last_buy": last_buy,
+            "last_sell": last_sell,
+            "trades_today": _trades_today("convergence"),
+            "total_pnl": round(total_pnl, 2),
+            "win_rate": round(win_rate, 1),
+        }
+
+        # ── WalletClustering ──────────────────────────────────────────────
+        last_buy, last_sell = _last_trade_times("clustering")
+        total_pnl, win_rate = _strategy_pnl_and_wr("clustering")
+        result["clustering"] = {
+            "display_name": "Wallet Clustering",
+            "running": self._strat_clustering is not None,
+            "last_buy": last_buy,
+            "last_sell": last_sell,
+            "trades_today": _trades_today("clustering"),
+            "total_pnl": round(total_pnl, 2),
+            "win_rate": round(win_rate, 1),
+        }
+
+        # ── CapitulationReversal ──────────────────────────────────────────
+        last_buy, last_sell = _last_trade_times("capitulation")
+        total_pnl, win_rate = _strategy_pnl_and_wr("capitulation")
+        result["capitulation"] = {
+            "display_name": "Capitulation Reversal",
+            "running": self._strat_capitulation is not None,
+            "last_buy": last_buy,
+            "last_sell": last_sell,
+            "trades_today": _trades_today("capitulation"),
+            "total_pnl": round(total_pnl, 2),
+            "win_rate": round(win_rate, 1),
+        }
+
+        return result
+
+    async def _handle_strategies(self, request):
+        """GET /api/strategies — return active strategy status for the dashboard."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        data = self._build_active_strategies()
+        return web.Response(
+            text=json.dumps({"ok": True, "strategies": data}),
+            content_type="application/json",
+            headers=cors,
         )
 
     async def _handle_pause(self, request):
@@ -1597,13 +2120,64 @@ class WebDashboard:
             content_type="application/json", headers=cors,
         )
 
+    async def _handle_diagnostics(self, request):
+        """GET /api/diagnostics — structured health snapshot for all critical systems."""
+        import time as _time
+        mono_now = _time.monotonic()
+        cors = {"Access-Control-Allow-Origin": "*"}
+
+        # ── Uptime ───────────────────────────────────────────────────────────
+        uptime_mins = round((datetime.now(timezone.utc) - self._start_time).total_seconds() / 60, 1)
+
+        # ── DexScreener WS ───────────────────────────────────────────────────
+        dex_feed = getattr(self._trader, "_dex_price_feed", None) if self._trader else None
+        ws_connected  = getattr(dex_feed, "ws_connected", False) if dex_feed else False
+        ws_failures   = getattr(dex_feed, "ws_consecutive_failures", 0) if dex_feed else 0
+
+        # ── Scanner health ───────────────────────────────────────────────────
+        scanner_stats = []
+        for scanner in self._scanners.values():
+            last_buy = getattr(scanner, "_last_buy_time", 0)
+            mins_since_buy = round((mono_now - last_buy) / 60, 1) if last_buy > 0 else None
+            scanner_stats.append({
+                "chain":             getattr(getattr(scanner, "chain", None), "name", "unknown"),
+                "signals_fired":     getattr(scanner, "signals_fired", 0),
+                "last_buy_mins_ago": mins_since_buy,
+                "watchlist_depth":   len(getattr(scanner, "_dip_watchlist", {})),
+            })
+
+        # ── Positions ────────────────────────────────────────────────────────
+        open_positions = len(self._trader.open_positions) if self._trader else 0
+
+        # ── Recent anomalies logged by watchdog ──────────────────────────────
+        anomalies = list(self._anomaly_log)
+
+        diag = {
+            "uptime_mins":    uptime_mins,
+            "dexscreener_ws": {
+                "connected":            ws_connected,
+                "consecutive_failures": ws_failures,
+                "status": "ok" if ws_connected else ("broken" if ws_failures >= 10 else "reconnecting"),
+            },
+            "scanners":       scanner_stats,
+            "open_positions": open_positions,
+            "anomalies":      anomalies,
+            "trading_paused": self._trading_paused,
+        }
+        return web.Response(
+            text=json.dumps(diag),
+            content_type="application/json",
+            headers=cors,
+        )
+
     async def _handle_sse(self, request):
-        """Server-Sent Events stream — pushes fresh stats every 3 seconds."""
+        """Server-Sent Events stream — pushes fresh stats every 2 seconds."""
         response = web.StreamResponse(
             headers={
-                "Content-Type":  "text/event-stream",
-                "Cache-Control": "no-cache",
-                "Connection":    "keep-alive",
+                "Content-Type":       "text/event-stream",
+                "Cache-Control":      "no-cache",
+                "Connection":         "keep-alive",
+                "X-Accel-Buffering":  "no",
                 "Access-Control-Allow-Origin": "*",
             }
         )
@@ -1614,7 +2188,7 @@ class WebDashboard:
                 stats = await self._build_stats(consume_alerts=True)
                 payload = json.dumps(stats)
                 await response.write(f"data: {payload}\n\n".encode())
-                await asyncio.sleep(3)
+                await asyncio.sleep(2)
         except (ConnectionResetError, asyncio.CancelledError):
             pass
         except Exception as e:
@@ -1689,17 +2263,55 @@ class WebDashboard:
                 stats["all_trades"] = self._tracker.get_all_trades()
             except Exception:
                 pass
+            try:
+                stats["drawdown"] = self._tracker.get_drawdown_stats()
+            except Exception:
+                stats["drawdown"] = {}
+
+        # Attach slippage stats from paper simulator
+        if self._trader is not None:
+            slip_sim = getattr(self._trader, "paper_slippage", None)
+            if slip_sim is not None:
+                stats["slippage"] = slip_sim.get_stats()
+            else:
+                stats["slippage"] = {}
+
+        # Attach DexScreener WebSocket health — surfaces broken endpoints immediately
+        if self._trader is not None:
+            dex_feed = getattr(self._trader, "_dex_price_feed", None)
+            if dex_feed is not None:
+                failures = getattr(dex_feed, "ws_consecutive_failures", 0)
+                stats["dexscreener_ws"] = {
+                    "connected": getattr(dex_feed, "ws_connected", False),
+                    "consecutive_failures": failures,
+                    "status": "ok" if getattr(dex_feed, "ws_connected", False) else (
+                        "broken" if failures >= 10 else "reconnecting"
+                    ),
+                }
+            else:
+                stats["dexscreener_ws"] = {"connected": False, "consecutive_failures": 0, "status": "no_feed"}
+
+        # Add active strategy status for the Active Strategies panel
+        try:
+            stats["active_strategies"] = self._build_active_strategies()
+        except Exception as e:
+            logger.debug(f"[Dashboard] active_strategies build error: {e}")
+            stats["active_strategies"] = {}
 
         # Override positions list with direct trader view — always fresh, no indirection
         if self._trader is not None:
             now = datetime.now(timezone.utc)
+            # Use Axiom live price feed for sub-second PnL accuracy when available
+            _axiom_feed = getattr(self._trader, "_axiom_price_feed", None)
             direct_positions = []
             for addr, pos in self._trader.open_positions.items():
                 entry = getattr(pos, "entry_price_usd", 0)
-                current = getattr(pos, "current_price_usd", 0) or entry
+                # Priority: Axiom live cache > PositionManager cached value > entry price
+                axiom_price = _axiom_feed.price_cache.get(addr, 0) if _axiom_feed else 0
+                current = axiom_price or getattr(pos, "current_price_usd", 0) or entry
                 amount = getattr(pos, "amount_usd", 0) or getattr(pos, "amount_sol_spent", 0)
                 multiplier = (current / entry) if entry > 0 else 1.0
-                pnl_usd = getattr(pos, "pnl_usd", (multiplier - 1) * amount)
+                pnl_usd = (multiplier - 1) * amount if entry > 0 else getattr(pos, "pnl_usd", 0)
                 entry_time = getattr(pos, "entry_time", None)
                 hold_secs = int((now - entry_time).total_seconds()) if entry_time else 0
                 direct_positions.append({
@@ -1708,10 +2320,12 @@ class WebDashboard:
                     "chain": getattr(pos, "chain_id", "solana"),
                     "strategy": getattr(pos, "strategy", "scanner"),
                     "entry_price": entry,
+                    "current_price": current,
                     "pnl_usd": round(pnl_usd, 2),
                     "multiplier": round(multiplier, 4),
                     "hold_secs": hold_secs,
                     "amount_usd": amount,
+                    "pair_address": getattr(pos, "pair_address", ""),
                 })
             stats["positions"] = direct_positions
 

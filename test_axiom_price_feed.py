@@ -34,7 +34,7 @@ def test_price_feed_stores_volume_and_liquidity():
     }
     asyncio.run(feed._handle_price_update("ADDR123", "TEST", price_data))
 
-    assert feed.price_cache["ADDR123"] == 0.001
-    assert feed.volume_cache["ADDR123"] == 50000
-    assert feed.liquidity_cache["ADDR123"] == 25000
-    assert feed.change_cache["ADDR123"] == 12.5
+    assert feed.price_cache["addr123"] == 0.001
+    assert feed.volume_cache["addr123"] == 50000
+    assert feed.liquidity_cache["addr123"] == 25000
+    assert feed.change_cache["addr123"] == 12.5

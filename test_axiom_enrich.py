@@ -18,7 +18,7 @@ def test_dev_scoring_high_frequency_deployer_blocked():
         for i in range(10)
     ]
 
-    passed, reason = asyncio.run(
+    passed, reason, _ = asyncio.run(
         axiom_enrich_check(auth, "PAIR1", "DEV1")
     )
     assert not passed
@@ -39,7 +39,7 @@ def test_tracked_wallet_holders_checked():
     ]
     client.get_dev_tokens.return_value = []
 
-    passed, reason = asyncio.run(
+    passed, reason, _ = asyncio.run(
         axiom_enrich_check(auth, "PAIR1", "DEV1")
     )
     assert passed

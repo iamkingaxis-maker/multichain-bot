@@ -84,31 +84,42 @@ class Config:
     # ── Capital ──────────────────────────────────────────────
     total_capital: float = 2000.0
     max_position_pct: float = 0.08
+    max_position_usd: float = 200.0
     min_position_pct: float = 0.02
     daily_loss_limit: float = 200.0
 
     # ── Take Profit ──────────────────────────────────────────
-    take_profit_1_pct: float = 10.0
-    take_profit_1_sell: float = 0.50
-    take_profit_2_pct: float = 25.0
-    take_profit_2_sell: float = 0.75
-    take_profit_3_pct: float = 50.0
+    take_profit_1_pct: float = 10.0   # +10% → sell 100% (clean exit, lock the gain)
+    take_profit_1_sell: float = 1.0
+    take_profit_2_pct: float = 75.0
+    take_profit_2_sell: float = 0.40
+    take_profit_3_pct: float = 150.0
     take_profit_3_sell: float = 1.0
 
+    # ── Micro-Cap Take Profit (separate tiers for fresh launches) ──────
+    mc_tp1_pct: float = 10.0        # +10% → sell 100% (clean exit, lock the gain)
+    mc_tp1_sell: float = 1.0
+    mc_tp2_pct: float = 75.0        # +75% → sell 40% of remaining
+    mc_tp2_sell: float = 0.40
+    mc_tp3_pct: float = 200.0       # +200% → sell everything
+    mc_tp3_sell: float = 1.0
+    mc_stop_loss_pct: float = 25.0  # Wider — PumpSwap graduates routinely dip 20-30% on normal post-grad volatility
+    mc_winner_trail_pct: float = 15.0  # Trail 15% from peak (more room for volatility)
+
     # ── Stop Loss ────────────────────────────────────────────
-    stop_loss_pct: float = 10.0
+    stop_loss_pct: float = 7.0
 
     # ── Winner Protection ────────────────────────────────────
-    winner_trail_pct: float = 10.0  # Close 100% if drops 10% from peak after TP1
+    winner_trail_pct: float = 15.0  # Close 100% if drops 15% from peak after TP1
 
     # ── Stall Detection ──────────────────────────────────────
-    stall_check_interval_min: int = 30
+    stall_check_interval_min: int = 5
     stall_volume_threshold: float = 0.20
-    stall_min_hours: float = 1.0
-    stall_sell_pct: float = 0.75
+    stall_min_hours: float = 0.1   # allow stall check after ~6 min
+    stall_sell_pct: float = 1.0
 
     # ── Average Down ─────────────────────────────────────────
-    avg_down_max_loss_pct: float = 7.0
+    avg_down_max_loss_pct: float = 4.0
     avg_down_min_volume_pct: float = 0.50
     avg_down_size_pct: float = 0.50
 
@@ -120,12 +131,26 @@ class Config:
     # ── Scanner ──────────────────────────────────────────────
     min_mcap: float = 200_000
     max_mcap: float = 1_000_000
-    min_combined_score: int = 50
+    max_volume_h1_usd: float = 300_000
+
+    # ── Micro-Cap Mode (AxiomScanner only) ───────────────────
+    # Targets fresh $10k-$50k pairs via Axiom WS with tighter gates
+    micro_cap_enabled: bool = True
+    micro_cap_min_mcap: float = 10_000
+    micro_cap_max_mcap: float = 80_000  # Raised from 50k — covers PumpSwap graduates (~$67k mcap)
+    micro_cap_position_usd: float = 40.0
+    micro_cap_max_snipers_pct: float = 15.0   # block if snipers hold > 15%
+    micro_cap_max_dev_pct: float = 10.0        # block if dev holds > 10%
+    min_combined_score: int = 0
+    max_combined_score: int = 100
+
+    # ── Chart quality (OHLCV TA filter) ──────────────────────────────────
+    chart_min_score: int = 10           # 0-30; below this = don't buy
+    chart_chaos_range_pct: float = 30.0 # block if 6-candle range > this %
+    chart_dead_vol_ratio: float = 0.3   # block if VAR (recent/prior vol) < this
     require_both_sources: bool = True
     min_liquidity_usd: float = 10_000
     max_dev_wallet_pct: float = 5.0
-    preferred_age_min_hours: float = 0.0
-    preferred_age_max_hours: float = 999.0
     hard_skip_age_hours: float = 999.0
     pyramid_score_threshold: int = 90
     volume_acceleration_candles: int = 3
@@ -156,7 +181,7 @@ class Config:
     copy_min_range_concentration: float = 0.50
 
     # ── Scalper ──────────────────────────────────────────────
-    scalper_sell_trigger_pct: float = 15.0
+    scalper_sell_trigger_pct: float = 25.0
     scalper_rebuy_trigger_pct: float = 20.0
     scalper_sell_pct: float = 0.25
     scalper_max_cycles: int = 4
@@ -167,8 +192,8 @@ class Config:
     # ── Analytics ────────────────────────────────────────────
     kelly_fraction: float = 0.50
     target_win_rate: float = 0.55
-    min_sentiment_score: int = 30
-    require_twitter: bool = True
+    min_sentiment_score: int = 20
+    require_twitter: bool = False
     use_flashbots: bool = True
     large_buy_threshold_sol: float = 5.0
 
@@ -259,6 +284,16 @@ def _apply_env_overrides(config: Config):
     # Scanner score threshold
     if os.environ.get("MIN_COMBINED_SCORE"):
         config.min_combined_score = env_int("MIN_COMBINED_SCORE", config.min_combined_score)
+    if os.environ.get("MAX_COMBINED_SCORE"):
+        config.max_combined_score = env_int("MAX_COMBINED_SCORE", config.max_combined_score)
+
+    # Scanner mcap and volume filters
+    if os.environ.get("MIN_MCAP"):
+        config.min_mcap = env_float("MIN_MCAP", config.min_mcap)
+    if os.environ.get("MAX_MCAP"):
+        config.max_mcap = env_float("MAX_MCAP", config.max_mcap)
+    if os.environ.get("MAX_VOLUME_H1_USD"):
+        config.max_volume_h1_usd = env_float("MAX_VOLUME_H1_USD", config.max_volume_h1_usd)
 
     # Capital settings (optional overrides)
     if os.environ.get("TOTAL_CAPITAL"):
@@ -275,6 +310,10 @@ def _apply_env_overrides(config: Config):
         config.avg_down_max_loss_pct = env_float("AVG_DOWN_MAX_LOSS_PCT", config.avg_down_max_loss_pct)
     if os.environ.get("WINNER_TRAIL_PCT"):
         config.winner_trail_pct = env_float("WINNER_TRAIL_PCT", config.winner_trail_pct)
+    if os.environ.get("TAKE_PROFIT_1_PCT"):
+        config.take_profit_1_pct = env_float("TAKE_PROFIT_1_PCT", config.take_profit_1_pct)
+    if os.environ.get("TAKE_PROFIT_1_SELL"):
+        config.take_profit_1_sell = env_float("TAKE_PROFIT_1_SELL", config.take_profit_1_sell)
 
     # Chain toggle
     if os.environ.get("ENABLE_SOLANA"):

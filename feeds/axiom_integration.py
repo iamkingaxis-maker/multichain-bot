@@ -39,10 +39,10 @@ Or if you have tokens from the browser:
 import logging
 from typing import Optional
 from feeds.axiom_scanner import AxiomScanner, AxiomAuthManager
-from feeds.axiom_wallet_tracker import AxiomWalletTracker
-from feeds.axiom_trending_scanner import AxiomTrendingScanner
+from feeds.axiom_trending_scanner import AxiomTrendingScanner, AxiomSurgeScanner
 from feeds.axiom_smart_wallet_tracker import AxiomSmartWalletTracker
 from feeds.axiom_price_feed import AxiomPriceFeed
+from core.dip_watcher import DipWatcher
 
 logger = logging.getLogger(__name__)
 
@@ -68,12 +68,13 @@ class AxiomIntegration:
 
         self.config  = config
         self.scanner: Optional[AxiomScanner] = None
-        self.tracker: Optional[AxiomWalletTracker] = None
 
         # Phase 1-4 additions
         self.trending_scanner: Optional[AxiomTrendingScanner] = None
+        self.surge_scanner: Optional[AxiomSurgeScanner] = None
         self.wallet_tracker: Optional[AxiomSmartWalletTracker] = None
         self.price_feed: Optional[AxiomPriceFeed] = None
+        self.dip_watcher: Optional[DipWatcher] = None
 
         self._tasks = []
 
@@ -112,52 +113,20 @@ class AxiomIntegration:
             telegram=telegram,
             tracker=tracker,
             market_monitor=market_monitor,
-            min_mcap_usd=50_000,     # $50k min — filter micro-cap rugs
+            min_mcap_usd=getattr(self.config, "min_mcap", 70_000),
             max_mcap_usd=float("inf"),  # no upper cap
             min_liquidity_usd=5_000, # $5k min liquidity
             min_score=getattr(self.config, "min_combined_score", 65.0),
-            fallback_to_dexscreener=True
+            fallback_to_dexscreener=True,
+            micro_cap_enabled=getattr(self.config, "micro_cap_enabled", True),
+            micro_cap_min_usd=getattr(self.config, "micro_cap_min_mcap", 10_000),
+            micro_cap_max_usd=getattr(self.config, "micro_cap_max_mcap", 80_000),
+            micro_cap_position_usd=getattr(self.config, "micro_cap_position_usd", 80.0),
+            micro_cap_max_snipers_pct=getattr(self.config, "micro_cap_max_snipers_pct", 15.0),
+            micro_cap_max_dev_pct=getattr(self.config, "micro_cap_max_dev_pct", 10.0),
         )
 
-        # Build wallet tracker
-        self.tracker_instance = AxiomWalletTracker(auth_manager=self.auth)
-
-        # Pre-load copy trading wallets into tracker
         copy_wallets = getattr(self.config, "solana_copy_wallets", [])
-        if copy_wallets:
-            self.tracker_instance.add_wallets(copy_wallets)
-            logger.info(
-                f"[AxiomIntegration] Tracking {len(copy_wallets)} "
-                f"copy wallets for balance changes"
-            )
-
-        # Wire wallet activity → copy trader
-        # When a copy wallet's SOL drops (they bought) → alert copy trader
-        if copy_trader:
-            async def on_wallet_activity(address, delta_sol, activity):
-                if delta_sol < -0.1:  # Wallet spent SOL = bought tokens
-                    logger.info(
-                        f"[AxiomIntegration] Copy wallet {activity.label} "
-                        f"bought something (spent {abs(delta_sol):.2f} SOL) — "
-                        f"Helius will parse the transaction"
-                    )
-                    # Note: actual copy trade fires via Helius tx parsing
-                    # This is an early warning that something happened
-
-            self.tracker_instance.on_wallet_activity(on_wallet_activity)
-
-        # Wire wallet tracker → edge strategies convergence
-        if edge_strategies:
-            async def on_wallet_qualified(address, activity):
-                if activity.estimated_trades_today >= 3:
-                    score = min(50 + activity.estimated_trades_today * 5, 90)
-                    edge_strategies.add_known_wallet(address, score)
-                    logger.info(
-                        f"[AxiomIntegration] Active wallet {activity.label} "
-                        f"added to convergence monitoring (score: {score})"
-                    )
-
-            self.tracker_instance.on_wallet_qualified(on_wallet_qualified)
 
         # ── Phase 1: Trending Scanner ─────────────────────────────────────────
         self.trending_scanner = AxiomTrendingScanner(
@@ -168,10 +137,32 @@ class AxiomIntegration:
             telegram=telegram,
             tracker=tracker,
             market_monitor=market_monitor,
-            min_mcap_usd=50_000,
+            min_mcap_usd=getattr(self.config, "min_mcap", 70_000),
             min_liquidity_usd=5_000,
             min_score=getattr(self.config, "min_combined_score", 65.0),
-            poll_interval=300,  # 5 min — was 60s (180 proxy req/hr → 36/hr)
+            poll_interval=15,
+            micro_cap_enabled=getattr(self.config, "micro_cap_enabled", True),
+            micro_cap_min_usd=getattr(self.config, "micro_cap_min_mcap", 10_000),
+            micro_cap_max_usd=getattr(self.config, "micro_cap_max_mcap", 80_000),
+            micro_cap_position_usd=getattr(self.config, "micro_cap_position_usd", 80.0),
+            micro_cap_max_snipers_pct=getattr(self.config, "micro_cap_max_snipers_pct", 15.0),
+            micro_cap_max_dev_pct=getattr(self.config, "micro_cap_max_dev_pct", 10.0),
+        )
+
+        # ── Surge Scanner — established tokens with unusual activity spikes ──
+        self.surge_scanner = AxiomSurgeScanner(
+            auth_manager=self.auth,
+            trader=trader,
+            signal_evaluator=signal_evaluator,
+            security_checker=security_checker,
+            telegram=telegram,
+            tracker=tracker,
+            market_monitor=market_monitor,
+            min_mcap_usd=getattr(self.config, "min_mcap", 100_000),
+            min_liquidity_usd=10_000,
+            min_score=getattr(self.config, "min_combined_score", 65.0),
+            poll_interval=30,
+            micro_cap_enabled=False,  # surge tokens are established, not micro-cap
         )
 
         # ── Phase 2: Smart Wallet WebSocket Tracker ───────────────────────────
@@ -193,25 +184,41 @@ class AxiomIntegration:
             trader=trader,
         )
 
+        # ── DipWatcher — intercepts micro-cap buys, waits for dip+recovery ───
+        self.dip_watcher = DipWatcher(
+            price_feed=self.price_feed,
+            trader=trader,
+            dip_threshold_pct=getattr(self.config, "dip_watcher_threshold_pct", 30.0),
+            recovery_pct=getattr(self.config, "dip_watcher_recovery_pct", 5.0),
+            max_watch_seconds=getattr(self.config, "dip_watcher_max_seconds", 300.0),
+        )
+        # Inject into scanners so micro-cap buys route through dip/recovery gate
+        self.scanner.dip_watcher          = self.dip_watcher
+        self.trending_scanner.dip_watcher = self.dip_watcher
+
         # Wire chart analysis gate — all Axiom buy signals route through scanner
         # so they pass _chart_dip_check before any buy executes
         if scanner:
-            self.scanner.scanner         = scanner
+            self.scanner.scanner          = scanner
             self.trending_scanner.scanner = scanner
+            self.surge_scanner.scanner    = scanner
             self.wallet_tracker.scanner   = scanner
+
+        # Share price feed spike data with the scanner for user spike bonus
+        self.scanner.price_feed = self.price_feed
 
         self._tasks = [
             self.scanner.run(),
-            self.tracker_instance.run(),
             self.trending_scanner.run(),
+            self.surge_scanner.run(),
             self.wallet_tracker.run(),
             self.price_feed.run(),
+            self.dip_watcher._expire_watches(),
         ]
 
         logger.info(
             "[AxiomIntegration] Connected | "
-            f"Scanner: {'real-time' if self.auth.has_credentials else 'fallback'} | "
-            f"Wallet tracker: {len(copy_wallets)} wallets"
+            f"Scanner: {'real-time' if self.auth.has_credentials else 'fallback'}"
         )
 
     def get_tasks(self) -> list:
@@ -222,12 +229,14 @@ class AxiomIntegration:
         stats = {"axiom": {}}
         if self.scanner:
             stats["axiom"]["scanner"] = self.scanner.get_stats()
-        if hasattr(self, "tracker_instance"):
-            stats["axiom"]["wallet_tracker"] = self.tracker_instance.get_stats()
         if self.trending_scanner:
             stats["axiom"]["trending_scanner"] = self.trending_scanner.get_stats()
+        if self.surge_scanner:
+            stats["axiom"]["surge_scanner"] = self.surge_scanner.get_stats()
         if self.wallet_tracker:
             stats["axiom"]["smart_wallet_tracker"] = self.wallet_tracker.get_stats()
         if self.price_feed:
             stats["axiom"]["price_feed"] = self.price_feed.get_stats()
+        if self.dip_watcher:
+            stats["axiom"]["dip_watcher"] = self.dip_watcher.get_stats()
         return stats

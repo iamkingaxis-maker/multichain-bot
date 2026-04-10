@@ -24,8 +24,8 @@ import math
 logger = logging.getLogger(__name__)
 
 # Threshold bounds — never go outside these
-ABSOLUTE_MIN_THRESHOLD = 50
-ABSOLUTE_MAX_THRESHOLD = 85
+ABSOLUTE_MIN_THRESHOLD = 0
+ABSOLUTE_MAX_THRESHOLD = 100
 
 # How much to adjust per evaluation cycle
 ADJUSTMENT_STEP = 2

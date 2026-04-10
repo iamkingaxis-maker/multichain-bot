@@ -430,7 +430,8 @@ class PositionScalper:
                 await self.trader.buy(
                     token_address=token_address,
                     token_symbol=f"{token_symbol}[SCALP-REBUY]",
-                    reason=f"Scalp rebuy ${usd_amount:.2f}"
+                    reason=f"Scalp rebuy ${usd_amount:.2f}",
+                    override_usd=usd_amount
                 )
                 return True
         except Exception as e:

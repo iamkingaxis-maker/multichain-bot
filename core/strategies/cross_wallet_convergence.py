@@ -118,6 +118,7 @@ class CrossWalletConvergenceStrategy:
         self.telegram         = telegram
         self.helius_rpc       = f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}"
         self.helius_txn       = f"https://api.helius.xyz/v0/transactions?api-key={helius_api_key}"
+        self._helius_enabled  = bool(helius_api_key)
 
         self.wallet_quality: Dict[str, float] = wallet_quality_scores or {}
         self.monitored_wallets: Set[str]       = set(self.wallet_quality.keys())
@@ -172,6 +173,8 @@ class CrossWalletConvergenceStrategy:
             await asyncio.sleep(self.poll_interval)
 
     async def _poll_wallets(self):
+        if not self._helius_enabled:
+            return
         for wallet in list(self.monitored_wallets):
             quality = self.wallet_quality.get(wallet, 0)
             if quality < MIN_WALLET_QUALITY:
@@ -344,7 +347,6 @@ class CrossWalletConvergenceStrategy:
             reason=reason,
             signal_score=int(signal.convergence_score),
             strategy_tag="cross_wallet_convergence",
-            skip_security=True,
         )
         if fired:
             self.trades_executed += 1

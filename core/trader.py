@@ -9,7 +9,9 @@ import logging
 import aiohttp
 import json
 import base64
-from typing import Dict, Optional
+import time
+import os
+from typing import Dict, Optional, Set
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
 
@@ -53,16 +55,85 @@ class Position:
     chain_id: str = "solana"
     amount_usd: float = 0.0   # USD position size at entry (not SOL)
     strategy: str = "scanner"  # Which strategy placed this trade
+    pair_address: str = ""     # DEX pool address — used for correct DexScreener chart link
+    min_price_usd: float = 0.0   # Lowest price seen during hold — set to entry_price by PositionManager at init
+    entry_time_monotonic: float = 0.0  # time.monotonic() at entry — used for hold duration calc
+    entry_market_cap_usd: float = 0.0  # Market cap at entry — for performance analysis by MC range
+    entry_age_hours: float = 0.0       # Token pair age in hours at entry — for performance analysis by age
+    entry_volume_h1_usd: float = 0.0   # 1h volume at entry — for performance analysis by activity level
+
+
+_DATA_DIR = os.environ.get("DATA_DIR", ".")
+_REENTRY_STATE_FILE = os.path.join(_DATA_DIR, "reentry_state.json")
+
+
+class ReentryTracker:
+    """Persistent re-entry state — survives redeploys. Keyed by token_address.lower()."""
+    def __init__(self):
+        # Addresses fully exited at least once — persisted to disk
+        self.previously_held: Set[str] = set()
+        # Per-address buy count (all strategies, all paths)
+        self.buy_counts: dict = {}
+        # Last known h1% at time of entry, per address
+        self.last_h1_pct: dict = {}
+        self._load()
+
+    def _load(self):
+        # Load persisted set from disk
+        if os.path.exists(_REENTRY_STATE_FILE):
+            try:
+                with open(_REENTRY_STATE_FILE) as f:
+                    data = json.load(f)
+                self.previously_held = set(data.get("previously_held", []))
+            except Exception as e:
+                logger.warning(f"[ReentryTracker] Failed to load state: {e}")
+
+        # Bootstrap from today's trades — add any token that hit a stop-loss today
+        _trades_file = os.path.join(_DATA_DIR, "trades.json")
+        if os.path.exists(_trades_file):
+            try:
+                with open(_trades_file) as f:
+                    trades = json.load(f)
+                today = datetime.now(timezone.utc).date()
+                for t in trades:
+                    if t.get("type") != "sell":
+                        continue
+                    reason = t.get("reason", "").lower()
+                    if "stop" not in reason and "realtime" not in reason:
+                        continue
+                    ts = t.get("time", "")
+                    try:
+                        if datetime.fromisoformat(ts).date() != today:
+                            continue
+                    except Exception:
+                        continue
+                    addr = t.get("address", "").lower()
+                    if addr:
+                        self.previously_held.add(addr)
+            except Exception as e:
+                logger.warning(f"[ReentryTracker] Failed to bootstrap from trades: {e}")
+
+        logger.info(
+            f"[ReentryTracker] Loaded {len(self.previously_held)} previously-held tokens"
+        )
+
+    def save(self):
+        try:
+            with open(_REENTRY_STATE_FILE, "w") as f:
+                json.dump({"previously_held": list(self.previously_held)}, f)
+        except Exception as e:
+            logger.warning(f"[ReentryTracker] Failed to save state: {e}")
 
 
 class Trader:
     def __init__(self, private_key: str, rpc_url: str, tracker, telegram, risk_manager,
-                 stop_loss_pct: float = 10.0):
+                 stop_loss_pct: float = 10.0, kill_switch=None):
         self.private_key = private_key
         self.rpc_url = rpc_url
         self.tracker = tracker
         self.telegram = telegram
         self.risk_manager = risk_manager
+        self.kill_switch = kill_switch
         self.open_positions: Dict[str, Position] = {}
         self.session: Optional[aiohttp.ClientSession] = None
 
@@ -78,11 +149,26 @@ class Trader:
         # Sell dedup — prevents CopyTrader and PositionManager racing on same token
         self._selling: set = set()
 
+        # Buy dedup — prevents concurrent signals double-entering the same token
+        self._buying: set = set()
+
+        # DipWatcher reservation — tokens claimed by DipWatcher while waiting for
+        # dip+recovery.  Any other scanner path must not buy while reserved.
+        self._dip_watching: set = set()
+
+        # Session re-entry tracking
+        self.reentry = ReentryTracker()
+
+        pass  # daily buy limit removed — entry quality handles repeat buys
+
         # Optional Axiom auth — registered externally for Axiom-based price lookups
         self._axiom_auth = None
 
         # Optional Axiom real-time price feed (Phase 4)
         self._axiom_price_feed = None
+
+        # Optional DexScreener real-time price feed (sub-second stop-loss accuracy)
+        self._dex_price_feed = None
 
         # NOTE: Internal _monitor_positions is DISABLED — PositionManager handles
         # all TP/SL logic with the user's exact config-driven rules.
@@ -101,38 +187,107 @@ class Trader:
         """
         self._axiom_price_feed = feed
 
+    def register_dex_price_feed(self, feed):
+        """Register the DexScreener real-time PriceFeed for sub-second stop-loss accuracy."""
+        self._dex_price_feed = feed
+
     async def buy(self, token_address: str, token_symbol: str,
                   reason: str, signal_score: int = 0,
                   hh_hl_confirmed: bool = False,
-                  chain_id: str = "solana", strategy: str = "scanner"):
+                  chain_id: str = "solana", strategy: str = "scanner",
+                  override_usd: float = 0.0, pair_address: str = "",
+                  market_cap_usd: float = 0.0, age_hours: float = 0.0,
+                  volume_h1_usd: float = 0.0):
         """Execute a buy order."""
-        position_size_usd = self.risk_manager.get_position_size()
-        if position_size_usd <= 0:
-            logger.warning(f"Risk manager blocked buy for {token_symbol}")
+        if self.kill_switch and self.kill_switch.is_active:
+            logger.info(f"[Trader] Buy blocked — kill switch active ({self.kill_switch._kill_reason})")
             return
 
-        logger.info(f"💚 Buying {token_symbol} — ${position_size_usd:.0f} — {reason}")
+        if token_address in self._buying:
+            logger.info(f"[Trader] Buy already in flight for {token_symbol}, skipping")
+            return
+        self._buying.add(token_address)
 
         try:
+            if self.risk_manager.is_daily_limit_hit():
+                logger.warning(f"Risk manager blocked buy for {token_symbol} — daily limit hit")
+                return
+            if override_usd > 0:
+                # Cap override at risk manager's normal max to prevent inflated scalp rebuys
+                risk_max = self.risk_manager.available_capital * self.risk_manager.max_position_pct
+                position_size_usd = min(override_usd, risk_max)
+            else:
+                position_size_usd = self.risk_manager.get_position_size()
+            if position_size_usd <= 0:
+                logger.warning(f"Risk manager blocked buy for {token_symbol}")
+                return
+
+            _addr_lower = token_address.lower()
+            if _addr_lower in self.open_positions:
+                logger.info(
+                    f"[Trader] Buy blocked for {token_symbol} "
+                    f"— position already open"
+                )
+                return
+            if _addr_lower in self._dip_watching:
+                logger.info(
+                    f"[Trader] Buy blocked for {token_symbol} "
+                    f"— reserved by DipWatcher"
+                )
+                return
+
+            logger.info(f"💚 Buying {token_symbol} — ${position_size_usd:.0f} — {reason}")
+
             # ── PAPER TRADING MODE ────────────────────────────────────
             if not self.private_key:
+                # Subscribe to real-time price feeds for this token
+                if self._axiom_price_feed is not None:
+                    self._axiom_price_feed.subscribe_token(token_address)
+                if self._dex_price_feed is not None:
+                    self._dex_price_feed.subscribe_token(token_address)
+
+                sol_amount = await self._usd_to_sol(position_size_usd)
+                if sol_amount <= 0:
+                    logger.error(f"Could not convert USD→SOL for {token_symbol} — buy aborted")
+                    return
+
+                # Get current price (Axiom cache → Jupiter price API → DexScreener)
                 current_price = await self._get_token_price(token_address)
                 if current_price <= 0:
                     logger.error(f"Could not get price for {token_symbol} — buy aborted")
                     return
-                liquidity_usd = await self._get_token_liquidity(token_address)
 
-                adjusted_price, tokens_received, slip_est = \
-                    self.paper_slippage.apply_to_buy(
-                        position_size_usd, liquidity_usd,
-                        current_price, token_symbol
-                    )
+                # Try Jupiter Quote solely for price-impact percentage.
+                # Token unit accounting stays on the DexScreener-scale price to avoid
+                # decimal-precision mismatches (pump.fun tokens are 6-decimal, not 9).
+                entry_price    = 0.0
+                tokens_received = 0.0
+                impact_pct     = 0.0
+                price_source   = "unknown"
 
-                sol_amount = await self._usd_to_sol(position_size_usd)
+                quote = await self._get_quote(SOL_MINT, token_address, int(sol_amount * 1e9))
+                if quote:
+                    raw_impact = float(quote.get("priceImpactPct", 0))
+                    if raw_impact >= 0:
+                        impact_pct  = raw_impact
+                        entry_price = current_price * (1.0 + impact_pct)
+                        tokens_received = position_size_usd / entry_price
+                        price_source = "jupiter_impact+dex_price"
+
+                if entry_price <= 0:
+                    # Fallback: DexScreener price + slippage model
+                    liquidity_usd = await self._get_token_liquidity(token_address)
+                    entry_price, tokens_received, slip_est = \
+                        self.paper_slippage.apply_to_buy(
+                            position_size_usd, liquidity_usd, current_price, token_symbol
+                        )
+                    impact_pct   = slip_est.total_slippage_pct
+                    price_source = "dexscreener+model"
+
                 position = Position(
-                    token_address=token_address,
+                    token_address=token_address.lower(),
                     token_symbol=token_symbol,
-                    entry_price_usd=adjusted_price,
+                    entry_price_usd=entry_price,
                     amount_tokens=tokens_received,
                     amount_sol_spent=sol_amount,
                     entry_time=datetime.now(timezone.utc),
@@ -142,15 +297,21 @@ class Trader:
                     chain_id=chain_id,
                     amount_usd=position_size_usd,
                     strategy=strategy,
+                    min_price_usd=entry_price,
+                    entry_time_monotonic=time.monotonic(),
+                    entry_market_cap_usd=market_cap_usd,
+                    entry_age_hours=age_hours,
+                    entry_volume_h1_usd=volume_h1_usd,
                 )
-                self.open_positions[token_address] = position
+                self.open_positions[token_address.lower()] = position
+                self.reentry.buy_counts[token_address.lower()] = self.reentry.buy_counts.get(token_address.lower(), 0) + 1
                 self.risk_manager.record_buy(position_size_usd)
 
                 await self.telegram.send(
                     f"📄 *[PAPER] Bought ${token_symbol}*\n\n"
                     f"💵 Size: ${position_size_usd:.0f}\n"
-                    f"💰 Entry: ${adjusted_price:.8f} "
-                    f"(+{slip_est.total_slippage_pct:.2f}% slippage)\n"
+                    f"💰 Entry: ${entry_price:.8f} "
+                    f"({impact_pct:+.2f}% impact via {price_source})\n"
                     f"🪙 Tokens: {tokens_received:.4f}\n"
                     f"📝 {reason}"
                 )
@@ -158,7 +319,7 @@ class Trader:
                 logger.info(
                     f"📄 [PAPER] Bought {token_symbol} — "
                     f"${position_size_usd:.0f} | "
-                    f"Slippage: {slip_est.total_slippage_pct:.2f}%"
+                    f"Impact: {impact_pct:+.2f}% | Source: {price_source}"
                 )
                 return
 
@@ -189,7 +350,7 @@ class Trader:
 
             # Record position
             position = Position(
-                token_address=token_address,
+                token_address=token_address.lower(),
                 token_symbol=token_symbol,
                 entry_price_usd=entry_price,
                 amount_tokens=out_amount / 1e9,
@@ -201,8 +362,14 @@ class Trader:
                 chain_id=chain_id,
                 amount_usd=position_size_usd,
                 strategy=strategy,
+                pair_address=pair_address,
+                min_price_usd=entry_price,
+                entry_time_monotonic=time.monotonic(),
+                entry_market_cap_usd=market_cap_usd,
+                entry_age_hours=age_hours,
             )
-            self.open_positions[token_address] = position
+            self.open_positions[token_address.lower()] = position
+            self.reentry.buy_counts[token_address.lower()] = self.reentry.buy_counts.get(token_address.lower(), 0) + 1
             self.risk_manager.record_buy(position_size_usd)
 
             await self.telegram.send(
@@ -217,9 +384,12 @@ class Trader:
 
         except Exception as e:
             logger.error(f"Buy failed for {token_symbol}: {e}")
+        finally:
+            self._buying.discard(token_address)
 
     async def sell(self, token_address: str, token_symbol: str, reason: str, pct: float = 1.0):
         """Execute a sell order for a percentage of the position."""
+        token_address = token_address.lower()
         position = self.open_positions.get(token_address)
         if not position:
             logger.warning(f"No position found for {token_symbol}")
@@ -234,25 +404,92 @@ class Trader:
         try:
             # ── PAPER TRADING MODE ────────────────────────────────────
             if not self.private_key:
-                current_price = await self._get_token_price(token_address)
-                liquidity_usd = await self._get_token_liquidity(token_address)
                 tokens_to_sell = position.amount_tokens * pct
 
-                adjusted_price, usd_received, slip_est = \
-                    self.paper_slippage.apply_to_sell(
-                        tokens_to_sell, liquidity_usd,
-                        current_price, token_symbol
+                # Paper sell: use Axiom cache / Jupiter price API / DexScreener + slippage model.
+                # Jupiter swap quotes are skipped here because `tokens_to_sell` is in
+                # DexScreener-scale human units and token decimal precision varies
+                # (6 for most pump.fun tokens, 9 for SOL-native tokens), making
+                # atomic-unit conversion unreliable without on-chain metadata.
+                # Dead liquidity: pool is empty, tokens can't be sold — full loss.
+                # Bypass price fetch entirely; recording any non-zero price would
+                # produce fake profit when the API still shows a stale price.
+                is_dead_liquidity = "Dead liquidity" in reason
+                if is_dead_liquidity:
+                    cost_basis   = position.entry_price_usd * tokens_to_sell
+                    usd_received = 0.0
+                    exit_price   = 0.0
+                    pnl          = -cost_basis
+                    pnl_pct      = -100.0
+                    impact_pct   = 0.0
+                    price_source = "dead_liquidity"
+                    logger.warning(
+                        f"[Trader] Dead liquidity sell: {token_symbol} — "
+                        f"recording full loss ${-pnl:.2f} (cost ${cost_basis:.2f})"
                     )
+                else:
+                    current_price = await self._get_token_price(token_address)
+                    # If price API returned 0, fall back to position's last known price.
+                    # Recording a 100% loss when the API fails produces wildly wrong PnL.
+                    if current_price <= 0:
+                        current_price = getattr(position, "current_price_usd", 0) or position.entry_price_usd
+                        logger.warning(
+                            f"[Trader] Price=0 for {token_symbol} at paper sell — "
+                            f"falling back to last known price ${current_price:.8f}"
+                        )
+                    # Sanity check: if price implies >20x gain, cross-validate with DexScreener.
+                    # Guards against phantom gains from price feed glitches (wrong units, stale
+                    # cache, API returning SOL price instead of USD, etc.).
+                    if position.entry_price_usd > 0 and current_price > position.entry_price_usd * 20:
+                        try:
+                            dex_url = f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+                            async with aiohttp.ClientSession() as _san_sess:
+                                async with _san_sess.get(dex_url, timeout=aiohttp.ClientTimeout(total=5)) as _san_resp:
+                                    _san_data = await _san_resp.json(content_type=None)
+                            _san_pairs = _san_data.get("pairs") or []
+                            if _san_pairs:
+                                _san_best = max(_san_pairs, key=lambda p: p.get("liquidity", {}).get("usd", 0))
+                                dex_price = float(_san_best.get("priceUsd", 0) or 0)
+                                if dex_price > 0 and dex_price < current_price * 0.5:
+                                    logger.warning(
+                                        f"[Trader] ⚠️ Paper sell price sanity check FAILED: {token_symbol} — "
+                                        f"primary=${current_price:.8f} vs DexScreener=${dex_price:.8f} "
+                                        f"({current_price/dex_price:.1f}x discrepancy) — using DexScreener"
+                                    )
+                                    current_price = dex_price
+                        except Exception as _san_e:
+                            logger.debug(f"[Trader] Sanity check fetch failed for {token_symbol}: {_san_e}")
+                    liquidity_usd = await self._get_token_liquidity(token_address)
+                    _is_stop = any(k in reason.lower() for k in ("stop loss", "stop-loss", "dead liquidity"))
+                    exit_price, usd_received, slip_est = \
+                        self.paper_slippage.apply_to_sell(
+                            tokens_to_sell, liquidity_usd, current_price, token_symbol,
+                            is_stop_loss=_is_stop
+                        )
+                    impact_pct   = slip_est.total_slippage_pct
+                    price_source = "dexscreener+model"
 
-                cost_basis = position.entry_price_usd * tokens_to_sell
-                pnl = usd_received - cost_basis
-                pnl_pct = (pnl / cost_basis * 100) if cost_basis > 0 else 0
+                    cost_basis = position.entry_price_usd * tokens_to_sell
+                    pnl        = usd_received - cost_basis
+                    pnl_pct    = (pnl / cost_basis * 100) if cost_basis > 0 else 0
+
+                _min_p = getattr(position, "min_price_usd", 0)
+                _entry = position.entry_price_usd
+                max_drawdown_pct = round((_min_p / _entry - 1) * 100, 2) if _entry > 0 and _min_p > 0 else 0.0
 
                 if pct >= 1.0:
                     del self.open_positions[token_address]
+                    self.reentry.previously_held.add(token_address.lower())
+                    self.reentry.save()
+                    # Unsubscribe from real-time feeds when position fully closed
+                    if self._axiom_price_feed is not None:
+                        self._axiom_price_feed.unsubscribe_token(token_address)
+                    if self._dex_price_feed is not None:
+                        self._dex_price_feed.unsubscribe_token(token_address)
                 else:
                     position.amount_tokens *= (1 - pct)
                     position.amount_sol_spent *= (1 - pct)
+                    position.amount_usd *= (1 - pct)
 
                 self.risk_manager.record_sell(usd_received, pnl)
                 emoji = "🟢" if pnl >= 0 else "🔴"
@@ -261,13 +498,15 @@ class Trader:
                     f"{emoji} *[PAPER] Sold ${token_symbol}* ({pct*100:.0f}%)\n\n"
                     f"💵 Received: ${usd_received:.2f}\n"
                     f"📊 PnL: ${pnl:+.2f} ({pnl_pct:+.1f}%)\n"
-                    f"📉 Exit slippage: {slip_est.total_slippage_pct:.2f}%\n"
+                    f"📉 Exit impact: {impact_pct:.2f}% via {price_source}\n"
                     f"📝 {reason}"
                 )
-                self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2))
+                _entry_mono = getattr(position, "entry_time_monotonic", 0)
+                _hold_secs = round(time.monotonic() - _entry_mono) if _entry_mono > 0 else 0
+                self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0))
                 logger.info(
                     f"{emoji} [PAPER] Sold {pct*100:.0f}% of {token_symbol} — "
-                    f"PnL: ${pnl:+.2f} | Slippage: {slip_est.total_slippage_pct:.2f}%"
+                    f"PnL: ${pnl:+.2f} | Impact: {impact_pct:.2f}% | Source: {price_source}"
                 )
                 return
 
@@ -288,15 +527,22 @@ class Trader:
             pnl = usd_received - cost_basis
             pnl_pct = (pnl / cost_basis * 100) if cost_basis > 0 else 0
 
+            _min_p = getattr(position, "min_price_usd", 0)
+            _entry = getattr(position, "entry_price_usd", 0)
+            max_drawdown_pct = round((_min_p / _entry - 1) * 100, 2) if _entry > 0 and _min_p > 0 else 0.0
+
             success = await self._execute_swap(quote)
             if not success:
                 return
 
             if pct >= 1.0:
                 del self.open_positions[token_address]
+                self.reentry.previously_held.add(token_address.lower())
+                self.reentry.save()
             else:
                 position.amount_tokens *= (1 - pct)
                 position.amount_sol_spent *= (1 - pct)
+                position.amount_usd *= (1 - pct)
 
             self.risk_manager.record_sell(usd_received, pnl)
 
@@ -307,7 +553,9 @@ class Trader:
                 f"📊 PnL: ${pnl:+.0f} ({pnl_pct:+.1f}%)\n"
                 f"📝 Reason: {reason}"
             )
-            self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2))
+            _entry_mono = getattr(position, "entry_time_monotonic", 0)
+            _hold_secs = round(time.monotonic() - _entry_mono) if _entry_mono > 0 else 0
+            self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0))
             logger.info(f"{emoji} Sold {pct*100:.0f}% of {token_symbol} — PnL: ${pnl:+.0f}")
 
         except Exception as e:
@@ -472,7 +720,15 @@ class Trader:
         return 50_000  # Fallback if unavailable
 
     async def _get_token_price(self, token_address: str) -> float:
-        """Get current token price in USD — tries Axiom, Jupiter, then DexScreener."""
+        """Get current token price in USD — tries Axiom cache, Axiom REST, Jupiter, DexScreener."""
+        # 0. Axiom real-time price cache (WebSocket, ~1s latency) — skip SOL_MINT
+        if self._axiom_price_feed is not None and token_address != SOL_MINT:
+            cached_price = self._axiom_price_feed.price_cache.get(token_address, 0)
+            cached_ts    = self._axiom_price_feed.price_timestamps.get(token_address, 0)
+            if cached_price > 0 and (time.time() - cached_ts) < 5.0:
+                logger.debug(f"[Trader] Axiom cache hit: {token_address[:8]} = ${cached_price:.8f}")
+                return cached_price
+
         # 1. Axiom token info (most reliable for tokens the bot trades)
         if self._axiom_auth is not None:
             try:
@@ -488,12 +744,12 @@ class Trader:
                         return price
             except Exception as e:
                 logger.debug(f"[Trader] Axiom price lookup failed for {token_address[:8]}: {e}")
-        # 2. Jupiter price API
+        # 2. Jupiter price API v6
         try:
-            url = f"https://price.jup.ag/v4/price?ids={token_address}"
+            url = f"https://price.jup.ag/v6/price?ids={token_address}&vsToken=USDC"
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
-                    data = await resp.json()
+                    data = await resp.json(content_type=None)
                     price = data.get("data", {}).get(token_address, {}).get("price", 0)
                     if price and price > 0:
                         return float(price)
@@ -507,7 +763,10 @@ class Trader:
                     data = await resp.json(content_type=None)
                     pairs = data.get("pairs") or []
                     if pairs:
-                        price = float(pairs[0].get("priceUsd", 0) or 0)
+                        # Prefer graduated DEX pools over PumpFun pre-graduation pool
+                        _grad = [p for p in pairs if p.get("dexId", "") != "pump-fun" and p.get("liquidity", {}).get("usd", 0) > 1000]
+                        best = max(_grad or pairs, key=lambda p: p.get("liquidity", {}).get("usd", 0))
+                        price = float(best.get("priceUsd", 0) or 0)
                         if price > 0:
                             return price
         except Exception as e:
