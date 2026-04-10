@@ -1648,13 +1648,7 @@ class MultiSourceScanner:
             )
             return
 
-        # Volume ceiling — high h1 volume on small mcap means token is already in frenzy/exhaustion
-        if signal.volume_h1 > self.max_volume_h1_usd and "dip_setup" not in signal.flags:
-            logger.info(
-                f"[{self.chain.name}] Volume ceiling blocked: {signal.token_symbol} "
-                f"${signal.volume_h1:,.0f}/hr > ${self.max_volume_h1_usd:,.0f}/hr — already pumped"
-            )
-            return
+        # Volume ceiling disabled — letting high-volume tokens through
 
         # Volume/MCap ratio — <1% = dead token (60-80% of volume is bots; ratio reveals organic activity)
         if signal.mcap > 0:
