@@ -329,7 +329,8 @@ class PositionManager:
         self._last_volume_check: Dict[str, datetime] = {}
         self._stop_triggered: set = set()  # De-dup for realtime stops
         self._last_rest_fetch: Dict[str, float] = {}  # token → unix ts of last REST call
-        self.axiom_price_feed = None  # Set by main.py for real-time price cache
+        self.axiom_price_feed = None  # Set by main.py — socket8 real-time cache (~ms latency)
+        self.dex_price_feed = None    # Set by main.py — DexScreener 1s poll cache (fallback)
 
         # Stats
         self.tp1_hits = 0
@@ -401,29 +402,46 @@ class PositionManager:
 
     async def _update_price(self, token_address: str, state: PositionState):
         """
-        Fetch current price — uses AxiomPriceFeed cache when fresh (<5s),
-        falls back to DexScreener REST. REST is throttled to once per 30s so
-        volume/liquidity stay current without hitting rate limits every 5s cycle.
+        Fetch current price via fastest available source:
+          1. Axiom cache (<5s)  — socket8 WS, near real-time
+          2. DexScreener cache (<3s) — PriceFeed polls every 1s
+          3. DexScreener REST — last resort, throttled to once per 5s
+        Volume/liquidity for stall detection come from the REST call (throttled).
         """
         now_ts = time.time()
         addr_lower = token_address.lower()
 
-        # ── Fast path: Axiom real-time cache ─────────────────────────────────
-        axiom_price = 0.0
+        # ── Fast path 1: Axiom real-time cache ───────────────────────────────
+        live_price = 0.0
         if self.axiom_price_feed is not None:
-            _cached_price = self.axiom_price_feed.price_cache.get(addr_lower, 0)
-            _cached_ts    = self.axiom_price_feed.price_timestamps.get(addr_lower, 0)
-            if _cached_price > 0 and (now_ts - _cached_ts) < 5.0:
-                axiom_price = _cached_price
-                self._apply_price_update(token_address, state, axiom_price,
-                                         volume_h1=self.axiom_price_feed.volume_cache.get(addr_lower, state.current_volume_usd),
-                                         volume_m5=state.current_m5_volume,
-                                         liquidity_usd=self.axiom_price_feed.liquidity_cache.get(addr_lower, state.current_liquidity_usd))
+            _p = self.axiom_price_feed.price_cache.get(addr_lower, 0)
+            _t = self.axiom_price_feed.price_timestamps.get(addr_lower, 0)
+            if _p > 0 and (now_ts - _t) < 5.0:
+                live_price = _p
+                self._apply_price_update(
+                    token_address, state, live_price,
+                    volume_h1=self.axiom_price_feed.volume_cache.get(addr_lower, state.current_volume_usd),
+                    volume_m5=state.current_m5_volume,
+                    liquidity_usd=self.axiom_price_feed.liquidity_cache.get(addr_lower, state.current_liquidity_usd),
+                )
 
-        # ── REST fetch for volume/liquidity (throttled to 30s) ───────────────
+        # ── Fast path 2: DexScreener 1s-poll cache ───────────────────────────
+        if live_price <= 0 and self.dex_price_feed is not None:
+            _p = self.dex_price_feed.price_cache.get(addr_lower, 0)
+            _t = self.dex_price_feed.price_timestamps.get(addr_lower, 0)
+            if _p > 0 and (now_ts - _t) < 3.0:
+                live_price = _p
+                self._apply_price_update(
+                    token_address, state, live_price,
+                    volume_h1=self.dex_price_feed.volume_cache.get(addr_lower, state.current_volume_usd),
+                    volume_m5=state.current_m5_volume,
+                    liquidity_usd=self.dex_price_feed.liquidity_cache.get(addr_lower, state.current_liquidity_usd),
+                )
+
+        # ── REST: volume/liquidity refresh (throttled to 5s) ─────────────────
         last_rest = self._last_rest_fetch.get(addr_lower, 0)
-        if (now_ts - last_rest) < 30.0:
-            return  # Skip REST — volume data still fresh enough
+        if (now_ts - last_rest) < 5.0:
+            return
         self._last_rest_fetch[addr_lower] = now_ts
 
         try:

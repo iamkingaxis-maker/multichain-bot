@@ -421,6 +421,7 @@ async def main():
         # price_feed is already started in tasks; wire it to the position manager
         # so every tick fires check_stop_loss_realtime() directly.
         price_feed.position_manager = sol_position_mgr
+        sol_position_mgr.dex_price_feed = price_feed   # 1s-poll cache for price fallback
         sol_trader.register_dex_price_feed(price_feed)
 
         # Register AxiomScanner for relay mode token injection
