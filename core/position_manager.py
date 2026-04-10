@@ -400,12 +400,33 @@ class PositionManager:
             if addr in self._states:
                 await self._evaluate_position(addr, state)
 
+    async def _fetch_jupiter_price(self, token_address: str) -> float:
+        """
+        Poll Jupiter Price API for near-instant AMM price.
+        Much faster than DexScreener — queries the AMM state directly.
+        Returns 0.0 on failure.
+        """
+        try:
+            url = f"https://api.jup.ag/price/v2?ids={token_address}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=3)) as resp:
+                    if resp.status != 200:
+                        return 0.0
+                    data = await resp.json()
+                    item = (data.get("data") or {}).get(token_address) or (data.get("data") or {}).get(token_address.lower())
+                    if item:
+                        return float(item.get("price", 0) or 0)
+        except Exception:
+            pass
+        return 0.0
+
     async def _update_price(self, token_address: str, state: PositionState):
         """
         Fetch current price via fastest available source:
           1. Axiom cache (<5s)  — socket8 WS, near real-time
           2. DexScreener cache (<3s) — PriceFeed polls every 1s
-          3. DexScreener REST — last resort, throttled to once per 5s
+          3. Jupiter Price API — queries AMM directly, sub-second, throttled to 2s
+          4. DexScreener REST — last resort, throttled to once per 5s
         Volume/liquidity for stall detection come from the REST call (throttled).
         """
         now_ts = time.time()
@@ -437,6 +458,19 @@ class PositionManager:
                     volume_m5=state.current_m5_volume,
                     liquidity_usd=self.dex_price_feed.liquidity_cache.get(addr_lower, state.current_liquidity_usd),
                 )
+
+        # ── Fast path 3: Jupiter Price API (throttled to 2s) ─────────────────
+        # Queries AMM state directly — sub-second, much fresher than DexScreener
+        last_jup = self._last_rest_fetch.get(f"jup_{addr_lower}", 0)
+        if live_price <= 0 and (now_ts - last_jup) >= 2.0:
+            self._last_rest_fetch[f"jup_{addr_lower}"] = now_ts
+            jup_price = await self._fetch_jupiter_price(token_address)
+            if jup_price > 0:
+                live_price = jup_price
+                self._apply_price_update(token_address, state, live_price,
+                                         volume_h1=state.current_volume_usd,
+                                         volume_m5=state.current_m5_volume,
+                                         liquidity_usd=state.current_liquidity_usd)
 
         # ── REST: volume/liquidity refresh (throttled to 5s) ─────────────────
         last_rest = self._last_rest_fetch.get(addr_lower, 0)
