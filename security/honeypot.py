@@ -211,8 +211,22 @@ class SecurityChecker:
         result.passed = self._make_decision(result)
         return result
 
+    # Valid Solana base58 address: 32–44 chars, no 0/O/I/l
+    _BASE58_RE = __import__("re").compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
+
     async def _fetch_rugcheck(self, mint: str) -> Optional[dict]:
         """Fetch Solana token security data from Rugcheck.xyz API (no key required)."""
+        # Validate address format before hitting the API.
+        # Fresh pump.fun tokens get a 400 from rugcheck because they aren't indexed
+        # yet (they're seconds old) — that is NOT a bad address, so we must not
+        # conflate the two.  Only return the hard-block sentinel when the address
+        # itself is obviously malformed.
+        if not self._BASE58_RE.match(mint):
+            logger.warning(
+                f"Rugcheck: bad address format for {mint[:10]} — blocking"
+            )
+            return {"_invalid_address": True}
+
         url = f"{RUGCHECK_API}/tokens/{mint}/report/summary"
         try:
             async with aiohttp.ClientSession() as session:
@@ -220,13 +234,13 @@ class SecurityChecker:
                     url, timeout=aiohttp.ClientTimeout(total=5)
                 ) as resp:
                     if resp.status == 400:
-                        # 400 = invalid address format (e.g. lowercase 'l' in base58)
-                        # This is not a transient API error — the address itself is bad.
-                        # Return a sentinel so the caller can BLOCK rather than fall back.
-                        logger.warning(
-                            f"Rugcheck HTTP 400 (invalid address) for {mint[:10]} — blocking"
+                        # 400 from rugcheck on a valid address = token not yet indexed
+                        # (common for fresh launches <5 min old).  Fall back to other
+                        # checks (DexScreener, Axiom-provided sniper/dev fields).
+                        logger.info(
+                            f"Rugcheck 400 for {mint[:10]} — not indexed yet, skipping"
                         )
-                        return {"_invalid_address": True}
+                        return None
                     if resp.status != 200:
                         logger.warning(
                             f"Rugcheck HTTP {resp.status} for {mint[:10]}..."
