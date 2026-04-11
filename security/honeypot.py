@@ -151,7 +151,7 @@ class SecurityChecker:
 
         result = await self._run_checks(token_address, chain_id, micro_cap=micro_cap)
 
-        self._cache[cache_key] = (result, _t.time() + 300)
+        self._cache[cache_key] = (result, _t.time() + self.cache_ttl)
         if len(self._cache) > 500:
             for old_key in list(self._cache.keys())[:100]:
                 self._cache.pop(old_key, None)

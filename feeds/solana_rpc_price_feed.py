@@ -75,9 +75,11 @@ class SolanaRpcPriceFeed:
         self.volume_cache:     Dict[str, float] = {}
         self.liquidity_cache:  Dict[str, float] = {}
 
-        # token_address → pool_type ("pump" | "other")
+        # lowercase_addr → pool_type ("pump" | "other")
         self._watched:     Dict[str, str] = {}
-        # token_address → bonding-curve PDA address (cached after first derivation)
+        # lowercase_addr → original-case address (Solana/Jupiter APIs are case-sensitive)
+        self._orig_addrs:  Dict[str, str] = {}
+        # original_addr → bonding-curve PDA address (cached after first derivation)
         self._bc_addrs:    Dict[str, str] = {}
         # tokens where bonding curve was found complete / absent → use Jupiter
         self._graduated:   Set[str] = set()
@@ -98,7 +100,8 @@ class SolanaRpcPriceFeed:
         if addr in self._watched:
             return
         is_pump = pool_type.lower() in _PUMP_PROTOCOLS
-        self._watched[addr] = "pump" if is_pump else "other"
+        self._watched[addr]    = "pump" if is_pump else "other"
+        self._orig_addrs[addr] = token_address  # preserve original case for API calls
         logger.debug(
             f"[RpcPriceFeed] Subscribed {addr[:8]}… "
             f"(type={'pump' if is_pump else 'jupiter'})"
@@ -106,9 +109,10 @@ class SolanaRpcPriceFeed:
 
     def unsubscribe_token(self, token_address: str):
         addr = token_address.lower()
+        orig = self._orig_addrs.pop(addr, token_address)  # get before removing
         self._watched.pop(addr, None)
         self._graduated.discard(addr)
-        self._bc_addrs.pop(addr, None)
+        self._bc_addrs.pop(orig, None)
         self.price_cache.pop(addr, None)
         self.price_timestamps.pop(addr, None)
 
@@ -179,9 +183,11 @@ class SolanaRpcPriceFeed:
 
     async def _fetch_pump(self, token_addrs: list):
         """Batch-read pump.fun bonding curve accounts via getMultipleAccounts."""
-        bc_map: Dict[str, str] = {}  # token_addr → bc_addr
+        bc_map: Dict[str, str] = {}  # lowercase_addr → bc_addr
         for addr in token_addrs:
-            bc = await self._get_bc_address(addr)
+            # PDA derivation requires original-case address (Solana is case-sensitive)
+            orig = self._orig_addrs.get(addr, addr)
+            bc = await self._get_bc_address(orig)
             if bc:
                 bc_map[addr] = bc
 
@@ -287,20 +293,24 @@ class SolanaRpcPriceFeed:
             await self._fetch_jupiter_batch(batch)
 
     async def _fetch_jupiter_batch(self, addrs: list):
+        # addrs are lowercase — Jupiter API is case-sensitive, use original-case in URL
+        orig_addrs    = [self._orig_addrs.get(a, a) for a in addrs]
+        orig_to_lower = {self._orig_addrs.get(a, a): a for a in addrs}
         try:
-            url = f"{JUPITER_PRICE_V2}?ids={','.join(addrs)}"
+            url = f"{JUPITER_PRICE_V2}?ids={','.join(orig_addrs)}"
             async with aiohttp.ClientSession() as s:
                 async with s.get(url, timeout=aiohttp.ClientTimeout(total=4)) as r:
                     if r.status != 200:
                         return
                     data = await r.json()
                     prices = data.get("data") or {}
-                    for addr in addrs:
-                        item = prices.get(addr) or prices.get(addr.lower())
+                    for orig in orig_addrs:
+                        item = prices.get(orig) or prices.get(orig.lower())
                         if item:
                             price = float(item.get("price") or 0)
                             if price > 0:
-                                self._emit(addr, price)
+                                lower = orig_to_lower.get(orig, orig.lower())
+                                self._emit(lower, price)
         except Exception as e:
             logger.debug(f"[RpcPriceFeed] Jupiter batch error: {e}")
 

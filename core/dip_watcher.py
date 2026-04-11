@@ -7,11 +7,11 @@ Flow:
   2. Instead of buying immediately, the scanner calls dip_watcher.watch(...).
   3. DipWatcher subscribes the token to AxiomPriceFeed for real-time ticks.
   4. On each tick it tracks peak, bottom, and dip state.
-  5. When a 30% dip is followed by a 5% recovery from the bottom → buy.
+  5. When a 15% dip is followed by a 5% recovery from the bottom → buy.
   6. If 5 minutes pass without a buy trigger → expire and skip.
 
 Parameters (defaults match task spec):
-  dip_threshold_pct = 30.0   — % drop from peak to declare "dipped"
+  dip_threshold_pct = 15.0   — % drop from peak to declare "dipped"
   recovery_pct      =  5.0   — % recovery from bottom to trigger buy
   max_watch_seconds = 300    — expire after 5 minutes
 """
