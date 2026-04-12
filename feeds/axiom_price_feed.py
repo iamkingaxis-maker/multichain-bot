@@ -371,6 +371,20 @@ class AxiomPriceFeed:
                 return
 
             _addr_lower = token_address.lower()
+
+            # Sanity check: reject price spikes >500x vs last cached value.
+            # Memecoins can pump hard but not 500x in a single WS tick.
+            # This catches unit errors (lamports vs USD, raw amounts, etc.)
+            # that would produce phantom million-dollar P&L on paper sells.
+            prev_price = self.price_cache.get(_addr_lower, 0)
+            if prev_price > 0 and price_usd > prev_price * 500:
+                logger.warning(
+                    f"[AxiomPriceFeed] ⚠️ Price spike rejected for {ticker}: "
+                    f"${prev_price:.8f} → ${price_usd:.8f} "
+                    f"({price_usd/prev_price:.0f}x) — possible unit error, ignoring"
+                )
+                return
+
             self.price_cache[_addr_lower] = price_usd
             self.price_timestamps[_addr_lower] = time.time()
 

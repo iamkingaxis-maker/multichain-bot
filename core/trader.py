@@ -462,7 +462,11 @@ class Trader:
                     # Sanity check: if price implies >20x gain, cross-validate with DexScreener.
                     # Guards against phantom gains from price feed glitches (wrong units, stale
                     # cache, API returning SOL price instead of USD, etc.).
+                    # If DexScreener can't confirm, ABORT the sell — no sell is better than
+                    # a $17M phantom profit corrupting the P&L record.
                     if position.entry_price_usd > 0 and current_price > position.entry_price_usd * 20:
+                        _gain_x = current_price / position.entry_price_usd
+                        _san_confirmed = False
                         try:
                             dex_url = f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
                             async with aiohttp.ClientSession() as _san_sess:
@@ -474,13 +478,25 @@ class Trader:
                                 dex_price = float(_san_best.get("priceUsd", 0) or 0)
                                 if dex_price > 0 and dex_price < current_price * 0.5:
                                     logger.warning(
-                                        f"[Trader] ⚠️ Paper sell price sanity check FAILED: {token_symbol} — "
+                                        f"[Trader] ⚠️ Paper sell price sanity FAILED: {token_symbol} — "
                                         f"primary=${current_price:.8f} vs DexScreener=${dex_price:.8f} "
-                                        f"({current_price/dex_price:.1f}x discrepancy) — using DexScreener"
+                                        f"({_gain_x:.0f}x entry discrepancy) — using DexScreener"
                                     )
                                     current_price = dex_price
+                                    _san_confirmed = True
+                                elif dex_price > 0:
+                                    # DexScreener agrees price is high — genuine pump
+                                    _san_confirmed = True
+                            # else: no pairs — can't confirm
                         except Exception as _san_e:
-                            logger.debug(f"[Trader] Sanity check fetch failed for {token_symbol}: {_san_e}")
+                            logger.warning(f"[Trader] Sanity check fetch failed for {token_symbol}: {_san_e}")
+                        if not _san_confirmed:
+                            logger.error(
+                                f"[Trader] ⛔ Paper sell ABORTED: {token_symbol} — "
+                                f"price ${current_price:.8f} is {_gain_x:.0f}x entry "
+                                f"but DexScreener could not confirm — possible feed glitch, skipping sell"
+                            )
+                            return
                     liquidity_usd = await self._get_token_liquidity(token_address)
                     _is_stop = any(k in reason.lower() for k in ("stop loss", "stop-loss", "dead liquidity"))
                     exit_price, usd_received, slip_est = \
