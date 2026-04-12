@@ -82,6 +82,7 @@ class SecurityResult:
     liquidity_locked: bool = False
     lp_lock_data_available: bool = False   # True only when GoPlus returned LP lock data
     _micro_cap: bool = False               # Passed through from check() call
+    _bonding_curve: bool = False           # True = pump.fun pre-grad bonding curve (no LP exists)
     flags: list = field(default_factory=list)
     warnings: list = field(default_factory=list)
     checked_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -129,17 +130,20 @@ class SecurityChecker:
 
     async def check(self, token_address: str, chain_id: str,
                     token_symbol: str = "?",
-                    micro_cap: bool = False) -> SecurityResult:
+                    micro_cap: bool = False,
+                    bonding_curve: bool = False) -> SecurityResult:
         """
         Main entry point. Run all security checks on a token.
         Returns SecurityResult with passed=True only if safe to trade.
 
-        micro_cap=True: relaxes LP lock and holder concentration checks for
-        freshly launched tokens where these are structurally expected.
-        Still blocks on honeypot, mintable, freeze authority, and high taxes.
+        micro_cap=True:    relaxes holder concentration threshold for fresh small-cap tokens.
+        bonding_curve=True: skips LP lock requirement — pump.fun pre-graduation tokens have no
+                            traditional LP to lock (the bonding curve IS the liquidity).
+                            Use for pump-amm protocol only; NOT for pumpswap/raydium/meteora.
         """
         import time as _t
-        cache_key = f"{token_address.lower()}:{chain_id}:{'mc' if micro_cap else 'std'}"
+        _bc_tag = "bc" if bonding_curve else ("mc" if micro_cap else "std")
+        cache_key = f"{token_address.lower()}:{chain_id}:{_bc_tag}"
         cached = self._cache.get(cache_key)
         if cached:
             result, expires_at = cached
@@ -149,7 +153,8 @@ class SecurityChecker:
         self._check_count += 1
         logger.info(f"🔍 Security check #{self._check_count}: {token_symbol} on {chain_id}")
 
-        result = await self._run_checks(token_address, chain_id, micro_cap=micro_cap)
+        result = await self._run_checks(token_address, chain_id, micro_cap=micro_cap,
+                                        bonding_curve=bonding_curve)
 
         self._cache[cache_key] = (result, _t.time() + self.cache_ttl)
         if len(self._cache) > 500:
@@ -172,14 +177,16 @@ class SecurityChecker:
         return result
 
     async def _run_checks(self, token_address: str, chain_id: str,
-                          micro_cap: bool = False) -> SecurityResult:
+                          micro_cap: bool = False,
+                          bonding_curve: bool = False) -> SecurityResult:
         """Run all checks and build the result."""
         result = SecurityResult(
             token_address=token_address,
             chain_id=chain_id,
             passed=False,
             risk_level="UNKNOWN",
-            _micro_cap=micro_cap
+            _micro_cap=micro_cap,
+            _bonding_curve=bonding_curve,
         )
 
         try:
@@ -187,7 +194,8 @@ class SecurityChecker:
                 # Use Rugcheck for Solana — GoPlus returns null for SPL tokens
                 rugcheck_data = await self._fetch_rugcheck(token_address)
                 if rugcheck_data:
-                    self._parse_rugcheck(rugcheck_data, result, micro_cap=micro_cap)
+                    self._parse_rugcheck(rugcheck_data, result, micro_cap=micro_cap,
+                                        bonding_curve=bonding_curve)
                 else:
                     result.warnings.append("Rugcheck unavailable — basic checks only")
                     await self._basic_dexscreener_check(token_address, chain_id, result)
@@ -264,7 +272,8 @@ class SecurityChecker:
             logger.debug(f"Rugcheck fetch error: {e}")
             return None
 
-    def _parse_rugcheck(self, data: dict, result: SecurityResult, micro_cap: bool = False):
+    def _parse_rugcheck(self, data: dict, result: SecurityResult, micro_cap: bool = False,
+                        bonding_curve: bool = False):
         """Parse Rugcheck.xyz summary response into SecurityResult."""
 
         # Invalid address sentinel — address format rejected by Rugcheck (e.g. bad base58)
@@ -308,10 +317,9 @@ class SecurityChecker:
         if lp_locked_pct is not None:
             result.liquidity_locked = float(lp_locked_pct or 0) > 0
             if not result.liquidity_locked:
-                if micro_cap:
-                    # Fresh micro-cap launches rarely have LP locked immediately —
-                    # treat as warning only, not a hard block
-                    result.warnings.append("LP not locked (micro-cap — expected for fresh launch)")
+                if bonding_curve:
+                    # Pump.fun bonding curve — no traditional LP to lock, skip requirement
+                    result.warnings.append("LP not locked (bonding curve — no LP exists pre-graduation)")
                 else:
                     result.flags.append("Liquidity not locked — rug risk")
             else:
@@ -367,8 +375,8 @@ class SecurityChecker:
             flag_text = f"{name}: {desc}" if desc else name
             flag_lower = flag_text.lower()
 
-            if micro_cap and any(kw in flag_lower for kw in _MC_WARN_KEYWORDS):
-                # Structural for fresh launches — warn, don't block
+            if bonding_curve and any(kw in flag_lower for kw in _MC_WARN_KEYWORDS):
+                # Bonding curve — no LP exists to lock, so "LP unlocked" is structural
                 result.warnings.append(flag_text)
             else:
                 result.flags.append(flag_text)
@@ -600,9 +608,10 @@ class SecurityChecker:
         if result.risk_level == "BLOCK":
             return False
 
-        # Unlocked LP is a hard block for established tokens.
-        # Micro-cap fresh launches are exempt — LP lock rarely indexed immediately.
-        if result.lp_lock_data_available and not result.liquidity_locked and not result._micro_cap:
+        # Unlocked LP is a hard block for all non-bonding-curve pools.
+        # Bonding curve (pump.fun pre-graduation) is exempt — no LP exists to lock.
+        # Graduated pools (PumpSwap, Raydium, Meteora, Orca) must have LP locked.
+        if result.lp_lock_data_available and not result.liquidity_locked and not result._bonding_curve:
             return False
 
         return True

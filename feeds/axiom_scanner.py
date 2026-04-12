@@ -1479,11 +1479,16 @@ class AxiomScanner:
                 if not self.market_monitor.should_trade(signal_score=0):
                     return
 
-            # Security gate — AxiomScanner only sees micro-cap launches,
-            # so use relaxed security (LP lock/concentration are expected for fresh tokens)
+            # Security gate — detect pool type to apply correct LP lock rules.
+            # "pump amm" = pump.fun bonding curve (pre-graduation): no LP to lock.
+            # "pumpswap", "raydium", "meteora", etc. = graduated pools: LP lock required.
             if self.security:
+                _proto_lower = (event.protocol or "").lower()
+                _is_bc = "pump amm" in _proto_lower and "swap" not in _proto_lower
                 sec_result = await self.security.check(
-                    event.token_address, "solana", event.token_symbol, micro_cap=True
+                    event.token_address, "solana", event.token_symbol,
+                    micro_cap=True,           # keep for holder concentration relaxation
+                    bonding_curve=_is_bc,     # LP lock exempt only for bonding curve
                 )
                 if sec_result and not sec_result.passed:
                     logger.info(
