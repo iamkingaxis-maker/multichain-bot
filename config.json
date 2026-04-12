@@ -21,7 +21,7 @@
   "take_profit_3_pct": 150.0,
   "take_profit_3_sell": 1.0,
   "mc_tp1_pct": 25.0,
-  "mc_tp1_sell": 0.25,
+  "mc_tp1_sell": 1.0,
   "mc_tp2_pct": 75.0,
   "mc_tp2_sell": 0.4,
   "mc_tp3_pct": 200.0,

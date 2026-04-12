@@ -703,6 +703,10 @@ class PositionManager:
                 return
 
             # ── MC STOP LOSS ──────────────────────────────────────────────
+            # Skip if realtime feed already claimed this position — prevents
+            # a duplicate polling-loop sell racing against the realtime ensure_future.
+            if token_address in self._stop_triggered:
+                return
             if pnl_pct <= -self.mc_stop_loss_pct:
                 age_seconds = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
                 is_flash_crash = age_seconds <= 120
@@ -849,6 +853,10 @@ class PositionManager:
                 return
 
         # ── STOP LOSS — Hard stop with flash crash detection ──────────────
+        # Skip if realtime feed already claimed this position — prevents
+        # a duplicate polling-loop sell racing against the realtime ensure_future.
+        if token_address in self._stop_triggered:
+            return
         if pnl_pct <= -self.stop_loss_pct:
             age_seconds = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
             is_flash_crash = age_seconds <= 120  # stop-loss in ≤2 minutes = likely rug

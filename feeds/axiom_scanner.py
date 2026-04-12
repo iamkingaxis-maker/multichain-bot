@@ -1644,12 +1644,23 @@ class AxiomScanner:
                 # Minimum active buyers in last 5m — dead tokens have zero
                 _txns_m5 = (pair_data.get("txns") or {}).get("m5") or {}
                 _m5_buys = int(_txns_m5.get("buys") or 0)
+                _m5_sells = int(_txns_m5.get("sells") or 0)
                 if _m5_buys < 50:
                     logger.info(
                         f"[AxiomScanner] Micro-cap blocked: {event.token_symbol} — "
                         f"only {_m5_buys} buyers in last 5m (need 50+)"
                     )
                     _log_mc_candidate(f"Dead: {_m5_buys} m5 buys < 50")
+                    return
+
+                # Buy pressure check — more sellers than buyers = distribution phase.
+                # Buying into heavy sell pressure is the primary cause of <2min stop losses.
+                if _m5_sells > _m5_buys:
+                    logger.info(
+                        f"[AxiomScanner] Micro-cap blocked: {event.token_symbol} — "
+                        f"sell pressure: {_m5_sells} sells > {_m5_buys} buys in m5"
+                    )
+                    _log_mc_candidate(f"Sell pressure: {_m5_sells} sells > {_m5_buys} buys")
                     return
 
                 # Minimum 1h volume — only meaningful once the token has been
@@ -1704,6 +1715,17 @@ class AxiomScanner:
             if actual_mcap > 0 and actual_mcap < self.min_mcap:
                 logger.info(
                     f"[AxiomScanner] MCap filter drop (real): {event.token_symbol} — ${actual_mcap:,.0f}"
+                )
+                return
+
+            # m5 price direction filter — if price is falling in the last 5 minutes,
+            # the pump has already reversed. Buying into a dump is the primary cause
+            # of <2-minute stop losses. Only apply when m5 data is available (not 0).
+            _m5_chg = float((pair_data.get("priceChange") or {}).get("m5") or 0)
+            if _m5_chg < -3.0:
+                logger.info(
+                    f"[AxiomScanner] Standard blocked: {event.token_symbol} — "
+                    f"m5 price change {_m5_chg:.1f}% (currently dumping)"
                 )
                 return
 
