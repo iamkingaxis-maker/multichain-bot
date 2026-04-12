@@ -1351,6 +1351,7 @@ class WebDashboard:
         self.app.router.add_post("/api/update-axiom-token", self._handle_update_axiom_token)
         self.app.router.add_post("/api/axiom-relay",        self._handle_axiom_relay)
         self.app.router.add_post("/api/reset",              self._handle_reset)
+        self.app.router.add_post("/api/purge-phantoms",     self._handle_purge_phantom_trades)
         self.app.router.add_get("/api/closed-positions",   self._handle_closed_positions)
         self.app.router.add_get("/api/mc-recommendations", self._handle_mc_recommendations)
         self.app.router.add_post("/api/pause",              self._handle_pause)
@@ -1943,6 +1944,64 @@ class WebDashboard:
             pass
         return web.Response(
             text=json.dumps({"ok": True, "message": "Trade history and capital reset"}),
+            content_type="application/json", headers=cors,
+        )
+
+    async def _handle_purge_phantom_trades(self, request):
+        """POST /api/purge-phantoms — remove trades with pnl > threshold (default 100k).
+        Modifies in-memory trades list and persists to disk. No auth required (internal use).
+        """
+        import os as _os
+        cors = {"Access-Control-Allow-Origin": "*"}
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        threshold = float(body.get("pnl_threshold", 100_000))
+        address_filter = (body.get("address") or "").lower()
+
+        if not self._tracker:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "No tracker"}),
+                status=500, content_type="application/json", headers=cors,
+            )
+
+        before = len(self._tracker.trades)
+        if address_filter:
+            removed = [t for t in self._tracker.trades
+                       if t.get("address", "").lower() == address_filter]
+            self._tracker.trades = [t for t in self._tracker.trades
+                                    if t.get("address", "").lower() != address_filter]
+        else:
+            removed = [t for t in self._tracker.trades if abs(t.get("pnl", 0)) > threshold]
+            self._tracker.trades = [t for t in self._tracker.trades
+                                    if abs(t.get("pnl", 0)) <= threshold]
+        self._tracker._save_trades()
+        after = len(self._tracker.trades)
+
+        # Also clean closed_positions.csv if address filter provided
+        csv_cleaned = 0
+        if address_filter:
+            import os as _os2
+            csv_path = _os2.path.join(_os2.environ.get("DATA_DIR", "."), "closed_positions.csv")
+            try:
+                with open(csv_path, "r") as f:
+                    lines = f.readlines()
+                kept = [l for l in lines if address_filter not in l.lower()]
+                csv_cleaned = len(lines) - len(kept)
+                with open(csv_path, "w") as f:
+                    f.writelines(kept)
+            except FileNotFoundError:
+                pass
+
+        return web.Response(
+            text=json.dumps({
+                "ok": True,
+                "removed": before - after,
+                "remaining": after,
+                "csv_rows_removed": csv_cleaned,
+                "removed_records": removed,
+            }),
             content_type="application/json", headers=cors,
         )
 
