@@ -1856,11 +1856,29 @@ class MultiSourceScanner:
             self.signals_blocked_score += 1
             return
 
-        # Dump-in-progress guard: m5 too negative means active selling, not a dip
-        # Healthy dips are -2% to -10%; below -12% is a crash or dev dump
+        # m5 dip window: must be in the -5% to -20% range.
+        # < -5%  → not enough dip yet, price too stable to confirm pullback
+        # < -20% → crash/dev dump in progress, not a healthy dip
+        # > +20% → just pumped hard in 5 min, chasing momentum not a dip entry
         _pc_m5 = float((signal.raw_pair_data or {}).get("priceChange", {}).get("m5", 0) or 0)
 
-        if _pc_m5 < -12:
+        if _pc_m5 > 20:
+            logger.info(
+                f"[{self.chain.name}] m5 pump blocked: {signal.token_symbol} "
+                f"m5={_pc_m5:+.1f}% — just pumped, not a dip entry"
+            )
+            self.signals_blocked_score += 1
+            return
+
+        if _pc_m5 > -5:
+            logger.info(
+                f"[{self.chain.name}] m5 dip required: {signal.token_symbol} "
+                f"m5={_pc_m5:+.1f}% — need at least -5% dip before entry"
+            )
+            self.signals_blocked_score += 1
+            return
+
+        if _pc_m5 < -20:
             logger.info(
                 f"[{self.chain.name}] Dump guard blocked: {signal.token_symbol} "
                 f"m5={_pc_m5:+.1f}% — crash in progress, not a dip"
