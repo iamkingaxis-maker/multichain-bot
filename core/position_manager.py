@@ -656,34 +656,6 @@ class PositionManager:
                     )
                 return
 
-            # ── MC BREAKEVEN LOCK — once up 1.8%, lock breakeven at +0% ─
-            _MC_BREAKEVEN_TRIGGER = 1.8  # once up 1.8%
-            _MC_BREAKEVEN_FLOOR = 0.0    # exit if drops to 0%
-            if not state.breakeven_locked and pnl_pct >= _MC_BREAKEVEN_TRIGGER:
-                state.breakeven_locked = True
-                logger.info(
-                    f"[PositionManager/{self.chain_name}] 🔒 MC BREAKEVEN LOCKED: "
-                    f"{state.token_symbol} at +{pnl_pct:.1f}% — "
-                    f"stop raised to +{_MC_BREAKEVEN_FLOOR:.0f}%"
-                )
-
-            if state.breakeven_locked and pnl_pct <= _MC_BREAKEVEN_FLOOR:
-                logger.info(
-                    f"[PositionManager/{self.chain_name}] 🔒 MC BREAKEVEN EXIT: "
-                    f"{state.token_symbol} at {pnl_pct:+.1f}%"
-                )
-                await self._execute_sell(
-                    token_address, state,
-                    pct=1.0,
-                    reason=f"MC breakeven exit {pnl_pct:+.1f}%"
-                )
-                if self.scanner:
-                    self.scanner.register_stop_loss(
-                        token_address, state.token_symbol, state.current_price,
-                        cooldown_seconds=1800
-                    )
-                return
-
             # ── MC WINNER TRAIL — close if drops mc_winner_trail_pct% from peak
             _MIN_PEAK_GAIN_FOR_TRAIL = 5.0
             _peak_gain_pct = (state.peak_price - state.entry_price) / state.entry_price * 100
@@ -809,16 +781,21 @@ class PositionManager:
             )
             return
 
-        # ── BREAKEVEN LOCK — once up 2%, lock breakeven at +0% ───────────
-        _BREAKEVEN_FLOOR = 2.0  # trigger at +2%
-        if not state.breakeven_locked and pnl_pct >= _BREAKEVEN_FLOOR:
+        # ── BREAKEVEN LOCK — once up 8%, protect at +3% ─────────────────
+        # Trigger raised from 2%→8%: a 2% move is noise on volatile tokens,
+        # not a real gain worth protecting. Floor raised from 0%→+3%: ensures
+        # the exit actually covers slippage and nets a small profit.
+        _BREAKEVEN_TRIGGER = 8.0   # lock after a real move
+        _BREAKEVEN_FLOOR   = 3.0   # exit at +3% (covers slippage, nets small gain)
+        if not state.breakeven_locked and pnl_pct >= _BREAKEVEN_TRIGGER:
             state.breakeven_locked = True
             logger.info(
                 f"[PositionManager/{self.chain_name}] 🔒 BREAKEVEN LOCKED: "
-                f"{state.token_symbol} at +{pnl_pct:.1f}%"
+                f"{state.token_symbol} at +{pnl_pct:.1f}% — "
+                f"stop raised to +{_BREAKEVEN_FLOOR:.0f}%"
             )
 
-        if state.breakeven_locked and not state.tp1_hit and pnl_pct <= 0:
+        if state.breakeven_locked and not state.tp1_hit and pnl_pct <= _BREAKEVEN_FLOOR:
             logger.info(
                 f"[PositionManager/{self.chain_name}] 🔒 BREAKEVEN EXIT: "
                 f"{state.token_symbol} at {pnl_pct:+.1f}%"
