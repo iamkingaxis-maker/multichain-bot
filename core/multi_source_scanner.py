@@ -2656,13 +2656,18 @@ class MultiSourceScanner:
                     self.signals_blocked_stale_nocandle += 1
                     return False
             if signal.price_change_h1 > 50:
-                logger.info(
-                    f"[{self.chain.name}] Chart skip (no candles, overbought): "
-                    f"{signal.token_symbol} — h1={signal.price_change_h1:+.1f}% > 50% "
-                    f"with no OHLCV — buying at the top blind"
-                )
-                self.signals_blocked_atm_nocandle += 1
-                return False
+                # Micro-caps (<=$80k) pump hard from launch — high h1 is normal.
+                # They're already in the dip window (-3% to -20% m5) when routed here,
+                # so we're buying the pullback, not the top. Skip cap for micro-caps.
+                _is_micro = 0 < signal.mcap <= 80_000
+                if not _is_micro:
+                    logger.info(
+                        f"[{self.chain.name}] Chart skip (no candles, overbought): "
+                        f"{signal.token_symbol} — h1={signal.price_change_h1:+.1f}% > 50% "
+                        f"with no OHLCV — buying at the top blind"
+                    )
+                    self.signals_blocked_atm_nocandle += 1
+                    return False
             if signal.price_change_h1 < -15:
                 logger.info(
                     f"[{self.chain.name}] Chart skip (no candles, crashing): "
