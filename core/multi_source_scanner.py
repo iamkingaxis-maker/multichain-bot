@@ -1836,7 +1836,7 @@ class MultiSourceScanner:
                 )
                 self.signals_blocked_score += 1
                 return
-            if signal.price_change_h24 <= 0:
+            if signal.price_change_h24 < 0:
                 logger.info(
                     f"[{self.chain.name}] Red h24 blocked: {signal.token_symbol} "
                     f"h24={signal.price_change_h24:+.1f}% — must be green before entry"
