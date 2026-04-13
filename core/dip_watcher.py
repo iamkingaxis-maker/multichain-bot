@@ -686,17 +686,6 @@ class DipWatcher:
                 self.price_feed.unsubscribe_token(state.token_address)
                 return
 
-        # h6 extended move guard — if token had a large 6h move at detection time
-        # AND is old enough for h6 to represent a real 6-hour window, the dip is
-        # inside an exhausted trend, not a healthy pullback.
-        # Skip for tokens < 6h old — their h6 reflects total lifetime, not exhaustion.
-        if state.h6_pct > 30.0 and state.token_age_hours >= 6.0:
-            logger.info(
-                f"[DipWatcher] h6 extended block: {state.token_symbol} — "
-                f"h6={state.h6_pct:+.1f}% age={state.token_age_hours:.1f}h, 6h move exhausted"
-            )
-            self.price_feed.unsubscribe_token(state.token_address)
-            return
 
         # Chart quality gate — key signals from _chart_dip_check applied to MC tokens
         passed = await self._chart_gate(state, trigger_price)
