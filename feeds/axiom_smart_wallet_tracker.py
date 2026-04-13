@@ -111,10 +111,10 @@ class AxiomSmartWalletTracker:
                 is_auth = any(k in err for k in ("auth", "401", "403", "token", "login", "credential"))
                 is_404  = "404" in err
                 if is_404:
-                    # cluster6.axiom.trade returns 404 on Railway datacenter IPs.
+                    # cluster9.axiom.trade returns 404 on Railway datacenter IPs.
                     # No point retrying fast — back off 1 hour to stop log spam.
                     logger.warning(
-                        "[AxiomWallets] cluster6 returned 404 (datacenter IP block) — "
+                        "[AxiomWallets] cluster9 returned 404 (datacenter IP block) — "
                         "pausing 1h. Wallet WebSocket signals unavailable; "
                         "AxiomScanner + CrossWalletConvergence still active."
                     )
@@ -222,7 +222,7 @@ class AxiomSmartWalletTracker:
             "s":             secret,
             "access_token":  access,
             "refresh_token": refresh,
-            "target":        "cluster6",  # wallet transactions live on cluster6, not cluster9
+            "target":        "cluster9",  # cluster9 handles all feeds: new_pairs, wallet, trade
         })
         ws_base   = worker_base.replace("https://", "wss://").replace("http://", "ws://")
         proxy_url = f"{ws_base}/ws-proxy?{qs}"
