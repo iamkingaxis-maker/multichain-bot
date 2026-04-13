@@ -107,7 +107,7 @@ class Config:
     mc_winner_trail_pct: float = 15.0  # Trail 15% from peak (more room for volatility)
 
     # ── Stop Loss ────────────────────────────────────────────
-    stop_loss_pct: float = 7.0
+    stop_loss_pct: float = 25.0
 
     # ── Winner Protection ────────────────────────────────────
     winner_trail_pct: float = 15.0  # Close 100% if drops 15% from peak after TP1
