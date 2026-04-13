@@ -2171,7 +2171,7 @@ class WebDashboard:
         )
 
     async def _handle_sse(self, request):
-        """Server-Sent Events stream — pushes fresh stats every 2 seconds."""
+        """Server-Sent Events stream — pushes fresh stats every 1 second."""
         response = web.StreamResponse(
             headers={
                 "Content-Type":       "text/event-stream",
@@ -2188,7 +2188,7 @@ class WebDashboard:
                 stats = await self._build_stats(consume_alerts=True)
                 payload = json.dumps(stats)
                 await response.write(f"data: {payload}\n\n".encode())
-                await asyncio.sleep(2)
+                await asyncio.sleep(1)
         except (ConnectionResetError, asyncio.CancelledError):
             pass
         except Exception as e:
