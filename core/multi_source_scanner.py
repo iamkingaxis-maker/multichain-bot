@@ -189,6 +189,7 @@ class MultiSourceScanner:
         # Tokens flagged as PUMP DETECTED (h1>15%) — blocked for 30 min to prevent
         # buying them again after DexScreener h1 window rolls and returns 0%.
         self._pump_cooldown: dict = {}  # addr_lower -> monotonic expiry time
+        self._red_tf_cooldown: dict = {}  # addr_lower -> monotonic expiry (h6/h24 red cache, 30 min)
         self._pump_cooldown_path = os.path.join(
             os.environ.get("DATA_DIR", "."), "pump_cooldowns.json"
         )
@@ -1819,6 +1820,12 @@ class MultiSourceScanner:
             )
             return
 
+        # Red timeframe cooldown — skip tokens blocked by h6/h24 for 30 min.
+        # h6 changes slowly; re-checking every 90s wastes security API calls.
+        _now_mt = time.monotonic()
+        if self._red_tf_cooldown.get(addr_lower, 0) > _now_mt:
+            return
+
         # H6 and H24 must be green — if either is red the trend is not with us.
         # H1 removed: too noisy in down-phase markets; h6 is the real trend signal.
         # Exempt dip_setup: those are intentional recovery plays off a 24h drop.
@@ -1828,6 +1835,7 @@ class MultiSourceScanner:
                     f"[{self.chain.name}] Red h6 blocked: {signal.token_symbol} "
                     f"h6={signal.price_change_h6:+.1f}% — must be green before entry"
                 )
+                self._red_tf_cooldown[addr_lower] = _now_mt + 1800  # 30 min
                 self.signals_blocked_score += 1
                 return
             if signal.price_change_h24 < 0:
@@ -1835,6 +1843,7 @@ class MultiSourceScanner:
                     f"[{self.chain.name}] Red h24 blocked: {signal.token_symbol} "
                     f"h24={signal.price_change_h24:+.1f}% — must be green before entry"
                 )
+                self._red_tf_cooldown[addr_lower] = _now_mt + 1800  # 30 min
                 self.signals_blocked_score += 1
                 return
 
