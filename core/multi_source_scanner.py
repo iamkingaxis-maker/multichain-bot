@@ -1898,18 +1898,9 @@ class MultiSourceScanner:
             except Exception as _rt_err:
                 logger.debug(f"[{self.chain.name}] RT signal error: {_rt_err}")
 
-        # 90-second bounce confirmation — non-blocking
-        # If price fades more than 1.5% in 90s after dip check passes, skip the buy.
-        # Catches "entering into continued dumps" that stop out within 2 minutes.
-        if signal.price_usd <= 0:
-            logger.info(
-                f"[{self.chain.name}] ⏭ Skipping bounce confirmation for {signal.token_symbol} "
-                f"— no price data (price_usd=0), cannot verify fade"
-            )
-            return
-        asyncio.create_task(
-            self._confirm_and_buy(signal, sec_result.risk_level, signal.price_usd)
-        )
+        # m5 is already in the -5% to -20% dip window — buy immediately.
+        # No bounce confirmation needed: the dip IS the signal.
+        await self._fire_chart_buy(signal, sec_result.risk_level)
 
     async def _confirm_and_buy(
         self, signal: "TokenSignal", risk_level: str, price_at_check: float

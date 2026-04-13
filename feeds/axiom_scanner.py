@@ -1717,7 +1717,25 @@ class AxiomScanner:
                     f"Micro-cap | ${actual_mcap:,.0f} mcap | "
                     f"dev {dev_pct:.0f}% | snipers {snipers_pct:.0f}%"
                 )
-                if self.dip_watcher:
+                _m5 = float((pair_data.get("priceChange") or {}).get("m5") or 0)
+                _in_dip_window = -20 <= _m5 <= -5
+
+                if _in_dip_window:
+                    # m5 is already in the dip zone — buy immediately, no waiting
+                    logger.info(
+                        f"[AxiomScanner] 🎯 Dip entry: {event.token_symbol} "
+                        f"m5={_m5:+.1f}% — buying now"
+                    )
+                    await self.trader.buy(
+                        token_address=event.token_address,
+                        token_symbol=event.token_symbol,
+                        reason=_mc_reason + f" | dip entry m5={_m5:+.1f}%",
+                        signal_score=50,
+                        override_usd=self.micro_cap_position_usd,
+                        pair_address=event.pair_address or "",
+                    )
+                elif self.dip_watcher:
+                    # m5 not in dip zone yet — watch for the dip to develop
                     import time as _t
                     _signal_price = float(pair_data.get("priceUsd") or 0)
                     _h6 = float((pair_data.get("priceChange") or {}).get("h6") or 0)

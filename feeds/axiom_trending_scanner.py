@@ -414,10 +414,24 @@ class AxiomTrendingScanner:
                 )
                 self.tokens_evaluated += 1
                 self.signals_fired += 1
-                # Route through DipWatcher if configured, otherwise buy direct
                 _signal_price = float(pair_data.get("priceUsd") or 0)
                 _mc_reason = f"Micro-cap established | ${actual_mcap:,.0f} mcap"
-                if self.dip_watcher:
+                _in_dip_window = -20 <= pc_m5 <= -5
+
+                if _in_dip_window:
+                    # m5 already in dip zone — buy immediately
+                    logger.info(
+                        f"[EstablishedScanner] 🎯 Dip entry: {ticker} "
+                        f"m5={pc_m5:+.1f}% — buying now"
+                    )
+                    await self.trader.buy(
+                        token_address=token_address,
+                        token_symbol=ticker,
+                        reason=_mc_reason + f" | dip entry m5={pc_m5:+.1f}%",
+                        signal_score=50,
+                        override_usd=self.micro_cap_position_usd,
+                    )
+                elif self.dip_watcher:
                     import time as _t
                     _h6 = float((pair_data.get("priceChange") or {}).get("h6") or 0)
                     _created_ms = pair_data.get("pairCreatedAt") or 0
