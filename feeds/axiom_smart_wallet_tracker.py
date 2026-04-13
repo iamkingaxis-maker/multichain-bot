@@ -222,6 +222,7 @@ class AxiomSmartWalletTracker:
             "s":             secret,
             "access_token":  access,
             "refresh_token": refresh,
+            "target":        "cluster6",  # wallet transactions live on cluster6, not cluster9
         })
         ws_base   = worker_base.replace("https://", "wss://").replace("http://", "ws://")
         proxy_url = f"{ws_base}/ws-proxy?{qs}"
