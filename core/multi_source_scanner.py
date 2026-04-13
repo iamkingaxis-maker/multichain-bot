@@ -1885,19 +1885,6 @@ class MultiSourceScanner:
             self.signals_blocked_score += 1
             return
 
-        # Momentum entry guard: require m5 to be positive or near-flat at entry.
-        # Entering into active decline (m5 < -3%) means buying a reversal, not a dip.
-        # Data shows winners move within minutes of entry — losers are already falling when we buy.
-        # Exempt dip_setup (recovery plays where positive m5 after a crash is the signal).
-        if "dip_setup" not in signal.flags:
-            if _pc_m5 < -3:
-                logger.info(
-                    f"[{self.chain.name}] Declining m5 blocked: {signal.token_symbol} "
-                    f"m5={_pc_m5:+.1f}% — price actively falling, not entering into decline"
-                )
-                self.signals_blocked_score += 1
-                return
-
         # Trap-pump guard: h1 looks positive only because of an earlier pump inside
         # a multi-hour downtrend. Cross-check h6 vs h1 — if h6 is significantly
         # negative but h1 is only modest, the h1 signal is deceptive.
