@@ -390,17 +390,8 @@ class AxiomSmartWalletTracker:
                     )
                     return False
 
-            # Enrichment check (holder concentration + dev history)
-            if pair_address:
-                from feeds.axiom_scanner import axiom_enrich_check
-                passed, reason, _ = await axiom_enrich_check(
-                    self.auth, pair_address, deployer_address
-                )
-                if not passed:
-                    logger.info(
-                        f"[AxiomWallets] Enrich blocked: {ticker} — {reason}"
-                    )
-                    return False
+            # Enrichment skipped for copy trades — KOL already did due diligence.
+            # Saves 2-5s of sequential latency.
 
             # DexScreener data fetch
             pair_data = await self._fetch_dexscreener_pair(token_address)
