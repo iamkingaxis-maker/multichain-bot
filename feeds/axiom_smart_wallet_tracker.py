@@ -438,43 +438,24 @@ class AxiomSmartWalletTracker:
                 f"{ticker} | Score: {score:.0f}"
             )
 
-            if self.scanner:
-                # Route through scanner's chart analysis — no buy on score alone
-                bought = await self.scanner.process_external_signal(
-                    token_address=token_address,
-                    token_symbol=ticker,
-                    reason=f"Axiom wallet signal | wallet {wallet_address[:8]} | score {score:.0f}",
-                    signal_score=int(score),
-                    strategy_tag="AxiomWallet",
-                    skip_security=True,
-                    price_usd=float(pair_data.get("priceUsd") or 0),
-                    liquidity_usd=liq,
-                    volume_h1=float((pair_data.get("volume") or {}).get("h1") or 0),
-                    mcap=mcap,
-                )
-                return bought
-            else:
-                await self.telegram.send(
-                    f"👛 *Axiom Wallet Signal* [Solana]\n\n"
-                    f"🪙 ${ticker} — {token_name}\n"
-                    f"📊 MCap: ${mcap:,.0f}\n"
-                    f"💧 Liquidity: ${liq:,.0f}\n"
-                    f"⭐ Score: {score:.0f}/100\n"
-                    f"👤 Wallet: `{wallet_address[:8]}...`\n"
-                    f"💰 Wallet spent: {total_sol:.2f} SOL"
-                )
-                await self.trader.buy(
-                    token_address=token_address,
-                    token_symbol=ticker,
-                    reason=(
-                        f"Axiom wallet signal | wallet {wallet_address[:8]} | "
-                        f"score {score:.0f}"
-                    ),
-                    signal_score=int(score),
-                    hh_hl_confirmed=getattr(evaluation, "hh_hl_confirmed", False)
-                    if self.evaluator else False
-                )
-                return True
+            # Buy immediately — copy trading trusts the wallet's entry directly.
+            # No chart-gate or dip check: the KOL already timed the entry.
+            _reason = (
+                f"KOL wallet | {wallet_address[:8]} | score {score:.0f}"
+            )
+            logger.info(
+                f"[AxiomWallets] 💚 Buying {ticker} — {_reason}"
+            )
+            await self.trader.buy(
+                token_address=token_address,
+                token_symbol=ticker,
+                reason=_reason,
+                signal_score=int(score),
+                pair_address=pair_address,
+                hh_hl_confirmed=getattr(evaluation, "hh_hl_confirmed", False)
+                if self.evaluator else False
+            )
+            return True
 
         except Exception as e:
             logger.error(f"[AxiomWallets] Evaluate error for {ticker}: {e}")
