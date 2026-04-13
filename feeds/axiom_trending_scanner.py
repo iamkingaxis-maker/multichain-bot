@@ -480,9 +480,19 @@ class AxiomTrendingScanner:
                 score = 70  # default when no evaluator
 
             # Signal fires
-            mcap   = pair_data.get("marketCap") or 0
-            liq    = (pair_data.get("liquidity") or {}).get("usd") or 0
-            vol_h1 = (pair_data.get("volume") or {}).get("h1") or 0
+            mcap    = pair_data.get("marketCap") or 0
+            liq     = (pair_data.get("liquidity") or {}).get("usd") or 0
+            vol_h1  = (pair_data.get("volume") or {}).get("h1") or 0
+            h1_pct  = float((pair_data.get("priceChange") or {}).get("h1") or 0)
+
+            # Block tokens already pumped >10% in the last hour — no chart data to
+            # confirm structure, and buying into a pump is buying into potential ATH.
+            if h1_pct > 10.0:
+                logger.info(
+                    f"[EstablishedScanner] ATH risk: {ticker} — h1={h1_pct:+.1f}% > 10%, skipping"
+                )
+                return False
+
             logger.info(
                 f"[EstablishedScanner] SIGNAL: {ticker} | "
                 f"MCap: ${mcap:,.0f} | Score: {score:.0f}"
@@ -501,6 +511,7 @@ class AxiomTrendingScanner:
                     liquidity_usd=liq,
                     volume_h1=vol_h1,
                     mcap=mcap,
+                    price_change_h1=h1_pct,
                 )
                 return bought
             else:

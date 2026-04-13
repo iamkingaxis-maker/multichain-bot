@@ -2042,6 +2042,7 @@ class MultiSourceScanner:
                                      liquidity_usd: float = 0.0,
                                      volume_h1: float = 0.0,
                                      mcap: float = 0.0,
+                                     price_change_h1: float = 0.0,
                                      ) -> bool:
         """
         Entry point for edge strategies (CrossWalletConvergence, CapitulationReversal)
@@ -2095,6 +2096,7 @@ class MultiSourceScanner:
             liquidity_usd=liquidity_usd,
             volume_h1=volume_h1,
             mcap=mcap,
+            price_change_h1=price_change_h1,
         )
 
         risk_level = sec_result.risk_level if not skip_security else "UNKNOWN"
