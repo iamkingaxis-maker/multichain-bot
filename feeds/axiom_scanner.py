@@ -1531,7 +1531,12 @@ class AxiomScanner:
                     oldest = next(iter(self._deferred))
                     self._deferred.pop(oldest)
                 now_mt = _mt.monotonic()
-                self._deferred[event.token_address] = (now_mt + 60.0, now_mt, event)
+                _initial_price = float(pair_data.get("priceUsd") or 0)
+                self._deferred[event.token_address] = (now_mt + 60.0, now_mt, event, _initial_price)
+                # Pre-subscribe to Axiom WS immediately so we collect 60s of tick data
+                # before the deferred retry fires — gives us real 1-min price trend.
+                if self.price_feed:
+                    self.price_feed.subscribe_token(event.token_address)
                 logger.debug(
                     f"[AxiomScanner] Deferred {event.token_symbol} — "
                     f"awaiting DexScreener index in 60s "
@@ -1676,6 +1681,19 @@ class AxiomScanner:
                     _log_mc_candidate(f"Low vol: ${_vol_h1:,.0f} < $1k")
                     return
 
+                # 1-minute chart check for micro-caps — even 10-min-old tokens can be
+                # in a dead-cat bounce or active dump when our signal fires.
+                if event.pair_address:
+                    _mc_candles = await self._fetch_1min_candles(event.pair_address)
+                    _mc_ok, _mc_reason = self._check_1min_momentum(_mc_candles)
+                    if not _mc_ok:
+                        logger.info(
+                            f"[AxiomScanner] Micro-cap 1m chart blocked: {event.token_symbol} "
+                            f"— {_mc_reason}"
+                        )
+                        _log_mc_candidate(f"1m chart: {_mc_reason}")
+                        return
+
                 logger.info(
                     f"[AxiomScanner] 🌱 MICRO-CAP SIGNAL: {event.token_symbol} | "
                     f"MCap: ${actual_mcap:,.0f} | "
@@ -1780,6 +1798,20 @@ class AxiomScanner:
                     f"+4 ({tracked_count} smart wallet holding)"
                 )
 
+            # 1-minute chart check — verify current momentum before committing capital.
+            # Fetches the last 5 one-minute candles from GeckoTerminal. If the current
+            # candle is red or 3 consecutive candles are all falling, the pump is over.
+            # GeckoTerminal failures return [] so this never hard-blocks on API errors.
+            if event.pair_address:
+                _std_candles = await self._fetch_1min_candles(event.pair_address)
+                _std_ok, _std_reason = self._check_1min_momentum(_std_candles)
+                if not _std_ok:
+                    logger.info(
+                        f"[AxiomScanner] Standard 1m chart blocked: {event.token_symbol} "
+                        f"— {_std_reason}"
+                    )
+                    return
+
             # Signal fires
             self.signals_fired += 1
             mcap   = pair_data.get("marketCap") or 0
@@ -1839,12 +1871,13 @@ class AxiomScanner:
         """
         import time as _mt
         now = _mt.monotonic()
-        ready = [addr for addr, (t, _qt, _ev) in list(self._deferred.items()) if t <= now]
+        ready = [addr for addr, (t, _qt, _ev, *_) in list(self._deferred.items()) if t <= now]
         if not ready:
             return
         logger.info(f"[AxiomScanner] Retrying {len(ready)} deferred tokens")
         for addr in ready:
-            _, _queued_at, event = self._deferred.pop(addr)
+            entry = self._deferred.pop(addr)
+            _, _queued_at, event, _initial_price = (*entry, 0.0)[:4]
             try:
                 pair_data = await self._fetch_dexscreener_pair(event)
                 if pair_data is None:
@@ -1852,6 +1885,8 @@ class AxiomScanner:
                         f"[AxiomScanner] Deferred drop: {event.token_symbol} "
                         f"— no DexScreener data after 60s (dead pool or too new)"
                     )
+                    if self.price_feed:
+                        self.price_feed.unsubscribe_token(event.token_address)
                     continue
 
                 actual_mcap = float(pair_data.get("marketCap") or 0)
@@ -1860,13 +1895,64 @@ class AxiomScanner:
                         f"[AxiomScanner] Deferred MCap drop: {event.token_symbol} "
                         f"${actual_mcap:,.0f}"
                     )
+                    if self.price_feed:
+                        self.price_feed.unsubscribe_token(event.token_address)
                     continue
+
+                # ── Sub-minute chart checks using buffered tick data ────────────
+                # We pre-subscribed to the Axiom WS at enqueue time (60s ago), so
+                # the tick buffer now has ~60s of real price data to analyze.
+
+                # 1. Tick trend — if price fell >5% over the last 60s, we're buying a dump
+                if self.price_feed:
+                    _trend_60s = self.price_feed.get_tick_trend(event.token_address, 60)
+                    _tick_count = self.price_feed.get_tick_count(event.token_address, 60)
+                    if _trend_60s is not None and _trend_60s < -5.0:
+                        logger.info(
+                            f"[AxiomScanner] Deferred tick blocked: {event.token_symbol} — "
+                            f"60s trend {_trend_60s:.1f}% ({_tick_count} ticks) — dumping"
+                        )
+                        self.price_feed.unsubscribe_token(event.token_address)
+                        continue
+                    if _tick_count >= 3:
+                        logger.debug(
+                            f"[AxiomScanner] {event.token_symbol} 60s tick trend: "
+                            f"{_trend_60s:.1f}% ({_tick_count} ticks)"
+                        )
+
+                # 2. Late-entry guard — if price already pumped >30% during our 60s wait, skip
+                _current_price = float(pair_data.get("priceUsd") or 0)
+                if _initial_price > 0 and _current_price > 0:
+                    _price_change_60s = (_current_price / _initial_price - 1) * 100
+                    if _price_change_60s > 30.0:
+                        logger.info(
+                            f"[AxiomScanner] Deferred late-entry: {event.token_symbol} — "
+                            f"pumped {_price_change_60s:.0f}% during 60s wait — skipping"
+                        )
+                        if self.price_feed:
+                            self.price_feed.unsubscribe_token(event.token_address)
+                        continue
+
+                # 3. 1-minute GeckoTerminal candle check
+                if event.pair_address:
+                    _candles = await self._fetch_1min_candles(event.pair_address)
+                    _ok, _reason = self._check_1min_momentum(_candles)
+                    if not _ok:
+                        logger.info(
+                            f"[AxiomScanner] Deferred 1m chart blocked: {event.token_symbol} "
+                            f"— {_reason}"
+                        )
+                        if self.price_feed:
+                            self.price_feed.unsubscribe_token(event.token_address)
+                        continue
 
                 self.tokens_evaluated += 1
 
                 if self.evaluator:
                     evaluation = await self.evaluator.evaluate(pair_data)
                     if evaluation.hard_skip:
+                        if self.price_feed:
+                            self.price_feed.unsubscribe_token(event.token_address)
                         continue
                     score = evaluation.total_score
                     effective_min = self.min_score
@@ -1877,9 +1963,13 @@ class AxiomScanner:
                             f"[AxiomScanner] Deferred score low: {event.token_symbol} "
                             f"— {score:.0f} < {effective_min:.0f}"
                         )
+                        if self.price_feed:
+                            self.price_feed.unsubscribe_token(event.token_address)
                         continue
                 else:
                     if not event.has_twitter and not event.has_telegram:
+                        if self.price_feed:
+                            self.price_feed.unsubscribe_token(event.token_address)
                         continue
                     score = 70
 
@@ -2059,6 +2149,81 @@ class AxiomScanner:
             logger.debug(f"[AxiomScanner] DexScreener fallback failed for "
                          f"{event.token_address[:8]}: {e}")
             return None
+
+    async def _fetch_1min_candles(self, pool_address: str) -> list:
+        """
+        Fetch the last 5 one-minute OHLCV candles from GeckoTerminal.
+        Returns list of [timestamp, open, high, low, close, volume] arrays.
+        Returns [] on any failure — callers must treat empty as "no data, don't block".
+        """
+        import aiohttp as _aio
+        if not pool_address:
+            return []
+        url = (
+            f"https://api.geckoterminal.com/api/v2/networks/solana/pools/"
+            f"{pool_address}/ohlcv/minute?aggregate=1&limit=5&currency=usd"
+        )
+        try:
+            async with _aio.ClientSession() as sess:
+                async with sess.get(url, timeout=_aio.ClientTimeout(total=5)) as resp:
+                    if resp.status != 200:
+                        return []
+                    raw = await resp.json(content_type=None)
+            return (
+                raw.get("data", {})
+                   .get("attributes", {})
+                   .get("ohlcv_list", [])
+            )
+        except Exception:
+            return []
+
+    @staticmethod
+    def _check_1min_momentum(candles: list) -> tuple:
+        """
+        Returns (ok: bool, reason: str).
+        ok=False means the 1-minute chart shows clear bearish momentum — skip entry.
+        ok=True means momentum is neutral or positive — proceed.
+
+        Rules (only block when evidence is clear — don't block on data gaps):
+          - Last 1-min candle down >3% → dumping right now
+          - All 3 most-recent candles red AND combined drop >5% → sustained sell-off
+          - Zero volume in last candle → dead
+
+        Passes through on empty/insufficient data so we never miss a buy just because
+        GeckoTerminal is slow.
+        """
+        if not candles or len(candles) < 2:
+            return True, ""
+
+        # Candles sorted oldest-first: [ts, open, high, low, close, volume]
+        last = candles[-1]
+        try:
+            o, h, l, c, vol = float(last[1]), float(last[2]), float(last[3]), float(last[4]), float(last[5])
+        except (IndexError, TypeError, ValueError):
+            return True, ""
+
+        if vol <= 0:
+            return False, "zero volume in last 1m candle"
+
+        if o > 0 and c < o * 0.97:
+            drop = (c / o - 1) * 100
+            return False, f"1m candle red {drop:.1f}% — dumping now"
+
+        # Check if last 3 candles are all red and combined trend is bad
+        if len(candles) >= 3:
+            recent = candles[-3:]
+            try:
+                closes = [float(c[4]) for c in recent]
+                opens  = [float(c[1]) for c in recent]
+                all_red = all(closes[i] < opens[i] for i in range(3))
+                if all_red and closes[0] > 0:
+                    combined_drop = (closes[-1] / closes[0] - 1) * 100
+                    if combined_drop < -5.0:
+                        return False, f"3 consecutive red candles, {combined_drop:.1f}% drop"
+            except (IndexError, TypeError, ValueError):
+                pass
+
+        return True, ""
 
     async def _alert_scanner_down(self, reason: str):
         """Send a Telegram alert when the scanner drops, then hourly reminders if still down."""

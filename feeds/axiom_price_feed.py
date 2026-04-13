@@ -18,7 +18,8 @@ Usage:
 import asyncio
 import logging
 import time
-from typing import Optional, Dict, Set
+from collections import deque
+from typing import Optional, Dict, Set, Deque, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,49 @@ class AxiomPriceFeed:
         self._user_baseline_window: Dict[str, list] = {}  # rolling window of last 5 readings
         self._user_count_spikes: Set[str] = set()          # tokens with a 3x user spike
 
+        # Tick buffers — stores (timestamp, price_usd) tuples for the last 120s per token.
+        # Used by the scanner to check sub-minute price trends before entering a position.
+        # maxlen=600 caps memory: at ~1 tick/sec that's 10 min; stale ticks expire on read.
+        self._tick_buffers: Dict[str, Deque[Tuple[float, float]]] = {}
+
+    def get_tick_trend(self, token_address: str, seconds: int) -> Optional[float]:
+        """
+        Price change % over the last N seconds based on buffered WS ticks.
+
+        Returns None if there are fewer than 2 ticks in the window — callers
+        should treat None as "insufficient data" and not block on it.
+
+        Example:
+            trend = price_feed.get_tick_trend(addr, 30)
+            if trend is not None and trend < -5.0:
+                # price fell >5% in last 30s — skip entry
+        """
+        addr = token_address.lower()
+        buf = self._tick_buffers.get(addr)
+        if not buf or len(buf) < 2:
+            return None
+        now = time.time()
+        cutoff = now - seconds
+        # Find the oldest tick in the window (or the tick just before)
+        in_window = [(t, p) for t, p in buf if t >= cutoff]
+        before_window = [(t, p) for t, p in buf if t < cutoff]
+        if not in_window:
+            return None
+        base_price = before_window[-1][1] if before_window else in_window[0][1]
+        current_price = in_window[-1][1]
+        if base_price <= 0:
+            return None
+        return (current_price / base_price - 1) * 100
+
+    def get_tick_count(self, token_address: str, seconds: int) -> int:
+        """Number of WS price ticks received in the last N seconds for a token."""
+        addr = token_address.lower()
+        buf = self._tick_buffers.get(addr)
+        if not buf:
+            return 0
+        cutoff = time.time() - seconds
+        return sum(1 for t, _ in buf if t >= cutoff)
+
     def register_price_callback(self, callback):
         """
         Register a callable(token_address, price_usd) invoked on every price tick.
@@ -110,6 +154,7 @@ class AxiomPriceFeed:
         self.volume_cache.pop(_addr_lower, None)
         self.liquidity_cache.pop(_addr_lower, None)
         self.change_cache.pop(_addr_lower, None)
+        self._tick_buffers.pop(_addr_lower, None)
         logger.debug(f"[AxiomPriceFeed] Unsubscribed: {token_address[:8]}…")
 
     async def run(self):
@@ -387,6 +432,12 @@ class AxiomPriceFeed:
 
             self.price_cache[_addr_lower] = price_usd
             self.price_timestamps[_addr_lower] = time.time()
+
+            # Tick buffer — ring buffer of (timestamp, price) for sub-minute trend analysis.
+            # Scanner reads this before buying to check 15s/30s/60s momentum.
+            _now = time.time()
+            _buf = self._tick_buffers.setdefault(_addr_lower, deque(maxlen=600))
+            _buf.append((_now, price_usd))
 
             # Event-driven stop loss — fires immediately on breach instead of
             # waiting up to 3s for the position manager poll cycle
