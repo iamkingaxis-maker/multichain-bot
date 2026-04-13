@@ -2784,7 +2784,7 @@ class MultiSourceScanner:
         watchlist_peak  = watchlist_entry["peak_price"] if watchlist_entry else None
 
         # Hard block: RSI parabolic
-        if rsi is not None and rsi > 80:
+        if rsi is not None and rsi > 90:
             self._dip_watchlist[addr_lower] = {
                 "peak_price": max(highs),
                 "added_at": time.monotonic(),
