@@ -2567,109 +2567,17 @@ class MultiSourceScanner:
             candles_1m = None
 
         if not candles_5m or len(candles_5m) < 3:
-            if not candles_5m:
-                reason = "no candles — pool not indexed yet"
-            else:
-                reason = f"only {len(candles_5m)} candles — token too new for chart analysis"
-            # No candle data — pool not indexed on GeckoTerminal (common for
-            # Raydium/Meteora pools). Two-stage handling:
-            #   Stage 1 (<5 min): queue in watchlist, wait for candles to appear.
-            #   Stage 2 (≥5 min): GeckoTerminal likely won't index this pool.
-            #             Allow through only if score ≥ 75, liq ≥ $15k, AND
-            #             an explicit dip_setup or pump_setup flag fired — never
-            #             on a plain score signal alone.
-            addr_lower = signal.token_address.lower()
-
-            # If this token already burned through its 3 attempts, don't re-add
-            if addr_lower in self._no_candle_block:
-                return False
-
-            watchlist_entry = self._dip_watchlist.get(addr_lower)
-            waited_sec = time.monotonic() - (watchlist_entry or {}).get("added_at", time.monotonic())
-
-            # Always keep watchlist entry up to date (preserve attempt counter)
-            _prev_attempts = (watchlist_entry or {}).get("no_candle_attempts", 0)
-            self._dip_watchlist[addr_lower] = {
-                "peak_price":        signal.price_usd,
-                "added_at":          (watchlist_entry or {}).get("added_at", time.monotonic()),
-                "signal":            signal,
-                "risk_level":        risk_level,
-                "no_candle_attempts": _prev_attempts,
-            }
-
-            if waited_sec < 300:  # less than 5 minutes
-                logger.info(
-                    f"[{self.chain.name}] Chart pending: {signal.token_symbol} — "
-                    f"{reason}, queued for watchlist retry in "
-                    f"{int(300 - waited_sec)}s "
-                    f"(score {signal.combined_score}, liq ${signal.liquidity_usd:,.0f})"
-                )
-                return False
-
-            # Waited ≥5 min — GeckoTerminal likely won't index this pool.
-            # Fallback for high-confidence dip_setup signals: use DexScreener aggregate data
-            # (h1, h24, m5) as a candle substitute. The dip_setup flag already validated
-            # h24 ≤ -25 AND h1 ≥ 5, so we just need m5 not actively crashing.
-            _pc_m5 = float((signal.raw_pair_data or {}).get("priceChange", {}).get("m5", 0) or 0)
-            # Skip fallback if this token was recently chaos-blocked
-            _chaos_expiry = self._chaos_blocked.get(addr_lower, 0)
-            _chaos_still_blocked = time.monotonic() < _chaos_expiry
-            if _chaos_still_blocked:
-                logger.info(
-                    f"[{self.chain.name}] Fallback skipped (chaos history): {signal.token_symbol}"
-                )
-            if (not _chaos_still_blocked
-                    and "dip_setup" in signal.flags
-                    and signal.combined_score >= 75
-                    and signal.liquidity_usd >= 15_000
-                    and _pc_m5 > -10):
-                logger.info(
-                    f"[{self.chain.name}] Chart fallback (no candles, {int(waited_sec/60)}min): "
-                    f"{signal.token_symbol} — dip_setup via aggregate data "
-                    f"(score {signal.combined_score}, m5={_pc_m5:+.1f}%, liq ${signal.liquidity_usd:,.0f})"
-                )
-                self._dip_watchlist.pop(addr_lower, None)
-                return True
-
-            # Secondary fallback (6 min): score ≥ 70, liq ≥ $15k, h1 not crashing, m5 not crashing.
-            # Threshold set to 360s so it fires at attempt 2/3 (before eviction at attempt 3/3).
-            # Timeline: Stage1=0-5min, attempt1@5min, attempt2@6min → fallback fires here.
-            _pc_m5 = float((signal.raw_pair_data or {}).get("priceChange", {}).get("m5", 0) or 0)
-            if (not _chaos_still_blocked
-                    and waited_sec >= 360
-                    and signal.combined_score >= 70
-                    and signal.liquidity_usd >= 15_000
-                    and signal.price_change_h1 > 0
-                    and signal.price_change_h6 > 0
-                    and _pc_m5 > -8):
-                logger.info(
-                    f"[{self.chain.name}] Chart fallback (no candles, {int(waited_sec/60)}min): "
-                    f"{signal.token_symbol} — score signal via aggregate data "
-                    f"(score {signal.combined_score}, h1={signal.price_change_h1:+.1f}%, "
-                    f"m5={_pc_m5:+.1f}%, liq ${signal.liquidity_usd:,.0f})"
-                )
-                self._dip_watchlist.pop(addr_lower, None)
-                return True
-
-            # No candle data and fundamentals don't meet fallback bar — evict after 3 attempts.
-            _attempts = _prev_attempts + 1
-            self._dip_watchlist[addr_lower]["no_candle_attempts"] = _attempts
-            if _attempts >= 3:
-                self._dip_watchlist.pop(addr_lower, None)
-                self._no_candle_block[addr_lower] = time.monotonic() + 3600  # block for 1 hour
-                logger.info(
-                    f"[{self.chain.name}] Chart give-up ({int(waited_sec/60)}min, "
-                    f"{_attempts} attempts): {signal.token_symbol} — "
-                    f"pool not indexed by GeckoTerminal, dropping from watchlist"
-                )
-                return False
-
+            # No candle data — pool not yet indexed on GeckoTerminal.
+            # All DexScreener-based filters (h1, h6, m5, volume, liq, score) already
+            # passed above, so buy immediately without waiting for OHLCV confirmation.
+            _reason = "no candles" if not candles_5m else f"only {len(candles_5m)} candles"
             logger.info(
-                f"[{self.chain.name}] Chart blocked (no candles after "
-                f"{int(waited_sec/60)}min, attempt {_attempts}/3): {signal.token_symbol} — "
-                f"score {signal.combined_score}, no chart data available"
+                f"[{self.chain.name}] Chart pass (no candles): {signal.token_symbol} — "
+                f"{_reason}, buying on DexScreener signal "
+                f"(score {signal.combined_score}, h1={signal.price_change_h1:+.1f}%, "
+                f"liq ${signal.liquidity_usd:,.0f})"
             )
-            return False
+            return True
 
         candles = candles_5m
 
