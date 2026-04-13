@@ -338,7 +338,13 @@ class SecurityChecker:
                     f"for {result.token_address[:10]}..."
                 )
         else:
-            result.warnings.append("LP lock data unavailable")
+            if bonding_curve or pumpswap:
+                # PumpFun/PumpSwap — LP is structurally handled by the protocol, no data fine
+                result.warnings.append("LP lock data unavailable (bonding curve / pumpswap — expected)")
+            else:
+                # Graduated token on Raydium/Meteora/etc. — LP lock is required and data is missing.
+                # Block rather than assume: unlocked LP on a graduated pool is rug risk.
+                result.flags.append("LP lock data unavailable — cannot confirm liquidity is locked")
 
         # Top holder concentration — sum top 10 real holders
         top_holders = data.get("topHolders", [])
