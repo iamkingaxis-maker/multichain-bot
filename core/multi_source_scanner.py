@@ -1819,16 +1819,10 @@ class MultiSourceScanner:
             )
             return
 
-        # H1, H6, and H24 must all be green — if any is red the trend is not with us.
+        # H6 and H24 must be green — if either is red the trend is not with us.
+        # H1 removed: too noisy in down-phase markets; h6 is the real trend signal.
         # Exempt dip_setup: those are intentional recovery plays off a 24h drop.
         if "dip_setup" not in signal.flags:
-            if signal.price_change_h1 <= 0:
-                logger.info(
-                    f"[{self.chain.name}] Red h1 blocked: {signal.token_symbol} "
-                    f"h1={signal.price_change_h1:+.1f}% — must be green before entry"
-                )
-                self.signals_blocked_score += 1
-                return
             if signal.price_change_h6 <= 0:
                 logger.info(
                     f"[{self.chain.name}] Red h6 blocked: {signal.token_symbol} "

@@ -1720,13 +1720,6 @@ class AxiomScanner:
                 _m5 = float((pair_data.get("priceChange") or {}).get("m5") or 0)
                 # h1 must be green — PumpFun tokens are too new for h6/h24 to be meaningful,
                 # but h1 direction is a real signal (> 0 means price is up over the last hour).
-                _mc_h1 = float((pair_data.get("priceChange") or {}).get("h1") or 0)
-                if _mc_h1 <= 0:
-                    logger.info(
-                        f"[AxiomScanner] Red h1 blocked: {event.token_symbol} "
-                        f"h1={_mc_h1:+.1f}% — must be green before entry"
-                    )
-                    return
 
                 _in_dip_window = -20 <= _m5 <= -3
 

@@ -413,7 +413,7 @@ class AxiomTrendingScanner:
                 _pc_h1  = float((pair_data.get("priceChange") or {}).get("h1")  or 0)
                 _pc_h6  = float((pair_data.get("priceChange") or {}).get("h6")  or 0)
                 _pc_h24 = float((pair_data.get("priceChange") or {}).get("h24") or 0)
-                if _pc_h1 <= 0 or _pc_h6 <= 0 or _pc_h24 < 0:
+                if _pc_h6 <= 0 or _pc_h24 < 0:
                     logger.info(
                         f"[EstablishedScanner] Red timeframe blocked: {ticker} — "
                         f"h1={_pc_h1:+.1f}% h6={_pc_h6:+.1f}% h24={_pc_h24:+.1f}% "
