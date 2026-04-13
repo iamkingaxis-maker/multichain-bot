@@ -1718,8 +1718,11 @@ class AxiomScanner:
                     f"dev {dev_pct:.0f}% | snipers {snipers_pct:.0f}%"
                 )
                 if self.dip_watcher:
+                    import time as _t
                     _signal_price = float(pair_data.get("priceUsd") or 0)
                     _h6 = float((pair_data.get("priceChange") or {}).get("h6") or 0)
+                    _created_ms = pair_data.get("pairCreatedAt") or 0
+                    _age_h = (_t.time() - _created_ms / 1000) / 3600 if _created_ms > 0 else 999.0
                     await self.dip_watcher.watch(
                         token_address=event.token_address,
                         token_symbol=event.token_symbol,
@@ -1727,6 +1730,7 @@ class AxiomScanner:
                         override_usd=self.micro_cap_position_usd,
                         signal_price=_signal_price,
                         h6_pct=_h6,
+                        token_age_hours=_age_h,
                     )
                 else:
                     await self.trader.buy(

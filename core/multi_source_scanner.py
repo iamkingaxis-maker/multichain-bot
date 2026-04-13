@@ -1833,16 +1833,22 @@ class MultiSourceScanner:
                 self.signals_blocked_score += 1
                 return
 
-        # Extended h6 guard: if the 6-hour move is already large, early buyers are
-        # distributing and we're buying the tail. Exempt dip_setup (24h drop context).
+        # Extended h6 guard: if the 6-hour move is already large AND the token is
+        # old enough for h6 to represent a real 6-hour window, early buyers are
+        # distributing and we're buying the tail.
+        # Skip for tokens < 6h old — their h6 reflects total lifetime move, not exhaustion.
+        # Exempt dip_setup (24h drop context).
         if signal.price_change_h6 > 30 and "dip_setup" not in signal.flags:
-            logger.info(
-                f"[{self.chain.name}] Extended h6 blocked: {signal.token_symbol} "
-                f"h6={signal.price_change_h6:+.1f}% — 6h move exhausted, skip"
-            )
-            self.signals_blocked_score += 1
-            self.signals_blocked_h6_extended += 1
-            return
+            _h6_pair_created_ms = (signal.raw_pair_data or {}).get("pairCreatedAt") or 0
+            _h6_age_hours = (time.time() - _h6_pair_created_ms / 1000) / 3600 if _h6_pair_created_ms > 0 else 999
+            if _h6_age_hours >= 6.0:
+                logger.info(
+                    f"[{self.chain.name}] Extended h6 blocked: {signal.token_symbol} "
+                    f"h6={signal.price_change_h6:+.1f}% age={_h6_age_hours:.1f}h — 6h move exhausted, skip"
+                )
+                self.signals_blocked_score += 1
+                self.signals_blocked_h6_extended += 1
+                return
 
         # Late-entry guard: if the token has already pumped hard in the last hour, skip it.
         # High h1 scores well but by the time the signal fires, early buyers are already exiting.

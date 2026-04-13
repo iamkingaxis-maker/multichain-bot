@@ -34,22 +34,24 @@ class _WatchState:
     __slots__ = (
         "token_address", "token_symbol", "reason", "override_usd",
         "peak_price", "bottom_price", "dipped", "start_time",
-        "signal_price", "h6_pct",
+        "signal_price", "h6_pct", "token_age_hours",
     )
 
     def __init__(self, token_address: str, token_symbol: str, reason: str,
                  override_usd: float, initial_price: float, start_time: float,
-                 signal_price: float = 0.0, h6_pct: float = 0.0):
-        self.token_address = token_address
-        self.token_symbol  = token_symbol
-        self.reason        = reason
-        self.override_usd  = override_usd
-        self.peak_price    = initial_price
-        self.bottom_price  = initial_price
-        self.dipped        = False
-        self.start_time    = start_time
-        self.signal_price  = signal_price
-        self.h6_pct        = h6_pct
+                 signal_price: float = 0.0, h6_pct: float = 0.0,
+                 token_age_hours: float = 999.0):
+        self.token_address  = token_address
+        self.token_symbol   = token_symbol
+        self.reason         = reason
+        self.override_usd   = override_usd
+        self.peak_price     = initial_price
+        self.bottom_price   = initial_price
+        self.dipped         = False
+        self.start_time     = start_time
+        self.signal_price   = signal_price
+        self.h6_pct         = h6_pct
+        self.token_age_hours = token_age_hours
 
 
 class DipWatcher:
@@ -96,7 +98,8 @@ class DipWatcher:
                     reason: str,
                     override_usd: float,
                     signal_price: float = 0.0,
-                    h6_pct: float = 0.0):
+                    h6_pct: float = 0.0,
+                    token_age_hours: float = 999.0):
         """
         Subscribe token to the price feed and start watching for dip+recovery.
         Called from the scanner micro-cap path instead of trader.buy().
@@ -141,6 +144,7 @@ class DipWatcher:
             start_time=time.monotonic(),
             signal_price=signal_price,
             h6_pct=h6_pct,
+            token_age_hours=token_age_hours,
         )
         self._watches[token_address] = state
 
@@ -682,12 +686,14 @@ class DipWatcher:
                 self.price_feed.unsubscribe_token(state.token_address)
                 return
 
-        # h6 extended move guard — if token had a large 6h move at detection time,
-        # the dip is inside an exhausted trend, not a healthy pullback.
-        if state.h6_pct > 30.0:
+        # h6 extended move guard — if token had a large 6h move at detection time
+        # AND is old enough for h6 to represent a real 6-hour window, the dip is
+        # inside an exhausted trend, not a healthy pullback.
+        # Skip for tokens < 6h old — their h6 reflects total lifetime, not exhaustion.
+        if state.h6_pct > 30.0 and state.token_age_hours >= 6.0:
             logger.info(
                 f"[DipWatcher] h6 extended block: {state.token_symbol} — "
-                f"h6={state.h6_pct:+.1f}% at detection, 6h move exhausted"
+                f"h6={state.h6_pct:+.1f}% age={state.token_age_hours:.1f}h, 6h move exhausted"
             )
             self.price_feed.unsubscribe_token(state.token_address)
             return
