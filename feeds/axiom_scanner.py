@@ -1641,7 +1641,12 @@ class AxiomScanner:
                     return
 
                 lp_locked = sec_result and sec_result.liquidity_locked
-                if not event.lp_burned and not lp_locked:
+                # Bonding curve tokens (pump.fun pre-graduation) have no real LP pool —
+                # liquidity is secured by the bonding curve contract itself.
+                # Skip the LP burned/locked requirement for these.
+                _proto_lower = (event.protocol or "").lower()
+                _is_bc_proto = _proto_lower.startswith("pump amm") and "swap" not in _proto_lower
+                if not event.lp_burned and not lp_locked and not _is_bc_proto:
                     logger.info(
                         f"[AxiomScanner] Micro-cap blocked: {event.token_symbol} — "
                         f"LP not burned and not locked (rug risk)"
