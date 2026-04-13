@@ -1728,7 +1728,7 @@ class AxiomScanner:
                     )
                     return
 
-                _in_dip_window = -20 <= _m5 <= -5
+                _in_dip_window = -20 <= _m5 <= -3
 
                 if _in_dip_window:
                     # m5 is already in the dip zone — buy immediately, no waiting

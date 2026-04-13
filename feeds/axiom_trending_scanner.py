@@ -443,7 +443,7 @@ class AxiomTrendingScanner:
                 self.signals_fired += 1
                 _signal_price = float(pair_data.get("priceUsd") or 0)
                 _mc_reason = f"Micro-cap established | ${actual_mcap:,.0f} mcap"
-                _in_dip_window = -20 <= pc_m5 <= -5
+                _in_dip_window = -20 <= pc_m5 <= -3
 
                 if _in_dip_window:
                     # m5 already in dip zone — buy immediately
