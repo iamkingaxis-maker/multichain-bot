@@ -1885,9 +1885,9 @@ class MultiSourceScanner:
         addr = signal.token_address
         logger.info(
             f"[{self.chain.name}] ⏳ Confirming bounce: {sym} — "
-            f"waiting 45s to verify recovery holds (price=${price_at_check:.6f})"
+            f"waiting 20s to verify recovery holds (price=${price_at_check:.6f})"
         )
-        await asyncio.sleep(45)
+        await asyncio.sleep(20)
 
         # Skip if we're already in this position (another path bought it)
         if addr.lower() in self.trader.open_positions:
@@ -1941,7 +1941,7 @@ class MultiSourceScanner:
             if change_pct < -1.0:
                 logger.info(
                     f"[{self.chain.name}] ❌ Bounce faded: {sym} "
-                    f"dropped {change_pct:.1f}% in 45s — aborting entry"
+                    f"dropped {change_pct:.1f}% in 20s — aborting entry"
                 )
                 # Re-add to dip watchlist so it can re-qualify if it recovers
                 addr_lower = addr.lower()
@@ -1956,12 +1956,12 @@ class MultiSourceScanner:
             if change_pct > 10.0:
                 logger.info(
                     f"[{self.chain.name}] ❌ Bounce overshoot: {sym} "
-                    f"pumped {change_pct:+.1f}% in 45s — likely ATH, aborting entry"
+                    f"pumped {change_pct:+.1f}% in 20s — likely ATH, aborting entry"
                 )
                 return
             logger.info(
                 f"[{self.chain.name}] ✅ Bounce confirmed: {sym} "
-                f"{change_pct:+.1f}% in 45s — holding 30s to verify price holds"
+                f"{change_pct:+.1f}% in 20s — holding 15s to verify price holds"
             )
         else:
             # No price from any source — proceed using check price as baseline.
@@ -1972,10 +1972,10 @@ class MultiSourceScanner:
             )
             current_price = price_at_check
 
-        # ── Second confirmation: wait 30s, ensure price holds within 3% ──
+        # ── Second confirmation: wait 15s, ensure price holds within 3% ──
         # Catches dead-cat bounces where we'd buy at the peak of a brief recovery.
         price_at_confirm = current_price
-        await asyncio.sleep(30)
+        await asyncio.sleep(15)
 
         if addr.lower() in self.trader.open_positions:
             logger.info(f"[{self.chain.name}] ⏭ {sym} already held — skipping delayed buy")
