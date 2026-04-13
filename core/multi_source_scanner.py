@@ -2663,6 +2663,14 @@ class MultiSourceScanner:
                 )
                 self.signals_blocked_atm_nocandle += 1
                 return False
+            if signal.price_change_h1 < -15:
+                logger.info(
+                    f"[{self.chain.name}] Chart skip (no candles, crashing): "
+                    f"{signal.token_symbol} — h1={signal.price_change_h1:+.1f}% < -15% "
+                    f"with no OHLCV to confirm recovery"
+                )
+                self.signals_blocked_atm_nocandle += 1
+                return False
             logger.info(
                 f"[{self.chain.name}] Chart pass (no candles): {signal.token_symbol} — "
                 f"{_reason}, buying on DexScreener signal "
