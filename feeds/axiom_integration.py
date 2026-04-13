@@ -195,9 +195,6 @@ class AxiomIntegration:
         # Inject into scanners so micro-cap buys route through dip/recovery gate
         self.scanner.dip_watcher          = self.dip_watcher
         self.trending_scanner.dip_watcher = self.dip_watcher
-        # Give DipWatcher a reference to scanner so it can check loss/pump cooldowns
-        self.dip_watcher.scanner = self.scanner
-
         # Wire chart analysis gate — all Axiom buy signals route through scanner
         # so they pass _chart_dip_check before any buy executes
         if scanner:
@@ -205,6 +202,8 @@ class AxiomIntegration:
             self.trending_scanner.scanner = scanner
             self.surge_scanner.scanner    = scanner
             self.wallet_tracker.scanner   = scanner
+            # Give DipWatcher the MultiSourceScanner so it can check _sl_cooldown/_pump_cooldown
+            self.dip_watcher.scanner = scanner
 
         # Share price feed spike data with the scanner for user spike bonus
         self.scanner.price_feed = self.price_feed
