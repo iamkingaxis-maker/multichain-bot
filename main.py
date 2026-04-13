@@ -46,6 +46,7 @@ from security.tax_detector import TaxDetector
 from feeds.price_feed import PriceFeed
 from feeds.solana_rpc_price_feed import SolanaRpcPriceFeed
 from feeds.axiom_integration import AxiomIntegration
+from feeds.axiom_smart_wallet_tracker import AxiomSmartWalletTracker
 from analytics.wallet_scorer import WalletScorer
 from analytics.kelly_sizer import KellySizer
 from analytics.adaptive_threshold import AdaptiveThresholdManager
@@ -441,6 +442,28 @@ async def main():
         # Register EstablishedScanner for MC Radar panel
         if axiom.trending_scanner:
             dashboard.register_established_scanner(axiom.trending_scanner)
+
+        # ── KOL Wallet Tracker ────────────────────────────────────────────
+        # Subscribes to Axiom WebSocket for real-time buy events from seeded
+        # KOL wallets. Wallets are managed via the dashboard seed-wallet panel
+        # and reloaded on each reconnect — no restart needed after adding wallets.
+        sol_wallet_tracker = AxiomSmartWalletTracker(
+            auth_manager=axiom.auth,
+            trader=sol_trader,
+            signal_evaluator=sol_scanner.evaluator,
+            security_checker=security,
+            telegram=telegram,
+            tracker=tracker,
+            market_monitor=market_monitor,
+            wallets_path=_seed_wallets_path,
+            min_score=55.0,   # slightly looser than scanner — KOL signal carries its own weight
+        )
+        sol_wallet_tracker.scanner = sol_scanner   # route through chart gate
+        tasks.append(sol_wallet_tracker.run())
+        logger.info(
+            f"[Main] KOL wallet tracker started "
+            f"({len(_seed_wallets)} wallets loaded from seed_wallets.json)"
+        )
 
         chain_summaries.append(f"Solana — ${sol_cap:,.0f}")
 

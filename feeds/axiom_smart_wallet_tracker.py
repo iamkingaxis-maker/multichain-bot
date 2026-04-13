@@ -41,6 +41,7 @@ class AxiomSmartWalletTracker:
                  tracker,
                  market_monitor=None,
                  wallets: List[str] = None,
+                 wallets_path: str = None,
                  min_score: float = 65.0):
 
         self.auth           = auth_manager
@@ -51,6 +52,7 @@ class AxiomSmartWalletTracker:
         self.tracker        = tracker
         self.market_monitor = market_monitor
         self.wallets        = wallets or []
+        self.wallets_path   = wallets_path   # path to seed_wallets.json — reloaded on each reconnect
         self.min_score      = min_score
 
         self._seen_tokens: set = set()
@@ -142,7 +144,30 @@ class AxiomSmartWalletTracker:
 
     async def _connect_and_stream(self):
         """Establish connection, subscribe all wallets, stream until disconnect."""
-        import os
+        import os, json as _json
+
+        # Reload wallet list from seed_wallets.json on each reconnect so wallets
+        # added via the dashboard take effect without a full bot restart.
+        if self.wallets_path:
+            try:
+                with open(self.wallets_path) as _f:
+                    _wdata = _json.load(_f)
+                _fresh = list(_wdata.keys())
+                if _fresh != self.wallets:
+                    logger.info(
+                        f"[AxiomWallets] Reloaded wallet list: {len(_fresh)} wallets "
+                        f"(was {len(self.wallets)})"
+                    )
+                    self.wallets = _fresh
+            except FileNotFoundError:
+                pass  # no wallets seeded yet
+            except Exception as _e:
+                logger.warning(f"[AxiomWallets] Could not reload wallets: {_e}")
+
+        if not self.wallets:
+            logger.info("[AxiomWallets] No wallets configured — waiting 60s before retry")
+            await asyncio.sleep(60)
+            raise Exception("No wallets — retry")
 
         token_valid = await self.auth.ensure_valid_token()
         if not token_valid:
@@ -309,6 +334,7 @@ class AxiomSmartWalletTracker:
                 f"({total_sol:.2f} SOL / ${total_usd:,.0f}) — evaluating"
             )
 
+            protocol = (pair_info.get("protocol") or "").lower()
             fired = await self._evaluate_token(
                 token_address=token_address,
                 ticker=ticker,
@@ -317,6 +343,7 @@ class AxiomSmartWalletTracker:
                 deployer_address="",  # not available in wallet tx feed
                 wallet_address=wallet_address,
                 total_sol=total_sol,
+                protocol=protocol,
             )
             if fired:
                 self.signals_fired += 1
@@ -334,7 +361,8 @@ class AxiomSmartWalletTracker:
                                pair_address: str,
                                deployer_address: str,
                                wallet_address: str,
-                               total_sol: float) -> bool:
+                               total_sol: float,
+                               protocol: str = "") -> bool:
         """
         Full pipeline: security → enrichment → DexScreener → evaluator → buy.
         Returns True if a signal fired.
@@ -345,9 +373,16 @@ class AxiomSmartWalletTracker:
                 if not self.market_monitor.should_trade(signal_score=0):
                     return False
 
-            # Security gate
+            # Security gate — detect protocol for LP lock exemptions
+            _proto = protocol.lower()
+            _is_pumpswap = "pumpswap" in _proto or _proto == "pump swap"
+            _is_bonding   = "pump amm" in _proto or _proto == "pump-fun"
             if self.security:
-                sec_result = await self.security.check(token_address, "solana", ticker)
+                sec_result = await self.security.check(
+                    token_address, "solana", ticker,
+                    pumpswap=_is_pumpswap,
+                    bonding_curve=_is_bonding,
+                )
                 if sec_result and not sec_result.passed:
                     logger.info(
                         f"[AxiomWallets] Security blocked: {ticker} — "
