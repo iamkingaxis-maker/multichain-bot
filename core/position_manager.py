@@ -602,14 +602,24 @@ class PositionManager:
                 and state.current_liquidity_usd < MIN_EXIT_LIQUIDITY
                 and state.dead_liquidity_since is not None
                 and age_seconds > 15):
+            dead_seconds = (
+                datetime.now(timezone.utc) - state.dead_liquidity_since
+            ).total_seconds()
+            # If position is in profit, liquidity drop is likely a pool migration
+            # (e.g. pump.fun graduation → PumpSwap), not a rug. Wait longer and
+            # don't record a full loss — the token clearly has value.
+            if state.pnl_pct > 0:
+                logger.warning(
+                    f"[PositionManager/{self.chain_name}] ⚠️ Dead liquidity (in profit): "
+                    f"{state.token_symbol} — ${state.current_liquidity_usd:.0f} liq "
+                    f"but PnL={state.pnl_pct:+.1f}% — holding, likely pool migration"
+                )
+                return
             logger.warning(
                 f"[PositionManager/{self.chain_name}] ⚠️ Dead liquidity: "
                 f"{state.token_symbol} — ${state.current_liquidity_usd:.0f} "
                 f"(need ${MIN_EXIT_LIQUIDITY:,}) — waiting up to 60s"
             )
-            dead_seconds = (
-                datetime.now(timezone.utc) - state.dead_liquidity_since
-            ).total_seconds()
             if dead_seconds < 60:
                 return  # Give it 60s to recover
             logger.warning(
