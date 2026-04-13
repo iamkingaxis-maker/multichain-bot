@@ -2569,13 +2569,13 @@ class MultiSourceScanner:
         if not candles_5m or len(candles_5m) < 3:
             # No candle data — pool not yet indexed on GeckoTerminal.
             # All DexScreener-based filters (h1, h6, m5, volume, liq, score) already
-            # passed above. Without RSI/VWAP confirmation, cap h1 at 20% to avoid
+            # passed above. Without RSI/VWAP confirmation, cap h1 at 10% to avoid
             # buying into an already-pumped token blind.
             _reason = "no candles" if not candles_5m else f"only {len(candles_5m)} candles"
-            if signal.price_change_h1 > 20:
+            if signal.price_change_h1 > 10:
                 logger.info(
                     f"[{self.chain.name}] Chart skip (no candles, already pumped): "
-                    f"{signal.token_symbol} — h1={signal.price_change_h1:+.1f}% > 20% "
+                    f"{signal.token_symbol} — h1={signal.price_change_h1:+.1f}% > 10% "
                     f"with no OHLCV to confirm setup"
                 )
                 return False
