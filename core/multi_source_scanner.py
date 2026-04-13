@@ -182,7 +182,11 @@ class MultiSourceScanner:
         self._start_monotonic: float = time.monotonic()  # for watchdog uptime calc
         # Tokens flagged as PUMP DETECTED (h1>15%) — blocked for 30 min to prevent
         # buying them again after DexScreener h1 window rolls and returns 0%.
-        self._pump_cooldown: dict = {}  # addr_lower -> monotonic timestamp of detection
+        self._pump_cooldown: dict = {}  # addr_lower -> monotonic expiry time
+        self._pump_cooldown_path = os.path.join(
+            os.environ.get("DATA_DIR", "."), "pump_cooldowns.json"
+        )
+        self._load_pump_cooldowns()
 
         self._solanatracker_last_fetch: float = 0
         self._solanatracker_cache: list = []
@@ -344,6 +348,39 @@ class MultiSourceScanner:
                 loaded += 1
         if loaded:
             logger.info(f"Restored {loaded} sl_cooldown(s) from disk")
+
+    def _save_pump_cooldowns(self):
+        """Persist pump cooldowns to disk so they survive Railway restarts."""
+        now_wall = time.time()
+        now_mono = time.monotonic()
+        data = {
+            addr: now_wall + (expiry_mono - now_mono)
+            for addr, expiry_mono in self._pump_cooldown.items()
+            if expiry_mono > now_mono
+        }
+        try:
+            with open(self._pump_cooldown_path, "w") as f:
+                json.dump(data, f)
+        except Exception as e:
+            logger.warning(f"[{self.chain.name}] Could not save pump_cooldowns: {e}")
+
+    def _load_pump_cooldowns(self):
+        """Load persisted pump cooldowns on startup and convert back to monotonic time."""
+        try:
+            with open(self._pump_cooldown_path) as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return
+        now_wall = time.time()
+        now_mono = time.monotonic()
+        loaded = 0
+        for addr, expiry_wall in data.items():
+            remaining = expiry_wall - now_wall
+            if remaining > 0:
+                self._pump_cooldown[addr] = now_mono + remaining
+                loaded += 1
+        if loaded:
+            logger.info(f"Restored {loaded} pump_cooldown(s) from disk")
 
     async def run(self):
         """Main scanner loop."""
@@ -1431,7 +1468,8 @@ class MultiSourceScanner:
                 f"Vol: ${volume_h1:,.0f} | Score +10 -> {combined}"
             )
             # Record cooldown — block re-entry for 30 min even if h1 rolls to 0%
-            self._pump_cooldown[token_address.lower()] = time.monotonic()
+            self._pump_cooldown[token_address.lower()] = time.monotonic() + 1800
+            self._save_pump_cooldowns()
 
         return TokenSignal(
             token_address=token_address,
@@ -2550,9 +2588,9 @@ class MultiSourceScanner:
 
         # Pump cooldown — if this token was recently flagged PUMP DETECTED (h1>15%),
         # block re-entry for 30 min even if DexScreener h1 rolls back to 0%.
-        _pump_ts = self._pump_cooldown.get(signal.token_address.lower(), 0)
-        if _pump_ts and time.monotonic() - _pump_ts < 1800:
-            remaining = int(1800 - (time.monotonic() - _pump_ts))
+        _pump_expiry = self._pump_cooldown.get(signal.token_address.lower(), 0)
+        if _pump_expiry > time.monotonic():
+            remaining = int(_pump_expiry - time.monotonic())
             logger.info(
                 f"[{self.chain.name}] Pump cooldown: {signal.token_symbol} "
                 f"— was PUMP DETECTED, blocking for {remaining}s more"

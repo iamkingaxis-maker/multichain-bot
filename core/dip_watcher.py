@@ -70,6 +70,7 @@ class DipWatcher:
 
         self.price_feed         = price_feed
         self.trader             = trader
+        self.scanner            = None  # set by scanner after init via connect_to_scanner()
         self.dip_threshold_pct  = dip_threshold_pct
         self.recovery_pct       = recovery_pct
         self.max_watch_seconds  = max_watch_seconds
@@ -653,9 +654,40 @@ class DipWatcher:
 
     async def _execute_buy(self, state: _WatchState, trigger_price: float):
         """Execute the deferred buy after dip+recovery is confirmed."""
-        # Chart quality gate — key signals from _chart_dip_check applied to MC tokens
         # Always release reservation first so the trader slot is freed regardless of outcome
         self.trader._dip_watching.discard(state.token_address.lower())
+
+        # Check scanner cooldowns — loss cooldown and pump cooldown must be respected
+        # even for DipWatcher paths that bypass the main scanner flow.
+        if self.scanner is not None:
+            addr_lower = state.token_address.lower()
+            _now = time.monotonic()
+            _sl_expiry = self.scanner._sl_cooldown.get(addr_lower, 0)
+            if _sl_expiry > _now:
+                logger.info(
+                    f"[DipWatcher] Loss cooldown block: {state.token_symbol} — "
+                    f"{int(_sl_expiry - _now)}s remaining"
+                )
+                self.price_feed.unsubscribe_token(state.token_address)
+                return
+            _pump_expiry = self.scanner._pump_cooldown.get(addr_lower, 0)
+            if _pump_expiry > _now:
+                logger.info(
+                    f"[DipWatcher] Pump cooldown block: {state.token_symbol} — "
+                    f"{int(_pump_expiry - _now)}s remaining"
+                )
+                self.price_feed.unsubscribe_token(state.token_address)
+                return
+
+        # Chart quality gate — key signals from _chart_dip_check applied to MC tokens
+        passed = await self._chart_gate(state, trigger_price)
+        if not passed:
+            logger.info(
+                f"[DipWatcher] Buy BLOCKED by chart gate — {state.token_symbol} "
+                f"({state.token_address[:8]}…)"
+            )
+            self.price_feed.unsubscribe_token(state.token_address)
+            return
 
         passed = await self._chart_gate(state, trigger_price)
         if not passed:
