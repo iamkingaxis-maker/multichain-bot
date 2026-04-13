@@ -43,6 +43,7 @@ class TokenSignal:
     volume_h6: float = 0.0
     price_change_h1: float = 0.0
     price_change_h6: float = 0.0
+    price_change_h24: float = 0.0
     liquidity_usd: float = 0.0
     buy_count_h1: int = 0
     sell_count_h1: int = 0
@@ -1492,6 +1493,7 @@ class MultiSourceScanner:
             volume_h6=volume_h6,
             price_change_h1=price_change_h1,
             price_change_h6=price_change_h6,
+            price_change_h24=price_change_h24,
             liquidity_usd=liquidity,
             buy_count_h1=buys_h1,
             sell_count_h1=sells_h1,
@@ -1817,7 +1819,7 @@ class MultiSourceScanner:
             )
             return
 
-        # H1 and H6 must both be green — if either is red the trend is not with us.
+        # H1, H6, and H24 must all be green — if any is red the trend is not with us.
         # Exempt dip_setup: those are intentional recovery plays off a 24h drop.
         if "dip_setup" not in signal.flags:
             if signal.price_change_h1 <= 0:
@@ -1831,6 +1833,13 @@ class MultiSourceScanner:
                 logger.info(
                     f"[{self.chain.name}] Red h6 blocked: {signal.token_symbol} "
                     f"h6={signal.price_change_h6:+.1f}% — must be green before entry"
+                )
+                self.signals_blocked_score += 1
+                return
+            if signal.price_change_h24 <= 0:
+                logger.info(
+                    f"[{self.chain.name}] Red h24 blocked: {signal.token_symbol} "
+                    f"h24={signal.price_change_h24:+.1f}% — must be green before entry"
                 )
                 self.signals_blocked_score += 1
                 return
