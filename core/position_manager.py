@@ -561,10 +561,13 @@ class PositionManager:
         age_seconds = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
         if (state.liquidity_confirmed
                 and liquidity_usd < MIN_EXIT_LIQUIDITY
+                and price <= 0          # only flag dead if price is also gone
                 and age_seconds > 15):
             if state.dead_liquidity_since is None:
                 state.dead_liquidity_since = datetime.now(timezone.utc)
-        elif liquidity_usd >= MIN_EXIT_LIQUIDITY:
+        elif liquidity_usd >= MIN_EXIT_LIQUIDITY or price > 0:
+            # Price > 0 means token is tradeable — bonding curve tokens show $0
+            # LP liquidity on DexScreener but are actively priced via Jupiter/RPC.
             state.dead_liquidity_since = None
 
         # Sync live price/PnL back to the trader Position object
