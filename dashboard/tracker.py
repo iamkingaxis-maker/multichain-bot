@@ -338,6 +338,49 @@ class PerformanceTracker:
             except Exception:
                 self.trades = []
 
+        # Close any orphaned open positions left over from a previous run.
+        # On restart, the in-memory position state is gone — write a synthetic
+        # "cancelled on restart" sell so the trade log stays consistent.
+        open_addrs: dict = {}  # address → buy trade
+        for t in self.trades:
+            addr = t.get("address", "").lower()
+            if not addr:
+                continue
+            if t["type"] == "buy":
+                open_addrs[addr] = t
+            elif t["type"] == "sell":
+                open_addrs.pop(addr, None)
+
+        if open_addrs:
+            now = datetime.now(timezone.utc).isoformat()
+            for addr, buy in open_addrs.items():
+                amount_usd = buy.get("amount_usd", 0.0)
+                synthetic_sell = {
+                    "type": "sell",
+                    "strategy": buy.get("strategy", "scanner"),
+                    "chain": buy.get("chain", "solana"),
+                    "token": buy.get("token", "?"),
+                    "address": buy.get("address", addr),
+                    "entry_price": buy.get("entry_price", 0.0),
+                    "exit_price": amount_usd,
+                    "usd_received": amount_usd,
+                    "pnl": 0.0,
+                    "pnl_pct": 0.0,
+                    "time": now,
+                    "reason": "cancelled on restart",
+                    "max_drawdown_pct": 0.0,
+                    "hold_secs": 0,
+                    "entry_market_cap_usd": buy.get("entry_market_cap_usd", 0.0),
+                    "entry_age_hours": buy.get("entry_age_hours", 0.0),
+                    "entry_volume_h1_usd": buy.get("entry_volume_h1_usd", 0.0),
+                }
+                self.trades.append(synthetic_sell)
+                logger.info(
+                    f"[Tracker] Closed orphaned position on restart: "
+                    f"{buy.get('token', addr)} ({addr[:8]}…)"
+                )
+            self._save_trades()
+
     _CSV_COLUMNS = ["time", "chain", "token", "address",
                     "entry_price", "exit_price", "pnl", "pnl_pct",
                     "reason", "strategy", "max_drawdown_pct", "hold_secs",
