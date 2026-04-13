@@ -605,14 +605,16 @@ class PositionManager:
             dead_seconds = (
                 datetime.now(timezone.utc) - state.dead_liquidity_since
             ).total_seconds()
-            # If position is in profit, liquidity drop is likely a pool migration
-            # (e.g. pump.fun graduation → PumpSwap), not a rug. Wait longer and
-            # don't record a full loss — the token clearly has value.
-            if state.pnl_pct > 0:
+            # If price is still live, this is a DexScreener data gap — not a rug.
+            # Pump.fun bonding curve tokens report $0 LP liquidity because their
+            # liquidity lives in the bonding curve contract, not a traditional pool.
+            # Real rugs kill price AND liquidity simultaneously.
+            if state.current_price > 0:
                 logger.warning(
-                    f"[PositionManager/{self.chain_name}] ⚠️ Dead liquidity (in profit): "
+                    f"[PositionManager/{self.chain_name}] ⚠️ Dead liquidity (price live): "
                     f"{state.token_symbol} — ${state.current_liquidity_usd:.0f} liq "
-                    f"but PnL={state.pnl_pct:+.1f}% — holding, likely pool migration"
+                    f"but price=${state.current_price:.8f} — likely bonding curve or "
+                    f"pool migration, holding"
                 )
                 return
             logger.warning(
