@@ -2655,14 +2655,6 @@ class MultiSourceScanner:
                     )
                     self.signals_blocked_stale_nocandle += 1
                     return False
-            if signal.price_change_h1 > 10:
-                logger.info(
-                    f"[{self.chain.name}] Chart skip (no candles, already pumped): "
-                    f"{signal.token_symbol} — h1={signal.price_change_h1:+.1f}% > 10% "
-                    f"with no OHLCV to confirm setup"
-                )
-                self.signals_blocked_atm_nocandle += 1
-                return False
             if signal.price_change_h1 < -15:
                 logger.info(
                     f"[{self.chain.name}] Chart skip (no candles, crashing): "
