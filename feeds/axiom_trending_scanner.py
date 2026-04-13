@@ -408,6 +408,33 @@ class AxiomTrendingScanner:
                     )
                     return False
 
+                # h1, h6, h24 must all be green — no cap, but all must be positive.
+                # A micro-cap in any red timeframe is trending against us.
+                _pc_h1  = float((pair_data.get("priceChange") or {}).get("h1")  or 0)
+                _pc_h6  = float((pair_data.get("priceChange") or {}).get("h6")  or 0)
+                _pc_h24 = float((pair_data.get("priceChange") or {}).get("h24") or 0)
+                if _pc_h1 <= 0 or _pc_h6 <= 0 or _pc_h24 <= 0:
+                    logger.info(
+                        f"[EstablishedScanner] Red timeframe blocked: {ticker} — "
+                        f"h1={_pc_h1:+.1f}% h6={_pc_h6:+.1f}% h24={_pc_h24:+.1f}% "
+                        f"— all must be green"
+                    )
+                    self.mc_candidates.appendleft({
+                        "time": _dt.datetime.utcnow().strftime("%H:%M:%S"),
+                        "symbol": ticker,
+                        "name": (pair_data.get("baseToken") or {}).get("name") or ticker,
+                        "address": token_address,
+                        "mcap": actual_mcap,
+                        "liquidity": liq,
+                        "dev_pct": 0,
+                        "snipers_pct": 0,
+                        "lp_burned": False,
+                        "protocol": "DexScreener",
+                        "reject_reason": f"Red: h1={_pc_h1:+.1f}% h6={_pc_h6:+.1f}% h24={_pc_h24:+.1f}%",
+                        "dex_url": f"https://dexscreener.com/solana/{token_address}",
+                    })
+                    return False
+
                 logger.info(
                     f"[EstablishedScanner] 🌱 MICRO-CAP SIGNAL: {ticker} | "
                     f"MCap: ${actual_mcap:,.0f} | m5: {pc_m5:+.1f}% | Liq: ${liq:,.0f}"
