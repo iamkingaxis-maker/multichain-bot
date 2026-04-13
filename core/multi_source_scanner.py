@@ -180,6 +180,9 @@ class MultiSourceScanner:
         self.signals_blocked_rug: int = 0
         self._last_buy_time: float = 0.0        # monotonic time of most recent buy signal fired
         self._start_monotonic: float = time.monotonic()  # for watchdog uptime calc
+        # Tokens flagged as PUMP DETECTED (h1>15%) — blocked for 30 min to prevent
+        # buying them again after DexScreener h1 window rolls and returns 0%.
+        self._pump_cooldown: dict = {}  # addr_lower -> monotonic timestamp of detection
 
         self._solanatracker_last_fetch: float = 0
         self._solanatracker_cache: list = []
@@ -1427,6 +1430,8 @@ class MultiSourceScanner:
                 f"1h: {price_change_h1:+.1f}% | Buy ratio: {'N/A (gecko)' if not txns_available else f'{buy_ratio:.2f}'} | "
                 f"Vol: ${volume_h1:,.0f} | Score +10 -> {combined}"
             )
+            # Record cooldown — block re-entry for 30 min even if h1 rolls to 0%
+            self._pump_cooldown[token_address.lower()] = time.monotonic()
 
         return TokenSignal(
             token_address=token_address,
@@ -2541,6 +2546,17 @@ class MultiSourceScanner:
     async def _chart_dip_check(self, signal: TokenSignal, risk_level: str = "UNKNOWN") -> bool:
         """Fetch 5m+1m candles and run all dip/recovery filters."""
         if not signal.token_address:
+            return False
+
+        # Pump cooldown — if this token was recently flagged PUMP DETECTED (h1>15%),
+        # block re-entry for 30 min even if DexScreener h1 rolls back to 0%.
+        _pump_ts = self._pump_cooldown.get(signal.token_address.lower(), 0)
+        if _pump_ts and time.monotonic() - _pump_ts < 1800:
+            remaining = int(1800 - (time.monotonic() - _pump_ts))
+            logger.info(
+                f"[{self.chain.name}] Pump cooldown: {signal.token_symbol} "
+                f"— was PUMP DETECTED, blocking for {remaining}s more"
+            )
             return False
 
         # Volume deceleration cooldown — if this token was recently blocked for
