@@ -1953,6 +1953,12 @@ class MultiSourceScanner:
                     "risk_level": risk_level,
                 }
                 return
+            if change_pct > 10.0:
+                logger.info(
+                    f"[{self.chain.name}] ❌ Bounce overshoot: {sym} "
+                    f"pumped {change_pct:+.1f}% in 45s — likely ATH, aborting entry"
+                )
+                return
             logger.info(
                 f"[{self.chain.name}] ✅ Bounce confirmed: {sym} "
                 f"{change_pct:+.1f}% in 45s — holding 30s to verify price holds"
