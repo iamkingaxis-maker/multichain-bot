@@ -34,12 +34,12 @@ class _WatchState:
     __slots__ = (
         "token_address", "token_symbol", "reason", "override_usd",
         "peak_price", "bottom_price", "dipped", "start_time",
-        "signal_price",
+        "signal_price", "h6_pct",
     )
 
     def __init__(self, token_address: str, token_symbol: str, reason: str,
                  override_usd: float, initial_price: float, start_time: float,
-                 signal_price: float = 0.0):
+                 signal_price: float = 0.0, h6_pct: float = 0.0):
         self.token_address = token_address
         self.token_symbol  = token_symbol
         self.reason        = reason
@@ -49,6 +49,7 @@ class _WatchState:
         self.dipped        = False
         self.start_time    = start_time
         self.signal_price  = signal_price
+        self.h6_pct        = h6_pct
 
 
 class DipWatcher:
@@ -94,7 +95,8 @@ class DipWatcher:
                     token_symbol: str,
                     reason: str,
                     override_usd: float,
-                    signal_price: float = 0.0):
+                    signal_price: float = 0.0,
+                    h6_pct: float = 0.0):
         """
         Subscribe token to the price feed and start watching for dip+recovery.
         Called from the scanner micro-cap path instead of trader.buy().
@@ -138,6 +140,7 @@ class DipWatcher:
             initial_price=initial_price,
             start_time=time.monotonic(),
             signal_price=signal_price,
+            h6_pct=h6_pct,
         )
         self._watches[token_address] = state
 
@@ -678,6 +681,16 @@ class DipWatcher:
                 )
                 self.price_feed.unsubscribe_token(state.token_address)
                 return
+
+        # h6 extended move guard — if token had a large 6h move at detection time,
+        # the dip is inside an exhausted trend, not a healthy pullback.
+        if state.h6_pct > 30.0:
+            logger.info(
+                f"[DipWatcher] h6 extended block: {state.token_symbol} — "
+                f"h6={state.h6_pct:+.1f}% at detection, 6h move exhausted"
+            )
+            self.price_feed.unsubscribe_token(state.token_address)
+            return
 
         # Chart quality gate — key signals from _chart_dip_check applied to MC tokens
         passed = await self._chart_gate(state, trigger_price)

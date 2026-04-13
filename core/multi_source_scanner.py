@@ -1825,6 +1825,16 @@ class MultiSourceScanner:
                 self.signals_blocked_score += 1
                 return
 
+        # Extended h6 guard: if the 6-hour move is already large, early buyers are
+        # distributing and we're buying the tail. Exempt dip_setup (24h drop context).
+        if signal.price_change_h6 > 30 and "dip_setup" not in signal.flags:
+            logger.info(
+                f"[{self.chain.name}] Extended h6 blocked: {signal.token_symbol} "
+                f"h6={signal.price_change_h6:+.1f}% — 6h move exhausted, skip"
+            )
+            self.signals_blocked_score += 1
+            return
+
         # Late-entry guard: if the token has already pumped hard in the last hour, skip it.
         # High h1 scores well but by the time the signal fires, early buyers are already exiting.
         # The DipWatcher can re-catch these after they pull back.
@@ -2630,10 +2640,20 @@ class MultiSourceScanner:
 
         if not candles_5m or len(candles_5m) < 3:
             # No candle data — pool not yet indexed on GeckoTerminal.
-            # All DexScreener-based filters (h1, h6, m5, volume, liq, score) already
-            # passed above. Without RSI/VWAP confirmation, cap h1 at 10% to avoid
-            # buying into an already-pumped token blind.
+            # Only allow for brand-new tokens (< 3h old) — if a token has been
+            # trading for 3+ hours with no candles, it's stale/failed, not fresh.
             _reason = "no candles" if not candles_5m else f"only {len(candles_5m)} candles"
+            _pair_created_ms = (signal.raw_pair_data or {}).get("pairCreatedAt") or 0
+            if _pair_created_ms > 0:
+                import time as _time_mod
+                _age_hours = (_time_mod.time() - _pair_created_ms / 1000) / 3600
+                if _age_hours > 3.0:
+                    logger.info(
+                        f"[{self.chain.name}] Chart skip (stale, no candles): "
+                        f"{signal.token_symbol} — {_age_hours:.1f}h old with no OHLCV, "
+                        f"not a fresh graduate"
+                    )
+                    return False
             if signal.price_change_h1 > 10:
                 logger.info(
                     f"[{self.chain.name}] Chart skip (no candles, already pumped): "

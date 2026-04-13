@@ -1719,12 +1719,14 @@ class AxiomScanner:
                 )
                 if self.dip_watcher:
                     _signal_price = float(pair_data.get("priceUsd") or 0)
+                    _h6 = float((pair_data.get("priceChange") or {}).get("h6") or 0)
                     await self.dip_watcher.watch(
                         token_address=event.token_address,
                         token_symbol=event.token_symbol,
                         reason=_mc_reason,
                         override_usd=self.micro_cap_position_usd,
                         signal_price=_signal_price,
+                        h6_pct=_h6,
                     )
                 else:
                     await self.trader.buy(
