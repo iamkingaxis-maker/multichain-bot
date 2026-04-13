@@ -390,49 +390,20 @@ class AxiomSmartWalletTracker:
                     )
                     return False
 
-            # Enrichment skipped for copy trades — KOL already did due diligence.
-            # Saves 2-5s of sequential latency.
-
-            # DexScreener data fetch
-            pair_data = await self._fetch_dexscreener_pair(token_address)
-            if pair_data is None:
-                logger.debug(
-                    f"[AxiomWallets] No DexScreener data for {ticker} — skipping"
-                )
-                return False
+            # Enrichment and evaluator skipped for copy trades.
+            # KOL's buy is the signal — chart rules and score gates don't apply.
+            # DexScreener is best-effort for logging only; missing data is not a blocker.
 
             self.tokens_evaluated += 1
 
-            # Full signal evaluation
-            if self.evaluator:
-                evaluation = await self.evaluator.evaluate(pair_data)
-                if evaluation.hard_skip:
-                    logger.debug(
-                        f"[AxiomWallets] Hard skip: {ticker} — "
-                        f"{', '.join(evaluation.skip_reasons)}"
-                    )
-                    return False
-                score = evaluation.total_score
-                effective_min = self.min_score
-                if self.market_monitor and self.market_monitor.market_restricted:
-                    effective_min = self.market_monitor.restricted_threshold
-                if score < effective_min:
-                    return False
-            else:
-                score = 70
+            pair_data = await self._fetch_dexscreener_pair(token_address)
+            mcap = (pair_data.get("marketCap") or 0) if pair_data else 0
+            liq  = ((pair_data.get("liquidity") or {}).get("usd") or 0) if pair_data else 0
 
-            # Signal fires
-            mcap   = pair_data.get("marketCap") or 0
-            liq    = (pair_data.get("liquidity") or {}).get("usd") or 0
+            _reason = f"KOL wallet | {wallet_address[:8]}"
             logger.info(
                 f"[AxiomWallets] SIGNAL from wallet {wallet_address[:8]}: "
-                f"{ticker} | Score: {score:.0f}"
-            )
-
-            # Buy immediately — copy trading trusts the wallet's entry directly.
-            # No chart-gate or dip check: the KOL already timed the entry.
-            _reason = (
-                f"KOL wallet | {wallet_address[:8]} | score {score:.0f}"
+                f"{ticker} | MCap: ${mcap:,.0f} | Liq: ${liq:,.0f}"
             )
             logger.info(
                 f"[AxiomWallets] 💚 Buying {ticker} — {_reason}"
@@ -441,10 +412,9 @@ class AxiomSmartWalletTracker:
                 token_address=token_address,
                 token_symbol=ticker,
                 reason=_reason,
-                signal_score=int(score),
+                signal_score=70,
                 pair_address=pair_address,
-                hh_hl_confirmed=getattr(evaluation, "hh_hl_confirmed", False)
-                if self.evaluator else False
+                hh_hl_confirmed=False,
             )
             return True
 
