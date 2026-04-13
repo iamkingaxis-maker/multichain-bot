@@ -1838,7 +1838,7 @@ class MultiSourceScanner:
         # Late-entry guard: if the token has already pumped hard in the last hour, skip it.
         # High h1 scores well but by the time the signal fires, early buyers are already exiting.
         # The DipWatcher can re-catch these after they pull back.
-        if signal.price_change_h1 > 35 and "dip_setup" not in signal.flags:
+        if signal.price_change_h1 > 200 and "dip_setup" not in signal.flags:
             logger.info(
                 f"[{self.chain.name}] Late-entry blocked: {signal.token_symbol} "
                 f"h1={signal.price_change_h1:+.1f}% — pump already happened, skip"
