@@ -665,6 +665,20 @@ class DipWatcher:
             )
             self.price_feed.unsubscribe_token(state.token_address)
             return
+
+        # ── Fix 3: Tick-level direction check at execution ──────────────────
+        # We've been subscribed since the token was first seen — check whether
+        # price is currently falling. If >2% down in the last 15s, we are on
+        # the wrong side of the move right now. Skip and wait for next trigger.
+        _tick_trend = self.price_feed.get_tick_trend(state.token_address, 15)
+        if _tick_trend is not None and _tick_trend < -2.0:
+            logger.info(
+                f"[DipWatcher] Tick trend BLOCK: {state.token_symbol} — "
+                f"{_tick_trend:.1f}% in last 15s — price falling at execution, skipping"
+            )
+            self.price_feed.unsubscribe_token(state.token_address)
+            return
+
         try:
             if state.dipped and state.peak_price > 0 and state.bottom_price > 0:
                 dip_pct = (state.peak_price - state.bottom_price) / state.peak_price * 100

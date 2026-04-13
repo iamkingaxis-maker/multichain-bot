@@ -411,6 +411,7 @@ async def main():
         )
         tasks += axiom.get_tasks()
         dashboard.register_axiom_auth(axiom.auth)
+        sol_trader.register_security_checker(security)  # LP re-check at execution
         sol_trader.register_axiom_auth(axiom.auth)   # Axiom-first price lookups
         if axiom.price_feed:
             sol_trader.register_axiom_price_feed(axiom.price_feed)

@@ -205,6 +205,12 @@ class MultiSourceScanner:
         # Format: addr_lower → expiry_monotonic_time (30 min)
         self._chaos_blocked: Dict[str, float] = {}
 
+        # Volume deceleration cooldown: tokens blocked for dying volume can't
+        # re-enter evaluation for 10 min — prevents re-buying into a stale pump
+        # when a brief volume tick makes the ratio look passable again.
+        # Format: addr_lower → expiry_monotonic_time (10 min)
+        self._vol_decel_blocked: Dict[str, float] = {}
+
         # Stop-loss cooldown: after a stop-loss fires, block that token for 1h.
         # Format: addr_lower → expiry_monotonic_time
         self._sl_cooldown: Dict[str, float] = {}
@@ -2526,6 +2532,17 @@ class MultiSourceScanner:
         if not signal.token_address:
             return False
 
+        # Volume deceleration cooldown — if this token was recently blocked for
+        # dying volume, skip chart analysis entirely for 10 min so a brief volume
+        # uptick doesn't let it sneak through on the next scan cycle.
+        _vd_expiry = self._vol_decel_blocked.get(signal.token_address.lower(), 0)
+        if time.monotonic() < _vd_expiry:
+            logger.info(
+                f"[{self.chain.name}] Vol-decel cooldown: {signal.token_symbol} "
+                f"— blocked for {int(_vd_expiry - time.monotonic())}s more"
+            )
+            return False
+
         # Register token with real-time signal layer for pattern tracking
         if self.realtime_signal_layer is not None:
             try:
@@ -2700,6 +2717,10 @@ class MultiSourceScanner:
                     f"— recent ${_recent_vol:,.0f}/candle vs prior ${_prior_vol:,.0f}/candle "
                     f"({_recent_vol/_prior_vol*100:.0f}%) — buyers leaving"
                 )
+                # Cool down this token for 10 min — prevents re-entry on a brief
+                # volume tick making the ratio look passable again next scan cycle.
+                _vd_addr = signal.token_address.lower()
+                self._vol_decel_blocked[_vd_addr] = time.monotonic() + 600
                 return False
 
         # ── Chart quality score ──────────────────────────────────────────────

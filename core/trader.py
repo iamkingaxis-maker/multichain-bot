@@ -173,6 +173,9 @@ class Trader:
         # Optional Solana RPC + Jupiter price feed (0.5s, covers all pool types)
         self._rpc_price_feed = None
 
+        # Optional security checker — used for LP re-verification at buy time
+        self._security_checker = None
+
         # NOTE: Internal _monitor_positions is DISABLED — PositionManager handles
         # all TP/SL logic with the user's exact config-driven rules.
         # asyncio.create_task(self._monitor_positions())
@@ -197,6 +200,10 @@ class Trader:
     def register_rpc_price_feed(self, feed):
         """Register the Solana RPC + Jupiter price feed (0.5s, covers all pool types)."""
         self._rpc_price_feed = feed
+
+    def register_security_checker(self, checker):
+        """Register the security checker for LP re-verification at buy time."""
+        self._security_checker = checker
 
     async def buy(self, token_address: str, token_symbol: str,
                   reason: str, signal_score: int = 0,
@@ -242,6 +249,38 @@ class Trader:
                     f"— reserved by DipWatcher"
                 )
                 return
+
+            # ── Fix 1: LP re-check at execution ────────────────────────────
+            # Re-verify LP is still locked right before buy — devs sometimes
+            # lock LP briefly to pass scanners then unlock after accumulating buyers.
+            # Fail-open on timeout/API error so a slow rugcheck doesn't kill good trades.
+            if self._security_checker is not None:
+                try:
+                    _rc = await self._security_checker._fetch_rugcheck(token_address)
+                    if _rc and not _rc.get("_invalid_address"):
+                        _lp_pct = _rc.get("lpLockedPct")
+                        if _lp_pct is not None and float(_lp_pct or 0) == 0.0:
+                            logger.warning(
+                                f"[Trader] LP UNLOCK BLOCK: {token_symbol} "
+                                f"({token_address[:8]}…) — LP unlocked since scan, skipping buy"
+                            )
+                            return
+                except Exception:
+                    pass  # fail-open — never block a buy due to rugcheck API failure
+
+            # ── Fix 2: Real-time volume floor at execution ──────────────────
+            # If the Axiom WS has been tracking this token (deferred/DipWatcher paths)
+            # and tick count in last 60s is zero, volume has dried up — skip.
+            if self._axiom_price_feed is not None:
+                _tick_60 = self._axiom_price_feed.get_tick_count(token_address, 60)
+                _tick_120 = self._axiom_price_feed.get_tick_count(token_address, 120)
+                # Only apply if we have any history (token was pre-subscribed)
+                if _tick_120 > 0 and _tick_60 == 0:
+                    logger.info(
+                        f"[Trader] Volume dead-check: {token_symbol} — "
+                        f"0 ticks in last 60s (had {_tick_120} in 120s) — skipping"
+                    )
+                    return
 
             logger.info(f"💚 Buying {token_symbol} — ${position_size_usd:.0f} — {reason}")
 
