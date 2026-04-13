@@ -182,6 +182,7 @@ class MultiSourceScanner:
         self.signals_blocked_pump_cooldown: int = 0  # PUMP DETECTED cooldown
         self.signals_blocked_stale_nocandle: int = 0 # no candles + token > 3h old
         self.signals_blocked_atm_nocandle: int = 0   # no candles + h1 > 10%
+        self.signals_blocked_tick_momentum: int = 0  # real-time ticks falling at entry
         self._last_buy_time: float = 0.0        # monotonic time of most recent buy signal fired
         self._start_monotonic: float = time.monotonic()  # for watchdog uptime calc
         # Tokens flagged as PUMP DETECTED (h1>15%) — blocked for 30 min to prevent
@@ -557,7 +558,8 @@ class MultiSourceScanner:
             f"h6ext={self.signals_blocked_h6_extended} "
             f"pump_cd={self.signals_blocked_pump_cooldown} "
             f"stale_nc={self.signals_blocked_stale_nocandle} "
-            f"atm_nc={self.signals_blocked_atm_nocandle}"
+            f"atm_nc={self.signals_blocked_atm_nocandle} "
+            f"tick_mom={self.signals_blocked_tick_momentum}"
         )
         await self.telegram.send(
             f"🔍 Scan complete | Evaluated: {len(_cycle_seen)} | "
@@ -1951,6 +1953,15 @@ class MultiSourceScanner:
         """
         sym = signal.token_symbol
         addr = signal.token_address
+        addr_lower = addr.lower()
+
+        # Subscribe to real-time price feed NOW — the 20s wait below doubles as
+        # the tick collection window for momentum verification.  Ticks stream in
+        # via Axiom WebSocket at ~1/s; by the time we wake up we'll have ~15-20
+        # data points to judge whether price is trending up or falling.
+        if self.axiom_price_feed is not None:
+            self.axiom_price_feed.subscribe_token(addr_lower)
+
         logger.info(
             f"[{self.chain.name}] ⏳ Confirming bounce: {sym} — "
             f"waiting 20s to verify recovery holds (price=${price_at_check:.6f})"
@@ -1958,11 +1969,39 @@ class MultiSourceScanner:
         await asyncio.sleep(20)
 
         # Skip if we're already in this position (another path bought it)
-        if addr.lower() in self.trader.open_positions:
+        if addr_lower in self.trader.open_positions:
             logger.info(
                 f"[{self.chain.name}] ⏭ {sym} already held — skipping delayed buy"
             )
             return
+
+        # ── Real-time tick momentum check ────────────────────────────────────
+        # We subscribed to the Axiom price feed at the top of this function.
+        # 20 seconds of live ticks have now accumulated.  Check whether price is
+        # trending up (good entry), flat (neutral), or falling (bail out).
+        # Falling ticks = active selling pressure at entry time — even if
+        # DexScreener shows the price as "OK", the real-time candle is red.
+        if self.axiom_price_feed is not None:
+            _tick_trend = self.axiom_price_feed.get_tick_trend(addr_lower, 20)
+            if _tick_trend is not None:
+                if _tick_trend < -2.0:
+                    logger.info(
+                        f"[{self.chain.name}] ❌ Tick momentum falling: {sym} "
+                        f"— {_tick_trend:.1f}% over last 20s — active selling, aborting"
+                    )
+                    self.signals_blocked_tick_momentum += 1
+                    self.axiom_price_feed.unsubscribe_token(addr_lower)
+                    return
+                _tick_str = f"{_tick_trend:+.1f}%"
+                logger.info(
+                    f"[{self.chain.name}] 📊 Tick momentum: {sym} "
+                    f"— {_tick_str} over last 20s"
+                )
+            else:
+                logger.debug(
+                    f"[{self.chain.name}] Tick momentum: {sym} — no ticks yet "
+                    f"(price feed may not be connected), proceeding"
+                )
 
         # Re-fetch current price — try DexScreener first, fall back to price feed caches
         current_price: float = 0.0
@@ -2026,6 +2065,8 @@ class MultiSourceScanner:
                     f"[{self.chain.name}] ❌ Bounce overshoot: {sym} "
                     f"pumped {change_pct:+.1f}% in 20s — likely ATH, aborting entry"
                 )
+                if self.axiom_price_feed is not None:
+                    self.axiom_price_feed.unsubscribe_token(addr_lower)
                 return
             logger.info(
                 f"[{self.chain.name}] ✅ Bounce confirmed: {sym} "

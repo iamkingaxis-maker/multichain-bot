@@ -2148,6 +2148,7 @@ class WebDashboard:
                 "blocked_pump_cooldown":       getattr(scanner, "signals_blocked_pump_cooldown", 0),
                 "blocked_stale_nocandle":      getattr(scanner, "signals_blocked_stale_nocandle", 0),
                 "blocked_atm_nocandle":        getattr(scanner, "signals_blocked_atm_nocandle", 0),
+                "blocked_tick_momentum":       getattr(scanner, "signals_blocked_tick_momentum", 0),
                 "blocked_score":               getattr(scanner, "signals_blocked_score", 0),
                 "blocked_security":            getattr(scanner, "signals_blocked_security", 0),
             })
