@@ -131,7 +131,8 @@ class SecurityChecker:
     async def check(self, token_address: str, chain_id: str,
                     token_symbol: str = "?",
                     micro_cap: bool = False,
-                    bonding_curve: bool = False) -> SecurityResult:
+                    bonding_curve: bool = False,
+                    pumpswap: bool = False) -> SecurityResult:
         """
         Main entry point. Run all security checks on a token.
         Returns SecurityResult with passed=True only if safe to trade.
@@ -140,9 +141,13 @@ class SecurityChecker:
         bonding_curve=True: skips LP lock requirement — pump.fun pre-graduation tokens have no
                             traditional LP to lock (the bonding curve IS the liquidity).
                             Use for pump-amm protocol only; NOT for pumpswap/raydium/meteora.
+        pumpswap=True:     skips LP lock requirement — PumpSwap burns LP on graduation so it
+                            is permanently locked by the protocol. Rugcheck may transiently
+                            report it as unlocked right after graduation. All other checks
+                            (mint, freeze, holder concentration) still apply.
         """
         import time as _t
-        _bc_tag = "bc" if bonding_curve else ("mc" if micro_cap else "std")
+        _bc_tag = "bc" if bonding_curve else ("ps" if pumpswap else ("mc" if micro_cap else "std"))
         cache_key = f"{token_address.lower()}:{chain_id}:{_bc_tag}"
         cached = self._cache.get(cache_key)
         if cached:
@@ -154,7 +159,7 @@ class SecurityChecker:
         logger.info(f"🔍 Security check #{self._check_count}: {token_symbol} on {chain_id}")
 
         result = await self._run_checks(token_address, chain_id, micro_cap=micro_cap,
-                                        bonding_curve=bonding_curve)
+                                        bonding_curve=bonding_curve, pumpswap=pumpswap)
 
         self._cache[cache_key] = (result, _t.time() + self.cache_ttl)
         if len(self._cache) > 500:
@@ -178,7 +183,8 @@ class SecurityChecker:
 
     async def _run_checks(self, token_address: str, chain_id: str,
                           micro_cap: bool = False,
-                          bonding_curve: bool = False) -> SecurityResult:
+                          bonding_curve: bool = False,
+                          pumpswap: bool = False) -> SecurityResult:
         """Run all checks and build the result."""
         result = SecurityResult(
             token_address=token_address,
@@ -195,7 +201,7 @@ class SecurityChecker:
                 rugcheck_data = await self._fetch_rugcheck(token_address)
                 if rugcheck_data:
                     self._parse_rugcheck(rugcheck_data, result, micro_cap=micro_cap,
-                                        bonding_curve=bonding_curve)
+                                        bonding_curve=bonding_curve, pumpswap=pumpswap)
                 else:
                     result.warnings.append("Rugcheck unavailable — basic checks only")
                     await self._basic_dexscreener_check(token_address, chain_id, result)
@@ -273,7 +279,7 @@ class SecurityChecker:
             return None
 
     def _parse_rugcheck(self, data: dict, result: SecurityResult, micro_cap: bool = False,
-                        bonding_curve: bool = False):
+                        bonding_curve: bool = False, pumpswap: bool = False):
         """Parse Rugcheck.xyz summary response into SecurityResult."""
 
         # Invalid address sentinel — address format rejected by Rugcheck (e.g. bad base58)
@@ -320,6 +326,10 @@ class SecurityChecker:
                 if bonding_curve:
                     # Pump.fun bonding curve — no traditional LP to lock, skip requirement
                     result.warnings.append("LP not locked (bonding curve — no LP exists pre-graduation)")
+                elif pumpswap:
+                    # PumpSwap burns LP on graduation — it's permanently locked by the protocol.
+                    # Rugcheck may transiently report unlocked right after graduation; downgrade to warning.
+                    result.warnings.append("LP not locked (pumpswap — LP burned by protocol, likely indexing lag)")
                 else:
                     result.flags.append("Liquidity not locked — rug risk")
             else:
@@ -375,8 +385,8 @@ class SecurityChecker:
             flag_text = f"{name}: {desc}" if desc else name
             flag_lower = flag_text.lower()
 
-            if bonding_curve and any(kw in flag_lower for kw in _MC_WARN_KEYWORDS):
-                # Bonding curve — no LP exists to lock, so "LP unlocked" is structural
+            if (bonding_curve or pumpswap) and any(kw in flag_lower for kw in _MC_WARN_KEYWORDS):
+                # Bonding curve / PumpSwap — LP is structurally locked by protocol, downgrade to warning
                 result.warnings.append(flag_text)
             else:
                 result.flags.append(flag_text)

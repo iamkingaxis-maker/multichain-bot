@@ -1727,7 +1727,8 @@ class MultiSourceScanner:
 
         # Security check — detect pool type to set LP lock requirements correctly.
         # bonding_curve=True (pump-fun pre-grad): no LP to lock, skip LP requirement.
-        # All graduated pools (pumpswap, raydium, meteora, etc.) must have LP locked.
+        # pumpswap=True: LP burned by protocol on graduation, rugcheck may lag — skip LP check.
+        # All other graduated pools (raydium, meteora, etc.) must have LP locked.
         _is_micro = signal.mcap > 0 and signal.mcap <= 80_000
         _dex_id = (signal.raw_pair_data or {}).get("dexId", "").lower()
         # DexScreener reports dexId="pump-fun" for pre-graduation bonding curves.
@@ -1737,12 +1738,14 @@ class MultiSourceScanner:
         _is_bonding_curve = (_dex_id == "pump-fun") or (
             self.chain.chain_id == "solana" and _is_micro and _dex_id == ""
         )
+        _is_pumpswap = (_dex_id == "pumpswap")
         sec_result = await self.security_checker.check(
             signal.token_address,
             self.chain.chain_id,
             signal.token_symbol,
             micro_cap=_is_micro,
             bonding_curve=_is_bonding_curve,
+            pumpswap=_is_pumpswap,
         )
         if not sec_result.passed:
             self.signals_blocked_security += 1
@@ -3113,12 +3116,14 @@ class MultiSourceScanner:
                 _is_bc_wl = (_dex_id_wl == "pump-fun") or (
                     self.chain.chain_id == "solana" and _is_micro and _dex_id_wl == ""
                 )
+                _is_ps_wl = (_dex_id_wl == "pumpswap")
                 fresh_sec = await self.security_checker.check(
                     signal.token_address,
                     self.chain.chain_id,
                     signal.token_symbol,
                     micro_cap=_is_micro,
                     bonding_curve=_is_bc_wl,
+                    pumpswap=_is_ps_wl,
                 )
                 if not fresh_sec.passed:
                     self.signals_blocked_security += 1
