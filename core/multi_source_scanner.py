@@ -178,6 +178,10 @@ class MultiSourceScanner:
         self.signals_blocked_age: int = 0
         self.signals_blocked_mcap: int = 0
         self.signals_blocked_rug: int = 0
+        self.signals_blocked_h6_extended: int = 0   # h6 > 30% (extended move)
+        self.signals_blocked_pump_cooldown: int = 0  # PUMP DETECTED cooldown
+        self.signals_blocked_stale_nocandle: int = 0 # no candles + token > 3h old
+        self.signals_blocked_atm_nocandle: int = 0   # no candles + h1 > 10%
         self._last_buy_time: float = 0.0        # monotonic time of most recent buy signal fired
         self._start_monotonic: float = time.monotonic()  # for watchdog uptime calc
         # Tokens flagged as PUMP DETECTED (h1>15%) — blocked for 30 min to prevent
@@ -549,7 +553,11 @@ class MultiSourceScanner:
             f"[{self.chain.name}] SUMMARY eval={len(_cycle_seen)} "
             f"fired={self.signals_fired} age={self.signals_blocked_age} "
             f"mcap={self.signals_blocked_mcap} rug={self.signals_blocked_rug} "
-            f"score={self.signals_blocked_score} sec={self.signals_blocked_security}"
+            f"score={self.signals_blocked_score} sec={self.signals_blocked_security} "
+            f"h6ext={self.signals_blocked_h6_extended} "
+            f"pump_cd={self.signals_blocked_pump_cooldown} "
+            f"stale_nc={self.signals_blocked_stale_nocandle} "
+            f"atm_nc={self.signals_blocked_atm_nocandle}"
         )
         await self.telegram.send(
             f"🔍 Scan complete | Evaluated: {len(_cycle_seen)} | "
@@ -1833,6 +1841,7 @@ class MultiSourceScanner:
                 f"h6={signal.price_change_h6:+.1f}% — 6h move exhausted, skip"
             )
             self.signals_blocked_score += 1
+            self.signals_blocked_h6_extended += 1
             return
 
         # Late-entry guard: if the token has already pumped hard in the last hour, skip it.
@@ -2605,6 +2614,7 @@ class MultiSourceScanner:
                 f"[{self.chain.name}] Pump cooldown: {signal.token_symbol} "
                 f"— was PUMP DETECTED, blocking for {remaining}s more"
             )
+            self.signals_blocked_pump_cooldown += 1
             return False
 
         # Volume deceleration cooldown — if this token was recently blocked for
@@ -2653,6 +2663,7 @@ class MultiSourceScanner:
                         f"{signal.token_symbol} — {_age_hours:.1f}h old with no OHLCV, "
                         f"not a fresh graduate"
                     )
+                    self.signals_blocked_stale_nocandle += 1
                     return False
             if signal.price_change_h1 > 10:
                 logger.info(
@@ -2660,6 +2671,7 @@ class MultiSourceScanner:
                     f"{signal.token_symbol} — h1={signal.price_change_h1:+.1f}% > 10% "
                     f"with no OHLCV to confirm setup"
                 )
+                self.signals_blocked_atm_nocandle += 1
                 return False
             logger.info(
                 f"[{self.chain.name}] Chart pass (no candles): {signal.token_symbol} — "

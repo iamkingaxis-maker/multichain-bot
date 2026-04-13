@@ -2140,10 +2140,16 @@ class WebDashboard:
             last_buy = getattr(scanner, "_last_buy_time", 0)
             mins_since_buy = round((mono_now - last_buy) / 60, 1) if last_buy > 0 else None
             scanner_stats.append({
-                "chain":             getattr(getattr(scanner, "chain", None), "name", "unknown"),
-                "signals_fired":     getattr(scanner, "signals_fired", 0),
-                "last_buy_mins_ago": mins_since_buy,
-                "watchlist_depth":   len(getattr(scanner, "_dip_watchlist", {})),
+                "chain":                       getattr(getattr(scanner, "chain", None), "name", "unknown"),
+                "signals_fired":               getattr(scanner, "signals_fired", 0),
+                "last_buy_mins_ago":           mins_since_buy,
+                "watchlist_depth":             len(getattr(scanner, "_dip_watchlist", {})),
+                "blocked_h6_extended":         getattr(scanner, "signals_blocked_h6_extended", 0),
+                "blocked_pump_cooldown":       getattr(scanner, "signals_blocked_pump_cooldown", 0),
+                "blocked_stale_nocandle":      getattr(scanner, "signals_blocked_stale_nocandle", 0),
+                "blocked_atm_nocandle":        getattr(scanner, "signals_blocked_atm_nocandle", 0),
+                "blocked_score":               getattr(scanner, "signals_blocked_score", 0),
+                "blocked_security":            getattr(scanner, "signals_blocked_security", 0),
             })
 
         # ── Positions ────────────────────────────────────────────────────────
