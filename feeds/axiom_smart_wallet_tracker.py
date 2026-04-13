@@ -243,19 +243,34 @@ class AxiomSmartWalletTracker:
                     f"listening for buys on {len(self.wallets)} wallets"
                 )
 
+                _msg_count = 0
                 async for message in ws:
+                    _msg_count += 1
                     try:
                         data    = _json.loads(message)
                         room    = data.get("room", "")
                         content = data.get("content")
 
+                        # Log every message so we can diagnose delivery issues
+                        if _msg_count <= 5 or _msg_count % 50 == 0:
+                            logger.info(
+                                f"[AxiomWallets] WS msg #{_msg_count}: "
+                                f"room={room!r} keys={list(data.keys())}"
+                            )
+
                         if content and room.startswith("v:"):
                             wallet_addr = room[2:]
+                            logger.info(
+                                f"[AxiomWallets] Wallet tx: {wallet_addr[:8]} "
+                                f"type={content.get('type')} sol={content.get('total_sol')}"
+                            )
                             if wallet_addr in self.wallets:
                                 await self._handle_transaction(wallet_addr, content)
+                        elif room and not room.startswith("v:"):
+                            logger.debug(f"[AxiomWallets] Non-wallet room: {room!r}")
 
                     except _json.JSONDecodeError:
-                        pass
+                        logger.debug(f"[AxiomWallets] Non-JSON message: {message[:100]}")
                     except Exception as e:
                         logger.debug(f"[AxiomWallets] Message error: {e}")
 
