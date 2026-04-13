@@ -1100,6 +1100,7 @@ class PositionManager:
             logger.error(
                 f"[PositionManager/{self.chain_name}] Sell error: {e}"
             )
+            raise  # re-raise so callers (e.g. _do_realtime_stop) can handle retry
 
     async def _execute_pyramid(self, token_address: str,
                                state, pnl_pct: float):

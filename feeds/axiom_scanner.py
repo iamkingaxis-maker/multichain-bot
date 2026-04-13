@@ -1484,7 +1484,10 @@ class AxiomScanner:
             # "pumpswap", "raydium", "meteora", etc. = graduated pools: LP lock required.
             if self.security:
                 _proto_lower = (event.protocol or "").lower()
-                _is_bc = "pump amm" in _proto_lower and "swap" not in _proto_lower
+                # pump.fun bonding curve protocols start with "pump amm" but are NOT
+                # PumpSwap (graduated). Using startswith avoids false negatives from
+                # future protocol variants like "pump amm v2" or "pump amm (swapper)".
+                _is_bc = _proto_lower.startswith("pump amm") and "swap" not in _proto_lower
                 sec_result = await self.security.check(
                     event.token_address, "solana", event.token_symbol,
                     micro_cap=True,           # keep for holder concentration relaxation
@@ -1876,8 +1879,7 @@ class AxiomScanner:
             return
         logger.info(f"[AxiomScanner] Retrying {len(ready)} deferred tokens")
         for addr in ready:
-            entry = self._deferred.pop(addr)
-            _, _queued_at, event, _initial_price = (*entry, 0.0)[:4]
+            _, _queued_at, event, _initial_price = self._deferred.pop(addr)
             try:
                 pair_data = await self._fetch_dexscreener_pair(event)
                 if pair_data is None:
@@ -2006,6 +2008,10 @@ class AxiomScanner:
                 logger.debug(
                     f"[AxiomScanner] Deferred retry error for {event.token_symbol}: {e}"
                 )
+                # Always unsubscribe pre-subscribed token — subscription was started at
+                # enqueue time and must be cleaned up on any error path.
+                if self.price_feed:
+                    self.price_feed.unsubscribe_token(event.token_address)
 
     async def _fetch_axiom_data(self, event: "AxiomTokenEvent") -> Optional[dict]:
         """

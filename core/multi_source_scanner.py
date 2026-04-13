@@ -1724,7 +1724,13 @@ class MultiSourceScanner:
         # All graduated pools (pumpswap, raydium, meteora, etc.) must have LP locked.
         _is_micro = signal.mcap > 0 and signal.mcap <= 80_000
         _dex_id = (signal.raw_pair_data or {}).get("dexId", "").lower()
-        _is_bonding_curve = (_dex_id == "pump-fun")
+        # DexScreener reports dexId="pump-fun" for pre-graduation bonding curves.
+        # GeckoTerminal/RPC sources have raw_pair_data={} so dexId is always "".
+        # For those sources, fall back: Solana micro-caps with no explicit graduated-pool
+        # dexId are treated as bonding curves to avoid false LP-lock blocks.
+        _is_bonding_curve = (_dex_id == "pump-fun") or (
+            self.chain.chain_id == "solana" and _is_micro and _dex_id == ""
+        )
         sec_result = await self.security_checker.check(
             signal.token_address,
             self.chain.chain_id,
@@ -3083,12 +3089,15 @@ class MultiSourceScanner:
                 # (token could have been queued before a later security check blocked it)
                 _is_micro = signal.mcap > 0 and signal.mcap <= 80_000
                 _dex_id_wl = (signal.raw_pair_data or {}).get("dexId", "").lower()
+                _is_bc_wl = (_dex_id_wl == "pump-fun") or (
+                    self.chain.chain_id == "solana" and _is_micro and _dex_id_wl == ""
+                )
                 fresh_sec = await self.security_checker.check(
                     signal.token_address,
                     self.chain.chain_id,
                     signal.token_symbol,
                     micro_cap=_is_micro,
-                    bonding_curve=(_dex_id_wl == "pump-fun"),
+                    bonding_curve=_is_bc_wl,
                 )
                 if not fresh_sec.passed:
                     self.signals_blocked_security += 1

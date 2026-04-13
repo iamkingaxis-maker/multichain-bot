@@ -315,6 +315,10 @@ def _apply_env_overrides(config: Config):
         config.take_profit_1_pct = env_float("TAKE_PROFIT_1_PCT", config.take_profit_1_pct)
     if os.environ.get("TAKE_PROFIT_1_SELL"):
         config.take_profit_1_sell = env_float("TAKE_PROFIT_1_SELL", config.take_profit_1_sell)
+    if os.environ.get("MC_TP1_PCT"):
+        config.mc_tp1_pct = env_float("MC_TP1_PCT", config.mc_tp1_pct)
+    if os.environ.get("MC_TP1_SELL"):
+        config.mc_tp1_sell = env_float("MC_TP1_SELL", config.mc_tp1_sell)
 
     # Chain toggle
     if os.environ.get("ENABLE_SOLANA"):

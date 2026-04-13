@@ -144,8 +144,8 @@ class AxiomPriceFeed:
         Stop receiving price updates for a token (position closed).
         """
         _addr_lower = token_address.lower()
-        self._pending_unsubscribe.add(token_address)
-        self._subscribed.discard(token_address)
+        self._pending_unsubscribe.add(_addr_lower)
+        self._subscribed.discard(_addr_lower)
         self.price_cache.pop(_addr_lower, None)
         self.price_timestamps.pop(_addr_lower, None)
         self.user_cache.pop(_addr_lower, None)
