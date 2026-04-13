@@ -664,57 +664,37 @@ class DipWatcher:
         # Always release reservation first so the trader slot is freed regardless of outcome
         self.trader._dip_watching.discard(state.token_address.lower())
 
-        # Check scanner cooldowns — loss cooldown and pump cooldown must be respected
-        # even for DipWatcher paths that bypass the main scanner flow.
+        # Check scanner cooldowns — wrapped in try/except so any attribute error
+        # never crashes the buy path.
         if self.scanner is not None:
-            addr_lower = state.token_address.lower()
-            _now = time.monotonic()
-            _sl_expiry = self.scanner._sl_cooldown.get(addr_lower, 0)
-            if _sl_expiry > _now:
-                logger.info(
-                    f"[DipWatcher] Loss cooldown block: {state.token_symbol} — "
-                    f"{int(_sl_expiry - _now)}s remaining"
-                )
-                self.price_feed.unsubscribe_token(state.token_address)
-                return
-            _pump_expiry = self.scanner._pump_cooldown.get(addr_lower, 0)
-            if _pump_expiry > _now:
-                logger.info(
-                    f"[DipWatcher] Pump cooldown block: {state.token_symbol} — "
-                    f"{int(_pump_expiry - _now)}s remaining"
-                )
-                self.price_feed.unsubscribe_token(state.token_address)
-                return
+            try:
+                addr_lower = state.token_address.lower()
+                _now = time.monotonic()
+                _sl_expiry = getattr(self.scanner, "_sl_cooldown", {}).get(addr_lower, 0)
+                if _sl_expiry > _now:
+                    logger.info(
+                        f"[DipWatcher] Loss cooldown block: {state.token_symbol} — "
+                        f"{int(_sl_expiry - _now)}s remaining"
+                    )
+                    self.price_feed.unsubscribe_token(state.token_address)
+                    return
+                _pump_expiry = getattr(self.scanner, "_pump_cooldown", {}).get(addr_lower, 0)
+                if _pump_expiry > _now:
+                    logger.info(
+                        f"[DipWatcher] Pump cooldown block: {state.token_symbol} — "
+                        f"{int(_pump_expiry - _now)}s remaining"
+                    )
+                    self.price_feed.unsubscribe_token(state.token_address)
+                    return
+            except Exception as _cd_err:
+                logger.debug(f"[DipWatcher] Cooldown check error (non-fatal): {_cd_err}")
 
-
-        # Chart quality gate — key signals from _chart_dip_check applied to MC tokens
+        # Chart quality gate
         passed = await self._chart_gate(state, trigger_price)
         if not passed:
             logger.info(
                 f"[DipWatcher] Buy BLOCKED by chart gate — {state.token_symbol} "
                 f"({state.token_address[:8]}…)"
-            )
-            self.price_feed.unsubscribe_token(state.token_address)
-            return
-
-        passed = await self._chart_gate(state, trigger_price)
-        if not passed:
-            logger.info(
-                f"[DipWatcher] Buy BLOCKED by chart gate — {state.token_symbol} "
-                f"({state.token_address[:8]}…)"
-            )
-            self.price_feed.unsubscribe_token(state.token_address)
-            return
-
-        # ── Fix 3: Tick-level direction check at execution ──────────────────
-        # We've been subscribed since the token was first seen — check whether
-        # price is currently falling. If >2% down in the last 15s, we are on
-        # the wrong side of the move right now. Skip and wait for next trigger.
-        _tick_trend = self.price_feed.get_tick_trend(state.token_address, 15)
-        if _tick_trend is not None and _tick_trend < -2.0:
-            logger.info(
-                f"[DipWatcher] Tick trend BLOCK: {state.token_symbol} — "
-                f"{_tick_trend:.1f}% in last 15s — price falling at execution, skipping"
             )
             self.price_feed.unsubscribe_token(state.token_address)
             return

@@ -1955,32 +1955,13 @@ class MultiSourceScanner:
             )
             return
 
-        # ── Real-time tick momentum check ────────────────────────────────────
-        # We subscribed to the Axiom price feed at the top of this function.
-        # 20 seconds of live ticks have now accumulated.  Check whether price is
-        # trending up (good entry), flat (neutral), or falling (bail out).
-        # Falling ticks = active selling pressure at entry time — even if
-        # DexScreener shows the price as "OK", the real-time candle is red.
+        # Log tick momentum for visibility but never block on it
         if self.axiom_price_feed is not None:
             _tick_trend = self.axiom_price_feed.get_tick_trend(addr_lower, 20)
             if _tick_trend is not None:
-                if _tick_trend < -2.0:
-                    logger.info(
-                        f"[{self.chain.name}] ❌ Tick momentum falling: {sym} "
-                        f"— {_tick_trend:.1f}% over last 20s — active selling, aborting"
-                    )
-                    self.signals_blocked_tick_momentum += 1
-                    self.axiom_price_feed.unsubscribe_token(addr_lower)
-                    return
-                _tick_str = f"{_tick_trend:+.1f}%"
                 logger.info(
                     f"[{self.chain.name}] 📊 Tick momentum: {sym} "
-                    f"— {_tick_str} over last 20s"
-                )
-            else:
-                logger.debug(
-                    f"[{self.chain.name}] Tick momentum: {sym} — no ticks yet "
-                    f"(price feed may not be connected), proceeding"
+                    f"— {_tick_trend:+.1f}% over last 20s"
                 )
 
         # Re-fetch current price — try DexScreener first, fall back to price feed caches
