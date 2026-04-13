@@ -445,13 +445,13 @@ async def main():
         # ── KOL Wallet Tracker ────────────────────────────────────────────
         # The tracker is already instantiated inside AxiomIntegration (axiom.wallet_tracker).
         # Wire it to seed_wallets.json so wallets added via the dashboard are picked up
-        # on each reconnect without a full restart. Also set min_score to 55 (was 0).
+        # on each reconnect without a full restart.
         if axiom.wallet_tracker:
             axiom.wallet_tracker.wallets_path = _seed_wallets_path
-            axiom.wallet_tracker.min_score    = 55.0
+            axiom.wallet_tracker.min_score    = 0.0
             logger.info(
                 f"[Main] KOL wallet tracker configured "
-                f"({len(_seed_wallets)} wallets, min_score=55)"
+                f"({len(_seed_wallets)} wallets, min_score=0)"
             )
 
         chain_summaries.append(f"Solana — ${sol_cap:,.0f}")
