@@ -205,8 +205,9 @@ class AxiomIntegration:
             # Give DipWatcher the MultiSourceScanner so it can check _sl_cooldown/_pump_cooldown
             self.dip_watcher.scanner = scanner
 
-        # Share price feed spike data with the scanner for user spike bonus
-        self.scanner.price_feed = self.price_feed
+        # Share price feed with the scanner — spike bonus AND stability gate
+        self.scanner.price_feed       = self.price_feed
+        self.scanner.axiom_price_feed = self.price_feed   # wire named attr used internally
 
         self._tasks = [
             self.scanner.run(),

@@ -1904,6 +1904,64 @@ class MultiSourceScanner:
         # No bounce confirmation needed: the dip IS the signal.
         await self._fire_chart_buy(signal, sec_result.risk_level)
 
+    async def _no_candle_stability_gate(self, signal: "TokenSignal") -> bool:
+        """
+        For established tokens (mcap > $80k) with no GeckoTerminal candles:
+        subscribe to AxiomPriceFeed and watch the real-time price for 10 seconds
+        before allowing the buy.  Catches coordinated dumps that happen the moment
+        our order lands — SNIFFER/ROAR/bullunc all dumped 40-50% within 1-4s.
+
+        Returns True (allow buy) if price stays within 5% of entry.
+        Returns False (abort) if price drops > 5% in the window.
+        If no live price arrives at all, allows through (conservative: don't block on silence).
+        """
+        feed = self.axiom_price_feed
+        if feed is None or signal.price_usd <= 0:
+            return True  # feed not wired — can't check, allow through
+
+        addr      = signal.token_address.lower()
+        sym       = signal.token_symbol
+        baseline  = signal.price_usd
+        threshold = baseline * 0.95   # 5% drop = abort
+
+        feed.subscribe_token(addr)
+        logger.info(
+            f"[{self.chain.name}] ⏳ Stability gate: {sym} — "
+            f"watching ${baseline:.8f} for 10s before buying "
+            f"(abort if drops >5%)"
+        )
+
+        saw_price = False
+        for _ in range(10):
+            await asyncio.sleep(1)
+            current = feed.price_cache.get(addr, 0.0)
+            if current <= 0:
+                continue
+            saw_price = True
+            if current < threshold:
+                drop_pct = (current / baseline - 1) * 100
+                logger.info(
+                    f"[{self.chain.name}] 🚫 Stability gate ABORT: {sym} — "
+                    f"dropped {drop_pct:+.1f}% in <10s (${baseline:.8f} → ${current:.8f}) "
+                    f"— coordinated dump, skipping buy"
+                )
+                self.signals_blocked_atm_nocandle += 1
+                feed.unsubscribe_token(addr)
+                return False
+
+        if saw_price:
+            logger.info(
+                f"[{self.chain.name}] ✅ Stability gate PASS: {sym} — "
+                f"price held for 10s, proceeding"
+            )
+        else:
+            logger.info(
+                f"[{self.chain.name}] ✅ Stability gate PASS: {sym} — "
+                f"no live price received in 10s, allowing through"
+            )
+        # Keep subscribed — position manager uses the feed after buy
+        return True
+
     async def _confirm_and_buy(
         self, signal: "TokenSignal", risk_level: str, price_at_check: float
     ):
@@ -2684,6 +2742,14 @@ class MultiSourceScanner:
                 )
                 self.signals_blocked_atm_nocandle += 1
                 return False
+            # Stability gate for established tokens (micro-caps use DipWatcher instead).
+            # Subscribes to real-time price feed and watches for 10 seconds — if price
+            # drops > 5% we're being dumped into and abort before buying.
+            _is_established_nocandle = signal.mcap > 80_000 or signal.mcap == 0
+            if _is_established_nocandle:
+                if not await self._no_candle_stability_gate(signal):
+                    return False
+
             logger.info(
                 f"[{self.chain.name}] Chart pass (no candles): {signal.token_symbol} — "
                 f"{_reason}, buying on DexScreener signal "
