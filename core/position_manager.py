@@ -934,10 +934,13 @@ class PositionManager:
             )
             self.tp1_hits += 1
 
-            # Pyramid if original score was 90+
+            # Pyramid if momentum is still healthy — press winning trades.
+            # Score is no longer used as a gating mechanism, so replace with
+            # real-time volume check: only add if volume hasn't stalled yet.
+            # Skip micro-caps — too volatile for a second tranche.
             if (not state.pyramided and
-                    state.pyramid_signal_score >= 90 and
-                    state.hh_hl_confirmed):
+                    not state.is_micro_cap and
+                    not state.is_stalled):
                 await self._execute_pyramid(token_address, state, pnl_pct)
             return
 
@@ -1096,24 +1099,28 @@ class PositionManager:
 
     async def _execute_pyramid(self, token_address: str,
                                state, pnl_pct: float):
-        """Add 30% of original position after TP1 on 90+ score signals."""
+        """Add 50% of original position size after TP1 when volume still healthy."""
         try:
-            add_usd = state.position_size_usd * 0.30
+            add_usd = state.original_size_usd * 0.50
             logger.info(
-                f"[PositionManager/{self.chain_name}] PYRAMID: "
-                f"{state.token_symbol} +{pnl_pct:.1f}% "
-                f"score {state.pyramid_signal_score} adding ${add_usd:.0f}"
+                f"[PositionManager/{self.chain_name}] 📈 PYRAMID: "
+                f"{state.token_symbol} +{pnl_pct:.1f}% — "
+                f"vol healthy, adding ${add_usd:.0f} (50% of original)"
             )
             await self.trader.buy(
                 token_address=token_address,
                 token_symbol=f"{state.token_symbol}[PYRAMID]",
-                reason=f"Pyramid TP1 score {state.pyramid_signal_score} HH+HL"
+                reason=f"Pyramid TP1 +{pnl_pct:.1f}% — volume healthy",
+                override_usd=add_usd,
             )
             state.pyramided = True
             await self.telegram.send(
-                f"PYRAMID [{self.chain_name}] "
-                f"${state.token_symbol} +{pnl_pct:.1f}% "
-                f"score {state.pyramid_signal_score} +${add_usd:.0f}"
+                f"📈 *Pyramid* [{self.chain_name}]\n\n"
+                f"🪙 ${state.token_symbol}\n"
+                f"📊 PnL: +{pnl_pct:.1f}%\n"
+                f"💰 Adding: ${add_usd:.0f} (50% of original)\n"
+                f"💧 Volume: healthy at TP1\n"
+                f"⚠️ One tranche only — no second pyramid"
             )
         except Exception as e:
             logger.error(f"[PositionManager] Pyramid error: {e}")
