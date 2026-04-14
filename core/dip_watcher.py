@@ -373,8 +373,8 @@ class DipWatcher:
                 f"{req_ratio:.0%} required for m5={m5_change:+.1f}% dip"
             )
             return
-        if m5_buys < 50:
-            _skip(f"only {m5_buys} m5 buys — insufficient buyer activity (need 50+)")
+        if m5_buys < 10:
+            _skip(f"only {m5_buys} m5 buys — insufficient buyer activity (need 10+)")
             return
 
         # Dip confirmed — tell _chart_gate to allow red last candle
@@ -480,7 +480,7 @@ class DipWatcher:
             _skip(f"m5={m5_change:+.1f}% — still crashing at 60s, skipping")
             return
 
-        # Gate 3: scaled buy_ratio + minimum 50 buyers (same thresholds as 30s check)
+        # Gate 3: scaled buy_ratio + minimum 10 buyers (same thresholds as 30s check)
         total_txns = m5_buys + m5_sells
         buy_ratio  = m5_buys / total_txns if total_txns > 0 else 0.0
         req_ratio  = self._required_buy_ratio(m5_change)
@@ -493,8 +493,8 @@ class DipWatcher:
                 f"{req_ratio:.0%} required for m5={m5_change:+.1f}% at 60s"
             )
             return
-        if m5_buys < 50:
-            _skip(f"only {m5_buys} m5 buys at 60s — insufficient activity (need 50+)")
+        if m5_buys < 10:
+            _skip(f"only {m5_buys} m5 buys at 60s — insufficient activity (need 10+)")
             return
 
         state.dipped = True
