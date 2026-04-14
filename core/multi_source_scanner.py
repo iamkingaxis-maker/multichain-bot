@@ -1954,13 +1954,19 @@ class MultiSourceScanner:
                 f"[{self.chain.name}] ✅ Stability gate PASS: {sym} — "
                 f"price held for 10s, proceeding"
             )
+            # Keep subscribed — position manager uses the feed after buy
+            return True
         else:
+            # No live price at all in 10s — feed hasn't picked this token up yet.
+            # Buying blind with no real-time confirmation is the same risk we're
+            # trying to avoid. Block rather than assume stable.
             logger.info(
-                f"[{self.chain.name}] ✅ Stability gate PASS: {sym} — "
-                f"no live price received in 10s, allowing through"
+                f"[{self.chain.name}] 🚫 Stability gate BLOCK: {sym} — "
+                f"no live price received in 10s — cannot confirm stability, skipping"
             )
-        # Keep subscribed — position manager uses the feed after buy
-        return True
+            self.signals_blocked_atm_nocandle += 1
+            feed.unsubscribe_token(addr)
+            return False
 
     async def _confirm_and_buy(
         self, signal: "TokenSignal", risk_level: str, price_at_check: float
@@ -2731,6 +2737,18 @@ class MultiSourceScanner:
                     f"[{self.chain.name}] Chart skip (no candles, no momentum): "
                     f"{signal.token_symbol} — h1={signal.price_change_h1:+.1f}% ≤ 0% "
                     f"with no OHLCV — flat/red with nothing to confirm"
+                )
+                self.signals_blocked_atm_nocandle += 1
+                return False
+            # Micro-cap no-candle floor: h1=+0.8% is indistinguishable from a draining
+            # token. DipWatcher handles micro-cap entry timing but it can't help if we
+            # buy into something with no momentum. Require clear h1 signal (>= +5%).
+            _is_micro_nocandle = 0 < signal.mcap <= 80_000
+            if _is_micro_nocandle and signal.price_change_h1 < 5:
+                logger.info(
+                    f"[{self.chain.name}] Chart skip (no candles, weak micro-cap momentum): "
+                    f"{signal.token_symbol} — h1={signal.price_change_h1:+.1f}% < 5% "
+                    f"— micro-cap needs clear h1 momentum to proceed without candles"
                 )
                 self.signals_blocked_atm_nocandle += 1
                 return False
