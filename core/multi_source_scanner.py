@@ -2760,10 +2760,24 @@ class MultiSourceScanner:
                 )
                 self.signals_blocked_atm_nocandle += 1
                 return False
+            # Volume acceleration gate — is volume still building or already collapsing?
+            # The lifecycle data shows 71% of tokens have declining volume by hour 6.
+            # Tokens where h1 vol < h6 hourly avg at signal time are past their peak.
+            # Only check when we have both h1 and h6 volume (token is >=1h old with data).
+            _is_established_nocandle = signal.mcap > 80_000 or signal.mcap == 0
+            if (signal.volume_h1 > 0 and signal.volume_h6 > 0):
+                _h6_hourly = signal.volume_h6 / 6
+                if signal.volume_h1 < _h6_hourly:
+                    logger.info(
+                        f"[{self.chain.name}] Chart skip (no candles, volume dying): "
+                        f"{signal.token_symbol} — vol h1=${signal.volume_h1:,.0f} < "
+                        f"h6/6=${_h6_hourly:,.0f} — past peak"
+                    )
+                    self.signals_blocked_atm_nocandle += 1
+                    return False
             # Stability gate for established tokens (micro-caps use DipWatcher instead).
             # Subscribes to real-time price feed and watches for 10 seconds — if price
             # drops > 5% we're being dumped into and abort before buying.
-            _is_established_nocandle = signal.mcap > 80_000 or signal.mcap == 0
             if _is_established_nocandle:
                 if not await self._no_candle_stability_gate(signal):
                     return False

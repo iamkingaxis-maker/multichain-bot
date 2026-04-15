@@ -93,7 +93,7 @@ class Config:
     take_profit_1_sell: float = 1.0
     take_profit_2_pct: float = 75.0
     take_profit_2_sell: float = 0.40
-    take_profit_3_pct: float = 150.0
+    take_profit_3_pct: float = 300.0
     take_profit_3_sell: float = 1.0
 
     # ── Micro-Cap Take Profit (separate tiers for fresh launches) ──────

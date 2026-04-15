@@ -1100,6 +1100,10 @@ class PositionManager:
     async def _execute_pyramid(self, token_address: str,
                                state, pnl_pct: float):
         """Add 50% of original position size after TP1 when volume still healthy."""
+        # Don't pyramid a pyramid — each [PYRAMID] position gets a fresh PositionState
+        # with pyramided=False, which would trigger an infinite chain. Block it here.
+        if "[PYRAMID]" in state.token_symbol:
+            return
         try:
             add_usd = state.original_size_usd * 0.50
             logger.info(
