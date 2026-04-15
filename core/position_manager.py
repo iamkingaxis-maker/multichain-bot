@@ -1068,7 +1068,15 @@ class PositionManager:
             return  # Ignore first 5s — entry price settling
 
         pnl_pct = (price_usd / state.entry_price - 1) * 100
-        stop_pct = self.mc_stop_loss_pct if state.is_micro_cap else self.stop_loss_pct
+
+        # Flash-crash gate: tighter -12% stop for first 90s on MC positions.
+        # Rugs dump -25%+ in seconds; legitimate MC winners never dip -12% before
+        # recovering (MARVIN +34% in 69s, FATCAT +25% in 5m — both move straight up).
+        # After 90s revert to normal -25% MC stop for volatility tolerance.
+        if state.is_micro_cap and age_seconds < 90:
+            stop_pct = 12.0
+        else:
+            stop_pct = self.mc_stop_loss_pct if state.is_micro_cap else self.stop_loss_pct
 
         if pnl_pct <= -stop_pct:
             self._stop_triggered.add(token_address)

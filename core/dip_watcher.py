@@ -699,6 +699,32 @@ class DipWatcher:
             self.price_feed.unsubscribe_token(state.token_address)
             return
 
+        # Pre-entry stability gate — 5 polls × 3s = 15s watch window.
+        # If price drops >8% from trigger at any point, abort — coordinated dump in progress.
+        # MARVIN hit +34% in 69s total; adding 15s still catches the move with room to spare.
+        _stability_baseline = trigger_price
+        _stability_abort = False
+        logger.info(
+            f"[DipWatcher] ⏳ Stability gate: {state.token_symbol} — "
+            f"watching ${_stability_baseline:.8f} for 15s (abort if drops >8%)"
+        )
+        for _poll in range(5):
+            await asyncio.sleep(3)
+            _live = self.price_feed.price_cache.get(state.token_address.lower(), 0.0)
+            if _live > 0:
+                _drop_pct = (_live / _stability_baseline - 1) * 100
+                if _drop_pct <= -8.0:
+                    logger.info(
+                        f"[DipWatcher] 🚫 Stability abort: {state.token_symbol} "
+                        f"dropped {_drop_pct:+.1f}% in pre-entry window "
+                        f"(${_stability_baseline:.8f} → ${_live:.8f}) — skipping"
+                    )
+                    self.price_feed.unsubscribe_token(state.token_address)
+                    _stability_abort = True
+                    break
+        if _stability_abort:
+            return
+
         try:
             if state.dipped and state.peak_price > 0 and state.bottom_price > 0:
                 dip_pct = (state.peak_price - state.bottom_price) / state.peak_price * 100
