@@ -546,6 +546,17 @@ class PositionManager:
                              price: float, volume_h1: float,
                              volume_m5: float, liquidity_usd: float):
         """Apply a price update to state and sync back to the open position object."""
+        # Sanity gate: reject price if it's >10x the current peak in a single cycle.
+        # This catches corrupted feed data (e.g. DexScreener returning a different
+        # token's price after a rug drains the original pool's liquidity).
+        ref_price = state.peak_price if state.peak_price > 0 else state.entry_price
+        if ref_price > 0 and price > ref_price * 10:
+            logger.warning(
+                f"[PositionManager/{self.chain_name}] ⚠️  Price spike rejected: "
+                f"{state.token_symbol} {ref_price:.8f} → {price:.8f} "
+                f"({price/ref_price:.0f}x peak) — likely corrupted feed data, ignoring"
+            )
+            return
         state.current_price = price
         state.current_volume_usd = volume_h1
         state.current_h1_volume = volume_h1
