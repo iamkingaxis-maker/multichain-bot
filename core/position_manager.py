@@ -882,19 +882,36 @@ class PositionManager:
                 )
             return
 
-        # ── EARLY MOMENTUM FAILURE EXIT — bail at 10min if no momentum ────
-        # Winners appear within 15min. Anything still down at 10min is a bad entry.
-        if (not state.tp1_hit
-                and age_seconds >= 600
-                and pnl_pct <= -3.0):
+        # ── EARLY MOMENTUM FAILURE EXIT — graduated time/threshold tiers ────
+        # Winners pop fast (1-4 min) or grind positively. Losers drop early and sit.
+        # Tier 1 — 3 min: fast dumps (rugs, coordinated sells) drop hard immediately
+        # Tier 2 — 5 min: medium dumps that haven't recovered
+        # Tier 3 — 10 min: slow bleeders that never found momentum
+        # Pyramids get tighter exits (bought at the top, higher reversal risk)
+        _is_pyramid = "[PYRAMID]" in state.token_symbol
+        _early_exit_reason = None
+        if not state.tp1_hit:
+            if age_seconds >= 600 and pnl_pct <= -3.0:
+                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — no momentum at 10min"
+            elif age_seconds >= 300 and pnl_pct <= -5.0:
+                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — no momentum at 5min"
+            elif age_seconds >= 180 and pnl_pct <= -8.0:
+                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — fast dump at 3min"
+            # Pyramids: tighter — bought at the top, exit sooner if reversing
+            elif _is_pyramid and age_seconds >= 420 and pnl_pct <= -3.0:
+                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — pyramid no momentum at 7min"
+            elif _is_pyramid and age_seconds >= 180 and pnl_pct <= -5.0:
+                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — pyramid fast dump at 3min"
+
+        if _early_exit_reason:
             logger.info(
                 f"[PositionManager/{self.chain_name}] ⏱ EARLY EXIT: "
-                f"{state.token_symbol} {pnl_pct:+.1f}% at {age_seconds/60:.0f}min — no momentum"
+                f"{state.token_symbol} {pnl_pct:+.1f}% at {age_seconds/60:.1f}min — {_early_exit_reason}"
             )
             await self._execute_sell(
                 token_address, state,
                 pct=1.0,
-                reason=f"Early exit {pnl_pct:.1f}% — no momentum at 10min"
+                reason=_early_exit_reason,
             )
             if self.scanner:
                 self.scanner.register_stop_loss(
