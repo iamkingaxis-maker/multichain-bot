@@ -228,6 +228,22 @@ class SecurityChecker:
     # Valid Solana base58 address: 32–44 chars, no 0/O/I/l
     _BASE58_RE = __import__("re").compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 
+    # Base58 alphabet for byte-length validation
+    _B58_CHARS = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    _B58_MAP: dict = {c: i for i, c in enumerate("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")}
+
+    def _b58_decoded_length(self, s: str) -> int:
+        """Return the number of bytes the base58 string decodes to, or -1 on error."""
+        try:
+            n = 0
+            for c in s:
+                n = n * 58 + self._B58_MAP[c]
+            byte_len = (n.bit_length() + 7) // 8 if n else 0
+            leading_zeros = len(s) - len(s.lstrip("1"))
+            return byte_len + leading_zeros
+        except (KeyError, Exception):
+            return -1
+
     async def _fetch_rugcheck(self, mint: str) -> Optional[dict]:
         """Fetch Solana token security data from Rugcheck.xyz API (no key required)."""
         # Validate address format before hitting the API.
@@ -238,6 +254,18 @@ class SecurityChecker:
         if not self._BASE58_RE.match(mint):
             logger.warning(
                 f"Rugcheck: bad address format for {mint[:10]} — blocking"
+            )
+            return {"_invalid_address": True}
+
+        # Validate decoded byte length — a valid Solana pubkey is exactly 32 bytes.
+        # A 44-char base58 string CAN decode to 33 bytes (like RAVE: b29fkk9d49j…),
+        # which passes the regex but is an invalid address. Rugcheck returns 400 for
+        # these, and we must NOT treat that 400 as "token not indexed yet."
+        decoded_len = self._b58_decoded_length(mint)
+        if decoded_len != 32:
+            logger.warning(
+                f"Rugcheck: address decodes to {decoded_len} bytes (need 32) "
+                f"for {mint[:10]} — blocking"
             )
             return {"_invalid_address": True}
 
