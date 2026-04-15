@@ -1419,6 +1419,17 @@ class MultiSourceScanner:
                 self.signals_blocked_rug += 1
                 return None
 
+            # Transaction floor — thin markets (< 30 h1 txns) are manipulable:
+            # a single whale can paint any price action. Low txn count means the
+            # score is based on noise, not real buyer conviction.
+            if total_txns < 30:
+                logger.info(
+                    f"[{self.chain.name}] Thin market blocked: {token_symbol} "
+                    f"only {total_txns} h1 txns (need 30+) — price action unreliable"
+                )
+                self.signals_blocked_rug += 1
+                return None
+
         price_usd = float(dex_pair.get("priceUsd", 0) or 0)
         info = dex_pair.get("info", {})
         has_social = bool(info.get("socials") or info.get("websites"))
@@ -1922,17 +1933,17 @@ class MultiSourceScanner:
         addr      = signal.token_address.lower()
         sym       = signal.token_symbol
         baseline  = signal.price_usd
-        threshold = baseline * 0.95   # 5% drop = abort
+        threshold = baseline * 0.97   # 3% drop = abort (tightened from 5%)
 
         feed.subscribe_token(addr)
         logger.info(
             f"[{self.chain.name}] ⏳ Stability gate: {sym} — "
-            f"watching ${baseline:.8f} for 10s before buying "
-            f"(abort if drops >5%)"
+            f"watching ${baseline:.8f} for 30s before buying "
+            f"(abort if drops >3%)"
         )
 
         saw_price = False
-        for _ in range(10):
+        for _ in range(30):
             await asyncio.sleep(1)
             current = feed.price_cache.get(addr, 0.0)
             if current <= 0:
@@ -1952,7 +1963,7 @@ class MultiSourceScanner:
         if saw_price:
             logger.info(
                 f"[{self.chain.name}] ✅ Stability gate PASS: {sym} — "
-                f"price held for 10s, proceeding"
+                f"price held for 30s, proceeding"
             )
             # Keep subscribed — position manager uses the feed after buy
             return True
@@ -2775,9 +2786,21 @@ class MultiSourceScanner:
                     )
                     self.signals_blocked_atm_nocandle += 1
                     return False
+            # No-candle volume floor for established tokens — ghost tokens with thin
+            # volume and no OHLCV history are a recipe for bad entries. Raise the bar
+            # above the general $5k scanner floor to require real activity.
+            _NC_VOL_FLOOR = 15_000
+            if _is_established_nocandle and 0 < signal.volume_h1 < _NC_VOL_FLOOR:
+                logger.info(
+                    f"[{self.chain.name}] Chart skip (no candles, thin volume): "
+                    f"{signal.token_symbol} — h1 vol ${signal.volume_h1:,.0f} < "
+                    f"${_NC_VOL_FLOOR:,} required without OHLCV confirmation"
+                )
+                self.signals_blocked_atm_nocandle += 1
+                return False
             # Stability gate for established tokens (micro-caps use DipWatcher instead).
-            # Subscribes to real-time price feed and watches for 10 seconds — if price
-            # drops > 5% we're being dumped into and abort before buying.
+            # Subscribes to real-time price feed and watches for 30 seconds — if price
+            # drops > 3% we're being dumped into and abort before buying.
             if _is_established_nocandle:
                 if not await self._no_candle_stability_gate(signal):
                     return False
