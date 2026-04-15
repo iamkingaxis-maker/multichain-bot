@@ -154,6 +154,7 @@ class Config:
     max_dev_wallet_pct: float = 5.0
     hard_skip_age_hours: float = 999.0
     pyramid_score_threshold: int = 90
+    enable_pyramids: bool = False  # Disabled — 18% win rate, structurally buys at the top
     volume_acceleration_candles: int = 3
 
     # ── Security ─────────────────────────────────────────────

@@ -962,11 +962,10 @@ class PositionManager:
             )
             self.tp1_hits += 1
 
-            # Pyramid if momentum is still healthy — press winning trades.
-            # Score is no longer used as a gating mechanism, so replace with
-            # real-time volume check: only add if volume hasn't stalled yet.
-            # Skip micro-caps — too volatile for a second tranche.
-            if (not state.pyramided and
+            # Pyramid disabled — 18% win rate, structurally buys at the top.
+            # Re-enable via config.enable_pyramids when strategy is revised.
+            if (self.config.enable_pyramids and
+                    not state.pyramided and
                     not state.is_micro_cap and
                     not state.is_stalled):
                 await self._execute_pyramid(token_address, state, pnl_pct)
