@@ -1014,41 +1014,11 @@ class PositionManager:
             )
             return
 
-        # ── AVERAGE DOWN ─────────────────────────────────────────────────
-        if (not state.averaged_down and
-                state.hours_open >= (5 / 60) and
-                -self.avg_down_max_loss <= pnl_pct < 0):
-            vol_ratio = (
-                state.current_volume_usd / state.entry_volume_usd
-                if state.entry_volume_usd > 0 else 0
-            )
-            if vol_ratio >= self.avg_down_min_volume:
-                logger.info(
-                    f"[PositionManager/{self.chain_name}] 📉 AVG DOWN: "
-                    f"{state.token_symbol} at {pnl_pct:.1f}% | "
-                    f"Volume: {vol_ratio:.1f}x entry | "
-                    f"Adding {self.avg_down_size*100:.0f}% more"
-                )
-                add_usd = state.original_size_usd * self.avg_down_size
-                await self.trader.buy(
-                    token_address=token_address,
-                    token_symbol=state.token_symbol,
-                    reason=(
-                        f"Avg down at {pnl_pct:.1f}% — "
-                        f"volume still {vol_ratio:.1f}x entry"
-                    )
-                )
-                state.averaged_down = True
-                state.avg_down_price = state.current_price
-                self.avg_downs += 1
-                await self.telegram.send(
-                    f"📉 *Averaged Down* [{self.chain_name}]\n\n"
-                    f"🪙 ${state.token_symbol}\n"
-                    f"📊 Loss: {pnl_pct:.1f}% (within -{self.avg_down_max_loss}% limit)\n"
-                    f"💧 Volume: {vol_ratio:.1f}x entry (still healthy)\n"
-                    f"💰 Added: ${add_usd:.0f} (50% of original)\n"
-                    f"⚠️ One time only — no second avg down"
-                )
+        # ── AVERAGE DOWN — DISABLED ──────────────────────────────────────
+        # Disabled: adds capital to losers right before early exit tiers cut them.
+        # A position at -2.7% that gets averaged doubles exposure into the 5min/-5%
+        # check. Works directly against the graduated exit strategy.
+        # Re-enable via config flag if strategy changes.
 
     def check_stop_loss_realtime(self, token_address: str, price_usd: float):
         """
