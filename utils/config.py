@@ -142,6 +142,21 @@ class Config:
     max_mcap: float = 999_999_999  # No upper cap — scanner evaluates all sizes above min_mcap
     max_volume_h1_usd: float = 300_000
 
+    # ── Dip Buyer ────────────────────────────────────────────────
+    dip_scanner_enabled: bool = True
+    dip_position_usd: float = 500.0        # Fixed position size
+    dip_min_mcap: float = 1_000_000        # $1M minimum mcap
+    dip_min_age_days: float = 7.0          # Token pair must be ≥7 days old
+    dip_min_volume_h24: float = 200_000    # $200k minimum 24h volume
+    dip_tp1_pct: float = 5.0              # TP1 at +5% — sell 50%
+    dip_tp1_sell: float = 0.50
+    dip_tp2_pct: float = 10.0             # TP2 at +10% — sell remaining 100%
+    dip_tp2_sell: float = 1.0
+    dip_stop_pct: float = 15.0            # Hard stop at -15%
+    dip_winner_trail_pct: float = 5.0     # Trail 5% from peak after TP1
+    dip_cooldown_hours: float = 4.0       # Min hours before re-buying same token
+    dip_max_concurrent: int = 3           # Max simultaneous dip positions
+
     # ── Micro-Cap Mode (AxiomScanner only) ───────────────────
     # Targets fresh $10k-$50k pairs via Axiom WS with tighter gates
     micro_cap_enabled: bool = False  # Disabled — rug risk too high; graduation sniper covers fresh tokens
@@ -341,6 +356,18 @@ def _apply_env_overrides(config: Config):
     # Dashboard port (Railway assigns this automatically)
     if os.environ.get("PORT"):
         config.dashboard_port = env_int("PORT", config.dashboard_port)
+
+    # Dip scanner
+    if os.environ.get("DIP_SCANNER_ENABLED"):
+        config.dip_scanner_enabled = env_bool("DIP_SCANNER_ENABLED", config.dip_scanner_enabled)
+    if os.environ.get("DIP_POSITION_USD"):
+        config.dip_position_usd = env_float("DIP_POSITION_USD", config.dip_position_usd)
+    if os.environ.get("DIP_MIN_MCAP"):
+        config.dip_min_mcap = env_float("DIP_MIN_MCAP", config.dip_min_mcap)
+    if os.environ.get("DIP_MIN_VOLUME_H24"):
+        config.dip_min_volume_h24 = env_float("DIP_MIN_VOLUME_H24", config.dip_min_volume_h24)
+    if os.environ.get("DIP_STOP_PCT"):
+        config.dip_stop_pct = env_float("DIP_STOP_PCT", config.dip_stop_pct)
 
 
 def _validate(config: "Config"):
