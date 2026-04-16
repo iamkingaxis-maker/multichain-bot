@@ -130,7 +130,7 @@ class Config:
 
     # ── Scanner ──────────────────────────────────────────────
     min_mcap: float = 80_000
-    max_mcap: float = 1_000_000
+    max_mcap: float = 999_999_999  # No upper cap — scanner evaluates all sizes above min_mcap
     max_volume_h1_usd: float = 300_000
 
     # ── Micro-Cap Mode (AxiomScanner only) ───────────────────
