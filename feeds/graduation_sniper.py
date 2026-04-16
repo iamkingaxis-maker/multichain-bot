@@ -100,6 +100,8 @@ class GraduationSniper:
         self._running = False
         self._msg_count = 0        # total WS messages received
         self._last_heartbeat = 0.0 # monotonic time of last heartbeat log
+        self._last_buy_time = 0.0  # monotonic time of last successful buy
+        self._BUY_COOLDOWN = 300   # 5 minutes between graduation buys
 
     # ── Public interface ──────────────────────────────────────────────────────
 
@@ -302,15 +304,12 @@ class GraduationSniper:
             if mint_lower in self.trader.open_positions:
                 return
 
-            # 2b. Max concurrent graduation positions (avoid buying every grad in a burst)
-            open_grad_count = sum(
-                1 for addr, pos in self.trader.open_positions.items()
-                if getattr(pos, 'strategy', '') == 'graduation'
-                or 'graduation' in str(getattr(pos, 'reason', '')).lower()
-            )
-            if open_grad_count >= 3:
-                logger.info(
-                    f"[GraduationSniper] Max concurrent positions (3) reached — skip {mint[:12]}…"
+            # 2b. Rate limit — one graduation buy per 5 minutes max
+            elapsed = time.monotonic() - self._last_buy_time
+            if self._last_buy_time > 0 and elapsed < self._BUY_COOLDOWN:
+                remaining = int(self._BUY_COOLDOWN - elapsed)
+                logger.debug(
+                    f"[GraduationSniper] Cooldown {remaining}s remaining — skip {mint[:12]}…"
                 )
                 return
 
@@ -349,6 +348,7 @@ class GraduationSniper:
                 f"type: {grad_type}"
             )
 
+            self._last_buy_time = time.monotonic()
             await self.trader.buy(
                 token_address=mint,
                 token_symbol=symbol,
