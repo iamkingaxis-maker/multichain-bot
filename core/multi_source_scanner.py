@@ -1871,6 +1871,18 @@ class MultiSourceScanner:
         # Dump guard only — block if m5 is a crash in progress.
         # No minimum dip floor: chart gate downstream validates momentum.
         _pc_m5 = float((signal.raw_pair_data or {}).get("priceChange", {}).get("m5", 0) or 0)
+        _vol_m5 = float((signal.raw_pair_data or {}).get("volume", {}).get("m5", 0) or 0)
+
+        # Minimum 5m volume — if DexScreener reports a non-zero m5 vol under $500,
+        # the token has no active market right now. Skip if 0 (Axiom source or
+        # data unavailable — other gates handle those cases).
+        if 0 < _vol_m5 < 500:
+            logger.info(
+                f"[{self.chain.name}] Low m5 volume blocked: {signal.token_symbol} "
+                f"${_vol_m5:,.0f} m5 vol (need $500+)"
+            )
+            self.signals_blocked_score += 1
+            return
 
         if _pc_m5 < -20:
             logger.info(

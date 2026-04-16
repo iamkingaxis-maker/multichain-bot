@@ -378,6 +378,18 @@ class AxiomTrendingScanner:
 
                 liq = (pair_data.get("liquidity") or {}).get("usd") or 0
 
+                # Gate 2.5: minimum 5m volume — tokens with near-zero m5 volume
+                # have no active market. If DexScreener reports a non-zero value
+                # and it's still under $200, there's not enough liquidity flow to
+                # support a clean entry or exit. Skip 0 (data unavailable).
+                vol_m5_mc = float((pair_data.get("volume") or {}).get("m5") or 0)
+                if 0 < vol_m5_mc < 200:
+                    logger.info(
+                        f"[EstablishedScanner] Micro-cap low m5 volume: {ticker} — "
+                        f"${vol_m5_mc:,.0f} m5 vol (need $200+)"
+                    )
+                    return False
+
                 # Gate 3: minimum liquidity — pools under $3k have slippage so
                 # severe that a -15% stop executes closer to -30% in practice
                 if liq < 3_000:
@@ -514,7 +526,17 @@ class AxiomTrendingScanner:
             mcap    = pair_data.get("marketCap") or 0
             liq     = (pair_data.get("liquidity") or {}).get("usd") or 0
             vol_h1  = (pair_data.get("volume") or {}).get("h1") or 0
+            vol_m5  = float((pair_data.get("volume") or {}).get("m5") or 0)
             h1_pct  = float((pair_data.get("priceChange") or {}).get("h1") or 0)
+
+            # Minimum 5m volume — established tokens under $500 m5 vol have no
+            # active market right now. Skip 0 (data unavailable / Axiom source).
+            if 0 < vol_m5 < 500:
+                logger.info(
+                    f"[EstablishedScanner] Low m5 volume: {ticker} — "
+                    f"${vol_m5:,.0f} m5 vol (need $500+)"
+                )
+                return False
 
             # Block tokens already pumped >10% in the last hour — no chart data to
             # confirm structure, and buying into a pump is buying into potential ATH.
