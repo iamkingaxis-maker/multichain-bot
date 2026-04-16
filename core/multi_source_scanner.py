@@ -2816,15 +2816,17 @@ class MultiSourceScanner:
                 )
                 self.signals_blocked_atm_nocandle += 1
                 return False
-            # Micro-cap no-candle floor: h1=+0.8% is indistinguishable from a draining
-            # token. DipWatcher handles micro-cap entry timing but it can't help if we
-            # buy into something with no momentum. Require clear h1 signal (>= +5%).
+            # Micro-cap no-candle floor: block only if h1 is negative (price declining).
+            # Fresh tokens (<1h old) routinely have h1 < 5% because DexScreener's h1
+            # window barely covers their life — flat accumulation (0-4%) is normal and
+            # legitimate. DipWatcher handles entry timing; we only block confirmed downtrends.
+            # The h1 < -15% crash check below covers severe cases.
             _is_micro_nocandle = 0 < signal.mcap <= 80_000
-            if _is_micro_nocandle and signal.price_change_h1 < 5:
+            if _is_micro_nocandle and signal.price_change_h1 < 0:
                 logger.info(
-                    f"[{self.chain.name}] Chart skip (no candles, weak micro-cap momentum): "
-                    f"{signal.token_symbol} — h1={signal.price_change_h1:+.1f}% < 5% "
-                    f"— micro-cap needs clear h1 momentum to proceed without candles"
+                    f"[{self.chain.name}] Chart skip (no candles, micro-cap declining): "
+                    f"{signal.token_symbol} — h1={signal.price_change_h1:+.1f}% < 0% "
+                    f"— micro-cap price falling with no OHLCV to confirm recovery"
                 )
                 self.signals_blocked_atm_nocandle += 1
                 return False
