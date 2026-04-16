@@ -851,14 +851,20 @@ class PositionManager:
         # STANDARD POSITION MANAGEMENT
         # ═══════════════════════════════════════════════════════════════
 
-        # ── WINNER PROTECTION — close 100% if drops winner_trail% from peak after TP1
-        if (state.tp1_hit and
-                state.peak_price > 0 and
-                state.current_price <= state.peak_price * (1 - self.winner_trail_pct / 100)):
+        # ── WINNER PROTECTION — trail from peak once up ≥10% (pre or post TP1)
+        # Fires pre-TP1 too: a token that peaks at +30% then crashes back deserves
+        # an exit near the peak, not at the breakeven floor. Minimum 10% peak gain
+        # avoids triggering on normal entry-level volatility.
+        _MIN_PEAK_FOR_TRAIL = 10.0
+        _peak_gain_pct_std = (state.peak_price - state.entry_price) / state.entry_price * 100 if state.entry_price > 0 else 0
+        if (state.peak_price > 0
+                and _peak_gain_pct_std >= _MIN_PEAK_FOR_TRAIL
+                and state.current_price <= state.peak_price * (1 - self.winner_trail_pct / 100)):
             drop_from_peak = (state.peak_price - state.current_price) / state.peak_price * 100
             logger.info(
                 f"[PositionManager/{self.chain_name}] 🔒 WINNER TRAIL: "
-                f"{state.token_symbol} -{drop_from_peak:.1f}% from peak"
+                f"{state.token_symbol} -{drop_from_peak:.1f}% from peak "
+                f"(peaked at +{_peak_gain_pct_std:.1f}%)"
             )
             await self._execute_sell(
                 token_address, state,

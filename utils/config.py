@@ -91,13 +91,13 @@ class Config:
     daily_loss_limit: float = 200.0
 
     # ── Take Profit ──────────────────────────────────────────
-    # Break-even analysis: TP1 at +10%/40% requires 39% win rate.
-    # Raising to +75%/50% drops break-even to ~18% (our current rate).
-    take_profit_1_pct: float = 75.0   # +75% → sell 50%, let 50% run to TP2/TP3
+    # TP1 at +35% sell 50%: reachable on real runners, captures capital.
+    # Winner trail (pre-TP1, fires at 10%+ peak) handles tokens that peak below TP1.
+    take_profit_1_pct: float = 35.0   # +35% → sell 50%, let 50% run to TP2/TP3
     take_profit_1_sell: float = 0.50
-    take_profit_2_pct: float = 200.0
+    take_profit_2_pct: float = 100.0
     take_profit_2_sell: float = 0.50
-    take_profit_3_pct: float = 500.0
+    take_profit_3_pct: float = 300.0
     take_profit_3_sell: float = 1.0
 
     # ── Micro-Cap Take Profit (separate tiers for fresh launches) ──────
