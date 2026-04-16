@@ -445,6 +445,13 @@ class AxiomTrendingScanner:
                 _mc_reason = f"Micro-cap established | ${actual_mcap:,.0f} mcap"
                 _in_dip_window = -20 <= pc_m5 <= -3
 
+                # Guard: don't double-buy if DipWatcher or another path already holds this token
+                if token_address.lower() in self.trader.open_positions:
+                    logger.info(
+                        f"[EstablishedScanner] Already holding {ticker} — skip duplicate buy"
+                    )
+                    return False
+
                 if _in_dip_window:
                     # m5 already in dip zone — buy immediately
                     logger.info(

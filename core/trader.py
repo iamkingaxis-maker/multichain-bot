@@ -217,10 +217,10 @@ class Trader:
             logger.info(f"[Trader] Buy blocked — kill switch active ({self.kill_switch._kill_reason})")
             return
 
-        if token_address in self._buying:
+        if token_address.lower() in self._buying:
             logger.info(f"[Trader] Buy already in flight for {token_symbol}, skipping")
             return
-        self._buying.add(token_address)
+        self._buying.add(token_address.lower())
 
         try:
             if self.risk_manager.is_daily_limit_hit():
@@ -446,7 +446,7 @@ class Trader:
         except Exception as e:
             logger.error(f"Buy failed for {token_symbol}: {e}")
         finally:
-            self._buying.discard(token_address)
+            self._buying.discard(token_address.lower())
 
     async def sell(self, token_address: str, token_symbol: str, reason: str, pct: float = 1.0):
         """Execute a sell order for a percentage of the position."""
