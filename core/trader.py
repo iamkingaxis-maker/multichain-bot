@@ -306,8 +306,10 @@ class Trader:
                     return
 
                 # Get current price (Axiom cache → Jupiter price API → DexScreener)
+                # Graduation buys: fresh graduates aren't indexed yet — skip this check
+                # and derive entry price from the Jupiter quote below instead.
                 current_price = await self._get_token_price(token_address)
-                if current_price <= 0:
+                if current_price <= 0 and strategy != "graduation":
                     logger.error(f"Could not get price for {token_symbol} — buy aborted")
                     return
 

@@ -302,6 +302,18 @@ class GraduationSniper:
             if mint_lower in self.trader.open_positions:
                 return
 
+            # 2b. Max concurrent graduation positions (avoid buying every grad in a burst)
+            open_grad_count = sum(
+                1 for addr, pos in self.trader.open_positions.items()
+                if getattr(pos, 'strategy', '') == 'graduation'
+                or 'graduation' in str(getattr(pos, 'reason', '')).lower()
+            )
+            if open_grad_count >= 3:
+                logger.info(
+                    f"[GraduationSniper] Max concurrent positions (3) reached — skip {mint[:12]}…"
+                )
+                return
+
             # 3. Jupiter quote — retry up to 5× (pool may not be routable for 1-2s post-grad)
             quote = None
             for attempt in range(5):
