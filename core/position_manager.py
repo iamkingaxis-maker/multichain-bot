@@ -731,6 +731,11 @@ class PositionManager:
                     pct=1.0,
                     reason=f"MC winner trail -{drop_from_peak:.1f}% from peak"
                 )
+                if self.scanner:
+                    self.scanner.register_stop_loss(
+                        token_address, state.token_symbol, state.current_price,
+                        cooldown_seconds=14400  # 4h — token already ran, don't re-enter
+                    )
                 return
 
             # ── MC STOP LOSS ──────────────────────────────────────────────
@@ -799,6 +804,11 @@ class PositionManager:
                     pct=self.mc_tp3_sell,
                     reason=f"MC TP3 +{pnl_pct:.1f}%"
                 )
+                if self.scanner:
+                    self.scanner.register_stop_loss(
+                        token_address, state.token_symbol, state.current_price,
+                        cooldown_seconds=14400  # 4h — token already ran
+                    )
                 return
 
             if pnl_pct >= self.mc_tp2_pct and not state.tp2_hit:
@@ -871,6 +881,11 @@ class PositionManager:
                 pct=1.0,
                 reason=f"Winner trail -{drop_from_peak:.1f}% from peak"
             )
+            if self.scanner:
+                self.scanner.register_stop_loss(
+                    token_address, state.token_symbol, state.current_price,
+                    cooldown_seconds=14400  # 4h — token already ran, don't re-enter
+                )
             return
 
         # ── BREAKEVEN LOCK — once up 8%, protect at +3% ─────────────────
@@ -1027,6 +1042,11 @@ class PositionManager:
                 reason=f"TP3 +{pnl_pct:.1f}%"
             )
             self.tp3_hits += 1
+            if self.scanner:
+                self.scanner.register_stop_loss(
+                    token_address, state.token_symbol, state.current_price,
+                    cooldown_seconds=14400  # 4h — token already ran, don't re-enter
+                )
             return
 
         if pnl_pct >= self.tp2_pct and not state.tp2_hit:
