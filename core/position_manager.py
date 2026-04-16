@@ -974,8 +974,8 @@ class PositionManager:
         _is_pyramid = "[PYRAMID]" in state.token_symbol
         _early_exit_reason = None
         if not state.tp1_hit:
-            if age_seconds >= 900 and pnl_pct <= -5.0:
-                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — no momentum at 15min"
+            if age_seconds >= 1800 and pnl_pct <= -5.0:
+                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — no momentum at 30min"
             elif age_seconds >= 180 and pnl_pct <= -8.0:
                 _early_exit_reason = f"Early exit {pnl_pct:.1f}% — fast dump at 3min"
             # Pyramids: tighter — bought at the top, exit sooner if reversing
