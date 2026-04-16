@@ -70,6 +70,10 @@ class PositionState:
     liquidity_confirmed: bool = True
     dead_liquidity_since: Optional[datetime] = None
 
+    # Transaction rate tracking (h1 buys+sells from DexScreener REST)
+    entry_txns_h1: int = 0    # baseline set on first REST update
+    current_txns_h1: int = 0  # refreshed every 5s REST poll
+
     # Current state
     current_price: float = 0.0
     current_volume_usd: float = 0.0
@@ -527,6 +531,14 @@ class PositionManager:
                         self._apply_price_update(token_address, state, price_to_apply,
                                                  volume_h1, volume_m5, liquidity_usd)
 
+                    # Transaction rate tracking — used for txn collapse exit signal
+                    _txn_buys  = pair.get("txns", {}).get("h1", {}).get("buys",  0)
+                    _txn_sells = pair.get("txns", {}).get("h1", {}).get("sells", 0)
+                    _total_txns = _txn_buys + _txn_sells
+                    state.current_txns_h1 = _total_txns
+                    if state.entry_txns_h1 == 0 and _total_txns > 0:
+                        state.entry_txns_h1 = _total_txns
+
                     # Volume window for stall detection (uses REST data only)
                     last_check = self._last_volume_check.get(token_address)
                     if (not last_check or
@@ -534,8 +546,8 @@ class PositionManager:
                             >= self.stall_interval * 60):
                         state.add_volume_window(
                             volume_h1,
-                            buys=pair.get("txns", {}).get("h1", {}).get("buys", 0),
-                            sells=pair.get("txns", {}).get("h1", {}).get("sells", 0)
+                            buys=_txn_buys,
+                            sells=_txn_sells
                         )
                         self._last_volume_check[token_address] = datetime.now(timezone.utc)
 
@@ -748,6 +760,33 @@ class PositionManager:
                     )
                 return
 
+            # ── MC TXN COLLAPSE — exit if txns/hr fell to <10% of entry ─────
+            # Leading indicator: txn rate dies before price confirms the dump.
+            # Require ≥50 entry txns to avoid false signals on thin tokens.
+            # Only fires pre-TP1 after a 5-minute stabilization window.
+            if (not state.tp1_hit
+                    and state.entry_txns_h1 >= 50
+                    and state.current_txns_h1 > 0
+                    and state.current_txns_h1 < state.entry_txns_h1 * 0.10
+                    and age_seconds >= 300):
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] 📉 MC TXN COLLAPSE: "
+                    f"{state.token_symbol} — {state.current_txns_h1} txns/hr "
+                    f"vs {state.entry_txns_h1} at entry "
+                    f"({state.current_txns_h1 / state.entry_txns_h1 * 100:.0f}% of baseline)"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=1.0,
+                    reason=f"MC txn collapse — {state.current_txns_h1}/hr vs {state.entry_txns_h1}/hr"
+                )
+                if self.scanner:
+                    self.scanner.register_stop_loss(
+                        token_address, state.token_symbol, state.current_price,
+                        cooldown_seconds=3600
+                    )
+                return
+
             # ── MC TAKE PROFIT TIERS ──────────────────────────────────────
             if pnl_pct >= self.mc_tp3_pct and not state.tp3_hit:
                 state.tp3_hit = True
@@ -938,6 +977,34 @@ class PositionManager:
                 self.scanner.register_stop_loss(
                     token_address, state.token_symbol, state.current_price,
                     cooldown_seconds=7200  # 2h cooldown — bad entry, not rug
+                )
+            return
+
+        # ── TXN RATE COLLAPSE — leading indicator: momentum dead before price ───
+        # If h1 txn rate falls to <10% of entry baseline, the market has walked
+        # away. Exit proactively rather than waiting for the price to confirm.
+        # Require ≥50 entry txns (thin tokens have naturally low, noisy counts).
+        # 5-minute stabilization window — h1 window rolls on fresh entries.
+        if (not state.tp1_hit
+                and state.entry_txns_h1 >= 50
+                and state.current_txns_h1 > 0
+                and state.current_txns_h1 < state.entry_txns_h1 * 0.10
+                and age_seconds >= 300):
+            logger.info(
+                f"[PositionManager/{self.chain_name}] 📉 TXN COLLAPSE: "
+                f"{state.token_symbol} — {state.current_txns_h1} txns/hr "
+                f"vs {state.entry_txns_h1} at entry "
+                f"({state.current_txns_h1 / state.entry_txns_h1 * 100:.0f}% of baseline)"
+            )
+            await self._execute_sell(
+                token_address, state,
+                pct=1.0,
+                reason=f"Txn collapse — {state.current_txns_h1}/hr vs {state.entry_txns_h1}/hr"
+            )
+            if self.scanner:
+                self.scanner.register_stop_loss(
+                    token_address, state.token_symbol, state.current_price,
+                    cooldown_seconds=3600
                 )
             return
 

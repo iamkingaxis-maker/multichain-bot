@@ -82,9 +82,11 @@ class Config:
     enable_solana: bool = True
 
     # ── Capital ──────────────────────────────────────────────
+    # Kelly criterion at 18% win rate → 1-2% per trade. Using 2.5% ($50 at
+    # $2k capital) to account for win-rate uncertainty while staying Kelly-safe.
     total_capital: float = 2000.0
-    max_position_pct: float = 0.08
-    max_position_usd: float = 200.0
+    max_position_pct: float = 0.025   # 2.5% of capital per trade = ~$50
+    max_position_usd: float = 50.0    # hard cap (was $200)
     min_position_pct: float = 0.02
     daily_loss_limit: float = 200.0
 

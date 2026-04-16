@@ -549,6 +549,26 @@ class AxiomTrendingScanner:
                 )
                 return False
 
+            # Vol/MCap ratio — healthy range 10-30%.
+            # <5% = dead token (no active market), >200% = wash trading / manipulation.
+            # Skip if vol_h1=0 (data unavailable, not a dead-token signal).
+            if vol_h1 > 0 and mcap > 0:
+                vmr = vol_h1 / mcap
+                if vmr < 0.05:
+                    logger.info(
+                        f"[EstablishedScanner] Dead volume: {ticker} — "
+                        f"vol/mcap={vmr*100:.1f}% < 5% "
+                        f"(vol=${vol_h1:,.0f} mcap=${mcap:,.0f})"
+                    )
+                    return False
+                if vmr > 2.0:
+                    logger.info(
+                        f"[EstablishedScanner] Wash trading: {ticker} — "
+                        f"vol/mcap={vmr*100:.0f}% > 200% "
+                        f"(vol=${vol_h1:,.0f} mcap=${mcap:,.0f})"
+                    )
+                    return False
+
             # MCap-to-liquidity ratio — >100x = ghost/manipulated token.
             # Skip 0 liquidity (data gap); let the liquidity floor handle that case.
             if liq > 0 and mcap > 0 and mcap / liq > 100:
