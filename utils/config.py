@@ -91,19 +91,23 @@ class Config:
     daily_loss_limit: float = 200.0
 
     # ── Take Profit ──────────────────────────────────────────
-    take_profit_1_pct: float = 10.0   # +10% → sell 40%, let 60% run to TP2/TP3
-    take_profit_1_sell: float = 0.40
-    take_profit_2_pct: float = 75.0
-    take_profit_2_sell: float = 0.40
-    take_profit_3_pct: float = 300.0
+    # Break-even analysis: TP1 at +10%/40% requires 39% win rate.
+    # Raising to +75%/50% drops break-even to ~18% (our current rate).
+    take_profit_1_pct: float = 75.0   # +75% → sell 50%, let 50% run to TP2/TP3
+    take_profit_1_sell: float = 0.50
+    take_profit_2_pct: float = 200.0
+    take_profit_2_sell: float = 0.50
+    take_profit_3_pct: float = 500.0
     take_profit_3_sell: float = 1.0
 
     # ── Micro-Cap Take Profit (separate tiers for fresh launches) ──────
-    mc_tp1_pct: float = 10.0        # +10% → sell 40%, let 60% run to TP2/TP3
-    mc_tp1_sell: float = 0.40
-    mc_tp2_pct: float = 75.0        # +75% → sell 40% of remaining
-    mc_tp2_sell: float = 0.40
-    mc_tp3_pct: float = 200.0       # +200% → sell everything
+    # MC tokens are extreme high-volatility — either 2x-10x or die.
+    # TP1 at 2x (100%) sell 50%: break-even drops to ~13% (profitable at 18%).
+    mc_tp1_pct: float = 100.0       # 2x → sell 50%, let 50% run to TP2/TP3
+    mc_tp1_sell: float = 0.50
+    mc_tp2_pct: float = 300.0       # 4x → sell 50% of remaining
+    mc_tp2_sell: float = 0.50
+    mc_tp3_pct: float = 900.0       # 10x → sell everything
     mc_tp3_sell: float = 1.0
     mc_stop_loss_pct: float = 25.0  # Wider — PumpSwap graduates routinely dip 20-30% on normal post-grad volatility
     mc_winner_trail_pct: float = 15.0  # Trail 15% from peak (more room for volatility)
