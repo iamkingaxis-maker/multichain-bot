@@ -148,9 +148,9 @@ class Config:
     dip_min_mcap: float = 1_000_000        # $1M minimum mcap
     dip_min_age_days: float = 7.0          # Token pair must be ≥7 days old
     dip_min_volume_h24: float = 200_000    # $200k minimum 24h volume
-    dip_tp1_pct: float = 5.0              # TP1 at +5% — sell 50%
+    dip_tp1_pct: float = 8.0              # TP1 at +8% — sell 50%
     dip_tp1_sell: float = 0.50
-    dip_tp2_pct: float = 10.0             # TP2 at +10% — sell remaining 100%
+    dip_tp2_pct: float = 15.0             # TP2 at +15% — sell remaining 100%
     dip_tp2_sell: float = 1.0
     dip_stop_pct: float = 15.0            # Hard stop at -15%
     dip_winner_trail_pct: float = 5.0     # Trail 5% from peak after TP1
