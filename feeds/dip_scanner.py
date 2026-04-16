@@ -8,7 +8,6 @@ Entry criteria:
   - 24h price change > 0  (uptrend intact)
   - 1h price change < 0 OR 5m price change < 0  (dip in progress)
   - Not already in open positions
-  - Not bought within last 4 hours (per-token cooldown)
 
 Uses DexScreener REST (no API key).
 """
@@ -35,7 +34,6 @@ class DipScanner:
                  min_mcap: float = 1_000_000,
                  min_age_days: float = 7.0,
                  min_volume_h24: float = 200_000,
-                 cooldown_hours: float = 4.0,
                  max_concurrent: int = 3):
         self.trader = trader
         self.telegram = telegram
@@ -44,11 +42,8 @@ class DipScanner:
         self.min_mcap = min_mcap
         self.min_age_ms = min_age_days * 86_400 * 1000  # convert to ms
         self.min_volume_h24 = min_volume_h24
-        self.cooldown_secs = cooldown_hours * 3600
         self.max_concurrent = max_concurrent
 
-        # per-token cooldown: address -> last buy monotonic time
-        self._last_bought: dict[str, float] = {}
         self._start_monotonic = time.monotonic()
         self.signals_fired = 0
         self._last_buy_time = 0.0
@@ -84,11 +79,6 @@ class DipScanner:
 
             # Skip if already in open positions
             if token_address in self.open_positions_ref:
-                continue
-
-            # Skip if bought recently (per-token cooldown)
-            last = self._last_bought.get(token_address, 0)
-            if last > 0 and (time.monotonic() - last) < self.cooldown_secs:
                 continue
 
             # ── Hard filters ──────────────────────────────────────────
@@ -129,7 +119,6 @@ class DipScanner:
                 f"vol24h=${vol_h24/1000:.0f}k"
             )
 
-            self._last_bought[token_address] = time.monotonic()
             self._last_buy_time = time.monotonic()
             self.signals_fired += 1
 

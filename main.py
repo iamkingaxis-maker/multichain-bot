@@ -450,7 +450,6 @@ async def main():
                 min_mcap=config.dip_min_mcap,
                 min_age_days=config.dip_min_age_days,
                 min_volume_h24=config.dip_min_volume_h24,
-                cooldown_hours=config.dip_cooldown_hours,
                 max_concurrent=config.dip_max_concurrent,
             )
             tasks.append(dip_scanner.run())
