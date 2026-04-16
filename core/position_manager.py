@@ -41,6 +41,7 @@ class PositionState:
     # Buy reason — "micro" substring → is_micro_cap
     reason: str = ""
     is_micro_cap: bool = False
+    strategy: str = "scanner"  # "graduation" gets wider stop loss
 
     # TP tracking
     tp1_hit: bool = False
@@ -392,6 +393,7 @@ class PositionManager:
                     entry_time=getattr(pos, "entry_time", datetime.now(timezone.utc)),
                     reason=_reason,
                     is_micro_cap=_is_mc,
+                    strategy=getattr(pos, "strategy", "scanner"),
                     current_price=entry_px,
                     peak_price=entry_px,
                     min_price_usd=entry_px,
@@ -743,7 +745,8 @@ class PositionManager:
             # a duplicate polling-loop sell racing against the realtime ensure_future.
             if token_address in self._stop_triggered:
                 return
-            if pnl_pct <= -self.mc_stop_loss_pct:
+            _mc_stop = 35.0 if state.strategy == "graduation" else self.mc_stop_loss_pct
+            if pnl_pct <= -_mc_stop:
                 age_seconds = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
                 is_flash_crash = age_seconds <= 120
                 logger.warning(
@@ -754,7 +757,7 @@ class PositionManager:
                 await self._execute_sell(
                     token_address, state,
                     pct=1.0,
-                    reason=f"MC stop loss -{self.mc_stop_loss_pct:.0f}%"
+                    reason=f"MC stop loss -{_mc_stop:.0f}%"
                 )
                 self.stop_loss_hits += 1
                 cooldown = 86400 if is_flash_crash else 14400
@@ -1150,6 +1153,8 @@ class PositionManager:
         # After 90s revert to normal -25% MC stop for volatility tolerance.
         if state.is_micro_cap and age_seconds < 90:
             stop_pct = 12.0
+        elif state.strategy == "graduation":
+            stop_pct = 35.0
         else:
             stop_pct = self.mc_stop_loss_pct if state.is_micro_cap else self.stop_loss_pct
 
@@ -1157,6 +1162,8 @@ class PositionManager:
             self._stop_triggered.add(token_address)
             state.current_price = price_usd
             label = (
+                f"Grad stop loss -{stop_pct:.0f}% [realtime]"
+                if state.strategy == "graduation" else
                 f"MC stop loss -{stop_pct:.0f}% [realtime]"
                 if state.is_micro_cap else
                 f"Stop loss -{stop_pct:.0f}% [realtime]"
