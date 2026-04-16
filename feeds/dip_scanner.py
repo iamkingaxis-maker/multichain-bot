@@ -137,7 +137,7 @@ class DipScanner:
                 token_address=token_address,
                 token_symbol=token_symbol,
                 chain_id="solana",
-                amount_usd=self.position_usd,
+                override_usd=self.position_usd,
                 reason=f"dip_buy: 24h={pc_h24:+.1f}% 1h={pc_h1:+.1f}% 5m={pc_m5:+.1f}%",
                 strategy="dip_buy",
             )
