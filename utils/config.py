@@ -155,7 +155,7 @@ class Config:
     dip_stop_pct: float = 15.0            # Hard stop at -15%
     dip_winner_trail_pct: float = 5.0     # Trail 5% from peak after TP1
     dip_cooldown_hours: float = 4.0       # Min hours before re-buying same token
-    dip_max_concurrent: int = 3           # Max simultaneous dip positions
+    dip_max_concurrent: int = 2           # Max simultaneous dip positions
 
     # ── Micro-Cap Mode (AxiomScanner only) ───────────────────
     # Targets fresh $10k-$50k pairs via Axiom WS with tighter gates
