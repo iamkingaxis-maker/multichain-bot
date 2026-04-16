@@ -46,6 +46,7 @@ from security.tax_detector import TaxDetector
 from feeds.price_feed import PriceFeed
 from feeds.solana_rpc_price_feed import SolanaRpcPriceFeed
 from feeds.axiom_integration import AxiomIntegration
+from feeds.graduation_sniper import GraduationSniper
 from analytics.wallet_scorer import WalletScorer
 from analytics.kelly_sizer import KellySizer
 from analytics.adaptive_threshold import AdaptiveThresholdManager
@@ -365,6 +366,20 @@ async def main():
         ]
         if sol_monitor:
             tasks.append(sol_monitor.run())
+
+        # ── Graduation Sniper ─────────────────────────────────────────────
+        # Subscribes to pump.fun + migration program logs via RPC WebSocket.
+        # Detects PumpSwap/Raydium graduations within ~500ms of confirmation
+        # — 30-90s faster than DexScreener-based discovery.
+        grad_sniper = GraduationSniper(
+            rpc_url=config.solana_rpc_url,
+            trader=sol_trader,
+            position_usd=config.micro_cap_position_usd,  # $40 MC sizing
+            max_price_impact_pct=10.0,
+            sol_price_usd=150.0,
+        )
+        tasks.append(grad_sniper.run())
+        logger.info("[Main] Graduation sniper started")
 
         # ── Edge Strategies ──────────────────────────────────────────────
         sol_convergence = CrossWalletConvergenceStrategy(
