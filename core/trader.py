@@ -254,7 +254,9 @@ class Trader:
             # Re-verify LP is still locked right before buy — devs sometimes
             # lock LP briefly to pass scanners then unlock after accumulating buyers.
             # Fail-open on timeout/API error so a slow rugcheck doesn't kill good trades.
-            if self._security_checker is not None:
+            # Skip for graduation strategy: pump.fun LP is auto-burned at graduation,
+            # but rugcheck indexer hasn't processed the tx yet when we buy (<1s after).
+            if self._security_checker is not None and strategy != "graduation":
                 try:
                     _rc = await self._security_checker._fetch_rugcheck(token_address)
                     if _rc and not _rc.get("_invalid_address"):
