@@ -435,6 +435,15 @@ class AxiomTrendingScanner:
                     })
                     return False
 
+                # Block tokens with extreme h1 pump — m5 dip is the dump phase of a P&D.
+                # +100% h1 with a -20%+ m5 = pump peaked, now distributing. Don't buy the dump.
+                if _pc_h1 > 100:
+                    logger.info(
+                        f"[EstablishedScanner] Pump-dump block: {ticker} — "
+                        f"h1={_pc_h1:+.1f}% with m5={pc_m5:+.1f}% — buying the dump of a pump"
+                    )
+                    return False
+
                 logger.info(
                     f"[EstablishedScanner] 🌱 MICRO-CAP SIGNAL: {ticker} | "
                     f"MCap: ${actual_mcap:,.0f} | m5: {pc_m5:+.1f}% | Liq: ${liq:,.0f}"

@@ -2749,6 +2749,10 @@ class MultiSourceScanner:
                         f"{signal.token_symbol} — h1={signal.price_change_h1:+.1f}% > 50% "
                         f"with no OHLCV — buying at the top blind"
                     )
+                    # Set pump cooldown so DipWatcher doesn't buy the inevitable dump
+                    # 30 min cooldown: token was a +50%+ h1 pump, drop is coming
+                    self._pump_cooldown[signal.token_address.lower()] = time.monotonic() + 1800
+                    self._save_pump_cooldowns()
                     self.signals_blocked_atm_nocandle += 1
                     return False
             if signal.price_change_h1 <= 0:
