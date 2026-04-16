@@ -1449,7 +1449,7 @@ class AxiomScanner:
             # the full scoring pipeline. Axiom fires on graduation; no RPC needed.
             if self.graduation_sniper is not None:
                 _proto = event.protocol.lower()
-                if "pumpswap" in _proto or "pump swap" in _proto:
+                if "pump amm" in _proto or "pumpswap" in _proto or "pump swap" in _proto:
                     _created = event.created_at  # ISO8601 string
                     _fresh = False
                     if _created:
