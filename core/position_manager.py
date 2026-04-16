@@ -281,6 +281,14 @@ class PositionManager:
                  mc_stop_loss_pct: float = 25.0,
                  mc_winner_trail_pct: float = 15.0,
 
+                 # Dip buy specific TP/SL
+                 dip_tp1_pct: float = 5.0,
+                 dip_tp1_sell: float = 0.50,
+                 dip_tp2_pct: float = 10.0,
+                 dip_tp2_sell: float = 1.0,
+                 dip_stop_pct: float = 15.0,
+                 dip_winner_trail_pct: float = 5.0,
+
                  # Scalper reference — for breakeven-after-scalp check
                  scalper=None,
                  # Scanner reference — for stop-loss cooldown registration
@@ -316,6 +324,14 @@ class PositionManager:
         self.mc_tp3_sell = mc_tp3_sell
         self.mc_stop_loss_pct = mc_stop_loss_pct
         self.mc_winner_trail_pct = mc_winner_trail_pct
+
+        # Dip buy settings
+        self.dip_tp1_pct = dip_tp1_pct
+        self.dip_tp1_sell = dip_tp1_sell
+        self.dip_tp2_pct = dip_tp2_pct
+        self.dip_tp2_sell = dip_tp2_sell
+        self.dip_stop_pct = dip_stop_pct
+        self.dip_winner_trail_pct = dip_winner_trail_pct
 
         # Stall
         self.stall_interval = stall_check_interval_min
@@ -861,6 +877,70 @@ class PositionManager:
             return  # End MC path
 
         # ═══════════════════════════════════════════════════════════════
+        # DIP BUY POSITION MANAGEMENT
+        # ═══════════════════════════════════════════════════════════════
+        if state.strategy == "dip_buy":
+
+            # ── DIP STOP LOSS ─────────────────────────────────────────
+            if pnl_pct <= -self.dip_stop_pct:
+                logger.warning(
+                    f"[PositionManager/{self.chain_name}] 🛑 DIP STOP: "
+                    f"{state.token_symbol} at {pnl_pct:.1f}%"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=1.0,
+                    reason=f"Dip stop -{self.dip_stop_pct:.0f}%"
+                )
+                self.stop_loss_hits += 1
+                return
+
+            # ── DIP WINNER TRAIL — after TP1, trail 5% from peak ─────
+            if (state.tp1_hit
+                    and state.peak_price > 0
+                    and state.current_price <= state.peak_price * (1 - self.dip_winner_trail_pct / 100)):
+                drop_from_peak = (state.peak_price - state.current_price) / state.peak_price * 100
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] 🔒 DIP TRAIL: "
+                    f"{state.token_symbol} -{drop_from_peak:.1f}% from peak"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=1.0,
+                    reason=f"Dip trail -{drop_from_peak:.1f}% from peak"
+                )
+                return
+
+            # ── DIP TAKE PROFIT TIERS ─────────────────────────────────
+            if pnl_pct >= self.dip_tp2_pct and not state.tp2_hit:
+                state.tp2_hit = True
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] 🎯 DIP TP2: "
+                    f"{state.token_symbol} +{pnl_pct:.1f}%"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=self.dip_tp2_sell,
+                    reason=f"Dip TP2 +{pnl_pct:.1f}%"
+                )
+                return
+
+            if pnl_pct >= self.dip_tp1_pct and not state.tp1_hit:
+                state.tp1_hit = True
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] 🎯 DIP TP1: "
+                    f"{state.token_symbol} +{pnl_pct:.1f}%"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=self.dip_tp1_sell,
+                    reason=f"Dip TP1 +{pnl_pct:.1f}%"
+                )
+                return
+
+            return  # End dip_buy path
+
+        # ═══════════════════════════════════════════════════════════════
         # STANDARD POSITION MANAGEMENT
         # ═══════════════════════════════════════════════════════════════
 
@@ -971,35 +1051,36 @@ class PositionManager:
         # Tier 1 — 3 min: fast dumps (rugs, coordinated sells) drop hard immediately
         # Tier 2 — 15 min: medium dumps that haven't recovered (extended from 5min)
         # Pyramids get tighter exits (bought at the top, higher reversal risk)
-        _is_pyramid = "[PYRAMID]" in state.token_symbol
-        _early_exit_reason = None
-        if not state.tp1_hit:
-            if age_seconds >= 1800 and pnl_pct <= -5.0:
-                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — no momentum at 30min"
-            elif age_seconds >= 180 and pnl_pct <= -8.0:
-                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — fast dump at 3min"
-            # Pyramids: tighter — bought at the top, exit sooner if reversing
-            elif _is_pyramid and age_seconds >= 420 and pnl_pct <= -3.0:
-                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — pyramid no momentum at 7min"
-            elif _is_pyramid and age_seconds >= 180 and pnl_pct <= -5.0:
-                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — pyramid fast dump at 3min"
+        if state.strategy != "dip_buy":
+            _is_pyramid = "[PYRAMID]" in state.token_symbol
+            _early_exit_reason = None
+            if not state.tp1_hit:
+                if age_seconds >= 1800 and pnl_pct <= -5.0:
+                    _early_exit_reason = f"Early exit {pnl_pct:.1f}% — no momentum at 30min"
+                elif age_seconds >= 180 and pnl_pct <= -8.0:
+                    _early_exit_reason = f"Early exit {pnl_pct:.1f}% — fast dump at 3min"
+                # Pyramids: tighter — bought at the top, exit sooner if reversing
+                elif _is_pyramid and age_seconds >= 420 and pnl_pct <= -3.0:
+                    _early_exit_reason = f"Early exit {pnl_pct:.1f}% — pyramid no momentum at 7min"
+                elif _is_pyramid and age_seconds >= 180 and pnl_pct <= -5.0:
+                    _early_exit_reason = f"Early exit {pnl_pct:.1f}% — pyramid fast dump at 3min"
 
-        if _early_exit_reason:
-            logger.info(
-                f"[PositionManager/{self.chain_name}] ⏱ EARLY EXIT: "
-                f"{state.token_symbol} {pnl_pct:+.1f}% at {age_seconds/60:.1f}min — {_early_exit_reason}"
-            )
-            await self._execute_sell(
-                token_address, state,
-                pct=1.0,
-                reason=_early_exit_reason,
-            )
-            if self.scanner:
-                self.scanner.register_stop_loss(
-                    token_address, state.token_symbol, state.current_price,
-                    cooldown_seconds=7200  # 2h cooldown — bad entry, not rug
+            if _early_exit_reason:
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] ⏱ EARLY EXIT: "
+                    f"{state.token_symbol} {pnl_pct:+.1f}% at {age_seconds/60:.1f}min — {_early_exit_reason}"
                 )
-            return
+                await self._execute_sell(
+                    token_address, state,
+                    pct=1.0,
+                    reason=_early_exit_reason,
+                )
+                if self.scanner:
+                    self.scanner.register_stop_loss(
+                        token_address, state.token_symbol, state.current_price,
+                        cooldown_seconds=7200  # 2h cooldown — bad entry, not rug
+                    )
+                return
 
         # ── TXN RATE COLLAPSE — leading indicator: momentum dead before price ───
         # If h1 txn rate falls to <10% of entry baseline, the market has walked
@@ -1155,6 +1236,8 @@ class PositionManager:
             stop_pct = 12.0
         elif state.strategy == "graduation":
             stop_pct = 35.0
+        elif state.strategy == "dip_buy":
+            stop_pct = self.dip_stop_pct
         else:
             stop_pct = self.mc_stop_loss_pct if state.is_micro_cap else self.stop_loss_pct
 
@@ -1164,6 +1247,8 @@ class PositionManager:
             label = (
                 f"Grad stop loss -{stop_pct:.0f}% [realtime]"
                 if state.strategy == "graduation" else
+                f"Dip stop -{stop_pct:.0f}% [realtime]"
+                if state.strategy == "dip_buy" else
                 f"MC stop loss -{stop_pct:.0f}% [realtime]"
                 if state.is_micro_cap else
                 f"Stop loss -{stop_pct:.0f}% [realtime]"
