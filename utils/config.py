@@ -150,8 +150,8 @@ class Config:
     micro_cap_position_usd: float = 40.0
     micro_cap_max_snipers_pct: float = 15.0   # block if snipers hold > 15%
     micro_cap_max_dev_pct: float = 10.0        # block if dev holds > 10%
-    min_volume_h1_usd: float = 5_000
-    min_combined_score: int = 0
+    min_volume_h1_usd: float = 15_000
+    min_combined_score: int = 65
     max_combined_score: int = 100
 
     # ── Chart quality (OHLCV TA filter) ──────────────────────────────────
