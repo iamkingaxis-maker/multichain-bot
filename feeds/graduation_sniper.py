@@ -357,6 +357,7 @@ class GraduationSniper:
                 override_usd=self.position_usd,
                 chain_id="solana",
                 strategy="graduation",
+                override_impact_pct=price_impact,
             )
 
         except Exception as e:

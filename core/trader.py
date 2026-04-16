@@ -211,7 +211,8 @@ class Trader:
                   chain_id: str = "solana", strategy: str = "scanner",
                   override_usd: float = 0.0, pair_address: str = "",
                   market_cap_usd: float = 0.0, age_hours: float = 0.0,
-                  volume_h1_usd: float = 0.0):
+                  volume_h1_usd: float = 0.0,
+                  override_impact_pct: float = -1.0):
         """Execute a buy order."""
         if self.kill_switch and self.kill_switch.is_active:
             logger.info(f"[Trader] Buy blocked — kill switch active ({self.kill_switch._kill_reason})")
@@ -325,14 +326,21 @@ class Trader:
                 impact_pct     = 0.0
                 price_source   = "unknown"
 
-                quote = await self._get_quote(SOL_MINT, token_address, int(sol_amount * 1e9))
-                if quote:
-                    raw_impact = float(quote.get("priceImpactPct", 0))
-                    if raw_impact >= 0:
-                        impact_pct  = raw_impact
-                        entry_price = current_price * (1.0 + impact_pct)
-                        tokens_received = position_size_usd / entry_price
-                        price_source = "jupiter_impact+dex_price"
+                if override_impact_pct >= 0:
+                    # Caller already has the correct Jupiter impact — reuse it
+                    impact_pct      = override_impact_pct / 100.0
+                    entry_price     = current_price * (1.0 + impact_pct)
+                    tokens_received = position_size_usd / entry_price
+                    price_source    = "axiom_impact+price"
+                else:
+                    quote = await self._get_quote(SOL_MINT, token_address, int(sol_amount * 1e9))
+                    if quote:
+                        raw_impact = float(quote.get("priceImpactPct", 0))
+                        if raw_impact >= 0:
+                            impact_pct  = raw_impact
+                            entry_price = current_price * (1.0 + impact_pct)
+                            tokens_received = position_size_usd / entry_price
+                            price_source = "jupiter_impact+dex_price"
 
                 if entry_price <= 0:
                     # Fallback: DexScreener price + slippage model
