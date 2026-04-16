@@ -2670,6 +2670,14 @@ class MultiSourceScanner:
         if not signal.token_address:
             return False
 
+        # Pre-warm Axiom subscription before OHLCV fetches.
+        # The stability gate subscribes cold (0s warm-up) and often sees no ticks
+        # for slow tokens. By subscribing here first, the 2-4s of async OHLCV fetches
+        # + filter checks below give Axiom time to route ticks before the gate polls.
+        # subscribe_token is idempotent — safe to call again inside the stability gate.
+        if self.axiom_price_feed is not None:
+            self.axiom_price_feed.subscribe_token(signal.token_address.lower())
+
         # Pump cooldown — if this token was recently flagged PUMP DETECTED (h1>15%),
         # block re-entry for 30 min even if DexScreener h1 rolls back to 0%.
         _pump_expiry = self._pump_cooldown.get(signal.token_address.lower(), 0)
