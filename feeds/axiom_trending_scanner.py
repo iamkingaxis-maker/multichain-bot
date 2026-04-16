@@ -321,32 +321,11 @@ class AxiomTrendingScanner:
                 and actual_mcap > 0
                 and self.micro_cap_min <= actual_mcap <= self.micro_cap_max
             ):
-                # Gate 1: token must be < 4 hours old — filters stale/dead tokens
+                # Gate 1: compute age for logging/downstream use (no hard limit)
                 pair_created_ms = pair_data.get("pairCreatedAt") or 0
                 age_hours = 0.0
                 if pair_created_ms > 0:
                     age_hours = (_time.time() - pair_created_ms / 1000) / 3600
-                    if age_hours > 4.0:
-                        logger.info(
-                            f"[EstablishedScanner] Micro-cap age drop: {ticker} — "
-                            f"{age_hours:.1f}h old (max 4h)"
-                        )
-                        _liq_rej = (pair_data.get("liquidity") or {}).get("usd") or 0
-                        self.mc_candidates.appendleft({
-                            "time": _dt.datetime.utcnow().strftime("%H:%M:%S"),
-                            "symbol": ticker,
-                            "name": (pair_data.get("baseToken") or {}).get("name") or ticker,
-                            "address": token_address,
-                            "mcap": actual_mcap,
-                            "liquidity": _liq_rej,
-                            "dev_pct": 0,
-                            "snipers_pct": 0,
-                            "lp_burned": False,
-                            "protocol": "DexScreener",
-                            "reject_reason": f"Too old: {age_hours:.1f}h",
-                            "dex_url": f"https://dexscreener.com/solana/{token_address}",
-                        })
-                        return False
 
                 # Gate 2: m5 price check — allow positive momentum OR a dip entry.
                 # MC tokens are volatile; -50% is the crash threshold (dump in
@@ -510,17 +489,6 @@ class AxiomTrendingScanner:
                     f"{ticker} — ${actual_mcap:,.0f} > ${self.max_mcap:,.0f}"
                 )
                 return False
-
-            # Minimum age check — skip tokens younger than 1 hour (rug-prone new launches)
-            pair_created_ms = pair_data.get("pairCreatedAt") or 0
-            if pair_created_ms > 0:
-                age_hours = (_time.time() - pair_created_ms / 1000) / 3600
-                if age_hours < 1.0:
-                    logger.debug(
-                        f"[EstablishedScanner] Age filter drop: {ticker} — "
-                        f"{age_hours*60:.0f}min old (need 60min)"
-                    )
-                    return False
 
             self.tokens_evaluated += 1
 

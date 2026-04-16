@@ -2723,21 +2723,12 @@ class MultiSourceScanner:
 
         if not candles_5m or len(candles_5m) < 3:
             # No candle data — pool not yet indexed on GeckoTerminal.
-            # Only allow for brand-new tokens (< 3h old) — if a token has been
-            # trading for 3+ hours with no candles, it's stale/failed, not fresh.
+            # No age limit enforced — token may be legitimate regardless of age.
             _reason = "no candles" if not candles_5m else f"only {len(candles_5m)} candles"
             _pair_created_ms = (signal.raw_pair_data or {}).get("pairCreatedAt") or 0
             if _pair_created_ms > 0:
                 import time as _time_mod
                 _age_hours = (_time_mod.time() - _pair_created_ms / 1000) / 3600
-                if _age_hours > 3.0:
-                    logger.info(
-                        f"[{self.chain.name}] Chart skip (stale, no candles): "
-                        f"{signal.token_symbol} — {_age_hours:.1f}h old with no OHLCV, "
-                        f"not a fresh graduate"
-                    )
-                    self.signals_blocked_stale_nocandle += 1
-                    return False
             if signal.price_change_h1 > 50:
                 # Micro-caps (<=$80k) pump hard from launch — high h1 is normal.
                 # They're already in the dip window (-3% to -20% m5) when routed here,
