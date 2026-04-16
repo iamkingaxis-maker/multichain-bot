@@ -227,9 +227,13 @@ class Trader:
                 logger.warning(f"Risk manager blocked buy for {token_symbol} — daily limit hit")
                 return
             if override_usd > 0:
-                # Cap override at risk manager's normal max to prevent inflated scalp rebuys
-                risk_max = self.risk_manager.available_capital * self.risk_manager.max_position_pct
-                position_size_usd = min(override_usd, risk_max)
+                if strategy == "dip_buy":
+                    # Dip buys use a fixed $500 size — don't cap at scanner's max_position_pct
+                    position_size_usd = override_usd
+                else:
+                    # Cap override at risk manager's normal max to prevent inflated scalp rebuys
+                    risk_max = self.risk_manager.available_capital * self.risk_manager.max_position_pct
+                    position_size_usd = min(override_usd, risk_max)
             else:
                 position_size_usd = self.risk_manager.get_position_size()
             if position_size_usd <= 0:
