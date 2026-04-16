@@ -367,19 +367,14 @@ async def main():
         if sol_monitor:
             tasks.append(sol_monitor.run())
 
-        # ── Graduation Sniper ─────────────────────────────────────────────
-        # Detects PumpSwap graduations via the Axiom WS feed (already connected,
-        # free). Fresh pumpswap tokens are intercepted before the full scoring
-        # pipeline and routed straight to Jupiter quote → buy.
+        # ── Graduation Sniper (wired after axiom init below) ─────────────
         grad_sniper = GraduationSniper(
             rpc_url=config.solana_rpc_url,
             trader=sol_trader,
-            position_usd=config.micro_cap_position_usd,  # $40 MC sizing
+            position_usd=config.micro_cap_position_usd,
             max_price_impact_pct=10.0,
             sol_price_usd=150.0,
         )
-        axiom.set_graduation_sniper(grad_sniper)
-        logger.info("[Main] Graduation sniper wired to Axiom WS feed")
 
         # ── Edge Strategies ──────────────────────────────────────────────
         sol_convergence = CrossWalletConvergenceStrategy(
@@ -434,6 +429,10 @@ async def main():
             sol_scanner.axiom_price_feed = axiom.price_feed
             axiom.price_feed.position_manager = sol_position_mgr  # event-driven stop loss
             sol_position_mgr.axiom_price_feed = axiom.price_feed  # fast price cache for mgmt cycle
+
+        # Wire graduation sniper into Axiom feed — free graduation detection
+        axiom.set_graduation_sniper(grad_sniper)
+        logger.info("[Main] Graduation sniper wired to Axiom WS feed")
 
         # DexScreener real-time WebSocket feed — sub-second stop accuracy
         # price_feed is already started in tasks; wire it to the position manager
