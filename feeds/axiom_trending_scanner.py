@@ -390,9 +390,10 @@ class AxiomTrendingScanner:
                     )
                     return False
 
-                # Gate 3: minimum liquidity — pools under $3k have slippage so
-                # severe that a -15% stop executes closer to -30% in practice
-                if liq < 3_000:
+                # Gate 3: minimum liquidity — pools under $10k have slippage so
+                # severe that a -25% stop executes 5-10% worse in practice.
+                # $40 buy into <$10k pool = 0.4%+ of pool = guaranteed slippage loss.
+                if liq < 10_000:
                     logger.info(
                         f"[EstablishedScanner] Micro-cap liquidity drop: {ticker} — "
                         f"${liq:,.0f} liquidity (need $3k min)"

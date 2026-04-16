@@ -253,14 +253,14 @@ class DipWatcher:
 
     async def _quick_mc_check(self, state: _WatchState):
         """
-        30-second check: if real dip+recovery hasn't fired yet, verify the token
+        15-second check: if real dip+recovery hasn't fired yet, verify the token
         still has positive momentum before buying via MC quick-buy path.
 
         Requires that price tracking actually happened (peak_price > 0).
         If no prices were received from any feed, we skip entirely — buying blind
         is consistently losing.
         """
-        await asyncio.sleep(30)
+        await asyncio.sleep(15)
 
         # Already triggered via dip+recovery path — nothing to do
         if state.token_address not in self._watches:
@@ -394,11 +394,11 @@ class DipWatcher:
 
     async def _second_chance_check(self, state: _WatchState):
         """
-        60s re-check for tokens that were in deep dip (-40% to -60%) at the 30s gate.
-        Waits another 30 seconds for the token to stabilize, then applies the same
+        30s re-check for tokens that were in deep dip (-40% to -60%) at the 15s gate.
+        Waits another 15 seconds for the token to stabilize, then applies the same
         gates. No further retries — if it still fails here, skip it.
         """
-        await asyncio.sleep(30)  # 30 more seconds = 60s total from signal
+        await asyncio.sleep(15)  # 15 more seconds = 30s total from signal
 
         if state.token_address not in self._watches:
             return  # triggered via real-time dip+recovery path already

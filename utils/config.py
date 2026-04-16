@@ -89,16 +89,16 @@ class Config:
     daily_loss_limit: float = 200.0
 
     # ── Take Profit ──────────────────────────────────────────
-    take_profit_1_pct: float = 10.0   # +10% → sell 100% (clean exit, lock the gain)
-    take_profit_1_sell: float = 1.0
+    take_profit_1_pct: float = 10.0   # +10% → sell 40%, let 60% run to TP2/TP3
+    take_profit_1_sell: float = 0.40
     take_profit_2_pct: float = 75.0
     take_profit_2_sell: float = 0.40
     take_profit_3_pct: float = 300.0
     take_profit_3_sell: float = 1.0
 
     # ── Micro-Cap Take Profit (separate tiers for fresh launches) ──────
-    mc_tp1_pct: float = 10.0        # +10% → sell 100% (clean exit, lock the gain)
-    mc_tp1_sell: float = 1.0
+    mc_tp1_pct: float = 10.0        # +10% → sell 40%, let 60% run to TP2/TP3
+    mc_tp1_sell: float = 0.40
     mc_tp2_pct: float = 75.0        # +75% → sell 40% of remaining
     mc_tp2_sell: float = 0.40
     mc_tp3_pct: float = 200.0       # +200% → sell everything
@@ -111,6 +111,9 @@ class Config:
 
     # ── Winner Protection ────────────────────────────────────
     winner_trail_pct: float = 15.0  # Close 100% if drops 15% from peak after TP1
+
+    # ── DipWatcher ───────────────────────────────────────────
+    dip_watcher_threshold_pct: float = 20.0  # % drop from peak to declare dipped (was 30%)
 
     # ── Stall Detection ──────────────────────────────────────
     stall_check_interval_min: int = 5
