@@ -47,6 +47,7 @@ class Position:
     take_profit_1_hit: bool = False
     take_profit_2_hit: bool = False
     current_price_usd: float = 0.0
+    current_price_ts: float = 0.0   # time.time() of last position_manager price sync
     pnl_usd: float = 0.0
     # Signal quality at entry — used by PositionManager for pyramid decisions
     signal_score: int = 0
@@ -505,9 +506,15 @@ class Trader:
                         f"recording full loss ${-pnl:.2f} (cost ${cost_basis:.2f})"
                     )
                 else:
-                    current_price = await self._get_token_price(token_address)
-                    # If price API returned 0, fall back to position's last known price.
-                    # Recording a 100% loss when the API fails produces wildly wrong PnL.
+                    # Prefer position_manager's synced price (from Axiom/RPC — same source
+                    # the dashboard uses) so sell P&L matches what the user saw.
+                    _synced_price = getattr(position, "current_price_usd", 0)
+                    _synced_ts    = getattr(position, "current_price_ts", 0)
+                    if _synced_price > 0 and (time.time() - _synced_ts) < 10.0:
+                        current_price = _synced_price
+                    else:
+                        current_price = await self._get_token_price(token_address)
+                    # Last resort: entry price avoids a bogus 100% loss on API failure
                     if current_price <= 0:
                         current_price = getattr(position, "current_price_usd", 0) or position.entry_price_usd
                         logger.warning(
@@ -560,7 +567,11 @@ class Trader:
                             is_stop_loss=_is_stop
                         )
                     impact_pct   = slip_est.total_slippage_pct
-                    price_source = "dexscreener+model"
+                    price_source = (
+                        "pm_synced+model"
+                        if _synced_price > 0 and (time.time() - _synced_ts) < 10.0
+                        else "dexscreener+model"
+                    )
 
                     cost_basis = position.entry_price_usd * tokens_to_sell
                     pnl        = usd_received - cost_basis

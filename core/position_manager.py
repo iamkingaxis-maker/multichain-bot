@@ -615,6 +615,7 @@ class PositionManager:
         if token_address in self.open_positions_ref:
             tp = self.open_positions_ref[token_address]
             tp.current_price_usd = price
+            tp.current_price_ts = time.time()
             if state.entry_price > 0:
                 tp.pnl_usd = (
                     (price / state.entry_price - 1)
