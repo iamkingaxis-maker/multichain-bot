@@ -47,6 +47,7 @@ from feeds.price_feed import PriceFeed
 from feeds.solana_rpc_price_feed import SolanaRpcPriceFeed
 from feeds.axiom_integration import AxiomIntegration
 from feeds.graduation_sniper import GraduationSniper
+from feeds.dip_scanner import DipScanner
 from analytics.wallet_scorer import WalletScorer
 from analytics.kelly_sizer import KellySizer
 from analytics.adaptive_threshold import AdaptiveThresholdManager
@@ -329,6 +330,12 @@ async def main():
             mc_tp3_sell=config.mc_tp3_sell,
             mc_stop_loss_pct=config.mc_stop_loss_pct,
             mc_winner_trail_pct=config.mc_winner_trail_pct,
+            dip_tp1_pct=config.dip_tp1_pct,
+            dip_tp1_sell=config.dip_tp1_sell,
+            dip_tp2_pct=config.dip_tp2_pct,
+            dip_tp2_sell=config.dip_tp2_sell,
+            dip_stop_pct=config.dip_stop_pct,
+            dip_winner_trail_pct=config.dip_winner_trail_pct,
             scalper=sol_scalper,
             scanner=sol_scanner
         )
@@ -433,6 +440,26 @@ async def main():
         # Wire graduation sniper into Axiom feed — free graduation detection
         axiom.set_graduation_sniper(grad_sniper)
         logger.info("[Main] Graduation sniper wired to Axiom WS feed")
+
+        if config.dip_scanner_enabled:
+            dip_scanner = DipScanner(
+                trader=sol_trader,
+                telegram=telegram,
+                open_positions_ref=sol_trader.open_positions,
+                position_usd=config.dip_position_usd,
+                min_mcap=config.dip_min_mcap,
+                min_age_days=config.dip_min_age_days,
+                min_volume_h24=config.dip_min_volume_h24,
+                cooldown_hours=config.dip_cooldown_hours,
+                max_concurrent=config.dip_max_concurrent,
+            )
+            tasks.append(dip_scanner.run())
+            logger.info(
+                f"[Main] DipScanner enabled — "
+                f"${config.dip_position_usd:.0f}/position, "
+                f"min mcap ${config.dip_min_mcap/1e6:.0f}M, "
+                f"max {config.dip_max_concurrent} concurrent"
+            )
 
         # DexScreener real-time WebSocket feed — sub-second stop accuracy
         # price_feed is already started in tasks; wire it to the position manager
