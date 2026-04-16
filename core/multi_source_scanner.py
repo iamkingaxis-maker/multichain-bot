@@ -1950,13 +1950,16 @@ class MultiSourceScanner:
     async def _no_candle_stability_gate(self, signal: "TokenSignal") -> bool:
         """
         For established tokens (mcap > $80k) with no GeckoTerminal candles:
-        subscribe to AxiomPriceFeed and watch the real-time price for 10 seconds
-        before allowing the buy.  Catches coordinated dumps that happen the moment
-        our order lands — SNIFFER/ROAR/bullunc all dumped 40-50% within 1-4s.
+        watch the real-time price for 30s before allowing the buy.
+        Catches coordinated dumps — SNIFFER/ROAR/bullunc dumped 40-50% within 1-4s.
 
-        Returns True (allow buy) if price stays within 5% of entry.
-        Returns False (abort) if price drops > 5% in the window.
-        If no live price arrives at all, allows through (conservative: don't block on silence).
+        Price source priority:
+          1. AxiomPriceFeed WS ticks (sub-second, event-driven)
+          2. DexScreener REST fallback if no WS tick in first 10s
+             (Axiom socket8 only pushes on trades — inactive tokens get no ticks)
+
+        Returns True (allow buy) if price stays within 3% of entry.
+        Returns False (abort) if price drops > 3% in the window.
         """
         feed = self.axiom_price_feed
         if feed is None or signal.price_usd <= 0:
@@ -1965,31 +1968,61 @@ class MultiSourceScanner:
         addr      = signal.token_address.lower()
         sym       = signal.token_symbol
         baseline  = signal.price_usd
-        threshold = baseline * 0.97   # 3% drop = abort (tightened from 5%)
+        threshold = baseline * 0.97   # 3% drop = abort
 
-        feed.subscribe_token(addr)
+        if feed is not None:
+            feed.subscribe_token(addr)
         logger.info(
             f"[{self.chain.name}] ⏳ Stability gate: {sym} — "
-            f"watching ${baseline:.8f} for 30s before buying "
-            f"(abort if drops >3%)"
+            f"watching ${baseline:.8f} for 30s before buying (abort if drops >3%)"
         )
 
         saw_price = False
-        for _ in range(30):
+        for tick in range(30):
             await asyncio.sleep(1)
-            current = feed.price_cache.get(addr, 0.0)
+
+            # Primary: AxiomPriceFeed WS cache
+            current = feed.price_cache.get(addr, 0.0) if feed else 0.0
+
+            # Fallback: DexScreener REST after 10s with no WS tick
+            if current <= 0 and not saw_price and tick >= 10 and tick % 5 == 0:
+                try:
+                    import aiohttp as _aio
+                    async with _aio.ClientSession() as _sess:
+                        async with _sess.get(
+                            f"https://api.dexscreener.com/latest/dex/tokens/{signal.token_address}",
+                            timeout=_aio.ClientTimeout(total=3),
+                        ) as _resp:
+                            if _resp.status == 200:
+                                _data = await _resp.json()
+                                _pairs = (_data.get("pairs") or [])
+                                if _pairs:
+                                    _p = float(_pairs[0].get("priceUsd") or 0)
+                                    if _p > 0:
+                                        current = _p
+                                        if feed:
+                                            feed.price_cache[addr] = _p
+                                        logger.info(
+                                            f"[{self.chain.name}] ⏳ Stability gate REST: "
+                                            f"{sym} ${_p:.8f} (no WS tick yet)"
+                                        )
+                except Exception:
+                    pass
+
             if current <= 0:
                 continue
+
             saw_price = True
             if current < threshold:
                 drop_pct = (current / baseline - 1) * 100
                 logger.info(
                     f"[{self.chain.name}] 🚫 Stability gate ABORT: {sym} — "
-                    f"dropped {drop_pct:+.1f}% in <10s (${baseline:.8f} → ${current:.8f}) "
+                    f"dropped {drop_pct:+.1f}% (${baseline:.8f} → ${current:.8f}) "
                     f"— coordinated dump, skipping buy"
                 )
                 self.signals_blocked_atm_nocandle += 1
-                feed.unsubscribe_token(addr)
+                if feed:
+                    feed.unsubscribe_token(addr)
                 return False
 
         if saw_price:
@@ -1997,18 +2030,15 @@ class MultiSourceScanner:
                 f"[{self.chain.name}] ✅ Stability gate PASS: {sym} — "
                 f"price held for 30s, proceeding"
             )
-            # Keep subscribed — position manager uses the feed after buy
             return True
         else:
-            # No live price at all in 10s — feed hasn't picked this token up yet.
-            # Buying blind with no real-time confirmation is the same risk we're
-            # trying to avoid. Block rather than assume stable.
             logger.info(
                 f"[{self.chain.name}] 🚫 Stability gate BLOCK: {sym} — "
-                f"no live price received in 10s — cannot confirm stability, skipping"
+                f"no price data from WS or REST in 30s — skipping"
             )
             self.signals_blocked_atm_nocandle += 1
-            feed.unsubscribe_token(addr)
+            if feed:
+                feed.unsubscribe_token(addr)
             return False
 
     async def _confirm_and_buy(
