@@ -396,7 +396,17 @@ class AxiomTrendingScanner:
                 if liq < 10_000:
                     logger.info(
                         f"[EstablishedScanner] Micro-cap liquidity drop: {ticker} — "
-                        f"${liq:,.0f} liquidity (need $3k min)"
+                        f"${liq:,.0f} liquidity (need $10k min)"
+                    )
+                    return False
+
+                # Gate 3.5: mcap-to-liquidity ratio — >100x = ghost token.
+                # Real tokens have liquidity that scales with market cap.
+                # A $500k mcap token with $5k liquidity is manipulated or dead.
+                if liq > 0 and actual_mcap / liq > 100:
+                    logger.info(
+                        f"[EstablishedScanner] Micro-cap mcap/liq ratio: {ticker} — "
+                        f"{actual_mcap/liq:.0f}x (${actual_mcap:,.0f} mcap / ${liq:,.0f} liq, need <100x)"
                     )
                     return False
 
@@ -536,6 +546,15 @@ class AxiomTrendingScanner:
                 logger.info(
                     f"[EstablishedScanner] Low m5 volume: {ticker} — "
                     f"${vol_m5:,.0f} m5 vol (need $500+)"
+                )
+                return False
+
+            # MCap-to-liquidity ratio — >100x = ghost/manipulated token.
+            # Skip 0 liquidity (data gap); let the liquidity floor handle that case.
+            if liq > 0 and mcap > 0 and mcap / liq > 100:
+                logger.info(
+                    f"[EstablishedScanner] MCap/liq ratio: {ticker} — "
+                    f"{mcap/liq:.0f}x (${mcap:,.0f} mcap / ${liq:,.0f} liq, need <100x)"
                 )
                 return False
 

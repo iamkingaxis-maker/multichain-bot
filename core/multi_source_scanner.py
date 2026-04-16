@@ -1884,6 +1884,17 @@ class MultiSourceScanner:
             self.signals_blocked_score += 1
             return
 
+        # MCap-to-liquidity ratio >100x = ghost/manipulated token.
+        # Real tokens have liquidity proportional to market cap.
+        # Skip if either is 0 (data gap) — liquidity floor handles that case.
+        if signal.liquidity_usd > 0 and signal.mcap > 0 and signal.mcap / signal.liquidity_usd > 100:
+            logger.info(
+                f"[{self.chain.name}] MCap/liq ratio blocked: {signal.token_symbol} "
+                f"{signal.mcap/signal.liquidity_usd:.0f}x (${signal.mcap:,.0f} / ${signal.liquidity_usd:,.0f})"
+            )
+            self.signals_blocked_score += 1
+            return
+
         if _pc_m5 < -20:
             logger.info(
                 f"[{self.chain.name}] Dump guard blocked: {signal.token_symbol} "

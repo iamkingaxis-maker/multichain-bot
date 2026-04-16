@@ -682,6 +682,27 @@ class PositionManager:
                     )
                 return
 
+            # ── MC HARD EXPIRY — 20-minute absolute cap before TP1 ───────
+            # 73% of post-graduation tokens collapse below migration price
+            # within 20 minutes (MemeTrans 2026). If TP1 hasn't fired in
+            # 20 minutes the token isn't moving — exit at any P&L.
+            if not state.tp1_hit and age_seconds >= 1200:
+                logger.warning(
+                    f"[PositionManager/{self.chain_name}] ⏱ MC 20MIN EXPIRY: "
+                    f"{state.token_symbol} — no TP1 after 20min ({pnl_pct:+.1f}%)"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=1.0,
+                    reason=f"MC 20min expiry — no momentum"
+                )
+                if self.scanner:
+                    self.scanner.register_stop_loss(
+                        token_address, state.token_symbol, state.current_price,
+                        cooldown_seconds=1800
+                    )
+                return
+
             # ── MC WINNER TRAIL — close if drops mc_winner_trail_pct% from peak
             _MIN_PEAK_GAIN_FOR_TRAIL = 5.0
             _peak_gain_pct = (state.peak_price - state.entry_price) / state.entry_price * 100
