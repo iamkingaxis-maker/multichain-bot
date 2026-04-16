@@ -144,7 +144,7 @@ class Config:
 
     # ── Micro-Cap Mode (AxiomScanner only) ───────────────────
     # Targets fresh $10k-$50k pairs via Axiom WS with tighter gates
-    micro_cap_enabled: bool = True
+    micro_cap_enabled: bool = False  # Disabled — rug risk too high; graduation sniper covers fresh tokens
     micro_cap_min_mcap: float = 10_000
     micro_cap_max_mcap: float = 80_000  # Raised from 50k — covers PumpSwap graduates (~$67k mcap)
     micro_cap_position_usd: float = 40.0

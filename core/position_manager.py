@@ -966,16 +966,13 @@ class PositionManager:
         # ── EARLY MOMENTUM FAILURE EXIT — graduated time/threshold tiers ────
         # Winners pop fast (1-4 min) or grind positively. Losers drop early and sit.
         # Tier 1 — 3 min: fast dumps (rugs, coordinated sells) drop hard immediately
-        # Tier 2 — 5 min: medium dumps that haven't recovered
-        # Tier 3 — 10 min: slow bleeders that never found momentum
+        # Tier 2 — 15 min: medium dumps that haven't recovered (extended from 5min)
         # Pyramids get tighter exits (bought at the top, higher reversal risk)
         _is_pyramid = "[PYRAMID]" in state.token_symbol
         _early_exit_reason = None
         if not state.tp1_hit:
-            if age_seconds >= 600 and pnl_pct <= -3.0:
-                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — no momentum at 10min"
-            elif age_seconds >= 300 and pnl_pct <= -5.0:
-                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — no momentum at 5min"
+            if age_seconds >= 900 and pnl_pct <= -5.0:
+                _early_exit_reason = f"Early exit {pnl_pct:.1f}% — no momentum at 15min"
             elif age_seconds >= 180 and pnl_pct <= -8.0:
                 _early_exit_reason = f"Early exit {pnl_pct:.1f}% — fast dump at 3min"
             # Pyramids: tighter — bought at the top, exit sooner if reversing
