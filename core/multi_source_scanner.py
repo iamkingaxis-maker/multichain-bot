@@ -1723,13 +1723,22 @@ class MultiSourceScanner:
 
         # Volume ceiling disabled — letting high-volume tokens through
 
-        # Volume/MCap ratio — <1% = dead token (60-80% of volume is bots; ratio reveals organic activity)
-        if signal.mcap > 0:
+        # Vol/MCap ratio — healthy range 10-30%.
+        # <5% = dead token (no active market), >200% = wash trading / manipulation.
+        # Skip if vol=0 (data unavailable, not a dead-token signal).
+        if signal.mcap > 0 and signal.volume_h1 > 0:
             vol_mcap_ratio = signal.volume_h1 / signal.mcap
-            if vol_mcap_ratio < 0.01:
+            if vol_mcap_ratio < 0.05:
                 logger.info(
-                    f"[{self.chain.name}] Dead volume blocked: {signal.token_symbol} "
-                    f"vol/mcap={vol_mcap_ratio*100:.2f}% < 1% "
+                    f"[{self.chain.name}] Dead volume: {signal.token_symbol} "
+                    f"vol/mcap={vol_mcap_ratio*100:.1f}% < 5% "
+                    f"(vol=${signal.volume_h1:,.0f} mcap=${signal.mcap:,.0f})"
+                )
+                return
+            if vol_mcap_ratio > 2.0:
+                logger.info(
+                    f"[{self.chain.name}] Wash trading: {signal.token_symbol} "
+                    f"vol/mcap={vol_mcap_ratio*100:.0f}% > 200% "
                     f"(vol=${signal.volume_h1:,.0f} mcap=${signal.mcap:,.0f})"
                 )
                 return
