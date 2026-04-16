@@ -98,6 +98,8 @@ class GraduationSniper:
         self.buys_skipped_noroute  = 0
         self.buys_skipped_dup      = 0
         self._running = False
+        self._msg_count = 0        # total WS messages received
+        self._last_heartbeat = 0.0 # monotonic time of last heartbeat log
 
     # ── Public interface ──────────────────────────────────────────────────────
 
@@ -195,6 +197,15 @@ class GraduationSniper:
 
     async def _on_message(self, raw: str):
         try:
+            self._msg_count += 1
+            now = time.monotonic()
+            if now - self._last_heartbeat >= 300:  # log every 5 minutes
+                logger.info(
+                    f"[GraduationSniper] ♥ Alive — {self._msg_count} msgs received, "
+                    f"{self.graduations_detected} grads detected"
+                )
+                self._last_heartbeat = now
+
             data = json.loads(raw)
 
             # Subscription confirmation — ignore
