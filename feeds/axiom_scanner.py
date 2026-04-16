@@ -1091,6 +1091,9 @@ class AxiomScanner:
         # Set externally to share spike data from AxiomPriceFeed
         self.price_feed = None
 
+        # Set externally — intercepts fresh PumpSwap graduations before full pipeline
+        self.graduation_sniper = None
+
         # Raw Axiom API response log (first N tokens for debugging)
         self._axiom_api_logged = 0
 
@@ -1441,6 +1444,33 @@ class AxiomScanner:
             if len(self._seen_tokens) > 10_000:
                 keys = list(self._seen_tokens.keys())
                 self._seen_tokens = {k: None for k in keys[-5_000:]}
+
+            # Graduation sniper fast path — intercept fresh PumpSwap tokens before
+            # the full scoring pipeline. Axiom fires on graduation; no RPC needed.
+            if self.graduation_sniper is not None:
+                _proto = event.protocol.lower()
+                if "pumpswap" in _proto or "pump swap" in _proto:
+                    _created = event.created_at  # ISO8601 string
+                    _fresh = False
+                    if _created:
+                        try:
+                            import datetime as _dt
+                            _ts = _dt.datetime.fromisoformat(
+                                _created.replace("Z", "+00:00")
+                            )
+                            _age = (_dt.datetime.now(_dt.timezone.utc) - _ts).total_seconds()
+                            _fresh = _age < 600  # within 10 minutes of graduation
+                        except Exception:
+                            _fresh = True  # parse error → assume fresh
+                    else:
+                        _fresh = True
+                    if _fresh:
+                        asyncio.ensure_future(
+                            self.graduation_sniper.handle_axiom_graduation(
+                                event.token_address, event.token_symbol
+                            )
+                        )
+                        return  # skip full pipeline for fresh grads
 
             # Basic filter — quick and cheap
             # Micro-cap mode lowers the effective floor to allow $10k-$50k tokens through

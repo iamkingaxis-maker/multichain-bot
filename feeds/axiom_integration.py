@@ -209,6 +209,9 @@ class AxiomIntegration:
         self.scanner.price_feed       = self.price_feed
         self.scanner.axiom_price_feed = self.price_feed   # wire named attr used internally
 
+        # Graduation sniper — wired in set_graduation_sniper() after main.py creates it
+        self._graduation_sniper = None
+
         self._tasks = [
             self.scanner.run(),
             self.trending_scanner.run(),
@@ -222,6 +225,11 @@ class AxiomIntegration:
             "[AxiomIntegration] Connected | "
             f"Scanner: {'real-time' if self.auth.has_credentials else 'fallback'}"
         )
+
+    def set_graduation_sniper(self, sniper) -> None:
+        """Wire graduation sniper into Axiom scanner for free RPC-less detection."""
+        self._graduation_sniper = sniper
+        self.scanner.graduation_sniper = sniper
 
     def get_tasks(self) -> list:
         """Return async tasks to add to main asyncio.gather()."""

@@ -259,6 +259,18 @@ class GraduationSniper:
 
     # ── Graduation handler ────────────────────────────────────────────────────
 
+    async def handle_axiom_graduation(self, mint: str, symbol: str):
+        """
+        Entry point called directly from the Axiom WS feed.
+        Mint is already known — skips the RPC tx fetch step entirely.
+        """
+        self.graduations_detected += 1
+        logger.info(
+            f"[GraduationSniper] 🎓 GRADUATION via Axiom | "
+            f"{symbol} | mint: {mint[:20]}…"
+        )
+        asyncio.ensure_future(self._execute_grad_buy(mint, symbol, "PumpSwap/Axiom"))
+
     async def _handle_graduation(self, sig: str, grad_type: str):
         try:
             # 1. Extract token mint from the transaction
@@ -266,10 +278,16 @@ class GraduationSniper:
             if not mint:
                 logger.debug(f"[GraduationSniper] Could not extract mint from {sig[:16]}…")
                 return
+            symbol = f"GRAD-{mint[:6]}"
+            await self._execute_grad_buy(mint, symbol, grad_type)
+        except Exception as e:
+            logger.error(f"[GraduationSniper] handle_graduation error: {e}")
 
+    async def _execute_grad_buy(self, mint: str, symbol: str, grad_type: str):
+        try:
             mint_lower = mint.lower()
 
-            # 2. Dedup guard
+            # 1. Dedup guard
             now = time.time()
             if mint_lower in self._seen_mints:
                 if now - self._seen_mints[mint_lower] < self._SEEN_TTL:
@@ -280,11 +298,11 @@ class GraduationSniper:
             self._seen_mints = {k: v for k, v in self._seen_mints.items()
                                 if now - v < self._SEEN_TTL}
 
-            # 3. Already holding?
+            # 2. Already holding?
             if mint_lower in self.trader.open_positions:
                 return
 
-            # 4. Jupiter quote — retry up to 5× (pool may not be routable for 1-2s post-grad)
+            # 3. Jupiter quote — retry up to 5× (pool may not be routable for 1-2s post-grad)
             quote = None
             for attempt in range(5):
                 quote = await self._jupiter_quote(mint)
@@ -300,7 +318,7 @@ class GraduationSniper:
                 self.buys_skipped_noroute += 1
                 return
 
-            # 5. Price impact check — high impact = very thin pool (likely rug or fake)
+            # 4. Price impact check — high impact = very thin pool (likely rug or fake)
             price_impact = abs(float(quote.get("priceImpactPct") or 0)) * 100
             if price_impact > self.max_price_impact:
                 logger.info(
@@ -310,9 +328,8 @@ class GraduationSniper:
                 self.buys_skipped_impact += 1
                 return
 
-            # 6. Buy
+            # 5. Buy
             self.buys_attempted += 1
-            symbol = f"GRAD-{mint[:6]}"
             logger.info(
                 f"[GraduationSniper] 🚀 BUY {symbol} | "
                 f"mint: {mint[:16]}… | "
@@ -331,7 +348,7 @@ class GraduationSniper:
             )
 
         except Exception as e:
-            logger.error(f"[GraduationSniper] handle_graduation error: {e}")
+            logger.error(f"[GraduationSniper] _execute_grad_buy error: {e}")
 
     # ── RPC helpers ───────────────────────────────────────────────────────────
 

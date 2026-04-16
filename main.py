@@ -368,9 +368,9 @@ async def main():
             tasks.append(sol_monitor.run())
 
         # ── Graduation Sniper ─────────────────────────────────────────────
-        # Subscribes to pump.fun + migration program logs via RPC WebSocket.
-        # Detects PumpSwap/Raydium graduations within ~500ms of confirmation
-        # — 30-90s faster than DexScreener-based discovery.
+        # Detects PumpSwap graduations via the Axiom WS feed (already connected,
+        # free). Fresh pumpswap tokens are intercepted before the full scoring
+        # pipeline and routed straight to Jupiter quote → buy.
         grad_sniper = GraduationSniper(
             rpc_url=config.solana_rpc_url,
             trader=sol_trader,
@@ -378,8 +378,8 @@ async def main():
             max_price_impact_pct=10.0,
             sol_price_usd=150.0,
         )
-        tasks.append(grad_sniper.run())
-        logger.info("[Main] Graduation sniper started")
+        axiom.set_graduation_sniper(grad_sniper)
+        logger.info("[Main] Graduation sniper wired to Axiom WS feed")
 
         # ── Edge Strategies ──────────────────────────────────────────────
         sol_convergence = CrossWalletConvergenceStrategy(
