@@ -3131,7 +3131,13 @@ class MultiSourceScanner:
         if addr_lower in self.trader.open_positions or addr_lower in self._pending_buys:
             return
         self._pending_buys.add(addr_lower)
+        try:
+            await self._fire_chart_buy_inner(signal, risk_level, addr_lower)
+        finally:
+            self._pending_buys.discard(addr_lower)
 
+    async def _fire_chart_buy_inner(self, signal: TokenSignal, risk_level: str, addr_lower: str):
+        """Inner implementation — called only by _fire_chart_buy which holds _pending_buys."""
         # Re-validate score at fire time — the signal may have been cached in the dip
         # watchlist or bounce confirmer queue and the score could have drifted below
         # threshold by the time we actually execute.
@@ -3209,26 +3215,23 @@ class MultiSourceScanner:
         )
 
         self.trader.reentry.last_h1_pct[signal.token_address.lower()] = signal.price_change_h1
-        try:
-            await self.trader.buy(
-                token_address=signal.token_address,
-                token_symbol=signal.token_symbol,
-                reason=(
-                    f"[{self.chain.name}] Multi-source score "
-                    f"{signal.combined_score} "
-                    f"(DEX:{signal.dex_score})"
-                ),
-                signal_score=signal.combined_score,
-                hh_hl_confirmed=getattr(signal, "hh_hl_confirmed", False),
-                chain_id=self.chain.chain_id,
-                strategy="scanner",
-                pair_address=signal.pair_address or "",
-                market_cap_usd=signal.mcap,
-                age_hours=signal.age_hours,
-                volume_h1_usd=signal.volume_h1,
-            )
-        finally:
-            self._pending_buys.discard(signal.token_address.lower())
+        await self.trader.buy(
+            token_address=signal.token_address,
+            token_symbol=signal.token_symbol,
+            reason=(
+                f"[{self.chain.name}] Multi-source score "
+                f"{signal.combined_score} "
+                f"(DEX:{signal.dex_score})"
+            ),
+            signal_score=signal.combined_score,
+            hh_hl_confirmed=getattr(signal, "hh_hl_confirmed", False),
+            chain_id=self.chain.chain_id,
+            strategy="scanner",
+            pair_address=signal.pair_address or "",
+            market_cap_usd=signal.mcap,
+            age_hours=signal.age_hours,
+            volume_h1_usd=signal.volume_h1,
+        )
 
     async def _watchlist_poll_cycle(self):
         """Re-check dip/recovery conditions for all dip watchlist tokens with a stored signal."""

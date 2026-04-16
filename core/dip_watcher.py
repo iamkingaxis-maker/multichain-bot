@@ -107,6 +107,7 @@ class DipWatcher:
         signal_price: DexScreener price at the moment the scanner fired — used as
         the reference for the synthetic-m1 check 15s later.
         """
+        token_address = token_address.lower()  # normalize before all dict operations
         if token_address in self._watches:
             logger.debug(
                 f"[DipWatcher] Already watching {token_symbol} — skipping duplicate"
@@ -169,7 +170,7 @@ class DipWatcher:
         Called by AxiomPriceFeed on every price tick (synchronous, must be fast).
         Applies dip/recovery logic and schedules a buy when conditions are met.
         """
-        state = self._watches.get(token_address)
+        state = self._watches.get(token_address.lower())
         if state is None:
             return
 

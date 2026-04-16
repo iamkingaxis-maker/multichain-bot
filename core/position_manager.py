@@ -962,13 +962,7 @@ class PositionManager:
             )
             self.tp1_hits += 1
 
-            # Pyramid disabled — 18% win rate, structurally buys at the top.
-            # Re-enable via config.enable_pyramids when strategy is revised.
-            if (self.config.enable_pyramids and
-                    not state.pyramided and
-                    not state.is_micro_cap and
-                    not state.is_stalled):
-                await self._execute_pyramid(token_address, state, pnl_pct)
+            # Pyramids disabled — 18% win rate, structurally buys at the top.
             return
 
         # ── STALL DETECTION ──────────────────────────────────────────────
