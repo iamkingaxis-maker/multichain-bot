@@ -68,6 +68,7 @@ class ScalpQueue:
         self._mg_m5_high = 0
         self._mg_vol_h1 = 0
         self._mg_buy_ratio = 0
+        self._mg_avg_trade = 0
 
         # Quality-gate rejection counters (reset each scan summary)
         self._qg_mcap = 0
@@ -175,11 +176,17 @@ class ScalpQueue:
                             except (TypeError, ValueError):
                                 buys = sells = 0.0
                             total_txn = buys + sells
+                            m5_vol = float(vol.get("m5") or 0)
                             self._pair_momentum[addr_l] = {
                                 "m5_change": float(pc.get("m5") or 0),
                                 "h1_vol": float(vol.get("h1") or 0),
+                                "m5_vol": m5_vol,
                                 "m5_buy_ratio": (buys / total_txn) if total_txn > 0 else 0.0,
                                 "m5_txns": int(total_txn),
+                                # Avg USD per m5 trade — defeats bot-spam ratios
+                                # (100 tiny buys + 10 real sells would otherwise
+                                # read as 91% buy-biased).
+                                "m5_avg_trade_usd": (m5_vol / total_txn) if total_txn > 0 else 0.0,
                                 "ts": now,
                             }
                 poll_count += 1
@@ -266,13 +273,15 @@ class ScalpQueue:
             f"cooldown={self._qg_cooldown} full={self._qg_full} | "
             f"momentum-gate rejects: no_data={self._mg_no_data} "
             f"m5_low={self._mg_m5_low} m5_high={self._mg_m5_high} "
-            f"vol_h1={self._mg_vol_h1} buy_ratio={self._mg_buy_ratio}"
+            f"vol_h1={self._mg_vol_h1} buy_ratio={self._mg_buy_ratio} "
+            f"avg_trade={self._mg_avg_trade}"
         )
         self._mg_no_data = 0
         self._mg_m5_low = 0
         self._mg_m5_high = 0
         self._mg_vol_h1 = 0
         self._mg_buy_ratio = 0
+        self._mg_avg_trade = 0
         self._qg_mcap = 0
         self._qg_age = 0
         self._qg_volume = 0
@@ -335,8 +344,10 @@ class ScalpQueue:
             self._qg_volume += 1
             return False
 
-        # Trend filter: don't scalp tokens in a h6 OR h24 downtrend — short-term
-        # m5 pumps inside a multi-hour bleed tend to mean-revert against us.
+        # Trend filter: reject tokens that are either in a downtrend OR already
+        # parabolic. h6/h24 <0 = bleed (m5 pumps mean-revert against us).
+        # h6/h24 too high = exhausted / distribution phase (m5 dips more likely
+        # to be whales rotating out than healthy pullbacks).
         pc = pair.get("priceChange") or {}
         try:
             h6 = float(pc.get("h6") or 0)
@@ -344,6 +355,9 @@ class ScalpQueue:
         except (TypeError, ValueError):
             h6 = h24 = 0.0
         if h6 < 0 or h24 < 0:
+            self._qg_trend += 1
+            return False
+        if h6 > self.cfg.scalp_max_h6_change_pct or h24 > self.cfg.scalp_max_h24_change_pct:
             self._qg_trend += 1
             return False
 
@@ -409,11 +423,19 @@ class ScalpQueue:
             self._mg_buy_ratio += 1
             return
 
+        # Gate 4: defeat bot-spam — require meaningful avg trade size. A 91%
+        # buy ratio from 100 $5 buys + 10 $500 sells is bots faking demand
+        # while whales distribute; average trade size collapses this pattern.
+        if mom.get("m5_avg_trade_usd", 0) < self.cfg.scalp_min_m5_avg_trade_usd:
+            self._mg_avg_trade += 1
+            return
+
         # All gates passed — fire entry
         logger.info(
             f"[ScalpQueue] ENTRY {symbol} ({addr[:8]}) "
             f"m5={m5:+.2f}% h1_vol=${mom['h1_vol']:,.0f} "
-            f"buy_ratio={mom['m5_buy_ratio']:.2f} txns={mom['m5_txns']}"
+            f"buy_ratio={mom['m5_buy_ratio']:.2f} txns={mom['m5_txns']} "
+            f"avg_trade=${mom.get('m5_avg_trade_usd', 0):.0f}"
         )
         del self._watch[addr]
 

@@ -180,6 +180,9 @@ class Config:
     scalp_max_m5_change_pct: float = -1.0   # must be at least -1% red (not flat/green)
     scalp_min_volume_h1_usd: float = 30_000 # real h1 volume floor
     scalp_min_m5_buy_ratio: float = 0.55    # 55%+ buys during dip = buyers absorbing sellers
+    scalp_min_m5_avg_trade_usd: float = 50.0  # m5_volume / m5_txns floor — defeats bot-spam (100 $5 buys faking ratio)
+    scalp_max_h6_change_pct: float = 40.0   # reject h6 > this — recent parabolics = likely local top
+    scalp_max_h24_change_pct: float = 100.0 # reject h24 > this — 2x+ 24h move = exhausted / distribution risk
     scalp_watch_warmup_minutes: float = 10.0  # evict tokens that never enter the dip sweet spot within this window
 
     # ── Micro-Cap Mode (AxiomScanner only) ───────────────────

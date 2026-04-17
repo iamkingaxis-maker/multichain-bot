@@ -23,6 +23,9 @@ def make_config(**overrides):
     cfg.scalp_max_m5_change_pct = -1.0
     cfg.scalp_min_volume_h1_usd = 30_000
     cfg.scalp_min_m5_buy_ratio = 0.55
+    cfg.scalp_min_m5_avg_trade_usd = 50.0
+    cfg.scalp_max_h6_change_pct = 40.0
+    cfg.scalp_max_h24_change_pct = 100.0
     for k, v in overrides.items():
         setattr(cfg, k, v)
     return cfg
@@ -88,6 +91,28 @@ def test_gate_rejects_h24_downtrend():
     q, _, _ = make_queue()
     pair = make_pair(change_h24=-2.0)
     assert q._passes_quality_gates(pair, "ADDR1") is False
+
+
+def test_gate_rejects_parabolic_h24():
+    # Token up 150% in 24h is in distribution phase — m5 dips likely whales
+    # rotating out, not healthy pullbacks. Reject at quality gate.
+    q, _, _ = make_queue()
+    pair = make_pair(change_h24=150.0)
+    assert q._passes_quality_gates(pair, "ADDR1") is False
+
+
+def test_gate_rejects_parabolic_h6():
+    # h6 > 40% = recent parabolic = likely local top. Reject.
+    q, _, _ = make_queue()
+    pair = make_pair(change_h6=60.0)
+    assert q._passes_quality_gates(pair, "ADDR1") is False
+
+
+def test_gate_accepts_moderate_uptrend():
+    # h24=+30%, h6=+10% — healthy uptrend, pullback is tradeable.
+    q, _, _ = make_queue()
+    pair = make_pair(change_h24=30.0, change_h6=10.0)
+    assert q._passes_quality_gates(pair, "ADDR1") is True
 
 
 def test_gate_rejects_h6_downtrend():
@@ -262,15 +287,39 @@ def test_momentum_gate_marks_sweet_spot_entry():
 
 # ── Momentum gate ────────────────────────────────────────────────
 
-def _seed_watch_and_momentum(q, addr="ADDR1", m5=-3.0, h1_vol=50_000, buy_ratio=0.70, txns=20):
+def _seed_watch_and_momentum(q, addr="ADDR1", m5=-3.0, h1_vol=50_000, buy_ratio=0.70,
+                             txns=20, avg_trade_usd=200.0):
     q._watch[addr] = {"symbol": "TEST", "entry_price": 0.001, "entry_ts": time.monotonic()}
     q._pair_momentum[addr.lower()] = {
         "m5_change": m5,
         "h1_vol": h1_vol,
+        "m5_vol": avg_trade_usd * txns,
         "m5_buy_ratio": buy_ratio,
         "m5_txns": txns,
+        "m5_avg_trade_usd": avg_trade_usd,
         "ts": time.time(),
     }
+
+
+@pytest.mark.asyncio
+async def test_momentum_gate_rejects_bot_spam_avg_trade():
+    # 100 $5 buys + 10 $500 sells = 91% buy-ratio but avg trade = (500+5000)/110 = $50.
+    # With $50 minimum avg trade, bot spam (avg $5) is filtered out.
+    q, trader, _ = make_queue()
+    _seed_watch_and_momentum(q, m5=-3.0, buy_ratio=0.91, txns=110, avg_trade_usd=5.0)
+    import asyncio
+    await q._check_momentum_gate("ADDR1")
+    trader.buy.assert_not_called()
+    assert q._mg_avg_trade == 1
+
+
+@pytest.mark.asyncio
+async def test_momentum_gate_accepts_meaningful_trade_size():
+    # Real buyers, avg trade $200 — gate passes.
+    q, trader, _ = make_queue()
+    _seed_watch_and_momentum(q, m5=-3.0, buy_ratio=0.70, txns=20, avg_trade_usd=200.0)
+    await q._check_momentum_gate("ADDR1")
+    trader.buy.assert_called_once()
 
 
 @pytest.mark.asyncio
