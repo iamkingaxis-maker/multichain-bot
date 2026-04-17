@@ -239,6 +239,11 @@ class ScalpQueue:
                 "symbol": symbol,
                 "entry_price": price,
                 "entry_ts": time.monotonic(),
+                # Set when m5 first enters dip sweet spot [min_m5, max_m5]. Remains
+                # None while the token is "not red enough" — so we can evict
+                # range-bound tokens that never dip (warmup timeout) without
+                # touching tokens actively oscillating through the sweet spot.
+                "entered_sweet_spot_ts": None,
             }
             added += 1
             # Subscribe to Axiom real-time price feed so the tick gate has data
@@ -299,7 +304,10 @@ class ScalpQueue:
         if addr.startswith("0x"):
             return False
 
-        if addr in self.open_positions_ref:
+        # open_positions_ref is keyed lowercase (trader stores via .lower()) but
+        # DexScreener addresses arrive mixed-case. Normalize before lookup or the
+        # gate silently misses and re-queues tokens we already hold.
+        if addr.lower() in self.open_positions_ref:
             self._qg_open += 1
             return False
         if self._is_on_cooldown(addr):
@@ -387,6 +395,10 @@ class ScalpQueue:
             self._mg_m5_high += 1
             return
 
+        # Token is inside the dip sweet spot — mark it so prune knows this
+        # watcher is "active" and shouldn't be evicted by the warmup timeout.
+        meta["entered_sweet_spot_ts"] = time.monotonic()
+
         # Gate 2: real h1 volume (not just total 24h)
         if mom["h1_vol"] < self.cfg.scalp_min_volume_h1_usd:
             self._mg_vol_h1 += 1
@@ -435,10 +447,20 @@ class ScalpQueue:
     def _prune_watch_set(self):
         now_mono = time.monotonic()
         expiry_secs = self.cfg.scalp_watch_expiry_minutes * 60
+        warmup_secs = self.cfg.scalp_watch_warmup_minutes * 60
 
+        # Drop rules:
+        #   1) Full expiry — any watcher older than scalp_watch_expiry_minutes
+        #   2) Warmup timeout — watcher older than scalp_watch_warmup_minutes
+        #      that has NEVER entered the dip sweet spot (range-bound tokens
+        #      oscillating near flat). Frees slots for fresher candidates.
         to_drop = [
             addr for addr, meta in self._watch.items()
             if now_mono - meta["entry_ts"] > expiry_secs
+            or (
+                meta.get("entered_sweet_spot_ts") is None
+                and now_mono - meta["entry_ts"] > warmup_secs
+            )
         ]
         apf = self.axiom_price_feed
         for addr in to_drop:
@@ -446,7 +468,7 @@ class ScalpQueue:
             del self._watch[addr]
             # Stop streaming prices for expired tokens unless we actually hold them
             if apf is not None and hasattr(apf, "unsubscribe_token") \
-                    and addr not in self.open_positions_ref:
+                    and addr.lower() not in self.open_positions_ref:
                 try:
                     apf.unsubscribe_token(addr)
                 except Exception:

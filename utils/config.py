@@ -180,6 +180,7 @@ class Config:
     scalp_max_m5_change_pct: float = -1.0   # must be at least -1% red (not flat/green)
     scalp_min_volume_h1_usd: float = 30_000 # real h1 volume floor
     scalp_min_m5_buy_ratio: float = 0.55    # 55%+ buys during dip = buyers absorbing sellers
+    scalp_watch_warmup_minutes: float = 10.0  # evict tokens that never enter the dip sweet spot within this window
 
     # ── Micro-Cap Mode (AxiomScanner only) ───────────────────
     # Targets fresh $10k-$50k pairs via Axiom WS with tighter gates

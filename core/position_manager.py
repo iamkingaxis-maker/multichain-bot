@@ -1309,6 +1309,11 @@ class PositionManager:
 
     async def _evaluate_scalp(self, token_address: str, state: PositionState):
         """Scalp branch: TP1 3%/50%, TP2 5%/100%, hard stop 2.5%, time stop 45min."""
+        # Realtime-stop dedupe: if a realtime stop has already fired on this token,
+        # its _execute_sell may be in-flight. Skip this periodic evaluation to avoid
+        # double on_scalp_close / double scalp_capital.record_close (corrupts _daily_pnl).
+        if token_address in self._stop_triggered:
+            return
         pnl_pct = state.pnl_pct
         hold_seconds = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
 

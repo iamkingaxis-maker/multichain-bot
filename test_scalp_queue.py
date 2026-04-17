@@ -16,6 +16,7 @@ def make_config(**overrides):
     cfg.scalp_min_volume_h24 = 75_000
     cfg.scalp_max_watch_candidates = 40
     cfg.scalp_watch_expiry_minutes = 30.0
+    cfg.scalp_watch_warmup_minutes = 10.0
     cfg.scalp_stop_cooldown_minutes = 30.0
     # Dip-buy gate
     cfg.scalp_min_m5_change_pct = -6.0
@@ -109,10 +110,21 @@ def test_gate_rejects_eth_style_0x_address():
 
 
 def test_gate_rejects_already_in_open_positions():
+    # trader stores open_positions keyed lowercase; gate must normalize before
+    # lookup to catch mixed-case DexScreener addresses pointing at same token.
     q, _, _ = make_queue()
-    q.open_positions_ref["ADDR1"] = object()
+    q.open_positions_ref["addr1"] = object()
     pair = make_pair(addr="ADDR1")
     assert q._passes_quality_gates(pair, "ADDR1") is False
+
+
+def test_gate_rejects_open_position_case_mismatch():
+    # Regression: scan returns mixed-case addr but open_positions_ref is
+    # lowercase — gate must still detect and reject.
+    q, _, _ = make_queue()
+    q.open_positions_ref["zjgjgr9fabc"] = object()
+    pair = make_pair(addr="zjGjGR9FABC")
+    assert q._passes_quality_gates(pair, "zjGjGR9FABC") is False
 
 
 def test_gate_rejects_stop_cooldown():
@@ -205,6 +217,47 @@ def test_prune_keeps_fresh_watches():
     q._watch["NEW"] = {"symbol": "NEW", "entry_price": 0.001, "entry_ts": time.monotonic()}
     q._prune_watch_set()
     assert "NEW" in q._watch
+
+
+def test_prune_evicts_never_red_watches_after_warmup():
+    # Range-bound tokens that never enter the dip sweet spot must be evicted
+    # at scalp_watch_warmup_minutes (default 10min) rather than sit for the
+    # full expiry window and block slots.
+    q, _, _ = make_queue(scalp_watch_warmup_minutes=0.001)  # ~0.06s
+    q._watch["STUCK"] = {
+        "symbol": "STUCK",
+        "entry_price": 0.001,
+        "entry_ts": time.monotonic() - 10,
+        "entered_sweet_spot_ts": None,
+    }
+    q._prune_watch_set()
+    assert "STUCK" not in q._watch
+
+
+def test_prune_keeps_watches_that_entered_sweet_spot():
+    # Tokens that have entered the sweet spot get the full expiry window,
+    # not the shorter warmup window — they're actively oscillating in our zone.
+    q, _, _ = make_queue(scalp_watch_warmup_minutes=0.001)
+    q._watch["ACTIVE"] = {
+        "symbol": "ACTIVE",
+        "entry_price": 0.001,
+        "entry_ts": time.monotonic() - 10,
+        "entered_sweet_spot_ts": time.monotonic() - 5,
+    }
+    q._prune_watch_set()
+    assert "ACTIVE" in q._watch
+
+
+def test_momentum_gate_marks_sweet_spot_entry():
+    # m5 inside [-6, -1] must flip entered_sweet_spot_ts even if later gates
+    # (vol/buy_ratio) reject this cycle — the marker protects the watcher from
+    # warmup eviction so it gets the full expiry window to eventually fire.
+    q, _, _ = make_queue()
+    _seed_watch_and_momentum(q, m5=-3.0, h1_vol=5_000)  # m5 ok, vol fails
+    import asyncio
+    asyncio.run(q._check_momentum_gate("ADDR1"))
+    assert "ADDR1" in q._watch  # not evicted
+    assert q._watch["ADDR1"]["entered_sweet_spot_ts"] is not None
 
 
 # ── Momentum gate ────────────────────────────────────────────────
