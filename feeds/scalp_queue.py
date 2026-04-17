@@ -306,15 +306,32 @@ class ScalpQueue:
 
         async def _add_pairs(new_pairs):
             for p in new_pairs or []:
+                if (p.get("chainId") or "").lower() != _DEX_CHAIN:
+                    continue
                 base = (p.get("baseToken") or {}).get("address") or ""
-                if base and base not in seen_addrs:
+                if base and not base.startswith("0x") and base not in seen_addrs:
                     seen_addrs.add(base)
                     pairs.append(p)
 
         async with aiohttp.ClientSession() as session:
-            # 1) Boosted tokens — DexScreener's curated trending list. Returns
-            #    {chainId, tokenAddress, ...}; we resolve to full pair data via
-            #    the tokens endpoint to get mcap/volume/priceChange.
+            # 1) Volume/trending-ordered Solana pair search — richest established-token
+            #    source (up to ~300 pairs per order, matches scalp profile).
+            for order in ("volume", "trending"):
+                try:
+                    url = (
+                        f"https://api.dexscreener.com/latest/dex/search"
+                        f"?q={_DEX_CHAIN}&order={order}"
+                    )
+                    async with session.get(
+                        url, timeout=aiohttp.ClientTimeout(total=8)
+                    ) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            await _add_pairs(data.get("pairs") or [])
+                except Exception as e:
+                    logger.debug(f"[ScalpQueue] DexScreener order={order} error: {e}")
+
+            # 2) Boosted tokens — curated promoted list. Resolve via tokens/v1.
             boost_addrs: list = []
             for boost_url in (
                 "https://api.dexscreener.com/token-boosts/top/v1",
@@ -330,14 +347,37 @@ class ScalpQueue:
                                 for item in data:
                                     if (item.get("chainId") or "").lower() == _DEX_CHAIN:
                                         a = item.get("tokenAddress") or ""
-                                        if a and a not in boost_addrs:
+                                        if (
+                                            a and not a.startswith("0x")
+                                            and a not in boost_addrs
+                                            and a not in seen_addrs
+                                        ):
                                             boost_addrs.append(a)
                 except Exception as e:
                     logger.debug(f"[ScalpQueue] DexScreener boosts error: {e}")
 
-            # Resolve boost addresses to full pair data (batch: up to 30 per call)
-            for i in range(0, len(boost_addrs), 30):
-                batch = boost_addrs[i:i + 30]
+            # 3) Passive harvest from Axiom price feed — every token any other scanner
+            #    has already subscribed to is a free candidate.
+            harvest: list = []
+            apf = self.axiom_price_feed
+            if apf is not None:
+                pool: set = set()
+                pc = getattr(apf, "price_cache", {}) or {}
+                pool.update(pc.keys())
+                subs = getattr(apf, "_subscribed", set()) or set()
+                pool.update(subs)
+                for a in pool:
+                    if (
+                        a and not a.startswith("0x")
+                        and a not in seen_addrs
+                        and a not in boost_addrs
+                    ):
+                        harvest.append(a)
+
+            # 4) Batch-resolve boost_addrs + harvest via tokens/v1 (30 per call)
+            to_resolve = boost_addrs + harvest
+            for i in range(0, len(to_resolve), 30):
+                batch = to_resolve[i:i + 30]
                 try:
                     url = f"https://api.dexscreener.com/tokens/v1/{_DEX_CHAIN}/{','.join(batch)}"
                     async with session.get(
@@ -350,7 +390,7 @@ class ScalpQueue:
                 except Exception as e:
                     logger.debug(f"[ScalpQueue] DexScreener token batch error: {e}")
 
-            # 2) Keyword search across broadened memecoin terms
+            # 5) Keyword search across memecoin terms — fills gaps the orderings miss
             for term in _SEARCH_TERMS:
                 try:
                     url = (
