@@ -1,5 +1,6 @@
 # test_scalp_queue.py
 import pytest
+import pytest_asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -185,3 +186,35 @@ def test_buy_sell_ratio_empty_buffer():
     apf._tick_buffers = {}
     ratio = q._get_buy_sell_ratio(apf, "ADDR1", 30)
     assert ratio == 0.0
+
+
+# ── Tick gate happy-path ────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_tick_gate_fires_buy_when_all_conditions_met():
+    q, trader, capital = make_queue()
+    now = time.monotonic()
+
+    # Set up a watched token
+    q._watch["ADDR1"] = {"symbol": "TEST", "entry_price": 0.001, "entry_ts": now}
+
+    # Set up axiom price feed mock with all gates passing
+    apf = MagicMock()
+    apf._price_cache = {"ADDR1": 0.001005}  # 0.5% move — under 3% gate
+    apf.get_tick_count = MagicMock(return_value=4)   # > 3 consecutive
+    apf.get_tick_trend = MagicMock(return_value=0.01) # positive trend
+    # 3 buy ticks (positive), 1 sell — ratio = 0.75 > 0.65
+    apf._tick_buffers = {
+        "ADDR1": [(now - 1, 0.001), (now - 2, 0.002), (now - 3, 0.003), (now - 4, -0.001)]
+    }
+    q.axiom_price_feed = apf
+
+    await q._check_tick_gate("ADDR1")
+
+    # Token removed from watch, buy called, capital recorded
+    assert "ADDR1" not in q._watch
+    trader.buy.assert_awaited_once()
+    buy_kwargs = trader.buy.call_args.kwargs
+    assert buy_kwargs["strategy"] == "scalp"
+    assert buy_kwargs["override_usd"] == 200.0
+    assert capital.deployed_usd() == 200.0

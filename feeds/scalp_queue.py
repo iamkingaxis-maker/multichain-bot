@@ -18,7 +18,7 @@ import asyncio
 import logging
 import time
 import aiohttp
-from typing import Dict, Optional
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -150,14 +150,17 @@ class ScalpQueue:
         if current_price <= 0:
             return
         entry_price = meta["entry_price"]
-        if entry_price > 0:
-            move_pct = abs(current_price - entry_price) / entry_price * 100
-            if move_pct > self.cfg.scalp_max_entry_move_pct:
-                logger.debug(
-                    f"[ScalpQueue] {symbol}: {move_pct:.1f}% move from watch — dropping"
-                )
-                del self._watch[addr]
-                return
+        if entry_price <= 0:
+            logger.debug(f"[ScalpQueue] {symbol}: no entry price at watch time — dropping")
+            del self._watch[addr]
+            return
+        move_pct = abs(current_price - entry_price) / entry_price * 100
+        if move_pct > self.cfg.scalp_max_entry_move_pct:
+            logger.debug(
+                f"[ScalpQueue] {symbol}: {move_pct:.1f}% move from watch — dropping"
+            )
+            del self._watch[addr]
+            return
 
         # Gate 1: 3+ consecutive upticks in last 15s
         tick_count = (
@@ -185,15 +188,18 @@ class ScalpQueue:
         )
         del self._watch[addr]
 
-        await self.trader.buy(
-            token_address=addr,
-            token_symbol=symbol,
-            strategy="scalp",
-            override_usd=self.cfg.scalp_position_usd,
-            reason=f"scalp: ticks={tick_count} trend={trend:.3f} ratio={ratio:.2f}",
-        )
-        self.scalp_capital.record_open(addr, self.cfg.scalp_position_usd)
-        self._stop_cooldowns.pop(addr, None)
+        try:
+            await self.trader.buy(
+                token_address=addr,
+                token_symbol=symbol,
+                strategy="scalp",
+                override_usd=self.cfg.scalp_position_usd,
+                reason=f"scalp: ticks={tick_count} trend={trend:.3f} ratio={ratio:.2f}",
+            )
+            self.scalp_capital.record_open(addr, self.cfg.scalp_position_usd)
+            self._stop_cooldowns.pop(addr, None)
+        except Exception as e:
+            logger.error(f"[ScalpQueue] Buy failed for {symbol}: {e}")
 
     def _get_buy_sell_ratio(self, apf, addr: str, seconds: int) -> float:
         buf = (getattr(apf, "_tick_buffers", {}) or {}).get(addr)
