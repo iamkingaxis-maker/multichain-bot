@@ -297,12 +297,15 @@ class AxiomPriceFeed:
             "s":             secret,
             "access_token":  access,
             "refresh_token": refresh,
-            "target":        "socket8",   # price feed lives on socket8.axiom.trade
+            # socket8 upstream went silent (0 msgs in 3+ min with 36 subscribes);
+            # cluster9 serves the same {action:join,room:X} protocol that the
+            # scanner uses successfully (221 msgs / 12 min). Try cluster9 for price.
+            "target":        "cluster9",
         })
         ws_base   = worker_base.replace("https://", "wss://").replace("http://", "ws://")
         proxy_url = f"{ws_base}/ws-proxy?{qs}"
 
-        logger.info("[AxiomPriceFeed] Connecting via Cloudflare Worker proxy (socket8)")
+        logger.info("[AxiomPriceFeed] Connecting via Cloudflare Worker proxy (cluster9)")
 
         try:
             async with _ws_lib.connect(proxy_url) as ws:
