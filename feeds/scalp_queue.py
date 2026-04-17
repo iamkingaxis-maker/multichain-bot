@@ -22,7 +22,7 @@ from typing import Dict
 
 logger = logging.getLogger(__name__)
 
-_SCAN_INTERVAL = 90  # seconds
+_SCAN_INTERVAL = 45  # seconds
 _DEX_CHAIN = "solana"
 _SEARCH_TERMS = ["sol", "bonk", "wif", "cat", "dog", "meme", "pepe", "ai", "pump", "baby"]
 
@@ -44,6 +44,13 @@ class ScalpQueue:
         self._watch: Dict[str, dict] = {}
         # addr -> monotonic expiry timestamp
         self._stop_cooldowns: Dict[str, float] = {}
+
+        # Rolling tick-gate rejection counters (reset each scan summary)
+        self._tg_no_price = 0
+        self._tg_move = 0
+        self._tg_ticks = 0
+        self._tg_trend = 0
+        self._tg_ratio = 0
 
     async def run(self):
         logger.info("[ScalpQueue] Starting — watching for scalp entries")
@@ -70,14 +77,21 @@ class ScalpQueue:
 
     async def _scan_cycle(self):
         if not self.scalp_capital.has_capacity():
+            logger.info(
+                f"[ScalpQueue] Scan skipped — no capacity "
+                f"(open={len(self.scalp_capital._open)}/{self.scalp_capital.max_concurrent})"
+            )
             return
         if len(self._watch) >= self.cfg.scalp_max_watch_candidates:
-            # Still check tick gate for existing watches
+            logger.info(
+                f"[ScalpQueue] Watch set full ({len(self._watch)}) — checking tick gate only"
+            )
             for addr in list(self._watch.keys()):
                 await self._check_tick_gate(addr)
             return
 
         pairs = await self._fetch_dex_candidates()
+        added = 0
         for pair in pairs:
             addr = (pair.get("baseToken") or {}).get("address", "")
             symbol = (pair.get("baseToken") or {}).get("symbol", "?")
@@ -91,10 +105,22 @@ class ScalpQueue:
                 "entry_price": price,
                 "entry_ts": time.monotonic(),
             }
-            logger.debug(f"[ScalpQueue] Watching {symbol} ({addr[:8]})")
+            added += 1
 
         for addr in list(self._watch.keys()):
             await self._check_tick_gate(addr)
+
+        logger.info(
+            f"[ScalpQueue] Scan: {len(pairs)} pairs → +{added} watched "
+            f"(total watch={len(self._watch)}/{self.cfg.scalp_max_watch_candidates}) | "
+            f"tick-gate rejects: no_price={self._tg_no_price} move={self._tg_move} "
+            f"ticks={self._tg_ticks} trend={self._tg_trend} ratio={self._tg_ratio}"
+        )
+        self._tg_no_price = 0
+        self._tg_move = 0
+        self._tg_ticks = 0
+        self._tg_trend = 0
+        self._tg_ratio = 0
 
     def _passes_quality_gates(self, pair: dict, addr: str) -> bool:
         if addr in self.open_positions_ref:
@@ -145,9 +171,10 @@ class ScalpQueue:
         if apf is None:
             return
 
-        # Gate 4: price must not have moved > 3% from watch entry
+        # Gate 4: price must not have moved > scalp_max_entry_move_pct from watch entry
         current_price = (getattr(apf, "price_cache", {}) or {}).get(addr, 0)
         if current_price <= 0:
+            self._tg_no_price += 1
             return
         entry_price = meta["entry_price"]
         if entry_price <= 0:
@@ -156,17 +183,16 @@ class ScalpQueue:
             return
         move_pct = abs(current_price - entry_price) / entry_price * 100
         if move_pct > self.cfg.scalp_max_entry_move_pct:
-            logger.debug(
-                f"[ScalpQueue] {symbol}: {move_pct:.1f}% move from watch — dropping"
-            )
+            self._tg_move += 1
             del self._watch[addr]
             return
 
-        # Gate 1: 3+ consecutive upticks in last 15s
+        # Gate 1: N+ consecutive upticks in last 15s
         tick_count = (
             apf.get_tick_count(addr, 15) if hasattr(apf, "get_tick_count") else 0
         )
         if tick_count < self.cfg.scalp_tick_consecutive_min:
+            self._tg_ticks += 1
             return
 
         # Gate 3: positive tick trend over 30s
@@ -174,11 +200,13 @@ class ScalpQueue:
             apf.get_tick_trend(addr, 30) if hasattr(apf, "get_tick_trend") else 0
         )
         if trend <= 0:
+            self._tg_trend += 1
             return
 
-        # Gate 2: buy/sell ratio > 0.65 over last 30s
+        # Gate 2: buy/sell ratio > scalp_tick_ratio_min over last 30s
         ratio = self._get_buy_sell_ratio(apf, addr, 30)
         if ratio < self.cfg.scalp_tick_ratio_min:
+            self._tg_ratio += 1
             return
 
         # All gates passed — fire entry

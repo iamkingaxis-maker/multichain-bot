@@ -166,14 +166,14 @@ class Config:
     scalp_max_concurrent: int = 10
     scalp_max_hold_minutes: float = 45.0
     scalp_daily_loss_limit: float = 400.0
-    scalp_min_mcap: float = 1_000_000
-    scalp_min_age_days: float = 7.0
-    scalp_min_volume_h24: float = 200_000
-    scalp_max_watch_candidates: int = 25
+    scalp_min_mcap: float = 500_000
+    scalp_min_age_days: float = 2.0
+    scalp_min_volume_h24: float = 150_000
+    scalp_max_watch_candidates: int = 40
     scalp_watch_expiry_minutes: float = 30.0
-    scalp_max_entry_move_pct: float = 3.0
-    scalp_tick_ratio_min: float = 0.65
-    scalp_tick_consecutive_min: int = 3
+    scalp_max_entry_move_pct: float = 4.0
+    scalp_tick_ratio_min: float = 0.60
+    scalp_tick_consecutive_min: int = 2
     scalp_stop_cooldown_minutes: float = 30.0
 
     # ── Micro-Cap Mode (AxiomScanner only) ───────────────────
