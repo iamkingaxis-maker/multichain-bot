@@ -69,6 +69,9 @@ class AxiomPriceFeed:
 
         # Stats
         self.price_updates_received = 0
+        self._ws_messages_received = 0
+        self._ws_last_heartbeat = 0.0
+        self._ws_sample_logged = 0
 
         # External price callbacks — registered by DipWatcher or other components.
         # Each callback is called synchronously with (token_address, price_usd) on
@@ -348,8 +351,27 @@ class AxiomPriceFeed:
                                 pass
 
                 sub_task = asyncio.ensure_future(_sub_manager())
+                self._ws_last_heartbeat = time.time()
                 try:
                     async for message in ws:
+                        self._ws_messages_received += 1
+                        # Log the first 3 raw messages to confirm shape.
+                        if self._ws_sample_logged < 3:
+                            self._ws_sample_logged += 1
+                            logger.info(
+                                f"[AxiomPriceFeed] RAW#{self._ws_sample_logged}: "
+                                f"{message[:400]}"
+                            )
+                        # Per-minute heartbeat — shows msg count + update count + subs.
+                        if time.time() - self._ws_last_heartbeat >= 60:
+                            self._ws_last_heartbeat = time.time()
+                            logger.info(
+                                f"[AxiomPriceFeed] WS heartbeat — "
+                                f"msgs={self._ws_messages_received} "
+                                f"price_updates={self.price_updates_received} "
+                                f"subs={len(self._subscribed)} "
+                                f"cached_prices={len(self.price_cache)}"
+                            )
                         try:
                             data  = _json.loads(message)
                             room  = data.get("room", "")
