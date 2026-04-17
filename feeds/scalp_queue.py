@@ -44,12 +44,16 @@ class ScalpQueue:
                  axiom_price_feed,
                  open_positions_ref: dict,
                  scalp_capital,
-                 config):
+                 config,
+                 scanner=None):
         self.trader = trader
         self.axiom_price_feed = axiom_price_feed
         self.open_positions_ref = open_positions_ref
         self.scalp_capital = scalp_capital
         self.cfg = config
+        # Optional: scanner's global _sl_cooldown registry. When wired, ANY strategy's
+        # close (dip_buy TP, scanner stop, etc) blocks scalp re-entry for 60min+ too.
+        self.scanner = scanner
 
         # addr -> {"symbol", "entry_price", "entry_ts"}
         self._watch: Dict[str, dict] = {}
@@ -272,6 +276,20 @@ class ScalpQueue:
         self._qg_full = 0
         self._qg_trend = 0
 
+    def _is_on_cooldown(self, addr: str) -> bool:
+        """Return True if addr is on EITHER the local scalp cooldown or the
+        scanner's global _sl_cooldown. Ensures a close from any strategy
+        (dip_buy, scanner, scalp) blocks scalp re-entry uniformly."""
+        addr_l = addr.lower()
+        now = time.monotonic()
+        if now < self._stop_cooldowns.get(addr_l, 0):
+            return True
+        if self.scanner is not None:
+            sl = getattr(self.scanner, "_sl_cooldown", None)
+            if sl and now < sl.get(addr_l, 0):
+                return True
+        return False
+
     def _passes_quality_gates(self, pair: dict, addr: str) -> bool:
         # Solana-only — DexScreener /search ignores chain= filter and returns
         # multi-chain pairs. ETH/BSC addresses will never populate an Axiom
@@ -284,7 +302,7 @@ class ScalpQueue:
         if addr in self.open_positions_ref:
             self._qg_open += 1
             return False
-        if time.monotonic() < self._stop_cooldowns.get(addr.lower(), 0):
+        if self._is_on_cooldown(addr):
             self._qg_cooldown += 1
             return False
         if not self.scalp_capital.has_capacity():
@@ -341,7 +359,8 @@ class ScalpQueue:
 
         # Defense-in-depth: cooldown may have been set while addr was already in
         # _watch (scan quality-gate only checks on ADD). Evict stale watchers.
-        if time.monotonic() < self._stop_cooldowns.get(addr.lower(), 0):
+        # Checks BOTH local scalp cooldown and scanner's global _sl_cooldown.
+        if self._is_on_cooldown(addr):
             del self._watch[addr]
             return
 

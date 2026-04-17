@@ -308,7 +308,10 @@ class MultiSourceScanner:
         """
         addr_lower = token_address.lower()
         cooldown_until = time.monotonic() + cooldown_seconds
-        self._sl_cooldown[addr_lower] = cooldown_until
+        # Preserve longer existing cooldowns — never downgrade (e.g. a 60-min close
+        # cooldown must not overwrite an existing 24h flash-crash cooldown)
+        existing = self._sl_cooldown.get(addr_lower, 0)
+        self._sl_cooldown[addr_lower] = max(existing, cooldown_until)
         # Also evict from dip watchlist so it can't auto-buy from a stale watchlist entry
         if addr_lower in self._dip_watchlist:
             del self._dip_watchlist[addr_lower]

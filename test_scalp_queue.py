@@ -131,6 +131,25 @@ def test_gate_rejects_stop_cooldown_case_mismatch():
     assert q._passes_quality_gates(pair, "zjGjGR9FABC") is False
 
 
+def test_gate_rejects_scanner_global_cooldown():
+    # Universal cross-strategy cooldown: when scanner._sl_cooldown blocks a token
+    # (from any dip_buy/scalp/scanner close), the scalp gate must respect it too.
+    q, _, _ = make_queue()
+    q.scanner = MagicMock()
+    q.scanner._sl_cooldown = {"addr1": time.monotonic() + 1000}
+    pair = make_pair(addr="ADDR1")
+    assert q._passes_quality_gates(pair, "ADDR1") is False
+
+
+def test_gate_passes_when_scanner_cooldown_expired():
+    # Expired scanner cooldown must not block — entry eligibility resumes cleanly.
+    q, _, _ = make_queue()
+    q.scanner = MagicMock()
+    q.scanner._sl_cooldown = {"addr1": time.monotonic() - 1}
+    pair = make_pair(addr="ADDR1")
+    assert q._passes_quality_gates(pair, "ADDR1") is True
+
+
 def test_gate_passes_after_cooldown_expires():
     q, _, _ = make_queue()
     q._stop_cooldowns["addr1"] = time.monotonic() - 1  # expired

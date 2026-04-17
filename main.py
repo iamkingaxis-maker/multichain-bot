@@ -479,6 +479,7 @@ async def main():
                 open_positions_ref=sol_trader.open_positions,
                 scalp_capital=scalp_capital,
                 config=config,
+                scanner=sol_scanner,
             )
             sol_position_mgr.scalp_queue = scalp_queue
             dashboard.register_scalp_queue(scalp_queue, scalp_capital)

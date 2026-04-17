@@ -1387,6 +1387,23 @@ class PositionManager:
                 pct=pct
             )
             if pct >= 1.0 and token_address in self._states:
+                # Universal 60-min cross-strategy cooldown on ALL full closes
+                # (TP, time exit, manual, etc) — diversifies rotation and prevents
+                # back-to-back re-buys of the same token. max() in register_stop_loss
+                # preserves any existing longer cooldown (24h flash crash, 2h realtime stop).
+                if self.scanner:
+                    try:
+                        self.scanner.register_stop_loss(
+                            token_address=token_address,
+                            token_symbol=state.token_symbol,
+                            exit_price=state.current_price,
+                            cooldown_seconds=3600,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"[PositionManager/{self.chain_name}] "
+                            f"Close-cooldown register failed for {state.token_symbol}: {e}"
+                        )
                 del self._states[token_address]
                 self._stop_triggered.discard(token_address)
         except Exception as e:
