@@ -156,6 +156,26 @@ class Config:
     dip_winner_trail_pct: float = 5.0     # Trail 5% from peak after TP1
     dip_max_concurrent: int = 2           # Max simultaneous dip positions
 
+    # ── Scalp Queue ──────────────────────────────────────────────
+    scalp_enabled: bool = True
+    scalp_capital: float = 2000.0
+    scalp_position_usd: float = 200.0
+    scalp_tp1_pct: float = 3.0
+    scalp_tp2_pct: float = 5.0
+    scalp_stop_pct: float = 2.5
+    scalp_max_concurrent: int = 10
+    scalp_max_hold_minutes: float = 45.0
+    scalp_daily_loss_limit: float = 400.0
+    scalp_min_mcap: float = 1_000_000
+    scalp_min_age_days: float = 7.0
+    scalp_min_volume_h24: float = 200_000
+    scalp_max_watch_candidates: int = 25
+    scalp_watch_expiry_minutes: float = 30.0
+    scalp_max_entry_move_pct: float = 3.0
+    scalp_tick_ratio_min: float = 0.65
+    scalp_tick_consecutive_min: int = 3
+    scalp_stop_cooldown_minutes: float = 30.0
+
     # ── Micro-Cap Mode (AxiomScanner only) ───────────────────
     # Targets fresh $10k-$50k pairs via Axiom WS with tighter gates
     micro_cap_enabled: bool = False  # Disabled — rug risk too high; graduation sniper covers fresh tokens
@@ -367,6 +387,18 @@ def _apply_env_overrides(config: Config):
         config.dip_min_volume_h24 = env_float("DIP_MIN_VOLUME_H24", config.dip_min_volume_h24)
     if os.environ.get("DIP_STOP_PCT"):
         config.dip_stop_pct = env_float("DIP_STOP_PCT", config.dip_stop_pct)
+
+    # Scalp queue
+    if os.environ.get("SCALP_ENABLED"):
+        config.scalp_enabled = env_bool("SCALP_ENABLED", config.scalp_enabled)
+    if os.environ.get("SCALP_CAPITAL"):
+        config.scalp_capital = env_float("SCALP_CAPITAL", config.scalp_capital)
+    if os.environ.get("SCALP_POSITION_USD"):
+        config.scalp_position_usd = env_float("SCALP_POSITION_USD", config.scalp_position_usd)
+    if os.environ.get("SCALP_STOP_PCT"):
+        config.scalp_stop_pct = env_float("SCALP_STOP_PCT", config.scalp_stop_pct)
+    if os.environ.get("SCALP_MAX_CONCURRENT"):
+        config.scalp_max_concurrent = env_int("SCALP_MAX_CONCURRENT", config.scalp_max_concurrent)
 
 
 def _validate(config: "Config"):
