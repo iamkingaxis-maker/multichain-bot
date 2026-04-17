@@ -232,8 +232,12 @@ class Trader:
                 if strategy == "dip_buy":
                     # Dip buys use a fixed $500 size — don't cap at scanner's max_position_pct
                     position_size_usd = override_usd
+                elif strategy == "scalp":
+                    # Scalp has its own capital pool (ScalpCapitalManager); never clip
+                    # against main risk manager's pool.
+                    position_size_usd = override_usd
                 else:
-                    # Cap override at risk manager's normal max to prevent inflated scalp rebuys
+                    # Cap override at risk manager's normal max to prevent inflated rebuys
                     risk_max = self.risk_manager.available_capital * self.risk_manager.max_position_pct
                     position_size_usd = min(override_usd, risk_max)
             else:
@@ -374,7 +378,8 @@ class Trader:
                 )
                 self.open_positions[token_address.lower()] = position
                 self.reentry.buy_counts[token_address.lower()] = self.reentry.buy_counts.get(token_address.lower(), 0) + 1
-                self.risk_manager.record_buy(position_size_usd)
+                if strategy != "scalp":
+                    self.risk_manager.record_buy(position_size_usd)
 
                 await self.telegram.send(
                     f"📄 *[PAPER] Bought ${token_symbol}*\n\n"
@@ -597,7 +602,8 @@ class Trader:
                     position.amount_sol_spent *= (1 - pct)
                     position.amount_usd *= (1 - pct)
 
-                self.risk_manager.record_sell(usd_received, pnl)
+                if getattr(position, "strategy", "") != "scalp":
+                    self.risk_manager.record_sell(usd_received, pnl)
                 emoji = "🟢" if pnl >= 0 else "🔴"
 
                 await self.telegram.send(
@@ -656,7 +662,8 @@ class Trader:
                 position.amount_sol_spent *= (1 - pct)
                 position.amount_usd *= (1 - pct)
 
-            self.risk_manager.record_sell(usd_received, pnl)
+            if getattr(position, "strategy", "") != "scalp":
+                self.risk_manager.record_sell(usd_received, pnl)
 
             emoji = "🟢" if pnl >= 0 else "🔴"
             await self.telegram.send(
