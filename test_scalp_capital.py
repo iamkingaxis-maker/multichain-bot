@@ -1,4 +1,5 @@
 # test_scalp_capital.py
+import time
 import pytest
 from core.scalp_capital import ScalpCapitalManager
 
@@ -69,3 +70,14 @@ def test_daily_loss_cumulative():
     mgr.record_close("BBB", pnl_usd=-201.0)
     # cumulative -401 > 400 limit
     assert mgr.has_capacity() is False
+
+
+def test_day_reset_clears_daily_loss():
+    mgr = make_mgr(daily_loss_limit=400.0)
+    mgr.record_open("AAA", 200.0)
+    mgr.record_close("AAA", pnl_usd=-401.0)
+    assert mgr.has_capacity() is False  # daily loss hit
+
+    # Simulate day rollover by backdating the reset timestamp
+    mgr._day_reset_ts = time.time() - 1  # pretend midnight already passed
+    assert mgr.has_capacity() is True    # reset should have cleared the flag
