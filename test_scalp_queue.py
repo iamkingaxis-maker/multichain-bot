@@ -16,10 +16,12 @@ def make_config(**overrides):
     cfg.scalp_min_volume_h24 = 75_000
     cfg.scalp_max_watch_candidates = 40
     cfg.scalp_watch_expiry_minutes = 30.0
-    cfg.scalp_max_entry_move_pct = 4.0
-    cfg.scalp_tick_ratio_min = 0.60
-    cfg.scalp_tick_consecutive_min = 2
     cfg.scalp_stop_cooldown_minutes = 30.0
+    # Momentum gate
+    cfg.scalp_min_m5_change_pct = 2.0
+    cfg.scalp_max_m5_change_pct = 8.0
+    cfg.scalp_min_volume_h1_usd = 30_000
+    cfg.scalp_min_m5_buy_ratio = 0.60
     for k, v in overrides.items():
         setattr(cfg, k, v)
     return cfg
@@ -170,68 +172,31 @@ def test_prune_keeps_fresh_watches():
     assert "NEW" in q._watch
 
 
-# ── Buy/sell ratio calculation ──────────────────────────────────
+# ── Momentum gate ────────────────────────────────────────────────
 
-def test_buy_sell_ratio_all_buys():
-    q, _, _ = make_queue()
-    now = time.time()
-    apf = MagicMock()
-    apf._tick_buffers = {
-        "ADDR1": [(now - 1, 0.001), (now - 2, 0.002), (now - 3, 0.003)]
+def _seed_watch_and_momentum(q, addr="ADDR1", m5=3.0, h1_vol=50_000, buy_ratio=0.70, txns=20):
+    q._watch[addr] = {"symbol": "TEST", "entry_price": 0.001, "entry_ts": time.monotonic()}
+    q._pair_momentum[addr.lower()] = {
+        "m5_change": m5,
+        "h1_vol": h1_vol,
+        "m5_buy_ratio": buy_ratio,
+        "m5_txns": txns,
+        "ts": time.time(),
     }
-    ratio = q._get_buy_sell_ratio(apf, "ADDR1", 30)
-    assert ratio == 1.0
 
-
-def test_buy_sell_ratio_mixed():
-    q, _, _ = make_queue()
-    now = time.time()
-    apf = MagicMock()
-    # 3 buys (positive price change), 1 sell (negative)
-    apf._tick_buffers = {
-        "ADDR1": [(now - 1, 0.001), (now - 2, 0.002), (now - 3, 0.003), (now - 4, -0.001)]
-    }
-    ratio = q._get_buy_sell_ratio(apf, "ADDR1", 30)
-    assert ratio == pytest.approx(0.75)
-
-
-def test_buy_sell_ratio_empty_buffer():
-    q, _, _ = make_queue()
-    apf = MagicMock()
-    apf._tick_buffers = {}
-    ratio = q._get_buy_sell_ratio(apf, "ADDR1", 30)
-    assert ratio == 0.0
-
-
-# ── Tick gate happy-path ────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_tick_gate_fires_buy_when_all_conditions_met():
+async def test_momentum_gate_fires_buy_when_all_conditions_met():
     q, trader, capital = make_queue()
-    now_wall = time.time()
 
-    # Simulate a real buy by having trader.buy populate open_positions_ref
     async def fake_buy(**kwargs):
         q.open_positions_ref[kwargs["token_address"].lower()] = object()
     trader.buy.side_effect = fake_buy
 
-    # Set up a watched token
-    q._watch["ADDR1"] = {"symbol": "TEST", "entry_price": 0.001, "entry_ts": time.monotonic()}
+    _seed_watch_and_momentum(q)
 
-    # Set up axiom price feed mock with all gates passing
-    apf = MagicMock()
-    apf.price_cache = {"ADDR1": 0.001005}  # 0.5% move — under 3% gate
-    apf.get_tick_count = MagicMock(return_value=4)   # > 3 consecutive
-    apf.get_tick_trend = MagicMock(return_value=0.01) # positive trend
-    # 3 buy ticks (positive), 1 sell — ratio = 0.75 > 0.65
-    apf._tick_buffers = {
-        "ADDR1": [(now_wall - 1, 0.001), (now_wall - 2, 0.002), (now_wall - 3, 0.003), (now_wall - 4, -0.001)]
-    }
-    q.axiom_price_feed = apf
+    await q._check_momentum_gate("ADDR1")
 
-    await q._check_tick_gate("ADDR1")
-
-    # Token removed from watch, buy called, capital recorded
     assert "ADDR1" not in q._watch
     trader.buy.assert_awaited_once()
     buy_kwargs = trader.buy.call_args.kwargs
@@ -241,24 +206,62 @@ async def test_tick_gate_fires_buy_when_all_conditions_met():
 
 
 @pytest.mark.asyncio
-async def test_tick_gate_skips_record_open_when_buy_silently_fails():
+async def test_momentum_gate_rejects_low_m5_change():
+    q, trader, _ = make_queue()
+    _seed_watch_and_momentum(q, m5=0.5)  # below 2.0 min
+    await q._check_momentum_gate("ADDR1")
+    trader.buy.assert_not_called()
+    assert q._mg_m5_low == 1
+    # Stays on watch — momentum may improve next poll
+    assert "ADDR1" in q._watch
+
+
+@pytest.mark.asyncio
+async def test_momentum_gate_drops_on_high_m5_change():
+    q, trader, _ = make_queue()
+    _seed_watch_and_momentum(q, m5=12.0)  # above 8.0 max — too late
+    await q._check_momentum_gate("ADDR1")
+    trader.buy.assert_not_called()
+    assert q._mg_m5_high == 1
+    # Pumped — evicted from watch, don't chase
+    assert "ADDR1" not in q._watch
+
+
+@pytest.mark.asyncio
+async def test_momentum_gate_rejects_low_h1_volume():
+    q, trader, _ = make_queue()
+    _seed_watch_and_momentum(q, h1_vol=5_000)  # below 30k min
+    await q._check_momentum_gate("ADDR1")
+    trader.buy.assert_not_called()
+    assert q._mg_vol_h1 == 1
+
+
+@pytest.mark.asyncio
+async def test_momentum_gate_rejects_low_buy_ratio():
+    q, trader, _ = make_queue()
+    _seed_watch_and_momentum(q, buy_ratio=0.40)  # below 0.60 min
+    await q._check_momentum_gate("ADDR1")
+    trader.buy.assert_not_called()
+    assert q._mg_buy_ratio == 1
+
+
+@pytest.mark.asyncio
+async def test_momentum_gate_no_data_rejects():
+    q, trader, _ = make_queue()
+    q._watch["ADDR1"] = {"symbol": "TEST", "entry_price": 0.001, "entry_ts": time.monotonic()}
+    # No _pair_momentum entry — poll hasn't populated yet
+    await q._check_momentum_gate("ADDR1")
+    trader.buy.assert_not_called()
+    assert q._mg_no_data == 1
+
+
+@pytest.mark.asyncio
+async def test_momentum_gate_skips_record_open_when_buy_silently_fails():
     """trader.buy() silently returns on kill switch, LP unlock, etc. — don't leak slot."""
     q, trader, capital = make_queue()
-    now_wall = time.time()
-
+    _seed_watch_and_momentum(q)
     # trader.buy returns without populating open_positions_ref (silent failure)
-    q._watch["ADDR1"] = {"symbol": "TEST", "entry_price": 0.001, "entry_ts": time.monotonic()}
-    apf = MagicMock()
-    apf.price_cache = {"ADDR1": 0.001005}
-    apf.get_tick_count = MagicMock(return_value=4)
-    apf.get_tick_trend = MagicMock(return_value=0.01)
-    apf._tick_buffers = {
-        "ADDR1": [(now_wall - 1, 0.001), (now_wall - 2, 0.002), (now_wall - 3, 0.003), (now_wall - 4, -0.001)]
-    }
-    q.axiom_price_feed = apf
-
-    await q._check_tick_gate("ADDR1")
-
+    await q._check_momentum_gate("ADDR1")
     trader.buy.assert_awaited_once()
     assert capital.deployed_usd() == 0.0
     assert "ADDR1" not in capital._open

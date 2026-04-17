@@ -175,6 +175,11 @@ class Config:
     scalp_tick_ratio_min: float = 0.60
     scalp_tick_consecutive_min: int = 2
     scalp_stop_cooldown_minutes: float = 30.0
+    # ── Momentum-gate (DexScreener-based, replaces broken poll-tick gate) ──
+    scalp_min_m5_change_pct: float = 2.0    # require +2% move in last 5m
+    scalp_max_m5_change_pct: float = 8.0    # but not >8% (don't chase tops)
+    scalp_min_volume_h1_usd: float = 30_000 # real h1 volume floor
+    scalp_min_m5_buy_ratio: float = 0.60    # 60%+ of m5 txns must be buys
 
     # ── Micro-Cap Mode (AxiomScanner only) ───────────────────
     # Targets fresh $10k-$50k pairs via Axiom WS with tighter gates

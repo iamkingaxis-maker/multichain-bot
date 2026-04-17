@@ -54,13 +54,15 @@ class ScalpQueue:
         self._watch: Dict[str, dict] = {}
         # addr -> monotonic expiry timestamp
         self._stop_cooldowns: Dict[str, float] = {}
+        # addr (lower) -> {"m5_change", "h1_vol", "m5_buy_ratio", "ts"} — refreshed by poll
+        self._pair_momentum: Dict[str, dict] = {}
 
-        # Rolling tick-gate rejection counters (reset each scan summary)
-        self._tg_no_price = 0
-        self._tg_move = 0
-        self._tg_ticks = 0
-        self._tg_trend = 0
-        self._tg_ratio = 0
+        # Rolling momentum-gate rejection counters (reset each scan summary)
+        self._mg_no_data = 0
+        self._mg_m5_low = 0
+        self._mg_m5_high = 0
+        self._mg_vol_h1 = 0
+        self._mg_buy_ratio = 0
 
         # Quality-gate rejection counters (reset each scan summary)
         self._qg_mcap = 0
@@ -156,6 +158,24 @@ class ScalpQueue:
                             )
                             buf.append((now, price_usd))
                             total_prices += 1
+
+                            # Capture momentum fields for the gate
+                            pc = pair.get("priceChange") or {}
+                            vol = pair.get("volume") or {}
+                            m5_txn = (pair.get("txns") or {}).get("m5") or {}
+                            try:
+                                buys = float(m5_txn.get("buys") or 0)
+                                sells = float(m5_txn.get("sells") or 0)
+                            except (TypeError, ValueError):
+                                buys = sells = 0.0
+                            total_txn = buys + sells
+                            self._pair_momentum[addr_l] = {
+                                "m5_change": float(pc.get("m5") or 0),
+                                "h1_vol": float(vol.get("h1") or 0),
+                                "m5_buy_ratio": (buys / total_txn) if total_txn > 0 else 0.0,
+                                "m5_txns": int(total_txn),
+                                "ts": now,
+                            }
                 poll_count += 1
                 if poll_count % 8 == 1:
                     logger.info(
@@ -222,7 +242,7 @@ class ScalpQueue:
                     logger.debug(f"[ScalpQueue] subscribe failed for {symbol}: {e}")
 
         for addr in list(self._watch.keys()):
-            await self._check_tick_gate(addr)
+            await self._check_momentum_gate(addr)
 
         logger.info(
             f"[ScalpQueue] Scan: {len(pairs)} pairs (non-sol filtered={non_sol}) → "
@@ -231,14 +251,15 @@ class ScalpQueue:
             f"quality-gate rejects: mcap={self._qg_mcap} age={self._qg_age} "
             f"volume={self._qg_volume} open={self._qg_open} "
             f"cooldown={self._qg_cooldown} full={self._qg_full} | "
-            f"tick-gate rejects: no_price={self._tg_no_price} move={self._tg_move} "
-            f"ticks={self._tg_ticks} trend={self._tg_trend} ratio={self._tg_ratio}"
+            f"momentum-gate rejects: no_data={self._mg_no_data} "
+            f"m5_low={self._mg_m5_low} m5_high={self._mg_m5_high} "
+            f"vol_h1={self._mg_vol_h1} buy_ratio={self._mg_buy_ratio}"
         )
-        self._tg_no_price = 0
-        self._tg_move = 0
-        self._tg_ticks = 0
-        self._tg_trend = 0
-        self._tg_ratio = 0
+        self._mg_no_data = 0
+        self._mg_m5_low = 0
+        self._mg_m5_high = 0
+        self._mg_vol_h1 = 0
+        self._mg_buy_ratio = 0
         self._qg_mcap = 0
         self._qg_age = 0
         self._qg_volume = 0
@@ -285,70 +306,56 @@ class ScalpQueue:
 
         return True
 
-    # ── Tick gate ───────────────────────────────────────────────
+    # ── Momentum gate (DexScreener-based) ───────────────────────
 
-    async def _check_tick_gate(self, addr: str):
+    async def _check_momentum_gate(self, addr: str):
+        """Fire entry when DexScreener shows real recent momentum: m5 change
+        in the sweet spot, non-trivial h1 volume, and buy-biased m5 txns.
+        Replaces the broken poll-tick gate (ratio always = 1.00, ticks = noise)."""
         if addr not in self._watch:
             return
 
         meta = self._watch[addr]
         symbol = meta["symbol"]
 
-        if addr in self.open_positions_ref:
+        if addr in self.open_positions_ref or addr.lower() in self.open_positions_ref:
             del self._watch[addr]
             return
 
         if not self.scalp_capital.has_capacity():
             return
 
-        apf = self.axiom_price_feed
-        if apf is None:
+        mom = self._pair_momentum.get(addr) or self._pair_momentum.get(addr.lower())
+        if not mom:
+            self._mg_no_data += 1
             return
 
-        # Gate 4: price must not have moved > scalp_max_entry_move_pct from watch entry
-        # Axiom stores cache keys as .lower() — try both original and lowered for robustness
-        pc = getattr(apf, "price_cache", {}) or {}
-        current_price = pc.get(addr) or pc.get(addr.lower(), 0)
-        if current_price <= 0:
-            self._tg_no_price += 1
+        # Gate 1: m5 change must be positive and within sweet spot
+        m5 = mom["m5_change"]
+        if m5 < self.cfg.scalp_min_m5_change_pct:
+            self._mg_m5_low += 1
             return
-        entry_price = meta["entry_price"]
-        if entry_price <= 0:
-            logger.debug(f"[ScalpQueue] {symbol}: no entry price at watch time — dropping")
-            del self._watch[addr]
-            return
-        move_pct = abs(current_price - entry_price) / entry_price * 100
-        if move_pct > self.cfg.scalp_max_entry_move_pct:
-            self._tg_move += 1
+        if m5 > self.cfg.scalp_max_m5_change_pct:
+            # Already pumped — don't chase the top
+            self._mg_m5_high += 1
             del self._watch[addr]
             return
 
-        # Gate 1: N+ consecutive upticks in last 15s
-        tick_count = (
-            apf.get_tick_count(addr, 15) if hasattr(apf, "get_tick_count") else 0
-        )
-        if tick_count < self.cfg.scalp_tick_consecutive_min:
-            self._tg_ticks += 1
+        # Gate 2: real h1 volume (not just total 24h)
+        if mom["h1_vol"] < self.cfg.scalp_min_volume_h1_usd:
+            self._mg_vol_h1 += 1
             return
 
-        # Gate 3: positive tick trend over 30s
-        trend = (
-            apf.get_tick_trend(addr, 30) if hasattr(apf, "get_tick_trend") else 0
-        )
-        if trend <= 0:
-            self._tg_trend += 1
-            return
-
-        # Gate 2: buy/sell ratio > scalp_tick_ratio_min over last 30s
-        ratio = self._get_buy_sell_ratio(apf, addr, 30)
-        if ratio < self.cfg.scalp_tick_ratio_min:
-            self._tg_ratio += 1
+        # Gate 3: buy/sell ratio from actual m5 transactions (not synthesized)
+        if mom["m5_buy_ratio"] < self.cfg.scalp_min_m5_buy_ratio:
+            self._mg_buy_ratio += 1
             return
 
         # All gates passed — fire entry
         logger.info(
             f"[ScalpQueue] ENTRY {symbol} ({addr[:8]}) "
-            f"ticks={tick_count} trend={trend:.3f} ratio={ratio:.2f}"
+            f"m5={m5:+.2f}% h1_vol=${mom['h1_vol']:,.0f} "
+            f"buy_ratio={mom['m5_buy_ratio']:.2f} txns={mom['m5_txns']}"
         )
         del self._watch[addr]
 
@@ -358,7 +365,10 @@ class ScalpQueue:
                 token_symbol=symbol,
                 strategy="scalp",
                 override_usd=self.cfg.scalp_position_usd,
-                reason=f"scalp: ticks={tick_count} trend={trend:.3f} ratio={ratio:.2f}",
+                reason=(
+                    f"scalp: m5={m5:+.2f}% h1_vol=${mom['h1_vol']:,.0f} "
+                    f"buy_ratio={mom['m5_buy_ratio']:.2f}"
+                ),
             )
             # trader.buy() silently returns on many early-exit paths (kill
             # switch, LP unlock block, swap failure, etc.) without raising.
@@ -373,19 +383,6 @@ class ScalpQueue:
                 )
         except Exception as e:
             logger.error(f"[ScalpQueue] Buy failed for {symbol}: {e}")
-
-    def _get_buy_sell_ratio(self, apf, addr: str, seconds: int) -> float:
-        tb = getattr(apf, "_tick_buffers", {}) or {}
-        buf = tb.get(addr) or tb.get(addr.lower())
-        if not buf:
-            return 0.0
-        now = time.time()
-        cutoff = now - seconds
-        recent = [t for t in buf if t[0] >= cutoff]
-        if not recent:
-            return 0.0
-        buys = sum(1 for t in recent if t[1] > 0)
-        return buys / len(recent)
 
     # ── Watch set maintenance ───────────────────────────────────
 
