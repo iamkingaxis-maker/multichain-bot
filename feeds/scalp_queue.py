@@ -72,6 +72,7 @@ class ScalpQueue:
         self._qg_open = 0
         self._qg_cooldown = 0
         self._qg_full = 0
+        self._qg_trend = 0
 
     async def run(self):
         logger.info("[ScalpQueue] Starting — watching for scalp entries")
@@ -252,7 +253,7 @@ class ScalpQueue:
             f"+{added} watched (total watch={len(self._watch)}/"
             f"{self.cfg.scalp_max_watch_candidates}) | "
             f"quality-gate rejects: mcap={self._qg_mcap} age={self._qg_age} "
-            f"volume={self._qg_volume} open={self._qg_open} "
+            f"volume={self._qg_volume} trend={self._qg_trend} open={self._qg_open} "
             f"cooldown={self._qg_cooldown} full={self._qg_full} | "
             f"momentum-gate rejects: no_data={self._mg_no_data} "
             f"m5_low={self._mg_m5_low} m5_high={self._mg_m5_high} "
@@ -269,6 +270,7 @@ class ScalpQueue:
         self._qg_open = 0
         self._qg_cooldown = 0
         self._qg_full = 0
+        self._qg_trend = 0
 
     def _passes_quality_gates(self, pair: dict, addr: str) -> bool:
         # Solana-only — DexScreener /search ignores chain= filter and returns
@@ -305,6 +307,18 @@ class ScalpQueue:
         volume_h24 = float((pair.get("volume") or {}).get("h24") or 0)
         if volume_h24 < self.cfg.scalp_min_volume_h24:
             self._qg_volume += 1
+            return False
+
+        # Trend filter: don't scalp tokens in a h6 OR h24 downtrend — short-term
+        # m5 pumps inside a multi-hour bleed tend to mean-revert against us.
+        pc = pair.get("priceChange") or {}
+        try:
+            h6 = float(pc.get("h6") or 0)
+            h24 = float(pc.get("h24") or 0)
+        except (TypeError, ValueError):
+            h6 = h24 = 0.0
+        if h6 < 0 or h24 < 0:
+            self._qg_trend += 1
             return False
 
         return True

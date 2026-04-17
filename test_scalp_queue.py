@@ -27,7 +27,7 @@ def make_config(**overrides):
     return cfg
 
 
-def make_pair(mcap=2_000_000, age_ms=None, vol_h24=500_000, change_h24=5.0, addr="ADDR1", symbol="TEST", price="0.001", chain_id="solana"):
+def make_pair(mcap=2_000_000, age_ms=None, vol_h24=500_000, change_h24=5.0, change_h6=3.0, addr="ADDR1", symbol="TEST", price="0.001", chain_id="solana"):
     if age_ms is None:
         age_ms = time.time() * 1000 - 10 * 86_400 * 1000  # 10 days ago
     return {
@@ -36,7 +36,7 @@ def make_pair(mcap=2_000_000, age_ms=None, vol_h24=500_000, change_h24=5.0, addr
         "marketCap": mcap,
         "pairCreatedAt": age_ms,
         "volume": {"h24": vol_h24},
-        "priceChange": {"h24": change_h24},
+        "priceChange": {"h24": change_h24, "h6": change_h6},
         "priceUsd": price,
     }
 
@@ -82,12 +82,18 @@ def test_gate_rejects_low_volume():
     assert q._passes_quality_gates(pair, "ADDR1") is False
 
 
-def test_gate_accepts_downtrend():
-    # Scalps profit on short-term upticks regardless of 24h trend —
-    # the downtrend filter was removed so these still pass quality gates.
+def test_gate_rejects_h24_downtrend():
+    # Tokens in a 24h downtrend bleed against short-term m5 pumps — skip them.
     q, _, _ = make_queue()
     pair = make_pair(change_h24=-2.0)
-    assert q._passes_quality_gates(pair, "ADDR1") is True
+    assert q._passes_quality_gates(pair, "ADDR1") is False
+
+
+def test_gate_rejects_h6_downtrend():
+    # Even if 24h is positive, a 6h downtrend means current trend is bearish.
+    q, _, _ = make_queue()
+    pair = make_pair(change_h24=5.0, change_h6=-3.0)
+    assert q._passes_quality_gates(pair, "ADDR1") is False
 
 
 def test_gate_rejects_non_solana_chain():
