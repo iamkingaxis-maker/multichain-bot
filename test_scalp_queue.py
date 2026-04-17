@@ -17,11 +17,11 @@ def make_config(**overrides):
     cfg.scalp_max_watch_candidates = 40
     cfg.scalp_watch_expiry_minutes = 30.0
     cfg.scalp_stop_cooldown_minutes = 30.0
-    # Momentum gate
-    cfg.scalp_min_m5_change_pct = 2.0
-    cfg.scalp_max_m5_change_pct = 8.0
+    # Dip-buy gate
+    cfg.scalp_min_m5_change_pct = -6.0
+    cfg.scalp_max_m5_change_pct = -1.0
     cfg.scalp_min_volume_h1_usd = 30_000
-    cfg.scalp_min_m5_buy_ratio = 0.60
+    cfg.scalp_min_m5_buy_ratio = 0.55
     for k, v in overrides.items():
         setattr(cfg, k, v)
     return cfg
@@ -190,7 +190,7 @@ def test_prune_keeps_fresh_watches():
 
 # ── Momentum gate ────────────────────────────────────────────────
 
-def _seed_watch_and_momentum(q, addr="ADDR1", m5=3.0, h1_vol=50_000, buy_ratio=0.70, txns=20):
+def _seed_watch_and_momentum(q, addr="ADDR1", m5=-3.0, h1_vol=50_000, buy_ratio=0.70, txns=20):
     q._watch[addr] = {"symbol": "TEST", "entry_price": 0.001, "entry_ts": time.monotonic()}
     q._pair_momentum[addr.lower()] = {
         "m5_change": m5,
@@ -222,24 +222,24 @@ async def test_momentum_gate_fires_buy_when_all_conditions_met():
 
 
 @pytest.mark.asyncio
-async def test_momentum_gate_rejects_low_m5_change():
+async def test_momentum_gate_rejects_not_red_enough():
     q, trader, _ = make_queue()
-    _seed_watch_and_momentum(q, m5=0.5)  # below 2.0 min
+    _seed_watch_and_momentum(q, m5=0.5)  # above -1.0 ceiling — not dipping
     await q._check_momentum_gate("ADDR1")
     trader.buy.assert_not_called()
-    assert q._mg_m5_low == 1
-    # Stays on watch — momentum may improve next poll
+    assert q._mg_m5_high == 1
+    # Stays on watch — dip may deepen next poll
     assert "ADDR1" in q._watch
 
 
 @pytest.mark.asyncio
-async def test_momentum_gate_drops_on_high_m5_change():
+async def test_momentum_gate_drops_on_capitulation():
     q, trader, _ = make_queue()
-    _seed_watch_and_momentum(q, m5=12.0)  # above 8.0 max — too late
+    _seed_watch_and_momentum(q, m5=-12.0)  # below -6.0 floor — falling knife
     await q._check_momentum_gate("ADDR1")
     trader.buy.assert_not_called()
-    assert q._mg_m5_high == 1
-    # Pumped — evicted from watch, don't chase
+    assert q._mg_m5_low == 1
+    # Capitulating — evicted from watch, don't catch a falling knife
     assert "ADDR1" not in q._watch
 
 

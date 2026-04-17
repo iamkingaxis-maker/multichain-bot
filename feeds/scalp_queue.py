@@ -355,15 +355,17 @@ class ScalpQueue:
             self._mg_no_data += 1
             return
 
-        # Gate 1: m5 change must be positive and within sweet spot
+        # Gate 1: m5 must be RED within dip-buy sweet spot — we're catching
+        # short-term pullbacks on healthy tokens, not chasing green candles.
         m5 = mom["m5_change"]
         if m5 < self.cfg.scalp_min_m5_change_pct:
+            # Below capitulation floor — falling knife / likely rug. Evict.
             self._mg_m5_low += 1
+            del self._watch[addr]
             return
         if m5 > self.cfg.scalp_max_m5_change_pct:
-            # Already pumped — don't chase the top
+            # Not red enough yet — stay on watch, dip may deepen next poll.
             self._mg_m5_high += 1
-            del self._watch[addr]
             return
 
         # Gate 2: real h1 volume (not just total 24h)
