@@ -24,7 +24,14 @@ logger = logging.getLogger(__name__)
 
 _SCAN_INTERVAL = 45  # seconds
 _DEX_CHAIN = "solana"
-_SEARCH_TERMS = ["sol", "bonk", "wif", "cat", "dog", "meme", "pepe", "ai", "pump", "baby"]
+# Broad memecoin keyword set — runs against DexScreener search. These are the
+# most-used memecoin archetypes; each returns a different slice of pairs.
+_SEARCH_TERMS = [
+    "sol", "bonk", "wif", "cat", "dog", "meme", "pepe", "pump", "baby",
+    "inu", "trump", "biden", "moon", "chad", "frog", "fart", "based",
+    "ai", "gpt", "turbo", "giga", "elon", "doge", "shib", "trx",
+    "404", "69", "420",
+]
 
 
 class ScalpQueue:
@@ -295,8 +302,56 @@ class ScalpQueue:
 
     async def _fetch_dex_candidates(self) -> list:
         pairs = []
+        seen_addrs: set = set()
+
+        async def _add_pairs(new_pairs):
+            for p in new_pairs or []:
+                base = (p.get("baseToken") or {}).get("address") or ""
+                if base and base not in seen_addrs:
+                    seen_addrs.add(base)
+                    pairs.append(p)
+
         async with aiohttp.ClientSession() as session:
-            for term in _SEARCH_TERMS[:5]:
+            # 1) Boosted tokens — DexScreener's curated trending list. Returns
+            #    {chainId, tokenAddress, ...}; we resolve to full pair data via
+            #    the tokens endpoint to get mcap/volume/priceChange.
+            boost_addrs: list = []
+            for boost_url in (
+                "https://api.dexscreener.com/token-boosts/top/v1",
+                "https://api.dexscreener.com/token-boosts/latest/v1",
+            ):
+                try:
+                    async with session.get(
+                        boost_url, timeout=aiohttp.ClientTimeout(total=8)
+                    ) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            if isinstance(data, list):
+                                for item in data:
+                                    if (item.get("chainId") or "").lower() == _DEX_CHAIN:
+                                        a = item.get("tokenAddress") or ""
+                                        if a and a not in boost_addrs:
+                                            boost_addrs.append(a)
+                except Exception as e:
+                    logger.debug(f"[ScalpQueue] DexScreener boosts error: {e}")
+
+            # Resolve boost addresses to full pair data (batch: up to 30 per call)
+            for i in range(0, len(boost_addrs), 30):
+                batch = boost_addrs[i:i + 30]
+                try:
+                    url = f"https://api.dexscreener.com/tokens/v1/{_DEX_CHAIN}/{','.join(batch)}"
+                    async with session.get(
+                        url, timeout=aiohttp.ClientTimeout(total=8)
+                    ) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            if isinstance(data, list):
+                                await _add_pairs(data)
+                except Exception as e:
+                    logger.debug(f"[ScalpQueue] DexScreener token batch error: {e}")
+
+            # 2) Keyword search across broadened memecoin terms
+            for term in _SEARCH_TERMS:
                 try:
                     url = (
                         f"https://api.dexscreener.com/latest/dex/search"
@@ -307,7 +362,7 @@ class ScalpQueue:
                     ) as resp:
                         if resp.status == 200:
                             data = await resp.json()
-                            pairs.extend(data.get("pairs") or [])
+                            await _add_pairs(data.get("pairs") or [])
                 except Exception as e:
                     logger.debug(f"[ScalpQueue] DexScreener error ({term}): {e}")
         return pairs
