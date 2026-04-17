@@ -106,6 +106,13 @@ class ScalpQueue:
                 "entry_ts": time.monotonic(),
             }
             added += 1
+            # Subscribe to Axiom real-time price feed so the tick gate has data
+            apf = self.axiom_price_feed
+            if apf is not None and hasattr(apf, "subscribe_token"):
+                try:
+                    apf.subscribe_token(addr)
+                except Exception as e:
+                    logger.debug(f"[ScalpQueue] subscribe failed for {symbol}: {e}")
 
         for addr in list(self._watch.keys()):
             await self._check_tick_gate(addr)
@@ -172,7 +179,9 @@ class ScalpQueue:
             return
 
         # Gate 4: price must not have moved > scalp_max_entry_move_pct from watch entry
-        current_price = (getattr(apf, "price_cache", {}) or {}).get(addr, 0)
+        # Axiom stores cache keys as .lower() — try both original and lowered for robustness
+        pc = getattr(apf, "price_cache", {}) or {}
+        current_price = pc.get(addr) or pc.get(addr.lower(), 0)
         if current_price <= 0:
             self._tg_no_price += 1
             return
@@ -230,7 +239,8 @@ class ScalpQueue:
             logger.error(f"[ScalpQueue] Buy failed for {symbol}: {e}")
 
     def _get_buy_sell_ratio(self, apf, addr: str, seconds: int) -> float:
-        buf = (getattr(apf, "_tick_buffers", {}) or {}).get(addr)
+        tb = getattr(apf, "_tick_buffers", {}) or {}
+        buf = tb.get(addr) or tb.get(addr.lower())
         if not buf:
             return 0.0
         now = time.time()
@@ -251,9 +261,17 @@ class ScalpQueue:
             addr for addr, meta in self._watch.items()
             if now_mono - meta["entry_ts"] > expiry_secs
         ]
+        apf = self.axiom_price_feed
         for addr in to_drop:
             logger.debug(f"[ScalpQueue] Expired: {self._watch[addr]['symbol']}")
             del self._watch[addr]
+            # Stop streaming prices for expired tokens unless we actually hold them
+            if apf is not None and hasattr(apf, "unsubscribe_token") \
+                    and addr not in self.open_positions_ref:
+                try:
+                    apf.unsubscribe_token(addr)
+                except Exception:
+                    pass
 
         self._stop_cooldowns = {
             addr: exp for addr, exp in self._stop_cooldowns.items()
