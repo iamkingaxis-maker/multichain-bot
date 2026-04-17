@@ -59,6 +59,14 @@ class ScalpQueue:
         self._tg_trend = 0
         self._tg_ratio = 0
 
+        # Quality-gate rejection counters (reset each scan summary)
+        self._qg_mcap = 0
+        self._qg_age = 0
+        self._qg_volume = 0
+        self._qg_open = 0
+        self._qg_cooldown = 0
+        self._qg_full = 0
+
     async def run(self):
         logger.info("[ScalpQueue] Starting — watching for scalp entries")
         while True:
@@ -132,6 +140,9 @@ class ScalpQueue:
             f"[ScalpQueue] Scan: {len(pairs)} pairs (non-sol filtered={non_sol}) → "
             f"+{added} watched (total watch={len(self._watch)}/"
             f"{self.cfg.scalp_max_watch_candidates}) | "
+            f"quality-gate rejects: mcap={self._qg_mcap} age={self._qg_age} "
+            f"volume={self._qg_volume} open={self._qg_open} "
+            f"cooldown={self._qg_cooldown} full={self._qg_full} | "
             f"tick-gate rejects: no_price={self._tg_no_price} move={self._tg_move} "
             f"ticks={self._tg_ticks} trend={self._tg_trend} ratio={self._tg_ratio}"
         )
@@ -140,6 +151,12 @@ class ScalpQueue:
         self._tg_ticks = 0
         self._tg_trend = 0
         self._tg_ratio = 0
+        self._qg_mcap = 0
+        self._qg_age = 0
+        self._qg_volume = 0
+        self._qg_open = 0
+        self._qg_cooldown = 0
+        self._qg_full = 0
 
     def _passes_quality_gates(self, pair: dict, addr: str) -> bool:
         # Solana-only — DexScreener /search ignores chain= filter and returns
@@ -151,29 +168,31 @@ class ScalpQueue:
             return False
 
         if addr in self.open_positions_ref:
+            self._qg_open += 1
             return False
         if time.monotonic() < self._stop_cooldowns.get(addr, 0):
+            self._qg_cooldown += 1
             return False
         if not self.scalp_capital.has_capacity():
             return False
         if len(self._watch) >= self.cfg.scalp_max_watch_candidates:
+            self._qg_full += 1
             return False
 
         mcap = float(pair.get("marketCap") or 0)
         if mcap < self.cfg.scalp_min_mcap:
+            self._qg_mcap += 1
             return False
 
         pair_created_ms = pair.get("pairCreatedAt") or 0
         age_days = (time.time() * 1000 - pair_created_ms) / (86_400 * 1000)
         if age_days < self.cfg.scalp_min_age_days:
+            self._qg_age += 1
             return False
 
         volume_h24 = float((pair.get("volume") or {}).get("h24") or 0)
         if volume_h24 < self.cfg.scalp_min_volume_h24:
-            return False
-
-        price_change_h24 = float((pair.get("priceChange") or {}).get("h24") or 0)
-        if price_change_h24 <= 0:
+            self._qg_volume += 1
             return False
 
         return True

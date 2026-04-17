@@ -11,14 +11,14 @@ from feeds.scalp_queue import ScalpQueue
 def make_config(**overrides):
     cfg = MagicMock()
     cfg.scalp_position_usd = 200.0
-    cfg.scalp_min_mcap = 1_000_000
-    cfg.scalp_min_age_days = 7.0
-    cfg.scalp_min_volume_h24 = 200_000
-    cfg.scalp_max_watch_candidates = 25
+    cfg.scalp_min_mcap = 200_000
+    cfg.scalp_min_age_days = 1.0
+    cfg.scalp_min_volume_h24 = 75_000
+    cfg.scalp_max_watch_candidates = 40
     cfg.scalp_watch_expiry_minutes = 30.0
-    cfg.scalp_max_entry_move_pct = 3.0
-    cfg.scalp_tick_ratio_min = 0.65
-    cfg.scalp_tick_consecutive_min = 3
+    cfg.scalp_max_entry_move_pct = 4.0
+    cfg.scalp_tick_ratio_min = 0.60
+    cfg.scalp_tick_consecutive_min = 2
     cfg.scalp_stop_cooldown_minutes = 30.0
     for k, v in overrides.items():
         setattr(cfg, k, v)
@@ -64,26 +64,28 @@ def test_gate_passes_good_pair():
 
 def test_gate_rejects_low_mcap():
     q, _, _ = make_queue()
-    pair = make_pair(mcap=500_000)
+    pair = make_pair(mcap=100_000)
     assert q._passes_quality_gates(pair, "ADDR1") is False
 
 
 def test_gate_rejects_young_pair():
     q, _, _ = make_queue()
-    pair = make_pair(age_ms=time.time() * 1000 - 3 * 86_400 * 1000)  # 3 days
+    pair = make_pair(age_ms=time.time() * 1000 - 0.5 * 86_400 * 1000)  # 12h
     assert q._passes_quality_gates(pair, "ADDR1") is False
 
 
 def test_gate_rejects_low_volume():
     q, _, _ = make_queue()
-    pair = make_pair(vol_h24=100_000)
+    pair = make_pair(vol_h24=50_000)
     assert q._passes_quality_gates(pair, "ADDR1") is False
 
 
-def test_gate_rejects_downtrend():
+def test_gate_accepts_downtrend():
+    # Scalps profit on short-term upticks regardless of 24h trend —
+    # the downtrend filter was removed so these still pass quality gates.
     q, _, _ = make_queue()
     pair = make_pair(change_h24=-2.0)
-    assert q._passes_quality_gates(pair, "ADDR1") is False
+    assert q._passes_quality_gates(pair, "ADDR1") is True
 
 
 def test_gate_rejects_non_solana_chain():

@@ -166,9 +166,9 @@ class Config:
     scalp_max_concurrent: int = 10
     scalp_max_hold_minutes: float = 45.0
     scalp_daily_loss_limit: float = 400.0
-    scalp_min_mcap: float = 500_000
-    scalp_min_age_days: float = 2.0
-    scalp_min_volume_h24: float = 150_000
+    scalp_min_mcap: float = 200_000
+    scalp_min_age_days: float = 1.0
+    scalp_min_volume_h24: float = 75_000
     scalp_max_watch_candidates: int = 40
     scalp_watch_expiry_minutes: float = 30.0
     scalp_max_entry_move_pct: float = 4.0
