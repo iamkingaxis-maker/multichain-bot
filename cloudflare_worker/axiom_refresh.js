@@ -373,20 +373,37 @@ async function handleWsProxy(request, env, secret) {
   upstream.accept();
   server.accept();
 
+  console.log(`ws-proxy open [${target}]`);
+
+  // Diagnostic counters — log first few in each direction, then totals.
+  let outCount = 0, inCount = 0;
+
   // Proxy: client → upstream
   server.addEventListener("message", ({ data }) => {
+    outCount++;
+    if (outCount <= 5) {
+      const preview = typeof data === "string" ? data.slice(0, 200) : "[binary]";
+      console.log(`ws-proxy [${target}] OUT#${outCount}: ${preview}`);
+    }
     try { upstream.send(data); } catch (e) { console.error("client→upstream send error:", e.message); }
   });
 
   // Proxy: upstream → client
   upstream.addEventListener("message", ({ data }) => {
+    inCount++;
+    if (inCount <= 5) {
+      const preview = typeof data === "string" ? data.slice(0, 200) : "[binary]";
+      console.log(`ws-proxy [${target}] IN#${inCount}: ${preview}`);
+    }
     try { server.send(data); } catch (e) { console.error("upstream→client send error:", e.message); }
   });
 
   server.addEventListener("close", ({ code, reason }) => {
+    console.log(`ws-proxy [${target}] client closed: code=${code} reason=${reason} (out=${outCount} in=${inCount})`);
     try { upstream.close(code, reason); } catch {}
   });
   upstream.addEventListener("close", ({ code, reason }) => {
+    console.log(`ws-proxy [${target}] upstream closed: code=${code} reason=${reason} (out=${outCount} in=${inCount})`);
     try { server.close(code, reason); } catch {}
   });
 
