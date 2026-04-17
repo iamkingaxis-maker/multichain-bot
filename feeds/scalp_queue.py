@@ -146,7 +146,7 @@ class ScalpQueue:
             return
 
         # Gate 4: price must not have moved > 3% from watch entry
-        current_price = (getattr(apf, "_price_cache", {}) or {}).get(addr, 0)
+        current_price = (getattr(apf, "price_cache", {}) or {}).get(addr, 0)
         if current_price <= 0:
             return
         entry_price = meta["entry_price"]
@@ -205,7 +205,7 @@ class ScalpQueue:
         buf = (getattr(apf, "_tick_buffers", {}) or {}).get(addr)
         if not buf:
             return 0.0
-        now = time.monotonic()
+        now = time.time()
         cutoff = now - seconds
         recent = [t for t in buf if t[0] >= cutoff]
         if not recent:

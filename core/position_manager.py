@@ -1295,6 +1295,9 @@ class PositionManager:
                 try:
                     await self._execute_sell(addr, st, pct=1.0, reason=lbl)
                     self.stop_loss_hits += 1
+                    if st.strategy == "scalp" and self.scalp_queue:
+                        pnl_usd = st.position_size_usd * st.pnl_pct / 100
+                        self.scalp_queue.on_scalp_close(addr, "stop_loss", pnl_usd)
                 except Exception as e:
                     logger.error(
                         f"[PositionManager/{self.chain_name}] ⚡ Realtime stop sell failed for "

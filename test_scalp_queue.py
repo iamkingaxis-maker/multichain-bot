@@ -159,7 +159,7 @@ def test_prune_keeps_fresh_watches():
 
 def test_buy_sell_ratio_all_buys():
     q, _, _ = make_queue()
-    now = time.monotonic()
+    now = time.time()
     apf = MagicMock()
     apf._tick_buffers = {
         "ADDR1": [(now - 1, 0.001), (now - 2, 0.002), (now - 3, 0.003)]
@@ -170,7 +170,7 @@ def test_buy_sell_ratio_all_buys():
 
 def test_buy_sell_ratio_mixed():
     q, _, _ = make_queue()
-    now = time.monotonic()
+    now = time.time()
     apf = MagicMock()
     # 3 buys (positive price change), 1 sell (negative)
     apf._tick_buffers = {
@@ -193,19 +193,19 @@ def test_buy_sell_ratio_empty_buffer():
 @pytest.mark.asyncio
 async def test_tick_gate_fires_buy_when_all_conditions_met():
     q, trader, capital = make_queue()
-    now = time.monotonic()
+    now_wall = time.time()
 
     # Set up a watched token
-    q._watch["ADDR1"] = {"symbol": "TEST", "entry_price": 0.001, "entry_ts": now}
+    q._watch["ADDR1"] = {"symbol": "TEST", "entry_price": 0.001, "entry_ts": time.monotonic()}
 
     # Set up axiom price feed mock with all gates passing
     apf = MagicMock()
-    apf._price_cache = {"ADDR1": 0.001005}  # 0.5% move — under 3% gate
+    apf.price_cache = {"ADDR1": 0.001005}  # 0.5% move — under 3% gate
     apf.get_tick_count = MagicMock(return_value=4)   # > 3 consecutive
     apf.get_tick_trend = MagicMock(return_value=0.01) # positive trend
     # 3 buy ticks (positive), 1 sell — ratio = 0.75 > 0.65
     apf._tick_buffers = {
-        "ADDR1": [(now - 1, 0.001), (now - 2, 0.002), (now - 3, 0.003), (now - 4, -0.001)]
+        "ADDR1": [(now_wall - 1, 0.001), (now_wall - 2, 0.002), (now_wall - 3, 0.003), (now_wall - 4, -0.001)]
     }
     q.axiom_price_feed = apf
 
