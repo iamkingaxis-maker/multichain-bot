@@ -215,6 +215,9 @@ class Trader:
                   volume_h1_usd: float = 0.0,
                   override_impact_pct: float = -1.0):
         """Execute a buy order."""
+        if os.environ.get("TRADING_PAUSED", "").lower() in ("true", "1", "yes"):
+            logger.info(f"[Trader] Buy blocked — TRADING_PAUSED=true ({strategy}/{token_symbol})")
+            return
         if self.kill_switch and self.kill_switch.is_active:
             logger.info(f"[Trader] Buy blocked — kill switch active ({self.kill_switch._kill_reason})")
             return

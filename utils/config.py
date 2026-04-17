@@ -137,6 +137,9 @@ class Config:
     restricted_score_threshold: int = 85
     override_score: int = 90
 
+    # ── Global Pause ─────────────────────────────────────────
+    trading_paused: bool = False  # TRADING_PAUSED env — blocks all new buys across strategies; open positions close naturally
+
     # ── Scanner ──────────────────────────────────────────────
     min_mcap: float = 80_000
     max_mcap: float = 999_999_999  # No upper cap — scanner evaluates all sizes above min_mcap
@@ -384,6 +387,10 @@ def _apply_env_overrides(config: Config):
     # Dashboard port (Railway assigns this automatically)
     if os.environ.get("PORT"):
         config.dashboard_port = env_int("PORT", config.dashboard_port)
+
+    # Global pause — blocks all new buys
+    if os.environ.get("TRADING_PAUSED"):
+        config.trading_paused = env_bool("TRADING_PAUSED", config.trading_paused)
 
     # Dip scanner
     if os.environ.get("DIP_SCANNER_ENABLED"):
