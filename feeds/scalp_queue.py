@@ -18,11 +18,14 @@ import asyncio
 import logging
 import time
 import aiohttp
+from collections import deque
 from typing import Dict
 
 logger = logging.getLogger(__name__)
 
 _SCAN_INTERVAL = 45  # seconds
+_POLL_INTERVAL = 8   # seconds — fast-poll DexScreener for watched set
+_POLL_BATCH = 30     # DexScreener tokens/v1 endpoint limit
 _DEX_CHAIN = "solana"
 # Broad memecoin keyword set — runs against DexScreener search. These are the
 # most-used memecoin archetypes; each returns a different slice of pairs.
@@ -69,6 +72,9 @@ class ScalpQueue:
 
     async def run(self):
         logger.info("[ScalpQueue] Starting — watching for scalp entries")
+        # Axiom WS per-token subscriptions don't deliver prices on our proxy,
+        # so fast-poll DexScreener for the watch set to feed the tick gate.
+        asyncio.create_task(self._poll_watched_prices())
         while True:
             try:
                 await self._scan_cycle()
@@ -76,6 +82,67 @@ class ScalpQueue:
             except Exception as e:
                 logger.error(f"[ScalpQueue] Error: {e}")
             await asyncio.sleep(_SCAN_INTERVAL)
+
+    async def _poll_watched_prices(self):
+        """Every _POLL_INTERVAL seconds, fetch DexScreener prices for all watched
+        tokens and push them into the AxiomPriceFeed tick buffers + cache so the
+        existing tick gate logic works without WS messages."""
+        poll_count = 0
+        while True:
+            await asyncio.sleep(_POLL_INTERVAL)
+            try:
+                apf = self.axiom_price_feed
+                if apf is None or not self._watch:
+                    continue
+                addrs = list(self._watch.keys())
+                total_prices = 0
+                async with aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as session:
+                    for i in range(0, len(addrs), _POLL_BATCH):
+                        batch = addrs[i:i + _POLL_BATCH]
+                        url = (
+                            "https://api.dexscreener.com/tokens/v1/solana/"
+                            + ",".join(batch)
+                        )
+                        try:
+                            async with session.get(url) as resp:
+                                if resp.status != 200:
+                                    continue
+                                data = await resp.json()
+                        except Exception as e:
+                            logger.debug(f"[ScalpQueue] poll batch failed: {e}")
+                            continue
+                        if not isinstance(data, list):
+                            continue
+                        now = time.time()
+                        for pair in data:
+                            base = (pair.get("baseToken") or {}).get("address") or ""
+                            if not base:
+                                continue
+                            try:
+                                price_usd = float(pair.get("priceUsd") or 0)
+                            except (TypeError, ValueError):
+                                price_usd = 0.0
+                            if price_usd <= 0:
+                                continue
+                            addr_l = base.lower()
+                            apf.price_cache[addr_l] = price_usd
+                            if hasattr(apf, "price_timestamps"):
+                                apf.price_timestamps[addr_l] = now
+                            buf = apf._tick_buffers.setdefault(
+                                addr_l, deque(maxlen=600)
+                            )
+                            buf.append((now, price_usd))
+                            total_prices += 1
+                poll_count += 1
+                if poll_count % 8 == 1:
+                    logger.info(
+                        f"[ScalpQueue] Poll: pushed {total_prices} prices "
+                        f"to tick buffers for {len(addrs)} watched tokens"
+                    )
+            except Exception as e:
+                logger.error(f"[ScalpQueue] poll error: {e}")
 
     def on_scalp_close(self, addr: str, reason: str, pnl_usd: float = 0.0):
         """Called by PositionManager on every scalp position close."""
