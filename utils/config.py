@@ -399,6 +399,8 @@ def _apply_env_overrides(config: Config):
         config.scalp_stop_pct = env_float("SCALP_STOP_PCT", config.scalp_stop_pct)
     if os.environ.get("SCALP_MAX_CONCURRENT"):
         config.scalp_max_concurrent = env_int("SCALP_MAX_CONCURRENT", config.scalp_max_concurrent)
+    if os.environ.get("SCALP_DAILY_LOSS_LIMIT"):
+        config.scalp_daily_loss_limit = env_float("SCALP_DAILY_LOSS_LIMIT", config.scalp_daily_loss_limit)
 
 
 def _validate(config: "Config"):
