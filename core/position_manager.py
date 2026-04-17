@@ -289,6 +289,12 @@ class PositionManager:
                  dip_stop_pct: float = 15.0,
                  dip_winner_trail_pct: float = 5.0,
 
+                 # Scalp strategy TP/SL
+                 scalp_tp1_pct: float = 3.0,
+                 scalp_tp2_pct: float = 5.0,
+                 scalp_stop_pct: float = 2.5,
+                 scalp_max_hold_minutes: float = 45.0,
+
                  # Scalper reference — for breakeven-after-scalp check
                  scalper=None,
                  # Scanner reference — for stop-loss cooldown registration
@@ -332,6 +338,13 @@ class PositionManager:
         self.dip_tp2_sell = dip_tp2_sell
         self.dip_stop_pct = dip_stop_pct
         self.dip_winner_trail_pct = dip_winner_trail_pct
+
+        # Scalp
+        self.scalp_tp1_pct = scalp_tp1_pct
+        self.scalp_tp2_pct = scalp_tp2_pct
+        self.scalp_stop_pct = scalp_stop_pct
+        self.scalp_max_hold_minutes = scalp_max_hold_minutes
+        self.scalp_queue = None  # set by main.py after construction
 
         # Stall
         self.stall_interval = stall_check_interval_min
@@ -942,6 +955,13 @@ class PositionManager:
             return  # End dip_buy path
 
         # ═══════════════════════════════════════════════════════════════
+        # SCALP POSITION MANAGEMENT
+        # ═══════════════════════════════════════════════════════════════
+        if state.strategy == "scalp":
+            await self._evaluate_scalp(token_address, state)
+            return
+
+        # ═══════════════════════════════════════════════════════════════
         # STANDARD POSITION MANAGEMENT
         # ═══════════════════════════════════════════════════════════════
 
@@ -1279,6 +1299,73 @@ class PositionManager:
                     self._stop_triggered.discard(addr)
 
             asyncio.ensure_future(_do_realtime_stop(token_address, state, label))
+
+    async def _evaluate_scalp(self, token_address: str, state: PositionState):
+        """Scalp branch: TP1 3%/50%, TP2 5%/100%, hard stop 2.5%, time stop 45min."""
+        pnl_pct = state.pnl_pct
+        hold_seconds = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
+
+        # Time stop — 45 minutes
+        if hold_seconds >= self.scalp_max_hold_minutes * 60:
+            logger.info(
+                f"[PositionManager/{self.chain_name}] ⏱ SCALP TIME STOP: "
+                f"{state.token_symbol} after {hold_seconds/60:.0f}min"
+            )
+            await self._execute_sell(
+                token_address, state,
+                1.0,
+                f"Scalp time stop {hold_seconds/60:.0f}min"
+            )
+            if self.scalp_queue:
+                pnl_usd = state.position_size_usd * pnl_pct / 100
+                self.scalp_queue.on_scalp_close(token_address, "scalp_time_stop", pnl_usd)
+            return
+
+        # Hard stop — 2.5%
+        if pnl_pct <= -self.scalp_stop_pct:
+            logger.warning(
+                f"[PositionManager/{self.chain_name}] 🛑 SCALP STOP: "
+                f"{state.token_symbol} at {pnl_pct:.1f}%"
+            )
+            await self._execute_sell(
+                token_address, state,
+                1.0,
+                f"Scalp stop -{self.scalp_stop_pct:.1f}%"
+            )
+            if self.scalp_queue:
+                pnl_usd = state.position_size_usd * pnl_pct / 100
+                self.scalp_queue.on_scalp_close(token_address, "stop_loss", pnl_usd)
+            return
+
+        # TP2 — 5%, sell remaining 50%
+        if state.tp1_hit and pnl_pct >= self.scalp_tp2_pct:
+            logger.info(
+                f"[PositionManager/{self.chain_name}] 🎯 SCALP TP2: "
+                f"{state.token_symbol} +{pnl_pct:.1f}%"
+            )
+            await self._execute_sell(
+                token_address, state,
+                1.0,
+                f"Scalp TP2 +{pnl_pct:.1f}%"
+            )
+            if self.scalp_queue:
+                pnl_usd = state.position_size_usd * pnl_pct / 100
+                self.scalp_queue.on_scalp_close(token_address, "scalp_tp2", pnl_usd)
+            return
+
+        # TP1 — 3%, sell 50%
+        if not state.tp1_hit and pnl_pct >= self.scalp_tp1_pct:
+            state.tp1_hit = True
+            logger.info(
+                f"[PositionManager/{self.chain_name}] 🎯 SCALP TP1: "
+                f"{state.token_symbol} +{pnl_pct:.1f}%"
+            )
+            await self._execute_sell(
+                token_address, state,
+                0.5,
+                f"Scalp TP1 +{pnl_pct:.1f}%"
+            )
+            return
 
     async def _execute_sell(self, token_address: str,
                              state: PositionState,
