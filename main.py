@@ -48,6 +48,8 @@ from feeds.solana_rpc_price_feed import SolanaRpcPriceFeed
 from feeds.axiom_integration import AxiomIntegration
 from feeds.graduation_sniper import GraduationSniper
 from feeds.dip_scanner import DipScanner
+from feeds.scalp_queue import ScalpQueue
+from core.scalp_capital import ScalpCapitalManager
 from analytics.wallet_scorer import WalletScorer
 from analytics.kelly_sizer import KellySizer
 from analytics.adaptive_threshold import AdaptiveThresholdManager
@@ -336,6 +338,10 @@ async def main():
             dip_tp2_sell=config.dip_tp2_sell,
             dip_stop_pct=config.dip_stop_pct,
             dip_winner_trail_pct=config.dip_winner_trail_pct,
+            scalp_tp1_pct=config.scalp_tp1_pct,
+            scalp_tp2_pct=config.scalp_tp2_pct,
+            scalp_stop_pct=config.scalp_stop_pct,
+            scalp_max_hold_minutes=config.scalp_max_hold_minutes,
             scalper=sol_scalper,
             scanner=sol_scanner
         )
@@ -458,6 +464,31 @@ async def main():
                 f"${config.dip_position_usd:.0f}/position, "
                 f"min mcap ${config.dip_min_mcap/1e6:.0f}M, "
                 f"max {config.dip_max_concurrent} concurrent"
+            )
+
+        if config.scalp_enabled:
+            scalp_capital = ScalpCapitalManager(
+                total_capital=config.scalp_capital,
+                max_position_usd=config.scalp_position_usd,
+                max_concurrent=config.scalp_max_concurrent,
+                daily_loss_limit=config.scalp_daily_loss_limit,
+            )
+            scalp_queue = ScalpQueue(
+                trader=sol_trader,
+                axiom_price_feed=axiom.price_feed if axiom.price_feed else None,
+                open_positions_ref=sol_trader.open_positions,
+                scalp_capital=scalp_capital,
+                config=config,
+            )
+            sol_position_mgr.scalp_queue = scalp_queue
+            tasks.append(scalp_queue.run())
+            logger.info(
+                f"[Main] ScalpQueue enabled — "
+                f"${config.scalp_position_usd:.0f}/position, "
+                f"TP1 +{config.scalp_tp1_pct}%/50%, "
+                f"TP2 +{config.scalp_tp2_pct}%/50%, "
+                f"stop -{config.scalp_stop_pct}%, "
+                f"max {config.scalp_max_concurrent} concurrent"
             )
 
         # DexScreener real-time WebSocket feed — sub-second stop accuracy
