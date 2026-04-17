@@ -495,6 +495,19 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     <div class="stat-line"><span class="k">Open Positions</span><span id="ch-sol-pos">0</span></div>
   </div>
 
+  <!-- ── Scalp Queue (independent $2000 pool, TP1 3%/50, TP2 5%/50, stop -2.5%) ── -->
+  <div class="card breakdown-card" id="scalp-queue-card" style="display:none">
+    <div class="card-label">Strategy</div>
+    <div class="card-name" style="color:var(--yellow)">Scalp Queue</div>
+    <div class="stat-line"><span class="k">Watched</span><span id="sq-watched">0</span></div>
+    <div class="stat-line"><span class="k">Open</span><span id="sq-open">0 / 10</span></div>
+    <div class="stat-line"><span class="k">Deployed</span><span id="sq-deployed">$0</span></div>
+    <div class="stat-line"><span class="k">Available</span><span id="sq-available">$0</span></div>
+    <div class="stat-line"><span class="k">Daily P&amp;L</span><span id="sq-dpnl">$0.00</span></div>
+    <div class="stat-line"><span class="k">Loss Cap Hit</span><span id="sq-cap-hit">No</span></div>
+    <div class="stat-line"><span class="k">Cooldowns</span><span id="sq-cooldowns">0</span></div>
+  </div>
+
   <!-- ── MC Recommendations ── -->
   <div class="card">
     <div class="card-title"><span class="dot" style="background:#a78bfa"></span> Micro-Cap Radar <span style="font-size:10px;opacity:0.5;margin-left:6px">seen but not bought</span></div>
@@ -712,6 +725,7 @@ function updateDashboard(d) {
   updateActiveStrategies(d.active_strategies || {});
   updateChains(d.chains || {});
   updateSecurity(d.security || {}, d.price_feed || {});
+  updateScalpQueue(d.scalp_queue || {});
 
   // Reload all trades for history table
   if (d.all_trades !== undefined) {
@@ -1115,6 +1129,26 @@ function updateChains(chains) {
   document.getElementById('ch-sol-pos').textContent = c.positions || 0;
 }
 
+// ── Scalp Queue ────────────────────────────────────────────────────────────
+function updateScalpQueue(sq) {
+  const card = document.getElementById('scalp-queue-card');
+  if (!card) return;
+  if (!sq || !sq.enabled) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  document.getElementById('sq-watched').textContent = sq.watched || 0;
+  document.getElementById('sq-open').textContent =
+    (sq.open_positions || 0) + ' / ' + (sq.max_concurrent || 10);
+  document.getElementById('sq-deployed').textContent = '$' + (sq.deployed_usd || 0).toFixed(0);
+  document.getElementById('sq-available').textContent = '$' + (sq.available_usd || 0).toFixed(0);
+  const dpnlEl = document.getElementById('sq-dpnl');
+  dpnlEl.textContent = fmtUsd(sq.daily_pnl_usd || 0);
+  dpnlEl.className = pnlClass(sq.daily_pnl_usd || 0);
+  const hitEl = document.getElementById('sq-cap-hit');
+  hitEl.textContent = sq.daily_loss_hit ? 'YES' : 'No';
+  hitEl.className = sq.daily_loss_hit ? 'red' : '';
+  document.getElementById('sq-cooldowns').textContent = sq.stop_cooldowns || 0;
+}
+
 // ── Security stats ─────────────────────────────────────────────────────────
 function updateSecurity(sec, feed) {
   document.getElementById('sec-total').textContent   = sec.total_checks || 0;
@@ -1336,6 +1370,10 @@ class WebDashboard:
         self._strat_clustering = None
         self._strat_capitulation = None
 
+        # ScalpQueue (backend feeder) + ScalpCapitalManager (independent pool)
+        self._scalp_queue = None
+        self._scalp_capital = None
+
         self.app.router.add_get("/",                        self._handle_index)
         self.app.router.add_get("/api/stats",               self._handle_stats)
         self.app.router.add_get("/api/trades",              self._handle_trades)
@@ -1387,6 +1425,11 @@ class WebDashboard:
     def register_established_scanner(self, scanner):
         """Register the AxiomTrendingScanner so mc_candidates feed into the Radar panel."""
         self._established_scanner = scanner
+
+    def register_scalp_queue(self, scalp_queue, scalp_capital):
+        """Register ScalpQueue feeder + ScalpCapitalManager for the Scalp Queue dashboard panel."""
+        self._scalp_queue = scalp_queue
+        self._scalp_capital = scalp_capital
 
     def register_strategies(
         self,
@@ -2304,6 +2347,30 @@ class WebDashboard:
         except Exception as e:
             logger.debug(f"[Dashboard] active_strategies build error: {e}")
             stats["active_strategies"] = {}
+
+        # ── ScalpQueue panel ────────────────────────────────────────
+        if self._scalp_queue is not None and self._scalp_capital is not None:
+            try:
+                sq = self._scalp_queue
+                sc = self._scalp_capital
+                stats["scalp_queue"] = {
+                    "enabled": True,
+                    "watched": len(getattr(sq, "_watch", {})),
+                    "stop_cooldowns": len(getattr(sq, "_stop_cooldowns", {})),
+                    "open_positions": len(getattr(sc, "_open", {})),
+                    "max_concurrent": getattr(sc, "max_concurrent", 10),
+                    "total_capital": round(getattr(sc, "total_capital", 0.0), 2),
+                    "deployed_usd": round(sc.deployed_usd(), 2),
+                    "available_usd": round(sc.available_usd(), 2),
+                    "daily_pnl_usd": round(getattr(sc, "_daily_pnl", 0.0), 2),
+                    "daily_loss_limit": round(getattr(sc, "daily_loss_limit", 0.0), 2),
+                    "daily_loss_hit": bool(getattr(sc, "_daily_loss_hit", False)),
+                }
+            except Exception as e:
+                logger.debug(f"[Dashboard] scalp_queue panel error: {e}")
+                stats["scalp_queue"] = {"enabled": False}
+        else:
+            stats["scalp_queue"] = {"enabled": False}
 
         # Override positions list with direct trader view — always fresh, no indirection
         if self._trader is not None:

@@ -481,6 +481,7 @@ async def main():
                 config=config,
             )
             sol_position_mgr.scalp_queue = scalp_queue
+            dashboard.register_scalp_queue(scalp_queue, scalp_capital)
             tasks.append(scalp_queue.run())
             logger.info(
                 f"[Main] ScalpQueue enabled — "
