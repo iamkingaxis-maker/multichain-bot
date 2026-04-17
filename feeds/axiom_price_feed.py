@@ -297,28 +297,39 @@ class AxiomPriceFeed:
             "s":             secret,
             "access_token":  access,
             "refresh_token": refresh,
-            # socket8 upstream went silent (0 msgs in 3+ min with 36 subscribes);
-            # cluster9 serves the same {action:join,room:X} protocol that the
-            # scanner uses successfully (221 msgs / 12 min). Try cluster9 for price.
-            "target":        "cluster9",
+            # socket8 is the library's canonical price target; pairs with the
+            # multi-room subscribe below (plain addr + t:<addr> trades etc.).
+            "target":        "socket8",
         })
         ws_base   = worker_base.replace("https://", "wss://").replace("http://", "ws://")
         proxy_url = f"{ws_base}/ws-proxy?{qs}"
 
-        logger.info("[AxiomPriceFeed] Connecting via Cloudflare Worker proxy (cluster9)")
+        logger.info("[AxiomPriceFeed] Connecting via Cloudflare Worker proxy (socket8)")
 
         try:
             async with _ws_lib.connect(proxy_url) as ws:
 
-                # Subscribe all pending + existing tokens
+                # Subscribe all pending + existing tokens.
+                # Plain <addr> room went silent industry-wide; axiomtradeapi's
+                # subscribe_active_users joins ~11 channels — we include the
+                # ones most likely to carry trade/price activity.
+                def _rooms_for(addr: str):
+                    return [
+                        addr,                 # legacy price room (may be dead)
+                        f"e-{addr}",          # active user count
+                        f"t:{addr}",          # trades (price ticks via trades)
+                        f"s:{addr}",          # stats
+                        f"td:{addr}",         # trade details
+                        f"b-{addr}",          # ?
+                    ]
                 all_tokens = self._subscribed | self._pending_subscribe
                 self._pending_subscribe.clear()
                 for addr in list(all_tokens):
                     if addr in self._pending_unsubscribe:
                         self._pending_unsubscribe.discard(addr)
                         continue
-                    await ws.send(_json.dumps({"action": "join", "room": addr}))
-                    await ws.send(_json.dumps({"action": "join", "room": f"e-{addr}"}))
+                    for room in _rooms_for(addr):
+                        await ws.send(_json.dumps({"action": "join", "room": room}))
                     self._subscribed.add(addr)
 
                 n = len(self._subscribed)
@@ -339,8 +350,8 @@ class AxiomPriceFeed:
                                 self._pending_unsubscribe.discard(addr)
                                 continue
                             try:
-                                await ws.send(_json.dumps({"action": "join", "room": addr}))
-                                await ws.send(_json.dumps({"action": "join", "room": f"e-{addr}"}))
+                                for room in _rooms_for(addr):
+                                    await ws.send(_json.dumps({"action": "join", "room": room}))
                                 self._subscribed.add(addr)
                                 logger.info(f"[AxiomPriceFeed] Subscribed: {addr[:8]}…")
                             except Exception:
@@ -358,8 +369,8 @@ class AxiomPriceFeed:
                 try:
                     async for message in ws:
                         self._ws_messages_received += 1
-                        # Log the first 3 raw messages to confirm shape.
-                        if self._ws_sample_logged < 3:
+                        # Log the first 20 raw messages to see which rooms publish.
+                        if self._ws_sample_logged < 20:
                             self._ws_sample_logged += 1
                             logger.info(
                                 f"[AxiomPriceFeed] RAW#{self._ws_sample_logged}: "
