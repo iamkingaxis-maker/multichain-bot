@@ -210,6 +210,11 @@ async def test_tick_gate_fires_buy_when_all_conditions_met():
     q, trader, capital = make_queue()
     now_wall = time.time()
 
+    # Simulate a real buy by having trader.buy populate open_positions_ref
+    async def fake_buy(**kwargs):
+        q.open_positions_ref[kwargs["token_address"].lower()] = object()
+    trader.buy.side_effect = fake_buy
+
     # Set up a watched token
     q._watch["ADDR1"] = {"symbol": "TEST", "entry_price": 0.001, "entry_ts": time.monotonic()}
 
@@ -232,4 +237,51 @@ async def test_tick_gate_fires_buy_when_all_conditions_met():
     buy_kwargs = trader.buy.call_args.kwargs
     assert buy_kwargs["strategy"] == "scalp"
     assert buy_kwargs["override_usd"] == 200.0
+    assert capital.deployed_usd() == 200.0
+
+
+@pytest.mark.asyncio
+async def test_tick_gate_skips_record_open_when_buy_silently_fails():
+    """trader.buy() silently returns on kill switch, LP unlock, etc. — don't leak slot."""
+    q, trader, capital = make_queue()
+    now_wall = time.time()
+
+    # trader.buy returns without populating open_positions_ref (silent failure)
+    q._watch["ADDR1"] = {"symbol": "TEST", "entry_price": 0.001, "entry_ts": time.monotonic()}
+    apf = MagicMock()
+    apf.price_cache = {"ADDR1": 0.001005}
+    apf.get_tick_count = MagicMock(return_value=4)
+    apf.get_tick_trend = MagicMock(return_value=0.01)
+    apf._tick_buffers = {
+        "ADDR1": [(now_wall - 1, 0.001), (now_wall - 2, 0.002), (now_wall - 3, 0.003), (now_wall - 4, -0.001)]
+    }
+    q.axiom_price_feed = apf
+
+    await q._check_tick_gate("ADDR1")
+
+    trader.buy.assert_awaited_once()
+    assert capital.deployed_usd() == 0.0
+    assert "ADDR1" not in capital._open
+
+
+def test_reconcile_drops_phantom_slots():
+    q, _, capital = make_queue()
+    capital.record_open("PHANTOM1", 200.0)
+    capital.record_open("PHANTOM2", 200.0)
+    capital.record_open("REAL1", 200.0)
+    q.open_positions_ref["real1"] = object()  # lowercase — matches trader convention
+
+    q._reconcile_open_slots()
+
+    assert "PHANTOM1" not in capital._open
+    assert "PHANTOM2" not in capital._open
+    assert "REAL1" in capital._open
+    assert capital.deployed_usd() == 200.0
+
+
+def test_reconcile_noop_when_no_phantoms():
+    q, _, capital = make_queue()
+    capital.record_open("ADDR1", 200.0)
+    q.open_positions_ref["addr1"] = object()
+    q._reconcile_open_slots()
     assert capital.deployed_usd() == 200.0

@@ -77,11 +77,32 @@ class ScalpQueue:
         asyncio.create_task(self._poll_watched_prices())
         while True:
             try:
+                self._reconcile_open_slots()
                 await self._scan_cycle()
                 self._prune_watch_set()
             except Exception as e:
                 logger.error(f"[ScalpQueue] Error: {e}")
             await asyncio.sleep(_SCAN_INTERVAL)
+
+    def _reconcile_open_slots(self):
+        """Drop phantom entries from scalp_capital._open whose addresses are no
+        longer in open_positions_ref. Phantoms accumulate when trader.buy()
+        returns without actually opening a position (kill switch, LP unlock,
+        swap failure, etc.)."""
+        open_refs = self.open_positions_ref or {}
+        open_lower = {a.lower() for a in open_refs.keys()}
+        phantoms = [
+            a for a in list(self.scalp_capital._open.keys())
+            if a.lower() not in open_lower
+        ]
+        if phantoms:
+            for a in phantoms:
+                self.scalp_capital._open.pop(a, None)
+            logger.warning(
+                f"[ScalpQueue] Reconciled {len(phantoms)} phantom scalp slot(s); "
+                f"now open={len(self.scalp_capital._open)}/"
+                f"{self.scalp_capital.max_concurrent}"
+            )
 
     async def _poll_watched_prices(self):
         """Every _POLL_INTERVAL seconds, fetch DexScreener prices for all watched
@@ -339,8 +360,17 @@ class ScalpQueue:
                 override_usd=self.cfg.scalp_position_usd,
                 reason=f"scalp: ticks={tick_count} trend={trend:.3f} ratio={ratio:.2f}",
             )
-            self.scalp_capital.record_open(addr, self.cfg.scalp_position_usd)
-            self._stop_cooldowns.pop(addr, None)
+            # trader.buy() silently returns on many early-exit paths (kill
+            # switch, LP unlock block, swap failure, etc.) without raising.
+            # Only record the slot if a real position was actually created.
+            if addr.lower() in {a.lower() for a in (self.open_positions_ref or {}).keys()}:
+                self.scalp_capital.record_open(addr, self.cfg.scalp_position_usd)
+                self._stop_cooldowns.pop(addr, None)
+            else:
+                logger.info(
+                    f"[ScalpQueue] {symbol}: trader.buy returned without opening "
+                    f"position — slot not recorded"
+                )
         except Exception as e:
             logger.error(f"[ScalpQueue] Buy failed for {symbol}: {e}")
 
