@@ -25,10 +25,11 @@ def make_config(**overrides):
     return cfg
 
 
-def make_pair(mcap=2_000_000, age_ms=None, vol_h24=500_000, change_h24=5.0, addr="ADDR1", symbol="TEST", price="0.001"):
+def make_pair(mcap=2_000_000, age_ms=None, vol_h24=500_000, change_h24=5.0, addr="ADDR1", symbol="TEST", price="0.001", chain_id="solana"):
     if age_ms is None:
         age_ms = time.time() * 1000 - 10 * 86_400 * 1000  # 10 days ago
     return {
+        "chainId": chain_id,
         "baseToken": {"address": addr, "symbol": symbol},
         "marketCap": mcap,
         "pairCreatedAt": age_ms,
@@ -83,6 +84,18 @@ def test_gate_rejects_downtrend():
     q, _, _ = make_queue()
     pair = make_pair(change_h24=-2.0)
     assert q._passes_quality_gates(pair, "ADDR1") is False
+
+
+def test_gate_rejects_non_solana_chain():
+    q, _, _ = make_queue()
+    pair = make_pair(chain_id="ethereum")
+    assert q._passes_quality_gates(pair, "ADDR1") is False
+
+
+def test_gate_rejects_eth_style_0x_address():
+    q, _, _ = make_queue()
+    pair = make_pair(addr="0x311935abcdef")
+    assert q._passes_quality_gates(pair, "0x311935abcdef") is False
 
 
 def test_gate_rejects_already_in_open_positions():

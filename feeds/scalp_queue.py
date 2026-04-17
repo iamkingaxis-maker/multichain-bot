@@ -92,10 +92,14 @@ class ScalpQueue:
 
         pairs = await self._fetch_dex_candidates()
         added = 0
+        non_sol = 0
         for pair in pairs:
             addr = (pair.get("baseToken") or {}).get("address", "")
             symbol = (pair.get("baseToken") or {}).get("symbol", "?")
             if not addr or addr in self._watch:
+                continue
+            if (pair.get("chainId") or "").lower() != _DEX_CHAIN or addr.startswith("0x"):
+                non_sol += 1
                 continue
             if not self._passes_quality_gates(pair, addr):
                 continue
@@ -118,8 +122,9 @@ class ScalpQueue:
             await self._check_tick_gate(addr)
 
         logger.info(
-            f"[ScalpQueue] Scan: {len(pairs)} pairs → +{added} watched "
-            f"(total watch={len(self._watch)}/{self.cfg.scalp_max_watch_candidates}) | "
+            f"[ScalpQueue] Scan: {len(pairs)} pairs (non-sol filtered={non_sol}) → "
+            f"+{added} watched (total watch={len(self._watch)}/"
+            f"{self.cfg.scalp_max_watch_candidates}) | "
             f"tick-gate rejects: no_price={self._tg_no_price} move={self._tg_move} "
             f"ticks={self._tg_ticks} trend={self._tg_trend} ratio={self._tg_ratio}"
         )
@@ -130,6 +135,14 @@ class ScalpQueue:
         self._tg_ratio = 0
 
     def _passes_quality_gates(self, pair: dict, addr: str) -> bool:
+        # Solana-only — DexScreener /search ignores chain= filter and returns
+        # multi-chain pairs. ETH/BSC addresses will never populate an Axiom
+        # Solana tick feed, so filter them out at the source.
+        if (pair.get("chainId") or "").lower() != _DEX_CHAIN:
+            return False
+        if addr.startswith("0x"):
+            return False
+
         if addr in self.open_positions_ref:
             return False
         if time.monotonic() < self._stop_cooldowns.get(addr, 0):
