@@ -58,8 +58,8 @@ async def test_scalp_tp1_fires_at_3pct():
     await mgr._evaluate_scalp("ADDR1", state)
     mgr._execute_sell.assert_awaited_once()
     call_args = mgr._execute_sell.call_args
-    assert call_args.args[2] == 0.5  # pct
-    assert "TP1" in call_args.args[3]  # reason
+    assert call_args.kwargs["pct"] == 0.5
+    assert "TP1" in call_args.kwargs["reason"]
     assert state.tp1_hit is True
 
 
@@ -78,8 +78,8 @@ async def test_scalp_tp2_fires_at_5pct_after_tp1():
     await mgr._evaluate_scalp("ADDR1", state)
     mgr._execute_sell.assert_awaited_once()
     call_args = mgr._execute_sell.call_args
-    assert call_args.args[2] == 1.0  # pct — sell 100% of remaining
-    assert "TP2" in call_args.args[3]
+    assert call_args.kwargs["pct"] == 1.0  # pct — sell 100% of remaining
+    assert "TP2" in call_args.kwargs["reason"]
 
 
 @pytest.mark.asyncio
@@ -89,7 +89,7 @@ async def test_scalp_tp2_does_not_fire_without_tp1():
     await mgr._evaluate_scalp("ADDR1", state)
     # Should fire TP1, not TP2
     call_args = mgr._execute_sell.call_args
-    assert "TP1" in call_args.args[3]
+    assert "TP1" in call_args.kwargs["reason"]
 
 
 @pytest.mark.asyncio
@@ -99,8 +99,8 @@ async def test_scalp_hard_stop_at_2pt5pct():
     await mgr._evaluate_scalp("ADDR1", state)
     mgr._execute_sell.assert_awaited_once()
     call_args = mgr._execute_sell.call_args
-    assert call_args.args[2] == 1.0  # sell 100%
-    assert "stop" in call_args.args[3].lower()
+    assert call_args.kwargs["pct"] == 1.0  # sell 100%
+    assert "stop" in call_args.kwargs["reason"].lower()
 
 
 @pytest.mark.asyncio
@@ -118,7 +118,7 @@ async def test_scalp_time_stop_at_45min():
     await mgr._evaluate_scalp("ADDR1", state)
     mgr._execute_sell.assert_awaited_once()
     call_args = mgr._execute_sell.call_args
-    assert "time" in call_args.args[3].lower()
+    assert "time" in call_args.kwargs["reason"].lower()
 
 
 @pytest.mark.asyncio
@@ -152,3 +152,16 @@ async def test_scalp_tp_notifies_scalp_queue_on_tp2():
     scalp_queue.on_scalp_close.assert_called_once()
     call_args = scalp_queue.on_scalp_close.call_args
     assert call_args.args[1] == "scalp_tp2"
+
+
+@pytest.mark.asyncio
+async def test_scalp_time_stop_notifies_scalp_queue():
+    mgr = make_mgr()
+    scalp_queue = MagicMock()
+    mgr.scalp_queue = scalp_queue
+    state = make_state(pnl_pct_val=0.0, minutes_open=46)
+    await mgr._evaluate_scalp("ADDR1", state)
+    scalp_queue.on_scalp_close.assert_called_once()
+    call_args = scalp_queue.on_scalp_close.call_args
+    assert call_args.args[0] == "ADDR1"
+    assert call_args.args[1] == "scalp_time_stop"

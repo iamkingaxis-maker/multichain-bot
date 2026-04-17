@@ -1259,6 +1259,8 @@ class PositionManager:
             stop_pct = 35.0
         elif state.strategy == "dip_buy":
             stop_pct = self.dip_stop_pct
+        elif state.strategy == "scalp":
+            stop_pct = self.scalp_stop_pct
         else:
             stop_pct = self.mc_stop_loss_pct if state.is_micro_cap else self.stop_loss_pct
 
@@ -1270,6 +1272,8 @@ class PositionManager:
                 if state.strategy == "graduation" else
                 f"Dip stop -{stop_pct:.0f}% [realtime]"
                 if state.strategy == "dip_buy" else
+                f"Scalp stop -{stop_pct:.1f}% [realtime]"
+                if state.strategy == "scalp" else
                 f"MC stop loss -{stop_pct:.0f}% [realtime]"
                 if state.is_micro_cap else
                 f"Stop loss -{stop_pct:.0f}% [realtime]"
@@ -1313,8 +1317,8 @@ class PositionManager:
             )
             await self._execute_sell(
                 token_address, state,
-                1.0,
-                f"Scalp time stop {hold_seconds/60:.0f}min"
+                pct=1.0,
+                reason=f"Scalp time stop {hold_seconds/60:.0f}min"
             )
             if self.scalp_queue:
                 pnl_usd = state.position_size_usd * pnl_pct / 100
@@ -1329,9 +1333,10 @@ class PositionManager:
             )
             await self._execute_sell(
                 token_address, state,
-                1.0,
-                f"Scalp stop -{self.scalp_stop_pct:.1f}%"
+                pct=1.0,
+                reason=f"Scalp stop -{self.scalp_stop_pct:.1f}%"
             )
+            self.stop_loss_hits += 1
             if self.scalp_queue:
                 pnl_usd = state.position_size_usd * pnl_pct / 100
                 self.scalp_queue.on_scalp_close(token_address, "stop_loss", pnl_usd)
@@ -1345,8 +1350,8 @@ class PositionManager:
             )
             await self._execute_sell(
                 token_address, state,
-                1.0,
-                f"Scalp TP2 +{pnl_pct:.1f}%"
+                pct=1.0,
+                reason=f"Scalp TP2 +{pnl_pct:.1f}%"
             )
             if self.scalp_queue:
                 pnl_usd = state.position_size_usd * pnl_pct / 100
@@ -1362,8 +1367,8 @@ class PositionManager:
             )
             await self._execute_sell(
                 token_address, state,
-                0.5,
-                f"Scalp TP1 +{pnl_pct:.1f}%"
+                pct=0.5,
+                reason=f"Scalp TP1 +{pnl_pct:.1f}%"
             )
             return
 
