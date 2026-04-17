@@ -27,6 +27,7 @@ _SCAN_INTERVAL = 45  # seconds
 _POLL_INTERVAL = 8   # seconds — fast-poll DexScreener for watched set
 _POLL_BATCH = 30     # DexScreener tokens/v1 endpoint limit
 _DEX_CHAIN = "solana"
+_MOMENTUM_MAX_AGE_SEC = 90   # reject pair_momentum data older than this
 # Broad memecoin keyword set — runs against DexScreener search. These are the
 # most-used memecoin archetypes; each returns a different slice of pairs.
 _SEARCH_TERMS = [
@@ -190,7 +191,9 @@ class ScalpQueue:
         self.scalp_capital.record_close(addr, pnl_usd)
         if reason == "stop_loss":
             expiry = time.monotonic() + self.cfg.scalp_stop_cooldown_minutes * 60
-            self._stop_cooldowns[addr] = expiry
+            # Normalize to lowercase — PM passes addr after trader lowercased it,
+            # but DexScreener scan hands mixed-case addrs to the gate. Keep one key.
+            self._stop_cooldowns[addr.lower()] = expiry
             logger.info(
                 f"[ScalpQueue] Stop cooldown: {addr[:8]} "
                 f"({self.cfg.scalp_stop_cooldown_minutes:.0f}min)"
@@ -279,7 +282,7 @@ class ScalpQueue:
         if addr in self.open_positions_ref:
             self._qg_open += 1
             return False
-        if time.monotonic() < self._stop_cooldowns.get(addr, 0):
+        if time.monotonic() < self._stop_cooldowns.get(addr.lower(), 0):
             self._qg_cooldown += 1
             return False
         if not self.scalp_capital.has_capacity():
@@ -322,11 +325,19 @@ class ScalpQueue:
             del self._watch[addr]
             return
 
+        # Defense-in-depth: cooldown may have been set while addr was already in
+        # _watch (scan quality-gate only checks on ADD). Evict stale watchers.
+        if time.monotonic() < self._stop_cooldowns.get(addr.lower(), 0):
+            del self._watch[addr]
+            return
+
         if not self.scalp_capital.has_capacity():
             return
 
         mom = self._pair_momentum.get(addr) or self._pair_momentum.get(addr.lower())
-        if not mom:
+        if not mom or (time.time() - mom.get("ts", 0)) > _MOMENTUM_MAX_AGE_SEC:
+            # Treat stale/missing momentum as no_data so we don't fire on data
+            # captured before a prior entry+stop cycle.
             self._mg_no_data += 1
             return
 
@@ -375,7 +386,7 @@ class ScalpQueue:
             # Only record the slot if a real position was actually created.
             if addr.lower() in {a.lower() for a in (self.open_positions_ref or {}).keys()}:
                 self.scalp_capital.record_open(addr, self.cfg.scalp_position_usd)
-                self._stop_cooldowns.pop(addr, None)
+                self._stop_cooldowns.pop(addr.lower(), None)
             else:
                 logger.info(
                     f"[ScalpQueue] {symbol}: trader.buy returned without opening "

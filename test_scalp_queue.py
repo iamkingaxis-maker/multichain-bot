@@ -111,14 +111,23 @@ def test_gate_rejects_already_in_open_positions():
 
 def test_gate_rejects_stop_cooldown():
     q, _, _ = make_queue()
-    q._stop_cooldowns["ADDR1"] = time.monotonic() + 1000
+    q._stop_cooldowns["addr1"] = time.monotonic() + 1000
     pair = make_pair(addr="ADDR1")
     assert q._passes_quality_gates(pair, "ADDR1") is False
 
 
+def test_gate_rejects_stop_cooldown_case_mismatch():
+    # Regression: PM stored cooldown as lowercase (via trader) but scan passes
+    # mixed-case DexScreener addresses. Gate must normalize before lookup.
+    q, _, _ = make_queue()
+    q._stop_cooldowns["zjgjgr9fabc"] = time.monotonic() + 1000
+    pair = make_pair(addr="zjGjGR9FABC")
+    assert q._passes_quality_gates(pair, "zjGjGR9FABC") is False
+
+
 def test_gate_passes_after_cooldown_expires():
     q, _, _ = make_queue()
-    q._stop_cooldowns["ADDR1"] = time.monotonic() - 1  # expired
+    q._stop_cooldowns["addr1"] = time.monotonic() - 1  # expired
     pair = make_pair(addr="ADDR1")
     assert q._passes_quality_gates(pair, "ADDR1") is True
 
@@ -137,14 +146,15 @@ def test_on_scalp_close_stop_sets_cooldown():
     q, _, capital = make_queue()
     capital.record_open("ADDR1", 200.0)
     q.on_scalp_close("ADDR1", "stop_loss", pnl_usd=-8.0)
-    assert "ADDR1" in q._stop_cooldowns
-    assert q._stop_cooldowns["ADDR1"] > time.monotonic()
+    assert "addr1" in q._stop_cooldowns  # stored lowercase
+    assert q._stop_cooldowns["addr1"] > time.monotonic()
 
 
 def test_on_scalp_close_tp_no_cooldown():
     q, _, capital = make_queue()
     capital.record_open("ADDR1", 200.0)
     q.on_scalp_close("ADDR1", "scalp_tp2", pnl_usd=7.0)
+    assert "addr1" not in q._stop_cooldowns
     assert "ADDR1" not in q._stop_cooldowns
 
 
@@ -253,6 +263,32 @@ async def test_momentum_gate_no_data_rejects():
     await q._check_momentum_gate("ADDR1")
     trader.buy.assert_not_called()
     assert q._mg_no_data == 1
+
+
+@pytest.mark.asyncio
+async def test_momentum_gate_rejects_stale_data():
+    # Regression: without a TTL, the same momentum snapshot fired multiple
+    # entries on the same addr after a prior stop. Reject data older than 90s.
+    q, trader, _ = make_queue()
+    _seed_watch_and_momentum(q)
+    q._pair_momentum["addr1"]["ts"] = time.time() - 300  # 5 min old
+    await q._check_momentum_gate("ADDR1")
+    trader.buy.assert_not_called()
+    assert q._mg_no_data == 1
+
+
+@pytest.mark.asyncio
+async def test_momentum_gate_rejects_cooldown_evicts_watch():
+    # Regression: scan only checks cooldown when ADDING to watch; the momentum
+    # gate must also enforce it so a post-stop re-entry is blocked even if the
+    # addr was already in _watch.
+    q, trader, _ = make_queue()
+    _seed_watch_and_momentum(q, addr="zjGjGR9FABC")
+    # PM stored cooldown lowercase (via trader) while scan uses mixed case.
+    q._stop_cooldowns["zjgjgr9fabc"] = time.monotonic() + 1000
+    await q._check_momentum_gate("zjGjGR9FABC")
+    trader.buy.assert_not_called()
+    assert "zjGjGR9FABC" not in q._watch
 
 
 @pytest.mark.asyncio
