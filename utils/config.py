@@ -217,6 +217,13 @@ class Config:
     breakout_candle_close_delay_sec: float = 2.0
     # paper fill
     breakout_paper_taker_fee: float = 0.006     # 0.6% Binance.US retail taker
+    # market regime (BTC-driven)
+    breakout_regime_symbol: str = "BTCUSDT"
+    breakout_regime_red_1h_pct: float = -1.0    # BTC 1h change < this → red
+    breakout_regime_risk_off_drop_pct: float = 2.0  # BTC 15m candle drop >= this → risk-off (block new entries)
+    breakout_red_min_score: int = 8             # entry score floor in red market
+    breakout_red_min_vol_ratio: float = 1.5     # breakout candle vol ratio floor in red market
+    breakout_red_watchlist_size: int = 3        # trim watchlist to this in red market
 
     # ── Micro-Cap Mode (AxiomScanner only) ───────────────────
     # Targets fresh $10k-$50k pairs via Axiom WS with tighter gates
@@ -477,6 +484,20 @@ def _apply_env_overrides(config: Config):
         config.breakout_min_vol_24h_usd = env_float("BREAKOUT_MIN_VOL_24H_USD", config.breakout_min_vol_24h_usd)
     if os.environ.get("BREAKOUT_PAPER_TAKER_FEE"):
         config.breakout_paper_taker_fee = env_float("BREAKOUT_PAPER_TAKER_FEE", config.breakout_paper_taker_fee)
+    if os.environ.get("BREAKOUT_CHANGE_24H_MIN_PCT"):
+        config.breakout_change_24h_min_pct = env_float("BREAKOUT_CHANGE_24H_MIN_PCT", config.breakout_change_24h_min_pct)
+    if os.environ.get("BREAKOUT_CHANGE_24H_MAX_PCT"):
+        config.breakout_change_24h_max_pct = env_float("BREAKOUT_CHANGE_24H_MAX_PCT", config.breakout_change_24h_max_pct)
+    if os.environ.get("BREAKOUT_REGIME_RED_1H_PCT"):
+        config.breakout_regime_red_1h_pct = env_float("BREAKOUT_REGIME_RED_1H_PCT", config.breakout_regime_red_1h_pct)
+    if os.environ.get("BREAKOUT_REGIME_RISK_OFF_DROP_PCT"):
+        config.breakout_regime_risk_off_drop_pct = env_float("BREAKOUT_REGIME_RISK_OFF_DROP_PCT", config.breakout_regime_risk_off_drop_pct)
+    if os.environ.get("BREAKOUT_RED_MIN_SCORE"):
+        config.breakout_red_min_score = env_int("BREAKOUT_RED_MIN_SCORE", config.breakout_red_min_score)
+    if os.environ.get("BREAKOUT_RED_MIN_VOL_RATIO"):
+        config.breakout_red_min_vol_ratio = env_float("BREAKOUT_RED_MIN_VOL_RATIO", config.breakout_red_min_vol_ratio)
+    if os.environ.get("BREAKOUT_RED_WATCHLIST_SIZE"):
+        config.breakout_red_watchlist_size = env_int("BREAKOUT_RED_WATCHLIST_SIZE", config.breakout_red_watchlist_size)
 
 
 def _validate(config: "Config"):
