@@ -1431,6 +1431,66 @@ class WebDashboard:
         self._scalp_queue = scalp_queue
         self._scalp_capital = scalp_capital
 
+    def register_breakout(self, *, state, capital, db):
+        """Wire breakout strategy state, capital manager, and DB to dashboard."""
+        self._breakout_state = state
+        self._breakout_capital = capital
+        self._breakout_db = db
+        self.app.router.add_get("/api/breakout/state",      self._handle_breakout_state)
+        self.app.router.add_get("/api/breakout/watchlist",  self._handle_breakout_watchlist)
+        self.app.router.add_get("/api/breakout/positions",  self._handle_breakout_positions)
+        self.app.router.add_get("/api/breakout/closed",     self._handle_breakout_closed)
+
+    async def _handle_breakout_state(self, request):
+        return web.Response(
+            text=json.dumps(self._breakout_capital.stats()),
+            content_type="application/json",
+            headers={"Access-Control-Allow-Origin": "*"},
+        )
+
+    async def _handle_breakout_watchlist(self, request):
+        return web.Response(
+            text=json.dumps(self._breakout_state.watchlist),
+            content_type="application/json",
+            headers={"Access-Control-Allow-Origin": "*"},
+        )
+
+    async def _handle_breakout_positions(self, request):
+        out = []
+        for pos in self._breakout_state.open_positions.values():
+            out.append({
+                "symbol": pos.symbol,
+                "entry_time": pos.entry_time,
+                "entry_price": pos.entry_price,
+                "qty": pos.qty,
+                "cost_usd": pos.cost_usd,
+                "score": pos.score,
+                "resistance_level": pos.resistance_level,
+                "tp_price": pos.tp_price,
+                "stop_price": pos.stop_price,
+                "peak_price": pos.peak_price,
+                "tp_hit": pos.tp_hit,
+                "score_breakdown": pos.score_breakdown,
+                "reason_entry": pos.reason_entry,
+            })
+        return web.Response(
+            text=json.dumps(out),
+            content_type="application/json",
+            headers={"Access-Control-Allow-Origin": "*"},
+        )
+
+    async def _handle_breakout_closed(self, request):
+        try:
+            limit = int(request.query.get("limit", 50))
+        except (ValueError, TypeError):
+            limit = 50
+        rows = self._breakout_db.get_closed_positions(limit=limit)
+        return web.Response(
+            text=json.dumps(rows),
+            content_type="application/json",
+            headers={"Access-Control-Allow-Origin": "*"},
+        )
+
     def register_strategies(
         self,
         scanner=None,
