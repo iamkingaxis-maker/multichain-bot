@@ -188,6 +188,36 @@ class Config:
     scalp_max_h24_change_pct: float = 300.0 # reject h24 > this — 4x+ 24h = exhausted / distribution risk
     scalp_watch_warmup_minutes: float = 10.0  # evict tokens that never enter the dip sweet spot within this window
 
+    # ── Breakout Strategy (Binance.US) ───────────────────────
+    breakout_enabled: bool = False              # BREAKOUT_ENABLED — independent kill switch
+    breakout_capital: float = 2000.0
+    breakout_position_usd: float = 500.0
+    breakout_max_concurrent: int = 4
+    breakout_cooldown_minutes: float = 45.0
+    breakout_min_score: int = 7
+    # exits
+    breakout_tp_pct: float = 4.0
+    breakout_tp_sell_pct: float = 0.50
+    breakout_stop_pct: float = 3.0
+    breakout_trail_pct: float = 2.0
+    breakout_max_hold_hours: float = 4.0
+    # scanner / watchlist
+    breakout_scan_interval_min: float = 10.0
+    breakout_scan_top_n: int = 200
+    breakout_min_vol_24h_usd: float = 50_000_000
+    breakout_change_24h_min_pct: float = 3.0
+    breakout_change_24h_max_pct: float = 15.0
+    breakout_change_6h_max_pct: float = 12.0
+    breakout_watchlist_size: int = 5
+    breakout_excluded_bases: List[str] = field(
+        default_factory=lambda: ["USDT", "USDC", "BUSD", "DAI", "TUSD", "USDP", "GUSD", "PYUSD"]
+    )
+    # poll / timing
+    breakout_poll_interval_sec: float = 30.0
+    breakout_candle_close_delay_sec: float = 2.0
+    # paper fill
+    breakout_paper_taker_fee: float = 0.006     # 0.6% Binance.US retail taker
+
     # ── Micro-Cap Mode (AxiomScanner only) ───────────────────
     # Targets fresh $10k-$50k pairs via Axiom WS with tighter gates
     micro_cap_enabled: bool = False  # Disabled — rug risk too high; graduation sniper covers fresh tokens
@@ -417,6 +447,36 @@ def _apply_env_overrides(config: Config):
         config.scalp_max_concurrent = env_int("SCALP_MAX_CONCURRENT", config.scalp_max_concurrent)
     if os.environ.get("SCALP_DAILY_LOSS_LIMIT"):
         config.scalp_daily_loss_limit = env_float("SCALP_DAILY_LOSS_LIMIT", config.scalp_daily_loss_limit)
+
+    # Breakout strategy
+    if os.environ.get("BREAKOUT_ENABLED"):
+        config.breakout_enabled = env_bool("BREAKOUT_ENABLED", config.breakout_enabled)
+    if os.environ.get("BREAKOUT_CAPITAL"):
+        config.breakout_capital = env_float("BREAKOUT_CAPITAL", config.breakout_capital)
+    if os.environ.get("BREAKOUT_POSITION_USD"):
+        config.breakout_position_usd = env_float("BREAKOUT_POSITION_USD", config.breakout_position_usd)
+    if os.environ.get("BREAKOUT_MAX_CONCURRENT"):
+        config.breakout_max_concurrent = env_int("BREAKOUT_MAX_CONCURRENT", config.breakout_max_concurrent)
+    if os.environ.get("BREAKOUT_COOLDOWN_MINUTES"):
+        config.breakout_cooldown_minutes = env_float("BREAKOUT_COOLDOWN_MINUTES", config.breakout_cooldown_minutes)
+    if os.environ.get("BREAKOUT_MIN_SCORE"):
+        config.breakout_min_score = env_int("BREAKOUT_MIN_SCORE", config.breakout_min_score)
+    if os.environ.get("BREAKOUT_TP_PCT"):
+        config.breakout_tp_pct = env_float("BREAKOUT_TP_PCT", config.breakout_tp_pct)
+    if os.environ.get("BREAKOUT_TP_SELL_PCT"):
+        config.breakout_tp_sell_pct = env_float("BREAKOUT_TP_SELL_PCT", config.breakout_tp_sell_pct)
+    if os.environ.get("BREAKOUT_STOP_PCT"):
+        config.breakout_stop_pct = env_float("BREAKOUT_STOP_PCT", config.breakout_stop_pct)
+    if os.environ.get("BREAKOUT_TRAIL_PCT"):
+        config.breakout_trail_pct = env_float("BREAKOUT_TRAIL_PCT", config.breakout_trail_pct)
+    if os.environ.get("BREAKOUT_MAX_HOLD_HOURS"):
+        config.breakout_max_hold_hours = env_float("BREAKOUT_MAX_HOLD_HOURS", config.breakout_max_hold_hours)
+    if os.environ.get("BREAKOUT_SCAN_INTERVAL_MIN"):
+        config.breakout_scan_interval_min = env_float("BREAKOUT_SCAN_INTERVAL_MIN", config.breakout_scan_interval_min)
+    if os.environ.get("BREAKOUT_MIN_VOL_24H_USD"):
+        config.breakout_min_vol_24h_usd = env_float("BREAKOUT_MIN_VOL_24H_USD", config.breakout_min_vol_24h_usd)
+    if os.environ.get("BREAKOUT_PAPER_TAKER_FEE"):
+        config.breakout_paper_taker_fee = env_float("BREAKOUT_PAPER_TAKER_FEE", config.breakout_paper_taker_fee)
 
 
 def _validate(config: "Config"):
