@@ -8,7 +8,9 @@ open positions (written by execution), last-seen candle close times
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional
+
+from breakout.regime import BtcRegime
 
 
 @dataclass
@@ -35,6 +37,7 @@ class BreakoutState:
     open_positions: Dict[str, BreakoutPosition] = field(default_factory=dict)
     last_seen_close: Dict[str, int] = field(default_factory=dict)
     scan_counters: Dict[str, int] = field(default_factory=dict)
+    regime: Optional[BtcRegime] = None
 
     def set_watchlist(self, symbols: list[str]) -> None:
         self.watchlist = list(symbols)

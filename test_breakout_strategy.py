@@ -19,7 +19,27 @@ def _make_config():
     c.breakout_position_usd = 500.0
     c.breakout_stop_pct = 3.0
     c.breakout_tp_pct = 4.0
+    c.breakout_red_min_score = 8
+    c.breakout_red_min_vol_ratio = 1.5
     return c
+
+
+def _green_regime():
+    from breakout.regime import BtcRegime
+    return BtcRegime(label="green", btc_close=100.0, btc_ema50_1h=95.0,
+                     btc_1h_pct=0.1, btc_15m_drop_pct=0.0)
+
+
+def _red_regime():
+    from breakout.regime import BtcRegime
+    return BtcRegime(label="red", btc_close=95.0, btc_ema50_1h=100.0,
+                     btc_1h_pct=-1.5, btc_15m_drop_pct=-0.2)
+
+
+def _risk_off_regime():
+    from breakout.regime import BtcRegime
+    return BtcRegime(label="risk_off", btc_close=90.0, btc_ema50_1h=100.0,
+                     btc_1h_pct=-2.0, btc_15m_drop_pct=-2.5)
 
 
 def _uptrend_1h(n=210):
@@ -141,3 +161,86 @@ async def test_strategy_rejects_during_cooldown():
     await strat.poll_once()
     execution.enter.assert_not_called()
     assert state.scan_counters.get("gate_cooldown", 0) >= 1
+
+
+@pytest.mark.asyncio
+async def test_strategy_blocks_all_entries_when_risk_off():
+    k15 = _consolidation_15m_then_breakout()
+    k1h = _uptrend_1h()
+    client = AsyncMock()
+    client.fetch_klines = AsyncMock(side_effect=lambda sym, interval, limit:
+                                    k15 if interval == "15m" else k1h)
+    state = BreakoutState()
+    state.set_watchlist(["ETHUSDT"])
+    state.regime = _risk_off_regime()
+    execution = AsyncMock()
+    execution.can_open = MagicMock(return_value=True)
+    execution.is_in_cooldown = MagicMock(return_value=False)
+    strat = BreakoutStrategy(client, state, _make_config(), execution)
+    await strat.poll_once()
+    execution.enter.assert_not_called()
+    assert state.scan_counters.get("gate_risk_off", 0) >= 1
+
+
+@pytest.mark.asyncio
+async def test_strategy_raises_score_floor_in_red():
+    cfg = _make_config()
+    cfg.breakout_min_score = 5     # normally low — would pass
+    cfg.breakout_red_min_score = 11  # impossible floor in red
+    k15 = _consolidation_15m_then_breakout()
+    k1h = _uptrend_1h()
+    client = AsyncMock()
+    client.fetch_klines = AsyncMock(side_effect=lambda sym, interval, limit:
+                                    k15 if interval == "15m" else k1h)
+    state = BreakoutState()
+    state.set_watchlist(["ETHUSDT"])
+    state.regime = _red_regime()
+    execution = AsyncMock()
+    execution.can_open = MagicMock(return_value=True)
+    execution.is_in_cooldown = MagicMock(return_value=False)
+    strat = BreakoutStrategy(client, state, cfg, execution)
+    await strat.poll_once()
+    execution.enter.assert_not_called()
+    assert state.scan_counters.get("gate_red_score_floor", 0) >= 1
+
+
+@pytest.mark.asyncio
+async def test_strategy_raises_vol_ratio_floor_in_red():
+    cfg = _make_config()
+    cfg.breakout_red_min_vol_ratio = 3.0  # fixture vol_ratio = 2.0 → rejected
+    k15 = _consolidation_15m_then_breakout()
+    k1h = _uptrend_1h()
+    client = AsyncMock()
+    client.fetch_klines = AsyncMock(side_effect=lambda sym, interval, limit:
+                                    k15 if interval == "15m" else k1h)
+    state = BreakoutState()
+    state.set_watchlist(["ETHUSDT"])
+    state.regime = _red_regime()
+    execution = AsyncMock()
+    execution.can_open = MagicMock(return_value=True)
+    execution.is_in_cooldown = MagicMock(return_value=False)
+    strat = BreakoutStrategy(client, state, cfg, execution)
+    await strat.poll_once()
+    execution.enter.assert_not_called()
+    assert state.scan_counters.get("gate_red_vol_floor", 0) >= 1
+
+
+@pytest.mark.asyncio
+async def test_strategy_enters_in_red_when_gates_met():
+    cfg = _make_config()
+    cfg.breakout_red_min_score = 1     # easily met
+    cfg.breakout_red_min_vol_ratio = 1.5  # fixture vol_ratio = 2.0 → passes
+    k15 = _consolidation_15m_then_breakout()
+    k1h = _uptrend_1h()
+    client = AsyncMock()
+    client.fetch_klines = AsyncMock(side_effect=lambda sym, interval, limit:
+                                    k15 if interval == "15m" else k1h)
+    state = BreakoutState()
+    state.set_watchlist(["ETHUSDT"])
+    state.regime = _red_regime()
+    execution = AsyncMock()
+    execution.can_open = MagicMock(return_value=True)
+    execution.is_in_cooldown = MagicMock(return_value=False)
+    strat = BreakoutStrategy(client, state, cfg, execution)
+    await strat.poll_once()
+    execution.enter.assert_called_once()

@@ -7,6 +7,7 @@ Filter cascade on /ticker/24hr → per-candidate klines fetch → composite scor
 import asyncio
 import logging
 
+from breakout.regime import BtcRegime, compute_btc_regime
 from breakout.scoring import ema
 from breakout.state import BreakoutState
 
@@ -40,6 +41,21 @@ class BreakoutScanner:
     async def scan_once(self) -> None:
         """Runs one pass: fetch tickers → filter → score → top-N → publish."""
         cfg = self.config
+
+        try:
+            btc_1h = await self.client.fetch_klines(cfg.breakout_regime_symbol, interval="1h", limit=210)
+            btc_15m = await self.client.fetch_klines(cfg.breakout_regime_symbol, interval="15m", limit=25)
+            regime = compute_btc_regime(
+                btc_1h, btc_15m,
+                risk_off_drop_pct=cfg.breakout_regime_risk_off_drop_pct,
+                red_1h_pct=cfg.breakout_regime_red_1h_pct,
+            )
+        except Exception as e:
+            logger.warning(f"[BreakoutScanner] BTC regime fetch failed ({e}); defaulting to green")
+            regime = BtcRegime(label="green", btc_close=0.0, btc_ema50_1h=0.0,
+                               btc_1h_pct=0.0, btc_15m_drop_pct=0.0)
+        self.state.regime = regime
+
         tickers = await self.client.fetch_24h_tickers()
 
         stage1 = []
@@ -87,6 +103,9 @@ class BreakoutScanner:
                 change_1h_pct = 0
             if change_1h_pct <= 0:
                 continue
+            # relative strength vs BTC: require candidate to outperform BTC on 1h
+            if change_1h_pct <= regime.btc_1h_pct:
+                continue
 
             if len(k15) >= 21:
                 recent = k15[-1]
@@ -115,11 +134,16 @@ class BreakoutScanner:
                 best_by_base[base] = (sym, composite, qv)
 
         ranked = sorted(best_by_base.values(), key=lambda x: x[1], reverse=True)
-        top = [sym for sym, _, _ in ranked[: cfg.breakout_watchlist_size]]
+        watchlist_size = (
+            cfg.breakout_red_watchlist_size
+            if regime.label in ("red", "risk_off")
+            else cfg.breakout_watchlist_size
+        )
+        top = [sym for sym, _, _ in ranked[:watchlist_size]]
 
         self.state.set_watchlist(top)
         logger.info(
-            f"[BreakoutScanner] tickers={len(tickers)} "
-            f"→ stage1={len(stage1)} stage2={len(stage2)} scored={len(scored)} "
-            f"→ watchlist={top}"
+            f"[BreakoutScanner] regime={regime.label} btc_1h={regime.btc_1h_pct:.2f}% "
+            f"tickers={len(tickers)} → stage1={len(stage1)} stage2={len(stage2)} "
+            f"scored={len(scored)} → watchlist={top}"
         )

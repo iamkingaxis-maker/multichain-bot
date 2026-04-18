@@ -45,6 +45,11 @@ class BreakoutStrategy:
                 logger.debug(f"[BreakoutStrategy] {symbol} evaluate error: {e}")
 
     async def _evaluate_symbol(self, symbol: str) -> None:
+        regime = self.state.regime
+        if regime is not None and regime.label == "risk_off":
+            self.state.bump("gate_risk_off")
+            return
+
         k15_latest = await self.client.fetch_klines(symbol, interval="15m", limit=2)
         if not k15_latest:
             return
@@ -83,6 +88,11 @@ class BreakoutStrategy:
         if not (candle.volume > avg_volume_20):
             self.state.bump("gate_vol_below_avg")
             return
+        vol_ratio = candle.volume / avg_volume_20 if avg_volume_20 > 0 else 0.0
+        if regime is not None and regime.label == "red":
+            if vol_ratio < self.config.breakout_red_min_vol_ratio:
+                self.state.bump("gate_red_vol_floor")
+                return
 
         consolidation_range = max(k.close for k in k15[-6:-1]) - min(k.close for k in k15[-6:-1])
         score, breakdown = breakout_strength_score(
@@ -97,6 +107,10 @@ class BreakoutStrategy:
         if score < self.config.breakout_min_score:
             self.state.bump("gate_score_too_low")
             return
+        if regime is not None and regime.label == "red":
+            if score < self.config.breakout_red_min_score:
+                self.state.bump("gate_red_score_floor")
+                return
         if symbol in self.state.open_positions:
             self.state.bump("gate_duplicate")
             return
