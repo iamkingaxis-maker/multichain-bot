@@ -493,6 +493,56 @@ async def main():
                 f"max {config.scalp_max_concurrent} concurrent"
             )
 
+        # ── Breakout Strategy (Binance.US) ──────────────────────
+        if config.breakout_enabled:
+            from breakout.capital import BreakoutCapitalManager
+            from breakout.data_client import BinanceUSClient
+            from breakout.database import BreakoutDB
+            from breakout.execution import BreakoutExecution
+            from breakout.paper_fill import PaperFillEngine
+            from breakout.scanner import BreakoutScanner
+            from breakout.state import BreakoutState
+            from breakout.strategy import BreakoutStrategy
+
+            bk_state = BreakoutState()
+            bk_capital = BreakoutCapitalManager(
+                total_capital=config.breakout_capital,
+                max_concurrent=config.breakout_max_concurrent,
+            )
+            bk_client = BinanceUSClient()
+            bk_paper_fill = PaperFillEngine(
+                data_client=bk_client,
+                taker_fee=config.breakout_paper_taker_fee,
+            )
+            data_dir = os.environ.get("DATA_DIR", ".")
+            bk_db = BreakoutDB(os.path.join(data_dir, "breakout.db"))
+
+            bk_execution = BreakoutExecution(
+                data_client=bk_client,
+                paper_fill=bk_paper_fill,
+                capital=bk_capital,
+                state=bk_state,
+                db=bk_db,
+                config=config,
+            )
+            bk_scanner = BreakoutScanner(bk_client, bk_state, config)
+            bk_strategy = BreakoutStrategy(bk_client, bk_state, config, bk_execution)
+
+            dashboard.register_breakout(state=bk_state, capital=bk_capital, db=bk_db)
+
+            tasks.append(bk_scanner.run())
+            tasks.append(bk_strategy.run())
+            tasks.append(bk_execution.run())
+
+            logger.info(
+                f"[Main] Breakout enabled — "
+                f"${config.breakout_position_usd:.0f}/position, "
+                f"TP +{config.breakout_tp_pct}%, stop -{config.breakout_stop_pct}%, "
+                f"max {config.breakout_max_concurrent} concurrent"
+            )
+        else:
+            logger.info("[Main] Breakout disabled (BREAKOUT_ENABLED=false)")
+
         # DexScreener real-time WebSocket feed — sub-second stop accuracy
         # price_feed is already started in tasks; wire it to the position manager
         # so every tick fires check_stop_loss_realtime() directly.
