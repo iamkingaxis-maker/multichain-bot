@@ -503,6 +503,7 @@ async def main():
             from breakout.scanner import BreakoutScanner
             from breakout.state import BreakoutState
             from breakout.strategy import BreakoutStrategy
+            import os as _bk_os
 
             bk_state = BreakoutState()
             bk_capital = BreakoutCapitalManager(
@@ -514,8 +515,8 @@ async def main():
                 data_client=bk_client,
                 taker_fee=config.breakout_paper_taker_fee,
             )
-            data_dir = os.environ.get("DATA_DIR", ".")
-            bk_db = BreakoutDB(os.path.join(data_dir, "breakout.db"))
+            data_dir = _bk_os.environ.get("DATA_DIR", ".")
+            bk_db = BreakoutDB(_bk_os.path.join(data_dir, "breakout.db"))
 
             bk_execution = BreakoutExecution(
                 data_client=bk_client,
