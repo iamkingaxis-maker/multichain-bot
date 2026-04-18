@@ -1331,33 +1331,64 @@ setInterval(loadSeedWallets, 60000);
 </script>
 
 <!-- Breakout Strategy -->
-<section class="panel" id="breakout-panel" style="display:none; margin-top:20px;">
-  <h2>BREAKOUT STRATEGY (Binance.US)</h2>
-  <div class="cards" style="display:flex; gap:10px; flex-wrap:wrap;">
-    <div class="card"><div class="card-label">CAPITAL</div><div class="card-value" id="bk-capital">$0</div></div>
-    <div class="card"><div class="card-label">AVAILABLE</div><div class="card-value" id="bk-available">$0</div></div>
-    <div class="card"><div class="card-label">DEPLOYED</div><div class="card-value" id="bk-deployed">$0</div></div>
-    <div class="card"><div class="card-label">REALIZED P&amp;L</div><div class="card-value" id="bk-pnl">$0</div></div>
-    <div class="card"><div class="card-label">OPEN</div><div class="card-value" id="bk-open">0 / 4</div></div>
+<div id="breakout-panel" style="display:none;">
+
+  <div class="stat-row" style="margin-top:20px;">
+    <div class="stat-card">
+      <div class="label">Breakout Capital</div>
+      <div class="value" id="bk-capital">$0</div>
+      <div class="sub">Binance.US &middot; paper</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Available</div>
+      <div class="value" id="bk-available">$0</div>
+      <div class="sub" id="bk-deployed-sub">$0 deployed</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Realized P&amp;L</div>
+      <div class="value" id="bk-pnl">$0.00</div>
+      <div class="sub">breakout-only</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Open Positions</div>
+      <div class="value" id="bk-open">0 / 4</div>
+      <div class="sub" id="bk-watchlist-sub">0 symbols on watchlist</div>
+    </div>
   </div>
-  <h3>WATCHLIST</h3>
-  <ul id="bk-watchlist" class="watchlist"></ul>
-  <h3>OPEN POSITIONS</h3>
-  <table id="bk-positions" class="positions-table">
-    <thead><tr>
-      <th>Symbol</th><th>Entry</th><th>Qty</th><th>TP</th><th>Stop</th>
-      <th>Peak</th><th>Score</th><th>TP Hit</th>
-    </tr></thead>
-    <tbody></tbody>
-  </table>
-  <h3>CLOSED (last 20)</h3>
-  <table id="bk-closed" class="closed-table">
-    <thead><tr>
-      <th>Symbol</th><th>Entry</th><th>Exit</th><th>PnL $</th><th>PnL %</th><th>Reason</th>
-    </tr></thead>
-    <tbody></tbody>
-  </table>
-</section>
+
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:#a78bfa"></span> Breakout Watchlist</div>
+    <div id="bk-watchlist" style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0;">
+      <span style="color:var(--muted);font-size:12px;">Waiting for first scan...</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--green)"></span> Breakout Open Positions</div>
+    <div class="tbl-wrap">
+      <table id="bk-positions">
+        <thead><tr>
+          <th>Symbol</th><th>Entry</th><th>Qty</th><th>TP</th><th>Stop</th>
+          <th>Peak</th><th>Score</th><th>TP1</th>
+        </tr></thead>
+        <tbody><tr><td colspan="8" class="empty">No open breakout positions</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--yellow)"></span> Breakout Closed (last 20)</div>
+    <div class="tbl-wrap">
+      <table id="bk-closed">
+        <thead><tr>
+          <th>Symbol</th><th>Entry</th><th>Exit</th><th>PnL $</th><th>PnL %</th><th>Reason</th>
+        </tr></thead>
+        <tbody><tr><td colspan="6" class="empty">No closed trades yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
 <script>
 (async function refreshBreakout() {
   try {
@@ -1369,34 +1400,52 @@ setInterval(loadSeedWallets, 60000);
     ]);
     if (!s) return;
     document.getElementById("breakout-panel").style.display = "";
-    document.getElementById("bk-capital").textContent = "$" + s.total_capital.toFixed(0);
-    document.getElementById("bk-available").textContent = "$" + s.available.toFixed(0);
-    document.getElementById("bk-deployed").textContent = "$" + s.deployed.toFixed(0);
-    document.getElementById("bk-pnl").textContent = (s.realized_pnl >= 0 ? "+" : "") + "$" + s.realized_pnl.toFixed(2);
+    document.getElementById("bk-capital").textContent = "$" + Math.round(s.total_capital).toLocaleString();
+    document.getElementById("bk-available").textContent = "$" + Math.round(s.available).toLocaleString();
+    document.getElementById("bk-deployed-sub").textContent = "$" + Math.round(s.deployed).toLocaleString() + " deployed";
+    document.getElementById("bk-pnl").textContent = (s.realized_pnl >= 0 ? "+" : "-") + "$" + Math.abs(s.realized_pnl).toFixed(2);
     document.getElementById("bk-open").textContent = s.open_count + " / " + s.max_concurrent;
-    const ul = document.getElementById("bk-watchlist");
-    ul.innerHTML = "";
-    for (const sym of w) { const li = document.createElement("li"); li.textContent = sym; ul.appendChild(li); }
+    document.getElementById("bk-watchlist-sub").textContent = w.length + " symbols on watchlist";
+    const wrap = document.getElementById("bk-watchlist");
+    if (w.length === 0) {
+      wrap.innerHTML = '<span style="color:var(--muted);font-size:12px;">Empty &mdash; waiting for next scan</span>';
+    } else {
+      wrap.innerHTML = "";
+      for (const sym of w) {
+        const pill = document.createElement("span");
+        pill.textContent = sym;
+        pill.style.cssText = "background:#1c2128;border:1px solid var(--border2);border-radius:14px;padding:4px 10px;font-size:11px;font-weight:600;color:var(--text);";
+        wrap.appendChild(pill);
+      }
+    }
     const tbody = document.querySelector("#bk-positions tbody");
-    tbody.innerHTML = "";
-    for (const row of p) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${row.symbol}</td><td>${row.entry_price.toFixed(6)}</td>
-                      <td>${row.qty.toFixed(4)}</td><td>${row.tp_price.toFixed(6)}</td>
-                      <td>${row.stop_price.toFixed(6)}</td><td>${row.peak_price.toFixed(6)}</td>
-                      <td>${row.score}</td><td>${row.tp_hit ? "YES" : "NO"}</td>`;
-      tbody.appendChild(tr);
+    if (p.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">No open breakout positions</td></tr>';
+    } else {
+      tbody.innerHTML = "";
+      for (const row of p) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${row.symbol}</td><td>${row.entry_price.toFixed(6)}</td>
+                        <td>${row.qty.toFixed(4)}</td><td>${row.tp_price.toFixed(6)}</td>
+                        <td>${row.stop_price.toFixed(6)}</td><td>${row.peak_price.toFixed(6)}</td>
+                        <td>${row.score}</td><td>${row.tp_hit ? "YES" : "NO"}</td>`;
+        tbody.appendChild(tr);
+      }
     }
     const ctbody = document.querySelector("#bk-closed tbody");
-    ctbody.innerHTML = "";
-    for (const row of c) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${row.symbol}</td><td>${row.entry_price.toFixed(6)}</td>
-                      <td>${row.exit_price.toFixed(6)}</td>
-                      <td>${row.pnl_usd >= 0 ? "+" : ""}$${row.pnl_usd.toFixed(2)}</td>
-                      <td>${row.pnl_pct >= 0 ? "+" : ""}${row.pnl_pct.toFixed(2)}%</td>
-                      <td>${row.reason_exit}</td>`;
-      ctbody.appendChild(tr);
+    if (c.length === 0) {
+      ctbody.innerHTML = '<tr><td colspan="6" class="empty">No closed trades yet</td></tr>';
+    } else {
+      ctbody.innerHTML = "";
+      for (const row of c) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${row.symbol}</td><td>${row.entry_price.toFixed(6)}</td>
+                        <td>${row.exit_price.toFixed(6)}</td>
+                        <td>${row.pnl_usd >= 0 ? "+" : "-"}$${Math.abs(row.pnl_usd).toFixed(2)}</td>
+                        <td>${row.pnl_pct >= 0 ? "+" : ""}${row.pnl_pct.toFixed(2)}%</td>
+                        <td>${row.reason_exit}</td>`;
+        ctbody.appendChild(tr);
+      }
     }
   } catch (e) { console.error("breakout refresh failed", e); }
   setTimeout(refreshBreakout, 10000);
