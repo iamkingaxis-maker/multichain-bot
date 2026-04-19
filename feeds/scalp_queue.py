@@ -131,10 +131,17 @@ class ScalpQueue:
 
         # Evaluate each watched token
         signals = 0
+        from collections import Counter
+        reject_phases: Counter = Counter()
         for addr, meta in list(self._watched.items()):
             fired = await self._evaluate_watched(addr, meta)
             if fired:
                 signals += 1
+            else:
+                det = meta.get("detector")
+                tag = getattr(det, "last_reject", "") or "no_candles"
+                bucket = tag.split("(")[0]  # collapse "impulse_low(2.3%)" → "impulse_low"
+                reject_phases[bucket] += 1
 
         self._prune_watched()
         self._prune_cooldowns()
@@ -144,13 +151,15 @@ class ScalpQueue:
             f"ax={src.get('axiom', 0)} gt={src.get('gt', 0)} "
             f"srch={src.get('search', 0)} stub={src.get('stub_enrich', 0)}"
         )
+        phase_str = " ".join(f"{k}={v}" for k, v in reject_phases.most_common()) or "-"
         logger.info(
             f"[ScalpQueue] Cycle: pairs={len(pairs)} ({src_str}) "
             f"watch={len(self._watched)}/{self.cfg.scalp_max_watch_candidates} "
             f"(+{added}) signals={signals} "
             f"sol_bear={self._sol_is_bearish} maj_red={self._majority_red} "
             f"| rejects: gate={reject_gates} rug={reject_rug} "
-            f"cd={reject_cooldown} open={reject_open}"
+            f"cd={reject_cooldown} open={reject_open} "
+            f"| phases: {phase_str}"
         )
 
     async def _refresh_regime(self):
