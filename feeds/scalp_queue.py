@@ -194,12 +194,6 @@ class ScalpQueue:
         liq = float((pair.get("liquidity") or {}).get("usd") or 0)
         if liq < self.cfg.scalp_min_liquidity_usd:
             return False
-        created_ms = pair.get("pairCreatedAt") or 0
-        age_min = (time.time() * 1000 - created_ms) / 60_000
-        if age_min < self.cfg.scalp_min_age_minutes:
-            return False
-        if age_min > self.cfg.scalp_max_age_hours * 60:
-            return False
         return True
 
     def _is_rug(self, pool: str, pair: dict) -> bool:

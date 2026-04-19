@@ -73,18 +73,15 @@ def test_candidate_gate_rejects_low_liquidity():
     assert q._passes_candidate_gates(p) is False
 
 
-def test_candidate_gate_rejects_too_young():
+def test_candidate_gate_accepts_any_age():
+    # Age gate removed — 4-phase detector evaluates structure, not freshness.
     q = _make_queue()
     p = _good_pair()
-    p["pairCreatedAt"] = time.time() * 1000 - 60_000  # 1 min old
-    assert q._passes_candidate_gates(p) is False
-
-
-def test_candidate_gate_rejects_too_old():
-    q = _make_queue()
+    p["pairCreatedAt"] = time.time() * 1000 - 60_000  # 1 min
+    assert q._passes_candidate_gates(p) is True
     p = _good_pair()
-    p["pairCreatedAt"] = time.time() * 1000 - 10 * 3600 * 1000  # 10h
-    assert q._passes_candidate_gates(p) is False
+    p["pairCreatedAt"] = time.time() * 1000 - 30 * 24 * 3600 * 1000  # 30 days
+    assert q._passes_candidate_gates(p) is True
 
 
 def test_rug_detected_from_lp_drop():
