@@ -213,10 +213,25 @@ class AxiomTrendingScanner:
 
     async def _fetch_axiom_trending(self) -> dict:
         """
-        Axiom /meme-trending-v2 endpoint removed — all servers return 404.
-        DexScreener profiles/boosts/volume-search are the discovery channel.
+        Hit Axiom /users-trending-v2?timePeriod=1h via auth_manager.
+        Returns a dict keyed by token address so the caller can merge with
+        DexScreener profiles/boosts. Empty on auth failure or no token.
         """
-        return {}
+        from feeds.axiom_discovery import fetch_axiom_trending_pairs
+        pairs = await fetch_axiom_trending_pairs(self.auth_manager)
+        out: dict = {}
+        for p in pairs:
+            addr = (p.get("baseToken") or {}).get("address") or ""
+            if not addr:
+                continue
+            out[addr] = {
+                "tokenAddress": addr,
+                "tokenTicker": (p.get("baseToken") or {}).get("symbol") or "?",
+                "marketCap": p.get("marketCap"),
+                "liquidityUsd": (p.get("liquidity") or {}).get("usd"),
+                "pairAddress": p.get("pairAddress") or "",
+            }
+        return out
 
     async def _evaluate_token(self, token_address: str, token_dict: dict) -> bool:
         """

@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Tuple
 
 import aiohttp
 
+from feeds.axiom_discovery import fetch_axiom_trending_pairs
 from feeds.candle_utils import sol_is_bearish
 from feeds.gecko_ohlcv import GeckoTerminalClient
 from feeds.setup_detector import SetupDetector, TriggerSignal
@@ -36,6 +37,7 @@ class ScalpQueue:
         config,
         ohlcv_client: Optional[GeckoTerminalClient] = None,
         scanner=None,
+        auth_manager=None,
     ):
         self.trader = trader
         self.open_positions_ref = open_positions_ref
@@ -46,6 +48,7 @@ class ScalpQueue:
             rate_per_min=getattr(config, "scalp_gt_rate_per_min", 25),
         )
         self.scanner = scanner
+        self.auth_manager = auth_manager
 
         # token_address (lower) -> {"symbol", "pool_address", "detector"}
         self._watched: Dict[str, dict] = {}
@@ -301,12 +304,18 @@ class ScalpQueue:
                 for order in ("volume", "trending")
             )
 
-            stub_results = await asyncio.gather(
-                *(_get_json(session, u) for u in stub_urls)
+            stub_results, search_results, axiom_pairs = await asyncio.gather(
+                asyncio.gather(*(_get_json(session, u) for u in stub_urls)),
+                asyncio.gather(*(_get_json(session, u) for u in search_urls)),
+                fetch_axiom_trending_pairs(self.auth_manager),
             )
-            search_results = await asyncio.gather(
-                *(_get_json(session, u) for u in search_urls)
-            )
+
+            for p in axiom_pairs or []:
+                base = (p.get("baseToken") or {}).get("address", "")
+                if not base or base in seen:
+                    continue
+                seen.add(base)
+                pairs.append(p)
 
             for data in stub_results:
                 if not data:

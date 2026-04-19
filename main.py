@@ -489,6 +489,7 @@ async def main():
                 config=config,
                 ohlcv_client=gt_client,
                 scanner=sol_scanner,
+                auth_manager=axiom.auth,
             )
             sol_position_mgr.scalp_queue = scalp_queue
             dashboard.register_scalp_queue(scalp_queue, scalp_capital)
