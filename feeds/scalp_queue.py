@@ -87,17 +87,26 @@ class ScalpQueue:
     async def _cycle(self):
         await self._refresh_regime()
         pairs = await self._fetch_candidates()
+        added = 0
+        reject_gates = 0
+        reject_rug = 0
+        reject_cooldown = 0
+        reject_open = 0
         for p in pairs:
             addr = (p.get("baseToken") or {}).get("address", "").lower()
             if not addr or addr in self._watched:
                 continue
             if not self._passes_candidate_gates(p):
+                reject_gates += 1
                 continue
             if self._is_rug(p.get("pairAddress", ""), p):
+                reject_rug += 1
                 continue
             if self._is_on_cooldown(addr):
+                reject_cooldown += 1
                 continue
             if addr in {a.lower() for a in (self.open_positions_ref or {}).keys()}:
+                reject_open += 1
                 continue
             if len(self._watched) >= self.cfg.scalp_max_watch_candidates:
                 break
@@ -115,13 +124,26 @@ class ScalpQueue:
                 time.monotonic(),
                 float((p.get("liquidity") or {}).get("usd") or 0),
             )
+            added += 1
 
         # Evaluate each watched token
+        signals = 0
         for addr, meta in list(self._watched.items()):
-            await self._evaluate_watched(addr, meta)
+            fired = await self._evaluate_watched(addr, meta)
+            if fired:
+                signals += 1
 
         self._prune_watched()
         self._prune_cooldowns()
+
+        logger.info(
+            f"[ScalpQueue] Cycle: pairs={len(pairs)} "
+            f"watch={len(self._watched)}/{self.cfg.scalp_max_watch_candidates} "
+            f"(+{added}) signals={signals} "
+            f"sol_bear={self._sol_is_bearish} maj_red={self._majority_red} "
+            f"| rejects: gate={reject_gates} rug={reject_rug} "
+            f"cd={reject_cooldown} open={reject_open}"
+        )
 
     async def _refresh_regime(self):
         try:
@@ -147,18 +169,19 @@ class ScalpQueue:
         else:
             self._majority_red = False
 
-    async def _evaluate_watched(self, addr: str, meta: dict):
+    async def _evaluate_watched(self, addr: str, meta: dict) -> bool:
         pool = meta["pool_address"]
         if not pool:
-            return
+            return False
         candles = await self.ohlcv.fetch_5m(pool, limit=50)
         if len(candles) < 25:
-            return
+            return False
         signal = meta["detector"].evaluate(candles)
         if signal is None:
-            return
+            return False
         pair = meta.get("pair") or {}
         await self._maybe_fire_entry(addr, pair, signal=signal)
+        return True
 
     # ── Candidate gates ─────────────────────────────────────────
 
