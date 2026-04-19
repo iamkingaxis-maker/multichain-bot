@@ -43,10 +43,12 @@ async def fetch_axiom_trending_pairs(
     """
     token = _extract_auth_token(auth_manager)
     if not token:
+        logger.info("[AxiomDiscovery] no auth token — returning empty")
         return []
 
     headers = {**_HEADERS_BASE, "Cookie": f"auth-access-token={token}"}
 
+    last_status = None
     for server in _AXIOM_SERVERS:
         url = f"{server}/users-trending-v2?timePeriod={time_period}"
         try:
@@ -55,16 +57,24 @@ async def fetch_axiom_trending_pairs(
                     url, headers=headers,
                     timeout=aiohttp.ClientTimeout(total=timeout_s),
                 ) as resp:
+                    last_status = resp.status
                     if resp.status == 200:
                         data = await resp.json(content_type=None)
                         raw = data if isinstance(data, list) else (data.get("pairs") or [])
-                        return _normalize(raw)
+                        out = _normalize(raw)
+                        logger.info(
+                            "[AxiomDiscovery] %s returned %d raw / %d normalized",
+                            server.split("//")[-1], len(raw), len(out),
+                        )
+                        return out
                     if resp.status in (401, 403):
-                        logger.debug("[AxiomDiscovery] auth rejected (%s)", resp.status)
+                        logger.info("[AxiomDiscovery] auth rejected (%s) at %s", resp.status, server)
                         return []
+                    logger.info("[AxiomDiscovery] %s returned HTTP %s", server, resp.status)
         except Exception as e:
-            logger.debug("[AxiomDiscovery] %s failed: %s", server, e)
+            logger.info("[AxiomDiscovery] %s failed: %s", server, e)
             continue
+    logger.info("[AxiomDiscovery] all servers failed (last status=%s)", last_status)
     return []
 
 
