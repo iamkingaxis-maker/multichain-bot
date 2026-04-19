@@ -5,10 +5,15 @@ Hits Axiom's /users-trending-v2 endpoint (authenticated) and returns
 pairs in DexScreener-like format so any consumer can merge them with
 DexScreener results without extra translation.
 
-Axiom's public /meme-trending endpoint was removed (all servers 404),
-so users-trending-v2 is the only working REST discovery source.
+Path:
+  1. Direct call to api2/3/4.axiom.trade (fast when Railway IP is allowed).
+  2. If direct returns 5xx (Cloudflare block), fall back to the Worker REST
+     proxy at ${AXIOM_REFRESH_RELAY_URL}/rest-proxy — the Worker runs on
+     Cloudflare's edge, so Axiom's WAF sees another CF node and lets it
+     through.
 """
 import logging
+import os
 from typing import List, Optional
 
 import aiohttp
@@ -46,15 +51,16 @@ async def fetch_axiom_trending_pairs(
         logger.info("[AxiomDiscovery] no auth token — returning empty")
         return []
 
-    headers = {**_HEADERS_BASE, "Cookie": f"auth-access-token={token}"}
+    path = f"/users-trending-v2?timePeriod={time_period}"
+    cookie = f"auth-access-token={token}"
+    headers = {**_HEADERS_BASE, "Cookie": cookie}
 
     last_status = None
-    for server in _AXIOM_SERVERS:
-        url = f"{server}/users-trending-v2?timePeriod={time_period}"
-        try:
-            async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession() as session:
+        for server in _AXIOM_SERVERS:
+            try:
                 async with session.get(
-                    url, headers=headers,
+                    f"{server}{path}", headers=headers,
                     timeout=aiohttp.ClientTimeout(total=timeout_s),
                 ) as resp:
                     last_status = resp.status
@@ -63,19 +69,82 @@ async def fetch_axiom_trending_pairs(
                         raw = data if isinstance(data, list) else (data.get("pairs") or [])
                         out = _normalize(raw)
                         logger.info(
-                            "[AxiomDiscovery] %s returned %d raw / %d normalized",
+                            "[AxiomDiscovery] direct %s: %d raw / %d normalized",
                             server.split("//")[-1], len(raw), len(out),
                         )
                         return out
                     if resp.status in (401, 403):
-                        logger.info("[AxiomDiscovery] auth rejected (%s) at %s", resp.status, server)
+                        logger.info(
+                            "[AxiomDiscovery] direct auth rejected (%s) at %s",
+                            resp.status, server,
+                        )
                         return []
-                    logger.info("[AxiomDiscovery] %s returned HTTP %s", server, resp.status)
-        except Exception as e:
-            logger.info("[AxiomDiscovery] %s failed: %s", server, e)
-            continue
-    logger.info("[AxiomDiscovery] all servers failed (last status=%s)", last_status)
-    return []
+                    logger.info(
+                            "[AxiomDiscovery] direct %s returned HTTP %s",
+                            server, resp.status,
+                    )
+            except Exception as e:
+                logger.info("[AxiomDiscovery] direct %s failed: %s", server, e)
+                continue
+
+    logger.info(
+        "[AxiomDiscovery] direct all failed (last=%s) — trying Worker proxy",
+        last_status,
+    )
+    return await _fetch_via_worker(path, cookie, timeout_s)
+
+
+async def _fetch_via_worker(
+    path: str, cookie: str, timeout_s: float,
+) -> List[dict]:
+    relay_url = os.environ.get("AXIOM_REFRESH_RELAY_URL", "").strip()
+    relay_secret = os.environ.get("AXIOM_REFRESH_RELAY_SECRET", "").strip()
+    if not relay_url or not relay_secret:
+        logger.info("[AxiomDiscovery] Worker proxy not configured — returning empty")
+        return []
+
+    # Strip any path from the relay URL — we need just the origin so we can
+    # append /rest-proxy regardless of whether env var was set to /refresh.
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(relay_url)
+        worker_origin = f"{parsed.scheme}://{parsed.netloc}"
+    except Exception:
+        worker_origin = relay_url.rstrip("/")
+    proxy_url = f"{worker_origin}/rest-proxy"
+
+    payload = {
+        "secret": relay_secret,
+        "path": path,
+        "cookie": cookie,
+        "server": "https://api3.axiom.trade",
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                proxy_url, json=payload,
+                timeout=aiohttp.ClientTimeout(total=timeout_s + 4),
+            ) as resp:
+                status = resp.status
+                if status != 200:
+                    logger.info(
+                        "[AxiomDiscovery] Worker proxy HTTP %s for %s",
+                        status, path,
+                    )
+                    return []
+                data = await resp.json(content_type=None)
+    except Exception as e:
+        logger.info("[AxiomDiscovery] Worker proxy error: %s", e)
+        return []
+
+    raw = data if isinstance(data, list) else (data.get("pairs") or [])
+    out = _normalize(raw)
+    logger.info(
+        "[AxiomDiscovery] Worker proxy: %d raw / %d normalized",
+        len(raw), len(out),
+    )
+    return out
 
 
 def _extract_auth_token(auth_manager) -> Optional[str]:

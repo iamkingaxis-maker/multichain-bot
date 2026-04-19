@@ -73,6 +73,7 @@ export default {
     // WebSocket proxy — must be checked BEFORE the POST-only guard
     if (url.pathname === "/ws-proxy") return handleWsProxy(request, env, secret);
     if (url.pathname === "/ds-proxy") return handleDsProxy(request, env, secret);
+    if (url.pathname === "/rest-proxy") return handleRestProxy(request, env, secret);
 
     if (request.method !== "POST") {
       return json({ ok: false, error: "POST only" }, 405);
@@ -474,6 +475,60 @@ async function handleDsProxy(request, env, secret) {
   upstream.addEventListener("close", ({ code, reason }) => { try { server.close(code, reason);   } catch {} });
 
   return new Response(null, { status: 101, webSocket: client });
+}
+
+// ---------------------------------------------------------------------------
+// Route: POST /rest-proxy  -- REST passthrough for Axiom discovery endpoints
+// Body: { secret, path, cookie?, server? }
+//
+// Axiom's Cloudflare WAF returns 526/502 for Railway datacenter IPs on REST.
+// This Worker runs on Cloudflare's edge — seen as another CF node and allowed
+// through. Returns the upstream JSON body with the upstream status code.
+// ---------------------------------------------------------------------------
+async function handleRestProxy(request, env, secret) {
+  if (request.method !== "POST") {
+    return json({ ok: false, error: "POST only" }, 405);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false, error: "Invalid JSON" }, 400);
+  }
+
+  if (!body.secret || body.secret !== secret) {
+    return json({ ok: false, error: "Unauthorized" }, 401);
+  }
+
+  const path   = String(body.path || "").trim();
+  const cookie = String(body.cookie || "").trim();
+  if (!path || !path.startsWith("/")) {
+    return json({ ok: false, error: "path must start with /" }, 400);
+  }
+
+  const allowedServers = new Set(AXIOM_SERVERS);
+  const server = allowedServers.has(body.server) ? body.server : "https://api3.axiom.trade";
+
+  const upstreamUrl = `${server}${path}`;
+  const headers = { ...BROWSER_HEADERS };
+  if (cookie) headers["Cookie"] = cookie;
+
+  try {
+    const resp = await fetch(upstreamUrl, { method: "GET", headers });
+    const text = await resp.text();
+    console.log(`rest-proxy ${server}${path} -> ${resp.status} (${text.length}b)`);
+    return new Response(text, {
+      status: resp.status,
+      headers: {
+        "Content-Type": resp.headers.get("Content-Type") || "application/json",
+        "X-Upstream-Server": server,
+      },
+    });
+  } catch (e) {
+    console.error(`rest-proxy ${upstreamUrl} error: ${e.message}`);
+    return json({ ok: false, error: `Upstream fetch failed: ${e.message}` }, 502);
+  }
 }
 
 // ---------------------------------------------------------------------------
