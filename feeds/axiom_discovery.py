@@ -145,9 +145,15 @@ async def _fetch_via_worker(
         if isinstance(first, dict):
             summary = f"dict keys={sorted(first.keys())[:25]}"
         elif isinstance(first, (list, tuple)):
-            types = [type(x).__name__ for x in first]
-            preview = repr(first)[:800]
-            summary = f"type={type(first).__name__} len={len(first)} types={types} preview={preview}"
+            # Log EACH index with its value so we can map fields.
+            # Truncate each element repr to 60 chars so the whole thing fits.
+            lines = []
+            for i, v in enumerate(first):
+                r = repr(v)
+                if len(r) > 60:
+                    r = r[:57] + "..."
+                lines.append(f"[{i:02d}]={r}")
+            summary = f"type=list len={len(first)} " + " ".join(lines)
         else:
             preview = repr(first)[:400]
             summary = f"type={type(first).__name__} preview={preview}"
