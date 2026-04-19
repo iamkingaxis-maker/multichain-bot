@@ -346,7 +346,9 @@ class ScalpQueue:
                 asyncio.gather(*(_get_json(session, u) for u in stub_urls)),
                 asyncio.gather(*(_get_json(session, u) for u in search_urls)),
                 fetch_axiom_trending_pairs(self.auth_manager),
-                self.ohlcv.fetch_trending_pools(pages=3),
+                self.ohlcv.fetch_trending_pools(
+                    pages=getattr(self.cfg, "scalp_gt_trending_pages", 1)
+                ),
             )
 
             for src_name, src_pairs in (("axiom", axiom_pairs or []), ("gt", gt_pairs or [])):

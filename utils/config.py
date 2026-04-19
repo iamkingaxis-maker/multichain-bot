@@ -197,8 +197,9 @@ class Config:
     scalp_stop_cooldown_minutes: float = 45.0
 
     # GeckoTerminal
-    scalp_gt_rate_per_min: int = 25
-    scalp_gt_cache_ttl_sec: int = 60
+    scalp_gt_rate_per_min: int = 10
+    scalp_gt_cache_ttl_sec: int = 180
+    scalp_gt_trending_pages: int = 1
 
     # ── DEPRECATED (kept only so legacy dip-buy tests don't break during cutover) ──
     scalp_min_mcap: float = 200_000
