@@ -162,6 +162,7 @@ def _make_queue(**cfg_overrides):
     cfg = _cfg(**cfg_overrides)
     ohlcv = AsyncMock()
     ohlcv.fetch_5m = AsyncMock(return_value=[])  # default empty
+    ohlcv.fetch_trending_pools = AsyncMock(return_value=[])
     q = ScalpQueue(
         trader=trader,
         open_positions_ref=open_refs,

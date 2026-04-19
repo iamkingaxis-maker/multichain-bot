@@ -62,6 +62,105 @@ class GeckoTerminalClient:
             self._cache[key] = (time.monotonic(), candles)
         return candles
 
+    async def fetch_trending_pools(self, pages: int = 3) -> List[dict]:
+        """
+        Fetch trending Solana pools from GeckoTerminal. Returns
+        DexScreener-style pair dicts for direct merging with other sources.
+        pages=1 → 20 pools, pages=3 → up to 60 pools.
+        """
+        out: List[dict] = []
+        for page in range(1, pages + 1):
+            now = time.monotonic()
+            async with self._lock:
+                await self._throttle(now)
+            url = (
+                f"{_GT_BASE}/networks/solana/trending_pools"
+                f"?page={page}&include=base_token"
+            )
+            try:
+                async with self._session_factory() as session:
+                    async with session.get(
+                        url, timeout=aiohttp.ClientTimeout(total=8)
+                    ) as resp:
+                        if resp.status != 200:
+                            logger.debug(f"[GeckoOHLCV] trending page {page} HTTP {resp.status}")
+                            break
+                        data = await resp.json()
+            except Exception as e:
+                logger.debug(f"[GeckoOHLCV] trending page {page} err: {e}")
+                break
+            out.extend(self._parse_trending(data))
+            if len(data.get("data") or []) < 20:
+                break  # reached last page
+        return out
+
+    @staticmethod
+    def _parse_trending(data: dict) -> List[dict]:
+        items = data.get("data") or []
+        included = {i["id"]: i for i in (data.get("included") or [])}
+        out: List[dict] = []
+        for item in items:
+            try:
+                attrs = item.get("attributes") or {}
+                rels = item.get("relationships") or {}
+                base_ref = (rels.get("base_token") or {}).get("data") or {}
+                base_id = base_ref.get("id") or ""
+                base_addr = ""
+                base_sym = "?"
+                base_info = included.get(base_id) or {}
+                bi_attrs = base_info.get("attributes") or {}
+                base_addr = bi_attrs.get("address") or (
+                    base_id.split("_", 1)[1] if "_" in base_id else ""
+                )
+                base_sym = bi_attrs.get("symbol") or attrs.get("name", "?").split(" /")[0]
+
+                if not base_addr or base_addr.startswith("0x"):
+                    continue
+
+                vol = attrs.get("volume_usd") or {}
+                pc = attrs.get("price_change_percentage") or {}
+                reserve = float(attrs.get("reserve_in_usd") or 0)
+                mcap = float(
+                    attrs.get("market_cap_usd")
+                    or attrs.get("fdv_usd")
+                    or 0
+                )
+                created_iso = attrs.get("pool_created_at") or ""
+                created_ms = 0
+                if created_iso:
+                    try:
+                        import datetime as _dt
+                        dt = _dt.datetime.fromisoformat(created_iso.replace("Z", "+00:00"))
+                        created_ms = int(dt.timestamp() * 1000)
+                    except Exception:
+                        pass
+
+                out.append({
+                    "chainId": "solana",
+                    "baseToken": {"address": base_addr, "symbol": base_sym},
+                    "pairAddress": attrs.get("address") or "",
+                    "priceUsd": str(attrs.get("base_token_price_usd") or 0),
+                    "marketCap": mcap,
+                    "liquidity": {"usd": reserve},
+                    "priceChange": {
+                        "m5": float(pc.get("m5") or 0),
+                        "h1": float(pc.get("h1") or 0),
+                        "h6": float(pc.get("h6") or 0),
+                        "h24": float(pc.get("h24") or 0),
+                    },
+                    "volume": {
+                        "m5": float(vol.get("m5") or 0),
+                        "h1": float(vol.get("h1") or 0),
+                        "h6": float(vol.get("h6") or 0),
+                        "h24": float(vol.get("h24") or 0),
+                    },
+                    "pairCreatedAt": created_ms,
+                    "_source": "geckoterminal",
+                })
+            except Exception:
+                continue
+        return out
+
     async def _throttle(self, now: float):
         cutoff = now - 60.0
         self._request_log = [t for t in self._request_log if t > cutoff]

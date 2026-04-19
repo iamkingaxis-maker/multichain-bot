@@ -304,13 +304,14 @@ class ScalpQueue:
                 for order in ("volume", "trending")
             )
 
-            stub_results, search_results, axiom_pairs = await asyncio.gather(
+            stub_results, search_results, axiom_pairs, gt_pairs = await asyncio.gather(
                 asyncio.gather(*(_get_json(session, u) for u in stub_urls)),
                 asyncio.gather(*(_get_json(session, u) for u in search_urls)),
                 fetch_axiom_trending_pairs(self.auth_manager),
+                self.ohlcv.fetch_trending_pools(pages=3),
             )
 
-            for p in axiom_pairs or []:
+            for p in (axiom_pairs or []) + (gt_pairs or []):
                 base = (p.get("baseToken") or {}).get("address", "")
                 if not base or base in seen:
                     continue
