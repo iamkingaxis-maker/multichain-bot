@@ -51,3 +51,28 @@ def test_rolling_avg_volume():
     kl = [_c(1, 1, 1, 1, v) for v in [100, 200, 300, 400, 500]]
     assert abs(rolling_avg_volume(kl, 5) - 300.0) < 1e-9
     assert abs(rolling_avg_volume(kl, 3) - 400.0) < 1e-9  # last 3: 300,400,500
+
+
+from feeds.candle_utils import sol_is_bearish
+
+
+def test_sol_is_bearish_true_on_3_reds_no_wick():
+    reds = [_c(1.0, 1.0, 0.9, 0.9, 100, 0),
+            _c(0.9, 0.9, 0.8, 0.8, 100, 300),
+            _c(0.8, 0.8, 0.7, 0.7, 100, 600)]
+    history = [_c(1.05, 1.05, 1.0, 1.05, 100, -i * 300) for i in range(1, 15)][::-1] + reds
+    assert sol_is_bearish(history) is True
+
+
+def test_sol_is_bearish_false_on_neutral_market():
+    neutral = [_c(1.0, 1.01, 0.99, 1.0, 100, i * 300) for i in range(20)]
+    assert sol_is_bearish(neutral) is False
+
+
+def test_sol_is_bearish_false_on_uptrend():
+    up = []
+    p = 1.0
+    for i in range(20):
+        p *= 1.005
+        up.append(_c(p / 1.005, p * 1.001, p / 1.005 * 0.999, p, 100, i * 300))
+    assert sol_is_bearish(up) is False

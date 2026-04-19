@@ -48,3 +48,21 @@ def consecutive_reds_no_wick(candles: List[Candle], n: int) -> bool:
         if c.low < min(c.open, c.close) - 1e-12:
             return False
     return True
+
+
+def sol_is_bearish(sol_5m_candles: List[Candle]) -> bool:
+    """
+    SOL 'trending down strongly on short timeframes' guard.
+    Trigger if either:
+      (a) 3 consecutive red candles with no lower wick (stop-hunt distribution), OR
+      (b) last 12 candles (1h) show close below close[-12] by >= 2%.
+    """
+    if len(sol_5m_candles) < 12:
+        return False
+    if consecutive_reds_no_wick(sol_5m_candles, 3):
+        return True
+    now_close = sol_5m_candles[-1].close
+    then_close = sol_5m_candles[-12].close
+    if then_close > 0 and (now_close - then_close) / then_close * 100 <= -2.0:
+        return True
+    return False
