@@ -187,10 +187,10 @@ class Config:
     scalp_time_exit_min_pct: float = 5.0    # need +5% within time_exit_candles or exit
 
     # Market selection (candidate gates)
-    scalp_min_m5_volume_usd: float = 50_000
+    scalp_min_m5_volume_usd: float = 5_000
     scalp_min_liquidity_usd: float = 30_000
     scalp_min_age_minutes: int = 5
-    scalp_max_age_hours: float = 6.0
+    scalp_max_age_hours: float = 24.0
     scalp_rug_lp_drop_pct: float = 10.0
     scalp_max_watch_candidates: int = 40
     scalp_watch_expiry_minutes: float = 30.0
