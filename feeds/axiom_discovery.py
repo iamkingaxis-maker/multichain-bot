@@ -141,10 +141,18 @@ async def _fetch_via_worker(
     raw = data if isinstance(data, list) else (data.get("pairs") or [])
     out = _normalize(raw)
     if raw and not out:
-        sample = raw[0] if isinstance(raw[0], dict) else {}
+        first = raw[0]
+        if isinstance(first, dict):
+            summary = f"dict keys={sorted(first.keys())[:25]}"
+        else:
+            preview = repr(first)[:200]
+            summary = f"type={type(first).__name__} preview={preview}"
+        # Also show top-level data shape so we can tell if it's wrapped
+        if isinstance(data, dict):
+            summary += f" | data keys={list(data.keys())[:10]}"
         logger.info(
-            "[AxiomDiscovery] Worker proxy: %d raw / 0 normalized — sample keys=%s",
-            len(raw), sorted(sample.keys())[:25],
+            "[AxiomDiscovery] Worker proxy: %d raw / 0 normalized — %s",
+            len(raw), summary,
         )
     else:
         logger.info(
