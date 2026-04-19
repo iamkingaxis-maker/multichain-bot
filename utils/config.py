@@ -157,7 +157,7 @@ class Config:
     dip_tp2_sell: float = 1.0
     dip_stop_pct: float = 15.0            # Hard stop at -15%
     dip_winner_trail_pct: float = 5.0     # Trail 5% from peak after TP1
-    dip_max_concurrent: int = 2           # Max simultaneous dip positions
+    dip_max_concurrent: int = 4           # Max simultaneous dip positions
 
     # ── Scalp Queue ──────────────────────────────────────────────
     scalp_enabled: bool = True
