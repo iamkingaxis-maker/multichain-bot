@@ -81,6 +81,9 @@ class PositionState:
     peak_price: float = 0.0
     min_price_usd: float = 0.0
 
+    # Scalp 4-phase detector metadata: sweep_low, stop_price, tp1_price, entry_close_time, pool_address
+    scalp_meta: Optional[dict] = None
+
     @property
     def pnl_pct(self) -> float:
         if self.entry_price <= 0:
@@ -427,7 +430,8 @@ class PositionManager:
                     peak_price=entry_px,
                     min_price_usd=entry_px,
                     pyramid_signal_score=getattr(pos, "signal_score", 0),
-                    hh_hl_confirmed=getattr(pos, "hh_hl_confirmed", False)
+                    hh_hl_confirmed=getattr(pos, "hh_hl_confirmed", False),
+                    scalp_meta=getattr(pos, "scalp_meta", None),
                 )
 
         # Update prices and evaluate each position

@@ -62,6 +62,7 @@ class Position:
     entry_market_cap_usd: float = 0.0  # Market cap at entry — for performance analysis by MC range
     entry_age_hours: float = 0.0       # Token pair age in hours at entry — for performance analysis by age
     entry_volume_h1_usd: float = 0.0   # 1h volume at entry — for performance analysis by activity level
+    scalp_meta: Optional[dict] = None  # 4-phase scalper: sweep_low/stop/tp1/entry_close_time/pool_address
 
 
 _DATA_DIR = os.environ.get("DATA_DIR", ".")
@@ -213,7 +214,8 @@ class Trader:
                   override_usd: float = 0.0, pair_address: str = "",
                   market_cap_usd: float = 0.0, age_hours: float = 0.0,
                   volume_h1_usd: float = 0.0,
-                  override_impact_pct: float = -1.0):
+                  override_impact_pct: float = -1.0,
+                  scalp_meta: Optional[dict] = None):
         """Execute a buy order."""
         if os.environ.get("TRADING_PAUSED", "").lower() in ("true", "1", "yes"):
             logger.info(f"[Trader] Buy blocked — TRADING_PAUSED=true ({strategy}/{token_symbol})")
@@ -378,6 +380,7 @@ class Trader:
                     entry_market_cap_usd=market_cap_usd,
                     entry_age_hours=age_hours,
                     entry_volume_h1_usd=volume_h1_usd,
+                    scalp_meta=scalp_meta,
                 )
                 self.open_positions[token_address.lower()] = position
                 self.reentry.buy_counts[token_address.lower()] = self.reentry.buy_counts.get(token_address.lower(), 0) + 1
@@ -444,6 +447,7 @@ class Trader:
                 entry_time_monotonic=time.monotonic(),
                 entry_market_cap_usd=market_cap_usd,
                 entry_age_hours=age_hours,
+                scalp_meta=scalp_meta,
             )
             self.open_positions[token_address.lower()] = position
             self.reentry.buy_counts[token_address.lower()] = self.reentry.buy_counts.get(token_address.lower(), 0) + 1
