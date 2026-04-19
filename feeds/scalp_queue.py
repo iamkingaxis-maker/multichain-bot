@@ -281,28 +281,86 @@ class ScalpQueue:
 
     async def _fetch_candidates(self) -> List[dict]:
         pairs: List[dict] = []
-        seen = set()
+        seen: set = set()
+        stub_addrs: set = set()
+
+        async def _get_json(session, url):
+            try:
+                async with session.get(
+                    url, timeout=aiohttp.ClientTimeout(total=8)
+                ) as resp:
+                    if resp.status != 200:
+                        return None
+                    return await resp.json(content_type=None)
+            except Exception as e:
+                logger.debug(f"[ScalpQueue] fetch error {url}: {e}")
+                return None
+
         async with aiohttp.ClientSession() as session:
-            for order in ("volume", "trending"):
-                try:
-                    url = (
-                        f"https://api.dexscreener.com/latest/dex/search"
-                        f"?q={_DEX_CHAIN}&order={order}"
-                    )
-                    async with session.get(
-                        url, timeout=aiohttp.ClientTimeout(total=8)
-                    ) as resp:
-                        if resp.status != 200:
+            stub_urls = (
+                "https://api.dexscreener.com/token-profiles/latest/v1",
+                "https://api.dexscreener.com/token-boosts/active/v1",
+                "https://api.dexscreener.com/token-boosts/top/v1",
+            )
+            search_urls = tuple(
+                f"https://api.dexscreener.com/latest/dex/search?q={_DEX_CHAIN}&order={order}"
+                for order in ("volume", "trending")
+            )
+
+            stub_results = await asyncio.gather(
+                *(_get_json(session, u) for u in stub_urls)
+            )
+            search_results = await asyncio.gather(
+                *(_get_json(session, u) for u in search_urls)
+            )
+
+            for data in stub_results:
+                if not data:
+                    continue
+                items = data if isinstance(data, list) else (data.get("tokens") or [])
+                for it in items:
+                    if it.get("chainId") != _DEX_CHAIN:
+                        continue
+                    addr = it.get("tokenAddress") or it.get("address") or ""
+                    if addr and not addr.startswith("0x") and addr not in seen:
+                        stub_addrs.add(addr)
+
+            for data in search_results:
+                if not data:
+                    continue
+                for p in data.get("pairs") or []:
+                    if (p.get("chainId") or "").lower() != _DEX_CHAIN:
+                        continue
+                    base = (p.get("baseToken") or {}).get("address", "")
+                    if not base or base.startswith("0x") or base in seen:
+                        continue
+                    seen.add(base)
+                    stub_addrs.discard(base)
+                    pairs.append(p)
+
+            if stub_addrs:
+                addrs = list(stub_addrs)
+                for i in range(0, len(addrs), 30):
+                    batch = addrs[i:i + 30]
+                    url = f"https://api.dexscreener.com/latest/dex/tokens/{','.join(batch)}"
+                    data = await _get_json(session, url)
+                    if not data:
+                        continue
+                    best: Dict[str, dict] = {}
+                    for p in data.get("pairs") or []:
+                        if (p.get("chainId") or "").lower() != _DEX_CHAIN:
                             continue
-                        data = await resp.json()
-                        for p in data.get("pairs") or []:
-                            base = (p.get("baseToken") or {}).get("address", "")
-                            if not base or base.startswith("0x") or base in seen:
-                                continue
-                            seen.add(base)
-                            pairs.append(p)
-                except Exception as e:
-                    logger.debug(f"[ScalpQueue] DexScreener {order} error: {e}")
+                        base = (p.get("baseToken") or {}).get("address", "")
+                        if not base or base in seen:
+                            continue
+                        liq = float((p.get("liquidity") or {}).get("usd") or 0)
+                        cur = best.get(base)
+                        if cur is None or liq > float((cur.get("liquidity") or {}).get("usd") or 0):
+                            best[base] = p
+                    for base, p in best.items():
+                        seen.add(base)
+                        pairs.append(p)
+
         return pairs
 
     # ── Maintenance ─────────────────────────────────────────────
