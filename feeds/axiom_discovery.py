@@ -144,8 +144,12 @@ async def _fetch_via_worker(
         first = raw[0]
         if isinstance(first, dict):
             summary = f"dict keys={sorted(first.keys())[:25]}"
+        elif isinstance(first, (list, tuple)):
+            types = [type(x).__name__ for x in first]
+            preview = repr(first)[:800]
+            summary = f"type={type(first).__name__} len={len(first)} types={types} preview={preview}"
         else:
-            preview = repr(first)[:200]
+            preview = repr(first)[:400]
             summary = f"type={type(first).__name__} preview={preview}"
         # Also show top-level data shape so we can tell if it's wrapped
         if isinstance(data, dict):
