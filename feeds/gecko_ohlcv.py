@@ -50,11 +50,11 @@ class GeckoTerminalClient:
             async with self._session_factory() as session:
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                     if resp.status != 200:
-                        logger.debug(f"[GeckoOHLCV] {pool_address}: HTTP {resp.status}")
+                        logger.info(f"[GeckoOHLCV] {pool_address[:12]}: HTTP {resp.status}")
                         return []
                     data = await resp.json()
         except Exception as e:
-            logger.debug(f"[GeckoOHLCV] fetch error for {pool_address}: {e}")
+            logger.info(f"[GeckoOHLCV] fetch error for {pool_address[:12]}: {e}")
             return []
 
         candles = self._parse(data)

@@ -122,6 +122,8 @@ class ScalpQueue:
                 ),
                 "added_ts": time.monotonic(),
                 "pair": p,
+                "source": p.get("_source") or "dex",
+                "last_candle_count": -1,
             }
             self._lp_history[p.get("pairAddress", "")] = (
                 time.monotonic(),
@@ -133,15 +135,28 @@ class ScalpQueue:
         signals = 0
         from collections import Counter
         reject_phases: Counter = Counter()
+        no_cand_by_src: Counter = Counter()
+        cand_buckets: Counter = Counter()  # 0, 1-9, 10-24, 25+
         for addr, meta in list(self._watched.items()):
             fired = await self._evaluate_watched(addr, meta)
+            cnt = int(meta.get("last_candle_count", 0))
+            if cnt == 0:
+                cand_buckets["0"] += 1
+            elif cnt < 10:
+                cand_buckets["1-9"] += 1
+            elif cnt < 25:
+                cand_buckets["10-24"] += 1
+            else:
+                cand_buckets["25+"] += 1
             if fired:
                 signals += 1
             else:
                 det = meta.get("detector")
                 tag = getattr(det, "last_reject", "") or "no_candles"
-                bucket = tag.split("(")[0]  # collapse "impulse_low(2.3%)" → "impulse_low"
+                bucket = tag.split("(")[0]
                 reject_phases[bucket] += 1
+                if bucket in ("no_candles", "few_candles") or cnt < 25:
+                    no_cand_by_src[meta.get("source", "dex")] += 1
 
         self._prune_watched()
         self._prune_cooldowns()
@@ -152,6 +167,10 @@ class ScalpQueue:
             f"srch={src.get('search', 0)} stub={src.get('stub_enrich', 0)}"
         )
         phase_str = " ".join(f"{k}={v}" for k, v in reject_phases.most_common()) or "-"
+        cand_str = " ".join(
+            f"{k}={cand_buckets.get(k, 0)}" for k in ("0", "1-9", "10-24", "25+")
+        )
+        nc_src_str = " ".join(f"{k}={v}" for k, v in no_cand_by_src.most_common()) or "-"
         logger.info(
             f"[ScalpQueue] Cycle: pairs={len(pairs)} ({src_str}) "
             f"watch={len(self._watched)}/{self.cfg.scalp_max_watch_candidates} "
@@ -159,7 +178,7 @@ class ScalpQueue:
             f"sol_bear={self._sol_is_bearish} maj_red={self._majority_red} "
             f"| rejects: gate={reject_gates} rug={reject_rug} "
             f"cd={reject_cooldown} open={reject_open} "
-            f"| phases: {phase_str}"
+            f"| phases: {phase_str} | bars: {cand_str} | no_bars_src: {nc_src_str}"
         )
 
     async def _refresh_regime(self):
@@ -189,8 +208,10 @@ class ScalpQueue:
     async def _evaluate_watched(self, addr: str, meta: dict) -> bool:
         pool = meta["pool_address"]
         if not pool:
+            meta["last_candle_count"] = 0
             return False
         candles = await self.ohlcv.fetch_5m(pool, limit=50)
+        meta["last_candle_count"] = len(candles)
         if len(candles) < 25:
             return False
         signal = meta["detector"].evaluate(candles)
