@@ -339,8 +339,12 @@ async def main():
             dip_stop_pct=config.dip_stop_pct,
             dip_winner_trail_pct=config.dip_winner_trail_pct,
             scalp_tp1_pct=config.scalp_tp1_pct,
+            scalp_tp1_sell=config.scalp_tp1_sell,
             scalp_tp2_pct=config.scalp_tp2_pct,
+            scalp_tp2_sell=config.scalp_tp2_sell,
             scalp_stop_pct=config.scalp_stop_pct,
+            scalp_time_exit_candles=config.scalp_time_exit_candles,
+            scalp_time_exit_min_pct=config.scalp_time_exit_min_pct,
             scalp_max_hold_minutes=config.scalp_max_hold_minutes,
             scalper=sol_scalper,
             scanner=sol_scanner
@@ -467,30 +471,34 @@ async def main():
             )
 
         if config.scalp_enabled:
+            from feeds.gecko_ohlcv import GeckoTerminalClient
             scalp_capital = ScalpCapitalManager(
                 total_capital=config.scalp_capital,
                 max_position_usd=config.scalp_position_usd,
                 max_concurrent=config.scalp_max_concurrent,
                 daily_loss_limit=config.scalp_daily_loss_limit,
             )
+            gt_client = GeckoTerminalClient(
+                cache_ttl=config.scalp_gt_cache_ttl_sec,
+                rate_per_min=config.scalp_gt_rate_per_min,
+            )
             scalp_queue = ScalpQueue(
                 trader=sol_trader,
-                axiom_price_feed=axiom.price_feed if axiom.price_feed else None,
                 open_positions_ref=sol_trader.open_positions,
                 scalp_capital=scalp_capital,
                 config=config,
+                ohlcv_client=gt_client,
                 scanner=sol_scanner,
             )
             sol_position_mgr.scalp_queue = scalp_queue
             dashboard.register_scalp_queue(scalp_queue, scalp_capital)
             tasks.append(scalp_queue.run())
             logger.info(
-                f"[Main] ScalpQueue enabled — "
-                f"${config.scalp_position_usd:.0f}/position, "
-                f"TP1 +{config.scalp_tp1_pct}%/50%, "
-                f"TP2 +{config.scalp_tp2_pct}%/50%, "
-                f"stop -{config.scalp_stop_pct}%, "
-                f"max {config.scalp_max_concurrent} concurrent"
+                f"[Main] ScalpQueue (4-phase) enabled — "
+                f"${config.scalp_position_usd:.0f}/position, max={config.scalp_max_concurrent}, "
+                f"TP1 +{config.scalp_tp1_pct}%/{int(config.scalp_tp1_sell*100)}%, "
+                f"TP2 +{config.scalp_tp2_pct}%/{int(config.scalp_tp2_sell*100)}% of rem., "
+                f"stop -{config.scalp_stop_pct}%"
             )
 
         # ── Breakout Strategy (Binance.US) ──────────────────────
