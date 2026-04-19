@@ -159,34 +159,63 @@ class Config:
     dip_winner_trail_pct: float = 5.0     # Trail 5% from peak after TP1
     dip_max_concurrent: int = 4           # Max simultaneous dip positions
 
-    # ── Scalp Queue ──────────────────────────────────────────────
+    # ── Scalp Strategy (4-phase setup detector: impulse/pullback/sweep/reclaim) ──
     scalp_enabled: bool = True
     scalp_capital: float = 2000.0
     scalp_position_usd: float = 200.0
-    scalp_tp1_pct: float = 3.0
-    scalp_tp2_pct: float = 5.0
-    scalp_stop_pct: float = 2.5
-    scalp_max_concurrent: int = 10
-    scalp_max_hold_minutes: float = 45.0
+    scalp_max_concurrent: int = 5           # spec max (was 10 in dip-buy era)
     scalp_daily_loss_limit: float = 400.0
+    scalp_max_deployment_pct: float = 0.80  # 60–80% cap per spec — use upper bound
+
+    # Entry (setup detector)
+    scalp_impulse_min_pct: float = 10.0
+    scalp_impulse_max_pct: float = 30.0
+    scalp_impulse_lookback: int = 6
+    scalp_pullback_min_pct: float = 30.0
+    scalp_pullback_max_pct: float = 60.0
+    scalp_sweep_vol_mult: float = 1.5
+    scalp_sweep_vol_lookback: int = 20
+    scalp_min_rr: float = 2.0
+
+    # Exits
+    scalp_tp1_pct: float = 10.0             # +10% → sell 50%
+    scalp_tp1_sell: float = 0.50
+    scalp_tp2_pct: float = 15.0             # +15% → sell 35% of remaining
+    scalp_tp2_sell: float = 0.35
+    scalp_stop_pct: float = 6.0             # hard stop — spec max
+    scalp_time_exit_candles: int = 4        # 3–5 candle window — use midpoint
+    scalp_time_exit_min_pct: float = 5.0    # need +5% within time_exit_candles or exit
+
+    # Market selection (candidate gates)
+    scalp_min_m5_volume_usd: float = 50_000
+    scalp_min_liquidity_usd: float = 30_000
+    scalp_min_age_minutes: int = 5
+    scalp_max_age_hours: float = 6.0
+    scalp_rug_lp_drop_pct: float = 10.0
+    scalp_max_watch_candidates: int = 40
+    scalp_watch_expiry_minutes: float = 30.0
+    scalp_stop_cooldown_minutes: float = 45.0
+
+    # GeckoTerminal
+    scalp_gt_rate_per_min: int = 25
+    scalp_gt_cache_ttl_sec: int = 60
+
+    # ── DEPRECATED (kept only so legacy dip-buy tests don't break during cutover) ──
     scalp_min_mcap: float = 200_000
     scalp_min_age_days: float = 1.0
     scalp_min_volume_h24: float = 75_000
-    scalp_max_watch_candidates: int = 40
-    scalp_watch_expiry_minutes: float = 30.0
     scalp_max_entry_move_pct: float = 4.0
     scalp_tick_ratio_min: float = 0.60
     scalp_tick_consecutive_min: int = 2
-    scalp_stop_cooldown_minutes: float = 30.0
-    # ── Dip-buy gate (DexScreener m5 RED, catch the bounce on healthy tokens) ──
-    scalp_min_m5_change_pct: float = -6.0   # capitulation floor — below = falling knife, evict
-    scalp_max_m5_change_pct: float = -1.0   # must be at least -1% red (not flat/green)
-    scalp_min_volume_h1_usd: float = 30_000 # real h1 volume floor
-    scalp_min_m5_buy_ratio: float = 0.55    # 55%+ buys during dip = buyers absorbing sellers
-    scalp_min_m5_avg_trade_usd: float = 20.0  # m5_volume / m5_txns floor — defeats dust-bot spam only
-    scalp_max_h6_change_pct: float = 100.0  # reject h6 > this — real parabolas only (memecoins normally +40–80%)
-    scalp_max_h24_change_pct: float = 300.0 # reject h24 > this — 4x+ 24h = exhausted / distribution risk
-    scalp_watch_warmup_minutes: float = 10.0  # evict tokens that never enter the dip sweet spot within this window
+    scalp_min_m5_change_pct: float = -6.0
+    scalp_max_m5_change_pct: float = -1.0
+    scalp_min_volume_h1_usd: float = 30_000
+    scalp_min_m5_buy_ratio: float = 0.55
+    scalp_min_m5_avg_trade_usd: float = 20.0
+    scalp_max_h6_change_pct: float = 100.0
+    scalp_max_h24_change_pct: float = 300.0
+    scalp_watch_warmup_minutes: float = 10.0
+    scalp_max_hold_minutes: float = 45.0
 
     # ── Breakout Strategy (Binance.US) ───────────────────────
     breakout_enabled: bool = False              # BREAKOUT_ENABLED — independent kill switch
@@ -454,6 +483,18 @@ def _apply_env_overrides(config: Config):
         config.scalp_max_concurrent = env_int("SCALP_MAX_CONCURRENT", config.scalp_max_concurrent)
     if os.environ.get("SCALP_DAILY_LOSS_LIMIT"):
         config.scalp_daily_loss_limit = env_float("SCALP_DAILY_LOSS_LIMIT", config.scalp_daily_loss_limit)
+    if os.environ.get("SCALP_TP1_PCT"):
+        config.scalp_tp1_pct = env_float("SCALP_TP1_PCT", config.scalp_tp1_pct)
+    if os.environ.get("SCALP_TP2_PCT"):
+        config.scalp_tp2_pct = env_float("SCALP_TP2_PCT", config.scalp_tp2_pct)
+    if os.environ.get("SCALP_MIN_RR"):
+        config.scalp_min_rr = env_float("SCALP_MIN_RR", config.scalp_min_rr)
+    if os.environ.get("SCALP_TIME_EXIT_CANDLES"):
+        config.scalp_time_exit_candles = env_int("SCALP_TIME_EXIT_CANDLES", config.scalp_time_exit_candles)
+    if os.environ.get("SCALP_MIN_M5_VOLUME_USD"):
+        config.scalp_min_m5_volume_usd = env_float("SCALP_MIN_M5_VOLUME_USD", config.scalp_min_m5_volume_usd)
+    if os.environ.get("SCALP_MIN_LIQUIDITY_USD"):
+        config.scalp_min_liquidity_usd = env_float("SCALP_MIN_LIQUIDITY_USD", config.scalp_min_liquidity_usd)
 
     # Breakout strategy
     if os.environ.get("BREAKOUT_ENABLED"):
