@@ -140,10 +140,17 @@ async def _fetch_via_worker(
 
     raw = data if isinstance(data, list) else (data.get("pairs") or [])
     out = _normalize(raw)
-    logger.info(
-        "[AxiomDiscovery] Worker proxy: %d raw / %d normalized",
-        len(raw), len(out),
-    )
+    if raw and not out:
+        sample = raw[0] if isinstance(raw[0], dict) else {}
+        logger.info(
+            "[AxiomDiscovery] Worker proxy: %d raw / 0 normalized — sample keys=%s",
+            len(raw), sorted(sample.keys())[:25],
+        )
+    else:
+        logger.info(
+            "[AxiomDiscovery] Worker proxy: %d raw / %d normalized",
+            len(raw), len(out),
+        )
     return out
 
 
