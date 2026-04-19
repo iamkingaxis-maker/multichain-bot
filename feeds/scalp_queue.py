@@ -139,8 +139,13 @@ class ScalpQueue:
         self._prune_watched()
         self._prune_cooldowns()
 
+        src = getattr(self, "_last_source_counts", {}) or {}
+        src_str = (
+            f"ax={src.get('axiom', 0)} gt={src.get('gt', 0)} "
+            f"srch={src.get('search', 0)} stub={src.get('stub_enrich', 0)}"
+        )
         logger.info(
-            f"[ScalpQueue] Cycle: pairs={len(pairs)} "
+            f"[ScalpQueue] Cycle: pairs={len(pairs)} ({src_str}) "
             f"watch={len(self._watched)}/{self.cfg.scalp_max_watch_candidates} "
             f"(+{added}) signals={signals} "
             f"sol_bear={self._sol_is_bearish} maj_red={self._majority_red} "
@@ -280,6 +285,9 @@ class ScalpQueue:
         pairs: List[dict] = []
         seen: set = set()
         stub_addrs: set = set()
+        self._last_source_counts: Dict[str, int] = {
+            "axiom": 0, "gt": 0, "search": 0, "stub_enrich": 0,
+        }
 
         async def _get_json(session, url):
             try:
@@ -311,12 +319,14 @@ class ScalpQueue:
                 self.ohlcv.fetch_trending_pools(pages=3),
             )
 
-            for p in (axiom_pairs or []) + (gt_pairs or []):
-                base = (p.get("baseToken") or {}).get("address", "")
-                if not base or base in seen:
-                    continue
-                seen.add(base)
-                pairs.append(p)
+            for src_name, src_pairs in (("axiom", axiom_pairs or []), ("gt", gt_pairs or [])):
+                for p in src_pairs:
+                    base = (p.get("baseToken") or {}).get("address", "")
+                    if not base or base in seen:
+                        continue
+                    seen.add(base)
+                    pairs.append(p)
+                    self._last_source_counts[src_name] += 1
 
             for data in stub_results:
                 if not data:
@@ -341,6 +351,7 @@ class ScalpQueue:
                     seen.add(base)
                     stub_addrs.discard(base)
                     pairs.append(p)
+                    self._last_source_counts["search"] += 1
 
             if stub_addrs:
                 addrs = list(stub_addrs)
@@ -364,6 +375,7 @@ class ScalpQueue:
                     for base, p in best.items():
                         seen.add(base)
                         pairs.append(p)
+                        self._last_source_counts["stub_enrich"] += 1
 
         return pairs
 
