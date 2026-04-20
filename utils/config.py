@@ -146,7 +146,7 @@ class Config:
     max_volume_h1_usd: float = 300_000
 
     # ── Dip Buyer ────────────────────────────────────────────────
-    dip_scanner_enabled: bool = True
+    dip_scanner_enabled: bool = False  # disabled — 40 trades, all flat, no edge demonstrated
     dip_position_usd: float = 500.0        # Fixed position size
     dip_min_mcap: float = 1_000_000        # $1M minimum mcap
     dip_min_age_days: float = 7.0          # Token pair must be ≥7 days old
@@ -160,7 +160,7 @@ class Config:
     dip_max_concurrent: int = 4           # Max simultaneous dip positions
 
     # ── Scalp Strategy (4-phase setup detector: impulse/pullback/sweep/reclaim) ──
-    scalp_enabled: bool = True
+    scalp_enabled: bool = False  # disabled — 17 trades, -$22 total, re-enable after rewrite lands
     scalp_capital: float = 2000.0
     scalp_position_usd: float = 200.0
     scalp_max_concurrent: int = 5           # spec max (was 10 in dip-buy era)
