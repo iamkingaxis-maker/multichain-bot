@@ -462,7 +462,7 @@ class MultiSourceScanner:
         # Run all fetches concurrently (no Birdeye)
         (dex_tokens, gecko_tokens, raydium_tokens,
          trending_tokens, pumpfun_tokens,
-         jupiter_tokens, st_tokens) = await asyncio.gather(
+         jupiter_tokens, st_tokens, axiom_tokens) = await asyncio.gather(
             self._fetch_dexscreener(),
             self._fetch_geckoterminal(),
             self._fetch_raydium(),
@@ -470,6 +470,7 @@ class MultiSourceScanner:
             self._fetch_pumpfun_graduated(),
             self._fetch_jupiter(),
             fetch_st_coro,
+            self._fetch_axiom_discovery(),
             return_exceptions=True
         )
 
@@ -491,12 +492,14 @@ class MultiSourceScanner:
             jupiter_tokens = []
         if isinstance(st_tokens, Exception):
             st_tokens = []
+        if isinstance(axiom_tokens, Exception):
+            axiom_tokens = []
 
         logger.info(
             f"[{self.chain.name}] DexScreener: {len(dex_tokens)} | "
             f"GeckoTerminal: {len(gecko_tokens)} | Raydium: {len(raydium_tokens)} | "
             f"PumpFun-RPC: {len(pumpfun_tokens)} | Raydium-RPC: {len(jupiter_tokens)} | "
-            f"SolanaTracker: {len(st_tokens)} tokens"
+            f"SolanaTracker: {len(st_tokens)} | Axiom: {len(axiom_tokens)} tokens"
         )
 
         # Merge native DEX tokens into DexScreener list
@@ -504,7 +507,7 @@ class MultiSourceScanner:
             t.get("baseToken", {}).get("address", "").lower(): True
             for t in dex_tokens
         }
-        for rt in raydium_tokens + trending_tokens + pumpfun_tokens + jupiter_tokens + st_tokens:
+        for rt in raydium_tokens + trending_tokens + pumpfun_tokens + jupiter_tokens + st_tokens + axiom_tokens:
             addr = rt.get("baseToken", {}).get("address", "").lower()
             if addr and addr not in _dex_addr_set:
                 dex_tokens.append(rt)
@@ -755,6 +758,7 @@ class MultiSourceScanner:
                     "params": [PUMP_MIGRATION, {"limit": 15, "commitment": "finalized"}]
                 }, timeout=aiohttp.ClientTimeout(total=10)) as r:
                     if r.status != 200:
+                        logger.info(f"[{self.chain.name}] pump.fun RPC sigs HTTP {r.status}")
                         return []
                     sigs_data = await r.json()
 
@@ -764,6 +768,11 @@ class MultiSourceScanner:
                     if not x.get("err")
                 ]
                 if not sigs:
+                    err = sigs_data.get("error")
+                    if err:
+                        logger.info(f"[{self.chain.name}] pump.fun RPC error: {err}")
+                    else:
+                        logger.info(f"[{self.chain.name}] pump.fun RPC: 0 signatures returned")
                     return []
 
                 # Step 2: batch getTransaction for all sigs in one request
@@ -846,7 +855,7 @@ class MultiSourceScanner:
             return result
 
         except Exception as e:
-            logger.debug(f"[{self.chain.name}] pump.fun RPC error: {e}")
+            logger.info(f"[{self.chain.name}] pump.fun RPC error: {type(e).__name__}: {e}")
             return []
 
     async def _fetch_solanatracker(self) -> list:
@@ -854,7 +863,12 @@ class MultiSourceScanner:
 
         Rate limit: ~1 call per 5 min = 8,640/month (budget: 10,000/month).
         """
-        if self.chain.chain_id != "solana" or not self.solanatracker_api_key:
+        if self.chain.chain_id != "solana":
+            return []
+        if not self.solanatracker_api_key:
+            if not getattr(self, "_st_warned_no_key", False):
+                logger.info(f"[{self.chain.name}] SolanaTracker: SOLANATRACKER_API_KEY not set — disabled")
+                self._st_warned_no_key = True
             return []
 
         try:
@@ -868,10 +882,10 @@ class MultiSourceScanner:
                     timeout=aiohttp.ClientTimeout(total=15),
                 ) as resp:
                     if resp.status == 429:
-                        logger.debug(f"[{self.chain.name}] SolanaTracker rate-limited")
+                        logger.info(f"[{self.chain.name}] SolanaTracker rate-limited — using cache ({len(self._solanatracker_cache)} entries)")
                         return self._solanatracker_cache
                     if resp.status != 200:
-                        logger.debug(f"[{self.chain.name}] SolanaTracker HTTP {resp.status}")
+                        logger.info(f"[{self.chain.name}] SolanaTracker HTTP {resp.status}")
                         return []
                     data = await resp.json()
 
@@ -946,8 +960,39 @@ class MultiSourceScanner:
             return pairs_out
 
         except Exception as e:
-            logger.debug(f"[{self.chain.name}] SolanaTracker error: {e}")
+            logger.info(f"[{self.chain.name}] SolanaTracker error: {e}")
             return []
+
+    async def _fetch_axiom_discovery(self) -> list:
+        """Fetch trending Solana tokens from Axiom /users-trending-v2.
+
+        Uses auth_manager from AxiomPriceFeed (already wired for price overrides).
+        Applies the same mcap range filter as other fetchers.
+        """
+        if self.chain.chain_id != "solana":
+            return []
+        if self.axiom_price_feed is None:
+            return []
+        auth = getattr(self.axiom_price_feed, "auth", None)
+        if auth is None:
+            return []
+        try:
+            from feeds.axiom_discovery import fetch_axiom_trending_pairs
+            pairs = await fetch_axiom_trending_pairs(auth)
+        except Exception as e:
+            logger.info(f"[{self.chain.name}] Axiom discovery error: {e}")
+            return []
+
+        filtered: list = []
+        for p in pairs:
+            mcap = p.get("marketCap") or 0
+            if mcap != 0 and not (self.min_mcap <= mcap <= self.max_mcap):
+                continue
+            filtered.append(p)
+            addr = (p.get("baseToken") or {}).get("address", "")
+            if addr:
+                self._mint_map[addr.lower()] = addr
+        return filtered
 
     async def _fetch_jupiter(self) -> list:
         """Fetch new Raydium pools via Solana RPC (catches all new Solana launches).
@@ -974,6 +1019,7 @@ class MultiSourceScanner:
                     "params": [RAYDIUM_AMM, {"limit": 15, "commitment": "finalized"}]
                 }, timeout=aiohttp.ClientTimeout(total=10)) as r:
                     if r.status != 200:
+                        logger.info(f"[{self.chain.name}] Raydium-RPC sigs HTTP {r.status}")
                         return []
                     sigs_data = await r.json()
 
@@ -983,6 +1029,11 @@ class MultiSourceScanner:
                     if not x.get("err")
                 ]
                 if not sigs:
+                    err = sigs_data.get("error")
+                    if err:
+                        logger.info(f"[{self.chain.name}] Raydium-RPC error: {err}")
+                    else:
+                        logger.info(f"[{self.chain.name}] Raydium-RPC: 0 signatures returned")
                     return []
 
                 # Step 2: batch getTransaction
@@ -1062,7 +1113,7 @@ class MultiSourceScanner:
             return result
 
         except Exception as e:
-            logger.debug(f"[{self.chain.name}] Raydium RPC error: {e}")
+            logger.info(f"[{self.chain.name}] Raydium-RPC error: {type(e).__name__}: {e}")
             return []
 
     async def _fetch_geckoterminal(self) -> Dict[str, dict]:
@@ -1079,6 +1130,7 @@ class MultiSourceScanner:
             return {}
 
         all_pools: Dict[str, dict] = {}
+        http_status_counts: dict = {}
         try:
             headers = {
                 "Accept": "application/json",
@@ -1098,17 +1150,18 @@ class MultiSourceScanner:
                 for url, label in gecko_urls:
                     try:
                         async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                            http_status_counts[resp.status] = http_status_counts.get(resp.status, 0) + 1
                             if resp.status == 429:
-                                logger.debug(f"[{self.chain.name}] GeckoTerminal rate-limited ({label}) — stopping")
+                                logger.info(f"[{self.chain.name}] GeckoTerminal rate-limited ({label}) — stopping after {len(all_pools)} pools")
                                 break
                             if resp.status != 200:
-                                logger.debug(f"[{self.chain.name}] GeckoTerminal HTTP {resp.status} ({label})")
                                 await asyncio.sleep(1)
                                 continue
                             data = await resp.json()
                             pools = data.get("data", [])
                     except Exception as e:
-                        logger.debug(f"[{self.chain.name}] GeckoTerminal fetch error ({label}): {e}")
+                        http_status_counts["err"] = http_status_counts.get("err", 0) + 1
+                        logger.info(f"[{self.chain.name}] GeckoTerminal fetch error ({label}): {type(e).__name__}: {e}")
                         await asyncio.sleep(1)
                         continue
 
@@ -1175,8 +1228,12 @@ class MultiSourceScanner:
                             logger.debug(f"[{self.chain.name}] GeckoTerminal pool parse error: {e}")
 
         except Exception as e:
-            logger.debug(f"[{self.chain.name}] GeckoTerminal error: {e}")
+            logger.info(f"[{self.chain.name}] GeckoTerminal error: {type(e).__name__}: {e}")
 
+        if not all_pools and http_status_counts:
+            logger.info(
+                f"[{self.chain.name}] GeckoTerminal: 0 pools — http_statuses={http_status_counts}"
+            )
         return all_pools
 
     def _gecko_to_dex_pair(self, gecko_data: dict) -> dict:
@@ -1248,7 +1305,7 @@ class MultiSourceScanner:
                             timeout=aiohttp.ClientTimeout(total=20)
                         ) as resp:
                             if resp.status != 200:
-                                logger.debug(f"[{self.chain.name}] Raydium HTTP {resp.status}")
+                                logger.info(f"[{self.chain.name}] Raydium HTTP {resp.status} (api.raydium.io/v2/main/pairs)")
                                 return []
                             raw_bytes = await resp.read()
                             all_pairs = json.loads(raw_bytes)
@@ -1258,7 +1315,7 @@ class MultiSourceScanner:
                         logger.debug(f"[{self.chain.name}] Raydium fetch retry: {fetch_err}")
                         await asyncio.sleep(2)
                     else:
-                        logger.warning(f"[{self.chain.name}] Raydium unavailable: {fetch_err}")
+                        logger.info(f"[{self.chain.name}] Raydium unavailable: {type(fetch_err).__name__}: {fetch_err}")
                         return []
             if all_pairs is None:
                 return []
