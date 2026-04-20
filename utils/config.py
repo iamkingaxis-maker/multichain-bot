@@ -141,12 +141,13 @@ class Config:
     trading_paused: bool = False  # TRADING_PAUSED env — blocks all new buys across strategies; open positions close naturally
 
     # ── Scanner ──────────────────────────────────────────────
+    scanner_enabled: bool = False  # disabled — 60 trades, 28% WR, -$198 P&L; gates MSS polling + Axiom buy-routing
     min_mcap: float = 80_000
     max_mcap: float = 999_999_999  # No upper cap — scanner evaluates all sizes above min_mcap
     max_volume_h1_usd: float = 300_000
 
     # ── Dip Buyer ────────────────────────────────────────────────
-    dip_scanner_enabled: bool = False  # disabled — 40 trades, all flat, no edge demonstrated
+    dip_scanner_enabled: bool = True  # 118 trades, 52% WR, +$574 P&L — proven profitable strategy
     dip_position_usd: float = 500.0        # Fixed position size
     dip_min_mcap: float = 1_000_000        # $1M minimum mcap
     dip_min_age_days: float = 7.0          # Token pair must be ≥7 days old

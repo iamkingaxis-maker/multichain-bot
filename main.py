@@ -375,12 +375,16 @@ async def main():
                     await kill_switch.trigger(reason)
 
         tasks += [
-            sol_scanner.run(),
             sol_scalper.run(),
             sol_position_mgr.run(),
             sol_rt_layer.run(),
             _auto_kill_check()
         ]
+        if config.scanner_enabled:
+            tasks.append(sol_scanner.run())
+            logger.info("[Main] MultiSourceScanner enabled")
+        else:
+            logger.info("[Main] MultiSourceScanner disabled (SCANNER_ENABLED=false) — MSS polling loop not started")
         if sol_monitor:
             tasks.append(sol_monitor.run())
 
@@ -436,7 +440,8 @@ async def main():
             security_checker=security,                # reuse security checker
             market_monitor=market_monitor,
             edge_strategies=sol_convergence,
-            scanner=sol_scanner,                      # routes all buys through chart analysis
+            # When scanner is disabled, don't route Axiom WS buys through it
+            scanner=sol_scanner if config.scanner_enabled else None,
         )
         tasks += axiom.get_tasks()
         dashboard.register_axiom_auth(axiom.auth)
