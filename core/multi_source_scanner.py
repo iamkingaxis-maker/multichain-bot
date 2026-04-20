@@ -455,6 +455,9 @@ class MultiSourceScanner:
             fetch_st_coro = self._fetch_solanatracker()
             _st_fresh = True
         else:
+            if not self.solanatracker_api_key and not getattr(self, "_st_warned_no_key", False):
+                logger.info(f"[{self.chain.name}] SolanaTracker: SOLANATRACKER_API_KEY not set — disabled")
+                self._st_warned_no_key = True
             async def _cached_st(cache=self._solanatracker_cache):
                 return cache
             fetch_st_coro = _cached_st()
@@ -793,6 +796,7 @@ class MultiSourceScanner:
                     timeout=aiohttp.ClientTimeout(total=20)
                 ) as r:
                     if r.status != 200:
+                        logger.info(f"[{self.chain.name}] pump.fun RPC batch-tx HTTP {r.status}")
                         return []
                     tx_results = await r.json()
 
@@ -809,6 +813,7 @@ class MultiSourceScanner:
                             break  # one non-SOL mint per graduation tx
 
                 if not mints:
+                    logger.info(f"[{self.chain.name}] pump.fun RPC: {len(sigs)} sigs → 0 mints extracted")
                     return []
 
                 mints = list(dict.fromkeys(mints))
@@ -852,6 +857,8 @@ class MultiSourceScanner:
             result = list(seen.values())
             if result:
                 logger.info(f"[{self.chain.name}] pump.fun graduated (RPC): {len(result)} pairs")
+            else:
+                logger.info(f"[{self.chain.name}] pump.fun RPC: {len(mints)} mints → 0 pairs after dex/mcap filter")
             return result
 
         except Exception as e:
@@ -1054,6 +1061,7 @@ class MultiSourceScanner:
                     timeout=aiohttp.ClientTimeout(total=20)
                 ) as r:
                     if r.status != 200:
+                        logger.info(f"[{self.chain.name}] Raydium-RPC batch-tx HTTP {r.status}")
                         return []
                     tx_results = await r.json()
 
@@ -1071,6 +1079,7 @@ class MultiSourceScanner:
                             mints.append(mint)
 
                 if not mints:
+                    logger.info(f"[{self.chain.name}] Raydium-RPC: {len(sigs)} sigs → 0 mints extracted")
                     return []
 
                 mints = list(dict.fromkeys(mints))
@@ -1109,7 +1118,9 @@ class MultiSourceScanner:
             result = list(seen.values())
 
             if result:
-                logger.debug(f"[{self.chain.name}] Raydium new pools (RPC): {len(result)} pairs")
+                logger.info(f"[{self.chain.name}] Raydium new pools (RPC): {len(result)} pairs")
+            else:
+                logger.info(f"[{self.chain.name}] Raydium-RPC: {len(mints)} mints → 0 pairs after dex/mcap filter")
             return result
 
         except Exception as e:
