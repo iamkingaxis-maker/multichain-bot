@@ -336,23 +336,23 @@ class Trader:
                 impact_pct     = 0.0
                 price_source   = "unknown"
 
-                if override_impact_pct >= 0:
+                if override_impact_pct >= 0 and current_price > 0:
                     # Caller already has the correct Jupiter impact — reuse it
                     impact_pct      = override_impact_pct / 100.0
                     entry_price     = current_price * (1.0 + impact_pct)
                     tokens_received = position_size_usd / entry_price
                     price_source    = "axiom_impact+price"
-                else:
+                elif override_impact_pct < 0:
                     quote = await self._get_quote(SOL_MINT, token_address, int(sol_amount * 1e9))
                     if quote:
                         raw_impact = float(quote.get("priceImpactPct", 0))
-                        if raw_impact >= 0:
+                        if raw_impact >= 0 and current_price > 0:
                             impact_pct  = raw_impact
                             entry_price = current_price * (1.0 + impact_pct)
                             tokens_received = position_size_usd / entry_price
                             price_source = "jupiter_impact+dex_price"
 
-                if entry_price <= 0:
+                if entry_price <= 0 and current_price > 0:
                     # Fallback: DexScreener price + slippage model
                     liquidity_usd = await self._get_token_liquidity(token_address)
                     entry_price, tokens_received, slip_est = \
@@ -361,6 +361,13 @@ class Trader:
                         )
                     impact_pct   = slip_est.total_slippage_pct
                     price_source = "dexscreener+model"
+
+                if entry_price <= 0 or tokens_received <= 0:
+                    logger.error(
+                        f"[PAPER] Cannot price {token_symbol} — "
+                        f"current_price=${current_price:.8f}, override_impact={override_impact_pct} — buy aborted"
+                    )
+                    return
 
                 position = Position(
                     token_address=token_address.lower(),

@@ -385,13 +385,15 @@ async def main():
             tasks.append(sol_monitor.run())
 
         # ── Graduation Sniper (wired after axiom init below) ─────────────
-        grad_sniper = GraduationSniper(
-            rpc_url=config.solana_rpc_url,
-            trader=sol_trader,
-            position_usd=config.micro_cap_position_usd,
-            max_price_impact_pct=10.0,
-            sol_price_usd=150.0,
-        )
+        grad_sniper = None
+        if config.graduation_enabled:
+            grad_sniper = GraduationSniper(
+                rpc_url=config.solana_rpc_url,
+                trader=sol_trader,
+                position_usd=config.micro_cap_position_usd,
+                max_price_impact_pct=10.0,
+                sol_price_usd=150.0,
+            )
 
         # ── Edge Strategies ──────────────────────────────────────────────
         sol_convergence = CrossWalletConvergenceStrategy(
@@ -448,8 +450,11 @@ async def main():
             sol_position_mgr.axiom_price_feed = axiom.price_feed  # fast price cache for mgmt cycle
 
         # Wire graduation sniper into Axiom feed — free graduation detection
-        axiom.set_graduation_sniper(grad_sniper)
-        logger.info("[Main] Graduation sniper wired to Axiom WS feed")
+        if grad_sniper is not None:
+            axiom.set_graduation_sniper(grad_sniper)
+            logger.info("[Main] Graduation sniper wired to Axiom WS feed")
+        else:
+            logger.info("[Main] Graduation sniper disabled (GRADUATION_ENABLED=false)")
 
         if config.dip_scanner_enabled:
             dip_scanner = DipScanner(

@@ -261,6 +261,9 @@ class Config:
     micro_cap_min_mcap: float = 10_000
     micro_cap_max_mcap: float = 80_000  # Raised from 50k — covers PumpSwap graduates (~$67k mcap)
     micro_cap_position_usd: float = 40.0
+
+    # ── Graduation Sniper (fresh pump.fun graduates via Axiom WS) ──
+    graduation_enabled: bool = False  # disabled — 0 fills in paper (divide-by-zero on un-indexed tokens); scanner-only consolidation
     micro_cap_max_snipers_pct: float = 15.0   # block if snipers hold > 15%
     micro_cap_max_dev_pct: float = 10.0        # block if dev holds > 10%
     min_volume_h1_usd: float = 15_000
