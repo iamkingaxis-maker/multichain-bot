@@ -41,6 +41,8 @@ class DipScanner:
                  min_volume_h24: float = 200_000,
                  max_concurrent: int = 3,
                  min_txn_ratio_h6: float = 1.3,
+                 min_vol_h1_ratio: float = 0.5,
+                 require_vol_m5: bool = True,
                  gt_client: Optional[GeckoTerminalClient] = None):
         self.trader = trader
         self.telegram = telegram
@@ -52,6 +54,8 @@ class DipScanner:
         self.min_volume_h24 = min_volume_h24
         self.max_concurrent = max_concurrent
         self.min_txn_ratio_h6 = min_txn_ratio_h6
+        self.min_vol_h1_ratio = min_vol_h1_ratio
+        self.require_vol_m5 = require_vol_m5
         # GT trending pools widen the universe beyond DexScreener stubs/searches.
         # Lazy-init so tests can construct without pulling the feeds.gecko deps.
         self.gt_client = gt_client or GeckoTerminalClient(cache_ttl=60, rate_per_min=15)
@@ -117,6 +121,19 @@ class DipScanner:
                 c["vol"] += 1
                 continue
 
+            # Volume-decay filter: require recent-hour volume to be at least
+            # min_vol_h1_ratio of the 24h average hourly rate, and (optional)
+            # non-zero volume in the last 5 minutes. Blocks tokens whose
+            # liquidity is fading mid-trade (67: $0 m5 vol; TROLL: 0.48× h1 rate).
+            vol_h1 = (pair.get("volume") or {}).get("h1", 0) or 0
+            vol_m5 = (pair.get("volume") or {}).get("m5", 0) or 0
+            if self.require_vol_m5 and vol_m5 <= 0:
+                c["vol_m5_zero"] += 1
+                continue
+            if vol_h1 < vol_h24 * self.min_vol_h1_ratio / 24:
+                c["vol_h1_decay"] += 1
+                continue
+
             pc_h24 = (pair.get("priceChange") or {}).get("h24", 0) or 0
             pc_h1 = (pair.get("priceChange") or {}).get("h1", 0) or 0
             pc_m5 = (pair.get("priceChange") or {}).get("m5", 0) or 0
@@ -176,6 +193,7 @@ class DipScanner:
         rej_str = " ".join(
             f"{k}={c[k]}" for k in (
                 "mcap_low", "mcap_high", "age", "vol",
+                "vol_m5_zero", "vol_h1_decay",
                 "red_h24", "no_dip", "bs_h6", "already_open",
             ) if c[k]
         ) or "-"

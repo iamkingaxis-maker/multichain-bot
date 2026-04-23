@@ -473,6 +473,8 @@ async def main():
                 min_volume_h24=config.dip_min_volume_h24,
                 max_concurrent=config.dip_max_concurrent,
                 min_txn_ratio_h6=config.dip_min_txn_ratio_h6,
+                min_vol_h1_ratio=config.dip_min_vol_h1_ratio,
+                require_vol_m5=config.dip_require_vol_m5,
             )
             tasks.append(dip_scanner.run())
             logger.info(
@@ -480,7 +482,9 @@ async def main():
                 f"${config.dip_position_usd:.0f}/position, "
                 f"mcap ${config.dip_min_mcap/1e6:.0f}M-${config.dip_max_mcap/1e6:.0f}M, "
                 f"max {config.dip_max_concurrent} concurrent, "
-                f"min bs_h6={config.dip_min_txn_ratio_h6:.2f}"
+                f"min bs_h6={config.dip_min_txn_ratio_h6:.2f}, "
+                f"min vol_h1_ratio={config.dip_min_vol_h1_ratio:.2f} "
+                f"(vol_m5_required={config.dip_require_vol_m5})"
             )
 
         if config.scalp_enabled:
