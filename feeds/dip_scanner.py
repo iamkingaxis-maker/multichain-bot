@@ -43,6 +43,7 @@ class DipScanner:
                  min_txn_ratio_h6: float = 1.3,
                  min_vol_h1_ratio: float = 0.5,
                  require_vol_m5: bool = True,
+                 min_turnover_h24: float = 2.0,
                  gt_client: Optional[GeckoTerminalClient] = None):
         self.trader = trader
         self.telegram = telegram
@@ -56,6 +57,7 @@ class DipScanner:
         self.min_txn_ratio_h6 = min_txn_ratio_h6
         self.min_vol_h1_ratio = min_vol_h1_ratio
         self.require_vol_m5 = require_vol_m5
+        self.min_turnover_h24 = min_turnover_h24
         # GT trending pools widen the universe beyond DexScreener stubs/searches.
         # Lazy-init so tests can construct without pulling the feeds.gecko deps.
         self.gt_client = gt_client or GeckoTerminalClient(cache_ttl=60, rate_per_min=15)
@@ -121,6 +123,15 @@ class DipScanner:
                 c["vol"] += 1
                 continue
 
+            # Turnover filter: require vol_h24 / liquidity >= threshold. Blocks
+            # over-liquid tokens where trades don't move price (pippin 0.9×,
+            # TROLL 0.5×, 67 1.3×). All known winners are ≥3.9×.
+            liq_usd = float((pair.get("liquidity") or {}).get("usd") or 0)
+            turnover = (vol_h24 / liq_usd) if liq_usd > 0 else 0.0
+            if liq_usd > 0 and turnover < self.min_turnover_h24:
+                c["low_turnover"] += 1
+                continue
+
             # Volume-decay filter: require recent-hour volume to be at least
             # min_vol_h1_ratio of the 24h average hourly rate, and (optional)
             # non-zero volume in the last 5 minutes. Blocks tokens whose
@@ -146,13 +157,18 @@ class DipScanner:
                 continue
 
             # Order-flow filter: require h6 buy/sell txn ratio >= threshold.
-            # Blocks distribution (DUMBMONEY 1.11, SPIKE 1.20); passes
-            # accumulation (WIFE 1.54, BULL 1.53, FOF 1.55).
+            # Reject tokens without txns data (prev bug: GT-sourced pairs had
+            # no txns field and bypassed this check — 67/TROLL/pippin all
+            # slipped through. After enrichment we expect every pair to have
+            # txns, so missing data now means the token is too obscure.)
             txns_h6 = (pair.get("txns") or {}).get("h6") or {}
             b_h6 = int(txns_h6.get("buys") or 0)
             s_h6 = int(txns_h6.get("sells") or 0)
-            ratio_h6 = (b_h6 / s_h6) if s_h6 > 0 else 0.0
-            if s_h6 > 0 and ratio_h6 < self.min_txn_ratio_h6:
+            if b_h6 == 0 and s_h6 == 0:
+                c["bs_h6_missing"] += 1
+                continue
+            ratio_h6 = (b_h6 / s_h6) if s_h6 > 0 else float("inf")
+            if ratio_h6 < self.min_txn_ratio_h6:
                 c["bs_h6"] += 1
                 self._rejected_distribution += 1
                 continue
@@ -192,9 +208,9 @@ class DipScanner:
         src_str = " ".join(f"{k}={v}" for k, v in source_counts.items() if v) or "-"
         rej_str = " ".join(
             f"{k}={c[k]}" for k in (
-                "mcap_low", "mcap_high", "age", "vol",
+                "mcap_low", "mcap_high", "age", "vol", "low_turnover",
                 "vol_m5_zero", "vol_h1_decay",
-                "red_h24", "no_dip", "bs_h6", "already_open",
+                "red_h24", "no_dip", "bs_h6", "bs_h6_missing", "already_open",
             ) if c[k]
         ) or "-"
         logger.info(
@@ -205,14 +221,17 @@ class DipScanner:
     async def _fetch_candidates(self) -> tuple:
         """Fetch candidate pairs from DexScreener + GeckoTerminal trending.
 
-        Returns (pairs, source_counts) where source_counts is a dict with
-        keys ds_stub, ds_search, gt_trending so the cycle log can show
-        where tokens came from.
+        GT's trending_pools response lacks the per-timeframe txns field that
+        the bs_h6 filter depends on, so every GT-sourced address is batch-
+        enriched through DS /tokens/ to get the full pair dict before any
+        filters run.
+
+        Returns (pairs, source_counts) where source_counts breaks down the
+        origin of each token so the cycle log shows where they came from.
         """
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
-        pairs_out = []
-        seen = set()
-        source_counts = {"ds_stub": 0, "ds_search": 0, "gt_trending": 0}
+        pair_by_addr: dict = {}
+        source_by_addr: dict = {}
 
         async def _get(session, url) -> Optional[dict]:
             try:
@@ -244,16 +263,15 @@ class DipScanner:
                 if isinstance(gt_pairs, Exception):
                     gt_pairs = []
 
-                # GT trending pools — already in DexScreener-compatible shape.
-                # Seed first so DS enrichment can merge against them.
+                # Seed GT entries — will be overwritten by DS enrichment below
+                # so the final pair dict has txns data for the bs_h6 filter.
                 for p in (gt_pairs or []):
                     addr = (p.get("baseToken") or {}).get("address", "")
-                    if addr and addr not in seen:
-                        seen.add(addr)
-                        pairs_out.append(p)
-                        source_counts["gt_trending"] += 1
+                    if addr and addr not in pair_by_addr:
+                        pair_by_addr[addr] = p
+                        source_by_addr[addr] = "gt_trending"
 
-                # Collect token addresses from stub endpoints for batch enrichment
+                # Collect stub addresses from DS boosts/profiles
                 stub_addrs = []
                 for res in results[:2]:
                     if isinstance(res, (list, dict)):
@@ -263,19 +281,39 @@ class DipScanner:
                             if addr:
                                 stub_addrs.append(addr)
 
-                if stub_addrs:
-                    for i in range(0, len(stub_addrs), 30):
-                        batch = stub_addrs[i:i+30]
+                # Enrich stub addrs + all GT addrs via DS /tokens batch.
+                # dedupe preserving first-seen order.
+                to_enrich = list(dict.fromkeys(stub_addrs + list(pair_by_addr.keys())))
+                if to_enrich:
+                    for i in range(0, len(to_enrich), 30):
+                        batch = to_enrich[i:i + 30]
                         url = f"https://api.dexscreener.com/latest/dex/tokens/{','.join(batch)}"
                         data = await _get(session, url)
+                        # DS returns one entry per pair; pick the highest-liq
+                        # pair per base address.
+                        best: dict = {}
                         for p in (data or {}).get("pairs", []):
-                            if p.get("chainId") == _DEX_CHAIN:
-                                addr = (p.get("baseToken") or {}).get("address", "")
-                                if addr and addr not in seen:
-                                    seen.add(addr)
-                                    pairs_out.append(p)
-                                    source_counts["ds_stub"] += 1
+                            if p.get("chainId") != _DEX_CHAIN:
+                                continue
+                            addr = (p.get("baseToken") or {}).get("address", "")
+                            if not addr:
+                                continue
+                            liq = float((p.get("liquidity") or {}).get("usd") or 0)
+                            cur = best.get(addr)
+                            if cur is None or liq > float(
+                                (cur.get("liquidity") or {}).get("usd") or 0
+                            ):
+                                best[addr] = p
+                        for addr, p in best.items():
+                            if source_by_addr.get(addr) == "gt_trending":
+                                pair_by_addr[addr] = p
+                                source_by_addr[addr] = "gt_enriched"
+                            elif addr not in pair_by_addr:
+                                pair_by_addr[addr] = p
+                                source_by_addr[addr] = "ds_stub"
 
+                # DS search results — use as fallback for addrs neither in
+                # GT nor DS stub/enrichment.
                 for res in results[2:]:
                     if isinstance(res, Exception) or not res:
                         continue
@@ -283,12 +321,18 @@ class DipScanner:
                         if p.get("chainId") != _DEX_CHAIN:
                             continue
                         addr = (p.get("baseToken") or {}).get("address", "")
-                        if addr and addr not in seen:
-                            seen.add(addr)
-                            pairs_out.append(p)
-                            source_counts["ds_search"] += 1
+                        if addr and addr not in pair_by_addr:
+                            pair_by_addr[addr] = p
+                            source_by_addr[addr] = "ds_search"
 
         except Exception as e:
             logger.error(f"[DipScanner] Fetch error: {e}")
 
-        return pairs_out, source_counts
+        source_counts = {
+            "ds_stub": 0, "ds_search": 0,
+            "gt_trending": 0, "gt_enriched": 0,
+        }
+        for src in source_by_addr.values():
+            source_counts[src] = source_counts.get(src, 0) + 1
+
+        return list(pair_by_addr.values()), source_counts

@@ -163,6 +163,7 @@ class Config:
     dip_min_txn_ratio_h6: float = 1.3     # require h6 buy/sell txn ratio >= 1.3 (blocks distribution: DUMBMONEY 1.11, SPIKE 1.20; passes WIFE 1.54, BULL 1.53)
     dip_min_vol_h1_ratio: float = 0.5     # require vol_h1 >= vol_h24/48 (= 50% of avg hourly rate). Blocks decelerating-volume tokens (67, TROLL); passes BULL 0.80x, pippin 0.72x
     dip_require_vol_m5: bool = True       # require vol_m5 > 0 (blocks fully dead tokens)
+    dip_min_turnover_h24: float = 2.0     # require vol_h24 / liquidity >= 2.0 — blocks over-liquid tokens that don't move (pippin 0.9x, TROLL 0.5x, 67 1.3x); passes all winners (BULL 3.9x lowest)
 
     # ── Scalp Strategy (4-phase setup detector: impulse/pullback/sweep/reclaim) ──
     scalp_enabled: bool = False  # disabled — 17 trades, -$22 total, re-enable after rewrite lands
@@ -487,6 +488,10 @@ def _apply_env_overrides(config: Config):
     if os.environ.get("DIP_REQUIRE_VOL_M5"):
         config.dip_require_vol_m5 = env_bool(
             "DIP_REQUIRE_VOL_M5", config.dip_require_vol_m5
+        )
+    if os.environ.get("DIP_MIN_TURNOVER_H24"):
+        config.dip_min_turnover_h24 = env_float(
+            "DIP_MIN_TURNOVER_H24", config.dip_min_turnover_h24
         )
     if os.environ.get("DIP_MIN_VOLUME_H24"):
         config.dip_min_volume_h24 = env_float("DIP_MIN_VOLUME_H24", config.dip_min_volume_h24)

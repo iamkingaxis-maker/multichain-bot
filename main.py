@@ -475,6 +475,7 @@ async def main():
                 min_txn_ratio_h6=config.dip_min_txn_ratio_h6,
                 min_vol_h1_ratio=config.dip_min_vol_h1_ratio,
                 require_vol_m5=config.dip_require_vol_m5,
+                min_turnover_h24=config.dip_min_turnover_h24,
             )
             tasks.append(dip_scanner.run())
             logger.info(
@@ -483,6 +484,7 @@ async def main():
                 f"mcap ${config.dip_min_mcap/1e6:.0f}M-${config.dip_max_mcap/1e6:.0f}M, "
                 f"max {config.dip_max_concurrent} concurrent, "
                 f"min bs_h6={config.dip_min_txn_ratio_h6:.2f}, "
+                f"min turnover={config.dip_min_turnover_h24:.1f}x, "
                 f"min vol_h1_ratio={config.dip_min_vol_h1_ratio:.2f} "
                 f"(vol_m5_required={config.dip_require_vol_m5})"
             )
