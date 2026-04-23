@@ -468,6 +468,7 @@ async def main():
                 open_positions_ref=sol_trader.open_positions,
                 position_usd=config.dip_position_usd,
                 min_mcap=config.dip_min_mcap,
+                max_mcap=config.dip_max_mcap,
                 min_age_days=config.dip_min_age_days,
                 min_volume_h24=config.dip_min_volume_h24,
                 max_concurrent=config.dip_max_concurrent,
@@ -476,7 +477,7 @@ async def main():
             logger.info(
                 f"[Main] DipScanner enabled — "
                 f"${config.dip_position_usd:.0f}/position, "
-                f"min mcap ${config.dip_min_mcap/1e6:.0f}M, "
+                f"mcap ${config.dip_min_mcap/1e6:.0f}M-${config.dip_max_mcap/1e6:.0f}M, "
                 f"max {config.dip_max_concurrent} concurrent"
             )
 

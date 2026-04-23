@@ -32,6 +32,7 @@ class DipScanner:
                  open_positions_ref: dict,
                  position_usd: float = 500.0,
                  min_mcap: float = 1_000_000,
+                 max_mcap: float = 100_000_000,
                  min_age_days: float = 7.0,
                  min_volume_h24: float = 200_000,
                  max_concurrent: int = 3):
@@ -40,6 +41,7 @@ class DipScanner:
         self.open_positions_ref = open_positions_ref
         self.position_usd = position_usd
         self.min_mcap = min_mcap
+        self.max_mcap = max_mcap
         self.min_age_ms = min_age_days * 86_400 * 1000  # convert to ms
         self.min_volume_h24 = min_volume_h24
         self.max_concurrent = max_concurrent
@@ -83,7 +85,7 @@ class DipScanner:
 
             # ── Hard filters ──────────────────────────────────────────
             mcap = pair.get("marketCap") or 0
-            if mcap < self.min_mcap:
+            if mcap < self.min_mcap or mcap > self.max_mcap:
                 continue
 
             created_ms = pair.get("pairCreatedAt") or 0
