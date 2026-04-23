@@ -2,21 +2,25 @@
 DipScanner — buys established Solana tokens dipping within an uptrend.
 
 Entry criteria:
-  - Market cap >= $1M
+  - Market cap >= $1M and <= $100M (configurable)
   - Pair age >= 7 days
   - 24h volume >= $200k (steady / high activity)
   - 24h price change > 0  (uptrend intact)
   - 1h price change < 0 OR 5m price change < 0  (dip in progress)
+  - h6 buy/sell txn ratio >= 1.3 (accumulation, not distribution)
   - Not already in open positions
 
-Uses DexScreener REST (no API key).
+Sources: DexScreener REST + GeckoTerminal trending pools (both free, no API key).
 """
 
 import asyncio
 import logging
 import time
 import aiohttp
+from collections import Counter
 from typing import Optional
+
+from feeds.gecko_ohlcv import GeckoTerminalClient
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +40,8 @@ class DipScanner:
                  min_age_days: float = 7.0,
                  min_volume_h24: float = 200_000,
                  max_concurrent: int = 3,
-                 min_txn_ratio_h6: float = 1.3):
+                 min_txn_ratio_h6: float = 1.3,
+                 gt_client: Optional[GeckoTerminalClient] = None):
         self.trader = trader
         self.telegram = telegram
         self.open_positions_ref = open_positions_ref
@@ -47,6 +52,9 @@ class DipScanner:
         self.min_volume_h24 = min_volume_h24
         self.max_concurrent = max_concurrent
         self.min_txn_ratio_h6 = min_txn_ratio_h6
+        # GT trending pools widen the universe beyond DexScreener stubs/searches.
+        # Lazy-init so tests can construct without pulling the feeds.gecko deps.
+        self.gt_client = gt_client or GeckoTerminalClient(cache_ttl=60, rate_per_min=15)
 
         self._start_monotonic = time.monotonic()
         self.signals_fired = 0
@@ -69,65 +77,79 @@ class DipScanner:
             if getattr(pos, "strategy", "") == "dip_buy"
         )
         if dip_count >= self.max_concurrent:
-            logger.debug(f"[DipScanner] At max concurrent ({dip_count}) — skipping scan")
+            logger.info(
+                f"[DipScanner] Cycle: at max concurrent ({dip_count}) — skipping scan"
+            )
             return
 
-        pairs = await self._fetch_candidates()
+        pairs, source_counts = await self._fetch_candidates()
         now_ms = time.time() * 1000
 
+        c: Counter = Counter()
+        signals = 0
         for pair in pairs:
+            c["fetched"] += 1
             token_address = (pair.get("baseToken") or {}).get("address", "")
             token_symbol = (pair.get("baseToken") or {}).get("symbol", "?")
 
             if not token_address:
+                c["no_addr"] += 1
                 continue
-
-            # Skip if already in open positions
             if token_address in self.open_positions_ref:
+                c["already_open"] += 1
                 continue
 
-            # ── Hard filters ──────────────────────────────────────────
             mcap = pair.get("marketCap") or 0
-            if mcap < self.min_mcap or mcap > self.max_mcap:
+            if mcap < self.min_mcap:
+                c["mcap_low"] += 1
+                continue
+            if mcap > self.max_mcap:
+                c["mcap_high"] += 1
                 continue
 
             created_ms = pair.get("pairCreatedAt") or 0
             if created_ms <= 0 or (now_ms - created_ms) < self.min_age_ms:
+                c["age"] += 1
                 continue
 
             vol_h24 = (pair.get("volume") or {}).get("h24", 0) or 0
             if vol_h24 < self.min_volume_h24:
+                c["vol"] += 1
                 continue
 
-            # ── Signal: green 24h, red 1h or 5m ─────────────────────
             pc_h24 = (pair.get("priceChange") or {}).get("h24", 0) or 0
             pc_h1 = (pair.get("priceChange") or {}).get("h1", 0) or 0
             pc_m5 = (pair.get("priceChange") or {}).get("m5", 0) or 0
 
             if pc_h24 <= 0:
-                continue  # 24h must be green
-
+                c["red_h24"] += 1
+                continue
             if pc_h1 >= 0 and pc_m5 >= 0:
-                continue  # Need at least one red shorter timeframe
+                c["no_dip"] += 1
+                continue
 
-            # ── Order-flow filter: require h6 buy/sell txn ratio >= threshold ──
-            # Blocks distribution patterns (DUMBMONEY 1.11, SPIKE 1.20);
-            # passes accumulation (WIFE 1.54, BULL 1.53, FOF 1.55).
+            # Order-flow filter: require h6 buy/sell txn ratio >= threshold.
+            # Blocks distribution (DUMBMONEY 1.11, SPIKE 1.20); passes
+            # accumulation (WIFE 1.54, BULL 1.53, FOF 1.55).
             txns_h6 = (pair.get("txns") or {}).get("h6") or {}
             b_h6 = int(txns_h6.get("buys") or 0)
             s_h6 = int(txns_h6.get("sells") or 0)
             ratio_h6 = (b_h6 / s_h6) if s_h6 > 0 else 0.0
             if s_h6 > 0 and ratio_h6 < self.min_txn_ratio_h6:
+                c["bs_h6"] += 1
                 self._rejected_distribution += 1
                 continue
 
-            # ── Stop adding once max_concurrent reached mid-cycle ────
             dip_count = sum(
                 1 for pos in self.open_positions_ref.values()
                 if getattr(pos, "strategy", "") == "dip_buy"
             )
             if dip_count >= self.max_concurrent:
+                c["cap_reached"] += 1
                 break
+
+            c["signal"] += 1
+            signals += 1
 
             logger.info(
                 f"[DipScanner] Signal: {token_symbol} "
@@ -150,11 +172,29 @@ class DipScanner:
                 strategy="dip_buy",
             )
 
-    async def _fetch_candidates(self) -> list:
-        """Fetch candidate pairs from DexScreener."""
+        src_str = " ".join(f"{k}={v}" for k, v in source_counts.items() if v) or "-"
+        rej_str = " ".join(
+            f"{k}={c[k]}" for k in (
+                "mcap_low", "mcap_high", "age", "vol",
+                "red_h24", "no_dip", "bs_h6", "already_open",
+            ) if c[k]
+        ) or "-"
+        logger.info(
+            f"[DipScanner] Cycle: fetched={c['fetched']} ({src_str}) "
+            f"signals={signals} | rejects: {rej_str}"
+        )
+
+    async def _fetch_candidates(self) -> tuple:
+        """Fetch candidate pairs from DexScreener + GeckoTerminal trending.
+
+        Returns (pairs, source_counts) where source_counts is a dict with
+        keys ds_stub, ds_search, gt_trending so the cycle log can show
+        where tokens came from.
+        """
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
         pairs_out = []
         seen = set()
+        source_counts = {"ds_stub": 0, "ds_search": 0, "gt_trending": 0}
 
         async def _get(session, url) -> Optional[dict]:
             try:
@@ -176,8 +216,24 @@ class DipScanner:
                     for kw in _SEARCH_TERMS
                 ]
 
-                results = await asyncio.gather(*[_get(session, u) for u in urls],
-                                               return_exceptions=True)
+                ds_task = asyncio.gather(*[_get(session, u) for u in urls],
+                                         return_exceptions=True)
+                gt_task = self.gt_client.fetch_trending_pools(pages=2)
+                results, gt_pairs = await asyncio.gather(ds_task, gt_task,
+                                                         return_exceptions=True)
+                if isinstance(results, Exception):
+                    results = []
+                if isinstance(gt_pairs, Exception):
+                    gt_pairs = []
+
+                # GT trending pools — already in DexScreener-compatible shape.
+                # Seed first so DS enrichment can merge against them.
+                for p in (gt_pairs or []):
+                    addr = (p.get("baseToken") or {}).get("address", "")
+                    if addr and addr not in seen:
+                        seen.add(addr)
+                        pairs_out.append(p)
+                        source_counts["gt_trending"] += 1
 
                 # Collect token addresses from stub endpoints for batch enrichment
                 stub_addrs = []
@@ -189,7 +245,6 @@ class DipScanner:
                             if addr:
                                 stub_addrs.append(addr)
 
-                # Enrich stub addresses via /tokens batch
                 if stub_addrs:
                     for i in range(0, len(stub_addrs), 30):
                         batch = stub_addrs[i:i+30]
@@ -201,8 +256,8 @@ class DipScanner:
                                 if addr and addr not in seen:
                                     seen.add(addr)
                                     pairs_out.append(p)
+                                    source_counts["ds_stub"] += 1
 
-                # Direct pairs from keyword searches
                 for res in results[2:]:
                     if isinstance(res, Exception) or not res:
                         continue
@@ -213,8 +268,9 @@ class DipScanner:
                         if addr and addr not in seen:
                             seen.add(addr)
                             pairs_out.append(p)
+                            source_counts["ds_search"] += 1
 
         except Exception as e:
             logger.error(f"[DipScanner] Fetch error: {e}")
 
-        return pairs_out
+        return pairs_out, source_counts
