@@ -472,13 +472,15 @@ async def main():
                 min_age_days=config.dip_min_age_days,
                 min_volume_h24=config.dip_min_volume_h24,
                 max_concurrent=config.dip_max_concurrent,
+                min_txn_ratio_h6=config.dip_min_txn_ratio_h6,
             )
             tasks.append(dip_scanner.run())
             logger.info(
                 f"[Main] DipScanner enabled — "
                 f"${config.dip_position_usd:.0f}/position, "
                 f"mcap ${config.dip_min_mcap/1e6:.0f}M-${config.dip_max_mcap/1e6:.0f}M, "
-                f"max {config.dip_max_concurrent} concurrent"
+                f"max {config.dip_max_concurrent} concurrent, "
+                f"min bs_h6={config.dip_min_txn_ratio_h6:.2f}"
             )
 
         if config.scalp_enabled:

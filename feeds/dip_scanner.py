@@ -35,7 +35,8 @@ class DipScanner:
                  max_mcap: float = 100_000_000,
                  min_age_days: float = 7.0,
                  min_volume_h24: float = 200_000,
-                 max_concurrent: int = 3):
+                 max_concurrent: int = 3,
+                 min_txn_ratio_h6: float = 1.3):
         self.trader = trader
         self.telegram = telegram
         self.open_positions_ref = open_positions_ref
@@ -45,10 +46,12 @@ class DipScanner:
         self.min_age_ms = min_age_days * 86_400 * 1000  # convert to ms
         self.min_volume_h24 = min_volume_h24
         self.max_concurrent = max_concurrent
+        self.min_txn_ratio_h6 = min_txn_ratio_h6
 
         self._start_monotonic = time.monotonic()
         self.signals_fired = 0
         self._last_buy_time = 0.0
+        self._rejected_distribution = 0
 
     async def run(self):
         logger.info("[DipScanner] Starting — targeting $1M+ mcap dip entries")
@@ -107,6 +110,17 @@ class DipScanner:
             if pc_h1 >= 0 and pc_m5 >= 0:
                 continue  # Need at least one red shorter timeframe
 
+            # ── Order-flow filter: require h6 buy/sell txn ratio >= threshold ──
+            # Blocks distribution patterns (DUMBMONEY 1.11, SPIKE 1.20);
+            # passes accumulation (WIFE 1.54, BULL 1.53, FOF 1.55).
+            txns_h6 = (pair.get("txns") or {}).get("h6") or {}
+            b_h6 = int(txns_h6.get("buys") or 0)
+            s_h6 = int(txns_h6.get("sells") or 0)
+            ratio_h6 = (b_h6 / s_h6) if s_h6 > 0 else 0.0
+            if s_h6 > 0 and ratio_h6 < self.min_txn_ratio_h6:
+                self._rejected_distribution += 1
+                continue
+
             # ── Stop adding once max_concurrent reached mid-cycle ────
             dip_count = sum(
                 1 for pos in self.open_positions_ref.values()
@@ -118,7 +132,7 @@ class DipScanner:
             logger.info(
                 f"[DipScanner] Signal: {token_symbol} "
                 f"mcap=${mcap/1e6:.1f}M | 24h={pc_h24:+.1f}% 1h={pc_h1:+.1f}% 5m={pc_m5:+.1f}% "
-                f"vol24h=${vol_h24/1000:.0f}k"
+                f"vol24h=${vol_h24/1000:.0f}k bs_h6={ratio_h6:.2f}"
             )
 
             self._last_buy_time = time.monotonic()
@@ -129,7 +143,10 @@ class DipScanner:
                 token_symbol=token_symbol,
                 chain_id="solana",
                 override_usd=self.position_usd,
-                reason=f"dip_buy: 24h={pc_h24:+.1f}% 1h={pc_h1:+.1f}% 5m={pc_m5:+.1f}%",
+                reason=(
+                    f"dip_buy: 24h={pc_h24:+.1f}% 1h={pc_h1:+.1f}% 5m={pc_m5:+.1f}% "
+                    f"bs_h6={ratio_h6:.2f}"
+                ),
                 strategy="dip_buy",
             )
 

@@ -160,6 +160,7 @@ class Config:
     dip_stop_pct: float = 15.0            # Hard stop at -15%
     dip_winner_trail_pct: float = 5.0     # Trail 5% from peak after TP1
     dip_max_concurrent: int = 4           # Max simultaneous dip positions
+    dip_min_txn_ratio_h6: float = 1.3     # require h6 buy/sell txn ratio >= 1.3 (blocks distribution: DUMBMONEY 1.11, SPIKE 1.20; passes WIFE 1.54, BULL 1.53)
 
     # ── Scalp Strategy (4-phase setup detector: impulse/pullback/sweep/reclaim) ──
     scalp_enabled: bool = False  # disabled — 17 trades, -$22 total, re-enable after rewrite lands
@@ -473,6 +474,10 @@ def _apply_env_overrides(config: Config):
         config.dip_min_mcap = env_float("DIP_MIN_MCAP", config.dip_min_mcap)
     if os.environ.get("DIP_MAX_MCAP"):
         config.dip_max_mcap = env_float("DIP_MAX_MCAP", config.dip_max_mcap)
+    if os.environ.get("DIP_MIN_TXN_RATIO_H6"):
+        config.dip_min_txn_ratio_h6 = env_float(
+            "DIP_MIN_TXN_RATIO_H6", config.dip_min_txn_ratio_h6
+        )
     if os.environ.get("DIP_MIN_VOLUME_H24"):
         config.dip_min_volume_h24 = env_float("DIP_MIN_VOLUME_H24", config.dip_min_volume_h24)
     if os.environ.get("DIP_STOP_PCT"):
