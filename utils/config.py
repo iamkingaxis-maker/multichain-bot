@@ -151,7 +151,7 @@ class Config:
     dip_position_usd: float = 500.0        # Fixed position size
     dip_min_mcap: float = 1_000_000        # $1M minimum mcap
     dip_max_mcap: float = 100_000_000      # $100M max FDV — excludes BONK/PUMP-tier large caps that don't bounce
-    dip_min_age_days: float = 7.0          # Token pair must be ≥7 days old
+    dip_min_age_days: float = 1.0          # Token pair must be ≥1 day old (other filters guard against fresh-launch rugs)
     dip_min_volume_h24: float = 200_000    # $200k minimum 24h volume
     dip_tp1_pct: float = 8.0              # TP1 at +8% — sell 50%
     dip_tp1_sell: float = 0.50
@@ -477,6 +477,8 @@ def _apply_env_overrides(config: Config):
         config.dip_min_mcap = env_float("DIP_MIN_MCAP", config.dip_min_mcap)
     if os.environ.get("DIP_MAX_MCAP"):
         config.dip_max_mcap = env_float("DIP_MAX_MCAP", config.dip_max_mcap)
+    if os.environ.get("DIP_MIN_AGE_DAYS"):
+        config.dip_min_age_days = env_float("DIP_MIN_AGE_DAYS", config.dip_min_age_days)
     if os.environ.get("DIP_MIN_TXN_RATIO_H6"):
         config.dip_min_txn_ratio_h6 = env_float(
             "DIP_MIN_TXN_RATIO_H6", config.dip_min_txn_ratio_h6
