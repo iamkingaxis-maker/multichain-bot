@@ -183,6 +183,20 @@ class DipScanner:
                 self._rejected_distribution += 1
                 continue
 
+            # bs_m5 — current-moment order flow. Logged but not filtered yet;
+            # gathering 24-48h of data to test whether it separates wins/losses
+            # at the entry snapshot level (the snapshot-level pattern bs_h6
+            # can't see). Zero when no m5 txns yet.
+            txns_m5 = (pair.get("txns") or {}).get("m5") or {}
+            b_m5 = int(txns_m5.get("buys") or 0)
+            s_m5 = int(txns_m5.get("sells") or 0)
+            if s_m5 > 0:
+                ratio_m5 = b_m5 / s_m5
+            elif b_m5 > 0:
+                ratio_m5 = float("inf")
+            else:
+                ratio_m5 = 0.0
+
             dip_count = sum(
                 1 for pos in self.open_positions_ref.values()
                 if getattr(pos, "strategy", "") == "dip_buy"
@@ -194,10 +208,14 @@ class DipScanner:
             c["signal"] += 1
             signals += 1
 
+            # Format bs_m5 as 'inf' when we have buys but zero sells — clearer
+            # than a giant float when everyone's buying and nobody's selling.
+            bs_m5_str = "inf" if ratio_m5 == float("inf") else f"{ratio_m5:.2f}"
+
             logger.info(
                 f"[DipScanner] Signal: {token_symbol} "
                 f"mcap=${mcap/1e6:.1f}M | 24h={pc_h24:+.1f}% 1h={pc_h1:+.1f}% 5m={pc_m5:+.1f}% "
-                f"vol24h=${vol_h24/1000:.0f}k bs_h6={ratio_h6:.2f}"
+                f"vol24h=${vol_h24/1000:.0f}k bs_h6={ratio_h6:.2f} bs_m5={bs_m5_str}"
             )
 
             self._last_buy_time = time.monotonic()
@@ -210,7 +228,7 @@ class DipScanner:
                 override_usd=self.position_usd,
                 reason=(
                     f"dip_buy: 24h={pc_h24:+.1f}% 1h={pc_h1:+.1f}% 5m={pc_m5:+.1f}% "
-                    f"bs_h6={ratio_h6:.2f}"
+                    f"bs_h6={ratio_h6:.2f} bs_m5={bs_m5_str}"
                 ),
                 strategy="dip_buy",
             )
