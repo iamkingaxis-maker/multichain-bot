@@ -448,6 +448,40 @@ class PositionManager:
             if addr in self._states:
                 await self._evaluate_position(addr, state)
 
+    async def _fetch_volume_snapshot(self, token_address: str):
+        """
+        Pull DexScreener volume data (h24, h1, m5) for the best Solana pair.
+        Returns (v_h24, v_h1, v_m5) or None on failure. Used by the volume-
+        death exit check so we don't rely on stale cached values.
+        """
+        try:
+            url = f"{DEXSCREENER_TOKEN}{token_address}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url, timeout=aiohttp.ClientTimeout(total=5)
+                ) as resp:
+                    if resp.status != 200:
+                        return None
+                    data = await resp.json()
+            pairs = [
+                p for p in (data.get("pairs") or [])
+                if (p.get("chainId") or "").lower() == "solana"
+            ]
+            if not pairs:
+                return None
+            best = max(
+                pairs,
+                key=lambda x: float((x.get("liquidity") or {}).get("usd") or 0),
+            )
+            vol = best.get("volume") or {}
+            return (
+                float(vol.get("h24") or 0),
+                float(vol.get("h1") or 0),
+                float(vol.get("m5") or 0),
+            )
+        except Exception:
+            return None
+
     async def _fetch_jupiter_price(self, token_address: str) -> float:
         """
         Poll Jupiter Price API for near-instant AMM price.
@@ -906,6 +940,39 @@ class PositionManager:
         # DIP BUY POSITION MANAGEMENT
         # ═══════════════════════════════════════════════════════════════
         if state.strategy == "dip_buy":
+
+            # ── VOLUME DEATH EXIT ────────────────────────────────────
+            # Close losing positions whose liquidity has structurally died.
+            # Guards: only fires when we're already down ≥3% AND 30min+ into
+            # the hold — so active BULL-class chop can't trip it (winners and
+            # early positions are protected by pnl_pct > -3 condition).
+            age_s = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
+            if age_s >= 1800 and pnl_pct <= -3.0:
+                snapshot = await self._fetch_volume_snapshot(token_address)
+                if snapshot is not None:
+                    v_h24, v_h1, v_m5 = snapshot
+                    decay_threshold = v_h24 / 48.0 if v_h24 > 0 else 0
+                    if v_m5 == 0 and v_h1 < decay_threshold:
+                        logger.warning(
+                            f"[PositionManager/{self.chain_name}] 💀 VOLUME DEATH: "
+                            f"{state.token_symbol} pnl={pnl_pct:.1f}% "
+                            f"vol_m5=$0 vol_h1=${v_h1/1e3:.1f}k (<${decay_threshold/1e3:.1f}k) "
+                            f"— closing"
+                        )
+                        await self._execute_sell(
+                            token_address, state,
+                            pct=1.0,
+                            reason=(
+                                f"Volume death exit (pnl={pnl_pct:.1f}%, "
+                                f"vol_m5=0, vol_h1=${v_h1/1e3:.1f}k)"
+                            ),
+                        )
+                        if self.scanner:
+                            self.scanner.register_stop_loss(
+                                token_address, state.token_symbol,
+                                state.current_price, cooldown_seconds=7200
+                            )
+                        return
 
             # ── DIP STOP LOSS ─────────────────────────────────────────
             if pnl_pct <= -self.dip_stop_pct:
