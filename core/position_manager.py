@@ -1297,14 +1297,33 @@ class PositionManager:
             # Flash crash detection: ≤ 120s hold = likely rug → 24h cooldown
             is_flash_crash = age_seconds <= 120
             cooldown = 86400 if is_flash_crash else 7200  # 24h rug, 2h normal realtime stop
-            if self.scanner:
-                self.scanner.register_stop_loss(
-                    token_address, state.token_symbol, price_usd,
-                    cooldown_seconds=cooldown
-                )
 
-            async def _do_realtime_stop(addr, st, lbl):
+            # Verify the trigger tick against a fresh Jupiter AMM quote before
+            # executing. WS feeds occasionally emit junk ticks (one tick at
+            # -16.6%, next back to -0%); without a confirmation step we sell
+            # on noise. Require the fresh price to be at least 60% of the way
+            # to the stop (e.g., -9% for a -15% stop) to confirm the breach.
+            trigger_pnl_pct = pnl_pct
+            trigger_stop_pct = stop_pct
+
+            async def _do_realtime_stop(addr, st, lbl, trigger_price, cd_seconds):
                 try:
+                    fresh_price = await self._fetch_jupiter_price(addr)
+                    if fresh_price > 0 and st.entry_price > 0:
+                        fresh_pnl = (fresh_price / st.entry_price - 1) * 100
+                        if fresh_pnl > -trigger_stop_pct * 0.6:
+                            logger.warning(
+                                f"[PositionManager/{self.chain_name}] ⚡ REALTIME STOP "
+                                f"rejected for {st.token_symbol}: tick={trigger_pnl_pct:.1f}% "
+                                f"but Jupiter spot={fresh_pnl:.1f}% — discarding as tick noise"
+                            )
+                            self._stop_triggered.discard(addr)
+                            return
+                    if self.scanner:
+                        self.scanner.register_stop_loss(
+                            addr, st.token_symbol, trigger_price,
+                            cooldown_seconds=cd_seconds
+                        )
                     await self._execute_sell(addr, st, pct=1.0, reason=lbl)
                     self.stop_loss_hits += 1
                     if st.strategy == "scalp" and self.scalp_queue:
@@ -1317,7 +1336,9 @@ class PositionManager:
                     )
                     self._stop_triggered.discard(addr)
 
-            asyncio.ensure_future(_do_realtime_stop(token_address, state, label))
+            asyncio.ensure_future(_do_realtime_stop(
+                token_address, state, label, price_usd, cooldown
+            ))
 
     async def _evaluate_scalp(self, token_address: str, state: PositionState):
         """
