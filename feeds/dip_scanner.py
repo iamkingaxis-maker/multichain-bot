@@ -166,6 +166,20 @@ class DipScanner:
                 c["falling_knife"] += 1
                 continue
 
+            # Mega-pump middle-band filter: on tokens with h24 > +5000%, dip
+            # entries cluster into three archetypes by h1:
+            #   h1 <= -15%: deep pullback — real bounce setup, wins
+            #   h1 >= +50%: raging continuation — wins (ride the pump)
+            #   h1 between -15 and +50 with m5<0: "dead middle" — dies out
+            # Retro-test: blocks 10 mega-pump trades, catches 6 losses
+            # (including today's mexicanunc -$50) for net +$208. Zero
+            # impact on MAGA/BULL (h24 never reaches this regime).
+            if (pc_h24 > 5000.0
+                    and pc_m5 < 0
+                    and -15.0 <= pc_h1 <= 50.0):
+                c["mega_pump_middle"] += 1
+                continue
+
             # Order-flow filter: require h6 buy/sell txn ratio >= threshold.
             # Reject tokens without txns data (prev bug: GT-sourced pairs had
             # no txns field and bypassed this check — 67/TROLL/pippin all
@@ -238,7 +252,7 @@ class DipScanner:
             f"{k}={c[k]}" for k in (
                 "mcap_low", "mcap_high", "age", "vol", "low_turnover",
                 "vol_m5_zero", "vol_h1_decay",
-                "red_h24", "no_dip", "falling_knife",
+                "red_h24", "no_dip", "falling_knife", "mega_pump_middle",
                 "bs_h6", "bs_h6_missing", "already_open",
             ) if c[k]
         ) or "-"
