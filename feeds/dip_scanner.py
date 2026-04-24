@@ -156,6 +156,16 @@ class DipScanner:
                 c["no_dip"] += 1
                 continue
 
+            # Falling-knife filter: block if m5 is sharply negative while h1 is
+            # still positive. That pattern is "5min breakdown starting while the
+            # hour hasn't caught up yet" — we'd be catching the first crack in a
+            # wall about to collapse. mexicanunc lost us $50 on exactly this
+            # setup (m5=-9.9% h1=+3.4%). Surgical — only blocks 14% of trades
+            # and preserves 95%+ of MAGA/BULL/WIFE entries in retro-test.
+            if pc_m5 < -5.0 and pc_h1 > 0:
+                c["falling_knife"] += 1
+                continue
+
             # Order-flow filter: require h6 buy/sell txn ratio >= threshold.
             # Reject tokens without txns data (prev bug: GT-sourced pairs had
             # no txns field and bypassed this check — 67/TROLL/pippin all
@@ -210,7 +220,8 @@ class DipScanner:
             f"{k}={c[k]}" for k in (
                 "mcap_low", "mcap_high", "age", "vol", "low_turnover",
                 "vol_m5_zero", "vol_h1_decay",
-                "red_h24", "no_dip", "bs_h6", "bs_h6_missing", "already_open",
+                "red_h24", "no_dip", "falling_knife",
+                "bs_h6", "bs_h6_missing", "already_open",
             ) if c[k]
         ) or "-"
         logger.info(
