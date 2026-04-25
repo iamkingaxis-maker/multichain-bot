@@ -616,6 +616,23 @@ class PositionManager:
                     if state.entry_txns_h1 == 0 and _total_txns > 0:
                         state.entry_txns_h1 = _total_txns
 
+                    # Live bs_h1 / bs_m5 — synced to Position so sell paths can
+                    # capture order-flow state at exit time (catches "we sold
+                    # while buyers were returning" pattern).  Cap at 999 to
+                    # avoid +inf serialization.
+                    _txn_b_m5 = pair.get("txns", {}).get("m5", {}).get("buys",  0)
+                    _txn_s_m5 = pair.get("txns", {}).get("m5", {}).get("sells", 0)
+                    def _bs_ratio(b, s):
+                        if s > 0:
+                            return min(b / s, 999.0)
+                        if b > 0:
+                            return 999.0
+                        return 0.0
+                    if token_address in self.open_positions_ref:
+                        tp = self.open_positions_ref[token_address]
+                        tp.current_bs_h1 = _bs_ratio(_txn_buys, _txn_sells)
+                        tp.current_bs_m5 = _bs_ratio(_txn_b_m5, _txn_s_m5)
+
                     # Volume window for stall detection (uses REST data only)
                     last_check = self._last_volume_check.get(token_address)
                     if (not last_check or
