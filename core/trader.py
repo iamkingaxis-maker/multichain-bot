@@ -63,6 +63,10 @@ class Position:
     entry_age_hours: float = 0.0       # Token pair age in hours at entry — for performance analysis by age
     entry_volume_h1_usd: float = 0.0   # 1h volume at entry — for performance analysis by activity level
     scalp_meta: Optional[dict] = None  # 4-phase scalper: sweep_low/stop/tp1/entry_close_time/pool_address
+    # Generic entry-time snapshot (Batch 1 added 2026-04-25): liquidity_usd,
+    # protocol, peak_h24_6h, cycles_seen_before_buy, avg_trade_size_h1_usd, etc.
+    # Anything dip_scanner has at evaluation time but doesn't merit its own field.
+    entry_meta: Optional[dict] = None
 
 
 _DATA_DIR = os.environ.get("DATA_DIR", ".")
@@ -267,7 +271,8 @@ class Trader:
                   market_cap_usd: float = 0.0, age_hours: float = 0.0,
                   volume_h1_usd: float = 0.0,
                   override_impact_pct: float = -1.0,
-                  scalp_meta: Optional[dict] = None):
+                  scalp_meta: Optional[dict] = None,
+                  entry_meta: Optional[dict] = None):
         """Execute a buy order."""
         if os.environ.get("TRADING_PAUSED", "").lower() in ("true", "1", "yes"):
             logger.info(f"[Trader] Buy blocked — TRADING_PAUSED=true ({strategy}/{token_symbol})")
@@ -450,12 +455,14 @@ class Trader:
                     chain_id=chain_id,
                     amount_usd=position_size_usd,
                     strategy=strategy,
+                    pair_address=pair_address,
                     min_price_usd=entry_price,
                     entry_time_monotonic=time.monotonic(),
                     entry_market_cap_usd=market_cap_usd,
                     entry_age_hours=age_hours,
                     entry_volume_h1_usd=volume_h1_usd,
                     scalp_meta=scalp_meta,
+                    entry_meta=entry_meta,
                 )
                 self.open_positions[token_address.lower()] = position
                 self.reentry.buy_counts[token_address.lower()] = self.reentry.buy_counts.get(token_address.lower(), 0) + 1
@@ -522,7 +529,9 @@ class Trader:
                 entry_time_monotonic=time.monotonic(),
                 entry_market_cap_usd=market_cap_usd,
                 entry_age_hours=age_hours,
+                entry_volume_h1_usd=volume_h1_usd,
                 scalp_meta=scalp_meta,
+                entry_meta=entry_meta,
             )
             self.open_positions[token_address.lower()] = position
             self.reentry.buy_counts[token_address.lower()] = self.reentry.buy_counts.get(token_address.lower(), 0) + 1
@@ -701,7 +710,7 @@ class Trader:
                 )
                 _entry_mono = getattr(position, "entry_time_monotonic", 0)
                 _hold_secs = round(time.monotonic() - _entry_mono) if _entry_mono > 0 else 0
-                self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0))
+                self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=getattr(position, "entry_meta", None) or {})
                 logger.info(
                     f"{emoji} [PAPER] Sold {pct*100:.0f}% of {token_symbol} — "
                     f"PnL: ${pnl:+.2f} | Impact: {impact_pct:.2f}% | Source: {price_source}"
@@ -764,7 +773,7 @@ class Trader:
             )
             _entry_mono = getattr(position, "entry_time_monotonic", 0)
             _hold_secs = round(time.monotonic() - _entry_mono) if _entry_mono > 0 else 0
-            self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0))
+            self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=getattr(position, "entry_meta", None) or {})
             logger.info(f"{emoji} Sold {pct*100:.0f}% of {token_symbol} — PnL: ${pnl:+.0f}")
 
         except Exception as e:

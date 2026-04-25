@@ -325,6 +325,25 @@ class DipScanner:
             self._last_buy_time = time.monotonic()
             self.signals_fired += 1
 
+            # Batch 1 entry-meta — anything dip_scanner has at this moment that's
+            # nice-to-have for analysis but doesn't merit its own Position field.
+            pair_age_hours = (now_ms - created_ms) / 3_600_000 if created_ms > 0 else 0.0
+            peak_h24_6h = max((h for _, h in hist), default=pc_h24)
+            cycles_seen = len(hist)
+            txns_h1_total = b_h1 + s_h1
+            avg_trade_size_h1 = (vol_h1 / txns_h1_total) if txns_h1_total > 0 else 0.0
+            entry_meta_dict = {
+                "liquidity_usd": float(liq_usd or 0),
+                "protocol": pair.get("dexId", "") or "",
+                "peak_h24_6h_pct": float(peak_h24_6h),
+                "h24_ratio_to_peak": (pc_h24 / peak_h24_6h) if peak_h24_6h > 0 else 1.0,
+                "cycles_seen_before_buy": cycles_seen,
+                "avg_trade_size_h1_usd": avg_trade_size_h1,
+                "bs_h6": float(ratio_h6) if ratio_h6 != float("inf") else None,
+                "bs_h1": float(ratio_h1) if ratio_h1 != float("inf") else None,
+                "bs_m5": float(ratio_m5) if ratio_m5 != float("inf") else None,
+            }
+
             await self.trader.buy(
                 token_address=token_address,
                 token_symbol=token_symbol,
@@ -335,6 +354,11 @@ class DipScanner:
                     f"bs_h6={ratio_h6:.2f} bs_h1={bs_h1_str} bs_m5={bs_m5_str}"
                 ),
                 strategy="dip_buy",
+                pair_address=pair.get("pairAddress", "") or "",
+                market_cap_usd=float(mcap or 0),
+                age_hours=pair_age_hours,
+                volume_h1_usd=float(vol_h1 or 0),
+                entry_meta=entry_meta_dict,
             )
 
         src_str = " ".join(f"{k}={v}" for k, v in source_counts.items() if v) or "-"

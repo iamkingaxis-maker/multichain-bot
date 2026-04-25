@@ -58,7 +58,12 @@ class PerformanceTracker:
             "entry_price": getattr(position, "entry_price_usd", 0),
             "amount_usd": getattr(position, "amount_usd", 0) or getattr(position, "amount_sol_spent", 0),
             "time": datetime.now(timezone.utc).isoformat(),
-            "reason": getattr(position, "reason", "")
+            "reason": getattr(position, "reason", ""),
+            "pair_address": getattr(position, "pair_address", "") or "",
+            "entry_market_cap_usd": getattr(position, "entry_market_cap_usd", 0.0) or 0.0,
+            "entry_age_hours": getattr(position, "entry_age_hours", 0.0) or 0.0,
+            "entry_volume_h1_usd": getattr(position, "entry_volume_h1_usd", 0.0) or 0.0,
+            "entry_meta": getattr(position, "entry_meta", None) or {},
         }
         self.trades.append(trade)
         self._save_trades()
