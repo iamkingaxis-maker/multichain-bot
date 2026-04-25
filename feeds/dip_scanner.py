@@ -156,6 +156,16 @@ class DipScanner:
                 c["no_dip"] += 1
                 continue
 
+            # Dip-already-over filter: m5 has turned positive but hasn't built
+            # momentum yet ([0%, +3%) band). Historically -EV: n=43, 42% WR,
+            # -$50 net. Buying the bounce-top after the dip ended but before
+            # the move resumes — top-tick zone. Other m5 buckets are +EV
+            # (deep dip, active dip, dip-ending all >50% WR; bouncing/running
+            # buckets >75% WR).
+            if 0 <= pc_m5 < 3.0:
+                c["m5_dip_over"] += 1
+                continue
+
             # Falling-knife filter: block if m5 is sharply negative while h1 is
             # still positive. That pattern is "5min breakdown starting while the
             # hour hasn't caught up yet" — we'd be catching the first crack in a
@@ -252,7 +262,7 @@ class DipScanner:
             f"{k}={c[k]}" for k in (
                 "mcap_low", "mcap_high", "age", "vol", "low_turnover",
                 "vol_m5_zero", "vol_h1_decay",
-                "red_h24", "no_dip", "falling_knife", "mega_pump_middle",
+                "red_h24", "no_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
                 "bs_h6", "bs_h6_missing", "already_open",
             ) if c[k]
         ) or "-"
