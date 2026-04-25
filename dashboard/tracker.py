@@ -378,6 +378,13 @@ class PerformanceTracker:
                     "entry_market_cap_usd": buy.get("entry_market_cap_usd", 0.0),
                     "entry_age_hours": buy.get("entry_age_hours", 0.0),
                     "entry_volume_h1_usd": buy.get("entry_volume_h1_usd", 0.0),
+                    # Carry forward Batch 1 fields from the buy so the synthetic
+                    # sell mirrors the real-sell schema and downstream analysis
+                    # doesn't see schema gaps for restart-cancelled positions.
+                    "pair_address": buy.get("pair_address", "") or "",
+                    "entry_meta": buy.get("entry_meta", {}) or {},
+                    "peak_pnl_pct": 0.0,        # no hold occurred — cancellation is at $0 PnL
+                    "peak_pnl_at_secs": 0,
                 }
                 self.trades.append(synthetic_sell)
                 logger.info(
