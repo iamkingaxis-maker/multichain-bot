@@ -285,6 +285,21 @@ class DipScanner:
             else:
                 ratio_m5 = 0.0
 
+            # bs_h1 — recent-hour order flow. Logged for analysis only; once
+            # 3-7 days of trades carry it in the reason string, backtest
+            # whether it separates wins from losses (esp. divergence cases:
+            # bs_h6 strong but bs_h1 weak = accumulation-ending; or weak h6
+            # but rising h1 = early-entry signal).
+            txns_h1 = (pair.get("txns") or {}).get("h1") or {}
+            b_h1 = int(txns_h1.get("buys") or 0)
+            s_h1 = int(txns_h1.get("sells") or 0)
+            if s_h1 > 0:
+                ratio_h1 = b_h1 / s_h1
+            elif b_h1 > 0:
+                ratio_h1 = float("inf")
+            else:
+                ratio_h1 = 0.0
+
             dip_count = sum(
                 1 for pos in self.open_positions_ref.values()
                 if getattr(pos, "strategy", "") == "dip_buy"
@@ -296,14 +311,15 @@ class DipScanner:
             c["signal"] += 1
             signals += 1
 
-            # Format bs_m5 as 'inf' when we have buys but zero sells — clearer
+            # Format bs_m5/bs_h1 as 'inf' when we have buys but zero sells — clearer
             # than a giant float when everyone's buying and nobody's selling.
             bs_m5_str = "inf" if ratio_m5 == float("inf") else f"{ratio_m5:.2f}"
+            bs_h1_str = "inf" if ratio_h1 == float("inf") else f"{ratio_h1:.2f}"
 
             logger.info(
                 f"[DipScanner] Signal: {token_symbol} "
                 f"mcap=${mcap/1e6:.1f}M | 24h={pc_h24:+.1f}% 1h={pc_h1:+.1f}% 5m={pc_m5:+.1f}% "
-                f"vol24h=${vol_h24/1000:.0f}k bs_h6={ratio_h6:.2f} bs_m5={bs_m5_str}"
+                f"vol24h=${vol_h24/1000:.0f}k bs_h6={ratio_h6:.2f} bs_h1={bs_h1_str} bs_m5={bs_m5_str}"
             )
 
             self._last_buy_time = time.monotonic()
@@ -316,7 +332,7 @@ class DipScanner:
                 override_usd=self.position_usd,
                 reason=(
                     f"dip_buy: 24h={pc_h24:+.1f}% 1h={pc_h1:+.1f}% 5m={pc_m5:+.1f}% "
-                    f"bs_h6={ratio_h6:.2f} bs_m5={bs_m5_str}"
+                    f"bs_h6={ratio_h6:.2f} bs_h1={bs_h1_str} bs_m5={bs_m5_str}"
                 ),
                 strategy="dip_buy",
             )
