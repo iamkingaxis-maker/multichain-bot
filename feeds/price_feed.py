@@ -339,7 +339,8 @@ class PriceFeed:
     async def _run_polling_fallback(self):
         """
         Poll DexScreener REST API for tokens not covered by WebSocket.
-        Runs at 1-second intervals when tokens are being watched (position open).
+        Runs at 500ms intervals when tokens are being watched (position open) —
+        this is the only realtime path for dip_buy positions (Axiom WS covers scalps).
         Uses 3-second intervals when nothing is watched to avoid unnecessary calls.
         """
         while self._running:
@@ -355,8 +356,7 @@ class PriceFeed:
                 if len(tokens_to_poll) > 30:
                     await asyncio.sleep(0.5)
 
-            # 1s cycle when watching positions — stop-loss latency matters
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
 
     async def _poll_batch(self, addresses: list):
         """Poll a batch of token addresses from DexScreener."""
@@ -368,6 +368,13 @@ class PriceFeed:
                     url, timeout=aiohttp.ClientTimeout(total=8)
                 ) as resp:
                     if resp.status != 200:
+                        # Don't fail silently — a 429 here means stops are degraded
+                        # for any position relying on poll-driven realtime.
+                        if resp.status == 429 or resp.status >= 500:
+                            logger.warning(
+                                f"[PriceFeed] Poll batch HTTP {resp.status} "
+                                f"({len(addresses)} tokens) — stop-loss realtime degraded"
+                            )
                         return
                     data = await resp.json()
                     pairs = data.get("pairs", [])

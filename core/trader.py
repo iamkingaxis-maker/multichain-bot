@@ -304,6 +304,12 @@ class Trader:
             # ── PAPER TRADING MODE ────────────────────────────────────
             if not self.private_key:
                 # Subscribe to real-time price feeds for this token
+                logger.info(
+                    f"[Trader/paper] subscribing feeds for {token_symbol} "
+                    f"({strategy}): axiom={self._axiom_price_feed is not None} "
+                    f"dex={self._dex_price_feed is not None} "
+                    f"rpc={self._rpc_price_feed is not None}"
+                )
                 if self._axiom_price_feed is not None:
                     self._axiom_price_feed.subscribe_token(token_address)
                 if self._dex_price_feed is not None:
