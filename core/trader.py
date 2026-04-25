@@ -161,6 +161,12 @@ class Trader:
         # Session re-entry tracking
         self.reentry = ReentryTracker()
 
+        # Per-token cooldown after a losing dip_buy close.  Maps token_addr (lower)
+        # to time.monotonic() at the moment of the loss.  DipScanner consults this
+        # to suppress same-token rebuy bleed (n=161 rebuys-after-loss across history
+        # netted ~$7 — essentially breakeven, with concentrated bleed on bad days).
+        self._dip_loss_cooldown: Dict[str, float] = {}
+
         pass  # daily buy limit removed — entry quality handles repeat buys
 
         # Optional Axiom auth — registered externally for Axiom-based price lookups
@@ -181,6 +187,17 @@ class Trader:
         # NOTE: Internal _monitor_positions is DISABLED — PositionManager handles
         # all TP/SL logic with the user's exact config-driven rules.
         # asyncio.create_task(self._monitor_positions())
+
+    def is_dip_in_cooldown(self, token_address: str, window_seconds: float) -> bool:
+        """
+        Return True if this token had a losing dip_buy close within the last
+        `window_seconds`.  Used by DipScanner to skip same-token rebuys.
+        """
+        addr = token_address.lower()
+        ts = self._dip_loss_cooldown.get(addr)
+        if ts is None:
+            return False
+        return (time.monotonic() - ts) < window_seconds
 
     def register_axiom_auth(self, auth):
         """Register Axiom auth manager for Axiom-based price lookups."""
@@ -627,6 +644,9 @@ class Trader:
                         self._dex_price_feed.unsubscribe_token(token_address)
                     if self._rpc_price_feed is not None:
                         self._rpc_price_feed.unsubscribe_token(token_address)
+                    # Record loss cooldown for dip_buy strategy (full close, negative pnl)
+                    if pnl < 0 and getattr(position, "strategy", "") == "dip_buy":
+                        self._dip_loss_cooldown[token_address.lower()] = time.monotonic()
                 else:
                     position.amount_tokens *= (1 - pct)
                     position.amount_sol_spent *= (1 - pct)
@@ -687,6 +707,9 @@ class Trader:
                     self._dex_price_feed.unsubscribe_token(token_address)
                 if self._rpc_price_feed is not None:
                     self._rpc_price_feed.unsubscribe_token(token_address)
+                # Record loss cooldown for dip_buy strategy (full close, negative pnl)
+                if pnl < 0 and getattr(position, "strategy", "") == "dip_buy":
+                    self._dip_loss_cooldown[token_address.lower()] = time.monotonic()
             else:
                 position.amount_tokens *= (1 - pct)
                 position.amount_sol_spent *= (1 - pct)

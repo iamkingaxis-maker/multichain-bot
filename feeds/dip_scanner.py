@@ -104,6 +104,16 @@ class DipScanner:
             if token_address in self.open_positions_ref:
                 c["already_open"] += 1
                 continue
+            # Per-token loss cooldown — block rebuy for 30min after a losing
+            # dip_buy close on the same token.  Same-token rebuy-after-loss
+            # historically nets ~$0 (n=161 across history) but causes acute
+            # bleed when a token enters a downtrend (e.g. mexicanunc 4-stop
+            # cycle today).  30-min window saves ~$267 today and only ~$41
+            # of MAGA's ladder-up wins lifetime.
+            if hasattr(self.trader, "is_dip_in_cooldown") and \
+                    self.trader.is_dip_in_cooldown(token_address, 1800):
+                c["loss_cooldown"] += 1
+                continue
 
             mcap = pair.get("marketCap") or 0
             if mcap < self.min_mcap:
@@ -263,7 +273,7 @@ class DipScanner:
                 "mcap_low", "mcap_high", "age", "vol", "low_turnover",
                 "vol_m5_zero", "vol_h1_decay",
                 "red_h24", "no_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
-                "bs_h6", "bs_h6_missing", "already_open",
+                "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
             ) if c[k]
         ) or "-"
         logger.info(
