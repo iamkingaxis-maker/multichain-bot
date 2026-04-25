@@ -17,8 +17,8 @@ import asyncio
 import logging
 import time
 import aiohttp
-from collections import Counter
-from typing import Optional
+from collections import Counter, deque
+from typing import Optional, Dict, Deque, Tuple
 
 from feeds.gecko_ohlcv import GeckoTerminalClient
 
@@ -66,6 +66,14 @@ class DipScanner:
         self.signals_fired = 0
         self._last_buy_time = 0.0
         self._rejected_distribution = 0
+        # h24 history per token for trend-reversal detection.  Each scan cycle
+        # appends (monotonic_ts, pc_h24) for every evaluated token; entries older
+        # than 6h are pruned.  Used to reject entries where h24 has collapsed
+        # to < 25% of recent peak (the meme is dying — see mexicanunc 04-25).
+        self._h24_history: Dict[str, Deque[Tuple[float, float]]] = {}
+        self._h24_history_window_secs = 6 * 3600
+        self._h24_reversal_threshold = 0.25
+        self._h24_reversal_min_samples = 3
 
     async def run(self):
         logger.info("[DipScanner] Starting — targeting $1M+ mcap dip entries")
@@ -159,9 +167,31 @@ class DipScanner:
             pc_h1 = (pair.get("priceChange") or {}).get("h1", 0) or 0
             pc_m5 = (pair.get("priceChange") or {}).get("m5", 0) or 0
 
+            # Track h24 history for trend-reversal detection — append each cycle
+            # and prune entries older than the 6h window.
+            addr_lower = token_address.lower()
+            hist = self._h24_history.setdefault(addr_lower, deque())
+            mono_now = time.monotonic()
+            hist.append((mono_now, pc_h24))
+            while hist and (mono_now - hist[0][0]) > self._h24_history_window_secs:
+                hist.popleft()
+
             if pc_h24 <= 0:
                 c["red_h24"] += 1
                 continue
+
+            # Trend-reversal filter: reject if current h24 has collapsed to
+            # <25% of recent peak across last 6h of observations.  Catches
+            # tokens whose meme has died — the bot keeps seeing "dips" but
+            # they're decay legs, not retracements (e.g. mexicanunc went
+            # from h24=+28720% to +823% in 8h, then bled $-300+ as we kept
+            # buying every -10% h1 reading).  Backtest: blocks 9 lifetime
+            # trades for net +$389 save; only BULL +$48 of winners lost.
+            if len(hist) >= self._h24_reversal_min_samples:
+                peak_h24 = max(h for _, h in hist)
+                if peak_h24 > 0 and (pc_h24 / peak_h24) < self._h24_reversal_threshold:
+                    c["trend_reversal"] += 1
+                    continue
             if pc_h1 >= 0 and pc_m5 >= 0:
                 c["no_dip"] += 1
                 continue
@@ -272,7 +302,7 @@ class DipScanner:
             f"{k}={c[k]}" for k in (
                 "mcap_low", "mcap_high", "age", "vol", "low_turnover",
                 "vol_m5_zero", "vol_h1_decay",
-                "red_h24", "no_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
+                "red_h24", "trend_reversal", "no_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
             ) if c[k]
         ) or "-"
