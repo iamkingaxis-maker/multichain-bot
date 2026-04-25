@@ -14,11 +14,13 @@ Sources: DexScreener REST + GeckoTerminal trending pools (both free, no API key)
 """
 
 import asyncio
+import json
 import logging
+import os
 import time
 import aiohttp
 from collections import Counter, deque
-from typing import Optional, Dict, Deque, Tuple
+from typing import Optional, Dict, Deque, Tuple, List
 
 from feeds.gecko_ohlcv import GeckoTerminalClient
 
@@ -67,13 +69,19 @@ class DipScanner:
         self._last_buy_time = 0.0
         self._rejected_distribution = 0
         # h24 history per token for trend-reversal detection.  Each scan cycle
-        # appends (monotonic_ts, pc_h24) for every evaluated token; entries older
+        # appends (wall_ts, pc_h24) for every evaluated token; entries older
         # than 6h are pruned.  Used to reject entries where h24 has collapsed
         # to < 25% of recent peak (the meme is dying — see mexicanunc 04-25).
+        # Persisted to /data/h24_history.json so the filter survives deploys.
         self._h24_history: Dict[str, Deque[Tuple[float, float]]] = {}
         self._h24_history_window_secs = 6 * 3600
         self._h24_reversal_threshold = 0.25
         self._h24_reversal_min_samples = 3
+        self._h24_history_path = os.path.join(
+            os.environ.get("DATA_DIR", "/data"), "h24_history.json"
+        )
+        self._h24_history_dirty = False
+        self._load_h24_history()
 
     async def run(self):
         logger.info("[DipScanner] Starting — targeting $1M+ mcap dip entries")
@@ -168,13 +176,15 @@ class DipScanner:
             pc_m5 = (pair.get("priceChange") or {}).get("m5", 0) or 0
 
             # Track h24 history for trend-reversal detection — append each cycle
-            # and prune entries older than the 6h window.
+            # and prune entries older than the 6h window.  Wall-clock time so
+            # history survives process restarts.
             addr_lower = token_address.lower()
             hist = self._h24_history.setdefault(addr_lower, deque())
-            mono_now = time.monotonic()
-            hist.append((mono_now, pc_h24))
-            while hist and (mono_now - hist[0][0]) > self._h24_history_window_secs:
+            wall_now = time.time()
+            hist.append((wall_now, pc_h24))
+            while hist and (wall_now - hist[0][0]) > self._h24_history_window_secs:
                 hist.popleft()
+            self._h24_history_dirty = True
 
             if pc_h24 <= 0:
                 c["red_h24"] += 1
@@ -310,6 +320,54 @@ class DipScanner:
             f"[DipScanner] Cycle: fetched={c['fetched']} ({src_str}) "
             f"signals={signals} | rejects: {rej_str}"
         )
+
+        # Persist h24 history once per cycle (atomic) so trend_reversal
+        # filter survives process restarts.
+        if self._h24_history_dirty:
+            self._save_h24_history()
+            self._h24_history_dirty = False
+
+    def _load_h24_history(self) -> None:
+        """Load persisted h24 history; drop entries older than the 6h window."""
+        try:
+            if not os.path.exists(self._h24_history_path):
+                return
+            with open(self._h24_history_path) as f:
+                raw = json.load(f)
+            cutoff = time.time() - self._h24_history_window_secs
+            loaded = 0
+            for addr, entries in raw.items():
+                if not isinstance(entries, list):
+                    continue
+                fresh = [(float(ts), float(h)) for ts, h in entries
+                         if isinstance(ts, (int, float)) and float(ts) > cutoff]
+                if fresh:
+                    self._h24_history[addr] = deque(fresh)
+                    loaded += len(fresh)
+            if loaded:
+                logger.info(
+                    f"[DipScanner] Loaded h24 history: "
+                    f"{len(self._h24_history)} tokens, {loaded} samples"
+                )
+        except Exception as e:
+            logger.warning(f"[DipScanner] Could not load h24_history.json: {e}")
+            self._h24_history = {}
+
+    def _save_h24_history(self) -> None:
+        """Write h24 history atomically (tmp + rename).  Lists, not deques."""
+        try:
+            os.makedirs(os.path.dirname(self._h24_history_path), exist_ok=True)
+            tmp_path = self._h24_history_path + ".tmp"
+            payload: Dict[str, List[List[float]]] = {
+                addr: [[ts, h] for ts, h in dq]
+                for addr, dq in self._h24_history.items()
+                if dq  # drop empty deques
+            }
+            with open(tmp_path, "w") as f:
+                json.dump(payload, f)
+            os.replace(tmp_path, self._h24_history_path)
+        except Exception as e:
+            logger.warning(f"[DipScanner] Could not save h24_history.json: {e}")
 
     async def _fetch_candidates(self) -> tuple:
         """Fetch candidate pairs from DexScreener + GeckoTerminal trending.

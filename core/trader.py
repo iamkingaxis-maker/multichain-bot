@@ -162,10 +162,13 @@ class Trader:
         self.reentry = ReentryTracker()
 
         # Per-token cooldown after a losing dip_buy close.  Maps token_addr (lower)
-        # to time.monotonic() at the moment of the loss.  DipScanner consults this
-        # to suppress same-token rebuy bleed (n=161 rebuys-after-loss across history
-        # netted ~$7 — essentially breakeven, with concentrated bleed on bad days).
+        # to time.time() (wall-clock) at the moment of the loss.  Persisted to
+        # /data/dip_loss_cooldown.json so deploys don't wipe protection.
         self._dip_loss_cooldown: Dict[str, float] = {}
+        self._dip_loss_cooldown_path = os.path.join(
+            os.environ.get("DATA_DIR", "/data"), "dip_loss_cooldown.json"
+        )
+        self._load_dip_loss_cooldown()
 
         pass  # daily buy limit removed — entry quality handles repeat buys
 
@@ -192,12 +195,44 @@ class Trader:
         """
         Return True if this token had a losing dip_buy close within the last
         `window_seconds`.  Used by DipScanner to skip same-token rebuys.
+        Wall-clock based so the cooldown survives process restarts.
         """
         addr = token_address.lower()
         ts = self._dip_loss_cooldown.get(addr)
         if ts is None:
             return False
-        return (time.monotonic() - ts) < window_seconds
+        return (time.time() - ts) < window_seconds
+
+    def _load_dip_loss_cooldown(self) -> None:
+        """Load persisted dip-loss cooldown timestamps; prune entries >24h old."""
+        try:
+            if os.path.exists(self._dip_loss_cooldown_path):
+                with open(self._dip_loss_cooldown_path) as f:
+                    raw = json.load(f)
+                cutoff = time.time() - 86400  # drop anything older than 24h
+                self._dip_loss_cooldown = {
+                    k: float(v) for k, v in raw.items()
+                    if isinstance(v, (int, float)) and float(v) > cutoff
+                }
+                if self._dip_loss_cooldown:
+                    logger.info(
+                        f"[Trader] Loaded {len(self._dip_loss_cooldown)} "
+                        f"dip-loss cooldowns from disk"
+                    )
+        except Exception as e:
+            logger.warning(f"[Trader] Could not load dip_loss_cooldown.json: {e}")
+            self._dip_loss_cooldown = {}
+
+    def _save_dip_loss_cooldown(self) -> None:
+        """Write cooldown dict atomically (tmp + rename)."""
+        try:
+            os.makedirs(os.path.dirname(self._dip_loss_cooldown_path), exist_ok=True)
+            tmp_path = self._dip_loss_cooldown_path + ".tmp"
+            with open(tmp_path, "w") as f:
+                json.dump(self._dip_loss_cooldown, f)
+            os.replace(tmp_path, self._dip_loss_cooldown_path)
+        except Exception as e:
+            logger.warning(f"[Trader] Could not save dip_loss_cooldown.json: {e}")
 
     def register_axiom_auth(self, auth):
         """Register Axiom auth manager for Axiom-based price lookups."""
@@ -646,7 +681,8 @@ class Trader:
                         self._rpc_price_feed.unsubscribe_token(token_address)
                     # Record loss cooldown for dip_buy strategy (full close, negative pnl)
                     if pnl < 0 and getattr(position, "strategy", "") == "dip_buy":
-                        self._dip_loss_cooldown[token_address.lower()] = time.monotonic()
+                        self._dip_loss_cooldown[token_address.lower()] = time.time()
+                        self._save_dip_loss_cooldown()
                 else:
                     position.amount_tokens *= (1 - pct)
                     position.amount_sol_spent *= (1 - pct)
@@ -709,7 +745,8 @@ class Trader:
                     self._rpc_price_feed.unsubscribe_token(token_address)
                 # Record loss cooldown for dip_buy strategy (full close, negative pnl)
                 if pnl < 0 and getattr(position, "strategy", "") == "dip_buy":
-                    self._dip_loss_cooldown[token_address.lower()] = time.monotonic()
+                    self._dip_loss_cooldown[token_address.lower()] = time.time()
+                    self._save_dip_loss_cooldown()
             else:
                 position.amount_tokens *= (1 - pct)
                 position.amount_sol_spent *= (1 - pct)
