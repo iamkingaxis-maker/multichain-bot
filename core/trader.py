@@ -224,6 +224,16 @@ class Trader:
             logger.info(f"[Trader] Buy blocked — kill switch active ({self.kill_switch._kill_reason})")
             return
 
+        _allow = os.environ.get("STRATEGY_ALLOWLIST", "").strip()
+        if _allow:
+            _allowed = {s.strip() for s in _allow.split(",") if s.strip()}
+            if strategy not in _allowed:
+                logger.info(
+                    f"[Trader] Buy blocked — strategy '{strategy}' not in "
+                    f"STRATEGY_ALLOWLIST={sorted(_allowed)} ({token_symbol})"
+                )
+                return
+
         if token_address.lower() in self._buying:
             logger.info(f"[Trader] Buy already in flight for {token_symbol}, skipping")
             return
