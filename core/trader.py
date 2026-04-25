@@ -67,6 +67,11 @@ class Position:
     # protocol, peak_h24_6h, cycles_seen_before_buy, avg_trade_size_h1_usd, etc.
     # Anything dip_scanner has at evaluation time but doesn't merit its own field.
     entry_meta: Optional[dict] = None
+    # Batch 2 (2026-04-25): max favorable excursion during hold.  Updated by
+    # PositionManager._apply_price_update on every price tick.  Logged at sell
+    # to expose how much "ceiling" we left on the table per trade.
+    peak_pnl_pct: float = 0.0
+    peak_pnl_at_secs: int = 0  # seconds from entry when peak occurred
 
 
 _DATA_DIR = os.environ.get("DATA_DIR", ".")
@@ -710,7 +715,7 @@ class Trader:
                 )
                 _entry_mono = getattr(position, "entry_time_monotonic", 0)
                 _hold_secs = round(time.monotonic() - _entry_mono) if _entry_mono > 0 else 0
-                self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=getattr(position, "entry_meta", None) or {})
+                self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=getattr(position, "entry_meta", None) or {}, peak_pnl_pct=getattr(position, "peak_pnl_pct", 0.0) or 0.0, peak_pnl_at_secs=getattr(position, "peak_pnl_at_secs", 0) or 0)
                 logger.info(
                     f"{emoji} [PAPER] Sold {pct*100:.0f}% of {token_symbol} — "
                     f"PnL: ${pnl:+.2f} | Impact: {impact_pct:.2f}% | Source: {price_source}"
@@ -773,7 +778,7 @@ class Trader:
             )
             _entry_mono = getattr(position, "entry_time_monotonic", 0)
             _hold_secs = round(time.monotonic() - _entry_mono) if _entry_mono > 0 else 0
-            self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=getattr(position, "entry_meta", None) or {})
+            self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=getattr(position, "entry_meta", None) or {}, peak_pnl_pct=getattr(position, "peak_pnl_pct", 0.0) or 0.0, peak_pnl_at_secs=getattr(position, "peak_pnl_at_secs", 0) or 0)
             logger.info(f"{emoji} Sold {pct*100:.0f}% of {token_symbol} — PnL: ${pnl:+.0f}")
 
         except Exception as e:

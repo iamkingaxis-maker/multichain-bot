@@ -675,11 +675,24 @@ class PositionManager:
             tp = self.open_positions_ref[token_address]
             tp.current_price_usd = price
             tp.current_price_ts = time.time()
+            # Sync min_price for max-drawdown calc at sell time.  Without this,
+            # tp.min_price_usd stayed at entry_price and drawdown read 0.
+            if state.min_price_usd > 0:
+                tp.min_price_usd = state.min_price_usd
             if state.entry_price > 0:
                 tp.pnl_usd = (
                     (price / state.entry_price - 1)
                     * getattr(tp, "amount_usd", state.position_size_usd)
                 )
+                # Track max favorable excursion during hold
+                pnl_pct = (price / state.entry_price - 1) * 100
+                prev_peak = getattr(tp, "peak_pnl_pct", 0.0) or 0.0
+                if pnl_pct > prev_peak:
+                    tp.peak_pnl_pct = pnl_pct
+                    entry_mono = getattr(tp, "entry_time_monotonic", 0) or 0
+                    tp.peak_pnl_at_secs = (
+                        int(time.monotonic() - entry_mono) if entry_mono > 0 else 0
+                    )
 
         # Set entry volume baseline on first update
         if state.entry_volume_usd == 0 and volume_h1 > 0:
