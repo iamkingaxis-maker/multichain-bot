@@ -750,8 +750,14 @@ class Trader:
                         self._dex_price_feed.unsubscribe_token(token_address)
                     if self._rpc_price_feed is not None:
                         self._rpc_price_feed.unsubscribe_token(token_address)
-                    # Record loss cooldown for dip_buy strategy (full close, negative pnl)
-                    if pnl < 0 and getattr(position, "strategy", "") == "dip_buy":
+                    # Cooldown after ANY full dip_buy close — wins included.
+                    # A successful TP2 exit signals "we just hit the top of
+                    # this move" — re-entering 23s later (LASTMAN 22:59)
+                    # buys the literal high.  Both losses and wins register
+                    # the cooldown; the rebuy-after-win pattern is at least
+                    # as bad as rebuy-after-loss because the win itself
+                    # pumped the local price.
+                    if getattr(position, "strategy", "") == "dip_buy":
                         self._dip_loss_cooldown[token_address.lower()] = time.time()
                         self._save_dip_loss_cooldown()
                 else:
