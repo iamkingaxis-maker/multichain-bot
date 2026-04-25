@@ -77,6 +77,12 @@ class DipScanner:
         self._h24_history_window_secs = 6 * 3600
         self._h24_reversal_threshold = 0.25
         self._h24_reversal_min_samples = 3
+        # Only treat a drop-from-peak as "decay" if the peak itself was notable.
+        # Without this, established memecoins with normal h24 volatility (MAGA
+        # peak=16%, BULL peak=14%) get blocked when their daily cycle dips to
+        # zero — even though they're not dying, just cycling.  Set so the filter
+        # only fires on tokens that genuinely pumped (peak >= +100%).
+        self._h24_reversal_min_peak = 100.0
         self._h24_history_path = os.path.join(
             os.environ.get("DATA_DIR", "/data"), "h24_history.json"
         )
@@ -200,7 +206,10 @@ class DipScanner:
             # trades for net +$389 save; only BULL +$48 of winners lost.
             if len(hist) >= self._h24_reversal_min_samples:
                 peak_h24 = max(h for _, h in hist)
-                if peak_h24 > 0 and (pc_h24 / peak_h24) < self._h24_reversal_threshold:
+                # Only fire if the recent peak was a real pump.  Spares
+                # established memes (MAGA/BULL/WIFE) doing normal h24 cycling.
+                if peak_h24 >= self._h24_reversal_min_peak \
+                        and (pc_h24 / peak_h24) < self._h24_reversal_threshold:
                     c["trend_reversal"] += 1
                     if len(trend_reversal_blocked) < 6:  # cap log noise
                         trend_reversal_blocked.append(
