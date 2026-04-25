@@ -108,6 +108,7 @@ class DipScanner:
         now_ms = time.time() * 1000
 
         c: Counter = Counter()
+        trend_reversal_blocked: List[str] = []  # token symbols blocked this cycle
         signals = 0
         for pair in pairs:
             c["fetched"] += 1
@@ -201,6 +202,10 @@ class DipScanner:
                 peak_h24 = max(h for _, h in hist)
                 if peak_h24 > 0 and (pc_h24 / peak_h24) < self._h24_reversal_threshold:
                     c["trend_reversal"] += 1
+                    if len(trend_reversal_blocked) < 6:  # cap log noise
+                        trend_reversal_blocked.append(
+                            f"{token_symbol}({pc_h24:.0f}%/peak{peak_h24:.0f}%)"
+                        )
                     continue
             if pc_h1 >= 0 and pc_m5 >= 0:
                 c["no_dip"] += 1
@@ -316,9 +321,12 @@ class DipScanner:
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
             ) if c[k]
         ) or "-"
+        tr_log = ""
+        if trend_reversal_blocked:
+            tr_log = " | trend_reversal_tokens: " + ", ".join(trend_reversal_blocked)
         logger.info(
             f"[DipScanner] Cycle: fetched={c['fetched']} ({src_str}) "
-            f"signals={signals} | rejects: {rej_str}"
+            f"signals={signals} | rejects: {rej_str}{tr_log}"
         )
 
         # Persist h24 history once per cycle (atomic) so trend_reversal
