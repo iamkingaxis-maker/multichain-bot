@@ -343,6 +343,7 @@ class Trader:
             # Fail-open on timeout/API error so a slow rugcheck doesn't kill good trades.
             # Skip for graduation strategy: pump.fun LP is auto-burned at graduation,
             # but rugcheck indexer hasn't processed the tx yet when we buy (<1s after).
+            _rc: Optional[dict] = None
             if self._security_checker is not None and strategy != "graduation":
                 try:
                     _rc = await self._security_checker._fetch_rugcheck(token_address)
@@ -356,6 +357,57 @@ class Trader:
                             return
                 except Exception:
                     pass  # fail-open — never block a buy due to rugcheck API failure
+
+            # Capture holder-concentration + sol_price for entry_meta (analytics).
+            # Reuses the rugcheck response we already fetched.  Fail-soft on every
+            # field — analytics nice-to-have, never blocks a buy.
+            _buy_time_meta: Dict[str, float] = {}
+            try:
+                if _rc and isinstance(_rc, dict):
+                    _LP_TAGS = {"lp", "liquidity", "liquiditypool", "pool", "amm", "bonding curve"}
+                    th = _rc.get("topHolders") or []
+                    if isinstance(th, list) and th:
+                        real = [
+                            h for h in th
+                            if isinstance(h, dict)
+                            and h.get("insider", False) is not True
+                            and (h.get("tag", "") or "").lower().strip() not in _LP_TAGS
+                        ]
+                        top10 = sum(float(h.get("pct", 0) or 0) for h in real[:10])
+                        _buy_time_meta["top10_holder_pct"] = round(top10, 2)
+                    creator = _rc.get("creator") or _rc.get("creatorAddress")
+                    holders = _rc.get("holders") or _rc.get("topHolders") or []
+                    if creator and isinstance(holders, list):
+                        dev_pct = next(
+                            (float(h.get("pct", 0) or 0) for h in holders
+                             if isinstance(h, dict) and h.get("address") == creator),
+                            None,
+                        )
+                        if dev_pct is not None:
+                            _buy_time_meta["dev_holder_pct"] = round(dev_pct, 2)
+            except Exception:
+                pass
+
+            # SOL/USD price snapshot at entry — pulled from whichever feed has it.
+            try:
+                _sol_price = 0.0
+                for _feed in (self._axiom_price_feed, self._rpc_price_feed, self._dex_price_feed):
+                    if _feed is None:
+                        continue
+                    _cache = getattr(_feed, "price_cache", None) or {}
+                    _p = _cache.get(SOL_MINT) or _cache.get(SOL_MINT.lower())
+                    if _p and _p > 0:
+                        _sol_price = float(_p)
+                        break
+                if _sol_price > 0:
+                    _buy_time_meta["sol_price_usd_at_entry"] = round(_sol_price, 4)
+            except Exception:
+                pass
+
+            # Merge buy-time meta into caller-provided entry_meta (caller wins
+            # on conflicts so DipScanner-computed values aren't overwritten).
+            if _buy_time_meta:
+                entry_meta = {**_buy_time_meta, **(entry_meta or {})}
 
             # ── Fix 2: Real-time volume floor at execution ──────────────────
             # If the Axiom WS has been tracking this token (deferred/DipWatcher paths)
