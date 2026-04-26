@@ -378,34 +378,46 @@ class Trader:
                             and h.get("insider", False) is not True
                             and (h.get("tag", "") or "").lower().strip() not in _LP_TAGS
                         ]
+                        # topHolders uses `pct` as a percent value already (e.g. 12.5)
                         top10 = sum(float(h.get("pct", 0) or 0) for h in real[:10])
                         _buy_time_meta["top10_holder_pct"] = round(top10, 2)
-                    creator = _rc.get("creator") or _rc.get("creatorAddress")
-                    holders = _rc.get("holders") or _rc.get("topHolders") or []
-                    if creator and isinstance(holders, list):
-                        dev_pct = next(
-                            (float(h.get("pct", 0) or 0) for h in holders
-                             if isinstance(h, dict) and h.get("address") == creator),
-                            None,
-                        )
+                    # Rugcheck creator field is `creator_address` (per honeypot.py:568).
+                    creator = (_rc.get("creator_address") or "").lower()
+                    if creator:
+                        # Two list shapes:
+                        #   `holders`     uses `percent` as a 0..1 FRACTION (×100 to %)
+                        #   `topHolders`  uses `pct` as a 0..100 PERCENT directly
+                        # Address may be in either `account` or `address`.
+                        dev_pct = None
+                        full_holders = _rc.get("holders") or []
+                        if isinstance(full_holders, list):
+                            for h in full_holders:
+                                if not isinstance(h, dict):
+                                    continue
+                                addr = (h.get("account") or h.get("address") or "").lower()
+                                if addr == creator:
+                                    dev_pct = float(h.get("percent", 0) or 0) * 100
+                                    break
+                        if dev_pct is None and isinstance(th, list):
+                            for h in th:
+                                if not isinstance(h, dict):
+                                    continue
+                                addr = (h.get("address") or h.get("account") or "").lower()
+                                if addr == creator:
+                                    dev_pct = float(h.get("pct", 0) or 0)
+                                    break
                         if dev_pct is not None:
                             _buy_time_meta["dev_holder_pct"] = round(dev_pct, 2)
             except Exception:
                 pass
 
-            # SOL/USD price snapshot at entry — pulled from whichever feed has it.
+            # SOL/USD price snapshot at entry.  Use _get_token_price which has
+            # Jupiter/DexScreener fallback — SOL is never subscribed to any
+            # price-feed cache so cache-only lookup always returned None.
             try:
-                _sol_price = 0.0
-                for _feed in (self._axiom_price_feed, self._rpc_price_feed, self._dex_price_feed):
-                    if _feed is None:
-                        continue
-                    _cache = getattr(_feed, "price_cache", None) or {}
-                    _p = _cache.get(SOL_MINT) or _cache.get(SOL_MINT.lower())
-                    if _p and _p > 0:
-                        _sol_price = float(_p)
-                        break
+                _sol_price = await self._get_token_price(SOL_MINT)
                 if _sol_price > 0:
-                    _buy_time_meta["sol_price_usd_at_entry"] = round(_sol_price, 4)
+                    _buy_time_meta["sol_price_usd_at_entry"] = round(float(_sol_price), 4)
             except Exception:
                 pass
 
