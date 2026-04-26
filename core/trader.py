@@ -145,7 +145,20 @@ class Trader:
     def __init__(self, private_key: str, rpc_url: str, tracker, telegram, risk_manager,
                  stop_loss_pct: float = 10.0, kill_switch=None):
         self.private_key = private_key
-        self.rpc_url = rpc_url
+        self.rpc_url = rpc_url  # primary, kept as string for back-compat with other modules
+        # Multi-RPC failover list — primary plus optional backups from env
+        # SOLANA_RPC_URL_BACKUP (comma-separated for multiple).  Failover keeps
+        # live trading alive when the primary has an outage or rate-limits us.
+        _backup_env = os.environ.get("SOLANA_RPC_URL_BACKUP", "").strip()
+        backups = [u.strip() for u in _backup_env.split(",") if u.strip()] if _backup_env else []
+        self.rpc_urls: list = [rpc_url] + [u for u in backups if u != rpc_url]
+        if len(self.rpc_urls) > 1:
+            logger.info(f"[Trader] {len(self.rpc_urls)} RPC endpoints configured (primary + {len(self.rpc_urls)-1} backup)")
+        # Priority fee config — Jupiter accepts an "auto"-style object that
+        # adapts to current network congestion.  Cap via env to bound per-tx
+        # cost (default 1M lamports = 0.001 SOL ≈ $0.10).
+        self._max_priority_lamports = int(os.environ.get("MAX_PRIORITY_LAMPORTS", "1000000"))
+        self._priority_level = os.environ.get("PRIORITY_LEVEL", "high")  # medium|high|veryHigh
         self.tracker = tracker
         self.telegram = telegram
         self.risk_manager = risk_manager
@@ -205,6 +218,31 @@ class Trader:
         # all TP/SL logic with the user's exact config-driven rules.
         # asyncio.create_task(self._monitor_positions())
 
+    async def _post_rpc(self, payload: dict, total_timeout: float = 10.0) -> Optional[dict]:
+        """
+        POST a JSON-RPC payload, trying each configured RPC URL until one
+        responds successfully.  Returns parsed JSON on first success, or
+        None if all endpoints fail.  Used by tx send, confirmation polling,
+        and reconciliation.
+        """
+        for idx, url in enumerate(self.rpc_urls):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(url, json=payload,
+                                            timeout=aiohttp.ClientTimeout(total=total_timeout)) as resp:
+                        if resp.status == 200:
+                            return await resp.json()
+                        logger.warning(
+                            f"[Trader] RPC {idx} HTTP {resp.status} for "
+                            f"{payload.get('method','?')}, trying next..."
+                        )
+            except Exception as e:
+                logger.warning(
+                    f"[Trader] RPC {idx} error for {payload.get('method','?')}: "
+                    f"{type(e).__name__} — trying next..."
+                )
+        return None
+
     async def reconcile_positions_on_startup(self) -> None:
         """
         Live-mode startup reconciliation: for each position in open_positions,
@@ -236,10 +274,7 @@ class Trader:
                     {"encoding": "jsonParsed"},
                 ],
             }
-            async with aiohttp.ClientSession() as session:
-                async with session.post(self.rpc_url, json=payload,
-                                        timeout=aiohttp.ClientTimeout(total=15)) as resp:
-                    data = await resp.json()
+            data = await self._post_rpc(payload, total_timeout=15.0) or {}
             accounts = (data.get("result") or {}).get("value") or []
             on_chain_balances: Dict[str, float] = {}
             for acct in accounts:
@@ -1072,11 +1107,20 @@ class Trader:
 
         try:
             async with aiohttp.ClientSession(headers=_JUPITER_HEADERS) as session:
+                # Adaptive priority fee — Jupiter computes from current congestion,
+                # capped at MAX_PRIORITY_LAMPORTS env (default 1M lamports / 0.001 SOL).
+                # Replaces the previous hardcoded 10000 lamports which was insufficient
+                # during any meaningful network congestion.
                 payload = {
                     "quoteResponse": quote,
                     "userPublicKey": self._get_public_key(),
                     "wrapAndUnwrapSol": True,
-                    "prioritizationFeeLamports": 10000
+                    "prioritizationFeeLamports": {
+                        "priorityLevelWithMaxLamports": {
+                            "maxLamports": self._max_priority_lamports,
+                            "priorityLevel": self._priority_level,
+                        }
+                    },
                 }
                 async with session.post(JUPITER_SWAP_API, json=payload,
                                         timeout=aiohttp.ClientTimeout(total=15)) as resp:
@@ -1118,23 +1162,23 @@ class Trader:
                     {"encoding": "base64", "skipPreflight": False}
                 ]
             }
-            async with aiohttp.ClientSession() as session:
-                async with session.post(self.rpc_url, json=payload,
-                                        timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                    result = await resp.json()
-                    if "error" in result:
-                        logger.error(f"TX error: {result['error']}")
-                        return False
-                    sig = result.get("result", "")
-                    if not sig:
-                        logger.error(f"TX accepted but no signature returned: {result}")
-                        return False
-                    logger.info(f"TX sent: {sig}")
-                    # Wait for on-chain confirmation.  Without this, sendTransaction
-                    # returning success only means the RPC accepted the tx — the tx
-                    # could still fail to land (priority fee too low, blockhash
-                    # expired) or land with an error (slippage, compute exceeded).
-                    return await self._await_tx_confirmation(sig)
+            result = await self._post_rpc(payload, total_timeout=30.0)
+            if not result:
+                logger.error(f"TX send failed across all RPC endpoints")
+                return False
+            if "error" in result:
+                logger.error(f"TX error: {result['error']}")
+                return False
+            sig = result.get("result", "")
+            if not sig:
+                logger.error(f"TX accepted but no signature returned: {result}")
+                return False
+            logger.info(f"TX sent: {sig}")
+            # Wait for on-chain confirmation.  Without this, sendTransaction
+            # returning success only means the RPC accepted the tx — the tx
+            # could still fail to land (priority fee too low, blockhash
+            # expired) or land with an error (slippage, compute exceeded).
+            return await self._await_tx_confirmation(sig)
         except ImportError:
             logger.warning("solders not installed — run: pip install solders")
             return False
@@ -1160,30 +1204,24 @@ class Trader:
                 "method": "getSignatureStatuses",
                 "params": [[signature], {"searchTransactionHistory": True}],
             }
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(self.rpc_url, json=payload,
-                                            timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                        data = await resp.json()
-                        statuses = (data.get("result") or {}).get("value") or []
-                        status = statuses[0] if statuses else None
-                        if status:
-                            err = status.get("err")
-                            confirmation_status = status.get("confirmationStatus")
-                            if err is not None:
-                                logger.error(
-                                    f"[Trader] TX {signature[:12]}… failed on-chain: "
-                                    f"{err} (after {attempt} polls)"
-                                )
-                                return False
-                            if confirmation_status in ("confirmed", "finalized"):
-                                logger.info(
-                                    f"[Trader] TX {signature[:12]}… {confirmation_status} "
-                                    f"(after {attempt} polls)"
-                                )
-                                return True
-            except Exception as e:
-                logger.debug(f"[Trader] confirmation poll error: {e}")
+            data = await self._post_rpc(payload, total_timeout=10.0) or {}
+            statuses = (data.get("result") or {}).get("value") or []
+            status = statuses[0] if statuses else None
+            if status:
+                err = status.get("err")
+                confirmation_status = status.get("confirmationStatus")
+                if err is not None:
+                    logger.error(
+                        f"[Trader] TX {signature[:12]}… failed on-chain: "
+                        f"{err} (after {attempt} polls)"
+                    )
+                    return False
+                if confirmation_status in ("confirmed", "finalized"):
+                    logger.info(
+                        f"[Trader] TX {signature[:12]}… {confirmation_status} "
+                        f"(after {attempt} polls)"
+                    )
+                    return True
             await asyncio.sleep(poll_interval)
         logger.error(
             f"[Trader] TX {signature[:12]}… confirmation timeout after "
