@@ -241,12 +241,14 @@ class DipScanner:
                 continue
 
             # Falling-knife filter: block if m5 is sharply negative while h1 is
-            # still positive. That pattern is "5min breakdown starting while the
-            # hour hasn't caught up yet" — we'd be catching the first crack in a
-            # wall about to collapse. mexicanunc lost us $50 on exactly this
-            # setup (m5=-9.9% h1=+3.4%). Surgical — only blocks 14% of trades
-            # and preserves 95%+ of MAGA/BULL/WIFE entries in retro-test.
-            if pc_m5 < -5.0 and pc_h1 > 0:
+            # weakly positive [0%, +5%).  Original rule (m5<-5% AND h1>0) was
+            # too broad: 2D backtest showed h1 >= +5% with m5 < -5% is the
+            # "uptrend pullback" pattern, n=40 historical trades worth +$290
+            # (MAGA 80% wr +$127, WIFE 71% wr +$51, DUMBMONEY 2/2 +$54).
+            # Loosened to only [0, +5%): preserves the original mexicanunc
+            # protection (h1=+3.4% m5=-9.9% case) while no longer cutting
+            # uptrend-pullback winners. Net lifetime: +$369 vs old rule.
+            if pc_m5 < -5.0 and 0 < pc_h1 < 5.0:
                 c["falling_knife"] += 1
                 continue
 
