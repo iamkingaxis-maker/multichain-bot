@@ -1101,15 +1101,16 @@ class PositionManager:
                 )
             return
 
-        # ── BREAKEVEN LOCK — once up 5%, protect at +3% ─────────────────
-        # Trigger lowered from 8%→5%: data shows 47/85 trail closes (55%)
-        # gave back peak profit to <=$5, and 19/85 (22%) ended in a loss.
-        # The 5%-7% peak band specifically wasn't getting breakeven protection
-        # because it never reached the 8% trigger — those positions then
-        # drifted back to negative.  +5% is meaningful enough to lock in
-        # while still letting tokens that just settled past entry slippage
-        # run to TP1 (8%).  Floor stays at +3% for slippage-adjusted exit.
-        _BREAKEVEN_TRIGGER = 5.0   # lock once up 5%
+        # ── BREAKEVEN LOCK — once up 8%, protect at +3% ─────────────────
+        # Trigger raised from 2%→8%: a 2% move is noise on volatile tokens,
+        # not a real gain worth protecting. Floor raised from 0%→+3%: ensures
+        # the exit actually covers slippage and nets a small profit.
+        # Briefly lowered to 5% (commit 7119e67) but reverted: with only 12
+        # records of post-Batch-2 trajectory data we can't tell if drawdowns
+        # happened before or after crossing +5%, so a 5% trigger may have
+        # killed TP1-bound runners that briefly dipped past their +5% peak.
+        # Re-evaluate after ~30 more trades have peak/drawdown data.
+        _BREAKEVEN_TRIGGER = 8.0   # lock after a real move
         _BREAKEVEN_FLOOR   = 3.0   # exit at +3% (covers slippage, nets small gain)
         if not state.breakeven_locked and pnl_pct >= _BREAKEVEN_TRIGGER:
             state.breakeven_locked = True
