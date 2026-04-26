@@ -565,23 +565,38 @@ class Trader:
             if sol_amount <= 0:
                 return
 
-            # Get Jupiter quote
-            quote = await self._get_quote(
-                input_mint=SOL_MINT,
-                output_mint=token_address,
-                amount=int(sol_amount * 1e9)  # lamports
-            )
-            if not quote:
-                logger.error(f"No quote available for {token_symbol}")
-                return
-
-            # Execute swap
-            out_amount = int(quote.get("outAmount", 0))
-            entry_price = position_size_usd / (out_amount / 1e9) if out_amount > 0 else 0
-
-            success = await self._execute_swap(quote)
+            # Quote + swap with retry — same pattern as live sell.  Buys are
+            # less time-sensitive than stops, but transient network/RPC issues
+            # still warrant a retry rather than silently aborting the entry.
+            quote: Optional[dict] = None
+            out_amount = 0
+            entry_price = 0.0
+            success = False
+            for _attempt in range(3):
+                quote = await self._get_quote(
+                    input_mint=SOL_MINT,
+                    output_mint=token_address,
+                    amount=int(sol_amount * 1e9),
+                )
+                if not quote:
+                    if _attempt < 2:
+                        await asyncio.sleep(2 ** _attempt)
+                        continue
+                    logger.error(f"No quote available for {token_symbol} after 3 attempts")
+                    return
+                out_amount = int(quote.get("outAmount", 0))
+                entry_price = position_size_usd / (out_amount / 1e9) if out_amount > 0 else 0
+                success = await self._execute_swap(quote)
+                if success:
+                    break
+                if _attempt < 2:
+                    logger.warning(
+                        f"[Trader] Live buy {token_symbol}: swap failed "
+                        f"(attempt {_attempt+1}/3), retrying..."
+                    )
+                    await asyncio.sleep(2 ** _attempt)
             if not success:
-                logger.error(f"Swap failed for {token_symbol}")
+                logger.error(f"Swap failed for {token_symbol} after 3 attempts")
                 return
 
             # Record position
@@ -800,27 +815,62 @@ class Trader:
             # ── LIVE TRADING MODE ─────────────────────────────────────
             tokens_to_sell = int(position.amount_tokens * pct * 1e9)
 
-            quote = await self._get_quote(
-                input_mint=token_address,
-                output_mint=SOL_MINT,
-                amount=tokens_to_sell
-            )
-            if not quote:
-                return
+            # Wider slippage tolerance for stop-loss exits.  Stop = "exit at any
+            # price" priority; in a fast crash the token may move 1-3% between
+            # quote and swap submission, causing 1%-tolerance swaps to reject.
+            _is_stop_exit = "stop" in reason.lower()
+            _slip_bps = 300 if _is_stop_exit else 100
 
-            sol_received = int(quote.get("outAmount", 0)) / 1e9
-            usd_received = await self._sol_to_usd(sol_received)
-            cost_basis = position.amount_usd * pct
-            pnl = usd_received - cost_basis
-            pnl_pct = (pnl / cost_basis * 100) if cost_basis > 0 else 0
+            # Retry: refetch quote + retry swap up to 3 times.  Fresh quote
+            # each attempt because slippage failures often mean price moved past
+            # the original quote's tolerance — same quote will keep failing.
+            quote: Optional[dict] = None
+            sol_received = 0.0
+            usd_received = 0.0
+            cost_basis = 0.0
+            pnl = 0.0
+            pnl_pct = 0.0
+            success = False
+            for _attempt in range(3):
+                quote = await self._get_quote(
+                    input_mint=token_address,
+                    output_mint=SOL_MINT,
+                    amount=tokens_to_sell,
+                    slippage_bps=_slip_bps,
+                )
+                if not quote:
+                    if _attempt < 2:
+                        await asyncio.sleep(2 ** _attempt)
+                        continue
+                    logger.error(
+                        f"[Trader] Live sell {token_symbol}: quote failed after 3 attempts — "
+                        f"position remains open, will retry on next price tick"
+                    )
+                    return
+                sol_received = int(quote.get("outAmount", 0)) / 1e9
+                usd_received = await self._sol_to_usd(sol_received)
+                cost_basis = position.amount_usd * pct
+                pnl = usd_received - cost_basis
+                pnl_pct = (pnl / cost_basis * 100) if cost_basis > 0 else 0
+                success = await self._execute_swap(quote)
+                if success:
+                    break
+                if _attempt < 2:
+                    logger.warning(
+                        f"[Trader] Live sell {token_symbol}: swap failed "
+                        f"(attempt {_attempt+1}/3, slip={_slip_bps}bps), retrying..."
+                    )
+                    await asyncio.sleep(2 ** _attempt)
+            if not success:
+                logger.error(
+                    f"[Trader] Live sell {token_symbol}: swap failed 3x — "
+                    f"position remains open, will retry on next price tick"
+                )
+                return
 
             _min_p = getattr(position, "min_price_usd", 0)
             _entry = getattr(position, "entry_price_usd", 0)
             max_drawdown_pct = round((_min_p / _entry - 1) * 100, 2) if _entry > 0 and _min_p > 0 else 0.0
-
-            success = await self._execute_swap(quote)
-            if not success:
-                return
 
             if pct >= 1.0:
                 del self.open_positions[token_address]
@@ -909,13 +959,16 @@ class Trader:
             await self.sell(position.token_address, position.token_symbol,
                           f"TP3 at {multiplier:.1f}x", pct=1.0)
 
-    async def _get_quote(self, input_mint: str, output_mint: str, amount: int) -> Optional[dict]:
-        """Get a swap quote from Jupiter, with retries for transient DNS/network errors."""
+    async def _get_quote(self, input_mint: str, output_mint: str, amount: int,
+                         slippage_bps: int = 100) -> Optional[dict]:
+        """Get a swap quote from Jupiter, with retries for transient DNS/network errors.
+        slippage_bps: 100 (1%) default for normal trades; 300 (3%) for stop-loss exits
+        where price may drift between quote and swap during fast crashes."""
         params = {
             "inputMint": input_mint,
             "outputMint": output_mint,
             "amount": amount,
-            "slippageBps": 100  # 1% slippage
+            "slippageBps": slippage_bps,
         }
         for attempt in range(3):
             try:
