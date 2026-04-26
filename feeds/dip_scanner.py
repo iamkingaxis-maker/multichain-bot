@@ -318,6 +318,54 @@ class DipScanner:
                 c["cap_reached"] += 1
                 break
 
+            # ── Final pre-buy gate: 1m candle reversal confirmation ──
+            # All other filters passed.  Fetch last 5 × 1m candles for the
+            # pool and require ≥1 green close in the last 3 minutes.  Catches
+            # "dip already reversed and now distributing" patterns that m5
+            # smooths out.  Fail-open on fetch errors (don't block buys when
+            # GeckoTerminal API is down).  Cost: 1 GT call per shortlisted
+            # candidate (~1-2 per cycle), well within the 25/min budget.
+            pair_addr_for_1m = pair.get("pairAddress", "") or ""
+            m1_features: dict = {}
+            if pair_addr_for_1m:
+                try:
+                    cs = await self.gt_client.fetch_1m(pair_addr_for_1m, limit=5)
+                except Exception as _e:
+                    logger.debug(f"[DipScanner] 1m fetch error for {token_symbol}: {_e}")
+                    cs = []
+                if cs and len(cs) >= 3:
+                    last3 = cs[-3:]
+                    green_in_last3 = sum(1 for k in last3 if k.close > k.open)
+                    last_close_pct = (
+                        (last3[-1].close / last3[-1].open - 1) * 100
+                        if last3[-1].open > 0 else 0.0
+                    )
+                    cum_3min_pct = (
+                        (last3[-1].close / last3[0].open - 1) * 100
+                        if last3[0].open > 0 else 0.0
+                    )
+                    # Volume spike: most-recent 1m vol vs avg of prior candles
+                    prior_vols = [k.volume for k in cs[:-1]]
+                    avg_prior_vol = sum(prior_vols) / len(prior_vols) if prior_vols else 0.0
+                    vol_spike_ratio = (
+                        last3[-1].volume / avg_prior_vol if avg_prior_vol > 0 else 0.0
+                    )
+                    m1_features = {
+                        "1m_green_in_last3": green_in_last3,
+                        "1m_last_close_pct": round(last_close_pct, 3),
+                        "1m_cum_3min_pct":   round(cum_3min_pct, 3),
+                        "1m_volume_spike":   round(vol_spike_ratio, 3),
+                        "1m_candle_count":   len(cs),
+                    }
+                    if green_in_last3 == 0:
+                        c["no_1m_reversal"] += 1
+                        logger.info(
+                            f"[DipScanner] 1m gate: {token_symbol} — "
+                            f"no green close in last 3 min "
+                            f"(cum_3min={cum_3min_pct:+.1f}%) — skipping"
+                        )
+                        continue
+
             c["signal"] += 1
             signals += 1
 
@@ -352,6 +400,7 @@ class DipScanner:
                 "bs_h6": float(ratio_h6) if ratio_h6 != float("inf") else None,
                 "bs_h1": float(ratio_h1) if ratio_h1 != float("inf") else None,
                 "bs_m5": float(ratio_m5) if ratio_m5 != float("inf") else None,
+                **m1_features,  # 1m candle features (or empty if fetch failed)
             }
 
             await self.trader.buy(
@@ -376,7 +425,7 @@ class DipScanner:
             f"{k}={c[k]}" for k in (
                 "mcap_low", "mcap_high", "age", "vol", "low_turnover",
                 "vol_m5_zero", "vol_h1_decay",
-                "red_h24", "trend_reversal", "no_dip", "h1_mid_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
+                "red_h24", "trend_reversal", "no_dip", "h1_mid_dip", "m5_dip_over", "falling_knife", "mega_pump_middle", "no_1m_reversal",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
             ) if c[k]
         ) or "-"

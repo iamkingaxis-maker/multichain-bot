@@ -34,7 +34,18 @@ class GeckoTerminalClient:
         )
 
     async def fetch_5m(self, pool_address: str, limit: int = 100) -> List[Candle]:
-        key = f"5m:{pool_address}:{limit}"
+        return await self._fetch_candles(pool_address, aggregate=5, limit=limit)
+
+    async def fetch_1m(self, pool_address: str, limit: int = 5) -> List[Candle]:
+        """
+        Fetch raw 1-minute candles for fine-grained entry confirmation.
+        Default limit=5 (last 5 minutes) — enough to detect a recent
+        green close while staying under the rate limit when called per-buy.
+        """
+        return await self._fetch_candles(pool_address, aggregate=1, limit=limit)
+
+    async def _fetch_candles(self, pool_address: str, aggregate: int, limit: int) -> List[Candle]:
+        key = f"{aggregate}m:{pool_address}:{limit}"
         now = time.monotonic()
         async with self._lock:
             cached = self._cache.get(key)
@@ -44,7 +55,7 @@ class GeckoTerminalClient:
 
         url = (
             f"{_GT_BASE}/networks/solana/pools/{pool_address}/ohlcv/minute"
-            f"?aggregate=5&limit={limit}&currency=usd"
+            f"?aggregate={aggregate}&limit={limit}&currency=usd"
         )
         try:
             async with self._session_factory() as session:
