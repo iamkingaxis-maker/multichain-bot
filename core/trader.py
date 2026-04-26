@@ -205,6 +205,86 @@ class Trader:
         # all TP/SL logic with the user's exact config-driven rules.
         # asyncio.create_task(self._monitor_positions())
 
+    async def reconcile_positions_on_startup(self) -> None:
+        """
+        Live-mode startup reconciliation: for each position in open_positions,
+        verify the wallet actually holds the expected token.  If on-chain
+        balance is zero, the position is a ghost (sold during downtime via
+        another path, or a failed-then-succeeded swap left no tokens).  Mark
+        it closed with a synthetic sell at last-known price so the bot doesn't
+        try to sell tokens we no longer have.
+
+        Skipped in paper mode (no wallet to query).
+        """
+        if not self.private_key:
+            return  # paper mode — no wallet
+        if not self.open_positions:
+            logger.info("[Trader] reconcile_positions: no open positions to check")
+            return
+        try:
+            owner = self._get_public_key()
+            if not owner:
+                logger.warning("[Trader] reconcile_positions: could not derive public key")
+                return
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getTokenAccountsByOwner",
+                "params": [
+                    owner,
+                    {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"},
+                    {"encoding": "jsonParsed"},
+                ],
+            }
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.rpc_url, json=payload,
+                                        timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                    data = await resp.json()
+            accounts = (data.get("result") or {}).get("value") or []
+            on_chain_balances: Dict[str, float] = {}
+            for acct in accounts:
+                info = ((acct.get("account") or {}).get("data") or {}).get("parsed") or {}
+                mint = (info.get("info") or {}).get("mint", "").lower()
+                amt = ((info.get("info") or {}).get("tokenAmount") or {}).get("uiAmount") or 0
+                if mint and amt:
+                    on_chain_balances[mint] = float(amt)
+            ghosts: list = []
+            for addr, pos in list(self.open_positions.items()):
+                expected = float(getattr(pos, "amount_tokens", 0) or 0)
+                actual = on_chain_balances.get(addr.lower(), 0)
+                if actual <= max(0.001, expected * 0.01):  # less than 1% of expected → ghost
+                    ghosts.append((addr, pos, actual, expected))
+            if not ghosts:
+                logger.info(
+                    f"[Trader] reconcile_positions: {len(self.open_positions)} positions "
+                    f"verified on-chain"
+                )
+                return
+            logger.warning(
+                f"[Trader] reconcile_positions: {len(ghosts)} ghost positions detected "
+                f"(in DB but not in wallet)"
+            )
+            for addr, pos, actual, expected in ghosts:
+                logger.warning(
+                    f"  → {pos.token_symbol} ({addr[:8]}…): expected {expected:.4f} tokens, "
+                    f"on-chain {actual:.4f} — closing as orphan"
+                )
+                # Synthetic sell at entry price (no real fill data — best-effort).
+                _entry_mono = getattr(pos, "entry_time_monotonic", 0)
+                _hold_secs = round(time.monotonic() - _entry_mono) if _entry_mono > 0 else 0
+                self.tracker.record_sell(
+                    addr, getattr(pos, "amount_usd", 0) or 0, 0.0,
+                    "Orphan reconciliation on startup (position not in wallet)",
+                    pnl_pct=0.0, max_drawdown_pct=0.0, hold_secs=_hold_secs,
+                    pair_address=getattr(pos, "pair_address", "") or "",
+                    entry_meta=getattr(pos, "entry_meta", None) or {},
+                )
+                del self.open_positions[addr]
+                self.reentry.previously_held.add(addr.lower())
+            self.reentry.save()
+        except Exception as e:
+            logger.error(f"[Trader] reconcile_positions failed: {e}")
+
     def is_dip_in_cooldown(self, token_address: str, window_seconds: float) -> bool:
         """
         Return True if this token had a losing dip_buy close within the last
@@ -1010,7 +1090,15 @@ class Trader:
             return False
 
     async def _send_transaction(self, swap_tx_b64: str) -> bool:
-        """Send a signed transaction to the Solana network."""
+        """
+        Send a signed transaction AND wait for on-chain confirmation.
+
+        Returns True only when the transaction is confirmed with no error.
+        Returns False if:
+          - sendTransaction was rejected by the RPC node
+          - The transaction was included but failed (slippage, compute, etc.)
+          - Confirmation timed out (likely dropped by network)
+        """
         try:
             from solders.keypair import Keypair
             from solders.transaction import VersionedTransaction
@@ -1037,14 +1125,71 @@ class Trader:
                     if "error" in result:
                         logger.error(f"TX error: {result['error']}")
                         return False
-                    logger.info(f"TX sent: {result.get('result', '')}")
-                    return True
+                    sig = result.get("result", "")
+                    if not sig:
+                        logger.error(f"TX accepted but no signature returned: {result}")
+                        return False
+                    logger.info(f"TX sent: {sig}")
+                    # Wait for on-chain confirmation.  Without this, sendTransaction
+                    # returning success only means the RPC accepted the tx — the tx
+                    # could still fail to land (priority fee too low, blockhash
+                    # expired) or land with an error (slippage, compute exceeded).
+                    return await self._await_tx_confirmation(sig)
         except ImportError:
             logger.warning("solders not installed — run: pip install solders")
             return False
         except Exception as e:
             logger.error(f"Transaction error: {e}")
             return False
+
+    async def _await_tx_confirmation(self, signature: str,
+                                       max_wait_seconds: float = 45.0,
+                                       poll_interval: float = 1.5) -> bool:
+        """
+        Poll getSignatureStatuses until the tx is confirmed or finalized,
+        or until max_wait_seconds elapses.  Returns True only on confirmed
+        success.  False on tx-level error or timeout.
+        """
+        deadline = time.time() + max_wait_seconds
+        attempt = 0
+        while time.time() < deadline:
+            attempt += 1
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getSignatureStatuses",
+                "params": [[signature], {"searchTransactionHistory": True}],
+            }
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(self.rpc_url, json=payload,
+                                            timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                        data = await resp.json()
+                        statuses = (data.get("result") or {}).get("value") or []
+                        status = statuses[0] if statuses else None
+                        if status:
+                            err = status.get("err")
+                            confirmation_status = status.get("confirmationStatus")
+                            if err is not None:
+                                logger.error(
+                                    f"[Trader] TX {signature[:12]}… failed on-chain: "
+                                    f"{err} (after {attempt} polls)"
+                                )
+                                return False
+                            if confirmation_status in ("confirmed", "finalized"):
+                                logger.info(
+                                    f"[Trader] TX {signature[:12]}… {confirmation_status} "
+                                    f"(after {attempt} polls)"
+                                )
+                                return True
+            except Exception as e:
+                logger.debug(f"[Trader] confirmation poll error: {e}")
+            await asyncio.sleep(poll_interval)
+        logger.error(
+            f"[Trader] TX {signature[:12]}… confirmation timeout after "
+            f"{max_wait_seconds}s — assuming dropped"
+        )
+        return False
 
     def _get_public_key(self) -> str:
         """Derive public key from private key."""

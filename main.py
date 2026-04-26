@@ -640,6 +640,12 @@ async def main():
         "Commands: /kill /resume /status /help"
     )
 
+    # Live-mode position reconciliation: fix any DB↔wallet drift that may
+    # have happened during downtime (failed sells leaving ghost positions,
+    # manual moves, etc.).  No-op in paper mode.
+    if hasattr(sol_trader, "reconcile_positions_on_startup"):
+        await sol_trader.reconcile_positions_on_startup()
+
     logger.info(f"All systems go — {len(tasks)} tasks")
     await asyncio.gather(*tasks)
 
