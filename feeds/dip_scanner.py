@@ -220,6 +220,16 @@ class DipScanner:
                 c["no_dip"] += 1
                 continue
 
+            # Mid-dip filter: h1 in [-10%, -5%) is structurally -EV.  Recent
+            # backtest (n=142): this band has 33% realtime-stop rate vs 17%
+            # for h1<-10%, and avg pnl=-$10.10/trade vs +$7.71 for deep dips.
+            # Theory: too far down to be panic-bottom reversal, not deep
+            # enough to be a real flush — just a step on the way to lower.
+            # Lifetime impact: blocks ~15 trades for ~$120 net save.
+            if -10.0 <= pc_h1 < -5.0:
+                c["h1_mid_dip"] += 1
+                continue
+
             # Dip-already-over filter: m5 has turned positive but hasn't built
             # momentum yet ([0%, +3%) band). Historically -EV: n=43, 42% WR,
             # -$50 net. Buying the bounce-top after the dip ended but before
@@ -366,7 +376,7 @@ class DipScanner:
             f"{k}={c[k]}" for k in (
                 "mcap_low", "mcap_high", "age", "vol", "low_turnover",
                 "vol_m5_zero", "vol_h1_decay",
-                "red_h24", "trend_reversal", "no_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
+                "red_h24", "trend_reversal", "no_dip", "h1_mid_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
             ) if c[k]
         ) or "-"
