@@ -330,6 +330,18 @@ class DipScanner:
                 c["seller_h1_red_m5"] += 1
                 continue
 
+            # Pumped + sellers cooling filter: token pumped over the hour
+            # (h1 > +3%) but the most-recent 5min has m5 sells dominating
+            # (bs_m5 < 1) AND price hasn't pulled back meaningfully (m5 > -2%).
+            # Pattern: "pumped, now stalling at top with sellers winning the
+            # moment" — SPIKE-class top-buy.  Lifetime: blocks 8 trades,
+            # saves +$203; today saves +$150.  Fail-open when bs_m5 is 0/inf.
+            if (pc_h1 > 3.0 and pc_m5 > -2.0
+                    and ratio_m5 != float("inf")
+                    and 0 < ratio_m5 < 1.0):
+                c["seller_pump"] += 1
+                continue
+
             dip_count = sum(
                 1 for pos in self.open_positions_ref.values()
                 if getattr(pos, "strategy", "") == "dip_buy"
@@ -412,6 +424,48 @@ class DipScanner:
                         )
                         continue
 
+                    # Top-consolidation filter: h1 pumped (>+3%) AND 1m
+                    # cumulative is near zero (|cum_3m| < 0.5%) — token has
+                    # plateaued at the top of recent range with no momentum
+                    # in either direction.  Range-position proxy for "stuck
+                    # at the top of the chart."  Lifetime: blocks 10 trades,
+                    # saves +$402; today saves +$295.
+                    if pc_h1 > 3.0 and abs(cum_3min_pct) < 0.5:
+                        c["top_consolidation"] += 1
+                        logger.info(
+                            f"[DipScanner] top_consolidation: {token_symbol} — "
+                            f"h1={pc_h1:+.1f}% but cum_3m={cum_3min_pct:+.2f}% "
+                            f"(stuck at top) — skipping"
+                        )
+                        continue
+
+            # ── Range-position capture (5m candle stack) ──
+            # Fetch last 12 × 5m candles (= 1h coverage) to compute where
+            # the current price sits in the 1h range.  Stored in entry_meta
+            # for future backtesting; not yet used as a filter (gathering
+            # data first).  Fail-open on fetch errors.
+            range_features: dict = {}
+            if pair_addr_for_1m:
+                try:
+                    cs5 = await self.gt_client.fetch_5m(pair_addr_for_1m, limit=12)
+                except Exception as _e:
+                    logger.debug(f"[DipScanner] 5m fetch error for {token_symbol}: {_e}")
+                    cs5 = []
+                if cs5 and len(cs5) >= 4:
+                    high_1h = max(k.high for k in cs5)
+                    low_1h = min(k.low for k in cs5)
+                    cur_price = cs5[-1].close
+                    rng_1h = high_1h - low_1h
+                    pct_in_1h_range = (
+                        (cur_price - low_1h) / rng_1h if rng_1h > 0 else 0.5
+                    )
+                    range_features = {
+                        "1h_high": round(high_1h, 8),
+                        "1h_low": round(low_1h, 8),
+                        "5m_candle_count": len(cs5),
+                        "pct_in_1h_range": round(pct_in_1h_range, 3),
+                    }
+
             c["signal"] += 1
             signals += 1
 
@@ -447,6 +501,7 @@ class DipScanner:
                 "bs_h1": float(ratio_h1) if ratio_h1 != float("inf") else None,
                 "bs_m5": float(ratio_m5) if ratio_m5 != float("inf") else None,
                 **m1_features,  # 1m candle features (or empty if fetch failed)
+                **range_features,  # 5m range features (or empty if fetch failed)
             }
 
             await self.trader.buy(
@@ -472,7 +527,7 @@ class DipScanner:
                 "mcap_low", "mcap_high", "age", "vol", "low_turnover",
                 "vol_m5_zero", "vol_h1_decay",
                 "red_h24", "trend_reversal", "top_exhaustion", "no_dip", "h1_mid_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
-                "seller_h1_red_m5", "no_1m_reversal", "m1_top_tick", "m1_false_bounce",
+                "seller_h1_red_m5", "seller_pump", "no_1m_reversal", "m1_top_tick", "m1_false_bounce", "top_consolidation",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
             ) if c[k]
         ) or "-"
