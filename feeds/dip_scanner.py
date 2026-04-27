@@ -228,13 +228,14 @@ class DipScanner:
                 c["no_dip"] += 1
                 continue
 
-            # Mid-dip filter: h1 in [-10%, -5%) is structurally -EV.  Recent
-            # backtest (n=142): this band has 33% realtime-stop rate vs 17%
-            # for h1<-10%, and avg pnl=-$10.10/trade vs +$7.71 for deep dips.
-            # Theory: too far down to be panic-bottom reversal, not deep
-            # enough to be a real flush — just a step on the way to lower.
-            # Lifetime impact: blocks ~15 trades for ~$120 net save.
-            if -10.0 <= pc_h1 < -5.0:
+            # Mid-dip filter: h1 in [-6%, -5%) is the band where data shows
+            # clear -EV (n=3 lifetime, 1/3 wins, -$134 net, -$44.61/trade —
+            # ASTEROID/BOAR-class). Original [-10%, -5%) range was too broad:
+            # 04-27 diagnostic showed [-10, -7) had 23/25 wins (92%, +$394
+            # net) — the MAGA/BULL/WIFE/DUMBMONEY/SAM archetype dip zone.
+            # Narrowed to [-6, -5) to preserve those winners while still
+            # blocking the shallow-dip zone where losses concentrate.
+            if -6.0 <= pc_h1 < -5.0:
                 c["h1_mid_dip"] += 1
                 continue
 
