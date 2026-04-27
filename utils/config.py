@@ -158,7 +158,7 @@ class Config:
     dip_tp2_pct: float = 15.0             # TP2 at +15% — sell remaining 100%
     dip_tp2_sell: float = 1.0
     dip_stop_pct: float = 15.0            # Hard stop at -15%
-    dip_winner_trail_pct: float = 5.0     # Trail 5% from peak after TP1
+    dip_winner_trail_pct: float = 3.5     # Trail 3.5% from peak after TP1 (was 5.0 — give-back analysis showed avg 8.4pp gap from peak vs intended 5pp due to slippage + tick lag; 3.5% recovers ~2pp/trail)
     dip_max_concurrent: int = 4           # Max simultaneous dip positions
     dip_min_txn_ratio_h6: float = 1.3     # require h6 buy/sell txn ratio >= 1.3 (blocks distribution: DUMBMONEY 1.11, SPIKE 1.20; passes WIFE 1.54, BULL 1.53)
     dip_min_vol_h1_ratio: float = 0.5     # require vol_h1 >= vol_h24/48 (= 50% of avg hourly rate). Blocks decelerating-volume tokens (67, TROLL); passes BULL 0.80x, pippin 0.72x
@@ -499,6 +499,10 @@ def _apply_env_overrides(config: Config):
         config.dip_min_volume_h24 = env_float("DIP_MIN_VOLUME_H24", config.dip_min_volume_h24)
     if os.environ.get("DIP_STOP_PCT"):
         config.dip_stop_pct = env_float("DIP_STOP_PCT", config.dip_stop_pct)
+    if os.environ.get("DIP_WINNER_TRAIL_PCT"):
+        config.dip_winner_trail_pct = env_float(
+            "DIP_WINNER_TRAIL_PCT", config.dip_winner_trail_pct
+        )
 
     # Scalp queue
     if os.environ.get("SCALP_ENABLED"):
