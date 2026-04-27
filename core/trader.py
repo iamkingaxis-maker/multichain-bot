@@ -320,33 +320,68 @@ class Trader:
         except Exception as e:
             logger.error(f"[Trader] reconcile_positions failed: {e}")
 
-    def is_dip_in_cooldown(self, token_address: str, window_seconds: float) -> bool:
+    def is_dip_in_cooldown(self, token_address: str, window_seconds: float = 1800.0) -> bool:
         """
-        Return True if this token had a losing dip_buy close within the last
-        `window_seconds`.  Used by DipScanner to skip same-token rebuys.
-        Wall-clock based so the cooldown survives process restarts.
+        Return True if this token had a dip_buy close within an active cooldown
+        window.  Cooldown duration is stored per-token: regular closes use
+        `window_seconds` (default 30 min); volume-death closes use 6h
+        (registered explicitly via `_register_dip_close`).  Wall-clock based
+        so cooldowns survive process restarts.
+
+        Storage formats supported (backward-compat):
+          - float: legacy "ts only" — applies window_seconds default
+          - [ts, secs]: explicit (ts, cooldown_secs)
         """
         addr = token_address.lower()
-        ts = self._dip_loss_cooldown.get(addr)
-        if ts is None:
+        entry = self._dip_loss_cooldown.get(addr)
+        if entry is None:
             return False
-        return (time.time() - ts) < window_seconds
+        if isinstance(entry, (list, tuple)) and len(entry) == 2:
+            ts, secs = float(entry[0]), float(entry[1])
+        else:
+            ts, secs = float(entry), float(window_seconds)
+        return (time.time() - ts) < secs
+
+    def _register_dip_close(self, token_address: str, reason: str) -> None:
+        """Register a dip_buy full close.  Volume-death closes get 6h cooldown
+        (the token is dying — don't try again same-day).  Other closes (TP,
+        trail, normal stop, manual) get the default 30-min cooldown."""
+        is_vol_death = "volume death" in (reason or "").lower()
+        cooldown_secs = 21600.0 if is_vol_death else 1800.0
+        self._dip_loss_cooldown[token_address.lower()] = [time.time(), cooldown_secs]
+        self._save_dip_loss_cooldown()
+        if is_vol_death:
+            logger.info(
+                f"[Trader] vol-death cooldown 6h registered for {token_address[:8]}…"
+            )
 
     def _load_dip_loss_cooldown(self) -> None:
-        """Load persisted dip-loss cooldown timestamps; prune entries >24h old."""
+        """Load persisted cooldowns; prune entries whose deadlines have passed.
+
+        Supports two file formats:
+          - legacy `{addr: ts}` — each entry treated as a 30-min cooldown from ts
+          - new     `{addr: [ts, secs]}` — explicit (timestamp, cooldown_secs)
+        """
         try:
             if os.path.exists(self._dip_loss_cooldown_path):
                 with open(self._dip_loss_cooldown_path) as f:
                     raw = json.load(f)
-                cutoff = time.time() - 86400  # drop anything older than 24h
-                self._dip_loss_cooldown = {
-                    k: float(v) for k, v in raw.items()
-                    if isinstance(v, (int, float)) and float(v) > cutoff
-                }
+                now = time.time()
+                self._dip_loss_cooldown = {}
+                for k, v in raw.items():
+                    if isinstance(v, (list, tuple)) and len(v) == 2:
+                        ts, secs = float(v[0]), float(v[1])
+                    elif isinstance(v, (int, float)):
+                        ts, secs = float(v), 1800.0  # legacy default
+                    else:
+                        continue
+                    # Keep only entries whose deadline hasn't passed yet
+                    if (now - ts) < secs:
+                        self._dip_loss_cooldown[k] = [ts, secs]
                 if self._dip_loss_cooldown:
                     logger.info(
                         f"[Trader] Loaded {len(self._dip_loss_cooldown)} "
-                        f"dip-loss cooldowns from disk"
+                        f"dip-buy cooldowns from disk"
                     )
         except Exception as e:
             logger.warning(f"[Trader] Could not load dip_loss_cooldown.json: {e}")
@@ -898,10 +933,10 @@ class Trader:
                     # buys the literal high.  Both losses and wins register
                     # the cooldown; the rebuy-after-win pattern is at least
                     # as bad as rebuy-after-loss because the win itself
-                    # pumped the local price.
+                    # pumped the local price.  Volume-death closes get a
+                    # longer 6h cooldown via _register_dip_close.
                     if getattr(position, "strategy", "") == "dip_buy":
-                        self._dip_loss_cooldown[token_address.lower()] = time.time()
-                        self._save_dip_loss_cooldown()
+                        self._register_dip_close(token_address, reason)
                 else:
                     position.amount_tokens *= (1 - pct)
                     position.amount_sol_spent *= (1 - pct)
@@ -997,10 +1032,10 @@ class Trader:
                     self._dex_price_feed.unsubscribe_token(token_address)
                 if self._rpc_price_feed is not None:
                     self._rpc_price_feed.unsubscribe_token(token_address)
-                # Record loss cooldown for dip_buy strategy (full close, negative pnl)
-                if pnl < 0 and getattr(position, "strategy", "") == "dip_buy":
-                    self._dip_loss_cooldown[token_address.lower()] = time.time()
-                    self._save_dip_loss_cooldown()
+                # Cooldown for dip_buy strategy on every full close.
+                # Volume-death closes get extended 6h cooldown.
+                if getattr(position, "strategy", "") == "dip_buy":
+                    self._register_dip_close(token_address, reason)
             else:
                 position.amount_tokens *= (1 - pct)
                 position.amount_sol_spent *= (1 - pct)
