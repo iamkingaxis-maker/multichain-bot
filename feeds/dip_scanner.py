@@ -216,6 +216,14 @@ class DipScanner:
                             f"{token_symbol}({pc_h24:.0f}%/peak{peak_h24:.0f}%)"
                         )
                     continue
+                # Top-exhaustion filter: token already pumped +50% to +200%
+                # over last 6h AND is still pumping (h1 >= +5%).  This is the
+                # "small dip on already-extended uptrend" pattern that catches
+                # the last burst before reversal — the worst single bucket on
+                # 04-27 (-$351 net across 10 trades, lifetime -$334).
+                if 50.0 <= peak_h24 <= 200.0 and pc_h1 >= 5.0:
+                    c["top_exhaustion"] += 1
+                    continue
             if pc_h1 >= 0 and pc_m5 >= 0:
                 c["no_dip"] += 1
                 continue
@@ -312,6 +320,16 @@ class DipScanner:
             else:
                 ratio_h1 = 0.0
 
+            # Seller-dominance filter: bs_h1 < 0.85 means sells outnumber buys
+            # over the last hour by >18%.  Combined with m5 < 0 (price still
+            # ticking down), this is "sellers winning + price falling" —
+            # not a dip to buy, an active distribution.  Lifetime impact:
+            # blocks 10 trades for net +$287, today saves +$186.  Skip when
+            # ratio is 0 or inf (insufficient data — fail open).
+            if ratio_h1 != float("inf") and 0 < ratio_h1 < 0.85 and pc_m5 < 0:
+                c["seller_h1_red_m5"] += 1
+                continue
+
             dip_count = sum(
                 1 for pos in self.open_positions_ref.values()
                 if getattr(pos, "strategy", "") == "dip_buy"
@@ -365,6 +383,32 @@ class DipScanner:
                             f"[DipScanner] 1m gate: {token_symbol} — "
                             f"no green close in last 3 min "
                             f"(cum_3min={cum_3min_pct:+.1f}%) — skipping"
+                        )
+                        continue
+
+                    # m1 top-tick filter: most recent 1m candle closed >=+2%
+                    # green.  Counter-intuitive — a really green last candle
+                    # is the LAST burst of buying before reversal, not a
+                    # confirmed reversal.  Lifetime: blocks 7 trades, saves
+                    # +$366; today saved +$299 (4 trades, 0% win rate).
+                    if last_close_pct >= 2.0:
+                        c["m1_top_tick"] += 1
+                        logger.info(
+                            f"[DipScanner] m1_top_tick: {token_symbol} — "
+                            f"last 1m close {last_close_pct:+.2f}% — skipping"
+                        )
+                        continue
+
+                    # m1 false-bounce filter: cumulative 3-min change in
+                    # [+1%, +3%] band is the "dip is barely over but momentum
+                    # hasn't built" zone — buying right at the top tick of
+                    # the bounce.  Lifetime: blocks 18 trades, saves +$245;
+                    # today saved +$357 (7 trades, 14% win rate).
+                    if 1.0 <= cum_3min_pct < 3.0:
+                        c["m1_false_bounce"] += 1
+                        logger.info(
+                            f"[DipScanner] m1_false_bounce: {token_symbol} — "
+                            f"cum_3min={cum_3min_pct:+.2f}% — skipping"
                         )
                         continue
 
@@ -427,7 +471,8 @@ class DipScanner:
             f"{k}={c[k]}" for k in (
                 "mcap_low", "mcap_high", "age", "vol", "low_turnover",
                 "vol_m5_zero", "vol_h1_decay",
-                "red_h24", "trend_reversal", "no_dip", "h1_mid_dip", "m5_dip_over", "falling_knife", "mega_pump_middle", "no_1m_reversal",
+                "red_h24", "trend_reversal", "top_exhaustion", "no_dip", "h1_mid_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
+                "seller_h1_red_m5", "no_1m_reversal", "m1_top_tick", "m1_false_bounce",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
             ) if c[k]
         ) or "-"

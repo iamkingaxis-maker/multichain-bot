@@ -343,16 +343,23 @@ class Trader:
         return (time.time() - ts) < secs
 
     def _register_dip_close(self, token_address: str, reason: str) -> None:
-        """Register a dip_buy full close.  Volume-death closes get 6h cooldown
-        (the token is dying — don't try again same-day).  Other closes (TP,
-        trail, normal stop, manual) get the default 30-min cooldown."""
-        is_vol_death = "volume death" in (reason or "").lower()
-        cooldown_secs = 21600.0 if is_vol_death else 1800.0
+        """Register a dip_buy full close.  Stop-loss and volume-death closes
+        get 6h cooldown — both signal broken structure or dying liquidity.
+        Lifetime data (last 9 days): same-token rebuys within 6h of a stop
+        net -$923 across 128 trades, every gap bucket (30min, 1-3h, 3-6h)
+        is negative.  Other closes (TP, trail, manual) get the default
+        30-min cooldown."""
+        reason_lower = (reason or "").lower()
+        is_vol_death = "volume death" in reason_lower
+        is_stop_loss = ("stop" in reason_lower) and ("kill" not in reason_lower)
+        long_cooldown = is_vol_death or is_stop_loss
+        cooldown_secs = 21600.0 if long_cooldown else 1800.0
         self._dip_loss_cooldown[token_address.lower()] = [time.time(), cooldown_secs]
         self._save_dip_loss_cooldown()
-        if is_vol_death:
+        if long_cooldown:
+            tag = "vol-death" if is_vol_death else "stop-loss"
             logger.info(
-                f"[Trader] vol-death cooldown 6h registered for {token_address[:8]}…"
+                f"[Trader] {tag} cooldown 6h registered for {token_address[:8]}…"
             )
 
     def _load_dip_loss_cooldown(self) -> None:
