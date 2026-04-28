@@ -658,15 +658,22 @@ class PositionManager:
                              price: float, volume_h1: float,
                              volume_m5: float, liquidity_usd: float):
         """Apply a price update to state and sync back to the open position object."""
-        # Sanity gate: reject price if it's >10x the current peak in a single cycle.
-        # This catches corrupted feed data (e.g. DexScreener returning a different
-        # token's price after a rug drains the original pool's liquidity).
-        ref_price = state.peak_price if state.peak_price > 0 else state.entry_price
-        if ref_price > 0 and price > ref_price * 10:
+        # Sanity gate: reject price if it's >+20% from current_price in a
+        # single tick. Aligns with the realtime stop gate in
+        # check_stop_loss_realtime so corrupted ticks can't slip through one
+        # path while being rejected on the other. Falls back to peak_price
+        # then entry_price when current_price is unset (first tick).
+        ref_price = (
+            state.current_price if state.current_price > 0
+            else state.peak_price if state.peak_price > 0
+            else state.entry_price
+        )
+        if ref_price > 0 and price > ref_price * 1.20:
             logger.warning(
                 f"[PositionManager/{self.chain_name}] ⚠️  Price spike rejected: "
                 f"{state.token_symbol} {ref_price:.8f} → {price:.8f} "
-                f"({price/ref_price:.0f}x peak) — likely corrupted feed data, ignoring"
+                f"({(price/ref_price - 1)*100:+.1f}% single tick) — "
+                f"likely corrupted feed data, ignoring"
             )
             return
         state.current_price = price
@@ -1546,7 +1553,12 @@ class PositionManager:
                 self.scalp_queue.on_scalp_close(token_address, "scalp_max_hold", pnl_usd)
             return
 
-        # 4) TP2 — after TP1, at +15%, sell 35% of remaining
+        # 4) TP2 — after TP1, at +15%, sell 35% of remaining. The remaining
+        # position size is small after the TP2 cut; if it's the final exit
+        # action for the trade we still need to release the capital slot so
+        # ScalpCapitalManager._open doesn't accumulate stale entries on
+        # winning streaks. The runner half (post-TP2) is handled by the
+        # winner_trail in the dip path; for scalp we treat TP2 as full close.
         if state.tp1_hit and not state.tp2_hit and pnl_pct >= self.scalp_tp2_pct:
             state.tp2_hit = True
             logger.info(
@@ -1558,9 +1570,14 @@ class PositionManager:
                 pct=self.scalp_tp2_sell,
                 reason=f"Scalp TP2 +{pnl_pct:.1f}%"
             )
+            if self.scalp_queue:
+                pnl_usd = state.position_size_usd * pnl_pct / 100
+                self.scalp_queue.on_scalp_close(token_address, "scalp_tp2", pnl_usd)
             return
 
-        # 5) TP1 — at +10%, sell 50%
+        # 5) TP1 — at +10%, sell 50%. Partial close — do NOT release the
+        # capital slot; runner half is still open and will exit via TP2,
+        # stop, time, or max-hold.
         if not state.tp1_hit and pnl_pct >= self.scalp_tp1_pct:
             state.tp1_hit = True
             logger.info(
@@ -1587,6 +1604,14 @@ class PositionManager:
                 reason=reason,
                 pct=pct
             )
+            # Sync state.position_size_usd to the post-sell remaining size for
+            # partial sells. trader.sell() reduces position.amount_usd by
+            # (1 - pct) but state.position_size_usd was previously stale, so
+            # downstream pnl_usd calculations (e.g. scalp_capital.record_close)
+            # would over-report by the un-sold proportion. Full closes (pct
+            # >= 1.0) drop the state entirely below.
+            if 0 < pct < 1.0:
+                state.position_size_usd = state.position_size_usd * (1.0 - pct)
             if pct >= 1.0 and token_address in self._states:
                 # Universal 60-min cross-strategy cooldown on ALL full closes
                 # (TP, time exit, manual, etc) — diversifies rotation and prevents

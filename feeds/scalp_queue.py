@@ -301,6 +301,11 @@ class ScalpQueue:
             f"[ScalpQueue] ENTRY {signal.symbol} ({addr[:8]}) @ {signal.entry_price:.8f} "
             f"stop={signal.stop_price:.8f} tp1={signal.tp1_price:.8f} | {signal.reason}"
         )
+        # Reserve capital BEFORE the await so a parallel signal can't see
+        # the slot as still free during the buy's network round-trip. If the
+        # buy fails (no fill, security block, etc.) we release the reservation
+        # in the exception path / no-fill path below.
+        self.scalp_capital.record_open(addr, self.cfg.scalp_position_usd)
         try:
             await self.trader.buy(
                 token_address=addr,
@@ -311,10 +316,14 @@ class ScalpQueue:
                 scalp_meta=scalp_meta,
             )
             if addr.lower() in {a.lower() for a in (self.open_positions_ref or {}).keys()}:
-                self.scalp_capital.record_open(addr, self.cfg.scalp_position_usd)
                 self._watched.pop(addr, None)
+            else:
+                # Buy didn't actually open a position (security block,
+                # liquidity check, paper-mode noop). Release the reservation.
+                self.scalp_capital.record_close(addr, 0.0)
         except Exception as e:
             logger.error(f"[ScalpQueue] Buy failed for {signal.symbol}: {e}")
+            self.scalp_capital.record_close(addr, 0.0)
 
     # ── Candidate fetch (DexScreener) ───────────────────────────
 
