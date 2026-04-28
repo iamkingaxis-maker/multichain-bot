@@ -77,10 +77,15 @@ class Position:
     # 0.0 = no data yet; values are capped at 999.0 to avoid +inf serialization.
     current_bs_h1: float = 0.0
     current_bs_m5: float = 0.0
+    # Mint decimals — fetched at buy time, used for atomic-unit math at sell time.
+    # pump.fun tokens are 6 decimals, most SPL tokens are 9.  Hardcoding 1e9 caused
+    # a 1000× off-by-decimals bug on the first live buy (TripleT 2026-04-28).
+    token_decimals: int = 6
 
 
 _DATA_DIR = os.environ.get("DATA_DIR", ".")
 _REENTRY_STATE_FILE = os.path.join(_DATA_DIR, "reentry_state.json")
+_OPEN_POSITIONS_FILE = os.path.join(_DATA_DIR, "open_positions.json")
 
 
 class ReentryTracker:
@@ -239,6 +244,12 @@ class Trader:
         # Optional security checker — used for LP re-verification at buy time
         self._security_checker = None
 
+        # Restore live open_positions from disk so a Railway redeploy doesn't
+        # lose track of in-flight on-chain holdings.  No-op in paper mode.
+        # Followed by reconcile_positions_on_startup which validates each
+        # restored position against the on-chain wallet balance.
+        self._restore_open_positions()
+
     async def _post_rpc(self, payload: dict, total_timeout: float = 10.0) -> Optional[dict]:
         """
         POST a JSON-RPC payload, trying each configured RPC URL until one
@@ -326,6 +337,130 @@ class Trader:
                 pass
             return False
         return True
+
+    def _save_open_positions(self) -> None:
+        """
+        Atomically persist open_positions to /data/open_positions.json.
+        Live-only: skipped in paper mode (paper positions are deliberately
+        ephemeral so deploys reset clean).  Called after every buy/sell
+        mutation so a Railway redeploy mid-flight doesn't lose state.
+        """
+        if not self.private_key:
+            return  # paper mode — keep ephemeral
+        try:
+            payload = {"positions": []}
+            for addr, p in self.open_positions.items():
+                payload["positions"].append({
+                    "token_address": p.token_address,
+                    "token_symbol": p.token_symbol,
+                    "entry_price_usd": p.entry_price_usd,
+                    "amount_tokens": p.amount_tokens,
+                    "amount_sol_spent": p.amount_sol_spent,
+                    "entry_time": p.entry_time.isoformat() if p.entry_time else None,
+                    "reason": p.reason,
+                    "take_profit_1_hit": p.take_profit_1_hit,
+                    "take_profit_2_hit": p.take_profit_2_hit,
+                    "current_price_usd": p.current_price_usd,
+                    "signal_score": p.signal_score,
+                    "hh_hl_confirmed": p.hh_hl_confirmed,
+                    "chain_id": p.chain_id,
+                    "amount_usd": p.amount_usd,
+                    "strategy": p.strategy,
+                    "pair_address": p.pair_address,
+                    "min_price_usd": p.min_price_usd,
+                    "entry_market_cap_usd": p.entry_market_cap_usd,
+                    "entry_age_hours": p.entry_age_hours,
+                    "entry_volume_h1_usd": p.entry_volume_h1_usd,
+                    "scalp_meta": p.scalp_meta,
+                    "entry_meta": p.entry_meta,
+                    "peak_pnl_pct": p.peak_pnl_pct,
+                    "peak_pnl_at_secs": p.peak_pnl_at_secs,
+                    "token_decimals": p.token_decimals,
+                })
+            tmp = _OPEN_POSITIONS_FILE + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(payload, f)
+            os.replace(tmp, _OPEN_POSITIONS_FILE)
+        except Exception as e:
+            logger.warning(f"[Trader] _save_open_positions failed: {e}")
+
+    def _restore_open_positions(self) -> None:
+        """
+        Restore open_positions from disk on startup.  Live-only.  Paired with
+        reconcile_positions_on_startup which then validates each restored
+        position against actual on-chain wallet holdings.
+        """
+        if not self.private_key:
+            return
+        if not os.path.exists(_OPEN_POSITIONS_FILE):
+            logger.info("[Trader] No persisted open_positions to restore")
+            return
+        try:
+            with open(_OPEN_POSITIONS_FILE) as f:
+                payload = json.load(f)
+            for d in payload.get("positions", []):
+                try:
+                    et = datetime.fromisoformat(d.get("entry_time")) if d.get("entry_time") else datetime.now(timezone.utc)
+                except Exception:
+                    et = datetime.now(timezone.utc)
+                p = Position(
+                    token_address=d["token_address"],
+                    token_symbol=d.get("token_symbol", "?"),
+                    entry_price_usd=float(d.get("entry_price_usd", 0.0)),
+                    amount_tokens=float(d.get("amount_tokens", 0.0)),
+                    amount_sol_spent=float(d.get("amount_sol_spent", 0.0)),
+                    entry_time=et,
+                    reason=d.get("reason", "restored"),
+                    take_profit_1_hit=bool(d.get("take_profit_1_hit", False)),
+                    take_profit_2_hit=bool(d.get("take_profit_2_hit", False)),
+                    current_price_usd=float(d.get("current_price_usd", 0.0)),
+                    signal_score=int(d.get("signal_score", 0)),
+                    hh_hl_confirmed=bool(d.get("hh_hl_confirmed", False)),
+                    chain_id=d.get("chain_id", "solana"),
+                    amount_usd=float(d.get("amount_usd", 0.0)),
+                    strategy=d.get("strategy", "scanner"),
+                    pair_address=d.get("pair_address", ""),
+                    min_price_usd=float(d.get("min_price_usd", 0.0)),
+                    entry_time_monotonic=time.monotonic(),  # reset — best we can do
+                    entry_market_cap_usd=float(d.get("entry_market_cap_usd", 0.0)),
+                    entry_age_hours=float(d.get("entry_age_hours", 0.0)),
+                    entry_volume_h1_usd=float(d.get("entry_volume_h1_usd", 0.0)),
+                    scalp_meta=d.get("scalp_meta"),
+                    entry_meta=d.get("entry_meta"),
+                    peak_pnl_pct=float(d.get("peak_pnl_pct", 0.0)),
+                    peak_pnl_at_secs=int(d.get("peak_pnl_at_secs", 0)),
+                    token_decimals=int(d.get("token_decimals", 6)),
+                )
+                self.open_positions[p.token_address] = p
+            logger.info(f"[Trader] Restored {len(self.open_positions)} open positions from disk")
+        except Exception as e:
+            logger.warning(f"[Trader] _restore_open_positions failed: {e}")
+
+    async def _get_token_decimals(self, mint: str) -> int:
+        """
+        Query mint decimals via getAccountInfo (parsed).  Returns the integer
+        decimals, falls back to 6 (pump.fun convention) on RPC failure since
+        most tokens we trade are pump.fun.  Used by live buy to record the
+        correct atomic-unit divisor on Position.token_decimals.
+        """
+        if not mint:
+            return 6
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getAccountInfo",
+            "params": [mint, {"encoding": "jsonParsed"}],
+        }
+        try:
+            data = await self._post_rpc(payload, total_timeout=5.0) or {}
+            info = ((data.get("result") or {}).get("value") or {}).get("data", {})
+            parsed = info.get("parsed", {}).get("info", {}) if isinstance(info, dict) else {}
+            decimals = parsed.get("decimals")
+            if isinstance(decimals, int) and 0 <= decimals <= 18:
+                return decimals
+        except Exception as e:
+            logger.debug(f"[Trader] _get_token_decimals failed for {mint[:8]}…: {e}")
+        return 6  # fallback: pump.fun is the most common case
 
     async def _get_token_balance_atomic(self, mint: str) -> int:
         """
@@ -458,6 +593,7 @@ class Trader:
                 del self.open_positions[addr]
                 self.reentry.previously_held.add(addr.lower())
             self.reentry.save()
+            self._save_open_positions()
         except Exception as e:
             logger.error(f"[Trader] reconcile_positions failed: {e}")
 
@@ -869,6 +1005,12 @@ class Trader:
             if sol_amount <= 0:
                 return
 
+            # Fetch mint decimals before quoting — used to convert Jupiter's
+            # raw atomic outAmount to human-readable token units.  pump.fun = 6,
+            # most others = 9.  Hardcoding 1e9 produces 1000× position sizing
+            # errors on 6-decimal tokens (caught live with TripleT 2026-04-28).
+            token_decimals = await self._get_token_decimals(token_address)
+
             # Quote + swap with retry — same pattern as live sell.  Buys are
             # less time-sensitive than stops, but transient network/RPC issues
             # still warrant a retry rather than silently aborting the entry.
@@ -889,7 +1031,8 @@ class Trader:
                     logger.error(f"No quote available for {token_symbol} after 3 attempts")
                     return
                 out_amount = int(quote.get("outAmount", 0))
-                entry_price = position_size_usd / (out_amount / 1e9) if out_amount > 0 else 0
+                amount_tokens = out_amount / (10 ** token_decimals) if out_amount > 0 else 0
+                entry_price = position_size_usd / amount_tokens if amount_tokens > 0 else 0
                 success = await self._execute_swap(quote)
                 if success:
                     break
@@ -908,7 +1051,7 @@ class Trader:
                 token_address=token_address.lower(),
                 token_symbol=token_symbol,
                 entry_price_usd=entry_price,
-                amount_tokens=out_amount / 1e9,
+                amount_tokens=amount_tokens,
                 amount_sol_spent=sol_amount,
                 entry_time=datetime.now(timezone.utc),
                 reason=reason,
@@ -925,8 +1068,10 @@ class Trader:
                 entry_volume_h1_usd=volume_h1_usd,
                 scalp_meta=scalp_meta,
                 entry_meta=entry_meta,
+                token_decimals=token_decimals,
             )
             self.open_positions[token_address.lower()] = position
+            self._save_open_positions()
             self.reentry.buy_counts[token_address.lower()] = self.reentry.buy_counts.get(token_address.lower(), 0) + 1
             if strategy != "scalp":
                 self.risk_manager.record_buy(position_size_usd)
@@ -1118,7 +1263,12 @@ class Trader:
                 return
 
             # ── LIVE TRADING MODE ─────────────────────────────────────
-            tokens_to_sell = int(position.amount_tokens * pct * 1e9)
+            # Use the mint's actual decimals (recorded at buy time).  Falls back
+            # to 6 (pump.fun convention) for legacy positions that pre-date the
+            # token_decimals field — better to under-sell on first sweep than
+            # to over-sell and fail the quote.
+            _decimals = getattr(position, "token_decimals", 6) or 6
+            tokens_to_sell = int(position.amount_tokens * pct * (10 ** _decimals))
 
             # Wider slippage tolerance for stop-loss exits.  Stop = "exit at any
             # price" priority; in a fast crash the token may move 1-3% between
@@ -1195,6 +1345,7 @@ class Trader:
                 position.amount_tokens *= (1 - pct)
                 position.amount_sol_spent *= (1 - pct)
                 position.amount_usd *= (1 - pct)
+            self._save_open_positions()
 
             if getattr(position, "strategy", "") != "scalp":
                 self.risk_manager.record_sell(usd_received, pnl)

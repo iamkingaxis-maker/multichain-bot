@@ -346,6 +346,19 @@ class PerformanceTracker:
         # Close any orphaned open positions left over from a previous run.
         # On restart, the in-memory position state is gone — write a synthetic
         # "cancelled on restart" sell so the trade log stays consistent.
+        #
+        # SKIPPED IN LIVE MODE: real positions are real on-chain holdings; a
+        # synthetic sell would silently zero them out in the trade log while
+        # the tokens remain in the wallet.  Live restart-recovery is handled
+        # by Trader.reconcile_positions_on_startup which queries the wallet
+        # and Trader._restore_open_positions which rebuilds in-memory state
+        # from the persisted open_positions.json.  See incident 2026-04-28
+        # (TripleT) for the cause of this guard.
+        _is_paper = not os.environ.get("SOLANA_PRIVATE_KEY", "").strip() \
+                    or os.environ.get("PAPER_MODE", "").lower() in ("1", "true", "yes")
+        if not _is_paper:
+            logger.info("[Tracker] Live mode — skipping cancel-on-restart synthetic sells")
+            return
         open_addrs: dict = {}  # address → buy trade
         for t in self.trades:
             addr = t.get("address", "").lower()
