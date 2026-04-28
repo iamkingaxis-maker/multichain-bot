@@ -336,9 +336,11 @@ class DipScanner:
             # over the last hour by >18%.  Combined with m5 < 0 (price still
             # ticking down), this is "sellers winning + price falling" —
             # not a dip to buy, an active distribution.  Lifetime impact:
-            # blocks 10 trades for net +$287, today saves +$186.  Skip when
-            # ratio is 0 or inf (insufficient data — fail open).
-            if ratio_h1 != float("inf") and 0 < ratio_h1 < 0.85 and pc_m5 < 0:
+            # blocks 10 trades for net +$287, today saves +$186.  Skip on
+            # truly missing data (b=0 AND s=0) but include pure-sell bars
+            # (b=0, s>0 → ratio=0.0) — those are maximally bearish, not "no
+            # data". Old `0 < ratio < 0.85` guard wrongly let them pass.
+            if (b_h1 > 0 or s_h1 > 0) and ratio_h1 < 0.85 and pc_m5 < 0:
                 c["seller_h1_red_m5"] += 1
                 continue
 
@@ -347,10 +349,11 @@ class DipScanner:
             # (bs_m5 < 1) AND price hasn't pulled back meaningfully (m5 > -2%).
             # Pattern: "pumped, now stalling at top with sellers winning the
             # moment" — SPIKE-class top-buy.  Lifetime: blocks 8 trades,
-            # saves +$203; today saves +$150.  Fail-open when bs_m5 is 0/inf.
+            # saves +$203; today saves +$150.  Same pure-sell-bar fix as
+            # seller_h1_red_m5 above.
             if (pc_h1 > 3.0 and pc_m5 > -2.0
-                    and ratio_m5 != float("inf")
-                    and 0 < ratio_m5 < 1.0):
+                    and (b_m5 > 0 or s_m5 > 0)
+                    and ratio_m5 < 1.0):
                 c["seller_pump"] += 1
                 continue
 

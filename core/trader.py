@@ -167,9 +167,10 @@ class Trader:
         self.session: Optional[aiohttp.ClientSession] = None
 
         # Take profit levels (from config)
-        self.tp1_multiplier = 2.0    # Sell 50% at 2x
-        self.tp2_multiplier = 5.0    # Sell 30% at 5x
-        self.tp3_multiplier = 10.0   # Sell rest at 10x
+        # TP/SL is fully owned by PositionManager — these legacy fields
+        # were referenced by the deleted _monitor_positions / _check_position
+        # zombie methods. Keep stop_loss_pct only because it's still in the
+        # __init__ signature (callers may pass it positionally).
         self.stop_loss_pct = stop_loss_pct
 
         # Paper trading slippage simulator
@@ -213,10 +214,6 @@ class Trader:
 
         # Optional security checker — used for LP re-verification at buy time
         self._security_checker = None
-
-        # NOTE: Internal _monitor_positions is DISABLED — PositionManager handles
-        # all TP/SL logic with the user's exact config-driven rules.
-        # asyncio.create_task(self._monitor_positions())
 
     async def _post_rpc(self, payload: dict, total_timeout: float = 10.0) -> Optional[dict]:
         """
@@ -781,7 +778,8 @@ class Trader:
             )
             self.open_positions[token_address.lower()] = position
             self.reentry.buy_counts[token_address.lower()] = self.reentry.buy_counts.get(token_address.lower(), 0) + 1
-            self.risk_manager.record_buy(position_size_usd)
+            if strategy != "scalp":
+                self.risk_manager.record_buy(position_size_usd)
 
             # Subscribe real-time price feeds for live position
             if self._axiom_price_feed is not None:
@@ -795,9 +793,7 @@ class Trader:
             await self.telegram.send(
                 f"✅ *Bought ${token_symbol}*\n\n"
                 f"💵 Size: ${position_size_usd:.0f}\n"
-                f"📝 Reason: {reason}\n"
-                f"🎯 TP1: {self.tp1_multiplier}x | TP2: {self.tp2_multiplier}x | TP3: {self.tp3_multiplier}x\n"
-                f"🛑 Stop Loss: -{self.stop_loss_pct*100:.0f}%"
+                f"📝 Reason: {reason}"
             )
             self.tracker.record_buy(position)
             logger.info(f"✅ Bought {token_symbol} — ${position_size_usd:.0f}")
@@ -1070,51 +1066,6 @@ class Trader:
             logger.error(f"Sell failed for {token_symbol}: {e}")
         finally:
             self._selling.discard(token_address)
-
-    async def _monitor_positions(self):
-        """Continuously monitor open positions for TP/SL triggers."""
-        await asyncio.sleep(30)  # Wait for first positions to open
-        while True:
-            try:
-                for token_address, position in list(self.open_positions.items()):
-                    await self._check_position(position)
-            except Exception as e:
-                logger.error(f"Position monitor error: {e}")
-            await asyncio.sleep(30)
-
-    async def _check_position(self, position: Position):
-        """Check if a position has hit take profit or stop loss."""
-        current_price = await self._get_token_price(position.token_address)
-        if current_price <= 0:
-            return
-
-        position.current_price_usd = current_price
-        multiplier = current_price / position.entry_price_usd if position.entry_price_usd > 0 else 1
-        position.pnl_usd = (multiplier - 1) * position.amount_usd
-
-        # Stop loss
-        if multiplier <= (1 - self.stop_loss_pct):
-            logger.warning(f"🛑 Stop loss hit for {position.token_symbol}")
-            await self.sell(position.token_address, position.token_symbol,
-                          f"Stop loss at {(multiplier-1)*100:.1f}%", pct=1.0)
-            return
-
-        # Take profit 1 (2x) — sell 50%
-        if multiplier >= self.tp1_multiplier and not position.take_profit_1_hit:
-            position.take_profit_1_hit = True
-            await self.sell(position.token_address, position.token_symbol,
-                          f"TP1 at {multiplier:.1f}x", pct=0.50)
-
-        # Take profit 2 (5x) — sell 30% of original (60% of remaining)
-        elif multiplier >= self.tp2_multiplier and not position.take_profit_2_hit:
-            position.take_profit_2_hit = True
-            await self.sell(position.token_address, position.token_symbol,
-                          f"TP2 at {multiplier:.1f}x", pct=0.60)
-
-        # Take profit 3 (10x) — sell everything remaining
-        elif multiplier >= self.tp3_multiplier:
-            await self.sell(position.token_address, position.token_symbol,
-                          f"TP3 at {multiplier:.1f}x", pct=1.0)
 
     async def _get_quote(self, input_mint: str, output_mint: str, amount: int,
                          slippage_bps: int = 100) -> Optional[dict]:

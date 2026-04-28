@@ -81,7 +81,14 @@ class ScalpQueue:
 
     def on_scalp_close(self, addr: str, reason: str, pnl_usd: float = 0.0):
         self.scalp_capital.record_close(addr, pnl_usd)
-        if reason in ("stop_loss", "time_exit"):
+        # Match the actual reason strings emitted by position_manager._evaluate_scalp:
+        # "stop_loss", "scalp_time_exit", "scalp_max_hold". Old strings kept for any
+        # legacy callers.
+        cooldown_reasons = (
+            "stop_loss", "time_exit",
+            "scalp_time_exit", "scalp_max_hold",
+        )
+        if reason in cooldown_reasons:
             expiry = time.monotonic() + self.cfg.scalp_stop_cooldown_minutes * 60
             self._stop_cooldowns[addr.lower()] = expiry
 
