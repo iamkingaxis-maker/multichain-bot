@@ -2327,6 +2327,11 @@ class WebDashboard:
         self._trading_paused = True
         if self._tracker:
             self._tracker.buying_paused = True
+        # Also gate the trader directly — env var TRADING_PAUSED only loads
+        # at process start, so the env-based gate doesn't respond to live
+        # dashboard toggles.  This in-memory flag covers the gap.
+        if self._trader:
+            self._trader._dashboard_paused = True
         logger.info("[Dashboard] Trading PAUSED via dashboard")
         return web.Response(
             text=json.dumps({"ok": True, "paused": True}),
@@ -2339,6 +2344,8 @@ class WebDashboard:
         self._trading_paused = False
         if self._tracker:
             self._tracker.buying_paused = False
+        if self._trader:
+            self._trader._dashboard_paused = False
         logger.info("[Dashboard] Trading RESUMED via dashboard")
         return web.Response(
             text=json.dumps({"ok": True, "paused": False}),

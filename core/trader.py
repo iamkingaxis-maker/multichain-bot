@@ -188,6 +188,11 @@ class Trader:
         # Read by buy/sell paths after successful swap; reset on every attempt.
         self._last_realized_slippage_pct: float = 0.0
         self._realized_slippage_history: list = []  # rolling window for avg
+
+        # Dashboard pause flag — set by /api/pause on the dashboard.  Lives in
+        # memory (no env round-trip), so toggles take effect immediately.
+        # Buy gate ORs this with the env-based TRADING_PAUSED flag.
+        self._dashboard_paused: bool = False
         self.tracker = tracker
         self.telegram = telegram
         self.risk_manager = risk_manager
@@ -467,6 +472,9 @@ class Trader:
         Query wallet's atomic-units balance of a given SPL token mint.  Returns
         the integer amount (decimals as-is from the chain), or 0 if no account
         exists.  Returns -1 on RPC failure.
+
+        Uses mint-filter (not programId-filter) so it works for both classic
+        SPL Token and Token-2022 mints without dispatching twice.
         """
         if not self.private_key:
             return 0
@@ -540,25 +548,34 @@ class Trader:
             if not owner:
                 logger.warning("[Trader] reconcile_positions: could not derive public key")
                 return
-            payload = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "getTokenAccountsByOwner",
-                "params": [
-                    owner,
-                    {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"},
-                    {"encoding": "jsonParsed"},
-                ],
-            }
-            data = await self._post_rpc(payload, total_timeout=15.0) or {}
-            accounts = (data.get("result") or {}).get("value") or []
+            # Query BOTH SPL Token programs.  Pump.fun-graduated tokens live
+            # in Token-2022; classic SPL Token is for older mints.  Querying
+            # only one missed the entire pump.fun universe and made every
+            # pump.fun position look like a ghost on restart (bug 2026-04-28).
             on_chain_balances: Dict[str, float] = {}
-            for acct in accounts:
-                info = ((acct.get("account") or {}).get("data") or {}).get("parsed") or {}
-                mint = (info.get("info") or {}).get("mint", "").lower()
-                amt = ((info.get("info") or {}).get("tokenAmount") or {}).get("uiAmount") or 0
-                if mint and amt:
-                    on_chain_balances[mint] = float(amt)
+            for program_id in (
+                "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",  # classic SPL
+                "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",  # Token-2022 (pump.fun)
+            ):
+                payload = {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "getTokenAccountsByOwner",
+                    "params": [
+                        owner,
+                        {"programId": program_id},
+                        {"encoding": "jsonParsed"},
+                    ],
+                }
+                data = await self._post_rpc(payload, total_timeout=15.0) or {}
+                accounts = (data.get("result") or {}).get("value") or []
+                for acct in accounts:
+                    info = ((acct.get("account") or {}).get("data") or {}).get("parsed") or {}
+                    mint = (info.get("info") or {}).get("mint", "").lower()
+                    amt = ((info.get("info") or {}).get("tokenAmount") or {}).get("uiAmount") or 0
+                    if mint and amt:
+                        # Aggregate — same mint may have accounts under both programs in edge cases
+                        on_chain_balances[mint] = on_chain_balances.get(mint, 0.0) + float(amt)
             ghosts: list = []
             for addr, pos in list(self.open_positions.items()):
                 expected = float(getattr(pos, "amount_tokens", 0) or 0)
@@ -720,6 +737,9 @@ class Trader:
         """Execute a buy order."""
         if os.environ.get("TRADING_PAUSED", "").lower() in ("true", "1", "yes"):
             logger.info(f"[Trader] Buy blocked — TRADING_PAUSED=true ({strategy}/{token_symbol})")
+            return
+        if self._dashboard_paused:
+            logger.info(f"[Trader] Buy blocked — dashboard pause active ({strategy}/{token_symbol})")
             return
         if self.kill_switch and self.kill_switch.is_active:
             logger.info(f"[Trader] Buy blocked — kill switch active ({self.kill_switch._kill_reason})")
