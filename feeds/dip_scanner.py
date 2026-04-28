@@ -124,7 +124,11 @@ class DipScanner:
             if not token_address:
                 c["no_addr"] += 1
                 continue
-            if token_address in self.open_positions_ref:
+            # Case-insensitive match — open_positions can be keyed with either
+            # case depending on which feed surfaced the position. Mirror the
+            # trader's lowercase check (core/trader.py).
+            _addr_lower = token_address.lower()
+            if _addr_lower in self.open_positions_ref or token_address in self.open_positions_ref:
                 c["already_open"] += 1
                 continue
             # Per-token loss cooldown — block rebuy for 30min after a losing
