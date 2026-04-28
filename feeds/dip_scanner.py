@@ -170,15 +170,25 @@ class DipScanner:
                 continue
 
             # Volume-decay filter: require recent-hour volume to be at least
-            # min_vol_h1_ratio of the 24h average hourly rate, and (optional)
-            # non-zero volume in the last 5 minutes. Blocks tokens whose
-            # liquidity is fading mid-trade (67: $0 m5 vol; TROLL: 0.48× h1 rate).
+            # min_vol_h1_ratio of the 6h average hourly rate. Blocks tokens
+            # whose liquidity is fading mid-trade. Using vol_h6/6 instead of
+            # vol_h24/24 because the h24 average is distorted upward by a
+            # single recent pump-hour, causing false rejects on healthy
+            # post-pump tokens. h6 window smooths over the pump while still
+            # catching true decay.
             vol_h1 = (pair.get("volume") or {}).get("h1", 0) or 0
+            vol_h6 = (pair.get("volume") or {}).get("h6", 0) or 0
             vol_m5 = (pair.get("volume") or {}).get("m5", 0) or 0
             if self.require_vol_m5 and vol_m5 <= 0:
                 c["vol_m5_zero"] += 1
                 continue
-            if vol_h1 < vol_h24 * self.min_vol_h1_ratio / 24:
+            # Prefer h6 baseline; fall back to h24 if h6 missing (some GT
+            # pairs lack the h6 volume key).
+            if vol_h6 > 0:
+                vol_baseline_per_hour = vol_h6 / 6.0
+            else:
+                vol_baseline_per_hour = vol_h24 / 24.0
+            if vol_h1 < vol_baseline_per_hour * self.min_vol_h1_ratio:
                 c["vol_h1_decay"] += 1
                 continue
 
@@ -187,9 +197,14 @@ class DipScanner:
             pc_h1 = (pair.get("priceChange") or {}).get("h1", 0) or 0
             pc_m5 = (pair.get("priceChange") or {}).get("m5", 0) or 0
 
-            # Track h24 history for trend-reversal detection — append each cycle
-            # and prune entries older than the 6h window.  Wall-clock time so
-            # history survives process restarts.
+            if pc_h24 <= 0:
+                c["red_h24"] += 1
+                continue
+
+            # Track h24 history for trend-reversal detection — append each
+            # cycle (only after the red_h24 gate, so negative readings don't
+            # corrupt the peak) and prune entries older than the 6h window.
+            # Wall-clock time so history survives process restarts.
             addr_lower = token_address.lower()
             hist = self._h24_history.setdefault(addr_lower, deque())
             wall_now = time.time()
@@ -198,26 +213,26 @@ class DipScanner:
                 hist.popleft()
             self._h24_history_dirty = True
 
-            if pc_h24 <= 0:
-                c["red_h24"] += 1
+            # Top-exhaustion filter: token pumped +50% to +200% over the last
+            # 6h AND is still pumping (h1 >= +5%). The "small dip on already-
+            # extended uptrend" pattern — the worst single bucket on 04-27
+            # (-$351 net across 10 trades, lifetime -$334). Uses pc_h6
+            # directly (the actual 6h price change), NOT peak_h24 (which is
+            # the max of the 24h-anchor history and represents something else
+            # entirely). Doesn't need history samples — pure snapshot filter.
+            if 50.0 <= pc_h6 <= 200.0 and pc_h1 >= 5.0:
+                c["top_exhaustion"] += 1
                 continue
 
             # Trend-reversal filter: reject if current h24 has collapsed to
-            # <25% of recent peak across last 6h of observations.  Catches
-            # tokens whose meme has died — the bot keeps seeing "dips" but
-            # they're decay legs, not retracements (e.g. mexicanunc went
-            # from h24=+28720% to +823% in 8h, then bled $-300+ as we kept
-            # buying every -10% h1 reading).  Backtest: blocks 9 lifetime
-            # trades for net +$389 save; only BULL +$48 of winners lost.
+            # <25% of recent peak across last 6h of observations AND price is
+            # actually declining on 6h (pc_h6 <= 0). The h6 guard prevents
+            # the anchor-slide false positive: a newly-pumped token like SCAM
+            # (peaked at +39721% h24, now +629%) looks decayed by ratio but
+            # is still uptrending on 6h. Catches mexicanunc / ASTEROID class
+            # true decay (h24 anchor falling AND h6 negative).
             if len(hist) >= self._h24_reversal_min_samples:
                 peak_h24 = max(h for _, h in hist)
-                # Only fire if the recent peak was a real pump.  Spares
-                # established memes (MAGA/BULL/WIFE) doing normal h24 cycling.
-                # Also require pc_h6 <= 0 so we only block on actual price
-                # decay — guards against the "anchor slide" case where a
-                # newly-pumped token (e.g. SCAM: peaked at +39721% h24, now
-                # +629%) looks decayed by ratio but is still uptrending on
-                # 6h (h6=+57%). True decay = h6 negative.
                 if peak_h24 >= self._h24_reversal_min_peak \
                         and (pc_h24 / peak_h24) < self._h24_reversal_threshold \
                         and pc_h6 <= 0:
@@ -226,14 +241,6 @@ class DipScanner:
                         trend_reversal_blocked.append(
                             f"{token_symbol}({pc_h24:.0f}%/peak{peak_h24:.0f}%/h6{pc_h6:+.0f}%)"
                         )
-                    continue
-                # Top-exhaustion filter: token already pumped +50% to +200%
-                # over last 6h AND is still pumping (h1 >= +5%).  This is the
-                # "small dip on already-extended uptrend" pattern that catches
-                # the last burst before reversal — the worst single bucket on
-                # 04-27 (-$351 net across 10 trades, lifetime -$334).
-                if 50.0 <= peak_h24 <= 200.0 and pc_h1 >= 5.0:
-                    c["top_exhaustion"] += 1
                     continue
             if pc_h1 >= 0 and pc_m5 >= 0:
                 c["no_dip"] += 1
@@ -272,15 +279,19 @@ class DipScanner:
                 c["falling_knife"] += 1
                 continue
 
-            # Mega-pump middle-band filter: on tokens with h24 > +5000%, dip
-            # entries cluster into three archetypes by h1:
+            # Mega-pump middle-band filter: on tokens with a recent extreme
+            # pump (pc_h24 > +5000% OR pc_h6 > +200%), dip entries cluster
+            # into three archetypes by h1:
             #   h1 <= -15%: deep pullback — real bounce setup, wins
             #   h1 >= +50%: raging continuation — wins (ride the pump)
             #   h1 between -15 and +50 with m5<0: "dead middle" — dies out
-            # Retro-test: blocks 10 mega-pump trades, catches 6 losses
-            # (including today's mexicanunc -$50) for net +$208. Zero
-            # impact on MAGA/BULL (h24 never reaches this regime).
-            if (pc_h24 > 5000.0
+            # Use OR with pc_h6 because pc_h24 anchor slides — a token that
+            # genuinely pumped +40000% will eventually show pc_h24 < 5000%
+            # as the 24h window moves past the peak, making the original
+            # filter ineffective on day-old mega-pumps. pc_h6 > 200% catches
+            # the same regime in a window that doesn't decay on day-old pumps.
+            mega_pump = pc_h24 > 5000.0 or pc_h6 > 200.0
+            if (mega_pump
                     and pc_m5 < 0
                     and -15.0 <= pc_h1 <= 50.0):
                 c["mega_pump_middle"] += 1
