@@ -389,14 +389,11 @@ class SecurityChecker:
                 for h in real_holders[:10]
             )
             result.top10_concentration = top10_pct
-            # micro_cap: slightly relaxed (80%) vs standard threshold, but still hard blocks
-            # 95% was too loose — 80%+ concentration is a rug setup regardless of age
-            mc_threshold = 80.0 if micro_cap else self.max_top10_concentration
-            if top10_pct > mc_threshold:
-                result.flags.append(
-                    f"Top10 hold {top10_pct:.1f}% — dump risk"
-                )
-            elif top10_pct > 60:
+            # Concentration as warning only — rugcheck/bot counts include LP/program
+            # accounts that other tools (Axiom) exclude, so "70%+" often means 12%
+            # of real human concentration. Don't hard-block on it. SCAM (2026-04-28)
+            # was blocked at top10>70% per rugcheck while Axiom showed 12%.
+            if top10_pct > 60:
                 result.warnings.append(f"Top10 concentration {top10_pct:.1f}%")
 
         # Danger-level risks from Rugcheck risks[]
@@ -405,12 +402,22 @@ class SecurityChecker:
         warn_risks = [r for r in risks if r.get("level") == "warn"]
 
         # In micro_cap mode, only LP-structure risks are expected for fresh launches
-        # (owner hasn't had time to lock LP yet). Concentration and liquidity danger
-        # flags are NOT structural — a single holder with 80%+ and low liquidity is
-        # a rug setup regardless of token age. Keep those as hard blocks.
+        # (owner hasn't had time to lock LP yet).
         _MC_WARN_KEYWORDS = (
             "lp unlocked", "liquidity not locked",
             "large amount of lp",
+        )
+        # Holder-concentration / liquidity-relative-to-mcap flags are downgraded
+        # to warnings universally. Rugcheck's holder counts include LP/program
+        # addresses other tools exclude (SCAM 2026-04-28: rugcheck top10=70%+
+        # while Axiom showed 12%), and rugcheck's "low liquidity" is mcap-
+        # relative — a $360k pool gets flagged at $11M mcap. Real asset risks
+        # (mint/freeze authority, honeypot, rugged) still hard-block below.
+        _UNTRUSTED_KEYWORDS = (
+            "top 10 holders", "top10 holders",
+            "single holder", "high ownership",
+            "low liquidity", "low amount of liquidity",
+            "concentration",
         )
 
         for risk in danger_risks:
@@ -421,6 +428,9 @@ class SecurityChecker:
 
             if (bonding_curve or pumpswap) and any(kw in flag_lower for kw in _MC_WARN_KEYWORDS):
                 # Bonding curve / PumpSwap — LP is structurally locked by protocol, downgrade to warning
+                result.warnings.append(flag_text)
+            elif any(kw in flag_lower for kw in _UNTRUSTED_KEYWORDS):
+                # Holder/liquidity heuristics — too noisy to block on, log only
                 result.warnings.append(flag_text)
             else:
                 result.flags.append(flag_text)
