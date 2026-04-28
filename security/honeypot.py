@@ -203,8 +203,21 @@ class SecurityChecker:
                     self._parse_rugcheck(rugcheck_data, result, micro_cap=micro_cap,
                                         bonding_curve=bonding_curve, pumpswap=pumpswap)
                 else:
-                    result.warnings.append("Rugcheck unavailable — basic checks only")
+                    # Rugcheck unavailable. For bonding-curve / pumpswap tokens,
+                    # protocol-enforced LP and limited authority make this
+                    # acceptable with a basic check. For graduated pools
+                    # (Raydium/Meteora/Orca) we have no way to verify mint,
+                    # freeze, or LP-lock status — must hard block.
                     await self._basic_dexscreener_check(token_address, chain_id, result)
+                    if bonding_curve or pumpswap:
+                        result.warnings.append(
+                            "Rugcheck unavailable — basic checks only (BC/Pumpswap protocol-locked)"
+                        )
+                    else:
+                        result.flags.append(
+                            "Rugcheck unavailable — cannot verify mint/freeze/LP for graduated pool"
+                        )
+                        result.risk_level = "BLOCK"
             else:
                 # EVM chains (Base, BSC) — use GoPlus
                 goplus_data = await self._fetch_goplus(token_address, chain_id)
@@ -655,10 +668,11 @@ class SecurityChecker:
             return False
         if result.sell_tax > self.max_sell_tax:
             return False
-        if result.top10_concentration > self.max_top10_concentration:
-            return False
-        if result.dev_holding_pct > self.max_dev_holding_pct:
-            return False
+        # NOTE: top10_concentration and dev_holding_pct hard blocks removed
+        # (2026-04-28). Holder counts include LP/program addresses other tools
+        # exclude; thresholds calibrated against raw counts now produce silent
+        # blocks on legit fresh launches. _parse_rugcheck / _parse_goplus
+        # surface these as warnings; rely on those for visibility.
         if result.risk_level == "BLOCK":
             return False
 

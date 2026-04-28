@@ -98,14 +98,24 @@ class AxiomTokenEvent:
         self.mint_authority     = raw.get("mint_authority")   # None = revoked
         self.freeze_authority   = raw.get("freeze_authority") # None = revoked
 
+    # Class-level SOL/USD price, updated periodically by AxiomScanner from
+    # the trader's price oracle. Default $150 only as a startup fallback
+    # before the first refresh; production code paths should observe a real
+    # price within ~30s of bot start.
+    _sol_price_usd: float = 150.0
+
+    @classmethod
+    def set_sol_price(cls, price: float) -> None:
+        if price and price > 0:
+            cls._sol_price_usd = float(price)
+
     @property
     def mcap_usd(self) -> float:
-        """Approximate USD value (SOL price fetched separately)."""
-        return self.mcap_sol * 150.0  # Approximation — bot has real SOL price
+        return self.mcap_sol * self._sol_price_usd
 
     @property
     def liquidity_usd(self) -> float:
-        return self.liquidity_sol * 150.0
+        return self.liquidity_sol * self._sol_price_usd
 
     @property
     def has_socials(self) -> bool:
@@ -156,7 +166,7 @@ class AxiomTokenEvent:
             "marketCap": self.mcap_usd,
             "liquidity": {"usd": self.liquidity_usd},
             "volume": {
-                "h1": self.volume_sol * 150.0,
+                "h1": self.volume_sol * self._sol_price_usd,
                 "h6": 0,
                 "h24": 0,
                 "m5": 0
@@ -1165,6 +1175,11 @@ class AxiomScanner:
         # Start background token keep-alive (refreshes 2 min before expiry)
         asyncio.ensure_future(self.auth.keep_alive())
 
+        # Start SOL/USD price refresher — AxiomTokenEvent uses this for
+        # mcap/liquidity USD math. Without it the class falls back to a
+        # static $150 default which distorts security gates as SOL moves.
+        asyncio.ensure_future(self._refresh_sol_price_loop())
+
         _auth_failures = 0
         _max_auth_failures = 3  # allow a few failures before falling back
         _ws_404_count = 0       # consecutive WS 404s despite valid JWT → session expired
@@ -1523,6 +1538,24 @@ class AxiomScanner:
                     micro_cap=True,           # keep for holder concentration relaxation
                     bonding_curve=_is_bc,     # LP lock exempt only for bonding curve
                 )
+                # Override with Axiom WS authority data if present. Rugcheck
+                # often 400s for fresh tokens (not yet indexed); Axiom has the
+                # data at launch time and we shouldn't discard it.
+                if sec_result is not None:
+                    if event.mint_authority is not None:
+                        sec_result.can_mint = True
+                        sec_result.flags.append(
+                            "Mintable — Axiom WS reports active mint authority"
+                        )
+                        sec_result.risk_level = "BLOCK"
+                        sec_result.passed = False
+                    if event.freeze_authority is not None:
+                        sec_result.can_freeze = True
+                        sec_result.flags.append(
+                            "Freezable — Axiom WS reports active freeze authority"
+                        )
+                        sec_result.risk_level = "BLOCK"
+                        sec_result.passed = False
                 if sec_result and not sec_result.passed:
                     logger.info(
                         f"[AxiomScanner] Security blocked: "
@@ -2315,6 +2348,22 @@ class AxiomScanner:
                 f"⚠️ *Axiom Scanner Still Down* ({down_mins} min)\n"
                 f"Still reconnecting — check Railway logs if this persists"
             )
+
+    async def _refresh_sol_price_loop(self):
+        """Refresh AxiomTokenEvent._sol_price_usd from the trader's price
+        oracle every 60 seconds. The class-level price is read by mcap_usd /
+        liquidity_usd properties on every WS event."""
+        # Wrapped SOL mint — pricing reference for SOL/USD on Solana DEXs.
+        SOL_MINT = "So11111111111111111111111111111111111111112"
+        while True:
+            try:
+                if self.trader is not None:
+                    price = await self.trader._get_token_price(SOL_MINT)
+                    if price and price > 0:
+                        AxiomTokenEvent.set_sol_price(price)
+            except Exception as e:
+                logger.debug(f"[AxiomScanner] SOL price refresh failed: {e}")
+            await asyncio.sleep(60)
 
     async def _run_dexscreener_fallback(self):
         """

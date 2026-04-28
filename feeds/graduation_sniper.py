@@ -425,6 +425,14 @@ class GraduationSniper:
         Returns quote dict if routable, None if not yet indexed or error.
         """
         try:
+            # Refresh SOL price from trader's oracle on every quote — cheap
+            # and avoids stale-price position-sizing errors as SOL moves.
+            try:
+                live_sol = await self.trader._get_token_price(SOL_MINT)
+                if live_sol and live_sol > 0:
+                    self.sol_price_usd = float(live_sol)
+            except Exception:
+                pass  # keep previous value
             lamports = int((self.position_usd / self.sol_price_usd) * 1e9)
             if lamports <= 0:
                 return None
