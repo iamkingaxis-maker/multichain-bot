@@ -73,13 +73,21 @@ class RiskManager:
             logger.warning(f"[RiskManager] Could not load risk state: {e}")
 
     def _save_state(self):
-        """Persist available_capital to disk after every buy/sell."""
+        """Persist available_capital to disk after every buy/sell.
+
+        Uses atomic write (tmp file + os.replace) so a SIGKILL during
+        Railway redeploy can't truncate the file. A truncated risk_state
+        causes _load_state to fall back to total_capital on next boot,
+        forgetting deployed positions and allowing capital double-count.
+        """
         try:
-            with open(_RISK_STATE_FILE, "w") as f:
+            tmp_path = _RISK_STATE_FILE + ".tmp"
+            with open(tmp_path, "w") as f:
                 json.dump({
                     "available_capital": self.available_capital,
                     "deployed_capital": self.total_capital - self.available_capital,
                 }, f)
+            os.replace(tmp_path, _RISK_STATE_FILE)
         except Exception as e:
             logger.warning(f"[RiskManager] Could not save risk state: {e}")
 

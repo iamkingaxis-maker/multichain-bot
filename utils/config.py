@@ -191,6 +191,7 @@ class Config:
     scalp_stop_pct: float = 6.0             # hard stop — spec max
     scalp_time_exit_candles: int = 4        # 3–5 candle window — use midpoint
     scalp_time_exit_min_pct: float = 5.0    # need +5% within time_exit_candles or exit
+    scalp_max_hold_minutes: float = 45.0    # absolute safety belt
 
     # Market selection (candidate gates)
     scalp_min_m5_volume_usd: float = 5_000
@@ -206,23 +207,6 @@ class Config:
     scalp_gt_rate_per_min: int = 10
     scalp_gt_cache_ttl_sec: int = 180
     scalp_gt_trending_pages: int = 1
-
-    # ── DEPRECATED (kept only so legacy dip-buy tests don't break during cutover) ──
-    scalp_min_mcap: float = 200_000
-    scalp_min_age_days: float = 1.0
-    scalp_min_volume_h24: float = 75_000
-    scalp_max_entry_move_pct: float = 4.0
-    scalp_tick_ratio_min: float = 0.60
-    scalp_tick_consecutive_min: int = 2
-    scalp_min_m5_change_pct: float = -6.0
-    scalp_max_m5_change_pct: float = -1.0
-    scalp_min_volume_h1_usd: float = 30_000
-    scalp_min_m5_buy_ratio: float = 0.55
-    scalp_min_m5_avg_trade_usd: float = 20.0
-    scalp_max_h6_change_pct: float = 100.0
-    scalp_max_h24_change_pct: float = 300.0
-    scalp_watch_warmup_minutes: float = 10.0
-    scalp_max_hold_minutes: float = 45.0
 
     # ── Breakout Strategy (Binance.US) ───────────────────────
     breakout_enabled: bool = False              # BREAKOUT_ENABLED — independent kill switch
@@ -471,6 +455,10 @@ def _apply_env_overrides(config: Config):
     # Global pause — blocks all new buys
     if os.environ.get("TRADING_PAUSED"):
         config.trading_paused = env_bool("TRADING_PAUSED", config.trading_paused)
+
+    # MultiSourceScanner (legacy poll-based scanner — disabled by default)
+    if os.environ.get("SCANNER_ENABLED"):
+        config.scanner_enabled = env_bool("SCANNER_ENABLED", config.scanner_enabled)
 
     # Dip scanner
     if os.environ.get("DIP_SCANNER_ENABLED"):

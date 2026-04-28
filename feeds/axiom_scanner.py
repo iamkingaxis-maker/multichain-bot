@@ -1487,6 +1487,18 @@ class AxiomScanner:
                         )
                         return  # skip full pipeline for fresh grads
 
+            # Already-open check — fail fast at the scanner level so we don't
+            # spend rugcheck/enrich/security RTTs on a token we'd reject at
+            # buy time anyway. Trader.buy() also has this guard (same key:
+            # lowercase address) but redundant cheap check saves ~3-5s per
+            # already-held token while it keeps emitting WS events.
+            _addr_lower = (event.token_address or "").lower()
+            if _addr_lower and _addr_lower in self.trader.open_positions:
+                logger.debug(
+                    f"[AxiomScanner] Already open, skipping: {event.token_symbol}"
+                )
+                return
+
             # Basic filter — quick and cheap
             # Micro-cap mode lowers the effective floor to allow $10k-$50k tokens through
             effective_min_mcap = (

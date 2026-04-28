@@ -284,13 +284,16 @@ class PositionManager:
                  mc_stop_loss_pct: float = 25.0,
                  mc_winner_trail_pct: float = 15.0,
 
-                 # Dip buy specific TP/SL
-                 dip_tp1_pct: float = 5.0,
+                 # Dip buy specific TP/SL — defaults match utils/config.py
+                 # so test/script instantiations without explicit kwargs see
+                 # production behavior. main.py still passes config.* values
+                 # explicitly at startup.
+                 dip_tp1_pct: float = 8.0,
                  dip_tp1_sell: float = 0.50,
-                 dip_tp2_pct: float = 10.0,
+                 dip_tp2_pct: float = 15.0,
                  dip_tp2_sell: float = 1.0,
                  dip_stop_pct: float = 15.0,
-                 dip_winner_trail_pct: float = 5.0,
+                 dip_winner_trail_pct: float = 3.5,
 
                  # Scalp strategy TP/SL (4-phase rewrite)
                  scalp_tp1_pct: float = 10.0,

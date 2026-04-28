@@ -163,7 +163,17 @@ class DipScanner:
             # Turnover filter: require vol_h24 / liquidity >= threshold. Blocks
             # over-liquid tokens where trades don't move price (pippin 0.9×,
             # TROLL 0.5×, 67 1.3×). All known winners are ≥3.9×.
+            #
+            # GT-only pairs (no DexScreener enrichment) report
+            # `reserve_in_usd` which overstates tradeable depth on Meteora
+            # DLMM (inactive bins counted as liquidity). Apply a 0.5 discount
+            # for those so turnover math matches DS-style depth and we don't
+            # buy into a pool that looks deep but slips hard. Pair source is
+            # "geckoterminal" when GT is the only data source; DS-enriched
+            # pairs overwrite that string.
             liq_usd = float((pair.get("liquidity") or {}).get("usd") or 0)
+            if pair.get("_source") == "geckoterminal" and liq_usd > 0:
+                liq_usd = liq_usd * 0.5
             turnover = (vol_h24 / liq_usd) if liq_usd > 0 else 0.0
             if liq_usd > 0 and turnover < self.min_turnover_h24:
                 c["low_turnover"] += 1

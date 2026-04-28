@@ -499,11 +499,23 @@ class AxiomPriceFeed:
                 price_data.get("priceChange") or price_data.get("price_change") or
                 price_data.get("change") or 0
             )
+            # Sanity gates analogous to the price spike guard above. WS ticks
+            # have occasionally arrived with cumulative volume, raw token
+            # amounts (instead of USD), or wrong-time-window changes —
+            # writing those into cache poisons downstream consumers. Reject
+            # ratios that are clearly out-of-band; keep prior cached value.
             if volume_usd > 0:
-                self.volume_cache[_addr_lower] = volume_usd
+                prev_vol = self.volume_cache.get(_addr_lower, 0)
+                if prev_vol <= 0 or volume_usd <= prev_vol * 1000:
+                    self.volume_cache[_addr_lower] = volume_usd
             if liquidity_usd > 0:
-                self.liquidity_cache[_addr_lower] = liquidity_usd
-            if change_pct != 0:
+                prev_liq = self.liquidity_cache.get(_addr_lower, 0)
+                if prev_liq <= 0 or liquidity_usd <= prev_liq * 1000:
+                    self.liquidity_cache[_addr_lower] = liquidity_usd
+            if change_pct != 0 and abs(change_pct) <= 10000:
+                # Reject |change_pct| > 10000 (clear unit/field error — even
+                # mega-pumps don't tick beyond +10000% on the timeframes the
+                # feed reports).
                 self.change_cache[_addr_lower] = change_pct
 
             logger.debug(
