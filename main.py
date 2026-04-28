@@ -375,11 +375,15 @@ async def main():
                     await kill_switch.trigger(reason)
 
         tasks += [
-            sol_scalper.run(),
             sol_position_mgr.run(),
             sol_rt_layer.run(),
             _auto_kill_check()
         ]
+        if config.scalper_enabled:
+            tasks.append(sol_scalper.run())
+            logger.info("[Main] PositionScalper enabled")
+        else:
+            logger.info("[Main] PositionScalper DISABLED (set SCALPER_ENABLED=true to re-enable)")
         if config.scanner_enabled:
             tasks.append(sol_scanner.run())
             logger.info("[Main] MultiSourceScanner enabled")

@@ -1367,22 +1367,30 @@ class PositionManager:
         if age_seconds < 5:
             return  # Ignore first 5s — entry price settling
 
-        # Downside sanity gate: reject any tick that drops >20% from the last
-        # accepted realtime price.  Mirrors the existing >10x upside gate in
-        # _apply_price_update.  Catches corrupted feed ticks that fire spurious
-        # -15% stops which then realize at -3 to -8% pnl_pct (i.e. price had
-        # already bounced by the time async sell ran — bad data, not real
-        # crash).  Real -20% drops typically span multiple ticks; a single
-        # -20%+ tick is almost always a feed glitch.
+        # Sanity gates: reject single-tick price moves >20% in either direction.
+        # 2026-04-27 BULL incident showed feed glitches causing 37x phantom
+        # upticks (peak_price gets inflated → all trail/TP math becomes wrong)
+        # and matching downward correction ticks (-97% in one tick → spurious
+        # stop fires).  Real 20%+ moves typically span multiple ticks; a
+        # single 20%+ tick is almost always a feed glitch.
         last_rt = self._last_realtime_price.get(token_address, 0)
-        if last_rt > 0 and price_usd < last_rt * 0.80:
-            logger.warning(
-                f"[PositionManager/{self.chain_name}] ⚠️  Realtime tick rejected: "
-                f"{state.token_symbol} {last_rt:.8f} → {price_usd:.8f} "
-                f"({(price_usd / last_rt - 1) * 100:.0f}% in one tick) — likely "
-                f"corrupted feed, ignoring"
-            )
-            return
+        if last_rt > 0:
+            if price_usd < last_rt * 0.80:
+                logger.warning(
+                    f"[PositionManager/{self.chain_name}] ⚠️  Realtime tick rejected: "
+                    f"{state.token_symbol} {last_rt:.8f} → {price_usd:.8f} "
+                    f"({(price_usd / last_rt - 1) * 100:.0f}% in one tick) — likely "
+                    f"corrupted feed, ignoring"
+                )
+                return
+            if price_usd > last_rt * 1.20:
+                logger.warning(
+                    f"[PositionManager/{self.chain_name}] ⚠️  Realtime tick rejected: "
+                    f"{state.token_symbol} {last_rt:.8f} → {price_usd:.8f} "
+                    f"(+{(price_usd / last_rt - 1) * 100:.0f}% in one tick) — likely "
+                    f"corrupted feed, ignoring"
+                )
+                return
         self._last_realtime_price[token_address] = price_usd
 
         pnl_pct = (price_usd / state.entry_price - 1) * 100

@@ -314,6 +314,10 @@ class Config:
     copy_min_range_concentration: float = 0.50
 
     # ── Scalper ──────────────────────────────────────────────
+    # Disabled by default (2026-04-27) — price feed glitches were causing
+    # phantom triggers. Upside sanity gate added to position_manager but
+    # leaving scalper disabled until proven needed for dip_buy strategy.
+    scalper_enabled: bool = False
     scalper_sell_trigger_pct: float = 25.0
     scalper_rebuy_trigger_pct: float = 20.0
     scalper_sell_pct: float = 0.25
@@ -503,6 +507,8 @@ def _apply_env_overrides(config: Config):
         config.dip_winner_trail_pct = env_float(
             "DIP_WINNER_TRAIL_PCT", config.dip_winner_trail_pct
         )
+    if os.environ.get("SCALPER_ENABLED"):
+        config.scalper_enabled = env_bool("SCALPER_ENABLED", config.scalper_enabled)
 
     # Scalp queue
     if os.environ.get("SCALP_ENABLED"):
