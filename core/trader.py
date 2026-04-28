@@ -159,6 +159,30 @@ class Trader:
         # cost (default 1M lamports = 0.001 SOL ≈ $0.10).
         self._max_priority_lamports = int(os.environ.get("MAX_PRIORITY_LAMPORTS", "1000000"))
         self._priority_level = os.environ.get("PRIORITY_LEVEL", "high")  # medium|high|veryHigh
+
+        # SOL gas reserve — block live trades when wallet SOL balance falls below
+        # this threshold.  0.05 SOL ≈ 50 priority-fee budgets at 0.001 SOL each.
+        self._min_sol_reserve = float(os.environ.get("MIN_SOL_RESERVE", "0.05"))
+        # Cached SOL balance — refreshed every _sol_balance_ttl seconds.
+        self._sol_balance: float = -1.0  # -1 = never queried
+        self._sol_balance_ts: float = 0.0
+        self._sol_balance_ttl: float = 30.0
+
+        # Execution stats — counts surfacing live-mode swap reliability via /api/stats.
+        # Updated by _get_quote, _execute_swap, _await_tx_confirmation.
+        self._exec_stats: Dict[str, int] = {
+            "swaps_attempted":   0,  # buy or sell live attempts (per try, not per position)
+            "quote_failures":    0,  # _get_quote returned None after retries within one call
+            "swap_failures":     0,  # _execute_swap returned False (non-200, exception, or tx error)
+            "confirm_timeouts":  0,  # tx accepted but never confirmed within 45s
+            "confirm_errors":    0,  # tx confirmed with on-chain error (slippage exceeded, compute, etc.)
+            "successful_swaps":  0,  # tx confirmed successfully on-chain
+            "blocked_low_sol":   0,  # buys blocked because SOL balance < reserve
+        }
+        # Realized slippage (live mode): set by _execute_swap after balance-delta calc.
+        # Read by buy/sell paths after successful swap; reset on every attempt.
+        self._last_realized_slippage_pct: float = 0.0
+        self._realized_slippage_history: list = []  # rolling window for avg
         self.tracker = tracker
         self.telegram = telegram
         self.risk_manager = risk_manager
@@ -239,6 +263,126 @@ class Trader:
                     f"{type(e).__name__} — trying next..."
                 )
         return None
+
+    async def _get_sol_balance(self, force: bool = False) -> float:
+        """
+        Query wallet SOL balance via getBalance RPC.  Cached for _sol_balance_ttl
+        seconds to avoid hammering RPC.  Returns balance in SOL (float), or -1.0
+        on RPC failure.  Skipped in paper mode (returns 0.0).
+        """
+        if not self.private_key:
+            return 0.0
+        if not force and self._sol_balance >= 0 and (time.time() - self._sol_balance_ts) < self._sol_balance_ttl:
+            return self._sol_balance
+        owner = self._get_public_key()
+        if not owner:
+            return -1.0
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getBalance",
+            "params": [owner],
+        }
+        data = await self._post_rpc(payload, total_timeout=5.0) or {}
+        lamports = (data.get("result") or {}).get("value", -1)
+        if lamports < 0:
+            return -1.0
+        sol = lamports / 1e9
+        self._sol_balance = sol
+        self._sol_balance_ts = time.time()
+        return sol
+
+    async def _check_sol_reserve(self, token_symbol: str = "?") -> bool:
+        """
+        Live-mode pre-trade gate: ensure wallet SOL >= _min_sol_reserve.
+        Returns True if OK to trade, False if balance below reserve (blocks trade).
+        Paper mode bypasses (returns True).  RPC failure also bypasses (returns
+        True with a warning) so an unrelated outage doesn't halt all trading —
+        the swap itself will fail loudly if the wallet truly is empty.
+        """
+        if not self.private_key:
+            return True
+        sol = await self._get_sol_balance()
+        if sol < 0:
+            logger.warning(
+                f"[Trader] SOL reserve check: getBalance failed for {token_symbol} — "
+                f"allowing trade (swap will fail if wallet is actually empty)"
+            )
+            return True
+        if sol < self._min_sol_reserve:
+            self._exec_stats["blocked_low_sol"] += 1
+            logger.error(
+                f"[Trader] ⛔ Trade blocked: wallet SOL {sol:.4f} < reserve "
+                f"{self._min_sol_reserve:.4f} — top up wallet to resume live trading"
+            )
+            try:
+                await self.telegram.send(
+                    f"⛔ *Trade blocked — low SOL*\n\n"
+                    f"Wallet: {sol:.4f} SOL\n"
+                    f"Reserve: {self._min_sol_reserve:.4f} SOL\n"
+                    f"Top up to resume live trading."
+                )
+            except Exception:
+                pass
+            return False
+        return True
+
+    async def _get_token_balance_atomic(self, mint: str) -> int:
+        """
+        Query wallet's atomic-units balance of a given SPL token mint.  Returns
+        the integer amount (decimals as-is from the chain), or 0 if no account
+        exists.  Returns -1 on RPC failure.
+        """
+        if not self.private_key:
+            return 0
+        owner = self._get_public_key()
+        if not owner:
+            return -1
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getTokenAccountsByOwner",
+            "params": [
+                owner,
+                {"mint": mint},
+                {"encoding": "jsonParsed"},
+            ],
+        }
+        data = await self._post_rpc(payload, total_timeout=5.0) or {}
+        accounts = (data.get("result") or {}).get("value") or []
+        if not accounts:
+            return 0
+        try:
+            total = 0
+            for acct in accounts:
+                info = (acct.get("account", {}).get("data", {}).get("parsed", {})
+                        .get("info", {}))
+                amount_str = (info.get("tokenAmount", {}) or {}).get("amount", "0")
+                total += int(amount_str)
+            return total
+        except Exception:
+            return -1
+
+    def get_execution_stats(self) -> dict:
+        """
+        Return snapshot of live-mode execution counters plus realized-slippage
+        rolling stats.  Surfaced via /api/stats.
+        """
+        history = self._realized_slippage_history
+        avg_realized = round(sum(history) / len(history), 3) if history else 0.0
+        max_realized = round(max(history), 3) if history else 0.0
+        attempts = self._exec_stats["swaps_attempted"]
+        successes = self._exec_stats["successful_swaps"]
+        success_rate = round(successes / attempts * 100, 1) if attempts > 0 else 0.0
+        return {
+            **self._exec_stats,
+            "success_rate_pct":    success_rate,
+            "avg_realized_slippage_pct":  avg_realized,
+            "max_realized_slippage_pct":  max_realized,
+            "realized_samples":    len(history),
+            "min_sol_reserve":     self._min_sol_reserve,
+            "wallet_sol_balance":  round(self._sol_balance, 4) if self._sol_balance >= 0 else None,
+        }
 
     async def reconcile_positions_on_startup(self) -> None:
         """
@@ -714,6 +858,12 @@ class Trader:
                 return
 
             # ── LIVE TRADING MODE ─────────────────────────────────────
+            # Pre-trade gate: ensure wallet has enough SOL for gas reserve.
+            # Blocks new entries when wallet would drop below MIN_SOL_RESERVE
+            # after this trade.  Sells are NOT gated (we always want to be able
+            # to exit a position even if gas is tight).
+            if not await self._check_sol_reserve(token_symbol):
+                return
             # Get SOL amount for position size
             sol_amount = await self._usd_to_sol(position_size_usd)
             if sol_amount <= 0:
@@ -790,13 +940,15 @@ class Trader:
                 _proto = "pump amm" if "pump amm" in reason.lower() else ""
                 self._rpc_price_feed.subscribe_token(token_address, pool_type=_proto)
 
+            _buy_realized = round(float(self._last_realized_slippage_pct or 0.0), 4)
             await self.telegram.send(
                 f"✅ *Bought ${token_symbol}*\n\n"
                 f"💵 Size: ${position_size_usd:.0f}\n"
+                f"📉 Realized slip: {_buy_realized:+.3f}%\n"
                 f"📝 Reason: {reason}"
             )
             self.tracker.record_buy(position)
-            logger.info(f"✅ Bought {token_symbol} — ${position_size_usd:.0f}")
+            logger.info(f"✅ Bought {token_symbol} — ${position_size_usd:.0f} | realized_slip={_buy_realized:+.3f}%")
 
         except Exception as e:
             logger.error(f"Buy failed for {token_symbol}: {e}")
@@ -1056,11 +1208,12 @@ class Trader:
             )
             _entry_mono = getattr(position, "entry_time_monotonic", 0)
             _hold_secs = round(time.monotonic() - _entry_mono) if _entry_mono > 0 else 0
-            # Live slippage = quote outAmount vs actual fill — Jupiter doesn't
-            # expose post-fill price reliably, so we emit 0.0 today.  TODO: when
-            # we move off paper, derive from balance delta in _execute_swap.
-            self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=getattr(position, "entry_meta", None) or {}, peak_pnl_pct=getattr(position, "peak_pnl_pct", 0.0) or 0.0, peak_pnl_at_secs=getattr(position, "peak_pnl_at_secs", 0) or 0, exit_bs_h1=getattr(position, "current_bs_h1", 0.0) or 0.0, exit_bs_m5=getattr(position, "current_bs_m5", 0.0) or 0.0, realized_slippage_pct=0.0)
-            logger.info(f"{emoji} Sold {pct*100:.0f}% of {token_symbol} — PnL: ${pnl:+.0f}")
+            # Realized slippage from on-chain balance delta, captured by
+            # _execute_swap.  SOL-output sells are noisy (gas confounds the delta);
+            # values here include gas as a small additive ~0.1%.
+            _realized = round(float(self._last_realized_slippage_pct or 0.0), 4)
+            self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=getattr(position, "entry_meta", None) or {}, peak_pnl_pct=getattr(position, "peak_pnl_pct", 0.0) or 0.0, peak_pnl_at_secs=getattr(position, "peak_pnl_at_secs", 0) or 0, exit_bs_h1=getattr(position, "current_bs_h1", 0.0) or 0.0, exit_bs_m5=getattr(position, "current_bs_m5", 0.0) or 0.0, realized_slippage_pct=_realized)
+            logger.info(f"{emoji} Sold {pct*100:.0f}% of {token_symbol} — PnL: ${pnl:+.0f} | realized_slip={_realized:+.3f}%")
 
         except Exception as e:
             logger.error(f"Sell failed for {token_symbol}: {e}")
@@ -1090,13 +1243,45 @@ class Trader:
                 logger.warning(f"Jupiter quote error (attempt {attempt+1}/3): {e}")
                 if attempt < 2:
                     await asyncio.sleep(2 ** attempt)  # 1s, 2s backoff
+        # Only counts when all 3 attempts failed.  Single-attempt failures within
+        # a successful retry don't count — we want to track exhausted-retry events.
+        if self.private_key:
+            self._exec_stats["quote_failures"] += 1
         return None
 
     async def _execute_swap(self, quote: dict) -> bool:
-        """Execute a swap using Jupiter."""
+        """
+        Execute a swap using Jupiter.  In live mode, also captures realized
+        slippage by comparing quote.outAmount to the actual on-chain balance
+        delta of the output token.  Stores the result on
+        self._last_realized_slippage_pct for the caller to read.
+        """
         if not self.private_key:
             logger.warning("No private key set — skipping actual swap (paper trading mode)")
             return True  # Paper trading mode
+
+        # Reset realized-slip state for this attempt.  Buy/sell paths read
+        # self._last_realized_slippage_pct after a successful swap returns.
+        self._last_realized_slippage_pct = 0.0
+        self._exec_stats["swaps_attempted"] += 1
+
+        # Pre-swap balance of the output token — needed to compute realized
+        # slippage from the post-swap delta.  SOL (output side of sells) needs
+        # special handling because gas fees confound the delta; we use a wider
+        # tolerance for SOL and treat token-side as the authoritative measure.
+        output_mint = quote.get("outputMint", "")
+        expected_out = int(quote.get("outAmount", 0) or 0)
+        pre_balance = -1
+        is_sol_out = output_mint == SOL_MINT
+        try:
+            if is_sol_out:
+                _sol_pre = await self._get_sol_balance(force=True)
+                pre_balance = int(_sol_pre * 1e9) if _sol_pre >= 0 else -1
+            elif output_mint:
+                pre_balance = await self._get_token_balance_atomic(output_mint)
+        except Exception as e:
+            logger.debug(f"[Trader] pre-swap balance query failed: {e}")
+            pre_balance = -1
 
         try:
             async with aiohttp.ClientSession(headers=_JUPITER_HEADERS) as session:
@@ -1118,13 +1303,49 @@ class Trader:
                 async with session.post(JUPITER_SWAP_API, json=payload,
                                         timeout=aiohttp.ClientTimeout(total=15)) as resp:
                     if resp.status != 200:
+                        self._exec_stats["swap_failures"] += 1
                         return False
                     swap_data = await resp.json()
                     swap_tx = swap_data.get("swapTransaction", "")
-                    return await self._send_transaction(swap_tx)
+                    success = await self._send_transaction(swap_tx)
+                    if not success:
+                        self._exec_stats["swap_failures"] += 1
+                        return False
+                    self._exec_stats["successful_swaps"] += 1
         except Exception as e:
             logger.error(f"Swap execution error: {e}")
+            self._exec_stats["swap_failures"] += 1
             return False
+
+        # Realized slippage from balance delta.  Only attempted on success and
+        # when pre-balance query worked.  Errors here are non-fatal — the swap
+        # itself succeeded; we just won't have a slippage sample this round.
+        if pre_balance >= 0 and expected_out > 0 and output_mint:
+            try:
+                # Wait briefly for post-confirmation balance to propagate to RPC.
+                await asyncio.sleep(0.5)
+                if is_sol_out:
+                    _sol_post = await self._get_sol_balance(force=True)
+                    post_balance = int(_sol_post * 1e9) if _sol_post >= 0 else -1
+                else:
+                    post_balance = await self._get_token_balance_atomic(output_mint)
+                if post_balance >= 0 and post_balance > pre_balance:
+                    actual_received = post_balance - pre_balance
+                    # Slippage = (expected - actual) / expected × 100.  Positive
+                    # means we got less than quoted (normal); negative means we
+                    # got more (rare, but possible from mid-quote price improvement).
+                    realized_pct = (expected_out - actual_received) / expected_out * 100
+                    self._last_realized_slippage_pct = realized_pct
+                    self._realized_slippage_history.append(realized_pct)
+                    if len(self._realized_slippage_history) > 200:
+                        self._realized_slippage_history = self._realized_slippage_history[-200:]
+                    logger.info(
+                        f"[Trader] Realized slippage: expected={expected_out} "
+                        f"actual={actual_received} ({realized_pct:+.3f}%)"
+                    )
+            except Exception as e:
+                logger.debug(f"[Trader] post-swap balance check failed: {e}")
+        return True
 
     async def _send_transaction(self, swap_tx_b64: str) -> bool:
         """
@@ -1204,6 +1425,7 @@ class Trader:
                 err = status.get("err")
                 confirmation_status = status.get("confirmationStatus")
                 if err is not None:
+                    self._exec_stats["confirm_errors"] += 1
                     logger.error(
                         f"[Trader] TX {signature[:12]}… failed on-chain: "
                         f"{err} (after {attempt} polls)"
@@ -1216,6 +1438,7 @@ class Trader:
                     )
                     return True
             await asyncio.sleep(poll_interval)
+        self._exec_stats["confirm_timeouts"] += 1
         logger.error(
             f"[Trader] TX {signature[:12]}… confirmation timeout after "
             f"{max_wait_seconds}s — assuming dropped"

@@ -2508,6 +2508,15 @@ class WebDashboard:
             else:
                 stats["slippage"] = {}
 
+        # Attach live-mode execution stats — populated only when PAPER_MODE=false.
+        # Surfaces swap reliability, realized slippage, and SOL gas reserve.
+        if self._trader is not None:
+            try:
+                stats["execution"] = self._trader.get_execution_stats()
+            except Exception as e:
+                logger.debug(f"[Dashboard] execution stats build error: {e}")
+                stats["execution"] = {}
+
         # Attach DexScreener WebSocket health — surfaces broken endpoints immediately
         if self._trader is not None:
             dex_feed = getattr(self._trader, "_dex_price_feed", None)
