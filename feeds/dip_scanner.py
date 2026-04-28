@@ -183,6 +183,7 @@ class DipScanner:
                 continue
 
             pc_h24 = (pair.get("priceChange") or {}).get("h24", 0) or 0
+            pc_h6 = (pair.get("priceChange") or {}).get("h6", 0) or 0
             pc_h1 = (pair.get("priceChange") or {}).get("h1", 0) or 0
             pc_m5 = (pair.get("priceChange") or {}).get("m5", 0) or 0
 
@@ -212,12 +213,18 @@ class DipScanner:
                 peak_h24 = max(h for _, h in hist)
                 # Only fire if the recent peak was a real pump.  Spares
                 # established memes (MAGA/BULL/WIFE) doing normal h24 cycling.
+                # Also require pc_h6 <= 0 so we only block on actual price
+                # decay — guards against the "anchor slide" case where a
+                # newly-pumped token (e.g. SCAM: peaked at +39721% h24, now
+                # +629%) looks decayed by ratio but is still uptrending on
+                # 6h (h6=+57%). True decay = h6 negative.
                 if peak_h24 >= self._h24_reversal_min_peak \
-                        and (pc_h24 / peak_h24) < self._h24_reversal_threshold:
+                        and (pc_h24 / peak_h24) < self._h24_reversal_threshold \
+                        and pc_h6 <= 0:
                     c["trend_reversal"] += 1
                     if len(trend_reversal_blocked) < 6:  # cap log noise
                         trend_reversal_blocked.append(
-                            f"{token_symbol}({pc_h24:.0f}%/peak{peak_h24:.0f}%)"
+                            f"{token_symbol}({pc_h24:.0f}%/peak{peak_h24:.0f}%/h6{pc_h6:+.0f}%)"
                         )
                     continue
                 # Top-exhaustion filter: token already pumped +50% to +200%
