@@ -1360,19 +1360,20 @@ class Trader:
         try:
             from solders.keypair import Keypair
             from solders.transaction import VersionedTransaction
-            import base58
 
             keypair = Keypair.from_base58_string(self.private_key)
             tx_bytes = base64.b64decode(swap_tx_b64)
-            tx = VersionedTransaction.from_bytes(tx_bytes)
-            tx.sign([keypair])
+            unsigned_tx = VersionedTransaction.from_bytes(tx_bytes)
+            # solders >=0.20: VersionedTransaction has no .sign() method.
+            # Construct a signed transaction from message + signers instead.
+            signed_tx = VersionedTransaction(unsigned_tx.message, [keypair])
 
             payload = {
                 "jsonrpc": "2.0",
                 "id": 1,
                 "method": "sendTransaction",
                 "params": [
-                    base64.b64encode(bytes(tx)).decode("utf-8"),
+                    base64.b64encode(bytes(signed_tx)).decode("utf-8"),
                     {"encoding": "base64", "skipPreflight": False}
                 ]
             }
