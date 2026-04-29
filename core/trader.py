@@ -1128,7 +1128,13 @@ class Trader:
             self._buying.discard(token_address.lower())
 
     async def sell(self, token_address: str, token_symbol: str, reason: str, pct: float = 1.0):
-        """Execute a sell order for a percentage of the position."""
+        """Execute a sell order for a percentage of the position.
+
+        Returns a dict {ok: bool, reason: str, pnl_usd: float|None} so callers
+        (notably the dashboard /api/sell handler) can distinguish silent
+        retry-exhaustion failures from real successes. Existing call sites
+        that ignore the return are unaffected.
+        """
         # Use lowercased address ONLY for in-memory dict/set lookups.  External
         # API calls (Jupiter, RPC, price feeds) MUST receive the original-case
         # mint via position.token_address — Solana base58 is case-sensitive,
@@ -1138,12 +1144,12 @@ class Trader:
         position = self.open_positions.get(addr_key)
         if not position:
             logger.warning(f"No position found for {token_symbol}")
-            return
+            return {"ok": False, "reason": "position_not_found", "pnl_usd": None}
 
         # Prevent concurrent sells on the same token (race between CopyTrader and PositionManager)
         if addr_key in self._selling:
             logger.debug(f"[Trader] Sell already in progress for {token_symbol} — skipping duplicate")
-            return
+            return {"ok": False, "reason": "already_selling", "pnl_usd": None}
         self._selling.add(addr_key)
         # Use the canonical mint from the Position for any external call below.
         token_address = position.token_address
@@ -1294,7 +1300,7 @@ class Trader:
                     f"{emoji} [PAPER] Sold {pct*100:.0f}% of {token_symbol} — "
                     f"PnL: ${pnl:+.2f} | Impact: {impact_pct:.2f}% | Source: {price_source}"
                 )
-                return
+                return {"ok": True, "reason": "sold_paper", "pnl_usd": round(pnl, 2)}
 
             # ── LIVE TRADING MODE ─────────────────────────────────────
             # Use the mint's actual decimals (recorded at buy time).  Falls back
@@ -1335,7 +1341,7 @@ class Trader:
                         f"[Trader] Live sell {token_symbol}: quote failed after 3 attempts — "
                         f"position remains open, will retry on next price tick"
                     )
-                    return
+                    return {"ok": False, "reason": "quote_failed_3x", "pnl_usd": None}
                 sol_received = int(quote.get("outAmount", 0)) / 1e9
                 usd_received = await self._sol_to_usd(sol_received)
                 cost_basis = position.amount_usd * pct
@@ -1355,7 +1361,7 @@ class Trader:
                     f"[Trader] Live sell {token_symbol}: swap failed 3x — "
                     f"position remains open, will retry on next price tick"
                 )
-                return
+                return {"ok": False, "reason": "swap_failed_3x", "pnl_usd": None}
 
             _min_p = getattr(position, "min_price_usd", 0)
             _entry = getattr(position, "entry_price_usd", 0)
@@ -1399,9 +1405,11 @@ class Trader:
             _realized = round(float(self._last_realized_slippage_pct or 0.0), 4)
             self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=getattr(position, "entry_meta", None) or {}, peak_pnl_pct=getattr(position, "peak_pnl_pct", 0.0) or 0.0, peak_pnl_at_secs=getattr(position, "peak_pnl_at_secs", 0) or 0, exit_bs_h1=getattr(position, "current_bs_h1", 0.0) or 0.0, exit_bs_m5=getattr(position, "current_bs_m5", 0.0) or 0.0, realized_slippage_pct=_realized)
             logger.info(f"{emoji} Sold {pct*100:.0f}% of {token_symbol} — PnL: ${pnl:+.0f} | realized_slip={_realized:+.3f}%")
+            return {"ok": True, "reason": "sold", "pnl_usd": round(pnl, 2)}
 
         except Exception as e:
             logger.error(f"Sell failed for {token_symbol}: {e}")
+            return {"ok": False, "reason": f"exception: {type(e).__name__}: {e}", "pnl_usd": None}
         finally:
             self._selling.discard(addr_key)
 

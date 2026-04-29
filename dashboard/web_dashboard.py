@@ -1782,7 +1782,11 @@ class WebDashboard:
                 text=json.dumps({"ok": False, "error": "Trader not registered"}),
                 status=500, content_type="application/json", headers=cors,
             )
-        position = self._trader.open_positions.get(token_address)
+        # Defensive lowercase: open_positions keys are lowercase per recent
+        # case-preservation fix. If the JSON sent mixed-case, .get() would
+        # silently miss and return 404 (the original 2026-04-29 manual-sell bug).
+        addr_key = token_address.lower()
+        position = self._trader.open_positions.get(addr_key)
         if not position:
             return web.Response(
                 text=json.dumps({"ok": False, "error": "Position not found"}),
@@ -1790,13 +1794,38 @@ class WebDashboard:
             )
         pct = max(0.01, min(1.0, pct))
         try:
-            await self._trader.sell(
-                token_address, position.token_symbol,
+            # Pass the canonical mint case from the Position so trader.sell's
+            # Jupiter call works (base58 case-sensitive).
+            result = await self._trader.sell(
+                position.token_address, position.token_symbol,
                 f"Manual sell from dashboard ({pct*100:.0f}%)", pct=pct
             )
-            self.add_alert(f"Manual sell: {position.token_symbol} ({pct*100:.0f}%)")
+            # trader.sell returns {ok, reason, pnl_usd} — propagate so the
+            # user actually sees if the swap failed (quote retry-exhaustion,
+            # already-selling, etc) instead of always seeing "ok" while the
+            # swap silently fails. Backward-compatible: if result is None
+            # (older trader builds) treat as success.
+            if isinstance(result, dict) and result.get("ok") is False:
+                self.add_alert(
+                    f"Manual sell FAILED: {position.token_symbol} — {result.get('reason')}"
+                )
+                return web.Response(
+                    text=json.dumps({
+                        "ok": False, "symbol": position.token_symbol,
+                        "error": f"Sell failed: {result.get('reason','unknown')}",
+                    }),
+                    status=502, content_type="application/json", headers=cors,
+                )
+            pnl = result.get("pnl_usd") if isinstance(result, dict) else None
+            self.add_alert(
+                f"Manual sell: {position.token_symbol} ({pct*100:.0f}%)"
+                + (f" pnl=${pnl:+.2f}" if pnl is not None else "")
+            )
             return web.Response(
-                text=json.dumps({"ok": True, "symbol": position.token_symbol, "pct": pct}),
+                text=json.dumps({
+                    "ok": True, "symbol": position.token_symbol, "pct": pct,
+                    "pnl_usd": pnl,
+                }),
                 content_type="application/json", headers=cors,
             )
         except Exception as e:
