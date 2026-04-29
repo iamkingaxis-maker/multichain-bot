@@ -495,11 +495,23 @@ class DipScanner:
                     pct_in_1h_range = (
                         (cur_price - low_1h) / rng_1h if rng_1h > 0 else 0.5
                     )
+                    # Most-recent 5m candle position — captures "buying the high
+                    # of last 5min" pattern (BELKA was at 80%+ of last-5m range
+                    # right before -15% stop). Different from 1h: tracks the
+                    # immediate micro-bounce attempt vs hour-level positioning.
+                    last_5m = cs5[-1]
+                    last_5m_rng = last_5m.high - last_5m.low
+                    pct_in_5m_range = (
+                        (cur_price - last_5m.low) / last_5m_rng if last_5m_rng > 0 else 0.5
+                    )
                     range_features = {
                         "1h_high": round(high_1h, 8),
                         "1h_low": round(low_1h, 8),
                         "5m_candle_count": len(cs5),
                         "pct_in_1h_range": round(pct_in_1h_range, 3),
+                        "5m_high": round(last_5m.high, 8),
+                        "5m_low": round(last_5m.low, 8),
+                        "pct_in_5m_range": round(pct_in_5m_range, 3),
                     }
 
             c["signal"] += 1
@@ -518,6 +530,41 @@ class DipScanner:
 
             self._last_buy_time = time.monotonic()
             self.signals_fired += 1
+
+            # ── Recent-trades capture ──
+            # Fetch last ~30 trades to capture order-flow detail beyond the
+            # aggregate bs_m5/bs_h1 ratios. Counts buys/sells, dollar volumes,
+            # and the direction-string of the last 10 trades (e.g. "BBSBSSSS").
+            # Single API call per signal-fire, cached 60s. Fail-open.
+            recent_trades_features: dict = {}
+            try:
+                recent_trades = await self.gt_client.fetch_recent_trades(
+                    pair_addr_for_1m, limit=30
+                )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] recent_trades error for {token_symbol}: {_e}")
+                recent_trades = []
+            if recent_trades:
+                buys = [t for t in recent_trades if t.get("kind") == "buy"]
+                sells = [t for t in recent_trades if t.get("kind") == "sell"]
+                buys_usd = sum(t["volume_usd"] for t in buys)
+                sells_usd = sum(t["volume_usd"] for t in sells)
+                # last_10_dir: direction string of the 10 most-recent trades
+                # ("B" for buy, "S" for sell). Reverse so leftmost = oldest.
+                last10 = list(reversed(recent_trades[:10]))
+                last10_dir = "".join("B" if t.get("kind") == "buy" else "S" for t in last10)
+                recent_trades_features = {
+                    "rt_n": len(recent_trades),
+                    "rt_buys_n": len(buys),
+                    "rt_sells_n": len(sells),
+                    "rt_buys_usd": round(buys_usd, 2),
+                    "rt_sells_usd": round(sells_usd, 2),
+                    "rt_dollar_imbalance": (
+                        round((buys_usd - sells_usd) / (buys_usd + sells_usd), 3)
+                        if (buys_usd + sells_usd) > 0 else 0.0
+                    ),
+                    "last10_dir": last10_dir,
+                }
 
             # Batch 1 entry-meta — anything dip_scanner has at this moment that's
             # nice-to-have for analysis but doesn't merit its own Position field.
@@ -547,6 +594,7 @@ class DipScanner:
                 "bs_m5": float(ratio_m5) if ratio_m5 != float("inf") else None,
                 **m1_features,  # 1m candle features (or empty if fetch failed)
                 **range_features,  # 5m range features (or empty if fetch failed)
+                **recent_trades_features,  # last-30 trades direction (or empty)
             }
 
             await self.trader.buy(

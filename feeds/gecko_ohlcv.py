@@ -44,6 +44,49 @@ class GeckoTerminalClient:
         """
         return await self._fetch_candles(pool_address, aggregate=1, limit=limit)
 
+    async def fetch_recent_trades(self, pool_address: str, limit: int = 30) -> List[dict]:
+        """
+        Fetch recent trades for a pool (most-recent first). Each trade dict
+        has at minimum: kind ("buy"/"sell"), volume_in_usd, block_timestamp.
+
+        Used at signal-fire time only (one call per buy, not per token).
+        Cached 60s to coalesce duplicate signals on the same pool.
+        """
+        key = f"trades:{pool_address}:{limit}"
+        now = time.monotonic()
+        async with self._lock:
+            cached = self._cache.get(key)
+            if cached and (now - cached[0]) < self._cache_ttl:
+                return cached[1]
+            await self._throttle(now)
+
+        url = (
+            f"{_GT_BASE}/networks/solana/pools/{pool_address}/trades"
+            f"?trade_volume_in_usd_greater_than=0"
+        )
+        try:
+            async with self._session_factory() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status != 200:
+                        logger.info(f"[GeckoOHLCV] trades {pool_address[:12]}: HTTP {resp.status}")
+                        return []
+                    data = await resp.json()
+        except Exception as e:
+            logger.info(f"[GeckoOHLCV] trades fetch error for {pool_address[:12]}: {e}")
+            return []
+
+        trades = []
+        for item in (data.get("data") or [])[:limit]:
+            attrs = item.get("attributes") or {}
+            trades.append({
+                "kind": attrs.get("kind") or "",  # "buy" or "sell"
+                "volume_usd": float(attrs.get("volume_in_usd") or 0),
+                "ts": attrs.get("block_timestamp") or "",
+            })
+        async with self._lock:
+            self._cache[key] = (time.monotonic(), trades)
+        return trades
+
     async def _fetch_candles(self, pool_address: str, aggregate: int, limit: int) -> List[Candle]:
         key = f"{aggregate}m:{pool_address}:{limit}"
         now = time.monotonic()
