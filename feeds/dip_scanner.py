@@ -88,6 +88,11 @@ class DipScanner:
         )
         self._h24_history_dirty = False
         self._load_h24_history()
+        # Tier 3: optional AxiomPriceFeed for sub-minute tick buffer reads.
+        # Set externally via `dip_scanner.axiom_price_feed = axiom.price_feed`.
+        # If present, we pre-subscribe candidates that pass core filters and
+        # read tick stats at signal-fire time. None → tier-3 features absent.
+        self.axiom_price_feed = None
 
     async def run(self):
         logger.info("[DipScanner] Starting — targeting $1M+ mcap dip entries")
@@ -418,12 +423,47 @@ class DipScanner:
                     vol_spike_ratio = (
                         last3[-1].volume / avg_prior_vol if avg_prior_vol > 0 else 0.0
                     )
+                    # Tier 1 derivations from the same 5 × 1m candles
+                    red_count_5 = sum(1 for k in cs if k.close < k.open)
+                    # Consecutive-red streak at end of sequence
+                    consec_red = 0
+                    for k in reversed(cs):
+                        if k.close < k.open:
+                            consec_red += 1
+                        else:
+                            break
+                    # Avg body size as % of close price (volatility proxy)
+                    bodies = [abs(k.close - k.open) / k.close for k in cs if k.close > 0]
+                    body_pct_avg = (sum(bodies) / len(bodies) * 100) if bodies else 0.0
+                    # Largest 1m drop (low/open - 1) of any candle in last 5
+                    drops = [(k.low / k.open - 1) * 100 for k in cs if k.open > 0]
+                    max_drop_1m = min(drops) if drops else 0.0
+                    # Where in its own range did the most recent 1m close?
+                    last = cs[-1]
+                    last_rng = last.high - last.low
+                    close_in_range = (
+                        (last.close - last.low) / last_rng if last_rng > 0 else 0.5
+                    )
+                    # Higher-highs vs lower-highs sequence (count transitions)
+                    higher_highs = lower_highs = 0
+                    for i in range(1, len(cs)):
+                        if cs[i].high > cs[i-1].high:
+                            higher_highs += 1
+                        elif cs[i].high < cs[i-1].high:
+                            lower_highs += 1
                     m1_features = {
                         "1m_green_in_last3": green_in_last3,
                         "1m_last_close_pct": round(last_close_pct, 3),
                         "1m_cum_3min_pct":   round(cum_3min_pct, 3),
                         "1m_volume_spike":   round(vol_spike_ratio, 3),
                         "1m_candle_count":   len(cs),
+                        "1m_red_count_5":    red_count_5,
+                        "1m_consec_red":     consec_red,
+                        "1m_body_pct_avg":   round(body_pct_avg, 3),
+                        "1m_max_drop":       round(max_drop_1m, 3),
+                        "1m_close_in_range": round(close_in_range, 3),
+                        "1m_higher_highs":   higher_highs,
+                        "1m_lower_highs":    lower_highs,
                     }
                     if green_in_last3 == 0:
                         c["no_1m_reversal"] += 1
@@ -495,15 +535,38 @@ class DipScanner:
                     pct_in_1h_range = (
                         (cur_price - low_1h) / rng_1h if rng_1h > 0 else 0.5
                     )
-                    # Most-recent 5m candle position — captures "buying the high
-                    # of last 5min" pattern (BELKA was at 80%+ of last-5m range
-                    # right before -15% stop). Different from 1h: tracks the
-                    # immediate micro-bounce attempt vs hour-level positioning.
                     last_5m = cs5[-1]
                     last_5m_rng = last_5m.high - last_5m.low
                     pct_in_5m_range = (
                         (cur_price - last_5m.low) / last_5m_rng if last_5m_rng > 0 else 0.5
                     )
+                    # Tier 1: red-count, consecutive-red/green streak, lower-highs
+                    # count, and volume-decay across 12 × 5m candles (covers 1h).
+                    red_count_5m = sum(1 for k in cs5 if k.close < k.open)
+                    consec_red_5m = 0
+                    for k in reversed(cs5):
+                        if k.close < k.open:
+                            consec_red_5m += 1
+                        else:
+                            break
+                    consec_green_5m = 0
+                    for k in reversed(cs5):
+                        if k.close > k.open:
+                            consec_green_5m += 1
+                        else:
+                            break
+                    # Lower-highs count: distribution pattern — each 5m high
+                    # below the prior 5m high. BELKA showed exactly this pattern.
+                    lower_highs_5m = sum(
+                        1 for i in range(1, len(cs5)) if cs5[i].high < cs5[i-1].high
+                    )
+                    # Volume decay: avg vol of last 3 × 5m vs first 3 × 5m
+                    if len(cs5) >= 6:
+                        first_avg = sum(k.volume for k in cs5[:3]) / 3
+                        last_avg = sum(k.volume for k in cs5[-3:]) / 3
+                        vol_decay = (last_avg / first_avg) if first_avg > 0 else 0.0
+                    else:
+                        vol_decay = 1.0
                     range_features = {
                         "1h_high": round(high_1h, 8),
                         "1h_low": round(low_1h, 8),
@@ -512,6 +575,11 @@ class DipScanner:
                         "5m_high": round(last_5m.high, 8),
                         "5m_low": round(last_5m.low, 8),
                         "pct_in_5m_range": round(pct_in_5m_range, 3),
+                        "5m_red_count": red_count_5m,
+                        "5m_consec_red": consec_red_5m,
+                        "5m_consec_green": consec_green_5m,
+                        "5m_lower_highs": lower_highs_5m,
+                        "5m_vol_decay": round(vol_decay, 3),
                     }
 
             c["signal"] += 1
@@ -531,6 +599,94 @@ class DipScanner:
             self._last_buy_time = time.monotonic()
             self.signals_fired += 1
 
+            # ── Tier 2a: SOL price context ──
+            # Memecoins amplify SOL moves. If SOL is rolling over, dip-buys
+            # underperform regardless of token-level signal. Single GT call,
+            # cached 60s, fail-open.
+            sol_features: dict = {}
+            sol_5m = []
+            try:
+                _SOL_POOL = "83v8iPyZihDEjDdY8RdZddyZNyUtXngz69Lgo9Kt5d6d"  # SOL/USDC Raydium
+                sol_5m = await self.gt_client.fetch_5m(_SOL_POOL, limit=12)
+                sol_1m = await self.gt_client.fetch_1m(_SOL_POOL, limit=5)
+                if sol_5m and len(sol_5m) >= 2:
+                    sol_pc_h1 = (sol_5m[-1].close / sol_5m[0].close - 1) * 100 if sol_5m[0].close > 0 else 0.0
+                    sol_pc_m5 = (sol_5m[-1].close / sol_5m[-2].close - 1) * 100 if sol_5m[-2].close > 0 else 0.0
+                    sol_features["sol_pc_h1"] = round(sol_pc_h1, 3)
+                    sol_features["sol_pc_m5"] = round(sol_pc_m5, 3)
+                if sol_1m and len(sol_1m) >= 2:
+                    sol_pc_m1 = (sol_1m[-1].close / sol_1m[-2].close - 1) * 100 if sol_1m[-2].close > 0 else 0.0
+                    sol_pc_3m = (sol_1m[-1].close / sol_1m[0].close - 1) * 100 if sol_1m[0].close > 0 else 0.0
+                    sol_features["sol_pc_m1"] = round(sol_pc_m1, 3)
+                    sol_features["sol_pc_3m"] = round(sol_pc_3m, 3)
+            except Exception as _e:
+                logger.debug(f"[DipScanner] SOL fetch error: {_e}")
+
+            # ── Tier 2b: Jupiter quote asymmetry ──
+            # Closest analog to "order book imbalance" on Solana AMMs.
+            # Quote BUY (SOL→token at position size) and SELL (token→SOL at
+            # equivalent token amount). Compare priceImpactPct. Higher sell
+            # impact = sell-heavy pool. Two calls/signal, fail-open.
+            jup_features: dict = {}
+            try:
+                import aiohttp as _aio
+                _SOL_MINT = "So11111111111111111111111111111111111111112"
+                _JUP_URL = "https://api.jup.ag/swap/v1/quote"
+                sol_price_est = sol_5m[-1].close if sol_5m else 80.0
+                buy_sol = self.position_usd / max(sol_price_est, 1.0)
+                buy_lamports = max(int(buy_sol * 1e9), 1_000_000)
+                params_buy = {
+                    "inputMint": _SOL_MINT, "outputMint": token_address,
+                    "amount": buy_lamports, "slippageBps": 300,
+                }
+                async with _aio.ClientSession() as _s:
+                    async with _s.get(_JUP_URL, params=params_buy, timeout=_aio.ClientTimeout(total=8)) as _r:
+                        buy_q = await _r.json() if _r.status == 200 else None
+                if buy_q and buy_q.get("outAmount"):
+                    buy_impact = float(buy_q.get("priceImpactPct") or 0) * 100
+                    sell_amount = int(buy_q["outAmount"])
+                    params_sell = {
+                        "inputMint": token_address, "outputMint": _SOL_MINT,
+                        "amount": sell_amount, "slippageBps": 300,
+                    }
+                    async with _aio.ClientSession() as _s:
+                        async with _s.get(_JUP_URL, params=params_sell, timeout=_aio.ClientTimeout(total=8)) as _r:
+                            sell_q = await _r.json() if _r.status == 200 else None
+                    sell_impact = float(sell_q.get("priceImpactPct") or 0) * 100 if sell_q else 0.0
+                    jup_features = {
+                        "quote_buy_impact_pct": round(buy_impact, 4),
+                        "quote_sell_impact_pct": round(sell_impact, 4),
+                        "quote_asymmetry_pct": round(sell_impact - buy_impact, 4),
+                    }
+            except Exception as _e:
+                logger.debug(f"[DipScanner] Jupiter asymmetry error: {_e}")
+
+            # ── Tier 3: WS tick buffer (sub-minute resolution) ──
+            # Reads from AxiomPriceFeed's per-token tick deque (price-only,
+            # sub-second granularity). Candidates aren't pre-subscribed, so
+            # buffer is usually empty for first signal but populates on
+            # repeat encounters. Fail-open.
+            tick_features: dict = {}
+            if self.axiom_price_feed is not None:
+                try:
+                    ws30 = self.axiom_price_feed.get_tick_trend(token_address, 30)
+                    ws60 = self.axiom_price_feed.get_tick_trend(token_address, 60)
+                    ws120 = self.axiom_price_feed.get_tick_trend(token_address, 120)
+                    ws_count_30 = self.axiom_price_feed.get_tick_count(token_address, 30)
+                    ws_count_60 = self.axiom_price_feed.get_tick_count(token_address, 60)
+                    tick_features = {
+                        "ws_pc_30s":   round(ws30, 3) if ws30 is not None else None,
+                        "ws_pc_60s":   round(ws60, 3) if ws60 is not None else None,
+                        "ws_pc_120s":  round(ws120, 3) if ws120 is not None else None,
+                        "ws_ticks_30s": ws_count_30,
+                        "ws_ticks_60s": ws_count_60,
+                    }
+                    # Pre-subscribe so future encounters of this token have
+                    # buffered ticks. No-op if already subscribed.
+                    self.axiom_price_feed.subscribe_token(token_address)
+                except Exception as _e:
+                    logger.debug(f"[DipScanner] WS tick read error for {token_symbol}: {_e}")
+
             # ── Recent-trades capture ──
             # Fetch last ~30 trades to capture order-flow detail beyond the
             # aggregate bs_m5/bs_h1 ratios. Counts buys/sells, dollar volumes,
@@ -549,10 +705,58 @@ class DipScanner:
                 sells = [t for t in recent_trades if t.get("kind") == "sell"]
                 buys_usd = sum(t["volume_usd"] for t in buys)
                 sells_usd = sum(t["volume_usd"] for t in sells)
-                # last_10_dir: direction string of the 10 most-recent trades
-                # ("B" for buy, "S" for sell). Reverse so leftmost = oldest.
                 last10 = list(reversed(recent_trades[:10]))
                 last10_dir = "".join("B" if t.get("kind") == "buy" else "S" for t in last10)
+                # Tier 1 derivations on the same 30-trade fetch
+                buys_size = [t["volume_usd"] for t in buys]
+                sells_size = [t["volume_usd"] for t in sells]
+                rt_max_buy = max(buys_size) if buys_size else 0.0
+                rt_max_sell = max(sells_size) if sells_size else 0.0
+                rt_avg_buy = (sum(buys_size) / len(buys_size)) if buys_size else 0.0
+                rt_avg_sell = (sum(sells_size) / len(sells_size)) if sells_size else 0.0
+                # Consecutive sells at the END of the stream (recent first)
+                rt_consec_sells = 0
+                for t in recent_trades:
+                    if t.get("kind") == "sell":
+                        rt_consec_sells += 1
+                    else:
+                        break
+                # Consecutive buys at the END of the stream
+                rt_consec_buys = 0
+                for t in recent_trades:
+                    if t.get("kind") == "buy":
+                        rt_consec_buys += 1
+                    else:
+                        break
+                # Recent-skew: last 10 vs trades 11-30. If the LAST 10 are
+                # more sell-heavy than the older 20, distribution is
+                # accelerating. Positive = buys accelerating, negative = sells.
+                rt_recent_skew = 0.0
+                if len(recent_trades) >= 20:
+                    recent_b = sum(1 for t in recent_trades[:10] if t.get("kind") == "buy")
+                    older_b = sum(1 for t in recent_trades[10:] if t.get("kind") == "buy")
+                    older_n = len(recent_trades) - 10
+                    rt_recent_skew = (recent_b/10) - (older_b/older_n if older_n else 0)
+                # Sub-minute timing: parse timestamps to compute span and rate
+                rt_time_span_secs = 0.0
+                rt_trades_per_sec = 0.0
+                rt_secs_since_last = 0.0
+                try:
+                    from datetime import datetime as _dt, timezone as _tz
+                    times = []
+                    for t in recent_trades:
+                        ts = t.get("ts")
+                        if ts:
+                            try:
+                                times.append(_dt.fromisoformat(ts.replace("Z", "+00:00")).timestamp())
+                            except Exception:
+                                pass
+                    if len(times) >= 2:
+                        rt_time_span_secs = max(times) - min(times)
+                        rt_trades_per_sec = len(times) / rt_time_span_secs if rt_time_span_secs > 0 else 0.0
+                        rt_secs_since_last = max(0.0, _dt.now(_tz.utc).timestamp() - max(times))
+                except Exception:
+                    pass
                 recent_trades_features = {
                     "rt_n": len(recent_trades),
                     "rt_buys_n": len(buys),
@@ -564,6 +768,16 @@ class DipScanner:
                         if (buys_usd + sells_usd) > 0 else 0.0
                     ),
                     "last10_dir": last10_dir,
+                    "rt_max_buy_usd": round(rt_max_buy, 2),
+                    "rt_max_sell_usd": round(rt_max_sell, 2),
+                    "rt_avg_buy_usd": round(rt_avg_buy, 2),
+                    "rt_avg_sell_usd": round(rt_avg_sell, 2),
+                    "rt_consec_sells": rt_consec_sells,
+                    "rt_consec_buys": rt_consec_buys,
+                    "rt_recent_skew": round(rt_recent_skew, 3),
+                    "rt_time_span_secs": round(rt_time_span_secs, 1),
+                    "rt_trades_per_sec": round(rt_trades_per_sec, 3),
+                    "rt_secs_since_last": round(rt_secs_since_last, 1),
                 }
 
             # Batch 1 entry-meta — anything dip_scanner has at this moment that's
@@ -595,6 +809,9 @@ class DipScanner:
                 **m1_features,  # 1m candle features (or empty if fetch failed)
                 **range_features,  # 5m range features (or empty if fetch failed)
                 **recent_trades_features,  # last-30 trades direction (or empty)
+                **sol_features,  # SOL price context (or empty if fetch failed)
+                **jup_features,  # Jupiter quote asymmetry (or empty if failed)
+                **tick_features,  # WS tick buffer stats (or empty if no feed)
             }
 
             await self.trader.buy(

@@ -481,6 +481,11 @@ async def main():
                 require_vol_m5=config.dip_require_vol_m5,
                 min_turnover_h24=config.dip_min_turnover_h24,
             )
+            # Tier 3: wire AxiomPriceFeed for sub-minute tick buffer reads at
+            # signal-fire time. Optional — dip_scanner falls back to empty
+            # tick_features if axiom_price_feed is None.
+            if axiom is not None and getattr(axiom, "price_feed", None) is not None:
+                dip_scanner.axiom_price_feed = axiom.price_feed
             tasks.append(dip_scanner.run())
             logger.info(
                 f"[Main] DipScanner enabled — "
