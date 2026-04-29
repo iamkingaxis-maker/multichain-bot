@@ -495,6 +495,10 @@ def _apply_env_overrides(config: Config):
         config.dip_winner_trail_pct = env_float(
             "DIP_WINNER_TRAIL_PCT", config.dip_winner_trail_pct
         )
+    if os.environ.get("DIP_MAX_CONCURRENT"):
+        config.dip_max_concurrent = env_int(
+            "DIP_MAX_CONCURRENT", config.dip_max_concurrent
+        )
     if os.environ.get("SCALPER_ENABLED"):
         config.scalper_enabled = env_bool("SCALPER_ENABLED", config.scalper_enabled)
 
