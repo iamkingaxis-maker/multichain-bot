@@ -743,6 +743,26 @@ class Trader:
         if self._dashboard_paused:
             logger.info(f"[Trader] Buy blocked — dashboard pause active ({strategy}/{token_symbol})")
             return
+        # Trading-hours window (Central Time). Historical analysis shows
+        # 20-24 UTC (3-7pm CT) is the worst window: 66.7% WR / -$8/trade.
+        # Default 6-15 CT (~11-20 UTC, depending on DST) brackets the
+        # historical strong windows (8-12 UTC and 12-16 UTC, +$6-8/trade).
+        # Only gates new buys; sells/TPs/stops continue normally.
+        try:
+            _start_h = int(os.environ.get("TRADING_START_HOUR_CT", "6"))
+            _end_h = int(os.environ.get("TRADING_END_HOUR_CT", "15"))
+            from zoneinfo import ZoneInfo as _ZI
+            _now_ct = datetime.now(_ZI("America/Chicago"))
+            _h = _now_ct.hour
+            if not (_start_h <= _h < _end_h):
+                logger.info(
+                    f"[Trader] Buy blocked — outside trading window "
+                    f"(now {_now_ct.strftime('%H:%M CT')}, window {_start_h:02d}-{_end_h:02d}) "
+                    f"({strategy}/{token_symbol})"
+                )
+                return
+        except Exception as _tz_err:
+            logger.warning(f"[Trader] Trading-hours check failed (allowing buy): {_tz_err}")
         if self.kill_switch and self.kill_switch.is_active:
             logger.info(f"[Trader] Buy blocked — kill switch active ({self.kill_switch._kill_reason})")
             return
