@@ -524,6 +524,15 @@ class DipScanner:
             pair_age_hours = (now_ms - created_ms) / 3_600_000 if created_ms > 0 else 0.0
             peak_h24_6h = max((h for _, h in hist), default=pc_h24)
             cycles_seen = len(hist)
+            # Observational: high cycles_seen correlates with fast stops (50-100
+            # bucket: 50-62% WR, ~-$9/trade in our 127-trade dataset). Logged but
+            # not enforced — gathering live evidence before adding a hard filter.
+            if cycles_seen >= 60:
+                c["obs_high_cycles"] += 1
+                logger.warning(
+                    f"[DipScanner] OBSERVATIONAL: {token_symbol} cycles_seen={cycles_seen} "
+                    f"(>=60 historically -EV; not blocking)"
+                )
             txns_h1_total = b_h1 + s_h1
             avg_trade_size_h1 = (vol_h1 / txns_h1_total) if txns_h1_total > 0 else 0.0
             entry_meta_dict = {
@@ -565,6 +574,7 @@ class DipScanner:
                 "red_h24", "trend_reversal", "top_exhaustion", "no_dip", "h1_mid_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
                 "seller_h1_red_m5", "seller_pump", "no_1m_reversal", "m1_top_tick", "m1_false_bounce", "top_consolidation",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
+                "obs_high_cycles",
             ) if c[k]
         ) or "-"
         tr_log = ""
