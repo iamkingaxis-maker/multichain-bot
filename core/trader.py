@@ -436,7 +436,9 @@ class Trader:
                     peak_pnl_at_secs=int(d.get("peak_pnl_at_secs", 0)),
                     token_decimals=int(d.get("token_decimals", 6)),
                 )
-                self.open_positions[p.token_address] = p
+                # Dict keys are always lowercased; Position.token_address keeps
+                # the original-case mint for Jupiter/RPC calls.
+                self.open_positions[p.token_address.lower()] = p
             logger.info(f"[Trader] Restored {len(self.open_positions)} open positions from disk")
         except Exception as e:
             logger.warning(f"[Trader] _restore_open_positions failed: {e}")
@@ -970,8 +972,12 @@ class Trader:
                     )
                     return
 
+                # Preserve original-case mint on the Position — Solana base58
+                # is case-sensitive; lowercased mints are rejected by Jupiter
+                # and Solana RPC ("WrongSize" error).  Dict key stays lowercased
+                # for case-insensitive lookups.  See incident 2026-04-29.
                 position = Position(
-                    token_address=token_address.lower(),
+                    token_address=token_address,
                     token_symbol=token_symbol,
                     entry_price_usd=entry_price,
                     amount_tokens=tokens_received,
@@ -1066,9 +1072,10 @@ class Trader:
                 logger.error(f"Swap failed for {token_symbol} after 3 attempts")
                 return
 
-            # Record position
+            # Preserve original-case mint on Position.token_address — required
+            # for Jupiter/RPC sells (case-sensitive base58).  See 2026-04-29.
             position = Position(
-                token_address=token_address.lower(),
+                token_address=token_address,
                 token_symbol=token_symbol,
                 entry_price_usd=entry_price,
                 amount_tokens=amount_tokens,
@@ -1122,17 +1129,24 @@ class Trader:
 
     async def sell(self, token_address: str, token_symbol: str, reason: str, pct: float = 1.0):
         """Execute a sell order for a percentage of the position."""
-        token_address = token_address.lower()
-        position = self.open_positions.get(token_address)
+        # Use lowercased address ONLY for in-memory dict/set lookups.  External
+        # API calls (Jupiter, RPC, price feeds) MUST receive the original-case
+        # mint via position.token_address — Solana base58 is case-sensitive,
+        # and Jupiter rejects lowercased mints with HTTP 400 "WrongSize".
+        # Incident 2026-04-29: 19 hours of failed sells, 4 stranded positions.
+        addr_key = token_address.lower()
+        position = self.open_positions.get(addr_key)
         if not position:
             logger.warning(f"No position found for {token_symbol}")
             return
 
         # Prevent concurrent sells on the same token (race between CopyTrader and PositionManager)
-        if token_address in self._selling:
+        if addr_key in self._selling:
             logger.debug(f"[Trader] Sell already in progress for {token_symbol} — skipping duplicate")
             return
-        self._selling.add(token_address)
+        self._selling.add(addr_key)
+        # Use the canonical mint from the Position for any external call below.
+        token_address = position.token_address
 
         try:
             # ── PAPER TRADING MODE ────────────────────────────────────
@@ -1237,8 +1251,8 @@ class Trader:
                 max_drawdown_pct = round((_min_p / _entry - 1) * 100, 2) if _entry > 0 and _min_p > 0 else 0.0
 
                 if pct >= 1.0:
-                    del self.open_positions[token_address]
-                    self.reentry.previously_held.add(token_address.lower())
+                    del self.open_positions[addr_key]
+                    self.reentry.previously_held.add(addr_key)
                     self.reentry.save()
                     # Unsubscribe from real-time feeds when position fully closed
                     if self._axiom_price_feed is not None:
@@ -1348,8 +1362,8 @@ class Trader:
             max_drawdown_pct = round((_min_p / _entry - 1) * 100, 2) if _entry > 0 and _min_p > 0 else 0.0
 
             if pct >= 1.0:
-                del self.open_positions[token_address]
-                self.reentry.previously_held.add(token_address.lower())
+                del self.open_positions[addr_key]
+                self.reentry.previously_held.add(addr_key)
                 self.reentry.save()
                 if self._axiom_price_feed is not None:
                     self._axiom_price_feed.unsubscribe_token(token_address)
@@ -1389,7 +1403,7 @@ class Trader:
         except Exception as e:
             logger.error(f"Sell failed for {token_symbol}: {e}")
         finally:
-            self._selling.discard(token_address)
+            self._selling.discard(addr_key)
 
     async def _get_quote(self, input_mint: str, output_mint: str, amount: int,
                          slippage_bps: int = 100) -> Optional[dict]:
