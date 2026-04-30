@@ -157,7 +157,7 @@ class Config:
     dip_tp1_sell: float = 0.50
     dip_tp2_pct: float = 15.0             # TP2 at +15% — sell remaining 100%
     dip_tp2_sell: float = 1.0
-    dip_stop_pct: float = 15.0            # Hard stop at -15%
+    dip_stop_pct: float = 10.0            # Hard stop at -10% (was 15.0 — drawdown analysis Apr 19-30 showed 0 of 276 winners ever dipped past -14%; tightening to -10% kills only 3 winners, shrinks 18 stops by 33%; net +$247 historical)
     dip_winner_trail_pct: float = 3.5     # Trail 3.5% from peak after TP1 (was 5.0 — give-back analysis showed avg 8.4pp gap from peak vs intended 5pp due to slippage + tick lag; 3.5% recovers ~2pp/trail)
     dip_max_concurrent: int = 4           # Max simultaneous dip positions
     dip_min_txn_ratio_h6: float = 1.3     # require h6 buy/sell txn ratio >= 1.3 (blocks distribution: DUMBMONEY 1.11, SPIKE 1.20; passes WIFE 1.54, BULL 1.53)
