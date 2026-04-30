@@ -439,6 +439,19 @@ class Trader:
                 # Dict keys are always lowercased; Position.token_address keeps
                 # the original-case mint for Jupiter/RPC calls.
                 self.open_positions[p.token_address.lower()] = p
+            # Drop dust positions: amount_usd < $1 means a TP-bug or partial-sell
+            # residue. Cheaper to abandon than to swap for fractions of a cent.
+            _dust = [k for k, p in self.open_positions.items()
+                     if float(getattr(p, "amount_usd", 0) or 0) < 1.0]
+            for k in _dust:
+                _p = self.open_positions[k]
+                logger.warning(
+                    f"[Trader] Dust cleanup: dropping {_p.token_symbol} "
+                    f"(${float(getattr(_p,'amount_usd',0) or 0):.6f})"
+                )
+                del self.open_positions[k]
+            if _dust:
+                self._save_open_positions()
             logger.info(f"[Trader] Restored {len(self.open_positions)} open positions from disk")
         except Exception as e:
             logger.warning(f"[Trader] _restore_open_positions failed: {e}")

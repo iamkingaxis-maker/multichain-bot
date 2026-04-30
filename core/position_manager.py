@@ -431,6 +431,9 @@ class PositionManager:
                 _reason = getattr(pos, "reason", "")
                 _is_mc = "micro" in _reason.lower()
                 entry_px = getattr(pos, "entry_price_usd", 0)
+                # Restore TP flags from the persisted Position. Without this,
+                # a redeploy mid-position resets tp1_hit→False and re-fires
+                # Dip TP1 every cycle, halving the position repeatedly.
                 self._states[addr] = PositionState(
                     token_address=addr,
                     token_symbol=getattr(pos, "token_symbol", "?"),
@@ -443,6 +446,8 @@ class PositionManager:
                     reason=_reason,
                     is_micro_cap=_is_mc,
                     strategy=getattr(pos, "strategy", "scanner"),
+                    tp1_hit=bool(getattr(pos, "take_profit_1_hit", False)),
+                    tp2_hit=bool(getattr(pos, "take_profit_2_hit", False)),
                     current_price=entry_px,
                     peak_price=entry_px,
                     min_price_usd=entry_px,
@@ -1601,6 +1606,14 @@ class PositionManager:
                              pct: float, reason: str):
         """Execute a sell through the main trader."""
         try:
+            # Mirror state TP flags to Position before the sell. trader.sell()
+            # calls _save_open_positions() afterwards, so this is the persist
+            # point. Without it, state.tp1_hit (memory-only) is lost on restart
+            # and Dip TP1 re-fires, halving the position every redeploy.
+            _pos = self.open_positions_ref.get(token_address)
+            if _pos is not None:
+                _pos.take_profit_1_hit = bool(state.tp1_hit)
+                _pos.take_profit_2_hit = bool(state.tp2_hit)
             await self.trader.sell(
                 token_address=token_address,
                 token_symbol=state.token_symbol,
