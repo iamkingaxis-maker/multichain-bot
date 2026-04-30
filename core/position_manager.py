@@ -1449,6 +1449,32 @@ class PositionManager:
         else:
             stop_pct = self.mc_stop_loss_pct if state.is_micro_cap else self.stop_loss_pct
 
+        # Track min/peak even if no stop fires — needed for accurate
+        # max_drawdown_pct and peak_pnl_pct on every sell. Without this,
+        # the realtime path bypasses _update_price's min/peak tracking and
+        # stops look like they had 0% drawdown on the trade record (a
+        # surprising number of historical stops show max_dd=0 because of
+        # this — the stop fired between poll cycles).
+        if state.min_price_usd <= 0 or price_usd < state.min_price_usd:
+            state.min_price_usd = price_usd
+        if price_usd > state.peak_price:
+            state.peak_price = price_usd
+        # Sync to the persisted Position so trader.sell sees current values.
+        _tp = self.open_positions_ref.get(token_address)
+        if _tp is not None:
+            _tp.current_price_usd = price_usd
+            if state.min_price_usd > 0:
+                _tp.min_price_usd = state.min_price_usd
+            # Mirror _update_price's peak_pnl_pct tracking for stops that
+            # fire between poll cycles (briefly-green-then-dumped trades).
+            _prev_peak = getattr(_tp, "peak_pnl_pct", 0.0) or 0.0
+            if pnl_pct > _prev_peak:
+                _tp.peak_pnl_pct = pnl_pct
+                _entry_mono = getattr(_tp, "entry_time_monotonic", 0) or 0
+                _tp.peak_pnl_at_secs = (
+                    int(time.monotonic() - _entry_mono) if _entry_mono > 0 else 0
+                )
+
         if pnl_pct <= -stop_pct:
             self._stop_triggered.add(token_address)
             state.current_price = price_usd
