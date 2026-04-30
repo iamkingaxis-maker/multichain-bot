@@ -81,6 +81,11 @@ class Position:
     # pump.fun tokens are 6 decimals, most SPL tokens are 9.  Hardcoding 1e9 caused
     # a 1000× off-by-decimals bug on the first live buy (TripleT 2026-04-28).
     token_decimals: int = 6
+    # Hold-time pnl snapshots — populated by PositionManager when age crosses
+    # 30/60/90/120 min thresholds. Used for "stale exit" calibration: 12-day
+    # history shows trades held >60min are net −$1090 in aggregate, but we
+    # need per-trade trajectory data to design a conditional exit safely.
+    hold_pnl_snapshots: Optional[dict] = None  # {"30m": -2.1, "60m": +0.3, ...}
 
 
 _DATA_DIR = os.environ.get("DATA_DIR", ".")
@@ -381,6 +386,7 @@ class Trader:
                     "peak_pnl_pct": p.peak_pnl_pct,
                     "peak_pnl_at_secs": p.peak_pnl_at_secs,
                     "token_decimals": p.token_decimals,
+                    "hold_pnl_snapshots": p.hold_pnl_snapshots or {},
                 })
             tmp = _OPEN_POSITIONS_FILE + ".tmp"
             with open(tmp, "w") as f:
@@ -435,6 +441,7 @@ class Trader:
                     peak_pnl_pct=float(d.get("peak_pnl_pct", 0.0)),
                     peak_pnl_at_secs=int(d.get("peak_pnl_at_secs", 0)),
                     token_decimals=int(d.get("token_decimals", 6)),
+                    hold_pnl_snapshots=dict(d.get("hold_pnl_snapshots") or {}),
                 )
                 # Dict keys are always lowercased; Position.token_address keeps
                 # the original-case mint for Jupiter/RPC calls.
@@ -1328,7 +1335,8 @@ class Trader:
                 )
                 _entry_mono = getattr(position, "entry_time_monotonic", 0)
                 _hold_secs = round(time.monotonic() - _entry_mono) if _entry_mono > 0 else 0
-                self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=getattr(position, "entry_meta", None) or {}, peak_pnl_pct=getattr(position, "peak_pnl_pct", 0.0) or 0.0, peak_pnl_at_secs=getattr(position, "peak_pnl_at_secs", 0) or 0, exit_bs_h1=getattr(position, "current_bs_h1", 0.0) or 0.0, exit_bs_m5=getattr(position, "current_bs_m5", 0.0) or 0.0, realized_slippage_pct=round(float(impact_pct or 0), 4))
+                _em_with_snaps = {**(getattr(position, "entry_meta", None) or {}), "hold_pnl_snapshots": getattr(position, "hold_pnl_snapshots", None) or {}}
+                self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=_em_with_snaps, peak_pnl_pct=getattr(position, "peak_pnl_pct", 0.0) or 0.0, peak_pnl_at_secs=getattr(position, "peak_pnl_at_secs", 0) or 0, exit_bs_h1=getattr(position, "current_bs_h1", 0.0) or 0.0, exit_bs_m5=getattr(position, "current_bs_m5", 0.0) or 0.0, realized_slippage_pct=round(float(impact_pct or 0), 4))
                 logger.info(
                     f"{emoji} [PAPER] Sold {pct*100:.0f}% of {token_symbol} — "
                     f"PnL: ${pnl:+.2f} | Impact: {impact_pct:.2f}% | Source: {price_source}"
@@ -1436,7 +1444,8 @@ class Trader:
             # _execute_swap.  SOL-output sells are noisy (gas confounds the delta);
             # values here include gas as a small additive ~0.1%.
             _realized = round(float(self._last_realized_slippage_pct or 0.0), 4)
-            self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=getattr(position, "entry_meta", None) or {}, peak_pnl_pct=getattr(position, "peak_pnl_pct", 0.0) or 0.0, peak_pnl_at_secs=getattr(position, "peak_pnl_at_secs", 0) or 0, exit_bs_h1=getattr(position, "current_bs_h1", 0.0) or 0.0, exit_bs_m5=getattr(position, "current_bs_m5", 0.0) or 0.0, realized_slippage_pct=_realized)
+            _em_with_snaps = {**(getattr(position, "entry_meta", None) or {}), "hold_pnl_snapshots": getattr(position, "hold_pnl_snapshots", None) or {}}
+            self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=_em_with_snaps, peak_pnl_pct=getattr(position, "peak_pnl_pct", 0.0) or 0.0, peak_pnl_at_secs=getattr(position, "peak_pnl_at_secs", 0) or 0, exit_bs_h1=getattr(position, "current_bs_h1", 0.0) or 0.0, exit_bs_m5=getattr(position, "current_bs_m5", 0.0) or 0.0, realized_slippage_pct=_realized)
             logger.info(f"{emoji} Sold {pct*100:.0f}% of {token_symbol} — PnL: ${pnl:+.0f} | realized_slip={_realized:+.3f}%")
             return {"ok": True, "reason": "sold", "pnl_usd": round(pnl, 2)}
 

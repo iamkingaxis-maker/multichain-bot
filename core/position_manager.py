@@ -731,6 +731,18 @@ class PositionManager:
                     tp.peak_pnl_at_secs = (
                         int(time.monotonic() - entry_mono) if entry_mono > 0 else 0
                     )
+                # Hold-time pnl snapshots — capture once per threshold crossing
+                # so we can validate stale-exit hypotheses on forward data.
+                _age_s = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
+                if tp.hold_pnl_snapshots is None:
+                    tp.hold_pnl_snapshots = {}
+                for _label, _thresh_s in (("30m", 1800), ("60m", 3600), ("90m", 5400), ("120m", 7200)):
+                    if _age_s >= _thresh_s and _label not in tp.hold_pnl_snapshots:
+                        tp.hold_pnl_snapshots[_label] = round(pnl_pct, 2)
+                        logger.info(
+                            f"[PositionManager/{self.chain_name}] ⏱ HOLD SNAPSHOT: "
+                            f"{state.token_symbol} @ {_label} pnl={pnl_pct:+.1f}%"
+                        )
 
         # Set entry volume baseline on first update
         if state.entry_volume_usd == 0 and volume_h1 > 0:
