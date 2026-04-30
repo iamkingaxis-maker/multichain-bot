@@ -1039,6 +1039,30 @@ class PositionManager:
                 self.stop_loss_hits += 1
                 return
 
+            # ── DIP PRE-TP1 TRAIL — exit if peaked ≥3% then retraces 3.5% ─
+            # Catches trades that briefly went green but reversed before TP1
+            # (+8%) — backtest Apr 25-30 showed 4 such stops avg −$58 each
+            # would have exited near breakeven instead, +$259 net over 6 days.
+            # Only fires pre-TP1 (post-TP1 has its own trail below).
+            _DIP_PRE_TP1_MIN_PEAK = 3.0
+            _DIP_PRE_TP1_TRAIL    = 3.5
+            if (not state.tp1_hit and state.peak_price > 0 and state.entry_price > 0):
+                _peak_gain_pct = (state.peak_price - state.entry_price) / state.entry_price * 100
+                if (_peak_gain_pct >= _DIP_PRE_TP1_MIN_PEAK
+                        and state.current_price <= state.peak_price * (1 - _DIP_PRE_TP1_TRAIL / 100)):
+                    drop_from_peak = (state.peak_price - state.current_price) / state.peak_price * 100
+                    logger.info(
+                        f"[PositionManager/{self.chain_name}] 🔒 DIP PRE-TP1 TRAIL: "
+                        f"{state.token_symbol} peaked +{_peak_gain_pct:.1f}%, "
+                        f"-{drop_from_peak:.1f}% from peak"
+                    )
+                    await self._execute_sell(
+                        token_address, state,
+                        pct=1.0,
+                        reason=f"Dip pre-TP1 trail -{drop_from_peak:.1f}% (peak +{_peak_gain_pct:.1f}%)"
+                    )
+                    return
+
             # ── DIP WINNER TRAIL — after TP1, trail 5% from peak ─────
             if (state.tp1_hit
                     and state.peak_price > 0
