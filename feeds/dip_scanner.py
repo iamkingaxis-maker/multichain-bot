@@ -819,6 +819,33 @@ class DipScanner:
                 + (f" reasons={','.join(_filter_a_block_reasons)}" if _filter_a_block_reasons else "")
             )
 
+            # Filter 1M — SHADOW MODE: tests whether 1-minute momentum signals
+            # explain the time-of-day P&L pattern. Hour-of-day analysis showed
+            # 8am+12pm CT lose money; comparing those entries to 9-11am+1pm CT
+            # entries showed bad-hour entries had:
+            #   - 1m_cum_3min_pct median -1.10% vs good -0.48% (steeper decline)
+            #   - 1m_volume_spike median 0.38 vs good 0.63 (volume dying)
+            # Hypothesis: bad hours are bad because of low-liquidity noise
+            # producing fake dips, not the clock itself. If we filter on the
+            # 1m signals directly, time-of-day stops mattering. Sample is small
+            # (6 vs 17 with meta) — shadow first, validate forward.
+            _m1_cum = m1_features.get("1m_cum_3min_pct")
+            _m1_vol_spike = m1_features.get("1m_volume_spike")
+            _filter_1m_block_reasons = []
+            if _m1_cum is not None and _m1_cum < -1.0:
+                _filter_1m_block_reasons.append(f"1m_cum3={_m1_cum:.2f}%<-1.0%")
+            if _m1_vol_spike is not None and _m1_vol_spike < 0.40:
+                _filter_1m_block_reasons.append(f"1m_vol_spike={_m1_vol_spike:.2f}<0.40")
+            _filter_1m_verdict = "BLOCK" if _filter_1m_block_reasons else "PASS"
+            c[f"filter_1m_{_filter_1m_verdict.lower()}"] = c.get(f"filter_1m_{_filter_1m_verdict.lower()}", 0) + 1
+            logger.info(
+                f"[DipScanner] FILTER_1M_SHADOW: {token_symbol} "
+                f"1m_cum3={_m1_cum if _m1_cum is not None else 'n/a'} "
+                f"1m_vol_spike={_m1_vol_spike if _m1_vol_spike is not None else 'n/a'} "
+                f"verdict={_filter_1m_verdict}"
+                + (f" reasons={','.join(_filter_1m_block_reasons)}" if _filter_1m_block_reasons else "")
+            )
+
             txns_h1_total = b_h1 + s_h1
             avg_trade_size_h1 = (vol_h1 / txns_h1_total) if txns_h1_total > 0 else 0.0
             entry_meta_dict = {
@@ -830,6 +857,8 @@ class DipScanner:
                 # would-have-been-blocked P&L deltas after each session.
                 "filter_a_verdict": _filter_a_verdict,
                 "filter_a_block_reasons": _filter_a_block_reasons,
+                "filter_1m_verdict": _filter_1m_verdict,
+                "filter_1m_block_reasons": _filter_1m_block_reasons,
                 "h24_ratio_to_peak": (pc_h24 / peak_h24_6h) if peak_h24_6h > 0 else 1.0,
                 "cycles_seen_before_buy": cycles_seen,
                 "avg_trade_size_h1_usd": avg_trade_size_h1,
