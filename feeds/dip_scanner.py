@@ -794,12 +794,42 @@ class DipScanner:
                     f"[DipScanner] OBSERVATIONAL: {token_symbol} cycles_seen={cycles_seen} "
                     f"(>=60 historically -EV; not blocking)"
                 )
+
+            # Filter A — SHADOW MODE: log verdict, do not block. After ~1 week
+            # of forward data we can decide whether to enforce. Bounds derived
+            # from per-token economics analysis Apr 25-30 (114 trades): bad
+            # tokens (mexicanunc, BELKA, HENRY, etc) had 81% of trades with
+            # liq outside [$167k,$967k] and 74% with peak > 200%; the bounds
+            # cover Apr 28 (95% WR) winner distribution intact.
+            _liq_for_filter = float(liq_usd or 0)
+            _peak_for_filter = float(peak_h24_6h)
+            _filter_a_block_reasons = []
+            if _liq_for_filter < 167_000:
+                _filter_a_block_reasons.append(f"liq=${_liq_for_filter/1000:.0f}k<167k")
+            elif _liq_for_filter > 967_000:
+                _filter_a_block_reasons.append(f"liq=${_liq_for_filter/1000:.0f}k>967k")
+            if _peak_for_filter > 200:
+                _filter_a_block_reasons.append(f"peak={_peak_for_filter:.0f}%>200%")
+            _filter_a_verdict = "BLOCK" if _filter_a_block_reasons else "PASS"
+            c[f"filter_a_{_filter_a_verdict.lower()}"] = c.get(f"filter_a_{_filter_a_verdict.lower()}", 0) + 1
+            logger.info(
+                f"[DipScanner] FILTER_A_SHADOW: {token_symbol} "
+                f"liq=${_liq_for_filter/1000:.0f}k peak={_peak_for_filter:.0f}% "
+                f"verdict={_filter_a_verdict}"
+                + (f" reasons={','.join(_filter_a_block_reasons)}" if _filter_a_block_reasons else "")
+            )
+
             txns_h1_total = b_h1 + s_h1
             avg_trade_size_h1 = (vol_h1 / txns_h1_total) if txns_h1_total > 0 else 0.0
             entry_meta_dict = {
                 "liquidity_usd": float(liq_usd or 0),
                 "protocol": pair.get("dexId", "") or "",
                 "peak_h24_6h_pct": float(peak_h24_6h),
+                # Filter A shadow verdict — not enforced, used for forward
+                # validation. Trades record this, so we can compute the
+                # would-have-been-blocked P&L deltas after each session.
+                "filter_a_verdict": _filter_a_verdict,
+                "filter_a_block_reasons": _filter_a_block_reasons,
                 "h24_ratio_to_peak": (pc_h24 / peak_h24_6h) if peak_h24_6h > 0 else 1.0,
                 "cycles_seen_before_buy": cycles_seen,
                 "avg_trade_size_h1_usd": avg_trade_size_h1,
