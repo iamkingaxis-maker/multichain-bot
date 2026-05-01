@@ -1511,6 +1511,7 @@ class WebDashboard:
         self.app.router.add_post("/api/update-axiom-token", self._handle_update_axiom_token)
         self.app.router.add_post("/api/axiom-relay",        self._handle_axiom_relay)
         self.app.router.add_post("/api/reset",              self._handle_reset)
+        self.app.router.add_post("/api/reset-daily-pnl",     self._handle_reset_daily_pnl)
         self.app.router.add_get("/api/closed-positions",   self._handle_closed_positions)
         self.app.router.add_get("/api/mc-recommendations", self._handle_mc_recommendations)
         self.app.router.add_post("/api/pause",              self._handle_pause)
@@ -2197,6 +2198,43 @@ class WebDashboard:
             pass
         return web.Response(
             text=json.dumps({"ok": True, "message": "Trade history and capital reset"}),
+            content_type="application/json", headers=cors,
+        )
+
+    async def _handle_reset_daily_pnl(self, request):
+        """POST /api/reset-daily-pnl — zero ONLY the daily P&L gate without
+        touching trades, capital, or total_pnl. Used to keep the bot from
+        pausing on the daily-loss-limit during multi-day forward tests where
+        we want to preserve trade history for analysis.
+        Body: {"secret": "..."}
+        """
+        import os as _os
+        cors = {"Access-Control-Allow-Origin": "*"}
+        expected_secret = _os.environ.get("TOKEN_UPDATE_SECRET", "changeme")
+        try:
+            body = await request.json()
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        if body.get("secret") != expected_secret:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Unauthorized"}),
+                status=401, content_type="application/json", headers=cors,
+            )
+        rm = getattr(self._trader, "risk_manager", None) if self._trader else None
+        if rm is None:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "RiskManager not available"}),
+                status=500, content_type="application/json", headers=cors,
+            )
+        prior = rm.daily_pnl
+        rm.daily_pnl = 0.0
+        rm._save_state()
+        logger.info(f"[Reset-Daily-PnL] daily_pnl ${prior:+.2f} → $0.00 (trades/capital untouched)")
+        return web.Response(
+            text=json.dumps({"ok": True, "prior_daily_pnl": round(prior, 2), "new_daily_pnl": 0.0}),
             content_type="application/json", headers=cors,
         )
 
