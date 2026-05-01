@@ -489,6 +489,39 @@ class Trader:
             logger.debug(f"[Trader] _get_token_decimals failed for {mint[:8]}…: {e}")
         return 6  # fallback: pump.fun is the most common case
 
+    async def _snapshot_sell_time_meta(self, position) -> Dict[str, float]:
+        """
+        Capture sell-time analytics that the original entry_meta couldn't have:
+        a fresh top10_holder_pct snapshot and the delta vs entry. Called at
+        sell time. Fail-soft (returns empty dict on any error).
+        """
+        out: Dict[str, float] = {}
+        try:
+            mint = getattr(position, "token_address", "") or ""
+            if not mint or self._security_checker is None:
+                return out
+            _rc_full = await self._security_checker._fetch_rugcheck_full(mint)
+            if not isinstance(_rc_full, dict):
+                return out
+            _LP_TAGS = {"lp", "liquidity", "liquiditypool", "pool", "amm", "bonding curve"}
+            th = _rc_full.get("topHolders") or []
+            if isinstance(th, list) and th:
+                real = [
+                    h for h in th
+                    if isinstance(h, dict)
+                    and h.get("insider", False) is not True
+                    and (h.get("tag", "") or "").lower().strip() not in _LP_TAGS
+                ]
+                top10_now = sum(float(h.get("pct", 0) or 0) for h in real[:10])
+                out["top10_holder_pct_at_sell"] = round(top10_now, 2)
+                em = getattr(position, "entry_meta", None) or {}
+                top10_buy = em.get("top10_holder_pct")
+                if top10_buy is not None:
+                    out["top10_holder_delta"] = round(top10_now - float(top10_buy), 2)
+        except Exception:
+            pass
+        return out
+
     async def _get_token_balance_atomic(self, mint: str) -> int:
         """
         Query wallet's atomic-units balance of a given SPL token mint.  Returns
@@ -860,13 +893,22 @@ class Trader:
                     pass  # fail-open — never block a buy due to rugcheck API failure
 
             # Capture holder-concentration + sol_price for entry_meta (analytics).
-            # Reuses the rugcheck response we already fetched.  Fail-soft on every
-            # field — analytics nice-to-have, never blocks a buy.
+            # `_fetch_rugcheck` uses `/report/summary` which does NOT include
+            # topHolders or creator_address; for analytics we fetch the FULL
+            # `/report` endpoint here (~200ms extra, fail-soft).  This was a
+            # known gap: top10_holder_pct was 0/132 in trade history before
+            # this fix.
             _buy_time_meta: Dict[str, float] = {}
+            _rc_full: Optional[dict] = None
+            if self._security_checker is not None and strategy != "graduation":
+                try:
+                    _rc_full = await self._security_checker._fetch_rugcheck_full(token_address)
+                except Exception:
+                    _rc_full = None
             try:
-                if _rc and isinstance(_rc, dict):
+                if _rc_full and isinstance(_rc_full, dict):
                     _LP_TAGS = {"lp", "liquidity", "liquiditypool", "pool", "amm", "bonding curve"}
-                    th = _rc.get("topHolders") or []
+                    th = _rc_full.get("topHolders") or []
                     if isinstance(th, list) and th:
                         real = [
                             h for h in th
@@ -878,14 +920,14 @@ class Trader:
                         top10 = sum(float(h.get("pct", 0) or 0) for h in real[:10])
                         _buy_time_meta["top10_holder_pct"] = round(top10, 2)
                     # Rugcheck creator field is `creator_address` (per honeypot.py:568).
-                    creator = (_rc.get("creator_address") or "").lower()
+                    creator = (_rc_full.get("creator_address") or "").lower()
                     if creator:
                         # Two list shapes:
                         #   `holders`     uses `percent` as a 0..1 FRACTION (×100 to %)
                         #   `topHolders`  uses `pct` as a 0..100 PERCENT directly
                         # Address may be in either `account` or `address`.
                         dev_pct = None
-                        full_holders = _rc.get("holders") or []
+                        full_holders = _rc_full.get("holders") or []
                         if isinstance(full_holders, list):
                             for h in full_holders:
                                 if not isinstance(h, dict):
@@ -1335,7 +1377,8 @@ class Trader:
                 )
                 _entry_mono = getattr(position, "entry_time_monotonic", 0)
                 _hold_secs = round(time.monotonic() - _entry_mono) if _entry_mono > 0 else 0
-                _em_with_snaps = {**(getattr(position, "entry_meta", None) or {}), "hold_pnl_snapshots": getattr(position, "hold_pnl_snapshots", None) or {}}
+                _sell_meta = await self._snapshot_sell_time_meta(position)
+                _em_with_snaps = {**(getattr(position, "entry_meta", None) or {}), "hold_pnl_snapshots": getattr(position, "hold_pnl_snapshots", None) or {}, **_sell_meta}
                 self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=_em_with_snaps, peak_pnl_pct=getattr(position, "peak_pnl_pct", 0.0) or 0.0, peak_pnl_at_secs=getattr(position, "peak_pnl_at_secs", 0) or 0, exit_bs_h1=getattr(position, "current_bs_h1", 0.0) or 0.0, exit_bs_m5=getattr(position, "current_bs_m5", 0.0) or 0.0, realized_slippage_pct=round(float(impact_pct or 0), 4))
                 logger.info(
                     f"{emoji} [PAPER] Sold {pct*100:.0f}% of {token_symbol} — "
@@ -1475,7 +1518,8 @@ class Trader:
             # _execute_swap.  SOL-output sells are noisy (gas confounds the delta);
             # values here include gas as a small additive ~0.1%.
             _realized = round(float(self._last_realized_slippage_pct or 0.0), 4)
-            _em_with_snaps = {**(getattr(position, "entry_meta", None) or {}), "hold_pnl_snapshots": getattr(position, "hold_pnl_snapshots", None) or {}}
+            _sell_meta = await self._snapshot_sell_time_meta(position)
+            _em_with_snaps = {**(getattr(position, "entry_meta", None) or {}), "hold_pnl_snapshots": getattr(position, "hold_pnl_snapshots", None) or {}, **_sell_meta}
             self.tracker.record_sell(token_address, usd_received, pnl, reason, pnl_pct=round(pnl_pct, 2), max_drawdown_pct=max_drawdown_pct, hold_secs=_hold_secs, entry_market_cap_usd=getattr(position, "entry_market_cap_usd", 0.0), entry_age_hours=getattr(position, "entry_age_hours", 0.0), entry_volume_h1_usd=getattr(position, "entry_volume_h1_usd", 0.0), pair_address=getattr(position, "pair_address", "") or "", entry_meta=_em_with_snaps, peak_pnl_pct=getattr(position, "peak_pnl_pct", 0.0) or 0.0, peak_pnl_at_secs=getattr(position, "peak_pnl_at_secs", 0) or 0, exit_bs_h1=getattr(position, "current_bs_h1", 0.0) or 0.0, exit_bs_m5=getattr(position, "current_bs_m5", 0.0) or 0.0, realized_slippage_pct=_realized)
             logger.info(f"{emoji} Sold {pct*100:.0f}% of {token_symbol} — PnL: ${pnl:+.0f} | realized_slip={_realized:+.3f}%")
             return {"ok": True, "reason": "sold", "pnl_usd": round(pnl, 2)}

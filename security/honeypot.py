@@ -319,6 +319,33 @@ class SecurityChecker:
             logger.debug(f"Rugcheck fetch error: {e}")
             return None
 
+    async def _fetch_rugcheck_full(self, mint: str) -> Optional[dict]:
+        """
+        Fetch the FULL rugcheck report (`/report` endpoint, not `/report/summary`).
+        Used for analytics fields the summary endpoint doesn't include:
+        `topHolders` (with pct + tag + insider flags) and `creator_address`.
+
+        Same address-validation as `_fetch_rugcheck`. Slightly larger payload
+        (~5-10kb vs ~1kb) and slightly slower; called only at buy/sell time
+        where the extra ~200ms is acceptable. Fail-soft (returns None on error)
+        so analytics gaps never block a trade.
+        """
+        if not self._BASE58_RE.match(mint):
+            return None
+        if self._b58_decoded_length(mint) != 32:
+            return None
+        url = f"{RUGCHECK_API}/tokens/{mint}/report"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url, timeout=aiohttp.ClientTimeout(total=5)
+                ) as resp:
+                    if resp.status != 200:
+                        return None
+                    return await resp.json()
+        except (asyncio.TimeoutError, Exception):
+            return None
+
     def _parse_rugcheck(self, data: dict, result: SecurityResult, micro_cap: bool = False,
                         bonding_curve: bool = False, pumpswap: bool = False):
         """Parse Rugcheck.xyz summary response into SecurityResult."""
