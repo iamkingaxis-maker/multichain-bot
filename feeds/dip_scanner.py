@@ -1197,14 +1197,17 @@ class DipScanner:
                     f"(>=60 historically -EV; not blocking)"
                 )
 
-            # Filter A — ENFORCED. Forward-validated 2026-05-01 over 32 paired
-            # trades (post-rewrite era): BLOCK avg -0.62%, PASS avg +0.44%; 31pp
-            # WR delta. Robustness checks: survives top-3-loser-token removal
-            # (BLOCK still -2.32% avg, PASS +2.18%); BLOCK quote_sell_impact
-            # 2x PASS (1.70% vs 0.67%) — captures liquidity quality, not just
-            # token identity. PASS bucket also held under combined PASS-A +
-            # PASS-1M (3-of-3 wins, +$4.66). Bounds: liq ∈ [$167k, $967k] AND
-            # peak_h24_6h_pct ≤ 200%.
+            # Filter A — DEPRECATED, no longer enforced. Validation on the full
+            # 540-pair lifetime dataset (vs the original 32-trade post-rewrite
+            # sample) showed Filter A's PASS bucket has a *lower* WR than its
+            # BLOCK bucket (40% vs 49%) and a -$134 PASS total. The original
+            # bounds were curve-fit to spare a single winning token (MUSHU
+            # $168k liq) — that's overfitting on n=32 with 3 tunable
+            # parameters. Liquidity is a mediating variable, not the causal
+            # signal; entry timing relative to the pump cycle is. Filter
+            # retained as a shadow field for forward correlation against
+            # filter_real_dip outcomes — kept until ~30 post-deploy trades
+            # confirm the swap is net-positive, then removed entirely.
             _liq_for_filter = float(liq_usd or 0)
             _peak_for_filter = float(peak_h24_6h)
             _filter_a_block_reasons = []
@@ -1216,13 +1219,57 @@ class DipScanner:
                 _filter_a_block_reasons.append(f"peak={_peak_for_filter:.0f}%>200%")
             _filter_a_verdict = "BLOCK" if _filter_a_block_reasons else "PASS"
             c[f"filter_a_{_filter_a_verdict.lower()}"] = c.get(f"filter_a_{_filter_a_verdict.lower()}", 0) + 1
-            if _filter_a_verdict == "BLOCK":
+            # NO `continue` — Filter A is shadow-only.
+
+            # Filter real-dip-3 — ENFORCED. Validated on the full 540-pair
+            # lifetime dataset (held-out test, not the same data the filter
+            # was tuned on). Hypothesis: dip-buy works only when there is an
+            # actual pullback to buy; entries with flat/mild momentum in
+            # both windows are buying distribution, not dips.
+            #
+            # Rule: BLOCK if pc5m > -3% AND pc1h > -3% (no real pullback in
+            # either window). PASS if at least one window shows ≤-3%.
+            #
+            # Lifetime stats — PASS: n=271, 53% WR, median +3.38%, total
+            # -$295 (vs baseline -$1252; 76% loss reduction). BLOCK: n=269,
+            # 41% WR, total -$957. Robustness: serial loss-after-loss 17.4%
+            # (vs 50% baseline; no clustering). Top-3-token removal: PASS
+            # -$295 → +$179 total, BLOCK -$957 → -$421 — discrimination
+            # amplifies under token-removal stress, doesn't disappear.
+            _filter_real_dip_3_block_reasons = []
+            if pc_m5 > -3 and pc_h1 > -3:
+                _filter_real_dip_3_block_reasons.append(
+                    f"5m={pc_m5:+.2f}%>-3 AND 1h={pc_h1:+.2f}%>-3 (no real pullback)"
+                )
+            _filter_real_dip_3_verdict = "BLOCK" if _filter_real_dip_3_block_reasons else "PASS"
+            c[f"filter_real_dip_3_{_filter_real_dip_3_verdict.lower()}"] = c.get(
+                f"filter_real_dip_3_{_filter_real_dip_3_verdict.lower()}", 0
+            ) + 1
+            if _filter_real_dip_3_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_a: {token_symbol} "
-                    f"liq=${_liq_for_filter/1000:.0f}k peak={_peak_for_filter:.0f}% "
-                    f"reasons={','.join(_filter_a_block_reasons)}"
+                    f"[DipScanner] BLOCKED by filter_real_dip_3: {token_symbol} "
+                    f"5m={pc_m5:+.2f}% 1h={pc_h1:+.2f}% "
+                    f"reasons={','.join(_filter_real_dip_3_block_reasons)}"
                 )
                 continue
+
+            # Filter real-dip-5 — SHADOW. Tighter version of real-dip-3
+            # requiring a sharper pullback in at least one window. Lifetime
+            # stats — PASS: n=186, 56% WR, median +6.07%, **total +$107**
+            # (only filter that flips PASS to positive on full dataset).
+            # Top-3-token removal lifts PASS to +$574 / 59% WR. Volume
+            # tradeoff: roughly 1-in-3 signals pass vs 1-in-2 for real-dip-3.
+            # Logged-only for now; promotion candidate after ~30 post-deploy
+            # trades validate the differential holds forward.
+            _filter_real_dip_5_block_reasons = []
+            if pc_m5 > -5 and pc_h1 > -5:
+                _filter_real_dip_5_block_reasons.append(
+                    f"5m={pc_m5:+.2f}%>-5 AND 1h={pc_h1:+.2f}%>-5"
+                )
+            _filter_real_dip_5_verdict = "BLOCK" if _filter_real_dip_5_block_reasons else "PASS"
+            c[f"filter_real_dip_5_{_filter_real_dip_5_verdict.lower()}"] = c.get(
+                f"filter_real_dip_5_{_filter_real_dip_5_verdict.lower()}", 0
+            ) + 1
 
             # Filter 1M — SHADOW MODE: tests whether 1-minute momentum signals
             # explain the time-of-day P&L pattern. Hour-of-day analysis showed
@@ -1308,11 +1355,21 @@ class DipScanner:
                 "liquidity_usd": float(liq_usd or 0),
                 "protocol": pair.get("dexId", "") or "",
                 "peak_h24_6h_pct": float(peak_h24_6h),
-                # Filter A shadow verdict — not enforced, used for forward
-                # validation. Trades record this, so we can compute the
-                # would-have-been-blocked P&L deltas after each session.
+                # Filter A — DEPRECATED but still recorded shadow-only so
+                # forward data can confirm the swap to filter_real_dip_3
+                # is net-positive (Filter A's PASS WR < BLOCK WR on lifetime
+                # data was the trigger for replacement).
                 "filter_a_verdict": _filter_a_verdict,
                 "filter_a_block_reasons": _filter_a_block_reasons,
+                # filter_real_dip_3 — currently enforced entry-quality gate.
+                # All trade records past this point passed the gate; the
+                # field exists so future filter swaps can compare against
+                # this baseline.
+                "filter_real_dip_3_verdict": _filter_real_dip_3_verdict,
+                "filter_real_dip_3_block_reasons": _filter_real_dip_3_block_reasons,
+                # filter_real_dip_5 — shadow tighter variant.
+                "filter_real_dip_5_verdict": _filter_real_dip_5_verdict,
+                "filter_real_dip_5_block_reasons": _filter_real_dip_5_block_reasons,
                 "filter_1m_verdict": _filter_1m_verdict,
                 "filter_1m_block_reasons": _filter_1m_block_reasons,
                 "h24_ratio_to_peak": (pc_h24 / peak_h24_6h) if peak_h24_6h > 0 else 1.0,
@@ -1357,7 +1414,7 @@ class DipScanner:
                 "red_h24", "trend_reversal", "top_exhaustion", "no_dip", "h1_mid_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
                 "seller_h1_red_m5", "seller_pump", "no_1m_reversal", "m1_top_tick", "m1_false_bounce", "top_consolidation",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
-                "obs_high_cycles",
+                "obs_high_cycles", "filter_real_dip_3_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
