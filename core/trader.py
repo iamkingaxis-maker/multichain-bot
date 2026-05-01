@@ -86,6 +86,10 @@ class Position:
     # history shows trades held >60min are net −$1090 in aggregate, but we
     # need per-trade trajectory data to design a conditional exit safely.
     hold_pnl_snapshots: Optional[dict] = None  # {"30m": -2.1, "60m": +0.3, ...}
+    # Mid-hold top10_holder_pct snapshots — sampled at the same age thresholds
+    # as hold_pnl_snapshots. Lets us measure distribution velocity (entry ->
+    # 30m -> 60m -> ... -> exit) instead of just entry-to-exit delta.
+    holder_snapshots: Optional[dict] = None    # {"30m": 14.2, "60m": 13.8, ...}
 
 
 _DATA_DIR = os.environ.get("DATA_DIR", ".")
@@ -387,6 +391,7 @@ class Trader:
                     "peak_pnl_at_secs": p.peak_pnl_at_secs,
                     "token_decimals": p.token_decimals,
                     "hold_pnl_snapshots": p.hold_pnl_snapshots or {},
+                    "holder_snapshots": p.holder_snapshots or {},
                 })
             tmp = _OPEN_POSITIONS_FILE + ".tmp"
             with open(tmp, "w") as f:
@@ -442,6 +447,7 @@ class Trader:
                     peak_pnl_at_secs=int(d.get("peak_pnl_at_secs", 0)),
                     token_decimals=int(d.get("token_decimals", 6)),
                     hold_pnl_snapshots=dict(d.get("hold_pnl_snapshots") or {}),
+                    holder_snapshots=dict(d.get("holder_snapshots") or {}),
                 )
                 # Dict keys are always lowercased; Position.token_address keeps
                 # the original-case mint for Jupiter/RPC calls.
@@ -489,6 +495,45 @@ class Trader:
             logger.debug(f"[Trader] _get_token_decimals failed for {mint[:8]}…: {e}")
         return 6  # fallback: pump.fun is the most common case
 
+    async def capture_holder_snapshot(self, token_address: str, label: str) -> None:
+        """
+        Sample top10_holder_pct mid-hold and stash on the open Position. Called
+        as a fire-and-forget task from position_manager when crossing 30/60/90/
+        120-min hold thresholds. Lets us measure distribution velocity vs the
+        entry baseline, not just net entry→exit delta.
+
+        Fail-soft on every step — analytics nice-to-have, never affects trading.
+        """
+        try:
+            position = self.open_positions.get((token_address or "").lower())
+            if position is None or self._security_checker is None:
+                return
+            if position.holder_snapshots and label in position.holder_snapshots:
+                return  # already sampled this threshold
+            _rc_full = await self._security_checker._fetch_rugcheck_full(token_address)
+            if not isinstance(_rc_full, dict):
+                return
+            _LP_TAGS = {"lp", "liquidity", "liquiditypool", "pool", "amm", "bonding curve"}
+            th = _rc_full.get("topHolders") or []
+            if not isinstance(th, list) or not th:
+                return
+            real = [
+                h for h in th
+                if isinstance(h, dict)
+                and h.get("insider", False) is not True
+                and (h.get("tag", "") or "").lower().strip() not in _LP_TAGS
+            ]
+            top10 = sum(float(h.get("pct", 0) or 0) for h in real[:10])
+            if position.holder_snapshots is None:
+                position.holder_snapshots = {}
+            position.holder_snapshots[label] = round(top10, 2)
+            logger.info(
+                f"[Trader] HOLDER SNAPSHOT: {position.token_symbol} @ {label} "
+                f"top10={top10:.2f}%"
+            )
+        except Exception as _e:
+            logger.debug(f"[Trader] holder snapshot failed: {_e}")
+
     async def _snapshot_sell_time_meta(self, position) -> Dict[str, float]:
         """
         Capture sell-time analytics that the original entry_meta couldn't have:
@@ -518,6 +563,10 @@ class Trader:
                 top10_buy = em.get("top10_holder_pct")
                 if top10_buy is not None:
                     out["top10_holder_delta"] = round(top10_now - float(top10_buy), 2)
+            # Include the mid-hold trajectory so analysis can compute velocity.
+            snaps = getattr(position, "holder_snapshots", None) or {}
+            if snaps:
+                out["holder_snapshots"] = dict(snaps)
         except Exception:
             pass
         return out
@@ -878,11 +927,14 @@ class Trader:
             # Skip for graduation strategy: pump.fun LP is auto-burned at graduation,
             # but rugcheck indexer hasn't processed the tx yet when we buy (<1s after).
             _rc: Optional[dict] = None
+            _lp_locked_pct_at_entry: Optional[float] = None
             if self._security_checker is not None and strategy != "graduation":
                 try:
                     _rc = await self._security_checker._fetch_rugcheck(token_address)
                     if _rc and not _rc.get("_invalid_address"):
                         _lp_pct = _rc.get("lpLockedPct")
+                        if _lp_pct is not None:
+                            _lp_locked_pct_at_entry = float(_lp_pct or 0)
                         if _lp_pct is not None and float(_lp_pct or 0) == 0.0:
                             logger.warning(
                                 f"[Trader] LP UNLOCK BLOCK: {token_symbol} "
@@ -899,6 +951,8 @@ class Trader:
             # known gap: top10_holder_pct was 0/132 in trade history before
             # this fix.
             _buy_time_meta: Dict[str, float] = {}
+            if _lp_locked_pct_at_entry is not None:
+                _buy_time_meta["lp_locked_pct"] = round(_lp_locked_pct_at_entry, 2)
             _rc_full: Optional[dict] = None
             if self._security_checker is not None and strategy != "graduation":
                 try:
