@@ -634,15 +634,12 @@ async def main():
     ]
 
     await telegram.send(
-        "Solana Bot v7 Started — Trader Calibrated\n\n"
-        "Your exact trading rules loaded:\n"
-        f"  TP1: +{config.take_profit_1_pct:.0f}% → sell {config.take_profit_1_sell*100:.0f}%\n"
-        f"  TP2: +{config.take_profit_2_pct:.0f}% → sell {config.take_profit_2_sell*100:.0f}% of rest\n"
-        f"  TP3: +{config.take_profit_3_pct:.0f}% → sell {config.take_profit_3_sell*100:.0f}% of rest\n"
-        f"  Stop: -{config.stop_loss_pct:.0f}% hard\n"
-        f"  Stall: sell 75% if volume dead 1h+\n"
-        f"  Avg down: only if <{config.avg_down_max_loss_pct:.0f}% loss + volume ok\n"
-        f"  BTC guard: restrict at -{config.btc_drop_threshold:.0f}%\n\n"
+        "Solana Bot v7 Started\n\n"
+        "Active strategy: dip_buy (real-dip-3 entry filter)\n"
+        f"  TP: +{config.dip_tp1_pct:.0f}% → sell {config.dip_tp1_sell*100:.0f}% (flat, no trail)\n"
+        f"  Stop: -{config.dip_stop_pct:.0f}% hard\n"
+        f"  Entry gate: BLOCK if 5m > -3% AND 1h > -3% (no real pullback)\n"
+        f"  Volume-death exit: sell on vol_m5=0 + vol_h1<$30k\n\n"
         + "\n".join(chain_summaries) + "\n\n"
         f"Capital: ${config.total_capital:,.0f} | "
         f"Daily limit: ${config.daily_loss_limit:,.0f}\n"
