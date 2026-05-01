@@ -728,6 +728,56 @@ class DipScanner:
                                 else:
                                     dip_volume_verdict = "NEUTRAL"
 
+                    # Layer 1: HH/HL structure detection via fractal swings.
+                    # A fractal is a candle whose high (or low) is greater
+                    # (or less) than the N candles on both sides. With N=2
+                    # over our 12-candle window, swings can occur at indices
+                    # 2..9. With memecoin price action this typically yields
+                    # 1-3 swing highs and 1-3 swing lows.
+                    #
+                    # Pattern classification (per claude-ideas Part 4 Layer 1):
+                    #   - all swing highs ascending AND all swing lows
+                    #     ascending → uptrend (HH + HL)
+                    #   - all swing highs descending AND all swing lows
+                    #     descending → downtrend (LH + LL)
+                    #   - else → mixed / no clear trend
+                    _N = 2
+                    _swing_highs = []
+                    _swing_lows = []
+                    for _i in range(_N, len(cs5) - _N):
+                        _h_i = cs5[_i].high
+                        _l_i = cs5[_i].low
+                        _is_sh = (
+                            all(cs5[_i].high > cs5[_j].high for _j in range(_i - _N, _i))
+                            and all(cs5[_i].high > cs5[_j].high for _j in range(_i + 1, _i + _N + 1))
+                        )
+                        _is_sl = (
+                            all(cs5[_i].low < cs5[_j].low for _j in range(_i - _N, _i))
+                            and all(cs5[_i].low < cs5[_j].low for _j in range(_i + 1, _i + _N + 1))
+                        )
+                        if _is_sh:
+                            _swing_highs.append((_i, _h_i))
+                        if _is_sl:
+                            _swing_lows.append((_i, _l_i))
+                    structure_pattern = "insufficient"
+                    structure_verdict = "?"
+                    if len(_swing_highs) >= 2 and len(_swing_lows) >= 2:
+                        _sh = _swing_highs[-3:]
+                        _sl = _swing_lows[-3:]
+                        _all_sh_up = all(_sh[_i][1] > _sh[_i - 1][1] for _i in range(1, len(_sh)))
+                        _all_sl_up = all(_sl[_i][1] > _sl[_i - 1][1] for _i in range(1, len(_sl)))
+                        _all_sh_down = all(_sh[_i][1] < _sh[_i - 1][1] for _i in range(1, len(_sh)))
+                        _all_sl_down = all(_sl[_i][1] < _sl[_i - 1][1] for _i in range(1, len(_sl)))
+                        if _all_sh_up and _all_sl_up:
+                            structure_pattern = "uptrend"
+                            structure_verdict = "PASS"
+                        elif _all_sh_down and _all_sl_down:
+                            structure_pattern = "downtrend"
+                            structure_verdict = "BLOCK"
+                        else:
+                            structure_pattern = "mixed"
+                            structure_verdict = "NEUTRAL"
+
                     range_features = {
                         "1h_high": round(high_1h, 8),
                         "1h_low": round(low_1h, 8),
@@ -741,6 +791,11 @@ class DipScanner:
                         "5m_consec_green": consec_green_5m,
                         "5m_lower_highs": lower_highs_5m,
                         "5m_vol_decay": round(vol_decay, 3),
+                        # Layer 1: HH/HL structure (fractal swings) — shadow.
+                        "structure_swing_highs": len(_swing_highs),
+                        "structure_swing_lows": len(_swing_lows),
+                        "structure_pattern": structure_pattern,
+                        "structure_verdict": structure_verdict,
                         # Layer 2 trend (1H EMA slope) — shadow, no enforcement.
                         "token_ema_slope_pct": token_ema_slope_pct,
                         "token_ema_verdict": token_ema_verdict,
@@ -791,6 +846,55 @@ class DipScanner:
                                 vwap_features["vwap_h24_verdict"] = "PASS"   # holders in profit
                             else:
                                 vwap_features["vwap_h24_verdict"] = "NEUTRAL"
+
+            # ── Multi-layer trend score (combiner) ──
+            # Aggregates the per-layer verdicts into a single normalized
+            # score in [-1, +1]. Layers that didn't produce a verdict (e.g.
+            # candle fetch failed, regime data missing) are skipped — the
+            # normalization divides by the number of layers that DID
+            # contribute, so a partial score is still meaningful.
+            #
+            # Layer 5 (holder concentration) lives in the trader, not here,
+            # so it's omitted from the entry-time score. We have 5 layers
+            # available pre-buy: structure, EMA slope, VWAP, dip volume,
+            # regime. claude-ideas Part 4 suggests "score >= +3 of 6" as
+            # uptrend; with 5 layers and 0/+1/-1 mapping that's normalized
+            # +0.5. We start a bit looser (+0.4) and tune from data.
+            #
+            # Logged-only — not used as a filter (yet). Once forward data
+            # validates, can promote to enforce or use as a tiebreaker
+            # alongside Filter A.
+            _layer_verdicts = {
+                "L1_structure": range_features.get("structure_verdict") if range_features else None,
+                "L2_ema_slope": range_features.get("token_ema_verdict") if range_features else None,
+                "L3_vwap": vwap_features.get("vwap_h24_verdict") if vwap_features else None,
+                "L4_dip_volume": range_features.get("dip_volume_verdict") if range_features else None,
+                "L6_regime": sol_features.get("regime") if sol_features else None,
+            }
+            _trend_score = 0
+            _trend_present = 0
+            for _v in _layer_verdicts.values():
+                if _v in ("PASS", "uptrend", "up"):
+                    _trend_score += 1
+                    _trend_present += 1
+                elif _v in ("BLOCK", "downtrend", "down"):
+                    _trend_score -= 1
+                    _trend_present += 1
+                elif _v in ("NEUTRAL", "mixed", "flat"):
+                    _trend_present += 1
+            trend_features: dict = {}
+            if _trend_present > 0:
+                _norm = _trend_score / _trend_present
+                trend_features["trend_score_raw"] = _trend_score
+                trend_features["trend_score_layers"] = _trend_present
+                trend_features["trend_score_norm"] = round(_norm, 3)
+                if _norm >= 0.4:
+                    trend_features["trend_score_verdict"] = "PASS"
+                elif _norm <= -0.4:
+                    trend_features["trend_score_verdict"] = "BLOCK"
+                else:
+                    trend_features["trend_score_verdict"] = "NEUTRAL"
+                trend_features["trend_layer_verdicts"] = _layer_verdicts
 
             c["signal"] += 1
             signals += 1
@@ -1155,6 +1259,7 @@ class DipScanner:
                 **sol_features,  # SOL price context (or empty if fetch failed)
                 **jup_features,  # Jupiter quote asymmetry (or empty if failed)
                 **tick_features,  # WS tick buffer stats (or empty if no feed)
+                **trend_features,  # multi-layer trend score (or empty)
             }
 
             await self.trader.buy(
