@@ -153,12 +153,12 @@ class Config:
     dip_max_mcap: float = 100_000_000      # $100M max FDV — excludes BONK/PUMP-tier large caps that don't bounce
     dip_min_age_days: float = 0.0          # No age floor — other filters (bs_h6, turnover, vol-decay) do structural protection. Still blocks tokens with missing pairCreatedAt.
     dip_min_volume_h24: float = 200_000    # $200k minimum 24h volume
-    dip_tp1_pct: float = 8.0              # TP1 at +8% — sell 50%
-    dip_tp1_sell: float = 0.50
-    dip_tp2_pct: float = 15.0             # TP2 at +15% — sell remaining 100%
+    dip_tp1_pct: float = 12.0             # TP at +12% — sell 100% (was +8% partial). Asymmetric exit analysis 2026-05-01 (133 trades) showed: 0 of 133 had peak ≥25% (no moonshots), runner trail gave back avg 6.67pp per fire, flat 100% TP at +12% simulates +$32.72 better than current asymmetric.
+    dip_tp1_sell: float = 1.0             # Sell entire position at TP (was 0.50 partial). Runner trail dropped — see asymmetric_exit_analysis.py.
+    dip_tp2_pct: float = 15.0             # TP2 unreachable when TP1 sells 100% — left as a safety guard.
     dip_tp2_sell: float = 1.0
     dip_stop_pct: float = 10.0            # Hard stop at -10% (was 15.0 — drawdown analysis Apr 19-30 showed 0 of 276 winners ever dipped past -14%; tightening to -10% kills only 3 winners, shrinks 18 stops by 33%; net +$247 historical)
-    dip_winner_trail_pct: float = 3.5     # Trail 3.5% from peak after TP1 (was 5.0 — give-back analysis showed avg 8.4pp gap from peak vs intended 5pp due to slippage + tick lag; 3.5% recovers ~2pp/trail)
+    dip_winner_trail_pct: float = 3.5     # Trail kept as field but unused — post-TP1 trail block in position_manager dropped 2026-05-01 (no moonshots in sample, trail gave back 6.67pp avg).
     dip_max_concurrent: int = 4           # Max simultaneous dip positions
     dip_min_txn_ratio_h6: float = 1.3     # require h6 buy/sell txn ratio >= 1.3 (blocks distribution: DUMBMONEY 1.11, SPIKE 1.20; passes WIFE 1.54, BULL 1.53)
     dip_min_vol_h1_ratio: float = 0.5     # require vol_h1 >= vol_h24/48 (= 50% of avg hourly rate). Blocks decelerating-volume tokens (67, TROLL); passes BULL 0.80x, pippin 0.72x

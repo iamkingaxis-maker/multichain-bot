@@ -1051,47 +1051,20 @@ class PositionManager:
                 self.stop_loss_hits += 1
                 return
 
-            # ── DIP PRE-TP1 TRAIL — exit if peaked ≥3% then retraces 3.5% ─
-            # Catches trades that briefly went green but reversed before TP1
-            # (+8%) — backtest Apr 25-30 showed 4 such stops avg −$58 each
-            # would have exited near breakeven instead, +$259 net over 6 days.
-            # Only fires pre-TP1 (post-TP1 has its own trail below).
-            _DIP_PRE_TP1_MIN_PEAK = 3.0
-            _DIP_PRE_TP1_TRAIL    = 3.5
-            if (not state.tp1_hit and state.peak_price > 0 and state.entry_price > 0):
-                _peak_gain_pct = (state.peak_price - state.entry_price) / state.entry_price * 100
-                if (_peak_gain_pct >= _DIP_PRE_TP1_MIN_PEAK
-                        and state.current_price <= state.peak_price * (1 - _DIP_PRE_TP1_TRAIL / 100)):
-                    drop_from_peak = (state.peak_price - state.current_price) / state.peak_price * 100
-                    logger.info(
-                        f"[PositionManager/{self.chain_name}] 🔒 DIP PRE-TP1 TRAIL: "
-                        f"{state.token_symbol} peaked +{_peak_gain_pct:.1f}%, "
-                        f"-{drop_from_peak:.1f}% from peak"
-                    )
-                    await self._execute_sell(
-                        token_address, state,
-                        pct=1.0,
-                        reason=f"Dip pre-TP1 trail -{drop_from_peak:.1f}% (peak +{_peak_gain_pct:.1f}%)"
-                    )
-                    return
+            # ── DIP PRE-TP1 TRAIL and POST-TP1 TRAIL — DROPPED 2026-05-01 ──
+            # Asymmetric exit analysis (scripts/asymmetric_exit_analysis.py) on
+            # 133 paired trades since the rewrite found:
+            #   - 0 of 133 positions had peak ≥ 25% (no moonshots in this regime)
+            #   - Pre-TP1 trail: peak band 1-5% had -201% capture, 5-8% had -53%
+            #     (firing at the peak's collapse, sealing in losses)
+            #   - Post-TP1 trail: avg 6.67pp give-back from peak; 33 canonical
+            #     TP1+trail exits netted +$40.77 vs flat-at-TP1's +$51.94
+            #   - Flat 100% TP at +12% simulates +$32.72 better than current
+            # Both trails removed; TP fires once at +12% and sells 100%. If
+            # regime data later shows runners exist in regime=up, can reinstate
+            # selectively.
 
-            # ── DIP WINNER TRAIL — after TP1, trail 5% from peak ─────
-            if (state.tp1_hit
-                    and state.peak_price > 0
-                    and state.current_price <= state.peak_price * (1 - self.dip_winner_trail_pct / 100)):
-                drop_from_peak = (state.peak_price - state.current_price) / state.peak_price * 100
-                logger.info(
-                    f"[PositionManager/{self.chain_name}] 🔒 DIP TRAIL: "
-                    f"{state.token_symbol} -{drop_from_peak:.1f}% from peak"
-                )
-                await self._execute_sell(
-                    token_address, state,
-                    pct=1.0,
-                    reason=f"Dip trail -{drop_from_peak:.1f}% from peak"
-                )
-                return
-
-            # ── DIP TAKE PROFIT TIERS ─────────────────────────────────
+            # ── DIP TAKE PROFIT ───────────────────────────────────────
             if pnl_pct >= self.dip_tp2_pct and not state.tp2_hit:
                 state.tp2_hit = True
                 logger.info(
