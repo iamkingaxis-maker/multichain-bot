@@ -973,6 +973,16 @@ class Trader:
             _buy_time_meta: Dict[str, float] = {}
             if _lp_locked_pct_at_entry is not None:
                 _buy_time_meta["lp_locked_pct"] = round(_lp_locked_pct_at_entry, 2)
+            # Rugcheck risk score (0..100, higher = riskier). Already in the
+            # summary response from the LP re-check above — capture for
+            # forward correlation against trade outcomes.
+            try:
+                if _rc and isinstance(_rc, dict):
+                    _score = _rc.get("score_normalised")
+                    if _score is not None:
+                        _buy_time_meta["rugcheck_score"] = round(float(_score), 2)
+            except Exception:
+                pass
             _rc_full: Optional[dict] = None
             if self._security_checker is not None and strategy != "graduation":
                 try:
@@ -1023,6 +1033,43 @@ class Trader:
             except Exception:
                 pass
 
+            # Single-sided LP detection — the dominant pool from the rugcheck
+            # `markets` array is checked for side imbalance. baseUSD ≈ quoteUSD
+            # is healthy (Raydium AMM seeded both sides). If one side is far
+            # larger than the other, sells will drain the small side fast and
+            # spike slippage. We pick the pool with the largest combined USD
+            # depth (Jupiter typically routes through it) and flag if the
+            # ratio max/min exceeds 5x. lp_imbalance_ratio is captured raw
+            # for forward tuning of the threshold.
+            try:
+                if _rc_full and isinstance(_rc_full, dict):
+                    _markets = _rc_full.get("markets") or []
+                    if isinstance(_markets, list) and _markets:
+                        _best_lp = None
+                        _best_depth = -1.0
+                        for _m in _markets:
+                            if not isinstance(_m, dict):
+                                continue
+                            _lp = _m.get("lp") or {}
+                            if not isinstance(_lp, dict):
+                                continue
+                            _b = float(_lp.get("baseUSD") or 0)
+                            _q = float(_lp.get("quoteUSD") or 0)
+                            _depth = _b + _q
+                            if _depth > _best_depth:
+                                _best_depth = _depth
+                                _best_lp = (_b, _q)
+                        if _best_lp and _best_depth > 0:
+                            _b, _q = _best_lp
+                            _hi = max(_b, _q)
+                            _lo = max(min(_b, _q), 0.01)
+                            _ratio = _hi / _lo
+                            _buy_time_meta["lp_imbalance_ratio"] = round(_ratio, 3)
+                            _buy_time_meta["lp_single_sided"] = bool(_ratio > 5.0)
+                            _buy_time_meta["lp_dominant_depth_usd"] = round(_best_depth, 2)
+            except Exception:
+                pass
+
             # SOL/USD price snapshot at entry.  Use _get_token_price which has
             # Jupiter/DexScreener fallback — SOL is never subscribed to any
             # price-feed cache so cache-only lookup always returned None.
@@ -1030,6 +1077,20 @@ class Trader:
                 _sol_price = await self._get_token_price(SOL_MINT)
                 if _sol_price > 0:
                     _buy_time_meta["sol_price_usd_at_entry"] = round(float(_sol_price), 4)
+            except Exception:
+                pass
+
+            # Wallet SOL balance at entry — gas-pressure context. Live-mode
+            # only (paper mode has no wallet). Used for forensics if a swap
+            # fails: low SOL right before a buy can starve priority fees.
+            # Read from cache (30s TTL) — already fresh from live-mode buy
+            # path's gas-reserve check; harmless extra read in paper mode
+            # (returns -1, which we skip).
+            try:
+                if self.private_key:
+                    _wsol = await self._get_sol_balance()
+                    if _wsol >= 0:
+                        _buy_time_meta["wallet_sol_balance_at_entry"] = round(float(_wsol), 4)
             except Exception:
                 pass
 

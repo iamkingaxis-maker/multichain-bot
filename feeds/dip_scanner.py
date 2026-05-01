@@ -846,6 +846,27 @@ class DipScanner:
                                 vwap_features["vwap_h24_verdict"] = "PASS"   # holders in profit
                             else:
                                 vwap_features["vwap_h24_verdict"] = "NEUTRAL"
+                    # 24h realized volatility — stdev of 15m log-returns,
+                    # annualized to a per-h24 percentage. Input for any
+                    # future vol-adjusted sizing; for now logged-only.
+                    try:
+                        import math as _math
+                        _rets = []
+                        for _i in range(1, len(cs15)):
+                            _p0 = cs15[_i - 1].close
+                            _p1 = cs15[_i].close
+                            if _p0 > 0 and _p1 > 0:
+                                _rets.append(_math.log(_p1 / _p0))
+                        if len(_rets) >= 4:
+                            _mean = sum(_rets) / len(_rets)
+                            _var = sum((r - _mean) ** 2 for r in _rets) / (len(_rets) - 1)
+                            _stdev = _math.sqrt(_var)
+                            # Stdev per 15m bar → scale to 24h window (96 bars).
+                            _h24_stdev = _stdev * _math.sqrt(96)
+                            vwap_features["token_volatility_h24_pct"] = round(_h24_stdev * 100, 3)
+                            vwap_features["token_volatility_samples"] = len(_rets)
+                    except Exception:
+                        pass
 
             # ── Multi-layer trend score (combiner) ──
             # Aggregates the per-layer verdicts into a single normalized
@@ -1232,6 +1253,54 @@ class DipScanner:
 
             txns_h1_total = b_h1 + s_h1
             avg_trade_size_h1 = (vol_h1 / txns_h1_total) if txns_h1_total > 0 else 0.0
+
+            # Bot-state context at signal time. Captures the conditions the
+            # bot itself was in when this entry fired, so forward analysis
+            # can correlate trade outcomes with concurrency, pacing, and
+            # daily-PnL state. Test 4 (concurrent positions) showed slot 3
+            # was the worst — needs this field on every record. Test 5
+            # (reentry-graveyard) showed 30-60min reentry-after-loss was
+            # -EV — needs time_since_last_close_on_token to validate forward.
+            try:
+                _now_mono = time.monotonic()
+                _now_wall = time.time()
+                _concur_dip = sum(
+                    1 for _p in self.open_positions_ref.values()
+                    if (getattr(_p, "strategy", "") or "") == "dip_buy"
+                )
+                _bot_state = {"concurrent_positions_at_entry": _concur_dip}
+                if self._last_buy_time > 0:
+                    _bot_state["time_since_last_buy_secs"] = round(_now_mono - self._last_buy_time, 1)
+                # Per-token "last close" approximation: dip_loss_cooldown
+                # entries record (ts, secs) at the moment of close. Pruned
+                # to the active window — so non-None means token closed
+                # within ~6h (stop/vol-death) or ~30min (other closes).
+                # Sufficient for the reentry-graveyard analysis.
+                try:
+                    _cooldown = self.trader._dip_loss_cooldown.get(token_address.lower())
+                    if isinstance(_cooldown, (list, tuple)) and len(_cooldown) == 2:
+                        _bot_state["time_since_last_close_on_token_secs"] = round(_now_wall - float(_cooldown[0]), 1)
+                except Exception:
+                    pass
+                # Prior-buy count for this token (lifetime, not session).
+                try:
+                    _bot_state["prior_buys_for_token"] = int(
+                        self.trader.reentry.buy_counts.get(token_address.lower(), 0) or 0
+                    )
+                except Exception:
+                    pass
+                # RiskManager state — daily_pnl + trades_today
+                try:
+                    _rm = self.trader.risk_manager
+                    _bot_state["daily_pnl_at_entry"] = round(float(getattr(_rm, "daily_pnl", 0.0) or 0.0), 2)
+                    _bot_state["trades_today_at_entry"] = int(getattr(_rm, "trades_today", 0) or 0)
+                    _bot_state["available_capital_at_entry"] = round(float(getattr(_rm, "available_capital", 0.0) or 0.0), 2)
+                except Exception:
+                    pass
+            except Exception as _e:
+                logger.debug(f"[DipScanner] bot-state capture error: {_e}")
+                _bot_state = {}
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -1260,6 +1329,7 @@ class DipScanner:
                 **jup_features,  # Jupiter quote asymmetry (or empty if failed)
                 **tick_features,  # WS tick buffer stats (or empty if no feed)
                 **trend_features,  # multi-layer trend score (or empty)
+                **_bot_state,  # bot-state context (concurrency, pacing, daily PnL)
             }
 
             await self.trader.buy(
