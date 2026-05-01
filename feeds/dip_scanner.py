@@ -750,6 +750,48 @@ class DipScanner:
                         "dip_leg_candles": dip_leg_candles,
                     }
 
+            # ── Anchored VWAP (Layer 3 of multi-layer trend system) ──
+            # 24h volume-weighted average price computed from 15m candles.
+            # Tokens younger than 24h: GT returns whatever exists since launch
+            # (effectively "anchored from launch"). Tokens older: anchored
+            # from 24h ago (recent daily cycle). Either way: price > VWAP =
+            # aggregate buyer base in profit; dip-buying is real. Price <<
+            # VWAP = aggregate underwater; dips get sold into.
+            #
+            # Logged-only at proposed thresholds; will tune from forward data.
+            vwap_features: dict = {}
+            if pair_addr_for_1m:
+                try:
+                    cs15 = await self.gt_client.fetch_15m(pair_addr_for_1m, limit=96)
+                except Exception as _e:
+                    logger.debug(f"[DipScanner] 15m fetch error for {token_symbol}: {_e}")
+                    cs15 = []
+                if cs15 and len(cs15) >= 4:
+                    _num = 0.0
+                    _den = 0.0
+                    for _k in cs15:
+                        _typ = (_k.high + _k.low + _k.close) / 3.0
+                        _num += _typ * _k.volume
+                        _den += _k.volume
+                    if _den > 0:
+                        _vwap = _num / _den
+                        _cur = cs15[-1].close
+                        if _vwap > 0:
+                            _pct_above = (_cur / _vwap - 1) * 100
+                            vwap_features["vwap_h24_usd"] = round(_vwap, 8)
+                            vwap_features["pct_above_vwap_h24"] = round(_pct_above, 2)
+                            vwap_features["vwap_h24_candles"] = len(cs15)
+                            # Shadow thresholds (starting points; tune from
+                            # data). The "underwater" zone is where holders
+                            # sell into bounces; the "in profit" zone is
+                            # where dips get bought.
+                            if _pct_above < -10:
+                                vwap_features["vwap_h24_verdict"] = "BLOCK"  # holders deeply underwater
+                            elif _pct_above > 0:
+                                vwap_features["vwap_h24_verdict"] = "PASS"   # holders in profit
+                            else:
+                                vwap_features["vwap_h24_verdict"] = "NEUTRAL"
+
             c["signal"] += 1
             signals += 1
 
@@ -1108,6 +1150,7 @@ class DipScanner:
                 "bs_m5": float(ratio_m5) if ratio_m5 != float("inf") else None,
                 **m1_features,  # 1m candle features (or empty if fetch failed)
                 **range_features,  # 5m range features (or empty if fetch failed)
+                **vwap_features,  # 24h anchored VWAP (or empty if fetch failed)
                 **recent_trades_features,  # last-30 trades direction (or empty)
                 **sol_features,  # SOL price context (or empty if fetch failed)
                 **jup_features,  # Jupiter quote asymmetry (or empty if failed)

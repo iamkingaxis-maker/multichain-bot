@@ -44,6 +44,14 @@ class GeckoTerminalClient:
         """
         return await self._fetch_candles(pool_address, aggregate=1, limit=limit)
 
+    async def fetch_15m(self, pool_address: str, limit: int = 96) -> List[Candle]:
+        """
+        Fetch 15-minute candles. Default limit=96 (24h coverage) — used for
+        anchored-VWAP at signal time. For tokens younger than 24h the API
+        returns however many candles exist since launch.
+        """
+        return await self._fetch_candles(pool_address, aggregate=15, limit=limit)
+
     async def fetch_recent_trades(self, pool_address: str, limit: int = 30) -> List[dict]:
         """
         Fetch recent trades for a pool (most-recent first). Each trade dict
