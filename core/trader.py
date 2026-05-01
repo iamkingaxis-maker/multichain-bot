@@ -1351,11 +1351,13 @@ class Trader:
             _decimals = getattr(position, "token_decimals", 6) or 6
             tokens_to_sell = int(position.amount_tokens * pct * (10 ** _decimals))
 
-            # Wider slippage tolerance for stop-loss exits.  Stop = "exit at any
-            # price" priority; in a fast crash the token may move 1-3% between
+            # Wider slippage tolerance for urgent exits (stop-loss + manual
+            # sell from dashboard). Both are "exit at any price" priority; in
+            # a fast crash or on a thin pair the token may move 1-3% between
             # quote and swap submission, causing 1%-tolerance swaps to reject.
-            _is_stop_exit = "stop" in reason.lower()
-            _slip_bps = 300 if _is_stop_exit else 100
+            _r = reason.lower()
+            _is_urgent_exit = ("stop" in _r) or ("manual" in _r)
+            _slip_bps = 300 if _is_urgent_exit else 100
 
             # Retry: refetch quote + retry swap up to 3 times.  Fresh quote
             # each attempt because slippage failures often mean price moved past
