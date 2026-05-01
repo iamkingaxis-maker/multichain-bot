@@ -1351,6 +1351,35 @@ class Trader:
             _decimals = getattr(position, "token_decimals", 6) or 6
             tokens_to_sell = int(position.amount_tokens * pct * (10 ** _decimals))
 
+            # Clamp tokens_to_sell to the on-chain ATA balance.  Stored
+            # `position.amount_tokens` can drift from wallet truth due to buy-side
+            # fees, prior partial sells, or rounding — when it exceeds wallet
+            # balance Jupiter aborts the route at the cleanup-account step
+            # (custom error 0x1788 / 6024 BalanceShouldBeReducedToZero).  At a
+            # 100% sell we round to 99.9% of on-chain balance to leave dust headroom;
+            # for partial sells we cap at on-chain balance so we never request more
+            # than we own.
+            try:
+                onchain_atomic = await self._get_token_balance_atomic(token_address)
+            except Exception:
+                onchain_atomic = -1
+            if onchain_atomic > 0:
+                _cap = int(onchain_atomic * 0.999) if pct >= 0.999 else onchain_atomic
+                if tokens_to_sell > _cap:
+                    logger.info(
+                        f"[Trader] Live sell {token_symbol}: clamping "
+                        f"{tokens_to_sell} → {_cap} atomic units "
+                        f"(stored amount_tokens exceeds on-chain ATA balance)"
+                    )
+                    tokens_to_sell = _cap
+            elif onchain_atomic == 0:
+                logger.error(
+                    f"[Trader] Live sell {token_symbol}: on-chain ATA balance is 0 "
+                    f"— position is a ghost; closing locally without swap"
+                )
+                return {"ok": False, "reason": "ghost_position_zero_balance", "pnl_usd": None}
+            # onchain_atomic == -1 → RPC failure; fall through and let Jupiter try
+
             # Wider slippage tolerance for urgent exits (stop-loss + manual
             # sell from dashboard). Both are "exit at any price" priority; in
             # a fast crash or on a thin pair the token may move 1-3% between
