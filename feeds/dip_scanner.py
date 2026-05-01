@@ -795,12 +795,14 @@ class DipScanner:
                     f"(>=60 historically -EV; not blocking)"
                 )
 
-            # Filter A — SHADOW MODE: log verdict, do not block. After ~1 week
-            # of forward data we can decide whether to enforce. Bounds derived
-            # from per-token economics analysis Apr 25-30 (114 trades): bad
-            # tokens (mexicanunc, BELKA, HENRY, etc) had 81% of trades with
-            # liq outside [$167k,$967k] and 74% with peak > 200%; the bounds
-            # cover Apr 28 (95% WR) winner distribution intact.
+            # Filter A — ENFORCED. Forward-validated 2026-05-01 over 32 paired
+            # trades (post-rewrite era): BLOCK avg -0.62%, PASS avg +0.44%; 31pp
+            # WR delta. Robustness checks: survives top-3-loser-token removal
+            # (BLOCK still -2.32% avg, PASS +2.18%); BLOCK quote_sell_impact
+            # 2x PASS (1.70% vs 0.67%) — captures liquidity quality, not just
+            # token identity. PASS bucket also held under combined PASS-A +
+            # PASS-1M (3-of-3 wins, +$4.66). Bounds: liq ∈ [$167k, $967k] AND
+            # peak_h24_6h_pct ≤ 200%.
             _liq_for_filter = float(liq_usd or 0)
             _peak_for_filter = float(peak_h24_6h)
             _filter_a_block_reasons = []
@@ -812,12 +814,13 @@ class DipScanner:
                 _filter_a_block_reasons.append(f"peak={_peak_for_filter:.0f}%>200%")
             _filter_a_verdict = "BLOCK" if _filter_a_block_reasons else "PASS"
             c[f"filter_a_{_filter_a_verdict.lower()}"] = c.get(f"filter_a_{_filter_a_verdict.lower()}", 0) + 1
-            logger.info(
-                f"[DipScanner] FILTER_A_SHADOW: {token_symbol} "
-                f"liq=${_liq_for_filter/1000:.0f}k peak={_peak_for_filter:.0f}% "
-                f"verdict={_filter_a_verdict}"
-                + (f" reasons={','.join(_filter_a_block_reasons)}" if _filter_a_block_reasons else "")
-            )
+            if _filter_a_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_a: {token_symbol} "
+                    f"liq=${_liq_for_filter/1000:.0f}k peak={_peak_for_filter:.0f}% "
+                    f"reasons={','.join(_filter_a_block_reasons)}"
+                )
+                continue
 
             # Filter 1M — SHADOW MODE: tests whether 1-minute momentum signals
             # explain the time-of-day P&L pattern. Hour-of-day analysis showed
