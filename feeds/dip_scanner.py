@@ -70,6 +70,11 @@ class DipScanner:
         self._rejected_distribution = 0
         # BTC kline cache for regime tagging (Binance 1h klines, 60s TTL).
         self._btc_cache: Tuple[float, list] = (0.0, [])
+        # Memecoin sector breadth cache (CoinGecko categories, 60s TTL).
+        # Tier-1 priority from claude-ideas: "if SOL is up but memecoin
+        # sector is dumping, dip-buys still die." Solana-meme category
+        # preferred over generic meme-token if both available.
+        self._meme_cache: Tuple[float, Optional[dict]] = (0.0, None)
         # h24 history per token for trend-reversal detection.  Each scan cycle
         # appends (wall_ts, pc_h24) for every evaluated token; entries older
         # than 6h are pruned.  Used to reject entries where h24 has collapsed
@@ -129,6 +134,56 @@ class DipScanner:
         except Exception:
             pass
         return cached
+
+    async def _fetch_meme_sector(self) -> Optional[dict]:
+        """
+        Memecoin sector breadth via CoinGecko categories endpoint. Returns
+        a dict with category id, market_cap_change_24h (pct), and 24h
+        volume — or None on error. Cached 60s.
+
+        Selection: prefer "solana-meme-coins" (most relevant to our trades)
+        if present, otherwise fall back to generic "meme-token". Both come
+        from the same /coins/categories response (one API call covers all).
+        Free tier, no key required, ~10 req/min limit — at 60s cache we're
+        well within budget.
+        """
+        now = time.monotonic()
+        cached_ts, cached = self._meme_cache
+        if cached is not None and (now - cached_ts) < 60:
+            return cached
+        url = "https://api.coingecko.com/api/v3/coins/categories"
+        try:
+            import aiohttp as _aio
+            async with _aio.ClientSession() as session:
+                async with session.get(url, timeout=_aio.ClientTimeout(total=6)) as resp:
+                    if resp.status != 200:
+                        return cached
+                    data = await resp.json()
+                    if not isinstance(data, list):
+                        return cached
+            preferred = None
+            fallback = None
+            for cat in data:
+                cat_id = (cat.get("id") or "").lower()
+                if cat_id == "solana-meme-coins":
+                    preferred = cat
+                    break
+                if cat_id in ("meme-token", "memes") and fallback is None:
+                    fallback = cat
+            chosen = preferred or fallback
+            if not chosen:
+                return cached
+            out = {
+                "id": (chosen.get("id") or "").lower(),
+                "name": chosen.get("name") or "",
+                "market_cap_change_24h": chosen.get("market_cap_change_24h"),
+                "volume_24h": chosen.get("volume_24h"),
+                "market_cap": chosen.get("market_cap"),
+            }
+            self._meme_cache = (now, out)
+            return out
+        except Exception:
+            return cached
 
     async def _scan_cycle(self):
         # Don't scan if already at max concurrent dip positions
@@ -679,16 +734,35 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] BTC fetch error: {_e}")
 
-            # Derive regime tag from sol h1+h4 + btc h1+h4. Up if both SOL
-            # timeframes > +0.3% and BTC h1 not strongly negative; down if
-            # SOL h1 < -0.5% or h4 < -1.5%; flat otherwise. Threshold-based
-            # for transparency — analytics-only, NOT used to filter (yet).
+            # Memecoin sector breadth — CoinGecko category endpoint.
+            # If SOL is up but memes are dumping, dip-buys still die.
+            # h24 only at this resolution (CG doesn't expose h1 at category
+            # level on the free tier). Stored as analytics field; a future
+            # version of the regime tag could fold it in.
+            try:
+                meme = await self._fetch_meme_sector()
+                if meme:
+                    _msc = meme.get("market_cap_change_24h")
+                    if _msc is not None:
+                        sol_features["meme_sector_pct_h24"] = round(float(_msc), 3)
+                        sol_features["meme_sector_id"] = meme.get("id") or ""
+            except Exception as _e:
+                logger.debug(f"[DipScanner] meme-sector fetch error: {_e}")
+
+            # Derive regime tag from sol h1+h4 + btc h1+h4 + meme sector h24.
+            # Up if SOL trending and meme sector not dumping. Down if SOL
+            # rolling over OR meme sector strongly red (memes are an amplifier
+            # — sector dump = trade dump regardless of SOL). Flat otherwise.
+            # Analytics-only — NOT used to filter (yet).
             try:
                 _sh1 = sol_features.get("sol_pc_h1")
                 _sh4 = sol_features.get("sol_pc_h4")
                 _bh1 = sol_features.get("btc_pc_h1")
+                _msc = sol_features.get("meme_sector_pct_h24")
                 if _sh1 is not None and _sh4 is not None:
-                    if _sh1 > 0.3 and _sh4 > 0.5 and (_bh1 is None or _bh1 > -0.5):
+                    if _msc is not None and _msc < -5.0:
+                        sol_features["regime"] = "down"  # sector dump dominates
+                    elif _sh1 > 0.3 and _sh4 > 0.5 and (_bh1 is None or _bh1 > -0.5) and (_msc is None or _msc > -2.0):
                         sol_features["regime"] = "up"
                     elif _sh1 < -0.5 or _sh4 < -1.5:
                         sol_features["regime"] = "down"
