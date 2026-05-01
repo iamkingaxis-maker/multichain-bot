@@ -68,6 +68,8 @@ class DipScanner:
         self.signals_fired = 0
         self._last_buy_time = 0.0
         self._rejected_distribution = 0
+        # BTC kline cache for regime tagging (Binance 1h klines, 60s TTL).
+        self._btc_cache: Tuple[float, list] = (0.0, [])
         # h24 history per token for trend-reversal detection.  Each scan cycle
         # appends (wall_ts, pc_h24) for every evaluated token; entries older
         # than 6h are pruned.  Used to reject entries where h24 has collapsed
@@ -102,6 +104,31 @@ class DipScanner:
             except Exception as e:
                 logger.error(f"[DipScanner] Scan cycle error: {e}")
             await asyncio.sleep(_SCAN_INTERVAL)
+
+    async def _fetch_btc_klines(self) -> list:
+        """
+        Fetch last 5 × 1h BTC klines from Binance public API. Returns the raw
+        klines list (each row is [open_time, open, high, low, close, ...]).
+        Cached 60s. Fail-soft (returns []).
+        """
+        now = time.monotonic()
+        cached_ts, cached = self._btc_cache
+        if cached and (now - cached_ts) < 60:
+            return cached
+        url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=5"
+        try:
+            import aiohttp as _aio
+            async with _aio.ClientSession() as session:
+                async with session.get(url, timeout=_aio.ClientTimeout(total=4)) as resp:
+                    if resp.status != 200:
+                        return cached
+                    data = await resp.json()
+                    if isinstance(data, list) and data:
+                        self._btc_cache = (now, data)
+                        return data
+        except Exception:
+            pass
+        return cached
 
     async def _scan_cycle(self):
         # Don't scan if already at max concurrent dip positions
@@ -599,21 +626,35 @@ class DipScanner:
             self._last_buy_time = time.monotonic()
             self.signals_fired += 1
 
-            # ── Tier 2a: SOL price context ──
-            # Memecoins amplify SOL moves. If SOL is rolling over, dip-buys
-            # underperform regardless of token-level signal. Single GT call,
+            # ── Tier 2a: SOL + BTC regime context ──
+            # Memecoins amplify SOL/BTC moves. Edge-half-life test (2026-05-01)
+            # showed WR drops 53% → 39% over 5 days; date-shuffle p=0.016
+            # confirms day-level signal is real. SOL/BTC trend is the most
+            # likely regime variable behind the bimodal pattern. Single GT
+            # call (extended to 4h coverage) + single Binance API call (BTC),
             # cached 60s, fail-open.
             sol_features: dict = {}
             sol_5m = []
             try:
                 _SOL_POOL = "83v8iPyZihDEjDdY8RdZddyZNyUtXngz69Lgo9Kt5d6d"  # SOL/USDC Raydium
-                sol_5m = await self.gt_client.fetch_5m(_SOL_POOL, limit=12)
+                # 48 × 5min = 4h coverage. Last 12 (1h), last 48 (4h).
+                sol_5m = await self.gt_client.fetch_5m(_SOL_POOL, limit=48)
                 sol_1m = await self.gt_client.fetch_1m(_SOL_POOL, limit=5)
                 if sol_5m and len(sol_5m) >= 2:
-                    sol_pc_h1 = (sol_5m[-1].close / sol_5m[0].close - 1) * 100 if sol_5m[0].close > 0 else 0.0
                     sol_pc_m5 = (sol_5m[-1].close / sol_5m[-2].close - 1) * 100 if sol_5m[-2].close > 0 else 0.0
-                    sol_features["sol_pc_h1"] = round(sol_pc_h1, 3)
                     sol_features["sol_pc_m5"] = round(sol_pc_m5, 3)
+                    # h1 from last 12 candles (60 min)
+                    if len(sol_5m) >= 12:
+                        h1_anchor = sol_5m[-12].close
+                        if h1_anchor > 0:
+                            sol_features["sol_pc_h1"] = round((sol_5m[-1].close / h1_anchor - 1) * 100, 3)
+                    else:
+                        sol_features["sol_pc_h1"] = round((sol_5m[-1].close / sol_5m[0].close - 1) * 100, 3)
+                    # h4 from full 48-candle window (240 min)
+                    if len(sol_5m) >= 48:
+                        h4_anchor = sol_5m[-48].close
+                        if h4_anchor > 0:
+                            sol_features["sol_pc_h4"] = round((sol_5m[-1].close / h4_anchor - 1) * 100, 3)
                 if sol_1m and len(sol_1m) >= 2:
                     sol_pc_m1 = (sol_1m[-1].close / sol_1m[-2].close - 1) * 100 if sol_1m[-2].close > 0 else 0.0
                     sol_pc_3m = (sol_1m[-1].close / sol_1m[0].close - 1) * 100 if sol_1m[0].close > 0 else 0.0
@@ -621,6 +662,40 @@ class DipScanner:
                     sol_features["sol_pc_3m"] = round(sol_pc_3m, 3)
             except Exception as _e:
                 logger.debug(f"[DipScanner] SOL fetch error: {_e}")
+
+            # BTC regime — Binance public klines (no key, fast, free).
+            # 1h candles × 5 → enough for h1 (last close vs prev) and h4
+            # (last close vs 4 candles ago). Cached 60s via _btc_cache.
+            try:
+                btc_klines = await self._fetch_btc_klines()
+                if btc_klines and len(btc_klines) >= 5:
+                    last_close = float(btc_klines[-1][4])
+                    prev_close = float(btc_klines[-2][4])
+                    h4_anchor = float(btc_klines[-5][4])
+                    if prev_close > 0:
+                        sol_features["btc_pc_h1"] = round((last_close / prev_close - 1) * 100, 3)
+                    if h4_anchor > 0:
+                        sol_features["btc_pc_h4"] = round((last_close / h4_anchor - 1) * 100, 3)
+            except Exception as _e:
+                logger.debug(f"[DipScanner] BTC fetch error: {_e}")
+
+            # Derive regime tag from sol h1+h4 + btc h1+h4. Up if both SOL
+            # timeframes > +0.3% and BTC h1 not strongly negative; down if
+            # SOL h1 < -0.5% or h4 < -1.5%; flat otherwise. Threshold-based
+            # for transparency — analytics-only, NOT used to filter (yet).
+            try:
+                _sh1 = sol_features.get("sol_pc_h1")
+                _sh4 = sol_features.get("sol_pc_h4")
+                _bh1 = sol_features.get("btc_pc_h1")
+                if _sh1 is not None and _sh4 is not None:
+                    if _sh1 > 0.3 and _sh4 > 0.5 and (_bh1 is None or _bh1 > -0.5):
+                        sol_features["regime"] = "up"
+                    elif _sh1 < -0.5 or _sh4 < -1.5:
+                        sol_features["regime"] = "down"
+                    else:
+                        sol_features["regime"] = "flat"
+            except Exception:
+                pass
 
             # ── Tier 2b: Jupiter quote asymmetry ──
             # Closest analog to "order book imbalance" on Solana AMMs.
@@ -852,6 +927,9 @@ class DipScanner:
             txns_h1_total = b_h1 + s_h1
             avg_trade_size_h1 = (vol_h1 / txns_h1_total) if txns_h1_total > 0 else 0.0
             entry_meta_dict = {
+                # Signal-fire wall-clock timestamp (ms). Trader.buy will
+                # compute signal_to_fill_ms after on-chain confirmation.
+                "signal_ts_ms": int(time.time() * 1000),
                 "liquidity_usd": float(liq_usd or 0),
                 "protocol": pair.get("dexId", "") or "",
                 "peak_h24_6h_pct": float(peak_h24_6h),

@@ -959,6 +959,18 @@ class Trader:
             except Exception:
                 pass
 
+            # Priority-fee snapshot for analytics: cap (lamports) and
+            # priority level. The actual fee Jupiter pays is dynamic and
+            # not directly returned in the swap response; the cap+level
+            # are the bot-side configuration that bounds what we paid.
+            try:
+                _buy_time_meta["priority_fee_max_lamports"] = int(getattr(self, "_max_priority_lamports", 0) or 0)
+                _pl = getattr(self, "_priority_level", "") or ""
+                if _pl:
+                    _buy_time_meta["priority_level"] = str(_pl)
+            except Exception:
+                pass
+
             # Merge buy-time meta into caller-provided entry_meta (caller wins
             # on conflicts so DipScanner-computed values aren't overwritten).
             if _buy_time_meta:
@@ -1053,6 +1065,17 @@ class Trader:
                         f"current_price=${current_price:.8f}, override_impact={override_impact_pct} — buy aborted"
                     )
                     return
+
+                # Slot delay / signal-to-fill latency (paper-mode equivalent —
+                # measures bot-internal time between signal-fire and Position
+                # construction, not on-chain confirmation).
+                try:
+                    _sig_ms = (entry_meta or {}).get("signal_ts_ms")
+                    if _sig_ms:
+                        _delay_ms = int(time.time() * 1000) - int(_sig_ms)
+                        entry_meta = {**(entry_meta or {}), "signal_to_fill_ms": _delay_ms}
+                except Exception:
+                    pass
 
                 # Preserve original-case mint on the Position — Solana base58
                 # is case-sensitive; lowercased mints are rejected by Jupiter
@@ -1153,6 +1176,19 @@ class Trader:
             if not success:
                 logger.error(f"Swap failed for {token_symbol} after 3 attempts")
                 return
+
+            # Slot delay / signal-to-fill latency. signal_ts_ms is set by
+            # DipScanner at signal-fire time; we now have on-chain confirmation
+            # so we can compute the gap. High latency = late entries (buying
+            # the bounce, not the dip) — flagged in claude-ideas as a Solana-
+            # specific microstructure killer.
+            try:
+                _sig_ms = (entry_meta or {}).get("signal_ts_ms")
+                if _sig_ms:
+                    _delay_ms = int(time.time() * 1000) - int(_sig_ms)
+                    entry_meta = {**(entry_meta or {}), "signal_to_fill_ms": _delay_ms}
+            except Exception:
+                pass
 
             # Preserve original-case mint on Position.token_address — required
             # for Jupiter/RPC sells (case-sensitive base58).  See 2026-04-29.
