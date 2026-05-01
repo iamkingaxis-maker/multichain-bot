@@ -885,12 +885,19 @@ class DipScanner:
             # Logged-only — not used as a filter (yet). Once forward data
             # validates, can promote to enforce or use as a tiebreaker
             # alongside Filter A.
+            # sol_features is computed AFTER this block (in the SOL/BTC fetch
+            # below); on the first candidate of a cycle the reference would
+            # fire UnboundLocalError. Use locals().get to read the prior
+            # iteration's binding when present, empty dict otherwise. The
+            # first candidate's L6 verdict is None either way — sol_features
+            # is populated for subsequent candidates in the same cycle.
+            _sf = locals().get("sol_features") or {}
             _layer_verdicts = {
                 "L1_structure": range_features.get("structure_verdict") if range_features else None,
                 "L2_ema_slope": range_features.get("token_ema_verdict") if range_features else None,
                 "L3_vwap": vwap_features.get("vwap_h24_verdict") if vwap_features else None,
                 "L4_dip_volume": range_features.get("dip_volume_verdict") if range_features else None,
-                "L6_regime": sol_features.get("regime") if sol_features else None,
+                "L6_regime": _sf.get("regime") if _sf else None,
             }
             _trend_score = 0
             _trend_present = 0
