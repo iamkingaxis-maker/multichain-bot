@@ -649,6 +649,85 @@ class DipScanner:
                         vol_decay = (last_avg / first_avg) if first_avg > 0 else 0.0
                     else:
                         vol_decay = 1.0
+
+                    # Token-level 1H EMA slope (Layer 2 of multi-layer trend
+                    # system). Smooths the 5m closes so a single big spike
+                    # doesn't dominate. Slope evaluated over 30 min (current
+                    # EMA vs 6 candles ago) — long enough that a single 5m
+                    # dip doesn't flip the verdict. span=6 → α = 2/7 ≈ 0.286,
+                    # ~30 min smoothing window.
+                    #
+                    # IMPORTANT: a healthy "dip in uptrend" naturally has a
+                    # mildly negative local EMA slope (the dip drags it).
+                    # Thresholds are LOOSE — only flag truly rolling-over
+                    # tokens, not natural dip-buy candidates. Will tune from
+                    # forward data.
+                    _ema_span = 6
+                    _alpha = 2.0 / (_ema_span + 1)
+                    _ema_series: list = []
+                    for _k in cs5:
+                        if not _ema_series:
+                            _ema_series.append(_k.close)
+                        else:
+                            _ema_series.append(_alpha * _k.close + (1 - _alpha) * _ema_series[-1])
+                    token_ema_slope_pct = None
+                    token_ema_verdict = "?"
+                    if len(_ema_series) >= 7 and _ema_series[-7] > 0:
+                        _slope_pct = (_ema_series[-1] / _ema_series[-7] - 1) * 100
+                        token_ema_slope_pct = round(_slope_pct, 3)
+                        # Shadow thresholds (starting points; tune from data):
+                        # -1.5% over 30 min = ~3% over 1h — that's a real
+                        # rollover, not a dip. +0.3% over 30 min = uptrending.
+                        if _slope_pct < -1.5:
+                            token_ema_verdict = "BLOCK"
+                        elif _slope_pct > 0.3:
+                            token_ema_verdict = "PASS"
+                        else:
+                            token_ema_verdict = "NEUTRAL"
+
+                    # Volume during dip — accelerating vs dying. Walk back
+                    # from the latest candle; the "dip leg" is the trailing
+                    # consecutive red candles, and the "pre-dip leg" is the
+                    # green/doji candles immediately before. If no run-up
+                    # before the dip, fall back to comparing the dip leg vs
+                    # the rest of the window. Ratio > 1.0 = active distribution
+                    # (volume rising into the dip = bad). Ratio < 1.0 = dying
+                    # volume / exhaustion (more likely a real bounce setup).
+                    dip_volume_ratio = None
+                    dip_volume_verdict = "?"
+                    dip_leg_candles = 0
+                    _dip_leg = []
+                    for _k in reversed(cs5):
+                        if _k.close < _k.open:
+                            _dip_leg.insert(0, _k)
+                        else:
+                            break
+                    dip_leg_candles = len(_dip_leg)
+                    if _dip_leg:
+                        _dip_start_idx = len(cs5) - len(_dip_leg)
+                        _run_leg = []
+                        for _i in range(_dip_start_idx - 1, -1, -1):
+                            _k = cs5[_i]
+                            if _k.close >= _k.open:
+                                _run_leg.insert(0, _k)
+                            else:
+                                break
+                        if not _run_leg:
+                            # No run-up before the dip — use prior window as baseline
+                            _run_leg = cs5[:_dip_start_idx]
+                        if _run_leg and len(_dip_leg) >= 1:
+                            _dip_vol = sum(k.volume for k in _dip_leg) / len(_dip_leg)
+                            _run_vol = sum(k.volume for k in _run_leg) / len(_run_leg)
+                            if _run_vol > 0:
+                                dip_volume_ratio = round(_dip_vol / _run_vol, 3)
+                                # Shadow thresholds (starting points):
+                                if dip_volume_ratio >= 1.5:
+                                    dip_volume_verdict = "BLOCK"  # active distribution
+                                elif dip_volume_ratio <= 0.7:
+                                    dip_volume_verdict = "PASS"   # exhaustion
+                                else:
+                                    dip_volume_verdict = "NEUTRAL"
+
                     range_features = {
                         "1h_high": round(high_1h, 8),
                         "1h_low": round(low_1h, 8),
@@ -662,6 +741,13 @@ class DipScanner:
                         "5m_consec_green": consec_green_5m,
                         "5m_lower_highs": lower_highs_5m,
                         "5m_vol_decay": round(vol_decay, 3),
+                        # Layer 2 trend (1H EMA slope) — shadow, no enforcement.
+                        "token_ema_slope_pct": token_ema_slope_pct,
+                        "token_ema_verdict": token_ema_verdict,
+                        # Volume-during-dip — shadow, no enforcement.
+                        "dip_volume_ratio": dip_volume_ratio,
+                        "dip_volume_verdict": dip_volume_verdict,
+                        "dip_leg_candles": dip_leg_candles,
                     }
 
             c["signal"] += 1
