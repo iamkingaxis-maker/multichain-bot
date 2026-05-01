@@ -91,6 +91,43 @@ class RiskManager:
         except Exception as e:
             logger.warning(f"[RiskManager] Could not save risk state: {e}")
 
+    def reconcile_with_open_positions(self, open_positions: dict) -> None:
+        """
+        Recompute available_capital from the canonical source of truth: the
+        actual open positions loaded on startup.
+
+        Why this is needed: the legacy `_load_state` behavior reclaims any
+        previously-deployed capital on restart, assuming positions don't
+        survive a redeploy. That assumption was correct for paper mode in
+        the original bot, but live-mode persistence (open_positions.json)
+        means positions DO survive — and reclaiming their cost basis double-
+        counts capital. With max_concurrent=3 × $20 + a real $20 open
+        position, the bot would think it has $70 free against a $70 wallet
+        when it actually has $50 free.
+
+        Idempotent — call after `_restore_open_positions` and again after
+        `reconcile_positions_on_startup` (which may remove ghosts).
+        Scalp positions are excluded — they manage their own capital pool
+        via ScalpCapitalManager.
+        """
+        try:
+            deployed = sum(
+                float(getattr(p, "amount_usd", 0) or 0)
+                for p in open_positions.values()
+                if (getattr(p, "strategy", "") or "") != "scalp"
+            )
+            new_available = max(0.0, self.total_capital - deployed)
+            if abs(new_available - self.available_capital) >= 0.01:
+                logger.info(
+                    f"[RiskManager] Reconciled with {len(open_positions)} open "
+                    f"positions: deployed=${deployed:.0f}, "
+                    f"available ${self.available_capital:.0f} → ${new_available:.0f}"
+                )
+            self.available_capital = new_available
+            self._save_state()
+        except Exception as e:
+            logger.warning(f"[RiskManager] reconcile_with_open_positions failed: {e}")
+
     def get_position_size(self) -> float:
         """Calculate safe position size in USD."""
         self._reset_daily_if_needed()

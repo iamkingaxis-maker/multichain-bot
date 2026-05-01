@@ -264,6 +264,18 @@ class Trader:
         # restored position against the on-chain wallet balance.
         self._restore_open_positions()
 
+        # Sync risk_manager.available_capital with the actual restored
+        # positions. RiskManager._load_state historically reclaimed deployed
+        # capital on restart (assuming positions didn't survive); now that
+        # they do, that reclaim double-counts. Reconcile here so the next
+        # buy decision sees the correct free capital. Re-run after
+        # reconcile_positions_on_startup (which may prune ghosts).
+        if self.risk_manager and hasattr(self.risk_manager, "reconcile_with_open_positions"):
+            try:
+                self.risk_manager.reconcile_with_open_positions(self.open_positions)
+            except Exception as e:
+                logger.warning(f"[Trader] post-restore risk reconcile failed: {e}")
+
     async def _post_rpc(self, payload: dict, total_timeout: float = 10.0) -> Optional[dict]:
         """
         POST a JSON-RPC payload, trying each configured RPC URL until one
@@ -715,6 +727,14 @@ class Trader:
                 self.reentry.previously_held.add(addr.lower())
             self.reentry.save()
             self._save_open_positions()
+            # Re-sync risk_manager after ghost cleanup — deployed amount
+            # changed when ghosts were removed, so available_capital must
+            # reflect the new reality.
+            if self.risk_manager and hasattr(self.risk_manager, "reconcile_with_open_positions"):
+                try:
+                    self.risk_manager.reconcile_with_open_positions(self.open_positions)
+                except Exception as _e:
+                    logger.warning(f"[Trader] post-reconcile risk sync failed: {_e}")
         except Exception as e:
             logger.error(f"[Trader] reconcile_positions failed: {e}")
 
