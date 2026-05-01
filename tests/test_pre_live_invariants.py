@@ -174,6 +174,9 @@ def t4():
             entry_time=datetime.now(timezone.utc),
             reason="test",
             token_decimals=6,
+            # amount_usd > $1 is required — _restore_open_positions runs a
+            # dust-cleanup pass that drops sub-$1 positions as TP residue.
+            amount_usd=45.0,
         )
         trader.open_positions[BURNIE_MINT.lower()] = p
         trader._save_open_positions()
