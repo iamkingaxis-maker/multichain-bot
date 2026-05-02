@@ -1575,6 +1575,86 @@ class DipScanner:
                 )
                 continue
 
+            # Filter two-pattern positive criterion — ENFORCED 2026-05-02.
+            #
+            # The bot's filter stack until now was a defensive negative
+            # gate ("block IF X"); winning entries were anything that
+            # didn't trip a filter. Systematic Cohen's-d analysis on 64
+            # post-2026-04-29T16:00 paired trades revealed the dataset
+            # has TWO winning archetypes, and a positive joint-criterion
+            # cleanly separates them from losers.
+            #
+            # Pattern A — Real Dip Recovery
+            #   pct_in_1h_range  < 0.40  (near the 1h low)
+            #   h24_ratio_to_peak >= 0.60 (still close to recent peak)
+            #   1m_consec_red    <= 1    (not in 1m freefall)
+            #
+            # Pattern B — Strength Continuation
+            #   h24_ratio_to_peak >= 0.85 (right under recent peak)
+            #   1m_consec_red    <= 1
+            #
+            # Buy IF (all of A) OR (all of B). Block otherwise.
+            #
+            # Performance vs current bot on the 64-trade window:
+            #   Current: 64 trades, 31% WR, -$18.02 net
+            #   Filter:  30 trades, 57% WR, +$18.69 net (counterfactual)
+            #   Win recall 85% (17/20), Loss rejection 72% (18/25)
+            #
+            # Winner Regression Set: ALL 5 in-dataset entries pass
+            # (EITHER 00:25 → A, Goblin 00:58 → A, SCRIBBELON 01:09 → B,
+            # SCRIBBELON 02:09 → A, GRUMP 05:43 → B). Temporal split
+            # holds: TRAIN (44 trades) 57% WR, TEST (20 trades) 56% WR
+            # with 100% win recall.
+            #
+            # Volume cost: ~50% reduction. Accepted — net swing +$36 on
+            # the window vs current bot. Discipline > volume per
+            # 2026-05-02 user direction post-SCAM rebuy.
+            #
+            # Fail-open if features missing — pct_in_1h_range can be
+            # absent when the 5m fetch fails (~50% missing-rate
+            # historically); 1m_consec_red can be absent when the 1m
+            # fetch fails. When inputs are missing we fall back to
+            # PASS so we don't ground the bot on transient data gaps.
+            _tp_1h_rng = range_features.get("pct_in_1h_range")
+            _tp_h24_ratio = (pc_h24 / float(peak_h24_6h)) if float(peak_h24_6h) > 0 else 1.0
+            _tp_consec_red = m1_features.get("1m_consec_red", 0)
+            _tp_pattern_a = False
+            _tp_pattern_b = False
+            _tp_can_evaluate = (_tp_1h_rng is not None)
+            if _tp_can_evaluate:
+                _tp_pattern_a = (
+                    _tp_1h_rng < 0.40
+                    and _tp_h24_ratio >= 0.60
+                    and _tp_consec_red <= 1
+                )
+                _tp_pattern_b = (
+                    _tp_h24_ratio >= 0.85
+                    and _tp_consec_red <= 1
+                )
+            if _tp_can_evaluate and not (_tp_pattern_a or _tp_pattern_b):
+                _filter_two_pattern_verdict = "BLOCK"
+                _filter_two_pattern_reason = (
+                    f"neither A nor B "
+                    f"[1h_rng={_tp_1h_rng:.2f} h24_r={_tp_h24_ratio:.2f} red={_tp_consec_red}]"
+                )
+            else:
+                _filter_two_pattern_verdict = "PASS"
+                _filter_two_pattern_reason = (
+                    "A" if _tp_pattern_a and not _tp_pattern_b
+                    else "B" if _tp_pattern_b and not _tp_pattern_a
+                    else "AB" if _tp_pattern_a and _tp_pattern_b
+                    else "fail-open"
+                )
+            c[f"filter_two_pattern_{_filter_two_pattern_verdict.lower()}"] = c.get(
+                f"filter_two_pattern_{_filter_two_pattern_verdict.lower()}", 0
+            ) + 1
+            if _filter_two_pattern_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_two_pattern: {token_symbol} "
+                    f"reason={_filter_two_pattern_reason}"
+                )
+                continue
+
             txns_h1_total = b_h1 + s_h1
             avg_trade_size_h1 = (vol_h1 / txns_h1_total) if txns_h1_total > 0 else 0.0
 
@@ -1660,6 +1740,13 @@ class DipScanner:
                 "filter_fofar_score": _fofar_score,
                 "filter_fofar_components": _fofar_components,
                 "filter_fofar_block_reasons": _filter_fofar_block_reasons,
+                # filter_two_pattern — enforced positive entry criterion.
+                # PASS-via "A" (real dip), "B" (strength continuation),
+                # "AB" (matches both), or "fail-open" (missing inputs).
+                "filter_two_pattern_verdict": _filter_two_pattern_verdict,
+                "filter_two_pattern_reason": _filter_two_pattern_reason,
+                "filter_two_pattern_a": _tp_pattern_a,
+                "filter_two_pattern_b": _tp_pattern_b,
                 "h24_ratio_to_peak": (pc_h24 / peak_h24_6h) if peak_h24_6h > 0 else 1.0,
                 "cycles_seen_before_buy": cycles_seen,
                 "avg_trade_size_h1_usd": avg_trade_size_h1,
@@ -1705,6 +1792,7 @@ class DipScanner:
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
                 "filter_corpse_block", "filter_fake_bounce_block", "filter_fofar_block",
+                "filter_two_pattern_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
