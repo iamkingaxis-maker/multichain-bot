@@ -376,6 +376,7 @@ class PositionManager:
         self._states: Dict[str, PositionState] = {}
         self._last_volume_check: Dict[str, datetime] = {}
         self._stop_triggered: set = set()  # De-dup for realtime stops
+        self._tp_triggered: set = set()    # De-dup for realtime TPs
         # Last realtime price per token — used as the reference for the
         # downside sanity gate (reject ticks that drop >20% from prior).
         # Catches single corrupted feed ticks that fire spurious -15% stops
@@ -1540,6 +1541,100 @@ class PositionManager:
             asyncio.ensure_future(_do_realtime_stop(
                 token_address, state, label, price_usd, cooldown
             ))
+
+    def check_take_profit_realtime(self, token_address: str, price_usd: float):
+        """
+        Mirror of check_stop_loss_realtime for take-profit thresholds.
+        Catches fast peaks the polled path misses — without this, a spike
+        that touches TP1 between polls and reverses gets silently lost
+        (SCAM 2026-05-02: dashboard showed +$1.60=+8% via Axiom WS, but
+        polled path's max was +3.75%, so TP1=+8% would never have fired
+        even with the lower threshold).
+
+        Fires only for dip_buy currently — MC tiers and scalp have their
+        own TP semantics that intentionally use the polled cadence.
+        """
+        token_address = token_address.lower()
+        state = self._states.get(token_address)
+        if not state or state.entry_price <= 0:
+            return
+        if state.strategy != "dip_buy":
+            return
+        if state.tp1_hit:
+            return  # already taken profit
+        if token_address in self._tp_triggered:
+            return
+
+        age_seconds = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
+        if age_seconds < 5:
+            return
+
+        # Same single-tick sanity gate the stop path uses (rejects 20%+
+        # single-tick moves as feed noise).
+        last_rt = self._last_realtime_price.get(token_address, 0)
+        if last_rt > 0:
+            if price_usd > last_rt * 1.20 or price_usd < last_rt * 0.80:
+                return  # logged by stop path
+        # don't update _last_realtime_price here — stop path owns it
+
+        pnl_pct = (price_usd / state.entry_price - 1) * 100
+        tp1_pct = self.dip_tp1_pct
+
+        if pnl_pct < tp1_pct:
+            return
+
+        # Track peak even if TP doesn't fire after Jupiter verification —
+        # observability for forward analysis.
+        _tp = self.open_positions_ref.get(token_address)
+        if _tp is not None:
+            _prev_peak = getattr(_tp, "peak_pnl_pct", 0.0) or 0.0
+            if pnl_pct > _prev_peak:
+                _tp.peak_pnl_pct = pnl_pct
+                _entry_mono = getattr(_tp, "entry_time_monotonic", 0) or 0
+                if _entry_mono > 0:
+                    _tp.peak_pnl_at_secs = int(time.monotonic() - _entry_mono)
+
+        self._tp_triggered.add(token_address)
+        logger.info(
+            f"[PositionManager/{self.chain_name}] ⚡ REALTIME TP1: "
+            f"{state.token_symbol} at +{pnl_pct:.1f}% — verifying via Jupiter"
+        )
+
+        async def _do_realtime_tp(addr, st, trigger_pnl):
+            try:
+                # Verify via Jupiter — same noise-rejection logic as stops.
+                # Require fresh price within 25% of trigger (tighter than
+                # stop's 60% because we're locking in profit, not preventing
+                # loss — false positive here means we sell into noise).
+                fresh_price = await self._fetch_jupiter_price(addr)
+                if fresh_price > 0 and st.entry_price > 0:
+                    fresh_pnl = (fresh_price / st.entry_price - 1) * 100
+                    if fresh_pnl < tp1_pct * 0.75:
+                        logger.warning(
+                            f"[PositionManager/{self.chain_name}] ⚡ REALTIME TP "
+                            f"rejected for {st.token_symbol}: tick=+{trigger_pnl:.1f}% "
+                            f"but Jupiter spot={fresh_pnl:.1f}% (need >={tp1_pct*0.75:.1f}%) — discarding as tick noise"
+                        )
+                        self._tp_triggered.discard(addr)
+                        return
+                st.tp1_hit = True
+                # Sync to Position (persisted across restart)
+                _pos = self.open_positions_ref.get(addr)
+                if _pos is not None:
+                    _pos.take_profit_1_hit = True
+                await self._execute_sell(
+                    addr, st,
+                    pct=self.dip_tp1_sell,
+                    reason=f"Dip TP1 +{trigger_pnl:.1f}% [realtime]"
+                )
+            except Exception as e:
+                logger.error(
+                    f"[PositionManager/{self.chain_name}] ⚡ Realtime TP sell failed for "
+                    f"{st.token_symbol}: {e} — clearing trigger for retry"
+                )
+                self._tp_triggered.discard(addr)
+
+        asyncio.ensure_future(_do_realtime_tp(token_address, state, pnl_pct))
 
     async def _evaluate_scalp(self, token_address: str, state: PositionState):
         """

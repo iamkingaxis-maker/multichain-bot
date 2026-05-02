@@ -321,6 +321,7 @@ class PriceFeed:
             # Fire realtime stop-loss check — same pattern as AxiomPriceFeed
             if self.position_manager is not None:
                 self.position_manager.check_stop_loss_realtime(token_address, price)
+                self.position_manager.check_take_profit_realtime(token_address, price)
 
             # Notify all subscribers
             callbacks = self._subscribers.get(token_address, [])

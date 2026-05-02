@@ -479,6 +479,7 @@ class AxiomPriceFeed:
             # waiting up to 3s for the position manager poll cycle
             if self.position_manager is not None:
                 self.position_manager.check_stop_loss_realtime(token_address, price_usd)
+                self.position_manager.check_take_profit_realtime(token_address, price_usd)
 
             # Notify registered callbacks (e.g. DipWatcher)
             for cb in self._price_callbacks:
@@ -531,6 +532,25 @@ class AxiomPriceFeed:
                     size  = getattr(position, "amount_usd", 0)
                     if entry > 0 and size > 0:
                         position.pnl_usd = (price_usd / entry - 1) * size
+                        # Mirror _update_price's peak_pnl_pct tracking — Axiom
+                        # ticks fire faster than the polled path, so peaks
+                        # captured here would otherwise be lost (SCAM showed
+                        # peak=+3.75% recorded but dashboard saw +$1.60=+8%
+                        # via Axiom; the WS-only peak never landed on the
+                        # Position record). Same class as bf0a596's realtime
+                        # stop fix.
+                        pnl_pct = (price_usd / entry - 1) * 100
+                        prev_peak = getattr(position, "peak_pnl_pct", 0.0) or 0.0
+                        if pnl_pct > prev_peak:
+                            position.peak_pnl_pct = pnl_pct
+                            entry_mono = getattr(position, "entry_time_monotonic", 0) or 0
+                            if entry_mono > 0:
+                                import time as _t
+                                position.peak_pnl_at_secs = int(_t.monotonic() - entry_mono)
+                        # Track min_price for accurate max_drawdown_pct on sell
+                        prev_min = getattr(position, "min_price_usd", 0.0) or 0.0
+                        if prev_min <= 0 or price_usd < prev_min:
+                            position.min_price_usd = price_usd
 
         except Exception as e:
             logger.debug(f"[AxiomPriceFeed] Price handler error: {e}")

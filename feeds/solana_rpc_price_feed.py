@@ -324,3 +324,4 @@ class SolanaRpcPriceFeed:
 
         if self.position_manager is not None:
             self.position_manager.check_stop_loss_realtime(token_address, price_usd)
+            self.position_manager.check_take_profit_realtime(token_address, price_usd)
