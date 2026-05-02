@@ -142,6 +142,12 @@ class Config:
 
     # ── Scanner ──────────────────────────────────────────────
     scanner_enabled: bool = False  # disabled — 60 trades, 28% WR, -$198 P&L; gates MSS polling + Axiom buy-routing
+    # Disables AxiomScanner + AxiomTrendingScanner + AxiomSurgeScanner +
+    # AxiomSmartWalletTracker run loops. AxiomPriceFeed stays alive (DipScanner
+    # uses its tick buffer). Buys from these scanners would already be blocked
+    # by STRATEGY_ALLOWLIST=dip_buy at the trader; this flag stops the wasted
+    # scan cycles + noise (rugcheck calls, log spam) when only dip_buy is active.
+    axiom_scanners_enabled: bool = False
     min_mcap: float = 80_000
     max_mcap: float = 999_999_999  # No upper cap — scanner evaluates all sizes above min_mcap
     max_volume_h1_usd: float = 300_000
@@ -459,6 +465,9 @@ def _apply_env_overrides(config: Config):
     # MultiSourceScanner (legacy poll-based scanner — disabled by default)
     if os.environ.get("SCANNER_ENABLED"):
         config.scanner_enabled = env_bool("SCANNER_ENABLED", config.scanner_enabled)
+    # Axiom scanner suite (Trending/Surge/SmartWallet/AxiomScanner) — disabled by default
+    if os.environ.get("AXIOM_SCANNERS_ENABLED"):
+        config.axiom_scanners_enabled = env_bool("AXIOM_SCANNERS_ENABLED", config.axiom_scanners_enabled)
 
     # Dip scanner
     if os.environ.get("DIP_SCANNER_ENABLED"):

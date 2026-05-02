@@ -212,18 +212,26 @@ class AxiomIntegration:
         # Graduation sniper — wired in set_graduation_sniper() after main.py creates it
         self._graduation_sniper = None
 
-        self._tasks = [
-            self.scanner.run(),
-            self.trending_scanner.run(),
-            self.surge_scanner.run(),
-            self.wallet_tracker.run(),
-            self.price_feed.run(),
-            self.dip_watcher._expire_watches(),
-        ]
+        # AxiomPriceFeed is always started — DipScanner reads its tick buffer
+        # for sub-minute entry context. The four Axiom scanner runs are gated
+        # by axiom_scanners_enabled; when only dip_buy is active they consume
+        # API quota and log noise without producing buys (STRATEGY_ALLOWLIST
+        # already blocks them at the trader).
+        _scanners_on = bool(getattr(self.config, "axiom_scanners_enabled", False))
+        self._tasks = [self.price_feed.run()]
+        if _scanners_on:
+            self._tasks += [
+                self.scanner.run(),
+                self.trending_scanner.run(),
+                self.surge_scanner.run(),
+                self.wallet_tracker.run(),
+                self.dip_watcher._expire_watches(),
+            ]
 
         logger.info(
             "[AxiomIntegration] Connected | "
-            f"Scanner: {'real-time' if self.auth.has_credentials else 'fallback'}"
+            f"Scanner: {'real-time' if self.auth.has_credentials else 'fallback'} | "
+            f"Axiom scanners: {'ON' if _scanners_on else 'OFF (dip-only mode)'}"
         )
 
     def set_graduation_sniper(self, sniper) -> None:
