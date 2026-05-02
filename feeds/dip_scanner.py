@@ -1631,9 +1631,19 @@ class DipScanner:
                     and _tp_h24_ratio >= 0.60
                     and _tp_consec_red <= 1
                 )
+                # Pattern B tightened 2026-05-02 from consec_red<=1 to ==0
+                # after EITHER 19:42 stopped (-$1.79) — same shape as
+                # EITHER 01:18 yesterday (-$2.10), both with red=1. Loser
+                # cohort review: 5/6 Pattern B losses have red=1 and
+                # peak_pnl=0 (never green). Winners SCRIBBELON 01:09 and
+                # GRUMP 05:43 both have red=0. Trade-off: gives up FOFAR
+                # 11:51 (+$4 winner with red=1) to block 5 known losers
+                # (~$13 saved). Pattern A unchanged — its red<=1 threshold
+                # is correct because real-dip recoveries can show one red
+                # candle mid-bounce (e.g. EITHER 00:25, SCRIBBELON 02:09).
                 _tp_pattern_b = (
                     _tp_h24_ratio >= 0.85
-                    and _tp_consec_red <= 1
+                    and _tp_consec_red == 0
                 )
             if not _tp_can_evaluate:
                 _filter_two_pattern_verdict = "BLOCK"
