@@ -1511,6 +1511,70 @@ class DipScanner:
                 + (f" reasons={','.join(_filter_1m_block_reasons)}" if _filter_1m_block_reasons else "")
             )
 
+            # Filter FOFAR-confluence — ENFORCED 2026-05-02.
+            # Catches the "rolling-over topping pattern" where multiple
+            # weak-trend signals stack on the same entry. None of the
+            # individual shadow filters caught FOFAR cleanly, but 5/5
+            # fired together — the confluence IS the signal.
+            #
+            # Score: +1 each for
+            #   bs_m5 < 0.7              (sellers winning current 5m)
+            #   filter_1m_verdict=BLOCK  (1m cum dump or dead vol)
+            #   pct_in_1h_range > 0.55   (above 1h midline = no real dip)
+            #   5m_lower_highs >= 7      (sustained downtrend structure)
+            #   token_ema_verdict=BLOCK  (1H EMA slope < -1.5%)
+            #
+            # Trigger case: FOFAR 15:45 UTC 2026-05-02 — bs_m5=0.54,
+            # 1m=BLOCK, 1h_rng=0.573, 5m_lh=8, ema=BLOCK → 5/5. Stopped
+            # out 18 min later at -8%.
+            #
+            # Lifetime validation: score>=4 → n=1 BLOCK (a +$2.19 winner
+            # ZEREBRO 12:48), 0 Winner Regression Set blocks. Tighter
+            # threshold than score>=3 (which would block 2 small-$
+            # regression winners ~$5 total). Trade-off accepted: filter
+            # is precision-tuned to catch FOFAR-class confluence; small
+            # historical winner cost is OK because the pattern is the
+            # one we're trying to catch going forward.
+            #
+            # Fail-open on missing features — score is computed only on
+            # the features that ARE present, threshold still 4.
+            _fofar_score = 0
+            _fofar_components: list = []
+            _fofar_bs_m5 = float(ratio_m5) if ratio_m5 != float("inf") else None
+            if _fofar_bs_m5 is not None and _fofar_bs_m5 < 0.7:
+                _fofar_score += 1
+                _fofar_components.append(f"bs_m5={_fofar_bs_m5:.2f}<0.7")
+            if _filter_1m_verdict == "BLOCK":
+                _fofar_score += 1
+                _fofar_components.append("filter_1m=BLOCK")
+            _fofar_1h_rng = range_features.get("pct_in_1h_range")
+            if _fofar_1h_rng is not None and _fofar_1h_rng > 0.55:
+                _fofar_score += 1
+                _fofar_components.append(f"1h_rng={_fofar_1h_rng:.2f}>0.55")
+            _fofar_5m_lh = range_features.get("5m_lower_highs")
+            if _fofar_5m_lh is not None and _fofar_5m_lh >= 7:
+                _fofar_score += 1
+                _fofar_components.append(f"5m_lh={_fofar_5m_lh}>=7")
+            _fofar_ema = range_features.get("token_ema_verdict")
+            if _fofar_ema == "BLOCK":
+                _fofar_score += 1
+                _fofar_components.append("token_ema=BLOCK")
+            _filter_fofar_block_reasons: list = []
+            if _fofar_score >= 4:
+                _filter_fofar_block_reasons.append(
+                    f"confluence_score={_fofar_score}/5 [{','.join(_fofar_components)}]"
+                )
+            _filter_fofar_verdict = "BLOCK" if _filter_fofar_block_reasons else "PASS"
+            c[f"filter_fofar_{_filter_fofar_verdict.lower()}"] = c.get(
+                f"filter_fofar_{_filter_fofar_verdict.lower()}", 0
+            ) + 1
+            if _filter_fofar_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_fofar: {token_symbol} "
+                    f"reasons={','.join(_filter_fofar_block_reasons)}"
+                )
+                continue
+
             txns_h1_total = b_h1 + s_h1
             avg_trade_size_h1 = (vol_h1 / txns_h1_total) if txns_h1_total > 0 else 0.0
 
@@ -1591,6 +1655,11 @@ class DipScanner:
                 # filter_fake_bounce — enforced 1m fake-bounce gate.
                 "filter_fake_bounce_verdict": _filter_fake_bounce_verdict,
                 "filter_fake_bounce_block_reasons": _filter_fake_bounce_block_reasons,
+                # filter_fofar — enforced confluence gate (score>=4/5).
+                "filter_fofar_verdict": _filter_fofar_verdict,
+                "filter_fofar_score": _fofar_score,
+                "filter_fofar_components": _fofar_components,
+                "filter_fofar_block_reasons": _filter_fofar_block_reasons,
                 "h24_ratio_to_peak": (pc_h24 / peak_h24_6h) if peak_h24_6h > 0 else 1.0,
                 "cycles_seen_before_buy": cycles_seen,
                 "avg_trade_size_h1_usd": avg_trade_size_h1,
@@ -1635,7 +1704,7 @@ class DipScanner:
                 "seller_h1_red_m5", "seller_pump", "no_1m_reversal", "m1_top_tick", "m1_false_bounce", "top_consolidation",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
-                "filter_corpse_block", "filter_fake_bounce_block",
+                "filter_corpse_block", "filter_fake_bounce_block", "filter_fofar_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
