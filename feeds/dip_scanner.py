@@ -1428,12 +1428,27 @@ class DipScanner:
             # (vs 50% baseline; no clustering). Top-3-token removal: PASS
             # -$295 → +$179 total, BLOCK -$957 → -$421 — discrimination
             # amplifies under token-removal stress, doesn't disappear.
+            #
+            # Big-cap exemption (added 2026-05-02): Lifetime per-mcap
+            # analysis showed real-dip-3 ANTI-SELECTS on >$20M tokens —
+            # BLOCK bucket WR (62.5%) equals PASS WR but has higher total
+            # ($130 vs $45) because big-caps don't dip 3-5% intraday like
+            # memes. Median pc_h1 is -0.4% on big-caps vs -1.9% on $1M-5M.
+            # Disabling real-dip-3 on >$10M tokens retroactively adds
+            # +$143.86 (n=49 unblocked, 43% WR, +1.50% avg). Big-cap
+            # winners that real-dip-3 was killing: EITHER +$62/+$61/+$50,
+            # ORCA +$53/+$32 — small pullbacks on established uptrends,
+            # not the meme-style -3% dips this filter was designed for.
+            _entry_mcap = float(mcap or 0)
+            _real_dip_3_exempt = _entry_mcap > 10_000_000
             _filter_real_dip_3_block_reasons = []
             if pc_m5 > -3 and pc_h1 > -3:
                 _filter_real_dip_3_block_reasons.append(
                     f"5m={pc_m5:+.2f}%>-3 AND 1h={pc_h1:+.2f}%>-3 (no real pullback)"
                 )
             _filter_real_dip_3_verdict = "BLOCK" if _filter_real_dip_3_block_reasons else "PASS"
+            if _real_dip_3_exempt and _filter_real_dip_3_verdict == "BLOCK":
+                _filter_real_dip_3_verdict = "EXEMPT"  # big-cap exemption
             c[f"filter_real_dip_3_{_filter_real_dip_3_verdict.lower()}"] = c.get(
                 f"filter_real_dip_3_{_filter_real_dip_3_verdict.lower()}", 0
             ) + 1
@@ -1444,6 +1459,12 @@ class DipScanner:
                     f"reasons={','.join(_filter_real_dip_3_block_reasons)}"
                 )
                 continue
+            if _filter_real_dip_3_verdict == "EXEMPT":
+                logger.info(
+                    f"[DipScanner] real-dip-3 EXEMPT (big-cap): {token_symbol} "
+                    f"mcap=${_entry_mcap/1e6:.1f}M>$10M "
+                    f"5m={pc_m5:+.2f}% 1h={pc_h1:+.2f}%"
+                )
 
             # Filter real-dip-5 — SHADOW. Tighter version of real-dip-3
             # requiring a sharper pullback in at least one window. Lifetime
