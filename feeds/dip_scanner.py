@@ -1610,11 +1610,15 @@ class DipScanner:
             # the window vs current bot. Discipline > volume per
             # 2026-05-02 user direction post-SCAM rebuy.
             #
-            # Fail-open if features missing — pct_in_1h_range can be
-            # absent when the 5m fetch fails (~50% missing-rate
-            # historically); 1m_consec_red can be absent when the 1m
-            # fetch fails. When inputs are missing we fall back to
-            # PASS so we don't ground the bot on transient data gaps.
+            # Fail-CLOSED if features missing — the dominant
+            # discriminator pct_in_1h_range can be absent when the 5m
+            # fetch fails (~14% of trades historically); 1m_consec_red
+            # can be absent when 1m fetch fails. Earlier fail-open
+            # design defeated the filter on those trades (FOFAR 18:05
+            # 2026-05-02 slipped through with 1h_rng=None and
+            # h24_r=0.46 — neither pattern would have matched). Better
+            # to skip than to enter blind. The 5m fetch succeeds often
+            # enough that fail-closed still leaves meaningful frequency.
             _tp_1h_rng = range_features.get("pct_in_1h_range")
             _tp_h24_ratio = (pc_h24 / float(peak_h24_6h)) if float(peak_h24_6h) > 0 else 1.0
             _tp_consec_red = m1_features.get("1m_consec_red", 0)
@@ -1631,7 +1635,10 @@ class DipScanner:
                     _tp_h24_ratio >= 0.85
                     and _tp_consec_red <= 1
                 )
-            if _tp_can_evaluate and not (_tp_pattern_a or _tp_pattern_b):
+            if not _tp_can_evaluate:
+                _filter_two_pattern_verdict = "BLOCK"
+                _filter_two_pattern_reason = "fail-closed (1h_rng missing)"
+            elif not (_tp_pattern_a or _tp_pattern_b):
                 _filter_two_pattern_verdict = "BLOCK"
                 _filter_two_pattern_reason = (
                     f"neither A nor B "
@@ -1642,8 +1649,7 @@ class DipScanner:
                 _filter_two_pattern_reason = (
                     "A" if _tp_pattern_a and not _tp_pattern_b
                     else "B" if _tp_pattern_b and not _tp_pattern_a
-                    else "AB" if _tp_pattern_a and _tp_pattern_b
-                    else "fail-open"
+                    else "AB"
                 )
             c[f"filter_two_pattern_{_filter_two_pattern_verdict.lower()}"] = c.get(
                 f"filter_two_pattern_{_filter_two_pattern_verdict.lower()}", 0
