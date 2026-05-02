@@ -1293,27 +1293,25 @@ class DipScanner:
             c[f"filter_a_{_filter_a_verdict.lower()}"] = c.get(f"filter_a_{_filter_a_verdict.lower()}", 0) + 1
             # NO `continue` — Filter A is shadow-only.
 
-            # Filter peak-floor — ENFORCED 2026-05-02.
-            # User-shipped after Wish (mint 2ssMot…HpUMP) entered with peak_h24_6h
-            # of just +0.75% — there was no recent run-up to dip-buy from. The
-            # token bled through a 9h downtrend post-entry. real-dip-3 caught a
-            # pullback that wasn't a pullback in any uptrend.
+            # Filter peak-floor — ENFORCED 2026-05-02, threshold relaxed
+            # 2026-05-02 evening from 20% to 5% after winner-verification
+            # showed the 20% floor was blocking 7+ April 28 winners
+            # (BULL peak=7%, EITHER peak=19%, BURNIE peak=19%, MAGA peak=11%,
+            # ASTEROID peak=8%, BULL peak=17%, LOL peak=9%). Original 20%
+            # threshold was tuned against the May 2 morning winner cohort
+            # (peaks 56%-1324%) — over-fit to that regime.
             #
-            # Rule: BLOCK if peak_h24_6h_pct < 20%. Encodes the structural
-            # requirement that dip_buy needs an actual uptrend to dip from.
-            # Threshold of +20% is well below all 4 documented winners
-            # (EITHER +56%, Goblin +313%, SCRIBBELON×2 +1324%) — passes the
-            # Winner Regression Set in `project_bot_handoff.md`.
-            #
-            # Caveat: shipped on n=4 winners + n=1 problematic case (Wish).
-            # Smaller sample than the held-out validation bar we set after
-            # the Filter A overfit lesson. Watch forward — if it blocks future
-            # winners at the +20-50% peak band, revisit.
-            if float(peak_h24_6h) < 20.0:
+            # The 5% threshold still encodes the structural requirement
+            # that dip_buy needs SOME recent move to dip from. 5% isolates
+            # the truly-flat-range entries (Wish at +0.75%) without
+            # blocking small-pump winners. filter_two_pattern's
+            # h24_ratio_to_peak >= 0.60 (Pattern A) requirement does
+            # most of the structural work now.
+            if float(peak_h24_6h) < 5.0:
                 c["filter_peak_floor_block"] = c.get("filter_peak_floor_block", 0) + 1
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_peak_floor: {token_symbol} "
-                    f"peak_h24_6h={float(peak_h24_6h):+.1f}% < +20% (no recent uptrend)"
+                    f"peak_h24_6h={float(peak_h24_6h):+.1f}% < +5% (no recent move)"
                 )
                 continue
 
@@ -1429,18 +1427,21 @@ class DipScanner:
             # -$295 → +$179 total, BLOCK -$957 → -$421 — discrimination
             # amplifies under token-removal stress, doesn't disappear.
             #
-            # Big-cap exemption (added 2026-05-02): Lifetime per-mcap
-            # analysis showed real-dip-3 ANTI-SELECTS on >$20M tokens —
-            # BLOCK bucket WR (62.5%) equals PASS WR but has higher total
-            # ($130 vs $45) because big-caps don't dip 3-5% intraday like
-            # memes. Median pc_h1 is -0.4% on big-caps vs -1.9% on $1M-5M.
-            # Disabling real-dip-3 on >$10M tokens retroactively adds
-            # +$143.86 (n=49 unblocked, 43% WR, +1.50% avg). Big-cap
-            # winners that real-dip-3 was killing: EITHER +$62/+$61/+$50,
-            # ORCA +$53/+$32 — small pullbacks on established uptrends,
-            # not the meme-style -3% dips this filter was designed for.
+            # Big-cap exemption (added 2026-05-02, expanded to >$2M same day):
+            # Lifetime per-mcap analysis showed real-dip-3 anti-selects on
+            # bigger tokens — BLOCK bucket WR equals PASS WR but big-caps
+            # don't dip 3-5% intraday like memes. Original threshold was
+            # >$10M but winner-verification on April 28 showed 8+ winners
+            # in the $2-10M cap range were "small dip during active uptrend"
+            # entries (BOAR pc_m5=-2/h1=+20, BULL pc_m5=-0.7/h1=+4.5,
+            # Lobstar pc_m5=-0.1/h1=+4.2, BELKA pc_m5=-1.1/h1=+6.9,
+            # BULL pc_m5=-1.1/h1=+24.1) being blocked.
+            #
+            # Expanding exemption to >$2M captures most of the April 28
+            # winning shape. filter_two_pattern still gates the actual
+            # entry quality on these tokens via Pattern A or B match.
             _entry_mcap = float(mcap or 0)
-            _real_dip_3_exempt = _entry_mcap > 10_000_000
+            _real_dip_3_exempt = _entry_mcap > 2_000_000
             _filter_real_dip_3_block_reasons = []
             if pc_m5 > -3 and pc_h1 > -3:
                 _filter_real_dip_3_block_reasons.append(
