@@ -90,6 +90,15 @@ class Position:
     # as hold_pnl_snapshots. Lets us measure distribution velocity (entry ->
     # 30m -> 60m -> ... -> exit) instead of just entry-to-exit delta.
     holder_snapshots: Optional[dict] = None    # {"30m": 14.2, "60m": 13.8, ...}
+    # Mid-hold rich snapshots (added 2026-05-02) — sampled at the same 30/60/
+    # 90/120m thresholds. lp_snapshots: imbalance ratio + dominant pool depth
+    # from rugcheck markets array (LP draining = pre-rug signal). rugcheck
+    # _score_snapshots: score_normalised drift during hold. orderflow_
+    # snapshots: bs_m5 / bs_h1 / pc_m5 / pc_h1 / vol_m5 / vol_h1 from
+    # DexScreener — answers "did the order flow invert before the dump?"
+    lp_snapshots: Optional[dict] = None        # {"30m": {"imbalance": 1.0, "depth_usd": 240000}, ...}
+    rugcheck_score_snapshots: Optional[dict] = None  # {"30m": 50.0, ...}
+    orderflow_snapshots: Optional[dict] = None # {"30m": {"bs_m5": 1.2, "bs_h1": 1.5, "pc_m5": -2.1, "pc_h1": +6.0, "vol_m5": 5000, "vol_h1": 80000}, ...}
 
 
 _DATA_DIR = os.environ.get("DATA_DIR", ".")
@@ -404,6 +413,9 @@ class Trader:
                     "token_decimals": p.token_decimals,
                     "hold_pnl_snapshots": p.hold_pnl_snapshots or {},
                     "holder_snapshots": p.holder_snapshots or {},
+                    "lp_snapshots": p.lp_snapshots or {},
+                    "rugcheck_score_snapshots": p.rugcheck_score_snapshots or {},
+                    "orderflow_snapshots": p.orderflow_snapshots or {},
                 })
             tmp = _OPEN_POSITIONS_FILE + ".tmp"
             with open(tmp, "w") as f:
@@ -460,6 +472,9 @@ class Trader:
                     token_decimals=int(d.get("token_decimals", 6)),
                     hold_pnl_snapshots=dict(d.get("hold_pnl_snapshots") or {}),
                     holder_snapshots=dict(d.get("holder_snapshots") or {}),
+                    lp_snapshots=dict(d.get("lp_snapshots") or {}),
+                    rugcheck_score_snapshots=dict(d.get("rugcheck_score_snapshots") or {}),
+                    orderflow_snapshots=dict(d.get("orderflow_snapshots") or {}),
                 )
                 # Dict keys are always lowercased; Position.token_address keeps
                 # the original-case mint for Jupiter/RPC calls.
@@ -509,10 +524,11 @@ class Trader:
 
     async def capture_holder_snapshot(self, token_address: str, label: str) -> None:
         """
-        Sample top10_holder_pct mid-hold and stash on the open Position. Called
-        as a fire-and-forget task from position_manager when crossing 30/60/90/
-        120-min hold thresholds. Lets us measure distribution velocity vs the
-        entry baseline, not just net entry→exit delta.
+        Sample mid-hold security state — top10_holder_pct, rugcheck_score,
+        and LP imbalance — into parallel snapshot dicts on the open Position.
+        Called as a fire-and-forget task from position_manager at 30/60/90/
+        120-min hold thresholds. One rugcheck call covers all three (gaps 2
+        and 4 closed for free alongside the existing holder snapshot).
 
         Fail-soft on every step — analytics nice-to-have, never affects trading.
         """
@@ -525,26 +541,141 @@ class Trader:
             _rc_full = await self._security_checker._fetch_rugcheck_full(token_address)
             if not isinstance(_rc_full, dict):
                 return
+
+            # holder snapshot (existing)
             _LP_TAGS = {"lp", "liquidity", "liquiditypool", "pool", "amm", "bonding curve"}
             th = _rc_full.get("topHolders") or []
-            if not isinstance(th, list) or not th:
-                return
-            real = [
-                h for h in th
-                if isinstance(h, dict)
-                and h.get("insider", False) is not True
-                and (h.get("tag", "") or "").lower().strip() not in _LP_TAGS
-            ]
-            top10 = sum(float(h.get("pct", 0) or 0) for h in real[:10])
-            if position.holder_snapshots is None:
-                position.holder_snapshots = {}
-            position.holder_snapshots[label] = round(top10, 2)
+            if isinstance(th, list) and th:
+                real = [
+                    h for h in th
+                    if isinstance(h, dict)
+                    and h.get("insider", False) is not True
+                    and (h.get("tag", "") or "").lower().strip() not in _LP_TAGS
+                ]
+                top10 = sum(float(h.get("pct", 0) or 0) for h in real[:10])
+                if position.holder_snapshots is None:
+                    position.holder_snapshots = {}
+                position.holder_snapshots[label] = round(top10, 2)
+
+            # rugcheck score snapshot (gap 4)
+            try:
+                _score = _rc_full.get("score_normalised")
+                if _score is not None:
+                    if position.rugcheck_score_snapshots is None:
+                        position.rugcheck_score_snapshots = {}
+                    position.rugcheck_score_snapshots[label] = round(float(_score), 2)
+            except Exception:
+                pass
+
+            # LP imbalance snapshot (gap 2) — same parsing as buy-time meta
+            try:
+                _markets = _rc_full.get("markets") or []
+                if isinstance(_markets, list) and _markets:
+                    _best_lp = None
+                    _best_depth = -1.0
+                    for _m in _markets:
+                        if not isinstance(_m, dict):
+                            continue
+                        _lp = _m.get("lp") or {}
+                        if not isinstance(_lp, dict):
+                            continue
+                        _b = float(_lp.get("baseUSD") or 0)
+                        _q = float(_lp.get("quoteUSD") or 0)
+                        _depth = _b + _q
+                        if _depth > _best_depth:
+                            _best_depth = _depth
+                            _best_lp = (_b, _q)
+                    if _best_lp and _best_depth > 0:
+                        _b, _q = _best_lp
+                        _hi = max(_b, _q)
+                        _lo = max(min(_b, _q), 0.01)
+                        _ratio = _hi / _lo
+                        if position.lp_snapshots is None:
+                            position.lp_snapshots = {}
+                        position.lp_snapshots[label] = {
+                            "imbalance": round(_ratio, 3),
+                            "depth_usd": round(_best_depth, 2),
+                        }
+            except Exception:
+                pass
+
+            _hs = (position.holder_snapshots or {}).get(label)
+            _ls = (position.lp_snapshots or {}).get(label) or {}
+            _rs = (position.rugcheck_score_snapshots or {}).get(label)
             logger.info(
-                f"[Trader] HOLDER SNAPSHOT: {position.token_symbol} @ {label} "
-                f"top10={top10:.2f}%"
+                f"[Trader] HOLD SNAPSHOT: {position.token_symbol} @ {label} "
+                f"top10={_hs}% score={_rs} lp_imbalance={_ls.get('imbalance')} "
+                f"lp_depth=${_ls.get('depth_usd')}"
             )
         except Exception as _e:
-            logger.debug(f"[Trader] holder snapshot failed: {_e}")
+            logger.debug(f"[Trader] hold snapshot failed: {_e}")
+
+    async def capture_orderflow_snapshot(self, token_address: str, label: str) -> None:
+        """
+        Sample mid-hold order flow + momentum from DexScreener (gap 1). Single
+        DS call per threshold; bs_m5 / bs_h1 / pc_m5 / pc_h1 / vol_m5 / vol_h1
+        captured into orderflow_snapshots[label]. Answers "did order flow
+        invert before the dump?" — bs_m5 trajectory is the direct signal,
+        the rest is context.
+
+        Called as a fire-and-forget task from position_manager. Fail-soft.
+        """
+        try:
+            position = self.open_positions.get((token_address or "").lower())
+            if position is None:
+                return
+            if position.orderflow_snapshots and label in position.orderflow_snapshots:
+                return
+            url = f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as r:
+                        if r.status != 200:
+                            return
+                        data = await r.json()
+            except Exception:
+                return
+            pairs = data.get("pairs") or []
+            sol = [p for p in pairs if p.get("chainId") == "solana"]
+            if not sol:
+                return
+            # Use the same pool we entered through if possible, else max liquidity
+            pool = next(
+                (p for p in sol if (p.get("pairAddress") or "").lower()
+                 == (getattr(position, "pair_address", "") or "").lower()),
+                None,
+            ) or max(sol, key=lambda x: (x.get("liquidity") or {}).get("usd", 0) or 0)
+            txns = pool.get("txns") or {}
+            pc = pool.get("priceChange") or {}
+            vol = pool.get("volume") or {}
+
+            def _ratio(t):
+                b = (t or {}).get("buys") or 0
+                s = (t or {}).get("sells") or 0
+                if not s:
+                    return None  # avoid +inf serialization
+                return round(float(b) / float(s), 3)
+
+            snapshot = {
+                "bs_m5": _ratio(txns.get("m5")),
+                "bs_h1": _ratio(txns.get("h1")),
+                "bs_h6": _ratio(txns.get("h6")),
+                "pc_m5": float(pc.get("m5") or 0),
+                "pc_h1": float(pc.get("h1") or 0),
+                "vol_m5": float(vol.get("m5") or 0),
+                "vol_h1": float(vol.get("h1") or 0),
+                "liq_usd": float((pool.get("liquidity") or {}).get("usd") or 0),
+            }
+            if position.orderflow_snapshots is None:
+                position.orderflow_snapshots = {}
+            position.orderflow_snapshots[label] = snapshot
+            logger.info(
+                f"[Trader] ORDERFLOW SNAPSHOT: {position.token_symbol} @ {label} "
+                f"bs_m5={snapshot['bs_m5']} pc_m5={snapshot['pc_m5']:+.2f}% "
+                f"pc_h1={snapshot['pc_h1']:+.2f}% liq=${snapshot['liq_usd']/1e3:.0f}k"
+            )
+        except Exception as _e:
+            logger.debug(f"[Trader] orderflow snapshot failed: {_e}")
 
     async def _snapshot_sell_time_meta(self, position) -> Dict[str, float]:
         """
@@ -579,6 +710,19 @@ class Trader:
             snaps = getattr(position, "holder_snapshots", None) or {}
             if snaps:
                 out["holder_snapshots"] = dict(snaps)
+            # Mid-hold rich snapshots (added 2026-05-02 alongside gaps 1+2+4):
+            # LP imbalance trajectory, rugcheck score drift, and order-flow
+            # trajectory. All keyed by the same 30/60/90/120m labels as
+            # hold_pnl_snapshots and holder_snapshots.
+            lps = getattr(position, "lp_snapshots", None) or {}
+            if lps:
+                out["lp_snapshots"] = dict(lps)
+            rss = getattr(position, "rugcheck_score_snapshots", None) or {}
+            if rss:
+                out["rugcheck_score_snapshots"] = dict(rss)
+            ofs = getattr(position, "orderflow_snapshots", None) or {}
+            if ofs:
+                out["orderflow_snapshots"] = dict(ofs)
         except Exception:
             pass
         return out

@@ -745,12 +745,18 @@ class PositionManager:
                             f"[PositionManager/{self.chain_name}] ⏱ HOLD SNAPSHOT: "
                             f"{state.token_symbol} @ {_label} pnl={pnl_pct:+.1f}%"
                         )
-                        # Fire holder snapshot in the background — never blocks
-                        # the price-tick path. Trader resolves the position by
-                        # address and writes to position.holder_snapshots.
+                        # Fire holder + orderflow snapshots in the background —
+                        # never block the price-tick path. Trader resolves the
+                        # position by address and writes to the parallel
+                        # snapshot dicts on Position. holder_snapshot also
+                        # populates rugcheck_score_snapshots and lp_snapshots
+                        # from the same rugcheck call (gaps 2 + 4).
                         try:
                             asyncio.create_task(
                                 self.trader.capture_holder_snapshot(token_address, _label)
+                            )
+                            asyncio.create_task(
+                                self.trader.capture_orderflow_snapshot(token_address, _label)
                             )
                         except Exception:
                             pass
