@@ -1228,6 +1228,30 @@ class DipScanner:
             c[f"filter_a_{_filter_a_verdict.lower()}"] = c.get(f"filter_a_{_filter_a_verdict.lower()}", 0) + 1
             # NO `continue` — Filter A is shadow-only.
 
+            # Filter peak-floor — ENFORCED 2026-05-02.
+            # User-shipped after Wish (mint 2ssMot…HpUMP) entered with peak_h24_6h
+            # of just +0.75% — there was no recent run-up to dip-buy from. The
+            # token bled through a 9h downtrend post-entry. real-dip-3 caught a
+            # pullback that wasn't a pullback in any uptrend.
+            #
+            # Rule: BLOCK if peak_h24_6h_pct < 20%. Encodes the structural
+            # requirement that dip_buy needs an actual uptrend to dip from.
+            # Threshold of +20% is well below all 4 documented winners
+            # (EITHER +56%, Goblin +313%, SCRIBBELON×2 +1324%) — passes the
+            # Winner Regression Set in `project_bot_handoff.md`.
+            #
+            # Caveat: shipped on n=4 winners + n=1 problematic case (Wish).
+            # Smaller sample than the held-out validation bar we set after
+            # the Filter A overfit lesson. Watch forward — if it blocks future
+            # winners at the +20-50% peak band, revisit.
+            if float(peak_h24_6h) < 20.0:
+                c["filter_peak_floor_block"] = c.get("filter_peak_floor_block", 0) + 1
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_peak_floor: {token_symbol} "
+                    f"peak_h24_6h={float(peak_h24_6h):+.1f}% < +20% (no recent uptrend)"
+                )
+                continue
+
             # Filter real-dip-3 — ENFORCED. Validated on the full 540-pair
             # lifetime dataset (held-out test, not the same data the filter
             # was tuned on). Hypothesis: dip-buy works only when there is an
@@ -1421,7 +1445,7 @@ class DipScanner:
                 "red_h24", "trend_reversal", "top_exhaustion", "no_dip", "h1_mid_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
                 "seller_h1_red_m5", "seller_pump", "no_1m_reversal", "m1_top_tick", "m1_false_bounce", "top_consolidation",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
-                "obs_high_cycles", "filter_real_dip_3_block",
+                "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
