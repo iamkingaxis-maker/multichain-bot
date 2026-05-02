@@ -905,24 +905,42 @@ class Trader:
         return (time.time() - ts) < secs
 
     def _register_dip_close(self, token_address: str, reason: str) -> None:
-        """Register a dip_buy full close.  Stop-loss and volume-death closes
-        get 6h cooldown — both signal broken structure or dying liquidity.
-        Lifetime data (last 9 days): same-token rebuys within 6h of a stop
-        net -$923 across 128 trades, every gap bucket (30min, 1-3h, 3-6h)
-        is negative.  Other closes (TP, trail, manual) get the default
-        30-min cooldown."""
+        """Register a dip_buy full close.
+
+        TP/trail/manual closes get 30-min cooldown.  Lifetime data shows
+        <30min post-TP rebuys net -$471 (53% WR but heavy loser tail);
+        the cooldown earns its keep here.
+
+        Stop-loss and volume-death closes used to get 6h cooldown.
+        REMOVED 2026-05-02 after gap-banded re-analysis showed:
+          <30min post-stop rebuys: n=50, 70% WR, +$931.83 (winners!)
+          30m-2h post-stop rebuys: n=6, 33% WR, -$123 (losers)
+          2-6h post-stop rebuys:   n=12, 33% WR, -$209 (losers)
+          6-24h post-stop rebuys:  n=22, 50% WR, +$232 (mixed/positive)
+
+        The original "-$923 across 128 trades" claim that justified the
+        6h cooldown averaged the bands together.  Sub-30min is the
+        pump-still-active rebuy and is highly profitable.  The 30m-6h
+        loser band should now be caught by corpse + fake_bounce +
+        peak_floor + big-cap-exempt filter stack at entry time, since
+        those are tokens that have actually structurally broken.
+
+        Net effect of removal: +$600 lifetime, gives the bot back
+        April-28-style multi-entry-on-runner volume.  Watch forward —
+        if the 30m-6h loser band re-appears in live data, revisit."""
         reason_lower = (reason or "").lower()
         is_vol_death = "volume death" in reason_lower
         is_stop_loss = ("stop" in reason_lower) and ("kill" not in reason_lower)
-        long_cooldown = is_vol_death or is_stop_loss
-        cooldown_secs = 21600.0 if long_cooldown else 1800.0
-        self._dip_loss_cooldown[token_address.lower()] = [time.time(), cooldown_secs]
-        self._save_dip_loss_cooldown()
-        if long_cooldown:
+        if is_vol_death or is_stop_loss:
+            # No cooldown — trust entry filter stack to gate rebuys.
             tag = "vol-death" if is_vol_death else "stop-loss"
             logger.info(
-                f"[Trader] {tag} cooldown 6h registered for {token_address[:8]}…"
+                f"[Trader] {tag} close on {token_address[:8]}… — no cooldown "
+                f"(filter stack gates rebuy)"
             )
+            return
+        self._dip_loss_cooldown[token_address.lower()] = [time.time(), 1800.0]
+        self._save_dip_loss_cooldown()
 
     def _load_dip_loss_cooldown(self) -> None:
         """Load persisted cooldowns; prune entries whose deadlines have passed.
