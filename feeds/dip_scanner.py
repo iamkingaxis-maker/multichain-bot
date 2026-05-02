@@ -80,7 +80,8 @@ class DipScanner:
         # than 6h are pruned.  Used to reject entries where h24 has collapsed
         # to < 25% of recent peak (the meme is dying — see mexicanunc 04-25).
         # Persisted to /data/h24_history.json so the filter survives deploys.
-        self._h24_history: Dict[str, Deque[Tuple[float, float]]] = {}
+        # 4-tuple per entry: (ts, pc_h24, pc_h1 or None, pc_h6 or None)
+        self._h24_history: Dict[str, Deque[Tuple[float, float, Optional[float], Optional[float]]]] = {}
         self._h24_history_window_secs = 6 * 3600
         self._h24_reversal_threshold = 0.25
         self._h24_reversal_min_samples = 3
@@ -298,14 +299,21 @@ class DipScanner:
                 c["red_h24"] += 1
                 continue
 
-            # Track h24 history for trend-reversal detection — append each
-            # cycle (only after the red_h24 gate, so negative readings don't
-            # corrupt the peak) and prune entries older than the 6h window.
-            # Wall-clock time so history survives process restarts.
+            # Track h24/h1/h6 history for trend-reversal detection AND
+            # pre-entry trajectory features. Append each cycle (only after the
+            # red_h24 gate, so negative readings don't corrupt the peak) and
+            # prune entries older than the 6h window. Wall-clock time so
+            # history survives process restarts.
+            #
+            # Entry shape: (ts, pc_h24, pc_h1, pc_h6). Legacy entries loaded
+            # from /data/h24_history.json may have only (ts, pc_h24) — those
+            # get padded with None for h1/h6 in _load_h24_history. Readers
+            # downstream of the append (peak detection, trajectory derivation)
+            # tolerate None entries by skipping them.
             addr_lower = token_address.lower()
             hist = self._h24_history.setdefault(addr_lower, deque())
             wall_now = time.time()
-            hist.append((wall_now, pc_h24))
+            hist.append((wall_now, pc_h24, pc_h1, pc_h6))
             while hist and (wall_now - hist[0][0]) > self._h24_history_window_secs:
                 hist.popleft()
             self._h24_history_dirty = True
@@ -329,7 +337,7 @@ class DipScanner:
             # is still uptrending on 6h. Catches mexicanunc / ASTEROID class
             # true decay (h24 anchor falling AND h6 negative).
             if len(hist) >= self._h24_reversal_min_samples:
-                peak_h24 = max(h for _, h in hist)
+                peak_h24 = max(entry[1] for entry in hist)
                 if peak_h24 >= self._h24_reversal_min_peak \
                         and (pc_h24 / peak_h24) < self._h24_reversal_threshold \
                         and pc_h6 <= 0:
@@ -1192,8 +1200,65 @@ class DipScanner:
             # Batch 1 entry-meta — anything dip_scanner has at this moment that's
             # nice-to-have for analysis but doesn't merit its own Position field.
             pair_age_hours = (now_ms - created_ms) / 3_600_000 if created_ms > 0 else 0.0
-            peak_h24_6h = max((h for _, h in hist), default=pc_h24)
+            peak_h24_6h = max((entry[1] for entry in hist), default=pc_h24)
             cycles_seen = len(hist)
+
+            # Pre-entry momentum trajectory (Gap 3, 2026-05-02). Captures the
+            # SHAPE of how the token arrived at its current state, not just
+            # the snapshot. Two tokens with identical pc_h1=-3% can have
+            # opposite outcomes depending on whether h1 was +30% 30 min ago
+            # (fresh pullback in active pump) or -2% (extended distribution
+            # already underway). cycles_seen + peak_h24_6h capture magnitude
+            # but not derivative.
+            #
+            # Features below are best-effort: legacy history entries (loaded
+            # from old-format /data/h24_history.json) have None for h1/h6
+            # and are skipped when computing those derivatives. ts is always
+            # present, so pc_h24 trajectory is always derivable.
+            #
+            # Logged-only — not used as a filter. Forward analysis bucket-by-
+            # trajectory will inform whether/how to gate on it.
+            trajectory_features: dict = {}
+            if len(hist) >= 2:
+                # 30 min lookback: most recent entry that's at least 5 min old
+                # (avoids same-cycle noise) and at most 45 min old (loose cap
+                # so we still get a reading on tokens we just started watching).
+                _t30_min = wall_now - 1800
+                _t30_max = wall_now - 300
+                _candidates_h1 = [e for e in hist if _t30_min - 900 <= e[0] <= _t30_max and e[2] is not None]
+                _candidates_h6 = [e for e in hist if _t30_min - 900 <= e[0] <= _t30_max and e[3] is not None]
+                _candidates_h24 = [e for e in hist if _t30_min - 900 <= e[0] <= _t30_max]
+                # Pick the entry closest to 30 min ago in each pool.
+                def _closest_to_target(items, target_ts):
+                    return min(items, key=lambda e: abs(e[0] - target_ts)) if items else None
+                _e_h24 = _closest_to_target(_candidates_h24, _t30_min)
+                _e_h1 = _closest_to_target(_candidates_h1, _t30_min)
+                _e_h6 = _closest_to_target(_candidates_h6, _t30_min)
+                if _e_h24:
+                    trajectory_features["pc_h24_lookback"] = round(_e_h24[1], 2)
+                    trajectory_features["pc_h24_change_since_lookback"] = round(pc_h24 - _e_h24[1], 2)
+                    trajectory_features["lookback_secs"] = round(wall_now - _e_h24[0], 0)
+                if _e_h1 and _e_h1[2] is not None:
+                    trajectory_features["pc_h1_lookback"] = round(_e_h1[2], 2)
+                    trajectory_features["pc_h1_change_since_lookback"] = round(pc_h1 - _e_h1[2], 2)
+                if _e_h6 and _e_h6[3] is not None:
+                    trajectory_features["pc_h6_lookback"] = round(_e_h6[3], 2)
+                    trajectory_features["pc_h6_change_since_lookback"] = round(pc_h6 - _e_h6[3], 2)
+                # Time since each peak in the 6h window — distinguishes
+                # "just rolled over" from "been deteriorating for hours".
+                _h1_entries = [e for e in hist if e[2] is not None]
+                _h6_entries = [e for e in hist if e[3] is not None]
+                if _h1_entries:
+                    _peak_h1_e = max(_h1_entries, key=lambda e: e[2])
+                    trajectory_features["h1_peak_in_window"] = round(_peak_h1_e[2], 2)
+                    trajectory_features["time_since_h1_peak_secs"] = round(wall_now - _peak_h1_e[0], 0)
+                if _h6_entries:
+                    _peak_h6_e = max(_h6_entries, key=lambda e: e[3])
+                    trajectory_features["h6_peak_in_window"] = round(_peak_h6_e[3], 2)
+                    trajectory_features["time_since_h6_peak_secs"] = round(wall_now - _peak_h6_e[0], 0)
+                _peak_h24_e = max(hist, key=lambda e: e[1])
+                trajectory_features["time_since_h24_peak_secs"] = round(wall_now - _peak_h24_e[0], 0)
+
             # Observational: high cycles_seen correlates with fast stops (50-100
             # bucket: 50-62% WR, ~-$9/trade in our 127-trade dataset). Logged but
             # not enforced — gathering live evidence before adding a hard filter.
@@ -1417,6 +1482,7 @@ class DipScanner:
                 **jup_features,  # Jupiter quote asymmetry (or empty if failed)
                 **tick_features,  # WS tick buffer stats (or empty if no feed)
                 **trend_features,  # multi-layer trend score (or empty)
+                **trajectory_features,  # pre-entry momentum trajectory (Gap 3)
                 **_bot_state,  # bot-state context (concurrency, pacing, daily PnL)
             }
 
@@ -1463,7 +1529,14 @@ class DipScanner:
             self._h24_history_dirty = False
 
     def _load_h24_history(self) -> None:
-        """Load persisted h24 history; drop entries older than the 6h window."""
+        """
+        Load persisted history; drop entries older than the 6h window.
+
+        Backward compatible: legacy entries are 2-tuples (ts, pc_h24); new
+        entries are 4-tuples (ts, pc_h24, pc_h1, pc_h6). Legacy entries are
+        padded with None for h1/h6 on load, and trajectory derivation
+        downstream skips None values rather than treating them as 0.
+        """
         try:
             if not os.path.exists(self._h24_history_path):
                 return
@@ -1474,8 +1547,27 @@ class DipScanner:
             for addr, entries in raw.items():
                 if not isinstance(entries, list):
                     continue
-                fresh = [(float(ts), float(h)) for ts, h in entries
-                         if isinstance(ts, (int, float)) and float(ts) > cutoff]
+                fresh = []
+                for entry in entries:
+                    if not isinstance(entry, (list, tuple)):
+                        continue
+                    try:
+                        if len(entry) >= 4:
+                            ts = float(entry[0])
+                            h24 = float(entry[1])
+                            h1 = float(entry[2]) if entry[2] is not None else None
+                            h6 = float(entry[3]) if entry[3] is not None else None
+                        elif len(entry) == 2:
+                            ts = float(entry[0])
+                            h24 = float(entry[1])
+                            h1 = None
+                            h6 = None
+                        else:
+                            continue
+                    except (TypeError, ValueError):
+                        continue
+                    if ts > cutoff:
+                        fresh.append((ts, h24, h1, h6))
                 if fresh:
                     self._h24_history[addr] = deque(fresh)
                     loaded += len(fresh)
@@ -1489,12 +1581,12 @@ class DipScanner:
             self._h24_history = {}
 
     def _save_h24_history(self) -> None:
-        """Write h24 history atomically (tmp + rename).  Lists, not deques."""
+        """Write history atomically (tmp + rename) in 4-tuple format."""
         try:
             os.makedirs(os.path.dirname(self._h24_history_path), exist_ok=True)
             tmp_path = self._h24_history_path + ".tmp"
-            payload: Dict[str, List[List[float]]] = {
-                addr: [[ts, h] for ts, h in dq]
+            payload: Dict[str, List[list]] = {
+                addr: [[ts, h24, h1, h6] for ts, h24, h1, h6 in dq]
                 for addr, dq in self._h24_history.items()
                 if dq  # drop empty deques
             }
