@@ -163,7 +163,7 @@ class Config:
     dip_tp1_sell: float = 1.0             # Sell entire position at TP (was 0.50 partial). Runner trail dropped — see asymmetric_exit_analysis.py.
     dip_tp2_pct: float = 15.0             # TP2 unreachable when TP1 sells 100% — left as a safety guard.
     dip_tp2_sell: float = 1.0
-    dip_stop_pct: float = 10.0            # Hard stop at -10% (was 15.0 — drawdown analysis Apr 19-30 showed 0 of 276 winners ever dipped past -14%; tightening to -10% kills only 3 winners, shrinks 18 stops by 33%; net +$247 historical)
+    dip_stop_pct: float = 8.0             # Hard stop at -8% (was 10.0 — TP/stop counterfactual sweep on post-bf0a596 data: TP=+12% / stop=-8% improves total $ by +$10 on n=64 with same 52% WR, while -10% returned -$7.62 and -6% returned +$5.80 with WR drop to 47%. -8% is the WR-preserving improvement. Mechanism: 23 deep losers (max_dd <= -10) crystallize at -8% instead of -10%, saving $0.40 each (~$9.20 total); 6 mid-band trades (-10 < dd <= -8) affected mildly. 2026-05-02.)
     dip_winner_trail_pct: float = 3.5     # Trail kept as field but unused — post-TP1 trail block in position_manager dropped 2026-05-01 (no moonshots in sample, trail gave back 6.67pp avg).
     dip_max_concurrent: int = 4           # Max simultaneous dip positions
     dip_min_txn_ratio_h6: float = 1.3     # require h6 buy/sell txn ratio >= 1.3 (blocks distribution: DUMBMONEY 1.11, SPIKE 1.20; passes WIFE 1.54, BULL 1.53)
