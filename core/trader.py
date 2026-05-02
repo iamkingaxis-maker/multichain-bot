@@ -823,6 +823,75 @@ class Trader:
         except Exception as e:
             logger.warning(f"[Trader] Could not save dip_loss_cooldown.json: {e}")
 
+    async def _track_stop_recovery(
+        self,
+        token_address: str,
+        token_symbol: str,
+        entry_price: float,
+        exit_price: float,
+        reason: str,
+    ) -> None:
+        """
+        Snapshot price at +30m / +1h / +4h after a dip_buy stop and append to
+        /data/stop_recovery_log.jsonl. Tests whether the -10% stop is exiting
+        tokens that recover (selection-bias check on the drawdown analysis
+        that drove the stop-tightening: original analysis only counted winners
+        we held, by construction excluding any that were stopped before they
+        could recover).
+
+        Append-only JSONL — restart-safe per-snapshot. If the bot restarts
+        mid-window, snapshots after restart are lost (acceptable; this is
+        instrumentation, not a behavior trigger). Best-effort price reads
+        via the same _get_token_price fallback used at entry/exit.
+        """
+        if entry_price <= 0 or exit_price <= 0:
+            return
+        log_path = os.path.join(_DATA_DIR, "stop_recovery_log.jsonl")
+        # Initial event: stop occurred
+        try:
+            with open(log_path, "a") as f:
+                json.dump({
+                    "type": "stop",
+                    "token": token_symbol,
+                    "mint": token_address,
+                    "entry_price": float(entry_price),
+                    "exit_price": float(exit_price),
+                    "exit_pnl_pct": (exit_price / entry_price - 1) * 100 if entry_price > 0 else 0,
+                    "reason": reason,
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                }, f)
+                f.write("\n")
+        except Exception as e:
+            logger.warning(f"[stop_recovery] init write error: {e}")
+
+        for delay_secs in (1800, 3600, 14400):  # 30m, 1h, 4h
+            try:
+                await asyncio.sleep(delay_secs)
+                price = await self._get_token_price(token_address)
+                if price is None or price <= 0:
+                    continue
+                vs_exit_pct = (price / exit_price - 1) * 100
+                vs_entry_pct = (price / entry_price - 1) * 100
+                with open(log_path, "a") as f:
+                    json.dump({
+                        "type": "snap",
+                        "mint": token_address,
+                        "delay_secs": delay_secs,
+                        "price": float(price),
+                        "vs_exit_pct": round(vs_exit_pct, 2),
+                        "vs_entry_pct": round(vs_entry_pct, 2),
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    }, f)
+                    f.write("\n")
+                logger.info(
+                    f"[stop_recovery] {token_symbol} +{delay_secs//60}m: "
+                    f"price={price:.6g} vs_exit={vs_exit_pct:+.1f}% vs_entry={vs_entry_pct:+.1f}%"
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.debug(f"[stop_recovery] snap error for {token_symbol}: {e}")
+
     def register_axiom_auth(self, auth):
         """Register Axiom auth manager for Axiom-based price lookups."""
         self._axiom_auth = auth
@@ -1530,6 +1599,14 @@ class Trader:
                     # longer 6h cooldown via _register_dip_close.
                     if getattr(position, "strategy", "") == "dip_buy":
                         self._register_dip_close(token_address, reason)
+                        if "stop" in (reason or "").lower():
+                            asyncio.create_task(self._track_stop_recovery(
+                                token_address=token_address,
+                                token_symbol=token_symbol,
+                                entry_price=float(getattr(position, "entry_price_usd", 0) or 0),
+                                exit_price=float(getattr(position, "current_price_usd", 0) or 0),
+                                reason=reason,
+                            ))
                 else:
                     position.amount_tokens *= (1 - pct)
                     position.amount_sol_spent *= (1 - pct)
@@ -1667,6 +1744,14 @@ class Trader:
                 # Volume-death closes get extended 6h cooldown.
                 if getattr(position, "strategy", "") == "dip_buy":
                     self._register_dip_close(token_address, reason)
+                    if "stop" in (reason or "").lower():
+                        asyncio.create_task(self._track_stop_recovery(
+                            token_address=token_address,
+                            token_symbol=token_symbol,
+                            entry_price=float(getattr(position, "entry_price_usd", 0) or 0),
+                            exit_price=float(getattr(position, "current_price_usd", 0) or 0),
+                            reason=reason,
+                        ))
             else:
                 position.amount_tokens *= (1 - pct)
                 position.amount_sol_spent *= (1 - pct)
