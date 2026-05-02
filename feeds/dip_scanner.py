@@ -1427,21 +1427,24 @@ class DipScanner:
             # -$295 → +$179 total, BLOCK -$957 → -$421 — discrimination
             # amplifies under token-removal stress, doesn't disappear.
             #
-            # Big-cap exemption (added 2026-05-02, expanded to >$2M same day):
-            # Lifetime per-mcap analysis showed real-dip-3 anti-selects on
-            # bigger tokens — BLOCK bucket WR equals PASS WR but big-caps
-            # don't dip 3-5% intraday like memes. Original threshold was
-            # >$10M but winner-verification on April 28 showed 8+ winners
-            # in the $2-10M cap range were "small dip during active uptrend"
-            # entries (BOAR pc_m5=-2/h1=+20, BULL pc_m5=-0.7/h1=+4.5,
-            # Lobstar pc_m5=-0.1/h1=+4.2, BELKA pc_m5=-1.1/h1=+6.9,
-            # BULL pc_m5=-1.1/h1=+24.1) being blocked.
+            # Exemptions (both added 2026-05-02 evening):
+            #   1. mcap > $2M — big-caps don't dip 3-5% intraday like
+            #      memes; "no real pullback" misclassifies their normal
+            #      tape as bad entries.
+            #   2. pc_h1 > +5% — strongly-uptrending tokens with shallow
+            #      m5 dips are the "active uptrend continuation" pattern,
+            #      not a corpse. Winner-verification surfaced this shape
+            #      across small-cap winners: BOAR pc_m5=-2.0/h1=+20.4
+            #      ($+67), BELKA pc_m5=-1.1/h1=+6.9 ($+53),
+            #      LOL pc_m5=-0.5/h1=+7.2 ($+22), Lobstar h1=+4.2,
+            #      BULL h1=+4.5 — all blocked under mcap-only exemption.
+            #      pc_h1 > +5% means the 1h timeframe is in clear uptrend;
+            #      m5 negative is just intraday noise.
             #
-            # Expanding exemption to >$2M captures most of the April 28
-            # winning shape. filter_two_pattern still gates the actual
-            # entry quality on these tokens via Pattern A or B match.
+            # filter_two_pattern still gates the actual entry quality on
+            # exempted tokens via Pattern A or B match.
             _entry_mcap = float(mcap or 0)
-            _real_dip_3_exempt = _entry_mcap > 2_000_000
+            _real_dip_3_exempt = (_entry_mcap > 2_000_000) or (pc_h1 > 5.0)
             _filter_real_dip_3_block_reasons = []
             if pc_m5 > -3 and pc_h1 > -3:
                 _filter_real_dip_3_block_reasons.append(
