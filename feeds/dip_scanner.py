@@ -1317,6 +1317,51 @@ class DipScanner:
                 )
                 continue
 
+            # Filter post-pump-corpse — ENFORCED 2026-05-02.
+            # Catches "post-pump corpse" entries: token sitting above middle
+            # of its 1h range AND already dumped >70% from its 24h peak. Not
+            # a dip in an active uptrend — a corpse with a small bounce.
+            #
+            # Trigger case: Goblin 04:27 UTC 2026-05-02 — peak_h24_6h=254%
+            # but h24_ratio_to_peak=0.24 (down 76% from peak), 1h_rng=0.63.
+            # Stopped out 3.5 min later at -10%.
+            #
+            # Methodology: systematic Cohen's d scan across all numeric
+            # entry_meta fields. pct_in_1h_range had |d|=1.01 (largest) —
+            # winners enter near 35% of 1h range, losers near 58-71%.
+            # Compound with h24_ratio_to_peak<0.30 isolates the corpse shape
+            # from "active runner with mid-range entry" (which produced our
+            # biggest wins: ORCA, ooo, EITHER, BULL — all ratio>0.40).
+            #
+            # Lifetime validation: BLOCK n=4-5, 0% WR, total -$55 (we save
+            # $55 by enforcing). Winner Regression Set: zero winners blocked.
+            # Also catches the historic SCAM 04-28 catastrophe (-$52.70).
+            #
+            # Fail-open if pct_in_1h_range missing (5m fetch failed) — the
+            # feature has ~50% coverage. Don't penalize on missing data.
+            _pct_in_1h_range = range_features.get("pct_in_1h_range")
+            _h24_ratio = (pc_h24 / float(peak_h24_6h)) if float(peak_h24_6h) > 0 else 1.0
+            _filter_corpse_block_reasons: list = []
+            if (
+                _pct_in_1h_range is not None
+                and _pct_in_1h_range > 0.55
+                and _h24_ratio < 0.30
+            ):
+                _filter_corpse_block_reasons.append(
+                    f"pct_in_1h_range={_pct_in_1h_range:.2f}>0.55 AND "
+                    f"h24_ratio_to_peak={_h24_ratio:.2f}<0.30 (post-pump corpse)"
+                )
+            _filter_corpse_verdict = "BLOCK" if _filter_corpse_block_reasons else "PASS"
+            c[f"filter_corpse_{_filter_corpse_verdict.lower()}"] = c.get(
+                f"filter_corpse_{_filter_corpse_verdict.lower()}", 0
+            ) + 1
+            if _filter_corpse_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_corpse: {token_symbol} "
+                    f"reasons={','.join(_filter_corpse_block_reasons)}"
+                )
+                continue
+
             # Filter real-dip-3 — ENFORCED. Validated on the full 540-pair
             # lifetime dataset (held-out test, not the same data the filter
             # was tuned on). Hypothesis: dip-buy works only when there is an
@@ -1468,6 +1513,9 @@ class DipScanner:
                 "filter_real_dip_5_block_reasons": _filter_real_dip_5_block_reasons,
                 "filter_1m_verdict": _filter_1m_verdict,
                 "filter_1m_block_reasons": _filter_1m_block_reasons,
+                # filter_corpse — enforced post-pump-corpse gate.
+                "filter_corpse_verdict": _filter_corpse_verdict,
+                "filter_corpse_block_reasons": _filter_corpse_block_reasons,
                 "h24_ratio_to_peak": (pc_h24 / peak_h24_6h) if peak_h24_6h > 0 else 1.0,
                 "cycles_seen_before_buy": cycles_seen,
                 "avg_trade_size_h1_usd": avg_trade_size_h1,
@@ -1512,6 +1560,7 @@ class DipScanner:
                 "seller_h1_red_m5", "seller_pump", "no_1m_reversal", "m1_top_tick", "m1_false_bounce", "top_consolidation",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
+                "filter_corpse_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
