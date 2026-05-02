@@ -159,7 +159,7 @@ class Config:
     dip_max_mcap: float = 100_000_000      # $100M max FDV — excludes BONK/PUMP-tier large caps that don't bounce
     dip_min_age_days: float = 0.0          # No age floor — other filters (bs_h6, turnover, vol-decay) do structural protection. Still blocks tokens with missing pairCreatedAt.
     dip_min_volume_h24: float = 200_000    # $200k minimum 24h volume
-    dip_tp1_pct: float = 12.0             # TP at +12% — sell 100% (was +8% partial). Asymmetric exit analysis 2026-05-01 (133 trades) showed: 0 of 133 had peak ≥25% (no moonshots), runner trail gave back avg 6.67pp per fire, flat 100% TP at +12% simulates +$32.72 better than current asymmetric.
+    dip_tp1_pct: float = 8.0              # TP at +8% — sell 100%. Lowered 2026-05-02 from 12% (user directive). Tighter exit reduces give-back on tokens that touch +8% but reverse before +12%.
     dip_tp1_sell: float = 1.0             # Sell entire position at TP (was 0.50 partial). Runner trail dropped — see asymmetric_exit_analysis.py.
     dip_tp2_pct: float = 15.0             # TP2 unreachable when TP1 sells 100% — left as a safety guard.
     dip_tp2_sell: float = 1.0
