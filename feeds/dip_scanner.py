@@ -1362,6 +1362,57 @@ class DipScanner:
                 )
                 continue
 
+            # Filter fake-bounce — ENFORCED 2026-05-02.
+            # Catches "1m green pulse on dead volume" pattern: last 1m
+            # candle closed >1.75% green BUT volume_spike < 0.30 (volume
+            # <30% of trailing average). The 1m green is air, not real
+            # buying — a fake reversal inside a sustained down-move that
+            # doesn't hold.
+            #
+            # Trigger case: NKT 02:04 UTC 2026-05-02 — 1m_close=+1.81%,
+            # vol=0.17. Stopped out 2 min later at -10%. ASTEROID 04-27
+            # (twice) was the historic disaster: +4.47% / 0.04 vol → -$91,
+            # +5.98% / 0.10 vol → -$54.
+            #
+            # Methodology: Cohen's d scan comparing never-green losers
+            # (n=105) vs big winners (n=93). 1m_last_close_pct flipped:
+            # winners' last 1m close median -0.46% (still red), losers'
+            # -0.07% (basically flat). Compound with vol_spike < 0.30
+            # isolates the "fake bounce" pattern from normal mid-dip
+            # green pulses (which winners often show).
+            #
+            # Lifetime validation: BLOCK n=3, 0% WR, total -$148. Winner
+            # Regression Set: zero blocked. SCRIBBELON 01:09 (+$3.62,
+            # 1m_close=+1.47) clears threshold by 0.28; BOAR 19:24
+            # (+$67.60, vol_spike=0.66) clears by both vectors. Filter
+            # is narrow — precision-focused, not recall.
+            #
+            # Fail-open if 1m features missing — m1_features can be
+            # empty when the 1m fetch fails.
+            _m1_lcp = m1_features.get("1m_last_close_pct")
+            _m1_vs = m1_features.get("1m_volume_spike")
+            _filter_fake_bounce_block_reasons: list = []
+            if (
+                _m1_lcp is not None
+                and _m1_vs is not None
+                and _m1_lcp > 1.75
+                and _m1_vs < 0.30
+            ):
+                _filter_fake_bounce_block_reasons.append(
+                    f"1m_close={_m1_lcp:+.2f}%>1.75 AND "
+                    f"1m_vol_spike={_m1_vs:.2f}<0.30 (fake bounce on dead volume)"
+                )
+            _filter_fake_bounce_verdict = "BLOCK" if _filter_fake_bounce_block_reasons else "PASS"
+            c[f"filter_fake_bounce_{_filter_fake_bounce_verdict.lower()}"] = c.get(
+                f"filter_fake_bounce_{_filter_fake_bounce_verdict.lower()}", 0
+            ) + 1
+            if _filter_fake_bounce_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_fake_bounce: {token_symbol} "
+                    f"reasons={','.join(_filter_fake_bounce_block_reasons)}"
+                )
+                continue
+
             # Filter real-dip-3 — ENFORCED. Validated on the full 540-pair
             # lifetime dataset (held-out test, not the same data the filter
             # was tuned on). Hypothesis: dip-buy works only when there is an
@@ -1516,6 +1567,9 @@ class DipScanner:
                 # filter_corpse — enforced post-pump-corpse gate.
                 "filter_corpse_verdict": _filter_corpse_verdict,
                 "filter_corpse_block_reasons": _filter_corpse_block_reasons,
+                # filter_fake_bounce — enforced 1m fake-bounce gate.
+                "filter_fake_bounce_verdict": _filter_fake_bounce_verdict,
+                "filter_fake_bounce_block_reasons": _filter_fake_bounce_block_reasons,
                 "h24_ratio_to_peak": (pc_h24 / peak_h24_6h) if peak_h24_6h > 0 else 1.0,
                 "cycles_seen_before_buy": cycles_seen,
                 "avg_trade_size_h1_usd": avg_trade_size_h1,
@@ -1560,7 +1614,7 @@ class DipScanner:
                 "seller_h1_red_m5", "seller_pump", "no_1m_reversal", "m1_top_tick", "m1_false_bounce", "top_consolidation",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
-                "filter_corpse_block",
+                "filter_corpse_block", "filter_fake_bounce_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
