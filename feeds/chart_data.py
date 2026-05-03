@@ -41,6 +41,11 @@ from typing import List, Optional
 from feeds.candle_utils import Candle
 from feeds.gecko_ohlcv import GeckoTerminalClient
 
+try:
+    from feeds.dexscreener_client import DexScreenerClient
+except Exception:  # noqa: BLE001 — keep optional; fall back to GT only if missing
+    DexScreenerClient = None  # type: ignore[assignment,misc]
+
 logger = logging.getLogger(__name__)
 
 
@@ -87,12 +92,21 @@ async def assemble_chart_data(
     limit_5m: int = 144,
     limit_15m: int = 96,
     limit_1h: int = 48,
+    dexs_client: "DexScreenerClient | None" = None,
 ) -> ChartData:
-    """Fetch all four timeframes for a pool in parallel.
+    """Fetch all four timeframes for a pool.
+
+    If `dexs_client` is provided, DexScreener's internal binary chart API is
+    used as the PRIMARY source — much higher rate-limit headroom than GT's
+    free tier (which was bottlenecking coverage at 6-20%). On any per-
+    timeframe miss (empty result), we fall back to GT for that specific
+    timeframe so partial DexScreener outages still produce a usable bundle.
+
+    If `dexs_client` is None, we use GT only (legacy behaviour).
 
     Returns a ChartData with whatever fetches succeeded. Never raises —
-    individual fetch failures are caught by the GT client and surface
-    as empty lists.
+    individual fetch failures are caught by the underlying client and
+    surface as empty lists.
 
     Defaults give 1h / 12h / 24h / 2d of coverage on the four
     timeframes — enough history for swing-pivot detection (S/R) and
@@ -101,26 +115,52 @@ async def assemble_chart_data(
     if not pool_address:
         return ChartData(pool_address="")
 
-    # Sequential fetch (not asyncio.gather) — GT enforces a per-second burst
-    # ceiling on top of its per-minute quota, and parallel-gather all-four
-    # routinely returned 4-empty even when our local 30/min budget had
-    # headroom. Audit on 14 post-refactor trades: 5/14 had full coverage,
-    # 9/14 had ZERO coverage — perfectly all-or-nothing because the gather
-    # bursted past GT's per-second cap and every call returned empty.
-    # Serializing lets the GT client's _throttle properly space requests
-    # and the 60s cache absorbs the small latency cost (~500ms gather ->
-    # ~2s sequential is acceptable inside a scan cycle).
-    async def _safe_fetch(coro):
+    async def _safe(coro):
         try:
             r = await coro
             return r or []
         except Exception:
             return []
 
-    candles_1m = await _safe_fetch(gt_client.fetch_1m(pool_address, limit=limit_1m))
-    candles_5m = await _safe_fetch(gt_client.fetch_5m(pool_address, limit=limit_5m))
-    candles_15m = await _safe_fetch(gt_client.fetch_15m(pool_address, limit=limit_15m))
-    candles_1h = await _safe_fetch(gt_client.fetch_1h(pool_address, limit=limit_1h))
+    # Sequential fetch — both GT and DexScreener enforce per-second burst
+    # ceilings on top of their per-minute quotas; parallel asyncio.gather
+    # routinely returned 4-empty even with budget headroom. Sequential
+    # fetches let the rate-limiter inside each client space requests
+    # properly. The 60s cache absorbs the latency cost on re-scans.
+
+    async def _fetch_one(timeframe: str, gt_factory, dexs_factory):
+        """Try DexScreener first if available; fall back to GT on empty.
+
+        Factories (no-arg callables returning a coroutine) are used so we
+        only construct the coroutine for the path we actually await — avoids
+        orphan-coroutine RuntimeWarnings.
+        """
+        if dexs_client is not None and dexs_factory is not None:
+            r = await _safe(dexs_factory())
+            if r:
+                return r
+        return await _safe(gt_factory())
+
+    candles_1m = await _fetch_one(
+        "1m",
+        lambda: gt_client.fetch_1m(pool_address, limit=limit_1m),
+        (lambda: dexs_client.fetch_1m(pool_address, limit=limit_1m)) if dexs_client else None,
+    )
+    candles_5m = await _fetch_one(
+        "5m",
+        lambda: gt_client.fetch_5m(pool_address, limit=limit_5m),
+        (lambda: dexs_client.fetch_5m(pool_address, limit=limit_5m)) if dexs_client else None,
+    )
+    candles_15m = await _fetch_one(
+        "15m",
+        lambda: gt_client.fetch_15m(pool_address, limit=limit_15m),
+        (lambda: dexs_client.fetch_15m(pool_address, limit=limit_15m)) if dexs_client else None,
+    )
+    candles_1h = await _fetch_one(
+        "1h",
+        lambda: gt_client.fetch_1h(pool_address, limit=limit_1h),
+        (lambda: dexs_client.fetch_1h(pool_address, limit=limit_1h)) if dexs_client else None,
+    )
 
     cd = ChartData(
         pool_address=pool_address,

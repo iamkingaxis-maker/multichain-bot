@@ -82,6 +82,19 @@ class DipScanner:
         # tier ceiling and the chart_reader benefits from cache hits.
         self.gt_client = gt_client or GeckoTerminalClient(cache_ttl=60, rate_per_min=30)
 
+        # DexScreener internal-API client — used as primary OHLCV source
+        # via assemble_chart_data, with GT as fallback. Bypasses GT's
+        # 30/min ceiling that was capping chart_full_coverage at 6-20%.
+        # Lazy-imported and lazy-initialized; if curl_cffi is missing we
+        # silently degrade to GT-only.
+        self.dexs_client = None
+        try:
+            from feeds.dexscreener_client import DexScreenerClient
+            self.dexs_client = DexScreenerClient(cache_ttl=60, rate_per_min=90)
+            logger.info("[DipScanner] DexScreener primary OHLCV enabled (GT fallback)")
+        except Exception as _e:
+            logger.info(f"[DipScanner] DexScreener client unavailable, using GT only: {_e}")
+
         self._start_monotonic = time.monotonic()
         self.signals_fired = 0
         self._last_buy_time = 0.0
@@ -559,7 +572,7 @@ class DipScanner:
             _chart_data = None
             if pair_addr_for_1m:
                 try:
-                    _chart_data = await _assemble(self.gt_client, pair_addr_for_1m)
+                    _chart_data = await _assemble(self.gt_client, pair_addr_for_1m, dexs_client=self.dexs_client)
                 except Exception as _e:
                     logger.debug(f"[DipScanner] chart_data assemble error for {token_symbol}: {_e}")
             m1_features: dict = {}
