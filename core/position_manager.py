@@ -667,11 +667,18 @@ class PositionManager:
                              price: float, volume_h1: float,
                              volume_m5: float, liquidity_usd: float):
         """Apply a price update to state and sync back to the open position object."""
-        # Sanity gate: reject price if it's >+20% from current_price in a
-        # single tick. Aligns with the realtime stop gate in
-        # check_stop_loss_realtime so corrupted ticks can't slip through one
-        # path while being rejected on the other. Falls back to peak_price
-        # then entry_price when current_price is unset (first tick).
+        # Sanity gate: reject single-tick price moves >20% in EITHER direction.
+        # Aligns with the realtime stop gate in check_stop_loss_realtime so
+        # corrupted ticks can't slip through one path while being rejected on
+        # the other. Falls back to peak_price then entry_price when
+        # current_price is unset (first tick).
+        #
+        # Downside gate added 2026-05-03: prior version only rejected upticks,
+        # so a glitched -100% feed read (Goblin entry $1.030 → polled tick
+        # $0.00319) wrote state.current_price = $0.00319 and the polled
+        # _check_stops_and_exits then fired a phantom -99.7% stop. The
+        # realtime gate had been catching the WS-path glitches; polled REST
+        # leaked. Both directions now mirror.
         ref_price = (
             state.current_price if state.current_price > 0
             else state.peak_price if state.peak_price > 0
@@ -680,6 +687,14 @@ class PositionManager:
         if ref_price > 0 and price > ref_price * 1.20:
             logger.warning(
                 f"[PositionManager/{self.chain_name}] ⚠️  Price spike rejected: "
+                f"{state.token_symbol} {ref_price:.8f} → {price:.8f} "
+                f"({(price/ref_price - 1)*100:+.1f}% single tick) — "
+                f"likely corrupted feed data, ignoring"
+            )
+            return
+        if ref_price > 0 and price > 0 and price < ref_price * 0.80:
+            logger.warning(
+                f"[PositionManager/{self.chain_name}] ⚠️  Price drop rejected: "
                 f"{state.token_symbol} {ref_price:.8f} → {price:.8f} "
                 f"({(price/ref_price - 1)*100:+.1f}% single tick) — "
                 f"likely corrupted feed data, ignoring"
