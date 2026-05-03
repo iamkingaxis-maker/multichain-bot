@@ -119,6 +119,11 @@ class DipScanner:
         # If present, we pre-subscribe candidates that pass core filters and
         # read tick stats at signal-fire time. None → tier-3 features absent.
         self.axiom_price_feed = None
+        # Liquidity-flow stateful tracker — records per-token liquidity over
+        # last 1h, computes 5m/15m/60m deltas at signal-fire time. Memecoin-
+        # specific: LP adds = team support, LP removes = soft-rug warning.
+        from feeds.liquidity_flow import LiquidityFlowTracker
+        self._lp_flow = LiquidityFlowTracker(window_secs=3600)
 
     async def run(self):
         logger.info("[DipScanner] Starting — targeting $1M+ mcap dip entries")
@@ -1890,6 +1895,20 @@ class DipScanner:
                     "chart_sweep_15m_verdict": _chart_ctx.sweeps_15m.get("sweep_verdict"),
                     "chart_sweep_15m_low_recent": _chart_ctx.sweeps_15m.get("sweep_low_recent"),
                     "chart_sweep_15m_high_recent": _chart_ctx.sweeps_15m.get("sweep_high_recent"),
+                    # Phase 10 — stop-cluster levels per timeframe
+                    "chart_stop_cluster_5m_pct_below": _chart_ctx.stop_clusters_5m.get("nearest_stop_cluster_pct_below"),
+                    "chart_stop_cluster_5m_density": _chart_ctx.stop_clusters_5m.get("stop_cluster_density"),
+                    "chart_stop_cluster_5m_at_round": _chart_ctx.stop_clusters_5m.get("stop_cluster_at_round_price"),
+                    "chart_stop_cluster_5m_at_pct": _chart_ctx.stop_clusters_5m.get("stop_cluster_at_pct_below"),
+                    "chart_stop_cluster_5m_at_swing": _chart_ctx.stop_clusters_5m.get("stop_cluster_at_swing_low"),
+                    "chart_stop_cluster_15m_pct_below": _chart_ctx.stop_clusters_15m.get("nearest_stop_cluster_pct_below"),
+                    "chart_stop_cluster_15m_density": _chart_ctx.stop_clusters_15m.get("stop_cluster_density"),
+                    # Phase 11 — reaccumulation pattern (5m, 12h window)
+                    "chart_reaccum_verdict": _chart_ctx.reaccum_5m.get("reaccum_verdict"),
+                    "chart_reaccum_drawdown_pct": _chart_ctx.reaccum_5m.get("drawdown_pct"),
+                    "chart_reaccum_post_trough_candles": _chart_ctx.reaccum_5m.get("post_trough_candles"),
+                    "chart_reaccum_post_trough_range_pct": _chart_ctx.reaccum_5m.get("post_trough_range_pct"),
+                    "chart_reaccum_vol_return_ratio": _chart_ctx.reaccum_5m.get("vol_ratio_recent_vs_post_trough_avg"),
                 }
                 logger.info(
                     f"[DipScanner] CHART_READER: {token_symbol} "
@@ -1901,6 +1920,45 @@ class DipScanner:
                 )
             except Exception as _e:
                 logger.debug(f"[DipScanner] chart_reader error: {_e}")
+
+            # Memecoin-specific shadow features (no new fetches; pure
+            # derivations from data already in scope).
+
+            # Lifecycle stage classifier + round-number mcap magnetism
+            _lifecycle_dict: dict = {}
+            try:
+                from feeds.lifecycle_stage import analyze as _lc_analyze
+                _lifecycle_dict = _lc_analyze(
+                    mcap_usd=float(mcap or 0),
+                    age_hours=pair_age_hours,
+                    peak_h24_pct=float(peak_h24_6h),
+                    h24_ratio_to_peak=(pc_h24 / float(peak_h24_6h)) if float(peak_h24_6h) > 0 else 1.0,
+                    vol_h24_usd=float(vol_h24 or 0),
+                    vol_h1_usd=float(vol_h1 or 0),
+                    vol_h6_usd=float(vol_h6 or 0),
+                )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] lifecycle calc error: {_e}")
+
+            # Trade velocity / burst features from recent_trades
+            _velocity_dict: dict = {}
+            try:
+                from feeds.trade_velocity import analyze as _tv_analyze
+                if recent_trades:
+                    _velocity_dict = _tv_analyze(recent_trades)
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trade-velocity calc error: {_e}")
+
+            # Liquidity-flow event tracking (stateful across cycles)
+            _lp_flow_dict: dict = {}
+            try:
+                self._lp_flow.record(token_address, float(liq_usd or 0))
+                _lp_flow_dict = self._lp_flow.analyze(
+                    token_address,
+                    current_liquidity_usd=float(liq_usd or 0),
+                )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] lp-flow calc error: {_e}")
 
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
@@ -1960,7 +2018,10 @@ class DipScanner:
                 **trend_features,  # multi-layer trend score (or empty)
                 **trajectory_features,  # pre-entry momentum trajectory (Gap 3)
                 **_bot_state,  # bot-state context (concurrency, pacing, daily PnL)
-                **_chart_ctx_dict,  # chart-reader shadow features (Phases 0-6)
+                **_chart_ctx_dict,  # chart-reader shadow features (Phases 0-11)
+                **_lifecycle_dict,  # lifecycle stage + mcap psych-level magnetism
+                **_velocity_dict,  # trade velocity / burst detection (recent_trades-derived)
+                **_lp_flow_dict,  # liquidity-flow events (LP add/remove deltas)
             }
 
             await self.trader.buy(

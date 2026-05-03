@@ -70,6 +70,8 @@ from feeds.chart_patterns import detect_patterns
 from feeds.trendlines import analyze as analyze_trendlines
 from feeds.market_structure import analyze as analyze_structure
 from feeds.liquidity_sweeps import analyze as analyze_sweeps
+from feeds.stop_clusters import analyze as analyze_stop_clusters
+from feeds.reaccumulation import analyze as analyze_reaccum
 from feeds.gecko_ohlcv import GeckoTerminalClient
 
 logger = logging.getLogger(__name__)
@@ -114,6 +116,13 @@ class ChartContext:
     # Phase 9 — liquidity sweeps (5m / 15m)
     sweeps_5m: Dict[str, Any] = field(default_factory=dict)
     sweeps_15m: Dict[str, Any] = field(default_factory=dict)
+
+    # Phase 10 — stop clusters (5m / 15m)
+    stop_clusters_5m: Dict[str, Any] = field(default_factory=dict)
+    stop_clusters_15m: Dict[str, Any] = field(default_factory=dict)
+
+    # Phase 11 — reaccumulation pattern (5m, 12h window)
+    reaccum_5m: Dict[str, Any] = field(default_factory=dict)
 
     # Composite synthesis
     composite_score: float = 50.0
@@ -473,6 +482,19 @@ async def read_chart(
         )
     except Exception as e:
         logger.debug(f"[ChartReader] sweeps phase err: {e}")
+
+    # Phase 10 — stop-cluster level detection
+    try:
+        ctx.stop_clusters_5m = analyze_stop_clusters(cd.candles_5m, pivot_n=2)
+        ctx.stop_clusters_15m = analyze_stop_clusters(cd.candles_15m, pivot_n=2)
+    except Exception as e:
+        logger.debug(f"[ChartReader] stop-cluster phase err: {e}")
+
+    # Phase 11 — reaccumulation pattern (5m only — needs the 12h window)
+    try:
+        ctx.reaccum_5m = analyze_reaccum(cd.candles_5m)
+    except Exception as e:
+        logger.debug(f"[ChartReader] reaccum phase err: {e}")
 
     # Composite
     try:
