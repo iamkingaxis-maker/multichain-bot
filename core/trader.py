@@ -1234,6 +1234,18 @@ class Trader:
                         # topHolders uses `pct` as a percent value already (e.g. 12.5)
                         top10 = sum(float(h.get("pct", 0) or 0) for h in real[:10])
                         _buy_time_meta["top10_holder_pct"] = round(top10, 2)
+                        # Single-largest-wallet concentration. One whale at 30%
+                        # is qualitatively different from 10 wallets at 3% each
+                        # (same top10 total, very different rug risk). Treated
+                        # as its own signal for memecoin filter validation.
+                        if real:
+                            top1 = float(real[0].get("pct", 0) or 0)
+                            _buy_time_meta["top1_holder_pct"] = round(top1, 2)
+                            # Top-1 share of top-10. ≥0.5 = single-whale-dominant
+                            # cluster (most danger). ≤0.2 = evenly distributed
+                            # within the top 10 (relatively healthy).
+                            if top10 > 0:
+                                _buy_time_meta["top1_share_of_top10"] = round(top1 / top10, 3)
                     # Rugcheck creator field is `creator_address` (per honeypot.py:568).
                     creator = (_rc_full.get("creator_address") or "").lower()
                     if creator:
