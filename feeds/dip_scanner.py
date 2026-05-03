@@ -1866,6 +1866,30 @@ class DipScanner:
                     "chart_trendline_1h_breakdown": _chart_ctx.trendlines_1h.get("breakout_below_support"),
                     "chart_trendline_1h_in_channel": _chart_ctx.trendlines_1h.get("in_channel"),
                     "chart_trendline_1h_channel_pos": _chart_ctx.trendlines_1h.get("channel_position_pct"),
+                    # Phase 8 — market structure (BOS/CHoCH) per timeframe
+                    "chart_structure_5m_verdict": _chart_ctx.structure_5m.get("structure_verdict"),
+                    "chart_structure_5m_state": _chart_ctx.structure_5m.get("current_structure"),
+                    "chart_structure_5m_recent_bos_dir": (_chart_ctx.structure_5m.get("recent_bos") or {}).get("direction"),
+                    "chart_structure_5m_recent_choch_dir": (_chart_ctx.structure_5m.get("recent_choch") or {}).get("direction"),
+                    "chart_structure_5m_swing_count": _chart_ctx.structure_5m.get("swing_count"),
+                    "chart_structure_15m_verdict": _chart_ctx.structure_15m.get("structure_verdict"),
+                    "chart_structure_15m_state": _chart_ctx.structure_15m.get("current_structure"),
+                    "chart_structure_15m_recent_bos_dir": (_chart_ctx.structure_15m.get("recent_bos") or {}).get("direction"),
+                    "chart_structure_15m_recent_choch_dir": (_chart_ctx.structure_15m.get("recent_choch") or {}).get("direction"),
+                    "chart_structure_1h_verdict": _chart_ctx.structure_1h.get("structure_verdict"),
+                    "chart_structure_1h_state": _chart_ctx.structure_1h.get("current_structure"),
+                    "chart_structure_1h_recent_bos_dir": (_chart_ctx.structure_1h.get("recent_bos") or {}).get("direction"),
+                    "chart_structure_1h_recent_choch_dir": (_chart_ctx.structure_1h.get("recent_choch") or {}).get("direction"),
+                    # Phase 9 — liquidity sweeps per timeframe
+                    "chart_sweep_5m_verdict": _chart_ctx.sweeps_5m.get("sweep_verdict"),
+                    "chart_sweep_5m_low_recent": _chart_ctx.sweeps_5m.get("sweep_low_recent"),
+                    "chart_sweep_5m_high_recent": _chart_ctx.sweeps_5m.get("sweep_high_recent"),
+                    "chart_sweep_5m_low_wick_pct": (_chart_ctx.sweeps_5m.get("sweep_low") or {}).get("wick_size_pct"),
+                    "chart_sweep_5m_low_vol_ratio": (_chart_ctx.sweeps_5m.get("sweep_low") or {}).get("volume_ratio"),
+                    "chart_sweep_5m_low_candles_ago": (_chart_ctx.sweeps_5m.get("sweep_low") or {}).get("candles_ago"),
+                    "chart_sweep_15m_verdict": _chart_ctx.sweeps_15m.get("sweep_verdict"),
+                    "chart_sweep_15m_low_recent": _chart_ctx.sweeps_15m.get("sweep_low_recent"),
+                    "chart_sweep_15m_high_recent": _chart_ctx.sweeps_15m.get("sweep_high_recent"),
                 }
                 logger.info(
                     f"[DipScanner] CHART_READER: {token_symbol} "

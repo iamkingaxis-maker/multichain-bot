@@ -68,6 +68,8 @@ from feeds.support_resistance import analyze as analyze_sr
 from feeds.volume_profile import analyze as analyze_vp
 from feeds.chart_patterns import detect_patterns
 from feeds.trendlines import analyze as analyze_trendlines
+from feeds.market_structure import analyze as analyze_structure
+from feeds.liquidity_sweeps import analyze as analyze_sweeps
 from feeds.gecko_ohlcv import GeckoTerminalClient
 
 logger = logging.getLogger(__name__)
@@ -103,6 +105,15 @@ class ChartContext:
     trendlines_5m: Dict[str, Any] = field(default_factory=dict)
     trendlines_15m: Dict[str, Any] = field(default_factory=dict)
     trendlines_1h: Dict[str, Any] = field(default_factory=dict)
+
+    # Phase 8 — market structure / BOS / CHoCH (5m / 15m / 1h)
+    structure_5m: Dict[str, Any] = field(default_factory=dict)
+    structure_15m: Dict[str, Any] = field(default_factory=dict)
+    structure_1h: Dict[str, Any] = field(default_factory=dict)
+
+    # Phase 9 — liquidity sweeps (5m / 15m)
+    sweeps_5m: Dict[str, Any] = field(default_factory=dict)
+    sweeps_15m: Dict[str, Any] = field(default_factory=dict)
 
     # Composite synthesis
     composite_score: float = 50.0
@@ -194,6 +205,42 @@ def _score_vp(vp: Dict[str, Any], current_price: Optional[float]) -> tuple[float
     return score, reasons
 
 
+def _score_structure(s: Dict[str, Any], tf: str) -> tuple[float, Optional[str]]:
+    """Phase 8 verdict scoring.
+
+    REVERSAL_UP   = +18  — CHoCH from down to up: highest-conviction long
+    REVERSAL_DOWN = -18
+    TREND_UP      = +8   — uptrend continuation, possibly with bullish BOS
+    TREND_DOWN    = -8
+    RANGING / NEUTRAL = 0
+    """
+    v = s.get("structure_verdict")
+    if v == "REVERSAL_UP":
+        return 18, f"structure_{tf}=REVERSAL_UP CHoCH (+18)"
+    if v == "REVERSAL_DOWN":
+        return -18, f"structure_{tf}=REVERSAL_DOWN CHoCH (-18)"
+    if v == "TREND_UP":
+        return 8, f"structure_{tf}=TREND_UP (+8)"
+    if v == "TREND_DOWN":
+        return -8, f"structure_{tf}=TREND_DOWN (-8)"
+    return 0, None
+
+
+def _score_sweeps(s: Dict[str, Any], tf: str) -> tuple[float, Optional[str]]:
+    """Phase 9 verdict scoring.
+
+    BULLISH_SWEEP = +14  — sweep low + reversal: classic accumulation entry
+    BEARISH_SWEEP = -14
+    NONE          = 0
+    """
+    v = s.get("sweep_verdict")
+    if v == "BULLISH_SWEEP":
+        return 14, f"sweep_{tf}=BULLISH_SWEEP (+14)"
+    if v == "BEARISH_SWEEP":
+        return -14, f"sweep_{tf}=BEARISH_SWEEP (-14)"
+    return 0, None
+
+
 def _score_trendline(tl: Dict[str, Any], tf: str) -> tuple[float, Optional[str]]:
     """Score per-timeframe trendline verdict.
 
@@ -250,6 +297,11 @@ def compute_composite(
     trendlines_5m: Optional[Dict[str, Any]] = None,
     trendlines_15m: Optional[Dict[str, Any]] = None,
     trendlines_1h: Optional[Dict[str, Any]] = None,
+    structure_5m: Optional[Dict[str, Any]] = None,
+    structure_15m: Optional[Dict[str, Any]] = None,
+    structure_1h: Optional[Dict[str, Any]] = None,
+    sweeps_5m: Optional[Dict[str, Any]] = None,
+    sweeps_15m: Optional[Dict[str, Any]] = None,
 ) -> tuple[float, str, List[str]]:
     """Return (score 0-100, verdict, reasons list)."""
     raw = 0.0
@@ -287,9 +339,24 @@ def compute_composite(
             raw += s
             if r: reasons.append(r)
 
-    # Map raw [-161, +161] → score [0, 100], 50 = neutral
-    # (Range expanded to account for trendline contribution: ±36 across 3 TFs.)
-    score = max(0.0, min(100.0, 50.0 + raw * (50.0 / 161.0)))
+    # Phase 8 — market structure on 5m / 15m / 1h
+    for st, tf in [(structure_5m, "5m"), (structure_15m, "15m"), (structure_1h, "1h")]:
+        if st:
+            s, r = _score_structure(st, tf)
+            raw += s
+            if r: reasons.append(r)
+
+    # Phase 9 — liquidity sweeps on 5m / 15m
+    for sw, tf in [(sweeps_5m, "5m"), (sweeps_15m, "15m")]:
+        if sw:
+            s, r = _score_sweeps(sw, tf)
+            raw += s
+            if r: reasons.append(r)
+
+    # Map raw [-269, +269] → score [0, 100], 50 = neutral
+    # (Range expanded for Phase 7: ±36 (3TF×12), Phase 8: ±54 (3TF×18),
+    # Phase 9: ±28 (2TF×14). Total new contribution ±118 added to base ±125.)
+    score = max(0.0, min(100.0, 50.0 + raw * (50.0 / 269.0)))
 
     if score >= 75:
         verdict = "strong_bullish"
@@ -386,6 +453,27 @@ async def read_chart(
     except Exception as e:
         logger.debug(f"[ChartReader] trendline phase err: {e}")
 
+    # Phase 8 — market structure / BOS / CHoCH
+    try:
+        ctx.structure_5m = analyze_structure(cd.candles_5m, pivot_n=3)
+        ctx.structure_15m = analyze_structure(cd.candles_15m, pivot_n=3)
+        ctx.structure_1h = analyze_structure(cd.candles_1h, pivot_n=2)
+    except Exception as e:
+        logger.debug(f"[ChartReader] structure phase err: {e}")
+
+    # Phase 9 — liquidity sweeps (reuses Phase 8 swings to avoid re-pivoting)
+    try:
+        ctx.sweeps_5m = analyze_sweeps(
+            cd.candles_5m, pivot_n=3,
+            swings=ctx.structure_5m.get("_swings"),
+        )
+        ctx.sweeps_15m = analyze_sweeps(
+            cd.candles_15m, pivot_n=3,
+            swings=ctx.structure_15m.get("_swings"),
+        )
+    except Exception as e:
+        logger.debug(f"[ChartReader] sweeps phase err: {e}")
+
     # Composite
     try:
         score, verdict, reasons = compute_composite(
@@ -393,6 +481,8 @@ async def read_chart(
             ctx.mtf, ctx.sr_5m, ctx.sr_15m, ctx.vp_5m,
             ctx.pattern_5m, ctx.pattern_15m,
             ctx.trendlines_5m, ctx.trendlines_15m, ctx.trendlines_1h,
+            ctx.structure_5m, ctx.structure_15m, ctx.structure_1h,
+            ctx.sweeps_5m, ctx.sweeps_15m,
         )
         ctx.composite_score = score
         ctx.composite_verdict = verdict
