@@ -1846,6 +1846,26 @@ class DipScanner:
                     "chart_pattern_15m": _chart_ctx.pattern_15m.get("pattern"),
                     "chart_pattern_15m_conf": _chart_ctx.pattern_15m.get("confidence"),
                     "chart_pattern_15m_dir": _chart_ctx.pattern_15m.get("direction"),
+                    # Phase 7 — trendlines & channels per timeframe
+                    "chart_trendline_5m_verdict": _chart_ctx.trendlines_5m.get("trendline_verdict"),
+                    "chart_trendline_5m_breakout_up": _chart_ctx.trendlines_5m.get("breakout_above_resistance"),
+                    "chart_trendline_5m_breakdown": _chart_ctx.trendlines_5m.get("breakout_below_support"),
+                    "chart_trendline_5m_in_channel": _chart_ctx.trendlines_5m.get("in_channel"),
+                    "chart_trendline_5m_channel_pos": _chart_ctx.trendlines_5m.get("channel_position_pct"),
+                    "chart_trendline_5m_channel_slope": _chart_ctx.trendlines_5m.get("channel_slope_type"),
+                    "chart_trendline_5m_pct_to_resistance": _chart_ctx.trendlines_5m.get("pct_to_resistance"),
+                    "chart_trendline_5m_pct_to_support": _chart_ctx.trendlines_5m.get("pct_to_support"),
+                    "chart_trendline_15m_verdict": _chart_ctx.trendlines_15m.get("trendline_verdict"),
+                    "chart_trendline_15m_breakout_up": _chart_ctx.trendlines_15m.get("breakout_above_resistance"),
+                    "chart_trendline_15m_breakdown": _chart_ctx.trendlines_15m.get("breakout_below_support"),
+                    "chart_trendline_15m_in_channel": _chart_ctx.trendlines_15m.get("in_channel"),
+                    "chart_trendline_15m_channel_pos": _chart_ctx.trendlines_15m.get("channel_position_pct"),
+                    "chart_trendline_15m_channel_slope": _chart_ctx.trendlines_15m.get("channel_slope_type"),
+                    "chart_trendline_1h_verdict": _chart_ctx.trendlines_1h.get("trendline_verdict"),
+                    "chart_trendline_1h_breakout_up": _chart_ctx.trendlines_1h.get("breakout_above_resistance"),
+                    "chart_trendline_1h_breakdown": _chart_ctx.trendlines_1h.get("breakout_below_support"),
+                    "chart_trendline_1h_in_channel": _chart_ctx.trendlines_1h.get("in_channel"),
+                    "chart_trendline_1h_channel_pos": _chart_ctx.trendlines_1h.get("channel_position_pct"),
                 }
                 logger.info(
                     f"[DipScanner] CHART_READER: {token_symbol} "

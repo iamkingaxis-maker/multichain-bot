@@ -67,6 +67,7 @@ from feeds.multi_timeframe import alignment
 from feeds.support_resistance import analyze as analyze_sr
 from feeds.volume_profile import analyze as analyze_vp
 from feeds.chart_patterns import detect_patterns
+from feeds.trendlines import analyze as analyze_trendlines
 from feeds.gecko_ohlcv import GeckoTerminalClient
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,11 @@ class ChartContext:
     # Phase 5 — chart patterns
     pattern_5m: Dict[str, Any] = field(default_factory=dict)
     pattern_15m: Dict[str, Any] = field(default_factory=dict)
+
+    # Phase 7 — trendlines & channels (5m / 15m / 1h)
+    trendlines_5m: Dict[str, Any] = field(default_factory=dict)
+    trendlines_15m: Dict[str, Any] = field(default_factory=dict)
+    trendlines_1h: Dict[str, Any] = field(default_factory=dict)
 
     # Composite synthesis
     composite_score: float = 50.0
@@ -188,6 +194,30 @@ def _score_vp(vp: Dict[str, Any], current_price: Optional[float]) -> tuple[float
     return score, reasons
 
 
+def _score_trendline(tl: Dict[str, Any], tf: str) -> tuple[float, Optional[str]]:
+    """Score per-timeframe trendline verdict.
+
+    BREAKOUT_UP (volume-confirmed) = +12 — directional break, high signal
+    BREAKDOWN  (volume-confirmed)  = -12
+    PASS  (in ascending channel near support)   = +6 — bounce setup
+    BLOCK (in descending channel near resistance) = -6 — rejection setup
+    NEUTRAL = 0
+
+    Per-timeframe so multi-TF agreement compounds. Three TFs × ±12 max
+    = ±36 max contribution to composite — meaningful but not dominating.
+    """
+    v = tl.get("trendline_verdict")
+    if v == "BREAKOUT_UP":
+        return 12, f"trendline_{tf}=BREAKOUT_UP (+12)"
+    if v == "BREAKDOWN":
+        return -12, f"trendline_{tf}=BREAKDOWN (-12)"
+    if v == "PASS":
+        return 6, f"trendline_{tf}=PASS asc-channel-near-support (+6)"
+    if v == "BLOCK":
+        return -6, f"trendline_{tf}=BLOCK desc-channel-near-resistance (-6)"
+    return 0, None
+
+
 def _score_chart_pattern(p: Dict[str, Any], tf: str) -> tuple[float, Optional[str]]:
     name = p.get("pattern")
     direction = p.get("direction", "none")
@@ -217,6 +247,9 @@ def compute_composite(
     vp_5m: Dict[str, Any],
     pattern_5m: Dict[str, Any],
     pattern_15m: Dict[str, Any],
+    trendlines_5m: Optional[Dict[str, Any]] = None,
+    trendlines_15m: Optional[Dict[str, Any]] = None,
+    trendlines_1h: Optional[Dict[str, Any]] = None,
 ) -> tuple[float, str, List[str]]:
     """Return (score 0-100, verdict, reasons list)."""
     raw = 0.0
@@ -247,9 +280,16 @@ def compute_composite(
     raw += s
     if r: reasons.append(r)
 
-    # Map raw [-125, +125] → score [0, 100], 50 = neutral
-    # Linear interpolation, clamped
-    score = max(0.0, min(100.0, 50.0 + raw * (50.0 / 125.0)))
+    # Phase 7 — trendlines on 5m / 15m / 1h
+    for tl, tf in [(trendlines_5m, "5m"), (trendlines_15m, "15m"), (trendlines_1h, "1h")]:
+        if tl:
+            s, r = _score_trendline(tl, tf)
+            raw += s
+            if r: reasons.append(r)
+
+    # Map raw [-161, +161] → score [0, 100], 50 = neutral
+    # (Range expanded to account for trendline contribution: ±36 across 3 TFs.)
+    score = max(0.0, min(100.0, 50.0 + raw * (50.0 / 161.0)))
 
     if score >= 75:
         verdict = "strong_bullish"
@@ -338,12 +378,21 @@ async def read_chart(
     except Exception as e:
         logger.debug(f"[ChartReader] pattern phase err: {e}")
 
+    # Phase 7 — trendlines & channels on all 3 timeframes
+    try:
+        ctx.trendlines_5m = analyze_trendlines(cd.candles_5m, pivot_n=3)
+        ctx.trendlines_15m = analyze_trendlines(cd.candles_15m, pivot_n=3)
+        ctx.trendlines_1h = analyze_trendlines(cd.candles_1h, pivot_n=2)
+    except Exception as e:
+        logger.debug(f"[ChartReader] trendline phase err: {e}")
+
     # Composite
     try:
         score, verdict, reasons = compute_composite(
             ctx.candle_5m, ctx.candle_15m, ctx.candle_confluence,
             ctx.mtf, ctx.sr_5m, ctx.sr_15m, ctx.vp_5m,
             ctx.pattern_5m, ctx.pattern_15m,
+            ctx.trendlines_5m, ctx.trendlines_15m, ctx.trendlines_1h,
         )
         ctx.composite_score = score
         ctx.composite_verdict = verdict
