@@ -101,29 +101,33 @@ async def assemble_chart_data(
     if not pool_address:
         return ChartData(pool_address="")
 
-    try:
-        results = await asyncio.gather(
-            gt_client.fetch_1m(pool_address, limit=limit_1m),
-            gt_client.fetch_5m(pool_address, limit=limit_5m),
-            gt_client.fetch_15m(pool_address, limit=limit_15m),
-            gt_client.fetch_1h(pool_address, limit=limit_1h),
-            return_exceptions=True,
-        )
-    except Exception as e:
-        logger.info(f"[ChartData] assemble error for {pool_address[:12]}: {e}")
-        return ChartData(pool_address=pool_address)
-
-    def _safe(r) -> List[Candle]:
-        if isinstance(r, Exception):
+    # Sequential fetch (not asyncio.gather) — GT enforces a per-second burst
+    # ceiling on top of its per-minute quota, and parallel-gather all-four
+    # routinely returned 4-empty even when our local 30/min budget had
+    # headroom. Audit on 14 post-refactor trades: 5/14 had full coverage,
+    # 9/14 had ZERO coverage — perfectly all-or-nothing because the gather
+    # bursted past GT's per-second cap and every call returned empty.
+    # Serializing lets the GT client's _throttle properly space requests
+    # and the 60s cache absorbs the small latency cost (~500ms gather ->
+    # ~2s sequential is acceptable inside a scan cycle).
+    async def _safe_fetch(coro):
+        try:
+            r = await coro
+            return r or []
+        except Exception:
             return []
-        return r or []
+
+    candles_1m = await _safe_fetch(gt_client.fetch_1m(pool_address, limit=limit_1m))
+    candles_5m = await _safe_fetch(gt_client.fetch_5m(pool_address, limit=limit_5m))
+    candles_15m = await _safe_fetch(gt_client.fetch_15m(pool_address, limit=limit_15m))
+    candles_1h = await _safe_fetch(gt_client.fetch_1h(pool_address, limit=limit_1h))
 
     cd = ChartData(
         pool_address=pool_address,
-        candles_1m=_safe(results[0]),
-        candles_5m=_safe(results[1]),
-        candles_15m=_safe(results[2]),
-        candles_1h=_safe(results[3]),
+        candles_1m=candles_1m,
+        candles_5m=candles_5m,
+        candles_15m=candles_15m,
+        candles_1h=candles_1h,
     )
 
     if not cd.has_full_coverage():
