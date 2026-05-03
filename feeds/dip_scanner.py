@@ -1940,12 +1940,13 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] lifecycle calc error: {_e}")
 
-            # Trade velocity / burst features from recent_trades
+            # Trade velocity / burst features from recent_trades.
+            # Always call analyze so keys are present even when recent_trades
+            # is empty (analyze returns a blank-default dict in that case).
             _velocity_dict: dict = {}
             try:
                 from feeds.trade_velocity import analyze as _tv_analyze
-                if recent_trades:
-                    _velocity_dict = _tv_analyze(recent_trades)
+                _velocity_dict = _tv_analyze(recent_trades or [])
             except Exception as _e:
                 logger.debug(f"[DipScanner] trade-velocity calc error: {_e}")
 
