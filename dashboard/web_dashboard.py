@@ -31,24 +31,33 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multichain Memecoin Bot</title>
+<title>Heisenberg | Memecoin Lab</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+  /* ── Breaking Bad palette ──────────────────────────────────────
+     Background: methylamine-dark with the slightest green tint.
+     Accents drawn from the show's iconic visual language:
+       - Heisenberg blue (the meth color) for primary accent
+       - Toxic methylamine green for success / wins
+       - Hazmat yellow for warnings
+       - Blood red for stops / losses
+       - Desert sand for muted text
+  */
   :root {
-    --bg:        #0d1117;
-    --card:      #161b22;
-    --border:    #30363d;
-    --border2:   #21262d;
-    --text:      #e6edf3;
-    --muted:     #8b949e;
-    --accent:    #58a6ff;
-    --green:     #2ea043;
-    --green-lt:  #3fb950;
-    --red:       #f85149;
-    --yellow:    #d29922;
-    --sol:       #9945ff;
+    --bg:        #0a0d0c;
+    --card:      #13181a;
+    --border:    #2a3530;
+    --border2:   #1a2120;
+    --text:      #e8e3d8;
+    --muted:     #8b8470;
+    --accent:    #5cdcff;   /* Heisenberg blue */
+    --green:     #5fae2c;   /* methylamine */
+    --green-lt:  #7eff43;
+    --red:       #d4351c;   /* blood */
+    --yellow:    #ffcc00;   /* hazmat */
+    --sol:       #b366ff;
   }
 
   html { scroll-behavior: smooth; }
@@ -74,6 +83,16 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   }
   .header-left { display: flex; align-items: center; gap: 12px; }
   .header h1 { font-size: 17px; color: var(--accent); letter-spacing: 0.5px; }
+  /* Periodic-table-style element badge: tribute to the show's title cards */
+  .heis-element {
+    display: inline-flex; flex-direction: column; align-items: center;
+    background: var(--card); border: 1px solid var(--green);
+    border-radius: 4px; padding: 2px 6px; line-height: 1;
+    color: var(--green-lt); margin-right: 8px;
+    box-shadow: 0 0 8px #5fae2c30;
+  }
+  .heis-element .num { font-size: 8px; opacity: .7; }
+  .heis-element .sym { font-size: 13px; font-weight: 800; letter-spacing: 0; }
   .status-pill {
     display: flex; align-items: center; gap: 6px;
     background: #1c2128; border: 1px solid var(--border2);
@@ -91,8 +110,8 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     font-size: 11px; font-weight: 700; letter-spacing: 1px;
     padding: 3px 10px; border-radius: 20px; text-transform: uppercase;
   }
-  .mode-badge.paper { background: #1f3a5f; color: #58a6ff; border: 1px solid #388bfd40; }
-  .mode-badge.live  { background: #3d1f1f; color: #f85149; border: 1px solid #f8514940; }
+  .mode-badge.paper { background: #1a2a1a; color: var(--green-lt); border: 1px solid #5fae2c50; }
+  .mode-badge.live  { background: #2e1414; color: var(--red); border: 1px solid #d4351c60; }
   .pause-btn {
     font-size: 11px; font-weight: 600; padding: 4px 14px; border-radius: 6px;
     border: 1px solid var(--border2); cursor: pointer; transition: all .15s;
@@ -296,7 +315,9 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 <!-- ── Header ── -->
 <div class="header">
   <div class="header-left">
-    <h1>&#9889; Multichain Memecoin Bot</h1>
+    <h1>
+      <span class="heis-element"><span class="num">35</span><span class="sym">Br</span></span><span class="heis-element"><span class="num">56</span><span class="sym">Ba</span></span>Heisenberg &mdash; Memecoin Lab
+    </h1>
     <div class="status-pill">
       <span class="status-dot" id="status-dot"></span>
       <span id="status-text">Connecting...</span>
@@ -1451,6 +1472,9 @@ setInterval(loadSeedWallets, 60000);
   setTimeout(refreshBreakout, 10000);
 })();
 </script>
+<div style="text-align:center;color:var(--muted);font-size:10px;letter-spacing:2px;padding:18px 0 24px;opacity:.55;font-style:italic;">
+  &mdash; I am the one who knocks. &mdash;
+</div>
 </body>
 </html>
 """
