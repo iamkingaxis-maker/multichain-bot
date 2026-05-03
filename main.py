@@ -480,6 +480,7 @@ async def main():
                 min_vol_h1_ratio=config.dip_min_vol_h1_ratio,
                 require_vol_m5=config.dip_require_vol_m5,
                 min_turnover_h24=config.dip_min_turnover_h24,
+                baseline_mode=config.dip_baseline_mode,
             )
             # Tier 3: wire AxiomPriceFeed for sub-minute tick buffer reads at
             # signal-fire time. Optional — dip_scanner falls back to empty

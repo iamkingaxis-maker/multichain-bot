@@ -46,6 +46,7 @@ class DipScanner:
                  min_vol_h1_ratio: float = 0.5,
                  require_vol_m5: bool = True,
                  min_turnover_h24: float = 2.0,
+                 baseline_mode: bool = False,
                  gt_client: Optional[GeckoTerminalClient] = None):
         self.trader = trader
         self.telegram = telegram
@@ -60,6 +61,17 @@ class DipScanner:
         self.min_vol_h1_ratio = min_vol_h1_ratio
         self.require_vol_m5 = require_vol_m5
         self.min_turnover_h24 = min_turnover_h24
+        # Baseline data-collection mode — bypasses heuristic filter `continue`
+        # statements while still computing/logging each filter's verdict. Only
+        # basic sanity gates (mcap, age, vol_h24, vol_m5_zero, already_open,
+        # loss_cooldown, max_concurrent) still enforce. Use under PAPER_MODE
+        # to gather a full population sample for shadow-feature validation.
+        self.baseline_mode = bool(baseline_mode)
+        if self.baseline_mode:
+            logger.warning(
+                "[DipScanner] BASELINE MODE ENABLED — heuristic filters bypassed. "
+                "All sanity-passing dip signals will fire. Paper mode strongly recommended."
+            )
         # GT trending pools widen the universe beyond DexScreener stubs/searches.
         # Lazy-init so tests can construct without pulling the feeds.gecko deps.
         self.gt_client = gt_client or GeckoTerminalClient(cache_ttl=60, rate_per_min=15)
@@ -265,7 +277,8 @@ class DipScanner:
             turnover = (vol_h24 / liq_usd) if liq_usd > 0 else 0.0
             if liq_usd > 0 and turnover < self.min_turnover_h24:
                 c["low_turnover"] += 1
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Volume-decay filter: require recent-hour volume to be at least
             # min_vol_h1_ratio of the 6h average hourly rate. Blocks tokens
@@ -288,7 +301,8 @@ class DipScanner:
                 vol_baseline_per_hour = vol_h24 / 24.0
             if vol_h1 < vol_baseline_per_hour * self.min_vol_h1_ratio:
                 c["vol_h1_decay"] += 1
-                continue
+                if not self.baseline_mode:
+                    continue
 
             pc_h24 = (pair.get("priceChange") or {}).get("h24", 0) or 0
             pc_h6 = (pair.get("priceChange") or {}).get("h6", 0) or 0
@@ -297,7 +311,8 @@ class DipScanner:
 
             if pc_h24 <= 0:
                 c["red_h24"] += 1
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Track h24/h1/h6 history for trend-reversal detection AND
             # pre-entry trajectory features. Append each cycle (only after the
@@ -327,7 +342,8 @@ class DipScanner:
             # entirely). Doesn't need history samples — pure snapshot filter.
             if 50.0 <= pc_h6 <= 200.0 and pc_h1 >= 5.0:
                 c["top_exhaustion"] += 1
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Trend-reversal filter: reject if current h24 has collapsed to
             # <25% of recent peak across last 6h of observations AND price is
@@ -346,10 +362,12 @@ class DipScanner:
                         trend_reversal_blocked.append(
                             f"{token_symbol}({pc_h24:.0f}%/peak{peak_h24:.0f}%/h6{pc_h6:+.0f}%)"
                         )
-                    continue
+                    if not self.baseline_mode:
+                        continue
             if pc_h1 >= 0 and pc_m5 >= 0:
                 c["no_dip"] += 1
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Mid-dip filter: h1 in [-6%, -5%) is the band where data shows
             # clear -EV (n=3 lifetime, 1/3 wins, -$134 net, -$44.61/trade —
@@ -360,7 +378,8 @@ class DipScanner:
             # blocking the shallow-dip zone where losses concentrate.
             if -6.0 <= pc_h1 < -5.0:
                 c["h1_mid_dip"] += 1
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Dip-already-over filter: m5 has turned positive but hasn't built
             # momentum yet ([0%, +3%) band). Historically -EV: n=43, 42% WR,
@@ -370,7 +389,8 @@ class DipScanner:
             # buckets >75% WR).
             if 0 <= pc_m5 < 3.0:
                 c["m5_dip_over"] += 1
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Falling-knife filter: block if m5 is sharply negative while h1 is
             # weakly positive [0%, +5%).  Original rule (m5<-5% AND h1>0) was
@@ -382,7 +402,8 @@ class DipScanner:
             # uptrend-pullback winners. Net lifetime: +$369 vs old rule.
             if pc_m5 < -5.0 and 0 < pc_h1 < 5.0:
                 c["falling_knife"] += 1
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Mega-pump middle-band filter: on tokens with a recent extreme
             # pump (pc_h24 > +5000% OR pc_h6 > +200%), dip entries cluster
@@ -400,7 +421,8 @@ class DipScanner:
                     and pc_m5 < 0
                     and -15.0 <= pc_h1 <= 50.0):
                 c["mega_pump_middle"] += 1
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Order-flow filter: require h6 buy/sell txn ratio >= threshold.
             # Reject tokens without txns data (prev bug: GT-sourced pairs had
@@ -412,12 +434,14 @@ class DipScanner:
             s_h6 = int(txns_h6.get("sells") or 0)
             if b_h6 == 0 and s_h6 == 0:
                 c["bs_h6_missing"] += 1
-                continue
+                if not self.baseline_mode:
+                    continue
             ratio_h6 = (b_h6 / s_h6) if s_h6 > 0 else float("inf")
             if ratio_h6 < self.min_txn_ratio_h6:
                 c["bs_h6"] += 1
                 self._rejected_distribution += 1
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # bs_m5 — current-moment order flow. Logged but not filtered yet;
             # gathering 24-48h of data to test whether it separates wins/losses
@@ -458,7 +482,8 @@ class DipScanner:
             # data". Old `0 < ratio < 0.85` guard wrongly let them pass.
             if (b_h1 > 0 or s_h1 > 0) and ratio_h1 < 0.85 and pc_m5 < 0:
                 c["seller_h1_red_m5"] += 1
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Pumped + sellers cooling filter: token pumped over the hour
             # (h1 > +3%) but the most-recent 5min has m5 sells dominating
@@ -471,7 +496,8 @@ class DipScanner:
                     and (b_m5 > 0 or s_m5 > 0)
                     and ratio_m5 < 1.0):
                 c["seller_pump"] += 1
-                continue
+                if not self.baseline_mode:
+                    continue
 
             dip_count = sum(
                 1 for pos in self.open_positions_ref.values()
@@ -562,7 +588,8 @@ class DipScanner:
                             f"no green close in last 3 min "
                             f"(cum_3min={cum_3min_pct:+.1f}%) — skipping"
                         )
-                        continue
+                        if not self.baseline_mode:
+                            continue
 
                     # m1 top-tick filter: most recent 1m candle closed >=+2%
                     # green.  Counter-intuitive — a really green last candle
@@ -575,7 +602,8 @@ class DipScanner:
                             f"[DipScanner] m1_top_tick: {token_symbol} — "
                             f"last 1m close {last_close_pct:+.2f}% — skipping"
                         )
-                        continue
+                        if not self.baseline_mode:
+                            continue
 
                     # m1 false-bounce filter: cumulative 3-min change in
                     # [+1%, +3%] band is the "dip is barely over but momentum
@@ -588,7 +616,8 @@ class DipScanner:
                             f"[DipScanner] m1_false_bounce: {token_symbol} — "
                             f"cum_3min={cum_3min_pct:+.2f}% — skipping"
                         )
-                        continue
+                        if not self.baseline_mode:
+                            continue
 
                     # Top-consolidation filter: h1 pumped (>+3%) AND 1m
                     # cumulative is near zero (|cum_3m| < 0.5%) — token has
@@ -603,7 +632,8 @@ class DipScanner:
                             f"h1={pc_h1:+.1f}% but cum_3m={cum_3min_pct:+.2f}% "
                             f"(stuck at top) — skipping"
                         )
-                        continue
+                        if not self.baseline_mode:
+                            continue
 
             # ── Range-position capture (5m candle stack) ──
             # Fetch last 12 × 5m candles (= 1h coverage) to compute where
@@ -1313,7 +1343,8 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_peak_floor: {token_symbol} "
                     f"peak_h24_6h={float(peak_h24_6h):+.1f}% < +5% (no recent move)"
                 )
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Filter post-pump-corpse — ENFORCED 2026-05-02.
             # Catches "post-pump corpse" entries: token sitting above middle
@@ -1358,7 +1389,8 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_corpse: {token_symbol} "
                     f"reasons={','.join(_filter_corpse_block_reasons)}"
                 )
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Filter fake-bounce — ENFORCED 2026-05-02.
             # Catches "1m green pulse on dead volume" pattern: last 1m
@@ -1409,7 +1441,8 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_fake_bounce: {token_symbol} "
                     f"reasons={','.join(_filter_fake_bounce_block_reasons)}"
                 )
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Filter real-dip-3 — ENFORCED. Validated on the full 540-pair
             # lifetime dataset (held-out test, not the same data the filter
@@ -1462,7 +1495,8 @@ class DipScanner:
                     f"5m={pc_m5:+.2f}% 1h={pc_h1:+.2f}% "
                     f"reasons={','.join(_filter_real_dip_3_block_reasons)}"
                 )
-                continue
+                if not self.baseline_mode:
+                    continue
             if _filter_real_dip_3_verdict == "EXEMPT":
                 logger.info(
                     f"[DipScanner] real-dip-3 EXEMPT (big-cap): {token_symbol} "
@@ -1577,7 +1611,8 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_fofar: {token_symbol} "
                     f"reasons={','.join(_filter_fofar_block_reasons)}"
                 )
-                continue
+                if not self.baseline_mode:
+                    continue
 
             # Filter two-pattern positive criterion — ENFORCED 2026-05-02.
             #
@@ -1673,7 +1708,8 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_two_pattern: {token_symbol} "
                     f"reason={_filter_two_pattern_reason}"
                 )
-                continue
+                if not self.baseline_mode:
+                    continue
 
             txns_h1_total = b_h1 + s_h1
             avg_trade_size_h1 = (vol_h1 / txns_h1_total) if txns_h1_total > 0 else 0.0

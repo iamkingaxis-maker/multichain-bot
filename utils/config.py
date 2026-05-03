@@ -170,6 +170,14 @@ class Config:
     dip_min_vol_h1_ratio: float = 0.5     # require vol_h1 >= vol_h24/48 (= 50% of avg hourly rate). Blocks decelerating-volume tokens (67, TROLL); passes BULL 0.80x, pippin 0.72x
     dip_require_vol_m5: bool = True       # require vol_m5 > 0 (blocks fully dead tokens)
     dip_min_turnover_h24: float = 2.0     # require vol_h24 / liquidity >= 2.0 — blocks over-liquid tokens that don't move (pippin 0.9x, TROLL 0.5x, 67 1.3x); passes all winners (BULL 3.9x lowest)
+    # Baseline data-collection mode (DIP_BASELINE_MODE env). When true, all
+    # heuristic/structural dip filters are bypassed — only basic sanity gates
+    # (mcap, age, vol_h24, vol_m5, already_open, loss_cooldown, max_concurrent)
+    # still enforce. Verdicts are still computed and logged so we can correlate
+    # forward outcomes with chart_reader features and individual filter
+    # verdicts. Intended for paper-mode shadow runs to gather a population
+    # sample across the FULL signal space; not for live use.
+    dip_baseline_mode: bool = False
 
     # ── Scalp Strategy (4-phase setup detector: impulse/pullback/sweep/reclaim) ──
     scalp_enabled: bool = False  # disabled — 17 trades, -$22 total, re-enable after rewrite lands
@@ -507,6 +515,10 @@ def _apply_env_overrides(config: Config):
     if os.environ.get("DIP_MAX_CONCURRENT"):
         config.dip_max_concurrent = env_int(
             "DIP_MAX_CONCURRENT", config.dip_max_concurrent
+        )
+    if os.environ.get("DIP_BASELINE_MODE"):
+        config.dip_baseline_mode = env_bool(
+            "DIP_BASELINE_MODE", config.dip_baseline_mode
         )
     if os.environ.get("SCALPER_ENABLED"):
         config.scalper_enabled = env_bool("SCALPER_ENABLED", config.scalper_enabled)
