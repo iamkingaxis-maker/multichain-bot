@@ -52,6 +52,17 @@ class GeckoTerminalClient:
         """
         return await self._fetch_candles(pool_address, aggregate=15, limit=limit)
 
+    async def fetch_1h(self, pool_address: str, limit: int = 48) -> List[Candle]:
+        """
+        Fetch 1-hour candles. Default limit=48 (2-day coverage) — used for
+        higher-timeframe trend alignment in chart_reader. Uses GT's hour
+        endpoint with aggregate=1 (NOT minute with aggregate=60 — that
+        returns empty).
+        """
+        return await self._fetch_candles(
+            pool_address, aggregate=1, limit=limit, timeframe="hour"
+        )
+
     async def fetch_recent_trades(self, pool_address: str, limit: int = 30) -> List[dict]:
         """
         Fetch recent trades for a pool (most-recent first). Each trade dict
@@ -95,8 +106,16 @@ class GeckoTerminalClient:
             self._cache[key] = (time.monotonic(), trades)
         return trades
 
-    async def _fetch_candles(self, pool_address: str, aggregate: int, limit: int) -> List[Candle]:
-        key = f"{aggregate}m:{pool_address}:{limit}"
+    async def _fetch_candles(
+        self, pool_address: str, aggregate: int, limit: int,
+        timeframe: str = "minute",
+    ) -> List[Candle]:
+        # GT supports timeframes: minute (aggregate 1/5/15), hour
+        # (aggregate 1/4/12), day (aggregate 1). Caller picks the
+        # endpoint via `timeframe`. The 60-min "1h candle" path uses
+        # timeframe=hour, aggregate=1 — NOT minute with aggregate=60
+        # (that returns empty).
+        key = f"{timeframe}:{aggregate}:{pool_address}:{limit}"
         now = time.monotonic()
         async with self._lock:
             cached = self._cache.get(key)
@@ -105,7 +124,7 @@ class GeckoTerminalClient:
             await self._throttle(now)
 
         url = (
-            f"{_GT_BASE}/networks/solana/pools/{pool_address}/ohlcv/minute"
+            f"{_GT_BASE}/networks/solana/pools/{pool_address}/ohlcv/{timeframe}"
             f"?aggregate={aggregate}&limit={limit}&currency=usd"
         )
         try:
