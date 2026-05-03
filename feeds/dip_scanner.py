@@ -1198,13 +1198,26 @@ class DipScanner:
             # and the direction-string of the last 10 trades (e.g. "BBSBSSSS").
             # Single API call per signal-fire, cached 60s. Fail-open.
             recent_trades_features: dict = {}
-            try:
-                recent_trades = await self.gt_client.fetch_recent_trades(
-                    pair_addr_for_1m, limit=30
-                )
-            except Exception as _e:
-                logger.debug(f"[DipScanner] recent_trades error for {token_symbol}: {_e}")
-                recent_trades = []
+            recent_trades = []
+            # Try DexScreener primary (much higher rate-limit headroom; GT
+            # was 100% 429-ing on this endpoint per pre-DexScreener audit).
+            if self.dexs_client is not None:
+                try:
+                    recent_trades = await self.dexs_client.fetch_recent_trades(
+                        pair_addr_for_1m, limit=30
+                    )
+                except Exception as _e:
+                    logger.debug(f"[DipScanner] dexs recent_trades error for {token_symbol}: {_e}")
+                    recent_trades = []
+            # Fall back to GT only if DexScreener returned nothing.
+            if not recent_trades:
+                try:
+                    recent_trades = await self.gt_client.fetch_recent_trades(
+                        pair_addr_for_1m, limit=30
+                    )
+                except Exception as _e:
+                    logger.debug(f"[DipScanner] recent_trades error for {token_symbol}: {_e}")
+                    recent_trades = []
             if recent_trades:
                 buys = [t for t in recent_trades if t.get("kind") == "buy"]
                 sells = [t for t in recent_trades if t.get("kind") == "sell"]

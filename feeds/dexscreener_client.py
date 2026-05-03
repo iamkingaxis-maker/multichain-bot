@@ -33,6 +33,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from feeds.candle_utils import Candle
 from feeds.dexscreener_chart_format import parse_chart_bars
+from feeds.dexscreener_trades_format import parse_trades
 
 logger = logging.getLogger(__name__)
 
@@ -234,3 +235,50 @@ class DexScreenerClient:
         return await self._fetch_candles(
             pool_address, aggregate=1, limit=limit, timeframe="hour",
         )
+
+    async def fetch_recent_trades(self, pool_address: str, limit: int = 30) -> List[Dict[str, Any]]:
+        """Fetch recent trades for a pool. Drop-in for
+        GeckoTerminalClient.fetch_recent_trades — same return shape:
+        list of {"kind": "buy"|"sell", "volume_usd": float, "ts": iso}.
+
+        DexScreener returns up to ~100 trades per response (the `c=1`
+        param appears to control batch size). We slice to `limit`.
+        """
+        key = f"trades:{pool_address}:{limit}"
+        now = time.monotonic()
+        async with self._lock:
+            cached = self._cache.get(key)
+            if cached and (now - cached[0]) < self._cache_ttl:
+                return cached[1]  # type: ignore[return-value]
+            await self._throttle(now)
+
+        slug, quote = await self._resolve_pool_meta(pool_address)
+        if not slug or not quote:
+            return []
+
+        url = (
+            f"{_DEXS_BASE}/dex/log/amm/v4/{slug}/all/solana/{pool_address}"
+            f"?q={quote}&c=1"
+        )
+        try:
+            sess = self._ensure_session()
+            resp = await asyncio.to_thread(
+                sess.get, url, timeout=10,
+                headers={
+                    "Origin": "https://dexscreener.com",
+                    "Referer": "https://dexscreener.com/",
+                    "Accept": "*/*",
+                },
+            )
+            if resp.status_code != 200:
+                logger.info(f"[DexScreener] trades {pool_address[:12]}: HTTP {resp.status_code}")
+                return []
+            raw = resp.content
+        except Exception as e:
+            logger.info(f"[DexScreener] trades fetch error {pool_address[:12]}: {e}")
+            return []
+
+        trades = parse_trades(raw)[:limit]
+        async with self._lock:
+            self._cache[key] = (time.monotonic(), trades)  # type: ignore[assignment]
+        return trades
