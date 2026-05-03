@@ -124,6 +124,22 @@ def parse_trades(raw: bytes, *, max_records: int = 200) -> List[Dict[str, Any]]:
                 # Implausible; skip this record
                 continue
 
+            # Extract maker address: layout after ts is
+            #   varint-len + tx_signature (~88 chars)
+            #   0x02 separator
+            #   varint-len + maker_address (~44 chars)
+            maker_address = ""
+            try:
+                q = 16
+                # Skip tx signature
+                _, q = _read_lp_string(rec, q)
+                # Skip separator
+                if q < len(rec) and rec[q] == 0x02:
+                    q += 1
+                    maker_address, q = _read_lp_string(rec, q)
+            except Exception:
+                maker_address = ""
+
             # Find buy or sell marker INSIDE this record
             buy_pos = rec.find(_BUY_MARKER)
             sell_pos = rec.find(_SELL_MARKER)
@@ -171,6 +187,7 @@ def parse_trades(raw: bytes, *, max_records: int = 200) -> List[Dict[str, Any]]:
                 "kind": kind,
                 "volume_usd": float(volume_usd),
                 "ts": ts_iso,
+                "maker": maker_address,
             })
         except Exception:
             continue

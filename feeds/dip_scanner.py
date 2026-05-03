@@ -1976,6 +1976,44 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] trade-velocity calc error: {_e}")
 
+            # Order-size distribution + buyer uniqueness / wash detection +
+            # buyer profile (whale-present / recurring buyer count).
+            # Maker-address-derived fields populate only when DexScreener
+            # was the trade source (GT fallback strips maker).
+            _trade_log_dict: dict = {}
+            try:
+                from feeds.trade_log_features import analyze as _tlf_analyze
+                _trade_log_dict = _tlf_analyze(recent_trades or [])
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trade-log-features calc error: {_e}")
+
+            # Bonding-curve graduation status — memecoin-specific lifecycle
+            # marker that lifecycle_stage doesn't fully capture. PumpSwap
+            # tokens within 24h of graduation behave distinctively (initial
+            # pump-fade pattern, then drawdown). Categorical:
+            #   pre_graduation       — still on pump.fun bonding curve
+            #   just_graduated       — on PumpSwap and age<24h
+            #   post_graduated_aged  — on PumpSwap and age>=24h
+            #   established          — any other AMM (Raydium, Orca, etc)
+            _graduation_dict: dict = {}
+            try:
+                _ds_dex = str(pair.get("dexId", "") or "").lower()
+                if "pumpfun" in _ds_dex and "swap" not in _ds_dex:
+                    _grad_status = "pre_graduation"
+                elif _ds_dex == "pumpswap" and pair_age_hours < 24.0:
+                    _grad_status = "just_graduated"
+                elif _ds_dex == "pumpswap" and pair_age_hours >= 24.0:
+                    _grad_status = "post_graduated_aged"
+                else:
+                    _grad_status = "established"
+                _graduation_dict = {
+                    "graduation_status": _grad_status,
+                    "graduation_dex_id": _ds_dex or "?",
+                }
+            except Exception as _e:
+                logger.debug(f"[DipScanner] graduation calc error: {_e}")
+                _graduation_dict = {"graduation_status": "?", "graduation_dex_id": "?"}
+
             # Liquidity-flow event tracking (stateful across cycles)
             _lp_flow_dict: dict = {}
             try:
@@ -2049,6 +2087,8 @@ class DipScanner:
                 **_lifecycle_dict,  # lifecycle stage + mcap psych-level magnetism
                 **_velocity_dict,  # trade velocity / burst detection (recent_trades-derived)
                 **_lp_flow_dict,  # liquidity-flow events (LP add/remove deltas)
+                **_trade_log_dict,  # order-size dist + buyer uniqueness / wash + buyer profile
+                **_graduation_dict,  # bonding-curve graduation status (pump.fun specific)
             }
 
             await self.trader.buy(
