@@ -74,7 +74,13 @@ class DipScanner:
             )
         # GT trending pools widen the universe beyond DexScreener stubs/searches.
         # Lazy-init so tests can construct without pulling the feeds.gecko deps.
-        self.gt_client = gt_client or GeckoTerminalClient(cache_ttl=60, rate_per_min=15)
+        # rate_per_min bumped 15 -> 30 (2026-05-03): with baseline mode
+        # firing ~10 signals/cycle and each signal pulling 1m+5m+15m+trades
+        # (~40 GT calls/cycle), the 15/min budget caused ~50% of structural
+        # features (1m_*, 5m_*, vwap) to be missing on entry_meta. 60s cache
+        # absorbs the burstiness; 30/min is well under GT's documented free
+        # tier ceiling and the chart_reader benefits from cache hits.
+        self.gt_client = gt_client or GeckoTerminalClient(cache_ttl=60, rate_per_min=30)
 
         self._start_monotonic = time.monotonic()
         self.signals_fired = 0
@@ -125,25 +131,46 @@ class DipScanner:
 
     async def _fetch_btc_klines(self) -> list:
         """
-        Fetch last 5 × 1h BTC klines from Binance public API. Returns the raw
-        klines list (each row is [open_time, open, high, low, close, ...]).
-        Cached 60s. Fail-soft (returns []).
+        Fetch recent 1h BTC klines from Kraken public API. Returns a list of
+        rows where row[4] is the close price (matches the Binance schema we
+        used previously, so callers don't change). Cached 60s. Fail-soft.
+
+        Migrated from Binance 2026-05-03: Railway egress IPs are geo-blocked
+        by Binance (silent failure → btc_pc_h1/h4 missing on every entry_meta
+        in baseline-mode audit). Kraken is US-based, public, no auth, no
+        rate-limit concerns for our 1/min poll. We slice last 5 bars to
+        match the prior code's len-5 expectation.
         """
         now = time.monotonic()
         cached_ts, cached = self._btc_cache
         if cached and (now - cached_ts) < 60:
             return cached
-        url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=5"
+        url = "https://api.kraken.com/0/public/OHLC?pair=XBTUSDT&interval=60"
         try:
             import aiohttp as _aio
             async with _aio.ClientSession() as session:
-                async with session.get(url, timeout=_aio.ClientTimeout(total=4)) as resp:
+                async with session.get(url, timeout=_aio.ClientTimeout(total=6)) as resp:
                     if resp.status != 200:
                         return cached
                     data = await resp.json()
-                    if isinstance(data, list) and data:
-                        self._btc_cache = (now, data)
-                        return data
+                    if not isinstance(data, dict) or data.get("error"):
+                        return cached
+                    result = data.get("result") or {}
+                    # Kraken returns the pair under whichever key matches —
+                    # often "XBTUSDT" but sometimes the pair name is mapped.
+                    bars = None
+                    for k, v in result.items():
+                        if k == "last":
+                            continue
+                        if isinstance(v, list):
+                            bars = v
+                            break
+                    if not bars or len(bars) < 5:
+                        return cached
+                    # Take last 5 bars to match the old Binance limit=5 shape.
+                    last5 = bars[-5:]
+                    self._btc_cache = (now, last5)
+                    return last5
         except Exception:
             pass
         return cached
