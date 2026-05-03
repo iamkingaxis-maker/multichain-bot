@@ -347,7 +347,11 @@ async def main():
             scalp_time_exit_min_pct=config.scalp_time_exit_min_pct,
             scalp_max_hold_minutes=config.scalp_max_hold_minutes,
             scalper=sol_scalper,
-            scanner=sol_scanner
+            scanner=sol_scanner,
+            # Share scanner's GT + DexScreener clients so the mid-hold
+            # signal-flip detector reuses the same caches and rate limits.
+            gt_client=getattr(sol_scanner, "gt_client", None),
+            dexs_client=getattr(sol_scanner, "dexs_client", None),
         )
         kill_switch.register_scalper(sol_scalper)
         tracker.register_scalper(sol_scalper)

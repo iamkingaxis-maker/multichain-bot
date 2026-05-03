@@ -84,6 +84,23 @@ class PositionState:
     # Scalp 4-phase detector metadata: sweep_low, stop_price, tp1_price, entry_close_time, pool_address
     scalp_meta: Optional[dict] = None
 
+    # Pair (pool) address — required for mid-hold chart_reader signal-flip
+    # exits. dip_buy entries set this from pair_addr_for_1m. Empty for legacy
+    # positions opened before the field existed.
+    pair_address: str = ""
+
+    # Mid-hold chart-reader signal-flip exit state (shadow mode: logged
+    # but not enforced — pending forward-data validation against the
+    # already-dropped trail experiment from 2026-05-01).
+    last_chart_check_mono: float = 0.0
+    consecutive_bearish_flips: int = 0
+    # First wall-clock timestamp at which signal-flip detector first flipped
+    # bearish, plus the pnl_pct at that moment. Persisted into entry_meta on
+    # sell so we can analyze "would early exit have helped?" in 10pm reports.
+    signal_flip_first_ts: Optional[datetime] = None
+    signal_flip_first_pnl: Optional[float] = None
+    signal_flip_reasons: List[str] = field(default_factory=list)
+
     @property
     def pnl_pct(self) -> float:
         if self.entry_price <= 0:
@@ -308,7 +325,11 @@ class PositionManager:
                  # Scalper reference — for breakeven-after-scalp check
                  scalper=None,
                  # Scanner reference — for stop-loss cooldown registration
-                 scanner=None):
+                 scanner=None,
+                 # GeckoTerminal + DexScreener clients for mid-hold chart re-eval.
+                 # If both None, signal-flip exit is disabled (legacy behaviour).
+                 gt_client=None,
+                 dexs_client=None):
 
         self.chain_name = chain_name
         self.chain_id = chain_id
@@ -318,6 +339,8 @@ class PositionManager:
         self.tracker = tracker
         self.market_monitor = market_monitor
         self.scanner = scanner
+        self.gt_client = gt_client
+        self.dexs_client = dexs_client
 
         # Standard TP settings
         self.tp1_pct = tp1_pct
@@ -455,6 +478,7 @@ class PositionManager:
                     pyramid_signal_score=getattr(pos, "signal_score", 0),
                     hh_hl_confirmed=getattr(pos, "hh_hl_confirmed", False),
                     scalp_meta=getattr(pos, "scalp_meta", None),
+                    pair_address=getattr(pos, "pair_address", "") or "",
                 )
 
         # Update prices and evaluate each position
@@ -462,6 +486,105 @@ class PositionManager:
             await self._update_price(addr, state)
             if addr in self._states:
                 await self._evaluate_position(addr, state)
+
+    # ───────────────────────────────────────────────────────────
+    # Shadow-mode chart-reader signal-flip detector for dip_buy.
+    # Logged only, not enforced. See PositionState.signal_flip_*
+    # field comments for rationale.
+    # ───────────────────────────────────────────────────────────
+    _CHART_FLIP_CHECK_INTERVAL_S: float = 60.0
+    _CHART_FLIP_BEARISH_PHASES_REQUIRED: int = 2
+
+    async def _maybe_check_chart_signal_flip(
+        self, token_address: str, state: PositionState, pnl_pct: float
+    ):
+        """Periodic chart_reader re-eval while a position is open.
+
+        Cadence: every 60s while position is held. Cost: one
+        assemble_chart_data call (DexScreener primary) + chart_reader
+        composite — ~500ms wall-clock when DexScreener cache is cold,
+        free when warm.
+
+        Bearish flip = at least N of the following phases are decisively
+        bearish on the 5m timeframe:
+          - chart_score drops below 30 (was probably > 50 at entry)
+          - chart_structure_5m_verdict in {REVERSAL_DOWN, TREND_DOWN}
+          - chart_sweep_5m_verdict == BEARISH_SWEEP
+          - chart_trendline_5m_verdict == BREAKDOWN
+          - chart_pattern_5m_dir == 'bearish' (engulfing/shooting-star)
+
+        On first bearish flip we record the timestamp + pnl_pct on the
+        position state. Both end up in entry_meta on sell so we can
+        validate "would early exit have helped?" via the 10pm pipeline.
+        """
+        if state.strategy != "dip_buy":
+            return
+        if not state.pair_address:
+            return  # Legacy position, no pair info
+        if self.dexs_client is None and self.gt_client is None:
+            return  # No source plumbed; silent skip
+
+        now = time.monotonic()
+        if (now - state.last_chart_check_mono) < self._CHART_FLIP_CHECK_INTERVAL_S:
+            return
+        state.last_chart_check_mono = now
+
+        # Lazy imports — keeps module load light when feature is disabled.
+        try:
+            from feeds.chart_data import assemble_chart_data
+            from feeds.chart_reader import read_chart
+        except Exception:
+            return
+
+        try:
+            cd = await assemble_chart_data(
+                self.gt_client, state.pair_address,
+                dexs_client=self.dexs_client,
+            )
+            ctx = await read_chart(
+                self.gt_client, state.pair_address, chart_data=cd,
+            )
+        except Exception as e:
+            logger.debug(f"[PositionManager] chart re-eval err for {state.token_symbol}: {e}")
+            return
+
+        bearish: List[str] = []
+        score = float(getattr(ctx, "composite_score", 50.0) or 50.0)
+        if score < 30.0:
+            bearish.append(f"score={score:.0f}<30")
+        struct_v = (ctx.structure_5m or {}).get("structure_verdict")
+        if struct_v in ("REVERSAL_DOWN", "TREND_DOWN"):
+            bearish.append(f"struct_5m={struct_v}")
+        sweep_v = (ctx.sweeps_5m or {}).get("sweep_verdict")
+        if sweep_v == "BEARISH_SWEEP":
+            bearish.append("sweep_5m=BEARISH_SWEEP")
+        tl_v = (ctx.trendlines_5m or {}).get("trendline_verdict")
+        if tl_v == "BREAKDOWN":
+            bearish.append(f"trendline_5m={tl_v}")
+        pat_dir = (ctx.pattern_5m or {}).get("direction")
+        if pat_dir == "bearish":
+            bearish.append("pattern_5m=bearish")
+
+        is_flip = len(bearish) >= self._CHART_FLIP_BEARISH_PHASES_REQUIRED
+        if is_flip:
+            state.consecutive_bearish_flips += 1
+            if state.signal_flip_first_ts is None:
+                state.signal_flip_first_ts = datetime.now(timezone.utc)
+                state.signal_flip_first_pnl = pnl_pct
+                state.signal_flip_reasons = bearish
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] SHADOW signal-flip BEARISH "
+                    f"{state.token_symbol} pnl={pnl_pct:+.1f}% phases={','.join(bearish)} "
+                    f"score={score:.0f}"
+                )
+            elif state.consecutive_bearish_flips % 5 == 0:
+                # Throttled re-log every 5 consecutive bearish reads
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] SHADOW signal-flip STILL BEARISH "
+                    f"{state.token_symbol} pnl={pnl_pct:+.1f}% n_consec={state.consecutive_bearish_flips}"
+                )
+        else:
+            state.consecutive_bearish_flips = 0
 
     async def _fetch_volume_snapshot(self, token_address: str):
         """
@@ -1036,6 +1159,19 @@ class PositionManager:
         # DIP BUY POSITION MANAGEMENT
         # ═══════════════════════════════════════════════════════════════
         if state.strategy == "dip_buy":
+
+            # ── SHADOW: chart-reader signal-flip detector ────────────
+            # Re-runs chart_reader periodically (60s cadence). Logs but does
+            # NOT execute exits — paired-trade validation pending. Trails were
+            # dropped 2026-05-01 because they fired at peak collapse on the
+            # 0-of-133 set; this detector aims to fire on confluence (CHoCH
+            # down + sweep failure + breakdown) BEFORE peak, so the verdict
+            # arrives early enough to act on. We compare it to actual outcomes
+            # before enforcing anything.
+            try:
+                await self._maybe_check_chart_signal_flip(token_address, state, pnl_pct)
+            except Exception as _e:
+                logger.debug(f"[PositionManager] signal-flip check error for {state.token_symbol}: {_e}")
 
             # ── VOLUME DEATH EXIT ────────────────────────────────────
             # Close losing positions whose liquidity has structurally died.
