@@ -1725,6 +1725,62 @@ class DipScanner:
                 logger.debug(f"[DipScanner] bot-state capture error: {_e}")
                 _bot_state = {}
 
+            # Chart-reading shadow features (Phases 0-6, shipped 2026-05-02
+            # evening). One async call per signal that runs candle pattern
+            # detection, multi-timeframe trend alignment, support/resistance
+            # analysis, volume-at-price profile, and chart pattern recognition.
+            # Internally re-uses the GT 60s cache, so duplicate fetches with
+            # the existing 1m/5m/15m calls above are free.
+            #
+            # SHADOW MODE — populated into entry_meta but NOT used as a gate.
+            # ~50-100 forward trades needed to validate composite_score and
+            # individual phase signals against outcomes before any chart
+            # feature graduates to enforced filter status.
+            _chart_ctx_dict: dict = {}
+            try:
+                from feeds.chart_reader import read_chart
+                _chart_ctx = await read_chart(self.gt_client, pair_addr_for_1m)
+                _chart_ctx_dict = {
+                    "chart_score": _chart_ctx.composite_score,
+                    "chart_verdict": _chart_ctx.composite_verdict,
+                    "chart_reasons": _chart_ctx.composite_reasons,
+                    "chart_full_coverage": _chart_ctx.has_full_coverage,
+                    "chart_candle_confluence": _chart_ctx.candle_confluence,
+                    "chart_candle_5m_pattern": _chart_ctx.candle_5m.get("latest_pattern"),
+                    "chart_candle_15m_pattern": _chart_ctx.candle_15m.get("latest_pattern"),
+                    "chart_mtf_alignment": _chart_ctx.mtf.get("alignment"),
+                    "chart_mtf_score": _chart_ctx.mtf.get("score"),
+                    "chart_mtf_verdicts": _chart_ctx.mtf.get("verdicts"),
+                    "chart_sr_5m_at_support": _chart_ctx.sr_5m.get("at_support"),
+                    "chart_sr_5m_at_resistance": _chart_ctx.sr_5m.get("at_resistance"),
+                    "chart_sr_5m_below_broken": _chart_ctx.sr_5m.get("below_broken_support"),
+                    "chart_sr_5m_support_strength": _chart_ctx.sr_5m.get("support_strength"),
+                    "chart_sr_5m_support_pct_below": _chart_ctx.sr_5m.get("nearest_support_pct_below"),
+                    "chart_sr_15m_at_support": _chart_ctx.sr_15m.get("at_support"),
+                    "chart_sr_15m_at_resistance": _chart_ctx.sr_15m.get("at_resistance"),
+                    "chart_sr_15m_support_strength": _chart_ctx.sr_15m.get("support_strength"),
+                    "chart_vp_above_poc": _chart_ctx.vp_5m.get("current_above_poc"),
+                    "chart_vp_at_hvn": _chart_ctx.vp_5m.get("at_hvn"),
+                    "chart_vp_in_lvn": _chart_ctx.vp_5m.get("in_lvn"),
+                    "chart_vp_poc_distance_pct": _chart_ctx.vp_5m.get("poc_distance_pct"),
+                    "chart_pattern_5m": _chart_ctx.pattern_5m.get("pattern"),
+                    "chart_pattern_5m_conf": _chart_ctx.pattern_5m.get("confidence"),
+                    "chart_pattern_5m_dir": _chart_ctx.pattern_5m.get("direction"),
+                    "chart_pattern_15m": _chart_ctx.pattern_15m.get("pattern"),
+                    "chart_pattern_15m_conf": _chart_ctx.pattern_15m.get("confidence"),
+                    "chart_pattern_15m_dir": _chart_ctx.pattern_15m.get("direction"),
+                }
+                logger.info(
+                    f"[DipScanner] CHART_READER: {token_symbol} "
+                    f"score={_chart_ctx.composite_score} "
+                    f"verdict={_chart_ctx.composite_verdict} "
+                    f"mtf={_chart_ctx.mtf.get('alignment')} "
+                    f"sr_5m_supp={_chart_ctx.sr_5m.get('at_support')} "
+                    f"pattern_5m={_chart_ctx.pattern_5m.get('pattern')}"
+                )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] chart_reader error: {_e}")
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -1783,6 +1839,7 @@ class DipScanner:
                 **trend_features,  # multi-layer trend score (or empty)
                 **trajectory_features,  # pre-entry momentum trajectory (Gap 3)
                 **_bot_state,  # bot-state context (concurrency, pacing, daily PnL)
+                **_chart_ctx_dict,  # chart-reader shadow features (Phases 0-6)
             }
 
             await self.trader.buy(
