@@ -270,21 +270,32 @@ def compute_composite(
 async def read_chart(
     gt_client: GeckoTerminalClient,
     pool_address: str,
+    *,
+    chart_data: Optional[ChartData] = None,
 ) -> ChartContext:
     """Run all chart-reading phases on a pool, return unified context.
 
     Single async call per signal. ~500ms wall-clock cost (4 parallel
     GT fetches + pure-logic phases). 60s GT cache means same pool
     re-read within a minute is instant.
+
+    Pass `chart_data` if the caller has already assembled it for other
+    derivations (e.g. dip_scanner uses the same candles for m1/range/
+    vwap features); the chart-reader will reuse it instead of re-fetching.
+    Without that path the same pool would be fetched twice per signal,
+    doubling GT API pressure and producing rate-limit losses on the
+    structural-feature side.
     """
     if not pool_address:
         return ChartContext()
 
-    try:
-        cd = await assemble_chart_data(gt_client, pool_address)
-    except Exception as e:
-        logger.warning(f"[ChartReader] assemble failed for {pool_address[:12]}: {e}")
-        return ChartContext(pool_address=pool_address)
+    if chart_data is None:
+        try:
+            chart_data = await assemble_chart_data(gt_client, pool_address)
+        except Exception as e:
+            logger.warning(f"[ChartReader] assemble failed for {pool_address[:12]}: {e}")
+            return ChartContext(pool_address=pool_address)
+    cd = chart_data
 
     ctx = ChartContext(
         pool_address=pool_address,

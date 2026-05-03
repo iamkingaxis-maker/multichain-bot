@@ -542,13 +542,26 @@ class DipScanner:
             # GeckoTerminal API is down).  Cost: 1 GT call per shortlisted
             # candidate (~1-2 per cycle), well within the 25/min budget.
             pair_addr_for_1m = pair.get("pairAddress", "") or ""
-            m1_features: dict = {}
+            # ── Phase 0: single multi-timeframe fetch ──
+            # One assemble_chart_data call powers m1_features, range_features,
+            # vwap_features, AND chart_reader. Replaces the prior three
+            # separate fetch_1m/5m/15m calls in this loop, which all
+            # competed for the same GT rate budget and dropped to ~25%
+            # coverage on structural fields under baseline-mode load.
+            # The chart_reader call below reuses this data via the
+            # `chart_data=` keyword arg — zero extra GT calls.
+            from feeds.chart_data import assemble_chart_data as _assemble
+            _chart_data = None
             if pair_addr_for_1m:
                 try:
-                    cs = await self.gt_client.fetch_1m(pair_addr_for_1m, limit=5)
+                    _chart_data = await _assemble(self.gt_client, pair_addr_for_1m)
                 except Exception as _e:
-                    logger.debug(f"[DipScanner] 1m fetch error for {token_symbol}: {_e}")
-                    cs = []
+                    logger.debug(f"[DipScanner] chart_data assemble error for {token_symbol}: {_e}")
+            m1_features: dict = {}
+            if pair_addr_for_1m:
+                # Slice to last 5 × 1m candles to preserve original m1 feature
+                # semantics (5-candle window for m1 gates).
+                cs = (_chart_data.candles_1m[-5:] if _chart_data and _chart_data.candles_1m else [])
                 if cs and len(cs) >= 3:
                     last3 = cs[-3:]
                     green_in_last3 = sum(1 for k in last3 if k.close > k.open)
@@ -669,11 +682,13 @@ class DipScanner:
             # data first).  Fail-open on fetch errors.
             range_features: dict = {}
             if pair_addr_for_1m:
-                try:
-                    cs5 = await self.gt_client.fetch_5m(pair_addr_for_1m, limit=12)
-                except Exception as _e:
-                    logger.debug(f"[DipScanner] 5m fetch error for {token_symbol}: {_e}")
-                    cs5 = []
+                # Use last 12 × 5m candles (1h window) from the shared
+                # chart_data — preserves range_features semantics exactly
+                # (high_1h, pct_in_1h_range, 5m_lower_highs, vol_decay all
+                # assume a 12-candle context). chart_data fetches 144
+                # (12h) so chart_reader gets full S/R history while
+                # dip_scanner's 1h-window features stay 1h.
+                cs5 = (_chart_data.candles_5m[-12:] if _chart_data and _chart_data.candles_5m else [])
                 if cs5 and len(cs5) >= 4:
                     high_1h = max(k.high for k in cs5)
                     low_1h = min(k.low for k in cs5)
@@ -881,11 +896,9 @@ class DipScanner:
             # Logged-only at proposed thresholds; will tune from forward data.
             vwap_features: dict = {}
             if pair_addr_for_1m:
-                try:
-                    cs15 = await self.gt_client.fetch_15m(pair_addr_for_1m, limit=96)
-                except Exception as _e:
-                    logger.debug(f"[DipScanner] 15m fetch error for {token_symbol}: {_e}")
-                    cs15 = []
+                # 24h anchored VWAP from full 15m series (chart_data fetches
+                # 96 = 24h coverage). Use as-is — same window as before.
+                cs15 = (_chart_data.candles_15m if _chart_data and _chart_data.candles_15m else [])
                 if cs15 and len(cs15) >= 4:
                     _num = 0.0
                     _den = 0.0
@@ -1802,7 +1815,8 @@ class DipScanner:
             _chart_ctx_dict: dict = {}
             try:
                 from feeds.chart_reader import read_chart
-                _chart_ctx = await read_chart(self.gt_client, pair_addr_for_1m)
+                # Reuse the candles already fetched above — zero extra GT calls.
+                _chart_ctx = await read_chart(self.gt_client, pair_addr_for_1m, chart_data=_chart_data)
                 _chart_ctx_dict = {
                     "chart_score": _chart_ctx.composite_score,
                     "chart_verdict": _chart_ctx.composite_verdict,
