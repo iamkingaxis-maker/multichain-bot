@@ -1415,21 +1415,30 @@ class PositionManager:
         # and matching downward correction ticks (-97% in one tick → spurious
         # stop fires).  Real 20%+ moves typically span multiple ticks; a
         # single 20%+ tick is almost always a feed glitch.
+        #
+        # Cold-start fix (2026-05-03): when no prior realtime tick exists for
+        # this token, compare against entry_price instead of skipping the gate.
+        # The original `if last_rt > 0:` left the first tick after entry
+        # ungated — a single glitched first read could lock in a phantom
+        # stop (Goblin 02:53 baseline-mode: entry $1.030 → first tick
+        # $0.063 → -94% phantom stop). Entry price is a stable, known
+        # reference; legitimate first ticks won't deviate ±20% from it.
         last_rt = self._last_realtime_price.get(token_address, 0)
-        if last_rt > 0:
-            if price_usd < last_rt * 0.80:
+        ref_price = last_rt if last_rt > 0 else state.entry_price
+        if ref_price > 0:
+            if price_usd < ref_price * 0.80:
                 logger.warning(
                     f"[PositionManager/{self.chain_name}] ⚠️  Realtime tick rejected: "
-                    f"{state.token_symbol} {last_rt:.8f} → {price_usd:.8f} "
-                    f"({(price_usd / last_rt - 1) * 100:.0f}% in one tick) — likely "
+                    f"{state.token_symbol} ref={ref_price:.8f} → {price_usd:.8f} "
+                    f"({(price_usd / ref_price - 1) * 100:.0f}% in one tick) — likely "
                     f"corrupted feed, ignoring"
                 )
                 return
-            if price_usd > last_rt * 1.20:
+            if price_usd > ref_price * 1.20:
                 logger.warning(
                     f"[PositionManager/{self.chain_name}] ⚠️  Realtime tick rejected: "
-                    f"{state.token_symbol} {last_rt:.8f} → {price_usd:.8f} "
-                    f"(+{(price_usd / last_rt - 1) * 100:.0f}% in one tick) — likely "
+                    f"{state.token_symbol} ref={ref_price:.8f} → {price_usd:.8f} "
+                    f"(+{(price_usd / ref_price - 1) * 100:.0f}% in one tick) — likely "
                     f"corrupted feed, ignoring"
                 )
                 return
@@ -1570,10 +1579,12 @@ class PositionManager:
             return
 
         # Same single-tick sanity gate the stop path uses (rejects 20%+
-        # single-tick moves as feed noise).
+        # single-tick moves as feed noise). Cold-start fallback to
+        # entry_price when no prior tick exists, matching stop path.
         last_rt = self._last_realtime_price.get(token_address, 0)
-        if last_rt > 0:
-            if price_usd > last_rt * 1.20 or price_usd < last_rt * 0.80:
+        ref_price = last_rt if last_rt > 0 else state.entry_price
+        if ref_price > 0:
+            if price_usd > ref_price * 1.20 or price_usd < ref_price * 0.80:
                 return  # logged by stop path
         # don't update _last_realtime_price here — stop path owns it
 
