@@ -1220,18 +1220,32 @@ class PositionManager:
                 self.stop_loss_hits += 1
                 return
 
-            # ── DIP PRE-TP1 TRAIL and POST-TP1 TRAIL — DROPPED 2026-05-01 ──
-            # Asymmetric exit analysis (scripts/asymmetric_exit_analysis.py) on
-            # 133 paired trades since the rewrite found:
-            #   - 0 of 133 positions had peak ≥ 25% (no moonshots in this regime)
-            #   - Pre-TP1 trail: peak band 1-5% had -201% capture, 5-8% had -53%
-            #     (firing at the peak's collapse, sealing in losses)
-            #   - Post-TP1 trail: avg 6.67pp give-back from peak; 33 canonical
-            #     TP1+trail exits netted +$40.77 vs flat-at-TP1's +$51.94
-            #   - Flat 100% TP at +12% simulates +$32.72 better than current
-            # Both trails removed; TP fires once at +12% and sells 100%. If
-            # regime data later shows runners exist in regime=up, can reinstate
-            # selectively.
+            # ── DIP POST-TP1 TRAIL — restored 2026-05-04 ──────────────
+            # After TP1 fires (sells 50%), if the remaining 50% peaks then
+            # retraces dip_winner_trail_pct (default 3.5%) from peak, exit
+            # the remainder.  Captures gains on tokens that run past TP1
+            # toward TP2 but reverse before reaching it.
+            #
+            # Was dropped 2026-05-01 based on asymmetric_exit_analysis on
+            # 133 trades during the broken regime, but the proven Apr 19-29
+            # era (97% WR / +$4854) ran with this trail.  Restored per user
+            # directive 2026-05-04 alongside the filter-cascade revert.
+            if (state.tp1_hit and not state.tp2_hit
+                    and state.peak_price > 0 and state.entry_price > 0
+                    and state.current_price <= state.peak_price * (1 - self.dip_winner_trail_pct / 100)):
+                drop_from_peak = (state.peak_price - state.current_price) / state.peak_price * 100
+                peak_gain_pct = (state.peak_price - state.entry_price) / state.entry_price * 100
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] 🔒 DIP TRAIL: "
+                    f"{state.token_symbol} -{drop_from_peak:.1f}% from peak "
+                    f"(peaked at +{peak_gain_pct:.1f}%)"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=1.0,
+                    reason=f"Dip trail -{drop_from_peak:.1f}% from peak"
+                )
+                return
 
             # ── DIP TAKE PROFIT ───────────────────────────────────────
             if pnl_pct >= self.dip_tp2_pct and not state.tp2_hit:
