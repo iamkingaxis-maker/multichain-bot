@@ -137,6 +137,13 @@ class DipScanner:
         # specific: LP adds = team support, LP removes = soft-rug warning.
         from feeds.liquidity_flow import LiquidityFlowTracker
         self._lp_flow = LiquidityFlowTracker(window_secs=3600)
+        # Tier-1 trackers (2026-05-04): smart-money wallet index +
+        # dev-wallet baseline tracker. Both fail-open if state files
+        # missing or RPC fails.
+        from feeds.smart_money import SmartMoneyIndex
+        from feeds.dev_wallet import DevWalletTracker
+        self._smart_money = SmartMoneyIndex()
+        self._dev_wallet = DevWalletTracker()
 
     async def run(self):
         logger.info("[DipScanner] Starting — targeting $1M+ mcap dip entries")
@@ -1151,42 +1158,91 @@ class DipScanner:
             except Exception:
                 pass
 
-            # ── Tier 2b: Jupiter quote asymmetry ──
+            # ── Tier 2b: Jupiter quote asymmetry + Tier-1 slippage curve ──
             # Closest analog to "order book imbalance" on Solana AMMs.
-            # Quote BUY (SOL→token at position size) and SELL (token→SOL at
-            # equivalent token amount). Compare priceImpactPct. Higher sell
-            # impact = sell-heavy pool. Two calls/signal, fail-open.
+            # Original asymmetry: buy at position size + matching sell (kept).
+            # Tier-1 EXTENSION (2026-05-04): sample slippage at $500/$2000/$5000
+            # to approximate orderbook depth. A token with thick book has
+            # near-flat slippage curve; thin book diverges sharply at $5k.
+            # Six total calls vs original two — wrapped in single ClientSession,
+            # all fail-open, all parallel via asyncio.gather.
             jup_features: dict = {}
             try:
                 import aiohttp as _aio
+                import asyncio as _asyncio
                 _SOL_MINT = "So11111111111111111111111111111111111111112"
                 _JUP_URL = "https://api.jup.ag/swap/v1/quote"
                 sol_price_est = sol_5m[-1].close if sol_5m else 80.0
-                buy_sol = self.position_usd / max(sol_price_est, 1.0)
-                buy_lamports = max(int(buy_sol * 1e9), 1_000_000)
-                params_buy = {
-                    "inputMint": _SOL_MINT, "outputMint": token_address,
-                    "amount": buy_lamports, "slippageBps": 300,
-                }
-                async with _aio.ClientSession() as _s:
-                    async with _s.get(_JUP_URL, params=params_buy, timeout=_aio.ClientTimeout(total=8)) as _r:
-                        buy_q = await _r.json() if _r.status == 200 else None
-                if buy_q and buy_q.get("outAmount"):
-                    buy_impact = float(buy_q.get("priceImpactPct") or 0) * 100
-                    sell_amount = int(buy_q["outAmount"])
-                    params_sell = {
+
+                async def _quote(session, params):
+                    try:
+                        async with session.get(
+                            _JUP_URL, params=params,
+                            timeout=_aio.ClientTimeout(total=8)
+                        ) as _r:
+                            return await _r.json() if _r.status == 200 else None
+                    except Exception:
+                        return None
+
+                async def _slippage_at(session, usd: float):
+                    """Round-trip impact at a target USD size. Returns
+                    (buy_impact_pct, sell_impact_pct) or (None, None)."""
+                    sol_amount = usd / max(sol_price_est, 1.0)
+                    lamports = max(int(sol_amount * 1e9), 1_000_000)
+                    buy_q = await _quote(session, {
+                        "inputMint": _SOL_MINT, "outputMint": token_address,
+                        "amount": lamports, "slippageBps": 300,
+                    })
+                    if not buy_q or not buy_q.get("outAmount"):
+                        return (None, None)
+                    bi = float(buy_q.get("priceImpactPct") or 0) * 100
+                    sell_q = await _quote(session, {
                         "inputMint": token_address, "outputMint": _SOL_MINT,
-                        "amount": sell_amount, "slippageBps": 300,
-                    }
-                    async with _aio.ClientSession() as _s:
-                        async with _s.get(_JUP_URL, params=params_sell, timeout=_aio.ClientTimeout(total=8)) as _r:
-                            sell_q = await _r.json() if _r.status == 200 else None
-                    sell_impact = float(sell_q.get("priceImpactPct") or 0) * 100 if sell_q else 0.0
-                    jup_features = {
-                        "quote_buy_impact_pct": round(buy_impact, 4),
-                        "quote_sell_impact_pct": round(sell_impact, 4),
-                        "quote_asymmetry_pct": round(sell_impact - buy_impact, 4),
-                    }
+                        "amount": int(buy_q["outAmount"]), "slippageBps": 300,
+                    })
+                    si = float(sell_q.get("priceImpactPct") or 0) * 100 if sell_q else None
+                    return (bi, si)
+
+                async with _aio.ClientSession() as _s:
+                    # Original position-size asymmetry preserved (key=quote_*)
+                    base_buy_sol = self.position_usd / max(sol_price_est, 1.0)
+                    base_lamports = max(int(base_buy_sol * 1e9), 1_000_000)
+                    base_buy_q = await _quote(_s, {
+                        "inputMint": _SOL_MINT, "outputMint": token_address,
+                        "amount": base_lamports, "slippageBps": 300,
+                    })
+                    if base_buy_q and base_buy_q.get("outAmount"):
+                        bi0 = float(base_buy_q.get("priceImpactPct") or 0) * 100
+                        base_sell_q = await _quote(_s, {
+                            "inputMint": token_address, "outputMint": _SOL_MINT,
+                            "amount": int(base_buy_q["outAmount"]),
+                            "slippageBps": 300,
+                        })
+                        si0 = float(base_sell_q.get("priceImpactPct") or 0) * 100 if base_sell_q else 0.0
+                        jup_features = {
+                            "quote_buy_impact_pct": round(bi0, 4),
+                            "quote_sell_impact_pct": round(si0, 4),
+                            "quote_asymmetry_pct": round(si0 - bi0, 4),
+                        }
+                    # Slippage curve (Tier-1) — 3 sizes in parallel
+                    s500, s2k, s5k = await _asyncio.gather(
+                        _slippage_at(_s, 500.0),
+                        _slippage_at(_s, 2000.0),
+                        _slippage_at(_s, 5000.0),
+                        return_exceptions=False,
+                    )
+                    for label, (bi, si) in (("500", s500), ("2000", s2k), ("5000", s5k)):
+                        if bi is not None:
+                            jup_features[f"slip_buy_{label}_pct"] = round(bi, 4)
+                        if si is not None:
+                            jup_features[f"slip_sell_{label}_pct"] = round(si, 4)
+                        if bi is not None and si is not None:
+                            jup_features[f"slip_asym_{label}_pct"] = round(si - bi, 4)
+                    # Curve steepness proxies — diff between $5k and $500 impact
+                    if s500[0] is not None and s5k[0] is not None:
+                        jup_features["slip_buy_curve_steepness"] = round(s5k[0] - s500[0], 4)
+                    if s500[1] is not None and s5k[1] is not None:
+                        jup_features["slip_sell_curve_steepness"] = round(s5k[1] - s500[1], 4)
             except Exception as _e:
                 logger.debug(f"[DipScanner] Jupiter asymmetry error: {_e}")
 
@@ -2092,6 +2148,50 @@ class DipScanner:
             _tier2_features["regime_h1_neg_pct"] = _regime_h1_neg_pct
             _tier2_features["regime_n_tokens_scanned"] = _regime_n
 
+            # ── Tier-3 features (2026-05-04) — narrow but bundleable ──
+            # Support touches, wick:body ratios, freq derivative, net flow
+            # windows, hours_since_graduation. All computed from data
+            # already fetched. Each function fail-opens.
+            _tier3_features: dict = {}
+            try:
+                from feeds.tier3_features import (
+                    compute_support_touches, compute_wick_body_ratios,
+                    compute_freq_derivative, compute_net_flow_windows,
+                    compute_hours_since_grad,
+                )
+                _cs5_full2 = (_chart_data.candles_5m if _chart_data and _chart_data.candles_5m else [])
+                _tier3_features.update(compute_support_touches(_cs5_full2))
+                _tier3_features.update(compute_wick_body_ratios(_cs5_full2))
+                _tier3_features.update(compute_freq_derivative(recent_trades or []))
+                _tier3_features.update(compute_net_flow_windows(recent_trades or []))
+                _grad_status = (_graduation_dict or {}).get("graduation_status", "?")
+                _tier3_features.update(
+                    compute_hours_since_grad(_grad_status, pair_age_hours)
+                )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] tier3 features error: {_e}")
+
+            # ── Tier-1 features (2026-05-04) ──
+            # Smart-money wallet detection (cheap lookup against pre-built index)
+            # + top-N maker capture (data feedstock for index rebuild) +
+            # dev-wallet supply tracking via Solana RPC.
+            _tier1_features: dict = {}
+            try:
+                from feeds.smart_money import extract_top_makers
+                _tier1_features.update(
+                    self._smart_money.score_recent_trades(recent_trades or [])
+                )
+                _tier1_features.update(extract_top_makers(recent_trades or []))
+            except Exception as _e:
+                logger.debug(f"[DipScanner] smart-money error: {_e}")
+            # Dev wallet (async RPC). Wrapped in its own try so RPC stalls
+            # don't kill the rest of tier-1.
+            try:
+                _dev_feats = await self._dev_wallet.get_features(token_address)
+                _tier1_features.update(_dev_feats)
+            except Exception as _e:
+                logger.debug(f"[DipScanner] dev-wallet error: {_e}")
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -2159,6 +2259,11 @@ class DipScanner:
                 **_tier2_features,  # Tier-2 instrumentation (vwap_1h, pct_off_peak,
                                     # higher_low, rsi/bb, bundle_v2, trade-size shift,
                                     # regime breadth) — shadow only, 2026-05-04.
+                **_tier3_features,  # Tier-3 instrumentation (support touches, wick
+                                    # ratios, freq derivative, net flow windows,
+                                    # hours_since_graduation) — shadow, 2026-05-04.
+                **_tier1_features,  # Tier-1 (smart-money score, top makers capture,
+                                    # dev wallet pct) — shadow, 2026-05-04.
             }
 
             await self.trader.buy(
