@@ -422,13 +422,14 @@ class PositionManager:
         """Main position management loop — checks every 5 seconds (price from Axiom cache, REST throttled to 30s)."""
         logger.info(
             f"[PositionManager/{self.chain_name}] Started\n"
-            f"  TP1: +{self.tp1_pct}% → sell {self.tp1_sell*100:.0f}%\n"
-            f"  TP2: +{self.tp2_pct}% → sell {self.tp2_sell*100:.0f}% of remaining\n"
-            f"  TP3: +{self.tp3_pct}% → sell {self.tp3_sell*100:.0f}% of remaining\n"
-            f"  Stop: -{self.stop_loss_pct}% hard\n"
+            f"  DIP TP1: +{self.dip_tp1_pct}% → sell {self.dip_tp1_sell*100:.0f}%\n"
+            f"  DIP TP2: +{self.dip_tp2_pct}% → sell {self.dip_tp2_sell*100:.0f}% remaining\n"
+            f"  DIP Stop: -{self.dip_stop_pct}% hard | trail after TP1: {self.dip_winner_trail_pct}% from peak\n"
+            f"  SCALP TP1: +{self.scalp_tp1_pct}% sell {self.scalp_tp1_sell*100:.0f}% | TP2: +{self.scalp_tp2_pct}% sell {self.scalp_tp2_sell*100:.0f}%\n"
+            f"  SCALP Stop: -{self.scalp_stop_pct}% | max-hold: {self.scalp_max_hold_minutes}min\n"
             f"  MC TP1: +{self.mc_tp1_pct}% → sell {self.mc_tp1_sell*100:.0f}%\n"
             f"  MC Stop: -{self.mc_stop_loss_pct}%\n"
-            f"  Avg down: only if <{self.avg_down_max_loss}% loss + volume ok"
+            f"  Standard (legacy fallback) TP1/TP2/TP3: +{self.tp1_pct}/+{self.tp2_pct}/+{self.tp3_pct}% — applies to non-dip/non-scalp/non-MC only"
         )
         while True:
             try:
