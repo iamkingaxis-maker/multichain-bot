@@ -11,7 +11,7 @@ import json
 import base64
 import time
 import os
-from typing import Dict, Optional, Set
+from typing import Dict, List, Optional, Set
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
 
@@ -1353,6 +1353,69 @@ class Trader:
             # on conflicts so DipScanner-computed values aren't overwritten).
             if _buy_time_meta:
                 entry_meta = {**_buy_time_meta, **(entry_meta or {})}
+
+            # ── filter_quad SHADOW (logs only, never blocks) ─────────────────
+            # 4-component combo identified by combinatorial optimization on the
+            # 2026-05-03 baseline-mode dataset (n=223).  Best robust combo
+            # across both halves of a chronological train/test split:
+            #   TRAIN: 64 kept / 57.8% WR / +$10.38
+            #   TEST:  40 kept / 57.5% WR / +$10.06
+            #   FULL:  104 kept / 57.7% WR [48.0-66.9] / +$20.43 (vs -$72.79 baseline)
+            # Blocks 53% of dip-buy entries — half the trade flow.
+            #
+            # Components (block when ANY match):
+            #   F10 velocity_verdict == "QUIET"             — dead order flow
+            #   F12 chart_stop_cluster_5m_pct_below ∈ [1.26%, 3.78%) — stop magnet
+            #   F18 lp_locked_pct ∈ [60.15%, 78.90%)        — partial-lock band
+            #   F19 1m_volume_spike ∈ [0.31, 0.80)          — fakeout zone
+            # Each component picked from full-dataset single-feature outcome
+            # stats (not auto-fitted on a sub-sample — overfit risk minimized).
+            # Fail-open on missing inputs (None values).
+            #
+            # Shadow only: this code logs the would-be verdict and adds it to
+            # entry_meta but never returns / skips. Promotion to enforced
+            # requires another 200+ trades of held-out validation showing
+            # WR ~ 58% on the kept set.
+            if entry_meta is not None and isinstance(entry_meta, dict):
+                _q_block_reasons: List[str] = []
+                _q_v = entry_meta.get("velocity_verdict")
+                if _q_v == "QUIET":
+                    _q_block_reasons.append("velocity_verdict==QUIET")
+                _q_sc = entry_meta.get("chart_stop_cluster_5m_pct_below")
+                if _q_sc is not None:
+                    try:
+                        if 1.26 <= float(_q_sc) < 3.78:
+                            _q_block_reasons.append(
+                                f"stop_cluster_5m_pct_below={float(_q_sc):.2f}∈[1.26,3.78)"
+                            )
+                    except Exception:
+                        pass
+                _q_lp = entry_meta.get("lp_locked_pct")
+                if _q_lp is not None:
+                    try:
+                        if 60.15 <= float(_q_lp) < 78.90:
+                            _q_block_reasons.append(
+                                f"lp_locked_pct={float(_q_lp):.2f}∈[60.15,78.90)"
+                            )
+                    except Exception:
+                        pass
+                _q_vs = entry_meta.get("1m_volume_spike")
+                if _q_vs is not None:
+                    try:
+                        if 0.31 <= float(_q_vs) < 0.80:
+                            _q_block_reasons.append(
+                                f"1m_volume_spike={float(_q_vs):.3f}∈[0.31,0.80)"
+                            )
+                    except Exception:
+                        pass
+                _q_verdict = "BLOCK" if _q_block_reasons else "PASS"
+                entry_meta["filter_quad_verdict"] = _q_verdict
+                entry_meta["filter_quad_block_reasons"] = _q_block_reasons
+                if _q_verdict == "BLOCK":
+                    logger.info(
+                        f"[Trader] filter_quad SHADOW would-block: {token_symbol} "
+                        f"reasons={','.join(_q_block_reasons)}"
+                    )
 
             # ── Fix 2: Real-time volume floor at execution ──────────────────
             # If the Axiom WS has been tracking this token (deferred/DipWatcher paths)
