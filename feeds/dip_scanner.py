@@ -261,6 +261,30 @@ class DipScanner:
         c: Counter = Counter()
         trend_reversal_blocked: List[str] = []  # token symbols blocked this cycle
         signals = 0
+
+        # Cross-token regime breadth (Tier-2 feature). Counts how many of the
+        # candidates this cycle are dipping (m5<-1.5%) or rolling over (h1<0).
+        # When breadth is high (>50% of scanned tokens are dipping), our entry
+        # is correlated noise, not opportunity — the whole market is selling.
+        _regime_n = len(pairs)
+        _regime_dipping = 0
+        _regime_h1_neg = 0
+        for _p in pairs:
+            _pc = (_p.get("priceChange") or {})
+            try:
+                if float(_pc.get("m5", 0) or 0) < -1.5:
+                    _regime_dipping += 1
+                if float(_pc.get("h1", 0) or 0) < 0:
+                    _regime_h1_neg += 1
+            except Exception:
+                pass
+        _regime_dip_breadth_pct = (
+            round(_regime_dipping / _regime_n * 100, 1) if _regime_n > 0 else 0.0
+        )
+        _regime_h1_neg_pct = (
+            round(_regime_h1_neg / _regime_n * 100, 1) if _regime_n > 0 else 0.0
+        )
+
         for pair in pairs:
             c["fetched"] += 1
             token_address = (pair.get("baseToken") or {}).get("address", "")
@@ -2020,6 +2044,54 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] lp-flow calc error: {_e}")
 
+            # ── Tier-2 features (2026-05-04) — instrumentation only ──
+            # All shadow; no enforcement until forward-validated by re-running
+            # the exhaustive combo search with these features in the library.
+            # Each compute_* fail-opens (returns {} on bad input). The 5m/15m
+            # candle series come from the same _chart_data fetched at top of
+            # this iteration — zero extra GT calls.
+            _tier2_features: dict = {}
+            try:
+                from feeds.tier2_features import (
+                    compute_anchored_vwap_1h,
+                    compute_pct_off_peak,
+                    compute_higher_low_5m,
+                    compute_rsi_bb,
+                    compute_bundle_v2,
+                    compute_trade_size_shift,
+                )
+                _cs5_full = (_chart_data.candles_5m if _chart_data and _chart_data.candles_5m else [])
+                _cs15_full = (_chart_data.candles_15m if _chart_data and _chart_data.candles_15m else [])
+                _cur_price = _cs5_full[-1].close if _cs5_full else 0.0
+                # 1. Anchored VWAP — 1h window
+                _tier2_features.update(
+                    compute_anchored_vwap_1h(_cs15_full, _cur_price)
+                )
+                # 2. pct_off_peak + minutes_since_peak
+                _tspk = trajectory_features.get("time_since_h24_peak_secs") if trajectory_features else None
+                _tier2_features.update(
+                    compute_pct_off_peak(float(pc_h24 or 0), float(peak_h24_6h or 0), _tspk)
+                )
+                # 3. Higher-low confirmation (uses full 5m series, not just 12)
+                _tier2_features.update(compute_higher_low_5m(_cs5_full))
+                # 4. RSI(14) + BB(20,2) on 5m and 15m
+                _tier2_features.update(compute_rsi_bb(_cs5_full, _cs15_full))
+                # 5. Bundle-v2 detector (top-10 buyer cluster timing)
+                _tier2_features.update(
+                    compute_bundle_v2(recent_trades or [], pair_age_hours)
+                )
+                # 6. Trade-size distribution shift (last-60s vs prior-60s)
+                _tier2_features.update(
+                    compute_trade_size_shift(recent_trades or [])
+                )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] tier2 features error: {_e}")
+
+            # 7. Cross-token regime breadth (computed once per scan cycle above)
+            _tier2_features["regime_dip_breadth_pct"] = _regime_dip_breadth_pct
+            _tier2_features["regime_h1_neg_pct"] = _regime_h1_neg_pct
+            _tier2_features["regime_n_tokens_scanned"] = _regime_n
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -2084,6 +2156,9 @@ class DipScanner:
                 **_lp_flow_dict,  # liquidity-flow events (LP add/remove deltas)
                 **_trade_log_dict,  # order-size dist + buyer uniqueness / wash + buyer profile
                 **_graduation_dict,  # bonding-curve graduation status (pump.fun specific)
+                **_tier2_features,  # Tier-2 instrumentation (vwap_1h, pct_off_peak,
+                                    # higher_low, rsi/bb, bundle_v2, trade-size shift,
+                                    # regime breadth) — shadow only, 2026-05-04.
             }
 
             await self.trader.buy(
