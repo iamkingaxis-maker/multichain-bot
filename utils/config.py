@@ -159,11 +159,11 @@ class Config:
     dip_max_mcap: float = 100_000_000      # $100M max FDV — excludes BONK/PUMP-tier large caps that don't bounce
     dip_min_age_days: float = 0.0          # No age floor — other filters (bs_h6, turnover, vol-decay) do structural protection. Still blocks tokens with missing pairCreatedAt.
     dip_min_volume_h24: float = 200_000    # $200k minimum 24h volume
-    dip_tp1_pct: float = 8.0              # TP at +8% — sell 100%. Lowered 2026-05-02 from 12% (user directive). Tighter exit reduces give-back on tokens that touch +8% but reverse before +12%.
-    dip_tp1_sell: float = 1.0             # Sell entire position at TP (was 0.50 partial). Runner trail dropped — see asymmetric_exit_analysis.py.
-    dip_tp2_pct: float = 15.0             # TP2 unreachable when TP1 sells 100% — left as a safety guard.
+    dip_tp1_pct: float = 8.0              # TP1 at +8% — partial exit (sell 50%, keep 50% running to TP2). Restored 2026-05-04 (laddered exit).
+    dip_tp1_sell: float = 0.50            # Sell 50% at TP1, let remainder run to TP2.
+    dip_tp2_pct: float = 12.0             # TP2 at +12% — sell remaining 100%. Restored 2026-05-04 from unreachable-15% (user directive: 8/12 ladder gives 50% locked in early + upside on remainder).
     dip_tp2_sell: float = 1.0
-    dip_stop_pct: float = 8.0             # Hard stop at -8% (was 10.0 — TP/stop counterfactual sweep on post-bf0a596 data: TP=+12% / stop=-8% improves total $ by +$10 on n=64 with same 52% WR, while -10% returned -$7.62 and -6% returned +$5.80 with WR drop to 47%. -8% is the WR-preserving improvement. Mechanism: 23 deep losers (max_dd <= -10) crystallize at -8% instead of -10%, saving $0.40 each (~$9.20 total); 6 mid-band trades (-10 < dd <= -8) affected mildly. 2026-05-02.)
+    dip_stop_pct: float = 12.0            # Hard stop at -12% (was -8% post-cascade, -15% pre-collapse). 2026-05-04 user directive: -15% gave too much room, -8% locked in losses prematurely. -12% is the middle ground.
     dip_winner_trail_pct: float = 3.5     # Trail kept as field but unused — post-TP1 trail block in position_manager dropped 2026-05-01 (no moonshots in sample, trail gave back 6.67pp avg).
     dip_max_concurrent: int = 4           # Max simultaneous dip positions
     dip_min_txn_ratio_h6: float = 1.3     # require h6 buy/sell txn ratio >= 1.3 (blocks distribution: DUMBMONEY 1.11, SPIKE 1.20; passes WIFE 1.54, BULL 1.53)

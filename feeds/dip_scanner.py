@@ -1411,11 +1411,11 @@ class DipScanner:
             if float(peak_h24_6h) < 5.0:
                 c["filter_peak_floor_block"] = c.get("filter_peak_floor_block", 0) + 1
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_peak_floor: {token_symbol} "
-                    f"peak_h24_6h={float(peak_h24_6h):+.1f}% < +5% (no recent move)"
+                    f"[DipScanner] filter_peak_floor SHADOW would-block: {token_symbol} "
+                    f"peak_h24_6h={float(peak_h24_6h):+.1f}% < +5%"
                 )
-                if not self.baseline_mode:
-                    continue
+                # ENFORCEMENT REMOVED 2026-05-04 — shadow only.
+                # Part of May 1-2 filter cascade revert (user directive).
 
             # Filter post-pump-corpse — ENFORCED 2026-05-02.
             # Catches "post-pump corpse" entries: token sitting above middle
@@ -1457,11 +1457,10 @@ class DipScanner:
             ) + 1
             if _filter_corpse_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_corpse: {token_symbol} "
+                    f"[DipScanner] filter_corpse SHADOW would-block: {token_symbol} "
                     f"reasons={','.join(_filter_corpse_block_reasons)}"
                 )
-                if not self.baseline_mode:
-                    continue
+                # ENFORCEMENT REMOVED 2026-05-04 — shadow only.
 
             # Filter fake-bounce — ENFORCED 2026-05-02.
             # Catches "1m green pulse on dead volume" pattern: last 1m
@@ -1509,11 +1508,10 @@ class DipScanner:
             ) + 1
             if _filter_fake_bounce_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_fake_bounce: {token_symbol} "
+                    f"[DipScanner] filter_fake_bounce SHADOW would-block: {token_symbol} "
                     f"reasons={','.join(_filter_fake_bounce_block_reasons)}"
                 )
-                if not self.baseline_mode:
-                    continue
+                # ENFORCEMENT REMOVED 2026-05-04 — shadow only.
 
             # Filter real-dip-3 — ENFORCED. Validated on the full 540-pair
             # lifetime dataset (held-out test, not the same data the filter
@@ -1562,12 +1560,11 @@ class DipScanner:
             ) + 1
             if _filter_real_dip_3_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_real_dip_3: {token_symbol} "
+                    f"[DipScanner] filter_real_dip_3 SHADOW would-block: {token_symbol} "
                     f"5m={pc_m5:+.2f}% 1h={pc_h1:+.2f}% "
                     f"reasons={','.join(_filter_real_dip_3_block_reasons)}"
                 )
-                if not self.baseline_mode:
-                    continue
+                # ENFORCEMENT REMOVED 2026-05-04 — shadow only.
             if _filter_real_dip_3_verdict == "EXEMPT":
                 logger.info(
                     f"[DipScanner] real-dip-3 EXEMPT (big-cap): {token_symbol} "
@@ -1679,11 +1676,10 @@ class DipScanner:
             ) + 1
             if _filter_fofar_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_fofar: {token_symbol} "
+                    f"[DipScanner] filter_fofar SHADOW would-block: {token_symbol} "
                     f"reasons={','.join(_filter_fofar_block_reasons)}"
                 )
-                if not self.baseline_mode:
-                    continue
+                # ENFORCEMENT REMOVED 2026-05-04 — shadow only.
 
             # Filter two-pattern positive criterion — ENFORCED 2026-05-02.
             #
@@ -1776,11 +1772,10 @@ class DipScanner:
             ) + 1
             if _filter_two_pattern_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_two_pattern: {token_symbol} "
+                    f"[DipScanner] filter_two_pattern SHADOW would-block: {token_symbol} "
                     f"reason={_filter_two_pattern_reason}"
                 )
-                if not self.baseline_mode:
-                    continue
+                # ENFORCEMENT REMOVED 2026-05-04 — shadow only.
 
             txns_h1_total = b_h1 + s_h1
             avg_trade_size_h1 = (vol_h1 / txns_h1_total) if txns_h1_total > 0 else 0.0
