@@ -1417,6 +1417,128 @@ class Trader:
                         f"reasons={','.join(_q_block_reasons)}"
                     )
 
+            # ── filter_quad_robust SHADOW (logs only, never blocks) ──────────
+            # 6-component OR-block combo, train/test-validated on the
+            # 2026-05-03 baseline-mode dataset (n=223). Stronger signal than
+            # filter_quad: keeps fewer trades but at higher WR.
+            #   TRAIN: 32 kept / 65.6% WR / +$9.09
+            #   TEST:  16 kept / 68.8% WR / +$10.34
+            #   FULL:  48 kept / 66.7% WR [52.5-78.3] / +$19.43 vs -$72.79 baseline
+            # Blocks 78% of dip-buy entries — much tighter than quad (53%).
+            #
+            # Components (block when ANY match):
+            #   chart_structure_15m_verdict == "TREND_UP"   — already-up 15m
+            #   peak_h24_6h_pct > 356                       — already mooned
+            #   peak_h24_6h_pct < -17                       — capitulation tape
+            #   velocity_verdict == "QUIET"                 — dead order flow
+            #   top10_holder_pct > 60.15                    — concentration
+            #   lp_locked_pct ∈ [60.15%, 78.90%)            — partial-lock band
+            if entry_meta is not None and isinstance(entry_meta, dict):
+                _r_block_reasons: List[str] = []
+                if entry_meta.get("chart_structure_15m_verdict") == "TREND_UP":
+                    _r_block_reasons.append("struct15m==TREND_UP")
+                if entry_meta.get("velocity_verdict") == "QUIET":
+                    _r_block_reasons.append("velocity_verdict==QUIET")
+                _r_pk = entry_meta.get("peak_h24_6h_pct")
+                if _r_pk is not None:
+                    try:
+                        _pkv = float(_r_pk)
+                        if _pkv > 356:
+                            _r_block_reasons.append(f"peak_h24_6h_pct={_pkv:.1f}>356")
+                        elif _pkv < -17:
+                            _r_block_reasons.append(f"peak_h24_6h_pct={_pkv:.1f}<-17")
+                    except Exception:
+                        pass
+                _r_t10 = entry_meta.get("top10_holder_pct")
+                if _r_t10 is not None:
+                    try:
+                        if float(_r_t10) > 60.15:
+                            _r_block_reasons.append(f"top10_holder_pct={float(_r_t10):.2f}>60.15")
+                    except Exception:
+                        pass
+                _r_lp = entry_meta.get("lp_locked_pct")
+                if _r_lp is not None:
+                    try:
+                        if 60.15 <= float(_r_lp) < 78.90:
+                            _r_block_reasons.append(
+                                f"lp_locked_pct={float(_r_lp):.2f}∈[60.15,78.90)"
+                            )
+                    except Exception:
+                        pass
+                _r_verdict = "BLOCK" if _r_block_reasons else "PASS"
+                entry_meta["filter_quad_robust_verdict"] = _r_verdict
+                entry_meta["filter_quad_robust_block_reasons"] = _r_block_reasons
+                if _r_verdict == "BLOCK":
+                    logger.info(
+                        f"[Trader] filter_quad_robust SHADOW would-block: {token_symbol} "
+                        f"reasons={','.join(_r_block_reasons)}"
+                    )
+
+            # ── filter_quad_hi_wr SHADOW (logs only, never blocks) ───────────
+            # Hybrid combo (OR-block + AND-allow). Strictest filter — keeps
+            # only ~4% of dip-buys but at 100% WR on the 2026-05-03 dataset.
+            #   TRAIN: 6 kept / 100% WR / +$10.70
+            #   TEST:  3 kept / 100% WR / +$8.18
+            #   FULL:  9 kept / 100% WR [70.1-100] / +$18.89 vs -$72.79 baseline
+            # n=9 is small — Wilson lower bound 70.1%, point estimate could
+            # land anywhere in [70%, 100%] on fresh data. Need ~30+ hits to
+            # tighten the CI before considering enforcement.
+            #
+            # Effective rule (BLOCK if ANY of the following):
+            #   chart_structure_15m_verdict == "TREND_UP"
+            #   top10_holder_pct > 60.15
+            #   chart_mtf_alignment == "strong_bull"
+            #   concurrent_positions_at_entry ∈ [11, 14]   — bot-state, weird
+            #     but in-sample-significant; treat with skepticism
+            #   lp_locked_pct ≤ 78.90  (allow only top quartile)
+            #   1m_volume_spike ≤ 0.80 (allow only top quartile)
+            if entry_meta is not None and isinstance(entry_meta, dict):
+                _h_block_reasons: List[str] = []
+                if entry_meta.get("chart_structure_15m_verdict") == "TREND_UP":
+                    _h_block_reasons.append("struct15m==TREND_UP")
+                if entry_meta.get("chart_mtf_alignment") == "strong_bull":
+                    _h_block_reasons.append("mtf==strong_bull")
+                _h_t10 = entry_meta.get("top10_holder_pct")
+                if _h_t10 is not None:
+                    try:
+                        if float(_h_t10) > 60.15:
+                            _h_block_reasons.append(f"top10_holder_pct={float(_h_t10):.2f}>60.15")
+                    except Exception:
+                        pass
+                _h_cp = entry_meta.get("concurrent_positions_at_entry")
+                if _h_cp is not None:
+                    try:
+                        if 11 <= float(_h_cp) < 14:
+                            _h_block_reasons.append(f"concurrent_positions={int(float(_h_cp))}∈[11,14)")
+                    except Exception:
+                        pass
+                _h_lp = entry_meta.get("lp_locked_pct")
+                if _h_lp is not None:
+                    try:
+                        if float(_h_lp) <= 78.90:
+                            _h_block_reasons.append(f"lp_locked_pct={float(_h_lp):.2f}<=78.90")
+                    except Exception:
+                        pass
+                else:
+                    _h_block_reasons.append("lp_locked_pct=missing")
+                _h_vs = entry_meta.get("1m_volume_spike")
+                if _h_vs is not None:
+                    try:
+                        if float(_h_vs) <= 0.80:
+                            _h_block_reasons.append(f"1m_volume_spike={float(_h_vs):.3f}<=0.80")
+                    except Exception:
+                        pass
+                else:
+                    _h_block_reasons.append("1m_volume_spike=missing")
+                _h_verdict = "BLOCK" if _h_block_reasons else "PASS"
+                entry_meta["filter_quad_hi_wr_verdict"] = _h_verdict
+                entry_meta["filter_quad_hi_wr_block_reasons"] = _h_block_reasons
+                if _h_verdict == "PASS":
+                    logger.info(
+                        f"[Trader] filter_quad_hi_wr SHADOW would-ALLOW: {token_symbol} "
+                        f"(rare 100%-WR cohort match)"
+                    )
+
             # ── Fix 2: Real-time volume floor at execution ──────────────────
             # If the Axiom WS has been tracking this token (deferred/DipWatcher paths)
             # and tick count in last 60s is zero, volume has dried up — skip.
