@@ -1539,6 +1539,66 @@ class Trader:
                         f"(rare 100%-WR cohort match)"
                     )
 
+            # ── filter_combo_v2 — ENFORCED 2026-05-05 ───────────────────────
+            # Pareto-best 50%-block combo from scripts/filter_combo_pareto.py
+            # on post-Apr-30 cohort (n=466, 4.6 days):
+            #
+            # Block if ANY of these 5 match (OR-block):
+            #   - lp_locked_pct ∈ [60.15%, 78.90%)  — partial-lock band
+            #   - chart_structure_5m_verdict == "REVERSAL_UP"  — bullish-reversal trap
+            #   - peak_h24_6h_pct > 500             — already mooned
+            #   - chart_mtf_alignment == "strong_bull"  — post-pump-corpse trap
+            #   - chart_trendline_5m_verdict == "BLOCK"  — at structural ceiling
+            #
+            # Performance on the post-Apr-30 cohort:
+            #   kept=188 (40% of 466)  block_pct=60%
+            #   WR=64.9%  CI_lo=57.8%
+            #   total_pnl=+$59.28  per_trade=+$0.315
+            #   est daily PnL: +$12.78/day (vs unfiltered baseline -$14.63/day)
+            #
+            # Why dip_scanner doesn't enforce this: lp_locked_pct is fetched
+            # post-rugcheck in this method (above), so the full combo can
+            # only be evaluated here. Other 4 features ARE in entry_meta from
+            # dip_scanner — the cost of moving to trader-level is one extra
+            # rugcheck call per blocked candidate (acceptable).
+            #
+            # Each component fail-opens (None values don't trigger).
+            if entry_meta is not None and isinstance(entry_meta, dict):
+                _v2_block_reasons: List[str] = []
+                _v2_lp = entry_meta.get("lp_locked_pct")
+                if _v2_lp is not None:
+                    try:
+                        if 60.15 <= float(_v2_lp) < 78.90:
+                            _v2_block_reasons.append(
+                                f"lp_locked_pct={float(_v2_lp):.2f}∈[60.15,78.90)"
+                            )
+                    except Exception:
+                        pass
+                if entry_meta.get("chart_structure_5m_verdict") == "REVERSAL_UP":
+                    _v2_block_reasons.append("chart_structure_5m==REVERSAL_UP")
+                _v2_pk = entry_meta.get("peak_h24_6h_pct")
+                if _v2_pk is not None:
+                    try:
+                        if float(_v2_pk) > 500:
+                            _v2_block_reasons.append(f"peak_h24={float(_v2_pk):.0f}%>500%")
+                    except Exception:
+                        pass
+                if entry_meta.get("chart_mtf_alignment") == "strong_bull":
+                    _v2_block_reasons.append("chart_mtf_alignment==strong_bull")
+                if entry_meta.get("chart_trendline_5m_verdict") == "BLOCK":
+                    _v2_block_reasons.append("chart_trendline_5m==BLOCK")
+                _v2_verdict = "BLOCK" if _v2_block_reasons else "PASS"
+                entry_meta["filter_combo_v2_verdict"] = _v2_verdict
+                entry_meta["filter_combo_v2_block_reasons"] = _v2_block_reasons
+                # Apply ONLY to dip_buy strategy.  Other strategies (scalp,
+                # graduation, MC) have their own setups and signal pipelines.
+                if _v2_verdict == "BLOCK" and strategy == "dip_buy":
+                    logger.info(
+                        f"[Trader] BLOCKED by filter_combo_v2: {token_symbol} "
+                        f"reasons={','.join(_v2_block_reasons)}"
+                    )
+                    return
+
             # ── Fix 2: Real-time volume floor at execution ──────────────────
             # If the Axiom WS has been tracking this token (deferred/DipWatcher paths)
             # and tick count in last 60s is zero, volume has dried up — skip.

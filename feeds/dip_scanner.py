@@ -2022,43 +2022,10 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] chart_reader error: {_e}")
 
-            # ── filter_collapse_combo — ENFORCED 2026-05-05 ──
-            # Pareto-best of the post-Apr-30 walk-forward search:
-            #   B_filter_a | B_mtf_strong_bull  (OR-block)
-            # Block if ANY of:
-            #   - filter_a_verdict == BLOCK   (liquidity in [167k,967k] AND peak<=200%)
-            #   - chart_mtf_alignment == "strong_bull"  (post-pump-corpse trap)
-            #
-            # Variant tradeoffs on post-Apr-30 cohort (n=466):
-            #   combo_3 (+filter_1m): kept=59 (87% block) WR=78% CI_lo=66% +$5.31/day
-            #   THIS (no filter_1m): kept=113 (76% block) WR=67% CI_lo=58% +$6.19/day
-            #   filter_a alone:      kept=133 (72% block) WR=62% CI_lo=53% +$2.90/day
-            # We pick "no filter_1m" — nearly 2x the throughput of combo_3 with
-            # a slightly higher projected daily PnL (~$6.19 vs $5.31). Per-trade
-            # is lower ($0.32 vs $0.52) but volume more than compensates.
-            # Expected ~19 buys/day vs ~80 unfiltered.
-            #
-            # filter_1m kept as SHADOW only — its ~10 extra blocks/day were
-            # not worth their throughput cost given the lower CI_lo on the
-            # 3-filter version.
-            #
-            # Fail-open if mtf_alignment unavailable (chart_reader didn't run).
-            _filter_combo_block_reasons: list = []
-            if _filter_a_verdict == "BLOCK":
-                _filter_combo_block_reasons.append("filter_a=BLOCK")
-            _mtf_align = (_chart_ctx_dict or {}).get("chart_mtf_alignment")
-            if _mtf_align == "strong_bull":
-                _filter_combo_block_reasons.append("mtf=strong_bull")
-            _filter_combo_verdict = "BLOCK" if _filter_combo_block_reasons else "PASS"
-            c[f"filter_combo_{_filter_combo_verdict.lower()}"] = c.get(
-                f"filter_combo_{_filter_combo_verdict.lower()}", 0
-            ) + 1
-            if _filter_combo_verdict == "BLOCK":
-                logger.info(
-                    f"[DipScanner] BLOCKED by filter_combo: {token_symbol} "
-                    f"reasons={','.join(_filter_combo_block_reasons)}"
-                )
-                continue
+            # ── Note: filter_combo enforcement moved to core/trader.py ──
+            # The Pareto-best 50%-block combo from filter_combo_pareto.py
+            # requires lp_locked_pct, which is only fetched post-rugcheck
+            # in trader.buy. See `filter_combo_v2` block in core/trader.py.
 
             # Memecoin-specific shadow features (no new fetches; pure
             # derivations from data already in scope).
@@ -2254,10 +2221,6 @@ class DipScanner:
                 "filter_real_dip_5_block_reasons": _filter_real_dip_5_block_reasons,
                 "filter_1m_verdict": _filter_1m_verdict,
                 "filter_1m_block_reasons": _filter_1m_block_reasons,
-                # filter_combo — ENFORCED 2026-05-05. OR-block of filter_a,
-                # filter_1m, mtf=strong_bull. See filter block above.
-                "filter_combo_verdict": _filter_combo_verdict,
-                "filter_combo_block_reasons": _filter_combo_block_reasons,
                 # filter_corpse — enforced post-pump-corpse gate.
                 "filter_corpse_verdict": _filter_corpse_verdict,
                 "filter_corpse_block_reasons": _filter_corpse_block_reasons,
@@ -2335,7 +2298,7 @@ class DipScanner:
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
                 "filter_corpse_block", "filter_fake_bounce_block", "filter_fofar_block",
-                "filter_two_pattern_block", "filter_combo_block",
+                "filter_two_pattern_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
