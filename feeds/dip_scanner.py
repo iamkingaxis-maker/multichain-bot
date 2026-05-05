@@ -2537,6 +2537,22 @@ class DipScanner:
                 "filter_big_trade_size_block_reasons": _filter_big_trade_size_block_reasons,
                 "filter_stale_watch_verdict": _filter_stale_watch_verdict,
                 "filter_stale_watch_block_reasons": _filter_stale_watch_block_reasons,
+                # Axiom active-users signal (Task 1 from axiom-full-utilization plan).
+                # Captures user_cache value + spike flag at signal-fire time.
+                # Spike = current count >= 3x rolling 4-sample baseline.
+                "axiom_active_users": (
+                    self.axiom_price_feed.user_cache.get(token_address.lower())
+                    if self.axiom_price_feed else None
+                ),
+                "axiom_active_users_baseline": (
+                    (lambda h: round(sum(h[:-1]) / max(len(h) - 1, 1), 1) if len(h) >= 2 else None)(
+                        self.axiom_price_feed._user_baseline_window.get(token_address.lower(), [])
+                    ) if self.axiom_price_feed else None
+                ),
+                "axiom_active_users_is_spike": (
+                    token_address.lower() in self.axiom_price_feed._user_count_spikes
+                    if self.axiom_price_feed else False
+                ),
                 # Multi-timeframe momentum stacking (shadow, 2026-05-05).
                 "mtf_green_count": _mtf_green_count,
                 "mtf_vol_align": _mtf_vol_align,
