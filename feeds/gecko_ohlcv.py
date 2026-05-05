@@ -58,9 +58,14 @@ class GeckoTerminalClient:
         higher-timeframe trend alignment in chart_reader. Uses GT's hour
         endpoint with aggregate=1 (NOT minute with aggregate=60 — that
         returns empty).
+
+        Uses 300s cache (vs 60s default for shorter TFs) — 1h candles only
+        update once per hour, so the longer cache absorbs transient
+        rate-limit blips without staleness.
         """
         return await self._fetch_candles(
-            pool_address, aggregate=1, limit=limit, timeframe="hour"
+            pool_address, aggregate=1, limit=limit, timeframe="hour",
+            cache_ttl_override=300,
         )
 
     async def fetch_recent_trades(self, pool_address: str, limit: int = 30) -> List[dict]:
@@ -109,17 +114,19 @@ class GeckoTerminalClient:
     async def _fetch_candles(
         self, pool_address: str, aggregate: int, limit: int,
         timeframe: str = "minute",
+        cache_ttl_override: Optional[int] = None,
     ) -> List[Candle]:
         # GT supports timeframes: minute (aggregate 1/5/15), hour
         # (aggregate 1/4/12), day (aggregate 1). Caller picks the
         # endpoint via `timeframe`. The 60-min "1h candle" path uses
         # timeframe=hour, aggregate=1 — NOT minute with aggregate=60
         # (that returns empty).
+        ttl = cache_ttl_override if cache_ttl_override is not None else self._cache_ttl
         key = f"{timeframe}:{aggregate}:{pool_address}:{limit}"
         now = time.monotonic()
         async with self._lock:
             cached = self._cache.get(key)
-            if cached and (now - cached[0]) < self._cache_ttl:
+            if cached and (now - cached[0]) < ttl:
                 return cached[1]
             await self._throttle(now)
 

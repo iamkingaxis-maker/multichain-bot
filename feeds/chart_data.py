@@ -134,12 +134,23 @@ async def assemble_chart_data(
         Factories (no-arg callables returning a coroutine) are used so we
         only construct the coroutine for the path we actually await — avoids
         orphan-coroutine RuntimeWarnings.
+
+        Retries the full DS→GT flow once after a 500ms backoff if both
+        sources return empty on the first attempt. Catches transient 429s,
+        timeouts, and slug-resolution misses that resolve on a second hit.
+        Empirical: 86% of `?` 1h verdicts are tokens that SHOULD have data
+        (age >= 6h, established pools) — fetch failures, not history gaps.
         """
-        if dexs_client is not None and dexs_factory is not None:
-            r = await _safe(dexs_factory())
-            if r:
+        for attempt in range(2):
+            if dexs_client is not None and dexs_factory is not None:
+                r = await _safe(dexs_factory())
+                if r:
+                    return r
+            r = await _safe(gt_factory())
+            if r or attempt == 1:
                 return r
-        return await _safe(gt_factory())
+            await asyncio.sleep(0.5)
+        return []
 
     candles_1m = await _fetch_one(
         "1m",
