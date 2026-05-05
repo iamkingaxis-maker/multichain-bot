@@ -2665,12 +2665,29 @@ class DipScanner:
                 ds_task = asyncio.gather(*[_get(session, u) for u in urls],
                                          return_exceptions=True)
                 gt_task = self.gt_client.fetch_trending_pools(pages=2)
-                results, gt_pairs = await asyncio.gather(ds_task, gt_task,
-                                                         return_exceptions=True)
+                # Axiom-trending source (2026-05-05) — widens dip-buy
+                # candidate pool with tokens Axiom flags as hot 1h. Same
+                # DexScreener-style pair format as GT; gets enriched below.
+                # Fail-open if no auth (returns empty list).
+                axiom_auth = self.axiom_price_feed.auth if self.axiom_price_feed else None
+                async def _axiom_task():
+                    if not axiom_auth:
+                        return []
+                    try:
+                        from feeds.axiom_discovery import fetch_axiom_trending_pairs
+                        return await fetch_axiom_trending_pairs(axiom_auth, time_period="1h")
+                    except Exception as _e:
+                        logger.debug(f"[DipScanner] Axiom trending fetch err: {_e}")
+                        return []
+                results, gt_pairs, axiom_pairs = await asyncio.gather(
+                    ds_task, gt_task, _axiom_task(), return_exceptions=True
+                )
                 if isinstance(results, Exception):
                     results = []
                 if isinstance(gt_pairs, Exception):
                     gt_pairs = []
+                if isinstance(axiom_pairs, Exception):
+                    axiom_pairs = []
 
                 # Seed GT entries — will be overwritten by DS enrichment below
                 # so the final pair dict has txns data for the bs_h6 filter.
@@ -2679,6 +2696,13 @@ class DipScanner:
                     if addr and addr not in pair_by_addr:
                         pair_by_addr[addr] = p
                         source_by_addr[addr] = "gt_trending"
+
+                # Seed Axiom entries — same enrichment treatment as GT.
+                for p in (axiom_pairs or []):
+                    addr = (p.get("baseToken") or {}).get("address", "")
+                    if addr and addr not in pair_by_addr:
+                        pair_by_addr[addr] = p
+                        source_by_addr[addr] = "axiom_trending"
 
                 # Collect stub addresses from DS boosts/profiles
                 stub_addrs = []
@@ -2717,6 +2741,9 @@ class DipScanner:
                             if source_by_addr.get(addr) == "gt_trending":
                                 pair_by_addr[addr] = p
                                 source_by_addr[addr] = "gt_enriched"
+                            elif source_by_addr.get(addr) == "axiom_trending":
+                                pair_by_addr[addr] = p
+                                source_by_addr[addr] = "axiom_enriched"
                             elif addr not in pair_by_addr:
                                 pair_by_addr[addr] = p
                                 source_by_addr[addr] = "ds_stub"
@@ -2740,6 +2767,7 @@ class DipScanner:
         source_counts = {
             "ds_stub": 0, "ds_search": 0,
             "gt_trending": 0, "gt_enriched": 0,
+            "axiom_trending": 0, "axiom_enriched": 0,
         }
         for src in source_by_addr.values():
             source_counts[src] = source_counts.get(src, 0) + 1
