@@ -63,6 +63,12 @@ class SmartMoneyIndex:
             # If none exist yet, default to the repo-shipped location so
             # next rebuild lands somewhere predictable.
             index_path = chosen or candidates[-1]
+            logger.info(
+                f"[SmartMoney] Index path resolved to: {index_path} "
+                f"(exists={os.path.exists(index_path)}, "
+                f"cwd={os.getcwd()}, "
+                f"candidates={candidates})"
+            )
         self._index_path = index_path
         self._wallets: Dict[str, Dict[str, Any]] = {}
         self._smart_set: set = set()
