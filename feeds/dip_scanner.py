@@ -1609,6 +1609,42 @@ class DipScanner:
                 )
                 # ENFORCEMENT REMOVED 2026-05-04 — shadow only.
 
+            # ── filter_turn_confirmation — ENFORCED 2026-05-05 ──────────────
+            # Require pct_in_5m_range >= 0.5 — entry only when the most
+            # recent close has reached the upper half of the current 5m
+            # candle's high-low range. Below 0.5 = candle still printing
+            # into its lows = catching a falling knife.
+            #
+            # This was the single strongest discriminator in the entry
+            # signal Cohen's d sweep on the post-Apr-30 fast-mover survivor
+            # cohort: d=+0.91 (winners' median 0.68 vs losers' median 0.33).
+            #
+            # Forward simulation on 94 paired closed dip_buy trades that
+            # passed all other current filters (turnover, combo_v2,
+            # chart_bear):
+            #   require pct_in_5m_range >= 0.5: n=36 WR=79.4% +$32.85 total
+            #   (vs current 50.0% WR, -$15.19 total)
+            #   Daily P&L: -$2.91/day → +$6.29/day
+            #   Breakeven gap: -2.5pp → +27.6pp
+            #
+            # Trigger case: Apple 16:24 2026-05-05 had pct_in_5m_range=0.156
+            # (bottom 16% of 5m range — actively falling). Would be blocked.
+            _filter_turn_block_reasons: list = []
+            if pct_in_5m_range < 0.5:
+                _filter_turn_block_reasons.append(
+                    f"pct_in_5m_range={pct_in_5m_range:.3f}<0.5 (catching knife)"
+                )
+            _filter_turn_verdict = "BLOCK" if _filter_turn_block_reasons else "PASS"
+            c[f"filter_turn_{_filter_turn_verdict.lower()}"] = c.get(
+                f"filter_turn_{_filter_turn_verdict.lower()}", 0
+            ) + 1
+            if _filter_turn_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_turn: {token_symbol} "
+                    f"reasons={','.join(_filter_turn_block_reasons)}"
+                )
+                continue
+
             # Filter real-dip-3 — ENFORCED. Validated on the full 540-pair
             # lifetime dataset (held-out test, not the same data the filter
             # was tuned on). Hypothesis: dip-buy works only when there is an
@@ -2308,7 +2344,7 @@ class DipScanner:
         rej_str = " ".join(
             f"{k}={c[k]}" for k in (
                 "mcap_low", "mcap_high", "age", "vol", "low_turnover", "low_h1_mcap_turnover",
-                "vol_m5_zero", "vol_h1_decay",
+                "vol_m5_zero", "vol_h1_decay", "filter_turn_block",
                 "red_h24", "trend_reversal", "top_exhaustion", "no_dip", "h1_mid_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
                 "seller_h1_red_m5", "seller_pump", "no_1m_reversal", "m1_top_tick", "m1_false_bounce", "top_consolidation",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
