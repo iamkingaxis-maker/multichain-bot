@@ -380,6 +380,22 @@ class DipScanner:
                 if not self.baseline_mode:
                     continue
 
+            # ── h1 turnover floor — ENFORCED 2026-05-05 ─────────────────────
+            # vol_h1 / mcap < 4%/hr = slow-mover. User wants "coins that swing
+            # often", and the data agrees: post-Apr-30 paired trades, n=824
+            #   turnover < 4%/hr (BLOCK): n=580 WR=26.9% avg=$-0.27 hold=7.2min
+            #   turnover ≥ 4%/hr (ALLOW): n=244 WR=37.3% avg=$-0.39 hold=7.9min
+            # 9pp WR improvement, 30% throughput retained. The blocked set is
+            # dominated by tokens like LOL (mcap=$3.2M, vol_h1=$75k → 2.35%/hr)
+            # that consolidate flat for hours instead of swinging.
+            #
+            # Distinct from `low_turnover` above which uses vol_h24 / liq_usd
+            # (depth-relative). This is mcap-relative recent activity.
+            if mcap > 0 and vol_h1 / mcap < 0.04:
+                c["low_h1_mcap_turnover"] += 1
+                if not self.baseline_mode:
+                    continue
+
             pc_h24 = (pair.get("priceChange") or {}).get("h24", 0) or 0
             pc_h6 = (pair.get("priceChange") or {}).get("h6", 0) or 0
             pc_h1 = (pair.get("priceChange") or {}).get("h1", 0) or 0
@@ -2291,7 +2307,7 @@ class DipScanner:
         src_str = " ".join(f"{k}={v}" for k, v in source_counts.items() if v) or "-"
         rej_str = " ".join(
             f"{k}={c[k]}" for k in (
-                "mcap_low", "mcap_high", "age", "vol", "low_turnover",
+                "mcap_low", "mcap_high", "age", "vol", "low_turnover", "low_h1_mcap_turnover",
                 "vol_m5_zero", "vol_h1_decay",
                 "red_h24", "trend_reversal", "top_exhaustion", "no_dip", "h1_mid_dip", "m5_dip_over", "falling_knife", "mega_pump_middle",
                 "seller_h1_red_m5", "seller_pump", "no_1m_reversal", "m1_top_tick", "m1_false_bounce", "top_consolidation",
