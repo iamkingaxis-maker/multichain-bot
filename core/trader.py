@@ -1613,11 +1613,20 @@ class Trader:
                         pass
                 if entry_meta.get("chart_structure_5m_verdict") == "REVERSAL_UP":
                     _v2_block_reasons.append("chart_structure_5m==REVERSAL_UP")
+                # peak>500 was effectively blocking 97.5% of young (<24h) tokens —
+                # the band is dominated by "post-launch pump" pattern, not "already
+                # mooned" signal. Among post-Apr-30:
+                #   peak>500 + age<24h: n=78, avg -$0.28 (≈baseline -$0.30)
+                #   peak>500 + age>=24h: n=45, avg -$0.74 (clearly bad)
+                # Restricting to age>=24h preserves the signal on truly-mooned tokens
+                # without the age-filter side effect.
                 _v2_pk = entry_meta.get("peak_h24_6h_pct")
                 if _v2_pk is not None:
                     try:
-                        if float(_v2_pk) > 500:
-                            _v2_block_reasons.append(f"peak_h24={float(_v2_pk):.0f}%>500%")
+                        if float(_v2_pk) > 500 and age_hours >= 24:
+                            _v2_block_reasons.append(
+                                f"peak_h24={float(_v2_pk):.0f}%>500% AND age={age_hours:.1f}h>=24h"
+                            )
                     except Exception:
                         pass
                 if entry_meta.get("chart_mtf_alignment") == "strong_bull":
