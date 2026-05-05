@@ -45,11 +45,24 @@ class SmartMoneyIndex:
     scanner process, occasional re-loads on file mtime change)."""
 
     def __init__(self, index_path: Optional[str] = None):
+        # Resolve index path with fallback chain:
+        #   1. Explicit arg
+        #   2. $DATA_DIR/smart_money_index.json (Railway persistent volume)
+        #   3. ./data/smart_money_index.json (committed in repo, deploys
+        #      with code — used until offline rebuilds populate /data)
         if index_path is None:
+            candidates = []
             data_dir = os.environ.get("DATA_DIR", "/data")
-            if not os.path.isdir(data_dir):
-                data_dir = "."
-            index_path = os.path.join(data_dir, "smart_money_index.json")
+            candidates.append(os.path.join(data_dir, "smart_money_index.json"))
+            candidates.append(os.path.join("data", "smart_money_index.json"))
+            chosen = None
+            for c in candidates:
+                if os.path.exists(c):
+                    chosen = c
+                    break
+            # If none exist yet, default to the repo-shipped location so
+            # next rebuild lands somewhere predictable.
+            index_path = chosen or candidates[-1]
         self._index_path = index_path
         self._wallets: Dict[str, Dict[str, Any]] = {}
         self._smart_set: set = set()
