@@ -2243,6 +2243,101 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] dev-wallet error: {_e}")
 
+            # ── 4 SHADOW filters added 2026-05-05 ──────────────────────
+            # All shadow only — no `continue`. Collecting forward data on
+            # 4 different angles. Each fail-opens if its feature(s) absent.
+            #
+            # 1) filter_weak_bounce — body_5m/range_5m < 0.20.
+            #    Hypothesis: a bounce with a tiny green body inside a
+            #    wide wick range = weak commitment, likely fade.
+            # 2) filter_slip_asym — sell-side liquidity hostile relative
+            #    to buy. slip_sell_5000_pct > 8% OR ratio>1.5x slip_buy.
+            # 3) filter_regime_panic — broad market bleeding.
+            #    regime_h1_neg_pct > 70 = >70% of scanned tokens red on h1.
+            # 4) filter_dev_dumping — dev_pct_remaining < 50.
+            #    Dev has dumped >half their bag pre-entry → exit risk.
+
+            # 1) Weak-bounce (5m body/range)
+            _filter_weak_bounce_block_reasons: list = []
+            try:
+                _last5 = (_cs5_full[-1] if _cs5_full else None)
+                if _last5 is not None:
+                    _body = abs(_last5.close - _last5.open)
+                    _rng = _last5.high - _last5.low
+                    if _rng > 0:
+                        _br = _body / _rng
+                        if _br < 0.20:
+                            _filter_weak_bounce_block_reasons.append(
+                                f"body/range={_br:.2f}<0.20 (weak commitment in 5m candle)"
+                            )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] weak-bounce calc err: {_e}")
+            _filter_weak_bounce_verdict = "BLOCK" if _filter_weak_bounce_block_reasons else "PASS"
+            c[f"filter_weak_bounce_{_filter_weak_bounce_verdict.lower()}"] = c.get(
+                f"filter_weak_bounce_{_filter_weak_bounce_verdict.lower()}", 0
+            ) + 1
+            if _filter_weak_bounce_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_weak_bounce SHADOW would-block: {token_symbol} "
+                    f"reasons={','.join(_filter_weak_bounce_block_reasons)}"
+                )
+
+            # 2) Slip-asymmetry (Jupiter quote)
+            _filter_slip_asym_block_reasons: list = []
+            _slip_buy_5k = jup_features.get("slip_buy_5000_pct")
+            _slip_sell_5k = jup_features.get("slip_sell_5000_pct")
+            if _slip_buy_5k is not None and _slip_sell_5k is not None:
+                if _slip_sell_5k > 8.0:
+                    _filter_slip_asym_block_reasons.append(
+                        f"slip_sell_5k={_slip_sell_5k:.2f}%>8% (exit liquidity hostile)"
+                    )
+                if _slip_buy_5k > 0 and (_slip_sell_5k / _slip_buy_5k) > 1.5:
+                    _filter_slip_asym_block_reasons.append(
+                        f"slip_sell/slip_buy={_slip_sell_5k/_slip_buy_5k:.2f}>1.5 (asymmetric)"
+                    )
+            _filter_slip_asym_verdict = "BLOCK" if _filter_slip_asym_block_reasons else "PASS"
+            c[f"filter_slip_asym_{_filter_slip_asym_verdict.lower()}"] = c.get(
+                f"filter_slip_asym_{_filter_slip_asym_verdict.lower()}", 0
+            ) + 1
+            if _filter_slip_asym_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_slip_asym SHADOW would-block: {token_symbol} "
+                    f"reasons={','.join(_filter_slip_asym_block_reasons)}"
+                )
+
+            # 3) Regime-panic (cross-token breadth)
+            _filter_regime_panic_block_reasons: list = []
+            if _regime_h1_neg_pct is not None and _regime_h1_neg_pct > 70:
+                _filter_regime_panic_block_reasons.append(
+                    f"regime_h1_neg={_regime_h1_neg_pct:.1f}%>70 (broad market bleeding)"
+                )
+            _filter_regime_panic_verdict = "BLOCK" if _filter_regime_panic_block_reasons else "PASS"
+            c[f"filter_regime_panic_{_filter_regime_panic_verdict.lower()}"] = c.get(
+                f"filter_regime_panic_{_filter_regime_panic_verdict.lower()}", 0
+            ) + 1
+            if _filter_regime_panic_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_regime_panic SHADOW would-block: {token_symbol} "
+                    f"reasons={','.join(_filter_regime_panic_block_reasons)}"
+                )
+
+            # 4) Dev-dumping (creator wallet)
+            _filter_dev_dumping_block_reasons: list = []
+            _dev_pct = _tier1_features.get("dev_pct_remaining")
+            if _dev_pct is not None and _dev_pct < 50.0:
+                _filter_dev_dumping_block_reasons.append(
+                    f"dev_pct_remaining={_dev_pct:.1f}%<50 (creator dumped >half pre-entry)"
+                )
+            _filter_dev_dumping_verdict = "BLOCK" if _filter_dev_dumping_block_reasons else "PASS"
+            c[f"filter_dev_dumping_{_filter_dev_dumping_verdict.lower()}"] = c.get(
+                f"filter_dev_dumping_{_filter_dev_dumping_verdict.lower()}", 0
+            ) + 1
+            if _filter_dev_dumping_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_dev_dumping SHADOW would-block: {token_symbol} "
+                    f"reasons={','.join(_filter_dev_dumping_block_reasons)}"
+                )
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -2273,6 +2368,15 @@ class DipScanner:
                 # filter_fake_bounce — enforced 1m fake-bounce gate.
                 "filter_fake_bounce_verdict": _filter_fake_bounce_verdict,
                 "filter_fake_bounce_block_reasons": _filter_fake_bounce_block_reasons,
+                # 4 SHADOW filters added 2026-05-05 (no enforcement).
+                "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
+                "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
+                "filter_slip_asym_verdict": _filter_slip_asym_verdict,
+                "filter_slip_asym_block_reasons": _filter_slip_asym_block_reasons,
+                "filter_regime_panic_verdict": _filter_regime_panic_verdict,
+                "filter_regime_panic_block_reasons": _filter_regime_panic_block_reasons,
+                "filter_dev_dumping_verdict": _filter_dev_dumping_verdict,
+                "filter_dev_dumping_block_reasons": _filter_dev_dumping_block_reasons,
                 # filter_fofar — enforced confluence gate (score>=4/5).
                 "filter_fofar_verdict": _filter_fofar_verdict,
                 "filter_fofar_score": _fofar_score,
@@ -2345,6 +2449,9 @@ class DipScanner:
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
                 "filter_corpse_block", "filter_fake_bounce_block", "filter_fofar_block",
                 "filter_two_pattern_block",
+                # 4 SHADOW filters added 2026-05-05 — counters only, no enforcement.
+                "filter_weak_bounce_block", "filter_slip_asym_block",
+                "filter_regime_panic_block", "filter_dev_dumping_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
