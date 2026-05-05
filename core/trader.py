@@ -1636,6 +1636,65 @@ class Trader:
                     )
                     return
 
+            # ── filter_chart_bear — ENFORCED 2026-05-05 ──────────────────────
+            # Counterpart to filter_combo_v2. v2 catches over-pumped traps
+            # (strong_bull / REVERSAL_UP / peak>500%); this catches actively-
+            # bleeding charts the bot was buying anyway because nothing else
+            # said no.
+            #
+            # Trigger cases:
+            #   EITHER 14:39 2026-05-05 — descending_triangle 95.1% +
+            #                              REVERSAL_DOWN + trendline_breakdown
+            #   maxxing 14:50 2026-05-05 — strong_bear (1m/5m/15m all bear) +
+            #                              strong_bearish marubozu + REVERSAL_DOWN
+            #
+            # Block if ANY of these 3 match:
+            #   1. chart_mtf_alignment == "strong_bear"
+            #        (lifetime: n=102, WR=24.5%, total -$41.97)
+            #   2. chart_candle_confluence == "strong_bearish"
+            #        (lifetime: n=94,  WR=25.5%, total -$46.50)
+            #   3. chart_pattern_5m_dir == "bearish" AND conf >= 80 AND
+            #      chart_structure_5m_verdict == "REVERSAL_DOWN"
+            #        (catches EITHER's descending_triangle@95% pattern)
+            #
+            # Lifetime validation (full_coverage=True only, n=449):
+            #   BLOCK n=177 WR=24.3% total -$79.34 (-$0.45/trade)
+            #   ALLOW n=272 WR=36.0% total  -$3.40 (-$0.01/trade — breakeven)
+            #   block_rate=39.4% — high but blocks are clearly losers
+            #
+            # Fail-open: any None field passes its individual check.
+            if entry_meta is not None and isinstance(entry_meta, dict):
+                _b_block_reasons: List[str] = []
+                if entry_meta.get("chart_mtf_alignment") == "strong_bear":
+                    _b_block_reasons.append("chart_mtf_alignment==strong_bear")
+                if entry_meta.get("chart_candle_confluence") == "strong_bearish":
+                    _b_block_reasons.append("chart_candle_confluence==strong_bearish")
+                _b_pdir = entry_meta.get("chart_pattern_5m_dir")
+                _b_pconf = entry_meta.get("chart_pattern_5m_conf")
+                _b_struct = entry_meta.get("chart_structure_5m_verdict")
+                try:
+                    if (
+                        _b_pdir == "bearish"
+                        and _b_pconf is not None
+                        and float(_b_pconf) >= 80
+                        and _b_struct == "REVERSAL_DOWN"
+                    ):
+                        _b_block_reasons.append(
+                            f"pattern_5m={entry_meta.get('chart_pattern_5m')}@"
+                            f"{float(_b_pconf):.1f}%(bearish)+struct_5m=REVERSAL_DOWN"
+                        )
+                except Exception:
+                    pass
+                _b_verdict = "BLOCK" if _b_block_reasons else "PASS"
+                entry_meta["filter_chart_bear_verdict"] = _b_verdict
+                entry_meta["filter_chart_bear_block_reasons"] = _b_block_reasons
+                if _b_verdict == "BLOCK" and strategy == "dip_buy":
+                    logger.info(
+                        f"[Trader] BLOCKED by filter_chart_bear: {token_symbol} "
+                        f"reasons={','.join(_b_block_reasons)}"
+                    )
+                    return
+
             # ── Fix 2: Real-time volume floor at execution ──────────────────
             # If the Axiom WS has been tracking this token (deferred/DipWatcher paths)
             # and tick count in last 60s is zero, volume has dried up — skip.
