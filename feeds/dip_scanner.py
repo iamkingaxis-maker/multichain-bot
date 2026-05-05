@@ -2384,6 +2384,74 @@ class DipScanner:
                     f"reasons={','.join(_filter_dev_dumping_block_reasons)}"
                 )
 
+            # ── 3 SHADOW filters from regret analysis (2026-05-05 PM) ─────────
+            # Surfaced by retroactive brute-force search across 877 closed
+            # paired trades (held-out 70/30 train/test split). Each was the
+            # most robust threshold for its feature on the SHAP-ranked top-20
+            # list, and each is non-redundant with existing filters.
+
+            # 5) bs_m5 — buy/sell ratio on 5m. Block when sellers dominate.
+            # Train n=361, lift +$884. Test n=229, lift +$53.
+            _filter_bs_m5_low_block_reasons: list = []
+            try:
+                _bs_m5_val = float(ratio_m5) if ratio_m5 != float("inf") else None
+                if _bs_m5_val is not None and _bs_m5_val < 1.40:
+                    _filter_bs_m5_low_block_reasons.append(
+                        f"bs_m5={_bs_m5_val:.2f}<1.40 (sellers dominating 5m order flow)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] bs_m5_low calc err: {_e}")
+            _filter_bs_m5_low_verdict = "BLOCK" if _filter_bs_m5_low_block_reasons else "PASS"
+            c[f"filter_bs_m5_low_{_filter_bs_m5_low_verdict.lower()}"] = c.get(
+                f"filter_bs_m5_low_{_filter_bs_m5_low_verdict.lower()}", 0
+            ) + 1
+            if _filter_bs_m5_low_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_bs_m5_low SHADOW would-block: {token_symbol} "
+                    f"reasons={','.join(_filter_bs_m5_low_block_reasons)}"
+                )
+
+            # 6) avg_trade_size_h1 — block tokens with big trades preceding
+            # the dip ($80+ avg in last hour = whales selling in size).
+            # Train n=425, lift +$802. Test n=267, lift +$45.
+            _filter_big_trade_size_block_reasons: list = []
+            try:
+                if avg_trade_size_h1 is not None and float(avg_trade_size_h1) > 80.0:
+                    _filter_big_trade_size_block_reasons.append(
+                        f"avg_trade_size_h1=${float(avg_trade_size_h1):.0f}>$80 (whale-sized trades preceding dip)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] big_trade_size calc err: {_e}")
+            _filter_big_trade_size_verdict = "BLOCK" if _filter_big_trade_size_block_reasons else "PASS"
+            c[f"filter_big_trade_size_{_filter_big_trade_size_verdict.lower()}"] = c.get(
+                f"filter_big_trade_size_{_filter_big_trade_size_verdict.lower()}", 0
+            ) + 1
+            if _filter_big_trade_size_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_big_trade_size SHADOW would-block: {token_symbol} "
+                    f"reasons={','.join(_filter_big_trade_size_block_reasons)}"
+                )
+
+            # 7) cycles_seen_before_buy — block stale watches (>15 cycles).
+            # Train n=230, lift +$721. Test n=164, lift +$74.
+            _filter_stale_watch_block_reasons: list = []
+            try:
+                if cycles_seen is not None and int(cycles_seen) > 15:
+                    _filter_stale_watch_block_reasons.append(
+                        f"cycles_seen={int(cycles_seen)}>15 (stale watch — fresh dips beat stale ones)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] stale_watch calc err: {_e}")
+            _filter_stale_watch_verdict = "BLOCK" if _filter_stale_watch_block_reasons else "PASS"
+            c[f"filter_stale_watch_{_filter_stale_watch_verdict.lower()}"] = c.get(
+                f"filter_stale_watch_{_filter_stale_watch_verdict.lower()}", 0
+            ) + 1
+            if _filter_stale_watch_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_stale_watch SHADOW would-block: {token_symbol} "
+                    f"reasons={','.join(_filter_stale_watch_block_reasons)}"
+                )
+
             # ── Multi-timeframe momentum stacking (shadow, 2026-05-05) ────────
             # Hypothesis: "textbook pullback resolving" = 15m red + 5m red +
             # 1m green. Different from filter_fake_bounce because it requires
@@ -2462,6 +2530,13 @@ class DipScanner:
                 "filter_regime_panic_block_reasons": _filter_regime_panic_block_reasons,
                 "filter_dev_dumping_verdict": _filter_dev_dumping_verdict,
                 "filter_dev_dumping_block_reasons": _filter_dev_dumping_block_reasons,
+                # 3 SHADOW filters from regret analysis (2026-05-05 PM).
+                "filter_bs_m5_low_verdict": _filter_bs_m5_low_verdict,
+                "filter_bs_m5_low_block_reasons": _filter_bs_m5_low_block_reasons,
+                "filter_big_trade_size_verdict": _filter_big_trade_size_verdict,
+                "filter_big_trade_size_block_reasons": _filter_big_trade_size_block_reasons,
+                "filter_stale_watch_verdict": _filter_stale_watch_verdict,
+                "filter_stale_watch_block_reasons": _filter_stale_watch_block_reasons,
                 # Multi-timeframe momentum stacking (shadow, 2026-05-05).
                 "mtf_green_count": _mtf_green_count,
                 "mtf_vol_align": _mtf_vol_align,
@@ -2543,6 +2618,9 @@ class DipScanner:
                 # 4 SHADOW filters added 2026-05-05 — counters only, no enforcement.
                 "filter_weak_bounce_block", "filter_slip_asym_block",
                 "filter_regime_panic_block", "filter_dev_dumping_block",
+                # 3 SHADOW filters from regret analysis (2026-05-05 PM).
+                "filter_bs_m5_low_block", "filter_big_trade_size_block",
+                "filter_stale_watch_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
