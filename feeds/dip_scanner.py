@@ -144,6 +144,9 @@ class DipScanner:
         from feeds.dev_wallet import DevWalletTracker
         self._smart_money = SmartMoneyIndex()
         self._dev_wallet = DevWalletTracker()
+        # Jupiter slip time-series (2026-05-05) — last 10 (ts, buy_pct, sell_pct)
+        # tuples per token. Used to compute slip velocity/trajectory.
+        self._slip_history: Dict[str, Deque[Tuple[float, Optional[float], Optional[float]]]] = {}
 
     async def run(self):
         logger.info("[DipScanner] Starting — targeting $1M+ mcap dip entries")
@@ -1256,6 +1259,49 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] Jupiter asymmetry error: {_e}")
 
+            # ── Jupiter slip time-series (2026-05-05) ──
+            # Append current quote to per-token ring buffer (last 10 samples)
+            # and derive velocity (slope) and trajectory ("falling" / "rising"
+            # / "flat"). Hypothesis: dips where sell-side slippage is
+            # *exhausting* (slope downward) hold; dips where it's *building*
+            # (slope upward) continue down. Shadow only — no enforcement.
+            slip_ts_features: dict = {}
+            try:
+                _slip_now_buy = jup_features.get("slip_buy_5000_pct")
+                _slip_now_sell = jup_features.get("slip_sell_5000_pct")
+                if _slip_now_buy is not None or _slip_now_sell is not None:
+                    _hist = self._slip_history.setdefault(token_address, deque(maxlen=10))
+                    _hist.append((time.time(), _slip_now_buy, _slip_now_sell))
+                    # Need at least 3 samples to compute slope
+                    _sells = [(t, s) for (t, _b, s) in _hist if s is not None]
+                    if len(_sells) >= 3:
+                        # Linear-fit slope of slip_sell over time (pct/sec).
+                        _t0 = _sells[0][0]
+                        _xs = [t - _t0 for (t, _) in _sells]
+                        _ys = [s for (_, s) in _sells]
+                        _n = len(_sells)
+                        _mx = sum(_xs) / _n
+                        _my = sum(_ys) / _n
+                        _num = sum((_xs[i] - _mx) * (_ys[i] - _my) for i in range(_n))
+                        _den = sum((_xs[i] - _mx) ** 2 for i in range(_n))
+                        _slope = (_num / _den) if _den > 0 else 0.0
+                        # Velocity in pct-per-minute for human readability
+                        _vel_per_min = _slope * 60.0
+                        slip_ts_features["slip_sell_5k_velocity_pct_per_min"] = round(_vel_per_min, 4)
+                        slip_ts_features["slip_sell_5k_samples"] = _n
+                        # Trajectory bucket — 0.05 pct/min threshold
+                        if _vel_per_min > 0.05:
+                            slip_ts_features["slip_sell_5k_trajectory"] = "rising"
+                        elif _vel_per_min < -0.05:
+                            slip_ts_features["slip_sell_5k_trajectory"] = "falling"
+                        else:
+                            slip_ts_features["slip_sell_5k_trajectory"] = "flat"
+                    elif _sells:
+                        slip_ts_features["slip_sell_5k_samples"] = len(_sells)
+                        slip_ts_features["slip_sell_5k_trajectory"] = "insufficient"
+            except Exception as _e:
+                logger.debug(f"[DipScanner] slip-ts calc err: {_e}")
+
             # ── Tier 3: WS tick buffer (sub-minute resolution) ──
             # Reads from AxiomPriceFeed's per-token tick deque (price-only,
             # sub-second granularity). Candidates aren't pre-subscribed, so
@@ -2338,6 +2384,45 @@ class DipScanner:
                     f"reasons={','.join(_filter_dev_dumping_block_reasons)}"
                 )
 
+            # ── Multi-timeframe momentum stacking (shadow, 2026-05-05) ────────
+            # Hypothesis: "textbook pullback resolving" = 15m red + 5m red +
+            # 1m green. Different from filter_fake_bounce because it requires
+            # macro/meso DOWN (real pullback context), not just micro UP.
+            # Pure derivation, no extra fetches.
+            _mtf_green_count = 0
+            _mtf_vol_align = 0
+            _mtf_textbook = 0
+            try:
+                _cs1_lf = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                _cs5_lf = _chart_data.candles_5m if _chart_data and _chart_data.candles_5m else []
+                _cs15_lf = _chart_data.candles_15m if _chart_data and _chart_data.candles_15m else []
+                _last1 = _cs1_lf[-1] if _cs1_lf else None
+                _last5 = _cs5_lf[-1] if _cs5_lf else None
+                _last15 = _cs15_lf[-1] if _cs15_lf else None
+                # Green flags (close > open)
+                _g1 = bool(_last1 and _last1.close > _last1.open)
+                _g5 = bool(_last5 and _last5.close > _last5.open)
+                _g15 = bool(_last15 and _last15.close > _last15.open)
+                _mtf_green_count = int(_g1) + int(_g5) + int(_g15)
+                # Volume-spike flags (last vol > avg of prior, ratio > 1.0)
+                def _vs(series):
+                    if not series or len(series) < 4:
+                        return False
+                    prior = [k.volume for k in series[-5:-1]]
+                    if not prior:
+                        return False
+                    avg = sum(prior) / len(prior)
+                    return avg > 0 and series[-1].volume / avg > 1.0
+                _mtf_vol_align = int(_vs(_cs1_lf)) + int(_vs(_cs5_lf)) + int(_vs(_cs15_lf))
+                # Textbook pullback resolving: 15m red AND 5m red AND 1m green
+                _mtf_textbook = 1 if (
+                    _last15 is not None and _last15.close < _last15.open
+                    and _last5 is not None and _last5.close < _last5.open
+                    and _last1 is not None and _last1.close > _last1.open
+                ) else 0
+            except Exception as _e:
+                logger.debug(f"[DipScanner] mtf calc err: {_e}")
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -2377,6 +2462,12 @@ class DipScanner:
                 "filter_regime_panic_block_reasons": _filter_regime_panic_block_reasons,
                 "filter_dev_dumping_verdict": _filter_dev_dumping_verdict,
                 "filter_dev_dumping_block_reasons": _filter_dev_dumping_block_reasons,
+                # Multi-timeframe momentum stacking (shadow, 2026-05-05).
+                "mtf_green_count": _mtf_green_count,
+                "mtf_vol_align": _mtf_vol_align,
+                "mtf_textbook_pullback": _mtf_textbook,
+                # Jupiter slip time-series (shadow, 2026-05-05).
+                **slip_ts_features,
                 # filter_fofar — enforced confluence gate (score>=4/5).
                 "filter_fofar_verdict": _filter_fofar_verdict,
                 "filter_fofar_score": _fofar_score,
