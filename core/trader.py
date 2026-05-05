@@ -1179,6 +1179,7 @@ class Trader:
             # but rugcheck indexer hasn't processed the tx yet when we buy (<1s after).
             _rc: Optional[dict] = None
             _lp_locked_pct_at_entry: Optional[float] = None
+            _dominant_pool_burned: bool = False
             if self._security_checker is not None and strategy != "graduation":
                 try:
                     _rc = await self._security_checker._fetch_rugcheck(token_address)
@@ -1186,12 +1187,48 @@ class Trader:
                         _lp_pct = _rc.get("lpLockedPct")
                         if _lp_pct is not None:
                             _lp_locked_pct_at_entry = float(_lp_pct or 0)
+                        # Rugcheck `lpLockedPct` is DEX-inconsistent for burned LP:
+                        # Meteora pools count burn as 100% locked; Orca pools count
+                        # burn as 0% locked (treats absence of lock contract as unlocked).
+                        # Burn (mintLP = system address) is functionally MORE secure
+                        # than lock — tokens can never be redeemed. So when summary
+                        # says lp=0, fetch the full report and check if dominant pool
+                        # is actually burned. Only adds latency in the rare lp=0 case.
                         if _lp_pct is not None and float(_lp_pct or 0) == 0.0:
-                            logger.warning(
-                                f"[Trader] LP UNLOCK BLOCK: {token_symbol} "
-                                f"({token_address[:8]}…) — LP unlocked since scan, skipping buy"
-                            )
-                            return
+                            try:
+                                _rc_check = await self._security_checker._fetch_rugcheck_full(token_address)
+                                if _rc_check and isinstance(_rc_check, dict):
+                                    _mkts = _rc_check.get("markets") or []
+                                    if isinstance(_mkts, list) and _mkts:
+                                        _best = None
+                                        _best_liq = -1.0
+                                        for _m in _mkts:
+                                            if not isinstance(_m, dict):
+                                                continue
+                                            _lp_d = _m.get("lp") or {}
+                                            _liq = float(_lp_d.get("quoteUSD", 0) or 0)
+                                            if _liq > _best_liq:
+                                                _best_liq = _liq
+                                                _best = _m
+                                        if _best is not None:
+                                            _mint_lp = (_best.get("mintLP") or "")
+                                            if _mint_lp == "11111111111111111111111111111111":
+                                                _dominant_pool_burned = True
+                                                _lp_locked_pct_at_entry = 100.0
+                                                logger.info(
+                                                    f"[Trader] LP BURN DETECTED: {token_symbol} "
+                                                    f"({token_address[:8]}…) — dominant pool "
+                                                    f"{_best.get('marketType','?')} mintLP=null "
+                                                    f"(burned). Overriding lp_locked_pct → 100"
+                                                )
+                            except Exception:
+                                pass  # fail-open — fall through to unlock-block
+                            if not _dominant_pool_burned:
+                                logger.warning(
+                                    f"[Trader] LP UNLOCK BLOCK: {token_symbol} "
+                                    f"({token_address[:8]}…) — LP unlocked since scan, skipping buy"
+                                )
+                                return
                 except Exception:
                     pass  # fail-open — never block a buy due to rugcheck API failure
 
