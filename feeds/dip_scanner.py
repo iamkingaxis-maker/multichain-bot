@@ -2023,29 +2023,29 @@ class DipScanner:
                 logger.debug(f"[DipScanner] chart_reader error: {_e}")
 
             # ── filter_collapse_combo — ENFORCED 2026-05-05 ──
-            # Promoted from shadow following exhaustive 4-fold walk-forward
-            # search on n=880 lifetime paired trades. Top combo by min-fold WR:
-            #   B_filter_a | B_filter_1m | B_mtf_strong_bull  (OR-block)
+            # Pareto-best of the post-Apr-30 walk-forward search:
+            #   B_filter_a | B_mtf_strong_bull  (OR-block)
             # Block if ANY of:
             #   - filter_a_verdict == BLOCK   (liquidity in [167k,967k] AND peak<=200%)
-            #   - filter_1m_verdict == BLOCK  (1m_cum_3min<-1% OR vol_spike<0.40)
             #   - chart_mtf_alignment == "strong_bull"  (post-pump-corpse trap)
             #
-            # Lifetime: 85% WR on n=469 kept, +$4891. Per-fold:
-            #   F1 (Apr19-24): n=220 84.5% WR (66.8% baseline → +18pp)
-            #   F2 (Apr24-30): n=220 86.4% WR (70.0% baseline → +16pp)
-            #   F3 (Apr30-May3): n=21 81.0% WR (43.6% baseline → +37pp) ← collapse era
-            #   F4 (May3-5):    n=12 75.0% WR (52.3% baseline → +23pp)
+            # Variant tradeoffs on post-Apr-30 cohort (n=466):
+            #   combo_3 (+filter_1m): kept=59 (87% block) WR=78% CI_lo=66% +$5.31/day
+            #   THIS (no filter_1m): kept=113 (76% block) WR=67% CI_lo=58% +$6.19/day
+            #   filter_a alone:      kept=133 (72% block) WR=62% CI_lo=53% +$2.90/day
+            # We pick "no filter_1m" — nearly 2x the throughput of combo_3 with
+            # a slightly higher projected daily PnL (~$6.19 vs $5.31). Per-trade
+            # is lower ($0.32 vs $0.52) but volume more than compensates.
+            # Expected ~19 buys/day vs ~80 unfiltered.
             #
-            # Recent post-baseline (F3+F4): n=33, WR ~80%, Wilson 95% CI
-            # lower bound ~63%. Aggressive — blocks ~92% of post-baseline
-            # candidates. Expected throughput: ~6 buys/day vs ~80 unfiltered.
+            # filter_1m kept as SHADOW only — its ~10 extra blocks/day were
+            # not worth their throughput cost given the lower CI_lo on the
+            # 3-filter version.
+            #
             # Fail-open if mtf_alignment unavailable (chart_reader didn't run).
             _filter_combo_block_reasons: list = []
             if _filter_a_verdict == "BLOCK":
                 _filter_combo_block_reasons.append("filter_a=BLOCK")
-            if _filter_1m_verdict == "BLOCK":
-                _filter_combo_block_reasons.append("filter_1m=BLOCK")
             _mtf_align = (_chart_ctx_dict or {}).get("chart_mtf_alignment")
             if _mtf_align == "strong_bull":
                 _filter_combo_block_reasons.append("mtf=strong_bull")
