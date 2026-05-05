@@ -1552,7 +1552,7 @@ class DipScanner:
                 )
                 # ENFORCEMENT REMOVED 2026-05-04 — shadow only.
 
-            # Filter fake-bounce — ENFORCED 2026-05-02.
+            # Filter fake-bounce — RE-ENFORCED 2026-05-05.
             # Catches "1m green pulse on dead volume" pattern: last 1m
             # candle closed >1.75% green BUT volume_spike < 0.30 (volume
             # <30% of trailing average). The 1m green is air, not real
@@ -1598,10 +1598,10 @@ class DipScanner:
             ) + 1
             if _filter_fake_bounce_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] filter_fake_bounce SHADOW would-block: {token_symbol} "
+                    f"[DipScanner] BLOCKED by filter_fake_bounce: {token_symbol} "
                     f"reasons={','.join(_filter_fake_bounce_block_reasons)}"
                 )
-                # ENFORCEMENT REMOVED 2026-05-04 — shadow only.
+                continue
 
             # ── filter_turn_confirmation — ENFORCED 2026-05-05 ──────────────
             # Require pct_in_5m_range >= 0.5 — entry only when the most
