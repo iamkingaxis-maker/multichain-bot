@@ -180,7 +180,7 @@ def build_index(
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--input", default="all_trades.json")
-    ap.add_argument("--output", default="data/smart_money_index.json")
+    ap.add_argument("--output", default="assets/smart_money_index.json")
     ap.add_argument("--threshold", type=int, default=3,
                     help="min winners to be considered smart")
     ap.add_argument("--min-winner-pnl-pct", type=float, default=5.0,

@@ -48,13 +48,16 @@ class SmartMoneyIndex:
         # Resolve index path with fallback chain:
         #   1. Explicit arg
         #   2. $DATA_DIR/smart_money_index.json (Railway persistent volume)
-        #   3. ./data/smart_money_index.json (committed in repo, deploys
+        #   3. ./assets/smart_money_index.json (committed in repo, deploys
         #      with code — used until offline rebuilds populate /data)
+        #
+        # Note: prior path was data/ but that directory is in .gitignore
+        # and Railway upload skipped it; assets/ is unambiguously tracked.
         if index_path is None:
             candidates = []
             data_dir = os.environ.get("DATA_DIR", "/data")
             candidates.append(os.path.join(data_dir, "smart_money_index.json"))
-            candidates.append(os.path.join("data", "smart_money_index.json"))
+            candidates.append(os.path.join("assets", "smart_money_index.json"))
             chosen = None
             for c in candidates:
                 if os.path.exists(c):
