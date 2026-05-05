@@ -47,8 +47,15 @@ _SLUG_MAP: Dict[str, str] = {
     "raydium": "solamm",
     "pumpswap": "pumpfundex",
     "pumpfun": "pumpfundex",  # alternate naming on some pairs
-    # TODO when encountered: orca, meteora, openbookv2, etc.
+    "meteora": "meteora",      # validated 2026-05-05 — dexId == slug for meteora pools
+    # TODO when encountered: orca, openbookv2, etc.
 }
+
+# When a dexId isn't in _SLUG_MAP, try the dexId itself as the slug. For
+# many Solana DEXes the dexId IS the slug (meteora is the canonical case).
+# We track which dynamic slugs end up returning 200 vs 4xx and only retry
+# the success ones — avoids burning calls on permanently-bad dexIds.
+_DYNAMIC_SLUG_CACHE: Dict[str, bool] = {}  # dexId → True (works), False (doesn't)
 
 _QUOTE_SOL = "So11111111111111111111111111111111111111112"
 _QUOTE_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
@@ -134,13 +141,38 @@ class DexScreenerClient:
         dex_id = (p.get("dexId") or "").lower()
         slug = _SLUG_MAP.get(dex_id)
         quote = (p.get("quoteToken") or {}).get("address") or ""
+        # Dynamic fallback: if dexId isn't in the static map, try the dexId
+        # itself as a slug. Many Solana DEXes use dexId==slug. We cache the
+        # outcome (True = works, False = doesn't) per dexId so we don't
+        # retry permanently-bad ones. Validated by the first non-cached call.
+        if not slug and dex_id:
+            cache_hit = _DYNAMIC_SLUG_CACHE.get(dex_id)
+            if cache_hit is True:
+                slug = dex_id
+            elif cache_hit is None:
+                # First time seeing this dexId — let downstream try it as
+                # the slug; the fetch will record success/failure into the
+                # dynamic cache via _record_dynamic_slug_result.
+                slug = dex_id
+                logger.info(
+                    f"[DexScreener] unknown dexId={dex_id!r} for pair {pair_address[:12]} "
+                    f"— attempting dexId-as-slug fallback"
+                )
         if slug:
             self._slug_cache[pair_address] = slug
         if quote:
             self._quote_cache[pair_address] = quote
-        if not slug:
-            logger.info(f"[DexScreener] unknown dexId={dex_id!r} for pair {pair_address[:12]} — add to _SLUG_MAP")
         return slug, quote or None
+
+    @staticmethod
+    def _record_dynamic_slug_result(dex_id: str, success: bool) -> None:
+        prior = _DYNAMIC_SLUG_CACHE.get(dex_id)
+        if prior is None:
+            _DYNAMIC_SLUG_CACHE[dex_id] = success
+            if success:
+                logger.info(f"[DexScreener] dynamic slug {dex_id!r} VALIDATED — caching")
+            else:
+                logger.info(f"[DexScreener] dynamic slug {dex_id!r} INVALID — adding to denylist")
 
     async def _fetch_candles(
         self,
@@ -175,6 +207,10 @@ class DexScreenerClient:
         if not slug or not quote:
             return []  # Caller falls back to GT
 
+        # Track whether this is a dynamic-slug attempt (slug not in static map)
+        # so we can record success/failure for future calls.
+        is_dynamic_slug = slug not in _SLUG_MAP.values()
+
         url = (
             f"{_DEXS_BASE}/dex/chart/amm/v3/{slug}/bars/solana/{pool_address}"
             f"?res={_RES_MAP[res]}&cb={limit}&q={quote}"
@@ -190,9 +226,13 @@ class DexScreenerClient:
                 },
             )
             if resp.status_code != 200:
-                logger.info(f"[DexScreener] {pool_address[:12]} res={res}: HTTP {resp.status_code}")
+                logger.info(f"[DexScreener] {pool_address[:12]} slug={slug} res={res}: HTTP {resp.status_code}")
+                if is_dynamic_slug and resp.status_code in (400, 404):
+                    self._record_dynamic_slug_result(slug, False)
                 return []
             raw = resp.content
+            if is_dynamic_slug:
+                self._record_dynamic_slug_result(slug, True)
         except Exception as e:
             logger.info(f"[DexScreener] fetch error {pool_address[:12]} res={res}: {e}")
             return []
