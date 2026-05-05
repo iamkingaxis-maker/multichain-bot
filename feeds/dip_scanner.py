@@ -2022,6 +2022,44 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] chart_reader error: {_e}")
 
+            # ── filter_collapse_combo — ENFORCED 2026-05-05 ──
+            # Promoted from shadow following exhaustive 4-fold walk-forward
+            # search on n=880 lifetime paired trades. Top combo by min-fold WR:
+            #   B_filter_a | B_filter_1m | B_mtf_strong_bull  (OR-block)
+            # Block if ANY of:
+            #   - filter_a_verdict == BLOCK   (liquidity in [167k,967k] AND peak<=200%)
+            #   - filter_1m_verdict == BLOCK  (1m_cum_3min<-1% OR vol_spike<0.40)
+            #   - chart_mtf_alignment == "strong_bull"  (post-pump-corpse trap)
+            #
+            # Lifetime: 85% WR on n=469 kept, +$4891. Per-fold:
+            #   F1 (Apr19-24): n=220 84.5% WR (66.8% baseline → +18pp)
+            #   F2 (Apr24-30): n=220 86.4% WR (70.0% baseline → +16pp)
+            #   F3 (Apr30-May3): n=21 81.0% WR (43.6% baseline → +37pp) ← collapse era
+            #   F4 (May3-5):    n=12 75.0% WR (52.3% baseline → +23pp)
+            #
+            # Recent post-baseline (F3+F4): n=33, WR ~80%, Wilson 95% CI
+            # lower bound ~63%. Aggressive — blocks ~92% of post-baseline
+            # candidates. Expected throughput: ~6 buys/day vs ~80 unfiltered.
+            # Fail-open if mtf_alignment unavailable (chart_reader didn't run).
+            _filter_combo_block_reasons: list = []
+            if _filter_a_verdict == "BLOCK":
+                _filter_combo_block_reasons.append("filter_a=BLOCK")
+            if _filter_1m_verdict == "BLOCK":
+                _filter_combo_block_reasons.append("filter_1m=BLOCK")
+            _mtf_align = (_chart_ctx_dict or {}).get("chart_mtf_alignment")
+            if _mtf_align == "strong_bull":
+                _filter_combo_block_reasons.append("mtf=strong_bull")
+            _filter_combo_verdict = "BLOCK" if _filter_combo_block_reasons else "PASS"
+            c[f"filter_combo_{_filter_combo_verdict.lower()}"] = c.get(
+                f"filter_combo_{_filter_combo_verdict.lower()}", 0
+            ) + 1
+            if _filter_combo_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_combo: {token_symbol} "
+                    f"reasons={','.join(_filter_combo_block_reasons)}"
+                )
+                continue
+
             # Memecoin-specific shadow features (no new fetches; pure
             # derivations from data already in scope).
 
@@ -2216,6 +2254,10 @@ class DipScanner:
                 "filter_real_dip_5_block_reasons": _filter_real_dip_5_block_reasons,
                 "filter_1m_verdict": _filter_1m_verdict,
                 "filter_1m_block_reasons": _filter_1m_block_reasons,
+                # filter_combo — ENFORCED 2026-05-05. OR-block of filter_a,
+                # filter_1m, mtf=strong_bull. See filter block above.
+                "filter_combo_verdict": _filter_combo_verdict,
+                "filter_combo_block_reasons": _filter_combo_block_reasons,
                 # filter_corpse — enforced post-pump-corpse gate.
                 "filter_corpse_verdict": _filter_corpse_verdict,
                 "filter_corpse_block_reasons": _filter_corpse_block_reasons,
@@ -2293,7 +2335,7 @@ class DipScanner:
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
                 "filter_corpse_block", "filter_fake_bounce_block", "filter_fofar_block",
-                "filter_two_pattern_block",
+                "filter_two_pattern_block", "filter_combo_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
