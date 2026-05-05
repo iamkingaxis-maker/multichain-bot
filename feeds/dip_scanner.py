@@ -1649,26 +1649,19 @@ class DipScanner:
                 )
                 continue
 
-            # ── filter_turn_confirmation — ENFORCED 2026-05-05 ──────────────
-            # Require pct_in_5m_range >= 0.5 — entry only when the most
-            # recent close has reached the upper half of the current 5m
-            # candle's high-low range. Below 0.5 = candle still printing
-            # into its lows = catching a falling knife.
+            # ── filter_turn_confirmation — DOWNGRADED TO SHADOW 2026-05-05 PM ─
+            # Originally enforced (forward sim showed +$6.29/day vs -$2.91/day),
+            # but the live forward test (5h, n=121 phantom trades on the
+            # trending feed) showed Z_truly_unfiltered at +$0.17/trade and
+            # B_with_filter_turn at -$0.11/trade — filter_turn was a NET
+            # NEGATIVE on that out-of-sample slice. Downgraded to shadow to
+            # collect more forward data before deciding to re-enforce or kill.
             #
-            # This was the single strongest discriminator in the entry
-            # signal Cohen's d sweep on the post-Apr-30 fast-mover survivor
-            # cohort: d=+0.91 (winners' median 0.68 vs losers' median 0.33).
-            #
-            # Forward simulation on 94 paired closed dip_buy trades that
-            # passed all other current filters (turnover, combo_v2,
-            # chart_bear):
-            #   require pct_in_5m_range >= 0.5: n=36 WR=79.4% +$32.85 total
-            #   (vs current 50.0% WR, -$15.19 total)
-            #   Daily P&L: -$2.91/day → +$6.29/day
-            #   Breakeven gap: -2.5pp → +27.6pp
-            #
-            # Trigger case: Apple 16:24 2026-05-05 had pct_in_5m_range=0.156
-            # (bottom 16% of 5m range — actively falling). Would be blocked.
+            # Original rationale (preserved for context): require
+            # pct_in_5m_range >= 0.5 — entry only when the most recent close
+            # has reached the upper half of the 5m candle's range. Below 0.5
+            # = catching a falling knife. Cohen's d=+0.91 on the post-Apr-30
+            # fast-mover survivor cohort (winners 0.68 vs losers 0.33).
             _filter_turn_block_reasons: list = []
             if pct_in_5m_range < 0.5:
                 _filter_turn_block_reasons.append(
@@ -1680,10 +1673,9 @@ class DipScanner:
             ) + 1
             if _filter_turn_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_turn: {token_symbol} "
+                    f"[DipScanner] filter_turn SHADOW would-block: {token_symbol} "
                     f"reasons={','.join(_filter_turn_block_reasons)}"
                 )
-                continue
 
             # Filter real-dip-3 — ENFORCED. Validated on the full 540-pair
             # lifetime dataset (held-out test, not the same data the filter
@@ -2521,6 +2513,9 @@ class DipScanner:
                 # filter_fake_bounce — enforced 1m fake-bounce gate.
                 "filter_fake_bounce_verdict": _filter_fake_bounce_verdict,
                 "filter_fake_bounce_block_reasons": _filter_fake_bounce_block_reasons,
+                # filter_turn — DOWNGRADED to shadow 2026-05-05 PM.
+                "filter_turn_verdict": _filter_turn_verdict,
+                "filter_turn_block_reasons": _filter_turn_block_reasons,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
