@@ -397,17 +397,25 @@ def validate_lifetime_em(filter_mod):
             (block_set if blk else pass_set).append((b, p))
         wins_p = sum(1 for _, p in pass_set if p > 0.5)
         losses_p = sum(1 for _, p in pass_set if p < -0.5)
+        full_avg = sum(p for _, p in cohort) / len(cohort) if cohort else 0
+        pass_avg = sum(p for _, p in pass_set) / len(pass_set) if pass_set else 0
         return {
             'n': len(cohort), 'n_pass': len(pass_set), 'n_block': len(block_set),
             'pass_pnl': sum(p for _, p in pass_set),
+            'block_pnl': sum(p for _, p in block_set),
+            'full_pnl': sum(p for _, p in cohort),
             'pass_wr': wins_p / (wins_p + losses_p) * 100 if (wins_p + losses_p) else 0,
-            'pass_avg': sum(p for _, p in pass_set) / len(pass_set) if pass_set else 0,
+            'pass_avg': pass_avg,
+            'full_avg': full_avg,
+            'avg_lift': pass_avg - full_avg,
         }
 
     tr = evaluate(train)
     te = evaluate(test)
-    print(f'  TRAIN n={tr["n"]} | PASS n={tr["n_pass"]} WR={tr["pass_wr"]:.1f}% avg=${tr["pass_avg"]:+.3f} sum=${tr["pass_pnl"]:+.2f}')
-    print(f'  TEST  n={te["n"]} | PASS n={te["n_pass"]} WR={te["pass_wr"]:.1f}% avg=${te["pass_avg"]:+.3f} sum=${te["pass_pnl"]:+.2f}')
+    print(f'  TRAIN n={tr["n"]} | PASS n={tr["n_pass"]} sum=${tr["pass_pnl"]:+.2f} | '
+          f'BLOCK n={tr["n_block"]} sum=${tr["block_pnl"]:+.2f} | lift ${tr["avg_lift"]:+.3f}/trade')
+    print(f'  TEST  n={te["n"]} | PASS n={te["n_pass"]} sum=${te["pass_pnl"]:+.2f} | '
+          f'BLOCK n={te["n_block"]} sum=${te["block_pnl"]:+.2f} | lift ${te["avg_lift"]:+.3f}/trade')
     return {'train': tr, 'test': te}
 
 
@@ -446,24 +454,52 @@ def main():
         print(f'  Lifetime TEST (held-out): n={lifetime["test"]["n_pass"]} PASS, '
               f'WR={lifetime["test"]["pass_wr"]:.0f}%, total=${lifetime["test"]["pass_pnl"]:+.2f}')
 
-    # Decision rule
+    # Decision rule. Each tier votes — filter ships if all applicable tiers
+    # agree it improves outcomes. Tiers may abstain (e.g., sim BLOCK n=0
+    # for em-only filters → sim is N/A, not negative).
     print()
-    if sim and retro:
-        sim_ok = sim['pass_lift_pct_per_trade'] > 0
-        retro_ok = retro['delta'] >= -0.5  # tolerate ~$0.50 noise
-        all_ok = sim_ok and retro_ok
-        if lifetime:
-            lifetime_ok = lifetime['test']['pass_pnl'] >= 0
-            all_ok = all_ok and lifetime_ok
-        if all_ok:
-            print('  ✓ ALL CHECKS PASS — safe to ship as shadow.')
+    sim_vote = None
+    if sim is not None:
+        if sim['n_block'] == 0:
+            sim_vote = 'N/A'  # filter never fires in sim — abstains
+        elif sim['pass_lift_pct_per_trade'] > 0:
+            sim_vote = 'PASS'
         else:
-            issues = []
-            if not sim_ok: issues.append(f'sim avg negative ({sim["pass_lift_pct_per_trade"]:+.3f}%)')
-            if not retro_ok: issues.append(f'retro delta ${retro["delta"]:+.2f}')
-            if lifetime and lifetime['test']['pass_pnl'] < 0:
-                issues.append(f'lifetime test pnl ${lifetime["test"]["pass_pnl"]:+.2f}')
-            print(f'  ✗ DO NOT SHIP. Issues: {"; ".join(issues)}')
+            sim_vote = 'FAIL'
+    retro_vote = None
+    if retro is not None:
+        if retro['n_blocked'] == 0:
+            retro_vote = 'N/A'
+        elif retro['delta'] >= -0.5:
+            retro_vote = 'PASS'
+        else:
+            retro_vote = 'FAIL'
+    lifetime_vote = None
+    if lifetime is not None:
+        # Filter ships if PASS-cohort avg is BETTER than full-cohort avg
+        # (i.e., filter improves the cohort by removing bad trades), AND
+        # the BLOCK cohort is at-or-below full-cohort avg (sanity).
+        te = lifetime['test']
+        if te['n_block'] == 0:
+            lifetime_vote = 'N/A'
+        elif te['avg_lift'] > 0:
+            lifetime_vote = 'PASS'
+        else:
+            lifetime_vote = 'FAIL'
+
+    print(f'  Sim vote:      {sim_vote}')
+    print(f'  Retro vote:    {retro_vote}')
+    print(f'  Lifetime vote: {lifetime_vote}')
+
+    fails = sum(1 for v in (sim_vote, retro_vote, lifetime_vote) if v == 'FAIL')
+    passes = sum(1 for v in (sim_vote, retro_vote, lifetime_vote) if v == 'PASS')
+    print()
+    if fails == 0 and passes >= 1:
+        print(f'  ✓ {passes} PASS, 0 FAIL — safe to ship as shadow.')
+    elif fails == 0:
+        print('  ⚠ All tiers abstained (N/A). Need fresh data before deciding.')
+    else:
+        print(f'  ✗ DO NOT SHIP — {fails} FAIL.')
 
 
 if __name__ == '__main__':

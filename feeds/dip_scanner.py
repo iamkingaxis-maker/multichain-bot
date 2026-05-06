@@ -2834,6 +2834,53 @@ class DipScanner:
                     f"{token_symbol} reasons={','.join(_filter_wide_range_block_reasons)}"
                 )
 
+            # ── filter_double_bottom — SHADOW 2026-05-06 PM ───────────────────
+            # Record-only verdict for "rock-bottom in both 5m and 1h"
+            # pattern: BLOCK when pct_in_5m_range < 0.10 AND
+            # pct_in_1h_range < 0.10. Catches knife-catching at the
+            # absolute floor of BOTH micro and macro perspectives.
+            #
+            # Targets the PAYmo 12:44 stop-out (-$2.71) which slipped
+            # past every other filter (bs_m5=3.00 buyer-dominant, but
+            # p1h=0.009 / p5m=0.039 — rock bottom in both timeframes).
+            #
+            # Validated through scripts/validate_filter.py:
+            #   - Retro on real bot trades: blocks PAYmo, +$2.71 delta.
+            #   - Lifetime TRAIN (n=401): blocks 35 trades, sum -$36
+            #     ($-1.03/trade — clearly bad cohort). Lift +$0.048/trade.
+            #   - Lifetime TEST (n=173): blocks 15 trades, sum -$9.68
+            #     ($-0.65/trade). Lift +$0.055/trade. Both directions agree.
+            #
+            # Different from filter_double_bear (bs_m5+p1h) — this uses
+            # p5m+p1h for a different orderflow profile.
+            #
+            # Shadow only — record verdict, no enforcement. Fail-open if
+            # either pct_in_*_range feature missing.
+            _db2_p5m = range_features.get("pct_in_5m_range")
+            _db2_p1h = range_features.get("pct_in_1h_range")
+            _filter_double_bottom_block_reasons: list = []
+            if (
+                _db2_p5m is not None
+                and _db2_p1h is not None
+                and _db2_p5m < 0.10
+                and _db2_p1h < 0.10
+            ):
+                _filter_double_bottom_block_reasons.append(
+                    f"p5m={_db2_p5m:.3f}<0.10 AND p1h={_db2_p1h:.3f}<0.10 "
+                    f"(rock-bottom in both timeframes)"
+                )
+            _filter_double_bottom_verdict = (
+                "BLOCK" if _filter_double_bottom_block_reasons else "PASS"
+            )
+            c[f"filter_double_bottom_{_filter_double_bottom_verdict.lower()}"] = c.get(
+                f"filter_double_bottom_{_filter_double_bottom_verdict.lower()}", 0
+            ) + 1
+            if _filter_double_bottom_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_double_bottom SHADOW would-block: "
+                    f"{token_symbol} reasons={','.join(_filter_double_bottom_block_reasons)}"
+                )
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -2899,6 +2946,9 @@ class DipScanner:
                 "filter_wide_range_entry_verdict": _filter_wide_range_verdict,
                 "filter_wide_range_entry_block_reasons": _filter_wide_range_block_reasons,
                 "chart_entry_range_pct": _wre_range_pct,
+                # filter_double_bottom — SHADOW 2026-05-06 PM (p5m+p1h rock-bottom gate).
+                "filter_double_bottom_verdict": _filter_double_bottom_verdict,
+                "filter_double_bottom_block_reasons": _filter_double_bottom_block_reasons,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
