@@ -2699,6 +2699,63 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] capitv calc err: {_e}")
 
+            # ── engulf_at_low parallel trigger — ENFORCED 2026-05-06 ───────────
+            # Fires when ALL THREE:
+            #   1. Bullish engulfing — prev RED, current GREEN, current open
+            #      <= prev close AND current close >= prev open (current
+            #      candle's body fully engulfs prev candle's body)
+            #   2. Prev bar's low <= 10-bar low * 1.005 (engulfing at swing low)
+            #   3. Current close > max high of last 10 bars (breakout above
+            #      prior 10-bar structure)
+            #
+            # Triple-confirmation reversal: sweep-the-low, engulfing reverse,
+            # break out above prior structure. Most selective shape of any
+            # shipped trigger.
+            #
+            # Different from capit_v (deep dump + V-recovery) and
+            # deep_breakout (just 10-bar high + vol): this requires the
+            # specific 1-bar engulfing reversal AT the swing low.
+            #
+            # Validator (scripts/validate_trigger.py):
+            #   - Sim trigger_only: n=324 (4.5x capit_v), 67.3% WR, +0.90%/trade,
+            #     sum +$293 ✓ — highest-volume sim of any trigger validated
+            #   - Retro on bot pairs: n=12, 75% WR, +1.11%/trade, sum +$13 ✓
+            #     2 clean +12.8% wins (CDsvrN5KXi, 3KHMZhpthX), 1 -12% stop,
+            #     8 flats (mostly PAYmo6moDF dead-token noise)
+            _trigger_engulflow_match = False
+            _trigger_engulflow_reasons: list = []
+            try:
+                _el_cs = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if (len(_el_cs) >= 11
+                        and _el_cs[-1].open > 0
+                        and _el_cs[-2].open > 0):
+                    _el_cur = _el_cs[-1]
+                    _el_prev = _el_cs[-2]
+                    # 1. Bullish engulfing
+                    _el_engulf = (
+                        _el_prev.close < _el_prev.open  # prev red
+                        and _el_cur.close > _el_cur.open  # current green
+                        and _el_cur.open <= _el_prev.close
+                        and _el_cur.close >= _el_prev.open
+                    )
+                    if _el_engulf:
+                        _el_last10 = _el_cs[-11:-1]
+                        _el_low10 = min(b.low for b in _el_last10)
+                        _el_high10 = max(b.high for b in _el_last10)
+                        # 2. Prev low at 10-bar swing low
+                        _el_at_low = (_el_low10 > 0
+                                      and _el_prev.low <= _el_low10 * 1.005)
+                        # 3. Current close breaks 10-bar high
+                        _el_breakout = _el_cur.close > _el_high10
+                        if _el_at_low and _el_breakout:
+                            _trigger_engulflow_match = True
+                            _trigger_engulflow_reasons.append(
+                                f"engulf at 10bar-low (prev_l={_el_prev.low:.6f} "
+                                f"≤ {_el_low10*1.005:.6f}), close>{_el_high10:.6f}"
+                            )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] engulflow calc err: {_e}")
+
             # ── squeeze_pullback parallel trigger — SHADOW 2026-05-06 ──────────
             # SHADOW MODE: computed and logged but NOT in _triggers_fired.
             # Gathering retro data before enforcement.
@@ -2765,6 +2822,8 @@ class DipScanner:
                 _triggers_fired.append("deep_breakout")
             if _trigger_capitv_match:
                 _triggers_fired.append("capit_v")
+            if _trigger_engulflow_match:
+                _triggers_fired.append("engulf_low")
 
             if not _triggers_fired:
                 logger.info(
@@ -2785,6 +2844,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_deepbreakout_reasons)
                 if _trigger_capitv_match:
                     _alt_reasons.extend(_trigger_capitv_reasons)
+                if _trigger_engulflow_match:
+                    _alt_reasons.extend(_trigger_engulflow_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -3200,6 +3261,9 @@ class DipScanner:
                 # capitulation_v parallel trigger — ENFORCED 2026-05-06 (V-bottom catch).
                 "trigger_capitv_match": _trigger_capitv_match,
                 "trigger_capitv_reasons": _trigger_capitv_reasons,
+                # engulf_at_low parallel trigger — ENFORCED 2026-05-06 (engulf+breakout).
+                "trigger_engulflow_match": _trigger_engulflow_match,
+                "trigger_engulflow_reasons": _trigger_engulflow_reasons,
                 # squeeze_pullback parallel trigger — SHADOW 2026-05-06 (gathering retro).
                 "trigger_squeeze_match": _trigger_squeeze_match,
                 "trigger_squeeze_reasons": _trigger_squeeze_reasons,
