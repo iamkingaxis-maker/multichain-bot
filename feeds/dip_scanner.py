@@ -2654,6 +2654,51 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] deep_breakout calc err: {_e}")
 
+            # ── capitulation_v parallel trigger — ENFORCED 2026-05-06 ───────────
+            # Fires when ALL THREE:
+            #   1. macro15 < -15% (deep dump in 15 min)
+            #   2. m15 > m30 + 5 (V-recovery already underway)
+            #   3. vol > 1.5x avg of last 5 bars (real buying confirms reversal)
+            #
+            # The first capitulation-catch trigger. Fundamentally different from
+            # all 4 prior triggers (which are reversal/breakout in stable
+            # conditions). Captures the V-bottom moment where a token has
+            # dumped hard AND is starting to recover within the same 30-min
+            # window.
+            #
+            # Validator (scripts/validate_trigger.py):
+            #   - Sim trigger_only marginal: n=71, 66% WR, avg=+2.12%/trade
+            #   - Retro on bot pairs: n=9 NEW, 78% WR, +4.45%/trade, sum +$40
+            #     (CDsvrN5KXi caught 5x in a row — all wins, +12.8% x 3)
+            #   - Highest avg/trade of any trigger validated.
+            _trigger_capitv_match = False
+            _trigger_capitv_reasons: list = []
+            try:
+                _cv_cs = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if (len(_cv_cs) >= 31
+                        and _cv_cs[-1].open > 0
+                        and _cv_cs[-16].close > 0
+                        and _cv_cs[-31].close > 0):
+                    _cv_cur = _cv_cs[-1]
+                    _cv_m15 = (_cv_cur.close / _cv_cs[-16].close - 1) * 100
+                    _cv_m30 = (_cv_cur.close / _cv_cs[-31].close - 1) * 100
+                    _cv_dump = _cv_m15 < -15
+                    _cv_recovery = _cv_m15 > _cv_m30 + 5
+                    _cv_prior5_vols = [b.volume for b in _cv_cs[-6:-1]]
+                    _cv_avg5 = (sum(_cv_prior5_vols) / len(_cv_prior5_vols)
+                                if _cv_prior5_vols else 0)
+                    _cv_vol_ok = (_cv_avg5 > 0
+                                  and _cv_cur.volume / _cv_avg5 > 1.5)
+                    if _cv_dump and _cv_recovery and _cv_vol_ok:
+                        _trigger_capitv_match = True
+                        _trigger_capitv_reasons.append(
+                            f"m15={_cv_m15:+.1f}% (deep dump), "
+                            f"m15-m30={_cv_m15 - _cv_m30:+.1f} (V-recovery), "
+                            f"vol={_cv_cur.volume / _cv_avg5:.2f}x avg5"
+                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] capitv calc err: {_e}")
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _filter_clean_break_verdict == "PASS":
@@ -2664,6 +2709,8 @@ class DipScanner:
                 _triggers_fired.append("quiet_pop")
             if _trigger_deepbreakout_match:
                 _triggers_fired.append("deep_breakout")
+            if _trigger_capitv_match:
+                _triggers_fired.append("capit_v")
 
             if not _triggers_fired:
                 logger.info(
@@ -2682,6 +2729,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_quietpop_reasons)
                 if _trigger_deepbreakout_match:
                     _alt_reasons.extend(_trigger_deepbreakout_reasons)
+                if _trigger_capitv_match:
+                    _alt_reasons.extend(_trigger_capitv_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -3094,6 +3143,9 @@ class DipScanner:
                 # deep_breakout_volume parallel trigger — ENFORCED 2026-05-06.
                 "trigger_deepbreakout_match": _trigger_deepbreakout_match,
                 "trigger_deepbreakout_reasons": _trigger_deepbreakout_reasons,
+                # capitulation_v parallel trigger — ENFORCED 2026-05-06 (V-bottom catch).
+                "trigger_capitv_match": _trigger_capitv_match,
+                "trigger_capitv_reasons": _trigger_capitv_reasons,
                 # filter_double_bear — ENFORCED 2026-05-06 PM (zero-harm Apple gate).
                 "filter_double_bear_verdict": _filter_double_bear_verdict,
                 "filter_double_bear_block_reasons": _filter_double_bear_block_reasons,
