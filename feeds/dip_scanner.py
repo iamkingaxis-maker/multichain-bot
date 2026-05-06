@@ -2444,6 +2444,41 @@ class DipScanner:
                     f"reasons={','.join(_filter_stale_watch_block_reasons)}"
                 )
 
+            # ── filter_confirmation_candle — SHADOW 2026-05-05 PM ─────────────
+            # Timing fix: require POSITIVE confirmation on the entry 1m candle
+            # before firing. Two losses on 2026-05-05 night-time fired right
+            # before tokens pumped — classic "we entered at the wrong time"
+            # pattern (Loss 1: 5m looked OK but 1m bounce was on dead volume;
+            # Loss 2: knife-catch at pct_in_5m_range=0.135).
+            #
+            # filter_fake_bounce blocks the OPPOSITE pattern (1m green pulse
+            # on dead volume — air, not real buying). This filter requires
+            # the POSITIVE form: 1m_last_close >= +0.3% (real green close,
+            # not dead-flat) AND 1m_volume_spike >= 1.0 (real buying volume,
+            # not air).
+            #
+            # Fail-open if 1m features missing.
+            _filter_confirm_block_reasons: list = []
+            _confirm_lcp = m1_features.get("1m_last_close_pct")
+            _confirm_vs = m1_features.get("1m_volume_spike")
+            if _confirm_lcp is not None and _confirm_lcp < 0.3:
+                _filter_confirm_block_reasons.append(
+                    f"1m_last_close={_confirm_lcp:+.2f}%<0.3 (no real green confirmation)"
+                )
+            if _confirm_vs is not None and _confirm_vs < 1.0:
+                _filter_confirm_block_reasons.append(
+                    f"1m_vol_spike={_confirm_vs:.2f}<1.0 (bounce on weak volume)"
+                )
+            _filter_confirm_verdict = "BLOCK" if _filter_confirm_block_reasons else "PASS"
+            c[f"filter_confirmation_candle_{_filter_confirm_verdict.lower()}"] = c.get(
+                f"filter_confirmation_candle_{_filter_confirm_verdict.lower()}", 0
+            ) + 1
+            if _filter_confirm_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_confirmation_candle SHADOW would-block: {token_symbol} "
+                    f"reasons={','.join(_filter_confirm_block_reasons)}"
+                )
+
             # ── Multi-timeframe momentum stacking (shadow, 2026-05-05) ────────
             # Hypothesis: "textbook pullback resolving" = 15m red + 5m red +
             # 1m green. Different from filter_fake_bounce because it requires
@@ -2516,6 +2551,9 @@ class DipScanner:
                 # filter_turn — DOWNGRADED to shadow 2026-05-05 PM.
                 "filter_turn_verdict": _filter_turn_verdict,
                 "filter_turn_block_reasons": _filter_turn_block_reasons,
+                # filter_confirmation_candle — SHADOW timing fix 2026-05-05 PM.
+                "filter_confirmation_candle_verdict": _filter_confirm_verdict,
+                "filter_confirmation_candle_block_reasons": _filter_confirm_block_reasons,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
@@ -2632,6 +2670,8 @@ class DipScanner:
                 # 3 SHADOW filters from regret analysis (2026-05-05 PM).
                 "filter_bs_m5_low_block", "filter_big_trade_size_block",
                 "filter_stale_watch_block",
+                # Timing fix shadow 2026-05-05 PM.
+                "filter_confirmation_candle_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
