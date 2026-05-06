@@ -2520,12 +2520,81 @@ class DipScanner:
             c[f"filter_clean_break_{_filter_clean_break_verdict.lower()}"] = c.get(
                 f"filter_clean_break_{_filter_clean_break_verdict.lower()}", 0
             ) + 1
-            if _filter_clean_break_verdict == "BLOCK":
+
+            # ── trigger_4combo — PARALLEL ENTRY TRIGGER 2026-05-06 PM ─────────
+            # Fires INDEPENDENTLY of clean_break when all 4 conditions match:
+            #   1. macro30 in [-15%, -3%] (moderate pullback zone)
+            #   2. current vol > 1.5x avg of last 5 (real buying)
+            #   3. close > max high of last 5 (5-bar breakout)
+            #   4. higher_low (current low > previous low)
+            #
+            # Different shape from clean_break (first green after sustained
+            # red) — this catches "pullback + breakout + basing" reversals
+            # that don't always coincide with green-after-red.
+            #
+            # Validator results (scripts/validate_trigger.py):
+            #   - Sim trigger_only marginal: n=304 WR=60.8% avg=+0.93%/trade
+            #   - Retro on 8 bot-traded pairs: n=22 NEW marginal entries,
+            #     55.6% WR, 5 missed winners (GME 14:54 +6%, GME 17:58 +13%,
+            #     Apple 14:12/15:56/17:25 +6% each).
+            #
+            # Bot enters if EITHER clean_break PASS OR 4-combo match. Both
+            # paths still pass through filter_double_bear and
+            # filter_seller_dominant downstream.
+            _trigger_4combo_match = False
+            _trigger_4combo_reasons: list = []
+            try:
+                _t4_cs = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if len(_t4_cs) >= 31 and _t4_cs[-1].open > 0:
+                    _t4_cur = _t4_cs[-1]
+                    _t4_30ago = _t4_cs[-31]
+                    if _t4_30ago.close > 0:
+                        _t4_m30 = (_t4_cur.close / _t4_30ago.close - 1) * 100
+                        _t4_in_zone = -15 <= _t4_m30 <= -3
+                        _t4_prior_vol = [b.volume for b in _t4_cs[-6:-1]]
+                        _t4_avg_v = (sum(_t4_prior_vol) / len(_t4_prior_vol)
+                                     if _t4_prior_vol else 0)
+                        _t4_vol_ok = _t4_avg_v > 0 and _t4_cur.volume / _t4_avg_v > 1.5
+                        _t4_prior_high = (max(b.high for b in _t4_cs[-6:-1])
+                                          if len(_t4_cs) >= 6 else 0)
+                        _t4_breakout = _t4_cur.close > _t4_prior_high
+                        _t4_higher_low = (_t4_cur.low > _t4_cs[-2].low
+                                          if len(_t4_cs) >= 2 else False)
+                        if _t4_in_zone and _t4_vol_ok and _t4_breakout and _t4_higher_low:
+                            _trigger_4combo_match = True
+                            _trigger_4combo_reasons.append(
+                                f"m30={_t4_m30:+.1f}% in_zone, "
+                                f"vol_spike={_t4_cur.volume / _t4_avg_v:.2f}x, "
+                                f"breakout (close>{_t4_prior_high:.6f}), "
+                                f"higher_low"
+                            )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 4combo calc err: {_e}")
+
+            # Determine effective entry decision: enter if EITHER trigger fires
+            _trigger_source = None
+            if _filter_clean_break_verdict == "PASS" and _trigger_4combo_match:
+                _trigger_source = "both"
+            elif _filter_clean_break_verdict == "PASS":
+                _trigger_source = "clean_break"
+            elif _trigger_4combo_match:
+                _trigger_source = "4combo"
+            # else: neither triggered → block
+
+            if _trigger_source is None:
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_clean_break: {token_symbol} "
-                    f"reasons={','.join(_filter_clean_break_block_reasons)}"
+                    f"[DipScanner] BLOCKED by filter_clean_break + 4combo: "
+                    f"{token_symbol} cb_reasons={','.join(_filter_clean_break_block_reasons)}"
                 )
                 continue
+            if _trigger_source == "4combo":
+                logger.info(
+                    f"[DipScanner] ENTRY via 4combo (clean_break BLOCKed): "
+                    f"{token_symbol} {','.join(_trigger_4combo_reasons)}"
+                )
+            c[f"trigger_source_{_trigger_source}"] = c.get(
+                f"trigger_source_{_trigger_source}", 0
+            ) + 1
 
             # ── filter_double_bear — ENFORCED 2026-05-06 PM ────────────────────
             # Secondary gate after clean_break. Block when BOTH bearish-context
@@ -2920,6 +2989,11 @@ class DipScanner:
                 # filter_clean_break — ENFORCED 2026-05-06 (held-out +13pp lift).
                 "filter_clean_break_verdict": _filter_clean_break_verdict,
                 "filter_clean_break_block_reasons": _filter_clean_break_block_reasons,
+                # 4-combo parallel trigger — ENFORCED 2026-05-06 PM.
+                # trigger_source: which trigger fired ("clean_break" / "4combo" / "both").
+                "trigger_source": _trigger_source,
+                "trigger_4combo_match": _trigger_4combo_match,
+                "trigger_4combo_reasons": _trigger_4combo_reasons,
                 # filter_double_bear — ENFORCED 2026-05-06 PM (zero-harm Apple gate).
                 "filter_double_bear_verdict": _filter_double_bear_verdict,
                 "filter_double_bear_block_reasons": _filter_double_bear_block_reasons,
