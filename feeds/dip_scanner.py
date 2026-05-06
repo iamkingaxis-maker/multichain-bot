@@ -2661,6 +2661,26 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] mtf calc err: {_e}")
 
+            # ── Macro-window features — SHADOW 2026-05-06 PM ───────────────────
+            # Derived from existing 1m candles (no extra fetches). Used to test
+            # the "buy capitulation, not topping" hypothesis from multi-token
+            # chart analysis (n=254 dips across 21 tokens):
+            #   - macro30_pct < -10 → 52% WR (+4.5pp lift over 48% baseline)
+            #   - macro60<-30 AND macro30<-15 → 59% WR (+11pp, n=35)
+            #   - macro60>50 (uptrend bias) → 29% WR (-18pp — worst filter)
+            # Shadow only: record values, no enforcement. After ~3-7 days of
+            # forward data we can decide if a filter on macro30 has real lift.
+            _macro30_pct = None
+            _macro60_pct = None
+            try:
+                _cs1m = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if len(_cs1m) >= 31 and _cs1m[-1].close > 0 and _cs1m[-31].close > 0:
+                    _macro30_pct = (_cs1m[-1].close / _cs1m[-31].close - 1) * 100
+                if len(_cs1m) >= 61 and _cs1m[-1].close > 0 and _cs1m[-61].close > 0:
+                    _macro60_pct = (_cs1m[-1].close / _cs1m[-61].close - 1) * 100
+            except Exception as _e:
+                logger.debug(f"[DipScanner] macro_pct calc err: {_e}")
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -2706,6 +2726,10 @@ class DipScanner:
                 # filter_seller_dominant — ENFORCED 2026-05-06 PM (held-out +$2.41 lift).
                 "filter_seller_dominant_verdict": _filter_seller_dominant_verdict,
                 "filter_seller_dominant_block_reasons": _filter_seller_dominant_block_reasons,
+                # Macro-window shadow features 2026-05-06 PM. Hypothesis: macro30<-10
+                # → +4.5pp WR lift; capitulation (macro60<-30 AND macro30<-15) → +11pp.
+                "macro30_pct": _macro30_pct,
+                "macro60_pct": _macro60_pct,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
