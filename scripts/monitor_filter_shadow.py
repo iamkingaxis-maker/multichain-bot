@@ -80,6 +80,14 @@ def main():
             if bt < (s.get("time") or "") < next_bt
             and s.get("pnl") is not None
         ]
+        # Cancellations (deploy-restart refunds at entry price) are not
+        # real trade outcomes — exclude from win/loss/n counting entirely.
+        is_cancelled = bool(cands) and any(
+            "cancelled" in (s.get("reason") or "").lower() for s in cands
+        )
+        if is_cancelled:
+            # Skip — neither closed nor open, the position got refunded.
+            continue
         if cands:
             pnl = sum(s.get("pnl") for s in cands)
             if verdict == "BLOCK":
