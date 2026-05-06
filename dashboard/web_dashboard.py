@@ -308,6 +308,75 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   .progress-fill.tp1 { background: var(--yellow); }
   .progress-fill.tp2 { background: #f0883e; }
   .progress-fill.tp3 { background: var(--green); }
+
+  /* ── Mobile (≤ 600px) ─────────────────────────────────────────────
+     The Breaking Bad header has a lot of items; on phone widths it
+     was wrapping awkwardly and pushing content off-screen. This block
+     stacks the header, shrinks badges/fonts, tightens card padding,
+     and fixes a few grid minmaxes that were wider than phone screens. */
+  @media (max-width: 600px) {
+    body { font-size: 12px; }
+    .header {
+      flex-direction: column; align-items: stretch;
+      gap: 8px; padding: 10px 12px;
+    }
+    .header-left { flex-wrap: wrap; gap: 8px; }
+    .header h1 { font-size: 14px; line-height: 1.2; }
+    .heis-element { padding: 1px 4px; margin-right: 4px; }
+    .heis-element .num { font-size: 7px; }
+    .heis-element .sym { font-size: 11px; }
+    .header-right {
+      flex-wrap: wrap; gap: 8px 10px;
+      font-size: 10px;
+    }
+    .header-right > span:first-of-type { /* uptime label can hide */
+      display: none;
+    }
+    #clock { font-size: 11px; }
+    .pause-btn { padding: 3px 10px; font-size: 10px; }
+    .mode-badge { padding: 2px 8px; font-size: 10px; }
+
+    .main { padding: 12px 10px 28px; gap: 12px; }
+    .card { padding: 12px 12px; border-radius: 8px; }
+    .card-title { font-size: 10px; margin-bottom: 10px; }
+
+    .stat-card { padding: 10px 12px; }
+    .stat-card .label { font-size: 10px; margin-bottom: 4px; }
+    .stat-card .value { font-size: 19px; }
+    .stat-card .sub { font-size: 10px; }
+
+    .chart-wrap { height: 180px; }
+
+    .strategies-grid { grid-template-columns: 1fr; gap: 10px; }
+    .strat-status-card { padding: 10px 12px; }
+
+    .sec-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .sec-item { padding: 8px; }
+    .sec-item .v { font-size: 15px; }
+
+    /* Tables: keep horizontal scroll, but tighten padding */
+    th, td { padding: 6px 6px; font-size: 11px; }
+    th { font-size: 9px; }
+
+    .filter-row { gap: 6px; margin-bottom: 10px; }
+    .filter-input, .filter-select { font-size: 11px; padding: 5px 8px; }
+
+    #event-feed { height: 240px; }
+    .feed-item { font-size: 10px; padding: 5px 6px; }
+
+    .breakdown-card { padding: 12px 14px; }
+    .breakdown-card .card-name { font-size: 13px; }
+    .breakdown-card .stat-line { font-size: 11px; }
+  }
+
+  /* Very narrow (≤ 380px — older/smaller phones) */
+  @media (max-width: 380px) {
+    .header h1 { font-size: 12px; }
+    /* Drop the second periodic-element badge; keep the first as accent */
+    .heis-element + .heis-element { display: none; }
+    .stat-card .value { font-size: 17px; }
+    .sec-grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
