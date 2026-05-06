@@ -356,12 +356,29 @@ def main():
         if new['n'] < 5:
             retro_vote = 'N/A'
             print(f'  Retro: NEW n={new["n"]} (too small)')
-        elif new['sum'] >= -5.0:  # tolerate small negative on small n
-            retro_vote = 'PASS'
-            print(f'  Retro: NEW n={new["n"]} sum={new["sum"]:+.0f}% (avg {new["avg"]:+.2f}%) ✓')
+        # Tighter rule: require POSITIVE avg/trade for retro PASS.
+        # An n=80 trigger averaging $0/trade is not noise — it's a
+        # real null result that says "no edge on the bot's universe."
+        # Small-n exception: for n<20, allow up to -$0.50 sum on noise
+        # tolerance; for n>=20, demand positive avg.
+        elif new['n'] < 20:
+            if new['sum'] >= -0.5:
+                retro_vote = 'PASS'
+                print(f'  Retro: NEW n={new["n"]} sum={new["sum"]:+.2f} '
+                      f'avg={new["avg"]:+.2f}% ✓ (small-n tolerance)')
+            else:
+                retro_vote = 'FAIL'
+                print(f'  Retro: NEW n={new["n"]} sum={new["sum"]:+.2f} '
+                      f'avg={new["avg"]:+.2f}% ✗')
         else:
-            retro_vote = 'FAIL'
-            print(f'  Retro: NEW n={new["n"]} sum={new["sum"]:+.0f}% (avg {new["avg"]:+.2f}%) ✗')
+            # n>=20: require avg > 0 (positive expected value per trade)
+            if new['avg'] > 0:
+                retro_vote = 'PASS'
+                print(f'  Retro: NEW n={new["n"]} avg={new["avg"]:+.2f}%/trade ✓')
+            else:
+                retro_vote = 'FAIL'
+                print(f'  Retro: NEW n={new["n"]} avg={new["avg"]:+.2f}%/trade ✗ '
+                      f'(zero/negative expected value)')
     elif retro:
         retro_vote = 'N/A'
         print('  Retro: no NEW entries identified')
