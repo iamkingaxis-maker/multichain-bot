@@ -2527,6 +2527,55 @@ class DipScanner:
                 )
                 continue
 
+            # ── filter_double_bear — ENFORCED 2026-05-06 PM ────────────────────
+            # Secondary gate after clean_break. Block when BOTH bearish-context
+            # signals stack: bs_m5 < 0.70 (5m seller-dominant) AND
+            # pct_in_1h_range < 0.10 (knife-catch at absolute bottom of 1h
+            # range). Either alone is fine; the AND is the discriminator.
+            #
+            # Trigger: Apple 10:05 buy 2026-05-06 — clean_break PASS by skin
+            # of teeth (1m_last_close=+0.22%, exactly the minimum threshold)
+            # but every contextual signal screamed "still in downtrend":
+            # bs_m5=0.57, p1h=0.058, 1m_volume_spike=0.39, cum3=-2.57. Stop -12%.
+            #
+            # Among 4 known clean_break PASS trades, this gate blocks ONLY
+            # the bad Apple — all 3 winners cleared both thresholds wide
+            # (bs_m5 0.94/1.21/1.74; p1h 0.29/0.43/0.45).
+            # Lifetime held-out test (n=57): zero fires, zero impact on
+            # WR/total — this rule is conceptually targeted at "stacked
+            # bearish context dressed up by a 0.2% green wisp."
+            #
+            # Fail-open if either feature missing.
+            _db_bs_m5 = None
+            try:
+                _db_bs_m5 = float(ratio_m5) if ratio_m5 != float("inf") else None
+            except Exception:
+                _db_bs_m5 = None
+            _db_p1h = range_features.get("pct_in_1h_range")
+            _filter_double_bear_block_reasons: list = []
+            if (
+                _db_bs_m5 is not None
+                and _db_p1h is not None
+                and _db_bs_m5 < 0.70
+                and _db_p1h < 0.10
+            ):
+                _filter_double_bear_block_reasons.append(
+                    f"bs_m5={_db_bs_m5:.2f}<0.70 AND "
+                    f"p1h_rng={_db_p1h:.3f}<0.10 (stacked bearish context)"
+                )
+            _filter_double_bear_verdict = (
+                "BLOCK" if _filter_double_bear_block_reasons else "PASS"
+            )
+            c[f"filter_double_bear_{_filter_double_bear_verdict.lower()}"] = c.get(
+                f"filter_double_bear_{_filter_double_bear_verdict.lower()}", 0
+            ) + 1
+            if _filter_double_bear_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_double_bear: {token_symbol} "
+                    f"reasons={','.join(_filter_double_bear_block_reasons)}"
+                )
+                continue
+
             # ── Multi-timeframe momentum stacking (shadow, 2026-05-05) ────────
             # Hypothesis: "textbook pullback resolving" = 15m red + 5m red +
             # 1m green. Different from filter_fake_bounce because it requires
@@ -2605,6 +2654,9 @@ class DipScanner:
                 # filter_clean_break — ENFORCED 2026-05-06 (held-out +13pp lift).
                 "filter_clean_break_verdict": _filter_clean_break_verdict,
                 "filter_clean_break_block_reasons": _filter_clean_break_block_reasons,
+                # filter_double_bear — ENFORCED 2026-05-06 PM (zero-harm Apple gate).
+                "filter_double_bear_verdict": _filter_double_bear_verdict,
+                "filter_double_bear_block_reasons": _filter_double_bear_block_reasons,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
@@ -2725,6 +2777,8 @@ class DipScanner:
                 "filter_confirmation_candle_block",
                 # ENFORCED 2026-05-06 — clean-break user pattern.
                 "filter_clean_break_block",
+                # ENFORCED 2026-05-06 PM — double-bearish-context gate.
+                "filter_double_bear_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
