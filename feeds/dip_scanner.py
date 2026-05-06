@@ -2615,6 +2615,45 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] quietpop calc err: {_e}")
 
+            # ── deep_breakout_volume parallel trigger — ENFORCED 2026-05-06 ─────
+            # Fires when ALL THREE:
+            #   1. Current close > max high of last 10 bars (deep breakout)
+            #   2. Current vol > 1.5x avg of last 5 bars
+            #   3. Green close
+            #
+            # Highest-volume parallel trigger (not selectivity-bound). 10-bar
+            # breakout is a stronger trend-break signal than 5-bar, which makes
+            # this less prone to repeat-fires during slow bleeds despite the
+            # looser volume threshold.
+            #
+            # Validator (scripts/validate_trigger.py):
+            #   - Sim trigger_only marginal: avg=+0.53%/trade
+            #   - Retro on bot pairs: n=113 NEW, 56% WR, +0.28%/trade, sum +$32
+            #     (largest retro fire count of any trigger tested — fills the
+            #      throughput gap left by the more-selective 4combo/quiet_pop).
+            _trigger_deepbreakout_match = False
+            _trigger_deepbreakout_reasons: list = []
+            try:
+                _db_cs = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if len(_db_cs) >= 11 and _db_cs[-1].open > 0:
+                    _db_cur = _db_cs[-1]
+                    if _db_cur.close > _db_cur.open:  # green close
+                        _db_prior10_high = max(b.high for b in _db_cs[-11:-1])
+                        _db_breakout = _db_cur.close > _db_prior10_high
+                        _db_prior5_vols = [b.volume for b in _db_cs[-6:-1]]
+                        _db_avg5 = (sum(_db_prior5_vols) / len(_db_prior5_vols)
+                                    if _db_prior5_vols else 0)
+                        _db_vol_ok = (_db_avg5 > 0
+                                      and _db_cur.volume / _db_avg5 > 1.5)
+                        if _db_breakout and _db_vol_ok:
+                            _trigger_deepbreakout_match = True
+                            _trigger_deepbreakout_reasons.append(
+                                f"close>{_db_prior10_high:.6f} (10-bar high), "
+                                f"vol={_db_cur.volume / _db_avg5:.2f}x avg5, green"
+                            )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] deep_breakout calc err: {_e}")
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _filter_clean_break_verdict == "PASS":
@@ -2623,6 +2662,8 @@ class DipScanner:
                 _triggers_fired.append("4combo")
             if _trigger_quietpop_match:
                 _triggers_fired.append("quiet_pop")
+            if _trigger_deepbreakout_match:
+                _triggers_fired.append("deep_breakout")
 
             if not _triggers_fired:
                 logger.info(
@@ -2639,6 +2680,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_4combo_reasons)
                 if _trigger_quietpop_match:
                     _alt_reasons.extend(_trigger_quietpop_reasons)
+                if _trigger_deepbreakout_match:
+                    _alt_reasons.extend(_trigger_deepbreakout_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -3048,6 +3091,9 @@ class DipScanner:
                 # quiet_pop_breakout parallel trigger — ENFORCED 2026-05-06 PM.
                 "trigger_quietpop_match": _trigger_quietpop_match,
                 "trigger_quietpop_reasons": _trigger_quietpop_reasons,
+                # deep_breakout_volume parallel trigger — ENFORCED 2026-05-06.
+                "trigger_deepbreakout_match": _trigger_deepbreakout_match,
+                "trigger_deepbreakout_reasons": _trigger_deepbreakout_reasons,
                 # filter_double_bear — ENFORCED 2026-05-06 PM (zero-harm Apple gate).
                 "filter_double_bear_verdict": _filter_double_bear_verdict,
                 "filter_double_bear_block_reasons": _filter_double_bear_block_reasons,
