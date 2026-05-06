@@ -1,0 +1,1031 @@
+"""
+Live forward test: snapshot currently-trending tokens with their filter verdicts,
+then resolve outcomes 2.5h+ later by checking actual price moves.
+
+Builds a forward dataset of (snapshot_features → filter_verdicts → outcome) tuples
+over many runs, used to compare which filter combinations actually yield positive
+WR/PnL on real-time data we couldn't have curve-fit on.
+
+Usage:
+  python scripts/live_forward_test.py         # full cycle: resolve old + take new snapshot
+  python scripts/live_forward_test.py status  # print accumulated stats per filter combo
+  python scripts/live_forward_test.py purge   # clear snapshots older than 7 days
+
+Snapshots stored in: .live_forward_test/{snapshot_id}.json
+Aggregated stats in: .live_forward_test/_aggregate.json
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+import time
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+
+import requests
+from curl_cffi import requests as cf_requests  # bot uses this for DS internal API
+
+ROOT = Path(__file__).parent.parent
+SNAPSHOT_DIR = ROOT / ".live_forward_test"
+SNAPSHOT_DIR.mkdir(exist_ok=True)
+AGGREGATE_PATH = SNAPSHOT_DIR / "_aggregate.json"
+SLIP_HIST_PATH = SNAPSHOT_DIR / "_slip_history.json"
+
+# ── Filter combos to test ─────────────────────────────────────────────────
+# Each combo returns True if the candidate would be ALLOWED (PASS), False if BLOCKED.
+
+def scanner_block_reasons(c):
+    reasons = []
+    if c['vol_h1'] < 10000: reasons.append('vol_h1<10k')
+    if c['pc_h24'] <= 0: reasons.append('red_h24')
+    if c['pc_m5'] > -3 and c['pc_h1'] > -3: reasons.append('no_real_dip')
+    if c['peak_h24_6h_pct'] > 1000: reasons.append('peak>1000')
+    return reasons
+
+def turn_block(c):
+    return c.get('pct_in_5m_range') is not None and c['pct_in_5m_range'] < 0.5
+
+def variant_b_block(c):
+    return c['peak_h24_6h_pct'] > 50 and c.get('candle_5m') == 'bullish_marubozu'
+
+def variant_c_block(c):
+    return c['peak_h24_6h_pct'] > 50 and c.get('struct_5m_verdict') in ('TREND_UP', 'TREND_DOWN')
+
+def peak50_block(c):
+    return c['peak_h24_6h_pct'] > 50
+
+def chart_score_block(c):
+    cs = c.get('chart_score')
+    return cs is not None and cs < 40
+
+def weak_bounce_block(c):
+    """Shadow: 5m candle body/range < 0.20 (weak commitment)."""
+    btr = c.get('body_to_range_5m')
+    return btr is not None and btr < 0.20
+
+def regime_panic_block(c):
+    """Shadow: cohort h1-red breadth > 70% (broad market bleeding)."""
+    r = c.get('regime_h1_neg_pct')
+    return r is not None and r > 70.0
+
+def slip_asym_block(c):
+    """Shadow: sell-side liquidity hostile (slip_sell>8%, or sell/buy ratio>1.5x)."""
+    sb = c.get('slip_buy_5000_pct')
+    ss = c.get('slip_sell_5000_pct')
+    if sb is None or ss is None:
+        return False  # fail-open
+    if ss > 8.0:
+        return True
+    if sb > 0 and (ss / sb) > 1.5:
+        return True
+    return False
+
+def mtf_textbook_only_pass(c):
+    """Pass only if textbook pullback pattern: 15m red AND 5m red AND 1m green."""
+    return c.get('mtf_textbook_pullback') == 1
+
+def mtf_2plus_green_block(c):
+    """Block if fewer than 2 of last 1m/5m/15m closed green."""
+    g = c.get('mtf_green_count', 0)
+    return g < 2
+
+def bs_m5_low_block(c):
+    """Block when buy/sell ratio on 5m < 1.40 (sellers dominating)."""
+    bs = c.get('bs_m5')
+    return bs is not None and bs < 1.40
+
+def big_trade_size_block(c):
+    """Block when avg trade size on h1 > $80 (whale-sized trades preceding dip)."""
+    ats = c.get('avg_trade_size_h1_usd')
+    return ats is not None and ats > 80.0
+
+def slip_velocity_rising_block(c):
+    """Block when slip_sell_5k velocity is rising (sell pressure building)."""
+    vel = c.get('slip_sell_5k_velocity_pct_per_min')
+    return vel is not None and vel > 0.05
+
+def confirmation_candle_block(c):
+    """Timing fix: block when 1m bounce isn't confirmed.
+    Block if 1m_last_close_pct < +0.3 OR 1m_volume_spike < 1.0 (when present).
+    Fail-open if 1m features absent."""
+    lcp = c.get('1m_last_close_pct')
+    vs = c.get('1m_volume_spike')
+    if lcp is not None and lcp < 0.3:
+        return True
+    if vs is not None and vs < 1.0:
+        return True
+    return False
+
+def clean_break_block(c):
+    """ENFORCED 2026-05-06. Inverse of "first green after red" pattern.
+    Block UNLESS: 1m_consec_red==0 AND 1m_red_count_5>=3 AND 1m_last_close_pct>0.
+    Fail-open if any 1m feature is missing."""
+    consec = c.get('1m_consec_red')
+    red5 = c.get('1m_red_count_5')
+    lcp = c.get('1m_last_close_pct')
+    if consec is None or red5 is None or lcp is None:
+        return False  # fail-open
+    return not (consec == 0 and red5 >= 3 and lcp > 0)
+
+def double_bear_block(c):
+    """ENFORCED 2026-05-06 PM. Block when BOTH bs_m5<0.70 AND p1h<0.10."""
+    bs = c.get('bs_m5')
+    p1h = c.get('pct_in_1h_range')
+    return bs is not None and p1h is not None and bs < 0.70 and p1h < 0.10
+
+def seller_dominant_block(c):
+    """ENFORCED 2026-05-06 PM. Block when bs_m5 < 0.50 (5m sellers dominating)."""
+    bs = c.get('bs_m5')
+    return bs is not None and bs < 0.50
+
+COMBOS = {
+    'Z_truly_unfiltered':    lambda c: True,                                    # control: every trending token PASSES
+    'A_scanner_baseline':    lambda c: not scanner_block_reasons(c),            # bot's existing scanner gates (vol_h1, red_h24, real_dip, peak1000)
+    'B_with_filter_turn':    lambda c: not scanner_block_reasons(c) and not turn_block(c),
+    'C_B_plus_var_b':        lambda c: not scanner_block_reasons(c) and not turn_block(c) and not variant_b_block(c),
+    'D_B_plus_var_c':        lambda c: not scanner_block_reasons(c) and not turn_block(c) and not variant_c_block(c),
+    'E_B_plus_peak50':       lambda c: not scanner_block_reasons(c) and not turn_block(c) and not peak50_block(c),
+    'F_relaxed_turn_0.4':    lambda c: not scanner_block_reasons(c) and (c.get('pct_in_5m_range') is None or c['pct_in_5m_range'] >= 0.4),
+    'G_relaxed_turn_0.3':    lambda c: not scanner_block_reasons(c) and (c.get('pct_in_5m_range') is None or c['pct_in_5m_range'] >= 0.3),
+    # Shadow filters added 2026-05-05 — layered on B (scanner+turn) to test marginal lift.
+    'H_B_plus_weak_bounce':  lambda c: not scanner_block_reasons(c) and not turn_block(c) and not weak_bounce_block(c),
+    'I_B_plus_regime_panic': lambda c: not scanner_block_reasons(c) and not turn_block(c) and not regime_panic_block(c),
+    'J_B_plus_slip_asym':    lambda c: not scanner_block_reasons(c) and not turn_block(c) and not slip_asym_block(c),
+    'K_B_plus_all_three':    lambda c: not scanner_block_reasons(c) and not turn_block(c) and not weak_bounce_block(c) and not regime_panic_block(c) and not slip_asym_block(c),
+    # Multi-TF momentum stacking (2026-05-05).
+    'L_B_plus_mtf_textbook': lambda c: not scanner_block_reasons(c) and not turn_block(c) and mtf_textbook_only_pass(c),
+    'M_B_plus_mtf_2green':   lambda c: not scanner_block_reasons(c) and not turn_block(c) and not mtf_2plus_green_block(c),
+    # Regret-analysis-derived shadow filters (2026-05-05 PM).
+    'N_B_plus_bs_m5_low':    lambda c: not scanner_block_reasons(c) and not turn_block(c) and not bs_m5_low_block(c),
+    'O_B_plus_big_trade':    lambda c: not scanner_block_reasons(c) and not turn_block(c) and not big_trade_size_block(c),
+    'P_B_plus_slip_vel':     lambda c: not scanner_block_reasons(c) and not turn_block(c) and not slip_velocity_rising_block(c),
+    'Q_B_plus_regret_all':   lambda c: not scanner_block_reasons(c) and not turn_block(c) and not bs_m5_low_block(c) and not big_trade_size_block(c) and not slip_velocity_rising_block(c),
+    # Timing-fix shadow filter (2026-05-05 PM): require positive 1m
+    # confirmation candle (close >= +0.3% AND vol spike >= 1.0).
+    'R_B_plus_confirm_candle': lambda c: not scanner_block_reasons(c) and not turn_block(c) and not confirmation_candle_block(c),
+    # ─── LIVE PRODUCTION STACK 2026-05-06 PM ───
+    # Mirrors what the bot is actually trading: scanner gates +
+    # clean_break + double_bear + seller_dominant. NO turn_block (we
+    # downgraded filter_turn to shadow on 2026-05-05).
+    # Use this combo to forward-validate the live filter chain.
+    'S_live_prod_stack':     lambda c: not scanner_block_reasons(c) and not clean_break_block(c) and not double_bear_block(c) and not seller_dominant_block(c),
+    # Variant: same but stripped down to just clean_break (sanity check
+    # that the additional gates aren't pulling weight on this slice).
+    'T_clean_break_only':    lambda c: not scanner_block_reasons(c) and not clean_break_block(c),
+}
+
+
+# ── Token discovery ───────────────────────────────────────────────────────
+
+def fetch_trending_tokens():
+    """Pull GT trending Solana pools (3 pages = ~60 candidates)."""
+    pools = []
+    for page in (1, 2, 3):
+        try:
+            r = requests.get(f'https://api.geckoterminal.com/api/v2/networks/solana/trending_pools?page={page}', timeout=10)
+            pools.extend(r.json().get('data') or [])
+        except Exception:
+            pass
+        time.sleep(2.5)  # respect 25/min GT rate limit
+    return pools
+
+
+# ── Expanded candidate sources (mirrors bot's _fetch_candidates) ──────────
+
+_DS_HEADERS = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
+_SEARCH_TERMS = ["sol", "bonk", "wif", "cat", "dog", "meme", "pepe", "ai", "baby", "pump"]
+
+
+def _safe_get(url, timeout=10):
+    try:
+        r = requests.get(url, headers=_DS_HEADERS, timeout=timeout)
+        if r.status_code == 200:
+            return r.json()
+    except Exception:
+        pass
+    return None
+
+
+def fetch_dexscreener_boosts_addrs():
+    """DexScreener token-boosts/top — returns list of token addresses."""
+    data = _safe_get("https://api.dexscreener.com/token-boosts/top/v1")
+    if not data:
+        return []
+    items = data if isinstance(data, list) else data.get("pairs", [])
+    return [it.get("tokenAddress") or it.get("address") for it in (items or [])
+            if it.get("chainId") == "solana" and (it.get("tokenAddress") or it.get("address"))]
+
+
+def fetch_dexscreener_profiles_addrs():
+    """DexScreener token-profiles/latest — returns list of token addresses."""
+    data = _safe_get("https://api.dexscreener.com/token-profiles/latest/v1")
+    if not data:
+        return []
+    items = data if isinstance(data, list) else data.get("pairs", [])
+    return [it.get("tokenAddress") or it.get("address") for it in (items or [])
+            if it.get("chainId") == "solana" and (it.get("tokenAddress") or it.get("address"))]
+
+
+def fetch_dexscreener_search_addrs():
+    """DexScreener search across keyword list — returns deduped token addresses."""
+    addrs = set()
+    for kw in _SEARCH_TERMS:
+        data = _safe_get(
+            f"https://api.dexscreener.com/latest/dex/search?q={kw}&chainId=solana",
+            timeout=8,
+        )
+        for p in (data or {}).get("pairs", []) or []:
+            if p.get("chainId") != "solana":
+                continue
+            ta = (p.get("baseToken") or {}).get("address", "")
+            if ta:
+                addrs.add(ta)
+        time.sleep(0.3)  # gentle on DS
+    return list(addrs)
+
+
+def fetch_axiom_trending_addrs():
+    """Axiom users-trending-v2 via the same fetcher the bot uses.
+    Skips silently if no auth is available locally."""
+    # Axiom requires an authenticated token. Locally, we don't have the bot's
+    # auth manager — try to use the saved token file directly.
+    token_file = Path.home() / ".axiom_tokens.json"
+    if not token_file.exists():
+        # Fall back: try the bot's persisted token at /data path (Railway only)
+        return []
+    try:
+        with open(token_file) as f:
+            saved = json.load(f)
+        access = saved.get("auth_token") or saved.get("access")
+        if not access:
+            return []
+        cookie = f"auth-access-token={access}"
+        for server in ("https://api2.axiom.trade", "https://api3.axiom.trade"):
+            try:
+                r = requests.get(
+                    f"{server}/users-trending-v2?timePeriod=1h",
+                    headers={"Cookie": cookie, "User-Agent": "Mozilla/5.0",
+                             "Accept": "application/json"},
+                    timeout=8,
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    pairs = data if isinstance(data, list) else (data.get("pairs") or [])
+                    return [(p.get("baseToken") or {}).get("address", "")
+                            for p in pairs if (p.get("baseToken") or {}).get("address")]
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return []
+
+
+def fetch_ds_pairs_for_addrs(addrs):
+    """Batch-enrich token addresses via DexScreener /tokens. Returns list of
+    DS-format pair dicts (one highest-liq pair per base address)."""
+    pairs = []
+    addrs = list(dict.fromkeys(addrs))  # dedupe preserve order
+    for i in range(0, len(addrs), 30):
+        batch = addrs[i:i + 30]
+        url = f"https://api.dexscreener.com/latest/dex/tokens/{','.join(batch)}"
+        data = _safe_get(url)
+        if not data:
+            continue
+        # Pick highest-liq pair per base address
+        best = {}
+        for p in data.get("pairs") or []:
+            if p.get("chainId") != "solana":
+                continue
+            ta = (p.get("baseToken") or {}).get("address", "")
+            if not ta:
+                continue
+            liq = float((p.get("liquidity") or {}).get("usd") or 0)
+            cur = best.get(ta)
+            if cur is None or liq > float((cur.get("liquidity") or {}).get("usd") or 0):
+                best[ta] = p
+        pairs.extend(best.values())
+        time.sleep(0.3)
+    return pairs
+
+
+def normalize_ds(pair):
+    """DS-format pair → normalized candidate dict. Mirrors normalize() but
+    reads from DS field names. Returns None if outside mcap window or
+    missing required fields."""
+    if pair.get("chainId") != "solana":
+        return None
+    base = pair.get("baseToken") or {}
+    token = base.get("address")
+    pair_addr = pair.get("pairAddress")
+    if not token or not pair_addr:
+        return None
+    name = base.get("symbol") or base.get("name") or "?"
+    try:
+        mcap = float(pair.get("marketCap") or pair.get("fdv") or 0)
+    except (ValueError, TypeError):
+        return None
+    if mcap < 1_000_000 or mcap > 100_000_000:
+        return None
+    vol = pair.get("volume") or {}
+    pc = pair.get("priceChange") or {}
+    pc_h6 = float(pc.get("h6") or 0)
+    pc_h24 = float(pc.get("h24") or 0)
+    txns = pair.get("txns") or {}
+    m5_txns = txns.get("m5") or {}
+    h1_txns = txns.get("h1") or {}
+    b_m5 = int(m5_txns.get("buys") or 0)
+    s_m5 = int(m5_txns.get("sells") or 0)
+    bs_m5 = (b_m5 / s_m5) if s_m5 > 0 else None
+    h1_total_txns = int(h1_txns.get("buys") or 0) + int(h1_txns.get("sells") or 0)
+    vol_h1_val = float(vol.get("h1") or 0)
+    avg_trade_size_h1 = (vol_h1_val / h1_total_txns) if h1_total_txns > 0 else None
+    return {
+        "symbol": name[:13],
+        "pair": pair_addr, "token": token, "mcap": mcap,
+        "vol_h1": vol_h1_val,
+        "liq": float((pair.get("liquidity") or {}).get("usd") or 0),
+        "pc_m5": float(pc.get("m5") or 0),
+        "pc_h1": float(pc.get("h1") or 0),
+        "pc_h6": pc_h6, "pc_h24": pc_h24,
+        "peak_h24_6h_pct": max(pc_h24, pc_h6, 0),
+        "price": float(pair.get("priceUsd") or 0),
+        "bs_m5": bs_m5,
+        "avg_trade_size_h1_usd": avg_trade_size_h1,
+    }
+
+
+def normalize(pools):
+    out = []
+    for p in pools:
+        attrs = p.get('attributes') or {}
+        pair = attrs.get('address')
+        name = attrs.get('name') or '?'
+        base_id = ((p.get('relationships') or {}).get('base_token') or {}).get('data', {}).get('id') or ''
+        token = base_id.replace('solana_','') if base_id else ''
+        if not token or not pair: continue
+        try: mcap = float(attrs.get('market_cap_usd') or attrs.get('fdv_usd') or 0)
+        except: continue
+        if mcap < 1_000_000 or mcap > 100_000_000: continue
+        vol = attrs.get('volume_usd') or {}
+        pc = attrs.get('price_change_percentage') or {}
+        pc_h6 = float(pc.get('h6') or 0)
+        pc_h24 = float(pc.get('h24') or 0)
+        # Transaction breakdowns per timeframe — used for bs_m5 (buy/sell ratio
+        # on 5m) and avg_trade_size_h1 (h1 vol / total h1 txns).
+        txns = attrs.get('transactions') or {}
+        m5_txns = txns.get('m5') or {}
+        h1_txns = txns.get('h1') or {}
+        b_m5 = int(m5_txns.get('buys') or 0)
+        s_m5 = int(m5_txns.get('sells') or 0)
+        bs_m5 = (b_m5 / s_m5) if s_m5 > 0 else None
+        h1_total_txns = int(h1_txns.get('buys') or 0) + int(h1_txns.get('sells') or 0)
+        vol_h1_val = float(vol.get('h1') or 0)
+        avg_trade_size_h1 = (vol_h1_val / h1_total_txns) if h1_total_txns > 0 else None
+        out.append({
+            'symbol': name.split('/')[0].strip()[:13],
+            'pair': pair, 'token': token, 'mcap': mcap,
+            'vol_h1': float(vol.get('h1') or 0),
+            'liq': float(attrs.get('reserve_in_usd') or 0),
+            'pc_m5': float(pc.get('m5') or 0),
+            'pc_h1': float(pc.get('h1') or 0),
+            'pc_h6': pc_h6, 'pc_h24': pc_h24,
+            'peak_h24_6h_pct': max(pc_h24, pc_h6, 0),
+            'price': float(attrs.get('base_token_price_usd') or 0),
+            'bs_m5': bs_m5,
+            'avg_trade_size_h1_usd': avg_trade_size_h1,
+        })
+    return out
+
+
+# ── DexScreener OHLCV (1m, 5m) — reliable, no rate-limit pain ──────────────
+
+_DEXS_BASE = "https://io.dexscreener.com/u/chart"
+_RES_MAP = {1: "1", 5: "5", 15: "15", 60: "60"}
+
+def fetch_dexs_5m(pair_address, dex_slug='pumpswap'):
+    """Fetch 5m bars via DexScreener internal API. Returns last 24 candles."""
+    url = f"{_DEXS_BASE}/bars/solana/{pair_address}?res=5&cb=24&q=USD"
+    try:
+        sess = cf_requests.Session(impersonate='chrome')
+        resp = sess.get(url, timeout=10, headers={
+            "Origin": "https://dexscreener.com",
+            "Referer": "https://dexscreener.com/",
+        })
+        if resp.status_code != 200:
+            return []
+        # Binary format — try parsing as JSON if returned that way
+        try:
+            data = resp.json()
+            return data.get('bars') or data.get('data') or []
+        except Exception:
+            return []
+    except Exception:
+        return []
+
+
+def fetch_gt_ohlcv_with_retry(pair, agg, limit=24, attempts=3):
+    """GT 5m candles with retry. Slower but works."""
+    for attempt in range(attempts):
+        try:
+            r = requests.get(
+                f'https://api.geckoterminal.com/api/v2/networks/solana/pools/{pair}/ohlcv/minute?aggregate={agg}&limit={limit}',
+                timeout=10
+            )
+            if r.status_code == 200:
+                return ((r.json().get('data') or {}).get('attributes') or {}).get('ohlcv_list') or []
+        except Exception:
+            pass
+        time.sleep(3 + attempt * 2)  # backoff
+    return []
+
+
+def compute_mtf_features(c):
+    """Multi-timeframe momentum stacking. Fetches 1m and 15m candles
+    (5m already fetched separately) and derives:
+      - mtf_green_count (0-3): how many of last 1m, 5m, 15m closed green
+      - mtf_vol_align (0-3): how many show vol_spike > 1.0
+      - mtf_textbook_pullback: 1 if 15m red AND 5m red AND 1m green
+    Each fail-opens (returns 0/False) on missing data.
+    """
+    out = {
+        'mtf_green_count': 0, 'mtf_vol_align': 0, 'mtf_textbook_pullback': 0,
+        # 1m last-close + vol spike — used by filter_confirmation_candle
+        '1m_last_close_pct': None, '1m_volume_spike': None,
+    }
+    try:
+        # 1m: last 6 candles is enough
+        ohlcv_1m = fetch_gt_ohlcv_with_retry(c['pair'], agg=1, limit=6)
+        time.sleep(1.5)  # GT pacing
+        # 15m: last 6 candles is enough
+        ohlcv_15m = fetch_gt_ohlcv_with_retry(c['pair'], agg=15, limit=6)
+        time.sleep(1.5)
+        ohlcv_5m = fetch_gt_ohlcv_with_retry(c['pair'], agg=5, limit=6)
+
+        def _parse_last_and_vol_align(ohlcv):
+            """Return (is_green, vol_spike_ratio, last_close_pct) for the most recent candle."""
+            if not ohlcv or len(ohlcv) < 2:
+                return (False, 0.0, None)
+            last = ohlcv[0]  # GT returns newest-first
+            opn, high, low, close, vol = float(last[1]), float(last[2]), float(last[3]), float(last[4]), float(last[5])
+            is_green = close > opn
+            prior_vols = [float(k[5]) for k in ohlcv[1:5]]  # next 4 most-recent
+            avg = sum(prior_vols) / len(prior_vols) if prior_vols else 0.0
+            spike = (vol / avg) if avg > 0 else 0.0
+            last_close_pct = ((close / opn) - 1) * 100 if opn > 0 else 0.0
+            return (is_green, spike, last_close_pct)
+
+        g1, v1, lcp1 = _parse_last_and_vol_align(ohlcv_1m)
+        g5, v5, _ = _parse_last_and_vol_align(ohlcv_5m)
+        g15, v15, _ = _parse_last_and_vol_align(ohlcv_15m)
+        out['mtf_green_count'] = int(g1) + int(g5) + int(g15)
+        out['mtf_vol_align'] = int(v1 > 1.0) + int(v5 > 1.0) + int(v15 > 1.0)
+        # Textbook pullback resolving: 15m red AND 5m red AND 1m green
+        out['mtf_textbook_pullback'] = 1 if (not g15 and not g5 and g1) else 0
+        # 1m features for filter_confirmation_candle
+        out['1m_last_close_pct'] = lcp1
+        out['1m_volume_spike'] = v1
+    except Exception:
+        pass
+    return out
+
+
+def compute_5m_features(c):
+    """Fetch 5m candles via GT (with retry) and compute pct_in_5m_range, candle pattern, etc."""
+    ohlcv = fetch_gt_ohlcv_with_retry(c['pair'], agg=5, limit=24)
+    if not ohlcv:
+        return None
+    last = ohlcv[0]
+    ts, opn, high, low, close, vol = float(last[0]), float(last[1]), float(last[2]), float(last[3]), float(last[4]), float(last[5])
+    rng = high - low
+    pct_in_5m_range = round((close - low) / rng, 3) if rng > 0 else 0.5
+    body = abs(close - opn)
+    upper_wick = high - max(close, opn)
+    lower_wick = min(close, opn) - low
+    is_bull_marub = (close > opn) and rng > 0 and (upper_wick / rng < 0.1) and (body / rng > 0.7)
+    is_bear_marub = (close < opn) and rng > 0 and (lower_wick / rng < 0.1) and (body / rng > 0.7)
+    is_doji = rng > 0 and (body / rng < 0.1)
+    candle = 'bullish_marubozu' if is_bull_marub else ('bearish_marubozu' if is_bear_marub else ('doji' if is_doji else 'other'))
+    highs = [float(b[2]) for b in ohlcv[:12]]
+    peak_idx = highs.index(max(highs)) if highs else 0
+    body_to_range = round(body / rng, 3) if rng > 0 else 0.0
+    return {
+        'pct_in_5m_range': pct_in_5m_range,
+        'candle_5m': candle,
+        'body_to_range_5m': body_to_range,
+        'min_since_peak_5m': peak_idx * 5,
+        'ratio_to_recent_peak': round(close / max(highs), 3) if highs and max(highs) > 0 else 1.0,
+        'snapshot_close': close,
+    }
+
+
+# ── Jupiter slippage ($5k buy/sell impact) ──────────────────────────────────
+
+_SOL_MINT = "So11111111111111111111111111111111111111112"
+_USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+_JUP_QUOTE = "https://api.jup.ag/swap/v1/quote"
+
+
+def fetch_sol_price():
+    """1 SOL → USDC via Jupiter to anchor slippage USD sizing."""
+    try:
+        r = requests.get(_JUP_QUOTE, params={
+            'inputMint': _SOL_MINT, 'outputMint': _USDC_MINT,
+            'amount': 1_000_000_000,  # 1 SOL = 1e9 lamports
+            'slippageBps': 50,
+        }, timeout=8)
+        if r.status_code == 200:
+            j = r.json()
+            return float(j.get('outAmount', 0)) / 1e6  # USDC has 6 decimals
+    except Exception:
+        pass
+    return 200.0  # fallback estimate
+
+
+def _load_slip_history():
+    """Load per-token slip-history dict from disk. Each entry is a list of
+    (ts_unix, buy_pct, sell_pct) tuples — last 10 retained per token."""
+    if not SLIP_HIST_PATH.exists():
+        return {}
+    try:
+        with open(SLIP_HIST_PATH) as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+
+def _save_slip_history(hist):
+    try:
+        with open(SLIP_HIST_PATH, 'w') as f:
+            json.dump(hist, f, default=str)
+    except Exception:
+        pass
+
+
+def _compute_slip_velocity(samples):
+    """Linear-fit slope of slip_sell over time (pct/min). Needs >=3 samples
+    with non-null sell. Returns (vel_per_min, n_samples, trajectory)."""
+    sells = [(t, s) for (t, _b, s) in samples if s is not None]
+    if len(sells) < 3:
+        return (None, len(sells), 'insufficient')
+    t0 = sells[0][0]
+    xs = [t - t0 for (t, _) in sells]
+    ys = [s for (_, s) in sells]
+    n = len(sells)
+    mx = sum(xs) / n
+    my = sum(ys) / n
+    num = sum((xs[i] - mx) * (ys[i] - my) for i in range(n))
+    den = sum((xs[i] - mx) ** 2 for i in range(n))
+    slope = (num / den) if den > 0 else 0.0
+    vel_per_min = slope * 60.0
+    if vel_per_min > 0.05:
+        traj = 'rising'
+    elif vel_per_min < -0.05:
+        traj = 'falling'
+    else:
+        traj = 'flat'
+    return (round(vel_per_min, 4), n, traj)
+
+
+def fetch_slip_5k(token_address, sol_price):
+    """Round-trip $5k impact for buy and sell. Returns (buy_pct, sell_pct) or (None, None)."""
+    try:
+        sol_amt = 5000.0 / max(sol_price, 1.0)
+        lamports = max(int(sol_amt * 1e9), 1_000_000)
+        r1 = requests.get(_JUP_QUOTE, params={
+            'inputMint': _SOL_MINT, 'outputMint': token_address,
+            'amount': lamports, 'slippageBps': 300,
+        }, timeout=8)
+        if r1.status_code != 200:
+            return (None, None)
+        bq = r1.json()
+        if not bq.get('outAmount'):
+            return (None, None)
+        bi = float(bq.get('priceImpactPct') or 0) * 100
+        r2 = requests.get(_JUP_QUOTE, params={
+            'inputMint': token_address, 'outputMint': _SOL_MINT,
+            'amount': int(bq['outAmount']), 'slippageBps': 300,
+        }, timeout=8)
+        if r2.status_code != 200:
+            return (bi, None)
+        sq = r2.json()
+        si = float(sq.get('priceImpactPct') or 0) * 100
+        return (round(bi, 4), round(si, 4))
+    except Exception:
+        return (None, None)
+
+
+# ── Snapshot + Resolve ────────────────────────────────────────────────────
+
+def take_snapshot():
+    print(f'[{datetime.now().isoformat()}] Taking snapshot...')
+
+    # Source 1: GT trending (existing)
+    pools = fetch_trending_tokens()
+    gt_candidates = normalize(pools)
+    print(f'  Source GT trending: {len(gt_candidates)} candidates in range')
+
+    # Sources 2-5: DS boosts/profiles/search + Axiom — collect addresses,
+    # then enrich via DS /tokens batch (mirrors bot's _fetch_candidates)
+    ds_addrs = []
+    ds_addrs += fetch_dexscreener_boosts_addrs()
+    ds_addrs += fetch_dexscreener_profiles_addrs()
+    ds_addrs += fetch_dexscreener_search_addrs()
+    ds_addrs += fetch_axiom_trending_addrs()
+    # Drop tokens already covered by GT trending (dedupe by token addr)
+    gt_tokens = {c['token'] for c in gt_candidates}
+    ds_addrs = [a for a in ds_addrs if a and a not in gt_tokens]
+    ds_addrs = list(dict.fromkeys(ds_addrs))  # dedupe preserve order
+    print(f'  Source DS+Axiom (after dedup): {len(ds_addrs)} unique extra addrs')
+    ds_pairs = fetch_ds_pairs_for_addrs(ds_addrs) if ds_addrs else []
+    ds_candidates = []
+    for p in ds_pairs:
+        c = normalize_ds(p)
+        if c:
+            ds_candidates.append(c)
+    print(f'  Source DS+Axiom: {len(ds_candidates)} candidates in range')
+
+    # Combine, dedupe by token, sort by vol_h1
+    all_by_token = {c['token']: c for c in gt_candidates}
+    for c in ds_candidates:
+        if c['token'] not in all_by_token:
+            all_by_token[c['token']] = c
+    candidates = list(all_by_token.values())
+    print(f'  Combined unique: {len(candidates)} candidates in mcap range')
+    # Top 30 by vol_h1 (limit to control GT rate during enrichment fetches)
+    candidates.sort(key=lambda x: -x['vol_h1'])
+    top = candidates[:30]
+
+    # Regime breadth: pct of cohort red on h1. Computed once per snapshot,
+    # attached to every candidate.
+    if top:
+        regime_h1_neg_pct = round(sum(1 for c in top if c['pc_h1'] < 0) / len(top) * 100, 1)
+    else:
+        regime_h1_neg_pct = 0.0
+
+    # SOL price for Jupiter slippage anchoring
+    sol_price = fetch_sol_price()
+    print(f'  regime_h1_neg_pct={regime_h1_neg_pct}%  sol_price=${sol_price:.2f}')
+
+    # Slip-history ring buffer (per-token, persisted across runs)
+    slip_hist = _load_slip_history()
+
+    enriched = []
+    for c in top:
+        feats = compute_5m_features(c)
+        if feats:
+            c.update(feats)
+        # Multi-timeframe momentum (adds 2 GT calls per token)
+        c.update(compute_mtf_features(c))
+        # Jupiter $5k buy/sell slippage
+        bi, si = fetch_slip_5k(c['token'], sol_price)
+        if bi is not None: c['slip_buy_5000_pct'] = bi
+        if si is not None: c['slip_sell_5000_pct'] = si
+        c['regime_h1_neg_pct'] = regime_h1_neg_pct
+
+        # Append current quote to per-token ring buffer (last 10 entries),
+        # then derive velocity/trajectory from history.
+        if bi is not None or si is not None:
+            buf = slip_hist.setdefault(c['token'], [])
+            buf.append([time.time(), bi, si])
+            slip_hist[c['token']] = buf[-10:]
+            vel, n, traj = _compute_slip_velocity(buf[-10:])
+            if vel is not None:
+                c['slip_sell_5k_velocity_pct_per_min'] = vel
+            c['slip_sell_5k_samples'] = n
+            c['slip_sell_5k_trajectory'] = traj
+
+        # Compute combo verdicts
+        c['verdicts'] = {name: 'PASS' if fn(c) else 'BLOCK' for name, fn in COMBOS.items()}
+        enriched.append(c)
+        time.sleep(2)  # GT rate limit pacing
+
+    _save_slip_history(slip_hist)
+    snap_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')
+    snap = {
+        'id': snap_id,
+        'timestamp_utc': datetime.now(timezone.utc).isoformat(),
+        'candidates': enriched,
+        'resolved': False,
+    }
+    path = SNAPSHOT_DIR / f'{snap_id}.json'
+    with open(path, 'w') as f:
+        json.dump(snap, f, indent=2, default=str)
+    print(f'  Saved {len(enriched)} candidates to {path}')
+    return snap
+
+
+def simulate_phantom_strategy(entry_price, ohlcv_after, position_usd=20.0):
+    """Phantom-bot full lifecycle simulation.
+
+    Strategy mirrors live bot: TP1=+8% sell 50%, TP2=+12% sell 100%, 3.5%
+    trail post-TP1 on remaining 50%, -10% hard stop, 24h max-hold timeout.
+
+    ohlcv_after is GT-format newest-first list of [ts_ms, open, high, low,
+    close, vol] candles covering [entry_ts, now]. Reverses internally so we
+    iterate oldest-first.
+
+    Returns dict with: phantom_pnl_pct, phantom_pnl_usd, exit_reason,
+    exit_pct, hit_tp1 (bool), max_drawdown_pct.
+    """
+    if not ohlcv_after:
+        return {
+            'phantom_pnl_pct': None, 'phantom_pnl_usd': None,
+            'exit_reason': 'no_ohlcv', 'hit_tp1': False,
+        }
+    candles = list(reversed(ohlcv_after))  # oldest-first
+    tp1_price = entry_price * 1.08
+    tp2_price = entry_price * 1.12
+    stop_price = entry_price * 0.90
+    trail_pct = 0.035
+
+    half_sold = False
+    half_sold_price = None
+    peak_after_tp1 = None
+    exit_reason = None
+    exit_pct = None  # final P&L %
+
+    # Fractions of original position remaining (1.0 = full, 0.5 = after TP1)
+    remaining_frac = 1.0
+    # Realized P&L $ from TP1 partial
+    realized_pnl = 0.0
+
+    for k in candles:
+        if len(k) < 5:
+            continue
+        try:
+            high = float(k[2])
+            low = float(k[3])
+            close = float(k[4])
+        except (ValueError, TypeError):
+            continue
+
+        # Stop check FIRST (worst case)
+        if not half_sold and low <= stop_price:
+            # Stop hit before TP1 — close full position at stop
+            exit_pct = -10.0
+            exit_reason = 'stop'
+            realized_pnl = position_usd * -0.10
+            remaining_frac = 0.0
+            break
+
+        # TP2 check (only if TP1 already hit)
+        if half_sold and high >= tp2_price:
+            # Sell remaining 50% at TP2 (+12%)
+            realized_pnl += (position_usd * 0.5) * 0.12
+            remaining_frac = 0.0
+            exit_reason = 'tp2'
+            exit_pct = 0.12 * 100  # represents the average of 8% and 12%, computed below
+            break
+
+        # TP1 hit (sell 50% at +8%)
+        if not half_sold and high >= tp1_price:
+            half_sold = True
+            half_sold_price = tp1_price
+            realized_pnl += (position_usd * 0.5) * 0.08
+            remaining_frac = 0.5
+            peak_after_tp1 = max(close, tp1_price)
+
+        # Trail after TP1
+        if half_sold:
+            if close > (peak_after_tp1 or 0):
+                peak_after_tp1 = close
+            trail_stop = peak_after_tp1 * (1 - trail_pct)
+            if low <= trail_stop:
+                # Sell remaining 50% at trail-stop price
+                trail_pct_gain = (trail_stop / entry_price - 1.0) * 100
+                realized_pnl += (position_usd * 0.5) * (trail_stop / entry_price - 1.0)
+                remaining_frac = 0.0
+                exit_reason = 'trail'
+                exit_pct = trail_pct_gain
+                break
+
+    # No exit triggered — mark to last close
+    if exit_reason is None:
+        last_close = float(candles[-1][4])
+        if half_sold:
+            # Mark remaining 50% to last close
+            mark_gain = (last_close / entry_price - 1.0)
+            realized_pnl += (position_usd * 0.5) * mark_gain
+            exit_reason = 'open_at_resolve_post_tp1'
+        else:
+            mark_gain = (last_close / entry_price - 1.0)
+            realized_pnl = position_usd * mark_gain
+            exit_reason = 'open_at_resolve'
+        exit_pct = (last_close / entry_price - 1.0) * 100
+
+    pnl_pct = (realized_pnl / position_usd) * 100
+    return {
+        'phantom_pnl_pct': round(pnl_pct, 3),
+        'phantom_pnl_usd': round(realized_pnl, 3),
+        'exit_reason': exit_reason,
+        'exit_pct': round(exit_pct, 3) if exit_pct is not None else None,
+        'hit_tp1': half_sold,
+    }
+
+
+def resolve_pending():
+    """Resolve any snapshot >= 2.5h old. For each candidate:
+       1. Fetch current price (legacy +/-8% snapshot outcome — preserved)
+       2. Fetch 5m OHLCV for the elapsed window and run phantom-bot
+          full-lifecycle simulation (TP1/TP2/trail/stop)."""
+    now = datetime.now(timezone.utc)
+    pending = []
+    for f in SNAPSHOT_DIR.glob('*.json'):
+        if f.name.startswith('_'): continue
+        with open(f) as fh:
+            snap = json.load(fh)
+        if snap.get('resolved'): continue
+        ts = datetime.fromisoformat(snap['timestamp_utc'])
+        age_h = (now - ts).total_seconds() / 3600
+        if age_h >= 2.5:
+            pending.append((f, snap, age_h))
+    if not pending:
+        print('  No snapshots ready to resolve.')
+        return []
+    print(f'  Resolving {len(pending)} pending snapshots...')
+    resolved_outcomes = []
+    for path, snap, age_h in pending:
+        snap_ts = datetime.fromisoformat(snap['timestamp_utc']).timestamp()
+        for c in snap['candidates']:
+            entry_price = c.get('snapshot_close') or c.get('price')
+            if not entry_price:
+                c['outcome'] = 'no_entry_price'
+                continue
+            try:
+                # Legacy: current price via DexScreener
+                r = requests.get(f'https://api.dexscreener.com/latest/dex/tokens/{c["token"]}', timeout=10)
+                pairs = r.json().get('pairs') or []
+                cur_pair = next((p for p in pairs if p.get('pairAddress') == c['pair']), pairs[0] if pairs else None)
+                if not cur_pair:
+                    c['outcome'] = 'no_current_price'
+                    continue
+                cur_price = float(cur_pair.get('priceUsd') or 0)
+                pct_change = (cur_price - entry_price) / entry_price * 100 if entry_price > 0 else 0
+                if pct_change >= 8:
+                    outcome = 'win'
+                elif pct_change <= -8:
+                    outcome = 'loss'
+                else:
+                    outcome = 'flat'
+                c['cur_price'] = cur_price
+                c['pct_change_since_snap'] = round(pct_change, 2)
+                c['outcome'] = outcome
+                c['resolved_age_h'] = round(age_h, 2)
+
+                # Phantom-bot: fetch 5m candles since entry, simulate lifecycle
+                # 2.5h elapsed = ~30 5m candles; fetch 36 to have margin
+                ohlcv_5m = fetch_gt_ohlcv_with_retry(c['pair'], agg=5, limit=36)
+                # Filter to candles AFTER snapshot_ts only. GT returns timestamps
+                # in SECONDS (not ms), newest-first.
+                if ohlcv_5m:
+                    ohlcv_after = [k for k in ohlcv_5m if float(k[0]) >= snap_ts]
+                else:
+                    ohlcv_after = []
+                phantom = simulate_phantom_strategy(entry_price, ohlcv_after)
+                c['phantom_pnl_pct'] = phantom.get('phantom_pnl_pct')
+                c['phantom_pnl_usd'] = phantom.get('phantom_pnl_usd')
+                c['phantom_exit_reason'] = phantom.get('exit_reason')
+                c['phantom_hit_tp1'] = phantom.get('hit_tp1')
+                resolved_outcomes.append((c, snap['id']))
+            except Exception as e:
+                c['outcome'] = f'err: {e}'
+            time.sleep(0.5)  # GT pacing for 5m fetch
+        snap['resolved'] = True
+        snap['resolved_at'] = datetime.now(timezone.utc).isoformat()
+        with open(path, 'w') as fh:
+            json.dump(snap, fh, indent=2, default=str)
+    return resolved_outcomes
+
+
+def _empty_stats():
+    return {
+        # Volume of PASS verdicts (unchanged)
+        'pass': 0,
+        # All metrics below are computed ONLY over candidates with phantom
+        # data — keeps WR and TP1% on the same denominator.
+        'phantom_n': 0,
+        'phantom_wins': 0,      # phantom_pnl_pct >= +4 (clean TP-region exit)
+        'phantom_losses': 0,    # phantom_pnl_pct <= -4 (stop-region exit)
+        'phantom_flats': 0,     # in between
+        'phantom_pnl_usd_total': 0.0,
+        'phantom_pct_total': 0.0,
+        'phantom_tp1_hit_count': 0,
+        'phantom_exit_reasons': {},
+    }
+
+
+def aggregate_stats():
+    """Recompute aggregate stats across all resolved snapshots.
+
+    All headline metrics (WR, avg%, TP1%) are computed on the SAME subset:
+    candidates with phantom-bot data. Win/loss/flat are derived from
+    phantom_pnl_pct (the simulated full-strategy P&L), not the legacy
+    +/-8% snapshot outcome — so a trade that hits TP1 then trails back
+    to flat counts as flat, consistent with how the bot would actually
+    book it.
+
+    Win threshold: phantom_pnl_pct >= +4 (covers TP1-only +4% partial,
+    full TP-trail +8-12%, and any in-between trail outcomes).
+    Loss threshold: phantom_pnl_pct <= -4 (stop-region).
+    """
+    combo_stats = {name: _empty_stats() for name in COMBOS}
+    n_total_resolved = 0
+    for f in sorted(SNAPSHOT_DIR.glob('*.json')):
+        if f.name.startswith('_'): continue
+        with open(f) as fh:
+            snap = json.load(fh)
+        if not snap.get('resolved'): continue
+        for c in snap['candidates']:
+            outcome = c.get('outcome')
+            if outcome not in ('win', 'loss', 'flat'): continue
+            n_total_resolved += 1
+            phantom_pct = c.get('phantom_pnl_pct')
+            phantom_usd = c.get('phantom_pnl_usd')
+            phantom_exit = c.get('phantom_exit_reason') or 'unknown'
+            phantom_tp1 = c.get('phantom_hit_tp1', False)
+            phantom_available = (phantom_pct is not None and phantom_usd is not None)
+            for combo_name, verdict in (c.get('verdicts') or {}).items():
+                if verdict != 'PASS': continue
+                stats = combo_stats.setdefault(combo_name, _empty_stats())
+                stats['pass'] += 1
+                if not phantom_available:
+                    continue
+                stats['phantom_n'] += 1
+                stats['phantom_pnl_usd_total'] += float(phantom_usd)
+                stats['phantom_pct_total'] += float(phantom_pct)
+                if phantom_pct >= 4:
+                    stats['phantom_wins'] += 1
+                elif phantom_pct <= -4:
+                    stats['phantom_losses'] += 1
+                else:
+                    stats['phantom_flats'] += 1
+                if phantom_tp1:
+                    stats['phantom_tp1_hit_count'] += 1
+                stats['phantom_exit_reasons'][phantom_exit] = (
+                    stats['phantom_exit_reasons'].get(phantom_exit, 0) + 1
+                )
+    out = {
+        'updated_at': datetime.now(timezone.utc).isoformat(),
+        'n_total_resolved': n_total_resolved,
+        'combos': combo_stats,
+    }
+    with open(AGGREGATE_PATH, 'w') as f:
+        json.dump(out, f, indent=2)
+    return out
+
+
+def print_status():
+    if not AGGREGATE_PATH.exists():
+        print('No aggregate yet.'); return
+    with open(AGGREGATE_PATH) as f:
+        agg = json.load(f)
+    print(f'Total resolved candidates: {agg["n_total_resolved"]}')
+    print(f'Updated: {agg["updated_at"]}')
+    print()
+    print('All metrics below over phantom-data subset (n_phantom).')
+    print('Win = phantom_pnl_pct >= +4. Loss = phantom_pnl_pct <= -4.')
+    print()
+    print(f'{"combo":<25}{"pass":>5}{"n_ph":>5}{"wins":>5}{"loss":>5}{"WR":>7}{"avg%":>7}{"total_$":>9}{"$/trade":>9}{"tp1%":>6}')
+    print('-' * 95)
+    for name, s in sorted(agg['combos'].items()):
+        p = s.get('pass', 0)
+        ph_n = s.get('phantom_n', 0)
+        wins = s.get('phantom_wins', 0)
+        losses = s.get('phantom_losses', 0)
+        decided = wins + losses
+        wr = (wins / decided * 100) if decided else 0
+        ph_total = s.get('phantom_pnl_usd_total', 0)
+        ph_per = (ph_total / ph_n) if ph_n else 0
+        avg_pct = (s.get('phantom_pct_total', 0) / ph_n) if ph_n else 0
+        tp1_n = s.get('phantom_tp1_hit_count', 0)
+        tp1_pct = (tp1_n / ph_n * 100) if ph_n else 0
+        print(f'{name:<25}{p:>5}{ph_n:>5}{wins:>5}{losses:>5}{wr:>6.0f}%'
+              f'{avg_pct:+6.1f}%{ph_total:>+8.2f}{ph_per:>+8.2f}{tp1_pct:>5.0f}%')
+
+
+def main():
+    if len(sys.argv) > 1:
+        cmd = sys.argv[1]
+        if cmd == 'status':
+            print_status(); return
+        if cmd == 'purge':
+            cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+            removed = 0
+            for f in SNAPSHOT_DIR.glob('*.json'):
+                if f.name.startswith('_'): continue
+                with open(f) as fh:
+                    snap = json.load(fh)
+                ts = datetime.fromisoformat(snap['timestamp_utc'])
+                if ts < cutoff:
+                    f.unlink(); removed += 1
+            print(f'Removed {removed} snapshots older than 7 days.'); return
+    # Default: resolve old + take new + update aggregate
+    resolve_pending()
+    take_snapshot()
+    aggregate_stats()
+    print_status()
+
+
+if __name__ == '__main__':
+    main()
