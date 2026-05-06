@@ -107,6 +107,38 @@ def load_filter_module(path: str):
     return mod
 
 
+def fetch_trades(retries: int = 3):
+    """Fetch /api/trades with retries and shape validation. Returns a list
+    of trade dicts, or None if unavailable.
+
+    The bot's dashboard API can occasionally return error strings or
+    unexpected shapes (rate-limit response, html error page, etc).
+    Any non-list-of-dicts response triggers retry; persistent failure
+    returns None so callers can skip gracefully."""
+    last_err = None
+    for attempt in range(retries):
+        try:
+            r = requests.get(
+                'https://gracious-inspiration-production.up.railway.app/api/trades',
+                timeout=30,
+            )
+            data = r.json()
+            if not isinstance(data, list):
+                last_err = f'expected list, got {type(data).__name__}: {str(data)[:100]}'
+                time.sleep(2)
+                continue
+            if data and not isinstance(data[0], dict):
+                last_err = f'expected list-of-dicts, got list-of-{type(data[0]).__name__}'
+                time.sleep(2)
+                continue
+            return data
+        except Exception as e:
+            last_err = str(e)
+            time.sleep(2)
+    print(f'  ⚠ trades fetch failed after {retries} retries: {last_err}')
+    return None
+
+
 # ── Validation 1: SIMULATION ─────────────────────────────────────────────
 def validate_simulation(filter_mod):
     print('━' * 70)
@@ -196,10 +228,10 @@ def validate_retro(filter_mod):
     print(f'VALIDATION 2: RETRO on recent bot trades (chart data still available)')
     print('━' * 70)
 
-    trades = requests.get(
-        'https://gracious-inspiration-production.up.railway.app/api/trades',
-        timeout=30,
-    ).json()
+    trades = fetch_trades()
+    if trades is None:
+        print('  Skipped — could not fetch trades.')
+        return None
 
     DEPLOY = '2026-05-06T03:25:11'
     buys = [t for t in trades if t.get('type') == 'buy' and t.get('strategy') == 'dip_buy'
@@ -350,10 +382,10 @@ def validate_lifetime_em(filter_mod):
         print('  Skipped — filter needs OHLC; entry_meta does not store raw OHLC.')
         return None
 
-    trades = requests.get(
-        'https://gracious-inspiration-production.up.railway.app/api/trades',
-        timeout=30,
-    ).json()
+    trades = fetch_trades()
+    if trades is None:
+        print('  Skipped — could not fetch trades.')
+        return None
     buys = [t for t in trades if t.get('type') == 'buy' and t.get('strategy') == 'dip_buy'
             and (t.get('amount_usd') or 1000) <= 30]
     sells = [t for t in trades if t.get('type') == 'sell' and t.get('pnl') is not None]
