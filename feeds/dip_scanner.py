@@ -2576,6 +2576,52 @@ class DipScanner:
                 )
                 continue
 
+            # ── filter_seller_dominant — ENFORCED 2026-05-06 PM ───────────────
+            # Single-axis gate after clean_break: block when 5m orderflow is
+            # strongly seller-dominant (bs_m5 < 0.50). Different pattern from
+            # double_bear (which requires BOTH bs and p1h to be bad).
+            #
+            # Triggers in live data: Apple 10:57:58 buy (bs=0.33, lost -$3.26)
+            # and GME 14:11:20 buy (bs=0.43, lost -$3.68). Both passed
+            # clean_break and double_bear (p1h was mid-range), but the 5m
+            # orderflow was clearly seller-dominant — sellers winning the
+            # tug-of-war even though price was holding mid-range. That ends
+            # in failure most of the time.
+            #
+            # Held-out 70/30 validation against the latest dataset:
+            # baseline cb alone TEST n=66 WR=71% +$21.50 → cb+seller_dominant
+            # TEST n=58 WR=72% +$23.91. Net +$2.41 P&L gain, +1pp WR, -8
+            # trades volume.
+            #
+            # Threshold 0.50 chosen because lifetime winners had bs_m5 >= 0.61
+            # at minimum; 0.50 gives a 0.11-buffer and tolerates moderate
+            # seller pressure that still resolves into a bounce. Tighter
+            # thresholds (0.60+) cut held-out winners.
+            #
+            # Fail-open if bs_m5 missing.
+            _sd_bs_m5 = None
+            try:
+                _sd_bs_m5 = float(ratio_m5) if ratio_m5 != float("inf") else None
+            except Exception:
+                _sd_bs_m5 = None
+            _filter_seller_dominant_block_reasons: list = []
+            if _sd_bs_m5 is not None and _sd_bs_m5 < 0.50:
+                _filter_seller_dominant_block_reasons.append(
+                    f"bs_m5={_sd_bs_m5:.2f}<0.50 (5m sellers dominating order flow)"
+                )
+            _filter_seller_dominant_verdict = (
+                "BLOCK" if _filter_seller_dominant_block_reasons else "PASS"
+            )
+            c[f"filter_seller_dominant_{_filter_seller_dominant_verdict.lower()}"] = c.get(
+                f"filter_seller_dominant_{_filter_seller_dominant_verdict.lower()}", 0
+            ) + 1
+            if _filter_seller_dominant_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_seller_dominant: {token_symbol} "
+                    f"reasons={','.join(_filter_seller_dominant_block_reasons)}"
+                )
+                continue
+
             # ── Multi-timeframe momentum stacking (shadow, 2026-05-05) ────────
             # Hypothesis: "textbook pullback resolving" = 15m red + 5m red +
             # 1m green. Different from filter_fake_bounce because it requires
@@ -2657,6 +2703,9 @@ class DipScanner:
                 # filter_double_bear — ENFORCED 2026-05-06 PM (zero-harm Apple gate).
                 "filter_double_bear_verdict": _filter_double_bear_verdict,
                 "filter_double_bear_block_reasons": _filter_double_bear_block_reasons,
+                # filter_seller_dominant — ENFORCED 2026-05-06 PM (held-out +$2.41 lift).
+                "filter_seller_dominant_verdict": _filter_seller_dominant_verdict,
+                "filter_seller_dominant_block_reasons": _filter_seller_dominant_block_reasons,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
@@ -2779,6 +2828,8 @@ class DipScanner:
                 "filter_clean_break_block",
                 # ENFORCED 2026-05-06 PM — double-bearish-context gate.
                 "filter_double_bear_block",
+                # ENFORCED 2026-05-06 PM — bs_m5<0.50 single-axis gate.
+                "filter_seller_dominant_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
