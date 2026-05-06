@@ -2672,14 +2672,46 @@ class DipScanner:
             # forward data we can decide if a filter on macro30 has real lift.
             _macro30_pct = None
             _macro60_pct = None
+            # Token-quality features — SHADOW 2026-05-06 PM. From multi-token
+            # analysis (n=854 simulated entries, 21 tokens), the strongest
+            # winner-vs-loser separators were TOKEN-LEVEL features over the
+            # 60m window, not entry-level features:
+            #   - p90_body_pct (winners 3.7% / losers 2.2%) — losers are too
+            #     flat for the bot to hit TP1 (+8.7%). MEGR/ROAF/LOL all
+            #     scored 0% WR with all flats because price never moved enough.
+            #   - buyvol_ratio_60m (winners 1.87 / losers 0.75) — winners
+            #     have buy-side volume dominance over the full 60m window
+            # Both fail-open if 1m candles missing.
+            _chart_p90_body_pct = None
+            _chart_buyvol_ratio_60m = None
             try:
                 _cs1m = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
                 if len(_cs1m) >= 31 and _cs1m[-1].close > 0 and _cs1m[-31].close > 0:
                     _macro30_pct = (_cs1m[-1].close / _cs1m[-31].close - 1) * 100
                 if len(_cs1m) >= 61 and _cs1m[-1].close > 0 and _cs1m[-61].close > 0:
                     _macro60_pct = (_cs1m[-1].close / _cs1m[-61].close - 1) * 100
+                # Use the last 60 candles (or fewer if not available) for
+                # p90 body and buyvol ratio.
+                _w60 = _cs1m[-60:] if len(_cs1m) >= 60 else _cs1m
+                if len(_w60) >= 20:
+                    _bodies = [
+                        abs(b.close / b.open - 1) * 100
+                        for b in _w60 if b.open > 0
+                    ]
+                    if _bodies:
+                        _bodies_sorted = sorted(_bodies)
+                        _p90_idx = int(len(_bodies_sorted) * 0.9)
+                        _chart_p90_body_pct = _bodies_sorted[
+                            min(_p90_idx, len(_bodies_sorted) - 1)
+                        ]
+                    _gv = sum(b.volume for b in _w60 if b.close > b.open)
+                    _rv = sum(b.volume for b in _w60 if b.close < b.open)
+                    if _rv > 0:
+                        _chart_buyvol_ratio_60m = _gv / _rv
+                    elif _gv > 0:
+                        _chart_buyvol_ratio_60m = 999.0
             except Exception as _e:
-                logger.debug(f"[DipScanner] macro_pct calc err: {_e}")
+                logger.debug(f"[DipScanner] chart-quality calc err: {_e}")
 
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
@@ -2730,6 +2762,12 @@ class DipScanner:
                 # → +4.5pp WR lift; capitulation (macro60<-30 AND macro30<-15) → +11pp.
                 "macro30_pct": _macro30_pct,
                 "macro60_pct": _macro60_pct,
+                # Token-quality shadow features 2026-05-06 PM. Hypothesis:
+                # p90_body<1.0 → death-by-flat (MEGR/ROAF/LOL pattern, 0% WR);
+                # buyvol_ratio>1.0 separates winning tokens (1.87 mean) from
+                # losing tokens (0.75 mean) over the 60m window.
+                "chart_p90_body_pct": _chart_p90_body_pct,
+                "chart_buyvol_ratio_60m": _chart_buyvol_ratio_60m,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
