@@ -2571,26 +2571,77 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] 4combo calc err: {_e}")
 
-            # Determine effective entry decision: enter if EITHER trigger fires
-            _trigger_source = None
-            if _filter_clean_break_verdict == "PASS" and _trigger_4combo_match:
-                _trigger_source = "both"
-            elif _filter_clean_break_verdict == "PASS":
-                _trigger_source = "clean_break"
-            elif _trigger_4combo_match:
-                _trigger_source = "4combo"
-            # else: neither triggered → block
+            # ── trigger_quiet_pop_breakout — PARALLEL ENTRY TRIGGER 2026-05-06 PM ─
+            # Fires INDEPENDENTLY when:
+            #   1. Last 3 bars all had small vol (<0.8x avg of prior 10) — quiet
+            #   2. Current vol > 2x avg of prior 10 — pop
+            #   3. Current close > max high of last 5 bars — breakout
+            #   4. Green close
+            #
+            # Mechanism: consolidation/accumulation phase ends with breakout on
+            # explosive volume. Different from clean_break (green-after-red),
+            # 4-combo (pullback+vol+breakout+HL), or capitulation patterns.
+            #
+            # Validator (scripts/validate_trigger.py):
+            #   - Sim trigger_only marginal: avg=+1.02%/trade
+            #   - Retro on 8 bot pairs: n=24 NEW, 69% WR, +1.93%/trade, sum +$46
+            #     (best retro signal of any trigger tested). Catches GME 15:42
+            #     +13%, GME 18:21 +13%, Apple 21:12 +13%, etc.
+            _trigger_quietpop_match = False
+            _trigger_quietpop_reasons: list = []
+            try:
+                _qp_cs = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if len(_qp_cs) >= 14 and _qp_cs[-1].open > 0:
+                    _qp_cur = _qp_cs[-1]
+                    if _qp_cur.close > _qp_cur.open:  # green close
+                        # avg vol over prior 10 (excluding last 3 quiet bars and current)
+                        _qp_avg10 = sum(b.volume for b in _qp_cs[-13:-3]) / 10
+                        if _qp_avg10 > 0:
+                            _qp_last3_quiet = all(
+                                b.volume < _qp_avg10 * 0.8
+                                for b in _qp_cs[-4:-1]
+                            )
+                            _qp_pop = _qp_cur.volume / _qp_avg10 > 2.0
+                            _qp_prior5_high = (max(b.high for b in _qp_cs[-6:-1])
+                                               if len(_qp_cs) >= 6 else 0)
+                            _qp_breakout = _qp_cur.close > _qp_prior5_high
+                            if _qp_last3_quiet and _qp_pop and _qp_breakout:
+                                _trigger_quietpop_match = True
+                                _trigger_quietpop_reasons.append(
+                                    f"3-quiet (last3<{_qp_avg10*0.8:.0f}), "
+                                    f"vol_pop={_qp_cur.volume / _qp_avg10:.2f}x, "
+                                    f"breakout (close>{_qp_prior5_high:.6f})"
+                                )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] quietpop calc err: {_e}")
 
-            if _trigger_source is None:
+            # Determine effective entry decision: enter if ANY trigger fires
+            _triggers_fired = []
+            if _filter_clean_break_verdict == "PASS":
+                _triggers_fired.append("clean_break")
+            if _trigger_4combo_match:
+                _triggers_fired.append("4combo")
+            if _trigger_quietpop_match:
+                _triggers_fired.append("quiet_pop")
+
+            if not _triggers_fired:
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_clean_break + 4combo: "
+                    f"[DipScanner] BLOCKED by all triggers: "
                     f"{token_symbol} cb_reasons={','.join(_filter_clean_break_block_reasons)}"
                 )
                 continue
-            if _trigger_source == "4combo":
+
+            _trigger_source = "_".join(_triggers_fired) if len(_triggers_fired) > 1 else _triggers_fired[0]
+            if "clean_break" not in _triggers_fired:
+                # Logged when an alternative trigger fires while clean_break was BLOCKed
+                _alt_reasons = []
+                if _trigger_4combo_match:
+                    _alt_reasons.extend(_trigger_4combo_reasons)
+                if _trigger_quietpop_match:
+                    _alt_reasons.extend(_trigger_quietpop_reasons)
                 logger.info(
-                    f"[DipScanner] ENTRY via 4combo (clean_break BLOCKed): "
-                    f"{token_symbol} {','.join(_trigger_4combo_reasons)}"
+                    f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
+                    f"{token_symbol} {','.join(_alt_reasons)}"
                 )
             c[f"trigger_source_{_trigger_source}"] = c.get(
                 f"trigger_source_{_trigger_source}", 0
@@ -2990,10 +3041,13 @@ class DipScanner:
                 "filter_clean_break_verdict": _filter_clean_break_verdict,
                 "filter_clean_break_block_reasons": _filter_clean_break_block_reasons,
                 # 4-combo parallel trigger — ENFORCED 2026-05-06 PM.
-                # trigger_source: which trigger fired ("clean_break" / "4combo" / "both").
+                # trigger_source: which trigger fired (or _-joined for multi).
                 "trigger_source": _trigger_source,
                 "trigger_4combo_match": _trigger_4combo_match,
                 "trigger_4combo_reasons": _trigger_4combo_reasons,
+                # quiet_pop_breakout parallel trigger — ENFORCED 2026-05-06 PM.
+                "trigger_quietpop_match": _trigger_quietpop_match,
+                "trigger_quietpop_reasons": _trigger_quietpop_reasons,
                 # filter_double_bear — ENFORCED 2026-05-06 PM (zero-harm Apple gate).
                 "filter_double_bear_verdict": _filter_double_bear_verdict,
                 "filter_double_bear_block_reasons": _filter_double_bear_block_reasons,
