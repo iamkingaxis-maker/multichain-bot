@@ -2789,6 +2789,51 @@ class DipScanner:
                     f"{token_symbol} reasons={','.join(_filter_topping_block_reasons)}"
                 )
 
+            # ── filter_wide_range_entry — SHADOW 2026-05-06 PM ────────────────
+            # Record-only verdict for "panicky volatility candle" pattern:
+            # BLOCK when the entry 1m candle's full range (high - low) exceeds
+            # 3% of open. These are wide-range candles where buyers and
+            # sellers are fighting in a big band — often resolves into
+            # reversal as one side caves.
+            #
+            # Validated through scripts/validate_filter.py:
+            #   - Sim (n=5903): PASS-cohort lift +0.115%/trade, +0.4pp WR
+            #   - Retro on n=10 real bot trades: would block 1W/1L, delta
+            #     +$1.06 (the L was GME 14:11 -$3.68 — the meatiest loss)
+            # Different mechanism from filter_wick_dominant (which validator
+            # rejected): wick_dominant looks at asymmetric wick vs body,
+            # this looks at total range size.
+            #
+            # Shadow only — record verdict, no enforcement.
+            # Fail-open if entry candle missing.
+            _wre_range_pct = None
+            try:
+                _cs1m_wre = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if _cs1m_wre and _cs1m_wre[-1].open > 0:
+                    _last_cdl = _cs1m_wre[-1]
+                    _wre_range_pct = (
+                        (_last_cdl.high - _last_cdl.low) / _last_cdl.open * 100
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] wide_range calc err: {_e}")
+            _filter_wide_range_block_reasons: list = []
+            if _wre_range_pct is not None and _wre_range_pct > 3.0:
+                _filter_wide_range_block_reasons.append(
+                    f"entry_range={_wre_range_pct:.2f}%>3.0 "
+                    f"(panicky-volatility candle — likely reversal)"
+                )
+            _filter_wide_range_verdict = (
+                "BLOCK" if _filter_wide_range_block_reasons else "PASS"
+            )
+            c[f"filter_wide_range_entry_{_filter_wide_range_verdict.lower()}"] = c.get(
+                f"filter_wide_range_entry_{_filter_wide_range_verdict.lower()}", 0
+            ) + 1
+            if _filter_wide_range_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_wide_range_entry SHADOW would-block: "
+                    f"{token_symbol} reasons={','.join(_filter_wide_range_block_reasons)}"
+                )
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -2850,6 +2895,10 @@ class DipScanner:
                 # filter_topping — SHADOW 2026-05-06 PM (catch knife-catch at peak).
                 "filter_topping_verdict": _filter_topping_verdict,
                 "filter_topping_block_reasons": _filter_topping_block_reasons,
+                # filter_wide_range_entry — SHADOW 2026-05-06 PM (volatility-candle gate).
+                "filter_wide_range_entry_verdict": _filter_wide_range_verdict,
+                "filter_wide_range_entry_block_reasons": _filter_wide_range_block_reasons,
+                "chart_entry_range_pct": _wre_range_pct,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
