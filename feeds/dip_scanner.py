@@ -2699,6 +2699,60 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] capitv calc err: {_e}")
 
+            # ── squeeze_pullback parallel trigger — SHADOW 2026-05-06 ──────────
+            # SHADOW MODE: computed and logged but NOT in _triggers_fired.
+            # Gathering retro data before enforcement.
+            #
+            # Fires when ALL FOUR:
+            #   1. Last 3 bars all had vol < 0.5x avg of bars[-13..-3]
+            #      (TIGHT squeeze, tighter than quiet_pop's 0.8x)
+            #   2. Current bar GREEN close
+            #   3. macro15 in [-10%, -2%] (moderate pullback)
+            #   4. 3 consecutive higher_lows (bars[-4..-1])
+            #
+            # Validator (scripts/validate_trigger.py):
+            #   - Sim trigger_only: n=108, 69% WR, +2.31%/trade, +$249 ✓
+            #   - Retro NEW: n=3 (too small to evaluate)
+            #     All 3 fires on PAYmo6moDF — yellow flag that 0.5x squeeze
+            #     may pick up DEAD tokens (no volume from disinterest) rather
+            #     than COILING tokens (accumulation in tight range).
+            #
+            # Shadow ship lets us collect retro data over the next days/weeks
+            # to confirm or refute the sim signal before enforcement.
+            _trigger_squeeze_match = False
+            _trigger_squeeze_reasons: list = []
+            try:
+                _sq_cs = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if len(_sq_cs) >= 16 and _sq_cs[-1].open > 0:
+                    _sq_cur = _sq_cs[-1]
+                    if _sq_cur.close > _sq_cur.open:  # green
+                        _sq_avg10 = sum(b.volume for b in _sq_cs[-13:-3]) / 10
+                        if _sq_avg10 > 0:
+                            _sq_squeeze = all(
+                                b.volume < _sq_avg10 * 0.5
+                                for b in _sq_cs[-4:-1]
+                            )
+                            _sq_bar15 = _sq_cs[-16]
+                            if _sq_squeeze and _sq_bar15.close > 0:
+                                _sq_m15 = (_sq_cur.close / _sq_bar15.close - 1) * 100
+                                if -10 <= _sq_m15 <= -2:
+                                    _sq_lows = [_sq_cs[-k].low for k in (4, 3, 2, 1)]
+                                    if (_sq_lows[0] < _sq_lows[1]
+                                            < _sq_lows[2] < _sq_lows[3]):
+                                        _trigger_squeeze_match = True
+                                        _trigger_squeeze_reasons.append(
+                                            f"3-tight (last3<{_sq_avg10*0.5:.0f}), "
+                                            f"m15={_sq_m15:+.1f}% pull, 3HL"
+                                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] squeeze calc err: {_e}")
+
+            if _trigger_squeeze_match:
+                logger.info(
+                    f"[DipScanner] SHADOW trigger_squeeze_pullback fired: "
+                    f"{token_symbol} {','.join(_trigger_squeeze_reasons)}"
+                )
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _filter_clean_break_verdict == "PASS":
@@ -3146,6 +3200,9 @@ class DipScanner:
                 # capitulation_v parallel trigger — ENFORCED 2026-05-06 (V-bottom catch).
                 "trigger_capitv_match": _trigger_capitv_match,
                 "trigger_capitv_reasons": _trigger_capitv_reasons,
+                # squeeze_pullback parallel trigger — SHADOW 2026-05-06 (gathering retro).
+                "trigger_squeeze_match": _trigger_squeeze_match,
+                "trigger_squeeze_reasons": _trigger_squeeze_reasons,
                 # filter_double_bear — ENFORCED 2026-05-06 PM (zero-harm Apple gate).
                 "filter_double_bear_verdict": _filter_double_bear_verdict,
                 "filter_double_bear_block_reasons": _filter_double_bear_block_reasons,
