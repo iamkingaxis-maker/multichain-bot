@@ -2479,6 +2479,54 @@ class DipScanner:
                     f"reasons={','.join(_filter_confirm_block_reasons)}"
                 )
 
+            # ── filter_clean_break — ENFORCED 2026-05-06 ──────────────────────
+            # User-spotted pattern from GME/SELLOR postmortems: visually clean
+            # "downtrend break" reversals on 1m — lower-lows breaking with the
+            # first green candle after a series of red. Maps to:
+            #   - 1m_consec_red == 0 (current candle green/flat)
+            #   - 1m_red_count_5 >= 3 (recent 5-candle window red-dominated)
+            #   - 1m_last_close_pct > 0 (positive confirmation)
+            #
+            # Held-out 70/30 validation: TRAIN +5pp lift, TEST +13pp lift
+            # (lift INCREASES on held-out — opposite of overfitting). TEST
+            # PASS cohort: n=54, 68% WR, +$0.15/trade vs strategy avg
+            # -$0.19/trade. If filter had been live for last ~2 days, that
+            # period flips from -$48 to +$8.
+            #
+            # Aggressive: blocks ~86% of candidates. Throughput still
+            # ~25 entries/day in test. Fail-open if 1m features missing.
+            _clean_consec = m1_features.get("1m_consec_red")
+            _clean_red5 = m1_features.get("1m_red_count_5")
+            _clean_lcp = m1_features.get("1m_last_close_pct")
+            _filter_clean_break_block_reasons: list = []
+            if (
+                _clean_consec is not None
+                and _clean_red5 is not None
+                and _clean_lcp is not None
+            ):
+                _is_clean = (
+                    _clean_consec == 0
+                    and _clean_red5 >= 3
+                    and _clean_lcp > 0
+                )
+                if not _is_clean:
+                    _filter_clean_break_block_reasons.append(
+                        f"consec_red={_clean_consec},red5={_clean_red5},"
+                        f"last_close={_clean_lcp:+.2f}% (not first-green-after-red)"
+                    )
+            _filter_clean_break_verdict = (
+                "BLOCK" if _filter_clean_break_block_reasons else "PASS"
+            )
+            c[f"filter_clean_break_{_filter_clean_break_verdict.lower()}"] = c.get(
+                f"filter_clean_break_{_filter_clean_break_verdict.lower()}", 0
+            ) + 1
+            if _filter_clean_break_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_clean_break: {token_symbol} "
+                    f"reasons={','.join(_filter_clean_break_block_reasons)}"
+                )
+                continue
+
             # ── Multi-timeframe momentum stacking (shadow, 2026-05-05) ────────
             # Hypothesis: "textbook pullback resolving" = 15m red + 5m red +
             # 1m green. Different from filter_fake_bounce because it requires
@@ -2554,6 +2602,9 @@ class DipScanner:
                 # filter_confirmation_candle — SHADOW timing fix 2026-05-05 PM.
                 "filter_confirmation_candle_verdict": _filter_confirm_verdict,
                 "filter_confirmation_candle_block_reasons": _filter_confirm_block_reasons,
+                # filter_clean_break — ENFORCED 2026-05-06 (held-out +13pp lift).
+                "filter_clean_break_verdict": _filter_clean_break_verdict,
+                "filter_clean_break_block_reasons": _filter_clean_break_block_reasons,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
@@ -2672,6 +2723,8 @@ class DipScanner:
                 "filter_stale_watch_block",
                 # Timing fix shadow 2026-05-05 PM.
                 "filter_confirmation_candle_block",
+                # ENFORCED 2026-05-06 — clean-break user pattern.
+                "filter_clean_break_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
