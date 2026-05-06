@@ -2751,6 +2751,44 @@ class DipScanner:
                     f"{token_symbol} reasons={','.join(_filter_low_vol_block_reasons)}"
                 )
 
+            # ── filter_topping — SHADOW 2026-05-06 PM ────────────────────────
+            # Record-only verdict for the "you're catching a top" pattern:
+            # BLOCK when macro30_pct > +5% (price already up >5% over the
+            # last 30m at signal time). Catches knife-catches at fresh peaks.
+            #
+            # Multi-token simulation evidence (n=2592 entries across 58
+            # token-batches):
+            #   - macro30 > +10%: 52% WR, -0.62%/trade
+            #   - macro30 +5 to +10: 47% WR, -0.85%/trade ← worst single bucket
+            #   - macro30 -5 to 0:  57% WR, +0.38%/trade
+            #   - macro30 < -15:    60% WR, +1.13%/trade
+            #
+            # Threshold +5 picked because the +5 to +10 bucket is the
+            # worst-performing zone — flat-but-slightly-up is paradoxically
+            # worse than full topping. Blocking at +5 cuts both the
+            # "distribution top" (>+10) and "weak top continuation" (+5 to +10)
+            # patterns without touching the productive negative-macro zone.
+            #
+            # Shadow only — record verdict, no enforcement. Fail-open if
+            # macro30_pct missing.
+            _filter_topping_block_reasons: list = []
+            if _macro30_pct is not None and _macro30_pct > 5:
+                _filter_topping_block_reasons.append(
+                    f"macro30={_macro30_pct:+.1f}%>+5 "
+                    f"(price already up >5% in 30m — knife-catch zone)"
+                )
+            _filter_topping_verdict = (
+                "BLOCK" if _filter_topping_block_reasons else "PASS"
+            )
+            c[f"filter_topping_{_filter_topping_verdict.lower()}"] = c.get(
+                f"filter_topping_{_filter_topping_verdict.lower()}", 0
+            ) + 1
+            if _filter_topping_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_topping SHADOW would-block: "
+                    f"{token_symbol} reasons={','.join(_filter_topping_block_reasons)}"
+                )
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -2809,6 +2847,9 @@ class DipScanner:
                 # filter_low_volatility — SHADOW 2026-05-06 PM (dead-token gate).
                 "filter_low_volatility_verdict": _filter_low_vol_verdict,
                 "filter_low_volatility_block_reasons": _filter_low_vol_block_reasons,
+                # filter_topping — SHADOW 2026-05-06 PM (catch knife-catch at peak).
+                "filter_topping_verdict": _filter_topping_verdict,
+                "filter_topping_block_reasons": _filter_topping_block_reasons,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
