@@ -2713,6 +2713,44 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] chart-quality calc err: {_e}")
 
+            # ── filter_low_volatility — SHADOW 2026-05-06 PM ──────────────────
+            # Record-only verdict for the "dead token" pattern: when
+            # chart_p90_body_pct < 1.0, the token's biggest 1m candles in
+            # the last hour barely moved 1% — making the bot's TP1 (+8.7%)
+            # essentially unreachable within our 60-min resolution window.
+            #
+            # Multi-token simulation evidence (n=854 entries across 21
+            # tokens): MEGR (p90_body 0.6%, 79 entries, 0% WR all flats),
+            # ROAF (p90 0.1%, 56 entries, all flats), LOL (p90 1.0%, 26
+            # entries, all flats) — collectively 161 entries that the bot
+            # COULD NOT WIN on. Winning tokens averaged p90_body 3.7%.
+            #
+            # Shadow only — record verdict, no enforcement. After forward
+            # data accumulates (~30+ real trades) we can decide whether
+            # to promote to enforced.
+            #
+            # Fail-open if chart_p90_body_pct missing.
+            _filter_low_vol_block_reasons: list = []
+            if (
+                _chart_p90_body_pct is not None
+                and _chart_p90_body_pct < 1.0
+            ):
+                _filter_low_vol_block_reasons.append(
+                    f"p90_body={_chart_p90_body_pct:.2f}%<1.0 "
+                    f"(token too flat — TP1 essentially unreachable)"
+                )
+            _filter_low_vol_verdict = (
+                "BLOCK" if _filter_low_vol_block_reasons else "PASS"
+            )
+            c[f"filter_low_volatility_{_filter_low_vol_verdict.lower()}"] = c.get(
+                f"filter_low_volatility_{_filter_low_vol_verdict.lower()}", 0
+            ) + 1
+            if _filter_low_vol_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_low_volatility SHADOW would-block: "
+                    f"{token_symbol} reasons={','.join(_filter_low_vol_block_reasons)}"
+                )
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -2768,6 +2806,9 @@ class DipScanner:
                 # losing tokens (0.75 mean) over the 60m window.
                 "chart_p90_body_pct": _chart_p90_body_pct,
                 "chart_buyvol_ratio_60m": _chart_buyvol_ratio_60m,
+                # filter_low_volatility — SHADOW 2026-05-06 PM (dead-token gate).
+                "filter_low_volatility_verdict": _filter_low_vol_verdict,
+                "filter_low_volatility_block_reasons": _filter_low_vol_block_reasons,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
