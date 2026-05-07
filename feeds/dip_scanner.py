@@ -3252,12 +3252,17 @@ class DipScanner:
             c[f"filter_seller_dominant_{_filter_seller_dominant_verdict.lower()}"] = c.get(
                 f"filter_seller_dominant_{_filter_seller_dominant_verdict.lower()}", 0
             ) + 1
+            # 2026-05-07: DEMOTED to SHADOW. Live phantom forward test (55
+            # snapshots, ~2 days) showed -$5.04 lift on T_clean_break_only vs
+            # S_live_prod_stack — opposite direction from the original held-out
+            # +$2.41 lift study. Direction-flip is symptomatic of overfit or
+            # regime change. Demote to shadow to log without enforcing while
+            # we collect more forward data.
             if _filter_seller_dominant_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_seller_dominant: {token_symbol} "
+                    f"[DipScanner] filter_seller_dominant SHADOW would-block: {token_symbol} "
                     f"reasons={','.join(_filter_seller_dominant_block_reasons)}"
                 )
-                continue
 
             # ── Multi-timeframe momentum stacking (shadow, 2026-05-05) ────────
             # Hypothesis: "textbook pullback resolving" = 15m red + 5m red +
