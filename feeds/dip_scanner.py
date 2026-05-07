@@ -3879,7 +3879,7 @@ class DipScanner:
 
                 ds_task = asyncio.gather(*[_get(session, u) for u in urls],
                                          return_exceptions=True)
-                gt_task = self.gt_client.fetch_trending_pools(pages=2)
+                gt_task = self.gt_client.fetch_trending_pools(pages=4)
                 # Axiom-trending source (2026-05-05) — widens dip-buy
                 # candidate pool with tokens Axiom flags as hot. Same
                 # DexScreener-style pair format as GT; gets enriched below.

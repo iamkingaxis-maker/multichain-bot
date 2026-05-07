@@ -218,7 +218,11 @@ class AxiomIntegration:
         # API quota and log noise without producing buys (STRATEGY_ALLOWLIST
         # already blocks them at the trader).
         _scanners_on = bool(getattr(self.config, "axiom_scanners_enabled", False))
-        self._tasks = [self.price_feed.run()]
+        # keep_alive must run regardless of scanner mode: dip_scanner reads
+        # auth_manager.auth_token directly via fetch_axiom_trending_pairs(), and
+        # the 16-min JWT TTL means without continuous refresh the token expires
+        # ~16 min after WS connect and Axiom discovery silently 502s forever.
+        self._tasks = [self.price_feed.run(), self.auth.keep_alive()]
         if _scanners_on:
             self._tasks += [
                 self.scanner.run(),

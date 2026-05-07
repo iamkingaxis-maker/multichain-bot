@@ -46,6 +46,13 @@ async def fetch_axiom_trending_pairs(
     Fetch Solana trending tokens from Axiom users-trending-v2.
     Returns DexScreener-style pair dicts. Empty list on any failure.
     """
+    # Defense-in-depth: refresh if near-expiry. keep_alive should already be
+    # doing this in the background, but a stale token here means immediate 502.
+    if hasattr(auth_manager, "ensure_valid_token"):
+        try:
+            await auth_manager.ensure_valid_token()
+        except Exception:
+            pass
     token = _extract_auth_token(auth_manager)
     if not token:
         logger.info("[AxiomDiscovery] no auth token — returning empty")
