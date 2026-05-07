@@ -164,15 +164,18 @@ COMBOS = {
     # Timing-fix shadow filter (2026-05-05 PM): require positive 1m
     # confirmation candle (close >= +0.3% AND vol spike >= 1.0).
     'R_B_plus_confirm_candle': lambda c: not scanner_block_reasons(c) and not turn_block(c) and not confirmation_candle_block(c),
-    # ─── LIVE PRODUCTION STACK 2026-05-06 PM ───
-    # Mirrors what the bot is actually trading: scanner gates +
-    # clean_break + double_bear + seller_dominant. NO turn_block (we
-    # downgraded filter_turn to shadow on 2026-05-05).
-    # Use this combo to forward-validate the live filter chain.
-    'S_live_prod_stack':     lambda c: not scanner_block_reasons(c) and not clean_break_block(c) and not double_bear_block(c) and not seller_dominant_block(c),
+    # ─── LIVE PRODUCTION STACK ───
+    # 2026-05-07: seller_dominant demoted to SHADOW (forward phantom test
+    # showed -$5/cohort drag). S now matches live = clean_break + double_bear.
+    'S_live_prod_stack':     lambda c: not scanner_block_reasons(c) and not clean_break_block(c) and not double_bear_block(c),
     # Variant: same but stripped down to just clean_break (sanity check
     # that the additional gates aren't pulling weight on this slice).
     'T_clean_break_only':    lambda c: not scanner_block_reasons(c) and not clean_break_block(c),
+    # ─── SHADOW TRACKING — every shadow filter must have a phantom combo ───
+    # U: S + seller_dominant (the demoted filter — track if it would have
+    # helped or hurt going forward; if forward data flips back positive,
+    # promote back to enforced).
+    'U_S_with_seller_dom':   lambda c: not scanner_block_reasons(c) and not clean_break_block(c) and not double_bear_block(c) and not seller_dominant_block(c),
 }
 
 
@@ -824,6 +827,109 @@ def simulate_phantom_strategy(entry_price, ohlcv_after, position_usd=20.0):
     }
 
 
+def simulate_phantom_tp1_100pct(entry_price, ohlcv_after, position_usd=20.0):
+    """LIVE strategy from 2026-05-07: TP1=+8% sells 100%. -10% stop. No TP2/trail.
+
+    Mirrors the new live config (DIP_TP1_SELL=1.0). Compute alongside
+    legacy ladder for direct comparison.
+    """
+    if not ohlcv_after:
+        return {'phantom_pnl_pct': None, 'phantom_pnl_usd': None,
+                'exit_reason': 'no_ohlcv', 'hit_tp1': False}
+    candles = list(reversed(ohlcv_after))
+    tp1_price = entry_price * 1.08
+    stop_price = entry_price * 0.90
+    for k in candles:
+        if len(k) < 5:
+            continue
+        try:
+            high = float(k[2]); low = float(k[3]); close = float(k[4])
+        except (ValueError, TypeError):
+            continue
+        if low <= stop_price:
+            return {'phantom_pnl_pct': -10.0, 'phantom_pnl_usd': position_usd * -0.10,
+                    'exit_reason': 'stop', 'exit_pct': -10.0, 'hit_tp1': False}
+        if high >= tp1_price:
+            return {'phantom_pnl_pct': 8.0, 'phantom_pnl_usd': position_usd * 0.08,
+                    'exit_reason': 'tp1_full', 'exit_pct': 8.0, 'hit_tp1': True}
+    last_close = float(candles[-1][4])
+    pct = (last_close / entry_price - 1.0) * 100
+    return {'phantom_pnl_pct': round(pct, 3),
+            'phantom_pnl_usd': round(position_usd * (last_close / entry_price - 1.0), 3),
+            'exit_reason': 'open_at_resolve', 'exit_pct': round(pct, 3),
+            'hit_tp1': False}
+
+
+def simulate_phantom_smart_bearflip(entry_price, ohlcv_after, position_usd=20.0,
+                                    consec_green_req=3, min_pnl_pct=3.0,
+                                    min_red_body_pct=0.3):
+    """SHADOW strategy: TP1=+8% sells 50%, then bear-flip exit on remainder.
+
+    After TP1, watch for: 3 prior consecutive green 1m candles + current
+    red candle with body > 0.3% AND position pnl > +3%. Exit remainder
+    immediately on bear flip.
+
+    NOTE: aggregating 5m candles loses fine-grained bear-flip detection.
+    For accurate phantom we'd need 1m candles. For now this approximates
+    using 5m green/red transitions — under-detects but directionally
+    correct.
+    """
+    if not ohlcv_after:
+        return {'phantom_pnl_pct': None, 'phantom_pnl_usd': None,
+                'exit_reason': 'no_ohlcv', 'hit_tp1': False}
+    candles = list(reversed(ohlcv_after))
+    tp1_price = entry_price * 1.08
+    stop_price = entry_price * 0.90
+    half_sold = False
+    realized_pnl = 0.0
+    consec_green = 0
+
+    for k in candles:
+        if len(k) < 5:
+            continue
+        try:
+            o = float(k[1]); high = float(k[2]); low = float(k[3]); close = float(k[4])
+        except (ValueError, TypeError):
+            continue
+        if not half_sold and low <= stop_price:
+            return {'phantom_pnl_pct': -10.0, 'phantom_pnl_usd': position_usd * -0.10,
+                    'exit_reason': 'stop', 'exit_pct': -10.0, 'hit_tp1': False}
+        if not half_sold and high >= tp1_price:
+            half_sold = True
+            realized_pnl += position_usd * 0.5 * 0.08
+        if half_sold:
+            cur_green = close > o
+            if cur_green:
+                consec_green += 1
+            else:
+                cur_pnl_pct = (close / entry_price - 1.0) * 100
+                body_pct = abs(close - o) / o * 100 if o > 0 else 0
+                if (consec_green >= consec_green_req
+                        and cur_pnl_pct > min_pnl_pct
+                        and body_pct > min_red_body_pct):
+                    realized_pnl += position_usd * 0.5 * (close / entry_price - 1.0)
+                    pct = (realized_pnl / position_usd) * 100
+                    return {'phantom_pnl_pct': round(pct, 3),
+                            'phantom_pnl_usd': round(realized_pnl, 3),
+                            'exit_reason': 'smart_bearflip',
+                            'exit_pct': round(cur_pnl_pct, 3), 'hit_tp1': True}
+                consec_green = 0
+
+    last_close = float(candles[-1][4])
+    if half_sold:
+        realized_pnl += position_usd * 0.5 * (last_close / entry_price - 1.0)
+        reason = 'open_at_resolve_post_tp1'
+    else:
+        realized_pnl = position_usd * (last_close / entry_price - 1.0)
+        reason = 'open_at_resolve'
+    pct = (realized_pnl / position_usd) * 100
+    return {'phantom_pnl_pct': round(pct, 3),
+            'phantom_pnl_usd': round(realized_pnl, 3),
+            'exit_reason': reason,
+            'exit_pct': round((last_close / entry_price - 1.0) * 100, 3),
+            'hit_tp1': half_sold}
+
+
 def resolve_pending():
     """Resolve any snapshot >= 2.5h old. For each candidate:
        1. Fetch current price (legacy +/-8% snapshot outcome — preserved)
@@ -887,6 +993,14 @@ def resolve_pending():
                 c['phantom_pnl_usd'] = phantom.get('phantom_pnl_usd')
                 c['phantom_exit_reason'] = phantom.get('exit_reason')
                 c['phantom_hit_tp1'] = phantom.get('hit_tp1')
+                # NEW 2026-05-07: also simulate alternative exit strategies.
+                # Every shadow exit gets a phantom column for forward eval.
+                phantom_v2 = simulate_phantom_tp1_100pct(entry_price, ohlcv_after)
+                c['phantom_pnl_pct_tp1_100pct'] = phantom_v2.get('phantom_pnl_pct')
+                c['phantom_exit_reason_tp1_100pct'] = phantom_v2.get('exit_reason')
+                phantom_sbf = simulate_phantom_smart_bearflip(entry_price, ohlcv_after)
+                c['phantom_pnl_pct_smart_bearflip'] = phantom_sbf.get('phantom_pnl_pct')
+                c['phantom_exit_reason_smart_bearflip'] = phantom_sbf.get('exit_reason')
                 resolved_outcomes.append((c, snap['id']))
             except Exception as e:
                 c['outcome'] = f'err: {e}'
@@ -912,6 +1026,13 @@ def _empty_stats():
         'phantom_pct_total': 0.0,
         'phantom_tp1_hit_count': 0,
         'phantom_exit_reasons': {},
+        # Alt exit-strategy phantoms (added 2026-05-07).
+        # tp1_100pct: TP1 sells 100% (matches new live behavior).
+        # smart_bearflip: 50% TP1 + bear-flip on remainder (shadow).
+        'phantom_tp1_100pct_pct_total': 0.0,
+        'phantom_tp1_100pct_n': 0,
+        'phantom_smart_bearflip_pct_total': 0.0,
+        'phantom_smart_bearflip_n': 0,
     }
 
 
@@ -965,6 +1086,15 @@ def aggregate_stats():
                 stats['phantom_exit_reasons'][phantom_exit] = (
                     stats['phantom_exit_reasons'].get(phantom_exit, 0) + 1
                 )
+                # Alt exit-strategies (2026-05-07): also accumulate.
+                p_v2 = c.get('phantom_pnl_pct_tp1_100pct')
+                if p_v2 is not None:
+                    stats['phantom_tp1_100pct_pct_total'] += float(p_v2)
+                    stats['phantom_tp1_100pct_n'] += 1
+                p_sbf = c.get('phantom_pnl_pct_smart_bearflip')
+                if p_sbf is not None:
+                    stats['phantom_smart_bearflip_pct_total'] += float(p_sbf)
+                    stats['phantom_smart_bearflip_n'] += 1
     out = {
         'updated_at': datetime.now(timezone.utc).isoformat(),
         'n_total_resolved': n_total_resolved,
@@ -986,8 +1116,9 @@ def print_status():
     print('All metrics below over phantom-data subset (n_phantom).')
     print('Win = phantom_pnl_pct >= +4. Loss = phantom_pnl_pct <= -4.')
     print()
-    print(f'{"combo":<25}{"pass":>5}{"n_ph":>5}{"wins":>5}{"loss":>5}{"WR":>7}{"avg%":>7}{"total_$":>9}{"$/trade":>9}{"tp1%":>6}')
-    print('-' * 95)
+    print(f'{"combo":<25}{"pass":>5}{"n_ph":>5}{"wins":>5}{"loss":>5}{"WR":>7}{"avg%":>7}{"total_$":>9}{"$/trade":>9}{"tp1%":>6}'
+          f'{"alt_100pct%":>12}{"alt_sbf%":>10}')
+    print('-' * 120)
     for name, s in sorted(agg['combos'].items()):
         p = s.get('pass', 0)
         ph_n = s.get('phantom_n', 0)
@@ -1000,8 +1131,14 @@ def print_status():
         avg_pct = (s.get('phantom_pct_total', 0) / ph_n) if ph_n else 0
         tp1_n = s.get('phantom_tp1_hit_count', 0)
         tp1_pct = (tp1_n / ph_n * 100) if ph_n else 0
+        # Alt exit strategies
+        alt_100_n = s.get('phantom_tp1_100pct_n', 0)
+        alt_100_avg = (s.get('phantom_tp1_100pct_pct_total', 0) / alt_100_n) if alt_100_n else 0
+        alt_sbf_n = s.get('phantom_smart_bearflip_n', 0)
+        alt_sbf_avg = (s.get('phantom_smart_bearflip_pct_total', 0) / alt_sbf_n) if alt_sbf_n else 0
         print(f'{name:<25}{p:>5}{ph_n:>5}{wins:>5}{losses:>5}{wr:>6.0f}%'
-              f'{avg_pct:+6.1f}%{ph_total:>+8.2f}{ph_per:>+8.2f}{tp1_pct:>5.0f}%')
+              f'{avg_pct:+6.1f}%{ph_total:>+8.2f}{ph_per:>+8.2f}{tp1_pct:>5.0f}%'
+              f'{alt_100_avg:>+11.1f}%{alt_sbf_avg:>+9.1f}%')
 
 
 def main():
