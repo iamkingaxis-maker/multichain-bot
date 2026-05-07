@@ -27,7 +27,18 @@ from feeds.gecko_ohlcv import GeckoTerminalClient
 logger = logging.getLogger(__name__)
 
 _DEX_CHAIN = "solana"
-_SEARCH_TERMS = ["sol", "bonk", "wif", "cat", "dog", "meme", "pepe", "ai", "baby", "pump"]
+# Wider pool of search keywords — sampled per-cycle to rotate the
+# DS-search candidate set (2026-05-07). Prior fixed 10-term list was
+# producing near-identical results every scan, contributing to the
+# stale-watch fixation. Sampling 8 of ~30 terms per cycle gives ~5x
+# rotation while staying within the same query budget.
+_SEARCH_TERMS_POOL = [
+    "sol", "bonk", "wif", "cat", "dog", "meme", "pepe", "ai", "baby", "pump",
+    "trump", "moon", "frog", "elon", "shib", "doge", "based", "wojak",
+    "chad", "giga", "fwog", "mog", "popcat", "brett", "cult", "spx",
+    "miggles", "fartcoin", "neiro", "goat",
+]
+_SEARCH_TERMS_PER_CYCLE = 8
 _SCAN_INTERVAL = 90  # seconds between full scan cycles
 
 
@@ -2426,6 +2437,11 @@ class DipScanner:
 
             # 7) cycles_seen_before_buy — block stale watches (>15 cycles).
             # Train n=230, lift +$721. Test n=164, lift +$74.
+            # ENFORCED 2026-05-07: live signal-eval funnel was 100% stale
+            # tokens (median cycles_seen=150) — same handful re-traded for
+            # hours. Promoting to enforced should clear the funnel for
+            # fresh candidates and let parallel triggers reach bars they
+            # never see today.
             _filter_stale_watch_block_reasons: list = []
             try:
                 if cycles_seen is not None and int(cycles_seen) > 15:
@@ -2440,9 +2456,10 @@ class DipScanner:
             ) + 1
             if _filter_stale_watch_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] filter_stale_watch SHADOW would-block: {token_symbol} "
+                    f"[DipScanner] BLOCKED by filter_stale_watch: {token_symbol} "
                     f"reasons={','.join(_filter_stale_watch_block_reasons)}"
                 )
+                continue
 
             # ── filter_confirmation_candle — SHADOW 2026-05-05 PM ─────────────
             # Timing fix: require POSITIVE confirmation on the entry 1m candle
@@ -3584,28 +3601,36 @@ class DipScanner:
 
         try:
             async with aiohttp.ClientSession() as session:
+                import random
+                _cycle_terms = random.sample(
+                    _SEARCH_TERMS_POOL,
+                    min(_SEARCH_TERMS_PER_CYCLE, len(_SEARCH_TERMS_POOL)),
+                )
                 urls = [
                     "https://api.dexscreener.com/token-boosts/top/v1",
                     "https://api.dexscreener.com/token-profiles/latest/v1",
                 ] + [
                     f"https://api.dexscreener.com/latest/dex/search?q={kw}&chainId={_DEX_CHAIN}"
-                    for kw in _SEARCH_TERMS
+                    for kw in _cycle_terms
                 ]
 
                 ds_task = asyncio.gather(*[_get(session, u) for u in urls],
                                          return_exceptions=True)
                 gt_task = self.gt_client.fetch_trending_pools(pages=2)
                 # Axiom-trending source (2026-05-05) — widens dip-buy
-                # candidate pool with tokens Axiom flags as hot 1h. Same
+                # candidate pool with tokens Axiom flags as hot. Same
                 # DexScreener-style pair format as GT; gets enriched below.
                 # Fail-open if no auth (returns empty list).
+                # 2026-05-07: switched to time_period="5m" to rotate the
+                # candidate pool faster — 1h was producing the same set
+                # cycle-over-cycle, contributing to cycles_seen ratchet.
                 axiom_auth = self.axiom_price_feed.auth if self.axiom_price_feed else None
                 async def _axiom_task():
                     if not axiom_auth:
                         return []
                     try:
                         from feeds.axiom_discovery import fetch_axiom_trending_pairs
-                        return await fetch_axiom_trending_pairs(axiom_auth, time_period="1h")
+                        return await fetch_axiom_trending_pairs(axiom_auth, time_period="5m")
                     except Exception as _e:
                         logger.debug(f"[DipScanner] Axiom trending fetch err: {_e}")
                         return []
