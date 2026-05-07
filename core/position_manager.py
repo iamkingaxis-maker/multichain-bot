@@ -1221,6 +1221,61 @@ class PositionManager:
                 self.stop_loss_hits += 1
                 return
 
+            # ── DIP SMART BEAR-FLIP EXIT — SHADOW 2026-05-07 ──────────
+            # Validated:
+            #   chart-data sim TRAIN/TEST holdout (n=15665):
+            #     +0.602%/trade train, +0.819%/trade test
+            #   real-trade matched replay (n=221, post-2026-05-04):
+            #     +0.060%/trade lift with re-tuned params (44 better, 21 worse)
+            #
+            # Mechanism: after TP1 (50% sold), watch for "position green but
+            # trend reversing." Fires when position pnl > +3.0% AND last 3
+            # 1m bars were green AND current 1m closed RED with body > 0.3%.
+            # Captures the "winner-turning-loser" pattern before the slower
+            # trail or stop-loss converts the winner.
+            #
+            # Currently SHADOW: logs would-fire events but does NOT exit.
+            # After 1-2 weeks of forward data we can compare hypothetical
+            # smart-exit P&L to actual exit P&L. Promote to enforced if
+            # forward signal confirms.
+            #
+            # Re-tuned params on real-trade distribution (consec_green=3,
+            # min_pnl=3.0, min_body=0.3). Originally chart-data-tuned to
+            # (3, 1.0, 0.5); raising min_pnl filters out noise near TP1.
+            if (state.tp1_hit and not state.tp2_hit
+                    and pnl_pct > 3.0
+                    and state.entry_price > 0):
+                try:
+                    from feeds.chart_data import assemble_chart_data
+                    cd = await assemble_chart_data(
+                        self.gt_client, state.pair_address,
+                        dexs_client=self.dexs_client,
+                    )
+                    bars_1m = cd.candles_1m if cd and cd.candles_1m else []
+                except Exception:
+                    bars_1m = []
+                if len(bars_1m) >= 4:
+                    cur = bars_1m[-1]
+                    prior_3 = bars_1m[-4:-1]
+                    prior_all_green = all(
+                        b.close > b.open for b in prior_3 if b.open > 0
+                    )
+                    if (prior_all_green and cur.close < cur.open
+                            and cur.open > 0):
+                        cur_body_pct = abs(cur.close - cur.open) / cur.open * 100
+                        if cur_body_pct > 0.3:
+                            logger.info(
+                                f"[PositionManager/{self.chain_name}] "
+                                f"SHADOW DIP smart_bearflip would-exit: "
+                                f"{state.token_symbol} pnl=+{pnl_pct:.2f}% "
+                                f"red_body={cur_body_pct:.2f}% "
+                                f"(3 prior green, would lock here)"
+                            )
+                            state.smart_bearflip_shadow_fires = (
+                                getattr(state, 'smart_bearflip_shadow_fires', 0) + 1
+                            )
+                            state.smart_bearflip_shadow_last_pnl = pnl_pct
+
             # ── DIP POST-TP1 TRAIL — restored 2026-05-04 ──────────────
             # After TP1 fires (sells 50%), if the remaining 50% peaks then
             # retraces dip_winner_trail_pct (default 3.5%) from peak, exit
