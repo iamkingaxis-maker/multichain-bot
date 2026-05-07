@@ -2442,6 +2442,14 @@ class DipScanner:
             # hours. Promoting to enforced should clear the funnel for
             # fresh candidates and let parallel triggers reach bars they
             # never see today.
+            # DEMOTED to SHADOW 2026-05-07 PM: re-derived against full lifetime
+            # (n=1357) shows the 15 cutoff is too aggressive — bucket [16-30]
+            # is +$0.82/trade (sum +$148), bucket [101-200] is +$2.36/trade
+            # (sum +$198). Real damage is in [31-100] (-$3+/trade). Recent
+            # half data shows near-zero lift overall ($0.21/trade). Funnel-
+            # clearing benefit also gone now that Axiom auth refresh is fixed
+            # and fresh tokens flow normally. Shadow to gather forward data
+            # before deciding final shape (raise threshold, bucketed rule, kill).
             _filter_stale_watch_block_reasons: list = []
             try:
                 if cycles_seen is not None and int(cycles_seen) > 15:
@@ -2456,10 +2464,9 @@ class DipScanner:
             ) + 1
             if _filter_stale_watch_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_stale_watch: {token_symbol} "
+                    f"[DipScanner] filter_stale_watch SHADOW would-block: {token_symbol} "
                     f"reasons={','.join(_filter_stale_watch_block_reasons)}"
                 )
-                continue
 
             # ── filter_confirmation_candle — SHADOW 2026-05-05 PM ─────────────
             # Timing fix: require POSITIVE confirmation on the entry 1m candle
