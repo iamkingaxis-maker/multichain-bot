@@ -3611,6 +3611,52 @@ class DipScanner:
                     f"{token_symbol} reasons={','.join(_filter_stairstep_block_reasons)}"
                 )
 
+            # ── filter_seller_imbalance — SHADOW 2026-05-07 PM ────────────────
+            # Detect "sellers winning the 5m net flow" via tier3
+            # net_flow_5m_imbalance = (signed_vol) / (gross_vol).
+            # Range -1 to +1; negative = sellers dominating dollar flow.
+            #
+            # BLOCK when net_flow_5m_imbalance < -0.2 (~deep seller dominance,
+            # not just slight sell tilt).
+            #
+            # Validation (n=681 lifetime, n=269 since 2026-05-04):
+            #   - Lifetime: blocked n=84 avg=$+0.05, kept n=597 avg=$+0.42
+            #     lift=+$0.036/trade
+            #   - Recent:   blocked n=36 avg=$-0.26, kept n=233 avg=$-0.13
+            #     lift=+$0.017/trade
+            #   - Sign agreement YES, top-10 winner regression: 0/10
+            #
+            # Trigger case: ZEREBRO 15:47 (net_flow_5m_imbalance=-0.636) —
+            # caught the deepest distribution-buy of the day. Note the OTHER
+            # ZEREBRO at 16:00 had net_flow=+0.10 and would NOT be blocked,
+            # which matches the filter's targeted scope (not a blanket veto).
+            #
+            # Shadow only — small absolute lift (~$0.02/trade), narrow tag rate
+            # (~10% recent, ~12% lifetime). Promote if forward data confirms.
+            #
+            # Fail-open if net_flow_5m_imbalance missing from tier3 features.
+            _filter_seller_imbalance_block_reasons: list = []
+            try:
+                _sni = _tier3_features.get("net_flow_5m_imbalance")
+                if _sni is not None and float(_sni) < -0.2:
+                    _filter_seller_imbalance_block_reasons.append(
+                        f"net_flow_5m_imbalance={float(_sni):+.3f}<-0.2 "
+                        f"(sellers dominating 5m dollar flow)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] seller_imbalance calc err: {_e}")
+            _filter_seller_imbalance_verdict = (
+                "BLOCK" if _filter_seller_imbalance_block_reasons else "PASS"
+            )
+            c[f"filter_seller_imbalance_{_filter_seller_imbalance_verdict.lower()}"] = c.get(
+                f"filter_seller_imbalance_{_filter_seller_imbalance_verdict.lower()}", 0
+            ) + 1
+            if _filter_seller_imbalance_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_seller_imbalance SHADOW would-block: "
+                    f"{token_symbol} reasons={','.join(_filter_seller_imbalance_block_reasons)}"
+                )
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -3720,6 +3766,9 @@ class DipScanner:
                 # filter_stairstep — managed-pump detection (shadow).
                 "filter_stairstep_verdict": _filter_stairstep_verdict,
                 "filter_stairstep_block_reasons": _filter_stairstep_block_reasons,
+                # filter_seller_imbalance — 5m net dollar flow seller-dominance (shadow).
+                "filter_seller_imbalance_verdict": _filter_seller_imbalance_verdict,
+                "filter_seller_imbalance_block_reasons": _filter_seller_imbalance_block_reasons,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
