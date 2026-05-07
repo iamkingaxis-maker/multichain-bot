@@ -3006,6 +3006,100 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] decay4of5 calc err: {_e}")
 
+            # ── coil_top_vol parallel trigger — ENFORCED 2026-05-07 ────────────
+            # 11th parallel trigger. Compound of coil_long (7-bar uniform tight
+            # range) + top-decile volume (cur bar vol > max of prior 30). The
+            # vol gate filters coil_long's noisy false-breakouts to real
+            # volume-confirmed releases.
+            #
+            # Validator on 295 token-batches:
+            #   - Sim trigger_only: n=174, 63.4% WR, +1.06%/trade, +$185
+            #   - Retro NEW: n=5, 66.7% WR, +0.86%/trade, +$4
+            # Improves on base coil_long (60.6% WR) by 2.8pp WR + 41% avg.
+            _trigger_coiltv_match = False
+            _trigger_coiltv_reasons: list = []
+            try:
+                _ctv_cs = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if len(_ctv_cs) >= 31 and _ctv_cs[-1].open > 0:
+                    _ctv_cur = _ctv_cs[-1]
+                    if _ctv_cur.close > _ctv_cur.open:
+                        _ctv_body_pct = ((_ctv_cur.close - _ctv_cur.open)
+                                         / _ctv_cur.open * 100)
+                        if _ctv_body_pct > 4:
+                            _ctv_coil_ok = True
+                            for _ctv_k in (8, 7, 6, 5, 4, 3, 2):
+                                _ctv_b = _ctv_cs[-_ctv_k]
+                                if _ctv_b.open <= 0:
+                                    _ctv_coil_ok = False
+                                    break
+                                _ctv_rng = (_ctv_b.high - _ctv_b.low) / _ctv_b.open * 100
+                                if _ctv_rng >= 2.0:
+                                    _ctv_coil_ok = False
+                                    break
+                            if _ctv_coil_ok:
+                                _ctv_cur_vol = _ctv_cur.volume or 0
+                                if _ctv_cur_vol > 0:
+                                    _ctv_prior_max = max(
+                                        (_ctv_cs[-_ctv_k].volume or 0)
+                                        for _ctv_k in range(2, 32)
+                                    )
+                                    if _ctv_cur_vol > _ctv_prior_max:
+                                        _trigger_coiltv_match = True
+                                        _trigger_coiltv_reasons.append(
+                                            f"7-bar coil + top-30 vol, "
+                                            f"body={_ctv_body_pct:.2f}%"
+                                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] coil_top_vol calc err: {_e}")
+
+            # ── decay_5bar parallel trigger — SHADOW 2026-05-07 ────────────────
+            # SHADOW MODE: computed and logged but NOT in _triggers_fired.
+            # Gathering forward data on the rare-but-stellar 5-bar strict decay
+            # pattern.
+            #
+            # Validator on 295 token-batches:
+            #   - Sim trigger_only: n=26, 87.5% WR, +5.42%/trade, +$141
+            #   - Retro NEW: n=2, 2W/0L, +10.03%/trade
+            # Sample below the n=200 evaluable threshold but signal has held
+            # as dataset grew (n=20 -> n=26 kept WR ~88%). Forward retro
+            # collection will determine if the signal generalizes or is
+            # historical noise.
+            _trigger_decay5_match = False
+            _trigger_decay5_reasons: list = []
+            try:
+                _d5b_cs = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if len(_d5b_cs) >= 6 and _d5b_cs[-1].open > 0:
+                    _d5b_cur = _d5b_cs[-1]
+                    if _d5b_cur.close > _d5b_cur.open:
+                        _d5b_body = ((_d5b_cur.close - _d5b_cur.open)
+                                     / _d5b_cur.open * 100)
+                        if _d5b_body > 4:
+                            _d5b_ranges = []
+                            _d5b_ok = True
+                            for _d5b_k in (6, 5, 4, 3, 2):
+                                _d5b_b = _d5b_cs[-_d5b_k]
+                                if _d5b_b.open <= 0:
+                                    _d5b_ok = False
+                                    break
+                                _d5b_ranges.append(_d5b_b.high - _d5b_b.low)
+                            if _d5b_ok and len(_d5b_ranges) == 5:
+                                if (_d5b_ranges[0] > _d5b_ranges[1]
+                                        > _d5b_ranges[2] > _d5b_ranges[3]
+                                        > _d5b_ranges[4]):
+                                    _trigger_decay5_match = True
+                                    _trigger_decay5_reasons.append(
+                                        f"5-bar strict decline, "
+                                        f"body={_d5b_body:.2f}%"
+                                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] decay5 calc err: {_e}")
+
+            if _trigger_decay5_match:
+                logger.info(
+                    f"[DipScanner] SHADOW trigger_decay_5bar fired: "
+                    f"{token_symbol} {','.join(_trigger_decay5_reasons)}"
+                )
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _filter_clean_break_verdict == "PASS":
@@ -3028,6 +3122,8 @@ class DipScanner:
                 _triggers_fired.append("range_decay_4bar")
             if _trigger_decay4of5_match:
                 _triggers_fired.append("range_decay_4of5")
+            if _trigger_coiltv_match:
+                _triggers_fired.append("coil_top_vol")
 
             if not _triggers_fired:
                 logger.info(
@@ -3058,6 +3154,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_decay4_reasons)
                 if _trigger_decay4of5_match:
                     _alt_reasons.extend(_trigger_decay4of5_reasons)
+                if _trigger_coiltv_match:
+                    _alt_reasons.extend(_trigger_coiltv_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -3488,6 +3586,12 @@ class DipScanner:
                 # range_decay_4of5 parallel trigger — ENFORCED 2026-05-07 (10th, looser compression).
                 "trigger_decay4of5_match": _trigger_decay4of5_match,
                 "trigger_decay4of5_reasons": _trigger_decay4of5_reasons,
+                # coil_top_vol parallel trigger — ENFORCED 2026-05-07 (11th, coil + vol-confirmed).
+                "trigger_coiltv_match": _trigger_coiltv_match,
+                "trigger_coiltv_reasons": _trigger_coiltv_reasons,
+                # decay_5bar parallel trigger — SHADOW 2026-05-07 (gathering forward retro on 87.5% WR signal).
+                "trigger_decay5_match": _trigger_decay5_match,
+                "trigger_decay5_reasons": _trigger_decay5_reasons,
                 # squeeze_pullback parallel trigger — SHADOW 2026-05-06 (gathering retro).
                 "trigger_squeeze_match": _trigger_squeeze_match,
                 "trigger_squeeze_reasons": _trigger_squeeze_reasons,
