@@ -2923,6 +2923,89 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] coillong calc err: {_e}")
 
+            # ── range_decay_4bar parallel trigger — ENFORCED 2026-05-07 ────────
+            # 9th parallel trigger. Volatility compression climax: last 4 bars
+            # all had ranges strictly monotonically declining + green expansion
+            # > 4%. Different from coil_long (uniformly tight ranges) — this
+            # requires ACTIVELY narrowing intrabar volatility, indicating
+            # increasing equilibrium pressure before release.
+            #
+            # Validator on 249 token-batches:
+            #   - Sim trigger_only: n=72, 65.7% WR, +1.75%/trade, +$126
+            #   - Retro NEW: n=7, 57.1% WR, +0.64%/trade, +$5
+            # Pareto search confirmed 4-bar floor: 3-bar variant retro fails
+            # (-4.05%/trade); 5-bar variant n=20 too small to evaluate.
+            _trigger_decay4_match = False
+            _trigger_decay4_reasons: list = []
+            try:
+                _d4_cs = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if len(_d4_cs) >= 5 and _d4_cs[-1].open > 0:
+                    _d4_cur = _d4_cs[-1]
+                    if _d4_cur.close > _d4_cur.open:
+                        _d4_body = ((_d4_cur.close - _d4_cur.open)
+                                    / _d4_cur.open * 100)
+                        if _d4_body > 4:
+                            _d4_ranges = []
+                            _d4_ok = True
+                            for _d4_k in (5, 4, 3, 2):
+                                _d4_b = _d4_cs[-_d4_k]
+                                if _d4_b.open <= 0:
+                                    _d4_ok = False
+                                    break
+                                _d4_ranges.append(_d4_b.high - _d4_b.low)
+                            if _d4_ok and len(_d4_ranges) == 4:
+                                if (_d4_ranges[0] > _d4_ranges[1]
+                                        > _d4_ranges[2] > _d4_ranges[3]):
+                                    _trigger_decay4_match = True
+                                    _trigger_decay4_reasons.append(
+                                        f"4-bar range strict decline, "
+                                        f"body={_d4_body:.2f}%"
+                                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] decay4 calc err: {_e}")
+
+            # ── range_decay_4of5 parallel trigger — ENFORCED 2026-05-07 ────────
+            # 10th parallel trigger. Looser than range_decay_4bar — allows 1
+            # outlier in 5 range comparisons across last 6 bars. Higher
+            # throughput, slightly lower WR. Catches compression patterns where
+            # one bar punctuates the otherwise-narrowing trend.
+            #
+            # Validator on 249 token-batches:
+            #   - Sim trigger_only: n=133, 61.9% WR, +0.89%/trade, +$119
+            #   - Retro NEW: n=15, 53.3% WR, +0.58%/trade, +$9
+            _trigger_decay4of5_match = False
+            _trigger_decay4of5_reasons: list = []
+            try:
+                _d5_cs = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if len(_d5_cs) >= 7 and _d5_cs[-1].open > 0:
+                    _d5_cur = _d5_cs[-1]
+                    if _d5_cur.close > _d5_cur.open:
+                        _d5_body = ((_d5_cur.close - _d5_cur.open)
+                                    / _d5_cur.open * 100)
+                        if _d5_body > 4:
+                            _d5_ranges = []
+                            _d5_ok = True
+                            for _d5_k in (7, 6, 5, 4, 3, 2):
+                                _d5_b = _d5_cs[-_d5_k]
+                                if _d5_b.open <= 0:
+                                    _d5_ok = False
+                                    break
+                                _d5_ranges.append(_d5_b.high - _d5_b.low)
+                            if _d5_ok and len(_d5_ranges) == 6:
+                                _d5_declines = sum(
+                                    1 for _d5_i in range(5)
+                                    if _d5_ranges[_d5_i] > _d5_ranges[_d5_i + 1]
+                                )
+                                if (_d5_declines >= 4
+                                        and _d5_ranges[0] > _d5_ranges[-1]):
+                                    _trigger_decay4of5_match = True
+                                    _trigger_decay4of5_reasons.append(
+                                        f"4-of-5 range declines, "
+                                        f"body={_d5_body:.2f}%"
+                                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] decay4of5 calc err: {_e}")
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _filter_clean_break_verdict == "PASS":
@@ -2941,6 +3024,10 @@ class DipScanner:
                 _triggers_fired.append("hc4_6pct")
             if _trigger_coillong_match:
                 _triggers_fired.append("coil_long")
+            if _trigger_decay4_match:
+                _triggers_fired.append("range_decay_4bar")
+            if _trigger_decay4of5_match:
+                _triggers_fired.append("range_decay_4of5")
 
             if not _triggers_fired:
                 logger.info(
@@ -2967,6 +3054,10 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_hc46_reasons)
                 if _trigger_coillong_match:
                     _alt_reasons.extend(_trigger_coillong_reasons)
+                if _trigger_decay4_match:
+                    _alt_reasons.extend(_trigger_decay4_reasons)
+                if _trigger_decay4of5_match:
+                    _alt_reasons.extend(_trigger_decay4of5_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -3391,6 +3482,12 @@ class DipScanner:
                 # coil_long parallel trigger — ENFORCED 2026-05-07 (8th, orthogonal coil-release).
                 "trigger_coillong_match": _trigger_coillong_match,
                 "trigger_coillong_reasons": _trigger_coillong_reasons,
+                # range_decay_4bar parallel trigger — ENFORCED 2026-05-07 (9th, compression climax).
+                "trigger_decay4_match": _trigger_decay4_match,
+                "trigger_decay4_reasons": _trigger_decay4_reasons,
+                # range_decay_4of5 parallel trigger — ENFORCED 2026-05-07 (10th, looser compression).
+                "trigger_decay4of5_match": _trigger_decay4of5_match,
+                "trigger_decay4of5_reasons": _trigger_decay4of5_reasons,
                 # squeeze_pullback parallel trigger — SHADOW 2026-05-06 (gathering retro).
                 "trigger_squeeze_match": _trigger_squeeze_match,
                 "trigger_squeeze_reasons": _trigger_squeeze_reasons,
