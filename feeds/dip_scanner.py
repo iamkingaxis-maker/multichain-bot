@@ -2873,6 +2873,56 @@ class DipScanner:
                     f"{token_symbol} {','.join(_trigger_squeeze_reasons)}"
                 )
 
+            # ── coil_long parallel trigger — ENFORCED 2026-05-07 ───────────────
+            # 8th parallel trigger. Mechanically orthogonal to HC_k/clean_break:
+            # fires after a sustained low-volatility coil rather than after
+            # bearish reds (clean_break) or monotonic up-streak (HC_4).
+            #
+            # Conditions:
+            #   - Last 7 bars all had range_pct < 2.0% (tight 7-bar coil)
+            #   - Current bar is GREEN
+            #   - Current body > 4.0%
+            # I.e., 7 bars of accumulation/quiet → 4%+ green expansion.
+            #
+            # Validator (scripts/validate_trigger.py) on 249 token-batches:
+            #   - Sim trigger_only: n=269, 60.6% WR, +0.75%/trade, +$203
+            #     67% of fires happen on bars where clean_break doesn't —
+            #     genuinely orthogonal to existing triggers.
+            #   - Retro on bot pairs: n=11 NEW, 75% WR, +2.52%/trade, +$28
+            #     Wins clustered on 35Lod (3 wins) + J8PSdNP3Qe (2 wins).
+            #
+            # Pareto search of close variants (range<1.5%, 5-bar coil, 5%-body
+            # variants) showed this 7-bar/<2%/4% setup as best. Tighter range
+            # (1.5%) failed retro; larger body (5%) failed both tiers.
+            _trigger_coillong_match = False
+            _trigger_coillong_reasons: list = []
+            try:
+                _cl_cs = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if len(_cl_cs) >= 8 and _cl_cs[-1].open > 0:
+                    _cl_cur = _cl_cs[-1]
+                    if _cl_cur.close > _cl_cur.open:  # green
+                        _cl_body_pct = ((_cl_cur.close - _cl_cur.open)
+                                        / _cl_cur.open * 100)
+                        if _cl_body_pct > 4:
+                            _cl_coil_ok = True
+                            for _cl_k in (8, 7, 6, 5, 4, 3, 2):
+                                _cl_b = _cl_cs[-_cl_k]
+                                if _cl_b.open <= 0:
+                                    _cl_coil_ok = False
+                                    break
+                                _cl_rng = (_cl_b.high - _cl_b.low) / _cl_b.open * 100
+                                if _cl_rng >= 2.0:
+                                    _cl_coil_ok = False
+                                    break
+                            if _cl_coil_ok:
+                                _trigger_coillong_match = True
+                                _trigger_coillong_reasons.append(
+                                    f"7-bar coil (all rng<2%), "
+                                    f"body={_cl_body_pct:.2f}%"
+                                )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] coillong calc err: {_e}")
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _filter_clean_break_verdict == "PASS":
@@ -2889,6 +2939,8 @@ class DipScanner:
                 _triggers_fired.append("engulf_low")
             if _trigger_hc46_match:
                 _triggers_fired.append("hc4_6pct")
+            if _trigger_coillong_match:
+                _triggers_fired.append("coil_long")
 
             if not _triggers_fired:
                 logger.info(
@@ -2913,6 +2965,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_engulflow_reasons)
                 if _trigger_hc46_match:
                     _alt_reasons.extend(_trigger_hc46_reasons)
+                if _trigger_coillong_match:
+                    _alt_reasons.extend(_trigger_coillong_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -3334,6 +3388,9 @@ class DipScanner:
                 # hc4_6pct parallel trigger — ENFORCED 2026-05-07 (HC class champion).
                 "trigger_hc46_match": _trigger_hc46_match,
                 "trigger_hc46_reasons": _trigger_hc46_reasons,
+                # coil_long parallel trigger — ENFORCED 2026-05-07 (8th, orthogonal coil-release).
+                "trigger_coillong_match": _trigger_coillong_match,
+                "trigger_coillong_reasons": _trigger_coillong_reasons,
                 # squeeze_pullback parallel trigger — SHADOW 2026-05-06 (gathering retro).
                 "trigger_squeeze_match": _trigger_squeeze_match,
                 "trigger_squeeze_reasons": _trigger_squeeze_reasons,
