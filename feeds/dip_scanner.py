@@ -3107,6 +3107,63 @@ class DipScanner:
                     f"{token_symbol} {','.join(_trigger_decay5_reasons)}"
                 )
 
+            # ── momentum_continuation parallel trigger — ENFORCED 2026-05-07 PM
+            # Fires when:
+            #   1. Current 1m candle is green
+            #   2. 4 consec green 1m bars (current + 3 prior all green)
+            #   3. Current vol > 1.5x avg of last 30 1m bars
+            #
+            # Catches MOMENTUM CONTINUATION — fundamentally different from
+            # clean_break (dip pullback first-green-after-reds). When 4
+            # consecutive bars close green AND volume is rising relative
+            # to recent average, the trend is real and often runs another
+            # 8%+ in 20 minutes.
+            #
+            # Validation (validate_trigger.py 2026-05-07):
+            #   SIM:   trigger_only n=1092, WR=65.7%, avg=+1.75%/trade
+            #          (vs cb_only baseline 52.9% WR, -0.35%/trade)
+            #          ZERO overlap with clean_break — fully orthogonal.
+            #   RETRO: n=54 NEW marginal entries on bot-traded pairs,
+            #          WR=55.2%, avg=+0.04%/trade. Modest but positive.
+            #
+            # Mined from FAST_WIN vs LOSER discrimination on master bar
+            # dataset (n=295 tokens). Best 2-feature combo for fast +8%
+            # moves within 20 min: 4+ consec green AND vol_spike_30 >= 1.5.
+            _trigger_momentum_continuation_match = False
+            _trigger_momentum_continuation_reasons: list = []
+            try:
+                _mc_cs = (_chart_data.candles_1m
+                          if _chart_data and _chart_data.candles_1m else [])
+                if len(_mc_cs) >= 31:
+                    _mc_cur = _mc_cs[-1]
+                    if (_mc_cur.open > 0
+                            and _mc_cur.close > _mc_cur.open):
+                        # 4 consec green check
+                        _mc_4_green = True
+                        for k in (1, 2, 3, 4):
+                            _mc_b = _mc_cs[-k]
+                            if (_mc_b.open <= 0
+                                    or _mc_b.close <= _mc_b.open):
+                                _mc_4_green = False
+                                break
+                        if _mc_4_green:
+                            _mc_prior30 = _mc_cs[-31:-1]
+                            _mc_vols = [b.volume for b in _mc_prior30
+                                        if b.volume is not None]
+                            if len(_mc_vols) >= 20:
+                                _mc_avg30 = sum(_mc_vols) / len(_mc_vols)
+                                if _mc_avg30 > 0:
+                                    _mc_vol_ratio = _mc_cur.volume / _mc_avg30
+                                    if _mc_vol_ratio >= 1.5:
+                                        _trigger_momentum_continuation_match = True
+                                        _trigger_momentum_continuation_reasons.append(
+                                            f"4 consec green 1m, "
+                                            f"vol={_mc_vol_ratio:.2f}x avg30 "
+                                            f"(momentum continuation)"
+                                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] momentum_continuation calc err: {_e}")
+
             # ── high_regime parallel trigger — ENFORCED 2026-05-07 PM ──────────
             # Additive trigger that fires on tokens passing all filters during
             # high-regime cycles with positive 1m momentum. Catches tokens
@@ -3172,6 +3229,8 @@ class DipScanner:
                 _triggers_fired.append("coil_top_vol")
             if _trigger_high_regime_match:
                 _triggers_fired.append("high_regime")
+            if _trigger_momentum_continuation_match:
+                _triggers_fired.append("momentum_continuation")
 
             if not _triggers_fired:
                 logger.info(
@@ -3206,6 +3265,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_coiltv_reasons)
                 if _trigger_high_regime_match:
                     _alt_reasons.extend(_trigger_high_regime_reasons)
+                if _trigger_momentum_continuation_match:
+                    _alt_reasons.extend(_trigger_momentum_continuation_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -3777,6 +3838,9 @@ class DipScanner:
                 # high_regime parallel trigger — ENFORCED 2026-05-07 PM (12th, regime+momentum gate).
                 "trigger_high_regime_match": _trigger_high_regime_match,
                 "trigger_high_regime_reasons": _trigger_high_regime_reasons,
+                # momentum_continuation parallel trigger — ENFORCED 2026-05-07 PM (13th, fast-mover continuation).
+                "trigger_momentum_continuation_match": _trigger_momentum_continuation_match,
+                "trigger_momentum_continuation_reasons": _trigger_momentum_continuation_reasons,
                 # squeeze_pullback parallel trigger — SHADOW 2026-05-06 (gathering retro).
                 "trigger_squeeze_match": _trigger_squeeze_match,
                 "trigger_squeeze_reasons": _trigger_squeeze_reasons,
