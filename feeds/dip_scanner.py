@@ -3388,6 +3388,41 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] hh10_strict_vol calc err: {_e}")
 
+            # ── hh10_8plus parallel trigger — ENFORCED 2026-05-07 PM ───────────
+            # Fires when:
+            #   1. Current 1m green
+            #   2. 8+ higher-highs in last 10 1m bars (no vol gate)
+            #
+            # Pure price-action strength. Distinct from hh10_strict_vol which
+            # requires HH>=7 AND vol>=1.5x — this catches tokens making
+            # stepwise climbs without vol explosion.
+            #
+            # Validation across 3 fast-mover cohort definitions:
+            #   +15%/60min: WR=61.0%, +$1.10/trade, n=2135, Stop=20.7%
+            #   +20%/90min: WR=62.0%, +$1.21/trade, n=2090, Stop=20.8%
+            #   +12%/30min: WR=60.6%, +$1.03/trade, n=2180, Stop=20.6%
+            # Lowest stop rate of any candidate tested.
+            _trigger_hh10_8plus_match = False
+            _trigger_hh10_8plus_reasons: list = []
+            try:
+                _h8_cs = (_chart_data.candles_1m
+                          if _chart_data and _chart_data.candles_1m else [])
+                if len(_h8_cs) >= 10:
+                    _h8_cur = _h8_cs[-1]
+                    if _h8_cur.open > 0 and _h8_cur.close > _h8_cur.open:
+                        _h8_last10 = _h8_cs[-10:]
+                        _h8_count = sum(
+                            1 for j in range(1, 10)
+                            if _h8_last10[j].high > _h8_last10[j-1].high
+                        )
+                        if _h8_count >= 8:
+                            _trigger_hh10_8plus_match = True
+                            _trigger_hh10_8plus_reasons.append(
+                                f"{_h8_count}/9 HH in last 10 (pure trend)"
+                            )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] hh10_8plus calc err: {_e}")
+
             # ── high_regime parallel trigger — ENFORCED 2026-05-07 PM ──────────
             # Additive trigger that fires on tokens passing all filters during
             # high-regime cycles with positive 1m momentum. Catches tokens
@@ -3463,6 +3498,8 @@ class DipScanner:
                 _triggers_fired.append("6of7_green_vol")
             if _trigger_hh10_strict_vol_match:
                 _triggers_fired.append("hh10_strict_vol")
+            if _trigger_hh10_8plus_match:
+                _triggers_fired.append("hh10_8plus")
 
             if not _triggers_fired:
                 logger.info(
@@ -3507,6 +3544,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_6of7_green_vol_reasons)
                 if _trigger_hh10_strict_vol_match:
                     _alt_reasons.extend(_trigger_hh10_strict_vol_reasons)
+                if _trigger_hh10_8plus_match:
+                    _alt_reasons.extend(_trigger_hh10_8plus_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -4093,6 +4132,9 @@ class DipScanner:
                 # hh10_strict_vol parallel trigger — ENFORCED 2026-05-07 PM (17th, HH-based trend strength).
                 "trigger_hh10_strict_vol_match": _trigger_hh10_strict_vol_match,
                 "trigger_hh10_strict_vol_reasons": _trigger_hh10_strict_vol_reasons,
+                # hh10_8plus parallel trigger — ENFORCED 2026-05-07 PM (18th, pure HH-trend no vol gate).
+                "trigger_hh10_8plus_match": _trigger_hh10_8plus_match,
+                "trigger_hh10_8plus_reasons": _trigger_hh10_8plus_reasons,
                 # squeeze_pullback parallel trigger — SHADOW 2026-05-06 (gathering retro).
                 "trigger_squeeze_match": _trigger_squeeze_match,
                 "trigger_squeeze_reasons": _trigger_squeeze_reasons,
