@@ -3530,6 +3530,87 @@ class DipScanner:
                     f"{token_symbol} reasons={','.join(_filter_double_bottom_block_reasons)}"
                 )
 
+            # ── filter_stairstep — SHADOW 2026-05-07 PM ───────────────────────
+            # Detect "managed pump" stairstep: 3+ large green 5m candles
+            # (body >= 3%) separated by 12+ near-flat bars (|body| < 1%) in
+            # the last 24 5m bars (2h window), where the green-jump bodies
+            # account for >= 70% of the total 24-bar range.
+            #
+            # Mechanism: coordinated buy events fired at intervals create
+            # discrete price levels rather than organic continuous demand.
+            # When the pump artist steps away, bid evaporates and price
+            # falls back through the steps. Trigger case: WCOR 15:11
+            # 2026-05-07 (5m chart showed 4 stair-jumps over ~12h).
+            #
+            # Validation: master bar dataset (n=295 tokens, 45k 5m windows).
+            # Tag rate 1.9%. Stair forward 60m: -1.68%/trade. Non-stair:
+            # +1.29%/trade. Lift +2.96%/trade on tagged set.
+            #
+            # Caveat: validated on raw 60-min forward returns, NOT bot's
+            # actual TP/SL/trail outcomes. Shadow-only until ≥10 forward
+            # tagged real trades confirm the lift on actual P&L.
+            #
+            # Fail-open if 5m bars unavailable.
+            _filter_stairstep_block_reasons: list = []
+            try:
+                _ss_cs5 = (
+                    _chart_data.candles_5m
+                    if _chart_data and _chart_data.candles_5m
+                    else []
+                )
+                _SS_LOOKBACK = 24
+                _SS_JUMP = 3.0
+                _SS_FLAT = 1.0
+                _SS_MIN_JUMPS = 3
+                _SS_MIN_FLATS = 12
+                _SS_JUMP_SHARE = 0.7
+                if len(_ss_cs5) >= _SS_LOOKBACK:
+                    _ss_window = _ss_cs5[-_SS_LOOKBACK:]
+                    _ss_bodies = []
+                    _ss_bad = False
+                    for _b in _ss_window:
+                        if _b.open is None or _b.open <= 0:
+                            _ss_bad = True
+                            break
+                        _ss_bodies.append((_b.close - _b.open) / _b.open * 100)
+                    if not _ss_bad:
+                        _ss_n_jumps = sum(1 for bp in _ss_bodies if bp >= _SS_JUMP)
+                        _ss_n_flat = sum(1 for bp in _ss_bodies if abs(bp) < _SS_FLAT)
+                        _ss_high = max(b.high for b in _ss_window)
+                        _ss_low = min(b.low for b in _ss_window)
+                        _ss_range_pct = (
+                            (_ss_high - _ss_low) / _ss_low * 100
+                            if _ss_low > 0 else 0
+                        )
+                        _ss_jump_total = sum(bp for bp in _ss_bodies if bp >= _SS_JUMP)
+                        if (
+                            _ss_n_jumps >= _SS_MIN_JUMPS
+                            and _ss_n_flat >= _SS_MIN_FLATS
+                            and (
+                                _ss_range_pct == 0
+                                or _ss_jump_total >= _ss_range_pct * _SS_JUMP_SHARE
+                            )
+                        ):
+                            _filter_stairstep_block_reasons.append(
+                                f"5m_stairstep: {_ss_n_jumps} green-jumps>="
+                                f"{_SS_JUMP}% + {_ss_n_flat} flat-bars<{_SS_FLAT}% "
+                                f"in last {_SS_LOOKBACK} bars "
+                                f"(jump_total={_ss_jump_total:.1f}%/range={_ss_range_pct:.1f}%)"
+                            )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] stairstep calc err: {_e}")
+            _filter_stairstep_verdict = (
+                "BLOCK" if _filter_stairstep_block_reasons else "PASS"
+            )
+            c[f"filter_stairstep_{_filter_stairstep_verdict.lower()}"] = c.get(
+                f"filter_stairstep_{_filter_stairstep_verdict.lower()}", 0
+            ) + 1
+            if _filter_stairstep_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_stairstep SHADOW would-block: "
+                    f"{token_symbol} reasons={','.join(_filter_stairstep_block_reasons)}"
+                )
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -3636,6 +3717,9 @@ class DipScanner:
                 # filter_double_bottom — SHADOW 2026-05-06 PM (p5m+p1h rock-bottom gate).
                 "filter_double_bottom_verdict": _filter_double_bottom_verdict,
                 "filter_double_bottom_block_reasons": _filter_double_bottom_block_reasons,
+                # filter_stairstep — managed-pump detection (shadow).
+                "filter_stairstep_verdict": _filter_stairstep_verdict,
+                "filter_stairstep_block_reasons": _filter_stairstep_block_reasons,
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
