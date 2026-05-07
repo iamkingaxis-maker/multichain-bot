@@ -282,6 +282,20 @@ class PriceFeed:
             if token_address not in self._watched:
                 return
 
+            # Pair-pinning gate 2026-05-07 PM: multi-pair tokens (e.g.
+            # PENGUIN had a raydium pair priced at $0.163 vs pumpswap pair
+            # at $0.004 — 37x apart) were causing apples-to-oranges price
+            # comparisons because both pairs ticked through and the
+            # higher-liq pair won. Bot bought on pair X, but current_price
+            # got overwritten by pair Y. When a pair_address is pinned for
+            # this token via subscribe_token(...), only accept ticks
+            # whose pairAddress matches. Fail-open if not pinned.
+            pinned_pair = self._pair_addresses.get(token_address)
+            if pinned_pair:
+                incoming_pair = (pair.get("pairAddress") or "").lower()
+                if incoming_pair and incoming_pair != pinned_pair.lower():
+                    return
+
             price_str = pair.get("priceUsd", "0")
             price = float(price_str) if price_str else 0
             if price <= 0:
@@ -380,8 +394,23 @@ class PriceFeed:
                     data = await resp.json()
                     pairs = data.get("pairs", [])
 
-                    # Keep only the highest-liquidity pair per token
+                    # Pair selection 2026-05-07 PM: prefer pinned pair_address
+                    # when registered (the pair the bot actually bought on),
+                    # otherwise fall back to highest-liquidity pair.
+                    # Avoids the PENGUIN bug where raydium pair $489k liq
+                    # outranked the pumpswap entry pair $391k liq, despite
+                    # being priced 37x differently.
                     seen = set()
+                    # First pass: pinned pair_address matches.
+                    for pair in pairs:
+                        addr = pair.get("baseToken", {}).get("address", "").lower()
+                        if addr in seen or addr not in self._watched:
+                            continue
+                        pinned = (self._pair_addresses.get(addr) or "").lower()
+                        if pinned and (pair.get("pairAddress") or "").lower() == pinned:
+                            seen.add(addr)
+                            await self._process_pair_update(pair, source="poll")
+                    # Second pass: highest-liquidity for tokens with no pinned pair.
                     for pair in sorted(
                         pairs,
                         key=lambda p: p.get("liquidity", {}).get("usd", 0),

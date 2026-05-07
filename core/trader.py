@@ -1070,6 +1070,22 @@ class Trader:
     def register_dex_price_feed(self, feed):
         """Register the DexScreener real-time PriceFeed for sub-second stop-loss accuracy."""
         self._dex_price_feed = feed
+        # Re-subscribe restored positions with their pair_address so the
+        # feed pins each token to the exact pool we bought on. Without
+        # this, multi-pair tokens fall back to highest-liquidity pair
+        # selection which can produce 30x+ price discrepancies (PENGUIN
+        # bug 2026-05-07: pumpswap entry $0.004 vs raydium tick $0.163).
+        try:
+            for _addr, _pos in self.open_positions.items():
+                _pair = getattr(_pos, "pair_address", "") or ""
+                if _pair:
+                    feed.subscribe_token(
+                        _addr,
+                        chain_id=getattr(_pos, "chain_id", "solana") or "solana",
+                        pair_address=_pair,
+                    )
+        except Exception as _e:
+            logger.warning(f"[Trader] dex feed re-subscribe error: {_e}")
 
     def register_rpc_price_feed(self, feed):
         """Register the Solana RPC + Jupiter price feed (0.5s, covers all pool types)."""
@@ -1732,7 +1748,14 @@ class Trader:
                 if self._axiom_price_feed is not None:
                     self._axiom_price_feed.subscribe_token(token_address)
                 if self._dex_price_feed is not None:
-                    self._dex_price_feed.subscribe_token(token_address)
+                    # Pass pair_address so the DexScreener feed pins to the
+                    # exact pool we bought on — multi-pair tokens can have
+                    # 30x+ priceUsd discrepancies between DEXes.
+                    self._dex_price_feed.subscribe_token(
+                        token_address,
+                        chain_id=chain_id,
+                        pair_address=pair_address,
+                    )
                 # RPC + Jupiter feed: pass pool_type hint from reason for pump.fun detection
                 if self._rpc_price_feed is not None:
                     _proto = ""
@@ -1953,7 +1976,11 @@ class Trader:
             if self._axiom_price_feed is not None:
                 self._axiom_price_feed.subscribe_token(token_address)
             if self._dex_price_feed is not None:
-                self._dex_price_feed.subscribe_token(token_address)
+                self._dex_price_feed.subscribe_token(
+                    token_address,
+                    chain_id=chain_id,
+                    pair_address=pair_address,
+                )
             if self._rpc_price_feed is not None:
                 _proto = "pump amm" if "pump amm" in reason.lower() else ""
                 self._rpc_price_feed.subscribe_token(token_address, pool_type=_proto)
