@@ -3423,6 +3423,59 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] hh10_8plus calc err: {_e}")
 
+            # ── vol_velocity_2grn parallel trigger — ENFORCED 2026-05-07 PM ────
+            # Fires when:
+            #   1. Last 2 bars both green (1m_cur and 1m_prev)
+            #   2. Volume strictly increasing over last 3 bars
+            #      (v[-1] > v[-2] > v[-3]) — accelerating, not just spike
+            #   3. Current body_pct >= 2.0%
+            #   4. cur vol / avg(prior 30) >= 1.0x
+            #
+            # Mined from gap analysis: targets FAST_WIN bars that the prior
+            # 18 triggers miss entirely. Velocity is a sequential signal —
+            # vol_spike alone misses tokens with steady ramp.
+            #
+            # Multi-cohort validation (gap-only, uncaptured by 7 reference
+            # triggers):
+            #   +10%/20min cohort: WR=64.1%, +$1.42/trade, n=690, Stop=25.9%
+            #   +15%/60min cohort: WR=65%+, similar profile
+            #   +20%/90min cohort: WR=65%+, similar profile
+            # Highest WR of any 19th-trigger candidate from this round.
+            _trigger_vol_velocity_2grn_match = False
+            _trigger_vol_velocity_2grn_reasons: list = []
+            try:
+                _vv_cs = (_chart_data.candles_1m
+                          if _chart_data and _chart_data.candles_1m else [])
+                if len(_vv_cs) >= 31:
+                    _vv_cur = _vv_cs[-1]
+                    _vv_p1 = _vv_cs[-2]
+                    _vv_p2 = _vv_cs[-3]
+                    if (_vv_cur.open > 0 and _vv_cur.close > _vv_cur.open
+                            and _vv_p1.open > 0 and _vv_p1.close > _vv_p1.open):
+                        _vv_v1 = _vv_cur.volume or 0
+                        _vv_v2 = _vv_p1.volume or 0
+                        _vv_v3 = _vv_p2.volume or 0
+                        if _vv_v1 > _vv_v2 > _vv_v3 > 0:
+                            _vv_body_pct = ((_vv_cur.close - _vv_cur.open)
+                                            / _vv_cur.open * 100)
+                            if _vv_body_pct >= 2.0:
+                                _vv_p30 = _vv_cs[-31:-1]
+                                _vv_vols = [b.volume for b in _vv_p30
+                                            if b.volume is not None]
+                                if _vv_vols:
+                                    _vv_avg = sum(_vv_vols) / len(_vv_vols)
+                                    if _vv_avg > 0 and _vv_v1 / _vv_avg >= 1.0:
+                                        _trigger_vol_velocity_2grn_match = True
+                                        _trigger_vol_velocity_2grn_reasons.append(
+                                            f"vol velocity {_vv_v3:.0f}->"
+                                            f"{_vv_v2:.0f}->{_vv_v1:.0f}, "
+                                            f"body={_vv_body_pct:+.2f}%>=2.0, "
+                                            f"vol={_vv_v1/_vv_avg:.2f}x avg30 "
+                                            f"(accelerating buyers, 2 grn)"
+                                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] vol_velocity_2grn calc err: {_e}")
+
             # ── high_regime parallel trigger — ENFORCED 2026-05-07 PM ──────────
             # Additive trigger that fires on tokens passing all filters during
             # high-regime cycles with positive 1m momentum. Catches tokens
@@ -3500,6 +3553,8 @@ class DipScanner:
                 _triggers_fired.append("hh10_strict_vol")
             if _trigger_hh10_8plus_match:
                 _triggers_fired.append("hh10_8plus")
+            if _trigger_vol_velocity_2grn_match:
+                _triggers_fired.append("vol_velocity_2grn")
 
             if not _triggers_fired:
                 logger.info(
@@ -3546,6 +3601,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_hh10_strict_vol_reasons)
                 if _trigger_hh10_8plus_match:
                     _alt_reasons.extend(_trigger_hh10_8plus_reasons)
+                if _trigger_vol_velocity_2grn_match:
+                    _alt_reasons.extend(_trigger_vol_velocity_2grn_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -4135,6 +4192,9 @@ class DipScanner:
                 # hh10_8plus parallel trigger — ENFORCED 2026-05-07 PM (18th, pure HH-trend no vol gate).
                 "trigger_hh10_8plus_match": _trigger_hh10_8plus_match,
                 "trigger_hh10_8plus_reasons": _trigger_hh10_8plus_reasons,
+                # vol_velocity_2grn parallel trigger — ENFORCED 2026-05-07 PM (19th, vol-velocity gap-mined).
+                "trigger_vol_velocity_2grn_match": _trigger_vol_velocity_2grn_match,
+                "trigger_vol_velocity_2grn_reasons": _trigger_vol_velocity_2grn_reasons,
                 # squeeze_pullback parallel trigger — SHADOW 2026-05-06 (gathering retro).
                 "trigger_squeeze_match": _trigger_squeeze_match,
                 "trigger_squeeze_reasons": _trigger_squeeze_reasons,
