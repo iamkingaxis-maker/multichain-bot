@@ -3499,38 +3499,79 @@ class DipScanner:
             # currently miss, not to gate existing entries. Watch forward
             # data — demote to SHADOW if EV reverses.
             #
-            # Surgical post-pump gate added 2026-05-07 PM after HENTAI
-            # -12% stop (peak_h24=1786%, vol_spike=0.07): block when
-            # token already pumped massively (peak >= 1500%) on dead
-            # entry-bar volume (spike < 0.10x). Lifetime backtest:
-            # catches HENTAI specifically, blocks zero closed winners.
+            # Suppression gates added 2026-05-07 PM after recurring bad
+            # entries on dead-vol downtrend tokens (HENTAI -12% stop, GMAR
+            # repeated, Apple -12%). The base trigger fires too loosely:
+            # regime>=11 AND cum3>=0 lets through tokens with red current
+            # bar + dead volume + sellers winning.
+            #
+            # Two suppression gates (applied as AND-NOT):
+            #   1. post_pump_dead_vol: peak_h24_6h >= 1500% AND vs < 0.10
+            #      Catches "already-pumped + no buyers" cases (HENTAI peak
+            #      1786% vs 0.07, BOBO 18:23 peak 2098 vs 0.07).
+            #   2. seller_dead_vol: vs < 0.30 AND lc < 0
+            #      Catches "current bar red + below-avg volume" cases
+            #      (HENTAI lc=-0.81 vs=0.07, GMAR lc=-0.07 vs=0.25, GMAR
+            #      19:05 lc=-0.026 vs=0.048).
+            #
+            # Lifetime tradeoff (24 historical fires): saves HENTAI -$2.80
+            # and prevents 2-3 GMAR-style entries per session, at cost of
+            # killing Goblin 13:27 (+$3.34) which had lc=-1.29 vs=0.09 but
+            # was actually in a sustained 5m+ uptrend where the 1m red was
+            # consolidation noise. Accepted tradeoff: net -$0.54 on closed
+            # trades, but eliminates the most painful loss pattern.
             _trigger_high_regime_match = False
             _trigger_high_regime_reasons: list = []
             try:
                 _hr_cum3 = m1_features.get("1m_cum_3min_pct")
                 _hr_vs = m1_features.get("1m_volume_spike")
+                _hr_lc = m1_features.get("1m_last_close_pct")
                 _hr_peak = float(peak_h24_6h or 0)
                 _hr_post_pump_dead_vol = (
                     _hr_peak >= 1500
                     and _hr_vs is not None
                     and float(_hr_vs) < 0.10
                 )
+                _hr_seller_dead_vol = (
+                    _hr_vs is not None
+                    and float(_hr_vs) < 0.30
+                    and _hr_lc is not None
+                    and float(_hr_lc) < 0
+                )
+                _hr_suppressed = _hr_post_pump_dead_vol or _hr_seller_dead_vol
                 if (_regime_dip_breadth_pct is not None
                         and _regime_dip_breadth_pct >= 11
                         and _hr_cum3 is not None
                         and float(_hr_cum3) >= 0
-                        and not _hr_post_pump_dead_vol):
+                        and not _hr_suppressed):
                     _trigger_high_regime_match = True
                     _trigger_high_regime_reasons.append(
                         f"regime_dip_breadth={_regime_dip_breadth_pct:.1f}>=11 "
                         f"AND 1m_cum_3min={float(_hr_cum3):+.2f}>=0 "
                         f"(broad-market dip + 1m recovery starting)"
                     )
-                elif _hr_post_pump_dead_vol:
+                elif _hr_suppressed and (
+                    _regime_dip_breadth_pct is not None
+                    and _regime_dip_breadth_pct >= 11
+                    and _hr_cum3 is not None
+                    and float(_hr_cum3) >= 0
+                ):
+                    _why = []
+                    if _hr_post_pump_dead_vol:
+                        _why.append(
+                            f"post-pump-dead-vol "
+                            f"(peak={_hr_peak:.0f}%>=1500 AND "
+                            f"vol_spike={float(_hr_vs):.2f}<0.10)"
+                        )
+                    if _hr_seller_dead_vol:
+                        _why.append(
+                            f"seller-dead-vol "
+                            f"(vol_spike={float(_hr_vs):.2f}<0.30 AND "
+                            f"1m_last_close={float(_hr_lc):+.2f}%<0)"
+                        )
                     logger.info(
-                        f"[DipScanner] high_regime SUPPRESSED post-pump-dead-vol: "
-                        f"{token_symbol} peak={_hr_peak:.0f}%>=1500 "
-                        f"AND vol_spike={float(_hr_vs):.2f}<0.10"
+                        f"[DipScanner] high_regime SUPPRESSED: "
+                        f"{token_symbol} {' AND '.join(_why)}"
                     )
             except Exception as _e:
                 logger.debug(f"[DipScanner] high_regime calc err: {_e}")
