@@ -3302,6 +3302,92 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] range_expansion_qualified err: {_e}")
 
+            # ── 6of7_green_vol parallel trigger — ENFORCED 2026-05-07 PM ───────
+            # Fires when:
+            #   1. Current 1m green
+            #   2. 6 of last 7 1m bars are green (any positions; 1 red OK)
+            #   3. Current vol >= 1.5x avg of last 30 1m bars
+            #
+            # Catches "mostly green sequences" — different from
+            # momentum_continuation (strict 4 consec). Many sustained climbs
+            # have one red wobble bar broken before resuming.
+            #
+            # Validation (fast-mover retro, n=251 tokens):
+            #   n=1708, WR=63.7%, avg=+1.36%, TP=57.5%, Stop=22.9%
+            _trigger_6of7_green_vol_match = False
+            _trigger_6of7_green_vol_reasons: list = []
+            try:
+                _g7_cs = (_chart_data.candles_1m
+                          if _chart_data and _chart_data.candles_1m else [])
+                if len(_g7_cs) >= 31:
+                    _g7_cur = _g7_cs[-1]
+                    if _g7_cur.open > 0 and _g7_cur.close > _g7_cur.open:
+                        _g7_last7 = _g7_cs[-7:]
+                        _g7_greens = sum(
+                            1 for b in _g7_last7
+                            if b.open > 0 and b.close > b.open
+                        )
+                        if _g7_greens >= 6:
+                            _g7_prior30 = _g7_cs[-31:-1]
+                            _g7_vols = [b.volume for b in _g7_prior30
+                                        if b.volume is not None]
+                            if len(_g7_vols) >= 20:
+                                _g7_avg30 = sum(_g7_vols) / len(_g7_vols)
+                                if _g7_avg30 > 0:
+                                    _g7_ratio = _g7_cur.volume / _g7_avg30
+                                    if _g7_ratio >= 1.5:
+                                        _trigger_6of7_green_vol_match = True
+                                        _trigger_6of7_green_vol_reasons.append(
+                                            f"{_g7_greens}/7 green, "
+                                            f"vol={_g7_ratio:.2f}x avg30 "
+                                            f"(mostly-green sequence)"
+                                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 6of7_green_vol calc err: {_e}")
+
+            # ── hh10_strict_vol parallel trigger — ENFORCED 2026-05-07 PM ──────
+            # Fires when:
+            #   1. Current 1m green
+            #   2. 7+ higher-highs in last 10 1m bars
+            #   3. Current vol >= 1.5x avg of last 30 1m bars
+            #
+            # Different mechanism from consec-green triggers — uses HH count
+            # for price-action strength. Catches climbs where greens aren't
+            # strictly consecutive but highs keep stepping up.
+            #
+            # Validation (fast-mover retro):
+            #   n=2304, WR=61.3%, avg=+1.03%, TP=53.0%, Stop=22.4%
+            _trigger_hh10_strict_vol_match = False
+            _trigger_hh10_strict_vol_reasons: list = []
+            try:
+                _hh_cs = (_chart_data.candles_1m
+                          if _chart_data and _chart_data.candles_1m else [])
+                if len(_hh_cs) >= 31:
+                    _hh_cur = _hh_cs[-1]
+                    if _hh_cur.open > 0 and _hh_cur.close > _hh_cur.open:
+                        _hh_last10 = _hh_cs[-10:]
+                        _hh_count = sum(
+                            1 for j in range(1, 10)
+                            if _hh_last10[j].high > _hh_last10[j-1].high
+                        )
+                        if _hh_count >= 7:
+                            _hh_prior30 = _hh_cs[-31:-1]
+                            _hh_vols = [b.volume for b in _hh_prior30
+                                        if b.volume is not None]
+                            if len(_hh_vols) >= 20:
+                                _hh_avg30 = sum(_hh_vols) / len(_hh_vols)
+                                if _hh_avg30 > 0:
+                                    _hh_ratio = _hh_cur.volume / _hh_avg30
+                                    if _hh_ratio >= 1.5:
+                                        _trigger_hh10_strict_vol_match = True
+                                        _trigger_hh10_strict_vol_reasons.append(
+                                            f"{_hh_count}/9 HH in last 10, "
+                                            f"vol={_hh_ratio:.2f}x avg30 "
+                                            f"(stepping-up trend)"
+                                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] hh10_strict_vol calc err: {_e}")
+
             # ── high_regime parallel trigger — ENFORCED 2026-05-07 PM ──────────
             # Additive trigger that fires on tokens passing all filters during
             # high-regime cycles with positive 1m momentum. Catches tokens
@@ -3373,6 +3459,10 @@ class DipScanner:
                 _triggers_fired.append("explosive_break")
             if _trigger_range_expansion_qualified_match:
                 _triggers_fired.append("range_expansion_qualified")
+            if _trigger_6of7_green_vol_match:
+                _triggers_fired.append("6of7_green_vol")
+            if _trigger_hh10_strict_vol_match:
+                _triggers_fired.append("hh10_strict_vol")
 
             if not _triggers_fired:
                 logger.info(
@@ -3413,6 +3503,10 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_explosive_break_reasons)
                 if _trigger_range_expansion_qualified_match:
                     _alt_reasons.extend(_trigger_range_expansion_qualified_reasons)
+                if _trigger_6of7_green_vol_match:
+                    _alt_reasons.extend(_trigger_6of7_green_vol_reasons)
+                if _trigger_hh10_strict_vol_match:
+                    _alt_reasons.extend(_trigger_hh10_strict_vol_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -3993,6 +4087,12 @@ class DipScanner:
                 # range_expansion_qualified parallel trigger — ENFORCED 2026-05-07 PM (15th, single-TF deep expansion).
                 "trigger_range_expansion_qualified_match": _trigger_range_expansion_qualified_match,
                 "trigger_range_expansion_qualified_reasons": _trigger_range_expansion_qualified_reasons,
+                # 6of7_green_vol parallel trigger — ENFORCED 2026-05-07 PM (16th, mostly-green sequence).
+                "trigger_6of7_green_vol_match": _trigger_6of7_green_vol_match,
+                "trigger_6of7_green_vol_reasons": _trigger_6of7_green_vol_reasons,
+                # hh10_strict_vol parallel trigger — ENFORCED 2026-05-07 PM (17th, HH-based trend strength).
+                "trigger_hh10_strict_vol_match": _trigger_hh10_strict_vol_match,
+                "trigger_hh10_strict_vol_reasons": _trigger_hh10_strict_vol_reasons,
                 # squeeze_pullback parallel trigger — SHADOW 2026-05-06 (gathering retro).
                 "trigger_squeeze_match": _trigger_squeeze_match,
                 "trigger_squeeze_reasons": _trigger_squeeze_reasons,
