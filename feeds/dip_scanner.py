@@ -3107,6 +3107,45 @@ class DipScanner:
                     f"{token_symbol} {','.join(_trigger_decay5_reasons)}"
                 )
 
+            # ── high_regime parallel trigger — ENFORCED 2026-05-07 PM ──────────
+            # Additive trigger that fires on tokens passing all filters during
+            # high-regime cycles with positive 1m momentum. Catches tokens
+            # currently logged as "BLOCKED by all triggers" — i.e., tokens
+            # that pass every entry-quality filter but don't match any candle
+            # pattern.
+            #
+            # Fires when:
+            #   1. regime_dip_breadth_pct >= 11 (broad market in pullback;
+            #      bot's mean-reversion edge works at peak)
+            #   2. 1m_cum_3min_pct >= 0 (1m already starting to recover)
+            #
+            # Validation (4 days, n=94 with regime feature):
+            #   - Cohort hi_regime+pos_cum3: n=9, avg=$+1.26/trade, big-win 56%
+            #   - Same cohort in low regime: n=20, avg=$-0.53 (FOME-trap)
+            #   - $1.79/trade conditional swing — strongest single feature
+            #     conditioning in the data
+            #
+            # Caveats: small sample (n=9 historical matches); fire rate is
+            # narrow. Goal is to ADD entries on quality candidates we
+            # currently miss, not to gate existing entries. Watch forward
+            # data — demote to SHADOW if EV reverses.
+            _trigger_high_regime_match = False
+            _trigger_high_regime_reasons: list = []
+            try:
+                _hr_cum3 = m1_features.get("1m_cum_3min_pct")
+                if (_regime_dip_breadth_pct is not None
+                        and _regime_dip_breadth_pct >= 11
+                        and _hr_cum3 is not None
+                        and float(_hr_cum3) >= 0):
+                    _trigger_high_regime_match = True
+                    _trigger_high_regime_reasons.append(
+                        f"regime_dip_breadth={_regime_dip_breadth_pct:.1f}>=11 "
+                        f"AND 1m_cum_3min={float(_hr_cum3):+.2f}>=0 "
+                        f"(broad-market dip + 1m recovery starting)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] high_regime calc err: {_e}")
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _filter_clean_break_verdict == "PASS":
@@ -3131,6 +3170,8 @@ class DipScanner:
                 _triggers_fired.append("range_decay_4of5")
             if _trigger_coiltv_match:
                 _triggers_fired.append("coil_top_vol")
+            if _trigger_high_regime_match:
+                _triggers_fired.append("high_regime")
 
             if not _triggers_fired:
                 logger.info(
@@ -3163,6 +3204,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_decay4of5_reasons)
                 if _trigger_coiltv_match:
                     _alt_reasons.extend(_trigger_coiltv_reasons)
+                if _trigger_high_regime_match:
+                    _alt_reasons.extend(_trigger_high_regime_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -3731,6 +3774,9 @@ class DipScanner:
                 # decay_5bar parallel trigger — SHADOW 2026-05-07 (gathering forward retro on 87.5% WR signal).
                 "trigger_decay5_match": _trigger_decay5_match,
                 "trigger_decay5_reasons": _trigger_decay5_reasons,
+                # high_regime parallel trigger — ENFORCED 2026-05-07 PM (12th, regime+momentum gate).
+                "trigger_high_regime_match": _trigger_high_regime_match,
+                "trigger_high_regime_reasons": _trigger_high_regime_reasons,
                 # squeeze_pullback parallel trigger — SHADOW 2026-05-06 (gathering retro).
                 "trigger_squeeze_match": _trigger_squeeze_match,
                 "trigger_squeeze_reasons": _trigger_squeeze_reasons,
