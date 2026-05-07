@@ -3164,6 +3164,144 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] momentum_continuation calc err: {_e}")
 
+            # ── explosive_break parallel trigger — ENFORCED 2026-05-07 PM ──────
+            # Fires when ALL FOUR:
+            #   1. Current 1m green
+            #   2. 1m range >= 4x avg of last 5 bars (explosive expansion)
+            #   3. 5m vol >= 4x avg of prior 5 5m bars (volume confirmation)
+            #   4. 3+ consec green 5m bars (5m TF momentum confirmed)
+            #   5. 1m cum_3min_pct >= +1% (already recovering on 1m)
+            #
+            # Tightened version of the threshold sweep — highest WR (66.7%)
+            # of any tested variant on the fast-mover cohort.
+            #
+            # Validation (fast-mover retro, n=251 tokens with >=10% in 20min):
+            #   n=99 fires, WR=66.7%, avg=+1.53%, TP1=39.4%, Stop=16.2%
+            #   Lowest stop rate of any tested variant (high conviction).
+            #
+            # Catches explosive multi-timeframe breakouts where 1m, 5m, and
+            # vol all confirm simultaneously. Different mechanism from
+            # momentum_continuation (which is 1m-only).
+            _trigger_explosive_break_match = False
+            _trigger_explosive_break_reasons: list = []
+            try:
+                _eb_cs1 = (_chart_data.candles_1m
+                           if _chart_data and _chart_data.candles_1m else [])
+                _eb_cs5 = (_chart_data.candles_5m
+                           if _chart_data and _chart_data.candles_5m else [])
+                if (len(_eb_cs1) >= 6 and len(_eb_cs5) >= 6):
+                    _eb_cur1 = _eb_cs1[-1]
+                    if _eb_cur1.open > 0 and _eb_cur1.close > _eb_cur1.open:
+                        # 1m range expansion: >= 4x avg of last 5 bars
+                        _eb_cur_range = (_eb_cur1.high - _eb_cur1.low) / _eb_cur1.open * 100
+                        _eb_last5_ranges = [
+                            (b.high - b.low) / b.open * 100
+                            for b in _eb_cs1[-6:-1] if b.open > 0
+                        ]
+                        if len(_eb_last5_ranges) == 5:
+                            _eb_avg5_range = sum(_eb_last5_ranges) / 5
+                            if _eb_avg5_range > 0:
+                                _eb_range_ratio = _eb_cur_range / _eb_avg5_range
+                                # 1m cum_3min_pct
+                                _eb_cum3 = m1_features.get("1m_cum_3min_pct")
+                                # 5m TF
+                                _eb_cur5 = _eb_cs5[-1]
+                                _eb_consec_g5 = 0
+                                for b in reversed(_eb_cs5[-5:]):
+                                    if b.close > b.open:
+                                        _eb_consec_g5 += 1
+                                    else:
+                                        break
+                                # 5m vol spike vs prior 5
+                                _eb_prior5m_vols = [
+                                    b.volume for b in _eb_cs5[-6:-1]
+                                    if b.volume is not None
+                                ]
+                                if (_eb_range_ratio >= 4.0
+                                        and _eb_cur5.open > 0
+                                        and _eb_cur5.close > _eb_cur5.open
+                                        and _eb_consec_g5 >= 3
+                                        and len(_eb_prior5m_vols) == 5):
+                                    _eb_avg5m_vol = sum(_eb_prior5m_vols) / 5
+                                    if _eb_avg5m_vol > 0:
+                                        _eb_5m_vol_ratio = (_eb_cur5.volume
+                                                             / _eb_avg5m_vol)
+                                        if (_eb_5m_vol_ratio >= 4.0
+                                                and _eb_cum3 is not None
+                                                and float(_eb_cum3) >= 1.0):
+                                            _trigger_explosive_break_match = True
+                                            _trigger_explosive_break_reasons.append(
+                                                f"1m_range={_eb_range_ratio:.1f}x avg5, "
+                                                f"5m_vol={_eb_5m_vol_ratio:.1f}x avg5, "
+                                                f"5m_consec_green={_eb_consec_g5}, "
+                                                f"1m_cum3={float(_eb_cum3):+.2f}%"
+                                            )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] explosive_break calc err: {_e}")
+
+            # ── range_expansion_qualified parallel trigger — ENFORCED 2026-05-07 PM
+            # Fires when ALL FOUR:
+            #   1. Current 1m green
+            #   2. 1m range >= 6x avg of last 5 bars (deeply explosive)
+            #   3. Current vol >= 2x avg of last 30 bars (vol confirmation)
+            #   4. 1m cum_3min_pct >= +1% (active recovery)
+            #   5. 3+ higher-highs in last 5 bars (price-action momentum)
+            #
+            # Validation (fast-mover retro):
+            #   n=568 fires, WR=60.4%, avg=+1.27%, TP1=49.3%, Stop=17.3%
+            #   Higher fire count than explosive_break, slightly lower WR.
+            #
+            # Wider 1m signal — doesn't require 5m TF alignment, just
+            # very strong 1m candle expansion. Complements explosive_break.
+            _trigger_range_expansion_qualified_match = False
+            _trigger_range_expansion_qualified_reasons: list = []
+            try:
+                _re_cs = (_chart_data.candles_1m
+                          if _chart_data and _chart_data.candles_1m else [])
+                if len(_re_cs) >= 31:
+                    _re_cur = _re_cs[-1]
+                    if _re_cur.open > 0 and _re_cur.close > _re_cur.open:
+                        _re_cur_range = (_re_cur.high - _re_cur.low) / _re_cur.open * 100
+                        _re_last5_ranges = [
+                            (b.high - b.low) / b.open * 100
+                            for b in _re_cs[-6:-1] if b.open > 0
+                        ]
+                        if len(_re_last5_ranges) == 5:
+                            _re_avg5_range = sum(_re_last5_ranges) / 5
+                            if _re_avg5_range > 0:
+                                _re_range_ratio = _re_cur_range / _re_avg5_range
+                                # vol vs 30-bar avg
+                                _re_prior30_vols = [
+                                    b.volume for b in _re_cs[-31:-1]
+                                    if b.volume is not None
+                                ]
+                                _re_cum3 = m1_features.get("1m_cum_3min_pct")
+                                # higher-highs
+                                _re_last5_bars = _re_cs[-5:]
+                                _re_hh = sum(
+                                    1 for j in range(1, 5)
+                                    if _re_last5_bars[j].high > _re_last5_bars[j-1].high
+                                )
+                                if (_re_range_ratio >= 6.0
+                                        and len(_re_prior30_vols) >= 25):
+                                    _re_avg30_vol = (sum(_re_prior30_vols)
+                                                      / len(_re_prior30_vols))
+                                    if _re_avg30_vol > 0:
+                                        _re_vol_ratio = _re_cur.volume / _re_avg30_vol
+                                        if (_re_vol_ratio >= 2.0
+                                                and _re_cum3 is not None
+                                                and float(_re_cum3) >= 1.0
+                                                and _re_hh >= 3):
+                                            _trigger_range_expansion_qualified_match = True
+                                            _trigger_range_expansion_qualified_reasons.append(
+                                                f"range={_re_range_ratio:.1f}x avg5, "
+                                                f"vol={_re_vol_ratio:.1f}x avg30, "
+                                                f"cum3={float(_re_cum3):+.2f}%, "
+                                                f"hh={_re_hh}"
+                                            )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] range_expansion_qualified err: {_e}")
+
             # ── high_regime parallel trigger — ENFORCED 2026-05-07 PM ──────────
             # Additive trigger that fires on tokens passing all filters during
             # high-regime cycles with positive 1m momentum. Catches tokens
@@ -3231,6 +3369,10 @@ class DipScanner:
                 _triggers_fired.append("high_regime")
             if _trigger_momentum_continuation_match:
                 _triggers_fired.append("momentum_continuation")
+            if _trigger_explosive_break_match:
+                _triggers_fired.append("explosive_break")
+            if _trigger_range_expansion_qualified_match:
+                _triggers_fired.append("range_expansion_qualified")
 
             if not _triggers_fired:
                 logger.info(
@@ -3267,6 +3409,10 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_high_regime_reasons)
                 if _trigger_momentum_continuation_match:
                     _alt_reasons.extend(_trigger_momentum_continuation_reasons)
+                if _trigger_explosive_break_match:
+                    _alt_reasons.extend(_trigger_explosive_break_reasons)
+                if _trigger_range_expansion_qualified_match:
+                    _alt_reasons.extend(_trigger_range_expansion_qualified_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -3841,6 +3987,12 @@ class DipScanner:
                 # momentum_continuation parallel trigger — ENFORCED 2026-05-07 PM (13th, fast-mover continuation).
                 "trigger_momentum_continuation_match": _trigger_momentum_continuation_match,
                 "trigger_momentum_continuation_reasons": _trigger_momentum_continuation_reasons,
+                # explosive_break parallel trigger — ENFORCED 2026-05-07 PM (14th, multi-TF explosive).
+                "trigger_explosive_break_match": _trigger_explosive_break_match,
+                "trigger_explosive_break_reasons": _trigger_explosive_break_reasons,
+                # range_expansion_qualified parallel trigger — ENFORCED 2026-05-07 PM (15th, single-TF deep expansion).
+                "trigger_range_expansion_qualified_match": _trigger_range_expansion_qualified_match,
+                "trigger_range_expansion_qualified_reasons": _trigger_range_expansion_qualified_reasons,
                 # squeeze_pullback parallel trigger — SHADOW 2026-05-06 (gathering retro).
                 "trigger_squeeze_match": _trigger_squeeze_match,
                 "trigger_squeeze_reasons": _trigger_squeeze_reasons,

@@ -155,7 +155,7 @@ class Config:
     # ── Dip Buyer ────────────────────────────────────────────────
     dip_scanner_enabled: bool = True  # 118 trades, 52% WR, +$574 P&L — proven profitable strategy
     dip_position_usd: float = 500.0        # Fixed position size
-    dip_min_mcap: float = 1_000_000        # $1M minimum mcap
+    dip_min_mcap: float = 100_000          # $100k minimum mcap — lowered from $250k Railway env on 2026-05-07 PM. Master fast-mover cohort profile showed 32% of fast-bouncers fall below $250k; lowering unlocks them. Bot's mature filters (rugcheck, lp_locked, dev_dumping, big_trade_size) cover the additional micro-cap risk.
     dip_max_mcap: float = 100_000_000      # $100M max FDV — excludes BONK/PUMP-tier large caps that don't bounce
     dip_min_age_days: float = 0.0          # No age floor — other filters (bs_h6, turnover, vol-decay) do structural protection. Still blocks tokens with missing pairCreatedAt.
     dip_min_volume_h24: float = 200_000    # $200k minimum 24h volume
