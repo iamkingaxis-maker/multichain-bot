@@ -2756,6 +2756,52 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] engulflow calc err: {_e}")
 
+            # ── hc4_6pct parallel trigger — ENFORCED 2026-05-07 ────────────────
+            # Fires when ALL TWO:
+            #   1. cons_HC_4 — 4 consecutive higher CLOSES in bars[-5..-1]
+            #      (each bar's close > prior bar's close, strictly monotonic)
+            #   2. Current bar GREEN with body > 6% of open
+            #
+            # The discovery breakthrough of 2026-05-06: HL_k OR HC_k regime
+            # detector (k≥4 strict monotonic) + power-green body is a robust
+            # trigger class. The 6% body threshold is the precision sweet spot
+            # — body Pareto is monotonic up to 6%, with diminishing returns
+            # beyond.
+            #
+            # Validator (scripts/validate_trigger.py) of ~30 candidates in the
+            # class — hc4_6pct was the dollar-sum champion:
+            #   - Sim trigger_only: n=160, 57.7% WR, +0.69%/trade, +$110
+            #   - Retro on bot pairs: n=7 NEW, 71.4% WR, +6.37%/trade, +$45
+            #     CDsvrN5KXi: 3 wins (+12.80, +12.80, +12.80), 1 loss
+            #     35Lod8esDj: 1 win (+12.80)
+            #
+            # Mechanism: HC_4 (4 sequential higher closes) is a regime detector
+            # that structurally cannot fire during cascading declines (which
+            # have falling closes). The 6% body filter requires a power-thrust
+            # candle, screening out weak bounces that produce -12% stops.
+            _trigger_hc46_match = False
+            _trigger_hc46_reasons: list = []
+            try:
+                _hc_cs = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                if len(_hc_cs) >= 5 and _hc_cs[-1].open > 0:
+                    _hc_cur = _hc_cs[-1]
+                    if _hc_cur.close > _hc_cur.open:  # green
+                        _hc_body_pct = ((_hc_cur.close - _hc_cur.open)
+                                        / _hc_cur.open * 100)
+                        if _hc_body_pct > 6:
+                            # cons_HC_4: closes monotonically rising over last 5 bars
+                            _hc_closes = [_hc_cs[-k].close for k in (5, 4, 3, 2, 1)]
+                            if (_hc_closes[0] < _hc_closes[1]
+                                    < _hc_closes[2] < _hc_closes[3]
+                                    < _hc_closes[4]):
+                                _trigger_hc46_match = True
+                                _trigger_hc46_reasons.append(
+                                    f"HC_4 (4 higher closes), "
+                                    f"body={_hc_body_pct:.2f}%"
+                                )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] hc46 calc err: {_e}")
+
             # ── squeeze_pullback parallel trigger — SHADOW 2026-05-06 ──────────
             # SHADOW MODE: computed and logged but NOT in _triggers_fired.
             # Gathering retro data before enforcement.
@@ -2824,6 +2870,8 @@ class DipScanner:
                 _triggers_fired.append("capit_v")
             if _trigger_engulflow_match:
                 _triggers_fired.append("engulf_low")
+            if _trigger_hc46_match:
+                _triggers_fired.append("hc4_6pct")
 
             if not _triggers_fired:
                 logger.info(
@@ -2846,6 +2894,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_capitv_reasons)
                 if _trigger_engulflow_match:
                     _alt_reasons.extend(_trigger_engulflow_reasons)
+                if _trigger_hc46_match:
+                    _alt_reasons.extend(_trigger_hc46_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -3264,6 +3314,9 @@ class DipScanner:
                 # engulf_at_low parallel trigger — ENFORCED 2026-05-06 (engulf+breakout).
                 "trigger_engulflow_match": _trigger_engulflow_match,
                 "trigger_engulflow_reasons": _trigger_engulflow_reasons,
+                # hc4_6pct parallel trigger — ENFORCED 2026-05-07 (HC class champion).
+                "trigger_hc46_match": _trigger_hc46_match,
+                "trigger_hc46_reasons": _trigger_hc46_reasons,
                 # squeeze_pullback parallel trigger — SHADOW 2026-05-06 (gathering retro).
                 "trigger_squeeze_match": _trigger_squeeze_match,
                 "trigger_squeeze_reasons": _trigger_squeeze_reasons,
