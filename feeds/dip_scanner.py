@@ -3498,19 +3498,39 @@ class DipScanner:
             # narrow. Goal is to ADD entries on quality candidates we
             # currently miss, not to gate existing entries. Watch forward
             # data — demote to SHADOW if EV reverses.
+            #
+            # Surgical post-pump gate added 2026-05-07 PM after HENTAI
+            # -12% stop (peak_h24=1786%, vol_spike=0.07): block when
+            # token already pumped massively (peak >= 1500%) on dead
+            # entry-bar volume (spike < 0.10x). Lifetime backtest:
+            # catches HENTAI specifically, blocks zero closed winners.
             _trigger_high_regime_match = False
             _trigger_high_regime_reasons: list = []
             try:
                 _hr_cum3 = m1_features.get("1m_cum_3min_pct")
+                _hr_vs = m1_features.get("1m_volume_spike")
+                _hr_peak = float(peak_h24_6h or 0)
+                _hr_post_pump_dead_vol = (
+                    _hr_peak >= 1500
+                    and _hr_vs is not None
+                    and float(_hr_vs) < 0.10
+                )
                 if (_regime_dip_breadth_pct is not None
                         and _regime_dip_breadth_pct >= 11
                         and _hr_cum3 is not None
-                        and float(_hr_cum3) >= 0):
+                        and float(_hr_cum3) >= 0
+                        and not _hr_post_pump_dead_vol):
                     _trigger_high_regime_match = True
                     _trigger_high_regime_reasons.append(
                         f"regime_dip_breadth={_regime_dip_breadth_pct:.1f}>=11 "
                         f"AND 1m_cum_3min={float(_hr_cum3):+.2f}>=0 "
                         f"(broad-market dip + 1m recovery starting)"
+                    )
+                elif _hr_post_pump_dead_vol:
+                    logger.info(
+                        f"[DipScanner] high_regime SUPPRESSED post-pump-dead-vol: "
+                        f"{token_symbol} peak={_hr_peak:.0f}%>=1500 "
+                        f"AND vol_spike={float(_hr_vs):.2f}<0.10"
                     )
             except Exception as _e:
                 logger.debug(f"[DipScanner] high_regime calc err: {_e}")
