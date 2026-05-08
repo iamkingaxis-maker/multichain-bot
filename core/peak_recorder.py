@@ -201,7 +201,12 @@ class PeakRecorder:
 
     def __init__(self, output_dir: str = None, weights: Dict[str, float] = None,
                  shadow_threshold: float = SHADOW_THRESHOLD):
-        self.output_dir = Path(output_dir or r'C:\Users\jcole\multichain-bot\.live_traces')
+        # On Railway, DATA_DIR points to persistent volume /data. Locally,
+        # falls back to .live_traces in repo root.
+        if output_dir is None:
+            data_dir = os.environ.get('DATA_DIR', '.')
+            output_dir = os.path.join(data_dir, 'live_traces')
+        self.output_dir = Path(output_dir)
         try:
             self.output_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:

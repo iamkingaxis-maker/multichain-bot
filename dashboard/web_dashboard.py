@@ -1607,6 +1607,8 @@ class WebDashboard:
         self.app.router.add_post("/api/reset-daily-pnl",     self._handle_reset_daily_pnl)
         self.app.router.add_get("/api/closed-positions",   self._handle_closed_positions)
         self.app.router.add_get("/api/mc-recommendations", self._handle_mc_recommendations)
+        self.app.router.add_get("/api/peak-traces",        self._handle_peak_traces)
+        self.app.router.add_get("/api/peak-traces/{name}", self._handle_peak_trace_one)
         self.app.router.add_post("/api/pause",              self._handle_pause)
         self.app.router.add_post("/api/resume",             self._handle_resume)
         self.app.router.add_get("/api/strategies",          self._handle_strategies)
@@ -2220,6 +2222,59 @@ class WebDashboard:
                 return web.Response(text=json.dumps({"error": str(e)}),
                                     status=500, content_type="application/json", headers=cors)
         return web.Response(text=json.dumps(rows), content_type="application/json", headers=cors)
+
+    async def _handle_peak_traces(self, request):
+        """GET /api/peak-traces — list peak recorder trace files written by
+        the live position recorder. Returns array of {name, size, mtime, tok}.
+        """
+        import os as _os
+        cors = {"Access-Control-Allow-Origin": "*"}
+        data_dir = _os.environ.get('DATA_DIR', '.')
+        traces_dir = _os.path.join(data_dir, 'live_traces')
+        out = []
+        if _os.path.isdir(traces_dir):
+            for name in sorted(_os.listdir(traces_dir)):
+                if not name.endswith('.json'):
+                    continue
+                full = _os.path.join(traces_dir, name)
+                try:
+                    st = _os.stat(full)
+                    out.append({
+                        'name': name,
+                        'size': st.st_size,
+                        'mtime': st.st_mtime,
+                    })
+                except Exception:
+                    continue
+        return web.Response(text=json.dumps(out),
+                            content_type="application/json", headers=cors)
+
+    async def _handle_peak_trace_one(self, request):
+        """GET /api/peak-traces/{name} — return raw JSON of one trace."""
+        import os as _os
+        cors = {"Access-Control-Allow-Origin": "*"}
+        name = request.match_info.get('name', '')
+        # safety: only allow letters, digits, underscores, dashes, dots
+        import re as _re
+        if not _re.match(r'^[A-Za-z0-9._-]+$', name):
+            return web.Response(text=json.dumps({"error": "bad name"}),
+                                status=400, content_type="application/json",
+                                headers=cors)
+        data_dir = _os.environ.get('DATA_DIR', '.')
+        path = _os.path.join(data_dir, 'live_traces', name)
+        if not _os.path.exists(path):
+            return web.Response(text=json.dumps({"error": "not found"}),
+                                status=404, content_type="application/json",
+                                headers=cors)
+        try:
+            with open(path) as fh:
+                content = fh.read()
+            return web.Response(text=content, content_type="application/json",
+                                headers=cors)
+        except Exception as e:
+            return web.Response(text=json.dumps({"error": str(e)}),
+                                status=500, content_type="application/json",
+                                headers=cors)
 
     async def _handle_mc_recommendations(self, request):
         """GET /api/mc-recommendations — micro-caps seen but not bought."""
