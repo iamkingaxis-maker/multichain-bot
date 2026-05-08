@@ -3584,21 +3584,45 @@ class DipScanner:
                 _hr_cum3 = m1_features.get("1m_cum_3min_pct")
                 _hr_vs = m1_features.get("1m_volume_spike")
                 _hr_dev = _tier1_features.get("dev_pct_remaining")
+                # mtf_vol_align gate added 2026-05-08 PM after 4 high_regime
+                # losers in 22min (UAP, AMERICA, Clawd-3rd, UAP-rebuy), all
+                # with mtfva=0. Validation: catches 3/3 today's losers,
+                # preserves GAYTES (mtfva=2) and AALIEN (mtfva=1). Lifetime
+                # pure-HR cohort swing -$51.74 -> +$0.11 (+$51.85), CV-stable.
+                _cs1_hr = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                _cs5_hr = _chart_data.candles_5m if _chart_data and _chart_data.candles_5m else []
+                _cs15_hr = _chart_data.candles_15m if _chart_data and _chart_data.candles_15m else []
+
+                def _hr_vol_spike(series):
+                    if not series or len(series) < 4:
+                        return False
+                    prior = [k.volume for k in series[-5:-1]]
+                    if not prior:
+                        return False
+                    avg = sum(prior) / len(prior)
+                    return avg > 0 and series[-1].volume / avg > 1.0
+
+                _hr_mtfva = (int(_hr_vol_spike(_cs1_hr))
+                             + int(_hr_vol_spike(_cs5_hr))
+                             + int(_hr_vol_spike(_cs15_hr)))
+
                 _hr_vs_ok = _hr_vs is not None and float(_hr_vs) >= 0.5
                 _hr_dev_ok = _hr_dev is not None and float(_hr_dev) >= 2.0
+                _hr_mtfva_ok = _hr_mtfva >= 1
                 _hr_base_ok = (
                     _regime_dip_breadth_pct is not None
                     and _regime_dip_breadth_pct >= 11
                     and _hr_cum3 is not None
                     and float(_hr_cum3) >= 0
                 )
-                if _hr_base_ok and _hr_vs_ok and _hr_dev_ok:
+                if _hr_base_ok and _hr_vs_ok and _hr_dev_ok and _hr_mtfva_ok:
                     _trigger_high_regime_match = True
                     _trigger_high_regime_reasons.append(
                         f"regime_dip_breadth={_regime_dip_breadth_pct:.1f}>=11 "
                         f"AND 1m_cum_3min={float(_hr_cum3):+.2f}>=0 "
                         f"AND vol_spike={float(_hr_vs):.2f}>=0.5 "
-                        f"AND dev_pct={float(_hr_dev):.1f}%>=2.0"
+                        f"AND dev_pct={float(_hr_dev):.1f}%>=2.0 "
+                        f"AND mtf_vol_align={_hr_mtfva}>=1"
                     )
                 elif _hr_base_ok:
                     _why = []
@@ -3610,6 +3634,8 @@ class DipScanner:
                         _dev_str = (f"{float(_hr_dev):.1f}%"
                                     if _hr_dev is not None else "missing")
                         _why.append(f"dev_pct={_dev_str}<2.0")
+                    if not _hr_mtfva_ok:
+                        _why.append(f"mtf_vol_align={_hr_mtfva}<1 (no tf vol spike)")
                     logger.info(
                         f"[DipScanner] high_regime SUPPRESSED: "
                         f"{token_symbol} {' AND '.join(_why)}"
