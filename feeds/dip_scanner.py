@@ -2117,6 +2117,50 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] chart_reader error: {_e}")
 
+            # Filter vp_poc_above — ENFORCED 2026-05-08.
+            # Catches the "entry above POC" pattern: when chart_vp_poc_distance_pct
+            # > 0, the entry price sits ABOVE the volume profile point of control.
+            # That means the heaviest volume traded BELOW current price — the bot
+            # is chasing, not buying a dip. Real dips have entry BELOW the recent
+            # volume center.
+            #
+            # Trigger evidence overnight 2026-05-08: 22 of 36 losers had vp_poc>0
+            # (conviction +337/+364/+280, UFO +106/+79, ROFL +1892, MV +1327,
+            # CHUD +67/+43, etc.). Visual chart analysis confirmed every vp_poc>0
+            # entry was post-pump distribution; vp_poc<0 entries were genuine
+            # V-recoveries (CHONKERS, KIDO scalps, SELLOR).
+            #
+            # Methodology: Cohen's d feature scan showed vp_poc as the most
+            # discriminating chart-derived feature (winners median -6.0% / losers
+            # median +3.2%, diff -9.2pp).
+            #
+            # Lifetime validation (held-out, n=946 trades pre-overnight): BLOCK
+            # 254 (111W/143L) -$112.34, kept 692 (396W/296L) +$1705.41 / 57% WR
+            # (vs 54% baseline). ZERO big winners (>$10) killed lifetime. 1
+            # mid-winner ($5-10) killed ($+5.02). Overnight in-sample: blocks
+            # 30, kept cohort -$49.25 -> +$0.42 / 58% WR.
+            #
+            # Fail-open if chart_vp_poc_distance_pct missing (chart_reader
+            # exception or no volume profile data — feature populated in 53%
+            # of trades). The chart_ctx try block above already handles errors.
+            _vp_poc_dist = _chart_ctx_dict.get("chart_vp_poc_distance_pct")
+            _filter_vp_poc_block_reasons: list = []
+            if _vp_poc_dist is not None and _vp_poc_dist > 0:
+                _filter_vp_poc_block_reasons.append(
+                    f"chart_vp_poc_distance_pct={_vp_poc_dist:+.1f}%>0 "
+                    f"(entry above volume POC = chasing, not dipping)"
+                )
+            _filter_vp_poc_verdict = "BLOCK" if _filter_vp_poc_block_reasons else "PASS"
+            c[f"filter_vp_poc_{_filter_vp_poc_verdict.lower()}"] = c.get(
+                f"filter_vp_poc_{_filter_vp_poc_verdict.lower()}", 0
+            ) + 1
+            if _filter_vp_poc_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_vp_poc: {token_symbol} "
+                    f"reasons={','.join(_filter_vp_poc_block_reasons)}"
+                )
+                continue
+
             # ── Note: filter_combo enforcement moved to core/trader.py ──
             # The Pareto-best 50%-block combo from filter_combo_pareto.py
             # requires lp_locked_pct, which is only fetched post-rugcheck
@@ -4260,6 +4304,9 @@ class DipScanner:
                 # filter_fake_bounce — enforced 1m fake-bounce gate.
                 "filter_fake_bounce_verdict": _filter_fake_bounce_verdict,
                 "filter_fake_bounce_block_reasons": _filter_fake_bounce_block_reasons,
+                # filter_vp_poc — enforced "entry above POC" gate.
+                "filter_vp_poc_verdict": _filter_vp_poc_verdict,
+                "filter_vp_poc_block_reasons": _filter_vp_poc_block_reasons,
                 # filter_turn — DOWNGRADED to shadow 2026-05-05 PM.
                 "filter_turn_verdict": _filter_turn_verdict,
                 "filter_turn_block_reasons": _filter_turn_block_reasons,
@@ -4475,6 +4522,7 @@ class DipScanner:
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
                 "filter_corpse_block", "filter_fake_bounce_block", "filter_fofar_block",
+                "filter_vp_poc_block",
                 "filter_two_pattern_block",
                 # 4 SHADOW filters added 2026-05-05 — counters only, no enforcement.
                 "filter_weak_bounce_block", "filter_slip_asym_block",
