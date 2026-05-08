@@ -2117,38 +2117,54 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] chart_reader error: {_e}")
 
-            # Filter vp_poc_above — ENFORCED 2026-05-08.
-            # Catches the "entry above POC" pattern: when chart_vp_poc_distance_pct
-            # > 0, the entry price sits ABOVE the volume profile point of control.
-            # That means the heaviest volume traded BELOW current price — the bot
-            # is chasing, not buying a dip. Real dips have entry BELOW the recent
-            # volume center.
+            # Filter vp_poc_above — ENFORCED 2026-05-08, refined 2026-05-08 PM.
+            # Catches the "entry above POC on dead volume" pattern: when
+            # chart_vp_poc_distance_pct > 0 AND 1m_volume_spike < 1.0, the
+            # entry price sits ABOVE the volume profile point of control AND
+            # current 1m volume is below trailing average. That means the bot
+            # is chasing into thin air — the heaviest volume traded BELOW
+            # current price, and there's no real buying happening NOW. Real
+            # dips have entry BELOW volume center; legitimate above-POC entries
+            # have a real volume spike confirming active interest (TrackHanta
+            # vs=1.24, CHILLGUY vs=1.27, CHONKERS vs=4.53/8.28 — all winners).
             #
             # Trigger evidence overnight 2026-05-08: 22 of 36 losers had vp_poc>0
             # (conviction +337/+364/+280, UFO +106/+79, ROFL +1892, MV +1327,
             # CHUD +67/+43, etc.). Visual chart analysis confirmed every vp_poc>0
-            # entry was post-pump distribution; vp_poc<0 entries were genuine
-            # V-recoveries (CHONKERS, KIDO scalps, SELLOR).
+            # loser was post-pump distribution. The original "vp_poc>0" filter
+            # initially blocked some legitimate active-volume breakouts; the
+            # vs<1.0 second condition cleanly carves them out.
             #
             # Methodology: Cohen's d feature scan showed vp_poc as the most
-            # discriminating chart-derived feature (winners median -6.0% / losers
-            # median +3.2%, diff -9.2pp).
+            # discriminating chart-derived feature (winners median -6.0% /
+            # losers median +3.2%). Within the vp_poc>0 sub-cohort, winners
+            # had real 1m volume (vs >= 1.0 carved 35W/26L = 57% WR / +$12.81)
+            # while losers traded on dead volume.
             #
-            # Lifetime validation (held-out, n=946 trades pre-overnight): BLOCK
-            # 254 (111W/143L) -$112.34, kept 692 (396W/296L) +$1705.41 / 57% WR
-            # (vs 54% baseline). ZERO big winners (>$10) killed lifetime. 1
-            # mid-winner ($5-10) killed ($+5.02). Overnight in-sample: blocks
-            # 30, kept cohort -$49.25 -> +$0.42 / 58% WR.
+            # Lifetime validation (held-out, n=946):
+            #   ORIGINAL vp_poc>0:           blocks 254, swing +$112.34,
+            #                                0 big winners killed
+            #   REFINED vp_poc>0 AND vs<1.0: blocks 223 (84W/139L $-169.59),
+            #                                kept cohort 57% WR, swing +$169.59
+            # Refinement +$57.25 better lifetime — un-blocks 61 trades that
+            # are net +$12.81 (legitimate active-volume breakouts).
             #
             # Fail-open if chart_vp_poc_distance_pct missing (chart_reader
-            # exception or no volume profile data — feature populated in 53%
-            # of trades). The chart_ctx try block above already handles errors.
+            # exception or no volume profile data — feature populated in
+            # 53% of trades) OR if 1m_volume_spike missing (1m fetch failed).
+            # The chart_ctx try block above handles chart errors; m1_features
+            # comes from the existing 1m fetch upstream.
             _vp_poc_dist = _chart_ctx_dict.get("chart_vp_poc_distance_pct")
+            _vp_poc_vs = m1_features.get("1m_volume_spike")
             _filter_vp_poc_block_reasons: list = []
-            if _vp_poc_dist is not None and _vp_poc_dist > 0:
+            if (
+                _vp_poc_dist is not None and _vp_poc_dist > 0
+                and _vp_poc_vs is not None and _vp_poc_vs < 1.0
+            ):
                 _filter_vp_poc_block_reasons.append(
-                    f"chart_vp_poc_distance_pct={_vp_poc_dist:+.1f}%>0 "
-                    f"(entry above volume POC = chasing, not dipping)"
+                    f"chart_vp_poc_distance_pct={_vp_poc_dist:+.1f}%>0 AND "
+                    f"1m_volume_spike={_vp_poc_vs:.2f}<1.0 "
+                    f"(above POC on dead volume = chasing into thin air)"
                 )
             _filter_vp_poc_verdict = "BLOCK" if _filter_vp_poc_block_reasons else "PASS"
             c[f"filter_vp_poc_{_filter_vp_poc_verdict.lower()}"] = c.get(
