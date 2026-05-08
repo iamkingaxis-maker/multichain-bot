@@ -2117,54 +2117,52 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] chart_reader error: {_e}")
 
-            # Filter vp_poc_above — ENFORCED 2026-05-08, refined 2026-05-08 PM.
-            # Catches the "entry above POC on dead volume" pattern: when
-            # chart_vp_poc_distance_pct > 0 AND 1m_volume_spike < 1.0, the
-            # entry price sits ABOVE the volume profile point of control AND
-            # current 1m volume is below trailing average. That means the bot
-            # is chasing into thin air — the heaviest volume traded BELOW
-            # current price, and there's no real buying happening NOW. Real
-            # dips have entry BELOW volume center; legitimate above-POC entries
-            # have a real volume spike confirming active interest (TrackHanta
-            # vs=1.24, CHILLGUY vs=1.27, CHONKERS vs=4.53/8.28 — all winners).
+            # Filter vp_poc_above — ENFORCED 2026-05-08, retuned 2026-05-08 PM (B3).
+            # Catches the "extreme above POC on dead volume" pattern: blocks when
+            # chart_vp_poc_distance_pct > 20 AND 1m_volume_spike < 1.0. Only fires
+            # on entries FAR above the volume profile point of control AND with
+            # 1m volume below trailing average. These are unambiguous post-pump
+            # distribution chases — the heaviest volume traded WAY below current
+            # price, and there's no fresh buying confirming the move.
             #
-            # Trigger evidence overnight 2026-05-08: 22 of 36 losers had vp_poc>0
-            # (conviction +337/+364/+280, UFO +106/+79, ROFL +1892, MV +1327,
-            # CHUD +67/+43, etc.). Visual chart analysis confirmed every vp_poc>0
-            # loser was post-pump distribution. The original "vp_poc>0" filter
-            # initially blocked some legitimate active-volume breakouts; the
-            # vs<1.0 second condition cleanly carves them out.
+            # Original v2 (vp>0 AND vs<1.0) over-blocked in production: forward
+            # rate was 100% on the 12 recent live signals (vs 21% retroactive
+            # estimate). Live trending tokens are systematically more "above POC"
+            # than the historical closed-trade cohort because POC lags during
+            # active pumps. Tightening the vp_poc threshold from >0 to >20
+            # restores ~33% of buy volume while preserving the unambiguous
+            # chase-blocking behavior.
             #
             # Methodology: Cohen's d feature scan showed vp_poc as the most
             # discriminating chart-derived feature (winners median -6.0% /
-            # losers median +3.2%). Within the vp_poc>0 sub-cohort, winners
-            # had real 1m volume (vs >= 1.0 carved 35W/26L = 57% WR / +$12.81)
-            # while losers traded on dead volume.
+            # losers median +3.2%). The vp_poc>20 threshold catches all the
+            # extreme cases (HANTA +151%, ANTIHANTA +24%, AMERICA +75%, DCB
+            # +176/+209%, AALIEN +22%) while letting through borderline pumps
+            # that may be legitimate (HENTAI +9.8%, CHUD +1.0%, NOTHING +5.1%).
             #
-            # Lifetime validation (held-out, n=946):
-            #   ORIGINAL vp_poc>0:           blocks 254, swing +$112.34,
-            #                                0 big winners killed
-            #   REFINED vp_poc>0 AND vs<1.0: blocks 223 (84W/139L $-169.59),
-            #                                kept cohort 57% WR, swing +$169.59
-            # Refinement +$57.25 better lifetime — un-blocks 61 trades that
-            # are net +$12.81 (legitimate active-volume breakouts).
+            # Lifetime validation (held-out, n=1009):
+            #   v1 vp>0:                   blocks 254, swing +$112.34
+            #   v2 vp>0  AND vs<1.0:       blocks 223, swing +$169.59 (overshot
+            #                              forward — 100% of recent live blocks)
+            #   B3 vp>20 AND vs<1.0:       blocks  98, swing  +$96.89, big_killed=0,
+            #                              forward block rate 67% on recent 12
+            # B3 trades $73 of validated lifetime swing for restored forward
+            # buy volume. The blocks B3 still catches are unambiguous chases.
             #
             # Fail-open if chart_vp_poc_distance_pct missing (chart_reader
-            # exception or no volume profile data — feature populated in
-            # 53% of trades) OR if 1m_volume_spike missing (1m fetch failed).
-            # The chart_ctx try block above handles chart errors; m1_features
-            # comes from the existing 1m fetch upstream.
+            # exception or no volume profile data) OR if 1m_volume_spike missing
+            # (1m fetch failed).
             _vp_poc_dist = _chart_ctx_dict.get("chart_vp_poc_distance_pct")
             _vp_poc_vs = m1_features.get("1m_volume_spike")
             _filter_vp_poc_block_reasons: list = []
             if (
-                _vp_poc_dist is not None and _vp_poc_dist > 0
+                _vp_poc_dist is not None and _vp_poc_dist > 20
                 and _vp_poc_vs is not None and _vp_poc_vs < 1.0
             ):
                 _filter_vp_poc_block_reasons.append(
-                    f"chart_vp_poc_distance_pct={_vp_poc_dist:+.1f}%>0 AND "
+                    f"chart_vp_poc_distance_pct={_vp_poc_dist:+.1f}%>20 AND "
                     f"1m_volume_spike={_vp_poc_vs:.2f}<1.0 "
-                    f"(above POC on dead volume = chasing into thin air)"
+                    f"(extreme above POC on dead volume = clear chase)"
                 )
             _filter_vp_poc_verdict = "BLOCK" if _filter_vp_poc_block_reasons else "PASS"
             c[f"filter_vp_poc_{_filter_vp_poc_verdict.lower()}"] = c.get(
