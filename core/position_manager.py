@@ -457,6 +457,17 @@ class PositionManager:
         # Remove closed positions
         for addr in list(self._states.keys()):
             if addr not in open_addrs:
+                # Peak recorder finalize — dump trace before deleting state
+                try:
+                    from core.peak_recorder import get_recorder
+                    closed_state = self._states[addr]
+                    get_recorder().finalize(
+                        addr,
+                        exit_reason='cycle_close_detected',
+                        exit_pnl=0.0,
+                    )
+                except Exception:
+                    pass
                 del self._states[addr]
                 self._stop_triggered.discard(addr)
                 self._last_realtime_price.pop(addr, None)
@@ -493,6 +504,18 @@ class PositionManager:
                     scalp_meta=getattr(pos, "scalp_meta", None),
                     pair_address=getattr(pos, "pair_address", "") or "",
                 )
+                # Peak recorder init — additive, shadow-only
+                try:
+                    from core.peak_recorder import get_recorder
+                    get_recorder().init_position(
+                        token_address=addr,
+                        token_symbol=getattr(pos, "token_symbol", "?"),
+                        pair_address=getattr(pos, "pair_address", "") or "",
+                        entry_price=entry_px,
+                        entry_time=getattr(pos, "entry_time", datetime.now(timezone.utc)),
+                    )
+                except Exception:
+                    pass
 
         # Update prices and evaluate each position
         for addr, state in list(self._states.items()):
@@ -560,6 +583,19 @@ class PositionManager:
         except Exception as e:
             logger.debug(f"[PositionManager] chart re-eval err for {state.token_symbol}: {e}")
             return
+
+        # Peak recorder — feed candles to per-position trace + shadow scorer
+        try:
+            from core.peak_recorder import get_recorder
+            if cd is not None:
+                get_recorder().record_minute(
+                    token_address=state.token_address,
+                    candles_1m=cd.candles_1m or [],
+                    candles_5m=cd.candles_5m or [],
+                    candles_15m=cd.candles_15m or [],
+                )
+        except Exception:
+            pass
 
         bearish: List[str] = []
         score = float(getattr(ctx, "composite_score", 50.0) or 50.0)
