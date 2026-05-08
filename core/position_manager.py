@@ -1207,6 +1207,33 @@ class PositionManager:
                             )
                         return
 
+            # ── DIP SLOW BLEED EXIT — added 2026-05-08 ────────────────
+            # After 60min the position has had time to work. If it's still
+            # >=5% red, the bot was holding through a slow bleed waiting for
+            # a recovery that statistically isn't coming — across today's
+            # 26 long-hold trades (>=2hr) net was -$45.81 vs +$3.05 for
+            # short holds (<2hr). Pattern was particularly stark on GMAR
+            # x6 (held 2-7h each, all stopped at -12%).
+            # Close at the smaller -5% wound instead of waiting for -12%.
+            if (age_s >= 3600 and pnl_pct <= -5.0
+                    and pnl_pct > -self.dip_stop_pct):
+                logger.warning(
+                    f"[PositionManager/{self.chain_name}] 🩸 DIP SLOW BLEED: "
+                    f"{state.token_symbol} hold={age_s/60:.0f}min pnl={pnl_pct:.1f}% "
+                    f"(closing early instead of waiting for -{self.dip_stop_pct:.0f}% stop)"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=1.0,
+                    reason=f"Dip slow-bleed exit (hold {age_s/60:.0f}min, pnl {pnl_pct:.1f}%)"
+                )
+                if self.scanner:
+                    self.scanner.register_stop_loss(
+                        token_address, state.token_symbol,
+                        state.current_price, cooldown_seconds=7200
+                    )
+                return
+
             # ── DIP STOP LOSS ─────────────────────────────────────────
             if pnl_pct <= -self.dip_stop_pct:
                 logger.warning(
