@@ -1,8 +1,117 @@
 # Multichain Bot — Session Handoff (2026-05-08)
 
+## 2026-05-08 PM — filter retunes + held-out re-validation
+
+**Latest commits** (deployed):
+- `5134d0b` HANTA-Kun forward-watch caveat (docs)
+- `4fa1cb4` filter_vp_poc v2 refinement (vp>0 AND vs<1.0)
+- `5165ceb` **filter_vp_poc B3 retune** (vp>20 AND vs<1.0) ← current
+
+**Forward result post-B3 deploy (14:38 UTC → ~16:30 UTC, 2 hours):**
+- 4 buys, 4 wins, **0 losses**, NET **+$6.98**
+- 3 of 4 were clean_break or compound (Aliens, ROFL, Clawd) all TP2 wins
+- 1 was pure high_regime (GAYTES, trail win)
+- Buy rate: ~2/hour (vs ~5/hour overnight). Reduced but functioning.
+- B3 confirmed firing on extreme chases (ANTIHANTA, DCB, AMERICA, HENTAI) — 67% block rate on recent 12 forward signals matches the lifetime estimate.
+
+### Why we retuned filter_vp_poc twice
+
+**Original v1 ship (`d970124`)**: `chart_vp_poc_distance_pct > 0`
+- Held-out lifetime swing +$112, 0 big winners killed
+- But forward conflated mistake — initially thought HANTA-Kun ($15.46 winner) had vp_poc=+3.555. Actually Hantavirus (the OTHER token with same symbol) had that value; HANTA-Kun had vp_poc=-42.6 (deeply below POC, kept by gate). See `5134d0b` caveat.
+
+**v2 refinement (`4fa1cb4`)**: `vp > 0 AND vs < 1.0`
+- Cohen's d sub-cohort analysis showed `1m_volume_spike >= 1.0` carved out 56 legit active-volume breakouts (35W/22L, +$20.80 net) from the vp>0 cohort
+- Lifetime swing: +$133 (better than v1)
+- **Forward overshoot**: blocked 100% of the 12 recent live signals — buy rate dropped to 0/hour
+- Cause: live trending tokens are systematically more above-POC than historical closed trades (POC lags during active pumps). Retroactive 21% block rate didn't translate forward.
+
+**B3 retune (`5165ceb`)**: `vp > 20 AND vs < 1.0`
+- Only blocks unambiguous distribution chases (>20% above POC + dead volume)
+- Lifetime swing: +$96.89 (gives up $73 of v2's lift to restore volume)
+- Forward block rate dropped from 100% → 67% (33% of buy throughput restored)
+- 0 big winners killed across 1009 lifetime trades
+- Forward 4W/0L since deploy confirms it's letting profitable setups through
+
+### HANTA-Kun price-feed bug + +$15.46 manual sell
+
+User noticed dashboard showed HANTA-Kun at +$12.69 unrealized while API reported only +$1.02 (multiplier 1.10x). Root cause: anti-corruption guards in `core/position_manager.py` rejected ANY single-tick move >20% as "corrupted feed". HANTA-Kun's legitimate +106% pump was being rejected — every WS tick at the new price hit the guard against the stale pre-pump ref_price. Internal state stuck at $0.000128 while market traded at $0.000264.
+
+User manually sold for **+$15.46** at 14:31 (before fix shipped). Fix shipped as `d958416` (confirmation-based accept) — accepts after 3 same-price ticks within 60s OR 30s sustained rejection.
+
+### Investigations that resulted in NO code change (re-validation matters)
+
+These were investigated and REJECTED based on held-out evidence:
+
+1. **TP1=100% revert**: My initial lifetime simulator suggested ALT_A would be +$849 better than current ladder. Phantom data (1591 resolved candidates) directly contradicted: TP1=100% is **-1.46pp/trade WORSE** lifetime, **-3.47pp/trade WORSE** on the live-stack-passing cohort. Pairwise: TP1=100% better on 21, worse on 42 candidates. **My simulator had a bug** — phantom is the authoritative reference. Decision: keep the ladder + smart_bearflip.
+
+2. **`P_slip_vel` and `C_var_b` filter promotion**: Handoff doc claimed +$0.65/trade and +$0.58/trade lift. Re-validated against CURRENT production stack (S):
+   - slip_vel marginal effect on S: blocks **0** of 67 evaluable trades
+   - var_b marginal effect on S: blocks 4 (2W/2L), net +$7.2% blocked (slight DRAG, not save)
+   - **Original lift was vs B baseline (B = scanner+turn), not S (=B+clean_break+double_bear)**. S already absorbed those gains via clean_break/double_bear. Decision: don't ship.
+
+3. **high_regime trigger tighten (vs >= 0.5 → vs >= 1.0)**: Lifetime data said blocks 35 (16W/19L), kept 12W/4L = 75% WR / +$14.52 (vs current -$31). Strong on lifetime. **But held-out 70/30 time-split test cohort showed swing -$2.01** — recent fires are mostly profitable already (post-`867b988` hard gates). Tighten would absorb wins. Decision: don't ship — let `vs>=0.5 AND dev>=2.0` continue working.
+
+### Findings worth documenting forward
+
+**Trigger fire frequency audit (lifetime, n=1009):**
+- 906 trades have `trigger_source = unknown` (likely pre-trigger-system data) → +$1626 / +$1.79/trade
+- 51 clean_break fires → -$30.65 / -$0.60/trade
+- 49 high_regime fires → -$34.04 / -$0.69/trade
+- Both modern triggers are net negative lifetime
+- Recent 7-day total: -$285 across 655 trades
+- **The "unknown" path historically printed money. Modern triggers are losing. Need to find what makes the bot's profitable buys happen — most aren't via the named triggers.**
+
+**B3 differential impact:**
+- B3 on clean_break: blocks 7 (1W/6L), swing +$13.61, **+$0.36/trade lift**
+- B3 on high_regime: blocks 6 (3W/3L), swing +$2.91, +$0.10/trade lift
+- B3 is ~3.5× more effective on clean_break per trade. clean_break's failure mode (first-green after sustained red, often near pump exhaustion) aligns mechanically with the above-POC chase pattern. high_regime's failures are different (LP drain + repeat-token rebuys).
+
+**Within-high_regime discriminators (Cohen's d):**
+- mtf_vol_align (cohen_d=-1.40) — winners had MTF vol alignment
+- 1m_higher_highs (-1.05) — winners had more 1m HHs
+- higher_low_5m (-1.00)
+- dev_pct_remaining (-0.74)
+- pct_above_vwap_h24 (+0.56) — losers were 21pp more above vwap
+- Strongest single gate: `lp_delta_15m_pct < -3` would convert high_regime from -$31 to ~$0 (swing +$30.51, 0 big killed)
+
+**Best validated next filter (paused for volume concern):**
+- `lp_delta_5m_pct < -2`: held-out test swing **+$25.30**, 0 big winners killed
+- `lp_delta_15m_pct < -3`: held-out test swing **+$23.78**, 0 big winners killed
+- LP-drain pattern is independent of vp_poc (89 of 107 lifetime blocks don't overlap with B3)
+- Status: NOT shipped, due to volume concern. Revisit after 24-48h forward data.
+
+### Methodology takeaways (reinforced today)
+
+- **Held-out validation against CURRENT production stack is essential.** Filters validated against legacy baselines (B without clean_break) can become redundant after S evolves. Re-validate before shipping.
+- **Forward block rates can exceed retroactive estimates** due to cohort selection bias. Live trending tokens differ from historical closed-trade cohorts. The retroactive 21% became 100% forward.
+- **Tightening to retroactive optima can over-cut forward volume**. Always test held-out time-split before shipping aggressive thresholds.
+- **Same-symbol-different-address bug**: 2 different HANTA tokens (Hantavirus $7.4M, Hanta-Kun $264k) caused conflated analysis. Bot distinguishes by address; my analysis must too. Always verify token address, not just symbol.
+- **Phantom > simulator when they disagree.** My ALT_A lifetime simulator (first_leg_pnl × 2) had subtle bugs around fees and partial sizing. Phantom's full price-trajectory simulation is the authoritative reference.
+
+### Pending followups carried from morning
+
+(Unchanged from earlier handoff section — still relevant.)
+
+1. **Anti-rebuy** — KIDO 4×, ROFL 3× on lifetime. Naive version kills 147 BULL/MAGA big winners ($+5406). Need surgical: peak_h24 + 2h time-bound version.
+2. **Phantom-validated filters P_slip_vel and C_var_b**: REJECTED today after re-validation. They added zero marginal lift over current S stack.
+3. **TP1 ladder vs counterfactual**: phantom confirms ladder is correct (+0.74pp/trade lifetime). My simulator that suggested otherwise had a bug.
+4. **POCKET-style residual losses**: compound triggers in distribution with vp_poc<0 (passes B3). Hard to gate without killing V-recoveries.
+
+### Forward-watch protocol
+
+- 30-min wakeup interval scheduled to monitor B3 + current production stack
+- Tracking: buy rate (target 2-5/hour), W/L tally, filter_vp_poc fire count, open positions
+- After 24-48h of B3 forward data, re-evaluate:
+  - Is buy rate sustainable?
+  - Did `4W/0L` baseline hold up?
+  - Is lp_drain shadow-mode worth piloting next?
+
+---
+
 ## 2026-05-08 mid-day — overnight deep-dive + 2 critical fixes
 
-**Latest commits** (deployed): `d970124` filter_vp_poc, `d958416` price-spike confirmation.
+**Earlier commits** (deployed): `d970124` filter_vp_poc, `d958416` price-spike confirmation.
 
 ### Overnight 2026-05-08 02:00→14:00 UTC summary
 
