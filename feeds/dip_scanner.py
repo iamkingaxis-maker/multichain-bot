@@ -3559,16 +3559,28 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] high_regime calc err: {_e}")
 
-            # clean_break suppression gates — added 2026-05-08 after
-            # analyzing 26 clean_break fires from 2026-05-07 (analyze_clean
-            # _break_today.py). Both gates are STRICT improvements: each
-            # blocks pure-loss trades without killing any winner.
+            # clean_break suppression gates — refined 2026-05-08 across
+            # two analysis rounds on 26 clean_break fires from 2026-05-07.
+            # All gates are validated as positive-swing on lifetime data.
+            #
             #   Gate A: dev_pct_remaining < 1.0
-            #     Catches GMAR x3 (dev=0.5%, all stopped -12% for -$19.74)
+            #     Catches GMAR x3 (dev=0.5%, all -12% stops, -$19.74).
+            #     +$19.74 swing, zero winners killed.
             #   Gate B: peak_h24_6h >= 1500% AND 1m_volume_spike < 0.30
-            #     Catches mask -$4.73 (peak=1676, vs=0.06, post-pump-dead-vol)
-            # Combined today's swing: clean_break -$2.48 -> +$21.99
-            # (+$24.47 saved, zero winners blocked).
+            #     Catches mask -$4.73 (peak=1676, vs=0.06).
+            #     +$4.73 swing, zero winners killed.
+            #   Gate C: chart_pattern_5m_conf >= 80
+            #     Catches AMERICA -$4.26 (conf=100), oGNOME -$1.88 (conf=99.9),
+            #     SELLOR +$0.57 (conf=115). Mechanism: in distribution
+            #     contexts, "textbook" 5m bullish patterns are bull-traps.
+            #     +$5.57 swing.
+            #   Gate D: regime_dip_breadth_pct < 10
+            #     Catches Hantavax -$1.46 (regime=9.8). Low coordination =
+            #     isolated bounce in unrelated market is noise.
+            #     +$1.46 swing, zero winners killed.
+            #
+            # Combined today's swing: clean_break -$2.03 -> +$29.47
+            # ($31.50 lifetime improvement on 24 trades).
             _cb_gated = False
             _cb_gate_reason = ""
             if _filter_clean_break_verdict == "PASS":
@@ -3576,6 +3588,12 @@ class DipScanner:
                     _cb_dev = _tier1_features.get("dev_pct_remaining")
                     _cb_vs = m1_features.get("1m_volume_spike")
                     _cb_peak = float(peak_h24_6h or 0)
+                    _cb_chart_conf = None
+                    try:
+                        _cb_chart_conf = _chart_ctx.pattern_5m.get("confidence")
+                    except Exception:
+                        pass
+                    _cb_regime = _regime_dip_breadth_pct
                     if _cb_dev is not None and float(_cb_dev) < 1.0:
                         _cb_gated = True
                         _cb_gate_reason = (
@@ -3590,6 +3608,20 @@ class DipScanner:
                             f"peak={_cb_peak:.0f}%>=1500 AND "
                             f"vol_spike={float(_cb_vs):.2f}<0.30 "
                             f"(post-pump dead vol)"
+                        )
+                    elif (_cb_chart_conf is not None
+                          and float(_cb_chart_conf) >= 80):
+                        _cb_gated = True
+                        _cb_gate_reason = (
+                            f"chart_pattern_5m_conf={float(_cb_chart_conf):.0f}"
+                            f">=80 (textbook bull pattern in distribution = bull-trap)"
+                        )
+                    elif (_cb_regime is not None
+                          and float(_cb_regime) < 10):
+                        _cb_gated = True
+                        _cb_gate_reason = (
+                            f"regime_dip_breadth={float(_cb_regime):.1f}<10 "
+                            f"(market lacks dip coordination)"
                         )
                 except Exception as _e:
                     logger.debug(f"[DipScanner] clean_break gate err: {_e}")
