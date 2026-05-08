@@ -3594,6 +3594,20 @@ class DipScanner:
                     except Exception:
                         pass
                     _cb_regime = _regime_dip_breadth_pct
+                    # Compound-trigger carve-out: when BOTH clean_break PASS
+                    # AND the high_regime base conditions hold (regime>=11
+                    # AND cum3>=0), skip the soft gates C and D. Mechanism:
+                    # compound agreement is stronger conviction than either
+                    # trigger alone — compound trades today were 3W/0L
+                    # (+$4.50 / TP1 in all 3). The hard gates (A: dev<1,
+                    # B: peak>=1500+vs<0.30) are structural and stay.
+                    _cb_cum3 = m1_features.get("1m_cum_3min_pct")
+                    _cb_compound_ok = (
+                        _cb_regime is not None
+                        and float(_cb_regime) >= 11
+                        and _cb_cum3 is not None
+                        and float(_cb_cum3) >= 0
+                    )
                     if _cb_dev is not None and float(_cb_dev) < 1.0:
                         _cb_gated = True
                         _cb_gate_reason = (
@@ -3609,6 +3623,9 @@ class DipScanner:
                             f"vol_spike={float(_cb_vs):.2f}<0.30 "
                             f"(post-pump dead vol)"
                         )
+                    elif _cb_compound_ok:
+                        # Compound agreement override — skip soft gates C/D.
+                        pass
                     elif (_cb_chart_conf is not None
                           and float(_cb_chart_conf) >= 80):
                         _cb_gated = True
