@@ -1757,12 +1757,33 @@ class WebDashboard:
         )
 
     async def _handle_trades(self, request):
+        """GET /api/trades — bandwidth-limited.
+
+        Default returns the most recent 200 trades (~200KB). Caller can request
+        more via ?limit=N (capped at 5000) or ALL via ?all=1 (~20MB — use sparingly).
+        Egress optimization shipped 2026-05-08 after Railway billing audit
+        showed ~2TB/period from a dashboard tab polling the unbounded endpoint.
+        """
         trades = []
         if self._tracker is not None:
             try:
                 trades = self._tracker.get_all_trades()
             except Exception as e:
                 logger.debug(f"[Dashboard] trades provider error: {e}")
+        # Apply pagination unless ?all=1 is set
+        try:
+            want_all = request.query.get('all', '0') in ('1', 'true', 'yes')
+            limit = int(request.query.get('limit', 200))
+            limit = max(1, min(limit, 5000))
+        except Exception:
+            want_all = False
+            limit = 200
+        if not want_all and isinstance(trades, list) and len(trades) > limit:
+            # Sort by time descending (latest first), take limit, return newest-first
+            try:
+                trades = sorted(trades, key=lambda t: t.get('time') or '', reverse=True)[:limit]
+            except Exception:
+                trades = trades[-limit:]
         return web.Response(
             text=json.dumps(trades),
             content_type="application/json",
