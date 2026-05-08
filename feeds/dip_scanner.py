@@ -3559,9 +3559,49 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] high_regime calc err: {_e}")
 
+            # clean_break suppression gates — added 2026-05-08 after
+            # analyzing 26 clean_break fires from 2026-05-07 (analyze_clean
+            # _break_today.py). Both gates are STRICT improvements: each
+            # blocks pure-loss trades without killing any winner.
+            #   Gate A: dev_pct_remaining < 1.0
+            #     Catches GMAR x3 (dev=0.5%, all stopped -12% for -$19.74)
+            #   Gate B: peak_h24_6h >= 1500% AND 1m_volume_spike < 0.30
+            #     Catches mask -$4.73 (peak=1676, vs=0.06, post-pump-dead-vol)
+            # Combined today's swing: clean_break -$2.48 -> +$21.99
+            # (+$24.47 saved, zero winners blocked).
+            _cb_gated = False
+            _cb_gate_reason = ""
+            if _filter_clean_break_verdict == "PASS":
+                try:
+                    _cb_dev = _tier1_features.get("dev_pct_remaining")
+                    _cb_vs = m1_features.get("1m_volume_spike")
+                    _cb_peak = float(peak_h24_6h or 0)
+                    if _cb_dev is not None and float(_cb_dev) < 1.0:
+                        _cb_gated = True
+                        _cb_gate_reason = (
+                            f"dev_pct={float(_cb_dev):.1f}%<1.0 "
+                            f"(creator dumped 99%+)"
+                        )
+                    elif (_cb_peak >= 1500
+                          and _cb_vs is not None
+                          and float(_cb_vs) < 0.30):
+                        _cb_gated = True
+                        _cb_gate_reason = (
+                            f"peak={_cb_peak:.0f}%>=1500 AND "
+                            f"vol_spike={float(_cb_vs):.2f}<0.30 "
+                            f"(post-pump dead vol)"
+                        )
+                except Exception as _e:
+                    logger.debug(f"[DipScanner] clean_break gate err: {_e}")
+                if _cb_gated:
+                    logger.info(
+                        f"[DipScanner] clean_break SUPPRESSED: "
+                        f"{token_symbol} {_cb_gate_reason}"
+                    )
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
-            if _filter_clean_break_verdict == "PASS":
+            if _filter_clean_break_verdict == "PASS" and not _cb_gated:
                 _triggers_fired.append("clean_break")
             if _trigger_4combo_match:
                 _triggers_fired.append("4combo")
