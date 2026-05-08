@@ -1768,10 +1768,12 @@ class Trader:
                     logger.error(f"Could not convert USD→SOL for {token_symbol} — buy aborted")
                     return
 
-                # Get current price (Axiom cache → Jupiter price API → DexScreener)
-                # Graduation buys: fresh graduates aren't indexed yet — skip this check
-                # and derive entry price from the Jupiter quote below instead.
-                current_price = await self._get_token_price(token_address)
+                # Get current price — pair-pinned to the pool we transact on.
+                # Without pair_address, multi-pair tokens like PENGUIN
+                # (pumpswap 0.004 vs raydium 0.16) yield wrong entry prices.
+                # Graduation buys: fresh graduates aren't indexed yet — skip
+                # and derive entry from the Jupiter quote below instead.
+                current_price = await self._get_token_price(token_address, pair_address=pair_address)
                 if current_price <= 0 and strategy != "graduation":
                     logger.error(f"Could not get price for {token_symbol} — buy aborted")
                     return
@@ -2061,7 +2063,13 @@ class Trader:
                     if _synced_price > 0 and (time.time() - _synced_ts) < 10.0:
                         current_price = _synced_price
                     else:
-                        current_price = await self._get_token_price(token_address)
+                        # Pair-pinned: paper sells must price against the
+                        # pool the position was opened on, not the
+                        # highest-liq pair (which can be 30x+ different).
+                        current_price = await self._get_token_price(
+                            token_address,
+                            pair_address=getattr(position, "pair_address", "") or "",
+                        )
                     # Last resort: entry price avoids a bogus 100% loss on API failure
                     if current_price <= 0:
                         current_price = getattr(position, "current_price_usd", 0) or position.entry_price_usd
@@ -2590,8 +2598,30 @@ class Trader:
             pass
         return 50_000  # Fallback if unavailable
 
-    async def _get_token_price(self, token_address: str) -> float:
-        """Get current token price in USD — tries Axiom cache, Axiom REST, Jupiter, DexScreener."""
+    async def _get_token_price(self, token_address: str, pair_address: str = "") -> float:
+        # When pair_address is provided, query the DexScreener pair endpoint
+        # FIRST to anchor the quote to the exact pool we trade on. Multi-pair
+        # tokens (PENGUIN: pumpswap 0.004 vs raydium 0.16, 41x apart) caused
+        # entry_price to come from the wrong pair under highest-liquidity
+        # selection, polluting paper P&L by 90%+.
+        # Pair-pinned DexScreener pair lookup — runs FIRST when caller knows
+        # the specific pool. This must come before Axiom/Jupiter cascade
+        # because those return token-level aggregated prices that ignore
+        # which pool the bot will actually transact on.
+        if pair_address:
+            try:
+                url = f"https://api.dexscreener.com/latest/dex/pairs/solana/{pair_address}"
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                        data = await resp.json(content_type=None)
+                        pair = data.get("pair") or (data.get("pairs") or [None])[0]
+                        if pair:
+                            price = float(pair.get("priceUsd", 0) or 0)
+                            if price > 0:
+                                return price
+            except Exception as e:
+                logger.debug(f"[Trader] Pair-pinned price lookup failed for {pair_address[:10]}: {e}")
+
         # 0. Axiom real-time price cache (WebSocket, ~1s latency) — skip SOL_MINT
         if self._axiom_price_feed is not None and token_address != SOL_MINT:
             cached_price = self._axiom_price_feed.price_cache.get(token_address, 0)
