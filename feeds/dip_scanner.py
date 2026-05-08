@@ -3499,76 +3499,59 @@ class DipScanner:
             # currently miss, not to gate existing entries. Watch forward
             # data — demote to SHADOW if EV reverses.
             #
-            # Suppression gates added 2026-05-07 PM after recurring bad
-            # entries on dead-vol downtrend tokens (HENTAI -12% stop, GMAR
-            # repeated, Apple -12%). The base trigger fires too loosely:
-            # regime>=11 AND cum3>=0 lets through tokens with red current
-            # bar + dead volume + sellers winning.
+            # Hard-gate rewrite 2026-05-08 after analyzing 27 high_regime
+            # fires from 2026-05-07: trigger was 41% WR / -$44.77 net,
+            # dominated by GMAR x6 (dev=0.5%) and dead-volume entries.
+            # The earlier conditional suppression gates (post_pump_dead_vol,
+            # seller_dead_vol) were not strong enough.
             #
-            # Two suppression gates (applied as AND-NOT):
-            #   1. post_pump_dead_vol: peak_h24_6h >= 1500% AND vs < 0.10
-            #      Catches "already-pumped + no buyers" cases (HENTAI peak
-            #      1786% vs 0.07, BOBO 18:23 peak 2098 vs 0.07).
-            #   2. seller_dead_vol: vs < 0.30 AND lc < 0
-            #      Catches "current bar red + below-avg volume" cases
-            #      (HENTAI lc=-0.81 vs=0.07, GMAR lc=-0.07 vs=0.25, GMAR
-            #      19:05 lc=-0.026 vs=0.048).
+            # Replaced with two ABSOLUTE requirements that must both hold
+            # for the trigger to fire:
+            #   1. 1m_volume_spike >= 0.5  (real buying — losers had
+            #      median vs=0.26, winners had vs=0.72; biggest single
+            #      discriminator in the daily data)
+            #   2. dev_pct_remaining >= 2.0  (creator hasn't dumped —
+            #      kicks GMAR-style chronic dumpers where dev=0.5%)
             #
-            # Lifetime tradeoff (24 historical fires): saves HENTAI -$2.80
-            # and prevents 2-3 GMAR-style entries per session, at cost of
-            # killing Goblin 13:27 (+$3.34) which had lc=-1.29 vs=0.09 but
-            # was actually in a sustained 5m+ uptrend where the 1m red was
-            # consolidation noise. Accepted tradeoff: net -$0.54 on closed
-            # trades, but eliminates the most painful loss pattern.
+            # Both gates derive from analyze_high_regime_today.py:
+            #   vs>=0.5 alone:               WR 64%, +$8.08, 11 fires
+            #   dev>=2 alone:                WR 46%, -$17.58, 24 fires
+            #   vs>=0.5 AND dev>=2 combined: WR 70%, +$15.74, 10 fires
+            #
+            # Net swing on today's data: -$44.77 -> +$15.74 (+$60).
+            # Sample is small (10 fires kept) but signal is strong.
             _trigger_high_regime_match = False
             _trigger_high_regime_reasons: list = []
             try:
                 _hr_cum3 = m1_features.get("1m_cum_3min_pct")
                 _hr_vs = m1_features.get("1m_volume_spike")
-                _hr_lc = m1_features.get("1m_last_close_pct")
-                _hr_peak = float(peak_h24_6h or 0)
-                _hr_post_pump_dead_vol = (
-                    _hr_peak >= 1500
-                    and _hr_vs is not None
-                    and float(_hr_vs) < 0.10
-                )
-                _hr_seller_dead_vol = (
-                    _hr_vs is not None
-                    and float(_hr_vs) < 0.30
-                    and _hr_lc is not None
-                    and float(_hr_lc) < 0
-                )
-                _hr_suppressed = _hr_post_pump_dead_vol or _hr_seller_dead_vol
-                if (_regime_dip_breadth_pct is not None
-                        and _regime_dip_breadth_pct >= 11
-                        and _hr_cum3 is not None
-                        and float(_hr_cum3) >= 0
-                        and not _hr_suppressed):
-                    _trigger_high_regime_match = True
-                    _trigger_high_regime_reasons.append(
-                        f"regime_dip_breadth={_regime_dip_breadth_pct:.1f}>=11 "
-                        f"AND 1m_cum_3min={float(_hr_cum3):+.2f}>=0 "
-                        f"(broad-market dip + 1m recovery starting)"
-                    )
-                elif _hr_suppressed and (
+                _hr_dev = _tier1_features.get("dev_pct_remaining")
+                _hr_vs_ok = _hr_vs is not None and float(_hr_vs) >= 0.5
+                _hr_dev_ok = _hr_dev is not None and float(_hr_dev) >= 2.0
+                _hr_base_ok = (
                     _regime_dip_breadth_pct is not None
                     and _regime_dip_breadth_pct >= 11
                     and _hr_cum3 is not None
                     and float(_hr_cum3) >= 0
-                ):
+                )
+                if _hr_base_ok and _hr_vs_ok and _hr_dev_ok:
+                    _trigger_high_regime_match = True
+                    _trigger_high_regime_reasons.append(
+                        f"regime_dip_breadth={_regime_dip_breadth_pct:.1f}>=11 "
+                        f"AND 1m_cum_3min={float(_hr_cum3):+.2f}>=0 "
+                        f"AND vol_spike={float(_hr_vs):.2f}>=0.5 "
+                        f"AND dev_pct={float(_hr_dev):.1f}%>=2.0"
+                    )
+                elif _hr_base_ok:
                     _why = []
-                    if _hr_post_pump_dead_vol:
-                        _why.append(
-                            f"post-pump-dead-vol "
-                            f"(peak={_hr_peak:.0f}%>=1500 AND "
-                            f"vol_spike={float(_hr_vs):.2f}<0.10)"
-                        )
-                    if _hr_seller_dead_vol:
-                        _why.append(
-                            f"seller-dead-vol "
-                            f"(vol_spike={float(_hr_vs):.2f}<0.30 AND "
-                            f"1m_last_close={float(_hr_lc):+.2f}%<0)"
-                        )
+                    if not _hr_vs_ok:
+                        _vs_str = (f"{float(_hr_vs):.2f}"
+                                   if _hr_vs is not None else "missing")
+                        _why.append(f"vol_spike={_vs_str}<0.5")
+                    if not _hr_dev_ok:
+                        _dev_str = (f"{float(_hr_dev):.1f}%"
+                                    if _hr_dev is not None else "missing")
+                        _why.append(f"dev_pct={_dev_str}<2.0")
                     logger.info(
                         f"[DipScanner] high_regime SUPPRESSED: "
                         f"{token_symbol} {' AND '.join(_why)}"
