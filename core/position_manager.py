@@ -405,6 +405,18 @@ class PositionManager:
         # Catches single corrupted feed ticks that fire spurious -15% stops
         # then recover (lifetime: ~55% of stops realized at <-14.5%).
         self._last_realtime_price: dict = {}
+        # Pending price-spike confirmations for the anti-corruption guards.
+        # Maps token_address -> {'price', 'count', 'first_seen'}.
+        # When a tick exceeds ±20% of ref_price the guard rejects it as
+        # "corrupted" — but real memecoin pumps move 50-100%+ in seconds and
+        # every WS tick at the new price was being rejected against the
+        # stale pre-pump ref_price. HANTA-Kun 2026-05-08 legitimate +106%
+        # move stayed permanently rejected (state stuck at $0.000128 while
+        # market traded at $0.000264) — no TPs/stops fired. Confirmation:
+        # after 3 same-price ticks (within 5%, 60s window) OR 30s of
+        # sustained rejection, accept the move. Goblin -94% glitch (single
+        # one-off tick) won't accumulate, so it still gets rejected.
+        self._spike_pending: Dict[str, dict] = {}
         self._last_rest_fetch: Dict[str, float] = {}  # token → unix ts of last REST call
         self.axiom_price_feed = None  # Set by main.py — socket8 real-time cache (~ms latency)
         self.rpc_price_feed   = None  # Set by main.py — Solana RPC + Jupiter 0.5s poll
@@ -787,11 +799,83 @@ class PositionManager:
         except Exception as e:
             logger.debug(f"[PositionManager/{self.chain_name}] Price REST: {e}")
 
+    def _spike_should_accept(self, token_address: str, new_price: float,
+                              ref_price: float, token_symbol: str) -> bool:
+        """Anti-corruption guard with confirmation-based accept.
+
+        Returns True if the price update should be accepted. Returns False
+        if it should be rejected as a likely feed glitch.
+
+        Rules:
+          - Within ±20% of ref_price → accept immediately, clear pending.
+          - >20% deviation but matches a recent rejected price (within 5%,
+            <60s window) → increment confirmation count. Accept after 3
+            confirmations OR 30s of sustained rejection.
+          - Otherwise → reject and start tracking.
+
+        Real fast pumps (HANTA-Kun 2026-05-08: +106% legit) confirm in
+        <1s because the WS streams many ticks per second at the new price.
+        Single-tick glitches (Goblin 2026-04-27: -94% one-off polled read)
+        never accumulate confirmations and stay rejected.
+        """
+        SPIKE_UP = 1.20
+        SPIKE_DOWN = 0.80
+        SAME_PRICE_TOL = 0.05
+        CONFIRM_COUNT = 3
+        CONFIRM_WINDOW = 60.0
+        SUSTAIN_SEC = 30.0
+
+        if ref_price <= 0 or new_price <= 0:
+            return True
+
+        ratio = new_price / ref_price
+        if SPIKE_DOWN <= ratio <= SPIKE_UP:
+            self._spike_pending.pop(token_address, None)
+            return True
+
+        now = time.time()
+        pending = self._spike_pending.get(token_address)
+        pct = (ratio - 1) * 100
+        sign = "+" if pct >= 0 else ""
+
+        if pending:
+            same_price = abs(new_price / pending["price"] - 1) < SAME_PRICE_TOL
+            elapsed = now - pending["first_seen"]
+            in_window = elapsed < CONFIRM_WINDOW
+            if same_price and in_window:
+                pending["count"] += 1
+                if pending["count"] >= CONFIRM_COUNT or elapsed >= SUSTAIN_SEC:
+                    logger.info(
+                        f"[PositionManager/{self.chain_name}] ✓ Price spike "
+                        f"CONFIRMED after {pending['count']} ticks / "
+                        f"{elapsed:.1f}s: {token_symbol} → {new_price:.8f} "
+                        f"(ref was {ref_price:.8f}, {sign}{pct:.0f}%) — "
+                        f"accepting as legitimate move"
+                    )
+                    self._spike_pending.pop(token_address, None)
+                    return True
+                return False  # still confirming, silent
+
+        # New rejection (no pending, different price, or expired window)
+        self._spike_pending[token_address] = {
+            "price": new_price,
+            "count": 1,
+            "first_seen": now,
+        }
+        logger.warning(
+            f"[PositionManager/{self.chain_name}] ⚠️  Price spike rejected "
+            f"(1/{CONFIRM_COUNT}, awaiting confirmation): {token_symbol} "
+            f"{ref_price:.8f} → {new_price:.8f} ({sign}{pct:.1f}% "
+            f"single tick) — likely corrupted feed data"
+        )
+        return False
+
     def _apply_price_update(self, token_address: str, state: PositionState,
                              price: float, volume_h1: float,
                              volume_m5: float, liquidity_usd: float):
         """Apply a price update to state and sync back to the open position object."""
-        # Sanity gate: reject single-tick price moves >20% in EITHER direction.
+        # Sanity gate: reject single-tick price moves >20% in EITHER direction
+        # via _spike_should_accept (confirmation-based — see helper docstring).
         # Aligns with the realtime stop gate in check_stop_loss_realtime so
         # corrupted ticks can't slip through one path while being rejected on
         # the other. Falls back to peak_price then entry_price when
@@ -803,26 +887,17 @@ class PositionManager:
         # _check_stops_and_exits then fired a phantom -99.7% stop. The
         # realtime gate had been catching the WS-path glitches; polled REST
         # leaked. Both directions now mirror.
+        #
+        # Confirmation logic added 2026-05-08: the original gate permanently
+        # rejected real fast pumps (HANTA-Kun +106% legit move). Helper now
+        # accepts after N=3 confirmations / 30s sustained.
         ref_price = (
             state.current_price if state.current_price > 0
             else state.peak_price if state.peak_price > 0
             else state.entry_price
         )
-        if ref_price > 0 and price > ref_price * 1.20:
-            logger.warning(
-                f"[PositionManager/{self.chain_name}] ⚠️  Price spike rejected: "
-                f"{state.token_symbol} {ref_price:.8f} → {price:.8f} "
-                f"({(price/ref_price - 1)*100:+.1f}% single tick) — "
-                f"likely corrupted feed data, ignoring"
-            )
-            return
-        if ref_price > 0 and price > 0 and price < ref_price * 0.80:
-            logger.warning(
-                f"[PositionManager/{self.chain_name}] ⚠️  Price drop rejected: "
-                f"{state.token_symbol} {ref_price:.8f} → {price:.8f} "
-                f"({(price/ref_price - 1)*100:+.1f}% single tick) — "
-                f"likely corrupted feed data, ignoring"
-            )
+        if not self._spike_should_accept(
+                token_address, price, ref_price, state.token_symbol):
             return
         state.current_price = price
         state.current_volume_usd = volume_h1
@@ -1683,23 +1758,9 @@ class PositionManager:
         # reference; legitimate first ticks won't deviate ±20% from it.
         last_rt = self._last_realtime_price.get(token_address, 0)
         ref_price = last_rt if last_rt > 0 else state.entry_price
-        if ref_price > 0:
-            if price_usd < ref_price * 0.80:
-                logger.warning(
-                    f"[PositionManager/{self.chain_name}] ⚠️  Realtime tick rejected: "
-                    f"{state.token_symbol} ref={ref_price:.8f} → {price_usd:.8f} "
-                    f"({(price_usd / ref_price - 1) * 100:.0f}% in one tick) — likely "
-                    f"corrupted feed, ignoring"
-                )
-                return
-            if price_usd > ref_price * 1.20:
-                logger.warning(
-                    f"[PositionManager/{self.chain_name}] ⚠️  Realtime tick rejected: "
-                    f"{state.token_symbol} ref={ref_price:.8f} → {price_usd:.8f} "
-                    f"(+{(price_usd / ref_price - 1) * 100:.0f}% in one tick) — likely "
-                    f"corrupted feed, ignoring"
-                )
-                return
+        if not self._spike_should_accept(
+                token_address, price_usd, ref_price, state.token_symbol):
+            return
         self._last_realtime_price[token_address] = price_usd
 
         pnl_pct = (price_usd / state.entry_price - 1) * 100
