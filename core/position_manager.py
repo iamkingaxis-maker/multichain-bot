@@ -1248,27 +1248,25 @@ class PositionManager:
                 self.stop_loss_hits += 1
                 return
 
-            # ── DIP SMART BEAR-FLIP EXIT — SHADOW 2026-05-07 ──────────
-            # Validated:
+            # ── DIP SMART BEAR-FLIP EXIT — ENFORCED 2026-05-08 ────────
+            # Promoted from SHADOW after phantom forward-test (n=1507 held-out)
+            # showed +0.74%/trade lift over the 3.5% trail on the same
+            # post-TP1 exits (29 better / 18 worse / 185 ties out of 232).
+            # Earlier validation:
             #   chart-data sim TRAIN/TEST holdout (n=15665):
             #     +0.602%/trade train, +0.819%/trade test
             #   real-trade matched replay (n=221, post-2026-05-04):
             #     +0.060%/trade lift with re-tuned params (44 better, 21 worse)
             #
-            # Mechanism: after TP1 (50% sold), watch for "position green but
-            # trend reversing." Fires when position pnl > +3.0% AND last 3
-            # 1m bars were green AND current 1m closed RED with body > 0.3%.
-            # Captures the "winner-turning-loser" pattern before the slower
-            # trail or stop-loss converts the winner.
+            # Mechanism: after TP1 (sells 50% in ladder mode), watch for
+            # "position green but trend reversing." Fires when position
+            # pnl > +3.0% AND last 3 1m bars green AND current 1m closed
+            # RED with body > 0.3%. Captures the "winner-turning-loser"
+            # pattern before the slower 3.5% trail converts the winner.
             #
-            # Currently SHADOW: logs would-fire events but does NOT exit.
-            # After 1-2 weeks of forward data we can compare hypothetical
-            # smart-exit P&L to actual exit P&L. Promote to enforced if
-            # forward signal confirms.
-            #
-            # Re-tuned params on real-trade distribution (consec_green=3,
-            # min_pnl=3.0, min_body=0.3). Originally chart-data-tuned to
-            # (3, 1.0, 0.5); raising min_pnl filters out noise near TP1.
+            # Coexists with the existing 3.5% trail block below — whichever
+            # fires first wins. Trail acts as safety net for cases where
+            # the bear-flip price-action pattern doesn't trigger.
             if (state.tp1_hit and not state.tp2_hit
                     and pnl_pct > 3.0
                     and state.entry_price > 0):
@@ -1293,15 +1291,27 @@ class PositionManager:
                         if cur_body_pct > 0.3:
                             logger.info(
                                 f"[PositionManager/{self.chain_name}] "
-                                f"SHADOW DIP smart_bearflip would-exit: "
+                                f"🔄 DIP SMART BEAR-FLIP: "
                                 f"{state.token_symbol} pnl=+{pnl_pct:.2f}% "
                                 f"red_body={cur_body_pct:.2f}% "
-                                f"(3 prior green, would lock here)"
+                                f"(3 prior green, locking remainder)"
                             )
-                            state.smart_bearflip_shadow_fires = (
-                                getattr(state, 'smart_bearflip_shadow_fires', 0) + 1
+                            await self._execute_sell(
+                                token_address, state,
+                                pct=1.0,
+                                reason=(
+                                    f"Dip smart_bearflip exit "
+                                    f"(pnl=+{pnl_pct:.2f}%, "
+                                    f"red_body={cur_body_pct:.2f}%)"
+                                ),
                             )
-                            state.smart_bearflip_shadow_last_pnl = pnl_pct
+                            if self.scanner:
+                                self.scanner.register_stop_loss(
+                                    token_address, state.token_symbol,
+                                    state.current_price,
+                                    cooldown_seconds=3600,
+                                )
+                            return
 
             # ── DIP POST-TP1 TRAIL — restored 2026-05-04 ──────────────
             # After TP1 fires (sells 50%), if the remaining 50% peaks then

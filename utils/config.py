@@ -159,8 +159,8 @@ class Config:
     dip_max_mcap: float = 100_000_000      # $100M max FDV — excludes BONK/PUMP-tier large caps that don't bounce
     dip_min_age_days: float = 0.0          # No age floor — other filters (bs_h6, turnover, vol-decay) do structural protection. Still blocks tokens with missing pairCreatedAt.
     dip_min_volume_h24: float = 200_000    # $200k minimum 24h volume
-    dip_tp1_pct: float = 8.0              # TP1 at +8% — full exit. Changed from ladder 2026-05-07.
-    dip_tp1_sell: float = 1.0             # Sell 100% at TP1. 2026-05-07: changed from 0.50 (ladder) to 1.0 (full). Real-trade replay (n=377 since 2026-05-04) showed +$144 swing (-$40 → +$104). The 50% remainder rarely captured meaningful additional upside — trail at 3.5% whipsawed; TP2 at +12% rarely fired (20/377 trades). 105 trades benefited (+$151 total) vs 17 hurt (-$7 total) from the change. Kept TP1 trigger at +8% (winning level).
+    dip_tp1_pct: float = 8.0              # TP1 at +8%
+    dip_tp1_sell: float = 0.5             # Sell 50% at TP1 (ladder mode). 2026-05-08: REVERTED from 1.0. Phantom forward-test (n=1507 held-out candidates, May 5-7) showed TP1=100% was -6.08%/trade vs the ladder on changed exits (16 better / 33 worse, total -297.7% across 49 changes). Earlier in-sample n=377 replay had supported the change but is overruled by the larger held-out dataset.
     dip_tp2_pct: float = 12.0             # TP2 at +12% — sell remaining 100%. Restored 2026-05-04 from unreachable-15% (user directive: 8/12 ladder gives 50% locked in early + upside on remainder).
     dip_tp2_sell: float = 1.0
     dip_stop_pct: float = 12.0            # Hard stop at -12% (was -8% post-cascade, -15% pre-collapse). 2026-05-04 user directive: -15% gave too much room, -8% locked in losses prematurely. -12% is the middle ground.
