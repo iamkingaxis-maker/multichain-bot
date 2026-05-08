@@ -61,6 +61,19 @@ Two tokens both named "HANTA":
 
 Bot distinguishes correctly by address. Symbol-level analysis would conflate them; aggregate by address.
 
+### Forward-watch notes
+
+**filter_vp_poc forward-track caveat (2026-05-08 14:40 UTC):** the HANTA-Kun
+buy at 14:20:48 — which became the +$15.46 manual-sell winner — had
+`chart_vp_poc_distance_pct = +3.555` in its entry_meta. Under the new
+filter, that buy would have been BLOCKED. Held-out lifetime validation
+said zero big winners (>$10) killed; this represents the first such
+case. Lifetime swing remains +$112 net positive, so the filter is
+still net-positive on validated historical data — but log every
+filter_vp_poc_block from forward data and reconcile against the
+lifetime expectation. If forward shows >2 big-winner kills per week,
+re-evaluate the threshold (consider `> 5%` instead of `> 0%`).
+
 ### Pending issues / future work
 
 1. **Anti-rebuy** — overnight cohort showed strong rebuy-after-loss pattern (KIDO 4×, conviction 4×, etc.). But lifetime test showed anti-rebuy KILLS 147 big winners ($+5406+) including BULL/MAGA. Need surgical version: e.g. "block 3rd+ same-token buy in 4h IF prior 2/3 lost AND peak_h24 > 500%". Validate before shipping.
