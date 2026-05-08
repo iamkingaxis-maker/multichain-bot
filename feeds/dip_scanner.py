@@ -3609,20 +3609,32 @@ class DipScanner:
                 _hr_vs_ok = _hr_vs is not None and float(_hr_vs) >= 0.5
                 _hr_dev_ok = _hr_dev is not None and float(_hr_dev) >= 2.0
                 _hr_mtfva_ok = _hr_mtfva >= 1
+                # Mechanism A: require filter_clean_break PASS (green-after-red
+                # 1m candle confirmation). Added 2026-05-08 PM. Stops the
+                # trigger from firing on the down-leg of a dip — waits for the
+                # confirmed bounce candle. Today's UAP-1, UAP-2, Clawd-3rd all
+                # had filter_clean_break BLOCK at entry (cr>=1 with negative
+                # last_close); this gate would have skipped them.
+                # Validated: lifetime high_regime cohort -$49 -> -$9 (+$40
+                # swing). Catches today's 3 high_regime losers; doesn't catch
+                # AMERICA-1 (had cr=0, lc=+0.88 — clean_break PASSes legit).
+                _hr_clean_break_ok = (_filter_clean_break_verdict == "PASS")
                 _hr_base_ok = (
                     _regime_dip_breadth_pct is not None
                     and _regime_dip_breadth_pct >= 11
                     and _hr_cum3 is not None
                     and float(_hr_cum3) >= 0
                 )
-                if _hr_base_ok and _hr_vs_ok and _hr_dev_ok and _hr_mtfva_ok:
+                if (_hr_base_ok and _hr_vs_ok and _hr_dev_ok and _hr_mtfva_ok
+                        and _hr_clean_break_ok):
                     _trigger_high_regime_match = True
                     _trigger_high_regime_reasons.append(
                         f"regime_dip_breadth={_regime_dip_breadth_pct:.1f}>=11 "
                         f"AND 1m_cum_3min={float(_hr_cum3):+.2f}>=0 "
                         f"AND vol_spike={float(_hr_vs):.2f}>=0.5 "
                         f"AND dev_pct={float(_hr_dev):.1f}%>=2.0 "
-                        f"AND mtf_vol_align={_hr_mtfva}>=1"
+                        f"AND mtf_vol_align={_hr_mtfva}>=1 "
+                        f"AND clean_break=PASS (green-after-red confirmed)"
                     )
                 elif _hr_base_ok:
                     _why = []
@@ -3636,6 +3648,8 @@ class DipScanner:
                         _why.append(f"dev_pct={_dev_str}<2.0")
                     if not _hr_mtfva_ok:
                         _why.append(f"mtf_vol_align={_hr_mtfva}<1 (no tf vol spike)")
+                    if not _hr_clean_break_ok:
+                        _why.append("clean_break=BLOCK (no green confirmation candle yet)")
                     logger.info(
                         f"[DipScanner] high_regime SUPPRESSED: "
                         f"{token_symbol} {' AND '.join(_why)}"
