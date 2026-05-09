@@ -1728,6 +1728,68 @@ class DipScanner:
                 )
                 continue
 
+            # Filter weak-bounce v2 — ENFORCED 2026-05-09.
+            # Compound rule: 5m candle body/range < 0.20 (weak commitment)
+            # AND 1m_volume_spike < 0.50 (no real demand kicking in). Fires
+            # only when both signals agree the bounce is hollow.
+            #
+            # Mechanism: a thin 5m body inside a wide wick means the recent
+            # candle was indecisive — not a real reversal commit. Combined
+            # with 1m volume below half the trailing average means demand
+            # isn't actually showing up. This is the same family as
+            # filter_fake_bounce but body-shape-led instead of cum-3min-led.
+            #
+            # Methodology (compound search vs the alone-shadow):
+            #   - Baseline weak_bounce alone: 35 fires, 17W/18L, +$17.05 net
+            #   - + 1m_volume_spike < 0.50: 15 fires, 4W/11L, +$22.12 net
+            #   - WR of fires drops 48.6% → 26.7% (-22pp vs baseline)
+            #   - Save:cut ratio 1.53 → 4.21 (nearly 3× more selective)
+            #   - 78% of original winner-cuts eliminated, 59% of saves kept
+            #
+            # Lifetime caveat: in-sample on the 180-trade window since
+            # weak_bounce shadow deployed 2026-05-05 (the only data we have).
+            # Forward fires will be the held-out validation. Filter is
+            # intentionally narrow (~3.75 fires/day on lifetime).
+            #
+            # Fail-open on either feature missing.
+            _wbv2_body_ratio: float | None = None
+            try:
+                _wbv2_c5 = (_chart_data.candles_5m
+                            if _chart_data and _chart_data.candles_5m else None)
+                if _wbv2_c5:
+                    _wbv2_last = _wbv2_c5[-1]
+                    _wbv2_body = abs(_wbv2_last.close - _wbv2_last.open)
+                    _wbv2_rng = _wbv2_last.high - _wbv2_last.low
+                    if _wbv2_rng > 0:
+                        _wbv2_body_ratio = _wbv2_body / _wbv2_rng
+            except Exception as _e:
+                logger.debug(f"[DipScanner] wbv2 calc err: {_e}")
+            _wbv2_vol_spike = m1_features.get("1m_volume_spike")
+            _filter_weak_bounce_v2_block_reasons: list = []
+            if (
+                _wbv2_body_ratio is not None
+                and _wbv2_vol_spike is not None
+                and _wbv2_body_ratio < 0.20
+                and _wbv2_vol_spike < 0.50
+            ):
+                _filter_weak_bounce_v2_block_reasons.append(
+                    f"body/range={_wbv2_body_ratio:.2f}<0.20 AND "
+                    f"1m_vol_spike={_wbv2_vol_spike:.2f}<0.50 "
+                    f"(weak bounce on dead 1m volume)"
+                )
+            _filter_weak_bounce_v2_verdict = (
+                "BLOCK" if _filter_weak_bounce_v2_block_reasons else "PASS"
+            )
+            c[f"filter_weak_bounce_v2_{_filter_weak_bounce_v2_verdict.lower()}"] = c.get(
+                f"filter_weak_bounce_v2_{_filter_weak_bounce_v2_verdict.lower()}", 0
+            ) + 1
+            if _filter_weak_bounce_v2_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_weak_bounce_v2: {token_symbol} "
+                    f"reasons={','.join(_filter_weak_bounce_v2_block_reasons)}"
+                )
+                continue
+
             # ── filter_turn_confirmation — DOWNGRADED TO SHADOW 2026-05-05 PM ─
             # Originally enforced (forward sim showed +$6.29/day vs -$2.91/day),
             # but the live forward test (5h, n=121 phantom trades on the
@@ -2434,6 +2496,7 @@ class DipScanner:
 
             # 1) Weak-bounce (5m body/range)
             _filter_weak_bounce_block_reasons: list = []
+            _filter_weak_bounce_body_over_range: float | None = None
             try:
                 _last5 = (_cs5_full[-1] if _cs5_full else None)
                 if _last5 is not None:
@@ -2441,6 +2504,7 @@ class DipScanner:
                     _rng = _last5.high - _last5.low
                     if _rng > 0:
                         _br = _body / _rng
+                        _filter_weak_bounce_body_over_range = _br
                         if _br < 0.20:
                             _filter_weak_bounce_block_reasons.append(
                                 f"body/range={_br:.2f}<0.20 (weak commitment in 5m candle)"
@@ -4541,6 +4605,9 @@ class DipScanner:
                 # 4 SHADOW filters added 2026-05-05 (no enforcement).
                 "filter_weak_bounce_verdict": _filter_weak_bounce_verdict,
                 "filter_weak_bounce_block_reasons": _filter_weak_bounce_block_reasons,
+                "filter_weak_bounce_body_over_range": _filter_weak_bounce_body_over_range,
+                "filter_weak_bounce_v2_verdict": _filter_weak_bounce_v2_verdict,
+                "filter_weak_bounce_v2_block_reasons": _filter_weak_bounce_v2_block_reasons,
                 "filter_slip_asym_verdict": _filter_slip_asym_verdict,
                 "filter_slip_asym_block_reasons": _filter_slip_asym_block_reasons,
                 "filter_regime_panic_verdict": _filter_regime_panic_verdict,
@@ -4647,7 +4714,8 @@ class DipScanner:
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
                 "filter_corpse_block", "filter_fake_bounce_block",
-                "filter_round_trip_block", "filter_fofar_block",
+                "filter_round_trip_block", "filter_weak_bounce_v2_block",
+                "filter_fofar_block",
                 "filter_vp_poc_block",
                 "filter_two_pattern_block",
                 # 4 SHADOW filters added 2026-05-05 — counters only, no enforcement.
