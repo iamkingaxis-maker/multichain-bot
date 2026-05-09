@@ -4074,6 +4074,84 @@ class DipScanner:
                     f"reasons={','.join(_filter_seller_dominant_block_reasons)}"
                 )
 
+            # Filter quote-asymmetry — ENFORCED 2026-05-09.
+            # Block when Jupiter's quote shows extreme sell-side slippage
+            # asymmetry relative to buy-side: thin sell-side liquidity means
+            # any exit will be expensive. Lifetime n=15 fires, 1W/14L,
+            # WR 6.7%, save:cut 13.30. Held-out (last 20% of 1011 trades):
+            # 5 fires, 1W/4L (WR 20%), net +$7.48. Block rate 1.5%.
+            #
+            # Methodology: Cohen's-d scan across all numeric entry features
+            # surfaced quote_asymmetry_pct as the strongest discriminator
+            # (d=-1.01) of stops vs winners. quote_asymmetry_pct = sell
+            # impact - buy impact (both as %). >3.5 means sell side is
+            # >3.5pp worse than buy side at our $20 size.
+            #
+            # Worst-loser examples: 3jG3vjwbEu 05-08 17:03 (-$3.50),
+            # 3XwDQHMKcn 05-04 03:57 (-$2.43). Both showed quote_asymmetry
+            # >3.5 at entry, both stopped at -12% within minutes.
+            #
+            # Fail-open if quote_asymmetry_pct missing (Jupiter quote
+            # failures are common; do not block on missing data).
+            _qa_val = jup_features.get("quote_asymmetry_pct")
+            _filter_quote_asymmetry_block_reasons: list = []
+            if _qa_val is not None and _qa_val > 3.5:
+                _filter_quote_asymmetry_block_reasons.append(
+                    f"quote_asymmetry={_qa_val:.2f}%>3.5 "
+                    f"(thin sell-side liquidity — exit will be expensive)"
+                )
+            _filter_quote_asymmetry_verdict = (
+                "BLOCK" if _filter_quote_asymmetry_block_reasons else "PASS"
+            )
+            c[f"filter_quote_asymmetry_{_filter_quote_asymmetry_verdict.lower()}"] = c.get(
+                f"filter_quote_asymmetry_{_filter_quote_asymmetry_verdict.lower()}", 0
+            ) + 1
+            if _filter_quote_asymmetry_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_quote_asymmetry: {token_symbol} "
+                    f"reasons={','.join(_filter_quote_asymmetry_block_reasons)}"
+                )
+                continue
+
+            # Filter 15s-dump — ENFORCED 2026-05-09.
+            # Block when net trade flow over the last 15 seconds was
+            # < -$500: heavy net selling pressure right before our buy =
+            # we're catching a falling knife mid-dump. Lifetime n=15
+            # fires, 4W/11L, WR 26.7%, save:cut 4.48. Held-out: 12 fires
+            # (majority of fires in test cohort!), 4W/8L (WR 33.3%),
+            # net +$17.08. Block rate 1.5%.
+            #
+            # Methodology: lifetime hunt across numeric features for
+            # rules with block_rate <= 10%, save:cut >= 3.0, net >= $15.
+            # net_flow_15s_usd < -500 surfaced as one of the few rules
+            # whose held-out edge held up (and even improved).
+            #
+            # Worst-loser examples: 2R2F91ewRg 05-08 08:56 (-$5.15),
+            # 3jG3vjwbEu 05-08 17:03 (-$3.50). Both had >$500 net selling
+            # in the 15s before entry; both stopped at -12% shortly after.
+            #
+            # Fail-open if net_flow_15s_usd missing (tier3 features can
+            # be empty when recent_trades feed is thin).
+            _nf15 = _tier3_features.get("net_flow_15s_usd")
+            _filter_15s_dump_block_reasons: list = []
+            if _nf15 is not None and _nf15 < -500:
+                _filter_15s_dump_block_reasons.append(
+                    f"net_flow_15s=${_nf15:+.0f}<-500 "
+                    f"(heavy net selling in last 15s — knife catch)"
+                )
+            _filter_15s_dump_verdict = (
+                "BLOCK" if _filter_15s_dump_block_reasons else "PASS"
+            )
+            c[f"filter_15s_dump_{_filter_15s_dump_verdict.lower()}"] = c.get(
+                f"filter_15s_dump_{_filter_15s_dump_verdict.lower()}", 0
+            ) + 1
+            if _filter_15s_dump_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_15s_dump: {token_symbol} "
+                    f"reasons={','.join(_filter_15s_dump_block_reasons)}"
+                )
+                continue
+
             # ── Multi-timeframe momentum stacking (shadow, 2026-05-05) ────────
             # Hypothesis: "textbook pullback resolving" = 15m red + 5m red +
             # 1m green. Different from filter_fake_bounce because it requires
@@ -4608,6 +4686,10 @@ class DipScanner:
                 "filter_weak_bounce_body_over_range": _filter_weak_bounce_body_over_range,
                 "filter_weak_bounce_v2_verdict": _filter_weak_bounce_v2_verdict,
                 "filter_weak_bounce_v2_block_reasons": _filter_weak_bounce_v2_block_reasons,
+                "filter_quote_asymmetry_verdict": _filter_quote_asymmetry_verdict,
+                "filter_quote_asymmetry_block_reasons": _filter_quote_asymmetry_block_reasons,
+                "filter_15s_dump_verdict": _filter_15s_dump_verdict,
+                "filter_15s_dump_block_reasons": _filter_15s_dump_block_reasons,
                 "filter_slip_asym_verdict": _filter_slip_asym_verdict,
                 "filter_slip_asym_block_reasons": _filter_slip_asym_block_reasons,
                 "filter_regime_panic_verdict": _filter_regime_panic_verdict,
@@ -4715,6 +4797,7 @@ class DipScanner:
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
                 "filter_corpse_block", "filter_fake_bounce_block",
                 "filter_round_trip_block", "filter_weak_bounce_v2_block",
+                "filter_quote_asymmetry_block", "filter_15s_dump_block",
                 "filter_fofar_block",
                 "filter_vp_poc_block",
                 "filter_two_pattern_block",
