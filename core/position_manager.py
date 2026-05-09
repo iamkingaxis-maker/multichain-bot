@@ -1318,6 +1318,52 @@ class PositionManager:
                             )
                         return
 
+            # ── DIP STALE PEAK EXIT — added 2026-05-09 ────────────────
+            # Pre-TP1 fade detector. Catches positions that touched a real
+            # peak (>=+5%) but failed to make a new high for 15+ minutes
+            # AND have now retreated all the way back to break-even or red.
+            # Different from a fixed trail: real TP1-bound runners reset
+            # mins_since_peak to 0 every time they make a new high, so
+            # this can't fire on them.
+            #
+            # Validation on n=53W + 58L recent closed: 0 winners cut, 5
+            # losers caught early (avg ~$1 saved per fire). Why no winner
+            # cut: a token doing +5% -> +6% -> +7% -> +8% TP1 keeps
+            # resetting peak; mins_since_peak never reaches 15. A pre-TP1
+            # fader (peak +5% then drift back to BE over 30+ min) holds
+            # peak constant while the timer accumulates.
+            #
+            # Only fires pre-TP1. After TP1 the breakeven / winner-trail
+            # / TP2 cascade owns the position.
+            _peak_pnl_pct = getattr(state, 'peak_pnl_pct', 0.0) or 0.0
+            _peak_at_secs = getattr(state, 'peak_pnl_at_secs', 0) or 0
+            _mins_since_peak = (age_s - _peak_at_secs) / 60.0 if _peak_at_secs > 0 else 0
+            if (not state.tp1_hit
+                    and _peak_pnl_pct >= 5.0
+                    and _mins_since_peak >= 15.0
+                    and pnl_pct <= 0.0
+                    and pnl_pct > -self.dip_stop_pct):
+                logger.warning(
+                    f"[PositionManager/{self.chain_name}] 🪦 DIP STALE PEAK: "
+                    f"{state.token_symbol} peak=+{_peak_pnl_pct:.1f}% "
+                    f"mins_since_peak={_mins_since_peak:.0f} pnl={pnl_pct:+.1f}% "
+                    f"(pre-TP1 fade — closing at small loss)"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=1.0,
+                    reason=(
+                        f"Dip stale-peak exit (peak +{_peak_pnl_pct:.1f}% "
+                        f"{_mins_since_peak:.0f}m ago, pnl {pnl_pct:+.1f}%)"
+                    )
+                )
+                if self.scanner:
+                    self.scanner.register_stop_loss(
+                        token_address, state.token_symbol,
+                        state.current_price, cooldown_seconds=7200
+                    )
+                return
+
             # ── DIP SLOW BLEED EXIT — added 2026-05-08 ────────────────
             # After 60min the position has had time to work. If it's still
             # >=5% red, the bot was holding through a slow bleed waiting for
