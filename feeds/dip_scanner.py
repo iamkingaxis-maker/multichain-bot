@@ -4152,6 +4152,168 @@ class DipScanner:
                 )
                 continue
 
+            # Filter 5m-downtrend — ENFORCED 2026-05-09.
+            # Block when the 5m chart has been red for 4+ consecutive
+            # candles (= 20+ minutes of sustained 5m decline). The bot's
+            # 1m green-confirmation logic fires on noise inside an active
+            # 5m downtrend; this filter requires the higher-timeframe
+            # trend to have at least paused before entry.
+            #
+            # Lifetime: 73 fires, 37W/36L, sc 1.22, net +$13.45.
+            # Held-out (last 20%): 16 fires, 6W/10L, WR 37.5%,
+            #   net +$16.39, sc 2.27.
+            # Held-out orthogonal: 13 fires, 4W/9L, WR 30.8%,
+            #   net +$17.43, sc 2.89.
+            #
+            # Mechanism: addresses the "we're entering too early"
+            # pattern. Across 18 recent stops avg trough was -20% past
+            # entry; the bot was firing on 1m greens while 5m structure
+            # was still declining. This filter catches that.
+            #
+            # Threshold sweep: >=3 too loose (orth WR 58%), >=4 sweet
+            # spot (sc 2.89), >=5 sharper but smaller cohort, >=6
+            # breaks down (n=3, 67% WR).
+            #
+            # Fail-open if range_features missing.
+            _5m_cr = None
+            try:
+                _5m_cr = range_features.get("5m_consec_red")
+            except Exception:
+                _5m_cr = None
+            _filter_5m_downtrend_block_reasons: list = []
+            if _5m_cr is not None and _5m_cr >= 4:
+                _filter_5m_downtrend_block_reasons.append(
+                    f"5m_consec_red={_5m_cr}>=4 "
+                    f"(20+ min of sustained 5m decline — dip not bottomed)"
+                )
+            _filter_5m_downtrend_verdict = (
+                "BLOCK" if _filter_5m_downtrend_block_reasons else "PASS"
+            )
+            c[f"filter_5m_downtrend_{_filter_5m_downtrend_verdict.lower()}"] = c.get(
+                f"filter_5m_downtrend_{_filter_5m_downtrend_verdict.lower()}", 0
+            ) + 1
+            if _filter_5m_downtrend_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_5m_downtrend: {token_symbol} "
+                    f"reasons={','.join(_filter_5m_downtrend_block_reasons)}"
+                )
+                continue
+
+            # Filter lower-low — ENFORCED 2026-05-09.
+            # Block when 5m swing-low pattern shows a deep lower-low:
+            # current swing low is 25%+ below the prior swing low.
+            # Mechanism: 5m chart making LL means downtrend is still
+            # expanding, not reversing.
+            #
+            # Lifetime: 48 fires, 20W/28L, WR 41.7%, sc 2.59.
+            # Held-out: 43 fires, 17W/26L, WR 39.5%, sc 2.88.
+            # Held-out orthogonal: 9 orth fires, 3W/6L, +$28.94, sc 4.92.
+            #
+            # Tightened to -25 from looser thresholds because the >=
+            # -10 / -15 versions cut too many winners.
+            #
+            # Fail-open if hl_delta_pct missing (requires 2+ swing lows).
+            _hl_dp = None
+            try:
+                _hl_dp = _tier2_features.get("hl_delta_pct")
+            except Exception:
+                _hl_dp = None
+            _filter_lower_low_block_reasons: list = []
+            if _hl_dp is not None and _hl_dp < -25.0:
+                _filter_lower_low_block_reasons.append(
+                    f"hl_delta_pct={_hl_dp:+.1f}%<-25 "
+                    f"(5m swing low 25%+ below prior — deep LL pattern)"
+                )
+            _filter_lower_low_verdict = (
+                "BLOCK" if _filter_lower_low_block_reasons else "PASS"
+            )
+            c[f"filter_lower_low_{_filter_lower_low_verdict.lower()}"] = c.get(
+                f"filter_lower_low_{_filter_lower_low_verdict.lower()}", 0
+            ) + 1
+            if _filter_lower_low_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_lower_low: {token_symbol} "
+                    f"reasons={','.join(_filter_lower_low_block_reasons)}"
+                )
+                continue
+
+            # Filter LP-drain — ENFORCED 2026-05-09.
+            # Block when liquidity pool has shrunk 10%+ over the last
+            # 15 minutes. LP shrinking fast = LPs pulling, holders
+            # exiting; the dip is happening because the pool is dying.
+            #
+            # Lifetime: 24 fires, +$36.45.
+            # Held-out: 17 fires, 5W/12L, +$28.01, sc 2.41.
+            # Held-out orthogonal: 14 fires, 5W/9L, WR 36%, +$18.12, sc 2.41.
+            #
+            # Threshold sweep: <-8 too loose (WR 39%), <-10 sweet,
+            # <-15 plateau, <-20 collapses.
+            #
+            # Fail-open if lp_delta_15m_pct missing.
+            _lp_d = None
+            try:
+                _lp_d = _lp_flow_dict.get("lp_delta_15m_pct")
+            except Exception:
+                _lp_d = None
+            _filter_lp_drain_block_reasons: list = []
+            if _lp_d is not None and _lp_d < -10.0:
+                _filter_lp_drain_block_reasons.append(
+                    f"lp_delta_15m={_lp_d:+.1f}%<-10 "
+                    f"(LP draining fast — pool dying, exit will be expensive)"
+                )
+            _filter_lp_drain_verdict = (
+                "BLOCK" if _filter_lp_drain_block_reasons else "PASS"
+            )
+            c[f"filter_lp_drain_{_filter_lp_drain_verdict.lower()}"] = c.get(
+                f"filter_lp_drain_{_filter_lp_drain_verdict.lower()}", 0
+            ) + 1
+            if _filter_lp_drain_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_lp_drain: {token_symbol} "
+                    f"reasons={','.join(_filter_lp_drain_block_reasons)}"
+                )
+                continue
+
+            # Filter buyer-FOMO — ENFORCED 2026-05-09.
+            # Block when 60s net-flow imbalance is extremely buy-skewed
+            # (>0.9 = >90% of dollar flow is buys). Mechanism: extreme
+            # buyer concentration in the last 60s = late chase, retail
+            # piling in at the local top while smart money has already
+            # bought.
+            #
+            # Lifetime: 11 fires, sc 5.80.
+            # Held-out: 12 fires, 3W/9L, WR 25.0%, +$18.95, sc 5.80.
+            # Held-out orthogonal: 12 fires, 3W/9L, WR 25.0%, +$18.95.
+            #
+            # Counter-intuitive but consistent — high BUYER concentration
+            # in tight time window often signals exhaustion, not strength.
+            # Real bottom shows balanced flow, not unanimous buying.
+            #
+            # Fail-open if net_flow_60s_imbalance missing.
+            _nf60i = None
+            try:
+                _nf60i = _tier3_features.get("net_flow_60s_imbalance")
+            except Exception:
+                _nf60i = None
+            _filter_buyer_fomo_block_reasons: list = []
+            if _nf60i is not None and _nf60i > 0.9:
+                _filter_buyer_fomo_block_reasons.append(
+                    f"net_flow_60s_imb={_nf60i:.2f}>0.9 "
+                    f"(>90% of 60s flow is buys — late FOMO chase)"
+                )
+            _filter_buyer_fomo_verdict = (
+                "BLOCK" if _filter_buyer_fomo_block_reasons else "PASS"
+            )
+            c[f"filter_buyer_fomo_{_filter_buyer_fomo_verdict.lower()}"] = c.get(
+                f"filter_buyer_fomo_{_filter_buyer_fomo_verdict.lower()}", 0
+            ) + 1
+            if _filter_buyer_fomo_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_buyer_fomo: {token_symbol} "
+                    f"reasons={','.join(_filter_buyer_fomo_block_reasons)}"
+                )
+                continue
+
             # ── Multi-timeframe momentum stacking (shadow, 2026-05-05) ────────
             # Hypothesis: "textbook pullback resolving" = 15m red + 5m red +
             # 1m green. Different from filter_fake_bounce because it requires
@@ -4690,6 +4852,14 @@ class DipScanner:
                 "filter_quote_asymmetry_block_reasons": _filter_quote_asymmetry_block_reasons,
                 "filter_15s_dump_verdict": _filter_15s_dump_verdict,
                 "filter_15s_dump_block_reasons": _filter_15s_dump_block_reasons,
+                "filter_5m_downtrend_verdict": _filter_5m_downtrend_verdict,
+                "filter_5m_downtrend_block_reasons": _filter_5m_downtrend_block_reasons,
+                "filter_lower_low_verdict": _filter_lower_low_verdict,
+                "filter_lower_low_block_reasons": _filter_lower_low_block_reasons,
+                "filter_lp_drain_verdict": _filter_lp_drain_verdict,
+                "filter_lp_drain_block_reasons": _filter_lp_drain_block_reasons,
+                "filter_buyer_fomo_verdict": _filter_buyer_fomo_verdict,
+                "filter_buyer_fomo_block_reasons": _filter_buyer_fomo_block_reasons,
                 "filter_slip_asym_verdict": _filter_slip_asym_verdict,
                 "filter_slip_asym_block_reasons": _filter_slip_asym_block_reasons,
                 "filter_regime_panic_verdict": _filter_regime_panic_verdict,
@@ -4798,6 +4968,8 @@ class DipScanner:
                 "filter_corpse_block", "filter_fake_bounce_block",
                 "filter_round_trip_block", "filter_weak_bounce_v2_block",
                 "filter_quote_asymmetry_block", "filter_15s_dump_block",
+                "filter_5m_downtrend_block", "filter_lower_low_block",
+                "filter_lp_drain_block", "filter_buyer_fomo_block",
                 "filter_fofar_block",
                 "filter_vp_poc_block",
                 "filter_two_pattern_block",
