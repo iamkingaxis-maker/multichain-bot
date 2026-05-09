@@ -694,6 +694,18 @@ class DipScanner:
                         "1m_higher_highs":   higher_highs,
                         "1m_lower_highs":    lower_highs,
                     }
+                    # Chart-shape features over 30/60/90m windows. Logged-only,
+                    # not used as a filter. Captures pump-then-bleed round-trip
+                    # patterns the snapshot deltas (pc_h1/pc_h6) don't see.
+                    # Uses the full 1m series fetched (~100 bars), not the
+                    # last-5 slice that drives the 1m gates above.
+                    try:
+                        from feeds.chart_shape_features import compute_chart_shape
+                        _full_1m = (_chart_data.candles_1m if _chart_data and _chart_data.candles_1m else [])
+                        _shape_feats = compute_chart_shape(_full_1m)
+                        m1_features.update(_shape_feats)
+                    except Exception as _e:
+                        logger.debug(f"[DipScanner] chart_shape error for {token_symbol}: {_e}")
                     if green_in_last3 == 0:
                         c["no_1m_reversal"] += 1
                         logger.info(
@@ -1657,6 +1669,62 @@ class DipScanner:
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_fake_bounce: {token_symbol} "
                     f"reasons={','.join(_filter_fake_bounce_block_reasons)}"
+                )
+                continue
+
+            # Filter round-trip distribution — ENFORCED 2026-05-09.
+            # Catches the "round-trip-then-distribution" loser shape from the
+            # May 8-9 session post-mortem (DATA, mama, DCbBpVhrfz, KIKI):
+            # token pumped into the 90-min lookback window (chg_90 >= +4%),
+            # peaked 30+ minutes ago (mins_since_max >= 30), AND has fallen
+            # 22%+ off that peak (drawdown_from_max <= -22%). This is the
+            # exact shape where the 90m frame shows net-positive change but
+            # current price is in a confirmed distribution — opposite shape
+            # from a winner pullback (winners enter mid-decline with chg_90
+            # negative or with a still-active peak <15 min ago).
+            #
+            # Methodology: chart-shape features (feeds/chart_shape_features.py)
+            # added to entry_meta. Cohen's-d on n=34 retro-validated trades
+            # (last 100 closed, ~24h DexScreener bar retention horizon):
+            #   shape_90m_chg_pct: W mean -13.5%, L mean +44.1% (diff +57.6)
+            #   shape_90m_pump_bleed_score: W +46.2, L -7.5 (diff +53.7)
+            #
+            # Lifetime validation on 34 retro: BLOCK n=4, ALL LOSSES (0W/4L),
+            # sum -$13.33 (delta vs no-filter +$13.33). Winners on the same
+            # cohort that share round-trip features pass cleanly thanks to
+            # the mins_since_max>=30 + dd<=-22 conjunction:
+            #   - maxxing-1 (+$2.30, dd=-21.2 just under threshold)
+            #   - 21rKrtBzib (+$1.05, max@9min — active runner)
+            #   - xNGegLW3dg (+$2.60, max@10min — active runner)
+            #
+            # Fail-open if shape features missing — chart_shape_features
+            # returns {} when 1m bar series is too short (<22 bars), so all
+            # three keys can be None on tokens with thin history.
+            _shape_chg90 = m1_features.get("shape_90m_chg_pct")
+            _shape_max_age90 = m1_features.get("shape_90m_mins_since_max")
+            _shape_dd90 = m1_features.get("shape_90m_drawdown_from_max_pct")
+            _filter_round_trip_block_reasons: list = []
+            if (
+                _shape_chg90 is not None
+                and _shape_max_age90 is not None
+                and _shape_dd90 is not None
+                and _shape_chg90 >= 4.0
+                and _shape_max_age90 >= 30
+                and _shape_dd90 <= -22.0
+            ):
+                _filter_round_trip_block_reasons.append(
+                    f"shape_90m_chg={_shape_chg90:+.1f}%>=4 AND "
+                    f"max@{int(_shape_max_age90)}m>=30 AND "
+                    f"dd_from_max={_shape_dd90:.1f}%<=-22 (round-trip distribution)"
+                )
+            _filter_round_trip_verdict = "BLOCK" if _filter_round_trip_block_reasons else "PASS"
+            c[f"filter_round_trip_{_filter_round_trip_verdict.lower()}"] = c.get(
+                f"filter_round_trip_{_filter_round_trip_verdict.lower()}", 0
+            ) + 1
+            if _filter_round_trip_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_round_trip: {token_symbol} "
+                    f"reasons={','.join(_filter_round_trip_block_reasons)}"
                 )
                 continue
 
@@ -4358,6 +4426,9 @@ class DipScanner:
                 # filter_fake_bounce — enforced 1m fake-bounce gate.
                 "filter_fake_bounce_verdict": _filter_fake_bounce_verdict,
                 "filter_fake_bounce_block_reasons": _filter_fake_bounce_block_reasons,
+                # filter_round_trip — enforced 90m round-trip distribution gate.
+                "filter_round_trip_verdict": _filter_round_trip_verdict,
+                "filter_round_trip_block_reasons": _filter_round_trip_block_reasons,
                 # filter_vp_poc — enforced "entry above POC" gate.
                 "filter_vp_poc_verdict": _filter_vp_poc_verdict,
                 "filter_vp_poc_block_reasons": _filter_vp_poc_block_reasons,
@@ -4575,7 +4646,8 @@ class DipScanner:
                 "seller_h1_red_m5", "seller_pump", "no_1m_reversal", "m1_top_tick", "m1_false_bounce", "top_consolidation",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
-                "filter_corpse_block", "filter_fake_bounce_block", "filter_fofar_block",
+                "filter_corpse_block", "filter_fake_bounce_block",
+                "filter_round_trip_block", "filter_fofar_block",
                 "filter_vp_poc_block",
                 "filter_two_pattern_block",
                 # 4 SHADOW filters added 2026-05-05 — counters only, no enforcement.

@@ -5,7 +5,7 @@ Phase 0 of the chart-reading rebuild. Single source that fetches and
 caches the four candle timeframes used by all chart-reading features
 downstream:
 
-  1m  → 60 candles  (1h window)  — candlestick pattern detection
+  1m  → 100 candles (~100m window) — candlestick patterns + chart-shape
   5m  → 144 candles (12h window) — 5m trend, 5m S/R pivots, recent action
   15m → 96 candles  (24h window) — 15m trend, 15m S/R pivots, VWAP
   1h  → 48 candles  (2d window)  — higher-timeframe trend alignment
@@ -88,7 +88,7 @@ async def assemble_chart_data(
     gt_client: GeckoTerminalClient,
     pool_address: str,
     *,
-    limit_1m: int = 60,
+    limit_1m: int = 100,
     limit_5m: int = 144,
     limit_15m: int = 96,
     limit_1h: int = 48,
