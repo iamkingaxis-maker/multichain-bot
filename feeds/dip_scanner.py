@@ -2656,6 +2656,11 @@ class DipScanner:
             # and round-trip rate. Effect persists across populated cohorts.
             #
             # Fail-open if dex_id couldn't be determined.
+            # Also blocks DEX-Orca pools (added 2026-05-10): the bot's
+            # SLUG_MAP for chart fetches doesn't include orca, so chart
+            # data fetches fail through; bot also picks up the ORCA
+            # governance token (low-vol blue chip, no momentum) when its
+            # 1m signature triggers clean_break. Block both.
             try:
                 _grad_dex = (_graduation_dict or {}).get("graduation_dex_id")
                 if _grad_dex == "meteora":
@@ -2664,6 +2669,13 @@ class DipScanner:
                         f"graduation_dex_id=meteora (DLMM round-trip risk)"
                     )
                     c["filter_meteora_dex_block"] = c.get("filter_meteora_dex_block", 0) + 1
+                    continue
+                if _grad_dex == "orca":
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_orca_dex: {token_symbol} "
+                        f"graduation_dex_id=orca (unsupported DEX — chart plumbing falls through)"
+                    )
+                    c["filter_orca_dex_block"] = c.get("filter_orca_dex_block", 0) + 1
                     continue
             except NameError:
                 pass  # _graduation_dict not built — fail-open
