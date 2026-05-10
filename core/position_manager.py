@@ -572,22 +572,22 @@ class PositionManager:
         except Exception:
             return
 
+        # Fetch chart_data first so the peak_recorder can record a minute
+        # even if read_chart() (composite signal computation) errors. The
+        # recorder only needs the raw candles, not the chart_reader output.
+        cd = None
         try:
             cd = await assemble_chart_data(
                 self.gt_client, state.pair_address,
                 dexs_client=self.dexs_client,
             )
-            ctx = await read_chart(
-                self.gt_client, state.pair_address, chart_data=cd,
-            )
         except Exception as e:
-            logger.debug(f"[PositionManager] chart re-eval err for {state.token_symbol}: {e}")
-            return
+            logger.debug(f"[PositionManager] chart_data err for {state.token_symbol}: {e}")
 
-        # Peak recorder — feed candles to per-position trace + shadow scorer
+        # Peak recorder — feed candles independently of chart_reader success
         try:
             from core.peak_recorder import get_recorder
-            if cd is not None:
+            if cd is not None and (cd.candles_1m or []):
                 get_recorder().record_minute(
                     token_address=state.token_address,
                     candles_1m=cd.candles_1m or [],
@@ -596,6 +596,17 @@ class PositionManager:
                 )
         except Exception:
             pass
+
+        # Now compute composite verdict for the chart-flip detector.
+        try:
+            ctx = await read_chart(
+                self.gt_client, state.pair_address, chart_data=cd,
+            )
+        except Exception as e:
+            logger.debug(f"[PositionManager] read_chart err for {state.token_symbol}: {e}")
+            return
+        if ctx is None:
+            return
 
         bearish: List[str] = []
         score = float(getattr(ctx, "composite_score", 50.0) or 50.0)
@@ -2205,6 +2216,26 @@ class PositionManager:
                             f"[PositionManager/{self.chain_name}] "
                             f"Close-cooldown register failed for {state.token_symbol}: {e}"
                         )
+                # Peak recorder finalize with REAL exit reason and pnl.
+                # Use position_size_usd (pre-sell) and current_price vs entry_price
+                # to estimate pnl at this final close. _execute_sell is the only
+                # full-close hook that has both `reason` (the exit cause string)
+                # and `state.current_price` (price at close decision).
+                try:
+                    from core.peak_recorder import get_recorder
+                    _entry = state.entry_price or 0.0
+                    _cur = state.current_price or 0.0
+                    _pnl_pct = ((_cur / _entry) - 1) * 100 if _entry > 0 else 0.0
+                    _orig_size = state.original_size_usd or state.position_size_usd or 0.0
+                    _est_dollar_pnl = _orig_size * (_pnl_pct / 100.0)
+                    get_recorder().finalize(
+                        token_address,
+                        exit_reason=reason,
+                        exit_pnl=_est_dollar_pnl,
+                        exit_time=datetime.now(timezone.utc),
+                    )
+                except Exception:
+                    pass
                 del self._states[token_address]
                 self._stop_triggered.discard(token_address)
         except Exception as e:

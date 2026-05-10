@@ -199,6 +199,10 @@ def composite_score(signals: Dict[str, Any], weights: Dict[str, float]) -> float
 class PeakRecorder:
     """Records per-position peak-detection traces in shadow mode."""
 
+    # Save active in-flight state to disk every N seconds so a restart
+    # mid-position doesn't lose all the minute snapshots accumulated so far.
+    _STATE_SAVE_INTERVAL_SECS = 30.0
+
     def __init__(self, output_dir: str = None, weights: Dict[str, float] = None,
                  shadow_threshold: float = SHADOW_THRESHOLD):
         # On Railway, DATA_DIR points to persistent volume /data. Locally,
@@ -214,6 +218,35 @@ class PeakRecorder:
         self.weights = weights or DEFAULT_WEIGHTS
         self.shadow_threshold = shadow_threshold
         self.state: Dict[str, dict] = {}  # addr -> recording state
+        self._state_path = self.output_dir / '_active_state.json'
+        self._last_state_save_ts: float = 0.0
+        self._load_state_from_disk()
+
+    def _load_state_from_disk(self):
+        """Reload in-flight state for any positions that were open pre-restart."""
+        if not self._state_path.exists():
+            return
+        try:
+            with open(self._state_path) as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                self.state = data
+                logger.info(
+                    f'[PEAK_RECORDER] Reloaded in-flight state for '
+                    f'{len(self.state)} position(s) from {self._state_path.name}'
+                )
+        except Exception as e:
+            logger.warning(f'[PEAK_RECORDER] state load err: {e}')
+
+    def _save_state_to_disk(self):
+        """Atomic write of current in-flight state (debounced)."""
+        try:
+            tmp = str(self._state_path) + '.tmp'
+            with open(tmp, 'w') as f:
+                json.dump(self.state, f)
+            os.replace(tmp, str(self._state_path))
+        except Exception as e:
+            logger.warning(f'[PEAK_RECORDER] state save err: {e}')
 
     def init_position(self, token_address: str, token_symbol: str,
                        pair_address: str, entry_price: float, entry_time):
@@ -267,6 +300,12 @@ class PeakRecorder:
                             if k.startswith('S') and not k.startswith('_')},
             }
             s['minutes'].append(snapshot)
+
+            # Debounced state persist — survives bot restarts mid-hold
+            now_ts = time.time()
+            if (now_ts - self._last_state_save_ts) >= self._STATE_SAVE_INTERVAL_SECS:
+                self._save_state_to_disk()
+                self._last_state_save_ts = now_ts
 
             # Shadow exit log
             if (score >= self.shadow_threshold
@@ -329,9 +368,12 @@ class PeakRecorder:
             logger.info(
                 f'[PEAK_RECORDER] finalize {s["tok"]} '
                 f'minutes={len(minutes)} peak={peak_high_pct:.1f}% '
+                f'reason={exit_reason} pnl=${exit_pnl:+.2f} '
                 f'shadow_fired={s["shadow_exit_logged"]} '
                 f'-> {fname}'
             )
+            # Persist updated state (the finalized addr was popped above)
+            self._save_state_to_disk()
         except Exception as e:
             logger.warning(f'[PEAK_RECORDER] finalize err: {e}')
 
