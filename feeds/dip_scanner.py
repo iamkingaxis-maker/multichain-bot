@@ -2609,6 +2609,66 @@ class DipScanner:
                 continue
             c["filter_dev_rugged_pass"] = c.get("filter_dev_rugged_pass", 0) + 1
 
+            # ── filter_chasing_top — ENFORCED 2026-05-10 ──────────────────────
+            # Block entries where the 5m chart is in active uptrend AND every
+            # higher timeframe is also bullish. This is a "chasing the top"
+            # signature — bot fires a 1m green candle while the broader trend
+            # is still rising = chase, not dip.
+            #
+            # Lifetime (n=1011): 65 fires, 35.4% WR, save:cut 2.51, +$56.13
+            # Held-out (n=203): 16 fires, 18.8% WR, save:cut 7.56, +$30.35
+            # Orth held-out (n=123, after 11-filter stack): 12 fires, 25.0% WR,
+            # save:cut 4.77, +$17.44 — 9L blocked, only 3W cut.
+            #
+            # Mechanism: dip-buy edge comes from buying retracements within
+            # uptrends (downtrend on 5m + bullish higher TFs = real dip), or
+            # buying breakouts of downtrends. Both timeframes pointing up =
+            # entry is too late on the move.
+            #
+            # Fail-open if chart_ctx unavailable (dict missing / read errored).
+            try:
+                _ct_5m_state = _chart_ctx_dict.get("chart_structure_5m_state")
+                _ct_mtf = _chart_ctx_dict.get("chart_mtf_alignment")
+                if (_ct_5m_state == "uptrend"
+                        and _ct_mtf in ("bull", "strong_bull")):
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_chasing_top: {token_symbol} "
+                        f"5m_state=uptrend AND mtf={_ct_mtf} (chasing — not a dip)"
+                    )
+                    c["filter_chasing_top_block"] = c.get("filter_chasing_top_block", 0) + 1
+                    continue
+            except (NameError, AttributeError):
+                pass  # chart_ctx not built — fail-open
+            c["filter_chasing_top_pass"] = c.get("filter_chasing_top_pass", 0) + 1
+
+            # ── filter_meteora_dex — ENFORCED 2026-05-10 ──────────────────────
+            # Block entries on Meteora pools. DLMM dynamics differ from
+            # Raydium / PumpSwap — slippage curve and LP behavior produce
+            # systematically lower follow-through on dip-buys.
+            #
+            # Lifetime (n=1011): 50 fires, 38.0% WR, save:cut 2.06, +$35.73
+            # Held-out (n=203): 17 fires, 29.4% WR, save:cut 3.99, +$22.36
+            # Orth held-out (n=123): 11 fires, 27.3% WR, save:cut 3.97, +$12.91
+            #
+            # Mechanism: Meteora's dynamic-liquidity AMM concentrates liquidity
+            # near current price; on dips with no active rebalance, exit
+            # liquidity is asymmetric vs entry, increasing realized slippage
+            # and round-trip rate. Effect persists across populated cohorts.
+            #
+            # Fail-open if dex_id couldn't be determined.
+            try:
+                _grad_dex = (_graduation_dict or {}).get("graduation_dex_id")
+                if _grad_dex == "meteora":
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_meteora_dex: {token_symbol} "
+                        f"graduation_dex_id=meteora (DLMM round-trip risk)"
+                    )
+                    c["filter_meteora_dex_block"] = c.get("filter_meteora_dex_block", 0) + 1
+                    continue
+            except NameError:
+                pass  # _graduation_dict not built — fail-open
+            c["filter_meteora_dex_pass"] = c.get("filter_meteora_dex_pass", 0) + 1
+
             # ── 3 SHADOW filters from regret analysis (2026-05-05 PM) ─────────
             # Surfaced by retroactive brute-force search across 877 closed
             # paired trades (held-out 70/30 train/test split). Each was the
