@@ -1,3 +1,52 @@
+# Multichain Bot — Session Handoff (2026-05-10)
+
+## 2026-05-10 — filter_no_signatures + filter_chasing_bounce ENFORCED
+
+**Latest commit**: `da15f41` — two new entry-quality gates targeting the recurring "buying too high" complaint.
+
+### filter_no_signatures (0-of-6 winner-signatures gate)
+Block when 0 of 6 positive winner signatures hit:
+- chart_score < 47
+- chart_structure_5m_state == 'downtrend'
+- pct_above_vwap_h24 < 0
+- chart_structure_15m_recent_choch_dir == 'bullish_to_bearish'
+- chart_structure_15m_state == 'downtrend'
+- regime == 'up'
+
+Fail-open if <3 of 6 features available. Validation since 2026-05-06:
+- post_cb (n=62 0-sig)  baseline -$103.02 -> $0  Δ +$103.02
+- orth (n=35 0-sig)    baseline  -$29.22 -> $0  Δ  +$29.22
+- held-out (n=6)       baseline   -$4.03 -> $0  Δ   +$4.03
+
+### filter_chasing_bounce (pc_m5 > +5%)
+Block when 5m candle is sharply green at entry — bot is chasing a reversal already in progress. Lifetime sub-distribution: pc_m5 > +6% = 45.5% WR / -$21.55 (loser cohort), pc_m5 < -5% = 91.7% WR / +$34.11 (deepest dippers win biggest).
+- lifetime  Δ +$190.66
+- post_cb   Δ +$56.64
+- orth      Δ +$28.66
+- held-out  Δ +$5.02
+
+### Combined OR (both filters)
+Held-out **Δ +$6.17** — strongest validated combo to date. Cuts NO recent winners.
+
+### Reference incidents
+- **GAYTES 2026-05-10 15:03** (m5=+5.9%, sigs=0/5) — caught by both filters
+- **SWATCH Buy #3 14:43** (m5=+4.6%, sigs=0/6) — caught by filter_no_signatures
+- **SWATCH Buys #1 #2** (m5 negative, sigs=3) — STILL LEAK; no validated single-feature filter catches them
+- **Recent winners** (CONSENSUS-1, HeavyPulp, ADA, AIFRUITS, goblinmaxxing) — all pass cleanly
+
+### Validation gotcha (caught at sanity check)
+Earlier validation script's `get_1h()` function used `pc_h1_change_since_lookback` as a fallback. That's a window-relative metric, NOT the dexscreener `priceChange.h1` the live filter uses. Initial Variant D numbers were inflated by this mismatch. Corrected validation showed `filter_no_signatures` alone is dominant; `filter_overbought_vwap` (vwap>+15) actually hurt held-out and was dropped. Lesson: validation scripts must use exactly the same feature reference as the live filter code.
+
+### Insertion location
+After `_trigger_source` assignment, before `filter_double_bear`. Applies to ALL triggers including `clean_break`, `high_regime`, and the 18 parallel triggers (verified by audit).
+
+### Followup work
+- SWATCH Buys #1/#2 leak (m5 negative, 3 sigs hit) — known limitation. Could not validate any single-feature filter that catches them without breaking held-out. May need feature-engineering on token volatility, 24h ratio-to-peak, or compound interactions.
+- Forward monitor: expected ~30% combined block rate. If block rate >50% or <10%, regime drift — re-evaluate.
+- Variant E (1h>+10) tested separately — slightly worse than D on held-out, REJECTED.
+
+---
+
 # Multichain Bot — Session Handoff (2026-05-08)
 
 ## 2026-05-08 PM — filter retunes + held-out re-validation
