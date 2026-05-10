@@ -3853,6 +3853,32 @@ class DipScanner:
                             f"vol_spike={float(_cb_vs):.2f}<0.30 "
                             f"(post-pump dead vol)"
                         )
+                    elif (
+                        _lp_flow_dict is not None
+                        and isinstance(_lp_flow_dict.get("lp_delta_15m_pct"), (int, float))
+                        and float(_lp_flow_dict["lp_delta_15m_pct"]) < -1.0
+                    ):
+                        # Gate E: lp_delta_15m_pct < -1.0 — ENFORCED 2026-05-10.
+                        # Smart-LP-exit gate. When liquidity is draining over the
+                        # last 15 min, the buyers behind the 1m green candle aren't
+                        # there to chase — entry round-trips. Validated on lifetime
+                        # clean_break cohort (n=83): blocks 28/83 (33.7%), 25.0% WR
+                        # blocked, save:cut 4.66×, net +$46.81. Held-out (n=17):
+                        # blocks 6/17, 16.7% WR, save:cut 10.12×, net +$12.31 — the
+                        # gate is anti-overfit (held-out > lifetime sc). Trigger
+                        # case: 2026-05-09 evening 6-loss streak, 4 of 6 had
+                        # lp_delta < -1 (DATA -3.2, POGE -7.4, CONSENSUS-1 -4.2,
+                        # Goblin -2.6); the other 2 (aura, Hoppy) had no LP data
+                        # → fail-open preserves throughput on young pools.
+                        # Hard gate, runs before compound override. Mechanism:
+                        # LP providers exiting before the candle is the strongest
+                        # "no follow-through" signal we have for clean_break.
+                        _cb_lp_d = float(_lp_flow_dict["lp_delta_15m_pct"])
+                        _cb_gated = True
+                        _cb_gate_reason = (
+                            f"lp_delta_15m={_cb_lp_d:+.1f}%<-1.0 "
+                            f"(LP draining — smart-money exit, no follow-through)"
+                        )
                     elif _cb_compound_ok:
                         # Compound agreement override — skip soft gates C/D.
                         pass
