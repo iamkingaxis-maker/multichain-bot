@@ -2577,6 +2577,38 @@ class DipScanner:
                     f"reasons={','.join(_filter_dev_dumping_block_reasons)}"
                 )
 
+            # ── filter_dev_rugged — ENFORCED 2026-05-10 ───────────────────────
+            # Hard creator-rug gate: block any entry when dev_pct_remaining < 2.0
+            # across ALL trigger paths. Existing Gate A in clean_break suppresses
+            # at <1.0 (clean_break-only); this generalizes the gate at a slightly
+            # looser threshold and applies to every entry path.
+            #
+            # Lifetime validation (n=1011 paired closed trades):
+            #   dev_pct < 1.0  -> 4 fires, 25.0% WR, sc 7.22, net +$9.77
+            #   dev_pct < 2.0  -> 7 fires, 28.6% WR, sc 5.38, net +$13.69 ← chosen
+            #   dev_pct < 3.0  -> 14 fires, 50.0% WR, sc 2.39, net +$12.47
+            #   dev_pct < 5.0  -> 74 fires, 52.7% WR, sc 1.44, net +$27.97 (diluted)
+            # Held-out (n=203, last 4 days, last 20% of lifetime):
+            #   <2.0 -> 7 fires, sc 5.38, +$13.69 (matches lifetime — clean signal)
+            # Orthogonal to current shipped stack + Gate E (n=850):
+            #   <2.0 -> 5 fires, 40% WR, sc 2.93, +$6.03 — still precise post-stack
+            #
+            # Mechanism: when the creator wallet has dumped >98% of its supply
+            # before entry, there's no holder-aligned price floor — the team has
+            # already captured value and exited. Stops follow soon. The 2.0
+            # threshold is a sweet spot: <1.0 is too narrow (only catches the
+            # most extreme rugs), <3.0+ starts cutting near-equal winners.
+            #
+            # Fail-open if dev_pct_remaining missing (Tier-1 not populated yet).
+            if _dev_pct is not None and _dev_pct < 2.0:
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_dev_rugged: {token_symbol} "
+                    f"dev_pct_remaining={_dev_pct:.2f}%<2.0 (creator rugged ≥98%)"
+                )
+                c["filter_dev_rugged_block"] = c.get("filter_dev_rugged_block", 0) + 1
+                continue
+            c["filter_dev_rugged_pass"] = c.get("filter_dev_rugged_pass", 0) + 1
+
             # ── 3 SHADOW filters from regret analysis (2026-05-05 PM) ─────────
             # Surfaced by retroactive brute-force search across 877 closed
             # paired trades (held-out 70/30 train/test split). Each was the
