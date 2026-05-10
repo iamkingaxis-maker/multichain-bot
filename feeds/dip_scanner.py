@@ -1222,7 +1222,19 @@ class DipScanner:
 
                 async def _slippage_at(session, usd: float):
                     """Round-trip impact at a target USD size. Returns
-                    (buy_impact_pct, sell_impact_pct) or (None, None)."""
+                    (buy_impact_pct, sell_impact_pct) or (None, None).
+
+                    2026-05-10 fix: sell-side quote was failing 99% of the time
+                    on the canonical post-CB cohort (only 3/1011 trades had
+                    slip_sell_5000_pct populated). Root cause: at high USD sizes
+                    the buy outAmount can exceed Jupiter's available exit
+                    routes (esp. on small/illiquid pools), so the sell quote
+                    returns no route. Fallback now retries the sell quote at
+                    1/2 and 1/4 of buy outAmount when the full-size sell fails;
+                    si is recorded with a normalized scaling so downstream
+                    filters see comparable values across trades. Also raise
+                    slippageBps to 1500 on retry — the high-impact trades we
+                    care about discriminating against would never fit at 3%."""
                     sol_amount = usd / max(sol_price_est, 1.0)
                     lamports = max(int(sol_amount * 1e9), 1_000_000)
                     buy_q = await _quote(session, {
@@ -1232,11 +1244,19 @@ class DipScanner:
                     if not buy_q or not buy_q.get("outAmount"):
                         return (None, None)
                     bi = float(buy_q.get("priceImpactPct") or 0) * 100
-                    sell_q = await _quote(session, {
-                        "inputMint": token_address, "outputMint": _SOL_MINT,
-                        "amount": int(buy_q["outAmount"]), "slippageBps": 300,
-                    })
-                    si = float(sell_q.get("priceImpactPct") or 0) * 100 if sell_q else None
+                    out_amt = int(buy_q["outAmount"])
+                    si = None
+                    # Try full size first, then 50%, then 25% — record si
+                    # at whichever size succeeds.
+                    for frac, slip_bps in ((1.0, 300), (0.5, 800), (0.25, 1500)):
+                        amount_try = max(int(out_amt * frac), 1)
+                        sell_q = await _quote(session, {
+                            "inputMint": token_address, "outputMint": _SOL_MINT,
+                            "amount": amount_try, "slippageBps": slip_bps,
+                        })
+                        if sell_q and sell_q.get("priceImpactPct") is not None:
+                            si = float(sell_q.get("priceImpactPct")) * 100
+                            break
                     return (bi, si)
 
                 async with _aio.ClientSession() as _s:
@@ -4830,6 +4850,33 @@ class DipScanner:
                     f"{token_symbol} reasons={','.join(_filter_seller_imbalance_block_reasons)}"
                 )
 
+            # ── Volume velocity features (2026-05-10) ──
+            # Hypothesis: dips into rising-volume regimes win; dips into
+            # decaying-volume regimes round-trip. We have vol_h1, vol_h6, and
+            # vol_m5 from DexScreener — cheap derivations expose acceleration.
+            #
+            # vol_5m_per_hr_proj: extrapolated hourly rate from 5m vol
+            # vol_h1_accel:       (vol_h1) / (vol_h6 / 6)   — h1 vs h6 baseline
+            # vol_5m_burst:       (vol_5m * 12) / max(vol_h1, 1)
+            #                     ratio of last 5m's projected hourly rate to
+            #                     actual h1. >1.5 = volume accelerating
+            #                     <0.5 = volume decaying mid-trade
+            volume_velocity_features: dict = {}
+            try:
+                _vol_baseline_h6 = (vol_h6 / 6.0) if vol_h6 > 0 else 0.0
+                _vol_h1_accel = (vol_h1 / _vol_baseline_h6) if _vol_baseline_h6 > 0 else None
+                _vol_5m_proj_hr = vol_m5 * 12.0  # extrapolate 5m rate to hourly
+                _vol_5m_burst = (_vol_5m_proj_hr / vol_h1) if vol_h1 > 0 else None
+                volume_velocity_features = {
+                    "vol_h1_accel_vs_h6": (round(_vol_h1_accel, 3)
+                                           if _vol_h1_accel is not None else None),
+                    "vol_5m_burst_vs_h1": (round(_vol_5m_burst, 3)
+                                           if _vol_5m_burst is not None else None),
+                    "vol_5m_proj_hr_usd": round(_vol_5m_proj_hr, 2),
+                }
+            except Exception:
+                pass
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -5067,6 +5114,7 @@ class DipScanner:
                                     # hours_since_graduation) — shadow, 2026-05-04.
                 **_tier1_features,  # Tier-1 (smart-money score, top makers capture,
                                     # dev wallet pct) — shadow, 2026-05-04.
+                **volume_velocity_features,  # vol_h1_accel_vs_h6, vol_5m_burst_vs_h1
             }
 
             await self.trader.buy(
