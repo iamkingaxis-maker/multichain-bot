@@ -24,6 +24,12 @@ and classifies into events:
 
 Returns the most-significant event (largest absolute delta).
 
+Persistence (added 2026-05-10): history is loaded from
+$DATA_DIR/lp_flow_history.json on construction and saved atomically
+every N record() calls (debounced to avoid disk thrash). Bridges bot
+restarts so Gate E (clean_break + lp_delta_15m_pct) doesn't lose its
+input feature on tokens it had already seen pre-restart.
+
 Designed to be plugged into DipScanner: instance owns one
 LiquidityFlowTracker per scanner. Each scan cycle calls record() with
 the candidate's current liquidity, then analyze() to read the verdict.
@@ -32,15 +38,80 @@ from __future__ import annotations
 
 from collections import deque
 from typing import Dict, Any, Deque, Tuple
+import json
+import logging
+import os
 import time
+
+logger = logging.getLogger(__name__)
+
+
+def _history_path() -> str:
+    """Resolve persistence path. Uses $DATA_DIR (Railway volume) or cwd fallback."""
+    data_dir = os.environ.get("DATA_DIR", "/data")
+    if not os.path.isdir(data_dir):
+        data_dir = "."
+    return os.path.join(data_dir, "lp_flow_history.json")
 
 
 class LiquidityFlowTracker:
     """Per-token rolling liquidity history for delta detection."""
 
-    def __init__(self, window_secs: int = 3600):
+    # Save to disk at most once every N seconds — debounced to avoid disk
+    # thrash on every scan cycle. Tradeoff: up to N seconds of state can be
+    # lost on crash. 30s is well under the 5/15-min delta windows that matter.
+    _SAVE_INTERVAL_SECS = 30.0
+
+    def __init__(self, window_secs: int = 3600, persist: bool = True):
         self._history: Dict[str, Deque[Tuple[float, float]]] = {}
         self._window_secs = window_secs
+        self._persist = persist
+        self._last_save_ts: float = 0.0
+        if persist:
+            self._load_from_disk()
+
+    def _load_from_disk(self) -> None:
+        path = _history_path()
+        if not os.path.exists(path):
+            return
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                return
+            now = time.time()
+            cutoff = now - self._window_secs
+            loaded = 0
+            for key, samples in data.items():
+                if not isinstance(samples, list):
+                    continue
+                # Each sample is [ts, liquidity_usd]
+                fresh = [(float(t), float(l)) for t, l in samples
+                         if isinstance(t, (int, float)) and isinstance(l, (int, float))
+                         and t >= cutoff and l > 0]
+                if fresh:
+                    self._history[key] = deque(fresh)
+                    loaded += len(fresh)
+            logger.info(
+                f"[LiquidityFlow] Loaded {loaded} samples across "
+                f"{len(self._history)} tokens from {path}"
+            )
+        except Exception as e:
+            logger.warning(f"[LiquidityFlow] Failed to load history: {e}")
+
+    def _save_to_disk(self) -> None:
+        path = _history_path()
+        out_dir = os.path.dirname(path) or "."
+        try:
+            os.makedirs(out_dir, exist_ok=True)
+            # Convert deques to lists for JSON
+            data = {key: list(hist) for key, hist in self._history.items()}
+            tmp = path + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(data, f)
+            os.replace(tmp, path)
+        except Exception as e:
+            logger.warning(f"[LiquidityFlow] Failed to save history: {e}")
 
     def record(self, token_address: str, liquidity_usd: float, *, ts: float | None = None) -> None:
         """Append a (ts, liquidity) sample for this token."""
@@ -55,6 +126,10 @@ class LiquidityFlowTracker:
         cutoff = ts - self._window_secs
         while hist and hist[0][0] < cutoff:
             hist.popleft()
+        # Debounced disk save — at most once per _SAVE_INTERVAL_SECS
+        if self._persist and (ts - self._last_save_ts) >= self._SAVE_INTERVAL_SECS:
+            self._save_to_disk()
+            self._last_save_ts = ts
 
     def _value_at_age(self, hist: Deque[Tuple[float, float]], target_age_secs: float, now: float) -> float | None:
         """Return the recorded liquidity that's >= target_age_secs old, or None."""
