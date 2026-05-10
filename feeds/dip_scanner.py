@@ -4124,6 +4124,128 @@ class DipScanner:
                 f"trigger_source_{_trigger_source}", 0
             ) + 1
 
+            # ── filter_no_signatures — ENFORCED 2026-05-10 ─────────────────────
+            # Block when 0 of 6 positive winner signatures are present (with at
+            # least 3 features available — fail-open if chart_reader missed
+            # populating most). The 6 winner signatures derive from a Cohen's-d
+            # scan of all entry features against winners vs losers on the
+            # post-clean_break cohort:
+            #   S1 chart_score < 47
+            #   S2 chart_structure_5m_state == 'downtrend'
+            #   S3 pct_above_vwap_h24 < 0
+            #   S4 chart_structure_15m_recent_choch_dir == 'bullish_to_bearish'
+            #   S5 chart_structure_15m_state == 'downtrend'
+            #   S6 regime == 'up'
+            # Validation (post-clean_break, since 2026-05-06):
+            #   post_cb (n=62 0-sig) baseline -$103.02 -> $0  Δ +$103.02
+            #   orth (n=35 0-sig)   baseline  -$29.22 -> $0  Δ  +$29.22
+            #   orth held-out (n=6) baseline   -$4.03 -> $0  Δ   +$4.03
+            # Reference: SWATCH 2026-05-10 Buy #3 — chart_score=50.7,
+            # 5m_state=uptrend, 15m_state=uptrend, vwap=+66.9%, regime=flat,
+            # choch_dir=bearish_to_bullish (none of the 6 sigs hit). Stopped -7%.
+            # Trajectory profile of the 0-sig cohort: 60% slow_bleed/fast_stop
+            # with avg peak 0-2% and avg MDD -13 to -14%; not recoverable
+            # post-entry. Block beat every rescue strategy by +$17 to +$103.
+            _sigs_hit = 0
+            _sigs_available = 0
+            _sigs_present: list = []
+            _v = _chart_ctx_dict.get("chart_score")
+            if isinstance(_v, (int, float)):
+                _sigs_available += 1
+                if _v < 47:
+                    _sigs_hit += 1; _sigs_present.append("chart<47")
+            _v = _chart_ctx_dict.get("chart_structure_5m_state")
+            if isinstance(_v, str):
+                _sigs_available += 1
+                if _v == "downtrend":
+                    _sigs_hit += 1; _sigs_present.append("5m_dn")
+            _v = vwap_features.get("pct_above_vwap_h24")
+            if isinstance(_v, (int, float)):
+                _sigs_available += 1
+                if _v < 0:
+                    _sigs_hit += 1; _sigs_present.append("below_vwap")
+            _v = _chart_ctx_dict.get("chart_structure_15m_recent_choch_dir")
+            if isinstance(_v, str):
+                _sigs_available += 1
+                if _v == "bullish_to_bearish":
+                    _sigs_hit += 1; _sigs_present.append("choch_b2b")
+            _v = _chart_ctx_dict.get("chart_structure_15m_state")
+            if isinstance(_v, str):
+                _sigs_available += 1
+                if _v == "downtrend":
+                    _sigs_hit += 1; _sigs_present.append("15m_dn")
+            _v = sol_features.get("regime")
+            if isinstance(_v, str):
+                _sigs_available += 1
+                if _v == "up":
+                    _sigs_hit += 1; _sigs_present.append("regime_up")
+            _filter_no_sig_block_reasons: list = []
+            if _sigs_hit == 0 and _sigs_available >= 3:
+                _filter_no_sig_block_reasons.append(
+                    f"0_of_{_sigs_available}_winner_signatures "
+                    f"(need >=1 of chart<47/5m_dn/below_vwap/"
+                    f"choch_b2b/15m_dn/regime_up)"
+                )
+            _filter_no_signatures_verdict = (
+                "BLOCK" if _filter_no_sig_block_reasons else "PASS"
+            )
+            c[f"filter_no_signatures_{_filter_no_signatures_verdict.lower()}"] = c.get(
+                f"filter_no_signatures_{_filter_no_signatures_verdict.lower()}", 0
+            ) + 1
+            if _filter_no_signatures_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_no_signatures: "
+                    f"{token_symbol} sigs_hit=0/{_sigs_available} "
+                    f"available={_sigs_available}"
+                )
+                continue
+
+            # ── filter_chasing_bounce — ENFORCED 2026-05-10 ────────────────────
+            # Block when pc_m5 > +5% — the 5m candle at entry is sharply
+            # GREEN, indicating the bounce-reversal already happened and
+            # we're chasing rather than entering on the dip itself.
+            #
+            # Validated lifetime sub-distribution:
+            #   pc_m5 > +6%: n=22, WR 45.5%, -$21.55  (clear loser cohort)
+            #   pc_m5 < -5%: n=24, WR 91.7%, +$34.11  (deepest dippers win)
+            #
+            # Filter Δ vs do-nothing:
+            #   lifetime  Δ +$190.66  (cuts 93 trades net positive)
+            #   post_cb   Δ +$56.64   (cuts 31 trades, mostly losers)
+            #   orth      Δ +$28.66   (cuts 25 trades, 10W/15L)
+            #   held-out  Δ +$5.02    (cuts 4 trades, 1W/3L)
+            # All cohorts positive — regime-resilient.
+            #
+            # Reference: GAYTES 2026-05-10 15:03 (5m=+5.9%, stopped) caught.
+            # SWATCH Buy #3 (5m=+4.6%) below threshold — caught by
+            # filter_no_signatures instead. Recent winners (CONSENSUS-1,
+            # HeavyPulp, ADA, AIFRUITS, goblinmaxxing) all entered on
+            # negative or near-zero pc_m5 and pass cleanly.
+            #
+            # Threshold +5 chosen over +4: same held-out coverage but
+            # higher precision on orth ($28.66 vs $20.14 saved) — preserves
+            # winners in the +4 to +5 band that mostly recover.
+            # Fail-open if pc_m5 missing/zero.
+            _filter_chasing_bounce_block_reasons: list = []
+            if isinstance(pc_m5, (int, float)) and pc_m5 > 5.0:
+                _filter_chasing_bounce_block_reasons.append(
+                    f"pc_m5={pc_m5:+.1f}%>+5 "
+                    f"(5m bounce already in progress — chasing, not dipping)"
+                )
+            _filter_chasing_bounce_verdict = (
+                "BLOCK" if _filter_chasing_bounce_block_reasons else "PASS"
+            )
+            c[f"filter_chasing_bounce_{_filter_chasing_bounce_verdict.lower()}"] = c.get(
+                f"filter_chasing_bounce_{_filter_chasing_bounce_verdict.lower()}", 0
+            ) + 1
+            if _filter_chasing_bounce_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_chasing_bounce: "
+                    f"{token_symbol} reasons="
+                    f"{','.join(_filter_chasing_bounce_block_reasons)}"
+                )
+                continue
+
             # ── filter_double_bear — ENFORCED 2026-05-06 PM ────────────────────
             # Secondary gate after clean_break. Block when BOTH bearish-context
             # signals stack: bs_m5 < 0.70 (5m seller-dominant) AND
@@ -4907,6 +5029,15 @@ class DipScanner:
                 # filter_fake_bounce — enforced 1m fake-bounce gate.
                 "filter_fake_bounce_verdict": _filter_fake_bounce_verdict,
                 "filter_fake_bounce_block_reasons": _filter_fake_bounce_block_reasons,
+                # filter_no_signatures — ENFORCED 2026-05-10 (0-of-6 sigs).
+                "filter_no_signatures_verdict": _filter_no_signatures_verdict,
+                "filter_no_signatures_block_reasons": _filter_no_sig_block_reasons,
+                "filter_no_signatures_sigs_hit": _sigs_hit,
+                "filter_no_signatures_sigs_available": _sigs_available,
+                "filter_no_signatures_sigs_present": _sigs_present,
+                # filter_chasing_bounce — ENFORCED 2026-05-10 (pc_m5 > +5%).
+                "filter_chasing_bounce_verdict": _filter_chasing_bounce_verdict,
+                "filter_chasing_bounce_block_reasons": _filter_chasing_bounce_block_reasons,
                 # filter_round_trip — enforced 90m round-trip distribution gate.
                 "filter_round_trip_verdict": _filter_round_trip_verdict,
                 "filter_round_trip_block_reasons": _filter_round_trip_block_reasons,
@@ -5165,6 +5296,10 @@ class DipScanner:
                 "filter_double_bear_block",
                 # ENFORCED 2026-05-06 PM — bs_m5<0.50 single-axis gate.
                 "filter_seller_dominant_block",
+                # ENFORCED 2026-05-10 — 0-of-6 winner-signatures gate.
+                "filter_no_signatures_block",
+                # ENFORCED 2026-05-10 — chasing-bounce gate (pc_m5 > +5%).
+                "filter_chasing_bounce_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
