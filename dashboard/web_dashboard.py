@@ -817,12 +817,22 @@ function updateDashboard(d) {
   updateSecurity(d.security || {}, d.price_feed || {});
   updateScalpQueue(d.scalp_queue || {});
 
-  // Reload all trades for history table
-  if (d.all_trades !== undefined) {
-    allTrades = d.all_trades;
-    filterTrades();
-  }
+  // Trade history is loaded separately from /api/trades (see loadTradeHistory below).
 }
+
+async function loadTradeHistory() {
+  try {
+    const res = await fetch('/api/trades');
+    if (!res.ok) return;
+    const trades = await res.json();
+    if (Array.isArray(trades)) {
+      allTrades = trades;
+      filterTrades();
+    }
+  } catch (e) { console.warn('trade history fetch failed', e); }
+}
+loadTradeHistory();
+setInterval(loadTradeHistory, 30000);
 
 function updateUptime(u) {
   if (u) document.getElementById('uptime').textContent = u;
@@ -2646,7 +2656,7 @@ class WebDashboard:
         )
 
     async def _handle_sse(self, request):
-        """Server-Sent Events stream — pushes fresh stats every 500ms (matches poll cadence)."""
+        """Server-Sent Events stream — pushes fresh stats every 2s."""
         response = web.StreamResponse(
             headers={
                 "Content-Type":       "text/event-stream",
@@ -2663,7 +2673,7 @@ class WebDashboard:
                 stats = await self._build_stats(consume_alerts=True)
                 payload = json.dumps(stats)
                 await response.write(f"data: {payload}\n\n".encode())
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(2.0)
         except (ConnectionResetError, asyncio.CancelledError):
             pass
         except Exception as e:
@@ -2734,10 +2744,9 @@ class WebDashboard:
                 stats["cumulative_pnl"] = self._tracker.get_cumulative_pnl()
             except Exception:
                 pass
-            try:
-                stats["all_trades"] = self._tracker.get_all_trades()
-            except Exception:
-                pass
+            # Trade history is fetched separately via /api/trades on a slow poll.
+            # Keeping all_trades out of the SSE payload — at ~16KB/trade × 400+
+            # records, streaming this 2 Hz was the dominant Railway egress cost.
             try:
                 stats["drawdown"] = self._tracker.get_drawdown_stats()
             except Exception:
