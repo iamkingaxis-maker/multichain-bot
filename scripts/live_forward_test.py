@@ -546,6 +546,69 @@ def compute_d1_features(c):
     return out
 
 
+def compute_rsi_overbought_features(c):
+    """Phantom parity for production filter_rsi_overbought gate (2026-05-11).
+
+    Fetches 5m + 15m bars, computes RSI/BB via compute_rsi_bb (same function
+    production uses), then evaluates filter_rsi_overbought_verdict.
+
+    Returns dict with rsi_5m, rsi_15m, bb_pos_5m, bb_pos_15m, and
+    filter_rsi_overbought_verdict. Fail-open on missing data.
+    """
+    out = {}
+    try:
+        import sys as _sys
+        from pathlib import Path as _Path
+        _ROOT = _Path(__file__).resolve().parent.parent
+        if str(_ROOT) not in _sys.path:
+            _sys.path.insert(0, str(_ROOT))
+        from feeds.tier2_features import compute_rsi_bb
+
+        ohlcv_5m = fetch_gt_ohlcv_with_retry(c['pair'], agg=5, limit=30)
+        time.sleep(1.0)
+        ohlcv_15m = fetch_gt_ohlcv_with_retry(c['pair'], agg=15, limit=30)
+        time.sleep(1.0)
+        if not ohlcv_5m and not ohlcv_15m:
+            return out
+
+        class _C:
+            __slots__ = ('open', 'high', 'low', 'close', 'volume')
+            def __init__(self, o, h, l, cl, v):
+                self.open = o; self.high = h; self.low = l
+                self.close = cl; self.volume = v
+
+        def to_candles(ohlcv):
+            if not ohlcv:
+                return []
+            rows = list(reversed(ohlcv))  # GT newest-first → oldest-first
+            res = []
+            for row in rows:
+                try:
+                    res.append(_C(float(row[1]), float(row[2]), float(row[3]),
+                                  float(row[4]), float(row[5])))
+                except Exception:
+                    continue
+            return res
+
+        c5 = to_candles(ohlcv_5m)
+        c15 = to_candles(ohlcv_15m)
+        rsi_features = compute_rsi_bb(c5, c15)
+        out.update(rsi_features)
+
+        # Evaluate the filter verdict (mirrors dip_scanner.py)
+        rsi5 = rsi_features.get('rsi_5m')
+        block_reasons = []
+        if rsi5 is not None and rsi5 >= 50:
+            block_reasons.append(
+                f'rsi_5m={rsi5:.1f}>=50 (5m momentum reset, not oversold)'
+            )
+        out['filter_rsi_overbought_verdict'] = 'BLOCK' if block_reasons else 'PASS'
+        out['filter_rsi_overbought_block_reasons'] = block_reasons
+    except Exception:
+        pass
+    return out
+
+
 def compute_1s_features(c):
     """Fetch 30S bars from DexScreener and compute "did a base form before
     entry?" features. SHADOW only — mirrors the bot's 2026-05-11 instrumentation.
@@ -890,6 +953,8 @@ def take_snapshot():
         # D1 chart features (trend slope/HH-LH/MA distance + micro patterns) —
         # phantom parity with production (1 GT call per token, ~1s pacing).
         c.update(compute_d1_features(c))
+        # filter_rsi_overbought phantom parity (2 GT calls: 5m + 15m bars).
+        c.update(compute_rsi_overbought_features(c))
         # Jupiter $5k buy/sell slippage
         bi, si = fetch_slip_5k(c['token'], sol_price)
         if bi is not None: c['slip_buy_5000_pct'] = bi

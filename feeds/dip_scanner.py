@@ -2480,6 +2480,40 @@ class DipScanner:
             _tier2_features["regime_h1_neg_pct"] = _regime_h1_neg_pct
             _tier2_features["regime_n_tokens_scanned"] = _regime_n
 
+            # Filter rsi_overbought — ENFORCED 2026-05-11.
+            # Mined from 684 modern trades (with lifecycle_age tracking):
+            #   rsi_5m < 50: WR 75% (n=253, 37% fire rate) — CV 75%, $+0.12/tr
+            #   rsi_5m 50-60: WR 56% ← sharp cliff
+            #   rsi_5m 60-70: WR 65% (small sample noise)
+            #   rsi_5m 70+: WR 44%
+            # Modern baseline is 58% WR / -$0.22 per trade — RSI gate lifts
+            # to 75% WR / +$0.12. 5-fold CV (token-disjoint) confirmed.
+            # Mechanism: RSI<50 means 5m chart's downside momentum hasn't
+            # reset — we're buying into ongoing weakness (correct for dip).
+            # RSI>=50 means momentum already neutral/up — likely buying a
+            # bounce that's already played out.
+            #
+            # Fail-open if rsi_5m missing (tier2 fetch failed) — feature
+            # has ~80% coverage; don't penalize on missing data.
+            _rsi5 = _tier2_features.get("rsi_5m")
+            _filter_rsi_overbought_block_reasons: list = []
+            if _rsi5 is not None and _rsi5 >= 50:
+                _filter_rsi_overbought_block_reasons.append(
+                    f"rsi_5m={_rsi5:.1f}>=50 (5m momentum reset, not oversold)"
+                )
+            _filter_rsi_overbought_verdict = (
+                "BLOCK" if _filter_rsi_overbought_block_reasons else "PASS"
+            )
+            c[f"filter_rsi_overbought_{_filter_rsi_overbought_verdict.lower()}"] = c.get(
+                f"filter_rsi_overbought_{_filter_rsi_overbought_verdict.lower()}", 0
+            ) + 1
+            if _filter_rsi_overbought_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_rsi_overbought: {token_symbol} "
+                    f"reasons={','.join(_filter_rsi_overbought_block_reasons)}"
+                )
+                continue
+
             # ── Tier-3 features (2026-05-04) — narrow but bundleable ──
             # Support touches, wick:body ratios, freq derivative, net flow
             # windows, hours_since_graduation. All computed from data
@@ -5346,6 +5380,12 @@ class DipScanner:
                 # entries on deeply-decayed old tokens (AVA8/ELIEN class).
                 "filter_solo_decay_verdict": _fsd_verdict,
                 "filter_solo_decay_block_reasons": _fsd_block_reasons,
+                # filter_rsi_overbought — ENFORCED 2026-05-11. Block when 5m
+                # RSI >= 50 (downside momentum has reset; not really an
+                # oversold dip). Mined from 684 modern trades: rsi_5m<50
+                # has 75% WR (CV) vs 58% baseline.
+                "filter_rsi_overbought_verdict": _filter_rsi_overbought_verdict,
+                "filter_rsi_overbought_block_reasons": _filter_rsi_overbought_block_reasons,
                 # 1s base-formation features — SHADOW 2026-05-11 (no filtering).
                 "1s_bars_60s": _1s_features.get("bars_60s"),
                 "1s_bars_120s": _1s_features.get("bars_120s"),
@@ -5632,7 +5672,7 @@ class DipScanner:
                 "seller_h1_red_m5", "seller_pump", "no_1m_reversal", "m1_top_tick", "m1_false_bounce", "top_consolidation",
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
-                "filter_corpse_block", "filter_fake_bounce_block",
+                "filter_corpse_block", "filter_fake_bounce_block", "filter_rsi_overbought_block",
                 "filter_round_trip_block", "filter_weak_bounce_v2_block",
                 "filter_quote_asymmetry_block", "filter_15s_dump_block",
                 "filter_5m_downtrend_block", "filter_lower_low_block",
