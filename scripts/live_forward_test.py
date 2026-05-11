@@ -556,6 +556,49 @@ def compute_1s_features(c):
             late_v = sum(b['volume_usd'] for b in pre120[mid_idx:]) / (len(pre120) - mid_idx)
             if early_v > 0:
                 out['1s_vol_decay_120s'] = late_v / early_v
+
+        # #4 sweep-reject detection — SHADOW (mirrors dip_scanner.py).
+        # Long lower wick + green close + high volume in last 3 30S bars.
+        if pre120 and len(pre120) >= 6:
+            swr = False
+            swr_idx = None
+            for i in range(max(0, len(pre120) - 3), len(pre120)):
+                b = pre120[i]
+                o_, h_, l_, c_, v_ = b['open'], b['high'], b['low'], b['close'], b['volume_usd']
+                body = abs(c_ - o_)
+                lower_wick = min(o_, c_) - l_
+                if body <= 0 or lower_wick <= 0:
+                    continue
+                start = max(0, i - 5)
+                ctx = pre120[start:i]
+                avg_v = sum(b['volume_usd'] for b in ctx) / len(ctx) if ctx else 0
+                if (lower_wick > 1.5 * body
+                        and c_ > o_
+                        and avg_v > 0 and v_ > 1.5 * avg_v):
+                    swr = True
+                    swr_idx = i
+                    break
+            out['1s_sweep_reject_detected'] = swr
+            out['1s_sweep_reject_bar_idx'] = swr_idx
+
+        # #5 structural stop placement — SHADOW (mirrors dip_scanner.py).
+        if pre60 and len(pre60) >= 2:
+            recent_low = min(b['low'] for b in pre60)
+            last_close = pre60[-1]['close']
+            if last_close > 0:
+                out['1s_structural_stop_pct'] = (
+                    (last_close - recent_low) / last_close * 100 + 0.5
+                )
+
+        # #1 derived: 1s_base_confirmed_at_entry — SHADOW (mirrors dip_scanner.py).
+        if out.get('1s_bars_60s') is not None:
+            out['1s_base_confirmed_at_entry'] = (
+                out['1s_bars_60s'] >= 2
+                and (out.get('1s_close_pos_60s') or 0) >= 0.5
+                and (out.get('1s_red_pct_60s') or 0) <= 0.5
+            )
+        else:
+            out['1s_base_confirmed_at_entry'] = True  # fail-open
     except Exception:
         pass
     return out
