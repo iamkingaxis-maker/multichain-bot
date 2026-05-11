@@ -717,6 +717,19 @@ class DipScanner:
                         m1_features.update(_trend_feats)
                     except Exception as _e:
                         logger.debug(f"[DipScanner] chart_trend error for {token_symbol}: {_e}")
+                    # Path 2 / D1 ext — micro chart pattern detection (named
+                    # patterns on 1m bars): double top/bottom, head-shoulders,
+                    # wedges, flags, triangles, engulfing, wick rejections.
+                    # Emits chart_micro_pattern_score (-100 bearish → +100 bullish)
+                    # plus individual detection flags. Forward-only, no
+                    # filtering yet. See feeds/chart_micro_patterns.py.
+                    try:
+                        from feeds.chart_micro_patterns import compute_micro_patterns
+                        _full_1m_m = (_chart_data.candles_1m if _chart_data and _chart_data.candles_1m else [])
+                        _micro_feats = compute_micro_patterns(_full_1m_m)
+                        m1_features.update(_micro_feats)
+                    except Exception as _e:
+                        logger.debug(f"[DipScanner] micro_patterns error for {token_symbol}: {_e}")
                     if green_in_last3 == 0:
                         c["no_1m_reversal"] += 1
                         logger.info(
