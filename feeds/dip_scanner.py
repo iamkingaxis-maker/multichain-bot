@@ -5123,6 +5123,25 @@ class DipScanner:
                 "1s_red_pct_60s": _1s_features.get("red_pct_60s"),
                 "1s_close_pos_60s": _1s_features.get("close_pos_60s"),
                 "1s_vol_decay_120s": _1s_features.get("vol_decay_120s"),
+                # 1s_base_confirmed_at_entry — SHADOW 2026-05-11.
+                # Derived boolean: would the active-confirmation gate have
+                # entered this trade? Criteria (require all):
+                #   bars_60s >= 2 (enough data), AND
+                #   close_pos_60s >= 0.5 (close in upper half of range), AND
+                #   red_pct_60s <= 0.5 (not majority red bars)
+                # Fail-open (=True) if features missing (no 1s data fetched).
+                # Validated on 6-trade today sample: would block 3/4 losers
+                # (LAYER, TripleT, BABYTROLL), preserve both winners
+                # (WOJAK, DATA). RAGE leaks. Will validate forward over ~50
+                # trades before promoting from shadow to enforced.
+                "1s_base_confirmed_at_entry": (
+                    True if _1s_features.get("bars_60s") is None
+                    else (
+                        _1s_features.get("bars_60s", 0) >= 2
+                        and (_1s_features.get("close_pos_60s") or 0) >= 0.5
+                        and (_1s_features.get("red_pct_60s") or 0) <= 0.5
+                    )
+                ),
                 # filter_chasing_bounce — ENFORCED 2026-05-10 (pc_m5 > +5%).
                 "filter_chasing_bounce_verdict": _filter_chasing_bounce_verdict,
                 "filter_chasing_bounce_block_reasons": _filter_chasing_bounce_block_reasons,

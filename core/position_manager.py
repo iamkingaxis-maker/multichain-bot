@@ -101,6 +101,17 @@ class PositionState:
     signal_flip_first_pnl: Optional[float] = None
     signal_flip_reasons: List[str] = field(default_factory=list)
 
+    # 1s cascade detector — SHADOW 2026-05-11. Checks during hold whether
+    # the 1s structure shows an active cascade (volatile, mostly-red,
+    # close-near-low). If yes, logs the wall-clock time + pnl at first
+    # detection. Persisted into entry_meta on sell for "would 1s-cascade
+    # exit have saved $" analysis.
+    last_1s_cascade_check_mono: float = 0.0
+    cascade_1s_first_ts: Optional[datetime] = None
+    cascade_1s_first_pnl: Optional[float] = None
+    cascade_1s_consec: int = 0
+    cascade_1s_reasons: List[str] = field(default_factory=list)
+
     @property
     def pnl_pct(self) -> float:
         if self.entry_price <= 0:
@@ -645,6 +656,145 @@ class PositionManager:
                 )
         else:
             state.consecutive_bearish_flips = 0
+
+    # ───────────────────────────────────────────────────────────
+    # 1s cascade detector — SHADOW 2026-05-11
+    # ───────────────────────────────────────────────────────────
+    _CASCADE_1S_CHECK_INTERVAL_S: float = 30.0  # check every 30s during hold
+
+    async def _maybe_check_1s_cascade(
+        self, state: PositionState, pnl_pct: float
+    ):
+        """Periodic 1s-cascade detector while a position is open. SHADOW only.
+
+        Pattern: the 1s structure shows a fast cascade in the last 60s —
+        volatile range, majority-red bars, close near low. If detected,
+        log the wall-clock time + pnl at first detection.
+
+        Persisted into entry_meta on sell so we can later quantify
+        "would a 1s-cascade exit have saved $" without running it live.
+
+        Criteria (all must hold):
+          - bars_60s >= 3 (enough data)
+          - range_pct_60s > 2.0% (active volatility)
+          - close_pos_60s < 0.25 (close near bottom of recent range)
+          - red_pct_60s > 0.5 (majority-red bars)
+
+        Cost: 1 HTTP per position per 30s during hold (~120 HTTPs/hour for
+        a single position). Cap with _CASCADE_1S_CHECK_INTERVAL_S.
+        """
+        if state.strategy != "dip_buy":
+            return
+        if not state.pair_address:
+            return
+
+        now = time.monotonic()
+        if (now - state.last_1s_cascade_check_mono) < self._CASCADE_1S_CHECK_INTERVAL_S:
+            return
+        state.last_1s_cascade_check_mono = now
+
+        try:
+            from feeds.dexscreener_chart_format import parse_chart_bars
+        except Exception:
+            return
+
+        # Resolve dex slug. We don't have direct pair-info here, so do a
+        # lightweight resolve via DexScreener pairs endpoint.
+        slug = None
+        try:
+            url = f"https://api.dexscreener.com/latest/dex/pairs/solana/{state.pair_address}"
+            async with aiohttp.ClientSession() as sess:
+                async with sess.get(
+                    url, timeout=aiohttp.ClientTimeout(total=5)
+                ) as resp:
+                    if resp.status == 200:
+                        d = await resp.json()
+                        pp = d.get("pairs") or ([d.get("pair")] if d.get("pair") else [])
+                        if pp:
+                            raw = (pp[0].get("dexId") or "").lower()
+                            slug = {
+                                "pumpswap": "pumpfundex",
+                                "pumpfun": "pumpfundex",
+                                "raydium": "solamm",
+                                "meteora": "meteora",
+                            }.get(raw, raw or "pumpfundex")
+        except Exception:
+            return
+        if not slug:
+            return
+
+        # Fetch 30S bars (~9.6h coverage; we only need last ~2min).
+        SOL_QUOTE = "So11111111111111111111111111111111111111112"
+        bars_raw = None
+        try:
+            url = (
+                f"https://io.dexscreener.com/dex/chart/amm/v3/{slug}"
+                f"/bars/solana/{state.pair_address}?res=30S&cb=20&q={SOL_QUOTE}"
+            )
+            async with aiohttp.ClientSession() as sess:
+                async with sess.get(
+                    url,
+                    headers={
+                        "Origin": "https://dexscreener.com",
+                        "Referer": "https://dexscreener.com/",
+                        "User-Agent": "Mozilla/5.0",
+                    },
+                    timeout=aiohttp.ClientTimeout(total=5),
+                ) as resp:
+                    if resp.status == 200:
+                        bars_raw = await resp.read()
+        except Exception:
+            return
+        if not bars_raw:
+            return
+
+        bars = parse_chart_bars(bars_raw)
+        now_ms = int(time.time() * 1000)
+        pre60 = [b for b in bars if now_ms - 60000 <= b["ts_ms"] < now_ms]
+        if len(pre60) < 3:
+            return
+
+        h = max(b["high"] for b in pre60)
+        l = min(b["low"] for b in pre60)
+        mid = (h + l) / 2
+        range_pct = (h - l) / mid * 100 if mid > 0 else 0
+        red_n = sum(1 for b in pre60 if b["close"] < b["open"])
+        red_pct = red_n / len(pre60)
+        last_close = pre60[-1]["close"]
+        close_pos = (last_close - l) / (h - l) if h > l else 0.5
+
+        reasons = []
+        if range_pct > 2.0:
+            reasons.append(f"range={range_pct:.2f}%>2.0")
+        if close_pos < 0.25:
+            reasons.append(f"close_pos={close_pos:.2f}<0.25")
+        if red_pct > 0.5:
+            reasons.append(f"red_pct={red_pct*100:.0f}%>50")
+
+        is_cascade = (
+            len(pre60) >= 3
+            and range_pct > 2.0
+            and close_pos < 0.25
+            and red_pct > 0.5
+        )
+        if is_cascade:
+            state.cascade_1s_consec += 1
+            if state.cascade_1s_first_ts is None:
+                state.cascade_1s_first_ts = datetime.now(timezone.utc)
+                state.cascade_1s_first_pnl = pnl_pct
+                state.cascade_1s_reasons = reasons
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] SHADOW 1s-cascade DETECTED "
+                    f"{state.token_symbol} pnl={pnl_pct:+.1f}% "
+                    f"reasons={','.join(reasons)}"
+                )
+            elif state.cascade_1s_consec % 5 == 0:
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] SHADOW 1s-cascade STILL ACTIVE "
+                    f"{state.token_symbol} pnl={pnl_pct:+.1f}% n_consec={state.cascade_1s_consec}"
+                )
+        else:
+            state.cascade_1s_consec = 0
 
     async def _fetch_volume_snapshot(self, token_address: str):
         """
@@ -1293,6 +1443,7 @@ class PositionManager:
             # before enforcing anything.
             try:
                 await self._maybe_check_chart_signal_flip(token_address, state, pnl_pct)
+                await self._maybe_check_1s_cascade(state, pnl_pct)
             except Exception as _e:
                 logger.debug(f"[PositionManager] signal-flip check error for {state.token_symbol}: {_e}")
 
