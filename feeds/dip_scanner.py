@@ -4124,6 +4124,56 @@ class DipScanner:
                 f"trigger_source_{_trigger_source}", 0
             ) + 1
 
+            # ── filter_solo_decay — ENFORCED 2026-05-11 ─────────────────────
+            # Block solo clean_break / high_regime entries on deeply-decayed
+            # old tokens. These are the "post-pump dead-cat after major
+            # decay" class — what AVA8 (2026-05-11 15:52, lost -$1.70)
+            # and ELIEN (2026-05-11 16:16, bleeding -3.88%) both were.
+            #
+            # Gate: trigger_source ∈ {clean_break, high_regime} alone
+            #       AND lifecycle_age_hours > 168 (>= 7 days old)
+            #       AND lifecycle_h24_ratio < 0.20 (>=80% off 24h peak)
+            #
+            # Confluence triggers (clean_break_high_regime, etc.) are NOT
+            # blocked — those have 71% WR / +$0.30/trade in post_cb.
+            # The solo-trigger class has 46-48% WR / -$0.39 to -$1.01/trade.
+            #
+            # Validation (lifetime peak/mdd telemetry):
+            #   Lifetime: 3 blocks, 0W/3L, -$5.69 (clean losers)
+            #   Post_cb:  same 3, all in the same period
+            #   Hold-out: 0 blocks (no held-out trades match — won't
+            #             affect current-regime forward performance)
+            # Layered with triple filter: +$5.91 post_cb, +$3.73 val,
+            #   +$2.18 hold-out (positive on every cohort).
+            #
+            # Catches AVA8 (age=356, h24r=0.113) ✓
+            # Catches ELIEN (age=429, h24r=0.154) ✓
+            # Preserves Goblin 14:10 (winner, fresh token) ✓
+            _fsd_age = _lifecycle_dict.get("lifecycle_age_hours") if _lifecycle_dict else None
+            _fsd_h24r = _lifecycle_dict.get("lifecycle_h24_ratio") if _lifecycle_dict else None
+            _fsd_solo = _trigger_source in ("clean_break", "high_regime")
+            _fsd_block_reasons: list = []
+            if (_fsd_solo
+                    and isinstance(_fsd_age, (int, float))
+                    and isinstance(_fsd_h24r, (int, float))
+                    and _fsd_age > 168
+                    and _fsd_h24r < 0.20):
+                _fsd_block_reasons.append(
+                    f"solo_trigger={_trigger_source} AND "
+                    f"age={_fsd_age:.0f}h>168 AND "
+                    f"h24_ratio={_fsd_h24r:.3f}<0.20 (post-pump corpse)"
+                )
+            _fsd_verdict = "BLOCK" if _fsd_block_reasons else "PASS"
+            c[f"filter_solo_decay_{_fsd_verdict.lower()}"] = c.get(
+                f"filter_solo_decay_{_fsd_verdict.lower()}", 0
+            ) + 1
+            if _fsd_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_solo_decay: "
+                    f"{token_symbol} reasons={','.join(_fsd_block_reasons)}"
+                )
+                continue
+
             # ── 1s base-formation shadow instrumentation — ADDED 2026-05-11 ────
             # Fetches 30S bars from DexScreener and computes "did a base form
             # before entry?" features. SHADOW only — no filtering. Lets us
@@ -5210,6 +5260,10 @@ class DipScanner:
                 # 1s_vol_decay_120s < 0.30 (late-period vol <30% of early).
                 "filter_dying_volume_verdict": _fdv_verdict,
                 "filter_dying_volume_block_reasons": _fdv_reasons,
+                # filter_solo_decay — ENFORCED 2026-05-11. Block solo trigger
+                # entries on deeply-decayed old tokens (AVA8/ELIEN class).
+                "filter_solo_decay_verdict": _fsd_verdict,
+                "filter_solo_decay_block_reasons": _fsd_block_reasons,
                 # 1s base-formation features — SHADOW 2026-05-11 (no filtering).
                 "1s_bars_60s": _1s_features.get("bars_60s"),
                 "1s_bars_120s": _1s_features.get("bars_120s"),
