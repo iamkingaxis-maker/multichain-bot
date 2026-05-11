@@ -634,6 +634,47 @@ def compute_1s_features(c):
             out['1s_sweep_reject_detected'] = swr
             out['1s_sweep_reject_bar_idx'] = swr_idx
 
+        # #4b cascade-reversal detection — SHADOW (mirrors dip_scanner.py).
+        # 5+ consecutive red 1s bars followed by green reversal closing in
+        # top 30% of post-cascade range. Catches Goblin-style multi-bar
+        # capitulation bottoms that single-bar sweep_reject misses.
+        pre180 = [b for b in bars if now_ms - 180000 <= b['ts_ms'] < now_ms]
+        if pre180 and len(pre180) >= 8:
+            max_red_run = 0
+            max_red_end_idx = -1
+            cur_run = 0
+            for i, b in enumerate(pre180):
+                if b['close'] < b['open']:
+                    cur_run += 1
+                    if cur_run > max_red_run:
+                        max_red_run = cur_run
+                        max_red_end_idx = i
+                else:
+                    cur_run = 0
+            cascade_rev = False
+            cascade_rev_cp = None
+            cascade_rev_pct = None
+            if max_red_run >= 5 and max_red_end_idx >= 0:
+                after = pre180[max_red_end_idx + 1:]
+                green_after = [b for b in after if b['close'] > b['open']]
+                if green_after and after:
+                    rev = green_after[0]
+                    casc_bars = pre180[
+                        max_red_end_idx - max_red_run + 1:max_red_end_idx + 1
+                    ]
+                    casc_low = min(b['low'] for b in casc_bars)
+                    range_h = max(b['high'] for b in after)
+                    if range_h > casc_low:
+                        cascade_rev_cp = (rev['close'] - casc_low) / (range_h - casc_low)
+                        if cascade_rev_cp >= 0.7:
+                            cascade_rev = True
+                            if casc_low > 0:
+                                cascade_rev_pct = (rev['close'] / casc_low - 1) * 100
+            out['1s_cascade_length'] = max_red_run
+            out['1s_cascade_reversal_detected'] = cascade_rev
+            out['1s_cascade_reversal_close_pos'] = cascade_rev_cp
+            out['1s_cascade_reversal_pct'] = cascade_rev_pct
+
         # #5 structural stop placement — SHADOW (mirrors dip_scanner.py).
         if pre60 and len(pre60) >= 2:
             recent_low = min(b['low'] for b in pre60)

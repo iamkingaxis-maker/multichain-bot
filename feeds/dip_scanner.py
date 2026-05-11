@@ -4316,6 +4316,64 @@ class DipScanner:
                         _1s_features["sweep_reject_detected"] = _swr
                         _1s_features["sweep_reject_bar_idx"] = _swr_idx
 
+                    # ── #4b cascade-reversal detection — SHADOW 2026-05-11 ───
+                    # Wider pattern than sweep_reject (single-bar wick+vol).
+                    # Cascade-reversal catches Goblin-style bottoms:
+                    #   1) 5+ consecutive RED 1s bars (cascade down)
+                    #   2) Followed by a GREEN bar closing in top 30% of the
+                    #      post-cascade range (reversal confirmation)
+                    # Reference: Goblin 2026-05-11 16:43 bottom — 62.5% red
+                    # bars with close_pos 0.10, then close_pos jumped to 1.0
+                    # at +30s. sweep_reject didn't fire because the pattern
+                    # was multi-bar capitulation, not a single long-wick bar.
+                    # Window: last 180s (vs sweep_reject's 120s) so we can
+                    # see the full cascade + the reversal.
+                    _pre180 = [b for b in _1s_bars
+                               if _now_ms - 180000 <= b["ts_ms"] < _now_ms]
+                    if _pre180 and len(_pre180) >= 8:
+                        _max_red_run = 0
+                        _max_red_end_idx = -1
+                        _cur_run = 0
+                        for _i, _b in enumerate(_pre180):
+                            if _b["close"] < _b["open"]:
+                                _cur_run += 1
+                                if _cur_run > _max_red_run:
+                                    _max_red_run = _cur_run
+                                    _max_red_end_idx = _i
+                            else:
+                                _cur_run = 0
+                        _cascade_rev = False
+                        _cascade_rev_cp = None
+                        _cascade_rev_pct = None
+                        if _max_red_run >= 5 and _max_red_end_idx >= 0:
+                            _after = _pre180[_max_red_end_idx + 1:]
+                            _green_after = [b for b in _after
+                                            if b["close"] > b["open"]]
+                            if _green_after and _after:
+                                _rev = _green_after[0]
+                                _casc_bars = _pre180[
+                                    _max_red_end_idx - _max_red_run + 1:
+                                    _max_red_end_idx + 1
+                                ]
+                                _casc_low = min(b["low"] for b in _casc_bars)
+                                _range_h = max(b["high"] for b in _after)
+                                if _range_h > _casc_low:
+                                    _cascade_rev_cp = (
+                                        (_rev["close"] - _casc_low)
+                                        / (_range_h - _casc_low)
+                                    )
+                                    if _cascade_rev_cp >= 0.7:
+                                        _cascade_rev = True
+                                        if _casc_low > 0:
+                                            _cascade_rev_pct = (
+                                                (_rev["close"] / _casc_low - 1)
+                                                * 100
+                                            )
+                        _1s_features["cascade_length"] = _max_red_run
+                        _1s_features["cascade_reversal_detected"] = _cascade_rev
+                        _1s_features["cascade_reversal_close_pos"] = _cascade_rev_cp
+                        _1s_features["cascade_reversal_pct"] = _cascade_rev_pct
+
                     # ── #5 structural stop placement — SHADOW ────────────────
                     # The lowest 1s low in last 60s + 0.5% buffer = where a
                     # structural stop would sit. Compare forward to fixed -7%
@@ -5301,6 +5359,15 @@ class DipScanner:
                 # volume in last 3 30S bars. Want forward W:L ratio on this.
                 "1s_sweep_reject_detected": _1s_features.get("sweep_reject_detected"),
                 "1s_sweep_reject_bar_idx": _1s_features.get("sweep_reject_bar_idx"),
+                # 1s_cascade_reversal — SHADOW 2026-05-11 (#4b).
+                # Wider bottom signal than sweep_reject: 5+ consecutive red 1s
+                # bars followed by green reversal closing in top 30% of post-
+                # cascade range. Targets Goblin-style multi-bar capitulation
+                # bottoms that single-bar sweep_reject misses.
+                "1s_cascade_length": _1s_features.get("cascade_length"),
+                "1s_cascade_reversal_detected": _1s_features.get("cascade_reversal_detected"),
+                "1s_cascade_reversal_close_pos": _1s_features.get("cascade_reversal_close_pos"),
+                "1s_cascade_reversal_pct": _1s_features.get("cascade_reversal_pct"),
                 # 1s_structural_stop_pct — SHADOW 2026-05-11 (#5).
                 # Distance from entry close to recent 1s low + 0.5% buffer.
                 # Compares to fixed dip_stop_pct=7 — if structural is tighter,
