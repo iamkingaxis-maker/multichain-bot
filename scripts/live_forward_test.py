@@ -527,7 +527,7 @@ def compute_1s_features(c):
         slug = {'pumpswap': 'pumpfundex', 'pumpfun': 'pumpfundex',
                 'raydium': 'solamm', 'meteora': 'meteora'}.get(dex_id, dex_id or 'pumpfundex')
         url = (f'https://io.dexscreener.com/dex/chart/amm/v3/{slug}/bars/solana/{pair}'
-               f'?res=30S&cb=20&q=So11111111111111111111111111111111111111112')
+               f'?res=1S&cb=999&q=So11111111111111111111111111111111111111112')
         r = cf_requests.get(url, impersonate='chrome', timeout=8,
                             headers={'Origin': 'https://dexscreener.com',
                                      'Referer': 'https://dexscreener.com/'})

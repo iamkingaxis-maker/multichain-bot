@@ -725,7 +725,7 @@ class PositionManager:
                 # Fetch bars
                 _url = (
                     f"https://io.dexscreener.com/dex/chart/amm/v3/{_slug}"
-                    f"/bars/solana/{state.pair_address}?res=30S&cb=20&q={SOL_QUOTE}"
+                    f"/bars/solana/{state.pair_address}?res=1S&cb=999&q={SOL_QUOTE}"
                 )
                 r_bars = _cf.get(
                     _url, impersonate="chrome", timeout=5,

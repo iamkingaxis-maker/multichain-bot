@@ -4148,7 +4148,7 @@ class DipScanner:
                 _SOL_QUOTE = "So11111111111111111111111111111111111111112"
                 _1s_url = (
                     f"https://io.dexscreener.com/dex/chart/amm/v3/{_1s_slug}"
-                    f"/bars/solana/{_1s_pair}?res=30S&cb=20&q={_SOL_QUOTE}"
+                    f"/bars/solana/{_1s_pair}?res=1S&cb=999&q={_SOL_QUOTE}"
                 )
                 # DexScreener uses TLS fingerprinting (Cloudflare) — aiohttp
                 # gets 403. Must use curl_cffi with impersonate='chrome'.
