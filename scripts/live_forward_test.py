@@ -493,6 +493,59 @@ def compute_mtf_features(c):
     return out
 
 
+def compute_d1_features(c):
+    """Phantom parity for the production D1 features (chart_trend +
+    chart_micro_patterns). Fetches 30+ 1m bars and computes the same
+    slope/HH-LH/MA-distance/named-pattern features production emits.
+
+    Returns dict that's merged into the candidate. Fail-open on any error.
+    """
+    out = {}
+    try:
+        # Fetch 30 1m bars (enough for all D1 features)
+        ohlcv_1m = fetch_gt_ohlcv_with_retry(c['pair'], agg=1, limit=60)
+        time.sleep(1.0)  # GT pacing
+        if not ohlcv_1m or len(ohlcv_1m) < 5:
+            return out
+        # GT returns newest-first; flip to oldest-first
+        rows = list(reversed(ohlcv_1m))
+        # Convert to simple candle objects with .open/.high/.low/.close
+        class _C:
+            __slots__ = ('open', 'high', 'low', 'close', 'volume')
+            def __init__(self, o, h, l, cl, v):
+                self.open = o; self.high = h; self.low = l
+                self.close = cl; self.volume = v
+        candles = []
+        for row in rows:
+            try:
+                candles.append(_C(
+                    float(row[1]), float(row[2]), float(row[3]),
+                    float(row[4]), float(row[5]),
+                ))
+            except Exception:
+                continue
+        if len(candles) < 5:
+            return out
+        # Trend features
+        try:
+            import sys
+            from pathlib import Path
+            sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+            from feeds.chart_trend_features import compute_chart_trend
+            out.update(compute_chart_trend(candles))
+        except Exception:
+            pass
+        # Micro pattern features
+        try:
+            from feeds.chart_micro_patterns import compute_micro_patterns
+            out.update(compute_micro_patterns(candles))
+        except Exception:
+            pass
+    except Exception:
+        pass
+    return out
+
+
 def compute_1s_features(c):
     """Fetch 30S bars from DexScreener and compute "did a base form before
     entry?" features. SHADOW only — mirrors the bot's 2026-05-11 instrumentation.
@@ -793,6 +846,9 @@ def take_snapshot():
         c.update(compute_mtf_features(c))
         # 1s base-formation features (1 DS call per token) — SHADOW 2026-05-11
         c.update(compute_1s_features(c))
+        # D1 chart features (trend slope/HH-LH/MA distance + micro patterns) —
+        # phantom parity with production (1 GT call per token, ~1s pacing).
+        c.update(compute_d1_features(c))
         # Jupiter $5k buy/sell slippage
         bi, si = fetch_slip_5k(c['token'], sol_price)
         if bi is not None: c['slip_buy_5000_pct'] = bi
