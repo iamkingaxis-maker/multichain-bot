@@ -493,6 +493,74 @@ def compute_mtf_features(c):
     return out
 
 
+def compute_1s_features(c):
+    """Fetch 30S bars from DexScreener and compute "did a base form before
+    entry?" features. SHADOW only — mirrors the bot's 2026-05-11 instrumentation.
+
+    Returns dict with 1s_bars_60s, 1s_range_pct_60s, 1s_red_pct_60s,
+    1s_close_pos_60s, 1s_vol_decay_120s. Fail-open on missing data.
+    """
+    import sys as _sys
+    from pathlib import Path as _Path
+    _ROOT = _Path(__file__).resolve().parent.parent
+    if str(_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(_ROOT))
+    try:
+        from feeds.dexscreener_chart_format import parse_chart_bars
+    except Exception:
+        return {}
+    out = {}
+    try:
+        pair = c.get('pair')
+        if not pair:
+            return out
+        # Resolve dex slug
+        dex_id = (c.get('dex_id') or '').lower()
+        if not dex_id:
+            # Resolve via API as fallback
+            try:
+                d = _safe_get(f'https://api.dexscreener.com/latest/dex/pairs/solana/{pair}', timeout=8)
+                if d and d.get('pairs'):
+                    dex_id = (d['pairs'][0].get('dexId') or '').lower()
+            except Exception:
+                pass
+        slug = {'pumpswap': 'pumpfundex', 'pumpfun': 'pumpfundex',
+                'raydium': 'solamm', 'meteora': 'meteora'}.get(dex_id, dex_id or 'pumpfundex')
+        url = (f'https://io.dexscreener.com/dex/chart/amm/v3/{slug}/bars/solana/{pair}'
+               f'?res=30S&cb=20&q=So11111111111111111111111111111111111111112')
+        r = cf_requests.get(url, impersonate='chrome', timeout=8,
+                            headers={'Origin': 'https://dexscreener.com',
+                                     'Referer': 'https://dexscreener.com/'})
+        if r.status_code != 200:
+            return out
+        bars = parse_chart_bars(r.content)
+        if not bars:
+            return out
+        now_ms = int(time.time() * 1000)
+        pre60 = [b for b in bars if now_ms - 60000 <= b['ts_ms'] < now_ms]
+        pre120 = [b for b in bars if now_ms - 120000 <= b['ts_ms'] < now_ms]
+        out['1s_bars_60s'] = len(pre60)
+        out['1s_bars_120s'] = len(pre120)
+        if pre60:
+            h = max(b['high'] for b in pre60)
+            l = min(b['low'] for b in pre60)
+            mid = (h + l) / 2
+            out['1s_range_pct_60s'] = (h - l) / mid * 100 if mid > 0 else 0
+            out['1s_red_count_60s'] = sum(1 for b in pre60 if b['close'] < b['open'])
+            out['1s_red_pct_60s'] = out['1s_red_count_60s'] / len(pre60)
+            last_close = pre60[-1]['close']
+            out['1s_close_pos_60s'] = (last_close - l) / (h - l) if h > l else 0.5
+        if pre120 and len(pre120) >= 4:
+            mid_idx = len(pre120) // 2
+            early_v = sum(b['volume_usd'] for b in pre120[:mid_idx]) / mid_idx
+            late_v = sum(b['volume_usd'] for b in pre120[mid_idx:]) / (len(pre120) - mid_idx)
+            if early_v > 0:
+                out['1s_vol_decay_120s'] = late_v / early_v
+    except Exception:
+        pass
+    return out
+
+
 def compute_5m_features(c):
     """Fetch 5m candles via GT (with retry) and compute pct_in_5m_range, candle pattern, etc."""
     ohlcv = fetch_gt_ohlcv_with_retry(c['pair'], agg=5, limit=24)
@@ -680,6 +748,8 @@ def take_snapshot():
             c.update(feats)
         # Multi-timeframe momentum (adds 2 GT calls per token)
         c.update(compute_mtf_features(c))
+        # 1s base-formation features (1 DS call per token) — SHADOW 2026-05-11
+        c.update(compute_1s_features(c))
         # Jupiter $5k buy/sell slippage
         bi, si = fetch_slip_5k(c['token'], sol_price)
         if bi is not None: c['slip_buy_5000_pct'] = bi

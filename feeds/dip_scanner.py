@@ -4124,6 +4124,86 @@ class DipScanner:
                 f"trigger_source_{_trigger_source}", 0
             ) + 1
 
+            # ── 1s base-formation shadow instrumentation — ADDED 2026-05-11 ────
+            # Fetches 30S bars from DexScreener and computes "did a base form
+            # before entry?" features. SHADOW only — no filtering. Lets us
+            # accumulate forward data to validate the hypothesis from the
+            # 2026-05-10 chart analysis: winners enter on tight 1s bases
+            # (low volatility last 60s, close near top of recent range);
+            # losers enter mid-cascade (high volatility, close near bottom).
+            #
+            # Cost: 1 extra HTTP per entry decision (~30/day, negligible vs
+            # ~50k+ scans). Fail-open: missing features = None.
+            _1s_features: dict = {}
+            try:
+                from feeds.dexscreener_chart_format import parse_chart_bars
+                _dex_id = (pair.get("dexId") or "").lower()
+                _1s_slug = {
+                    "pumpswap": "pumpfundex",
+                    "pumpfun": "pumpfundex",
+                    "raydium": "solamm",
+                    "meteora": "meteora",
+                }.get(_dex_id, _dex_id or "pumpfundex")
+                _1s_pair = pair_addr_for_1m
+                _SOL_QUOTE = "So11111111111111111111111111111111111111112"
+                _1s_url = (
+                    f"https://io.dexscreener.com/dex/chart/amm/v3/{_1s_slug}"
+                    f"/bars/solana/{_1s_pair}?res=30S&cb=20&q={_SOL_QUOTE}"
+                )
+                _1s_raw = None
+                try:
+                    async with aiohttp.ClientSession() as _sess:
+                        async with _sess.get(
+                            _1s_url,
+                            headers={
+                                "Origin": "https://dexscreener.com",
+                                "Referer": "https://dexscreener.com/",
+                                "User-Agent": "Mozilla/5.0",
+                            },
+                            timeout=aiohttp.ClientTimeout(total=6),
+                        ) as _resp:
+                            if _resp.status == 200:
+                                _1s_raw = await _resp.read()
+                except Exception as _ee:
+                    logger.debug(f"[DipScanner] 1s fetch err: {_ee}")
+                if _1s_raw:
+                    _1s_bars = parse_chart_bars(_1s_raw)
+                    _now_ms = int(time.time() * 1000)
+                    _pre60 = [b for b in _1s_bars
+                              if _now_ms - 60000 <= b["ts_ms"] < _now_ms]
+                    _pre120 = [b for b in _1s_bars
+                               if _now_ms - 120000 <= b["ts_ms"] < _now_ms]
+                    _1s_features["bars_60s"] = len(_pre60)
+                    _1s_features["bars_120s"] = len(_pre120)
+                    if _pre60:
+                        _h = max(b["high"] for b in _pre60)
+                        _l = min(b["low"] for b in _pre60)
+                        _mid = (_h + _l) / 2
+                        _1s_features["range_pct_60s"] = (
+                            (_h - _l) / _mid * 100 if _mid > 0 else 0
+                        )
+                        _1s_features["red_count_60s"] = sum(
+                            1 for b in _pre60 if b["close"] < b["open"]
+                        )
+                        _1s_features["red_pct_60s"] = (
+                            _1s_features["red_count_60s"] / len(_pre60)
+                        )
+                        _last_close = _pre60[-1]["close"]
+                        _1s_features["close_pos_60s"] = (
+                            (_last_close - _l) / (_h - _l) if _h > _l else 0.5
+                        )
+                    if _pre120 and len(_pre120) >= 4:
+                        _mid_idx = len(_pre120) // 2
+                        _early_v = sum(b["volume_usd"] for b in _pre120[:_mid_idx]) / _mid_idx
+                        _late_v = (
+                            sum(b["volume_usd"] for b in _pre120[_mid_idx:])
+                            / (len(_pre120) - _mid_idx)
+                        )
+                        if _early_v > 0:
+                            _1s_features["vol_decay_120s"] = _late_v / _early_v
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 1s features err: {_e}")
+
             # ── filter_no_signatures — ENFORCED 2026-05-10 ─────────────────────
             # Block when 0 of 6 positive winner signatures are present (with at
             # least 3 features available — fail-open if chart_reader missed
@@ -5035,6 +5115,14 @@ class DipScanner:
                 "filter_no_signatures_sigs_hit": _sigs_hit,
                 "filter_no_signatures_sigs_available": _sigs_available,
                 "filter_no_signatures_sigs_present": _sigs_present,
+                # 1s base-formation features — SHADOW 2026-05-11 (no filtering).
+                "1s_bars_60s": _1s_features.get("bars_60s"),
+                "1s_bars_120s": _1s_features.get("bars_120s"),
+                "1s_range_pct_60s": _1s_features.get("range_pct_60s"),
+                "1s_red_count_60s": _1s_features.get("red_count_60s"),
+                "1s_red_pct_60s": _1s_features.get("red_pct_60s"),
+                "1s_close_pos_60s": _1s_features.get("close_pos_60s"),
+                "1s_vol_decay_120s": _1s_features.get("vol_decay_120s"),
                 # filter_chasing_bounce — ENFORCED 2026-05-10 (pc_m5 > +5%).
                 "filter_chasing_bounce_verdict": _filter_chasing_bounce_verdict,
                 "filter_chasing_bounce_block_reasons": _filter_chasing_bounce_block_reasons,
