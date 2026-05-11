@@ -4201,6 +4201,54 @@ class DipScanner:
                         )
                         if _early_v > 0:
                             _1s_features["vol_decay_120s"] = _late_v / _early_v
+
+                    # ── #4 sweep-reject detection — SHADOW ────────────────────
+                    # Pattern: a 30S bar with long lower wick + green close +
+                    # high volume = sellers swept lower lows, buyers rejected.
+                    # Classic capitulation-reversal "bottom" signal.
+                    # Criteria (any of last 3 bars):
+                    #   lower_wick > 1.5 * body  AND  close > open  AND
+                    #   volume > 1.5 * avg(prior 5 bars)
+                    if _pre120 and len(_pre120) >= 6:
+                        _swr = False
+                        _swr_idx = None
+                        for _i in range(max(0, len(_pre120) - 3), len(_pre120)):
+                            _b = _pre120[_i]
+                            _o, _h, _l, _c, _v = (_b["open"], _b["high"],
+                                                  _b["low"], _b["close"],
+                                                  _b["volume_usd"])
+                            _body = abs(_c - _o)
+                            _lower_wick = min(_o, _c) - _l
+                            if _body <= 0 or _lower_wick <= 0:
+                                continue
+                            # Volume context: previous 5 bars before this one
+                            _start = max(0, _i - 5)
+                            _ctx = _pre120[_start:_i]
+                            _avg_v = (sum(b["volume_usd"] for b in _ctx) / len(_ctx)
+                                      if _ctx else 0)
+                            if (_lower_wick > 1.5 * _body
+                                    and _c > _o
+                                    and _avg_v > 0 and _v > 1.5 * _avg_v):
+                                _swr = True
+                                _swr_idx = _i
+                                break
+                        _1s_features["sweep_reject_detected"] = _swr
+                        _1s_features["sweep_reject_bar_idx"] = _swr_idx
+
+                    # ── #5 structural stop placement — SHADOW ────────────────
+                    # The lowest 1s low in last 60s + 0.5% buffer = where a
+                    # structural stop would sit. Compare forward to fixed -7%
+                    # to see whether structural is tighter (most cases) or
+                    # looser (volatile setups).
+                    if _pre60 and len(_pre60) >= 2:
+                        _recent_low = min(b["low"] for b in _pre60)
+                        _last_close = _pre60[-1]["close"]
+                        if _last_close > 0:
+                            _struct_dist = (
+                                (_last_close - _recent_low) / _last_close * 100
+                                + 0.5  # 0.5% buffer for slippage
+                            )
+                            _1s_features["structural_stop_pct"] = _struct_dist
             except Exception as _e:
                 logger.debug(f"[DipScanner] 1s features err: {_e}")
 
@@ -5123,6 +5171,17 @@ class DipScanner:
                 "1s_red_pct_60s": _1s_features.get("red_pct_60s"),
                 "1s_close_pos_60s": _1s_features.get("close_pos_60s"),
                 "1s_vol_decay_120s": _1s_features.get("vol_decay_120s"),
+                # 1s_sweep_reject_detected — SHADOW 2026-05-11 (#4).
+                # Bottom-catch signal: long lower wick + green close + high
+                # volume in last 3 30S bars. Want forward W:L ratio on this.
+                "1s_sweep_reject_detected": _1s_features.get("sweep_reject_detected"),
+                "1s_sweep_reject_bar_idx": _1s_features.get("sweep_reject_bar_idx"),
+                # 1s_structural_stop_pct — SHADOW 2026-05-11 (#5).
+                # Distance from entry close to recent 1s low + 0.5% buffer.
+                # Compares to fixed dip_stop_pct=7 — if structural is tighter,
+                # we're overpaying on stops; if looser, we're under-stopping
+                # the volatile setups.
+                "1s_structural_stop_pct": _1s_features.get("structural_stop_pct"),
                 # 1s_base_confirmed_at_entry — SHADOW 2026-05-11.
                 # Derived boolean: would the active-confirmation gate have
                 # entered this trade? Criteria (require all):
