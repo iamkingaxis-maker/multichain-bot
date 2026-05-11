@@ -706,6 +706,17 @@ class DipScanner:
                         m1_features.update(_shape_feats)
                     except Exception as _e:
                         logger.debug(f"[DipScanner] chart_shape error for {token_symbol}: {_e}")
+                    # D1 — chart_trend_features (slopes, HH/LH, MA distances,
+                    # slope acceleration). Forward-only collection: features
+                    # appear in entry_meta. Cannot backfill lifetime trades.
+                    # See feeds/chart_trend_features.py for hypothesis.
+                    try:
+                        from feeds.chart_trend_features import compute_chart_trend
+                        _full_1m_t = (_chart_data.candles_1m if _chart_data and _chart_data.candles_1m else [])
+                        _trend_feats = compute_chart_trend(_full_1m_t)
+                        m1_features.update(_trend_feats)
+                    except Exception as _e:
+                        logger.debug(f"[DipScanner] chart_trend error for {token_symbol}: {_e}")
                     if green_in_last3 == 0:
                         c["no_1m_reversal"] += 1
                         logger.info(
