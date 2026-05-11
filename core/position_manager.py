@@ -698,54 +698,53 @@ class PositionManager:
         except Exception:
             return
 
-        # Resolve dex slug. We don't have direct pair-info here, so do a
-        # lightweight resolve via DexScreener pairs endpoint.
+        # DexScreener uses TLS fingerprinting — aiohttp gets 403. Must
+        # use curl_cffi with impersonate='chrome' wrapped in to_thread().
         slug = None
-        try:
-            url = f"https://api.dexscreener.com/latest/dex/pairs/solana/{state.pair_address}"
-            async with aiohttp.ClientSession() as sess:
-                async with sess.get(
-                    url, timeout=aiohttp.ClientTimeout(total=5)
-                ) as resp:
-                    if resp.status == 200:
-                        d = await resp.json()
-                        pp = d.get("pairs") or ([d.get("pair")] if d.get("pair") else [])
-                        if pp:
-                            raw = (pp[0].get("dexId") or "").lower()
-                            slug = {
-                                "pumpswap": "pumpfundex",
-                                "pumpfun": "pumpfundex",
-                                "raydium": "solamm",
-                                "meteora": "meteora",
-                            }.get(raw, raw or "pumpfundex")
-        except Exception:
-            return
-        if not slug:
-            return
-
-        # Fetch 30S bars (~9.6h coverage; we only need last ~2min).
         SOL_QUOTE = "So11111111111111111111111111111111111111112"
-        bars_raw = None
-        try:
-            url = (
-                f"https://io.dexscreener.com/dex/chart/amm/v3/{slug}"
-                f"/bars/solana/{state.pair_address}?res=30S&cb=20&q={SOL_QUOTE}"
-            )
-            async with aiohttp.ClientSession() as sess:
-                async with sess.get(
-                    url,
+
+        def _fetch_slug_and_bars_sync():
+            try:
+                from curl_cffi import requests as _cf
+                # Resolve dex slug from pair-info
+                r_pair = _cf.get(
+                    f"https://api.dexscreener.com/latest/dex/pairs/solana/{state.pair_address}",
+                    impersonate="chrome", timeout=5,
+                )
+                if r_pair.status_code != 200:
+                    return None, None
+                d = r_pair.json()
+                pp = d.get("pairs") or ([d.get("pair")] if d.get("pair") else [])
+                if not pp:
+                    return None, None
+                raw = (pp[0].get("dexId") or "").lower()
+                _slug = {
+                    "pumpswap": "pumpfundex", "pumpfun": "pumpfundex",
+                    "raydium": "solamm", "meteora": "meteora",
+                }.get(raw, raw or "pumpfundex")
+                # Fetch bars
+                _url = (
+                    f"https://io.dexscreener.com/dex/chart/amm/v3/{_slug}"
+                    f"/bars/solana/{state.pair_address}?res=30S&cb=20&q={SOL_QUOTE}"
+                )
+                r_bars = _cf.get(
+                    _url, impersonate="chrome", timeout=5,
                     headers={
                         "Origin": "https://dexscreener.com",
                         "Referer": "https://dexscreener.com/",
-                        "User-Agent": "Mozilla/5.0",
                     },
-                    timeout=aiohttp.ClientTimeout(total=5),
-                ) as resp:
-                    if resp.status == 200:
-                        bars_raw = await resp.read()
+                )
+                if r_bars.status_code == 200:
+                    return _slug, r_bars.content
+                return _slug, None
+            except Exception:
+                return None, None
+
+        try:
+            slug, bars_raw = await asyncio.to_thread(_fetch_slug_and_bars_sync)
         except Exception:
             return
-        if not bars_raw:
+        if not slug or not bars_raw:
             return
 
         bars = parse_chart_bars(bars_raw)

@@ -4150,22 +4150,29 @@ class DipScanner:
                     f"https://io.dexscreener.com/dex/chart/amm/v3/{_1s_slug}"
                     f"/bars/solana/{_1s_pair}?res=30S&cb=20&q={_SOL_QUOTE}"
                 )
+                # DexScreener uses TLS fingerprinting (Cloudflare) — aiohttp
+                # gets 403. Must use curl_cffi with impersonate='chrome'.
+                # Wrap sync call in to_thread() to stay async-compatible.
                 _1s_raw = None
                 try:
-                    async with aiohttp.ClientSession() as _sess:
-                        async with _sess.get(
-                            _1s_url,
-                            headers={
-                                "Origin": "https://dexscreener.com",
-                                "Referer": "https://dexscreener.com/",
-                                "User-Agent": "Mozilla/5.0",
-                            },
-                            timeout=aiohttp.ClientTimeout(total=6),
-                        ) as _resp:
-                            if _resp.status == 200:
-                                _1s_raw = await _resp.read()
+                    from curl_cffi import requests as _cf
+                    def _fetch_1s_sync():
+                        try:
+                            _r = _cf.get(
+                                _1s_url, impersonate="chrome", timeout=6,
+                                headers={
+                                    "Origin": "https://dexscreener.com",
+                                    "Referer": "https://dexscreener.com/",
+                                },
+                            )
+                            if _r.status_code == 200:
+                                return _r.content
+                        except Exception:
+                            return None
+                        return None
+                    _1s_raw = await asyncio.to_thread(_fetch_1s_sync)
                 except Exception as _ee:
-                    logger.debug(f"[DipScanner] 1s fetch err: {_ee}")
+                    logger.warning(f"[DipScanner] 1s fetch err: {_ee}")
                 if _1s_raw:
                     _1s_bars = parse_chart_bars(_1s_raw)
                     _now_ms = int(time.time() * 1000)
