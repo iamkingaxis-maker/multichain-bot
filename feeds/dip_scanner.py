@@ -4259,6 +4259,42 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] 1s features err: {_e}")
 
+            # ── filter_dying_volume — SHADOW 2026-05-11 ───────────────────────
+            # Block when pre-entry 1s microstructure shows volume dying:
+            # late-period vol is <30% of early-period vol over the 120s
+            # window. Catches "dead-cat bounce" entries — a small green
+            # wick on near-zero buying after a sell wave.
+            #
+            # AVA8 (2026-05-11 15:52) and ELIEN (2026-05-11 16:16) both
+            # had vol_decay 0.19/0.12 respectively. AVA8 lost -$1.70.
+            # ELIEN currently bleeding -3.88% within 3 min of entry.
+            # Goblin 14:10 winner had vol_decay 7.0 (volume accelerating).
+            # Cannot backtest on lifetime — 1s data only flows after the
+            # 2026-05-11 res=1S fix deploy.
+            #
+            # Fail-open if 1s data unavailable (bars_60s is None or empty).
+            _fdv_decay = _1s_features.get("vol_decay_120s")
+            _fdv_bars = _1s_features.get("bars_60s")
+            _fdv_block = False
+            _fdv_reasons: list = []
+            if (isinstance(_fdv_decay, (int, float))
+                    and isinstance(_fdv_bars, (int, float))
+                    and _fdv_bars > 0):
+                if _fdv_decay < 0.30:
+                    _fdv_block = True
+                    _fdv_reasons.append(
+                        f"1s_vol_decay_120s={_fdv_decay:.3f}<0.30"
+                    )
+            _fdv_verdict = "BLOCK" if _fdv_block else "PASS"
+            c[f"filter_dying_volume_{_fdv_verdict.lower()}"] = (
+                c.get(f"filter_dying_volume_{_fdv_verdict.lower()}", 0) + 1
+            )
+            if _fdv_block:
+                logger.info(
+                    f"[DipScanner] SHADOW filter_dying_volume would-block: "
+                    f"{token_symbol} reasons={','.join(_fdv_reasons)}"
+                )
+
             # ── filter_no_signatures — ENFORCED 2026-05-10 ─────────────────────
             # Block when 0 of 6 positive winner signatures are present (with at
             # least 3 features available — fail-open if chart_reader missed
@@ -5170,6 +5206,10 @@ class DipScanner:
                 "filter_no_signatures_sigs_hit": _sigs_hit,
                 "filter_no_signatures_sigs_available": _sigs_available,
                 "filter_no_signatures_sigs_present": _sigs_present,
+                # filter_dying_volume — SHADOW 2026-05-11. Block if pre-entry
+                # 1s_vol_decay_120s < 0.30 (late-period vol <30% of early).
+                "filter_dying_volume_verdict": _fdv_verdict,
+                "filter_dying_volume_block_reasons": _fdv_reasons,
                 # 1s base-formation features — SHADOW 2026-05-11 (no filtering).
                 "1s_bars_60s": _1s_features.get("bars_60s"),
                 "1s_bars_120s": _1s_features.get("bars_120s"),

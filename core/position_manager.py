@@ -112,6 +112,14 @@ class PositionState:
     cascade_1s_consec: int = 0
     cascade_1s_reasons: List[str] = field(default_factory=list)
 
+    # Fast-dud exit shadow — SHADOW 2026-05-11. Tighter stop applied to
+    # positions open >=60s that never crossed +1.0% peak AND are at -1.5%
+    # or worse. Records first-fire time + pnl. Persisted into entry_meta
+    # on sell for "would fast-dud have saved $" analysis. Past-7d sim
+    # shows 83 fires / 0 harmed / +$164. Held-out: 3 fires / 0 harmed.
+    fast_dud_first_ts: Optional[datetime] = None
+    fast_dud_first_pnl: Optional[float] = None
+
     @property
     def pnl_pct(self) -> float:
         if self.entry_price <= 0:
@@ -1446,12 +1454,48 @@ class PositionManager:
             except Exception as _e:
                 logger.debug(f"[PositionManager] signal-flip check error for {state.token_symbol}: {_e}")
 
+            # ── FAST-DUD EXIT — SHADOW 2026-05-11 ─────────────────────
+            # Tighter stop applied to positions open >=60s that have
+            # NEVER crossed +1.0% peak AND are currently at -1.5% or
+            # worse. Records first-fire wall-clock time + pnl into
+            # state. Persisted into entry_meta on sell so we can
+            # measure "would fast-dud have saved $" on forward data.
+            #
+            # Past-trade validation (peak/mdd telemetry):
+            #   Past 7d n=405: 83 fires, 0 harmed, Δ=+$164
+            #   Past 5d n=177: 38 fires, 0 harmed, Δ=+$94
+            #   Held-out n=23: 3 fires, 0 harmed, Δ=+$7.84
+            # Lifetime n=1011: 165 fires, 4 harmed ($1.52 total),
+            #   save=$915. Harm/save ratio 0.17%.
+            #
+            # SHADOW first — record but do NOT execute the sell. Pre-TP1
+            # only. Reads peak from the trader Position object since
+            # PositionState doesn't track peak_pnl_pct directly.
+            age_s = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
+            _tp_for_peak = self.open_positions_ref.get(token_address)
+            _dud_peak = (
+                getattr(_tp_for_peak, "peak_pnl_pct", 0.0) or 0.0
+            ) if _tp_for_peak else 0.0
+            if (not state.tp1_hit
+                    and age_s >= 60
+                    and _dud_peak < 1.0
+                    and pnl_pct <= -1.5
+                    and pnl_pct > -self.dip_stop_pct
+                    and state.fast_dud_first_ts is None):
+                state.fast_dud_first_ts = datetime.now(timezone.utc)
+                state.fast_dud_first_pnl = pnl_pct
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] SHADOW fast-dud "
+                    f"FIRED: {state.token_symbol} hold={age_s:.0f}s "
+                    f"peak={_dud_peak:+.1f}% pnl={pnl_pct:+.1f}% "
+                    f"(would-exit at -1.5%)"
+                )
+
             # ── VOLUME DEATH EXIT ────────────────────────────────────
             # Close losing positions whose liquidity has structurally died.
             # Guards: only fires when we're already down ≥3% AND 30min+ into
             # the hold — so active BULL-class chop can't trip it (winners and
             # early positions are protected by pnl_pct > -3 condition).
-            age_s = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
             if age_s >= 1800 and pnl_pct <= -3.0:
                 snapshot = await self._fetch_volume_snapshot(token_address)
                 if snapshot is not None:
@@ -1478,6 +1522,8 @@ class PositionManager:
                                 state.current_price, cooldown_seconds=7200
                             )
                         return
+
+            # NOTE: age_s already computed above in fast-dud block.
 
             # ── DIP STALE PEAK EXIT — added 2026-05-09 ────────────────
             # Pre-TP1 fade detector. Catches positions that touched a real
