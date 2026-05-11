@@ -1454,22 +1454,24 @@ class PositionManager:
             except Exception as _e:
                 logger.debug(f"[PositionManager] signal-flip check error for {state.token_symbol}: {_e}")
 
-            # ── FAST-DUD EXIT — SHADOW 2026-05-11 ─────────────────────
+            # ── FAST-DUD EXIT — ENFORCED 2026-05-11 ───────────────────
             # Tighter stop applied to positions open >=60s that have
             # NEVER crossed +1.0% peak AND are currently at -1.5% or
-            # worse. Records first-fire wall-clock time + pnl into
-            # state. Persisted into entry_meta on sell so we can
-            # measure "would fast-dud have saved $" on forward data.
+            # worse. Pre-TP1 only.
             #
-            # Past-trade validation (peak/mdd telemetry):
+            # Validation (peak/mdd telemetry replayed on historical trades):
             #   Past 7d n=405: 83 fires, 0 harmed, Δ=+$164
             #   Past 5d n=177: 38 fires, 0 harmed, Δ=+$94
             #   Held-out n=23: 3 fires, 0 harmed, Δ=+$7.84
-            # Lifetime n=1011: 165 fires, 4 harmed ($1.52 total),
-            #   save=$915. Harm/save ratio 0.17%.
+            #   Lifetime n=1011: 165 fires, 4 harmed ($1.52 total),
+            #     save=$915. Harm/save ratio 0.17% (16:1 save/harm).
             #
-            # SHADOW first — record but do NOT execute the sell. Pre-TP1
-            # only. Reads peak from the trader Position object since
+            # Modern-subset proxy validation (peak<1% + pnl<0 + hold>60s,
+            # n=123/684 over 9 days): avg current loss -$2.30, avg if
+            # exited at -1.5% = -$0.30. Save: +$245.51 over 9 days
+            # = ~$27/day. ~14 fires/day historical, ~3-4/day post-RSI-gate.
+            #
+            # Reads peak from the trader Position object since
             # PositionState doesn't track peak_pnl_pct directly.
             age_s = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
             _tp_for_peak = self.open_positions_ref.get(token_address)
@@ -1484,12 +1486,26 @@ class PositionManager:
                     and state.fast_dud_first_ts is None):
                 state.fast_dud_first_ts = datetime.now(timezone.utc)
                 state.fast_dud_first_pnl = pnl_pct
-                logger.info(
-                    f"[PositionManager/{self.chain_name}] SHADOW fast-dud "
-                    f"FIRED: {state.token_symbol} hold={age_s:.0f}s "
+                logger.warning(
+                    f"[PositionManager/{self.chain_name}] 🔪 fast-dud EXIT: "
+                    f"{state.token_symbol} hold={age_s:.0f}s "
                     f"peak={_dud_peak:+.1f}% pnl={pnl_pct:+.1f}% "
-                    f"(would-exit at -1.5%)"
+                    f"(exit at -1.5%)"
                 )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=1.0,
+                    reason=(
+                        f"Dip fast_dud exit (hold {age_s:.0f}s, "
+                        f"peak {_dud_peak:+.1f}%, pnl {pnl_pct:+.1f}%)"
+                    ),
+                )
+                if self.scanner:
+                    self.scanner.register_stop_loss(
+                        token_address, state.token_symbol,
+                        state.current_price, cooldown_seconds=7200
+                    )
+                return
 
             # ── VOLUME DEATH EXIT ────────────────────────────────────
             # Close losing positions whose liquidity has structurally died.
