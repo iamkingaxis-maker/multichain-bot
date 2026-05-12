@@ -2544,11 +2544,20 @@ class DipScanner:
             #
             # Fail-open if rsi_5m missing (tier2 fetch failed) — feature
             # has ~80% coverage; don't penalize on missing data.
+            #
+            # RETUNED 2026-05-13 PM: threshold 50 -> 55. Original 50 was
+            # blocking too many neutral-zone candidates (RSI 50-55 is
+            # "balanced", not actually overbought). filter_rsi_overbought
+            # was the #1 pre-trigger blocker (6 blocks per 1500 log lines)
+            # — cutting trigger-eligible volume too hard. The original
+            # mining showed 50-60 bucket had 56% WR which is BELOW baseline
+            # but not catastrophic; 55-60 may be acceptable. Watching
+            # forward to validate.
             _rsi5 = _tier2_features.get("rsi_5m")
             _filter_rsi_overbought_block_reasons: list = []
-            if _rsi5 is not None and _rsi5 >= 50:
+            if _rsi5 is not None and _rsi5 >= 55:
                 _filter_rsi_overbought_block_reasons.append(
-                    f"rsi_5m={_rsi5:.1f}>=50 (5m momentum reset, not oversold)"
+                    f"rsi_5m={_rsi5:.1f}>=55 (5m momentum reset, not oversold)"
                 )
             _filter_rsi_overbought_verdict = (
                 "BLOCK" if _filter_rsi_overbought_block_reasons else "PASS"
@@ -5163,7 +5172,17 @@ class DipScanner:
                 if _v == "up":
                     _sigs_hit += 1; _sigs_present.append("regime_up")
             _filter_no_sig_block_reasons: list = []
-            if _sigs_hit == 0 and _sigs_available >= 3:
+            # RETUNED 2026-05-13 PM: sigs_available threshold 3 -> 6.
+            # Original validation was on clean_break standalone cohort
+            # (post_cb n=62 0-sig saved $103). Today's expanded trigger
+            # set (sweep_rejection, demand_bottom_compound, 1s triggers,
+            # vwap-cluster) hits this filter as a major post-trigger
+            # blocker. Loosening to require ALL 6 sigs evaluable before
+            # blocking — only the strictest "every winner signal missed"
+            # cases now block. Tokens with 5/6 or fewer sigs evaluable
+            # (often fresh-launches or those with partial chart data)
+            # pass through. Watching forward WR; revert if drops.
+            if _sigs_hit == 0 and _sigs_available >= 6:
                 _filter_no_sig_block_reasons.append(
                     f"0_of_{_sigs_available}_winner_signatures "
                     f"(need >=1 of chart<47/5m_dn/below_vwap/"
