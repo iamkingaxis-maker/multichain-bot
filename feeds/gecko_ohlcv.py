@@ -33,16 +33,30 @@ class GeckoTerminalClient:
             lambda: aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10))
         )
 
-    async def fetch_5m(self, pool_address: str, limit: int = 100) -> List[Candle]:
-        return await self._fetch_candles(pool_address, aggregate=5, limit=limit)
+    async def fetch_5m(self, pool_address: str, limit: int = 100,
+                       cache_ttl_override: Optional[int] = None) -> List[Candle]:
+        return await self._fetch_candles(
+            pool_address, aggregate=5, limit=limit,
+            cache_ttl_override=cache_ttl_override,
+        )
 
-    async def fetch_1m(self, pool_address: str, limit: int = 5) -> List[Candle]:
+    async def fetch_1m(self, pool_address: str, limit: int = 5,
+                       cache_ttl_override: Optional[int] = None) -> List[Candle]:
         """
         Fetch raw 1-minute candles for fine-grained entry confirmation.
         Default limit=5 (last 5 minutes) — enough to detect a recent
         green close while staying under the rate limit when called per-buy.
+
+        cache_ttl_override is exposed so cycle-level features (e.g. SOL
+        regime context) can use a longer cache than per-token candles —
+        their staleness doesn't matter for regime use and the longer
+        cache absorbs GT rate-limit pressure that was causing 80% of
+        SOL fetches to come back empty (2026-05-12).
         """
-        return await self._fetch_candles(pool_address, aggregate=1, limit=limit)
+        return await self._fetch_candles(
+            pool_address, aggregate=1, limit=limit,
+            cache_ttl_override=cache_ttl_override,
+        )
 
     async def fetch_15m(self, pool_address: str, limit: int = 96) -> List[Candle]:
         """

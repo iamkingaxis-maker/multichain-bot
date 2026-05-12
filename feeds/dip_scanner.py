@@ -1150,8 +1150,15 @@ class DipScanner:
             try:
                 _SOL_POOL = "83v8iPyZihDEjDdY8RdZddyZNyUtXngz69Lgo9Kt5d6d"  # SOL/USDC Raydium
                 # 48 × 5min = 4h coverage. Last 12 (1h), last 48 (4h).
-                sol_5m = await self.gt_client.fetch_5m(_SOL_POOL, limit=48)
-                sol_1m = await self.gt_client.fetch_1m(_SOL_POOL, limit=5)
+                # 300s cache (vs 60s default) — SOL fetch was missing
+                # ~80% of trades due to per-token contention + 60s cache
+                # expiring mid-cycle on the shared GT 25-req/min budget.
+                # Regime use only needs minute-precision SOL within ~5min;
+                # the 300s cache absorbs rate-limit pressure (2026-05-12).
+                sol_5m = await self.gt_client.fetch_5m(_SOL_POOL, limit=48,
+                                                      cache_ttl_override=300)
+                sol_1m = await self.gt_client.fetch_1m(_SOL_POOL, limit=5,
+                                                      cache_ttl_override=300)
                 if sol_5m and len(sol_5m) >= 2:
                     sol_pc_m5 = (sol_5m[-1].close / sol_5m[-2].close - 1) * 100 if sol_5m[-2].close > 0 else 0.0
                     sol_features["sol_pc_m5"] = round(sol_pc_m5, 3)
