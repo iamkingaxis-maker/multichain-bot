@@ -4234,11 +4234,35 @@ class DipScanner:
             _trigger_sweep_rejection_reasons: list = []
             try:
                 _swp_wick = (_chart_ctx_dict or {}).get("chart_sweep_5m_low_wick_pct") if isinstance(_chart_ctx_dict, dict) else None
-                if _swp_wick is not None and float(_swp_wick) >= 4.0:
+                # RETUNED 2026-05-13 PM after IDLE loss (-$1.70, 6min hold).
+                # Original predicate (wick>=4 alone) had 34% WR on lifetime
+                # n=44 standalone cohort — earlier validation was contaminated
+                # by clean_break co-fires. Tightened with two structural gates:
+                #   pct_above_vwap_h24 <= 10  (not chasing a pump — at/below
+                #                              24h VWAP = real discount zone)
+                #   pct_in_5m_range >= 0.5    (price already in upper half of
+                #                              5m range = turning point formed)
+                # Lifetime validation w/ gates: 12 fires, 75% WR, +$12.7,
+                # +$1.06/trade. TRAIN 9/78% / VAL 3/67% — direction holds.
+                # IDLE replay: blocked on BOTH gates (vwap_h24=+56.5, p5r=0.10).
+                _swp_vwap_h24 = None
+                _swp_p5r = None
+                try:
+                    _swp_vwap_h24 = float(vwap_features.get("pct_above_vwap_h24")) if vwap_features.get("pct_above_vwap_h24") is not None else None
+                except Exception:
+                    _swp_vwap_h24 = None
+                try:
+                    _swp_p5r = float(pct_in_5m_range) if pct_in_5m_range is not None else None
+                except Exception:
+                    _swp_p5r = None
+                if (_swp_wick is not None and float(_swp_wick) >= 4.0
+                        and _swp_vwap_h24 is not None and _swp_vwap_h24 <= 10.0
+                        and _swp_p5r is not None and _swp_p5r >= 0.5):
                     _trigger_sweep_rejection_match = True
                     _trigger_sweep_rejection_reasons.append(
                         f"chart_sweep_5m_low_wick_pct={float(_swp_wick):.2f}%>=4 "
-                        f"(strong sweep rejection)"
+                        f"AND pct_above_vwap_h24={_swp_vwap_h24:+.1f}%<=10 "
+                        f"AND pct_in_5m_range={_swp_p5r:.2f}>=0.5"
                     )
             except Exception as _e:
                 logger.debug(f"[DipScanner] sweep_rejection trigger err: {_e}")

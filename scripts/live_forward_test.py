@@ -254,8 +254,14 @@ COMBOS = {
             and c.get('chart_score') is not None and c['chart_score'] >= 50)
     ),
     # ─── sweep_rejection + reaccum_demand — ENFORCED 2026-05-13 ───
+    # GG_sweep_rejection — RETUNED 2026-05-13 PM with vwap_h24 + p5r gates
+    # after IDLE loser revealed standalone wick>=4 was insufficient.
     'GG_sweep_rejection':    lambda c: (c.get('chart_sweep_5m_low_wick_pct') is not None
-                                        and c['chart_sweep_5m_low_wick_pct'] >= 4.0),
+                                        and c['chart_sweep_5m_low_wick_pct'] >= 4.0
+                                        and c.get('pct_above_vwap_h24') is not None
+                                        and c['pct_above_vwap_h24'] <= 10.0
+                                        and c.get('pct_in_5m_range') is not None
+                                        and c['pct_in_5m_range'] >= 0.5),
     'HH_reaccum_demand':     lambda c: (c.get('chart_reaccum_drawdown_pct') is not None
                                         and c['chart_reaccum_drawdown_pct'] >= 50.0
                                         and c.get('buy_size_max_trend') is not None
