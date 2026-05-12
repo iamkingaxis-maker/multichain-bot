@@ -75,7 +75,6 @@ logger = logging.getLogger(__name__)
 
 _ANOMALY_NO_BUYS_HOURS   = 2.0    # alert if no buy in this many hours
 _ANOMALY_SILENT_MINS     = 30     # alert if scanner evaluated=0 for this long
-_ANOMALY_WS_FAILURES     = 10     # already logged as ERROR in price_feed, but also surface here
 _WATCHDOG_INTERVAL_SECS  = 300    # check every 5 minutes
 
 
@@ -123,14 +122,9 @@ async def _anomaly_watchdog(scanners: list, price_feed, dashboard, telegram):
                         f"may be stuck or misconfigured"
                     )
 
-        # ── DexScreener WS broken ─────────────────────────────────────────────
-        ws_failures = getattr(price_feed, "ws_consecutive_failures", 0)
-        ws_connected = getattr(price_feed, "ws_connected", False)
-        if not ws_connected and ws_failures >= _ANOMALY_WS_FAILURES:
-            anomalies.append(
-                f"DexScreener WS down ({ws_failures} consecutive failures) — "
-                f"endpoint may have changed, polling-only mode"
-            )
+        # DexScreener WS anomaly check removed 2026-05-12 — the DS public
+        # price WS was deprecated and the bot no longer attempts it.
+        # Polling + Axiom WS canonically cover stops.
 
         # ── Fire alerts ───────────────────────────────────────────────────────
         for msg in anomalies:
