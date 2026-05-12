@@ -4194,6 +4194,73 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] new-triggers calc err: {_e}")
 
+            # demand_bottom_compound — ENFORCED 2026-05-13.
+            # Trimmed 3-branch union (P1 dropped — redundant with current
+            # filter stack catches). Mines microstructure demand-stepping-up
+            # signals rather than chart-shape patterns, which generalize
+            # better across regimes.
+            #
+            # Three branches:
+            #   B1: buy_size_max_trend >= 2.0 AND peak_h24_6h_pct >= 500
+            #       Post-pump token with demand stepping up.
+            #   B2: graduation_status == 'just_graduated' AND
+            #       buy_size_max_trend >= 2.0
+            #       Fresh pump.fun graduate with demand stepping up.
+            #   B3: chart_sweep_5m_verdict == 'BULLISH_SWEEP' AND
+            #       peak_h24_6h_pct >= 500 AND chart_score >= 50
+            #       Confirmed bullish sweep on a recently-pumped token.
+            #
+            # Validation (TRAIN 5/5-5/8 + VAL 5/9-5/11):
+            #   Pre-filter union: TRAIN 42/69%, VAL 12/83% — generalized.
+            # After-current-filter-stack on 7d (post-2026-05-13 stack):
+            #   16 clean fires, 14W/2L = 88% WR, +$12.64 total.
+            #   9 marginal new entries (no clean_break overlap): 9/9 = 100% WR.
+            # Expected forward: ~2/day fires, ~1.3/day marginal new entries,
+            # ~85-90% WR.
+            _trigger_demand_bottom_match = False
+            _trigger_demand_bottom_reasons: list = []
+            try:
+                _bst_raw = None
+                try:
+                    _bst_raw = (_trade_log_dict or {}).get("buy_size_max_trend")
+                except Exception:
+                    _bst_raw = None
+                _bst = float(_bst_raw) if _bst_raw is not None else None
+                _cs_raw = (_chart_ctx_dict or {}).get("chart_score") if isinstance(_chart_ctx_dict, dict) else None
+                _cs = float(_cs_raw) if _cs_raw is not None else None
+                _cswp = (_chart_ctx_dict or {}).get("chart_sweep_5m_verdict") if isinstance(_chart_ctx_dict, dict) else None
+                _gs = None
+                try:
+                    _gs = (_graduation_dict or {}).get("graduation_status")
+                except Exception:
+                    _gs = None
+                _peak24_dbc = float(peak_h24_6h) if peak_h24_6h is not None else 0.0
+
+                # B1: post-pump + escalating demand
+                if (_bst is not None and _bst >= 2.0
+                        and _peak24_dbc >= 500):
+                    _trigger_demand_bottom_match = True
+                    _trigger_demand_bottom_reasons.append(
+                        f"B1 buy_size_max_trend={_bst:.2f}>=2 AND peak24={_peak24_dbc:.0f}%>=500"
+                    )
+                # B2: fresh graduate + escalating demand
+                elif (_gs == 'just_graduated'
+                      and _bst is not None and _bst >= 2.0):
+                    _trigger_demand_bottom_match = True
+                    _trigger_demand_bottom_reasons.append(
+                        f"B2 just_graduated AND buy_size_max_trend={_bst:.2f}>=2"
+                    )
+                # B3: confirmed bullish sweep + post-pump + decent chart
+                elif (_cswp == 'BULLISH_SWEEP'
+                      and _peak24_dbc >= 500
+                      and _cs is not None and _cs >= 50):
+                    _trigger_demand_bottom_match = True
+                    _trigger_demand_bottom_reasons.append(
+                        f"B3 BULLISH_SWEEP AND peak24={_peak24_dbc:.0f}%>=500 AND chart_score={_cs:.0f}>=50"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] demand_bottom trigger err: {_e}")
+
             # clean_break suppression gates — refined 2026-05-08 across
             # two analysis rounds on 26 clean_break fires from 2026-05-07.
             # All gates are validated as positive-swing on lifetime data.
@@ -4365,6 +4432,8 @@ class DipScanner:
                 _triggers_fired.append("informed_cluster")
             if _trigger_grad_window_dip_match:
                 _triggers_fired.append("grad_window_dip")
+            if _trigger_demand_bottom_match:
+                _triggers_fired.append("demand_bottom_compound")
 
             # 1s triggers fire LATER (after 1s feature compute) — allow
             # dippy candidates with NO classic-trigger match to pass this
@@ -4441,6 +4510,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_informed_cluster_reasons)
                 if _trigger_grad_window_dip_match:
                     _alt_reasons.extend(_trigger_grad_window_dip_reasons)
+                if _trigger_demand_bottom_match:
+                    _alt_reasons.extend(_trigger_demand_bottom_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"

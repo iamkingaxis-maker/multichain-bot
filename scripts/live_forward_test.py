@@ -237,6 +237,22 @@ COMBOS = {
                                         and ((c.get('1s_vol_burst_on_reversal_ratio') is not None and c['1s_vol_burst_on_reversal_ratio'] >= 1.5)
                                              or (c.get('1s_vol_decay_120s') is not None and c['1s_vol_decay_120s'] >= 2.0))),
     'EE_1s_bottom_score_70': lambda c: (c.get('1s_bottom_score') is not None and c['1s_bottom_score'] >= 70),
+    # ─── demand_bottom_compound — ENFORCED 2026-05-13 ───
+    # 3-branch union: post-pump+demand, fresh-grad+demand, sweep+pump+score.
+    # Held-out validated 83% WR on VAL set. After current filter stack:
+    # 88% WR / 100% WR on marginal new entries.
+    'FF_demand_bottom_compound': lambda c: (
+        # B1: post-pump + escalating demand
+        (c.get('buy_size_max_trend') is not None and c['buy_size_max_trend'] >= 2.0
+         and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 500)
+        # B2: fresh graduate + escalating demand
+        or (c.get('graduation_status') == 'just_graduated'
+            and c.get('buy_size_max_trend') is not None and c['buy_size_max_trend'] >= 2.0)
+        # B3: bullish sweep + post-pump + chart score
+        or (c.get('chart_sweep_5m_verdict') == 'BULLISH_SWEEP'
+            and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 500
+            and c.get('chart_score') is not None and c['chart_score'] >= 50)
+    ),
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).
