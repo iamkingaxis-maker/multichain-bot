@@ -1568,6 +1568,52 @@ class PositionManager:
             _peak_pnl_pct = getattr(state, 'peak_pnl_pct', 0.0) or 0.0
             _peak_at_secs = getattr(state, 'peak_pnl_at_secs', 0) or 0
             _mins_since_peak = (age_s - _peak_at_secs) / 60.0 if _peak_at_secs > 0 else 0
+
+            # ── PEAK-GIVEBACK RESCUE — ENFORCED 2026-05-12 ────────────
+            # Pre-TP1 rescue for the +1.5% to +5% "slow drift" dead zone
+            # that fast_dud (peak<1%) and stale_peak (peak>=5%) both miss.
+            # When peak >= +1.5% AND current pnl has given back >=50% of
+            # peak, exit at market to lock in remaining gain.
+            #
+            # Reference case: CLUDE 2026-05-12 17:26 — peak +1.99%, drifted
+            # to -10.55% stop over 30 min. With rescue: would have exited
+            # near +1.0% = ~+$0.20 net instead of -$2.11.
+            #
+            # Validation (3d held-out 5/9-5/12, TRAIN n=74 / VAL n=33):
+            #   TRAIN: 14 fires saving $+37.78
+            #   VAL:   5 fires saving $+10.26
+            # Targets the loser bucket peaking +1.5-5% then bleeding back
+            # (28% of recent losses on VAL by count).
+            #
+            # Doesn't conflict with stale_peak (peak >= 5%) since gate is
+            # peak < 5.0 strict. Doesn't conflict with TP1 ladder since
+            # tp1_hit gate. Loss-cooldown only if exit is net-negative.
+            if (not state.tp1_hit
+                    and 1.5 <= _peak_pnl_pct < 5.0
+                    and age_s >= 60
+                    and pnl_pct <= _peak_pnl_pct * 0.5
+                    and pnl_pct > -self.dip_stop_pct):
+                logger.warning(
+                    f"[PositionManager/{self.chain_name}] 🛟 PEAK-GIVEBACK: "
+                    f"{state.token_symbol} peak=+{_peak_pnl_pct:.1f}% "
+                    f"pnl={pnl_pct:+.1f}% "
+                    f"(gave back >=50% of peak — exiting)"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=1.0,
+                    reason=(
+                        f"Peak giveback exit (peak +{_peak_pnl_pct:.1f}%, "
+                        f"pnl {pnl_pct:+.1f}%)"
+                    ),
+                )
+                if pnl_pct < 0 and self.scanner:
+                    self.scanner.register_stop_loss(
+                        token_address, state.token_symbol,
+                        state.current_price, cooldown_seconds=3600
+                    )
+                return
+
             if (not state.tp1_hit
                     and _peak_pnl_pct >= 5.0
                     and _mins_since_peak >= 15.0
