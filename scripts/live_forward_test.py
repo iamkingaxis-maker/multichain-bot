@@ -222,6 +222,21 @@ COMBOS = {
     'BB_patient_bottom':     lambda c: (c.get('pct_above_vwap_1h') is not None and c['pct_above_vwap_1h'] <= -3.0
                                         and c.get('min_since_peak_5m') is not None and c['min_since_peak_5m'] >= 60
                                         and (c.get('net_flow_60s_imbalance') is None or c['net_flow_60s_imbalance'] >= -0.3)),
+    # ─── 1s ENFORCED TRIGGERS — 2026-05-13 (Phases 1/3/4) ───
+    # Snapshot enrichment for these requires DexScreener 30S bar fetch per
+    # candidate (not currently in fetch_snapshot). Phantom mirror PASSES
+    # when 1s features present in snapshot; otherwise fails-closed (no fire).
+    # TODO: add 1s enrichment to live_forward_test snapshot to close parity.
+    'CC_1s_capit_reversal':  lambda c: (c.get('1s_cascade_reversal_detected') is True or
+                                        (c.get('1s_vol_decay_120s') is not None and c['1s_vol_decay_120s'] >= 2.0
+                                         and c.get('1s_close_pos_60s') is not None and c['1s_close_pos_60s'] >= 0.5
+                                         and c.get('1s_cascade_length') is not None and c['1s_cascade_length'] >= 1)),
+    'DD_1s_v_bottom_strict': lambda c: (c.get('1s_green_run_end') is not None and c['1s_green_run_end'] >= 2
+                                        and c.get('1s_bars_since_low_60s') is not None and 3 <= c['1s_bars_since_low_60s'] <= 10
+                                        and c.get('1s_lower_wick_ratio_last') is not None and c['1s_lower_wick_ratio_last'] >= 0.8
+                                        and ((c.get('1s_vol_burst_on_reversal_ratio') is not None and c['1s_vol_burst_on_reversal_ratio'] >= 1.5)
+                                             or (c.get('1s_vol_decay_120s') is not None and c['1s_vol_decay_120s'] >= 2.0))),
+    'EE_1s_bottom_score_70': lambda c: (c.get('1s_bottom_score') is not None and c['1s_bottom_score'] >= 70),
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).

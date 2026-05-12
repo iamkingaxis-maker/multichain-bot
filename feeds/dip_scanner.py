@@ -4366,14 +4366,26 @@ class DipScanner:
             if _trigger_grad_window_dip_match:
                 _triggers_fired.append("grad_window_dip")
 
-            if not _triggers_fired:
+            # 1s triggers fire LATER (after 1s feature compute) — allow
+            # dippy candidates with NO classic-trigger match to pass this
+            # bail-out so the 1s logic can re-check downstream.
+            try:
+                _pc24_for_1s = float(pc_h24) if pc_h24 is not None else 0.0
+            except Exception:
+                _pc24_for_1s = 0.0
+            _1s_eligible_standalone = (not _triggers_fired) and _pc24_for_1s <= -3.0
+
+            if not _triggers_fired and not _1s_eligible_standalone:
                 logger.info(
                     f"[DipScanner] BLOCKED by all triggers: "
                     f"{token_symbol} cb_reasons={','.join(_filter_clean_break_block_reasons)}"
                 )
                 continue
 
-            _trigger_source = "_".join(_triggers_fired) if len(_triggers_fired) > 1 else _triggers_fired[0]
+            _trigger_source = (
+                "_".join(_triggers_fired) if len(_triggers_fired) > 1
+                else (_triggers_fired[0] if _triggers_fired else "1s_pending")
+            )
             if "clean_break" not in _triggers_fired:
                 # Logged when an alternative trigger fires while clean_break was BLOCKed
                 _alt_reasons = []
@@ -4701,8 +4713,191 @@ class DipScanner:
                                 + 0.5  # 0.5% buffer for slippage
                             )
                             _1s_features["structural_stop_pct"] = _struct_dist
+
+                    # ── #6 V-bottom microstructure features — ENFORCED 2026-05-13
+                    # Four new features for richer bottom detection. All derived
+                    # from existing _pre60/_pre120 lists — no new API fetches.
+                    #
+                    # A. green_run_end: consecutive green 1s bars ending at NOW.
+                    #    Symmetric to cascade_length. >=2 = momentum reversal.
+                    # B. bars_since_low_60s: bars since the 60s lowest low.
+                    #    Sweet spot 3-10 (recent enough to be the bottom,
+                    #    confirmed enough to have stuck).
+                    # C. lower_wick_ratio_last: last 1s bar's lower_wick / body.
+                    #    >0.8 = rejection candle; >2.0 = strong absorption.
+                    # D. vol_burst_on_reversal_ratio: vol of most recent green
+                    #    bar / avg vol of prior 5 bars. >1.5 = real buyer surge.
+                    if _pre60 and len(_pre60) >= 6:
+                        # A. green_run_end
+                        _green_run = 0
+                        for _b in reversed(_pre60):
+                            if _b["close"] > _b["open"]:
+                                _green_run += 1
+                            else:
+                                break
+                        _1s_features["green_run_end"] = _green_run
+
+                        # B. bars_since_low_60s
+                        _low_val = min(b["low"] for b in _pre60)
+                        _low_idx = max(i for i, b in enumerate(_pre60)
+                                       if b["low"] == _low_val)
+                        _1s_features["bars_since_low_60s"] = len(_pre60) - 1 - _low_idx
+
+                        # C. lower_wick_ratio_last
+                        _lb = _pre60[-1]
+                        _body = abs(_lb["close"] - _lb["open"])
+                        _lower_wick = min(_lb["open"], _lb["close"]) - _lb["low"]
+                        if _body > 0:
+                            _1s_features["lower_wick_ratio_last"] = max(0.0, _lower_wick / _body)
+                        else:
+                            # Doji — use lower_wick / mid_price as a fallback
+                            _mid = (_lb["high"] + _lb["low"]) / 2 if _lb["high"] + _lb["low"] > 0 else 1
+                            _1s_features["lower_wick_ratio_last"] = max(0.0, _lower_wick / _mid) if _mid > 0 else 0.0
+
+                        # D. vol_burst_on_reversal_ratio: latest green bar's vol /
+                        #    avg vol of the 5 bars preceding it.
+                        _last_green_idx = None
+                        for _i in range(len(_pre60) - 1, -1, -1):
+                            if _pre60[_i]["close"] > _pre60[_i]["open"]:
+                                _last_green_idx = _i
+                                break
+                        if _last_green_idx is not None and _last_green_idx >= 1:
+                            _ctx_start = max(0, _last_green_idx - 5)
+                            _ctx = _pre60[_ctx_start:_last_green_idx]
+                            if _ctx:
+                                _ctx_avg_v = sum(b["volume_usd"] for b in _ctx) / len(_ctx)
+                                if _ctx_avg_v > 0:
+                                    _1s_features["vol_burst_on_reversal_ratio"] = (
+                                        _pre60[_last_green_idx]["volume_usd"] / _ctx_avg_v
+                                    )
+
+                    # ── #7 bottom_score composite — ENFORCED 2026-05-13 ────────
+                    # 0-100 weighted score from features 1-6. Used as trigger
+                    # gate (>=70 = strong bottom). Weights are equal across
+                    # 5 component dimensions; bottom_score is mechanically
+                    # rather than statistically optimized (no historical
+                    # data yet — Phase 4 of the 4-phase plan).
+                    #
+                    #   cascade reversal explicit (+25 if cr=True)
+                    #   vol exhaustion (+20 if vol_decay>=2)
+                    #   price recovery (+20 if close_pos>=0.7, +10 if >=0.5)
+                    #   green momentum (+15 if green_run_end>=2)
+                    #   bottom freshness (+10 if bars_since_low in [3,10])
+                    #   absorption candle (+10 if lower_wick_ratio>=0.8)
+                    _score = 0.0
+                    if _1s_features.get("cascade_reversal_detected") is True:
+                        _score += 25
+                    _vd_s = _1s_features.get("vol_decay_120s")
+                    if _vd_s is not None and _vd_s >= 2:
+                        _score += 20
+                    _cp_s = _1s_features.get("close_pos_60s")
+                    if _cp_s is not None:
+                        if _cp_s >= 0.7:
+                            _score += 20
+                        elif _cp_s >= 0.5:
+                            _score += 10
+                    _gr_s = _1s_features.get("green_run_end")
+                    if _gr_s is not None and _gr_s >= 2:
+                        _score += 15
+                    _bsl_s = _1s_features.get("bars_since_low_60s")
+                    if _bsl_s is not None and 3 <= _bsl_s <= 10:
+                        _score += 10
+                    _lwr_s = _1s_features.get("lower_wick_ratio_last")
+                    if _lwr_s is not None and _lwr_s >= 0.8:
+                        _score += 10
+                    _1s_features["bottom_score"] = _score
             except Exception as _e:
                 logger.debug(f"[DipScanner] 1s features err: {_e}")
+
+            # ── 1s-based ENFORCED triggers — 2026-05-13 ──────────────────────
+            # Three new parallel triggers that fire on 1s microstructure
+            # bottom signatures. Run AFTER 1s features are computed so they
+            # can both supplement existing triggers AND fire standalone when
+            # pc_h24 <= -3 (handled via _1s_eligible_standalone above).
+            #
+            # Phase 1 — 1s_capit_reversal (Pareto-validated 80% WR, 5/day in
+            #   24h in-sample): cascade_reversal=True OR (vd>=2 cp>=0.5 cl>=1)
+            # Phase 3 — 1s_v_bottom_strict (mechanism-based, no validation
+            #   sample because features are new — relies on textbook V-shape
+            #   + absorption + freshness + vol confirmation gates)
+            # Phase 4 — 1s_bottom_score_high: bottom_score >= 70 (composite
+            #   trigger gate). Uses the weighted score computed above.
+            _trigger_1s_capit_reversal_match = False
+            _trigger_1s_capit_reversal_reasons: list = []
+            _trigger_1s_v_bottom_strict_match = False
+            _trigger_1s_v_bottom_strict_reasons: list = []
+            _trigger_1s_bottom_score_high_match = False
+            _trigger_1s_bottom_score_high_reasons: list = []
+            try:
+                _1s_cr = _1s_features.get("cascade_reversal_detected") is True
+                _1s_vd = _1s_features.get("vol_decay_120s")
+                _1s_cp = _1s_features.get("close_pos_60s")
+                _1s_cl = _1s_features.get("cascade_length")
+                _1s_gr = _1s_features.get("green_run_end")
+                _1s_bsl = _1s_features.get("bars_since_low_60s")
+                _1s_lwr = _1s_features.get("lower_wick_ratio_last")
+                _1s_vbr = _1s_features.get("vol_burst_on_reversal_ratio")
+                _1s_score = _1s_features.get("bottom_score") or 0
+
+                # Phase 1 — capit_reversal medium predicate
+                if _1s_cr:
+                    _trigger_1s_capit_reversal_match = True
+                    _trigger_1s_capit_reversal_reasons.append("cascade_reversal_detected=True")
+                elif (_1s_vd is not None and _1s_vd >= 2.0
+                      and _1s_cp is not None and _1s_cp >= 0.5
+                      and _1s_cl is not None and _1s_cl >= 1):
+                    _trigger_1s_capit_reversal_match = True
+                    _trigger_1s_capit_reversal_reasons.append(
+                        f"vd={_1s_vd:.2f}>=2 AND cp={_1s_cp:.2f}>=0.5 AND cl={_1s_cl:.0f}>=1"
+                    )
+
+                # Phase 3 — v_bottom_strict: requires green momentum +
+                # fresh-but-confirmed bottom + absorption candle + (vol burst
+                # OR vol decay). Mechanism-based; no historical sample.
+                if (_1s_gr is not None and _1s_gr >= 2
+                        and _1s_bsl is not None and 3 <= _1s_bsl <= 10
+                        and _1s_lwr is not None and _1s_lwr >= 0.8
+                        and (
+                            (_1s_vbr is not None and _1s_vbr >= 1.5)
+                            or (_1s_vd is not None and _1s_vd >= 2.0)
+                        )):
+                    _trigger_1s_v_bottom_strict_match = True
+                    _trigger_1s_v_bottom_strict_reasons.append(
+                        f"green_run={_1s_gr:.0f}>=2 AND bars_since_low={_1s_bsl:.0f} in [3,10] "
+                        f"AND lower_wick_ratio={_1s_lwr:.2f}>=0.8 AND "
+                        f"(vol_burst={_1s_vbr if _1s_vbr is not None else 0:.2f}>=1.5 OR "
+                        f"vol_decay={_1s_vd if _1s_vd is not None else 0:.2f}>=2.0)"
+                    )
+
+                # Phase 4 — bottom_score_high
+                if _1s_score >= 70:
+                    _trigger_1s_bottom_score_high_match = True
+                    _trigger_1s_bottom_score_high_reasons.append(
+                        f"bottom_score={_1s_score:.0f}>=70"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 1s trigger eval err: {_e}")
+
+            if _trigger_1s_capit_reversal_match:
+                _triggers_fired.append("1s_capit_reversal")
+            if _trigger_1s_v_bottom_strict_match:
+                _triggers_fired.append("1s_v_bottom_strict")
+            if _trigger_1s_bottom_score_high_match:
+                _triggers_fired.append("1s_bottom_score_high")
+
+            # Second-chance bail: candidates that reached here via the 1s-
+            # eligible standalone gate must now have at least one 1s trigger
+            # to proceed. If still empty, bail.
+            if not _triggers_fired:
+                logger.info(
+                    f"[DipScanner] BLOCKED by all triggers (incl 1s): "
+                    f"{token_symbol} pc_h24={_pc24_for_1s:.1f}% "
+                    f"1s_score={_1s_features.get('bottom_score', 0):.0f}"
+                )
+                continue
+
+            # Rebuild trigger_source if 1s triggers were added
+            _trigger_source = "_".join(_triggers_fired) if len(_triggers_fired) > 1 else _triggers_fired[0]
 
             # ── filter_dying_volume — SHADOW 2026-05-11 ───────────────────────
             # Block when pre-entry 1s microstructure shows volume dying:
@@ -5706,6 +5901,16 @@ class DipScanner:
                 # we're overpaying on stops; if looser, we're under-stopping
                 # the volatile setups.
                 "1s_structural_stop_pct": _1s_features.get("structural_stop_pct"),
+                # 1s V-bottom microstructure — ENFORCED 2026-05-13.
+                # Four new features that build the data foundation for the
+                # 1s_v_bottom_strict trigger and bottom_score composite.
+                "1s_green_run_end": _1s_features.get("green_run_end"),
+                "1s_bars_since_low_60s": _1s_features.get("bars_since_low_60s"),
+                "1s_lower_wick_ratio_last": _1s_features.get("lower_wick_ratio_last"),
+                "1s_vol_burst_on_reversal_ratio": _1s_features.get("vol_burst_on_reversal_ratio"),
+                # 1s_bottom_score: 0-100 composite weighted score from
+                # all 1s microstructure signals. Used as a trigger gate.
+                "1s_bottom_score": _1s_features.get("bottom_score"),
                 # 1s_base_confirmed_at_entry — SHADOW 2026-05-11.
                 # Derived boolean: would the active-confirmation gate have
                 # entered this trade? Criteria (require all):
