@@ -4287,12 +4287,25 @@ class DipScanner:
                     _bst_ra = (_trade_log_dict or {}).get("buy_size_max_trend")
                 except Exception:
                     _bst_ra = None
+                # RETUNED 2026-05-13 PM after audit revealed VAL collapse
+                # (TRAIN 67% -> VAL 44%) and toxic co-fires with VWAP-cluster
+                # triggers (grad_window_dip / informed_cluster / patient_bottom
+                # all at 0% WR). Added structural gate:
+                #   h24_ratio_to_peak < 0.6 (token currently at <60% of 24h
+                #     peak = real dip from top, not recovered to near-peak
+                #     where reaccum-drawdown shape misleads).
+                # Lifetime validation w/ gate: 18 fires, 87% WR, +$17.2 total.
+                # TRAIN (5/6-5/10): 13 fires, 92% WR, +$14.7.
+                # VAL (5/10-5/12): 5 fires, 80% WR, +$2.5. Direction holds.
+                _ra_h24_ratio = (pc_h24 / float(peak_h24_6h)) if peak_h24_6h is not None and float(peak_h24_6h) > 0 else 1.0
                 if (_ra_dd is not None and float(_ra_dd) >= 50.0
-                        and _bst_ra is not None and float(_bst_ra) >= 2.0):
+                        and _bst_ra is not None and float(_bst_ra) >= 2.0
+                        and _ra_h24_ratio < 0.6):
                     _trigger_reaccum_demand_match = True
                     _trigger_reaccum_demand_reasons.append(
                         f"reaccum_dd={float(_ra_dd):.0f}%>=50 "
-                        f"AND buy_size_max_trend={float(_bst_ra):.2f}>=2"
+                        f"AND buy_size_max_trend={float(_bst_ra):.2f}>=2 "
+                        f"AND h24_ratio_to_peak={_ra_h24_ratio:.2f}<0.6"
                     )
             except Exception as _e:
                 logger.debug(f"[DipScanner] reaccum_demand trigger err: {_e}")

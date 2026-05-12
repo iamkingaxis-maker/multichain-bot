@@ -262,10 +262,14 @@ COMBOS = {
                                         and c['pct_above_vwap_h24'] <= 10.0
                                         and c.get('pct_in_5m_range') is not None
                                         and c['pct_in_5m_range'] >= 0.5),
+    # HH_reaccum_demand — RETUNED 2026-05-13 PM with h24_ratio_to_peak<0.6
+    # gate. Lifetime n=18, 87% WR, +$17.2. TRAIN 92% / VAL 80%.
     'HH_reaccum_demand':     lambda c: (c.get('chart_reaccum_drawdown_pct') is not None
                                         and c['chart_reaccum_drawdown_pct'] >= 50.0
                                         and c.get('buy_size_max_trend') is not None
-                                        and c['buy_size_max_trend'] >= 2.0),
+                                        and c['buy_size_max_trend'] >= 2.0
+                                        and c.get('h24_ratio_to_peak') is not None
+                                        and c['h24_ratio_to_peak'] < 0.6),
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).
