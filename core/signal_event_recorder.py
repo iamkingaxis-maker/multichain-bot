@@ -218,6 +218,14 @@ class SignalEventRecorder(logging.Handler):
             with self._output_path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(ev, separators=(",", ":")) + "\n")
             self._records_written += 1
+            # Heartbeat every 100 records — visible in logs for verification
+            if self._records_written % 100 == 0:
+                # Use stderr-direct to avoid recursion into our own handler
+                import sys
+                sys.stderr.write(
+                    f"[signal_event_recorder] {self._records_written} records "
+                    f"written to {self._output_path.name}\n"
+                )
         except Exception:
             pass
 
