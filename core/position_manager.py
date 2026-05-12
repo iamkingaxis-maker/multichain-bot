@@ -1478,10 +1478,17 @@ class PositionManager:
             _dud_peak = (
                 getattr(_tp_for_peak, "peak_pnl_pct", 0.0) or 0.0
             ) if _tp_for_peak else 0.0
+            # Tightened 2026-05-12 after RKC false-positive: 63s hold,
+            # peak=0%, exit at -3.68%, then token recovered +8% within hours.
+            # Original 60s + -1.5% threshold was firing on normal early-entry
+            # chop. New conditions:
+            #   - min hold: 60s -> 180s (gives rebound 3min before cutting)
+            #   - pnl floor: -1.5% -> -2.5% (deeper before trigger)
+            #   - peak < 1.0% unchanged (still never-green-after-180s)
             if (not state.tp1_hit
-                    and age_s >= 60
+                    and age_s >= 180
                     and _dud_peak < 1.0
-                    and pnl_pct <= -1.5
+                    and pnl_pct <= -2.5
                     and pnl_pct > -self.dip_stop_pct
                     and state.fast_dud_first_ts is None):
                 state.fast_dud_first_ts = datetime.now(timezone.utc)
@@ -1490,7 +1497,7 @@ class PositionManager:
                     f"[PositionManager/{self.chain_name}] 🔪 fast-dud EXIT: "
                     f"{state.token_symbol} hold={age_s:.0f}s "
                     f"peak={_dud_peak:+.1f}% pnl={pnl_pct:+.1f}% "
-                    f"(exit at -1.5%)"
+                    f"(exit at -2.5% / min 180s)"
                 )
                 await self._execute_sell(
                     token_address, state,

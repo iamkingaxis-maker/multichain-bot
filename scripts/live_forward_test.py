@@ -176,6 +176,25 @@ COMBOS = {
     # helped or hurt going forward; if forward data flips back positive,
     # promote back to enforced).
     'U_S_with_seller_dom':   lambda c: not scanner_block_reasons(c) and not clean_break_block(c) and not double_bear_block(c) and not seller_dominant_block(c),
+    # ─── NEW PARALLEL TRIGGERS — ENFORCED 2026-05-12 ───
+    # Phantom mirrors for new orthogonal entries in feeds/dip_scanner.py.
+    # Combos return PASS when the live trigger would fire on this candidate.
+    # TODO: patient_bottom, informed_cluster, grad_window_dip need
+    # pct_above_vwap_1h, top10_buyer_within_60s_count, hours_since_graduation
+    # to be added to phantom snapshot enrichment for full parity.
+    'V_alpha_buyperscold':   lambda c: (c.get('bs_m5') is not None and c['bs_m5'] >= 3.0
+                                        and c.get('pc_h24') is not None and c['pc_h24'] < 50),
+    'W_beta_retailfresh':    lambda c: (c.get('avg_trade_size_h1_usd') is not None and 0 < c['avg_trade_size_h1_usd'] < 60
+                                        and c.get('pct_in_5m_range') is not None and c['pct_in_5m_range'] < 0.3
+                                        and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] < 40),
+    'X_delta_microcap':      lambda c: (c.get('mcap') is not None and 0 < c['mcap'] < 5_000_000
+                                        and c.get('slip_buy_5000_pct') is not None and c['slip_buy_5000_pct'] < 3.0
+                                        and c.get('vol_h1') is not None and c['vol_h1'] > 50_000),
+    'Y_seller_exhaustion':   lambda c: (c.get('bs_m5') is not None and c['bs_m5'] >= 1.34
+                                        and c.get('slip_sell_5k_velocity_pct_per_min') is not None and c['slip_sell_5k_velocity_pct_per_min'] >= 0.0004
+                                        and c.get('slip_sell_5000_pct') is not None and c['slip_sell_5000_pct'] >= 2.25),
+    'AA_deep_dip_bottom':    lambda c: (c.get('pc_h24') is not None and c['pc_h24'] <= -7.48
+                                        and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 7.2),
 }
 
 

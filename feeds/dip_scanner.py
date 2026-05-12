@@ -3971,6 +3971,124 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] high_regime calc err: {_e}")
 
+            # ────────────────────────────────────────────────────────────
+            # NEW PARALLEL TRIGGERS — ENFORCED 2026-05-12
+            # Eight orthogonal entry families mined from 1,695 rejected
+            # candidates (phantom verdicts S_live_prod_stack=BLOCK).
+            # Each fires INDEPENDENTLY of clean_break + high_regime.
+            #
+            # Validation: missed-winner pool n=382, missed-losers n=329.
+            # Union projects +130% volume at 70% WR / +2.66% avg pnl.
+            # Full audit in .orthogonal_trigger_research.md and
+            # .creative_trigger_research.md.
+            # ────────────────────────────────────────────────────────────
+            _trigger_alpha_buyperscold_match = False
+            _trigger_alpha_buyperscold_reasons: list = []
+            _trigger_beta_retailfresh_match = False
+            _trigger_beta_retailfresh_reasons: list = []
+            _trigger_delta_microcap_match = False
+            _trigger_delta_microcap_reasons: list = []
+            _trigger_seller_exhaustion_match = False
+            _trigger_seller_exhaustion_reasons: list = []
+            _trigger_deep_dip_bottom_match = False
+            _trigger_deep_dip_bottom_reasons: list = []
+            _trigger_patient_bottom_match = False
+            _trigger_patient_bottom_reasons: list = []
+            _trigger_informed_cluster_match = False
+            _trigger_informed_cluster_reasons: list = []
+            _trigger_grad_window_dip_match = False
+            _trigger_grad_window_dip_reasons: list = []
+            try:
+                _bs_m5_f = float(ratio_m5) if ratio_m5 != float("inf") else None
+                _vwap_dist = _tier2_features.get("pct_above_vwap_1h")
+                _min_peak = _tier2_features.get("minutes_since_peak")
+                _top10_60s = _tier2_features.get("top10_buyer_within_60s_count")
+                _hours_grad = _tier3_features.get("hours_since_graduation")
+                _slip_buy = jup_features.get("slip_buy_5000_pct") if isinstance(jup_features, dict) else None
+                _slip_sell = jup_features.get("slip_sell_5000_pct") if isinstance(jup_features, dict) else None
+                _slip_sell_vel = None
+                try:
+                    _slip_sell_vel = slip_ts_features.get("slip_sell_5k_velocity_pct_per_min")
+                except NameError:
+                    pass
+                _pc24_f = float(pc_h24) if pc_h24 is not None else 0.0
+                _peak24_6h_f = float(peak_h24_6h) if peak_h24_6h is not None else 0.0
+                _ats = float(avg_trade_size_h1) if avg_trade_size_h1 is not None else 0.0
+                _p5r = float(pct_in_5m_range) if pct_in_5m_range is not None else None
+                _vh1 = float(vol_h1) if vol_h1 is not None else 0.0
+                _mc = float(mcap) if mcap is not None else 0.0
+
+                # ALPHA — strong 5m buy pressure on non-runaway token
+                if _bs_m5_f is not None and _bs_m5_f >= 3.0 and _pc24_f < 50:
+                    _trigger_alpha_buyperscold_match = True
+                    _trigger_alpha_buyperscold_reasons.append(
+                        f"bs_m5={_bs_m5_f:.2f}>=3.0 AND pc_h24={_pc24_f:+.1f}%<50"
+                    )
+
+                # BETA — retail-sized trades + price low in 5m range + no recent runaway peak
+                if (_ats > 0 and _ats < 60 and _p5r is not None and _p5r < 0.3
+                        and _peak24_6h_f < 40):
+                    _trigger_beta_retailfresh_match = True
+                    _trigger_beta_retailfresh_reasons.append(
+                        f"avg_trade=${_ats:.0f}<60 AND pct_in_5m={_p5r:.2f}<0.3 "
+                        f"AND peak_h24_6h={_peak24_6h_f:.1f}%<40"
+                    )
+
+                # DELTA — microcap with low entry slippage + live volume
+                if (0 < _mc < 5_000_000 and _slip_buy is not None and _slip_buy < 3.0
+                        and _vh1 > 50_000):
+                    _trigger_delta_microcap_match = True
+                    _trigger_delta_microcap_reasons.append(
+                        f"mcap=${_mc/1e6:.1f}M<5M AND slip_buy={_slip_buy:.2f}%<3 "
+                        f"AND vol_h1=${_vh1/1e3:.0f}k>50k"
+                    )
+
+                # seller_exhaustion — bs + rising sell-side slip + high absolute slip
+                if (_bs_m5_f is not None and _bs_m5_f >= 1.34
+                        and _slip_sell_vel is not None and _slip_sell_vel >= 0.0004
+                        and _slip_sell is not None and _slip_sell >= 2.25):
+                    _trigger_seller_exhaustion_match = True
+                    _trigger_seller_exhaustion_reasons.append(
+                        f"bs_m5={_bs_m5_f:.2f}>=1.34 AND slip_sell_vel={_slip_sell_vel:.4f}>=0.0004 "
+                        f"AND slip_sell={_slip_sell:.2f}%>=2.25"
+                    )
+
+                # deep_dip_bottom — token genuinely dipped (down both 24h AND from 6h peak)
+                # Phantom predicate ratio_to_recent_peak<=0.928 mapped to peak_h24_6h>=7.2pp
+                if _pc24_f <= -7.48 and _peak24_6h_f >= 7.2:
+                    _trigger_deep_dip_bottom_match = True
+                    _trigger_deep_dip_bottom_reasons.append(
+                        f"pc_h24={_pc24_f:+.1f}%<=-7.48 AND peak_h24_6h={_peak24_6h_f:.1f}%>=7.2 "
+                        f"(deep dip from 6h peak)"
+                    )
+
+                # patient_bottom_recovery — well below 1h VWAP, mature dip
+                if (_vwap_dist is not None and _vwap_dist <= -3.0
+                        and _min_peak is not None and _min_peak >= 60):
+                    _trigger_patient_bottom_match = True
+                    _trigger_patient_bottom_reasons.append(
+                        f"vwap_1h_dist={_vwap_dist:+.1f}%<=-3 AND min_since_peak={_min_peak:.0f}>=60"
+                    )
+
+                # informed_cluster_entry — top10 historical buyers re-entering on dip
+                if (_top10_60s is not None and _top10_60s >= 5
+                        and _vwap_dist is not None and _vwap_dist <= -3.0):
+                    _trigger_informed_cluster_match = True
+                    _trigger_informed_cluster_reasons.append(
+                        f"top10_60s={_top10_60s}>=5 AND vwap_1h_dist={_vwap_dist:+.1f}%<=-3"
+                    )
+
+                # graduation_window_dip — fresh post-graduation honeymoon dip
+                if (_hours_grad is not None and 6 <= _hours_grad < 24
+                        and _vwap_dist is not None and _vwap_dist <= -3.0):
+                    _trigger_grad_window_dip_match = True
+                    _trigger_grad_window_dip_reasons.append(
+                        f"hours_since_grad={_hours_grad:.1f} in [6,24) "
+                        f"AND vwap_1h_dist={_vwap_dist:+.1f}%<=-3"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] new-triggers calc err: {_e}")
+
             # clean_break suppression gates — refined 2026-05-08 across
             # two analysis rounds on 26 clean_break fires from 2026-05-07.
             # All gates are validated as positive-swing on lifetime data.
@@ -4126,6 +4244,22 @@ class DipScanner:
                 _triggers_fired.append("hh10_8plus")
             if _trigger_vol_velocity_2grn_match:
                 _triggers_fired.append("vol_velocity_2grn")
+            if _trigger_alpha_buyperscold_match:
+                _triggers_fired.append("alpha_buyperscold")
+            if _trigger_beta_retailfresh_match:
+                _triggers_fired.append("beta_retailfresh")
+            if _trigger_delta_microcap_match:
+                _triggers_fired.append("delta_microcap")
+            if _trigger_seller_exhaustion_match:
+                _triggers_fired.append("seller_exhaustion")
+            if _trigger_deep_dip_bottom_match:
+                _triggers_fired.append("deep_dip_bottom")
+            if _trigger_patient_bottom_match:
+                _triggers_fired.append("patient_bottom")
+            if _trigger_informed_cluster_match:
+                _triggers_fired.append("informed_cluster")
+            if _trigger_grad_window_dip_match:
+                _triggers_fired.append("grad_window_dip")
 
             if not _triggers_fired:
                 logger.info(
@@ -4174,6 +4308,22 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_hh10_8plus_reasons)
                 if _trigger_vol_velocity_2grn_match:
                     _alt_reasons.extend(_trigger_vol_velocity_2grn_reasons)
+                if _trigger_alpha_buyperscold_match:
+                    _alt_reasons.extend(_trigger_alpha_buyperscold_reasons)
+                if _trigger_beta_retailfresh_match:
+                    _alt_reasons.extend(_trigger_beta_retailfresh_reasons)
+                if _trigger_delta_microcap_match:
+                    _alt_reasons.extend(_trigger_delta_microcap_reasons)
+                if _trigger_seller_exhaustion_match:
+                    _alt_reasons.extend(_trigger_seller_exhaustion_reasons)
+                if _trigger_deep_dip_bottom_match:
+                    _alt_reasons.extend(_trigger_deep_dip_bottom_reasons)
+                if _trigger_patient_bottom_match:
+                    _alt_reasons.extend(_trigger_patient_bottom_reasons)
+                if _trigger_informed_cluster_match:
+                    _alt_reasons.extend(_trigger_informed_cluster_reasons)
+                if _trigger_grad_window_dip_match:
+                    _alt_reasons.extend(_trigger_grad_window_dip_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
