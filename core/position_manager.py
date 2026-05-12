@@ -1454,6 +1454,30 @@ class PositionManager:
             except Exception as _e:
                 logger.debug(f"[PositionManager] signal-flip check error for {state.token_symbol}: {_e}")
 
+            # ── TIME-STOP SHADOW (paper-derived 2026-05-12) ──────────
+            # Common pattern in open-source memecoin scalper bots (e.g.,
+            # Swiper default = 5min hard stop). Pre-TP1 only — when age
+            # crosses thresholds AND we're red, log what we'd save by
+            # exiting on the clock. SHADOW only; no behavior change.
+            #
+            # Mining: validates whether time-based exit catches losses
+            # earlier than condition-based exits. 87% of recent losers
+            # peaked <+5% — many would benefit from a clock-stop.
+            _ts_age = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
+            if (not state.tp1_hit and pnl_pct < 0
+                    and pnl_pct > -self.dip_stop_pct):
+                for _bucket in (600, 1200, 1800):
+                    # 30s window catches the bucket exactly once per position
+                    # (loop runs every ~5-15s, so ≤1 hit per bucket per token).
+                    if _bucket <= _ts_age < _bucket + 30:
+                        logger.info(
+                            f"[PositionManager/{self.chain_name}] "
+                            f"time_stop_{_bucket}s SHADOW would-exit: "
+                            f"{state.token_symbol} hold={_ts_age:.0f}s "
+                            f"pnl={pnl_pct:+.2f}% (no behavior change)"
+                        )
+                        break
+
             # ── FAST-DUD EXIT — ENFORCED 2026-05-11 ───────────────────
             # Tighter stop applied to positions open >=60s that have
             # NEVER crossed +1.0% peak AND are currently at -1.5% or

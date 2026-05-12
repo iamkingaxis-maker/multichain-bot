@@ -6017,6 +6017,62 @@ class DipScanner:
             except Exception:
                 pass
 
+            # ── Liquidity velocity (paper-derived, SHADOW 2026-05-12) ──
+            # arxiv 2602.14860: "Fast accumulation of liquidity through a small
+            # number of trades is the strongest predictor of graduation."
+            # USD per txn is the simplest expression. Recorded shadow-only.
+            try:
+                _txn_m5_total = (b_m5 or 0) + (s_m5 or 0)
+                _liq_vel_m5 = (vol_m5 / _txn_m5_total) if _txn_m5_total > 0 else None
+                _txn_h1_total = (int((txns_h1 or {}).get("buys") or 0)
+                                 + int((txns_h1 or {}).get("sells") or 0))
+                _liq_vel_h1 = (vol_h1 / _txn_h1_total) if _txn_h1_total > 0 else None
+                volume_velocity_features["liq_velocity_m5_usd_per_txn"] = (
+                    round(_liq_vel_m5, 2) if _liq_vel_m5 is not None else None)
+                volume_velocity_features["liq_velocity_h1_usd_per_txn"] = (
+                    round(_liq_vel_h1, 2) if _liq_vel_h1 is not None else None)
+            except Exception:
+                pass
+
+            # ── Shewhart 4-sigma dump scan (paper-derived, SHADOW 2026-05-12) ──
+            # arxiv 2602.14860: "92.22% of failed tokens exhibit detectable dump
+            # events via Shewhart control charts (4-sigma threshold on
+            # log-returns)." Computes z-score of each 5m candle's log-return
+            # against the 30-candle (2.5h) window. Records max negative z-score
+            # and a boolean flag for z <= -4. Shadow only — no entry gating.
+            shewhart_features: dict = {
+                "shadow_shewhart_dump_detected": None,
+                "shadow_shewhart_max_neg_z": None,
+            }
+            try:
+                _cs5_shew = (_chart_data.candles_5m[-30:]
+                             if _chart_data and _chart_data.candles_5m else [])
+                if len(_cs5_shew) >= 10:
+                    import math
+                    _logrets = []
+                    for i in range(1, len(_cs5_shew)):
+                        c0 = _cs5_shew[i - 1].close
+                        c1 = _cs5_shew[i].close
+                        if c0 > 0 and c1 > 0:
+                            _logrets.append(math.log(c1 / c0))
+                    if len(_logrets) >= 8:
+                        _mu = sum(_logrets) / len(_logrets)
+                        _var = sum((x - _mu) ** 2 for x in _logrets) / len(_logrets)
+                        _sd = _var ** 0.5
+                        if _sd > 0:
+                            _z_scores = [(x - _mu) / _sd for x in _logrets]
+                            _min_z = min(_z_scores)
+                            shewhart_features["shadow_shewhart_max_neg_z"] = round(_min_z, 3)
+                            shewhart_features["shadow_shewhart_dump_detected"] = (_min_z <= -4.0)
+                            if _min_z <= -4.0:
+                                logger.info(
+                                    f"[DipScanner] filter_shewhart_dump SHADOW would-block: "
+                                    f"{token_symbol} reasons=log_return_z_score={_min_z:.2f}<=-4 "
+                                    f"(insider/whale dump event detected in 2.5h window)"
+                                )
+            except Exception:
+                pass
+
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -6345,7 +6401,9 @@ class DipScanner:
                                     # hours_since_graduation) — shadow, 2026-05-04.
                 **_tier1_features,  # Tier-1 (smart-money score, top makers capture,
                                     # dev wallet pct) — shadow, 2026-05-04.
-                **volume_velocity_features,  # vol_h1_accel_vs_h6, vol_5m_burst_vs_h1
+                **volume_velocity_features,  # vol_h1_accel_vs_h6, vol_5m_burst_vs_h1,
+                                              # liq_velocity_m5/h1 (paper, SHADOW)
+                **shewhart_features,  # shadow_shewhart_dump_detected/max_neg_z (paper, SHADOW)
             }
 
             await self.trader.buy(
