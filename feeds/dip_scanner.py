@@ -2786,6 +2786,47 @@ class DipScanner:
                     f"reasons={','.join(_filter_bs_m5_low_block_reasons)}"
                 )
 
+            # filter_bs_m5_weak — ENFORCED 2026-05-12.
+            # Surgical block on bs_m5 < 1.0 entries that LACK rescue signals.
+            # Lifetime SHADOW bs_m5<1.40 was net-positive (64% WR/BLOCK), so
+            # blunt enforcement loses winners. But on recent 5d (post-stop-
+            # tightening), the bs_m5<1.0 cohort net -$45.82 (60W +$67.58 /
+            # 46L -$113.40 — losers avg -$2.47 vs winners avg +$1.13).
+            #
+            # Cohort feature mining (Cohen's d on winners vs losers within
+            # bs_m5<1.0) found: unique_buyers_n and net_flow_15s_n are the
+            # cleanest separators. Rescue logic: block only when BOTH
+            # absent. Keeps 37 of 60 winners (62%) while blocking 35 of
+            # 46 losers (76%). Net: +$58.05 saved / +$11/day on 5d data
+            # vs +$45.82 from a blunt-block (12% better).
+            #
+            # Features are 100% covered in the 106-trade cohort. Both
+            # come from _trade_log_dict (trade_log_features.analyze on
+            # recent_trades).
+            _filter_bs_m5_weak_block_reasons: list = []
+            try:
+                _bsw_val = float(ratio_m5) if ratio_m5 != float("inf") else None
+                if _bsw_val is not None and _bsw_val < 1.0:
+                    _ub_n = _trade_log_dict.get('unique_buyers_n') or 0
+                    _nf15 = _trade_log_dict.get('net_flow_15s_n') or 0
+                    if _ub_n < 12 and _nf15 < 4:
+                        _filter_bs_m5_weak_block_reasons.append(
+                            f"bs_m5={_bsw_val:.2f}<1.0 AND no rescue "
+                            f"(unique_buyers_n={_ub_n}<12 AND net_flow_15s_n={_nf15}<4)"
+                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] bs_m5_weak calc err: {_e}")
+            _filter_bs_m5_weak_verdict = "BLOCK" if _filter_bs_m5_weak_block_reasons else "PASS"
+            c[f"filter_bs_m5_weak_{_filter_bs_m5_weak_verdict.lower()}"] = c.get(
+                f"filter_bs_m5_weak_{_filter_bs_m5_weak_verdict.lower()}", 0
+            ) + 1
+            if _filter_bs_m5_weak_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_bs_m5_weak: {token_symbol} "
+                    f"reasons={','.join(_filter_bs_m5_weak_block_reasons)}"
+                )
+                continue
+
             # 6) avg_trade_size_h1 — block tokens with big trades preceding
             # the dip ($80+ avg in last hour = whales selling in size).
             # Train n=425, lift +$802. Test n=267, lift +$45.
@@ -5729,6 +5770,10 @@ class DipScanner:
                 # 3 SHADOW filters from regret analysis (2026-05-05 PM).
                 "filter_bs_m5_low_verdict": _filter_bs_m5_low_verdict,
                 "filter_bs_m5_low_block_reasons": _filter_bs_m5_low_block_reasons,
+                # filter_bs_m5_weak — enforced 2026-05-12. Blocks bs_m5<1.0
+                # when unique_buyers<12 AND net_flow_15s<4 (no rescue).
+                "filter_bs_m5_weak_verdict": _filter_bs_m5_weak_verdict,
+                "filter_bs_m5_weak_block_reasons": _filter_bs_m5_weak_block_reasons,
                 "filter_big_trade_size_verdict": _filter_big_trade_size_verdict,
                 "filter_big_trade_size_block_reasons": _filter_big_trade_size_block_reasons,
                 "filter_stale_watch_verdict": _filter_stale_watch_verdict,
@@ -5840,6 +5885,8 @@ class DipScanner:
                 # 3 SHADOW filters from regret analysis (2026-05-05 PM).
                 "filter_bs_m5_low_block", "filter_big_trade_size_block",
                 "filter_stale_watch_block",
+                # ENFORCED 2026-05-12 — surgical bs_m5<1.0 no-rescue block.
+                "filter_bs_m5_weak_block",
                 # Timing fix shadow 2026-05-05 PM.
                 "filter_confirmation_candle_block",
                 # ENFORCED 2026-05-06 — clean-break user pattern.
