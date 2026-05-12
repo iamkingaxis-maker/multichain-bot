@@ -996,8 +996,9 @@ def take_snapshot():
 def simulate_phantom_strategy(entry_price, ohlcv_after, position_usd=20.0):
     """Phantom-bot full lifecycle simulation.
 
-    Strategy mirrors live bot: TP1=+8% sell 50%, TP2=+12% sell 100%, 3.5%
+    Strategy mirrors live bot: TP1=+5% sell 50%, TP2=+12% sell 100%, 3.5%
     trail post-TP1 on remaining 50%, -10% hard stop, 24h max-hold timeout.
+    (TP1 lowered 8 -> 5 on 2026-05-12.)
 
     ohlcv_after is GT-format newest-first list of [ts_ms, open, high, low,
     close, vol] candles covering [entry_ts, now]. Reverses internally so we
@@ -1012,7 +1013,7 @@ def simulate_phantom_strategy(entry_price, ohlcv_after, position_usd=20.0):
             'exit_reason': 'no_ohlcv', 'hit_tp1': False,
         }
     candles = list(reversed(ohlcv_after))  # oldest-first
-    tp1_price = entry_price * 1.08
+    tp1_price = entry_price * 1.05
     tp2_price = entry_price * 1.12
     stop_price = entry_price * 0.90
     trail_pct = 0.035
@@ -1103,16 +1104,16 @@ def simulate_phantom_strategy(entry_price, ohlcv_after, position_usd=20.0):
 
 
 def simulate_phantom_tp1_100pct(entry_price, ohlcv_after, position_usd=20.0):
-    """LIVE strategy from 2026-05-07: TP1=+8% sells 100%. -10% stop. No TP2/trail.
+    """Alternative strategy: TP1=+5% sells 100%. -10% stop. No TP2/trail.
 
-    Mirrors the new live config (DIP_TP1_SELL=1.0). Compute alongside
-    legacy ladder for direct comparison.
+    Compute alongside the live ladder for direct comparison. Tracks TP1=5
+    matching new live threshold (was 1.08 before 2026-05-12).
     """
     if not ohlcv_after:
         return {'phantom_pnl_pct': None, 'phantom_pnl_usd': None,
                 'exit_reason': 'no_ohlcv', 'hit_tp1': False}
     candles = list(reversed(ohlcv_after))
-    tp1_price = entry_price * 1.08
+    tp1_price = entry_price * 1.05
     stop_price = entry_price * 0.90
     for k in candles:
         if len(k) < 5:
@@ -1125,8 +1126,8 @@ def simulate_phantom_tp1_100pct(entry_price, ohlcv_after, position_usd=20.0):
             return {'phantom_pnl_pct': -10.0, 'phantom_pnl_usd': position_usd * -0.10,
                     'exit_reason': 'stop', 'exit_pct': -10.0, 'hit_tp1': False}
         if high >= tp1_price:
-            return {'phantom_pnl_pct': 8.0, 'phantom_pnl_usd': position_usd * 0.08,
-                    'exit_reason': 'tp1_full', 'exit_pct': 8.0, 'hit_tp1': True}
+            return {'phantom_pnl_pct': 5.0, 'phantom_pnl_usd': position_usd * 0.05,
+                    'exit_reason': 'tp1_full', 'exit_pct': 5.0, 'hit_tp1': True}
     last_close = float(candles[-1][4])
     pct = (last_close / entry_price - 1.0) * 100
     return {'phantom_pnl_pct': round(pct, 3),
@@ -1138,11 +1139,12 @@ def simulate_phantom_tp1_100pct(entry_price, ohlcv_after, position_usd=20.0):
 def simulate_phantom_smart_bearflip(entry_price, ohlcv_after, position_usd=20.0,
                                     consec_green_req=3, min_pnl_pct=3.0,
                                     min_red_body_pct=0.3):
-    """SHADOW strategy: TP1=+8% sells 50%, then bear-flip exit on remainder.
+    """LIVE strategy mirror: TP1=+5% sells 50%, then bear-flip exit on remainder.
 
     After TP1, watch for: 3 prior consecutive green 1m candles + current
     red candle with body > 0.3% AND position pnl > +3%. Exit remainder
-    immediately on bear flip.
+    immediately on bear flip. Matches the enforced smart_bearflip block
+    in core/position_manager.py and the new TP1=5 threshold (2026-05-12).
 
     NOTE: aggregating 5m candles loses fine-grained bear-flip detection.
     For accurate phantom we'd need 1m candles. For now this approximates
@@ -1153,7 +1155,7 @@ def simulate_phantom_smart_bearflip(entry_price, ohlcv_after, position_usd=20.0,
         return {'phantom_pnl_pct': None, 'phantom_pnl_usd': None,
                 'exit_reason': 'no_ohlcv', 'hit_tp1': False}
     candles = list(reversed(ohlcv_after))
-    tp1_price = entry_price * 1.08
+    tp1_price = entry_price * 1.05
     stop_price = entry_price * 0.90
     half_sold = False
     realized_pnl = 0.0
@@ -1171,7 +1173,7 @@ def simulate_phantom_smart_bearflip(entry_price, ohlcv_after, position_usd=20.0,
                     'exit_reason': 'stop', 'exit_pct': -10.0, 'hit_tp1': False}
         if not half_sold and high >= tp1_price:
             half_sold = True
-            realized_pnl += position_usd * 0.5 * 0.08
+            realized_pnl += position_usd * 0.5 * 0.05
         if half_sold:
             cur_green = close > o
             if cur_green:
