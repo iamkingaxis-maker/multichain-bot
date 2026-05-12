@@ -85,6 +85,21 @@ def mtf_textbook_only_pass(c):
     """Pass only if textbook pullback pattern: 15m red AND 5m red AND 1m green."""
     return c.get('mtf_textbook_pullback') == 1
 
+def sweep_too_recent_block(c):
+    """Phantom parity for filter_sweep_too_recent (ENFORCED 2026-05-13).
+
+    Production blocks when chart_sweep_5m_low_candles_ago <= 2 (sweep
+    still unfolding, knife-catch). Consumes chart_sweep_5m_low_candles_ago
+    from candidate snapshot if present; fails open otherwise.
+
+    NOTE: snapshot currently does NOT enrich chart_sweep_* features (would
+    require running chart_reader = 4 timeframe fetches per candidate).
+    This phantom mirror is currently no-op until chart enrichment is added
+    to fetch_snapshot. TODO same as informed_cluster / grad_window_dip.
+    """
+    v = c.get('chart_sweep_5m_low_candles_ago')
+    return v is not None and v <= 2
+
 def mtf_2plus_green_block(c):
     """Block if fewer than 2 of last 1m/5m/15m closed green."""
     g = c.get('mtf_green_count', 0)
@@ -167,7 +182,7 @@ COMBOS = {
     # ─── LIVE PRODUCTION STACK ───
     # 2026-05-07: seller_dominant demoted to SHADOW (forward phantom test
     # showed -$5/cohort drag). S now matches live = clean_break + double_bear.
-    'S_live_prod_stack':     lambda c: not scanner_block_reasons(c) and not clean_break_block(c) and not double_bear_block(c),
+    'S_live_prod_stack':     lambda c: not scanner_block_reasons(c) and not clean_break_block(c) and not double_bear_block(c) and not sweep_too_recent_block(c),
     # Variant: same but stripped down to just clean_break (sanity check
     # that the additional gates aren't pulling weight on this slice).
     'T_clean_break_only':    lambda c: not scanner_block_reasons(c) and not clean_break_block(c),
