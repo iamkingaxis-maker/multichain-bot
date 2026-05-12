@@ -29,6 +29,11 @@ class GeckoTerminalClient:
         self._rate_per_min = rate_per_min
         self._request_log: List[float] = []
         self._lock = asyncio.Lock()
+        # Request coalescing — when N parallel callers request the same key,
+        # only one HTTP request goes out and the rest await its result.
+        # Without this, all N race past the cache check (empty) and burst
+        # GT simultaneously, triggering 429s even with self-imposed throttle.
+        self._in_flight: Dict[str, "asyncio.Future"] = {}
         self._session_factory = session_factory or (
             lambda: aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10))
         )
@@ -138,30 +143,56 @@ class GeckoTerminalClient:
         ttl = cache_ttl_override if cache_ttl_override is not None else self._cache_ttl
         key = f"{timeframe}:{aggregate}:{pool_address}:{limit}"
         now = time.monotonic()
+        # Request coalescing — if another task is already fetching this key,
+        # await its result instead of starting a second HTTP call. Without
+        # this, N parallel per-token evaluations all race past the cache
+        # check at once and burst GT, triggering 429s.
         async with self._lock:
             cached = self._cache.get(key)
             if cached and (now - cached[0]) < ttl:
                 return cached[1]
-            await self._throttle(now)
+            existing_future = self._in_flight.get(key)
+            if existing_future is not None:
+                future = existing_future
+                i_am_fetcher = False
+            else:
+                future = asyncio.get_event_loop().create_future()
+                self._in_flight[key] = future
+                await self._throttle(now)
+                i_am_fetcher = True
+
+        if not i_am_fetcher:
+            try:
+                return await future
+            except Exception:
+                return []
 
         url = (
             f"{_GT_BASE}/networks/solana/pools/{pool_address}/ohlcv/{timeframe}"
             f"?aggregate={aggregate}&limit={limit}&currency=usd"
         )
+        candles: List[Candle] = []
         try:
-            async with self._session_factory() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    if resp.status != 200:
-                        logger.info(f"[GeckoOHLCV] {pool_address[:12]}: HTTP {resp.status}")
-                        return []
-                    data = await resp.json()
-        except Exception as e:
-            logger.info(f"[GeckoOHLCV] fetch error for {pool_address[:12]}: {e}")
-            return []
-
-        candles = self._parse(data)
-        async with self._lock:
-            self._cache[key] = (time.monotonic(), candles)
+            try:
+                async with self._session_factory() as session:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                        if resp.status != 200:
+                            logger.info(f"[GeckoOHLCV] {pool_address[:12]}: HTTP {resp.status}")
+                        else:
+                            data = await resp.json()
+                            candles = self._parse(data)
+            except Exception as e:
+                logger.info(f"[GeckoOHLCV] fetch error for {pool_address[:12]}: {e}")
+        finally:
+            # Always release the in-flight slot and unblock waiters, even
+            # if cancelled or raised. Without finally, CancelledError leaves
+            # the future unset and other tasks hang indefinitely.
+            async with self._lock:
+                if candles:
+                    self._cache[key] = (time.monotonic(), candles)
+                self._in_flight.pop(key, None)
+                if not future.done():
+                    future.set_result(candles)
         return candles
 
     async def fetch_trending_pools(self, pages: int = 3) -> List[dict]:
