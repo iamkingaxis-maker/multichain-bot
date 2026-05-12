@@ -11,6 +11,9 @@
 - `7f4e667` **8 new parallel triggers ENFORCED** + fast_dud tightened (60s→180s, -1.5%→-2.5%)
 - `eedac21` Per-trigger tracking + phantom parity for patient_bottom + WS spam silence + gitignore cleanup
 - `b370dc2` **filter_bs_m5_weak ENFORCED** — surgical bs_m5<1.0 rescue
+- `5843983` Handoff doc update
+- `7ca3d4b` **Chart 15m/1h fallback aggregation + 1s slug ladder retries** — coverage boost
+- `18fe02c` **DS WS code removed** — endpoint deprecated, polling canonical (-163 lines)
 
 ### TP1 = 5% / TP2 = 12% (commit 504b459)
 
@@ -65,14 +68,42 @@ Added `pct_above_vwap_1h` to phantom (free — uses 15m bars already fetched). C
 
 Saves `trigger_source` + `triggers_fired` list into entry_meta on every buy. Legacy entries pre-eedac21 are bucketed under their joined trigger_source string.
 
-### DexScreener WS spam silence (commit eedac21)
+### DexScreener WS spam silence (commit eedac21) → full removal (commit 18fe02c)
 
-Endpoint `wss://io.dexscreener.com/dex/screener/v7/pairs/h24/1` returns 404 on all probed variants — path deprecated. Domain still alive (chart + trades endpoints work via curl_cffi). Bot was logging 1 line / ~5s on retry (200+ lines/hr).
-- Log only first 3 failures, then every 20th
-- Aggressive 300s backoff after 5+ failures
-- Polling fallback at 1-3s covers stops (this is the canonical path)
+Initial pass spam-silenced (only log first 3 + every 20th failure, 300s backoff). Then investigated the actual endpoint state:
 
-Re-investigate by inspecting dexscreener.com WS protocol in-browser when time permits.
+**Investigation findings** (using `vincentkoc/dexscraper` library source as reference):
+- Current working DS WS URL is **v5**, not v7: `wss://io.dexscreener.com/dex/screener/v5/pairs/{tf}/1?rankBy[key]=...&filters=...`
+- v5 requires Cloudflare cookie bypass (cf_clearance pre-fetch) — our bare WS connect returned HTTP 403
+- v5 protocol is **binary**, not JSON (~500-line decoder needed)
+- v5 connection model is **snapshot-then-close**, not persistent pub/sub — each "stream" call opens WS, gets handshake + 1 pairs frame, closes
+- dexscraper's `stream_pairs` loop is effectively a 5s WS-polling cadence — SLOWER than our existing 1-3s HTTP polling
+
+**Verdict**: DS deprecated their persistent pair-price WS. No "fix" delivers value over what we already have. Removed all DS WS code (-163 lines):
+- `_run_dexscreener_ws` / `_send_dexscreener_subscriptions` / `_handle_dexscreener_message` / `_get_ws_url`
+- `ws_connected` / `ws_consecutive_failures` / `_active_ws` / `_ws_tick_count` state
+- Mid-session WS subscription push from `subscribe_token()`
+- DS-WS anomaly watchdog in main.py + `_ANOMALY_WS_FAILURES` constant
+
+Polling at 0.5-3s + Axiom WS on subscribed positions canonically cover stops.
+
+### Coverage boost (commit 7ca3d4b)
+
+Many trendline / channel / vol-decay features had low coverage in entry_meta (sparse data → filters built on them fire on only 10-20% of candidates). Fixed in 2 places:
+
+**Chart fallback (`feeds/chart_data.py`)** — `_aggregate_candles()` synthesizes higher-timeframe candles from lower-timeframe when native fetches come up short:
+- If `len(15m) < 10` AND `len(1m) >= 15`: derive 15m from 1m (factor=15)
+- If `len(1h) < 10`: derive 1h from 15m (factor=4) or from 1m (factor=60)
+- Aggregator: open=first, high=max, low=min, close=last, volume=sum. Drops partial trailing bundle.
+
+Expected coverage lift:
+- `chart_trendline_15m_channel_pos`: 19% → ~55-60%
+- `chart_trendline_1h_channel_pos`: 13% → ~50%
+- `trend_60m_consec_hl/hh`: 10% → ~50%
+
+**1s slug ladder (`feeds/dip_scanner.py`)** — DexScreener's internal 1s binary chart endpoint requires the right DEX-slug. Was: single slug + single shot (10% coverage). Now: primary slug + fallback ladder [pumpfundex, solamm, meteora, orcawhirl] with 0.15s backoff between attempts. Bails early on empty payload (wrong slug). Timeout 6s→8s.
+
+Expected lift: 10% → ~30-40% on 1s features.
 
 ### Forward observation
 
@@ -91,13 +122,31 @@ Re-investigate by inspecting dexscreener.com WS protocol in-browser when time pe
 - **ASTEROID 2026-05-12 05:30** — bs_m5=0.50 1-min stop, drove filter_bs_m5_weak
 - **Clude 2026-05-12 00:15** — fast_dud correct trigger (341s, peak=0%, would still fire under new thresholds)
 
+### Attempted broader-loser mining (NO ship)
+
+After bs_m5_weak we explored "find more surgical filters" across the broader recent loser cohort. Cohen's d on TRAIN (post-2026-05-04, n=553) found strong differentiators including:
+- `chart_trendline_15m_channel_pos` (d=-0.47, winners 2.2 vs losers 12.6)
+- `prior_buys_for_token >= 3` (d=-0.38, blocks repeat-buys)
+- `1s_vol_decay_120s` (d=-0.54)
+
+But held-out VAL (post-2026-05-10, n=40) **failed to confirm** any of these:
+- `prior_buys >= 3`: 98 fires on TRAIN, 0 fires on VAL — distribution shifted (cooldown logic and filter improvements eliminated the repeat-buy pattern forward)
+- `chart_trendline_15m_channel_pos > 10`: TRAIN saves $13, VAL reverses (blocks 2 winners, no losers)
+- Most sparse features have <20% production coverage anyway
+
+**Decision: don't ship more filters on current data.** Sample mismatch (4 deploys today shifted the regime) + small VAL window + sparse feature coverage = high overfit risk. Right move is to wait 5-7 days for forward data on the current ENFORCED stack, then re-mine.
+
+Triggered coverage boost (7ca3d4b) to make future mining more reliable — once 15m channel + 1s decay features hit 50%+ coverage, the next mining round can lean on them.
+
 ### Followup work (next session)
 
-1. **24h forward validation** — run trigger_wr_tracker on 24h post-deploy data, compare real WR to phantom 70% projection
-2. **Phantom parity gap** — wire `top10_buyer_within_60s_count` + `hours_since_graduation` into `live_forward_test.py` enrichment so informed_cluster + grad_window_dip get phantom mirrors
-3. **DexScreener WS fix** — investigate current WS protocol (inspect browser network tab on dexscreener.com)
+1. **24h forward validation** — run `python scripts/trigger_wr_tracker.py` on 24h post-deploy data, compare real WR to phantom 70% projection
+2. **Phantom parity gap** — wire `top10_buyer_within_60s_count` + `hours_since_graduation` into `live_forward_test.py` enrichment so informed_cluster + grad_window_dip get phantom mirrors. Currently only patient_bottom is mirrored (via the pct_above_vwap_1h addition in 7ca3d4b).
+3. ~~**DexScreener WS fix**~~ — RESOLVED. Investigated and confirmed no useful fix exists. Code removed in 18fe02c.
 4. **ALPHA threshold review** — recent 5d data showed bs_m5 [1.4, 2.0) underperforms; my ALPHA threshold (≥3.0) sits in a +0.28/tr / 68% WR bucket. May not need adjustment.
 5. **Trade volume capacity** — max_concurrent=3 will throttle new trigger union from 51/day phantom-projected → ~25-35 actual. Consider raising or wait for forward data.
+6. **Re-mine for surgical filters after 5-7d forward** — coverage boost (7ca3d4b) should make `chart_trendline_15m_channel_pos`, `1s_vol_decay_120s`, etc. usable as filter features. TRAIN already showed they're strong separators. Need VAL n≥100 on current-config to confirm.
+7. **Verify coverage boost lift** — after a day or so of accumulation, check that `chart_trendline_15m_channel_pos` coverage actually rises from 19% → ~55% as predicted. If not, the aggregation logic isn't reaching the feature compute path.
 
 ---
 
