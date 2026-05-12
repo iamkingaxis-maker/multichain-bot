@@ -22,6 +22,12 @@ from dataclasses import dataclass, field
 logger = logging.getLogger(__name__)
 
 # WebSocket endpoints
+# DexScreener WS path: 2026-05-12 status — endpoint returns HTTP 404 on all
+# probed variants (v6/v7/v8 + Origin header + Chrome UA). DS likely moved
+# the WS to a new path; chart + trade-log endpoints on io.dexscreener.com
+# are still alive (used via curl_cffi). Polling fallback at 1-3s intervals
+# covers price stops. Re-investigate by inspecting dexscreener.com's
+# in-browser network tab when time permits.
 DEXSCREENER_WS = "wss://io.dexscreener.com/dex/screener/v7/pairs/h24/1"
 HELIUS_WS_BASE = "wss://mainnet.helius-rpc.com/?api-key="
 
@@ -223,14 +229,22 @@ class PriceFeed:
                 consecutive_failures += 1
                 self.ws_consecutive_failures = consecutive_failures
                 self.ws_connected = False
-                backoff = min(5 * consecutive_failures, 60)
-                # Escalate to ERROR after 10 failures — this is a broken endpoint, not a blip
-                log_fn = logger.error if consecutive_failures >= 10 else logger.info
-                log_fn(
-                    f"[PriceFeed] DexScreener WS failed ({via}, attempt {consecutive_failures}): "
-                    f"{type(e).__name__} — polling covers stops, retry in {backoff}s"
-                    + (" *** PERSISTENT FAILURE — endpoint may have changed ***" if consecutive_failures == 10 else "")
-                )
+                # Backoff aggressively after 5 failures — this endpoint is
+                # known-broken (404 as of 2026-05-12). Polling covers stops.
+                backoff = min(5 * consecutive_failures, 60) if consecutive_failures < 5 else 300
+                # Quiet down — log only first 3 failures, then every 20th.
+                # 404 on all v6/v7/v8 paths means DS moved the endpoint; no
+                # transient retry will fix it.
+                should_log = (consecutive_failures <= 3
+                              or consecutive_failures % 20 == 0)
+                if should_log:
+                    log_fn = logger.warning if consecutive_failures >= 10 else logger.info
+                    log_fn(
+                        f"[PriceFeed] DexScreener WS failed ({via}, attempt {consecutive_failures}): "
+                        f"{type(e).__name__} — polling covers stops, retry in {backoff}s"
+                        + (" (endpoint path likely deprecated — polling is canonical)"
+                           if consecutive_failures == 10 else "")
+                    )
                 if consecutive_failures == 3 and via == "direct":
                     # Switch to proxy path for subsequent retries
                     ws_gave_up = True

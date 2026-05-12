@@ -195,6 +195,13 @@ COMBOS = {
                                         and c.get('slip_sell_5000_pct') is not None and c['slip_sell_5000_pct'] >= 2.25),
     'AA_deep_dip_bottom':    lambda c: (c.get('pc_h24') is not None and c['pc_h24'] <= -7.48
                                         and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 7.2),
+    # 2026-05-12: patient_bottom_recovery — vwap_1h now phantom-available
+    # via compute_rsi_overbought_features. min_since_peak_5m already enriched.
+    'BB_patient_bottom':     lambda c: (c.get('pct_above_vwap_1h') is not None and c['pct_above_vwap_1h'] <= -3.0
+                                        and c.get('min_since_peak_5m') is not None and c['min_since_peak_5m'] >= 60),
+    # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
+    # and hours_since_graduation in phantom enrichment. Would require recent_trades
+    # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).
 }
 
 
@@ -571,8 +578,13 @@ def compute_rsi_overbought_features(c):
     Fetches 5m + 15m bars, computes RSI/BB via compute_rsi_bb (same function
     production uses), then evaluates filter_rsi_overbought_verdict.
 
-    Returns dict with rsi_5m, rsi_15m, bb_pos_5m, bb_pos_15m, and
-    filter_rsi_overbought_verdict. Fail-open on missing data.
+    2026-05-12: also computes pct_above_vwap_1h from the same 15m bars
+    (no extra fetch cost). Closes phantom-parity for patient_bottom_recovery
+    trigger. top10_buyer_within_60s_count and hours_since_graduation still
+    not in phantom — would require recent_trades + grad-status fetches.
+
+    Returns dict with rsi_5m, rsi_15m, bb_pos_5m, bb_pos_15m,
+    filter_rsi_overbought_verdict, AND pct_above_vwap_1h. Fail-open.
     """
     out = {}
     try:
@@ -581,7 +593,7 @@ def compute_rsi_overbought_features(c):
         _ROOT = _Path(__file__).resolve().parent.parent
         if str(_ROOT) not in _sys.path:
             _sys.path.insert(0, str(_ROOT))
-        from feeds.tier2_features import compute_rsi_bb
+        from feeds.tier2_features import compute_rsi_bb, compute_anchored_vwap_1h
 
         ohlcv_5m = fetch_gt_ohlcv_with_retry(c['pair'], agg=5, limit=30)
         time.sleep(1.0)
@@ -589,6 +601,8 @@ def compute_rsi_overbought_features(c):
         time.sleep(1.0)
         if not ohlcv_5m and not ohlcv_15m:
             return out
+
+        cur_price_for_vwap = float(c.get('price') or c.get('snapshot_close') or 0)
 
         class _C:
             __slots__ = ('open', 'high', 'low', 'close', 'volume')
@@ -613,6 +627,12 @@ def compute_rsi_overbought_features(c):
         c15 = to_candles(ohlcv_15m)
         rsi_features = compute_rsi_bb(c5, c15)
         out.update(rsi_features)
+
+        # vwap_1h from 15m bars (no extra fetch). Required for
+        # patient_bottom_recovery phantom mirror.
+        if c15 and cur_price_for_vwap > 0:
+            vwap_features = compute_anchored_vwap_1h(c15, cur_price_for_vwap)
+            out.update(vwap_features)
 
         # Evaluate the filter verdict (mirrors dip_scanner.py)
         rsi5 = rsi_features.get('rsi_5m')

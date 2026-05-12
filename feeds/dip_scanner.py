@@ -5490,6 +5490,10 @@ class DipScanner:
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
                 "signal_ts_ms": int(time.time() * 1000),
+                # Which trigger fired. Added 2026-05-12 for per-trigger WR
+                # tracking. Single trigger = name, multi = "name1_name2".
+                "trigger_source": _trigger_source,
+                "triggers_fired": list(_triggers_fired),
                 "liquidity_usd": float(liq_usd or 0),
                 "protocol": pair.get("dexId", "") or "",
                 "peak_h24_6h_pct": float(peak_h24_6h),

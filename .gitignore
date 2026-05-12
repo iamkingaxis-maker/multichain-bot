@@ -27,3 +27,52 @@ data/
 
 # Claude worktrees — never commit these
 .claude/worktrees/
+
+# Local research artifacts — analysis dumps, snapshots, mining outputs.
+# Reports (.creative_trigger_research.md / .orthogonal_trigger_research.md)
+# are NOT ignored — they're committed deliverables.
+.all_trades*.json
+.backfill_*.json
+.bottom_*.json
+.btc_*.json
+.cascade_*.json
+.chart_classifier_*.json
+.check_*.json
+.combo_*.json
+.deep_token_bars*.json
+.dexs_*.json
+.dexs_*.bin
+.diag.json
+.gme_*.json
+.latest_trades.json
+.live_scan_snapshot.json
+.loser_hunt_*.json
+.mama.json
+.miner_*.txt
+.multi_token_bars.json
+.now_trades.json
+.orca_*.json
+.peak_*.json
+.peak_*.txt
+.peak_replay/
+.positions.json
+.recent_logs.tmp
+.scanner_cycles.tmp
+.sellor_*.json
+.session_*.json
+.session_*.csv
+.session_*.png
+.session_analysis.md
+.sol_*.json
+.testable_trades.json
+.today_*.json
+.clean_break_investigation.txt
+.mc_validate.txt
+.mine_3way.txt
+.missed_*.json
+.new_trigger_candidates.json
+.playwright-mcp/
+.live_forward_test/
+.dataset.pkl
+.feature_sweep.pkl
+.trades_full.json
