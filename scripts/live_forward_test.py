@@ -253,6 +253,13 @@ COMBOS = {
             and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 500
             and c.get('chart_score') is not None and c['chart_score'] >= 50)
     ),
+    # ─── sweep_rejection + reaccum_demand — ENFORCED 2026-05-13 ───
+    'GG_sweep_rejection':    lambda c: (c.get('chart_sweep_5m_low_wick_pct') is not None
+                                        and c['chart_sweep_5m_low_wick_pct'] >= 4.0),
+    'HH_reaccum_demand':     lambda c: (c.get('chart_reaccum_drawdown_pct') is not None
+                                        and c['chart_reaccum_drawdown_pct'] >= 50.0
+                                        and c.get('buy_size_max_trend') is not None
+                                        and c['buy_size_max_trend'] >= 2.0),
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).

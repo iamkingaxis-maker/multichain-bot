@@ -4217,6 +4217,62 @@ class DipScanner:
             #   9 marginal new entries (no clean_break overlap): 9/9 = 100% WR.
             # Expected forward: ~2/day fires, ~1.3/day marginal new entries,
             # ~85-90% WR.
+            # trigger_sweep_rejection — ENFORCED 2026-05-13.
+            # Catches the "big lower wick on 5m sweep low" pattern: when
+            # chart_sweep_5m_low_wick_pct >= 4 (lower wick is 4%+ of price)
+            # = sellers swept lower lows and buyers absorbed hard.
+            # Big-winner Cohen's d separation: 5.5% vs 2.0% (d=0.80).
+            #
+            # Validated (TRAIN 5/5-5/8 + VAL 5/9-5/11):
+            #   TRAIN: 28 fires, 82% WR, +$51.9
+            #   VAL:   8 fires, 62% WR, +$0.1
+            #   Combined ~5/day, 77% WR on 7d
+            # NOTE: lp_locked_pct>=90 (which would lift WR to TRAIN 89% /
+            # VAL 71%) is only available post-rugcheck in trader.buy. Can
+            # be added as a confirmation filter there if WR drifts.
+            _trigger_sweep_rejection_match = False
+            _trigger_sweep_rejection_reasons: list = []
+            try:
+                _swp_wick = (_chart_ctx_dict or {}).get("chart_sweep_5m_low_wick_pct") if isinstance(_chart_ctx_dict, dict) else None
+                if _swp_wick is not None and float(_swp_wick) >= 4.0:
+                    _trigger_sweep_rejection_match = True
+                    _trigger_sweep_rejection_reasons.append(
+                        f"chart_sweep_5m_low_wick_pct={float(_swp_wick):.2f}%>=4 "
+                        f"(strong sweep rejection)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] sweep_rejection trigger err: {_e}")
+
+            # trigger_reaccum_demand — ENFORCED 2026-05-13.
+            # Catches reaccumulation-zone entries with demand confirmation:
+            # chart_reaccum_drawdown_pct >= 50 (token drew down 50%+ from
+            # recent peak, now consolidating) AND buy_size_max_trend >= 2.0
+            # (max single-buy size in last 60s is 2x+ prior 60s).
+            #
+            # Validated (TRAIN 5/5-5/8 + VAL 5/9-5/11):
+            #   TRAIN: 16 fires, 69% WR, +$10.5
+            #   VAL:   8 fires, 75% WR, +$0.8
+            #   Combined ~3-4/day, 72% WR — stable across regimes
+            # Big-winner Cohen's d on reaccum_drawdown: 48% vs 34% (d=0.67).
+            _trigger_reaccum_demand_match = False
+            _trigger_reaccum_demand_reasons: list = []
+            try:
+                _ra_dd = (_chart_ctx_dict or {}).get("chart_reaccum_drawdown_pct") if isinstance(_chart_ctx_dict, dict) else None
+                _bst_ra = None
+                try:
+                    _bst_ra = (_trade_log_dict or {}).get("buy_size_max_trend")
+                except Exception:
+                    _bst_ra = None
+                if (_ra_dd is not None and float(_ra_dd) >= 50.0
+                        and _bst_ra is not None and float(_bst_ra) >= 2.0):
+                    _trigger_reaccum_demand_match = True
+                    _trigger_reaccum_demand_reasons.append(
+                        f"reaccum_dd={float(_ra_dd):.0f}%>=50 "
+                        f"AND buy_size_max_trend={float(_bst_ra):.2f}>=2"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] reaccum_demand trigger err: {_e}")
+
             _trigger_demand_bottom_match = False
             _trigger_demand_bottom_reasons: list = []
             try:
@@ -4434,6 +4490,10 @@ class DipScanner:
                 _triggers_fired.append("grad_window_dip")
             if _trigger_demand_bottom_match:
                 _triggers_fired.append("demand_bottom_compound")
+            if _trigger_sweep_rejection_match:
+                _triggers_fired.append("sweep_rejection")
+            if _trigger_reaccum_demand_match:
+                _triggers_fired.append("reaccum_demand")
 
             # 1s triggers fire LATER (after 1s feature compute) — allow
             # dippy candidates with NO classic-trigger match to pass this
@@ -4512,6 +4572,10 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_grad_window_dip_reasons)
                 if _trigger_demand_bottom_match:
                     _alt_reasons.extend(_trigger_demand_bottom_reasons)
+                if _trigger_sweep_rejection_match:
+                    _alt_reasons.extend(_trigger_sweep_rejection_reasons)
+                if _trigger_reaccum_demand_match:
+                    _alt_reasons.extend(_trigger_reaccum_demand_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
