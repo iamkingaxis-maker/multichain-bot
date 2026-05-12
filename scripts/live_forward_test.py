@@ -197,23 +197,31 @@ COMBOS = {
     # TODO: patient_bottom, informed_cluster, grad_window_dip need
     # pct_above_vwap_1h, top10_buyer_within_60s_count, hours_since_graduation
     # to be added to phantom snapshot enrichment for full parity.
+    # 2026-05-13: scoped C — fail-open helper. All new triggers now require
+    # net_flow_60s_imbalance >= -0.3 (sellers not actively winning last 60s).
     'V_alpha_buyperscold':   lambda c: (c.get('bs_m5') is not None and c['bs_m5'] >= 3.0
-                                        and c.get('pc_h24') is not None and c['pc_h24'] < 50),
+                                        and c.get('pc_h24') is not None and c['pc_h24'] < 50
+                                        and (c.get('net_flow_60s_imbalance') is None or c['net_flow_60s_imbalance'] >= -0.3)),
     'W_beta_retailfresh':    lambda c: (c.get('avg_trade_size_h1_usd') is not None and 0 < c['avg_trade_size_h1_usd'] < 60
                                         and c.get('pct_in_5m_range') is not None and c['pct_in_5m_range'] < 0.3
-                                        and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] < 40),
+                                        and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] < 40
+                                        and (c.get('net_flow_60s_imbalance') is None or c['net_flow_60s_imbalance'] >= -0.3)),
     'X_delta_microcap':      lambda c: (c.get('mcap') is not None and 0 < c['mcap'] < 5_000_000
                                         and c.get('slip_buy_5000_pct') is not None and c['slip_buy_5000_pct'] < 3.0
-                                        and c.get('vol_h1') is not None and c['vol_h1'] > 50_000),
+                                        and c.get('vol_h1') is not None and c['vol_h1'] > 50_000
+                                        and (c.get('net_flow_60s_imbalance') is None or c['net_flow_60s_imbalance'] >= -0.3)),
     'Y_seller_exhaustion':   lambda c: (c.get('bs_m5') is not None and c['bs_m5'] >= 1.34
                                         and c.get('slip_sell_5k_velocity_pct_per_min') is not None and c['slip_sell_5k_velocity_pct_per_min'] >= 0.0004
-                                        and c.get('slip_sell_5000_pct') is not None and c['slip_sell_5000_pct'] >= 2.25),
+                                        and c.get('slip_sell_5000_pct') is not None and c['slip_sell_5000_pct'] >= 2.25
+                                        and (c.get('net_flow_60s_imbalance') is None or c['net_flow_60s_imbalance'] >= -0.3)),
     'AA_deep_dip_bottom':    lambda c: (c.get('pc_h24') is not None and c['pc_h24'] <= -7.48
-                                        and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 7.2),
+                                        and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 7.2
+                                        and (c.get('net_flow_60s_imbalance') is None or c['net_flow_60s_imbalance'] >= -0.3)),
     # 2026-05-12: patient_bottom_recovery — vwap_1h now phantom-available
     # via compute_rsi_overbought_features. min_since_peak_5m already enriched.
     'BB_patient_bottom':     lambda c: (c.get('pct_above_vwap_1h') is not None and c['pct_above_vwap_1h'] <= -3.0
-                                        and c.get('min_since_peak_5m') is not None and c['min_since_peak_5m'] >= 60),
+                                        and c.get('min_since_peak_5m') is not None and c['min_since_peak_5m'] >= 60
+                                        and (c.get('net_flow_60s_imbalance') is None or c['net_flow_60s_imbalance'] >= -0.3)),
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).

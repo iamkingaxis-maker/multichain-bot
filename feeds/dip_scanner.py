@@ -4108,8 +4108,19 @@ class DipScanner:
                 _vh1 = float(vol_h1) if vol_h1 is not None else 0.0
                 _mc = float(mcap) if mcap is not None else 0.0
 
+                # Seller-active gate — fail-open if missing, otherwise require
+                # net_flow_60s_imbalance >= -0.3 (sellers not actively winning
+                # the last 60s). Scoped to new triggers only — 7d held-out
+                # in-scope showed +22% Delta-WR (BLOCK 14% / ALLOW 36%).
+                # Without this gate the new triggers fire on tokens with -0.5
+                # imbalance even when chart screams active selling (GPXY56UAL
+                # 2026-05-12 14:21 reference incident, lost -$2.03 in 33s).
+                _nfi_for_trigger = _tier3_features.get("net_flow_60s_imbalance")
+                _seller_active = (_nfi_for_trigger is not None
+                                  and _nfi_for_trigger < -0.3)
+
                 # ALPHA — strong 5m buy pressure on non-runaway token
-                if _bs_m5_f is not None and _bs_m5_f >= 3.0 and _pc24_f < 50:
+                if _bs_m5_f is not None and _bs_m5_f >= 3.0 and _pc24_f < 50 and not _seller_active:
                     _trigger_alpha_buyperscold_match = True
                     _trigger_alpha_buyperscold_reasons.append(
                         f"bs_m5={_bs_m5_f:.2f}>=3.0 AND pc_h24={_pc24_f:+.1f}%<50"
@@ -4117,7 +4128,7 @@ class DipScanner:
 
                 # BETA — retail-sized trades + price low in 5m range + no recent runaway peak
                 if (_ats > 0 and _ats < 60 and _p5r is not None and _p5r < 0.3
-                        and _peak24_6h_f < 40):
+                        and _peak24_6h_f < 40 and not _seller_active):
                     _trigger_beta_retailfresh_match = True
                     _trigger_beta_retailfresh_reasons.append(
                         f"avg_trade=${_ats:.0f}<60 AND pct_in_5m={_p5r:.2f}<0.3 "
@@ -4126,7 +4137,7 @@ class DipScanner:
 
                 # DELTA — microcap with low entry slippage + live volume
                 if (0 < _mc < 5_000_000 and _slip_buy is not None and _slip_buy < 3.0
-                        and _vh1 > 50_000):
+                        and _vh1 > 50_000 and not _seller_active):
                     _trigger_delta_microcap_match = True
                     _trigger_delta_microcap_reasons.append(
                         f"mcap=${_mc/1e6:.1f}M<5M AND slip_buy={_slip_buy:.2f}%<3 "
@@ -4136,7 +4147,8 @@ class DipScanner:
                 # seller_exhaustion — bs + rising sell-side slip + high absolute slip
                 if (_bs_m5_f is not None and _bs_m5_f >= 1.34
                         and _slip_sell_vel is not None and _slip_sell_vel >= 0.0004
-                        and _slip_sell is not None and _slip_sell >= 2.25):
+                        and _slip_sell is not None and _slip_sell >= 2.25
+                        and not _seller_active):
                     _trigger_seller_exhaustion_match = True
                     _trigger_seller_exhaustion_reasons.append(
                         f"bs_m5={_bs_m5_f:.2f}>=1.34 AND slip_sell_vel={_slip_sell_vel:.4f}>=0.0004 "
@@ -4145,7 +4157,7 @@ class DipScanner:
 
                 # deep_dip_bottom — token genuinely dipped (down both 24h AND from 6h peak)
                 # Phantom predicate ratio_to_recent_peak<=0.928 mapped to peak_h24_6h>=7.2pp
-                if _pc24_f <= -7.48 and _peak24_6h_f >= 7.2:
+                if _pc24_f <= -7.48 and _peak24_6h_f >= 7.2 and not _seller_active:
                     _trigger_deep_dip_bottom_match = True
                     _trigger_deep_dip_bottom_reasons.append(
                         f"pc_h24={_pc24_f:+.1f}%<=-7.48 AND peak_h24_6h={_peak24_6h_f:.1f}%>=7.2 "
@@ -4154,7 +4166,8 @@ class DipScanner:
 
                 # patient_bottom_recovery — well below 1h VWAP, mature dip
                 if (_vwap_dist is not None and _vwap_dist <= -3.0
-                        and _min_peak is not None and _min_peak >= 60):
+                        and _min_peak is not None and _min_peak >= 60
+                        and not _seller_active):
                     _trigger_patient_bottom_match = True
                     _trigger_patient_bottom_reasons.append(
                         f"vwap_1h_dist={_vwap_dist:+.1f}%<=-3 AND min_since_peak={_min_peak:.0f}>=60"
@@ -4162,7 +4175,8 @@ class DipScanner:
 
                 # informed_cluster_entry — top10 historical buyers re-entering on dip
                 if (_top10_60s is not None and _top10_60s >= 5
-                        and _vwap_dist is not None and _vwap_dist <= -3.0):
+                        and _vwap_dist is not None and _vwap_dist <= -3.0
+                        and not _seller_active):
                     _trigger_informed_cluster_match = True
                     _trigger_informed_cluster_reasons.append(
                         f"top10_60s={_top10_60s}>=5 AND vwap_1h_dist={_vwap_dist:+.1f}%<=-3"
@@ -4170,7 +4184,8 @@ class DipScanner:
 
                 # graduation_window_dip — fresh post-graduation honeymoon dip
                 if (_hours_grad is not None and 6 <= _hours_grad < 24
-                        and _vwap_dist is not None and _vwap_dist <= -3.0):
+                        and _vwap_dist is not None and _vwap_dist <= -3.0
+                        and not _seller_active):
                     _trigger_grad_window_dip_match = True
                     _trigger_grad_window_dip_reasons.append(
                         f"hours_since_grad={_hours_grad:.1f} in [6,24) "
@@ -5122,6 +5137,12 @@ class DipScanner:
             # Threshold sweep: <-8 too loose (WR 39%), <-10 sweet,
             # <-15 plateau, <-20 collapses.
             #
+            # 2026-05-13 RETUNED -10 -> -5 after GPXY56UAL incident
+            # (lp_delta_15m_pct=-8.89%, lost -$2.03 in 33s — filter at -10
+            # let it through). 7d held-out at -5: blocks 40, BLOCK WR 25%
+            # vs ALLOW WR 38% (Delta +13%), kills only $14 in winners,
+            # saves $81, NET +$67/wk. Clean Delta-WR uplift.
+            #
             # Fail-open if lp_delta_15m_pct missing.
             _lp_d = None
             try:
@@ -5129,9 +5150,9 @@ class DipScanner:
             except Exception:
                 _lp_d = None
             _filter_lp_drain_block_reasons: list = []
-            if _lp_d is not None and _lp_d < -10.0:
+            if _lp_d is not None and _lp_d <= -5.0:
                 _filter_lp_drain_block_reasons.append(
-                    f"lp_delta_15m={_lp_d:+.1f}%<-10 "
+                    f"lp_delta_15m={_lp_d:+.1f}%<=-5 "
                     f"(LP draining fast — pool dying, exit will be expensive)"
                 )
             _filter_lp_drain_verdict = (
