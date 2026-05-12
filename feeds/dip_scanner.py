@@ -26,6 +26,16 @@ from feeds.gecko_ohlcv import GeckoTerminalClient
 
 logger = logging.getLogger(__name__)
 
+# Full-population signal recorder — captures every Signal: emit and its
+# outcome (BUY/BLOCK/CONTINUED) to {DATA_DIR}/signal_events.jsonl. Lets
+# us mine across BOTH bought and rejected populations, which trades.db
+# (executed buys only) cannot. Idempotent install — safe to import twice.
+try:
+    from core.signal_event_recorder import install as _install_signal_recorder
+    _install_signal_recorder(logger)
+except Exception as _e:
+    logger.warning(f"signal_event_recorder install failed: {_e}")
+
 _DEX_CHAIN = "solana"
 # Wider pool of search keywords — sampled per-cycle to rotate the
 # DS-search candidate set (2026-05-07). Prior fixed 10-term list was
