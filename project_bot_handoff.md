@@ -1,3 +1,106 @@
+# Multichain Bot — Session Handoff (2026-05-12)
+
+## 2026-05-12 — TP=5%/12% + 8 parallel triggers + fast_dud tighten + surgical bs_m5 filter
+
+**Bot URL**: https://gracious-inspiration-production.up.railway.app
+**Mode**: PAPER (PAPER_TRADING=true), $20/position, 100 max concurrent, dip_buy strategy
+
+### Commits shipped this session
+
+- `504b459` **TP1 lowered 8% → 5%** (TP2 stays 12%)
+- `7f4e667` **8 new parallel triggers ENFORCED** + fast_dud tightened (60s→180s, -1.5%→-2.5%)
+- `eedac21` Per-trigger tracking + phantom parity for patient_bottom + WS spam silence + gitignore cleanup
+- `b370dc2` **filter_bs_m5_weak ENFORCED** — surgical bs_m5<1.0 rescue
+
+### TP1 = 5% / TP2 = 12% (commit 504b459)
+
+Lowered TP1 from 8% to address slow-bleed pattern (trades peaking 5-8% then drifting to stop). TP2 unchanged so big runners aren't capped.
+
+Lifetime trade-off (1029 trades): rescue +$156 on 5-8% peak band − $397 lost on locked-half of TP1-firing winners = **-$241 lifetime / -$0.66/day on 7d window**. User accepted the trade for slow-bleed coverage.
+
+### 8 new ENFORCED parallel triggers (commit 7f4e667)
+
+Mined from 1,695 phantom-rejected candidates (S_live_prod_stack=BLOCK). All fire INDEPENDENTLY of clean_break + high_regime.
+
+| Trigger | Predicate | Phantom-projected | Path |
+|---|---|---|---|
+| ALPHA_buyperscold | `bs_m5≥3.0 AND pc_h24<50` | 21/day, 72% WR | Strong 5m buy pressure, non-runaway |
+| BETA_retailfresh | `avg_trade<60 AND pct_in_5m<0.3 AND peak_h24_6h<40` | 19/day, 78% WR | Retail-sized buyers at 5m low |
+| DELTA_microcap | `mcap<5M AND slip_buy<3 AND vol_h1>50k` | 10/day, 73% WR, **+6.5%/tr** | Microcap with liquidity |
+| seller_exhaustion | `bs_m5≥1.34 AND slip_sell_vel≥0.0004 AND slip_sell≥2.25` | ~6/day, 76% WR | Sellers exhausted (rising slip) |
+| deep_dip_bottom | `pc_h24≤-7.48 AND peak_h24_6h≥7.2` | ~6/day, 63% WR | True dip from 6h peak |
+| patient_bottom | `vwap_1h_dist≤-3 AND min_since_peak≥60` | 20/wk, 78% WR | Mature dip below VWAP |
+| informed_cluster | `top10_60s≥5 AND vwap_1h_dist≤-3` | 25-30/wk, 70% WR | Top10 historical buyers re-entering |
+| grad_window_dip | `hours_since_grad in [6,24) AND vwap_1h_dist≤-3` | 12-15/wk, 79% WR | Post-Raydium-grad honeymoon dip |
+
+Union projects +130% volume (22/day → 51/day phantom-projected, capped to ~25-35 actual by max_concurrent=3) at 70% blended WR / +2.66% avg pnl.
+
+### fast_dud tightened (commit 7f4e667)
+
+After RKC false-positive (05/12 04:53 buy, fast_dud exit at 63s with peak=0%, token then recovered +8% within hours):
+- Min hold: 60s → **180s**
+- Pnl floor: -1.5% → **-2.5%**
+- Peak < 1.0% unchanged
+
+Clude pattern (341s hold) still qualifies under both old + new. RKC scenario would now hold past the recovery window.
+
+### filter_bs_m5_weak — surgical rescue (commit b370dc2)
+
+Triggered by ASTEROID 05/12 05:30 loss (bs_m5=0.50, stop in 62s, -$1.70). Re-audited bs_m5<1.0 cohort under recent-data-only methodology (saved as durable feedback).
+
+**Predicate**: `bs_m5 < 1.0 AND unique_buyers_n < 12 AND net_flow_15s_n < 4` → BLOCK.
+
+Mining (recent 5d, 106-trade cohort: 60W +$67.58 / 46L -$113.40):
+- Cohen's d found `unique_buyers_n` (+0.64) and `net_flow_15s_n` (+0.44) as cleanest separators
+- OR-rescue Pareto: keeps 48 trades (37W+11L = +$12.22), blocks 58 (23W+35L)
+- **Net +$58.05 saved over 5d ≈ +$11/day, 12% better than blunt-block**
+
+### Phantom parity (commit eedac21)
+
+Added `pct_above_vwap_1h` to phantom (free — uses 15m bars already fetched). Combo `BB_patient_bottom` mirrors the trigger. **TODO**: `informed_cluster` + `grad_window_dip` still need `top10_buyer_within_60s_count` + `hours_since_graduation` enrichment in phantom (~30 extra GT calls/snap).
+
+### Per-trigger WR tracker (new script)
+
+`scripts/trigger_wr_tracker.py` — pulls trades, pairs buy/sell, aggregates fires + WR per trigger family. Default cutoff = 2026-05-12T05:18:00 (8-trigger deploy time). Run to monitor forward performance.
+
+Saves `trigger_source` + `triggers_fired` list into entry_meta on every buy. Legacy entries pre-eedac21 are bucketed under their joined trigger_source string.
+
+### DexScreener WS spam silence (commit eedac21)
+
+Endpoint `wss://io.dexscreener.com/dex/screener/v7/pairs/h24/1` returns 404 on all probed variants — path deprecated. Domain still alive (chart + trades endpoints work via curl_cffi). Bot was logging 1 line / ~5s on retry (200+ lines/hr).
+- Log only first 3 failures, then every 20th
+- Aggressive 300s backoff after 5+ failures
+- Polling fallback at 1-3s covers stops (this is the canonical path)
+
+Re-investigate by inspecting dexscreener.com WS protocol in-browser when time permits.
+
+### Forward observation
+
+- **Per-trigger WR**: run `python scripts/trigger_wr_tracker.py` daily for first week to validate phantom projections
+- **TP=5%/12% impact**: watch slow-bleed exit count drop, watch big-runner upside preserved
+- **fast_dud**: expect ~0-1 fires/day (not 1-2) due to tighter thresholds
+- **filter_bs_m5_weak**: ~10-15 BLOCKs/day expected
+
+### New durable feedback rules (saved this session)
+
+- **feedback_recent_data_only**: Default to recent-window data (5-7d, current-filter-regime) when validating filters/triggers/exits — never lifetime. Always surface the cutoff date. (Triggered by 2026-05-12 bs_m5 bucket misread.)
+
+### Reference incidents
+
+- **RKC 2026-05-12 04:53** — fast_dud false-positive, drove tightening
+- **ASTEROID 2026-05-12 05:30** — bs_m5=0.50 1-min stop, drove filter_bs_m5_weak
+- **Clude 2026-05-12 00:15** — fast_dud correct trigger (341s, peak=0%, would still fire under new thresholds)
+
+### Followup work (next session)
+
+1. **24h forward validation** — run trigger_wr_tracker on 24h post-deploy data, compare real WR to phantom 70% projection
+2. **Phantom parity gap** — wire `top10_buyer_within_60s_count` + `hours_since_graduation` into `live_forward_test.py` enrichment so informed_cluster + grad_window_dip get phantom mirrors
+3. **DexScreener WS fix** — investigate current WS protocol (inspect browser network tab on dexscreener.com)
+4. **ALPHA threshold review** — recent 5d data showed bs_m5 [1.4, 2.0) underperforms; my ALPHA threshold (≥3.0) sits in a +0.28/tr / 68% WR bucket. May not need adjustment.
+5. **Trade volume capacity** — max_concurrent=3 will throttle new trigger union from 51/day phantom-projected → ~25-35 actual. Consider raising or wait for forward data.
+
+---
+
 # Multichain Bot — Session Handoff (2026-05-10)
 
 ## 2026-05-10 — filter_no_signatures + filter_chasing_bounce ENFORCED
