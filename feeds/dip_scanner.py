@@ -4437,39 +4437,63 @@ class DipScanner:
             try:
                 from feeds.dexscreener_chart_format import parse_chart_bars
                 _dex_id = (pair.get("dexId") or "").lower()
-                _1s_slug = {
+                _1s_slug_primary = {
                     "pumpswap": "pumpfundex",
                     "pumpfun": "pumpfundex",
                     "raydium": "solamm",
                     "meteora": "meteora",
                 }.get(_dex_id, _dex_id or "pumpfundex")
+                # Fallback slug ladder — try alternates on miss. 2026-05-12:
+                # 1s feature coverage was ~10% with single-slug single-shot.
+                # Most misses are slug mismatches or transient 4xx/5xx;
+                # cycling through known Solana DEX slugs recovers many of
+                # them. Skip already-tried slug to avoid double-attempt.
+                _1s_slug_ladder = [_1s_slug_primary] + [
+                    s for s in ("pumpfundex", "solamm", "meteora", "orcawhirl")
+                    if s != _1s_slug_primary
+                ]
                 _1s_pair = pair_addr_for_1m
                 _SOL_QUOTE = "So11111111111111111111111111111111111111112"
-                _1s_url = (
-                    f"https://io.dexscreener.com/dex/chart/amm/v3/{_1s_slug}"
-                    f"/bars/solana/{_1s_pair}?res=1S&cb=999&q={_SOL_QUOTE}"
-                )
                 # DexScreener uses TLS fingerprinting (Cloudflare) — aiohttp
                 # gets 403. Must use curl_cffi with impersonate='chrome'.
                 # Wrap sync call in to_thread() to stay async-compatible.
                 _1s_raw = None
+                _1s_attempts = 0
                 try:
                     from curl_cffi import requests as _cf
-                    def _fetch_1s_sync():
+                    def _fetch_1s_sync(slug: str):
+                        _url = (
+                            f"https://io.dexscreener.com/dex/chart/amm/v3/{slug}"
+                            f"/bars/solana/{_1s_pair}?res=1S&cb=999&q={_SOL_QUOTE}"
+                        )
                         try:
                             _r = _cf.get(
-                                _1s_url, impersonate="chrome", timeout=6,
+                                _url, impersonate="chrome", timeout=8,
                                 headers={
                                     "Origin": "https://dexscreener.com",
                                     "Referer": "https://dexscreener.com/",
                                 },
                             )
-                            if _r.status_code == 200:
+                            if _r.status_code == 200 and _r.content:
                                 return _r.content
                         except Exception:
                             return None
                         return None
-                    _1s_raw = await asyncio.to_thread(_fetch_1s_sync)
+                    for _slug_try in _1s_slug_ladder[:3]:  # max 3 attempts
+                        _1s_attempts += 1
+                        _1s_raw = await asyncio.to_thread(_fetch_1s_sync, _slug_try)
+                        if _1s_raw:
+                            # Parse early — bail if response is non-empty but
+                            # has no bars (token not on this DEX slug).
+                            try:
+                                _peek_bars = parse_chart_bars(_1s_raw)
+                                if _peek_bars:
+                                    break
+                                _1s_raw = None  # empty payload → try next slug
+                            except Exception:
+                                _1s_raw = None
+                        # Short backoff between slug attempts
+                        await asyncio.sleep(0.15)
                 except Exception as _ee:
                     logger.warning(f"[DipScanner] 1s fetch err: {_ee}")
                 if _1s_raw:

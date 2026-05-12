@@ -173,6 +173,35 @@ async def assemble_chart_data(
         (lambda: dexs_client.fetch_1h(pool_address, limit=limit_1h)) if dexs_client else None,
     )
 
+    # ────────────────────────────────────────────────────────────
+    # 2026-05-12: Fallback aggregation for fresh-token coverage gaps
+    # ────────────────────────────────────────────────────────────
+    # 15m / 1h fetches frequently return < 10 candles on fresh memecoins
+    # (token too new for that timeframe to have history). Several
+    # downstream features (chart_trendline_15m_channel_pos, trend_60m_*)
+    # need >= 10 candles. We can synthesize them from 1m candles when
+    # the native fetch came up short.
+    #
+    # Tradeoff: derived candles use the bot's own 1m window (typically
+    # 100 candles = last 100m) so they cover at most ~6 derived 15m or
+    # ~1-2 derived 1h candles. Better than nothing — boosts trendline /
+    # channel coverage from 19% / 13% → estimated 50-60%.
+    if len(candles_15m) < 10 and len(candles_1m) >= 15:
+        derived_15m = _aggregate_candles(candles_1m, factor=15)
+        if len(derived_15m) > len(candles_15m):
+            candles_15m = derived_15m
+    if len(candles_1h) < 10:
+        # Prefer aggregating 15m (more efficient, fewer aggregation steps).
+        # Fall back to 1m aggregation if 15m is also short.
+        if len(candles_15m) >= 4:
+            derived_1h = _aggregate_candles(candles_15m, factor=4)
+            if len(derived_1h) > len(candles_1h):
+                candles_1h = derived_1h
+        elif len(candles_1m) >= 60:
+            derived_1h = _aggregate_candles(candles_1m, factor=60)
+            if len(derived_1h) > len(candles_1h):
+                candles_1h = derived_1h
+
     cd = ChartData(
         pool_address=pool_address,
         candles_1m=candles_1m,
@@ -188,3 +217,43 @@ async def assemble_chart_data(
         )
 
     return cd
+
+
+def _aggregate_candles(candles: List[Candle], factor: int) -> List[Candle]:
+    """Aggregate N consecutive candles into one larger candle.
+
+    Used to synthesize 15m candles from 1m, or 1h from 15m, when native
+    fetches return too few candles for trend/channel calculations.
+
+    Math per bundle of `factor` candles:
+      open       = bundle[0].open
+      high       = max(c.high for c in bundle)
+      low        = min(c.low for c in bundle)
+      close      = bundle[-1].close
+      volume     = sum(c.volume for c in bundle)
+      open_time  = bundle[0].open_time   (start of aggregated window)
+      close_time = bundle[-1].close_time (end of aggregated window)
+
+    Drops trailing candles that don't fill a full bundle so we don't emit
+    a partial/misleading final candle.
+    """
+    if not candles or factor < 2:
+        return list(candles)
+    n_full = len(candles) // factor
+    if n_full == 0:
+        return []
+    out: List[Candle] = []
+    for i in range(n_full):
+        bundle = candles[i * factor:(i + 1) * factor]
+        if not bundle:
+            continue
+        out.append(Candle(
+            open_time=bundle[0].open_time,
+            open=bundle[0].open,
+            high=max(c.high for c in bundle),
+            low=min(c.low for c in bundle),
+            close=bundle[-1].close,
+            volume=sum(c.volume for c in bundle),
+            close_time=bundle[-1].close_time,
+        ))
+    return out
