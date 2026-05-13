@@ -5745,6 +5745,60 @@ class DipScanner:
                 )
                 continue
 
+            # ── filter_clean_break_p90 — ENFORCED 2026-05-13 ─────────────────
+            # Clean_break trigger requires chart_p90_body_pct > 5.0 to fire.
+            # Removes clean_break from _triggers_fired when token's 90th-percentile
+            # 1m body % is <= 5% — those tokens drift, they don't run, so a
+            # "breakout" rarely reaches TP1 (+5%) after entry. If clean_break
+            # was the only trigger, the buy is blocked.
+            #
+            # Distinct from universal filter_low_volatility (<1.0) which catches
+            # dead tokens. This catches the 1.0-5.0 "drift" band — tokens that
+            # move but not enough for clean_break to work. high_regime has
+            # positive expectancy at p90 1-3 so this gate is clean_break-specific.
+            #
+            # Validation (post-May-7 in-window clean_break, n=101):
+            #   - baseline: 39 bottoms, 16 mid, 46 knives, -$22.69 total
+            #   - REQ p90>5 BLOCK 66 cb trades: saves $28.13 over ~5d (~$5.6/day)
+            #   - KEEP 24 cb trades: 16 bot, 3 mid, 5 knife, +$5.44, 67% WR
+            #   - Net: flips clean_break from negative to positive expectancy
+            #
+            # Fail-open if chart_p90_body_pct missing.
+            _filter_cb_p90_block_reasons: list = []
+            if (
+                "clean_break" in _triggers_fired
+                and _chart_p90_body_pct is not None
+                and _chart_p90_body_pct <= 5.0
+            ):
+                _filter_cb_p90_block_reasons.append(
+                    f"p90_body={_chart_p90_body_pct:.2f}%<=5.0 "
+                    f"(drift token — clean_break needs >5% candles for TP1 reach)"
+                )
+            _filter_cb_p90_verdict = (
+                "BLOCK" if _filter_cb_p90_block_reasons else "PASS"
+            )
+            c[f"filter_clean_break_p90_{_filter_cb_p90_verdict.lower()}"] = c.get(
+                f"filter_clean_break_p90_{_filter_cb_p90_verdict.lower()}", 0
+            ) + 1
+            if _filter_cb_p90_verdict == "BLOCK":
+                _triggers_fired = [t for t in _triggers_fired if t != "clean_break"]
+                if not _triggers_fired:
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_clean_break_p90 "
+                        f"(no other triggers): {token_symbol} "
+                        f"reasons={','.join(_filter_cb_p90_block_reasons)}"
+                    )
+                    continue
+                logger.info(
+                    f"[DipScanner] clean_break removed by filter_clean_break_p90: "
+                    f"{token_symbol} reasons={','.join(_filter_cb_p90_block_reasons)} "
+                    f"remaining_triggers={_triggers_fired}"
+                )
+                _trigger_source = (
+                    "_".join(_triggers_fired) if len(_triggers_fired) > 1
+                    else _triggers_fired[0]
+                )
+
             # ── filter_topping — SHADOW 2026-05-06 PM ────────────────────────
             # Record-only verdict for the "you're catching a top" pattern:
             # BLOCK when macro30_pct > +5% (price already up >5% over the
@@ -6298,6 +6352,10 @@ class DipScanner:
                 # filter_low_volatility — SHADOW 2026-05-06 PM (dead-token gate).
                 "filter_low_volatility_verdict": _filter_low_vol_verdict,
                 "filter_low_volatility_block_reasons": _filter_low_vol_block_reasons,
+                # filter_clean_break_p90 — ENFORCED 2026-05-13 (clean_break-specific
+                # drift gate, p90_body<=5%).
+                "filter_clean_break_p90_verdict": _filter_cb_p90_verdict,
+                "filter_clean_break_p90_block_reasons": _filter_cb_p90_block_reasons,
                 # filter_topping — SHADOW 2026-05-06 PM (catch knife-catch at peak).
                 "filter_topping_verdict": _filter_topping_verdict,
                 "filter_topping_block_reasons": _filter_topping_block_reasons,
@@ -6475,6 +6533,8 @@ class DipScanner:
                 "filter_chasing_bounce_block",
                 # ENFORCED 2026-05-12 — dead-token gate (p90_body<1.0%).
                 "filter_low_volatility_block",
+                # ENFORCED 2026-05-13 — clean_break-specific drift gate (p90<=5%).
+                "filter_clean_break_p90_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
