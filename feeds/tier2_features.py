@@ -15,6 +15,10 @@ Features:
   6. compute_trade_size_shift   → buy_size_mean_60s, buy_size_stddev_60s,
                                    buy_size_max_60s, buy_size_trend_ratio,
                                    buy_size_max_trend
+  7. compute_bottom_signature_v1 → sell_volume_decay_ratio_30s,
+                                   time_since_local_low_s,
+                                   lower_wick_ratio_5m,
+                                   consec_higher_lows_1m
 """
 from __future__ import annotations
 from datetime import datetime, timezone
@@ -241,6 +245,102 @@ def compute_bundle_v2(
 # =================================================================
 # 6. Trade-size distribution shift
 # =================================================================
+def compute_bottom_signature_v1(
+    candles_1m: Sequence[Any],
+    candles_5m: Sequence[Any],
+) -> Dict[str, Any]:
+    """Bottom-detection feature pack v1 (SHADOW 2026-05-13).
+
+    Four universal-coverage features designed to fire on REAL bottoms and
+    not knife-catches. All compute from 1m and 5m candles we already fetch
+    — no extra API calls, ~100% coverage expected.
+
+    1. sell_volume_decay_ratio_30s:
+       last 1m volume / mean of prior 5 × 1m volume.
+       <0.5 = activity has dried up (sellers exhausted)
+       >1.5 = volume surge (could be capitulation OR new selling)
+       Interpretation requires pairing with candle color.
+
+    2. time_since_local_low_s:
+       seconds since the lowest 1m low in the last 30 minutes.
+       0 = just made the local low (still falling).
+       >300 = price has held above the local low for >5 minutes (bottom
+       forming).
+
+    3. lower_wick_ratio_5m:
+       last 5m candle's lower wick divided by its body.
+       >2 = clear lower-wick rejection (long wick, small body).
+       <1 = either no wick OR wick smaller than body (continuation, not
+       rejection).
+
+    4. consec_higher_lows_1m:
+       longest streak of consecutive higher-lows ending at the most-recent
+       1m candle (looking back up to 5 bars).
+       3+ = clear reversal structure forming.
+       0 = no structure (last bar made a lower low).
+
+    Fail-open: returns empty dict on bad input.
+    """
+    out: Dict[str, Any] = {}
+
+    # 1. sell_volume_decay_ratio_30s
+    try:
+        if candles_1m and len(candles_1m) >= 6:
+            last_vol = float(candles_1m[-1].volume or 0)
+            prev5 = candles_1m[-6:-1]
+            prev5_mean = sum(float(c.volume or 0) for c in prev5) / 5.0
+            if prev5_mean > 0:
+                out["sell_volume_decay_ratio_30s"] = round(last_vol / prev5_mean, 3)
+    except Exception:
+        pass
+
+    # 2. time_since_local_low_s
+    try:
+        if candles_1m and len(candles_1m) >= 5:
+            window = list(candles_1m[-30:])
+            if window:
+                min_idx = 0
+                min_low = window[0].low
+                for i, c in enumerate(window):
+                    if c.low < min_low:
+                        min_low = c.low
+                        min_idx = i
+                idx_from_end = len(window) - 1 - min_idx
+                out["time_since_local_low_s"] = idx_from_end * 60
+    except Exception:
+        pass
+
+    # 3. lower_wick_ratio_5m
+    try:
+        if candles_5m and len(candles_5m) >= 1:
+            c = candles_5m[-1]
+            body = abs(float(c.close) - float(c.open))
+            lower_wick = min(float(c.open), float(c.close)) - float(c.low)
+            if body > 1e-12:
+                out["lower_wick_ratio_5m"] = round(lower_wick / body, 2)
+            else:
+                denom = max(float(c.close) * 0.001, 1e-9)
+                out["lower_wick_ratio_5m"] = round(lower_wick / denom, 2)
+    except Exception:
+        pass
+
+    # 4. consec_higher_lows_1m (count streak ending at most-recent bar)
+    try:
+        if candles_1m and len(candles_1m) >= 2:
+            window = list(candles_1m[-6:])
+            count = 0
+            for i in range(len(window) - 1, 0, -1):
+                if window[i].low > window[i - 1].low:
+                    count += 1
+                else:
+                    break
+            out["consec_higher_lows_1m"] = count
+    except Exception:
+        pass
+
+    return out
+
+
 def compute_trade_size_shift(recent_trades: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Split buys into last-60s vs prior-60s windows. Compute mean/stddev/max

@@ -664,11 +664,17 @@ def compute_rsi_overbought_features(c):
         _ROOT = _Path(__file__).resolve().parent.parent
         if str(_ROOT) not in _sys.path:
             _sys.path.insert(0, str(_ROOT))
-        from feeds.tier2_features import compute_rsi_bb, compute_anchored_vwap_1h
+        from feeds.tier2_features import (
+            compute_rsi_bb, compute_anchored_vwap_1h, compute_bottom_signature_v1,
+        )
 
         ohlcv_5m = fetch_gt_ohlcv_with_retry(c['pair'], agg=5, limit=30)
         time.sleep(1.0)
         ohlcv_15m = fetch_gt_ohlcv_with_retry(c['pair'], agg=15, limit=30)
+        time.sleep(1.0)
+        # 1m for bottom_signature_v1 — SHADOW 2026-05-13. Need 30 bars for
+        # time_since_local_low + 6 for decay ratio.
+        ohlcv_1m = fetch_gt_ohlcv_with_retry(c['pair'], agg=1, limit=30)
         time.sleep(1.0)
         if not ohlcv_5m and not ohlcv_15m:
             return out
@@ -696,6 +702,7 @@ def compute_rsi_overbought_features(c):
 
         c5 = to_candles(ohlcv_5m)
         c15 = to_candles(ohlcv_15m)
+        c1 = to_candles(ohlcv_1m)
         rsi_features = compute_rsi_bb(c5, c15)
         out.update(rsi_features)
 
@@ -704,6 +711,10 @@ def compute_rsi_overbought_features(c):
         if c15 and cur_price_for_vwap > 0:
             vwap_features = compute_anchored_vwap_1h(c15, cur_price_for_vwap)
             out.update(vwap_features)
+
+        # bottom_signature_v1 — SHADOW 2026-05-13. Phantom parity mirror.
+        if c1 or c5:
+            out.update(compute_bottom_signature_v1(c1, c5))
 
         # Evaluate the filter verdict (mirrors dip_scanner.py)
         rsi5 = rsi_features.get('rsi_5m')

@@ -2513,6 +2513,7 @@ class DipScanner:
                     compute_rsi_bb,
                     compute_bundle_v2,
                     compute_trade_size_shift,
+                    compute_bottom_signature_v1,
                 )
                 _cs5_full = (_chart_data.candles_5m if _chart_data and _chart_data.candles_5m else [])
                 _cs15_full = (_chart_data.candles_15m if _chart_data and _chart_data.candles_15m else [])
@@ -2537,6 +2538,12 @@ class DipScanner:
                 # 6. Trade-size distribution shift (last-60s vs prior-60s)
                 _tier2_features.update(
                     compute_trade_size_shift(recent_trades or [])
+                )
+                # 7. Bottom signature v1 — SHADOW 2026-05-13.
+                # Universal-coverage bottom-detection features from 1m+5m.
+                _cs1_full = (_chart_data.candles_1m if _chart_data and _chart_data.candles_1m else [])
+                _tier2_features.update(
+                    compute_bottom_signature_v1(_cs1_full, _cs5_full)
                 )
             except Exception as _e:
                 logger.debug(f"[DipScanner] tier2 features error: {_e}")
