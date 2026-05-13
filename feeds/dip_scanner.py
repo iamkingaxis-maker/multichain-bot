@@ -5702,21 +5702,25 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] chart-quality calc err: {_e}")
 
-            # ── filter_low_volatility — SHADOW 2026-05-06 PM ──────────────────
-            # Record-only verdict for the "dead token" pattern: when
-            # chart_p90_body_pct < 1.0, the token's biggest 1m candles in
-            # the last hour barely moved 1% — making the bot's TP1 (+8.7%)
-            # essentially unreachable within our 60-min resolution window.
+            # ── filter_low_volatility — ENFORCED 2026-05-12 ──────────────────
+            # Block "dead token" pattern: when chart_p90_body_pct < 1.0, the
+            # token's biggest 1m candles in the last hour barely moved 1% —
+            # TP1 (+5%) essentially unreachable within our hold window.
             #
-            # Multi-token simulation evidence (n=854 entries across 21
-            # tokens): MEGR (p90_body 0.6%, 79 entries, 0% WR all flats),
-            # ROAF (p90 0.1%, 56 entries, all flats), LOL (p90 1.0%, 26
-            # entries, all flats) — collectively 161 entries that the bot
-            # COULD NOT WIN on. Winning tokens averaged p90_body 3.7%.
+            # Shadow-mode validation (recent 7d, n=366):
+            #   BLOCK cohort: n=31, WR 16%, total $-3.86
+            #   PASS cohort:  n=292, WR 39%
+            #   WR gap: +22.9pp on PASS side — strongest single discriminator
+            #   in the shadow filter audit (5/12 mining session).
             #
-            # Shadow only — record verdict, no enforcement. After forward
-            # data accumulates (~30+ real trades) we can decide whether
-            # to promote to enforced.
+            # Original simulation evidence (n=854 entries across 21 tokens):
+            #   MEGR (p90_body 0.6%, 79 entries, 0% WR all flats), ROAF
+            #   (p90 0.1%, 56 entries, all flats), LOL (p90 1.0%, 26
+            #   entries, all flats) — collectively 161 entries the bot
+            #   COULD NOT WIN on. Winning tokens averaged p90_body 3.7%.
+            #
+            # Cost: kills 5 winners per ~7d (small saves we forgo).
+            # Save: blocks 26 losers per ~7d, $0.55/day net.
             #
             # Fail-open if chart_p90_body_pct missing.
             _filter_low_vol_block_reasons: list = []
@@ -5736,9 +5740,10 @@ class DipScanner:
             ) + 1
             if _filter_low_vol_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] filter_low_volatility SHADOW would-block: "
+                    f"[DipScanner] BLOCKED by filter_low_volatility: "
                     f"{token_symbol} reasons={','.join(_filter_low_vol_block_reasons)}"
                 )
+                continue
 
             # ── filter_topping — SHADOW 2026-05-06 PM ────────────────────────
             # Record-only verdict for the "you're catching a top" pattern:
@@ -6468,6 +6473,8 @@ class DipScanner:
                 "filter_no_signatures_block",
                 # ENFORCED 2026-05-10 — chasing-bounce gate (pc_m5 > +5%).
                 "filter_chasing_bounce_block",
+                # ENFORCED 2026-05-12 — dead-token gate (p90_body<1.0%).
+                "filter_low_volatility_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
