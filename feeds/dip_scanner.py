@@ -5799,6 +5799,61 @@ class DipScanner:
                     else _triggers_fired[0]
                 )
 
+            # ── filter_high_regime_buyvol — ENFORCED 2026-05-13 ──────────────
+            # high_regime trigger requires chart_buyvol_ratio_60m > 1.0 to fire.
+            # Removes high_regime from _triggers_fired when 60m buy volume is
+            # not greater than 60m sell volume — high_regime fires on tokens
+            # still in selling pressure (sellers dominant in last hour), which
+            # is a fake "dip" buy, not a real absorption.
+            #
+            # Validation (post-May-7 in-window high_regime, n=34):
+            #   - baseline: 14 bot / 3 mid / 17 knives, -$16.65 total, 41% WR
+            #   - REQ buyvol>1.0 BLOCK 25 trades: saves $17.20 over ~5d (~$3.4/day)
+            #   - KEEP 9 trades: 6 bot / 2 mid / 1 knife, +$0.55, 67% WR
+            #   - Flips high_regime from negative to positive expectancy
+            #   - Blocked losers all have buyvol < 1.0 (mean ~0.7 — sellers
+            #     dominant): clean separator.
+            #
+            # Threshold tuned: >0.9 saves $16.65 (breakeven), >1.0 saves $17.20
+            # (positive), >1.2 saves $20.16 (75% WR but only 4 trades). Picked
+            # 1.0 for balance of selectivity and sample size.
+            #
+            # Fail-open if chart_buyvol_ratio_60m missing.
+            _filter_hr_buyvol_block_reasons: list = []
+            if (
+                "high_regime" in _triggers_fired
+                and _chart_buyvol_ratio_60m is not None
+                and _chart_buyvol_ratio_60m <= 1.0
+            ):
+                _filter_hr_buyvol_block_reasons.append(
+                    f"buyvol_ratio_60m={_chart_buyvol_ratio_60m:.2f}<=1.0 "
+                    f"(sellers dominant in last 60m — not a real absorption)"
+                )
+            _filter_hr_buyvol_verdict = (
+                "BLOCK" if _filter_hr_buyvol_block_reasons else "PASS"
+            )
+            c[f"filter_high_regime_buyvol_{_filter_hr_buyvol_verdict.lower()}"] = c.get(
+                f"filter_high_regime_buyvol_{_filter_hr_buyvol_verdict.lower()}", 0
+            ) + 1
+            if _filter_hr_buyvol_verdict == "BLOCK":
+                _triggers_fired = [t for t in _triggers_fired if t != "high_regime"]
+                if not _triggers_fired:
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_high_regime_buyvol "
+                        f"(no other triggers): {token_symbol} "
+                        f"reasons={','.join(_filter_hr_buyvol_block_reasons)}"
+                    )
+                    continue
+                logger.info(
+                    f"[DipScanner] high_regime removed by filter_high_regime_buyvol: "
+                    f"{token_symbol} reasons={','.join(_filter_hr_buyvol_block_reasons)} "
+                    f"remaining_triggers={_triggers_fired}"
+                )
+                _trigger_source = (
+                    "_".join(_triggers_fired) if len(_triggers_fired) > 1
+                    else _triggers_fired[0]
+                )
+
             # ── filter_topping — SHADOW 2026-05-06 PM ────────────────────────
             # Record-only verdict for the "you're catching a top" pattern:
             # BLOCK when macro30_pct > +5% (price already up >5% over the
@@ -6356,6 +6411,10 @@ class DipScanner:
                 # drift gate, p90_body<=5%).
                 "filter_clean_break_p90_verdict": _filter_cb_p90_verdict,
                 "filter_clean_break_p90_block_reasons": _filter_cb_p90_block_reasons,
+                # filter_high_regime_buyvol — ENFORCED 2026-05-13 (high_regime-specific
+                # absorption gate, buyvol_ratio_60m<=1.0).
+                "filter_high_regime_buyvol_verdict": _filter_hr_buyvol_verdict,
+                "filter_high_regime_buyvol_block_reasons": _filter_hr_buyvol_block_reasons,
                 # filter_topping — SHADOW 2026-05-06 PM (catch knife-catch at peak).
                 "filter_topping_verdict": _filter_topping_verdict,
                 "filter_topping_block_reasons": _filter_topping_block_reasons,
@@ -6535,6 +6594,8 @@ class DipScanner:
                 "filter_low_volatility_block",
                 # ENFORCED 2026-05-13 — clean_break-specific drift gate (p90<=5%).
                 "filter_clean_break_p90_block",
+                # ENFORCED 2026-05-13 — high_regime-specific absorption gate (buyvol<=1.0).
+                "filter_high_regime_buyvol_block",
             ) if c[k]
         ) or "-"
         tr_log = ""
