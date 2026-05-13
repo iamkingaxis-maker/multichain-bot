@@ -270,6 +270,17 @@ COMBOS = {
                                         and c['buy_size_max_trend'] >= 2.0
                                         and c.get('h24_ratio_to_peak') is not None
                                         and c['h24_ratio_to_peak'] < 0.6),
+    # ─── extreme_sweep_1m + controlled_greens_5m — ENFORCED 2026-05-13 PM ───
+    # Two new triggers from deep candle synthesis (n=86,865 candles, 12 TFs).
+    # Both gated by peak_h24 >= 200% (scoped to these triggers only).
+    'JJ_extreme_sweep_1m':   lambda c: (c.get('1m_max_wick_body_ratio_last5') is not None
+                                        and c['1m_max_wick_body_ratio_last5'] >= 10.0
+                                        and c.get('peak_h24_6h_pct') is not None
+                                        and c['peak_h24_6h_pct'] >= 200.0),
+    'KK_controlled_greens_5m': lambda c: (c.get('5m_n_normal_greens_last8') is not None
+                                          and c['5m_n_normal_greens_last8'] >= 4
+                                          and c.get('peak_h24_6h_pct') is not None
+                                          and c['peak_h24_6h_pct'] >= 200.0),
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).
@@ -638,6 +649,25 @@ def compute_d1_features(c):
             out.update(compute_micro_patterns(candles))
         except Exception:
             pass
+        # trigger_extreme_sweep_1m phantom — ENFORCED 2026-05-13 PM.
+        # Max lower_wick / body ratio across last 5 1m bars (oldest-first
+        # order after reversal above, so [-5:] is the most recent 5).
+        try:
+            _last5 = candles[-5:] if len(candles) >= 5 else []
+            _max_ratio = 0.0
+            for _b in _last5:
+                _body = abs(_b.close - _b.open)
+                if _body <= 0:
+                    continue
+                _lw = min(_b.open, _b.close) - _b.low
+                if _lw <= 0:
+                    continue
+                _r = _lw / _body
+                if _r > _max_ratio:
+                    _max_ratio = _r
+            out['1m_max_wick_body_ratio_last5'] = round(_max_ratio, 2)
+        except Exception:
+            pass
     except Exception:
         pass
     return out
@@ -901,6 +931,25 @@ def compute_5m_features(c):
     highs = [float(b[2]) for b in ohlcv[:12]]
     peak_idx = highs.index(max(highs)) if highs else 0
     body_to_range = round(body / rng, 3) if rng > 0 else 0.0
+
+    # trigger_controlled_greens_5m phantom — ENFORCED 2026-05-13 PM.
+    # Count of last-8 5m candles that are green AND non-marubozu
+    # (body/range < 0.80). GT returns newest-first, so first 8 == last 8.
+    _cg_n_norm_green = 0
+    for b in ohlcv[:8]:
+        try:
+            _bo, _bh, _bl, _bc = float(b[1]), float(b[2]), float(b[3]), float(b[4])
+            if _bc <= _bo:
+                continue
+            _bb = abs(_bc - _bo)
+            _br = _bh - _bl
+            if _br <= 0:
+                continue
+            if (_bb / _br) < 0.80:
+                _cg_n_norm_green += 1
+        except Exception:
+            continue
+
     return {
         'pct_in_5m_range': pct_in_5m_range,
         'candle_5m': candle,
@@ -908,6 +957,7 @@ def compute_5m_features(c):
         'min_since_peak_5m': peak_idx * 5,
         'ratio_to_recent_peak': round(close / max(highs), 3) if highs and max(highs) > 0 else 1.0,
         'snapshot_close': close,
+        '5m_n_normal_greens_last8': _cg_n_norm_green,
     }
 
 

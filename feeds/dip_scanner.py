@@ -4343,6 +4343,91 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] reaccum_demand trigger err: {_e}")
 
+            # ── trigger_extreme_sweep_1m — ENFORCED 2026-05-13 PM ──────────────
+            # New entry derived from deep candle synthesis (n=86,865 candles
+            # across 37 tokens, 12 timeframes). Catches "panic flush rejected
+            # by buyers" pattern: any 1m bar in last 5 with lower_wick / body
+            # >= 10 (with body > 0). Sample evidence: 3 of 14 winners had
+            # this signature, 0 of 15 losers — 100% precision on tuning set.
+            # Winners: 5o61DgZrDGbC (MID_WIN +0.89), Gps4KFPSP9Wc (BIG_WIN
+            # +1.38), Hf8RNuWd4DLv (MID_WIN +1.13).
+            #
+            # GATED by lifecycle_peak_h24_pct (peak_h24_6h) >= 200%. The gate
+            # is scoped to this trigger ONLY — existing triggers untouched.
+            # Mechanism: only chase 24h-active tokens (need real range to
+            # capture the +5% TP1 move).
+            _trigger_extreme_sweep_1m_match = False
+            _trigger_extreme_sweep_1m_reasons: list = []
+            try:
+                _esw_cs = (_chart_data.candles_1m
+                           if _chart_data and _chart_data.candles_1m else [])
+                if len(_esw_cs) >= 5:
+                    _esw_last5 = _esw_cs[-5:]
+                    _esw_max_ratio = 0.0
+                    _esw_max_idx = -1
+                    for _i, _c in enumerate(_esw_last5):
+                        _body = abs(_c.close - _c.open)
+                        if _body <= 0:
+                            continue
+                        _lw = min(_c.open, _c.close) - _c.low
+                        if _lw <= 0:
+                            continue
+                        _r = _lw / _body
+                        if _r > _esw_max_ratio:
+                            _esw_max_ratio = _r
+                            _esw_max_idx = _i
+                    # Gate: requires 24h_peak >= 200% (lifecycle peak field
+                    # is populated 100% for tokens with DexScreener data).
+                    _esw_peak = float(peak_h24_6h) if peak_h24_6h is not None else 0.0
+                    if _esw_max_ratio >= 10.0 and _esw_peak >= 200.0:
+                        _trigger_extreme_sweep_1m_match = True
+                        _trigger_extreme_sweep_1m_reasons.append(
+                            f"1m_max_wick_body_ratio={_esw_max_ratio:.1f}>=10 "
+                            f"(bar -{4 - _esw_max_idx}) AND "
+                            f"peak_h24_6h={_esw_peak:.0f}%>=200"
+                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] extreme_sweep_1m trigger err: {_e}")
+
+            # ── trigger_controlled_greens_5m — ENFORCED 2026-05-13 PM ─────────
+            # Catches "measured uptrend forming" pattern: ≥4 of last 8 5m
+            # candles are green AND not marubozu (body/range < 0.80). This
+            # is the largest single-pattern WIN/LOSS separator found in the
+            # deep candle analysis (5m_dex green_normal: 42.8% W vs 26.0% L,
+            # diff +16.8pp on n=635 candles).
+            # Sample evidence: 14% W hit + 38% SW hit + 7% L hit → 83% precision.
+            # Winners: 2ryWMuYm5g3o (MID_WIN +1.07), Hf8RNuWd4DLv (MID_WIN
+            # +1.13). Small wins: 33eum82LaAhtv5 (+0.63), 8J69rbLTzWWgUJ (+0.59).
+            #
+            # GATED by peak_h24_6h >= 200%. Same scoping as extreme_sweep_1m.
+            _trigger_controlled_greens_5m_match = False
+            _trigger_controlled_greens_5m_reasons: list = []
+            try:
+                _cg_cs = (_chart_data.candles_5m
+                          if _chart_data and _chart_data.candles_5m else [])
+                if len(_cg_cs) >= 8:
+                    _cg_last8 = _cg_cs[-8:]
+                    _cg_n_norm_green = 0
+                    for _c in _cg_last8:
+                        if _c.close <= _c.open:  # not green
+                            continue
+                        _b = abs(_c.close - _c.open)
+                        _rng = _c.high - _c.low
+                        if _rng <= 0:
+                            continue
+                        if (_b / _rng) < 0.80:  # not marubozu
+                            _cg_n_norm_green += 1
+                    _cg_peak = float(peak_h24_6h) if peak_h24_6h is not None else 0.0
+                    if _cg_n_norm_green >= 4 and _cg_peak >= 200.0:
+                        _trigger_controlled_greens_5m_match = True
+                        _trigger_controlled_greens_5m_reasons.append(
+                            f"5m_normal_greens_in_last_8={_cg_n_norm_green}>=4 "
+                            f"(body/range<0.80) AND "
+                            f"peak_h24_6h={_cg_peak:.0f}%>=200"
+                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] controlled_greens_5m trigger err: {_e}")
+
             _trigger_demand_bottom_match = False
             _trigger_demand_bottom_reasons: list = []
             try:
@@ -4564,6 +4649,10 @@ class DipScanner:
                 _triggers_fired.append("sweep_rejection")
             if _trigger_reaccum_demand_match:
                 _triggers_fired.append("reaccum_demand")
+            if _trigger_extreme_sweep_1m_match:
+                _triggers_fired.append("extreme_sweep_1m")
+            if _trigger_controlled_greens_5m_match:
+                _triggers_fired.append("controlled_greens_5m")
 
             # 1s triggers fire LATER (after 1s feature compute) — allow
             # dippy candidates with NO classic-trigger match to pass this
@@ -4646,6 +4735,10 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_sweep_rejection_reasons)
                 if _trigger_reaccum_demand_match:
                     _alt_reasons.extend(_trigger_reaccum_demand_reasons)
+                if _trigger_extreme_sweep_1m_match:
+                    _alt_reasons.extend(_trigger_extreme_sweep_1m_reasons)
+                if _trigger_controlled_greens_5m_match:
+                    _alt_reasons.extend(_trigger_controlled_greens_5m_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -6422,6 +6515,14 @@ class DipScanner:
                 # absorption gate, buyvol_ratio_60m<=1.0).
                 "filter_high_regime_buyvol_verdict": _filter_hr_buyvol_verdict,
                 "filter_high_regime_buyvol_block_reasons": _filter_hr_buyvol_block_reasons,
+                # trigger_extreme_sweep_1m — ENFORCED 2026-05-13 PM (deep candle
+                # synthesis output: lw/body>=10 on 1m + peak_h24>=200 gate).
+                "trigger_extreme_sweep_1m_match": _trigger_extreme_sweep_1m_match,
+                "trigger_extreme_sweep_1m_reasons": _trigger_extreme_sweep_1m_reasons,
+                # trigger_controlled_greens_5m — ENFORCED 2026-05-13 PM (>=4 of
+                # last 8 5m bars normal-green + peak_h24>=200 gate).
+                "trigger_controlled_greens_5m_match": _trigger_controlled_greens_5m_match,
+                "trigger_controlled_greens_5m_reasons": _trigger_controlled_greens_5m_reasons,
                 # filter_topping — SHADOW 2026-05-06 PM (catch knife-catch at peak).
                 "filter_topping_verdict": _filter_topping_verdict,
                 "filter_topping_block_reasons": _filter_topping_block_reasons,
