@@ -1617,6 +1617,7 @@ class WebDashboard:
         self.app.router.add_post("/api/reset-daily-pnl",     self._handle_reset_daily_pnl)
         self.app.router.add_get("/api/closed-positions",   self._handle_closed_positions)
         self.app.router.add_get("/api/signal-events",      self._handle_signal_events)
+        self.app.router.add_get("/api/pre-gate-events",    self._handle_pre_gate_events)
         self.app.router.add_get("/api/mc-recommendations", self._handle_mc_recommendations)
         self.app.router.add_get("/api/peak-traces",        self._handle_peak_traces)
         self.app.router.add_get("/api/peak-traces/{name}", self._handle_peak_trace_one)
@@ -2267,6 +2268,67 @@ class WebDashboard:
         cors = {"Access-Control-Allow-Origin": "*"}
         data_dir = _os.environ.get('DATA_DIR', '.')
         path = _os.path.join(data_dir, 'signal_events.jsonl')
+
+        if not _os.path.exists(path):
+            return web.Response(
+                text=json.dumps({"exists": False, "path": path}),
+                content_type="application/json", headers=cors)
+
+        if request.query.get('stats') == '1':
+            try:
+                size = _os.path.getsize(path)
+                with open(path, encoding='utf-8') as f:
+                    lines = sum(1 for _ in f)
+                return web.Response(
+                    text=json.dumps({
+                        "exists": True, "path": path,
+                        "size_bytes": size, "records": lines,
+                    }),
+                    content_type="application/json", headers=cors)
+            except Exception as e:
+                return web.Response(
+                    text=json.dumps({"error": str(e)}),
+                    status=500, content_type="application/json", headers=cors)
+
+        try:
+            limit = int(request.query.get('limit', '500'))
+        except ValueError:
+            limit = 500
+        try:
+            with open(path, encoding='utf-8') as f:
+                all_lines = f.readlines()
+            tail = all_lines[-limit:]
+            records = []
+            for line in tail:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    records.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+            return web.Response(
+                text=json.dumps(records),
+                content_type="application/json", headers=cors)
+        except Exception as e:
+            return web.Response(
+                text=json.dumps({"error": str(e)}),
+                status=500, content_type="application/json", headers=cors)
+
+    async def _handle_pre_gate_events(self, request):
+        """GET /api/pre-gate-events — returns Axiom scanner gate events.
+
+        Each record: ts, token, addr, mcap_usd, liq_usd, outcome, micro_cap_path.
+        Used to mine which gates over-filter pre-signal tokens. Shadow only.
+
+        Query params:
+          ?stats=1  — return just counts (file size, total records)
+          ?limit=N  — return last N JSONL records (default 500)
+        """
+        import os as _os
+        cors = {"Access-Control-Allow-Origin": "*"}
+        data_dir = _os.environ.get('DATA_DIR', '.')
+        path = _os.path.join(data_dir, 'pre_gate_events.jsonl')
 
         if not _os.path.exists(path):
             return web.Response(

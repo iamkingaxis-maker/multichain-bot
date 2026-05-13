@@ -91,6 +91,57 @@ class AxiomTrendingScanner:
         self.signals_fired    = 0
         self._poll_count      = 0
 
+        # Pre-gate recorder — SHADOW 2026-05-13.
+        # Logs every Axiom-surfaced token and its gate verdict to
+        # {DATA_DIR}/pre_gate_events.jsonl. Used to mine which gates
+        # over-filter (block tokens that later pump). Dedupe per addr
+        # 60s window to limit volume to ~5-10 MB/day.
+        self._pre_gate_dedupe: dict = {}
+
+    def _log_pre_gate(self, outcome: str, addr: str, ticker: str,
+                      mcap: float = 0.0, liq: float = 0.0,
+                      micro_cap_path: bool = False) -> None:
+        """Append a single pre-gate event line. Dedupes per addr (60s
+        window) to limit file size. Fail-open on any error.
+
+        Outcomes: PASSED_TO_SIGNAL, MARKET_RESTRICTED, MCAP_TOO_LOW,
+        LIQ_TOO_LOW, SECURITY_FAILED, ENRICH_FAILED, NO_DEXSCREENER,
+        HARD_MCAP_LOW, HARD_MCAP_HIGH, HARD_SKIP, SCORE_TOO_LOW,
+        VOL_M5_LOW, DEAD_VOLUME, WASH_TRADING, DUPLICATE_HOLD,
+        MICRO_CAP_DUMP, MICRO_CAP_FLAT, MICRO_CAP_VOL_M5, MICRO_CAP_LIQ,
+        MICRO_CAP_RATIO, MICRO_CAP_RED_TF, MICRO_CAP_PUMPDUMP.
+        """
+        try:
+            import os as _os
+            import json as _json
+            import time as _t
+            from datetime import datetime as _dt2, timezone as _tz
+            now = _t.time()
+            last = self._pre_gate_dedupe.get(addr, 0)
+            if now - last < 60:
+                return
+            self._pre_gate_dedupe[addr] = now
+            if len(self._pre_gate_dedupe) > 1000:
+                cutoff = now - 300
+                self._pre_gate_dedupe = {
+                    k: v for k, v in self._pre_gate_dedupe.items() if v > cutoff
+                }
+            data_dir = _os.environ.get('DATA_DIR', '/data')
+            path = _os.path.join(data_dir, 'pre_gate_events.jsonl')
+            record = {
+                'ts': _dt2.now(_tz.utc).isoformat(),
+                'token': ticker,
+                'addr': addr,
+                'mcap_usd': round(float(mcap), 2) if mcap else 0,
+                'liq_usd': round(float(liq), 2) if liq else 0,
+                'outcome': outcome,
+                'micro_cap_path': micro_cap_path,
+            }
+            with open(path, 'a') as f:
+                f.write(_json.dumps(record) + '\n')
+        except Exception as _e:
+            logger.debug(f'[PreGateRecorder] error: {_e}')
+
     async def run(self):
         """Main polling loop. Runs forever with exponential backoff on errors."""
         logger.info(
@@ -247,6 +298,7 @@ class AxiomTrendingScanner:
             # Market condition gate
             if self.market_monitor and self.market_monitor.market_restricted:
                 if not self.market_monitor.should_trade(signal_score=0):
+                    self._log_pre_gate("MARKET_RESTRICTED", token_address, ticker)
                     return False
 
             # MCap pre-filter from trending data
@@ -262,6 +314,8 @@ class AxiomTrendingScanner:
                 logger.debug(
                     f"[EstablishedScanner] MCap filter drop: {ticker} — ${mcap_usd:,.0f}"
                 )
+                self._log_pre_gate("MCAP_TOO_LOW", token_address, ticker,
+                                   mcap=mcap_usd)
                 return False
 
             liq_usd = float(
@@ -273,6 +327,8 @@ class AxiomTrendingScanner:
                 logger.debug(
                     f"[EstablishedScanner] Liquidity filter drop: {ticker} — ${liq_usd:,.0f}"
                 )
+                self._log_pre_gate("LIQ_TOO_LOW", token_address, ticker,
+                                   mcap=mcap_usd, liq=liq_usd)
                 return False
 
             # Security check — use relaxed micro_cap mode for fresh small tokens
@@ -290,6 +346,8 @@ class AxiomTrendingScanner:
                         f"[EstablishedScanner] Security blocked: {ticker} — "
                         f"{sec_result.risk_level}"
                     )
+                    self._log_pre_gate("SECURITY_FAILED", token_address, ticker,
+                                       mcap=mcap_usd, liq=liq_usd)
                     return False
 
             # Enrichment check (holder concentration + dev history)
@@ -311,6 +369,8 @@ class AxiomTrendingScanner:
                     logger.info(
                         f"[EstablishedScanner] Enrich blocked: {ticker} — {reason}"
                     )
+                    self._log_pre_gate("ENRICH_FAILED", token_address, ticker,
+                                       mcap=mcap_usd, liq=liq_usd)
                     return False
 
             # DexScreener fetch — trending tokens ALWAYS have data
@@ -320,6 +380,8 @@ class AxiomTrendingScanner:
                     f"[EstablishedScanner] No DexScreener data for trending token "
                     f"{ticker} ({token_address[:8]}…) — unexpected, skipping"
                 )
+                self._log_pre_gate("NO_DEXSCREENER", token_address, ticker,
+                                   mcap=mcap_usd, liq=liq_usd)
                 return False
 
             # Resolve real ticker from pair data (profiles/boosts don't include it)
@@ -354,6 +416,9 @@ class AxiomTrendingScanner:
                         f"[EstablishedScanner] Micro-cap dump guard: {ticker} — "
                         f"m5={pc_m5:+.1f}% (crash, max -50%)"
                     )
+                    self._log_pre_gate("MICRO_CAP_DUMP", token_address, ticker,
+                                       mcap=actual_mcap, liq=_liq_rej,
+                                       micro_cap_path=True)
                     self.mc_candidates.appendleft({
                         "time": _dt.datetime.utcnow().strftime("%H:%M:%S"),
                         "symbol": ticker,
@@ -374,6 +439,9 @@ class AxiomTrendingScanner:
                         f"[EstablishedScanner] Micro-cap flat: {ticker} — "
                         f"m5={pc_m5:+.1f}% (dead zone -3% to 0%, no direction)"
                     )
+                    self._log_pre_gate("MICRO_CAP_FLAT", token_address, ticker,
+                                       mcap=actual_mcap, liq=_liq_rej,
+                                       micro_cap_path=True)
                     self.mc_candidates.appendleft({
                         "time": _dt.datetime.utcnow().strftime("%H:%M:%S"),
                         "symbol": ticker,
@@ -403,6 +471,9 @@ class AxiomTrendingScanner:
                         f"[EstablishedScanner] Micro-cap low m5 volume: {ticker} — "
                         f"${vol_m5_mc:,.0f} m5 vol (need $200+)"
                     )
+                    self._log_pre_gate("MICRO_CAP_VOL_M5", token_address, ticker,
+                                       mcap=actual_mcap, liq=liq,
+                                       micro_cap_path=True)
                     return False
 
                 # Gate 3: minimum liquidity — pools under $10k have slippage so
@@ -413,6 +484,9 @@ class AxiomTrendingScanner:
                         f"[EstablishedScanner] Micro-cap liquidity drop: {ticker} — "
                         f"${liq:,.0f} liquidity (need $10k min)"
                     )
+                    self._log_pre_gate("MICRO_CAP_LIQ", token_address, ticker,
+                                       mcap=actual_mcap, liq=liq,
+                                       micro_cap_path=True)
                     return False
 
                 # Gate 3.5: mcap-to-liquidity ratio — >100x = ghost token.
@@ -423,6 +497,9 @@ class AxiomTrendingScanner:
                         f"[EstablishedScanner] Micro-cap mcap/liq ratio: {ticker} — "
                         f"{actual_mcap/liq:.0f}x (${actual_mcap:,.0f} mcap / ${liq:,.0f} liq, need <100x)"
                     )
+                    self._log_pre_gate("MICRO_CAP_RATIO", token_address, ticker,
+                                       mcap=actual_mcap, liq=liq,
+                                       micro_cap_path=True)
                     return False
 
                 # h1, h6, h24 must all be green — no cap, but all must be positive.
@@ -436,6 +513,9 @@ class AxiomTrendingScanner:
                         f"h1={_pc_h1:+.1f}% h6={_pc_h6:+.1f}% h24={_pc_h24:+.1f}% "
                         f"— all must be green"
                     )
+                    self._log_pre_gate("MICRO_CAP_RED_TF", token_address, ticker,
+                                       mcap=actual_mcap, liq=liq,
+                                       micro_cap_path=True)
                     self.mc_candidates.appendleft({
                         "time": _dt.datetime.utcnow().strftime("%H:%M:%S"),
                         "symbol": ticker,
@@ -459,6 +539,9 @@ class AxiomTrendingScanner:
                         f"[EstablishedScanner] Pump-dump block: {ticker} — "
                         f"h1={_pc_h1:+.1f}% with m5={pc_m5:+.1f}% — buying the dump of a pump"
                     )
+                    self._log_pre_gate("MICRO_CAP_PUMPDUMP", token_address, ticker,
+                                       mcap=actual_mcap, liq=liq,
+                                       micro_cap_path=True)
                     return False
 
                 logger.info(
@@ -476,6 +559,9 @@ class AxiomTrendingScanner:
                     logger.info(
                         f"[EstablishedScanner] Already holding {ticker} — skip duplicate buy"
                     )
+                    self._log_pre_gate("DUPLICATE_HOLD", token_address, ticker,
+                                       mcap=actual_mcap, liq=liq,
+                                       micro_cap_path=True)
                     return False
 
                 if _in_dip_window:
@@ -513,6 +599,9 @@ class AxiomTrendingScanner:
                         signal_score=50,
                         override_usd=self.micro_cap_position_usd,
                     )
+                self._log_pre_gate("PASSED_TO_SIGNAL", token_address, ticker,
+                                   mcap=actual_mcap, liq=liq,
+                                   micro_cap_path=True)
                 return True
             # ── End micro-cap path ──────────────────────────────────────────
 
@@ -520,12 +609,16 @@ class AxiomTrendingScanner:
                 logger.info(
                     f"[EstablishedScanner] MCap filter drop (real): {ticker} — ${actual_mcap:,.0f}"
                 )
+                self._log_pre_gate("HARD_MCAP_LOW", token_address, ticker,
+                                   mcap=actual_mcap, liq=liq_usd)
                 return False
             if actual_mcap > 0 and actual_mcap > self.max_mcap:
                 logger.info(
                     f"[EstablishedScanner] MCap too high (late entry risk): "
                     f"{ticker} — ${actual_mcap:,.0f} > ${self.max_mcap:,.0f}"
                 )
+                self._log_pre_gate("HARD_MCAP_HIGH", token_address, ticker,
+                                   mcap=actual_mcap, liq=liq_usd)
                 return False
 
             self.tokens_evaluated += 1
@@ -538,12 +631,16 @@ class AxiomTrendingScanner:
                         f"[EstablishedScanner] Hard skip: {ticker} — "
                         f"{', '.join(evaluation.skip_reasons)}"
                     )
+                    self._log_pre_gate("HARD_SKIP", token_address, ticker,
+                                       mcap=actual_mcap, liq=liq_usd)
                     return False
                 score = evaluation.total_score
                 effective_min = self.min_score
                 if self.market_monitor and self.market_monitor.market_restricted:
                     effective_min = self.market_monitor.restricted_threshold
                 if score < effective_min:
+                    self._log_pre_gate("SCORE_TOO_LOW", token_address, ticker,
+                                       mcap=actual_mcap, liq=liq_usd)
                     return False
             else:
                 score = 70  # default when no evaluator
@@ -562,6 +659,8 @@ class AxiomTrendingScanner:
                     f"[EstablishedScanner] Low m5 volume: {ticker} — "
                     f"${vol_m5:,.0f} m5 vol (need $500+)"
                 )
+                self._log_pre_gate("VOL_M5_LOW", token_address, ticker,
+                                   mcap=actual_mcap, liq=liq)
                 return False
 
             # Vol/MCap ratio — healthy range 10-30%.
@@ -575,6 +674,8 @@ class AxiomTrendingScanner:
                         f"vol/mcap={vmr*100:.1f}% < 5% "
                         f"(vol=${vol_h1:,.0f} mcap=${mcap:,.0f})"
                     )
+                    self._log_pre_gate("DEAD_VOLUME", token_address, ticker,
+                                       mcap=actual_mcap, liq=liq)
                     return False
                 if vmr > 2.0:
                     logger.info(
@@ -582,6 +683,8 @@ class AxiomTrendingScanner:
                         f"vol/mcap={vmr*100:.0f}% > 200% "
                         f"(vol=${vol_h1:,.0f} mcap=${mcap:,.0f})"
                     )
+                    self._log_pre_gate("WASH_TRADING", token_address, ticker,
+                                       mcap=actual_mcap, liq=liq)
                     return False
 
             # MCap-to-liquidity ratio — >100x = ghost/manipulated token.
@@ -591,6 +694,8 @@ class AxiomTrendingScanner:
                     f"[EstablishedScanner] MCap/liq ratio: {ticker} — "
                     f"{mcap/liq:.0f}x (${mcap:,.0f} mcap / ${liq:,.0f} liq, need <100x)"
                 )
+                self._log_pre_gate("MCAP_LIQ_RATIO", token_address, ticker,
+                                   mcap=actual_mcap, liq=liq)
                 return False
 
             # Block tokens already pumped >10% in the last hour — no chart data to
@@ -599,6 +704,8 @@ class AxiomTrendingScanner:
                 logger.info(
                     f"[EstablishedScanner] ATH risk: {ticker} — h1={h1_pct:+.1f}% > 10%, skipping"
                 )
+                self._log_pre_gate("ATH_RISK_H1", token_address, ticker,
+                                   mcap=actual_mcap, liq=liq)
                 return False
 
             logger.info(
@@ -640,6 +747,8 @@ class AxiomTrendingScanner:
                     hh_hl_confirmed=getattr(evaluation, "hh_hl_confirmed", False)
                     if self.evaluator else False
                 )
+                self._log_pre_gate("PASSED_TO_SIGNAL", token_address, ticker,
+                                   mcap=actual_mcap, liq=liq)
                 return True
 
         except Exception as e:
