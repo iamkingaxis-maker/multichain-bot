@@ -419,7 +419,13 @@ class DipScanner:
             pc_h1 = (pair.get("priceChange") or {}).get("h1", 0) or 0
             pc_m5 = (pair.get("priceChange") or {}).get("m5", 0) or 0
 
-            if pc_h24 <= 0:
+            # red_h24 gate — LOOSENED 2026-05-14 PM from <=0 to <-5.
+            # Previously required token to be GREEN on 24h (pc_h24 > 0).
+            # That requirement was pro-cyclical: in bear macros fewer tokens
+            # are 24h-green, so the bot starves. Loosened to -5% to allow
+            # tokens that are slightly red on 24h as real dip candidates.
+            # Below -5% is genuine downtrend (filter separately).
+            if pc_h24 < -5:
                 c["red_h24"] += 1
                 if not self.baseline_mode:
                     continue
@@ -4620,6 +4626,36 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] pullback_in_uptrend trigger err: {_e}")
 
+            # ── trigger_strong_uptrend_dip — ENFORCED 2026-05-14 PM ─────────
+            # 35-angle chart inspection on n=26 post-May-12 paired:
+            # Compound D = `1h_6h_chg > 30% AND 1h_4_red <= 1` matched
+            # 4 of 9 winners (PAGO+$2.18, BUFO+$1.95, PAC+$0.93, COPPERINU
+            # +$0.69) and ZERO of 17 losers = 100% precision (n=4).
+            # Mechanism: token up 30%+ over 6h (real bull leg) AND last
+            # 4 hourly candles almost-all green (no breakdown). Pullback
+            # entries within confirmed bull legs.
+            # Will rarely fire in bear macros — that's by design.
+            _trigger_strong_uptrend_dip_match = False
+            _trigger_strong_uptrend_dip_reasons: list = []
+            try:
+                _sud_h1 = (_chart_data.candles_1h
+                           if _chart_data and _chart_data.candles_1h else [])
+                if len(_sud_h1) >= 6:
+                    _sud_4_red = sum(1 for c in _sud_h1[-4:] if c.close < c.open)
+                    _sud_6h_open = _sud_h1[-6].open
+                    _sud_cur_close = _sud_h1[-1].close
+                    if _sud_6h_open > 0:
+                        _sud_6h_chg = ((_sud_cur_close / _sud_6h_open) - 1) * 100
+                        if _sud_6h_chg > 30 and _sud_4_red <= 1:
+                            _trigger_strong_uptrend_dip_match = True
+                            _trigger_strong_uptrend_dip_reasons.append(
+                                f"1h_6h_chg={_sud_6h_chg:+.1f}%>30 "
+                                f"AND 1h_4_red={_sud_4_red}<=1 "
+                                f"(strong uptrend with minor pullback)"
+                            )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] strong_uptrend_dip trigger err: {_e}")
+
             # ── trigger_vol_surge_recent — ENFORCED 2026-05-13 PM ───────────
             # Round-2 analysis: vol_recent_vs_long_30d_avg was a Cohen's d
             # +0.83 separator (winners 4.31x, losers 1.46x). Production
@@ -4993,6 +5029,8 @@ class DipScanner:
                 _triggers_fired.append("mcap_psych_level")
             if _trigger_whale_conviction_match:
                 _triggers_fired.append("whale_conviction")
+            if _trigger_strong_uptrend_dip_match:
+                _triggers_fired.append("strong_uptrend_dip")
 
             # 1s triggers fire LATER (after 1s feature compute) — allow
             # dippy candidates with NO classic-trigger match to pass this
@@ -7224,6 +7262,11 @@ class DipScanner:
                 # top10_buyer_within_60s_count>=3.
                 "trigger_whale_conviction_match": _trigger_whale_conviction_match,
                 "trigger_whale_conviction_reasons": _trigger_whale_conviction_reasons,
+                # trigger_strong_uptrend_dip — ENFORCED 2026-05-14 PM (Compound D
+                # from chart inspection, 100% precision n=4): 1h_6h_chg>30 AND
+                # 1h_4_red<=1.
+                "trigger_strong_uptrend_dip_match": _trigger_strong_uptrend_dip_match,
+                "trigger_strong_uptrend_dip_reasons": _trigger_strong_uptrend_dip_reasons,
                 # filter_mtf_strong_downtrend — ENFORCED 2026-05-13 PM (round-7,
                 # blocks chart_mtf_score<=-2; 0W/5L on n=29).
                 "filter_mtf_strong_downtrend_verdict": _filter_mtf_dn_verdict,

@@ -394,6 +394,16 @@ COMBOS = {
         or (c.get('top10_buyer_within_60s_count') is not None
             and c['top10_buyer_within_60s_count'] >= 3)
     ),
+    # trigger_strong_uptrend_dip — ENFORCED 2026-05-14 PM (chart Compound D).
+    # Phantom approximation using pc_h1+pc_h24 as proxies for 1h candle data
+    # (phantom snapshot doesn't have full 1h candle history).
+    # Fires when pc_h24 > 30 (proxy for 1h_6h_chg>30) AND pc_h1 > 0
+    # (proxy for "no recent 1h breakdown"). Coarser than the production
+    # 1h-candle predicate but captures the same shape.
+    'AF_strong_uptrend_dip': lambda c: (
+        c.get('pc_h24') is not None and c['pc_h24'] > 30
+        and c.get('pc_h1') is not None and c['pc_h1'] > 0
+    ),
     # filter_quad — PROMOTED to ENFORCED 2026-05-14 with big-buyer carve-out.
     # 4-component OR-block (velocity_verdict==QUIET, stop_cluster band,
     # lp_locked band, 1m_volume_spike band) UNLESS liq_velocity_h1>=115.
