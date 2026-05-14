@@ -290,6 +290,9 @@ COMBOS = {
                                          and c.get('last_5m_green') is True),
     'MM_vol_surge_recent':    lambda c: (c.get('vol_surge_ratio_recent_prior') is not None
                                          and c['vol_surge_ratio_recent_prior'] >= 3.0),
+    # ─── bullish_engulfing_5m — ENFORCED 2026-05-13 PM ───
+    # Round-3 pattern, 100% precision on n=55 paired (6W/0L).
+    'NN_bullish_engulfing_5m': lambda c: c.get('bullish_engulfing_5m') is True,
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).
@@ -1006,6 +1009,22 @@ def compute_5m_features(c):
         except Exception:
             continue
 
+    # trigger_bullish_engulfing_5m phantom — last 2 5m bars
+    _bullish_engulfing_5m = False
+    try:
+        if len(ohlcv) >= 2:
+            _be_c2 = ohlcv[0]; _be_c1 = ohlcv[1]  # GT newest-first
+            _c1_o, _c1_c = float(_be_c1[1]), float(_be_c1[4])
+            _c2_o, _c2_c = float(_be_c2[1]), float(_be_c2[4])
+            _c1_body = abs(_c1_c - _c1_o); _c2_body = abs(_c2_c - _c2_o)
+            if (_c1_c < _c1_o and _c2_c > _c2_o
+                    and _c2_o <= _c1_c
+                    and _c2_c >= _c1_o
+                    and _c2_body > _c1_body):
+                _bullish_engulfing_5m = True
+    except Exception:
+        pass
+
     return {
         'pct_in_5m_range': pct_in_5m_range,
         'candle_5m': candle,
@@ -1016,6 +1035,7 @@ def compute_5m_features(c):
         '5m_n_normal_greens_last8': _cg_n_norm_green,
         '5m_last5_n_green': _5m_last5_n_green,
         'last_5m_green': _last_5m_green,
+        'bullish_engulfing_5m': _bullish_engulfing_5m,
     }
 
 

@@ -4466,6 +4466,44 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] vol_surge_recent trigger err: {_e}")
 
+            # ── trigger_bullish_engulfing_5m — ENFORCED 2026-05-13 PM ────────
+            # Round-3 pattern mining (n=55 combined paired tokens). Last 2
+            # 5m bars form a textbook bullish engulfing:
+            #   prior bar is red AND current is green
+            #   current open <= prior close (gap below or equal)
+            #   current close >= prior open (engulfs the body)
+            #   current body > prior body (decisive reversal)
+            # Validation: 6W / 0L = 100% precision on 55 paired sample.
+            # Winners: PAGO (+1.09), RAGEGUY (+0.77), NOGUY (+0.48),
+            # COPPERINU (+0.44), plus 2 others.
+            # Mechanism: classic candlestick reversal — buyers absorbed
+            # the prior down bar and pushed past its high.
+            # No peak_h24 gate (signal is strong standalone; gating would
+            # block RAGEGUY/COPPERINU winners).
+            _trigger_bullish_engulfing_5m_match = False
+            _trigger_bullish_engulfing_5m_reasons: list = []
+            try:
+                _be_m5 = (_chart_data.candles_5m
+                          if _chart_data and _chart_data.candles_5m else [])
+                if len(_be_m5) >= 2:
+                    _be_c1 = _be_m5[-2]; _be_c2 = _be_m5[-1]
+                    _be_c1_body = abs(_be_c1.close - _be_c1.open)
+                    _be_c2_body = abs(_be_c2.close - _be_c2.open)
+                    if (_be_c1.close < _be_c1.open  # prior red
+                            and _be_c2.close > _be_c2.open  # current green
+                            and _be_c2.open <= _be_c1.close
+                            and _be_c2.close >= _be_c1.open
+                            and _be_c2_body > _be_c1_body):
+                        _trigger_bullish_engulfing_5m_match = True
+                        _trigger_bullish_engulfing_5m_reasons.append(
+                            f"5m_bullish_engulfing: "
+                            f"prior_red_body={_be_c1_body:.6f} -> "
+                            f"current_green_body={_be_c2_body:.6f} "
+                            f"(ratio={_be_c2_body/max(_be_c1_body,1e-12):.2f}x)"
+                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] bullish_engulfing_5m err: {_e}")
+
             # ── trigger_controlled_greens_5m — ENFORCED 2026-05-13 PM ─────────
             # Catches "measured uptrend forming" pattern: ≥4 of last 8 5m
             # candles are green AND not marubozu (body/range < 0.80). This
@@ -4734,6 +4772,8 @@ class DipScanner:
                 _triggers_fired.append("pullback_in_uptrend")
             if _trigger_vol_surge_recent_match:
                 _triggers_fired.append("vol_surge_recent")
+            if _trigger_bullish_engulfing_5m_match:
+                _triggers_fired.append("bullish_engulfing_5m")
 
             # 1s triggers fire LATER (after 1s feature compute) — allow
             # dippy candidates with NO classic-trigger match to pass this
@@ -4824,6 +4864,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_pullback_in_uptrend_reasons)
                 if _trigger_vol_surge_recent_match:
                     _alt_reasons.extend(_trigger_vol_surge_recent_reasons)
+                if _trigger_bullish_engulfing_5m_match:
+                    _alt_reasons.extend(_trigger_bullish_engulfing_5m_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -6616,6 +6658,10 @@ class DipScanner:
                 # recent_8h_vol_avg / prior_40h_vol_avg >= 3).
                 "trigger_vol_surge_recent_match": _trigger_vol_surge_recent_match,
                 "trigger_vol_surge_recent_reasons": _trigger_vol_surge_recent_reasons,
+                # trigger_bullish_engulfing_5m — ENFORCED 2026-05-13 PM (round-3,
+                # 5m bullish engulfing pattern, 100% precision on n=55 paired).
+                "trigger_bullish_engulfing_5m_match": _trigger_bullish_engulfing_5m_match,
+                "trigger_bullish_engulfing_5m_reasons": _trigger_bullish_engulfing_5m_reasons,
                 # filter_topping — SHADOW 2026-05-06 PM (catch knife-catch at peak).
                 "filter_topping_verdict": _filter_topping_verdict,
                 "filter_topping_block_reasons": _filter_topping_block_reasons,
