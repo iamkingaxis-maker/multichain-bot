@@ -6512,11 +6512,59 @@ class DipScanner:
             c[f"filter_seller_imbalance_{_filter_seller_imbalance_verdict.lower()}"] = c.get(
                 f"filter_seller_imbalance_{_filter_seller_imbalance_verdict.lower()}", 0
             ) + 1
+            # PROMOTED 2026-05-14 from SHADOW to ENFORCED — lifetime
+            # validation on n=34 paired showed +$9.76 net save (blocks 3W
+            # ($+2.30) + 6L ($-12.06)). Forward overnight: blocked ANDV in
+            # shadow which lost $-0.84. Mechanism: deep seller dominance
+            # (<-0.2) in the 5m dollar flow consistently fails.
             if _filter_seller_imbalance_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] filter_seller_imbalance SHADOW would-block: "
+                    f"[DipScanner] BLOCKED by filter_seller_imbalance: "
                     f"{token_symbol} reasons={','.join(_filter_seller_imbalance_block_reasons)}"
                 )
+                continue
+
+            # ── filter_negative_net_flow_5m — ENFORCED 2026-05-14 AM ─────────
+            # Round-7-extended overnight finding: both overnight losers
+            # (lol420 -$2.45, ANDV -$0.84) had net_flow_5m_usd < 0 (sellers
+            # winning at 5m). Both monitored winners (Crack +$0.42, MASCOTS
+            # +$0.88) had positive or near-zero net_flow_5m_usd at entry.
+            #
+            # Lifetime validation on n=34 paired: blocks 21 trades total
+            # -$19.66 (8W -$4.31, 13L -$23.97); NET SAVE +$19.66. Passing
+            # cohort 13 trades total -$1.68 (effectively breakeven).
+            #
+            # Held-out validation (excluding 2 tuning losers): 11L blocked
+            # ($-20.69), 8W blocked ($-4.31), net save +$16.37 — not overfit.
+            #
+            # Trade-off: cuts trade volume ~62% but passing cohort flips
+            # from net-negative to breakeven. Forgoes some small winners
+            # to eliminate the disproportionately-large losers (CHINA -$6,
+            # NOGUY -$2.59, etc.).
+            #
+            # Fail-open if net_flow_5m_usd missing.
+            _filter_neg_nf5m_block_reasons: list = []
+            try:
+                _nf5m_chk = _tier3_features.get("net_flow_5m_usd") if isinstance(_tier3_features, dict) else None
+                if _nf5m_chk is not None and float(_nf5m_chk) < 0:
+                    _filter_neg_nf5m_block_reasons.append(
+                        f"net_flow_5m_usd=${float(_nf5m_chk):+.0f}<0 "
+                        f"(sellers winning 5m USD flow)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] negative_net_flow_5m err: {_e}")
+            _filter_neg_nf5m_verdict = (
+                "BLOCK" if _filter_neg_nf5m_block_reasons else "PASS"
+            )
+            c[f"filter_negative_net_flow_5m_{_filter_neg_nf5m_verdict.lower()}"] = c.get(
+                f"filter_negative_net_flow_5m_{_filter_neg_nf5m_verdict.lower()}", 0
+            ) + 1
+            if _filter_neg_nf5m_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_negative_net_flow_5m: "
+                    f"{token_symbol} reasons={','.join(_filter_neg_nf5m_block_reasons)}"
+                )
+                continue
 
             # ── Volume velocity features (2026-05-10) ──
             # Hypothesis: dips into rising-volume regimes win; dips into
@@ -6866,6 +6914,10 @@ class DipScanner:
                 # blocks chart_mtf_score<=-2; 0W/5L on n=29).
                 "filter_mtf_strong_downtrend_verdict": _filter_mtf_dn_verdict,
                 "filter_mtf_strong_downtrend_block_reasons": _filter_mtf_dn_block_reasons,
+                # filter_negative_net_flow_5m — ENFORCED 2026-05-14 AM
+                # (blocks net_flow_5m_usd<0; +$19.66 lifetime save on n=34).
+                "filter_negative_net_flow_5m_verdict": _filter_neg_nf5m_verdict,
+                "filter_negative_net_flow_5m_block_reasons": _filter_neg_nf5m_block_reasons,
                 # filter_topping — SHADOW 2026-05-06 PM (catch knife-catch at peak).
                 "filter_topping_verdict": _filter_topping_verdict,
                 "filter_topping_block_reasons": _filter_topping_block_reasons,

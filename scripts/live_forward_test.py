@@ -311,6 +311,11 @@ COMBOS = {
     # Filter: should appear in c['blocked_filters'] phantom output (not a positive trigger)
     'SS_filter_mtf_strong_downtrend': lambda c: (c.get('chart_mtf_score') is None
                                                  or c.get('chart_mtf_score') > -2.0),
+    # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
+    'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
+                                         or c['net_flow_5m_usd'] >= 0),
+    'UU_pass_seller_imbalance': lambda c: (c.get('net_flow_5m_imbalance') is None
+                                           or c['net_flow_5m_imbalance'] >= -0.2),
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).
