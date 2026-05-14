@@ -7611,11 +7611,38 @@ class DipScanner:
                 # cycle-over-cycle, contributing to cycles_seen ratchet.
                 axiom_auth = self.axiom_price_feed.auth if self.axiom_price_feed else None
                 async def _axiom_task():
+                    # 2026-05-14 PM: now polls BOTH Axiom feeds in parallel.
+                    # Top tab     → /users-trending-v2 (existing, via fetch_axiom_trending_pairs)
+                    # Trending tab → /new-trending-v2  (new, via fetch_axiom_pairs_for_path)
+                    # Verified by Playwright CDP capture of logged-in axiom.trade UI.
                     if not axiom_auth:
                         return []
                     try:
-                        from feeds.axiom_discovery import fetch_axiom_trending_pairs
-                        return await fetch_axiom_trending_pairs(axiom_auth, time_period="5m")
+                        from feeds.axiom_discovery import (
+                            fetch_axiom_trending_pairs,
+                            fetch_axiom_pairs_for_path,
+                        )
+                        async def _trending_tab():
+                            try:
+                                return await fetch_axiom_pairs_for_path(
+                                    axiom_auth, "/new-trending-v2?timePeriod=5m"
+                                ) or []
+                            except Exception:
+                                return []
+                        top_pairs, trending_tab_pairs = await asyncio.gather(
+                            fetch_axiom_trending_pairs(axiom_auth, time_period="5m"),
+                            _trending_tab(),
+                            return_exceptions=False,
+                        )
+                        top_pairs = top_pairs or []
+                        trending_tab_pairs = trending_tab_pairs or []
+                        # Merge with Top priority — dedupe in caller via pair_by_addr.
+                        merged = list(top_pairs) + list(trending_tab_pairs)
+                        logger.info(
+                            f"[DipScanner] Axiom feeds: top={len(top_pairs)} + "
+                            f"trending={len(trending_tab_pairs)} = {len(merged)} pairs"
+                        )
+                        return merged
                     except Exception as _e:
                         logger.debug(f"[DipScanner] Axiom trending fetch err: {_e}")
                         return []
