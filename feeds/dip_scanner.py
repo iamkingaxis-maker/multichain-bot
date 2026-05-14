@@ -1873,19 +1873,37 @@ class DipScanner:
             c[f"filter_turn_{_filter_turn_verdict.lower()}"] = c.get(
                 f"filter_turn_{_filter_turn_verdict.lower()}", 0
             ) + 1
-            # RE-PROMOTED to ENFORCED 2026-05-14 AM. Held-out lifetime
-            # validation on n=34 paired (recent regime, post-all-new-filters)
-            # showed +$16.63 NET SAVE (blocks 10L $-21.18 + 7W $+4.55).
-            # Held-out (excl ANDV/BULLISH): +$15.79. Caught BULLISH
-            # (-$0.75 fast_dud) and ANDV (-$0.84) in shadow mode prior to ship.
-            # Original 5/5 demotion was on different regime; current
-            # filter set has shifted the trade population.
-            if _filter_turn_verdict == "BLOCK":
+            # RE-PROMOTED to ENFORCED 2026-05-14 AM.
+            # CARVE-OUT 2026-05-14 PM: rescue big-buyer entries
+            # (liq_velocity_h1_usd_per_txn >= 115). On lifetime n=34, this
+            # rescues 5 blocked winners (RAGEGUY, BUFO, COPPERINU, HANTA, RKC)
+            # totaling +$2.68 with ZERO losers rescued.
+            #
+            # liq_velocity_h1 = vol_h1 / (buys_h1 + sells_h1). Computed inline
+            # because volume_velocity_features dict is built later in the loop.
+            _big_buyer_carve_out = False
+            _lv_h1_inline = None
+            try:
+                _txn_h1_b = int((txns_h1 or {}).get("buys") or 0)
+                _txn_h1_s = int((txns_h1 or {}).get("sells") or 0)
+                _txn_h1_total = _txn_h1_b + _txn_h1_s
+                if _txn_h1_total > 0 and vol_h1:
+                    _lv_h1_inline = float(vol_h1) / _txn_h1_total
+                    if _lv_h1_inline >= 115:
+                        _big_buyer_carve_out = True
+            except Exception:
+                pass
+            if _filter_turn_verdict == "BLOCK" and not _big_buyer_carve_out:
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_turn: {token_symbol} "
                     f"reasons={','.join(_filter_turn_block_reasons)}"
                 )
                 continue
+            elif _filter_turn_verdict == "BLOCK" and _big_buyer_carve_out:
+                logger.info(
+                    f"[DipScanner] filter_turn rescued by big_buyer carve-out: "
+                    f"{token_symbol} liq_velocity_h1=${_lv_h1_inline:.0f}/txn>=115"
+                )
 
             # Filter real-dip-3 — ENFORCED. Validated on the full 540-pair
             # lifetime dataset (held-out test, not the same data the filter
@@ -6520,17 +6538,32 @@ class DipScanner:
             c[f"filter_seller_imbalance_{_filter_seller_imbalance_verdict.lower()}"] = c.get(
                 f"filter_seller_imbalance_{_filter_seller_imbalance_verdict.lower()}", 0
             ) + 1
-            # PROMOTED 2026-05-14 from SHADOW to ENFORCED — lifetime
-            # validation on n=34 paired showed +$9.76 net save (blocks 3W
-            # ($+2.30) + 6L ($-12.06)). Forward overnight: blocked ANDV in
-            # shadow which lost $-0.84. Mechanism: deep seller dominance
-            # (<-0.2) in the 5m dollar flow consistently fails.
-            if _filter_seller_imbalance_verdict == "BLOCK":
+            # PROMOTED 2026-05-14 from SHADOW to ENFORCED.
+            # CARVE-OUT 2026-05-14 PM: rescue big-buyer entries
+            # (liq_velocity_h1 >= 115). Same logic as filter_turn rescue.
+            _big_buyer_carve_out_si = False
+            _lv_h1_si = None
+            try:
+                _txn_b_si = int((txns_h1 or {}).get("buys") or 0)
+                _txn_s_si = int((txns_h1 or {}).get("sells") or 0)
+                _txn_t_si = _txn_b_si + _txn_s_si
+                if _txn_t_si > 0 and vol_h1:
+                    _lv_h1_si = float(vol_h1) / _txn_t_si
+                    if _lv_h1_si >= 115:
+                        _big_buyer_carve_out_si = True
+            except Exception:
+                pass
+            if _filter_seller_imbalance_verdict == "BLOCK" and not _big_buyer_carve_out_si:
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_seller_imbalance: "
                     f"{token_symbol} reasons={','.join(_filter_seller_imbalance_block_reasons)}"
                 )
                 continue
+            elif _filter_seller_imbalance_verdict == "BLOCK" and _big_buyer_carve_out_si:
+                logger.info(
+                    f"[DipScanner] filter_seller_imbalance rescued by big_buyer: "
+                    f"{token_symbol} liq_velocity_h1=${_lv_h1_si:.0f}/txn>=115"
+                )
 
             # ── filter_negative_net_flow_5m — ENFORCED 2026-05-14 AM ─────────
             # Round-7-extended overnight finding: both overnight losers
@@ -6567,12 +6600,30 @@ class DipScanner:
             c[f"filter_negative_net_flow_5m_{_filter_neg_nf5m_verdict.lower()}"] = c.get(
                 f"filter_negative_net_flow_5m_{_filter_neg_nf5m_verdict.lower()}", 0
             ) + 1
-            if _filter_neg_nf5m_verdict == "BLOCK":
+            # CARVE-OUT: same big-buyer rescue (liq_velocity_h1 >= 115).
+            _big_buyer_carve_out_nf = False
+            _lv_h1_nf = None
+            try:
+                _txn_b_nf = int((txns_h1 or {}).get("buys") or 0)
+                _txn_s_nf = int((txns_h1 or {}).get("sells") or 0)
+                _txn_t_nf = _txn_b_nf + _txn_s_nf
+                if _txn_t_nf > 0 and vol_h1:
+                    _lv_h1_nf = float(vol_h1) / _txn_t_nf
+                    if _lv_h1_nf >= 115:
+                        _big_buyer_carve_out_nf = True
+            except Exception:
+                pass
+            if _filter_neg_nf5m_verdict == "BLOCK" and not _big_buyer_carve_out_nf:
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_negative_net_flow_5m: "
                     f"{token_symbol} reasons={','.join(_filter_neg_nf5m_block_reasons)}"
                 )
                 continue
+            elif _filter_neg_nf5m_verdict == "BLOCK" and _big_buyer_carve_out_nf:
+                logger.info(
+                    f"[DipScanner] filter_negative_net_flow_5m rescued by big_buyer: "
+                    f"{token_symbol} liq_velocity_h1=${_lv_h1_nf:.0f}/txn>=115"
+                )
 
             # ── Volume velocity features (2026-05-10) ──
             # Hypothesis: dips into rising-volume regimes win; dips into
