@@ -4340,6 +4340,46 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] new-triggers calc err: {_e}")
 
+            # ─── TRIGGER_FEATURES log — 2026-05-14 PM ──────────────────────
+            # Emits the gating features for each token's signal so the
+            # signal_event_recorder can pair them with eventual BLOCK/BUY
+            # outcomes. Used for threshold-relaxation mining (we can audit
+            # WR per-feature-bucket on BLOCKED tokens too, not just buys).
+            # All values formatted as "key=value" pairs separated by spaces.
+            # Null/missing values written as None so the regex matches
+            # cleanly.
+            try:
+                def _fmt(v):
+                    if v is None:
+                        return "None"
+                    if isinstance(v, bool):
+                        return str(v)
+                    if isinstance(v, (int, float)):
+                        return f"{float(v):.3f}"
+                    return str(v)
+                _tf_top10 = _tier2_features.get("top10_buyer_within_60s_count") if _tier2_features else None
+                _tf_vwap_1h = _tier2_features.get("pct_above_vwap_1h") if _tier2_features else None
+                _tf_min_peak = _tier2_features.get("minutes_since_peak") if _tier2_features else None
+                _tf_hr_grad = _tier3_features.get("hours_since_graduation") if _tier3_features else None
+                _tf_grad_status = _tier3_features.get("graduation_status") if _tier3_features else None
+                _tf_nfi60 = _tier2_features.get("net_flow_60s_imbalance") if _tier2_features else None
+                _tf_bp60 = _tier2_features.get("buy_pressure_60s") if _tier2_features else None
+                _tf_buy_max = _tier2_features.get("buy_size_max_trend") if _tier2_features else None
+                _tf_lvh1 = _tier2_features.get("liq_velocity_h1_usd_per_txn") if _tier2_features else None
+                _tf_lc_ratio = (_lifecycle_dict or {}).get("lifecycle_h24_ratio")
+                logger.info(
+                    f"[DipScanner] TRIGGER_FEATURES: {token_symbol} "
+                    f"top10_60s={_fmt(_tf_top10)} vwap_1h={_fmt(_tf_vwap_1h)} "
+                    f"min_peak={_fmt(_tf_min_peak)} hr_grad={_fmt(_tf_hr_grad)} "
+                    f"grad_status={_fmt(_tf_grad_status)} "
+                    f"nfi_60s={_fmt(_tf_nfi60)} bp_60s={_fmt(_tf_bp60)} "
+                    f"buy_max_trend={_fmt(_tf_buy_max)} "
+                    f"liq_vel_h1={_fmt(_tf_lvh1)} "
+                    f"h24_ratio={_fmt(_tf_lc_ratio)}"
+                )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_features log err: {_e}")
+
             # demand_bottom_compound — ENFORCED 2026-05-13.
             # Trimmed 3-branch union (P1 dropped — redundant with current
             # filter stack catches). Mines microstructure demand-stepping-up

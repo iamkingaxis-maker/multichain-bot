@@ -51,6 +51,15 @@ _RE_1M_SHADOW = re.compile(
     r"1m_vol_spike=([0-9.]+) verdict=(\S+)"
 )
 _RE_BLOCKED = re.compile(r"\[DipScanner\] BLOCKED by filter_(\S+): (\S+) ")
+# 2026-05-14 PM: TRIGGER_FEATURES extends the per-signal record with
+# the deep gating features needed for threshold-loosening audits.
+# Format: "[DipScanner] TRIGGER_FEATURES: TOKEN top10_60s=X vwap_1h=Y ..."
+_RE_TRIG_FEATS = re.compile(
+    r"\[DipScanner\] TRIGGER_FEATURES: (\S+) "
+    r"top10_60s=(\S+) vwap_1h=(\S+) min_peak=(\S+) hr_grad=(\S+) "
+    r"grad_status=(\S+) nfi_60s=(\S+) bp_60s=(\S+) "
+    r"buy_max_trend=(\S+) liq_vel_h1=(\S+) h24_ratio=(\S+)"
+)
 # 2026-05-14: also capture Trader-level blocks (post-trigger, pre-Buying).
 # These were silently killing trigger-fired signals and showing up as
 # CONTINUED outcomes. Format: "[Trader] BLOCKED by filter_X: TOKEN reasons=..."
@@ -185,6 +194,30 @@ class SignalEventRecorder(logging.Handler):
                 ev = self._pending.get(tok)
                 if ev is not None:
                     ev["shadows"].append(fname)
+            return
+
+        # TRIGGER_FEATURES — extend event (non-terminal)
+        m = _RE_TRIG_FEATS.search(msg)
+        if m:
+            tok = m.group(1)
+            with self._lock:
+                ev = self._pending.get(tok)
+                if ev is not None:
+                    fields = [
+                        "top10_60s", "vwap_1h", "min_peak", "hr_grad",
+                        "grad_status", "nfi_60s", "bp_60s",
+                        "buy_max_trend", "liq_vel_h1", "h24_ratio",
+                    ]
+                    for i, key in enumerate(fields, start=2):
+                        raw = m.group(i)
+                        if raw == "None":
+                            ev[key] = None
+                        else:
+                            # Try float first, else keep as string
+                            try:
+                                ev[key] = float(raw)
+                            except ValueError:
+                                ev[key] = raw
             return
 
         # BLOCKED (scanner) — terminal, write+clear
