@@ -4761,6 +4761,72 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] midcap_bigpump_fresh err: {_e}")
 
+            # ── trigger_overnight_modest_pump_consol — ENFORCED 2026-05-14 ──
+            # Overnight-edge cohort from creative_trigger_research overnight
+            # mining (mine_overnight_cohorts.py): em_bs_h6 in [1.1,1.3) AND
+            # peak_h24_6h_pct in [25,50) AND hour_ct in [3,7).
+            # Lifetime audit (.dataset.pkl):
+            #   - Overnight (19-7 CT) cohort: n=24, 75.0% WR, +$224
+            #   - Daytime cohort: n=51, 41.2% WR, +$98 (delta +33.8pp)
+            # Gated to hour_ct in [3,7) — the profitable pre-dawn slice
+            # within the new 3am-5pm CT trading window (the +$358 lifetime
+            # block per per-hour mining). 8pm-2am CT stays closed via the
+            # window gate in core/trader.py.
+            _trigger_overnight_modest_pump_consol_match = False
+            _trigger_overnight_modest_pump_consol_reasons: list = []
+            try:
+                from zoneinfo import ZoneInfo as _ZI
+                _ovn_now_h = datetime.now(_ZI("America/Chicago")).hour
+                _ompc_peak = float(peak_h24_6h) if peak_h24_6h is not None else None
+                _ompc_bsh6 = float(bs_h6) if bs_h6 not in (None, float("inf")) else None
+                if (
+                    3 <= _ovn_now_h < 7
+                    and _ompc_peak is not None and 25 <= _ompc_peak < 50
+                    and _ompc_bsh6 is not None and 1.1 <= _ompc_bsh6 < 1.3
+                ):
+                    _trigger_overnight_modest_pump_consol_match = True
+                    _trigger_overnight_modest_pump_consol_reasons.append(
+                        f"hour_ct={_ovn_now_h} in [3,7) AND peak={_ompc_peak:.0f}% "
+                        f"AND bs_h6={_ompc_bsh6:.2f} (overnight n=24, 75.0%WR, "
+                        f"day-night delta +33.8pp)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] overnight_modest_pump_consol err: {_e}")
+
+            # ── trigger_overnight_quiet_accumulation — ENFORCED 2026-05-14 ──
+            # Cleanest day-night inversion from overnight mining:
+            # avg_trade_size_h1 in [$60,$100) AND cycles_seen in [30,60) AND
+            # hour_ct in [3,7).
+            # Lifetime audit:
+            #   - Overnight (19-7 CT): n=47, 74.5% WR, +$116
+            #   - Daytime: n=14, 42.9% WR, -$129 (delta +31.6pp, day is LOSER)
+            # Mechanism: mid-size retail trades during low-volume hours
+            # ($60-100 avg = quiet org buying, not whale spikes) on a
+            # token the bot has seen for 30-60 cycles (familiar but not
+            # over-saturated). Pattern works only overnight — fades in
+            # daytime liquidity. Gated to hour_ct in [3,7).
+            _trigger_overnight_quiet_accumulation_match = False
+            _trigger_overnight_quiet_accumulation_reasons: list = []
+            try:
+                from zoneinfo import ZoneInfo as _ZI
+                _ovn_now_h2 = datetime.now(_ZI("America/Chicago")).hour
+                _oqa_ats = float(avg_trade_size_h1) if avg_trade_size_h1 is not None else None
+                _oqa_cyc = cycles_seen
+                if (
+                    3 <= _ovn_now_h2 < 7
+                    and _oqa_ats is not None and 60 <= _oqa_ats < 100
+                    and isinstance(_oqa_cyc, (int, float))
+                    and 30 <= _oqa_cyc < 60
+                ):
+                    _trigger_overnight_quiet_accumulation_match = True
+                    _trigger_overnight_quiet_accumulation_reasons.append(
+                        f"hour_ct={_ovn_now_h2} in [3,7) AND avg_trade=${_oqa_ats:.0f} "
+                        f"AND cycles={int(_oqa_cyc)} (overnight n=47, 74.5%WR, "
+                        f"day-night delta +31.6pp; daytime loses -$129)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] overnight_quiet_accumulation err: {_e}")
+
             # ── trigger_whale_conviction — ENFORCED 2026-05-14 PM (Commit C) ─
             # Positive entry trigger from 35-angle deep mining. Fires on:
             #   - whale_buy_present_2k == True (a $2k+ whale buy in lookback)
@@ -5362,6 +5428,10 @@ class DipScanner:
                 _triggers_fired.append("small_pump_fresh_cycles")
             if _trigger_midcap_bigpump_fresh_match:
                 _triggers_fired.append("midcap_bigpump_fresh")
+            if _trigger_overnight_modest_pump_consol_match:
+                _triggers_fired.append("overnight_modest_pump_consol")
+            if _trigger_overnight_quiet_accumulation_match:
+                _triggers_fired.append("overnight_quiet_accumulation")
 
             # 1s triggers fire LATER (after 1s feature compute) — allow
             # dippy candidates with NO classic-trigger match to pass this
@@ -5478,6 +5548,10 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_small_pump_fresh_cycles_reasons)
                 if _trigger_midcap_bigpump_fresh_match:
                     _alt_reasons.extend(_trigger_midcap_bigpump_fresh_reasons)
+                if _trigger_overnight_modest_pump_consol_match:
+                    _alt_reasons.extend(_trigger_overnight_modest_pump_consol_reasons)
+                if _trigger_overnight_quiet_accumulation_match:
+                    _alt_reasons.extend(_trigger_overnight_quiet_accumulation_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -7632,6 +7706,11 @@ class DipScanner:
                 "trigger_small_pump_fresh_cycles_reasons": _trigger_small_pump_fresh_cycles_reasons,
                 "trigger_midcap_bigpump_fresh_match": _trigger_midcap_bigpump_fresh_match,
                 "trigger_midcap_bigpump_fresh_reasons": _trigger_midcap_bigpump_fresh_reasons,
+                # Overnight-edge triggers — ENFORCED 2026-05-14 (mine_overnight_cohorts).
+                "trigger_overnight_modest_pump_consol_match": _trigger_overnight_modest_pump_consol_match,
+                "trigger_overnight_modest_pump_consol_reasons": _trigger_overnight_modest_pump_consol_reasons,
+                "trigger_overnight_quiet_accumulation_match": _trigger_overnight_quiet_accumulation_match,
+                "trigger_overnight_quiet_accumulation_reasons": _trigger_overnight_quiet_accumulation_reasons,
                 # filter_mtf_strong_downtrend — ENFORCED 2026-05-13 PM (round-7,
                 # blocks chart_mtf_score<=-2; 0W/5L on n=29).
                 "filter_mtf_strong_downtrend_verdict": _filter_mtf_dn_verdict,

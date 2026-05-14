@@ -492,6 +492,28 @@ COMBOS = {
         and c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
         and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 1000
     ),
+    # ─── Overnight-edge triggers — phantom parity 2026-05-14 ────────
+    # mine_overnight_cohorts.py surfaced these as overnight-specific.
+    # Gate: hour_ct in [3,7) (the profitable pre-dawn slice within the
+    # new 3am-5pm CT trading window).
+    'AR_overnight_modest_pump_consol': lambda c: (
+        (lambda _h: 3 <= _h < 7)(
+            __import__('datetime').datetime.now(
+                __import__('zoneinfo').ZoneInfo('America/Chicago')
+            ).hour
+        )
+        and c.get('peak_h24_6h_pct') is not None and 25 <= c['peak_h24_6h_pct'] < 50
+        and c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
+    ),
+    'AS_overnight_quiet_accumulation': lambda c: (
+        (lambda _h: 3 <= _h < 7)(
+            __import__('datetime').datetime.now(
+                __import__('zoneinfo').ZoneInfo('America/Chicago')
+            ).hour
+        )
+        and c.get('avg_trade_size_h1_usd') is not None and 60 <= c['avg_trade_size_h1_usd'] < 100
+        and c.get('cycles_seen') is not None and 30 <= c['cycles_seen'] < 60
+    ),
     # ─── UptrendScanner SHADOW Phase 1 mirrors — 2026-05-14 evening ───
     # Phantom parity for feeds/uptrend_scanner.py. Predicates PASS when the
     # corresponding shadow trigger would WOULD-FIRE on this snapshot. All

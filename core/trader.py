@@ -1112,14 +1112,17 @@ class Trader:
         if self._dashboard_paused:
             logger.info(f"[Trader] Buy blocked — dashboard pause active ({strategy}/{token_symbol})")
             return
-        # Trading-hours window (Central Time). Historical analysis shows
-        # 20-24 UTC (3-7pm CT) is the worst window: 66.7% WR / -$8/trade.
-        # Default 6-15 CT (~11-20 UTC, depending on DST) brackets the
-        # historical strong windows (8-12 UTC and 12-16 UTC, +$6-8/trade).
-        # Only gates new buys; sells/TPs/stops continue normally.
+        # Trading-hours window (Central Time). 2026-05-14 update:
+        # overnight cohort mining (mine_overnight_cohorts.py) found a
+        # +$358 lifetime block in 3-6am CT (60-66% per-hour WR), so the
+        # active window expands to 3am-5pm CT. The 8pm-2am CT bleeding
+        # zone (-$300+ lifetime) stays closed. Prior 7am-5pm window
+        # (commit 2026-05-12) captured 7am-5pm only. Default below
+        # mirrors expected Railway env values; Railway env vars take
+        # precedence. Only gates new buys; sells/TPs/stops continue.
         try:
-            _start_h = int(os.environ.get("TRADING_START_HOUR_CT", "6"))
-            _end_h = int(os.environ.get("TRADING_END_HOUR_CT", "15"))
+            _start_h = int(os.environ.get("TRADING_START_HOUR_CT", "3"))
+            _end_h = int(os.environ.get("TRADING_END_HOUR_CT", "17"))
             from zoneinfo import ZoneInfo as _ZI
             _now_ct = datetime.now(_ZI("America/Chicago"))
             _h = _now_ct.hour
