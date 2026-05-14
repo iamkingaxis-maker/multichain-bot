@@ -293,15 +293,17 @@ class AxiomTrendingScanner:
 
     async def _fetch_axiom_trending(self) -> dict:
         """
-        Hit Axiom feeds via auth_manager. ENFORCED 2026-05-14 PM: now polls
-        BOTH /users-trending-v2 AND candidate TOP-feed paths in parallel.
-        Merges all into a single dict keyed by token address.
+        Hit Axiom feeds via auth_manager. ENFORCED 2026-05-14 PM: polls both
+        the Top tab AND the Trending tab in parallel and merges them.
 
-        TOP-feed paths to probe (per user hint: same 1m/5m/1h/24h timePeriod
-        structure as users-trending-v2). First path that returns 200+data
-        wins for the TOP feed and is cached for the session; logged so we
-        know which one works. Paths that 404 are skipped on subsequent
-        calls to avoid wasted polling.
+        Axiom UI mapping (captured 2026-05-14 via Playwright CDP attach):
+          - "Top" tab     → GET /users-trending-v2?timePeriod=1h
+          - "Trending" tab → GET /new-trending-v2?timePeriod=1h
+          - Same record shape (52-field positional list) for both.
+
+        The bot has historically fetched only the Top feed (via
+        fetch_axiom_trending_pairs which hits /users-trending-v2). This now
+        adds the Trending feed as a second source for a broader universe.
         """
         from feeds.axiom_discovery import (
             fetch_axiom_trending_pairs,
@@ -309,100 +311,26 @@ class AxiomTrendingScanner:
         )
         import asyncio as _aio
 
-        # Class-level state for path caching (initialized lazily).
-        if not hasattr(self, "_top_path_cached"):
-            self._top_path_cached = None  # cached working path
-            self._top_paths_404 = set()   # skip these — already 404'd
+        async def _fetch_trending_tab():
+            try:
+                return await fetch_axiom_pairs_for_path(
+                    self.auth_manager, "/new-trending-v2?timePeriod=1h"
+                ) or []
+            except Exception as e:
+                logger.info(f"[AxiomDiscovery] /new-trending-v2 fetch error: {type(e).__name__}")
+                return []
 
-        # Candidate TOP-feed paths. Updated 2026-05-14 PM round-3 based
-        # on playwright capture of Axiom UI: the modern UI uses
-        # /new-trending-v2 (NOT /users-trending-v2 which the bot has been
-        # using). /lighthouse fires on discover page load — likely
-        # contains TOP data. TOP probably has tab/sort/category param
-        # on /new-trending-v2.
-        _top_paths = [
-            # Modern Axiom UI endpoint (captured from playwright) —
-            # likely returns same/broader data than /users-trending-v2.
-            "/new-trending-v2?timePeriod=1h",
-            "/new-trending-v2?timePeriod=24h",
-            "/new-trending-v2?timePeriod=5m",
-            "/new-trending-v2?timePeriod=1m",
-            # /lighthouse — fired on discover page load
-            "/lighthouse",
-            "/lighthouse?timePeriod=1h",
-            "/lighthouse?timePeriod=24h",
-            # /new-trending-v2 with explicit sort/category params
-            "/new-trending-v2?timePeriod=1h&sort=top",
-            "/new-trending-v2?timePeriod=1h&type=top",
-            "/new-trending-v2?timePeriod=1h&category=top",
-            "/new-trending-v2?timePeriod=1h&tab=top",
-            "/new-trending-v2?timePeriod=1h&filter=top",
-            "/new-trending-v2?timePeriod=1h&view=top",
-            # Older "users-top" + new prefix variants
-            "/users-top-v2?timePeriod=1h",
-            "/users-trending-v2?timePeriod=24h",  # broader time on existing
-            # New patterns matching new-trending
-            "/new-top-v2?timePeriod=1h",
-            "/new-top?timePeriod=1h",
-            "/top-v2?timePeriod=1h",
-            "/top?timePeriod=1h",
-            # surge / pulse fallbacks
-            "/surge?timePeriod=1h",
-            "/pulse?timePeriod=1h",
-        ]
-
-        async def _try_top():
-            # Already found a working path? Use it directly.
-            if self._top_path_cached:
-                try:
-                    res = await fetch_axiom_pairs_for_path(
-                        self.auth_manager, self._top_path_cached
-                    )
-                    if res:
-                        return res
-                except Exception:
-                    pass
-                # Cached path failed — clear and re-probe
-                logger.info(
-                    f"[AxiomDiscovery] cached TOP path {self._top_path_cached} "
-                    f"returned no data — re-probing"
-                )
-                self._top_path_cached = None
-            # Probe candidates with EXPLICIT logging so we can see what happens
-            probe_results = []
-            for p in _top_paths:
-                try:
-                    res = await fetch_axiom_pairs_for_path(self.auth_manager, p)
-                    n = len(res) if res else 0
-                    probe_results.append(f"{p}={n}")
-                    if res:
-                        self._top_path_cached = p
-                        logger.info(
-                            f"[AxiomDiscovery] TOP feed DISCOVERED: {p} ({len(res)} pairs) — cached"
-                        )
-                        return res
-                except Exception as e:
-                    probe_results.append(f"{p}=ERR:{type(e).__name__}")
-                    continue
-            # Log the full probe result summary so we can see all 22 outcomes
-            logger.info(
-                f"[AxiomDiscovery] TOP probe complete (no hits): "
-                + " | ".join(probe_results[:10])
-                + (f" ... +{len(probe_results)-10} more" if len(probe_results) > 10 else "")
-            )
-            return []
-
-        # Run trending + top in parallel
-        trending_pairs, top_pairs = await _aio.gather(
-            fetch_axiom_trending_pairs(self.auth_manager),
-            _try_top(),
+        # Run Top + Trending in parallel
+        top_pairs, trending_tab_pairs = await _aio.gather(
+            fetch_axiom_trending_pairs(self.auth_manager),  # /users-trending-v2 (Top tab)
+            _fetch_trending_tab(),                          # /new-trending-v2 (Trending tab)
             return_exceptions=False,
         )
-        # Merge — trending wins on duplicates (already-known)
-        pairs = list(top_pairs) + list(trending_pairs)
-        if top_pairs:
+        # Merge — Top first (priority), then Trending fills the rest
+        pairs = list(top_pairs) + list(trending_tab_pairs)
+        if trending_tab_pairs:
             logger.info(
-                f"[AxiomDiscovery] Merged: trending={len(trending_pairs)} + top={len(top_pairs)} = {len(pairs)} total"
+                f"[AxiomDiscovery] Merged: top={len(top_pairs)} + trending={len(trending_tab_pairs)} = {len(pairs)} total"
             )
         out: dict = {}
         for p in pairs:
