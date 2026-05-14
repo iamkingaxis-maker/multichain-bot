@@ -302,6 +302,15 @@ COMBOS = {
                                          and c['mtf_green_count'] >= 2
                                          and c.get('1s_close_pos_60s') is not None
                                          and c['1s_close_pos_60s'] >= 0.7),
+    # ─── round-7 entry_meta-based triggers — ENFORCED 2026-05-13 PM ───
+    'PP_liq_velocity_big_buyers': lambda c: (c.get('liq_velocity_h1_usd_per_txn') is not None
+                                             and c['liq_velocity_h1_usd_per_txn'] >= 135.0),
+    'QQ_net_flow_5m_demand':      lambda c: (c.get('net_flow_5m_usd') is not None
+                                             and c['net_flow_5m_usd'] >= 300.0),
+    'RR_mcap_psych_level':        lambda c: c.get('mcap_near_psych_level') is True,
+    # Filter: should appear in c['blocked_filters'] phantom output (not a positive trigger)
+    'SS_filter_mtf_strong_downtrend': lambda c: (c.get('chart_mtf_score') is None
+                                                 or c.get('chart_mtf_score') > -2.0),
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).

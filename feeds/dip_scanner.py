@@ -4389,6 +4389,89 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] extreme_sweep_1m trigger err: {_e}")
 
+            # ── trigger_liq_velocity_big_buyers — ENFORCED 2026-05-13 PM ─────
+            # Round-7 exhaustive entry_meta mining (576 features tested at
+            # multiple thresholds on n=29 paired). liq_velocity_h1_usd_per_txn
+            # was the strongest discriminator: 6W/0L at threshold $135/txn.
+            # Predicate: avg $ per txn over last 1h >= $135 (big-buyer
+            # presence — high-conviction txn sizes).
+            _trigger_liq_velocity_match = False
+            _trigger_liq_velocity_reasons: list = []
+            try:
+                _lv_h1 = volume_velocity_features.get("liq_velocity_h1_usd_per_txn")
+                if _lv_h1 is not None and float(_lv_h1) >= 135.0:
+                    _trigger_liq_velocity_match = True
+                    _trigger_liq_velocity_reasons.append(
+                        f"liq_velocity_h1_usd_per_txn=${float(_lv_h1):.0f}/txn>=135 "
+                        f"(big-buyer presence)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] liq_velocity trigger err: {_e}")
+
+            # ── trigger_net_flow_5m_demand — ENFORCED 2026-05-13 PM ──────────
+            # Round-7: net_flow_5m_usd >= $300 → 5W/0L = 100% precision.
+            # Predicate: 5-minute USD net buy flow >= $300 (sustained pressure).
+            _trigger_net_flow_5m_match = False
+            _trigger_net_flow_5m_reasons: list = []
+            try:
+                _nf5m = _tier3_features.get("net_flow_5m_usd") if isinstance(_tier3_features, dict) else None
+                if _nf5m is not None and float(_nf5m) >= 300.0:
+                    _trigger_net_flow_5m_match = True
+                    _trigger_net_flow_5m_reasons.append(
+                        f"net_flow_5m_usd=${float(_nf5m):+.0f}>=300 "
+                        f"(sustained 5m net buy pressure)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] net_flow_5m trigger err: {_e}")
+
+            # ── trigger_mcap_psych_level — ENFORCED 2026-05-13 PM ────────────
+            # Round-7: mcap_near_psych_level == True → 5W/0L.
+            # Predicate: token mcap within 5% of $1M/$2M/$5M/$10M/$25M/$50M/$100M.
+            # Computed by feeds.lifecycle_stage.mcap_magnetism — already in entry_meta.
+            _trigger_mcap_psych_match = False
+            _trigger_mcap_psych_reasons: list = []
+            try:
+                _mp = _lifecycle_dict.get("mcap_near_psych_level") if isinstance(_lifecycle_dict, dict) else None
+                if _mp is True:
+                    _trigger_mcap_psych_match = True
+                    _mp_lvl = _lifecycle_dict.get("mcap_nearest_psych_level_usd") or 0
+                    _mp_dist = _lifecycle_dict.get("mcap_distance_to_psych_pct") or 0
+                    _trigger_mcap_psych_reasons.append(
+                        f"mcap_near_psych_level=True (lvl=${_mp_lvl:.0f}, "
+                        f"dist={_mp_dist:.1f}%)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] mcap_psych trigger err: {_e}")
+
+            # ── filter_mtf_strong_downtrend — ENFORCED 2026-05-13 PM ─────────
+            # Round-7: chart_mtf_score <= -2 → 0W/5L. Strong multi-tf
+            # downtrend = block. Even if some trigger fires, this hard filter
+            # overrides because mtf<=-2 means EVERY higher TF is bearish.
+            _filter_mtf_dn_block_reasons: list = []
+            try:
+                _mtf_score = None
+                try:
+                    _mtf_score = _chart_ctx.mtf.get("score") if _chart_ctx else None
+                except Exception:
+                    _mtf_score = None
+                if _mtf_score is not None and float(_mtf_score) <= -2.0:
+                    _filter_mtf_dn_block_reasons.append(
+                        f"chart_mtf_score={float(_mtf_score):.1f}<=-2.0 "
+                        f"(strong multi-tf downtrend)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] mtf_downtrend filter err: {_e}")
+            _filter_mtf_dn_verdict = "BLOCK" if _filter_mtf_dn_block_reasons else "PASS"
+            c[f"filter_mtf_strong_downtrend_{_filter_mtf_dn_verdict.lower()}"] = c.get(
+                f"filter_mtf_strong_downtrend_{_filter_mtf_dn_verdict.lower()}", 0
+            ) + 1
+            if _filter_mtf_dn_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_mtf_strong_downtrend: "
+                    f"{token_symbol} reasons={','.join(_filter_mtf_dn_block_reasons)}"
+                )
+                continue
+
             # ── trigger_mtf_aligned_demand — ENFORCED 2026-05-13 PM ──────────
             # Round-6 mining of entry_meta features (already populated in
             # production — no new fetches). Compound:
@@ -4817,6 +4900,12 @@ class DipScanner:
                 _triggers_fired.append("bullish_engulfing_5m")
             if _trigger_mtf_aligned_demand_match:
                 _triggers_fired.append("mtf_aligned_demand")
+            if _trigger_liq_velocity_match:
+                _triggers_fired.append("liq_velocity_big_buyers")
+            if _trigger_net_flow_5m_match:
+                _triggers_fired.append("net_flow_5m_demand")
+            if _trigger_mcap_psych_match:
+                _triggers_fired.append("mcap_psych_level")
 
             # 1s triggers fire LATER (after 1s feature compute) — allow
             # dippy candidates with NO classic-trigger match to pass this
@@ -4911,6 +5000,12 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_bullish_engulfing_5m_reasons)
                 if _trigger_mtf_aligned_demand_match:
                     _alt_reasons.extend(_trigger_mtf_aligned_demand_reasons)
+                if _trigger_liq_velocity_match:
+                    _alt_reasons.extend(_trigger_liq_velocity_reasons)
+                if _trigger_net_flow_5m_match:
+                    _alt_reasons.extend(_trigger_net_flow_5m_reasons)
+                if _trigger_mcap_psych_match:
+                    _alt_reasons.extend(_trigger_mcap_psych_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -6755,6 +6850,22 @@ class DipScanner:
                 # chart_mtf_score>=0.5 + 1s_close_pos_60s>=0.7; 4W/0L on n=29).
                 "trigger_mtf_aligned_demand_match": _trigger_mtf_aligned_demand_match,
                 "trigger_mtf_aligned_demand_reasons": _trigger_mtf_aligned_demand_reasons,
+                # trigger_liq_velocity_big_buyers — ENFORCED 2026-05-13 PM
+                # (round-7, liq_velocity_h1>=$135/txn; 6W/0L on n=29).
+                "trigger_liq_velocity_match": _trigger_liq_velocity_match,
+                "trigger_liq_velocity_reasons": _trigger_liq_velocity_reasons,
+                # trigger_net_flow_5m_demand — ENFORCED 2026-05-13 PM (round-7,
+                # net_flow_5m_usd>=$300; 5W/0L on n=29).
+                "trigger_net_flow_5m_match": _trigger_net_flow_5m_match,
+                "trigger_net_flow_5m_reasons": _trigger_net_flow_5m_reasons,
+                # trigger_mcap_psych_level — ENFORCED 2026-05-13 PM (round-7,
+                # mcap within 5% of $1M/$2M/$5M/$10M/etc; 5W/0L on n=29).
+                "trigger_mcap_psych_match": _trigger_mcap_psych_match,
+                "trigger_mcap_psych_reasons": _trigger_mcap_psych_reasons,
+                # filter_mtf_strong_downtrend — ENFORCED 2026-05-13 PM (round-7,
+                # blocks chart_mtf_score<=-2; 0W/5L on n=29).
+                "filter_mtf_strong_downtrend_verdict": _filter_mtf_dn_verdict,
+                "filter_mtf_strong_downtrend_block_reasons": _filter_mtf_dn_block_reasons,
                 # filter_topping — SHADOW 2026-05-06 PM (catch knife-catch at peak).
                 "filter_topping_verdict": _filter_topping_verdict,
                 "filter_topping_block_reasons": _filter_topping_block_reasons,
