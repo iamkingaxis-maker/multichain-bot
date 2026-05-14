@@ -368,18 +368,28 @@ class AxiomTrendingScanner:
                     f"returned no data — re-probing"
                 )
                 self._top_path_cached = None
-            # Probe candidates
+            # Probe candidates with EXPLICIT logging so we can see what happens
+            probe_results = []
             for p in _top_paths:
                 try:
                     res = await fetch_axiom_pairs_for_path(self.auth_manager, p)
+                    n = len(res) if res else 0
+                    probe_results.append(f"{p}={n}")
                     if res:
                         self._top_path_cached = p
                         logger.info(
                             f"[AxiomDiscovery] TOP feed DISCOVERED: {p} ({len(res)} pairs) — cached"
                         )
                         return res
-                except Exception:
+                except Exception as e:
+                    probe_results.append(f"{p}=ERR:{type(e).__name__}")
                     continue
+            # Log the full probe result summary so we can see all 22 outcomes
+            logger.info(
+                f"[AxiomDiscovery] TOP probe complete (no hits): "
+                + " | ".join(probe_results[:10])
+                + (f" ... +{len(probe_results)-10} more" if len(probe_results) > 10 else "")
+            )
             return []
 
         # Run trending + top in parallel
