@@ -37,6 +37,57 @@ _HEADERS_BASE = {
 }
 
 
+async def fetch_axiom_pairs_for_path(
+    auth_manager,
+    path: str,
+    timeout_s: float = 8.0,
+) -> List[dict]:
+    """Fetch a single Axiom endpoint by path. Returns normalized pair dicts.
+
+    Helper for fetching from MULTIPLE Axiom feeds (users-trending, top, etc.).
+    """
+    if hasattr(auth_manager, "ensure_valid_token"):
+        try:
+            await auth_manager.ensure_valid_token()
+        except Exception:
+            pass
+    token = _extract_auth_token(auth_manager)
+    if not token:
+        return []
+
+    cookie = f"auth-access-token={token}"
+    headers = {**_HEADERS_BASE, "Cookie": cookie}
+
+    last_status = None
+    async with aiohttp.ClientSession() as session:
+        for server in _AXIOM_SERVERS:
+            try:
+                async with session.get(
+                    f"{server}{path}", headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=timeout_s),
+                ) as resp:
+                    last_status = resp.status
+                    if resp.status == 200:
+                        data = await resp.json(content_type=None)
+                        raw = data if isinstance(data, list) else (data.get("pairs") or [])
+                        out = _normalize(raw)
+                        logger.info(
+                            "[AxiomDiscovery] %s direct %s: %d raw / %d normalized",
+                            path, server.split("//")[-1], len(raw), len(out),
+                        )
+                        return out
+                    if resp.status in (401, 403):
+                        logger.info(
+                            "[AxiomDiscovery] %s direct auth rejected (%s) at %s",
+                            path, resp.status, server,
+                        )
+                        return []
+            except Exception:
+                continue
+
+    return await _fetch_via_worker(path, cookie, timeout_s)
+
+
 async def fetch_axiom_trending_pairs(
     auth_manager,
     time_period: str = "1h",

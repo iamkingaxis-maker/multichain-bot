@@ -293,12 +293,54 @@ class AxiomTrendingScanner:
 
     async def _fetch_axiom_trending(self) -> dict:
         """
-        Hit Axiom /users-trending-v2?timePeriod=1h via auth_manager.
-        Returns a dict keyed by token address so the caller can merge with
-        DexScreener profiles/boosts. Empty on auth failure or no token.
+        Hit Axiom feeds via auth_manager. ENFORCED 2026-05-14 PM: now polls
+        BOTH /users-trending-v2 AND candidate TOP-feed paths in parallel.
+        Merges all into a single dict keyed by token address.
+
+        TOP-feed paths to probe (per user hint: same 1m/5m/1h/24h timePeriod
+        structure as users-trending-v2). First path that returns 200+data
+        wins for the TOP feed; logged so we know which one works.
         """
-        from feeds.axiom_discovery import fetch_axiom_trending_pairs
-        pairs = await fetch_axiom_trending_pairs(self.auth_manager)
+        from feeds.axiom_discovery import (
+            fetch_axiom_trending_pairs,
+            fetch_axiom_pairs_for_path,
+        )
+        import asyncio as _aio
+
+        # Candidate TOP-feed paths (most likely first based on Axiom UI
+        # conventions). Use 1h timePeriod to match trending.
+        _top_paths = [
+            "/users-top-v2?timePeriod=1h",
+            "/top-v2?timePeriod=1h",
+            "/top?timePeriod=1h",
+            "/users-top?timePeriod=1h",
+        ]
+
+        async def _try_top():
+            for p in _top_paths:
+                try:
+                    res = await fetch_axiom_pairs_for_path(self.auth_manager, p)
+                    if res:
+                        logger.info(
+                            f"[AxiomDiscovery] TOP feed discovered: {p} ({len(res)} pairs)"
+                        )
+                        return res
+                except Exception:
+                    continue
+            return []
+
+        # Run trending + top in parallel
+        trending_pairs, top_pairs = await _aio.gather(
+            fetch_axiom_trending_pairs(self.auth_manager),
+            _try_top(),
+            return_exceptions=False,
+        )
+        # Merge — trending wins on duplicates (already-known)
+        pairs = list(top_pairs) + list(trending_pairs)
+        if top_pairs:
+            logger.info(
+                f"[AxiomDiscovery] Merged: trending={len(trending_pairs)} + top={len(top_pairs)} = {len(pairs)} total"
+            )
         out: dict = {}
         for p in pairs:
             addr = (p.get("baseToken") or {}).get("address") or ""
