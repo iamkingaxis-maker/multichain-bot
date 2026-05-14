@@ -1873,11 +1873,19 @@ class DipScanner:
             c[f"filter_turn_{_filter_turn_verdict.lower()}"] = c.get(
                 f"filter_turn_{_filter_turn_verdict.lower()}", 0
             ) + 1
+            # RE-PROMOTED to ENFORCED 2026-05-14 AM. Held-out lifetime
+            # validation on n=34 paired (recent regime, post-all-new-filters)
+            # showed +$16.63 NET SAVE (blocks 10L $-21.18 + 7W $+4.55).
+            # Held-out (excl ANDV/BULLISH): +$15.79. Caught BULLISH
+            # (-$0.75 fast_dud) and ANDV (-$0.84) in shadow mode prior to ship.
+            # Original 5/5 demotion was on different regime; current
+            # filter set has shifted the trade population.
             if _filter_turn_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] filter_turn SHADOW would-block: {token_symbol} "
+                    f"[DipScanner] BLOCKED by filter_turn: {token_symbol} "
                     f"reasons={','.join(_filter_turn_block_reasons)}"
                 )
+                continue
 
             # Filter real-dip-3 — ENFORCED. Validated on the full 540-pair
             # lifetime dataset (held-out test, not the same data the filter
