@@ -2370,6 +2370,27 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] chart_reader error: {_e}")
 
+            # ─── UptrendScanner SHADOW eval (Phase 1, 2026-05-14 evening) ──
+            # Green-tape companion strategy. Evaluates the SAME token here
+            # but with different gate/trigger logic targeting confirmed
+            # uptrend regimes (mtf=bull AND 5m_state=uptrend) — the exact
+            # regime filter_chasing_top rejects below. SHADOW only: logs
+            # WOULD-FIRE / WOULD-BLOCK to {DATA_DIR}/uptrend_shadow.jsonl
+            # without affecting any dip_scanner decision. Fail-open on any
+            # exception — must not break the live dip_buy pipeline.
+            try:
+                from feeds.uptrend_scanner import get_instance as _ut_get
+                _ut_get().evaluate(
+                    token_symbol=token_symbol,
+                    token_address=token_address,
+                    chart_ctx_dict=_chart_ctx_dict,
+                    m1_features=m1_features,
+                    peak_h24_6h_pct=float(peak_h24_6h) if isinstance(peak_h24_6h, (int, float)) else None,
+                    lifecycle_h24_ratio=None,  # not yet computed at this point
+                )
+            except Exception as _ut_e:
+                logger.debug(f"[UptrendScanner] shadow eval error: {_ut_e}")
+
             # ─── DEFERRED FILTER_TURN CHECK ────────────────────────────────
             # filter_turn verdict + big_buyer carve-out were computed earlier.
             # Now that chart_score is available, also check the chart_score

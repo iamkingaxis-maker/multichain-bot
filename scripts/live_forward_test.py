@@ -425,6 +425,53 @@ COMBOS = {
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).
+    # ─── UptrendScanner SHADOW Phase 1 mirrors — 2026-05-14 evening ───
+    # Phantom parity for feeds/uptrend_scanner.py. Predicates PASS when the
+    # corresponding shadow trigger would WOULD-FIRE on this snapshot. All
+    # require the same gates (mtf=bull, 5m_state=uptrend, chart_score>=50).
+    # Fail-closed: missing fields => predicate returns False.
+    # Snapshot enrichment status: chart_mtf_alignment, chart_structure_5m_state,
+    # chart_structure_5m_recent_bos_dir, chart_reaccum_verdict,
+    # chart_trendline_5m_breakout_up, chart_vp_above_poc, chart_pattern_5m_dir,
+    # chart_pattern_5m_conf, chart_sr_5m_at_resistance, chart_score, and
+    # 1m_volume_spike are expected from the existing chart_reader integration.
+    # If any is None at snapshot time, the trigger fails-closed.
+    'AG_uptrend_gates_pass':  lambda c: (
+        c.get('chart_mtf_alignment') in ('bull', 'strong_bull')
+        and c.get('chart_structure_5m_state') == 'uptrend'
+        and c.get('chart_score') is not None and c['chart_score'] >= 50
+    ),
+    'AH_uptrend_breakout_resist': lambda c: (
+        # gates
+        c.get('chart_mtf_alignment') in ('bull', 'strong_bull')
+        and c.get('chart_structure_5m_state') == 'uptrend'
+        and c.get('chart_score') is not None and c['chart_score'] >= 50
+        # trigger T1
+        and c.get('chart_structure_5m_recent_bos_dir') == 'up'
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 1.5
+        and c.get('chart_vp_above_poc') is True
+    ),
+    'AI_uptrend_range_expansion': lambda c: (
+        # gates
+        c.get('chart_mtf_alignment') in ('bull', 'strong_bull')
+        and c.get('chart_structure_5m_state') == 'uptrend'
+        and c.get('chart_score') is not None and c['chart_score'] >= 50
+        # trigger T2
+        and c.get('chart_trendline_5m_breakout_up') is True
+        and c.get('chart_pattern_5m_dir') == 'bullish'
+        and c.get('chart_pattern_5m_conf') is not None and c['chart_pattern_5m_conf'] >= 60
+    ),
+    'AJ_uptrend_continuation': lambda c: (
+        # gates
+        c.get('chart_mtf_alignment') in ('bull', 'strong_bull')
+        and c.get('chart_structure_5m_state') == 'uptrend'
+        and c.get('chart_score') is not None and c['chart_score'] >= 50
+        # trigger T3
+        and c['chart_score'] >= 60
+        and c.get('chart_reaccum_verdict') in ('accum', 'trending')
+        and c.get('chart_sr_5m_at_resistance') is not True
+        and c.get('chart_vp_above_poc') is True
+    ),
 }
 
 
