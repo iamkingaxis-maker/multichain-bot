@@ -1407,14 +1407,13 @@ class Trader:
             if _buy_time_meta:
                 entry_meta = {**_buy_time_meta, **(entry_meta or {})}
 
-            # ── filter_quad SHADOW (logs only, never blocks) ─────────────────
+            # ── filter_quad ENFORCED 2026-05-14 (with big-buyer carve-out) ───
             # 4-component combo identified by combinatorial optimization on the
-            # 2026-05-03 baseline-mode dataset (n=223).  Best robust combo
-            # across both halves of a chronological train/test split:
-            #   TRAIN: 64 kept / 57.8% WR / +$10.38
-            #   TEST:  40 kept / 57.5% WR / +$10.06
-            #   FULL:  104 kept / 57.7% WR [48.0-66.9] / +$20.43 (vs -$72.79 baseline)
-            # Blocks 53% of dip-buy entries — half the trade flow.
+            # 2026-05-03 baseline-mode dataset (n=223). Promoted from shadow
+            # after 1044-trade validation:
+            #   Stability: PASS > BLOCK on 8/9 days (89%), net +$0.35/trade
+            #   Post-May-12 (current production): saves $14/day before carve-out
+            #   Recent 7d (May 2-9): saves $83 (passes lose more than blocks)
             #
             # Components (block when ANY match):
             #   F10 velocity_verdict == "QUIET"             — dead order flow
@@ -1425,10 +1424,12 @@ class Trader:
             # stats (not auto-fitted on a sub-sample — overfit risk minimized).
             # Fail-open on missing inputs (None values).
             #
-            # Shadow only: this code logs the would-be verdict and adds it to
-            # entry_meta but never returns / skips. Promotion to enforced
-            # requires another 200+ trades of held-out validation showing
-            # WR ~ 58% on the kept set.
+            # Carve-out: rescue if liq_velocity_h1_usd_per_txn >= 115 (same
+            # big-buyer carve-out applied to seller-trio filters on 2026-05-09).
+            # On post-May-12 sample this rescues COPPERINU/HANTA/BUFO/Crack
+            # winners while keeping the 11 blocked losers (net +$17.91 vs
+            # naive enforcement +$14.04 — carve-out adds $3.87 in winners
+            # rescued).
             if entry_meta is not None and isinstance(entry_meta, dict):
                 _q_block_reasons: List[str] = []
                 _q_v = entry_meta.get("velocity_verdict")
@@ -1461,14 +1462,30 @@ class Trader:
                             )
                     except Exception:
                         pass
-                _q_verdict = "BLOCK" if _q_block_reasons else "PASS"
+                # Carve-out check: big-buyer rescue.
+                _q_carve_rescued = False
+                if _q_block_reasons:
+                    _q_lvh1 = entry_meta.get("liq_velocity_h1_usd_per_txn")
+                    if isinstance(_q_lvh1, (int, float)) and not isinstance(_q_lvh1, bool):
+                        if _q_lvh1 >= 115:
+                            _q_carve_rescued = True
+                            logger.info(
+                                f"[Trader] filter_quad RESCUED: {token_symbol} "
+                                f"liq_velocity_h1={_q_lvh1:.1f}>=115 "
+                                f"(big-buyer carve-out, would-block: {','.join(_q_block_reasons)})"
+                            )
+                _q_verdict = "BLOCK" if (_q_block_reasons and not _q_carve_rescued) else "PASS"
                 entry_meta["filter_quad_verdict"] = _q_verdict
                 entry_meta["filter_quad_block_reasons"] = _q_block_reasons
-                if _q_verdict == "BLOCK":
+                # Strategy gating: only enforce for dip_buy (this is where the
+                # tuning data came from). scanner/scalp/graduation paths use
+                # different signal pipelines and may have different dynamics.
+                if _q_verdict == "BLOCK" and strategy == "dip_buy":
                     logger.info(
-                        f"[Trader] filter_quad SHADOW would-block: {token_symbol} "
+                        f"[Trader] BLOCKED by filter_quad: {token_symbol} "
                         f"reasons={','.join(_q_block_reasons)}"
                     )
+                    return
 
             # ── filter_quad_robust SHADOW (logs only, never blocks) ──────────
             # 6-component OR-block combo, train/test-validated on the

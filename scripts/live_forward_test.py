@@ -316,6 +316,36 @@ COMBOS = {
                                          or c['net_flow_5m_usd'] >= 0),
     'UU_pass_seller_imbalance': lambda c: (c.get('net_flow_5m_imbalance') is None
                                            or c['net_flow_5m_imbalance'] >= -0.2),
+    # filter_fake_bounce carve-out — ENFORCED 2026-05-14
+    # Pass if NOT (fake_bounce condition AND NOT calm-tape rescue).
+    'VV_pass_fake_bounce_carved': lambda c: not (
+        c.get('1m_last_close_pct') is not None
+        and c.get('1m_volume_spike') is not None
+        and c['1m_last_close_pct'] > 1.75
+        and c['1m_volume_spike'] < 0.30
+        and not (
+            c.get('sells_per_min_recent') is not None
+            and c['sells_per_min_recent'] < 20
+        )
+    ),
+    # filter_quad — PROMOTED to ENFORCED 2026-05-14 with big-buyer carve-out.
+    # 4-component OR-block (velocity_verdict==QUIET, stop_cluster band,
+    # lp_locked band, 1m_volume_spike band) UNLESS liq_velocity_h1>=115.
+    'WW_pass_filter_quad':    lambda c: not (
+        (
+            c.get('velocity_verdict') == 'QUIET'
+            or (c.get('chart_stop_cluster_5m_pct_below') is not None
+                and 1.26 <= c['chart_stop_cluster_5m_pct_below'] < 3.78)
+            or (c.get('lp_locked_pct') is not None
+                and 60.15 <= c['lp_locked_pct'] < 78.90)
+            or (c.get('1m_volume_spike') is not None
+                and 0.31 <= c['1m_volume_spike'] < 0.80)
+        )
+        and not (
+            c.get('liq_velocity_h1_usd_per_txn') is not None
+            and c['liq_velocity_h1_usd_per_txn'] >= 115
+        )
+    ),
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).

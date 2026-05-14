@@ -1722,6 +1722,34 @@ class DipScanner:
                     f"1m_close={_m1_lcp:+.2f}%>1.75 AND "
                     f"1m_vol_spike={_m1_vs:.2f}<0.30 (fake bounce on dead volume)"
                 )
+            # Carve-out 2026-05-14: rescue if sells_per_min_recent < 20.
+            # Mechanism: when overall sell pressure is calm, the "1m green
+            # on dead vol" signal becomes spurious — there's no real
+            # distribution event, so the bounce isn't necessarily fake.
+            # Validation on recent 7d (May 2-9, n=5 fake_bounce blocks):
+            # rescues Goblin (sells/min=7,+$3.72), Trollpface (12,+$1.40),
+            # BELIEVE (0,+$1.49), CHUD (16,+$0.48) — all 4 blocked winners.
+            # Keeps FOFAR (sells/min=26,-$2.14) blocked. Clean separator
+            # with margin (max winner 16 vs loser 26).
+            if _filter_fake_bounce_block_reasons:
+                _fb_spm = None
+                try:
+                    from feeds.trade_velocity import analyze as _fb_tv_analyze
+                    _fb_spm = _fb_tv_analyze(recent_trades or []).get(
+                        "sells_per_min_recent"
+                    )
+                except Exception:
+                    pass
+                if (
+                    isinstance(_fb_spm, (int, float))
+                    and not isinstance(_fb_spm, bool)
+                    and _fb_spm < 20
+                ):
+                    logger.info(
+                        f"[DipScanner] filter_fake_bounce RESCUED: {token_symbol} "
+                        f"sells_per_min_recent={_fb_spm:.1f}<20 (calm tape carve-out)"
+                    )
+                    _filter_fake_bounce_block_reasons = []
             _filter_fake_bounce_verdict = "BLOCK" if _filter_fake_bounce_block_reasons else "PASS"
             c[f"filter_fake_bounce_{_filter_fake_bounce_verdict.lower()}"] = c.get(
                 f"filter_fake_bounce_{_filter_fake_bounce_verdict.lower()}", 0
