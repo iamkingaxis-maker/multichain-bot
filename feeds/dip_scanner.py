@@ -4774,71 +4774,160 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] midcap_bigpump_fresh err: {_e}")
 
-            # ── trigger_overnight_modest_pump_consol — ENFORCED 2026-05-14 ──
-            # Overnight-edge cohort from creative_trigger_research overnight
-            # mining (mine_overnight_cohorts.py): em_bs_h6 in [1.1,1.3) AND
-            # peak_h24_6h_pct in [25,50) AND hour_ct in [3,7).
-            # Lifetime audit (.dataset.pkl):
-            #   - Overnight (19-7 CT) cohort: n=24, 75.0% WR, +$224
-            #   - Daytime cohort: n=51, 41.2% WR, +$98 (delta +33.8pp)
-            # Gated to hour_ct in [3,7) — the profitable pre-dawn slice
-            # within the new 3am-5pm CT trading window (the +$358 lifetime
-            # block per per-hour mining). 8pm-2am CT stays closed via the
-            # window gate in core/trader.py.
+            # Helper: is hour_ct in the full overnight band [19,24) ∪ [0,7)?
+            try:
+                from zoneinfo import ZoneInfo as _ZI
+                _ovn_h = datetime.now(_ZI("America/Chicago")).hour
+                _ovn_active = (19 <= _ovn_h < 24) or (0 <= _ovn_h < 7)
+            except Exception:
+                _ovn_h = -1
+                _ovn_active = False
+
+            # ── trigger_overnight_modest_pump_consol — ENFORCED 2026-05-14 PM ─
+            # LOOSENED 2026-05-14 evening from [3,7) to full overnight [19,7).
+            # Overnight-edge cohort from mine_overnight_cohorts.py: em_bs_h6
+            # in [1.1,1.3) AND peak_h24_6h_pct in [25,50) AND hour_ct in
+            # overnight band. Lifetime audit (.dataset.pkl, 19-7 CT slice):
+            # n=24, 75.0% WR, +$224 vs daytime 41.2% WR, +$98 (Δ +33.8pp).
             _trigger_overnight_modest_pump_consol_match = False
             _trigger_overnight_modest_pump_consol_reasons: list = []
             try:
-                from zoneinfo import ZoneInfo as _ZI
-                _ovn_now_h = datetime.now(_ZI("America/Chicago")).hour
                 _ompc_peak = float(peak_h24_6h) if peak_h24_6h is not None else None
                 _ompc_bsh6 = float(bs_h6) if bs_h6 not in (None, float("inf")) else None
                 if (
-                    3 <= _ovn_now_h < 7
+                    _ovn_active
                     and _ompc_peak is not None and 25 <= _ompc_peak < 50
                     and _ompc_bsh6 is not None and 1.1 <= _ompc_bsh6 < 1.3
                 ):
                     _trigger_overnight_modest_pump_consol_match = True
                     _trigger_overnight_modest_pump_consol_reasons.append(
-                        f"hour_ct={_ovn_now_h} in [3,7) AND peak={_ompc_peak:.0f}% "
-                        f"AND bs_h6={_ompc_bsh6:.2f} (overnight n=24, 75.0%WR, "
-                        f"day-night delta +33.8pp)"
+                        f"hour_ct={_ovn_h} in [19,7) AND peak={_ompc_peak:.0f}% "
+                        f"AND bs_h6={_ompc_bsh6:.2f} (overnight n=24, 75.0%WR, Δ+33.8pp)"
                     )
             except Exception as _e:
                 logger.debug(f"[DipScanner] overnight_modest_pump_consol err: {_e}")
 
-            # ── trigger_overnight_quiet_accumulation — ENFORCED 2026-05-14 ──
-            # Cleanest day-night inversion from overnight mining:
-            # avg_trade_size_h1 in [$60,$100) AND cycles_seen in [30,60) AND
-            # hour_ct in [3,7).
-            # Lifetime audit:
-            #   - Overnight (19-7 CT): n=47, 74.5% WR, +$116
-            #   - Daytime: n=14, 42.9% WR, -$129 (delta +31.6pp, day is LOSER)
-            # Mechanism: mid-size retail trades during low-volume hours
-            # ($60-100 avg = quiet org buying, not whale spikes) on a
-            # token the bot has seen for 30-60 cycles (familiar but not
-            # over-saturated). Pattern works only overnight — fades in
-            # daytime liquidity. Gated to hour_ct in [3,7).
+            # ── trigger_overnight_quiet_accumulation — ENFORCED 2026-05-14 PM ─
+            # LOOSENED 2026-05-14 evening from [3,7) to full overnight [19,7).
+            # avg_trade_size_h1 in [$60,$100) AND cycles_seen in [30,60).
+            # Overnight n=47, 74.5% WR, +$116; daytime n=14, 42.9% WR, -$129
+            # (Δ +31.6pp, day is a LOSER — cleanest inversion in mining).
             _trigger_overnight_quiet_accumulation_match = False
             _trigger_overnight_quiet_accumulation_reasons: list = []
             try:
-                from zoneinfo import ZoneInfo as _ZI
-                _ovn_now_h2 = datetime.now(_ZI("America/Chicago")).hour
                 _oqa_ats = float(avg_trade_size_h1) if avg_trade_size_h1 is not None else None
                 _oqa_cyc = cycles_seen
                 if (
-                    3 <= _ovn_now_h2 < 7
+                    _ovn_active
                     and _oqa_ats is not None and 60 <= _oqa_ats < 100
                     and isinstance(_oqa_cyc, (int, float))
                     and 30 <= _oqa_cyc < 60
                 ):
                     _trigger_overnight_quiet_accumulation_match = True
                     _trigger_overnight_quiet_accumulation_reasons.append(
-                        f"hour_ct={_ovn_now_h2} in [3,7) AND avg_trade=${_oqa_ats:.0f} "
-                        f"AND cycles={int(_oqa_cyc)} (overnight n=47, 74.5%WR, "
-                        f"day-night delta +31.6pp; daytime loses -$129)"
+                        f"hour_ct={_ovn_h} in [19,7) AND avg_trade=${_oqa_ats:.0f} "
+                        f"AND cycles={int(_oqa_cyc)} (overnight n=47, 74.5%WR, Δ+31.6pp)"
                     )
             except Exception as _e:
                 logger.debug(f"[DipScanner] overnight_quiet_accumulation err: {_e}")
+
+            # ── trigger_overnight_fresh_small_pump — ENFORCED 2026-05-14 PM ─
+            # Rank-1 from mine_overnight_cohorts.py: peak_h24_6h in [25,50)
+            # AND cycles_seen in [10,30). Overnight n=14, 71.4% WR, +$226
+            # vs daytime 48.0% WR, +$175 (Δ +23.4pp). Mechanism: small-pump
+            # token freshly discovered (10-30 cycles seen) in overnight band.
+            _trigger_overnight_fresh_small_pump_match = False
+            _trigger_overnight_fresh_small_pump_reasons: list = []
+            try:
+                _ofsp_peak = float(peak_h24_6h) if peak_h24_6h is not None else None
+                _ofsp_cyc = cycles_seen
+                if (
+                    _ovn_active
+                    and _ofsp_peak is not None and 25 <= _ofsp_peak < 50
+                    and isinstance(_ofsp_cyc, (int, float))
+                    and 10 <= _ofsp_cyc < 30
+                ):
+                    _trigger_overnight_fresh_small_pump_match = True
+                    _trigger_overnight_fresh_small_pump_reasons.append(
+                        f"hour_ct={_ovn_h} in [19,7) AND peak={_ofsp_peak:.0f}% "
+                        f"AND cycles={int(_ofsp_cyc)} (overnight n=14, 71.4%WR, Δ+23.4pp)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] overnight_fresh_small_pump err: {_e}")
+
+            # ── trigger_overnight_quality_old — ENFORCED 2026-05-14 PM ──────
+            # Rank-3 from mining: bs_h6 in [1.1,1.3) AND entry_age_hours
+            # >= 720h (~30 days). Overnight n=66 (largest sample!), 63.6%
+            # WR, +$189 vs daytime 43.3% WR, +$291 (Δ +20.4pp).
+            # Mechanism: mature, established memecoin with mild but
+            # sustained 6h buy pressure during overnight hours.
+            _trigger_overnight_quality_old_match = False
+            _trigger_overnight_quality_old_reasons: list = []
+            try:
+                _oqo_bsh6 = float(bs_h6) if bs_h6 not in (None, float("inf")) else None
+                _oqo_age = entry_age_hours if "entry_age_hours" in dir() else None
+                if _oqo_age is None:
+                    _oqo_age = (_tier3_features or {}).get("hours_since_graduation")
+                if (
+                    _ovn_active
+                    and _oqo_bsh6 is not None and 1.1 <= _oqo_bsh6 < 1.3
+                    and isinstance(_oqo_age, (int, float)) and _oqo_age >= 720
+                ):
+                    _trigger_overnight_quality_old_match = True
+                    _trigger_overnight_quality_old_reasons.append(
+                        f"hour_ct={_ovn_h} in [19,7) AND bs_h6={_oqo_bsh6:.2f} "
+                        f"AND age={_oqo_age:.0f}h>=720h (overnight n=66, 63.6%WR, Δ+20.4pp)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] overnight_quality_old err: {_e}")
+
+            # ── trigger_overnight_micropump_buyers — ENFORCED 2026-05-14 PM ─
+            # Rank-8 from mining: bs_h1 in [0.9,1.1) AND peak_h24_6h in
+            # [0,25). Overnight n=25, 60.0% WR, +$111 vs daytime 33.3%
+            # WR, +$5 (Δ +26.7pp — biggest WR gap among shipped).
+            # Mechanism: small-pump (<25%) token with balanced 1h buy/sell
+            # ratio during overnight — finds the actual range traders.
+            _trigger_overnight_micropump_buyers_match = False
+            _trigger_overnight_micropump_buyers_reasons: list = []
+            try:
+                _omb_bsh1 = float(bs_h1) if bs_h1 not in (None, float("inf")) else None
+                _omb_peak = float(peak_h24_6h) if peak_h24_6h is not None else None
+                if (
+                    _ovn_active
+                    and _omb_bsh1 is not None and 0.9 <= _omb_bsh1 < 1.1
+                    and _omb_peak is not None and 0 <= _omb_peak < 25
+                ):
+                    _trigger_overnight_micropump_buyers_match = True
+                    _trigger_overnight_micropump_buyers_reasons.append(
+                        f"hour_ct={_ovn_h} in [19,7) AND bs_h1={_omb_bsh1:.2f} "
+                        f"AND peak={_omb_peak:.0f}%<25 (overnight n=25, 60.0%WR, Δ+26.7pp)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] overnight_micropump_buyers err: {_e}")
+
+            # ── trigger_overnight_mature_midcap — ENFORCED 2026-05-14 PM ────
+            # Rank-10 from mining: cycles_seen in [60,150) AND
+            # entry_market_cap_usd in [$2M, $10M). Overnight n=50, 66.0%
+            # WR, +$108 vs daytime 47.8% WR, -$83 (Δ +18.2pp, daytime is
+            # net LOSER on the same cohort).
+            _trigger_overnight_mature_midcap_match = False
+            _trigger_overnight_mature_midcap_reasons: list = []
+            try:
+                _omm_cyc = cycles_seen
+                _omm_mc = float(mcap) if mcap is not None else None
+                if (
+                    _ovn_active
+                    and isinstance(_omm_cyc, (int, float))
+                    and 60 <= _omm_cyc < 150
+                    and _omm_mc is not None and 2_000_000 <= _omm_mc < 10_000_000
+                ):
+                    _trigger_overnight_mature_midcap_match = True
+                    _trigger_overnight_mature_midcap_reasons.append(
+                        f"hour_ct={_ovn_h} in [19,7) AND cycles={int(_omm_cyc)} "
+                        f"AND mcap=${_omm_mc/1e6:.1f}M (overnight n=50, 66.0%WR, Δ+18.2pp)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] overnight_mature_midcap err: {_e}")
 
             # ── trigger_whale_conviction — ENFORCED 2026-05-14 PM (Commit C) ─
             # Positive entry trigger from 35-angle deep mining. Fires on:
@@ -5488,6 +5577,14 @@ class DipScanner:
                 _triggers_fired.append("overnight_modest_pump_consol")
             if _trigger_overnight_quiet_accumulation_match:
                 _triggers_fired.append("overnight_quiet_accumulation")
+            if _trigger_overnight_fresh_small_pump_match:
+                _triggers_fired.append("overnight_fresh_small_pump")
+            if _trigger_overnight_quality_old_match:
+                _triggers_fired.append("overnight_quality_old")
+            if _trigger_overnight_micropump_buyers_match:
+                _triggers_fired.append("overnight_micropump_buyers")
+            if _trigger_overnight_mature_midcap_match:
+                _triggers_fired.append("overnight_mature_midcap")
 
             # 1s triggers fire LATER (after 1s feature compute) — allow
             # dippy candidates with NO classic-trigger match to pass this
@@ -5608,6 +5705,14 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_overnight_modest_pump_consol_reasons)
                 if _trigger_overnight_quiet_accumulation_match:
                     _alt_reasons.extend(_trigger_overnight_quiet_accumulation_reasons)
+                if _trigger_overnight_fresh_small_pump_match:
+                    _alt_reasons.extend(_trigger_overnight_fresh_small_pump_reasons)
+                if _trigger_overnight_quality_old_match:
+                    _alt_reasons.extend(_trigger_overnight_quality_old_reasons)
+                if _trigger_overnight_micropump_buyers_match:
+                    _alt_reasons.extend(_trigger_overnight_micropump_buyers_reasons)
+                if _trigger_overnight_mature_midcap_match:
+                    _alt_reasons.extend(_trigger_overnight_mature_midcap_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -7767,6 +7872,14 @@ class DipScanner:
                 "trigger_overnight_modest_pump_consol_reasons": _trigger_overnight_modest_pump_consol_reasons,
                 "trigger_overnight_quiet_accumulation_match": _trigger_overnight_quiet_accumulation_match,
                 "trigger_overnight_quiet_accumulation_reasons": _trigger_overnight_quiet_accumulation_reasons,
+                "trigger_overnight_fresh_small_pump_match": _trigger_overnight_fresh_small_pump_match,
+                "trigger_overnight_fresh_small_pump_reasons": _trigger_overnight_fresh_small_pump_reasons,
+                "trigger_overnight_quality_old_match": _trigger_overnight_quality_old_match,
+                "trigger_overnight_quality_old_reasons": _trigger_overnight_quality_old_reasons,
+                "trigger_overnight_micropump_buyers_match": _trigger_overnight_micropump_buyers_match,
+                "trigger_overnight_micropump_buyers_reasons": _trigger_overnight_micropump_buyers_reasons,
+                "trigger_overnight_mature_midcap_match": _trigger_overnight_mature_midcap_match,
+                "trigger_overnight_mature_midcap_reasons": _trigger_overnight_mature_midcap_reasons,
                 # SHADOW 2026-05-14 PM — cascade-V-bottom catcher. BURNIE-grounded.
                 "trigger_cascade_v_bottom_match": _trigger_cascade_v_bottom_match,
                 "trigger_cascade_v_bottom_reasons": _trigger_cascade_v_bottom_reasons,

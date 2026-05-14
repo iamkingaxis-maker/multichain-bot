@@ -492,12 +492,11 @@ COMBOS = {
         and c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
         and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 1000
     ),
-    # ─── Overnight-edge triggers — phantom parity 2026-05-14 ────────
-    # mine_overnight_cohorts.py surfaced these as overnight-specific.
-    # Gate: hour_ct in [3,7) (the profitable pre-dawn slice within the
-    # new 3am-5pm CT trading window).
+    # ─── Overnight-edge triggers — phantom parity 2026-05-14 PM ────────
+    # mine_overnight_cohorts.py — gate is full overnight band
+    # hour_ct in [19, 24) ∪ [0, 7). All 6 mirror production.
     'AR_overnight_modest_pump_consol': lambda c: (
-        (lambda _h: 3 <= _h < 7)(
+        (lambda _h: (19 <= _h < 24) or (0 <= _h < 7))(
             __import__('datetime').datetime.now(
                 __import__('zoneinfo').ZoneInfo('America/Chicago')
             ).hour
@@ -506,13 +505,50 @@ COMBOS = {
         and c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
     ),
     'AS_overnight_quiet_accumulation': lambda c: (
-        (lambda _h: 3 <= _h < 7)(
+        (lambda _h: (19 <= _h < 24) or (0 <= _h < 7))(
             __import__('datetime').datetime.now(
                 __import__('zoneinfo').ZoneInfo('America/Chicago')
             ).hour
         )
         and c.get('avg_trade_size_h1_usd') is not None and 60 <= c['avg_trade_size_h1_usd'] < 100
         and c.get('cycles_seen') is not None and 30 <= c['cycles_seen'] < 60
+    ),
+    'AU_overnight_fresh_small_pump': lambda c: (
+        (lambda _h: (19 <= _h < 24) or (0 <= _h < 7))(
+            __import__('datetime').datetime.now(
+                __import__('zoneinfo').ZoneInfo('America/Chicago')
+            ).hour
+        )
+        and c.get('peak_h24_6h_pct') is not None and 25 <= c['peak_h24_6h_pct'] < 50
+        and c.get('cycles_seen') is not None and 10 <= c['cycles_seen'] < 30
+    ),
+    'AV_overnight_quality_old': lambda c: (
+        (lambda _h: (19 <= _h < 24) or (0 <= _h < 7))(
+            __import__('datetime').datetime.now(
+                __import__('zoneinfo').ZoneInfo('America/Chicago')
+            ).hour
+        )
+        and c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
+        and c.get('hours_since_graduation') is not None
+        and c['hours_since_graduation'] >= 720
+    ),
+    'AW_overnight_micropump_buyers': lambda c: (
+        (lambda _h: (19 <= _h < 24) or (0 <= _h < 7))(
+            __import__('datetime').datetime.now(
+                __import__('zoneinfo').ZoneInfo('America/Chicago')
+            ).hour
+        )
+        and c.get('bs_h1') is not None and 0.9 <= c['bs_h1'] < 1.1
+        and c.get('peak_h24_6h_pct') is not None and 0 <= c['peak_h24_6h_pct'] < 25
+    ),
+    'AX_overnight_mature_midcap': lambda c: (
+        (lambda _h: (19 <= _h < 24) or (0 <= _h < 7))(
+            __import__('datetime').datetime.now(
+                __import__('zoneinfo').ZoneInfo('America/Chicago')
+            ).hour
+        )
+        and c.get('cycles_seen') is not None and 60 <= c['cycles_seen'] < 150
+        and c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
     ),
     # ─── Cascade V-bottom — phantom parity 2026-05-14 PM ───────────────
     # Mirror of trigger_cascade_v_bottom SHADOW (dip_scanner.py).
