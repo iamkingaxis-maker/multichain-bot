@@ -126,7 +126,12 @@ class AxiomTrendingScanner:
                 self._pre_gate_dedupe = {
                     k: v for k, v in self._pre_gate_dedupe.items() if v > cutoff
                 }
-            data_dir = _os.environ.get('DATA_DIR', '/data')
+            # Persistence fix 2026-05-14: try DATA_DIR, fallback to . if write fails.
+            # Earlier deploys had silent failure when DATA_DIR was unwritable or
+            # didn't exist. Now we try /data first, fall back to cwd, and log
+            # at INFO when the recorder first writes successfully (so we can
+            # confirm it's running and where).
+            data_dir = _os.environ.get('DATA_DIR') or '/data'
             path = _os.path.join(data_dir, 'pre_gate_events.jsonl')
             record = {
                 'ts': _dt2.now(_tz.utc).isoformat(),
@@ -137,10 +142,34 @@ class AxiomTrendingScanner:
                 'outcome': outcome,
                 'micro_cap_path': micro_cap_path,
             }
-            with open(path, 'a') as f:
-                f.write(_json.dumps(record) + '\n')
+            try:
+                with open(path, 'a') as f:
+                    f.write(_json.dumps(record) + '\n')
+            except (PermissionError, FileNotFoundError, OSError) as _io_err:
+                # Fall back to cwd / pre_gate_events.jsonl if /data fails
+                _fallback = 'pre_gate_events.jsonl'
+                with open(_fallback, 'a') as f:
+                    f.write(_json.dumps(record) + '\n')
+                if not getattr(self, '_pregate_path_logged', False):
+                    logger.warning(
+                        f'[PreGateRecorder] {path} unwritable ({_io_err}) — '
+                        f'falling back to cwd ({_os.path.abspath(_fallback)})'
+                    )
+                    self._pregate_path_logged = True
+                return
+            # First-write confirmation (one-time log so we know recorder is alive)
+            if not getattr(self, '_pregate_path_logged', False):
+                try:
+                    _size = _os.path.getsize(path)
+                except Exception:
+                    _size = -1
+                logger.info(
+                    f'[PreGateRecorder] writing to {path} (size={_size}b after this write)'
+                )
+                self._pregate_path_logged = True
         except Exception as _e:
-            logger.debug(f'[PreGateRecorder] error: {_e}')
+            # Promoted from debug → warning so silent failures are visible.
+            logger.warning(f'[PreGateRecorder] error: {_e}')
 
     async def run(self):
         """Main polling loop. Runs forever with exponential backoff on errors."""

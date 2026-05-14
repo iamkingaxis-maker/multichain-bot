@@ -2327,13 +2327,17 @@ class WebDashboard:
         """
         import os as _os
         cors = {"Access-Control-Allow-Origin": "*"}
-        data_dir = _os.environ.get('DATA_DIR', '.')
+        # Try DATA_DIR first, fall back to cwd (matches recorder behavior).
+        data_dir = _os.environ.get('DATA_DIR') or '/data'
         path = _os.path.join(data_dir, 'pre_gate_events.jsonl')
-
         if not _os.path.exists(path):
-            return web.Response(
-                text=json.dumps({"exists": False, "path": path}),
-                content_type="application/json", headers=cors)
+            fallback = 'pre_gate_events.jsonl'
+            if _os.path.exists(fallback):
+                path = fallback
+            else:
+                return web.Response(
+                    text=json.dumps({"exists": False, "checked_paths": [path, fallback]}),
+                    content_type="application/json", headers=cors)
 
         if request.query.get('stats') == '1':
             try:
