@@ -1770,6 +1770,45 @@ class PositionManager:
                                 )
                             return
 
+            # ── DIP PRE-TP1 LOCK-IN TRAIL — NEW 2026-05-14 ────────────
+            # User-requested smart TP after COPIUM (2026-05-14 12:03) peaked
+            # near TP1 then reversed without hitting it. Current logic has
+            # no protection between +3% and TP1 — a 4% peak followed by
+            # reversal rides all the way to -7% stop.
+            #
+            # Trigger: peak >= +3% AND price drops 1.5pp from peak (and
+            # tp1 not yet hit). Sells 100% to lock in whatever gain remains.
+            #
+            # Lifetime evidence: 2 trades had peak 3-5% and went to -7% stop
+            # (DISCLOSURE peak +3.7% → -8.1%; CHINA peak +3.1% → -8.3%).
+            # Smart trail would have saved $+4.05 on these alone.
+            #
+            # Why 1.5pp drop: at +3% peak, 1.5pp drop = +1.5% exit (still
+            # positive). At +4% peak, exit at +2.5%. At +4.9% peak, exit
+            # at +3.4%. Captures meaningful gain while letting normal
+            # volatility breathe.
+            _PRE_TP1_MIN_PEAK = 3.0
+            _PRE_TP1_DROP_PP = 1.5
+            _peak_gain_pre_tp1 = (
+                (state.peak_price - state.entry_price) / state.entry_price * 100
+                if state.entry_price > 0 else 0
+            )
+            if (not state.tp1_hit
+                    and state.peak_price > 0 and state.entry_price > 0
+                    and _peak_gain_pre_tp1 >= _PRE_TP1_MIN_PEAK
+                    and pnl_pct <= _peak_gain_pre_tp1 - _PRE_TP1_DROP_PP):
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] 🔒 DIP PRE-TP1 TRAIL: "
+                    f"{state.token_symbol} peaked at +{_peak_gain_pre_tp1:.1f}% "
+                    f"now at {pnl_pct:+.1f}% (drop ≥ {_PRE_TP1_DROP_PP}pp from peak >= {_PRE_TP1_MIN_PEAK}%)"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=1.0,
+                    reason=f"Dip pre-TP1 trail +{pnl_pct:.1f}% (peak +{_peak_gain_pre_tp1:.1f}%)"
+                )
+                return
+
             # ── DIP POST-TP1 TRAIL — restored 2026-05-04 ──────────────
             # After TP1 fires (sells 50%), if the remaining 50% peaks then
             # retraces dip_winner_trail_pct (default 3.5%) from peak, exit
