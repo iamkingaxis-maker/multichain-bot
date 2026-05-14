@@ -6653,6 +6653,100 @@ class DipScanner:
                     f"{token_symbol} liq_velocity_h1=${_lv_h1_nf:.0f}/txn>=115"
                 )
 
+            # Helper: compute big-buyer carve-out for the new filter block
+            # below. Same logic as filter_seller_imbalance / filter_neg_nf5m.
+            def _big_buyer_rescued() -> tuple:
+                """Return (rescued: bool, lvh1: float|None)."""
+                try:
+                    _txn_b = int((txns_h1 or {}).get("buys") or 0)
+                    _txn_s = int((txns_h1 or {}).get("sells") or 0)
+                    _txn_t = _txn_b + _txn_s
+                    if _txn_t > 0 and vol_h1:
+                        _lv = float(vol_h1) / _txn_t
+                        return (_lv >= 115, _lv)
+                except Exception:
+                    pass
+                return (False, None)
+
+            # ── filter_above_vwap_chase ENFORCED 2026-05-14 PM ─────────────
+            # Blocks entries that are 10-30% ABOVE the 24h VWAP — classic
+            # "chasing local strength" loser pattern. Mined on n=105 paired
+            # (TRAIN -$0.52/tr, TEST -$1.31/tr — gets STRONGER on held-out).
+            # 38-42% WR vs ~50% baseline.
+            #
+            # Mechanism: VWAP_h24 is the average price weighted by volume
+            # over 24h. Entering at +10-30% above VWAP means buying at a
+            # local high; mean reversion punishes these entries. Below VWAP
+            # (-20% to 0%) is the sweet spot for dip entry.
+            #
+            # Carve-out: liq_velocity_h1>=115 big-buyer rescue.
+            _filter_avc_block_reasons: list = []
+            _avc_vwap = vwap_features.get("pct_above_vwap_h24") if isinstance(vwap_features, dict) else None
+            if _avc_vwap is not None:
+                try:
+                    if 10.0 <= float(_avc_vwap) < 30.0:
+                        _filter_avc_block_reasons.append(
+                            f"pct_above_vwap_h24={float(_avc_vwap):+.1f}%∈[+10,+30) "
+                            f"(chasing local strength)"
+                        )
+                except Exception:
+                    pass
+            _filter_avc_verdict = "BLOCK" if _filter_avc_block_reasons else "PASS"
+            c[f"filter_above_vwap_chase_{_filter_avc_verdict.lower()}"] = c.get(
+                f"filter_above_vwap_chase_{_filter_avc_verdict.lower()}", 0
+            ) + 1
+            _avc_rescued, _avc_lvh1 = _big_buyer_rescued()
+            if _filter_avc_verdict == "BLOCK" and not _avc_rescued:
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_above_vwap_chase: "
+                    f"{token_symbol} reasons={','.join(_filter_avc_block_reasons)}"
+                )
+                continue
+            elif _filter_avc_verdict == "BLOCK" and _avc_rescued:
+                logger.info(
+                    f"[DipScanner] filter_above_vwap_chase rescued by big_buyer: "
+                    f"{token_symbol} liq_velocity_h1=${_avc_lvh1:.0f}/txn>=115"
+                )
+
+            # ── filter_knife_catch_peak ENFORCED 2026-05-14 PM ─────────────
+            # Blocks entries when h24_ratio_to_peak ∈ [0.85, 1.0) — token is
+            # within 15% of its 24h high (knife-catching the local peak).
+            # Mined on n=100 paired (TRAIN -$0.20/tr, TEST -$2.54/tr — held-
+            # out shows 7% WR on n=14 — MUCH stronger held-out).
+            #
+            # Mechanism: entering at 85-100% of the 24h peak means the
+            # token is at or very near its recent high. Memecoins at fresh
+            # highs almost always fade as profit-taking kicks in. Sweet
+            # spot for dip entry is [0.6, 0.85] (mid-fade, 56-58% WR).
+            #
+            # Carve-out: liq_velocity_h1>=115 big-buyer rescue.
+            _filter_kcp_block_reasons: list = []
+            try:
+                _kcp_ratio = (pc_h24 / float(peak_h24_6h)) if float(peak_h24_6h or 0) > 0 else None
+                if _kcp_ratio is not None and 0.85 <= _kcp_ratio < 1.0:
+                    _filter_kcp_block_reasons.append(
+                        f"h24_ratio_to_peak={_kcp_ratio:.2f}∈[0.85,1.0) "
+                        f"(knife-catching local peak)"
+                    )
+            except Exception:
+                pass
+            _filter_kcp_verdict = "BLOCK" if _filter_kcp_block_reasons else "PASS"
+            c[f"filter_knife_catch_peak_{_filter_kcp_verdict.lower()}"] = c.get(
+                f"filter_knife_catch_peak_{_filter_kcp_verdict.lower()}", 0
+            ) + 1
+            _kcp_rescued, _kcp_lvh1 = _big_buyer_rescued()
+            if _filter_kcp_verdict == "BLOCK" and not _kcp_rescued:
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_knife_catch_peak: "
+                    f"{token_symbol} reasons={','.join(_filter_kcp_block_reasons)}"
+                )
+                continue
+            elif _filter_kcp_verdict == "BLOCK" and _kcp_rescued:
+                logger.info(
+                    f"[DipScanner] filter_knife_catch_peak rescued by big_buyer: "
+                    f"{token_symbol} liq_velocity_h1=${_kcp_lvh1:.0f}/txn>=115"
+                )
+
             # ── Volume velocity features (2026-05-10) ──
             # Hypothesis: dips into rising-volume regimes win; dips into
             # decaying-volume regimes round-trip. We have vol_h1, vol_h6, and
@@ -7005,6 +7099,16 @@ class DipScanner:
                 # (blocks net_flow_5m_usd<0; +$19.66 lifetime save on n=34).
                 "filter_negative_net_flow_5m_verdict": _filter_neg_nf5m_verdict,
                 "filter_negative_net_flow_5m_block_reasons": _filter_neg_nf5m_block_reasons,
+                # filter_above_vwap_chase — ENFORCED 2026-05-14 PM (blocks
+                # pct_above_vwap_h24 ∈ [+10, +30); n=105 lifetime, stronger
+                # held-out at -$1.31/tr vs -$0.52 train).
+                "filter_above_vwap_chase_verdict": _filter_avc_verdict,
+                "filter_above_vwap_chase_block_reasons": _filter_avc_block_reasons,
+                # filter_knife_catch_peak — ENFORCED 2026-05-14 PM (blocks
+                # h24_ratio_to_peak ∈ [0.85, 1.0); n=100 lifetime, 7% WR on
+                # n=14 held-out test).
+                "filter_knife_catch_peak_verdict": _filter_kcp_verdict,
+                "filter_knife_catch_peak_block_reasons": _filter_kcp_block_reasons,
                 # filter_topping — SHADOW 2026-05-06 PM (catch knife-catch at peak).
                 "filter_topping_verdict": _filter_topping_verdict,
                 "filter_topping_block_reasons": _filter_topping_block_reasons,

@@ -328,6 +328,39 @@ COMBOS = {
             and c['sells_per_min_recent'] < 20
         )
     ),
+    # filter_top10_holder_band — ENFORCED 2026-05-14 PM (Commit A).
+    # Block top10_holder_pct ∈ [70, 80) UNLESS liq_velocity_h1>=115.
+    'XX_pass_top10_holder_band': lambda c: not (
+        c.get('top10_holder_pct') is not None
+        and 70.0 <= c['top10_holder_pct'] < 80.0
+        and not (
+            c.get('liq_velocity_h1_usd_per_txn') is not None
+            and c['liq_velocity_h1_usd_per_txn'] >= 115
+        )
+    ),
+    # filter_above_vwap_chase — ENFORCED 2026-05-14 PM (Commit A).
+    # Block pct_above_vwap_h24 ∈ [+10, +30) UNLESS liq_velocity_h1>=115.
+    'YY_pass_above_vwap_chase': lambda c: not (
+        c.get('pct_above_vwap_h24') is not None
+        and 10.0 <= c['pct_above_vwap_h24'] < 30.0
+        and not (
+            c.get('liq_velocity_h1_usd_per_txn') is not None
+            and c['liq_velocity_h1_usd_per_txn'] >= 115
+        )
+    ),
+    # filter_knife_catch_peak — ENFORCED 2026-05-14 PM (Commit A).
+    # Block h24_ratio_to_peak ∈ [0.85, 1.0) UNLESS liq_velocity_h1>=115.
+    # h24_ratio not in phantom snapshot — derive from pc_h24/peak_h24_6h_pct.
+    'ZZ_pass_knife_catch_peak': lambda c: not (
+        c.get('pc_h24') is not None
+        and c.get('peak_h24_6h_pct') is not None
+        and c['peak_h24_6h_pct'] > 0
+        and 0.85 <= (c['pc_h24'] / c['peak_h24_6h_pct']) < 1.0
+        and not (
+            c.get('liq_velocity_h1_usd_per_txn') is not None
+            and c['liq_velocity_h1_usd_per_txn'] >= 115
+        )
+    ),
     # filter_quad — PROMOTED to ENFORCED 2026-05-14 with big-buyer carve-out.
     # 4-component OR-block (velocity_verdict==QUIET, stop_cluster band,
     # lp_locked band, 1m_volume_spike band) UNLESS liq_velocity_h1>=115.

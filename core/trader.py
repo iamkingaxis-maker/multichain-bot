@@ -1487,6 +1487,54 @@ class Trader:
                     )
                     return
 
+            # ── filter_top10_holder_band ENFORCED 2026-05-14 PM ───────────────
+            # Insider-zone holder concentration: top 10 holders own 70-80% of
+            # supply. Mined on n=107 paired (TRAIN -$1.08/tr, TEST -$1.21/tr,
+            # 45% WR both periods). Stable held-out, large sample.
+            #
+            # Mechanism: tokens with top10 in the 70-80% band are deep enough
+            # to suggest insider control but not so high (80%+) that the bag
+            # is clearly held by a single committed wallet. The 70-80% band is
+            # the "mid-insider" sweet spot where insider dumps are common.
+            # [0,30) is clean distribution. [80+) is single-whale conviction
+            # (62% WR, +$0.50/tr in mining — a different regime, do NOT block).
+            #
+            # Carve-out: rescue if liq_velocity_h1_usd_per_txn >= 115 (same
+            # big-buyer carve-out as filter_quad/seller-trio). Validation on
+            # post-May-12 production: blocks only 1 winner (COPPERINU +$0.69,
+            # rescued by carve-out since lvh1=251).
+            if entry_meta is not None and isinstance(entry_meta, dict):
+                _t10b_block_reasons: List[str] = []
+                _t10b_t10 = entry_meta.get("top10_holder_pct")
+                if _t10b_t10 is not None:
+                    try:
+                        if 70.0 <= float(_t10b_t10) < 80.0:
+                            _t10b_block_reasons.append(
+                                f"top10_holder_pct={float(_t10b_t10):.2f}∈[70,80) "
+                                f"(insider-zone band)"
+                            )
+                    except Exception:
+                        pass
+                _t10b_carve_rescued = False
+                if _t10b_block_reasons:
+                    _t10b_lvh1 = entry_meta.get("liq_velocity_h1_usd_per_txn")
+                    if isinstance(_t10b_lvh1, (int, float)) and not isinstance(_t10b_lvh1, bool):
+                        if _t10b_lvh1 >= 115:
+                            _t10b_carve_rescued = True
+                            logger.info(
+                                f"[Trader] filter_top10_holder_band RESCUED: {token_symbol} "
+                                f"liq_velocity_h1={_t10b_lvh1:.1f}>=115 (big-buyer carve-out)"
+                            )
+                _t10b_verdict = "BLOCK" if (_t10b_block_reasons and not _t10b_carve_rescued) else "PASS"
+                entry_meta["filter_top10_holder_band_verdict"] = _t10b_verdict
+                entry_meta["filter_top10_holder_band_block_reasons"] = _t10b_block_reasons
+                if _t10b_verdict == "BLOCK" and strategy == "dip_buy":
+                    logger.info(
+                        f"[Trader] BLOCKED by filter_top10_holder_band: {token_symbol} "
+                        f"reasons={','.join(_t10b_block_reasons)}"
+                    )
+                    return
+
             # ── filter_quad_robust SHADOW (logs only, never blocks) ──────────
             # 6-component OR-block combo, train/test-validated on the
             # 2026-05-03 baseline-mode dataset (n=223). Stronger signal than
