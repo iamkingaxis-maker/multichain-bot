@@ -148,6 +148,19 @@ class DipScanner:
         )
         self._h24_history_dirty = False
         self._load_h24_history()
+        # Sticky watchlist — keep tokens we've seen on trending feeds for 12h
+        # even after they drop off. Solves the BURNIE-class universe gap:
+        # 2026-05-14 BURNIE first appeared in scanner at 11:29 CT, missing
+        # three +6-11% V-bottom rallies at 04:10/05:25/07:55 CT. With sticky
+        # watchlist BURNIE would have been re-scanned every cycle from the
+        # moment it first entered the universe.
+        # Format: addr -> {pair, last_seen_ts}. TTL 12h. Persisted to disk.
+        self._sticky_watchlist: Dict[str, dict] = {}
+        self._sticky_ttl_secs = 12 * 3600
+        self._sticky_path = os.path.join(
+            os.environ.get("DATA_DIR", "/data"), "sticky_watchlist.json"
+        )
+        self._load_sticky()
         # Tier 3: optional AxiomPriceFeed for sub-minute tick buffer reads.
         # Set externally via `dip_scanner.axiom_price_feed = axiom.price_feed`.
         # If present, we pre-subscribe candidates that pass core filters and
@@ -4878,6 +4891,49 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] whale_conviction trigger err: {_e}")
 
+            # ── trigger_cascade_v_bottom — SHADOW 2026-05-14 PM ─────────────
+            # Catches V-bottoms after a violent 1m cascade. Ground-truth from
+            # BURNIE 2026-05-14 15:53:18 CT: after the 15:50 -5.12% cascade
+            # ($8k vol, 1m_vs ~5x), 1s bars at 15:53:18 had cum_30s=+1.20%,
+            # close_pos_60s=0.99, vol_burst_30s=2.6x. Recovery: +2.4% in 33s,
+            # peak +7.3% within 30s. Same morphology observed at 04:10,
+            # 05:25, 07:55 CT this morning (5m -5 to -8% drops then
+            # +6-11% V-recoveries) but DexScreener API doesn't expose 1s
+            # data >2h old so threshold is set conservatively (n=1 confirmed).
+            #
+            # Predicate (compound):
+            #   1m_cum_3min_pct <= -3.0  (recent dramatic 1m dump)
+            #   AND 1m_volume_spike >= 3.0  (real volume cascade — not slow bleed)
+            #   AND 1s_close_pos_60s >= 0.85  (close in top 15% of 60s range)
+            #   AND 1s_vol_burst_on_reversal_ratio >= 1.5  (vol returning post-bottom)
+            #
+            # SHADOW MODE: logs match but does NOT contribute to _triggers_fired
+            # yet. Forward-validate 24-48h before promoting to ENFORCED. The
+            # signal_event_recorder will capture every shadow-match for audit.
+            _trigger_cascade_v_bottom_match = False
+            _trigger_cascade_v_bottom_reasons: list = []
+            try:
+                _cvb_m1c = m1_features.get("1m_cum_3min_pct")
+                _cvb_m1v = m1_features.get("1m_volume_spike")
+                _cvb_cpos = _1s_features.get("close_pos_60s") if isinstance(_1s_features, dict) else None
+                _cvb_vbst = _1s_features.get("vol_burst_on_reversal_ratio") if isinstance(_1s_features, dict) else None
+                if (_cvb_m1c is not None and _cvb_m1c <= -3.0
+                        and _cvb_m1v is not None and _cvb_m1v >= 3.0
+                        and _cvb_cpos is not None and float(_cvb_cpos) >= 0.85
+                        and _cvb_vbst is not None and float(_cvb_vbst) >= 1.5):
+                    _trigger_cascade_v_bottom_match = True
+                    _trigger_cascade_v_bottom_reasons.append(
+                        f"1m_cum3={_cvb_m1c:.2f}<=-3.0 AND 1m_vs={_cvb_m1v:.2f}>=3.0 "
+                        f"AND 1s_cpos={float(_cvb_cpos):.2f}>=0.85 "
+                        f"AND vbst={float(_cvb_vbst):.2f}>=1.5"
+                    )
+                    logger.info(
+                        f"[DipScanner] cascade_v_bottom SHADOW MATCH: {token_symbol} "
+                        f"{_trigger_cascade_v_bottom_reasons[0]}"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] cascade_v_bottom err: {_e}")
+
             # ── trigger_mcap_psych_level — ENFORCED 2026-05-13 PM ────────────
             # Round-7: mcap_near_psych_level == True → 5W/0L.
             # Predicate: token mcap within 5% of $1M/$2M/$5M/$10M/$25M/$50M/$100M.
@@ -7711,6 +7767,9 @@ class DipScanner:
                 "trigger_overnight_modest_pump_consol_reasons": _trigger_overnight_modest_pump_consol_reasons,
                 "trigger_overnight_quiet_accumulation_match": _trigger_overnight_quiet_accumulation_match,
                 "trigger_overnight_quiet_accumulation_reasons": _trigger_overnight_quiet_accumulation_reasons,
+                # SHADOW 2026-05-14 PM — cascade-V-bottom catcher. BURNIE-grounded.
+                "trigger_cascade_v_bottom_match": _trigger_cascade_v_bottom_match,
+                "trigger_cascade_v_bottom_reasons": _trigger_cascade_v_bottom_reasons,
                 # filter_mtf_strong_downtrend — ENFORCED 2026-05-13 PM (round-7,
                 # blocks chart_mtf_score<=-2; 0W/5L on n=29).
                 "filter_mtf_strong_downtrend_verdict": _filter_mtf_dn_verdict,
@@ -8003,6 +8062,44 @@ class DipScanner:
         except Exception as e:
             logger.warning(f"[DipScanner] Could not save h24_history.json: {e}")
 
+    def _load_sticky(self) -> None:
+        """Load sticky watchlist from disk. Prunes expired entries on load."""
+        try:
+            if not os.path.exists(self._sticky_path):
+                return
+            with open(self._sticky_path) as f:
+                raw = json.load(f)
+            now = time.time()
+            for addr, entry in (raw or {}).items():
+                ts = float(entry.get("last_seen_ts", 0))
+                if now - ts <= self._sticky_ttl_secs:
+                    self._sticky_watchlist[addr] = entry
+            logger.info(f"[DipScanner] Loaded {len(self._sticky_watchlist)} sticky-watchlist tokens")
+        except Exception as e:
+            logger.warning(f"[DipScanner] Could not load sticky_watchlist.json: {e}")
+
+    def _save_sticky(self) -> None:
+        """Persist sticky watchlist atomically."""
+        try:
+            os.makedirs(os.path.dirname(self._sticky_path), exist_ok=True)
+            tmp = self._sticky_path + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(self._sticky_watchlist, f)
+            os.replace(tmp, self._sticky_path)
+        except Exception as e:
+            logger.warning(f"[DipScanner] Could not save sticky_watchlist.json: {e}")
+
+    def _prune_sticky(self) -> None:
+        """Drop sticky-watchlist entries older than TTL."""
+        now = time.time()
+        before = len(self._sticky_watchlist)
+        self._sticky_watchlist = {
+            addr: e for addr, e in self._sticky_watchlist.items()
+            if now - float(e.get("last_seen_ts", 0)) <= self._sticky_ttl_secs
+        }
+        if before != len(self._sticky_watchlist):
+            logger.info(f"[DipScanner] Sticky-watchlist pruned: {before} -> {len(self._sticky_watchlist)}")
+
     async def _fetch_candidates(self) -> tuple:
         """Fetch candidate pairs from DexScreener + GeckoTerminal trending.
 
@@ -8115,6 +8212,21 @@ class DipScanner:
                         pair_by_addr[addr] = p
                         source_by_addr[addr] = "axiom_trending"
 
+                # Sticky watchlist re-seed — inject tokens we've seen recently
+                # but that aren't on any trending feed THIS cycle. Solves the
+                # BURNIE V-bottom universe gap (token drops off trending during
+                # cascade, we miss the +6-11% V-recovery entry).
+                self._prune_sticky()
+                _sticky_added = 0
+                for addr, entry in self._sticky_watchlist.items():
+                    p = entry.get("pair")
+                    if p and addr not in pair_by_addr:
+                        pair_by_addr[addr] = p
+                        source_by_addr[addr] = "sticky_watchlist"
+                        _sticky_added += 1
+                if _sticky_added:
+                    logger.info(f"[DipScanner] Sticky-watchlist re-seeded {_sticky_added} tokens")
+
                 # Collect stub addresses from DS boosts/profiles
                 stub_addrs = []
                 for res in results[:2]:
@@ -8179,8 +8291,20 @@ class DipScanner:
             "ds_stub": 0, "ds_search": 0,
             "gt_trending": 0, "gt_enriched": 0,
             "axiom_trending": 0, "axiom_enriched": 0,
+            "sticky_watchlist": 0,
         }
         for src in source_by_addr.values():
             source_counts[src] = source_counts.get(src, 0) + 1
+
+        # Persist current universe to sticky watchlist for next-cycle re-seed.
+        # Only persist enriched pairs (have full DS pair dict) so re-seeding
+        # doesn't inject stale stubs.
+        _now = time.time()
+        for addr, p in pair_by_addr.items():
+            src = source_by_addr.get(addr, "")
+            if src in ("ds_stub", "ds_search", "gt_enriched", "axiom_enriched",
+                       "sticky_watchlist"):
+                self._sticky_watchlist[addr] = {"pair": p, "last_seen_ts": _now}
+        self._save_sticky()
 
         return list(pair_by_addr.values()), source_counts

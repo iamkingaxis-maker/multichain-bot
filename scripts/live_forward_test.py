@@ -514,6 +514,20 @@ COMBOS = {
         and c.get('avg_trade_size_h1_usd') is not None and 60 <= c['avg_trade_size_h1_usd'] < 100
         and c.get('cycles_seen') is not None and 30 <= c['cycles_seen'] < 60
     ),
+    # ─── Cascade V-bottom — phantom parity 2026-05-14 PM ───────────────
+    # Mirror of trigger_cascade_v_bottom SHADOW (dip_scanner.py).
+    # Ground-truth: BURNIE 2026-05-14 15:53:18 CT V-bottom after -5.12% 1m
+    # cascade — entry candidate had cum_30s=+1.20%, cpos=0.99, vbst=2.6x.
+    # Predicate fails closed if any of the 4 features is missing in the
+    # snapshot (1m_volume_spike, 1m_cum_3min_pct, 1s_close_pos_60s,
+    # 1s_vol_burst_on_reversal_ratio).
+    'AT_cascade_v_bottom': lambda c: (
+        c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] <= -3.0
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 3.0
+        and c.get('1s_close_pos_60s') is not None and c['1s_close_pos_60s'] >= 0.85
+        and c.get('1s_vol_burst_on_reversal_ratio') is not None
+        and c['1s_vol_burst_on_reversal_ratio'] >= 1.5
+    ),
     # ─── UptrendScanner SHADOW Phase 1 mirrors — 2026-05-14 evening ───
     # Phantom parity for feeds/uptrend_scanner.py. Predicates PASS when the
     # corresponding shadow trigger would WOULD-FIRE on this snapshot. All
