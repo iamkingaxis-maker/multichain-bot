@@ -51,6 +51,12 @@ _RE_1M_SHADOW = re.compile(
     r"1m_vol_spike=([0-9.]+) verdict=(\S+)"
 )
 _RE_BLOCKED = re.compile(r"\[DipScanner\] BLOCKED by filter_(\S+): (\S+) ")
+# 2026-05-14: also capture Trader-level blocks (post-trigger, pre-Buying).
+# These were silently killing trigger-fired signals and showing up as
+# CONTINUED outcomes. Format: "[Trader] BLOCKED by filter_X: TOKEN reasons=..."
+_RE_TRADER_BLOCKED = re.compile(r"\[Trader\] BLOCKED by filter_(\S+): (\S+) ")
+# Volume dead-check has a different log format.
+_RE_TRADER_VOL_DEAD = re.compile(r"\[Trader\] Volume dead-check: (\S+) ")
 _RE_ENTRY_VIA = re.compile(r"\[DipScanner\] ENTRY via (\S+)( \(.*?\))?: (\S+) ")
 _RE_BUYING = re.compile(r"Buying (\S+) — \$\d+ — (\w+):")
 
@@ -88,8 +94,14 @@ class SignalEventRecorder(logging.Handler):
         except Exception:
             return
 
-        # Fast pre-filter — if no DipScanner / Buying / ENTRY token, bail
-        if "[DipScanner]" not in msg and "Buying" not in msg:
+        # Fast pre-filter — also include Trader-level block lines, which
+        # silently kill trigger-fired signals between scanner and Buying.
+        if (
+            "[DipScanner]" not in msg
+            and "Buying" not in msg
+            and "[Trader] BLOCKED" not in msg
+            and "[Trader] Volume dead-check" not in msg
+        ):
             return
 
         try:
@@ -175,7 +187,7 @@ class SignalEventRecorder(logging.Handler):
                     ev["shadows"].append(fname)
             return
 
-        # BLOCKED — terminal, write+clear
+        # BLOCKED (scanner) — terminal, write+clear
         m = _RE_BLOCKED.search(msg)
         if m:
             fname, tok = m.group(1), m.group(2)
@@ -184,6 +196,31 @@ class SignalEventRecorder(logging.Handler):
                 if ev is not None:
                     ev["outcome"] = "BLOCK"
                     ev["block_filter"] = fname
+                    self._write(ev)
+            return
+
+        # BLOCKED (trader) — terminal, write+clear. Prefix block_filter with
+        # "trader_" so we can tell scanner vs trader blocks apart in analysis.
+        m = _RE_TRADER_BLOCKED.search(msg)
+        if m:
+            fname, tok = m.group(1), m.group(2)
+            with self._lock:
+                ev = self._pending.pop(tok, None)
+                if ev is not None:
+                    ev["outcome"] = "BLOCK"
+                    ev["block_filter"] = f"trader_{fname}"
+                    self._write(ev)
+            return
+
+        # Volume dead-check (trader) — terminal
+        m = _RE_TRADER_VOL_DEAD.search(msg)
+        if m:
+            tok = m.group(1)
+            with self._lock:
+                ev = self._pending.pop(tok, None)
+                if ev is not None:
+                    ev["outcome"] = "BLOCK"
+                    ev["block_filter"] = "trader_volume_dead"
                     self._write(ev)
             return
 

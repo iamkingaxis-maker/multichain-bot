@@ -1913,6 +1913,13 @@ class DipScanner:
             # rescues 5 blocked winners (RAGEGUY, BUFO, COPPERINU, HANTA, RKC)
             # totaling +$2.68 with ZERO losers rescued.
             #
+            # CARVE-OUT 2026-05-14 EVENING: also rescue high-conviction chart
+            # signals (chart_score >= 56). On lifetime BLOCK trades (n=18),
+            # max loser chart_score = 55.9 (RKC-loss); MASCOTS winner
+            # chart_score=58.7. Adds 1 more winner rescue (+$0.41), 0 losers.
+            # chart_score is computed below in the chart_reader block, so the
+            # block decision is DEFERRED until after that runs.
+            #
             # liq_velocity_h1 = vol_h1 / (buys_h1 + sells_h1). Computed inline
             # because volume_velocity_features dict is built later in the loop.
             _big_buyer_carve_out = False
@@ -1927,17 +1934,9 @@ class DipScanner:
                         _big_buyer_carve_out = True
             except Exception:
                 pass
-            if _filter_turn_verdict == "BLOCK" and not _big_buyer_carve_out:
-                logger.info(
-                    f"[DipScanner] BLOCKED by filter_turn: {token_symbol} "
-                    f"reasons={','.join(_filter_turn_block_reasons)}"
-                )
-                continue
-            elif _filter_turn_verdict == "BLOCK" and _big_buyer_carve_out:
-                logger.info(
-                    f"[DipScanner] filter_turn rescued by big_buyer carve-out: "
-                    f"{token_symbol} liq_velocity_h1=${_lv_h1_inline:.0f}/txn>=115"
-                )
+            # NOTE: filter_turn block decision is DEFERRED to after chart_ctx
+            # is computed (see "DEFERRED FILTER_TURN CHECK" below). This lets
+            # the carve-out also consult chart_score.
 
             # Filter real-dip-3 — ENFORCED. Validated on the full 540-pair
             # lifetime dataset (held-out test, not the same data the filter
@@ -2367,6 +2366,33 @@ class DipScanner:
                 )
             except Exception as _e:
                 logger.debug(f"[DipScanner] chart_reader error: {_e}")
+
+            # ─── DEFERRED FILTER_TURN CHECK ────────────────────────────────
+            # filter_turn verdict + big_buyer carve-out were computed earlier.
+            # Now that chart_score is available, also check the chart_score
+            # carve-out (>= 56) before blocking.
+            if _filter_turn_verdict == "BLOCK":
+                _chart_score_for_carve = (_chart_ctx_dict or {}).get("chart_score")
+                _chart_carve_out = (
+                    isinstance(_chart_score_for_carve, (int, float))
+                    and _chart_score_for_carve >= 56
+                )
+                if not _big_buyer_carve_out and not _chart_carve_out:
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_turn: {token_symbol} "
+                        f"reasons={','.join(_filter_turn_block_reasons)}"
+                    )
+                    continue
+                elif _big_buyer_carve_out:
+                    logger.info(
+                        f"[DipScanner] filter_turn rescued by big_buyer carve-out: "
+                        f"{token_symbol} liq_velocity_h1=${_lv_h1_inline:.0f}/txn>=115"
+                    )
+                elif _chart_carve_out:
+                    logger.info(
+                        f"[DipScanner] filter_turn rescued by chart_score carve-out: "
+                        f"{token_symbol} chart_score={_chart_score_for_carve:.1f}>=56"
+                    )
 
             # Filter vp_poc_above — ENFORCED 2026-05-08, retuned 2026-05-08 PM (B3).
             # Catches the "extreme above POC on dead volume" pattern: blocks when
