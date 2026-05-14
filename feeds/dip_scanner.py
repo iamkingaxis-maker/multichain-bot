@@ -4478,6 +4478,37 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] net_flow_5m trigger err: {_e}")
 
+            # ── trigger_whale_conviction — ENFORCED 2026-05-14 PM (Commit C) ─
+            # Positive entry trigger from 35-angle deep mining. Fires on:
+            #   - whale_buy_present_2k == True (a $2k+ whale buy in lookback)
+            #   - OR top10_buyer_within_60s_count >= 3 (3+ top-10 buyers
+            #     clustered within 60s of signal)
+            # Held-out mining results (recent 7d):
+            #   whale_buy_present_2k=True: n=20, 70% WR, +$0.81/tr
+            #   top10_buyer_within_60s>=3: n=21, 71% WR, +$0.52/tr
+            # Mechanism: both signals indicate a real, conviction-level
+            # buyer recently entered — pre-cursor to broader interest.
+            # (Note: top1_share_of_top10>=0.70 is the 3rd component but it's
+            # computed in trader.py post-rugcheck, can't be used here.)
+            _trigger_whale_conviction_match = False
+            _trigger_whale_conviction_reasons: list = []
+            try:
+                _wc_whale = (_trade_log_dict or {}).get("whale_buy_present_2k")
+                _wc_t10_60s = (_tier2_features or {}).get("top10_buyer_within_60s_count")
+                if _wc_whale is True:
+                    _trigger_whale_conviction_match = True
+                    _trigger_whale_conviction_reasons.append(
+                        "whale_buy_present_2k=True (recent $2k+ whale buy)"
+                    )
+                if _wc_t10_60s is not None and float(_wc_t10_60s) >= 3.0:
+                    _trigger_whale_conviction_match = True
+                    _trigger_whale_conviction_reasons.append(
+                        f"top10_buyer_within_60s_count={int(float(_wc_t10_60s))}>=3 "
+                        f"(clustered top-10 buyers)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] whale_conviction trigger err: {_e}")
+
             # ── trigger_mcap_psych_level — ENFORCED 2026-05-13 PM ────────────
             # Round-7: mcap_near_psych_level == True → 5W/0L.
             # Predicate: token mcap within 5% of $1M/$2M/$5M/$10M/$25M/$50M/$100M.
@@ -4960,6 +4991,8 @@ class DipScanner:
                 _triggers_fired.append("net_flow_5m_demand")
             if _trigger_mcap_psych_match:
                 _triggers_fired.append("mcap_psych_level")
+            if _trigger_whale_conviction_match:
+                _triggers_fired.append("whale_conviction")
 
             # 1s triggers fire LATER (after 1s feature compute) — allow
             # dippy candidates with NO classic-trigger match to pass this
@@ -5060,6 +5093,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_net_flow_5m_reasons)
                 if _trigger_mcap_psych_match:
                     _alt_reasons.extend(_trigger_mcap_psych_reasons)
+                if _trigger_whale_conviction_match:
+                    _alt_reasons.extend(_trigger_whale_conviction_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -7184,6 +7219,11 @@ class DipScanner:
                 # mcap within 5% of $1M/$2M/$5M/$10M/etc; 5W/0L on n=29).
                 "trigger_mcap_psych_match": _trigger_mcap_psych_match,
                 "trigger_mcap_psych_reasons": _trigger_mcap_psych_reasons,
+                # trigger_whale_conviction — ENFORCED 2026-05-14 PM (Commit C,
+                # 35-angle mining): whale_buy_present_2k OR
+                # top10_buyer_within_60s_count>=3.
+                "trigger_whale_conviction_match": _trigger_whale_conviction_match,
+                "trigger_whale_conviction_reasons": _trigger_whale_conviction_reasons,
                 # filter_mtf_strong_downtrend — ENFORCED 2026-05-13 PM (round-7,
                 # blocks chart_mtf_score<=-2; 0W/5L on n=29).
                 "filter_mtf_strong_downtrend_verdict": _filter_mtf_dn_verdict,

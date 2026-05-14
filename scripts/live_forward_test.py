@@ -386,6 +386,14 @@ COMBOS = {
             and c['liq_velocity_h1_usd_per_txn'] >= 115
         )
     ),
+    # trigger_whale_conviction — ENFORCED 2026-05-14 PM (Commit C).
+    # Positive trigger: fires when whale_buy_present_2k OR
+    # top10_buyer_within_60s_count >= 3. Both features available in phantom.
+    'AE_trigger_whale_conviction': lambda c: (
+        c.get('whale_buy_present_2k') is True
+        or (c.get('top10_buyer_within_60s_count') is not None
+            and c['top10_buyer_within_60s_count'] >= 3)
+    ),
     # filter_quad — PROMOTED to ENFORCED 2026-05-14 with big-buyer carve-out.
     # 4-component OR-block (velocity_verdict==QUIET, stop_cluster band,
     # lp_locked band, 1m_volume_spike band) UNLESS liq_velocity_h1>=115.
