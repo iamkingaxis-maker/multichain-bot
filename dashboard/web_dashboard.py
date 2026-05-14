@@ -1615,6 +1615,7 @@ class WebDashboard:
         self.app.router.add_post("/api/axiom-relay",        self._handle_axiom_relay)
         self.app.router.add_post("/api/reset",              self._handle_reset)
         self.app.router.add_post("/api/reset-daily-pnl",     self._handle_reset_daily_pnl)
+        self.app.router.add_post("/api/restore",             self._handle_restore)
         self.app.router.add_get("/api/closed-positions",   self._handle_closed_positions)
         self.app.router.add_get("/api/signal-events",      self._handle_signal_events)
         self.app.router.add_get("/api/pre-gate-events",    self._handle_pre_gate_events)
@@ -2503,6 +2504,59 @@ class WebDashboard:
             pass
         return web.Response(
             text=json.dumps({"ok": True, "message": "Trade history and capital reset"}),
+            content_type="application/json", headers=cors,
+        )
+
+    async def _handle_restore(self, request):
+        """POST /api/restore — restore trade history from a provided list.
+        Body: {"secret": "...", "trades": [...]}
+        Used after an accidental /api/reset wipe — uploads a previously-saved
+        trades.json snapshot back into the tracker + /data/trades.json. Capital
+        and risk state are NOT touched (use /api/reset-daily-pnl separately
+        if needed).
+        """
+        import os as _os
+        cors = {"Access-Control-Allow-Origin": "*"}
+        expected_secret = _os.environ.get("TOKEN_UPDATE_SECRET", "changeme")
+        try:
+            body = await request.json()
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        if body.get("secret") != expected_secret:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Unauthorized"}),
+                status=401, content_type="application/json", headers=cors,
+            )
+        trades = body.get("trades")
+        if not isinstance(trades, list):
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Body must include 'trades' as a list"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        # Write directly to /data/trades.json
+        trade_log = _os.path.join(_os.environ.get("DATA_DIR", "."), "trades.json")
+        try:
+            with open(trade_log, "w") as f:
+                import json as _json
+                _json.dump(trades, f)
+        except Exception as e:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": f"write failed: {e}"}),
+                status=500, content_type="application/json", headers=cors,
+            )
+        # Reload tracker in-memory if available
+        if self._tracker:
+            try:
+                self._tracker.trades.clear()
+                self._tracker.trades.extend(trades)
+            except Exception:
+                pass
+        logger.info(f"[Restore] Wrote {len(trades)} trades to {trade_log}")
+        return web.Response(
+            text=json.dumps({"ok": True, "restored": len(trades)}),
             content_type="application/json", headers=cors,
         )
 
