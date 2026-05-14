@@ -2536,27 +2536,33 @@ class WebDashboard:
                 text=json.dumps({"ok": False, "error": "Body must include 'trades' as a list"}),
                 status=400, content_type="application/json", headers=cors,
             )
-        # Write directly to /data/trades.json
+        mode = body.get("mode", "replace")  # "replace" (default) or "append"
         trade_log = _os.path.join(_os.environ.get("DATA_DIR", "."), "trades.json")
         try:
+            import json as _json
+            if mode == "append" and _os.path.exists(trade_log):
+                with open(trade_log) as f:
+                    existing = _json.load(f) or []
+                merged = list(existing) + list(trades)
+            else:
+                merged = list(trades)
             with open(trade_log, "w") as f:
-                import json as _json
-                _json.dump(trades, f)
+                _json.dump(merged, f)
         except Exception as e:
             return web.Response(
                 text=json.dumps({"ok": False, "error": f"write failed: {e}"}),
                 status=500, content_type="application/json", headers=cors,
             )
-        # Reload tracker in-memory if available
         if self._tracker:
             try:
-                self._tracker.trades.clear()
+                if mode == "replace":
+                    self._tracker.trades.clear()
                 self._tracker.trades.extend(trades)
             except Exception:
                 pass
-        logger.info(f"[Restore] Wrote {len(trades)} trades to {trade_log}")
+        logger.info(f"[Restore] mode={mode} added={len(trades)} total_now={len(merged)}")
         return web.Response(
-            text=json.dumps({"ok": True, "restored": len(trades)}),
+            text=json.dumps({"ok": True, "added": len(trades), "total": len(merged)}),
             content_type="application/json", headers=cors,
         )
 
