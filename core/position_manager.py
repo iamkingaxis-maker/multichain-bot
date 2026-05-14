@@ -4,7 +4,9 @@ Encodes the trader's exact rules for managing open positions.
 """
 
 import asyncio
+import json
 import logging
+import os
 import aiohttp
 import time
 from datetime import datetime, timezone, timedelta
@@ -448,6 +450,79 @@ class PositionManager:
         self.stop_loss_hits = 0
         self.stall_exits = 0
         self.avg_downs = 0
+
+        # Position-tick logger — write a JSONL line per evaluated tick to
+        # mine adaptive-TP signals later. Drives the "smart TP" project:
+        # collect (pnl_pct, peak_pct, giveback_pct, age, velocity, vol) over
+        # the full hold of each position, then mine which features at peak
+        # predict how much of the gain gets given back. Output:
+        #   {DATA_DIR}/position_ticks.jsonl  (append-only)
+        # Line schema (one per tick per position):
+        #   {addr, sym, ts, age_s, entry_px, cur_px, pnl_pct, peak_pct,
+        #    giveback_pct, vol_h1, dvol_pct, liq_usd, dliq_pct, strategy}
+        # Fail-safe: any write error is swallowed (read-only intent — never
+        # affect exit decisions).
+        self._position_tick_path = os.path.join(
+            os.environ.get("DATA_DIR", "/data"), "position_ticks.jsonl"
+        )
+        # Per-token last-tick price/vol/liq for velocity computation.
+        self._pt_prev: Dict[str, dict] = {}
+
+    def _log_position_tick(self, token_address: str, state: PositionState,
+                            tp_obj=None) -> None:
+        """Append one JSONL line per evaluated position tick. Fail-safe."""
+        try:
+            if state.current_price <= 0 or state.entry_price <= 0:
+                return
+            pnl_pct = (state.current_price / state.entry_price - 1) * 100.0
+            peak_pct = getattr(tp_obj, "peak_pnl_pct", 0.0) or 0.0
+            giveback = peak_pct - pnl_pct if peak_pct > 0 else 0.0
+            age_s = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
+            prev = self._pt_prev.get(token_address, {})
+            # Price velocity: %/sec since prior tick (signed)
+            dpx_pct_per_s = 0.0
+            if prev.get("ts") and prev.get("px"):
+                dt_s = max(0.001, time.time() - prev["ts"])
+                dpx_pct_per_s = (state.current_price - prev["px"]) / prev["px"] * 100.0 / dt_s
+            # Volume velocity: 1h-volume delta vs prior tick
+            dvol_pct = 0.0
+            if prev.get("vol") and state.current_h1_volume:
+                dvol_pct = (state.current_h1_volume - prev["vol"]) / max(1.0, prev["vol"]) * 100.0
+            # Liquidity velocity
+            dliq_pct = 0.0
+            if prev.get("liq") and state.current_liquidity_usd:
+                dliq_pct = (state.current_liquidity_usd - prev["liq"]) / max(1.0, prev["liq"]) * 100.0
+            tick = {
+                "addr": token_address,
+                "sym": state.token_symbol,
+                "ts": time.time(),
+                "age_s": round(age_s, 1),
+                "entry_px": state.entry_price,
+                "cur_px": state.current_price,
+                "pnl_pct": round(pnl_pct, 3),
+                "peak_pct": round(peak_pct, 3),
+                "giveback_pct": round(giveback, 3),
+                "dpx_pct_per_s": round(dpx_pct_per_s, 4),
+                "vol_h1": state.current_h1_volume,
+                "dvol_pct": round(dvol_pct, 2),
+                "liq_usd": state.current_liquidity_usd,
+                "dliq_pct": round(dliq_pct, 2),
+                "strategy": getattr(state, "strategy", ""),
+                "tp1_hit": bool(getattr(tp_obj, "tp1_hit", False)) if tp_obj else False,
+                "tp2_hit": bool(getattr(tp_obj, "tp2_hit", False)) if tp_obj else False,
+            }
+            os.makedirs(os.path.dirname(self._position_tick_path), exist_ok=True)
+            with open(self._position_tick_path, "a") as f:
+                f.write(json.dumps(tick) + "\n")
+            # Update prev-tick state for next velocity calc
+            self._pt_prev[token_address] = {
+                "ts": time.time(),
+                "px": state.current_price,
+                "vol": state.current_h1_volume,
+                "liq": state.current_liquidity_usd,
+            }
+        except Exception:
+            pass  # Fail-safe — never affect exit decisions
 
     async def run(self):
         """Main position management loop — checks every 5 seconds (price from Axiom cache, REST throttled to 30s)."""
@@ -1196,6 +1271,15 @@ class PositionManager:
         """Check all exit and management rules for one position."""
         if state.current_price <= 0 or state.entry_price <= 0:
             return
+
+        # Position-tick logger — fires every evaluation cycle. Fail-safe.
+        # Drives the smart-TP project (mine peak-giveback predictors from
+        # full hold-time tick traces).
+        try:
+            _tp_obj = self.open_positions_ref.get(token_address)
+            self._log_position_tick(token_address, state, _tp_obj)
+        except Exception:
+            pass
 
         MIN_EXIT_LIQUIDITY = 1000
         age_seconds = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
