@@ -314,40 +314,41 @@ class AxiomTrendingScanner:
             self._top_path_cached = None  # cached working path
             self._top_paths_404 = set()   # skip these — already 404'd
 
-        # Candidate TOP-feed paths. Initial set returned 404. Expanding to
-        # try Axiom UI tab equivalents (pulse, discover, watch, runners).
-        # Also varying param name (timePeriod vs period vs range).
+        # Candidate TOP-feed paths. Updated 2026-05-14 PM round-3 based
+        # on playwright capture of Axiom UI: the modern UI uses
+        # /new-trending-v2 (NOT /users-trending-v2 which the bot has been
+        # using). /lighthouse fires on discover page load — likely
+        # contains TOP data. TOP probably has tab/sort/category param
+        # on /new-trending-v2.
         _top_paths = [
-            # primary candidates — variations on "top"
-            "/top-marketcap?timePeriod=1h",
-            "/top-runners?timePeriod=1h",
-            "/top-volume?timePeriod=1h",
-            "/top-by-mcap?timePeriod=1h",
-            "/top-tokens-v2?timePeriod=1h",
-            # Pulse (Axiom UI tab name)
-            "/pulse?timePeriod=1h",
-            "/pulse-v2?timePeriod=1h",
-            "/users-pulse?timePeriod=1h",
-            "/users-pulse-v2?timePeriod=1h",
-            # Discover (another UI section)
-            "/discover?timePeriod=1h",
-            "/discover-v2?timePeriod=1h",
-            "/discover/trending?timePeriod=1h",
-            # Watch / Runners
-            "/watching?timePeriod=1h",
-            "/users-watching?timePeriod=1h",
-            "/runners?timePeriod=1h",
-            "/runners-v2?timePeriod=1h",
-            # different param name
-            "/top?period=1h",
-            "/top?range=1h",
-            # Different version paths
-            "/api/v2/top?timePeriod=1h",
-            "/v2/top?timePeriod=1h",
-            "/v3/users-trending?timePeriod=1h",
-            # variants the user might call "TOP" — including surge
+            # Modern Axiom UI endpoint (captured from playwright) —
+            # likely returns same/broader data than /users-trending-v2.
+            "/new-trending-v2?timePeriod=1h",
+            "/new-trending-v2?timePeriod=24h",
+            "/new-trending-v2?timePeriod=5m",
+            "/new-trending-v2?timePeriod=1m",
+            # /lighthouse — fired on discover page load
+            "/lighthouse",
+            "/lighthouse?timePeriod=1h",
+            "/lighthouse?timePeriod=24h",
+            # /new-trending-v2 with explicit sort/category params
+            "/new-trending-v2?timePeriod=1h&sort=top",
+            "/new-trending-v2?timePeriod=1h&type=top",
+            "/new-trending-v2?timePeriod=1h&category=top",
+            "/new-trending-v2?timePeriod=1h&tab=top",
+            "/new-trending-v2?timePeriod=1h&filter=top",
+            "/new-trending-v2?timePeriod=1h&view=top",
+            # Older "users-top" + new prefix variants
+            "/users-top-v2?timePeriod=1h",
+            "/users-trending-v2?timePeriod=24h",  # broader time on existing
+            # New patterns matching new-trending
+            "/new-top-v2?timePeriod=1h",
+            "/new-top?timePeriod=1h",
+            "/top-v2?timePeriod=1h",
+            "/top?timePeriod=1h",
+            # surge / pulse fallbacks
             "/surge?timePeriod=1h",
-            "/surge-v2?timePeriod=1h",
+            "/pulse?timePeriod=1h",
         ]
 
         async def _try_top():
