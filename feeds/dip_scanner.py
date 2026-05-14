@@ -4565,6 +4565,26 @@ class DipScanner:
                         f"top10_buyer_within_60s_count={int(float(_wc_t10_60s))}>=3 "
                         f"(clustered top-10 buyers)"
                     )
+                # GATE 2026-05-14 PM: skip the [0.80, 0.95) h24_ratio_to_peak
+                # dead zone — the "approaching peak after pump" pattern.
+                # Mining (top10>=3 branch, n=155): ratio 0.80-0.95 had only
+                # 39.4% WR / -$6.44 across 33 fires vs 54.8% baseline.
+                # Live confirmation: RAGEGUY 17:14 entry (ratio in this band)
+                # bought a stalled retracement-recovery, never went green,
+                # dumped -4.9%. Inverse band (peak>=200% AND ratio<0.40)
+                # showed 75% WR +$3.95 — the carve-out is precision-focused,
+                # preserves the strong "deep retracement after pump" pattern.
+                _wc_ratio = (_lifecycle_dict or {}).get("lifecycle_h24_ratio")
+                if (
+                    _trigger_whale_conviction_match
+                    and isinstance(_wc_ratio, (int, float))
+                    and 0.80 <= _wc_ratio < 0.95
+                ):
+                    _trigger_whale_conviction_match = False
+                    _trigger_whale_conviction_reasons.append(
+                        f"GATED: h24_ratio_to_peak={_wc_ratio:.2f} in dead zone "
+                        f"[0.80, 0.95) — mid-retracement-recovery, see audit"
+                    )
             except Exception as _e:
                 logger.debug(f"[DipScanner] whale_conviction trigger err: {_e}")
 

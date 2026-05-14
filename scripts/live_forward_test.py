@@ -389,10 +389,20 @@ COMBOS = {
     # trigger_whale_conviction — ENFORCED 2026-05-14 PM (Commit C).
     # Positive trigger: fires when whale_buy_present_2k OR
     # top10_buyer_within_60s_count >= 3. Both features available in phantom.
+    # GATE added 2026-05-14 PM: block [0.80, 0.95) h24_ratio_to_peak dead zone.
+    # Mining audit (n=155, top10>=3 branch): ratio 0.80-0.95 = 39.4% WR / -$6.44
+    # across 33 fires. Live confirmation: RAGEGUY 17:14 dumped -4.9%.
     'AE_trigger_whale_conviction': lambda c: (
-        c.get('whale_buy_present_2k') is True
-        or (c.get('top10_buyer_within_60s_count') is not None
-            and c['top10_buyer_within_60s_count'] >= 3)
+        (
+            c.get('whale_buy_present_2k') is True
+            or (c.get('top10_buyer_within_60s_count') is not None
+                and c['top10_buyer_within_60s_count'] >= 3)
+        )
+        # Gate: skip dead zone (mid-retracement-recovery near peak)
+        and not (
+            c.get('lifecycle_h24_ratio') is not None
+            and 0.80 <= c['lifecycle_h24_ratio'] < 0.95
+        )
     ),
     # trigger_strong_uptrend_dip — ENFORCED 2026-05-14 PM (chart Compound D).
     # Phantom approximation using pc_h1+pc_h24 as proxies for 1h candle data
