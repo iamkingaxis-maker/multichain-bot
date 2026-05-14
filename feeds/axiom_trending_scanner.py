@@ -299,7 +299,9 @@ class AxiomTrendingScanner:
 
         TOP-feed paths to probe (per user hint: same 1m/5m/1h/24h timePeriod
         structure as users-trending-v2). First path that returns 200+data
-        wins for the TOP feed; logged so we know which one works.
+        wins for the TOP feed and is cached for the session; logged so we
+        know which one works. Paths that 404 are skipped on subsequent
+        calls to avoid wasted polling.
         """
         from feeds.axiom_discovery import (
             fetch_axiom_trending_pairs,
@@ -307,22 +309,72 @@ class AxiomTrendingScanner:
         )
         import asyncio as _aio
 
-        # Candidate TOP-feed paths (most likely first based on Axiom UI
-        # conventions). Use 1h timePeriod to match trending.
+        # Class-level state for path caching (initialized lazily).
+        if not hasattr(self, "_top_path_cached"):
+            self._top_path_cached = None  # cached working path
+            self._top_paths_404 = set()   # skip these — already 404'd
+
+        # Candidate TOP-feed paths. Initial set returned 404. Expanding to
+        # try Axiom UI tab equivalents (pulse, discover, watch, runners).
+        # Also varying param name (timePeriod vs period vs range).
         _top_paths = [
-            "/users-top-v2?timePeriod=1h",
-            "/top-v2?timePeriod=1h",
-            "/top?timePeriod=1h",
-            "/users-top?timePeriod=1h",
+            # primary candidates — variations on "top"
+            "/top-marketcap?timePeriod=1h",
+            "/top-runners?timePeriod=1h",
+            "/top-volume?timePeriod=1h",
+            "/top-by-mcap?timePeriod=1h",
+            "/top-tokens-v2?timePeriod=1h",
+            # Pulse (Axiom UI tab name)
+            "/pulse?timePeriod=1h",
+            "/pulse-v2?timePeriod=1h",
+            "/users-pulse?timePeriod=1h",
+            "/users-pulse-v2?timePeriod=1h",
+            # Discover (another UI section)
+            "/discover?timePeriod=1h",
+            "/discover-v2?timePeriod=1h",
+            "/discover/trending?timePeriod=1h",
+            # Watch / Runners
+            "/watching?timePeriod=1h",
+            "/users-watching?timePeriod=1h",
+            "/runners?timePeriod=1h",
+            "/runners-v2?timePeriod=1h",
+            # different param name
+            "/top?period=1h",
+            "/top?range=1h",
+            # Different version paths
+            "/api/v2/top?timePeriod=1h",
+            "/v2/top?timePeriod=1h",
+            "/v3/users-trending?timePeriod=1h",
+            # variants the user might call "TOP" — including surge
+            "/surge?timePeriod=1h",
+            "/surge-v2?timePeriod=1h",
         ]
 
         async def _try_top():
+            # Already found a working path? Use it directly.
+            if self._top_path_cached:
+                try:
+                    res = await fetch_axiom_pairs_for_path(
+                        self.auth_manager, self._top_path_cached
+                    )
+                    if res:
+                        return res
+                except Exception:
+                    pass
+                # Cached path failed — clear and re-probe
+                logger.info(
+                    f"[AxiomDiscovery] cached TOP path {self._top_path_cached} "
+                    f"returned no data — re-probing"
+                )
+                self._top_path_cached = None
+            # Probe candidates
             for p in _top_paths:
                 try:
                     res = await fetch_axiom_pairs_for_path(self.auth_manager, p)
                     if res:
+                        self._top_path_cached = p
                         logger.info(
-                            f"[AxiomDiscovery] TOP feed discovered: {p} ({len(res)} pairs)"
+                            f"[AxiomDiscovery] TOP feed DISCOVERED: {p} ({len(res)} pairs) — cached"
                         )
                         return res
                 except Exception:
