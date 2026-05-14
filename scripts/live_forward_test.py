@@ -361,6 +361,31 @@ COMBOS = {
             and c['liq_velocity_h1_usd_per_txn'] >= 115
         )
     ),
+    # ── Commit B: 3 more blockers (smaller samples but stable held-out) ──
+    # All with same lvh1>=115 big-buyer carve-out.
+    'AB_pass_reviving_lifecycle': lambda c: not (
+        c.get('lifecycle_stage') == 'reviving'
+        and not (
+            c.get('liq_velocity_h1_usd_per_txn') is not None
+            and c['liq_velocity_h1_usd_per_txn'] >= 115
+        )
+    ),
+    'AC_pass_already_mooned': lambda c: not (
+        c.get('peak_h24_6h_pct') is not None
+        and c['peak_h24_6h_pct'] >= 3000
+        and not (
+            c.get('liq_velocity_h1_usd_per_txn') is not None
+            and c['liq_velocity_h1_usd_per_txn'] >= 115
+        )
+    ),
+    'AD_pass_stale_h1_peak': lambda c: not (
+        c.get('time_since_h1_peak_secs') is not None
+        and 3000 <= c['time_since_h1_peak_secs'] < 3600
+        and not (
+            c.get('liq_velocity_h1_usd_per_txn') is not None
+            and c['liq_velocity_h1_usd_per_txn'] >= 115
+        )
+    ),
     # filter_quad — PROMOTED to ENFORCED 2026-05-14 with big-buyer carve-out.
     # 4-component OR-block (velocity_verdict==QUIET, stop_cluster band,
     # lp_locked band, 1m_volume_spike band) UNLESS liq_velocity_h1>=115.

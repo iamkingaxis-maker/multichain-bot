@@ -6747,6 +6747,99 @@ class DipScanner:
                     f"{token_symbol} liq_velocity_h1=${_kcp_lvh1:.0f}/txn>=115"
                 )
 
+            # ── filter_reviving_lifecycle ENFORCED 2026-05-14 PM (Commit B) ──
+            # Block when lifecycle_stage == "reviving". Mined on n=36:
+            # TRAIN -$1.03/tr, TEST -$0.94/tr — stable across both periods.
+            # 33% WR vs ~50% baseline. The "reviving" stage classifier
+            # captures tokens that pumped, dumped, and are mid-reattempt —
+            # most fail. Distinct from active_runner (52% WR) which we keep.
+            _filter_rvl_block_reasons: list = []
+            _rvl_stage = _lifecycle_dict.get("lifecycle_stage") if isinstance(_lifecycle_dict, dict) else None
+            if _rvl_stage == "reviving":
+                _filter_rvl_block_reasons.append(
+                    f"lifecycle_stage=reviving (failed-relaunch shape)"
+                )
+            _filter_rvl_verdict = "BLOCK" if _filter_rvl_block_reasons else "PASS"
+            c[f"filter_reviving_lifecycle_{_filter_rvl_verdict.lower()}"] = c.get(
+                f"filter_reviving_lifecycle_{_filter_rvl_verdict.lower()}", 0
+            ) + 1
+            _rvl_rescued, _rvl_lvh1 = _big_buyer_rescued()
+            if _filter_rvl_verdict == "BLOCK" and not _rvl_rescued:
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_reviving_lifecycle: {token_symbol}"
+                )
+                continue
+            elif _filter_rvl_verdict == "BLOCK" and _rvl_rescued:
+                logger.info(
+                    f"[DipScanner] filter_reviving_lifecycle rescued by big_buyer: "
+                    f"{token_symbol} liq_velocity_h1=${_rvl_lvh1:.0f}/txn>=115"
+                )
+
+            # ── filter_already_mooned ENFORCED 2026-05-14 PM (Commit B) ───
+            # Block when peak_h24_6h_pct >= 3000% (token has 30x+ in 6-24h).
+            # Mined on n=30 (TRAIN -$0.71/tr, TEST -$0.95/tr, 40% WR).
+            # Such tokens are post-mania and almost always fade.
+            # Carve-out: liq_velocity_h1>=115 big-buyer rescue.
+            _filter_am_block_reasons: list = []
+            try:
+                if float(peak_h24_6h or 0) >= 3000.0:
+                    _filter_am_block_reasons.append(
+                        f"peak_h24_6h={float(peak_h24_6h):.0f}%>=3000 "
+                        f"(already-mooned, post-mania)"
+                    )
+            except Exception:
+                pass
+            _filter_am_verdict = "BLOCK" if _filter_am_block_reasons else "PASS"
+            c[f"filter_already_mooned_{_filter_am_verdict.lower()}"] = c.get(
+                f"filter_already_mooned_{_filter_am_verdict.lower()}", 0
+            ) + 1
+            _am_rescued, _am_lvh1 = _big_buyer_rescued()
+            if _filter_am_verdict == "BLOCK" and not _am_rescued:
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_already_mooned: {token_symbol} "
+                    f"peak_h24={float(peak_h24_6h):.0f}%"
+                )
+                continue
+            elif _filter_am_verdict == "BLOCK" and _am_rescued:
+                logger.info(
+                    f"[DipScanner] filter_already_mooned rescued by big_buyer: "
+                    f"{token_symbol} liq_velocity_h1=${_am_lvh1:.0f}/txn>=115"
+                )
+
+            # ── filter_stale_h1_peak ENFORCED 2026-05-14 PM (Commit B) ────
+            # Block when time_since_h1_peak_secs ∈ [3000, 3600) — h1 peak
+            # was 50-60 min ago. Mined on n=24 (TRAIN -$0.67/tr, TEST
+            # -$1.15/tr, 33% WR). "Stale fade" — peak set near end of h1
+            # window, by the time entry fires the move is exhausted.
+            # Carve-out: liq_velocity_h1>=115 big-buyer rescue.
+            _filter_shp_block_reasons: list = []
+            _shp_ts = trajectory_features.get("time_since_h1_peak_secs") if isinstance(trajectory_features, dict) else None
+            if _shp_ts is not None:
+                try:
+                    if 3000.0 <= float(_shp_ts) < 3600.0:
+                        _filter_shp_block_reasons.append(
+                            f"time_since_h1_peak={float(_shp_ts):.0f}s∈[3000,3600) "
+                            f"(stale h1 peak — 50-60min fade)"
+                        )
+                except Exception:
+                    pass
+            _filter_shp_verdict = "BLOCK" if _filter_shp_block_reasons else "PASS"
+            c[f"filter_stale_h1_peak_{_filter_shp_verdict.lower()}"] = c.get(
+                f"filter_stale_h1_peak_{_filter_shp_verdict.lower()}", 0
+            ) + 1
+            _shp_rescued, _shp_lvh1 = _big_buyer_rescued()
+            if _filter_shp_verdict == "BLOCK" and not _shp_rescued:
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_stale_h1_peak: {token_symbol} "
+                    f"reasons={','.join(_filter_shp_block_reasons)}"
+                )
+                continue
+            elif _filter_shp_verdict == "BLOCK" and _shp_rescued:
+                logger.info(
+                    f"[DipScanner] filter_stale_h1_peak rescued by big_buyer: "
+                    f"{token_symbol} liq_velocity_h1=${_shp_lvh1:.0f}/txn>=115"
+                )
+
             # ── Volume velocity features (2026-05-10) ──
             # Hypothesis: dips into rising-volume regimes win; dips into
             # decaying-volume regimes round-trip. We have vol_h1, vol_h6, and
@@ -7109,6 +7202,15 @@ class DipScanner:
                 # n=14 held-out test).
                 "filter_knife_catch_peak_verdict": _filter_kcp_verdict,
                 "filter_knife_catch_peak_block_reasons": _filter_kcp_block_reasons,
+                # filter_reviving_lifecycle — ENFORCED 2026-05-14 PM Commit B.
+                "filter_reviving_lifecycle_verdict": _filter_rvl_verdict,
+                "filter_reviving_lifecycle_block_reasons": _filter_rvl_block_reasons,
+                # filter_already_mooned — ENFORCED 2026-05-14 PM Commit B.
+                "filter_already_mooned_verdict": _filter_am_verdict,
+                "filter_already_mooned_block_reasons": _filter_am_block_reasons,
+                # filter_stale_h1_peak — ENFORCED 2026-05-14 PM Commit B.
+                "filter_stale_h1_peak_verdict": _filter_shp_verdict,
+                "filter_stale_h1_peak_block_reasons": _filter_shp_block_reasons,
                 # filter_topping — SHADOW 2026-05-06 PM (catch knife-catch at peak).
                 "filter_topping_verdict": _filter_topping_verdict,
                 "filter_topping_block_reasons": _filter_topping_block_reasons,
