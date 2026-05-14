@@ -4389,6 +4389,36 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] extreme_sweep_1m trigger err: {_e}")
 
+            # ── trigger_mtf_aligned_demand — ENFORCED 2026-05-13 PM ──────────
+            # Round-6 mining of entry_meta features (already populated in
+            # production — no new fetches). Compound:
+            #   chart_mtf_score >= 0.5 (multi-tf alignment confirms direction)
+            #   AND 1s_close_pos_60s >= 0.7 (close in top 30% of 60s range)
+            # Validation on 29 paired production trades: 4W / 0L = 100%
+            # precision. Winners: PAC (+$0.45), TROLLGE (+$0.42), NOGUY
+            # (+$0.48), BUFO (+$0.63).
+            # Mechanism: when multiple TFs agree direction is up AND the
+            # very-recent 60s tape closed in the upper third of its range,
+            # both macro (mtf) and micro (1s tape) buyers are aligned.
+            _trigger_mtf_aligned_demand_match = False
+            _trigger_mtf_aligned_demand_reasons: list = []
+            try:
+                _mta_mtf = None
+                try:
+                    _mta_mtf = _chart_ctx.mtf.get("score") if _chart_ctx else None
+                except Exception:
+                    _mta_mtf = None
+                _mta_cp = _1s_features.get("close_pos_60s") if isinstance(_1s_features, dict) else None
+                if (_mta_mtf is not None and float(_mta_mtf) >= 0.5
+                        and _mta_cp is not None and float(_mta_cp) >= 0.7):
+                    _trigger_mtf_aligned_demand_match = True
+                    _trigger_mtf_aligned_demand_reasons.append(
+                        f"chart_mtf_score={float(_mta_mtf):.1f}>=0.5 "
+                        f"AND 1s_close_pos_60s={float(_mta_cp):.2f}>=0.7"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] mtf_aligned_demand err: {_e}")
+
             # ── trigger_pullback_in_uptrend — ENFORCED 2026-05-13 PM ─────────
             # Round-2 analysis (n=18 paired tokens, 11W vs 6L) plus combined
             # round-1+2 (n=55, 27W vs 27L) found this orthogonal compound:
@@ -4785,6 +4815,8 @@ class DipScanner:
                 _triggers_fired.append("vol_surge_recent")
             if _trigger_bullish_engulfing_5m_match:
                 _triggers_fired.append("bullish_engulfing_5m")
+            if _trigger_mtf_aligned_demand_match:
+                _triggers_fired.append("mtf_aligned_demand")
 
             # 1s triggers fire LATER (after 1s feature compute) — allow
             # dippy candidates with NO classic-trigger match to pass this
@@ -4877,6 +4909,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_vol_surge_recent_reasons)
                 if _trigger_bullish_engulfing_5m_match:
                     _alt_reasons.extend(_trigger_bullish_engulfing_5m_reasons)
+                if _trigger_mtf_aligned_demand_match:
+                    _alt_reasons.extend(_trigger_mtf_aligned_demand_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -6717,6 +6751,10 @@ class DipScanner:
                 # (round-5, blocks 1h v-bottom recovery setups; 0W/4L on n=55).
                 "filter_1h_v_bottom_verdict": _filter_v_bottom_verdict,
                 "filter_1h_v_bottom_block_reasons": _filter_v_bottom_block_reasons,
+                # trigger_mtf_aligned_demand — ENFORCED 2026-05-13 PM (round-6,
+                # chart_mtf_score>=0.5 + 1s_close_pos_60s>=0.7; 4W/0L on n=29).
+                "trigger_mtf_aligned_demand_match": _trigger_mtf_aligned_demand_match,
+                "trigger_mtf_aligned_demand_reasons": _trigger_mtf_aligned_demand_reasons,
                 # filter_topping — SHADOW 2026-05-06 PM (catch knife-catch at peak).
                 "filter_topping_verdict": _filter_topping_verdict,
                 "filter_topping_block_reasons": _filter_topping_block_reasons,

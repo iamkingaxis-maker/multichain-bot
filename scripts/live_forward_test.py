@@ -294,6 +294,14 @@ COMBOS = {
     # ─── bullish_engulfing_5m — ENFORCED 2026-05-13 PM ───
     # Round-3 pattern, 100% precision on n=55 paired (6W/0L).
     'NN_bullish_engulfing_5m': lambda c: c.get('bullish_engulfing_5m') is True,
+    # ─── mtf_aligned_demand — ENFORCED 2026-05-13 PM ───
+    # chart_mtf_score and 1s_close_pos_60s already populated by phantom's
+    # existing feature computers (mtf_green_count proxies mtf_score in
+    # phantom; 1s_close_pos_60s computed in compute_1s_features).
+    'OO_mtf_aligned_demand':  lambda c: (c.get('mtf_green_count') is not None
+                                         and c['mtf_green_count'] >= 2
+                                         and c.get('1s_close_pos_60s') is not None
+                                         and c['1s_close_pos_60s'] >= 0.7),
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).
