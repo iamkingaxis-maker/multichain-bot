@@ -110,6 +110,18 @@ class PositionState:
     chart_features_cache: Optional[dict] = None
     chart_features_cache_ts: float = 0.0
 
+    # Smart-TP peak-detector state (SHADOW 2026-05-14 PM).
+    # Logs first time the composed peak_score crossed threshold while in
+    # green. Mirror of signal_flip_* fields. Used to validate "would-have-
+    # sold-earlier" forward before promoting to ENFORCED exit.
+    peak_detect_first_ts: Optional[datetime] = None
+    peak_detect_first_pnl: Optional[float] = None
+    peak_detect_first_score: Optional[int] = None
+    peak_detect_first_reasons: List[str] = field(default_factory=list)
+    # Previous-tick price for velocity comparison.
+    _prev_tick_price: float = 0.0
+    _prev_tick_ts: float = 0.0
+
     # 1s cascade detector — SHADOW 2026-05-11. Checks during hold whether
     # the 1s structure shows an active cascade (volatile, mostly-red,
     # close-near-low). If yes, logs the wall-clock time + pnl at first
@@ -474,6 +486,114 @@ class PositionManager:
         )
         # Per-token last-tick price/vol/liq for velocity computation.
         self._pt_prev: Dict[str, dict] = {}
+
+    # ────────────────────────────────────────────────────────────────
+    # SMART-TP PEAK DETECTOR — SHADOW 2026-05-14 PM
+    # ────────────────────────────────────────────────────────────────
+    # Goal: identify the local top FORMING and exit BEFORE giveback,
+    # instead of waiting for the trail to fire after we've already lost
+    # half the gain. Composes 5-7 orthogonal topping signals into a 0-100
+    # score; logs WOULD-SELL when score >= threshold AND in green.
+    #
+    # Validated path: SHADOW for 24h → mine logs for "would peak_detect
+    # have exited at higher pnl% than actual trail?" → promote to ENFORCED.
+    #
+    # Mining basis: .audit_trades.json showed 1-3% peak bucket has 6.89x
+    # giveback ratio (peaks +1.77% → -9.62% final, n=6) — the bot rides
+    # small peaks all the way to stops. Score components below are derived
+    # from chart_reader topping verdicts that exist but aren't used for
+    # exits today.
+
+    _PEAK_DETECT_SCORE_THRESHOLD: int = 50
+    _PEAK_DETECT_MIN_PNL_PCT: float = 1.0  # only fire when in green
+    _PEAK_DETECT_CHART_MAX_AGE_S: float = 90.0  # don't fire on stale features
+
+    def _compute_peak_score(self, state: PositionState, pnl_pct: float,
+                             dpx_pct_per_s: float) -> tuple:
+        """Returns (score, list[reasons]).
+        Score components mirror the topping signals chart_reader already
+        computes during signal-flip checks. Cap at 100; threshold 50.
+        Asymmetric — only fires when pnl_pct >= _PEAK_DETECT_MIN_PNL_PCT.
+        """
+        if pnl_pct < self._PEAK_DETECT_MIN_PNL_PCT:
+            return 0, []
+        cf = state.chart_features_cache or {}
+        cf_ts = state.chart_features_cache_ts or 0.0
+        if not cf:
+            return 0, []
+        if (time.time() - cf_ts) > self._PEAK_DETECT_CHART_MAX_AGE_S:
+            return 0, []  # stale — skip rather than fire on old data
+        score = 0
+        reasons: list = []
+        # Pattern signal — bearish engulfing / shooting star at peak
+        pat_dir = cf.get("pattern_5m_dir")
+        pat_conf = float(cf.get("pattern_5m_conf") or 0.0)
+        if pat_dir == "bearish" and pat_conf >= 0.5:
+            score += 25
+            reasons.append(f"pattern_5m=bearish (conf={pat_conf:.2f})")
+        # Sweep verdict — high taken then rejected
+        sweep_v = cf.get("sweep_5m_verdict")
+        if sweep_v == "BEARISH_SWEEP":
+            score += 20
+            reasons.append("sweep_5m=BEARISH_SWEEP")
+        # Trendline breakdown
+        tl_v = cf.get("trendline_5m_verdict")
+        if tl_v == "BREAKDOWN":
+            score += 15
+            reasons.append("trendline_5m=BREAKDOWN")
+        # Structure state flipped to downtrend
+        struct_state = cf.get("struct_5m_state") or ""
+        if isinstance(struct_state, str) and struct_state.lower() in (
+            "downtrend", "reversal_down"
+        ):
+            score += 15
+            reasons.append(f"struct_5m={struct_state}")
+        # Most recent 5m candle red
+        if cf.get("last_5m_dir") == "red":
+            score += 10
+            reasons.append("last_5m=red")
+        # Composite score deteriorating (entry was likely >= 50, now sub-40)
+        comp = cf.get("composite_score")
+        if comp is not None and float(comp) < 40.0:
+            score += 10
+            reasons.append(f"chart_score={float(comp):.0f}<40")
+        # Real-time velocity — price falling now (>0.05%/sec = >18%/hr)
+        if dpx_pct_per_s is not None and dpx_pct_per_s < -0.05:
+            score += 10
+            reasons.append(f"velocity={dpx_pct_per_s:+.3f}%/s falling")
+        return min(100, score), reasons
+
+    def _maybe_peak_detect_shadow(self, state: PositionState,
+                                    pnl_pct: float) -> None:
+        """SHADOW mode — log WOULD-SELL when peak score crosses threshold.
+        Does NOT actually trigger a sell yet. Logged for forward validation.
+        """
+        # Compute price velocity from prior tick
+        dpx = 0.0
+        if state._prev_tick_ts and state._prev_tick_price > 0:
+            dt_s = max(0.001, time.time() - state._prev_tick_ts)
+            dpx = (state.current_price - state._prev_tick_price) / state._prev_tick_price * 100.0 / dt_s
+        state._prev_tick_price = state.current_price
+        state._prev_tick_ts = time.time()
+
+        score, reasons = self._compute_peak_score(state, pnl_pct, dpx)
+        if score >= self._PEAK_DETECT_SCORE_THRESHOLD:
+            if state.peak_detect_first_ts is None:
+                state.peak_detect_first_ts = datetime.now(timezone.utc)
+                state.peak_detect_first_pnl = pnl_pct
+                state.peak_detect_first_score = score
+                state.peak_detect_first_reasons = reasons
+                _peak_pnl_so_far = 0.0
+                try:
+                    _tp_obj = self.open_positions_ref.get(state.token_address)
+                    _peak_pnl_so_far = float(getattr(_tp_obj, "peak_pnl_pct", 0.0) or 0.0)
+                except Exception:
+                    pass
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] SHADOW PEAK-DETECT WOULD-SELL "
+                    f"{state.token_symbol} score={score} pnl={pnl_pct:+.2f}% "
+                    f"peak={_peak_pnl_so_far:+.2f}% reasons=[{', '.join(reasons)}]"
+                )
 
     def _log_position_tick(self, token_address: str, state: PositionState,
                             tp_obj=None) -> None:
@@ -1320,6 +1440,15 @@ class PositionManager:
         try:
             _tp_obj = self.open_positions_ref.get(token_address)
             self._log_position_tick(token_address, state, _tp_obj)
+        except Exception:
+            pass
+
+        # Smart-TP peak detector (SHADOW) — log WOULD-SELL when topping
+        # signals stack while in green. ~10 lines, zero risk to live exits.
+        try:
+            _pnl_pct_now = (state.current_price / state.entry_price - 1) * 100.0 \
+                if state.entry_price > 0 else 0.0
+            self._maybe_peak_detect_shadow(state, _pnl_pct_now)
         except Exception:
             pass
 
