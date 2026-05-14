@@ -4995,6 +4995,26 @@ class DipScanner:
                             f"lp_delta_15m={_cb_lp_d:+.1f}%<-1.0 "
                             f"(LP draining — smart-money exit, no follow-through)"
                         )
+                    elif (
+                        # Gate F: h24_ratio_to_peak [0.80, 0.95) dead zone.
+                        # ENFORCED 2026-05-14 PM. Mining audit (n=246 clean_break
+                        # solo lifetime): ratio 0.80-0.95 = 29.3% WR, -$30.50
+                        # across 41 fires — single largest losing sub-cohort.
+                        # Mid-retracement-recovery zone where bounces stall
+                        # and re-dump before TP. Same pattern caught the
+                        # whale_conviction RAGEGUY 17:14 -4.86% loser.
+                        # Hard gate (runs before compound override): the
+                        # dead zone is a structural entry-quality problem
+                        # that compound triggers can't fix.
+                        (_lifecycle_dict or {}).get("lifecycle_h24_ratio") is not None
+                        and 0.80 <= float((_lifecycle_dict or {}).get("lifecycle_h24_ratio")) < 0.95
+                    ):
+                        _cb_ratio_dz = float((_lifecycle_dict or {}).get("lifecycle_h24_ratio"))
+                        _cb_gated = True
+                        _cb_gate_reason = (
+                            f"h24_ratio_to_peak={_cb_ratio_dz:.2f} in dead zone "
+                            f"[0.80, 0.95) — mid-retracement-recovery, see audit"
+                        )
                     elif _cb_compound_ok:
                         # Compound agreement override — skip soft gates C/D.
                         pass

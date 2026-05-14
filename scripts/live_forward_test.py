@@ -135,13 +135,26 @@ def confirmation_candle_block(c):
 def clean_break_block(c):
     """ENFORCED 2026-05-06. Inverse of "first green after red" pattern.
     Block UNLESS: 1m_consec_red==0 AND 1m_red_count_5>=3 AND 1m_last_close_pct>0.
-    Fail-open if any 1m feature is missing."""
+    Fail-open if any 1m feature is missing.
+
+    Gate F added 2026-05-14 PM: also block when lifecycle_h24_ratio in
+    [0.80, 0.95) — the dead-zone (mid-retracement-recovery near peak).
+    Mining: n=41, 29.3% WR, -$30.50 — largest losing sub-cohort of
+    clean_break solo.
+    """
     consec = c.get('1m_consec_red')
     red5 = c.get('1m_red_count_5')
     lcp = c.get('1m_last_close_pct')
     if consec is None or red5 is None or lcp is None:
-        return False  # fail-open
-    return not (consec == 0 and red5 >= 3 and lcp > 0)
+        # Fall through to dead-zone check rather than fail-open
+        base_block = False
+    else:
+        base_block = not (consec == 0 and red5 >= 3 and lcp > 0)
+    # Gate F: h24_ratio_to_peak dead zone (independent of base pattern)
+    ratio = c.get('lifecycle_h24_ratio')
+    if ratio is not None and 0.80 <= ratio < 0.95:
+        return True
+    return base_block
 
 def double_bear_block(c):
     """ENFORCED 2026-05-06 PM. Block when BOTH bs_m5<0.70 AND p1h<0.10."""
