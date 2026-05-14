@@ -328,10 +328,11 @@ class AxiomTrendingScanner:
         )
         # Merge — Top first (priority), then Trending fills the rest
         pairs = list(top_pairs) + list(trending_tab_pairs)
-        if trending_tab_pairs:
-            logger.info(
-                f"[AxiomDiscovery] Merged: top={len(top_pairs)} + trending={len(trending_tab_pairs)} = {len(pairs)} total"
-            )
+        # Unconditional diagnostic — fires even when Trending is empty so we
+        # can see whether the new feed is producing anything in prod.
+        logger.info(
+            f"[AxiomDiscovery] Merged: top={len(top_pairs)} + trending={len(trending_tab_pairs)} = {len(pairs)} total"
+        )
         out: dict = {}
         for p in pairs:
             addr = (p.get("baseToken") or {}).get("address") or ""
