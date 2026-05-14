@@ -4577,6 +4577,190 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] net_flow_5m trigger err: {_e}")
 
+            # ── trigger_modest_pump_deep_retrace — ENFORCED 2026-05-14 PM ──
+            # MASCOTS pattern (won +$0.46 TP1 + $0.06 trail on 2026-05-14):
+            # token with modest 24h pump (~100%) that has deeply retraced
+            # (lifecycle_ratio<0.10 = price at <10% of 24h peak). Different
+            # from existing demand_bottom_compound branch (which requires
+            # peak>=500%). Catches the "small-pump dead-cat that has fully
+            # bled out and is now re-accumulating" pattern.
+            # Mining audit (.dataset.pkl 7d): n=6, 66.7% WR, total +$3.94.
+            # Tighter ratio<0.05 sub-cohort: n=5, 80% WR.
+            # No additional gates (mining data didn't have bs_h6/net_flow
+            # available in this cohort to layer cleanly).
+            _trigger_modest_pump_deep_retrace_match = False
+            _trigger_modest_pump_deep_retrace_reasons: list = []
+            try:
+                _mpdr_peak = float(peak_h24_6h) if peak_h24_6h is not None else None
+                _mpdr_ratio = (_lifecycle_dict or {}).get("lifecycle_h24_ratio")
+                if (
+                    _mpdr_peak is not None and 50 <= _mpdr_peak < 150
+                    and isinstance(_mpdr_ratio, (int, float))
+                    and _mpdr_ratio < 0.10
+                ):
+                    _trigger_modest_pump_deep_retrace_match = True
+                    _trigger_modest_pump_deep_retrace_reasons.append(
+                        f"peak_h24_6h={_mpdr_peak:.0f}% in [50,150) AND "
+                        f"h24_ratio={_mpdr_ratio:.3f}<0.10 "
+                        f"(modest pump deeply retraced)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] modest_pump_deep_retrace err: {_e}")
+
+            # ── trigger_small_pump_shallow_retrace — ENFORCED 2026-05-14 PM ──
+            # Highest-EV cohort found in MASCOTS-pattern mining:
+            # peak_h24 in [25, 50) AND lifecycle_ratio in [0.60, 0.80).
+            # Mining audit (.dataset.pkl 7d): n=56, 66.1% WR, total +$418.8
+            # (avg +$7.48/trade — far above baseline avg +$0.11/trade).
+            # Mechanism: small 24h pump (25-50%) where price is still ~60-80%
+            # of the peak — token in active uptrend with a shallow pullback,
+            # NOT a post-pump corpse. Distinct from MASCOTS' deep-retrace
+            # pattern. Per-day fire estimate: ~8.
+            _trigger_small_pump_shallow_retrace_match = False
+            _trigger_small_pump_shallow_retrace_reasons: list = []
+            try:
+                _spsr_peak = float(peak_h24_6h) if peak_h24_6h is not None else None
+                _spsr_ratio = (_lifecycle_dict or {}).get("lifecycle_h24_ratio")
+                if (
+                    _spsr_peak is not None and 25 <= _spsr_peak < 50
+                    and isinstance(_spsr_ratio, (int, float))
+                    and 0.60 <= _spsr_ratio < 0.80
+                ):
+                    _trigger_small_pump_shallow_retrace_match = True
+                    _trigger_small_pump_shallow_retrace_reasons.append(
+                        f"peak_h24_6h={_spsr_peak:.0f}% in [25,50) AND "
+                        f"h24_ratio={_spsr_ratio:.3f} in [0.60,0.80) "
+                        f"(small pump, shallow retrace = active uptrend pullback)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] small_pump_shallow_retrace err: {_e}")
+
+            # ── trigger_shallow_retrace_fresh_pump — ENFORCED 2026-05-14 PM ──
+            # Exhaustive-mining 3D goldmine: peak[25,50) AND ratio[0.70,0.85)
+            # AND cycles_seen[10,30). Audit n=12, 91.7% WR, +$194 total
+            # ($16.18/trade avg — highest $/trade of all mined cohorts).
+            # Mechanism: small-pump token in shallow pullback, discovered
+            # by bot in the last 10-30 cycles (fresh but not unseen).
+            _trigger_shallow_retrace_fresh_pump_match = False
+            _trigger_shallow_retrace_fresh_pump_reasons: list = []
+            try:
+                _srfp_peak = float(peak_h24_6h) if peak_h24_6h is not None else None
+                _srfp_ratio = (_lifecycle_dict or {}).get("lifecycle_h24_ratio")
+                _srfp_cycles = cycles_seen
+                if (
+                    _srfp_peak is not None and 25 <= _srfp_peak < 50
+                    and isinstance(_srfp_ratio, (int, float))
+                    and 0.70 <= _srfp_ratio < 0.85
+                    and isinstance(_srfp_cycles, (int, float))
+                    and 10 <= _srfp_cycles < 30
+                ):
+                    _trigger_shallow_retrace_fresh_pump_match = True
+                    _trigger_shallow_retrace_fresh_pump_reasons.append(
+                        f"peak={_srfp_peak:.0f}% AND ratio={_srfp_ratio:.2f} AND "
+                        f"cycles={int(_srfp_cycles)} (3D goldmine n=12, 91.7%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] shallow_retrace_fresh_pump err: {_e}")
+
+            # ── trigger_midcap_quality_accumulation — ENFORCED 2026-05-14 PM ──
+            # mcap[$2M,$10M) AND bs_h6[1.1,1.3) AND ratio[0.5,0.7).
+            # Audit n=35, 82.9% WR, +$151. Mechanism: midcap token with
+            # mild sustained accumulation (bs_h6 in quality band), price
+            # in middle of 24h range — slow-builder pattern.
+            _trigger_midcap_quality_accumulation_match = False
+            _trigger_midcap_quality_accumulation_reasons: list = []
+            try:
+                _mqa_mc = float(mcap) if mcap is not None else None
+                _mqa_bsh6 = float(bs_h6) if bs_h6 not in (None, float("inf")) else None
+                _mqa_ratio = (_lifecycle_dict or {}).get("lifecycle_h24_ratio")
+                if (
+                    _mqa_mc is not None and 2_000_000 <= _mqa_mc < 10_000_000
+                    and _mqa_bsh6 is not None and 1.1 <= _mqa_bsh6 < 1.3
+                    and isinstance(_mqa_ratio, (int, float))
+                    and 0.5 <= _mqa_ratio < 0.7
+                ):
+                    _trigger_midcap_quality_accumulation_match = True
+                    _trigger_midcap_quality_accumulation_reasons.append(
+                        f"mcap=${_mqa_mc/1e6:.1f}M AND bs_h6={_mqa_bsh6:.2f} AND "
+                        f"ratio={_mqa_ratio:.2f} (n=35, 82.9%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] midcap_quality_accumulation err: {_e}")
+
+            # ── trigger_fresh_graduate_buyers — ENFORCED 2026-05-14 PM ──
+            # age_hours[6,24) AND bs_h1[1.3,1.6). Audit n=52, 75.0% WR, +$135.
+            # Mechanism: freshly-graduated pump.fun token (6-24h post-grad)
+            # with moderate 1h buy pressure. Largest sample of any 75%+ WR
+            # cohort — most reliable.
+            _trigger_fresh_graduate_buyers_match = False
+            _trigger_fresh_graduate_buyers_reasons: list = []
+            try:
+                _fgb_age = entry_age_hours if "entry_age_hours" in dir() else None
+                # Fallback: compute from token data if available
+                if _fgb_age is None:
+                    _fgb_age = (_tier3_features or {}).get("hours_since_graduation")
+                _fgb_bsh1 = float(bs_h1) if bs_h1 not in (None, float("inf")) else None
+                if (
+                    isinstance(_fgb_age, (int, float))
+                    and 6 <= _fgb_age < 24
+                    and _fgb_bsh1 is not None and 1.3 <= _fgb_bsh1 < 1.6
+                ):
+                    _trigger_fresh_graduate_buyers_match = True
+                    _trigger_fresh_graduate_buyers_reasons.append(
+                        f"age={_fgb_age:.1f}h AND bs_h1={_fgb_bsh1:.2f} "
+                        f"(n=52, 75.0%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] fresh_graduate_buyers err: {_e}")
+
+            # ── trigger_small_pump_fresh_cycles — ENFORCED 2026-05-14 PM ──
+            # peak[25,50) AND cycles_seen[10,30) AND avg_trade_size[$200,$500).
+            # Audit n=10, 90.0% WR, +$87 ($8.70/trade). Mechanism: small-pump
+            # fresh-discovery token with mid-size trades (institutional, not
+            # retail-fomo). Smallest n but strong $/trade.
+            _trigger_small_pump_fresh_cycles_match = False
+            _trigger_small_pump_fresh_cycles_reasons: list = []
+            try:
+                _spfc_peak = float(peak_h24_6h) if peak_h24_6h is not None else None
+                _spfc_cycles = cycles_seen
+                _spfc_ats = float(avg_trade_size_h1) if avg_trade_size_h1 is not None else None
+                if (
+                    _spfc_peak is not None and 25 <= _spfc_peak < 50
+                    and isinstance(_spfc_cycles, (int, float))
+                    and 10 <= _spfc_cycles < 30
+                    and _spfc_ats is not None and 200 <= _spfc_ats < 500
+                ):
+                    _trigger_small_pump_fresh_cycles_match = True
+                    _trigger_small_pump_fresh_cycles_reasons.append(
+                        f"peak={_spfc_peak:.0f}% AND cycles={int(_spfc_cycles)} AND "
+                        f"avg_trade=${_spfc_ats:.0f} (n=10, 90.0%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] small_pump_fresh_cycles err: {_e}")
+
+            # ── trigger_midcap_bigpump_fresh — ENFORCED 2026-05-14 PM ──
+            # mcap[$2M,$10M) AND bs_h6[1.1,1.3) AND peak_h24[1000+).
+            # Audit n=28, 89.3% WR, +$92. Mechanism: midcap with mild
+            # accumulation AND massive 24h pump still in play.
+            _trigger_midcap_bigpump_fresh_match = False
+            _trigger_midcap_bigpump_fresh_reasons: list = []
+            try:
+                _mbf_mc = float(mcap) if mcap is not None else None
+                _mbf_bsh6 = float(bs_h6) if bs_h6 not in (None, float("inf")) else None
+                _mbf_peak = float(peak_h24_6h) if peak_h24_6h is not None else None
+                if (
+                    _mbf_mc is not None and 2_000_000 <= _mbf_mc < 10_000_000
+                    and _mbf_bsh6 is not None and 1.1 <= _mbf_bsh6 < 1.3
+                    and _mbf_peak is not None and _mbf_peak >= 1000
+                ):
+                    _trigger_midcap_bigpump_fresh_match = True
+                    _trigger_midcap_bigpump_fresh_reasons.append(
+                        f"mcap=${_mbf_mc/1e6:.1f}M AND bs_h6={_mbf_bsh6:.2f} AND "
+                        f"peak={_mbf_peak:.0f}%>=1000 (n=28, 89.3%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] midcap_bigpump_fresh err: {_e}")
+
             # ── trigger_whale_conviction — ENFORCED 2026-05-14 PM (Commit C) ─
             # Positive entry trigger from 35-angle deep mining. Fires on:
             #   - whale_buy_present_2k == True (a $2k+ whale buy in lookback)
@@ -5164,6 +5348,20 @@ class DipScanner:
                 _triggers_fired.append("whale_conviction")
             if _trigger_strong_uptrend_dip_match:
                 _triggers_fired.append("strong_uptrend_dip")
+            if _trigger_modest_pump_deep_retrace_match:
+                _triggers_fired.append("modest_pump_deep_retrace")
+            if _trigger_small_pump_shallow_retrace_match:
+                _triggers_fired.append("small_pump_shallow_retrace")
+            if _trigger_shallow_retrace_fresh_pump_match:
+                _triggers_fired.append("shallow_retrace_fresh_pump")
+            if _trigger_midcap_quality_accumulation_match:
+                _triggers_fired.append("midcap_quality_accumulation")
+            if _trigger_fresh_graduate_buyers_match:
+                _triggers_fired.append("fresh_graduate_buyers")
+            if _trigger_small_pump_fresh_cycles_match:
+                _triggers_fired.append("small_pump_fresh_cycles")
+            if _trigger_midcap_bigpump_fresh_match:
+                _triggers_fired.append("midcap_bigpump_fresh")
 
             # 1s triggers fire LATER (after 1s feature compute) — allow
             # dippy candidates with NO classic-trigger match to pass this
@@ -5266,6 +5464,20 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_mcap_psych_reasons)
                 if _trigger_whale_conviction_match:
                     _alt_reasons.extend(_trigger_whale_conviction_reasons)
+                if _trigger_modest_pump_deep_retrace_match:
+                    _alt_reasons.extend(_trigger_modest_pump_deep_retrace_reasons)
+                if _trigger_small_pump_shallow_retrace_match:
+                    _alt_reasons.extend(_trigger_small_pump_shallow_retrace_reasons)
+                if _trigger_shallow_retrace_fresh_pump_match:
+                    _alt_reasons.extend(_trigger_shallow_retrace_fresh_pump_reasons)
+                if _trigger_midcap_quality_accumulation_match:
+                    _alt_reasons.extend(_trigger_midcap_quality_accumulation_reasons)
+                if _trigger_fresh_graduate_buyers_match:
+                    _alt_reasons.extend(_trigger_fresh_graduate_buyers_reasons)
+                if _trigger_small_pump_fresh_cycles_match:
+                    _alt_reasons.extend(_trigger_small_pump_fresh_cycles_reasons)
+                if _trigger_midcap_bigpump_fresh_match:
+                    _alt_reasons.extend(_trigger_midcap_bigpump_fresh_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -7400,6 +7612,26 @@ class DipScanner:
                 # 1h_4_red<=1.
                 "trigger_strong_uptrend_dip_match": _trigger_strong_uptrend_dip_match,
                 "trigger_strong_uptrend_dip_reasons": _trigger_strong_uptrend_dip_reasons,
+                # trigger_modest_pump_deep_retrace — ENFORCED 2026-05-14 PM.
+                # MASCOTS pattern: peak[50,150) AND ratio<0.10. Audit n=6, 66.7% WR.
+                "trigger_modest_pump_deep_retrace_match": _trigger_modest_pump_deep_retrace_match,
+                "trigger_modest_pump_deep_retrace_reasons": _trigger_modest_pump_deep_retrace_reasons,
+                # trigger_small_pump_shallow_retrace — ENFORCED 2026-05-14 PM.
+                # Highest-EV cohort: peak[25,50) AND ratio[0.60,0.80). Audit n=56,
+                # 66.1% WR, +$418.8 total ($7.48/trade avg).
+                "trigger_small_pump_shallow_retrace_match": _trigger_small_pump_shallow_retrace_match,
+                "trigger_small_pump_shallow_retrace_reasons": _trigger_small_pump_shallow_retrace_reasons,
+                # 5 exhaustive-mining triggers — ENFORCED 2026-05-14 PM.
+                "trigger_shallow_retrace_fresh_pump_match": _trigger_shallow_retrace_fresh_pump_match,
+                "trigger_shallow_retrace_fresh_pump_reasons": _trigger_shallow_retrace_fresh_pump_reasons,
+                "trigger_midcap_quality_accumulation_match": _trigger_midcap_quality_accumulation_match,
+                "trigger_midcap_quality_accumulation_reasons": _trigger_midcap_quality_accumulation_reasons,
+                "trigger_fresh_graduate_buyers_match": _trigger_fresh_graduate_buyers_match,
+                "trigger_fresh_graduate_buyers_reasons": _trigger_fresh_graduate_buyers_reasons,
+                "trigger_small_pump_fresh_cycles_match": _trigger_small_pump_fresh_cycles_match,
+                "trigger_small_pump_fresh_cycles_reasons": _trigger_small_pump_fresh_cycles_reasons,
+                "trigger_midcap_bigpump_fresh_match": _trigger_midcap_bigpump_fresh_match,
+                "trigger_midcap_bigpump_fresh_reasons": _trigger_midcap_bigpump_fresh_reasons,
                 # filter_mtf_strong_downtrend — ENFORCED 2026-05-13 PM (round-7,
                 # blocks chart_mtf_score<=-2; 0W/5L on n=29).
                 "filter_mtf_strong_downtrend_verdict": _filter_mtf_dn_verdict,

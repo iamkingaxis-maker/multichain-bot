@@ -448,6 +448,50 @@ COMBOS = {
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).
+    # ─── trigger_modest_pump_deep_retrace — ENFORCED 2026-05-14 PM ───
+    # MASCOTS pattern: peak_h24_6h in [50, 150) AND h24_ratio_to_peak < 0.10.
+    # Audit n=6, 66.7% WR, +$3.94 (ratio<0.05 tighter: n=5, 80% WR).
+    'AK_modest_pump_deep_retrace': lambda c: (
+        c.get('peak_h24_6h_pct') is not None
+        and 50 <= c['peak_h24_6h_pct'] < 150
+        and c.get('h24_ratio_to_peak') is not None
+        and c['h24_ratio_to_peak'] < 0.10
+    ),
+    # ─── trigger_small_pump_shallow_retrace — ENFORCED 2026-05-14 PM ───
+    # Highest-EV cohort: peak[25,50) AND ratio[0.60,0.80). Audit n=56, 66.1% WR,
+    # +$418.8 total ($7.48/trade avg — far above baseline +$0.11/trade).
+    'AL_small_pump_shallow_retrace': lambda c: (
+        c.get('peak_h24_6h_pct') is not None
+        and 25 <= c['peak_h24_6h_pct'] < 50
+        and c.get('h24_ratio_to_peak') is not None
+        and 0.60 <= c['h24_ratio_to_peak'] < 0.80
+    ),
+    # ─── 5 exhaustive-mining triggers — ENFORCED 2026-05-14 PM ───
+    # All from cross-feature 2D/3D grid mining of .dataset.pkl.
+    'AM_shallow_retrace_fresh_pump': lambda c: (
+        c.get('peak_h24_6h_pct') is not None and 25 <= c['peak_h24_6h_pct'] < 50
+        and c.get('h24_ratio_to_peak') is not None and 0.70 <= c['h24_ratio_to_peak'] < 0.85
+        and c.get('cycles_seen') is not None and 10 <= c['cycles_seen'] < 30
+    ),
+    'AN_midcap_quality_accumulation': lambda c: (
+        c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
+        and c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
+        and c.get('h24_ratio_to_peak') is not None and 0.5 <= c['h24_ratio_to_peak'] < 0.7
+    ),
+    'AO_fresh_graduate_buyers': lambda c: (
+        c.get('hours_since_graduation') is not None and 6 <= c['hours_since_graduation'] < 24
+        and c.get('bs_h1') is not None and 1.3 <= c['bs_h1'] < 1.6
+    ),
+    'AP_small_pump_fresh_cycles': lambda c: (
+        c.get('peak_h24_6h_pct') is not None and 25 <= c['peak_h24_6h_pct'] < 50
+        and c.get('cycles_seen') is not None and 10 <= c['cycles_seen'] < 30
+        and c.get('avg_trade_size_h1_usd') is not None and 200 <= c['avg_trade_size_h1_usd'] < 500
+    ),
+    'AQ_midcap_bigpump_fresh': lambda c: (
+        c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
+        and c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
+        and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 1000
+    ),
     # ─── UptrendScanner SHADOW Phase 1 mirrors — 2026-05-14 evening ───
     # Phantom parity for feeds/uptrend_scanner.py. Predicates PASS when the
     # corresponding shadow trigger would WOULD-FIRE on this snapshot. All
