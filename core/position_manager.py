@@ -103,6 +103,13 @@ class PositionState:
     signal_flip_first_pnl: Optional[float] = None
     signal_flip_reasons: List[str] = field(default_factory=list)
 
+    # Chart-feature cache for the position_tick logger — populated by
+    # _maybe_check_chart_signal_flip every 60s. The 5s tick logger reads
+    # this and stamps each tick with the most-recent chart features so
+    # the smart-TP miner has bs/mtf/structure context alongside pnl_pct.
+    chart_features_cache: Optional[dict] = None
+    chart_features_cache_ts: float = 0.0
+
     # 1s cascade detector — SHADOW 2026-05-11. Checks during hold whether
     # the 1s structure shows an active cascade (volatile, mostly-red,
     # close-near-low). If yes, logs the wall-clock time + pnl at first
@@ -511,6 +518,15 @@ class PositionManager:
                 "tp1_hit": bool(getattr(tp_obj, "tp1_hit", False)) if tp_obj else False,
                 "tp2_hit": bool(getattr(tp_obj, "tp2_hit", False)) if tp_obj else False,
             }
+            # Chart features (populated every 60s by signal-flip check);
+            # stamped on every tick with chart_age_s so the miner can
+            # detect stale features and weight accordingly.
+            cf = getattr(state, "chart_features_cache", None)
+            cf_ts = getattr(state, "chart_features_cache_ts", 0.0) or 0.0
+            if cf:
+                tick["chart_age_s"] = round(time.time() - cf_ts, 1)
+                for k, v in cf.items():
+                    tick[f"chart_{k}"] = v
             os.makedirs(os.path.dirname(self._position_tick_path), exist_ok=True)
             with open(self._position_tick_path, "a") as f:
                 f.write(json.dumps(tick) + "\n")
@@ -701,6 +717,32 @@ class PositionManager:
             return
         if ctx is None:
             return
+
+        # Stamp the chart features cache for the smart-TP tick logger.
+        # Fail-safe: only the read; we never reraise if a field is missing.
+        try:
+            _last_5m = (cd.candles_5m or [])[-1] if cd and cd.candles_5m else None
+            _last_5m_dir = None
+            if _last_5m and _last_5m.get("close") is not None and _last_5m.get("open") is not None:
+                _last_5m_dir = "green" if _last_5m["close"] >= _last_5m["open"] else "red"
+            state.chart_features_cache = {
+                "composite_score": float(getattr(ctx, "composite_score", 0.0) or 0.0),
+                "mtf_score": float((ctx.mtf or {}).get("score") or 0.0),
+                "mtf_alignment": (ctx.mtf or {}).get("alignment"),
+                "struct_5m_verdict": (ctx.structure_5m or {}).get("structure_verdict"),
+                "struct_5m_state": (ctx.structure_5m or {}).get("state"),
+                "sweep_5m_verdict": (ctx.sweeps_5m or {}).get("sweep_verdict"),
+                "trendline_5m_verdict": (ctx.trendlines_5m or {}).get("trendline_verdict"),
+                "pattern_5m_dir": (ctx.pattern_5m or {}).get("direction"),
+                "pattern_5m_conf": float((ctx.pattern_5m or {}).get("confidence") or 0.0),
+                "vp_above_poc": (ctx.volume_profile_5m or {}).get("above_poc"),
+                "sr_at_resistance": (ctx.sr_5m or {}).get("at_resistance"),
+                "sr_at_support": (ctx.sr_5m or {}).get("at_support"),
+                "last_5m_dir": _last_5m_dir,
+            }
+            state.chart_features_cache_ts = time.time()
+        except Exception:
+            pass
 
         bearish: List[str] = []
         score = float(getattr(ctx, "composite_score", 50.0) or 50.0)
