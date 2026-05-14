@@ -280,7 +280,8 @@ COMBOS = {
     'KK_controlled_greens_5m': lambda c: (c.get('5m_n_normal_greens_last8') is not None
                                           and c['5m_n_normal_greens_last8'] >= 4
                                           and c.get('peak_h24_6h_pct') is not None
-                                          and c['peak_h24_6h_pct'] >= 200.0),
+                                          and c['peak_h24_6h_pct'] >= 200.0
+                                          and c.get('last_5m_green') is True),
     # ─── pullback_in_uptrend + vol_surge_recent — ENFORCED 2026-05-13 PM ───
     # From round-2 analysis (n=55 combined, 27W vs 27L).
     'LL_pullback_in_uptrend': lambda c: (c.get('1h_last3_n_green') is not None
@@ -952,6 +953,14 @@ def compute_1h_features(c):
                 prior_avg = sum(float(r[5]) for r in prior) / len(prior)
                 if prior_avg > 0:
                     out['vol_surge_ratio_recent_prior'] = round(recent_avg / prior_avg, 3)
+        # filter_1h_v_bottom_fake_recovery phantom — last 2 1h bars
+        if len(rows) >= 2:
+            c1, c2 = rows[-2], rows[-1]
+            c1_o, c1_c = float(c1[1]), float(c1[4])
+            c2_o, c2_c = float(c2[1]), float(c2[4])
+            out['1h_v_bottom_recovery'] = (
+                c1_c < c1_o and c2_c > c2_o and c2_c >= c1_o
+            )
     except Exception:
         pass
     return out

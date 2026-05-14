@@ -4533,12 +4533,23 @@ class DipScanner:
                         if (_b / _rng) < 0.80:  # not marubozu
                             _cg_n_norm_green += 1
                     _cg_peak = float(peak_h24_6h) if peak_h24_6h is not None else 0.0
-                    if _cg_n_norm_green >= 4 and _cg_peak >= 200.0:
+                    # TIGHTENED 2026-05-13 PM (round-5): require last 5m green.
+                    # Original (n_norm_green>=4 + peak>=200) had 73% precision
+                    # on n=55. Adding last_5m_green requirement: 6W/0L = 100%
+                    # precision (blocks CHINA -$6.04 + 2 others, costs RKC +$1.16,
+                    # HANTA +$1.09. Net save: +$5.89).
+                    _cg_last_green = (
+                        _cg_last8[-1].close > _cg_last8[-1].open
+                    )
+                    if (_cg_n_norm_green >= 4
+                            and _cg_peak >= 200.0
+                            and _cg_last_green):
                         _trigger_controlled_greens_5m_match = True
                         _trigger_controlled_greens_5m_reasons.append(
                             f"5m_normal_greens_in_last_8={_cg_n_norm_green}>=4 "
                             f"(body/range<0.80) AND "
-                            f"peak_h24_6h={_cg_peak:.0f}%>=200"
+                            f"peak_h24_6h={_cg_peak:.0f}%>=200 AND "
+                            f"last_5m_green=True"
                         )
             except Exception as _e:
                 logger.debug(f"[DipScanner] controlled_greens_5m trigger err: {_e}")
@@ -6081,6 +6092,46 @@ class DipScanner:
                     else _triggers_fired[0]
                 )
 
+            # ── filter_1h_v_bottom_fake_recovery — ENFORCED 2026-05-13 PM ───
+            # Round-5 negative-filter mining: last 1h is GREEN and prior 1h
+            # was RED, with current close >= prior open (i.e., a "V-bottom
+            # recovery" that erased the prior red candle).
+            # Validation on n=55 paired: 0W / 4L blocked. Save: +$9.48 (no
+            # winners harmed). Mechanism: tokens where the last 1h is a
+            # "v-bottom" reversal mean the bot is entering AFTER the
+            # recovery candle — chasing the bounce, which fades.
+            #
+            # Fail-open if 1h data <2 bars (token too new for 1h history).
+            _filter_v_bottom_block_reasons: list = []
+            try:
+                _vb_h1 = (_chart_data.candles_1h
+                          if _chart_data and _chart_data.candles_1h else [])
+                if len(_vb_h1) >= 2:
+                    _vb_c1 = _vb_h1[-2]; _vb_c2 = _vb_h1[-1]
+                    if (_vb_c1.close < _vb_c1.open  # prior red
+                            and _vb_c2.close > _vb_c2.open  # current green
+                            and _vb_c2.close >= _vb_c1.open):  # erased prior red
+                        _filter_v_bottom_block_reasons.append(
+                            f"1h_v_bottom_recovery: prior_1h_red "
+                            f"({_vb_c1.open:.6f}->{_vb_c1.close:.6f}) "
+                            f"-> current_1h_green erased it "
+                            f"({_vb_c2.open:.6f}->{_vb_c2.close:.6f})"
+                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 1h_v_bottom filter err: {_e}")
+            _filter_v_bottom_verdict = (
+                "BLOCK" if _filter_v_bottom_block_reasons else "PASS"
+            )
+            c[f"filter_1h_v_bottom_{_filter_v_bottom_verdict.lower()}"] = c.get(
+                f"filter_1h_v_bottom_{_filter_v_bottom_verdict.lower()}", 0
+            ) + 1
+            if _filter_v_bottom_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_1h_v_bottom_fake_recovery: "
+                    f"{token_symbol} reasons={','.join(_filter_v_bottom_block_reasons)}"
+                )
+                continue
+
             # ── filter_topping — SHADOW 2026-05-06 PM ────────────────────────
             # Record-only verdict for the "you're catching a top" pattern:
             # BLOCK when macro30_pct > +5% (price already up >5% over the
@@ -6662,6 +6713,10 @@ class DipScanner:
                 # 5m bullish engulfing pattern, 100% precision on n=55 paired).
                 "trigger_bullish_engulfing_5m_match": _trigger_bullish_engulfing_5m_match,
                 "trigger_bullish_engulfing_5m_reasons": _trigger_bullish_engulfing_5m_reasons,
+                # filter_1h_v_bottom_fake_recovery — ENFORCED 2026-05-13 PM
+                # (round-5, blocks 1h v-bottom recovery setups; 0W/4L on n=55).
+                "filter_1h_v_bottom_verdict": _filter_v_bottom_verdict,
+                "filter_1h_v_bottom_block_reasons": _filter_v_bottom_block_reasons,
                 # filter_topping — SHADOW 2026-05-06 PM (catch knife-catch at peak).
                 "filter_topping_verdict": _filter_topping_verdict,
                 "filter_topping_block_reasons": _filter_topping_block_reasons,
