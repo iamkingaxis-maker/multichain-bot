@@ -1878,12 +1878,15 @@ class DipScanner:
             c[f"filter_weak_bounce_v2_{_filter_weak_bounce_v2_verdict.lower()}"] = c.get(
                 f"filter_weak_bounce_v2_{_filter_weak_bounce_v2_verdict.lower()}", 0
             ) + 1
+            # DEMOTED to SHADOW 2026-05-14 evening — gather counterfactual
+            # data (no BLOCK→executed-trade samples exist; can't audit while
+            # enforced). Re-evaluate after 24h of forward data.
             if _filter_weak_bounce_v2_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_weak_bounce_v2: {token_symbol} "
+                    f"[DipScanner] filter_weak_bounce_v2 SHADOW would-block: {token_symbol} "
                     f"reasons={','.join(_filter_weak_bounce_v2_block_reasons)}"
                 )
-                continue
+                # ENFORCEMENT REMOVED 2026-05-14 PM — shadow only.
 
             # ── filter_turn_confirmation — DOWNGRADED TO SHADOW 2026-05-05 PM ─
             # Originally enforced (forward sim showed +$6.29/day vs -$2.91/day),
@@ -2675,12 +2678,15 @@ class DipScanner:
             c[f"filter_rsi_overbought_{_filter_rsi_overbought_verdict.lower()}"] = c.get(
                 f"filter_rsi_overbought_{_filter_rsi_overbought_verdict.lower()}", 0
             ) + 1
+            # DEMOTED to SHADOW 2026-05-14 evening — gather counterfactual
+            # data (no BLOCK→executed-trade samples exist; can't audit while
+            # enforced). Re-evaluate after 24h of forward data.
             if _filter_rsi_overbought_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_rsi_overbought: {token_symbol} "
+                    f"[DipScanner] filter_rsi_overbought SHADOW would-block: {token_symbol} "
                     f"reasons={','.join(_filter_rsi_overbought_block_reasons)}"
                 )
-                continue
+                # ENFORCEMENT REMOVED 2026-05-14 PM — shadow only.
 
             # ── Tier-3 features (2026-05-04) — narrow but bundleable ──
             # Support touches, wick:body ratios, freq derivative, net flow
