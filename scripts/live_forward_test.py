@@ -281,6 +281,15 @@ COMBOS = {
                                           and c['5m_n_normal_greens_last8'] >= 4
                                           and c.get('peak_h24_6h_pct') is not None
                                           and c['peak_h24_6h_pct'] >= 200.0),
+    # ─── pullback_in_uptrend + vol_surge_recent — ENFORCED 2026-05-13 PM ───
+    # From round-2 analysis (n=55 combined, 27W vs 27L).
+    'LL_pullback_in_uptrend': lambda c: (c.get('1h_last3_n_green') is not None
+                                         and c['1h_last3_n_green'] >= 2
+                                         and c.get('5m_last5_n_green') is not None
+                                         and c['5m_last5_n_green'] <= 2
+                                         and c.get('last_5m_green') is True),
+    'MM_vol_surge_recent':    lambda c: (c.get('vol_surge_ratio_recent_prior') is not None
+                                         and c['vol_surge_ratio_recent_prior'] >= 3.0),
     # TODO: informed_cluster + grad_window_dip still need top10_buyer_within_60s_count
     # and hours_since_graduation in phantom enrichment. Would require recent_trades
     # fetch + graduation_status lookup per candidate (~30 extra GT calls/snap).
@@ -912,6 +921,39 @@ def compute_1s_features(c):
     return out
 
 
+def compute_1h_features(c):
+    """Fetch 48 1h candles for round-2 triggers (pullback_in_uptrend
+    + vol_surge_recent). Returns dict merged into candidate. Fail-open."""
+    out = {}
+    try:
+        url = f'https://api.geckoterminal.com/api/v2/networks/solana/pools/{c["pair"]}/ohlcv/hour?aggregate=1&limit=48'
+        r = requests.get(url, timeout=10)
+        if r.status_code != 200:
+            return out
+        ohlcv = ((r.json().get('data') or {}).get('attributes') or {}).get('ohlcv_list') or []
+        if len(ohlcv) < 3:
+            return out
+        # GT newest-first; flip to oldest-first
+        rows = list(reversed(ohlcv))
+        # pullback_in_uptrend: 1h_last3_n_green
+        last3 = rows[-3:]
+        n_1h_green = sum(1 for r in last3 if float(r[4]) > float(r[1]))
+        out['1h_last3_n_green'] = n_1h_green
+        # vol_surge_recent: recent_8h_avg / prior_40h_avg
+        if len(rows) >= 12:
+            recent_n = min(8, max(4, len(rows) // 6))
+            recent = rows[-recent_n:]
+            prior = rows[:-recent_n]
+            if prior:
+                recent_avg = sum(float(r[5]) for r in recent) / len(recent)
+                prior_avg = sum(float(r[5]) for r in prior) / len(prior)
+                if prior_avg > 0:
+                    out['vol_surge_ratio_recent_prior'] = round(recent_avg / prior_avg, 3)
+    except Exception:
+        pass
+    return out
+
+
 def compute_5m_features(c):
     """Fetch 5m candles via GT (with retry) and compute pct_in_5m_range, candle pattern, etc."""
     ohlcv = fetch_gt_ohlcv_with_retry(c['pair'], agg=5, limit=24)
@@ -950,6 +992,20 @@ def compute_5m_features(c):
         except Exception:
             continue
 
+    # trigger_pullback_in_uptrend phantom — last 5 5m bars green count.
+    # GT newest-first, so first 5 == last 5. Last 5m bar = ohlcv[0].
+    _5m_last5_n_green = 0
+    _last_5m_green = False
+    for _i, b in enumerate(ohlcv[:5]):
+        try:
+            _bo = float(b[1]); _bc = float(b[4])
+            if _bc > _bo:
+                _5m_last5_n_green += 1
+                if _i == 0:
+                    _last_5m_green = True
+        except Exception:
+            continue
+
     return {
         'pct_in_5m_range': pct_in_5m_range,
         'candle_5m': candle,
@@ -958,6 +1014,8 @@ def compute_5m_features(c):
         'ratio_to_recent_peak': round(close / max(highs), 3) if highs and max(highs) > 0 else 1.0,
         'snapshot_close': close,
         '5m_n_normal_greens_last8': _cg_n_norm_green,
+        '5m_last5_n_green': _5m_last5_n_green,
+        'last_5m_green': _last_5m_green,
     }
 
 
@@ -1124,6 +1182,9 @@ def take_snapshot():
         # D1 chart features (trend slope/HH-LH/MA distance + micro patterns) —
         # phantom parity with production (1 GT call per token, ~1s pacing).
         c.update(compute_d1_features(c))
+        # 1h features for pullback_in_uptrend + vol_surge_recent triggers
+        # (1 GT call per token, fail-open).
+        c.update(compute_1h_features(c))
         # filter_rsi_overbought phantom parity (2 GT calls: 5m + 15m bars).
         c.update(compute_rsi_overbought_features(c))
         # Jupiter $5k buy/sell slippage
