@@ -2406,6 +2406,28 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] CNN inference err: {_e}")
 
+            # Forward dataset collector — dumps image + context for every
+            # evaluated candidate. Outcome label gets stamped later by the
+            # trader on close. SHADOW only — pure data collection.
+            try:
+                from feeds.forward_dataset_collector import get_collector
+                from datetime import datetime, timezone
+                if _chart_data:
+                    get_collector().dump_snapshot(
+                        token_address=token_address,
+                        ts_iso=datetime.now(timezone.utc).isoformat(),
+                        candles_1m=_chart_data.candles_1m or [],
+                        candles_5m=_chart_data.candles_5m or [],
+                        candles_15m=_chart_data.candles_15m or [],
+                        context={
+                            "hour_ct": _flt_h if "_flt_h" in dir() else None,
+                            "mcap_usd": mcap if "mcap" in dir() else None,
+                            "token_symbol": token_symbol,
+                        },
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] forward_collector err: {_e}")
+
             # ─── UptrendScanner SHADOW eval (Phase 1, 2026-05-14 evening) ──
             # Green-tape companion strategy. Evaluates the SAME token here
             # but with different gate/trigger logic targeting confirmed
