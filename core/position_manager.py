@@ -774,7 +774,15 @@ class PositionManager:
     # Logged only, not enforced. See PositionState.signal_flip_*
     # field comments for rationale.
     # ───────────────────────────────────────────────────────────
-    _CHART_FLIP_CHECK_INTERVAL_S: float = 60.0
+    # 2026-05-15: dropped 60s → 15s so peak_recorder accumulates minute
+    # records on shorter trades. Was: all overnight 2026-05-15 traces
+    # had minutes=0 because most trades closed in <60s of chart_flip
+    # cadence ticks, so record_minute never fired. 15s gives ~32 calls
+    # over an 8min PAC trade → ~8 unique minute records (one per minute
+    # boundary). Chart_signal_flip itself still uses `_CHART_FLIP_BEARISH
+    # _PHASES_REQUIRED`-based consecutive counter, which works fine at
+    # any cadence.
+    _CHART_FLIP_CHECK_INTERVAL_S: float = 15.0
     _CHART_FLIP_BEARISH_PHASES_REQUIRED: int = 2
 
     async def _maybe_check_chart_signal_flip(
