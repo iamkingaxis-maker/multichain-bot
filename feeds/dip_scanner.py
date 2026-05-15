@@ -2733,8 +2733,16 @@ class DipScanner:
                         f"{';'.join(_trigger_post_capit_breakout_reasons)}"
                     )
                 else:
+                    # SHADOW 2026-05-15: filter_sweep_too_recent moved
+                    # ENFORCED → SHADOW. Reason: audit showed Odyssey
+                    # (+44% end gain WIN) blocked by sweep_5m_low_ago=1.
+                    # The filter catches "still falling" but the same
+                    # signature is present in v-bottom-reversal cases
+                    # right before the recovery candle prints. Recorder
+                    # captures forward outcomes for both BLOCK and PASS;
+                    # promote back if BLOCK cohort cleanly underperforms.
                     logger.info(
-                        f"[DipScanner] BLOCKED by filter_sweep_too_recent: {token_symbol} "
+                        f"[DipScanner] filter_sweep_too_recent SHADOW would-block: {token_symbol} "
                         f"reasons={','.join(_filter_sweep_too_recent_block_reasons)}"
                     )
                     try:
@@ -2746,7 +2754,6 @@ class DipScanner:
                         )
                     except Exception:
                         pass
-                    continue
 
             # ── Note: filter_combo enforcement moved to core/trader.py ──
             # The Pareto-best 50%-block combo from filter_combo_pareto.py
