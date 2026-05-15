@@ -90,6 +90,77 @@ class ForwardDatasetCollector:
             logger.debug(f"[forward_collector] dump err: {e}")
             return False
 
+    def dump_buy_snapshot(self,
+                          token_address: str,
+                          ts_iso: str,
+                          candles_1m: List[Candle],
+                          candles_5m: List[Candle],
+                          candles_15m: List[Candle],
+                          entry_meta: Dict) -> bool:
+        """Write a buy-confirmed snapshot with the FULL entry_meta dict.
+
+        Stored under a separate directory (buys/) so candidate-level dumps stay
+        separate from buy-level dumps. This is the dataset future fusion
+        meta-models train on — every buy carries 500+ features at decision
+        time, paired with the chart image.
+        """
+        if not self._disk_has_space():
+            return False
+        try:
+            img = render_chart_image(candles_1m, candles_5m, candles_15m)
+            if img is None:
+                return False
+            date = ts_iso[:10]
+            buy_dir = self.root_dir / "buys" / date
+            buy_dir.mkdir(parents=True, exist_ok=True)
+            base = f"{_safe_filename(token_address)}_{_safe_filename(ts_iso)}"
+            npy_path = buy_dir / f"{base}.npy"
+            json_path = buy_dir / f"{base}.json"
+            np.save(npy_path, img)
+            payload = {
+                "addr": token_address,
+                "ts": ts_iso,
+                "type": "buy_snapshot",
+                "entry_meta": dict(entry_meta) if entry_meta else {},
+                # Outcome fields appended by update_buy_outcome on close.
+                "outcome_label": None,
+                "outcome_pnl_pct": None,
+                "realized_pnl_strategy": None,
+            }
+            with open(json_path, "w") as f:
+                json.dump(payload, f, default=str)
+            return True
+        except Exception as e:
+            logger.debug(f"[forward_collector] buy dump err: {e}")
+            return False
+
+    def update_buy_outcome(self,
+                           token_address: str,
+                           ts_iso: str,
+                           outcome_label: int,
+                           outcome_pnl_pct: float,
+                           realized_pnl_strategy: Optional[float] = None) -> bool:
+        """Append outcome to a buy-snapshot JSON."""
+        try:
+            date = ts_iso[:10]
+            buy_dir = self.root_dir / "buys" / date
+            base = f"{_safe_filename(token_address)}_{_safe_filename(ts_iso)}"
+            json_path = buy_dir / f"{base}.json"
+            if not json_path.exists():
+                return False
+            with open(json_path) as f:
+                payload = json.load(f)
+            payload["outcome_label"] = int(outcome_label)
+            payload["outcome_pnl_pct"] = float(outcome_pnl_pct)
+            if realized_pnl_strategy is not None:
+                payload["realized_pnl_strategy"] = float(realized_pnl_strategy)
+            with open(json_path, "w") as f:
+                json.dump(payload, f, default=str)
+            return True
+        except Exception as e:
+            logger.debug(f"[forward_collector] buy outcome update err: {e}")
+            return False
+
     def update_outcome(self,
                        token_address: str,
                        ts_iso: str,

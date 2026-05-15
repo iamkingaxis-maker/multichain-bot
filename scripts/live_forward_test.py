@@ -1520,6 +1520,24 @@ def compute_cnn_features(c):
                 out['cnn_cluster_19_rug'] = (_cl == 19)
         except Exception:
             pass
+        # Phantom parity with fusion_constrained_score_shadow: 14-feature LR
+        # over chart MTF + on-chain holders + CNN cluster + 1m action + regime.
+        # Reads from `c` (candidate dict) which already has the on-chain fields
+        # populated by upstream phantom enrichment. Stamps a P(win) in [0, 1]
+        # or None when the model is unavailable.
+        try:
+            from models.fusion_constrained import get_fusion_constrained
+            _fc_inf = get_fusion_constrained()
+            if not _fc_inf.disabled:
+                # Build a minimal entry_meta-like dict from candidate fields
+                _em_proxy = dict(c)
+                _em_proxy['cnn_cluster_id'] = out.get('cnn_cluster_id')
+                from datetime import datetime as _dt, timezone as _tz
+                out['fusion_constrained_score_shadow'] = _fc_inf.score_from_entry_meta(
+                    _em_proxy, time_iso=_dt.now(_tz.utc).isoformat()
+                )
+        except Exception:
+            pass
     except Exception:
         pass
     return out

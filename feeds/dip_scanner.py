@@ -9138,6 +9138,47 @@ class DipScanner:
                 **shewhart_features,  # shadow_shewhart_dump_detected/max_neg_z (paper, SHADOW)
             }
 
+            # fusion_constrained — SHADOW 2026-05-15. 14-feature LR (chart MTF +
+            # on-chain holders/LP + CNN cluster + 1m action + regime), trained
+            # on lifetime closed paired trades with LOO-CV. Stamp P(win) into
+            # entry_meta_dict so future analysis can correlate the shadow
+            # probability against realized P&L. Fail-quiet on any error —
+            # must not block buy.
+            try:
+                from models.fusion_constrained import get_fusion_constrained
+                _fc_inf = get_fusion_constrained()
+                if not _fc_inf.disabled:
+                    from datetime import datetime, timezone
+                    entry_meta_dict["fusion_constrained_score_shadow"] = (
+                        _fc_inf.score_from_entry_meta(
+                            entry_meta_dict,
+                            time_iso=datetime.now(timezone.utc).isoformat(),
+                        )
+                    )
+                else:
+                    entry_meta_dict["fusion_constrained_score_shadow"] = None
+            except Exception as _e:
+                logger.debug(f"[DipScanner] fusion_constrained err: {_e}")
+                entry_meta_dict["fusion_constrained_score_shadow"] = None
+
+            # Forward dataset — buy-level snapshot with full entry_meta.
+            # Future fusion meta-models train on this dataset paired with the
+            # outcome that gets stamped when the trade closes (via trader).
+            try:
+                if _chart_data:
+                    from feeds.forward_dataset_collector import get_collector as _get_fwd
+                    from datetime import datetime as _dt, timezone as _tz
+                    _get_fwd().dump_buy_snapshot(
+                        token_address=token_address,
+                        ts_iso=_dt.now(_tz.utc).isoformat(),
+                        candles_1m=_chart_data.candles_1m or [],
+                        candles_5m=_chart_data.candles_5m or [],
+                        candles_15m=_chart_data.candles_15m or [],
+                        entry_meta=entry_meta_dict,
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] buy_snapshot err: {_e}")
+
             await self.trader.buy(
                 token_address=token_address,
                 token_symbol=token_symbol,

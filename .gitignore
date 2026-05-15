@@ -84,4 +84,6 @@ models/*.pt
 !models/chart_cnn_v1.pt
 !models/chart_encoder_v1.pt
 models/*.pkl
+!models/fusion_constrained_v1.pkl
+!models/fusion_meta_v1.pkl
 .cnn_dataset/
