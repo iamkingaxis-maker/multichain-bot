@@ -2582,6 +2582,15 @@ class DipScanner:
                         f"[DipScanner] BLOCKED by filter_turn: {token_symbol} "
                         f"reasons={','.join(_filter_turn_block_reasons)}"
                     )
+                    try:
+                        from feeds.filter_shadow_recorder import get_recorder as _gfsr
+                        _gfsr().record(
+                            token_address=token_address, token_symbol=token_symbol,
+                            pair=pair, filter_name="filter_turn", verdict="BLOCK",
+                            block_reasons=",".join(_filter_turn_block_reasons),
+                        )
+                    except Exception:
+                        pass
                     continue
                 elif _big_buyer_carve_out:
                     logger.info(
@@ -2650,12 +2659,29 @@ class DipScanner:
             c[f"filter_vp_poc_{_filter_vp_poc_verdict.lower()}"] = c.get(
                 f"filter_vp_poc_{_filter_vp_poc_verdict.lower()}", 0
             ) + 1
+            # Record decision (BLOCK or PASS) for retrospective audit.
+            try:
+                from feeds.filter_shadow_recorder import get_recorder as _gfsr
+                _gfsr().record(
+                    token_address=token_address,
+                    token_symbol=token_symbol,
+                    pair=pair,
+                    filter_name="filter_vp_poc",
+                    verdict=_filter_vp_poc_verdict,
+                    block_reasons=",".join(_filter_vp_poc_block_reasons),
+                )
+            except Exception:
+                pass
+            # SHADOW 2026-05-15: filter_vp_poc moved from ENFORCED → SHADOW.
+            # Reason: live audit showed mixed signal (POP +5.2% would-have-won
+            # vs SLOPPER stopped). Marginal evidence for enforcement. Recorder
+            # captures forward outcomes; promote back to ENFORCED if BLOCK
+            # cohort cleanly underperforms PASS cohort over 24-48h.
             if _filter_vp_poc_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_vp_poc: {token_symbol} "
+                    f"[DipScanner] filter_vp_poc SHADOW would-block: {token_symbol} "
                     f"reasons={','.join(_filter_vp_poc_block_reasons)}"
                 )
-                continue
 
             # Filter sweep-too-recent — ENFORCED 2026-05-13.
             # Catches the dominant 2026-05-12 overnight loser shape: bot bought
@@ -2711,6 +2737,15 @@ class DipScanner:
                         f"[DipScanner] BLOCKED by filter_sweep_too_recent: {token_symbol} "
                         f"reasons={','.join(_filter_sweep_too_recent_block_reasons)}"
                     )
+                    try:
+                        from feeds.filter_shadow_recorder import get_recorder as _gfsr
+                        _gfsr().record(
+                            token_address=token_address, token_symbol=token_symbol,
+                            pair=pair, filter_name="filter_sweep_too_recent", verdict="BLOCK",
+                            block_reasons=",".join(_filter_sweep_too_recent_block_reasons),
+                        )
+                    except Exception:
+                        pass
                     continue
 
             # ── Note: filter_combo enforcement moved to core/trader.py ──
@@ -3104,6 +3139,15 @@ class DipScanner:
                             f"5m_state=uptrend AND mtf={_ct_mtf} (chasing — not a dip)"
                         )
                         c["filter_chasing_top_block"] = c.get("filter_chasing_top_block", 0) + 1
+                        try:
+                            from feeds.filter_shadow_recorder import get_recorder as _gfsr
+                            _gfsr().record(
+                                token_address=token_address, token_symbol=token_symbol,
+                                pair=pair, filter_name="filter_chasing_top", verdict="BLOCK",
+                                block_reasons=f"5m_state=uptrend AND mtf={_ct_mtf}",
+                            )
+                        except Exception:
+                            pass
                         continue
             except (NameError, AttributeError):
                 pass  # chart_ctx not built — fail-open
@@ -7281,13 +7325,31 @@ class DipScanner:
             c[f"filter_chasing_bounce_{_filter_chasing_bounce_verdict.lower()}"] = c.get(
                 f"filter_chasing_bounce_{_filter_chasing_bounce_verdict.lower()}", 0
             ) + 1
+            # Record decision (BLOCK or PASS) for retrospective audit.
+            try:
+                from feeds.filter_shadow_recorder import get_recorder as _gfsr
+                _gfsr().record(
+                    token_address=token_address,
+                    token_symbol=token_symbol,
+                    pair=pair,
+                    filter_name="filter_chasing_bounce",
+                    verdict=_filter_chasing_bounce_verdict,
+                    block_reasons=",".join(_filter_chasing_bounce_block_reasons),
+                )
+            except Exception:
+                pass
+            # SHADOW 2026-05-15: filter_chasing_bounce moved from ENFORCED → SHADOW.
+            # Reason: live audit showed Openhuman (+4.5% strategy-cap WIN) was
+            # blocked by pc_m5=+6.3%>+5. Threshold may be too tight — runners
+            # in mid-bounce often keep going. Recorder captures forward outcomes
+            # for both BLOCK and PASS; promote back to ENFORCED if BLOCK cohort
+            # cleanly underperforms over 24-48h.
             if _filter_chasing_bounce_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_chasing_bounce: "
+                    f"[DipScanner] filter_chasing_bounce SHADOW would-block: "
                     f"{token_symbol} reasons="
                     f"{','.join(_filter_chasing_bounce_block_reasons)}"
                 )
-                continue
 
             # ── filter_double_bear — ENFORCED 2026-05-06 PM ────────────────────
             # Secondary gate after clean_break. Block when BOTH bearish-context
