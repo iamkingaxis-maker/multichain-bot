@@ -8023,11 +8023,32 @@ class DipScanner:
                 f"filter_lp_drain_{_filter_lp_drain_verdict.lower()}", 0
             ) + 1
             if _filter_lp_drain_verdict == "BLOCK":
-                logger.info(
-                    f"[DipScanner] BLOCKED by filter_lp_drain: {token_symbol} "
-                    f"reasons={','.join(_filter_lp_drain_block_reasons)}"
+                # CARVE-OUT 2026-05-15: rescue if any high-WR on-chain
+                # trigger fires. Lifetime evidence is thin for the
+                # trigger × lp_drain intersection (no historical trade
+                # in that overlap), so monitor closely. Revert if BLOCK
+                # cohort of carve-out rescues underperforms.
+                _lp_rescue = (
+                    _trigger_strong_orderflow_match
+                    or _trigger_sustained_accum_match
+                    or _trigger_micro_pattern_match
+                    or _trigger_vp_aligned_match
+                    or _trigger_quiet_buyer_match
                 )
-                continue
+                if _lp_rescue:
+                    logger.info(
+                        f"[DipScanner] filter_lp_drain rescued by "
+                        f"high-WR trigger: {token_symbol} "
+                        f"reasons={','.join(_filter_lp_drain_block_reasons)} "
+                        f"trigs={_triggers_fired}"
+                    )
+                    c["filter_lp_drain_rescued"] = c.get("filter_lp_drain_rescued", 0) + 1
+                else:
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_lp_drain: {token_symbol} "
+                        f"reasons={','.join(_filter_lp_drain_block_reasons)}"
+                    )
+                    continue
 
             # Filter buyer-FOMO — ENFORCED 2026-05-09.
             # Block when 60s net-flow imbalance is extremely buy-skewed
@@ -8789,7 +8810,20 @@ class DipScanner:
                         _big_buyer_carve_out_nf = True
             except Exception:
                 pass
-            if _filter_neg_nf5m_verdict == "BLOCK" and not _big_buyer_carve_out_nf:
+            # CARVE-OUT 2026-05-15: rescue if a strict-flow trigger fires.
+            # These triggers all require net_flow_60s_usd > 0 which is the
+            # more-current signal than the 5m used by this filter. A 60s
+            # positive flow alongside 5m negative flow = recent reversal
+            # that this filter is over-blocking.
+            _nf5m_trig_rescue = (
+                _trigger_strong_orderflow_match
+                or _trigger_sustained_accum_match
+                or _trigger_flow_reversal_match
+                or _trigger_micro_pattern_match
+                or _trigger_vp_aligned_match
+                or _trigger_quiet_buyer_match
+            )
+            if _filter_neg_nf5m_verdict == "BLOCK" and not _big_buyer_carve_out_nf and not _nf5m_trig_rescue:
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_negative_net_flow_5m: "
                     f"{token_symbol} reasons={','.join(_filter_neg_nf5m_block_reasons)}"
@@ -8800,6 +8834,14 @@ class DipScanner:
                     f"[DipScanner] filter_negative_net_flow_5m rescued by big_buyer: "
                     f"{token_symbol} liq_velocity_h1=${_lv_h1_nf:.0f}/txn>=115"
                 )
+            elif _filter_neg_nf5m_verdict == "BLOCK" and _nf5m_trig_rescue:
+                logger.info(
+                    f"[DipScanner] filter_negative_net_flow_5m rescued by "
+                    f"strict-flow trigger: {token_symbol} trigs={_triggers_fired}"
+                )
+                c["filter_negative_net_flow_5m_rescued"] = c.get(
+                    "filter_negative_net_flow_5m_rescued", 0
+                ) + 1
 
             # Helper: compute big-buyer carve-out for the new filter block
             # below. Same logic as filter_seller_imbalance / filter_neg_nf5m.
