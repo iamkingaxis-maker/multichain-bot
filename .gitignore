@@ -78,9 +78,10 @@ data/
 .trades_full.json
 
 # Chart CNN — trained weights and dataset (large binaries, not committed)
-# EXCEPT chart_cnn_v1.pt which is force-tracked so Railway picks it up
-# (railway up respects .gitignore even for tracked files).
+# EXCEPT chart_cnn_v1.pt and chart_encoder_v1.pt which are force-tracked
+# so Railway picks them up (railway up respects .gitignore even for tracked files).
 models/*.pt
 !models/chart_cnn_v1.pt
+!models/chart_encoder_v1.pt
 models/*.pkl
 .cnn_dataset/

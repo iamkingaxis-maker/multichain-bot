@@ -2409,6 +2409,37 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] CNN inference err: {_e}")
 
+            # Chart cluster inference — ENFORCED 2026-05-15.
+            # Rug filter: blocks entries where chart shape matches Cluster
+            # 19 (autoencoder + k-means discovered, 67% rug rate, -18.5%
+            # avg P&L, 0% historical win rate on n=6). See
+            # scripts/rug_predictor_analysis.py.
+            _cnn_cluster_id = None
+            _cluster_19_rug_block = False
+            try:
+                from core.chart_cluster_inference import get_cluster_inference
+                _cluster_inf = get_cluster_inference()
+                if not _cluster_inf.disabled and _chart_data:
+                    _cnn_cluster_id = _cluster_inf.classify(
+                        token_address=token_address,
+                        candles_1m=_chart_data.candles_1m or [],
+                        candles_5m=_chart_data.candles_5m or [],
+                        candles_15m=_chart_data.candles_15m or [],
+                    )
+                    if _cluster_inf.is_rug_cluster(_cnn_cluster_id):
+                        _cluster_19_rug_block = True
+            except Exception as _e:
+                logger.debug(f"[DipScanner] cluster classify err: {_e}")
+
+            if _cluster_19_rug_block:
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_cluster_19_rug: "
+                    f"{token_symbol} cluster_id={_cnn_cluster_id} "
+                    f"(historical: 67% rug rate, -18.5% avg, 0% WR n=6)"
+                )
+                c["filter_cluster_19_rug_block"] = c.get("filter_cluster_19_rug_block", 0) + 1
+                continue
+
             # Forward dataset collector — dumps image + context for every
             # evaluated candidate. Outcome label gets stamped later by the
             # trader on close. SHADOW only — pure data collection.
@@ -8808,6 +8839,8 @@ class DipScanner:
                 "cnn_pattern": _cnn_pattern,
                 "cnn_pattern_conf": _cnn_pattern_conf,
                 "cnn_outcome_prob": _cnn_outcome_prob,
+                # chart_cluster — ENFORCED 2026-05-15 (rug filter on cluster 19)
+                "cnn_cluster_id": _cnn_cluster_id if "_cnn_cluster_id" in dir() else None,
                 # trigger_post_capit_breakout — ENFORCED 2026-05-15 with
                 # carve-outs on filter_turn / filter_sweep_too_recent /
                 # filter_chasing_top. Positive V-bottom reversal trigger.

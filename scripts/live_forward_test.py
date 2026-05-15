@@ -819,6 +819,8 @@ COMBOS = {
     'CNN_pattern_double_bottom': lambda c: (
         c.get('cnn_pattern') == 'double_bottom'
     ),
+    # filter_cluster_19_rug parity — ENFORCED 2026-05-15
+    'FILT_cluster_19_rug_BLOCK': lambda c: c.get('cnn_cluster_19_rug') is True,
 }
 
 
@@ -1507,6 +1509,17 @@ def compute_cnn_features(c):
             out['cnn_pattern'] = r.get('pattern')
             out['cnn_pattern_conf'] = r.get('pattern_conf')
             out['cnn_outcome_prob'] = r.get('outcome_prob')
+        # Phantom parity with filter_cluster_19_rug: classify chart into
+        # 20-cluster space. Cluster 19 == rug shape (67% historical rug).
+        try:
+            from core.chart_cluster_inference import get_cluster_inference
+            _clu_inf = get_cluster_inference()
+            if not _clu_inf.disabled:
+                _cl = _clu_inf.classify(c.get('token', ''), c1, c5, c15)
+                out['cnn_cluster_id'] = _cl
+                out['cnn_cluster_19_rug'] = (_cl == 19)
+        except Exception:
+            pass
     except Exception:
         pass
     return out
