@@ -970,23 +970,31 @@ def normalize_ds(pair):
     txns = pair.get("txns") or {}
     m5_txns = txns.get("m5") or {}
     h1_txns = txns.get("h1") or {}
+    h6_txns = txns.get("h6") or {}
     b_m5 = int(m5_txns.get("buys") or 0)
     s_m5 = int(m5_txns.get("sells") or 0)
     bs_m5 = (b_m5 / s_m5) if s_m5 > 0 else None
-    h1_total_txns = int(h1_txns.get("buys") or 0) + int(h1_txns.get("sells") or 0)
+    b_h1 = int(h1_txns.get("buys") or 0)
+    s_h1 = int(h1_txns.get("sells") or 0)
+    bs_h1 = (b_h1 / s_h1) if s_h1 > 0 else None
+    b_h6 = int(h6_txns.get("buys") or 0)
+    s_h6 = int(h6_txns.get("sells") or 0)
+    bs_h6 = (b_h6 / s_h6) if s_h6 > 0 else None
+    h1_total_txns = b_h1 + s_h1
     vol_h1_val = float(vol.get("h1") or 0)
     avg_trade_size_h1 = (vol_h1_val / h1_total_txns) if h1_total_txns > 0 else None
+    liq_usd = float((pair.get("liquidity") or {}).get("usd") or 0)
     return {
         "symbol": name[:13],
         "pair": pair_addr, "token": token, "mcap": mcap,
         "vol_h1": vol_h1_val,
-        "liq": float((pair.get("liquidity") or {}).get("usd") or 0),
+        "liq": liq_usd, "liquidity_usd": liq_usd,
         "pc_m5": float(pc.get("m5") or 0),
         "pc_h1": float(pc.get("h1") or 0),
         "pc_h6": pc_h6, "pc_h24": pc_h24,
         "peak_h24_6h_pct": max(pc_h24, pc_h6, 0),
         "price": float(pair.get("priceUsd") or 0),
-        "bs_m5": bs_m5,
+        "bs_m5": bs_m5, "bs_h1": bs_h1, "bs_h6": bs_h6,
         "avg_trade_size_h1_usd": avg_trade_size_h1,
     }
 
@@ -1012,23 +1020,31 @@ def normalize(pools):
         txns = attrs.get('transactions') or {}
         m5_txns = txns.get('m5') or {}
         h1_txns = txns.get('h1') or {}
+        h6_txns = txns.get('h6') or {}
         b_m5 = int(m5_txns.get('buys') or 0)
         s_m5 = int(m5_txns.get('sells') or 0)
         bs_m5 = (b_m5 / s_m5) if s_m5 > 0 else None
-        h1_total_txns = int(h1_txns.get('buys') or 0) + int(h1_txns.get('sells') or 0)
+        b_h1 = int(h1_txns.get('buys') or 0)
+        s_h1 = int(h1_txns.get('sells') or 0)
+        bs_h1 = (b_h1 / s_h1) if s_h1 > 0 else None
+        b_h6 = int(h6_txns.get('buys') or 0)
+        s_h6 = int(h6_txns.get('sells') or 0)
+        bs_h6 = (b_h6 / s_h6) if s_h6 > 0 else None
+        h1_total_txns = b_h1 + s_h1
         vol_h1_val = float(vol.get('h1') or 0)
         avg_trade_size_h1 = (vol_h1_val / h1_total_txns) if h1_total_txns > 0 else None
+        liq_usd = float(attrs.get('reserve_in_usd') or 0)
         out.append({
             'symbol': name.split('/')[0].strip()[:13],
             'pair': pair, 'token': token, 'mcap': mcap,
             'vol_h1': float(vol.get('h1') or 0),
-            'liq': float(attrs.get('reserve_in_usd') or 0),
+            'liq': liq_usd, 'liquidity_usd': liq_usd,
             'pc_m5': float(pc.get('m5') or 0),
             'pc_h1': float(pc.get('h1') or 0),
             'pc_h6': pc_h6, 'pc_h24': pc_h24,
             'peak_h24_6h_pct': max(pc_h24, pc_h6, 0),
             'price': float(attrs.get('base_token_price_usd') or 0),
-            'bs_m5': bs_m5,
+            'bs_m5': bs_m5, 'bs_h1': bs_h1, 'bs_h6': bs_h6,
             'avg_trade_size_h1_usd': avg_trade_size_h1,
         })
     return out
@@ -1121,6 +1137,12 @@ def compute_mtf_features(c):
         # 1m features for filter_confirmation_candle
         out['1m_last_close_pct'] = lcp1
         out['1m_volume_spike'] = v1
+        # chart_mtf_score proxy — linear map from greens-count (0..3) to
+        # production's mtf score range (-3..+3): 0→-3, 1→-1, 2→+1, 3→+3.
+        # Used by FILT_falling_knife_BLOCK phantom mirror. Not exact (prod
+        # chart_reader factors S/R levels + trend slopes) but matches the
+        # central "mtf bearish vs bullish" axis the filter cares about.
+        out['chart_mtf_score'] = 2 * out['mtf_green_count'] - 3
     except Exception:
         pass
     return out
