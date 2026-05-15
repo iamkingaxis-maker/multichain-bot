@@ -6526,6 +6526,66 @@ class DipScanner:
                     f"{';'.join(_trigger_buyer_momentum_burst_reasons)}"
                 )
 
+            # ── trigger_flow_reversal — ENFORCED 2026-05-15 ──────────────
+            # Pure reversal-from-decline signal: token has been declining
+            # on 6h AND real-time flow is positive AND the most recent 60s
+            # are closing in the upper half of range = reversal in progress.
+            # Lifetime: 9/11 wins (81.8% WR), +$4.87 net.
+            # LARGEST-n high-WR compound. Captures the DIAMOND/VILLAGEBOY
+            # signature: dip-and-recover within a longer trend.
+            _trigger_flow_reversal_match = False
+            _trigger_flow_reversal_reasons: list = []
+            try:
+                _nf60_fr = _tier3_features.get("net_flow_60s_usd") if isinstance(_tier3_features, dict) else None
+                _pc_h6_fr = pc_h6  # already in scope from pair priceChange
+                _1s_close_pos = _1s_features.get("close_pos_60s") if isinstance(_1s_features, dict) else None
+                if (_nf60_fr is not None and float(_nf60_fr) > 0
+                        and isinstance(_pc_h6_fr, (int, float)) and float(_pc_h6_fr) < 0
+                        and _1s_close_pos is not None and float(_1s_close_pos) > 0.5):
+                    _trigger_flow_reversal_match = True
+                    _trigger_flow_reversal_reasons.append(
+                        f"net_flow_60s=${float(_nf60_fr):+.0f}>0 AND "
+                        f"pc_h6={float(_pc_h6_fr):+.1f}%<0 AND "
+                        f"1s_close_pos={float(_1s_close_pos):.2f}>0.5"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_flow_reversal err: {_e}")
+            if _trigger_flow_reversal_match:
+                logger.info(
+                    f"[DipScanner] trigger_flow_reversal FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_flow_reversal_reasons)}"
+                )
+
+            # ── trigger_chart_score_reversal — ENFORCED 2026-05-15 ─────
+            # Reversal from decline confirmed by chart structure quality:
+            # token has pc_h6 negative AND chart_score>=50 (decent shape)
+            # AND 1s_bottom_score>=20 (bottom signature). Lifetime: 8/9
+            # wins (88.9% WR), +$4.29 net. Differentiated from chart_qual_
+            # bottom (which doesn't constrain pc_h6) — this fires only on
+            # reversal-of-decline shapes.
+            _trigger_chart_reversal_match = False
+            _trigger_chart_reversal_reasons: list = []
+            try:
+                _csc_cr = (_chart_ctx_dict or {}).get("chart_score") if isinstance(_chart_ctx_dict, dict) else None
+                _bsc_cr = _1s_features.get("bottom_score") if isinstance(_1s_features, dict) else None
+                _pc_h6_cr = pc_h6
+                if (_csc_cr is not None and float(_csc_cr) >= 50
+                        and _bsc_cr is not None and float(_bsc_cr) >= 20
+                        and isinstance(_pc_h6_cr, (int, float)) and float(_pc_h6_cr) < 0):
+                    _trigger_chart_reversal_match = True
+                    _trigger_chart_reversal_reasons.append(
+                        f"chart_score={float(_csc_cr):.1f}>=50 AND "
+                        f"1s_bottom_score={float(_bsc_cr):.1f}>=20 AND "
+                        f"pc_h6={float(_pc_h6_cr):+.1f}%<0"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_chart_reversal err: {_e}")
+            if _trigger_chart_reversal_match:
+                logger.info(
+                    f"[DipScanner] trigger_chart_score_reversal FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_chart_reversal_reasons)}"
+                )
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _trigger_strong_orderflow_match:
@@ -6536,6 +6596,10 @@ class DipScanner:
                 _triggers_fired.append("chart_quality_bottom")
             if _trigger_buyer_momentum_burst_match:
                 _triggers_fired.append("buyer_momentum_burst")
+            if _trigger_flow_reversal_match:
+                _triggers_fired.append("flow_reversal")
+            if _trigger_chart_reversal_match:
+                _triggers_fired.append("chart_score_reversal")
             # clean_break DISABLED 2026-05-15 PM — recent 3d audit (n=11) showed
             # 27% WR / -$17.15 net. Gate G (mtf>=0 + chart>=48) was added first
             # to salvage 4 trades / 50% WR but the user called the remaining
@@ -9121,6 +9185,14 @@ class DipScanner:
                 # Lifetime: 8/11 wins (72.7%), +$3.00 net.
                 "trigger_buyer_momentum_burst_match": _trigger_buyer_momentum_burst_match,
                 "trigger_buyer_momentum_burst_reasons": _trigger_buyer_momentum_burst_reasons,
+                # trigger_flow_reversal — ENFORCED 2026-05-15 (reversal from decline).
+                # Lifetime: 9/11 wins (81.8%), +$4.87 net.
+                "trigger_flow_reversal_match": _trigger_flow_reversal_match,
+                "trigger_flow_reversal_reasons": _trigger_flow_reversal_reasons,
+                # trigger_chart_score_reversal — ENFORCED 2026-05-15.
+                # Lifetime: 8/9 wins (88.9%), +$4.29 net.
+                "trigger_chart_reversal_match": _trigger_chart_reversal_match,
+                "trigger_chart_reversal_reasons": _trigger_chart_reversal_reasons,
                 "trigger_post_capit_breakout_match": _trigger_post_capit_breakout_match,
                 "trigger_post_capit_breakout_reasons": _trigger_post_capit_breakout_reasons,
                 "filter_low_volatility_block_reasons": _filter_low_vol_block_reasons,
