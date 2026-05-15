@@ -25,7 +25,10 @@ from torch.utils.data import Dataset, DataLoader
 
 from models.chart_cnn import ChartCNN, CLASS_TO_IDX, NUM_PATTERN_CLASSES
 
-DATASET_DIR = Path(".cnn_dataset/v1")
+DATASET_DIRS = [
+    Path(".cnn_dataset/v1"),         # actual trade backfill (55 samples, trigger-labeled)
+    Path(".cnn_dataset/v2_broad"),   # broader-universe mined (1000+ samples)
+]
 MODEL_OUT = Path("models/chart_cnn_v1.pt")
 
 
@@ -40,26 +43,47 @@ class ChartDataset(Dataset):
         img_path, label = self.items[idx]
         img = np.load(img_path)  # (3, 64, 64) uint8
         x = torch.from_numpy(img).float() / 255.0  # → (3, 64, 64) float
-        pattern_idx = CLASS_TO_IDX.get(label.get("pattern_label") or "none", 0)
+        pattern_idx = CLASS_TO_IDX.get(label.get("pattern_label") or "default", 0)
         outcome = float(label.get("outcome_label") or 0)
         return x, torch.tensor(pattern_idx, dtype=torch.long), torch.tensor(outcome, dtype=torch.float)
 
 
-def load_dataset(cutoff_iso: str = "2026-05-13T00:00:00"):
-    """Returns (train_items, val_items), each a list of (path, label) tuples."""
+def load_dataset(cutoff_iso: str = "2026-05-13T00:00:00", val_token_pct: float = 0.20):
+    """Returns (train_items, val_items), each a list of (path, label) tuples.
+
+    Reads from BOTH .cnn_dataset/v1 (trade-backfilled) and
+    .cnn_dataset/v2_broad/<token>/ (broader-universe mined).
+
+    Splitting strategy: per-token random holdout. 20% of unique tokens
+    go to val, the remaining 80% to train. Prevents same-token leakage
+    where two adjacent time-windows from the same token end up split
+    across train/val (which would let the model memorize the token
+    rather than learn pattern shape).
+
+    cutoff_iso is preserved for legacy callers but ignored when v2_broad
+    data is present (which always dominates due to volume).
+    """
+    import hashlib
     train_items = []
     val_items = []
-    npy_files = sorted(glob.glob(str(DATASET_DIR / "*.npy")))
+    npy_files = []
+    for d in DATASET_DIRS:
+        npy_files.extend(sorted(glob.glob(str(d / "*.npy"))))
+        npy_files.extend(sorted(glob.glob(str(d / "**" / "*.npy"), recursive=True)))
+    npy_files = sorted(set(npy_files))
     for npy_path in npy_files:
         json_path = npy_path.replace(".npy", ".json")
         if not os.path.exists(json_path):
             continue
         with open(json_path) as f:
             label = json.load(f)
-        if label.get("ts", "") < cutoff_iso:
-            train_items.append((npy_path, label))
-        else:
+        addr = (label.get("addr") or "").lower()
+        # Deterministic hash → val bucket if hash < val_token_pct
+        h = int(hashlib.md5(addr.encode()).hexdigest(), 16) / 2**128
+        if h < val_token_pct:
             val_items.append((npy_path, label))
+        else:
+            train_items.append((npy_path, label))
     return train_items, val_items
 
 

@@ -512,12 +512,18 @@ async def main():
             count = await mine_token(token, args, out_dir, gt, ds)
             total_windows += count
             status = f"{count:3d} windows"
-            print(
-                f"[{i+1:>4}/{len(universe)}] {token.get('symbol', '?'):<14} "
-                f"{token.get('addr', '')[:10]}  {status}  (total={total_windows})"
-            )
+            try:
+                print(
+                    f"[{i+1:>4}/{len(universe)}] {token.get('symbol', '?'):<14} "
+                    f"{token.get('addr', '')[:10]}  {status}  (total={total_windows})"
+                )
+            except UnicodeEncodeError:
+                print(f"[{i+1:>4}/{len(universe)}] <non-ascii-symbol> {token.get('addr', '')[:10]}  {status}  (total={total_windows})")
         except Exception as e:
-            print(f"[{i+1:>4}/{len(universe)}] {token.get('symbol', '?'):<14} ERR: {e}")
+            try:
+                print(f"[{i+1:>4}/{len(universe)}] {token.get('symbol', '?'):<14} ERR: {e}")
+            except UnicodeEncodeError:
+                print(f"[{i+1:>4}/{len(universe)}] <non-ascii-symbol> ERR: <unprintable>")
 
         await asyncio.sleep(args.rate_limit_s)
 
