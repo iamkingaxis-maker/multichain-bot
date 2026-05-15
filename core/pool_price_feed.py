@@ -46,6 +46,26 @@ WSOL_MINT        = "So11111111111111111111111111111111111111112"
 RAYDIUM_POOLS_API = "https://api-v3.raydium.io/pools/info/ids?ids="
 COINGECKO_SOL    = "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
 
+# Pumpswap (PumpSwap AMM) — the post-graduation AMM for pump.fun tokens.
+# Pool account is owned by this program; layout exposes base/quote
+# vault pubkeys at fixed offsets (reverse-engineered from on-chain data
+# 2026-05-15 — RAGEGUY pool 6gTQBJBV…).
+PUMPSWAP_PROGRAM = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
+# Layout (300 bytes total):
+#   [0-7]    discriminator
+#   [8]      pool_bump
+#   [9-10]   index (u16)
+#   [11-42]  creator pubkey
+#   [43-74]  base_mint pubkey
+#   [75-106] quote_mint pubkey
+#   [107-138]lp_mint pubkey
+#   [139-170]pool_base_token_account  ← base vault
+#   [171-202]pool_quote_token_account ← quote vault
+_PUMPSWAP_BASE_MINT_OFFSET   = 43
+_PUMPSWAP_QUOTE_MINT_OFFSET  = 75
+_PUMPSWAP_BASE_VAULT_OFFSET  = 139
+_PUMPSWAP_QUOTE_VAULT_OFFSET = 171
+
 _DEBOUNCE_SECS = 0.3   # minimum gap between price writes for same token
 _SANITY_MAX_JUMP = 15.0  # reject if new price is >15× the last known price
 
@@ -180,10 +200,15 @@ class PoolPriceFeed:
             f"type={ptype} token={token_address[:12]}…"
         )
 
-        # Always try the Raydium API first — DexScreener's dex_id is unreliable.
-        # Graduated pump-fun tokens that migrated to Raydium still show dex_id="pump-fun".
-        # _lookup_raydium_vaults falls back to pair subscription if the API returns nothing.
-        asyncio.create_task(self._lookup_raydium_vaults(entry))
+        # Pool-type detection dispatch:
+        #   1. Read pool account owner via getAccountInfo (one RPC call)
+        #   2. If owner == PUMPSWAP_PROGRAM → decode pumpswap layout directly
+        #   3. Otherwise try Raydium API (handles Raydium AMM v4 + variants)
+        #   4. Otherwise fall back to pair subscription (works for pump.fun
+        #      bonding curve via _on_pump)
+        # This solves the RAGEGUY-class problem where pumpswap pools have no
+        # Raydium API entry, so the old path fell to unknown → DexScreener.
+        asyncio.create_task(self._dispatch_pool_lookup(entry))
 
     def unregister(self, token_address: str):
         """Stop watching all accounts for a token (call on position close)."""
@@ -223,6 +248,112 @@ class PoolPriceFeed:
         }
 
     # ───────────────────────── vault lookup ───────────────────────────────────
+
+    async def _dispatch_pool_lookup(self, entry: PoolEntry):
+        """Read pool account once via RPC, route to the right decoder.
+
+        Strategy:
+          1. getAccountInfo on the pair → owner program tells us pool type
+          2. PUMPSWAP_PROGRAM → decode layout directly (offsets known)
+          3. anything else → try Raydium API (handles AMM v4 + variants)
+          4. final fallback → subscribe to pair account itself for pump.fun
+             bonding-curve path / unknown trigger
+
+        One extra RPC call per position open — negligible cost, eliminates
+        the pumpswap blind spot.
+        """
+        try:
+            payload = {
+                "jsonrpc": "2.0", "id": 1,
+                "method": "getAccountInfo",
+                "params": [
+                    entry.pair_address,
+                    {"encoding": "base64", "commitment": "processed"},
+                ],
+            }
+            async with aiohttp.ClientSession() as s:
+                async with s.post(
+                    self.ws_url.replace("wss://", "https://"),
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=4),
+                ) as r:
+                    if r.status != 200:
+                        await self._lookup_raydium_vaults(entry)
+                        return
+                    data = await r.json()
+
+            value = (data.get("result") or {}).get("value") or {}
+            owner = value.get("owner") or ""
+            acct_data = value.get("data") or []
+
+            if owner == PUMPSWAP_PROGRAM and acct_data:
+                await self._decode_pumpswap_pool(entry, acct_data[0])
+                return
+
+            # Not pumpswap → try Raydium API path
+            await self._lookup_raydium_vaults(entry)
+
+        except Exception as e:
+            logger.debug(f"[PoolFeed] dispatch err: {e} — falling back to Raydium path")
+            await self._lookup_raydium_vaults(entry)
+
+    async def _decode_pumpswap_pool(self, entry: PoolEntry, data_b64: str):
+        """Decode pumpswap pool layout → extract vaults → subscribe.
+
+        Pumpswap is the PumpSwap AMM (program pAMMBay…), the post-graduation
+        AMM for pump.fun tokens. The pool account contains base/quote vault
+        pubkeys at fixed offsets (see _PUMPSWAP_*_OFFSET constants).
+
+        Vault accounts are SPL token accounts, so the existing _on_vault
+        decoder (offset 64 = u64 amount) works as-is. Decimals: pump.fun
+        tokens are 6, WSOL is 9 — hardcoded to match the convention. If a
+        rare non-6-decimal pump.fun token surfaces, price will be off by
+        a constant factor (won't trigger phantom stops/TPs because
+        _spike_should_accept rejects >20% jumps; the worst case is the
+        feed silently stays silent and we fall through to other feeds).
+        """
+        try:
+            raw = base64.b64decode(data_b64)
+            if len(raw) < _PUMPSWAP_QUOTE_VAULT_OFFSET + 32:
+                logger.debug(
+                    f"[PoolFeed] pumpswap account too short ({len(raw)}b) "
+                    f"for {entry.pair_address[:16]}…"
+                )
+                self._queue_sub(entry.pair_address.lower(), entry.pair_address)
+                return
+
+            base_mint  = _b58encode(raw[_PUMPSWAP_BASE_MINT_OFFSET:
+                                        _PUMPSWAP_BASE_MINT_OFFSET + 32])
+            quote_mint = _b58encode(raw[_PUMPSWAP_QUOTE_MINT_OFFSET:
+                                        _PUMPSWAP_QUOTE_MINT_OFFSET + 32])
+            base_vault  = _b58encode(raw[_PUMPSWAP_BASE_VAULT_OFFSET:
+                                          _PUMPSWAP_BASE_VAULT_OFFSET + 32])
+            quote_vault = _b58encode(raw[_PUMPSWAP_QUOTE_VAULT_OFFSET:
+                                          _PUMPSWAP_QUOTE_VAULT_OFFSET + 32])
+
+            entry.base_vault     = base_vault
+            entry.quote_vault    = quote_vault
+            entry.base_decimals  = 6
+            entry.quote_decimals = 9
+            entry.is_sol_quote   = (quote_mint == WSOL_MINT)
+            entry.pool_type      = "pumpswap"
+
+            bvl = base_vault.lower()
+            qvl = quote_vault.lower()
+            self._vault_lower_to_token[bvl] = entry.token_address_lower
+            self._vault_lower_to_token[qvl] = entry.token_address_lower
+
+            self._queue_sub(bvl, base_vault)
+            self._queue_sub(qvl, quote_vault)
+
+            logger.info(
+                f"[PoolFeed] Pumpswap vaults for {entry.token_address_lower[:12]}…: "
+                f"base={base_vault[:12]}… quote={quote_vault[:12]}… "
+                f"sol_quote={entry.is_sol_quote}"
+            )
+        except Exception as e:
+            logger.warning(f"[PoolFeed] pumpswap decode err: {e} — falling back")
+            self._queue_sub(entry.pair_address.lower(), entry.pair_address)
 
     async def _lookup_raydium_vaults(self, entry: PoolEntry):
         """Fetch vault addresses from Raydium API, then subscribe to them."""
@@ -599,6 +730,27 @@ class PoolPriceFeed:
 
 
 # ─────────────────────────── helpers ──────────────────────────────────────────
+
+# Base58 alphabet for Solana pubkey encoding. Inlined here to avoid a hard
+# dependency on the base58 package (some envs only have it transitively).
+_B58 = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def _b58encode(b: bytes) -> str:
+    """Encode 32 raw bytes as base58 — matches Solana address representation."""
+    n = int.from_bytes(b, "big")
+    out = bytearray()
+    while n > 0:
+        n, r = divmod(n, 58)
+        out.append(_B58[r])
+    # leading zeros in bytes → leading "1"s in base58
+    for byte in b:
+        if byte == 0:
+            out.append(_B58[0])
+        else:
+            break
+    return out[::-1].decode("ascii")
+
 
 def _decode_spl_amount(data_b64: str) -> Optional[float]:
     """
