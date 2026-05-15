@@ -6149,6 +6149,34 @@ class DipScanner:
                             f"h24_ratio_to_peak={_cb_ratio_dz:.2f} in dead zone "
                             f"[0.80, 0.95) — mid-retracement-recovery, see audit"
                         )
+                    elif (
+                        # Gate G: bearish-mtf OR weak-chart context.
+                        # ENFORCED 2026-05-15 PM. Recent 3d audit (n=11 clean_break
+                        # fires) showed 27% WR / -$17.15 net. Cohen-d separation
+                        # of winners vs losers: chart_mtf_score (W +0 / L -1,
+                        # sep +0.96), chart_score (W 50.6 / L 45.1, sep +1.17).
+                        # Compound gate `mtf >= 0 AND chart_score >= 48` blocks
+                        # 7 of 8 losers (-$15.58 saved), 1 winner blocked (RKC
+                        # +$0.84). Backtest: 4 kept / 50% WR / -$1.57 net (vs
+                        # baseline -$17.15). Hard gate matches Gate F precedent
+                        # — bearish-mtf + low-chart-score is a structural entry-
+                        # quality problem that compound triggers can't fix.
+                        (
+                            (_chart_ctx_dict or {}).get("chart_mtf_score") is None
+                            or float((_chart_ctx_dict or {}).get("chart_mtf_score")) < 0
+                        )
+                        or (
+                            (_chart_ctx_dict or {}).get("chart_score") is None
+                            or float((_chart_ctx_dict or {}).get("chart_score")) < 48
+                        )
+                    ):
+                        _cb_mtf_g = (_chart_ctx_dict or {}).get("chart_mtf_score")
+                        _cb_cs_g = (_chart_ctx_dict or {}).get("chart_score")
+                        _cb_gated = True
+                        _cb_gate_reason = (
+                            f"mtf={_cb_mtf_g} or chart_score={_cb_cs_g} fails "
+                            f"compound gate (need mtf>=0 AND chart_score>=48)"
+                        )
                     elif _cb_compound_ok:
                         # Compound agreement override — skip soft gates C/D.
                         pass
