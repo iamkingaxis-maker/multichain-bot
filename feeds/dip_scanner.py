@@ -6411,10 +6411,73 @@ class DipScanner:
                     f"{';'.join(_trigger_strong_orderflow_reasons)}"
                 )
 
+            # ── trigger_sustained_accumulation — ENFORCED 2026-05-15 ────
+            # Multi-window buyer dominance + positive 60s flow + mtf neutral+.
+            # Lifetime: 7/7 wins, +$5.47 net (flow60>0 & bs_h1>=1.5 & bs_h6>=1.2 & mtf>=0).
+            # Different signal than strong_orderflow — captures SUSTAINED
+            # accumulation (m5, h1, h6 all buyer-leaning) vs strong_orderflow
+            # which is m5-only.
+            _trigger_sustained_accum_match = False
+            _trigger_sustained_accum_reasons: list = []
+            try:
+                _nf60_sa = _tier3_features.get("net_flow_60s_usd") if isinstance(_tier3_features, dict) else None
+                _mtf_sa = (_chart_ctx_dict or {}).get("chart_mtf_score") if isinstance(_chart_ctx_dict, dict) else None
+                _bs_h1_sa = float(ratio_h1) if ratio_h1 != float("inf") else None
+                _bs_h6_sa = float(ratio_h6) if ratio_h6 != float("inf") else None
+                if (_nf60_sa is not None and float(_nf60_sa) > 0
+                        and _mtf_sa is not None and float(_mtf_sa) >= 0
+                        and _bs_h1_sa is not None and _bs_h1_sa >= 1.5
+                        and _bs_h6_sa is not None and _bs_h6_sa >= 1.2):
+                    _trigger_sustained_accum_match = True
+                    _trigger_sustained_accum_reasons.append(
+                        f"net_flow_60s=${float(_nf60_sa):+.0f}>0 AND "
+                        f"bs_h1={_bs_h1_sa:.2f}>=1.5 AND bs_h6={_bs_h6_sa:.2f}>=1.2 AND "
+                        f"mtf={float(_mtf_sa):.1f}>=0"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_sustained_accum err: {_e}")
+            if _trigger_sustained_accum_match:
+                logger.info(
+                    f"[DipScanner] trigger_sustained_accumulation FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_sustained_accum_reasons)}"
+                )
+
+            # ── trigger_chart_quality_bottom — ENFORCED 2026-05-15 ──────
+            # Chart-anchored bottom: mtf neutral+, chart_score>=50 (decent
+            # structure), 1s_bottom_score>=20 (bot's own composite signal).
+            # Lifetime: 6/7 wins, +$3.60 net. Captures high-quality
+            # chart bottoms where on-chain flow is silent. Complement to
+            # strong_orderflow which is flow-driven.
+            _trigger_chart_qual_bottom_match = False
+            _trigger_chart_qual_bottom_reasons: list = []
+            try:
+                _mtf_cq = (_chart_ctx_dict or {}).get("chart_mtf_score") if isinstance(_chart_ctx_dict, dict) else None
+                _csc_cq = (_chart_ctx_dict or {}).get("chart_score") if isinstance(_chart_ctx_dict, dict) else None
+                _1sb_cq = _1s_features.get("bottom_score") if isinstance(_1s_features, dict) else None
+                if (_mtf_cq is not None and float(_mtf_cq) >= 0
+                        and _csc_cq is not None and float(_csc_cq) >= 50
+                        and _1sb_cq is not None and float(_1sb_cq) >= 20):
+                    _trigger_chart_qual_bottom_match = True
+                    _trigger_chart_qual_bottom_reasons.append(
+                        f"mtf={float(_mtf_cq):.1f}>=0 AND chart_score={float(_csc_cq):.1f}>=50 AND "
+                        f"1s_bottom_score={float(_1sb_cq):.1f}>=20"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_chart_qual_bottom err: {_e}")
+            if _trigger_chart_qual_bottom_match:
+                logger.info(
+                    f"[DipScanner] trigger_chart_quality_bottom FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_chart_qual_bottom_reasons)}"
+                )
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _trigger_strong_orderflow_match:
                 _triggers_fired.append("strong_orderflow")
+            if _trigger_sustained_accum_match:
+                _triggers_fired.append("sustained_accumulation")
+            if _trigger_chart_qual_bottom_match:
+                _triggers_fired.append("chart_quality_bottom")
             # clean_break DISABLED 2026-05-15 PM — recent 3d audit (n=11) showed
             # 27% WR / -$17.15 net. Gate G (mtf>=0 + chart>=48) was added first
             # to salvage 4 trades / 50% WR but the user called the remaining
@@ -8988,6 +9051,14 @@ class DipScanner:
                 # Lifetime evidence: 8/8 wins, +$6.08 net, p < 0.001 vs baseline 34.5% WR.
                 "trigger_strong_orderflow_match": _trigger_strong_orderflow_match,
                 "trigger_strong_orderflow_reasons": _trigger_strong_orderflow_reasons,
+                # trigger_sustained_accumulation — ENFORCED 2026-05-15 (on-chain).
+                # Lifetime: 7/7 wins, +$5.47 net.
+                "trigger_sustained_accum_match": _trigger_sustained_accum_match,
+                "trigger_sustained_accum_reasons": _trigger_sustained_accum_reasons,
+                # trigger_chart_quality_bottom — ENFORCED 2026-05-15 (chart+score+bot_score).
+                # Lifetime: 6/7 wins, +$3.60 net.
+                "trigger_chart_qual_bottom_match": _trigger_chart_qual_bottom_match,
+                "trigger_chart_qual_bottom_reasons": _trigger_chart_qual_bottom_reasons,
                 "trigger_post_capit_breakout_match": _trigger_post_capit_breakout_match,
                 "trigger_post_capit_breakout_reasons": _trigger_post_capit_breakout_reasons,
                 "filter_low_volatility_block_reasons": _filter_low_vol_block_reasons,
