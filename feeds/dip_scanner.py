@@ -469,10 +469,39 @@ class DipScanner:
             # directly (the actual 6h price change), NOT peak_h24 (which is
             # the max of the 24h-anchor history and represents something else
             # entirely). Doesn't need history samples — pure snapshot filter.
+            #
+            # 2026-05-15 CARVE-OUT: rescue if bs_m5 >= 2.0 (5m order flow
+            # shows real accumulation on the pullback — DIAMOND-class runner
+            # signature where dips keep getting bought). Validated thinly on
+            # lifetime data: top-ex zone × bs_m5>=2.0 had 50% WR / -$1.46 net
+            # (n=6) vs 44% WR / -$3.28 net (n=9) without the carve-out.
+            # Sample is small AND biased (these trades passed top_ex in
+            # baseline-mode or edge cases) — monitor forward, revert if WR
+            # craters.
             if 50.0 <= pc_h6 <= 200.0 and pc_h1 >= 5.0:
-                c["top_exhaustion"] += 1
-                if not self.baseline_mode:
-                    continue
+                # Compute bs_m5 inline (full ratio_m5 isn't computed until
+                # line ~583, but we need it here for the carve-out).
+                _txns_m5_te = (pair.get("txns") or {}).get("m5") or {}
+                _b_te = int(_txns_m5_te.get("buys") or 0)
+                _s_te = int(_txns_m5_te.get("sells") or 0)
+                if _s_te > 0:
+                    _bsm5_te = _b_te / _s_te
+                elif _b_te > 0:
+                    _bsm5_te = float("inf")
+                else:
+                    _bsm5_te = 0.0
+                if _bsm5_te >= 2.0:
+                    # Rescued — real demand still buying the pullback. Log
+                    # so we can audit which carve-outs fire.
+                    c["top_exhaustion_rescued"] = c.get("top_exhaustion_rescued", 0) + 1
+                    logger.info(
+                        f"[DipScanner] top_exhaustion RESCUED: {token_symbol} "
+                        f"pc_h6={pc_h6:+.1f}% pc_h1={pc_h1:+.1f}% bs_m5={_bsm5_te:.2f}>=2.0"
+                    )
+                else:
+                    c["top_exhaustion"] += 1
+                    if not self.baseline_mode:
+                        continue
 
             # Trend-reversal filter: reject if current h24 has collapsed to
             # <25% of recent peak across last 6h of observations AND price is
