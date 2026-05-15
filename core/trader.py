@@ -2293,6 +2293,23 @@ class Trader:
                         self._rpc_price_feed.unsubscribe_token(token_address)
                     if self._pool_price_feed is not None:
                         self._pool_price_feed.unsubscribe_token(token_address)
+                    # Forward-collector: stamp outcome on the partial label
+                    # written at scan time. SHADOW only.
+                    try:
+                        from feeds.forward_dataset_collector import get_collector
+                        _entry_ts_iso = getattr(position, "entry_time", None)
+                        if _entry_ts_iso and hasattr(_entry_ts_iso, "isoformat"):
+                            _entry_ts_iso = _entry_ts_iso.isoformat()
+                        _total_pnl = getattr(position, "total_pnl_usd", 0.0) or 0.0
+                        _pnl_pct = (_total_pnl / max(getattr(position, "amount_usd", 20.0), 1.0)) * 100.0
+                        get_collector().update_outcome(
+                            token_address=token_address,
+                            ts_iso=str(_entry_ts_iso) if _entry_ts_iso else "",
+                            outcome_label=1 if _total_pnl > 0 else 0,
+                            outcome_pnl_pct=_pnl_pct,
+                        )
+                    except Exception as _e:
+                        logger.debug(f"[Trader] forward_collector update err: {_e}")
                     # Cooldown after ANY full dip_buy close — wins included.
                     # A successful TP2 exit signals "we just hit the top of
                     # this move" — re-entering 23s later (LASTMAN 22:59)
@@ -2446,6 +2463,23 @@ class Trader:
                     self._rpc_price_feed.unsubscribe_token(token_address)
                 if self._pool_price_feed is not None:
                     self._pool_price_feed.unsubscribe_token(token_address)
+                # Forward-collector: stamp outcome on the partial label
+                # written at scan time. SHADOW only.
+                try:
+                    from feeds.forward_dataset_collector import get_collector
+                    _entry_ts_iso = getattr(position, "entry_time", None)
+                    if _entry_ts_iso and hasattr(_entry_ts_iso, "isoformat"):
+                        _entry_ts_iso = _entry_ts_iso.isoformat()
+                    _total_pnl = getattr(position, "total_pnl_usd", 0.0) or 0.0
+                    _pnl_pct = (_total_pnl / max(getattr(position, "amount_usd", 20.0), 1.0)) * 100.0
+                    get_collector().update_outcome(
+                        token_address=token_address,
+                        ts_iso=str(_entry_ts_iso) if _entry_ts_iso else "",
+                        outcome_label=1 if _total_pnl > 0 else 0,
+                        outcome_pnl_pct=_pnl_pct,
+                    )
+                except Exception as _e:
+                    logger.debug(f"[Trader] forward_collector update err: {_e}")
                 # Cooldown for dip_buy strategy on every full close.
                 # Volume-death closes get extended 6h cooldown.
                 if getattr(position, "strategy", "") == "dip_buy":
