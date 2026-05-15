@@ -728,6 +728,15 @@ COMBOS = {
         and c.get('mcap') is not None and 500_000 <= c['mcap'] < 2_000_000
         and c.get('liquidity_usd') is not None and 100_000 <= c['liquidity_usd'] < 250_000
     ),
+    # ── filter_falling_knife phantom mirror — ENFORCED 2026-05-15 ──────
+    # Mirror of dip_scanner.py filter_falling_knife. RAGEGUY 2026-05-15
+    # 03:05 UTC: 4 triggers stacked but mtf=-1 AND 1m_last_close=-0.83%
+    # → stop -8.5% in 21min. Audit validation: BLOCK n=5, 1W/4L, net
+    # +$7.17 / 5 days (only winner blocked: MASCOTS +$1.40).
+    'FILT_falling_knife_BLOCK': lambda c: (
+        c.get('chart_mtf_score') is not None and c['chart_mtf_score'] <= -1
+        and c.get('1m_last_close_pct') is not None and c['1m_last_close_pct'] < 0
+    ),
     # ─── Cascade V-bottom — phantom parity 2026-05-14 PM ───────────────
     # Mirror of trigger_cascade_v_bottom SHADOW (dip_scanner.py).
     # Ground-truth: BURNIE 2026-05-14 15:53:18 CT V-bottom after -5.12% 1m

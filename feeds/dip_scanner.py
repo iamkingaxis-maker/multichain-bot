@@ -5640,6 +5640,62 @@ class DipScanner:
                 )
                 continue
 
+            # ── filter_falling_knife — ENFORCED 2026-05-15 ──────────────────
+            # Compound: chart_mtf_score <= -1 AND 1m_last_close_pct < 0.
+            # Catches the "stacked-trigger falling knife" pattern from RAGEGUY
+            # 2026-05-15 03:05 UTC stop: 4 triggers stacked (alpha_buyperscold,
+            # patient_bottom, informed_cluster, whale_conviction) but mtf=-1
+            # AND the last 1m bar was still red (-0.83%). Token kept falling
+            # post-entry for another -8.5% before the bot stopped out; the
+            # actual bottom formed 30+ minutes later.
+            #
+            # Mechanism: when multi-TF is bearish AND the most recent 1m bar
+            # is still red, the dip-buy is catching a falling knife — there
+            # is no green confirmation candle yet. Waiting for the next 1m
+            # bar to close green (or for mtf to flip) yields a much better
+            # entry. Surgically narrower than filter_mtf_strong_downtrend
+            # (which blocks mtf<=-2 alone) — this filter targets mtf=-1 (the
+            # "mild bearish" zone) but only when the 1m tape confirms the
+            # downward continuation.
+            #
+            # Validation on .audit_trades.json (n=43 paired buys, 2026-05-12
+            # to 2026-05-14): BLOCKED n=5, wins=1/5 (20% WR), total $-7.17;
+            # PASSED n=38, 37% WR. Net +$7.17/5d. Only 1 small winner blocked
+            # (MASCOTS +$1.40); 4 losers caught (HENTAI -$1.69, CHINA -$6.04,
+            # ANDV -$0.84, COPIUM $0.00). RAGEGUY (not in audit window) would
+            # have been caught by this filter (mtf=-1, 1m_close=-0.83).
+            #
+            # Fail-open if either feature missing.
+            _fk_mtf = None
+            try:
+                _fk_mtf = _chart_ctx.mtf.get("score") if _chart_ctx else None
+            except Exception:
+                _fk_mtf = None
+            _fk_lcp = m1_features.get("1m_last_close_pct") if isinstance(m1_features, dict) else None
+            _filter_falling_knife_block_reasons: list = []
+            try:
+                if (
+                    _fk_mtf is not None and float(_fk_mtf) <= -1.0
+                    and _fk_lcp is not None and float(_fk_lcp) < 0.0
+                ):
+                    _filter_falling_knife_block_reasons.append(
+                        f"mtf_score={float(_fk_mtf):.1f}<=-1 AND "
+                        f"1m_last_close={float(_fk_lcp):+.2f}%<0 "
+                        f"(falling knife — no green confirmation)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] filter_falling_knife err: {_e}")
+            _filter_falling_knife_verdict = "BLOCK" if _filter_falling_knife_block_reasons else "PASS"
+            c[f"filter_falling_knife_{_filter_falling_knife_verdict.lower()}"] = c.get(
+                f"filter_falling_knife_{_filter_falling_knife_verdict.lower()}", 0
+            ) + 1
+            if _filter_falling_knife_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_falling_knife: "
+                    f"{token_symbol} reasons={','.join(_filter_falling_knife_block_reasons)}"
+                )
+                continue
+
             # ── trigger_mtf_aligned_demand — ENFORCED 2026-05-13 PM ──────────
             # Round-6 mining of entry_meta features (already populated in
             # production — no new fetches). Compound:
@@ -8571,6 +8627,9 @@ class DipScanner:
                 "filter_sat_eve_midliq_block_reasons": _filter_sat_eve_midliq_block_reasons,
                 "filter_microcap_trap_verdict": _filter_microcap_trap_verdict,
                 "filter_microcap_trap_block_reasons": _filter_microcap_trap_block_reasons,
+                # filter_falling_knife — ENFORCED 2026-05-15 (mtf<=-1 + 1m red).
+                "filter_falling_knife_verdict": _filter_falling_knife_verdict,
+                "filter_falling_knife_block_reasons": _filter_falling_knife_block_reasons,
                 "filter_low_volatility_block_reasons": _filter_low_vol_block_reasons,
                 # filter_clean_break_p90 — ENFORCED 2026-05-13 (clean_break-specific
                 # drift gate, p90_body<=5%).
@@ -8890,6 +8949,7 @@ class DipScanner:
                 "bs_h6", "bs_h6_missing", "already_open", "loss_cooldown",
                 "obs_high_cycles", "filter_peak_floor_block", "filter_real_dip_3_block",
                 "filter_corpse_block", "filter_fake_bounce_block",
+                "filter_falling_knife_block",
                 "filter_sweep_too_recent_block", "filter_rsi_overbought_block",
                 "filter_round_trip_block", "filter_weak_bounce_v2_block",
                 "filter_quote_asymmetry_block", "filter_15s_dump_block",
