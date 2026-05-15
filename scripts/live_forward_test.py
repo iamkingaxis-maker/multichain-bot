@@ -660,6 +660,53 @@ COMBOS = {
         and c.get('cycles_seen') is not None and 60 <= c['cycles_seen'] < 150
         and c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
     ),
+    # ─── 8 deep-mining 3D phantom mirrors (WR>=80%) — 2026-05-15 ───
+    'BO_3d_liq_midcap_compound': lambda c: (
+        c.get('liquidity_usd') is not None and 100_000 <= c['liquidity_usd'] < 250_000
+        and c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
+        and c.get('bs_h6') is not None and c.get('bs_h1') is not None
+        and 1.3 <= (c['bs_h6'] * c['bs_h1']) < 1.8
+    ),
+    'BP_3d_h6_fresh_age_compound': lambda c: (
+        c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
+        and c.get('hours_since_graduation') is not None and 6 <= c['hours_since_graduation'] < 24
+        and c.get('bs_h1') is not None
+        and 1.3 <= (c['bs_h6'] * c['bs_h1']) < 1.8
+    ),
+    'BQ_3d_h1_midcap_liq_24_7': lambda c: (
+        c.get('bs_h1') is not None and 1.1 <= c['bs_h1'] < 1.3
+        and c.get('liquidity_usd') is not None and 100_000 <= c['liquidity_usd'] < 250_000
+        and c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
+    ),
+    'BR_3d_h6_smallpump_midtrade': lambda c: (
+        c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
+        and c.get('peak_h24_6h_pct') is not None and 25 <= c['peak_h24_6h_pct'] < 50
+        and c.get('avg_trade_size_h1_usd') is not None and 200 <= c['avg_trade_size_h1_usd'] < 500
+    ),
+    'BS_3d_h6_strong5m_old': lambda c: (
+        c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
+        and c.get('bs_m5') is not None and 1.5 <= c['bs_m5'] < 2.0
+        and c.get('hours_since_graduation') is not None and c['hours_since_graduation'] >= 720
+    ),
+    'BT_3d_h6_midcap_deepdrop': lambda c: (
+        c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
+        and c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
+        and c.get('peak_h24_6h_pct') is not None
+        and c.get('h24_ratio_to_peak') is not None
+        and ((1.0 - c['h24_ratio_to_peak']) * c['peak_h24_6h_pct']) >= 1000
+    ),
+    'BU_3d_bigpump_midcap_compound': lambda c: (
+        c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 1000
+        and c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
+        and c.get('bs_h6') is not None and c.get('bs_h1') is not None
+        and 1.3 <= (c['bs_h6'] * c['bs_h1']) < 1.8
+    ),
+    'BV_3d_midcap_fresh_age_compound': lambda c: (
+        c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
+        and c.get('hours_since_graduation') is not None and 6 <= c['hours_since_graduation'] < 24
+        and c.get('bs_h6') is not None and c.get('bs_h1') is not None
+        and 1.3 <= (c['bs_h6'] * c['bs_h1']) < 1.8
+    ),
     # ─── Cascade V-bottom — phantom parity 2026-05-14 PM ───────────────
     # Mirror of trigger_cascade_v_bottom SHADOW (dip_scanner.py).
     # Ground-truth: BURNIE 2026-05-14 15:53:18 CT V-bottom after -5.12% 1m

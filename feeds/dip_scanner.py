@@ -5274,6 +5274,206 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] 3d_mature_midcap_postmidnight err: {_e}")
 
+            # ═══ DEEP-MINING 3D TRIGGERS (WR>=80%) — ENFORCED 2026-05-15 ═══════
+            # From mine_deep_multi_dim.py — 148,706 cells scanned. All below
+            # hit WR>=80% AND n>=20 (high precision + medium-to-high volume).
+            # Several use compound feature bs_h6 × bs_h1 (the product) which
+            # surfaced as a stronger signal than either alone.
+
+            # Pre-compute compound feature once for reuse below
+            _bs_h6_h1_product = None
+            try:
+                if (bs_h6 not in (None, float("inf"))
+                        and bs_h1 not in (None, float("inf"))):
+                    _bs_h6_h1_product = float(bs_h6) * float(bs_h1)
+            except Exception:
+                pass
+            # drop_from_peak = (1 - h24_ratio_to_peak) * peak — abs drop magnitude
+            _drop_from_peak = None
+            try:
+                _dfp_peak = float(peak_h24_6h) if peak_h24_6h is not None else None
+                _dfp_ratio = (_lifecycle_dict or {}).get("lifecycle_h24_ratio")
+                if (_dfp_peak is not None
+                        and isinstance(_dfp_ratio, (int, float))):
+                    _drop_from_peak = (1.0 - _dfp_ratio) * _dfp_peak
+            except Exception:
+                pass
+
+            # ── trigger_3d_liq_midcap_compound — n=53, 83.0% WR ──
+            # liq[$100k,$250k) × mcap[$2M,$10M) × bs_h6×h1[1.3,1.8)
+            _trigger_3d_liq_midcap_compound_match = False
+            _trigger_3d_liq_midcap_compound_reasons: list = []
+            try:
+                _bo_liq = float(liquidity_usd) if "liquidity_usd" in dir() and liquidity_usd is not None else None
+                if _bo_liq is None:
+                    _bo_liq = float((pair.get("liquidity") or {}).get("usd") or 0) if "pair" in dir() else None
+                _bo_mc = float(mcap) if mcap is not None else None
+                if (
+                    _bo_liq is not None and 100_000 <= _bo_liq < 250_000
+                    and _bo_mc is not None and 2_000_000 <= _bo_mc < 10_000_000
+                    and _bs_h6_h1_product is not None and 1.3 <= _bs_h6_h1_product < 1.8
+                ):
+                    _trigger_3d_liq_midcap_compound_match = True
+                    _trigger_3d_liq_midcap_compound_reasons.append(
+                        f"liq=${_bo_liq/1000:.0f}k AND mcap=${_bo_mc/1e6:.1f}M "
+                        f"AND bs_h6×h1={_bs_h6_h1_product:.2f} (3D n=53, 83.0%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 3d_liq_midcap_compound err: {_e}")
+
+            # ── trigger_3d_h6_fresh_age_compound — n=65, 81.5% WR ──
+            # bs_h6[1.1,1.3) × age[6,24h) × bs_h6×h1[1.3,1.8)
+            _trigger_3d_h6_fresh_age_compound_match = False
+            _trigger_3d_h6_fresh_age_compound_reasons: list = []
+            try:
+                _bp_bsh6 = float(bs_h6) if bs_h6 not in (None, float("inf")) else None
+                _bp_age = entry_age_hours if "entry_age_hours" in dir() else None
+                if _bp_age is None:
+                    _bp_age = (_tier3_features or {}).get("hours_since_graduation")
+                if (
+                    _bp_bsh6 is not None and 1.1 <= _bp_bsh6 < 1.3
+                    and isinstance(_bp_age, (int, float)) and 6 <= _bp_age < 24
+                    and _bs_h6_h1_product is not None and 1.3 <= _bs_h6_h1_product < 1.8
+                ):
+                    _trigger_3d_h6_fresh_age_compound_match = True
+                    _trigger_3d_h6_fresh_age_compound_reasons.append(
+                        f"bs_h6={_bp_bsh6:.2f} AND age={_bp_age:.0f}h "
+                        f"AND bs_h6×h1={_bs_h6_h1_product:.2f} (3D n=65, 81.5%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 3d_h6_fresh_age_compound err: {_e}")
+
+            # ── trigger_3d_h1_midcap_liq_24_7 — n=51, 80.4% WR ──
+            # bs_h1[1.1,1.3) × liq[$100k,$250k) × mcap[$2M,$10M)
+            # (24/7 version of BA overnight-gated trigger)
+            _trigger_3d_h1_midcap_liq_24_7_match = False
+            _trigger_3d_h1_midcap_liq_24_7_reasons: list = []
+            try:
+                _bq_bsh1 = float(bs_h1) if bs_h1 not in (None, float("inf")) else None
+                _bq_liq = float(liquidity_usd) if "liquidity_usd" in dir() and liquidity_usd is not None else None
+                if _bq_liq is None:
+                    _bq_liq = float((pair.get("liquidity") or {}).get("usd") or 0) if "pair" in dir() else None
+                _bq_mc = float(mcap) if mcap is not None else None
+                if (
+                    _bq_bsh1 is not None and 1.1 <= _bq_bsh1 < 1.3
+                    and _bq_liq is not None and 100_000 <= _bq_liq < 250_000
+                    and _bq_mc is not None and 2_000_000 <= _bq_mc < 10_000_000
+                ):
+                    _trigger_3d_h1_midcap_liq_24_7_match = True
+                    _trigger_3d_h1_midcap_liq_24_7_reasons.append(
+                        f"bs_h1={_bq_bsh1:.2f} AND liq=${_bq_liq/1000:.0f}k "
+                        f"AND mcap=${_bq_mc/1e6:.1f}M (3D 24/7 n=51, 80.4%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 3d_h1_midcap_liq_24_7 err: {_e}")
+
+            # ── trigger_3d_h6_smallpump_midtrade — n=20, 80.0% WR ──
+            # bs_h6[1.1,1.3) × peak[25,50) × avg_trade[$200,$500)
+            _trigger_3d_h6_smallpump_midtrade_match = False
+            _trigger_3d_h6_smallpump_midtrade_reasons: list = []
+            try:
+                _br_bsh6 = float(bs_h6) if bs_h6 not in (None, float("inf")) else None
+                _br_peak = float(peak_h24_6h) if peak_h24_6h is not None else None
+                _br_ats = float(avg_trade_size_h1) if avg_trade_size_h1 is not None else None
+                if (
+                    _br_bsh6 is not None and 1.1 <= _br_bsh6 < 1.3
+                    and _br_peak is not None and 25 <= _br_peak < 50
+                    and _br_ats is not None and 200 <= _br_ats < 500
+                ):
+                    _trigger_3d_h6_smallpump_midtrade_match = True
+                    _trigger_3d_h6_smallpump_midtrade_reasons.append(
+                        f"bs_h6={_br_bsh6:.2f} AND peak={_br_peak:.0f}% "
+                        f"AND avg_trade=${_br_ats:.0f} (3D n=20, 80.0%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 3d_h6_smallpump_midtrade err: {_e}")
+
+            # ── trigger_3d_h6_strong5m_old — n=21, 81.0% WR ──
+            # bs_h6[1.1,1.3) × bs_m5[1.5,2) × age[720h+) (~30d+)
+            _trigger_3d_h6_strong5m_old_match = False
+            _trigger_3d_h6_strong5m_old_reasons: list = []
+            try:
+                _bs_bsh6 = float(bs_h6) if bs_h6 not in (None, float("inf")) else None
+                _bs_bsm5 = float(ratio_m5) if ratio_m5 not in (None, float("inf")) else None
+                _bs_age = entry_age_hours if "entry_age_hours" in dir() else None
+                if _bs_age is None:
+                    _bs_age = (_tier3_features or {}).get("hours_since_graduation")
+                if (
+                    _bs_bsh6 is not None and 1.1 <= _bs_bsh6 < 1.3
+                    and _bs_bsm5 is not None and 1.5 <= _bs_bsm5 < 2.0
+                    and isinstance(_bs_age, (int, float)) and _bs_age >= 720
+                ):
+                    _trigger_3d_h6_strong5m_old_match = True
+                    _trigger_3d_h6_strong5m_old_reasons.append(
+                        f"bs_h6={_bs_bsh6:.2f} AND bs_m5={_bs_bsm5:.2f} "
+                        f"AND age={_bs_age:.0f}h>=720h (3D n=21, 81.0%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 3d_h6_strong5m_old err: {_e}")
+
+            # ── trigger_3d_h6_midcap_deepdrop — n=23, 95.7% WR ──
+            # bs_h6[1.1,1.3) × mcap[$2M,$10M) × drop_from_peak[1000+%)
+            _trigger_3d_h6_midcap_deepdrop_match = False
+            _trigger_3d_h6_midcap_deepdrop_reasons: list = []
+            try:
+                _bt_bsh6 = float(bs_h6) if bs_h6 not in (None, float("inf")) else None
+                _bt_mc = float(mcap) if mcap is not None else None
+                if (
+                    _bt_bsh6 is not None and 1.1 <= _bt_bsh6 < 1.3
+                    and _bt_mc is not None and 2_000_000 <= _bt_mc < 10_000_000
+                    and _drop_from_peak is not None and _drop_from_peak >= 1000
+                ):
+                    _trigger_3d_h6_midcap_deepdrop_match = True
+                    _trigger_3d_h6_midcap_deepdrop_reasons.append(
+                        f"bs_h6={_bt_bsh6:.2f} AND mcap=${_bt_mc/1e6:.1f}M "
+                        f"AND drop_from_peak={_drop_from_peak:.0f}%>=1000 "
+                        f"(3D n=23, 95.7%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 3d_h6_midcap_deepdrop err: {_e}")
+
+            # ── trigger_3d_bigpump_midcap_compound — n=27, 96.3% WR ──
+            # peak[1000+) × mcap[$2M,$10M) × bs_h6×h1[1.3,1.8)
+            _trigger_3d_bigpump_midcap_compound_match = False
+            _trigger_3d_bigpump_midcap_compound_reasons: list = []
+            try:
+                _bu_peak = float(peak_h24_6h) if peak_h24_6h is not None else None
+                _bu_mc = float(mcap) if mcap is not None else None
+                if (
+                    _bu_peak is not None and _bu_peak >= 1000
+                    and _bu_mc is not None and 2_000_000 <= _bu_mc < 10_000_000
+                    and _bs_h6_h1_product is not None and 1.3 <= _bs_h6_h1_product < 1.8
+                ):
+                    _trigger_3d_bigpump_midcap_compound_match = True
+                    _trigger_3d_bigpump_midcap_compound_reasons.append(
+                        f"peak={_bu_peak:.0f}%>=1000 AND mcap=${_bu_mc/1e6:.1f}M "
+                        f"AND bs_h6×h1={_bs_h6_h1_product:.2f} (3D n=27, 96.3%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 3d_bigpump_midcap_compound err: {_e}")
+
+            # ── trigger_3d_midcap_fresh_age_compound — n=27, 96.3% WR ──
+            # mcap[$2M,$10M) × age[6,24h) × bs_h6×h1[1.3,1.8)
+            _trigger_3d_midcap_fresh_age_compound_match = False
+            _trigger_3d_midcap_fresh_age_compound_reasons: list = []
+            try:
+                _bv_mc = float(mcap) if mcap is not None else None
+                _bv_age = entry_age_hours if "entry_age_hours" in dir() else None
+                if _bv_age is None:
+                    _bv_age = (_tier3_features or {}).get("hours_since_graduation")
+                if (
+                    _bv_mc is not None and 2_000_000 <= _bv_mc < 10_000_000
+                    and isinstance(_bv_age, (int, float)) and 6 <= _bv_age < 24
+                    and _bs_h6_h1_product is not None and 1.3 <= _bs_h6_h1_product < 1.8
+                ):
+                    _trigger_3d_midcap_fresh_age_compound_match = True
+                    _trigger_3d_midcap_fresh_age_compound_reasons.append(
+                        f"mcap=${_bv_mc/1e6:.1f}M AND age={_bv_age:.0f}h "
+                        f"AND bs_h6×h1={_bs_h6_h1_product:.2f} (3D n=27, 96.3%WR)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 3d_midcap_fresh_age_compound err: {_e}")
+
             # ── trigger_overnight_mature_midcap — ENFORCED 2026-05-14 PM ────
             # Rank-10 from mining: cycles_seen in [60,150) AND
             # entry_market_cap_usd in [$2M, $10M). Overnight n=50, 66.0%
@@ -5986,6 +6186,22 @@ class DipScanner:
                 _triggers_fired.append("3d_compound_strong5m_midtrade")
             if _trigger_3d_mature_midcap_postmidnight_match:
                 _triggers_fired.append("3d_mature_midcap_postmidnight")
+            if _trigger_3d_liq_midcap_compound_match:
+                _triggers_fired.append("3d_liq_midcap_compound")
+            if _trigger_3d_h6_fresh_age_compound_match:
+                _triggers_fired.append("3d_h6_fresh_age_compound")
+            if _trigger_3d_h1_midcap_liq_24_7_match:
+                _triggers_fired.append("3d_h1_midcap_liq_24_7")
+            if _trigger_3d_h6_smallpump_midtrade_match:
+                _triggers_fired.append("3d_h6_smallpump_midtrade")
+            if _trigger_3d_h6_strong5m_old_match:
+                _triggers_fired.append("3d_h6_strong5m_old")
+            if _trigger_3d_h6_midcap_deepdrop_match:
+                _triggers_fired.append("3d_h6_midcap_deepdrop")
+            if _trigger_3d_bigpump_midcap_compound_match:
+                _triggers_fired.append("3d_bigpump_midcap_compound")
+            if _trigger_3d_midcap_fresh_age_compound_match:
+                _triggers_fired.append("3d_midcap_fresh_age_compound")
 
             # 1s triggers fire LATER (after 1s feature compute) — allow
             # dippy candidates with NO classic-trigger match to pass this
@@ -6146,6 +6362,22 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_3d_compound_strong5m_midtrade_reasons)
                 if _trigger_3d_mature_midcap_postmidnight_match:
                     _alt_reasons.extend(_trigger_3d_mature_midcap_postmidnight_reasons)
+                if _trigger_3d_liq_midcap_compound_match:
+                    _alt_reasons.extend(_trigger_3d_liq_midcap_compound_reasons)
+                if _trigger_3d_h6_fresh_age_compound_match:
+                    _alt_reasons.extend(_trigger_3d_h6_fresh_age_compound_reasons)
+                if _trigger_3d_h1_midcap_liq_24_7_match:
+                    _alt_reasons.extend(_trigger_3d_h1_midcap_liq_24_7_reasons)
+                if _trigger_3d_h6_smallpump_midtrade_match:
+                    _alt_reasons.extend(_trigger_3d_h6_smallpump_midtrade_reasons)
+                if _trigger_3d_h6_strong5m_old_match:
+                    _alt_reasons.extend(_trigger_3d_h6_strong5m_old_reasons)
+                if _trigger_3d_h6_midcap_deepdrop_match:
+                    _alt_reasons.extend(_trigger_3d_h6_midcap_deepdrop_reasons)
+                if _trigger_3d_bigpump_midcap_compound_match:
+                    _alt_reasons.extend(_trigger_3d_bigpump_midcap_compound_reasons)
+                if _trigger_3d_midcap_fresh_age_compound_match:
+                    _alt_reasons.extend(_trigger_3d_midcap_fresh_age_compound_reasons)
                 logger.info(
                     f"[DipScanner] ENTRY via {_trigger_source} (clean_break BLOCKed): "
                     f"{token_symbol} {','.join(_alt_reasons)}"
@@ -8346,6 +8578,23 @@ class DipScanner:
                 "trigger_3d_compound_strong5m_midtrade_reasons": _trigger_3d_compound_strong5m_midtrade_reasons,
                 "trigger_3d_mature_midcap_postmidnight_match": _trigger_3d_mature_midcap_postmidnight_match,
                 "trigger_3d_mature_midcap_postmidnight_reasons": _trigger_3d_mature_midcap_postmidnight_reasons,
+                # ─── 8 deep-mining 3D triggers (WR>=80%) — ENFORCED 2026-05-15 ───
+                "trigger_3d_liq_midcap_compound_match": _trigger_3d_liq_midcap_compound_match,
+                "trigger_3d_liq_midcap_compound_reasons": _trigger_3d_liq_midcap_compound_reasons,
+                "trigger_3d_h6_fresh_age_compound_match": _trigger_3d_h6_fresh_age_compound_match,
+                "trigger_3d_h6_fresh_age_compound_reasons": _trigger_3d_h6_fresh_age_compound_reasons,
+                "trigger_3d_h1_midcap_liq_24_7_match": _trigger_3d_h1_midcap_liq_24_7_match,
+                "trigger_3d_h1_midcap_liq_24_7_reasons": _trigger_3d_h1_midcap_liq_24_7_reasons,
+                "trigger_3d_h6_smallpump_midtrade_match": _trigger_3d_h6_smallpump_midtrade_match,
+                "trigger_3d_h6_smallpump_midtrade_reasons": _trigger_3d_h6_smallpump_midtrade_reasons,
+                "trigger_3d_h6_strong5m_old_match": _trigger_3d_h6_strong5m_old_match,
+                "trigger_3d_h6_strong5m_old_reasons": _trigger_3d_h6_strong5m_old_reasons,
+                "trigger_3d_h6_midcap_deepdrop_match": _trigger_3d_h6_midcap_deepdrop_match,
+                "trigger_3d_h6_midcap_deepdrop_reasons": _trigger_3d_h6_midcap_deepdrop_reasons,
+                "trigger_3d_bigpump_midcap_compound_match": _trigger_3d_bigpump_midcap_compound_match,
+                "trigger_3d_bigpump_midcap_compound_reasons": _trigger_3d_bigpump_midcap_compound_reasons,
+                "trigger_3d_midcap_fresh_age_compound_match": _trigger_3d_midcap_fresh_age_compound_match,
+                "trigger_3d_midcap_fresh_age_compound_reasons": _trigger_3d_midcap_fresh_age_compound_reasons,
                 # SHADOW 2026-05-14 PM — cascade-V-bottom catcher. BURNIE-grounded.
                 "trigger_cascade_v_bottom_match": _trigger_cascade_v_bottom_match,
                 "trigger_cascade_v_bottom_reasons": _trigger_cascade_v_bottom_reasons,
