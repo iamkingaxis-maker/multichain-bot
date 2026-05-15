@@ -809,6 +809,16 @@ COMBOS = {
         and c.get('chart_sr_5m_at_resistance') is not True
         and c.get('chart_vp_above_poc') is True
     ),
+    # ── Chart CNN phantom mirrors — SHADOW 2026-05-15 ─────────────
+    'CNN_outcome_above_60': lambda c: (
+        c.get('cnn_outcome_prob') is not None and c['cnn_outcome_prob'] >= 0.60
+    ),
+    'CNN_outcome_above_70': lambda c: (
+        c.get('cnn_outcome_prob') is not None and c['cnn_outcome_prob'] >= 0.70
+    ),
+    'CNN_pattern_double_bottom': lambda c: (
+        c.get('cnn_pattern') == 'double_bottom'
+    ),
 }
 
 
@@ -1459,6 +1469,49 @@ def compute_1s_features(c):
     return out
 
 
+def compute_cnn_features(c):
+    """Run CNN on the candidate's pre-entry candles. Returns dict
+    with cnn_pattern, cnn_pattern_conf, cnn_outcome_prob. Fail-open.
+
+    Phantom parity with dip_scanner Task 12 — same inference singleton.
+    """
+    out = {'cnn_pattern': None, 'cnn_pattern_conf': None, 'cnn_outcome_prob': None}
+    try:
+        import sys as _sys
+        from pathlib import Path as _Path
+        _sys.path.insert(0, str(_Path(__file__).parent.parent))
+        from core.chart_cnn_inference import get_inference
+        from feeds.candle_utils import Candle as _Candle
+        import time as _t
+        c1_raw = fetch_gt_ohlcv_with_retry(c['pair'], agg=1, limit=60)
+        _t.sleep(1.0)
+        c5_raw = fetch_gt_ohlcv_with_retry(c['pair'], agg=5, limit=60)
+        _t.sleep(1.0)
+        c15_raw = fetch_gt_ohlcv_with_retry(c['pair'], agg=15, limit=60)
+        def _to_candles(raw):
+            # GT format: [ts, o, h, l, c, v], newest-first → reverse for oldest-first
+            return [
+                _Candle(open_time=int(r[0]), open=float(r[1]), high=float(r[2]),
+                        low=float(r[3]), close=float(r[4]), volume=float(r[5]),
+                        close_time=int(r[0]) + 60)
+                for r in reversed(raw or [])
+            ]
+        c1 = _to_candles(c1_raw)
+        c5 = _to_candles(c5_raw)
+        c15 = _to_candles(c15_raw)
+        inf = get_inference()
+        if inf.disabled:
+            return out
+        r = inf.predict(c.get('token', ''), c1, c5, c15)
+        if r:
+            out['cnn_pattern'] = r.get('pattern')
+            out['cnn_pattern_conf'] = r.get('pattern_conf')
+            out['cnn_outcome_prob'] = r.get('outcome_prob')
+    except Exception:
+        pass
+    return out
+
+
 def compute_1h_features(c):
     """Fetch 48 1h candles for round-2 triggers (pullback_in_uptrend
     + vol_surge_recent). Returns dict merged into candidate. Fail-open."""
@@ -1748,6 +1801,8 @@ def take_snapshot():
         # 1h features for pullback_in_uptrend + vol_surge_recent triggers
         # (1 GT call per token, fail-open).
         c.update(compute_1h_features(c))
+        # Chart CNN — SHADOW 2026-05-15 (3 GT calls: 1m+5m+15m bars).
+        c.update(compute_cnn_features(c))
         # filter_rsi_overbought phantom parity (2 GT calls: 5m + 15m bars).
         c.update(compute_rsi_overbought_features(c))
         # Jupiter $5k buy/sell slippage
