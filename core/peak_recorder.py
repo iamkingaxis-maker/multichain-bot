@@ -249,7 +249,8 @@ class PeakRecorder:
             logger.warning(f'[PEAK_RECORDER] state save err: {e}')
 
     def init_position(self, token_address: str, token_symbol: str,
-                       pair_address: str, entry_price: float, entry_time):
+                       pair_address: str, entry_price: float, entry_time,
+                       entry_meta: dict | None = None):
         """Called when a new position opens."""
         try:
             entry_time_iso = (entry_time.isoformat()
@@ -264,6 +265,17 @@ class PeakRecorder:
                 'last_record_minute_ts': 0,
                 'shadow_exit_logged': False,
             }
+            # Stamp CNN prediction at init — correlates entry-time pattern
+            # with eventual outcome for forward validation. SHADOW only.
+            try:
+                if isinstance(entry_meta, dict):
+                    _cnn_init = entry_meta.get('cnn_pattern')
+                    if _cnn_init is not None:
+                        self.state[token_address]['cnn_pattern_at_entry'] = _cnn_init
+                        self.state[token_address]['cnn_pattern_conf_at_entry'] = entry_meta.get('cnn_pattern_conf')
+                        self.state[token_address]['cnn_outcome_prob_at_entry'] = entry_meta.get('cnn_outcome_prob')
+            except Exception as _e:
+                logger.debug(f'[PEAK_RECORDER] cnn stamp err: {_e}')
             logger.info(f'[PEAK_RECORDER] init {token_symbol} entry=${entry_price:.8f}')
         except Exception as e:
             logger.warning(f'[PEAK_RECORDER] init err: {e}')
@@ -358,6 +370,9 @@ class PeakRecorder:
                 'minutes': minutes,
                 'weights_used': self.weights,
                 'shadow_threshold': self.shadow_threshold,
+                'cnn_pattern_at_entry': s.get('cnn_pattern_at_entry'),
+                'cnn_pattern_conf_at_entry': s.get('cnn_pattern_conf_at_entry'),
+                'cnn_outcome_prob_at_entry': s.get('cnn_outcome_prob_at_entry'),
             }
             safe_tok = re.sub(r'[^A-Za-z0-9_-]', '_', s['tok'] or 'UNK')
             entry_iso = s['entry_time'][:19].replace(':', '-')

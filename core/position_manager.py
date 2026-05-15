@@ -759,6 +759,7 @@ class PositionManager:
                         pair_address=getattr(pos, "pair_address", "") or "",
                         entry_price=entry_px,
                         entry_time=getattr(pos, "entry_time", datetime.now(timezone.utc)),
+                        entry_meta=getattr(pos, "entry_meta", None),
                     )
                 except Exception:
                     pass
