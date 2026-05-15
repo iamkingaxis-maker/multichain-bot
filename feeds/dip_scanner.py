@@ -8084,11 +8084,35 @@ class DipScanner:
                 f"filter_buyer_fomo_{_filter_buyer_fomo_verdict.lower()}", 0
             ) + 1
             if _filter_buyer_fomo_verdict == "BLOCK":
-                logger.info(
-                    f"[DipScanner] BLOCKED by filter_buyer_fomo: {token_symbol} "
-                    f"reasons={','.join(_filter_buyer_fomo_block_reasons)}"
+                # CARVE-OUT 2026-05-15: rescue if a triangulating on-chain
+                # trigger fires. filter_buyer_fomo flags pure 60s buyer
+                # concentration as "late FOMO chase", but the new triggers
+                # ALL require multi-axis alignment (flow + mtf + bs_m5 or
+                # bs_h1/h6) — that's structural accumulation, not lone
+                # FOMO. Without this carve-out, the filter mechanically
+                # blocks every fire of strong_orderflow / sustained_accum.
+                _fomo_rescue = (
+                    _trigger_strong_orderflow_match
+                    or _trigger_sustained_accum_match
+                    or _trigger_micro_pattern_match
+                    or _trigger_vp_aligned_match
+                    or _trigger_quiet_buyer_match
                 )
-                continue
+                if _fomo_rescue:
+                    logger.info(
+                        f"[DipScanner] filter_buyer_fomo rescued by "
+                        f"triangulating trigger: {token_symbol} "
+                        f"trigs={_triggers_fired}"
+                    )
+                    c["filter_buyer_fomo_rescued"] = c.get(
+                        "filter_buyer_fomo_rescued", 0
+                    ) + 1
+                else:
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_buyer_fomo: {token_symbol} "
+                        f"reasons={','.join(_filter_buyer_fomo_block_reasons)}"
+                    )
+                    continue
 
             # ── Multi-timeframe momentum stacking (shadow, 2026-05-05) ────────
             # Hypothesis: "textbook pullback resolving" = 15m red + 5m red +
@@ -8478,11 +8502,34 @@ class DipScanner:
                 f"filter_1h_v_bottom_{_filter_v_bottom_verdict.lower()}", 0
             ) + 1
             if _filter_v_bottom_verdict == "BLOCK":
-                logger.info(
-                    f"[DipScanner] BLOCKED by filter_1h_v_bottom_fake_recovery: "
-                    f"{token_symbol} reasons={','.join(_filter_v_bottom_block_reasons)}"
+                # CARVE-OUT 2026-05-15: rescue if a high-WR trigger fires.
+                # The v-bottom-fake-recovery filter flags 1h reversal
+                # patterns where the recovery candle erased a prior red.
+                # The new triggers triangulate (flow + chart + bs) which
+                # is stronger than 1h candle pattern alone.
+                _v_rescue = (
+                    _trigger_strong_orderflow_match
+                    or _trigger_sustained_accum_match
+                    or _trigger_flow_reversal_match
+                    or _trigger_chart_reversal_match
+                    or _trigger_micro_pattern_match
+                    or _trigger_vp_aligned_match
+                    or _trigger_quiet_buyer_match
                 )
-                continue
+                if _v_rescue:
+                    logger.info(
+                        f"[DipScanner] filter_1h_v_bottom_fake_recovery rescued "
+                        f"by high-WR trigger: {token_symbol} trigs={_triggers_fired}"
+                    )
+                    c["filter_1h_v_bottom_rescued"] = c.get(
+                        "filter_1h_v_bottom_rescued", 0
+                    ) + 1
+                else:
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_1h_v_bottom_fake_recovery: "
+                        f"{token_symbol} reasons={','.join(_filter_v_bottom_block_reasons)}"
+                    )
+                    continue
 
             # ── filter_topping — SHADOW 2026-05-06 PM ────────────────────────
             # Record-only verdict for the "you're catching a top" pattern:
