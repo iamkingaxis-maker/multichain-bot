@@ -7484,6 +7484,117 @@ class DipScanner:
                 )
                 continue
 
+            # ═══ DEFENSIVE FILTERS (LOSER-PATTERN MINING) — ENFORCED 2026-05-15 ═══
+            # Surfaced by mine_losers_deep.py — three high-precision filters that
+            # block specific bleeding cohorts while preserving 90%+ of buy volume.
+            # Each shows positive NET $ (loss-$-saved minus win-$-foregone) over
+            # 16d historical data.
+
+            # Compute current CT time once for filter use.
+            try:
+                from zoneinfo import ZoneInfo as _ZI
+                _flt_now_ct = datetime.now(_ZI("America/Chicago"))
+                _flt_h = _flt_now_ct.hour
+                _flt_wd = _flt_now_ct.weekday()  # Mon=0..Sun=6
+                _flt_is_wknd = _flt_wd in (5, 6)
+            except Exception:
+                _flt_h = -1
+                _flt_wd = -1
+                _flt_is_wknd = False
+
+            # ── filter_dead_5m_eve_wknd (F2) — n=70 historical, 17.1% WR ──
+            # Blocks: bs_m5 < 0.8 AND hour[17,22) AND weekend.
+            # Lifetime: blocks 4.4 trades/day, saves +$307 net (lost $72 in
+            # blocked winners but saved $379 in avoided losers).
+            _filter_dead_5m_eve_wknd_block_reasons: list = []
+            try:
+                _f2_bsm5 = float(ratio_m5) if ratio_m5 not in (None, float("inf")) else None
+                if (
+                    _f2_bsm5 is not None and _f2_bsm5 < 0.8
+                    and 17 <= _flt_h < 22
+                    and _flt_is_wknd
+                ):
+                    _filter_dead_5m_eve_wknd_block_reasons.append(
+                        f"bs_m5={_f2_bsm5:.2f}<0.8 AND hour={_flt_h}∈[17,22) "
+                        f"AND dow={_flt_wd} (weekend)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] filter_dead_5m_eve_wknd err: {_e}")
+            _filter_dead_5m_eve_wknd_verdict = "BLOCK" if _filter_dead_5m_eve_wknd_block_reasons else "PASS"
+            c[f"filter_dead_5m_eve_wknd_{_filter_dead_5m_eve_wknd_verdict.lower()}"] = c.get(
+                f"filter_dead_5m_eve_wknd_{_filter_dead_5m_eve_wknd_verdict.lower()}", 0
+            ) + 1
+            if _filter_dead_5m_eve_wknd_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_dead_5m_eve_wknd: "
+                    f"{token_symbol} reasons={','.join(_filter_dead_5m_eve_wknd_block_reasons)}"
+                )
+                continue
+
+            # ── filter_saturday_eve_midliq (F4) — n=30 historical, 3.3% WR ──
+            # Blocks: liq[$100k,$250k) AND hour[17,22) AND dow==5 (Saturday).
+            # Lifetime: blocks 1.9 trades/day, saves +$228 (only 1 winner $16,
+            # saved $244 in losers — best $-saved-per-buy-blocked ratio).
+            _filter_sat_eve_midliq_block_reasons: list = []
+            try:
+                _f4_liq = float(liquidity_usd) if "liquidity_usd" in dir() and liquidity_usd is not None else None
+                if _f4_liq is None:
+                    _f4_liq = float((pair.get("liquidity") or {}).get("usd") or 0) if "pair" in dir() else None
+                if (
+                    _f4_liq is not None and 100_000 <= _f4_liq < 250_000
+                    and 17 <= _flt_h < 22
+                    and _flt_wd == 5  # Saturday
+                ):
+                    _filter_sat_eve_midliq_block_reasons.append(
+                        f"liq=${_f4_liq/1000:.0f}k∈[100k,250k) AND hour={_flt_h}∈[17,22) "
+                        f"AND dow=5 (Saturday)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] filter_sat_eve_midliq err: {_e}")
+            _filter_sat_eve_midliq_verdict = "BLOCK" if _filter_sat_eve_midliq_block_reasons else "PASS"
+            c[f"filter_sat_eve_midliq_{_filter_sat_eve_midliq_verdict.lower()}"] = c.get(
+                f"filter_sat_eve_midliq_{_filter_sat_eve_midliq_verdict.lower()}", 0
+            ) + 1
+            if _filter_sat_eve_midliq_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_sat_eve_midliq: "
+                    f"{token_symbol} reasons={','.join(_filter_sat_eve_midliq_block_reasons)}"
+                )
+                continue
+
+            # ── filter_microcap_buyer_trap (F5) — n=67 historical, 22.4% WR ──
+            # Blocks: bs_h1[1.1,1.3) AND mcap[$500k,$2M) AND liq[$100k,$250k).
+            # Lifetime: blocks 4.2 trades/day, saves +$273 net. No hour gate
+            # (24/7) — this is a structural micro-cap trap pattern.
+            _filter_microcap_trap_block_reasons: list = []
+            try:
+                _f5_bsh1 = float(bs_h1) if bs_h1 not in (None, float("inf")) else None
+                _f5_mc = float(mcap) if mcap is not None else None
+                _f5_liq = float(liquidity_usd) if "liquidity_usd" in dir() and liquidity_usd is not None else None
+                if _f5_liq is None:
+                    _f5_liq = float((pair.get("liquidity") or {}).get("usd") or 0) if "pair" in dir() else None
+                if (
+                    _f5_bsh1 is not None and 1.1 <= _f5_bsh1 < 1.3
+                    and _f5_mc is not None and 500_000 <= _f5_mc < 2_000_000
+                    and _f5_liq is not None and 100_000 <= _f5_liq < 250_000
+                ):
+                    _filter_microcap_trap_block_reasons.append(
+                        f"bs_h1={_f5_bsh1:.2f} AND mcap=${_f5_mc/1e6:.2f}M "
+                        f"AND liq=${_f5_liq/1000:.0f}k (microcap buyer trap)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] filter_microcap_trap err: {_e}")
+            _filter_microcap_trap_verdict = "BLOCK" if _filter_microcap_trap_block_reasons else "PASS"
+            c[f"filter_microcap_trap_{_filter_microcap_trap_verdict.lower()}"] = c.get(
+                f"filter_microcap_trap_{_filter_microcap_trap_verdict.lower()}", 0
+            ) + 1
+            if _filter_microcap_trap_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_microcap_trap: "
+                    f"{token_symbol} reasons={','.join(_filter_microcap_trap_block_reasons)}"
+                )
+                continue
+
             # ── filter_clean_break_p90 — ENFORCED 2026-05-13 ─────────────────
             # Clean_break trigger requires chart_p90_body_pct > 5.0 to fire.
             # Removes clean_break from _triggers_fired when token's 90th-percentile
@@ -8453,6 +8564,13 @@ class DipScanner:
                 "chart_buyvol_ratio_60m": _chart_buyvol_ratio_60m,
                 # filter_low_volatility — SHADOW 2026-05-06 PM (dead-token gate).
                 "filter_low_volatility_verdict": _filter_low_vol_verdict,
+                # Defensive filters from loser mining — ENFORCED 2026-05-15.
+                "filter_dead_5m_eve_wknd_verdict": _filter_dead_5m_eve_wknd_verdict,
+                "filter_dead_5m_eve_wknd_block_reasons": _filter_dead_5m_eve_wknd_block_reasons,
+                "filter_sat_eve_midliq_verdict": _filter_sat_eve_midliq_verdict,
+                "filter_sat_eve_midliq_block_reasons": _filter_sat_eve_midliq_block_reasons,
+                "filter_microcap_trap_verdict": _filter_microcap_trap_verdict,
+                "filter_microcap_trap_block_reasons": _filter_microcap_trap_block_reasons,
                 "filter_low_volatility_block_reasons": _filter_low_vol_block_reasons,
                 # filter_clean_break_p90 — ENFORCED 2026-05-13 (clean_break-specific
                 # drift gate, p90_body<=5%).

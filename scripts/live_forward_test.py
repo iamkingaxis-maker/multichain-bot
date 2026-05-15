@@ -707,6 +707,27 @@ COMBOS = {
         and c.get('bs_h6') is not None and c.get('bs_h1') is not None
         and 1.3 <= (c['bs_h6'] * c['bs_h1']) < 1.8
     ),
+    # ─── Defensive filter phantom mirrors (would-have-blocked) — 2026-05-15 ───
+    # Note: these are FILTERS — predicates return True when the entry WOULD
+    # have been blocked (inverse of allow-predicate). Forward audit measures
+    # whether blocking these would have helped P&L.
+    'FILT_F2_dead_5m_eve_wknd_BLOCK': lambda c: (
+        c.get('bs_m5') is not None and c['bs_m5'] < 0.8
+        and (lambda _now: 17 <= _now.hour < 22 and _now.weekday() in (5, 6))(
+            __import__('datetime').datetime.now(__import__('zoneinfo').ZoneInfo('America/Chicago'))
+        )
+    ),
+    'FILT_F4_sat_eve_midliq_BLOCK': lambda c: (
+        c.get('liquidity_usd') is not None and 100_000 <= c['liquidity_usd'] < 250_000
+        and (lambda _now: 17 <= _now.hour < 22 and _now.weekday() == 5)(
+            __import__('datetime').datetime.now(__import__('zoneinfo').ZoneInfo('America/Chicago'))
+        )
+    ),
+    'FILT_F5_microcap_trap_BLOCK': lambda c: (
+        c.get('bs_h1') is not None and 1.1 <= c['bs_h1'] < 1.3
+        and c.get('mcap') is not None and 500_000 <= c['mcap'] < 2_000_000
+        and c.get('liquidity_usd') is not None and 100_000 <= c['liquidity_usd'] < 250_000
+    ),
     # ─── Cascade V-bottom — phantom parity 2026-05-14 PM ───────────────
     # Mirror of trigger_cascade_v_bottom SHADOW (dip_scanner.py).
     # Ground-truth: BURNIE 2026-05-14 15:53:18 CT V-bottom after -5.12% 1m
