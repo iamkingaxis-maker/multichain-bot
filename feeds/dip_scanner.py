@@ -49,7 +49,7 @@ _SEARCH_TERMS_POOL = [
     "miggles", "fartcoin", "neiro", "goat",
 ]
 _SEARCH_TERMS_PER_CYCLE = 8
-_SCAN_INTERVAL = 90  # seconds between full scan cycles
+_SCAN_INTERVAL = 30  # seconds between full scan cycles (lowered 90→30 2026-05-15 for 3x throughput)
 
 
 class DipScanner:
