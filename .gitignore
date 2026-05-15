@@ -82,4 +82,5 @@ data/
 # (railway up respects .gitignore even for tracked files).
 models/*.pt
 !models/chart_cnn_v1.pt
+models/*.pkl
 .cnn_dataset/
