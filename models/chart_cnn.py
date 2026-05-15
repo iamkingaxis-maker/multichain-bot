@@ -9,19 +9,27 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-# Pattern class set. Must match the labels emitted by chart_reader.pattern_5m.
-# Index 0 is reserved for "none" (no recognized pattern).
+# Trigger-based pattern classes (v2 label vocabulary, 2026-05-15).
+# Each label is the name of one of our entry triggers — the model
+# learns "what does the chart look like when each trigger fires."
+# Multi-trigger buys map to the first trigger in PATTERN_CLASSES order
+# (priority: most distinctive/rare wins).
 PATTERN_CLASSES = [
-    "none",
-    "double_bottom",
-    "bullish_engulfing",
-    "bearish_engulfing",
-    "symmetrical_triangle",
-    "ascending_triangle",
-    "descending_triangle",
-    "head_and_shoulders",
-    "inverse_head_and_shoulders",
-    "v_bottom",
+    "default",                     # no trigger fired (forward-miner fallback)
+    "1s_capit_reversal",           # V-shape capitulation rare/distinctive
+    "sweep_rejection",
+    "extreme_sweep_1m",            # sub-1m sweep
+    "demand_bottom_compound",
+    "patient_bottom",              # most common (23 buys)
+    "clean_break",
+    "informed_cluster",
+    "whale_conviction",
+    "alpha_buyperscold",
+    "grad_window_dip",
+    "net_flow_5m_demand",
+    "controlled_greens_5m",
+    "pullback_in_uptrend",
+    "other",                       # rare triggers lumped (hh10_*, vol_surge_recent, etc.)
 ]
 NUM_PATTERN_CLASSES = len(PATTERN_CLASSES)
 CLASS_TO_IDX = {name: i for i, name in enumerate(PATTERN_CLASSES)}

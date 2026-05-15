@@ -89,10 +89,23 @@ async def fetch_candles_at_entry(pair_addr: str, entry_ts_iso: str):
         return None, None, None
 
 
+def _primary_trigger(triggers_fired: list) -> str:
+    """Pick the most-distinctive trigger when multiple fired.
+    Priority order matches PATTERN_CLASSES — earlier in list = higher priority."""
+    from models.chart_cnn import PATTERN_CLASSES
+    if not triggers_fired:
+        return "default"
+    for cls in PATTERN_CLASSES:
+        if cls in triggers_fired:
+            return cls
+    return "other"
+
+
 def label_for_trade(trade: dict) -> dict:
     """Build the label JSON for one trade."""
     em = trade.get("entry_meta") or {}
-    pattern = em.get("chart_pattern_5m") or "none"
+    triggers = em.get("triggers_fired") or []
+    pattern = _primary_trigger(triggers)
     return {
         "addr": trade["addr"],
         "ts": trade["time"],
@@ -101,7 +114,7 @@ def label_for_trade(trade: dict) -> dict:
         "outcome_label": 1 if trade["pnl"] > 0 else 0,
         "outcome_pnl_pct": float(em.get("outcome_pnl_pct") or 0),
         "context": {
-            "triggers_fired": em.get("triggers_fired") or [],
+            "triggers_fired": triggers,
             "hour_ct": em.get("hour_ct"),
             "mcap_usd": em.get("entry_market_cap_usd"),
         },
