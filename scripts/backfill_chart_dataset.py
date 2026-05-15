@@ -76,7 +76,7 @@ async def fetch_candles_at_entry(pair_addr: str, entry_ts_iso: str):
     """
     try:
         from feeds.chart_data import assemble_chart_data
-        from feeds.gt_client import GeckoTerminalClient
+        from feeds.gecko_ohlcv import GeckoTerminalClient
         from feeds.dexscreener_client import DexScreenerClient
         gt = GeckoTerminalClient()
         ds = DexScreenerClient()
