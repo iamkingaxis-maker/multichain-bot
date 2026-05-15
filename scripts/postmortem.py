@@ -160,6 +160,10 @@ def render_one(buy: Dict[str, Any], sell: Optional[Dict[str, Any]]) -> str:
             "filter_real_dip_3_verdict", "filter_corpse_verdict",
             "filter_fake_bounce_verdict", "filter_fofar_verdict",
             "filter_two_pattern_verdict", "filter_1m_verdict", "filter_a_verdict",
+            "filter_falling_knife_verdict",
+            "trigger_post_capit_breakout_match",
+            # chart_cnn — SHADOW 2026-05-15 (pattern + outcome head)
+            "cnn_pattern", "cnn_pattern_conf", "cnn_outcome_prob",
         ]
         out.append("  --- entry_meta (priority fields) ---")
         for k in priority:
