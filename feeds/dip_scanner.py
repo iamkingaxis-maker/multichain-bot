@@ -5819,7 +5819,17 @@ class DipScanner:
                           if _chart_data and _chart_data.candles_5m else [])
                 _pu_h1 = (_chart_data.candles_1h
                           if _chart_data and _chart_data.candles_1h else [])
-                if len(_pu_m5) >= 5 and len(_pu_h1) >= 3:
+                # Trigger-scoped volume gate — ENFORCED 2026-05-15 PM.
+                # BULLISH 2026-05-15 04:06 UTC: pullback_in_uptrend fired
+                # on a token with 1m_volume_spike=0.007 (basically zero
+                # vol). Chart was technically a "pullback in uptrend" but
+                # the tape was dead — no buyers stepping in. Trade fast-
+                # dud'd at -3.9% in 14 min (peak +0.0%). FILTER_1M_SHADOW
+                # would have caught this (vol_spike<0.40) but is in
+                # shadow; this trigger-scoped gate is the surgical fix.
+                _pu_vs = m1_features.get("1m_volume_spike") if isinstance(m1_features, dict) else None
+                _pu_vol_ok = _pu_vs is not None and float(_pu_vs) >= 0.30
+                if len(_pu_m5) >= 5 and len(_pu_h1) >= 3 and _pu_vol_ok:
                     _pu_1h_g = sum(1 for c in _pu_h1[-3:] if c.close > c.open)
                     _pu_5m_g = sum(1 for c in _pu_m5[-5:] if c.close > c.open)
                     _pu_last_g = _pu_m5[-1].close > _pu_m5[-1].open
@@ -5828,7 +5838,8 @@ class DipScanner:
                         _trigger_pullback_in_uptrend_reasons.append(
                             f"1h_last3_n_green={_pu_1h_g}>=2 "
                             f"AND 5m_last5_n_green={_pu_5m_g}<=2 "
-                            f"AND last_5m_green={_pu_last_g}"
+                            f"AND last_5m_green={_pu_last_g} "
+                            f"AND 1m_vol_spike={float(_pu_vs):.2f}>=0.30"
                         )
             except Exception as _e:
                 logger.debug(f"[DipScanner] pullback_in_uptrend trigger err: {_e}")
