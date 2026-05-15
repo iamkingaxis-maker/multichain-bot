@@ -76,3 +76,7 @@ data/
 .dataset.pkl
 .feature_sweep.pkl
 .trades_full.json
+
+# Chart CNN — trained weights and dataset (large binaries, not committed)
+models/*.pt
+.cnn_dataset/
