@@ -725,6 +725,10 @@ class PoolPriceFeed:
             try:
                 self.position_manager.check_stop_loss_realtime(token_lower, price_usd)
                 self.position_manager.check_take_profit_realtime(token_lower, price_usd)
+                # Pre-TP1 exhaustion trail with 60s confirmation + hard guard.
+                # Catches peak-and-reverse before -7% stop without firing on
+                # transient sub-second wicks. Replaces candle-based trail.
+                self.position_manager.check_exhaustion_realtime(token_lower, price_usd)
             except Exception as _e:
                 logger.debug(f"[PoolFeed] pm realtime hook err: {_e}")
 

@@ -50,6 +50,12 @@ class PositionState:
     tp2_hit: bool = False
     tp3_hit: bool = False
 
+    # Realtime exhaustion trail — set when soft-trail trigger first fires
+    # (price drops >=1.5pp from peak with peak >= +3%). Cleared on recovery.
+    # When the position has been pending for the confirmation window, exit
+    # fires. See check_exhaustion_realtime.
+    pending_exit_since_ts: Optional[float] = None
+
     # Breakeven tracking
     breakeven_locked: bool = False
 
@@ -440,6 +446,7 @@ class PositionManager:
         self._last_volume_check: Dict[str, datetime] = {}
         self._stop_triggered: set = set()  # De-dup for realtime stops
         self._tp_triggered: set = set()    # De-dup for realtime TPs
+        self._trail_triggered: set = set() # De-dup for realtime pre-TP1 trail
         # Last realtime price per token — used as the reference for the
         # downside sanity gate (reject ticks that drop >20% from prior).
         # Catches single corrupted feed ticks that fire spurious -15% stops
@@ -2050,44 +2057,18 @@ class PositionManager:
                                 )
                             return
 
-            # ── DIP PRE-TP1 LOCK-IN TRAIL — NEW 2026-05-14 ────────────
-            # User-requested smart TP after COPIUM (2026-05-14 12:03) peaked
-            # near TP1 then reversed without hitting it. Current logic has
-            # no protection between +3% and TP1 — a 4% peak followed by
-            # reversal rides all the way to -7% stop.
+            # ── DIP PRE-TP1 LOCK-IN TRAIL — MOVED TO REALTIME 2026-05-15 ──
+            # The single-tick trigger version of this rule fired too eagerly
+            # once the PoolPriceFeed went live (RAGEGUY/fish/FAHHHH 05-15 all
+            # exited at +0.5-0.9% then immediately ran to +5-21%). Replaced
+            # by check_exhaustion_realtime which uses Option B: 60s
+            # continuous-below-threshold confirmation + hard guard at -2%.
             #
-            # Trigger: peak >= +3% AND price drops 1.5pp from peak (and
-            # tp1 not yet hit). Sells 100% to lock in whatever gain remains.
-            #
-            # Lifetime evidence: 2 trades had peak 3-5% and went to -7% stop
-            # (DISCLOSURE peak +3.7% → -8.1%; CHINA peak +3.1% → -8.3%).
-            # Smart trail would have saved $+4.05 on these alone.
-            #
-            # Why 1.5pp drop: at +3% peak, 1.5pp drop = +1.5% exit (still
-            # positive). At +4% peak, exit at +2.5%. At +4.9% peak, exit
-            # at +3.4%. Captures meaningful gain while letting normal
-            # volatility breathe.
-            _PRE_TP1_MIN_PEAK = 3.0
-            _PRE_TP1_DROP_PP = 1.5
-            _peak_gain_pre_tp1 = (
-                (state.peak_price - state.entry_price) / state.entry_price * 100
-                if state.entry_price > 0 else 0
-            )
-            if (not state.tp1_hit
-                    and state.peak_price > 0 and state.entry_price > 0
-                    and _peak_gain_pre_tp1 >= _PRE_TP1_MIN_PEAK
-                    and pnl_pct <= _peak_gain_pre_tp1 - _PRE_TP1_DROP_PP):
-                logger.info(
-                    f"[PositionManager/{self.chain_name}] 🔒 DIP PRE-TP1 TRAIL: "
-                    f"{state.token_symbol} peaked at +{_peak_gain_pre_tp1:.1f}% "
-                    f"now at {pnl_pct:+.1f}% (drop ≥ {_PRE_TP1_DROP_PP}pp from peak >= {_PRE_TP1_MIN_PEAK}%)"
-                )
-                await self._execute_sell(
-                    token_address, state,
-                    pct=1.0,
-                    reason=f"Dip pre-TP1 trail +{pnl_pct:.1f}% (peak +{_peak_gain_pre_tp1:.1f}%)"
-                )
-                return
+            # Historical motivation preserved for context: DISCLOSURE peak
+            # +3.7% → -8.1% and CHINA peak +3.1% → -8.3% (both pre-trail).
+            # New realtime path still protects these (price drops continuously
+            # past the confirmation window in those cases).
+            pass
 
             # ── DIP POST-TP1 TRAIL — restored 2026-05-04 ──────────────
             # After TP1 fires (sells 50%), if the remaining 50% peaks then
@@ -2666,6 +2647,142 @@ class PositionManager:
                 self._tp_triggered.discard(addr)
 
         asyncio.ensure_future(_do_realtime_tp(token_address, state, pnl_pct))
+
+    def check_exhaustion_realtime(self, token_address: str, price_usd: float):
+        """
+        Pre-TP1 exhaustion trail with confirmation. Called on every Helius
+        pool tick (sub-second). Replaces the candle-based pre-TP1 trail that
+        fired prematurely on RAGEGUY/fish/FAHHHH 2026-05-15 (all exited
+        +0.5-0.9% then ran to +5-21%).
+
+        Two-mode logic — see docs/superpowers/specs (Option A / hybrid):
+          1. HARD GUARD: if peak >= +3% AND pnl <= -2%, fire immediately
+             (catches DIRECTOR-style fast reversals before they hit -7%
+             stop).
+          2. SOFT TRAIL: if peak >= +3% AND pnl <= peak - 1.5pp:
+              - Arm: set pending_exit_since_ts on first trigger
+              - Confirm: if 60s elapse continuously below threshold, fire
+              - Disarm: if pnl recovers to peak - 1.0pp, clear pending
+
+        Sub-second reaction. The 60s confirmation window is continuous —
+        every tick checks both the threshold and the elapsed clock. Memes
+        oscillate sub-bar; the candle-based version saw single-tick wicks
+        as exits. This version waits for sustained weakness.
+
+        dip_buy only. Other strategies have their own trail/exit logic.
+        """
+        token_address = token_address.lower()
+        state = self._states.get(token_address)
+        if not state or state.entry_price <= 0:
+            return
+        if state.strategy != "dip_buy":
+            return
+        if state.tp1_hit:
+            return  # post-TP1 trail handles this case
+        if token_address in self._trail_triggered:
+            return
+        if token_address in self._stop_triggered:
+            return  # stop is firing; let it run
+
+        age_seconds = (datetime.now(timezone.utc) - state.entry_time).total_seconds()
+        if age_seconds < 5:
+            return  # let entry price settle
+
+        # Sanity gate — same spike-rejection logic used by stop/TP paths.
+        last_rt = self._last_realtime_price.get(token_address, 0)
+        ref_price = last_rt if last_rt > 0 else state.entry_price
+        if ref_price > 0:
+            if price_usd > ref_price * 1.20 or price_usd < ref_price * 0.80:
+                return  # single-tick glitch; stop path owns the rejection log
+        # don't update _last_realtime_price here — stop path owns it
+
+        # Update peak (peak_price is also updated by stop path's tracker
+        # but we may run before that on a given tick — be defensive).
+        if price_usd > state.peak_price:
+            state.peak_price = price_usd
+
+        pnl_pct = (price_usd / state.entry_price - 1) * 100
+        peak_pct = (state.peak_price / state.entry_price - 1) * 100
+
+        _MIN_PEAK = 3.0
+        _DROP_PP = 1.5
+        _CONFIRM_S = 60.0
+        _RECOVERY_PP = 1.0  # drop tightens to this → disarm
+        _HARD_GUARD_PNL = -2.0
+
+        # HARD GUARD: peak was real but price is now meaningfully negative.
+        # Fire immediately — no patience window. Catches DIRECTOR pattern.
+        if peak_pct >= _MIN_PEAK and pnl_pct <= _HARD_GUARD_PNL:
+            self._trail_triggered.add(token_address)
+            label = (
+                f"Dip pre-TP1 fast-flip {pnl_pct:+.1f}% "
+                f"(peak +{peak_pct:.1f}%, hard guard)"
+            )
+            logger.warning(
+                f"[PositionManager/{self.chain_name}] 🔒 PRE-TP1 HARD GUARD: "
+                f"{state.token_symbol} peak +{peak_pct:.1f}% now {pnl_pct:+.1f}% — sell"
+            )
+            asyncio.ensure_future(
+                self._do_pre_tp1_realtime_sell(token_address, state, label)
+            )
+            return
+
+        # SOFT TRAIL with confirmation window
+        if peak_pct >= _MIN_PEAK:
+            drop_pp = peak_pct - pnl_pct
+            if drop_pp >= _DROP_PP:
+                # Below threshold. Arm if not yet armed.
+                if state.pending_exit_since_ts is None:
+                    state.pending_exit_since_ts = time.monotonic()
+                    logger.info(
+                        f"[PositionManager/{self.chain_name}] 🔒 PRE-TP1 ARMED: "
+                        f"{state.token_symbol} peak +{peak_pct:.1f}% now {pnl_pct:+.1f}% "
+                        f"(drop {drop_pp:.1f}pp) — {_CONFIRM_S:.0f}s confirm window"
+                    )
+                    return
+                # Already armed. Check confirmation elapsed.
+                elapsed = time.monotonic() - state.pending_exit_since_ts
+                if elapsed >= _CONFIRM_S:
+                    self._trail_triggered.add(token_address)
+                    label = (
+                        f"Dip pre-TP1 trail {pnl_pct:+.1f}% "
+                        f"(peak +{peak_pct:.1f}%, confirmed {elapsed:.0f}s)"
+                    )
+                    logger.info(
+                        f"[PositionManager/{self.chain_name}] 🔒 PRE-TP1 CONFIRMED: "
+                        f"{state.token_symbol} {label}"
+                    )
+                    asyncio.ensure_future(
+                        self._do_pre_tp1_realtime_sell(token_address, state, label)
+                    )
+                    return
+            else:
+                # Above threshold. Disarm if pending and recovery is real.
+                if state.pending_exit_since_ts is not None and drop_pp <= _RECOVERY_PP:
+                    armed_for = time.monotonic() - state.pending_exit_since_ts
+                    state.pending_exit_since_ts = None
+                    logger.info(
+                        f"[PositionManager/{self.chain_name}] 🔒 PRE-TP1 DISARMED: "
+                        f"{state.token_symbol} peak +{peak_pct:.1f}% now {pnl_pct:+.1f}% "
+                        f"(drop {drop_pp:.1f}pp recovered, was armed {armed_for:.0f}s)"
+                    )
+
+    async def _do_pre_tp1_realtime_sell(self, token_address: str,
+                                          state: PositionState, label: str):
+        """Execute the realtime pre-TP1 trail sell. Mirrors the async tail
+        used by stop / TP realtime paths."""
+        try:
+            await self._execute_sell(
+                token_address, state,
+                pct=1.0,
+                reason=label,
+            )
+        except Exception as e:
+            logger.error(
+                f"[PositionManager/{self.chain_name}] ⚡ Pre-TP1 realtime sell "
+                f"failed for {state.token_symbol}: {e} — clearing trigger for retry"
+            )
+            self._trail_triggered.discard(token_address)
 
     async def _evaluate_scalp(self, token_address: str, state: PositionState):
         """
