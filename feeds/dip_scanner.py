@@ -6642,6 +6642,73 @@ class DipScanner:
                     f"{';'.join(_trigger_vp_aligned_reasons)}"
                 )
 
+            # ── trigger_quiet_1s_buyer_dominance — ENFORCED 2026-05-15 ─
+            # Strong flow + sustained buyer dominance on h6 + quiet 1s
+            # tape (red_pct<0.5 means majority green bars last 60s).
+            # Lifetime: 10/12 wins (83.3% WR), +$4.46 net. LARGEST-n high-
+            # WR compound found. Uses 1s_red_pct dimension not in any
+            # other trigger.
+            _trigger_quiet_buyer_match = False
+            _trigger_quiet_buyer_reasons: list = []
+            try:
+                _nf60_qb = _tier3_features.get("net_flow_60s_usd") if isinstance(_tier3_features, dict) else None
+                _bs_h6_qb = float(ratio_h6) if ratio_h6 != float("inf") else None
+                _1s_redp = _1s_features.get("red_pct_60s") if isinstance(_1s_features, dict) else None
+                if (_nf60_qb is not None and float(_nf60_qb) > 50
+                        and _bs_h6_qb is not None and _bs_h6_qb >= 1.2
+                        and _1s_redp is not None and 0 <= float(_1s_redp) < 0.5):
+                    _trigger_quiet_buyer_match = True
+                    _trigger_quiet_buyer_reasons.append(
+                        f"net_flow_60s=${float(_nf60_qb):+.0f}>50 AND "
+                        f"bs_h6={_bs_h6_qb:.2f}>=1.2 AND "
+                        f"1s_red_pct={float(_1s_redp):.2f}<0.5"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_quiet_buyer err: {_e}")
+            if _trigger_quiet_buyer_match:
+                logger.info(
+                    f"[DipScanner] trigger_quiet_1s_buyer_dominance FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_quiet_buyer_reasons)}"
+                )
+
+            # ── ANTI-PATTERN: extended-uptrend-into-entry suppression ──
+            # Inverse mining surfaced TWO 0/7 loss cohorts that share a
+            # signature: token has been making higher lows AND is mid-
+            # extension at entry time. ALL such trades lost lifetime.
+            #
+            # Suppression rule: if (mtf_textbook_pullback AND hl_delta>0)
+            # OR (hl_delta>0 AND trend_30m_consec_hh>=1), CLEAR all
+            # triggers. Saves ~$27 of historical losses while having
+            # zero impact on winners (no winner satisfies either cohort).
+            #
+            # This is NOT a new filter (doesn't add to the upstream wall).
+            # It's a TRIGGER-LEVEL suppression that only fires when we
+            # have a trigger AND a loss-cohort signature. Surgical.
+            _suppress_reason = None
+            try:
+                _hl_delta = (entry_meta_dict.get("hl_delta_pct") if False else None)
+                # entry_meta_dict not yet built; use existing locals
+                _hl_d = None
+                _mtf_tp = None
+                _tr_hh = None
+                # Pull from chart context features if available
+                _hl_d = (_chart_ctx_dict or {}).get("hl_delta_pct") if isinstance(_chart_ctx_dict, dict) else None
+                _mtf_tp = (_chart_ctx_dict or {}).get("mtf_textbook_pullback") if isinstance(_chart_ctx_dict, dict) else None
+                _tr_hh = (_chart_ctx_dict or {}).get("trend_30m_consec_hh") if isinstance(_chart_ctx_dict, dict) else None
+                if _hl_d is not None and float(_hl_d) > 0:
+                    if _mtf_tp is not None and float(_mtf_tp) >= 1:
+                        _suppress_reason = (
+                            f"mtf_textbook_pullback AND hl_delta_pct={float(_hl_d):.2f}>0 "
+                            f"(0/7 lifetime WR cohort)"
+                        )
+                    elif _tr_hh is not None and float(_tr_hh) >= 1:
+                        _suppress_reason = (
+                            f"trend_30m_consec_hh>=1 AND hl_delta_pct={float(_hl_d):.2f}>0 "
+                            f"(0/7 lifetime WR cohort)"
+                        )
+            except Exception:
+                _suppress_reason = None
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _trigger_strong_orderflow_match:
@@ -6660,6 +6727,18 @@ class DipScanner:
                 _triggers_fired.append("micro_pattern_confirmed")
             if _trigger_vp_aligned_match:
                 _triggers_fired.append("volume_profile_aligned")
+            if _trigger_quiet_buyer_match:
+                _triggers_fired.append("quiet_1s_buyer_dominance")
+
+            # Apply anti-pattern suppression — clears all triggers if
+            # the candidate matches a known 0/7 loss cohort.
+            if _suppress_reason and _triggers_fired:
+                logger.info(
+                    f"[DipScanner] anti-pattern SUPPRESS all triggers: "
+                    f"{token_symbol} fired={_triggers_fired} reason={_suppress_reason}"
+                )
+                c["anti_pattern_suppressed"] = c.get("anti_pattern_suppressed", 0) + 1
+                _triggers_fired = []
             # clean_break DISABLED 2026-05-15 PM — recent 3d audit (n=11) showed
             # 27% WR / -$17.15 net. Gate G (mtf>=0 + chart>=48) was added first
             # to salvage 4 trades / 50% WR but the user called the remaining
@@ -9261,6 +9340,13 @@ class DipScanner:
                 # Lifetime: 8/8 wins (100%), +$4.67 net.
                 "trigger_vp_aligned_match": _trigger_vp_aligned_match,
                 "trigger_vp_aligned_reasons": _trigger_vp_aligned_reasons,
+                # trigger_quiet_1s_buyer_dominance — ENFORCED 2026-05-15.
+                # Lifetime: 10/12 wins (83.3%), +$4.46 net.
+                "trigger_quiet_buyer_match": _trigger_quiet_buyer_match,
+                "trigger_quiet_buyer_reasons": _trigger_quiet_buyer_reasons,
+                # anti_pattern_suppression — ENFORCED 2026-05-15.
+                # Clears all triggers when in 0/7 lifetime loss cohort.
+                "anti_pattern_suppress_reason": _suppress_reason,
                 "trigger_post_capit_breakout_match": _trigger_post_capit_breakout_match,
                 "trigger_post_capit_breakout_reasons": _trigger_post_capit_breakout_reasons,
                 "filter_low_volatility_block_reasons": _filter_low_vol_block_reasons,
