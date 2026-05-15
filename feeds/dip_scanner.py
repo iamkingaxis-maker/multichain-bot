@@ -3134,12 +3134,34 @@ class DipScanner:
                 _ct_mtf = _chart_ctx_dict.get("chart_mtf_alignment")
                 if (_ct_5m_state == "uptrend"
                         and _ct_mtf in ("bull", "strong_bull")):
+                    # CARVE-OUT 1: post_capit_breakout (V-bottom reversal).
+                    # CARVE-OUT 2 (2026-05-15): strong_orderflow signature —
+                    # if bs_m5>=1.5 AND net_flow_60s_usd>0 AND mtf_score>=1,
+                    # the candidate matches the 100% lifetime WR trigger. Let
+                    # it through filter_chasing_top so the trigger can fire.
+                    _so_nf60 = _tier3_features.get("net_flow_60s_usd") if isinstance(_tier3_features, dict) else None
+                    _so_mtf = (_chart_ctx_dict or {}).get("chart_mtf_score") if isinstance(_chart_ctx_dict, dict) else None
+                    _so_rescue = (
+                        _so_nf60 is not None and float(_so_nf60) > 0
+                        and _so_mtf is not None and float(_so_mtf) >= 1.0
+                        and ratio_m5 != float("inf") and ratio_m5 >= 1.5
+                    )
                     if _trigger_post_capit_breakout_match:
                         logger.info(
                             f"[DipScanner] filter_chasing_top rescued by "
                             f"post_capit_breakout carve-out: {token_symbol} "
                             f"{';'.join(_trigger_post_capit_breakout_reasons)}"
                         )
+                    elif _so_rescue:
+                        logger.info(
+                            f"[DipScanner] filter_chasing_top rescued by "
+                            f"strong_orderflow carve-out: {token_symbol} "
+                            f"bs_m5={ratio_m5:.2f}, mtf={float(_so_mtf):.1f}, "
+                            f"net_flow_60s=${float(_so_nf60):+.0f}"
+                        )
+                        c["filter_chasing_top_rescued_orderflow"] = c.get(
+                            "filter_chasing_top_rescued_orderflow", 0
+                        ) + 1
                     else:
                         logger.info(
                             f"[DipScanner] BLOCKED by filter_chasing_top: {token_symbol} "
@@ -6470,6 +6492,40 @@ class DipScanner:
                     f"{';'.join(_trigger_chart_qual_bottom_reasons)}"
                 )
 
+            # ── trigger_buyer_momentum_burst — ENFORCED 2026-05-15 ──────
+            # Active buyer momentum: 3+ buy bursts in 30s + real $ flowing
+            # + price in upper half of 5m range (not catching knife).
+            # Lifetime: 8/11 wins (72.7% WR), +$3.00 net.
+            # Largest-n high-WR compound found. Distinct from flow triggers:
+            # this is BURSTY activity (FOMO entry) vs steady flow.
+            _trigger_buyer_momentum_burst_match = False
+            _trigger_buyer_momentum_burst_reasons: list = []
+            try:
+                # buy_burst_30s_count is from smart_money / order flow features
+                _bb_30s = _tier3_features.get("buy_burst_30s_count") if isinstance(_tier3_features, dict) else None
+                if _bb_30s is None:
+                    _bb_30s = _tier1_features.get("buy_burst_30s_count") if isinstance(_tier1_features, dict) else None
+                _rt_buys_usd_b = _tier3_features.get("rt_buys_usd") if isinstance(_tier3_features, dict) else None
+                if _rt_buys_usd_b is None:
+                    _rt_buys_usd_b = _tier1_features.get("rt_buys_usd") if isinstance(_tier1_features, dict) else None
+                _pct_5m_rng = (_chart_ctx_dict or {}).get("pct_in_5m_range") if isinstance(_chart_ctx_dict, dict) else None
+                if (_bb_30s is not None and int(_bb_30s) >= 3
+                        and _rt_buys_usd_b is not None and float(_rt_buys_usd_b) > 500
+                        and _pct_5m_rng is not None and float(_pct_5m_rng) > 0.5):
+                    _trigger_buyer_momentum_burst_match = True
+                    _trigger_buyer_momentum_burst_reasons.append(
+                        f"buy_bursts_30s={int(_bb_30s)}>=3 AND "
+                        f"rt_buys_usd=${float(_rt_buys_usd_b):.0f}>500 AND "
+                        f"pct_in_5m_range={float(_pct_5m_rng):.2f}>0.5"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_buyer_momentum_burst err: {_e}")
+            if _trigger_buyer_momentum_burst_match:
+                logger.info(
+                    f"[DipScanner] trigger_buyer_momentum_burst FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_buyer_momentum_burst_reasons)}"
+                )
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _trigger_strong_orderflow_match:
@@ -6478,6 +6534,8 @@ class DipScanner:
                 _triggers_fired.append("sustained_accumulation")
             if _trigger_chart_qual_bottom_match:
                 _triggers_fired.append("chart_quality_bottom")
+            if _trigger_buyer_momentum_burst_match:
+                _triggers_fired.append("buyer_momentum_burst")
             # clean_break DISABLED 2026-05-15 PM — recent 3d audit (n=11) showed
             # 27% WR / -$17.15 net. Gate G (mtf>=0 + chart>=48) was added first
             # to salvage 4 trades / 50% WR but the user called the remaining
@@ -9059,6 +9117,10 @@ class DipScanner:
                 # Lifetime: 6/7 wins, +$3.60 net.
                 "trigger_chart_qual_bottom_match": _trigger_chart_qual_bottom_match,
                 "trigger_chart_qual_bottom_reasons": _trigger_chart_qual_bottom_reasons,
+                # trigger_buyer_momentum_burst — ENFORCED 2026-05-15 (active buyer bursts).
+                # Lifetime: 8/11 wins (72.7%), +$3.00 net.
+                "trigger_buyer_momentum_burst_match": _trigger_buyer_momentum_burst_match,
+                "trigger_buyer_momentum_burst_reasons": _trigger_buyer_momentum_burst_reasons,
                 "trigger_post_capit_breakout_match": _trigger_post_capit_breakout_match,
                 "trigger_post_capit_breakout_reasons": _trigger_post_capit_breakout_reasons,
                 "filter_low_volatility_block_reasons": _filter_low_vol_block_reasons,
