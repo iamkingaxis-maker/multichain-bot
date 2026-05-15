@@ -6586,6 +6586,62 @@ class DipScanner:
                     f"{';'.join(_trigger_chart_reversal_reasons)}"
                 )
 
+            # ── trigger_micro_pattern_confirmed — ENFORCED 2026-05-15 ──
+            # Textbook technical-pattern detection (bull engulfing, double
+            # bottom, inverse H&S, falling wedge, long lower wick, etc.)
+            # combined with flow + mtf alignment. Lifetime: 10/11 wins
+            # (90.9% WR), +$5.34 net. LARGEST-n among the new triggers.
+            _trigger_micro_pattern_match = False
+            _trigger_micro_pattern_reasons: list = []
+            try:
+                _nf60_mp = _tier3_features.get("net_flow_60s_usd") if isinstance(_tier3_features, dict) else None
+                _mtf_mp = (_chart_ctx_dict or {}).get("chart_mtf_score") if isinstance(_chart_ctx_dict, dict) else None
+                _mps = (_chart_ctx_dict or {}).get("micro_pattern_score") if isinstance(_chart_ctx_dict, dict) else None
+                if (_nf60_mp is not None and float(_nf60_mp) > 0
+                        and _mtf_mp is not None and float(_mtf_mp) >= 1
+                        and _mps is not None and float(_mps) > 0):
+                    _trigger_micro_pattern_match = True
+                    _trigger_micro_pattern_reasons.append(
+                        f"net_flow_60s=${float(_nf60_mp):+.0f}>0 AND "
+                        f"mtf={float(_mtf_mp):.1f}>=1 AND "
+                        f"micro_pattern_score={float(_mps):.1f}>0"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_micro_pattern err: {_e}")
+            if _trigger_micro_pattern_match:
+                logger.info(
+                    f"[DipScanner] trigger_micro_pattern_confirmed FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_micro_pattern_reasons)}"
+                )
+
+            # ── trigger_volume_profile_aligned — ENFORCED 2026-05-15 ───
+            # Volume-profile anchored entry: price near POC (high-volume
+            # node, |dist| < 20%) + flow > $50 + mtf>=1. POC is where the
+            # most trading occurred historically — entries here are at
+            # value, not at extension. Lifetime: 8/8 wins (100% WR), +$4.67.
+            _trigger_vp_aligned_match = False
+            _trigger_vp_aligned_reasons: list = []
+            try:
+                _nf60_vp = _tier3_features.get("net_flow_60s_usd") if isinstance(_tier3_features, dict) else None
+                _mtf_vp = (_chart_ctx_dict or {}).get("chart_mtf_score") if isinstance(_chart_ctx_dict, dict) else None
+                _vp_dist = (_chart_ctx_dict or {}).get("chart_vp_poc_distance_pct") if isinstance(_chart_ctx_dict, dict) else None
+                if (_nf60_vp is not None and float(_nf60_vp) > 50
+                        and _mtf_vp is not None and float(_mtf_vp) >= 1
+                        and _vp_dist is not None and -20 < float(_vp_dist) < 20):
+                    _trigger_vp_aligned_match = True
+                    _trigger_vp_aligned_reasons.append(
+                        f"net_flow_60s=${float(_nf60_vp):+.0f}>50 AND "
+                        f"mtf={float(_mtf_vp):.1f}>=1 AND "
+                        f"vp_poc_dist={float(_vp_dist):+.1f}% in (-20,20)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_vp_aligned err: {_e}")
+            if _trigger_vp_aligned_match:
+                logger.info(
+                    f"[DipScanner] trigger_volume_profile_aligned FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_vp_aligned_reasons)}"
+                )
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _trigger_strong_orderflow_match:
@@ -6600,6 +6656,10 @@ class DipScanner:
                 _triggers_fired.append("flow_reversal")
             if _trigger_chart_reversal_match:
                 _triggers_fired.append("chart_score_reversal")
+            if _trigger_micro_pattern_match:
+                _triggers_fired.append("micro_pattern_confirmed")
+            if _trigger_vp_aligned_match:
+                _triggers_fired.append("volume_profile_aligned")
             # clean_break DISABLED 2026-05-15 PM — recent 3d audit (n=11) showed
             # 27% WR / -$17.15 net. Gate G (mtf>=0 + chart>=48) was added first
             # to salvage 4 trades / 50% WR but the user called the remaining
@@ -9193,6 +9253,14 @@ class DipScanner:
                 # Lifetime: 8/9 wins (88.9%), +$4.29 net.
                 "trigger_chart_reversal_match": _trigger_chart_reversal_match,
                 "trigger_chart_reversal_reasons": _trigger_chart_reversal_reasons,
+                # trigger_micro_pattern_confirmed — ENFORCED 2026-05-15 (techncial patterns).
+                # Lifetime: 10/11 wins (90.9%), +$5.34 net.
+                "trigger_micro_pattern_match": _trigger_micro_pattern_match,
+                "trigger_micro_pattern_reasons": _trigger_micro_pattern_reasons,
+                # trigger_volume_profile_aligned — ENFORCED 2026-05-15 (POC value entry).
+                # Lifetime: 8/8 wins (100%), +$4.67 net.
+                "trigger_vp_aligned_match": _trigger_vp_aligned_match,
+                "trigger_vp_aligned_reasons": _trigger_vp_aligned_reasons,
                 "trigger_post_capit_breakout_match": _trigger_post_capit_breakout_match,
                 "trigger_post_capit_breakout_reasons": _trigger_post_capit_breakout_reasons,
                 "filter_low_volatility_block_reasons": _filter_low_vol_block_reasons,
