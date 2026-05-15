@@ -6204,7 +6204,13 @@ class DipScanner:
 
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
-            if _filter_clean_break_verdict == "PASS" and not _cb_gated:
+            # clean_break DISABLED 2026-05-15 PM — recent 3d audit (n=11) showed
+            # 27% WR / -$17.15 net. Gate G (mtf>=0 + chart>=48) was added first
+            # to salvage 4 trades / 50% WR but the user called the remaining
+            # signal "sucks" — full disable until a stronger gate is mined.
+            # The whole verdict/gate machinery above is left intact (low cost)
+            # so the trigger can be re-enabled in one line if conditions change.
+            if False and _filter_clean_break_verdict == "PASS" and not _cb_gated:
                 _triggers_fired.append("clean_break")
             if _trigger_4combo_match:
                 _triggers_fired.append("4combo")
