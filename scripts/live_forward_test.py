@@ -550,6 +550,60 @@ COMBOS = {
         and c.get('cycles_seen') is not None and 60 <= c['cycles_seen'] < 150
         and c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
     ),
+    # ─── 3D-refined overnight phantom mirrors — 2026-05-14 PM ───
+    'AY_overnight_3d_bigpump_fresh_age': lambda c: (
+        (lambda _h: (19 <= _h < 24) or (0 <= _h < 7))(
+            __import__('datetime').datetime.now(
+                __import__('zoneinfo').ZoneInfo('America/Chicago')
+            ).hour
+        )
+        and c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
+        and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 1000
+        and c.get('hours_since_graduation') is not None
+        and 6 <= c['hours_since_graduation'] < 24
+    ),
+    'AZ_overnight_3d_bigpump_midcap': lambda c: (
+        (lambda _h: (19 <= _h < 24) or (0 <= _h < 7))(
+            __import__('datetime').datetime.now(
+                __import__('zoneinfo').ZoneInfo('America/Chicago')
+            ).hour
+        )
+        and c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
+        and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 1000
+        and c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
+    ),
+    'BA_overnight_3d_midcap_liq_band': lambda c: (
+        (lambda _h: (19 <= _h < 24) or (0 <= _h < 7))(
+            __import__('datetime').datetime.now(
+                __import__('zoneinfo').ZoneInfo('America/Chicago')
+            ).hour
+        )
+        and c.get('bs_h1') is not None and 1.1 <= c['bs_h1'] < 1.3
+        and c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
+        and c.get('liquidity_usd') is not None
+        and 100_000 <= c['liquidity_usd'] < 250_000
+    ),
+    'BB_overnight_3d_bigpump_avgtrade': lambda c: (
+        (lambda _h: (19 <= _h < 24) or (0 <= _h < 7))(
+            __import__('datetime').datetime.now(
+                __import__('zoneinfo').ZoneInfo('America/Chicago')
+            ).hour
+        )
+        and c.get('bs_h6') is not None and 1.1 <= c['bs_h6'] < 1.3
+        and c.get('peak_h24_6h_pct') is not None and c['peak_h24_6h_pct'] >= 1000
+        and c.get('avg_trade_size_h1_usd') is not None
+        and 100 <= c['avg_trade_size_h1_usd'] < 200
+    ),
+    'BC_overnight_3d_midcap_mature_cycles': lambda c: (
+        (lambda _h: (19 <= _h < 24) or (0 <= _h < 7))(
+            __import__('datetime').datetime.now(
+                __import__('zoneinfo').ZoneInfo('America/Chicago')
+            ).hour
+        )
+        and c.get('bs_h1') is not None and 1.1 <= c['bs_h1'] < 1.3
+        and c.get('mcap') is not None and 2_000_000 <= c['mcap'] < 10_000_000
+        and c.get('cycles_seen') is not None and 60 <= c['cycles_seen'] < 150
+    ),
     # ─── Cascade V-bottom — phantom parity 2026-05-14 PM ───────────────
     # Mirror of trigger_cascade_v_bottom SHADOW (dip_scanner.py).
     # Ground-truth: BURNIE 2026-05-14 15:53:18 CT V-bottom after -5.12% 1m
