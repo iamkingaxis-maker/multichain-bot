@@ -1915,7 +1915,10 @@ class DipScanner:
             # = catching a falling knife. Cohen's d=+0.91 on the post-Apr-30
             # fast-mover survivor cohort (winners 0.68 vs losers 0.33).
             _filter_turn_block_reasons: list = []
-            if pct_in_5m_range < 0.5:
+            # Fail-open when pct_in_5m_range is undefined (no pair_addr or <4 5m candles).
+            # GT 429s during high load can leave the variable unset; pre-existing latent
+            # bug surfaced 2026-05-15 via WORLDCUP rate-limit storm.
+            if "pct_in_5m_range" in dir() and pct_in_5m_range < 0.5:
                 _filter_turn_block_reasons.append(
                     f"pct_in_5m_range={pct_in_5m_range:.3f}<0.5 (catching knife)"
                 )
