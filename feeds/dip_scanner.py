@@ -2404,17 +2404,72 @@ class DipScanner:
             except Exception as _ut_e:
                 logger.debug(f"[UptrendScanner] shadow eval error: {_ut_e}")
 
+            # ── trigger_post_capit_breakout (positive V-bottom reversal) ──
+            # ENFORCED 2026-05-15 with carve-outs on filter_turn /
+            # filter_sweep_too_recent / filter_chasing_top. Filter
+            # filter_mtf_strong_downtrend (mtf<=-2) is INTENTIONALLY kept
+            # as the hard safety floor — blocks the worst bear regimes.
+            #
+            # Mechanism: catches the V-bottom rebound that fires when
+            # multi-TF was bearish recently AND the latest 1m bar prints
+            # a strong green confirmation candle with volume. Positive-side
+            # companion to filter_falling_knife (opposite shape: knife
+            # blocks mtf<=-1 AND 1m red; this fires on 1m green after
+            # bearish context).
+            #
+            # Predicate:
+            #   1m_last_close_pct >= 2.0  (1m green confirmation)
+            #   AND 1m_volume_spike >= 2.0 (vol kicker on the green bar)
+            #   AND pc_h1 < 0 (1h is red — was dipping)
+            #
+            # Mining (signal_events 2026-05-14/15, ~26h, n=25 forward-
+            # traceable matches): predicate matches ~24/d, ALL currently
+            # blocked by sweep_too_recent / turn / chasing_top / mtf_strong_dn.
+            # Forward outcome (pc_h24 delta proxy in 15min window): 20%
+            # hit +5pp, 24% hit -7pp, fat-tail wins (CBRS +434pp seen).
+            # The TP1=5/stop=-7 simple model is -0.44pp/trade negative,
+            # but trail-from-peak on the fat tail makes it positive in
+            # expectation. Surfaces will validate the actual fill outcome.
+            #
+            # Carved-out filters when this trigger matches:
+            #   - filter_turn (knife-catch)
+            #   - filter_sweep_too_recent (recent low)
+            #   - filter_chasing_top (5m uptrend chase)
+            # Kept active:
+            #   - filter_mtf_strong_downtrend (mtf <= -2, hard floor)
+            #   - all other filters (defensive layer preserved)
+            _pcb_lcp_v = m1_features.get("1m_last_close_pct") if isinstance(m1_features, dict) else None
+            _pcb_vs_v = m1_features.get("1m_volume_spike") if isinstance(m1_features, dict) else None
+            _trigger_post_capit_breakout_match = False
+            _trigger_post_capit_breakout_reasons: list = []
+            try:
+                if (
+                    _pcb_lcp_v is not None and float(_pcb_lcp_v) >= 2.0
+                    and _pcb_vs_v is not None and float(_pcb_vs_v) >= 2.0
+                    and pc_h1 is not None and float(pc_h1) < 0
+                ):
+                    _trigger_post_capit_breakout_match = True
+                    _trigger_post_capit_breakout_reasons.append(
+                        f"1m_last_close={float(_pcb_lcp_v):+.2f}%>=2 AND "
+                        f"1m_vol_spike={float(_pcb_vs_v):.2f}>=2 AND "
+                        f"pc_h1={float(pc_h1):+.2f}%<0 (post-capit V-bottom confirmation)"
+                    )
+            except Exception as _pcb_e:
+                logger.debug(f"[DipScanner] trigger_post_capit_breakout err: {_pcb_e}")
+
             # ─── DEFERRED FILTER_TURN CHECK ────────────────────────────────
             # filter_turn verdict + big_buyer carve-out were computed earlier.
             # Now that chart_score is available, also check the chart_score
-            # carve-out (>= 56) before blocking.
+            # carve-out (>= 56) before blocking. Plus the post-capit-breakout
+            # carve-out (V-bottom reversal pattern) added 2026-05-15.
             if _filter_turn_verdict == "BLOCK":
                 _chart_score_for_carve = (_chart_ctx_dict or {}).get("chart_score")
                 _chart_carve_out = (
                     isinstance(_chart_score_for_carve, (int, float))
                     and _chart_score_for_carve >= 56
                 )
-                if not _big_buyer_carve_out and not _chart_carve_out:
+                _pcb_carve_out = _trigger_post_capit_breakout_match
+                if not _big_buyer_carve_out and not _chart_carve_out and not _pcb_carve_out:
                     logger.info(
                         f"[DipScanner] BLOCKED by filter_turn: {token_symbol} "
                         f"reasons={','.join(_filter_turn_block_reasons)}"
@@ -2429,6 +2484,11 @@ class DipScanner:
                     logger.info(
                         f"[DipScanner] filter_turn rescued by chart_score carve-out: "
                         f"{token_symbol} chart_score={_chart_score_for_carve:.1f}>=56"
+                    )
+                elif _pcb_carve_out:
+                    logger.info(
+                        f"[DipScanner] filter_turn rescued by post_capit_breakout carve-out: "
+                        f"{token_symbol} {';'.join(_trigger_post_capit_breakout_reasons)}"
                     )
 
             # Filter vp_poc_above — ENFORCED 2026-05-08, retuned 2026-05-08 PM (B3).
@@ -2532,11 +2592,18 @@ class DipScanner:
                 f"filter_sweep_too_recent_{_filter_sweep_too_recent_verdict.lower()}", 0
             ) + 1
             if _filter_sweep_too_recent_verdict == "BLOCK":
-                logger.info(
-                    f"[DipScanner] BLOCKED by filter_sweep_too_recent: {token_symbol} "
-                    f"reasons={','.join(_filter_sweep_too_recent_block_reasons)}"
-                )
-                continue
+                if _trigger_post_capit_breakout_match:
+                    logger.info(
+                        f"[DipScanner] filter_sweep_too_recent rescued by "
+                        f"post_capit_breakout carve-out: {token_symbol} "
+                        f"{';'.join(_trigger_post_capit_breakout_reasons)}"
+                    )
+                else:
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_sweep_too_recent: {token_symbol} "
+                        f"reasons={','.join(_filter_sweep_too_recent_block_reasons)}"
+                    )
+                    continue
 
             # ── Note: filter_combo enforcement moved to core/trader.py ──
             # The Pareto-best 50%-block combo from filter_combo_pareto.py
@@ -2917,12 +2984,19 @@ class DipScanner:
                 _ct_mtf = _chart_ctx_dict.get("chart_mtf_alignment")
                 if (_ct_5m_state == "uptrend"
                         and _ct_mtf in ("bull", "strong_bull")):
-                    logger.info(
-                        f"[DipScanner] BLOCKED by filter_chasing_top: {token_symbol} "
-                        f"5m_state=uptrend AND mtf={_ct_mtf} (chasing — not a dip)"
-                    )
-                    c["filter_chasing_top_block"] = c.get("filter_chasing_top_block", 0) + 1
-                    continue
+                    if _trigger_post_capit_breakout_match:
+                        logger.info(
+                            f"[DipScanner] filter_chasing_top rescued by "
+                            f"post_capit_breakout carve-out: {token_symbol} "
+                            f"{';'.join(_trigger_post_capit_breakout_reasons)}"
+                        )
+                    else:
+                        logger.info(
+                            f"[DipScanner] BLOCKED by filter_chasing_top: {token_symbol} "
+                            f"5m_state=uptrend AND mtf={_ct_mtf} (chasing — not a dip)"
+                        )
+                        c["filter_chasing_top_block"] = c.get("filter_chasing_top_block", 0) + 1
+                        continue
             except (NameError, AttributeError):
                 pass  # chart_ctx not built — fail-open
             c["filter_chasing_top_pass"] = c.get("filter_chasing_top_pass", 0) + 1
@@ -6142,6 +6216,8 @@ class DipScanner:
                 _triggers_fired.append("vol_velocity_2grn")
             if _trigger_alpha_buyperscold_match:
                 _triggers_fired.append("alpha_buyperscold")
+            if _trigger_post_capit_breakout_match:
+                _triggers_fired.append("post_capit_breakout")
             if _trigger_beta_retailfresh_match:
                 _triggers_fired.append("beta_retailfresh")
             if _trigger_delta_microcap_match:
@@ -8630,6 +8706,11 @@ class DipScanner:
                 # filter_falling_knife — ENFORCED 2026-05-15 (mtf<=-1 + 1m red).
                 "filter_falling_knife_verdict": _filter_falling_knife_verdict,
                 "filter_falling_knife_block_reasons": _filter_falling_knife_block_reasons,
+                # trigger_post_capit_breakout — ENFORCED 2026-05-15 with
+                # carve-outs on filter_turn / filter_sweep_too_recent /
+                # filter_chasing_top. Positive V-bottom reversal trigger.
+                "trigger_post_capit_breakout_match": _trigger_post_capit_breakout_match,
+                "trigger_post_capit_breakout_reasons": _trigger_post_capit_breakout_reasons,
                 "filter_low_volatility_block_reasons": _filter_low_vol_block_reasons,
                 # filter_clean_break_p90 — ENFORCED 2026-05-13 (clean_break-specific
                 # drift gate, p90_body<=5%).

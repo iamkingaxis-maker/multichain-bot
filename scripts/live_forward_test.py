@@ -737,6 +737,17 @@ COMBOS = {
         c.get('chart_mtf_score') is not None and c['chart_mtf_score'] <= -1
         and c.get('1m_last_close_pct') is not None and c['1m_last_close_pct'] < 0
     ),
+    # ── trigger_post_capit_breakout phantom mirror — ENFORCED 2026-05-15 ──
+    # Mirror of dip_scanner.py trigger_post_capit_breakout. Positive
+    # V-bottom reversal trigger with carve-outs on filter_turn /
+    # filter_sweep_too_recent / filter_chasing_top. signal_events mining
+    # (n=25 forward-traceable, 26h): 20% reach +5pp, 24% reach -7pp,
+    # fat-tail wins observed (CBRS +434pp). ENFORCED with carve-outs.
+    'AT_post_capit_breakout': lambda c: (
+        c.get('1m_last_close_pct') is not None and c['1m_last_close_pct'] >= 2.0
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 2.0
+        and c.get('pc_h1') is not None and c['pc_h1'] < 0
+    ),
     # ─── Cascade V-bottom — phantom parity 2026-05-14 PM ───────────────
     # Mirror of trigger_cascade_v_bottom SHADOW (dip_scanner.py).
     # Ground-truth: BURNIE 2026-05-14 15:53:18 CT V-bottom after -5.12% 1m
