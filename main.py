@@ -595,6 +595,30 @@ async def main():
         sol_trader.register_rpc_price_feed(rpc_feed)
         tasks.append(rpc_feed.run())
 
+        # On-chain pool price feed (Helius WebSocket, decodes vault reserves
+        # directly). Supports Raydium AMM v4 and pump.fun bonding curves;
+        # falls through to existing feeds for pumpswap and other DEXes.
+        # Solves the RAGEGUY 2026-05-15 issue where the DexScreener indexer
+        # lagged a +13.5% real-pool spike, so the bot saw only +1.1% and
+        # missed TPs that should have fired. Key extracted from RPC URL —
+        # zero extra config required.
+        try:
+            from core.pool_price_feed import PoolPriceFeed
+            _helius_key = ""
+            _url = config.solana_rpc_url or ""
+            if "api-key=" in _url:
+                _helius_key = _url.split("api-key=")[-1].split("&")[0]
+            if _helius_key:
+                pool_feed = PoolPriceFeed(helius_api_key=_helius_key)
+                pool_feed.position_manager = sol_position_mgr
+                sol_trader.register_pool_price_feed(pool_feed)
+                tasks.append(pool_feed.run())
+                logger.info("[Main] PoolPriceFeed enabled (Helius WS, on-chain vault decode)")
+            else:
+                logger.info("[Main] PoolPriceFeed skipped — no Helius API key in RPC URL")
+        except Exception as _e:
+            logger.warning(f"[Main] PoolPriceFeed init error: {_e}")
+
         # Register AxiomScanner for relay mode token injection
         if axiom.scanner:
             dashboard.register_axiom_scanner(axiom.scanner)

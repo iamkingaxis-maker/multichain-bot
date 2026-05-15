@@ -82,13 +82,23 @@ class PoolPriceFeed:
     def __init__(
         self,
         helius_api_key: str,
-        price_cache: Dict,          # shared reference to pm._dex_volume_cache
-        fallback_fetch: Callable,   # async _refresh_volume_for(token_address)
+        price_cache: Optional[Dict] = None,        # legacy shared-cache hook, optional
+        fallback_fetch: Optional[Callable] = None, # legacy fallback hook, optional
     ):
         self.api_key      = helius_api_key
         self.ws_url       = f"wss://mainnet.helius-rpc.com/?api-key={helius_api_key}"
-        self._price_cache = price_cache
+        # Local cache when no shared dict is provided. position_manager attribute
+        # below is the primary integration path — direct realtime calls on each
+        # decoded tick (matches SolanaRpcPriceFeed contract).
+        self._price_cache: Dict = price_cache if price_cache is not None else {}
         self._fallback    = fallback_fetch
+
+        # AxiomPriceFeed-compatible interface so trader.py can use this as a
+        # drop-in feed alongside the existing dex/rpc feeds. position_manager
+        # is set by the caller; when set, decoded prices fire
+        # check_stop_loss_realtime + check_take_profit_realtime directly,
+        # bypassing the DexScreener-indexer lag entirely.
+        self.position_manager = None
 
         # Pool registry
         self._pools: Dict[str, PoolEntry] = {}           # lower_token → PoolEntry
@@ -120,6 +130,25 @@ class PoolPriceFeed:
         self.fallback_triggers = 0
 
     # ───────────────────────── public API ─────────────────────────────────────
+
+    # AxiomPriceFeed/SolanaRpcPriceFeed-compatible interface. trader.py calls
+    # subscribe_token on every buy; we forward to register(). pair_address
+    # is REQUIRED for pool decoding — silently no-op if missing (no pool to
+    # subscribe to). chain_id and pool_type are accepted for interface parity
+    # but ignored — we always operate on Solana pools.
+    def subscribe_token(self, token_address: str, chain_id: str = "solana",
+                          pair_address: str = "", dex_id: str = "",
+                          pool_type: str = ""):
+        if not pair_address:
+            logger.debug(
+                f"[PoolFeed] subscribe_token({token_address[:12]}…) skipped "
+                f"— no pair_address provided"
+            )
+            return
+        self.register(token_address, pair_address, dex_id=(dex_id or pool_type))
+
+    def unsubscribe_token(self, token_address: str):
+        self.unregister(token_address)
 
     def register(self, token_address: str, pair_address: str, dex_id: str = ""):
         """Register a pool to watch. Safe to call from any coroutine."""
@@ -556,6 +585,17 @@ class PoolPriceFeed:
             f"[PoolFeed] ⚡ {source} price {token_lower[:12]}… "
             f"= ${price_usd:.8f} (#{self.on_chain_prices})"
         )
+
+        # Fire realtime stop + TP checks on each decoded tick. This is the
+        # critical path that solves the DexScreener-indexer-lag problem
+        # (RAGEGUY 2026-05-15: real pool spiked +13.5% in 60s, bot saw +1.1%
+        # because the indexed-tokens API lagged the real pumpswap pool).
+        if self.position_manager is not None:
+            try:
+                self.position_manager.check_stop_loss_realtime(token_lower, price_usd)
+                self.position_manager.check_take_profit_realtime(token_lower, price_usd)
+            except Exception as _e:
+                logger.debug(f"[PoolFeed] pm realtime hook err: {_e}")
 
 
 # ─────────────────────────── helpers ──────────────────────────────────────────

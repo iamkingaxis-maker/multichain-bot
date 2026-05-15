@@ -281,6 +281,12 @@ class Trader:
         # Optional Solana RPC + Jupiter price feed (0.5s, covers all pool types)
         self._rpc_price_feed = None
 
+        # Optional Helius-WS on-chain pool price feed (sub-second, decodes
+        # vault reserves directly — bypasses DexScreener indexer lag). Solves
+        # the RAGEGUY 2026-05-15 issue where real pool pumped +13.5% but
+        # indexed feed lagged so bot saw +1.1%.
+        self._pool_price_feed = None
+
         # Optional security checker — used for LP re-verification at buy time
         self._security_checker = None
 
@@ -1131,6 +1137,23 @@ class Trader:
         """Register the Solana RPC + Jupiter price feed (0.5s, covers all pool types)."""
         self._rpc_price_feed = feed
 
+    def register_pool_price_feed(self, feed):
+        """Register the on-chain pool price feed (Helius WS, sub-second).
+
+        Decodes vault reserves directly from accountNotification — fastest
+        possible price source for Raydium AMM v4 and pump.fun bonding-curve
+        pools. Falls back silently for unknown pool types (e.g. pumpswap),
+        so this is purely additive on top of dex_price_feed / rpc_price_feed.
+        """
+        self._pool_price_feed = feed
+        try:
+            for _addr, _pos in self.open_positions.items():
+                _pair = getattr(_pos, "pair_address", "") or ""
+                if _pair:
+                    feed.subscribe_token(_addr, pair_address=_pair)
+        except Exception as _e:
+            logger.warning(f"[Trader] pool feed re-subscribe error: {_e}")
+
     def register_security_checker(self, checker):
         """Register the security checker for LP re-verification at buy time."""
         self._security_checker = checker
@@ -1870,6 +1893,13 @@ class Trader:
                     if "pump amm" in reason.lower():
                         _proto = "pump amm"
                     self._rpc_price_feed.subscribe_token(token_address, pool_type=_proto)
+                # On-chain pool feed: subscribes to vault accounts via Helius WS.
+                # Requires pair_address; silently no-ops for unknown pool types.
+                if self._pool_price_feed is not None and pair_address:
+                    self._pool_price_feed.subscribe_token(
+                        token_address, pair_address=pair_address,
+                        pool_type=("pump amm" if "pump amm" in reason.lower() else ""),
+                    )
 
                 sol_amount = await self._usd_to_sol(position_size_usd)
                 if sol_amount <= 0:
@@ -2094,6 +2124,11 @@ class Trader:
             if self._rpc_price_feed is not None:
                 _proto = "pump amm" if "pump amm" in reason.lower() else ""
                 self._rpc_price_feed.subscribe_token(token_address, pool_type=_proto)
+            if self._pool_price_feed is not None and pair_address:
+                self._pool_price_feed.subscribe_token(
+                    token_address, pair_address=pair_address,
+                    pool_type=("pump amm" if "pump amm" in reason.lower() else ""),
+                )
 
             _buy_realized = round(float(self._last_realized_slippage_pct or 0.0), 4)
             await self.telegram.send(
@@ -2256,6 +2291,8 @@ class Trader:
                         self._dex_price_feed.unsubscribe_token(token_address)
                     if self._rpc_price_feed is not None:
                         self._rpc_price_feed.unsubscribe_token(token_address)
+                    if self._pool_price_feed is not None:
+                        self._pool_price_feed.unsubscribe_token(token_address)
                     # Cooldown after ANY full dip_buy close — wins included.
                     # A successful TP2 exit signals "we just hit the top of
                     # this move" — re-entering 23s later (LASTMAN 22:59)
@@ -2407,6 +2444,8 @@ class Trader:
                     self._dex_price_feed.unsubscribe_token(token_address)
                 if self._rpc_price_feed is not None:
                     self._rpc_price_feed.unsubscribe_token(token_address)
+                if self._pool_price_feed is not None:
+                    self._pool_price_feed.unsubscribe_token(token_address)
                 # Cooldown for dip_buy strategy on every full close.
                 # Volume-death closes get extended 6h cooldown.
                 if getattr(position, "strategy", "") == "dip_buy":
