@@ -2383,6 +2383,29 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] chart_reader error: {_e}")
 
+            # Chart CNN inference — SHADOW 2026-05-15. Plugs into _chart_data
+            # (already fetched above). Returns None if weights missing or render
+            # failure; all degradation is silent. Output goes into entry_meta_dict.
+            _cnn_pattern = None
+            _cnn_pattern_conf = None
+            _cnn_outcome_prob = None
+            try:
+                from core.chart_cnn_inference import get_inference
+                _cnn_inf = get_inference()
+                if not _cnn_inf.disabled and _chart_data:
+                    _cnn_result = _cnn_inf.predict(
+                        token_address=token_address,
+                        candles_1m=_chart_data.candles_1m or [],
+                        candles_5m=_chart_data.candles_5m or [],
+                        candles_15m=_chart_data.candles_15m or [],
+                    )
+                    if _cnn_result:
+                        _cnn_pattern = _cnn_result.get("pattern")
+                        _cnn_pattern_conf = _cnn_result.get("pattern_conf")
+                        _cnn_outcome_prob = _cnn_result.get("outcome_prob")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] CNN inference err: {_e}")
+
             # ─── UptrendScanner SHADOW eval (Phase 1, 2026-05-14 evening) ──
             # Green-tape companion strategy. Evaluates the SAME token here
             # but with different gate/trigger logic targeting confirmed
@@ -8529,6 +8552,11 @@ class DipScanner:
             except Exception:
                 pass
 
+            # Fail-safe: ensure CNN vars exist even if chart_data path was skipped
+            if "_cnn_pattern" not in dir():
+                _cnn_pattern = None
+                _cnn_pattern_conf = None
+                _cnn_outcome_prob = None
             entry_meta_dict = {
                 # Signal-fire wall-clock timestamp (ms). Trader.buy will
                 # compute signal_to_fill_ms after on-chain confirmation.
@@ -8751,6 +8779,10 @@ class DipScanner:
                 # filter_falling_knife — ENFORCED 2026-05-15 (mtf<=-1 + 1m red).
                 "filter_falling_knife_verdict": _filter_falling_knife_verdict,
                 "filter_falling_knife_block_reasons": _filter_falling_knife_block_reasons,
+                # chart_cnn — SHADOW 2026-05-15 (pattern + outcome head)
+                "cnn_pattern": _cnn_pattern,
+                "cnn_pattern_conf": _cnn_pattern_conf,
+                "cnn_outcome_prob": _cnn_outcome_prob,
                 # trigger_post_capit_breakout — ENFORCED 2026-05-15 with
                 # carve-outs on filter_turn / filter_sweep_too_recent /
                 # filter_chasing_top. Positive V-bottom reversal trigger.
