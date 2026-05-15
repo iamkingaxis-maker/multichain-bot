@@ -250,6 +250,23 @@ class Trader:
         )
         self._load_dip_loss_cooldown()
 
+        # Token-level stop-loss streak tracker — addr -> [list of stop_ts].
+        # When 3+ stops on the same address within 4h, apply a 4h cooldown
+        # (override the no-cooldown stop default). Pattern: RAGEGUY
+        # 2026-05-14 had 4 stops in 4h, all losses. Single-stop rebuys stay
+        # uncooldowned (the +$600 lifetime band).
+        self._dip_stop_streak: Dict[str, list] = {}
+        self._dip_stop_streak_path = os.path.join(
+            os.environ.get("DATA_DIR", "/data"), "dip_stop_streak.json"
+        )
+        try:
+            if os.path.exists(self._dip_stop_streak_path):
+                with open(self._dip_stop_streak_path) as f:
+                    raw = json.load(f) or {}
+                self._dip_stop_streak = {k: list(v) for k, v in raw.items()}
+        except Exception:
+            self._dip_stop_streak = {}
+
         pass  # daily buy limit removed — entry quality handles repeat buys
 
         # Optional Axiom auth — registered externally for Axiom-based price lookups
@@ -932,12 +949,35 @@ class Trader:
         is_vol_death = "volume death" in reason_lower
         is_stop_loss = ("stop" in reason_lower) and ("kill" not in reason_lower)
         if is_vol_death or is_stop_loss:
-            # No cooldown — trust entry filter stack to gate rebuys.
+            # No cooldown by default — trust entry filter stack to gate rebuys.
+            # EXCEPT: if this token has accumulated 3+ stops within last 4h,
+            # apply a 4h cooldown. RAGEGUY 2026-05-14 pattern: 4 stops in
+            # 4h all losses. Single stops still uncooldowned (+$600 lifetime).
+            addr_lc = token_address.lower()
+            now_ts = time.time()
+            streak = [t for t in self._dip_stop_streak.get(addr_lc, [])
+                      if now_ts - t <= 4 * 3600.0]
+            streak.append(now_ts)
+            self._dip_stop_streak[addr_lc] = streak
+            try:
+                with open(self._dip_stop_streak_path, "w") as f:
+                    json.dump(self._dip_stop_streak, f)
+            except Exception:
+                pass
             tag = "vol-death" if is_vol_death else "stop-loss"
-            logger.info(
-                f"[Trader] {tag} close on {token_address[:8]}… — no cooldown "
-                f"(filter stack gates rebuy)"
-            )
+            if len(streak) >= 3:
+                # Token has 3+ stops within 4h — engage 4h cooldown.
+                self._dip_loss_cooldown[addr_lc] = [now_ts, 4 * 3600.0]
+                self._save_dip_loss_cooldown()
+                logger.warning(
+                    f"[Trader] {tag} close on {token_address[:8]}… — "
+                    f"streak={len(streak)} in 4h — engaging 4h cooldown"
+                )
+            else:
+                logger.info(
+                    f"[Trader] {tag} close on {token_address[:8]}… — no cooldown "
+                    f"(streak={len(streak)} <3; filter stack gates rebuy)"
+                )
             return
         self._dip_loss_cooldown[token_address.lower()] = [time.time(), 1800.0]
         self._save_dip_loss_cooldown()

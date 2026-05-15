@@ -648,6 +648,22 @@ class PositionManager:
                 for k, v in cf.items():
                     tick[f"chart_{k}"] = v
             os.makedirs(os.path.dirname(self._position_tick_path), exist_ok=True)
+            # Disk rotation: cap at 50MB. If over, trim to last 40MB by
+            # discarding oldest lines. Cheap O(N) on the rare cycle that
+            # crosses the threshold; no-op otherwise.
+            try:
+                if os.path.getsize(self._position_tick_path) > 50 * 1024 * 1024:
+                    with open(self._position_tick_path, "r") as f:
+                        f.seek(-40 * 1024 * 1024, os.SEEK_END)
+                    # Walk forward to next newline so we don't keep a partial line
+                    with open(self._position_tick_path, "rb") as f:
+                        f.seek(-40 * 1024 * 1024, os.SEEK_END)
+                        f.readline()  # discard partial first line
+                        kept = f.read()
+                    with open(self._position_tick_path, "wb") as f:
+                        f.write(kept)
+            except (OSError, ValueError):
+                pass  # file shorter than rotation threshold; no-op
             with open(self._position_tick_path, "a") as f:
                 f.write(json.dumps(tick) + "\n")
             # Update prev-tick state for next velocity calc
