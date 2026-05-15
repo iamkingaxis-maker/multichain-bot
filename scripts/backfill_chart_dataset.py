@@ -102,17 +102,30 @@ def _primary_trigger(triggers_fired: list) -> str:
 
 
 def label_for_trade(trade: dict) -> dict:
-    """Build the label JSON for one trade."""
+    """Build the label JSON for one trade.
+
+    For v1 (actual buy backfill), realized_pnl_strategy = the actual %
+    pnl we captured. No synthetic-strategy modeling needed — we have
+    ground truth.
+    """
     em = trade.get("entry_meta") or {}
     triggers = em.get("triggers_fired") or []
     pattern = _primary_trigger(triggers)
+    # The 'pnl' field is total $ across all sells for this buy
+    # For pnl_pct, prefer entry_meta if present; otherwise compute
+    # ratio from pnl and amount_usd of the buy.
+    pnl_usd = float(trade.get("pnl", 0) or 0)
+    amount_usd = float(em.get("amount_usd") or 20.0)
+    realized_pct = (pnl_usd / max(amount_usd, 1.0)) * 100.0 if amount_usd > 0 else 0.0
     return {
         "addr": trade["addr"],
         "ts": trade["time"],
         "token": trade["token"],
         "pattern_label": pattern,
-        "outcome_label": 1 if trade["pnl"] > 0 else 0,
-        "outcome_pnl_pct": float(em.get("outcome_pnl_pct") or 0),
+        "outcome_label": 1 if pnl_usd > 0 else 0,
+        "outcome_label_strategy": 1 if realized_pct > 0 else 0,
+        "outcome_pnl_pct": round(realized_pct, 4),
+        "realized_pnl_strategy": round(realized_pct, 2),  # truth for v1
         "context": {
             "triggers_fired": triggers,
             "hour_ct": em.get("hour_ct"),

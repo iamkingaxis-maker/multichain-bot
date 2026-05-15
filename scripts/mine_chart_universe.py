@@ -442,10 +442,27 @@ async def mine_token(
             cur_ts += step_s
             continue
         forward_max = max(c.high for c in forward_candles)
+        forward_min = min(c.low for c in forward_candles)
+        forward_end_close = forward_candles[-1].close
         forward_max_gain_pct = ((forward_max / cur_price) - 1.0) * 100.0
+        forward_min_loss_pct = ((forward_min / cur_price) - 1.0) * 100.0
+        forward_end_pct = ((forward_end_close / cur_price) - 1.0) * 100.0
 
-        # Outcome label: 1 if token can gain >= 5% in the forward window
+        # Strategy-realistic P&L (TP1 +5% sells 50%, post-TP1 trail captures
+        # half of further gain capped +5pp, -7% stop). Pessimistic on ordering
+        # — if both extremes hit, assume stop fires first.
+        if forward_min_loss_pct <= -7.0:
+            realized_pnl_strategy = -7.0
+        elif forward_max_gain_pct >= 5.0:
+            realized_pnl_strategy = 2.5 + min((forward_max_gain_pct - 5.0) * 0.5, 5.0)
+        else:
+            realized_pnl_strategy = max(forward_end_pct, -7.0)
+
+        # Outcome labels (two flavors):
+        # outcome_label: max-gain ever touched +5% (legacy, theoretical max)
+        # outcome_label_strategy: realized > 0 under strategy-cap (truth)
         outcome_label = 1 if forward_max_gain_pct >= 5.0 else 0
+        outcome_label_strategy = 1 if realized_pnl_strategy > 0 else 0
 
         # Synthetic pattern label
         pattern_label = _synthetic_pattern_label(c1, c5, c15, cur_price)
@@ -456,25 +473,41 @@ async def mine_token(
         npy_path = out_token_dir / f"{safe_ts}.npy"
         json_path = out_token_dir / f"{safe_ts}.json"
 
+        # Preserve existing cluster_id if rewriting an existing JSON
+        existing_cluster_id = None
+        if json_path.exists():
+            try:
+                with open(json_path) as _f:
+                    _existing = json.load(_f)
+                existing_cluster_id = _existing.get("cluster_id")
+            except Exception:
+                pass
+
         if not npy_path.exists():
             np.save(str(npy_path), img)
-            with open(json_path, "w") as f:
-                json.dump(
-                    {
-                        "addr": addr,
-                        "ts": ts_iso,
-                        "token": token.get("symbol", "?"),
-                        "pattern_label": pattern_label,
-                        "outcome_label": outcome_label,
-                        "outcome_pnl_pct": round(forward_max_gain_pct, 4),
-                        "context": {
-                            "cur_price": cur_price,
-                            "forward_min": args.forward_min,
-                        },
-                    },
-                    f,
-                )
-            count += 1
+        # Always rewrite the JSON with the new label fields
+        out_json = {
+            "addr": addr,
+            "ts": ts_iso,
+            "token": token.get("symbol", "?"),
+            "pattern_label": pattern_label,
+            "outcome_label": outcome_label,
+            "outcome_label_strategy": outcome_label_strategy,
+            "outcome_pnl_pct": round(forward_max_gain_pct, 4),
+            "forward_max_gain_pct": round(forward_max_gain_pct, 2),
+            "forward_min_loss_pct": round(forward_min_loss_pct, 2),
+            "forward_end_pct": round(forward_end_pct, 2),
+            "realized_pnl_strategy": round(realized_pnl_strategy, 2),
+            "context": {
+                "cur_price": cur_price,
+                "forward_min": args.forward_min,
+            },
+        }
+        if existing_cluster_id is not None:
+            out_json["cluster_id"] = existing_cluster_id
+        with open(json_path, "w") as f:
+            json.dump(out_json, f)
+        count += 1
 
         cur_ts += step_s
 
