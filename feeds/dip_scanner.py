@@ -5813,28 +5813,30 @@ class DipScanner:
                 logger.debug(f"[DipScanner] overnight_mature_midcap err: {_e}")
 
             # ── trigger_late_night_fresh — ENFORCED 2026-05-16 PM ──────────
-            # New entry path mined from 2049 universe-recorder events
-            # cross-referenced to hour-of-day. The CT 22:00-02:00 window
-            # combined with fresh tokens (<6h old) has an extraordinarily
-            # high win rate. Likely mechanism: this is the "late-night
-            # graduate pump cycle" — most new memecoins launch and pump
-            # during US evening / EU late-night, with sustained activity
-            # before fading by US morning.
+            # Tightened 2026-05-16 PM after deep-dip subset analysis: adding
+            # pc_m5 < -10 condition flips avg_exit from -2.6% to +0.4% —
+            # the ONLY universe-mined compound with POSITIVE avg realized
+            # outcome (not just peak).
             #
-            # Universe-recorder validation (gate-passing only):
-            #   n=137, won_10pct=73%, won_20pct=59%, avg peak +43%
-            # That's ~140 fires/day in this window post-our-gates.
+            # Universe-recorder validation (n=127 in 24h, gate-passing):
+            #   won_10pct=77%  (peak >= +10%)
+            #   safe_win=50%   (peak >= +10% AND exit >= -5%)
+            #   big_safe=42%   (peak >= +20% AND exit >= 0)
+            #   avg peak +46.6%, avg exit +0.4%
             #
-            # Reference missed winners (CT22-2 fresh-token cohort):
-            #   GANG hour=23 age=0.9h peak +259%
-            #   Twerk hour=0 age=2.9h peak +226%
-            #   Jim hour=22 age=0.2h peak +220%
-            #   Yae hour=0 age=0.5h peak +124%
-            # GANG alone fired 5x at this window with peaks +180-260%.
+            # Mechanism: the deep m5 dip (>-10%) on a fresh post-launch
+            # token during late-night CT is the "post-pump panic flush
+            # before continuation" pattern. Without the dip qualifier we
+            # also catch peak-and-distribute tokens (those crash exit).
             #
-            # Predicate: hour_ct in {22,23,0,1,2} AND age_hours < 6
-            # NOT marginal — strong enough signal for standard sizing.
-            # Time-only feature so phantom parity is trivial.
+            # Reference missed winners (CT22-2 + age<6h + pc_m5<-10):
+            #   Twerk  hr= 0 age=2.9h pc_m5=-26% peak +226% exit +205%
+            #   Jim    hr=22 age=0.2h pc_m5=-21% peak +220% exit +182%
+            #   GANG   hr=23 age=0.9h pc_m5=-15% peak +204% exit +179%
+            #   WANTED hr=22 age=1.2h pc_m5=-30% peak +137% exit  +55%
+            #
+            # Predicate: hour_ct in {22,23,0,1,2} AND age<6h AND pc_m5<-10
+            # Standard sizing — strong signal, NOT marginal.
             _trigger_late_night_fresh_match = False
             _trigger_late_night_fresh_reasons: list = []
             try:
@@ -5842,11 +5844,14 @@ class DipScanner:
                 _now_utc = datetime.now(timezone.utc)
                 # CT = UTC - 5 (DST May 2026)
                 _hour_ct = (_now_utc - timedelta(hours=5)).hour
-                if _hour_ct in {22, 23, 0, 1, 2} and pair_age_hours is not None and pair_age_hours < 6.0:
+                if (_hour_ct in {22, 23, 0, 1, 2}
+                        and pair_age_hours is not None and pair_age_hours < 6.0
+                        and pc_m5 is not None and float(pc_m5) < -10.0):
                     _trigger_late_night_fresh_match = True
                     _trigger_late_night_fresh_reasons.append(
                         f"hour_ct={_hour_ct} in [22-02] AND age={pair_age_hours:.1f}h<6 "
-                        f"(73% won_10pct on n=137 in 24h universe data)"
+                        f"AND pc_m5={float(pc_m5):.1f}%<-10 "
+                        f"(77% won_10pct, +0.4% avg_exit on n=127 in 24h)"
                     )
             except Exception as _e:
                 logger.debug(f"[DipScanner] late_night_fresh trigger err: {_e}")
