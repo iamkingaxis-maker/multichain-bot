@@ -481,6 +481,7 @@ class AxiomPriceFeed:
                 self.position_manager.check_stop_loss_realtime(token_address, price_usd)
                 self.position_manager.check_take_profit_realtime(token_address, price_usd)
                 self.position_manager.check_exhaustion_realtime(token_address, price_usd)
+                self.position_manager.check_post_tp1_trail_realtime(token_address, price_usd)
 
             # Notify registered callbacks (e.g. DipWatcher)
             for cb in self._price_callbacks:

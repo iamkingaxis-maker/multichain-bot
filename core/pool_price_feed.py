@@ -729,6 +729,10 @@ class PoolPriceFeed:
                 # Catches peak-and-reverse before -7% stop without firing on
                 # transient sub-second wicks. Replaces candle-based trail.
                 self.position_manager.check_exhaustion_realtime(token_lower, price_usd)
+                # Post-TP1 realtime trail (2026-05-16) — catches RABBIT-class
+                # fast collapses (9pp drop in 4s) that the 5s mgmt-cycle trail
+                # can't react to.
+                self.position_manager.check_post_tp1_trail_realtime(token_lower, price_usd)
             except Exception as _e:
                 logger.debug(f"[PoolFeed] pm realtime hook err: {_e}")
 
