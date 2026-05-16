@@ -6671,6 +6671,112 @@ class DipScanner:
                     f"{';'.join(_trigger_quiet_buyer_reasons)}"
                 )
 
+            # ── trigger_vp_poc_orderflow_bounce — ENFORCED 2026-05-16 (R3) ─
+            # Volume-profile-POC proximity + strong real-time flow + bullish
+            # 1s tape + size floor. Round-3 mining cohort: 11/11 lifetime
+            # wins, +5.57% avg (highest-n 100% WR compound in round 3).
+            # Self-gated wash-resistant (mean_buy>=15 baked in).
+            _trigger_vp_orderflow_match = False
+            _trigger_vp_orderflow_reasons: list = []
+            try:
+                _mbs_vp = (_tier1_features.get("mean_buy_size_usd")
+                           if isinstance(_tier1_features, dict) else None)
+                if _mbs_vp is None and isinstance(_tier3_features, dict):
+                    _mbs_vp = _tier3_features.get("mean_buy_size_usd")
+                _nf60_vp = _tier3_features.get("net_flow_60s_usd") if isinstance(_tier3_features, dict) else None
+                _vpd_vp = (_chart_ctx_dict or {}).get("chart_vp_poc_distance_pct") if isinstance(_chart_ctx_dict, dict) else None
+                _1s_cp_vp = _1s_features.get("close_pos_60s") if isinstance(_1s_features, dict) else None
+                _bsm5_vp = float(ratio_m5) if ratio_m5 != float("inf") else None
+                if (_mbs_vp is not None and float(_mbs_vp) >= 15
+                        and _nf60_vp is not None and float(_nf60_vp) > 50
+                        and _vpd_vp is not None and abs(float(_vpd_vp)) < 20
+                        and _1s_cp_vp is not None and float(_1s_cp_vp) > 0.5
+                        and _bsm5_vp is not None and _bsm5_vp >= 1.5):
+                    _trigger_vp_orderflow_match = True
+                    _trigger_vp_orderflow_reasons.append(
+                        f"mean_buy=${float(_mbs_vp):.0f}>=15 AND "
+                        f"net_flow_60s=${float(_nf60_vp):+.0f}>50 AND "
+                        f"vp_poc_dist={float(_vpd_vp):+.1f}%<20 AND "
+                        f"1s_close_pos={float(_1s_cp_vp):.2f}>0.5 AND "
+                        f"bs_m5={_bsm5_vp:.2f}>=1.5"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_vp_orderflow err: {_e}")
+            if _trigger_vp_orderflow_match:
+                logger.info(
+                    f"[DipScanner] trigger_vp_poc_orderflow_bounce FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_vp_orderflow_reasons)}"
+                )
+
+            # ── trigger_reaccum_vol_bounce — ENFORCED 2026-05-16 (R3) ──────
+            # Reaccumulation-volume signature + MTF alignment + 1s tape
+            # bullish + size floor. Uses chart_reaccum_vol_return_ratio>1
+            # (volume returning to pre-trough levels — accumulation re-
+            # engaging). Round-3 mining: 7/7 lifetime wins, +5.09% avg.
+            # Structurally NEW dimension not in any prior trigger.
+            _trigger_reaccum_vol_match = False
+            _trigger_reaccum_vol_reasons: list = []
+            try:
+                _mbs_rv = (_tier1_features.get("mean_buy_size_usd")
+                           if isinstance(_tier1_features, dict) else None)
+                if _mbs_rv is None and isinstance(_tier3_features, dict):
+                    _mbs_rv = _tier3_features.get("mean_buy_size_usd")
+                _mtf_rv = (_chart_ctx_dict or {}).get("chart_mtf_score") if isinstance(_chart_ctx_dict, dict) else None
+                _rv_ratio = (_chart_ctx_dict or {}).get("chart_reaccum_vol_return_ratio") if isinstance(_chart_ctx_dict, dict) else None
+                _1s_cp_rv = _1s_features.get("close_pos_60s") if isinstance(_1s_features, dict) else None
+                if (_mbs_rv is not None and float(_mbs_rv) >= 15
+                        and _mtf_rv is not None and float(_mtf_rv) >= 1
+                        and _rv_ratio is not None and float(_rv_ratio) > 1.0
+                        and _1s_cp_rv is not None and float(_1s_cp_rv) > 0.5):
+                    _trigger_reaccum_vol_match = True
+                    _trigger_reaccum_vol_reasons.append(
+                        f"mean_buy=${float(_mbs_rv):.0f}>=15 AND "
+                        f"mtf={float(_mtf_rv):.1f}>=1 AND "
+                        f"reaccum_vol_ratio={float(_rv_ratio):.2f}>1.0 AND "
+                        f"1s_close_pos={float(_1s_cp_rv):.2f}>0.5"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_reaccum_vol err: {_e}")
+            if _trigger_reaccum_vol_match:
+                logger.info(
+                    f"[DipScanner] trigger_reaccum_vol_bounce FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_reaccum_vol_reasons)}"
+                )
+
+            # ── trigger_tight_buyer_mtf — ENFORCED 2026-05-16 (R3) ─────────
+            # MTF alignment + tight 1s tape (close_pos>0.6) + buyer
+            # dominance + size floor. Tighter 1s_close_pos threshold than
+            # other triggers captures only confirmed bullish-close tape.
+            # Round-3 mining: 8/8 lifetime wins, +5.33% avg.
+            _trigger_tight_buyer_mtf_match = False
+            _trigger_tight_buyer_mtf_reasons: list = []
+            try:
+                _mbs_tb = (_tier1_features.get("mean_buy_size_usd")
+                           if isinstance(_tier1_features, dict) else None)
+                if _mbs_tb is None and isinstance(_tier3_features, dict):
+                    _mbs_tb = _tier3_features.get("mean_buy_size_usd")
+                _mtf_tb = (_chart_ctx_dict or {}).get("chart_mtf_score") if isinstance(_chart_ctx_dict, dict) else None
+                _1s_cp_tb = _1s_features.get("close_pos_60s") if isinstance(_1s_features, dict) else None
+                _bsm5_tb = float(ratio_m5) if ratio_m5 != float("inf") else None
+                if (_mbs_tb is not None and float(_mbs_tb) >= 15
+                        and _mtf_tb is not None and float(_mtf_tb) >= 1
+                        and _1s_cp_tb is not None and float(_1s_cp_tb) > 0.6
+                        and _bsm5_tb is not None and _bsm5_tb >= 1.5):
+                    _trigger_tight_buyer_mtf_match = True
+                    _trigger_tight_buyer_mtf_reasons.append(
+                        f"mean_buy=${float(_mbs_tb):.0f}>=15 AND "
+                        f"mtf={float(_mtf_tb):.1f}>=1 AND "
+                        f"1s_close_pos={float(_1s_cp_tb):.2f}>0.6 AND "
+                        f"bs_m5={_bsm5_tb:.2f}>=1.5"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_tight_buyer_mtf err: {_e}")
+            if _trigger_tight_buyer_mtf_match:
+                logger.info(
+                    f"[DipScanner] trigger_tight_buyer_mtf FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_tight_buyer_mtf_reasons)}"
+                )
+
             # ── ANTI-PATTERN: extended-uptrend-into-entry suppression ──
             # Inverse mining surfaced TWO 0/7 loss cohorts that share a
             # signature: token has been making higher lows AND is mid-
@@ -6747,6 +6853,11 @@ class DipScanner:
                 _trigger_micro_pattern_match = False
                 _trigger_vp_aligned_match = False
                 _trigger_quiet_buyer_match = False
+                # R3 (2026-05-16) triggers self-gate on mean_buy>=15 but
+                # clear here defensively for consistency.
+                _trigger_vp_orderflow_match = False
+                _trigger_reaccum_vol_match = False
+                _trigger_tight_buyer_mtf_match = False
 
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
@@ -6768,6 +6879,13 @@ class DipScanner:
                 _triggers_fired.append("volume_profile_aligned")
             if _trigger_quiet_buyer_match:
                 _triggers_fired.append("quiet_1s_buyer_dominance")
+            # R3 (2026-05-16) wash-resistant triggers.
+            if _trigger_vp_orderflow_match:
+                _triggers_fired.append("vp_poc_orderflow_bounce")
+            if _trigger_reaccum_vol_match:
+                _triggers_fired.append("reaccum_vol_bounce")
+            if _trigger_tight_buyer_mtf_match:
+                _triggers_fired.append("tight_buyer_mtf")
 
             # Apply anti-pattern suppression — clears all triggers if
             # the candidate matches a known 0/7 loss cohort.
@@ -9767,6 +9885,16 @@ class DipScanner:
                 **volume_velocity_features,  # vol_h1_accel_vs_h6, vol_5m_burst_vs_h1,
                                               # liq_velocity_m5/h1 (paper, SHADOW)
                 **shewhart_features,  # shadow_shewhart_dump_detected/max_neg_z (paper, SHADOW)
+                # Macro price-change snapshot at signal-fire. Computed at the
+                # top of this iteration from pair.priceChange. Stamping into
+                # entry_meta_dict so post-trade audit can mine on these axes.
+                # Previously absent — broke pc_h6-using mining (flow_reversal,
+                # chart_score_reversal triggers still fire because they use the
+                # local variables; this field is for analytics only).
+                "pc_h24": float(pc_h24) if pc_h24 is not None else None,
+                "pc_h6": float(pc_h6) if pc_h6 is not None else None,
+                "pc_h1": float(pc_h1) if pc_h1 is not None else None,
+                "pc_m5": float(pc_m5) if pc_m5 is not None else None,
             }
 
             # fusion_constrained — SHADOW 2026-05-15. 14-feature LR (chart MTF +
