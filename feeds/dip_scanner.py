@@ -8638,6 +8638,34 @@ class DipScanner:
                     else _triggers_fired[0]
                 )
 
+            # ── filter_whale_conviction_solo — ENFORCED 2026-05-16 ─────────
+            # Disable whale_conviction as a STANDALONE trigger. 7d audit
+            # (n=24 trades, 38% WR, -$7.52 net) showed:
+            #   - Solo whale_conviction fires: 0W/5L = 0% WR, -$2.65 net
+            #   - Buyer-count INVERTED: count>=3 → 38% WR,
+            #     count>=7 → 0% WR, count>=10 → 0% WR
+            # More clustered top-10 buyer activity = worse outcome —
+            # likely catching coordinated dumps / exit-liquidity traps,
+            # not informed entries. Keeping whale_conviction as compound
+            # evidence (when at least 1 other trigger ALSO fired) but
+            # blocking solo fires.
+            #
+            # Implementation: removes whale_conviction from _triggers_fired
+            # if it's the only trigger present. If other triggers were
+            # also active, leaves the list intact (compound info preserved).
+            if _triggers_fired == ["whale_conviction"]:
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_whale_conviction_solo: "
+                    f"{token_symbol} — whale_conviction alone (0W/5L on 7d)"
+                )
+                c["filter_whale_conviction_solo_block"] = c.get(
+                    "filter_whale_conviction_solo_block", 0
+                ) + 1
+                continue
+            c["filter_whale_conviction_solo_pass"] = c.get(
+                "filter_whale_conviction_solo_pass", 0
+            ) + 1
+
             # ── filter_1h_v_bottom_fake_recovery — ENFORCED 2026-05-13 PM ───
             # Round-5 negative-filter mining: last 1h is GREEN and prior 1h
             # was RED, with current close >= prior open (i.e., a "V-bottom

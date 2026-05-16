@@ -2641,17 +2641,24 @@ class PositionManager:
         async def _do_realtime_tp(addr, st, trigger_pnl):
             try:
                 # Verify via Jupiter — same noise-rejection logic as stops.
-                # Require fresh price within 25% of trigger (tighter than
-                # stop's 60% because we're locking in profit, not preventing
-                # loss — false positive here means we sell into noise).
+                # Threshold loosened 2026-05-16 from 0.75x to 0.5x of tp1_pct
+                # after Dust bug review: 5 trades in 7d (Dust, DISCLOSURE,
+                # CHINA, PHANNY, BABYTROLL) peaked >=+3% but TP1 fire was
+                # rejected by Jupiter check (returned spot below 2.25%) due
+                # to 1-3s Jupiter API latency during fast retraces. With
+                # TP1=3%, raising tolerance to <1.5% (Jupiter must be wildly
+                # off pool feed to reject) catches the Dust class while
+                # still rejecting true single-tick phantom spikes (those
+                # would show Jupiter spot near 0%, well below 1.5%).
+                # Combined cohort loss recovered: ~+$2.93 over 7d.
                 fresh_price = await self._fetch_jupiter_price(addr)
                 if fresh_price > 0 and st.entry_price > 0:
                     fresh_pnl = (fresh_price / st.entry_price - 1) * 100
-                    if fresh_pnl < tp1_pct * 0.75:
+                    if fresh_pnl < tp1_pct * 0.5:
                         logger.warning(
                             f"[PositionManager/{self.chain_name}] ⚡ REALTIME TP "
                             f"rejected for {st.token_symbol}: tick=+{trigger_pnl:.1f}% "
-                            f"but Jupiter spot={fresh_pnl:.1f}% (need >={tp1_pct*0.75:.1f}%) — discarding as tick noise"
+                            f"but Jupiter spot={fresh_pnl:.1f}% (need >={tp1_pct*0.5:.1f}%) — discarding as tick noise"
                         )
                         self._tp_triggered.discard(addr)
                         return
