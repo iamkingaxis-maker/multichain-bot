@@ -2081,34 +2081,16 @@ class PositionManager:
             # past the confirmation window in those cases).
             pass
 
-            # ── DIP POST-TP1 TRAIL — restored 2026-05-04 ──────────────
-            # After TP1 fires (sells 50%), if the remaining 50% peaks then
-            # retraces dip_winner_trail_pct (default 3.5%) from peak, exit
-            # the remainder.  Captures gains on tokens that run past TP1
-            # toward TP2 but reverse before reaching it.
+            # ── DIP POST-TP1 TRAIL — REMOVED 2026-05-16 PM ────────────
+            # Was firing on first 1pp drop from peak with NO confirmation —
+            # clipped the +3-5% peak cohort at noise wiggles. The realtime
+            # path (check_post_tp1_trail_realtime) now covers all peak tiers
+            # >= +3% with confirmation + recovery hysteresis (see Edit 1+2
+            # at line ~2870). Two trail paths racing was the architecture
+            # bug. Single source of truth: realtime only.
             #
-            # Was dropped 2026-05-01 based on asymmetric_exit_analysis on
-            # 133 trades during the broken regime, but the proven Apr 19-29
-            # era (97% WR / +$4854) ran with this trail.  Restored per user
-            # directive 2026-05-04 alongside the filter-cascade revert.
-            # 3-tier ladder note: trail fires between TP1 and TP3 — covers
-            # the post-TP1 (peak 3-5) and post-TP2 (peak 5-10) remainders.
-            if (state.tp1_hit and not state.tp3_hit
-                    and state.peak_price > 0 and state.entry_price > 0
-                    and state.current_price <= state.peak_price * (1 - self.dip_winner_trail_pct / 100)):
-                drop_from_peak = (state.peak_price - state.current_price) / state.peak_price * 100
-                peak_gain_pct = (state.peak_price - state.entry_price) / state.entry_price * 100
-                logger.info(
-                    f"[PositionManager/{self.chain_name}] 🔒 DIP TRAIL: "
-                    f"{state.token_symbol} -{drop_from_peak:.1f}% from peak "
-                    f"(peaked at +{peak_gain_pct:.1f}%)"
-                )
-                await self._execute_sell(
-                    token_address, state,
-                    pct=1.0,
-                    reason=f"Dip trail -{drop_from_peak:.1f}% from peak"
-                )
-                return
+            # Fallback if realtime tick stream breaks: _evaluate_stop_loss
+            # still fires hard stop at -dip_stop_pct on this 5s cycle.
 
             # ── DIP TAKE PROFIT (3-tier ladder, check highest first) ───
             if pnl_pct >= self.dip_tp3_pct and not state.tp3_hit:
@@ -2863,11 +2845,15 @@ class PositionManager:
         pnl_pct = (price_usd / state.entry_price - 1) * 100
         peak_pct = (state.peak_price / state.entry_price - 1) * 100
 
-        # 3-tier ladder: anchor to TP2 (the mid stage) — if peak >= TP2+1pp,
-        # we have a meaningful run beyond TP2 worth protecting. Pre-TP2 trail
-        # is covered by the staged TPs themselves (peak between TP1 and TP2
-        # locks 50% at TP1 + falls back via stop or pre-TP1 trail).
-        _MIN_PEAK = self.dip_tp2_pct + 1.0  # e.g. +6% if TP2=+5%
+        # 3-tier ladder threshold split (refined 2026-05-16 PM):
+        #   _MIN_PEAK_SOFT = TP1 (+3%) — soft trail with confirmation covers
+        #     small-peak cohort. Previously this cohort fell through to the
+        #     dumb sync trail at line 2096 which clipped on noise wiggles.
+        #   _MIN_PEAK_HARD = TP2 + 1pp (+6%) — only meaningful runs trigger
+        #     the hard guard (fast-flip back to scratch is real for big
+        #     peaks, ambiguous for small ones).
+        _MIN_PEAK_SOFT = self.dip_tp1_pct           # +3% — soft trail coverage
+        _MIN_PEAK_HARD = self.dip_tp2_pct + 1.0     # +6% — hard guard coverage
         _DROP_PP = self.dip_winner_trail_pct  # currently 1.0
         _CONFIRM_S = 5.0
         _RECOVERY_PP = 0.5
@@ -2875,7 +2861,7 @@ class PositionManager:
 
         # HARD GUARD: post-peak fast collapse. Token had a meaningful run
         # past TP1 then crashed back near entry. Catches RABBIT pattern.
-        if peak_pct >= _MIN_PEAK and pnl_pct <= _HARD_GUARD_PNL:
+        if peak_pct >= _MIN_PEAK_HARD and pnl_pct <= _HARD_GUARD_PNL:
             self._post_tp1_trail_triggered.add(token_address)
             label = (
                 f"Dip post-TP1 fast-flip {pnl_pct:+.1f}% "
@@ -2890,8 +2876,8 @@ class PositionManager:
             )
             return
 
-        # SOFT TRAIL with confirmation window
-        if peak_pct >= _MIN_PEAK:
+        # SOFT TRAIL with confirmation window (covers +3-6% peak cohort too)
+        if peak_pct >= _MIN_PEAK_SOFT:
             drop_pp = peak_pct - pnl_pct
             if drop_pp >= _DROP_PP:
                 if state.post_tp1_pending_ts is None:
