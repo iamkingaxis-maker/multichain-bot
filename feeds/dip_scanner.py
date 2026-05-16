@@ -6231,10 +6231,13 @@ class DipScanner:
             ) + 1
             if _filter_falling_knife_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_falling_knife: "
+                    f"[DipScanner] SHADOW filter_falling_knife would BLOCK: "
                     f"{token_symbol} reasons={','.join(_filter_falling_knife_block_reasons)}"
                 )
-                continue
+                # REVERTED to SHADOW 2026-05-16 PM. Universe audit
+                # showed blocked cohort 76.9% WR / +11.45% EV vs
+                # passed 73.9% WR / +7.39% EV. Steep dump with seller
+                # dominance is a capitulation signal, not a danger flag.
 
             # ── trigger_mtf_aligned_demand — ENFORCED 2026-05-13 PM ──────────
             # Round-6 mining of entry_meta features (already populated in
@@ -8218,10 +8221,13 @@ class DipScanner:
             ) + 1
             if _filter_double_bear_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_double_bear: {token_symbol} "
+                    f"[DipScanner] SHADOW filter_double_bear would BLOCK: {token_symbol} "
                     f"reasons={','.join(_filter_double_bear_block_reasons)}"
                 )
-                continue
+                # REVERTED to SHADOW 2026-05-16 PM. Universe audit
+                # showed blocked cohort 78.4% WR / +7.63% EV vs
+                # passed 70.9% WR / +7.27% EV (n_block=829). Marginal
+                # but still wrong-direction.
 
             # ── filter_seller_dominant — ENFORCED 2026-05-06 PM ───────────────
             # Single-axis gate after clean_break: block when 5m orderflow is
@@ -8347,10 +8353,15 @@ class DipScanner:
             ) + 1
             if _filter_15s_dump_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_15s_dump: {token_symbol} "
+                    f"[DipScanner] SHADOW filter_15s_dump would BLOCK: {token_symbol} "
                     f"reasons={','.join(_filter_15s_dump_block_reasons)}"
                 )
-                continue
+                # REVERTED to SHADOW 2026-05-16 PM. Universe audit
+                # (n=2049, realistic-PnL sim) showed blocked cohort
+                # 78.1% WR / +11.92% EV vs passed 72.3% WR / +5.69% EV.
+                # The pc_m5<-10 condition correlates with WINNERS
+                # (capitulation bottoms), not losers. Filter was
+                # mass-deleting dip-recovery setups.
 
             # Filter 5m-downtrend — ENFORCED 2026-05-09.
             # Block when the 5m chart has been red for 4+ consecutive
@@ -8394,10 +8405,14 @@ class DipScanner:
             ) + 1
             if _filter_5m_downtrend_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_5m_downtrend: {token_symbol} "
+                    f"[DipScanner] SHADOW filter_5m_downtrend would BLOCK: {token_symbol} "
                     f"reasons={','.join(_filter_5m_downtrend_block_reasons)}"
                 )
-                continue
+                # REVERTED to SHADOW 2026-05-16 PM. Universe audit
+                # showed blocked cohort 75.0% WR / +9.54% EV vs
+                # passed 73.8% WR / +7.12% EV. Sustained 5m decline is
+                # an entry signal (deeper dip = better recovery), not a
+                # danger flag.
 
             # Filter lower-low — ENFORCED 2026-05-09.
             # Block when 5m swing-low pattern shows a deep lower-low:
@@ -8560,10 +8575,15 @@ class DipScanner:
                     ) + 1
                 else:
                     logger.info(
-                        f"[DipScanner] BLOCKED by filter_buyer_fomo: {token_symbol} "
+                        f"[DipScanner] SHADOW filter_buyer_fomo would BLOCK: {token_symbol} "
                         f"reasons={','.join(_filter_buyer_fomo_block_reasons)}"
                     )
-                    continue
+                    # REVERTED to SHADOW 2026-05-16 PM. Audit on live trade
+                    # data showed block-cohort 50% WR / +1.08% avg vs
+                    # pass-cohort 38% WR / -2.15% avg (n=8 vs n=82). The
+                    # filter direction is wrong — high net_flow_60s_imb
+                    # correlates with WINNERS, not losers, in our actual
+                    # stamped data.
 
             # ── Multi-timeframe momentum stacking (shadow, 2026-05-05) ────────
             # Hypothesis: "textbook pullback resolving" = 15m red + 5m red +
@@ -9112,6 +9132,16 @@ class DipScanner:
                 "filter_morning_dead_zone_pass", 0
             ) + 1
 
+            # ── filter_blowoff_top — REVERTED to SHADOW 2026-05-16 PM ──────
+            # Universe-data audit (n=2049 events, realistic-PnL sim) showed
+            # blocked cohort: 73.0% WR, +8.06% avg EV
+            # passed  cohort: 74.2% WR, +7.55% avg EV
+            # Filter is roughly neutral to slightly NEGATIVE on universe
+            # scale. The "0/4 WR in our trades" finding was post-cascade
+            # selection bias. Demoting to SHADOW — keep stamping for forward
+            # analysis but no longer block.
+            #
+            # Original mining notes preserved below.
             # ── filter_blowoff_top — ENFORCED 2026-05-16 PM ────────────────
             # Block tokens with pc_h24 >= 500% — blow-off-top territory where
             # the 24h pump is so extended that mean-reversion dominates any
@@ -9176,11 +9206,22 @@ class DipScanner:
             ) + 1
             if _filter_blowoff_top_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_blowoff_top: "
+                    f"[DipScanner] SHADOW filter_blowoff_top would BLOCK: "
                     f"{token_symbol} reasons={','.join(_filter_blowoff_block_reasons)}"
                 )
-                continue
+                # SHADOW mode — do not block (reverted 2026-05-16 PM)
 
+            # ── filter_high_activity_fomo — REVERTED to SHADOW 2026-05-16 PM
+            # Universe-data audit (n=2049 events, realistic-PnL sim) showed
+            # blocked cohort: 80.6% WR, +11.67% avg EV  ← THE BEST cohort
+            # passed  cohort: 67.8% WR, +3.94%  avg EV
+            # This filter was BLOCKING THE BEST TRADES. Demoting to SHADOW.
+            # The "15% WR on n=20" finding was a post-cascade artifact —
+            # only post-filter losers reached our trade sample because
+            # winners with high buys_per_min were getting blocked by
+            # OTHER upstream filters that have since been adjusted.
+            #
+            # Original mining notes preserved below.
             # ── filter_high_activity_fomo — ENFORCED 2026-05-16 PM ─────────
             # Block tokens with buys_per_min_recent >= 10 — late-stage FOMO
             # peak signature.
@@ -9216,10 +9257,10 @@ class DipScanner:
             ) + 1
             if _filter_high_fomo_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_high_activity_fomo: "
+                    f"[DipScanner] SHADOW filter_high_activity_fomo would BLOCK: "
                     f"{token_symbol} reasons={','.join(_filter_high_fomo_block_reasons)}"
                 )
-                continue
+                # SHADOW mode — do not block (reverted 2026-05-16 PM)
 
             # ── filter_post_pump_corpse — ENFORCED 2026-05-16 PM ───────────
             # Block tokens that just had an extreme pump and are now in
@@ -9917,10 +9958,14 @@ class DipScanner:
             _am_rescued, _am_lvh1 = _big_buyer_rescued()
             if _filter_am_verdict == "BLOCK" and not _am_rescued:
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_already_mooned: {token_symbol} "
+                    f"[DipScanner] SHADOW filter_already_mooned would BLOCK: {token_symbol} "
                     f"peak_h24={float(peak_h24_6h):.0f}%"
                 )
-                continue
+                # REVERTED to SHADOW 2026-05-16 PM. Universe audit
+                # showed blocked cohort 76.7% WR / +9.59% EV vs
+                # passed 72.1% WR / +5.98% EV (n_block=814). High pc_h24
+                # is selecting the FRESH RUNNERS where dips recover —
+                # not "already exhausted" tokens.
             elif _filter_am_verdict == "BLOCK" and _am_rescued:
                 logger.info(
                     f"[DipScanner] filter_already_mooned rescued by big_buyer: "
