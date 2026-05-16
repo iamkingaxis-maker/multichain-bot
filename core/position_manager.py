@@ -2704,7 +2704,7 @@ class PositionManager:
         pnl_pct = (price_usd / state.entry_price - 1) * 100
         peak_pct = (state.peak_price / state.entry_price - 1) * 100
 
-        _MIN_PEAK = 3.0
+        _MIN_PEAK = 2.5  # Lowered 3.0 → 2.5 on 2026-05-16 (exit-sim option B). Catches the 2.5-5% peak bucket (n=11 trades, all 11 rescued at +4.29%/trade avg in sim). Examples: lol420 peak=+2.94% → was -12.25% rescued to +1.44%; DISCLOSURE peak=+3.71% → -8.13% rescued to +2.21%. 60s confirm window unchanged so RAGEGUY-class false-positives still gated.
         _DROP_PP = 1.5
         _CONFIRM_S = 60.0
         _RECOVERY_PP = 1.0  # drop tightens to this → disarm
