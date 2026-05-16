@@ -335,6 +335,21 @@ class AxiomSmartWalletTracker:
 
             self.wallet_buys_seen += 1
 
+            # Publish to in-memory smart-money registry so dip_scanner
+            # (and any other consumer) can stamp "smart wallets bought
+            # this token recently" features into entry_meta. Registration
+            # happens BEFORE the dedup check so multi-wallet activity on
+            # the same token is captured (1 wallet ≠ 5 wallets converging).
+            try:
+                from feeds.smart_money_registry import get_default_registry
+                get_default_registry().register_buy(
+                    wallet=wallet_address,
+                    token_addr=token_address,
+                    amount_sol=total_sol,
+                )
+            except Exception as _e:
+                logger.debug(f"[AxiomWallets] smart_money_registry err: {_e}")
+
             if token_address in self._seen_tokens:
                 return
 

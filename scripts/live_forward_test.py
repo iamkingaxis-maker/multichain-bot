@@ -1850,6 +1850,25 @@ def take_snapshot():
     sol_price = fetch_sol_price()
     print(f'  regime_h1_neg_pct={regime_h1_neg_pct}%  sol_price=${sol_price:.2f}')
 
+    # Jito MEV tip-floor (one fetch per snapshot — applied to all candidates).
+    # Phantom parity with dip_scanner.py wiring of feeds.jito_bundle_feed.
+    # Smart-money registry features (smart_buys_5m_*) are NOT phantom-mirrored —
+    # the registry is bot-process-local; phantom would need a dashboard
+    # endpoint exposing registry state. TODO if forward-data validation
+    # confirms smart-money signal is load-bearing.
+    jito_global = {}
+    try:
+        import asyncio as _asyncio
+        from feeds.jito_bundle_feed import JitoBundleFeed
+        jito_global = _asyncio.new_event_loop().run_until_complete(
+            JitoBundleFeed().snapshot()
+        ) or {}
+    except Exception as _e:
+        print(f'  [!] Jito snapshot failed: {_e}')
+    if jito_global:
+        print(f'  jito_tip_p50={jito_global.get("jito_tip_p50_lamports")} '
+              f'p99={jito_global.get("jito_tip_p99_lamports")}')
+
     # Slip-history ring buffer (per-token, persisted across runs)
     slip_hist = _load_slip_history()
 
@@ -1877,6 +1896,10 @@ def take_snapshot():
         if bi is not None: c['slip_buy_5000_pct'] = bi
         if si is not None: c['slip_sell_5000_pct'] = si
         c['regime_h1_neg_pct'] = regime_h1_neg_pct
+        # Jito MEV tip-floor (global, applied to every candidate)
+        for _jk, _jv in (jito_global or {}).items():
+            if _jv is not None:
+                c[_jk] = _jv
 
         # Append current quote to per-token ring buffer (last 10 entries),
         # then derive velocity/trajectory from history.

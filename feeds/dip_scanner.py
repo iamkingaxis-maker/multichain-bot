@@ -1283,6 +1283,33 @@ class DipScanner:
             except Exception:
                 pass
 
+            # ── Jito MEV tip floor (macro sniper-aggression proxy) ──────────
+            # Cached 60s. Fail-open: empty dict on any error. Joined into
+            # sol_features so it lands in entry_meta alongside SOL/BTC/meme.
+            try:
+                from feeds.jito_bundle_feed import get_default_feed as _get_jito_feed
+                _jito_snap = await _get_jito_feed().snapshot()
+                if isinstance(_jito_snap, dict):
+                    for _k, _v in _jito_snap.items():
+                        if _v is not None:
+                            sol_features[_k] = _v
+            except Exception as _e:
+                logger.debug(f"[DipScanner] Jito snapshot err: {_e}")
+
+            # ── Smart-money registry features ───────────────────────────────
+            # AxiomSmartWalletTracker publishes every tracked-wallet buy to
+            # the in-memory registry. Read recent activity for THIS token
+            # and stamp into entry_meta. Three scalars exposed; all None
+            # if no smart-wallet activity in lookback window.
+            smart_money_features: dict = {}
+            try:
+                from feeds.smart_money_registry import get_default_registry
+                smart_money_features = get_default_registry().smart_money_features(
+                    token_address, lookback_s=300.0
+                )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] smart_money snapshot err: {_e}")
+
             # ── Tier 2b: Jupiter quote asymmetry + Tier-1 slippage curve ──
             # Closest analog to "order book imbalance" on Solana AMMs.
             # Original asymmetry: buy at position size + matching sell (kept).
@@ -10345,6 +10372,11 @@ class DipScanner:
                 **vwap_features,  # 24h anchored VWAP (or empty if fetch failed)
                 **recent_trades_features,  # last-30 trades direction (or empty)
                 **sol_features,  # SOL price context (or empty if fetch failed)
+                                # — also includes Jito MEV tip-floor fields
+                                # (jito_tip_floor_lamports, jito_tip_p99_lamports,
+                                # jito_tip_p50_lamports) folded in above.
+                **smart_money_features,  # smart_buys_5m_count/total_sol/seconds_ago
+                                         # populated by AxiomSmartWalletTracker → registry
                 **jup_features,  # Jupiter quote asymmetry (or empty if failed)
                 **tick_features,  # WS tick buffer stats (or empty if no feed)
                 **trend_features,  # multi-layer trend score (or empty)
