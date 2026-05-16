@@ -6118,10 +6118,31 @@ class DipScanner:
                     _mtf_dn_calm_seller_carve = True
             except Exception:
                 pass
+            # CARVE-OUT 2026-05-16 PM #3: shallow-1h-dip signature.
+            # Realistic-P&L sim of mtf_strong_downtrend blocks (mtf_audit_v2,
+            # n=34 audited): sim winners had pc_h1 mean -15.6%, sim losers
+            # had pc_h1 mean -24.4%. Cohen's d=+0.65 — strongest single
+            # discriminator within the blocked cohort.
+            #
+            # When mtf_strong_downtrend fires but pc_h1 > -20%, the dip is
+            # moderate and recovers more often than not under our exit
+            # logic (TP1 +3%/50%, trail 1pp, stop -4%). When pc_h1 < -20%,
+            # it's a real falling knife — keep blocking.
+            #
+            # Est EV: +$0.20/blocked-trade × ~5 entries/day = +$1/day.
+            # Small but positive; preserves block on deep-knife cohort.
+            _mtf_dn_pc_h1_carve = False
+            try:
+                if (_filter_mtf_dn_block_reasons
+                    and isinstance(pc_h1, (int, float)) and pc_h1 > -20.0):
+                    _mtf_dn_pc_h1_carve = True
+            except Exception:
+                pass
             _filter_mtf_dn_verdict = (
                 "BLOCK" if (_filter_mtf_dn_block_reasons
                             and not _mtf_dn_chart_carve
-                            and not _mtf_dn_calm_seller_carve)
+                            and not _mtf_dn_calm_seller_carve
+                            and not _mtf_dn_pc_h1_carve)
                 else "PASS"
             )
             c[f"filter_mtf_strong_downtrend_{_filter_mtf_dn_verdict.lower()}"] = c.get(
@@ -6148,6 +6169,15 @@ class DipScanner:
                 )
                 c["filter_mtf_dn_carve_calm_seller"] = c.get(
                     "filter_mtf_dn_carve_calm_seller", 0
+                ) + 1
+            if _mtf_dn_pc_h1_carve and _filter_mtf_dn_block_reasons:
+                logger.info(
+                    f"[DipScanner] filter_mtf_strong_downtrend RESCUED by pc_h1: "
+                    f"{token_symbol} pc_h1={pc_h1:+.1f}%>-20 "
+                    f"(realistic sim d=+0.65, winners avg -15.6 vs losers -24.4)"
+                )
+                c["filter_mtf_dn_carve_pc_h1"] = c.get(
+                    "filter_mtf_dn_carve_pc_h1", 0
                 ) + 1
 
             # ── filter_falling_knife — ENFORCED 2026-05-15 ──────────────────
@@ -10518,10 +10548,11 @@ class DipScanner:
                 # loose-WR on n=192. Stamp so forward audit can validate.
                 "buys_h1": int(b_h1) if isinstance(b_h1, (int, float)) else None,
                 "sells_h1": int(s_h1) if isinstance(s_h1, (int, float)) else None,
-                # carve-out flag — was this entry rescued by calm_seller carve?
+                # carve-out flags — was this entry rescued by an mtf_dn carve?
                 # (filter block always runs before entry_meta is built, so the
-                # variable is guaranteed defined at this point.)
+                # variables are guaranteed defined at this point.)
                 "mtf_dn_calm_seller_carve": bool(_mtf_dn_calm_seller_carve),
+                "mtf_dn_pc_h1_carve": bool(_mtf_dn_pc_h1_carve),
             }
 
             # fusion_constrained — SHADOW 2026-05-15. 14-feature LR (chart MTF +
