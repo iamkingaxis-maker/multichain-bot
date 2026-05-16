@@ -159,10 +159,23 @@ class Config:
     dip_max_mcap: float = 100_000_000      # $100M max FDV — excludes BONK/PUMP-tier large caps that don't bounce
     dip_min_age_days: float = 0.0          # No age floor — other filters (bs_h6, turnover, vol-decay) do structural protection. Still blocks tokens with missing pairCreatedAt.
     dip_min_volume_h24: float = 200_000    # $200k minimum 24h volume
-    dip_tp1_pct: float = 5.0              # TP1 at +5%. Lowered 2026-05-12 from 8.0. Lifetime simulation (n=1029) showed 52 trades peaked 5-8% then bled to avg -$3.53; TP1=5 locks 50% at +5% on those, estimated +$156 lifetime rescue. Cost: every TP1-firing winner gives up 1.5pp on the half-locked portion vs +8 (-$397 lifetime). Net is negative on lifetime ($-241) but the 5-8% bled cohort matches the slow-bleed pattern user wants to address. TP2 stays at 12, trail/bearflip preserved on remainder so big runners aren't capped. Recent 7d cost is small (-$5/day).
-    dip_tp1_sell: float = 0.75            # Sell 75% at TP1. Raised 0.50 → 0.75 on 2026-05-16 after RABBIT loss showed post-TP1 trail latency (5s mgmt-cycle) lets 9pp drops happen in 4s. Locking 75% at +5% means only 25% rides the latency-prone trail. RABBIT sim: 0.75*5 + 0.25*-2.87 = +3.04% vs actual +0.58%. Earlier n=1507 held-out test from 05-08 went the other way on TP1=100%, but the latency-overshoot pattern is the new failure mode and 75% is the compromise (still captures upside on the 25% remainder if it runs to TP2).
-    dip_tp2_pct: float = 12.0             # TP2 at +12% — sell remaining 100%. Restored 2026-05-04 from unreachable-15% (user directive: 8/12 ladder gives 50% locked in early + upside on remainder).
-    dip_tp2_sell: float = 1.0
+    # Staged 3-tier TP ladder. Shipped 2026-05-16 after observing 5 of 9
+    # winning trades give back 60-90% of peak via pre-TP1 trail latency
+    # (Dust peak +3.74 → exit -2.43, RABBIT peak +5.96 → exit -2.87, etc.).
+    # The old 2-stage (TP1=5%/75% + TP2=12%/100% + trail) leaks because
+    # peak-3-to-5 trades don't reach TP1 and bleed via the latency-prone
+    # confirm window. The staged ladder locks profit in 3 bands:
+    #   - Peak in [+3, +5%): TP1 fires, 50% locked at +3 (catches Dust class)
+    #   - Peak in [+5, +10%): TP1 + TP2 fire, total 75% locked (50% at +3, 25% at +5)
+    #   - Peak ≥ +10%: TP3 closes remaining 25% at +10 → blended +5.25%
+    # Cost: caps the rare +13-15% runners (BUFO, RKC) at blended +5.25.
+    # Trade-off accepted given the consistent give-back pain.
+    dip_tp1_pct: float = 3.0              # TP1 at +3% — sells 50% of position
+    dip_tp1_sell: float = 0.50            # 50% of original
+    dip_tp2_pct: float = 5.0              # TP2 at +5% — sells 50% of remainder = 25% of original
+    dip_tp2_sell: float = 0.50            # 50% of remainder
+    dip_tp3_pct: float = 10.0             # TP3 at +10% — closes remaining 25%
+    dip_tp3_sell: float = 1.0             # 100% of remainder
     dip_stop_pct: float = 7.0             # Hard stop at -7% (was -12% from 2026-05-04). Tightened 2026-05-10: post-CB simulation (n=177, n=92 winners, all with max_drawdown_pct populated) showed avg loss-per-stop ($3.11) was 1.5× avg win-per-tp ($2.07), making breakeven WR 60% vs actual 52%. At -7%: 14 winners would have stopped out (cost +$48.67 in foregone TP gains), 66 stops would lose less (+$85.41 saved), net +$36.74 over 5 days. Earlier -8% experiment was under a different filter regime; the 13-filter stack + entry-signature changes mean the trade-off has flipped.
     dip_winner_trail_pct: float = 1.0     # Tightened 2.0 → 1.0 on 2026-05-16 (exit-sim option C). Sim across 79 closed trades: 27 TP1_FIRED trades all helped (+0.50%/trade avg), 0 hurt; $/trade improvement +$0.043. With 5s mgmt-cycle latency the empirical floor is ~1.5pp, so spec=1.0 caps actual give-back at ~2.5pp instead of ~3.5pp.
     dip_max_concurrent: int = 4           # Max simultaneous dip positions

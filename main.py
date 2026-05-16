@@ -330,6 +330,8 @@ async def main():
             dip_tp1_sell=config.dip_tp1_sell,
             dip_tp2_pct=config.dip_tp2_pct,
             dip_tp2_sell=config.dip_tp2_sell,
+            dip_tp3_pct=config.dip_tp3_pct,
+            dip_tp3_sell=config.dip_tp3_sell,
             dip_stop_pct=config.dip_stop_pct,
             dip_winner_trail_pct=config.dip_winner_trail_pct,
             scalp_tp1_pct=config.scalp_tp1_pct,
@@ -659,7 +661,9 @@ async def main():
     await telegram.send(
         "Solana Bot v7 Started\n\n"
         "Active strategy: dip_buy (real-dip-3 entry filter)\n"
-        f"  TP: +{config.dip_tp1_pct:.0f}% → sell {config.dip_tp1_sell*100:.0f}% (flat, no trail)\n"
+        f"  TP1: +{config.dip_tp1_pct:.0f}% → sell {config.dip_tp1_sell*100:.0f}% of original\n"
+        f"  TP2: +{config.dip_tp2_pct:.0f}% → sell {config.dip_tp2_sell*100:.0f}% of remainder\n"
+        f"  TP3: +{config.dip_tp3_pct:.0f}% → sell {config.dip_tp3_sell*100:.0f}% (close)\n"
         f"  Stop: -{config.dip_stop_pct:.0f}% hard\n"
         f"  Entry gate: BLOCK if 5m > -3% AND 1h > -3% (no real pullback)\n"
         f"  Volume-death exit: sell on vol_m5=0 + vol_h1<$30k\n\n"

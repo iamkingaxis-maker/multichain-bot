@@ -357,10 +357,12 @@ class PositionManager:
                  # so test/script instantiations without explicit kwargs see
                  # production behavior. main.py still passes config.* values
                  # explicitly at startup.
-                 dip_tp1_pct: float = 8.0,
-                 dip_tp1_sell: float = 0.75,
-                 dip_tp2_pct: float = 15.0,
-                 dip_tp2_sell: float = 1.0,
+                 dip_tp1_pct: float = 3.0,
+                 dip_tp1_sell: float = 0.50,
+                 dip_tp2_pct: float = 5.0,
+                 dip_tp2_sell: float = 0.50,
+                 dip_tp3_pct: float = 10.0,
+                 dip_tp3_sell: float = 1.0,
                  dip_stop_pct: float = 15.0,
                  dip_winner_trail_pct: float = 3.5,
 
@@ -416,11 +418,13 @@ class PositionManager:
         self.mc_stop_loss_pct = mc_stop_loss_pct
         self.mc_winner_trail_pct = mc_winner_trail_pct
 
-        # Dip buy settings
+        # Dip buy settings — 3-tier ladder
         self.dip_tp1_pct = dip_tp1_pct
         self.dip_tp1_sell = dip_tp1_sell
         self.dip_tp2_pct = dip_tp2_pct
         self.dip_tp2_sell = dip_tp2_sell
+        self.dip_tp3_pct = dip_tp3_pct
+        self.dip_tp3_sell = dip_tp3_sell
         self.dip_stop_pct = dip_stop_pct
         self.dip_winner_trail_pct = dip_winner_trail_pct
 
@@ -2087,7 +2091,9 @@ class PositionManager:
             # 133 trades during the broken regime, but the proven Apr 19-29
             # era (97% WR / +$4854) ran with this trail.  Restored per user
             # directive 2026-05-04 alongside the filter-cascade revert.
-            if (state.tp1_hit and not state.tp2_hit
+            # 3-tier ladder note: trail fires between TP1 and TP3 — covers
+            # the post-TP1 (peak 3-5) and post-TP2 (peak 5-10) remainders.
+            if (state.tp1_hit and not state.tp3_hit
                     and state.peak_price > 0 and state.entry_price > 0
                     and state.current_price <= state.peak_price * (1 - self.dip_winner_trail_pct / 100)):
                 drop_from_peak = (state.peak_price - state.current_price) / state.peak_price * 100
@@ -2104,7 +2110,20 @@ class PositionManager:
                 )
                 return
 
-            # ── DIP TAKE PROFIT ───────────────────────────────────────
+            # ── DIP TAKE PROFIT (3-tier ladder, check highest first) ───
+            if pnl_pct >= self.dip_tp3_pct and not state.tp3_hit:
+                state.tp3_hit = True
+                logger.info(
+                    f"[PositionManager/{self.chain_name}] 🎯 DIP TP3: "
+                    f"{state.token_symbol} +{pnl_pct:.1f}%"
+                )
+                await self._execute_sell(
+                    token_address, state,
+                    pct=self.dip_tp3_sell,
+                    reason=f"Dip TP3 +{pnl_pct:.1f}%"
+                )
+                return
+
             if pnl_pct >= self.dip_tp2_pct and not state.tp2_hit:
                 state.tp2_hit = True
                 logger.info(
@@ -2816,8 +2835,8 @@ class PositionManager:
             return
         if state.strategy != "dip_buy":
             return
-        if not state.tp1_hit or state.tp2_hit:
-            return  # only fires for the post-TP1 remainder
+        if not state.tp1_hit or state.tp3_hit:
+            return  # fires between TP1 and TP3 (post-TP1 and post-TP2 remainders)
         if token_address in self._post_tp1_trail_triggered:
             return
         if token_address in self._stop_triggered:
@@ -2837,7 +2856,11 @@ class PositionManager:
         pnl_pct = (price_usd / state.entry_price - 1) * 100
         peak_pct = (state.peak_price / state.entry_price - 1) * 100
 
-        _MIN_PEAK = self.dip_tp1_pct + 1.0  # e.g. +6% if TP1=+5%
+        # 3-tier ladder: anchor to TP2 (the mid stage) — if peak >= TP2+1pp,
+        # we have a meaningful run beyond TP2 worth protecting. Pre-TP2 trail
+        # is covered by the staged TPs themselves (peak between TP1 and TP2
+        # locks 50% at TP1 + falls back via stop or pre-TP1 trail).
+        _MIN_PEAK = self.dip_tp2_pct + 1.0  # e.g. +6% if TP2=+5%
         _DROP_PP = self.dip_winner_trail_pct  # currently 1.0
         _CONFIRM_S = 5.0
         _RECOVERY_PP = 0.5
