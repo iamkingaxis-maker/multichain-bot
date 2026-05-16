@@ -6709,6 +6709,45 @@ class DipScanner:
             except Exception:
                 _suppress_reason = None
 
+            # ── WASH-TRADING GUARD (2026-05-16) ──────────────────────────
+            # All 9 new on-chain triggers use bs_m5/h1/h6 (txn COUNT ratios)
+            # and net_flow_60s_usd which can be skewed by micro-buys ($0.05
+            # each) that inflate count without real $ flow. BULLISH entry
+            # at 00:44 UTC had mean_buy_size_usd=$0.52 — pure wash signature
+            # that all 9 triggers were vulnerable to.
+            #
+            # Guard: require mean_buy_size_usd >= $10 for ANY new on-chain
+            # trigger to fire. Lifetime evidence: WIN avg $84, LOSE avg $54
+            # — $10 floor is well below both distributions but cleanly
+            # excludes wash (avg <$1 typical).
+            _mean_buy_size = (entry_meta_dict.get("mean_buy_size_usd")
+                              if False else None)  # placeholder; meta not built yet
+            try:
+                _mbs = (_tier1_features.get("mean_buy_size_usd")
+                        if isinstance(_tier1_features, dict) else None)
+                if _mbs is None and isinstance(_tier3_features, dict):
+                    _mbs = _tier3_features.get("mean_buy_size_usd")
+            except Exception:
+                _mbs = None
+            _wash_guard_block = False
+            if _mbs is not None and float(_mbs) < 10:
+                _wash_guard_block = True
+                logger.info(
+                    f"[DipScanner] new-triggers WASH-GUARDED: {token_symbol} "
+                    f"mean_buy_size=${float(_mbs):.2f}<$10 (wash-trade signature; "
+                    f"clearing 9 new on-chain triggers)"
+                )
+                c["new_trigger_wash_guarded"] = c.get("new_trigger_wash_guarded", 0) + 1
+                _trigger_strong_orderflow_match = False
+                _trigger_sustained_accum_match = False
+                _trigger_chart_qual_bottom_match = False
+                _trigger_buyer_momentum_burst_match = False
+                _trigger_flow_reversal_match = False
+                _trigger_chart_reversal_match = False
+                _trigger_micro_pattern_match = False
+                _trigger_vp_aligned_match = False
+                _trigger_quiet_buyer_match = False
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _trigger_strong_orderflow_match:
