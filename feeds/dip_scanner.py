@@ -10504,18 +10504,40 @@ class DipScanner:
                 bool(_triggers_fired)
                 and all(t in _MARGINAL_FOR_SIZE for t in _triggers_fired)
             )
+            # ── sol_micro_uptick sizing modifier — ENFORCED 2026-05-16 PM ───
+            # When SOL is ticking UP in the 1 min before entry, broader market
+            # is risk-on; memecoin entries do better. Mined Cohen's d=+0.79
+            # (strongest macro feature) on n=88 30d paired trades:
+            #   sol_pc_m1 >= +0.01: n=12, 42% WR (vs 26% baseline)
+            #   sol_pc_m1 <  +0.01: ~25% WR
+            # Sample is small but effect size large. Shipped as STANDARD→
+            # macro_up sizing boost (1.5x) rather than a hard filter, so
+            # we don't kill volume on a small-sample signal. Doesn't override
+            # premium (which is already 2x) or marginal (0.5x — risk gated).
+            try:
+                _sol_uptick_m1 = sol_features.get("sol_pc_m1")
+            except (NameError, AttributeError):
+                _sol_uptick_m1 = None
+            _sol_micro_uptick = (
+                isinstance(_sol_uptick_m1, (int, float))
+                and _sol_uptick_m1 >= 0.01
+            )
             if _is_premium_size:
                 _position_size = self.position_usd * 2.0
                 _size_tier = "premium"
             elif _all_marginal_size:
                 _position_size = self.position_usd * 0.5
                 _size_tier = "marginal"
+            elif _sol_micro_uptick:
+                _position_size = self.position_usd * 1.5
+                _size_tier = "macro_up"
             else:
                 _position_size = self.position_usd
                 _size_tier = "standard"
             logger.info(
                 f"[DipScanner] Position size tier: {_size_tier} ${_position_size:.0f} "
                 f"(base ${self.position_usd:.0f}) for {token_symbol} triggers={_triggers_fired}"
+                + (f" sol_pc_m1={_sol_uptick_m1:+.3f}" if _sol_uptick_m1 is not None else "")
             )
 
             await self.trader.buy(
