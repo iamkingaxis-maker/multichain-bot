@@ -69,6 +69,42 @@ def regime_panic_block(c):
     r = c.get('regime_h1_neg_pct')
     return r is not None and r > 70.0
 
+def macro_panic_block(c):
+    """Phantom mirror for filter_macro_panic SHADOW 2026-05-16.
+
+    Blocks when ANY of:
+      - meme_sector_pct_h24 < -10 (sector dump)
+      - sol_pc_h1 < -3 (SOL flash crash)
+      - sol_pc_h4 < -5 AND btc_pc_h4 < -2 (macro flush)
+
+    Premium-signature carve-out: avg_trade_size_h1>=116 AND
+    liq_velocity_h1>=135 AND p90_buy_size>=153 → passes through.
+
+    Fail-open when macro features absent (token universe pre-macro-context).
+    """
+    msc = c.get('meme_sector_pct_h24')
+    sh1 = c.get('sol_pc_h1')
+    sh4 = c.get('sol_pc_h4')
+    bh4 = c.get('btc_pc_h4')
+    panic = False
+    if msc is not None and msc < -10.0:
+        panic = True
+    if sh1 is not None and sh1 < -3.0:
+        panic = True
+    if (sh4 is not None and sh4 < -5.0
+            and bh4 is not None and bh4 < -2.0):
+        panic = True
+    if not panic:
+        return False
+    # Premium carve-out
+    ats = c.get('avg_trade_size_h1_usd')
+    lvh1 = c.get('liq_velocity_h1_usd_per_txn')
+    p90 = c.get('p90_buy_size_usd')
+    premium = (ats is not None and ats >= 116
+               and lvh1 is not None and lvh1 >= 135
+               and p90 is not None and p90 >= 153)
+    return not premium
+
 def slip_asym_block(c):
     """Shadow: sell-side liquidity hostile (slip_sell>8%, or sell/buy ratio>1.5x)."""
     sb = c.get('slip_buy_5000_pct')

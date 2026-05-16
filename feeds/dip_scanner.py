@@ -9024,6 +9024,85 @@ class DipScanner:
                 "filter_morning_dead_zone_pass", 0
             ) + 1
 
+            # ── filter_macro_panic — SHADOW 2026-05-16 PM ──────────────────
+            # Macro context gate. Existing regime tag already classifies
+            # sol/btc/meme-sector state into up/flat/down (lines 1264-1284).
+            # This filter sharpens "down" into "panic" using stricter
+            # thresholds — true sector dumps where dip-buy P&L tends to
+            # invert regardless of token-level signal quality.
+            #
+            # Predicate (any one fires → PANIC):
+            #   meme_sector_pct_h24 < -10        # sector dump
+            #   sol_pc_h1 < -3                   # SOL flash crash
+            #   (sol_pc_h4 < -5 AND btc_pc_h4 < -2)  # macro flush
+            #
+            # Carve-out: premium signature (avg_trade_size_h1 >= 116 AND
+            # liq_velocity_h1 >= 135 AND p90_buy_size >= 153) passes
+            # through — these are the 75-100% WR compounds that don't
+            # care about macro noise.
+            #
+            # Status: SHADOW. Verdict stamped to entry_meta for forward
+            # validation. Promote after 5-7d of paired data confirming
+            # avg_exit on PANIC-blocked cohort < -10% vs PASS cohort.
+            _filter_macro_panic_block_reasons: list = []
+            try:
+                _mp_msc = sol_features.get("meme_sector_pct_h24")
+                _mp_sh1 = sol_features.get("sol_pc_h1")
+                _mp_sh4 = sol_features.get("sol_pc_h4")
+                _mp_bh4 = sol_features.get("btc_pc_h4")
+                if _mp_msc is not None and _mp_msc < -10.0:
+                    _filter_macro_panic_block_reasons.append(
+                        f"meme_sector_h24={_mp_msc:.1f}%<-10 (sector dump)"
+                    )
+                if _mp_sh1 is not None and _mp_sh1 < -3.0:
+                    _filter_macro_panic_block_reasons.append(
+                        f"sol_pc_h1={_mp_sh1:.1f}%<-3 (SOL flash crash)"
+                    )
+                if (_mp_sh4 is not None and _mp_sh4 < -5.0
+                        and _mp_bh4 is not None and _mp_bh4 < -2.0):
+                    _filter_macro_panic_block_reasons.append(
+                        f"sol_h4={_mp_sh4:.1f}%<-5 AND btc_h4={_mp_bh4:.1f}%<-2 (macro flush)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] filter_macro_panic err: {_e}")
+            _filter_macro_panic_verdict = (
+                "BLOCK" if _filter_macro_panic_block_reasons else "PASS"
+            )
+            # Premium-signature carve-out (would-rescue annotation only —
+            # SHADOW filter doesn't actually block, so this just marks
+            # whether a future ENFORCED version would have rescued).
+            _filter_macro_panic_premium_rescue = False
+            if _filter_macro_panic_verdict == "BLOCK":
+                try:
+                    _mp_lv = volume_velocity_features.get(
+                        "liq_velocity_h1_usd_per_txn"
+                    )
+                except (NameError, AttributeError):
+                    _mp_lv = None
+                try:
+                    _mp_p90 = _trade_log_dict.get("p90_buy_size_usd")
+                except (NameError, AttributeError):
+                    _mp_p90 = None
+                _mp_ats = float(avg_trade_size_h1) if avg_trade_size_h1 else None
+                _filter_macro_panic_premium_rescue = (
+                    _mp_ats is not None and _mp_ats >= 116
+                    and _mp_lv is not None and _mp_lv >= 135
+                    and _mp_p90 is not None and _mp_p90 >= 153
+                )
+            c[f"filter_macro_panic_{_filter_macro_panic_verdict.lower()}"] = c.get(
+                f"filter_macro_panic_{_filter_macro_panic_verdict.lower()}", 0
+            ) + 1
+            if _filter_macro_panic_verdict == "BLOCK":
+                _rescue_tag = (
+                    " (PREMIUM_RESCUE)" if _filter_macro_panic_premium_rescue
+                    else ""
+                )
+                logger.info(
+                    f"[DipScanner] filter_macro_panic SHADOW would-block: "
+                    f"{token_symbol} reasons={','.join(_filter_macro_panic_block_reasons)}"
+                    f"{_rescue_tag}"
+                )
+
             # ── filter_1h_v_bottom_fake_recovery — ENFORCED 2026-05-13 PM ───
             # Round-5 negative-filter mining: last 1h is GREEN and prior 1h
             # was RED, with current close >= prior open (i.e., a "V-bottom
@@ -9755,6 +9834,10 @@ class DipScanner:
                 # filter_fake_bounce — enforced 1m fake-bounce gate.
                 "filter_fake_bounce_verdict": _filter_fake_bounce_verdict,
                 "filter_fake_bounce_block_reasons": _filter_fake_bounce_block_reasons,
+                # filter_macro_panic — SHADOW 2026-05-16 macro context gate.
+                "filter_macro_panic_verdict": _filter_macro_panic_verdict,
+                "filter_macro_panic_block_reasons": _filter_macro_panic_block_reasons,
+                "filter_macro_panic_premium_rescue": _filter_macro_panic_premium_rescue,
                 # filter_sweep_too_recent — ENFORCED 2026-05-13 anti-knife-catch.
                 "filter_sweep_too_recent_verdict": _filter_sweep_too_recent_verdict,
                 "filter_sweep_too_recent_block_reasons": _filter_sweep_too_recent_block_reasons,

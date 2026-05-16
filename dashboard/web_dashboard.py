@@ -1627,6 +1627,7 @@ class WebDashboard:
         self.app.router.add_post("/api/resume",             self._handle_resume)
         self.app.router.add_get("/api/strategies",          self._handle_strategies)
         self.app.router.add_get("/api/diagnostics",         self._handle_diagnostics)
+        self.app.router.add_get("/metrics",                 self._handle_metrics)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -2913,6 +2914,98 @@ class WebDashboard:
             text=json.dumps(diag),
             content_type="application/json",
             headers=cors,
+        )
+
+    async def _handle_metrics(self, request):
+        """GET /metrics — Prometheus exposition format.
+
+        Plain-text metrics endpoint scrapeable by Prometheus/Grafana.
+        No prometheus_client dependency — handcrafted text format keeps
+        the surface small and avoids new pip deps. Mirrors the
+        /api/diagnostics fields but in counter/gauge shape.
+
+        Format spec: https://prometheus.io/docs/instrumenting/exposition_formats/
+        All metric names prefixed with `multichain_bot_`.
+        """
+        import time as _time
+        mono_now = _time.monotonic()
+        lines: list = []
+
+        def _emit(name: str, help_: str, type_: str, value, labels: dict | None = None):
+            lines.append(f"# HELP {name} {help_}")
+            lines.append(f"# TYPE {name} {type_}")
+            if labels:
+                _lbl = ",".join(f'{k}="{v}"' for k, v in labels.items())
+                lines.append(f"{name}{{{_lbl}}} {value}")
+            else:
+                lines.append(f"{name} {value}")
+
+        try:
+            uptime_mins = (datetime.now(timezone.utc) - self._start_time).total_seconds() / 60.0
+            _emit("multichain_bot_uptime_minutes",
+                  "Bot uptime in minutes since process start",
+                  "gauge", round(uptime_mins, 2))
+
+            dex_feed = getattr(self._trader, "_dex_price_feed", None) if self._trader else None
+            ws_connected = 1 if getattr(dex_feed, "ws_connected", False) else 0
+            ws_failures = int(getattr(dex_feed, "ws_consecutive_failures", 0) or 0)
+            _emit("multichain_bot_ws_connected",
+                  "DexScreener WS connection state (1=connected, 0=down)",
+                  "gauge", ws_connected)
+            _emit("multichain_bot_ws_consecutive_failures",
+                  "Consecutive WS reconnect failures",
+                  "gauge", ws_failures)
+
+            open_positions = len(self._trader.open_positions) if self._trader else 0
+            _emit("multichain_bot_open_positions",
+                  "Currently open positions (all strategies)",
+                  "gauge", open_positions)
+
+            _emit("multichain_bot_trading_paused",
+                  "Trading paused flag (1=paused, 0=live)",
+                  "gauge", 1 if self._trading_paused else 0)
+
+            _emit("multichain_bot_anomalies_recent",
+                  "Recent anomalies retained in ring buffer",
+                  "gauge", len(self._anomaly_log))
+
+            for scanner in self._scanners.values():
+                chain = getattr(getattr(scanner, "chain", None), "name", "unknown")
+                _emit("multichain_bot_signals_fired",
+                      "Signals fired by scanner (cumulative)",
+                      "counter",
+                      int(getattr(scanner, "signals_fired", 0) or 0),
+                      {"chain": chain})
+                last_buy = getattr(scanner, "_last_buy_time", 0) or 0
+                if last_buy > 0:
+                    secs_since_buy = max(0, mono_now - last_buy)
+                    _emit("multichain_bot_seconds_since_last_buy",
+                          "Seconds since last buy fired by scanner",
+                          "gauge", round(secs_since_buy, 1),
+                          {"chain": chain})
+                # Blocked-signal counters (each in its own counter line per chain)
+                for reason_attr, reason_label in [
+                    ("signals_blocked_h6_extended", "h6_extended"),
+                    ("signals_blocked_pump_cooldown", "pump_cooldown"),
+                    ("signals_blocked_stale_nocandle", "stale_nocandle"),
+                    ("signals_blocked_atm_nocandle", "atm_nocandle"),
+                    ("signals_blocked_tick_momentum", "tick_momentum"),
+                    ("signals_blocked_score", "score"),
+                    ("signals_blocked_security", "security"),
+                ]:
+                    val = int(getattr(scanner, reason_attr, 0) or 0)
+                    _emit("multichain_bot_signals_blocked",
+                          "Signals blocked by scanner reason (cumulative)",
+                          "counter", val,
+                          {"chain": chain, "reason": reason_label})
+        except Exception as _e:
+            lines.append(f"# ERROR generating metrics: {_e}")
+
+        body = "\n".join(lines) + "\n"
+        return web.Response(
+            text=body,
+            content_type="text/plain; version=0.0.4",
+            headers={"Access-Control-Allow-Origin": "*"},
         )
 
     async def _handle_sse(self, request):
