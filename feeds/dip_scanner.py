@@ -1854,7 +1854,18 @@ class DipScanner:
                     f"max@{int(_shape_max_age90)}m>=30 AND "
                     f"dd_from_max={_shape_dd90:.1f}%<=-22 (round-trip distribution)"
                 )
-            _filter_round_trip_verdict = "BLOCK" if _filter_round_trip_block_reasons else "PASS"
+            # CARVE-OUT 2026-05-16 PM: rescue when vol_h24 <= $1.4M.
+            # Mining: 71 round-trip-blocked events with vol24h_k<=1396 hit
+            # 63% won_10pct (+24.9% avg peak) vs 52% baseline. Smaller-vol
+            # tokens that pulled back have higher mean-reversion success.
+            _round_trip_carve = False
+            if (_filter_round_trip_block_reasons
+                and vol_h24 is not None and float(vol_h24) <= 1_396_000):
+                _round_trip_carve = True
+            _filter_round_trip_verdict = (
+                "BLOCK" if (_filter_round_trip_block_reasons and not _round_trip_carve)
+                else "PASS"
+            )
             c[f"filter_round_trip_{_filter_round_trip_verdict.lower()}"] = c.get(
                 f"filter_round_trip_{_filter_round_trip_verdict.lower()}", 0
             ) + 1
@@ -1864,6 +1875,12 @@ class DipScanner:
                     f"reasons={','.join(_filter_round_trip_block_reasons)}"
                 )
                 continue
+            if _round_trip_carve and _filter_round_trip_block_reasons:
+                logger.info(
+                    f"[DipScanner] filter_round_trip RESCUED by vol_h24=${float(vol_h24)/1000:.0f}k<=1396k: "
+                    f"{token_symbol}"
+                )
+                c["filter_round_trip_carve_vol"] = c.get("filter_round_trip_carve_vol", 0) + 1
 
             # Filter weak-bounce v2 — ENFORCED 2026-05-09.
             # Compound rule: 5m candle body/range < 0.20 (weak commitment)
@@ -2577,7 +2594,17 @@ class DipScanner:
                     and _chart_score_for_carve >= 56
                 )
                 _pcb_carve_out = _trigger_post_capit_breakout_match
-                if not _big_buyer_carve_out and not _chart_carve_out and not _pcb_carve_out:
+                # CARVE-OUT 2026-05-16 PM: rescue when bs_h6 <= 1.20.
+                # Mining: turn-blocked + bs_h6<=1.20 → n=295, 64% won_10pct,
+                # +20.6% avg peak vs 49% blocks-baseline. Low bs_h6 means
+                # the 6h ratio is at-or-below baseline (not over-extended);
+                # turn filter's "catching knife" thesis doesn't apply when
+                # the 6h structure is balanced.
+                _bs_h6_carve_out = (
+                    ratio_h6 is not None and float(ratio_h6) <= 1.20
+                )
+                if (not _big_buyer_carve_out and not _chart_carve_out
+                        and not _pcb_carve_out and not _bs_h6_carve_out):
                     logger.info(
                         f"[DipScanner] BLOCKED by filter_turn: {token_symbol} "
                         f"reasons={','.join(_filter_turn_block_reasons)}"
@@ -2607,6 +2634,13 @@ class DipScanner:
                         f"[DipScanner] filter_turn rescued by post_capit_breakout carve-out: "
                         f"{token_symbol} {';'.join(_trigger_post_capit_breakout_reasons)}"
                     )
+                elif _bs_h6_carve_out:
+                    logger.info(
+                        f"[DipScanner] filter_turn rescued by bs_h6 carve-out: "
+                        f"{token_symbol} bs_h6={float(ratio_h6):.2f}<=1.20 "
+                        f"(64% won_10pct on n=295 in 4d mining)"
+                    )
+                    c["filter_turn_carve_bs_h6"] = c.get("filter_turn_carve_bs_h6", 0) + 1
 
             # Filter vp_poc_above — ENFORCED 2026-05-08, retuned 2026-05-08 PM (B3).
             # Catches the "extreme above POC on dead volume" pattern: blocks when
@@ -3163,21 +3197,28 @@ class DipScanner:
                             "filter_chasing_top_rescued_orderflow", 0
                         ) + 1
                     else:
+                        # DOWNGRADED TO SHADOW 2026-05-16 PM. 4d audit showed
+                        # this filter blocked 97 events with 55% won_10pct
+                        # (ABOVE 46% baseline) — actively harmful. The
+                        # "chasing the top" thesis doesn't hold up: many of
+                        # these tokens went on to peak +20%+. Logging in
+                        # shadow recorder for forward attribution but NOT
+                        # blocking. Re-promote only with strong evidence.
                         logger.info(
-                            f"[DipScanner] BLOCKED by filter_chasing_top: {token_symbol} "
-                            f"5m_state=uptrend AND mtf={_ct_mtf} (chasing — not a dip)"
+                            f"[DipScanner] SHADOW filter_chasing_top would-block: {token_symbol} "
+                            f"5m_state=uptrend AND mtf={_ct_mtf} (DOWNGRADED 05-16, see audit)"
                         )
-                        c["filter_chasing_top_block"] = c.get("filter_chasing_top_block", 0) + 1
+                        c["filter_chasing_top_shadow_block"] = c.get("filter_chasing_top_shadow_block", 0) + 1
                         try:
                             from feeds.filter_shadow_recorder import get_recorder as _gfsr
                             _gfsr().record(
                                 token_address=token_address, token_symbol=token_symbol,
-                                pair=pair, filter_name="filter_chasing_top", verdict="BLOCK",
+                                pair=pair, filter_name="filter_chasing_top", verdict="SHADOW_BLOCK",
                                 block_reasons=f"5m_state=uptrend AND mtf={_ct_mtf}",
                             )
                         except Exception:
                             pass
-                        continue
+                        # NOTE: removed `continue` — now passes through.
             except (NameError, AttributeError):
                 pass  # chart_ctx not built — fail-open
             c["filter_chasing_top_pass"] = c.get("filter_chasing_top_pass", 0) + 1
@@ -3279,7 +3320,19 @@ class DipScanner:
                         )
             except Exception as _e:
                 logger.debug(f"[DipScanner] bs_m5_weak calc err: {_e}")
-            _filter_bs_m5_weak_verdict = "BLOCK" if _filter_bs_m5_weak_block_reasons else "PASS"
+            # CARVE-OUT 2026-05-16 PM: rescue when pc_m5 >= -0.60.
+            # Mining: bs_m5_weak-blocked + pc_m5>=-0.60 → n=73, 62% won_10pct
+            # (+16.5% avg peak) vs 50% blocks-baseline. The "weak m5 buy/sell
+            # ratio" thesis fails when m5 already stabilized (not actively
+            # selling). bs_m5 lags pc_m5 in fast-moving tokens.
+            _bs_m5_weak_carve = False
+            if (_filter_bs_m5_weak_block_reasons
+                and pc_m5 is not None and float(pc_m5) >= -0.60):
+                _bs_m5_weak_carve = True
+            _filter_bs_m5_weak_verdict = (
+                "BLOCK" if (_filter_bs_m5_weak_block_reasons and not _bs_m5_weak_carve)
+                else "PASS"
+            )
             c[f"filter_bs_m5_weak_{_filter_bs_m5_weak_verdict.lower()}"] = c.get(
                 f"filter_bs_m5_weak_{_filter_bs_m5_weak_verdict.lower()}", 0
             ) + 1
@@ -3289,6 +3342,12 @@ class DipScanner:
                     f"reasons={','.join(_filter_bs_m5_weak_block_reasons)}"
                 )
                 continue
+            if _bs_m5_weak_carve and _filter_bs_m5_weak_block_reasons:
+                logger.info(
+                    f"[DipScanner] filter_bs_m5_weak RESCUED by pc_m5={float(pc_m5):+.2f}%>=-0.60: "
+                    f"{token_symbol}"
+                )
+                c["filter_bs_m5_weak_carve_pc_m5"] = c.get("filter_bs_m5_weak_carve_pc_m5", 0) + 1
 
             # 6) avg_trade_size_h1 — block tokens with big trades preceding
             # the dip ($80+ avg in last hour = whales selling in size).
@@ -5922,7 +5981,26 @@ class DipScanner:
                     )
             except Exception as _e:
                 logger.debug(f"[DipScanner] mtf_downtrend filter err: {_e}")
-            _filter_mtf_dn_verdict = "BLOCK" if _filter_mtf_dn_block_reasons else "PASS"
+            # CARVE-OUT 2026-05-16 PM: rescue when chart_score >= 58.20.
+            # Mining: mtf_strong_downtrend-blocked + chart_score>=58 → n=54,
+            # 65% won_10pct, **+30.8% avg peak** (highest peak of any carve-out
+            # found in this round). Strong chart pattern overrides MTF bear
+            # bias — these are the rare reversal candidates that look bad
+            # on higher TFs but have a strong underlying setup (V-bottom,
+            # accumulation, breakout pattern).
+            _mtf_dn_chart_carve = False
+            try:
+                _mtf_carve_chart_score = (_chart_ctx_dict or {}).get("chart_score")
+                if (_filter_mtf_dn_block_reasons
+                    and isinstance(_mtf_carve_chart_score, (int, float))
+                    and float(_mtf_carve_chart_score) >= 58.20):
+                    _mtf_dn_chart_carve = True
+            except Exception:
+                pass
+            _filter_mtf_dn_verdict = (
+                "BLOCK" if (_filter_mtf_dn_block_reasons and not _mtf_dn_chart_carve)
+                else "PASS"
+            )
             c[f"filter_mtf_strong_downtrend_{_filter_mtf_dn_verdict.lower()}"] = c.get(
                 f"filter_mtf_strong_downtrend_{_filter_mtf_dn_verdict.lower()}", 0
             ) + 1
@@ -5932,6 +6010,13 @@ class DipScanner:
                     f"{token_symbol} reasons={','.join(_filter_mtf_dn_block_reasons)}"
                 )
                 continue
+            if _mtf_dn_chart_carve and _filter_mtf_dn_block_reasons:
+                logger.info(
+                    f"[DipScanner] filter_mtf_strong_downtrend RESCUED by chart_score: "
+                    f"{token_symbol} chart_score={(_chart_ctx_dict or {}).get('chart_score', 0):.1f}>=58.2 "
+                    f"(65% won_10pct on n=54 in 4d mining, +30.8% avg peak)"
+                )
+                c["filter_mtf_dn_carve_chart_score"] = c.get("filter_mtf_dn_carve_chart_score", 0) + 1
 
             # ── filter_falling_knife — ENFORCED 2026-05-15 ──────────────────
             # Compound: chart_mtf_score <= -1 AND 1m_last_close_pct < 0.
