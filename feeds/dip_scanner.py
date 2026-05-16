@@ -6904,44 +6904,47 @@ class DipScanner:
             # so the trigger can be re-enabled in one line if conditions change.
             if False and _filter_clean_break_verdict == "PASS" and not _cb_gated:
                 _triggers_fired.append("clean_break")
-            if _trigger_4combo_match:
-                _triggers_fired.append("4combo")
-            if _trigger_quietpop_match:
-                _triggers_fired.append("quiet_pop")
-            if _trigger_deepbreakout_match:
-                _triggers_fired.append("deep_breakout")
-            if _trigger_capitv_match:
-                _triggers_fired.append("capit_v")
-            if _trigger_engulflow_match:
-                _triggers_fired.append("engulf_low")
-            if _trigger_hc46_match:
-                _triggers_fired.append("hc4_6pct")
-            if _trigger_coillong_match:
-                _triggers_fired.append("coil_long")
-            if _trigger_decay4_match:
-                _triggers_fired.append("range_decay_4bar")
-            if _trigger_decay4of5_match:
-                _triggers_fired.append("range_decay_4of5")
-            if _trigger_coiltv_match:
-                _triggers_fired.append("coil_top_vol")
+            # ─── RETIRED chart-pattern triggers (2026-05-16) ────────────────
+            # Dormancy audit on 81 post-reset trades showed match=0/81 for 15
+            # round-5/6/7 chart-pattern triggers (4combo, quiet_pop, etc.).
+            # Predicates still compute above and stamp _match to entry_meta
+            # for SHADOW audit; the append-to-_triggers_fired is removed so
+            # they can't open trades alone. If a token had these as the
+            # ONLY signal, it's now blocked. One-line revival per trigger.
+            #
+            # if _trigger_4combo_match: _triggers_fired.append("4combo")
+            # if _trigger_quietpop_match: _triggers_fired.append("quiet_pop")
+            # if _trigger_deepbreakout_match: _triggers_fired.append("deep_breakout")
+            # if _trigger_capitv_match: _triggers_fired.append("capit_v")
+            # if _trigger_engulflow_match: _triggers_fired.append("engulf_low")
+            # if _trigger_hc46_match: _triggers_fired.append("hc4_6pct")
+            # if _trigger_coillong_match: _triggers_fired.append("coil_long")
+            # if _trigger_decay4_match: _triggers_fired.append("range_decay_4bar")
+            # if _trigger_decay4of5_match: _triggers_fired.append("range_decay_4of5")
+            # if _trigger_coiltv_match: _triggers_fired.append("coil_top_vol")
+            # if _trigger_momentum_continuation_match: _triggers_fired.append("momentum_continuation")
+            # if _trigger_explosive_break_match: _triggers_fired.append("explosive_break")
+            # if _trigger_range_expansion_qualified_match: _triggers_fired.append("range_expansion_qualified")
+            # if _trigger_6of7_green_vol_match: _triggers_fired.append("6of7_green_vol")
+            # if _trigger_vol_velocity_2grn_match: _triggers_fired.append("vol_velocity_2grn")
+            # ─── still active ──────────────────────────────────────────────
             if _trigger_high_regime_match:
                 _triggers_fired.append("high_regime")
-            if _trigger_momentum_continuation_match:
-                _triggers_fired.append("momentum_continuation")
-            if _trigger_explosive_break_match:
-                _triggers_fired.append("explosive_break")
-            if _trigger_range_expansion_qualified_match:
-                _triggers_fired.append("range_expansion_qualified")
-            if _trigger_6of7_green_vol_match:
-                _triggers_fired.append("6of7_green_vol")
             if _trigger_hh10_strict_vol_match:
                 _triggers_fired.append("hh10_strict_vol")
             if _trigger_hh10_8plus_match:
                 _triggers_fired.append("hh10_8plus")
-            if _trigger_vol_velocity_2grn_match:
-                _triggers_fired.append("vol_velocity_2grn")
-            if _trigger_alpha_buyperscold_match:
-                _triggers_fired.append("alpha_buyperscold")
+            # ─── DISABLED 2026-05-16: alpha_buyperscold ────────────────────
+            # 9 fires, 3W/6L (33% WR), avg -0.65%. Below baseline 48% WR.
+            # Loser-cohort mining showed all 6 losses were in clean-linear
+            # 30m trends (r²>=0.45); winners in choppier conditions (r²<0.15).
+            # Predicate `bs_m5>=3.0 AND pc_h24<50` is too loose — fires on
+            # extension-end as often as on bottoms. Disabled rather than
+            # gated because the on-chain triggers (strong_orderflow,
+            # sustained_accumulation) already cover the real-bottom cases
+            # this was meant to catch.
+            # if _trigger_alpha_buyperscold_match:
+            #     _triggers_fired.append("alpha_buyperscold")
             if _trigger_post_capit_breakout_match:
                 _triggers_fired.append("post_capit_breakout")
             if _trigger_beta_retailfresh_match:
