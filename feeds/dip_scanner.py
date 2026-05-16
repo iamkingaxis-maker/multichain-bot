@@ -5812,6 +5812,36 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] overnight_mature_midcap err: {_e}")
 
+            # ── trigger_chart_channel_strong — ENFORCED 2026-05-16 PM ──────
+            # New entry path mined from our own closed trades. Feature
+            # chart_trendline_5m_channel_pos (percent position within 5m
+            # price channel) is the single strongest winner discriminator
+            # we found on our actual trade data — Cohen's d=+1.46 (winners
+            # avg 33, losers avg 4).
+            #
+            # Validation on our 87 7d trades (24 had coverage):
+            #   channel_pos >= 15: n=9, 78% WR, total +$2.79
+            #   channel_pos >= 20: n=6, 100% WR, total +$3.07
+            #   channel_pos <  10: n=14, 36% WR, total -$5.86
+            #
+            # Mechanism: high channel_pos means price is at the TOP of its
+            # 5m channel — momentum is up, not down. Counter to "dip-buy"
+            # intuition but consistent with "buy strength" pattern.
+            # Sparse coverage (~30% of trades) — fail-open if missing.
+            # Standard tier sizing — strong enough signal.
+            _trigger_chart_channel_strong_match = False
+            _trigger_chart_channel_strong_reasons: list = []
+            try:
+                _cp_val = (_chart_ctx_dict or {}).get("chart_trendline_5m_channel_pos")
+                if isinstance(_cp_val, (int, float)) and float(_cp_val) >= 15.0:
+                    _trigger_chart_channel_strong_match = True
+                    _trigger_chart_channel_strong_reasons.append(
+                        f"chart_trendline_5m_channel_pos={float(_cp_val):.1f}>=15 "
+                        f"(78% WR on n=9 in 7d trades, d=+1.46 winner separator)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] chart_channel_strong trigger err: {_e}")
+
             # ── trigger_late_night_fresh — ENFORCED 2026-05-16 PM ──────────
             # Tightened 2026-05-16 PM after deep-dip subset analysis: adding
             # pc_m5 < -10 condition flips avg_exit from -2.6% to +0.4% —
@@ -7158,6 +7188,8 @@ class DipScanner:
                 _triggers_fired.append("fresh_pump_retrace")
             if _trigger_late_night_fresh_match:
                 _triggers_fired.append("late_night_fresh")
+            if _trigger_chart_channel_strong_match:
+                _triggers_fired.append("chart_channel_strong")
             if _trigger_strong_uptrend_dip_match:
                 _triggers_fired.append("strong_uptrend_dip")
             if _trigger_modest_pump_deep_retrace_match:
@@ -8932,6 +8964,66 @@ class DipScanner:
                 "filter_premium_required_pass", 0
             ) + 1
 
+            # ── filter_morning_dead_zone — ENFORCED 2026-05-16 PM ──────────
+            # Hour-of-day mining (universe-recorder n=2049) showed CT 7-9
+            # combined with mature tokens (age>24h) is a persistent dead
+            # zone: avg_exit -10% to -39% across cells. Likely mechanism:
+            # US morning wakeup distribution by EU/Asian holders unwinding
+            # overnight pumps; mature tokens lack fresh-buyer enthusiasm.
+            #
+            # Universe stats on dead cells:
+            #   CT 7 + age>24h: n=100  won_10pct=28%  avg_exit=-11%
+            #   CT 8 + age>24h: n=83   won_10pct=28%  avg_exit=-10%
+            #   CT 9 + age>24h: n=69   won_10pct=35%
+            #   CT 8 + age 12-24h: n=24  won_10pct=17%
+            #
+            # Predicate: CT hour in {7, 8, 9} AND pair_age_hours > 24
+            # Carve-out: premium signature passes (75-100% WR overrides)
+            try:
+                from datetime import datetime, timezone, timedelta
+                _mdz_hr = (datetime.now(timezone.utc) - timedelta(hours=5)).hour
+                _mdz_old = pair_age_hours is not None and float(pair_age_hours) > 24
+                _mdz_match = (_mdz_hr in {7, 8, 9} and _mdz_old)
+                if _mdz_match:
+                    # Premium carve-out (re-using same components)
+                    try:
+                        _mdz_lv = volume_velocity_features.get("liq_velocity_h1_usd_per_txn")
+                    except (NameError, AttributeError):
+                        _mdz_lv = None
+                    try:
+                        _mdz_p90 = _trade_log_dict.get("p90_buy_size_usd")
+                    except (NameError, AttributeError):
+                        _mdz_p90 = None
+                    _mdz_ats = float(avg_trade_size_h1) if avg_trade_size_h1 else None
+                    _mdz_premium_ok = (
+                        _mdz_ats is not None and _mdz_ats >= 116
+                        and _mdz_lv is not None and _mdz_lv >= 135
+                        and _mdz_p90 is not None and _mdz_p90 >= 153
+                    )
+                    if not _mdz_premium_ok:
+                        logger.info(
+                            f"[DipScanner] BLOCKED by filter_morning_dead_zone: "
+                            f"{token_symbol} hour_ct={_mdz_hr} age={pair_age_hours:.1f}h>24 "
+                            f"(28-35% WR, -10 to -39% avg_exit on universe data)"
+                        )
+                        c["filter_morning_dead_zone_block"] = c.get(
+                            "filter_morning_dead_zone_block", 0
+                        ) + 1
+                        continue
+                    else:
+                        logger.info(
+                            f"[DipScanner] filter_morning_dead_zone RESCUED by premium: "
+                            f"{token_symbol} hour={_mdz_hr} age={pair_age_hours:.1f}h"
+                        )
+                        c["filter_morning_dead_zone_carve_premium"] = c.get(
+                            "filter_morning_dead_zone_carve_premium", 0
+                        ) + 1
+            except Exception as _e:
+                logger.debug(f"[DipScanner] filter_morning_dead_zone err: {_e}")
+            c["filter_morning_dead_zone_pass"] = c.get(
+                "filter_morning_dead_zone_pass", 0
+            ) + 1
+
             # ── filter_1h_v_bottom_fake_recovery — ENFORCED 2026-05-13 PM ───
             # Round-5 negative-filter mining: last 1h is GREEN and prior 1h
             # was RED, with current close >= prior open (i.e., a "V-bottom
@@ -10283,6 +10375,16 @@ class DipScanner:
                 and _lv_size is not None and _lv_size >= 135
                 and _p90_size is not None and _p90_size >= 153
             )
+            # Premium-equivalent: chart_quality_bottom + chart_score_reversal pair.
+            # 7d our-trade audit: 75% WR n=4 (+$0.94 total). Both fire on a
+            # high-confidence chart reversal pattern — promote to premium tier.
+            # Added 2026-05-16 PM.
+            _chart_pair_premium = (
+                "chart_quality_bottom" in _triggers_fired
+                and "chart_score_reversal" in _triggers_fired
+            )
+            if _chart_pair_premium:
+                _is_premium_size = True
             _all_marginal_size = (
                 bool(_triggers_fired)
                 and all(t in _MARGINAL_FOR_SIZE for t in _triggers_fired)
