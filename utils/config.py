@@ -174,8 +174,8 @@ class Config:
     dip_tp1_sell: float = 0.50            # 50% of original
     dip_tp2_pct: float = 5.0              # TP2 at +5% — sells 50% of remainder = 25% of original
     dip_tp2_sell: float = 0.50            # 50% of remainder
-    dip_tp3_pct: float = 10.0             # TP3 at +10% — closes remaining 25%
-    dip_tp3_sell: float = 1.0             # 100% of remainder
+    dip_tp3_pct: float = 999.0            # TP3 effectively disabled 2026-05-16. The remaining 25% after TP1+TP2 now rides the realtime trail (1pp drop from peak) for the whole upside. Big runners (peak +15-25%) trail out near their peak instead of being capped at +10%. Cost: choppy +10-12% trades may give back to ~+9-11% instead of locking +10%. Universe-recorder data showed 51% of dip events hit peak >= +10%; capping at TP3 was leaving meaningful upside.
+    dip_tp3_sell: float = 1.0             # 100% of remainder (unchanged — only fires if peak crosses 999%, which it won't)
     dip_stop_pct: float = 4.0             # Hard stop at -4% (was -7% from 2026-05-10). Tightened 2026-05-16 after 7d audit (n=74 closed): max-drawdown distribution showed 80% of trades stayed above -7%, 5% landed in [-7%, -4%], 20% deeper. Sim: -4% stop saves ~$8-9 on the deep-tail (15 trades that went past -7%), costs $0.46 on 2 winners that recovered (DIRECTOR max_dd=-6.6% → +$0.04, Crack max_dd=-4.4% → +$0.42). Pairs with Dust bug fix: more trades locking TP1 at +3% reduces dependence on big-runner recoveries, making tight stop less punishing. Watch: revert toward -5% if too many winners get killed forward.
     dip_winner_trail_pct: float = 1.0     # Tightened 2.0 → 1.0 on 2026-05-16 (exit-sim option C). Sim across 79 closed trades: 27 TP1_FIRED trades all helped (+0.50%/trade avg), 0 hurt; $/trade improvement +$0.043. With 5s mgmt-cycle latency the empirical floor is ~1.5pp, so spec=1.0 caps actual give-back at ~2.5pp instead of ~3.5pp.
     dip_max_concurrent: int = 4           # Max simultaneous dip positions

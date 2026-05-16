@@ -5753,6 +5753,44 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] overnight_mature_midcap err: {_e}")
 
+            # ── trigger_fresh_pump_retrace — ENFORCED 2026-05-16 PM ─────────
+            # New entry path mined from universe-recorder data (838 broader-
+            # universe dip events / ~24h). Pattern catches fresh-graduate
+            # post-pump m5 retrace tokens our existing triggers don't fire on
+            # (they need accumulated chart history that doesn't exist for
+            # <1h old tokens).
+            #
+            # Compound predicate:
+            #   age_hours <= 30      — fresh-graduate / post-pump cohort
+            #   sells_h1 >= 1500     — high trade activity (token is liquid)
+            #   pc_m5    <= -10      — sharp 5m retrace (deep dip)
+            #
+            # Universe-recorder validation: matches 119 of 838 events at
+            # 66% won_20pct rate (vs 30% baseline), avg peak +45%.
+            # Of 21 unique gate-passing missed big-winners in 24h, this
+            # compound catches 9 (e.g. Yae +124%, WANTED +106%, Twerk +77%).
+            #
+            # SIZING NOTE: marked as MARGINAL for position sizing tier
+            # (gets $10 base size when solo, scales up if compound) until
+            # we accumulate forward live P&L data. Real exit slip on
+            # microcap liq ($30-60k) is unproven.
+            _trigger_fresh_pump_retrace_match = False
+            _trigger_fresh_pump_retrace_reasons: list = []
+            try:
+                _fpr_age = pair_age_hours
+                _fpr_sells = pair.get("txns", {}).get("h1", {}).get("sells", 0) if isinstance(pair.get("txns"), dict) else 0
+                _fpr_pcm5 = pc_m5
+                if (_fpr_age is not None and _fpr_age <= 30.0
+                    and _fpr_sells is not None and float(_fpr_sells) >= 1500
+                    and _fpr_pcm5 is not None and float(_fpr_pcm5) <= -10.0):
+                    _trigger_fresh_pump_retrace_match = True
+                    _trigger_fresh_pump_retrace_reasons.append(
+                        f"age={_fpr_age:.1f}h<=30 AND sells_h1={int(_fpr_sells)}>=1500 "
+                        f"AND pc_m5={_fpr_pcm5:.1f}%<=-10 (fresh-pump m5 retrace)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] fresh_pump_retrace trigger err: {_e}")
+
             # ── trigger_whale_conviction — ENFORCED 2026-05-14 PM (Commit C) ─
             # Positive entry trigger from 35-angle deep mining. Fires on:
             #   - whale_buy_present_2k == True (a $2k+ whale buy in lookback)
@@ -6987,6 +7025,8 @@ class DipScanner:
                 _triggers_fired.append("mcap_psych_level")
             if _trigger_whale_conviction_match:
                 _triggers_fired.append("whale_conviction")
+            if _trigger_fresh_pump_retrace_match:
+                _triggers_fired.append("fresh_pump_retrace")
             if _trigger_strong_uptrend_dip_match:
                 _triggers_fired.append("strong_uptrend_dip")
             if _trigger_modest_pump_deep_retrace_match:
@@ -8699,6 +8739,26 @@ class DipScanner:
             # for data sparsity — only block when we KNOW it failed).
             _MARGINAL_TRIGGERS = {
                 "patient_bottom", "informed_cluster", "1s_capit_reversal",
+                # Expanded 2026-05-16 PM after 24h audit. These triggers showed
+                # poor solo + bad-compound P&L when premium signature absent:
+                #   whale_conviction (16 fires/24h, -$7.89, 44% WR)
+                #   informed_cluster (6 fires, 17% WR, -$4.45)
+                #   net_flow_5m_demand (9 fires, 44% WR, -$4.43)
+                #   grad_window_dip (7d 0% solo WR, -$1.34)
+                #   alpha_buyperscold (33% WR, -$2.03)
+                # Adding to MARGINAL set so any compound made up ENTIRELY of
+                # these underperformers requires the premium quality
+                # signature (whale-tier buy flow). Mixed compounds with
+                # strong technical triggers (chart_quality_bottom,
+                # mtf_aligned_demand, sustained_accumulation, etc.) still
+                # pass — the gate only fires when EVERY trigger is marginal.
+                "whale_conviction", "grad_window_dip", "alpha_buyperscold",
+                "net_flow_5m_demand",
+                # fresh_pump_retrace is brand new (no forward live P&L yet).
+                # Treat as marginal until 3-5 days of validation. With premium
+                # signature met, it passes; otherwise blocked when solo or
+                # marginal-only compound.
+                "fresh_pump_retrace",
             }
             _all_marginal = bool(_triggers_fired) and all(
                 t in _MARGINAL_TRIGGERS for t in _triggers_fired
@@ -10054,13 +10114,69 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] buy_snapshot err: {_e}")
 
+            # ── Position sizing tier — ENFORCED 2026-05-16 PM ──────────────
+            # Three tiers based on premium signature + trigger composition:
+            #
+            #   PREMIUM (2x base): premium compound met
+            #     (avg_trade_size_h1_usd>=116 AND liq_velocity_h1>=135
+            #      AND p90_buy_size_usd>=153)
+            #     Past data: 79-100% WR on these trades.
+            #
+            #   MARGINAL (0.5x base): all fired triggers are in the marginal
+            #     set (chronic underperformers w/o premium).
+            #     filter_premium_required already blocks the worst of these,
+            #     but if any escapes (e.g. data missing on a premium feature),
+            #     size down for risk control.
+            #
+            #   STANDARD (1x base): everything else (strong compound, mixed).
+            #
+            # Risk management: even if a brand-new signature (e.g.
+            # fresh_pump_retrace) is over-fitted to mining data, the marginal
+            # tier limits per-trade blowup to ~$10 vs ~$20 standard.
+            _MARGINAL_FOR_SIZE = {
+                "patient_bottom", "informed_cluster", "1s_capit_reversal",
+                "whale_conviction", "grad_window_dip", "alpha_buyperscold",
+                "net_flow_5m_demand", "fresh_pump_retrace",
+            }
+            _ats_size = float(avg_trade_size_h1) if avg_trade_size_h1 else None
+            try:
+                _lv_size = volume_velocity_features.get("liq_velocity_h1_usd_per_txn")
+            except (NameError, AttributeError):
+                _lv_size = None
+            try:
+                _p90_size = _trade_log_dict.get("p90_buy_size_usd")
+            except (NameError, AttributeError):
+                _p90_size = None
+            _is_premium_size = (
+                _ats_size is not None and _ats_size >= 116
+                and _lv_size is not None and _lv_size >= 135
+                and _p90_size is not None and _p90_size >= 153
+            )
+            _all_marginal_size = (
+                bool(_triggers_fired)
+                and all(t in _MARGINAL_FOR_SIZE for t in _triggers_fired)
+            )
+            if _is_premium_size:
+                _position_size = self.position_usd * 2.0
+                _size_tier = "premium"
+            elif _all_marginal_size:
+                _position_size = self.position_usd * 0.5
+                _size_tier = "marginal"
+            else:
+                _position_size = self.position_usd
+                _size_tier = "standard"
+            logger.info(
+                f"[DipScanner] Position size tier: {_size_tier} ${_position_size:.0f} "
+                f"(base ${self.position_usd:.0f}) for {token_symbol} triggers={_triggers_fired}"
+            )
+
             await self.trader.buy(
                 token_address=token_address,
                 token_symbol=token_symbol,
                 chain_id="solana",
-                override_usd=self.position_usd,
+                override_usd=_position_size,
                 reason=(
-                    f"dip_buy: 24h={pc_h24:+.1f}% 1h={pc_h1:+.1f}% 5m={pc_m5:+.1f}% "
+                    f"dip_buy [{_size_tier}]: 24h={pc_h24:+.1f}% 1h={pc_h1:+.1f}% 5m={pc_m5:+.1f}% "
                     f"bs_h6={ratio_h6:.2f} bs_h1={bs_h1_str} bs_m5={bs_m5_str}"
                 ),
                 strategy="dip_buy",
