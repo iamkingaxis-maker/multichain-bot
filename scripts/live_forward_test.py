@@ -376,8 +376,17 @@ COMBOS = {
                                              and c['net_flow_5m_usd'] >= 300.0),
     'RR_mcap_psych_level':        lambda c: c.get('mcap_near_psych_level') is True,
     # Filter: should appear in c['blocked_filters'] phantom output (not a positive trigger)
-    'SS_filter_mtf_strong_downtrend': lambda c: (c.get('chart_mtf_score') is None
-                                                 or c.get('chart_mtf_score') > -2.0),
+    # PASS if (mtf score missing OR > -2.0) OR carve-out fires.
+    # Carve-out #1 (2026-05-16 PM): chart_score >= 58.20 (n=54, 65% W, +30.8% peak)
+    # Carve-out #2 (2026-05-16 PM): calm_seller — sells_h1<=411 AND mcap>=$531k
+    #   (universe n=192, 100% loose-WR — peak>=+5 AND exit>=-5)
+    'SS_filter_mtf_strong_downtrend': lambda c: (
+        c.get('chart_mtf_score') is None
+        or c.get('chart_mtf_score') > -2.0
+        or (c.get('chart_score') is not None and c['chart_score'] >= 58.20)
+        or (c.get('sells_h1') is not None and c['sells_h1'] <= 411
+            and c.get('mcap') is not None and c['mcap'] >= 531083)
+    ),
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
                                          or c['net_flow_5m_usd'] >= 0),

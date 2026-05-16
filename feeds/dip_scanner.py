@@ -6098,8 +6098,30 @@ class DipScanner:
                     _mtf_dn_chart_carve = True
             except Exception:
                 pass
+            # CARVE-OUT 2026-05-16 PM #2: calm_seller signature.
+            # Universe mining (n=2049): sells_h1 <= 411 AND mcap >= $531k
+            # has 100% loose-WR (peak >= +5 AND exit >= -5). The "calm
+            # seller + moderate mcap" cohort consistently produces controlled
+            # accumulation moves. mtf_strong_downtrend is blocking 399 of
+            # these per 4.5h window (40% of all calm-micro-cap blocks).
+            #
+            # Predicate: sells_h1 <= 411 AND mcap >= $531,083.
+            # Caveat: universe-to-live divergence unresolved (live calm_hot
+            # 17% WR vs universe 58% — see investigate_universe_gap.py).
+            # Carve-out is narrow (sells_h1 <= 411 is the strictest cut),
+            # so volume add should be bounded.
+            _mtf_dn_calm_seller_carve = False
+            try:
+                if (_filter_mtf_dn_block_reasons
+                    and isinstance(s_h1, (int, float)) and s_h1 <= 411
+                    and isinstance(mcap, (int, float)) and mcap >= 531_083):
+                    _mtf_dn_calm_seller_carve = True
+            except Exception:
+                pass
             _filter_mtf_dn_verdict = (
-                "BLOCK" if (_filter_mtf_dn_block_reasons and not _mtf_dn_chart_carve)
+                "BLOCK" if (_filter_mtf_dn_block_reasons
+                            and not _mtf_dn_chart_carve
+                            and not _mtf_dn_calm_seller_carve)
                 else "PASS"
             )
             c[f"filter_mtf_strong_downtrend_{_filter_mtf_dn_verdict.lower()}"] = c.get(
@@ -6118,6 +6140,15 @@ class DipScanner:
                     f"(65% won_10pct on n=54 in 4d mining, +30.8% avg peak)"
                 )
                 c["filter_mtf_dn_carve_chart_score"] = c.get("filter_mtf_dn_carve_chart_score", 0) + 1
+            if _mtf_dn_calm_seller_carve and _filter_mtf_dn_block_reasons:
+                logger.info(
+                    f"[DipScanner] filter_mtf_strong_downtrend RESCUED by calm_seller: "
+                    f"{token_symbol} sells_h1={s_h1} mcap=${mcap:,.0f} "
+                    f"(universe 100% loose-WR on n=192)"
+                )
+                c["filter_mtf_dn_carve_calm_seller"] = c.get(
+                    "filter_mtf_dn_carve_calm_seller", 0
+                ) + 1
 
             # ── filter_falling_knife — ENFORCED 2026-05-15 ──────────────────
             # Compound: chart_mtf_score <= -1 AND 1m_last_close_pct < 0.
@@ -10482,6 +10513,15 @@ class DipScanner:
                 "pc_h6": float(pc_h6) if pc_h6 is not None else None,
                 "pc_h1": float(pc_h1) if pc_h1 is not None else None,
                 "pc_m5": float(pc_m5) if pc_m5 is not None else None,
+                # txn counts — added 2026-05-16 PM for calm_seller mining.
+                # Universe finding: sells_h1<=411 AND mcap>=$531k → 100%
+                # loose-WR on n=192. Stamp so forward audit can validate.
+                "buys_h1": int(b_h1) if isinstance(b_h1, (int, float)) else None,
+                "sells_h1": int(s_h1) if isinstance(s_h1, (int, float)) else None,
+                # carve-out flag — was this entry rescued by calm_seller carve?
+                # (filter block always runs before entry_meta is built, so the
+                # variable is guaranteed defined at this point.)
+                "mtf_dn_calm_seller_carve": bool(_mtf_dn_calm_seller_carve),
             }
 
             # fusion_constrained — SHADOW 2026-05-15. 14-feature LR (chart MTF +
