@@ -675,6 +675,35 @@ async def main():
     if hasattr(sol_trader, "reconcile_positions_on_startup"):
         await sol_trader.reconcile_positions_on_startup()
 
+    # Universe dip recorder — bundled as a daemon thread with its own asyncio
+    # loop so its sync I/O (requests + time.sleep for GT rate-limit) can't
+    # block the bot's event loop. Writes to RECORDER_DATA_DIR (default
+    # /data/universe_recorder, falling back to .universe_recorder/ locally).
+    # Gated by ENABLE_UNIVERSE_RECORDER env var — set to "false" to disable.
+    import os as _os
+    if _os.environ.get("ENABLE_UNIVERSE_RECORDER", "true").lower() in ("true", "1", "yes"):
+        # Default the data dir to the Railway volume mount when it exists.
+        if _os.path.isdir("/data") and not _os.environ.get("RECORDER_DATA_DIR"):
+            _os.environ["RECORDER_DATA_DIR"] = "/data/universe_recorder"
+        import threading as _threading
+        def _recorder_runner():
+            import asyncio as _asyncio
+            from scripts.universe_dip_recorder import main as _recorder_main
+            class _RecorderArgs:
+                cycle_s = int(_os.environ.get("RECORDER_CYCLE_S", "120"))
+                outcome_min = int(_os.environ.get("RECORDER_OUTCOME_MIN", "30"))
+            try:
+                _asyncio.run(_recorder_main(_RecorderArgs()))
+            except Exception as e:
+                logger.error(f"[UniverseRecorder] thread crashed: {e}")
+        _rec_thread = _threading.Thread(
+            target=_recorder_runner, daemon=True, name="universe_recorder"
+        )
+        _rec_thread.start()
+        logger.info("[UniverseRecorder] thread started (daemon)")
+    else:
+        logger.info("[UniverseRecorder] disabled via ENABLE_UNIVERSE_RECORDER")
+
     logger.info(f"All systems go — {len(tasks)} tasks")
     await asyncio.gather(*tasks)
 

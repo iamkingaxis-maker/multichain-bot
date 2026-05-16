@@ -386,9 +386,15 @@ async def main(args):
         stop = True
         logger.info("Got SIGINT — will exit after this cycle")
 
-    signal.signal(signal.SIGINT, handle_sigint)
-    if hasattr(signal, "SIGBREAK"):
-        signal.signal(signal.SIGBREAK, handle_sigint)
+    # Signal handlers only attach when running as the main thread (Python
+    # rejects signal.signal from worker threads). When bundled inside main.py
+    # as a background thread, the bot's own signal handlers will trigger
+    # process exit, and the daemon flag tears us down with it.
+    import threading
+    if threading.current_thread() is threading.main_thread():
+        signal.signal(signal.SIGINT, handle_sigint)
+        if hasattr(signal, "SIGBREAK"):
+            signal.signal(signal.SIGBREAK, handle_sigint)
 
     cycle_num = 0
     try:
