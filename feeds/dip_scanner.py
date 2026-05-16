@@ -9051,6 +9051,75 @@ class DipScanner:
                 "filter_morning_dead_zone_pass", 0
             ) + 1
 
+            # ── filter_blowoff_top — ENFORCED 2026-05-16 PM ────────────────
+            # Block tokens with pc_h24 >= 500% — blow-off-top territory where
+            # the 24h pump is so extended that mean-reversion dominates any
+            # dip-buy attempt.
+            #
+            # Mining (universe n=2049, "regime=up gap" investigation):
+            #   pc_h24 bucket          n     won_10pct  avg_exit
+            #   green +20-100%         303     48%        +1.3%   ← gold zone
+            #   green +100-500%        887     54%        -2.7%
+            #   green +500%+           366     50%        -5.9%   ← blow-off
+            #
+            # Our trade cohort (n=88 30d, 26 with pc_h24 stamped):
+            #   green +20-100%         15     53% WR     +0.04% avg
+            #   green +500%+           4      0%  WR     -3.91% avg
+            #
+            # The +500% bucket has reasonable peak rate (48-50% hit +10%) but
+            # NEGATIVE realized exit (-5.9% avg) — peaks don't hold, mean
+            # reversion is the dominant dynamic. Both universe and our small
+            # cohort agree.
+            #
+            # Premium-signature carve-out: avg_trade_size_h1>=116 AND
+            # liq_velocity_h1>=135 AND p90_buy_size>=153. These compounds
+            # have 75-100% WR overrides — let through even at extended h24.
+            _filter_blowoff_block_reasons: list = []
+            if isinstance(pc_h24, (int, float)) and pc_h24 >= 500.0:
+                _filter_blowoff_block_reasons.append(
+                    f"pc_h24={pc_h24:.0f}%>=500 (blow-off top — universe "
+                    f"avg_exit -5.9%)"
+                )
+            _filter_blowoff_premium_rescue = False
+            if _filter_blowoff_block_reasons:
+                try:
+                    _bo_lv = volume_velocity_features.get(
+                        "liq_velocity_h1_usd_per_txn"
+                    )
+                except (NameError, AttributeError):
+                    _bo_lv = None
+                try:
+                    _bo_p90 = _trade_log_dict.get("p90_buy_size_usd")
+                except (NameError, AttributeError):
+                    _bo_p90 = None
+                _bo_ats = float(avg_trade_size_h1) if avg_trade_size_h1 else None
+                _filter_blowoff_premium_rescue = (
+                    _bo_ats is not None and _bo_ats >= 116
+                    and _bo_lv is not None and _bo_lv >= 135
+                    and _bo_p90 is not None and _bo_p90 >= 153
+                )
+                if _filter_blowoff_premium_rescue:
+                    logger.info(
+                        f"[DipScanner] filter_blowoff_top RESCUED by premium: "
+                        f"{token_symbol} pc_h24={pc_h24:.0f}%"
+                    )
+                    c["filter_blowoff_top_carve_premium"] = c.get(
+                        "filter_blowoff_top_carve_premium", 0
+                    ) + 1
+                    _filter_blowoff_block_reasons = []
+            _filter_blowoff_top_verdict = (
+                "BLOCK" if _filter_blowoff_block_reasons else "PASS"
+            )
+            c[f"filter_blowoff_top_{_filter_blowoff_top_verdict.lower()}"] = c.get(
+                f"filter_blowoff_top_{_filter_blowoff_top_verdict.lower()}", 0
+            ) + 1
+            if _filter_blowoff_top_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_blowoff_top: "
+                    f"{token_symbol} reasons={','.join(_filter_blowoff_block_reasons)}"
+                )
+                continue
+
             # ── filter_macro_panic — SHADOW 2026-05-16 PM ──────────────────
             # Macro context gate. Existing regime tag already classifies
             # sol/btc/meme-sector state into up/flat/down (lines 1264-1284).
@@ -9865,6 +9934,10 @@ class DipScanner:
                 "filter_macro_panic_verdict": _filter_macro_panic_verdict,
                 "filter_macro_panic_block_reasons": _filter_macro_panic_block_reasons,
                 "filter_macro_panic_premium_rescue": _filter_macro_panic_premium_rescue,
+                # filter_blowoff_top — ENFORCED 2026-05-16 PM (pc_h24>=500% block).
+                "filter_blowoff_top_verdict": _filter_blowoff_top_verdict,
+                "filter_blowoff_top_block_reasons": _filter_blowoff_block_reasons,
+                "filter_blowoff_top_premium_rescue": _filter_blowoff_premium_rescue,
                 # filter_sweep_too_recent — ENFORCED 2026-05-13 anti-knife-catch.
                 "filter_sweep_too_recent_verdict": _filter_sweep_too_recent_verdict,
                 "filter_sweep_too_recent_block_reasons": _filter_sweep_too_recent_block_reasons,

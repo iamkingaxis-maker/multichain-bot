@@ -69,6 +69,24 @@ def regime_panic_block(c):
     r = c.get('regime_h1_neg_pct')
     return r is not None and r > 70.0
 
+def blowoff_top_block(c):
+    """Phantom mirror for filter_blowoff_top ENFORCED 2026-05-16 PM.
+
+    Blocks pc_h24 >= 500% (universe avg_exit -5.9% in this cohort).
+    Premium-signature carve-out (avg_trade_size_h1>=116 AND lvh1>=135
+    AND p90>=153) lets through.
+    """
+    v = c.get("pc_h24")
+    if not isinstance(v, (int, float)) or v < 500.0:
+        return False
+    ats = c.get("avg_trade_size_h1_usd")
+    lvh1 = c.get("liq_velocity_h1_usd_per_txn")
+    p90 = c.get("p90_buy_size_usd")
+    premium = (ats is not None and ats >= 116
+               and lvh1 is not None and lvh1 >= 135
+               and p90 is not None and p90 >= 153)
+    return not premium
+
 def macro_panic_block(c):
     """Phantom mirror for filter_macro_panic SHADOW 2026-05-16.
 
