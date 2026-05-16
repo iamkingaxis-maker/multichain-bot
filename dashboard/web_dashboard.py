@@ -1619,6 +1619,7 @@ class WebDashboard:
         self.app.router.add_get("/api/closed-positions",   self._handle_closed_positions)
         self.app.router.add_get("/api/signal-events",      self._handle_signal_events)
         self.app.router.add_get("/api/pre-gate-events",    self._handle_pre_gate_events)
+        self.app.router.add_get("/api/universe-recorder",  self._handle_universe_recorder)
         self.app.router.add_get("/api/mc-recommendations", self._handle_mc_recommendations)
         self.app.router.add_get("/api/peak-traces",        self._handle_peak_traces)
         self.app.router.add_get("/api/peak-traces/{name}", self._handle_peak_trace_one)
@@ -2360,6 +2361,79 @@ class WebDashboard:
             limit = int(request.query.get('limit', '500'))
         except ValueError:
             limit = 500
+        try:
+            with open(path, encoding='utf-8') as f:
+                all_lines = f.readlines()
+            tail = all_lines[-limit:]
+            records = []
+            for line in tail:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    records.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+            return web.Response(
+                text=json.dumps(records),
+                content_type="application/json", headers=cors)
+        except Exception as e:
+            return web.Response(
+                text=json.dumps({"error": str(e)}),
+                status=500, content_type="application/json", headers=cors)
+
+    async def _handle_universe_recorder(self, request):
+        """GET /api/universe-recorder — returns universe-recorder dip events.
+
+        The universe recorder runs as a bundled daemon thread inside main.py
+        and writes broader-universe dip observations (tokens the bot saw but
+        did NOT enter on) to {DATA_DIR}/universe_recorder/events.jsonl.
+
+        Used to mine for NEW entry opportunities — patterns visible in the
+        broader DexScreener/GeckoTerminal universe that our current trigger
+        set doesn't catch.
+
+        Query params:
+          ?stats=1  — return just counts (file size, total records)
+          ?limit=N  — return last N JSONL records (default 1000)
+        """
+        import os as _os
+        cors = {"Access-Control-Allow-Origin": "*"}
+        # Recorder uses RECORDER_DATA_DIR with default /data/universe_recorder on Railway.
+        recorder_dir = (
+            _os.environ.get('RECORDER_DATA_DIR')
+            or _os.path.join(_os.environ.get('DATA_DIR') or '/data', 'universe_recorder')
+        )
+        path = _os.path.join(recorder_dir, 'events.jsonl')
+        if not _os.path.exists(path):
+            fallback = _os.path.join('.universe_recorder', 'events.jsonl')
+            if _os.path.exists(fallback):
+                path = fallback
+            else:
+                return web.Response(
+                    text=json.dumps({"exists": False, "checked_paths": [path, fallback]}),
+                    content_type="application/json", headers=cors)
+
+        if request.query.get('stats') == '1':
+            try:
+                size = _os.path.getsize(path)
+                with open(path, encoding='utf-8') as f:
+                    lines = sum(1 for _ in f)
+                return web.Response(
+                    text=json.dumps({
+                        "exists": True, "path": path,
+                        "size_bytes": size, "records": lines,
+                    }),
+                    content_type="application/json", headers=cors)
+            except Exception as e:
+                return web.Response(
+                    text=json.dumps({"error": str(e)}),
+                    status=500, content_type="application/json", headers=cors)
+
+        try:
+            limit = int(request.query.get('limit', '1000'))
+        except ValueError:
+            limit = 1000
         try:
             with open(path, encoding='utf-8') as f:
                 all_lines = f.readlines()

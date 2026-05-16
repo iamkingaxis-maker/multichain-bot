@@ -8638,32 +8638,107 @@ class DipScanner:
                     else _triggers_fired[0]
                 )
 
-            # ── filter_whale_conviction_solo — ENFORCED 2026-05-16 ─────────
-            # Disable whale_conviction as a STANDALONE trigger. 7d audit
-            # (n=24 trades, 38% WR, -$7.52 net) showed:
-            #   - Solo whale_conviction fires: 0W/5L = 0% WR, -$2.65 net
-            #   - Buyer-count INVERTED: count>=3 → 38% WR,
-            #     count>=7 → 0% WR, count>=10 → 0% WR
-            # More clustered top-10 buyer activity = worse outcome —
-            # likely catching coordinated dumps / exit-liquidity traps,
-            # not informed entries. Keeping whale_conviction as compound
-            # evidence (when at least 1 other trigger ALSO fired) but
-            # blocking solo fires.
+            # ── filter_solo_dropouts — ENFORCED 2026-05-16 ─────────────────
+            # Three triggers fail catastrophically on solo fires under the
+            # current filter regime. 7d audit per-trigger no-premium WR:
+            #   whale_conviction solo : 0W/5L = 0% WR, -$2.65
+            #   clean_break (no-prem) : 0W/8 = 0% WR, -$10.30
+            #   grad_window_dip (np)  : 14% WR (1/7), -$6.20
+            # All three are kept as COMPOUND signals (in combination with
+            # other triggers they're fine — the issue is when each fires
+            # alone, the evidence is too weak under the post-2026-05-09
+            # filter regime).
             #
-            # Implementation: removes whale_conviction from _triggers_fired
-            # if it's the only trigger present. If other triggers were
-            # also active, leaves the list intact (compound info preserved).
-            if _triggers_fired == ["whale_conviction"]:
+            # whale_conviction: more clustered top-10 buyers = worse
+            #   outcome (inverted relationship); catches coordinated
+            #   dumps / exit-liquidity traps.
+            # clean_break: 0% WR solo despite being a "high-regime"-class
+            #   signal. The clean-break shape on its own is no longer
+            #   sufficient under current filters.
+            # grad_window_dip: 1/7 WR solo; the grad-window cohort needs
+            #   confirming evidence (informed cluster / patient bottom).
+            _SOLO_DROPOUT_TRIGGERS = {
+                "whale_conviction", "clean_break", "grad_window_dip",
+            }
+            if len(_triggers_fired) == 1 and _triggers_fired[0] in _SOLO_DROPOUT_TRIGGERS:
+                _solo_trig = _triggers_fired[0]
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_whale_conviction_solo: "
-                    f"{token_symbol} — whale_conviction alone (0W/5L on 7d)"
+                    f"[DipScanner] BLOCKED by filter_solo_dropouts: "
+                    f"{token_symbol} — {_solo_trig} alone (poor solo WR on 7d)"
                 )
-                c["filter_whale_conviction_solo_block"] = c.get(
-                    "filter_whale_conviction_solo_block", 0
+                c[f"filter_solo_dropouts_{_solo_trig}_block"] = c.get(
+                    f"filter_solo_dropouts_{_solo_trig}_block", 0
                 ) + 1
                 continue
-            c["filter_whale_conviction_solo_pass"] = c.get(
-                "filter_whale_conviction_solo_pass", 0
+            c["filter_solo_dropouts_pass"] = c.get(
+                "filter_solo_dropouts_pass", 0
+            ) + 1
+
+            # ── filter_premium_required — ENFORCED 2026-05-16 ──────────────
+            # Marginal triggers (patient_bottom, informed_cluster,
+            # 1s_capit_reversal) show massive WR lift when the "premium
+            # quality" compound is satisfied. 7d audit:
+            #
+            #   Trigger             | no-premium | with-premium
+            #   --------------------+------------+-------------
+            #   patient_bottom      | 41% WR     | 100% WR (+$3.8)
+            #   informed_cluster    | 27% WR     | 100% WR (+$4.6)
+            #   1s_capit_reversal   | 25% WR     | 100% WR (+$2.0)
+            #
+            # Premium compound = whale-tier buy-side flow + high liquidity
+            # velocity. All three components must be met:
+            #   avg_trade_size_h1_usd      >= 116
+            #   liq_velocity_h1_usd_per_txn >= 135
+            #   p90_buy_size_usd           >= 153
+            #
+            # Rule: if EVERY fired trigger is in the marginal set AND the
+            # premium compound is NOT satisfied, BLOCK. Compound entries
+            # (any non-marginal trigger also fired) are unaffected.
+            #
+            # Fail-open if any premium component is missing (don't block
+            # for data sparsity — only block when we KNOW it failed).
+            _MARGINAL_TRIGGERS = {
+                "patient_bottom", "informed_cluster", "1s_capit_reversal",
+            }
+            _all_marginal = bool(_triggers_fired) and all(
+                t in _MARGINAL_TRIGGERS for t in _triggers_fired
+            )
+            if _all_marginal:
+                # Pull premium components from their source dicts (these run
+                # earlier in the loop; entry_meta_dict is assembled later).
+                # Defensive: volume_velocity_features may not exist on first
+                # outer-loop iteration (built later in the loop body).
+                _avg_trade = float(avg_trade_size_h1) if avg_trade_size_h1 else None
+                try:
+                    _liq_vel = volume_velocity_features.get("liq_velocity_h1_usd_per_txn")
+                except (NameError, AttributeError):
+                    _liq_vel = None
+                try:
+                    _p90_buy = _trade_log_dict.get("p90_buy_size_usd")
+                except (NameError, AttributeError):
+                    _p90_buy = None
+                _premium_ok = (
+                    _avg_trade is not None and _avg_trade >= 116
+                    and _liq_vel is not None and _liq_vel >= 135
+                    and _p90_buy is not None and _p90_buy >= 153
+                )
+                _premium_known = (
+                    _avg_trade is not None and _liq_vel is not None
+                    and _p90_buy is not None
+                )
+                if _premium_known and not _premium_ok:
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_premium_required: "
+                        f"{token_symbol} marginal-only triggers={_triggers_fired} "
+                        f"avg_trade={_avg_trade:.1f} liq_vel={_liq_vel:.1f} "
+                        f"p90={_p90_buy:.1f} (need >=116,>=135,>=153)"
+                    )
+                    c["filter_premium_required_block"] = c.get(
+                        "filter_premium_required_block", 0
+                    ) + 1
+                    continue
+            c["filter_premium_required_pass"] = c.get(
+                "filter_premium_required_pass", 0
             ) + 1
 
             # ── filter_1h_v_bottom_fake_recovery — ENFORCED 2026-05-13 PM ───
