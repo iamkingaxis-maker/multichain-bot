@@ -9221,6 +9221,58 @@ class DipScanner:
                 )
                 continue
 
+            # ── filter_post_pump_corpse — ENFORCED 2026-05-16 PM ───────────
+            # Block tokens that just had an extreme pump and are now in
+            # dying-volume phase. Entry-meta snapshots are STALE — they
+            # capture pump-era vol_h1, but by entry execution the rolling
+            # hour has dropped most of that volume and the token is dead.
+            # Relative metrics (vol_5m_burst_vs_h1) compare to inflated
+            # baselines and falsely show "accelerating" on dead tokens.
+            #
+            # Predicate (either):
+            #   (a) pc_h1 >= +500% — extreme single-hour pump, always
+            #       followed by mean reversion. PAC/SPCX reference.
+            #   (b) pc_h24 >= +200% AND buys_per_min_recent <= 2 —
+            #       recently pumped + currently calm = post-pump corpse.
+            #
+            # Reference: SPCX 2026-05-16 23:17 — pc_h1=+3397%, pc_h24=+421%,
+            # buys_per_min=1. Bought into a token whose last hour was a
+            # 33x pump, then died. User had to flag manually.
+            #
+            # Note: this is DIFFERENT from filter_blowoff_top (pc_h24>=500)
+            # and filter_high_activity_fomo (buys_per_min>=10). New cohort.
+            _filter_corpse_pump_block_reasons: list = []
+            try:
+                _ppc_pc_h1 = pc_h1
+                _ppc_pc_h24 = pc_h24
+                _ppc_bpm = (_velocity_dict or {}).get("buys_per_min_recent")
+                # (a) extreme h1 pump
+                if isinstance(_ppc_pc_h1, (int, float)) and _ppc_pc_h1 >= 500.0:
+                    _filter_corpse_pump_block_reasons.append(
+                        f"pc_h1={_ppc_pc_h1:.0f}%>=500 (extreme single-hour pump)"
+                    )
+                # (b) pumped h24 + currently calm
+                if (isinstance(_ppc_pc_h24, (int, float)) and _ppc_pc_h24 >= 200.0
+                        and isinstance(_ppc_bpm, (int, float)) and _ppc_bpm <= 2):
+                    _filter_corpse_pump_block_reasons.append(
+                        f"pc_h24={_ppc_pc_h24:.0f}%>=200 AND buys_per_min_recent={_ppc_bpm}<=2 "
+                        f"(post-pump corpse: pumped + currently calm)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] post_pump_corpse filter err: {_e}")
+            _filter_post_pump_corpse_verdict = (
+                "BLOCK" if _filter_corpse_pump_block_reasons else "PASS"
+            )
+            c[f"filter_post_pump_corpse_{_filter_post_pump_corpse_verdict.lower()}"] = c.get(
+                f"filter_post_pump_corpse_{_filter_post_pump_corpse_verdict.lower()}", 0
+            ) + 1
+            if _filter_post_pump_corpse_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_post_pump_corpse: "
+                    f"{token_symbol} reasons={','.join(_filter_corpse_pump_block_reasons)}"
+                )
+                continue
+
             # ── filter_macro_panic — SHADOW 2026-05-16 PM ──────────────────
             # Macro context gate. Existing regime tag already classifies
             # sol/btc/meme-sector state into up/flat/down (lines 1264-1284).
@@ -10043,6 +10095,10 @@ class DipScanner:
                 # (buys_per_min_recent >= 10 block — FOMO peak).
                 "filter_high_activity_fomo_verdict": _filter_high_fomo_verdict,
                 "filter_high_activity_fomo_block_reasons": _filter_high_fomo_block_reasons,
+                # filter_post_pump_corpse — ENFORCED 2026-05-16 PM
+                # (pc_h1>=+500% OR (pc_h24>=+200% AND buys_per_min<=2)).
+                "filter_post_pump_corpse_verdict": _filter_post_pump_corpse_verdict,
+                "filter_post_pump_corpse_block_reasons": _filter_corpse_pump_block_reasons,
                 # filter_sweep_too_recent — ENFORCED 2026-05-13 anti-knife-catch.
                 "filter_sweep_too_recent_verdict": _filter_sweep_too_recent_verdict,
                 "filter_sweep_too_recent_block_reasons": _filter_sweep_too_recent_block_reasons,

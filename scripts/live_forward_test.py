@@ -78,6 +78,25 @@ def high_activity_fomo_block(c):
     v = c.get("buys_per_min_recent")
     return isinstance(v, (int, float)) and v >= 10
 
+def post_pump_corpse_block(c):
+    """Phantom mirror for filter_post_pump_corpse ENFORCED 2026-05-16 PM.
+
+    Blocks either:
+      (a) pc_h1 >= +500% (extreme single-hour pump)
+      (b) pc_h24 >= +200% AND buys_per_min_recent <= 2 (pumped + calm)
+
+    Reference: SPCX 2026-05-16 23:17 — pc_h1=+3397%, dead volume.
+    """
+    pc_h1 = c.get("pc_h1")
+    pc_h24 = c.get("pc_h24")
+    bpm = c.get("buys_per_min_recent")
+    if isinstance(pc_h1, (int, float)) and pc_h1 >= 500.0:
+        return True
+    if (isinstance(pc_h24, (int, float)) and pc_h24 >= 200.0
+            and isinstance(bpm, (int, float)) and bpm <= 2):
+        return True
+    return False
+
 def blowoff_top_block(c):
     """Phantom mirror for filter_blowoff_top ENFORCED 2026-05-16 PM.
 
