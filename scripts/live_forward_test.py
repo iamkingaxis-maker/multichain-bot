@@ -69,6 +69,15 @@ def regime_panic_block(c):
     r = c.get('regime_h1_neg_pct')
     return r is not None and r > 70.0
 
+def high_activity_fomo_block(c):
+    """Phantom mirror for filter_high_activity_fomo ENFORCED 2026-05-16 PM.
+
+    Blocks buys_per_min_recent >= 10 (FOMO peak signature). Mining on our
+    30d cohort: n=20, 15% WR, -$4.63 avg pnl in this bucket.
+    """
+    v = c.get("buys_per_min_recent")
+    return isinstance(v, (int, float)) and v >= 10
+
 def blowoff_top_block(c):
     """Phantom mirror for filter_blowoff_top ENFORCED 2026-05-16 PM.
 

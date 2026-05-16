@@ -9181,6 +9181,46 @@ class DipScanner:
                 )
                 continue
 
+            # ── filter_high_activity_fomo — ENFORCED 2026-05-16 PM ─────────
+            # Block tokens with buys_per_min_recent >= 10 — late-stage FOMO
+            # peak signature.
+            #
+            # Mining (our 30d trade cohort, n=89):
+            #   buys_per_min cohort       n     WR     avg_pnl
+            #   buys_per_min == 0         17    47%    -1.16%   <-- best
+            #   buys_per_min > 0          72    31%    -2.52%
+            #   buys_per_min >= 5         39    33%    -2.79%
+            #   buys_per_min >= 10        20    15%    -4.63%   <-- worst
+            #
+            # Counter-intuitive but consistent with universe-mining finding
+            # (low buys_h1 = better outcome). High recent buy rate = retail
+            # FOMO peak = mean-reversion catches us.
+            #
+            # Est savings: 20 trades blocked × ~$0.93 avg loss = +$18.60/30d
+            # at current sizing. Doesn't affect 0-WR sub-cohort (preserved).
+            _filter_high_fomo_block_reasons: list = []
+            try:
+                _bpm = (_velocity_dict or {}).get("buys_per_min_recent")
+                if isinstance(_bpm, (int, float)) and _bpm >= 10:
+                    _filter_high_fomo_block_reasons.append(
+                        f"buys_per_min_recent={_bpm}>=10 "
+                        f"(FOMO peak — n=20 lifetime, 15% WR, -$4.63 avg)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] high_fomo filter err: {_e}")
+            _filter_high_fomo_verdict = (
+                "BLOCK" if _filter_high_fomo_block_reasons else "PASS"
+            )
+            c[f"filter_high_activity_fomo_{_filter_high_fomo_verdict.lower()}"] = c.get(
+                f"filter_high_activity_fomo_{_filter_high_fomo_verdict.lower()}", 0
+            ) + 1
+            if _filter_high_fomo_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_high_activity_fomo: "
+                    f"{token_symbol} reasons={','.join(_filter_high_fomo_block_reasons)}"
+                )
+                continue
+
             # ── filter_macro_panic — SHADOW 2026-05-16 PM ──────────────────
             # Macro context gate. Existing regime tag already classifies
             # sol/btc/meme-sector state into up/flat/down (lines 1264-1284).
@@ -9999,6 +10039,10 @@ class DipScanner:
                 "filter_blowoff_top_verdict": _filter_blowoff_top_verdict,
                 "filter_blowoff_top_block_reasons": _filter_blowoff_block_reasons,
                 "filter_blowoff_top_premium_rescue": _filter_blowoff_premium_rescue,
+                # filter_high_activity_fomo — ENFORCED 2026-05-16 PM
+                # (buys_per_min_recent >= 10 block — FOMO peak).
+                "filter_high_activity_fomo_verdict": _filter_high_fomo_verdict,
+                "filter_high_activity_fomo_block_reasons": _filter_high_fomo_block_reasons,
                 # filter_sweep_too_recent — ENFORCED 2026-05-13 anti-knife-catch.
                 "filter_sweep_too_recent_verdict": _filter_sweep_too_recent_verdict,
                 "filter_sweep_too_recent_block_reasons": _filter_sweep_too_recent_block_reasons,
