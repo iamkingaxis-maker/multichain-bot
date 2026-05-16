@@ -8484,9 +8484,19 @@ class DipScanner:
                 continue
 
             # ── filter_microcap_buyer_trap (F5) — n=67 historical, 22.4% WR ──
-            # Blocks: bs_h1[1.1,1.3) AND mcap[$500k,$2M) AND liq[$100k,$250k).
-            # Lifetime: blocks 4.2 trades/day, saves +$273 net. No hour gate
-            # (24/7) — this is a structural micro-cap trap pattern.
+            # Loosened 2026-05-16 after re-mining on 4d post-reset data showed
+            # original threshold caught only 1/81 trades. New band:
+            #   bs_h1[1.0,1.4) AND mcap[$500k,$5M) AND liq[$100k,$300k)
+            # captures 7 trades (6 losers + 1 breakeven, 0 winners hurt):
+            #   TCLAW 05-13 -8.65%, AMERICA 05-13 -9.23%, TCLAW 05-13 -4.30%,
+            #   WORLDCUP 05-13 -4.91%, RAGEGUY 05-14 0.00%, RAGEGUY 05-14
+            #   -4.86%, DIRECTOR 05-15 -22.71%.
+            # Mechanism: mid-cap meme ($0.7M-$4.4M), thin liq ($100-250k),
+            # only marginally bullish h1 buyer flow (bs_h1 1.0-1.4) = post-
+            # pump dead-cat trap. Net +$10.93 saved over 4 days. 100%
+            # precision, 0% winner-block. Original lifetime mining (n=67,
+            # +$273 saved) prompted the tighter band; the regime has since
+            # widened the trap pattern, so we widen the gate to match.
             _filter_microcap_trap_block_reasons: list = []
             try:
                 _f5_bsh1 = float(bs_h1) if bs_h1 not in (None, float("inf")) else None
@@ -8495,9 +8505,9 @@ class DipScanner:
                 if _f5_liq is None:
                     _f5_liq = float((pair.get("liquidity") or {}).get("usd") or 0) if "pair" in dir() else None
                 if (
-                    _f5_bsh1 is not None and 1.1 <= _f5_bsh1 < 1.3
-                    and _f5_mc is not None and 500_000 <= _f5_mc < 2_000_000
-                    and _f5_liq is not None and 100_000 <= _f5_liq < 250_000
+                    _f5_bsh1 is not None and 1.0 <= _f5_bsh1 < 1.4
+                    and _f5_mc is not None and 500_000 <= _f5_mc < 5_000_000
+                    and _f5_liq is not None and 100_000 <= _f5_liq < 300_000
                 ):
                     _filter_microcap_trap_block_reasons.append(
                         f"bs_h1={_f5_bsh1:.2f} AND mcap=${_f5_mc/1e6:.2f}M "
