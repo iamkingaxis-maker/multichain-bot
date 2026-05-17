@@ -955,35 +955,15 @@ class Trader:
         is_vol_death = "volume death" in reason_lower
         is_stop_loss = ("stop" in reason_lower) and ("kill" not in reason_lower)
         if is_vol_death or is_stop_loss:
-            # No cooldown by default — trust entry filter stack to gate rebuys.
-            # EXCEPT: if this token has accumulated 3+ stops within last 4h,
-            # apply a 4h cooldown. RAGEGUY 2026-05-14 pattern: 4 stops in
-            # 4h all losses. Single stops still uncooldowned (+$600 lifetime).
-            addr_lc = token_address.lower()
-            now_ts = time.time()
-            streak = [t for t in self._dip_stop_streak.get(addr_lc, [])
-                      if now_ts - t <= 4 * 3600.0]
-            streak.append(now_ts)
-            self._dip_stop_streak[addr_lc] = streak
-            try:
-                with open(self._dip_stop_streak_path, "w") as f:
-                    json.dump(self._dip_stop_streak, f)
-            except Exception:
-                pass
+            # 2026-05-17 PM — ALL loss cooldowns removed per user direction.
+            # Was: stop-streak (3+ stops in 4h) engaged 4h cooldown.
+            # Now: no cooldown on any losing close. Streak tracking removed.
+            # Filter stack gates rebuy quality; PAC-style serial-rebuy disasters
+            # need to be solved upstream (entry filters), not via cooldowns.
             tag = "vol-death" if is_vol_death else "stop-loss"
-            if len(streak) >= 3:
-                # Token has 3+ stops within 4h — engage 4h cooldown.
-                self._dip_loss_cooldown[addr_lc] = [now_ts, 4 * 3600.0]
-                self._save_dip_loss_cooldown()
-                logger.warning(
-                    f"[Trader] {tag} close on {token_address[:8]}… — "
-                    f"streak={len(streak)} in 4h — engaging 4h cooldown"
-                )
-            else:
-                logger.info(
-                    f"[Trader] {tag} close on {token_address[:8]}… — no cooldown "
-                    f"(streak={len(streak)} <3; filter stack gates rebuy)"
-                )
+            logger.info(
+                f"[Trader] {tag} close on {token_address[:8]}… — no cooldown (loss-cooldowns disabled 2026-05-17)"
+            )
             return
         self._dip_loss_cooldown[token_address.lower()] = [time.time(), 1800.0]
         self._save_dip_loss_cooldown()

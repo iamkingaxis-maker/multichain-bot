@@ -1807,34 +1807,20 @@ class PositionManager:
             #   - min hold: 60s -> 180s (gives rebound 3min before cutting)
             #   - pnl floor: -1.5% -> -2.5% (deeper before trigger)
             #   - peak < 1.0% unchanged (still never-green-after-180s)
-            if (not state.tp1_hit
-                    and age_s >= 180
-                    and _dud_peak < 1.0
-                    and pnl_pct <= -2.5
-                    and pnl_pct > -self.dip_stop_pct
-                    and state.fast_dud_first_ts is None):
-                state.fast_dud_first_ts = datetime.now(timezone.utc)
-                state.fast_dud_first_pnl = pnl_pct
-                logger.warning(
-                    f"[PositionManager/{self.chain_name}] 🔪 fast-dud EXIT: "
-                    f"{state.token_symbol} hold={age_s:.0f}s "
-                    f"peak={_dud_peak:+.1f}% pnl={pnl_pct:+.1f}% "
-                    f"(exit at -2.5% / min 180s)"
-                )
-                await self._execute_sell(
-                    token_address, state,
-                    pct=1.0,
-                    reason=(
-                        f"Dip fast_dud exit (hold {age_s:.0f}s, "
-                        f"peak {_dud_peak:+.1f}%, pnl {pnl_pct:+.1f}%)"
-                    ),
-                )
-                if self.scanner:
-                    self.scanner.register_stop_loss(
-                        token_address, state.token_symbol,
-                        state.current_price, cooldown_seconds=7200
-                    )
-                return
+            # 2026-05-17 PM — fast_dud RETIRED. Was: exit at -2.5% if peak<+1%
+            # after 180s hold. Cut bot off from pumps that developed after the
+            # 3min window. User-flagged: bot just missed a pump because fast_dud
+            # exited mid-development. Now bot holds losers to -4% hard stop or
+            # soft trail catches a recovery. Pre-stop bail-out (commit 59d0296)
+            # still catches genuinely dying volume.
+            # if (not state.tp1_hit
+            #         and age_s >= 180
+            #         and _dud_peak < 1.0
+            #         and pnl_pct <= -2.5
+            #         and pnl_pct > -self.dip_stop_pct
+            #         and state.fast_dud_first_ts is None):
+            #     [fast_dud exit removed]
+            #     return
 
             # ── VOLUME DEATH EXIT ────────────────────────────────────
             # Close losing positions whose liquidity has structurally died.

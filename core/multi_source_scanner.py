@@ -302,28 +302,27 @@ class MultiSourceScanner:
     def register_stop_loss(self, token_address: str, token_symbol: str, exit_price: float,
                            cooldown_seconds: int = 3600):
         """
-        Called by the position manager when any losing exit fires.
-        Blocks re-entry on this token for cooldown_seconds (default 1h).
-        After cooldown expires the token must pass a full fresh scan — it is NOT auto-bought.
+        2026-05-17 PM — DISABLED. All scanner-level loss cooldowns removed
+        per user direction. Bot can immediately re-evaluate any token post-
+        losing-exit; entry filter stack gates rebuy quality.
+
+        Was: called by position_manager on every losing exit (stop, fast_dud,
+        vol-death, bail-out). Blocked re-entry 1-2h via _sl_cooldown +
+        watchlist eviction.
+
+        Function kept as a no-op so call sites in position_manager don't
+        need editing. Watch forward: if losing-token rebuys cluster losses,
+        revisit.
         """
-        addr_lower = token_address.lower()
-        cooldown_until = time.monotonic() + cooldown_seconds
-        # Preserve longer existing cooldowns — never downgrade (e.g. a 60-min close
-        # cooldown must not overwrite an existing 24h flash-crash cooldown)
-        existing = self._sl_cooldown.get(addr_lower, 0)
-        self._sl_cooldown[addr_lower] = max(existing, cooldown_until)
-        # Also evict from dip watchlist so it can't auto-buy from a stale watchlist entry
-        if addr_lower in self._dip_watchlist:
-            del self._dip_watchlist[addr_lower]
-            logger.info(
-                f"[{self.chain.name}] Loss cooldown: {token_symbol} removed from dip watchlist"
-            )
-        label = f"{cooldown_seconds // 60}min" if cooldown_seconds < 3600 else f"{cooldown_seconds // 3600}h"
-        logger.info(
-            f"[{self.chain.name}] Loss cooldown: {token_symbol} blocked for {label} — "
-            f"must pass fresh scan to re-enter (addr={addr_lower[:8]}…)"
-        )
-        self._save_sl_cooldowns()
+        return  # no-op — see comment above
+        # Original implementation (preserved for reference):
+        # addr_lower = token_address.lower()
+        # cooldown_until = time.monotonic() + cooldown_seconds
+        # existing = self._sl_cooldown.get(addr_lower, 0)
+        # self._sl_cooldown[addr_lower] = max(existing, cooldown_until)
+        # if addr_lower in self._dip_watchlist:
+        #     del self._dip_watchlist[addr_lower]
+        # self._save_sl_cooldowns()
 
     def _save_sl_cooldowns(self):
         """Persist active cooldowns to disk so they survive Railway restarts."""
