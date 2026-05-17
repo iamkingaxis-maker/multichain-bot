@@ -8152,63 +8152,13 @@ class DipScanner:
             if _trigger_high_churn_microcap_match:
                 _triggers_fired.append("high_churn_microcap")
 
-            # ── filter_low_mcap_no_edge — ENFORCED 2026-05-18 ───────────────
-            # Phase 3 of the April-WR-restoration plan. April high-WR era
-            # traded $1M+ established memecoins. Today's bot fires on
-            # $80k-$1M microcaps. Per-band universe data:
-            #   <$100k mcap:     73.5% WR, 17% stop rate
-            #   $100k-$250k:     77.5% WR, 16% stop rate
-            #   $250k-$1M:       69-77% WR, 17-21% stop rate
-            #   $1M+:            73-94% WR, 0-16% stop rate
-            #
-            # Microcap mode is OK when the trigger is microcap-specific OR
-            # the token is currently trending (on Axiom Top+Trending). But
-            # firing on a generic active_dip / confirmed_dip / har trigger
-            # in a $50k-$250k token with no trending flag is the Mira/PAC
-            # bleed pattern. Block those.
-            #
-            # MICROCAP-SAFE triggers (allowed at any mcap, no trending req):
-            #   fresh_runner_factory, low_liq_active_dip, v_bottom_body,
-            #   volume_burst_runner, high_churn_microcap
-            # These are designed for microcap chaos and have universe WR>=77%.
-            #
-            # Generic triggers (active_dip, confirmed_dip, high_activity_runner,
-            # young_active_dip, volatile_5m_dip, volatile_buyer_dom) at
-            # mcap < $250k require is_trending_token=True.
-            _flmne_mcap = mcap or 0
-            _flmne_microcap_safe_triggers = {
-                "fresh_runner_factory", "low_liq_active_dip", "v_bottom_body",
-                "volume_burst_runner", "high_churn_microcap",
-            }
-            _flmne_has_safe_trigger = any(
-                t in _flmne_microcap_safe_triggers for t in _triggers_fired
-            )
-            # 2026-05-18 — threshold lowered $250k -> $150k after first
-            # hour showed 0 buys completed. Universe data shows $100k-$250k
-            # is the BEST WR band (77.5% WR, +8.98% avg). Mira at $210k was
-            # blocked at $250k threshold but lived in the best band; the
-            # April analog is "tokens with attention" (any mcap) not just
-            # established $1M+ caps. New floor $150k blocks the deepest
-            # microcap chaos zone but lets the productive $150k-$250k zone
-            # through. Re-tighten if forward shows microcap-zone bleed.
-            _flmne_block = (
-                _flmne_mcap > 0
-                and _flmne_mcap < 150_000
-                and not _is_trending_token
-                and not _flmne_has_safe_trigger
-                and len(_triggers_fired) > 0  # only act when triggers actually fired
-            )
-            if _flmne_block:
-                logger.info(
-                    f"[DipScanner] BLOCKED by filter_low_mcap_no_edge: "
-                    f"{token_symbol} mcap=${_flmne_mcap:,.0f}<$150k AND "
-                    f"not trending AND no microcap-safe trigger "
-                    f"(fired={_triggers_fired})"
-                )
-                c["filter_low_mcap_no_edge_block"] = c.get(
-                    "filter_low_mcap_no_edge_block", 0
-                ) + 1
-                _triggers_fired = []  # clear triggers — block downstream
+            # filter_low_mcap_no_edge — MOVED 2026-05-18 PM (was here, but
+            # ran BEFORE the bulk of trigger appends at lines ~8290-8460
+            # below, so the filter operated on an empty list and triggers
+            # appended afterward re-populated _triggers_fired and bypassed
+            # the gate — Bundibugyo $60k bought via informed_cluster cluster.
+            # Now lives after the trigger_source rebuild at line ~9092,
+            # which is AFTER every _triggers_fired.append() in this scope.
 
             # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
             # Set after all 6 breakthrough triggers (strong_orderflow,
@@ -9089,6 +9039,56 @@ class DipScanner:
 
             # Rebuild trigger_source if 1s triggers were added
             _trigger_source = "_".join(_triggers_fired) if len(_triggers_fired) > 1 else _triggers_fired[0]
+
+            # ── filter_low_mcap_no_edge — ENFORCED 2026-05-18 ───────────────
+            # Phase 3 of the April-WR-restoration plan. Was originally placed
+            # at line ~8155 right after R5/R6 microcap-safe trigger appends,
+            # but that put it BEFORE the cluster of legacy generic triggers
+            # (informed_cluster, grad_window_dip, liq_velocity_big_buyers,
+            # net_flow_5m_demand, whale_conviction, etc.) appended at
+            # ~8290-8460. Bundibugyo $60k slipped through 2026-05-17 21:36 UTC
+            # because its 5 generic triggers all fired AFTER the filter ran
+            # on an empty list. Moved here so every trigger append above is
+            # in _triggers_fired when the filter evaluates.
+            #
+            # April high-WR era traded $1M+ established memecoins. Today's bot
+            # fires on $50k-$250k microcaps via generic triggers. Per-band
+            # universe data:
+            #   <$100k mcap:     73.5% WR, 17% stop rate
+            #   $100k-$250k:     77.5% WR, 16% stop rate
+            #   $250k-$1M:       69-77% WR, 17-21% stop rate
+            #   $1M+:            73-94% WR, 0-16% stop rate
+            #
+            # MICROCAP-SAFE triggers (allowed at any mcap, no trending req):
+            #   fresh_runner_factory, low_liq_active_dip, v_bottom_body,
+            #   volume_burst_runner, high_churn_microcap
+            # Threshold $150k after 2026-05-18 PM tune ($250k -> $150k).
+            _flmne_mcap = mcap or 0
+            _flmne_microcap_safe_triggers = {
+                "fresh_runner_factory", "low_liq_active_dip", "v_bottom_body",
+                "volume_burst_runner", "high_churn_microcap",
+            }
+            _flmne_has_safe_trigger = any(
+                t in _flmne_microcap_safe_triggers for t in _triggers_fired
+            )
+            _flmne_block = (
+                _flmne_mcap > 0
+                and _flmne_mcap < 150_000
+                and not _is_trending_token
+                and not _flmne_has_safe_trigger
+                and len(_triggers_fired) > 0
+            )
+            if _flmne_block:
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_low_mcap_no_edge: "
+                    f"{token_symbol} mcap=${_flmne_mcap:,.0f}<$150k AND "
+                    f"not trending AND no microcap-safe trigger "
+                    f"(fired={_triggers_fired})"
+                )
+                c["filter_low_mcap_no_edge_block"] = c.get(
+                    "filter_low_mcap_no_edge_block", 0
+                ) + 1
+                continue
 
             # ── filter_dying_volume — SHADOW 2026-05-11 ───────────────────────
             # Block when pre-entry 1s microstructure shows volume dying:
