@@ -1846,6 +1846,20 @@ class PositionManager:
                 if snapshot is not None:
                     v_h24, v_h1, v_m5 = snapshot
                     decay_threshold = v_h24 / 48.0 if v_h24 > 0 else 0
+                    # 2026-05-17 PRE-STOP BAIL-OUT — new leg.
+                    # Forensics on 134 closed trades: avg realized loss was -$1.23
+                    # on a $20 position = effective -6% despite -4% nominal stop.
+                    # The 2pp gap is bad-fill slippage on dying liquidity. Bail at
+                    # -2% if volume is clearly dying (v_m5 < $500 AND v_h1 below
+                    # 1.5x decay-floor) — captures the trade BEFORE the stop fills
+                    # at -6%. Saves ~$0.50/trade × ~16% stop-rate ≈ $0.08/trade.
+                    _bail_dying = (
+                        v_m5 < 500.0
+                        and v_h1 < decay_threshold * 1.5
+                        and pnl_pct <= -2.0
+                        and not state.tp1_hit
+                        and state.strategy == "dip_buy"
+                    )
                     if v_m5 == 0 and v_h1 < decay_threshold:
                         logger.warning(
                             f"[PositionManager/{self.chain_name}] 💀 VOLUME DEATH: "
@@ -1859,6 +1873,28 @@ class PositionManager:
                             reason=(
                                 f"Volume death exit (pnl={pnl_pct:.1f}%, "
                                 f"vol_m5=0, vol_h1=${v_h1/1e3:.1f}k)"
+                            ),
+                        )
+                        if self.scanner:
+                            self.scanner.register_stop_loss(
+                                token_address, state.token_symbol,
+                                state.current_price, cooldown_seconds=7200
+                            )
+                        return
+                    # 2026-05-17 PRE-STOP BAIL-OUT — milder dying-volume branch.
+                    if _bail_dying:
+                        logger.warning(
+                            f"[PositionManager/{self.chain_name}] 🩹 PRE-STOP BAIL-OUT: "
+                            f"{state.token_symbol} pnl={pnl_pct:.2f}% "
+                            f"vol_m5=${v_m5:.0f}<500 vol_h1=${v_h1/1e3:.1f}k<{decay_threshold*1.5/1e3:.1f}k "
+                            f"— closing before -4% stop slips to -6%"
+                        )
+                        await self._execute_sell(
+                            token_address, state,
+                            pct=1.0,
+                            reason=(
+                                f"Pre-stop bail-out (pnl={pnl_pct:.2f}%, "
+                                f"vol_m5=${v_m5:.0f}, vol_h1=${v_h1/1e3:.1f}k)"
                             ),
                         )
                         if self.scanner:

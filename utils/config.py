@@ -170,7 +170,7 @@ class Config:
     #   - Peak ≥ +10%: TP3 closes remaining 25% at +10 → blended +5.25%
     # Cost: caps the rare +13-15% runners (BUFO, RKC) at blended +5.25.
     # Trade-off accepted given the consistent give-back pain.
-    dip_tp1_pct: float = 3.0              # TP1 at +3% — sells 50% of position
+    dip_tp1_pct: float = 5.0              # TP1 at +5% — sells 50% of position. Raised 3.0→5.0 on 2026-05-17 PM. Universe-recorder (n=2691, 24h) showed peak distribution: 36.8% in [+5,+20], 19.4% in [+20,+50], 7.1% over +50. Old TP1=+3% was clipping at lower tier of modal bucket. Per-peak sim: new TP1 captures +0.75 to +1.0pp more per trade across peaks >= +5%. Cost: peaks in [+3,+5] bucket (9.1% of universe) lose ~+1pp via fall-through to trail. Net positive +0.6pp/trade expected.
     dip_tp1_sell: float = 0.50            # 50% of original
     dip_tp2_pct: float = 5.0              # TP2 at +5% — sells 50% of remainder = 25% of original
     dip_tp2_sell: float = 0.50            # 50% of remainder
@@ -178,7 +178,7 @@ class Config:
     dip_tp3_sell: float = 1.0             # 100% of remainder (unchanged — only fires if peak crosses 999%, which it won't)
     dip_stop_pct: float = 4.0             # Hard stop at -4% (was -7% from 2026-05-10). Tightened 2026-05-16 after 7d audit (n=74 closed): max-drawdown distribution showed 80% of trades stayed above -7%, 5% landed in [-7%, -4%], 20% deeper. Sim: -4% stop saves ~$8-9 on the deep-tail (15 trades that went past -7%), costs $0.46 on 2 winners that recovered (DIRECTOR max_dd=-6.6% → +$0.04, Crack max_dd=-4.4% → +$0.42). Pairs with Dust bug fix: more trades locking TP1 at +3% reduces dependence on big-runner recoveries, making tight stop less punishing. Watch: revert toward -5% if too many winners get killed forward.
     dip_winner_trail_pct: float = 1.0     # Tightened 2.0 → 1.0 on 2026-05-16 (exit-sim option C). Sim across 79 closed trades: 27 TP1_FIRED trades all helped (+0.50%/trade avg), 0 hurt; $/trade improvement +$0.043. With 5s mgmt-cycle latency the empirical floor is ~1.5pp, so spec=1.0 caps actual give-back at ~2.5pp instead of ~3.5pp.
-    dip_max_concurrent: int = 4           # Max simultaneous dip positions
+    dip_max_concurrent: int = 10          # Max simultaneous dip positions. Raised 4→10 on 2026-05-17 PM for volume burst headroom. Paper mode capital effectively unlimited ($1M pool). 10 concurrent × $20 = $200 deployed at any time, well within capital. Risk: amplified drawdown — 10 concurrent losses at -$1.23 avg = -$12.30 single sweep. Acceptable in paper mode.
     dip_min_txn_ratio_h6: float = 1.3     # require h6 buy/sell txn ratio >= 1.3 (blocks distribution: DUMBMONEY 1.11, SPIKE 1.20; passes WIFE 1.54, BULL 1.53)
     dip_min_vol_h1_ratio: float = 0.5     # require vol_h1 >= vol_h24/48 (= 50% of avg hourly rate). Blocks decelerating-volume tokens (67, TROLL); passes BULL 0.80x, pippin 0.72x
     dip_require_vol_m5: bool = True       # require vol_m5 > 0 (blocks fully dead tokens)
