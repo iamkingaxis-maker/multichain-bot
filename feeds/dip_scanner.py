@@ -8152,14 +8152,6 @@ class DipScanner:
             if _trigger_high_churn_microcap_match:
                 _triggers_fired.append("high_churn_microcap")
 
-            # filter_low_mcap_no_edge — MOVED 2026-05-18 PM (was here, but
-            # ran BEFORE the bulk of trigger appends at lines ~8290-8460
-            # below, so the filter operated on an empty list and triggers
-            # appended afterward re-populated _triggers_fired and bypassed
-            # the gate — Bundibugyo $60k bought via informed_cluster cluster.
-            # Now lives after the trigger_source rebuild at line ~9092,
-            # which is AFTER every _triggers_fired.append() in this scope.
-
             # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
             # Set after all 6 breakthrough triggers (strong_orderflow,
             # sustained_accumulation, chart_quality_bottom,
@@ -9040,55 +9032,12 @@ class DipScanner:
             # Rebuild trigger_source if 1s triggers were added
             _trigger_source = "_".join(_triggers_fired) if len(_triggers_fired) > 1 else _triggers_fired[0]
 
-            # ── filter_low_mcap_no_edge — ENFORCED 2026-05-18 ───────────────
-            # Phase 3 of the April-WR-restoration plan. Was originally placed
-            # at line ~8155 right after R5/R6 microcap-safe trigger appends,
-            # but that put it BEFORE the cluster of legacy generic triggers
-            # (informed_cluster, grad_window_dip, liq_velocity_big_buyers,
-            # net_flow_5m_demand, whale_conviction, etc.) appended at
-            # ~8290-8460. Bundibugyo $60k slipped through 2026-05-17 21:36 UTC
-            # because its 5 generic triggers all fired AFTER the filter ran
-            # on an empty list. Moved here so every trigger append above is
-            # in _triggers_fired when the filter evaluates.
-            #
-            # April high-WR era traded $1M+ established memecoins. Today's bot
-            # fires on $50k-$250k microcaps via generic triggers. Per-band
-            # universe data:
-            #   <$100k mcap:     73.5% WR, 17% stop rate
-            #   $100k-$250k:     77.5% WR, 16% stop rate
-            #   $250k-$1M:       69-77% WR, 17-21% stop rate
-            #   $1M+:            73-94% WR, 0-16% stop rate
-            #
-            # MICROCAP-SAFE triggers (allowed at any mcap, no trending req):
-            #   fresh_runner_factory, low_liq_active_dip, v_bottom_body,
-            #   volume_burst_runner, high_churn_microcap
-            # Threshold $150k after 2026-05-18 PM tune ($250k -> $150k).
-            _flmne_mcap = mcap or 0
-            _flmne_microcap_safe_triggers = {
-                "fresh_runner_factory", "low_liq_active_dip", "v_bottom_body",
-                "volume_burst_runner", "high_churn_microcap",
-            }
-            _flmne_has_safe_trigger = any(
-                t in _flmne_microcap_safe_triggers for t in _triggers_fired
-            )
-            _flmne_block = (
-                _flmne_mcap > 0
-                and _flmne_mcap < 150_000
-                and not _is_trending_token
-                and not _flmne_has_safe_trigger
-                and len(_triggers_fired) > 0
-            )
-            if _flmne_block:
-                logger.info(
-                    f"[DipScanner] BLOCKED by filter_low_mcap_no_edge: "
-                    f"{token_symbol} mcap=${_flmne_mcap:,.0f}<$150k AND "
-                    f"not trending AND no microcap-safe trigger "
-                    f"(fired={_triggers_fired})"
-                )
-                c["filter_low_mcap_no_edge_block"] = c.get(
-                    "filter_low_mcap_no_edge_block", 0
-                ) + 1
-                continue
+            # filter_low_mcap_no_edge REMOVED 2026-05-18 PM — was bandaid.
+            # Phase 1 (kill bypass + promote 4 filters to ENFORCED) is the
+            # real April-era fix. The mcap×trending×trigger gate was extra
+            # insurance against a problem Phase 1 already solved, and it
+            # blocked productive throughput on small-cap memecoins which
+            # is exactly what the bot is supposed to trade.
 
             # ── filter_dying_volume — SHADOW 2026-05-11 ───────────────────────
             # Block when pre-entry 1s microstructure shows volume dying:
