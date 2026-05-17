@@ -1543,15 +1543,20 @@ class Trader:
                 _q_verdict = "BLOCK" if (_q_block_reasons and not _q_carve_rescued) else "PASS"
                 entry_meta["filter_quad_verdict"] = _q_verdict
                 entry_meta["filter_quad_block_reasons"] = _q_block_reasons
-                # Strategy gating: only enforce for dip_buy (this is where the
-                # tuning data came from). scanner/scalp/graduation paths use
-                # different signal pipelines and may have different dynamics.
+                # 2026-05-17 PM — DEMOTED to SHADOW. Volume-recovery context:
+                # filter_quad was blocking ~25-40% of dip_buy signals at trader
+                # level. With mcap_low gate locked at $80k, the trader cascade
+                # is the only remaining volume lever. Demoting filter_quad to
+                # SHADOW logs the would-block decision but does NOT abort the
+                # buy — bot trades through. Watch entry_meta.filter_quad_verdict
+                # forward: if SHADOW-BLOCK trades have materially worse WR than
+                # SHADOW-PASS, repromote. Original ENFORCED path commented below.
                 if _q_verdict == "BLOCK" and strategy == "dip_buy":
                     logger.info(
-                        f"[Trader] BLOCKED by filter_quad: {token_symbol} "
+                        f"[Trader] filter_quad SHADOW would-block: {token_symbol} "
                         f"reasons={','.join(_q_block_reasons)}"
                     )
-                    return
+                    # return  # DEMOTED 2026-05-17 PM — see comment above
 
             # ── filter_top10_holder_band ENFORCED 2026-05-14 PM ───────────────
             # Insider-zone holder concentration: top 10 holders own 70-80% of

@@ -574,7 +574,12 @@ class DipScanner:
                         )
                     if not self.baseline_mode:
                         continue
-            if pc_h1 >= 0 and pc_m5 >= 0:
+            # 2026-05-17 PM — loosened from (pc_h1>=0 AND pc_m5>=0) to require
+            # CLEAR green (>+1% on both) before rejecting. Old gate killed
+            # near-flat tokens (e.g. +0.1%/+0.1%) which could be early-uptrend
+            # starts. Volume-recovery context: rejects ~24/cycle pre-loosening,
+            # expect ~5-10/cycle post-loosening (15-20 more candidates pass).
+            if pc_h1 > 1.0 and pc_m5 > 1.0:
                 c["no_dip"] += 1
                 if not self.baseline_mode:
                     continue
@@ -840,12 +845,18 @@ class DipScanner:
                         m1_features.update(_micro_feats)
                     except Exception as _e:
                         logger.debug(f"[DipScanner] micro_patterns error for {token_symbol}: {_e}")
-                    if green_in_last3 == 0:
+                    # 2026-05-17 PM — loosened: only reject if no green AND
+                    # cum_3min is meaningfully negative (still dropping). Near-
+                    # flat tokens (cum_3min in [-2, 0]) are stable bottom
+                    # candidates — let them through to deeper analysis. Volume-
+                    # recovery context: rejects ~13/cycle pre-loosening, expect
+                    # ~5-8/cycle post-loosening.
+                    if green_in_last3 == 0 and cum_3min_pct < -2.0:
                         c["no_1m_reversal"] += 1
                         logger.info(
                             f"[DipScanner] 1m gate: {token_symbol} — "
-                            f"no green close in last 3 min "
-                            f"(cum_3min={cum_3min_pct:+.1f}%) — skipping"
+                            f"no green close in last 3 min AND cum_3min={cum_3min_pct:+.1f}%<-2 "
+                            f"— skipping"
                         )
                         if not self.baseline_mode:
                             continue
