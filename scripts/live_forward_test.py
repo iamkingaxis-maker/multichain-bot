@@ -416,7 +416,16 @@ COMBOS = {
         or (c.get('sells_h1') is not None and c['sells_h1'] <= 411
             and c.get('mcap') is not None and c['mcap'] >= 531083)
         or (c.get('pc_h1') is not None and c['pc_h1'] > -20.0)
+        # Carve-out #4 (2026-05-16 PM): breakthrough_early flag.
+        or c.get('breakthrough_early_match') is True
     ),
+    # Breakthrough-trigger fast-path flags (stamped 2026-05-16 PM).
+    # Phantom mirrors of _breakthrough_early_match (strong_orderflow +
+    # sustained_accumulation predicates) and _breakthrough_late_match
+    # (all 6 on-chain compound triggers). Used by 5 filter carve-outs
+    # in dip_scanner.py — phantom only needs flag stamping here.
+    'BT_breakthrough_early': lambda c: c.get('breakthrough_early_match') is True,
+    'BT_breakthrough_late':  lambda c: c.get('breakthrough_late_match') is True,
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
                                          or c['net_flow_5m_usd'] >= 0),

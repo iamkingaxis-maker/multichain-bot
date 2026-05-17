@@ -3023,6 +3023,50 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] tier3 features error: {_e}")
 
+            # ── Breakthrough-trigger EARLY preview (2026-05-16 PM) ─────────
+            # The 6 on-chain compound triggers shipped 2026-05-15 had
+            # 72-100% WR on lifetime data (reference_onchain_compound_
+            # breakthrough). 2 of them (strong_orderflow, sustained_
+            # accumulation) depend only on features available by this
+            # point: ratio_m5/h1/h6, chart_mtf_score (via _chart_ctx_dict),
+            # net_flow_60s_usd (via _tier3_features).
+            #
+            # The 4 remaining triggers need 1s features or
+            # 1s_close_pos_60s computed later — those are covered by the
+            # LATE breakthrough flag at the end of trigger eval.
+            #
+            # This EARLY flag lets filters that fire BEFORE the full
+            # trigger-eval block at line ~6700 carve-out for high-WR
+            # candidates. Predicates mirror the actual trigger eval
+            # exactly — wash-guard (mean_buy_size_usd >= $10) is
+            # applied at late eval, so EARLY flag is OPTIMISTIC and
+            # the late guard may revoke it before entry.
+            _breakthrough_early_match = False
+            try:
+                _bt_nf60 = _tier3_features.get("net_flow_60s_usd") if isinstance(_tier3_features, dict) else None
+                _bt_mtf = (_chart_ctx_dict or {}).get("chart_mtf_score") if isinstance(_chart_ctx_dict, dict) else None
+                _bt_ratio_m5 = ratio_m5 if ratio_m5 != float("inf") else None
+                _bt_ratio_h1 = ratio_h1 if ratio_h1 != float("inf") else None
+                _bt_ratio_h6 = ratio_h6 if ratio_h6 != float("inf") else None
+
+                _bt_strong_orderflow = (
+                    _bt_nf60 is not None and float(_bt_nf60) > 0
+                    and _bt_mtf is not None and float(_bt_mtf) >= 1.0
+                    and _bt_ratio_m5 is not None and _bt_ratio_m5 >= 1.5
+                )
+                _bt_sustained_accum = (
+                    _bt_nf60 is not None and float(_bt_nf60) > 0
+                    and _bt_mtf is not None and float(_bt_mtf) >= 0
+                    and _bt_ratio_h1 is not None and _bt_ratio_h1 >= 1.5
+                    and _bt_ratio_h6 is not None and _bt_ratio_h6 >= 1.2
+                )
+                _breakthrough_early_match = bool(
+                    _bt_strong_orderflow or _bt_sustained_accum
+                )
+            except Exception as _bt_e:
+                logger.debug(f"[DipScanner] breakthrough-early preview err: {_bt_e}")
+                _breakthrough_early_match = False
+
             # ── Tier-1 features (2026-05-04) ──
             # Smart-money wallet detection (cheap lookup against pre-built index)
             # + top-N maker capture (data feedstock for index rebuild) +
@@ -3356,8 +3400,21 @@ class DipScanner:
             if (_filter_bs_m5_weak_block_reasons
                 and pc_m5 is not None and float(pc_m5) >= -0.60):
                 _bs_m5_weak_carve = True
+            # BREAKTHROUGH carve-out 2026-05-16 PM: rescue when early
+            # breakthrough flag matches (strong_orderflow or sustained_
+            # accumulation present at this point). Those triggers had
+            # 8/8 and 7/7 WR on lifetime data — bs_m5 weakness is
+            # downstream noise when multi-window flow is already
+            # validated positive.
+            _bs_m5_weak_breakthrough_carve = False
+            if (_filter_bs_m5_weak_block_reasons
+                and not _bs_m5_weak_carve
+                and _breakthrough_early_match):
+                _bs_m5_weak_breakthrough_carve = True
             _filter_bs_m5_weak_verdict = (
-                "BLOCK" if (_filter_bs_m5_weak_block_reasons and not _bs_m5_weak_carve)
+                "BLOCK" if (_filter_bs_m5_weak_block_reasons
+                            and not _bs_m5_weak_carve
+                            and not _bs_m5_weak_breakthrough_carve)
                 else "PASS"
             )
             c[f"filter_bs_m5_weak_{_filter_bs_m5_weak_verdict.lower()}"] = c.get(
@@ -3375,6 +3432,14 @@ class DipScanner:
                     f"{token_symbol}"
                 )
                 c["filter_bs_m5_weak_carve_pc_m5"] = c.get("filter_bs_m5_weak_carve_pc_m5", 0) + 1
+            if _bs_m5_weak_breakthrough_carve:
+                logger.info(
+                    f"[DipScanner] filter_bs_m5_weak RESCUED by breakthrough early flag: "
+                    f"{token_symbol}"
+                )
+                c["filter_bs_m5_weak_carve_breakthrough"] = c.get(
+                    "filter_bs_m5_weak_carve_breakthrough", 0
+                ) + 1
 
             # 6) avg_trade_size_h1 — block tokens with big trades preceding
             # the dip ($80+ avg in last hour = whales selling in size).
@@ -6138,11 +6203,21 @@ class DipScanner:
                     _mtf_dn_pc_h1_carve = True
             except Exception:
                 pass
+            # CARVE-OUT 2026-05-16 PM #4: breakthrough-early flag.
+            # When the EARLY-flag of strong_orderflow or sustained_
+            # accumulation already matches at this point, the candidate
+            # is in the 72-100% WR cohort regardless of mtf state.
+            _mtf_dn_breakthrough_carve = False
+            if (_filter_mtf_dn_block_reasons
+                and not (_mtf_dn_chart_carve or _mtf_dn_calm_seller_carve or _mtf_dn_pc_h1_carve)
+                and _breakthrough_early_match):
+                _mtf_dn_breakthrough_carve = True
             _filter_mtf_dn_verdict = (
                 "BLOCK" if (_filter_mtf_dn_block_reasons
                             and not _mtf_dn_chart_carve
                             and not _mtf_dn_calm_seller_carve
-                            and not _mtf_dn_pc_h1_carve)
+                            and not _mtf_dn_pc_h1_carve
+                            and not _mtf_dn_breakthrough_carve)
                 else "PASS"
             )
             c[f"filter_mtf_strong_downtrend_{_filter_mtf_dn_verdict.lower()}"] = c.get(
@@ -6178,6 +6253,14 @@ class DipScanner:
                 )
                 c["filter_mtf_dn_carve_pc_h1"] = c.get(
                     "filter_mtf_dn_carve_pc_h1", 0
+                ) + 1
+            if _mtf_dn_breakthrough_carve:
+                logger.info(
+                    f"[DipScanner] filter_mtf_strong_downtrend RESCUED by breakthrough_early: "
+                    f"{token_symbol} (strong_orderflow or sustained_accum signature)"
+                )
+                c["filter_mtf_dn_carve_breakthrough"] = c.get(
+                    "filter_mtf_dn_carve_breakthrough", 0
                 ) + 1
 
             # ── filter_falling_knife — ENFORCED 2026-05-15 ──────────────────
@@ -7175,6 +7258,22 @@ class DipScanner:
             if _trigger_tight_buyer_mtf_match:
                 _triggers_fired.append("tight_buyer_mtf")
 
+            # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
+            # Set after all 6 breakthrough triggers (strong_orderflow,
+            # sustained_accumulation, chart_quality_bottom,
+            # buyer_momentum_burst, flow_reversal, chart_score_reversal)
+            # have been evaluated AND wash-trade guard has applied.
+            # This flag is AUTHORITATIVE — gates carve-outs in
+            # downstream filters that fire AFTER this point.
+            _breakthrough_late_match = bool(
+                _trigger_strong_orderflow_match
+                or _trigger_sustained_accum_match
+                or _trigger_chart_qual_bottom_match
+                or _trigger_buyer_momentum_burst_match
+                or _trigger_flow_reversal_match
+                or _trigger_chart_reversal_match
+            )
+
             # Apply anti-pattern suppression — clears all triggers if
             # the candidate matches a known 0/7 loss cohort.
             if _suppress_reason and _triggers_fired:
@@ -7580,10 +7679,27 @@ class DipScanner:
                     f"age={_fsd_age:.0f}h>168 AND "
                     f"h24_ratio={_fsd_h24r:.3f}<0.20 (post-pump corpse)"
                 )
-            _fsd_verdict = "BLOCK" if _fsd_block_reasons else "PASS"
+            # BREAKTHROUGH carve-out 2026-05-16 PM: rescue when a
+            # breakthrough trigger fired. solo_decay targets clean_break/
+            # high_regime — but if the candidate ALSO fires a breakthrough
+            # trigger, we're not in the solo-trigger class anymore.
+            _fsd_breakthrough_carve = bool(
+                _fsd_block_reasons and _breakthrough_late_match
+            )
+            _fsd_verdict = "BLOCK" if (
+                _fsd_block_reasons and not _fsd_breakthrough_carve
+            ) else "PASS"
             c[f"filter_solo_decay_{_fsd_verdict.lower()}"] = c.get(
                 f"filter_solo_decay_{_fsd_verdict.lower()}", 0
             ) + 1
+            if _fsd_breakthrough_carve:
+                logger.info(
+                    f"[DipScanner] filter_solo_decay RESCUED by breakthrough_late: "
+                    f"{token_symbol} trigs={_triggers_fired}"
+                )
+                c["filter_solo_decay_carve_breakthrough"] = c.get(
+                    "filter_solo_decay_carve_breakthrough", 0
+                ) + 1
             if _fsd_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_solo_decay: "
@@ -8306,12 +8422,29 @@ class DipScanner:
                     f"quote_asymmetry={_qa_val:.2f}%>3.5 "
                     f"(thin sell-side liquidity — exit will be expensive)"
                 )
+            # BREAKTHROUGH carve-out 2026-05-16 PM: rescue when a breakthrough
+            # trigger fired. Quote asymmetry is an exit-cost concern; if the
+            # candidate is in the 72-100% WR cohort, the expected upside
+            # dominates the asymmetry tax.
+            _qa_breakthrough_carve = bool(
+                _filter_quote_asymmetry_block_reasons and _breakthrough_late_match
+            )
             _filter_quote_asymmetry_verdict = (
-                "BLOCK" if _filter_quote_asymmetry_block_reasons else "PASS"
+                "BLOCK" if (_filter_quote_asymmetry_block_reasons
+                            and not _qa_breakthrough_carve)
+                else "PASS"
             )
             c[f"filter_quote_asymmetry_{_filter_quote_asymmetry_verdict.lower()}"] = c.get(
                 f"filter_quote_asymmetry_{_filter_quote_asymmetry_verdict.lower()}", 0
             ) + 1
+            if _qa_breakthrough_carve:
+                logger.info(
+                    f"[DipScanner] filter_quote_asymmetry RESCUED by breakthrough_late: "
+                    f"{token_symbol} trigs={_triggers_fired}"
+                )
+                c["filter_quote_asymmetry_carve_breakthrough"] = c.get(
+                    "filter_quote_asymmetry_carve_breakthrough", 0
+                ) + 1
             if _filter_quote_asymmetry_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_quote_asymmetry: {token_symbol} "
@@ -8439,12 +8572,30 @@ class DipScanner:
                     f"hl_delta_pct={_hl_dp:+.1f}%<-25 "
                     f"(5m swing low 25%+ below prior — deep LL pattern)"
                 )
+            # BREAKTHROUGH carve-out 2026-05-16 PM: rescue when a breakthrough
+            # trigger fired. The breakthrough cohort frequently has deep
+            # lower-low patterns (pc_h6<0 is the recurring winning archetype),
+            # so this filter is structurally blocking them. Carve-out lets
+            # the 72-100% WR setups through despite deep LL shape.
+            _ll_breakthrough_carve = bool(
+                _filter_lower_low_block_reasons and _breakthrough_late_match
+            )
             _filter_lower_low_verdict = (
-                "BLOCK" if _filter_lower_low_block_reasons else "PASS"
+                "BLOCK" if (_filter_lower_low_block_reasons
+                            and not _ll_breakthrough_carve)
+                else "PASS"
             )
             c[f"filter_lower_low_{_filter_lower_low_verdict.lower()}"] = c.get(
                 f"filter_lower_low_{_filter_lower_low_verdict.lower()}", 0
             ) + 1
+            if _ll_breakthrough_carve:
+                logger.info(
+                    f"[DipScanner] filter_lower_low RESCUED by breakthrough_late: "
+                    f"{token_symbol} trigs={_triggers_fired}"
+                )
+                c["filter_lower_low_carve_breakthrough"] = c.get(
+                    "filter_lower_low_carve_breakthrough", 0
+                ) + 1
             if _filter_lower_low_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_lower_low: {token_symbol} "
@@ -10132,6 +10283,12 @@ class DipScanner:
                 "filter_macro_panic_verdict": _filter_macro_panic_verdict,
                 "filter_macro_panic_block_reasons": _filter_macro_panic_block_reasons,
                 "filter_macro_panic_premium_rescue": _filter_macro_panic_premium_rescue,
+                # Breakthrough-trigger fast-path flags (2026-05-16 PM).
+                # EARLY is set after _tier3_features ready (line ~3070);
+                # covers strong_orderflow + sustained_accumulation predicates.
+                # LATE is set after all 6 trigger evals; covers all 6.
+                "breakthrough_early_match": _breakthrough_early_match,
+                "breakthrough_late_match": _breakthrough_late_match,
                 # filter_blowoff_top — ENFORCED 2026-05-16 PM (pc_h24>=500% block).
                 "filter_blowoff_top_verdict": _filter_blowoff_top_verdict,
                 "filter_blowoff_top_block_reasons": _filter_blowoff_block_reasons,
