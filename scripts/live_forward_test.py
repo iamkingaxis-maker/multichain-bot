@@ -426,6 +426,11 @@ COMBOS = {
     # in dip_scanner.py — phantom only needs flag stamping here.
     'BT_breakthrough_early': lambda c: c.get('breakthrough_early_match') is True,
     'BT_breakthrough_late':  lambda c: c.get('breakthrough_late_match') is True,
+    # Freshness gate (2026-05-17) — pass if vol_m5 >= 200 OR 5m txns > 4
+    'FRESH_pass_vol_m5': lambda c: (
+        (c.get('vol_m5') is None or c['vol_m5'] >= 200.0)
+        or (c.get('txns_m5_total') is not None and c['txns_m5_total'] > 4)
+    ),
     # Round-2 mining triggers (2026-05-17) — chart-pattern compounds.
     # T1: chart_structure_5m_swing_count>=28 & rsi_15m>=51.61 & pct_to_support>=2.15
     # T2: chart_trendline_5m_channel_pos>=26.4 & n_swing_lows_found>=28

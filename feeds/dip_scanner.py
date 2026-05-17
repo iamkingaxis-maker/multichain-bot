@@ -406,6 +406,31 @@ class DipScanner:
             if self.require_vol_m5 and vol_m5 <= 0:
                 c["vol_m5_zero"] += 1
                 continue
+
+            # FRESHNESS GATE 2026-05-17: block tokens with dying volume.
+            # When the bot's snapshot captures pump-era features but the
+            # actual recent activity has collapsed, stale cached features
+            # (bs ratios, breakthrough triggers) light up like a bullish
+            # setup. By execution the token is a corpse. Reference: PAC
+            # 2026-05-16 21:34 manual close at -$1.74 (feedback_dying_
+            # volume_close.md); PAC 2026-05-17 02:45+ same pattern firing
+            # 11 stacked breakthrough triggers on $66 5m vol / 2 txns.
+            #
+            # Predicate: vol_m5 < $200 AND total_5m_txns <= 4 (BOTH must
+            # be low — single thin metric isn't sufficient).
+            _txn_m5_obj = (pair.get("txns") or {}).get("m5") or {}
+            _txn_m5_buys = _txn_m5_obj.get("buys", 0) or 0
+            _txn_m5_sells = _txn_m5_obj.get("sells", 0) or 0
+            _txn_m5_total = _txn_m5_buys + _txn_m5_sells
+            if vol_m5 < 200.0 and _txn_m5_total <= 4:
+                c["vol_m5_dead"] = c.get("vol_m5_dead", 0) + 1
+                logger.info(
+                    f"[DipScanner] FRESHNESS GATE blocked: "
+                    f"{pair.get('baseToken', {}).get('symbol', '?')} "
+                    f"vol_m5=${vol_m5:.0f}<$200 AND txns_m5={_txn_m5_total}<=4 "
+                    f"(dying volume — refuses stale-cache breakthrough fires)"
+                )
+                continue
             # Prefer h6 baseline; fall back to h24 if h6 missing (some GT
             # pairs lack the h6 volume key).
             if vol_h6 > 0:
