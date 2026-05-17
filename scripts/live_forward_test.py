@@ -540,6 +540,24 @@ COMBOS = {
         and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
         and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),
+    # volume_burst_runner — ENFORCED 2026-05-17 PM (round-2 deep mine + freshness).
+    # vol_at_event>=1000 AND age<=24h AND liq<=$50k + freshness.
+    'VBR_volume_burst_runner': lambda c: (
+        c.get('vol_at_event') is not None and c['vol_at_event'] >= 1000
+        and c.get('age_hours') is not None and c['age_hours'] <= 24.0
+        and c.get('liq_usd') is not None and c['liq_usd'] <= 50_000
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
+        and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
+    ),
+    # volatile_buyer_dom — ENFORCED 2026-05-17 PM (round-2 deep mine + freshness).
+    # range_pct>=3 AND bs_h6>=2 AND age<=12h + freshness.
+    'VBD_volatile_buyer_dom': lambda c: (
+        c.get('range_pct') is not None and c['range_pct'] >= 3.0
+        and c.get('bs_h6') is not None and c['bs_h6'] >= 2.0
+        and c.get('age_hours') is not None and c['age_hours'] <= 12.0
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
+        and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
+    ),
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
                                          or c['net_flow_5m_usd'] >= 0),

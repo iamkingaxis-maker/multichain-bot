@@ -7454,6 +7454,82 @@ class DipScanner:
                     f"{token_symbol} {';'.join(_trigger_v_bottom_body_reasons)}"
                 )
 
+            # ── trigger_volume_burst_runner — ENFORCED 2026-05-17 PM ─────
+            # vol_at_event >= 1000 AND age <= 24h AND liq_usd <= $50k.
+            # + freshness (1m_vol_spike >= 0.40 AND 1m_cum_3min_pct >= -3.0).
+            # Universe-recorder mining (n=2691, 24h):
+            #   n=408/day, 80.1% WR5, +10.78% rpnl/trade, $879/day potential.
+            # Pattern: volume burst hitting a young (<24h) low-liq (<$50k) token —
+            # the classic +50-100% runner signature emerging from a small pool.
+            _trigger_volume_burst_runner_match = False
+            _trigger_volume_burst_runner_reasons: list = []
+            try:
+                _vbr_vol_at = float(last.volume or 0) if last is not None else 0.0
+                _vbr_vspike = m1_features.get("1m_volume_spike")
+                _vbr_cum3 = m1_features.get("1m_cum_3min_pct")
+                _vbr_fresh_ok = (
+                    _vbr_vspike is not None and float(_vbr_vspike) >= 0.40
+                    and _vbr_cum3 is not None and float(_vbr_cum3) >= -3.0
+                )
+                if (
+                    _vbr_vol_at >= 1000.0
+                    and pair_age_hours <= 24.0
+                    and liq_usd <= 50_000
+                    and _vbr_fresh_ok
+                ):
+                    _trigger_volume_burst_runner_match = True
+                    _trigger_volume_burst_runner_reasons.append(
+                        f"vol_at_event=${_vbr_vol_at:.0f}>=1000 AND "
+                        f"age={pair_age_hours:.1f}h<=24 AND "
+                        f"liq=${liq_usd:.0f}<=50k AND "
+                        f"1m_vol_spike={float(_vbr_vspike or 0):.2f}>=0.40 AND "
+                        f"1m_cum_3m={float(_vbr_cum3 or 0):+.2f}%>=-3"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_volume_burst_runner err: {_e}")
+            if _trigger_volume_burst_runner_match:
+                logger.info(
+                    f"[DipScanner] trigger_volume_burst_runner FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_volume_burst_runner_reasons)}"
+                )
+
+            # ── trigger_volatile_buyer_dom — ENFORCED 2026-05-17 PM ──────
+            # range_pct_last >= 3 AND bs_h6 >= 2 AND age <= 12h + freshness.
+            # Universe-recorder mining (n=2691, 24h):
+            #   n=115/day, 82.6% WR5, +8.16% rpnl/trade, $188/day potential.
+            # Pattern: volatile candle + 6h buyer dominance + young token.
+            # New dimension: bs_h6 (6h buy-to-sell ratio) not used elsewhere.
+            _trigger_volatile_buyer_dom_match = False
+            _trigger_volatile_buyer_dom_reasons: list = []
+            try:
+                _vbd_rng = m1_features.get("1m_range_pct_last")
+                _vbd_vspike = m1_features.get("1m_volume_spike")
+                _vbd_cum3 = m1_features.get("1m_cum_3min_pct")
+                _vbd_fresh_ok = (
+                    _vbd_vspike is not None and float(_vbd_vspike) >= 0.40
+                    and _vbd_cum3 is not None and float(_vbd_cum3) >= -3.0
+                )
+                if (
+                    _vbd_rng is not None and float(_vbd_rng) >= 3.0
+                    and ratio_h6 >= 2.0
+                    and pair_age_hours <= 12.0
+                    and _vbd_fresh_ok
+                ):
+                    _trigger_volatile_buyer_dom_match = True
+                    _trigger_volatile_buyer_dom_reasons.append(
+                        f"range_pct={float(_vbd_rng):.2f}%>=3 AND "
+                        f"bs_h6={ratio_h6:.2f}>=2 AND "
+                        f"age={pair_age_hours:.1f}h<=12 AND "
+                        f"1m_vol_spike={float(_vbd_vspike or 0):.2f}>=0.40"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_volatile_buyer_dom err: {_e}")
+            if _trigger_volatile_buyer_dom_match:
+                logger.info(
+                    f"[DipScanner] trigger_volatile_buyer_dom FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_volatile_buyer_dom_reasons)}"
+                )
+
             # ── trigger_micro_pattern_confirmed — ENFORCED 2026-05-15 ──
             # Textbook technical-pattern detection (bull engulfing, double
             # bottom, inverse H&S, falling wedge, long lower wick, etc.)
@@ -7788,6 +7864,11 @@ class DipScanner:
                 _triggers_fired.append("volatile_5m_dip")
             if _trigger_v_bottom_body_match:
                 _triggers_fired.append("v_bottom_body")
+            # 2026-05-17 PM — round-2 deep-mine triggers (post-freshness fix).
+            if _trigger_volume_burst_runner_match:
+                _triggers_fired.append("volume_burst_runner")
+            if _trigger_volatile_buyer_dom_match:
+                _triggers_fired.append("volatile_buyer_dom")
 
             # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
             # Set after all 6 breakthrough triggers (strong_orderflow,
@@ -10873,6 +10954,11 @@ class DipScanner:
                 "trigger_volatile_5m_dip_reasons": _trigger_volatile_5m_dip_reasons,
                 "trigger_v_bottom_body_match": _trigger_v_bottom_body_match,
                 "trigger_v_bottom_body_reasons": _trigger_v_bottom_body_reasons,
+                # Round-2 deep-mine triggers (2026-05-17 PM, post-freshness fix).
+                "trigger_volume_burst_runner_match": _trigger_volume_burst_runner_match,
+                "trigger_volume_burst_runner_reasons": _trigger_volume_burst_runner_reasons,
+                "trigger_volatile_buyer_dom_match": _trigger_volatile_buyer_dom_match,
+                "trigger_volatile_buyer_dom_reasons": _trigger_volatile_buyer_dom_reasons,
                 # high_activity_fast_path (2026-05-17). Bypasses trader-side
                 # filter_combo_v2/filter_chart_bear/filter_top10_holder_band.
                 "high_activity_fast_path": _high_activity_fast_path,
