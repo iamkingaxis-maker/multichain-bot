@@ -7635,6 +7635,19 @@ class DipScanner:
                 )
 
             # ──────────────────────────────────────────────────────────────
+            # 2026-05-18 — Trending-token flag. Axiom Top+Trending tabs
+            # stamp the shared tracker every fetch (5-min cadence). Tokens
+            # currently on the trending list get is_trending_token=True
+            # in entry_meta. Restores the April high-WR era's "ride hot
+            # tokens of the moment" specialization signal without changing
+            # the trigger architecture — informational only for now.
+            try:
+                from feeds.trending_tracker import is_trending as _is_t
+                _is_trending_token = bool(_is_t(token_address))
+            except Exception:
+                _is_trending_token = False
+
+            # ──────────────────────────────────────────────────────────────
             # 2026-05-18 ROUND-5 TRIGGERS — universe-recorder volume push.
             # Greedy stacking pushed projected coverage from 221 to 1250
             # events/day (76% WR, +7.70% avg pnl, +$1926/day potential).
@@ -11266,6 +11279,8 @@ class DipScanner:
                 # Round-6 anchor trigger (2026-05-18).
                 "trigger_high_churn_microcap_match": _trigger_high_churn_microcap_match,
                 "trigger_high_churn_microcap_reasons": _trigger_high_churn_microcap_reasons,
+                # Trending-token flag (2026-05-18). Axiom Top+Trending feeds.
+                "is_trending_token": _is_trending_token,
                 # high_activity_fast_path (2026-05-17). Bypasses trader-side
                 # filter_combo_v2/filter_chart_bear/filter_top10_holder_band.
                 "high_activity_fast_path": _high_activity_fast_path,

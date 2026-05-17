@@ -333,11 +333,18 @@ class AxiomTrendingScanner:
         logger.info(
             f"[AxiomDiscovery] Merged: top={len(top_pairs)} + trending={len(trending_tab_pairs)} = {len(pairs)} total"
         )
+        # 2026-05-18 — stamp trending tracker for shared use by dip_scanner.
+        try:
+            from feeds.trending_tracker import mark_trending as _mark_t
+        except Exception:
+            _mark_t = None
         out: dict = {}
         for p in pairs:
             addr = (p.get("baseToken") or {}).get("address") or ""
             if not addr:
                 continue
+            if _mark_t is not None:
+                _mark_t(addr, source="axiom_top+trending")
             out[addr] = {
                 "tokenAddress": addr,
                 "tokenTicker": (p.get("baseToken") or {}).get("symbol") or "?",

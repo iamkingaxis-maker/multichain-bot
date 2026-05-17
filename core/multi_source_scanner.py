@@ -990,12 +990,22 @@ class MultiSourceScanner:
             return []
 
         filtered: list = []
+        # 2026-05-18 — stamp ALL axiom-trending pairs (pre-filter) into the
+        # shared trending tracker. Used by dip_scanner entry_meta to flag
+        # is_trending_token. Includes pairs that don't pass our mcap range —
+        # we still want to know they're hot, even if we'd treat them differently.
+        try:
+            from feeds.trending_tracker import mark_trending as _mark_t
+        except Exception:
+            _mark_t = None
         for p in pairs:
+            addr = (p.get("baseToken") or {}).get("address", "")
+            if addr and _mark_t is not None:
+                _mark_t(addr, source="axiom_users_trending_v2")
             mcap = p.get("marketCap") or 0
             if mcap != 0 and not (self.min_mcap <= mcap <= self.max_mcap):
                 continue
             filtered.append(p)
-            addr = (p.get("baseToken") or {}).get("address", "")
             if addr:
                 self._mint_map[addr.lower()] = addr
         return filtered
