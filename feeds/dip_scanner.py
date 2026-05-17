@@ -7134,6 +7134,69 @@ class DipScanner:
                     f"{';'.join(_trigger_clean_consec_ll_reasons)}"
                 )
 
+            # ── trigger_sweep_holder_liq (R5-T8) — ENFORCED 2026-05-17 ──
+            # chart_sweep_15m_high_recent>=1 AND top10_holder_pct<=41.30
+            # AND liq_velocity_h1_usd_per_txn>=124.12.
+            # Lifetime: 7/7 wins (100% WR), p=0.0013, avg +4.08%, mean_buy ~$100.
+            # 3 of 7 matches are NEW (not covered by T1/T2/R3-T3/T4/T6/R4-T7).
+            # Captures: recent 15m high sweep (bearish liquidity grab + reversal)
+            # AND distributed top10 holders (<=41% = no whale concentration)
+            # AND active large-trade flow ($124/txn = institutional/whale buys).
+            _trigger_sweep_holder_liq_match = False
+            _trigger_sweep_holder_liq_reasons: list = []
+            try:
+                _shl_sweep = (_chart_ctx_dict or {}).get("chart_sweep_15m_high_recent") if isinstance(_chart_ctx_dict, dict) else None
+                _shl_sweep_v = (1 if _shl_sweep is True else (0 if _shl_sweep is False else (float(_shl_sweep) if _shl_sweep is not None else None)))
+                _shl_t10 = top10_holder_pct if 'top10_holder_pct' in dir() else None
+                _shl_lv = (volume_velocity_features or {}).get("liq_velocity_h1_usd_per_txn") if isinstance(volume_velocity_features, dict) else None
+                if (_shl_sweep_v is not None and _shl_sweep_v >= 1
+                        and _shl_t10 is not None and float(_shl_t10) <= 41.30
+                        and _shl_lv is not None and float(_shl_lv) >= 124.12):
+                    _trigger_sweep_holder_liq_match = True
+                    _trigger_sweep_holder_liq_reasons.append(
+                        f"sweep_15m_high=1 AND top10={float(_shl_t10):.1f}%<=41.30 AND "
+                        f"liq_velocity_h1=${float(_shl_lv):.0f}/txn>=124.12"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_sweep_holder_liq err: {_e}")
+            if _trigger_sweep_holder_liq_match:
+                logger.info(
+                    f"[DipScanner] trigger_sweep_holder_liq FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_sweep_holder_liq_reasons)}"
+                )
+
+            # ── trigger_clean_dip_trend (R6-T9) — ENFORCED 2026-05-17 ──
+            # dip_volume_ratio<=0.88 AND wick_body_5m_max<=4.25
+            # AND trend_15m_r_squared>=0.49.
+            # Lifetime: 8/10 (80% WR), p=0.0101, avg +3.16%.
+            # 2 of 10 matches NEW (after 7 prior triggers).
+            # Captures: dip volume falling off (<88% of average = dip
+            # exhausting) AND clean 5m bars (max wick:body <= 4.25 = no
+            # whippy candles) AND well-defined 15m trend (r2 >= 0.49 =
+            # high linear-fit quality, structured move not noise).
+            _trigger_clean_dip_trend_match = False
+            _trigger_clean_dip_trend_reasons: list = []
+            try:
+                _cdt_dvr = (_chart_ctx_dict or {}).get("dip_volume_ratio") if isinstance(_chart_ctx_dict, dict) else None
+                _cdt_wbm = _tier3_features.get("wick_body_5m_max") if isinstance(_tier3_features, dict) else None
+                _cdt_r2 = (_chart_ctx_dict or {}).get("trend_15m_r_squared") if isinstance(_chart_ctx_dict, dict) else None
+                if (_cdt_dvr is not None and float(_cdt_dvr) <= 0.88
+                        and _cdt_wbm is not None and float(_cdt_wbm) <= 4.25
+                        and _cdt_r2 is not None and float(_cdt_r2) >= 0.49):
+                    _trigger_clean_dip_trend_match = True
+                    _trigger_clean_dip_trend_reasons.append(
+                        f"dip_vol_ratio={float(_cdt_dvr):.2f}<=0.88 AND "
+                        f"wick_body_5m_max={float(_cdt_wbm):.2f}<=4.25 AND "
+                        f"trend_15m_r2={float(_cdt_r2):.2f}>=0.49"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_clean_dip_trend err: {_e}")
+            if _trigger_clean_dip_trend_match:
+                logger.info(
+                    f"[DipScanner] trigger_clean_dip_trend FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_clean_dip_trend_reasons)}"
+                )
+
             # ── trigger_micro_pattern_confirmed — ENFORCED 2026-05-15 ──
             # Textbook technical-pattern detection (bull engulfing, double
             # bottom, inverse H&S, falling wedge, long lower wick, etc.)
@@ -7449,6 +7512,12 @@ class DipScanner:
             # R4 (2026-05-17) round-4 mining triggers.
             if _trigger_clean_consec_ll_match:
                 _triggers_fired.append("clean_consec_ll")
+            # R5 (2026-05-17) round-5 mining trigger.
+            if _trigger_sweep_holder_liq_match:
+                _triggers_fired.append("sweep_holder_liq")
+            # R6 (2026-05-17) round-6 mining trigger.
+            if _trigger_clean_dip_trend_match:
+                _triggers_fired.append("clean_dip_trend")
 
             # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
             # Set after all 6 breakthrough triggers (strong_orderflow,
@@ -7473,6 +7542,10 @@ class DipScanner:
                 or _trigger_cnn_lp_match
                 # R4 round-4 mining triggers (2026-05-17).
                 or _trigger_clean_consec_ll_match
+                # R5 round-5 mining trigger (2026-05-17).
+                or _trigger_sweep_holder_liq_match
+                # R6 round-6 mining trigger (2026-05-17).
+                or _trigger_clean_dip_trend_match
             )
 
             # Apply anti-pattern suppression — clears all triggers if
@@ -10505,6 +10578,12 @@ class DipScanner:
                 # Round-4 mining triggers (2026-05-17).
                 "trigger_clean_consec_ll_match": _trigger_clean_consec_ll_match,
                 "trigger_clean_consec_ll_reasons": _trigger_clean_consec_ll_reasons,
+                # Round-5 mining trigger (2026-05-17).
+                "trigger_sweep_holder_liq_match": _trigger_sweep_holder_liq_match,
+                "trigger_sweep_holder_liq_reasons": _trigger_sweep_holder_liq_reasons,
+                # Round-6 mining trigger (2026-05-17).
+                "trigger_clean_dip_trend_match": _trigger_clean_dip_trend_match,
+                "trigger_clean_dip_trend_reasons": _trigger_clean_dip_trend_reasons,
                 # filter_blowoff_top — ENFORCED 2026-05-16 PM (pc_h24>=500% block).
                 "filter_blowoff_top_verdict": _filter_blowoff_top_verdict,
                 "filter_blowoff_top_block_reasons": _filter_blowoff_block_reasons,

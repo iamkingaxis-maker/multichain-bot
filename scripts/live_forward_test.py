@@ -465,6 +465,23 @@ COMBOS = {
         and c.get('trend_60m_consec_ll') is not None
         and c['trend_60m_consec_ll'] >= 2
     ),
+    # Round-5 mining trigger (2026-05-17).
+    'R5_sweep_holder_liq': lambda c: (
+        bool(c.get('chart_sweep_15m_high_recent'))
+        and c.get('top10_holder_pct') is not None
+        and c['top10_holder_pct'] <= 41.30
+        and c.get('liq_velocity_h1_usd_per_txn') is not None
+        and c['liq_velocity_h1_usd_per_txn'] >= 124.12
+    ),
+    # Round-6 mining trigger (2026-05-17).
+    'R6_clean_dip_trend': lambda c: (
+        c.get('dip_volume_ratio') is not None
+        and c['dip_volume_ratio'] <= 0.88
+        and c.get('wick_body_5m_max') is not None
+        and c['wick_body_5m_max'] <= 4.25
+        and c.get('trend_15m_r_squared') is not None
+        and c['trend_15m_r_squared'] >= 0.49
+    ),
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
                                          or c['net_flow_5m_usd'] >= 0),
