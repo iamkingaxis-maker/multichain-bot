@@ -7631,6 +7631,121 @@ class DipScanner:
                     f"{token_symbol} {';'.join(_trigger_fresh_runner_factory_reasons)}"
                 )
 
+            # ──────────────────────────────────────────────────────────────
+            # 2026-05-18 ROUND-5 TRIGGERS — universe-recorder volume push.
+            # Greedy stacking pushed projected coverage from 221 to 1250
+            # events/day (76% WR, +7.70% avg pnl, +$1926/day potential).
+            # All four require the 1m freshness gate (vol_spike >= 0.40 AND
+            # cum_3min >= -3) per feedback_lagging_features_freshness.
+            # ──────────────────────────────────────────────────────────────
+            _txns_h1 = (pair.get("txns") or {}).get("h1", {}) or {}
+            _buys_h1 = float(_txns_h1.get("buys", 0) or 0)
+            _sells_h1 = float(_txns_h1.get("sells", 0) or 0)
+            _r5_vspike = m1_features.get("1m_volume_spike")
+            _r5_cum3 = m1_features.get("1m_cum_3min_pct")
+            _r5_fresh_ok = (
+                _r5_vspike is not None and float(_r5_vspike) >= 0.40
+                and _r5_cum3 is not None and float(_r5_cum3) >= -3.0
+            )
+
+            # ── trigger_active_dip — ENFORCED 2026-05-18 ─────────────────
+            # buys_h1 >= 200 AND pc_h1 <= -15. Mining: n=673/day, 76% WR5,
+            # +7.05% rpnl, $949/day potential. Pattern: token sharply dipped
+            # (>=15% h1 drop) but sustained buyer activity (>=200 buys/h1) =
+            # real dip-buy opportunity, not a corpse.
+            _trigger_active_dip_match = False
+            _trigger_active_dip_reasons: list = []
+            try:
+                if (_buys_h1 >= 200 and pc_h1 <= -15 and _r5_fresh_ok):
+                    _trigger_active_dip_match = True
+                    _trigger_active_dip_reasons.append(
+                        f"buys_h1={_buys_h1:.0f}>=200 AND pc_h1={pc_h1:+.1f}%<=-15 AND "
+                        f"1m_vol_spike={float(_r5_vspike or 0):.2f}>=0.40 AND "
+                        f"1m_cum_3m={float(_r5_cum3 or 0):+.2f}%>=-3"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_active_dip err: {_e}")
+            if _trigger_active_dip_match:
+                logger.info(
+                    f"[DipScanner] trigger_active_dip FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_active_dip_reasons)}"
+                )
+
+            # ── trigger_high_activity_runner — ENFORCED 2026-05-18 ───────
+            # vol_h1 >= ~$31.6k (log_vol_h1>=4.5) AND buys_h1 >= 2000.
+            # Mining: n=654/day, 77.5% WR5, +10.20% rpnl, $1334/day potential.
+            # Pattern: established activity + frenzied buying = real momentum.
+            _trigger_high_activity_runner_match = False
+            _trigger_high_activity_runner_reasons: list = []
+            try:
+                if (float(vol_h1 or 0) >= 31_623 and _buys_h1 >= 2000 and _r5_fresh_ok):
+                    _trigger_high_activity_runner_match = True
+                    _trigger_high_activity_runner_reasons.append(
+                        f"vol_h1=${float(vol_h1 or 0):.0f}>=31.6k AND "
+                        f"buys_h1={_buys_h1:.0f}>=2000 AND "
+                        f"1m_vol_spike={float(_r5_vspike or 0):.2f}>=0.40 AND "
+                        f"1m_cum_3m={float(_r5_cum3 or 0):+.2f}%>=-3"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_high_activity_runner err: {_e}")
+            if _trigger_high_activity_runner_match:
+                logger.info(
+                    f"[DipScanner] trigger_high_activity_runner FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_high_activity_runner_reasons)}"
+                )
+
+            # ── trigger_confirmed_dip — ENFORCED 2026-05-18 ──────────────
+            # pc_m5 <= -5 AND pc_h1 <= -15. Mining: n=579/day, 76.7% WR5,
+            # +7.13% rpnl, $826/day potential. Two-timeframe dip confirmation
+            # (both 5m and 1h sharply negative). Freshness gate critical here
+            # — without it, the pattern matches dying tokens.
+            _trigger_confirmed_dip_match = False
+            _trigger_confirmed_dip_reasons: list = []
+            try:
+                if (pc_m5 <= -5 and pc_h1 <= -15 and _r5_fresh_ok):
+                    _trigger_confirmed_dip_match = True
+                    _trigger_confirmed_dip_reasons.append(
+                        f"pc_m5={pc_m5:+.1f}%<=-5 AND pc_h1={pc_h1:+.1f}%<=-15 AND "
+                        f"1m_vol_spike={float(_r5_vspike or 0):.2f}>=0.40 AND "
+                        f"1m_cum_3m={float(_r5_cum3 or 0):+.2f}%>=-3"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_confirmed_dip err: {_e}")
+            if _trigger_confirmed_dip_match:
+                logger.info(
+                    f"[DipScanner] trigger_confirmed_dip FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_confirmed_dip_reasons)}"
+                )
+
+            # ── trigger_low_liq_active_dip — ENFORCED 2026-05-18 ─────────
+            # buys_h1 >= 1000 AND liq <= $30k AND range_pct >= 1. Mining:
+            # n=330/day, 80.6% WR5, +11.27% rpnl, $744/day potential.
+            # Pattern: small pool (<$30k liq) + active buying (1k buys/h1)
+            # + any volatility (range_pct>=1) = explosive small-cap setup.
+            _trigger_low_liq_active_dip_match = False
+            _trigger_low_liq_active_dip_reasons: list = []
+            try:
+                _lla_rng = m1_features.get("1m_range_pct_last")
+                if (_buys_h1 >= 1000
+                        and liq_usd <= 30_000
+                        and _lla_rng is not None and float(_lla_rng) >= 1.0
+                        and _r5_fresh_ok):
+                    _trigger_low_liq_active_dip_match = True
+                    _trigger_low_liq_active_dip_reasons.append(
+                        f"buys_h1={_buys_h1:.0f}>=1000 AND "
+                        f"liq=${liq_usd:.0f}<=30k AND "
+                        f"range_pct={float(_lla_rng):.2f}%>=1 AND "
+                        f"1m_vol_spike={float(_r5_vspike or 0):.2f}>=0.40 AND "
+                        f"1m_cum_3m={float(_r5_cum3 or 0):+.2f}%>=-3"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_low_liq_active_dip err: {_e}")
+            if _trigger_low_liq_active_dip_match:
+                logger.info(
+                    f"[DipScanner] trigger_low_liq_active_dip FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_low_liq_active_dip_reasons)}"
+                )
+
             # ── trigger_micro_pattern_confirmed — ENFORCED 2026-05-15 ──
             # Textbook technical-pattern detection (bull engulfing, double
             # bottom, inverse H&S, falling wedge, long lower wick, etc.)
@@ -7973,6 +8088,15 @@ class DipScanner:
             # 2026-05-17 PM — runner-predictive mining (3x PREMIUM).
             if _trigger_fresh_runner_factory_match:
                 _triggers_fired.append("fresh_runner_factory")
+            # 2026-05-18 — Round-5 volume-push triggers.
+            if _trigger_active_dip_match:
+                _triggers_fired.append("active_dip")
+            if _trigger_high_activity_runner_match:
+                _triggers_fired.append("high_activity_runner")
+            if _trigger_confirmed_dip_match:
+                _triggers_fired.append("confirmed_dip")
+            if _trigger_low_liq_active_dip_match:
+                _triggers_fired.append("low_liq_active_dip")
 
             # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
             # Set after all 6 breakthrough triggers (strong_orderflow,
@@ -8003,6 +8127,11 @@ class DipScanner:
                 or _trigger_clean_dip_trend_match
                 # young_active_dip (2026-05-17, universe-recorder mining).
                 or _trigger_young_active_dip_match
+                # Round-5 volume-push triggers (2026-05-18).
+                or _trigger_active_dip_match
+                or _trigger_high_activity_runner_match
+                or _trigger_confirmed_dip_match
+                or _trigger_low_liq_active_dip_match
             )
 
             # Apply anti-pattern suppression — clears all triggers if
@@ -11066,6 +11195,15 @@ class DipScanner:
                 # Runner-predictive trigger (2026-05-17 PM, 3x PREMIUM).
                 "trigger_fresh_runner_factory_match": _trigger_fresh_runner_factory_match,
                 "trigger_fresh_runner_factory_reasons": _trigger_fresh_runner_factory_reasons,
+                # Round-5 volume-push triggers (2026-05-18).
+                "trigger_active_dip_match": _trigger_active_dip_match,
+                "trigger_active_dip_reasons": _trigger_active_dip_reasons,
+                "trigger_high_activity_runner_match": _trigger_high_activity_runner_match,
+                "trigger_high_activity_runner_reasons": _trigger_high_activity_runner_reasons,
+                "trigger_confirmed_dip_match": _trigger_confirmed_dip_match,
+                "trigger_confirmed_dip_reasons": _trigger_confirmed_dip_reasons,
+                "trigger_low_liq_active_dip_match": _trigger_low_liq_active_dip_match,
+                "trigger_low_liq_active_dip_reasons": _trigger_low_liq_active_dip_reasons,
                 # high_activity_fast_path (2026-05-17). Bypasses trader-side
                 # filter_combo_v2/filter_chart_bear/filter_top10_holder_band.
                 "high_activity_fast_path": _high_activity_fast_path,

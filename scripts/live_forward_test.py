@@ -576,6 +576,33 @@ COMBOS = {
         and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
         and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),
+    # Round-5 volume-push triggers — ENFORCED 2026-05-18.
+    # All require freshness gate (1m_vspike>=0.40 AND 1m_cum_3m>=-3).
+    'R5A_active_dip': lambda c: (
+        c.get('buys_h1') is not None and c['buys_h1'] >= 200
+        and c.get('pc_h1') is not None and c['pc_h1'] <= -15
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
+        and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
+    ),
+    'R5B_high_activity_runner': lambda c: (
+        c.get('vol_h1') is not None and c['vol_h1'] >= 31_623
+        and c.get('buys_h1') is not None and c['buys_h1'] >= 2000
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
+        and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
+    ),
+    'R5C_confirmed_dip': lambda c: (
+        c.get('pc_m5') is not None and c['pc_m5'] <= -5
+        and c.get('pc_h1') is not None and c['pc_h1'] <= -15
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
+        and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
+    ),
+    'R5D_low_liq_active_dip': lambda c: (
+        c.get('buys_h1') is not None and c['buys_h1'] >= 1000
+        and c.get('liq_usd') is not None and c['liq_usd'] <= 30_000
+        and c.get('range_pct') is not None and c['range_pct'] >= 1.0
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
+        and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
+    ),
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
                                          or c['net_flow_5m_usd'] >= 0),
