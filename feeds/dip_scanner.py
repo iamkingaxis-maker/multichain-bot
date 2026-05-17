@@ -2830,16 +2830,19 @@ class DipScanner:
                 )
             except Exception:
                 pass
-            # SHADOW 2026-05-15: filter_vp_poc moved from ENFORCED → SHADOW.
-            # Reason: live audit showed mixed signal (POP +5.2% would-have-won
-            # vs SLOPPER stopped). Marginal evidence for enforcement. Recorder
-            # captures forward outcomes; promote back to ENFORCED if BLOCK
-            # cohort cleanly underperforms PASS cohort over 24-48h.
+            # 2026-05-18 — RE-ENFORCED. Lifetime audit (n=128 closed):
+            # BLOCK n=19, avg -0.75%, save +14pp. Mira buy 1 had
+            # vp_poc_distance=+45.9% AND 1m_vol_spike=0.12, blocked
+            # by this. Pure chase pattern: extreme above POC on dead
+            # volume. POP-class winner regret is small vs Mira-class
+            # loss avoidance.
             if _filter_vp_poc_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] filter_vp_poc SHADOW would-block: {token_symbol} "
+                    f"[DipScanner] BLOCKED by filter_vp_poc: {token_symbol} "
                     f"reasons={','.join(_filter_vp_poc_block_reasons)}"
                 )
+                c["filter_vp_poc_block"] = c.get("filter_vp_poc_block", 0) + 1
+                continue
 
             # Filter sweep-too-recent — ENFORCED 2026-05-13.
             # Catches the dominant 2026-05-12 overnight loser shape: bot bought
@@ -9189,18 +9192,21 @@ class DipScanner:
                 )
             except Exception:
                 pass
-            # SHADOW 2026-05-15: filter_chasing_bounce moved from ENFORCED → SHADOW.
-            # Reason: live audit showed Openhuman (+4.5% strategy-cap WIN) was
-            # blocked by pc_m5=+6.3%>+5. Threshold may be too tight — runners
-            # in mid-bounce often keep going. Recorder captures forward outcomes
-            # for both BLOCK and PASS; promote back to ENFORCED if BLOCK cohort
-            # cleanly underperforms over 24-48h.
+            # 2026-05-18 — RE-ENFORCED. Lifetime audit (n=128 closed):
+            # BLOCK n=9, avg -2.59%, 44% WR (save +23pp). Mira buy 1
+            # had pc_m5=+7.5%, blocked by this. Was demoted 2026-05-15
+            # after one rare winner (Openhuman +4.5%) — but on n=128 of
+            # actual losses, this filter clearly catches more losers
+            # than winners. The Openhuman regret is small vs Mira-class
+            # losses.
             if _filter_chasing_bounce_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] filter_chasing_bounce SHADOW would-block: "
+                    f"[DipScanner] BLOCKED by filter_chasing_bounce: "
                     f"{token_symbol} reasons="
                     f"{','.join(_filter_chasing_bounce_block_reasons)}"
                 )
+                c["filter_chasing_bounce_block"] = c.get("filter_chasing_bounce_block", 0) + 1
+                continue
 
             # ── filter_double_bear — ENFORCED 2026-05-06 PM ────────────────────
             # Secondary gate after clean_break. Block when BOTH bearish-context
@@ -10265,11 +10271,18 @@ class DipScanner:
                 f"filter_blowoff_top_{_filter_blowoff_top_verdict.lower()}", 0
             ) + 1
             if _filter_blowoff_top_verdict == "BLOCK":
+                # 2026-05-18 — RE-ENFORCED. Lifetime audit (n=128 closed
+                # trades, BLOCK n=8, avg -3.03%, save +24pp) + Mira-specific:
+                # blocks pc_h24>=500% AND vol_spike<0.40 entries. Mira buy 1
+                # had pc_h24=+545%, blocked by this. Was reverted to SHADOW
+                # 2026-05-16 PM during the "WR climb" reverts, but actual-
+                # trade data shows it does block losers more than winners.
                 logger.info(
-                    f"[DipScanner] SHADOW filter_blowoff_top would BLOCK: "
+                    f"[DipScanner] BLOCKED by filter_blowoff_top: "
                     f"{token_symbol} reasons={','.join(_filter_blowoff_block_reasons)}"
                 )
-                # SHADOW mode — do not block (reverted 2026-05-16 PM)
+                c["filter_blowoff_top_block"] = c.get("filter_blowoff_top_block", 0) + 1
+                continue
 
             # ── filter_high_activity_fomo — REVERTED to SHADOW 2026-05-16 PM
             # Universe-data audit (n=2049 events, realistic-PnL sim) showed
@@ -10549,10 +10562,16 @@ class DipScanner:
                 f"filter_topping_{_filter_topping_verdict.lower()}", 0
             ) + 1
             if _filter_topping_verdict == "BLOCK":
+                # 2026-05-18 — RE-ENFORCED. Lifetime audit (n=128 closed):
+                # BLOCK n=29, avg -0.99%, save +29pp. Mira buy 1 had
+                # macro30=+24.6%, blocked by this. Catches "price up >5%
+                # in last 30m" — the knife-catch zone after pumps.
                 logger.info(
-                    f"[DipScanner] filter_topping SHADOW would-block: "
+                    f"[DipScanner] BLOCKED by filter_topping: "
                     f"{token_symbol} reasons={','.join(_filter_topping_block_reasons)}"
                 )
+                c["filter_topping_block"] = c.get("filter_topping_block", 0) + 1
+                continue
 
             # ── filter_wide_range_entry — SHADOW 2026-05-06 PM ────────────────
             # Record-only verdict for "panicky volatility candle" pattern:
