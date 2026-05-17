@@ -795,6 +795,18 @@ class DipScanner:
                             higher_highs += 1
                         elif cs[i].high < cs[i-1].high:
                             lower_highs += 1
+                    # 2026-05-17 PM — universe-recorder analogs for new V-bottom
+                    # triggers. range_pct_last = (high-low)/low*100 on latest 1m.
+                    # cum_5m_pct = (latest_close / cs[0].close - 1) * 100 across
+                    # the 5-candle window (~5 min).
+                    _range_pct_last = (
+                        ((last.high - last.low) / last.low * 100)
+                        if last.low > 0 else 0.0
+                    )
+                    _cum_5m_pct = (
+                        ((last.close / cs[0].close - 1) * 100)
+                        if cs[0].close > 0 else 0.0
+                    )
                     m1_features = {
                         "1m_green_in_last3": green_in_last3,
                         "1m_last_close_pct": round(last_close_pct, 3),
@@ -808,6 +820,9 @@ class DipScanner:
                         "1m_close_in_range": round(close_in_range, 3),
                         "1m_higher_highs":   higher_highs,
                         "1m_lower_highs":    lower_highs,
+                        # universe-recorder feature analogs (2026-05-17 PM)
+                        "1m_range_pct_last": round(_range_pct_last, 3),
+                        "1m_cum_5m_pct":     round(_cum_5m_pct, 3),
                     }
                     # Chart-shape features over 30/60/90m windows. Logged-only,
                     # not used as a filter. Captures pump-then-bleed round-trip
@@ -7337,6 +7352,60 @@ class DipScanner:
                     f"{';'.join(_trigger_young_active_dip_reasons)}"
                 )
 
+            # ── trigger_volatile_5m_dip — ENFORCED 2026-05-17 PM ───────
+            # range_pct_last >= 2.27 AND cum_5m_pct <= -10.43.
+            # Universe-recorder mining (n=2691, 24h):
+            #   n=658/day, 75% WR5, +9.06% rpnl/trade, $1192/day potential.
+            # Pattern: volatile candle (high-low/low >= 2.27%) + 5min aggressive
+            # dip (token down 10%+ over 5min). V-bottom with conviction signature.
+            _trigger_volatile_5m_dip_match = False
+            _trigger_volatile_5m_dip_reasons: list = []
+            try:
+                _v5d_rng = m1_features.get("1m_range_pct_last")
+                _v5d_c5m = m1_features.get("1m_cum_5m_pct")
+                if (_v5d_rng is not None and float(_v5d_rng) >= 2.27
+                        and _v5d_c5m is not None and float(_v5d_c5m) <= -10.43):
+                    _trigger_volatile_5m_dip_match = True
+                    _trigger_volatile_5m_dip_reasons.append(
+                        f"range_pct={float(_v5d_rng):.2f}%>=2.27 AND "
+                        f"cum_5m_pct={float(_v5d_c5m):+.2f}%<=-10.43"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_volatile_5m_dip err: {_e}")
+            if _trigger_volatile_5m_dip_match:
+                logger.info(
+                    f"[DipScanner] trigger_volatile_5m_dip FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_volatile_5m_dip_reasons)}"
+                )
+
+            # ── trigger_v_bottom_body — ENFORCED 2026-05-17 PM (PREMIUM SIZE) ──
+            # cum_5m_pct <= -10.43 AND last_close_pct >= 1.52
+            # (= signed body of latest 1m candle is +1.52% or more green).
+            # Universe-recorder mining (n=2691, 24h):
+            #   n=176/day, 78.4% WR5, +10.18% rpnl/trade, $358/day potential.
+            # Pattern: aggressive 5m dip + first 1m candle closes green +1.5%+.
+            # This is the actual reversal candle — recovery has begun.
+            # Premium sizing: this trigger gets 2x size ($40) due to high WR.
+            _trigger_v_bottom_body_match = False
+            _trigger_v_bottom_body_reasons: list = []
+            try:
+                _vbb_c5m = m1_features.get("1m_cum_5m_pct")
+                _vbb_body = m1_features.get("1m_last_close_pct")
+                if (_vbb_c5m is not None and float(_vbb_c5m) <= -10.43
+                        and _vbb_body is not None and float(_vbb_body) >= 1.52):
+                    _trigger_v_bottom_body_match = True
+                    _trigger_v_bottom_body_reasons.append(
+                        f"cum_5m_pct={float(_vbb_c5m):+.2f}%<=-10.43 AND "
+                        f"body={float(_vbb_body):+.2f}%>=1.52"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_v_bottom_body err: {_e}")
+            if _trigger_v_bottom_body_match:
+                logger.info(
+                    f"[DipScanner] trigger_v_bottom_body FIRED (PREMIUM SIZE): "
+                    f"{token_symbol} {';'.join(_trigger_v_bottom_body_reasons)}"
+                )
+
             # ── trigger_micro_pattern_confirmed — ENFORCED 2026-05-15 ──
             # Textbook technical-pattern detection (bull engulfing, double
             # bottom, inverse H&S, falling wedge, long lower wick, etc.)
@@ -7666,6 +7735,11 @@ class DipScanner:
             # 2026-05-17 — young_active_dip from universe-recorder mining.
             if _trigger_young_active_dip_match:
                 _triggers_fired.append("young_active_dip")
+            # 2026-05-17 PM — V-bottom triggers from universe-recorder mining.
+            if _trigger_volatile_5m_dip_match:
+                _triggers_fired.append("volatile_5m_dip")
+            if _trigger_v_bottom_body_match:
+                _triggers_fired.append("v_bottom_body")
 
             # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
             # Set after all 6 breakthrough triggers (strong_orderflow,
@@ -10746,6 +10820,11 @@ class DipScanner:
                 # young_active_dip (2026-05-17, universe-recorder mining).
                 "trigger_young_active_dip_match": _trigger_young_active_dip_match,
                 "trigger_young_active_dip_reasons": _trigger_young_active_dip_reasons,
+                # V-bottom triggers (2026-05-17 PM, universe-recorder mining).
+                "trigger_volatile_5m_dip_match": _trigger_volatile_5m_dip_match,
+                "trigger_volatile_5m_dip_reasons": _trigger_volatile_5m_dip_reasons,
+                "trigger_v_bottom_body_match": _trigger_v_bottom_body_match,
+                "trigger_v_bottom_body_reasons": _trigger_v_bottom_body_reasons,
                 # high_activity_fast_path (2026-05-17). Bypasses trader-side
                 # filter_combo_v2/filter_chart_bear/filter_top10_holder_band.
                 "high_activity_fast_path": _high_activity_fast_path,
@@ -11428,6 +11507,11 @@ class DipScanner:
                 and "chart_score_reversal" in _triggers_fired
             )
             if _chart_pair_premium:
+                _is_premium_size = True
+            # 2026-05-17 PM — v_bottom_body trigger gets premium size.
+            # Universe-recorder n=176/day, 78.4% WR5, +10.18% rpnl. High-precision
+            # V-bottom signature warrants 2x size ($40 vs $20 standard).
+            if "v_bottom_body" in _triggers_fired:
                 _is_premium_size = True
             _all_marginal_size = (
                 bool(_triggers_fired)

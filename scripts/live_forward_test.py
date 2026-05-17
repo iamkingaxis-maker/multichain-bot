@@ -514,6 +514,18 @@ COMBOS = {
         and c.get('vol_h1') is not None and c['vol_h1'] >= 261_094
         and c.get('vol_m5') is not None and c['vol_m5'] >= 13_469
     ),
+    # volatile_5m_dip — ENFORCED 2026-05-17 PM, universe-recorder mining.
+    # range_pct >= 2.27 AND cum_pct_5m <= -10.43.
+    'V5D_volatile_5m_dip': lambda c: (
+        c.get('range_pct') is not None and c['range_pct'] >= 2.27
+        and c.get('cum_pct_5m') is not None and c['cum_pct_5m'] <= -10.43
+    ),
+    # v_bottom_body — ENFORCED 2026-05-17 PM (PREMIUM SIZE), universe-recorder mining.
+    # cum_pct_5m <= -10.43 AND body_pct >= 1.52.
+    'VBB_v_bottom_body': lambda c: (
+        c.get('cum_pct_5m') is not None and c['cum_pct_5m'] <= -10.43
+        and c.get('body_pct') is not None and c['body_pct'] >= 1.52
+    ),
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
                                          or c['net_flow_5m_usd'] >= 0),
