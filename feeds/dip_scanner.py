@@ -10880,6 +10880,29 @@ class DipScanner:
                 logger.debug(f"[DipScanner] fusion_constrained err: {_e}")
                 entry_meta_dict["fusion_constrained_score_shadow"] = None
 
+            # fusion_v2 — SHADOW 2026-05-16 PM. 12-feature regularized LR
+            # (C=0.1) with median imputation. 10-fold CV AUC mean=0.737
+            # (std=0.240) on n=90 paired trades. Beats v1 (LOO-AUC 0.59).
+            # Features focus on bottom-detection axes: n_swing_lows_found,
+            # 1s_bottom_score, chart_mtf_score, p90_buy_size_usd. Negative
+            # coefficient on buys_per_min_recent (matches today's reverted
+            # filter_high_activity_fomo finding).
+            #
+            # SHADOW only — does not gate. Audit forward 5-7 days to
+            # validate before any threshold-based promotion.
+            try:
+                from models.fusion_v2 import get_fusion_v2
+                _fv2 = get_fusion_v2()
+                if not _fv2.disabled:
+                    entry_meta_dict["fusion_v2_score_shadow"] = (
+                        _fv2.score_from_entry_meta(entry_meta_dict)
+                    )
+                else:
+                    entry_meta_dict["fusion_v2_score_shadow"] = None
+            except Exception as _e:
+                logger.debug(f"[DipScanner] fusion_v2 err: {_e}")
+                entry_meta_dict["fusion_v2_score_shadow"] = None
+
             # Forward dataset — buy-level snapshot with full entry_meta.
             # Future fusion meta-models train on this dataset paired with the
             # outcome that gets stamped when the trade closes (via trader).

@@ -1640,6 +1640,16 @@ def compute_cnn_features(c):
                 )
         except Exception:
             pass
+        # Phantom parity with fusion_v2_score_shadow: 12-feature regularized LR.
+        # 10-fold CV AUC mean=0.737 on n=90 paired trades. SHADOW only.
+        try:
+            from models.fusion_v2 import get_fusion_v2
+            _fv2 = get_fusion_v2()
+            if not _fv2.disabled:
+                _em_proxy_v2 = dict(c)
+                out['fusion_v2_score_shadow'] = _fv2.score_from_entry_meta(_em_proxy_v2)
+        except Exception:
+            pass
     except Exception:
         pass
     return out
