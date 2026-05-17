@@ -558,6 +558,16 @@ COMBOS = {
         and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
         and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),
+    # fresh_runner_factory — ENFORCED 2026-05-17 PM (3x PREMIUM RUNNER).
+    # age<=0.95h AND vol_h1>=261k AND vol_prev3_avg>=4057 + freshness.
+    # Universe mining: 69% P(peak>=20%), 44% P(peak>=50%) — elite runner cohort.
+    'FRF_fresh_runner_factory': lambda c: (
+        c.get('age_hours') is not None and c['age_hours'] <= 0.95
+        and c.get('vol_h1') is not None and c['vol_h1'] >= 261_094
+        and c.get('vol_prev3_avg') is not None and c['vol_prev3_avg'] >= 4057
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
+        and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
+    ),
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
                                          or c['net_flow_5m_usd'] >= 0),

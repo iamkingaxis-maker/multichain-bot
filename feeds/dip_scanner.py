@@ -807,6 +807,13 @@ class DipScanner:
                         ((last.close / cs[0].close - 1) * 100)
                         if cs[0].close > 0 else 0.0
                     )
+                    # 2026-05-17 PM — vol_prev3_avg (avg of 3 candles before
+                    # latest). Used by trigger_fresh_runner_factory.
+                    _prev3 = cs[-4:-1] if len(cs) >= 4 else []
+                    _vol_prev3_avg = (
+                        sum(k.volume for k in _prev3) / len(_prev3)
+                        if _prev3 else 0.0
+                    )
                     m1_features = {
                         "1m_green_in_last3": green_in_last3,
                         "1m_last_close_pct": round(last_close_pct, 3),
@@ -823,6 +830,7 @@ class DipScanner:
                         # universe-recorder feature analogs (2026-05-17 PM)
                         "1m_range_pct_last": round(_range_pct_last, 3),
                         "1m_cum_5m_pct":     round(_cum_5m_pct, 3),
+                        "1m_vol_prev3_avg":  round(_vol_prev3_avg, 3),
                     }
                     # Chart-shape features over 30/60/90m windows. Logged-only,
                     # not used as a filter. Captures pump-then-bleed round-trip
@@ -7530,6 +7538,46 @@ class DipScanner:
                     f"{';'.join(_trigger_volatile_buyer_dom_reasons)}"
                 )
 
+            # ── trigger_fresh_runner_factory — ENFORCED 2026-05-17 PM (3x PREMIUM) ──
+            # age <= 0.95h AND vol_h1 >= 261k AND 1m_vol_prev3_avg >= 4057
+            # + freshness (1m_vol_spike >= 0.40 AND 1m_cum_3min_pct >= -3.0).
+            # ELITE runner predictor. Universe-recorder mining (n=2691, 24h):
+            #   n=71/day, 69% P(peak>=20%), 44% P(peak>=50%), +59.6% avg peak.
+            # Pattern: brand-new tokens (<1h) with established 1h volume AND
+            # 3-bar volume momentum — the runner factory. Premium-premium size
+            # (3x = $60) due to expected +18%/trade rpnl with asymmetric exit.
+            _trigger_fresh_runner_factory_match = False
+            _trigger_fresh_runner_factory_reasons: list = []
+            try:
+                _frf_vol_prev3 = m1_features.get("1m_vol_prev3_avg")
+                _frf_vspike = m1_features.get("1m_volume_spike")
+                _frf_cum3 = m1_features.get("1m_cum_3min_pct")
+                _frf_fresh_ok = (
+                    _frf_vspike is not None and float(_frf_vspike) >= 0.40
+                    and _frf_cum3 is not None and float(_frf_cum3) >= -3.0
+                )
+                if (
+                    pair_age_hours <= 0.95
+                    and float(vol_h1 or 0) >= 261_094
+                    and _frf_vol_prev3 is not None and float(_frf_vol_prev3) >= 4057.0
+                    and _frf_fresh_ok
+                ):
+                    _trigger_fresh_runner_factory_match = True
+                    _trigger_fresh_runner_factory_reasons.append(
+                        f"age={pair_age_hours:.2f}h<=0.95 AND "
+                        f"vol_h1=${float(vol_h1 or 0):.0f}>=261k AND "
+                        f"vol_prev3=${float(_frf_vol_prev3):.0f}>=4057 AND "
+                        f"1m_vol_spike={float(_frf_vspike or 0):.2f}>=0.40 AND "
+                        f"1m_cum_3m={float(_frf_cum3 or 0):+.2f}%>=-3"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_fresh_runner_factory err: {_e}")
+            if _trigger_fresh_runner_factory_match:
+                logger.warning(
+                    f"[DipScanner] 🚀 trigger_fresh_runner_factory FIRED (3x PREMIUM): "
+                    f"{token_symbol} {';'.join(_trigger_fresh_runner_factory_reasons)}"
+                )
+
             # ── trigger_micro_pattern_confirmed — ENFORCED 2026-05-15 ──
             # Textbook technical-pattern detection (bull engulfing, double
             # bottom, inverse H&S, falling wedge, long lower wick, etc.)
@@ -7869,6 +7917,9 @@ class DipScanner:
                 _triggers_fired.append("volume_burst_runner")
             if _trigger_volatile_buyer_dom_match:
                 _triggers_fired.append("volatile_buyer_dom")
+            # 2026-05-17 PM — runner-predictive mining (3x PREMIUM).
+            if _trigger_fresh_runner_factory_match:
+                _triggers_fired.append("fresh_runner_factory")
 
             # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
             # Set after all 6 breakthrough triggers (strong_orderflow,
@@ -10959,6 +11010,9 @@ class DipScanner:
                 "trigger_volume_burst_runner_reasons": _trigger_volume_burst_runner_reasons,
                 "trigger_volatile_buyer_dom_match": _trigger_volatile_buyer_dom_match,
                 "trigger_volatile_buyer_dom_reasons": _trigger_volatile_buyer_dom_reasons,
+                # Runner-predictive trigger (2026-05-17 PM, 3x PREMIUM).
+                "trigger_fresh_runner_factory_match": _trigger_fresh_runner_factory_match,
+                "trigger_fresh_runner_factory_reasons": _trigger_fresh_runner_factory_reasons,
                 # high_activity_fast_path (2026-05-17). Bypasses trader-side
                 # filter_combo_v2/filter_chart_bear/filter_top10_holder_band.
                 "high_activity_fast_path": _high_activity_fast_path,
@@ -11669,7 +11723,16 @@ class DipScanner:
                 isinstance(_sol_uptick_m1, (int, float))
                 and _sol_uptick_m1 >= 0.01
             )
-            if _is_premium_size:
+            # 2026-05-17 PM — premium_runner tier (3x). Reserved for
+            # trigger_fresh_runner_factory: universe-recorder mining showed
+            # 69% P(peak>=20%), 44% P(peak>=50%) on this n=71/day cohort.
+            # 3x size justified by expected +18%/trade rpnl under asymmetric
+            # exit ladder.
+            _is_premium_runner = "fresh_runner_factory" in _triggers_fired
+            if _is_premium_runner:
+                _position_size = self.position_usd * 3.0
+                _size_tier = "premium_runner"
+            elif _is_premium_size:
                 _position_size = self.position_usd * 2.0
                 _size_tier = "premium"
             elif _all_marginal_size:
