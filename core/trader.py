@@ -954,15 +954,31 @@ class Trader:
         reason_lower = (reason or "").lower()
         is_vol_death = "volume death" in reason_lower
         is_stop_loss = ("stop" in reason_lower) and ("kill" not in reason_lower)
+        # 2026-05-18 — RE-ENABLED narrow 30-min same-token cooldown after
+        # stop-out / vol-death. Universe recorder mining (n=2691, n=487
+        # stop-out-rebuy events) showed:
+        #   <15min post-stop: avg=-6.89%, WR=29.7%, stop-rate=58.4%
+        #   15-30min:        avg=-2.50%, WR=44.1%
+        #   30-60min:        avg=+5.50%, WR=71.4% (flips positive)
+        #   1-2h:            avg=+4.37%, WR=80.0%
+        # Compare to first entries: +7.28%/70.6% WR.
+        #
+        # The 30-min window is where the negative signal decays. This is
+        # NOT a generic loss-cooldown (those were correctly removed today —
+        # global N-stops-pause-trading patterns are bandaids). This is a
+        # per-token, narrow, evidence-backed gate validating that re-entry
+        # on the SAME token within 30 min is a different statistical
+        # population (30% WR vs 70%).
+        #
+        # Mira 2026-05-17 was the trigger case: Buy #2 at 47 min post-stop
+        # narrowly missed this window — data shows 30-60min is on the edge,
+        # so future similar entries may still fire. Watch forward.
         if is_vol_death or is_stop_loss:
-            # 2026-05-17 PM — ALL loss cooldowns removed per user direction.
-            # Was: stop-streak (3+ stops in 4h) engaged 4h cooldown.
-            # Now: no cooldown on any losing close. Streak tracking removed.
-            # Filter stack gates rebuy quality; PAC-style serial-rebuy disasters
-            # need to be solved upstream (entry filters), not via cooldowns.
+            self._dip_loss_cooldown[token_address.lower()] = [time.time(), 1800.0]
+            self._save_dip_loss_cooldown()
             tag = "vol-death" if is_vol_death else "stop-loss"
             logger.info(
-                f"[Trader] {tag} close on {token_address[:8]}… — no cooldown (loss-cooldowns disabled 2026-05-17)"
+                f"[Trader] {tag} close on {token_address[:8]}… — 30-min same-token cooldown set"
             )
             return
         self._dip_loss_cooldown[token_address.lower()] = [time.time(), 1800.0]
