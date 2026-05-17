@@ -508,25 +508,29 @@ COMBOS = {
         and c['trend_15m_r_squared'] >= 0.49
     ),
     # young_active_dip — ENFORCED 2026-05-17, universe-recorder mining.
-    # age<=3.11h AND vol_h1>=261k AND vol_m5>=13.5k + freshness (1m_vspike>=0.40 AND 1m_cum_3m>=-3).
-    # Freshness added 2026-05-17 PM after fluff (8Hf1E…) crashed -67% during entry.
+    # age in [2.334, 3.11]h AND vol_h1>=261k AND vol_m5>=13.5k + freshness.
+    # 2026-05-18 — per-cohort entry-timing gate: age>=2.334 (WR 79->91%).
     'YAD_young_active_dip': lambda c: (
-        c.get('age_hours') is not None and c['age_hours'] <= 3.11
+        c.get('age_hours') is not None and c['age_hours'] >= 2.334
+        and c['age_hours'] <= 3.11
         and c.get('vol_h1') is not None and c['vol_h1'] >= 261_094
         and c.get('vol_m5') is not None and c['vol_m5'] >= 13_469
         and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
         and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),
-    # volatile_5m_dip — ENFORCED 2026-05-17 PM, universe-recorder mining + freshness.
+    # volatile_5m_dip — ENFORCED 2026-05-17 PM + 2026-05-18 timing gate.
+    # range>=2.27 AND cum_5m<=-10.43 AND body>=+4.77 + freshness (WR 73->84%).
     'V5D_volatile_5m_dip': lambda c: (
         c.get('range_pct') is not None and c['range_pct'] >= 2.27
         and c.get('cum_pct_5m') is not None and c['cum_pct_5m'] <= -10.43
+        and c.get('body_pct') is not None and c['body_pct'] >= 4.77
         and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
         and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),
-    # v_bottom_body — ENFORCED 2026-05-17 PM (PREMIUM SIZE) + freshness.
+    # v_bottom_body — ENFORCED 2026-05-17 PM + 2026-05-18 timing gate (age<=1.03h).
     'VBB_v_bottom_body': lambda c: (
-        c.get('cum_pct_5m') is not None and c['cum_pct_5m'] <= -10.43
+        c.get('age_hours') is not None and c['age_hours'] <= 1.028
+        and c.get('cum_pct_5m') is not None and c['cum_pct_5m'] <= -10.43
         and c.get('body_pct') is not None and c['body_pct'] >= 1.52
         and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
     ),
@@ -540,31 +544,35 @@ COMBOS = {
         and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
         and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),
-    # volume_burst_runner — ENFORCED 2026-05-17 PM (round-2 deep mine + freshness).
-    # vol_at_event>=1000 AND age<=24h AND liq<=$50k + freshness.
+    # volume_burst_runner — ENFORCED 2026-05-17 PM + 2026-05-18 timing gate.
+    # vol_at_event>=1000 AND age<=24h AND liq<=$21.3k (tightened from $50k).
+    # WR 78->85%, EV +9.6pp from smaller-pool-only cohort.
     'VBR_volume_burst_runner': lambda c: (
         c.get('vol_at_event') is not None and c['vol_at_event'] >= 1000
         and c.get('age_hours') is not None and c['age_hours'] <= 24.0
-        and c.get('liq_usd') is not None and c['liq_usd'] <= 50_000
+        and c.get('liq_usd') is not None and c['liq_usd'] <= 21_290
         and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
         and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),
-    # volatile_buyer_dom — ENFORCED 2026-05-17 PM (round-2 deep mine + freshness).
-    # range_pct>=3 AND bs_h6>=2 AND age<=12h + freshness.
+    # volatile_buyer_dom — ENFORCED 2026-05-17 PM + 2026-05-18 timing gate.
+    # age in [0.46, 12]h AND range_pct>=3 AND bs_h6>=2 + freshness.
     'VBD_volatile_buyer_dom': lambda c: (
-        c.get('range_pct') is not None and c['range_pct'] >= 3.0
+        c.get('age_hours') is not None and c['age_hours'] >= 0.46
+        and c['age_hours'] <= 12.0
+        and c.get('range_pct') is not None and c['range_pct'] >= 3.0
         and c.get('bs_h6') is not None and c['bs_h6'] >= 2.0
-        and c.get('age_hours') is not None and c['age_hours'] <= 12.0
         and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
         and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),
     # fresh_runner_factory — ENFORCED 2026-05-17 PM (3x PREMIUM RUNNER).
-    # age<=0.95h AND vol_h1>=261k AND vol_prev3_avg>=4057 + freshness.
-    # Universe mining: 69% P(peak>=20%), 44% P(peak>=50%) — elite runner cohort.
+    # age<=0.95h AND vol_h1>=261k AND vol_prev3_avg>=4057
+    # AND vol_accel=vol_prev3/vol_prev15>=1.085 (BIG timing gate, WR 83->94%) + freshness.
     'FRF_fresh_runner_factory': lambda c: (
         c.get('age_hours') is not None and c['age_hours'] <= 0.95
         and c.get('vol_h1') is not None and c['vol_h1'] >= 261_094
         and c.get('vol_prev3_avg') is not None and c['vol_prev3_avg'] >= 4057
+        and c.get('vol_prev15_avg') is not None and c['vol_prev15_avg'] > 0
+        and (c['vol_prev3_avg'] / c['vol_prev15_avg']) >= 1.085
         and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
         and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),

@@ -814,6 +814,16 @@ class DipScanner:
                         sum(k.volume for k in _prev3) / len(_prev3)
                         if _prev3 else 0.0
                     )
+                    # 2026-05-18 — vol_prev15_avg (avg of 15 candles before
+                    # latest) computed from the full 1m series, not the cs
+                    # 5-candle slice. Used to derive vol_accel for
+                    # per-cohort entry-timing gate on trigger_fresh_runner_factory.
+                    _full_1m_vol = _chart_data.candles_1m if _chart_data and _chart_data.candles_1m else []
+                    _prev15_full = _full_1m_vol[-16:-1] if len(_full_1m_vol) >= 16 else []
+                    _vol_prev15_avg = (
+                        sum(k.volume for k in _prev15_full) / len(_prev15_full)
+                        if _prev15_full else 0.0
+                    )
                     m1_features = {
                         "1m_green_in_last3": green_in_last3,
                         "1m_last_close_pct": round(last_close_pct, 3),
@@ -831,6 +841,7 @@ class DipScanner:
                         "1m_range_pct_last": round(_range_pct_last, 3),
                         "1m_cum_5m_pct":     round(_cum_5m_pct, 3),
                         "1m_vol_prev3_avg":  round(_vol_prev3_avg, 3),
+                        "1m_vol_prev15_avg": round(_vol_prev15_avg, 3),
                     }
                     # Chart-shape features over 30/60/90m windows. Logged-only,
                     # not used as a filter. Captures pump-then-bleed round-trip
@@ -7366,15 +7377,20 @@ class DipScanner:
                     _yad_vspike is not None and float(_yad_vspike) >= 0.40
                     and _yad_cum3 is not None and float(_yad_cum3) >= -3.0
                 )
+                # 2026-05-18 — per-cohort entry-timing gate: age>=2.334h.
+                # Mining (n=243): adding age>=2.334 lifts WR 79->91%, EV +2.3pp.
+                # Very fresh (<2.3h) young_active_dip events are chaotic; the
+                # 2.3-3.1h sweet spot has settled enough activity to time entry.
                 if (
-                    pair_age_hours <= 3.11
+                    pair_age_hours >= 2.334
+                    and pair_age_hours <= 3.11
                     and float(vol_h1 or 0) >= 261_094
                     and float(vol_m5 or 0) >= 13_469
                     and _yad_fresh_ok
                 ):
                     _trigger_young_active_dip_match = True
                     _trigger_young_active_dip_reasons.append(
-                        f"age={pair_age_hours:.2f}h<=3.11 AND "
+                        f"age={pair_age_hours:.2f}h in [2.334,3.11] AND "
                         f"vol_h1=${float(vol_h1 or 0):.0f}>=261k AND "
                         f"vol_m5=${float(vol_m5 or 0):.0f}>=13.5k AND "
                         f"1m_vol_spike={float(_yad_vspike or 0):.2f}>=0.40 AND "
@@ -7407,13 +7423,20 @@ class DipScanner:
                     _v5d_vspike is not None and float(_v5d_vspike) >= 0.40
                     and _v5d_cum3 is not None and float(_v5d_cum3) >= -3.0
                 )
+                # 2026-05-18 — per-cohort entry-timing gate: body_pct>=4.77.
+                # Mining (n=658): adding strong-green-close gate lifts WR 73->84%,
+                # EV +7.6pp. Wait for the reversal candle to be aggressive, not
+                # just a mild green bar. Counter to v_bottom_body's body>=1.52.
+                _v5d_body = m1_features.get("1m_last_close_pct")
                 if (_v5d_rng is not None and float(_v5d_rng) >= 2.27
                         and _v5d_c5m is not None and float(_v5d_c5m) <= -10.43
+                        and _v5d_body is not None and float(_v5d_body) >= 4.77
                         and _v5d_fresh_ok):
                     _trigger_volatile_5m_dip_match = True
                     _trigger_volatile_5m_dip_reasons.append(
                         f"range_pct={float(_v5d_rng):.2f}%>=2.27 AND "
                         f"cum_5m_pct={float(_v5d_c5m):+.2f}%<=-10.43 AND "
+                        f"body={float(_v5d_body):+.2f}%>=4.77 AND "
                         f"1m_vol_spike={float(_v5d_vspike or 0):.2f}>=0.40 AND "
                         f"1m_cum_3m={float(_v5d_cum3 or 0):+.2f}%>=-3"
                     )
@@ -7445,11 +7468,18 @@ class DipScanner:
                 _vbb_fresh_ok = (
                     _vbb_vspike is not None and float(_vbb_vspike) >= 0.40
                 )
-                if (_vbb_c5m is not None and float(_vbb_c5m) <= -10.43
+                # 2026-05-18 — per-cohort entry-timing gate: age<=1.03h.
+                # Mining (n=176): adding age<=1.03h lifts EV from +10.2% to +20.6%
+                # (+10.3pp). V-bottoms on very fresh tokens have stronger recovery
+                # than mature tokens — younger pools react more violently to
+                # buy pressure on the reversal candle.
+                if (pair_age_hours <= 1.028
+                        and _vbb_c5m is not None and float(_vbb_c5m) <= -10.43
                         and _vbb_body is not None and float(_vbb_body) >= 1.52
                         and _vbb_fresh_ok):
                     _trigger_v_bottom_body_match = True
                     _trigger_v_bottom_body_reasons.append(
+                        f"age={pair_age_hours:.2f}h<=1.03 AND "
                         f"cum_5m_pct={float(_vbb_c5m):+.2f}%<=-10.43 AND "
                         f"body={float(_vbb_body):+.2f}%>=1.52 AND "
                         f"1m_vol_spike={float(_vbb_vspike or 0):.2f}>=0.40"
@@ -7479,17 +7509,21 @@ class DipScanner:
                     _vbr_vspike is not None and float(_vbr_vspike) >= 0.40
                     and _vbr_cum3 is not None and float(_vbr_cum3) >= -3.0
                 )
+                # 2026-05-18 — per-cohort entry-timing gate: liq<=$21k.
+                # Mining (n=408): tightening liq cap from $50k to $21k lifts
+                # WR 78->85%, EV +9.6pp. Smaller pools (<$21k) react more
+                # violently to volume bursts; $21k-$50k tier dilutes the signal.
                 if (
                     _vbr_vol_at >= 1000.0
                     and pair_age_hours <= 24.0
-                    and liq_usd <= 50_000
+                    and liq_usd <= 21_290
                     and _vbr_fresh_ok
                 ):
                     _trigger_volume_burst_runner_match = True
                     _trigger_volume_burst_runner_reasons.append(
                         f"vol_at_event=${_vbr_vol_at:.0f}>=1000 AND "
                         f"age={pair_age_hours:.1f}h<=24 AND "
-                        f"liq=${liq_usd:.0f}<=50k AND "
+                        f"liq=${liq_usd:.0f}<=21.3k AND "
                         f"1m_vol_spike={float(_vbr_vspike or 0):.2f}>=0.40 AND "
                         f"1m_cum_3m={float(_vbr_cum3 or 0):+.2f}%>=-3"
                     )
@@ -7517,17 +7551,21 @@ class DipScanner:
                     _vbd_vspike is not None and float(_vbd_vspike) >= 0.40
                     and _vbd_cum3 is not None and float(_vbd_cum3) >= -3.0
                 )
+                # 2026-05-18 — per-cohort entry-timing gate: age>=0.46h.
+                # Mining (n=115): excluding very-fresh (<28min) tokens lifts
+                # WR 82->84%, marginal EV +0.6pp but ~free (97% throughput retained).
                 if (
-                    _vbd_rng is not None and float(_vbd_rng) >= 3.0
-                    and ratio_h6 >= 2.0
+                    pair_age_hours >= 0.46
                     and pair_age_hours <= 12.0
+                    and _vbd_rng is not None and float(_vbd_rng) >= 3.0
+                    and ratio_h6 >= 2.0
                     and _vbd_fresh_ok
                 ):
                     _trigger_volatile_buyer_dom_match = True
                     _trigger_volatile_buyer_dom_reasons.append(
                         f"range_pct={float(_vbd_rng):.2f}%>=3 AND "
                         f"bs_h6={ratio_h6:.2f}>=2 AND "
-                        f"age={pair_age_hours:.1f}h<=12 AND "
+                        f"age={pair_age_hours:.2f}h in [0.46,12] AND "
                         f"1m_vol_spike={float(_vbd_vspike or 0):.2f}>=0.40"
                     )
             except Exception as _e:
@@ -7550,16 +7588,30 @@ class DipScanner:
             _trigger_fresh_runner_factory_reasons: list = []
             try:
                 _frf_vol_prev3 = m1_features.get("1m_vol_prev3_avg")
+                _frf_vol_prev15 = m1_features.get("1m_vol_prev15_avg")
                 _frf_vspike = m1_features.get("1m_volume_spike")
                 _frf_cum3 = m1_features.get("1m_cum_3min_pct")
                 _frf_fresh_ok = (
                     _frf_vspike is not None and float(_frf_vspike) >= 0.40
                     and _frf_cum3 is not None and float(_frf_cum3) >= -3.0
                 )
+                # 2026-05-18 — per-cohort entry-timing gate: vol_accel>=1.085.
+                # vol_accel = vol_prev3 / vol_prev15 (last 3min vol vs last 15min avg).
+                # Mining (n=70): adding vol_accel>=1.085 lifts WR 83->94%, EV +14.4pp.
+                # The BIGGEST timing signal in the data. Buy when real-time volume
+                # is GENUINELY accelerating (last 3 min > 15-min avg), not when
+                # volume just LOOKS active from h1 metrics.
+                _frf_vol_accel = (
+                    float(_frf_vol_prev3) / float(_frf_vol_prev15)
+                    if (_frf_vol_prev3 is not None and _frf_vol_prev15 is not None
+                        and float(_frf_vol_prev15) > 0)
+                    else None
+                )
                 if (
                     pair_age_hours <= 0.95
                     and float(vol_h1 or 0) >= 261_094
                     and _frf_vol_prev3 is not None and float(_frf_vol_prev3) >= 4057.0
+                    and _frf_vol_accel is not None and _frf_vol_accel >= 1.085
                     and _frf_fresh_ok
                 ):
                     _trigger_fresh_runner_factory_match = True
@@ -7567,6 +7619,7 @@ class DipScanner:
                         f"age={pair_age_hours:.2f}h<=0.95 AND "
                         f"vol_h1=${float(vol_h1 or 0):.0f}>=261k AND "
                         f"vol_prev3=${float(_frf_vol_prev3):.0f}>=4057 AND "
+                        f"vol_accel={_frf_vol_accel:.3f}>=1.085 AND "
                         f"1m_vol_spike={float(_frf_vspike or 0):.2f}>=0.40 AND "
                         f"1m_cum_3m={float(_frf_cum3 or 0):+.2f}%>=-3"
                     )
