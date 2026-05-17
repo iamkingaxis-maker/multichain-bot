@@ -161,6 +161,25 @@ class DipScanner:
             os.environ.get("DATA_DIR", "/data"), "sticky_watchlist.json"
         )
         self._load_sticky()
+        # ── User watchlist (April-era specialization model) ─────────────
+        # Curator-driven token tracking. Add addresses via
+        # USER_WATCHLIST_ADDRESSES env var (comma-separated).
+        # Watchlist tokens are force-fetched every cycle and bypass
+        # discovery-noise filters (mcap_low, vol_h24 min, turnover,
+        # loss_cooldown) so the bot can revisit the same handful of
+        # "tokens of the moment" — same pattern April high-WR era used
+        # organically. Keeps all "buying high" and "dying volume"
+        # protections active (filter_topping, filter_chasing_bounce,
+        # filter_blowoff_top, FRESHNESS GATE, vol_h1_decay).
+        _user_watch_raw = os.environ.get("USER_WATCHLIST_ADDRESSES", "")
+        self._user_watchlist_addrs: set = {
+            a.strip().lower() for a in _user_watch_raw.split(",") if a.strip()
+        }
+        if self._user_watchlist_addrs:
+            logger.info(
+                f"[DipScanner] User watchlist loaded: "
+                f"{len(self._user_watchlist_addrs)} addresses"
+            )
         # Tier 3: optional AxiomPriceFeed for sub-minute tick buffer reads.
         # Set externally via `dip_scanner.axiom_price_feed = axiom.price_feed`.
         # If present, we pre-subscribe candidates that pass core filters and
@@ -341,6 +360,11 @@ class DipScanner:
             # case depending on which feed surfaced the position. Mirror the
             # trader's lowercase check (core/trader.py).
             _addr_lower = token_address.lower()
+            # User watchlist: bypass discovery-noise gates so we can revisit
+            # the same handful of curated tokens every cycle.
+            _user_watch = _addr_lower in self._user_watchlist_addrs
+            if _user_watch:
+                c["user_watchlist_eval"] = c.get("user_watchlist_eval", 0) + 1
             if _addr_lower in self.open_positions_ref or token_address in self.open_positions_ref:
                 c["already_open"] += 1
                 continue
@@ -350,15 +374,21 @@ class DipScanner:
             # bleed when a token enters a downtrend (e.g. mexicanunc 4-stop
             # cycle today).  30-min window saves ~$267 today and only ~$41
             # of MAGA's ladder-up wins lifetime.
+            # USER_WATCHLIST bypass: the whole point of curated tokens is to
+            # re-enter on the next dip after a loss; cooldown defeats this.
             if hasattr(self.trader, "is_dip_in_cooldown") and \
                     self.trader.is_dip_in_cooldown(token_address, 1800):
                 c["loss_cooldown"] += 1
-                continue
+                if not _user_watch:
+                    continue
 
             mcap = pair.get("marketCap") or 0
+            # USER_WATCHLIST bypass: small-cap floor not applicable for
+            # user-curated tokens (user chose them deliberately).
             if mcap < self.min_mcap:
                 c["mcap_low"] += 1
-                continue
+                if not _user_watch:
+                    continue
             if mcap > self.max_mcap:
                 c["mcap_high"] += 1
                 continue
@@ -369,9 +399,13 @@ class DipScanner:
                 continue
 
             vol_h24 = (pair.get("volume") or {}).get("h24", 0) or 0
+            # USER_WATCHLIST bypass: vol_h24 minimum for universe discovery,
+            # not for curated tokens. Real dying-volume protection lives
+            # in FRESHNESS GATE and vol_h1_decay below — those stay on.
             if vol_h24 < self.min_volume_h24:
                 c["vol"] += 1
-                continue
+                if not _user_watch:
+                    continue
 
             # Turnover filter: require vol_h24 / liquidity >= threshold. Blocks
             # over-liquid tokens where trades don't move price (pippin 0.9×,
@@ -388,9 +422,12 @@ class DipScanner:
             if pair.get("_source") == "geckoterminal" and liq_usd > 0:
                 liq_usd = liq_usd * 0.5
             turnover = (vol_h24 / liq_usd) if liq_usd > 0 else 0.0
+            # USER_WATCHLIST bypass: turnover floor is a universe-discovery
+            # filter to skip over-liquid pools where trades don't move price.
+            # User-curated tokens get evaluated regardless.
             if liq_usd > 0 and turnover < self.min_turnover_h24:
                 c["low_turnover"] += 1
-                if not self.baseline_mode:
+                if not self.baseline_mode and not _user_watch:
                     continue
 
             # Volume-decay filter: require recent-hour volume to be at least
@@ -12348,7 +12385,13 @@ class DipScanner:
 
                 # Enrich stub addrs + all GT addrs via DS /tokens batch.
                 # dedupe preserving first-seen order.
-                to_enrich = list(dict.fromkeys(stub_addrs + list(pair_by_addr.keys())))
+                # User watchlist: force-include — always enrich even if not
+                # in the universe this cycle, so we can revisit it.
+                to_enrich = list(dict.fromkeys(
+                    stub_addrs
+                    + list(pair_by_addr.keys())
+                    + list(self._user_watchlist_addrs)
+                ))
                 if to_enrich:
                     for i in range(0, len(to_enrich), 30):
                         batch = to_enrich[i:i + 30]
@@ -12376,6 +12419,11 @@ class DipScanner:
                             elif source_by_addr.get(addr) == "axiom_trending":
                                 pair_by_addr[addr] = p
                                 source_by_addr[addr] = "axiom_enriched"
+                            elif addr in self._user_watchlist_addrs:
+                                # User watchlist tokens — tag and include even
+                                # if not previously in pair_by_addr.
+                                pair_by_addr[addr] = p
+                                source_by_addr[addr] = "user_watchlist"
                             elif addr not in pair_by_addr:
                                 pair_by_addr[addr] = p
                                 source_by_addr[addr] = "ds_stub"
@@ -12401,6 +12449,7 @@ class DipScanner:
             "gt_trending": 0, "gt_enriched": 0,
             "axiom_trending": 0, "axiom_enriched": 0,
             "sticky_watchlist": 0,
+            "user_watchlist": 0,
         }
         for src in source_by_addr.values():
             source_counts[src] = source_counts.get(src, 0) + 1
