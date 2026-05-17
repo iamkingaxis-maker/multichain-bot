@@ -2845,14 +2845,22 @@ class PositionManager:
         pnl_pct = (price_usd / state.entry_price - 1) * 100
         peak_pct = (state.peak_price / state.entry_price - 1) * 100
 
-        # 3-tier ladder threshold split (refined 2026-05-16 PM):
-        #   _MIN_PEAK_SOFT = TP1 (+3%) — soft trail with confirmation covers
-        #     small-peak cohort. Previously this cohort fell through to the
-        #     dumb sync trail at line 2096 which clipped on noise wiggles.
+        # 3-tier ladder threshold split (refined 2026-05-17 AM):
+        #   _MIN_PEAK_SOFT = +1.5% — early soft trail with confirmation.
+        #     Lowered from +3% to +1.5% on 2026-05-17 based on exit-ladder
+        #     mining (n=91): 25 trades that went green +1.5 to +3.7% then
+        #     crashed to -8 to -22% (avg give-back +12.78pp). Lowering the
+        #     trail to +1.5% with the existing 5s confirm + 0.5pp recovery
+        #     hysteresis captures them at peak - 1pp instead of -4% stop.
+        #     Simulation lift: +1.12pp/trade, WR 38.5% → 47.3%.
+        #     Risk: a trade that peaks +1.5%, drops to +0.4% sustained for
+        #     5s, then would have rallied to +10%+ would get clipped at
+        #     +0.4%. The 5s confirm + 0.5pp hysteresis is the protection.
+        #     If forward shows winners getting clipped, raise to +2.0%.
         #   _MIN_PEAK_HARD = TP2 + 1pp (+6%) — only meaningful runs trigger
         #     the hard guard (fast-flip back to scratch is real for big
         #     peaks, ambiguous for small ones).
-        _MIN_PEAK_SOFT = self.dip_tp1_pct           # +3% — soft trail coverage
+        _MIN_PEAK_SOFT = 1.5                         # +1.5% (was self.dip_tp1_pct=+3%)
         _MIN_PEAK_HARD = self.dip_tp2_pct + 1.0     # +6% — hard guard coverage
         _DROP_PP = self.dip_winner_trail_pct  # currently 1.0
         _CONFIRM_S = 5.0
