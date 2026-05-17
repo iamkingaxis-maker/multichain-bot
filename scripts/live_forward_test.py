@@ -508,23 +508,37 @@ COMBOS = {
         and c['trend_15m_r_squared'] >= 0.49
     ),
     # young_active_dip — ENFORCED 2026-05-17, universe-recorder mining.
-    # age<=3.11h AND vol_h1>=261k AND vol_m5>=13.5k.
+    # age<=3.11h AND vol_h1>=261k AND vol_m5>=13.5k + freshness (1m_vspike>=0.40 AND 1m_cum_3m>=-3).
+    # Freshness added 2026-05-17 PM after fluff (8Hf1E…) crashed -67% during entry.
     'YAD_young_active_dip': lambda c: (
         c.get('age_hours') is not None and c['age_hours'] <= 3.11
         and c.get('vol_h1') is not None and c['vol_h1'] >= 261_094
         and c.get('vol_m5') is not None and c['vol_m5'] >= 13_469
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
+        and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),
-    # volatile_5m_dip — ENFORCED 2026-05-17 PM, universe-recorder mining.
-    # range_pct >= 2.27 AND cum_pct_5m <= -10.43.
+    # volatile_5m_dip — ENFORCED 2026-05-17 PM, universe-recorder mining + freshness.
     'V5D_volatile_5m_dip': lambda c: (
         c.get('range_pct') is not None and c['range_pct'] >= 2.27
         and c.get('cum_pct_5m') is not None and c['cum_pct_5m'] <= -10.43
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
+        and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),
-    # v_bottom_body — ENFORCED 2026-05-17 PM (PREMIUM SIZE), universe-recorder mining.
-    # cum_pct_5m <= -10.43 AND body_pct >= 1.52.
+    # v_bottom_body — ENFORCED 2026-05-17 PM (PREMIUM SIZE) + freshness.
     'VBB_v_bottom_body': lambda c: (
         c.get('cum_pct_5m') is not None and c['cum_pct_5m'] <= -10.43
         and c.get('body_pct') is not None and c['body_pct'] >= 1.52
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
+    ),
+    # high_activity_fast_path — bypass scope. Updated 2026-05-17 PM with freshness.
+    'HA_fast_path_fresh': lambda c: (
+        (
+            ((c.get('vol_h6') or 0) >= 296_834)
+            or ((c.get('buys_h1') or 0) >= 1909 and (c.get('sells_h1') or 0) >= 1094)
+            or ((c.get('pc_h6') or 0) >= 82.68 and (c.get('buys_h1') or 0) >= 1909)
+        )
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
+        and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None

@@ -3173,9 +3173,24 @@ class DipScanner:
                 _ha_high_vol = _ha_vol_h6 >= 296_834
                 _ha_active_balanced = (_ha_buys_h1 >= 1909 and _ha_sells_h1 >= 1094)
                 _ha_momentum_active = (pc_h6 >= 82.68 and _ha_buys_h1 >= 1909)
-                _high_activity_fast_path = bool(
+                _ha_cohort_match = (
                     _ha_high_vol or _ha_active_balanced or _ha_momentum_active
                 )
+                # 2026-05-17 PM — freshness precondition. fluff (8Hf1E…)
+                # bought at 17:54 UTC matched _ha_active_balanced (high
+                # historical txns) but was in real-time crash:
+                # 1m_vol_spike=0.354, pc_m5=-29.9%, pc_h1=-37%.
+                # Require live activity (1m_vol_spike >= 0.40 AND
+                # 1m_cum_3min_pct >= -3.0) before granting the bypass.
+                # m1_features may be missing if 1m fetch failed — fail-closed.
+                _ha_m1 = locals().get('m1_features', {}) or {}
+                _ha_vspike = _ha_m1.get('1m_volume_spike')
+                _ha_cum3 = _ha_m1.get('1m_cum_3min_pct')
+                _ha_fresh_ok = (
+                    _ha_vspike is not None and float(_ha_vspike) >= 0.40
+                    and _ha_cum3 is not None and float(_ha_cum3) >= -3.0
+                )
+                _high_activity_fast_path = bool(_ha_cohort_match and _ha_fresh_ok)
             except Exception as _ha_e:
                 logger.debug(f"[DipScanner] high_activity_fast_path err: {_ha_e}")
                 _high_activity_fast_path = False
@@ -7333,16 +7348,29 @@ class DipScanner:
             _trigger_young_active_dip_match = False
             _trigger_young_active_dip_reasons: list = []
             try:
+                # 2026-05-17 PM — freshness precondition added after fluff
+                # (8Hf1E...) crashed -67% combined h1+m5 yet vol_h1 looked good.
+                # 1m_volume_spike >= 0.40 AND 1m_cum_3min_pct >= -3.0 confirms
+                # token has REAL-TIME activity, not lagging-snapshot volume.
+                _yad_vspike = m1_features.get("1m_volume_spike")
+                _yad_cum3 = m1_features.get("1m_cum_3min_pct")
+                _yad_fresh_ok = (
+                    _yad_vspike is not None and float(_yad_vspike) >= 0.40
+                    and _yad_cum3 is not None and float(_yad_cum3) >= -3.0
+                )
                 if (
                     pair_age_hours <= 3.11
                     and float(vol_h1 or 0) >= 261_094
                     and float(vol_m5 or 0) >= 13_469
+                    and _yad_fresh_ok
                 ):
                     _trigger_young_active_dip_match = True
                     _trigger_young_active_dip_reasons.append(
                         f"age={pair_age_hours:.2f}h<=3.11 AND "
                         f"vol_h1=${float(vol_h1 or 0):.0f}>=261k AND "
-                        f"vol_m5=${float(vol_m5 or 0):.0f}>=13.5k"
+                        f"vol_m5=${float(vol_m5 or 0):.0f}>=13.5k AND "
+                        f"1m_vol_spike={float(_yad_vspike or 0):.2f}>=0.40 AND "
+                        f"1m_cum_3m={float(_yad_cum3 or 0):+.2f}%>=-3"
                     )
             except Exception as _e:
                 logger.debug(f"[DipScanner] trigger_young_active_dip err: {_e}")
@@ -7363,12 +7391,23 @@ class DipScanner:
             try:
                 _v5d_rng = m1_features.get("1m_range_pct_last")
                 _v5d_c5m = m1_features.get("1m_cum_5m_pct")
+                # Freshness precondition: confirm bounce has started in last 3min,
+                # not still actively crashing. Same gate as young_active_dip.
+                _v5d_vspike = m1_features.get("1m_volume_spike")
+                _v5d_cum3 = m1_features.get("1m_cum_3min_pct")
+                _v5d_fresh_ok = (
+                    _v5d_vspike is not None and float(_v5d_vspike) >= 0.40
+                    and _v5d_cum3 is not None and float(_v5d_cum3) >= -3.0
+                )
                 if (_v5d_rng is not None and float(_v5d_rng) >= 2.27
-                        and _v5d_c5m is not None and float(_v5d_c5m) <= -10.43):
+                        and _v5d_c5m is not None and float(_v5d_c5m) <= -10.43
+                        and _v5d_fresh_ok):
                     _trigger_volatile_5m_dip_match = True
                     _trigger_volatile_5m_dip_reasons.append(
                         f"range_pct={float(_v5d_rng):.2f}%>=2.27 AND "
-                        f"cum_5m_pct={float(_v5d_c5m):+.2f}%<=-10.43"
+                        f"cum_5m_pct={float(_v5d_c5m):+.2f}%<=-10.43 AND "
+                        f"1m_vol_spike={float(_v5d_vspike or 0):.2f}>=0.40 AND "
+                        f"1m_cum_3m={float(_v5d_cum3 or 0):+.2f}%>=-3"
                     )
             except Exception as _e:
                 logger.debug(f"[DipScanner] trigger_volatile_5m_dip err: {_e}")
@@ -7391,12 +7430,21 @@ class DipScanner:
             try:
                 _vbb_c5m = m1_features.get("1m_cum_5m_pct")
                 _vbb_body = m1_features.get("1m_last_close_pct")
+                # Freshness precondition (same as young_active_dip + volatile_5m_dip).
+                # body>=1.52 already implies last 1m closed green, but adding the
+                # vol_spike check ensures volume is alive on the bounce candle.
+                _vbb_vspike = m1_features.get("1m_volume_spike")
+                _vbb_fresh_ok = (
+                    _vbb_vspike is not None and float(_vbb_vspike) >= 0.40
+                )
                 if (_vbb_c5m is not None and float(_vbb_c5m) <= -10.43
-                        and _vbb_body is not None and float(_vbb_body) >= 1.52):
+                        and _vbb_body is not None and float(_vbb_body) >= 1.52
+                        and _vbb_fresh_ok):
                     _trigger_v_bottom_body_match = True
                     _trigger_v_bottom_body_reasons.append(
                         f"cum_5m_pct={float(_vbb_c5m):+.2f}%<=-10.43 AND "
-                        f"body={float(_vbb_body):+.2f}%>=1.52"
+                        f"body={float(_vbb_body):+.2f}%>=1.52 AND "
+                        f"1m_vol_spike={float(_vbb_vspike or 0):.2f}>=0.40"
                     )
             except Exception as _e:
                 logger.debug(f"[DipScanner] trigger_v_bottom_body err: {_e}")
