@@ -2876,28 +2876,24 @@ class PositionManager:
         #     the hard guard (fast-flip back to scratch is real for big
         #     peaks, ambiguous for small ones).
         _MIN_PEAK_SOFT = 1.5                         # +1.5% (was self.dip_tp1_pct=+3%)
-        _MIN_PEAK_HARD = self.dip_tp2_pct + 1.0     # +6% — hard guard coverage
-        _DROP_PP = self.dip_winner_trail_pct  # currently 1.0
+        _DROP_PP = self.dip_winner_trail_pct  # currently 3.0 (runner-tilt)
         _CONFIRM_S = 5.0
         _RECOVERY_PP = 0.5
-        _HARD_GUARD_PNL = 1.0  # blended-floor: if remainder drops near scratch, dump
 
-        # HARD GUARD: post-peak fast collapse. Token had a meaningful run
-        # past TP1 then crashed back near entry. Catches RABBIT pattern.
-        if peak_pct >= _MIN_PEAK_HARD and pnl_pct <= _HARD_GUARD_PNL:
-            self._post_tp1_trail_triggered.add(token_address)
-            label = (
-                f"Dip post-TP1 fast-flip {pnl_pct:+.1f}% "
-                f"(peak +{peak_pct:.1f}%, hard guard)"
-            )
-            logger.warning(
-                f"[PositionManager/{self.chain_name}] 🔒 POST-TP1 HARD GUARD: "
-                f"{state.token_symbol} peak +{peak_pct:.1f}% now {pnl_pct:+.1f}% — sell"
-            )
-            asyncio.ensure_future(
-                self._do_post_tp1_realtime_sell(token_address, state, label)
-            )
-            return
+        # 2026-05-18 — post-TP1 HARD GUARD removed. Universe-recorder sim
+        # (n=2691) showed the guard (peak>=11 AND pnl<=+1 -> dump remainder
+        # at +0.5%) cost -1.00pp/trade vs runner-tilt baseline, -$538/day
+        # at $20 size. Per-fire breakdown: WITH guard locks +5.12% total
+        # pnl, WITHOUT guard runner-tilt trail catches +12.97% total pnl
+        # (saved per fire: -7.85pp).
+        #
+        # Critical: 0/343 universe fires would have gone below -3% without
+        # the guard, and 343/343 (100%) resolved above +5%. Peak distribution
+        # of fires: median +19%, P90 +48%, P95 +78%. Pure runner-clipping.
+        #
+        # All 25 threshold combos tested (peak>={8..30}, pnl<={-2..+3}) were
+        # net-negative — best at -0.54pp/trade. Removing this lets the trail
+        # leg deliver runner-tilt's tail capture as designed.
 
         # SOFT TRAIL with confirmation window (covers +3-6% peak cohort too)
         if peak_pct >= _MIN_PEAK_SOFT:
