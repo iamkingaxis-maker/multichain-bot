@@ -2741,28 +2741,21 @@ class PositionManager:
         pnl_pct = (price_usd / state.entry_price - 1) * 100
         peak_pct = (state.peak_price / state.entry_price - 1) * 100
 
-        _MIN_PEAK = 2.5  # Lowered 3.0 → 2.5 on 2026-05-16 (exit-sim option B). Catches the 2.5-5% peak bucket (n=11 trades, all 11 rescued at +4.29%/trade avg in sim). Examples: lol420 peak=+2.94% → was -12.25% rescued to +1.44%; DISCLOSURE peak=+3.71% → -8.13% rescued to +2.21%. 60s confirm window unchanged so RAGEGUY-class false-positives still gated.
+        _MIN_PEAK = 2.5  # Lowered 3.0 → 2.5 on 2026-05-16. Soft-trail threshold.
         _DROP_PP = 1.5
         _CONFIRM_S = 60.0
         _RECOVERY_PP = 1.0  # drop tightens to this → disarm
-        _HARD_GUARD_PNL = -2.0
 
-        # HARD GUARD: peak was real but price is now meaningfully negative.
-        # Fire immediately — no patience window. Catches DIRECTOR pattern.
-        if peak_pct >= _MIN_PEAK and pnl_pct <= _HARD_GUARD_PNL:
-            self._trail_triggered.add(token_address)
-            label = (
-                f"Dip pre-TP1 fast-flip {pnl_pct:+.1f}% "
-                f"(peak +{peak_pct:.1f}%, hard guard)"
-            )
-            logger.warning(
-                f"[PositionManager/{self.chain_name}] 🔒 PRE-TP1 HARD GUARD: "
-                f"{state.token_symbol} peak +{peak_pct:.1f}% now {pnl_pct:+.1f}% — sell"
-            )
-            asyncio.ensure_future(
-                self._do_pre_tp1_realtime_sell(token_address, state, label)
-            )
-            return
+        # 2026-05-18 — pre-TP1 HARD GUARD removed. Universe-recorder sim
+        # (n=2691, conservative proxy: peak>=2.5 AND exit<=-2 fires) showed
+        # the hard guard COST -1.49pp/trade vs runner-tilt baseline, -$801/day
+        # at $20 size. Only 13.2% of fires would have hit -15% stop; the other
+        # 87% recovered enough that the runner-tilt ladder caught them with
+        # net-positive pnl (avg +3.05% without guard). Every threshold combo
+        # tested (peak >= {2.5..10}, pnl <= {-2..-8}) was net-negative.
+        # Fundamentally incompatible with runner-tilt thesis ("give tokens
+        # room to move around"). Soft trail (60s confirm window) retained as
+        # the only pre-TP1 exit path besides TP1 (+5%) and stop (-15%).
 
         # SOFT TRAIL with confirmation window
         if peak_pct >= _MIN_PEAK:
