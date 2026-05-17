@@ -7021,6 +7021,91 @@ class DipScanner:
                     f"{';'.join(_trigger_channel_pos_swing_reasons)}"
                 )
 
+            # ── trigger_channel_hvn (R3-T3) — ENFORCED 2026-05-17 ──
+            # chart_trendline_1h_in_channel>=1 AND chart_vp_at_hvn>=1.
+            # Lifetime: 9/12 (75% WR), p=0.0124, avg +1.48%, mean_buy $97.
+            # Broadest R3 catcher — 10 of its 12 matched trades are NOT
+            # covered by T1/T2 (different signal cohort).
+            # Captures: 1h trendline in_channel (range-bound, not breaking
+            # down) + price at HVN (high-volume node = strong support).
+            _trigger_channel_hvn_match = False
+            _trigger_channel_hvn_reasons: list = []
+            try:
+                _chv_inch = (_chart_ctx_dict or {}).get("chart_trendline_1h_in_channel") if isinstance(_chart_ctx_dict, dict) else None
+                _chv_hvn = (_chart_ctx_dict or {}).get("chart_vp_at_hvn") if isinstance(_chart_ctx_dict, dict) else None
+                _chv_inch_v = (1 if _chv_inch is True else (0 if _chv_inch is False else (float(_chv_inch) if _chv_inch is not None else None)))
+                _chv_hvn_v = (1 if _chv_hvn is True else (0 if _chv_hvn is False else (float(_chv_hvn) if _chv_hvn is not None else None)))
+                if (_chv_inch_v is not None and _chv_inch_v >= 1
+                        and _chv_hvn_v is not None and _chv_hvn_v >= 1):
+                    _trigger_channel_hvn_match = True
+                    _trigger_channel_hvn_reasons.append(
+                        f"1h_in_channel={_chv_inch_v} AND vp_at_hvn={_chv_hvn_v}"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_channel_hvn err: {_e}")
+            if _trigger_channel_hvn_match:
+                logger.info(
+                    f"[DipScanner] trigger_channel_hvn FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_channel_hvn_reasons)}"
+                )
+
+            # ── trigger_shape_wick (R3-T4) — ENFORCED 2026-05-17 ──
+            # shape_60m_mins_since_max<=18 AND wick_body_5m_avg<=0.40.
+            # Lifetime: 8/10 (80% WR), p=0.0101, avg +1.58%, mean_buy ~$90.
+            # 8 of 10 matched trades are NOT covered by T1/T2/R3-T3.
+            # Captures: recent peak within last 18 minutes (fresh leg) AND
+            # tight 5m candles (wick:body <= 0.40 = clean directional bars,
+            # not noisy whippy candles).
+            _trigger_shape_wick_match = False
+            _trigger_shape_wick_reasons: list = []
+            try:
+                _sw_mins = (_chart_ctx_dict or {}).get("shape_60m_mins_since_max") if isinstance(_chart_ctx_dict, dict) else None
+                _sw_wb = _tier3_features.get("wick_body_5m_avg") if isinstance(_tier3_features, dict) else None
+                if (_sw_mins is not None and float(_sw_mins) <= 18
+                        and _sw_wb is not None and float(_sw_wb) <= 0.40):
+                    _trigger_shape_wick_match = True
+                    _trigger_shape_wick_reasons.append(
+                        f"mins_since_max={float(_sw_mins):.0f}<=18 AND "
+                        f"wick_body_5m={float(_sw_wb):.2f}<=0.40"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_shape_wick err: {_e}")
+            if _trigger_shape_wick_match:
+                logger.info(
+                    f"[DipScanner] trigger_shape_wick FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_shape_wick_reasons)}"
+                )
+
+            # ── trigger_cnn_lp (R3-T6) — ENFORCED 2026-05-17 ──
+            # cnn_cluster_id>=9 AND lp_delta_15m_pct>=1.98.
+            # Lifetime: 6/6 (100% WR), p=0.0035, avg +3.24%, mean_buy $97.
+            # 5 of 6 NEW. Captures: CNN-clustered as a non-rug pattern
+            # (cluster_id>=9 excludes the rug-cluster 0-8 region) AND
+            # LP growing (15m LP delta >= +1.98% = active liquidity adds,
+            # not drains).
+            _trigger_cnn_lp_match = False
+            _trigger_cnn_lp_reasons: list = []
+            try:
+                _cl_cnn = entry_meta_dict_partial.get("cnn_cluster_id") if 'entry_meta_dict_partial' in dir() else None
+                # cnn_cluster_id may be stamped later — also try chart_features_dict
+                if _cl_cnn is None:
+                    _cl_cnn = (_chart_ctx_dict or {}).get("cnn_cluster_id") if isinstance(_chart_ctx_dict, dict) else None
+                _cl_lp = _tier3_features.get("lp_delta_15m_pct") if isinstance(_tier3_features, dict) else None
+                if (_cl_cnn is not None and float(_cl_cnn) >= 9
+                        and _cl_lp is not None and float(_cl_lp) >= 1.98):
+                    _trigger_cnn_lp_match = True
+                    _trigger_cnn_lp_reasons.append(
+                        f"cnn_cluster={float(_cl_cnn):.0f}>=9 AND "
+                        f"lp_delta_15m={float(_cl_lp):.2f}%>=1.98"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_cnn_lp err: {_e}")
+            if _trigger_cnn_lp_match:
+                logger.info(
+                    f"[DipScanner] trigger_cnn_lp FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_cnn_lp_reasons)}"
+                )
+
             # ── trigger_micro_pattern_confirmed — ENFORCED 2026-05-15 ──
             # Textbook technical-pattern detection (bull engulfing, double
             # bottom, inverse H&S, falling wedge, long lower wick, etc.)
@@ -7326,6 +7411,13 @@ class DipScanner:
                 _triggers_fired.append("swing_structure_rsi")
             if _trigger_channel_pos_swing_match:
                 _triggers_fired.append("channel_pos_swing")
+            # R3 (2026-05-17) round-3 mining triggers.
+            if _trigger_channel_hvn_match:
+                _triggers_fired.append("channel_hvn")
+            if _trigger_shape_wick_match:
+                _triggers_fired.append("shape_wick")
+            if _trigger_cnn_lp_match:
+                _triggers_fired.append("cnn_lp")
 
             # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
             # Set after all 6 breakthrough triggers (strong_orderflow,
@@ -7344,6 +7436,10 @@ class DipScanner:
                 # R2 round-2 mining triggers (2026-05-17).
                 or _trigger_swing_structure_rsi_match
                 or _trigger_channel_pos_swing_match
+                # R3 round-3 mining triggers (2026-05-17).
+                or _trigger_channel_hvn_match
+                or _trigger_shape_wick_match
+                or _trigger_cnn_lp_match
             )
 
             # Apply anti-pattern suppression — clears all triggers if
@@ -10366,6 +10462,13 @@ class DipScanner:
                 "trigger_swing_structure_rsi_reasons": _trigger_swing_structure_rsi_reasons,
                 "trigger_channel_pos_swing_match": _trigger_channel_pos_swing_match,
                 "trigger_channel_pos_swing_reasons": _trigger_channel_pos_swing_reasons,
+                # Round-3 mining triggers (2026-05-17).
+                "trigger_channel_hvn_match": _trigger_channel_hvn_match,
+                "trigger_channel_hvn_reasons": _trigger_channel_hvn_reasons,
+                "trigger_shape_wick_match": _trigger_shape_wick_match,
+                "trigger_shape_wick_reasons": _trigger_shape_wick_reasons,
+                "trigger_cnn_lp_match": _trigger_cnn_lp_match,
+                "trigger_cnn_lp_reasons": _trigger_cnn_lp_reasons,
                 # filter_blowoff_top — ENFORCED 2026-05-16 PM (pc_h24>=500% block).
                 "filter_blowoff_top_verdict": _filter_blowoff_top_verdict,
                 "filter_blowoff_top_block_reasons": _filter_blowoff_block_reasons,

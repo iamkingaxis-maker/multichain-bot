@@ -442,6 +442,23 @@ COMBOS = {
         and c.get('n_swing_lows_found') is not None
         and c['n_swing_lows_found'] >= 28
     ),
+    # Round-3 mining triggers (2026-05-17).
+    'R3_channel_hvn': lambda c: (
+        bool(c.get('chart_trendline_1h_in_channel'))
+        and bool(c.get('chart_vp_at_hvn'))
+    ),
+    'R3_shape_wick': lambda c: (
+        c.get('shape_60m_mins_since_max') is not None
+        and c['shape_60m_mins_since_max'] <= 18
+        and c.get('wick_body_5m_avg') is not None
+        and c['wick_body_5m_avg'] <= 0.40
+    ),
+    'R3_cnn_lp': lambda c: (
+        c.get('cnn_cluster_id') is not None
+        and c['cnn_cluster_id'] >= 9
+        and c.get('lp_delta_15m_pct') is not None
+        and c['lp_delta_15m_pct'] >= 1.98
+    ),
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
                                          or c['net_flow_5m_usd'] >= 0),
