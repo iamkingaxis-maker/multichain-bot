@@ -6957,6 +6957,70 @@ class DipScanner:
                     f"{';'.join(_trigger_chart_reversal_reasons)}"
                 )
 
+            # ── trigger_swing_structure_rsi (R2-T1) — ENFORCED 2026-05-17 ──
+            # Chart-pattern compound mined from 90-trade dataset.
+            # chart_structure_5m_swing_count >= 28 AND rsi_15m >= 51.61 AND
+            # chart_trendline_5m_pct_to_support >= 2.15.
+            # Lifetime: 8/9 wins (88.9% WR), binomial p=0.0031 vs 38.9% baseline,
+            # avg +1.30%, mean_buy_size_usd $108 (wash-guarded).
+            # Captures: well-structured 5m chart (high swing count = many
+            # pivots), 15m bullish momentum (rsi extended above neutral),
+            # entry well above support (>2.15% buffer for downside).
+            # Spans 5 days, 7 unique tokens (CLUDE/PAC/COPPERINU/RAGEGUY/
+            # FAHHHH/AINL/VIRL). Zero feature overlap with original 6.
+            _trigger_swing_structure_rsi_match = False
+            _trigger_swing_structure_rsi_reasons: list = []
+            try:
+                _ssr_swing = (_chart_ctx_dict or {}).get("chart_structure_5m_swing_count") if isinstance(_chart_ctx_dict, dict) else None
+                _ssr_rsi = _tier2_features.get("rsi_15m") if isinstance(_tier2_features, dict) else None
+                _ssr_pcts = (_chart_ctx_dict or {}).get("chart_trendline_5m_pct_to_support") if isinstance(_chart_ctx_dict, dict) else None
+                if (_ssr_swing is not None and float(_ssr_swing) >= 28
+                        and _ssr_rsi is not None and float(_ssr_rsi) >= 51.61
+                        and _ssr_pcts is not None and float(_ssr_pcts) >= 2.15):
+                    _trigger_swing_structure_rsi_match = True
+                    _trigger_swing_structure_rsi_reasons.append(
+                        f"swing_count={float(_ssr_swing):.0f}>=28 AND "
+                        f"rsi_15m={float(_ssr_rsi):.1f}>=51.61 AND "
+                        f"pct_to_support={float(_ssr_pcts):.2f}%>=2.15"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_swing_structure_rsi err: {_e}")
+            if _trigger_swing_structure_rsi_match:
+                logger.info(
+                    f"[DipScanner] trigger_swing_structure_rsi FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_swing_structure_rsi_reasons)}"
+                )
+
+            # ── trigger_channel_pos_swing (R2-T2) — ENFORCED 2026-05-17 ──
+            # Chart-pattern compound: 5m trendline channel position high AND
+            # many swing lows found. chart_trendline_5m_channel_pos >= 26.4
+            # AND n_swing_lows_found >= 28.
+            # Lifetime: 6/6 wins (100% WR), binomial p=0.0035, avg +3.75%,
+            # mean_buy_size_usd $97 (wash-guarded).
+            # Captures: token sitting in upper portion of 5m trendline channel
+            # (bullish positioning) AND mature chart with many established
+            # support pivots (n_swing_lows >= 28 = well-tested support).
+            # Spans 4 days, 5 unique tokens.
+            _trigger_channel_pos_swing_match = False
+            _trigger_channel_pos_swing_reasons: list = []
+            try:
+                _cps_pos = (_chart_ctx_dict or {}).get("chart_trendline_5m_channel_pos") if isinstance(_chart_ctx_dict, dict) else None
+                _cps_swing = _tier2_features.get("n_swing_lows_found") if isinstance(_tier2_features, dict) else None
+                if (_cps_pos is not None and float(_cps_pos) >= 26.40
+                        and _cps_swing is not None and float(_cps_swing) >= 28):
+                    _trigger_channel_pos_swing_match = True
+                    _trigger_channel_pos_swing_reasons.append(
+                        f"channel_pos={float(_cps_pos):.1f}%>=26.4 AND "
+                        f"n_swing_lows={float(_cps_swing):.0f}>=28"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_channel_pos_swing err: {_e}")
+            if _trigger_channel_pos_swing_match:
+                logger.info(
+                    f"[DipScanner] trigger_channel_pos_swing FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_channel_pos_swing_reasons)}"
+                )
+
             # ── trigger_micro_pattern_confirmed — ENFORCED 2026-05-15 ──
             # Textbook technical-pattern detection (bull engulfing, double
             # bottom, inverse H&S, falling wedge, long lower wick, etc.)
@@ -7257,6 +7321,11 @@ class DipScanner:
                 _triggers_fired.append("reaccum_vol_bounce")
             if _trigger_tight_buyer_mtf_match:
                 _triggers_fired.append("tight_buyer_mtf")
+            # R2 (2026-05-17) round-2 mining triggers.
+            if _trigger_swing_structure_rsi_match:
+                _triggers_fired.append("swing_structure_rsi")
+            if _trigger_channel_pos_swing_match:
+                _triggers_fired.append("channel_pos_swing")
 
             # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
             # Set after all 6 breakthrough triggers (strong_orderflow,
@@ -7272,6 +7341,9 @@ class DipScanner:
                 or _trigger_buyer_momentum_burst_match
                 or _trigger_flow_reversal_match
                 or _trigger_chart_reversal_match
+                # R2 round-2 mining triggers (2026-05-17).
+                or _trigger_swing_structure_rsi_match
+                or _trigger_channel_pos_swing_match
             )
 
             # Apply anti-pattern suppression — clears all triggers if
@@ -10286,9 +10358,14 @@ class DipScanner:
                 # Breakthrough-trigger fast-path flags (2026-05-16 PM).
                 # EARLY is set after _tier3_features ready (line ~3070);
                 # covers strong_orderflow + sustained_accumulation predicates.
-                # LATE is set after all 6 trigger evals; covers all 6.
+                # LATE is set after all 6 trigger evals; covers all 8 (6+2).
                 "breakthrough_early_match": _breakthrough_early_match,
                 "breakthrough_late_match": _breakthrough_late_match,
+                # Round-2 mining triggers (2026-05-17) — chart-pattern compounds.
+                "trigger_swing_structure_rsi_match": _trigger_swing_structure_rsi_match,
+                "trigger_swing_structure_rsi_reasons": _trigger_swing_structure_rsi_reasons,
+                "trigger_channel_pos_swing_match": _trigger_channel_pos_swing_match,
+                "trigger_channel_pos_swing_reasons": _trigger_channel_pos_swing_reasons,
                 # filter_blowoff_top — ENFORCED 2026-05-16 PM (pc_h24>=500% block).
                 "filter_blowoff_top_verdict": _filter_blowoff_top_verdict,
                 "filter_blowoff_top_block_reasons": _filter_blowoff_block_reasons,

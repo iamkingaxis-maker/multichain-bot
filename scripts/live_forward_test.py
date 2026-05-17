@@ -426,6 +426,22 @@ COMBOS = {
     # in dip_scanner.py — phantom only needs flag stamping here.
     'BT_breakthrough_early': lambda c: c.get('breakthrough_early_match') is True,
     'BT_breakthrough_late':  lambda c: c.get('breakthrough_late_match') is True,
+    # Round-2 mining triggers (2026-05-17) — chart-pattern compounds.
+    # T1: chart_structure_5m_swing_count>=28 & rsi_15m>=51.61 & pct_to_support>=2.15
+    # T2: chart_trendline_5m_channel_pos>=26.4 & n_swing_lows_found>=28
+    'R2_swing_structure_rsi': lambda c: (
+        c.get('chart_structure_5m_swing_count') is not None
+        and c['chart_structure_5m_swing_count'] >= 28
+        and c.get('rsi_15m') is not None and c['rsi_15m'] >= 51.61
+        and c.get('chart_trendline_5m_pct_to_support') is not None
+        and c['chart_trendline_5m_pct_to_support'] >= 2.15
+    ),
+    'R2_channel_pos_swing': lambda c: (
+        c.get('chart_trendline_5m_channel_pos') is not None
+        and c['chart_trendline_5m_channel_pos'] >= 26.4
+        and c.get('n_swing_lows_found') is not None
+        and c['n_swing_lows_found'] >= 28
+    ),
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
                                          or c['net_flow_5m_usd'] >= 0),
