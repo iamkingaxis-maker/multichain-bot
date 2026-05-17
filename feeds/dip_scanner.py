@@ -7106,6 +7106,34 @@ class DipScanner:
                     f"{';'.join(_trigger_cnn_lp_reasons)}"
                 )
 
+            # ── trigger_clean_consec_ll (R4-T7) — ENFORCED 2026-05-17 ──
+            # bundle_v2_suspected<=0 AND trend_60m_consec_ll>=2.
+            # Lifetime: 8/11 (72.7% WR), p=0.018, avg +1.74%, mean_buy ~$90.
+            # 4 of 11 matches are NEW (not covered by T1/T2/R3-T3/T4/T6).
+            # Captures: clean (non-bundle-suspected) token AND established
+            # downtrend now potentially exhausted (2+ consecutive lower
+            # lows on 60m = the dip has been forming).
+            _trigger_clean_consec_ll_match = False
+            _trigger_clean_consec_ll_reasons: list = []
+            try:
+                _ccl_bund = (_tier1_features or {}).get("bundle_v2_suspected") if isinstance(_tier1_features, dict) else None
+                _ccl_ll = (_chart_ctx_dict or {}).get("trend_60m_consec_ll") if isinstance(_chart_ctx_dict, dict) else None
+                _ccl_bund_v = (1 if _ccl_bund is True else (0 if _ccl_bund is False else (float(_ccl_bund) if _ccl_bund is not None else None)))
+                if (_ccl_bund_v is not None and _ccl_bund_v <= 0
+                        and _ccl_ll is not None and float(_ccl_ll) >= 2):
+                    _trigger_clean_consec_ll_match = True
+                    _trigger_clean_consec_ll_reasons.append(
+                        f"bundle_v2_suspected={_ccl_bund_v}<=0 AND "
+                        f"trend_60m_consec_ll={float(_ccl_ll):.0f}>=2"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_clean_consec_ll err: {_e}")
+            if _trigger_clean_consec_ll_match:
+                logger.info(
+                    f"[DipScanner] trigger_clean_consec_ll FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_clean_consec_ll_reasons)}"
+                )
+
             # ── trigger_micro_pattern_confirmed — ENFORCED 2026-05-15 ──
             # Textbook technical-pattern detection (bull engulfing, double
             # bottom, inverse H&S, falling wedge, long lower wick, etc.)
@@ -7418,6 +7446,9 @@ class DipScanner:
                 _triggers_fired.append("shape_wick")
             if _trigger_cnn_lp_match:
                 _triggers_fired.append("cnn_lp")
+            # R4 (2026-05-17) round-4 mining triggers.
+            if _trigger_clean_consec_ll_match:
+                _triggers_fired.append("clean_consec_ll")
 
             # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
             # Set after all 6 breakthrough triggers (strong_orderflow,
@@ -7440,6 +7471,8 @@ class DipScanner:
                 or _trigger_channel_hvn_match
                 or _trigger_shape_wick_match
                 or _trigger_cnn_lp_match
+                # R4 round-4 mining triggers (2026-05-17).
+                or _trigger_clean_consec_ll_match
             )
 
             # Apply anti-pattern suppression — clears all triggers if
@@ -10469,6 +10502,9 @@ class DipScanner:
                 "trigger_shape_wick_reasons": _trigger_shape_wick_reasons,
                 "trigger_cnn_lp_match": _trigger_cnn_lp_match,
                 "trigger_cnn_lp_reasons": _trigger_cnn_lp_reasons,
+                # Round-4 mining triggers (2026-05-17).
+                "trigger_clean_consec_ll_match": _trigger_clean_consec_ll_match,
+                "trigger_clean_consec_ll_reasons": _trigger_clean_consec_ll_reasons,
                 # filter_blowoff_top — ENFORCED 2026-05-16 PM (pc_h24>=500% block).
                 "filter_blowoff_top_verdict": _filter_blowoff_top_verdict,
                 "filter_blowoff_top_block_reasons": _filter_blowoff_block_reasons,

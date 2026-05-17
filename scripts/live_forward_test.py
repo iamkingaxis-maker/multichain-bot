@@ -459,6 +459,12 @@ COMBOS = {
         and c.get('lp_delta_15m_pct') is not None
         and c['lp_delta_15m_pct'] >= 1.98
     ),
+    # Round-4 mining trigger (2026-05-17).
+    'R4_clean_consec_ll': lambda c: (
+        not bool(c.get('bundle_v2_suspected'))
+        and c.get('trend_60m_consec_ll') is not None
+        and c['trend_60m_consec_ll'] >= 2
+    ),
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
                                          or c['net_flow_5m_usd'] >= 0),
