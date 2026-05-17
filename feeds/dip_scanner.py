@@ -7086,10 +7086,11 @@ class DipScanner:
             _trigger_cnn_lp_match = False
             _trigger_cnn_lp_reasons: list = []
             try:
-                _cl_cnn = entry_meta_dict_partial.get("cnn_cluster_id") if 'entry_meta_dict_partial' in dir() else None
-                # cnn_cluster_id may be stamped later — also try chart_features_dict
-                if _cl_cnn is None:
-                    _cl_cnn = (_chart_ctx_dict or {}).get("cnn_cluster_id") if isinstance(_chart_ctx_dict, dict) else None
+                # BUG FIX 2026-05-17: cnn_cluster_id lives in `_cnn_cluster_id`
+                # bare local (assigned at line ~2490 from CNN classify call).
+                # Previous code looked in undefined `entry_meta_dict_partial`
+                # and an empty `_chart_ctx_dict` key, so trigger never fired.
+                _cl_cnn = _cnn_cluster_id
                 _cl_lp = _tier3_features.get("lp_delta_15m_pct") if isinstance(_tier3_features, dict) else None
                 if (_cl_cnn is not None and float(_cl_cnn) >= 9
                         and _cl_lp is not None and float(_cl_lp) >= 1.98):
@@ -7513,8 +7514,13 @@ class DipScanner:
             if _trigger_clean_consec_ll_match:
                 _triggers_fired.append("clean_consec_ll")
             # R5 (2026-05-17) round-5 mining trigger.
-            if _trigger_sweep_holder_liq_match:
-                _triggers_fired.append("sweep_holder_liq")
+            # DISABLED 2026-05-17 (bug fix): top10_holder_pct is not available
+            # at scan time (post-rugcheck only). Trigger can never match in
+            # production. Predicate computation kept above for entry_meta
+            # stamping in case data plumbing changes. Do NOT append to
+            # _triggers_fired and do NOT include in breakthrough_late_match.
+            # if _trigger_sweep_holder_liq_match:
+            #     _triggers_fired.append("sweep_holder_liq")
             # R6 (2026-05-17) round-6 mining trigger.
             if _trigger_clean_dip_trend_match:
                 _triggers_fired.append("clean_dip_trend")
@@ -7542,8 +7548,8 @@ class DipScanner:
                 or _trigger_cnn_lp_match
                 # R4 round-4 mining triggers (2026-05-17).
                 or _trigger_clean_consec_ll_match
-                # R5 round-5 mining trigger (2026-05-17).
-                or _trigger_sweep_holder_liq_match
+                # R5 round-5 mining trigger DISABLED — see comment at append site.
+                # or _trigger_sweep_holder_liq_match
                 # R6 round-6 mining trigger (2026-05-17).
                 or _trigger_clean_dip_trend_match
             )
