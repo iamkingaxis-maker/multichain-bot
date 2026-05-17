@@ -8183,9 +8183,17 @@ class DipScanner:
             _flmne_has_safe_trigger = any(
                 t in _flmne_microcap_safe_triggers for t in _triggers_fired
             )
+            # 2026-05-18 — threshold lowered $250k -> $150k after first
+            # hour showed 0 buys completed. Universe data shows $100k-$250k
+            # is the BEST WR band (77.5% WR, +8.98% avg). Mira at $210k was
+            # blocked at $250k threshold but lived in the best band; the
+            # April analog is "tokens with attention" (any mcap) not just
+            # established $1M+ caps. New floor $150k blocks the deepest
+            # microcap chaos zone but lets the productive $150k-$250k zone
+            # through. Re-tighten if forward shows microcap-zone bleed.
             _flmne_block = (
                 _flmne_mcap > 0
-                and _flmne_mcap < 250_000
+                and _flmne_mcap < 150_000
                 and not _is_trending_token
                 and not _flmne_has_safe_trigger
                 and len(_triggers_fired) > 0  # only act when triggers actually fired
@@ -8193,7 +8201,7 @@ class DipScanner:
             if _flmne_block:
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_low_mcap_no_edge: "
-                    f"{token_symbol} mcap=${_flmne_mcap:,.0f}<$250k AND "
+                    f"{token_symbol} mcap=${_flmne_mcap:,.0f}<$150k AND "
                     f"not trending AND no microcap-safe trigger "
                     f"(fired={_triggers_fired})"
                 )
