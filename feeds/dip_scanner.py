@@ -7746,6 +7746,41 @@ class DipScanner:
                     f"{';'.join(_trigger_low_liq_active_dip_reasons)}"
                 )
 
+            # ── trigger_high_churn_microcap — ENFORCED 2026-05-18 ────────
+            # vol_h1/mcap >= 0.25 AND vol_h6/liq >= 10 AND age <= 6h.
+            # Mining round-6: n=60/day (uncovered after R5 stack), 78.3% WR5,
+            # +6.15% rpnl, +$74/day. Pattern: high-churn microcap where the
+            # market is actively trading >25% of mcap per hour AND vol is
+            # 10x+ liquidity (deep churn). Young (<6h) tokens with this
+            # signature are explosive.
+            _trigger_high_churn_microcap_match = False
+            _trigger_high_churn_microcap_reasons: list = []
+            try:
+                _hcm_vol_h6 = (pair.get("volume") or {}).get("h6", 0) or 0
+                _hcm_vol_mcap = (float(vol_h1 or 0) / float(mcap)) if mcap and float(mcap) > 0 else 0
+                _hcm_liq_vel_h6 = (float(_hcm_vol_h6) / float(liq_usd)) if liq_usd and liq_usd > 0 else 0
+                if (
+                    _hcm_vol_mcap >= 0.25
+                    and _hcm_liq_vel_h6 >= 10.0
+                    and pair_age_hours <= 6.0
+                    and _r5_fresh_ok
+                ):
+                    _trigger_high_churn_microcap_match = True
+                    _trigger_high_churn_microcap_reasons.append(
+                        f"vol_h1/mcap={_hcm_vol_mcap:.2f}>=0.25 AND "
+                        f"vol_h6/liq={_hcm_liq_vel_h6:.1f}>=10 AND "
+                        f"age={pair_age_hours:.2f}h<=6 AND "
+                        f"1m_vol_spike={float(_r5_vspike or 0):.2f}>=0.40 AND "
+                        f"1m_cum_3m={float(_r5_cum3 or 0):+.2f}%>=-3"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_high_churn_microcap err: {_e}")
+            if _trigger_high_churn_microcap_match:
+                logger.info(
+                    f"[DipScanner] trigger_high_churn_microcap FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_high_churn_microcap_reasons)}"
+                )
+
             # ── trigger_micro_pattern_confirmed — ENFORCED 2026-05-15 ──
             # Textbook technical-pattern detection (bull engulfing, double
             # bottom, inverse H&S, falling wedge, long lower wick, etc.)
@@ -8097,6 +8132,9 @@ class DipScanner:
                 _triggers_fired.append("confirmed_dip")
             if _trigger_low_liq_active_dip_match:
                 _triggers_fired.append("low_liq_active_dip")
+            # 2026-05-18 — Round-6 anchor mining trigger.
+            if _trigger_high_churn_microcap_match:
+                _triggers_fired.append("high_churn_microcap")
 
             # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
             # Set after all 6 breakthrough triggers (strong_orderflow,
@@ -8132,6 +8170,8 @@ class DipScanner:
                 or _trigger_high_activity_runner_match
                 or _trigger_confirmed_dip_match
                 or _trigger_low_liq_active_dip_match
+                # Round-6 anchor trigger (2026-05-18).
+                or _trigger_high_churn_microcap_match
             )
 
             # Apply anti-pattern suppression — clears all triggers if
@@ -11204,6 +11244,9 @@ class DipScanner:
                 "trigger_confirmed_dip_reasons": _trigger_confirmed_dip_reasons,
                 "trigger_low_liq_active_dip_match": _trigger_low_liq_active_dip_match,
                 "trigger_low_liq_active_dip_reasons": _trigger_low_liq_active_dip_reasons,
+                # Round-6 anchor trigger (2026-05-18).
+                "trigger_high_churn_microcap_match": _trigger_high_churn_microcap_match,
+                "trigger_high_churn_microcap_reasons": _trigger_high_churn_microcap_reasons,
                 # high_activity_fast_path (2026-05-17). Bypasses trader-side
                 # filter_combo_v2/filter_chart_bear/filter_top10_holder_band.
                 "high_activity_fast_path": _high_activity_fast_path,

@@ -603,6 +603,16 @@ COMBOS = {
         and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
         and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
     ),
+    # Round-6 anchor — high-churn microcap (2026-05-18).
+    'R6_high_churn_microcap': lambda c: (
+        c.get('vol_h1') is not None and c.get('mcap') and c['mcap'] > 0
+        and (c['vol_h1'] / c['mcap']) >= 0.25
+        and c.get('vol_h6') is not None and c.get('liq_usd') and c['liq_usd'] > 0
+        and (c['vol_h6'] / c['liq_usd']) >= 10.0
+        and c.get('age_hours') is not None and c['age_hours'] <= 6.0
+        and c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 0.40
+        and c.get('1m_cum_3min_pct') is not None and c['1m_cum_3min_pct'] >= -3.0
+    ),
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
                                          or c['net_flow_5m_usd'] >= 0),
