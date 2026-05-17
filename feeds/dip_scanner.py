@@ -463,10 +463,37 @@ class DipScanner:
             # are 24h-green, so the bot starves. Loosened to -5% to allow
             # tokens that are slightly red on 24h as real dip candidates.
             # Below -5% is genuine downtrend (filter separately).
+            #
+            # 2026-05-17 CARVE-OUT: broader rescue for deep-red tokens that
+            # show real activity. Universe-recorder mining (n=2691, 24h):
+            #   OOS rescue: pc_h24<-5 BUT vol_h6>=296k   n=387 68% WR5 +$695/d
+            #   OOS rescue: pc_h24<-5 BUT buys_h1>=1331  n=274 74% WR5 +$589/d
+            #   OOS rescue: pc_h24<-5 BUT pc_h1<=-16.89  n=274 70% WR5 +$476/d
+            #   OOS rescue: pc_h24<-5 BUT vol_m5>=31280  n=110 83% WR5 +$271/d
+            # All four legs are independently positive-EV. Any-of trigger
+            # rescues ~400-600/day at 68-83% WR (vs 54.4% blanket OOS).
+            #
+            # Reference: VIRL 2026-05-17 ~03:00 UTC — pc_h24=-21.5%,
+            # pc_h1=+4.7%, pc_m5=+4.2% (bot bought it 7x profitably earlier
+            # today when 24h was green). Carve-out unlocks the V-bottom
+            # rebuy. Watch `red_h24_rescued` counter — revert if cohort
+            # underperforms over 50+ trades.
             if pc_h24 < -5:
-                c["red_h24"] += 1
-                if not self.baseline_mode:
-                    continue
+                buys_h1_v = (pair.get("txns") or {}).get("h1", {}).get("buys", 0) or 0
+                vol_h6_v = (pair.get("volume") or {}).get("h6", 0) or 0
+                _rescue_vol_h6 = vol_h6_v >= 296_834
+                _rescue_buys_h1 = buys_h1_v >= 1331
+                _rescue_h1_dip = pc_h1 <= -16.89
+                _rescue_vol_m5 = vol_m5 >= 31_280
+                _red_h24_rescue = (
+                    _rescue_vol_h6 or _rescue_buys_h1 or _rescue_h1_dip or _rescue_vol_m5
+                )
+                if not _red_h24_rescue:
+                    c["red_h24"] += 1
+                    if not self.baseline_mode:
+                        continue
+                else:
+                    c["red_h24_rescued"] = c.get("red_h24_rescued", 0) + 1
 
             # Track h24/h1/h6 history for trend-reversal detection AND
             # pre-entry trajectory features. Append each cycle (only after the
@@ -3091,6 +3118,41 @@ class DipScanner:
             except Exception as _bt_e:
                 logger.debug(f"[DipScanner] breakthrough-early preview err: {_bt_e}")
                 _breakthrough_early_match = False
+
+            # ── high_activity_fast_path — 2026-05-17 ────────────────────
+            # Bypass downstream trader filters (filter_combo_v2,
+            # filter_chart_bear, filter_top10_holder_band) when token
+            # matches one of 3 high-activity in-scope cohorts mined from
+            # universe_recorder (n=2691, 24h):
+            #   #1: vol_h6 >= 296k                          (n=959 in-scope, 75% WR5)
+            #   #2: buys_h1 >= 1909 AND sells_h1 >= 1094    (n=425 in-scope, 81% WR5)
+            #   #3: pc_h6 >= 82.68 AND buys_h1 >= 1909      (n=387 in-scope, 80% WR5)
+            # Combined coverage: ~1,000-1,500 events/day at 75-81% WR.
+            #
+            # Why bypass: these cohorts have >baseline WR even when
+            # trader-side filters would block them. Trader filters were
+            # tuned on a smaller historic cohort and over-rejected
+            # high-activity tokens — see PAC 2026-05-16 incident where
+            # filter_combo_v2 blocked 11 stacked breakthrough triggers.
+            #
+            # Risk: #1 is the lowest-WR leg (75%) and broadest cohort.
+            # Watch `high_activity_fast_path_used` counter. If forward
+            # cohort WR drops below 60%, revert leg #1.
+            _high_activity_fast_path = False
+            try:
+                _ha_txns_h1 = (pair.get("txns") or {}).get("h1", {}) or {}
+                _ha_buys_h1 = float(_ha_txns_h1.get("buys", 0) or 0)
+                _ha_sells_h1 = float(_ha_txns_h1.get("sells", 0) or 0)
+                _ha_vol_h6 = float((pair.get("volume") or {}).get("h6", 0) or 0)
+                _ha_high_vol = _ha_vol_h6 >= 296_834
+                _ha_active_balanced = (_ha_buys_h1 >= 1909 and _ha_sells_h1 >= 1094)
+                _ha_momentum_active = (pc_h6 >= 82.68 and _ha_buys_h1 >= 1909)
+                _high_activity_fast_path = bool(
+                    _ha_high_vol or _ha_active_balanced or _ha_momentum_active
+                )
+            except Exception as _ha_e:
+                logger.debug(f"[DipScanner] high_activity_fast_path err: {_ha_e}")
+                _high_activity_fast_path = False
 
             # ── Tier-1 features (2026-05-04) ──
             # Smart-money wallet detection (cheap lookup against pre-built index)
@@ -7223,6 +7285,47 @@ class DipScanner:
                     f"{';'.join(_trigger_clean_dip_trend_reasons)}"
                 )
 
+            # ── trigger_young_active_dip — ENFORCED 2026-05-17 ─────────
+            # age_hours<=3.11 AND vol_h1>=261094 AND vol_m5>=13469.
+            # Universe-recorder mining (n=2691, 24h):
+            #   in-scope cohort: n=208, 79% WR5, +$978/day potential
+            #   total cohort:    n=244, 79.9% WR5 (incl. 36 OOS rescues)
+            # Signature: very young token (<3.11h) with established high
+            # volume — usually means a launchpad graduate that's been
+            # accumulating real activity. The 5m volume floor catches
+            # tokens currently in active trading (not idle post-launch).
+            #
+            # Why not redundant with existing scanner: the bot's mcap/age
+            # gates allow older + lower-activity tokens; this trigger
+            # specifically promotes the young+active sub-slice that the
+            # existing triggers don't enumerate (most existing triggers
+            # gate on chart structure, not raw age+volume).
+            #
+            # No wash-trade guard — vol_h1 + vol_m5 floors already
+            # establish real trading. Bot still applies mean_buy_size_usd
+            # check at downstream entry.
+            _trigger_young_active_dip_match = False
+            _trigger_young_active_dip_reasons: list = []
+            try:
+                if (
+                    pair_age_hours <= 3.11
+                    and float(vol_h1 or 0) >= 261_094
+                    and float(vol_m5 or 0) >= 13_469
+                ):
+                    _trigger_young_active_dip_match = True
+                    _trigger_young_active_dip_reasons.append(
+                        f"age={pair_age_hours:.2f}h<=3.11 AND "
+                        f"vol_h1=${float(vol_h1 or 0):.0f}>=261k AND "
+                        f"vol_m5=${float(vol_m5 or 0):.0f}>=13.5k"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] trigger_young_active_dip err: {_e}")
+            if _trigger_young_active_dip_match:
+                logger.info(
+                    f"[DipScanner] trigger_young_active_dip FIRED: {token_symbol} "
+                    f"{';'.join(_trigger_young_active_dip_reasons)}"
+                )
+
             # ── trigger_micro_pattern_confirmed — ENFORCED 2026-05-15 ──
             # Textbook technical-pattern detection (bull engulfing, double
             # bottom, inverse H&S, falling wedge, long lower wick, etc.)
@@ -7549,6 +7652,9 @@ class DipScanner:
             # R6 (2026-05-17) round-6 mining trigger.
             if _trigger_clean_dip_trend_match:
                 _triggers_fired.append("clean_dip_trend")
+            # 2026-05-17 — young_active_dip from universe-recorder mining.
+            if _trigger_young_active_dip_match:
+                _triggers_fired.append("young_active_dip")
 
             # ── Breakthrough-trigger LATE flag (2026-05-16 PM) ─────────────
             # Set after all 6 breakthrough triggers (strong_orderflow,
@@ -7577,6 +7683,8 @@ class DipScanner:
                 # or _trigger_sweep_holder_liq_match
                 # R6 round-6 mining trigger (2026-05-17).
                 or _trigger_clean_dip_trend_match
+                # young_active_dip (2026-05-17, universe-recorder mining).
+                or _trigger_young_active_dip_match
             )
 
             # Apply anti-pattern suppression — clears all triggers if
@@ -7647,8 +7755,17 @@ class DipScanner:
                 _triggers_fired.append("seller_exhaustion")
             if _trigger_deep_dip_bottom_match:
                 _triggers_fired.append("deep_dip_bottom")
-            if _trigger_patient_bottom_match:
-                _triggers_fired.append("patient_bottom")
+            # 2026-05-17 RETIRED — patient_bottom trigger removed from
+            # active firing. PAC 03:22 UTC fired this trigger and bought
+            # a dead-volume corpse: dev_pct_remaining=5.1%, 1m_vol_spike=
+            # 0.22, buy_size_n_last60s=1, 9 shadow filters all BLOCK.
+            # Trigger conditions (vwap_1h_dist<=-3, min_since_peak>=60min)
+            # describe a "mature dip" but don't check real-time activity,
+            # so it fires on stale-cache corpses indistinguishable from
+            # genuine V-bottoms. Match flag still stamped to entry_meta
+            # for forensic analysis; no buy contribution.
+            # if _trigger_patient_bottom_match:
+            #     _triggers_fired.append("patient_bottom")
             if _trigger_informed_cluster_match:
                 _triggers_fired.append("informed_cluster")
             if _trigger_grad_window_dip_match:
@@ -10615,6 +10732,12 @@ class DipScanner:
                 # Round-6 mining trigger (2026-05-17).
                 "trigger_clean_dip_trend_match": _trigger_clean_dip_trend_match,
                 "trigger_clean_dip_trend_reasons": _trigger_clean_dip_trend_reasons,
+                # young_active_dip (2026-05-17, universe-recorder mining).
+                "trigger_young_active_dip_match": _trigger_young_active_dip_match,
+                "trigger_young_active_dip_reasons": _trigger_young_active_dip_reasons,
+                # high_activity_fast_path (2026-05-17). Bypasses trader-side
+                # filter_combo_v2/filter_chart_bear/filter_top10_holder_band.
+                "high_activity_fast_path": _high_activity_fast_path,
                 # filter_blowoff_top — ENFORCED 2026-05-16 PM (pc_h24>=500% block).
                 "filter_blowoff_top_verdict": _filter_blowoff_top_verdict,
                 "filter_blowoff_top_block_reasons": _filter_blowoff_block_reasons,

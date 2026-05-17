@@ -1594,12 +1594,20 @@ class Trader:
                 _t10b_verdict = "BLOCK" if (_t10b_block_reasons and not _t10b_carve_rescued) else "PASS"
                 entry_meta["filter_top10_holder_band_verdict"] = _t10b_verdict
                 entry_meta["filter_top10_holder_band_block_reasons"] = _t10b_block_reasons
+                # 2026-05-17 — high_activity_fast_path bypass (see filter_combo_v2).
                 if _t10b_verdict == "BLOCK" and strategy == "dip_buy":
-                    logger.info(
-                        f"[Trader] BLOCKED by filter_top10_holder_band: {token_symbol} "
-                        f"reasons={','.join(_t10b_block_reasons)}"
-                    )
-                    return
+                    if entry_meta.get("high_activity_fast_path") is True:
+                        logger.info(
+                            f"[Trader] filter_top10_holder_band RESCUED by high_activity_fast_path: "
+                            f"{token_symbol} reasons={','.join(_t10b_block_reasons)}"
+                        )
+                        entry_meta["filter_top10_holder_band_fast_path_rescued"] = True
+                    else:
+                        logger.info(
+                            f"[Trader] BLOCKED by filter_top10_holder_band: {token_symbol} "
+                            f"reasons={','.join(_t10b_block_reasons)}"
+                        )
+                        return
 
             # ── filter_quad_robust SHADOW (logs only, never blocks) ──────────
             # 6-component OR-block combo, train/test-validated on the
@@ -1785,12 +1793,23 @@ class Trader:
                 entry_meta["filter_combo_v2_block_reasons"] = _v2_block_reasons
                 # Apply ONLY to dip_buy strategy.  Other strategies (scalp,
                 # graduation, MC) have their own setups and signal pipelines.
+                # 2026-05-17 — high_activity_fast_path bypass. When token
+                # matches one of 3 high-WR cohorts from universe_recorder
+                # mining, skip filter_combo_v2. Counter stamped for forward
+                # WR audit; revert if fast-path WR underperforms.
                 if _v2_verdict == "BLOCK" and strategy == "dip_buy":
-                    logger.info(
-                        f"[Trader] BLOCKED by filter_combo_v2: {token_symbol} "
-                        f"reasons={','.join(_v2_block_reasons)}"
-                    )
-                    return
+                    if entry_meta.get("high_activity_fast_path") is True:
+                        logger.info(
+                            f"[Trader] filter_combo_v2 RESCUED by high_activity_fast_path: "
+                            f"{token_symbol} reasons={','.join(_v2_block_reasons)}"
+                        )
+                        entry_meta["filter_combo_v2_fast_path_rescued"] = True
+                    else:
+                        logger.info(
+                            f"[Trader] BLOCKED by filter_combo_v2: {token_symbol} "
+                            f"reasons={','.join(_v2_block_reasons)}"
+                        )
+                        return
 
             # ── filter_chart_bear — ENFORCED 2026-05-05 ──────────────────────
             # Counterpart to filter_combo_v2. v2 catches over-pumped traps
@@ -1844,12 +1863,20 @@ class Trader:
                 _b_verdict = "BLOCK" if _b_block_reasons else "PASS"
                 entry_meta["filter_chart_bear_verdict"] = _b_verdict
                 entry_meta["filter_chart_bear_block_reasons"] = _b_block_reasons
+                # 2026-05-17 — high_activity_fast_path bypass (see filter_combo_v2).
                 if _b_verdict == "BLOCK" and strategy == "dip_buy":
-                    logger.info(
-                        f"[Trader] BLOCKED by filter_chart_bear: {token_symbol} "
-                        f"reasons={','.join(_b_block_reasons)}"
-                    )
-                    return
+                    if entry_meta.get("high_activity_fast_path") is True:
+                        logger.info(
+                            f"[Trader] filter_chart_bear RESCUED by high_activity_fast_path: "
+                            f"{token_symbol} reasons={','.join(_b_block_reasons)}"
+                        )
+                        entry_meta["filter_chart_bear_fast_path_rescued"] = True
+                    else:
+                        logger.info(
+                            f"[Trader] BLOCKED by filter_chart_bear: {token_symbol} "
+                            f"reasons={','.join(_b_block_reasons)}"
+                        )
+                        return
 
             # ── Fix 2: Real-time volume floor at execution ──────────────────
             # If the Axiom WS has been tracking this token (deferred/DipWatcher paths)

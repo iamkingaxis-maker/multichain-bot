@@ -38,7 +38,18 @@ SLIP_HIST_PATH = SNAPSHOT_DIR / "_slip_history.json"
 def scanner_block_reasons(c):
     reasons = []
     if c['vol_h1'] < 10000: reasons.append('vol_h1<10k')
-    if c['pc_h24'] <= 0: reasons.append('red_h24')
+    # red_h24 gate — production threshold pc_h24 < -5 with 4-leg rescue:
+    # vol_h6>=296k OR buys_h1>=1331 OR pc_h1<=-16.89 OR vol_m5>=31280.
+    pc_h24_v = c.get('pc_h24', 0) or 0
+    if pc_h24_v < -5:
+        rescue = (
+            (c.get('vol_h6', 0) or 0) >= 296_834
+            or (c.get('buys_h1', 0) or 0) >= 1331
+            or (c.get('pc_h1', 0) or 0) <= -16.89
+            or (c.get('vol_m5', 0) or 0) >= 31_280
+        )
+        if not rescue:
+            reasons.append('red_h24')
     if c['pc_m5'] > -3 and c['pc_h1'] > -3: reasons.append('no_real_dip')
     if c['peak_h24_6h_pct'] > 1000: reasons.append('peak>1000')
     return reasons
@@ -426,6 +437,15 @@ COMBOS = {
     # in dip_scanner.py — phantom only needs flag stamping here.
     'BT_breakthrough_early': lambda c: c.get('breakthrough_early_match') is True,
     'BT_breakthrough_late':  lambda c: c.get('breakthrough_late_match') is True,
+    # high_activity_fast_path — ENFORCED 2026-05-17. Bypasses trader-side
+    # filter_combo_v2 / filter_chart_bear / filter_top10_holder_band when
+    # the token matches one of 3 high-WR cohorts from universe_recorder
+    # (vol_h6>=296k OR buys_h1>=1909+sells_h1>=1094 OR pc_h6>=82.68+buys_h1>=1909).
+    'HA_fast_path': lambda c: (
+        ((c.get('vol_h6') or 0) >= 296_834)
+        or ((c.get('buys_h1') or 0) >= 1909 and (c.get('sells_h1') or 0) >= 1094)
+        or ((c.get('pc_h6') or 0) >= 82.68 and (c.get('buys_h1') or 0) >= 1909)
+    ),
     # Freshness gate (2026-05-17) — pass if vol_m5 >= 200 OR 5m txns > 4
     'FRESH_pass_vol_m5': lambda c: (
         (c.get('vol_m5') is None or c['vol_m5'] >= 200.0)
@@ -486,6 +506,13 @@ COMBOS = {
         and c['wick_body_5m_max'] <= 4.25
         and c.get('trend_15m_r_squared') is not None
         and c['trend_15m_r_squared'] >= 0.49
+    ),
+    # young_active_dip — ENFORCED 2026-05-17, universe-recorder mining.
+    # age<=3.11h AND vol_h1>=261k AND vol_m5>=13.5k.
+    'YAD_young_active_dip': lambda c: (
+        c.get('age_hours') is not None and c['age_hours'] <= 3.11
+        and c.get('vol_h1') is not None and c['vol_h1'] >= 261_094
+        and c.get('vol_m5') is not None and c['vol_m5'] >= 13_469
     ),
     # filter_negative_net_flow_5m + filter_seller_imbalance — ENFORCED 2026-05-14
     'TT_pass_net_flow_5m':    lambda c: (c.get('net_flow_5m_usd') is None
