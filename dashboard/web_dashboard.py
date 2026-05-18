@@ -2201,13 +2201,19 @@ class WebDashboard:
         # Address → index in tokens list, for in-place enrichment.
         idx_by_addr = {a: i for i, a in enumerate(addrs)}
         if addrs:
+            # DexScreener /tokens/ endpoint caps at 30 addrs per request — batch.
+            best = {}
             try:
-                url = f"https://api.dexscreener.com/latest/dex/tokens/{','.join(addrs)}"
                 async with _aiohttp.ClientSession() as sess:
-                    async with sess.get(url, timeout=_aiohttp.ClientTimeout(total=10)) as r:
-                        if r.status == 200:
-                            data = await r.json(content_type=None)
-                            best = {}
+                    for i in range(0, len(addrs), 30):
+                        batch = addrs[i:i + 30]
+                        url = f"https://api.dexscreener.com/latest/dex/tokens/{','.join(batch)}"
+                        try:
+                            async with sess.get(url, timeout=_aiohttp.ClientTimeout(total=10)) as r:
+                                if r.status != 200:
+                                    logger.warning(f"[Dashboard] user-watchlist DS batch {i//30+1} status {r.status}")
+                                    continue
+                                data = await r.json(content_type=None)
                             for p in (data or {}).get("pairs", []) or []:
                                 base = (p.get("baseToken") or {}).get("address", "").lower()
                                 if not base:
@@ -2215,29 +2221,29 @@ class WebDashboard:
                                 liq = float((p.get("liquidity") or {}).get("usd") or 0)
                                 if base not in best or liq > float((best[base].get("liquidity") or {}).get("usd") or 0):
                                     best[base] = p
-                            for addr, p in best.items():
-                                i = idx_by_addr.get(addr)
-                                if i is None:
-                                    continue
-                                bt = p.get("baseToken", {}) or {}
-                                pc = p.get("priceChange", {}) or {}
-                                vol = p.get("volume", {}) or {}
-                                tokens[i].update({
-                                    "symbol": bt.get("symbol", "?"),
-                                    "name": bt.get("name", "?"),
-                                    "mcap": p.get("marketCap") or p.get("fdv") or 0,
-                                    "price": float(p.get("priceUsd") or 0),
-                                    "vol_h24": vol.get("h24", 0),
-                                    "vol_h1": vol.get("h1", 0),
-                                    "vol_m5": vol.get("m5", 0),
-                                    "pc_h24": pc.get("h24"),
-                                    "pc_h6": pc.get("h6"),
-                                    "pc_h1": pc.get("h1"),
-                                    "pc_m5": pc.get("m5"),
-                                    "liq_usd": float((p.get("liquidity") or {}).get("usd") or 0),
-                                })
-                        else:
-                            logger.warning(f"[Dashboard] user-watchlist DS status {r.status}")
+                        except Exception as be:
+                            logger.warning(f"[Dashboard] user-watchlist DS batch {i//30+1} err: {be}")
+                for addr, p in best.items():
+                    i = idx_by_addr.get(addr)
+                    if i is None:
+                        continue
+                    bt = p.get("baseToken", {}) or {}
+                    pc = p.get("priceChange", {}) or {}
+                    vol = p.get("volume", {}) or {}
+                    tokens[i].update({
+                        "symbol": bt.get("symbol", "?"),
+                        "name": bt.get("name", "?"),
+                        "mcap": p.get("marketCap") or p.get("fdv") or 0,
+                        "price": float(p.get("priceUsd") or 0),
+                        "vol_h24": vol.get("h24", 0),
+                        "vol_h1": vol.get("h1", 0),
+                        "vol_m5": vol.get("m5", 0),
+                        "pc_h24": pc.get("h24"),
+                        "pc_h6": pc.get("h6"),
+                        "pc_h1": pc.get("h1"),
+                        "pc_m5": pc.get("m5"),
+                        "liq_usd": float((p.get("liquidity") or {}).get("usd") or 0),
+                    })
             except Exception as e:
                 logger.warning(f"[Dashboard] user-watchlist enrichment err: {e}")
         return web.Response(
