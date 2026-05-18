@@ -1099,15 +1099,16 @@ async function loadUserWatchlist() {
     }
     body.innerHTML = tokens.map(t => {
       const addr = t.address;
-      const sym = (t.symbol || '?').slice(0, 12);
+      const sym = (t.symbol && t.symbol !== '?') ? t.symbol.slice(0, 12) : (addr ? addr.slice(0, 6) + '…' : '?');
+      const mcapDisplay = t.mcap ? fmtMcap(t.mcap) : '<span class="muted">loading…</span>';
       return '<tr>' +
         '<td style="font-weight:600"><a href="https://dexscreener.com/solana/' + addr + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" title="' + addr + '">$' + escHtml(sym) + ' &#x2197;</a></td>' +
-        '<td class="muted">' + fmtMcap(t.mcap) + '</td>' +
-        '<td class="muted">' + fmtMcap(t.vol_h1 || 0) + '</td>' +
+        '<td class="muted">' + mcapDisplay + '</td>' +
+        '<td class="muted">' + (t.vol_h1 ? fmtMcap(t.vol_h1) : '<span class="muted">—</span>') + '</td>' +
         '<td>' + fmtPct(t.pc_h24) + '</td>' +
         '<td>' + fmtPct(t.pc_h1) + '</td>' +
         '<td>' + fmtPct(t.pc_m5) + '</td>' +
-        '<td class="muted">' + fmtMcap(t.liq_usd || 0) + '</td>' +
+        '<td class="muted">' + (t.liq_usd ? fmtMcap(t.liq_usd) : '<span class="muted">—</span>') + '</td>' +
         '<td><button onclick="removeUserWatchlist(\'' + addr + '\')" style="background:#b91c1c;color:#fff;border:none;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;">Remove</button></td>' +
       '</tr>';
     }).join('');
@@ -2181,7 +2182,24 @@ class WebDashboard:
                 content_type="application/json", headers=cors,
             )
         addrs = dip.get_user_watchlist()
-        tokens = []
+        # Always seed placeholder rows first — DexScreener enrichment is best-effort.
+        # This way the dashboard NEVER shows "Empty" while there are addresses on
+        # the list (prior bug: DS rate-limit / non-200 caused tokens=[] with count>0).
+        tokens = [
+            {
+                "address": a,
+                "symbol": "?",
+                "name": "?",
+                "mcap": 0,
+                "price": 0,
+                "vol_h24": 0, "vol_h1": 0, "vol_m5": 0,
+                "pc_h24": None, "pc_h6": None, "pc_h1": None, "pc_m5": None,
+                "liq_usd": 0,
+                "dex_url": f"https://dexscreener.com/solana/{a}",
+            } for a in addrs
+        ]
+        # Address → index in tokens list, for in-place enrichment.
+        idx_by_addr = {a: i for i, a in enumerate(addrs)}
         if addrs:
             try:
                 url = f"https://api.dexscreener.com/latest/dex/tokens/{','.join(addrs)}"
@@ -2189,7 +2207,6 @@ class WebDashboard:
                     async with sess.get(url, timeout=_aiohttp.ClientTimeout(total=10)) as r:
                         if r.status == 200:
                             data = await r.json(content_type=None)
-                            # Pick highest-liq pair per base addr (matches scanner logic).
                             best = {}
                             for p in (data or {}).get("pairs", []) or []:
                                 base = (p.get("baseToken") or {}).get("address", "").lower()
@@ -2198,33 +2215,31 @@ class WebDashboard:
                                 liq = float((p.get("liquidity") or {}).get("usd") or 0)
                                 if base not in best or liq > float((best[base].get("liquidity") or {}).get("usd") or 0):
                                     best[base] = p
-                            for addr in addrs:
-                                p = best.get(addr)
-                                if p:
-                                    bt = p.get("baseToken", {}) or {}
-                                    pc = p.get("priceChange", {}) or {}
-                                    vol = p.get("volume", {}) or {}
-                                    tokens.append({
-                                        "address": addr,
-                                        "symbol": bt.get("symbol", "?"),
-                                        "name": bt.get("name", "?"),
-                                        "mcap": p.get("marketCap") or p.get("fdv") or 0,
-                                        "price": float(p.get("priceUsd") or 0),
-                                        "vol_h24": vol.get("h24", 0),
-                                        "vol_h1": vol.get("h1", 0),
-                                        "vol_m5": vol.get("m5", 0),
-                                        "pc_h24": pc.get("h24"),
-                                        "pc_h6": pc.get("h6"),
-                                        "pc_h1": pc.get("h1"),
-                                        "pc_m5": pc.get("m5"),
-                                        "liq_usd": float((p.get("liquidity") or {}).get("usd") or 0),
-                                        "dex_url": f"https://dexscreener.com/solana/{addr}",
-                                    })
-                                else:
-                                    tokens.append({"address": addr, "symbol": "?", "mcap": 0, "error": "no DS data"})
+                            for addr, p in best.items():
+                                i = idx_by_addr.get(addr)
+                                if i is None:
+                                    continue
+                                bt = p.get("baseToken", {}) or {}
+                                pc = p.get("priceChange", {}) or {}
+                                vol = p.get("volume", {}) or {}
+                                tokens[i].update({
+                                    "symbol": bt.get("symbol", "?"),
+                                    "name": bt.get("name", "?"),
+                                    "mcap": p.get("marketCap") or p.get("fdv") or 0,
+                                    "price": float(p.get("priceUsd") or 0),
+                                    "vol_h24": vol.get("h24", 0),
+                                    "vol_h1": vol.get("h1", 0),
+                                    "vol_m5": vol.get("m5", 0),
+                                    "pc_h24": pc.get("h24"),
+                                    "pc_h6": pc.get("h6"),
+                                    "pc_h1": pc.get("h1"),
+                                    "pc_m5": pc.get("m5"),
+                                    "liq_usd": float((p.get("liquidity") or {}).get("usd") or 0),
+                                })
+                        else:
+                            logger.warning(f"[Dashboard] user-watchlist DS status {r.status}")
             except Exception as e:
                 logger.warning(f"[Dashboard] user-watchlist enrichment err: {e}")
-                tokens = [{"address": a, "symbol": "?", "error": "fetch failed"} for a in addrs]
         return web.Response(
             text=json.dumps({"ok": True, "count": len(addrs), "tokens": tokens}),
             content_type="application/json", headers=cors,
