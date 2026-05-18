@@ -535,29 +535,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- ── Near-Miss Watchlist ── -->
-  <div class="card">
-    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-      <span><span class="dot" style="background:var(--yellow)"></span> Near-Miss Watchlist <span style="font-size:11px;color:#f59e0b;font-weight:400;">— scanner BLOCKED these (score below minimum)</span></span>
-      <span id="watchlist-count" style="font-size:11px;color:var(--muted);font-weight:400;">0 tokens</span>
-    </div>
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <input id="watchlist-add-address" type="text" placeholder="Token address to monitor…"
-        style="flex:2;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:13px;outline:none;" />
-      <input id="watchlist-add-symbol" type="text" placeholder="Symbol (optional)"
-        style="width:100px;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:13px;outline:none;" />
-      <button onclick="addToWatchlist()"
-        style="background:var(--yellow);color:#0f172a;border:none;border-radius:6px;padding:6px 16px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap;">+ Watch</button>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Token</th><th>Score</th><th>MCap</th><th>Price</th><th>Reason</th><th>Age</th><th></th></tr></thead>
-        <tbody id="watchlist-body">
-          <tr><td colspan="7" style="color:var(--muted);padding:12px;text-align:center;">No near-miss tokens yet</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  <!-- Near-Miss Watchlist removed — replaced by My Watchlist (curator-driven). -->
 
   <!-- ── Strategy Breakdown ── -->
   <div class="three-col">
@@ -598,27 +576,8 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- ── Chain Breakdown ── -->
-  <div class="card breakdown-card">
-    <div class="card-label">Chain</div>
-    <div class="card-name" style="color:var(--sol)">Solana</div>
-    <div class="stat-line"><span class="k">P&amp;L</span><span id="ch-sol-pnl">$0.00</span></div>
-    <div class="stat-line"><span class="k">Capital In</span><span id="ch-sol-cap">$0</span></div>
-    <div class="stat-line"><span class="k">Open Positions</span><span id="ch-sol-pos">0</span></div>
-  </div>
-
-  <!-- ── Scalp Queue (independent $2000 pool, TP1 3%/50, TP2 5%/50, stop -2.5%) ── -->
-  <div class="card breakdown-card" id="scalp-queue-card" style="display:none">
-    <div class="card-label">Strategy</div>
-    <div class="card-name" style="color:var(--yellow)">Scalp Queue</div>
-    <div class="stat-line"><span class="k">Watched</span><span id="sq-watched">0</span></div>
-    <div class="stat-line"><span class="k">Open</span><span id="sq-open">0 / 10</span></div>
-    <div class="stat-line"><span class="k">Deployed</span><span id="sq-deployed">$0</span></div>
-    <div class="stat-line"><span class="k">Available</span><span id="sq-available">$0</span></div>
-    <div class="stat-line"><span class="k">Daily P&amp;L</span><span id="sq-dpnl">$0.00</span></div>
-    <div class="stat-line"><span class="k">Loss Cap Hit</span><span id="sq-cap-hit">No</span></div>
-    <div class="stat-line"><span class="k">Cooldowns</span><span id="sq-cooldowns">0</span></div>
-  </div>
+  <!-- Chain Breakdown removed — single chain, info in top stat cards. -->
+  <!-- Scalp Queue removed — was display:none, dead code. -->
 
   <!-- ── MC Recommendations ── -->
   <div class="card">
@@ -854,7 +813,7 @@ async function loadTradeHistory() {
   } catch (e) { console.warn('trade history fetch failed', e); }
 }
 loadTradeHistory();
-setInterval(loadTradeHistory, 30000);
+setInterval(loadTradeHistory, 120000);  // 2026-05-18 raised 30s→120s (egress)
 
 function updateUptime(u) {
   if (u) document.getElementById('uptime').textContent = u;
@@ -1072,8 +1031,10 @@ async function overrideBuy(tokenAddress, tokenSymbol, score, reason) {
   await manualBuy(tokenAddress, tokenSymbol);
 }
 
-// ── Watchlist (Near-Miss Signals) ────────────────────────────────────────
-async function loadWatchlist() {
+// ── Watchlist (Near-Miss Signals) — DEPRECATED, removed from UI 2026-05-18 ─
+// Kept as no-op so any orphan callers don't error.
+async function loadWatchlist() { return; }
+async function _deprecated_loadWatchlist() {
   try {
     const res = await fetch('/api/watchlist');
     const data = await res.json();
@@ -1183,7 +1144,7 @@ async function removeUserWatchlist(addr) {
   } catch(e) { alert('Request failed: ' + e); }
 }
 loadUserWatchlist();
-setInterval(loadUserWatchlist, 30000);
+setInterval(loadUserWatchlist, 60000);  // 1m refresh — balance freshness vs egress
 
 async function addToWatchlist() {
   const addr = document.getElementById('watchlist-add-address').value.trim();
@@ -1901,6 +1862,26 @@ class WebDashboard:
                 trades = sorted(trades, key=lambda t: t.get('time') or '', reverse=True)[:limit]
             except Exception:
                 trades = trades[-limit:]
+        # Egress trim 2026-05-18: drop entry_meta from response unless ?full=1.
+        # Dashboard JS never reads entry_meta — shipping it adds ~25KB per trade
+        # (50+ feature keys) and was driving response size to 5.4MB per /api/trades
+        # poll. Removing it cuts to ~300KB. Audit/postmortem callers can request
+        # the full payload with ?full=1.
+        want_full = request.query.get('full', '0') in ('1', 'true', 'yes')
+        if not want_full and isinstance(trades, list):
+            _TRADE_KEEP = {
+                'type', 'strategy', 'chain', 'token', 'address',
+                'entry_price', 'exit_price', 'usd_received',
+                'pnl', 'pnl_pct', 'time', 'reason',
+                'max_drawdown_pct', 'hold_secs',
+                'entry_market_cap_usd', 'entry_age_hours', 'entry_volume_h1_usd',
+                'pair_address', 'peak_pnl_pct', 'peak_pnl_at_secs',
+                'realized_slippage_pct',
+            }
+            trades = [
+                {k: v for k, v in t.items() if k in _TRADE_KEEP}
+                for t in trades if isinstance(t, dict)
+            ]
         return web.Response(
             text=json.dumps(trades),
             content_type="application/json",
