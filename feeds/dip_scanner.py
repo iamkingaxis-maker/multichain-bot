@@ -9055,6 +9055,24 @@ class DipScanner:
             if _trigger_1s_bottom_score_high_match:
                 _triggers_fired.append("1s_bottom_score_high")
 
+            # ── User watchlist bypass: April-era filter-only mode ───────────
+            # When user picked a token deliberately (watchlist), don't gate
+            # on a positive trigger pattern. April 28 100% WR architecture
+            # was pure negative selection — exclude bad things, buy anything
+            # left. For curated tokens we restore that model: if the full
+            # filter chain (including Phase 1 promotions filter_topping /
+            # filter_chasing_bounce / filter_blowoff_top / filter_vp_poc
+            # plus filter_corpse / filter_lp_drain / filter_falling_knife)
+            # gives a green light, buy. Trigger pattern is no longer
+            # required — the user IS the trigger.
+            if _user_watch and not _triggers_fired:
+                _triggers_fired.append("user_watchlist_bypass")
+                logger.info(
+                    f"[DipScanner] USER_WATCHLIST trigger bypass: "
+                    f"{token_symbol} — April-era filter-only mode (no real "
+                    f"trigger required, filter chain decides)"
+                )
+
             # Second-chance bail: candidates that reached here via the 1s-
             # eligible standalone gate must now have at least one 1s trigger
             # to proceed. If still empty, bail.
