@@ -513,6 +513,28 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- ── User Watchlist (Curator-Driven) ── -->
+  <div class="card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span><span class="dot" style="background:#22c55e"></span> My Watchlist <span style="font-size:11px;color:#22c55e;font-weight:400;">— curator-picked tokens. Bypasses 8 buying-high filters. Hot-reload, no restart.</span></span>
+      <span id="user-watchlist-count" style="font-size:11px;color:var(--muted);font-weight:400;">0 tokens</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input id="user-watchlist-add-address" type="text" placeholder="Token address (solana)…"
+        style="flex:1;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:13px;outline:none;" />
+      <button onclick="addUserWatchlist()"
+        style="background:#22c55e;color:#0f172a;border:none;border-radius:6px;padding:6px 16px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap;">+ Add to Watchlist</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Token</th><th>MCap</th><th>Vol h1</th><th>24h</th><th>1h</th><th>5m</th><th>Liq</th><th></th></tr></thead>
+        <tbody id="user-watchlist-body">
+          <tr><td colspan="8" style="color:var(--muted);padding:12px;text-align:center;">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- ── Near-Miss Watchlist ── -->
   <div class="card">
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
@@ -1086,6 +1108,83 @@ async function loadWatchlist() {
 loadWatchlist();
 setInterval(loadWatchlist, 30000);
 
+// ── User Watchlist (Curator-Driven, Hot-Reload) ──────────────────────────
+function fmtMcap(v) {
+  if (!v) return '$0';
+  if (v >= 1e9) return '$' + (v/1e9).toFixed(2) + 'B';
+  if (v >= 1e6) return '$' + (v/1e6).toFixed(2) + 'M';
+  if (v >= 1e3) return '$' + (v/1e3).toFixed(0) + 'k';
+  return '$' + Math.round(v);
+}
+function fmtPct(v) {
+  if (v === null || v === undefined) return '—';
+  const n = Number(v);
+  if (Number.isNaN(n)) return '—';
+  const sign = n > 0 ? '+' : '';
+  const color = n > 0 ? 'var(--green-lt,#22c55e)' : (n < 0 ? 'var(--red,#ef4444)' : 'var(--muted)');
+  return '<span style="color:' + color + '">' + sign + n.toFixed(1) + '%</span>';
+}
+async function loadUserWatchlist() {
+  try {
+    const res = await fetch('/api/user-watchlist');
+    const data = await res.json();
+    const tokens = data.tokens || [];
+    const body = document.getElementById('user-watchlist-body');
+    const count = document.getElementById('user-watchlist-count');
+    if (count) count.textContent = tokens.length + ' token' + (tokens.length !== 1 ? 's' : '');
+    if (!tokens.length) {
+      body.innerHTML = '<tr><td colspan="8" style="color:var(--muted);padding:12px;text-align:center;">Empty — paste an address above to start farming runners</td></tr>';
+      return;
+    }
+    body.innerHTML = tokens.map(t => {
+      const addr = t.address;
+      const sym = (t.symbol || '?').slice(0, 12);
+      return '<tr>' +
+        '<td style="font-weight:600"><a href="https://dexscreener.com/solana/' + addr + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" title="' + addr + '">$' + escHtml(sym) + ' &#x2197;</a></td>' +
+        '<td class="muted">' + fmtMcap(t.mcap) + '</td>' +
+        '<td class="muted">' + fmtMcap(t.vol_h1 || 0) + '</td>' +
+        '<td>' + fmtPct(t.pc_h24) + '</td>' +
+        '<td>' + fmtPct(t.pc_h1) + '</td>' +
+        '<td>' + fmtPct(t.pc_m5) + '</td>' +
+        '<td class="muted">' + fmtMcap(t.liq_usd || 0) + '</td>' +
+        '<td><button onclick="removeUserWatchlist(\'' + addr + '\')" style="background:#b91c1c;color:#fff;border:none;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;">Remove</button></td>' +
+      '</tr>';
+    }).join('');
+  } catch(e) { console.warn('User watchlist load error', e); }
+}
+async function addUserWatchlist() {
+  const inp = document.getElementById('user-watchlist-add-address');
+  const addr = (inp.value || '').trim();
+  if (!addr) { alert('Paste a token address first'); return; }
+  try {
+    const res = await fetch('/api/user-watchlist/add', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({address: addr})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      inp.value = '';
+      await loadUserWatchlist();
+    } else {
+      alert('Add failed: ' + (data.error || 'Unknown'));
+    }
+  } catch(e) { alert('Request failed: ' + e); }
+}
+async function removeUserWatchlist(addr) {
+  if (!confirm('Remove ' + addr.slice(0, 8) + '… from watchlist?')) return;
+  try {
+    const res = await fetch('/api/user-watchlist/remove', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({address: addr})
+    });
+    const data = await res.json();
+    if (data.ok) await loadUserWatchlist();
+    else alert('Remove failed: ' + (data.error || 'Unknown'));
+  } catch(e) { alert('Request failed: ' + e); }
+}
+loadUserWatchlist();
+setInterval(loadUserWatchlist, 30000);
+
 async function addToWatchlist() {
   const addr = document.getElementById('watchlist-add-address').value.trim();
   const sym  = document.getElementById('watchlist-add-symbol').value.trim();
@@ -1609,6 +1708,9 @@ class WebDashboard:
         self.app.router.add_post("/api/sell",               self._handle_sell)
         self.app.router.add_get("/api/watchlist",           self._handle_watchlist)
         self.app.router.add_post("/api/watchlist/add",      self._handle_watchlist_add)
+        self.app.router.add_get("/api/user-watchlist",      self._handle_user_watchlist_get)
+        self.app.router.add_post("/api/user-watchlist/add", self._handle_user_watchlist_add)
+        self.app.router.add_post("/api/user-watchlist/remove", self._handle_user_watchlist_remove)
         self.app.router.add_get("/api/positions",           self._handle_positions)
         self.app.router.add_post("/api/buy",                self._handle_buy)
         self.app.router.add_post("/api/update-axiom-token", self._handle_update_axiom_token)
@@ -2071,6 +2173,135 @@ class WebDashboard:
             )
         return web.Response(
             text=json.dumps({"ok": True, "symbol": token_symbol}),
+            content_type="application/json", headers=cors,
+        )
+
+    # ── User watchlist (curator-driven April-era specialization) ────────────
+    def _get_dip_scanner(self):
+        """Find the DipScanner instance among registered scanners."""
+        for sc in self._scanners.values():
+            # DipScanner has add_user_watchlist method; others don't.
+            if hasattr(sc, "add_user_watchlist"):
+                return sc
+            # Some scanners wrap a dip_scanner attribute.
+            inner = getattr(sc, "dip_scanner", None)
+            if inner is not None and hasattr(inner, "add_user_watchlist"):
+                return inner
+        return None
+
+    async def _handle_user_watchlist_get(self, request):
+        """GET /api/user-watchlist — return curator-curated tokens with DexScreener enrichment."""
+        import aiohttp as _aiohttp
+        cors = {"Access-Control-Allow-Origin": "*"}
+        dip = self._get_dip_scanner()
+        if dip is None:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "DipScanner not registered", "tokens": []}),
+                content_type="application/json", headers=cors,
+            )
+        addrs = dip.get_user_watchlist()
+        tokens = []
+        if addrs:
+            try:
+                url = f"https://api.dexscreener.com/latest/dex/tokens/{','.join(addrs)}"
+                async with _aiohttp.ClientSession() as sess:
+                    async with sess.get(url, timeout=_aiohttp.ClientTimeout(total=10)) as r:
+                        if r.status == 200:
+                            data = await r.json(content_type=None)
+                            # Pick highest-liq pair per base addr (matches scanner logic).
+                            best = {}
+                            for p in (data or {}).get("pairs", []) or []:
+                                base = (p.get("baseToken") or {}).get("address", "").lower()
+                                if not base:
+                                    continue
+                                liq = float((p.get("liquidity") or {}).get("usd") or 0)
+                                if base not in best or liq > float((best[base].get("liquidity") or {}).get("usd") or 0):
+                                    best[base] = p
+                            for addr in addrs:
+                                p = best.get(addr)
+                                if p:
+                                    bt = p.get("baseToken", {}) or {}
+                                    pc = p.get("priceChange", {}) or {}
+                                    vol = p.get("volume", {}) or {}
+                                    tokens.append({
+                                        "address": addr,
+                                        "symbol": bt.get("symbol", "?"),
+                                        "name": bt.get("name", "?"),
+                                        "mcap": p.get("marketCap") or p.get("fdv") or 0,
+                                        "price": float(p.get("priceUsd") or 0),
+                                        "vol_h24": vol.get("h24", 0),
+                                        "vol_h1": vol.get("h1", 0),
+                                        "vol_m5": vol.get("m5", 0),
+                                        "pc_h24": pc.get("h24"),
+                                        "pc_h6": pc.get("h6"),
+                                        "pc_h1": pc.get("h1"),
+                                        "pc_m5": pc.get("m5"),
+                                        "liq_usd": float((p.get("liquidity") or {}).get("usd") or 0),
+                                        "dex_url": f"https://dexscreener.com/solana/{addr}",
+                                    })
+                                else:
+                                    tokens.append({"address": addr, "symbol": "?", "mcap": 0, "error": "no DS data"})
+            except Exception as e:
+                logger.warning(f"[Dashboard] user-watchlist enrichment err: {e}")
+                tokens = [{"address": a, "symbol": "?", "error": "fetch failed"} for a in addrs]
+        return web.Response(
+            text=json.dumps({"ok": True, "count": len(addrs), "tokens": tokens}),
+            content_type="application/json", headers=cors,
+        )
+
+    async def _handle_user_watchlist_add(self, request):
+        """POST /api/user-watchlist/add — add address. Body: {address: "..."}"""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        try:
+            body = await request.json()
+            addr = (body.get("address") or "").strip()
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        if not addr:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Missing address"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        dip = self._get_dip_scanner()
+        if dip is None:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "DipScanner not registered"}),
+                status=500, content_type="application/json", headers=cors,
+            )
+        added = dip.add_user_watchlist(addr)
+        return web.Response(
+            text=json.dumps({"ok": True, "added": added, "address": addr.lower(), "count": len(dip.get_user_watchlist())}),
+            content_type="application/json", headers=cors,
+        )
+
+    async def _handle_user_watchlist_remove(self, request):
+        """POST /api/user-watchlist/remove — remove address. Body: {address: "..."}"""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        try:
+            body = await request.json()
+            addr = (body.get("address") or "").strip()
+        except Exception:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Invalid JSON"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        if not addr:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "Missing address"}),
+                status=400, content_type="application/json", headers=cors,
+            )
+        dip = self._get_dip_scanner()
+        if dip is None:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "DipScanner not registered"}),
+                status=500, content_type="application/json", headers=cors,
+            )
+        removed = dip.remove_user_watchlist(addr)
+        return web.Response(
+            text=json.dumps({"ok": True, "removed": removed, "address": addr.lower(), "count": len(dip.get_user_watchlist())}),
             content_type="application/json", headers=cors,
         )
 

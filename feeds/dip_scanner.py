@@ -171,10 +171,23 @@ class DipScanner:
         # organically. Keeps all "buying high" and "dying volume"
         # protections active (filter_topping, filter_chasing_bounce,
         # filter_blowoff_top, FRESHNESS GATE, vol_h1_decay).
-        _user_watch_raw = os.environ.get("USER_WATCHLIST_ADDRESSES", "")
-        self._user_watchlist_addrs: set = {
-            a.strip().lower() for a in _user_watch_raw.split(",") if a.strip()
-        }
+        # File path for dashboard-mutable watchlist (lives on /data volume,
+        # survives restarts).
+        self._user_watchlist_path = os.path.join(
+            os.environ.get("DATA_DIR", "/data"), "user_watchlist.json"
+        )
+        self._user_watchlist_file_mtime = 0.0  # for hot-reload poll
+        # Seed: file > env var > empty.
+        self._user_watchlist_addrs: set = set()
+        self._load_user_watchlist_file()
+        if not self._user_watchlist_addrs:
+            _user_watch_raw = os.environ.get("USER_WATCHLIST_ADDRESSES", "")
+            self._user_watchlist_addrs = {
+                a.strip().lower() for a in _user_watch_raw.split(",") if a.strip()
+            }
+            if self._user_watchlist_addrs:
+                # Persist env-var seed to file so dashboard can edit.
+                self._save_user_watchlist_file()
         if self._user_watchlist_addrs:
             logger.info(
                 f"[DipScanner] User watchlist loaded: "
@@ -12174,6 +12187,80 @@ class DipScanner:
             self._save_h24_history()
             self._h24_history_dirty = False
 
+    # ── User watchlist persistence (dashboard-mutable) ────────────────────
+    def _load_user_watchlist_file(self) -> None:
+        """Load user watchlist from JSON file. Sets mtime for hot-reload."""
+        try:
+            if not os.path.exists(self._user_watchlist_path):
+                return
+            self._user_watchlist_file_mtime = os.path.getmtime(self._user_watchlist_path)
+            with open(self._user_watchlist_path) as f:
+                data = json.load(f)
+            addrs = data.get("addresses") or []
+            self._user_watchlist_addrs = {a.strip().lower() for a in addrs if a.strip()}
+        except Exception as e:
+            logger.warning(f"[DipScanner] Could not load user_watchlist.json: {e}")
+
+    def _save_user_watchlist_file(self) -> None:
+        """Persist user watchlist atomically."""
+        try:
+            os.makedirs(os.path.dirname(self._user_watchlist_path) or ".", exist_ok=True)
+            tmp = self._user_watchlist_path + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump({"addresses": sorted(self._user_watchlist_addrs)}, f)
+            os.replace(tmp, self._user_watchlist_path)
+            self._user_watchlist_file_mtime = os.path.getmtime(self._user_watchlist_path)
+        except Exception as e:
+            logger.warning(f"[DipScanner] Could not save user_watchlist.json: {e}")
+
+    def _maybe_reload_user_watchlist(self) -> None:
+        """Hot-reload from file if mtime changed (dashboard wrote new state)."""
+        try:
+            if not os.path.exists(self._user_watchlist_path):
+                return
+            mt = os.path.getmtime(self._user_watchlist_path)
+            if mt != self._user_watchlist_file_mtime:
+                before = set(self._user_watchlist_addrs)
+                self._load_user_watchlist_file()
+                added = self._user_watchlist_addrs - before
+                removed = before - self._user_watchlist_addrs
+                if added or removed:
+                    logger.info(
+                        f"[DipScanner] User watchlist hot-reloaded: "
+                        f"+{len(added)} added, -{len(removed)} removed, "
+                        f"total={len(self._user_watchlist_addrs)}"
+                    )
+        except Exception as e:
+            logger.debug(f"[DipScanner] user_watchlist reload err: {e}")
+
+    def add_user_watchlist(self, address: str) -> bool:
+        """Public API for dashboard. Returns True if newly added."""
+        if not address:
+            return False
+        addr = address.strip().lower()
+        if addr in self._user_watchlist_addrs:
+            return False
+        self._user_watchlist_addrs.add(addr)
+        self._save_user_watchlist_file()
+        logger.info(f"[DipScanner] User watchlist: ADD {addr}")
+        return True
+
+    def remove_user_watchlist(self, address: str) -> bool:
+        """Public API for dashboard. Returns True if removed."""
+        if not address:
+            return False
+        addr = address.strip().lower()
+        if addr not in self._user_watchlist_addrs:
+            return False
+        self._user_watchlist_addrs.discard(addr)
+        self._save_user_watchlist_file()
+        logger.info(f"[DipScanner] User watchlist: REMOVE {addr}")
+        return True
+
+    def get_user_watchlist(self) -> list:
+        """Public API for dashboard. Returns sorted list of addresses."""
+        return sorted(self._user_watchlist_addrs)
+
     def _load_h24_history(self) -> None:
         """
         Load persisted history; drop entries older than the 6h window.
@@ -12391,6 +12478,9 @@ class DipScanner:
                     if addr and addr not in pair_by_addr:
                         pair_by_addr[addr] = p
                         source_by_addr[addr] = "axiom_trending"
+
+                # Hot-reload user watchlist from disk (dashboard mutations).
+                self._maybe_reload_user_watchlist()
 
                 # Sticky watchlist re-seed — inject tokens we've seen recently
                 # but that aren't on any trending feed THIS cycle. Solves the

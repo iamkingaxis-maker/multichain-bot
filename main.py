@@ -487,6 +487,8 @@ async def main():
             # tick_features if axiom_price_feed is None.
             if axiom is not None and getattr(axiom, "price_feed", None) is not None:
                 dip_scanner.axiom_price_feed = axiom.price_feed
+            # Register with dashboard so /api/user-watchlist endpoints can mutate it.
+            dashboard.register_scanner("dip_scanner", dip_scanner)
             tasks.append(dip_scanner.run())
             logger.info(
                 f"[Main] DipScanner enabled — "
