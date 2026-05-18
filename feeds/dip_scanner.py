@@ -2879,7 +2879,9 @@ class DipScanner:
                     f"reasons={','.join(_filter_vp_poc_block_reasons)}"
                 )
                 c["filter_vp_poc_block"] = c.get("filter_vp_poc_block", 0) + 1
-                continue
+                if not _user_watch:
+                    continue
+                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_vp_poc: {token_symbol}")
 
             # Filter sweep-too-recent — ENFORCED 2026-05-13.
             # Catches the dominant 2026-05-12 overnight loser shape: bot bought
@@ -3509,7 +3511,9 @@ class DipScanner:
                         f"graduation_dex_id=meteora (DLMM round-trip risk)"
                     )
                     c["filter_meteora_dex_block"] = c.get("filter_meteora_dex_block", 0) + 1
-                    continue
+                    if not _user_watch:
+                        continue
+                    logger.info(f"[DipScanner] WATCHLIST BYPASS filter_meteora_dex: {token_symbol}")
                 if _grad_dex == "orca":
                     logger.info(
                         f"[DipScanner] BLOCKED by filter_orca_dex: {token_symbol} "
@@ -3612,7 +3616,9 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_bs_m5_weak: {token_symbol} "
                     f"reasons={','.join(_filter_bs_m5_weak_block_reasons)}"
                 )
-                continue
+                if not _user_watch:
+                    continue
+                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_bs_m5_weak: {token_symbol}")
             if _bs_m5_weak_carve and _filter_bs_m5_weak_block_reasons:
                 logger.info(
                     f"[DipScanner] filter_bs_m5_weak RESCUED by pc_m5={float(pc_m5):+.2f}%>=-0.60: "
@@ -9281,7 +9287,9 @@ class DipScanner:
                     f"{','.join(_filter_chasing_bounce_block_reasons)}"
                 )
                 c["filter_chasing_bounce_block"] = c.get("filter_chasing_bounce_block", 0) + 1
-                continue
+                if not _user_watch:
+                    continue
+                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_chasing_bounce: {token_symbol}")
 
             # ── filter_double_bear — ENFORCED 2026-05-06 PM ────────────────────
             # Secondary gate after clean_break. Block when BOTH bearish-context
@@ -9858,7 +9866,9 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_low_volatility: "
                     f"{token_symbol} reasons={','.join(_filter_low_vol_block_reasons)}"
                 )
-                continue
+                if not _user_watch:
+                    continue
+                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_low_volatility: {token_symbol}")
 
             # ═══ DEFENSIVE FILTERS (LOSER-PATTERN MINING) — ENFORCED 2026-05-15 ═══
             # Surfaced by mine_losers_deep.py — three high-precision filters that
@@ -10121,7 +10131,9 @@ class DipScanner:
                 c[f"filter_solo_dropouts_{_solo_trig}_block"] = c.get(
                     f"filter_solo_dropouts_{_solo_trig}_block", 0
                 ) + 1
-                continue
+                if not _user_watch:
+                    continue
+                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_solo_dropouts: {token_symbol}")
             c["filter_solo_dropouts_pass"] = c.get(
                 "filter_solo_dropouts_pass", 0
             ) + 1
@@ -10357,7 +10369,9 @@ class DipScanner:
                     f"{token_symbol} reasons={','.join(_filter_blowoff_block_reasons)}"
                 )
                 c["filter_blowoff_top_block"] = c.get("filter_blowoff_top_block", 0) + 1
-                continue
+                if not _user_watch:
+                    continue
+                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_blowoff_top: {token_symbol}")
 
             # ── filter_high_activity_fomo — REVERTED to SHADOW 2026-05-16 PM
             # Universe-data audit (n=2049 events, realistic-PnL sim) showed
@@ -10646,7 +10660,9 @@ class DipScanner:
                     f"{token_symbol} reasons={','.join(_filter_topping_block_reasons)}"
                 )
                 c["filter_topping_block"] = c.get("filter_topping_block", 0) + 1
-                continue
+                if not _user_watch:
+                    continue
+                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_topping: {token_symbol}")
 
             # ── filter_wide_range_entry — SHADOW 2026-05-06 PM ────────────────
             # Record-only verdict for "panicky volatility candle" pattern:
