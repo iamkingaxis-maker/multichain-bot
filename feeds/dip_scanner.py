@@ -12128,20 +12128,36 @@ class DipScanner:
             # 3x size justified by expected +18%/trade rpnl under asymmetric
             # exit ladder.
             _is_premium_runner = "fresh_runner_factory" in _triggers_fired
+            # SIZING REBALANCE 2026-05-19 — based on lifetime backfill audit
+            # (n=137 closed, May 12-19). The original 5-tier system was
+            # INVERTED relative to outcome:
+            #   premium  ($40): WR 28.6%, edge -2.06%  (WORST per-$)
+            #   macro_up ($30): WR 45.5%, edge +1.37%  (ONLY profitable cohort)
+            #   standard ($20): WR 14.8% recent / 33.6% lifetime, edge -3.69%
+            #   marginal ($10): WR 33.3%, edge -0.39%  (near-breakeven)
+            # New tiers (volume-neutral, ~+$15/4d projected):
+            #   premium_runner: 3x  unchanged (no data, n=0 in backfill)
+            #   marginal:      0.5x unchanged (risk-gate, working as intended)
+            #   macro_up:      2.0x ↑ from 1.5x (only winning cohort — pay up)
+            #   premium:       1.0x ↓ from 2.0x (v_bottom_body over-sized)
+            #   standard:      0.5x ↓ from 1.0x (default-fallthrough bleeds hardest)
+            # Order: macro_up checked BEFORE premium (was reversed) so a
+            # trade qualifying for both (v_bottom_body + sol_uptick) gets
+            # the now-stronger macro_up size rather than the demoted premium.
             if _is_premium_runner:
                 _position_size = self.position_usd * 3.0
                 _size_tier = "premium_runner"
-            elif _is_premium_size:
-                _position_size = self.position_usd * 2.0
-                _size_tier = "premium"
             elif _all_marginal_size:
                 _position_size = self.position_usd * 0.5
                 _size_tier = "marginal"
             elif _sol_micro_uptick:
-                _position_size = self.position_usd * 1.5
+                _position_size = self.position_usd * 2.0
                 _size_tier = "macro_up"
+            elif _is_premium_size:
+                _position_size = self.position_usd * 1.0
+                _size_tier = "premium"
             else:
-                _position_size = self.position_usd
+                _position_size = self.position_usd * 0.5
                 _size_tier = "standard"
             logger.info(
                 f"[DipScanner] Position size tier: {_size_tier} ${_position_size:.0f} "
