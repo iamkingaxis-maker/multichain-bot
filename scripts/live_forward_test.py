@@ -214,6 +214,32 @@ def filter_1m_steep_fall_block(c):
     v = c.get('1m_cum_3min_pct')
     return v is not None and v < -1.5
 
+def filter_1m_dead_vol_block(c):
+    """Phantom parity for filter_1m_dead_vol SHADOW 2026-05-19.
+
+    Block when 1m_volume_spike < 0.20 (1m vol < 20% of trailing avg).
+    Lifetime backfill (n=137) projected NET +$34.10 over 4d.
+    Fail-open if feature missing.
+    """
+    v = c.get('1m_volume_spike')
+    return v is not None and v < 0.20
+
+def filter_dead_vol_chart_block(c):
+    """Phantom parity for filter_dead_vol_chart SHADOW 2026-05-19.
+
+    2-feature compound carve-out within the dead-vol cohort: block
+    when vol_spike<0.20 AND chart_pattern_5m_conf<=47.2 AND
+    chart_trendline_5m_pct_to_support<=17.4. Preserves all 5 winners,
+    kills 17/23 losers (NET +$21.03 on n=28 post-coverage backfill).
+    Fail-open if any of the three features is missing.
+    """
+    vs = c.get('1m_volume_spike')
+    cp = c.get('chart_pattern_5m_conf')
+    ts = c.get('chart_trendline_5m_pct_to_support')
+    return (vs is not None and vs < 0.20
+            and cp is not None and cp <= 47.2
+            and ts is not None and ts <= 17.4)
+
 def big_trade_size_block(c):
     """Block when avg trade size on h1 > $80 (whale-sized trades preceding dip)."""
     ats = c.get('avg_trade_size_h1_usd')

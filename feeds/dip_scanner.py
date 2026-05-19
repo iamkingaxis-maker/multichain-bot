@@ -2281,6 +2281,37 @@ class DipScanner:
                 + (f" reasons={','.join(_filter_1m_block_reasons)}" if _filter_1m_block_reasons else "")
             )
 
+            # Filter 1m dead-vol — SHADOW MODE 2026-05-19.
+            # Tests whether blocking entries with 1m_volume_spike < 0.20
+            # (1m volume below 20% of trailing average) improves WR by
+            # skipping the "dead token" cohort. Lifetime backfill (n=137):
+            #   Block n=44: 29 losers ($-40.66), 15 winners ($+6.56)
+            #   NET save: +$34.10 over 4 days
+            # Pattern: tokens where 1m vol is dying never develop momentum,
+            # they bleed slowly to stop. TripleT + FAHHHH v2 tonight both
+            # fit (vol_spike 0.04 and 0.06).
+            #
+            # CAVEAT: 3 big-runner winners (peak >= +10%) would be blocked:
+            # COPPERINU, HANTA, DEGEN R1. SHADOW first to validate forward
+            # before enforcement.
+            _m1_vs_dv = m1_features.get("1m_volume_spike")
+            _filter_1m_dead_vol_block_reasons: list = []
+            if _m1_vs_dv is not None and _m1_vs_dv < 0.20:
+                _filter_1m_dead_vol_block_reasons.append(
+                    f"1m_vol_spike={_m1_vs_dv:.3f}<0.20 (dead 1m volume)"
+                )
+            _filter_1m_dead_vol_verdict = (
+                "BLOCK" if _filter_1m_dead_vol_block_reasons else "PASS"
+            )
+            c[f"filter_1m_dead_vol_{_filter_1m_dead_vol_verdict.lower()}"] = (
+                c.get(f"filter_1m_dead_vol_{_filter_1m_dead_vol_verdict.lower()}", 0) + 1
+            )
+            if _filter_1m_dead_vol_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] FILTER_1M_DEAD_VOL_SHADOW: {token_symbol} "
+                    f"reasons={','.join(_filter_1m_dead_vol_block_reasons)} -- shadow only"
+                )
+
             # Filter 1m steep-fall — SHADOW MODE 2026-05-19.
             # Tests whether blocking entries with 1m_cum_3min_pct < -1.5%
             # improves WR by skipping mid-fall knife-catches. Lifetime
@@ -2790,6 +2821,50 @@ class DipScanner:
                     )
             except Exception as _pcb_e:
                 logger.debug(f"[DipScanner] trigger_post_capit_breakout err: {_pcb_e}")
+
+            # Filter dead-vol-chart-weak — SHADOW MODE 2026-05-19.
+            # 2-feature compound carve-out within the dead-vol cohort.
+            # Mining (n=28 post-coverage cohort, filter_1m_dead_vol BLOCK):
+            #   Simple filter_1m_dead_vol blocks 5 winners + 23 losers.
+            #   This compound preserves ALL 5 winners and blocks 17/23
+            #   losers (74% precision, NET +$21.03 vs simple's +$24.60).
+            # Conditions: vol_spike<0.20 AND chart_pattern_5m_conf<=47.2
+            # AND chart_trendline_5m_pct_to_support<=17.4.
+            # Mechanism: weak 5m chart pattern (low confidence) + already
+            # near/below support = bearish chart, not a real bottom.
+            # Combined with dead 1m volume = guaranteed bleed.
+            # Fail-open if any of the three features is missing.
+            _m1_vs_dvc = m1_features.get("1m_volume_spike")
+            _cp5_conf = (_chart_ctx_dict or {}).get("chart_pattern_5m_conf")
+            _tl5_pct_sup = (_chart_ctx_dict or {}).get(
+                "chart_trendline_5m_pct_to_support"
+            )
+            _filter_dead_vol_chart_block_reasons: list = []
+            if (
+                _m1_vs_dvc is not None and float(_m1_vs_dvc) < 0.20
+                and _cp5_conf is not None and float(_cp5_conf) <= 47.2
+                and _tl5_pct_sup is not None and float(_tl5_pct_sup) <= 17.4
+            ):
+                _filter_dead_vol_chart_block_reasons.append(
+                    f"vs={float(_m1_vs_dvc):.3f}<0.20 AND "
+                    f"chart_conf={float(_cp5_conf):.1f}<=47.2 AND "
+                    f"pct_to_sup={float(_tl5_pct_sup):+.2f}<=17.4 "
+                    f"(dead-vol + weak chart near support)"
+                )
+            _filter_dead_vol_chart_verdict = (
+                "BLOCK" if _filter_dead_vol_chart_block_reasons else "PASS"
+            )
+            c[f"filter_dead_vol_chart_{_filter_dead_vol_chart_verdict.lower()}"] = (
+                c.get(
+                    f"filter_dead_vol_chart_{_filter_dead_vol_chart_verdict.lower()}",
+                    0,
+                ) + 1
+            )
+            if _filter_dead_vol_chart_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] FILTER_DEAD_VOL_CHART_SHADOW: {token_symbol} "
+                    f"reasons={','.join(_filter_dead_vol_chart_block_reasons)} -- shadow only"
+                )
 
             # ─── DEFERRED FILTER_TURN CHECK ────────────────────────────────
             # filter_turn verdict + big_buyer carve-out were computed earlier.
@@ -11345,6 +11420,15 @@ class DipScanner:
                 # -1.0%). Lifetime backfill projected +$12.26 NET on n=135.
                 "filter_1m_steep_fall_verdict": _filter_1m_steep_fall_verdict,
                 "filter_1m_steep_fall_block_reasons": _filter_1m_steep_fall_block_reasons,
+                # filter_1m_dead_vol — SHADOW 2026-05-19. 1m_vol_spike < 0.20
+                # gate. Lifetime backfill projected +$34.10 NET on n=137.
+                "filter_1m_dead_vol_verdict": _filter_1m_dead_vol_verdict,
+                "filter_1m_dead_vol_block_reasons": _filter_1m_dead_vol_block_reasons,
+                # filter_dead_vol_chart — SHADOW 2026-05-19. Compound carve-out
+                # within dead-vol cohort. Preserves all 5 winners, kills 17/23
+                # losers (NET +$21.03 on n=28 post-coverage backfill).
+                "filter_dead_vol_chart_verdict": _filter_dead_vol_chart_verdict,
+                "filter_dead_vol_chart_block_reasons": _filter_dead_vol_chart_block_reasons,
                 # filter_corpse — enforced post-pump-corpse gate.
                 "filter_corpse_verdict": _filter_corpse_verdict,
                 "filter_corpse_block_reasons": _filter_corpse_block_reasons,
