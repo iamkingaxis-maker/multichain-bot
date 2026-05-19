@@ -2745,6 +2745,15 @@ class PositionManager:
         _DROP_PP = 1.5
         _CONFIRM_S = 60.0
         _RECOVERY_PP = 1.0  # drop tightens to this → disarm
+        # PANIC exit — 2026-05-19. Catastrophic collapse override.
+        # If drop from peak >= 6pp AND armed for 5s, fire immediately.
+        # Catches "memecoins"-class case: peak +3.1%, exit -8.5% (11.6pp
+        # give-back during the 60s confirm window). Lifetime backfill
+        # showed only 1 such case (memecoins -$1.93) — narrow, surgical
+        # change. Doesn't affect V-shape recoveries with drops <6pp
+        # (PAC tonight at 4.5pp would not panic-fire).
+        _PANIC_DROP_PP = 6.0
+        _PANIC_CONFIRM_S = 5.0
 
         # 2026-05-18 — pre-TP1 HARD GUARD removed. Universe-recorder sim
         # (n=2691, conservative proxy: peak>=2.5 AND exit<=-2 fires) showed
@@ -2772,11 +2781,19 @@ class PositionManager:
                     return
                 # Already armed. Check confirmation elapsed.
                 elapsed = time.monotonic() - state.pending_exit_since_ts
-                if elapsed >= _CONFIRM_S:
+                # Panic override: if drop is catastrophic right now,
+                # require only 5s instead of 60s. Re-evaluated each tick:
+                # a brief panic spike that recovers below 6pp returns to
+                # the 60s requirement on the next call.
+                _is_panic = drop_pp >= _PANIC_DROP_PP
+                _required_s = _PANIC_CONFIRM_S if _is_panic else _CONFIRM_S
+                if elapsed >= _required_s:
                     self._trail_triggered.add(token_address)
+                    _label_tag = " [PANIC]" if _is_panic else ""
                     label = (
                         f"Dip pre-TP1 trail {pnl_pct:+.1f}% "
                         f"(peak +{peak_pct:.1f}%, confirmed {elapsed:.0f}s)"
+                        f"{_label_tag}"
                     )
                     logger.info(
                         f"[PositionManager/{self.chain_name}] 🔒 PRE-TP1 CONFIRMED: "
