@@ -2281,6 +2281,41 @@ class DipScanner:
                 + (f" reasons={','.join(_filter_1m_block_reasons)}" if _filter_1m_block_reasons else "")
             )
 
+            # Filter 1m steep-fall — SHADOW MODE 2026-05-19.
+            # Tests whether blocking entries with 1m_cum_3min_pct < -1.5%
+            # improves WR by skipping mid-fall knife-catches. Lifetime
+            # backfill (n=135, May 12-19) showed real separation:
+            #   Winners      median 1m_cum_3min: -0.32%
+            #   Went-green-L median:             -0.02%
+            #   Never-green-L median:            -0.89%
+            # Threshold -1.5% catches the worst sub-cohort:
+            #   - 38% of never-green losers blocked (11 of 29)
+            #   - 17% of winners blocked (8 of 47)
+            #   - $19.79 in NG-loser losses saved vs $7.53 winner $ cost
+            #   - NET +$12.26 swing on 4-day window
+            # Top 6 worst never-green losers (CHINA -$6.04, NOGUY -$2.59,
+            # PBBB -$2.13, IDLE -$1.70, CATCH -$1.47, PBBB -$1.24) all caught.
+            #
+            # NOT enforced — stamped to entry_meta as filter_1m_steep_fall_*
+            # for forward shadow validation against new trade outcomes.
+            _m1_cum_sf = m1_features.get("1m_cum_3min_pct")
+            _filter_1m_steep_fall_block_reasons: list = []
+            if _m1_cum_sf is not None and _m1_cum_sf < -1.5:
+                _filter_1m_steep_fall_block_reasons.append(
+                    f"1m_cum3={_m1_cum_sf:.2f}%<-1.5% (steep 3min fall)"
+                )
+            _filter_1m_steep_fall_verdict = (
+                "BLOCK" if _filter_1m_steep_fall_block_reasons else "PASS"
+            )
+            c[f"filter_1m_steep_fall_{_filter_1m_steep_fall_verdict.lower()}"] = (
+                c.get(f"filter_1m_steep_fall_{_filter_1m_steep_fall_verdict.lower()}", 0) + 1
+            )
+            if _filter_1m_steep_fall_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] FILTER_1M_STEEP_FALL_SHADOW: {token_symbol} "
+                    f"reasons={','.join(_filter_1m_steep_fall_block_reasons)} -- shadow only"
+                )
+
             # Filter FOFAR-confluence — ENFORCED 2026-05-02.
             # Catches the "rolling-over topping pattern" where multiple
             # weak-trend signals stack on the same entry. None of the
@@ -11305,6 +11340,11 @@ class DipScanner:
                 "filter_real_dip_5_block_reasons": _filter_real_dip_5_block_reasons,
                 "filter_1m_verdict": _filter_1m_verdict,
                 "filter_1m_block_reasons": _filter_1m_block_reasons,
+                # filter_1m_steep_fall — SHADOW 2026-05-19. Validates
+                # 1m_cum_3min < -1.5% threshold (steeper than filter_1m's
+                # -1.0%). Lifetime backfill projected +$12.26 NET on n=135.
+                "filter_1m_steep_fall_verdict": _filter_1m_steep_fall_verdict,
+                "filter_1m_steep_fall_block_reasons": _filter_1m_steep_fall_block_reasons,
                 # filter_corpse — enforced post-pump-corpse gate.
                 "filter_corpse_verdict": _filter_corpse_verdict,
                 "filter_corpse_block_reasons": _filter_corpse_block_reasons,
