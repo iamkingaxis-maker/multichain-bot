@@ -203,6 +203,17 @@ def bs_m5_low_block(c):
     bs = c.get('bs_m5')
     return bs is not None and bs < 1.40
 
+def filter_1m_steep_fall_block(c):
+    """Phantom parity for filter_1m_steep_fall SHADOW 2026-05-19.
+
+    Mirrors dip_scanner.py filter_1m_steep_fall: block when
+    1m_cum_3min_pct < -1.5% (steep fall in last 3 min). Validated
+    on n=135 lifetime trades to give NET +$12.26 over 4d at 17%
+    volume cut. Fail-open if feature missing.
+    """
+    v = c.get('1m_cum_3min_pct')
+    return v is not None and v < -1.5
+
 def big_trade_size_block(c):
     """Block when avg trade size on h1 > $80 (whale-sized trades preceding dip)."""
     ats = c.get('avg_trade_size_h1_usd')
