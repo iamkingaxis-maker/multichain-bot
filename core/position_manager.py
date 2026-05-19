@@ -2766,10 +2766,24 @@ class PositionManager:
         # room to move around"). Soft trail (60s confirm window) retained as
         # the only pre-TP1 exit path besides TP1 (+5%) and stop (-15%).
 
+        # CARVE-OUT 2026-05-19: only fire pre-TP1 trail if the position
+        # is actually underwater (pnl <= -2%) OR catastrophic drop (panic
+        # 6pp+). Saves false trails on small-peak consolidations that
+        # later recover to TP1 (AMERICA +7.4% post-exit, VIRL +67%
+        # post-exit overnight). Lifetime: 17/18 historical pre-TP1 trail
+        # fires were at pnl between -1.2% and +2.7% — false-bottom signals.
+        # Only memecoins (-8.5% at fire) was the real catastrophic catch
+        # and it survives the gate via _PANIC_DROP_PP escape hatch.
+        # Slow-bleed exit + pre-stop bail-out are separate paths, unaffected.
+        _PNL_FLOOR = -2.0
+
         # SOFT TRAIL with confirmation window
         if peak_pct >= _MIN_PEAK:
             drop_pp = peak_pct - pnl_pct
-            if drop_pp >= _DROP_PP:
+            _passes_pnl_gate = (
+                pnl_pct <= _PNL_FLOOR or drop_pp >= _PANIC_DROP_PP
+            )
+            if drop_pp >= _DROP_PP and _passes_pnl_gate:
                 # Below threshold. Arm if not yet armed.
                 if state.pending_exit_since_ts is None:
                     state.pending_exit_since_ts = time.monotonic()
