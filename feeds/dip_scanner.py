@@ -2312,10 +2312,9 @@ class DipScanner:
                     f"reasons={','.join(_filter_1m_dead_vol_block_reasons)} -- shadow only"
                 )
 
-            # Filter 1m steep-fall — SHADOW MODE 2026-05-19.
-            # Tests whether blocking entries with 1m_cum_3min_pct < -1.5%
-            # improves WR by skipping mid-fall knife-catches. Lifetime
-            # backfill (n=135, May 12-19) showed real separation:
+            # Filter 1m steep-fall — PROMOTED TO ENFORCED 2026-05-20.
+            # Block entries with 1m_cum_3min_pct < -1.5% (mid-fall knife-catch).
+            # Lifetime backfill (n=135, May 12-19) — clean separator:
             #   Winners      median 1m_cum_3min: -0.32%
             #   Went-green-L median:             -0.02%
             #   Never-green-L median:            -0.89%
@@ -2324,11 +2323,11 @@ class DipScanner:
             #   - 17% of winners blocked (8 of 47)
             #   - $19.79 in NG-loser losses saved vs $7.53 winner $ cost
             #   - NET +$12.26 swing on 4-day window
-            # Top 6 worst never-green losers (CHINA -$6.04, NOGUY -$2.59,
-            # PBBB -$2.13, IDLE -$1.70, CATCH -$1.47, PBBB -$1.24) all caught.
-            #
-            # NOT enforced — stamped to entry_meta as filter_1m_steep_fall_*
-            # for forward shadow validation against new trade outcomes.
+            # Promotion driver — TYGR 2026-05-20 02:48 disaster:
+            # this filter flagged BLOCK (1m_cum3=-9.65%) but was SHADOW
+            # only. Bot bought, hit -15% stop in 67s = -$7.36 single loss.
+            # 11 other SHADOWs also flagged BLOCK on the same entry. Forward
+            # validation since 2026-05-19 confirmed the threshold is right.
             _m1_cum_sf = m1_features.get("1m_cum_3min_pct")
             _filter_1m_steep_fall_block_reasons: list = []
             if _m1_cum_sf is not None and _m1_cum_sf < -1.5:
@@ -2343,9 +2342,10 @@ class DipScanner:
             )
             if _filter_1m_steep_fall_verdict == "BLOCK":
                 logger.info(
-                    f"[DipScanner] FILTER_1M_STEEP_FALL_SHADOW: {token_symbol} "
-                    f"reasons={','.join(_filter_1m_steep_fall_block_reasons)} -- shadow only"
+                    f"[DipScanner] BLOCKED by filter_1m_steep_fall: {token_symbol} "
+                    f"reasons={','.join(_filter_1m_steep_fall_block_reasons)}"
                 )
+                continue
 
             # Filter FOFAR-confluence — ENFORCED 2026-05-02.
             # Catches the "rolling-over topping pattern" where multiple
@@ -12309,6 +12309,8 @@ class DipScanner:
                 "filter_two_pattern_block",
                 # filter_premium_shallow_dip — ENFORCED 2026-05-20.
                 "filter_premium_shallow_dip_block",
+                # filter_1m_steep_fall — promoted to ENFORCED 2026-05-20.
+                "filter_1m_steep_fall_block",
                 # 4 SHADOW filters added 2026-05-05 — counters only, no enforcement.
                 "filter_weak_bounce_block", "filter_slip_asym_block",
                 "filter_regime_panic_block", "filter_dev_dumping_block",
