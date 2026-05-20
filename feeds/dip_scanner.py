@@ -12249,6 +12249,28 @@ class DipScanner:
                 + (f" sol_pc_m1={_sol_uptick_m1:+.3f}" if _sol_uptick_m1 is not None else "")
             )
 
+            # filter_premium_shallow_dip — ENFORCED 2026-05-20.
+            # 7d premium-tier audit (n=21 paired): winners had pc_h1 <= -22%
+            # (PAC +$3.49 at -22.1%, PAC +$3.57 at -24.3%), losers had pc_h1
+            # > -4% (KORI +1.6%, PAC -0.4%, VIRL +0.1%, TripleT -3.8%).
+            # Premium tier fires from big-trade-size signature — whale-sized
+            # avg trade ≥ $135. When pc_h1 is flat/up, the whale buy is just
+            # buying near the top (no reversal setup). When pc_h1 ≤ -10%,
+            # the whale-buy signals a real bottom forming.
+            # Backtest on lifetime data: would have saved $4.30 over 4d
+            # (VIRL, KORI, PAC -$1.66, TripleT) while preserving all 4 wins
+            # (1h dips between -22% and -24%). Net +$4.21.
+            if _size_tier == "premium" and pc_h1 > -10.0:
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_premium_shallow_dip: "
+                    f"{token_symbol} tier=premium pc_h1={pc_h1:+.2f}% > -10% "
+                    f"(no real 1h dip — premium signature on top)"
+                )
+                c["filter_premium_shallow_dip_block"] = c.get(
+                    "filter_premium_shallow_dip_block", 0
+                ) + 1
+                continue
+
             await self.trader.buy(
                 token_address=token_address,
                 token_symbol=token_symbol,
@@ -12285,6 +12307,8 @@ class DipScanner:
                 "filter_fofar_block",
                 "filter_vp_poc_block",
                 "filter_two_pattern_block",
+                # filter_premium_shallow_dip — ENFORCED 2026-05-20.
+                "filter_premium_shallow_dip_block",
                 # 4 SHADOW filters added 2026-05-05 — counters only, no enforcement.
                 "filter_weak_bounce_block", "filter_slip_asym_block",
                 "filter_regime_panic_block", "filter_dev_dumping_block",
