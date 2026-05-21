@@ -4963,6 +4963,11 @@ class DipScanner:
             _trigger_seller_exhaustion_reasons: list = []
             _trigger_deep_dip_bottom_match = False
             _trigger_deep_dip_bottom_reasons: list = []
+            # 2026-05-21 — promoted from deep-mine findings.
+            _trigger_deep_1h_dip_match = False
+            _trigger_deep_1h_dip_reasons: list = []
+            _trigger_power_dip_runner_match = False
+            _trigger_power_dip_runner_reasons: list = []
             _trigger_patient_bottom_match = False
             _trigger_patient_bottom_reasons: list = []
             _trigger_informed_cluster_match = False
@@ -5036,13 +5041,35 @@ class DipScanner:
                         f"AND slip_sell={_slip_sell:.2f}%>=2.25"
                     )
 
-                # deep_dip_bottom — token genuinely dipped (down both 24h AND from 6h peak)
-                # Phantom predicate ratio_to_recent_peak<=0.928 mapped to peak_h24_6h>=7.2pp
+                # deep_dip_bottom — RETIRED 2026-05-21 (worst $/trade). Match
+                # flag retained for forensics; fire suppressed at trigger-fire site.
                 if _pc24_f <= -7.48 and _peak24_6h_f >= 7.2 and not _seller_active:
                     _trigger_deep_dip_bottom_match = True
                     _trigger_deep_dip_bottom_reasons.append(
                         f"pc_h24={_pc24_f:+.1f}%<=-7.48 AND peak_h24_6h={_peak24_6h_f:.1f}%>=7.2 "
-                        f"(deep dip from 6h peak)"
+                        f"(deep dip from 6h peak) [RETIRED]"
+                    )
+
+                # deep_1h_dip — 1h drop >= 8% (Rule A from deep-mine findings).
+                # Mined on n=78 paired: 34 trades match, WR 59%, NET +$4.02.
+                # Captures "real dip" archetype where 1h pullback is genuine.
+                # Pairs naturally with other quality triggers; rarely solo-fires.
+                if pc_h1 is not None and pc_h1 <= -8.0 and not _seller_active:
+                    _trigger_deep_1h_dip_match = True
+                    _trigger_deep_1h_dip_reasons.append(
+                        f"pc_h1={pc_h1:+.1f}%<=-8 (deep 1h dip)"
+                    )
+
+                # power_dip_runner — hot 24h runner + deep 1h dip (Rule D).
+                # Mined on n=78 paired: 14 trades match, WR 71%, NET +$6.47.
+                # PAC/VIRL archetype — runner that's actually correcting on 1h.
+                if (pc_h1 is not None and pc_h24 is not None
+                        and pc_h1 <= -8.0 and pc_h24 >= 40.0
+                        and not _seller_active):
+                    _trigger_power_dip_runner_match = True
+                    _trigger_power_dip_runner_reasons.append(
+                        f"pc_h24={pc_h24:+.1f}%>=40 AND pc_h1={pc_h1:+.1f}%<=-8 "
+                        f"(power dip on hot runner)"
                     )
 
                 # patient_bottom_recovery — well below 1h VWAP, mature dip
@@ -8422,8 +8449,19 @@ class DipScanner:
                 _triggers_fired.append("delta_microcap")
             if _trigger_seller_exhaustion_match:
                 _triggers_fired.append("seller_exhaustion")
-            if _trigger_deep_dip_bottom_match:
-                _triggers_fired.append("deep_dip_bottom")
+            # 2026-05-21 RETIRED — deep_dip_bottom trigger removed from active
+            # firing. Phantom audit n=18: WR 31% (5W/11L), NET -$18.58,
+            # avg -$1.03/trade — worst per-trade $ across all live triggers.
+            # Conditions pc_h24<=-7.48 AND peak_h24_6h>=7.2 describe a "deep
+            # dip from 6h peak" but capture continuation dumps, not bottoms.
+            # Match flag still stamped to entry_meta for forensics.
+            # if _trigger_deep_dip_bottom_match:
+            #     _triggers_fired.append("deep_dip_bottom")
+            # 2026-05-21 — Rule A + D promoted from deep-mine findings.
+            if _trigger_deep_1h_dip_match:
+                _triggers_fired.append("deep_1h_dip")
+            if _trigger_power_dip_runner_match:
+                _triggers_fired.append("power_dip_runner")
             # 2026-05-17 RETIRED — patient_bottom trigger removed from
             # active firing. PAC 03:22 UTC fired this trigger and bought
             # a dead-volume corpse: dev_pct_remaining=5.1%, 1m_vol_spike=
@@ -8617,6 +8655,10 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_seller_exhaustion_reasons)
                 if _trigger_deep_dip_bottom_match:
                     _alt_reasons.extend(_trigger_deep_dip_bottom_reasons)
+                if _trigger_deep_1h_dip_match:
+                    _alt_reasons.extend(_trigger_deep_1h_dip_reasons)
+                if _trigger_power_dip_runner_match:
+                    _alt_reasons.extend(_trigger_power_dip_runner_reasons)
                 if _trigger_patient_bottom_match:
                     _alt_reasons.extend(_trigger_patient_bottom_reasons)
                 if _trigger_informed_cluster_match:
@@ -12309,6 +12351,29 @@ class DipScanner:
                 ) + 1
                 continue
 
+            # filter_lazy_fade_buy — ENFORCED 2026-05-21.
+            # Deep-mine Rule B: bs_m5 ∈ [1.5, 3.0) AND pc_h1 > -8%.
+            # n=78 paired trades, this cohort: 16 trades, 3W/13L, WR 19%,
+            # NET -$12.69. Captures "lazy fade buy" — moderate retail FOMO
+            # without a real 1h dip. Retroactively on today's -$12.31 bleed,
+            # would have saved $8.27 (67% reduction).
+            # Mechanism: bs_m5 1.5-3.0 = retail buying but not screaming
+            # FOMO. pc_h1 > -8 = no real 1h dip. Bot is buying flat tokens
+            # with mild buy pressure — no edge, recurring loser pattern
+            # (HERMES 2nd loss, EITHER, KORI 1st+2nd, RAGEGUY 1st all hit).
+            _r_m5_lfb = float(ratio_m5) if ratio_m5 not in (None, float("inf")) else None
+            if (_r_m5_lfb is not None and 1.5 <= _r_m5_lfb < 3.0
+                    and pc_h1 is not None and pc_h1 > -8.0):
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_lazy_fade_buy: "
+                    f"{token_symbol} bs_m5={_r_m5_lfb:.2f}∈[1.5,3.0) AND "
+                    f"pc_h1={pc_h1:+.2f}%>-8 (lazy fade — no real dip)"
+                )
+                c["filter_lazy_fade_buy_block"] = c.get(
+                    "filter_lazy_fade_buy_block", 0
+                ) + 1
+                continue
+
             # filter_premium_shallow_dip — ENFORCED 2026-05-20.
             # 7d premium-tier audit (n=21 paired): winners had pc_h1 <= -22%
             # (PAC +$3.49 at -22.1%, PAC +$3.57 at -24.3%), losers had pc_h1
@@ -12371,6 +12436,8 @@ class DipScanner:
                 "filter_premium_shallow_dip_block",
                 # filter_zero_winner_compound — ENFORCED 2026-05-20 (6 OR-rules).
                 "filter_zero_winner_compound_block",
+                # filter_lazy_fade_buy — ENFORCED 2026-05-21 (Rule B).
+                "filter_lazy_fade_buy_block",
                 # filter_1m_steep_fall — promoted to ENFORCED 2026-05-20.
                 "filter_1m_steep_fall_block",
                 # 4 SHADOW filters added 2026-05-05 — counters only, no enforcement.
