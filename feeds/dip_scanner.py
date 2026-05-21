@@ -12258,6 +12258,57 @@ class DipScanner:
                 + (f" sol_pc_m1={_sol_uptick_m1:+.3f}" if _sol_uptick_m1 is not None else "")
             )
 
+            # filter_zero_winner_compound — ENFORCED 2026-05-20.
+            # 6-rule OR compound mined from n=343 paired trades (May 12-21).
+            # All 6 rules are ZERO-WINNER-BLOCK (never blocked a single winner
+            # in the lifetime sample). Each rule catches a unique loser cohort:
+            #
+            #   R1 (exhausted pump tight):  bs_h1 < 1.30 AND bs_h6 > 1.31
+            #     → 9L blocked, saves $25.93. 1h selling + 6h buying = inflection.
+            #   R2 (exhausted pump loose):  bs_h1 < 1.17 AND bs_h6 > 1.18
+            #     → 11L blocked, saves $25.85. Same shape, wider net.
+            #   R3 (mid-pump entry):        pc_m5 > +3.20 AND bs_h1 > 1.30
+            #     → 16L blocked, saves $19.46. Chasing m5 green into pump exhaustion.
+            #   R4 (deep dip below POC):    pc_h1 < -22.10 AND poc_dist < +16.62
+            #     → 8L blocked, saves $16.56. Sharp 1h drop + below VP-POC = broken.
+            #   R5 (flat non-runner):       pc_h24 < +32.90 AND pc_m5 > -0.10
+            #     → 12L blocked, saves $14.96. Not pumping + not dipping = no edge.
+            #   R6 (moderate dip + POC):    pc_h1 < -8.20 AND poc_dist < -7.48
+            #     → 13L blocked, saves $13.33. Mid 1h drop + far below POC.
+            #
+            # Each rule catches losers no other rule catches (3-8 unique each).
+            # Union: 48L blocked, $79.17 saved, ZERO winners across all 6.
+            # Volume cut: ~14% of trades.
+            # Fail-open: any feature missing → that rule doesn't fire.
+            _vp_poc = (_chart_ctx_dict or {}).get("chart_vp_poc_distance_pct")
+            try: _vp_poc_f = float(_vp_poc) if _vp_poc is not None else None
+            except (TypeError, ValueError): _vp_poc_f = None
+            _r_h1 = float(ratio_h1) if ratio_h1 not in (None, float("inf")) else None
+            _r_h6 = float(ratio_h6) if ratio_h6 not in (None, float("inf")) else None
+            _r_m5 = float(ratio_m5) if ratio_m5 not in (None, float("inf")) else None
+            _zwc_fired = []
+            if _r_h1 is not None and _r_h6 is not None and _r_h1 < 1.30 and _r_h6 > 1.31:
+                _zwc_fired.append(f"R1(bs_h1={_r_h1:.2f}<1.30,bs_h6={_r_h6:.2f}>1.31)")
+            if _r_h1 is not None and _r_h6 is not None and _r_h1 < 1.17 and _r_h6 > 1.18:
+                _zwc_fired.append(f"R2(bs_h1={_r_h1:.2f}<1.17,bs_h6={_r_h6:.2f}>1.18)")
+            if pc_m5 is not None and _r_h1 is not None and pc_m5 > 3.20 and _r_h1 > 1.30:
+                _zwc_fired.append(f"R3(pc_m5={pc_m5:+.2f}>3.20,bs_h1={_r_h1:.2f}>1.30)")
+            if pc_h1 is not None and _vp_poc_f is not None and pc_h1 < -22.10 and _vp_poc_f < 16.62:
+                _zwc_fired.append(f"R4(pc_h1={pc_h1:+.2f}<-22.1,poc={_vp_poc_f:+.2f}<16.6)")
+            if pc_h24 is not None and pc_m5 is not None and pc_h24 < 32.90 and pc_m5 > -0.10:
+                _zwc_fired.append(f"R5(pc_h24={pc_h24:+.1f}<32.9,pc_m5={pc_m5:+.2f}>-0.1)")
+            if pc_h1 is not None and _vp_poc_f is not None and pc_h1 < -8.20 and _vp_poc_f < -7.48:
+                _zwc_fired.append(f"R6(pc_h1={pc_h1:+.2f}<-8.2,poc={_vp_poc_f:+.2f}<-7.5)")
+            if _zwc_fired:
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_zero_winner_compound: "
+                    f"{token_symbol} fired={','.join(_zwc_fired)}"
+                )
+                c["filter_zero_winner_compound_block"] = c.get(
+                    "filter_zero_winner_compound_block", 0
+                ) + 1
+                continue
+
             # filter_premium_shallow_dip — ENFORCED 2026-05-20.
             # 7d premium-tier audit (n=21 paired): winners had pc_h1 <= -22%
             # (PAC +$3.49 at -22.1%, PAC +$3.57 at -24.3%), losers had pc_h1
@@ -12318,6 +12369,8 @@ class DipScanner:
                 "filter_two_pattern_block",
                 # filter_premium_shallow_dip — ENFORCED 2026-05-20.
                 "filter_premium_shallow_dip_block",
+                # filter_zero_winner_compound — ENFORCED 2026-05-20 (6 OR-rules).
+                "filter_zero_winner_compound_block",
                 # filter_1m_steep_fall — promoted to ENFORCED 2026-05-20.
                 "filter_1m_steep_fall_block",
                 # 4 SHADOW filters added 2026-05-05 — counters only, no enforcement.
