@@ -4973,6 +4973,10 @@ class DipScanner:
             _trigger_hot_runner_calm_5m_reasons: list = []
             _trigger_hot_runner_shallow_1h_match = False
             _trigger_hot_runner_shallow_1h_reasons: list = []
+            # 2026-05-21 — Trigger A from per-token forensic mine.
+            # Calm-with-vol-building (flat-base breakout precursor).
+            _trigger_vol_breakout_flat_match = False
+            _trigger_vol_breakout_flat_reasons: list = []
             _trigger_patient_bottom_match = False
             _trigger_patient_bottom_reasons: list = []
             _trigger_informed_cluster_match = False
@@ -5100,6 +5104,33 @@ class DipScanner:
                     _trigger_hot_runner_shallow_1h_reasons.append(
                         f"bs_h1={_r_h1_hr5:.2f}>1.29 AND pc_h24={pc_h24:+.1f}%>30.2 "
                         f"AND pc_h1={pc_h1:+.1f}%>-6.4 (hot runner, shallow 1h dip)"
+                    )
+
+                # vol_breakout_flat — Trigger A from per-token forensic mine.
+                # CALM-WITH-VOL-BUILDING signature (flat-base breakout precursor).
+                # Mining: 14 hits in 24h across watchlist, mean run +27%.
+                # Tokens caught: HENRY +122%, ATTENTION +24%, DEGEN +21%,
+                # BABYTROLL +21%, VIRL +18%, PENGUIN +16%, UFO +16%,
+                # Goblin +16%, Digi +17%.
+                #
+                # Conditions (in-scanner proxies for agent's 15min metrics):
+                #   1m_volume_spike >= 2.0   — vol surging vs trailing avg
+                #   shape_30m_chg_pct ∈ [-5, +5]  — 30m price slope flat
+                #   pc_h24 > -10%            — token not bleeding
+                # Rationale: bot's existing dip_buy logic requires pc_h1<0
+                # which excludes the FLAT pre-breakout regime. This trigger
+                # fires before the run starts (vol leading price).
+                _vbf_vs = m1_features.get("1m_volume_spike")
+                _vbf_shape30 = m1_features.get("shape_30m_chg_pct")
+                if (_vbf_vs is not None and float(_vbf_vs) >= 2.0
+                        and _vbf_shape30 is not None and -5.0 <= float(_vbf_shape30) <= 5.0
+                        and pc_h24 is not None and pc_h24 > -10.0
+                        and not _seller_active):
+                    _trigger_vol_breakout_flat_match = True
+                    _trigger_vol_breakout_flat_reasons.append(
+                        f"1m_vol_spike={float(_vbf_vs):.2f}>=2.0 AND "
+                        f"shape_30m={float(_vbf_shape30):+.1f}%∈[-5,+5] AND "
+                        f"pc_h24={pc_h24:+.1f}%>-10 (vol-building on flat base)"
                     )
 
                 # patient_bottom_recovery — well below 1h VWAP, mature dip
@@ -8497,6 +8528,9 @@ class DipScanner:
                 _triggers_fired.append("hot_runner_calm_5m")
             if _trigger_hot_runner_shallow_1h_match:
                 _triggers_fired.append("hot_runner_shallow_1h")
+            # 2026-05-21 — Trigger A flat-base vol-breakout precursor.
+            if _trigger_vol_breakout_flat_match:
+                _triggers_fired.append("vol_breakout_flat")
             # 2026-05-17 RETIRED — patient_bottom trigger removed from
             # active firing. PAC 03:22 UTC fired this trigger and bought
             # a dead-volume corpse: dev_pct_remaining=5.1%, 1m_vol_spike=
@@ -8698,6 +8732,8 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_hot_runner_calm_5m_reasons)
                 if _trigger_hot_runner_shallow_1h_match:
                     _alt_reasons.extend(_trigger_hot_runner_shallow_1h_reasons)
+                if _trigger_vol_breakout_flat_match:
+                    _alt_reasons.extend(_trigger_vol_breakout_flat_reasons)
                 if _trigger_patient_bottom_match:
                     _alt_reasons.extend(_trigger_patient_bottom_reasons)
                 if _trigger_informed_cluster_match:
