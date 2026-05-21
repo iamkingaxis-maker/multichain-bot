@@ -12235,7 +12235,16 @@ class DipScanner:
                 _position_size = self.position_usd * 0.5
                 _size_tier = "marginal"
             elif _sol_micro_uptick:
-                _position_size = self.position_usd * 2.0
+                # ROLLBACK 2026-05-20 PM: macro_up 2.0x → 1.5x.
+                # Reason: today's -$12.54 net was dominated by macro_up
+                # over-sized losses — Digi -$3.89 (-8.7% on $40),
+                # TYGR -$7.36 (-18% on $40), HERMES/https/BP pre-stop
+                # bail-outs all on $40 macro_up. Original 2.0x bump
+                # (2026-05-19) was based on lifetime cohort showing only
+                # macro_up as profitable, but recent regime (post-Phase-1
+                # filter ship) has made macro_up volatile. 1.5x restores
+                # the original boost without amplifying losses 2x.
+                _position_size = self.position_usd * 1.5
                 _size_tier = "macro_up"
             elif _is_premium_size:
                 _position_size = self.position_usd * 1.0
