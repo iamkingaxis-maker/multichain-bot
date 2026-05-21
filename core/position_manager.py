@@ -2090,6 +2090,122 @@ class PositionManager:
                                 )
                             return
 
+            # ── DIP TRAIL EXHAUSTION EXITS — ENFORCED 2026-05-21 ───────
+            # Two post-TP1 exit signals mined from 43 recent winners
+            # (.exh_top_v2.json, 5m GT bars, 14d cohort):
+            #
+            #  Rule A — VOL DRYING: last 1m bar volume < 30% of prior
+            #    4-min average. Detection 19% of winners, +9.81% avg
+            #    lift over actual exit, $1.01/trade (3/4 better/0 worse).
+            #
+            #  Rule B — WICK REJECTION on last complete 5m bar:
+            #    upper_wick >= 2x body AND close in lower 40% of bar
+            #    range. Detection 21%, +3.85% avg lift, $0.18/trade
+            #    (9/9 better, 0 worse — 100% positive in mining).
+            #
+            # Both gated on tp1_hit (75% already locked at TP1) + pnl>=
+            # 5% (post-TP1 zone). The bar-completion requirements
+            # (4 prior 1m bars / 1 complete 5m bar) provide natural
+            # noise buffer post-TP1.
+            #
+            # User-validated 2026-05-21: UFO #1 (3-push + wick rejection
+            # at +7.1%) and UFO #2 (vol_m5=0 at +6.5%) — both manual
+            # exits captured the topping signature before the standard
+            # 3pp peak-trail would have fired.
+            if (state.tp1_hit and not state.tp3_hit
+                    and pnl_pct >= 5.0
+                    and state.entry_price > 0):
+                try:
+                    from feeds.chart_data import assemble_chart_data
+                    cd_ex = await assemble_chart_data(
+                        self.gt_client, state.pair_address,
+                        dexs_client=self.dexs_client,
+                    )
+                    bars_1m_ex = cd_ex.candles_1m if cd_ex and cd_ex.candles_1m else []
+                    bars_5m_ex = cd_ex.candles_5m if cd_ex and cd_ex.candles_5m else []
+                except Exception:
+                    bars_1m_ex = []
+                    bars_5m_ex = []
+
+                # Rule A — VOL DRYING.
+                if len(bars_1m_ex) >= 5:
+                    _recent_v = float(bars_1m_ex[-1].volume or 0)
+                    _prior_vs = [float(b.volume or 0) for b in bars_1m_ex[-5:-1]]
+                    _prior_avg_v = sum(_prior_vs) / len(_prior_vs) if _prior_vs else 0.0
+                    if _prior_avg_v > 0 and _recent_v < _prior_avg_v * 0.3:
+                        logger.info(
+                            f"[PositionManager/{self.chain_name}] "
+                            f"💨 DIP VOL DRYING EXIT: "
+                            f"{state.token_symbol} pnl=+{pnl_pct:.2f}% "
+                            f"recent_1m_vol={_recent_v:.0f}<"
+                            f"{_prior_avg_v*0.3:.0f} (prior_4m_avg={_prior_avg_v:.0f})"
+                        )
+                        await self._execute_sell(
+                            token_address, state,
+                            pct=1.0,
+                            reason=(
+                                f"Dip vol_drying exit (pnl=+{pnl_pct:.2f}%, "
+                                f"recent_1m_vol={_recent_v:.0f}, "
+                                f"prior_4m_avg={_prior_avg_v:.0f})"
+                            ),
+                        )
+                        if self.scanner:
+                            self.scanner.register_stop_loss(
+                                token_address, state.token_symbol,
+                                state.current_price,
+                                cooldown_seconds=3600,
+                            )
+                        return
+
+                # Rule B — WICK REJECTION on last complete 5m candle.
+                # bars_5m_ex[-1] may be in-progress; use [-2] for the
+                # most-recently-CLOSED 5m bar.
+                if len(bars_5m_ex) >= 2:
+                    _last_5m = bars_5m_ex[-2]
+                    _o, _h, _l, _c = (
+                        float(_last_5m.open or 0),
+                        float(_last_5m.high or 0),
+                        float(_last_5m.low or 0),
+                        float(_last_5m.close or 0),
+                    )
+                    if _h > _l and _o > 0:
+                        _body = abs(_c - _o)
+                        _upper_wick = _h - max(_o, _c)
+                        _rng = _h - _l
+                        _lower_pos = (_c - _l) / _rng if _rng > 0 else 1.0
+                        _rng_pct = _rng / _l if _l > 0 else 0
+                        # Require: wick≥2x body, close in lower 40%,
+                        # bar range ≥0.5% (filters tiny noise bars).
+                        if (_upper_wick > 0
+                                and _upper_wick >= _body * 2.0
+                                and _lower_pos < 0.4
+                                and _rng_pct > 0.005):
+                            _ratio = _upper_wick / max(_body, 1e-12)
+                            logger.info(
+                                f"[PositionManager/{self.chain_name}] "
+                                f"🪝 DIP WICK REJECTION EXIT: "
+                                f"{state.token_symbol} pnl=+{pnl_pct:.2f}% "
+                                f"wick:body={_ratio:.1f}x "
+                                f"close_pos={_lower_pos:.2f} (lower 40%)"
+                            )
+                            await self._execute_sell(
+                                token_address, state,
+                                pct=1.0,
+                                reason=(
+                                    f"Dip wick_rejection exit "
+                                    f"(pnl=+{pnl_pct:.2f}%, "
+                                    f"wick:body={_ratio:.1f}x, "
+                                    f"close_pos={_lower_pos:.2f})"
+                                ),
+                            )
+                            if self.scanner:
+                                self.scanner.register_stop_loss(
+                                    token_address, state.token_symbol,
+                                    state.current_price,
+                                    cooldown_seconds=3600,
+                                )
+                            return
+
             # ── DIP PRE-TP1 LOCK-IN TRAIL — MOVED TO REALTIME 2026-05-15 ──
             # The single-tick trigger version of this rule fired too eagerly
             # once the PoolPriceFeed went live (RAGEGUY/fish/FAHHHH 05-15 all
