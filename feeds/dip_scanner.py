@@ -4968,6 +4968,11 @@ class DipScanner:
             _trigger_deep_1h_dip_reasons: list = []
             _trigger_power_dip_runner_match = False
             _trigger_power_dip_runner_reasons: list = []
+            # 2026-05-21 PM — 3-feature high-WR cohort triggers (Rules 5 & 10).
+            _trigger_hot_runner_calm_5m_match = False
+            _trigger_hot_runner_calm_5m_reasons: list = []
+            _trigger_hot_runner_shallow_1h_match = False
+            _trigger_hot_runner_shallow_1h_reasons: list = []
             _trigger_patient_bottom_match = False
             _trigger_patient_bottom_reasons: list = []
             _trigger_informed_cluster_match = False
@@ -5070,6 +5075,31 @@ class DipScanner:
                     _trigger_power_dip_runner_reasons.append(
                         f"pc_h24={pc_h24:+.1f}%>=40 AND pc_h1={pc_h1:+.1f}%<=-8 "
                         f"(power dip on hot runner)"
+                    )
+
+                # hot_runner_calm_5m — runner + strong 1h buying + 5m not dumping.
+                # Rule 5 from n=343 mining: n=56 matches, WR 61%, NET +$9.33.
+                # "Real runner that's consolidating, not collapsing."
+                _r_h1_hr5 = float(ratio_h1) if ratio_h1 not in (None, float("inf")) else None
+                if (pc_h24 is not None and pc_m5 is not None and _r_h1_hr5 is not None
+                        and _r_h1_hr5 > 1.56 and pc_h24 > 30.20 and pc_m5 > -2.70
+                        and not _seller_active):
+                    _trigger_hot_runner_calm_5m_match = True
+                    _trigger_hot_runner_calm_5m_reasons.append(
+                        f"bs_h1={_r_h1_hr5:.2f}>1.56 AND pc_h24={pc_h24:+.1f}%>30.2 "
+                        f"AND pc_m5={pc_m5:+.1f}%>-2.7 (hot runner, calm 5m)"
+                    )
+
+                # hot_runner_shallow_1h — runner + moderate buying + shallow 1h.
+                # Rule 10 from n=343 mining: n=48 matches, WR 67%, NET +$4.23.
+                # "Runner pulling back mildly on 1h with persistent buy pressure."
+                if (pc_h24 is not None and pc_h1 is not None and _r_h1_hr5 is not None
+                        and _r_h1_hr5 > 1.29 and pc_h24 > 30.20 and pc_h1 > -6.40
+                        and not _seller_active):
+                    _trigger_hot_runner_shallow_1h_match = True
+                    _trigger_hot_runner_shallow_1h_reasons.append(
+                        f"bs_h1={_r_h1_hr5:.2f}>1.29 AND pc_h24={pc_h24:+.1f}%>30.2 "
+                        f"AND pc_h1={pc_h1:+.1f}%>-6.4 (hot runner, shallow 1h dip)"
                     )
 
                 # patient_bottom_recovery — well below 1h VWAP, mature dip
@@ -8462,6 +8492,11 @@ class DipScanner:
                 _triggers_fired.append("deep_1h_dip")
             if _trigger_power_dip_runner_match:
                 _triggers_fired.append("power_dip_runner")
+            # 2026-05-21 PM — Rules 5 + 10 high-WR cohort triggers.
+            if _trigger_hot_runner_calm_5m_match:
+                _triggers_fired.append("hot_runner_calm_5m")
+            if _trigger_hot_runner_shallow_1h_match:
+                _triggers_fired.append("hot_runner_shallow_1h")
             # 2026-05-17 RETIRED — patient_bottom trigger removed from
             # active firing. PAC 03:22 UTC fired this trigger and bought
             # a dead-volume corpse: dev_pct_remaining=5.1%, 1m_vol_spike=
@@ -8659,6 +8694,10 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_deep_1h_dip_reasons)
                 if _trigger_power_dip_runner_match:
                     _alt_reasons.extend(_trigger_power_dip_runner_reasons)
+                if _trigger_hot_runner_calm_5m_match:
+                    _alt_reasons.extend(_trigger_hot_runner_calm_5m_reasons)
+                if _trigger_hot_runner_shallow_1h_match:
+                    _alt_reasons.extend(_trigger_hot_runner_shallow_1h_reasons)
                 if _trigger_patient_bottom_match:
                     _alt_reasons.extend(_trigger_patient_bottom_reasons)
                 if _trigger_informed_cluster_match:
