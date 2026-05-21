@@ -155,6 +155,10 @@ class DipScanner:
         # watchlist BURNIE would have been re-scanned every cycle from the
         # moment it first entered the universe.
         # Format: addr -> {pair, last_seen_ts}. TTL 12h. Persisted to disk.
+        # SOL features from most-recent cycle — exposed to dashboard for
+        # filter_sol_macro_down status display. Updated each scan cycle.
+        self.last_sol_features: dict = {}
+        self.last_sol_features_ts: float = 0.0
         self._sticky_watchlist: Dict[str, dict] = {}
         self._sticky_ttl_secs = 12 * 3600
         self._sticky_path = os.path.join(
@@ -1387,6 +1391,12 @@ class DipScanner:
                     sol_features["sol_pc_3m"] = round(sol_pc_3m, 3)
             except Exception as _e:
                 logger.debug(f"[DipScanner] SOL fetch error: {_e}")
+
+            # Expose to dashboard for filter_sol_macro_down status indicator.
+            if sol_features:
+                self.last_sol_features = dict(sol_features)
+                import time as _time_mod
+                self.last_sol_features_ts = _time_mod.time()
 
             # BTC regime — Binance public klines (no key, fast, free).
             # 1h candles × 5 → enough for h1 (last close vs prev) and h4

@@ -112,6 +112,17 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   }
   .mode-badge.paper { background: #1a2a1a; color: var(--green-lt); border: 1px solid #5fae2c50; }
   .mode-badge.live  { background: #2e1414; color: var(--red); border: 1px solid #d4351c60; }
+  .sol-gate-badge {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+    cursor: default;
+  }
+  .sol-gate-badge.pass  { background: #1a2a1a; color: var(--green-lt); border: 1px solid #5fae2c50; }
+  .sol-gate-badge.block { background: #2e1414; color: var(--red); border: 1px solid #d4351c60; }
+  .sol-gate-badge.stale { background: #2a261a; color: #d4a017; border: 1px solid #d4a01750; }
   .pause-btn {
     font-size: 11px; font-weight: 600; padding: 4px 14px; border-radius: 6px;
     border: 1px solid var(--border2); cursor: pointer; transition: all .15s;
@@ -394,6 +405,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   </div>
   <div class="header-right">
     <span id="mode-badge" class="mode-badge paper">PAPER</span>
+    <span id="sol-gate-badge" class="sol-gate-badge pass" title="SOL gate status">SOL: —</span>
     <button id="pause-btn" class="pause-btn" onclick="togglePause()">⏸ Pause Trading</button>
     <span>Uptime: <span id="uptime">—</span></span>
     <span id="clock">—</span>
@@ -843,6 +855,48 @@ async function togglePause() {
     await fetch(url, { method: 'POST' });
   } catch(e) { console.error('pause/resume error', e); }
 }
+
+// ── SOL gate indicator ──────────────────────────────────────────────────
+async function updateSolGate() {
+  const badge = document.getElementById('sol-gate-badge');
+  if (!badge) return;
+  try {
+    const res = await fetch('/api/sol-gate');
+    const d = await res.json();
+    if (!d.has_data) {
+      badge.textContent = 'SOL: —';
+      badge.className = 'sol-gate-badge stale';
+      badge.title = 'No SOL data yet (scanner warming up)';
+      return;
+    }
+    const stale = (d.snapshot_age_secs !== null && d.snapshot_age_secs > 600);
+    const status = d.status || 'PASS';
+    const h6 = d.sol_pc_h6;
+    const h1 = d.sol_pc_h1;
+    const h24 = d.sol_pc_h24;
+    const fmt = (v) => (v === null || v === undefined) ? '—' : (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+    if (status === 'BLOCK') {
+      badge.textContent = '🚫 SOL: BLOCK';
+      badge.className = 'sol-gate-badge block';
+      badge.title = 'Trading paused by filter_sol_macro_down\\n' +
+        (d.reasons || []).join('\\n') +
+        '\\n\\nh1=' + fmt(h1) + '  h6=' + fmt(h6) + '  h24=' + fmt(h24);
+    } else {
+      badge.textContent = 'SOL: ' + fmt(h24) + ' (24h)';
+      badge.className = 'sol-gate-badge ' + (stale ? 'stale' : 'pass');
+      badge.title = 'filter_sol_macro_down: PASS — bot allowed to trade\\n' +
+        'h1=' + fmt(h1) + '  h6=' + fmt(h6) + '  h24=' + fmt(h24) +
+        '\\nThresholds: h6<-0.3 OR h1<-0.7 = BLOCK' +
+        (stale ? '\\n(WARN: data ' + Math.round(d.snapshot_age_secs/60) + 'min stale)' : '');
+    }
+  } catch(e) {
+    badge.textContent = 'SOL: err';
+    badge.className = 'sol-gate-badge stale';
+  }
+}
+// Poll every 30s + once immediately
+updateSolGate();
+setInterval(updateSolGate, 30000);
 
 // ── Stat cards ─────────────────────────────────────────────────────────────
 function updateStatCards(d) {
@@ -1690,6 +1744,7 @@ class WebDashboard:
         self.app.router.add_post("/api/pause",              self._handle_pause)
         self.app.router.add_post("/api/resume",             self._handle_resume)
         self.app.router.add_get("/api/strategies",          self._handle_strategies)
+        self.app.router.add_get("/api/sol-gate",            self._handle_sol_gate)
         self.app.router.add_get("/api/diagnostics",         self._handle_diagnostics)
         self.app.router.add_get("/metrics",                 self._handle_metrics)
 
@@ -3059,6 +3114,50 @@ class WebDashboard:
             text=json.dumps({"ok": True, "strategies": data}),
             content_type="application/json",
             headers=cors,
+        )
+
+    async def _handle_sol_gate(self, request):
+        """GET /api/sol-gate — current SOL macro-down gate status.
+
+        Reflects filter_sol_macro_down (commit 9fe8366): BLOCK if
+        sol_pc_h6 < -0.3 OR sol_pc_h1 < -0.7. Reads scanner.last_sol_features
+        snapshot updated each cycle (~5min stale max).
+        """
+        import time as _time_mod
+        cors = {"Access-Control-Allow-Origin": "*"}
+        feats: dict = {}
+        ts = 0.0
+        for chain_id, scanner in (self._scanners or {}).items():
+            sf = getattr(scanner, "last_sol_features", None)
+            sf_ts = getattr(scanner, "last_sol_features_ts", 0.0)
+            if isinstance(sf, dict) and sf_ts > ts:
+                feats = sf
+                ts = sf_ts
+        h6 = feats.get("sol_pc_h6")
+        h1 = feats.get("sol_pc_h1")
+        h24 = feats.get("sol_pc_h24")
+        price = feats.get("sol")
+        reasons = []
+        if isinstance(h6, (int, float)) and h6 < -0.3:
+            reasons.append(f"sol_pc_h6={h6:+.2f}%<-0.3")
+        if isinstance(h1, (int, float)) and h1 < -0.7:
+            reasons.append(f"sol_pc_h1={h1:+.2f}%<-0.7")
+        status = "BLOCK" if reasons else "PASS"
+        age_secs = max(0, _time_mod.time() - ts) if ts else None
+        payload = {
+            "status": status,
+            "reasons": reasons,
+            "sol_price_usd": price,
+            "sol_pc_h1": h1,
+            "sol_pc_h6": h6,
+            "sol_pc_h24": h24,
+            "thresholds": {"h6": -0.3, "h1": -0.7},
+            "snapshot_age_secs": age_secs,
+            "has_data": bool(feats),
+        }
+        return web.Response(
+            text=json.dumps(payload),
+            content_type="application/json", headers=cors,
         )
 
     async def _handle_pause(self, request):
