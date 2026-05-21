@@ -1344,13 +1344,14 @@ class DipScanner:
             sol_5m = []
             try:
                 _SOL_POOL = "83v8iPyZihDEjDdY8RdZddyZNyUtXngz69Lgo9Kt5d6d"  # SOL/USDC Raydium
-                # 48 × 5min = 4h coverage. Last 12 (1h), last 48 (4h).
-                # 300s cache (vs 60s default) — SOL fetch was missing
-                # ~80% of trades due to per-token contention + 60s cache
-                # expiring mid-cycle on the shared GT 25-req/min budget.
-                # Regime use only needs minute-precision SOL within ~5min;
-                # the 300s cache absorbs rate-limit pressure (2026-05-12).
-                sol_5m = await self.gt_client.fetch_5m(_SOL_POOL, limit=48,
+                # 288 × 5min = 24h coverage (bumped from 48 = 4h on 2026-05-21
+                # to enable sol_pc_h24 for filter_sol_macro_down gate).
+                # 300s cache — SOL fetch was missing ~80% of trades due to
+                # per-token contention + 60s cache expiring mid-cycle on the
+                # shared GT 25-req/min budget. Regime use only needs
+                # minute-precision SOL within ~5min; the 300s cache absorbs
+                # rate-limit pressure (2026-05-12).
+                sol_5m = await self.gt_client.fetch_5m(_SOL_POOL, limit=288,
                                                       cache_ttl_override=300)
                 sol_1m = await self.gt_client.fetch_1m(_SOL_POOL, limit=5,
                                                       cache_ttl_override=300)
@@ -1369,6 +1370,16 @@ class DipScanner:
                         h4_anchor = sol_5m[-48].close
                         if h4_anchor > 0:
                             sol_features["sol_pc_h4"] = round((sol_5m[-1].close / h4_anchor - 1) * 100, 3)
+                    # h6 from 72-candle window (360 min) — for filter_sol_macro_down
+                    if len(sol_5m) >= 72:
+                        h6_anchor = sol_5m[-72].close
+                        if h6_anchor > 0:
+                            sol_features["sol_pc_h6"] = round((sol_5m[-1].close / h6_anchor - 1) * 100, 3)
+                    # h24 from 288-candle window (1440 min) — for filter_sol_macro_down
+                    if len(sol_5m) >= 288:
+                        h24_anchor = sol_5m[-288].close
+                        if h24_anchor > 0:
+                            sol_features["sol_pc_h24"] = round((sol_5m[-1].close / h24_anchor - 1) * 100, 3)
                 if sol_1m and len(sol_1m) >= 2:
                     sol_pc_m1 = (sol_1m[-1].close / sol_1m[-2].close - 1) * 100 if sol_1m[-2].close > 0 else 0.0
                     sol_pc_3m = (sol_1m[-1].close / sol_1m[0].close - 1) * 100 if sol_1m[0].close > 0 else 0.0
@@ -3845,6 +3856,57 @@ class DipScanner:
                     f"[DipScanner] filter_confirmation_candle SHADOW would-block: {token_symbol} "
                     f"reasons={','.join(_filter_confirm_block_reasons)}"
                 )
+
+            # ── filter_sol_macro_down — ENFORCED 2026-05-21 PM ────────────────
+            # Macro SOL regime gate. Mining (.sol_clean_annotated.json,
+            # n=4276 lifetime trades with SOL price annotation):
+            #
+            #  BLOCK if (sol_pc_h6 < -0.3 OR sol_pc_h1 < -0.7)
+            #
+            # POST-RESTORATION (n=188, 2026-05-18+ filter regime):
+            #   thru 67%, WR 71.4% (+3.3pp), $/tr +$0.048, NET delta +$15
+            # POST-REWRITE (n=1373, 2026-04-27+, bigger validation sample):
+            #   thru 67%, WR 59.5% (+2.1pp), $/tr +$0.264, NET delta +$427
+            #
+            # The h1 leg catches "SOL just dumped in the last hour" (intraday
+            # cascade). The h6 leg catches "SOL has been drifting down 6h"
+            # (slow regime shift that h1 misses on recovery wiggle).
+            # Together they hit both failure modes.
+            #
+            # Beat alternatives in exhaustive sweep (.sol_all_windows.py):
+            #   - h24<-1.0 alone:        $/tr +$0.058 post-restore, +$0.12 post-rewrite
+            #   - h1<-0.5 alone:         $/tr -$0.036 post-restore, +$0.06 post-rewrite
+            #   - h6<-0.3 OR h1<-0.7:    $/tr +$0.048 post-restore, +$0.26 post-rewrite ← shipping
+            #   - h24<-1.0 OR h6<-0.3:   $/tr +$0.111 post-restore, +$0.16 post-rewrite (competitive but weaker on big sample)
+            #   - 4-gate union:          $/tr +$0.095 post-restore, +$0.19 post-rewrite (not strictly better)
+            #
+            # Fail-open if sol_features missing (early bot startup, GT fetch
+            # fail, or SOL pool 24h coverage not yet populated). Skipping the
+            # gate when SOL data is unavailable is safer than blocking all
+            # trades during outages.
+            _sol_pc_h6 = sol_features.get("sol_pc_h6")
+            _sol_pc_h1_for_gate = sol_features.get("sol_pc_h1")
+            _filter_sol_macro_down_block_reasons: list = []
+            if _sol_pc_h6 is not None and float(_sol_pc_h6) < -0.3:
+                _filter_sol_macro_down_block_reasons.append(
+                    f"sol_pc_h6={float(_sol_pc_h6):+.2f}%<-0.3 (SOL 6h drift down)"
+                )
+            if _sol_pc_h1_for_gate is not None and float(_sol_pc_h1_for_gate) < -0.7:
+                _filter_sol_macro_down_block_reasons.append(
+                    f"sol_pc_h1={float(_sol_pc_h1_for_gate):+.2f}%<-0.7 (SOL 1h dump)"
+                )
+            _filter_sol_macro_down_verdict = (
+                "BLOCK" if _filter_sol_macro_down_block_reasons else "PASS"
+            )
+            c[f"filter_sol_macro_down_{_filter_sol_macro_down_verdict.lower()}"] = c.get(
+                f"filter_sol_macro_down_{_filter_sol_macro_down_verdict.lower()}", 0
+            ) + 1
+            if _filter_sol_macro_down_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_sol_macro_down: {token_symbol} "
+                    f"reasons={','.join(_filter_sol_macro_down_block_reasons)}"
+                )
+                continue
 
             # ── filter_clean_break — ENFORCED 2026-05-06 ──────────────────────
             # User-spotted pattern from GME/SELLOR postmortems: visually clean
