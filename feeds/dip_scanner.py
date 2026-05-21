@@ -4977,6 +4977,11 @@ class DipScanner:
             # Calm-with-vol-building (flat-base breakout precursor).
             _trigger_vol_breakout_flat_match = False
             _trigger_vol_breakout_flat_reasons: list = []
+            # 2026-05-21 PM — T1/T2 from today's-9/9-winner mine.
+            _trigger_calm_buyer_demand_match = False
+            _trigger_calm_buyer_demand_reasons: list = []
+            _trigger_calm_at_support_match = False
+            _trigger_calm_at_support_reasons: list = []
             _trigger_patient_bottom_match = False
             _trigger_patient_bottom_reasons: list = []
             _trigger_informed_cluster_match = False
@@ -5131,6 +5136,50 @@ class DipScanner:
                         f"1m_vol_spike={float(_vbf_vs):.2f}>=2.0 AND "
                         f"shape_30m={float(_vbf_shape30):+.1f}%∈[-5,+5] AND "
                         f"pc_h24={pc_h24:+.1f}%>-10 (vol-building on flat base)"
+                    )
+
+                # ── T1 calm_buyer_demand — ENFORCED 2026-05-21 PM ───────────
+                # From today's 9/9-winner mining (.today_v2_results.json):
+                # combined separators (Cohen's d) — 1m_consec_red (-0.72),
+                # net_flow_15s_imbalance (+0.65), 1m_last_close_pct (+0.61).
+                # Compound `1m_consec_red<1 AND net_flow_15s_imbalance>-1`
+                # captured 8/9 today wins + n=42 base WR=69% NET=$10.55.
+                # Tighter thresholds here (imbalance>=0, last_close>=0) trade
+                # some volume for higher precision; should still capture 7/9.
+                _t1_consec_red = m1_features.get("1m_consec_red")
+                _t1_last_close = m1_features.get("1m_last_close_pct")
+                _t1_nfi15 = (
+                    _tier3_features.get("net_flow_15s_imbalance")
+                    if _tier3_features else None
+                )
+                if (_t1_consec_red is not None and int(_t1_consec_red) == 0
+                        and _t1_nfi15 is not None and float(_t1_nfi15) >= 0.0
+                        and _t1_last_close is not None and float(_t1_last_close) >= 0.0
+                        and not _seller_active):
+                    _trigger_calm_buyer_demand_match = True
+                    _trigger_calm_buyer_demand_reasons.append(
+                        f"1m_consec_red=0 AND "
+                        f"net_flow_15s_imbalance={float(_t1_nfi15):+.2f}>=0 AND "
+                        f"1m_last_close_pct={float(_t1_last_close):+.2f}%>=0 "
+                        f"(calm 1m, positive 15s flow, green confirmation)"
+                    )
+
+                # ── T2 calm_at_support — ENFORCED 2026-05-21 PM ──────────────
+                # From mining (.today_v2_results.json): `1m_consec_red<1 AND
+                # chart_sr_5m_at_support>0` had n=15, WR=93%, NET=$15.54,
+                # $/tr=$1.04. Highest-precision compound in the mine.
+                # Captures the "calm 1m on a 5m support level" archetype.
+                # Today coverage 3/9 (complementary to T1, not redundant).
+                _t2_at_support = None
+                if _chart_ctx is not None:
+                    _t2_at_support = _chart_ctx.sr_5m.get("at_support")
+                if (_t1_consec_red is not None and int(_t1_consec_red) == 0
+                        and _t2_at_support is True
+                        and not _seller_active):
+                    _trigger_calm_at_support_match = True
+                    _trigger_calm_at_support_reasons.append(
+                        f"1m_consec_red=0 AND chart_sr_5m_at_support=True "
+                        f"(calm 1m at 5m support — 93% WR mined precision)"
                     )
 
                 # patient_bottom_recovery — well below 1h VWAP, mature dip
@@ -8531,6 +8580,11 @@ class DipScanner:
             # 2026-05-21 — Trigger A flat-base vol-breakout precursor.
             if _trigger_vol_breakout_flat_match:
                 _triggers_fired.append("vol_breakout_flat")
+            # 2026-05-21 PM — T1/T2 from today's-9/9-winner mine.
+            if _trigger_calm_buyer_demand_match:
+                _triggers_fired.append("calm_buyer_demand")
+            if _trigger_calm_at_support_match:
+                _triggers_fired.append("calm_at_support")
             # 2026-05-17 RETIRED — patient_bottom trigger removed from
             # active firing. PAC 03:22 UTC fired this trigger and bought
             # a dead-volume corpse: dev_pct_remaining=5.1%, 1m_vol_spike=
@@ -8734,6 +8788,10 @@ class DipScanner:
                     _alt_reasons.extend(_trigger_hot_runner_shallow_1h_reasons)
                 if _trigger_vol_breakout_flat_match:
                     _alt_reasons.extend(_trigger_vol_breakout_flat_reasons)
+                if _trigger_calm_buyer_demand_match:
+                    _alt_reasons.extend(_trigger_calm_buyer_demand_reasons)
+                if _trigger_calm_at_support_match:
+                    _alt_reasons.extend(_trigger_calm_at_support_reasons)
                 if _trigger_patient_bottom_match:
                     _alt_reasons.extend(_trigger_patient_bottom_reasons)
                 if _trigger_informed_cluster_match:
