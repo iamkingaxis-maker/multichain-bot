@@ -668,6 +668,12 @@ class DipScanner:
             _user_watch = _addr_lower in self._user_watchlist_addrs
             if _user_watch:
                 c["user_watchlist_eval"] = c.get("user_watchlist_eval", 0) + 1
+
+            # Sub-project 2: observational filter chain — each filter appends its
+            # name to this list instead of using early-continue. The legacy single-
+            # bot gate at the END of the filter chain honors them all at once.
+            _filters_block: list[str] = []
+
             if _addr_lower in self.open_positions_ref or token_address in self.open_positions_ref:
                 c["already_open"] += 1
                 continue
@@ -2237,7 +2243,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_fake_bounce: {token_symbol} "
                     f"reasons={','.join(_filter_fake_bounce_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_fake_bounce")
 
             # Filter round-trip distribution — ENFORCED 2026-05-09.
             # Catches the "round-trip-then-distribution" loser shape from the
@@ -2304,7 +2310,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_round_trip: {token_symbol} "
                     f"reasons={','.join(_filter_round_trip_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_round_trip")
             if _round_trip_carve and _filter_round_trip_block_reasons:
                 logger.info(
                     f"[DipScanner] filter_round_trip RESCUED by vol_h24=${float(vol_h24)/1000:.0f}k<=1396k: "
@@ -2601,7 +2607,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_1m_steep_fall: {token_symbol} "
                     f"reasons={','.join(_filter_1m_steep_fall_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_1m_steep_fall")
 
             # Filter FOFAR-confluence — ENFORCED 2026-05-02.
             # Catches the "rolling-over topping pattern" where multiple
@@ -2980,7 +2986,7 @@ class DipScanner:
                     f"(historical: 67% rug rate, -18.5% avg, 0% WR n=6)"
                 )
                 c["filter_cluster_19_rug_block"] = c.get("filter_cluster_19_rug_block", 0) + 1
-                continue
+                _filters_block.append("filter_cluster_19_rug")
 
             # Forward dataset collector — dumps image + context for every
             # evaluated candidate. Outcome label gets stamped later by the
@@ -3158,7 +3164,7 @@ class DipScanner:
                         )
                     except Exception:
                         pass
-                    continue
+                    _filters_block.append("filter_turn")
                 elif _big_buyer_carve_out:
                     logger.info(
                         f"[DipScanner] filter_turn rescued by big_buyer carve-out: "
@@ -3259,8 +3265,9 @@ class DipScanner:
                 )
                 c["filter_vp_poc_block"] = c.get("filter_vp_poc_block", 0) + 1
                 if not _user_watch:
-                    continue
-                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_vp_poc: {token_symbol}")
+                    _filters_block.append("filter_vp_poc")
+                else:
+                    logger.info(f"[DipScanner] WATCHLIST BYPASS filter_vp_poc: {token_symbol}")
 
             # Filter sweep-too-recent — ENFORCED 2026-05-13.
             # Catches the dominant 2026-05-12 overnight loser shape: bot bought
@@ -3782,8 +3789,9 @@ class DipScanner:
                     f"dev_pct_remaining={_dev_pct:.2f}%<2.0 (creator rugged ≥98%)"
                 )
                 c["filter_dev_rugged_block"] = c.get("filter_dev_rugged_block", 0) + 1
-                continue
-            c["filter_dev_rugged_pass"] = c.get("filter_dev_rugged_pass", 0) + 1
+                _filters_block.append("filter_dev_rugged")
+            else:
+                c["filter_dev_rugged_pass"] = c.get("filter_dev_rugged_pass", 0) + 1
 
             # ── filter_chasing_top — ENFORCED 2026-05-10 ──────────────────────
             # Block entries where the 5m chart is in active uptrend AND every
@@ -3891,15 +3899,16 @@ class DipScanner:
                     )
                     c["filter_meteora_dex_block"] = c.get("filter_meteora_dex_block", 0) + 1
                     if not _user_watch:
-                        continue
-                    logger.info(f"[DipScanner] WATCHLIST BYPASS filter_meteora_dex: {token_symbol}")
+                        _filters_block.append("filter_meteora_dex")
+                    else:
+                        logger.info(f"[DipScanner] WATCHLIST BYPASS filter_meteora_dex: {token_symbol}")
                 if _grad_dex == "orca":
                     logger.info(
                         f"[DipScanner] BLOCKED by filter_orca_dex: {token_symbol} "
                         f"graduation_dex_id=orca (unsupported DEX — chart plumbing falls through)"
                     )
                     c["filter_orca_dex_block"] = c.get("filter_orca_dex_block", 0) + 1
-                    continue
+                    _filters_block.append("filter_orca_dex")
             except NameError:
                 pass  # _graduation_dict not built — fail-open
             c["filter_meteora_dex_pass"] = c.get("filter_meteora_dex_pass", 0) + 1
@@ -3996,8 +4005,9 @@ class DipScanner:
                     f"reasons={','.join(_filter_bs_m5_weak_block_reasons)}"
                 )
                 if not _user_watch:
-                    continue
-                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_bs_m5_weak: {token_symbol}")
+                    _filters_block.append("filter_bs_m5_weak")
+                else:
+                    logger.info(f"[DipScanner] WATCHLIST BYPASS filter_bs_m5_weak: {token_symbol}")
             if _bs_m5_weak_carve and _filter_bs_m5_weak_block_reasons:
                 logger.info(
                     f"[DipScanner] filter_bs_m5_weak RESCUED by pc_m5={float(pc_m5):+.2f}%>=-0.60: "
@@ -4166,7 +4176,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_sol_macro_down: {token_symbol} "
                     f"reasons={','.join(_filter_sol_macro_down_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_sol_macro_down")
 
             # ── filter_clean_break — ENFORCED 2026-05-06 ──────────────────────
             # User-spotted pattern from GME/SELLOR postmortems: visually clean
@@ -7003,7 +7013,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_mtf_strong_downtrend: "
                     f"{token_symbol} reasons={','.join(_filter_mtf_dn_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_mtf_strong_downtrend")
             if _mtf_dn_chart_carve and _filter_mtf_dn_block_reasons:
                 logger.info(
                     f"[DipScanner] filter_mtf_strong_downtrend RESCUED by chart_score: "
@@ -9310,7 +9320,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_solo_decay: "
                     f"{token_symbol} reasons={','.join(_fsd_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_solo_decay")
 
             # ── 1s base-formation shadow instrumentation — ADDED 2026-05-11 ────
             # Fetches 30S bars from DexScreener and computes "did a base form
@@ -10202,7 +10212,7 @@ class DipScanner:
                     f"{token_symbol} sigs_hit=0/{_sigs_available} "
                     f"available={_sigs_available}"
                 )
-                continue
+                _filters_block.append("filter_no_signatures")
 
             # ── filter_chasing_bounce — ENFORCED 2026-05-10 ────────────────────
             # Block when pc_m5 > +5% — the 5m candle at entry is sharply
@@ -10270,8 +10280,9 @@ class DipScanner:
                 )
                 c["filter_chasing_bounce_block"] = c.get("filter_chasing_bounce_block", 0) + 1
                 if not _user_watch:
-                    continue
-                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_chasing_bounce: {token_symbol}")
+                    _filters_block.append("filter_chasing_bounce")
+                else:
+                    logger.info(f"[DipScanner] WATCHLIST BYPASS filter_chasing_bounce: {token_symbol}")
 
             # ── filter_double_bear — ENFORCED 2026-05-06 PM ────────────────────
             # Secondary gate after clean_break. Block when BOTH bearish-context
@@ -10430,7 +10441,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_quote_asymmetry: {token_symbol} "
                     f"reasons={','.join(_filter_quote_asymmetry_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_quote_asymmetry")
 
             # Filter 15s-dump — ENFORCED 2026-05-09.
             # Block when net trade flow over the last 15 seconds was
@@ -10581,7 +10592,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_lower_low: {token_symbol} "
                     f"reasons={','.join(_filter_lower_low_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_lower_low")
 
             # Filter LP-drain — ENFORCED 2026-05-09.
             # Block when liquidity pool has shrunk 10%+ over the last
@@ -10645,7 +10656,7 @@ class DipScanner:
                         f"[DipScanner] BLOCKED by filter_lp_drain: {token_symbol} "
                         f"reasons={','.join(_filter_lp_drain_block_reasons)}"
                     )
-                    continue
+                    _filters_block.append("filter_lp_drain")
 
             # Filter buyer-FOMO — ENFORCED 2026-05-09.
             # Block when 60s net-flow imbalance is extremely buy-skewed
@@ -10849,8 +10860,9 @@ class DipScanner:
                     f"{token_symbol} reasons={','.join(_filter_low_vol_block_reasons)}"
                 )
                 if not _user_watch:
-                    continue
-                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_low_volatility: {token_symbol}")
+                    _filters_block.append("filter_low_volatility")
+                else:
+                    logger.info(f"[DipScanner] WATCHLIST BYPASS filter_low_volatility: {token_symbol}")
 
             # ═══ DEFENSIVE FILTERS (LOSER-PATTERN MINING) — ENFORCED 2026-05-15 ═══
             # Surfaced by mine_losers_deep.py — three high-precision filters that
@@ -10897,7 +10909,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_dead_5m_eve_wknd: "
                     f"{token_symbol} reasons={','.join(_filter_dead_5m_eve_wknd_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_dead_5m_eve_wknd")
 
             # ── filter_saturday_eve_midliq (F4) — n=30 historical, 3.3% WR ──
             # Blocks: liq[$100k,$250k) AND hour[17,22) AND dow==5 (Saturday).
@@ -10928,7 +10940,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_sat_eve_midliq: "
                     f"{token_symbol} reasons={','.join(_filter_sat_eve_midliq_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_sat_eve_midliq")
 
             # ── filter_microcap_buyer_trap (F5) — n=67 historical, 22.4% WR ──
             # Loosened 2026-05-16 after re-mining on 4d post-reset data showed
@@ -10971,7 +10983,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_microcap_trap: "
                     f"{token_symbol} reasons={','.join(_filter_microcap_trap_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_microcap_trap")
 
             # ── filter_clean_break_p90 — ENFORCED 2026-05-13 ─────────────────
             # Clean_break trigger requires chart_p90_body_pct > 5.0 to fire.
@@ -11016,7 +11028,7 @@ class DipScanner:
                         f"(no other triggers): {token_symbol} "
                         f"reasons={','.join(_filter_cb_p90_block_reasons)}"
                     )
-                    continue
+                    _filters_block.append("filter_clean_break_p90")
                 logger.info(
                     f"[DipScanner] clean_break removed by filter_clean_break_p90: "
                     f"{token_symbol} reasons={','.join(_filter_cb_p90_block_reasons)} "
@@ -11071,7 +11083,7 @@ class DipScanner:
                         f"(no other triggers): {token_symbol} "
                         f"reasons={','.join(_filter_hr_buyvol_block_reasons)}"
                     )
-                    continue
+                    _filters_block.append("filter_high_regime_buyvol")
                 logger.info(
                     f"[DipScanner] high_regime removed by filter_high_regime_buyvol: "
                     f"{token_symbol} reasons={','.join(_filter_hr_buyvol_block_reasons)} "
@@ -11114,11 +11126,13 @@ class DipScanner:
                     f"filter_solo_dropouts_{_solo_trig}_block", 0
                 ) + 1
                 if not _user_watch:
-                    continue
-                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_solo_dropouts: {token_symbol}")
-            c["filter_solo_dropouts_pass"] = c.get(
-                "filter_solo_dropouts_pass", 0
-            ) + 1
+                    _filters_block.append("filter_solo_dropouts")
+                else:
+                    logger.info(f"[DipScanner] WATCHLIST BYPASS filter_solo_dropouts: {token_symbol}")
+            else:
+                c["filter_solo_dropouts_pass"] = c.get(
+                    "filter_solo_dropouts_pass", 0
+                ) + 1
 
             # ── filter_premium_required — ENFORCED 2026-05-16 ──────────────
             # Marginal triggers (patient_bottom, informed_cluster,
@@ -11202,10 +11216,15 @@ class DipScanner:
                     c["filter_premium_required_block"] = c.get(
                         "filter_premium_required_block", 0
                     ) + 1
-                    continue
-            c["filter_premium_required_pass"] = c.get(
-                "filter_premium_required_pass", 0
-            ) + 1
+                    _filters_block.append("filter_premium_required")
+                else:
+                    c["filter_premium_required_pass"] = c.get(
+                        "filter_premium_required_pass", 0
+                    ) + 1
+            else:
+                c["filter_premium_required_pass"] = c.get(
+                    "filter_premium_required_pass", 0
+                ) + 1
 
             # ── filter_morning_dead_zone — ENFORCED 2026-05-16 PM ──────────
             # Hour-of-day mining (universe-recorder n=2049) showed CT 7-9
@@ -11252,7 +11271,7 @@ class DipScanner:
                         c["filter_morning_dead_zone_block"] = c.get(
                             "filter_morning_dead_zone_block", 0
                         ) + 1
-                        continue
+                        _filters_block.append("filter_morning_dead_zone")
                     else:
                         logger.info(
                             f"[DipScanner] filter_morning_dead_zone RESCUED by premium: "
@@ -11352,8 +11371,9 @@ class DipScanner:
                 )
                 c["filter_blowoff_top_block"] = c.get("filter_blowoff_top_block", 0) + 1
                 if not _user_watch:
-                    continue
-                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_blowoff_top: {token_symbol}")
+                    _filters_block.append("filter_blowoff_top")
+                else:
+                    logger.info(f"[DipScanner] WATCHLIST BYPASS filter_blowoff_top: {token_symbol}")
 
             # ── filter_high_activity_fomo — REVERTED to SHADOW 2026-05-16 PM
             # Universe-data audit (n=2049 events, realistic-PnL sim) showed
@@ -11456,7 +11476,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_post_pump_corpse: "
                     f"{token_symbol} reasons={','.join(_filter_corpse_pump_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_post_pump_corpse")
 
             # ── filter_macro_panic — SHADOW 2026-05-16 PM ──────────────────
             # Macro context gate. Existing regime tag already classifies
@@ -11598,7 +11618,7 @@ class DipScanner:
                         f"[DipScanner] BLOCKED by filter_1h_v_bottom_fake_recovery: "
                         f"{token_symbol} reasons={','.join(_filter_v_bottom_block_reasons)}"
                     )
-                    continue
+                    _filters_block.append("filter_1h_v_bottom_fake_recovery")
 
             # ── filter_topping — SHADOW 2026-05-06 PM ────────────────────────
             # Record-only verdict for the "you're catching a top" pattern:
@@ -11643,8 +11663,9 @@ class DipScanner:
                 )
                 c["filter_topping_block"] = c.get("filter_topping_block", 0) + 1
                 if not _user_watch:
-                    continue
-                logger.info(f"[DipScanner] WATCHLIST BYPASS filter_topping: {token_symbol}")
+                    _filters_block.append("filter_topping")
+                else:
+                    logger.info(f"[DipScanner] WATCHLIST BYPASS filter_topping: {token_symbol}")
 
             # ── filter_wide_range_entry — SHADOW 2026-05-06 PM ────────────────
             # Record-only verdict for "panicky volatility candle" pattern:
@@ -11879,7 +11900,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_seller_imbalance: "
                     f"{token_symbol} reasons={','.join(_filter_seller_imbalance_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_seller_imbalance")
             elif _filter_seller_imbalance_verdict == "BLOCK" and _big_buyer_carve_out_si:
                 logger.info(
                     f"[DipScanner] filter_seller_imbalance rescued by big_buyer: "
@@ -11952,7 +11973,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_negative_net_flow_5m: "
                     f"{token_symbol} reasons={','.join(_filter_neg_nf5m_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_negative_net_flow_5m")
             elif _filter_neg_nf5m_verdict == "BLOCK" and _big_buyer_carve_out_nf:
                 logger.info(
                     f"[DipScanner] filter_negative_net_flow_5m rescued by big_buyer: "
@@ -12015,7 +12036,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_above_vwap_chase: "
                     f"{token_symbol} reasons={','.join(_filter_avc_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_above_vwap_chase")
             elif _filter_avc_verdict == "BLOCK" and _avc_rescued:
                 logger.info(
                     f"[DipScanner] filter_above_vwap_chase rescued by big_buyer: "
@@ -12054,7 +12075,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_knife_catch_peak: "
                     f"{token_symbol} reasons={','.join(_filter_kcp_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_knife_catch_peak")
             elif _filter_kcp_verdict == "BLOCK" and _kcp_rescued:
                 logger.info(
                     f"[DipScanner] filter_knife_catch_peak rescued by big_buyer: "
@@ -12082,7 +12103,7 @@ class DipScanner:
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_reviving_lifecycle: {token_symbol}"
                 )
-                continue
+                _filters_block.append("filter_reviving_lifecycle")
             elif _filter_rvl_verdict == "BLOCK" and _rvl_rescued:
                 logger.info(
                     f"[DipScanner] filter_reviving_lifecycle rescued by big_buyer: "
@@ -12151,7 +12172,7 @@ class DipScanner:
                     f"[DipScanner] BLOCKED by filter_stale_h1_peak: {token_symbol} "
                     f"reasons={','.join(_filter_shp_block_reasons)}"
                 )
-                continue
+                _filters_block.append("filter_stale_h1_peak")
             elif _filter_shp_verdict == "BLOCK" and _shp_rescued:
                 logger.info(
                     f"[DipScanner] filter_stale_h1_peak rescued by big_buyer: "
@@ -13241,7 +13262,7 @@ class DipScanner:
                 c["filter_zero_winner_compound_block"] = c.get(
                     "filter_zero_winner_compound_block", 0
                 ) + 1
-                continue
+                _filters_block.append("filter_zero_winner_compound")
 
             # filter_lazy_fade_buy — ENFORCED 2026-05-21.
             # Deep-mine Rule B: bs_m5 ∈ [1.5, 3.0) AND pc_h1 > -8%.
@@ -13264,7 +13285,7 @@ class DipScanner:
                 c["filter_lazy_fade_buy_block"] = c.get(
                     "filter_lazy_fade_buy_block", 0
                 ) + 1
-                continue
+                _filters_block.append("filter_lazy_fade_buy")
 
             # filter_premium_shallow_dip — ENFORCED 2026-05-20.
             # 7d premium-tier audit (n=21 paired): winners had pc_h1 <= -22%
@@ -13286,7 +13307,7 @@ class DipScanner:
                 c["filter_premium_shallow_dip_block"] = c.get(
                     "filter_premium_shallow_dip_block", 0
                 ) + 1
-                continue
+                _filters_block.append("filter_premium_shallow_dip")
 
             # 2026-05-23 — Multi-bot fan-out (Sub-project 1).
             # Gated behind MULTI_BOT_ENABLED env flag. When false, this
@@ -13336,7 +13357,7 @@ class DipScanner:
                         fusion_outcome_prob=None,
                         triggers_fired=tuple(_local.get("_triggers_fired") or ()),
                         triggers_shadow=(),
-                        filters_block=(),
+                        filters_block=tuple(_filters_block),
                         filters_pass=(),
                         filters_shadow=(),
                         raw_meta=dict(_local.get("entry_meta_dict") or {}),
@@ -13349,6 +13370,12 @@ class DipScanner:
                         "[DipScanner] multi-bot fan-out failed for %s: %s",
                         token_symbol, e, exc_info=True,
                     )
+
+            # Sub-project 2: legacy single-bot gate. Honors all filters_block at
+            # the end of the filter chain. Multi-bot bots above had full
+            # filters_block info on the FeatureBundle and can override blocks.
+            if _filters_block:
+                continue
 
             await self.trader.buy(
                 token_address=token_address,
