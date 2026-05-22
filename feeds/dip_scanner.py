@@ -9494,6 +9494,69 @@ class DipScanner:
             if _trigger_1s_bottom_score_high_match:
                 _triggers_fired.append("1s_bottom_score_high")
 
+            # ── ALPHA TRIGGERS V2 — ENFORCED 2026-05-22 ───────────────────
+            # Three new compounds mined from alpha-quality cohort (.alpha_v2_results.json):
+            # all match the WR>=70%, $/tr>=$0.30, low-overlap-with-existing-alpha profile.
+            # Will be added to triggers_fired list below; alpha_trigger sizing tier
+            # only currently triggers on 1s_capit_reversal or deep_1h_dip — NOT
+            # these new ones. They size at standard 0.5x by default.
+            _trigger_demand_burst_no_crash_match = False
+            _trigger_demand_burst_no_crash_reasons: list = []
+            _trigger_1s_demand_compound_match = False
+            _trigger_1s_demand_compound_reasons: list = []
+            _trigger_two_pattern_demand_match = False
+            _trigger_two_pattern_demand_reasons: list = []
+            try:
+                _nf15 = (_tier3_features or {}).get("net_flow_15s_usd")
+                _1s_bscore = _1s_features.get("bottom_score") if _1s_features else None
+
+                # T1 — demand_burst_no_crash:
+                #   net_flow_15s_usd > +$159 AND pc_m5 > -2.76%
+                # Mining: n=13, WR=77%, $/tr=$+0.417, overlap 8% (most independent)
+                if (_nf15 is not None and float(_nf15) > 159.0
+                        and pc_m5 is not None and pc_m5 > -2.76
+                        and not _seller_active):
+                    _trigger_demand_burst_no_crash_match = True
+                    _trigger_demand_burst_no_crash_reasons.append(
+                        f"net_flow_15s_usd=${float(_nf15):+.0f}>+159 AND "
+                        f"pc_m5={pc_m5:+.2f}%>-2.76 (strong 15s demand without 5m crash)"
+                    )
+
+                # T2 — 1s_demand_compound:
+                #   1s_bottom_score > 10 AND net_flow_15s_usd > +$159
+                # Mining: n=16, WR=88%, $/tr=$+0.493, overlap 25%
+                if (_1s_bscore is not None and float(_1s_bscore) > 10.0
+                        and _nf15 is not None and float(_nf15) > 159.0
+                        and not _seller_active):
+                    _trigger_1s_demand_compound_match = True
+                    _trigger_1s_demand_compound_reasons.append(
+                        f"1s_bottom_score={float(_1s_bscore):.0f}>10 AND "
+                        f"net_flow_15s_usd=${float(_nf15):+.0f}>+159 "
+                        f"(1s bottom + strong recent demand)"
+                    )
+
+                # T3 — two_pattern_demand:
+                #   _tp_pattern_b == True AND net_flow_15s_usd > +$11.07
+                # Mining: n=18, WR=83%, $/tr=$+0.593, overlap 39%
+                if (_tp_pattern_b is True
+                        and _nf15 is not None and float(_nf15) > 11.07
+                        and not _seller_active):
+                    _trigger_two_pattern_demand_match = True
+                    _trigger_two_pattern_demand_reasons.append(
+                        f"filter_two_pattern_b=True AND "
+                        f"net_flow_15s_usd=${float(_nf15):+.0f}>+11 "
+                        f"(pattern-B confirmation + recent demand)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] alpha v2 trigger eval err: {_e}")
+
+            if _trigger_demand_burst_no_crash_match:
+                _triggers_fired.append("demand_burst_no_crash")
+            if _trigger_1s_demand_compound_match:
+                _triggers_fired.append("1s_demand_compound")
+            if _trigger_two_pattern_demand_match:
+                _triggers_fired.append("two_pattern_demand")
+
             # ── User watchlist bypass: April-era filter-only mode ───────────
             # When user picked a token deliberately (watchlist), don't gate
             # on a positive trigger pattern. April 28 100% WR architecture
