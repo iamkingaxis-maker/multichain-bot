@@ -18,11 +18,23 @@ import json
 import logging
 import os
 import time
+from datetime import datetime, timezone
 import aiohttp
 from collections import Counter, deque
 from typing import Optional, Dict, Deque, Tuple, List
 
 from feeds.gecko_ohlcv import GeckoTerminalClient
+
+# Multi-bot harness imports (2026-05-23, Sub-project 1). All new code paths
+# are gated behind MULTI_BOT_ENABLED. When false (default), DipScanner
+# behavior is identical to single-bot mode.
+from core.feature_bundle import FeatureBundle
+from core.bot_manager import BotManager
+from core.per_bot_capital import PerBotCapital
+from core.per_bot_position_manager import PerBotPositionManager
+from core.multi_bot_persistence import MultiBotTradeStore
+
+MULTI_BOT_ENABLED = os.getenv("MULTI_BOT_ENABLED", "false").lower() == "true"
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +80,9 @@ class DipScanner:
                  require_vol_m5: bool = True,
                  min_turnover_h24: float = 2.0,
                  baseline_mode: bool = False,
-                 gt_client: Optional[GeckoTerminalClient] = None):
+                 gt_client: Optional[GeckoTerminalClient] = None,
+                 bot_manager: Optional["BotManager"] = None,
+                 trade_store: Optional["MultiBotTradeStore"] = None):
         self.trader = trader
         self.telegram = telegram
         self.open_positions_ref = open_positions_ref
@@ -217,6 +231,32 @@ class DipScanner:
         # Jupiter slip time-series (2026-05-05) — last 10 (ts, buy_pct, sell_pct)
         # tuples per token. Used to compute slip velocity/trajectory.
         self._slip_history: Dict[str, Deque[Tuple[float, Optional[float], Optional[float]]]] = {}
+
+        # Multi-bot harness wiring (2026-05-23, Sub-project 1). All optional:
+        # when bot_manager/trade_store are None (default), the multi-bot
+        # code path is skipped and DipScanner behaves identically to
+        # single-bot mode. When provided + MULTI_BOT_ENABLED=true, the
+        # per-token loop emits a FeatureBundle and fans out to BotManager.
+        self.bot_manager = bot_manager
+        self.trade_store = trade_store
+        self.bot_capitals: Dict[str, PerBotCapital] = {}
+        self.bot_position_managers: Dict[str, PerBotPositionManager] = {}
+        if bot_manager is not None and trade_store is not None:
+            for ev in bot_manager.evaluators:
+                bc = ev.config
+                existing = trade_store.load_bot_state(bc.bot_id)
+                if existing:
+                    self.bot_capitals[bc.bot_id] = PerBotCapital.from_dict(existing)
+                else:
+                    self.bot_capitals[bc.bot_id] = PerBotCapital(
+                        bc.bot_id, bc.paper_capital_usd,
+                    )
+                self.bot_position_managers[bc.bot_id] = PerBotPositionManager(bc)
+            logger.info(
+                "[DipScanner] Multi-bot wired: %d evaluators (%s)",
+                len(bot_manager.evaluators),
+                ",".join(e.config.bot_id for e in bot_manager.evaluators),
+            )
 
     async def run(self):
         logger.info("[DipScanner] Starting — targeting $1M+ mcap dip entries")
@@ -408,6 +448,158 @@ class DipScanner:
             return out
         except Exception:
             return cached
+
+    # ── Multi-bot harness (Sub-project 1, 2026-05-23) ─────────────────────
+    # All methods below are no-ops unless MULTI_BOT_ENABLED=true AND
+    # self.bot_manager is wired. They live on DipScanner so they share
+    # state with the existing per-token loop (pool_price_feed, etc.).
+
+    async def _execute_bot_buy(self, decision, bundle):
+        """Execute a BuyDecision from a single bot.
+
+        Reserves capital, opens a position in that bot's position manager,
+        and persists the trade with bot_id stamped.
+        """
+        bot_id = decision.bot_id
+        capital = self.bot_capitals.get(bot_id)
+        pm = self.bot_position_managers.get(bot_id)
+        if capital is None or pm is None:
+            logger.error("[DipScanner] missing capital/pm for bot=%s", bot_id)
+            return
+        try:
+            capital.reserve_for_buy(decision.size_usd)
+        except ValueError as e:
+            logger.info("[DipScanner] bot=%s buy rejected: %s", bot_id, e)
+            return
+        try:
+            pm.open_position(
+                token=decision.token,
+                entry_price=decision.entry_price,
+                size_usd=decision.size_usd,
+                entry_time=time.time(),
+            )
+        except ValueError as e:
+            # max_concurrent or duplicate token; refund capital
+            capital.balance_usd += decision.size_usd
+            capital.in_flight_usd -= decision.size_usd
+            logger.info("[DipScanner] bot=%s open_position rejected: %s", bot_id, e)
+            return
+        if self.trade_store is not None:
+            self.trade_store.record_trade({
+                "type": "buy",
+                "token": decision.token,
+                "address": decision.address,
+                "pair_address": decision.pair_address,
+                "entry_price": decision.entry_price,
+                "amount_usd": decision.size_usd,
+                "size_tier": decision.size_tier,
+                "time": datetime.now(timezone.utc).isoformat(),
+                "triggers_fired": list(decision.triggers_fired),
+                "entry_meta": bundle.raw_meta,
+            }, bot_id=bot_id)
+            self.trade_store.save_bot_state(bot_id, capital.to_dict())
+        logger.info(
+            "[DipScanner] BUY bot=%s token=%s size=$%.2f tier=%s",
+            bot_id, decision.token, decision.size_usd, decision.size_tier,
+        )
+
+    async def _tick_all_bots_positions(self):
+        """Per-bot exit-decision loop. Iterates each bot's open positions,
+        fetches current price + vol from the shared PoolPriceFeed, and acts
+        on any ExitDecision.
+        """
+        if not self.bot_position_managers:
+            return
+        for bot_id, pm in self.bot_position_managers.items():
+            for position in pm.iter_positions():
+                try:
+                    price = await self._get_current_price_for(position.token)
+                    vol_m5 = await self._get_vol_m5_for(position.token)
+                    if price is None:
+                        continue
+                    now = time.time()
+                    decisions = pm.tick(
+                        token=position.token,
+                        current_price=price,
+                        now=now,
+                        vol_m5_usd=vol_m5,
+                    )
+                    for d in decisions:
+                        await self._execute_bot_sell(bot_id, position.token, d, price, now)
+                except Exception as e:
+                    logger.error(
+                        "[DipScanner] tick failed bot=%s token=%s: %s",
+                        bot_id, position.token, e,
+                    )
+
+    async def _execute_bot_sell(self, bot_id, token, exit_decision, current_price, now):
+        """Execute an ExitDecision from a single bot's position tick.
+
+        NOTE: Currently treats ALL exits as full close (sell_fraction=1.0
+        semantics). Partial sells (TP1 sells 75%) are a Sub-project 2 line
+        item — for now the smoke harness uses full-close on every exit
+        decision to keep the integration simple.
+        """
+        capital = self.bot_capitals[bot_id]
+        pm = self.bot_position_managers[bot_id]
+        try:
+            result = pm.close_position(
+                token=token,
+                exit_price=current_price,
+                exit_time=now,
+                reason=exit_decision.reason,
+            )
+        except KeyError:
+            return  # already closed
+        capital.realize_sell(
+            cost_usd=result.cost_usd,
+            proceeds_usd=result.proceeds_usd,
+        )
+        if self.trade_store is not None:
+            self.trade_store.record_trade({
+                "type": "sell",
+                "token": token,
+                "exit_price": current_price,
+                "pnl": result.realized_pnl_usd,
+                "pnl_pct": result.pnl_pct,
+                "peak_pnl_pct": result.peak_pnl_pct,
+                "hold_secs": result.hold_secs,
+                "reason": exit_decision.reason,
+                "kind": exit_decision.kind,
+                "time": datetime.now(timezone.utc).isoformat(),
+            }, bot_id=bot_id)
+            self.trade_store.save_bot_state(bot_id, capital.to_dict())
+        logger.info(
+            "[DipScanner] SELL bot=%s token=%s pnl=$%.2f reason=%s",
+            bot_id, token, result.realized_pnl_usd, exit_decision.reason,
+        )
+
+    async def _get_current_price_for(self, token: str) -> Optional[float]:
+        """Helper for _tick_all_bots_positions.
+
+        Tries multiple sources. Returns None if unavailable.
+        """
+        # Try PoolPriceFeed first
+        pool_price_feed = getattr(self, "pool_price_feed", None)
+        if pool_price_feed is not None:
+            try:
+                return await pool_price_feed.get_price(token)
+            except Exception:
+                pass
+        return None
+
+    async def _get_vol_m5_for(self, token: str) -> Optional[float]:
+        """Helper — returns None if not available. Pre-stop bail will simply
+        not fire when vol_m5 is unavailable (per PerBotPositionManager.tick logic).
+        """
+        pool_price_feed = getattr(self, "pool_price_feed", None)
+        if pool_price_feed is not None:
+            try:
+                if hasattr(pool_price_feed, "get_vol_m5"):
+                    return await pool_price_feed.get_vol_m5(token)
+            except Exception:
+                pass
+        return None
 
     async def _scan_cycle(self):
         # Don't scan if already at max concurrent dip positions
@@ -13095,6 +13287,68 @@ class DipScanner:
                     "filter_premium_shallow_dip_block", 0
                 ) + 1
                 continue
+
+            # 2026-05-23 — Multi-bot fan-out (Sub-project 1).
+            # Gated behind MULTI_BOT_ENABLED env flag. When false, this
+            # block is skipped and the existing single-bot decision path
+            # continues unchanged. When true AND self.bot_manager is wired,
+            # we emit a FeatureBundle to every evaluator. Legacy path runs
+            # in parallel for parity validation (intentional — removed in
+            # Sub-project 2 once baseline_v1 is forward-validated).
+            if MULTI_BOT_ENABLED and self.bot_manager is not None:
+                try:
+                    _local = locals()
+                    _sol_feats = getattr(self, "_cycle_sol_features", {}) or {}
+                    try:
+                        _price_usd_f = float(pair.get("priceUsd") or 0) or 0.0
+                    except (TypeError, ValueError):
+                        _price_usd_f = 0.0
+                    bundle = FeatureBundle(
+                        token=token_symbol,
+                        address=token_address,
+                        pair_address=pair.get("pairAddress", "") or "",
+                        chain=_DEX_CHAIN,
+                        snapshot_ts=time.time(),
+                        price_usd=_price_usd_f,
+                        mcap_usd=float(mcap or 0),
+                        age_hours=float(_local.get("pair_age_hours") or 0.0),
+                        pc_h24=pc_h24 if "pc_h24" in _local else None,
+                        pc_h6=_local.get("pc_h6"),
+                        pc_h1=pc_h1 if "pc_h1" in _local else None,
+                        pc_m5=pc_m5 if "pc_m5" in _local else None,
+                        vol_h1_usd=float(vol_h1) if "vol_h1" in _local and vol_h1 else None,
+                        bs_h1=(float(_local["ratio_h1"]) if _local.get("ratio_h1") not in (None, float("inf")) else None),
+                        sol_pc_h1=_sol_feats.get("sol_pc_h1"),
+                        sol_pc_h4=_sol_feats.get("sol_pc_h4"),
+                        sol_pc_h6=_sol_feats.get("sol_pc_h6"),
+                        sol_pc_h24=_sol_feats.get("sol_pc_h24"),
+                        btc_pc_h1=None,
+                        btc_pc_h6=None,
+                        btc_bs_h1=None,
+                        net_flow_15s_usd=None,
+                        net_flow_60s_usd=None,
+                        net_flow_5m_usd=None,
+                        top_buy_makers_n=None,
+                        p90_buy_size_usd=None,
+                        chart_mtf_score=None,
+                        chart_score=None,
+                        cnn_cluster_id=None,
+                        fusion_outcome_prob=None,
+                        triggers_fired=tuple(_local.get("_triggers_fired") or ()),
+                        triggers_shadow=(),
+                        filters_block=(),
+                        filters_pass=(),
+                        filters_shadow=(),
+                        raw_meta=dict(_local.get("entry_meta_dict") or {}),
+                    )
+                    decisions = self.bot_manager.evaluate_all(bundle)
+                    for d in decisions:
+                        await self._execute_bot_buy(d, bundle)
+                except Exception as e:
+                    logger.error(
+                        "[DipScanner] multi-bot fan-out failed for %s: %s",
+                        token_symbol, e, exc_info=True,
+                    )
 
             await self.trader.buy(
                 token_address=token_address,
