@@ -8728,8 +8728,11 @@ class DipScanner:
             #     _triggers_fired.append("patient_bottom")
             if _trigger_informed_cluster_match:
                 _triggers_fired.append("informed_cluster")
-            if _trigger_grad_window_dip_match:
-                _triggers_fired.append("grad_window_dip")
+            # 2026-05-22 RETIRED — grad_window_dip: -$0.617/tr, 30% WR (n=10).
+            # Lifetime worst performer in #4 per-trigger sizing audit.
+            # Match flag still stamped to entry_meta for forensic analysis.
+            # if _trigger_grad_window_dip_match:
+            #     _triggers_fired.append("grad_window_dip")
             if _trigger_demand_bottom_match:
                 _triggers_fired.append("demand_bottom_compound")
             if _trigger_sweep_rejection_match:
@@ -8738,8 +8741,10 @@ class DipScanner:
                 _triggers_fired.append("reaccum_demand")
             if _trigger_extreme_sweep_1m_match:
                 _triggers_fired.append("extreme_sweep_1m")
-            if _trigger_controlled_greens_5m_match:
-                _triggers_fired.append("controlled_greens_5m")
+            # 2026-05-22 RETIRED — controlled_greens_5m: -$0.605/tr, 40% WR (n=10).
+            # Match flag still stamped for forensic analysis.
+            # if _trigger_controlled_greens_5m_match:
+            #     _triggers_fired.append("controlled_greens_5m")
             if _trigger_pullback_in_uptrend_match:
                 _triggers_fired.append("pullback_in_uptrend")
             if _trigger_vol_surge_recent_match:
@@ -9517,6 +9522,32 @@ class DipScanner:
                     f"1s_score={_1s_features.get('bottom_score', 0):.0f}"
                 )
                 continue
+
+            # ── BANNED COMPOUND 2026-05-22 — chart_quality_bottom + net_flow_5m_demand ──
+            # Trigger interaction matrix (#1 of omni mine):
+            #   This combo had 0% WR on n=6 trades, NET=$-1.29/tr.
+            #   Worst antagonistic pair in the entire dataset.
+            # Strip BOTH from triggers_fired when they appear together. If a
+            # third (independent) trigger also fired the entry can proceed
+            # on that trigger alone. Otherwise the bail above will block.
+            if ("chart_quality_bottom" in _triggers_fired
+                    and "net_flow_5m_demand" in _triggers_fired):
+                logger.info(
+                    f"[DipScanner] BANNED COMBO chart_quality_bottom+"
+                    f"net_flow_5m_demand stripped: {token_symbol} "
+                    f"(0%WR n=6 in mining) — remaining triggers="
+                    f"{[t for t in _triggers_fired if t not in ('chart_quality_bottom','net_flow_5m_demand')]}"
+                )
+                _triggers_fired = [
+                    t for t in _triggers_fired
+                    if t not in ("chart_quality_bottom", "net_flow_5m_demand")
+                ]
+                if not _triggers_fired:
+                    logger.info(
+                        f"[DipScanner] BLOCKED by banned combo (no other triggers): "
+                        f"{token_symbol}"
+                    )
+                    continue
 
             # Rebuild trigger_source if 1s triggers were added
             _trigger_source = "_".join(_triggers_fired) if len(_triggers_fired) > 1 else _triggers_fired[0]
@@ -12533,12 +12564,27 @@ class DipScanner:
             # Order: macro_up checked BEFORE premium (was reversed) so a
             # trade qualifying for both (v_bottom_body + sol_uptick) gets
             # the now-stronger macro_up size rather than the demoted premium.
+            # 2026-05-22 — alpha_trigger tier (1.5x). From omni mine #4
+            # per-trigger sizing audit on n=174 paired trades:
+            #   1s_capit_reversal: 75% WR, $+0.362/tr (n=12)
+            #   deep_1h_dip:       82% WR, $+0.332/tr (n=11)
+            # Both are top-2 earners. Default standard tier sized them at
+            # 0.5x — leaving alpha on the table. Bump to 1.5x to amplify the
+            # win. Placed above macro_up so alpha tier fires regardless of
+            # SOL micro-uptick context.
+            _is_alpha_trigger = (
+                "1s_capit_reversal" in _triggers_fired
+                or "deep_1h_dip" in _triggers_fired
+            )
             if _is_premium_runner:
                 _position_size = self.position_usd * 3.0
                 _size_tier = "premium_runner"
             elif _all_marginal_size:
                 _position_size = self.position_usd * 0.5
                 _size_tier = "marginal"
+            elif _is_alpha_trigger:
+                _position_size = self.position_usd * 1.5
+                _size_tier = "alpha_trigger"
             elif _sol_micro_uptick:
                 # ROLLBACK 2026-05-20 PM: macro_up 2.0x → 1.5x.
                 # Reason: today's -$12.54 net was dominated by macro_up
