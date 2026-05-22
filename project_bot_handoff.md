@@ -6,6 +6,87 @@
 
 ---
 
+## 2026-05-22 — MEGA SESSION: 21 new entry triggers + 1 filter + race-fix + dashboard
+
+### Top-level numbers
+
+**Live HEAD:** `eb6e8b8`
+
+**Ships this session (chronological):**
+
+| Commit | What | Type |
+|---|---|---|
+| `d64a37b` | vol_breakout_flat trigger | trigger |
+| `e45577a` | vol_drying + wick_rejection post-TP1 exits | exits |
+| `85925a5` | calm_buyer_demand + calm_at_support triggers | triggers |
+| `9fe8366` | filter_sol_macro_down ENFORCED | filter |
+| `4228a36` | Dashboard SOL gate indicator | UI |
+| `5ab8e74` | SOL fetch race-condition fix (cycle scope) | bug |
+| `734bab5` | Dashboard sol_price key fix | bug |
+| `f15ed43` | Ban toxic combo + retire 2 + alpha tier 1.5x | cleanup |
+| `960a354` | 3 alpha triggers (demand_burst, 1s_demand, two_pattern_demand) | triggers |
+| `6368ed4` | concurrent_alpha (highest $/tr ever mined) | trigger |
+| `f6b9113` | 10 new alpha-quality entry triggers | triggers |
+| `eb6e8b8` | 5 round-3 triggers (CNN cluster, slip, hot streak) | triggers |
+
+**21 new entry triggers + 1 filter + 2 exit rules + 1 dashboard + 2 bug fixes shipped in one session.**
+
+### Alpha-tier (1.5x sizing) — 8 triggers
+
+`1s_capit_reversal`, `deep_1h_dip`, `concurrent_alpha`, `whale_concentrated_demand`, `whale_recent_burst`, `whale_p90_size`, `textbook_pullback_vol_accel`, `textbook_pullback_big_buyer`
+
+### Top meta-discoveries
+
+1. **`concurrent_positions_at_entry > 1` is strongest big-winner predictor (Cohen's d=+1.02).** Hot streaks have real persistence. Could justify max_concurrent=4-5 (currently 3). See `[reference_concurrent_positions_alpha]`.
+2. **"Few buyers" universal alpha** — `top_buy_makers_n < 9` surfaced across 6 mining angles. 5+ shipped triggers anchor on this. See `[reference_few_buyers_alpha]`.
+3. **BTC h1 stronger than SOL h1** in current regime (d=+0.41 vs +0.33). Both gates complementary, +0.41 correlation, catch different trades.
+4. **Race condition fix:** SOL fetch was inside per-token loop, causing some tokens to silently bypass filter_sol_macro_down (WORLDCUP 01:14:42). Lifted to `_fetch_cycle_sol_features` called once per cycle. Cut 5-30x GT calls per cycle as a bonus.
+5. **Mining "exhaustion" is scope-dependent.** Every prior "exhausted" claim turned out wrong-at-different-cohort. Pivoting cohort/threshold/independence-constraint always surfaces new signal.
+
+### 13 distinct entry-trigger signal families
+
+1. Concentrated whale demand (top_buy_makers_n<9 variants)
+2. Textbook pullback compounds (mtf_textbook_pullback flag)
+3. Support + buyer confirmation (chart_sr_5m_at_support)
+4. BTC macro alignment (btc_pc_h4 + bs_h1)
+5. Mean-reversion chart_score (high chart + quiet flow)
+6. CNN cluster individual (clusters 10, 13, 16)
+7. Slip asymmetry (low buy slippage)
+8. Bot-state momentum (hot streak persistence)
+9. Concurrent positions hot streak (concurrent_alpha)
+10. 1s capitulation + variants
+11. Deep 1h dip (workhorse)
+12. Vol-breakout flat base
+13. Calm pattern + demand
+
+### Banned combos + retired triggers
+
+- **BANNED:** `chart_quality_bottom + net_flow_5m_demand` (0% WR n=6, $/tr=$-1.29). Stripped from triggers_fired when both fire; if no other trigger, entry blocked.
+- **RETIRED:** `grad_window_dip` (-$0.62/tr, 30% WR) and `controlled_greens_5m` (-$0.61/tr, 40% WR). Match flag stamped to entry_meta for forensic analysis but not added to triggers_fired.
+
+### Pending followup (PRIORITY)
+
+1. **PHANTOM PARITY OWED** on EVERY new trigger + filter this session — `scripts/live_forward_test.py` not updated. Violates `[feedback_phantom_parity]`. **Backfill ASAP.**
+2. **Forward-validate all 21 triggers** for 24-48h. Most have n=8-25 — small samples. Watch for triggers that over-fire vs mining frequencies.
+3. **Re-mine SOL gate with 500+ post-restoration trades** — current n=188 was thin.
+4. **Test max_concurrent=4-5** — concurrent_positions>1 was strongest big-winner predictor. Currently capped at 3.
+5. **Trigger attribution audit** after 50+ new-trigger fires — measure forward $/tr vs mined $/tr.
+6. **Promote `low_buy_slip`, `support_with_60s_flow`, `btc_safe_bs_h1` to alpha-tier?** Their $/tr ($0.40-$0.58) is borderline; standard 0.5x might be leaving alpha on table.
+
+### Known issues
+
+- GT 25-req/min budget shared across full scanner; SOL fetch occasionally 429s. 300s cache absorbs. Fail-CLOSED safety added (commits 5ab8e74) — if SOL feed went stale within 10min, block as safety.
+- Phantom parity gap (see above) — when bot makes a phantom-paper trade in `live_forward_test.py`, the new triggers won't fire there. Phantom dashboard will UNDER-count signals.
+- Railway 503s during deploy mid-session (intermittent). Retry pattern works.
+
+### Caveats
+
+- 21 triggers in one session is aggressive. Some will under-perform forward (regime shift, threshold drift).
+- Most mined samples are n=8-25. Statistical confidence low; mining $/tr ≠ forward $/tr.
+- Alpha-tier 1.5x sizing on 8 triggers means up to 8x more capital deployed when multiple alpha triggers fire simultaneously (each is independent — could fire together).
+
+---
+
 ## 2026-05-21 PM — 5 production ships, 9/9 WR since deploy, bot near production-ready
 
 ### Session P&L
