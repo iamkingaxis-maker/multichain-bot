@@ -388,6 +388,18 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     .stat-card .value { font-size: 17px; }
     .sec-grid { grid-template-columns: 1fr; }
   }
+
+  /* ── FLEET panel ── */
+  .fleet-panel { background: #1a1a1a; padding: 1rem; margin: 1rem 0; border-radius: 8px; border: 1px solid var(--border); }
+  .fleet-panel h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 10px; }
+  .fleet-panel table { width: 100%; border-collapse: collapse; }
+  .fleet-panel th, .fleet-panel td { padding: 0.4rem 0.6rem; text-align: right; font-size: 12px; border-bottom: 1px solid var(--border2); }
+  .fleet-panel th { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .fleet-panel th:first-child, .fleet-panel td:first-child { text-align: left; }
+  .fleet-panel tbody tr:last-child td { border-bottom: none; }
+  .fleet-panel tbody tr:nth-child(odd) { background: #222; }
+  .fleet-panel .pnl-pos { color: #4caf50; }
+  .fleet-panel .pnl-neg { color: #f44336; }
 </style>
 </head>
 <body>
@@ -413,6 +425,26 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 </div>
 
 <div class="main">
+
+  <!-- ── FLEET Panel ── -->
+  <div class="fleet-panel">
+    <h2>FLEET</h2>
+    <table id="fleet-table">
+      <thead>
+        <tr>
+          <th>Bot</th>
+          <th>Balance</th>
+          <th>Open</th>
+          <th>Trades</th>
+          <th>WR</th>
+          <th>P&amp;L</th>
+          <th>$/tr</th>
+          <th>Tput &times; $/tr</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
   <!-- ── Top Stat Cards ── -->
   <div class="stat-row">
@@ -1543,6 +1575,42 @@ async function updateSeedWalletScore(addr, newScore) {
 
 loadSeedWallets();
 setInterval(loadSeedWallets, 60000);
+
+// ── FLEET panel ────────────────────────────────────────────────────────────
+async function updateFleet() {
+  try {
+    const resp = await fetch("/api/leaderboard?sort=throughput_x_pnl");
+    if (!resp.ok) return;
+    const bots = await resp.json();
+    const tbody = document.querySelector("#fleet-table tbody");
+    tbody.innerHTML = "";
+    if (!bots.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">No bots registered yet</td></tr>';
+      return;
+    }
+    for (const b of bots) {
+      const wr = b.total_trades > 0 ? (100 * b.wins / b.total_trades).toFixed(0) + "%" : "--";
+      const perTr = b.total_trades > 0 ? "$" + (b.total_pnl_realized / b.total_trades).toFixed(2) : "--";
+      const tputXPnl = b.total_pnl_realized;
+      const pnlClass = b.total_pnl_realized > 0 ? "pnl-pos" : (b.total_pnl_realized < 0 ? "pnl-neg" : "");
+      const row = `<tr>
+        <td>${escHtml(b.bot_id)}</td>
+        <td>$${b.balance_usd.toFixed(2)}</td>
+        <td>${b.open_position_count}</td>
+        <td>${b.total_trades}</td>
+        <td>${wr}</td>
+        <td class="${pnlClass}">$${b.total_pnl_realized.toFixed(2)}</td>
+        <td>${perTr}</td>
+        <td>$${tputXPnl.toFixed(2)}</td>
+      </tr>`;
+      tbody.insertAdjacentHTML("beforeend", row);
+    }
+  } catch (e) {
+    console.error("updateFleet failed", e);
+  }
+}
+setInterval(updateFleet, 15000);
+updateFleet();
 </script>
 
 <!-- Breakout Strategy -->
@@ -1683,9 +1751,10 @@ class WebDashboard:
     Port is read from the PORT environment variable or defaults to 8080.
     """
 
-    def __init__(self, port: int = None, tracker=None):
+    def __init__(self, port: int = None, tracker=None, trade_store=None):
         self.port = port or int(os.environ.get("PORT", 8080))
         self._tracker = tracker          # optional direct tracker ref
+        self.trade_store = trade_store   # optional multi-bot TradeStore
         self.app = web.Application()
         self._stats_providers = []
         self._alert_buffer: list = []
@@ -1747,6 +1816,10 @@ class WebDashboard:
         self.app.router.add_get("/api/sol-gate",            self._handle_sol_gate)
         self.app.router.add_get("/api/diagnostics",         self._handle_diagnostics)
         self.app.router.add_get("/metrics",                 self._handle_metrics)
+        self.app.router.add_get("/api/bots",                self._handle_api_bots)
+        self.app.router.add_get("/api/leaderboard",         self._handle_api_leaderboard)
+        self.app.router.add_get("/api/bots/{bot_id}/trades",    self._handle_api_bot_trades)
+        self.app.router.add_get("/api/bots/{bot_id}/positions", self._handle_api_bot_positions)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -3190,6 +3263,86 @@ class WebDashboard:
             text=json.dumps({"ok": True, "paused": False}),
             content_type="application/json", headers=cors,
         )
+
+    # ── Multi-bot fleet endpoints ────────────────────────────────────────────
+
+    def _build_bot_rows(self):
+        """Build the per-bot summary list from trade_store. Returns [] if not wired."""
+        if self.trade_store is None:
+            return []
+        bots = []
+        state_dir = self.trade_store.data_dir / "bot_state"
+        if not state_dir.exists():
+            return []
+        for path in sorted(state_dir.glob("*.json")):
+            try:
+                state = json.loads(path.read_text())
+                trades = self.trade_store.load_trades(bot_id=state["bot_id"])
+                buys = [t for t in trades if t.get("type") == "buy"]
+                sells = [t for t in trades if t.get("type") == "sell"]
+                total_pnl = sum(s.get("pnl", 0) for s in sells)
+                bots.append({
+                    "bot_id": state["bot_id"],
+                    "balance_usd": state["balance_usd"],
+                    "in_flight_usd": state["in_flight_usd"],
+                    "realized_pnl_total_usd": state["realized_pnl_total_usd"],
+                    "daily_pnl_usd": state["daily_pnl_usd"],
+                    "open_position_count": len(buys) - len(sells),
+                    "total_trades": len(sells),
+                    "wins": sum(1 for s in sells if s.get("pnl", 0) > 0),
+                    "total_pnl_realized": total_pnl,
+                })
+            except Exception as e:
+                logger.warning("api/bots skipped %s: %s", path, e)
+                continue
+        return bots
+
+    async def _handle_api_bots(self, request):
+        """GET /api/bots — list all bots with balance/pnl/open count."""
+        return web.json_response(self._build_bot_rows())
+
+    async def _handle_api_leaderboard(self, request):
+        """GET /api/leaderboard?sort=X — sortable fleet leaderboard."""
+        sort = request.query.get("sort", "total_pnl_realized")
+        bots = self._build_bot_rows()
+        if sort == "throughput_x_pnl":
+            bots.sort(
+                key=lambda b: (b["total_trades"] * (b["total_pnl_realized"] / b["total_trades"]))
+                              if b["total_trades"] > 0 else 0.0,
+                reverse=True,
+            )
+        elif sort == "pnl_per_trade":
+            bots.sort(
+                key=lambda b: (b["total_pnl_realized"] / b["total_trades"])
+                              if b["total_trades"] > 0 else 0.0,
+                reverse=True,
+            )
+        else:
+            bots.sort(key=lambda b: b.get(sort, 0), reverse=True)
+        return web.json_response(bots)
+
+    async def _handle_api_bot_trades(self, request):
+        """GET /api/bots/{bot_id}/trades — per-bot trade history."""
+        bot_id = request.match_info["bot_id"]
+        limit = int(request.query.get("limit", 50))
+        if self.trade_store is None:
+            return web.json_response([])
+        trades = self.trade_store.load_trades(bot_id=bot_id)
+        return web.json_response(trades[-limit:])
+
+    async def _handle_api_bot_positions(self, request):
+        """GET /api/bots/{bot_id}/positions — per-bot open positions."""
+        bot_id = request.match_info["bot_id"]
+        if self.trade_store is None:
+            return web.json_response([])
+        trades = self.trade_store.load_trades(bot_id=bot_id)
+        buys_by_token = {}
+        for t in trades:
+            if t.get("type") == "buy":
+                buys_by_token[t["token"]] = t
+            elif t.get("type") == "sell":
+                buys_by_token.pop(t["token"], None)
+        return web.json_response(list(buys_by_token.values()))
 
     async def _handle_diagnostics(self, request):
         """GET /api/diagnostics — structured health snapshot for all critical systems."""
