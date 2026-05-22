@@ -1,5 +1,6 @@
 """Integration smoke: 3 bots running in-memory against a stream of
 FeatureBundles. Verifies independent state, isolation, and persistence."""
+import json
 from pathlib import Path
 from core.bot_config import BotConfig
 from core.feature_bundle import FeatureBundle
@@ -9,6 +10,53 @@ from core.bot_registry import BotRegistry
 from core.per_bot_capital import PerBotCapital
 from core.per_bot_position_manager import PerBotPositionManager
 from core.multi_bot_persistence import MultiBotTradeStore
+
+
+def _seed_smoke_configs(tmp_dir):
+    """Write the 3 SP1 smoke bot configs into a temporary directory.
+
+    Decouples this test from the growing production catalog so adding bots
+    to config/bots/ never breaks the SP1 harness validation.
+    """
+    bots_dir = tmp_dir / "config_bots"
+    bots_dir.mkdir(exist_ok=True)
+    base = {
+        "bot_id": "baseline_v1",
+        "display_name": "Baseline",
+        "enabled": True,
+        "paper_capital_usd": 2000.0,
+        "base_position_usd": 20.0,
+        "max_concurrent_positions": 3,
+        "alpha_multiplier": 1.5,
+        "macro_up_multiplier": 1.5,
+        "premium_runner_multiplier": 3.0,
+        "marginal_multiplier": 0.5,
+        "sol_macro_h6_block_threshold": -0.3,
+        "sol_macro_h1_block_threshold": -0.7,
+        "btc_macro_h1_block_threshold": None,
+        "pc_h24_max": None, "pc_h24_min": None, "pc_h1_max": None,
+        "age_h_min": None, "age_h_max": None,
+        "mcap_min": None, "mcap_max": None, "vol_h1_min": 1000.0,
+        "filters_enforced": None, "filters_disabled": [],
+        "triggers_allowed": None, "triggers_disabled": [],
+        "min_triggers_to_fire": 1, "require_alpha_trigger": False,
+        "mcap_psych_pc_h24_max": 80.0,
+        "tp1_pct": 5.0, "tp1_sell_fraction": 0.75,
+        "tp2_pct": 10.0, "tp2_sell_fraction": 0.25,
+        "trail_pp": 3.0, "hard_stop_pct": -15.0,
+        "pre_stop_bail_pnl_pct": -3.0, "pre_stop_bail_vol_m5_max": 500.0,
+        "slow_bleed_minutes": 60, "slow_bleed_pnl_threshold": -8.0,
+        "trading_hour_utc_start": 0, "trading_hour_utc_end": 24,
+    }
+    (bots_dir / "baseline_v1.json").write_text(json.dumps(base))
+    nsg = dict(base, bot_id="no_sol_gate", display_name="No SOL gate",
+               sol_macro_h6_block_threshold=None,
+               sol_macro_h1_block_threshold=None)
+    (bots_dir / "no_sol_gate.json").write_text(json.dumps(nsg))
+    nf = dict(base, bot_id="no_filters", display_name="No filters",
+              filters_enforced=[])
+    (bots_dir / "no_filters.json").write_text(json.dumps(nf))
+    return bots_dir
 
 
 def _bundle(token, pc_h24=None, sol_pc_h6=None,
@@ -33,7 +81,7 @@ def _bundle(token, pc_h24=None, sol_pc_h6=None,
 
 
 def test_3bot_smoke_independent_state(tmp_path):
-    config_dir = Path(__file__).parent.parent / "config" / "bots"
+    config_dir = _seed_smoke_configs(tmp_path)
     reg = BotRegistry.from_directory(config_dir)
     evaluators = [BotEvaluator(c) for c in reg.configs]
     mgr = BotManager(evaluators=evaluators)
@@ -96,7 +144,7 @@ def test_3bot_smoke_independent_state(tmp_path):
 
 
 def test_3bot_state_persists_across_save_load(tmp_path):
-    config_dir = Path(__file__).parent.parent / "config" / "bots"
+    config_dir = _seed_smoke_configs(tmp_path)
     reg = BotRegistry.from_directory(config_dir)
     capitals = {c.bot_id: PerBotCapital(c.bot_id, c.paper_capital_usd)
                 for c in reg.configs}
