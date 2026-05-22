@@ -227,6 +227,92 @@ class DipScanner:
                 logger.error(f"[DipScanner] Scan cycle error: {e}")
             await asyncio.sleep(_SCAN_INTERVAL)
 
+    async def _fetch_cycle_sol_features(self) -> None:
+        """Fetch SOL price+regime ONCE per cycle and cache on self.
+
+        Previously this fetch lived inside the per-token loop in
+        _scan_cycle, running 5-30x per cycle. Race conditions during
+        GT cache evictions caused some token iterations to see empty
+        sol_features while later iterations in the same cycle saw the
+        populated dict — letting filter_sol_macro_down bypass-fire
+        only on some tokens (WORLDCUP 01:14:42 slipped through while
+        UFO/HENRY/Ball were being blocked seconds later).
+
+        Now fetched ONCE at the top of _scan_cycle. All signal-fired
+        tokens in this cycle see the same snapshot. Filter is
+        consistent. As a bonus, this cuts GT calls by ~5-30x per cycle.
+
+        Populates:
+            self._cycle_sol_features: dict of pc_m5/m1/h1/h4/h6/h24
+            self._cycle_sol_5m: list of 5m candles (288 = 24h coverage)
+            self._cycle_sol_1m: list of 1m candles (last 5)
+
+        Also updates self.last_sol_features for the /api/sol-gate
+        dashboard endpoint.
+        """
+        sol_features: dict = {}
+        sol_5m: list = []
+        sol_1m: list = []
+        try:
+            _SOL_POOL = "83v8iPyZihDEjDdY8RdZddyZNyUtXngz69Lgo9Kt5d6d"  # SOL/USDC Raydium
+            # 288 × 5min = 24h coverage. h1=12, h4=48, h6=72, h24=288.
+            # 300s cache (vs 60s default) — regime use only needs minute-
+            # precision SOL within ~5min; the 300s cache absorbs rate-limit
+            # pressure on the shared GT 25-req/min budget.
+            sol_5m = await self.gt_client.fetch_5m(_SOL_POOL, limit=288,
+                                                  cache_ttl_override=300)
+            sol_1m = await self.gt_client.fetch_1m(_SOL_POOL, limit=5,
+                                                  cache_ttl_override=300)
+            if sol_5m and len(sol_5m) >= 2:
+                _last = sol_5m[-1].close
+                sol_features["sol_price"] = round(_last, 4)
+                if sol_5m[-2].close > 0:
+                    sol_features["sol_pc_m5"] = round(
+                        (_last / sol_5m[-2].close - 1) * 100, 3
+                    )
+                if len(sol_5m) >= 12 and sol_5m[-12].close > 0:
+                    sol_features["sol_pc_h1"] = round(
+                        (_last / sol_5m[-12].close - 1) * 100, 3
+                    )
+                elif sol_5m[0].close > 0:
+                    sol_features["sol_pc_h1"] = round(
+                        (_last / sol_5m[0].close - 1) * 100, 3
+                    )
+                if len(sol_5m) >= 48 and sol_5m[-48].close > 0:
+                    sol_features["sol_pc_h4"] = round(
+                        (_last / sol_5m[-48].close - 1) * 100, 3
+                    )
+                if len(sol_5m) >= 72 and sol_5m[-72].close > 0:
+                    sol_features["sol_pc_h6"] = round(
+                        (_last / sol_5m[-72].close - 1) * 100, 3
+                    )
+                if len(sol_5m) >= 288 and sol_5m[-288].close > 0:
+                    sol_features["sol_pc_h24"] = round(
+                        (_last / sol_5m[-288].close - 1) * 100, 3
+                    )
+            if sol_1m and len(sol_1m) >= 2:
+                if sol_1m[-2].close > 0:
+                    sol_features["sol_pc_m1"] = round(
+                        (sol_1m[-1].close / sol_1m[-2].close - 1) * 100, 3
+                    )
+                if sol_1m[0].close > 0:
+                    sol_features["sol_pc_3m"] = round(
+                        (sol_1m[-1].close / sol_1m[0].close - 1) * 100, 3
+                    )
+        except Exception as _e:
+            logger.debug(f"[DipScanner] cycle SOL fetch error: {_e}")
+
+        # Cache for per-token loop to read.
+        self._cycle_sol_features = sol_features
+        self._cycle_sol_5m = sol_5m
+        self._cycle_sol_1m = sol_1m
+        # Mirror to last_sol_features for /api/sol-gate dashboard endpoint
+        # if we actually got data — otherwise preserve the previous snapshot
+        # so the dashboard can detect staleness.
+        if sol_features:
+            self.last_sol_features = dict(sol_features)
+            self.last_sol_features_ts = time.time()
+
     async def _fetch_btc_klines(self) -> list:
         """
         Fetch recent 1h BTC klines from Kraken public API. Returns a list of
@@ -364,6 +450,14 @@ class DipScanner:
         _regime_h1_neg_pct = (
             round(_regime_h1_neg / _regime_n * 100, 1) if _regime_n > 0 else 0.0
         )
+
+        # ── Cycle-level SOL fetch — 2026-05-22 ──────────────────────────
+        # Fetch SOL ONCE per cycle and cache on self for the per-token loop
+        # to read. Previously this fetch lived inside the per-token loop and
+        # ran 5-30x per cycle, causing race-condition bypasses of
+        # filter_sol_macro_down (WORLDCUP 01:14:42 slipped through while
+        # other tokens in the same cycle were being blocked).
+        await self._fetch_cycle_sol_features()
 
         for pair in pairs:
             c["fetched"] += 1
@@ -1337,66 +1431,15 @@ class DipScanner:
             self._last_buy_time = time.monotonic()
             self.signals_fired += 1
 
-            # ── Tier 2a: SOL + BTC regime context ──
-            # Memecoins amplify SOL/BTC moves. Edge-half-life test (2026-05-01)
-            # showed WR drops 53% → 39% over 5 days; date-shuffle p=0.016
-            # confirms day-level signal is real. SOL/BTC trend is the most
-            # likely regime variable behind the bimodal pattern. Single GT
-            # call (extended to 4h coverage) + single Binance API call (BTC),
-            # cached 60s, fail-open.
-            sol_features: dict = {}
-            sol_5m = []
-            try:
-                _SOL_POOL = "83v8iPyZihDEjDdY8RdZddyZNyUtXngz69Lgo9Kt5d6d"  # SOL/USDC Raydium
-                # 288 × 5min = 24h coverage (bumped from 48 = 4h on 2026-05-21
-                # to enable sol_pc_h24 for filter_sol_macro_down gate).
-                # 300s cache — SOL fetch was missing ~80% of trades due to
-                # per-token contention + 60s cache expiring mid-cycle on the
-                # shared GT 25-req/min budget. Regime use only needs
-                # minute-precision SOL within ~5min; the 300s cache absorbs
-                # rate-limit pressure (2026-05-12).
-                sol_5m = await self.gt_client.fetch_5m(_SOL_POOL, limit=288,
-                                                      cache_ttl_override=300)
-                sol_1m = await self.gt_client.fetch_1m(_SOL_POOL, limit=5,
-                                                      cache_ttl_override=300)
-                if sol_5m and len(sol_5m) >= 2:
-                    sol_pc_m5 = (sol_5m[-1].close / sol_5m[-2].close - 1) * 100 if sol_5m[-2].close > 0 else 0.0
-                    sol_features["sol_pc_m5"] = round(sol_pc_m5, 3)
-                    # h1 from last 12 candles (60 min)
-                    if len(sol_5m) >= 12:
-                        h1_anchor = sol_5m[-12].close
-                        if h1_anchor > 0:
-                            sol_features["sol_pc_h1"] = round((sol_5m[-1].close / h1_anchor - 1) * 100, 3)
-                    else:
-                        sol_features["sol_pc_h1"] = round((sol_5m[-1].close / sol_5m[0].close - 1) * 100, 3)
-                    # h4 from full 48-candle window (240 min)
-                    if len(sol_5m) >= 48:
-                        h4_anchor = sol_5m[-48].close
-                        if h4_anchor > 0:
-                            sol_features["sol_pc_h4"] = round((sol_5m[-1].close / h4_anchor - 1) * 100, 3)
-                    # h6 from 72-candle window (360 min) — for filter_sol_macro_down
-                    if len(sol_5m) >= 72:
-                        h6_anchor = sol_5m[-72].close
-                        if h6_anchor > 0:
-                            sol_features["sol_pc_h6"] = round((sol_5m[-1].close / h6_anchor - 1) * 100, 3)
-                    # h24 from 288-candle window (1440 min) — for filter_sol_macro_down
-                    if len(sol_5m) >= 288:
-                        h24_anchor = sol_5m[-288].close
-                        if h24_anchor > 0:
-                            sol_features["sol_pc_h24"] = round((sol_5m[-1].close / h24_anchor - 1) * 100, 3)
-                if sol_1m and len(sol_1m) >= 2:
-                    sol_pc_m1 = (sol_1m[-1].close / sol_1m[-2].close - 1) * 100 if sol_1m[-2].close > 0 else 0.0
-                    sol_pc_3m = (sol_1m[-1].close / sol_1m[0].close - 1) * 100 if sol_1m[0].close > 0 else 0.0
-                    sol_features["sol_pc_m1"] = round(sol_pc_m1, 3)
-                    sol_features["sol_pc_3m"] = round(sol_pc_3m, 3)
-            except Exception as _e:
-                logger.debug(f"[DipScanner] SOL fetch error: {_e}")
-
-            # Expose to dashboard for filter_sol_macro_down status indicator.
-            if sol_features:
-                self.last_sol_features = dict(sol_features)
-                import time as _time_mod
-                self.last_sol_features_ts = _time_mod.time()
+            # ── Tier 2a: SOL features (read from cycle cache) ──
+            # Lifted out of the per-token loop 2026-05-22 to fix a race that
+            # let WORLDCUP 01:14:42 slip past filter_sol_macro_down. The fetch
+            # now runs ONCE per cycle in _scan_cycle (see _fetch_cycle_sol).
+            # All signal-fired tokens in this cycle share the same snapshot,
+            # so filter_sol_macro_down is consistent across all tokens.
+            sol_features: dict = dict(getattr(self, '_cycle_sol_features', {}) or {})
+            sol_5m = getattr(self, '_cycle_sol_5m', []) or []
+            sol_1m = getattr(self, '_cycle_sol_1m', []) or []
 
             # BTC regime — Binance public klines (no key, fast, free).
             # 1h candles × 5 → enough for h1 (last close vs prev) and h4
@@ -3905,6 +3948,21 @@ class DipScanner:
                 _filter_sol_macro_down_block_reasons.append(
                     f"sol_pc_h1={float(_sol_pc_h1_for_gate):+.2f}%<-0.7 (SOL 1h dump)"
                 )
+            # Fail-CLOSED safety: if we previously had SOL data within the
+            # last 10min but this cycle's feed is empty, the GT fetch likely
+            # failed mid-cycle. Treat as BLOCK rather than silently passing
+            # (WORLDCUP 01:14:42 root-cause guard). Skip this branch if the
+            # bot just started — last_sol_features_ts==0 means we've never
+            # had data, so a missing feed is "feature not ready yet", not
+            # a regression. Once we get one good fetch the guard activates.
+            if (_sol_pc_h6 is None and _sol_pc_h1_for_gate is None
+                    and getattr(self, "last_sol_features_ts", 0.0) > 0):
+                _stale_age = time.time() - self.last_sol_features_ts
+                if _stale_age < 600:
+                    _filter_sol_macro_down_block_reasons.append(
+                        f"sol_feed_stale (no h1/h6 this cycle, last good "
+                        f"{_stale_age:.0f}s ago — fail-closed)"
+                    )
             _filter_sol_macro_down_verdict = (
                 "BLOCK" if _filter_sol_macro_down_block_reasons else "PASS"
             )
