@@ -1147,6 +1147,170 @@ COMBOS = {
     ),
     # filter_cluster_19_rug parity — ENFORCED 2026-05-15
     'FILT_cluster_19_rug_BLOCK': lambda c: c.get('cnn_cluster_19_rug') is True,
+
+    # ─── 2026-05-21/22 SESSION — 21 NEW TRIGGERS + 1 FILTER ─────────────
+    # Phantom mirrors for every entry trigger + filter shipped in the
+    # 2026-05-22 mega session. Fail-closed when snapshot lacks the feature
+    # (combo returns False so phantom counts as no-fire — the phantom
+    # dashboard will under-count vs production until snapshot enrichment
+    # adds these features).
+    #
+    # Features missing from current snapshot (combo will fail-closed):
+    #   top_buy_makers_n, net_flow_60s_usd, rt_secs_since_last,
+    #   chart_sr_5m_at_support, sol_pc_h6, top10_buyer_n_with_ts,
+    #   vol_h1_accel_vs_h6, filter_two_pattern_b, concurrent_positions_at_entry,
+    #   daily_pnl_at_entry, trades_today_at_entry
+    # Features in snapshot (combo will fire):
+    #   chart_score, sol_pc_h4, btc_pc_h1, btc_pc_h4, bs_h1, p90_buy_size_usd,
+    #   slip_buy_5000_pct, 1s_bottom_score, cnn_cluster_id, mtf_textbook_pullback
+
+    # FILTER — filter_sol_macro_down (9fe8366): BLOCK if SOL bleeding
+    'FILT_sol_macro_down_BLOCK': lambda c: (
+        ((c.get('sol_pc_h6') is not None and c['sol_pc_h6'] < -0.3)
+         or (c.get('sol_pc_h1') is not None and c['sol_pc_h1'] < -0.7))
+    ),
+
+    # Trigger 1 — vol_breakout_flat (d64a37b)
+    'NEW_vol_breakout_flat': lambda c: (
+        c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 2.0
+        and c.get('shape_30m_chg_pct') is not None and -5.0 <= c['shape_30m_chg_pct'] <= 5.0
+        and c.get('pc_h24') is not None and c['pc_h24'] > -10.0
+    ),
+
+    # Trigger 2 — calm_buyer_demand (85925a5)
+    'NEW_calm_buyer_demand': lambda c: (
+        c.get('1m_consec_red') == 0
+        and c.get('net_flow_15s_imbalance') is not None and c['net_flow_15s_imbalance'] >= 0.0
+        and c.get('1m_last_close_pct') is not None and c['1m_last_close_pct'] >= 0.0
+    ),
+
+    # Trigger 3 — calm_at_support (85925a5)
+    'NEW_calm_at_support': lambda c: (
+        c.get('1m_consec_red') == 0
+        and c.get('chart_sr_5m_at_support') is True
+    ),
+
+    # Trigger 4 — demand_burst_no_crash (960a354)
+    'NEW_demand_burst_no_crash': lambda c: (
+        c.get('net_flow_15s_usd') is not None and c['net_flow_15s_usd'] > 159.0
+        and c.get('pc_m5') is not None and c['pc_m5'] > -2.76
+    ),
+
+    # Trigger 5 — 1s_demand_compound (960a354)
+    'NEW_1s_demand_compound': lambda c: (
+        c.get('1s_bottom_score') is not None and c['1s_bottom_score'] > 10.0
+        and c.get('net_flow_15s_usd') is not None and c['net_flow_15s_usd'] > 159.0
+    ),
+
+    # Trigger 6 — two_pattern_demand (960a354)
+    'NEW_two_pattern_demand': lambda c: (
+        c.get('filter_two_pattern_b') is True
+        and c.get('net_flow_15s_usd') is not None and c['net_flow_15s_usd'] > 11.07
+    ),
+
+    # Trigger 7 — concurrent_alpha (6368ed4)
+    'NEW_concurrent_alpha': lambda c: (
+        c.get('concurrent_positions_at_entry') is not None and c['concurrent_positions_at_entry'] > 1
+        and c.get('top10_buyer_n_with_ts') is not None and c['top10_buyer_n_with_ts'] < 10
+        and c.get('sol_pc_h4') is not None and c['sol_pc_h4'] > -0.15
+    ),
+
+    # Trigger 8 — whale_concentrated_demand (f6b9113)
+    'NEW_whale_concentrated_demand': lambda c: (
+        c.get('top_buy_makers_n') is not None and c['top_buy_makers_n'] < 9
+        and c.get('net_flow_60s_usd') is not None and c['net_flow_60s_usd'] > 10.0
+    ),
+
+    # Trigger 9 — whale_recent_burst (f6b9113)
+    'NEW_whale_recent_burst': lambda c: (
+        c.get('top_buy_makers_n') is not None and c['top_buy_makers_n'] < 9
+        and c.get('rt_secs_since_last') is not None and c['rt_secs_since_last'] < 30.0
+    ),
+
+    # Trigger 10 — whale_p90_size (f6b9113)
+    'NEW_whale_p90_size': lambda c: (
+        c.get('p90_buy_size_usd') is not None and c['p90_buy_size_usd'] > 42.0
+        and c.get('top_buy_makers_n') is not None and c['top_buy_makers_n'] < 9
+    ),
+
+    # Trigger 11 — textbook_pullback_vol_accel (f6b9113, LATE eval)
+    'NEW_textbook_pullback_vol_accel': lambda c: (
+        c.get('mtf_textbook_pullback') == 1
+        and c.get('vol_h1_accel_vs_h6') is not None and c['vol_h1_accel_vs_h6'] > 0.95
+    ),
+
+    # Trigger 12 — textbook_pullback_big_buyer (f6b9113, LATE eval)
+    'NEW_textbook_pullback_big_buyer': lambda c: (
+        c.get('mtf_textbook_pullback') == 1
+        and c.get('p90_buy_size_usd') is not None and c['p90_buy_size_usd'] > 84.0
+    ),
+
+    # Trigger 13 — support_with_60s_flow (f6b9113)
+    'NEW_support_with_60s_flow': lambda c: (
+        c.get('chart_sr_5m_at_support') is True
+        and c.get('net_flow_60s_usd') is not None and c['net_flow_60s_usd'] > 10.0
+    ),
+
+    # Trigger 14 — support_big_buyer (f6b9113)
+    'NEW_support_big_buyer': lambda c: (
+        c.get('chart_sr_5m_at_support') is True
+        and c.get('p90_buy_size_usd') is not None and c['p90_buy_size_usd'] > 144.0
+    ),
+
+    # Trigger 15 — btc_strong_bs_h1 (f6b9113)
+    'NEW_btc_strong_bs_h1': lambda c: (
+        c.get('btc_pc_h4') is not None and c['btc_pc_h4'] > 0.20
+        and c.get('bs_h1') is not None and c['bs_h1'] > 1.53
+    ),
+
+    # Trigger 16 — btc_safe_bs_h1 (f6b9113)
+    'NEW_btc_safe_bs_h1': lambda c: (
+        c.get('btc_pc_h4') is not None and c['btc_pc_h4'] > -0.12
+        and c.get('bs_h1') is not None and c['bs_h1'] > 1.53
+    ),
+
+    # Trigger 17 — chart_score_quiet_flow (f6b9113)
+    'NEW_chart_score_quiet_flow': lambda c: (
+        c.get('chart_score') is not None and c['chart_score'] > 57.4
+        and c.get('net_flow_60s_usd') is not None and c['net_flow_60s_usd'] < 10.0
+    ),
+
+    # Trigger 18 — cnn_cluster_10 (eb6e8b8)
+    'NEW_cnn_cluster_10': lambda c: (
+        c.get('cnn_cluster_id') is not None and int(c['cnn_cluster_id']) == 10
+    ),
+
+    # Trigger 19 — cnn_cluster_16 (eb6e8b8)
+    'NEW_cnn_cluster_16': lambda c: (
+        c.get('cnn_cluster_id') is not None and int(c['cnn_cluster_id']) == 16
+    ),
+
+    # Trigger 20 — cnn_cluster_13 (eb6e8b8)
+    'NEW_cnn_cluster_13': lambda c: (
+        c.get('cnn_cluster_id') is not None and int(c['cnn_cluster_id']) == 13
+    ),
+
+    # Trigger 21 — low_buy_slip (eb6e8b8)
+    'NEW_low_buy_slip': lambda c: (
+        c.get('slip_buy_5000_pct') is not None and c['slip_buy_5000_pct'] < 5.42
+    ),
+
+    # Trigger 22 — hot_streak_early_day (eb6e8b8)
+    'NEW_hot_streak_early_day': lambda c: (
+        c.get('daily_pnl_at_entry') is not None and c['daily_pnl_at_entry'] > 2.0
+        and c.get('trades_today_at_entry') is not None and c['trades_today_at_entry'] < 12
+    ),
+
+    # BANNED COMBO mirror (f15ed43) — phantom-tracks how often the toxic combo
+    # would have fired. Fail-closed (returns False) means this combo says "PASS"
+    # = phantom blocks it.
+    'BANNED_chart_qual_x_net_flow_5m': lambda c: (
+        # Both legs need to be already-firing for the ban to mirror.
+        # Use the entry_meta trigger_match flags if available, else fall back to
+        # the underlying conditions if those features are present in snapshot.
+        c.get('trigger_chart_quality_bottom_match') is True
+        and c.get('trigger_net_flow_5m_match') is True
+    ),
 }
 
 
