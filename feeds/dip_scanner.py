@@ -9592,6 +9592,146 @@ class DipScanner:
             if _trigger_concurrent_alpha_match:
                 _triggers_fired.append("concurrent_alpha")
 
+            # ── 10 NEW ALPHA TRIGGERS — ENFORCED 2026-05-22 PM ─────────────
+            # Mined from 174 paired trades (.10_round2_results.json +
+            # .10_triggers_results.json). 8 placed here pre-bail (all features
+            # available in scope), 2 placed post vol_h1_accel computation below.
+            _trigger_whale_concentrated_demand_match = False
+            _trigger_whale_concentrated_demand_reasons: list = []
+            _trigger_whale_recent_burst_match = False
+            _trigger_whale_recent_burst_reasons: list = []
+            _trigger_whale_p90_size_match = False
+            _trigger_whale_p90_size_reasons: list = []
+            _trigger_support_with_60s_flow_match = False
+            _trigger_support_with_60s_flow_reasons: list = []
+            _trigger_support_big_buyer_match = False
+            _trigger_support_big_buyer_reasons: list = []
+            _trigger_btc_strong_bs_h1_match = False
+            _trigger_btc_strong_bs_h1_reasons: list = []
+            _trigger_btc_safe_bs_h1_match = False
+            _trigger_btc_safe_bs_h1_reasons: list = []
+            _trigger_chart_score_quiet_flow_match = False
+            _trigger_chart_score_quiet_flow_reasons: list = []
+            try:
+                _t10_tbm = (_tier3_features or {}).get("top_buy_makers_n")
+                _t10_nf60 = (_tier3_features or {}).get("net_flow_60s_usd")
+                _t10_rtss = (_tier3_features or {}).get("rt_secs_since_last")
+                _t10_p90 = (_trade_log_dict or {}).get("p90_buy_size_usd")
+                _t10_at_supp = None
+                if _chart_ctx is not None:
+                    _t10_at_supp = _chart_ctx.sr_5m.get("at_support")
+                _t10_chart_score = _chart_ctx.composite_score if _chart_ctx else None
+                _t10_btc_h1 = (btc_features or {}).get("btc_pc_h1") if 'btc_features' in dir() else None
+                _t10_btc_h4 = (btc_features or {}).get("btc_pc_h4") if 'btc_features' in dir() else None
+                _t10_bs_h1 = float(ratio_h1) if ratio_h1 not in (float("inf"), None) else None
+
+                # T1 whale_concentrated_demand: n=8 WR=100% $/tr=$1.87
+                if (_t10_tbm is not None and int(_t10_tbm) < 9
+                        and _t10_nf60 is not None and float(_t10_nf60) > 10.0
+                        and not _seller_active):
+                    _trigger_whale_concentrated_demand_match = True
+                    _trigger_whale_concentrated_demand_reasons.append(
+                        f"top_buy_makers_n={int(_t10_tbm)}<9 AND "
+                        f"net_flow_60s_usd=${float(_t10_nf60):+.0f}>10 "
+                        f"(concentrated buyers + positive 60s flow)"
+                    )
+
+                # T2 whale_recent_burst: n=8 WR=88% $/tr=$1.80
+                if (_t10_tbm is not None and int(_t10_tbm) < 9
+                        and _t10_rtss is not None and float(_t10_rtss) < 30.0
+                        and not _seller_active):
+                    _trigger_whale_recent_burst_match = True
+                    _trigger_whale_recent_burst_reasons.append(
+                        f"top_buy_makers_n={int(_t10_tbm)}<9 AND "
+                        f"rt_secs_since_last={float(_t10_rtss):.0f}s<30 "
+                        f"(concentrated buyers + fresh activity)"
+                    )
+
+                # T3 whale_p90_size: n=16 WR=75% $/tr=$1.21
+                if (_t10_p90 is not None and float(_t10_p90) > 42.0
+                        and _t10_tbm is not None and int(_t10_tbm) < 9
+                        and not _seller_active):
+                    _trigger_whale_p90_size_match = True
+                    _trigger_whale_p90_size_reasons.append(
+                        f"p90_buy_size_usd=${float(_t10_p90):.0f}>42 AND "
+                        f"top_buy_makers_n={int(_t10_tbm)}<9 "
+                        f"(whale-size buys, concentrated)"
+                    )
+
+                # T6 support_with_60s_flow: n=25 WR=80% $/tr=$0.58 (big sample)
+                if (_t10_at_supp is True
+                        and _t10_nf60 is not None and float(_t10_nf60) > 10.0
+                        and not _seller_active):
+                    _trigger_support_with_60s_flow_match = True
+                    _trigger_support_with_60s_flow_reasons.append(
+                        f"chart_sr_5m_at_support=True AND "
+                        f"net_flow_60s_usd=${float(_t10_nf60):+.0f}>10 "
+                        f"(5m support + positive 60s flow)"
+                    )
+
+                # T7 support_big_buyer: n=18 WR=72% $/tr=$0.45 (0% overlap!)
+                if (_t10_at_supp is True
+                        and _t10_p90 is not None and float(_t10_p90) > 144.0
+                        and not _seller_active):
+                    _trigger_support_big_buyer_match = True
+                    _trigger_support_big_buyer_reasons.append(
+                        f"chart_sr_5m_at_support=True AND "
+                        f"p90_buy_size_usd=${float(_t10_p90):.0f}>144 "
+                        f"(5m support + whale-size buys)"
+                    )
+
+                # T8 btc_strong_bs_h1: n=12 WR=75% $/tr=$0.92
+                if (_t10_btc_h4 is not None and float(_t10_btc_h4) > 0.20
+                        and _t10_bs_h1 is not None and _t10_bs_h1 > 1.53
+                        and not _seller_active):
+                    _trigger_btc_strong_bs_h1_match = True
+                    _trigger_btc_strong_bs_h1_reasons.append(
+                        f"btc_pc_h4={float(_t10_btc_h4):+.2f}%>+0.20 AND "
+                        f"bs_h1={_t10_bs_h1:.2f}>1.53 "
+                        f"(BTC h4 strong + 1h buyer pressure)"
+                    )
+
+                # T9 btc_safe_bs_h1: n=39 WR=74% $/tr=$0.44 (LARGEST sample)
+                if (_t10_btc_h4 is not None and float(_t10_btc_h4) > -0.12
+                        and _t10_bs_h1 is not None and _t10_bs_h1 > 1.53
+                        and not _seller_active):
+                    _trigger_btc_safe_bs_h1_match = True
+                    _trigger_btc_safe_bs_h1_reasons.append(
+                        f"btc_pc_h4={float(_t10_btc_h4):+.2f}%>-0.12 AND "
+                        f"bs_h1={_t10_bs_h1:.2f}>1.53 "
+                        f"(BTC not crashing + 1h buyer pressure)"
+                    )
+
+                # T10 chart_score_quiet_flow: n=13 WR=77% $/tr=$0.61
+                if (_t10_chart_score is not None and float(_t10_chart_score) > 57.4
+                        and _t10_nf60 is not None and float(_t10_nf60) < 10.0
+                        and not _seller_active):
+                    _trigger_chart_score_quiet_flow_match = True
+                    _trigger_chart_score_quiet_flow_reasons.append(
+                        f"chart_score={float(_t10_chart_score):.1f}>57.4 AND "
+                        f"net_flow_60s_usd=${float(_t10_nf60):+.0f}<10 "
+                        f"(high chart score on quiet flow — mean reversion)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 10 new triggers eval err: {_e}")
+
+            if _trigger_whale_concentrated_demand_match:
+                _triggers_fired.append("whale_concentrated_demand")
+            if _trigger_whale_recent_burst_match:
+                _triggers_fired.append("whale_recent_burst")
+            if _trigger_whale_p90_size_match:
+                _triggers_fired.append("whale_p90_size")
+            if _trigger_support_with_60s_flow_match:
+                _triggers_fired.append("support_with_60s_flow")
+            if _trigger_support_big_buyer_match:
+                _triggers_fired.append("support_big_buyer")
+            if _trigger_btc_strong_bs_h1_match:
+                _triggers_fired.append("btc_strong_bs_h1")
+            if _trigger_btc_safe_bs_h1_match:
+                _triggers_fired.append("btc_safe_bs_h1")
+            if _trigger_chart_score_quiet_flow_match:
+                _triggers_fired.append("chart_score_quiet_flow")
+
             # ── User watchlist bypass: April-era filter-only mode ───────────
             # When user picked a token deliberately (watchlist), don't gate
             # on a positive trigger pattern. April 28 100% WR architecture
@@ -11760,6 +11900,49 @@ class DipScanner:
             except Exception:
                 pass
 
+            # ── LATE TRIGGERS — ENFORCED 2026-05-22 PM ─────────────────────
+            # 2 triggers that need _mtf_textbook (line 10465) and
+            # _vol_h1_accel (line 11890). Both are computed AFTER the
+            # earlier trigger eval block (line ~9500), so we evaluate them
+            # here. They append to _triggers_fired and contribute to
+            # alpha-tier sizing when fired. Will NOT rescue trades that
+            # already bailed at line ~9518 (zero-trigger gate).
+            _trigger_textbook_pullback_vol_accel_match = False
+            _trigger_textbook_pullback_vol_accel_reasons: list = []
+            _trigger_textbook_pullback_big_buyer_match = False
+            _trigger_textbook_pullback_big_buyer_reasons: list = []
+            try:
+                _late_p90 = (_trade_log_dict or {}).get("p90_buy_size_usd")
+                # T4 textbook_pullback_vol_accel: n=11 WR=82% $/tr=$1.29
+                if (_mtf_textbook == 1
+                        and _vol_h1_accel is not None
+                        and float(_vol_h1_accel) > 0.95
+                        and not _seller_active):
+                    _trigger_textbook_pullback_vol_accel_match = True
+                    _trigger_textbook_pullback_vol_accel_reasons.append(
+                        f"mtf_textbook_pullback=1 AND "
+                        f"vol_h1_accel_vs_h6={float(_vol_h1_accel):.2f}>0.95 "
+                        f"(textbook pullback + volume accelerating)"
+                    )
+                # T5 textbook_pullback_big_buyer: n=15 WR=73% $/tr=$1.10
+                if (_mtf_textbook == 1
+                        and _late_p90 is not None
+                        and float(_late_p90) > 84.0
+                        and not _seller_active):
+                    _trigger_textbook_pullback_big_buyer_match = True
+                    _trigger_textbook_pullback_big_buyer_reasons.append(
+                        f"mtf_textbook_pullback=1 AND "
+                        f"p90_buy_size_usd=${float(_late_p90):.0f}>84 "
+                        f"(textbook pullback + whale-size buys)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] late triggers eval err: {_e}")
+
+            if _trigger_textbook_pullback_vol_accel_match:
+                _triggers_fired.append("textbook_pullback_vol_accel")
+            if _trigger_textbook_pullback_big_buyer_match:
+                _triggers_fired.append("textbook_pullback_big_buyer")
+
             # ── Liquidity velocity (paper-derived, SHADOW 2026-05-12) ──
             # arxiv 2602.14860: "Fast accumulation of liquidity through a small
             # number of trades is the strongest predictor of graduation."
@@ -12674,6 +12857,13 @@ class DipScanner:
                 "1s_capit_reversal" in _triggers_fired
                 or "deep_1h_dip" in _triggers_fired
                 or "concurrent_alpha" in _triggers_fired
+                # 2026-05-22 PM — promote 5 of the new-10 to alpha tier
+                # (all had mined $/tr >= $1.10).
+                or "whale_concentrated_demand" in _triggers_fired
+                or "whale_recent_burst" in _triggers_fired
+                or "whale_p90_size" in _triggers_fired
+                or "textbook_pullback_vol_accel" in _triggers_fired
+                or "textbook_pullback_big_buyer" in _triggers_fired
             )
             if _is_premium_runner:
                 _position_size = self.position_usd * 3.0
