@@ -32,7 +32,9 @@ Backtest:  python backtest/run_backtest.py
 
 import asyncio
 import logging
+import os
 import time as _time
+from pathlib import Path
 from utils.config import Config
 from utils.telegram_bot import TelegramNotifier
 from core.risk_manager import RiskManager
@@ -65,6 +67,12 @@ from core.strategies.cross_wallet_convergence import CrossWalletConvergenceStrat
 from core.strategies.wallet_clustering import WalletClusteringStrategy
 from core.strategies.capitulation_reversal import CapitulationReversalStrategy
 from core.realtime_signal import RealTimeSignalLayer
+from core.bot_registry import BotRegistry
+from core.bot_evaluator import BotEvaluator
+from core.bot_manager import BotManager
+from core.multi_bot_persistence import MultiBotTradeStore
+
+MULTI_BOT_ENABLED = os.getenv("MULTI_BOT_ENABLED", "false").lower() == "true"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -142,6 +150,32 @@ async def main():
     logger.info("=" * 60)
 
     config = Config.load()
+
+    # ── Multi-Bot Harness startup ────────────────────────────────────────
+    data_dir = Path(os.environ.get("DATA_DIR", "/data"))
+    trade_store = MultiBotTradeStore(data_dir=data_dir)
+
+    bot_manager = None
+    if MULTI_BOT_ENABLED:
+        # Run migration first (idempotent — safe to re-run on every boot)
+        try:
+            from scripts.migrate_trades_json_bot_id import migrate
+            migrate(data_dir)
+        except Exception as e:
+            logger.warning(f"[main] migration failed (continuing): {e}")
+
+        config_dir = Path(__file__).parent / "config" / "bots"
+        registry = BotRegistry.from_directory(config_dir)
+        evaluators = [BotEvaluator(c) for c in registry.configs]
+        bot_manager = BotManager(evaluators=evaluators)
+        logger.info(
+            "[main] MULTI_BOT_ENABLED — loaded %d bots: %s",
+            len(registry.configs),
+            [c.bot_id for c in registry.configs],
+        )
+    else:
+        logger.info("[main] MULTI_BOT_ENABLED=false — legacy single-bot only")
+
     logger.info(
         f"[Config] Effective settings:\n"
         f"  Capital: ${config.total_capital:.0f} | Daily loss limit: ${config.daily_loss_limit:.0f}\n"
@@ -154,7 +188,7 @@ async def main():
     )
     telegram = TelegramNotifier(config.telegram_token, config.telegram_chat_id)
     tracker = PerformanceTracker()
-    dashboard = WebDashboard(port=config.dashboard_port)
+    dashboard = WebDashboard(port=config.dashboard_port, trade_store=trade_store)
     telegram.register_dashboard(dashboard)  # route all alerts → live event feed
 
     # ── Shared Systems ──────────────────────────────────────────────────
@@ -481,6 +515,8 @@ async def main():
                 require_vol_m5=config.dip_require_vol_m5,
                 min_turnover_h24=config.dip_min_turnover_h24,
                 baseline_mode=config.dip_baseline_mode,
+                bot_manager=bot_manager,
+                trade_store=trade_store,
             )
             # Tier 3: wire AxiomPriceFeed for sub-minute tick buffer reads at
             # signal-fire time. Optional — dip_scanner falls back to empty
@@ -555,8 +591,8 @@ async def main():
                 data_client=bk_client,
                 taker_fee=config.breakout_paper_taker_fee,
             )
-            data_dir = _bk_os.environ.get("DATA_DIR", ".")
-            bk_db = BreakoutDB(_bk_os.path.join(data_dir, "breakout.db"))
+            bk_data_dir = _bk_os.environ.get("DATA_DIR", ".")
+            bk_db = BreakoutDB(_bk_os.path.join(bk_data_dir, "breakout.db"))
 
             bk_execution = BreakoutExecution(
                 data_client=bk_client,
