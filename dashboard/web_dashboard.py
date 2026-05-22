@@ -3136,7 +3136,7 @@ class WebDashboard:
         h6 = feats.get("sol_pc_h6")
         h1 = feats.get("sol_pc_h1")
         h24 = feats.get("sol_pc_h24")
-        price = feats.get("sol")
+        price = feats.get("sol_price") or feats.get("sol")
         reasons = []
         if isinstance(h6, (int, float)) and h6 < -0.3:
             reasons.append(f"sol_pc_h6={h6:+.2f}%<-0.3")
