@@ -133,7 +133,11 @@ def _add_json_methods(cls):
     @classmethod
     def from_json(cls_, path):
         path = Path(path)
-        data = json.loads(path.read_text())
+        text = path.read_text()
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in {path}: {e}") from e
         known = {f.name: f for f in dataclasses.fields(cls_)}
         unknown = set(data.keys()) - set(known.keys())
         if unknown:
@@ -144,7 +148,12 @@ def _add_json_methods(cls):
             name: _from_json_safe(known[name].type, val)
             for name, val in data.items()
         }
-        return cls_(**coerced)
+        try:
+            return cls_(**coerced)
+        except TypeError as e:
+            raise ValueError(
+                f"Missing or invalid field in {path.name}: {e}"
+            ) from e
 
     cls.to_json = to_json
     cls.from_json = from_json

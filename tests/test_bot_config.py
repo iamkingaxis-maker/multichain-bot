@@ -108,3 +108,15 @@ def test_botconfig_json_loads_optional_None_correctly(tmp_path):
     cfg.to_json(p)
     loaded = BotConfig.from_json(p)
     assert loaded.sol_macro_h6_block_threshold is None
+
+def test_botconfig_json_missing_required_field_raises_value_error(tmp_path):
+    p = tmp_path / "missing.json"
+    p.write_text(json.dumps({"display_name": "OK"}))  # missing bot_id
+    with pytest.raises(ValueError, match="missing.json"):
+        BotConfig.from_json(p)
+
+def test_botconfig_json_malformed_raises_value_error_with_path(tmp_path):
+    p = tmp_path / "bad.json"
+    p.write_text("not json at all {{{")
+    with pytest.raises(ValueError, match="bad.json"):
+        BotConfig.from_json(p)
