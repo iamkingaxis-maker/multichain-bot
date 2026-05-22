@@ -9732,6 +9732,87 @@ class DipScanner:
             if _trigger_chart_score_quiet_flow_match:
                 _triggers_fired.append("chart_score_quiet_flow")
 
+            # ── ROUND 3 TRIGGERS — ENFORCED 2026-05-22 PM ──────────────────
+            # 5 triggers from .round3_results.json on n=174 paired trades.
+            # 3 new mechanisms: CNN-cluster individual ids, slip asymmetry,
+            # bot-state momentum.
+            _trigger_cnn_cluster_10_match = False
+            _trigger_cnn_cluster_10_reasons: list = []
+            _trigger_cnn_cluster_16_match = False
+            _trigger_cnn_cluster_16_reasons: list = []
+            _trigger_cnn_cluster_13_match = False
+            _trigger_cnn_cluster_13_reasons: list = []
+            _trigger_low_buy_slip_match = False
+            _trigger_low_buy_slip_reasons: list = []
+            _trigger_hot_streak_early_day_match = False
+            _trigger_hot_streak_early_day_reasons: list = []
+            try:
+                # T11/T12/T13 CNN cluster individual ids (model-learned chart
+                # patterns flagged as alpha):
+                #   cluster_10: n=13 WR=77% $/tr=$0.53
+                #   cluster_16: n=17 WR=82% $/tr=$0.41
+                #   cluster_13: n=8  WR=75% $/tr=$0.51
+                if _cnn_cluster_id is not None and int(_cnn_cluster_id) == 10:
+                    _trigger_cnn_cluster_10_match = True
+                    _trigger_cnn_cluster_10_reasons.append(
+                        f"cnn_cluster_id={int(_cnn_cluster_id)} (mined alpha cluster)"
+                    )
+                if _cnn_cluster_id is not None and int(_cnn_cluster_id) == 16:
+                    _trigger_cnn_cluster_16_match = True
+                    _trigger_cnn_cluster_16_reasons.append(
+                        f"cnn_cluster_id={int(_cnn_cluster_id)} (mined alpha cluster, 82% WR)"
+                    )
+                if _cnn_cluster_id is not None and int(_cnn_cluster_id) == 13:
+                    _trigger_cnn_cluster_13_match = True
+                    _trigger_cnn_cluster_13_reasons.append(
+                        f"cnn_cluster_id={int(_cnn_cluster_id)} (mined alpha cluster)"
+                    )
+
+                # T14 low_buy_slip: n=20 WR=70% $/tr=$0.40
+                # Token has good liquidity depth for our entry size.
+                _r3_slip = None
+                if isinstance(jup_features, dict):
+                    _r3_slip = jup_features.get("slip_buy_5000_pct")
+                if (_r3_slip is not None and float(_r3_slip) < 5.42
+                        and not _seller_active):
+                    _trigger_low_buy_slip_match = True
+                    _trigger_low_buy_slip_reasons.append(
+                        f"slip_buy_5000_pct={float(_r3_slip):.2f}%<5.42 "
+                        f"(good liquidity depth for entry)"
+                    )
+
+                # T15 hot_streak_early_day: n=19 WR=79% $/tr=$0.36
+                # When bot is up $2+ AND fewer than 12 trades today = early-day
+                # momentum persistence. Daily_pnl and trades_today come from
+                # the bot_state dict computed at line ~2615.
+                _r3_dpnl = None
+                _r3_tt = None
+                if isinstance(_bot_state, dict):
+                    _r3_dpnl = _bot_state.get("daily_pnl_at_entry")
+                    _r3_tt = _bot_state.get("trades_today_at_entry")
+                if (_r3_dpnl is not None and float(_r3_dpnl) > 2.0
+                        and _r3_tt is not None and int(_r3_tt) < 12
+                        and not _seller_active):
+                    _trigger_hot_streak_early_day_match = True
+                    _trigger_hot_streak_early_day_reasons.append(
+                        f"daily_pnl=${float(_r3_dpnl):+.2f}>$2 AND "
+                        f"trades_today={int(_r3_tt)}<12 "
+                        f"(early-day hot streak momentum)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] round3 trigger eval err: {_e}")
+
+            if _trigger_cnn_cluster_10_match:
+                _triggers_fired.append("cnn_cluster_10")
+            if _trigger_cnn_cluster_16_match:
+                _triggers_fired.append("cnn_cluster_16")
+            if _trigger_cnn_cluster_13_match:
+                _triggers_fired.append("cnn_cluster_13")
+            if _trigger_low_buy_slip_match:
+                _triggers_fired.append("low_buy_slip")
+            if _trigger_hot_streak_early_day_match:
+                _triggers_fired.append("hot_streak_early_day")
+
             # ── User watchlist bypass: April-era filter-only mode ───────────
             # When user picked a token deliberately (watchlist), don't gate
             # on a positive trigger pattern. April 28 100% WR architecture
