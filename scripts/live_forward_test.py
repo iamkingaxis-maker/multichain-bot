@@ -450,7 +450,10 @@ COMBOS = {
                                              and c['liq_velocity_h1_usd_per_txn'] >= 135.0),
     'QQ_net_flow_5m_demand':      lambda c: (c.get('net_flow_5m_usd') is not None
                                              and c['net_flow_5m_usd'] >= 300.0),
-    'RR_mcap_psych_level':        lambda c: c.get('mcap_near_psych_level') is True,
+    # 2026-05-23 — mcap_psych_level gated to pc_h24 < 80% (extended-runner kill).
+    'RR_mcap_psych_level':        lambda c: (c.get('mcap_near_psych_level') is True
+                                              and c.get('pc_h24') is not None
+                                              and c['pc_h24'] < 80.0),
     # Filter: should appear in c['blocked_filters'] phantom output (not a positive trigger)
     # PASS if (mtf score missing OR > -2.0) OR any carve-out fires.
     # Carve-out #1 (2026-05-16 PM): chart_score >= 58.20 (n=54, 65% W, +30.8% peak)

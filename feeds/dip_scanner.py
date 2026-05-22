@@ -8757,8 +8757,20 @@ class DipScanner:
                 _triggers_fired.append("liq_velocity_big_buyers")
             if _trigger_net_flow_5m_match:
                 _triggers_fired.append("net_flow_5m_demand")
+            # 2026-05-23 — mcap_psych_level GATED to pc_h24 < 80%.
+            # Lifetime audit: pc_h24>=80 bucket = 0/5 winners, -$3.45/tr,
+            # total -$17.25 (4× WORLDCUP losses last night, pc_h24 +79 to
+            # +94%). pc_h24<80 cohort is mildly +EV (+$0.26/tr, n=9, 5W/3L).
+            # Match flag still stamped for forensic analysis.
+            # See [feedback_buying_too_high].
             if _trigger_mcap_psych_match:
-                _triggers_fired.append("mcap_psych_level")
+                if pc_h24 is None or pc_h24 < 80.0:
+                    _triggers_fired.append("mcap_psych_level")
+                else:
+                    logger.info(
+                        f"[DipScanner] mcap_psych_level GATED "
+                        f"(pc_h24={pc_h24:.1f}% >= 80): {token_symbol}"
+                    )
             if _trigger_whale_conviction_match:
                 _triggers_fired.append("whale_conviction")
             if _trigger_fresh_pump_retrace_match:
@@ -12934,8 +12946,17 @@ class DipScanner:
             # 0.5x — leaving alpha on the table. Bump to 1.5x to amplify the
             # win. Placed above macro_up so alpha tier fires regardless of
             # SOL micro-uptick context.
-            _is_alpha_trigger = (
+            # 2026-05-23 — 1s_capit_reversal DEMOTED from alpha when pc_h24 >= 80%.
+            # Lifetime audit: pc_h24>=80 cohort = -$2.35/tr (n=6, total -$14.10),
+            # blew up on WORLDCUP 07:09 (-$14.18 single trade due to 1.5x sizing).
+            # pc_h24<80 cohort keeps alpha sizing (50-80% bucket: +$0.80/tr, n=4).
+            # Entry still permitted at standard size; only the 1.5x boost is removed.
+            _capit_alpha_eligible = (
                 "1s_capit_reversal" in _triggers_fired
+                and (pc_h24 is None or pc_h24 < 80.0)
+            )
+            _is_alpha_trigger = (
+                _capit_alpha_eligible
                 or "deep_1h_dip" in _triggers_fired
                 or "concurrent_alpha" in _triggers_fired
                 # 2026-05-22 PM — promote 5 of the new-10 to alpha tier
