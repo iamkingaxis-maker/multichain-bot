@@ -59,3 +59,52 @@ def test_botconfig_allows_tp_sell_fractions_summing_to_one():
     # 0.75 + 0.25 = 1.0 should pass (production default)
     cfg = BotConfig(bot_id="ok", display_name="OK")
     assert cfg.tp1_sell_fraction + cfg.tp2_sell_fraction == 1.0
+
+
+import json
+import tempfile
+from pathlib import Path
+
+def test_botconfig_json_roundtrip(tmp_path):
+    cfg = BotConfig(
+        bot_id="test_v1",
+        display_name="Test Bot",
+        sol_macro_h6_block_threshold=-0.5,
+        filters_disabled=("filter_corpse",),
+    )
+    p = tmp_path / "test_v1.json"
+    cfg.to_json(p)
+
+    loaded = BotConfig.from_json(p)
+    assert loaded == cfg
+    assert loaded.filters_disabled == ("filter_corpse",)
+    assert loaded.sol_macro_h6_block_threshold == -0.5
+
+def test_botconfig_json_unknown_field_rejected(tmp_path):
+    p = tmp_path / "bad.json"
+    p.write_text(json.dumps({
+        "bot_id": "x",
+        "display_name": "x",
+        "unknown_field": 42,
+    }))
+    with pytest.raises(ValueError, match="unknown_field"):
+        BotConfig.from_json(p)
+
+def test_botconfig_json_serializes_tuples_as_lists(tmp_path):
+    cfg = BotConfig(
+        bot_id="x", display_name="x",
+        filters_disabled=("a", "b"),
+    )
+    p = tmp_path / "x.json"
+    cfg.to_json(p)
+    raw = json.loads(p.read_text())
+    # JSON arrays not Python tuples
+    assert raw["filters_disabled"] == ["a", "b"]
+
+def test_botconfig_json_loads_optional_None_correctly(tmp_path):
+    cfg = BotConfig(bot_id="x", display_name="x",
+                    sol_macro_h6_block_threshold=None)
+    p = tmp_path / "x.json"
+    cfg.to_json(p)
+    loaded = BotConfig.from_json(p)
+    assert loaded.sol_macro_h6_block_threshold is None

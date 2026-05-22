@@ -1,6 +1,9 @@
 # core/bot_config.py
 from __future__ import annotations
+import dataclasses
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 
 
@@ -89,3 +92,63 @@ class BotConfig:
                 f"({self.tp1_sell_fraction}) + tp2_sell_fraction "
                 f"({self.tp2_sell_fraction}) must be <= 1.0"
             )
+
+
+# ---------------------------------------------------------------------------
+# JSON serialization helpers
+# ---------------------------------------------------------------------------
+
+def _to_json_safe(value):
+    """Convert tuples to lists for JSON; recurse into structures."""
+    if isinstance(value, tuple):
+        return [_to_json_safe(v) for v in value]
+    if isinstance(value, list):
+        return [_to_json_safe(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _to_json_safe(v) for k, v in value.items()}
+    return value
+
+
+def _from_json_safe(field_type, value):
+    """Coerce JSON-deserialized lists back to tuples for tuple-typed fields.
+
+    ``field_type`` is the string annotation (from __future__ annotations),
+    e.g. ``"Optional[tuple[str, ...]]"`` or ``"tuple[str, ...]"``.
+    """
+    if value is None:
+        return None
+    type_str = str(field_type)
+    if "tuple" in type_str and isinstance(value, list):
+        return tuple(value)
+    return value
+
+
+def _add_json_methods(cls):
+    def to_json(self, path):
+        path = Path(path)
+        data = {f.name: _to_json_safe(getattr(self, f.name))
+                for f in dataclasses.fields(self)}
+        path.write_text(json.dumps(data, indent=2, sort_keys=True))
+
+    @classmethod
+    def from_json(cls_, path):
+        path = Path(path)
+        data = json.loads(path.read_text())
+        known = {f.name: f for f in dataclasses.fields(cls_)}
+        unknown = set(data.keys()) - set(known.keys())
+        if unknown:
+            raise ValueError(
+                f"Unknown field(s) in {path.name}: {sorted(unknown)}"
+            )
+        coerced = {
+            name: _from_json_safe(known[name].type, val)
+            for name, val in data.items()
+        }
+        return cls_(**coerced)
+
+    cls.to_json = to_json
+    cls.from_json = from_json
+    return cls
+
+
+BotConfig = _add_json_methods(BotConfig)
