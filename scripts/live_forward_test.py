@@ -2173,6 +2173,227 @@ _USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 _JUP_QUOTE = "https://api.jup.ag/swap/v1/quote"
 
 
+def fetch_sol_multi_tf():
+    """Fetch SOL multi-timeframe price-change features (h1, h4, h6, h24) for
+    filter_sol_macro_down + concurrent_alpha + btc_*_bs_h1 phantom parity.
+
+    Uses Coinbase Exchange API (US-friendly, free) — same source as the
+    bot's _fetch_cycle_sol_features in feeds/dip_scanner.py (commit 5ab8e74).
+
+    Returns dict applied to every candidate in the snapshot.
+    Fail-soft: returns empty dict on any error.
+    """
+    try:
+        now = int(time.time())
+        # Fetch ~25h of 1m candles in 5h windows (CB max 300 per call)
+        out: dict = {}
+        all_bars = []
+        cursor = now - 26 * 3600
+        for _ in range(6):  # 6 × 5h = 30h coverage
+            batch_end = min(cursor + 5 * 3600, now)
+            start_iso = datetime.fromtimestamp(cursor, tz=timezone.utc).isoformat()
+            end_iso = datetime.fromtimestamp(batch_end, tz=timezone.utc).isoformat()
+            url = (f'https://api.exchange.coinbase.com/products/SOL-USD/candles'
+                   f'?start={start_iso}&end={end_iso}&granularity=60')
+            r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=8)
+            if r.status_code != 200:
+                cursor = batch_end + 60
+                time.sleep(0.5)
+                continue
+            data = r.json()
+            # [[ts_secs, low, high, open, close, vol], ...] descending
+            for k in data:
+                all_bars.append((int(k[0]), float(k[4])))  # (ts, close)
+            cursor = batch_end + 60
+            time.sleep(0.15)
+        if not all_bars:
+            return {}
+        # Sort ascending + dedup
+        seen = set()
+        bars = []
+        for ts, close in sorted(all_bars, key=lambda x: x[0]):
+            if ts in seen: continue
+            seen.add(ts)
+            bars.append((ts, close))
+        if len(bars) < 2:
+            return {}
+        spot = bars[-1][1]
+        out['sol_price'] = round(spot, 4)
+
+        def _pc_at(secs_back, label):
+            target = now - secs_back
+            for ts, close in reversed(bars):
+                if ts <= target:
+                    if close > 0:
+                        out[f'sol_pc_{label}'] = round((spot / close - 1) * 100, 3)
+                    break
+
+        _pc_at(300,   'm5')
+        _pc_at(3600,  'h1')
+        _pc_at(4 * 3600, 'h4')
+        _pc_at(6 * 3600, 'h6')
+        _pc_at(24 * 3600, 'h24')
+        return out
+    except Exception as _e:
+        return {}
+
+
+def fetch_bot_state():
+    """Fetch live bot-state for phantom triggers that depend on runtime state
+    (concurrent_alpha, hot_streak_early_day).
+
+    Pulls /api/stats from production Railway. Returns dict applied to every
+    candidate in the snapshot. Fail-soft on outage.
+
+    Schema: daily_pnl at top level; recent_trades is a list (count = today's
+    trade count); positions is a list of open positions.
+    """
+    try:
+        url = 'https://gracious-inspiration-production.up.railway.app/api/stats'
+        r = requests.get(url, timeout=5)
+        if r.status_code != 200:
+            return {}
+        d = r.json() or {}
+        out: dict = {}
+        if 'daily_pnl' in d:
+            out['daily_pnl_at_entry'] = float(d.get('daily_pnl') or 0)
+        # trades_today: count from recent_trades / all_trades filtered to today UTC
+        for key in ('recent_trades', 'all_trades'):
+            arr = d.get(key)
+            if not isinstance(arr, list): continue
+            today_iso = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+            n_today = sum(
+                1 for t in arr
+                if isinstance(t, dict)
+                and (t.get('time') or '')[:10] == today_iso
+                and (t.get('type') or '') == 'buy'
+            )
+            if n_today > 0 or key == 'all_trades':
+                out['trades_today_at_entry'] = n_today
+                break
+        # concurrent_positions_at_entry: count of currently open dip_buy positions
+        positions = d.get('positions') or []
+        if isinstance(positions, list):
+            out['concurrent_positions_at_entry'] = sum(
+                1 for p in positions
+                if isinstance(p, dict)
+                and (p.get('strategy') or '') in ('dip_buy', 'scanner', '')
+            )
+        return out
+    except Exception:
+        return {}
+
+
+def compute_session22_per_token(c):
+    """Per-token enrichment for 2026-05-22 session triggers.
+
+    Adds (when DS trade log fetch succeeds):
+      net_flow_60s_usd, net_flow_15s_usd, net_flow_5m_usd
+      top_buy_makers_n, top_sell_makers_n
+      unique_buyers_n, unique_sellers_n
+      rt_secs_since_last
+      top10_buyer_n_with_ts
+      p90_buy_size_usd
+
+    Also derives (no extra fetch):
+      vol_h1_accel_vs_h6 = vol_h1 / (vol_h6 / 6.0)
+
+    DS trade-log endpoint: io.dexscreener.com/dex/trades/v1/<chain>/<pair>?limit=300
+    (binary endpoint per reference_dexscreener_internal_api memory)
+    """
+    out: dict = {}
+
+    # vol_h1_accel_vs_h6 — derive from existing
+    vh1 = c.get('vol_h1')
+    vh6 = c.get('vol_h6')
+    if vh1 is not None and vh6 is not None and vh6 > 0:
+        baseline = vh6 / 6.0
+        if baseline > 0:
+            out['vol_h1_accel_vs_h6'] = round(vh1 / baseline, 3)
+
+    # GT trade-log fetch — public JSON endpoint, parseable without curl_cffi.
+    # /api/v2/networks/solana/pools/{pair}/trades returns recent trades:
+    #   data[].attributes.{block_timestamp, kind, volume_in_usd, tx_from_address}
+    try:
+        pair_addr = c.get('pair')
+        if not pair_addr:
+            return out
+        url = f'https://api.geckoterminal.com/api/v2/networks/solana/pools/{pair_addr}/trades'
+        r = requests.get(url, headers={'Accept': 'application/json'}, timeout=8)
+        if r.status_code != 200:
+            return out
+        d = r.json() or {}
+        items = d.get('data') or []
+        if not items:
+            return out
+        # Normalize to (ts_ms, side, usd, maker) tuples
+        now_ms = time.time() * 1000
+        trades = []
+        for it in items:
+            attrs = it.get('attributes') or {}
+            ts_str = attrs.get('block_timestamp')
+            if not ts_str: continue
+            # block_timestamp is ISO8601
+            try:
+                if ts_str.endswith('Z'):
+                    ts_dt = datetime.fromisoformat(ts_str[:-1] + '+00:00')
+                else:
+                    ts_dt = datetime.fromisoformat(ts_str)
+                ts_ms = ts_dt.timestamp() * 1000
+            except Exception:
+                continue
+            side = (attrs.get('kind') or '').lower()  # 'buy' or 'sell'
+            usd = float(attrs.get('volume_in_usd') or 0)
+            maker = attrs.get('tx_from_address') or ''
+            trades.append((ts_ms, side, usd, maker))
+
+        if not trades:
+            return out
+
+        def _window_net(window_ms):
+            buys = 0.0; sells = 0.0
+            for ts, side, usd, _ in trades:
+                if now_ms - ts > window_ms: continue
+                if 'buy' in side: buys += usd
+                elif 'sell' in side: sells += usd
+            return buys - sells
+
+        out['net_flow_15s_usd'] = round(_window_net(15_000), 2)
+        out['net_flow_60s_usd'] = round(_window_net(60_000), 2)
+        out['net_flow_5m_usd'] = round(_window_net(300_000), 2)
+
+        # 60s buyer/seller maker counts
+        buy_makers = set()
+        sell_makers = set()
+        all_buy_sizes = []
+        last_ts = 0
+        for ts, side, usd, maker in trades:
+            if ts > last_ts: last_ts = ts
+            within_60s = (now_ms - ts) <= 60_000
+            within_1h = (now_ms - ts) <= 3_600_000
+            if within_60s and maker:
+                if 'buy' in side: buy_makers.add(maker)
+                elif 'sell' in side: sell_makers.add(maker)
+            if within_1h and 'buy' in side:
+                all_buy_sizes.append(usd)
+        out['top_buy_makers_n'] = len(buy_makers)
+        out['top_sell_makers_n'] = len(sell_makers)
+        out['unique_buyers_n'] = len(buy_makers)
+        out['unique_sellers_n'] = len(sell_makers)
+        # top10_buyer_n_with_ts proxy (any-buyer count in 60s).
+        out['top10_buyer_n_with_ts'] = len(buy_makers)
+        if last_ts > 0:
+            out['rt_secs_since_last'] = round((now_ms - last_ts) / 1000.0, 1)
+        if all_buy_sizes:
+            all_buy_sizes.sort()
+            idx = int(len(all_buy_sizes) * 0.90)
+            out['p90_buy_size_usd'] = round(all_buy_sizes[min(idx, len(all_buy_sizes) - 1)], 2)
+    except Exception:
+        pass
+
+    return out
+
+
 def fetch_sol_price():
     """1 SOL → USDC via Jupiter to anchor slippage USD sizing."""
     try:
@@ -2314,6 +2535,22 @@ def take_snapshot():
     sol_price = fetch_sol_price()
     print(f'  regime_h1_neg_pct={regime_h1_neg_pct}%  sol_price=${sol_price:.2f}')
 
+    # 2026-05-22 session — global SOL multi-timeframe features (h1, h4, h6, h24)
+    # for filter_sol_macro_down + concurrent_alpha + btc_*_bs_h1 phantom parity.
+    # One Coinbase fetch per snapshot; applied to every candidate.
+    sol_global = fetch_sol_multi_tf()
+    if sol_global:
+        print(f'  sol_global: h1={sol_global.get("sol_pc_h1")}% h4={sol_global.get("sol_pc_h4")}% '
+              f'h6={sol_global.get("sol_pc_h6")}% h24={sol_global.get("sol_pc_h24")}%')
+
+    # Live bot-state (daily_pnl, trades_today, concurrent_positions) for
+    # hot_streak_early_day + concurrent_alpha phantom parity. /api/stats fetch.
+    bot_state = fetch_bot_state()
+    if bot_state:
+        print(f'  bot_state: daily_pnl=${bot_state.get("daily_pnl_at_entry",0):+.2f} '
+              f'trades_today={bot_state.get("trades_today_at_entry",0)} '
+              f'open_pos={bot_state.get("concurrent_positions_at_entry",0)}')
+
     # Jito MEV tip-floor (one fetch per snapshot — applied to all candidates).
     # Phantom parity with dip_scanner.py wiring of feeds.jito_bundle_feed.
     # Smart-money registry features (smart_buys_5m_*) are NOT phantom-mirrored —
@@ -2376,6 +2613,16 @@ def take_snapshot():
                 c['slip_sell_5k_velocity_pct_per_min'] = vel
             c['slip_sell_5k_samples'] = n
             c['slip_sell_5k_trajectory'] = traj
+
+        # 2026-05-22 session features
+        # - Per-token: net_flow_*, top_buy_makers_n, rt_secs_since_last,
+        #   p90_buy_size_usd, vol_h1_accel_vs_h6 (derived inline)
+        c.update(compute_session22_per_token(c))
+        # - Global SOL multi-tf + bot state (computed once per snapshot)
+        for _k, _v in (sol_global or {}).items():
+            if _v is not None: c[_k] = _v
+        for _k, _v in (bot_state or {}).items():
+            if _v is not None: c[_k] = _v
 
         # Compute combo verdicts
         c['verdicts'] = {name: 'PASS' if fn(c) else 'BLOCK' for name, fn in COMBOS.items()}
