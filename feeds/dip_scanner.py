@@ -9557,6 +9557,41 @@ class DipScanner:
             if _trigger_two_pattern_demand_match:
                 _triggers_fired.append("two_pattern_demand")
 
+            # ── concurrent_alpha — ENFORCED 2026-05-22 ─────────────────────
+            # Strongest 3-way compound from new-angles mine (#E):
+            #   concurrent_positions_at_entry > 1 AND
+            #   top10_buyer_n_with_ts < 10 AND
+            #   sol_pc_h4 > -0.15
+            # n=11, WR=82%, $/tr=$+1.893, NET=$+20.82
+            #
+            # The dominant feature `concurrent_positions_at_entry > 1` flips
+            # an intuition — the bot's NEXT entry when 2+ positions are
+            # already open tends to be a big winner. Hot streaks are real.
+            # `top10_buyer_n_with_ts < 10` filters for tight cluster of big
+            # buyers (concentrated alpha). sol_pc_h4 > -0.15 is the
+            # macro-safe rail.
+            _trigger_concurrent_alpha_match = False
+            _trigger_concurrent_alpha_reasons: list = []
+            try:
+                _ca_t10n = (_tier2_features or {}).get("top10_buyer_n_with_ts")
+                _ca_sol_h4 = sol_features.get("sol_pc_h4") if sol_features else None
+                if (_concur_dip > 1
+                        and _ca_t10n is not None and int(_ca_t10n) < 10
+                        and _ca_sol_h4 is not None and float(_ca_sol_h4) > -0.15
+                        and not _seller_active):
+                    _trigger_concurrent_alpha_match = True
+                    _trigger_concurrent_alpha_reasons.append(
+                        f"concurrent_positions={_concur_dip}>1 AND "
+                        f"top10_buyer_n_with_ts={int(_ca_t10n)}<10 AND "
+                        f"sol_pc_h4={float(_ca_sol_h4):+.2f}%>-0.15 "
+                        f"(hot streak + concentrated buyers + safe macro)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] concurrent_alpha eval err: {_e}")
+
+            if _trigger_concurrent_alpha_match:
+                _triggers_fired.append("concurrent_alpha")
+
             # ── User watchlist bypass: April-era filter-only mode ───────────
             # When user picked a token deliberately (watchlist), don't gate
             # on a positive trigger pattern. April 28 100% WR architecture
@@ -12638,6 +12673,7 @@ class DipScanner:
             _is_alpha_trigger = (
                 "1s_capit_reversal" in _triggers_fired
                 or "deep_1h_dip" in _triggers_fired
+                or "concurrent_alpha" in _triggers_fired
             )
             if _is_premium_runner:
                 _position_size = self.position_usd * 3.0
