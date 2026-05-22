@@ -71,3 +71,21 @@ class BotConfig:
     # Trading window (UTC hours, half-open: [start, end))
     trading_hour_utc_start: int = 0
     trading_hour_utc_end: int = 24
+
+    def __post_init__(self) -> None:
+        if self.filters_enforced is not None and self.filters_disabled:
+            raise ValueError(
+                f"bot_id={self.bot_id}: filters_enforced is set, "
+                "so filters_disabled must be empty (it is ignored when enforced is set)"
+            )
+        if self.triggers_allowed is not None and self.triggers_disabled:
+            raise ValueError(
+                f"bot_id={self.bot_id}: triggers_allowed is set, "
+                "so triggers_disabled must be empty"
+            )
+        if self.tp1_sell_fraction + self.tp2_sell_fraction > 1.0 + 1e-9:
+            raise ValueError(
+                f"bot_id={self.bot_id}: tp1_sell_fraction "
+                f"({self.tp1_sell_fraction}) + tp2_sell_fraction "
+                f"({self.tp2_sell_fraction}) must be <= 1.0"
+            )

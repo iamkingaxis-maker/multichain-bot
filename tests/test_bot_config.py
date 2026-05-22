@@ -27,3 +27,35 @@ def test_botconfig_defaults_match_production():
     assert cfg.tp1_pct == 5.0
     assert cfg.tp1_sell_fraction == 0.75
     assert cfg.hard_stop_pct == -15.0
+
+def test_botconfig_rejects_both_filters_enforced_and_disabled():
+    with pytest.raises(ValueError, match="filters_disabled must be empty"):
+        BotConfig(
+            bot_id="bad",
+            display_name="Bad",
+            filters_enforced=("filter_corpse",),
+            filters_disabled=("filter_fake_bounce",),
+        )
+
+def test_botconfig_rejects_both_triggers_allowed_and_disabled():
+    with pytest.raises(ValueError, match="triggers_disabled must be empty"):
+        BotConfig(
+            bot_id="bad",
+            display_name="Bad",
+            triggers_allowed=("deep_1h_dip",),
+            triggers_disabled=("mcap_psych_level",),
+        )
+
+def test_botconfig_rejects_tp_sell_fractions_over_one():
+    with pytest.raises(ValueError, match="tp1_sell_fraction"):
+        BotConfig(
+            bot_id="bad",
+            display_name="Bad",
+            tp1_sell_fraction=0.8,
+            tp2_sell_fraction=0.5,
+        )
+
+def test_botconfig_allows_tp_sell_fractions_summing_to_one():
+    # 0.75 + 0.25 = 1.0 should pass (production default)
+    cfg = BotConfig(bot_id="ok", display_name="OK")
+    assert cfg.tp1_sell_fraction + cfg.tp2_sell_fraction == 1.0
