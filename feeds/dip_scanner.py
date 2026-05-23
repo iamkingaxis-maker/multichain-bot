@@ -13855,6 +13855,15 @@ class DipScanner:
                                 # if not previously in pair_by_addr.
                                 pair_by_addr[addr] = p
                                 source_by_addr[addr] = "user_watchlist"
+                            elif source_by_addr.get(addr) == "sticky_watchlist":
+                                # Refresh stale sticky-watchlist entries with
+                                # fresh DS data. Without this, sticky tokens
+                                # keep the price from when they were first
+                                # seen — see WR26 incident 2026-05-23 where
+                                # no_filters bot bought at $0.0001312 while
+                                # actual price was $0.0000281 (-78% gap).
+                                pair_by_addr[addr] = p
+                                source_by_addr[addr] = "sticky_enriched"
                             elif addr not in pair_by_addr:
                                 pair_by_addr[addr] = p
                                 source_by_addr[addr] = "ds_stub"
@@ -13879,7 +13888,7 @@ class DipScanner:
             "ds_stub": 0, "ds_search": 0,
             "gt_trending": 0, "gt_enriched": 0,
             "axiom_trending": 0, "axiom_enriched": 0,
-            "sticky_watchlist": 0,
+            "sticky_watchlist": 0, "sticky_enriched": 0,
             "user_watchlist": 0,
         }
         for src in source_by_addr.values():
@@ -13891,8 +13900,13 @@ class DipScanner:
         _now = time.time()
         for addr, p in pair_by_addr.items():
             src = source_by_addr.get(addr, "")
+            # Only persist sources with FRESH pair data. Don't persist
+            # "sticky_watchlist" itself — that's the un-refreshed stale
+            # entry from this cycle, persisting it just renews the cache
+            # without updating the price. "sticky_enriched" IS the freshly
+            # refreshed sticky, so we persist that instead.
             if src in ("ds_stub", "ds_search", "gt_enriched", "axiom_enriched",
-                       "sticky_watchlist"):
+                       "sticky_enriched"):
                 self._sticky_watchlist[addr] = {"pair": p, "last_seen_ts": _now}
         self._save_sticky()
 
