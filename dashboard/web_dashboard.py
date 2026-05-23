@@ -2112,8 +2112,12 @@ class WebDashboard:
         except Exception:
             want_all = False
             limit = 200
-        if not want_all and isinstance(trades, list) and len(trades) > limit:
-            # Sort by time descending (latest first), take limit, return newest-first
+        # Always sort newest-first when paginating — even when total < limit.
+        # Previously this branch only triggered when len > limit, so callers
+        # asking for "limit=2000" against a 1702-record store got chronological
+        # order (oldest first) and the most recent sells got hidden in the
+        # tail of the response. Now newest is always first.
+        if not want_all and isinstance(trades, list):
             try:
                 trades = sorted(trades, key=lambda t: t.get('time') or '', reverse=True)[:limit]
             except Exception:
