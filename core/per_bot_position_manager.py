@@ -52,8 +52,19 @@ class PerBotPositionManager:
 
     def open_position(self, token: str, entry_price: float, size_usd: float,
                       entry_time: float,
-                      address: str = "", pair_address: str = "") -> OpenPosition:
-        if self.open_count >= self.config.max_concurrent_positions:
+                      address: str = "", pair_address: str = "",
+                      bypass_max_concurrent: bool = False) -> OpenPosition:
+        """Open a position. Raises ValueError on duplicate token or when at
+        max_concurrent (unless bypass_max_concurrent=True for restoration).
+
+        Restoration MUST set bypass_max_concurrent=True. If pre-existing
+        positions in trades.json exceed max_concurrent, silently dropping
+        them creates ghost positions that lock in_flight forever (no way to
+        close a position that isn't tracked). Better to temporarily exceed
+        the cap on restore; the cap re-applies to NEW buys via the same
+        path with bypass=False.
+        """
+        if not bypass_max_concurrent and self.open_count >= self.config.max_concurrent_positions:
             raise ValueError(
                 f"bot={self.config.bot_id} max_concurrent reached "
                 f"({self.config.max_concurrent_positions})"

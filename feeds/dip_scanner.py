@@ -353,10 +353,17 @@ class DipScanner:
                     entry_time=entry_time,
                     address=buy.get("address", "") or "",
                     pair_address=buy.get("pair_address", "") or "",
+                    bypass_max_concurrent=True,
                 )
                 restored_count[bid] += 1
-            except ValueError:
-                # max_concurrent reached or duplicate — skip silently
+            except ValueError as e:
+                # Duplicate token only — bypass_max_concurrent=True means
+                # max_concurrent no longer raises here. Log the duplicate so
+                # we can spot when trades.json has dup buys for a bot+token.
+                logger.warning(
+                    "[DipScanner] restore_positions: skipped %s/%s (duplicate?): %s",
+                    bid, tok, e,
+                )
                 continue
             except Exception as e:
                 logger.warning(
