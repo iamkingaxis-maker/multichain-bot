@@ -165,6 +165,18 @@ async def main():
             logger.warning(f"[main] migration failed (continuing): {e}")
 
         config_dir = Path(__file__).parent / "config" / "bots"
+
+        # SP5 stale-cache reset (idempotent via /data/sp5_reset_done.json
+        # sentinel). Recomputes each bot's capital state from post-cutoff
+        # trades only, isolating the multi-bot fleet's accounting from
+        # the first-deploy zombie buys. Safe to leave wired permanently —
+        # the sentinel ensures it runs exactly once.
+        try:
+            from scripts.migrate_sp5_reset_balances import migrate as _sp5_migrate
+            _sp5_migrate(data_dir=data_dir, config_dir=config_dir)
+        except Exception as e:
+            logger.warning(f"[main] sp5 reset failed (continuing): {e}")
+
         registry = BotRegistry.from_directory(config_dir)
         evaluators = [BotEvaluator(c) for c in registry.configs]
         bot_manager = BotManager(evaluators=evaluators)

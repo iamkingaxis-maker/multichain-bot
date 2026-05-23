@@ -13,6 +13,12 @@ import requests
 
 PROD_BASE_URL = "https://gracious-inspiration-production.up.railway.app"
 
+# Trades with buy time BEFORE this cutoff are excluded from attribution.
+# Set to the post-restoration deploy timestamp (commit f287d14, 2026-05-23 05:09 UTC)
+# so the stale-cache zombies + their cleanup losses don't pollute reports.
+# To include all history, set to "" (empty string).
+MIN_TRADE_TIMESTAMP = "2026-05-23T05:09:00+00:00"
+
 
 @dataclass
 class PairedTrade:
@@ -55,6 +61,9 @@ def pair_buys_sells(trades: list[dict]) -> list[PairedTrade]:
     realized_pnl_usd = sum of all sell records' pnl for that key.
 
     Unpaired buys (open positions) are excluded.
+
+    When MIN_TRADE_TIMESTAMP is non-empty, paired trades whose BUY time is
+    before the cutoff are dropped — both the buy and any matched sells.
     """
     buys_by_key: dict[tuple, dict] = {}
     sells_by_key: dict[tuple, list[dict]] = defaultdict(list)
@@ -74,6 +83,8 @@ def pair_buys_sells(trades: list[dict]) -> list[PairedTrade]:
     for key, buy in buys_by_key.items():
         sells = sells_by_key.get(key, [])
         if not sells:
+            continue
+        if MIN_TRADE_TIMESTAMP and (buy.get("time") or "") < MIN_TRADE_TIMESTAMP:
             continue
         total_pnl = sum(s.get("pnl", 0.0) for s in sells)
         paired.append(PairedTrade(

@@ -283,6 +283,16 @@ class DipScanner:
             logger.error(f"[DipScanner] restore_positions: load_trades failed: {e}")
             return
 
+        # Pre-cutoff buys are stale-cache zombies — don't restore them.
+        # Cutoff matches sp4_common.MIN_TRADE_TIMESTAMP, so attribution
+        # reports and bot capital stay consistent.
+        try:
+            import sys as _sys, os as _os
+            _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), "..", "scripts"))
+            from sp4_common import MIN_TRADE_TIMESTAMP as _cutoff
+        except Exception:
+            _cutoff = ""
+
         # Group trades by (bot_id, token, entry_price). For each group,
         # if there's at least one buy and zero sells, it's an open position.
         from collections import defaultdict
@@ -294,6 +304,8 @@ class DipScanner:
             tok = t.get("token")
             ep = t.get("entry_price") if t.get("type") == "buy" else None
             if t.get("type") == "buy":
+                if _cutoff and (t.get("time") or "") < _cutoff:
+                    continue  # pre-cutoff zombie — don't restore
                 key = (bid, tok, ep)
                 groups[key]["buys"].append(t)
             elif t.get("type") == "sell":
