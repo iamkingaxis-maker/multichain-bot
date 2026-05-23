@@ -389,6 +389,26 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     .sec-grid { grid-template-columns: 1fr; }
   }
 
+  /* ── ATTRIBUTION tab ── */
+  .attr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .attr-panel { background: #1a1a1a; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); }
+  .attr-panel h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 10px; }
+  .attr-panel table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .attr-panel th, .attr-panel td { padding: 0.3rem 0.5rem; text-align: right; border-bottom: 1px solid var(--border2); }
+  .attr-panel th:first-child, .attr-panel td:first-child { text-align: left; }
+  .attr-panel th { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .attr-panel tbody tr:last-child td { border-bottom: none; }
+  .attr-panel tbody tr:nth-child(odd) { background: #222; }
+  .attr-panel .pnl-pos { color: #4caf50; }
+  .attr-panel .pnl-neg { color: #f44336; }
+  #champion-preview {
+    background: #111; padding: 0.5rem; max-height: 400px; overflow: auto;
+    font-size: 0.75rem; white-space: pre-wrap; border-radius: 4px;
+  }
+  @media (max-width: 600px) {
+    .attr-grid { grid-template-columns: 1fr; }
+  }
+
   /* ── FLEET panel ── */
   .fleet-panel { background: #1a1a1a; padding: 1rem; margin: 1rem 0; border-radius: 8px; border: 1px solid var(--border); }
   .fleet-panel h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 10px; }
@@ -699,7 +719,45 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
   </div>
 
+
 </div><!-- /main -->
+
+<!-- ── ATTRIBUTION Tab (lazy — visible only when URL hash = #attribution) ── -->
+<div class="main" id="attribution-tab" style="display:none;">
+  <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem;">
+    <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:0;">ATTRIBUTION</h2>
+    <a href="#" onclick="history.pushState('','',location.pathname);document.getElementById('attribution-tab').style.display='none';return false;"
+       style="font-size:11px;color:var(--muted);text-decoration:none;">&larr; close</a>
+  </div>
+  <div class="attr-grid">
+    <div class="attr-panel">
+      <h3>Filter Attribution</h3>
+      <table id="attr-filters-table">
+        <thead>
+          <tr><th>Filter</th><th>Baseline n</th><th>Ablation n</th><th>&Delta; $/tr</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="attr-panel">
+      <h3>Category Attribution</h3>
+      <table id="attr-categories-table">
+        <thead>
+          <tr><th>Category</th><th>Baseline n</th><th>Ablation n</th><th>&Delta; $/tr</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="attr-panel" style="grid-column:1/-1;">
+      <h3>Champion Preview</h3>
+      <pre id="champion-preview">Loading&hellip;</pre>
+    </div>
+  </div>
+</div>
+
+<p style="text-align:center;margin:0.5rem 0 1.5rem;">
+  <a href="#attribution" id="attribution-tab-link" style="color:#4caf50;font-size:12px;letter-spacing:1px;">&#9654; Open ATTRIBUTION tab</a>
+</p>
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
@@ -1733,6 +1791,70 @@ updateFleet();
   } catch (e) { console.error("breakout refresh failed", e); }
   setTimeout(refreshBreakout, 10000);
 })();
+
+// ── ATTRIBUTION tab ──────────────────────────────────────────────────────────
+async function updateAttributionFilters() {
+  try {
+    const resp = await fetch("/api/attribution/filters");
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    const tbody = document.querySelector("#attr-filters-table tbody");
+    tbody.innerHTML = "";
+    for (const r of rows) {
+      const delta = r.delta_per_tr;
+      const deltaStr = delta === null ? "—" : ("$" + delta.toFixed(2));
+      const cls = (delta || 0) > 0 ? "pnl-pos" : (delta || 0) < 0 ? "pnl-neg" : "";
+      tbody.insertAdjacentHTML("beforeend",
+        `<tr><td>${r.filter}</td><td>${r.baseline_n}</td><td>${r.ablation_n}</td><td class="${cls}">${deltaStr}</td></tr>`);
+    }
+  } catch (e) { console.error("attr filters", e); }
+}
+
+async function updateAttributionCategories() {
+  try {
+    const resp = await fetch("/api/attribution/categories");
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    const tbody = document.querySelector("#attr-categories-table tbody");
+    tbody.innerHTML = "";
+    for (const r of rows) {
+      const delta = r.delta_per_tr;
+      const deltaStr = delta === null ? "—" : ("$" + delta.toFixed(2));
+      const cls = (delta || 0) > 0 ? "pnl-pos" : (delta || 0) < 0 ? "pnl-neg" : "";
+      tbody.insertAdjacentHTML("beforeend",
+        `<tr><td>${r.category}</td><td>${r.baseline_n}</td><td>${r.ablation_n}</td><td class="${cls}">${deltaStr}</td></tr>`);
+    }
+  } catch (e) { console.error("attr categories", e); }
+}
+
+async function updateChampionPreview() {
+  try {
+    const resp = await fetch("/api/champion_proposal");
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const el = document.getElementById("champion-preview");
+    if (data.config) {
+      el.textContent = JSON.stringify(data.config, null, 2);
+    } else {
+      el.textContent = "No champion proposal yet. Run scripts/sp4_champion_synthesis.py";
+    }
+  } catch (e) { console.error("champion preview", e); }
+}
+
+function maybeShowAttribution() {
+  const tab = document.getElementById("attribution-tab");
+  if (location.hash === "#attribution") {
+    tab.style.display = "block";
+    updateAttributionFilters();
+    updateAttributionCategories();
+    updateChampionPreview();
+  } else {
+    tab.style.display = "none";
+  }
+}
+
+window.addEventListener("hashchange", maybeShowAttribution);
+window.addEventListener("DOMContentLoaded", maybeShowAttribution);
 </script>
 <div style="text-align:center;color:var(--muted);font-size:10px;letter-spacing:2px;padding:18px 0 24px;opacity:.55;font-style:italic;">
   &mdash; I am the one who knocks. &mdash;
@@ -1820,6 +1942,11 @@ class WebDashboard:
         self.app.router.add_get("/api/leaderboard",         self._handle_api_leaderboard)
         self.app.router.add_get("/api/bots/{bot_id}/trades",    self._handle_api_bot_trades)
         self.app.router.add_get("/api/bots/{bot_id}/positions", self._handle_api_bot_positions)
+        self.app.router.add_get("/api/attribution/filters",   self._handle_attribution_filters)
+        self.app.router.add_get("/api/attribution/categories", self._handle_attribution_categories)
+        self.app.router.add_get("/api/attribution/regimes",   self._handle_attribution_regimes)
+        self.app.router.add_get("/api/bots/{bot_id}/details", self._handle_bot_details)
+        self.app.router.add_get("/api/champion_proposal",     self._handle_champion_proposal)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -3343,6 +3470,135 @@ class WebDashboard:
             elif t.get("type") == "sell":
                 buys_by_token.pop(t["token"], None)
         return web.json_response(list(buys_by_token.values()))
+
+    # ── SP4 Attribution endpoints ────────────────────────────────────────────
+
+    async def _handle_attribution_filters(self, request):
+        """GET /api/attribution/filters — per-filter ablation contribution table."""
+        from scripts.sp4_common import pair_buys_sells, compute_metrics
+        from scripts.sp4_filter_attribution import ABLATION_FILTER_MAP
+        from collections import defaultdict
+        if self.trade_store is None:
+            return web.json_response([])
+        trades = self.trade_store.load_trades()
+        paired = pair_buys_sells(trades)
+        by_bot = defaultdict(list)
+        for p in paired:
+            by_bot[p.bot_id].append(p)
+        baseline = compute_metrics(by_bot.get("baseline_v1", []))
+        base_per = baseline.pnl_per_trade or 0.0
+        rows = []
+        for bot_id, filter_name in ABLATION_FILTER_MAP.items():
+            ab = compute_metrics(by_bot.get(bot_id, []))
+            ab_per = ab.pnl_per_trade if ab.pnl_per_trade is not None else None
+            delta = (base_per - ab_per) if ab_per is not None else None
+            rows.append({
+                "filter": filter_name, "baseline_n": baseline.sample_n,
+                "ablation_n": ab.sample_n,
+                "baseline_per_tr": base_per, "ablation_per_tr": ab_per,
+                "delta_per_tr": delta,
+            })
+        rows.sort(key=lambda r: r["delta_per_tr"] if r["delta_per_tr"] is not None else -1e9, reverse=True)
+        return web.json_response(rows)
+
+    async def _handle_attribution_categories(self, request):
+        """GET /api/attribution/categories — per-category ablation contribution table."""
+        from scripts.sp4_common import pair_buys_sells, compute_metrics
+        from scripts.sp4_category_attribution import CATEGORY_BOTS
+        from collections import defaultdict
+        if self.trade_store is None:
+            return web.json_response([])
+        trades = self.trade_store.load_trades()
+        paired = pair_buys_sells(trades)
+        by_bot = defaultdict(list)
+        for p in paired:
+            by_bot[p.bot_id].append(p)
+        baseline = compute_metrics(by_bot.get("baseline_v1", []))
+        base_per = baseline.pnl_per_trade or 0.0
+        rows = []
+        for bot_id in CATEGORY_BOTS:
+            ab = compute_metrics(by_bot.get(bot_id, []))
+            ab_per = ab.pnl_per_trade if ab.pnl_per_trade is not None else None
+            delta = (base_per - ab_per) if ab_per is not None else None
+            category = bot_id.replace("no_", "").replace("_filters", "")
+            rows.append({
+                "category": category, "baseline_n": baseline.sample_n,
+                "ablation_n": ab.sample_n,
+                "baseline_per_tr": base_per, "ablation_per_tr": ab_per,
+                "delta_per_tr": delta,
+            })
+        rows.sort(key=lambda r: r["delta_per_tr"] if r["delta_per_tr"] is not None else -1e9, reverse=True)
+        return web.json_response(rows)
+
+    async def _handle_attribution_regimes(self, request):
+        """GET /api/attribution/regimes?bot_id=X — per-bot regime breakdown."""
+        bot_id = request.query.get("bot_id", "baseline_v1")
+        from scripts.sp4_common import pair_buys_sells
+        from scripts.sp4_regime_stratify import sol_h1_bucket, pc_h24_bucket
+        from collections import defaultdict
+        if self.trade_store is None:
+            return web.json_response({})
+        trades = self.trade_store.load_trades(bot_id=bot_id)
+        paired = pair_buys_sells(trades)
+        sol_buckets = defaultdict(list)
+        pch_buckets = defaultdict(list)
+        for p in paired:
+            sol_h1 = (p.buy_meta or {}).get("sol_pc_h1")
+            pch = (p.buy_meta or {}).get("pc_h24")
+            sol_buckets[sol_h1_bucket(sol_h1)].append(p.realized_pnl_usd)
+            pch_buckets[pc_h24_bucket(pch)].append(p.realized_pnl_usd)
+
+        def _summary(values):
+            if not values:
+                return {"n": 0, "per_tr": None}
+            return {"n": len(values), "per_tr": sum(values) / len(values)}
+
+        return web.json_response({
+            "bot_id": bot_id,
+            "sol_h1": {b: _summary(sol_buckets.get(b, []))
+                       for b in ["red", "flat", "green", "unknown"]},
+            "pc_h24": {b: _summary(pch_buckets.get(b, []))
+                       for b in ["deep_red", "red", "flat", "green", "pumped", "unknown"]},
+        })
+
+    async def _handle_bot_details(self, request):
+        """GET /api/bots/{bot_id}/details — per-bot drill-down metrics."""
+        bot_id = request.match_info["bot_id"]
+        from scripts.sp4_common import pair_buys_sells, compute_metrics
+        if self.trade_store is None:
+            return web.json_response({})
+        trades = self.trade_store.load_trades(bot_id=bot_id)
+        paired = pair_buys_sells(trades)
+        metrics = compute_metrics(paired)
+        return web.json_response({
+            "bot_id": bot_id,
+            "sample_n": metrics.sample_n,
+            "pnl_per_trade": metrics.pnl_per_trade,
+            "total_pnl_usd": metrics.total_pnl_usd,
+            "win_rate": metrics.win_rate,
+            "avg_win_usd": metrics.avg_win_usd,
+            "avg_loss_usd": metrics.avg_loss_usd,
+            "best_trade_usd": metrics.best_trade_usd,
+            "worst_trade_usd": metrics.worst_trade_usd,
+            "recent_trades": [
+                {"token": p.token, "pnl_usd": p.realized_pnl_usd, "time": p.time}
+                for p in paired[-20:]
+            ],
+        })
+
+    async def _handle_champion_proposal(self, request):
+        """GET /api/champion_proposal — current proposed champion config + reasoning."""
+        from pathlib import Path as _Path
+        import json as _json
+        project_root = _Path(__file__).parent.parent
+        cfg_path = project_root / "config" / "bots" / "champion_proposal.json"
+        reasoning_path = project_root / "reports" / "champion_synthesis.md"
+        payload = {}
+        if cfg_path.exists():
+            payload["config"] = _json.loads(cfg_path.read_text())
+        if reasoning_path.exists():
+            payload["reasoning_md"] = reasoning_path.read_text()
+        return web.json_response(payload)
 
     async def _handle_diagnostics(self, request):
         """GET /api/diagnostics — structured health snapshot for all critical systems."""
