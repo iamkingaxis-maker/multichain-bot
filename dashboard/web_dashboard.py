@@ -3399,17 +3399,44 @@ class WebDashboard:
         Perf: loads trades.json ONCE then buckets by bot_id, instead of
         re-reading the file per bot. With 49 bots this fix is the difference
         between 32s and 1s.
+
+        Cutoff: trade counts + open-position counts exclude pairs whose BUY
+        was pre-cutoff (MIN_TRADE_TIMESTAMP from sp4_common). bot_state
+        balance/in_flight/realized are already cutoff-clean from the SP5
+        reset migration.
         """
         if self.trade_store is None:
             return []
+        try:
+            from scripts.sp4_common import MIN_TRADE_TIMESTAMP as _cutoff
+        except Exception:
+            _cutoff = ""
         bots = []
         state_dir = self.trade_store.data_dir / "bot_state"
         if not state_dir.exists():
             return []
-        # Load all trades once, then bucket by bot_id
         all_trades = self.trade_store.load_trades()
+        # Any trade tied to a pre-cutoff buy is excluded — both the buy
+        # and any matched sells. Keyed by (bot_id, token, entry_price).
+        pre_cutoff_buys: set = set()
+        if _cutoff:
+            for t in all_trades:
+                if t.get("type") != "buy":
+                    continue
+                if (t.get("time") or "") < _cutoff:
+                    pre_cutoff_buys.add((
+                        t.get("bot_id", "baseline_v1"),
+                        t.get("token"),
+                        t.get("entry_price"),
+                    ))
+        def _post_cutoff(t):
+            if not _cutoff:
+                return True
+            return (t.get("bot_id", "baseline_v1"), t.get("token"), t.get("entry_price")) not in pre_cutoff_buys
         trades_by_bot: dict[str, list] = {}
         for t in all_trades:
+            if not _post_cutoff(t):
+                continue
             bid = t.get("bot_id", "baseline_v1")
             trades_by_bot.setdefault(bid, []).append(t)
         for path in sorted(state_dir.glob("*.json")):
