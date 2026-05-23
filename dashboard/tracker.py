@@ -149,7 +149,7 @@ class PerformanceTracker:
 
     def get_stats(self, strategy: str = None) -> dict:
         co = _cutoff()
-        sells = [t for t in self.trades if t["type"] == "sell" and (not co or (t.get("time") or "") >= co)]
+        sells = [t for t in self.trades if t["type"] == "sell" and (not co or (t.get("time") or "") >= co) and "cancelled on restart" not in (t.get("reason") or "")]
         if strategy:
             sells = [t for t in sells if t.get("strategy") == strategy]
         if not sells:
@@ -183,7 +183,7 @@ class PerformanceTracker:
         Each entry: {"trade_num": n, "cumulative": x, "time": isostr}
         """
         co = _cutoff()
-        sells = [t for t in self.trades if t["type"] == "sell" and (not co or (t.get("time") or "") >= co)]
+        sells = [t for t in self.trades if t["type"] == "sell" and (not co or (t.get("time") or "") >= co) and "cancelled on restart" not in (t.get("reason") or "")]
         result = []
         running = 0.0
         for i, t in enumerate(sells, 1):
@@ -276,7 +276,7 @@ class PerformanceTracker:
         scalper_stats = self.get_stats("scalper")
 
         co = _cutoff()
-        sells = [t for t in self.trades if t["type"] == "sell" and (not co or (t.get("time") or "") >= co)]
+        sells = [t for t in self.trades if t["type"] == "sell" and (not co or (t.get("time") or "") >= co) and "cancelled on restart" not in (t.get("reason") or "")]
         recent_sells = list(reversed(sells[-50:]))
 
         # Open positions from live scalper instances

@@ -3473,6 +3473,12 @@ class WebDashboard:
         for t in all_trades:
             if not _post_cutoff(t):
                 continue
+            # Skip synthetic "cancelled on restart" sells — they're bookkeeping
+            # records (pnl=0, hold=0) the tracker inserts to close orphaned
+            # positions across restarts. Counting them inflates total_trades
+            # and torpedoes the win rate denominator.
+            if t.get("type") == "sell" and "cancelled on restart" in (t.get("reason") or ""):
+                continue
             bid = t.get("bot_id", "baseline_v1")
             trades_by_bot.setdefault(bid, []).append(t)
         for path in sorted(state_dir.glob("*.json")):
