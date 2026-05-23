@@ -3416,23 +3416,17 @@ class WebDashboard:
         if not state_dir.exists():
             return []
         all_trades = self.trade_store.load_trades()
-        # Any trade tied to a pre-cutoff buy is excluded — both the buy
-        # and any matched sells. Keyed by (bot_id, token, entry_price).
-        pre_cutoff_buys: set = set()
-        if _cutoff:
-            for t in all_trades:
-                if t.get("type") != "buy":
-                    continue
-                if (t.get("time") or "") < _cutoff:
-                    pre_cutoff_buys.add((
-                        t.get("bot_id", "baseline_v1"),
-                        t.get("token"),
-                        t.get("entry_price"),
-                    ))
+        # Filter by trade time >= cutoff. Catches:
+        #  - pre-cutoff buys (zombies + legacy single-bot trades)
+        #  - pre-cutoff orphan sells (pnl=0 records with no matching buy)
+        # bot_state.balance is already cutoff-aligned via SP5 reset, so the
+        # only inconsistency would be post-cutoff zombie cleanup sells —
+        # but restoration drops pre-cutoff buys from in-memory state, so
+        # those can't close after restart.
         def _post_cutoff(t):
             if not _cutoff:
                 return True
-            return (t.get("bot_id", "baseline_v1"), t.get("token"), t.get("entry_price")) not in pre_cutoff_buys
+            return (t.get("time") or "") >= _cutoff
         trades_by_bot: dict[str, list] = {}
         for t in all_trades:
             if not _post_cutoff(t):
