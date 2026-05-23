@@ -17,7 +17,7 @@ PROD_BASE_URL = "https://gracious-inspiration-production.up.railway.app"
 # Set to the post-restoration deploy timestamp (commit f287d14, 2026-05-23 05:09 UTC)
 # so the stale-cache zombies + their cleanup losses don't pollute reports.
 # To include all history, set to "" (empty string).
-MIN_TRADE_TIMESTAMP = "2026-05-23T15:33:00+00:00"
+MIN_TRADE_TIMESTAMP = "2026-05-23T15:40:00+00:00"
 
 
 @dataclass
