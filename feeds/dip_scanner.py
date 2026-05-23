@@ -252,11 +252,114 @@ class DipScanner:
                         bc.bot_id, bc.paper_capital_usd,
                     )
                 self.bot_position_managers[bc.bot_id] = PerBotPositionManager(bc)
+            # Restore open positions from trades.json (Option B in SP-followup fix).
+            # In-memory positions don't survive restart. trades.json IS persistent
+            # (canonical record). Reconstruct unmatched buys as OpenPositions so
+            # the tick loop can close them. Without this, every restart orphans
+            # all open positions as zombies — counted in trades but invisible
+            # to the tick loop.
+            self._restore_open_positions_from_trades()
             logger.info(
                 "[DipScanner] Multi-bot wired: %d evaluators (%s)",
                 len(bot_manager.evaluators),
                 ",".join(e.config.bot_id for e in bot_manager.evaluators),
             )
+
+    def _restore_open_positions_from_trades(self) -> None:
+        """Rebuild PerBotPositionManager._positions from trades.json.
+
+        For each bot, finds buy records with no matching sell (paired by
+        token + entry_price), reconstructs them as OpenPosition entries.
+        Resets peak_pnl/tp1_hit/tp2_hit to defaults — those weren't
+        persisted. Acceptable loss: trail may restart from current price
+        instead of true peak, but this is small vs. the win of being
+        able to close positions at all.
+        """
+        if self.trade_store is None:
+            return
+        try:
+            all_trades = self.trade_store.load_trades()
+        except Exception as e:
+            logger.error(f"[DipScanner] restore_positions: load_trades failed: {e}")
+            return
+
+        # Group trades by (bot_id, token, entry_price). For each group,
+        # if there's at least one buy and zero sells, it's an open position.
+        from collections import defaultdict
+        groups: dict = defaultdict(lambda: {"buys": [], "sells": []})
+        for t in all_trades:
+            bid = t.get("bot_id", "baseline_v1")
+            if bid not in self.bot_position_managers:
+                continue  # skip legacy single-bot trades and unknown bots
+            tok = t.get("token")
+            ep = t.get("entry_price") if t.get("type") == "buy" else None
+            if t.get("type") == "buy":
+                key = (bid, tok, ep)
+                groups[key]["buys"].append(t)
+            elif t.get("type") == "sell":
+                # Sells don't carry entry_price; we need to match by (bot_id, token)
+                # and rely on time ordering. Simplest: find the earliest unmatched
+                # buy for this (bot_id, token) and pair them.
+                # Two-pass approach: record sells separately, match in pass 2.
+                pass
+
+        # Pass 2: pair sells with buys by (bot_id, token), time-ordered.
+        # An open position is a buy that has no matching sell.
+        sells_by_bid_tok: dict = defaultdict(list)
+        for t in all_trades:
+            if t.get("type") == "sell":
+                bid = t.get("bot_id", "baseline_v1")
+                if bid in self.bot_position_managers:
+                    sells_by_bid_tok[(bid, t.get("token"))].append(t)
+
+        restored_count: dict[str, int] = defaultdict(int)
+        for (bid, tok, ep), grp in groups.items():
+            sells_for_pair = sells_by_bid_tok.get((bid, tok), [])
+            # A buy is "open" if there are no sells for this (bid, token).
+            # If there are sells, treat them as fully closing the most-recent
+            # buy(s) at this price. Conservative: if ANY sell exists for the
+            # (bid, token), skip restoration. Worst case we leave an orphan
+            # if there were multiple buys + only partial sells.
+            if sells_for_pair:
+                continue
+            # No sells — restore the first buy as an open position
+            buy = grp["buys"][0]
+            pm = self.bot_position_managers[bid]
+            capital = self.bot_capitals.get(bid)
+            try:
+                import time as _t
+                from datetime import datetime as _dt
+                buy_time_iso = buy.get("time", "")
+                try:
+                    entry_time = _dt.fromisoformat(buy_time_iso.replace("Z", "+00:00")).timestamp()
+                except Exception:
+                    entry_time = _t.time()
+                pm.open_position(
+                    token=tok,
+                    entry_price=float(buy.get("entry_price", 0.0)),
+                    size_usd=float(buy.get("amount_usd", 0.0)),
+                    entry_time=entry_time,
+                    address=buy.get("address", "") or "",
+                    pair_address=buy.get("pair_address", "") or "",
+                )
+                restored_count[bid] += 1
+            except ValueError:
+                # max_concurrent reached or duplicate — skip silently
+                continue
+            except Exception as e:
+                logger.warning(
+                    f"[DipScanner] restore_positions: skipped {bid}/{tok}: {e}"
+                )
+                continue
+
+        total_restored = sum(restored_count.values())
+        if total_restored > 0:
+            logger.info(
+                "[DipScanner] Restored %d open positions across %d bots from trades.json",
+                total_restored, len(restored_count),
+            )
+            for bid, n in sorted(restored_count.items(), key=lambda x: -x[1])[:5]:
+                logger.info(f"  {bid}: {n} positions restored")
 
     async def run(self):
         logger.info("[DipScanner] Starting — targeting $1M+ mcap dip entries")
