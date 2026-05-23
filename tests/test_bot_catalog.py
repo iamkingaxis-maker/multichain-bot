@@ -1,4 +1,4 @@
-"""Verify the catalog of 24 bots: each loads, each differs from baseline
+"""Verify the catalog of 49 bots: each loads, each differs from baseline
 by exactly the expected fields, and there are no duplicate bot_ids."""
 import pytest
 from pathlib import Path
@@ -21,9 +21,9 @@ def _by_id(catalog):
     return {c.bot_id: c for c in catalog.configs}
 
 
-def test_catalog_has_24_bots(catalog):
-    assert len(catalog.configs) == 24, (
-        f"Expected 24 bots, got {len(catalog.configs)}: "
+def test_catalog_has_49_bots(catalog):
+    assert len(catalog.configs) == 49, (
+        f"Expected 49 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
@@ -209,3 +209,149 @@ def test_all_base_position_20(catalog):
     """All bots use $20 base position."""
     for c in catalog.configs:
         assert c.base_position_usd == 20.0
+
+
+# ============================================================================
+# SP3 Block 1 — group-level filter tests
+# ============================================================================
+
+def test_no_macro_filters_diff(catalog, baseline):
+    bot = _by_id(catalog)["no_macro_filters"]
+    assert len(bot.filters_disabled) > 0
+    assert bot.filters_enforced is None
+    assert "filter_sol_macro_down" in bot.filters_disabled
+
+
+def test_no_chart_pattern_filters_diff(catalog, baseline):
+    bot = _by_id(catalog)["no_chart_pattern_filters"]
+    assert len(bot.filters_disabled) > 0
+    assert "filter_fake_bounce" in bot.filters_disabled
+
+
+def test_no_structural_filters_diff(catalog, baseline):
+    bot = _by_id(catalog)["no_structural_filters"]
+    assert len(bot.filters_disabled) > 0
+    assert "filter_topping" in bot.filters_disabled or "filter_mtf_strong_downtrend" in bot.filters_disabled
+
+
+def test_no_timing_filters_diff(catalog, baseline):
+    bot = _by_id(catalog)["no_timing_filters"]
+    assert len(bot.filters_disabled) > 0
+
+
+def test_no_flow_filters_diff(catalog, baseline):
+    bot = _by_id(catalog)["no_flow_filters"]
+    assert len(bot.filters_disabled) > 0
+
+
+def test_no_liquidity_filters_diff(catalog, baseline):
+    bot = _by_id(catalog)["no_liquidity_filters"]
+    assert len(bot.filters_disabled) > 0
+
+
+def test_group_bots_have_disjoint_categories(catalog):
+    """Each filter should appear in exactly ONE group bot's filters_disabled,
+    confirming the categorization is partition-style (no overlap)."""
+    group_ids = ["no_macro_filters", "no_chart_pattern_filters",
+                 "no_structural_filters", "no_timing_filters",
+                 "no_flow_filters", "no_liquidity_filters"]
+    by_id = _by_id(catalog)
+    seen: dict[str, str] = {}
+    for gid in group_ids:
+        bot = by_id[gid]
+        for f in bot.filters_disabled:
+            if f in seen:
+                pytest.fail(
+                    f"filter {f} appears in both {seen[f]} and {gid} - "
+                    "groups must be disjoint"
+                )
+            seen[f] = gid
+
+
+# ============================================================================
+# SP3 Block 2 — individual filter ablations (top 10 by block rate)
+# ============================================================================
+
+# The 10 individual ablation bots use short IDs (no_<filter_name_without_prefix>)
+SP3_ABLATION_MAP = {
+    "no_turn": "filter_turn",
+    "no_negative_net_flow_5m": "filter_negative_net_flow_5m",
+    "no_seller_imbalance": "filter_seller_imbalance",
+    "no_low_volatility": "filter_low_volatility",
+    "no_vp_poc": "filter_vp_poc",
+    "no_topping": "filter_topping",
+    "no_above_vwap_chase": "filter_above_vwap_chase",
+    "no_bs_m5_weak": "filter_bs_m5_weak",
+    "no_blowoff_top": "filter_blowoff_top",
+    "no_1m_steep_fall": "filter_1m_steep_fall",
+}
+
+
+def test_all_10_individual_ablations_present(catalog):
+    by_id = _by_id(catalog)
+    for bot_id in SP3_ABLATION_MAP:
+        assert bot_id in by_id, f"Missing ablation bot: {bot_id}"
+
+
+def test_individual_ablations_disable_exactly_one_filter(catalog):
+    by_id = _by_id(catalog)
+    for bot_id, expected_filter in SP3_ABLATION_MAP.items():
+        cfg = by_id[bot_id]
+        assert len(cfg.filters_disabled) == 1, (
+            f"{bot_id} disables {len(cfg.filters_disabled)} filters, expected 1"
+        )
+        assert cfg.filters_disabled[0] == expected_filter, (
+            f"{bot_id} disables {cfg.filters_disabled[0]}, expected {expected_filter}"
+        )
+
+
+# ============================================================================
+# SP3 Block 3 — threshold sweeps
+# ============================================================================
+
+def test_sol_h6_loose_diff(catalog, baseline):
+    bot = _by_id(catalog)["sol_h6_loose"]
+    assert bot.sol_macro_h6_block_threshold == -0.1
+    assert baseline.sol_macro_h6_block_threshold == -0.3
+
+
+def test_sol_h6_tight_diff(catalog, baseline):
+    bot = _by_id(catalog)["sol_h6_tight"]
+    assert bot.sol_macro_h6_block_threshold == -0.5
+
+
+def test_sol_h6_extreme_diff(catalog, baseline):
+    bot = _by_id(catalog)["sol_h6_extreme"]
+    assert bot.sol_macro_h6_block_threshold == -1.0
+
+
+def test_psych_h24_50_diff(catalog, baseline):
+    bot = _by_id(catalog)["psych_h24_50"]
+    assert bot.mcap_psych_pc_h24_max == 50.0
+    assert baseline.mcap_psych_pc_h24_max == 80.0
+
+
+def test_psych_h24_100_diff(catalog, baseline):
+    bot = _by_id(catalog)["psych_h24_100"]
+    assert bot.mcap_psych_pc_h24_max == 100.0
+
+
+def test_psych_h24_150_diff(catalog, baseline):
+    bot = _by_id(catalog)["psych_h24_150"]
+    assert bot.mcap_psych_pc_h24_max == 150.0
+
+
+def test_vol_min_500_diff(catalog, baseline):
+    bot = _by_id(catalog)["vol_min_500"]
+    assert bot.vol_h1_min == 500.0
+    assert baseline.vol_h1_min == 1000.0
+
+
+def test_vol_min_5k_diff(catalog, baseline):
+    bot = _by_id(catalog)["vol_min_5k"]
+    assert bot.vol_h1_min == 5000.0
+
+
+def test_vol_min_10k_diff(catalog, baseline):
+    bot = _by_id(catalog)["vol_min_10k"]
+    assert bot.vol_h1_min == 10000.0
