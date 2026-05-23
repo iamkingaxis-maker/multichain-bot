@@ -263,6 +263,13 @@ class DipScanner:
         while True:
             try:
                 await self._scan_cycle()
+                # SP1 wiring: tick multi-bot positions for exit decisions.
+                # Without this call, multi-bot positions never close.
+                if MULTI_BOT_ENABLED and self.bot_manager is not None:
+                    try:
+                        await self._tick_all_bots_positions()
+                    except Exception as e:
+                        logger.error(f"[DipScanner] tick_all_bots_positions error: {e}")
             except Exception as e:
                 logger.error(f"[DipScanner] Scan cycle error: {e}")
             await asyncio.sleep(_SCAN_INTERVAL)
