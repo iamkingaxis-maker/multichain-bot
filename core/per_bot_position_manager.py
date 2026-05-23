@@ -10,6 +10,8 @@ class OpenPosition:
     entry_price: float
     size_usd: float
     entry_time: float
+    address: str = ""
+    pair_address: str = ""
     tp1_hit: bool = False
     tp2_hit: bool = False
     peak_pnl_pct: float = 0.0
@@ -49,7 +51,8 @@ class PerBotPositionManager:
         return len(self._positions)
 
     def open_position(self, token: str, entry_price: float, size_usd: float,
-                      entry_time: float) -> OpenPosition:
+                      entry_time: float,
+                      address: str = "", pair_address: str = "") -> OpenPosition:
         if self.open_count >= self.config.max_concurrent_positions:
             raise ValueError(
                 f"bot={self.config.bot_id} max_concurrent reached "
@@ -60,6 +63,7 @@ class PerBotPositionManager:
         p = OpenPosition(
             token=token, entry_price=entry_price,
             size_usd=size_usd, entry_time=entry_time,
+            address=address, pair_address=pair_address,
         )
         self._positions[token] = p
         return p

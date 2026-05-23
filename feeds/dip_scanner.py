@@ -477,6 +477,8 @@ class DipScanner:
                 entry_price=decision.entry_price,
                 size_usd=decision.size_usd,
                 entry_time=time.time(),
+                address=decision.address,
+                pair_address=decision.pair_address,
             )
         except ValueError as e:
             # max_concurrent or duplicate token; refund capital
@@ -513,7 +515,11 @@ class DipScanner:
         for bot_id, pm in self.bot_position_managers.items():
             for position in pm.iter_positions():
                 try:
-                    price = await self._get_current_price_for(position.token)
+                    price = await self._get_current_price_for(
+                        position.token,
+                        address=position.address,
+                        pair_address=position.pair_address,
+                    )
                     vol_m5 = await self._get_vol_m5_for(position.token)
                     if price is None:
                         continue
@@ -574,18 +580,36 @@ class DipScanner:
             bot_id, token, result.realized_pnl_usd, exit_decision.reason,
         )
 
-    async def _get_current_price_for(self, token: str) -> Optional[float]:
+    async def _get_current_price_for(
+        self, token: str,
+        address: str = "", pair_address: str = "",
+    ) -> Optional[float]:
         """Helper for _tick_all_bots_positions.
 
-        Tries multiple sources. Returns None if unavailable.
+        Tries multiple sources in order:
+        1. PoolPriceFeed (if wired) — fast WS-based price
+        2. Trader._get_token_price (fallback) — same path the legacy single-bot
+           uses to close positions. Requires the token address.
+        Returns None if unavailable.
         """
-        # Try PoolPriceFeed first
         pool_price_feed = getattr(self, "pool_price_feed", None)
         if pool_price_feed is not None:
             try:
                 return await pool_price_feed.get_price(token)
             except Exception:
                 pass
+        # Fall back to the trader's price fetch — same path the legacy
+        # single-bot path uses, so anything that works for the legacy bot
+        # works here too. Needs address; falls through if missing.
+        if address and self.trader is not None and hasattr(self.trader, "_get_token_price"):
+            try:
+                return await self.trader._get_token_price(
+                    address, pair_address=pair_address or None,
+                )
+            except Exception as e:
+                logger.debug(
+                    "[DipScanner] _get_token_price failed for %s: %s", token, e,
+                )
         return None
 
     async def _get_vol_m5_for(self, token: str) -> Optional[float]:
