@@ -7,7 +7,11 @@
   "btc_macro_h1_block_threshold": null,
   "display_name": "Overnight cohort triggers only (n=11)",
   "enabled": true,
-  "filters_disabled": [],
+  "filters_disabled": [
+    "filter_confirmation_candle",
+    "filter_dev_dumping",
+    "filter_stale_watch"
+  ],
   "filters_enforced": null,
   "hard_stop_pct": -15.0,
   "macro_up_multiplier": 1.5,
