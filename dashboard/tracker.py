@@ -19,6 +19,19 @@ TRADE_LOG_FILE = os.path.join(DATA_DIR, "trades.json")
 CLOSED_LOG_FILE = os.path.join(DATA_DIR, "closed_positions.csv")  # append-only, never reset
 
 
+def _cutoff() -> str:
+    """Return MIN_TRADE_TIMESTAMP from sp4_common, or '' if unavailable."""
+    try:
+        # Lazy import — avoids circular deps and keeps tracker isolated
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+        from sp4_common import MIN_TRADE_TIMESTAMP
+        return MIN_TRADE_TIMESTAMP or ""
+    except Exception:
+        return ""
+
+
 class PerformanceTracker:
     def __init__(self):
         self.trades: List[dict] = []
@@ -135,7 +148,8 @@ class PerformanceTracker:
     # ── Stats ─────────────────────────────────────────────────────────────
 
     def get_stats(self, strategy: str = None) -> dict:
-        sells = [t for t in self.trades if t["type"] == "sell"]
+        co = _cutoff()
+        sells = [t for t in self.trades if t["type"] == "sell" and (not co or (t.get("time") or "") >= co)]
         if strategy:
             sells = [t for t in sells if t.get("strategy") == strategy]
         if not sells:
@@ -168,7 +182,8 @@ class PerformanceTracker:
         Return cumulative P&L series for chart, one entry per completed sell.
         Each entry: {"trade_num": n, "cumulative": x, "time": isostr}
         """
-        sells = [t for t in self.trades if t["type"] == "sell"]
+        co = _cutoff()
+        sells = [t for t in self.trades if t["type"] == "sell" and (not co or (t.get("time") or "") >= co)]
         result = []
         running = 0.0
         for i, t in enumerate(sells, 1):

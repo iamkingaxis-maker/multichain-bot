@@ -3206,8 +3206,14 @@ class WebDashboard:
         def _strategy_pnl_and_wr(strategy_key: str):
             if self._tracker is None:
                 return 0.0, 0.0
+            try:
+                from scripts.sp4_common import MIN_TRADE_TIMESTAMP as _co
+            except Exception:
+                _co = ""
             sells = [t for t in self._tracker.trades
-                     if t.get("type") == "sell" and t.get("strategy") == strategy_key]
+                     if t.get("type") == "sell"
+                     and t.get("strategy") == strategy_key
+                     and (not _co or (t.get("time") or "") >= _co)]
             if not sells:
                 return 0.0, 0.0
             total_pnl = sum(t.get("pnl", 0) for t in sells)
