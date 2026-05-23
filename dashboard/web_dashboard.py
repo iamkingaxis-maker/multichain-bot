@@ -2456,28 +2456,43 @@ class WebDashboard:
         # Address → index in tokens list, for in-place enrichment.
         idx_by_addr = {a: i for i, a in enumerate(addrs)}
         if addrs:
-            # DexScreener /tokens/ endpoint caps at 30 addrs per request — batch.
-            best = {}
+            # DexScreener /tokens/{csv} truncates the response — returns at most
+            # ~30 pairs total per call, and high-liquidity tokens have multiple
+            # pools that dominate the response. With 30 addresses per batch we
+            # routinely get coverage for only ~20-23 unique tokens. We need a
+            # second pass for the addresses that came back empty.
+            best: dict = {}
+
+            async def _fetch_batch(sess, batch):
+                """Query DS, fold each pair into `best` (keep highest-liq per base)."""
+                url = f"https://api.dexscreener.com/latest/dex/tokens/{','.join(batch)}"
+                try:
+                    async with sess.get(url, timeout=_aiohttp.ClientTimeout(total=10)) as r:
+                        if r.status != 200:
+                            logger.warning(f"[Dashboard] user-watchlist DS status {r.status}")
+                            return
+                        data = await r.json(content_type=None)
+                    for p in (data or {}).get("pairs", []) or []:
+                        base = (p.get("baseToken") or {}).get("address", "").lower()
+                        if not base:
+                            continue
+                        liq = float((p.get("liquidity") or {}).get("usd") or 0)
+                        if base not in best or liq > float((best[base].get("liquidity") or {}).get("usd") or 0):
+                            best[base] = p
+                except Exception as be:
+                    logger.warning(f"[Dashboard] user-watchlist DS batch err: {be}")
+
             try:
                 async with _aiohttp.ClientSession() as sess:
+                    # Pass 1: big batches (30) for efficiency
                     for i in range(0, len(addrs), 30):
-                        batch = addrs[i:i + 30]
-                        url = f"https://api.dexscreener.com/latest/dex/tokens/{','.join(batch)}"
-                        try:
-                            async with sess.get(url, timeout=_aiohttp.ClientTimeout(total=10)) as r:
-                                if r.status != 200:
-                                    logger.warning(f"[Dashboard] user-watchlist DS batch {i//30+1} status {r.status}")
-                                    continue
-                                data = await r.json(content_type=None)
-                            for p in (data or {}).get("pairs", []) or []:
-                                base = (p.get("baseToken") or {}).get("address", "").lower()
-                                if not base:
-                                    continue
-                                liq = float((p.get("liquidity") or {}).get("usd") or 0)
-                                if base not in best or liq > float((best[base].get("liquidity") or {}).get("usd") or 0):
-                                    best[base] = p
-                        except Exception as be:
-                            logger.warning(f"[Dashboard] user-watchlist DS batch {i//30+1} err: {be}")
+                        await _fetch_batch(sess, addrs[i:i + 30])
+                    # Pass 2: re-query missing addresses in smaller batches (10)
+                    # so DS doesn't drop them. Lowercase compare because DS
+                    # normalizes base addresses.
+                    missing = [a for a in addrs if a.lower() not in best]
+                    for i in range(0, len(missing), 10):
+                        await _fetch_batch(sess, missing[i:i + 10])
                 for addr, p in best.items():
                     i = idx_by_addr.get(addr)
                     if i is None:
