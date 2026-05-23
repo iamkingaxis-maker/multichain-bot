@@ -1,4 +1,4 @@
-"""Verify the catalog of 49 bots: each loads, each differs from baseline
+"""Verify the catalog of 63 bots: each loads, each differs from baseline
 by exactly the expected fields, and there are no duplicate bot_ids."""
 import pytest
 from pathlib import Path
@@ -21,9 +21,9 @@ def _by_id(catalog):
     return {c.bot_id: c for c in catalog.configs}
 
 
-def test_catalog_has_49_bots(catalog):
-    assert len(catalog.configs) == 49, (
-        f"Expected 49 bots, got {len(catalog.configs)}: "
+def test_catalog_has_63_bots(catalog):
+    assert len(catalog.configs) == 63, (
+        f"Expected 63 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
