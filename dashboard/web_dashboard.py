@@ -2744,6 +2744,10 @@ class WebDashboard:
         """GET /api/closed-positions — returns append-only closed position history."""
         import csv, os as _os
         from dashboard.tracker import CLOSED_LOG_FILE
+        try:
+            from scripts.sp4_common import MIN_TRADE_TIMESTAMP as _co
+        except Exception:
+            _co = ""
         cors = {"Access-Control-Allow-Origin": "*"}
         rows = []
         if _os.path.exists(CLOSED_LOG_FILE):
@@ -2753,9 +2757,14 @@ class WebDashboard:
                     has_drawdown = "max_drawdown_pct" in (reader.fieldnames or [])
                     for row in reader:
                         if not has_drawdown:
-                            # Old header — grab overflow value from restkey (None)
                             overflow = row.pop(None, None)
                             row["max_drawdown_pct"] = overflow[0] if isinstance(overflow, list) and overflow else ""
+                        # Skip pre-cutoff rows. closed_positions.csv keys vary;
+                        # try common time-ish fields.
+                        if _co:
+                            ts = row.get("close_time") or row.get("closed_at") or row.get("time") or ""
+                            if ts < _co:
+                                continue
                         rows.append(row)
             except Exception as e:
                 return web.Response(text=json.dumps({"error": str(e)}),
@@ -3188,6 +3197,11 @@ class WebDashboard:
         now_iso = datetime.now(timezone.utc).isoformat()
         today_prefix = datetime.now(timezone.utc).date().isoformat()
 
+        try:
+            from scripts.sp4_common import MIN_TRADE_TIMESTAMP as _co
+        except Exception:
+            _co = ""
+
         def _last_trade_times(strategy_key: str):
             """Scan tracker trades to find last buy/sell ISO timestamps for a strategy."""
             last_buy = None
@@ -3200,6 +3214,8 @@ class WebDashboard:
                 if strat != strategy_key:
                     continue
                 ts = t.get("time")
+                if _co and (ts or "") < _co:
+                    continue
                 if ttype == "buy" and last_buy is None:
                     last_buy = ts
                 elif ttype == "sell" and last_sell is None:
@@ -3215,6 +3231,7 @@ class WebDashboard:
                 1 for t in self._tracker.trades
                 if t.get("strategy") == strategy_key
                 and t.get("type") == "sell"
+                and (not _co or (t.get("time") or "") >= _co)
                 and t.get("time", "")[:10] == today_prefix
             )
 

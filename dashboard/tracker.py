@@ -224,12 +224,16 @@ class PerformanceTracker:
     def get_daily_pnl(self) -> float:
         """Return today's realized P&L (UTC date)."""
         today = datetime.now(timezone.utc).date().isoformat()
+        co = _cutoff()
         total = 0.0
         for t in self.trades:
-            if t["type"] == "sell":
-                t_date = t.get("time", "")[:10]
-                if t_date == today:
-                    total += t.get("pnl", 0)
+            if t["type"] != "sell":
+                continue
+            tt = t.get("time", "")
+            if co and tt < co:
+                continue
+            if tt[:10] == today:
+                total += t.get("pnl", 0)
         return total
 
     def get_chain_stats(self) -> dict:
@@ -237,8 +241,10 @@ class PerformanceTracker:
         result = {"sol": {"pnl": 0.0, "capital": 0.0, "positions": 0},
                   "base": {"pnl": 0.0, "capital": 0.0, "positions": 0},
                   "bnb": {"pnl": 0.0, "capital": 0.0, "positions": 0}}
-
+        co = _cutoff()
         for t in self.trades:
+            if co and (t.get("time") or "") < co:
+                continue
             key = self._chain_key(t.get("chain", ""))
             if key not in result:
                 result[key] = {"pnl": 0.0, "capital": 0.0, "positions": 0}
@@ -269,7 +275,8 @@ class PerformanceTracker:
         copy = self.get_stats("copy")
         scalper_stats = self.get_stats("scalper")
 
-        sells = [t for t in self.trades if t["type"] == "sell"]
+        co = _cutoff()
+        sells = [t for t in self.trades if t["type"] == "sell" and (not co or (t.get("time") or "") >= co)]
         recent_sells = list(reversed(sells[-50:]))
 
         # Open positions from live scalper instances
