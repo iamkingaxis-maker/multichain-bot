@@ -3483,13 +3483,23 @@ class WebDashboard:
                 buys = [t for t in trades if t.get("type") == "buy"]
                 sells = [t for t in trades if t.get("type") == "sell"]
                 total_pnl = sum(s.get("pnl", 0) for s in sells)
+                # Open positions = post-cutoff buys whose (token, entry_price)
+                # has no matching sell. Plain len(buys)-len(sells) breaks two
+                # ways: partial sells (TP1+TP2 = 1 buy, 2 sells → -1 open) and
+                # cross-cutoff sells (post-cutoff sell of pre-cutoff buy → buy
+                # excluded but sell counted → negative). Match by key.
+                sell_keys = {(s.get("token"), s.get("entry_price")) for s in sells}
+                open_count = sum(
+                    1 for b in buys
+                    if (b.get("token"), b.get("entry_price")) not in sell_keys
+                )
                 bots.append({
                     "bot_id": bot_id,
                     "balance_usd": state["balance_usd"],
                     "in_flight_usd": state["in_flight_usd"],
                     "realized_pnl_total_usd": state["realized_pnl_total_usd"],
                     "daily_pnl_usd": state["daily_pnl_usd"],
-                    "open_position_count": len(buys) - len(sells),
+                    "open_position_count": open_count,
                     "total_trades": len(sells),
                     "wins": sum(1 for s in sells if s.get("pnl", 0) > 0),
                     "total_pnl_realized": total_pnl,
