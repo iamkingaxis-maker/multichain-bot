@@ -126,8 +126,15 @@ def migrate(
 
     sentinel = data_dir / "sp5_reset_done.json"
     if sentinel.exists() and not force:
-        print(f"[sp5_reset] sentinel exists at {sentinel} — already ran, skipping")
-        return 0
+        # Re-fire if cutoff has changed since the last run.
+        try:
+            prev = json.loads(sentinel.read_text())
+            if prev.get("cutoff") == cutoff:
+                print(f"[sp5_reset] sentinel exists at {sentinel} for same cutoff — skipping")
+                return 0
+            print(f"[sp5_reset] cutoff changed ({prev.get('cutoff')} -> {cutoff}) — re-running reset")
+        except Exception:
+            print(f"[sp5_reset] sentinel unreadable — re-running reset")
 
     trades_path = data_dir / "trades.json"
     if not trades_path.exists():
