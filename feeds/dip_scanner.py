@@ -643,7 +643,18 @@ class DipScanner:
                         pair_address=position.pair_address,
                     )
                     vol_m5 = await self._get_vol_m5_for(position.token)
-                    if price is None:
+                    # CRITICAL: never accept price=0 as real. The price feed
+                    # returns 0/null when DexScreener has no pair data, the
+                    # token rugged, or the pool is empty. Treating 0 as the
+                    # exit price computes pnl_pct = -100% which trips the
+                    # hard stop → records a fake $-20 sell at zero proceeds.
+                    # Skip the tick; next cycle gets fresh data.
+                    if price is None or price <= 0:
+                        if price is not None:
+                            logger.warning(
+                                "[DipScanner] tick skipped: bot=%s token=%s price=%s (feed returned zero/negative)",
+                                bot_id, position.token, price,
+                            )
                         continue
                     now = time.time()
                     decisions = pm.tick(
@@ -717,7 +728,9 @@ class DipScanner:
         pool_price_feed = getattr(self, "pool_price_feed", None)
         if pool_price_feed is not None:
             try:
-                return await pool_price_feed.get_price(token)
+                p = await pool_price_feed.get_price(token)
+                if p is not None and p > 0:
+                    return p
             except Exception:
                 pass
         # Fall back to the trader's price fetch — same path the legacy
@@ -725,9 +738,11 @@ class DipScanner:
         # works here too. Needs address; falls through if missing.
         if address and self.trader is not None and hasattr(self.trader, "_get_token_price"):
             try:
-                return await self.trader._get_token_price(
+                p = await self.trader._get_token_price(
                     address, pair_address=pair_address or None,
                 )
+                if p is not None and p > 0:
+                    return p
             except Exception as e:
                 logger.debug(
                     "[DipScanner] _get_token_price failed for %s: %s", token, e,
