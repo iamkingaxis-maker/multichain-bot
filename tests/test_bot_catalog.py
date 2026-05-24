@@ -1,4 +1,4 @@
-"""Verify the catalog of 66 bots: each loads, each differs from baseline
+"""Verify the catalog of 69 bots: each loads, each differs from baseline
 by exactly the expected fields, and there are no duplicate bot_ids."""
 import pytest
 from pathlib import Path
@@ -21,11 +21,36 @@ def _by_id(catalog):
     return {c.bot_id: c for c in catalog.configs}
 
 
-def test_catalog_has_66_bots(catalog):
-    assert len(catalog.configs) == 66, (
-        f"Expected 66 bots, got {len(catalog.configs)}: "
+def test_catalog_has_69_bots(catalog):
+    assert len(catalog.configs) == 69, (
+        f"Expected 69 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
+
+
+def test_tp_ladder_bots_present(catalog):
+    """TP ladder variants shipped 2026-05-23 to test exit-aggression."""
+    ids = {c.bot_id for c in catalog.configs}
+    assert {"tp_aggressive", "tp_runner", "tp_single_target"} <= ids
+
+
+def test_tp_aggressive_config(catalog):
+    bot = _by_id(catalog)["tp_aggressive"]
+    assert bot.tp1_pct == 3.0
+    assert bot.tp2_pct == 7.0
+
+
+def test_tp_runner_config(catalog):
+    bot = _by_id(catalog)["tp_runner"]
+    assert bot.tp1_pct == 8.0
+    assert bot.tp2_pct == 20.0
+
+
+def test_tp_single_target_config(catalog):
+    bot = _by_id(catalog)["tp_single_target"]
+    assert bot.tp1_pct == 5.0
+    assert bot.tp1_sell_fraction == 1.0
+    assert bot.tp2_sell_fraction == 0.0
 
 
 def test_compound_bots_present(catalog):

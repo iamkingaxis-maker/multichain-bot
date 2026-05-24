@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
 from core.bot_config import BotConfig
 from core.feature_bundle import FeatureBundle
@@ -43,6 +44,8 @@ class BotEvaluator:
 
     def evaluate(self, b: FeatureBundle,
                  realized_pnl_usd: float = 0.0) -> Optional[BuyDecision]:
+        if self._trading_window_blocks(b):
+            return None
         if self._sol_macro_blocks(b):
             return None
         if self._btc_macro_blocks(b):
@@ -72,6 +75,29 @@ class BotEvaluator:
             triggers_fired=effective_triggers,
             reason_summary=f"triggers={','.join(effective_triggers)} tier={size_tier}",
         )
+
+    def _trading_window_blocks(self, b: FeatureBundle) -> bool:
+        """Block if FeatureBundle snapshot is outside the configured UTC window.
+
+        Half-open interval [start, end). The default 0..24 always passes
+        (fast-path). Wrap-around windows (start > end, e.g. 22..2 meaning
+        22,23,0,1) are supported.
+
+        Bug fix 2026-05-23: this method was missing entirely. trading_hour_utc_*
+        was defined on BotConfig but never enforced, so the 4 tod_* bots
+        had 100% token overlap with each other. See
+        [[project_tod_bot_bug_2026_05_23]].
+        """
+        c = self.config
+        if c.trading_hour_utc_start == 0 and c.trading_hour_utc_end == 24:
+            return False
+        if b.snapshot_ts is None:
+            return False  # fail-open if no timestamp on the bundle
+        hour = datetime.fromtimestamp(b.snapshot_ts, tz=timezone.utc).hour
+        if c.trading_hour_utc_start <= c.trading_hour_utc_end:
+            return not (c.trading_hour_utc_start <= hour < c.trading_hour_utc_end)
+        # Wrap-around (start > end). Hour is in window if >= start OR < end.
+        return not (hour >= c.trading_hour_utc_start or hour < c.trading_hour_utc_end)
 
     def _sol_macro_blocks(self, b: FeatureBundle) -> bool:
         c = self.config

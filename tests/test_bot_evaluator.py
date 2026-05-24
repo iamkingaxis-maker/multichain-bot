@@ -207,3 +207,53 @@ def test_compound_stacks_with_alpha_multiplier():
     )
     assert d.size_usd == pytest.approx(20.0 * 1.5 * 1.10)
     assert "alpha_trigger+compound_linear" in d.size_tier
+
+
+# Trading-window gate (2026-05-23 — fixes TOD bots that had no enforcement)
+from datetime import datetime, timezone
+
+
+def _ts_at_hour_utc(hour: int) -> float:
+    return datetime(2026, 5, 23, hour, 0, 0, tzinfo=timezone.utc).timestamp()
+
+
+def test_default_window_always_fires():
+    """Window 0..24 (default) never blocks — back-compat for non-TOD bots."""
+    ev = BotEvaluator(_cfg())
+    d = ev.evaluate(_bundle(snapshot_ts=_ts_at_hour_utc(15)))
+    assert d is not None
+
+
+def test_window_fires_inside_simple_range():
+    """Window 6..12 + snapshot at 10 UTC → in-window → fires."""
+    ev = BotEvaluator(_cfg(trading_hour_utc_start=6, trading_hour_utc_end=12))
+    d = ev.evaluate(_bundle(snapshot_ts=_ts_at_hour_utc(10)))
+    assert d is not None
+
+
+def test_window_blocks_outside_simple_range():
+    """Window 6..12 + snapshot at 15 UTC → out-of-window → blocks."""
+    ev = BotEvaluator(_cfg(trading_hour_utc_start=6, trading_hour_utc_end=12))
+    d = ev.evaluate(_bundle(snapshot_ts=_ts_at_hour_utc(15)))
+    assert d is None
+
+
+def test_window_blocks_at_end_boundary_simple():
+    """Half-open: hour 12 is NOT in [6, 12). Should block."""
+    ev = BotEvaluator(_cfg(trading_hour_utc_start=6, trading_hour_utc_end=12))
+    d = ev.evaluate(_bundle(snapshot_ts=_ts_at_hour_utc(12)))
+    assert d is None
+
+
+def test_window_fires_inside_wrap_around():
+    """Wrap window 22..2 (start > end) + snapshot at 1 or 23 → in-window."""
+    ev = BotEvaluator(_cfg(trading_hour_utc_start=22, trading_hour_utc_end=2))
+    assert ev.evaluate(_bundle(snapshot_ts=_ts_at_hour_utc(1))) is not None
+    assert ev.evaluate(_bundle(snapshot_ts=_ts_at_hour_utc(23))) is not None
+
+
+def test_window_blocks_outside_wrap_around():
+    """Wrap window 22..2 + snapshot at 12 UTC → out-of-window → blocks."""
+    ev = BotEvaluator(_cfg(trading_hour_utc_start=22, trading_hour_utc_end=2))
+    d = ev.evaluate(_bundle(snapshot_ts=_ts_at_hour_utc(12)))
+    assert d is None
