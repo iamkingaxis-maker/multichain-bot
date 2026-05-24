@@ -1,6 +1,6 @@
 {
   "bot_id": "early_token_only",
-  "display_name": "Early tokens only (<24h)",
+  "display_name": "Early tokens only (<72h)",
   "enabled": true,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
@@ -16,7 +16,7 @@
   "pc_h24_min": null,
   "pc_h1_max": null,
   "age_h_min": null,
-  "age_h_max": 24.0,
+  "age_h_max": 72.0,
   "mcap_min": null,
   "mcap_max": null,
   "vol_h1_min": 1000.0,
