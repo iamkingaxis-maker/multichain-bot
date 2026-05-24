@@ -1877,7 +1877,8 @@ class WebDashboard:
         self.port = port or int(os.environ.get("PORT", 8080))
         self._tracker = tracker          # optional direct tracker ref
         self.trade_store = trade_store   # optional multi-bot TradeStore
-        self.app = web.Application()
+        from dashboard.auth import basic_auth_middleware
+        self.app = web.Application(middlewares=[basic_auth_middleware])
         self._stats_providers = []
         self._alert_buffer: list = []
         self._start_time = datetime.now(timezone.utc)
