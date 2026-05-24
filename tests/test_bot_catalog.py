@@ -1,4 +1,4 @@
-"""Verify the catalog of 69 bots: each loads, each differs from baseline
+"""Verify the catalog of 76 bots: each loads, each differs from baseline
 by exactly the expected fields, and there are no duplicate bot_ids."""
 import pytest
 from pathlib import Path
@@ -21,11 +21,46 @@ def _by_id(catalog):
     return {c.bot_id: c for c in catalog.configs}
 
 
-def test_catalog_has_69_bots(catalog):
-    assert len(catalog.configs) == 69, (
-        f"Expected 69 bots, got {len(catalog.configs)}: "
+def test_catalog_has_76_bots(catalog):
+    assert len(catalog.configs) == 76, (
+        f"Expected 76 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
+
+
+def test_deploy_b_bots_present(catalog):
+    """Deploy B 2026-05-23: capital concentration + stop bounds + slow-bleed sensitivity."""
+    ids = {c.bot_id for c in catalog.configs}
+    assert {"concentrated_50", "spray_10",
+            "stop_8", "stop_25",
+            "bleed_30min", "bleed_120min", "no_bleed"} <= ids
+
+
+def test_concentrated_50_config(catalog):
+    bot = _by_id(catalog)["concentrated_50"]
+    assert bot.base_position_usd == 50.0
+    assert bot.max_concurrent_positions == 1
+
+
+def test_spray_10_config(catalog):
+    bot = _by_id(catalog)["spray_10"]
+    assert bot.base_position_usd == 10.0
+    assert bot.max_concurrent_positions == 6
+
+
+def test_stop_8_config(catalog):
+    assert _by_id(catalog)["stop_8"].hard_stop_pct == -8.0
+
+
+def test_stop_25_config(catalog):
+    assert _by_id(catalog)["stop_25"].hard_stop_pct == -25.0
+
+
+def test_bleed_variants_config(catalog):
+    by = _by_id(catalog)
+    assert by["bleed_30min"].slow_bleed_minutes == 30
+    assert by["bleed_120min"].slow_bleed_minutes == 120
+    assert by["no_bleed"].slow_bleed_minutes == 99999
 
 
 def test_tp_ladder_bots_present(catalog):
@@ -260,9 +295,15 @@ def test_all_paper_capital_2000(catalog):
 
 
 def test_all_base_position_20(catalog):
-    """All bots use $20 base position."""
+    """All bots use $20 base position EXCEPT the capital-concentration
+    variants shipped 2026-05-23 which explicitly test that dimension."""
+    EXEMPT = {"concentrated_50", "spray_10"}
     for c in catalog.configs:
-        assert c.base_position_usd == 20.0
+        if c.bot_id in EXEMPT:
+            continue
+        assert c.base_position_usd == 20.0, (
+            f"{c.bot_id}: base={c.base_position_usd}"
+        )
 
 
 # ============================================================================
