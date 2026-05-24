@@ -3499,15 +3499,19 @@ class WebDashboard:
                 buys = [t for t in trades if t.get("type") == "buy"]
                 sells = [t for t in trades if t.get("type") == "sell"]
                 total_pnl = sum(s.get("pnl", 0) for s in sells)
-                # Open positions = post-cutoff buys whose (token, entry_price)
-                # has no matching sell. Plain len(buys)-len(sells) breaks two
-                # ways: partial sells (TP1+TP2 = 1 buy, 2 sells → -1 open) and
-                # cross-cutoff sells (post-cutoff sell of pre-cutoff buy → buy
-                # excluded but sell counted → negative). Match by key.
-                sell_keys = {(s.get("token"), s.get("entry_price")) for s in sells}
+                # Open positions: per-token (num_buys - num_sells), clamped
+                # to >= 0. Old approach used (token, entry_price) matching
+                # but sell records store entry_price=None (only buys carry
+                # their own entry_price), so EVERY buy looked unmatched and
+                # the count was inflated ~3-4x. Per-token subtraction handles
+                # both partial-fill cases (TP1+TP2 = 2 sells for 1 buy →
+                # closed) and cross-cutoff cases (clamp to 0).
+                from collections import Counter
+                buys_per_token = Counter(b.get("token") for b in buys)
+                sells_per_token = Counter(s.get("token") for s in sells)
                 open_count = sum(
-                    1 for b in buys
-                    if (b.get("token"), b.get("entry_price")) not in sell_keys
+                    max(0, buys_per_token[tok] - sells_per_token.get(tok, 0))
+                    for tok in buys_per_token
                 )
                 bots.append({
                     "bot_id": bot_id,
