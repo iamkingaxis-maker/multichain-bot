@@ -251,6 +251,13 @@ class DipScanner:
                     self.bot_capitals[bc.bot_id] = PerBotCapital(
                         bc.bot_id, bc.paper_capital_usd,
                     )
+                    # Persist initial state so the leaderboard/dashboard
+                    # surfaces newly added bots immediately (instead of only
+                    # after their first buy). Without this, new bots are
+                    # invisible to /api/leaderboard until they trade.
+                    trade_store.save_bot_state(
+                        bc.bot_id, self.bot_capitals[bc.bot_id].to_dict(),
+                    )
                 self.bot_position_managers[bc.bot_id] = PerBotPositionManager(bc)
             # Restore open positions from trades.json (Option B in SP-followup fix).
             # In-memory positions don't survive restart. trades.json IS persistent
