@@ -2104,6 +2104,15 @@ class WebDashboard:
                 trades = self._tracker.get_all_trades()
             except Exception as e:
                 logger.debug(f"[Dashboard] trades provider error: {e}")
+        # Option B split (2026-05-23): multi-bot records live in
+        # trades_multi.json owned by MultiBotTradeStore. Merge them in at
+        # read time. Reading is safe — no shared mutable state, both files
+        # are atomic-rewrite by their respective owners.
+        if self.trade_store is not None:
+            try:
+                trades = list(trades) + self.trade_store.load_trades()
+            except Exception as e:
+                logger.debug(f"[Dashboard] multi-bot trades read error: {e}")
         # Apply pagination unless ?all=1 is set
         try:
             want_all = request.query.get('all', '0') in ('1', 'true', 'yes')

@@ -129,7 +129,10 @@ def test_midcap_specialist_diff(catalog, baseline):
 
 def test_early_token_only_diff(catalog, baseline):
     bot = _by_id(catalog)["early_token_only"]
-    assert bot.age_h_max == 24.0
+    # Raised 24h -> 72h (2026-05-23): 24h was structurally inert because the
+    # production trigger set never fires on <24h tokens. 72h is still 27x
+    # fresher than current buy median.
+    assert bot.age_h_max == 72.0
 
 
 def test_mature_token_only_diff(catalog, baseline):

@@ -349,45 +349,16 @@ class PerformanceTracker:
     # ── Persistence ───────────────────────────────────────────────────────
 
     def _save_trades(self):
-        """Persist trades, merging with any concurrent writes from MultiBotTradeStore.
+        """Persist legacy/baseline_v1 trades only.
 
-        Both this tracker and core/multi_bot_persistence.MultiBotTradeStore write
-        to trades.json. A bare overwrite here destroys multi-bot trade records
-        written since this tracker last read the file. Race observed 2026-05-23:
-        8 bots had P&L in bot_state but zero corresponding sells in trades.json.
-
-        Fix: read on-disk file, merge any records not in self.trades into the
-        in-memory list, then write the union. Dedupe key is (type, token,
-        entry_price, time, bot_id) — collision-safe across both writers.
-
-        After merging, also update self.trades in-memory so future appends
-        don't re-introduce the race on the next save.
+        Option B split (2026-05-23): MultiBotTradeStore now owns
+        trades_multi.json exclusively. This writer owns trades.json and only
+        sees baseline_v1/legacy records, so no merge is needed — the previous
+        race against MultiBotTradeStore is gone because the writers no longer
+        share a file. Plain overwrite is now safe.
         """
         try:
             os.makedirs(DATA_DIR, exist_ok=True)
-            # Build dedupe key set from current in-memory list
-            def _key(t):
-                return (
-                    t.get("type"), t.get("token"), t.get("address"),
-                    t.get("entry_price"), t.get("time"), t.get("bot_id"),
-                )
-            known = {_key(t) for t in self.trades}
-            # Merge any records from disk that we don't have in memory
-            if os.path.exists(TRADE_LOG_FILE):
-                try:
-                    with open(TRADE_LOG_FILE, "r") as f:
-                        on_disk = json.load(f)
-                    for t in on_disk:
-                        if _key(t) not in known:
-                            self.trades.append(t)
-                            known.add(_key(t))
-                except Exception as e:
-                    logger.warning(f"_save_trades: pre-merge read failed (continuing): {e}")
-            # Sort by time so the file stays chronologically ordered
-            try:
-                self.trades.sort(key=lambda t: t.get("time") or "")
-            except Exception:
-                pass
             with open(TRADE_LOG_FILE, "w") as f:
                 json.dump(self.trades, f, indent=2)
         except Exception as e:
