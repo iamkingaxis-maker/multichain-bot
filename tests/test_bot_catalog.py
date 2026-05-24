@@ -1,4 +1,4 @@
-"""Verify the catalog of 63 bots: each loads, each differs from baseline
+"""Verify the catalog of 66 bots: each loads, each differs from baseline
 by exactly the expected fields, and there are no duplicate bot_ids."""
 import pytest
 from pathlib import Path
@@ -21,11 +21,37 @@ def _by_id(catalog):
     return {c.bot_id: c for c in catalog.configs}
 
 
-def test_catalog_has_63_bots(catalog):
-    assert len(catalog.configs) == 63, (
-        f"Expected 63 bots, got {len(catalog.configs)}: "
+def test_catalog_has_66_bots(catalog):
+    assert len(catalog.configs) == 66, (
+        f"Expected 66 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
+
+
+def test_compound_bots_present(catalog):
+    """Three compounding bots added 2026-05-23 to test the
+    profit-scales-position-size hypothesis: linear (symmetric grow/shrink),
+    winners_only (asymmetric — only grow), threshold (discrete steps)."""
+    ids = {c.bot_id for c in catalog.configs}
+    assert {"compound_linear", "compound_winners_only", "compound_threshold"} <= ids
+
+
+def test_compound_linear_config(catalog):
+    bot = _by_id(catalog)["compound_linear"]
+    assert bot.compound_mode == "linear"
+    assert bot.compound_max_multiplier == 5.0
+
+
+def test_compound_winners_only_config(catalog):
+    bot = _by_id(catalog)["compound_winners_only"]
+    assert bot.compound_mode == "winners_only"
+
+
+def test_compound_threshold_config(catalog):
+    bot = _by_id(catalog)["compound_threshold"]
+    assert bot.compound_mode == "threshold"
+    assert bot.compound_threshold_step_usd == 100.0
+    assert bot.compound_step_amount_usd == 5.0
 
 
 def test_catalog_no_duplicate_ids(catalog):

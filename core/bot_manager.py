@@ -18,13 +18,21 @@ class BotManager:
     def __init__(self, evaluators: Iterable[BotEvaluator]) -> None:
         self.evaluators: list[BotEvaluator] = list(evaluators)
 
-    def evaluate_all(self, bundle: FeatureBundle) -> list[BuyDecision]:
+    def evaluate_all(self, bundle: FeatureBundle,
+                     realized_pnl_by_bot: dict[str, float] | None = None) -> list[BuyDecision]:
+        """Evaluate all enabled bots against this bundle.
+
+        ``realized_pnl_by_bot`` is an optional mapping from bot_id to current
+        cumulative realized P&L. Bots configured with compound_mode use this
+        to scale position size. Bots without compounding ignore it.
+        """
+        realized = realized_pnl_by_bot or {}
         decisions: list[BuyDecision] = []
         for ev in self.evaluators:
             if not ev.config.enabled:
                 continue
             try:
-                d = ev.evaluate(bundle)
+                d = ev.evaluate(bundle, realized_pnl_usd=realized.get(ev.config.bot_id, 0.0))
                 if d is not None:
                     decisions.append(d)
             except Exception as e:

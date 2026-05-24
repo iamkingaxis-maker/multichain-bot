@@ -75,6 +75,20 @@ class BotConfig:
     trading_hour_utc_start: int = 0
     trading_hour_utc_end: int = 24
 
+    # Compounding (2026-05-23 — experimental). Position size scales with
+    # cumulative realized P&L. None disables (default). Modes:
+    #   "linear"       — size = base * (1 + realized_pnl / starting_balance)
+    #                    grows on wins, shrinks on losses (floored at 0.25x)
+    #   "winners_only" — size = base * (1 + max(0, realized) / starting_balance)
+    #                    grows on wins, never shrinks below base
+    #   "threshold"    — size = base + floor(max(0, realized) / step_usd) * step_amount
+    #                    discrete steps: +$step_amount per $step_usd of realized profit
+    # All modes are capped at compound_max_multiplier to prevent runaway growth.
+    compound_mode: Optional[str] = None
+    compound_threshold_step_usd: float = 100.0
+    compound_step_amount_usd: float = 5.0
+    compound_max_multiplier: float = 5.0
+
     def __post_init__(self) -> None:
         if self.filters_enforced is not None and self.filters_disabled:
             raise ValueError(

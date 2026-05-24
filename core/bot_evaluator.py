@@ -41,7 +41,8 @@ class BotEvaluator:
     def __init__(self, config: BotConfig) -> None:
         self.config = config
 
-    def evaluate(self, b: FeatureBundle) -> Optional[BuyDecision]:
+    def evaluate(self, b: FeatureBundle,
+                 realized_pnl_usd: float = 0.0) -> Optional[BuyDecision]:
         if self._sol_macro_blocks(b):
             return None
         if self._btc_macro_blocks(b):
@@ -58,7 +59,7 @@ class BotEvaluator:
             if not (set(effective_triggers) & ALPHA_TRIGGERS):
                 return None
 
-        size_usd, size_tier = self._size_for(effective_triggers, b)
+        size_usd, size_tier = self._size_for(effective_triggers, b, realized_pnl_usd)
 
         return BuyDecision(
             bot_id=self.config.bot_id,
@@ -141,7 +142,8 @@ class BotEvaluator:
 
         return tuple(result)
 
-    def _size_for(self, triggers: tuple[str, ...], b: FeatureBundle) -> tuple[float, str]:
+    def _size_for(self, triggers: tuple[str, ...], b: FeatureBundle,
+                  realized_pnl_usd: float = 0.0) -> tuple[float, str]:
         c = self.config
         is_alpha = bool(set(triggers) & ALPHA_TRIGGERS)
         # 1s_capit_reversal demoted from alpha at pc_h24 >= 80 (commit 9840ffe)
@@ -153,5 +155,38 @@ class BotEvaluator:
         ):
             is_alpha = False
         if is_alpha:
-            return c.base_position_usd * c.alpha_multiplier, "alpha_trigger"
-        return c.base_position_usd, "standard"
+            base = c.base_position_usd * c.alpha_multiplier
+            tier = "alpha_trigger"
+        else:
+            base = c.base_position_usd
+            tier = "standard"
+        if c.compound_mode is not None:
+            base = self._apply_compound(base, realized_pnl_usd)
+            tier = f"{tier}+compound_{c.compound_mode}"
+        return base, tier
+
+    def _apply_compound(self, base: float, realized_pnl_usd: float) -> float:
+        """Apply compounding multiplier per the bot's compound_mode.
+
+        All modes are floored at 0.25x (never size below 25% of base, even
+        on a brutal drawdown — lets the bot recover if it's right going
+        forward) and capped at compound_max_multiplier (default 5x, prevents
+        runaway growth from a single fluky win streak).
+        """
+        c = self.config
+        starting = c.paper_capital_usd or 2000.0
+        if c.compound_mode == "linear":
+            mult = 1.0 + (realized_pnl_usd / starting)
+        elif c.compound_mode == "winners_only":
+            mult = 1.0 + (max(0.0, realized_pnl_usd) / starting)
+        elif c.compound_mode == "threshold":
+            # Step-additive: mult is computed against `base` so the formula
+            # output stays in the same units the caller expects.
+            steps = int(max(0.0, realized_pnl_usd) // c.compound_threshold_step_usd)
+            if base <= 0:
+                return base
+            mult = 1.0 + (steps * c.compound_step_amount_usd) / base
+        else:
+            return base
+        mult = max(0.25, min(mult, c.compound_max_multiplier))
+        return base * mult

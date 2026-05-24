@@ -13530,7 +13530,13 @@ class DipScanner:
                         filters_shadow=(),
                         raw_meta=dict(_local.get("entry_meta_dict") or {}),
                     )
-                    decisions = self.bot_manager.evaluate_all(bundle)
+                    realized_by_bot = {
+                        bid: cap.realized_pnl_total_usd
+                        for bid, cap in self.bot_capitals.items()
+                    }
+                    decisions = self.bot_manager.evaluate_all(
+                        bundle, realized_pnl_by_bot=realized_by_bot,
+                    )
                     for d in decisions:
                         await self._execute_bot_buy(d, bundle)
                 except Exception as e:

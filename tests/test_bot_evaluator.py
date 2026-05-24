@@ -117,3 +117,93 @@ def test_evaluator_mcap_psych_gated_by_pc_h24():
         pc_h24=85.0,
     ))
     assert d is None
+
+
+# Compounding (2026-05-23)
+def test_compound_linear_grows_with_realized_pnl():
+    ev = BotEvaluator(_cfg(compound_mode="linear", paper_capital_usd=2000.0))
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=200.0)
+    # +$200 realized on $2000 starting → 1.10 multiplier
+    assert d.size_usd == pytest.approx(20.0 * 1.10)
+    assert "compound_linear" in d.size_tier
+
+
+def test_compound_linear_shrinks_on_loss():
+    ev = BotEvaluator(_cfg(compound_mode="linear", paper_capital_usd=2000.0))
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=-100.0)
+    # -$100 realized → 0.95 multiplier (above 0.25 floor)
+    assert d.size_usd == pytest.approx(20.0 * 0.95)
+
+
+def test_compound_linear_floored_at_25pct():
+    ev = BotEvaluator(_cfg(compound_mode="linear", paper_capital_usd=2000.0))
+    # -$1900 realized would imply 0.05x; floor at 0.25x → $5
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=-1900.0)
+    assert d.size_usd == pytest.approx(20.0 * 0.25)
+
+
+def test_compound_winners_only_does_not_shrink():
+    ev = BotEvaluator(_cfg(compound_mode="winners_only", paper_capital_usd=2000.0))
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=-100.0)
+    # Losses ignored → multiplier stays at 1.0
+    assert d.size_usd == 20.0
+
+
+def test_compound_winners_only_grows_on_wins():
+    ev = BotEvaluator(_cfg(compound_mode="winners_only", paper_capital_usd=2000.0))
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=300.0)
+    # +$300 / $2000 → 1.15 multiplier
+    assert d.size_usd == pytest.approx(20.0 * 1.15)
+
+
+def test_compound_threshold_steps_discrete():
+    ev = BotEvaluator(_cfg(
+        compound_mode="threshold",
+        compound_threshold_step_usd=100.0,
+        compound_step_amount_usd=5.0,
+    ))
+    # +$237 → 2 full steps → +$10 → $30
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=237.0)
+    assert d.size_usd == 30.0
+
+
+def test_compound_threshold_ignores_negative_realized():
+    ev = BotEvaluator(_cfg(
+        compound_mode="threshold",
+        compound_threshold_step_usd=100.0,
+        compound_step_amount_usd=5.0,
+    ))
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=-500.0)
+    # Negative realized → 0 steps → unchanged base
+    assert d.size_usd == 20.0
+
+
+def test_compound_capped_at_max_multiplier():
+    ev = BotEvaluator(_cfg(
+        compound_mode="linear",
+        paper_capital_usd=2000.0,
+        compound_max_multiplier=2.0,
+    ))
+    # +$10000 realized would imply 6x; cap to 2x
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=10_000.0)
+    assert d.size_usd == 40.0
+
+
+def test_compound_disabled_by_default():
+    """Bots without compound_mode set ignore realized_pnl entirely."""
+    ev = BotEvaluator(_cfg())  # no compound_mode
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=500.0)
+    assert d.size_usd == 20.0
+    assert "compound" not in d.size_tier
+
+
+def test_compound_stacks_with_alpha_multiplier():
+    """Compound multiplier is applied AFTER alpha tier, so an alpha trigger
+    with +$200 realized at compound_linear gets 1.5x * 1.10x = 1.65x."""
+    ev = BotEvaluator(_cfg(compound_mode="linear", paper_capital_usd=2000.0))
+    d = ev.evaluate(
+        _bundle(triggers_fired=("deep_1h_dip",)),  # alpha trigger
+        realized_pnl_usd=200.0,
+    )
+    assert d.size_usd == pytest.approx(20.0 * 1.5 * 1.10)
+    assert "alpha_trigger+compound_linear" in d.size_tier
