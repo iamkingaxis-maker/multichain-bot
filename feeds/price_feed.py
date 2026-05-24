@@ -74,6 +74,11 @@ class PriceFeed:
         # Set by caller so we can fire check_stop_loss_realtime on every tick.
         self.position_manager = None
 
+        # DexScreener 429 backoff: when banned, sleep this long before next poll.
+        # Prevents 2-RPS retry storm + log spam while IP cools down. Helius/Axiom
+        # feeds carry Solana stops during the window; only cross-chain stops degrade.
+        self._ds_backoff_until: float = 0.0
+
     # ── AxiomPriceFeed-compatible subscription API ──────────────────────────
 
     def subscribe_token(self, token_address: str, chain_id: str = "solana", pair_address: str = ""):
@@ -233,6 +238,14 @@ class PriceFeed:
                 await asyncio.sleep(3)
                 continue
 
+            # Honor 429 backoff window — DS rate-limits sometimes return 429 on
+            # every request for 30+ seconds. Without this, we'd burn 60 req/s of
+            # log spam and request budget retrying through the ban.
+            now = time.time()
+            if now < self._ds_backoff_until:
+                await asyncio.sleep(min(5.0, self._ds_backoff_until - now))
+                continue
+
             tokens_to_poll = list(self._watched)
             # Batch into groups of 30 (DexScreener limit)
             for i in range(0, len(tokens_to_poll), 30):
@@ -248,14 +261,33 @@ class PriceFeed:
         try:
             joined = ",".join(addresses)
             url = f"https://api.dexscreener.com/latest/dex/tokens/{joined}"
+            # Real-browser UA — DS appears to UA-fingerprint headless callers
+            # and throttle them harder than browser-style requests.
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                              "AppleWebKit/537.36 (KHTML, like Gecko) "
+                              "Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+            }
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    url, timeout=aiohttp.ClientTimeout(total=8)
+                    url, headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=8)
                 ) as resp:
                     if resp.status != 200:
-                        # Don't fail silently — a 429 here means stops are degraded
-                        # for any position relying on poll-driven realtime.
-                        if resp.status == 429 or resp.status >= 500:
+                        if resp.status == 429:
+                            # Enter 30s backoff. Only log when first entering the
+                            # window (suppresses thousands of duplicate WARNINGs
+                            # during a ban). Helius/Axiom price feeds still
+                            # cover Solana stops during the cooldown.
+                            already_in_backoff = time.time() < self._ds_backoff_until
+                            self._ds_backoff_until = time.time() + 30.0
+                            if not already_in_backoff:
+                                logger.warning(
+                                    f"[PriceFeed] DexScreener 429 ({len(addresses)} tokens) — "
+                                    f"backing off 30s. Helius/Axiom feeds carry Solana stops."
+                                )
+                        elif resp.status >= 500:
                             logger.warning(
                                 f"[PriceFeed] Poll batch HTTP {resp.status} "
                                 f"({len(addresses)} tokens) — stop-loss realtime degraded"
