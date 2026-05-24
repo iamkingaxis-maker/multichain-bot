@@ -1,4 +1,4 @@
-"""Verify the catalog of 76 bots: each loads, each differs from baseline
+"""Verify the catalog of 78 bots: each loads, each differs from baseline
 by exactly the expected fields, and there are no duplicate bot_ids."""
 import pytest
 from pathlib import Path
@@ -21,11 +21,30 @@ def _by_id(catalog):
     return {c.bot_id: c for c in catalog.configs}
 
 
-def test_catalog_has_76_bots(catalog):
-    assert len(catalog.configs) == 76, (
-        f"Expected 76 bots, got {len(catalog.configs)}: "
+def test_catalog_has_78_bots(catalog):
+    assert len(catalog.configs) == 78, (
+        f"Expected 78 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
+
+
+def test_deploy_c_bots_present(catalog):
+    """Deploy C 2026-05-23: code-required bots. reentry_after_stop deferred."""
+    ids = {c.bot_id for c in catalog.configs}
+    assert {"drawdown_freeze", "macro_conditional"} <= ids
+
+
+def test_drawdown_freeze_config(catalog):
+    bot = _by_id(catalog)["drawdown_freeze"]
+    assert bot.drawdown_freeze_threshold_usd == -100.0
+
+
+def test_macro_conditional_config(catalog):
+    bot = _by_id(catalog)["macro_conditional"]
+    assert bot.macro_conditional_mode == "sol_h6"
+    # Binary sol_macro disabled so gradient sizing isn't pre-empted
+    assert bot.sol_macro_h6_block_threshold is None
+    assert bot.sol_macro_h1_block_threshold is None
 
 
 def test_deploy_b_bots_present(catalog):

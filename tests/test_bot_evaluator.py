@@ -257,3 +257,59 @@ def test_window_blocks_outside_wrap_around():
     ev = BotEvaluator(_cfg(trading_hour_utc_start=22, trading_hour_utc_end=2))
     d = ev.evaluate(_bundle(snapshot_ts=_ts_at_hour_utc(12)))
     assert d is None
+
+
+# Drawdown freeze (Deploy C 2026-05-23)
+def test_drawdown_freeze_blocks_when_realized_at_or_below_threshold():
+    ev = BotEvaluator(_cfg(drawdown_freeze_threshold_usd=-100.0))
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=-100.0)
+    assert d is None
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=-200.0)
+    assert d is None
+
+
+def test_drawdown_freeze_allows_when_realized_above_threshold():
+    ev = BotEvaluator(_cfg(drawdown_freeze_threshold_usd=-100.0))
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=-99.0)
+    assert d is not None
+
+
+def test_drawdown_freeze_disabled_by_default():
+    ev = BotEvaluator(_cfg())  # threshold None
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",)), realized_pnl_usd=-10000.0)
+    assert d is not None  # never blocks when threshold None
+
+
+# Macro-conditional sizing (Deploy C 2026-05-23)
+def test_macro_conditional_bull_sizes_up():
+    ev = BotEvaluator(_cfg(macro_conditional_mode="sol_h6",
+                            sol_macro_h6_block_threshold=None,
+                            sol_macro_h1_block_threshold=None))
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",), sol_pc_h6=0.5))
+    assert d.size_usd == 30.0  # 20 * 1.5
+    assert "macro_bull" in d.size_tier
+
+
+def test_macro_conditional_bear_sizes_down():
+    ev = BotEvaluator(_cfg(macro_conditional_mode="sol_h6",
+                            sol_macro_h6_block_threshold=None,
+                            sol_macro_h1_block_threshold=None))
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",), sol_pc_h6=-0.2))
+    assert d.size_usd == 10.0  # 20 * 0.5
+    assert "macro_bear" in d.size_tier
+
+
+def test_macro_conditional_neutral_unchanged():
+    ev = BotEvaluator(_cfg(macro_conditional_mode="sol_h6",
+                            sol_macro_h6_block_threshold=None,
+                            sol_macro_h1_block_threshold=None))
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",), sol_pc_h6=0.1))
+    assert d.size_usd == 20.0
+    assert "macro_neutral" in d.size_tier
+
+
+def test_macro_conditional_disabled_by_default():
+    ev = BotEvaluator(_cfg())  # mode None
+    d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",), sol_pc_h6=0.5))
+    assert d.size_usd == 20.0  # no scaling
+    assert "macro" not in d.size_tier

@@ -89,6 +89,19 @@ class BotConfig:
     compound_step_amount_usd: float = 5.0
     compound_max_multiplier: float = 5.0
 
+    # Drawdown freeze (2026-05-23 — Deploy C). Pause buying when realized P&L
+    # drops to or below this threshold. None disables. Buying resumes
+    # automatically when realized recovers above the threshold.
+    drawdown_freeze_threshold_usd: Optional[float] = None
+
+    # Macro-conditional sizing (2026-05-23 — Deploy C). Scale position size
+    # gradient-style based on sol_pc_h6 (overrides binary sol_macro block).
+    # None disables. "sol_h6" mode: 1.5x when sol_pc_h6 >= +0.3, 0.5x when
+    # sol_pc_h6 <= -0.1, 1.0x otherwise. The bot's sol_macro_h6_block_threshold
+    # should typically be relaxed (e.g. None) when this is active so the
+    # gradient sizing isn't pre-empted by the binary block.
+    macro_conditional_mode: Optional[str] = None
+
     def __post_init__(self) -> None:
         if self.filters_enforced is not None and self.filters_disabled:
             raise ValueError(

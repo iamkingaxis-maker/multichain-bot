@@ -46,6 +46,8 @@ class BotEvaluator:
                  realized_pnl_usd: float = 0.0) -> Optional[BuyDecision]:
         if self._trading_window_blocks(b):
             return None
+        if self._drawdown_freeze_blocks(realized_pnl_usd):
+            return None
         if self._sol_macro_blocks(b):
             return None
         if self._btc_macro_blocks(b):
@@ -75,6 +77,18 @@ class BotEvaluator:
             triggers_fired=effective_triggers,
             reason_summary=f"triggers={','.join(effective_triggers)} tier={size_tier}",
         )
+
+    def _drawdown_freeze_blocks(self, realized_pnl_usd: float) -> bool:
+        """Pause buying when realized P&L is at or below the freeze threshold.
+
+        Default threshold is None (disabled). When set, the bot stops opening
+        new positions until realized P&L recovers above the threshold. Open
+        positions are unaffected — only NEW buys are gated.
+        """
+        c = self.config
+        if c.drawdown_freeze_threshold_usd is None:
+            return False
+        return realized_pnl_usd <= c.drawdown_freeze_threshold_usd
 
     def _trading_window_blocks(self, b: FeatureBundle) -> bool:
         """Block if FeatureBundle snapshot is outside the configured UTC window.
@@ -189,7 +203,27 @@ class BotEvaluator:
         if c.compound_mode is not None:
             base = self._apply_compound(base, realized_pnl_usd)
             tier = f"{tier}+compound_{c.compound_mode}"
+        if c.macro_conditional_mode is not None:
+            base, macro_tag = self._apply_macro_conditional(base, b)
+            tier = f"{tier}+{macro_tag}"
         return base, tier
+
+    def _apply_macro_conditional(self, base: float, b: FeatureBundle) -> tuple[float, str]:
+        """Gradient sizing based on macro state. Currently supports 'sol_h6' mode:
+        1.5x when sol_pc_h6 >= +0.3, 0.5x when sol_pc_h6 <= -0.1, 1.0x else.
+        Other modes can be added later (btc, multi-asset, etc.)."""
+        c = self.config
+        if c.macro_conditional_mode == "sol_h6":
+            sol = b.sol_pc_h6
+            if sol is None:
+                return base, "macro_neutral"
+            if sol >= 0.3:
+                return base * 1.5, "macro_bull"
+            if sol <= -0.1:
+                return base * 0.5, "macro_bear"
+            return base, "macro_neutral"
+        # Unknown mode → no-op
+        return base, "macro_off"
 
     def _apply_compound(self, base: float, realized_pnl_usd: float) -> float:
         """Apply compounding multiplier per the bot's compound_mode.
