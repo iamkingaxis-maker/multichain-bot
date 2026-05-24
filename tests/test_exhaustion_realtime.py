@@ -1,12 +1,18 @@
-"""Unit tests for check_exhaustion_realtime — the Option A hybrid trail.
+"""Unit tests for check_exhaustion_realtime — pre-TP1 soft trail.
 
 Verifies:
-  - HARD GUARD fires immediately at -2% absolute pnl when peak >= +3%
-  - SOFT TRAIL arms when drop >= 1.5pp, doesn't fire until 60s elapses
+  - SOFT TRAIL arms when peak >= 2.5 AND drop >= 1.5pp AND pnl <= -2%
+  - Arming doesn't fire — 60s confirm window must elapse
   - Recovery within window disarms pending
-  - Pre-peak (peak < +3%) drops don't arm anything
+  - Pre-peak (peak < 2.5%) drops don't arm anything
   - dip_buy strategy gate honored (other strategies are no-ops)
   - tp1_hit / stop_triggered / trail_triggered guards prevent double-fires
+
+History: pre-TP1 HARD GUARD was removed 2026-05-18 (universe-recorder sim
+showed it cost -1.49pp/trade, -$801/day at $20 size — fundamentally
+incompatible with runner-tilt thesis). The hard-guard test that lived
+here was removed alongside; the soft-trail tests below cover the
+surviving exit paths.
 """
 import os
 import sys
@@ -95,69 +101,75 @@ def _make_state(entry_price=1.0, tp1_hit=False, strategy="dip_buy", age_s=10):
     )
 
 
-def test_hard_guard_fires_when_pnl_below_minus_2_with_peak_above_3():
+def test_first_tick_below_pnl_floor_arms_but_does_not_fire():
+    """Replaces removed test_hard_guard_fires. The hard guard was deleted
+    2026-05-18; the soft trail arms instead and waits for the 60s confirm
+    window. Same scenario (peak +3, then drop to -2.5) should result in
+    arming, not firing on the first tick."""
     pm = _build_pm()
     state = _make_state(entry_price=1.0)
     pm._states["addr1"] = state
-    # Walk up to peak +3% first
     pm.check_exhaustion_realtime("ADDR1", 1.03)
     assert _fire_calls(pm) == 0
-    # Drop to -2.5% (below hard guard)
     pm.check_exhaustion_realtime("ADDR1", 0.975)
-    assert _fire_calls(pm) == 1
-    args = _last_fire_args(pm)
-    assert args[0] == "addr1"
-    assert "hard guard" in args[2].lower()
+    # Soft trail arms (drop=5.5pp >= 1.5, pnl=-2.5 <= -2 floor) but
+    # confirmation window has not elapsed yet, so no fire.
+    assert state.pending_exit_since_ts is not None
+    assert _fire_calls(pm) == 0
 
 
-def test_hard_guard_does_not_fire_below_minus_2_without_peak_above_3():
+def test_does_not_arm_when_peak_below_min_threshold():
     pm = _build_pm()
     state = _make_state(entry_price=1.0)
     pm._states["addr1"] = state
-    # Peak only +2% (below MIN_PEAK)
+    # Peak only +2% (below MIN_PEAK of 2.5)
     pm.check_exhaustion_realtime("ADDR1", 1.02)
-    # Drop to -3% — but peak never crossed +3%, so hard guard inactive
+    # Drop to -3% — peak never crossed MIN_PEAK, so soft trail inactive
     pm.check_exhaustion_realtime("ADDR1", 0.97)
     assert _fire_calls(pm) == 0
+    assert state.pending_exit_since_ts is None
 
 
 def test_soft_trail_arms_on_first_breach():
+    """Post-2026-05-19 carve-out: soft trail only arms when pnl drops below
+    -2% (PNL_FLOOR). Pure drop-from-peak with positive pnl no longer arms —
+    that scenario is the runner-tilt thesis preserving room to move."""
     pm = _build_pm()
     state = _make_state(entry_price=1.0)
     pm._states["addr1"] = state
-    # Walk peak to +5%
-    pm.check_exhaustion_realtime("ADDR1", 1.05)
-    assert state.pending_exit_since_ts is None
-    # Drop to +3% (drop = 2.0pp >= 1.5pp threshold)
+    # Walk peak to +3%
     pm.check_exhaustion_realtime("ADDR1", 1.03)
+    assert state.pending_exit_since_ts is None
+    # Drop to -2.5% — pnl below floor, drop=5.5pp (not panic at 6pp)
+    pm.check_exhaustion_realtime("ADDR1", 0.975)
     assert state.pending_exit_since_ts is not None
-    assert _fire_calls(pm) == 0  # not yet fired
+    assert _fire_calls(pm) == 0  # not yet fired (confirm window not elapsed)
 
 
 def test_soft_trail_does_not_arm_below_min_peak():
     pm = _build_pm()
     state = _make_state(entry_price=1.0)
     pm._states["addr1"] = state
-    # Walk peak to +2.5% (below MIN_PEAK of 3.0)
-    pm.check_exhaustion_realtime("ADDR1", 1.025)
-    # Drop to +0.5%
-    pm.check_exhaustion_realtime("ADDR1", 1.005)
-    assert state.pending_exit_since_ts is None  # never armed
+    # Walk peak to +2.0% (below MIN_PEAK of 2.5)
+    pm.check_exhaustion_realtime("ADDR1", 1.02)
+    # Drop to -3% (below floor) — but peak never crossed MIN_PEAK, no arm
+    pm.check_exhaustion_realtime("ADDR1", 0.97)
+    assert state.pending_exit_since_ts is None
 
 
 def test_soft_trail_fires_after_confirm_window():
     pm = _build_pm()
     state = _make_state(entry_price=1.0)
     pm._states["addr1"] = state
-    # Peak +5%
-    pm.check_exhaustion_realtime("ADDR1", 1.05)
-    # Drop to +3% — arms
+    # Peak +3%
     pm.check_exhaustion_realtime("ADDR1", 1.03)
+    # Drop to -2.5% — arms
+    pm.check_exhaustion_realtime("ADDR1", 0.975)
     assert state.pending_exit_since_ts is not None
     # Simulate 60+ seconds passing
     state.pending_exit_since_ts = time_module.monotonic() - 65.0
     # Another tick still below threshold
-    pm.check_exhaustion_realtime("ADDR1", 1.03)
+    pm.check_exhaustion_realtime("ADDR1", 0.975)
     assert _fire_calls(pm) == 1
 
 
@@ -165,13 +177,13 @@ def test_soft_trail_disarms_on_recovery():
     pm = _build_pm()
     state = _make_state(entry_price=1.0)
     pm._states["addr1"] = state
-    # Peak +5%
-    pm.check_exhaustion_realtime("ADDR1", 1.05)
-    # Drop to +3% — arms
+    # Peak +3%
     pm.check_exhaustion_realtime("ADDR1", 1.03)
+    # Drop to -2.5% — arms (drop=5.5pp, pnl=-2.5 <= floor)
+    pm.check_exhaustion_realtime("ADDR1", 0.975)
     assert state.pending_exit_since_ts is not None
-    # Recover to +4.5% — drop is only 0.5pp from peak, below 1.0 recovery threshold
-    pm.check_exhaustion_realtime("ADDR1", 1.045)
+    # Recover to +2.5% — drop = 0.5pp, below _RECOVERY_PP (1.0) → disarm
+    pm.check_exhaustion_realtime("ADDR1", 1.025)
     assert state.pending_exit_since_ts is None
     assert _fire_calls(pm) == 0
 
@@ -180,10 +192,14 @@ def test_soft_trail_does_not_disarm_on_partial_recovery():
     pm = _build_pm()
     state = _make_state(entry_price=1.0)
     pm._states["addr1"] = state
-    pm.check_exhaustion_realtime("ADDR1", 1.05)
+    # Peak +3%, drop to -2.5% to arm
     pm.check_exhaustion_realtime("ADDR1", 1.03)
-    # Recover only to +3.5% — drop is 1.5pp, still at threshold (not above recovery)
-    pm.check_exhaustion_realtime("ADDR1", 1.035)
+    pm.check_exhaustion_realtime("ADDR1", 0.975)
+    assert state.pending_exit_since_ts is not None
+    # Recover only to +1.5% — drop = 1.5pp, still above _RECOVERY_PP (1.0).
+    # Pnl is now above floor so wouldn't re-arm, but recovery isn't deep
+    # enough to disarm either. Pending state persists.
+    pm.check_exhaustion_realtime("ADDR1", 1.015)
     assert state.pending_exit_since_ts is not None  # still armed
 
 
@@ -248,46 +264,54 @@ def test_spike_sanity_gate_rejects_giant_tick():
     assert _fire_calls(pm) == 0
 
 
-def test_fish_class_scenario_holds_through_oscillation():
-    """Mirror of FAHHHH/fish case: peak +3.5%, dip briefly to +1%, recover to
-    +4% and continue up. Should NOT fire — recovery cancels pending."""
+def test_fish_class_scenario_arms_then_disarms_on_recovery():
+    """Updated for 2026-05-19 carve-out. Original fish-class case (peak
+    +3.5%, dip to +1.5%, recover) no longer arms at all under the new
+    PNL_FLOOR — pnl never goes underwater. Recast to a deeper-dip scenario
+    that actually arms then recovers, which is the spirit of the test
+    (verify recovery cancels pending state)."""
     pm = _build_pm()
     state = _make_state(entry_price=1.0)
     pm._states["addr1"] = state
     # Climb to +3.5% peak
     pm.check_exhaustion_realtime("ADDR1", 1.035)
-    # Dip to +1.5% — arms (drop = 2.0pp)
-    pm.check_exhaustion_realtime("ADDR1", 1.015)
+    # Dip to -2.5% — arms (drop=6.0pp is exactly panic threshold, so 5.99
+    # to stay non-panic; using -2.4 keeps drop=5.9pp and pnl<floor)
+    pm.check_exhaustion_realtime("ADDR1", 0.976)
     assert state.pending_exit_since_ts is not None
-    # Quickly recover to +3.0% — drop = 0.5pp <= 1.0pp recovery margin → disarm
-    pm.check_exhaustion_realtime("ADDR1", 1.03)
+    # Quickly recover to +2.7% — drop = 0.8pp <= _RECOVERY_PP → disarm
+    pm.check_exhaustion_realtime("ADDR1", 1.027)
     assert state.pending_exit_since_ts is None
-    # Continue up to +5%
+    # Continue up to +5% — should not fire
     pm.check_exhaustion_realtime("ADDR1", 1.05)
     assert _fire_calls(pm) == 0
 
 
-def test_director_class_scenario_hard_guard_catches_fast_reversal():
-    """Mirror of DIRECTOR case: peak +3.2%, then fast drop straight to -3%.
-    Soft trail would arm and need 60s; hard guard catches it earlier."""
+def test_panic_exit_fires_on_catastrophic_drop():
+    """Replaces test_director_class_scenario_hard_guard_catches_fast_reversal.
+    The hard guard was removed 2026-05-18; the surviving fast-reversal path
+    is the panic exit (drop >= 6pp, 5s confirm) added 2026-05-19 for
+    memecoins-class catastrophic give-backs."""
     pm = _build_pm()
     state = _make_state(entry_price=1.0)
     pm._states["addr1"] = state
-    # Climb to +3.2% peak
-    pm.check_exhaustion_realtime("ADDR1", 1.032)
-    # Soft trail arms at +1.7% (drop 1.5pp)
-    pm.check_exhaustion_realtime("ADDR1", 1.017)
+    # Peak +3.1% — just above MIN_PEAK
+    pm.check_exhaustion_realtime("ADDR1", 1.031)
+    # Catastrophic drop to -3.5% — drop=6.6pp (>= PANIC_DROP_PP=6.0), arms
+    pm.check_exhaustion_realtime("ADDR1", 0.965)
     assert state.pending_exit_since_ts is not None
-    # Fast drop to -2.5% (hard guard threshold)
-    pm.check_exhaustion_realtime("ADDR1", 0.975)
+    # Backdate the arm by 6s — exceeds PANIC_CONFIRM_S=5
+    state.pending_exit_since_ts = time_module.monotonic() - 6.0
+    # Next tick still panic-deep — fires
+    pm.check_exhaustion_realtime("ADDR1", 0.965)
     assert _fire_calls(pm) == 1
     args = _last_fire_args(pm)
-    assert "hard guard" in args[2].lower()
+    assert "panic" in args[2].lower()
 
 
 if __name__ == "__main__":
-    test_hard_guard_fires_when_pnl_below_minus_2_with_peak_above_3()
-    test_hard_guard_does_not_fire_below_minus_2_without_peak_above_3()
+    test_first_tick_below_pnl_floor_arms_but_does_not_fire()
+    test_does_not_arm_when_peak_below_min_threshold()
     test_soft_trail_arms_on_first_breach()
     test_soft_trail_does_not_arm_below_min_peak()
     test_soft_trail_fires_after_confirm_window()
