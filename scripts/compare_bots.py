@@ -34,7 +34,11 @@ API_URL = "https://gracious-inspiration-production.up.railway.app/api/trades?ful
 CUTOFF = "2026-05-23T15:40:00+00:00"
 
 
-def fetch_trades(limit: int, local: bool) -> list[dict]:
+def fetch_trades(limit: int, local: bool, from_file: str | None = None) -> list[dict]:
+    if from_file:
+        with open(from_file, "r") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else data.get("trades", [])
     if local:
         # Read both legacy and multi files (post-Option-B split)
         data_dir = os.environ.get("DATA_DIR", "data")
@@ -289,12 +293,14 @@ def main():
                    help="Trades to pull from /api/trades (default 10000)")
     p.add_argument("--local", action="store_true",
                    help="Read trades.json + trades_multi.json from local DATA_DIR instead of API")
+    p.add_argument("--from-file", type=str, default=None,
+                   help="Read trades from a pre-dumped JSON file instead of API (use for multi-comparison batches)")
     p.add_argument("--unrealized", action="store_true",
                    help="Fetch current prices via DexScreener for open positions and show realized+unrealized combined view (removes realization-speed bias)")
     args = p.parse_args()
 
     print(f"Fetching trades...")
-    trades = fetch_trades(args.limit, args.local)
+    trades = fetch_trades(args.limit, args.local, from_file=args.from_file)
     print(f"Pulled {len(trades)} records.")
 
     buys_a, sells_a = filter_bot(trades, args.bot_a)
