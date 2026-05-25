@@ -3506,9 +3506,16 @@ class WebDashboard:
                 # the count was inflated ~3-4x. Per-token subtraction handles
                 # both partial-fill cases (TP1+TP2 = 2 sells for 1 buy →
                 # closed) and cross-cutoff cases (clamp to 0).
+                # Count only FULLY-CLOSED sells as closing a position (P1
+                # partial sells: TP1 emits a sell with fully_closed=False and
+                # leaves the position open — counting it would undercount).
+                # Legacy sells lack the field → default True (all full closes
+                # pre-P1).
                 from collections import Counter
                 buys_per_token = Counter(b.get("token") for b in buys)
-                sells_per_token = Counter(s.get("token") for s in sells)
+                sells_per_token = Counter(
+                    s.get("token") for s in sells if s.get("fully_closed", True)
+                )
                 open_count = sum(
                     max(0, buys_per_token[tok] - sells_per_token.get(tok, 0))
                     for tok in buys_per_token

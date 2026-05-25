@@ -607,15 +607,24 @@ class DipScanner:
         except ValueError as e:
             logger.info("[DipScanner] bot=%s buy rejected: %s", bot_id, e)
             return
+        # P2 (2026-05-25): fill at a realistic slippage+fee-adjusted price, not
+        # the raw mid. Slip scales with size from the sampled Jupiter curve, so
+        # bigger positions correctly pay more. Stash the slip estimate on the
+        # position for the (symmetric) sell-side haircut.
+        from core.slippage_model import buy_fill_price
+        eff_entry, slip_pct = buy_fill_price(
+            decision.entry_price, decision.size_usd, getattr(bundle, "raw_meta", None)
+        )
         try:
-            pm.open_position(
+            _pos = pm.open_position(
                 token=decision.token,
-                entry_price=decision.entry_price,
+                entry_price=eff_entry,
                 size_usd=decision.size_usd,
                 entry_time=time.time(),
                 address=decision.address,
                 pair_address=decision.pair_address,
             )
+            _pos.state_blob["slip_pct"] = slip_pct
         except ValueError as e:
             # max_concurrent or duplicate token; refund capital
             capital.balance_usd += decision.size_usd
@@ -628,7 +637,9 @@ class DipScanner:
                 "token": decision.token,
                 "address": decision.address,
                 "pair_address": decision.pair_address,
-                "entry_price": decision.entry_price,
+                "entry_price": eff_entry,
+                "entry_mid_price": decision.entry_price,
+                "entry_slip_pct": slip_pct,
                 "amount_usd": decision.size_usd,
                 "size_tier": decision.size_tier,
                 "time": datetime.now(timezone.utc).isoformat(),
@@ -688,22 +699,35 @@ class DipScanner:
     async def _execute_bot_sell(self, bot_id, token, exit_decision, current_price, now):
         """Execute an ExitDecision from a single bot's position tick.
 
-        NOTE: Currently treats ALL exits as full close (sell_fraction=1.0
-        semantics). Partial sells (TP1 sells 75%) are a Sub-project 2 line
-        item — for now the smoke harness uses full-close on every exit
-        decision to keep the integration simple.
+        Honors exit_decision.sell_fraction (P1, 2026-05-25): TP1 sells
+        tp1_sell_fraction, the position stays open with the remainder, and a
+        later TP2 / trail / stop sells what's left. Each partial is its own
+        sell record (carrying fully_closed=False until the final leg). Skips
+        zero-fraction decisions (e.g. tp2_sell_fraction=0.0 configs).
         """
+        sell_fraction = getattr(exit_decision, "sell_fraction", 1.0)
+        if sell_fraction <= 0:
+            return
         capital = self.bot_capitals[bot_id]
         pm = self.bot_position_managers[bot_id]
+        # P2: sell at a slippage+fee-adjusted price (you receive less). Reuse
+        # the slip estimate stashed at buy time (sell curve isn't persisted).
+        from core.slippage_model import sell_fill_price
+        _pos = pm.get_position(token)
+        _slip = (_pos.state_blob or {}).get("slip_pct") if _pos else None
+        eff_exit = sell_fill_price(current_price, _slip)
         try:
             result = pm.close_position(
                 token=token,
-                exit_price=current_price,
+                exit_price=eff_exit,
                 exit_time=now,
                 reason=exit_decision.reason,
+                sell_fraction=sell_fraction,
             )
         except KeyError:
             return  # already closed
+        if result.cost_usd <= 0:
+            return  # nothing left to sell (remaining_fraction already ~0)
         capital.realize_sell(
             cost_usd=result.cost_usd,
             proceeds_usd=result.proceeds_usd,
@@ -713,19 +737,23 @@ class DipScanner:
                 "type": "sell",
                 "token": token,
                 "entry_price": result.entry_price,
-                "exit_price": current_price,
+                "exit_price": eff_exit,
+                "exit_mid_price": current_price,
                 "pnl": result.realized_pnl_usd,
                 "pnl_pct": result.pnl_pct,
                 "peak_pnl_pct": result.peak_pnl_pct,
                 "hold_secs": result.hold_secs,
                 "reason": exit_decision.reason,
                 "kind": exit_decision.kind,
+                "sell_fraction": result.sell_fraction,
+                "fully_closed": result.fully_closed,
                 "time": datetime.now(timezone.utc).isoformat(),
             }, bot_id=bot_id)
             self.trade_store.save_bot_state(bot_id, capital.to_dict())
         logger.info(
-            "[DipScanner] SELL bot=%s token=%s pnl=$%.2f reason=%s",
-            bot_id, token, result.realized_pnl_usd, exit_decision.reason,
+            "[DipScanner] SELL bot=%s token=%s frac=%.2f pnl=$%.2f reason=%s%s",
+            bot_id, token, result.sell_fraction, result.realized_pnl_usd,
+            exit_decision.reason, "" if result.fully_closed else " (partial)",
         )
 
     async def _get_current_price_for(

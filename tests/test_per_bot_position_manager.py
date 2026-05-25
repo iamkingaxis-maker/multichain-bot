@@ -60,6 +60,60 @@ def test_close_unknown_position_raises():
     with pytest.raises(KeyError):
         pm.close_position("MISSING", 0.001, 2.0, "stop")
 
+
+# ── Partial sells (P1: honor sell_fraction) ──────────────────────────────
+def test_partial_close_keeps_position_open():
+    """TP1 sells 75% — position stays open with 25% remaining, NOT removed."""
+    pm = PerBotPositionManager(_cfg())
+    pm.open_position("SQUIRE", 0.001, 20.0, entry_time=1.0)
+    r = pm.close_position("SQUIRE", exit_price=0.00105, exit_time=2.0,
+                          reason="TP1", sell_fraction=0.75)
+    # sold 75% of $20 = $15 cost, proceeds 15*1.05 = 15.75, pnl 0.75
+    assert r.cost_usd == pytest.approx(15.0, abs=0.01)
+    assert r.proceeds_usd == pytest.approx(15.75, abs=0.01)
+    assert r.realized_pnl_usd == pytest.approx(0.75, abs=0.01)
+    assert r.fully_closed is False
+    assert r.sell_fraction == pytest.approx(0.75)
+    assert pm.open_count == 1  # still held
+    assert pm.get_position("SQUIRE").remaining_fraction == pytest.approx(0.25)
+
+
+def test_partial_then_full_close_sums_correctly():
+    """TP1 75% then TP2 25% fully exits; total realized = both legs."""
+    pm = PerBotPositionManager(_cfg())
+    pm.open_position("SQUIRE", 0.001, 20.0, entry_time=1.0)
+    r1 = pm.close_position("SQUIRE", 0.00105, 2.0, "TP1", sell_fraction=0.75)
+    r2 = pm.close_position("SQUIRE", 0.00110, 3.0, "TP2", sell_fraction=0.25)
+    # r2: 25% of $20 = $5 cost, proceeds 5*1.10 = 5.5, pnl 0.5
+    assert r2.realized_pnl_usd == pytest.approx(0.5, abs=0.01)
+    assert r2.fully_closed is True
+    assert pm.open_count == 0
+    total = r1.realized_pnl_usd + r2.realized_pnl_usd
+    assert total == pytest.approx(1.25, abs=0.01)  # beats $1.00 full-close-at-TP1
+
+
+def test_partial_remainder_full_exit_sells_only_remaining():
+    """After TP1 75%, a hard-stop (sell_fraction=1.0) sells only the 25% left."""
+    pm = PerBotPositionManager(_cfg())
+    pm.open_position("SQUIRE", 0.001, 20.0, entry_time=1.0)
+    pm.close_position("SQUIRE", 0.00105, 2.0, "TP1", sell_fraction=0.75)
+    r = pm.close_position("SQUIRE", 0.00090, 3.0, "stop", sell_fraction=1.0)
+    # only 25% remains: cost $5, proceeds 5*0.9 = 4.5, pnl -0.5
+    assert r.cost_usd == pytest.approx(5.0, abs=0.01)
+    assert r.realized_pnl_usd == pytest.approx(-0.5, abs=0.01)
+    assert r.fully_closed is True
+    assert pm.open_count == 0
+
+
+def test_full_close_default_fraction_unchanged():
+    """Default sell_fraction=1.0 preserves legacy full-close behavior."""
+    pm = PerBotPositionManager(_cfg())
+    pm.open_position("SQUIRE", 0.001, 20.0, entry_time=1.0)
+    r = pm.close_position("SQUIRE", 0.0011, 2.0, "TP1")
+    assert r.fully_closed is True
+    assert r.cost_usd == pytest.approx(20.0, abs=0.01)
+    assert pm.open_count == 0
+
 def test_tick_emits_tp1_when_peak_hits_threshold():
     pm = PerBotPositionManager(_cfg(tp1_pct=5.0, tp1_sell_fraction=0.75))
     pm.open_position("SQUIRE", 0.001, 20.0, entry_time=1.0)

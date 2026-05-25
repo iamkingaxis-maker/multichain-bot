@@ -16,6 +16,10 @@ class OpenPosition:
     tp2_hit: bool = False
     peak_pnl_pct: float = 0.0
     peak_pnl_at_secs: int = 0
+    # Fraction of the original position still held. Starts at 1.0; each
+    # partial sell (TP1 sells tp1_sell_fraction, etc.) decrements it. The
+    # position is removed only when this reaches ~0 (fully exited).
+    remaining_fraction: float = 1.0
     state_blob: dict = field(default_factory=dict)
 
 
@@ -30,6 +34,8 @@ class CloseResult:
     hold_secs: float
     peak_pnl_pct: float
     entry_price: float = 0.0  # the position's entry price (for sell-record self-verification)
+    sell_fraction: float = 1.0  # fraction of ORIGINAL position sold in THIS exit
+    fully_closed: bool = True  # True if this exit emptied the position (removed from book)
 
 
 @dataclass
@@ -87,19 +93,35 @@ class PerBotPositionManager:
         return list(self._positions.values())
 
     def close_position(self, token: str, exit_price: float, exit_time: float,
-                       reason: str) -> CloseResult:
+                       reason: str, sell_fraction: float = 1.0) -> CloseResult:
+        """Sell ``sell_fraction`` of the ORIGINAL position size.
+
+        sell_fraction < 1.0 is a partial: proceeds/cost/pnl reflect only the
+        sold slice, the position stays open with its remaining_fraction
+        reduced, and CloseResult.fully_closed is False. The position is
+        removed (and fully_closed=True) only once remaining_fraction hits ~0
+        — so a stop (sell_fraction=1.0) after a TP1 partial sells only the
+        slice that's left. Default 1.0 preserves legacy full-close behavior.
+        """
         if token not in self._positions:
             raise KeyError(f"bot={self.config.bot_id} no open position for {token}")
-        p = self._positions.pop(token)
+        p = self._positions[token]
+        # Can't sell more than what's left; clamp to remaining.
+        frac = min(max(sell_fraction, 0.0), p.remaining_fraction)
+        sold_cost = p.size_usd * frac
         ratio = exit_price / p.entry_price
-        proceeds = p.size_usd * ratio
-        pnl_usd = proceeds - p.size_usd
+        proceeds = sold_cost * ratio
+        pnl_usd = proceeds - sold_cost
         pnl_pct = (ratio - 1.0) * 100.0
+        p.remaining_fraction -= frac
+        fully_closed = p.remaining_fraction <= 1e-9
+        if fully_closed:
+            self._positions.pop(token)
         return CloseResult(
-            token=token, cost_usd=p.size_usd, proceeds_usd=proceeds,
+            token=token, cost_usd=sold_cost, proceeds_usd=proceeds,
             realized_pnl_usd=pnl_usd, pnl_pct=pnl_pct, reason=reason,
             hold_secs=exit_time - p.entry_time, peak_pnl_pct=p.peak_pnl_pct,
-            entry_price=p.entry_price,
+            entry_price=p.entry_price, sell_fraction=frac, fully_closed=fully_closed,
         )
 
     def tick(self, token: str, current_price: float, now: float,
