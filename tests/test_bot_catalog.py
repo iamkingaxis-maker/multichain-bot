@@ -1,4 +1,4 @@
-"""Verify the catalog of 84 bots: each loads, each differs from baseline
+"""Verify the catalog of 89 bots: each loads, each differs from baseline
 by exactly the expected fields, and there are no duplicate bot_ids."""
 import pytest
 from pathlib import Path
@@ -21,11 +21,32 @@ def _by_id(catalog):
     return {c.bot_id: c for c in catalog.configs}
 
 
-def test_catalog_has_84_bots(catalog):
-    assert len(catalog.configs) == 84, (
-        f"Expected 84 bots, got {len(catalog.configs)}: "
+def test_catalog_has_89_bots(catalog):
+    assert len(catalog.configs) == 89, (
+        f"Expected 89 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
+
+
+def test_champion_bracket_present(catalog):
+    """2026-05-25 champion tournament: 5 synthesized champions + baseline_v1
+    control. Each built from winning knobs in the combined (realized+unrealized)
+    dimensional sweep. See reference_champion_bracket_2026_05_25."""
+    ids = {c.bot_id for c in catalog.configs}
+    assert {"champ_sniper", "champ_workhorse", "champ_regime_rider",
+            "champ_specialist", "champ_runner"} <= ids
+
+
+def test_champion_runner_exit_ladder(catalog):
+    bot = _by_id(catalog)["champ_runner"]
+    assert bot.tp1_pct == 15.0 and bot.tp1_sell_fraction == 0.25
+    assert bot.tp2_pct == 50.0 and bot.tp2_sell_fraction == 0.5
+
+
+def test_champion_sniper_concentration(catalog):
+    bot = _by_id(catalog)["champ_sniper"]
+    assert bot.max_concurrent_positions == 2 and bot.base_position_usd == 40.0
+    assert bot.triggers_allowed is not None  # 1s triggers only
 
 
 def test_deploy_c_bots_present(catalog):
@@ -316,7 +337,7 @@ def test_all_paper_capital_2000(catalog):
 def test_all_base_position_20(catalog):
     """All bots use $20 base position EXCEPT the capital-concentration
     variants shipped 2026-05-23 which explicitly test that dimension."""
-    EXEMPT = {"concentrated_50", "spray_10"}
+    EXEMPT = {"concentrated_50", "spray_10", "champ_sniper"}
     for c in catalog.configs:
         if c.bot_id in EXEMPT:
             continue
