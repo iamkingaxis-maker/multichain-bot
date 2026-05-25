@@ -14,10 +14,12 @@ import requests
 PROD_BASE_URL = "https://gracious-inspiration-production.up.railway.app"
 
 # Trades with buy time BEFORE this cutoff are excluded from attribution.
-# Set to the post-restoration deploy timestamp (commit f287d14, 2026-05-23 05:09 UTC)
-# so the stale-cache zombies + their cleanup losses don't pollute reports.
+# 2026-05-25 21:25 UTC — fresh-baseline reset for the P1/P2 realism cutover
+# (partial sells + slippage/fee-aware fills change P&L semantics fleet-wide).
+# Old optimistic-semantics trades are pre-cutoff so the champion tournament
+# runs on consistent realistic numbers from a single starting line.
 # To include all history, set to "" (empty string).
-MIN_TRADE_TIMESTAMP = "2026-05-23T15:40:00+00:00"
+MIN_TRADE_TIMESTAMP = "2026-05-25T21:25:00+00:00"
 
 
 @dataclass
