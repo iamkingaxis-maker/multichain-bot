@@ -344,9 +344,18 @@ def test_isolation_bots_have_no_filters_disabled(catalog):
         assert bot.filters_disabled == (), f"{bid} should leave filters_disabled empty"
 
 
-def test_champion_proposal_disabled(catalog):
+def test_champion_proposal_is_enabled_synthesis(catalog):
+    """2026-05-25: champion_proposal populated as the integrated production
+    candidate (proven knobs only) + ENABLED to compete from the fresh
+    baseline. Specialist universe + scale-out partial ladder (P1) + no SOL
+    gate + vol floor. The SP5 cutover target. Conviction/velocity/reentry
+    deliberately excluded until their solo bots validate (held-out discipline)."""
     bot = _by_id(catalog)["champion_proposal"]
-    assert bot.enabled is False
+    assert bot.enabled is True
+    assert bot.mcap_min == 500000.0 and bot.mcap_max == 25000000.0
+    assert bot.tp1_sell_fraction == 0.5 and bot.tp2_sell_fraction == 0.25
+    assert bot.sol_macro_h6_block_threshold is None
+    assert bot.conviction_sizing_mode is None  # unproven — held for v2
 
 
 def test_all_paper_capital_2000(catalog):
