@@ -602,6 +602,16 @@ class DipScanner:
         if capital is None or pm is None:
             logger.error("[DipScanner] missing capital/pm for bot=%s", bot_id)
             return
+        # P-stack #4: per-bot re-entry throttle. Re-entry is otherwise immediate
+        # (no dedup in the multi-bot path); this blocks re-buying a token within
+        # reentry_cooldown_secs of its last full close. None/0 = no throttle.
+        _cd = getattr(pm.config, "reentry_cooldown_secs", None)
+        if _cd and pm.in_reentry_cooldown(decision.token, time.time(), _cd):
+            logger.info(
+                "[DipScanner] bot=%s reentry cooldown active for %s; skip",
+                bot_id, decision.token,
+            )
+            return
         try:
             capital.reserve_for_buy(decision.size_usd)
         except ValueError as e:

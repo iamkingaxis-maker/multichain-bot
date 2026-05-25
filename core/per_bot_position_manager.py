@@ -41,7 +41,7 @@ class CloseResult:
 @dataclass
 class ExitDecision:
     token: str
-    kind: Literal["TP1", "TP2", "POST_TP1_TRAIL", "HARD_STOP", "PRE_STOP_BAIL"]
+    kind: Literal["TP1", "TP2", "POST_TP1_TRAIL", "HARD_STOP", "PRE_STOP_BAIL", "FLAT_EXIT"]
     reason: str
     sell_fraction: float  # 0.0 to 1.0; full exit = 1.0
 
@@ -52,6 +52,11 @@ class PerBotPositionManager:
     def __init__(self, config: BotConfig) -> None:
         self.config = config
         self._positions: dict[str, OpenPosition] = {}
+        # token -> wall-clock time of its last FULL close. Used to enforce
+        # reentry_cooldown_secs (P-stack #4): re-entry already works in the
+        # multi-bot path (no dedup), so this is the *throttle* for churning the
+        # same token. Empty/cooldown None = immediate re-entry (default).
+        self._last_close_time: dict[str, float] = {}
 
     @property
     def open_count(self) -> int:
@@ -89,6 +94,15 @@ class PerBotPositionManager:
     def get_position(self, token: str) -> Optional[OpenPosition]:
         return self._positions.get(token)
 
+    def in_reentry_cooldown(self, token: str, now: float,
+                            cooldown_secs: Optional[float]) -> bool:
+        """True if ``token`` was fully closed within cooldown_secs of ``now``.
+        None/0 cooldown → never in cooldown (immediate re-entry allowed)."""
+        if not cooldown_secs or cooldown_secs <= 0:
+            return False
+        last = self._last_close_time.get(token)
+        return last is not None and (now - last) < cooldown_secs
+
     def iter_positions(self):
         return list(self._positions.values())
 
@@ -117,6 +131,7 @@ class PerBotPositionManager:
         fully_closed = p.remaining_fraction <= 1e-9
         if fully_closed:
             self._positions.pop(token)
+            self._last_close_time[token] = exit_time
         return CloseResult(
             token=token, cost_usd=sold_cost, proceeds_usd=proceeds,
             realized_pnl_usd=pnl_usd, pnl_pct=pnl_pct, reason=reason,
@@ -174,6 +189,26 @@ class PerBotPositionManager:
             decisions.append(ExitDecision(
                 token=token, kind="HARD_STOP",
                 reason=f"slow_bleed hold={hold_minutes:.0f}min pnl={pnl_pct:.2f}%",
+                sell_fraction=1.0,
+            ))
+            return decisions
+
+        # 3b. Velocity / flat exit (recycle dead money, pre-TP1). Fires when a
+        # position held past flat_exit_minutes is going nowhere (pnl inside the
+        # flat band) — frees capital for new trades. Distinct from slow_bleed
+        # (loss-based). Disabled when flat_exit_minutes is None.
+        if (
+            self.config.flat_exit_minutes is not None
+            and hold_minutes >= self.config.flat_exit_minutes
+            and abs(pnl_pct) < self.config.flat_exit_band_pct
+            and not p.tp1_hit
+        ):
+            decisions.append(ExitDecision(
+                token=token, kind="FLAT_EXIT",
+                reason=(
+                    f"flat_exit hold={hold_minutes:.0f}min pnl={pnl_pct:.2f}%"
+                    f" within +/-{self.config.flat_exit_band_pct}% (dead money)"
+                ),
                 sell_fraction=1.0,
             ))
             return decisions

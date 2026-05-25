@@ -171,6 +171,29 @@ def test_pre_stop_bail_does_NOT_fire_with_healthy_vol():
     assert not any(d.kind == "PRE_STOP_BAIL" for d in decisions)
 
 
+def test_flat_exit_fires_on_dead_money():
+    """Velocity exit: held past flat_exit_minutes, pnl flat (dead) → recycle."""
+    pm = PerBotPositionManager(_cfg(flat_exit_minutes=45, flat_exit_band_pct=3.0))
+    pm.open_position("DEAD", 0.001, 20.0, entry_time=1.0)
+    decisions = pm.tick("DEAD", current_price=0.00101, now=1.0 + 45 * 60)  # +1%, 45min
+    assert any(d.kind == "FLAT_EXIT" for d in decisions)
+
+
+def test_flat_exit_does_not_fire_when_moving():
+    """A position up +4% (outside flat band, climbing toward TP1) is NOT dead."""
+    pm = PerBotPositionManager(_cfg(flat_exit_minutes=45, flat_exit_band_pct=3.0, tp1_pct=5.0))
+    pm.open_position("WIN", 0.001, 20.0, entry_time=1.0)
+    decisions = pm.tick("WIN", current_price=0.00104, now=1.0 + 45 * 60)  # +4%
+    assert not any(d.kind == "FLAT_EXIT" for d in decisions)
+
+
+def test_flat_exit_disabled_by_default():
+    pm = PerBotPositionManager(_cfg())  # flat_exit_minutes None
+    pm.open_position("X", 0.001, 20.0, entry_time=1.0)
+    decisions = pm.tick("X", current_price=0.00101, now=1.0 + 99 * 60)
+    assert not any(d.kind == "FLAT_EXIT" for d in decisions)
+
+
 def test_slow_bleed_fires_after_hold_min_at_loss():
     pm = PerBotPositionManager(_cfg(
         slow_bleed_minutes=60,

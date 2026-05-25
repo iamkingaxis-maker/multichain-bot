@@ -102,6 +102,31 @@ class BotConfig:
     # gradient sizing isn't pre-empted by the binary block.
     macro_conditional_mode: Optional[str] = None
 
+    # Conviction-scaled sizing (2026-05-25 — P-stack #2). Scale position size
+    # by entry conviction. None disables. "trigger_count" mode: size grows
+    # with the number of triggers that fired (confluence) —
+    #   mult = min(1 + conviction_step * (n_triggers - 1), conviction_max_mult)
+    # Leans on the finding that confluent signals / concurrent positions are
+    # the strongest big-winner predictors. Stacks AFTER alpha/compound/macro.
+    conviction_sizing_mode: Optional[str] = None
+    conviction_step: float = 0.5
+    conviction_max_mult: float = 2.5
+
+    # Velocity exit (2026-05-25 — P-stack #3). Recycle capital out of FLAT
+    # positions that go nowhere, freeing it for new trades (max-volume lever).
+    # None disables. When set, a pre-TP1 position held >= flat_exit_minutes
+    # whose pnl is inside +/- flat_exit_band_pct (neither winning nor losing)
+    # is closed. Distinct from slow_bleed (loss-based) — this targets dead
+    # money, not losers.
+    flat_exit_minutes: Optional[int] = None
+    flat_exit_band_pct: float = 3.0
+
+    # Re-entry cooldown (2026-05-25 — P-stack #4). Seconds a bot must wait
+    # after fully closing a token before it may buy that token again. None or
+    # 0 = immediate re-entry allowed (recycle into a re-firing runner). A
+    # positive value throttles churn on the same token.
+    reentry_cooldown_secs: Optional[float] = None
+
     def __post_init__(self) -> None:
         if self.filters_enforced is not None and self.filters_disabled:
             raise ValueError(

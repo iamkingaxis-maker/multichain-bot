@@ -1,4 +1,4 @@
-"""Verify the catalog of 89 bots: each loads, each differs from baseline
+"""Verify the catalog of 95 bots: each loads, each differs from baseline
 by exactly the expected fields, and there are no duplicate bot_ids."""
 import pytest
 from pathlib import Path
@@ -21,11 +21,34 @@ def _by_id(catalog):
     return {c.bot_id: c for c in catalog.configs}
 
 
-def test_catalog_has_89_bots(catalog):
-    assert len(catalog.configs) == 89, (
-        f"Expected 89 bots, got {len(catalog.configs)}: "
+def test_catalog_has_95_bots(catalog):
+    assert len(catalog.configs) == 95, (
+        f"Expected 95 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
+
+
+def test_volume_experiment_bots_present(catalog):
+    """2026-05-25 volume/capital stack (P-stack #1-4): capital-absorption
+    ladder, conviction sizing, velocity exit, reentry throttle."""
+    ids = {c.bot_id for c in catalog.configs}
+    assert {"champ_size_2x", "champ_size_4x", "champ_size_8x",
+            "champ_conviction", "champ_velocity", "champ_reentry_throttle"} <= ids
+
+
+def test_conviction_bot_config(catalog):
+    bot = _by_id(catalog)["champ_conviction"]
+    assert bot.conviction_sizing_mode == "trigger_count"
+
+
+def test_velocity_bot_config(catalog):
+    bot = _by_id(catalog)["champ_velocity"]
+    assert bot.flat_exit_minutes == 45
+
+
+def test_reentry_throttle_bot_config(catalog):
+    bot = _by_id(catalog)["champ_reentry_throttle"]
+    assert bot.reentry_cooldown_secs == 3600.0
 
 
 def test_champion_bracket_present(catalog):
@@ -337,7 +360,8 @@ def test_all_paper_capital_2000(catalog):
 def test_all_base_position_20(catalog):
     """All bots use $20 base position EXCEPT the capital-concentration
     variants shipped 2026-05-23 which explicitly test that dimension."""
-    EXEMPT = {"concentrated_50", "spray_10", "champ_sniper"}
+    EXEMPT = {"concentrated_50", "spray_10", "champ_sniper",
+              "champ_size_2x", "champ_size_4x", "champ_size_8x"}
     for c in catalog.configs:
         if c.bot_id in EXEMPT:
             continue

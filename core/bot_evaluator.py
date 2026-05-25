@@ -206,7 +206,20 @@ class BotEvaluator:
         if c.macro_conditional_mode is not None:
             base, macro_tag = self._apply_macro_conditional(base, b)
             tier = f"{tier}+{macro_tag}"
+        if c.conviction_sizing_mode is not None:
+            base, conv_tag = self._apply_conviction(base, triggers)
+            tier = f"{tier}+{conv_tag}"
         return base, tier
+
+    def _apply_conviction(self, base: float, triggers: tuple[str, ...]) -> tuple[float, str]:
+        """Scale size by entry conviction. 'trigger_count' mode: more
+        confluent triggers → bigger size, capped at conviction_max_mult."""
+        c = self.config
+        if c.conviction_sizing_mode == "trigger_count":
+            n = len(triggers)
+            mult = min(1.0 + c.conviction_step * max(0, n - 1), c.conviction_max_mult)
+            return base * mult, f"conviction_x{mult:.2f}"
+        return base, "conviction_off"
 
     def _apply_macro_conditional(self, base: float, b: FeatureBundle) -> tuple[float, str]:
         """Gradient sizing based on macro state. Currently supports 'sol_h6' mode:
