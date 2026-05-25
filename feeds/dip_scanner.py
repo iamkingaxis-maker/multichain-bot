@@ -724,8 +724,9 @@ class DipScanner:
         # the slip estimate stashed at buy time (sell curve isn't persisted).
         from core.slippage_model import sell_fill_price
         _pos = pm.get_position(token)
-        _slip = (_pos.state_blob or {}).get("slip_pct") if _pos else None
-        eff_exit = sell_fill_price(current_price, _slip)
+        _impact = (_pos.state_blob or {}).get("slip_pct") if _pos else None
+        _sz = _pos.size_usd if _pos else 20.0
+        eff_exit = sell_fill_price(current_price, _sz, _impact)
         try:
             result = pm.close_position(
                 token=token,
