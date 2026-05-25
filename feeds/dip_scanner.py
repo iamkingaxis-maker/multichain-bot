@@ -712,6 +712,7 @@ class DipScanner:
             self.trade_store.record_trade({
                 "type": "sell",
                 "token": token,
+                "entry_price": result.entry_price,
                 "exit_price": current_price,
                 "pnl": result.realized_pnl_usd,
                 "pnl_pct": result.pnl_pct,

@@ -43,6 +43,18 @@ def test_close_position_returns_pnl_and_removes():
     assert result.realized_pnl_usd == pytest.approx(2.0, abs=0.01)
     assert pm.open_count == 0
 
+
+def test_close_result_carries_entry_price_for_self_verification():
+    """CloseResult.entry_price lets sell records persist the entry price, so
+    pnl_pct == (exit/entry - 1)*100 is independently verifiable. Without it,
+    multi-bot sells stored entry_price=None and could not be audited."""
+    pm = PerBotPositionManager(_cfg())
+    pm.open_position("SQUIRE", 0.001, 20.0, entry_time=1.0)
+    result = pm.close_position(token="SQUIRE", exit_price=0.0011, exit_time=2.0, reason="TP1")
+    assert result.entry_price == pytest.approx(0.001, abs=1e-9)
+    implied_pct = (0.0011 / result.entry_price - 1.0) * 100.0
+    assert implied_pct == pytest.approx(result.pnl_pct, abs=0.01)
+
 def test_close_unknown_position_raises():
     pm = PerBotPositionManager(_cfg())
     with pytest.raises(KeyError):

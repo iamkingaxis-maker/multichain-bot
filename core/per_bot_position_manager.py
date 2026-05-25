@@ -29,6 +29,7 @@ class CloseResult:
     reason: str
     hold_secs: float
     peak_pnl_pct: float
+    entry_price: float = 0.0  # the position's entry price (for sell-record self-verification)
 
 
 @dataclass
@@ -98,6 +99,7 @@ class PerBotPositionManager:
             token=token, cost_usd=p.size_usd, proceeds_usd=proceeds,
             realized_pnl_usd=pnl_usd, pnl_pct=pnl_pct, reason=reason,
             hold_secs=exit_time - p.entry_time, peak_pnl_pct=p.peak_pnl_pct,
+            entry_price=p.entry_price,
         )
 
     def tick(self, token: str, current_price: float, now: float,
