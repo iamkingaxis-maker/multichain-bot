@@ -13283,6 +13283,27 @@ class DipScanner:
                 logger.debug(f"[DipScanner] fusion_v2 err: {_e}")
                 entry_meta_dict["fusion_v2_score_shadow"] = None
 
+            # watchlist_bypass downtrend gate — SHADOW 2026-05-26. Flags the
+            # falling-knife signature (sustained multi-TF decline STILL actively
+            # falling) that the user_watchlist_bypass keeps re-buying (TROLL
+            # bought 108× into a −16% slide, −$224). SHADOW only — stamps the
+            # verdict for forward mining of the blocked cohort's realized P&L;
+            # does NOT gate. Per-bot enforcement comes after validation.
+            try:
+                from core.downtrend_gate import downtrend_verdict as _dt_verdict
+                _dt_v, _dt_reasons = _dt_verdict(entry_meta_dict)
+                entry_meta_dict["watchlist_bypass_downtrend_shadow"] = _dt_v
+                entry_meta_dict["watchlist_bypass_downtrend_shadow_reasons"] = _dt_reasons
+                if _dt_v == "BLOCK" and "user_watchlist_bypass" in (_triggers_fired or []):
+                    logger.info(
+                        f"[DipScanner] downtrend_shadow would-block "
+                        f"user_watchlist_bypass: {token_symbol} "
+                        f"reasons={','.join(_dt_reasons)}"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] downtrend_shadow err: {_e}")
+                entry_meta_dict["watchlist_bypass_downtrend_shadow"] = None
+
             # Forward dataset — buy-level snapshot with full entry_meta.
             # Future fusion meta-models train on this dataset paired with the
             # outcome that gets stamped when the trade closes (via trader).

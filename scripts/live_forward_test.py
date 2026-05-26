@@ -297,6 +297,14 @@ def seller_dominant_block(c):
     bs = c.get('bs_m5')
     return bs is not None and bs < 0.50
 
+def downtrend_shadow_block(c):
+    """Phantom parity for watchlist_bypass downtrend SHADOW (2026-05-26).
+    Reuses core.downtrend_gate.downtrend_verdict so the harness can't drift from
+    production. BLOCK = still-falling knife (TROLL-class). Reads pc_h1/pc_h6/
+    pc_m5 (+ optional lookback/structure) — all present in the snapshot dict."""
+    from core.downtrend_gate import downtrend_verdict
+    return downtrend_verdict(c)[0] == "BLOCK"
+
 COMBOS = {
     'Z_truly_unfiltered':    lambda c: True,                                    # control: every trending token PASSES
     'A_scanner_baseline':    lambda c: not scanner_block_reasons(c),            # bot's existing scanner gates (vol_h1, red_h24, real_dip, peak1000)
@@ -334,6 +342,10 @@ COMBOS = {
     # helped or hurt going forward; if forward data flips back positive,
     # promote back to enforced).
     'U_S_with_seller_dom':   lambda c: not scanner_block_reasons(c) and not clean_break_block(c) and not double_bear_block(c) and not seller_dominant_block(c),
+    # DT: watchlist_bypass downtrend gate SHADOW (2026-05-26) — phantom parity
+    # for core.downtrend_gate. PASS = NOT a still-falling knife (the cohort we'd
+    # keep). Tracks forward whether dropping the knives lifts the slice.
+    'DT_no_downtrend_knife': lambda c: not scanner_block_reasons(c) and not downtrend_shadow_block(c),
     # ─── NEW PARALLEL TRIGGERS — ENFORCED 2026-05-12 ───
     # Phantom mirrors for new orthogonal entries in feeds/dip_scanner.py.
     # Combos return PASS when the live trigger would fire on this candidate.
