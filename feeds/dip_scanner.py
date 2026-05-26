@@ -33,6 +33,7 @@ from core.bot_manager import BotManager
 from core.per_bot_capital import PerBotCapital
 from core.per_bot_position_manager import PerBotPositionManager
 from core.multi_bot_persistence import MultiBotTradeStore
+from core.exit_price_guard import guarded_exit_price
 
 MULTI_BOT_ENABLED = os.getenv("MULTI_BOT_ENABLED", "false").lower() == "true"
 
@@ -241,6 +242,10 @@ class DipScanner:
         self.trade_store = trade_store
         self.bot_capitals: Dict[str, PerBotCapital] = {}
         self.bot_position_managers: Dict[str, PerBotPositionManager] = {}
+        # Per-token last-good-price state for the transient-glitch exit guard
+        # (see core/exit_price_guard.py). Keyed by token across all bots —
+        # they all read the same external price each cycle. {token: {last_good, pending}}
+        self._exit_price_guard: Dict[str, dict] = {}
         if bot_manager is not None and trade_store is not None:
             for ev in bot_manager.evaluators:
                 bc = ev.config
@@ -635,6 +640,13 @@ class DipScanner:
                 pair_address=decision.pair_address,
             )
             _pos.state_blob["slip_pct"] = slip_pct
+            # Seed the glitch guard with the real entry mid so the FIRST exit
+            # tick already has a known-good baseline (a glitch on the very first
+            # post-buy read would otherwise have nothing to compare against).
+            # setdefault: don't clobber a fresher last_good from an earlier buyer.
+            self._exit_price_guard.setdefault(
+                decision.token, {"last_good": decision.entry_price, "pending": None}
+            )
         except ValueError as e:
             # max_concurrent or duplicate token; refund capital
             capital.balance_usd += decision.size_usd
@@ -669,41 +681,61 @@ class DipScanner:
         """
         if not self.bot_position_managers:
             return
+        # One management cycle = one timestamp + one price fetch per token. Many
+        # bots hold the same token; fetching once per token (not per position)
+        # cuts external calls AND lets the glitch guard see exactly one reading
+        # per token per cycle (its confirmation logic assumes consecutive calls
+        # are consecutive cycles).
+        now = time.time()
+        priced: Dict[str, Optional[float]] = {}   # token → guarded price (None = skip)
+        vols: Dict[str, Optional[float]] = {}
         for bot_id, pm in self.bot_position_managers.items():
             for position in pm.iter_positions():
+                token = position.token
                 try:
-                    price = await self._get_current_price_for(
-                        position.token,
-                        address=position.address,
-                        pair_address=position.pair_address,
-                    )
-                    vol_m5 = await self._get_vol_m5_for(position.token)
-                    # CRITICAL: never accept price=0 as real. The price feed
-                    # returns 0/null when DexScreener has no pair data, the
-                    # token rugged, or the pool is empty. Treating 0 as the
-                    # exit price computes pnl_pct = -100% which trips the
-                    # hard stop → records a fake $-20 sell at zero proceeds.
-                    # Skip the tick; next cycle gets fresh data.
-                    if price is None or price <= 0:
-                        if price is not None:
-                            logger.warning(
-                                "[DipScanner] tick skipped: bot=%s token=%s price=%s (feed returned zero/negative)",
-                                bot_id, position.token, price,
+                    if token not in priced:
+                        raw = await self._get_current_price_for(
+                            token,
+                            address=position.address,
+                            pair_address=position.pair_address,
+                        )
+                        # CRITICAL: never accept price=0 as real. The feed
+                        # returns 0/null when DexScreener has no pair data, the
+                        # token rugged, or the pool is empty. Treating 0 as the
+                        # exit price computes pnl_pct = -100% which trips the
+                        # hard stop → records a fake $-20 sell at zero proceeds.
+                        if raw is None or raw <= 0:
+                            if raw is not None:
+                                logger.warning(
+                                    "[DipScanner] tick skipped: token=%s price=%s (feed returned zero/negative)",
+                                    token, raw,
+                                )
+                            priced[token] = None
+                        else:
+                            # Transient-glitch guard: a catastrophic single-cycle
+                            # drop (e.g. a bad DexScreener print — TROLL −77% on a
+                            # flat $3.6M-liq token) is deferred until the next
+                            # cycle corroborates it, so it can't trip every bot's
+                            # hard stop at a phantom price. Real crashes confirm.
+                            priced[token] = guarded_exit_price(
+                                self._exit_price_guard, token, raw,
                             )
+                        vols[token] = await self._get_vol_m5_for(token)
+                    price = priced[token]
+                    if price is None:
                         continue
-                    now = time.time()
                     decisions = pm.tick(
-                        token=position.token,
+                        token=token,
                         current_price=price,
                         now=now,
-                        vol_m5_usd=vol_m5,
+                        vol_m5_usd=vols.get(token),
                     )
                     for d in decisions:
-                        await self._execute_bot_sell(bot_id, position.token, d, price, now)
+                        await self._execute_bot_sell(bot_id, token, d, price, now)
                 except Exception as e:
                     logger.error(
                         "[DipScanner] tick failed bot=%s token=%s: %s",
-                        bot_id, position.token, e,
+                        bot_id, token, e,
                     )
 
     async def _execute_bot_sell(self, bot_id, token, exit_decision, current_price, now):
