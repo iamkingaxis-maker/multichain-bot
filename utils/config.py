@@ -156,7 +156,7 @@ class Config:
     dip_scanner_enabled: bool = True  # 118 trades, 52% WR, +$574 P&L — proven profitable strategy
     dip_position_usd: float = 500.0        # Fixed position size
     dip_min_mcap: float = 100_000          # $100k minimum mcap — lowered from $250k Railway env on 2026-05-07 PM. Master fast-mover cohort profile showed 32% of fast-bouncers fall below $250k; lowering unlocks them. Bot's mature filters (rugcheck, lp_locked, dev_dumping, big_trade_size) cover the additional micro-cap risk.
-    dip_max_mcap: float = 100_000_000      # $100M max FDV — excludes BONK/PUMP-tier large caps that don't bounce
+    dip_max_mcap: float = 50_000_000       # $50M max FDV (lowered from $100M 2026-05-26). FDV-bucket EV: $2-10M +$95 / <$2M +$140 / $30-100M -$109 (TROLL-driven). neet ($40M, +$116) kept the cap above $40M; TROLL ($85M, -$224 bled 6.5h holds) is the cut. Large caps have capped upside + languish open. See reference_large_token_bleed_2026_05_26.
     dip_min_age_days: float = 0.0          # No age floor — other filters (bs_h6, turnover, vol-decay) do structural protection. Still blocks tokens with missing pairCreatedAt.
     dip_min_volume_h24: float = 200_000    # $200k minimum 24h volume
     # Staged 3-tier TP ladder. Shipped 2026-05-16 after observing 5 of 9
