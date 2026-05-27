@@ -305,6 +305,39 @@ def downtrend_shadow_block(c):
     from core.downtrend_gate import downtrend_verdict
     return downtrend_verdict(c)[0] == "BLOCK"
 
+# Phantom parity for the 2026-05-27 mining shadows (shadow_filter_dev_dump +
+# shadow_loser_trigger_only). Mirrors feeds/dip_scanner.py exactly so the harness
+# can't drift. Cross-regime-validated on the combined corpus; carve-out audited.
+_KEEP_TRIG_FT = {"strong_uptrend_dip", "strong_orderflow", "vol_surge_recent",
+                 "power_dip_runner", "cnn_cluster_10", "textbook_pullback_vol_accel",
+                 "sustained_accumulation", "small_pump_shallow_retrace",
+                 "liq_velocity_big_buyers", "mtf_aligned_demand", "informed_cluster"}
+_LOSER_TRIG_FT = {"low_buy_slip", "support_with_60s_flow", "support_big_buyer",
+                  "channel_pos_swing", "net_flow_5m_demand", "chart_channel_strong"}
+
+
+def _trigs_of(c):
+    s = set()
+    tf = c.get("triggers_fired")
+    if isinstance(tf, list):
+        s |= set(tf)
+    for k, v in c.items():
+        if isinstance(k, str) and k.startswith("trigger_") and (v is True or v == 1):
+            s.add(k.replace("trigger_", "").replace("_match", ""))
+    return s
+
+
+def dev_dump_shadow_block(c):
+    """Parity for shadow_filter_dev_dump: dev_pct_dumped>=1 AND no keep-trigger."""
+    d = c.get("dev_pct_dumped")
+    return isinstance(d, (int, float)) and d >= 1 and not (_trigs_of(c) & _KEEP_TRIG_FT)
+
+
+def loser_trigger_only_block(c):
+    """Parity for shadow_loser_trigger_only: fires ONLY a loser-queue trigger."""
+    t = _trigs_of(c)
+    return bool(t & _LOSER_TRIG_FT) and not (t & _KEEP_TRIG_FT)
+
 COMBOS = {
     'Z_truly_unfiltered':    lambda c: True,                                    # control: every trending token PASSES
     'A_scanner_baseline':    lambda c: not scanner_block_reasons(c),            # bot's existing scanner gates (vol_h1, red_h24, real_dip, peak1000)
@@ -346,6 +379,10 @@ COMBOS = {
     # for core.downtrend_gate. PASS = NOT a still-falling knife (the cohort we'd
     # keep). Tracks forward whether dropping the knives lifts the slice.
     'DT_no_downtrend_knife': lambda c: not scanner_block_reasons(c) and not downtrend_shadow_block(c),
+    # 2026-05-27 mining shadows — phantom parity for shadow_filter_dev_dump +
+    # shadow_loser_trigger_only (cross-regime-validated, carve-out audited).
+    'DEV_no_dev_dump':       lambda c: not scanner_block_reasons(c) and not dev_dump_shadow_block(c),
+    'LT_no_loser_only':      lambda c: not scanner_block_reasons(c) and not loser_trigger_only_block(c),
     # ─── NEW PARALLEL TRIGGERS — ENFORCED 2026-05-12 ───
     # Phantom mirrors for new orthogonal entries in feeds/dip_scanner.py.
     # Combos return PASS when the live trigger would fire on this candidate.

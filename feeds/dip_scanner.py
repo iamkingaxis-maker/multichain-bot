@@ -13348,6 +13348,38 @@ class DipScanner:
                 logger.debug(f"[DipScanner] downtrend_shadow err: {_e}")
                 entry_meta_dict["watchlist_bypass_downtrend_shadow"] = None
 
+            # ── 2026-05-27 SHADOW gates (mining run, cross-regime-validated) ──
+            # Observational only — stamp would-block verdicts for forward
+            # confirmation; do NOT gate yet. Flip to ENFORCED after the forward
+            # window re-confirms the blocked cohort loses. Carve-out audit was
+            # clean (no >50% runners killed; net +$963 on the combined corpus).
+            # dev-dump: dev_pct_dumped>=1 was a robust rug-block in BOTH regimes
+            #   (33%/24% WR, well below baseline) — exempt if a keep-trigger fires.
+            # loser-trigger: 6 triggers that lose in BOTH regimes; demote = block
+            #   trades that fire ONLY a loser-queue trigger (no keeper).
+            try:
+                _tf_set = set(_triggers_fired or [])
+                _KEEP_TRIG = {
+                    "strong_uptrend_dip", "strong_orderflow", "vol_surge_recent",
+                    "power_dip_runner", "cnn_cluster_10", "textbook_pullback_vol_accel",
+                    "sustained_accumulation", "small_pump_shallow_retrace",
+                    "liq_velocity_big_buyers", "mtf_aligned_demand", "informed_cluster",
+                }
+                _LOSER_TRIG = {
+                    "low_buy_slip", "support_with_60s_flow", "support_big_buyer",
+                    "channel_pos_swing", "net_flow_5m_demand", "chart_channel_strong",
+                }
+                _dev_dumped = entry_meta_dict.get("dev_pct_dumped")
+                _dev_block = (isinstance(_dev_dumped, (int, float)) and _dev_dumped >= 1
+                              and not (_tf_set & _KEEP_TRIG))
+                entry_meta_dict["shadow_filter_dev_dump"] = "BLOCK" if _dev_block else "PASS"
+                _loser_only = bool(_tf_set & _LOSER_TRIG) and not (_tf_set & _KEEP_TRIG)
+                entry_meta_dict["shadow_loser_trigger_only"] = "BLOCK" if _loser_only else "PASS"
+            except Exception as _e:
+                logger.debug(f"[DipScanner] 2026-05-27 shadow gates err: {_e}")
+                entry_meta_dict["shadow_filter_dev_dump"] = None
+                entry_meta_dict["shadow_loser_trigger_only"] = None
+
             # Forward dataset — buy-level snapshot with full entry_meta.
             # Future fusion meta-models train on this dataset paired with the
             # outcome that gets stamped when the trade closes (via trader).
