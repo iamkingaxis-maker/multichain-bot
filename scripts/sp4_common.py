@@ -19,7 +19,13 @@ PROD_BASE_URL = "https://gracious-inspiration-production.up.railway.app"
 # Old optimistic-semantics trades are pre-cutoff so the champion tournament
 # runs on consistent realistic numbers from a single starting line.
 # To include all history, set to "" (empty string).
-MIN_TRADE_TIMESTAMP = "2026-05-25T21:25:00+00:00"
+# 2026-05-27 22:10Z: bumped after the SOL-macro-gate fix went live (22:04Z,
+# commit d7eab87). Pre-fix trades ran with an intermittently-blind brake (bought
+# into SOL dumps unbraked — see reference_sol_gate_null_feed_fix_2026_05_27), so
+# braked vs unbraked entries can't be cleanly separated in the history. The fleet
+# study now measures ONLY the corrected-brake regime. Non-destructive: filters
+# per-bot stats (WR/$/n), keeps raw trade history + balances intact.
+MIN_TRADE_TIMESTAMP = "2026-05-27T22:10:00+00:00"
 
 
 @dataclass
