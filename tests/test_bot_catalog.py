@@ -21,9 +21,9 @@ def _by_id(catalog):
     return {c.bot_id: c for c in catalog.configs}
 
 
-def test_catalog_has_103_bots(catalog):
-    assert len(catalog.configs) == 103, (
-        f"Expected 103 bots, got {len(catalog.configs)}: "
+def test_catalog_has_108_bots(catalog):
+    assert len(catalog.configs) == 108, (
+        f"Expected 108 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
@@ -374,7 +374,10 @@ def test_all_base_position_20(catalog):
               # cap2k_* deliberately test the $2k live-sizing geometry
               # (size x concurrent x turnover) — see 2026-05-27 $500/day plan.
               "cap2k_scalp", "cap2k_turnover", "cap2k_runner",
-              "cap2k_concentrated", "cap2k_spread"}
+              "cap2k_concentrated", "cap2k_spread",
+              # $2k winner-entry replicas (each clones a winner's entry @ $650x3)
+              "cap2k_whales", "cap2k_deepdip", "cap2k_no_topping",
+              "cap2k_volmin5k", "cap2k_regime"}
     for c in catalog.configs:
         if c.bot_id in EXEMPT:
             continue
