@@ -18,6 +18,15 @@ ALPHA_TRIGGERS = frozenset({
     "textbook_pullback_big_buyer",
 })
 
+# Sizing-tier trigger sets (mirror the legacy single-bot tiers in dip_scanner).
+# 2026-05-27 audit #6: wire the previously-dead premium_runner/marginal multipliers.
+_PREMIUM_RUNNER_TRIGGER = "fresh_runner_factory"     # legacy 3x tier
+_MARGINAL_FOR_SIZE = frozenset({                      # legacy 0.5x risk-gate tier
+    "patient_bottom", "informed_cluster", "1s_capit_reversal",
+    "whale_conviction", "grad_window_dip", "alpha_buyperscold",
+    "net_flow_5m_demand", "fresh_pump_retrace",
+})
+
 
 @dataclass
 class BuyDecision:
@@ -200,6 +209,18 @@ class BotEvaluator:
         else:
             base = c.base_position_usd
             tier = "standard"
+        # Honor premium_runner / marginal multipliers (2026-05-27 audit #6 — these
+        # BotConfig fields were defined but never applied). Trigger-set based, so
+        # impact is contained; bots that set them to 1.0 (e.g. cap2k) stay flat.
+        # macro_up_multiplier is intentionally NOT wired: its legacy condition needs
+        # sol_pc_m1, which the FeatureBundle doesn't carry — left explicit-N/A rather
+        # than blindly applied to ~half the fleet's trades.
+        if not is_alpha and _PREMIUM_RUNNER_TRIGGER in triggers:
+            base *= c.premium_runner_multiplier
+            tier = "premium_runner"
+        elif not is_alpha and triggers and all(t in _MARGINAL_FOR_SIZE for t in triggers):
+            base *= c.marginal_multiplier
+            tier = "marginal"
         if c.compound_mode is not None:
             base = self._apply_compound(base, realized_pnl_usd)
             tier = f"{tier}+compound_{c.compound_mode}"

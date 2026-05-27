@@ -3529,6 +3529,18 @@ class WebDashboard:
                         max(0, buys_per_token[tok] - sells_per_token.get(tok, 0))
                         for tok in buys_per_token
                     )
+                # Per-POSITION trade count + win rate (2026-05-27 audit #7).
+                # A position exits via TP1+TP2(+trail) = 2-3 sell records; counting
+                # raw sells inflated total_trades and skewed WR/$. Aggregate sells by
+                # (token, entry_price) into one position with one net outcome. (Sells
+                # now carry entry_price; re-entries at an identical price can still
+                # merge — rare given price precision.)
+                from collections import defaultdict as _dd
+                _pos_pnl = _dd(float)
+                for s in sells:
+                    _pos_pnl[(s.get("token"), s.get("entry_price"))] += (s.get("pnl") or 0)
+                n_positions = len(_pos_pnl)
+                n_wins = sum(1 for v in _pos_pnl.values() if v > 0)
                 bots.append({
                     "bot_id": bot_id,
                     "balance_usd": state["balance_usd"],
@@ -3536,8 +3548,8 @@ class WebDashboard:
                     "realized_pnl_total_usd": state["realized_pnl_total_usd"],
                     "daily_pnl_usd": state["daily_pnl_usd"],
                     "open_position_count": open_count,
-                    "total_trades": len(sells),
-                    "wins": sum(1 for s in sells if s.get("pnl", 0) > 0),
+                    "total_trades": n_positions,
+                    "wins": n_wins,
                     "total_pnl_realized": total_pnl,
                 })
             except Exception as e:
