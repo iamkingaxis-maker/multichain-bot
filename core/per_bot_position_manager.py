@@ -119,21 +119,27 @@ class PerBotPositionManager:
                 "tp1_hit": p.tp1_hit, "tp2_hit": p.tp2_hit,
                 "peak_pnl_pct": p.peak_pnl_pct, "peak_pnl_at_secs": p.peak_pnl_at_secs,
                 "remaining_fraction": p.remaining_fraction,
+                # state_blob carries slip_pct stashed at buy — without it a restored
+                # position sells with the WRONG slippage fallback (fleet P&L error
+                # after every deploy). 2026-05-27 audit.
+                "state_blob": p.state_blob,
             }
             for p in self._positions.values()
         ]
 
     def load_state_list(self, items) -> int:
         """Replace the book from a persisted snapshot (lossless restore). Returns
-        the number of positions loaded. Skips malformed entries."""
+        the number of positions loaded. Skips malformed entries (incl. entry_price<=0,
+        which would make pnl_pct=inf and the stop never fire)."""
         self._positions = {}
         for it in items or []:
             tok = it.get("token")
-            if not tok or tok in self._positions:
+            ep = float(it.get("entry_price") or 0.0)
+            if not tok or tok in self._positions or ep <= 0:
                 continue
             self._positions[tok] = OpenPosition(
                 token=tok,
-                entry_price=float(it.get("entry_price") or 0.0),
+                entry_price=ep,
                 size_usd=float(it.get("size_usd") or 0.0),
                 entry_time=float(it.get("entry_time") or 0.0),
                 address=it.get("address", "") or "",
@@ -143,8 +149,19 @@ class PerBotPositionManager:
                 peak_pnl_pct=float(it.get("peak_pnl_pct") or 0.0),
                 peak_pnl_at_secs=int(it.get("peak_pnl_at_secs") or 0),
                 remaining_fraction=float(it.get("remaining_fraction", 1.0) or 1.0),
+                state_blob=dict(it.get("state_blob") or {}),
             )
         return len(self._positions)
+
+    def last_close_times_dict(self) -> dict:
+        """The reentry-cooldown map for persistence (else reentry_cooldown_secs is
+        dead after every restart — 2026-05-27 audit)."""
+        return dict(self._last_close_time)
+
+    def load_last_close_times(self, d) -> None:
+        if isinstance(d, dict):
+            self._last_close_time = {k: float(v) for k, v in d.items()
+                                     if isinstance(v, (int, float))}
 
     def close_position(self, token: str, exit_price: float, exit_time: float,
                        reason: str, sell_fraction: float = 1.0) -> CloseResult:
@@ -160,6 +177,11 @@ class PerBotPositionManager:
         if token not in self._positions:
             raise KeyError(f"bot={self.config.bot_id} no open position for {token}")
         p = self._positions[token]
+        if p.entry_price <= 0 or exit_price <= 0:
+            # Corrupted/glitch price — refuse to book a garbage (inf) realized P&L.
+            raise ValueError(
+                f"bot={self.config.bot_id} {token}: bad price entry={p.entry_price} exit={exit_price}"
+            )
         # Can't sell more than what's left; clamp to remaining.
         frac = min(max(sell_fraction, 0.0), p.remaining_fraction)
         sold_cost = p.size_usd * frac
@@ -184,6 +206,11 @@ class PerBotPositionManager:
         """Evaluate exit decisions for one position at this price tick."""
         p = self._positions.get(token)
         if p is None:
+            return []
+        # Guard bad prices: entry<=0 (corrupted state) makes pnl_pct=inf → all TPs
+        # fire at once AND the stop never fires (inf <= -15 is False). current<=0 is
+        # a dead/glitch tick. Skip this tick rather than book garbage. 2026-05-27 audit.
+        if p.entry_price <= 0 or current_price <= 0:
             return []
 
         pnl_pct = round((current_price / p.entry_price - 1.0) * 100.0, 10)

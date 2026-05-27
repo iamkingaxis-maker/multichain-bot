@@ -58,6 +58,11 @@ def reconcile(data_dir, dry_run: bool = False) -> dict:
         inflight = st.get("in_flight_usd")
         if not isinstance(inflight, (int, float)):
             continue
+        # Safety: if this bot already has a non-empty persisted position book, it's
+        # a POST-fix state with real positions — never zero it (a sentinel-absent
+        # disaster-recovery boot must not orphan real positions). 2026-05-27 audit.
+        if st.get("open_positions"):
+            continue
         if isinstance(st.get("balance_usd"), (int, float)):
             st["balance_usd"] = st["balance_usd"] + inflight
         st["in_flight_usd"] = 0.0

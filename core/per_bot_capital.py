@@ -54,7 +54,10 @@ class PerBotCapital:
     ) -> None:
         self._check_daily_rollover(now_iso)
         pnl = proceeds_usd - cost_usd
-        self.in_flight_usd -= cost_usd
+        # Clamp at 0: float drift over many partial sells (1/3 + 1/3 + 1/3 != 1.0)
+        # can push in_flight slightly negative, silently breaking the
+        # balance+in_flight-realized==capital invariant. 2026-05-27 audit.
+        self.in_flight_usd = max(0.0, self.in_flight_usd - cost_usd)
         self.balance_usd += proceeds_usd
         self.realized_pnl_total_usd += pnl
         self.daily_pnl_usd += pnl

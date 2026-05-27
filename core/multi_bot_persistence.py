@@ -248,7 +248,7 @@ class MultiBotTradeStore:
                 except json.JSONDecodeError:
                     existing = []
             existing.append(record)
-            self._trades_path.write_text(json.dumps(existing))
+            self._atomic_write(self._trades_path, json.dumps(existing))
 
     def load_trades(self, bot_id: Optional[str] = None) -> list[dict]:
         if not self._trades_path.exists():
@@ -261,10 +261,21 @@ class MultiBotTradeStore:
             return data
         return [t for t in data if t["bot_id"] == bot_id]
 
+    @staticmethod
+    def _atomic_write(path, text: str) -> None:
+        """Write via temp + os.replace so a crash mid-write can't truncate the file
+        (a direct write_text that crashes leaves a corrupt JSON → next boot falls back
+        to [] and overwrites the whole ledger empty). 2026-05-27 audit."""
+        import os
+        path = Path(path)
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(text)
+        os.replace(tmp, path)
+
     def save_bot_state(self, bot_id: str, state: dict) -> None:
         path = self.data_dir / "bot_state" / f"{bot_id}.json"
         with self._lock:
-            path.write_text(json.dumps(state, indent=2))
+            self._atomic_write(path, json.dumps(state, indent=2))
 
     def load_bot_state(self, bot_id: str) -> Optional[dict]:
         path = self.data_dir / "bot_state" / f"{bot_id}.json"

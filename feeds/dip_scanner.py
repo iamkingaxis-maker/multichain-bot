@@ -303,6 +303,7 @@ class DipScanner:
                 # persistence._maybe_reconcile_positions) zeroes their stale in_flight.
                 try:
                     n_restored = pm.load_state_list((existing or {}).get("open_positions"))
+                    pm.load_last_close_times((existing or {}).get("last_close_times"))
                     if n_restored:
                         logger.info(
                             "[DipScanner] restored %d open positions for %s from bot_state",
@@ -329,6 +330,7 @@ class DipScanner:
         pm = self.bot_position_managers.get(bot_id)
         if pm is not None:
             d["open_positions"] = pm.to_state_list()
+            d["last_close_times"] = pm.last_close_times_dict()
         self.trade_store.save_bot_state(bot_id, d)
 
     def _restore_open_positions_from_trades(self) -> None:
@@ -853,6 +855,10 @@ class DipScanner:
             )
         except KeyError:
             return  # already closed
+        except ValueError as _e:
+            # bad-price guard in close_position — skip rather than book garbage
+            logger.warning("[DipScanner] close_position rejected bad price: %s", _e)
+            return
         if result.cost_usd <= 0:
             return  # nothing left to sell (remaining_fraction already ~0)
         capital.realize_sell(
@@ -863,6 +869,10 @@ class DipScanner:
             self.trade_store.record_trade({
                 "type": "sell",
                 "token": token,
+                # address/pair_address so sell records join back to their buy in
+                # attribution/postmortem/compare (were missing — 2026-05-27 audit).
+                "address": (_pos.address if _pos else ""),
+                "pair_address": (_pos.pair_address if _pos else ""),
                 "entry_price": result.entry_price,
                 "exit_price": eff_exit,
                 "exit_mid_price": current_price,
@@ -1195,6 +1205,11 @@ class DipScanner:
             hist.append((wall_now, pc_h24, pc_h1, pc_h6))
             while hist and (wall_now - hist[0][0]) > self._h24_history_window_secs:
                 hist.popleft()
+            # Evict the token KEY when its deque empties — otherwise every token
+            # ever seen lives forever in the dict + h24_history.json (unbounded RAM
+            # + disk growth with the widened universe). 2026-05-27 audit.
+            if not hist:
+                self._h24_history.pop(addr_lower, None)
             self._h24_history_dirty = True
 
             # Top-exhaustion filter: token pumped +50% to +200% over the last
@@ -13739,9 +13754,12 @@ class DipScanner:
                         sol_pc_h4=_sol_feats.get("sol_pc_h4"),
                         sol_pc_h6=_sol_feats.get("sol_pc_h6"),
                         sol_pc_h24=_sol_feats.get("sol_pc_h24"),
-                        btc_pc_h1=None,
-                        btc_pc_h6=None,
-                        btc_bs_h1=None,
+                        # Wire BTC macro from the cycle features (was hardcoded None,
+                        # making btc_macro_h1_block_threshold dead — regime_aware_bullish's
+                        # BTC gate never fired). 2026-05-27 audit.
+                        btc_pc_h1=_sol_feats.get("btc_pc_h1"),
+                        btc_pc_h6=_sol_feats.get("btc_pc_h6"),
+                        btc_bs_h1=_sol_feats.get("btc_bs_h1"),
                         net_flow_15s_usd=None,
                         net_flow_60s_usd=None,
                         net_flow_5m_usd=None,

@@ -50,6 +50,29 @@ def test_post_tp1_partial_survives_restart_and_can_close():
     assert pm2.open_count == 0
 
 
+def test_state_blob_and_last_close_times_persist():
+    # 2026-05-27 audit: state_blob (slip_pct) and _last_close_time (reentry cooldown)
+    # must survive a restart, else sells use wrong slippage + cooldown is dead.
+    pm = PerBotPositionManager(_cfg(max_concurrent_positions=3))
+    p = pm.open_position("Z", 0.001, 20.0, entry_time=10.0)
+    p.state_blob["slip_pct"] = 0.42
+    pm._last_close_time["OLDTOK"] = 12345.0
+    snap = pm.to_state_list()
+    times = pm.last_close_times_dict()
+    pm2 = PerBotPositionManager(_cfg(max_concurrent_positions=3))
+    pm2.load_state_list(snap)
+    pm2.load_last_close_times(times)
+    assert pm2.get_position("Z").state_blob.get("slip_pct") == 0.42, "slip_pct lost on restart"
+    assert pm2.in_reentry_cooldown("OLDTOK", now=12345.0 + 100, cooldown_secs=3600) is True, "cooldown lost"
+
+
+def test_entry_price_zero_is_skipped_on_load():
+    pm = PerBotPositionManager(_cfg())
+    n = pm.load_state_list([{"token": "BAD", "entry_price": 0.0, "size_usd": 20.0},
+                            {"token": "OK", "entry_price": 1.0, "size_usd": 20.0}])
+    assert n == 1 and pm.get_position("BAD") is None and pm.get_position("OK") is not None
+
+
 def test_load_empty_is_clean_slate():
     pm = PerBotPositionManager(_cfg())
     pm.open_position("X", 0.001, 20.0, entry_time=1.0)

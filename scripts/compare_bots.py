@@ -30,8 +30,15 @@ from statistics import median, stdev
 
 API_URL = "https://gracious-inspiration-production.up.railway.app/api/trades?full=1&limit={limit}"
 
-# Same cutoff as scripts/sp4_common.py. Bumped 2026-05-23.
-CUTOFF = "2026-05-23T15:40:00+00:00"
+# Canonical cutoff — import from sp4_common so it can NEVER drift (it did: this was
+# pinned at 2026-05-23 while sp4_common bumped to 2026-05-25T21:25, so every pairwise
+# verdict silently mixed ~2 days of pre-reset wrong-semantics trades). 2026-05-27 audit.
+try:
+    import os as _os, sys as _sys
+    _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__)))
+    from sp4_common import MIN_TRADE_TIMESTAMP as CUTOFF
+except Exception:
+    CUTOFF = "2026-05-25T21:25:00+00:00"  # fallback to current canonical value
 
 
 def fetch_trades(limit: int, local: bool, from_file: str | None = None) -> list[dict]:
