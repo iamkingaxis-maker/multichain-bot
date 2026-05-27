@@ -36,6 +36,7 @@ class MultiBotTradeStore:
         self._maybe_cleanup_phantom_backups()
         self._maybe_cleanup_cnn_dataset()
         self._maybe_reconcile_positions()
+        self._maybe_reset_cap2k_pnl()
 
     def _maybe_scrub_giga_phantom(self) -> None:
         """One-shot reversal of the 2026-05-27 GIGA phantom-stop losses.
@@ -169,6 +170,31 @@ class MultiBotTradeStore:
             import logging
             logging.getLogger(__name__).error(
                 "Position reconcile skipped (non-fatal error): %s", e
+            )
+
+    def _maybe_reset_cap2k_pnl(self) -> None:
+        """One-shot P&L reset for the cap2k_* bots after their entry logic was
+        changed (broad -> dip-family triggers + filter relaxations, 2026-05-27).
+        Drops their old-config trades and resets state to fresh $2000 so the
+        sizing/exit experiment measures the new entry only. Sentinel-guarded;
+        backs up; never breaks boot."""
+        try:
+            import sys
+            root = str(Path(__file__).resolve().parent.parent)  # repo root
+            if root not in sys.path:
+                sys.path.insert(0, root)
+            from scripts.reset_cap2k_pnl import reset
+            res = reset(self.data_dir)
+            if "skipped" not in res and res.get("reset_bots"):
+                import logging
+                logging.getLogger(__name__).warning(
+                    "cap2k P&L reset ran: reset %d bots %s, dropped trades %s",
+                    len(res.get("reset_bots", [])), res.get("reset_bots"), res.get("dropped"),
+                )
+        except Exception as e:  # never break boot on a migration error
+            import logging
+            logging.getLogger(__name__).error(
+                "cap2k P&L reset skipped (non-fatal error): %s", e
             )
 
     def _maybe_split_legacy(self) -> None:
