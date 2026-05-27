@@ -173,6 +173,21 @@ class BotEvaluator:
                 return False
             if isinstance(_vol, (int, float)) and _vol < 30.0:
                 return False
+        if c.entry_gate:
+            # Generic mined-compound gate: AND of [feature, op, threshold]
+            # against raw_meta. Fail-OPEN per condition when feature missing.
+            for _cond in c.entry_gate:
+                try:
+                    _f, _op, _thr = _cond[0], _cond[1], float(_cond[2])
+                except (TypeError, ValueError, IndexError):
+                    continue
+                _v = b.raw_meta.get(_f)
+                if not isinstance(_v, (int, float)):
+                    continue
+                if _op == ">=" and _v < _thr:
+                    return False
+                if _op == "<=" and _v > _thr:
+                    return False
         return True
 
     def _effective_filter_blocks(self, b: FeatureBundle) -> bool:

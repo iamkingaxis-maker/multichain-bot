@@ -52,6 +52,14 @@ class BotConfig:
     # reference_entry_separator_mine_2026_05_27.
     require_real_pullback: bool = False
 
+    # Generic per-bot entry gate (2026-05-27, held-out-validated compound mine).
+    # Optional list of [feature, op, threshold] conditions ANDed against raw_meta
+    # at entry; op in {">=", "<="}. Fail-OPEN per condition when the feature is
+    # missing (coverage-safe). Lets a bot enforce a mined compound (e.g.
+    # pc_h1<=-8 AND 1s_green_run_end>=2 AND <orthogonal axis>) with no new code.
+    # Default None = no gate. See reference_entry_separator_mine_2026_05_27.
+    entry_gate: Optional[tuple] = None
+
     # Filter set — semantics: if filters_enforced is None, the bot uses
     # the project baseline filter set MINUS anything in filters_disabled.
     # If filters_enforced is a list, that's the EXACT enforced set and
@@ -137,6 +145,13 @@ class BotConfig:
     reentry_cooldown_secs: Optional[float] = None
 
     def __post_init__(self) -> None:
+        # Normalize entry_gate to a hashable tuple-of-tuples (JSON yields
+        # tuple-of-lists; the frozen dataclass's auto __hash__ chokes on lists).
+        if self.entry_gate is not None:
+            object.__setattr__(
+                self, "entry_gate",
+                tuple(tuple(c) for c in self.entry_gate),
+            )
         if self.filters_enforced is not None and self.filters_disabled:
             raise ValueError(
                 f"bot_id={self.bot_id}: filters_enforced is set, "
