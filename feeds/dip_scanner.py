@@ -9003,7 +9003,10 @@ class DipScanner:
             if _trigger_flow_reversal_match:
                 _triggers_fired.append("flow_reversal")
             if _trigger_chart_reversal_match:
-                _triggers_fired.append("chart_score_reversal")
+                # SHADOW 2026-05-27 — real-trade mine (n=49): 36.7% WR, -19.5%/trade,
+                # the single worst trigger (recency-stable: -20%/-8% both time-halves).
+                # Match stays in entry_meta for observation; do NOT fire (no buys).
+                pass  # was: _triggers_fired.append("chart_score_reversal")
             if _trigger_micro_pattern_match:
                 _triggers_fired.append("micro_pattern_confirmed")
             if _trigger_vp_aligned_match:
@@ -10054,7 +10057,10 @@ class DipScanner:
             if _trigger_1s_demand_compound_match:
                 _triggers_fired.append("1s_demand_compound")
             if _trigger_two_pattern_demand_match:
-                _triggers_fired.append("two_pattern_demand")
+                # SHADOW 2026-05-27 — real-trade mine (n=127): 26% WR, decayed
+                # -1%->-18%/trade across time-halves. Match stays in entry_meta for
+                # observation; do NOT fire.
+                pass  # was: _triggers_fired.append("two_pattern_demand")
 
             # ── concurrent_alpha — ENFORCED 2026-05-22 ─────────────────────
             # Strongest 3-way compound from new-angles mine (#E):
