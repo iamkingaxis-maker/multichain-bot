@@ -29,7 +29,8 @@ from pathlib import Path
 
 CAP2K_PREFIX = "cap2k_"
 PAPER_CAPITAL = 2000.0
-SENTINEL = ".cap2k_pnl_reset_v1"
+SENTINEL = ".cap2k_pnl_reset_v2"  # v2: re-reset after the true-replica entry reconfig
+                                  # (2026-05-27) — clears the few wrong-gated trades.
 
 
 def _is_cap2k(bid) -> bool:
