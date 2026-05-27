@@ -29,10 +29,22 @@ Call :func:`guarded_exit_price` exactly once per token per management cycle.
 from typing import Dict, Optional
 
 # A single-cycle drop beyond this fraction below the last known-good price is
-# treated as suspect (needs confirmation). Well above normal tick-to-tick
-# volatility and the −15% hard stop, so ordinary stops are never deferred;
-# well below the −77% / −98% glitch range, so real catastrophes are caught.
-EXIT_GUARD_MAX_DROP = 0.40
+# treated as suspect (needs confirmation).
+#
+# Calibration: ordinary hard stops fire by GRADUAL drift (small tick-to-tick
+# moves down to −15%), so they are NEVER deferred regardless of this threshold;
+# only a SUDDEN single-cycle gap is deferred one cycle for corroboration. A real
+# fast dump/rug simply confirms next cycle and fires ~one cycle late — cheap.
+# So the only cost of a tighter threshold is one cycle of latency on genuine
+# violent moves, while the benefit is catching phantom bad-tick prints.
+#
+# 2026-05-27 GIGA incident: real price was ~flat (−3.5% h24, $1.8M liq) but a
+# single bad print read −32% from the last-good price, tripping the −15% stop
+# across ~56 bots in one cycle for ~$452 of phantom losses. The previous 0.40
+# threshold let it through (−32% < −40%). Lowered to 0.22 so the −20%..−40%
+# phantom band (where most bad ticks land) is corroborated before it can fire
+# every bot's stop. Still well above normal tick-to-tick volatility.
+EXIT_GUARD_MAX_DROP = 0.22
 
 # A confirming read must be within this fraction ABOVE the pending suspect low
 # to count as corroboration (the low has to roughly hold, not be a lone wick).

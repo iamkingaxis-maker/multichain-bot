@@ -23,7 +23,7 @@ def test_normal_move_passes_through_and_updates_last_good():
 
 
 def test_ordinary_stop_size_move_not_deferred():
-    # the −15% hard stop must still fire instantly: −20% < 40% drop → pass through
+    # the −15% hard stop must still fire instantly: −20% < 22% drop → pass through
     guard = {"X": {"last_good": 1.0, "pending": None}}
     assert eg.guarded_exit_price(guard, "X", 0.80) == 0.80
 
@@ -94,3 +94,26 @@ def test_recovery_clears_stale_pending():
     eg.guarded_exit_price(guard, "X", 0.95)        # recovery clears pending
     assert guard["X"]["pending"] is None
     assert guard["X"]["last_good"] == 0.95
+
+
+def test_giga_2026_05_27_phantom_minus_32pct_deferred_then_discarded():
+    # GIGA: real price ~$0.0037 flat (−3.5% h24, $1.8M liq), but one bad print read
+    # $0.00249 (−32.7%) and fired the −15% stop across ~56 bots for ~$452 phantom.
+    # The OLD 0.40 threshold let it through (−32% < −40%). With 0.22 it is deferred,
+    # then the real price reverts next cycle → glitch discarded, no phantom stop.
+    guard = {}
+    eg.guarded_exit_price(guard, "GIGA", 0.003700)
+    assert eg.guarded_exit_price(guard, "GIGA", 0.002490) == 0.003700  # deferred, NOT phantom
+    assert guard["GIGA"]["pending"] == 0.002490
+    assert eg.guarded_exit_price(guard, "GIGA", 0.003680) == 0.003680  # real price reverts → discard
+    assert guard["GIGA"]["pending"] is None
+
+
+def test_real_minus_32pct_dump_that_persists_still_fires():
+    # The tighter threshold must NOT block a genuine fast dump: a real −32% move
+    # that HOLDS confirms next cycle and the stop fires (one cycle late by design).
+    guard = {}
+    eg.guarded_exit_price(guard, "Y", 1.0)
+    assert eg.guarded_exit_price(guard, "Y", 0.68) == 1.0    # −32% deferred one cycle
+    assert eg.guarded_exit_price(guard, "Y", 0.66) == 0.66   # holds → confirmed → stop fires
+    assert guard["Y"]["last_good"] == 0.66
