@@ -46,8 +46,25 @@ from typing import Dict, Optional
 # every bot's stop. Still well above normal tick-to-tick volatility.
 EXIT_GUARD_MAX_DROP = 0.22
 
-# A confirming read must be within this fraction ABOVE the pending suspect low
-# to count as corroboration (the low has to roughly hold, not be a lone wick).
+# A single-cycle RISE beyond this fraction above the last known-good price is
+# treated as suspect (needs confirmation) — the mirror of EXIT_GUARD_MAX_DROP.
+#
+# A bad print can be absurdly HIGH as well as low, and that case is *more*
+# dangerous: a phantom upward tick trips TP and books a fake WIN that corrupts
+# the bot's balance, whereas a phantom low only fires a stop.
+#
+# 2026-05-27 EURC incident: no_filters bought EURC (a EUR-pegged stablecoin,
+# real price ~$1.16) and one bad print read $6,199.37 — a 5,316x glitch — which
+# tripped TP1+TP2 and booked +$106,334 of phantom profit on a $20 position,
+# corrupting the whole fleet leaderboard. The drop-only guard let it straight
+# through. +100% in one cycle is already extreme for a token we hold; a real
+# moon simply confirms next cycle (or via cross-source) and is captured one
+# cycle late — cheap, symmetric to the drop case.
+EXIT_GUARD_MAX_RISE = 1.0
+
+# A confirming read must be within this fraction of the pending suspect price
+# to count as corroboration (a drop's low / a rise's high has to roughly hold,
+# not be a lone wick).
 EXIT_GUARD_CONFIRM_TOL = 0.10
 
 
@@ -56,6 +73,7 @@ def guarded_exit_price(
     token: str,
     price: float,
     max_drop: float = EXIT_GUARD_MAX_DROP,
+    max_rise: float = EXIT_GUARD_MAX_RISE,
     confirm_tol: float = EXIT_GUARD_CONFIRM_TOL,
     confirm_fn=None,
 ) -> float:
@@ -91,8 +109,11 @@ def guarded_exit_price(
         return price
 
     last = g["last_good"]
-    if price < last * (1.0 - max_drop):
-        # ── Suspect single-cycle drop. Prefer an immediate independent opinion. ──
+    suspect_drop = price < last * (1.0 - max_drop)
+    suspect_rise = price > last * (1.0 + max_rise)
+    if suspect_drop or suspect_rise:
+        # ── Suspect single-cycle gap (down OR up). Prefer an immediate opinion. ──
+        midpoint = (price + last) / 2.0
         if confirm_fn is not None:
             second = None
             try:
@@ -100,8 +121,11 @@ def guarded_exit_price(
             except Exception:
                 second = None
             if isinstance(second, (int, float)) and second > 0:
-                if second <= (price + last) / 2.0:
-                    # Independent source corroborates the low → real move; act now.
+                # Corroborated when the independent source agrees the move is real:
+                # past the midpoint in the same direction as the suspect print.
+                corroborated = (second <= midpoint) if suspect_drop else (second >= midpoint)
+                if corroborated:
+                    # Independent source corroborates → real move; act now.
                     g["last_good"] = price
                     g["pending"] = None
                     return price
@@ -112,12 +136,22 @@ def guarded_exit_price(
                 return last
             # second source unavailable → fall through to temporal confirmation.
         pending = g.get("pending")
-        if pending is not None and price <= pending * (1.0 + confirm_tol):
-            # Second consecutive suspect cycle corroborates the low → real move.
-            g["last_good"] = price
-            g["pending"] = None
-            return price
-        # First suspect cycle (or the low hasn't held) → defer: act on the last
+        if pending is not None:
+            # Corroborate only if the prior suspect was in the SAME direction
+            # (pending below last_good == a drop; above == a rise) and the extreme
+            # roughly holds within tol — avoids a drop-then-spike glitch pair
+            # wrongly confirming each other.
+            pending_was_drop = pending < last
+            pending_was_rise = pending > last
+            if (suspect_drop and pending_was_drop and price <= pending * (1.0 + confirm_tol)):
+                g["last_good"] = price
+                g["pending"] = None
+                return price
+            if (suspect_rise and pending_was_rise and price >= pending * (1.0 - confirm_tol)):
+                g["last_good"] = price
+                g["pending"] = None
+                return price
+        # First suspect cycle (or the extreme hasn't held) → defer: act on the last
         # known-good price this cycle and hold the suspect pending for next time.
         g["pending"] = price
         return last

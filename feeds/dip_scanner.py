@@ -72,6 +72,20 @@ _SCAN_INTERVAL = 30  # seconds between full scan cycles (lowered 90→30 2026-05
 _DISCOVERY_FRESH_MIN_LIQ = float(os.environ.get("DISCOVERY_FRESH_MIN_LIQ", "40000"))
 _DISCOVERY_FRESH_PAGES = int(os.environ.get("DISCOVERY_FRESH_PAGES", "2"))
 
+# Fiat-pegged stablecoins are never valid dip-buy candidates — they don't pump
+# (that's the whole point), so any "signal" on one is noise, and a glitched price
+# tick on one produces an absurd phantom P&L. 2026-05-27: no_filters bought EURC
+# (€-stablecoin, real $1.16) via the volume-sorted discovery feed, then a bad
+# tick read $6,199 and booked +$106k of phantom profit. Excluded at the universe
+# layer (upstream of every bot, so even filterless bots never see them). Matches
+# by symbol — a curated set of the real fiat stablecoins, not a fuzzy heuristic
+# that could catch a legit memecoin with "USD" in its name.
+_STABLECOIN_SYMBOLS = {
+    "USDC", "USDT", "DAI", "EURC", "EURT", "FDUSD", "PYUSD", "TUSD", "USDD",
+    "USDE", "USDS", "USDY", "GUSD", "USDP", "FRAX", "LUSD", "USDB", "USDG",
+    "EUROC", "EURS", "AEUR", "USD", "BUSD", "USDC.E", "USDT.E", "CUSD",
+}
+
 
 class DipScanner:
     def __init__(self,
@@ -943,6 +957,12 @@ class DipScanner:
 
             if not token_address:
                 c["no_addr"] += 1
+                continue
+            # Fiat stablecoin exclusion — upstream of EVERY bot (even filterless
+            # ones). A stablecoin can't pump and a glitched tick on one produces
+            # absurd phantom P&L (EURC +$106k, 2026-05-27). See _STABLECOIN_SYMBOLS.
+            if (token_symbol or "").upper() in _STABLECOIN_SYMBOLS:
+                c["stablecoin_skip"] = c.get("stablecoin_skip", 0) + 1
                 continue
             # Case-insensitive match — open_positions can be keyed with either
             # case depending on which feed surfaced the position. Mirror the

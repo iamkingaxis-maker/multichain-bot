@@ -79,11 +79,20 @@ def test_partial_recovery_still_suspect_redefers_not_confirm():
     assert eg.guarded_exit_price(guard, "X", 0.40) == 0.40
 
 
-def test_upward_spike_is_not_an_adverse_move():
-    # a big UP move is not a drop → accepted (this guard only defers crashes)
+def test_modest_rise_passes_through():
+    # a +50% move is below max_rise (1.0 = +100%) → accepted immediately
     guard = {"X": {"last_good": 1.0, "pending": None}}
-    assert eg.guarded_exit_price(guard, "X", 3.0) == 3.0
-    assert guard["X"]["last_good"] == 3.0
+    assert eg.guarded_exit_price(guard, "X", 1.5) == 1.5
+    assert guard["X"]["last_good"] == 1.5
+
+
+def test_upward_spike_deferred_first_cycle():
+    # >+100% in one cycle → suspect → act on last-good, stash pending (NOT the spike)
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "X", 3.0)   # +200%
+    assert out == 1.0                              # NOT the spike price
+    assert guard["X"]["pending"] == 3.0
+    assert guard["X"]["last_good"] == 1.0
 
 
 def test_recovery_clears_stale_pending():
@@ -164,3 +173,67 @@ def test_crosssource_raises_falls_back_to_temporal():
     guard = {"X": {"last_good": 1.0, "pending": None}}
     assert eg.guarded_exit_price(guard, "X", 0.60, confirm_fn=boom) == 1.0  # deferred, no raise
     assert guard["X"]["pending"] == 0.60
+
+
+# ── upward-spike guard (2026-05-27 EURC phantom WIN) ────────────────────────
+
+def test_eurc_2026_05_27_phantom_5316x_deferred_then_discarded():
+    # EURC: a EUR stablecoin, real price ~$1.16 flat, but one print read $6199.37
+    # (5,316x). The drop-only guard let it through → TP1+TP2 booked +$106,334 of
+    # phantom profit. With the rise guard it is deferred, then the real price
+    # reverts next cycle → glitch discarded, no phantom TP.
+    guard = {}
+    eg.guarded_exit_price(guard, "EURC", 1.1658)
+    assert eg.guarded_exit_price(guard, "EURC", 6199.37) == 1.1658   # deferred, NOT the spike
+    assert guard["EURC"]["pending"] == 6199.37
+    assert eg.guarded_exit_price(guard, "EURC", 1.16) == 1.16        # real price reverts → discard
+    assert guard["EURC"]["pending"] is None
+
+
+def test_real_moon_that_persists_confirms_and_is_captured():
+    # The rise guard must NOT block a genuine moon: a real +200% move that HOLDS
+    # confirms next cycle and the TP can fire (one cycle late by design).
+    guard = {}
+    eg.guarded_exit_price(guard, "M", 1.0)
+    assert eg.guarded_exit_price(guard, "M", 3.0) == 1.0    # +200% deferred one cycle
+    assert eg.guarded_exit_price(guard, "M", 3.1) == 3.1    # holds → confirmed → TP captured
+    assert guard["M"]["last_good"] == 3.1
+
+
+def test_crosssource_disconfirms_upward_glitch_acts_on_last_good():
+    # EURC: DS prints $6199 but the independent source still says ~$1.16 (healthy,
+    # below the midpoint) → glitch → ignore, act on last-good, no phantom TP, no defer.
+    guard = {"E": {"last_good": 1.1658, "pending": None}}
+    out = eg.guarded_exit_price(guard, "E", 6199.37, confirm_fn=lambda: 1.16)
+    assert out == 1.1658                       # acted on last-good, NOT the spike
+    assert guard["E"]["pending"] is None       # resolved this cycle
+    assert guard["E"]["last_good"] == 1.1658   # last_good NOT poisoned by the glitch
+
+
+def test_crosssource_persistent_bad_high_source_stays_rejected():
+    # Bad high print persists 2+ cycles — cross-source keeps disconfirming → never
+    # books a phantom win, even cycle after cycle.
+    guard = {"E": {"last_good": 1.1658, "pending": None}}
+    for _ in range(3):
+        out = eg.guarded_exit_price(guard, "E", 6199.37, confirm_fn=lambda: 1.16)
+        assert out == 1.1658
+    assert guard["E"]["last_good"] == 1.1658
+
+
+def test_crosssource_corroborates_real_spike_acts_now():
+    # Independent source also high (above midpoint) → real moon → act immediately.
+    guard = {"R": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "R", 3.0, confirm_fn=lambda: 2.9)
+    assert out == 3.0
+    assert guard["R"]["last_good"] == 3.0
+
+
+def test_drop_pending_then_opposite_spike_not_wrongly_confirmed():
+    # A drop is deferred (pending below last_good); next cycle a glitch spike must
+    # NOT be confirmed by the drop-direction pending — it re-defers instead.
+    guard = {}
+    eg.guarded_exit_price(guard, "X", 1.0)
+    assert eg.guarded_exit_price(guard, "X", 0.20) == 1.0   # drop deferred, pending=0.20
+    assert eg.guarded_exit_price(guard, "X", 5.0) == 1.0    # opposite-dir spike → re-defer, NOT confirm
+    assert guard["X"]["pending"] == 5.0
+    assert guard["X"]["last_good"] == 1.0

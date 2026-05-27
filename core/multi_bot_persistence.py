@@ -32,6 +32,7 @@ class MultiBotTradeStore:
         self._lock = threading.Lock()
         self._maybe_split_legacy()
         self._maybe_scrub_giga_phantom()
+        self._maybe_scrub_eurc_phantom()
 
     def _maybe_scrub_giga_phantom(self) -> None:
         """One-shot reversal of the 2026-05-27 GIGA phantom-stop losses.
@@ -60,6 +61,36 @@ class MultiBotTradeStore:
             import logging
             logging.getLogger(__name__).error(
                 "GIGA phantom scrub skipped (non-fatal error): %s", e
+            )
+
+    def _maybe_scrub_eurc_phantom(self) -> None:
+        """One-shot reversal of the 2026-05-27 EURC phantom-WIN profit.
+
+        no_filters booked +$106,334 of phantom profit on a $6,199 bad-tick exit of
+        a $1.16 stablecoin. Repriced to the real exit here, before any bot reads
+        its capital snapshot. Sentinel-guarded inside scrub(); wrapped so a
+        migration error can NEVER break the trading boot.
+        """
+        try:
+            import sys
+            root = str(Path(__file__).resolve().parent.parent)  # repo root
+            if root not in sys.path:
+                sys.path.insert(0, root)
+            from scripts.scrub_eurc_phantom import scrub
+            res = scrub(self.data_dir)
+            if "skipped" not in res:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "EURC phantom scrub ran: delta $%s across %d bots, %s sells repriced; backup=%s",
+                    res.get("total_delta"),
+                    len(res.get("restored_per_bot", {})),
+                    res.get("files"),
+                    res.get("backup"),
+                )
+        except Exception as e:  # never break boot on a migration error
+            import logging
+            logging.getLogger(__name__).error(
+                "EURC phantom scrub skipped (non-fatal error): %s", e
             )
 
     def _maybe_split_legacy(self) -> None:
