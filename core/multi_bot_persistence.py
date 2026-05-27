@@ -31,6 +31,36 @@ class MultiBotTradeStore:
         self._trades_path = self.data_dir / "trades_multi.json"
         self._lock = threading.Lock()
         self._maybe_split_legacy()
+        self._maybe_scrub_giga_phantom()
+
+    def _maybe_scrub_giga_phantom(self) -> None:
+        """One-shot reversal of the 2026-05-27 GIGA phantom-stop losses.
+
+        Runs here (store construction, before any bot loads its capital snapshot)
+        so bots read the corrected balances — no race. Sentinel-guarded inside
+        scrub(); wrapped so a migration error can NEVER break the trading boot.
+        """
+        try:
+            import sys
+            root = str(Path(__file__).resolve().parent.parent)  # repo root
+            if root not in sys.path:
+                sys.path.insert(0, root)
+            from scripts.scrub_giga_phantom import scrub
+            res = scrub(self.data_dir)
+            if "skipped" not in res:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "GIGA phantom scrub ran: restored $%s across %d bots, %s sells repriced; backup=%s",
+                    res.get("total_restored"),
+                    len(res.get("restored_per_bot", {})),
+                    res.get("files"),
+                    res.get("backup"),
+                )
+        except Exception as e:  # never break boot on a migration error
+            import logging
+            logging.getLogger(__name__).error(
+                "GIGA phantom scrub skipped (non-fatal error): %s", e
+            )
 
     def _maybe_split_legacy(self) -> None:
         """One-shot: partition pre-split trades.json into legacy + multi files.
