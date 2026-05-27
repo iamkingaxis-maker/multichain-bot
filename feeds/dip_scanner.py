@@ -682,6 +682,33 @@ class DipScanner:
             bot_id, decision.token, decision.size_usd, decision.size_tier,
         )
 
+    def _second_source_price_sync(self, address: Optional[str]) -> Optional[float]:
+        """Independent (GeckoTerminal) USD price to cross-confirm a SUSPECT exit drop.
+
+        Invoked by the exit guard ONLY when the primary feed prints a >22%
+        single-cycle drop (rare), so it adds no steady-state egress. A single bad
+        DexScreener pair tick (TROLL/GIGA phantom) won't match GeckoTerminal's
+        aggregate price → guard rejects the glitch immediately and keeps rejecting
+        a persistent bad source. Sync + short timeout; returns None on any failure
+        (the guard then falls back to next-cycle temporal confirmation).
+        """
+        if not address:
+            return None
+        try:
+            from curl_cffi import requests as _cf
+            r = _cf.get(
+                f"https://api.geckoterminal.com/api/v2/networks/solana/tokens/{address}",
+                impersonate="chrome", timeout=2.5,
+            )
+            if r.status_code != 200:
+                return None
+            attrs = (((r.json() or {}).get("data") or {}).get("attributes") or {})
+            p = attrs.get("price_usd")
+            p = float(p) if p is not None else None
+            return p if (p and p > 0) else None
+        except Exception:
+            return None
+
     async def _tick_all_bots_positions(self):
         """Per-bot exit-decision loop. Iterates each bot's open positions,
         fetches current price + vol from the shared PoolPriceFeed, and acts
@@ -727,6 +754,9 @@ class DipScanner:
                             # hard stop at a phantom price. Real crashes confirm.
                             priced[token] = guarded_exit_price(
                                 self._exit_price_guard, token, raw,
+                                confirm_fn=(
+                                    lambda a=position.address: self._second_source_price_sync(a)
+                                ),
                             )
                         vols[token] = await self._get_vol_m5_for(token)
                     price = priced[token]

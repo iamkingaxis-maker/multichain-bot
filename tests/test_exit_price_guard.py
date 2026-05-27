@@ -117,3 +117,50 @@ def test_real_minus_32pct_dump_that_persists_still_fires():
     assert eg.guarded_exit_price(guard, "Y", 0.68) == 1.0    # −32% deferred one cycle
     assert eg.guarded_exit_price(guard, "Y", 0.66) == 0.66   # holds → confirmed → stop fires
     assert guard["Y"]["last_good"] == 0.66
+
+
+# ── cross-source confirmation (confirm_fn) ──────────────────────────────────
+
+def test_crosssource_disconfirms_glitch_acts_on_last_good_same_cycle():
+    # GIGA: DS prints 0.00249 (−33%) but the independent source says ~0.00366
+    # (healthy). Above the midpoint → glitch → ignore, act on last-good, no defer.
+    guard = {"G": {"last_good": 0.0037, "pending": None}}
+    out = eg.guarded_exit_price(guard, "G", 0.00249, confirm_fn=lambda: 0.00366)
+    assert out == 0.0037                       # acted on last-good, NOT the glitch
+    assert guard["G"]["pending"] is None       # resolved this cycle (no temporal defer)
+    assert guard["G"]["last_good"] == 0.0037   # last_good NOT poisoned by the glitch
+
+
+def test_crosssource_persistent_bad_source_stays_rejected():
+    # The case temporal-only MISSES: the bad print persists 2+ cycles. Cross-source
+    # keeps disconfirming → never fires a phantom stop, even cycle after cycle.
+    guard = {"G": {"last_good": 0.0037, "pending": None}}
+    for _ in range(3):
+        out = eg.guarded_exit_price(guard, "G", 0.00249, confirm_fn=lambda: 0.00366)
+        assert out == 0.0037                   # rejected every cycle
+    assert guard["G"]["last_good"] == 0.0037
+
+
+def test_crosssource_corroborates_real_move_acts_now():
+    # Independent source also low (near the drop) → real move → act immediately,
+    # no one-cycle latency.
+    guard = {"R": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "R", 0.66, confirm_fn=lambda: 0.64)
+    assert out == 0.66
+    assert guard["R"]["last_good"] == 0.66
+
+
+def test_crosssource_unavailable_falls_back_to_temporal():
+    # confirm_fn returns None (fetch failed) → behave exactly like temporal guard.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    assert eg.guarded_exit_price(guard, "X", 0.60, confirm_fn=lambda: None) == 1.0  # deferred
+    assert guard["X"]["pending"] == 0.60
+
+
+def test_crosssource_raises_falls_back_to_temporal():
+    # confirm_fn raising must never propagate — fall back to temporal defer.
+    def boom():
+        raise RuntimeError("network down")
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    assert eg.guarded_exit_price(guard, "X", 0.60, confirm_fn=boom) == 1.0  # deferred, no raise
+    assert guard["X"]["pending"] == 0.60

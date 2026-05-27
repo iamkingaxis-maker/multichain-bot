@@ -57,6 +57,7 @@ def guarded_exit_price(
     price: float,
     max_drop: float = EXIT_GUARD_MAX_DROP,
     confirm_tol: float = EXIT_GUARD_CONFIRM_TOL,
+    confirm_fn=None,
 ) -> float:
     """Return the price the exit tick should act on, filtering one-tick glitches.
 
@@ -65,7 +66,23 @@ def guarded_exit_price(
         {token: {"last_good": float, "pending": float | None}}
 
     It is mutated in place. Must be called once per token per management cycle
-    (the confirmation logic assumes consecutive calls are consecutive cycles).
+    (the temporal-confirmation fallback assumes consecutive calls are consecutive
+    cycles).
+
+    ``confirm_fn`` (optional): a zero-arg callable returning an INDEPENDENT
+    second-source price (same USD units), or None if unavailable. It is invoked
+    ONLY on a suspect drop (rare), so it costs no extra egress on normal ticks.
+    Cross-source confirmation is stronger than temporal: it resolves a suspect
+    drop in the SAME cycle and catches a *persistent* bad source (which the
+    next-cycle temporal check would wrongly confirm). Decision on a suspect drop:
+
+      • second source near the suspect low (<= midpoint of last-good and suspect)
+        → corroborated → real move, act on it now;
+      • second source still healthy (above that midpoint) → the primary feed is
+        glitching → ignore it, act on last-good (no phantom stop), even if the
+        bad print persists;
+      • confirm_fn missing / returns None / raises → fall back to the temporal
+        next-cycle confirmation.
     """
     g = guard.get(token)
     if not g or g.get("last_good", 0.0) <= 0.0:
@@ -75,6 +92,25 @@ def guarded_exit_price(
 
     last = g["last_good"]
     if price < last * (1.0 - max_drop):
+        # ── Suspect single-cycle drop. Prefer an immediate independent opinion. ──
+        if confirm_fn is not None:
+            second = None
+            try:
+                second = confirm_fn()
+            except Exception:
+                second = None
+            if isinstance(second, (int, float)) and second > 0:
+                if second <= (price + last) / 2.0:
+                    # Independent source corroborates the low → real move; act now.
+                    g["last_good"] = price
+                    g["pending"] = None
+                    return price
+                # Independent source says price is healthy → primary feed glitch.
+                # Ignore the bad print and act on last-good; do NOT poison last_good
+                # with the glitch, so a PERSISTENT bad source keeps being rejected.
+                g["pending"] = None
+                return last
+            # second source unavailable → fall through to temporal confirmation.
         pending = g.get("pending")
         if pending is not None and price <= pending * (1.0 + confirm_tol):
             # Second consecutive suspect cycle corroborates the low → real move.
