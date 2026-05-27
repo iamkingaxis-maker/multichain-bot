@@ -160,6 +160,19 @@ class BotEvaluator:
             return False
         if c.vol_h1_min is not None and (b.vol_h1_usd or 0) < c.vol_h1_min:
             return False
+        if c.require_real_pullback:
+            # Held-out-validated entry-quality gate (2026-05-27): block EXTENDED
+            # entries (the falling-knife signature behind the buy-into-downtrend
+            # losses). Greens are bought after a REAL pullback on a LIVE token;
+            # knives near the top of dead ones. Block if drawdown-from-90m-max
+            # isn't deep enough OR h24 volatility is too low. Fail-OPEN when a
+            # feature is missing (coverage-safe). Isolated to opt-in bots.
+            _dd = b.raw_meta.get("shape_90m_drawdown_from_max_pct")
+            _vol = b.raw_meta.get("token_volatility_h24_pct")
+            if isinstance(_dd, (int, float)) and _dd > -7.5:
+                return False
+            if isinstance(_vol, (int, float)) and _vol < 30.0:
+                return False
         return True
 
     def _effective_filter_blocks(self, b: FeatureBundle) -> bool:

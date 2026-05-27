@@ -37,6 +37,7 @@ class MultiBotTradeStore:
         self._maybe_cleanup_cnn_dataset()
         self._maybe_reconcile_positions()
         self._maybe_reset_cap2k_pnl()
+        self._maybe_retire_dashboard_bots()
 
     def _maybe_scrub_giga_phantom(self) -> None:
         """One-shot reversal of the 2026-05-27 GIGA phantom-stop losses.
@@ -65,6 +66,32 @@ class MultiBotTradeStore:
             import logging
             logging.getLogger(__name__).error(
                 "GIGA phantom scrub skipped (non-fatal error): %s", e
+            )
+
+    def _maybe_retire_dashboard_bots(self) -> None:
+        """One-shot removal of 14 retired bots' state files from the dashboard.
+
+        The bots were disabled in config; this clears their lingering bot_state
+        snapshots so they vanish from /api/bots (which globs bot_state/).
+        Sentinel-guarded inside retire(); never breaks boot.
+        """
+        try:
+            import sys
+            root = str(Path(__file__).resolve().parent.parent)
+            if root not in sys.path:
+                sys.path.insert(0, root)
+            from scripts.retire_dashboard_bots import retire
+            res = retire(self.data_dir)
+            if "skipped" not in res and res.get("n"):
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Dashboard retire ran: removed %d state files (%s)",
+                    res.get("n"), res.get("removed"),
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(
+                "Dashboard retire skipped (non-fatal error): %s", e
             )
 
     def _maybe_scrub_eurc_phantom(self) -> None:

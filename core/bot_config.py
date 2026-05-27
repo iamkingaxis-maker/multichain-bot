@@ -43,6 +43,15 @@ class BotConfig:
     mcap_max: Optional[float] = None
     vol_h1_min: Optional[float] = 1000.0
 
+    # Entry-quality gate (2026-05-27, held-out validated). When True the bot
+    # blocks EXTENDED entries (the falling-knife signature behind the
+    # buy-into-downtrend losses): requires a REAL pullback
+    # (shape_90m_drawdown_from_max_pct <= -7.5) AND live volatility
+    # (token_volatility_h24_pct >= 30). Fail-OPEN if a feature is missing.
+    # Opt-in per bot (default False = no change to existing bots). See
+    # reference_entry_separator_mine_2026_05_27.
+    require_real_pullback: bool = False
+
     # Filter set — semantics: if filters_enforced is None, the bot uses
     # the project baseline filter set MINUS anything in filters_disabled.
     # If filters_enforced is a list, that's the EXACT enforced set and
