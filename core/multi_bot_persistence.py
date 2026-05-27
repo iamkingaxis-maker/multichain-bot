@@ -33,6 +33,7 @@ class MultiBotTradeStore:
         self._maybe_split_legacy()
         self._maybe_scrub_giga_phantom()
         self._maybe_scrub_eurc_phantom()
+        self._maybe_cleanup_phantom_backups()
 
     def _maybe_scrub_giga_phantom(self) -> None:
         """One-shot reversal of the 2026-05-27 GIGA phantom-stop losses.
@@ -91,6 +92,30 @@ class MultiBotTradeStore:
             import logging
             logging.getLogger(__name__).error(
                 "EURC phantom scrub skipped (non-fatal error): %s", e
+            )
+
+    def _maybe_cleanup_phantom_backups(self) -> None:
+        """One-shot removal of the verified-good GIGA/EURC scrub backups that
+        pushed the Railway volume to 80% (2026-05-27). Sentinel-guarded; only
+        touches the two known backup prefixes, never a future scrub's backup.
+        Wrapped so a cleanup error can NEVER break the trading boot."""
+        try:
+            import sys
+            root = str(Path(__file__).resolve().parent.parent)  # repo root
+            if root not in sys.path:
+                sys.path.insert(0, root)
+            from scripts.cleanup_phantom_backups import cleanup
+            res = cleanup(self.data_dir)
+            if "skipped" not in res and res.get("count"):
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Phantom-backup cleanup ran: removed %d dir(s) %s",
+                    res.get("count"), res.get("removed"),
+                )
+        except Exception as e:  # never break boot on a housekeeping error
+            import logging
+            logging.getLogger(__name__).error(
+                "Phantom-backup cleanup skipped (non-fatal error): %s", e
             )
 
     def _maybe_split_legacy(self) -> None:

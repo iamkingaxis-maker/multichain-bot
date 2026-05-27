@@ -52,6 +52,42 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 EVENTS_FILE = DATA_DIR / "events.jsonl"
 PENDING_FILE = DATA_DIR / "pending.json"
 SEEN_FILE = DATA_DIR / "seen_events.txt"
+
+# Retention cap for the append-only events log. Without this the recorder grows
+# the Railway volume without bound (it hit 80% on 2026-05-27, accelerated by the
+# 05-27 coverage widening). When events.jsonl exceeds the cap we drop the OLDEST
+# half — oldest events are the least useful for forward mining and the long-range
+# historical corpus is captured separately (.mining_7hr). Env-tunable.
+RECORDER_MAX_EVENTS_MB = float(os.environ.get("RECORDER_MAX_EVENTS_MB", "50"))
+
+
+def rotate_events_if_needed(events_file: Path = EVENTS_FILE,
+                            max_mb: float = RECORDER_MAX_EVENTS_MB) -> bool:
+    """Bound events_file to max_mb by keeping only the most recent ~half when it
+    exceeds the cap. Atomic (temp + os.replace) so a crash mid-rotate cannot
+    corrupt the log. Returns True if it rotated. Never raises (logs and returns
+    False) — a housekeeping failure must not kill the recorder loop."""
+    try:
+        if not events_file.exists():
+            return False
+        size_mb = events_file.stat().st_size / (1024 * 1024)
+        if size_mb <= max_mb:
+            return False
+        with events_file.open("r") as f:
+            lines = f.readlines()
+        keep = lines[len(lines) // 2:]  # most-recent half
+        tmp = events_file.with_name(events_file.name + ".tmp")
+        with tmp.open("w") as f:
+            f.writelines(keep)
+        tmp.replace(events_file)
+        logger.info(
+            f"Rotated {events_file.name}: {size_mb:.1f}MB > {max_mb}MB cap — "
+            f"dropped oldest {len(lines) - len(keep)} of {len(lines)} events"
+        )
+        return True
+    except Exception as e:
+        logger.error(f"{events_file.name} rotation failed (non-fatal): {e}")
+        return False
 logger.info(f"Data dir: {DATA_DIR.absolute()}")
 
 
@@ -416,6 +452,9 @@ async def main(args):
 
             # Persist state
             state.save()
+
+            # Bound events.jsonl so the Railway volume can't fill (2026-05-27).
+            rotate_events_if_needed()
 
             # Stats
             try:
