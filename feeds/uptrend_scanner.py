@@ -286,6 +286,11 @@ class UptrendScannerShadow:
 
         # Persist
         try:
+            try:
+                from core.jsonl_rotation import cap_jsonl
+                cap_jsonl(self._output_path)
+            except Exception:
+                pass
             with self._output_path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(rec, separators=(",", ":")) + "\n")
             self._records_written += 1

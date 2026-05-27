@@ -143,6 +143,11 @@ class AxiomTrendingScanner:
                 'micro_cap_path': micro_cap_path,
             }
             try:
+                try:
+                    from core.jsonl_rotation import cap_jsonl
+                    cap_jsonl(path)
+                except Exception:
+                    pass
                 with open(path, 'a') as f:
                     f.write(_json.dumps(record) + '\n')
             except (PermissionError, FileNotFoundError, OSError) as _io_err:

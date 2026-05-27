@@ -124,6 +124,11 @@ class FilterShadowRecorder:
                 "liquidity_usd": _safe_float(liq.get("usd")),
                 "mcap": _safe_float(pair.get("marketCap")),
             }
+            try:
+                from core.jsonl_rotation import cap_jsonl
+                cap_jsonl(self.log_path)
+            except Exception:
+                pass
             with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec) + "\n")
             self.records_written += 1
