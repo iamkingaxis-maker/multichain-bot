@@ -550,6 +550,38 @@ class DipScanner:
         except Exception as _e:
             logger.debug(f"[DipScanner] cycle SOL fetch error: {_e}")
 
+        # Fallback: if GeckoTerminal didn't yield the macro-gate inputs
+        # (sol_pc_h1/h6), fill from Kraken — US, public, NOT on GT's shared
+        # 25-req/min budget that the discovery calls were starving. 2026-05-27:
+        # the GT SOL feed went null and silently disabled filter_sol_macro_down
+        # during a -2% SOL dump; this keeps the brake fed.
+        if sol_features.get("sol_pc_h1") is None or sol_features.get("sol_pc_h6") is None:
+            try:
+                kc = await self._fetch_sol_kraken_5m()
+                if kc and len(kc) >= 13:
+                    _klast = kc[-1]
+
+                    def _kpc(n):
+                        return (round((_klast / kc[-n - 1] - 1) * 100, 3)
+                                if len(kc) > n and kc[-n - 1] > 0 else None)
+
+                    if sol_features.get("sol_price") is None:
+                        sol_features["sol_price"] = round(_klast, 4)
+                    for _key, _n in (("sol_pc_m5", 1), ("sol_pc_h1", 12),
+                                     ("sol_pc_h4", 48), ("sol_pc_h6", 72),
+                                     ("sol_pc_h24", 288)):
+                        _v = _kpc(_n)
+                        if _v is not None and sol_features.get(_key) is None:
+                            sol_features[_key] = _v
+                    sol_features["sol_src_fallback"] = "kraken"
+                    logger.info(
+                        "[DipScanner] SOL macro via Kraken fallback: "
+                        f"h1={sol_features.get('sol_pc_h1')} "
+                        f"h6={sol_features.get('sol_pc_h6')}"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] SOL Kraken fallback error: {_e}")
+
         # Cache for per-token loop to read.
         self._cycle_sol_features = sol_features
         self._cycle_sol_5m = sol_5m
@@ -560,6 +592,48 @@ class DipScanner:
         if sol_features:
             self.last_sol_features = dict(sol_features)
             self.last_sol_features_ts = time.time()
+
+    async def _fetch_sol_kraken_5m(self) -> list:
+        """Fallback SOL 5m closes from Kraken (US, public, no GT rate-limit
+        contention). Returns close floats oldest->newest. Cached 60s, fail-soft.
+
+        Added 2026-05-27: the GeckoTerminal SOL feed went null
+        (sol_pc_h1/h6=None, 17min stale) and silently disabled
+        filter_sol_macro_down, letting the fleet buy 67-bot-wide into a -2%
+        SOL dump. Mirrors _fetch_btc_klines (which migrated off geo-blocked
+        Binance to Kraken for the same silent-null reason). Kraken doesn't
+        share GT's 25-req/min budget that the discovery calls were starving.
+        """
+        now = time.monotonic()
+        cached_ts, cached = getattr(self, "_sol_kraken_cache", (0.0, None))
+        if cached and (now - cached_ts) < 60:
+            return cached
+        url = "https://api.kraken.com/0/public/OHLC?pair=SOLUSD&interval=5"
+        try:
+            import aiohttp as _aio
+            async with _aio.ClientSession() as session:
+                async with session.get(url, timeout=_aio.ClientTimeout(total=6)) as resp:
+                    if resp.status != 200:
+                        return cached or []
+                    data = await resp.json()
+                    if not isinstance(data, dict) or data.get("error"):
+                        return cached or []
+                    result = data.get("result") or {}
+                    bars = None
+                    for k, v in result.items():
+                        if k == "last":
+                            continue
+                        if isinstance(v, list):
+                            bars = v
+                            break
+                    if not bars:
+                        return cached or []
+                    closes = [float(b[4]) for b in bars if len(b) > 4]
+                    self._sol_kraken_cache = (now, closes)
+                    return closes
+        except Exception as _e:
+            logger.debug(f"[DipScanner] Kraken SOL fetch error: {_e}")
+            return cached or []
 
     async def _fetch_btc_klines(self) -> list:
         """
@@ -4532,21 +4606,23 @@ class DipScanner:
                 _filter_sol_macro_down_block_reasons.append(
                     f"sol_pc_h1={float(_sol_pc_h1_for_gate):+.2f}%<-0.7 (SOL 1h dump)"
                 )
-            # Fail-CLOSED safety: if we previously had SOL data within the
-            # last 10min but this cycle's feed is empty, the GT fetch likely
-            # failed mid-cycle. Treat as BLOCK rather than silently passing
-            # (WORLDCUP 01:14:42 root-cause guard). Skip this branch if the
-            # bot just started — last_sol_features_ts==0 means we've never
-            # had data, so a missing feed is "feature not ready yet", not
-            # a regression. Once we get one good fetch the guard activates.
+            # Fail-CLOSED when blind: if NEITHER feed (GeckoTerminal nor the
+            # Kraken fallback) produced h1/h6 and we've had SOL data before,
+            # BLOCK — don't let the fleet buy into an unknown macro. The old
+            # code only failed-closed inside a 600s window and failed OPEN
+            # beyond it; on 2026-05-27 the GT SOL feed went null for 17min
+            # (past the window) and the brake silently disabled itself during
+            # a -2% SOL dump (fleet bought 67-bot-wide unbraked). With the
+            # Kraken fallback now feeding the gate, true blindness is rare, so
+            # failing closed regardless of staleness is the safe choice. Skip
+            # only at cold start (ts==0 = "feature not ready yet").
             if (_sol_pc_h6 is None and _sol_pc_h1_for_gate is None
                     and getattr(self, "last_sol_features_ts", 0.0) > 0):
                 _stale_age = time.time() - self.last_sol_features_ts
-                if _stale_age < 600:
-                    _filter_sol_macro_down_block_reasons.append(
-                        f"sol_feed_stale (no h1/h6 this cycle, last good "
-                        f"{_stale_age:.0f}s ago — fail-closed)"
-                    )
+                _filter_sol_macro_down_block_reasons.append(
+                    f"sol_feed_blind (no h1/h6 from GT or Kraken, last good "
+                    f"{_stale_age:.0f}s ago — fail-closed)"
+                )
             _filter_sol_macro_down_verdict = (
                 "BLOCK" if _filter_sol_macro_down_block_reasons else "PASS"
             )
