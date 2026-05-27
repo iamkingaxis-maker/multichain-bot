@@ -285,19 +285,44 @@ class DipScanner:
                     trade_store.save_bot_state(
                         bc.bot_id, self.bot_capitals[bc.bot_id].to_dict(),
                     )
-                self.bot_position_managers[bc.bot_id] = PerBotPositionManager(bc)
-            # Restore open positions from trades.json (Option B in SP-followup fix).
-            # In-memory positions don't survive restart. trades.json IS persistent
-            # (canonical record). Reconstruct unmatched buys as OpenPositions so
-            # the tick loop can close them. Without this, every restart orphans
-            # all open positions as zombies — counted in trades but invisible
-            # to the tick loop.
-            self._restore_open_positions_from_trades()
+                pm = PerBotPositionManager(bc)
+                # Restore the REAL position book from bot_state (2026-05-27 fix).
+                # bot_state now persists open_positions losslessly (incl. tp1_hit /
+                # remaining_fraction / peak), so a restart resumes management exactly.
+                # Replaces the old trades-reconstruction, which skipped any token
+                # with a sell and thus orphaned every post-TP1 position on restart
+                # (leaking in_flight + inflating the open count). Pre-fix states
+                # lack the key -> empty book; the one-shot reconcile (multi_bot_
+                # persistence._maybe_reconcile_positions) zeroes their stale in_flight.
+                try:
+                    n_restored = pm.load_state_list((existing or {}).get("open_positions"))
+                    if n_restored:
+                        logger.info(
+                            "[DipScanner] restored %d open positions for %s from bot_state",
+                            n_restored, bc.bot_id,
+                        )
+                except Exception as _e:
+                    logger.warning("[DipScanner] position restore failed for %s: %s", bc.bot_id, _e)
+                self.bot_position_managers[bc.bot_id] = pm
             logger.info(
                 "[DipScanner] Multi-bot wired: %d evaluators (%s)",
                 len(bot_manager.evaluators),
                 ",".join(e.config.bot_id for e in bot_manager.evaluators),
             )
+
+    def _save_bot_state(self, bot_id: str) -> None:
+        """Persist a bot's capital AND its open-position book (2026-05-27 fix).
+        bot_state now carries open_positions so a restart resumes management
+        exactly — no more orphaned post-TP1 positions leaking in_flight. Called
+        on every book change (open/close)."""
+        cap = self.bot_capitals.get(bot_id)
+        if cap is None or self.trade_store is None:
+            return
+        d = cap.to_dict()
+        pm = self.bot_position_managers.get(bot_id)
+        if pm is not None:
+            d["open_positions"] = pm.to_state_list()
+        self.trade_store.save_bot_state(bot_id, d)
 
     def _restore_open_positions_from_trades(self) -> None:
         """Rebuild PerBotPositionManager._positions from trades.json.
@@ -690,7 +715,7 @@ class DipScanner:
                 "triggers_fired": list(decision.triggers_fired),
                 "entry_meta": bundle.raw_meta,
             }, bot_id=bot_id)
-            self.trade_store.save_bot_state(bot_id, capital.to_dict())
+            self._save_bot_state(bot_id)
         logger.info(
             "[DipScanner] BUY bot=%s token=%s size=$%.2f tier=%s",
             bot_id, decision.token, decision.size_usd, decision.size_tier,
@@ -844,7 +869,7 @@ class DipScanner:
                 "fully_closed": result.fully_closed,
                 "time": datetime.now(timezone.utc).isoformat(),
             }, bot_id=bot_id)
-            self.trade_store.save_bot_state(bot_id, capital.to_dict())
+            self._save_bot_state(bot_id)
         logger.info(
             "[DipScanner] SELL bot=%s token=%s frac=%.2f pnl=$%.2f reason=%s%s",
             bot_id, token, result.sell_fraction, result.realized_pnl_usd,

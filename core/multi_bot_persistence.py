@@ -35,6 +35,7 @@ class MultiBotTradeStore:
         self._maybe_scrub_eurc_phantom()
         self._maybe_cleanup_phantom_backups()
         self._maybe_cleanup_cnn_dataset()
+        self._maybe_reconcile_positions()
 
     def _maybe_scrub_giga_phantom(self) -> None:
         """One-shot reversal of the 2026-05-27 GIGA phantom-stop losses.
@@ -142,6 +143,32 @@ class MultiBotTradeStore:
             import logging
             logging.getLogger(__name__).error(
                 "CNN-dataset cleanup skipped (non-fatal error): %s", e
+            )
+
+    def _maybe_reconcile_positions(self) -> None:
+        """One-shot capital reconcile for the position-persistence fix
+        (2026-05-27). Returns the stuck in_flight from restart-orphaned positions
+        to balance and clears the (now authoritative) open_positions book, so bots
+        start flat and the fixed persistence keeps the book correct going forward.
+        Runs before any bot loads its capital snapshot. Sentinel-guarded; backs up
+        bot_state; never breaks boot."""
+        try:
+            import sys
+            root = str(Path(__file__).resolve().parent.parent)  # repo root
+            if root not in sys.path:
+                sys.path.insert(0, root)
+            from scripts.reconcile_positions import reconcile
+            res = reconcile(self.data_dir)
+            if "skipped" not in res and res.get("bots_reconciled"):
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Position reconcile ran: released $%s of stuck in_flight across %d bots",
+                    res.get("total_released"), res.get("bots_reconciled"),
+                )
+        except Exception as e:  # never break boot on a migration error
+            import logging
+            logging.getLogger(__name__).error(
+                "Position reconcile skipped (non-fatal error): %s", e
             )
 
     def _maybe_split_legacy(self) -> None:

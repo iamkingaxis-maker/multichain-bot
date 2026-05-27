@@ -106,6 +106,46 @@ class PerBotPositionManager:
     def iter_positions(self):
         return list(self._positions.values())
 
+    def to_state_list(self) -> list[dict]:
+        """Serialize the open-position book for durable persistence. Carries the
+        full lifecycle state (tp1_hit/tp2_hit/peak/remaining_fraction) so a restart
+        resumes management exactly — the old trades-reconstruction lost these and
+        orphaned post-TP1 positions."""
+        return [
+            {
+                "token": p.token, "entry_price": p.entry_price,
+                "size_usd": p.size_usd, "entry_time": p.entry_time,
+                "address": p.address, "pair_address": p.pair_address,
+                "tp1_hit": p.tp1_hit, "tp2_hit": p.tp2_hit,
+                "peak_pnl_pct": p.peak_pnl_pct, "peak_pnl_at_secs": p.peak_pnl_at_secs,
+                "remaining_fraction": p.remaining_fraction,
+            }
+            for p in self._positions.values()
+        ]
+
+    def load_state_list(self, items) -> int:
+        """Replace the book from a persisted snapshot (lossless restore). Returns
+        the number of positions loaded. Skips malformed entries."""
+        self._positions = {}
+        for it in items or []:
+            tok = it.get("token")
+            if not tok or tok in self._positions:
+                continue
+            self._positions[tok] = OpenPosition(
+                token=tok,
+                entry_price=float(it.get("entry_price") or 0.0),
+                size_usd=float(it.get("size_usd") or 0.0),
+                entry_time=float(it.get("entry_time") or 0.0),
+                address=it.get("address", "") or "",
+                pair_address=it.get("pair_address", "") or "",
+                tp1_hit=bool(it.get("tp1_hit", False)),
+                tp2_hit=bool(it.get("tp2_hit", False)),
+                peak_pnl_pct=float(it.get("peak_pnl_pct") or 0.0),
+                peak_pnl_at_secs=int(it.get("peak_pnl_at_secs") or 0),
+                remaining_fraction=float(it.get("remaining_fraction", 1.0) or 1.0),
+            )
+        return len(self._positions)
+
     def close_position(self, token: str, exit_price: float, exit_time: float,
                        reason: str, sell_fraction: float = 1.0) -> CloseResult:
         """Sell ``sell_fraction`` of the ORIGINAL position size.

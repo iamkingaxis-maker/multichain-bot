@@ -3511,15 +3511,24 @@ class WebDashboard:
                 # leaves the position open — counting it would undercount).
                 # Legacy sells lack the field → default True (all full closes
                 # pre-P1).
-                from collections import Counter
-                buys_per_token = Counter(b.get("token") for b in buys)
-                sells_per_token = Counter(
-                    s.get("token") for s in sells if s.get("fully_closed", True)
-                )
-                open_count = sum(
-                    max(0, buys_per_token[tok] - sells_per_token.get(tok, 0))
-                    for tok in buys_per_token
-                )
+                # 2026-05-27 fix: prefer the REAL persisted position book.
+                # bot_state now carries open_positions (the live manager's book),
+                # so the count is exact. The legacy buys-minus-sells formula
+                # below over-counted re-entered tokens and restart-orphaned
+                # positions (counts ran 6-7x over max_concurrent). Fall back to
+                # it only for states written before the fix (no open_positions key).
+                if "open_positions" in state:
+                    open_count = len(state.get("open_positions") or [])
+                else:
+                    from collections import Counter
+                    buys_per_token = Counter(b.get("token") for b in buys)
+                    sells_per_token = Counter(
+                        s.get("token") for s in sells if s.get("fully_closed", True)
+                    )
+                    open_count = sum(
+                        max(0, buys_per_token[tok] - sells_per_token.get(tok, 0))
+                        for tok in buys_per_token
+                    )
                 bots.append({
                     "bot_id": bot_id,
                     "balance_usd": state["balance_usd"],
