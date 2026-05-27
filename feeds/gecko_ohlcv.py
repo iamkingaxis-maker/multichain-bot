@@ -227,6 +227,55 @@ class GeckoTerminalClient:
                 break  # reached last page
         return out
 
+    async def fetch_pool_feed(self, path: str, pages: int = 2,
+                              min_liq_usd: float = 0.0) -> List[dict]:
+        """Fetch any GT Solana pool feed (e.g. 'new_pools' or
+        'pools?sort=h24_volume_usd_desc') as DexScreener-style pair dicts.
+
+        Same response schema as trending_pools, so it reuses _parse_trending.
+        `min_liq_usd` bounds the result to pools with reserve >= that — this
+        caps downstream DS enrichment + per-candidate scan cost (the fresh-pool
+        feeds otherwise return thousands of dust pools). Added 2026-05-27 to
+        close the discovery coverage gap (we polled trending only → missed
+        ~half the liquid fresh movers; see reference_universe_coverage_gap).
+        """
+        out: List[dict] = []
+        sep = "&" if "?" in path else "?"
+        for page in range(1, pages + 1):
+            now = time.monotonic()
+            async with self._lock:
+                await self._throttle(now)
+            url = f"{_GT_BASE}/networks/solana/{path}{sep}page={page}&include=base_token"
+            try:
+                async with self._session_factory() as session:
+                    async with session.get(
+                        url, timeout=aiohttp.ClientTimeout(total=8)
+                    ) as resp:
+                        if resp.status != 200:
+                            logger.debug(f"[GeckoOHLCV] {path} page {page} HTTP {resp.status}")
+                            break
+                        data = await resp.json()
+            except Exception as e:
+                logger.debug(f"[GeckoOHLCV] {path} page {page} err: {e}")
+                break
+            parsed = self._parse_trending(data)
+            if min_liq_usd > 0:
+                parsed = [p for p in parsed
+                          if (p.get("liquidity") or {}).get("usd", 0) >= min_liq_usd]
+            out.extend(parsed)
+            if len(data.get("data") or []) < 20:
+                break
+        return out
+
+    async def fetch_new_pools(self, pages: int = 2, min_liq_usd: float = 0.0) -> List[dict]:
+        """Freshest Solana pools — where movers appear BEFORE they hit trending."""
+        return await self.fetch_pool_feed("new_pools", pages, min_liq_usd)
+
+    async def fetch_top_volume_pools(self, pages: int = 2, min_liq_usd: float = 0.0) -> List[dict]:
+        """Highest-h24-volume pools — catches movers regardless of name (kills the
+        meme-keyword search bias)."""
+        return await self.fetch_pool_feed("pools?sort=h24_volume_usd_desc", pages, min_liq_usd)
+
     @staticmethod
     def _parse_trending(data: dict) -> List[dict]:
         items = data.get("data") or []

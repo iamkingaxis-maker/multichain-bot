@@ -64,6 +64,14 @@ _SEARCH_TERMS_POOL = [
 _SEARCH_TERMS_PER_CYCLE = 8
 _SCAN_INTERVAL = 30  # seconds between full scan cycles (lowered 90→30 2026-05-15 for 3x throughput)
 
+# Fresh-pool / volume discovery (2026-05-27) — closes the coverage gap: we polled
+# trending + meme-keyword search only, missing ~half the liquid fresh movers
+# (they hit new_pools before trending; non-meme names evade keyword search). The
+# min-liq bound caps how many fresh candidates enter so egress stays under the
+# Railway cap (only tradeable-ish fresh tokens, not dust). Env-tunable to throttle.
+_DISCOVERY_FRESH_MIN_LIQ = float(os.environ.get("DISCOVERY_FRESH_MIN_LIQ", "40000"))
+_DISCOVERY_FRESH_PAGES = int(os.environ.get("DISCOVERY_FRESH_PAGES", "2"))
+
 
 class DipScanner:
     def __init__(self,
@@ -14004,8 +14012,15 @@ class DipScanner:
                     except Exception as _e:
                         logger.debug(f"[DipScanner] Axiom trending fetch err: {_e}")
                         return []
-                results, gt_pairs, axiom_pairs = await asyncio.gather(
-                    ds_task, gt_task, _axiom_task(), return_exceptions=True
+                # Fresh-pool + volume-sorted discovery (2026-05-27) — bounded by
+                # min-liq so the candidate pool (and egress) stays capped.
+                new_task = self.gt_client.fetch_new_pools(
+                    pages=_DISCOVERY_FRESH_PAGES, min_liq_usd=_DISCOVERY_FRESH_MIN_LIQ)
+                vol_task = self.gt_client.fetch_top_volume_pools(
+                    pages=_DISCOVERY_FRESH_PAGES, min_liq_usd=_DISCOVERY_FRESH_MIN_LIQ)
+                results, gt_pairs, axiom_pairs, new_pairs, vol_pairs = await asyncio.gather(
+                    ds_task, gt_task, _axiom_task(), new_task, vol_task,
+                    return_exceptions=True
                 )
                 if isinstance(results, Exception):
                     results = []
@@ -14013,6 +14028,10 @@ class DipScanner:
                     gt_pairs = []
                 if isinstance(axiom_pairs, Exception):
                     axiom_pairs = []
+                if isinstance(new_pairs, Exception):
+                    new_pairs = []
+                if isinstance(vol_pairs, Exception):
+                    vol_pairs = []
 
                 # Seed GT entries — will be overwritten by DS enrichment below
                 # so the final pair dict has txns data for the bs_h6 filter.
@@ -14028,6 +14047,18 @@ class DipScanner:
                     if addr and addr not in pair_by_addr:
                         pair_by_addr[addr] = p
                         source_by_addr[addr] = "axiom_trending"
+
+                # Seed fresh-pool + volume-sorted entries (2026-05-27 coverage fix).
+                for p in (new_pairs or []):
+                    addr = (p.get("baseToken") or {}).get("address", "")
+                    if addr and addr not in pair_by_addr:
+                        pair_by_addr[addr] = p
+                        source_by_addr[addr] = "gt_new_pool"
+                for p in (vol_pairs or []):
+                    addr = (p.get("baseToken") or {}).get("address", "")
+                    if addr and addr not in pair_by_addr:
+                        pair_by_addr[addr] = p
+                        source_by_addr[addr] = "gt_volume"
 
                 # Hot-reload user watchlist from disk (dashboard mutations).
                 self._maybe_reload_user_watchlist()
