@@ -6,7 +6,7 @@
   "bot_id": "exit_runner_hold",
   "btc_macro_h1_block_threshold": null,
   "display_name": "Runner holdout (20% runner \u2014 tp1=5%/0.50 trail=8pp)",
-  "enabled": true,
+  "enabled": false,
   "filters_disabled": [],
   "filters_enforced": null,
   "hard_stop_pct": -15.0,

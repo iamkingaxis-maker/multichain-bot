@@ -6,7 +6,7 @@
   "bot_id": "exit_no_trail",
   "btc_macro_h1_block_threshold": null,
   "display_name": "No effective trail (trail=20pp \u2014 pure TP1/TP2/stop)",
-  "enabled": true,
+  "enabled": false,
   "filters_disabled": [],
   "filters_enforced": null,
   "hard_stop_pct": -15.0,

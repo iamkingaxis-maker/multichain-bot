@@ -1,4 +1,4 @@
-"""Verify the catalog of 98 bots: each loads, each differs from baseline
+"""Verify the catalog of 103 bots: each loads, each differs from baseline
 by exactly the expected fields, and there are no duplicate bot_ids."""
 import pytest
 from pathlib import Path
@@ -21,9 +21,9 @@ def _by_id(catalog):
     return {c.bot_id: c for c in catalog.configs}
 
 
-def test_catalog_has_98_bots(catalog):
-    assert len(catalog.configs) == 98, (
-        f"Expected 98 bots, got {len(catalog.configs)}: "
+def test_catalog_has_103_bots(catalog):
+    assert len(catalog.configs) == 103, (
+        f"Expected 103 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
@@ -370,7 +370,11 @@ def test_all_base_position_20(catalog):
     """All bots use $20 base position EXCEPT the capital-concentration
     variants shipped 2026-05-23 which explicitly test that dimension."""
     EXEMPT = {"concentrated_50", "spray_10", "champ_sniper",
-              "champ_size_2x", "champ_size_4x", "champ_size_8x"}
+              "champ_size_2x", "champ_size_4x", "champ_size_8x",
+              # cap2k_* deliberately test the $2k live-sizing geometry
+              # (size x concurrent x turnover) — see 2026-05-27 $500/day plan.
+              "cap2k_scalp", "cap2k_turnover", "cap2k_runner",
+              "cap2k_concentrated", "cap2k_spread"}
     for c in catalog.configs:
         if c.bot_id in EXEMPT:
             continue
