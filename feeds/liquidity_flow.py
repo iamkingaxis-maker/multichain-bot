@@ -67,6 +67,7 @@ class LiquidityFlowTracker:
         self._window_secs = window_secs
         self._persist = persist
         self._last_save_ts: float = 0.0
+        self._sweeps_since: int = 0  # gate for the periodic stale-key sweep
         if persist:
             self._load_from_disk()
 
@@ -126,6 +127,17 @@ class LiquidityFlowTracker:
         cutoff = ts - self._window_secs
         while hist and hist[0][0] < cutoff:
             hist.popleft()
+        # Periodic stale-KEY sweep (2026-05-27 audit): pruning above only drops
+        # old entries within a key — a token never re-seen keeps its key + last
+        # entry forever (unbounded dict + on-disk JSON growth with the widened
+        # universe). Every ~500 records, drop keys whose newest entry is stale.
+        self._sweeps_since += 1
+        if self._sweeps_since >= 500:
+            self._sweeps_since = 0
+            dead = [k for k, h in self._history.items()
+                    if not h or h[-1][0] < cutoff]
+            for k in dead:
+                del self._history[k]
         # Debounced disk save — at most once per _SAVE_INTERVAL_SECS
         if self._persist and (ts - self._last_save_ts) >= self._SAVE_INTERVAL_SECS:
             self._save_to_disk()

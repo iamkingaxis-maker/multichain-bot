@@ -87,6 +87,12 @@ _STABLECOIN_SYMBOLS = {
 }
 
 
+class _JupSlipCached(Exception):
+    """Control-flow sentinel: skip the (cached) Jupiter slippage network block.
+    Lets us short-circuit the 8-call slippage sample on a fresh per-token cache
+    hit without re-indenting the whole block. 2026-05-27 audit (#11)."""
+
+
 class DipScanner:
     def __init__(self,
                  trader,
@@ -275,6 +281,11 @@ class DipScanner:
         # (see core/exit_price_guard.py). Keyed by token across all bots —
         # they all read the same external price each cycle. {token: {last_good, pending}}
         self._exit_price_guard: Dict[str, dict] = {}
+        # Per-token Jupiter slippage-sample cache (2026-05-27 audit #11): the slip
+        # curve costs 8+ Jupiter calls/token/cycle and was recomputed every 30s
+        # cycle. Cache the result ~90s so a token is sampled at most ~once/3 cycles.
+        self._jup_slip_cache: Dict[str, tuple] = {}
+        self._jup_slip_ttl: float = 90.0
         if bot_manager is not None and trade_store is not None:
             for ev in bot_manager.evaluators:
                 bc = ev.config
@@ -2080,7 +2091,13 @@ class DipScanner:
             # Six total calls vs original two — wrapped in single ClientSession,
             # all fail-open, all parallel via asyncio.gather.
             jup_features: dict = {}
+            _jc = self._jup_slip_cache.get(token_address)
+            _jup_fresh = bool(_jc and (time.time() - _jc[0]) < self._jup_slip_ttl)
+            if _jup_fresh:
+                jup_features = dict(_jc[1])
             try:
+                if _jup_fresh:
+                    raise _JupSlipCached  # reuse cached sample; skip the 8 network calls
                 import aiohttp as _aio
                 import asyncio as _asyncio
                 _SOL_MINT = "So11111111111111111111111111111111111111112"
@@ -2176,6 +2193,19 @@ class DipScanner:
                         jup_features["slip_buy_curve_steepness"] = round(s5k[0] - s500[0], 4)
                     if s500[1] is not None and s5k[1] is not None:
                         jup_features["slip_sell_curve_steepness"] = round(s5k[1] - s500[1], 4)
+                # Cache the freshly-sampled curve for ~_jup_slip_ttl (only on a real
+                # sample, not a cache hit). 2026-05-27 audit #11.
+                if jup_features:
+                    _nowj = time.time()
+                    self._jup_slip_cache[token_address] = (_nowj, dict(jup_features))
+                    # Bound the cache: evict stale entries when it grows large
+                    # (don't let it leak keys like sticky/h24 did).
+                    if len(self._jup_slip_cache) > 2000:
+                        for _k in [k for k, v in self._jup_slip_cache.items()
+                                   if _nowj - v[0] > self._jup_slip_ttl]:
+                            self._jup_slip_cache.pop(_k, None)
+            except _JupSlipCached:
+                pass  # used the cached jup_features above
             except Exception as _e:
                 logger.debug(f"[DipScanner] Jupiter asymmetry error: {_e}")
 
