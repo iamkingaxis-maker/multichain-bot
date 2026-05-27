@@ -28,7 +28,8 @@ from collections import Counter, defaultdict
 from statistics import median, stdev
 
 
-API_URL = "https://gracious-inspiration-production.up.railway.app/api/trades?full=1&limit={limit}"
+API_BASE = "https://gracious-inspiration-production.up.railway.app"
+API_URL = API_BASE + "/api/trades?full=1&limit={limit}"
 
 # Canonical cutoff — import from sp4_common so it can NEVER drift (it did: this was
 # pinned at 2026-05-23 while sp4_common bumped to 2026-05-25T21:25, so every pairwise
@@ -163,6 +164,25 @@ def fetch_ds_prices(addresses: list[str]) -> dict[str, float]:
         for addr, (price, _) in best_by_addr.items():
             out[addr] = price
     return out
+
+
+def fetch_open_positions(bot_id: str) -> list[dict]:
+    """Fetch a bot's REAL open-position book from the dashboard.
+
+    Hits /api/bots/{bot_id}/positions, which (post-2026-05-27 fix) reads the
+    persisted bot_state.open_positions book — the authoritative open set with
+    entry_price/address and amount_usd as EFFECTIVE exposure (size scaled by
+    remaining_fraction). Replaces the old open_buys() ledger inference, which
+    over-counted re-entered + restart-orphaned positions (13 inferred vs 3 real
+    for champ_size_8x) and inflated every --unrealized mark. Returns [] on error.
+    """
+    url = f"{API_BASE}/api/bots/{bot_id}/positions"
+    try:
+        with urllib.request.urlopen(url, timeout=30) as resp:
+            data = json.loads(resp.read())
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
 
 
 def unrealized_for_bot(open_positions: list[dict], price_by_addr: dict[str, float]) -> dict:
@@ -319,8 +339,15 @@ def main():
     # Unrealized view — pulls live DS prices for open positions
     u_a = u_b = None
     if args.unrealized:
-        open_a = open_buys(buys_a, sells_a)
-        open_b = open_buys(buys_b, sells_b)
+        # Prefer the REAL persisted book via the API (authoritative open set).
+        # open_buys() is a ledger inference that over-counts post-reconcile, so
+        # only use it in offline modes where the live endpoint isn't reachable.
+        if args.local or args.from_file:
+            open_a = open_buys(buys_a, sells_a)
+            open_b = open_buys(buys_b, sells_b)
+        else:
+            open_a = fetch_open_positions(args.bot_a)
+            open_b = fetch_open_positions(args.bot_b)
         addrs = [b.get("address", "") for b in open_a + open_b]
         print(f"Fetching DS prices for {len(set(addrs))} unique open-position tokens...")
         price_by_addr = fetch_ds_prices(addrs)

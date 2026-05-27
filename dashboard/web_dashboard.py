@@ -3591,10 +3591,51 @@ class WebDashboard:
         return web.json_response(trades[-limit:])
 
     async def _handle_api_bot_positions(self, request):
-        """GET /api/bots/{bot_id}/positions — per-bot open positions."""
+        """GET /api/bots/{bot_id}/positions — per-bot open positions.
+
+        Prefer the REAL persisted book (bot_state[bot_id].open_positions), which
+        the position-manager writes losslessly (entry_price/size_usd/address/
+        remaining_fraction/tp1_hit). The legacy buys-minus-sells ledger inference
+        below over-counts re-entered + restart-orphaned positions (it ran 3-4x
+        over the real book — 13 inferred vs 3 real for champ_size_8x on
+        2026-05-27) — kept only as a fallback for states written before the
+        position-persistence fix (no open_positions key). This mirrors the fix
+        already applied to /api/bots open_position_count; this endpoint was
+        missed in that pass, so every --unrealized mark over it was inflated.
+
+        amount_usd is emitted as the EFFECTIVE exposure (size_usd scaled by
+        remaining_fraction so post-TP1 positions aren't marked at full size),
+        matching the field the UI (p.amount_usd) and unrealized tooling read.
+        """
         bot_id = request.match_info["bot_id"]
         if self.trade_store is None:
             return web.json_response([])
+        state_path = self.trade_store.data_dir / "bot_state" / f"{bot_id}.json"
+        if state_path.exists():
+            try:
+                state = json.loads(state_path.read_text())
+                if "open_positions" in state:
+                    out = []
+                    for p in (state.get("open_positions") or []):
+                        sz = float(p.get("size_usd") or 0.0)
+                        rem = p.get("remaining_fraction")
+                        eff = sz * float(rem) if (rem is not None and rem > 0) else sz
+                        out.append({
+                            "token": p.get("token"),
+                            "address": p.get("address", ""),
+                            "pair_address": p.get("pair_address", ""),
+                            "entry_price": p.get("entry_price"),
+                            "size_usd": sz,
+                            "amount_usd": eff,
+                            "remaining_fraction": rem,
+                            "tp1_hit": p.get("tp1_hit"),
+                            "peak_pnl_pct": p.get("peak_pnl_pct"),
+                            "entry_time": p.get("entry_time"),
+                        })
+                    return web.json_response(out)
+            except Exception as e:
+                logger.warning("api/positions state read failed for %s: %s", bot_id, e)
+        # Fallback: legacy ledger inference (pre-persistence-fix states only)
         trades = self.trade_store.load_trades(bot_id=bot_id)
         buys_by_token = {}
         for t in trades:
