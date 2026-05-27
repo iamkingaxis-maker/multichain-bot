@@ -197,7 +197,14 @@ class DipScanner:
         self.last_sol_features: dict = {}
         self.last_sol_features_ts: float = 0.0
         self._sticky_watchlist: Dict[str, dict] = {}
-        self._sticky_ttl_secs = 12 * 3600
+        # Sticky-watchlist bounds (2026-05-27). The universe-coverage widening
+        # (commit 62a9781) blew the sticky set to ~7300 tokens at the old 12h
+        # TTL — ~81% of every scan cycle's fetched set (7395/cycle), causing slow
+        # cycles + egress. Bound it: shorter TTL + a hard size cap (keep the
+        # most-recently-seen). V-bottom re-entries recover within minutes-to-~1h,
+        # so a 2h window + few-hundred cap preserves the purpose. Env-tunable.
+        self._sticky_ttl_secs = int(os.environ.get("STICKY_TTL_SECS", str(2 * 3600)))
+        self._sticky_max = int(os.environ.get("STICKY_MAX_TOKENS", "400"))
         self._sticky_path = os.path.join(
             os.environ.get("DATA_DIR", "/data"), "sticky_watchlist.json"
         )
@@ -14028,13 +14035,22 @@ class DipScanner:
             logger.warning(f"[DipScanner] Could not save sticky_watchlist.json: {e}")
 
     def _prune_sticky(self) -> None:
-        """Drop sticky-watchlist entries older than TTL."""
+        """Drop sticky entries older than TTL, then cap to the N most-recently-seen.
+        The size cap is what actually bounds per-cycle scan cost + egress (TTL alone
+        let the set balloon to ~7300 after the universe widening)."""
         now = time.time()
         before = len(self._sticky_watchlist)
         self._sticky_watchlist = {
             addr: e for addr, e in self._sticky_watchlist.items()
             if now - float(e.get("last_seen_ts", 0)) <= self._sticky_ttl_secs
         }
+        if len(self._sticky_watchlist) > self._sticky_max:
+            kept = sorted(
+                self._sticky_watchlist.items(),
+                key=lambda kv: float(kv[1].get("last_seen_ts", 0)),
+                reverse=True,
+            )[: self._sticky_max]
+            self._sticky_watchlist = dict(kept)
         if before != len(self._sticky_watchlist):
             logger.info(f"[DipScanner] Sticky-watchlist pruned: {before} -> {len(self._sticky_watchlist)}")
 
