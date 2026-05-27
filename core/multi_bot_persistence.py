@@ -34,6 +34,7 @@ class MultiBotTradeStore:
         self._maybe_scrub_giga_phantom()
         self._maybe_scrub_eurc_phantom()
         self._maybe_cleanup_phantom_backups()
+        self._maybe_cleanup_cnn_dataset()
 
     def _maybe_scrub_giga_phantom(self) -> None:
         """One-shot reversal of the 2026-05-27 GIGA phantom-stop losses.
@@ -116,6 +117,31 @@ class MultiBotTradeStore:
             import logging
             logging.getLogger(__name__).error(
                 "Phantom-backup cleanup skipped (non-fatal error): %s", e
+            )
+
+    def _maybe_cleanup_cnn_dataset(self) -> None:
+        """One-shot removal of /data/cnn_dataset (~2.5GB of ChartCNN forward
+        training data) that pushed the Railway volume to 80% (2026-05-27). The
+        CNN is not gated on in live trading and the collector is now disabled by
+        default, so this data is dead weight. Sentinel-guarded; the enforced rug
+        filter loads its model from the in-repo models/ dir, not /data, so this
+        is trading-safe. Wrapped so a cleanup error can NEVER break the boot."""
+        try:
+            import sys
+            root = str(Path(__file__).resolve().parent.parent)  # repo root
+            if root not in sys.path:
+                sys.path.insert(0, root)
+            from scripts.cleanup_cnn_dataset import cleanup
+            res = cleanup(self.data_dir)
+            if "skipped" not in res and res.get("existed"):
+                import logging
+                logging.getLogger(__name__).warning(
+                    "CNN-dataset cleanup ran: removed %s", res.get("target"),
+                )
+        except Exception as e:  # never break boot on a housekeeping error
+            import logging
+            logging.getLogger(__name__).error(
+                "CNN-dataset cleanup skipped (non-fatal error): %s", e
             )
 
     def _maybe_split_legacy(self) -> None:

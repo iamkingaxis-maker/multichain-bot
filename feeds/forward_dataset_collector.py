@@ -25,6 +25,17 @@ _DEFAULT_ROOT = "/data/cnn_dataset/forward"
 _DISK_GUARD_FREE_PCT = 0.05  # require >=5% free
 _WARN_THROTTLE_S = 300.0
 
+# Master gate (2026-05-27). The forward dataset trains the ChartCNN, which is
+# NOT gated on in live trading (outcome_prob validated non-predictive: winners
+# 0.174 vs losers 0.170; "don't gate on CNN"). The collector wrote ~2.5GB of
+# .npy chart renders per candidate-per-cycle and filled the Railway volume to
+# 80%. Disabled by default — set ENABLE_FORWARD_DATASET=true only if/when you
+# actually intend to retrain the CNN. The enforced rug filter
+# (filter_cluster_19_rug) uses a SEPARATE in-repo model and is unaffected.
+FORWARD_DATASET_ENABLED = (
+    os.environ.get("ENABLE_FORWARD_DATASET", "false").lower() in ("true", "1", "yes")
+)
+
 
 def _safe_filename(s: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]", "-", s)
@@ -67,6 +78,8 @@ class ForwardDatasetCollector:
                       candles_15m: List[Candle],
                       context: Dict) -> bool:
         """Write a partial-label snapshot. Returns True on success."""
+        if not FORWARD_DATASET_ENABLED:
+            return False
         if not self._disk_has_space():
             return False
         try:
@@ -104,6 +117,8 @@ class ForwardDatasetCollector:
         meta-models train on — every buy carries 500+ features at decision
         time, paired with the chart image.
         """
+        if not FORWARD_DATASET_ENABLED:
+            return False
         if not self._disk_has_space():
             return False
         try:
@@ -141,6 +156,8 @@ class ForwardDatasetCollector:
                            outcome_pnl_pct: float,
                            realized_pnl_strategy: Optional[float] = None) -> bool:
         """Append outcome to a buy-snapshot JSON."""
+        if not FORWARD_DATASET_ENABLED:
+            return False
         try:
             date = ts_iso[:10]
             buy_dir = self.root_dir / "buys" / date
@@ -167,6 +184,8 @@ class ForwardDatasetCollector:
                        outcome_label: int,
                        outcome_pnl_pct: float) -> bool:
         """Find the matching partial label and append outcome fields."""
+        if not FORWARD_DATASET_ENABLED:
+            return False
         try:
             _, json_path = self._paths(token_address, ts_iso)
             if not json_path.exists():
