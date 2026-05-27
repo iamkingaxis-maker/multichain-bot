@@ -3467,6 +3467,30 @@ class WebDashboard:
         state_dir = self.trade_store.data_dir / "bot_state"
         if not state_dir.exists():
             return []
+        # Skip bots whose config is disabled so RETIRED bots leave the dashboard.
+        # Their bot_state files linger (recreated at boot), but a disabled config
+        # means the bot isn't trading and shouldn't be shown. Cached 60s; fail-OPEN
+        # (show all) if configs can't be read, so this never blanks the dashboard.
+        import time as _t, pathlib as _pl
+        if (not hasattr(self, "_enabled_ids_cache")
+                or _t.monotonic() - getattr(self, "_enabled_ids_cache_ts", 0.0) > 60):
+            _en = set()
+            try:
+                _cfg_dir = _pl.Path(__file__).resolve().parent.parent / "config" / "bots"
+                for _p in _cfg_dir.glob("*.json"):
+                    try:
+                        _d = json.loads(_p.read_text())
+                        if _d.get("enabled", True):
+                            _en.add(_d.get("bot_id") or _p.stem)
+                    except Exception:
+                        _en.add(_p.stem)  # unreadable single config -> show it
+                if not _en:
+                    _en = None  # empty -> fail-open
+            except Exception:
+                _en = None
+            self._enabled_ids_cache = _en
+            self._enabled_ids_cache_ts = _t.monotonic()
+        _enabled_ids = self._enabled_ids_cache
         all_trades = self.trade_store.load_trades()
         # Filter by trade time >= cutoff. Catches:
         #  - pre-cutoff buys (zombies + legacy single-bot trades)
@@ -3495,6 +3519,8 @@ class WebDashboard:
             try:
                 state = json.loads(path.read_text())
                 bot_id = state["bot_id"]
+                if _enabled_ids is not None and bot_id not in _enabled_ids:
+                    continue  # retired/disabled bot — keep it off the dashboard
                 trades = trades_by_bot.get(bot_id, [])
                 buys = [t for t in trades if t.get("type") == "buy"]
                 sells = [t for t in trades if t.get("type") == "sell"]
