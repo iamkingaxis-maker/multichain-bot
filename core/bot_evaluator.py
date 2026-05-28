@@ -27,6 +27,19 @@ _MARGINAL_FOR_SIZE = frozenset({                      # legacy 0.5x risk-gate ti
     "net_flow_5m_demand", "fresh_pump_retrace",
 })
 
+# Layered defender filters added 2026-05-28 (perf-diff mine).
+# Opt-in only: existing bots with filters_enforced=None do NOT enforce these.
+# Bots opt in by adding the filter name to their filters_enforced list.
+# See .perf_diff_drafts/SCHEMA_PROPOSAL.md for held-out validation results.
+DEFENDER_FILTERS = frozenset({
+    "filter_falling_pump",
+    "filter_fusion_floor",
+    "filter_btc_overheat",
+    "filter_aged_corpse",
+    "filter_wynn_killer",
+    "filter_consec_red",
+})
+
 
 @dataclass
 class BuyDecision:
@@ -194,7 +207,12 @@ class BotEvaluator:
         c = self.config
         if c.filters_enforced is None:
             disabled = set(c.filters_disabled)
-            return any(f not in disabled for f in b.filters_block)
+            # Defender filters are OPT-IN only — excluded from default enforcement.
+            # Existing bots with filters_enforced=None are unaffected by their addition.
+            return any(
+                f not in disabled and f not in DEFENDER_FILTERS
+                for f in b.filters_block
+            )
         enforced = set(c.filters_enforced)
         return any(f in enforced for f in b.filters_block)
 

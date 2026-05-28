@@ -4800,6 +4800,202 @@ class DipScanner:
                 )
                 _filters_block.append("filter_sol_macro_down")
 
+            # ── LAYERED DEFENDER FILTERS — ADDED 2026-05-28 (perf-diff mine) ──
+            # All 6 filters are OPT-IN via filters_enforced. The DEFENDER_FILTERS
+            # frozenset in core/bot_evaluator.py excludes them from default-null
+            # enforcement, so existing bots are unaffected.
+            #
+            # Validation: 1487 paired trades 27-28 window, held-out 4x stronger
+            # out-of-sample. Catches 94% of correlated-death cluster bleed.
+            # See .perf_diff_drafts/SHIP_PROPOSAL.md for full numbers.
+
+            # ── filter_falling_pump — DEFENDER 2026-05-28 ─────────────────────
+            # Extended-pump rolling over signature: pc_h6>=10 (token has run)
+            # AND pc_h1<=-5 (rolling down in last hour) AND age>24h (excludes
+            # PAYNE-style fresh launches that look similar but continue).
+            # Catches: RICH×2, ชั้ง×3, 1000x clusters.
+            # Forward: 133 blocks/1487, kept lift +$1.34/tr, only 10 big winners
+            # killed ($49). Held-out HOLDS positive on both 27 and 28.
+            _filter_falling_pump_block_reasons: list = []
+            try:
+                _fp_pc_h6 = c.get("pc_h6")
+                _fp_pc_h1 = c.get("pc_h1")
+                _fp_age = (_tier3_features or {}).get("hours_since_graduation")
+                if (_fp_pc_h6 is not None and _fp_pc_h1 is not None and _fp_age is not None
+                    and float(_fp_pc_h6) >= 10.0 and float(_fp_pc_h1) <= -5.0
+                    and float(_fp_age) > 24.0):
+                    _filter_falling_pump_block_reasons.append(
+                        f"pc_h6={float(_fp_pc_h6):+.1f}>=10 AND "
+                        f"pc_h1={float(_fp_pc_h1):+.1f}<=-5 AND "
+                        f"age={float(_fp_age):.0f}h>24 (extended pump rolling over)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] falling_pump calc err: {_e}")
+            _filter_falling_pump_verdict = "BLOCK" if _filter_falling_pump_block_reasons else "PASS"
+            c[f"filter_falling_pump_{_filter_falling_pump_verdict.lower()}"] = c.get(
+                f"filter_falling_pump_{_filter_falling_pump_verdict.lower()}", 0
+            ) + 1
+            if _filter_falling_pump_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_falling_pump: {token_symbol} "
+                    f"reasons={','.join(_filter_falling_pump_block_reasons)}"
+                )
+                _filters_block.append("filter_falling_pump")
+
+            # ── filter_fusion_floor — DEFENDER 2026-05-28 ─────────────────────
+            # ML meta-model disagreeing with entry. fusion_constrained_score_shadow
+            # is a per-trade score from the late-fusion meta-model trained
+            # 2026-05-25. Below 0.40 = model has high confidence trade fails.
+            # Catches: HARAMBE (fusion=0.09), Punch (0.01), https (0.26), FCM (0.39).
+            # Forward: 361 blocks/1487, kept lift +$0.89/tr, 20 big winners killed.
+            # Live validation 2026-05-28: caught 250 loss + 38-bot SYFR cluster.
+            _filter_fusion_floor_block_reasons: list = []
+            try:
+                _ff_fus = c.get("fusion_constrained_score_shadow") or c.get("fusion_constrained_score")
+                if _ff_fus is not None and float(_ff_fus) < 0.40:
+                    _filter_fusion_floor_block_reasons.append(
+                        f"fusion_score={float(_ff_fus):.3f}<0.40 (ML model disagrees with entry)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] fusion_floor calc err: {_e}")
+            _filter_fusion_floor_verdict = "BLOCK" if _filter_fusion_floor_block_reasons else "PASS"
+            c[f"filter_fusion_floor_{_filter_fusion_floor_verdict.lower()}"] = c.get(
+                f"filter_fusion_floor_{_filter_fusion_floor_verdict.lower()}", 0
+            ) + 1
+            if _filter_fusion_floor_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_fusion_floor: {token_symbol} "
+                    f"reasons={','.join(_filter_fusion_floor_block_reasons)}"
+                )
+                _filters_block.append("filter_fusion_floor")
+
+            # ── filter_btc_overheat — DEFENDER 2026-05-28 ─────────────────────
+            # Relief-rally trap: BTC pumped in last 4h means mean-reversion risk
+            # spikes. COUNTERINTUITIVE: blocking when BTC bleeds is BAD (those
+            # are continuation winners). Block when BTC ran up = top zone.
+            # Catches: 1000x (btc_h4=+0.92), FWC (+0.52).
+            # Forward: 145 blocks/1487, blocked mean -$4.84, only 5 big winners
+            # killed (cleanest single filter on winner-kill).
+            _filter_btc_overheat_block_reasons: list = []
+            try:
+                _bo_btc_h4 = c.get("btc_pc_h4")
+                if _bo_btc_h4 is not None and float(_bo_btc_h4) > 0.5:
+                    _filter_btc_overheat_block_reasons.append(
+                        f"btc_pc_h4={float(_bo_btc_h4):+.2f}%>+0.5 "
+                        f"(BTC overheated 4h — relief-rally trap)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] btc_overheat calc err: {_e}")
+            _filter_btc_overheat_verdict = "BLOCK" if _filter_btc_overheat_block_reasons else "PASS"
+            c[f"filter_btc_overheat_{_filter_btc_overheat_verdict.lower()}"] = c.get(
+                f"filter_btc_overheat_{_filter_btc_overheat_verdict.lower()}", 0
+            ) + 1
+            if _filter_btc_overheat_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_btc_overheat: {token_symbol} "
+                    f"reasons={','.join(_filter_btc_overheat_block_reasons)}"
+                )
+                _filters_block.append("filter_btc_overheat")
+
+            # ── filter_aged_corpse — DEFENDER 2026-05-28 ──────────────────────
+            # Dead-meme revival pattern: token is aged (>24h), pc_h24 is no
+            # longer launch-level (<50%), lifecycle has rolled to ranging/dead/
+            # post_pump_corpse, fusion disagrees, but bs_h6 is still showing buy
+            # pressure (lagging frame fooling the bot). 7-clause compound;
+            # multiple clauses required so fails-open on missing data.
+            # Catches: FCM 12-13/13, ชั้ง 10:25 33/45, Punch 56/58.
+            # Forward: 250 blocks/1487, kept lift +$1.66/tr held-out.
+            _filter_aged_corpse_block_reasons: list = []
+            try:
+                _ac_pc_h24 = c.get("pc_h24")
+                _ac_fus = c.get("fusion_constrained_score_shadow") or c.get("fusion_constrained_score")
+                _ac_bs_h6 = (_tier3_features or {}).get("bs_h6")
+                _ac_life = (_tier3_features or {}).get("lifecycle_stage")
+                _ac_cum3 = c.get("1m_cum_3min_pct")
+                _ac_age = (_tier3_features or {}).get("hours_since_graduation")
+                _ac_cnn = c.get("cnn_outcome_prob")
+                if (_ac_pc_h24 is not None and _ac_fus is not None and _ac_bs_h6 is not None
+                    and float(_ac_pc_h24) < 50.0
+                    and _ac_life in ("ranging", "dead", "post_pump_corpse")
+                    and float(_ac_fus) < 0.55
+                    and float(_ac_bs_h6) > 1.0
+                    and (_ac_cum3 is None or float(_ac_cum3) < 0)
+                    and (_ac_cnn is None or float(_ac_cnn) < 0.35)
+                    and (_ac_age is None or float(_ac_age) > 24.0)):
+                    _filter_aged_corpse_block_reasons.append(
+                        f"aged_corpse pc_h24={float(_ac_pc_h24):+.1f}<50 "
+                        f"lifecycle={_ac_life} fusion={float(_ac_fus):.2f} "
+                        f"bs_h6={float(_ac_bs_h6):.2f} (dead meme revival)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] aged_corpse calc err: {_e}")
+            _filter_aged_corpse_verdict = "BLOCK" if _filter_aged_corpse_block_reasons else "PASS"
+            c[f"filter_aged_corpse_{_filter_aged_corpse_verdict.lower()}"] = c.get(
+                f"filter_aged_corpse_{_filter_aged_corpse_verdict.lower()}", 0
+            ) + 1
+            if _filter_aged_corpse_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_aged_corpse: {token_symbol} "
+                    f"reasons={','.join(_filter_aged_corpse_block_reasons)}"
+                )
+                _filters_block.append("filter_aged_corpse")
+
+            # ── filter_wynn_killer — DEFENDER 2026-05-28 ──────────────────────
+            # Pumped + CNN says no chance. CNN<0.05 is extreme — the chart CNN
+            # model is very confident the token has no upside. On a pumped token
+            # (pc_h24>20%) this is a "top zone, no continuation" signature.
+            # Catches: WYNN 18:45 cluster (40 bots, -$174).
+            # Forward: 57 blocks/1487, mean blocked -$3.05, 6 big winners killed.
+            _filter_wynn_killer_block_reasons: list = []
+            try:
+                _wk_pc_h24 = c.get("pc_h24")
+                _wk_cnn = c.get("cnn_outcome_prob")
+                if (_wk_pc_h24 is not None and _wk_cnn is not None
+                    and float(_wk_pc_h24) > 20.0 and float(_wk_cnn) < 0.05):
+                    _filter_wynn_killer_block_reasons.append(
+                        f"pc_h24={float(_wk_pc_h24):+.1f}>20 AND "
+                        f"cnn={float(_wk_cnn):.3f}<0.05 (CNN says no upside)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] wynn_killer calc err: {_e}")
+            _filter_wynn_killer_verdict = "BLOCK" if _filter_wynn_killer_block_reasons else "PASS"
+            c[f"filter_wynn_killer_{_filter_wynn_killer_verdict.lower()}"] = c.get(
+                f"filter_wynn_killer_{_filter_wynn_killer_verdict.lower()}", 0
+            ) + 1
+            if _filter_wynn_killer_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_wynn_killer: {token_symbol} "
+                    f"reasons={','.join(_filter_wynn_killer_block_reasons)}"
+                )
+                _filters_block.append("filter_wynn_killer")
+
+            # ── filter_consec_red — DEFENDER 2026-05-28 ──────────────────────
+            # 1m_consec_red d=+1.21 was strongest single feature in token
+            # forensics. At threshold >=3: 51 blocks/1487, ZERO winners killed
+            # in winner-kill audit. Pure loser-catcher.
+            # Token has 3+ consecutive red 1m candles into entry = dying
+            # momentum, not a buyable dip.
+            _filter_consec_red_block_reasons: list = []
+            try:
+                _cr_count = c.get("1m_consec_red")
+                if _cr_count is not None and float(_cr_count) >= 3:
+                    _filter_consec_red_block_reasons.append(
+                        f"1m_consec_red={int(float(_cr_count))}>=3 "
+                        f"(token bleeding 1m frame at entry)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] consec_red calc err: {_e}")
+            _filter_consec_red_verdict = "BLOCK" if _filter_consec_red_block_reasons else "PASS"
+            c[f"filter_consec_red_{_filter_consec_red_verdict.lower()}"] = c.get(
+                f"filter_consec_red_{_filter_consec_red_verdict.lower()}", 0
+            ) + 1
+            if _filter_consec_red_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_consec_red: {token_symbol} "
+                    f"reasons={','.join(_filter_consec_red_block_reasons)}"
+                )
+                _filters_block.append("filter_consec_red")
+
             # ── filter_clean_break — ENFORCED 2026-05-06 ──────────────────────
             # User-spotted pattern from GME/SELLOR postmortems: visually clean
             # "downtrend break" reversals on 1m — lower-lows breaking with the
@@ -9363,8 +9559,13 @@ class DipScanner:
             if _trigger_channel_pos_swing_match:
                 _triggers_fired.append("channel_pos_swing")
             # R3 (2026-05-17) round-3 mining triggers.
-            if _trigger_channel_hvn_match:
-                _triggers_fired.append("channel_hvn")
+            # channel_hvn RETIRED 2026-05-28: only high-volume trigger losing
+            # money both inside clusters (-$3.87/tr) and outside (-$0.75/tr).
+            # 207 fires at -$2.04/tr mean, 30% WR. 55.7% precision against
+            # death clusters. Fleet lift +$0.18/tr from retire.
+            # Match flag still computed for entry_meta auditing; just not appended.
+            # if _trigger_channel_hvn_match:
+            #     _triggers_fired.append("channel_hvn")
             if _trigger_shape_wick_match:
                 _triggers_fired.append("shape_wick")
             if _trigger_cnn_lp_match:
@@ -13537,6 +13738,20 @@ class DipScanner:
                 "filter_big_trade_size_block_reasons": _filter_big_trade_size_block_reasons,
                 "filter_stale_watch_verdict": _filter_stale_watch_verdict,
                 "filter_stale_watch_block_reasons": _filter_stale_watch_block_reasons,
+                # Layered defender (6 filters) — added 2026-05-28 perf-diff mine.
+                # Opt-in via filters_enforced; see DEFENDER_FILTERS in bot_evaluator.py.
+                "filter_falling_pump_verdict": _filter_falling_pump_verdict,
+                "filter_falling_pump_block_reasons": _filter_falling_pump_block_reasons,
+                "filter_fusion_floor_verdict": _filter_fusion_floor_verdict,
+                "filter_fusion_floor_block_reasons": _filter_fusion_floor_block_reasons,
+                "filter_btc_overheat_verdict": _filter_btc_overheat_verdict,
+                "filter_btc_overheat_block_reasons": _filter_btc_overheat_block_reasons,
+                "filter_aged_corpse_verdict": _filter_aged_corpse_verdict,
+                "filter_aged_corpse_block_reasons": _filter_aged_corpse_block_reasons,
+                "filter_wynn_killer_verdict": _filter_wynn_killer_verdict,
+                "filter_wynn_killer_block_reasons": _filter_wynn_killer_block_reasons,
+                "filter_consec_red_verdict": _filter_consec_red_verdict,
+                "filter_consec_red_block_reasons": _filter_consec_red_block_reasons,
                 # Axiom active-users signal (Task 1 from axiom-full-utilization plan).
                 # Captures user_cache value + spike flag at signal-fire time.
                 # Spike = current count >= 3x rolling 4-sample baseline.

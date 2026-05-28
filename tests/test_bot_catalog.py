@@ -21,14 +21,42 @@ def _by_id(catalog):
     return {c.bot_id: c for c in catalog.configs}
 
 
-def test_catalog_has_116_bots(catalog):
+def test_catalog_has_120_bots(catalog):
     # 2026-05-27: +3 eq_*_pullback + 4 eqc_pullback_* compound-gate test bots;
     # 14 dead/dup bots disabled (still on disk, so file count holds).
     # 2026-05-28: +1 mom_continuation_v1_test (overnight E1' mine ship).
-    assert len(catalog.configs) == 116, (
-        f"Expected 116 bots, got {len(catalog.configs)}: "
+    # 2026-05-28 PM: +4 layered defender bots (perf-diff mine):
+    #   champion_defender_falling_pump (G1 single-feature test)
+    #   champion_defender_fusion (fusion floor single-feature test)
+    #   champion_defender_btc (BTC overheat single-feature test)
+    #   champion_defender_v3 (full 6-filter layered, production-successor candidate)
+    assert len(catalog.configs) == 120, (
+        f"Expected 120 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
+
+
+def test_layered_defender_bots_present(catalog):
+    """2026-05-28 PM perf-diff mine: 4 defender bots opt in via filters_enforced
+    to the new DEFENDER_FILTERS set in core/bot_evaluator.py.
+    Held-out 4x lift out-of-sample on 1487 paired trades from 27-28 window."""
+    by_id = _by_id(catalog)
+    for bid in ["champion_defender_falling_pump", "champion_defender_fusion",
+                "champion_defender_btc", "champion_defender_v3"]:
+        assert bid in by_id, f"Missing defender bot: {bid}"
+
+    # Single-feature test bots each opt in to exactly one defender filter
+    assert by_id["champion_defender_falling_pump"].filters_enforced == ("filter_falling_pump",)
+    assert by_id["champion_defender_fusion"].filters_enforced == ("filter_fusion_floor",)
+    assert by_id["champion_defender_btc"].filters_enforced == ("filter_btc_overheat",)
+
+    # v3 opts in to all 6 defender filters
+    v3 = by_id["champion_defender_v3"]
+    assert v3.filters_enforced is not None
+    assert set(v3.filters_enforced) == {
+        "filter_falling_pump", "filter_fusion_floor", "filter_btc_overheat",
+        "filter_aged_corpse", "filter_wynn_killer", "filter_consec_red",
+    }
 
 
 def test_volume_experiment_bots_present(catalog):

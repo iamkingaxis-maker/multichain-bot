@@ -1242,6 +1242,62 @@ COMBOS = {
         or (c.get('sol_pc_m5') is not None and c['sol_pc_m5'] < -1.0)
     ),
 
+    # ── LAYERED DEFENDER FILTERS — 2026-05-28 perf-diff mine ──────────────
+    # All 6 filters are SHADOW in scanner (always stamp) + opt-in via per-bot
+    # filters_enforced (DEFENDER_FILTERS set in core/bot_evaluator.py).
+    # Held-out 4x lift out-of-sample on 1487 paired trades.
+
+    # FILTER — filter_falling_pump
+    # BLOCK if pc_h6>=10 AND pc_h1<=-5 AND age>24h (extended pump rolling over).
+    # Age gate excludes PAYNE-style fresh launches.
+    'FILT_falling_pump_BLOCK': lambda c: (
+        c.get('pc_h6') is not None and c.get('pc_h1') is not None
+        and c.get('hours_since_graduation') is not None
+        and c['pc_h6'] >= 10.0 and c['pc_h1'] <= -5.0
+        and c['hours_since_graduation'] > 24.0
+    ),
+
+    # FILTER — filter_fusion_floor
+    # BLOCK if fusion meta-model score < 0.40 (ML disagrees with entry).
+    'FILT_fusion_floor_BLOCK': lambda c: (
+        c.get('fusion_constrained_score_shadow') is not None
+        and c['fusion_constrained_score_shadow'] < 0.40
+    ),
+
+    # FILTER — filter_btc_overheat
+    # BLOCK if btc_pc_h4 > +0.5 (relief-rally trap; BTC just pumped 4h).
+    'FILT_btc_overheat_BLOCK': lambda c: (
+        c.get('btc_pc_h4') is not None and c['btc_pc_h4'] > 0.5
+    ),
+
+    # FILTER — filter_aged_corpse
+    # 7-clause compound: aged + ranging/dead + ML/CNN disagree + bs_h6 still positive
+    # (lagging frame fooling bot into a dead-meme revival).
+    'FILT_aged_corpse_BLOCK': lambda c: (
+        c.get('pc_h24') is not None and c['pc_h24'] < 50.0
+        and c.get('lifecycle_stage') in ('ranging', 'dead', 'post_pump_corpse')
+        and c.get('fusion_constrained_score_shadow') is not None
+        and c['fusion_constrained_score_shadow'] < 0.55
+        and c.get('bs_h6') is not None and c['bs_h6'] > 1.0
+        and (c.get('1m_cum_3min_pct') is None or c['1m_cum_3min_pct'] < 0)
+        and (c.get('cnn_outcome_prob') is None or c['cnn_outcome_prob'] < 0.35)
+        and (c.get('hours_since_graduation') is None or c['hours_since_graduation'] > 24.0)
+    ),
+
+    # FILTER — filter_wynn_killer
+    # BLOCK if pumped (pc_h24>20) AND CNN extremely low (<0.05).
+    'FILT_wynn_killer_BLOCK': lambda c: (
+        c.get('pc_h24') is not None and c.get('cnn_outcome_prob') is not None
+        and c['pc_h24'] > 20.0 and c['cnn_outcome_prob'] < 0.05
+    ),
+
+    # FILTER — filter_consec_red
+    # BLOCK if token has 3+ consecutive red 1m candles (dying momentum).
+    # ZERO winners killed in winner-kill audit at threshold=3.
+    'FILT_consec_red_BLOCK': lambda c: (
+        c.get('1m_consec_red') is not None and c['1m_consec_red'] >= 3
+    ),
+
     # Trigger 1 — vol_breakout_flat (d64a37b)
     'NEW_vol_breakout_flat': lambda c: (
         c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 2.0
