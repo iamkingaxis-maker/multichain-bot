@@ -1232,10 +1232,14 @@ COMBOS = {
     #   chart_score, sol_pc_h4, btc_pc_h1, btc_pc_h4, bs_h1, p90_buy_size_usd,
     #   slip_buy_5000_pct, 1s_bottom_score, cnn_cluster_id, mtf_textbook_pullback
 
-    # FILTER — filter_sol_macro_down (9fe8366): BLOCK if SOL bleeding
+    # FILTER — filter_sol_macro_down (9fe8366 + 2026-05-28 m5 brake)
+    # BLOCK if SOL bleeding: h6<-0.3 OR h1<-0.7 OR m5<-1.0
+    # m5 leg added 2026-05-28 (overnight crash-protection) for flash crashes
+    # that h1/h6 wouldn't catch for 20-40min.
     'FILT_sol_macro_down_BLOCK': lambda c: (
-        ((c.get('sol_pc_h6') is not None and c['sol_pc_h6'] < -0.3)
-         or (c.get('sol_pc_h1') is not None and c['sol_pc_h1'] < -0.7))
+        (c.get('sol_pc_h6') is not None and c['sol_pc_h6'] < -0.3)
+        or (c.get('sol_pc_h1') is not None and c['sol_pc_h1'] < -0.7)
+        or (c.get('sol_pc_m5') is not None and c['sol_pc_m5'] < -1.0)
     ),
 
     # Trigger 1 — vol_breakout_flat (d64a37b)

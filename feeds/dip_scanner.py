@@ -4748,6 +4748,7 @@ class DipScanner:
             # trades during outages.
             _sol_pc_h6 = sol_features.get("sol_pc_h6")
             _sol_pc_h1_for_gate = sol_features.get("sol_pc_h1")
+            _sol_pc_m5_for_gate = sol_features.get("sol_pc_m5")
             _filter_sol_macro_down_block_reasons: list = []
             if _sol_pc_h6 is not None and float(_sol_pc_h6) < -0.3:
                 _filter_sol_macro_down_block_reasons.append(
@@ -4756,6 +4757,18 @@ class DipScanner:
             if _sol_pc_h1_for_gate is not None and float(_sol_pc_h1_for_gate) < -0.7:
                 _filter_sol_macro_down_block_reasons.append(
                     f"sol_pc_h1={float(_sol_pc_h1_for_gate):+.2f}%<-0.7 (SOL 1h dump)"
+                )
+            # Fast-crash m5 leg — ADDED 2026-05-28 (overnight crash-protection
+            # session). Catches flash crashes that h1/h6 would not see for
+            # 20-40min (h1 is a 1-hour moving window; a -1.5% flash dump in
+            # 5 minutes only moves h1 by ~0.25pp). Threshold -1.0% chosen
+            # for tightness in current brutal market regime — represents a
+            # 2-3 sigma SOL move at typical 5-min realized vol of 0.3-0.5%.
+            # Fail-OPEN if sol_pc_m5 missing (consistent with h1/h6 legs).
+            # Tunable via the SOL_PC_M5_BRAKE_THRESHOLD env var (TODO: wire).
+            if _sol_pc_m5_for_gate is not None and float(_sol_pc_m5_for_gate) < -1.0:
+                _filter_sol_macro_down_block_reasons.append(
+                    f"sol_pc_m5={float(_sol_pc_m5_for_gate):+.2f}%<-1.0 (SOL flash crash 5m)"
                 )
             # Fail-CLOSED when blind: if NEITHER feed (GeckoTerminal nor the
             # Kraken fallback) produced h1/h6 and we've had SOL data before,
