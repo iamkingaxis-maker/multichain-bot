@@ -21,11 +21,12 @@ def _by_id(catalog):
     return {c.bot_id: c for c in catalog.configs}
 
 
-def test_catalog_has_115_bots(catalog):
+def test_catalog_has_116_bots(catalog):
     # 2026-05-27: +3 eq_*_pullback + 4 eqc_pullback_* compound-gate test bots;
     # 14 dead/dup bots disabled (still on disk, so file count holds).
-    assert len(catalog.configs) == 115, (
-        f"Expected 115 bots, got {len(catalog.configs)}: "
+    # 2026-05-28: +1 mom_continuation_v1_test (overnight E1' mine ship).
+    assert len(catalog.configs) == 116, (
+        f"Expected 116 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 

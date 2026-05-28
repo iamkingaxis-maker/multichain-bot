@@ -3030,6 +3030,157 @@ class DipScanner:
                     f"reasons={','.join(_filter_1m_dead_vol_block_reasons)} -- shadow only"
                 )
 
+            # Filter dead-vol with CNN carve-out — ENFORCED 2026-05-28.
+            # Tightens filter_1m_dead_vol to the extreme tail (vol_spike<=0.115)
+            # with an explicit CNN-positive carve-out. Mining (overnight
+            # 2026-05-28 run): the <=0.115 stale-data band is per_token_mean
+            # -3.95% on 24 tokens, all 3 token-folds negative; winner-kill
+            # audit zero on every protected cohort (E1'/cnn-shadow/big-
+            # winners) after the "EXCEPT cnn_outcome_prob>=0.265" carve-out.
+            # Mechanism: when 1m volume is nearly dead AND the CNN model
+            # does NOT see a recovery setup, the entry is stale data + no
+            # signal = pass. The CNN carve-out preserves the post-dip
+            # recovery archetype (cnn-shadow cohort, n=14, +3.02% per-tok).
+            # Fail-open if 1m_volume_spike feature missing. Fail-open on
+            # cnn_outcome_prob missing too — defaults to "no carveout",
+            # block stays active. Note: separate from filter_1m_dead_vol
+            # (threshold 0.20, shadow only) — this enforces only the
+            # extreme tail and explicitly carves cnn.
+            _ddvol_vs = m1_features.get("1m_volume_spike")
+            _ddvol_cnn = (
+                entry_meta_local.get("cnn_outcome_prob")
+                if "entry_meta_local" in dir()
+                else None
+            )
+            # cnn_outcome_prob is typically populated later; pull from the
+            # canonical signal_meta path used elsewhere in the scanner.
+            try:
+                _ddvol_cnn = (cnn_score if "cnn_score" in dir() else None)
+            except Exception:
+                _ddvol_cnn = None
+            _filter_dead_vol_with_cnn_carveout_block_reasons: list = []
+            if (
+                _ddvol_vs is not None
+                and _ddvol_vs <= 0.115
+                and not (
+                    isinstance(_ddvol_cnn, (int, float))
+                    and not isinstance(_ddvol_cnn, bool)
+                    and _ddvol_cnn >= 0.265
+                )
+            ):
+                _filter_dead_vol_with_cnn_carveout_block_reasons.append(
+                    f"1m_vol_spike={_ddvol_vs:.3f}<=0.115 AND cnn_outcome_prob"
+                    f"={_ddvol_cnn!r} < 0.265 (dead-vol AND no cnn rescue)"
+                )
+            _filter_dead_vol_with_cnn_carveout_verdict = (
+                "BLOCK"
+                if _filter_dead_vol_with_cnn_carveout_block_reasons
+                else "PASS"
+            )
+            c[f"filter_dead_vol_with_cnn_carveout_{_filter_dead_vol_with_cnn_carveout_verdict.lower()}"] = (
+                c.get(
+                    f"filter_dead_vol_with_cnn_carveout_{_filter_dead_vol_with_cnn_carveout_verdict.lower()}",
+                    0,
+                )
+                + 1
+            )
+            if _filter_dead_vol_with_cnn_carveout_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_dead_vol_with_cnn_carveout: "
+                    f"{token_symbol} reasons={','.join(_filter_dead_vol_with_cnn_carveout_block_reasons)}"
+                )
+                _filters_block.append("filter_dead_vol_with_cnn_carveout")
+
+            # Filter REVERSAL_DOWN carved — SHADOW 2026-05-28 (n=10, not
+            # enforceable yet but signal is the cleanest block-direction
+            # of the night). Block when chart_structure_1h_verdict=
+            # REVERSAL_DOWN UNLESS one of four rescue conditions holds:
+            #   (a) momentum-continuation archetype (pc_h1>=15 AND bs_h1>=1.7)
+            #   (b) fresh micro-recovery (1m_cum_3min_pct>=0)
+            #   (c) cascade-bottom microstructure (1s_structural_stop_pct>=1.92)
+            #   (d) CNN-positive setup (cnn_outcome_prob>=0.265)
+            # Mining: full carve-out cohort per_token_mean -5.91% on 10
+            # tokens, all folds negative; n<15 keeps this in SHADOW
+            # status. Promote when n_uniq passes 15 forward.
+            _rd_verdict_src = chart_features.get(
+                "chart_structure_1h_verdict"
+            ) if "chart_features" in dir() else None
+            _rd_pc_h1 = pc_h1 if "pc_h1" in dir() else None
+            _rd_bs_h1 = (
+                tier3_features.get("bs_h1") if "tier3_features" in dir() else None
+            )
+            try:
+                _rd_bs_h1 = bs_h1 if _rd_bs_h1 is None else _rd_bs_h1
+            except Exception:
+                pass
+            _rd_1m_cum_3min = m1_features.get("1m_cum_3min_pct")
+            _rd_1s_struct = (
+                ones_features.get("1s_structural_stop_pct")
+                if "ones_features" in dir()
+                else None
+            )
+            try:
+                _rd_cnn = cnn_score if "cnn_score" in dir() else None
+            except Exception:
+                _rd_cnn = None
+            _filter_reversal_down_carved_block_reasons: list = []
+            if (
+                isinstance(_rd_verdict_src, str)
+                and _rd_verdict_src.upper() == "REVERSAL_DOWN"
+            ):
+                _rd_rescued = False
+                _rd_rescue_reason = ""
+                if (
+                    isinstance(_rd_pc_h1, (int, float))
+                    and isinstance(_rd_bs_h1, (int, float))
+                    and _rd_pc_h1 >= 15
+                    and _rd_bs_h1 >= 1.7
+                ):
+                    _rd_rescued = True
+                    _rd_rescue_reason = "E1'-momentum"
+                elif isinstance(_rd_1m_cum_3min, (int, float)) and _rd_1m_cum_3min >= 0:
+                    _rd_rescued = True
+                    _rd_rescue_reason = "1m_cum_3min>=0"
+                elif (
+                    isinstance(_rd_1s_struct, (int, float)) and _rd_1s_struct >= 1.92
+                ):
+                    _rd_rescued = True
+                    _rd_rescue_reason = "1s_structural_stop>=1.92"
+                elif (
+                    isinstance(_rd_cnn, (int, float))
+                    and not isinstance(_rd_cnn, bool)
+                    and _rd_cnn >= 0.265
+                ):
+                    _rd_rescued = True
+                    _rd_rescue_reason = "cnn>=0.265"
+                if not _rd_rescued:
+                    _filter_reversal_down_carved_block_reasons.append(
+                        "chart_structure_1h_verdict=REVERSAL_DOWN (no carve-out rescue)"
+                    )
+                else:
+                    logger.info(
+                        f"[DipScanner] filter_reversal_down_carved RESCUED: "
+                        f"{token_symbol} rescue={_rd_rescue_reason}"
+                    )
+            _filter_reversal_down_carved_verdict = (
+                "BLOCK"
+                if _filter_reversal_down_carved_block_reasons
+                else "PASS"
+            )
+            c[f"filter_reversal_down_carved_{_filter_reversal_down_carved_verdict.lower()}"] = (
+                c.get(
+                    f"filter_reversal_down_carved_{_filter_reversal_down_carved_verdict.lower()}",
+                    0,
+                )
+                + 1
+            )
+            if _filter_reversal_down_carved_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_reversal_down_carved SHADOW would-block: "
+                    f"{token_symbol} reasons={','.join(_filter_reversal_down_carved_block_reasons)}"
+                )
+                # SHADOW — do NOT append to _filters_block.
+
             # Filter 1m steep-fall — PROMOTED TO ENFORCED 2026-05-20.
             # Block entries with 1m_cum_3min_pct < -1.5% (mid-fall knife-catch).
             # Lifetime backfill (n=135, May 12-19) — clean separator:
@@ -12807,6 +12958,19 @@ class DipScanner:
                 # -1.0%). Lifetime backfill projected +$12.26 NET on n=135.
                 "filter_1m_steep_fall_verdict": _filter_1m_steep_fall_verdict,
                 "filter_1m_steep_fall_block_reasons": _filter_1m_steep_fall_block_reasons,
+                # filter_dead_vol_with_cnn_carveout — ENFORCED 2026-05-28.
+                # 1m_vol_spike<=0.115 with cnn>=0.265 carve-out.
+                "filter_dead_vol_with_cnn_carveout_verdict":
+                    _filter_dead_vol_with_cnn_carveout_verdict,
+                "filter_dead_vol_with_cnn_carveout_block_reasons":
+                    _filter_dead_vol_with_cnn_carveout_block_reasons,
+                # filter_reversal_down_carved — SHADOW 2026-05-28.
+                # chart_structure_1h_verdict=REVERSAL_DOWN with 4-clause carve-out
+                # (momentum / 1m_cum_3min / 1s_structural_stop / cnn).
+                "filter_reversal_down_carved_verdict":
+                    _filter_reversal_down_carved_verdict,
+                "filter_reversal_down_carved_block_reasons":
+                    _filter_reversal_down_carved_block_reasons,
                 # filter_1m_dead_vol — SHADOW 2026-05-19. 1m_vol_spike < 0.20
                 # gate. Lifetime backfill projected +$34.10 NET on n=137.
                 "filter_1m_dead_vol_verdict": _filter_1m_dead_vol_verdict,

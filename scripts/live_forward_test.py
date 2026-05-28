@@ -719,6 +719,22 @@ COMBOS = {
             and c['sells_per_min_recent'] < 20
         )
     ),
+    # filter_dead_vol_with_cnn_carveout — ENFORCED 2026-05-28 (overnight mine).
+    # Block when 1m_vol_spike <= 0.115 AND NOT (cnn_outcome_prob >= 0.265).
+    # Pass if NOT (block condition).
+    'VV2_pass_dead_vol_with_cnn_carved': lambda c: not (
+        c.get('1m_volume_spike') is not None
+        and c['1m_volume_spike'] <= 0.115
+        and not (
+            c.get('cnn_outcome_prob') is not None
+            and c['cnn_outcome_prob'] >= 0.265
+        )
+    ),
+    # filter_reversal_down_carved — SHADOW 2026-05-28 (n=10, not enforceable).
+    # NOT in the enforcement chain — phantom-parity only. Bot keeps trading
+    # these; we instrument the would-block decision for forward observation.
+    # Recorded but not gated; phantom would PASS regardless.
+    'VV3_shadow_reversal_down_carved': lambda c: True,
     # filter_top10_holder_band — ENFORCED 2026-05-14 PM (Commit A).
     # Block top10_holder_pct ∈ [70, 80) UNLESS liq_velocity_h1>=115.
     'XX_pass_top10_holder_band': lambda c: not (
