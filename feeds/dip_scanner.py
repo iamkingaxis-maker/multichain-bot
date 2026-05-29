@@ -5251,6 +5251,38 @@ class DipScanner:
                 )
                 _filters_block.append("filter_dead_volume")
 
+            # ── filter_huge_wick — DEFENDER 2026-05-29 ────────────────────────
+            # 5m candles whose wick is 10x+ the body = manipulated/illiquid spike
+            # or stop-hunt → structurally a corpse in ANY regime. This is the one
+            # entry separator that survived the MULTI-WEEK re-mine when the 3-day
+            # window's favorites (vol_accel, range/VWAP/bb position) collapsed
+            # out-of-sample — wick geometry is regime-stable, range position is not.
+            #
+            # Held-out (05-16..24 train / 05-27..29 test, defended cohort):
+            #   train +$561 (33 corpses, $93 kill); test +$177 (19 corpses, $11
+            #   kill = 17:1). Coverage 76%; fail-OPEN when wick feature absent.
+            # Reads _tier3_features (available here — same dict as dead_low_demand).
+            _filter_huge_wick_block_reasons: list = []
+            try:
+                _hw_wb = (_tier3_features or {}).get("wick_body_5m_avg")
+                if _hw_wb is not None and float(_hw_wb) > 10.0:
+                    _filter_huge_wick_block_reasons.append(
+                        f"wick_body_5m_avg={float(_hw_wb):.1f}>10 "
+                        f"(manipulated/illiquid wick — corpse signature)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] huge_wick calc err: {_e}")
+            _filter_huge_wick_verdict = "BLOCK" if _filter_huge_wick_block_reasons else "PASS"
+            c[f"filter_huge_wick_{_filter_huge_wick_verdict.lower()}"] = c.get(
+                f"filter_huge_wick_{_filter_huge_wick_verdict.lower()}", 0
+            ) + 1
+            if _filter_huge_wick_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_huge_wick: {token_symbol} "
+                    f"reasons={','.join(_filter_huge_wick_block_reasons)}"
+                )
+                _filters_block.append("filter_huge_wick")
+
             # ── filter_clean_break — ENFORCED 2026-05-06 ──────────────────────
             # User-spotted pattern from GME/SELLOR postmortems: visually clean
             # "downtrend break" reversals on 1m — lower-lows breaking with the
@@ -14050,6 +14082,9 @@ class DipScanner:
                 # filter_dead_volume — added 2026-05-29 (entry-quality, defender-scoped)
                 "filter_dead_volume_verdict": _filter_dead_volume_verdict,
                 "filter_dead_volume_block_reasons": _filter_dead_volume_block_reasons,
+                # filter_huge_wick — added 2026-05-29 (multi-week-robust entry filter)
+                "filter_huge_wick_verdict": _filter_huge_wick_verdict,
+                "filter_huge_wick_block_reasons": _filter_huge_wick_block_reasons,
                 # filter_below_vwap — SHADOW (entry-quality, 2026-05-29). Would-block
                 # entries at/above the 1h VWAP (extended buys). Held-out net-positive
                 # both windows but kills ~13 winners/day → SHADOW first; judge forward

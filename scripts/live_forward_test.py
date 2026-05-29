@@ -1336,6 +1336,13 @@ COMBOS = {
         and c['pct_above_vwap_1h'] > 0
     ),
 
+    # FILTER — filter_huge_wick (added 2026-05-29, multi-week-robust, ENFORCED on defenders).
+    # 5m wick 10x+ body = manipulated/illiquid spike. Held-out test +$177, $11 kill.
+    'FILT_huge_wick_BLOCK': lambda c: (
+        c.get('wick_body_5m_avg') is not None
+        and c['wick_body_5m_avg'] > 10.0
+    ),
+
     # Trigger 1 — vol_breakout_flat (d64a37b)
     'NEW_vol_breakout_flat': lambda c: (
         c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 2.0

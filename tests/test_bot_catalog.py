@@ -74,7 +74,7 @@ def test_layered_defender_bots_present(catalog):
         "filter_falling_pump", "filter_fusion_floor", "filter_btc_overheat",
         "filter_aged_corpse", "filter_wynn_killer", "filter_consec_red",
         "filter_dead_meme_lagging_pressure", "filter_dead_low_demand",
-        "filter_dead_volume",
+        "filter_dead_volume", "filter_huge_wick",
     }
 
     # champion_defender_v4: v3's exact filter set, but NO stall_exit (WR-preserving A/B)
