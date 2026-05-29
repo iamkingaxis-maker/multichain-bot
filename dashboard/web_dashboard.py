@@ -759,6 +759,32 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   <a href="#attribution" id="attribution-tab-link" style="color:#4caf50;font-size:12px;letter-spacing:1px;">&#9654; Open ATTRIBUTION tab</a>
 </p>
 
+<!-- ── PROFIT-SWEEP SIM Tab (shadow; visible only when URL hash = #profitsweep) ── -->
+<div class="main" id="profitsweep-tab" style="display:none;">
+  <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem;">
+    <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:0;">PROFIT-SWEEP SIM (shadow — nothing is moved)</h2>
+    <a href="#" onclick="history.pushState('','',location.pathname);document.getElementById('profitsweep-tab').style.display='none';return false;"
+       style="font-size:11px;color:var(--muted);text-decoration:none;">&larr; close</a>
+  </div>
+  <p style="font-size:11px;color:var(--muted);margin:0 0 0.6rem;">
+    Simulated profit banked to the cold wallet by replaying each bot's realized-P&amp;L curve.
+    HWM = bank that % of every new profit high-water mark. Step = bank 50% per +25% of base position.
+    Display-only: touches no capital, distorts no metric.
+  </p>
+  <div id="psweep-totals" style="font-size:13px;margin-bottom:0.5rem;"></div>
+  <table id="psweep-table">
+    <thead>
+      <tr><th>Bot</th><th>realized now</th><th>realized peak</th>
+          <th>HWM-50</th><th>HWM-100</th><th>Step+25%</th><th>at-risk (HWM-50)</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<p style="text-align:center;margin:0.5rem 0 1.5rem;">
+  <a href="#profitsweep" id="profitsweep-tab-link" style="color:#4caf50;font-size:12px;letter-spacing:1px;">&#9654; Open PROFIT-SWEEP SIM</a>
+</p>
+
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
 let allTrades = [];
@@ -1855,6 +1881,47 @@ function maybeShowAttribution() {
 
 window.addEventListener("hashchange", maybeShowAttribution);
 window.addEventListener("DOMContentLoaded", maybeShowAttribution);
+
+// ── PROFIT-SWEEP SIM tab ──────────────────────────────────────────────────────
+async function updateProfitSweepSim() {
+  try {
+    const resp = await fetch("/api/profit-sweep-sim");
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const t = data.totals || {};
+    const fmt = (v) => "$" + (v || 0).toFixed(2);
+    document.getElementById("psweep-totals").innerHTML =
+      `<b>Fleet secured</b> &mdash; HWM-50: <span class="pnl-pos">${fmt(t.banked_hwm_50)}</span> &nbsp;|&nbsp; ` +
+      `HWM-100: <span class="pnl-pos">${fmt(t.banked_hwm_100)}</span> &nbsp;|&nbsp; ` +
+      `Step+25%: ${fmt(t.banked_step)} &nbsp;|&nbsp; realized now ${fmt(t.realized_now)} (peak ${fmt(t.realized_peak)})`;
+    const tbody = document.querySelector("#psweep-table tbody");
+    tbody.innerHTML = "";
+    for (const r of (data.bots || [])) {
+      if (r.realized_peak <= 0 && r.realized_now <= 0) continue;  // show movers/profitable
+      const pc = (v) => (v > 0 ? "pnl-pos" : v < 0 ? "pnl-neg" : "");
+      tbody.insertAdjacentHTML("beforeend",
+        `<tr><td>${r.bot_id}</td>` +
+        `<td class="${pc(r.realized_now)}">$${r.realized_now.toFixed(2)}</td>` +
+        `<td>$${r.realized_peak.toFixed(2)}</td>` +
+        `<td class="pnl-pos">$${r.banked_hwm_50.toFixed(2)}</td>` +
+        `<td class="pnl-pos">$${r.banked_hwm_100.toFixed(2)}</td>` +
+        `<td>$${r.banked_step.toFixed(2)}</td>` +
+        `<td class="${pc(r.at_risk_now)}">$${r.at_risk_now.toFixed(2)}</td></tr>`);
+    }
+  } catch (e) { console.error("profit-sweep sim", e); }
+}
+
+function maybeShowProfitSweep() {
+  const tab = document.getElementById("profitsweep-tab");
+  if (location.hash === "#profitsweep") {
+    tab.style.display = "block";
+    updateProfitSweepSim();
+  } else {
+    tab.style.display = "none";
+  }
+}
+window.addEventListener("hashchange", maybeShowProfitSweep);
+window.addEventListener("DOMContentLoaded", maybeShowProfitSweep);
 </script>
 <div style="text-align:center;color:var(--muted);font-size:10px;letter-spacing:2px;padding:18px 0 24px;opacity:.55;font-style:italic;">
   &mdash; I am the one who knocks. &mdash;
@@ -1947,6 +2014,7 @@ class WebDashboard:
         self.app.router.add_get("/api/attribution/categories", self._handle_attribution_categories)
         self.app.router.add_get("/api/attribution/regimes",   self._handle_attribution_regimes)
         self.app.router.add_get("/api/bots/{bot_id}/details", self._handle_bot_details)
+        self.app.router.add_get("/api/profit-sweep-sim",      self._handle_profit_sweep_sim)
         self.app.router.add_get("/api/champion_proposal",     self._handle_champion_proposal)
 
     # ── Public API ──────────────────────────────────────────────────────────
@@ -3582,6 +3650,62 @@ class WebDashboard:
                 logger.warning("api/bots skipped %s: %s", path, e)
                 continue
         return bots
+
+    def _build_profit_sweep_sim(self):
+        """Read-only SHADOW: simulated banked profit per bot under 3 policies,
+        by replaying each bot's time-ordered realized-pnl curve. Moves nothing,
+        touches no ledger — display only. See core/profit_sweep_sim.py +
+        docs/superpowers/specs/2026-05-25-profit-sweep-design.md."""
+        if self.trade_store is None:
+            return {"bots": [], "totals": {}}
+        from core.profit_sweep_sim import simulate_bot
+        try:
+            from scripts.sp4_common import MIN_TRADE_TIMESTAMP as _cutoff
+        except Exception:
+            _cutoff = ""
+        import pathlib as _pl
+        base_pos = {}
+        try:
+            _cfg_dir = _pl.Path(__file__).resolve().parent.parent / "config" / "bots"
+            for _p in _cfg_dir.glob("*.json"):
+                try:
+                    _d = json.loads(_p.read_text())
+                    if _d.get("enabled", True):
+                        base_pos[_d.get("bot_id") or _p.stem] = float(
+                            _d.get("base_position_usd", 20.0))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        sells_by_bot: dict[str, list] = {}
+        for t in self.trade_store.load_trades():
+            if (t.get("type") or "") != "sell":
+                continue
+            if _cutoff and (t.get("time") or "") < _cutoff:
+                continue
+            if "cancelled on restart" in (t.get("reason") or ""):
+                continue
+            sells_by_bot.setdefault(t.get("bot_id", "baseline_v1"), []).append(t)
+        rows = []
+        tot = {"banked_hwm_50": 0.0, "banked_hwm_100": 0.0, "banked_step": 0.0,
+               "realized_now": 0.0, "realized_peak": 0.0, "at_risk_now": 0.0}
+        for bid, sells in sells_by_bot.items():
+            if bid not in base_pos:
+                continue  # disabled/retired bot
+            sells.sort(key=lambda s: s.get("time", ""))
+            pnls = [float(s.get("pnl") or 0) for s in sells]
+            sim = simulate_bot(pnls, 0.25 * base_pos.get(bid, 20.0))
+            sim["bot_id"] = bid
+            rows.append(sim)
+            for k in tot:
+                tot[k] += sim.get(k, 0.0)
+        rows.sort(key=lambda r: r["banked_hwm_50"], reverse=True)
+        return {"bots": rows, "totals": {k: round(v, 2) for k, v in tot.items()}}
+
+    async def _handle_profit_sweep_sim(self, request):
+        """GET /api/profit-sweep-sim — read-only shadow sim of banked profit
+        under HWM-50 / HWM-100 / +25%-step. Display only; nothing is moved."""
+        return web.json_response(self._build_profit_sweep_sim())
 
     async def _handle_api_bots(self, request):
         """GET /api/bots — list all bots with balance/pnl/open count."""
