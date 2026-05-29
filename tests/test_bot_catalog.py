@@ -41,8 +41,11 @@ def test_catalog_has_120_bots(catalog):
     # 2026-05-29: +1 champion_whale_buyers (v4's exact stack + entry_gate
     #   top_buy_makers_n<=8; strongest feature-gate scan survivor — beats fleet WR
     #   in both windows AND on the brutal 05-28 day, +$/tr-positive both regimes.)
-    assert len(catalog.configs) == 125, (
-        f"Expected 125 bots, got {len(catalog.configs)}: "
+    # 2026-05-29: +1 champion_post_peak (v4's exact stack + entry_gate
+    #   time_since_h24_peak_secs>=14400; broad feature-scan survivor — only enters
+    #   >=4h past the 24h peak; TR 64%/TE 76%/05-28 87% WR, +$/tr both regimes.)
+    assert len(catalog.configs) == 126, (
+        f"Expected 126 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
@@ -118,6 +121,16 @@ def test_layered_defender_bots_present(catalog):
     assert whale.triggers_allowed is None
     assert whale.entry_gate == (("top_buy_makers_n", "<=", 8.0),)
     assert whale.base_position_usd == 20.0
+
+    # champion_post_peak (2026-05-29): v4's exact stack + single entry_gate on
+    # time_since_h24_peak_secs>=14400 (>=4h past the 24h peak — "buy past the top,
+    # not near it"). Broad feature-scan survivor; non-monotonic (mid-range is a
+    # test disaster) so it must be a >= gate at the 4h boundary, not a tercile.
+    pp = by_id["champion_post_peak"]
+    assert set(pp.filters_enforced) == set(v4.filters_enforced)
+    assert pp.triggers_allowed is None
+    assert pp.entry_gate == (("time_since_h24_peak_secs", ">=", 14400.0),)
+    assert pp.base_position_usd == 20.0
 
 
 def test_volume_experiment_bots_present(catalog):
