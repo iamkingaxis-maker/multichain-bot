@@ -29,6 +29,10 @@ class PerBotCapital:
         self.realized_pnl_total_usd = 0.0
         self.daily_pnl_usd = 0.0
         self._daily_pnl_date = _utc_date_iso()
+        # Per-bot re-baseline cutoff (2026-05-29). Set by a dashboard reset;
+        # display aggregations ignore this bot's trades dated before it so a
+        # reset bot reads as a clean slate. Durable across restarts.
+        self.reset_after_iso = None
 
     def _check_daily_rollover(self, now_iso: Optional[str] = None) -> None:
         today = _utc_date_iso(now_iso)
@@ -70,6 +74,7 @@ class PerBotCapital:
             "realized_pnl_total_usd": self.realized_pnl_total_usd,
             "daily_pnl_usd": self.daily_pnl_usd,
             "daily_pnl_date": self._daily_pnl_date,
+            "reset_after_iso": self.reset_after_iso,
         }
 
     @classmethod
@@ -79,4 +84,5 @@ class PerBotCapital:
         c.realized_pnl_total_usd = data["realized_pnl_total_usd"]
         c.daily_pnl_usd = data["daily_pnl_usd"]
         c._daily_pnl_date = data["daily_pnl_date"]
+        c.reset_after_iso = data.get("reset_after_iso")
         return c

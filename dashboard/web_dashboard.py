@@ -459,6 +459,13 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   </table>
 </div>
 
+<div class="main" id="bot-reset-box" style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+  <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Re-baseline a bot</span>
+  <input id="reset-bot-id" placeholder="bot_id (e.g. champion_defender_v3)" style="font-size:12px;padding:3px 6px;width:240px;background:#111;color:#ddd;border:1px solid #333;border-radius:4px;"/>
+  <button onclick="resetBot()" style="font-size:11px;padding:3px 10px;background:#5a1e1e;color:#f0c0c0;border:1px solid #7a2e2e;border-radius:4px;cursor:pointer;">Flatten + zero ledger</button>
+  <span id="reset-result" style="font-size:11px;color:var(--muted);"></span>
+</div>
+
 <div class="main">
 
   <!-- ── FLEET Panel ── -->
@@ -1938,6 +1945,22 @@ function maybeShowProfitSweep() {
 window.addEventListener("hashchange", maybeShowProfitSweep);
 window.addEventListener("DOMContentLoaded", maybeShowProfitSweep);
 
+// Per-bot re-baseline (flatten + zero ledger)
+async function resetBot() {
+  const id = (document.getElementById("reset-bot-id").value || "").trim();
+  const el = document.getElementById("reset-result");
+  if (!id) { el.textContent = "enter a bot_id"; return; }
+  if (!confirm("FULL RESET " + id + "?\\n\\nFlattens its open positions AND zeros its ledger (balance→$2000, realized=0). bot_state is backed up first. This is destructive.")) return;
+  el.textContent = "resetting " + id + "…";
+  try {
+    const r = await fetch("/api/bots/" + encodeURIComponent(id) + "/reset", { method: "POST" });
+    const d = await r.json();
+    el.textContent = d.ok
+      ? ("\\u2713 " + id + ": flattened " + d.flattened + " positions, ledger zeroed")
+      : ("\\u2717 " + (d.error || "failed"));
+  } catch (e) { el.textContent = "\\u2717 " + e; }
+}
+
 // Always-visible PROFIT SECURED banner (top of page)
 async function updateProfitSweepBanner() {
   try {
@@ -2058,6 +2081,9 @@ class WebDashboard:
         self.app.router.add_get("/api/attribution/regimes",   self._handle_attribution_regimes)
         self.app.router.add_get("/api/bots/{bot_id}/details", self._handle_bot_details)
         self.app.router.add_get("/api/profit-sweep-sim",      self._handle_profit_sweep_sim)
+        self.app.router.add_get("/api/bots-unrealized",       self._handle_bots_unrealized)
+        self.app.router.add_get("/api/shadow-readout",        self._handle_shadow_readout)
+        self.app.router.add_post("/api/bots/{bot_id}/reset",  self._handle_bot_reset)
         self.app.router.add_get("/api/champion_proposal",     self._handle_champion_proposal)
 
     # ── Public API ──────────────────────────────────────────────────────────
@@ -2196,6 +2222,14 @@ class WebDashboard:
 
     async def _handle_stats(self, request):
         stats = await self._build_stats()
+        # Quarantine label (2026-05-29): /api/stats reflects the LEGACY single-bot
+        # trader + aggregate, NOT the 121-bot fleet. Marked so consumers don't
+        # mistake its 'overall'/'daily_pnl' for fleet performance — use /api/bots,
+        # /api/bots-unrealized, or /api/leaderboard for the fleet.
+        if isinstance(stats, dict):
+            stats["scope"] = "legacy_single_bot_plus_aggregate"
+            stats["scope_note"] = ("NOT the multi-bot fleet — see /api/bots, "
+                                   "/api/bots-unrealized, /api/leaderboard for fleet metrics")
         return web.Response(
             text=json.dumps(stats),
             content_type="application/json",
@@ -3633,6 +3667,11 @@ class WebDashboard:
                 if _enabled_ids is not None and bot_id not in _enabled_ids:
                     continue  # retired/disabled bot — keep it off the dashboard
                 trades = trades_by_bot.get(bot_id, [])
+                # Per-bot re-baseline cutoff (dashboard reset): drop this bot's
+                # pre-reset trades so a reset bot reads as a clean slate.
+                _ra = state.get("reset_after_iso")
+                if _ra:
+                    trades = [t for t in trades if (t.get("time") or "") >= _ra]
                 buys = [t for t in trades if t.get("type") == "buy"]
                 sells = [t for t in trades if t.get("type") == "sell"]
                 total_pnl = sum(s.get("pnl", 0) for s in sells)
@@ -3749,6 +3788,140 @@ class WebDashboard:
         """GET /api/profit-sweep-sim — read-only shadow sim of banked profit
         under HWM-50 / HWM-100 / +25%-step. Display only; nothing is moved."""
         return web.json_response(self._build_profit_sweep_sim())
+
+    def _find_scanner_with_bot(self, bot_id):
+        for s in self._scanners.values():
+            if bot_id in (getattr(s, "bot_position_managers", {}) or {}):
+                return s
+        return None
+
+    async def _handle_bot_reset(self, request):
+        """POST /api/bots/{bot_id}/reset — FULL re-baseline: flatten open
+        positions, zero the capital ledger, and stamp a per-bot trade cutoff so
+        the bot reads as a clean slate. Destructive; bot_state backed up first.
+        Behind the dashboard's basic auth. 2026-05-29."""
+        import datetime as _dt
+        cors = {"Access-Control-Allow-Origin": "*"}
+        bot_id = request.match_info["bot_id"]
+        scanner = self._find_scanner_with_bot(bot_id)
+        if scanner is None or self.trade_store is None:
+            return web.json_response({"ok": False, "error": f"bot {bot_id} not live"},
+                                     status=404, headers=cors)
+        now_iso = _dt.datetime.now(_dt.timezone.utc).isoformat()
+        try:
+            sd = self.trade_store.data_dir / "bot_state"
+            src = sd / f"{bot_id}.json"
+            if src.exists():
+                bdir = self.trade_store.data_dir / "bot_state_backups"
+                bdir.mkdir(exist_ok=True)
+                (bdir / f"{bot_id}.{now_iso.replace(':', '-')}.json").write_text(src.read_text())
+            pm = scanner.bot_position_managers[bot_id]
+            n_pos = len(getattr(pm, "_positions", {}) or {})
+            try:
+                pm._positions.clear()
+                if hasattr(pm, "_last_close_time"):
+                    pm._last_close_time.clear()
+            except Exception:
+                pass
+            cap = scanner.bot_capitals.get(bot_id)
+            if cap is not None:
+                cap.balance_usd = 2000.0  # all bots start at $2000 paper capital
+                cap.in_flight_usd = 0.0
+                cap.realized_pnl_total_usd = 0.0
+                cap.daily_pnl_usd = 0.0
+                cap.reset_after_iso = now_iso
+            scanner._save_bot_state(bot_id)
+            self.add_alert(f"RESET {bot_id}: flattened {n_pos} positions + zeroed ledger")
+            logger.info("[Dashboard] RESET bot=%s flattened=%d reset_after=%s", bot_id, n_pos, now_iso)
+            return web.json_response({"ok": True, "bot_id": bot_id, "flattened": n_pos,
+                                      "reset_after": now_iso}, headers=cors)
+        except Exception as e:
+            logger.error("[Dashboard] reset failed bot=%s: %s", bot_id, e)
+            return web.json_response({"ok": False, "error": str(e)}, status=500, headers=cors)
+
+    async def _handle_bots_unrealized(self, request):
+        """GET /api/bots-unrealized — per-bot realized + UNREALIZED (open
+        positions marked at live DexScreener price). Cheap: one batched external
+        call over the unique open tokens (free; not Railway egress). Honors the
+        per-bot reset cutoff. 2026-05-29."""
+        rows = self._build_bot_rows()
+        # collect open positions from bot_state
+        open_by_bot = {}
+        tokens = set()
+        if self.trade_store is not None:
+            sd = self.trade_store.data_dir / "bot_state"
+            for r in rows:
+                try:
+                    st = json.loads((sd / f"{r['bot_id']}.json").read_text())
+                except Exception:
+                    continue
+                ops = st.get("open_positions") or []
+                if ops:
+                    open_by_bot[r["bot_id"]] = ops
+                    for p in ops:
+                        a = (p.get("address") or "").lower()
+                        if a:
+                            tokens.add(a)
+        price = {}
+        toks = list(tokens)
+        try:
+            try:
+                from curl_cffi import requests as _cf
+                getj = lambda u: _cf.get(u, impersonate="chrome", timeout=12).json()
+            except Exception:
+                import urllib.request as _u
+                getj = lambda u: json.loads(_u.urlopen(u, timeout=12).read().decode())
+            for i in range(0, len(toks), 30):
+                d = getj("https://api.dexscreener.com/latest/dex/tokens/" + ",".join(toks[i:i + 30]))
+                for pr in (d.get("pairs") or []):
+                    a = (pr.get("baseToken", {}).get("address") or "").lower()
+                    pu = float(pr.get("priceUsd") or 0)
+                    liq = float(pr.get("liquidity", {}).get("usd", 0) or 0)
+                    if a and pu > 0 and (a not in price or liq > price[a][1]):
+                        price[a] = (pu, liq)
+        except Exception as e:
+            logger.warning("[Dashboard] unrealized price fetch err: %s", e)
+        px = {k: v[0] for k, v in price.items()}
+        out = []
+        for r in rows:
+            unreal = 0.0
+            for p in open_by_bot.get(r["bot_id"], []):
+                a = (p.get("address") or "").lower()
+                entry = float(p.get("entry_price") or 0)
+                size = float(p.get("size_usd") or 0) * float(p.get("remaining_fraction") or 1.0)
+                cur = px.get(a)
+                if entry > 0 and size > 0 and cur:
+                    unreal += size * (cur / entry - 1.0)
+            realized = float(r.get("total_pnl_realized") or 0)
+            out.append({"bot_id": r["bot_id"], "realized": round(realized, 2),
+                        "unrealized": round(unreal, 2), "total": round(realized + unreal, 2),
+                        "open": len(open_by_bot.get(r["bot_id"], [])),
+                        "total_trades": r.get("total_trades", 0)})
+        out.sort(key=lambda x: x["total"], reverse=True)
+        return web.json_response({"bots": out, "priced_tokens": len(px), "open_tokens": len(toks)})
+
+    async def _handle_shadow_readout(self, request):
+        """GET /api/shadow-readout — summarize live exit/entry SHADOWs so they
+        don't need manual mining. Currently the SOL-bail shadow: did bailing on
+        the SOL-macro turn beat the actual exit? saved_pp>0 = saved. 2026-05-29."""
+        if self.trade_store is None:
+            return web.json_response({"sol_bail": {}})
+        sells = [t for t in self.trade_store.load_trades()
+                 if (t.get("type") or "") == "sell"
+                 and t.get("sol_bail_shadow_saved_pp") is not None]
+        n = len(sells)
+        saved = [t for t in sells if float(t.get("sol_bail_shadow_saved_pp") or 0) > 0]
+        hurt = [t for t in sells if float(t.get("sol_bail_shadow_saved_pp") or 0) < 0]
+        agg = sum(float(t.get("sol_bail_shadow_saved_pp") or 0) for t in sells)
+        return web.json_response({"sol_bail": {
+            "n": n,
+            "would_have_saved_n": len(saved),
+            "would_have_hurt_n": len(hurt),
+            "net_saved_pp_sum": round(agg, 1),
+            "verdict": ("SAVE" if agg > 0 else "HURT" if agg < 0 else "neutral"),
+            "note": "saved_pp = bail P&L − actual exit P&L, summed in percentage points; "
+                    "n is positions where SOL-macro was down + pre-TP1 + not green.",
+        }})
 
     async def _handle_api_bots(self, request):
         """GET /api/bots — list all bots with balance/pnl/open count."""
