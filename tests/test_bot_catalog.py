@@ -30,8 +30,10 @@ def test_catalog_has_120_bots(catalog):
     #   champion_defender_fusion (fusion floor single-feature test)
     #   champion_defender_btc (BTC overheat single-feature test)
     #   champion_defender_v3 (full 6-filter layered, production-successor candidate)
-    assert len(catalog.configs) == 120, (
-        f"Expected 120 bots, got {len(catalog.configs)}: "
+    # 2026-05-29: +1 champion_defender_2k (7h-watch rec #1: 8-filter defender +
+    #   stall-exit on the cap2k_turnover $2k spine; cap2k_turnover stays control).
+    assert len(catalog.configs) == 121, (
+        f"Expected 121 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
@@ -50,15 +52,23 @@ def test_layered_defender_bots_present(catalog):
     assert by_id["champion_defender_fusion"].filters_enforced == ("filter_fusion_floor",)
     assert by_id["champion_defender_btc"].filters_enforced == ("filter_btc_overheat",)
 
-    # v3 opts in to all 7 defender filters (filter_dead_meme_lagging_pressure
-    # added 2026-05-29 after HOPPY/PBTC mine — distinguishes lagging-frame trap)
+    # v3 opts in to all 8 defender filters (filter_dead_meme_lagging_pressure
+    # added 2026-05-29 after HOPPY/PBTC mine — distinguishes lagging-frame trap;
+    # filter_dead_low_demand added 2026-05-29 7h-watch rec #2 — frontier gap)
     v3 = by_id["champion_defender_v3"]
     assert v3.filters_enforced is not None
     assert set(v3.filters_enforced) == {
         "filter_falling_pump", "filter_fusion_floor", "filter_btc_overheat",
         "filter_aged_corpse", "filter_wynn_killer", "filter_consec_red",
-        "filter_dead_meme_lagging_pressure",
+        "filter_dead_meme_lagging_pressure", "filter_dead_low_demand",
     }
+
+    # champion_defender_2k (7h-watch rec #1): 8-filter defender on cap2k $2k spine
+    d2k = by_id["champion_defender_2k"]
+    assert d2k.filters_enforced is not None
+    assert set(d2k.filters_enforced) == set(v3.filters_enforced)
+    assert d2k.base_position_usd == 650.0
+    assert d2k.stall_exit_minutes == 90
 
 
 def test_volume_experiment_bots_present(catalog):
@@ -410,7 +420,9 @@ def test_all_base_position_20(catalog):
               "cap2k_concentrated", "cap2k_spread",
               # $2k winner-entry replicas (each clones a winner's entry @ $650x3)
               "cap2k_whales", "cap2k_deepdip", "cap2k_no_topping",
-              "cap2k_volmin5k", "cap2k_regime"}
+              "cap2k_volmin5k", "cap2k_regime",
+              # $2k defended-spine candidate (7h-watch rec #1)
+              "champion_defender_2k"}
     for c in catalog.configs:
         if c.bot_id in EXEMPT:
             continue

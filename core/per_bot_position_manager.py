@@ -280,6 +280,31 @@ class PerBotPositionManager:
             ))
             return decisions
 
+        # 3c. Stall exit (recycle never-launched corpses, pre-TP1). Fires when a
+        # position (a) peaked low, (b) has been held a long time, AND (c) is now
+        # drifting back down off that peak — capital bleeding below the slow_bleed
+        # threshold in a position that never went anywhere. Distinct from
+        # slow_bleed (pure loss threshold) and flat_exit (band-based, peak-blind).
+        # Disabled when stall_exit_minutes is None. See rec #3, 7h-watch
+        # (reference_correlated_death_clusters_2026_05_28 follow-up).
+        if (
+            self.config.stall_exit_minutes is not None
+            and not p.tp1_hit
+            and hold_minutes >= self.config.stall_exit_minutes
+            and p.peak_pnl_pct < self.config.stall_exit_peak_max
+            and pnl_pct <= p.peak_pnl_pct - self.config.stall_exit_drift_pp
+        ):
+            decisions.append(ExitDecision(
+                token=token, kind="STALL_EXIT",
+                reason=(
+                    f"stall_exit hold={hold_minutes:.0f}min peak={p.peak_pnl_pct:.2f}%"
+                    f" pnl={pnl_pct:.2f}% (drifted >="
+                    f"{self.config.stall_exit_drift_pp}pp off low peak)"
+                ),
+                sell_fraction=1.0,
+            ))
+            return decisions
+
         # 4. TP1
         if not p.tp1_hit and pnl_pct >= self.config.tp1_pct:
             p.tp1_hit = True

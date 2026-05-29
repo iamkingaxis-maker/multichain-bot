@@ -42,6 +42,7 @@ DEFENDER_FILTERS = frozenset({
     "filter_wynn_killer",
     "filter_consec_red",
     "filter_dead_meme_lagging_pressure",
+    "filter_dead_low_demand",
 })
 
 

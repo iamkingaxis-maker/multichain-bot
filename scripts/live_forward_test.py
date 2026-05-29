@@ -1310,6 +1310,17 @@ COMBOS = {
         and c['1m_cum_3min_pct'] < 0
     ),
 
+    # FILTER — filter_dead_low_demand (added 2026-05-29, 7h-watch frontier)
+    # Dead token sold into: no chart upside + sellers dominating 5m frame.
+    # 5000-trade audit: blocks 79, saves $417, kills $32 → net +$385, 13:1.
+    'FILT_dead_low_demand_BLOCK': lambda c: (
+        c.get('lifecycle_stage') == 'dead'
+        and c.get('cnn_outcome_prob') is not None
+        and c.get('bs_m5') is not None
+        and c['cnn_outcome_prob'] < 0.10
+        and c['bs_m5'] < 1.0
+    ),
+
     # Trigger 1 — vol_breakout_flat (d64a37b)
     'NEW_vol_breakout_flat': lambda c: (
         c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 2.0

@@ -5119,6 +5119,47 @@ class DipScanner:
                 )
                 _filters_block.append("filter_dead_meme_lagging_pressure")
 
+            # ── filter_dead_low_demand — DEFENDER 2026-05-29 ──────────────────
+            # The OTHER dead-token microstructure (complement to dead_meme_lagging).
+            # dead_meme_lagging catches manufactured HIGH bs_m5>2.5 (fake pump);
+            # this catches dead tokens being SOLD INTO: low CNN (no chart upside)
+            # + sellers dominating the 5m frame (bs_m5<1.0) = knife, not a dip.
+            #
+            # Discovered in 7h watch (2026-05-29): SPCX/MORI/unc/BULL frontier —
+            # age>1000 dead tokens, fusion 0.55-0.73 (PASSES fusion floor), but
+            # cnn 0.02-0.05 and bs_m5 0.33-0.5. Never went green, slow-bled.
+            #
+            # Winner-kill audit (5000-trade wide set): blocks 79, saves $417,
+            # kills only $32 (3 tiny winners) -> NET +$385, 13:1. The bs_m5<1.0
+            # clause is the discriminator: dead-token WINNERS have bs_m5>=1.0
+            # (real 5m demand); LOSERS have bs_m5<1.0 (being sold into).
+            # Earlier dead+cnn<0.10 gate (without bs_m5) was FALSIFIED (killed
+            # 18 winners/$581) — the bs_m5 clause is what makes it winner-safe.
+            _filter_dead_low_demand_block_reasons: list = []
+            try:
+                _dld_life = (_tier3_features or {}).get("lifecycle_stage")
+                _dld_cnn = c.get("cnn_outcome_prob")
+                _dld_bsm5 = ratio_m5 if ratio_m5 not in (None, float("inf")) else None
+                if (_dld_life == "dead" and _dld_cnn is not None and _dld_bsm5 is not None
+                    and float(_dld_cnn) < 0.10 and float(_dld_bsm5) < 1.0):
+                    _filter_dead_low_demand_block_reasons.append(
+                        f"lifecycle=dead AND cnn={float(_dld_cnn):.3f}<0.10 "
+                        f"AND bs_m5={float(_dld_bsm5):.2f}<1.0 "
+                        f"(dead token sold into — no chart upside, sellers dominate 5m)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] dead_low_demand calc err: {_e}")
+            _filter_dead_low_demand_verdict = "BLOCK" if _filter_dead_low_demand_block_reasons else "PASS"
+            c[f"filter_dead_low_demand_{_filter_dead_low_demand_verdict.lower()}"] = c.get(
+                f"filter_dead_low_demand_{_filter_dead_low_demand_verdict.lower()}", 0
+            ) + 1
+            if _filter_dead_low_demand_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_dead_low_demand: {token_symbol} "
+                    f"reasons={','.join(_filter_dead_low_demand_block_reasons)}"
+                )
+                _filters_block.append("filter_dead_low_demand")
+
             # ── filter_clean_break — ENFORCED 2026-05-06 ──────────────────────
             # User-spotted pattern from GME/SELLOR postmortems: visually clean
             # "downtrend break" reversals on 1m — lower-lows breaking with the
@@ -13912,6 +13953,9 @@ class DipScanner:
                 # filter_dead_meme_lagging_pressure — added 2026-05-29 (HOPPY/PBTC mine)
                 "filter_dead_meme_lagging_pressure_verdict": _filter_dead_meme_verdict,
                 "filter_dead_meme_lagging_pressure_block_reasons": _filter_dead_meme_block_reasons,
+                # filter_dead_low_demand — added 2026-05-29 (7h-watch frontier)
+                "filter_dead_low_demand_verdict": _filter_dead_low_demand_verdict,
+                "filter_dead_low_demand_block_reasons": _filter_dead_low_demand_block_reasons,
                 # Axiom active-users signal (Task 1 from axiom-full-utilization plan).
                 # Captures user_cache value + spike flag at signal-fire time.
                 # Spike = current count >= 3x rolling 4-sample baseline.

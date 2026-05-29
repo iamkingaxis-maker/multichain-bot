@@ -138,6 +138,19 @@ class BotConfig:
     flat_exit_minutes: Optional[int] = None
     flat_exit_band_pct: float = 3.0
 
+    # Stall exit (2026-05-29 — 7h-watch rec #3). Opt-in (None disables). Fires
+    # pre-TP1 when a position (a) peaked low (peak_pnl_pct < stall_exit_peak_max),
+    # (b) has been held >= stall_exit_minutes, AND (c) is now drifting back down
+    # off that peak (pnl_pct <= peak_pnl_pct - stall_exit_drift_pp). Targets the
+    # never-launched corpse that bleeds capital for hours below the slow_bleed
+    # loss threshold. Distinct from flat_exit (band-based, ignores peak) and
+    # slow_bleed (pure loss threshold). V3 validation: 328 losers (-$1275 pool)
+    # peaked<5% held>90min; winner-clip risk ~$1.35 (11 of 13 at-risk winners
+    # exited via trail = riding up, stall would not fire).
+    stall_exit_minutes: Optional[int] = None
+    stall_exit_peak_max: float = 5.0
+    stall_exit_drift_pp: float = 2.0
+
     # Re-entry cooldown (2026-05-25 — P-stack #4). Seconds a bot must wait
     # after fully closing a token before it may buy that token again. None or
     # 0 = immediate re-entry allowed (recycle into a re-firing runner). A

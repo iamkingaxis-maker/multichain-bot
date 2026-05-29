@@ -203,3 +203,34 @@ def test_slow_bleed_fires_after_hold_min_at_loss():
     pm.open_position("VIRL", 0.001, 20.0, entry_time=1.0)
     decisions = pm.tick(token="VIRL", current_price=0.00090, now=1.0 + 3600.0)
     assert any(d.reason.startswith("slow_bleed") for d in decisions)
+
+
+def test_stall_exit_fires_on_low_peak_drift():
+    """Never-launched corpse: peaked +2% (< 5% cap), held >90min, drifted back
+    to 0% (>=2pp off peak) → STALL_EXIT recycles it. Above slow_bleed's -8%."""
+    pm = PerBotPositionManager(_cfg(
+        stall_exit_minutes=90, stall_exit_peak_max=5.0, stall_exit_drift_pp=2.0,
+    ))
+    pm.open_position("CORPSE", 0.001, 20.0, entry_time=1.0)
+    pm.tick("CORPSE", current_price=0.00102, now=2.0)            # +2% sets peak
+    decisions = pm.tick("CORPSE", current_price=0.001, now=1.0 + 90 * 60)  # back to 0%
+    assert any(d.kind == "STALL_EXIT" for d in decisions)
+
+
+def test_stall_exit_does_not_fire_while_still_climbing():
+    """Position holding at its low peak (not drifting off it) is not a stall."""
+    pm = PerBotPositionManager(_cfg(
+        stall_exit_minutes=90, stall_exit_peak_max=5.0, stall_exit_drift_pp=2.0,
+    ))
+    pm.open_position("LIVE", 0.001, 20.0, entry_time=1.0)
+    pm.tick("LIVE", current_price=0.00102, now=2.0)              # +2% sets peak
+    decisions = pm.tick("LIVE", current_price=0.00102, now=1.0 + 90 * 60)  # still +2%
+    assert not any(d.kind == "STALL_EXIT" for d in decisions)
+
+
+def test_stall_exit_disabled_by_default():
+    pm = PerBotPositionManager(_cfg())  # stall_exit_minutes None
+    pm.open_position("X", 0.001, 20.0, entry_time=1.0)
+    pm.tick("X", current_price=0.00102, now=2.0)
+    decisions = pm.tick("X", current_price=0.001, now=1.0 + 99 * 60)
+    assert not any(d.kind == "STALL_EXIT" for d in decisions)
