@@ -14050,6 +14050,15 @@ class DipScanner:
                 # filter_dead_volume — added 2026-05-29 (entry-quality, defender-scoped)
                 "filter_dead_volume_verdict": _filter_dead_volume_verdict,
                 "filter_dead_volume_block_reasons": _filter_dead_volume_block_reasons,
+                # filter_below_vwap — SHADOW (entry-quality, 2026-05-29). Would-block
+                # entries at/above the 1h VWAP (extended buys). Held-out net-positive
+                # both windows but kills ~13 winners/day → SHADOW first; judge forward
+                # (sol_bail/shadow-readout style) before any enforcement. Not in any
+                # filters_block — records only.
+                "filter_below_vwap_shadow_verdict": (
+                    "BLOCK" if (isinstance((_tier2_features or {}).get("pct_above_vwap_1h"), (int, float))
+                                and (_tier2_features or {}).get("pct_above_vwap_1h") > 0)
+                    else "PASS"),
                 # Axiom active-users signal (Task 1 from axiom-full-utilization plan).
                 # Captures user_cache value + spike flag at signal-fire time.
                 # Spike = current count >= 3x rolling 4-sample baseline.

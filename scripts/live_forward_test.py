@@ -1329,6 +1329,13 @@ COMBOS = {
         and c['vol_h1_accel_vs_h6'] < 0.70
     ),
 
+    # SHADOW (not enforced) — filter_below_vwap: entering at/above 1h VWAP.
+    # Held-out net-positive but ~13 winner-kills/day; recording-only for now.
+    'FILT_below_vwap_SHADOW': lambda c: (
+        c.get('pct_above_vwap_1h') is not None
+        and c['pct_above_vwap_1h'] > 0
+    ),
+
     # Trigger 1 — vol_breakout_flat (d64a37b)
     'NEW_vol_breakout_flat': lambda c: (
         c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 2.0

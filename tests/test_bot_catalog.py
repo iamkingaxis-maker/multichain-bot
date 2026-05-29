@@ -34,8 +34,10 @@ def test_catalog_has_120_bots(catalog):
     #   stall-exit on the cap2k_turnover $2k spine; cap2k_turnover stays control).
     # 2026-05-29: +1 champion_defender_volaccel (single-filter isolation probe
     #   for filter_dead_volume).
-    assert len(catalog.configs) == 122, (
-        f"Expected 122 bots, got {len(catalog.configs)}: "
+    # 2026-05-29: +1 champion_defender_v4 (v3 stack + vol_accel, NO stall_exit —
+    #   WR-preserving production candidate A/B'd vs v3).
+    assert len(catalog.configs) == 123, (
+        f"Expected 123 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
@@ -74,6 +76,12 @@ def test_layered_defender_bots_present(catalog):
         "filter_dead_meme_lagging_pressure", "filter_dead_low_demand",
         "filter_dead_volume",
     }
+
+    # champion_defender_v4: v3's exact filter set, but NO stall_exit (WR-preserving A/B)
+    v4 = by_id["champion_defender_v4"]
+    assert set(v4.filters_enforced) == set(v3.filters_enforced)
+    assert v4.stall_exit_minutes is None
+    assert v4.base_position_usd == 20.0
 
     # champion_defender_2k (7h-watch rec #1): 8-filter defender on cap2k $2k spine
     d2k = by_id["champion_defender_2k"]
