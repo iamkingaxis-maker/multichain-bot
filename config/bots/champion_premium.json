@@ -1,6 +1,6 @@
 {
   "bot_id": "champion_premium",
-  "display_name": "Premium positive-selection — champion_defender_v4's EXACT stack (10-filter defender + WR-preserving exits, no stall) with ONE variable changed: triggers_allowed restricted to the two held-out-validated premium triggers deep_1h_dip + pullback_in_uptrend. Held-out (05-16..24 train / 05-27..29 test): these two carry a DURABLE win-rate edge (TEST 56% WR vs fleet 47% = +9pp; pullback 59%, deep_1h_dip 55%) in BOTH regimes. The +$/tr was regime-specific (calm-window inflated; raw triggers went -$/tr in the brutal TEST regime) — converting the validated WR edge into +$/tr is the job of the defender stack + tight exits, measured FORWARD. A/B control = champion_defender_v4 (same stack, all triggers). Judge at n>=50 with --unrealized.",
+  "display_name": "Premium positive-selection — champion_defender_v4's EXACT stack (10-filter defender + WR-preserving exits, no stall) with ONE variable changed: triggers_allowed restricted to 4 BAD-DAY-ROBUST premium triggers. Selection method: systematic per-trigger held-out scan (train 05-16..24 / test 05-27..29) kept only triggers beating fleet WR in BOTH windows, then a per-day stability gate kept only those that ALSO beat fleet on the brutal 05-28 day (fleet 23% WR). Survivors: power_dip_runner (58% on the 23% day; 87/72 WR across windows), chart_quality_bottom (34%; big vol; +$2.65/tr test), deep_1h_dip (32%; 76/55 WR), pullback_in_uptrend (60%; 91/59). REJECTED as good-day artifacts (flashy test-$/tr but cratered on the brutal day): demand_burst_no_crash 14%, liq_velocity 12%, 1s_capit_reversal 6%, net_flow_5m_demand 17%. Converting the WR edge to +$/tr is the defender stack + tight exits' job, measured FORWARD. A/B control = champion_defender_v4. Judge n>=50 --unrealized.",
   "enabled": true,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
@@ -38,7 +38,9 @@
   "filters_disabled": [],
   "triggers_allowed": [
     "deep_1h_dip",
-    "pullback_in_uptrend"
+    "pullback_in_uptrend",
+    "power_dip_runner",
+    "chart_quality_bottom"
   ],
   "triggers_disabled": [],
   "min_triggers_to_fire": 1,

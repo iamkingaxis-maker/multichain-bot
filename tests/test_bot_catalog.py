@@ -99,7 +99,11 @@ def test_layered_defender_bots_present(catalog):
     # train AND test). Clean A/B vs v4 (same stack, all triggers).
     prem = by_id["champion_premium"]
     assert set(prem.filters_enforced) == set(v4.filters_enforced)
-    assert set(prem.triggers_allowed) == {"deep_1h_dip", "pullback_in_uptrend"}
+    # 4 bad-day-robust triggers: beat fleet WR in train AND test AND on the
+    # brutal 05-28 day (fleet 23% WR). Fragile good-day artifacts excluded.
+    assert set(prem.triggers_allowed) == {
+        "deep_1h_dip", "pullback_in_uptrend",
+        "power_dip_runner", "chart_quality_bottom"}
     assert prem.stall_exit_minutes is None
     assert prem.base_position_usd == 20.0
 
