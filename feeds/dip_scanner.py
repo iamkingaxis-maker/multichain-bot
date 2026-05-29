@@ -4155,6 +4155,40 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] tier3 features error: {_e}")
 
+            # ── DEFENDER PREP 2026-05-29: early fusion_constrained score ───
+            # The fusion meta-model was previously only computed inside
+            # entry_meta_dict construction (~line 13860) — AFTER filter_fusion_floor
+            # and filter_aged_corpse already ran. This silently disabled both
+            # filters. Confirmed via PBTC -$1.82 loss on 2026-05-28 (fus=0.306
+            # should have BLOCKed, verdict was PASS).
+            #
+            # Hoisting the compute here so:
+            # 1. filter_fusion_floor reads a real score (not None)
+            # 2. filter_aged_corpse's fusion<0.55 clause works
+            # 3. entry_meta_dict reuses the cached score at 13860 (no double-compute)
+            #
+            # Some fusion features (cnn_cluster_id, lifecycle_age_hours) are
+            # carried via local vars / tier3 dict; merge them in. Fail-quiet.
+            try:
+                from models.fusion_constrained import get_fusion_constrained
+                from datetime import datetime as _dt_fus, timezone as _tz_fus
+                _fc_inf_pre = get_fusion_constrained()
+                if not _fc_inf_pre.disabled:
+                    _early_em = dict(c)
+                    _early_em["cnn_cluster_id"] = _cnn_cluster_id
+                    for _k in ("lifecycle_age_hours", "top10_holder_pct",
+                               "lp_locked_pct", "rugcheck_score"):
+                        if _k in (_tier3_features or {}):
+                            _early_em[_k] = _tier3_features[_k]
+                    c["fusion_constrained_score_shadow"] = (
+                        _fc_inf_pre.score_from_entry_meta(
+                            _early_em,
+                            time_iso=_dt_fus.now(_tz_fus.utc).isoformat(),
+                        )
+                    )
+            except Exception as _e_fus_pre:
+                logger.debug(f"[DipScanner] early fusion err: {_e_fus_pre}")
+
             # ── Breakthrough-trigger EARLY preview (2026-05-16 PM) ─────────
             # The 6 on-chain compound triggers shipped 2026-05-15 had
             # 72-100% WR on lifetime data (reference_onchain_compound_
@@ -13852,10 +13886,17 @@ class DipScanner:
             # entry_meta_dict so future analysis can correlate the shadow
             # probability against realized P&L. Fail-quiet on any error —
             # must not block buy.
+            # 2026-05-29: reuse early-computed score from defender prep at
+            # ~line 4160 if it's there. Otherwise fall through to live compute.
+            # See defender prep block for why early compute is needed.
+            _early_fus = c.get("fusion_constrained_score_shadow")
             try:
                 from models.fusion_constrained import get_fusion_constrained
                 _fc_inf = get_fusion_constrained()
-                if not _fc_inf.disabled:
+                if _early_fus is not None:
+                    # Reuse cached value (computed for defender filter use).
+                    entry_meta_dict["fusion_constrained_score_shadow"] = _early_fus
+                elif not _fc_inf.disabled:
                     from datetime import datetime, timezone
                     entry_meta_dict["fusion_constrained_score_shadow"] = (
                         _fc_inf.score_from_entry_meta(
