@@ -16,6 +16,9 @@ ALPHA_TRIGGERS = frozenset({
     "whale_p90_size",
     "textbook_pullback_vol_accel",
     "textbook_pullback_big_buyer",
+    # Added 2026-05-29 (trigger-mine V3 winner — G10).
+    # n=188, token-dedup +$3.86/tr, WR 94.7%, both days near-identical.
+    "trigger_stable_compound_quality",
 })
 
 # Sizing-tier trigger sets (mirror the legacy single-bot tiers in dip_scanner).

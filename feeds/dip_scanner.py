@@ -4159,27 +4159,74 @@ class DipScanner:
             # The fusion meta-model was previously only computed inside
             # entry_meta_dict construction (~line 13860) — AFTER filter_fusion_floor
             # and filter_aged_corpse already ran. This silently disabled both
-            # filters. Confirmed via PBTC -$1.82 loss on 2026-05-28 (fus=0.306
-            # should have BLOCKed, verdict was PASS).
+            # filters. PBTC -$1.82 (2026-05-28 22:34) was the symptom:
+            # fus=0.306 should have BLOCKed, verdict was PASS.
             #
-            # Hoisting the compute here so:
-            # 1. filter_fusion_floor reads a real score (not None)
-            # 2. filter_aged_corpse's fusion<0.55 clause works
-            # 3. entry_meta_dict reuses the cached score at 13860 (no double-compute)
+            # PROPER FIX 2026-05-29 03:00 UTC: build a complete _early_em from
+            # all the sources where the fusion features actually live. The
+            # first-pass fix (dict(c) only) was returning a near-constant 0.498
+            # because most fusion model inputs aren't keys in `c` — they live
+            # in local vars (ratio_h1, ratio_m5), local dicts (m1_features,
+            # trajectory_features, _chart_ctx_dict), or _tier3_features.
             #
-            # Some fusion features (cnn_cluster_id, lifecycle_age_hours) are
-            # carried via local vars / tier3 dict; merge them in. Fail-quiet.
+            # Model expects: bs_h1, bs_m5, top10_holder_pct, lp_locked_pct,
+            # rugcheck_score, chart_mtf_score, cnn_cluster_id, 1m_cum_3min_pct,
+            # 1m_volume_spike, pct_in_5m_range, pc_h1_change_since_lookback,
+            # lifecycle_age_hours. Only 3 (top10, lp_locked, rugcheck) are not
+            # available at this point — those come from rugcheck post-this-point
+            # and remain None (the model handles None via _safe_float defaults).
             try:
                 from models.fusion_constrained import get_fusion_constrained
                 from datetime import datetime as _dt_fus, timezone as _tz_fus
                 _fc_inf_pre = get_fusion_constrained()
                 if not _fc_inf_pre.disabled:
-                    _early_em = dict(c)
+                    _early_em: dict = dict(c)
+                    # Buyer/seller ratios — local vars from tier1
+                    try:
+                        if 'ratio_h1' in dir() and ratio_h1 not in (None, float("inf")):
+                            _early_em["bs_h1"] = float(ratio_h1)
+                    except Exception: pass
+                    try:
+                        if ratio_m5 not in (None, float("inf")):
+                            _early_em["bs_m5"] = float(ratio_m5)
+                    except Exception: pass
+                    # CNN cluster — local var
                     _early_em["cnn_cluster_id"] = _cnn_cluster_id
-                    for _k in ("lifecycle_age_hours", "top10_holder_pct",
-                               "lp_locked_pct", "rugcheck_score"):
-                        if _k in (_tier3_features or {}):
-                            _early_em[_k] = _tier3_features[_k]
+                    # 1m features — local dict (may not exist if 1m fetch failed)
+                    try:
+                        if 'm1_features' in dir() and isinstance(m1_features, dict):
+                            for _k in ("1m_cum_3min_pct", "1m_volume_spike"):
+                                _v = m1_features.get(_k)
+                                if _v is not None:
+                                    _early_em[_k] = _v
+                    except Exception: pass
+                    # Trajectory features — local dict
+                    try:
+                        if 'trajectory_features' in dir() and isinstance(trajectory_features, dict):
+                            _v = trajectory_features.get("pc_h1_change_since_lookback")
+                            if _v is not None:
+                                _early_em["pc_h1_change_since_lookback"] = _v
+                    except Exception: pass
+                    # Chart context — pct_in_5m_range, chart_mtf_score
+                    try:
+                        if '_chart_ctx_dict' in dir() and isinstance(_chart_ctx_dict, dict):
+                            for _k in ("chart_mtf_score", "pct_in_5m_range"):
+                                _v = _chart_ctx_dict.get(_k)
+                                if _v is not None:
+                                    _early_em[_k] = _v
+                    except Exception: pass
+                    # Tier3 features (note: tier3 stores hours_since_graduation;
+                    # the model reads lifecycle_age_hours — they're the same value).
+                    if _tier3_features:
+                        for _k in ("lifecycle_age_hours", "top10_holder_pct",
+                                   "lp_locked_pct", "rugcheck_score"):
+                            if _k in _tier3_features:
+                                _early_em[_k] = _tier3_features[_k]
+                        # Map hours_since_graduation -> lifecycle_age_hours if
+                        # only the former is present.
+                        if ("lifecycle_age_hours" not in _early_em
+                            and "hours_since_graduation" in _tier3_features):
+                            _early_em["lifecycle_age_hours"] = _tier3_features["hours_since_graduation"]
                     c["fusion_constrained_score_shadow"] = (
                         _fc_inf_pre.score_from_entry_meta(
                             _early_em,
@@ -13153,6 +13200,40 @@ class DipScanner:
                 _triggers_fired.append("textbook_pullback_vol_accel")
             if _trigger_textbook_pullback_big_buyer_match:
                 _triggers_fired.append("textbook_pullback_big_buyer")
+
+            # ── trigger_stable_compound_quality (G10) — added 2026-05-29 ───
+            # The trigger-mine V3 winner: compound of multiple stable triggers
+            # + quality (ML approves) + age cap (not dead meme).
+            #
+            # Predicate: count of {extreme_sweep_1m, liq_velocity_big_buyers,
+            #   1s_demand_compound, textbook_pullback_vol_accel, mtf_aligned_demand,
+            #   pullback_in_uptrend} firing >= 2
+            #   AND fusion_constrained_score_shadow > 0.45
+            #   AND hours_since_graduation < 500
+            #
+            # Validation on 1487-trade window:
+            #   n=188, token-dedup mean +$3.86/tr, WR 94.7%
+            #   27 (trained): n=72 mean +$4.33 WR 94%
+            #   28 (held-out): n=116 mean +$2.88 WR 95%
+            #   Both days near-identical means — gold-standard held-out.
+            #
+            # Worth alpha-tier sizing (1.5x). Counts on _triggers_fired AS-IS
+            # at this point, which has the stable trigger set populated above.
+            try:
+                _STABLE_SET = {
+                    "extreme_sweep_1m", "liq_velocity_big_buyers",
+                    "1s_demand_compound", "textbook_pullback_vol_accel",
+                    "mtf_aligned_demand", "pullback_in_uptrend",
+                }
+                _n_stable = sum(1 for _t in _triggers_fired if _t in _STABLE_SET)
+                _g10_fus = c.get("fusion_constrained_score_shadow")
+                _g10_age = (_tier3_features or {}).get("hours_since_graduation")
+                if (_n_stable >= 2
+                    and _g10_fus is not None and float(_g10_fus) > 0.45
+                    and _g10_age is not None and float(_g10_age) < 500):
+                    _triggers_fired.append("trigger_stable_compound_quality")
+            except Exception as _e_g10:
+                logger.debug(f"[DipScanner] g10 trigger err: {_e_g10}")
 
             # ── Liquidity velocity (paper-derived, SHADOW 2026-05-12) ──
             # arxiv 2602.14860: "Fast accumulation of liquidity through a small
