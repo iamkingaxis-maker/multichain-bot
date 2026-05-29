@@ -36,8 +36,11 @@ def test_catalog_has_120_bots(catalog):
     #   for filter_dead_volume).
     # 2026-05-29: +1 champion_defender_v4 (v3 stack + vol_accel, NO stall_exit —
     #   WR-preserving production candidate A/B'd vs v3).
-    assert len(catalog.configs) == 123, (
-        f"Expected 123 bots, got {len(catalog.configs)}: "
+    # 2026-05-29: +1 champion_premium (v4's exact stack, triggers_allowed restricted
+    #   to the two held-out-validated premium triggers deep_1h_dip + pullback_in_uptrend;
+    #   +9pp WR edge over fleet in BOTH train/test regimes. A/B control = v4.)
+    assert len(catalog.configs) == 124, (
+        f"Expected 124 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
@@ -89,6 +92,16 @@ def test_layered_defender_bots_present(catalog):
     assert set(d2k.filters_enforced) == set(v3.filters_enforced)
     assert d2k.base_position_usd == 650.0
     assert d2k.stall_exit_minutes == 90
+
+    # champion_premium (2026-05-29): v4's EXACT defender stack + exits, single
+    # variable = triggers_allowed restricted to the two held-out-validated premium
+    # triggers (deep_1h_dip + pullback_in_uptrend, +9pp WR edge over fleet in
+    # train AND test). Clean A/B vs v4 (same stack, all triggers).
+    prem = by_id["champion_premium"]
+    assert set(prem.filters_enforced) == set(v4.filters_enforced)
+    assert set(prem.triggers_allowed) == {"deep_1h_dip", "pullback_in_uptrend"}
+    assert prem.stall_exit_minutes is None
+    assert prem.base_position_usd == 20.0
 
 
 def test_volume_experiment_bots_present(catalog):
