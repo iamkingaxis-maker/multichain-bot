@@ -444,6 +444,21 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   </div>
 </div>
 
+<!-- ── PROFIT SECURED banner (always visible, shadow sim) ── -->
+<div class="main" id="psweep-banner" style="border:1px solid #2e7d32;border-radius:8px;background:rgba(76,175,80,0.06);">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+    <h2 style="margin:0;">&#128176; PROFIT SECURED <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">simulated high-water-mark sweep &middot; nothing moved</span></h2>
+    <a href="#profitsweep" style="color:#4caf50;font-size:11px;letter-spacing:1px;">full breakdown &amp; per-bot &#9654;</a>
+  </div>
+  <div id="psweep-banner-totals" style="font-size:14px;margin:0.4rem 0;">Loading&hellip;</div>
+  <table id="psweep-banner-table" style="font-size:12px;">
+    <thead>
+      <tr><th>Top banked bot</th><th>realized now</th><th>peak</th><th>HWM-50 secured</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
 <div class="main">
 
   <!-- ── FLEET Panel ── -->
@@ -1922,6 +1937,34 @@ function maybeShowProfitSweep() {
 }
 window.addEventListener("hashchange", maybeShowProfitSweep);
 window.addEventListener("DOMContentLoaded", maybeShowProfitSweep);
+
+// Always-visible PROFIT SECURED banner (top of page)
+async function updateProfitSweepBanner() {
+  try {
+    const resp = await fetch("/api/profit-sweep-sim");
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const t = data.totals || {};
+    const fmt = (v) => "$" + (v || 0).toFixed(2);
+    document.getElementById("psweep-banner-totals").innerHTML =
+      `Fleet secured &mdash; <b style="font-size:18px;color:#4caf50;">HWM-50 ${fmt(t.banked_hwm_50)}</b> ` +
+      `&nbsp;|&nbsp; HWM-100 <b style="color:#4caf50;">${fmt(t.banked_hwm_100)}</b> ` +
+      `&nbsp;|&nbsp; +25%-step ${fmt(t.banked_step)} ` +
+      `&nbsp;&middot;&nbsp; <span style="color:var(--muted);">realized now ${fmt(t.realized_now)} (peak ${fmt(t.realized_peak)})</span>`;
+    const tbody = document.querySelector("#psweep-banner-table tbody");
+    tbody.innerHTML = "";
+    for (const r of (data.bots || []).slice(0, 5)) {
+      const pc = (v) => (v > 0 ? "pnl-pos" : v < 0 ? "pnl-neg" : "");
+      tbody.insertAdjacentHTML("beforeend",
+        `<tr><td>${r.bot_id}</td>` +
+        `<td class="${pc(r.realized_now)}">$${r.realized_now.toFixed(2)}</td>` +
+        `<td>$${r.realized_peak.toFixed(2)}</td>` +
+        `<td class="pnl-pos">$${r.banked_hwm_50.toFixed(2)}</td></tr>`);
+    }
+  } catch (e) { console.error("profit-sweep banner", e); }
+}
+window.addEventListener("DOMContentLoaded", updateProfitSweepBanner);
+setInterval(updateProfitSweepBanner, 60000);
 </script>
 <div style="text-align:center;color:var(--muted);font-size:10px;letter-spacing:2px;padding:18px 0 24px;opacity:.55;font-style:italic;">
   &mdash; I am the one who knocks. &mdash;
