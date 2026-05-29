@@ -848,6 +848,35 @@ class DipScanner:
         except Exception:
             return None
 
+    def _stamp_sol_bail_shadow(self, position, price, now):
+        """SHADOW (no action, 2026-05-29): if SOL macro is down while this
+        position is pre-TP1 AND not green, record the P&L we WOULD have bailed
+        at — stamped once, on first fire. At close the sell record carries it so
+        we can measure save-vs-lose (bail P&L vs actual exit) on real paths
+        before enforcing a live SOL-bail exit. Winner-safe by the not-green gate.
+        Mirrors the entry gate's SOL thresholds (sol_h6<-0.3 / sol_h1<-0.7)."""
+        try:
+            sb = position.state_blob
+            if sb is None or "sol_bail_shadow_pnl_pct" in sb:
+                return  # first-fire only
+            if position.tp1_hit or position.entry_price <= 0 or price <= 0:
+                return
+            pnl_pct = (price / position.entry_price - 1.0) * 100.0
+            if pnl_pct >= 1.0:
+                return  # green-ish → exempt (winner-safe)
+            sf = getattr(self, "_cycle_sol_features", {}) or {}
+            sol_h6, sol_h1 = sf.get("sol_pc_h6"), sf.get("sol_pc_h1")
+            macro_down = ((sol_h6 is not None and sol_h6 < -0.3) or
+                          (sol_h1 is not None and sol_h1 < -0.7))
+            if not macro_down:
+                return
+            sb["sol_bail_shadow_pnl_pct"] = round(pnl_pct, 3)
+            sb["sol_bail_shadow_secs"] = int(now - position.entry_time)
+            sb["sol_bail_shadow_sol_h6"] = sol_h6
+            sb["sol_bail_shadow_sol_h1"] = sol_h1
+        except Exception as e:
+            logger.debug(f"[DipScanner] sol_bail_shadow stamp err: {e}")
+
     async def _tick_all_bots_positions(self):
         """Per-bot exit-decision loop. Iterates each bot's open positions,
         fetches current price + vol from the shared PoolPriceFeed, and acts
@@ -901,6 +930,10 @@ class DipScanner:
                     price = priced[token]
                     if price is None:
                         continue
+                    # SOL-bail SHADOW (no action) — records the would-be bail P&L
+                    # so we can measure save-vs-lose before enforcing. See
+                    # _stamp_sol_bail_shadow.
+                    self._stamp_sol_bail_shadow(position, price, now)
                     decisions = pm.tick(
                         token=token,
                         current_price=price,
@@ -973,6 +1006,15 @@ class DipScanner:
                 "entry_price": result.entry_price,
                 "exit_price": eff_exit,
                 "exit_mid_price": current_price,
+                # SOL-bail SHADOW (no action): the P&L we'd have bailed at on the
+                # SOL-macro downturn, vs this actual exit. saved_pp>0 = bailing
+                # earlier would have helped; <0 = it recovered (would've killed).
+                "sol_bail_shadow_pnl_pct": ((_pos.state_blob or {}).get("sol_bail_shadow_pnl_pct") if _pos else None),
+                "sol_bail_shadow_saved_pp": (
+                    round((_pos.state_blob or {}).get("sol_bail_shadow_pnl_pct") - result.pnl_pct, 3)
+                    if (_pos and (_pos.state_blob or {}).get("sol_bail_shadow_pnl_pct") is not None)
+                    else None
+                ),
                 "pnl": result.realized_pnl_usd,
                 "pnl_pct": result.pnl_pct,
                 "peak_pnl_pct": result.peak_pnl_pct,
