@@ -121,8 +121,12 @@ async def _anomaly_watchdog(scanners: list, price_feed, dashboard, telegram):
             blocked = (getattr(scanner, "signals_blocked_score", 0) +
                        getattr(scanner, "signals_blocked_age", 0) +
                        getattr(scanner, "signals_blocked_security", 0))
+            # tokens_evaluated is the multi-bot fleet's liveness signal (2026-05-29).
+            # Without it this check false-fired whenever the legacy single-bot path
+            # was quiet, even with the 121-bot fleet evaluating hundreds of tokens.
+            evaluated = getattr(scanner, "tokens_evaluated", 0)
             uptime_mins = (now - getattr(scanner, "_start_monotonic", now)) / 60
-            if fired == 0 and blocked == 0 and uptime_mins > _ANOMALY_SILENT_MINS:
+            if fired == 0 and blocked == 0 and evaluated == 0 and uptime_mins > _ANOMALY_SILENT_MINS:
                 if (now - last_silent_alert) > 3600:  # don't repeat within 1h
                     last_silent_alert = now
                     anomalies.append(

@@ -161,6 +161,12 @@ class DipScanner:
 
         self._start_monotonic = time.monotonic()
         self.signals_fired = 0
+        # Fleet-level liveness counter (2026-05-29). The anomaly watchdog's
+        # "Scanner evaluated 0 tokens" check read only signals_fired, which the
+        # multi-bot fan-out never increments → false alarms whenever the legacy
+        # single-bot path was quiet (the normal state now). This counts every
+        # candidate the fleet evaluates, independent of whether any bot buys.
+        self.tokens_evaluated = 0
         self._last_buy_time = 0.0
         self._rejected_distribution = 0
         # BTC kline cache for regime tagging (Binance 1h klines, 60s TTL).
@@ -14443,6 +14449,10 @@ class DipScanner:
             # in parallel for parity validation (intentional — removed in
             # Sub-project 2 once baseline_v1 is forward-validated).
             if MULTI_BOT_ENABLED and self.bot_manager is not None:
+                # Liveness: a candidate reached the fleet evaluation this cycle.
+                # Read by the anomaly watchdog (main.py) instead of signals_fired,
+                # which only the legacy single-bot path bumps.
+                self.tokens_evaluated += 1
                 try:
                     _local = locals()
                     _sol_feats = getattr(self, "_cycle_sol_features", {}) or {}
