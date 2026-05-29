@@ -5030,6 +5030,48 @@ class DipScanner:
                 )
                 _filters_block.append("filter_consec_red")
 
+            # ── filter_dead_meme_lagging_pressure — DEFENDER 2026-05-29 ─────
+            # The HOPPY/PBTC disambiguation filter. Old dead-meme tokens with
+            # manufactured short-frame buyer pressure that are still bleeding
+            # on the 1m frame. Catches the "lagging-frame trap" — bot sees
+            # bs_m5 > 2.5 (sellers crushed, buyers winning fast frame) but
+            # the 1m cum is still negative (real momentum still falling).
+            #
+            # Validated 2026-05-29 against 1487-trade window:
+            #   blocks 80 trades, blocked_mean -$4.47/tr (clean loser-catcher),
+            #   only 2 small big winners killed ($10 SPCX) — clean Pareto.
+            #
+            # Distinguishes PBTC (age=12967 bs_m5=3.22 cum3=-1.01 → BLOCK)
+            # from HOPPY (age=79 — first clause fails → PASS).
+            #
+            # Forward-sim: adds +$0.37/tr lift on top of Defender6 stack.
+            _filter_dead_meme_block_reasons: list = []
+            try:
+                _dm_age = (_tier3_features or {}).get("hours_since_graduation")
+                _dm_bsm5 = ratio_m5 if ratio_m5 not in (None, float("inf")) else None
+                _dm_cum3 = c.get("1m_cum_3min_pct")
+                if (_dm_age is not None and _dm_bsm5 is not None and _dm_cum3 is not None
+                    and float(_dm_age) > 1000.0
+                    and float(_dm_bsm5) > 2.5
+                    and float(_dm_cum3) < 0):
+                    _filter_dead_meme_block_reasons.append(
+                        f"age={float(_dm_age):.0f}h>1000 AND bs_m5={float(_dm_bsm5):.2f}>2.5 "
+                        f"AND 1m_cum_3min={float(_dm_cum3):+.2f}%<0 "
+                        f"(dead-meme manufactured pressure, still bleeding)"
+                    )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] dead_meme_lagging calc err: {_e}")
+            _filter_dead_meme_verdict = "BLOCK" if _filter_dead_meme_block_reasons else "PASS"
+            c[f"filter_dead_meme_lagging_pressure_{_filter_dead_meme_verdict.lower()}"] = c.get(
+                f"filter_dead_meme_lagging_pressure_{_filter_dead_meme_verdict.lower()}", 0
+            ) + 1
+            if _filter_dead_meme_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_dead_meme_lagging_pressure: {token_symbol} "
+                    f"reasons={','.join(_filter_dead_meme_block_reasons)}"
+                )
+                _filters_block.append("filter_dead_meme_lagging_pressure")
+
             # ── filter_clean_break — ENFORCED 2026-05-06 ──────────────────────
             # User-spotted pattern from GME/SELLOR postmortems: visually clean
             # "downtrend break" reversals on 1m — lower-lows breaking with the
@@ -13786,6 +13828,9 @@ class DipScanner:
                 "filter_wynn_killer_block_reasons": _filter_wynn_killer_block_reasons,
                 "filter_consec_red_verdict": _filter_consec_red_verdict,
                 "filter_consec_red_block_reasons": _filter_consec_red_block_reasons,
+                # filter_dead_meme_lagging_pressure — added 2026-05-29 (HOPPY/PBTC mine)
+                "filter_dead_meme_lagging_pressure_verdict": _filter_dead_meme_verdict,
+                "filter_dead_meme_lagging_pressure_block_reasons": _filter_dead_meme_block_reasons,
                 # Axiom active-users signal (Task 1 from axiom-full-utilization plan).
                 # Captures user_cache value + spike flag at signal-fire time.
                 # Spike = current count >= 3x rolling 4-sample baseline.

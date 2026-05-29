@@ -1298,6 +1298,18 @@ COMBOS = {
         c.get('1m_consec_red') is not None and c['1m_consec_red'] >= 3
     ),
 
+    # FILTER — filter_dead_meme_lagging_pressure (added 2026-05-29 post HOPPY/PBTC mine)
+    # Old token + manufactured short-frame buyer pressure + still bleeding.
+    # 80 blocks/1487 (5.4%), blocked_mean -$4.47/tr, only 2 small big winners killed.
+    'FILT_dead_meme_lagging_pressure_BLOCK': lambda c: (
+        c.get('hours_since_graduation') is not None
+        and c.get('bs_m5') is not None
+        and c.get('1m_cum_3min_pct') is not None
+        and c['hours_since_graduation'] > 1000.0
+        and c['bs_m5'] > 2.5
+        and c['1m_cum_3min_pct'] < 0
+    ),
+
     # Trigger 1 — vol_breakout_flat (d64a37b)
     'NEW_vol_breakout_flat': lambda c: (
         c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 2.0
