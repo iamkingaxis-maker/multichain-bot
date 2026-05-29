@@ -32,8 +32,10 @@ def test_catalog_has_120_bots(catalog):
     #   champion_defender_v3 (full 6-filter layered, production-successor candidate)
     # 2026-05-29: +1 champion_defender_2k (7h-watch rec #1: 8-filter defender +
     #   stall-exit on the cap2k_turnover $2k spine; cap2k_turnover stays control).
-    assert len(catalog.configs) == 121, (
-        f"Expected 121 bots, got {len(catalog.configs)}: "
+    # 2026-05-29: +1 champion_defender_volaccel (single-filter isolation probe
+    #   for filter_dead_volume).
+    assert len(catalog.configs) == 122, (
+        f"Expected 122 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
@@ -44,13 +46,22 @@ def test_layered_defender_bots_present(catalog):
     Held-out 4x lift out-of-sample on 1487 paired trades from 27-28 window."""
     by_id = _by_id(catalog)
     for bid in ["champion_defender_falling_pump", "champion_defender_fusion",
-                "champion_defender_btc", "champion_defender_v3"]:
+                "champion_defender_btc", "champion_defender_v3",
+                "champion_defender_volaccel"]:
         assert bid in by_id, f"Missing defender bot: {bid}"
 
-    # Single-feature test bots each opt in to exactly one defender filter
-    assert by_id["champion_defender_falling_pump"].filters_enforced == ("filter_falling_pump",)
+    # fusion stays a single-feature isolation probe.
     assert by_id["champion_defender_fusion"].filters_enforced == ("filter_fusion_floor",)
-    assert by_id["champion_defender_btc"].filters_enforced == ("filter_btc_overheat",)
+    # champion_defender_volaccel: single-filter isolation probe for the new
+    # held-out entry gate (2026-05-29).
+    assert by_id["champion_defender_volaccel"].filters_enforced == ("filter_dead_volume",)
+    # btc + falling_pump ALSO carry filter_dead_volume (2026-05-29) — their own
+    # filters fire rarely (near-baseline), so they double as vol-accel probes for
+    # faster data. No longer strictly single-filter.
+    assert set(by_id["champion_defender_falling_pump"].filters_enforced) == {
+        "filter_falling_pump", "filter_dead_volume"}
+    assert set(by_id["champion_defender_btc"].filters_enforced) == {
+        "filter_btc_overheat", "filter_dead_volume"}
 
     # v3 opts in to all 9 defender filters (filter_dead_meme_lagging_pressure +
     # filter_dead_low_demand added 2026-05-29; filter_dead_volume added 2026-05-29

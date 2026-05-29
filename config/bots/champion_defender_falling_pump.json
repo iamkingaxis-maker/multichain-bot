@@ -23,7 +23,7 @@
   "mcap_max": null,
   "vol_h1_min": 1000.0,
 
-  "filters_enforced": ["filter_falling_pump"],
+  "filters_enforced": ["filter_falling_pump", "filter_dead_volume"],
   "filters_disabled": [],
   "triggers_allowed": null,
   "triggers_disabled": [],

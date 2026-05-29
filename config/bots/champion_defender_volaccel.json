@@ -1,6 +1,6 @@
 {
-  "bot_id": "champion_defender_btc",
-  "display_name": "Defender BTC overheat (btc_pc_h4>+0.5)",
+  "bot_id": "champion_defender_volaccel",
+  "display_name": "Defender vol-accel (filter_dead_volume only) — single-filter isolation probe for the held-out entry gate vol_h1_accel_vs_h6>=0.70. Starts at a clean zero so its $/trade vs baseline measures the filter's standalone contribution.",
   "enabled": true,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
@@ -23,7 +23,7 @@
   "mcap_max": null,
   "vol_h1_min": 1000.0,
 
-  "filters_enforced": ["filter_btc_overheat", "filter_dead_volume"],
+  "filters_enforced": ["filter_dead_volume"],
   "filters_disabled": [],
   "triggers_allowed": null,
   "triggers_disabled": [],
