@@ -37,10 +37,12 @@ def test_catalog_has_120_bots(catalog):
     # 2026-05-29: +1 champion_defender_v4 (v3 stack + vol_accel, NO stall_exit —
     #   WR-preserving production candidate A/B'd vs v3).
     # 2026-05-29: +1 champion_premium (v4's exact stack, triggers_allowed restricted
-    #   to the two held-out-validated premium triggers deep_1h_dip + pullback_in_uptrend;
-    #   +9pp WR edge over fleet in BOTH train/test regimes. A/B control = v4.)
-    assert len(catalog.configs) == 124, (
-        f"Expected 124 bots, got {len(catalog.configs)}: "
+    #   to held-out + worst-day validated premium triggers; A/B control = v4.)
+    # 2026-05-29: +1 champion_whale_buyers (v4's exact stack + entry_gate
+    #   top_buy_makers_n<=8; strongest feature-gate scan survivor — beats fleet WR
+    #   in both windows AND on the brutal 05-28 day, +$/tr-positive both regimes.)
+    assert len(catalog.configs) == 125, (
+        f"Expected 125 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
@@ -106,6 +108,16 @@ def test_layered_defender_bots_present(catalog):
         "power_dip_runner", "chart_quality_bottom"}
     assert prem.stall_exit_minutes is None
     assert prem.base_position_usd == 20.0
+
+    # champion_whale_buyers (2026-05-29): v4's exact stack + a single entry_gate
+    # on top_buy_makers_n<=8 (concentrated whales). Strongest feature-gate scan
+    # survivor: beats fleet WR in both windows AND on the brutal 05-28 day, and
+    # is +$/tr-positive in both regimes. triggers open (gate is the variable).
+    whale = by_id["champion_whale_buyers"]
+    assert set(whale.filters_enforced) == set(v4.filters_enforced)
+    assert whale.triggers_allowed is None
+    assert whale.entry_gate == (("top_buy_makers_n", "<=", 8.0),)
+    assert whale.base_position_usd == 20.0
 
 
 def test_volume_experiment_bots_present(catalog):
