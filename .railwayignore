@@ -1,0 +1,51 @@
+# Railway-only ignore for deploy uploads. Does NOT affect git.
+# 2026-05-28: working-copy bloat hit 223MB; Cloudflare 413 rejected upload.
+# Exclude scratch/analysis directories and large data dumps.
+
+# Mining/analysis scratch directories (all dot-prefixed working dirs)
+.mining_*/
+.watch7h/
+.chart_analysis/
+.chart_analysis_round2/
+.deep_mine_cache/
+.perf_diff_drafts/
+.claude/
+
+# Large data dumps (trades pulls, candle data, training sets)
+.perf_diff_trades*.json
+.perf_diff_completed_paired.json
+.perf_diff_fresh.json
+.perf_diff_trades_older.json
+.trades_*.json
+.candle_*.json
+.burnie_*.bin
+.cnn_dataset/
+.cnn_models/
+# Non-dot-prefixed trade dumps + scratch pulls at repo root
+trades_*.json
+.t_*.json
+.hist_trades_*.json
+.all_trades_*.json
+ep_*.json
+.deep_mine_*.json
+
+# Per-session output files
+.*_results.json
+.*_output.txt
+.*_check.txt
+.*_logs.txt
+.*_logs2.txt
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS noise
+.DS_Store
+Thumbs.db
