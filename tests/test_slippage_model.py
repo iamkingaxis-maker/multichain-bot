@@ -62,6 +62,20 @@ def test_roundtrip_cost_big_trade_much_smaller():
     assert rt < 0.6  # big trade amortizes the fixed fee
 
 
+def test_each_exit_leg_pays_a_full_fixed_fee():
+    # A 2-leg exit (TP1 75% + TP2/stop 25%) is two on-chain txs → two fees.
+    # sell_fill_price derives the fee from the SOLD-SLICE size, so each leg's
+    # dollar fee ≈ FEE_USD_PER_TX regardless of slice size (the dip_scanner fix).
+    mid = 1.0
+    for frac in (0.75, 0.25):
+        slice_usd = 650.0 * frac
+        ex = sm.sell_fill_price(mid, slice_usd, 0.0)  # impact 0 → isolate the fee
+        fee_dollars = slice_usd * (mid - ex)
+        assert abs(fee_dollars - sm.FEE_USD_PER_TX) < 1e-6, (
+            f"leg frac={frac} paid ${fee_dollars:.4f}, expected ${sm.FEE_USD_PER_TX}"
+        )
+
+
 def test_disabled_returns_mid(monkeypatch):
     monkeypatch.setattr(sm, "SLIPPAGE_ENABLED", False)
     px, impact = sm.buy_fill_price(1.0, 20, CURVE)

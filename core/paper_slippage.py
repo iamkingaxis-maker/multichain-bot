@@ -148,40 +148,43 @@ class PaperSlippageSimulator:
         if liquidity_usd <= 0:
             liquidity_usd = 10_000  # Assume minimum if unknown
 
-        # ── COMPONENT 1: Base spread ──────────────────────────────────
-        spread = BASE_SPREAD.get(self.chain_id, 0.40)
+        # ── RECONCILED 2026-05-29 onto the calibrated fixed-fee model ──
+        # (core/slippage_model.py). CALIBRATION FINDING: the real cost of a
+        # small memecoin swap is the FIXED priority fee per tx (~$0.10), NOT a
+        # percentage spread — live Jupiter price-impact at $20-$100 is ~0%. The
+        # old model (base spread + 0.50% tx_penalty + 1.5-2.5x volatility
+        # multiplier + 0.30% min floor) over-charged 2-4x and made this path
+        # DISAGREE with the fleet path. Now both use the same structure:
+        #
+        #     per_side_pct = market_impact + fee_usd_per_tx / size * 100
+        #
+        # We keep a liquidity-aware sqrt impact term (this path has the pool
+        # liquidity the fleet model lacks at call time) as the impact component,
+        # and add the fixed per-tx fee as a % of THIS trade's size. apply_to_sell
+        # passes the SOLD-SLICE notional, so each exit leg correctly eats a full
+        # fixed fee. Dropped: base spread, chain %-fee, tx_penalty, volatility
+        # multiplier, min floor. Kept: the max cap as a thin-book safety guard.
+        from core.slippage_model import FEE_USD_PER_TX, SLIPPAGE_ENABLED
+        _ = is_stop_loss  # no longer a cost input (fleet model has no stop penalty)
 
-        # ── COMPONENT 2: Chain fee ────────────────────────────────────
-        fee = CHAIN_FEE.get(self.chain_id, 0.25)
-
-        # ── COMPONENT 3: Market impact (sqrt model) ───────────────────
-        # impact = coefficient × sqrt(position / liquidity) × 100
+        spread = 0.0  # reconciled away (no separate spread term)
         coefficient = IMPACT_COEFFICIENT.get(self.chain_id, 0.10)
         size_ratio = position_usd / liquidity_usd
         market_impact = coefficient * math.sqrt(size_ratio) * 100
 
-        # ── COMPONENT 4: TX execution penalty ────────────────────────
-        # Simulates the 5-20s price drift between quote and TX settlement.
-        # Live trades never fill at the quoted price — Solana block time
-        # and mempool queue mean price moves before your TX lands on-chain.
-        tx_penalty = 0.50  # 0.50% flat penalty on every entry and exit
+        # Fixed priority fee expressed as a % of this trade's size (big % on a
+        # small trade, tiny % on a large one — why sizing up beats churn).
+        fee = (FEE_USD_PER_TX / position_usd * 100.0) if position_usd > 0 else 0.0
 
-        # ── COMPONENT 5: Volatility exit multiplier ───────────────────
-        # Normal sell: 1.5× — liquidity thins when dumping.
-        # Stop-loss sell: 2.5× — price already falling when stop fires,
-        # real Jupiter fills on memecoins gap 3-8% worse at exit.
-        if action == "sell":
-            volatility_multiplier = 2.5 if is_stop_loss else 1.5
+        if not SLIPPAGE_ENABLED:
+            market_impact = 0.0
+            fee = 0.0
+            total = 0.0
         else:
-            volatility_multiplier = 1.0
-
-        # ── TOTAL ─────────────────────────────────────────────────────
-        total = (spread + fee + market_impact) * volatility_multiplier + tx_penalty
-
-        # Apply caps
-        min_slip = MIN_SLIPPAGE.get(self.chain_id, 0.30)
-        max_slip = MAX_SLIPPAGE.get(self.chain_id, 6.0)
-        total = max(min_slip, min(max_slip, total))
+            total = market_impact + fee
+            # Safety cap only — NO min floor (the fixed fee already dominates
+            # small trades; flooring would re-introduce the over-charge).
+            total = min(MAX_SLIPPAGE.get(self.chain_id, 6.0), total)
 
         # ── APPLY TO PRICE ────────────────────────────────────────────
         # Buy: you pay more (price goes up by slippage %)

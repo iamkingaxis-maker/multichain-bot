@@ -928,8 +928,14 @@ class DipScanner:
         from core.slippage_model import sell_fill_price
         _pos = pm.get_position(token)
         _impact = (_pos.state_blob or {}).get("slip_pct") if _pos else None
-        _sz = _pos.size_usd if _pos else 20.0
-        eff_exit = sell_fill_price(current_price, _sz, _impact)
+        # Fee is FIXED per on-chain tx. Each exit leg (TP1 75%, then TP2/trail/
+        # stop 25%) is a SEPARATE Jupiter swap → its own priority fee. Derive the
+        # haircut from the SOLD-SLICE size, not the full position, so a 2-leg exit
+        # correctly pays 2× the fixed fee (was under-counting ~$0.10/extra leg —
+        # 0.5% of a $20 position). sold_frac mirrors close_position's clamp.
+        _sold_frac = min(sell_fraction, _pos.remaining_fraction) if _pos else sell_fraction
+        _sz_sold = (_pos.size_usd * _sold_frac) if _pos else 20.0
+        eff_exit = sell_fill_price(current_price, _sz_sold, _impact)
         try:
             result = pm.close_position(
                 token=token,
