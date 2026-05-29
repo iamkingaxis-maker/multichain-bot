@@ -1954,7 +1954,12 @@ async function resetBot() {
   el.textContent = "resetting " + id + "…";
   try {
     const r = await fetch("/api/bots/" + encodeURIComponent(id) + "/reset", { method: "POST" });
-    const d = await r.json();
+    if (r.status === 401) {
+      el.textContent = "\\u2717 login required — enter the dashboard username/password at the browser prompt";
+      return;
+    }
+    let d = {};
+    try { d = await r.json(); } catch (_) { el.textContent = "\\u2717 server error (HTTP " + r.status + ")"; return; }
     el.textContent = d.ok
       ? ("\\u2713 " + id + ": flattened " + d.flattened + " positions, ledger zeroed")
       : ("\\u2717 " + (d.error || "failed"));
