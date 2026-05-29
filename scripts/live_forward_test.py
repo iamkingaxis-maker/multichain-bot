@@ -1321,6 +1321,14 @@ COMBOS = {
         and c['bs_m5'] < 1.0
     ),
 
+    # FILTER — filter_dead_volume (added 2026-05-29, entry-quality, defender-scoped)
+    # Dip-bounce needs incoming volume; dead/declining volume = never-green misfire.
+    # Held-out: defended WR 51%->70%, $8 winner-kill. fail-OPEN if accel missing.
+    'FILT_dead_volume_BLOCK': lambda c: (
+        c.get('vol_h1_accel_vs_h6') is not None
+        and c['vol_h1_accel_vs_h6'] < 0.70
+    ),
+
     # Trigger 1 — vol_breakout_flat (d64a37b)
     'NEW_vol_breakout_flat': lambda c: (
         c.get('1m_volume_spike') is not None and c['1m_volume_spike'] >= 2.0

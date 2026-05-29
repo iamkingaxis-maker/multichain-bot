@@ -52,15 +52,16 @@ def test_layered_defender_bots_present(catalog):
     assert by_id["champion_defender_fusion"].filters_enforced == ("filter_fusion_floor",)
     assert by_id["champion_defender_btc"].filters_enforced == ("filter_btc_overheat",)
 
-    # v3 opts in to all 8 defender filters (filter_dead_meme_lagging_pressure
-    # added 2026-05-29 after HOPPY/PBTC mine — distinguishes lagging-frame trap;
-    # filter_dead_low_demand added 2026-05-29 7h-watch rec #2 — frontier gap)
+    # v3 opts in to all 9 defender filters (filter_dead_meme_lagging_pressure +
+    # filter_dead_low_demand added 2026-05-29; filter_dead_volume added 2026-05-29
+    # — held-out entry-quality gate, defended WR 51%->70%, defender-scoped)
     v3 = by_id["champion_defender_v3"]
     assert v3.filters_enforced is not None
     assert set(v3.filters_enforced) == {
         "filter_falling_pump", "filter_fusion_floor", "filter_btc_overheat",
         "filter_aged_corpse", "filter_wynn_killer", "filter_consec_red",
         "filter_dead_meme_lagging_pressure", "filter_dead_low_demand",
+        "filter_dead_volume",
     }
 
     # champion_defender_2k (7h-watch rec #1): 8-filter defender on cap2k $2k spine

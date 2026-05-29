@@ -28,7 +28,8 @@
     "filter_wynn_killer",
     "filter_consec_red",
     "filter_dead_meme_lagging_pressure",
-    "filter_dead_low_demand"
+    "filter_dead_low_demand",
+    "filter_dead_volume"
   ],
   "filters_disabled": [],
   "triggers_allowed": [

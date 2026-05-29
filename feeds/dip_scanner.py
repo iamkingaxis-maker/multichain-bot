@@ -5172,6 +5172,43 @@ class DipScanner:
                 )
                 _filters_block.append("filter_dead_low_demand")
 
+            # ── filter_dead_volume — DEFENDER 2026-05-29 ──────────────────────
+            # A dip-bounce entry needs volume coming IN to bounce. Buying a dip
+            # on dead/declining volume is the never-green misfire that ate ~half
+            # the defenders' gains. Gate: require vol_h1_accel_vs_h6 >= 0.70
+            # (h1 volume at least ~70% of the per-hour h6 baseline). Computed
+            # inline here from vol_h1/vol_h6 (the canonical _vol_h1_accel at
+            # ~line 13201 is AFTER this filter section — same hoist trap as the
+            # fusion bug; do not read it here). Fail-OPEN if vol_h6<=0.
+            #
+            # Held-out validation (val_wide, defended cohort): THR locked on
+            # 05-27/28 train, tested untouched on held-out 05-29 → defended WR
+            # 51%->70%, loss saved $97 vs winners killed only $8 (NET +$89).
+            # Coverage 100%. DEFENDER-SCOPED only: fleet-wide it kills runner-bot
+            # winners (momentum bots legitimately enter low-accel setups).
+            _filter_dead_volume_block_reasons: list = []
+            try:
+                _dv_baseline_h6 = (vol_h6 / 6.0) if vol_h6 and vol_h6 > 0 else 0.0
+                if _dv_baseline_h6 > 0:
+                    _dv_accel = vol_h1 / _dv_baseline_h6
+                    if _dv_accel < 0.70:
+                        _filter_dead_volume_block_reasons.append(
+                            f"vol_h1_accel_vs_h6={_dv_accel:.2f}<0.70 "
+                            f"(dead/declining volume — dip won't bounce)"
+                        )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] dead_volume calc err: {_e}")
+            _filter_dead_volume_verdict = "BLOCK" if _filter_dead_volume_block_reasons else "PASS"
+            c[f"filter_dead_volume_{_filter_dead_volume_verdict.lower()}"] = c.get(
+                f"filter_dead_volume_{_filter_dead_volume_verdict.lower()}", 0
+            ) + 1
+            if _filter_dead_volume_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_dead_volume: {token_symbol} "
+                    f"reasons={','.join(_filter_dead_volume_block_reasons)}"
+                )
+                _filters_block.append("filter_dead_volume")
+
             # ── filter_clean_break — ENFORCED 2026-05-06 ──────────────────────
             # User-spotted pattern from GME/SELLOR postmortems: visually clean
             # "downtrend break" reversals on 1m — lower-lows breaking with the
@@ -13968,6 +14005,9 @@ class DipScanner:
                 # filter_dead_low_demand — added 2026-05-29 (7h-watch frontier)
                 "filter_dead_low_demand_verdict": _filter_dead_low_demand_verdict,
                 "filter_dead_low_demand_block_reasons": _filter_dead_low_demand_block_reasons,
+                # filter_dead_volume — added 2026-05-29 (entry-quality, defender-scoped)
+                "filter_dead_volume_verdict": _filter_dead_volume_verdict,
+                "filter_dead_volume_block_reasons": _filter_dead_volume_block_reasons,
                 # Axiom active-users signal (Task 1 from axiom-full-utilization plan).
                 # Captures user_cache value + spike flag at signal-fire time.
                 # Spike = current count >= 3x rolling 4-sample baseline.
