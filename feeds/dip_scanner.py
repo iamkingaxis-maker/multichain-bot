@@ -9831,8 +9831,13 @@ class DipScanner:
                 _triggers_fired.append("micro_pattern_confirmed")
             if _trigger_vp_aligned_match:
                 _triggers_fired.append("volume_profile_aligned")
-            if _trigger_quiet_buyer_match:
-                _triggers_fired.append("quiet_1s_buyer_dominance")
+            # 2026-05-30 RETIRED — win/loss differential (scripts/win_loss_diff.py):
+            # token-WR 23% train (n=13) / 47% test (n=17), below fleet baseline
+            # (42% / 53%) in BOTH held-out windows, AND zero findable win/loss
+            # separator on any feature (winners indistinguishable from losers ->
+            # cannot be rescued by a gate). Match flag still stamped for forensics.
+            # if _trigger_quiet_buyer_match:
+            #     _triggers_fired.append("quiet_1s_buyer_dominance")
             # R3 (2026-05-16) wash-resistant triggers.
             if _trigger_vp_orderflow_match:
                 _triggers_fired.append("vp_poc_orderflow_bounce")
@@ -9998,8 +10003,13 @@ class DipScanner:
             #     _triggers_fired.append("alpha_buyperscold")
             if _trigger_post_capit_breakout_match:
                 _triggers_fired.append("post_capit_breakout")
-            if _trigger_beta_retailfresh_match:
-                _triggers_fired.append("beta_retailfresh")
+            # 2026-05-30 RETIRED — win/loss differential (scripts/win_loss_diff.py):
+            # token-WR 25% train (n=8) / 22% test (n=9), below fleet baseline
+            # (42% / 53%) in BOTH held-out windows, AND zero win/loss separator
+            # on any feature. Worst of the retired cohort on test WR. Match flag
+            # still stamped for forensics.
+            # if _trigger_beta_retailfresh_match:
+            #     _triggers_fired.append("beta_retailfresh")
             if _trigger_delta_microcap_match:
                 _triggers_fired.append("delta_microcap")
             if _trigger_seller_exhaustion_match:
@@ -10050,8 +10060,15 @@ class DipScanner:
             #     _triggers_fired.append("grad_window_dip")
             if _trigger_demand_bottom_match:
                 _triggers_fired.append("demand_bottom_compound")
-            if _trigger_sweep_rejection_match:
-                _triggers_fired.append("sweep_rejection")
+            # 2026-05-30 RETIRED — win/loss differential (scripts/win_loss_diff.py):
+            # token-WR 31% train (n=16) / 50% test (n=4, small), below fleet
+            # baseline (42% / 53%) in BOTH held-out windows, AND zero win/loss
+            # separator on any feature. Listed in several bots' triggers_allowed
+            # (cap2k pool, deep_dip_only) but is 1-of-12+ there, so retiring just
+            # makes it inert in those lists (no bot neutered). Match flag still
+            # stamped for forensics.
+            # if _trigger_sweep_rejection_match:
+            #     _triggers_fired.append("sweep_rejection")
             if _trigger_reaccum_demand_match:
                 _triggers_fired.append("reaccum_demand")
             if _trigger_extreme_sweep_1m_match:
@@ -11059,8 +11076,14 @@ class DipScanner:
                 _triggers_fired.append("btc_strong_bs_h1")
             if _trigger_btc_safe_bs_h1_match:
                 _triggers_fired.append("btc_safe_bs_h1")
-            if _trigger_chart_score_quiet_flow_match:
-                _triggers_fired.append("chart_score_quiet_flow")
+            # 2026-05-30 RETIRED — win/loss differential (scripts/win_loss_diff.py):
+            # token-WR 30% train (n=10) / 41% test (n=17), below fleet baseline
+            # (42% / 53%) in BOTH held-out windows, AND zero win/loss separator
+            # on any feature. Listed in chart_pattern_only's triggers_allowed
+            # alongside 3 already-retired triggers (inert there). Match flag still
+            # stamped for forensics.
+            # if _trigger_chart_score_quiet_flow_match:
+            #     _triggers_fired.append("chart_score_quiet_flow")
 
             # ── ROUND 3 TRIGGERS — ENFORCED 2026-05-22 PM ──────────────────
             # 5 triggers from .round3_results.json on n=174 paired trades.
