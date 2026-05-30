@@ -52,6 +52,15 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 EVENTS_FILE = DATA_DIR / "events.jsonl"
 PENDING_FILE = DATA_DIR / "pending.json"
 SEEN_FILE = DATA_DIR / "seen_events.txt"
+# Dedicated fresh-launch (<2h) outcome sink (2026-05-30). Fresh launches are the
+# one token-class the trade-history mining is blind to (aged-skewed), and the
+# divergence scan showed they behave differently (pop-then-fade, exit-timing
+# lever, freshness-critical). They're rare/small, so this gets a far higher cap
+# than events.jsonl — it accumulates a long fresh-launch corpus across regimes
+# while the main log keeps rotating. Read with scripts/fresh_launch_recorder.py.
+FRESH_FILE = DATA_DIR / "fresh_launches.jsonl"
+FRESH_MAX_AGE_H = 2.0
+RECORDER_FRESH_MAX_MB = float(os.environ.get("RECORDER_FRESH_MAX_MB", "200"))
 
 # Retention cap for the append-only events log. Without this the recorder grows
 # the Railway volume without bound (it hit 80% on 2026-05-27, accelerated by the
@@ -399,8 +408,18 @@ async def resolve_outcomes(client: DexScreenerClient, state: RecorderState):
         ev["won_10pct"] = ev["peak_pct"] >= 10
         ev["n_post_candles"] = len(post_event)
         # Append to events file
+        line = json.dumps(ev, default=str) + "\n"
         with EVENTS_FILE.open("a") as f:
-            f.write(json.dumps(ev, default=str) + "\n")
+            f.write(line)
+        # Also persist to the dedicated fresh-launch sink if it was <2h at entry,
+        # so fresh launches survive the events.jsonl rotation (2026-05-30).
+        _age = ev.get("age_hours")
+        if isinstance(_age, (int, float)) and not isinstance(_age, bool) and _age < FRESH_MAX_AGE_H:
+            try:
+                with FRESH_FILE.open("a") as ff:
+                    ff.write(line)
+            except Exception as _e:
+                logger.debug(f"fresh-launch sink write failed: {_e}")
         resolved += 1
     state.pending = still_pending
     if resolved:
@@ -455,6 +474,9 @@ async def main(args):
 
             # Bound events.jsonl so the Railway volume can't fill (2026-05-27).
             rotate_events_if_needed()
+            # Fresh-launch sink has its own (far higher) cap so it accumulates a
+            # long cross-regime corpus while the main log rotates (2026-05-30).
+            rotate_events_if_needed(FRESH_FILE, RECORDER_FRESH_MAX_MB)
 
             # Stats
             try:

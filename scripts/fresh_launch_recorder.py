@@ -23,14 +23,29 @@ Store: .fresh_launch_dataset.jsonl (gitignored). No deploy impact (read-only pul
 from __future__ import annotations
 import argparse, json, os, sys, io, urllib.request
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-URL = "https://gracious-inspiration-production.up.railway.app/api/universe-recorder"
+BASE = "https://gracious-inspiration-production.up.railway.app"
+# Prefer the dedicated long-retention fresh-launch corpus (Railway-side sink,
+# 2026-05-30); fall back to filtering the rolling universe-recorder pre-deploy.
+URL_FRESH = BASE + "/api/fresh-launches?limit=50000"
+URL_UNI = BASE + "/api/universe-recorder"
 STORE = ".fresh_launch_dataset.jsonl"
 FRESH_MAX_AGE_H = 2.0
 
 
-def pull():
-    raw = urllib.request.urlopen(urllib.request.Request(URL, headers={"User-Agent": "flr"}), timeout=60).read()
+def _get(url):
+    raw = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "flr"}), timeout=60).read()
     return json.loads(raw)
+
+
+def pull():
+    """Fresh-launch corpus from the dedicated sink; fall back to universe-recorder."""
+    try:
+        d = _get(URL_FRESH)
+        if isinstance(d, list) and d:
+            return d, "fresh-launches"
+    except Exception:
+        pass
+    return _get(URL_UNI), "universe-recorder"
 
 
 def load_store():
@@ -72,7 +87,8 @@ def main():
     before = len(store)
     if not args.report_only:
         try:
-            recs = pull()
+            recs, src = pull()
+            print(f"source: /api/{src}", file=sys.stderr)
         except Exception as e:
             print(f"[warn] pull failed: {e}; reporting on existing store", file=sys.stderr)
             recs = []

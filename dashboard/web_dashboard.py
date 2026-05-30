@@ -2068,6 +2068,7 @@ class WebDashboard:
         self.app.router.add_get("/api/signal-events",      self._handle_signal_events)
         self.app.router.add_get("/api/pre-gate-events",    self._handle_pre_gate_events)
         self.app.router.add_get("/api/universe-recorder",  self._handle_universe_recorder)
+        self.app.router.add_get("/api/fresh-launches",  self._handle_fresh_launches)
         self.app.router.add_get("/api/mc-recommendations", self._handle_mc_recommendations)
         self.app.router.add_get("/api/peak-traces",        self._handle_peak_traces)
         self.app.router.add_get("/api/peak-traces/{name}", self._handle_peak_trace_one)
@@ -3131,6 +3132,65 @@ class WebDashboard:
             return web.Response(
                 text=json.dumps({"error": str(e)}),
                 status=500, content_type="application/json", headers=cors)
+
+    async def _handle_fresh_launches(self, request):
+        """GET /api/fresh-launches — returns the dedicated fresh-launch (<2h)
+        outcome corpus the universe recorder persists to
+        {RECORDER_DATA_DIR}/fresh_launches.jsonl (2026-05-30). Same record shape
+        as /api/universe-recorder but fresh-only and long-retention (200MB cap),
+        so it accumulates across regimes — feeds scripts/fresh_launch_recorder.py
+        to validate whether the fresh-launch class needs situational handling.
+
+        Query params: ?stats=1 (counts only) | ?limit=N (last N, default 20000).
+        """
+        import os as _os
+        cors = {"Access-Control-Allow-Origin": "*"}
+        recorder_dir = (
+            _os.environ.get('RECORDER_DATA_DIR')
+            or _os.path.join(_os.environ.get('DATA_DIR') or '/data', 'universe_recorder')
+        )
+        path = _os.path.join(recorder_dir, 'fresh_launches.jsonl')
+        if not _os.path.exists(path):
+            fallback = _os.path.join('.universe_recorder', 'fresh_launches.jsonl')
+            if _os.path.exists(fallback):
+                path = fallback
+            else:
+                return web.Response(
+                    text=json.dumps({"exists": False, "checked_paths": [path, fallback]}),
+                    content_type="application/json", headers=cors)
+        if request.query.get('stats') == '1':
+            try:
+                size = _os.path.getsize(path)
+                with open(path, encoding='utf-8') as f:
+                    lines = sum(1 for _ in f)
+                return web.Response(
+                    text=json.dumps({"exists": True, "path": path,
+                                     "size_bytes": size, "records": lines}),
+                    content_type="application/json", headers=cors)
+            except Exception as e:
+                return web.Response(text=json.dumps({"error": str(e)}),
+                                    status=500, content_type="application/json", headers=cors)
+        try:
+            limit = int(request.query.get('limit', '20000'))
+        except ValueError:
+            limit = 20000
+        try:
+            with open(path, encoding='utf-8') as f:
+                all_lines = f.readlines()
+            records = []
+            for line in all_lines[-limit:]:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    records.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+            return web.Response(text=json.dumps(records),
+                                content_type="application/json", headers=cors)
+        except Exception as e:
+            return web.Response(text=json.dumps({"error": str(e)}),
+                                status=500, content_type="application/json", headers=cors)
 
     async def _handle_peak_traces(self, request):
         """GET /api/peak-traces — list peak recorder trace files written by
