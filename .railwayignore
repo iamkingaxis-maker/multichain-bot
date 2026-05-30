@@ -49,3 +49,11 @@ __pycache__/
 # OS noise
 .DS_Store
 Thumbs.db
+
+# 2026-05-30: workspace cleanup archive + session scratch (38MB, deploy-only exclude)
+_archive/
+.fresh_launch_dataset.jsonl
+.watch_log.jsonl
+.watch_loop.out
+.watch_snapshots.json
+.uni_raw.json
