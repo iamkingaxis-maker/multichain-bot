@@ -87,3 +87,55 @@ models/*.pkl
 !models/fusion_constrained_v1.pkl
 !models/fusion_meta_v1.pkl
 .cnn_dataset/
+
+# --- 2026-05-29 bulk scratch sweep (workspace had 1461 untracked artifacts) ---
+# Prefix-by-prefix enumeration above didn't scale. Broad root-level rules.
+# Tracked files (config.json, main.py, committed reports) are unaffected —
+# gitignore never un-tracks an already-committed file.
+# Root-level dotfile scratch by extension:
+/.*.json
+/.*.txt
+/.*.py
+/.*.bin
+/.*.pkl
+/.*.jsonl
+/.*.csv
+/.*.html
+# Root-level plain scratch (chart screenshots, dumps, temp logs):
+/*.png
+/*.jpeg
+/*.jpg
+/*.tmp
+/trades_*.json
+/all_trades.json
+/all_logs*.tmp
+# Scratch / cache / mining output directories:
+mining_*/
+universe_mine/
+universe_recorder/
+gt_cache_exh/
+deep_mine_cache/
+perf_diff_drafts/
+chart_analysis*/
+.chart_analysis*/
+watch7h/
+.watch7h/
+_archive/
+# dotted scratch dirs + remaining scratch extensions:
+.deep_mine_cache/
+.gt_cache_exh/
+.mining_*/
+.universe_mine/
+.universe_recorder/
+.perf_diff_drafts/
+/.*.md
+/.*.pkl
+/.*.bat
+/.*.ps1
+/.*.sh
+/.*.toml
+# root data scratch (config.json is the only legit tracked root json):
+/*.json
+!/config.json
+/*.pkl
+scripts/_*.pkl
