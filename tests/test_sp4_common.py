@@ -4,7 +4,10 @@ from scripts.sp4_common import (
 )
 
 
-def _trade(bot_id, type_, token, price=0.001, pnl=None, time="2026-05-23T10:00:00+00:00"):
+# NOTE: default time must be AFTER sp4_common.MIN_TRADE_TIMESTAMP (2026-05-27T22:10),
+# else pair_buys_sells correctly drops every fixture as pre-cutoff. Bumped from
+# 05-23 -> 05-28 when the cutoff moved (the test wasn't updated alongside dd76970).
+def _trade(bot_id, type_, token, price=0.001, pnl=None, time="2026-05-28T10:00:00+00:00"):
     t = {
         "bot_id": bot_id, "type": type_, "token": token,
         "entry_price": price, "time": time,
