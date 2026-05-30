@@ -1,0 +1,6 @@
+name = "axiom-refresh"
+main = "axiom_refresh.js"
+compatibility_date = "2024-11-01"
+
+# Workers free tier: 100k requests/day, 10ms CPU per invocation
+# This worker runs at Cloudflare's edge — trusted by Axiom's Cloudflare Bot Management

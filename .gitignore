@@ -139,3 +139,6 @@ _archive/
 !/config.json
 /*.pkl
 scripts/_*.pkl
+# cloudflare worker build/test caches (source IS committed):
+cloudflare_worker/.wrangler/
+cloudflare_worker/.pytest_cache/
