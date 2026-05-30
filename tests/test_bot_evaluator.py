@@ -102,13 +102,19 @@ def test_evaluator_alpha_trigger_gets_1_5x_size():
     assert d.size_tier == "alpha_trigger"
 
 def test_evaluator_demotes_1s_capit_reversal_alpha_at_pc_h24_80():
-    # 1s_capit_reversal alone, pc_h24=80 → no alpha
+    # 1s_capit_reversal alone, pc_h24>=80 → demoted off alpha (9840ffe). Since it
+    # is also in _MARGINAL_FOR_SIZE, the marginal multiplier (audit #6, 2026-05-27)
+    # then applies once it's non-alpha → lands at marginal/10, MORE conservative
+    # than the old standard/20. The WORLDCUP pc_h24>=80 protection is intact; the
+    # load-bearing guarantee is simply "not alpha-sized". (Assertion updated for
+    # the composed behavior — the test predated the 05-27 marginal wiring.)
     d = BotEvaluator(_cfg()).evaluate(_bundle(
         triggers_fired=("1s_capit_reversal",),
         pc_h24=85.0,
     ))
-    assert d.size_usd == 20.0
-    assert d.size_tier == "standard"
+    assert d.size_tier != "alpha_trigger"   # load-bearing: NOT alpha-sized at pc_h24>=80
+    assert d.size_usd == 10.0
+    assert d.size_tier == "marginal"
 
 def test_evaluator_mcap_psych_gated_by_pc_h24():
     # mcap_psych_level alone, pc_h24>=80 → no trigger → no buy

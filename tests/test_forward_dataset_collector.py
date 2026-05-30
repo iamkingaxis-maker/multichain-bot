@@ -11,11 +11,24 @@ import tempfile
 import json
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 from feeds.candle_utils import Candle
 from feeds.forward_dataset_collector import ForwardDatasetCollector
+import feeds.forward_dataset_collector as _fdc
+
+
+@pytest.fixture(autouse=True)
+def _enable_forward_dataset(monkeypatch):
+    """The collector is DISABLED by default in production (master gate added
+    2026-05-27 — the ChartCNN it feeds is non-predictive + it filled the Railway
+    volume). These tests verify the dump/outcome LOGIC, which only runs when
+    enabled, so flip the gate on for the test. (Without this they assert ok is
+    True while the production default returns False at the gate.)"""
+    monkeypatch.setattr(_fdc, "FORWARD_DATASET_ENABLED", True)
 
 
 def _flat_candles(n: int, base_ts: int = 1700000000):
