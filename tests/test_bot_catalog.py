@@ -44,8 +44,11 @@ def test_catalog_has_120_bots(catalog):
     # 2026-05-29: +1 champion_post_peak (v4's exact stack + entry_gate
     #   time_since_h24_peak_secs>=14400; broad feature-scan survivor — only enters
     #   >=4h past the 24h peak; TR 64%/TE 76%/05-28 87% WR, +$/tr both regimes.)
-    assert len(catalog.configs) == 126, (
-        f"Expected 126 bots, got {len(catalog.configs)}: "
+    # 2026-05-30: +1 champion_premium_fresh (champion_premium clone + freshness
+    #   entry_gate 1m_volume_spike>=0.40 AND 1m_cum_3min_pct>=-3; held-out across
+    #   all 4 premium triggers cut NG 25->14%, $/tr +0.52->+3.82. premium = control.)
+    assert len(catalog.configs) == 127, (
+        f"Expected 127 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
@@ -131,6 +134,15 @@ def test_layered_defender_bots_present(catalog):
     assert pp.triggers_allowed is None
     assert pp.entry_gate == (("time_since_h24_peak_secs", ">=", 14400.0),)
     assert pp.base_position_usd == 20.0
+
+    # champion_premium_fresh (2026-05-30): champion_premium clone + the freshness
+    # entry_gate (1m_volume_spike>=0.40 AND 1m_cum_3min_pct>=-3). Same triggers as
+    # premium; premium stays the pure control for the freshness A/B.
+    pf = by_id["champion_premium_fresh"]
+    assert set(pf.triggers_allowed) == set(prem.triggers_allowed)
+    assert set(pf.filters_enforced) == set(prem.filters_enforced)
+    assert pf.entry_gate == (("1m_volume_spike", ">=", 0.40), ("1m_cum_3min_pct", ">=", -3.0))
+    assert pf.base_position_usd == 20.0
 
 
 def test_volume_experiment_bots_present(catalog):
