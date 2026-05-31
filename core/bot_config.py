@@ -73,13 +73,6 @@ class BotConfig:
     # buy. Default False (control bots stay ungated so the A/B stays measurable).
     ng_scorer_gate: bool = False
 
-    # Correlated-cluster sizing brake opt-in (see core/cluster_brake.py). When
-    # True AND env CLUSTER_BRAKE_MODE=enforce, this bot's entry size is scaled
-    # down when the fleet is already swarming the token (validated: swarm 20+ =
-    # -6.14% EV vs solo -1.1%). Default False; in shadow mode (the default) the
-    # would-be size-down is measured fleet-wide regardless of this flag.
-    cluster_brake_gate: bool = False
-
     # Triggers — same semantics as filters
     triggers_allowed: Optional[tuple[str, ...]] = None
     triggers_disabled: tuple[str, ...] = field(default_factory=tuple)
