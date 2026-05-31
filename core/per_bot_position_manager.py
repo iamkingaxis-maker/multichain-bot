@@ -1,7 +1,29 @@
 from __future__ import annotations
+import os
 from dataclasses import dataclass, field
 from typing import Optional, Literal
 from core.bot_config import BotConfig
+
+
+def paper_uncapped() -> bool:
+    """Paper-mode data accelerator (2026-05-31): when on, the per-bot
+    max_concurrent_positions cap is dropped so each bot takes EVERY qualifying
+    signal (bounded only by its paper capital), accumulating per-trade EV data
+    far faster — the binding constraint on confirming any edge at n>=50.
+
+    Per-trade EV is cap-invariant (a trade's outcome doesn't depend on how many
+    OTHER positions the bot holds), so the uncapped data transfers directly to
+    the capped PRODUCTION config — the cap is a live-risk control, re-applied at
+    production time, not a research need.
+
+    HARD-GATED to paper: requires PAPER_UNCAPPED=1 AND PAPER_MODE on, so it can
+    NEVER uncap a live bot. Capital (reserve_for_buy) and the duplicate-token
+    guard still apply. Reversible by unsetting PAPER_UNCAPPED.
+    """
+    return (
+        os.environ.get("PAPER_UNCAPPED", "0").strip().lower() in ("1", "true", "yes", "on")
+        and os.environ.get("PAPER_MODE", "").strip().lower() in ("1", "true", "yes")
+    )
 
 
 @dataclass
@@ -76,7 +98,8 @@ class PerBotPositionManager:
         the cap on restore; the cap re-applies to NEW buys via the same
         path with bypass=False.
         """
-        if not bypass_max_concurrent and self.open_count >= self.config.max_concurrent_positions:
+        if (not bypass_max_concurrent and not paper_uncapped()
+                and self.open_count >= self.config.max_concurrent_positions):
             raise ValueError(
                 f"bot={self.config.bot_id} max_concurrent reached "
                 f"({self.config.max_concurrent_positions})"

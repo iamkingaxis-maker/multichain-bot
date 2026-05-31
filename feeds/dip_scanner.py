@@ -31,7 +31,7 @@ from feeds.gecko_ohlcv import GeckoTerminalClient
 from core.feature_bundle import FeatureBundle
 from core.bot_manager import BotManager
 from core.per_bot_capital import PerBotCapital
-from core.per_bot_position_manager import PerBotPositionManager
+from core.per_bot_position_manager import PerBotPositionManager, paper_uncapped
 from core.multi_bot_persistence import MultiBotTradeStore
 from core.exit_price_guard import guarded_exit_price
 
@@ -1136,7 +1136,7 @@ class DipScanner:
             1 for pos in self.open_positions_ref.values()
             if getattr(pos, "strategy", "") == "dip_buy"
         )
-        if dip_count >= self.max_concurrent:
+        if dip_count >= self.max_concurrent and not paper_uncapped():
             logger.info(
                 f"[DipScanner] Cycle: at max concurrent ({dip_count}) — skipping scan"
             )
@@ -1604,7 +1604,7 @@ class DipScanner:
                 1 for pos in self.open_positions_ref.values()
                 if getattr(pos, "strategy", "") == "dip_buy"
             )
-            if dip_count >= self.max_concurrent:
+            if dip_count >= self.max_concurrent and not paper_uncapped():
                 c["cap_reached"] += 1
                 break
 

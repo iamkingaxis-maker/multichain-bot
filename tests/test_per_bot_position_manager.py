@@ -281,3 +281,48 @@ def test_giveback_shadow_records_first_crossing_only():
     assert sb["gb_shadow_fired"] is True
     assert sb["gb_shadow_secs_at_fire"] == 20        # first crossing, not 30
     assert sb["gb_shadow_pnl_at_fire"] > -1.0        # ~-0.05, not -10
+
+
+# ── Paper-mode uncap (2026-05-31 data accelerator) ─────────────────────────
+from core.per_bot_position_manager import paper_uncapped
+
+
+def test_paper_uncapped_off_by_default(monkeypatch):
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)
+    assert paper_uncapped() is False
+
+
+def test_paper_uncapped_requires_BOTH_flags(monkeypatch):
+    monkeypatch.setenv("PAPER_UNCAPPED", "1")
+    monkeypatch.delenv("PAPER_MODE", raising=False)
+    assert paper_uncapped() is False          # PAPER_UNCAPPED alone is NOT enough
+    monkeypatch.setenv("PAPER_MODE", "true")
+    assert paper_uncapped() is True           # both -> uncapped
+
+
+def test_open_position_uncapped_exceeds_max_concurrent(monkeypatch):
+    monkeypatch.setenv("PAPER_UNCAPPED", "1")
+    monkeypatch.setenv("PAPER_MODE", "true")
+    pm = PerBotPositionManager(_cfg(max_concurrent_positions=2))
+    pm.open_position("A", 0.001, 20.0, entry_time=1.0)
+    pm.open_position("B", 0.001, 20.0, entry_time=2.0)
+    p = pm.open_position("C", 0.001, 20.0, entry_time=3.0)   # would raise if capped
+    assert p.token == "C" and pm.open_count == 3
+
+
+def test_open_position_still_caps_when_uncap_off(monkeypatch):
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)
+    pm = PerBotPositionManager(_cfg(max_concurrent_positions=2))
+    pm.open_position("A", 0.001, 20.0, entry_time=1.0)
+    pm.open_position("B", 0.001, 20.0, entry_time=2.0)
+    with pytest.raises(ValueError, match="max_concurrent"):
+        pm.open_position("C", 0.001, 20.0, entry_time=3.0)
+
+
+def test_uncapped_still_blocks_duplicate_token(monkeypatch):
+    monkeypatch.setenv("PAPER_UNCAPPED", "1")
+    monkeypatch.setenv("PAPER_MODE", "true")
+    pm = PerBotPositionManager(_cfg(max_concurrent_positions=2))
+    pm.open_position("A", 0.001, 20.0, entry_time=1.0)
+    with pytest.raises(ValueError, match="already holds"):
+        pm.open_position("A", 0.001, 20.0, entry_time=2.0)
