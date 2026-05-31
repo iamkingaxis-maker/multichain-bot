@@ -218,6 +218,29 @@ class PerBotPositionManager:
             p.peak_pnl_pct = pnl_pct
             p.peak_pnl_at_secs = int(now - p.entry_time)
 
+        # Give-back SHADOW (measure-only, 2026-05-31) — records whether a
+        # position that went solidly GREEN (peak>=+3%) ever fell back to
+        # breakeven (pnl<=0%) while still PRE-TP1. This is the give-back loser
+        # cohort (scripts/giveback_analysis.py: 245 losers, 21% of all losses,
+        # peaked +4.77% avg then reversed to -3.89% via slow_bleed/hard_stop —
+        # the trail only arms post-TP1, leaving +3-5% peakers defenseless).
+        # Captured (not acted on) so a future winner-kill audit can decide
+        # whether a fast peak-aware breakeven RESCUE (exit at BE once peak>=3 AND
+        # pnl<=0, pre-TP1) is safe to enforce: winners that hit this = the kill
+        # cost, losers that hit it = the rescue benefit. NO ExitDecision here.
+        # Fires once; the flag persists in state_blob (round-trips via
+        # to/from_state_list). Stamped onto the sell record in _execute_bot_sell.
+        if (
+            not p.tp1_hit
+            and not (p.state_blob or {}).get("gb_shadow_fired")
+            and p.peak_pnl_pct >= 3.0
+            and pnl_pct <= 0.0
+        ):
+            p.state_blob["gb_shadow_fired"] = True
+            p.state_blob["gb_shadow_pnl_at_fire"] = round(pnl_pct, 4)
+            p.state_blob["gb_shadow_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+            p.state_blob["gb_shadow_secs_at_fire"] = int(now - p.entry_time)
+
         decisions: list[ExitDecision] = []
 
         # 1. Hard stop (highest priority)

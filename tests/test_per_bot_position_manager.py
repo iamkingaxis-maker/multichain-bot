@@ -234,3 +234,50 @@ def test_stall_exit_disabled_by_default():
     pm.tick("X", current_price=0.00102, now=2.0)
     decisions = pm.tick("X", current_price=0.001, now=1.0 + 99 * 60)
     assert not any(d.kind == "STALL_EXIT" for d in decisions)
+
+
+# ── Give-back SHADOW (measure-only, 2026-05-31) ───────────────────────────
+# Records whether a position went green (peak>=+3%) then fell back to <=0%
+# while pre-TP1 — input for the future breakeven-rescue winner-kill audit.
+
+def test_giveback_shadow_fires_green_then_breakeven_pre_tp1():
+    pm = PerBotPositionManager(_cfg(tp1_pct=5.0, hard_stop_pct=-15.0))
+    pm.open_position("G", 0.001, 20.0, entry_time=0.0)
+    pm.tick("G", current_price=0.00104, now=10.0)   # +4% peak (below TP1)
+    pm.tick("G", current_price=0.001, now=20.0)      # back to 0%
+    sb = pm.get_position("G").state_blob
+    assert sb.get("gb_shadow_fired") is True
+    assert sb.get("gb_shadow_peak_at_fire") == pytest.approx(4.0, abs=0.05)
+    assert sb.get("gb_shadow_pnl_at_fire") == pytest.approx(0.0, abs=0.05)
+    assert sb.get("gb_shadow_secs_at_fire") == 20
+
+
+def test_giveback_shadow_no_fire_if_peak_below_3():
+    pm = PerBotPositionManager(_cfg())
+    pm.open_position("G", 0.001, 20.0, entry_time=0.0)
+    pm.tick("G", current_price=0.00102, now=10.0)   # +2% peak only
+    pm.tick("G", current_price=0.001, now=20.0)      # 0%
+    assert not (pm.get_position("G").state_blob or {}).get("gb_shadow_fired")
+
+
+def test_giveback_shadow_no_fire_post_tp1():
+    # trail_pp huge so the post-TP1 trail doesn't close the position here
+    pm = PerBotPositionManager(_cfg(tp1_pct=5.0, tp1_sell_fraction=0.75, trail_pp=50.0))
+    pm.open_position("G", 0.001, 20.0, entry_time=0.0)
+    pm.tick("G", current_price=0.00106, now=10.0)   # +6% -> TP1 fires
+    p = pm.get_position("G")
+    assert p is not None and p.tp1_hit
+    pm.tick("G", current_price=0.001, now=20.0)      # 0% but post-TP1
+    assert not (p.state_blob or {}).get("gb_shadow_fired")
+
+
+def test_giveback_shadow_records_first_crossing_only():
+    pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0))
+    pm.open_position("G", 0.001, 20.0, entry_time=0.0)
+    pm.tick("G", current_price=0.00104, now=10.0)    # +4% peak
+    pm.tick("G", current_price=0.0009995, now=20.0)  # ~-0.05% -> fires
+    pm.tick("G", current_price=0.0009, now=30.0)     # -10% -> must NOT overwrite
+    sb = pm.get_position("G").state_blob
+    assert sb["gb_shadow_fired"] is True
+    assert sb["gb_shadow_secs_at_fire"] == 20        # first crossing, not 30
+    assert sb["gb_shadow_pnl_at_fire"] > -1.0        # ~-0.05, not -10

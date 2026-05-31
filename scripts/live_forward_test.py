@@ -338,6 +338,20 @@ def loser_trigger_only_block(c):
     t = _trigs_of(c)
     return bool(t & _LOSER_TRIG_FT) and not (t & _KEEP_TRIG_FT)
 
+
+def extended_chase_shadow_block(c):
+    """Parity for filter_extended_chase (SHADOW 2026-05-31): an extended-runner
+    chase = pc_h24>=200 OR pct_above_vwap_h24>=10 OR shape_90m_chg_pct>=5.
+    Mirrors feeds/dip_scanner.py exactly (fail-open per leg). The green-then-
+    gave-back loser cohort (user's 'buying too high' complaint); held-out across
+    two windows: blocked -4..-6% EV vs ~-1% kept, 0/7 of >=+10% winners killed."""
+    pc = c.get("pc_h24")
+    vw = c.get("pct_above_vwap_h24")
+    m9 = c.get("shape_90m_chg_pct")
+    def _ge(v, t):
+        return isinstance(v, (int, float)) and not isinstance(v, bool) and v >= t
+    return _ge(pc, 200) or _ge(vw, 10) or _ge(m9, 5)
+
 COMBOS = {
     'Z_truly_unfiltered':    lambda c: True,                                    # control: every trending token PASSES
     'A_scanner_baseline':    lambda c: not scanner_block_reasons(c),            # bot's existing scanner gates (vol_h1, red_h24, real_dip, peak1000)
@@ -383,6 +397,10 @@ COMBOS = {
     # shadow_loser_trigger_only (cross-regime-validated, carve-out audited).
     'DEV_no_dev_dump':       lambda c: not scanner_block_reasons(c) and not dev_dump_shadow_block(c),
     'LT_no_loser_only':      lambda c: not scanner_block_reasons(c) and not loser_trigger_only_block(c),
+    # filter_extended_chase SHADOW (2026-05-31) — phantom parity. PASS = NOT an
+    # extended-runner chase (pc_h24>=200 OR vwap>=10 OR 90m>=5). Tracks forward
+    # whether dropping extended chases lifts the slice before enforcing the gate.
+    'EXT_no_extended_chase': lambda c: not scanner_block_reasons(c) and not extended_chase_shadow_block(c),
     # ─── NEW PARALLEL TRIGGERS — ENFORCED 2026-05-12 ───
     # Phantom mirrors for new orthogonal entries in feeds/dip_scanner.py.
     # Combos return PASS when the live trigger would fire on this candidate.

@@ -1057,6 +1057,13 @@ class DipScanner:
                     if (_pos and (_pos.state_blob or {}).get("sol_bail_shadow_pnl_pct") is not None)
                     else None
                 ),
+                # Give-back SHADOW (measure-only): did this position peak >=+3%
+                # then fall back to <=0% while pre-TP1? Winner-kill audit input —
+                # a winner with fired=True = the cost of a breakeven rescue, a
+                # loser with fired=True = the rescue benefit. See tick().
+                "giveback_shadow_fired": ((_pos.state_blob or {}).get("gb_shadow_fired") if _pos else None),
+                "giveback_shadow_pnl_at_fire": ((_pos.state_blob or {}).get("gb_shadow_pnl_at_fire") if _pos else None),
+                "giveback_shadow_peak_at_fire": ((_pos.state_blob or {}).get("gb_shadow_peak_at_fire") if _pos else None),
                 "pnl": result.realized_pnl_usd,
                 "pnl_pct": result.pnl_pct,
                 "peak_pnl_pct": result.peak_pnl_pct,
@@ -2869,6 +2876,60 @@ class DipScanner:
                     f"{token_symbol}"
                 )
                 c["filter_round_trip_carve_vol"] = c.get("filter_round_trip_carve_vol", 0) + 1
+
+            # Filter extended-chase — SHADOW (measure-only) 2026-05-31.
+            # The green-then-gave-back loser cohort (peaked >=+3% then reversed
+            # to a loss — the recurring "buying too high" complaint) are
+            # EXTENDED-RUNNER CHASES: already pumped on the day, entered above
+            # VWAP, on a 90m up-move. Mined from the green-give-back differential
+            # (scripts/giveback_entry_diff.py) — gave-back vs held-winner means:
+            #   pc_h24             +797% vs  +29%
+            #   pct_above_vwap_h24  +14% vs  +0.4%
+            #   shape_90m_chg_pct   +14% vs  -4.4%
+            # Gate: BLOCK if pc_h24>=200 OR pct_above_vwap_h24>=10 OR
+            # shape_90m_chg_pct>=5 (any leg). Held-out across two windows
+            # (05-29/31 + 05-27/28): blocked tokens -4..-6% realized EV vs ~-1%
+            # kept, 0/7 of the >=+10% winners killed (extension_gate_validate.py).
+            # Thresholds chosen for 0% winner-kill: vwap>=10 is the sweet spot
+            # (>=5 killed a winner); pc_h24>=200 matches the long-suspected
+            # filter_extended_pumper threshold. whale_conviction fires on 67% of
+            # these -> the gate is UNIVERSAL (trigger-agnostic). It cuts ~27% of
+            # trade VOLUME, so this ships as a SHADOW FIRST: it records the
+            # would-block verdict (queryable via entry_meta) to confirm the
+            # realized edge on more big-winner tokens before enforcing. The
+            # existing pc_h24>=80 gate only covers mcap_psych_level +
+            # 1s_capit_reversal; this would close the hole for all other triggers.
+            #
+            # Fail-open: each leg is skipped if its feature is missing (pc_h24
+            # from DexScreener is always present; vwap_features/shape_90m can be
+            # absent on thin 1m history). At least one leg must trip to BLOCK.
+            _ext_vwap = vwap_features.get("pct_above_vwap_h24")
+            _ext_90m = m1_features.get("shape_90m_chg_pct")
+            _filter_extended_chase_block_reasons: list = []
+            if pc_h24 is not None and pc_h24 >= 200:
+                _filter_extended_chase_block_reasons.append(
+                    f"pc_h24={pc_h24:+.0f}%>=200 (already pumped on the day)"
+                )
+            if _ext_vwap is not None and _ext_vwap >= 10:
+                _filter_extended_chase_block_reasons.append(
+                    f"pct_above_vwap_h24={_ext_vwap:+.1f}%>=10 (extended above VWAP)"
+                )
+            if _ext_90m is not None and _ext_90m >= 5:
+                _filter_extended_chase_block_reasons.append(
+                    f"shape_90m_chg={_ext_90m:+.1f}%>=5 (90m up-chase, not a dip)"
+                )
+            _filter_extended_chase_verdict = (
+                "BLOCK" if _filter_extended_chase_block_reasons else "PASS"
+            )
+            c[f"filter_extended_chase_{_filter_extended_chase_verdict.lower()}"] = c.get(
+                f"filter_extended_chase_{_filter_extended_chase_verdict.lower()}", 0
+            ) + 1
+            if _filter_extended_chase_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] filter_extended_chase SHADOW would-block: "
+                    f"{token_symbol} reasons={','.join(_filter_extended_chase_block_reasons)}"
+                )
+                # SHADOW — do NOT append to _filters_block.
 
             # Filter weak-bounce v2 — ENFORCED 2026-05-09.
             # Compound rule: 5m candle body/range < 0.20 (weak commitment)
@@ -13748,6 +13809,10 @@ class DipScanner:
                 # filter_round_trip — enforced 90m round-trip distribution gate.
                 "filter_round_trip_verdict": _filter_round_trip_verdict,
                 "filter_round_trip_block_reasons": _filter_round_trip_block_reasons,
+                # filter_extended_chase — SHADOW (measure-only) extended-runner
+                # chase gate: pc_h24>=200 OR pct_above_vwap_h24>=10 OR 90m>=5.
+                "filter_extended_chase_verdict": _filter_extended_chase_verdict,
+                "filter_extended_chase_block_reasons": _filter_extended_chase_block_reasons,
                 # filter_vp_poc — enforced "entry above POC" gate.
                 "filter_vp_poc_verdict": _filter_vp_poc_verdict,
                 "filter_vp_poc_block_reasons": _filter_vp_poc_block_reasons,
