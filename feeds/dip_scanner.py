@@ -800,6 +800,20 @@ class DipScanner:
             capital.in_flight_usd -= decision.size_usd
             logger.info("[DipScanner] bot=%s open_position rejected: %s", bot_id, e)
             return
+        # On-chain holder-concentration instrumentation (env HOLDER_CAPTURE, default
+        # on). Fetch the FULL rugcheck ONCE per token (cached, TTL) and stamp holder
+        # features (top10/top1 concentration, dev holdings, LP imbalance) into the
+        # RECORDED entry_meta so the never-green scorer can later train on on-chain
+        # signal it's currently blind to. Bounded cost: one fetch per token per TTL,
+        # shared across all bots buying it. Fail-soft: never blocks/delays the buy.
+        _entry_meta = bundle.raw_meta
+        if os.environ.get("HOLDER_CAPTURE", "1") not in ("0", "false", "off"):
+            try:
+                _hf = await self._holder_features_cached(decision.address or decision.token)
+                if _hf:
+                    _entry_meta = {**bundle.raw_meta, **_hf}
+            except Exception:
+                pass
         if self.trade_store is not None:
             self.trade_store.record_trade({
                 "type": "buy",
@@ -813,13 +827,41 @@ class DipScanner:
                 "size_tier": decision.size_tier,
                 "time": datetime.now(timezone.utc).isoformat(),
                 "triggers_fired": list(decision.triggers_fired),
-                "entry_meta": bundle.raw_meta,
+                "entry_meta": _entry_meta,
             }, bot_id=bot_id)
             self._save_bot_state(bot_id)
         logger.info(
             "[DipScanner] BUY bot=%s token=%s size=$%.2f tier=%s",
             bot_id, decision.token, decision.size_usd, decision.size_tier,
         )
+
+    async def _holder_features_cached(self, token_address):
+        """Full-rugcheck holder features for a token, cached per-token (30-min TTL).
+
+        One fetch per token per window, shared across every bot buying it (bounds
+        API cost to distinct traded tokens). Returns {} on miss/error (fail-soft).
+        """
+        if not token_address:
+            return {}
+        cache = self.__dict__.setdefault("_holder_cache", {})
+        now = time.time()
+        hit = cache.get(token_address)
+        if hit and (now - hit[0]) < 1800:
+            return hit[1]
+        sec = getattr(getattr(self, "trader", None), "_security_checker", None)
+        if sec is None:
+            return {}
+        try:
+            rc_full = await sec._fetch_rugcheck_full(token_address)
+        except Exception:
+            rc_full = None
+        from core.holder_features import compute_holder_features
+        feats = compute_holder_features(rc_full) if rc_full else {}
+        cache[token_address] = (now, feats)
+        if len(cache) > 2000:  # bound memory
+            for k in list(cache.keys())[:1000]:
+                cache.pop(k, None)
+        return feats
 
     def _second_source_price_sync(self, address: Optional[str]) -> Optional[float]:
         """Independent (GeckoTerminal) USD price to cross-confirm a SUSPECT exit drop.
