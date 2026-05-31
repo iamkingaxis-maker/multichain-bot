@@ -67,10 +67,27 @@ def main():
         af = s.get("ng_faststop_pnl_at_fire")
         rescue = float(af) if isinstance(af, (int, float)) else STOP_LEVEL  # exit ~-4
         rows.append(dict(token=s.get("token"), actual=actual, rescue=rescue,
-                         delta=rescue - actual, win=actual > 0))
+                         delta=rescue - actual, win=actual > 0,
+                         vol_m5=s.get("ng_faststop_vol_m5_at_fire"),
+                         velo=s.get("ng_faststop_drop_velocity_pp_s"),
+                         secs_peak=s.get("ng_faststop_secs_from_peak")))
 
     won = [r for r in rows if r["win"]]
     lost = [r for r in rows if not r["win"]]
+
+    # FINER DIP-MOMENT SEPARATOR: do recoverers (WIN) differ from diers (LOSS)
+    # on the dip-moment features? If one separates, a FINER stop (peak<2 & -4 &
+    # <that feature>) cuts only the diers, keeping the ~40% deep-dip recoverers.
+    def _m(rs, k):
+        v = [r[k] for r in rs if isinstance(r.get(k), (int, float))]
+        return float(np.mean(v)) if v else float("nan")
+    print("\n=== FINER dip-moment separator (recoverers/WIN vs diers/LOSS) ===")
+    print(f"{'feature':22} {'WIN(recover)':>14} {'LOSS(die)':>12}")
+    for k, lbl in [("vol_m5", "vol_m5 @fire (liveness)"),
+                   ("velo", "drop_velocity pp/s"),
+                   ("secs_peak", "secs peak->fire")]:
+        print(f"  {lbl:22} {_m(won,k):>14.3f} {_m(lost,k):>12.3f}")
+    print("  -> a feature that SEPARATES = the finer-stop gate (cut diers, keep recoverers)")
     saved = sum(r["delta"] for r in lost)
     cost = sum(r["delta"] for r in won)
     net = saved + cost

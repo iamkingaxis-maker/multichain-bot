@@ -286,6 +286,23 @@ class PerBotPositionManager:
             p.state_blob["ng_faststop_pnl_at_fire"] = round(pnl_pct, 4)
             p.state_blob["ng_faststop_peak_at_fire"] = round(p.peak_pnl_pct, 4)
             p.state_blob["ng_faststop_secs_at_fire"] = int(now - p.entry_time)
+            # Finer dip-moment signal capture (2026-05-31): the flat ng_faststop
+            # kills ~40% of never-greens that RECOVER (deep-dip reversals = the
+            # dip-buy edge). To build a FINER stop that cuts only the dying ones,
+            # snapshot the market microstructure at the -4 fire so we can mine
+            # which dip-features separate recoverers (e.g. JTVO/IDLE bounced to
+            # +4.6) from diers (PENGUIN/Digi). Zero extra fetch — vol_m5 is
+            # already passed; the rest is position state:
+            #   vol_m5_at_fire    — is there still buying interest (liveness)?
+            #   drop_velocity_pp_s — fast capitulation flush vs slow death grind
+            #   secs_from_peak     — how long it took to roll over
+            # Stamped on the sell record; mine vs the recover/die outcome.
+            p.state_blob["ng_faststop_vol_m5_at_fire"] = vol_m5_usd
+            _secs_from_peak = max(int(now - p.entry_time) - p.peak_pnl_at_secs, 1)
+            p.state_blob["ng_faststop_secs_from_peak"] = _secs_from_peak
+            p.state_blob["ng_faststop_drop_velocity_pp_s"] = round(
+                (p.peak_pnl_pct - pnl_pct) / _secs_from_peak, 5
+            )
 
         decisions: list[ExitDecision] = []
 

@@ -1071,6 +1071,11 @@ class DipScanner:
                 "ng_faststop_shadow_fired": ((_pos.state_blob or {}).get("ng_faststop_fired") if _pos else None),
                 "ng_faststop_pnl_at_fire": ((_pos.state_blob or {}).get("ng_faststop_pnl_at_fire") if _pos else None),
                 "ng_faststop_peak_at_fire": ((_pos.state_blob or {}).get("ng_faststop_peak_at_fire") if _pos else None),
+                # Finer dip-moment snapshot (to separate dying vs recovering
+                # never-greens — mine these vs the win/loss outcome).
+                "ng_faststop_vol_m5_at_fire": ((_pos.state_blob or {}).get("ng_faststop_vol_m5_at_fire") if _pos else None),
+                "ng_faststop_drop_velocity_pp_s": ((_pos.state_blob or {}).get("ng_faststop_drop_velocity_pp_s") if _pos else None),
+                "ng_faststop_secs_from_peak": ((_pos.state_blob or {}).get("ng_faststop_secs_from_peak") if _pos else None),
                 "pnl": result.realized_pnl_usd,
                 "pnl_pct": result.pnl_pct,
                 "peak_pnl_pct": result.peak_pnl_pct,

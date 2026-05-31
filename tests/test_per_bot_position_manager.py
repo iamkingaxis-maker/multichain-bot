@@ -374,3 +374,19 @@ def test_ng_faststop_records_first_crossing(monkeypatch):
     sb = pm.get_position("D").state_blob
     assert sb["ng_faststop_secs_at_fire"] == 20
     assert sb["ng_faststop_pnl_at_fire"] > -5.0     # ~-4.2, not -10
+
+
+def test_ng_faststop_captures_dip_moment_features(monkeypatch):
+    # The finer dip-moment snapshot must populate at fire: vol_m5 (passed),
+    # drop_velocity + secs_from_peak (from state).
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)
+    pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0))
+    pm.open_position("D", 0.001, 20.0, entry_time=0.0)
+    pm.tick("D", current_price=0.00101, now=10.0)                    # +1% peak @10s
+    pm.tick("D", current_price=0.00096, now=40.0, vol_m5_usd=123.0)  # -4% @40s -> fires
+    sb = pm.get_position("D").state_blob
+    assert sb["ng_faststop_fired"] is True
+    assert sb["ng_faststop_vol_m5_at_fire"] == 123.0
+    assert sb["ng_faststop_secs_from_peak"] == 30          # 40s fire - 10s peak
+    # drop ~5pp (+1 -> -4) over 30s = ~0.167 pp/s
+    assert sb["ng_faststop_drop_velocity_pp_s"] == pytest.approx(0.167, abs=0.02)
