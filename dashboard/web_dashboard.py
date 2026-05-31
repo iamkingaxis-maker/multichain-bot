@@ -249,6 +249,11 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   .breakdown-card .card-name { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
   .breakdown-card .stat-line { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border2); font-size: 12px; }
   .breakdown-card .stat-line:last-child { border-bottom: none; }
+  /* Full-screen tab views: when a tab is open, hide all other top-level content so
+     the tab renders alone at the top. (Scrolling can't reach the tab — its content
+     is shorter than the viewport, so it can never reach the top of a long page.) */
+  body.psweep-open > *:not(#profitsweep-tab):not(script):not(style) { display: none !important; }
+  body.attr-open > *:not(#attribution-tab):not(script):not(style) { display: none !important; }
   .breakdown-card .stat-line .k { color: var(--muted); }
 
   /* ── Active Strategies panel ── */
@@ -748,7 +753,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 <div class="main" id="attribution-tab" style="display:none;">
   <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem;">
     <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:0;">ATTRIBUTION</h2>
-    <a href="#" onclick="history.pushState('','',location.pathname);document.getElementById('attribution-tab').style.display='none';return false;"
+    <a href="#" onclick="history.pushState('','',location.pathname);document.body.classList.remove('attr-open');document.getElementById('attribution-tab').style.display='none';return false;"
        style="font-size:11px;color:var(--muted);text-decoration:none;">&larr; close</a>
   </div>
   <div class="attr-grid">
@@ -785,7 +790,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 <div class="main" id="profitsweep-tab" style="display:none;">
   <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem;">
     <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:0;">PROFIT-SWEEP SIM (shadow — nothing is moved)</h2>
-    <a href="#" onclick="history.pushState('','',location.pathname);document.getElementById('profitsweep-tab').style.display='none';return false;"
+    <a href="#" onclick="history.pushState('','',location.pathname);document.body.classList.remove('psweep-open');document.getElementById('profitsweep-tab').style.display='none';return false;"
        style="font-size:11px;color:var(--muted);text-decoration:none;">&larr; close</a>
   </div>
   <p style="font-size:11px;color:var(--muted);margin:0 0 0.6rem;">
@@ -1892,12 +1897,14 @@ async function updateChampionPreview() {
 function maybeShowAttribution() {
   const tab = document.getElementById("attribution-tab");
   if (location.hash === "#attribution") {
+    document.body.classList.add("attr-open");  // full-screen the tab (hide the rest)
     tab.style.display = "block";
     updateAttributionFilters();
     updateAttributionCategories();
     updateChampionPreview();
-    tab.scrollIntoView({behavior: "smooth", block: "start"});  // same below-the-fold fix
+    window.scrollTo(0, 0);
   } else {
+    document.body.classList.remove("attr-open");
     tab.style.display = "none";
   }
 }
@@ -1937,13 +1944,14 @@ async function updateProfitSweepSim() {
 function maybeShowProfitSweep() {
   const tab = document.getElementById("profitsweep-tab");
   if (location.hash === "#profitsweep") {
+    // Full-screen the tab: hide everything else (the tab is too short to scroll to
+    // the top of the long dashboard, so scrolling never worked — hide-main does).
+    document.body.classList.add("psweep-open");
     tab.style.display = "block";
     updateProfitSweepSim();
-    // The hash (#profitsweep) doesn't match the div id (#profitsweep-tab), so the
-    // browser never auto-scrolls; the tab renders below the fold and the link
-    // looked dead. Scroll to it explicitly.
-    tab.scrollIntoView({behavior: "smooth", block: "start"});
+    window.scrollTo(0, 0);
   } else {
+    document.body.classList.remove("psweep-open");
     tab.style.display = "none";
   }
 }
