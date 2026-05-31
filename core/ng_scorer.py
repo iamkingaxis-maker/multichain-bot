@@ -46,7 +46,7 @@ _CONFOUND = ("sol_pc", "sol_macro", "btc_pc", "btc_macro", "regime_h", "_neg_pct
 # dilutes). Env-tunable to retune without a code change.
 NG_PEAK_THRESHOLD = float(os.environ.get("NG_SCORER_PEAK_THRESHOLD", "2.0"))
 DEFAULT_LOOKBACK_DAYS = 7
-DEFAULT_BLOCK_RATE = 0.10
+DEFAULT_BLOCK_RATE = 0.15  # of the post-filter champion population (was 0.10; live under-blocked)
 RETRAIN_TTL_SECS = 6 * 3600      # refresh model at most every 6h
 MIN_TRAIN_ROWS = 200
 
@@ -86,9 +86,35 @@ def _pair_completed(trades: list) -> list:
                 em = em if isinstance(em, dict) else x["buy"]
                 if x["peak"] is not None:
                     out.append({"t": x["buy"].get("time", "") or "", "tok": tok,
+                                "bot": bot,
                                 "ng": 1 if x["peak"] < NG_PEAK_THRESHOLD else 0, "f": em})
                 ob[k].pop(0)
     return out
+
+
+def _recent_decision_probas(limit: int = 400) -> list:
+    """Read recent live scorer probabilities from the decision log (the EXACT
+    post-filter population the gate scores). Empty if no log yet."""
+    try:
+        p = os.path.join(os.environ.get("DATA_DIR") or "/data", "ng_scorer", "decisions.jsonl")
+        if not os.path.exists(p):
+            return []
+        with open(p, encoding="utf-8") as fh:
+            lines = fh.readlines()[-limit:]
+        out = []
+        for ln in lines:
+            ln = ln.strip()
+            if not ln:
+                continue
+            try:
+                v = json.loads(ln).get("p")
+                if isinstance(v, (int, float)):
+                    out.append(float(v))
+            except Exception:
+                continue
+        return out
+    except Exception:
+        return []
 
 
 class RollingNGScorer:
@@ -153,7 +179,14 @@ class RollingNGScorer:
                                            l2_regularization=2.0, min_samples_leaf=20,
                                            random_state=0)
         m.fit(X, y)
-        # OOS-calibrated threshold (grouped by token) -> blocks ~block_rate forward.
+        # Calibrate the block threshold on the population the gate ACTUALLY scores
+        # (post-filter champion entries) — NOT the raw fleet. Calibrating on all
+        # trades put the threshold near the fleet's high-proba tail (~0.65), far above
+        # the live champion distribution -> ~0% live blocks (it flagged MONEY at 0.65
+        # but threshold was 0.654). Cascade, most-representative-available:
+        #   1) recent LIVE decision-log probas (exact post-filter, >=50)
+        #   2) OOS scores of champion-family trades (offline post-filter proxy, >=30)
+        #   3) OOS scores of all trades (cold-start bootstrap)
         try:
             g = min(5, max(2, len(set(toks))))
             oos = cross_val_predict(HistGradientBoostingClassifier(
@@ -162,14 +195,23 @@ class RollingNGScorer:
                 cv=GroupKFold(g), method="predict_proba")[:, 1]
         except Exception:
             oos = m.predict_proba(X)[:, 1]
+        live = _recent_decision_probas()
+        champ_oos = [oos[i] for i, c in enumerate(rows)
+                     if str(c.get("bot", "")).startswith("champion")]
+        if len(live) >= 50:
+            calib, src = np.asarray(live), f"live-decisions(n={len(live)})"
+        elif len(champ_oos) >= 30:
+            calib, src = np.asarray(champ_oos), f"champion-trades(n={len(champ_oos)})"
+        else:
+            calib, src = oos, f"all-trades(n={len(oos)})"
         with self._lock:
             self.model = m
             self.feats = feats
-            self.threshold = float(np.quantile(oos, 1.0 - self.block_rate))
+            self.threshold = float(np.quantile(calib, 1.0 - self.block_rate))
             self.trained_at = time.time()
             self.n_train = len(rows)
         logger.info(f"[ng_scorer] trained on {len(rows)} positions, {len(feats)} feats, "
-                    f"NG-rate {y.mean():.2f}, threshold {self.threshold:.3f}")
+                    f"NG-rate {y.mean():.2f}, threshold {self.threshold:.3f} (calib={src})")
         return True
 
     def _ensure_fresh(self):
