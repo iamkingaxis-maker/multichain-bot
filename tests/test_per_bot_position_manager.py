@@ -326,3 +326,51 @@ def test_uncapped_still_blocks_duplicate_token(monkeypatch):
     pm.open_position("A", 0.001, 20.0, entry_time=1.0)
     with pytest.raises(ValueError, match="already holds"):
         pm.open_position("A", 0.001, 20.0, entry_time=2.0)
+
+
+# ── Never-green fast-stop SHADOW (2026-05-31, primary avg-loss lever) ───────
+# Fires when a position that NEVER peaked >=2% hits <=-4% (the 78%-of-loss
+# never-green dying slice). peak>=2 winners are NOT cut (the whipsaw guard).
+
+def test_ng_faststop_fires_when_never_green_and_down_4(monkeypatch):
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)  # don't interfere w/ caps
+    pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0))
+    pm.open_position("D", 0.001, 20.0, entry_time=0.0)
+    pm.tick("D", current_price=0.00101, now=10.0)   # +1% peak (never >=2)
+    pm.tick("D", current_price=0.00096, now=20.0)   # -4% -> fires
+    sb = pm.get_position("D").state_blob
+    assert sb.get("ng_faststop_fired") is True
+    assert sb.get("ng_faststop_peak_at_fire") == pytest.approx(1.0, abs=0.05)
+    assert sb.get("ng_faststop_pnl_at_fire") == pytest.approx(-4.0, abs=0.05)
+
+
+def test_ng_faststop_no_fire_if_peaked_above_2(monkeypatch):
+    # green-then-dip: peaked +3% then fell to -4% -> NOT a never-green dud,
+    # must NOT fire (this is the whipsaw guard — these can recover).
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)
+    pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0))
+    pm.open_position("D", 0.001, 20.0, entry_time=0.0)
+    pm.tick("D", current_price=0.00103, now=10.0)   # +3% peak (>=2)
+    pm.tick("D", current_price=0.00096, now=20.0)   # -4%
+    assert not (pm.get_position("D").state_blob or {}).get("ng_faststop_fired")
+
+
+def test_ng_faststop_no_fire_if_not_down_4(monkeypatch):
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)
+    pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0))
+    pm.open_position("D", 0.001, 20.0, entry_time=0.0)
+    pm.tick("D", current_price=0.00101, now=10.0)   # +1% peak
+    pm.tick("D", current_price=0.00098, now=20.0)   # -2% (not <=-4)
+    assert not (pm.get_position("D").state_blob or {}).get("ng_faststop_fired")
+
+
+def test_ng_faststop_records_first_crossing(monkeypatch):
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)
+    pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0))
+    pm.open_position("D", 0.001, 20.0, entry_time=0.0)
+    pm.tick("D", current_price=0.00101, now=10.0)    # +1% peak
+    pm.tick("D", current_price=0.000958, now=20.0)   # ~-4.2% -> fires
+    pm.tick("D", current_price=0.0009, now=30.0)     # -10% -> must NOT overwrite
+    sb = pm.get_position("D").state_blob
+    assert sb["ng_faststop_secs_at_fire"] == 20
+    assert sb["ng_faststop_pnl_at_fire"] > -5.0     # ~-4.2, not -10

@@ -264,6 +264,29 @@ class PerBotPositionManager:
             p.state_blob["gb_shadow_peak_at_fire"] = round(p.peak_pnl_pct, 4)
             p.state_blob["gb_shadow_secs_at_fire"] = int(now - p.entry_time)
 
+        # Never-green fast-stop SHADOW (measure-only, 2026-05-31) — the PRIMARY
+        # avg-loss lever. Fires when a position that NEVER peaked >=2% ("never
+        # showed strength" — a near-pure dying signal: only 4% of WINNERS ever
+        # peak <2% vs 71% of LOSERS) is now <=-4%. These never-green losers bleed
+        # to -8.27% avg over ~61min via slow_bleed/hard_stop and are 78% of total
+        # loss $. Cutting them at -4 is the symmetric-R:R unlock (flips fleet EV
+        # to ~+0.7%/tr at the current 60% WR). The peak<2 gate is what makes it
+        # SAFE vs a flat tight stop (which whipsaws green-then-dip winners): it
+        # cuts ONLY positions that never went green, so winner-kill is ~4%.
+        # Captured (not acted on) so the winner-kill audit confirms before
+        # enforcing. NO ExitDecision. Fires once; persists in state_blob; stamped
+        # onto the sell record. Complements the give-back shadow (peak>=3, 12%).
+        if (
+            not p.tp1_hit
+            and not (p.state_blob or {}).get("ng_faststop_fired")
+            and p.peak_pnl_pct < 2.0
+            and pnl_pct <= -4.0
+        ):
+            p.state_blob["ng_faststop_fired"] = True
+            p.state_blob["ng_faststop_pnl_at_fire"] = round(pnl_pct, 4)
+            p.state_blob["ng_faststop_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+            p.state_blob["ng_faststop_secs_at_fire"] = int(now - p.entry_time)
+
         decisions: list[ExitDecision] = []
 
         # 1. Hard stop (highest priority)

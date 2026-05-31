@@ -1064,6 +1064,13 @@ class DipScanner:
                 "giveback_shadow_fired": ((_pos.state_blob or {}).get("gb_shadow_fired") if _pos else None),
                 "giveback_shadow_pnl_at_fire": ((_pos.state_blob or {}).get("gb_shadow_pnl_at_fire") if _pos else None),
                 "giveback_shadow_peak_at_fire": ((_pos.state_blob or {}).get("gb_shadow_peak_at_fire") if _pos else None),
+                # Never-green fast-stop SHADOW: position never peaked >=2% AND
+                # hit <=-4% (the 78%-of-loss dying slice). Winner-kill audit
+                # input — a loser fired = rescue benefit (cut at -4 vs the -8.27
+                # bleed), a winner fired = the ~4% kill cost. See tick().
+                "ng_faststop_shadow_fired": ((_pos.state_blob or {}).get("ng_faststop_fired") if _pos else None),
+                "ng_faststop_pnl_at_fire": ((_pos.state_blob or {}).get("ng_faststop_pnl_at_fire") if _pos else None),
+                "ng_faststop_peak_at_fire": ((_pos.state_blob or {}).get("ng_faststop_peak_at_fire") if _pos else None),
                 "pnl": result.realized_pnl_usd,
                 "pnl_pct": result.pnl_pct,
                 "peak_pnl_pct": result.peak_pnl_pct,
