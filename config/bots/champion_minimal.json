@@ -1,0 +1,44 @@
+{
+  "bot_id": "champion_minimal",
+  "display_name": "MINIMAL +EV candidate (2026-05-31) — isolates the TWO components that carry the fleet's edge: filter_dead_volume (the volume-freshness gate shared by EVERY +EV defender bot — volaccel/btc/falling_pump/post_peak/v3 all enforce it) + entry_gate time_since_h24_peak_secs>=14400 (enter only >=4h after the 24h peak — anti-top timing, the constructive form of filter_extended_chase). NOTHING redundant: no other defender filters (btc_overheat/falling_pump were INERT this regime), no ng_scorer, no stall — a clean test of whether the 2 carrying gates alone reproduce post_peak's +EV (post_peak's full 10-filter stack +$6.27 does NOT beat single-filter volaccel +$7.97, so the extra filters add ~nothing). Default ladder (swept-optimal), $20 base (sizing only amplifies, never tested up). JUDGE at n>=50 via /api/leaderboard realized_pnl_total_usd (NOT /api/trades). Control = baseline_v1.",
+  "enabled": true,
+  "paper_capital_usd": 2000.0,
+  "base_position_usd": 20.0,
+  "max_concurrent_positions": 3,
+  "alpha_multiplier": 1.5,
+  "macro_up_multiplier": 1.5,
+  "premium_runner_multiplier": 3.0,
+  "marginal_multiplier": 0.5,
+  "sol_macro_h6_block_threshold": -0.3,
+  "sol_macro_h1_block_threshold": -0.7,
+  "btc_macro_h1_block_threshold": null,
+  "vol_h1_min": 1000.0,
+  "filters_enforced": [
+    "filter_dead_volume"
+  ],
+  "filters_disabled": [],
+  "triggers_allowed": null,
+  "triggers_disabled": [],
+  "min_triggers_to_fire": 1,
+  "require_alpha_trigger": false,
+  "entry_gate": [
+    [
+      "time_since_h24_peak_secs",
+      ">=",
+      14400
+    ]
+  ],
+  "mcap_psych_pc_h24_max": 80.0,
+  "tp1_pct": 5.0,
+  "tp1_sell_fraction": 0.75,
+  "tp2_pct": 10.0,
+  "tp2_sell_fraction": 0.25,
+  "trail_pp": 3.0,
+  "hard_stop_pct": -15.0,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "slow_bleed_minutes": 60,
+  "slow_bleed_pnl_threshold": -8.0,
+  "trading_hour_utc_start": 0,
+  "trading_hour_utc_end": 24
+}

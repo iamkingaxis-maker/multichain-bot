@@ -47,8 +47,11 @@ def test_catalog_has_120_bots(catalog):
     # 2026-05-30: +1 champion_premium_fresh (champion_premium clone + freshness
     #   entry_gate 1m_volume_spike>=0.40 AND 1m_cum_3min_pct>=-3; held-out across
     #   all 4 premium triggers cut NG 25->14%, $/tr +0.52->+3.82. premium = control.)
-    assert len(catalog.configs) == 128, (
-        f"Expected 128 bots, got {len(catalog.configs)}: "
+    # 2026-05-31: +1 champion_minimal (MINIMAL +EV candidate — isolates the two
+    #   carrying components: filter_dead_volume + entry_gate
+    #   time_since_h24_peak_secs>=14400, nothing else. Judge n>=50 via leaderboard.)
+    assert len(catalog.configs) == 129, (
+        f"Expected 129 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
