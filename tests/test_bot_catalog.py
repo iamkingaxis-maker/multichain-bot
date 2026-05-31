@@ -47,8 +47,8 @@ def test_catalog_has_120_bots(catalog):
     # 2026-05-30: +1 champion_premium_fresh (champion_premium clone + freshness
     #   entry_gate 1m_volume_spike>=0.40 AND 1m_cum_3min_pct>=-3; held-out across
     #   all 4 premium triggers cut NG 25->14%, $/tr +0.52->+3.82. premium = control.)
-    assert len(catalog.configs) == 127, (
-        f"Expected 127 bots, got {len(catalog.configs)}: "
+    assert len(catalog.configs) == 128, (
+        f"Expected 128 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
@@ -147,6 +147,17 @@ def test_layered_defender_bots_present(catalog):
     assert set(pf.filters_enforced) == set(prem.filters_enforced)
     assert pf.entry_gate == (("1m_volume_spike", ">=", 0.40), ("1m_cum_3min_pct", ">=", -3.0))
     assert pf.base_position_usd == 20.0
+
+    # champion_premium_tightexit (2026-05-31): IDENTICAL to champion_premium_fresh
+    # except a tighter exit ladder (trail_pp 3.0->1.5, tp2 10->7) to plug the
+    # trailing-stop leak (live trail exits gave back 5.3pp / captured only 11% of
+    # peak). A/B vs fresh isolates exit aggressiveness; everything else (gate,
+    # filters, triggers, scorer) matches. Forward-judge avg_win at n>=50.
+    tx = by_id["champion_premium_tightexit"]
+    assert tx.trail_pp == 1.5 and tx.tp2_pct == 7.0
+    assert tx.entry_gate == pf.entry_gate
+    assert set(tx.triggers_allowed) == set(pf.triggers_allowed)
+    assert tx.ng_scorer_gate is True and tx.stall_exit_minutes == 90
 
 
 def test_volume_experiment_bots_present(catalog):
