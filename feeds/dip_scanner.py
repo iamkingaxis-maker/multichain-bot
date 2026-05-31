@@ -764,8 +764,49 @@ class DipScanner:
                 bot_id, decision.token,
             )
             return
+        # ── Correlated-cluster sizing brake (#2) ──────────────────────────────
+        # The fat left tail of fleet P&L is the fleet SWARMING one token
+        # (TinyWorld -$565, IDLE -$1123, SPCX -$968...). Realized EV degrades
+        # monotonically with how many bots already hold the token at entry
+        # (swarm 20+ = -6.14% EV / 30% WR vs solo -1.1%); high-swarm loser$ is
+        # ~5x winner$ -> size DOWN (not block) to cut the tail while keeping
+        # winner participation. off/shadow/enforce (core/cluster_brake.py):
+        # shadow = measure-only fleet-wide (default); enforce = apply, gated
+        # bots only. Counts SAME-TOKEN fleet exposure (orthogonal to the bot's
+        # own multi-token concurrency, which predicts winners). Recorded for the
+        # forward audit (scripts/correlated_swarm_validate.py).
+        from core.cluster_brake import (
+            cluster_brake_mode, cluster_brake_multiplier, fleet_holders,
+        )
+        _brake_mode = cluster_brake_mode()
+        _braked_size = decision.size_usd
+        _brake_holders = 0
+        _brake_mult = 1.0
+        if _brake_mode != "off":
+            _brake_holders = fleet_holders(
+                self.bot_position_managers, decision.token, exclude_bot=bot_id
+            )
+            _brake_mult = cluster_brake_multiplier(_brake_holders)
+            if _brake_mult < 1.0:
+                _would = round(decision.size_usd * _brake_mult, 2)
+                if (_brake_mode == "enforce"
+                        and getattr(pm.config, "cluster_brake_gate", False)):
+                    _braked_size = _would
+                    logger.info(
+                        "[DipScanner] CLUSTER_BRAKE bot=%s token=%s holders=%d "
+                        "mult=%.2f size $%.0f->$%.0f",
+                        bot_id, decision.token, _brake_holders, _brake_mult,
+                        decision.size_usd, _braked_size,
+                    )
+                else:
+                    logger.info(
+                        "[DipScanner] CLUSTER_BRAKE SHADOW bot=%s token=%s "
+                        "holders=%d mult=%.2f would size $%.0f->$%.0f",
+                        bot_id, decision.token, _brake_holders, _brake_mult,
+                        decision.size_usd, _would,
+                    )
         try:
-            capital.reserve_for_buy(decision.size_usd)
+            capital.reserve_for_buy(_braked_size)
         except ValueError as e:
             logger.info("[DipScanner] bot=%s buy rejected: %s", bot_id, e)
             return
@@ -775,13 +816,13 @@ class DipScanner:
         # position for the (symmetric) sell-side haircut.
         from core.slippage_model import buy_fill_price
         eff_entry, slip_pct = buy_fill_price(
-            decision.entry_price, decision.size_usd, getattr(bundle, "raw_meta", None)
+            decision.entry_price, _braked_size, getattr(bundle, "raw_meta", None)
         )
         try:
             _pos = pm.open_position(
                 token=decision.token,
                 entry_price=eff_entry,
-                size_usd=decision.size_usd,
+                size_usd=_braked_size,
                 entry_time=time.time(),
                 address=decision.address,
                 pair_address=decision.pair_address,
@@ -796,8 +837,8 @@ class DipScanner:
             )
         except ValueError as e:
             # max_concurrent or duplicate token; refund capital
-            capital.balance_usd += decision.size_usd
-            capital.in_flight_usd -= decision.size_usd
+            capital.balance_usd += _braked_size
+            capital.in_flight_usd -= _braked_size
             logger.info("[DipScanner] bot=%s open_position rejected: %s", bot_id, e)
             return
         # On-chain holder-concentration instrumentation (env HOLDER_CAPTURE, default
@@ -823,8 +864,16 @@ class DipScanner:
                 "entry_price": eff_entry,
                 "entry_mid_price": decision.entry_price,
                 "entry_slip_pct": slip_pct,
-                "amount_usd": decision.size_usd,
+                "amount_usd": _braked_size,
                 "size_tier": decision.size_tier,
+                # Correlated-cluster brake (#2): fleet exposure to this token at
+                # entry + the size multiplier. In shadow mode amount_usd is the
+                # FULL size and mult<1 shows what enforce WOULD have done; in
+                # enforce mode amount_usd already reflects the brake.
+                "cluster_brake_holders_at_entry": _brake_holders,
+                "cluster_brake_mult": _brake_mult,
+                "cluster_brake_mode": _brake_mode,
+                "cluster_brake_full_size_usd": decision.size_usd,
                 "time": datetime.now(timezone.utc).isoformat(),
                 "triggers_fired": list(decision.triggers_fired),
                 "entry_meta": _entry_meta,
@@ -832,7 +881,7 @@ class DipScanner:
             self._save_bot_state(bot_id)
         logger.info(
             "[DipScanner] BUY bot=%s token=%s size=$%.2f tier=%s",
-            bot_id, decision.token, decision.size_usd, decision.size_tier,
+            bot_id, decision.token, _braked_size, decision.size_tier,
         )
 
     async def _holder_features_cached(self, token_address):
