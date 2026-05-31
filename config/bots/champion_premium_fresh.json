@@ -67,5 +67,8 @@
       ">=",
       -3
     ]
-  ]
+  ],
+  "stall_exit_minutes": 90,
+  "stall_exit_peak_max": 5.0,
+  "stall_exit_drift_pp": 2.0
 }

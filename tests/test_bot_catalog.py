@@ -112,7 +112,11 @@ def test_layered_defender_bots_present(catalog):
     assert set(prem.triggers_allowed) == {
         "deep_1h_dip", "pullback_in_uptrend",
         "power_dip_runner", "chart_quality_bottom"}
-    assert prem.stall_exit_minutes is None
+    # 2026-05-31: drift-based stall_exit (90min/peak<=5%/drift>=2pp) added to the 4
+    # gated champions — the exit-side dud RECYCLE complement to the never-green
+    # scorer. Recycles deteriorating bought-duds the scorer didn't catch at entry,
+    # without killing late bloomers (drift condition selects deteriorating, not flat).
+    assert prem.stall_exit_minutes == 90
     assert prem.base_position_usd == 20.0
 
     # champion_whale_buyers (2026-05-29): v4's exact stack + a single entry_gate

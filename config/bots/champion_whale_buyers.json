@@ -59,5 +59,8 @@
   "slow_bleed_minutes": 60,
   "slow_bleed_pnl_threshold": -8.0,
   "trading_hour_utc_start": 0,
-  "trading_hour_utc_end": 24
+  "trading_hour_utc_end": 24,
+  "stall_exit_minutes": 90,
+  "stall_exit_peak_max": 5.0,
+  "stall_exit_drift_pp": 2.0
 }
