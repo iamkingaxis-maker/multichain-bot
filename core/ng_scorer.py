@@ -231,3 +231,30 @@ def get_scorer() -> RollingNGScorer:
 def scorer_mode() -> str:
     """off | shadow | enforce  (env NG_SCORER_MODE, default off)."""
     return (os.environ.get("NG_SCORER_MODE") or "off").strip().lower()
+
+
+DECISIONS_MAX_MB = 20
+
+
+def log_decision(rec: dict) -> None:
+    """Append one scorer decision to DATA_DIR/ng_scorer/decisions.jsonl.
+
+    Enforced blocks leave NO trade record (a block = no buy) and Railway logs
+    retain only ~30min, so without this we can't monitor the live gate. Append-only,
+    fail-soft (never raises), rolling 20MB cap (drops oldest half). Exposed via the
+    dashboard /api/ng-scorer-decisions endpoint. Outcome can be joined offline to the
+    universe recorder's forward peaks by token+time for live precision/winner-kill.
+    """
+    try:
+        d = os.path.join(os.environ.get("DATA_DIR") or "/data", "ng_scorer")
+        os.makedirs(d, exist_ok=True)
+        p = os.path.join(d, "decisions.jsonl")
+        if os.path.exists(p) and os.path.getsize(p) > DECISIONS_MAX_MB * 1_000_000:
+            with open(p, encoding="utf-8") as fh:
+                lines = fh.readlines()
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.writelines(lines[len(lines) // 2:])
+        with open(p, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(rec) + "\n")
+    except Exception as e:
+        logger.debug(f"[ng_scorer] decision log failed: {e}")

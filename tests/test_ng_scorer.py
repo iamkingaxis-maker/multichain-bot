@@ -60,6 +60,21 @@ def test_train_fail_open_on_insufficient_data():
         os.environ.pop("DATA_DIR", None)
 
 
+def test_log_decision_appends_and_failsoft(tmp_path, monkeypatch):
+    import json
+    from core import ng_scorer
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    ng_scorer.log_decision({"t": "2026-05-31T00:00:00+00:00", "bot": "champion_premium",
+                            "token": "X", "p": 0.7, "thr": 0.5, "blocked": True,
+                            "mode": "enforce", "triggers": ["deep_1h_dip"]})
+    p = tmp_path / "ng_scorer" / "decisions.jsonl"
+    assert p.exists()
+    rec = json.loads(p.read_text(encoding="utf-8").strip())
+    assert rec["bot"] == "champion_premium" and rec["blocked"] is True
+    # fail-soft: an unserializable record must not raise
+    ng_scorer.log_decision({"bad": object()})
+
+
 if __name__ == "__main__":
     test_fail_open_when_untrained()
     test_pair_completed_labels_never_green()

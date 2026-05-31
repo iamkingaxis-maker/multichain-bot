@@ -5,7 +5,10 @@ from datetime import datetime, timezone
 from typing import Optional
 from core.bot_config import BotConfig
 from core.feature_bundle import FeatureBundle
-from core.ng_scorer import get_scorer as get_ng_scorer, scorer_mode as ng_scorer_mode
+from core.ng_scorer import (
+    get_scorer as get_ng_scorer, scorer_mode as ng_scorer_mode,
+    log_decision as ng_log_decision,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -109,13 +112,24 @@ class BotEvaluator:
                 except Exception:
                     block, proba = False, None
                 if proba is not None:
+                    enforced_block = bool(block and mode == "enforce")
                     logger.info(
                         f"[ng_scorer] bot={self.config.bot_id} token={b.token} "
                         f"p_nevergreen={proba:.3f} thr={get_ng_scorer().threshold:.3f} "
-                        f"mode={mode} block={block and mode == 'enforce'} "
+                        f"mode={mode} block={enforced_block} "
                         f"triggers={','.join(effective_triggers)}"
                     )
-                    if block and mode == "enforce":
+                    # Persist the decision so the enforced gate is observable forward
+                    # (blocks leave no trade record; Railway logs evaporate in ~30min).
+                    ng_log_decision({
+                        "t": datetime.now(timezone.utc).isoformat(),
+                        "bot": self.config.bot_id, "token": b.token,
+                        "addr": getattr(b, "address", None),
+                        "p": round(proba, 4), "thr": round(get_ng_scorer().threshold, 4),
+                        "blocked": enforced_block, "mode": mode,
+                        "triggers": list(effective_triggers),
+                    })
+                    if enforced_block:
                         return None
 
         size_usd, size_tier = self._size_for(effective_triggers, b, realized_pnl_usd)

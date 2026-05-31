@@ -2082,6 +2082,7 @@ class WebDashboard:
         self.app.router.add_get("/api/pre-gate-events",    self._handle_pre_gate_events)
         self.app.router.add_get("/api/universe-recorder",  self._handle_universe_recorder)
         self.app.router.add_get("/api/fresh-launches",  self._handle_fresh_launches)
+        self.app.router.add_get("/api/ng-scorer-decisions",  self._handle_ng_scorer_decisions)
         self.app.router.add_get("/api/mc-recommendations", self._handle_mc_recommendations)
         self.app.router.add_get("/api/peak-traces",        self._handle_peak_traces)
         self.app.router.add_get("/api/peak-traces/{name}", self._handle_peak_trace_one)
@@ -3204,6 +3205,51 @@ class WebDashboard:
         except Exception as e:
             return web.Response(text=json.dumps({"error": str(e)}),
                                 status=500, content_type="application/json", headers=cors)
+
+    async def _handle_ng_scorer_decisions(self, request):
+        """GET /api/ng-scorer-decisions — the enforced never-green scorer's live
+        decision log (DATA_DIR/ng_scorer/decisions.jsonl). Enforced blocks leave NO
+        trade record and Railway logs evaporate in ~30min, so this is the only
+        durable record of what the gate actually did in production.
+
+        ?stats=1 -> counts + block-rate + per-bot; ?limit=N -> last N (default 5000).
+        Join to the universe recorder's forward peaks (by token+time) for live
+        precision/winner-kill once outcomes resolve.
+        """
+        import os as _os
+        from collections import Counter
+        cors = {"Access-Control-Allow-Origin": "*"}
+        path = _os.path.join(_os.environ.get('DATA_DIR') or '/data', 'ng_scorer', 'decisions.jsonl')
+        if not _os.path.exists(path):
+            fb = _os.path.join('.', 'ng_scorer', 'decisions.jsonl')
+            if _os.path.exists(fb):
+                path = fb
+            else:
+                return web.Response(
+                    text=json.dumps({"exists": False, "checked_paths": [path, fb]}),
+                    content_type="application/json", headers=cors)
+        try:
+            with open(path, encoding='utf-8') as f:
+                recs = [json.loads(l) for l in f if l.strip()]
+        except Exception as e:
+            return web.Response(text=json.dumps({"error": str(e)}), status=500,
+                                content_type="application/json", headers=cors)
+        if request.query.get('stats') == '1':
+            n = len(recs)
+            blk = sum(1 for r in recs if r.get('blocked'))
+            bybot = Counter(r.get('bot') for r in recs)
+            bybot_blk = Counter(r.get('bot') for r in recs if r.get('blocked'))
+            return web.Response(text=json.dumps({
+                "exists": True, "path": path, "records": n, "blocked": blk,
+                "block_rate_pct": round(100 * blk / n, 1) if n else 0,
+                "per_bot": {b: {"n": bybot[b], "blocked": bybot_blk.get(b, 0)} for b in bybot},
+            }), content_type="application/json", headers=cors)
+        try:
+            limit = int(request.query.get('limit', '5000'))
+        except ValueError:
+            limit = 5000
+        return web.Response(text=json.dumps(recs[-limit:]),
+                            content_type="application/json", headers=cors)
 
     async def _handle_peak_traces(self, request):
         """GET /api/peak-traces — list peak recorder trace files written by
