@@ -1,9 +1,13 @@
 from __future__ import annotations
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 from core.bot_config import BotConfig
 from core.feature_bundle import FeatureBundle
+from core.ng_scorer import get_scorer as get_ng_scorer, scorer_mode as ng_scorer_mode
+
+logger = logging.getLogger(__name__)
 
 
 # Alpha-tier triggers that warrant 1.5x sizing (matches dip_scanner.py:12937).
@@ -92,6 +96,27 @@ class BotEvaluator:
         if self.config.require_alpha_trigger:
             if not (set(effective_triggers) & ALPHA_TRIGGERS):
                 return None
+
+        # Rolling never-green scorer gate (opt-in per bot via ng_scorer_gate +
+        # global env NG_SCORER_MODE). Fail-open: a missing model/feature never
+        # blocks. Logs every decision in BOTH shadow and enforce so we keep the
+        # forward record even while enforcing. See core/ng_scorer.py.
+        if self.config.ng_scorer_gate:
+            mode = ng_scorer_mode()
+            if mode in ("shadow", "enforce"):
+                try:
+                    block, proba = get_ng_scorer().should_block(b.raw_meta)
+                except Exception:
+                    block, proba = False, None
+                if proba is not None:
+                    logger.info(
+                        f"[ng_scorer] bot={self.config.bot_id} token={b.token} "
+                        f"p_nevergreen={proba:.3f} thr={get_ng_scorer().threshold:.3f} "
+                        f"mode={mode} block={block and mode == 'enforce'} "
+                        f"triggers={','.join(effective_triggers)}"
+                    )
+                    if block and mode == "enforce":
+                        return None
 
         size_usd, size_tier = self._size_for(effective_triggers, b, realized_pnl_usd)
 

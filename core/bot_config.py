@@ -67,6 +67,12 @@ class BotConfig:
     filters_enforced: Optional[tuple[str, ...]] = None
     filters_disabled: tuple[str, ...] = field(default_factory=tuple)
 
+    # Rolling never-green scorer opt-in (see core/ng_scorer.py). When True AND the
+    # global env NG_SCORER_MODE is shadow/enforce, this bot's entries are scored by
+    # the rolling model; in enforce mode a high never-green probability blocks the
+    # buy. Default False (control bots stay ungated so the A/B stays measurable).
+    ng_scorer_gate: bool = False
+
     # Triggers — same semantics as filters
     triggers_allowed: Optional[tuple[str, ...]] = None
     triggers_disabled: tuple[str, ...] = field(default_factory=tuple)

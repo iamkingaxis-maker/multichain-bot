@@ -2,6 +2,7 @@
   "bot_id": "champion_whale_buyers",
   "display_name": "Concentrated-whale positive-selection — champion_defender_v4's EXACT stack (10-filter defender + WR-preserving exits, no stall), single variable = entry_gate top_buy_makers_n<=8 (concentrated whales, NOT a FOMO crowd). Strongest held-out signal of the 2026-05-29 feature-gate scan: beats fleet WR in BOTH windows AND on the brutal 05-28 day, AND is +$/tr-positive in both regimes (the only signal that held $/tr through the bad regime). top_buy_makers_n<9: TRAIN 69% WR +$1.17/tr, TEST 63% WR +$1.82/tr, and on the TRUE worst fleet day 05-27 (fleet 23% WR) ~43% (+20pp) [correction: an earlier draft mislabeled the worst day as 05-28/78%; 05-28 was actually an easy 58% day]. The >=9 FOMO crowd is the loser (53/43 WR, -$4.97/-$3.13). concurrent_positions>=2 'hot streak' thesis was REJECTED (collapsed to TEST 48%/-$5.93). triggers open so the whale gate is the isolated variable. A/B control = champion_defender_v4. Judge n>=50 --unrealized.",
   "enabled": true,
+  "ng_scorer_gate": true,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
   "max_concurrent_positions": 3,
@@ -9,11 +10,9 @@
   "macro_up_multiplier": 1.5,
   "premium_runner_multiplier": 3.0,
   "marginal_multiplier": 0.5,
-
   "sol_macro_h6_block_threshold": -0.3,
   "sol_macro_h1_block_threshold": -0.7,
   "btc_macro_h1_block_threshold": null,
-
   "pc_h24_max": null,
   "pc_h24_min": null,
   "pc_h1_max": null,
@@ -22,7 +21,6 @@
   "mcap_min": null,
   "mcap_max": null,
   "vol_h1_min": 1000.0,
-
   "filters_enforced": [
     "filter_falling_pump",
     "filter_fusion_floor",
@@ -37,14 +35,19 @@
   ],
   "filters_disabled": [],
   "triggers_allowed": null,
-  "triggers_disabled": ["modest_pump_deep_retrace"],
+  "triggers_disabled": [
+    "modest_pump_deep_retrace"
+  ],
   "min_triggers_to_fire": 1,
   "require_alpha_trigger": false,
-
-  "entry_gate": [["top_buy_makers_n", "<=", 8]],
-
+  "entry_gate": [
+    [
+      "top_buy_makers_n",
+      "<=",
+      8
+    ]
+  ],
   "mcap_psych_pc_h24_max": 80.0,
-
   "tp1_pct": 5.0,
   "tp1_sell_fraction": 0.75,
   "tp2_pct": 10.0,
