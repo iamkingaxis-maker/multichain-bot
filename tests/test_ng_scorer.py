@@ -41,9 +41,9 @@ def test_pair_completed_labels_never_green():
     ]
     comp = _pair_completed(trades)
     by_tok = {c["tok"]: c for c in comp}
-    assert by_tok["A"]["ng"] == 1   # peak < threshold
-    assert by_tok["B"]["ng"] == 0   # peak >= threshold
-    assert NG_PEAK_THRESHOLD == 1.0
+    assert by_tok["A"]["ng"] == 1   # peak 0.3 < threshold -> never-green
+    assert by_tok["B"]["ng"] == 0   # peak 12 >= threshold -> reached green
+    assert NG_PEAK_THRESHOLD == 2.0  # retargeted 2026-05-31 (peak<2 dominates peak<1)
 
 
 def test_train_fail_open_on_insufficient_data():

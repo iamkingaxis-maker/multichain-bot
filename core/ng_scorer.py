@@ -38,7 +38,13 @@ _CONFOUND = ("sol_pc", "sol_macro", "btc_pc", "btc_macro", "regime_h", "_neg_pct
              "5m_high", "5m_low", "1h_low", "1h_high", "peak_h24", "lifecycle_peak",
              "nearest_psych_level")
 
-NG_PEAK_THRESHOLD = 1.0          # peak_pnl_pct < this => never-green (label 1)
+# Trash label = peak_pnl_pct < this. Retargeted 1.0 -> 2.0 (2026-05-31): held-out
+# peak-threshold sweep (scripts/ng_threshold_sweep.py) showed peak<2 STRICTLY
+# dominates peak<1 — net loss-$ cut +$2433 vs +$531, winner-$ killed $5 vs $1085,
+# big-winners killed 0 vs 1. A token that never clears +2% has ~no path to profit
+# after fees, so it's a near-pure loss label that SHARPENS separation (peak<3+
+# dilutes). Env-tunable to retune without a code change.
+NG_PEAK_THRESHOLD = float(os.environ.get("NG_SCORER_PEAK_THRESHOLD", "2.0"))
 DEFAULT_LOOKBACK_DAYS = 7
 DEFAULT_BLOCK_RATE = 0.10
 RETRAIN_TTL_SECS = 6 * 3600      # refresh model at most every 6h
