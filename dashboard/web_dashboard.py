@@ -1896,6 +1896,7 @@ function maybeShowAttribution() {
     updateAttributionFilters();
     updateAttributionCategories();
     updateChampionPreview();
+    tab.scrollIntoView({behavior: "smooth", block: "start"});  // same below-the-fold fix
   } else {
     tab.style.display = "none";
   }
@@ -1938,6 +1939,10 @@ function maybeShowProfitSweep() {
   if (location.hash === "#profitsweep") {
     tab.style.display = "block";
     updateProfitSweepSim();
+    // The hash (#profitsweep) doesn't match the div id (#profitsweep-tab), so the
+    // browser never auto-scrolls; the tab renders below the fold and the link
+    // looked dead. Scroll to it explicitly.
+    tab.scrollIntoView({behavior: "smooth", block: "start"});
   } else {
     tab.style.display = "none";
   }
