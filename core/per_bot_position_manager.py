@@ -79,6 +79,13 @@ class PerBotPositionManager:
         # multi-bot path (no dedup), so this is the *throttle* for churning the
         # same token. Empty/cooldown None = immediate re-entry (default).
         self._last_close_time: dict[str, float] = {}
+        # Phase-1 per-token re-entry counter (2026-06-01). token -> count of buys
+        # this UTC day; resets at rollover. The death-spiral was SEQUENTIAL re-buys
+        # (positions are one-per-(bot,token), so this is the controllable concentration
+        # lever for a solo production bot). In-memory for the shadow phase; persist
+        # before enforce. See the Phase-1 risk-floor spec.
+        self._token_buys: dict[str, int] = {}
+        self._token_buys_date: Optional[str] = None
 
     @property
     def open_count(self) -> int:
@@ -112,7 +119,24 @@ class PerBotPositionManager:
             address=address, pair_address=pair_address,
         )
         self._positions[token] = p
+        self._record_token_buy(token)
         return p
+
+    def _record_token_buy(self, token: str, now_iso: Optional[str] = None) -> None:
+        from core.per_bot_capital import _utc_date_iso
+        today = _utc_date_iso(now_iso)
+        if today != self._token_buys_date:
+            self._token_buys = {}
+            self._token_buys_date = today
+        self._token_buys[token] = self._token_buys.get(token, 0) + 1
+
+    def token_buys_today(self, token: str, now_iso: Optional[str] = None) -> int:
+        """Phase-1 risk floor: how many times this bot has bought ``token`` so far
+        this UTC day (resets at rollover). Drives the per-token re-entry cap."""
+        from core.per_bot_capital import _utc_date_iso
+        if _utc_date_iso(now_iso) != self._token_buys_date:
+            return 0
+        return self._token_buys.get(token, 0)
 
     def get_position(self, token: str) -> Optional[OpenPosition]:
         return self._positions.get(token)

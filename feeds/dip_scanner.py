@@ -764,6 +764,35 @@ class DipScanner:
                 bot_id, decision.token,
             )
             return
+        # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
+        # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
+        # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
+        # but DO NOT block. RISK_FLOOR_MODE=enforce: block — but ONLY if THIS bot's
+        # config sets the limit (production-bot-scoped; shadow uses candidate defaults
+        # to measure fleet-wide). Spec: docs/superpowers/specs/2026-06-01-phase1-risk-floor-design.md
+        _rf_enforce = os.environ.get("RISK_FLOOR_MODE", "shadow").lower() == "enforce"
+        _rf_now_iso = datetime.now(timezone.utc).isoformat()
+        _dl_cfg = getattr(pm.config, "daily_loss_limit_usd", None)
+        _dl_lim = _dl_cfg if _dl_cfg is not None else float(os.environ.get("SHADOW_DAILY_LOSS_USD", "100"))
+        _daily_would_block = capital.daily_loss_breached(_dl_lim, _rf_now_iso)
+        _rc_cfg = getattr(pm.config, "max_token_buys_per_day", None)
+        _rc_lim = _rc_cfg if _rc_cfg is not None else int(os.environ.get("SHADOW_REENTRY_CAP", "3"))
+        _buys_today = pm.token_buys_today(decision.token, _rf_now_iso)
+        _reentry_would_block = _buys_today >= _rc_lim
+        if _daily_would_block:
+            _do_block = _rf_enforce and _dl_cfg is not None
+            logger.info("[DipScanner] bot=%s daily-loss floor %s (daily=$%.2f <= -$%.2f) %s",
+                        bot_id, "BLOCK" if _do_block else "SHADOW-would-block",
+                        capital.daily_pnl_usd, _dl_lim, decision.token)
+            if _do_block:
+                return
+        if _reentry_would_block:
+            _do_block = _rf_enforce and _rc_cfg is not None
+            logger.info("[DipScanner] bot=%s reentry-cap floor %s (%d buys of %s today >= %d)",
+                        bot_id, "BLOCK" if _do_block else "SHADOW-would-block",
+                        _buys_today, decision.token, _rc_lim)
+            if _do_block:
+                return
         try:
             capital.reserve_for_buy(decision.size_usd)
         except ValueError as e:
@@ -814,6 +843,14 @@ class DipScanner:
                     _entry_meta = {**bundle.raw_meta, **_hf}
             except Exception:
                 pass
+        # Phase-1 risk-floor SHADOW flags — stamped so the nightly analyzer can
+        # measure each floor's forward fire-rate + winner-kill on real trades.
+        _entry_meta = {
+            **_entry_meta,
+            "daily_halt_would_block": bool(_daily_would_block),
+            "reentry_cap_would_block": bool(_reentry_would_block),
+            "token_buys_today_at_entry": int(_buys_today),
+        }
         if self.trade_store is not None:
             self.trade_store.record_trade({
                 "type": "buy",

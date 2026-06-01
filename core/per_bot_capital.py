@@ -66,6 +66,21 @@ class PerBotCapital:
         self.realized_pnl_total_usd += pnl
         self.daily_pnl_usd += pnl
 
+    def daily_loss_breached(self, limit_usd, now_iso: Optional[str] = None) -> bool:
+        """Phase-1 risk floor: True if today's REALIZED daily P&L is at/below
+        -limit_usd (i.e. the bot has lost >= limit_usd today). Rolls over at UTC
+        00:00 first, so it auto-clears each day. limit_usd None/<=0 -> never (off).
+        Realized-only (the existing daily_pnl_usd) — this gates OPENING more, not
+        holding; open-position unrealized is out of scope by design."""
+        self._check_daily_rollover(now_iso)
+        try:
+            lim = float(limit_usd)
+        except (TypeError, ValueError):
+            return False
+        if lim <= 0:
+            return False
+        return self.daily_pnl_usd <= -lim
+
     def to_dict(self) -> dict:
         return {
             "bot_id": self.bot_id,

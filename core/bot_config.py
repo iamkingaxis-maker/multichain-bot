@@ -163,6 +163,16 @@ class BotConfig:
     # positive value throttles churn on the same token.
     reentry_cooldown_secs: Optional[float] = None
 
+    # Phase-1 risk floors (2026-06-01). Per-bot, None = off. Enforced only on the
+    # production-candidate config (shadow-measured fleet-wide first). See
+    # docs/superpowers/specs/2026-06-01-phase1-risk-floor-design.md.
+    # daily_loss_limit_usd: halt NEW buys once today's realized daily_pnl_usd
+    #   <= -this (sells always allowed; clears at UTC 00:00).
+    # max_token_buys_per_day: cap re-entries into a single token per UTC day
+    #   (the death-spiral was sequential re-buys; one bot bought SPCX 16x).
+    daily_loss_limit_usd: Optional[float] = None
+    max_token_buys_per_day: Optional[int] = None
+
     def __post_init__(self) -> None:
         # Normalize entry_gate to a hashable tuple-of-tuples (JSON yields
         # tuple-of-lists; the frozen dataclass's auto __hash__ chokes on lists).
