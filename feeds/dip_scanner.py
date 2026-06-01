@@ -890,6 +890,36 @@ class DipScanner:
         except Exception:
             return None
 
+    def _recent_high_sync(self, pair_address: Optional[str]) -> Optional[float]:
+        """Token's REAL recent OHLC high (USD) — the exit guard's PRIMARY rise check.
+
+        Invoked by the guard ONLY on a suspect upward print (>+100% single cycle,
+        rare), so it adds no steady-state egress. A glitch prints ABOVE the highest
+        price the token ever traded (BhTPX SPCX 2026-06-01: real 24h high 0.00141,
+        bad print 0.00384) → the guard rejects it. Uses GeckoTerminal hourly OHLCV
+        (independent of the DexScreener tick feed). Sync + short timeout; returns
+        None on any failure (the guard then falls back to the cross-source check,
+        then rejects — a rise is never accepted on temporal-only).
+        """
+        if not pair_address:
+            return None
+        try:
+            from curl_cffi import requests as _cf
+            r = _cf.get(
+                f"https://api.geckoterminal.com/api/v2/networks/solana/pools/"
+                f"{pair_address}/ohlcv/hour?limit=24",
+                impersonate="chrome", timeout=2.5,
+            )
+            if r.status_code != 200:
+                return None
+            ohlcv = ((((r.json() or {}).get("data") or {}).get("attributes") or {})
+                     .get("ohlcv_list") or [])
+            # each row: [ts, open, high, low, close, volume]
+            highs = [float(c[2]) for c in ohlcv if len(c) > 2 and c[2] is not None]
+            return max(highs) if highs else None
+        except Exception:
+            return None
+
     def _stamp_sol_bail_shadow(self, position, price, now):
         """SHADOW (no action, 2026-05-29): if SOL macro is down while this
         position is pre-TP1 AND not green, record the P&L we WOULD have bailed
@@ -966,6 +996,11 @@ class DipScanner:
                                 self._exit_price_guard, token, raw,
                                 confirm_fn=(
                                     lambda a=position.address: self._second_source_price_sync(a)
+                                ),
+                                # PRIMARY rise check: reject a print above the token's
+                                # real OHLC high (a glitch can't exceed what it traded).
+                                high_fn=(
+                                    lambda pa=position.pair_address: self._recent_high_sync(pa)
                                 ),
                             )
                         vols[token] = await self._get_vol_m5_for(token)

@@ -271,3 +271,55 @@ def test_drop_pending_then_opposite_spike_rejected_clears_pending():
     assert eg.guarded_exit_price(guard, "X", 5.0) == 1.0    # spike → capped (rise policy)
     assert guard["X"]["pending"] is None                    # rise clears pending
     assert guard["X"]["last_good"] == 1.0
+
+
+# ── PRIMARY rise check: real OHLC high (2026-06-01 BhTPX SPCX) ───────────────
+
+def test_highfn_rejects_rise_above_real_high():
+    # BhTPX SPCX: genuinely pumped (+1159%), real 24h high 0.00141, but a bad print
+    # read 0.00384 (2.7x above the real high). high_fn says the token never traded
+    # there → reject, act on last-good. No phantom TP even though confirm_fn is absent.
+    guard = {"SPCX": {"last_good": 0.00092, "pending": None}}
+    out = eg.guarded_exit_price(guard, "SPCX", 0.00384, high_fn=lambda: 0.00141)
+    assert out == 0.00092                       # capped at last-good, NOT the glitch
+    assert guard["SPCX"]["last_good"] == 0.00092
+    assert guard["SPCX"]["pending"] is None
+
+
+def test_highfn_accepts_rise_within_real_high():
+    # A genuine spike that's within the token's real traded high → accept immediately.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "X", 2.5, high_fn=lambda: 2.6)   # 2.5 <= 2.6*1.15
+    assert out == 2.5
+    assert guard["X"]["last_good"] == 2.5
+
+
+def test_highfn_takes_precedence_over_crosssource_for_rise():
+    # Even if a (glitching) second source would corroborate, the OHLC-high check
+    # rejects a print above the real high first.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "X", 5.0, high_fn=lambda: 2.0, confirm_fn=lambda: 5.0)
+    assert out == 1.0   # high_fn rejects (5.0 > 2.0*1.15) before confirm_fn is consulted
+
+
+def test_highfn_unavailable_falls_back_to_crosssource():
+    # high_fn None → use confirm_fn. Corroborated → accept.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "X", 3.0, high_fn=lambda: None, confirm_fn=lambda: 2.9)
+    assert out == 3.0
+
+
+def test_highfn_unavailable_and_no_crosssource_rejects_rise():
+    # Both unavailable → rise rejected (never temporal-only).
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "X", 3.0, high_fn=lambda: None)
+    assert out == 1.0
+    assert guard["X"]["pending"] is None
+
+
+def test_highfn_does_not_affect_drops():
+    # high_fn is rise-only; a suspect drop still uses cross-source/temporal.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    # drop with confirm_fn disconfirming → reject (act on last-good), high_fn ignored
+    out = eg.guarded_exit_price(guard, "X", 0.5, high_fn=lambda: 0.0001, confirm_fn=lambda: 0.98)
+    assert out == 1.0

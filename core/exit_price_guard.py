@@ -67,6 +67,14 @@ EXIT_GUARD_MAX_RISE = 1.0
 # not be a lone wick).
 EXIT_GUARD_CONFIRM_TOL = 0.10
 
+# PRIMARY rise check tolerance: a suspect upward print is accepted only if it is
+# within this fraction ABOVE the token's real recent OHLC high (a small margin for
+# the just-forming candle / feed lag). A glitch prints far above the real high
+# (BhTPX SPCX 2026-06-01: real 24h high 0.00141, glitch exit 0.00384 = 2.7x above
+# → rejected). A genuine spike sits within the high (or confirms next cycle as the
+# candle catches up). 15% margin is well below any real glitch's overshoot.
+EXIT_GUARD_HIGH_TOL = 0.15
+
 
 def guarded_exit_price(
     guard: Dict[str, dict],
@@ -76,6 +84,8 @@ def guarded_exit_price(
     max_rise: float = EXIT_GUARD_MAX_RISE,
     confirm_tol: float = EXIT_GUARD_CONFIRM_TOL,
     confirm_fn=None,
+    high_fn=None,
+    high_tol: float = EXIT_GUARD_HIGH_TOL,
 ) -> float:
     """Return the price the exit tick should act on, filtering one-tick glitches.
 
@@ -101,6 +111,19 @@ def guarded_exit_price(
         bad print persists;
       • confirm_fn missing / returns None / raises → fall back to the temporal
         next-cycle confirmation.
+
+    ``high_fn`` (optional): a zero-arg callable returning the token's REAL recent
+    OHLC high (same USD units), or None. It is the PRIMARY check for a suspect RISE
+    (invoked only on a suspect rise — rare): a print above the highest price the
+    token ever traded cannot be a real fill (nobody bought there), so it's a glitch
+    regardless of what any single-tick price source says. Decision on a suspect rise:
+
+      • high_fn returns a real high and price <= high*(1+high_tol) → the price is
+        within the token's traded range → genuine move → accept now;
+      • price > high*(1+high_tol) → above the real high → glitch (or a not-yet-
+        confirmed brand-new spike) → reject, act on last-good;
+      • high_fn missing / None / raises → fall back to confirm_fn, then (for a rise)
+        reject — a rise is NEVER accepted on temporal-only.
     """
     g = guard.get(token)
     if not g or g.get("last_good", 0.0) <= 0.0:
@@ -114,6 +137,31 @@ def guarded_exit_price(
     if suspect_drop or suspect_rise:
         # ── Suspect single-cycle gap (down OR up). Prefer an immediate opinion. ──
         midpoint = (price + last) / 2.0
+
+        # ── PRIMARY rise check: the token's REAL recent OHLC high. ──
+        # A print above the highest price the token ever traded can't be a real
+        # fill — nobody bought there. This is a stronger, more direct discriminator
+        # than a single-tick second source (which can itself be glitching or down).
+        # 2026-06-01: BhTPX SPCX genuinely pumped +1159% (real high 0.00141) but a
+        # bad print read 0.00384 (2.7x above the real high) and tripped TP1/TP2 for
+        # +$64 phantom x3 bots — this check rejects exactly that.
+        if suspect_rise and high_fn is not None:
+            hi = None
+            try:
+                hi = high_fn()
+            except Exception:
+                hi = None
+            if isinstance(hi, (int, float)) and hi > 0:
+                if price <= hi * (1.0 + high_tol):
+                    # within the token's real traded range → genuine → act now.
+                    g["last_good"] = price
+                    g["pending"] = None
+                    return price
+                # above the real high → glitch (or unconfirmed new spike) → reject.
+                g["pending"] = None
+                return last
+            # high unavailable → fall through to cross-source, then reject.
+
         if confirm_fn is not None:
             second = None
             try:
