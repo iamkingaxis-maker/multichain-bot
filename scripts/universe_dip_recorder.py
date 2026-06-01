@@ -69,6 +69,21 @@ RECORDER_FRESH_MAX_MB = float(os.environ.get("RECORDER_FRESH_MAX_MB", "200"))
 # historical corpus is captured separately (.mining_7hr). Env-tunable.
 RECORDER_MAX_EVENTS_MB = float(os.environ.get("RECORDER_MAX_EVENTS_MB", "50"))
 
+# Demand-feature capture (2026-05-31). At dip-DETECTION time only (NOT per
+# scanned token) fetch the pool's recent trade log ONCE and compute the same
+# on-chain demand features the bot stamps into entry_meta — net-flow windows
+# (compute_net_flow_windows) + buyer profile (trade_log_features.analyze).
+# Goal: a universe-wide corpus for EARLY-PUMP detection mining, with features
+# IDENTICAL to the bot's so a model trained here transfers to live entries.
+# Cost: one extra DexScreener trade-log fetch per detected dip (dips are a
+# small fraction of scanned tokens — ~the events.jsonl append rate, ~2-3/min),
+# negligible vs the per-token pair+1m fetches already done every cycle. The
+# volume-acceleration features (vol_h1_accel_vs_h6 etc.) are FREE — derived
+# from the DexScreener aggregates already in pair_features — so they're always
+# stamped. Set RECORDER_DEMAND_FEATURES=0 to disable the trade-log fetch if
+# egress ever needs trimming (hard $25/mo Railway cap).
+RECORDER_DEMAND_FEATURES = os.environ.get("RECORDER_DEMAND_FEATURES", "1") not in ("0", "false", "False", "")
+
 
 def rotate_events_if_needed(events_file: Path = EVENTS_FILE,
                             max_mb: float = RECORDER_MAX_EVENTS_MB) -> bool:
@@ -214,6 +229,62 @@ def pair_features(pair: dict) -> dict:
     }
 
 
+def volume_velocity_features(pf: dict) -> dict:
+    """FREE volume-acceleration features — derived from the DexScreener
+    aggregates already in `pf` (no new fetch). Formulas are byte-for-byte the
+    bot's canonical `volume_velocity_features` (dip_scanner.py ~13449) so the
+    recorder corpus is mining-comparable with live entry_meta:
+        vol_h1_accel_vs_h6 = vol_h1 / (vol_h6 / 6)   — h1 rate vs h6 baseline
+        vol_5m_proj_hr_usd = vol_m5 * 12             — 5m rate extrapolated /hr
+        vol_5m_burst_vs_h1 = vol_5m_proj_hr / vol_h1 — >1.5 accelerating
+    Fail-open: returns {} on any error / missing aggregate.
+    """
+    try:
+        vol_m5 = float(pf.get("vol_m5") or 0)
+        vol_h1 = float(pf.get("vol_h1") or 0)
+        vol_h6 = float(pf.get("vol_h6") or 0)
+        baseline_h6 = (vol_h6 / 6.0) if vol_h6 > 0 else 0.0
+        vol_h1_accel = (vol_h1 / baseline_h6) if baseline_h6 > 0 else None
+        vol_5m_proj_hr = vol_m5 * 12.0
+        vol_5m_burst = (vol_5m_proj_hr / vol_h1) if vol_h1 > 0 else None
+        return {
+            "vol_h1_accel_vs_h6": round(vol_h1_accel, 3) if vol_h1_accel is not None else None,
+            "vol_5m_burst_vs_h1": round(vol_5m_burst, 3) if vol_5m_burst is not None else None,
+            "vol_5m_proj_hr_usd": round(vol_5m_proj_hr, 2),
+        }
+    except Exception:
+        return {}
+
+
+async def demand_features(client: DexScreenerClient, pair_addr: str) -> dict:
+    """Trade-log-derived demand features for ONE pool, fetched once at
+    dip-detection time. Reuses the bot's exact feature functions so net-flow
+    windows + buyer profile match entry_meta. Returns {} if disabled, the fetch
+    fails, or there are no trades (fail-open — never blocks event recording)."""
+    if not RECORDER_DEMAND_FEATURES:
+        return {}
+    try:
+        trades = await client.fetch_recent_trades(pair_addr, limit=30)
+    except Exception as e:
+        logger.debug(f"demand: trade-log fetch failed {pair_addr[:8]}: {e}")
+        return {}
+    if not trades:
+        return {}
+    out: dict = {}
+    try:
+        from feeds.tier3_features import compute_net_flow_windows
+        out.update(compute_net_flow_windows(trades) or {})
+    except Exception as e:
+        logger.debug(f"demand: net_flow err {pair_addr[:8]}: {e}")
+    try:
+        from feeds.trade_log_features import analyze as _tlf_analyze
+        out.update(_tlf_analyze(trades) or {})
+    except Exception as e:
+        logger.debug(f"demand: trade_log_features err {pair_addr[:8]}: {e}")
+    out["n_recent_trades_seen"] = len(trades)
+    return out
+
+
 def candle_features_at(candles: list, i: int) -> dict:
     """Features computed from the 1m candle at index i (the dip-end candle)."""
     c = candles[i]
@@ -343,6 +414,9 @@ async def cycle_universe(client: DexScreenerClient, state: RecorderState, univer
             continue
         state.add_seen(event_key)
         state.last_seen_ts[pair_addr] = candles[-1].open_time
+        # On-chain demand features — one trade-log fetch per detected dip (rare,
+        # cost-bounded). Free vol-accel features come from pf (no fetch).
+        _demand = await demand_features(client, pair_addr)
         # Build event record
         ev = {
             "event_id": event_key,
@@ -359,7 +433,9 @@ async def cycle_universe(client: DexScreenerClient, state: RecorderState, univer
             "outcome_at_ts": int(time.time()) + outcome_min * 60,
             # Features
             **pf,
+            **volume_velocity_features(pf),  # free vol-accel (no fetch)
             **candle_features_at(candles, dip_idx),
+            **_demand,                       # trade-log demand (1 fetch/event)
         }
         state.pending.append(ev)
         new_events += 1
