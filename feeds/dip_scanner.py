@@ -5050,6 +5050,47 @@ class DipScanner:
                 )
                 _filters_block.append("filter_sol_macro_down")
 
+            # ── filter_sol_macro_loose — SHADOW A/B 2026-06-01 (measure-only) ──
+            # The strict gate above (h6<-0.3 OR h1<-0.7 OR m5<-1.0) fires ~half the
+            # time. An unbiased 20k-dip universe analysis found SOL h6 has ~zero
+            # correlation (0.007) with dip bounce in mild drift, and the blocked
+            # band (h6<-0.3) performed identically to the allowed band — i.e. the
+            # mild trigger looks like pure opportunity cost. BUT the window had no
+            # real SOL crash, and crash-day correlated risk-off is a real (untested)
+            # tail. So this SHADOW logs what a CRASH-ONLY loose gate would do —
+            # WITHOUT changing any behavior. The strict gate (and crash protection)
+            # is fully intact; this only measures the divergence on the bot's actual
+            # candidate stream. Loose = crash-only: h6<-3 OR h1<-2 OR h24<-6 OR
+            # m5<-2.5 (keeps the fail-closed-blind leg). Decide via this + the
+            # gate-independent universe recorder (now SOL-stamped), incl the next
+            # SOL-down day. No _filters_block append — pure measurement.
+            _sol_pc_h24_for_loose = sol_features.get("sol_pc_h24")
+            _filter_sol_loose_reasons: list = []
+            if _sol_pc_h6 is not None and float(_sol_pc_h6) < -3.0:
+                _filter_sol_loose_reasons.append(f"sol_pc_h6={float(_sol_pc_h6):+.2f}%<-3")
+            if _sol_pc_h1_for_gate is not None and float(_sol_pc_h1_for_gate) < -2.0:
+                _filter_sol_loose_reasons.append(f"sol_pc_h1={float(_sol_pc_h1_for_gate):+.2f}%<-2")
+            if _sol_pc_h24_for_loose is not None and float(_sol_pc_h24_for_loose) < -6.0:
+                _filter_sol_loose_reasons.append(f"sol_pc_h24={float(_sol_pc_h24_for_loose):+.2f}%<-6")
+            if _sol_pc_m5_for_gate is not None and float(_sol_pc_m5_for_gate) < -2.5:
+                _filter_sol_loose_reasons.append(f"sol_pc_m5={float(_sol_pc_m5_for_gate):+.2f}%<-2.5")
+            # keep the fail-closed-blind leg so the loose gate is never blind-open
+            if (_sol_pc_h6 is None and _sol_pc_h1_for_gate is None
+                    and getattr(self, "last_sol_features_ts", 0.0) > 0):
+                _filter_sol_loose_reasons.append("sol_feed_blind (fail-closed)")
+            _filter_sol_loose_verdict = "BLOCK" if _filter_sol_loose_reasons else "PASS"
+            c[f"filter_sol_macro_loose_{_filter_sol_loose_verdict.lower()}"] = c.get(
+                f"filter_sol_macro_loose_{_filter_sol_loose_verdict.lower()}", 0
+            ) + 1
+            # Log only the actionable divergence: strict BLOCKs but loose ALLOWs.
+            if (_filter_sol_macro_down_verdict == "BLOCK"
+                    and _filter_sol_loose_verdict == "PASS"):
+                logger.info(
+                    f"[DipScanner] filter_sol_macro_loose SHADOW would-ALLOW: {token_symbol} "
+                    f"(strict blocked on {','.join(_filter_sol_macro_down_block_reasons)}; "
+                    f"loose crash-gate passes)"
+                )
+
             # ── LAYERED DEFENDER FILTERS — ADDED 2026-05-28 (perf-diff mine) ──
             # All 6 filters are OPT-IN via filters_enforced. The DEFENDER_FILTERS
             # frozenset in core/bot_evaluator.py excludes them from default-null

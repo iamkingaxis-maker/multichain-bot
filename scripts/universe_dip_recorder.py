@@ -285,6 +285,35 @@ async def demand_features(client: DexScreenerClient, pair_addr: str) -> dict:
     return out
 
 
+# SOL macro context (2026-06-01). The bot's filter_sol_macro_down gate blocks
+# entries at sol_pc_h6 < -0.3; an unbiased universe analysis (20k dips) found SOL
+# h6 has ~zero correlation (0.007) with dip bounce in mild-drift regimes, but the
+# window had no real SOL crash. Stamping SOL context on every universe dip event
+# lets us segment forward dip outcomes by SOL level — INCLUDING the next genuine
+# SOL-down/crash day — to settle the gate-threshold question with gate-independent
+# data (the recorder ignores the gate). Same SOL/USDC pool the bot uses for
+# sol_features. Fetched ONCE per cycle (not per event) — negligible cost.
+SOL_USDC_PAIR = "83v8iPyZihDEjDdY8RdZddyZNyUtXngz69Lgo9Kt5d6d"  # SOL/USDC Raydium
+
+
+def fetch_sol_context() -> dict:
+    """SOL macro % changes (h1/h6/h24/m5) from the DexScreener SOL/USDC pair.
+    Reuses pair_features. Fail-open: returns {} on any error so a SOL-feed blip
+    never blocks event recording."""
+    try:
+        pair = fetch_pair_data(SOL_USDC_PAIR, "pair")
+        if not pair:
+            return {}
+        pf = pair_features(pair)
+        return {
+            "sol_pc_m5": pf.get("pc_m5"), "sol_pc_h1": pf.get("pc_h1"),
+            "sol_pc_h6": pf.get("pc_h6"), "sol_pc_h24": pf.get("pc_h24"),
+        }
+    except Exception as e:
+        logger.debug(f"sol context fetch failed: {e}")
+        return {}
+
+
 def candle_features_at(candles: list, i: int) -> dict:
     """Features computed from the 1m candle at index i (the dip-end candle)."""
     c = candles[i]
@@ -375,6 +404,9 @@ async def cycle_universe(client: DexScreenerClient, state: RecorderState, univer
     """One pass through the universe — detect new dip events."""
     new_events = 0
     skipped = 0
+    # SOL macro context once per cycle (stamped on every event this cycle) so
+    # forward dip outcomes can be segmented by SOL regime, gate-independently.
+    _sol_ctx = fetch_sol_context()
     for i, (kind, addr) in enumerate(universe):
         pair = fetch_pair_data(addr, kind)
         if not pair:
@@ -436,6 +468,7 @@ async def cycle_universe(client: DexScreenerClient, state: RecorderState, univer
             **volume_velocity_features(pf),  # free vol-accel (no fetch)
             **candle_features_at(candles, dip_idx),
             **_demand,                       # trade-log demand (1 fetch/event)
+            **_sol_ctx,                      # SOL macro context (1 fetch/cycle)
         }
         state.pending.append(ev)
         new_events += 1

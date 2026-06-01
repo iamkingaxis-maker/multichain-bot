@@ -1260,6 +1260,18 @@ COMBOS = {
         or (c.get('sol_pc_m5') is not None and c['sol_pc_m5'] < -1.0)
     ),
 
+    # SHADOW A/B — filter_sol_macro_loose (2026-06-01, measure-only in scanner).
+    # Crash-only variant of the gate above. Unbiased 20k-dip universe analysis
+    # found SOL h6 ~uncorrelated (0.007) with dip bounce in mild drift; this tests
+    # whether a crash-only gate (h6<-3 OR h1<-2 OR h24<-6 OR m5<-2.5) keeps crash
+    # protection while recovering the ~half of entries the strict -0.3 gate blocks.
+    'FILT_sol_macro_loose_BLOCK': lambda c: (
+        (c.get('sol_pc_h6') is not None and c['sol_pc_h6'] < -3.0)
+        or (c.get('sol_pc_h1') is not None and c['sol_pc_h1'] < -2.0)
+        or (c.get('sol_pc_h24') is not None and c['sol_pc_h24'] < -6.0)
+        or (c.get('sol_pc_m5') is not None and c['sol_pc_m5'] < -2.5)
+    ),
+
     # ── LAYERED DEFENDER FILTERS — 2026-05-28 perf-diff mine ──────────────
     # All 6 filters are SHADOW in scanner (always stamp) + opt-in via per-bot
     # filters_enforced (DEFENDER_FILTERS set in core/bot_evaluator.py).
