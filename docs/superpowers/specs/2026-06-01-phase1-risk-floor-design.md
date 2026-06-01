@@ -1,14 +1,20 @@
 # Phase-1 Risk Floor — Design Spec (2026-06-01)
 
-**Goal:** two un-glamorous, *validated* risk floors that cap downside regardless of
-entry signal — a **per-bot daily-loss halt** and a **per-token re-entry cap**. Both
-close gaps confirmed this session. Neither requires the mining-workflow params or the
-persistence model (those gate Phases 2–3). Ship **measure-only shadow first**, enforce
-only after forward-proof + explicit approval (paper→live discipline).
+**NORTH STAR: these are features OF THE PRODUCTION BOT — not fleet tuning.** The goal is
+to find and harden ONE production config (leading candidate: `champion_premium_tightexit`
+— deep-dip/pullback entry, tight exit, runner-tilt, ~85% WR / best equal-weight edge).
+The 45-bot fleet is the **measurement apparatus** (A/B test bed) used to pick the
+production bot's parameters — it is NOT a portfolio to optimize. Every gate below is a
+candidate feature of the production config; the fleet only tells us where to set it.
+
+**Goal:** two un-glamorous, *validated* risk floors for the production bot — a
+**per-bot daily-loss halt** and a **per-token re-entry cap**. Neither requires the
+mining-workflow params or the persistence model. Ship **measure-only shadow first**
+(measured across the fleet test bed), then bake the validated parameters into the
+production config; enforce after forward-proof + explicit approval (paper→live).
 
 **Principle (from the 8hr postmortem):** you can't pick winners at entry, but you can
-bound how much any single bad day or single token can cost. These are stop-losses on
-*the system*, not edge bets.
+bound how much any single bad day or single token can cost the production bot.
 
 ---
 
@@ -78,14 +84,15 @@ production bot controls (cross-bot crowding is Phase 2).
 
 ---
 
-## Rollout (both components)
+## Rollout (both components) — production-bot-scoped
 
 1. **Ship in SHADOW** — stamp `would_*` counters + log lines, zero behavior change.
-2. **Measure forward** — the nightly analyzer + risk-monitor (already live) report: how often
-   each would fire, and the **winner-kill ratio** (equal-weight $ of winners the halt/cap
-   would have blocked vs losers avoided). Target ≥ 2:1 before enforcing.
-3. **Enforce after approval** — flip to `"enforce"` on the production-candidate config
-   (`champion_premium_tightexit`) first, then fleet-wide once confirmed.
+2. **Measure across the fleet test bed** — the nightly analyzer + risk-monitor report: how
+   often each would fire and the **winner-kill ratio** (equal-weight $ of winners the
+   halt/cap would block vs losers avoided), to pick the right parameter. Target ≥ 2:1.
+3. **Bake into the production config** — set the validated parameters on the
+   production-candidate (`champion_premium_tightexit`) and enforce THERE. The fleet stays
+   the lab; we are NOT flipping enforce fleet-wide as an end goal.
 4. **Pre-live gate** — `tests/test_pre_live_invariants.py` + explicit approval before any
    `PAPER_MODE=false`.
 
@@ -98,7 +105,16 @@ production bot controls (cross-bot crowding is Phase 2).
 - `scripts/live_forward_test.py` — phantom-parity siblings if any verdict is stamped into entry_meta.
 - `tests/test_daily_halt.py`, `tests/test_reentry_cap.py`.
 
-## Non-goals (later phases)
-- Co-entry **size-throttle** curve → Phase 2 (needs the mining workflow's validated curve).
-- **Scale-in** on demand-persistence → Phase 3 (needs the persistence model from the backfill).
-- Cross-bot/fleet per-token exposure cap → scanner-level option, after the per-bot cap proves out.
+## Non-goals / correction (production-bot framing)
+- **Cross-bot co-entry "crowding" throttle is NOT a production feature.** The −$2.54/trade
+  crowding gradient is a FLEET artifact (44 other research bots converging on one token) —
+  a *solo* production bot in live trading has no other bots crowding it. The only
+  production-relevant slice of "concentration" is the bot's OWN re-entry, which is
+  **Component B** above. The earlier "co-entry size-throttle curve (Phase 2)" is therefore
+  dropped as a production lever — it was fleet-portfolio thinking. (The crowding finding
+  stays useful only as a reason the fleet *aggregate* P&L is misleading — a measurement
+  caveat, not a feature.)
+- **Scale-in on demand-persistence → Phase 2 (was 3)** — a real production-bot feature
+  (enter small, add as the trajectory confirms). Needs the persistence model from the backfill.
+- The mining workflow's job is to validate the **production config** (entry archetype, exit
+  ladder, stop, flat size) + these floors' parameters — not to tune the fleet.
