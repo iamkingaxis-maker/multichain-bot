@@ -193,6 +193,15 @@ async def main():
         except Exception as e:
             logger.warning(f"[main] phantom scrub failed (continuing): {e}")
 
+        # Mark the phantom SELL records in trades_multi.json (zero pnl, flag,
+        # keep orig) so the trade list + future recomputes are clean too.
+        # Independent of the bot_state scrub above (no double-correction).
+        try:
+            from scripts.scrub_phantom_pnl import mark_phantom_trades as _phantom_mark
+            _phantom_mark(data_dir=data_dir)
+        except Exception as e:
+            logger.warning(f"[main] phantom trade-mark failed (continuing): {e}")
+
         registry = BotRegistry.from_directory(config_dir)
         evaluators = [BotEvaluator(c) for c in registry.configs]
         bot_manager = BotManager(evaluators=evaluators)

@@ -115,6 +115,59 @@ def migrate(data_dir, force: bool = False) -> int:
     return fixed
 
 
+def mark_phantom_trades(data_dir, force: bool = False) -> int:
+    """Mark phantom SELL records in trades_multi.json so the trade list AND any
+    future recompute are clean: zero pnl/pnl_pct, set phantom_scrubbed=True, keep
+    orig_pnl/orig_pnl_pct for audit. INDEPENDENT of the bot_state scrub (which
+    already corrected realized) — this only touches the trade records, so there
+    is no double-correction. Idempotent (skips already-flagged records). Backed
+    up + sentinel'd. Runs at startup BEFORE the trade store loads, so the cleaned
+    records persist.
+    """
+    data_dir = Path(data_dir)
+    sentinel = data_dir / "phantom_trades_marked.json"
+    if sentinel.exists() and not force:
+        print(f"[phantom_mark] sentinel exists at {sentinel} — skipping")
+        return 0
+    trades_path = data_dir / "trades_multi.json"
+    if not trades_path.exists():
+        print(f"[phantom_mark] no {trades_path} — nothing to mark")
+        return 0
+    try:
+        trades = json.loads(trades_path.read_text())
+    except Exception as e:
+        print(f"[phantom_mark] could not read trades: {e} — aborting (safe)")
+        return 0
+    if not isinstance(trades, list):
+        print("[phantom_mark] trades_multi.json is not a list — aborting (safe)")
+        return 0
+
+    marked = 0
+    for s in trades:
+        if isinstance(s, dict) and _is_phantom(s) and not s.get("phantom_scrubbed"):
+            s["orig_pnl"] = s.get("pnl")
+            s["orig_pnl_pct"] = s.get("pnl_pct")
+            s["pnl"] = 0.0
+            s["pnl_pct"] = 0.0
+            s["phantom_scrubbed"] = True
+            marked += 1
+
+    if marked == 0:
+        print("[phantom_mark] no unmarked phantom records")
+        sentinel.write_text(json.dumps({"marked": 0}))
+        return 0
+
+    backup = data_dir / "trades_multi.pre-phantom-mark.json"
+    if not backup.exists():
+        backup.write_text(trades_path.read_text())
+        print(f"[phantom_mark] backed up trades to {backup}")
+    trades_path.write_text(json.dumps(trades))
+    sentinel.write_text(json.dumps({"marked": marked}))
+    print(f"[phantom_mark] marked {marked} phantom trade records (pnl zeroed, "
+          f"orig kept, phantom_scrubbed=True)")
+    return marked
+
+
 if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser()
@@ -122,3 +175,4 @@ if __name__ == "__main__":
     ap.add_argument("--force", action="store_true")
     a = ap.parse_args()
     migrate(Path(a.data_dir), force=a.force)
+    mark_phantom_trades(Path(a.data_dir), force=a.force)
