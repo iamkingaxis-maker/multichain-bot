@@ -1272,6 +1272,20 @@ COMBOS = {
         or (c.get('sol_pc_m5') is not None and c['sol_pc_m5'] < -2.5)
     ),
 
+    # SHADOW — filter_no_demand_entry (2026-06-01, measure-only in scanner).
+    # Two forward-validated bad-entry modes, both = "no buyer demand at entry".
+    # Combo search + time-split (.winloss_8hr): union ~9% coverage, ~16-19% WR
+    # (vs ~50-57% baseline), forward-stable where single features were token-proxies.
+    #   Arm A (chase): pc_m5>0 & smart_wallet_count_total==0 & higher_low_5m<1
+    #   Arm B (knife): pc_m5<-3 & bs_m5<0.8
+    'FILT_no_demand_entry_BLOCK': lambda c: (
+        (c.get('pc_m5') is not None and c.get('smart_wallet_count_total') is not None
+         and c.get('higher_low_5m') is not None
+         and c['pc_m5'] > 0 and c['smart_wallet_count_total'] == 0 and c['higher_low_5m'] < 1)
+        or (c.get('pc_m5') is not None and c.get('bs_m5') is not None
+            and c['pc_m5'] < -3 and c['bs_m5'] < 0.8)
+    ),
+
     # ── LAYERED DEFENDER FILTERS — 2026-05-28 perf-diff mine ──────────────
     # All 6 filters are SHADOW in scanner (always stamp) + opt-in via per-bot
     # filters_enforced (DEFENDER_FILTERS set in core/bot_evaluator.py).

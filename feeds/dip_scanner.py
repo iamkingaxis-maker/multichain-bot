@@ -14371,6 +14371,44 @@ class DipScanner:
                 "mtf_dn_pc_h1_carve": bool(_mtf_dn_pc_h1_carve),
             }
 
+            # ── filter_no_demand_entry — SHADOW 2026-06-01 (measure-only) ──────
+            # Two forward-validated bad-entry modes, both = "NO BUYER DEMAND at the
+            # entry candle" (combo search + time-split, .winloss_8hr/). The union
+            # flags ~9% of trades at ~16-19% WR (vs ~50-57% baseline); held-out
+            # forward-stable where single features (pc_m5 alone) were token-proxies.
+            #   Arm A (chase air): pc_m5>0 AND smart_wallet_count_total==0 AND
+            #     higher_low_5m<1 — chasing a green tick, no smart money in it, no
+            #     uptrend structure. 13% WR in-sample / 7% forward, 17.8:1 ratio.
+            #   Arm B (falling knife): pc_m5<-3 AND bs_m5<0.8 — deep 5m drop, sellers
+            #     dominating, no buyers stepping in. 36% in-sample / 34% forward.
+            # MEASURE-ONLY: stamps verdict+arm into entry_meta_dict + counter + log;
+            # does NOT append _filters_block / continue. Validate forward on live
+            # trades, then decide size-down vs block. Fail-open on missing features.
+            try:
+                _nd_m5 = entry_meta_dict.get("pc_m5")
+                _nd_sw = entry_meta_dict.get("smart_wallet_count_total")
+                _nd_hl = entry_meta_dict.get("higher_low_5m")
+                _nd_bs = entry_meta_dict.get("bs_m5")
+                _nd_arms: list = []
+                if (_nd_m5 is not None and _nd_sw is not None and _nd_hl is not None
+                        and float(_nd_m5) > 0 and float(_nd_sw) == 0 and float(_nd_hl) < 1):
+                    _nd_arms.append("chase")
+                if (_nd_m5 is not None and _nd_bs is not None
+                        and float(_nd_m5) < -3 and float(_nd_bs) < 0.8):
+                    _nd_arms.append("knife")
+                entry_meta_dict["filter_no_demand_entry_verdict"] = (
+                    "WOULD_BLOCK" if _nd_arms else "PASS")
+                entry_meta_dict["filter_no_demand_entry_arms"] = _nd_arms
+                if _nd_arms:
+                    c["filter_no_demand_entry_would_block"] = c.get(
+                        "filter_no_demand_entry_would_block", 0) + 1
+                    logger.info(
+                        f"[DipScanner] filter_no_demand_entry SHADOW would-block: "
+                        f"{token_symbol} arms={','.join(_nd_arms)} "
+                        f"(pc_m5={_nd_m5},smart_wallet={_nd_sw},higher_low={_nd_hl},bs_m5={_nd_bs})")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] no_demand_entry shadow err: {_e}")
+
             # fusion_constrained — SHADOW 2026-05-15. 14-feature LR (chart MTF +
             # on-chain holders/LP + CNN cluster + 1m action + regime), trained
             # on lifetime closed paired trades with LOO-CV. Stamp P(win) into
