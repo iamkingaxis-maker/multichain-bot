@@ -202,6 +202,17 @@ async def main():
         except Exception as e:
             logger.warning(f"[main] phantom trade-mark failed (continuing): {e}")
 
+        # Repair daily_pnl_usd corrupted by the first (date-blind) phantom scrub,
+        # which subtracted a prior-UTC-day phantom from the current day's daily
+        # counter (champion_premium_tightexit: -$219.98 while real daily was
+        # +$15.25). Recomputes daily from today's real sells. Sentinel'd (once),
+        # backed up. No-op if nothing was scrubbed. 2026-05-31.
+        try:
+            from scripts.scrub_phantom_pnl import repair_phantom_daily_pnl as _phantom_daily_repair
+            _phantom_daily_repair(data_dir=data_dir)
+        except Exception as e:
+            logger.warning(f"[main] phantom daily repair failed (continuing): {e}")
+
         registry = BotRegistry.from_directory(config_dir)
         evaluators = [BotEvaluator(c) for c in registry.configs]
         bot_manager = BotManager(evaluators=evaluators)

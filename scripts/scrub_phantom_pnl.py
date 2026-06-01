@@ -17,6 +17,7 @@ bot_state.pre-phantom-scrub/ + sentinel'd (runs exactly once).
 """
 from __future__ import annotations
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 PHANTOM_PCT = 200.0      # realized pnl% above this = price-glitch phantom
@@ -58,12 +59,22 @@ def migrate(data_dir, force: bool = False) -> int:
         return 0
 
     phantom_by_bot: dict[str, float] = {}
+    # Phantom pnl keyed by (bot, YYYY-MM-DD trade date). daily_pnl_usd resets at
+    # UTC 00:00, so it must only be reduced by phantom booked on the SAME UTC day
+    # as the bot's current daily counter — a prior-day phantom was already
+    # cleared by the daily rollover, and subtracting it from today's counter
+    # corrupts it (champion_premium_tightexit read -$219.98 from a 05-31 phantom
+    # subtracted from the 06-01 counter). balance/realized are cumulative and
+    # date-independent, so they still get the full subtraction.
+    phantom_by_bot_date: dict[tuple, float] = {}
     details = []
     for s in trades:
         if isinstance(s, dict) and _is_phantom(s):
             b = s.get("bot_id", "baseline_v1")
             pnl = float(s.get("pnl", 0.0) or 0.0)
             phantom_by_bot[b] = phantom_by_bot.get(b, 0.0) + pnl
+            d = str(s.get("time") or "")[:10]
+            phantom_by_bot_date[(b, d)] = phantom_by_bot_date.get((b, d), 0.0) + pnl
             details.append({"bot": b, "token": s.get("token"),
                             "pnl": pnl, "pnl_pct": s.get("pnl_pct"),
                             "time": s.get("time")})
@@ -100,7 +111,10 @@ def migrate(data_dir, force: bool = False) -> int:
         st["balance_usd"] = float(st.get("balance_usd", 0.0)) - fake
         st["realized_pnl_total_usd"] = float(st.get("realized_pnl_total_usd", 0.0)) - fake
         if "daily_pnl_usd" in st:
-            st["daily_pnl_usd"] = float(st.get("daily_pnl_usd", 0.0)) - fake
+            # Only the phantom booked on the bot's CURRENT daily-counter date.
+            cur_date = st.get("daily_pnl_date")
+            daily_fake = phantom_by_bot_date.get((bot, cur_date), 0.0) if cur_date else 0.0
+            st["daily_pnl_usd"] = float(st.get("daily_pnl_usd", 0.0)) - daily_fake
         sp.write_text(json.dumps(st, indent=2))
         fixed += 1
         print(f"[phantom_scrub] {bot}: -${fake:.2f} (balance + realized + daily)")
@@ -168,6 +182,91 @@ def mark_phantom_trades(data_dir, force: bool = False) -> int:
     return marked
 
 
+def repair_phantom_daily_pnl(data_dir, force: bool = False) -> int:
+    """One-time repair of daily_pnl_usd corrupted by the pre-2026-05-31 phantom
+    scrub. That scrub subtracted the FULL phantom pnl from daily_pnl_usd even
+    when the phantom trade was dated on a PRIOR UTC day than the bot's current
+    daily counter, corrupting today's value (champion_premium_tightexit read
+    -$219.98 while its real daily was +$15.25).
+
+    Ground-truth recompute: for each previously-scrubbed bot, set
+    daily_pnl_usd = sum of REAL (phantom-excluded) sell pnl dated TODAY (UTC),
+    and align daily_pnl_date to today. Independent of the (now date-aware)
+    scrub. Sentinel'd, backed up, idempotent. No-op if nothing was scrubbed.
+    """
+    data_dir = Path(data_dir)
+    sentinel = data_dir / "phantom_daily_repair_done.json"
+    if sentinel.exists() and not force:
+        print(f"[daily_repair] sentinel exists at {sentinel} — skipping")
+        return 0
+    scrub_sentinel = data_dir / "phantom_scrub_done.json"
+    if not scrub_sentinel.exists():
+        return 0  # nothing was scrubbed → nothing to repair
+    try:
+        scrubbed = json.loads(scrub_sentinel.read_text()).get("scrubbed_bots") or []
+    except Exception:
+        scrubbed = []
+    if not scrubbed:
+        sentinel.write_text(json.dumps({"repaired": 0}))
+        return 0
+
+    trades_path = data_dir / "trades_multi.json"
+    bot_state_dir = data_dir / "bot_state"
+    if not trades_path.exists() or not bot_state_dir.exists():
+        return 0
+    try:
+        trades = json.loads(trades_path.read_text())
+    except Exception as e:
+        print(f"[daily_repair] could not read trades: {e} — aborting (safe)")
+        return 0
+
+    today = datetime.now(timezone.utc).date().isoformat()
+    real_today_by_bot: dict[str, float] = {}
+    for s in trades:
+        if not isinstance(s, dict) or s.get("type") != "sell" or s.get("phantom_scrubbed"):
+            continue
+        if str(s.get("time") or "")[:10] != today:
+            continue
+        b = s.get("bot_id", "baseline_v1")
+        try:
+            real_today_by_bot[b] = real_today_by_bot.get(b, 0.0) + float(s.get("pnl", 0.0) or 0.0)
+        except Exception:
+            pass
+
+    backup = data_dir / "bot_state.pre-daily-repair"
+    repaired = 0
+    fixed = []
+    for bot in scrubbed:
+        sp = bot_state_dir / f"{bot}.json"
+        if not sp.exists():
+            continue
+        try:
+            st = json.loads(sp.read_text())
+        except Exception:
+            continue
+        if "daily_pnl_usd" not in st:
+            continue
+        new_daily = round(real_today_by_bot.get(bot, 0.0), 8)
+        old_daily = float(st.get("daily_pnl_usd", 0.0))
+        if abs(new_daily - old_daily) < 1e-6 and st.get("daily_pnl_date") == today:
+            continue  # already correct
+        if not backup.exists():
+            backup.mkdir()
+            for p in bot_state_dir.glob("*.json"):
+                (backup / p.name).write_text(p.read_text())
+            print(f"[daily_repair] backed up bot_state to {backup}")
+        st["daily_pnl_usd"] = new_daily
+        st["daily_pnl_date"] = today
+        sp.write_text(json.dumps(st, indent=2))
+        repaired += 1
+        fixed.append({"bot": bot, "old": round(old_daily, 2), "new": round(new_daily, 2), "date": today})
+        print(f"[daily_repair] {bot}: daily_pnl_usd {old_daily:+.2f} -> {new_daily:+.2f} (date {today})")
+
+    sentinel.write_text(json.dumps({"repaired": repaired, "details": fixed}, indent=2))
+    print(f"[daily_repair] repaired {repaired} bots")
+    return repaired
+
+
 if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser()
@@ -176,3 +275,4 @@ if __name__ == "__main__":
     a = ap.parse_args()
     migrate(Path(a.data_dir), force=a.force)
     mark_phantom_trades(Path(a.data_dir), force=a.force)
+    repair_phantom_daily_pnl(Path(a.data_dir), force=a.force)
