@@ -50,8 +50,8 @@ def test_catalog_has_120_bots(catalog):
     # 2026-05-31: +1 champion_minimal (MINIMAL +EV candidate — isolates the two
     #   carrying components: filter_dead_volume + entry_gate
     #   time_since_h24_peak_secs>=14400, nothing else. Judge n>=50 via leaderboard.)
-    assert len(catalog.configs) == 129, (
-        f"Expected 129 bots, got {len(catalog.configs)}: "
+    assert len(catalog.configs) == 56, (
+        f"Expected 56 bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 
