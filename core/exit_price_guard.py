@@ -75,6 +75,14 @@ EXIT_GUARD_CONFIRM_TOL = 0.10
 # candle catches up). 15% margin is well below any real glitch's overshoot.
 EXIT_GUARD_HIGH_TOL = 0.15
 
+# PRIMARY drop check tolerance: a suspect downward print is accepted (stop fires)
+# only if it is within this fraction BELOW the token's real recent OHLC low. A
+# glitch prints far below the real low (E6ifp2 SPCX 2026-06-01: real recent low
+# 0.00313, glitch stop fills 0.0003-0.0008 = 4-10x below → rejected, +$437 phantom
+# losses avoided). A genuine fast dump's low enters the current minute candle within
+# ~1 cycle → fires then (one cycle late, by design). 15% margin for feed lag.
+EXIT_GUARD_LOW_TOL = 0.15
+
 
 def guarded_exit_price(
     guard: Dict[str, dict],
@@ -86,6 +94,8 @@ def guarded_exit_price(
     confirm_fn=None,
     high_fn=None,
     high_tol: float = EXIT_GUARD_HIGH_TOL,
+    low_fn=None,
+    low_tol: float = EXIT_GUARD_LOW_TOL,
 ) -> float:
     """Return the price the exit tick should act on, filtering one-tick glitches.
 
@@ -124,6 +134,19 @@ def guarded_exit_price(
         confirmed brand-new spike) → reject, act on last-good;
       • high_fn missing / None / raises → fall back to confirm_fn, then (for a rise)
         reject — a rise is NEVER accepted on temporal-only.
+
+    ``low_fn`` (optional): the symmetric PRIMARY check for a suspect DROP — a zero-arg
+    callable returning the token's REAL recent OHLC low (same USD units), or None. A
+    stop fill below the lowest price the token recently traded can't be a real fill
+    (the drop-side mirror of high_fn). Decision on a suspect drop:
+
+      • low_fn returns a real low and price >= low*(1-low_tol) → the drop is within
+        the token's recent range → genuine fast dump → act now (stop fires);
+      • price < low*(1-low_tol) → below the real low → glitch (or a brand-new crash
+        not yet in the candle) → reject; re-checked next cycle (a real crash's low
+        enters the minute candle within ~1 cycle and then fires; a glitch never does);
+      • low_fn missing / None / raises → fall back to confirm_fn, then the temporal
+        next-cycle confirmation (a real persistent dump still fires — PTAI rug).
     """
     g = guard.get(token)
     if not g or g.get("last_good", 0.0) <= 0.0:
@@ -161,6 +184,30 @@ def guarded_exit_price(
                 g["pending"] = None
                 return last
             # high unavailable → fall through to cross-source, then reject.
+
+        # ── PRIMARY drop check: the token's REAL recent OHLC low (mirror of rise). ──
+        # A stop fill below the lowest price the token recently traded can't be real.
+        # 2026-06-01: E6ifp2 SPCX real recent low 0.00313, glitch stops filled
+        # 0.0003-0.0008 (4-10x below) → −$437 phantom stop losses. This rejects them
+        # while a genuine fast dump (low within range, or its low enters the candle
+        # next cycle) still fires.
+        if suspect_drop and low_fn is not None:
+            lo = None
+            try:
+                lo = low_fn()
+            except Exception:
+                lo = None
+            if isinstance(lo, (int, float)) and lo > 0:
+                if price >= lo * (1.0 - low_tol):
+                    # within the token's real recent range → genuine dump → fire now.
+                    g["last_good"] = price
+                    g["pending"] = None
+                    return price
+                # below the real low → glitch (or unconfirmed fresh crash) → reject;
+                # re-checked next cycle (a real crash's low enters the candle → fires).
+                g["pending"] = None
+                return last
+            # low unavailable → fall through to cross-source / temporal.
 
         if confirm_fn is not None:
             second = None

@@ -182,7 +182,13 @@ def mark_phantom_trades(data_dir, force: bool = False) -> int:
     return marked
 
 
-def scrub_unscrubbed_phantoms(data_dir) -> int:
+DROP_SUSPECT_PCT = -45.0   # a hard-stop fill this far past nominal stops (-12/-15/
+                           # -20% + slippage) is a gap-through suspect (real rug OR glitch)
+DROP_LOW_TOL = 0.15        # confirmed glitch if exit < real_recent_low * (1 - this)
+DROP_RECENCY_HOURS = 20.0  # only confirm drops whose trade time the 24h OHLC low covers
+
+
+def scrub_unscrubbed_phantoms(data_dir, low_fn=None) -> int:
     """SELF-HEALING phantom scrub — runs every startup, idempotent by the per-record
     phantom_scrubbed flag (NOT a global sentinel). Catches NEW phantom sells that
     appear after the one-time migrate()/mark() already ran — e.g. the recurring SPCX
@@ -212,8 +218,52 @@ def scrub_unscrubbed_phantoms(data_dir) -> int:
         return 0
 
     # New (unscrubbed) phantom sells only — phantom_scrubbed check FIRST = idempotent.
+    # (1) WIN-phantoms: exit/entry>3x or pnl_pct>200 — always a glitch (the bot's real
+    # TP exits are modest multiples, so a >3x single fill can only be a glitch tick).
     new_phantoms = [s for s in trades
                     if isinstance(s, dict) and not s.get("phantom_scrubbed") and _is_phantom(s)]
+    _seen = {id(s) for s in new_phantoms}
+
+    # (2) DROP-phantoms: a hard-stop fill BELOW the token's real recent low. Requires
+    # low_fn (OHLC) — a deep stop is NEVER scrubbed without OHLC confirmation, so a
+    # genuine rug loss is never wrongly restored. Only recent trades (24h OHLC low
+    # must cover the trade time). 2026-06-01: E6ifp2 SPCX stops filled 0.0003-0.0008
+    # vs real low 0.00313 → −$437 phantom losses.
+    if low_fn is not None:
+        now = datetime.now(timezone.utc)
+        low_cache: dict = {}
+        for s in trades:
+            if not isinstance(s, dict) or id(s) in _seen or s.get("phantom_scrubbed"):
+                continue
+            if s.get("type") != "sell" or "stop" not in str(s.get("reason") or "").lower():
+                continue
+            p = s.get("pnl_pct")
+            if not (isinstance(p, (int, float)) and not isinstance(p, bool) and p < DROP_SUSPECT_PCT):
+                continue
+            try:
+                t = datetime.fromisoformat(str(s.get("time")).replace("Z", "+00:00"))
+                if t.tzinfo is None:
+                    t = t.replace(tzinfo=timezone.utc)
+                if (now - t).total_seconds() > DROP_RECENCY_HOURS * 3600:
+                    continue
+            except Exception:
+                continue
+            try:
+                xp = float(s.get("exit_price"))
+            except Exception:
+                continue
+            pair = s.get("pair_address")
+            if not pair or xp <= 0:
+                continue
+            if pair not in low_cache:
+                try:
+                    low_cache[pair] = low_fn(pair)
+                except Exception:
+                    low_cache[pair] = None
+            lo = low_cache[pair]
+            if isinstance(lo, (int, float)) and lo > 0 and xp < lo * (1.0 - DROP_LOW_TOL):
+                new_phantoms.append(s); _seen.add(id(s))   # confirmed drop-phantom
+
     if not new_phantoms:
         return 0
 

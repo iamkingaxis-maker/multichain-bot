@@ -323,3 +323,39 @@ def test_highfn_does_not_affect_drops():
     # drop with confirm_fn disconfirming → reject (act on last-good), high_fn ignored
     out = eg.guarded_exit_price(guard, "X", 0.5, high_fn=lambda: 0.0001, confirm_fn=lambda: 0.98)
     assert out == 1.0
+
+
+# ── PRIMARY drop check: real OHLC low (symmetric, 2026-06-01 E6ifp2 SPCX) ─────
+
+def test_lowfn_rejects_stop_below_real_low():
+    # E6ifp2 SPCX: real recent low 0.00313, but a glitch tick filled the stop at
+    # 0.0008 (4x below). low_fn says the token never traded there → reject, no
+    # phantom stop, even with no confirm_fn.
+    guard = {"SPCX": {"last_good": 0.00417, "pending": None}}
+    out = eg.guarded_exit_price(guard, "SPCX", 0.0008, low_fn=lambda: 0.00313)
+    assert out == 0.00417                       # acted on last-good, NOT the glitch
+    assert guard["SPCX"]["last_good"] == 0.00417
+    assert guard["SPCX"]["pending"] is None
+
+
+def test_lowfn_accepts_stop_within_real_low():
+    # A genuine fast dump whose price is within the token's real recent low → fire.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "X", 0.5, low_fn=lambda: 0.48)   # 0.5 >= 0.48*0.85
+    assert out == 0.5
+    assert guard["X"]["last_good"] == 0.5
+
+
+def test_lowfn_unavailable_falls_back_to_temporal_drop():
+    # low_fn None → drop uses the existing temporal path (real rug still fires).
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    assert eg.guarded_exit_price(guard, "X", 0.5, low_fn=lambda: None) == 1.0   # deferred
+    assert guard["X"]["pending"] == 0.5
+    assert eg.guarded_exit_price(guard, "X", 0.49, low_fn=lambda: None) == 0.49  # holds → fires
+
+
+def test_lowfn_does_not_affect_rises():
+    # low_fn is drop-only; a suspect rise still uses high_fn/confirm.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "X", 3.0, low_fn=lambda: 0.0001, high_fn=lambda: 5.0)
+    assert out == 3.0   # within real high (5.0) → accepted; low_fn ignored for rise

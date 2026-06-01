@@ -219,9 +219,25 @@ async def main():
         # per-record phantom_scrubbed flag (no global sentinel), so it runs every
         # startup and never double-corrects. Belt-and-suspenders to the exit-guard
         # rise fix that now prevents these from being booked in the first place.
+        def _ohlc_low_24h(pair):
+            # Token's real 24h OHLC low (covers a recent trade's time) for the
+            # drop-phantom check — a stop below this never traded → glitch.
+            try:
+                from curl_cffi import requests as _cf
+                _r = _cf.get(
+                    f"https://api.geckoterminal.com/api/v2/networks/solana/pools/"
+                    f"{pair}/ohlcv/hour?limit=24", impersonate="chrome", timeout=3.0)
+                if _r.status_code != 200:
+                    return None
+                _rows = ((((_r.json() or {}).get("data") or {}).get("attributes") or {})
+                         .get("ohlcv_list") or [])
+                _lows = [float(c[3]) for c in _rows if len(c) > 3 and c[3] and float(c[3]) > 0]
+                return min(_lows) if _lows else None
+            except Exception:
+                return None
         try:
             from scripts.scrub_phantom_pnl import scrub_unscrubbed_phantoms as _phantom_selfheal
-            _phantom_selfheal(data_dir=data_dir)
+            _phantom_selfheal(data_dir=data_dir, low_fn=_ohlc_low_24h)
         except Exception as e:
             logger.warning(f"[main] phantom self-heal failed (continuing): {e}")
 

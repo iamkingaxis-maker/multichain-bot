@@ -143,3 +143,49 @@ def test_selfheal_skips_already_scrubbed(tmp_path):
     ]
     _setup_selfheal(tmp_path, daily_pnl_usd=32.50, daily_date=TODAY, trades=trades)
     assert scrub_unscrubbed_phantoms(tmp_path) == 0   # flagged → skipped (no re-subtract)
+
+
+# ── drop-phantom scrub (OHLC-low confirmed; must NOT scrub real rugs) ──────────
+
+def test_selfheal_scrubs_confirmed_drop_phantom(tmp_path):
+    # E6ifp2 SPCX: hard stop filled at 0.0008 (−81%) but real low was 0.00313 →
+    # below real low → phantom LOSS → restore it (realized goes UP).
+    trades = [
+        {"type": "sell", "bot_id": "premiumX", "token": "SPCX", "reason": "hard stop",
+         "pnl": -24.29, "pnl_pct": -81.0, "entry_price": 0.00417, "exit_price": 0.0008,
+         "pair_address": "DZxWcyPpTyr2", "time": f"{TODAY}T18:22:00+00:00"},
+    ]
+    _setup_selfheal(tmp_path, daily_pnl_usd=-24.29, daily_date=TODAY, trades=trades)
+    n = scrub_unscrubbed_phantoms(tmp_path, low_fn=lambda pair: 0.00313)  # real low
+    assert n == 1
+    st = json.loads((tmp_path / "bot_state" / "premiumX.json").read_text())
+    assert abs(st["realized_pnl_total_usd"] - (96.70 - (-24.29))) < 1e-6   # loss restored (+$24.29)
+    assert abs(st["daily_pnl_usd"] - (-24.29 - (-24.29))) < 1e-6           # back to 0
+    tr = json.loads((tmp_path / "trades_multi.json").read_text())[0]
+    assert tr["phantom_scrubbed"] is True and tr["orig_pnl"] == -24.29
+
+
+def test_selfheal_does_NOT_scrub_real_rug(tmp_path):
+    # A genuine rug: stop filled at 0.00005, and the token's real low IS ~0.00005
+    # (it really crashed there) → exit within real low → NOT a phantom → keep the loss.
+    trades = [
+        {"type": "sell", "bot_id": "premiumX", "token": "RUG", "reason": "hard stop",
+         "pnl": -18.0, "pnl_pct": -90.0, "entry_price": 0.0005, "exit_price": 0.00005,
+         "pair_address": "RugPair", "time": f"{TODAY}T18:22:00+00:00"},
+    ]
+    _setup_selfheal(tmp_path, daily_pnl_usd=-18.0, daily_date=TODAY, trades=trades)
+    n = scrub_unscrubbed_phantoms(tmp_path, low_fn=lambda pair: 0.00005)  # real low = the rug
+    assert n == 0   # exit (0.00005) >= real_low*0.85 → real → NOT scrubbed
+    st = json.loads((tmp_path / "bot_state" / "premiumX.json").read_text())
+    assert st["realized_pnl_total_usd"] == 96.70   # unchanged (real loss kept)
+
+
+def test_selfheal_drop_requires_low_fn(tmp_path):
+    # Without low_fn, a deep stop is NEVER scrubbed (no OHLC confirmation).
+    trades = [
+        {"type": "sell", "bot_id": "premiumX", "token": "SPCX", "reason": "hard stop",
+         "pnl": -24.29, "pnl_pct": -81.0, "entry_price": 0.00417, "exit_price": 0.0008,
+         "pair_address": "DZxWcyPpTyr2", "time": f"{TODAY}T18:22:00+00:00"},
+    ]
+    _setup_selfheal(tmp_path, daily_pnl_usd=-24.29, daily_date=TODAY, trades=trades)
+    assert scrub_unscrubbed_phantoms(tmp_path) == 0   # no low_fn → not scrubbed

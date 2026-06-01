@@ -920,6 +920,36 @@ class DipScanner:
         except Exception:
             return None
 
+    def _recent_low_sync(self, pair_address: Optional[str]) -> Optional[float]:
+        """Token's REAL recent OHLC low (USD) — the exit guard's PRIMARY drop check.
+
+        Mirror of _recent_high_sync. Invoked only on a suspect downward print (>22%
+        single cycle, rare). Uses GeckoTerminal MINUTE OHLCV (last ~60 min) so a
+        genuine fast dump's low enters the candle within ~1 cycle and fires, while a
+        glitch print below the real recent low (E6ifp2 SPCX 2026-06-01: real low
+        0.00313, glitch stops 0.0003-0.0008) is rejected. Sync + short timeout;
+        None on any failure (the guard then falls back to cross-source / temporal,
+        which still fires a real persistent dump).
+        """
+        if not pair_address:
+            return None
+        try:
+            from curl_cffi import requests as _cf
+            r = _cf.get(
+                f"https://api.geckoterminal.com/api/v2/networks/solana/pools/"
+                f"{pair_address}/ohlcv/minute?limit=60",
+                impersonate="chrome", timeout=2.5,
+            )
+            if r.status_code != 200:
+                return None
+            ohlcv = ((((r.json() or {}).get("data") or {}).get("attributes") or {})
+                     .get("ohlcv_list") or [])
+            # each row: [ts, open, high, low, close, volume]
+            lows = [float(c[3]) for c in ohlcv if len(c) > 3 and c[3] is not None and float(c[3]) > 0]
+            return min(lows) if lows else None
+        except Exception:
+            return None
+
     def _stamp_sol_bail_shadow(self, position, price, now):
         """SHADOW (no action, 2026-05-29): if SOL macro is down while this
         position is pre-TP1 AND not green, record the P&L we WOULD have bailed
@@ -1001,6 +1031,11 @@ class DipScanner:
                                 # real OHLC high (a glitch can't exceed what it traded).
                                 high_fn=(
                                     lambda pa=position.pair_address: self._recent_high_sync(pa)
+                                ),
+                                # PRIMARY drop check: reject a stop fill below the
+                                # token's real recent low (mirror of high_fn).
+                                low_fn=(
+                                    lambda pa=position.pair_address: self._recent_low_sync(pa)
                                 ),
                             )
                         vols[token] = await self._get_vol_m5_for(token)
