@@ -86,13 +86,15 @@ def test_modest_rise_passes_through():
     assert guard["X"]["last_good"] == 1.5
 
 
-def test_upward_spike_deferred_first_cycle():
-    # >+100% in one cycle → suspect → act on last-good, stash pending (NOT the spike)
+def test_upward_spike_rejected_without_corroboration():
+    # NEW POLICY 2026-06-01: a suspect rise with NO independent source is CAPPED at
+    # last-good (not temporally deferred) — a phantom high must never book a fake win
+    # on temporal-only confirmation. No pending is held for rises.
     guard = {"X": {"last_good": 1.0, "pending": None}}
-    out = eg.guarded_exit_price(guard, "X", 3.0)   # +200%
-    assert out == 1.0                              # NOT the spike price
-    assert guard["X"]["pending"] == 3.0
-    assert guard["X"]["last_good"] == 1.0
+    out = eg.guarded_exit_price(guard, "X", 3.0)   # +200%, no confirm_fn
+    assert out == 1.0                              # capped at last-good, NOT the spike
+    assert guard["X"]["last_good"] == 1.0          # not poisoned
+    assert guard["X"]["pending"] is None           # rises never set a temporal pending
 
 
 def test_recovery_clears_stale_pending():
@@ -184,20 +186,52 @@ def test_eurc_2026_05_27_phantom_5316x_deferred_then_discarded():
     # reverts next cycle → glitch discarded, no phantom TP.
     guard = {}
     eg.guarded_exit_price(guard, "EURC", 1.1658)
-    assert eg.guarded_exit_price(guard, "EURC", 6199.37) == 1.1658   # deferred, NOT the spike
-    assert guard["EURC"]["pending"] == 6199.37
-    assert eg.guarded_exit_price(guard, "EURC", 1.16) == 1.16        # real price reverts → discard
+    assert eg.guarded_exit_price(guard, "EURC", 6199.37) == 1.1658   # capped, NOT the spike
+    assert guard["EURC"]["pending"] is None                          # rises hold no pending
+    assert eg.guarded_exit_price(guard, "EURC", 1.16) == 1.16        # real price reverts → normal
     assert guard["EURC"]["pending"] is None
 
 
-def test_real_moon_that_persists_confirms_and_is_captured():
-    # The rise guard must NOT block a genuine moon: a real +200% move that HOLDS
-    # confirms next cycle and the TP can fire (one cycle late by design).
+def test_persistent_rise_without_crosssource_stays_capped():
+    # NEW POLICY 2026-06-01: a rise is NEVER accepted on temporal-only. A sudden
+    # +200% that persists WITHOUT independent corroboration stays CAPPED — the SPCX
+    # phantom-prevention trade-off (a persistent bad source would otherwise be
+    # temporally confirmed into a fake win).
     guard = {}
     eg.guarded_exit_price(guard, "M", 1.0)
-    assert eg.guarded_exit_price(guard, "M", 3.0) == 1.0    # +200% deferred one cycle
-    assert eg.guarded_exit_price(guard, "M", 3.1) == 3.1    # holds → confirmed → TP captured
-    assert guard["M"]["last_good"] == 3.1
+    assert eg.guarded_exit_price(guard, "M", 3.0) == 1.0    # capped
+    assert eg.guarded_exit_price(guard, "M", 3.1) == 1.0    # STILL capped (no temporal confirm)
+    assert guard["M"]["last_good"] == 1.0
+
+
+def test_real_moon_captured_via_crosssource():
+    # A genuine moon IS still captured when the independent source corroborates.
+    guard = {"M": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "M", 3.0, confirm_fn=lambda: 2.9)
+    assert out == 3.0
+    assert guard["M"]["last_good"] == 3.0
+
+
+def test_gradual_climb_still_tps_normally():
+    # A real gradual climb (each tick < max_rise) updates last_good every cycle, so
+    # the position still TPs at the high even with no cross-source.
+    guard = {}
+    eg.guarded_exit_price(guard, "C", 1.0)
+    assert eg.guarded_exit_price(guard, "C", 1.8) == 1.8   # +80% < +100% → accepted
+    assert eg.guarded_exit_price(guard, "C", 3.2) == 3.2   # +78% from 1.8 → accepted
+    assert guard["C"]["last_good"] == 3.2
+
+
+def test_spcx_2026_06_01_persistent_rise_gt_down_no_phantom_win():
+    # SPCX: real ~0.00092; a sticky bad print read 0.00384 (4.2x) for multiple cycles
+    # while GeckoTerminal (confirm_fn) was 429'ing → returned None. Old code temporally
+    # confirmed the persistent high → booked +$64 fake TP wins x3 premium bots. New
+    # policy caps every cycle → no phantom TP.
+    guard = {}
+    eg.guarded_exit_price(guard, "SPCX", 0.00092)
+    for _ in range(4):  # sticky glitch persists, GT down (confirm_fn None)
+        assert eg.guarded_exit_price(guard, "SPCX", 0.00384, confirm_fn=lambda: None) == 0.00092
+    assert guard["SPCX"]["last_good"] == 0.00092   # never books the 4.2x phantom
 
 
 def test_crosssource_disconfirms_upward_glitch_acts_on_last_good():
@@ -228,12 +262,12 @@ def test_crosssource_corroborates_real_spike_acts_now():
     assert guard["R"]["last_good"] == 3.0
 
 
-def test_drop_pending_then_opposite_spike_not_wrongly_confirmed():
+def test_drop_pending_then_opposite_spike_rejected_clears_pending():
     # A drop is deferred (pending below last_good); next cycle a glitch spike must
-    # NOT be confirmed by the drop-direction pending — it re-defers instead.
+    # NOT be confirmed. Under the rise policy the spike is capped and pending cleared.
     guard = {}
     eg.guarded_exit_price(guard, "X", 1.0)
     assert eg.guarded_exit_price(guard, "X", 0.20) == 1.0   # drop deferred, pending=0.20
-    assert eg.guarded_exit_price(guard, "X", 5.0) == 1.0    # opposite-dir spike → re-defer, NOT confirm
-    assert guard["X"]["pending"] == 5.0
+    assert eg.guarded_exit_price(guard, "X", 5.0) == 1.0    # spike → capped (rise policy)
+    assert guard["X"]["pending"] is None                    # rise clears pending
     assert guard["X"]["last_good"] == 1.0

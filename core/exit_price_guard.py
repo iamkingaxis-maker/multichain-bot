@@ -134,25 +134,38 @@ def guarded_exit_price(
                 # with the glitch, so a PERSISTENT bad source keeps being rejected.
                 g["pending"] = None
                 return last
-            # second source unavailable → fall through to temporal confirmation.
+            # second source unavailable → fall through (rise rejected; drop temporal).
+
+        # ── No valid independent corroboration this cycle. ──
+        # RISE is treated ASYMMETRICALLY from DROP: a phantom HIGH books a fake WIN
+        # that corrupts balances + the whole leaderboard, whereas a phantom LOW only
+        # fires a stop one cycle late. The temporal next-cycle check WRONGLY confirms
+        # a PERSISTENT bad source (a sticky multi-cycle glitch), so a suspect rise is
+        # NEVER accepted on temporal-only — it requires an independent second source
+        # to agree. Cap at last-good without poisoning it; a real GRADUAL climb still
+        # TPs normally (each <max_rise tick updates last_good), and a real sudden moon
+        # is captured once the second source recovers/corroborates. Cost: a rare
+        # genuine instant-moon is deferred (or capped) while the cross-source is down
+        # — cheap vs. recurring phantom wins.
+        #   2026-06-01: SPCX 0.00092→0.00384 (4.2x) — GeckoTerminal 429'd so confirm_fn
+        #   returned None, and the temporal check confirmed a 2-cycle sticky bad print,
+        #   booking +$64 fake wins across 3 premium bots. This closes that path.
+        if suspect_rise:
+            g["pending"] = None
+            return last
+
+        # DROP: fall back to next-cycle temporal confirmation. A real fast dump
+        # confirms next cycle (stop fires one cycle late, by design); a single-tick
+        # glitch reverts and is discarded.
         pending = g.get("pending")
         if pending is not None:
-            # Corroborate only if the prior suspect was in the SAME direction
-            # (pending below last_good == a drop; above == a rise) and the extreme
-            # roughly holds within tol — avoids a drop-then-spike glitch pair
-            # wrongly confirming each other.
             pending_was_drop = pending < last
-            pending_was_rise = pending > last
-            if (suspect_drop and pending_was_drop and price <= pending * (1.0 + confirm_tol)):
+            if pending_was_drop and price <= pending * (1.0 + confirm_tol):
                 g["last_good"] = price
                 g["pending"] = None
                 return price
-            if (suspect_rise and pending_was_rise and price >= pending * (1.0 - confirm_tol)):
-                g["last_good"] = price
-                g["pending"] = None
-                return price
-        # First suspect cycle (or the extreme hasn't held) → defer: act on the last
-        # known-good price this cycle and hold the suspect pending for next time.
+        # First suspect drop cycle (or the low hasn't held) → defer: act on last-good
+        # this cycle and hold the suspect pending for next time.
         g["pending"] = price
         return last
 

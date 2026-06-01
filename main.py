@@ -213,6 +213,18 @@ async def main():
         except Exception as e:
             logger.warning(f"[main] phantom daily repair failed (continuing): {e}")
 
+        # Self-healing phantom scrub (2026-06-01): catches NEW phantom sells that
+        # appear AFTER the one-time scrub above — e.g. the recurring SPCX feed
+        # glitch (0.00384 4.2x booked +$64 fake wins x3 bots). Idempotent by the
+        # per-record phantom_scrubbed flag (no global sentinel), so it runs every
+        # startup and never double-corrects. Belt-and-suspenders to the exit-guard
+        # rise fix that now prevents these from being booked in the first place.
+        try:
+            from scripts.scrub_phantom_pnl import scrub_unscrubbed_phantoms as _phantom_selfheal
+            _phantom_selfheal(data_dir=data_dir)
+        except Exception as e:
+            logger.warning(f"[main] phantom self-heal failed (continuing): {e}")
+
         registry = BotRegistry.from_directory(config_dir)
         evaluators = [BotEvaluator(c) for c in registry.configs]
         bot_manager = BotManager(evaluators=evaluators)

@@ -84,3 +84,62 @@ def test_repair_recomputes_daily_from_real_today_sells(tmp_path):
 def test_repair_noop_without_scrub_sentinel(tmp_path):
     _setup(tmp_path, daily_pnl_usd=-219.98, daily_date=TODAY, trades=[])
     assert repair_phantom_daily_pnl(tmp_path, force=True) == 0
+
+
+# ── self-healing scrub (catches NEW phantoms after the one-time scrub) ──────────
+from scripts.scrub_phantom_pnl import scrub_unscrubbed_phantoms
+
+
+def _setup_selfheal(tmp_path, daily_pnl_usd, daily_date, trades):
+    (tmp_path / "trades_multi.json").write_text(json.dumps(trades))
+    bs = tmp_path / "bot_state"; bs.mkdir()
+    (bs / "premiumX.json").write_text(json.dumps({
+        "bot_id": "premiumX", "balance_usd": 2096.70, "in_flight_usd": 0.0,
+        "realized_pnl_total_usd": 96.70, "daily_pnl_usd": daily_pnl_usd,
+        "daily_pnl_date": daily_date,
+    }))
+
+
+def test_selfheal_scrubs_new_spcx_phantom(tmp_path):
+    # SPCX 4.2x phantom (exit/entry>3) booked today, not yet scrubbed.
+    trades = [
+        {"type": "sell", "bot_id": "premiumX", "token": "SPCX", "pnl": 64.20,
+         "pnl_pct": 320.0, "entry_price": 0.00092, "exit_price": 0.00384,
+         "time": f"{TODAY}T17:49:00"},
+        {"type": "sell", "bot_id": "premiumX", "token": "REAL", "pnl": 32.50,
+         "pnl_pct": 6.0, "time": f"{TODAY}T18:00:00"},
+    ]
+    _setup_selfheal(tmp_path, daily_pnl_usd=96.70, daily_date=TODAY, trades=trades)
+    n = scrub_unscrubbed_phantoms(tmp_path)
+    assert n == 1
+    st = json.loads((tmp_path / "bot_state" / "premiumX.json").read_text())
+    assert abs(st["realized_pnl_total_usd"] - (96.70 - 64.20)) < 1e-6   # ~32.50 real
+    assert abs(st["balance_usd"] - (2096.70 - 64.20)) < 1e-6
+    assert abs(st["daily_pnl_usd"] - (96.70 - 64.20)) < 1e-6            # same-day → subtracted
+    tr = json.loads((tmp_path / "trades_multi.json").read_text())
+    spcx = [t for t in tr if t["token"] == "SPCX"][0]
+    assert spcx["phantom_scrubbed"] is True and spcx["pnl"] == 0.0 and spcx["orig_pnl"] == 64.20
+
+
+def test_selfheal_idempotent_no_double_subtract(tmp_path):
+    trades = [
+        {"type": "sell", "bot_id": "premiumX", "token": "SPCX", "pnl": 64.20,
+         "pnl_pct": 320.0, "entry_price": 0.00092, "exit_price": 0.00384,
+         "time": f"{TODAY}T17:49:00"},
+    ]
+    _setup_selfheal(tmp_path, daily_pnl_usd=96.70, daily_date=TODAY, trades=trades)
+    assert scrub_unscrubbed_phantoms(tmp_path) == 1
+    realized1 = json.loads((tmp_path / "bot_state" / "premiumX.json").read_text())["realized_pnl_total_usd"]
+    assert scrub_unscrubbed_phantoms(tmp_path) == 0   # second run: nothing left to scrub
+    realized2 = json.loads((tmp_path / "bot_state" / "premiumX.json").read_text())["realized_pnl_total_usd"]
+    assert realized1 == realized2                     # NOT double-subtracted
+
+
+def test_selfheal_skips_already_scrubbed(tmp_path):
+    trades = [
+        {"type": "sell", "bot_id": "premiumX", "token": "SPCX", "pnl": 0.0, "pnl_pct": 0.0,
+         "entry_price": 0.00092, "exit_price": 0.00384, "phantom_scrubbed": True,
+         "orig_pnl": 64.20, "time": f"{TODAY}T17:49:00"},
+    ]
+    _setup_selfheal(tmp_path, daily_pnl_usd=32.50, daily_date=TODAY, trades=trades)
+    assert scrub_unscrubbed_phantoms(tmp_path) == 0   # flagged → skipped (no re-subtract)
