@@ -335,6 +335,55 @@ def candle_features_at(candles: list, i: int) -> dict:
     return feats
 
 
+def compute_trajectory_features(post: list, entry: float) -> dict:
+    """DEMAND-TRAJECTORY / persistence features from the post-event 1m candle path
+    (2026-06-01). The signal that separates a SUSTAINED runner (GACHA: late peak,
+    demand holds, volume builds, gains retained) from a PUMP-AND-DUMP (SPCX/10m:
+    early peak, round-trip, volume decays, gains given back) lives in what happens
+    AFTER entry, not the entry snapshot — at t=0 they look identical. These read it
+    from the candle series already fetched at resolution → ZERO extra fetches.
+    Fail-soft: returns {} on too-few candles.
+    """
+    if not post or entry <= 0 or len(post) < 4:
+        return {}
+    def pct(c):
+        return (c.close - entry) / entry * 100.0
+    closes = [c.close for c in post]
+    n = len(post)
+    peak_i = max(range(n), key=lambda i: closes[i])
+    peak_close = closes[peak_i]
+    peak_pct = (peak_close - entry) / entry * 100.0
+    exit_pct = pct(post[-1])
+    out = {
+        "traj_n_min": n,
+        "traj_minutes_to_peak": peak_i,                       # early=pump, late=runner
+        "traj_peak_position": round(peak_i / (n - 1), 3) if n > 1 else 0.0,   # 0..1
+        "traj_frac_above_entry": round(sum(1 for c in post if c.close > entry) / n, 3),
+        "traj_higher_low_n": sum(1 for i in range(1, n) if post[i].low > post[i-1].low),
+        # exit-vs-peak retention: GACHA holds its gains, a pump gives them all back
+        "traj_retention_pct": (round(exit_pct / peak_pct, 3) if peak_pct > 0.5 else None),
+        # peaked >=+5% then back below entry = classic round-trip pump-dump
+        "traj_round_trip": bool(peak_pct >= 5.0 and exit_pct <= 0.0),
+    }
+    # price at +2/+5/+15 min checkpoints (free "is demand still there?" trajectory)
+    for m in (2, 5, 15):
+        if n > m:
+            out[f"traj_price_{m}m_pct"] = round(pct(post[m]), 2)
+    # post-peak drawdown (collapse depth after the peak)
+    out["traj_drawdown_from_peak_pct"] = (
+        round((min(closes[peak_i:]) - peak_close) / peak_close * 100.0, 2)
+        if peak_i < n - 1 and peak_close > 0 else 0.0)
+    # volume sustain: last third vs first third (>1 demand building, <1 decaying)
+    third = max(1, n // 3)
+    v_first = sum(c.volume for c in post[:third])
+    v_last = sum(c.volume for c in post[-third:])
+    out["traj_vol_sustain_ratio"] = round(v_last / v_first, 3) if v_first > 0 else None
+    # late demand: is it still climbing in the 2nd half (sustained) or fading?
+    mid = n // 2
+    out["traj_secondhalf_gain_pct"] = round(pct(post[-1]) - pct(post[mid]), 2)
+    return out
+
+
 # ── Dip detection ───────────────────────────────────────────────────────────
 
 DIP_PCT_THRESHOLD = -4.0
@@ -494,7 +543,9 @@ async def resolve_outcomes(client: DexScreenerClient, state: RecorderState):
             continue
         # Time to resolve — fetch latest candles
         try:
-            candles = await client.fetch_1m(ev["pair_address"], limit=35)
+            # limit covers the full post-event window (outcome_min) + buffer so the
+            # demand-trajectory features see the whole path, not a truncated tail.
+            candles = await client.fetch_1m(ev["pair_address"], limit=45)
         except Exception:
             still_pending.append(ev)
             continue
@@ -516,6 +567,9 @@ async def resolve_outcomes(client: DexScreenerClient, state: RecorderState):
         ev["won_5pct"] = ev["peak_pct"] >= 5
         ev["won_10pct"] = ev["peak_pct"] >= 10
         ev["n_post_candles"] = len(post_event)
+        # Demand-trajectory / persistence features (sustained-runner vs pump-dump),
+        # computed from the post-event candle path — no extra fetch. 2026-06-01.
+        ev.update(compute_trajectory_features(post_event, entry))
         # Append to events file
         line = json.dumps(ev, default=str) + "\n"
         with EVENTS_FILE.open("a") as f:
