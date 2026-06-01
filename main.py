@@ -181,6 +181,18 @@ async def main():
         except Exception as e:
             logger.warning(f"[main] sp5 reset failed (continuing): {e}")
 
+        # Phantom-P&L scrub (2026-05-31): the PAPER_UNCAPPED overload degraded
+        # the exit feed -> a bad SPCX tick booked +1180% phantom wins (~+$470
+        # fake) on a few bots. Subtract phantom sells' fake pnl from affected
+        # bots' bot_state (balance+realized) BEFORE the capital managers load
+        # the snapshot, so /api/leaderboard is accurate. Sentinel'd (once),
+        # backed up, bot_state-only (trades_multi left intact for audit).
+        try:
+            from scripts.scrub_phantom_pnl import migrate as _phantom_scrub
+            _phantom_scrub(data_dir=data_dir)
+        except Exception as e:
+            logger.warning(f"[main] phantom scrub failed (continuing): {e}")
+
         registry = BotRegistry.from_directory(config_dir)
         evaluators = [BotEvaluator(c) for c in registry.configs]
         bot_manager = BotManager(evaluators=evaluators)
