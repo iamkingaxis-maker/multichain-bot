@@ -14,15 +14,27 @@ class StubTrader:
         self.private_key = "live-key"
         self._swap = swap_result
         self.calls = []
+        self.slip_caps = []          # captured slippage_bps per Ultra call
+        self.sol_reserve_ok = True   # M3: gas-reserve gate
+        self.decimals = 6            # M10: override to test decimals mismatch
+        self.legacy_quote = None     # M2: legacy fallback quote (None = fallback fails)
+        self.legacy_ok = True
+        self._last_realized_slippage_pct = 0.3
     async def _usd_to_sol(self, usd):  # $200/SOL
         return usd / 200.0
     async def _sol_to_usd(self, sol):
         return sol * 200.0
     async def _get_token_decimals(self, mint):
-        return 6
+        return self.decimals
+    async def _check_sol_reserve(self, token_symbol="?"):
+        return self.sol_reserve_ok
     async def _execute_swap_ultra(self, inp, out, amount, slippage_bps=None):
-        self.calls.append((inp, out, amount))
+        self.calls.append((inp, out, amount)); self.slip_caps.append(slippage_bps)
         return self._swap
+    async def _get_quote(self, inp, out, amount, slippage_bps=100):
+        return self.legacy_quote
+    async def _execute_swap(self, quote):
+        return self.legacy_ok
 
 
 class StubPos:
@@ -124,3 +136,53 @@ def test_sell_live_swap_failure_returns_none():
     ds = _ds(trader)
     pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
     assert asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, 1.25)) is None
+
+
+# ── probe red-team safety fixes (M3 gas, M6 slip cap, M10 decimals, M2 sell fallback) ──
+def test_buy_live_gas_check_aborts_before_spending():
+    trader = StubTrader({"success": True, "out_amount": 48_000_000})
+    trader.sol_reserve_ok = False                      # M3: insufficient gas
+    ds, pm = _ds(trader), StubPM()
+    assert asyncio.run(ds._execute_bot_buy_live(_decision(), pm, 50.0)) is None
+    assert trader.calls == []                          # no swap attempted -> no money spent
+    assert pm.opened is None
+
+
+def test_buy_live_passes_slippage_cap():
+    trader = StubTrader({"success": True, "out_amount": 48_000_000, "route": "m", "signature": "S"})
+    ds, pm = _ds(trader), StubPM()
+    asyncio.run(ds._execute_bot_buy_live(_decision(), pm, 50.0))
+    assert trader.slip_caps and trader.slip_caps[0] == 400   # M6: explicit cap passed
+
+
+def test_buy_live_decimals_mismatch_falls_back_to_mid_flagged():
+    # token is really 6-decimals (48e6 atomic = 48 tokens) but lookup returns 9 ->
+    # out_tokens 0.048 -> entry ~$1041 vs mid $1.0 (implausible) -> M10 fallback to mid.
+    trader = StubTrader({"success": True, "out_amount": 48_000_000, "route": "m", "signature": "S"})
+    trader.decimals = 9
+    ds, pm = _ds(trader), StubPM()
+    r = asyncio.run(ds._execute_bot_buy_live(_decision(), pm, 50.0))
+    assert r is not None
+    assert r["entry_price"] == 1.0                     # fell back to mid (not the $1041 phantom)
+    assert r["instrument"]["live_entry_suspect"] is True
+    assert pm.opened.entry_price == 1.0                # position tracked, no phantom
+
+
+def test_sell_live_ultra_fail_legacy_fallback_exits():
+    trader = StubTrader({"success": False, "reason": "ultra_down"})
+    trader.legacy_quote = {"outAmount": 300_000_000}   # legacy quote: 0.30 SOL = $60
+    trader.legacy_ok = True
+    ds = _ds(trader)
+    pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
+    r = asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, current_mid=1.25))
+    assert r is not None                               # M2: exited via fallback, not stranded
+    assert abs(r["exit_price"] - 1.20) < 1e-9          # $60 / 50 tokens
+    assert r["instrument"]["live_route"] == "legacy_fallback"
+
+
+def test_sell_live_both_routes_fail_stays_open():
+    trader = StubTrader({"success": False, "reason": "ultra_down"})
+    trader.legacy_quote = {"outAmount": 300_000_000}; trader.legacy_ok = False   # legacy also fails
+    ds = _ds(trader)
+    pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
+    assert asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, 1.25)) is None  # stays open to retry

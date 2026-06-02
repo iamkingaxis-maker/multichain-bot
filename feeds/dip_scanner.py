@@ -771,6 +771,11 @@ class DipScanner:
         # config sets the limit (production-bot-scoped; shadow uses candidate defaults
         # to measure fleet-wide). Spec: docs/superpowers/specs/2026-06-01-phase1-risk-floor-design.md
         _rf_enforce = os.environ.get("RISK_FLOOR_MODE", "shadow").lower() == "enforce"
+        # LIVE-PROBE SAFETY (2026-06-02, probe red-team M5/M4): a live_probe bot trades
+        # REAL money, so its per-bot daily-loss + reentry caps MUST enforce regardless of
+        # RISK_FLOOR_MODE (shadow would only log — the M5 top blocker). Paper bots keep
+        # the shadow-measure default.
+        _live_probe_bot = bool(getattr(pm.config, "live_probe", False))
         _rf_now_iso = datetime.now(timezone.utc).isoformat()
         _dl_cfg = getattr(pm.config, "daily_loss_limit_usd", None)
         _dl_lim = _dl_cfg if _dl_cfg is not None else float(os.environ.get("SHADOW_DAILY_LOSS_USD", "100"))
@@ -779,15 +784,30 @@ class DipScanner:
         _rc_lim = _rc_cfg if _rc_cfg is not None else int(os.environ.get("SHADOW_REENTRY_CAP", "3"))
         _buys_today = pm.token_buys_today(decision.token, _rf_now_iso)
         _reentry_would_block = _buys_today >= _rc_lim
+        # M4: probe-WIDE aggregate daily-loss kill — the 3 probe bots can buy the same
+        # token at the same tick (correlated exposure), so cap the live-probe FLEET's
+        # combined daily loss, not just per-bot. Halts every live-probe buy when breached.
+        if _live_probe_bot:
+            _agg = 0.0
+            for _bid, _pm in self.bot_position_managers.items():
+                if getattr(_pm.config, "live_probe", False):
+                    _c = self.bot_capitals.get(_bid)
+                    if _c is not None:
+                        _agg += float(getattr(_c, "daily_pnl_usd", 0.0) or 0.0)
+            _agg_kill = float(os.environ.get("PROBE_AGG_DAILY_KILL_USD", "100"))
+            if _agg <= -_agg_kill:
+                logger.warning("[DipScanner] PROBE AGG-KILL: live-probe fleet daily=$%.2f <= -$%.2f; halt %s %s",
+                               _agg, _agg_kill, bot_id, decision.token)
+                return
         if _daily_would_block:
-            _do_block = _rf_enforce and _dl_cfg is not None
+            _do_block = (_rf_enforce or _live_probe_bot) and _dl_cfg is not None
             logger.info("[DipScanner] bot=%s daily-loss floor %s (daily=$%.2f <= -$%.2f) %s",
                         bot_id, "BLOCK" if _do_block else "SHADOW-would-block",
                         capital.daily_pnl_usd, _dl_lim, decision.token)
             if _do_block:
                 return
         if _reentry_would_block:
-            _do_block = _rf_enforce and _rc_cfg is not None
+            _do_block = (_rf_enforce or _live_probe_bot) and _rc_cfg is not None
             logger.info("[DipScanner] bot=%s reentry-cap floor %s (%d buys of %s today >= %d)",
                         bot_id, "BLOCK" if _do_block else "SHADOW-would-block",
                         _buys_today, decision.token, _rc_lim)
@@ -932,8 +952,21 @@ class DipScanner:
         if lamports <= 0:
             logger.error("[Probe] live buy bad lamports size=$%.2f (%s)", size_usd, token)
             return None
+        # M3 (probe red-team): ensure enough SOL for gas BEFORE spending — 3 probe bots
+        # can drain the wallet's gas and later sells would fail (stranding positions).
+        try:
+            if not await self.trader._check_sol_reserve(token):
+                logger.warning("[Probe] live buy ABORT: SOL reserve too low for gas (%s)", token)
+                return None
+        except Exception as e:
+            logger.warning("[Probe] live buy SOL-reserve check err (%s): %s — abort (safe)", token, e)
+            return None
+        # M6 (probe red-team): pass an explicit slippage cap so a bad fill on a thin token
+        # REVERTS rather than executing at a ruinous price (Ultra's own RTSE estimate alone
+        # is not a hard cap). PROBE_ULTRA_SLIPPAGE_BPS default 400 = 4%.
+        _slip_cap = int(os.environ.get("PROBE_ULTRA_SLIPPAGE_BPS", "400"))
         t0 = time.time()
-        res = await self.trader._execute_swap_ultra(SOL_MINT, mint, lamports)
+        res = await self.trader._execute_swap_ultra(SOL_MINT, mint, lamports, slippage_bps=_slip_cap)
         latency_ms = round((time.time() - t0) * 1000, 1)
         if not res.get("success"):
             logger.warning("[Probe] live BUY swap FAILED token=%s reason=%s",
@@ -952,6 +985,16 @@ class DipScanner:
                          res.get("signature"), token)
             return None
         real_entry = size_usd / out_tokens
+        # M10 (probe red-team): decimals-mismatch guard. A wrong decimals fallback makes
+        # out_tokens (and real_entry) implausible vs the decision mid -> a phantom entry
+        # that instantly trips the stop. We DID spend + hold the token, so don't strand it:
+        # fall back to the mid as the entry estimate and FLAG it (the slip cap bounds a real
+        # fill to within a few % of mid; a >3x deviation = decimals error, not a real fill).
+        _entry_suspect = not (mid * 0.33 <= real_entry <= mid * 3.0)
+        if _entry_suspect:
+            logger.error("[Probe] live buy SUSPECT entry %.8g vs mid %.8g (decimals? sig=%s) — using mid, flagged",
+                         real_entry, mid, res.get("signature"))
+            real_entry = mid
         try:
             pos = pm.open_position(token=token, entry_price=real_entry, size_usd=size_usd,
                                    entry_time=time.time(), address=decision.address,
@@ -967,6 +1010,7 @@ class DipScanner:
                                   local_low=getattr(decision, "local_low", None))
         instrument["live_signature"] = res.get("signature")
         instrument["live_size_usd"] = size_usd
+        instrument["live_entry_suspect"] = bool(_entry_suspect)   # M10 flag
         try:
             pos.state_blob.update(instrument)
         except Exception:
@@ -995,12 +1039,29 @@ class DipScanner:
         if atomic <= 0 or sell_tokens <= 0:
             logger.error("[Probe] live sell zero amount (%s)", token)
             return None
+        _slip_cap = int(os.environ.get("PROBE_ULTRA_SLIPPAGE_BPS", "400"))
         t0 = time.time()
-        res = await self.trader._execute_swap_ultra(mint, SOL_MINT, atomic)
+        res = await self.trader._execute_swap_ultra(mint, SOL_MINT, atomic, slippage_bps=_slip_cap)
         latency_ms = round((time.time() - t0) * 1000, 1)
         if not res.get("success"):
-            logger.warning("[Probe] live SELL swap FAILED token=%s reason=%s", token, res.get("reason"))
-            return None
+            # M2 (probe red-team): Ultra sell failed — FALL BACK to the legacy Jupiter swap
+            # so the position can still EXIT. A stranded un-sellable token bleeds toward
+            # total loss (and the hard-stop routes through here too, so without a fallback
+            # it would never exit). The legacy path is sandwich-able, but exiting > bleeding.
+            logger.warning("[Probe] live SELL Ultra FAILED token=%s reason=%s — legacy fallback",
+                           token, res.get("reason"))
+            try:
+                q = await self.trader._get_quote(mint, SOL_MINT, atomic, slippage_bps=max(_slip_cap, 500))
+                if q and await self.trader._execute_swap(q):
+                    res = {"success": True, "out_amount": int(q.get("outAmount", 0) or 0),
+                           "route": "legacy_fallback", "signature": None,
+                           "realized_slippage_pct": getattr(self.trader, "_last_realized_slippage_pct", None)}
+                else:
+                    logger.error("[Probe] live SELL legacy fallback ALSO failed token=%s — stays open", token)
+                    return None
+            except Exception as e:
+                logger.error("[Probe] live SELL fallback err token=%s: %s — stays open", token, e)
+                return None
         # out_amount = SOL lamports received -> USD proceeds -> real exit price.
         try:
             sol_received = (res.get("out_amount") or 0) / 1e9
