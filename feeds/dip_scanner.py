@@ -1434,8 +1434,9 @@ class DipScanner:
                 # Phase-2a TRAJECTORY SHADOW (measure-only, 2026-06-02): the +8min demand-
                 # shape (peak_position/minutes_to_peak/frac_above_entry/higher_low_n/
                 # vol_sustain_ratio/n) for positions that survived to +8min. Scored OFFLINE
-                # + joined to this sell's realized outcome to validate the 0.765-AUC
-                # continuation signal on the candidate forward, then Phase-2b scale-IN.
+                # + joined to this sell's realized outcome. RE-AIMED 2026-06-02: feeds the
+                # Phase-2b DE-RISK lever (hold-small/early-exit the LOW-score cohort, the
+                # validated loss-avoidance edge), NOT scale-in the (break-even) high cohort.
                 "scalein_peak_position": ((_pos.state_blob or {}).get("scalein_peak_position") if _pos else None),
                 "scalein_minutes_to_peak": ((_pos.state_blob or {}).get("scalein_minutes_to_peak") if _pos else None),
                 "scalein_frac_above_entry": ((_pos.state_blob or {}).get("scalein_frac_above_entry") if _pos else None),

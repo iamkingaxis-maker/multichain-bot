@@ -415,12 +415,13 @@ class PerBotPositionManager:
         # first-8min price/vol path, and at the +8min checkpoint stamp the demand-
         # trajectory SHAPE (peak_position, minutes_to_peak, frac_above_entry,
         # higher_low_n, vol_sustain_ratio, n). The +8min SHAPE predicts continuation
-        # (held-out-by-token AUC 0.765 universe / 0.889 family-dedup, leak-free) — the
-        # ONE signal that beat the entry-prediction wall. Scored OFFLINE by the analyzer
-        # (NO model in the tick loop); join scalein_* shape -> realized outcome on the
-        # sell to validate on the candidate forward (~n>=30 in a day at ~100% coverage),
-        # then Phase-2b enforces a gentle scale-IN on the high-score cohort. NO behavior
-        # change here; fires once; the raw path is freed after the +8min computation.
+        # (held-out-by-token AUC 0.765 universe; 0.607 off-GACHA on bot trades, leak-free) —
+        # the ONE signal that beat the entry-prediction wall. Scored OFFLINE by the analyzer
+        # (NO model in the tick loop); join scalein_* shape -> realized outcome on the sell.
+        # RE-AIMED 2026-06-02: the durable lever is DE-RISK the LOW-score cohort (realizes
+        # -4.12%, jackknife-stable), NOT scale-in the HIGH cohort (break-even, sign-flips).
+        # Phase-2b enforces hold-small / early-exit on the LOW cohort (loss-avoidance, +$7-19
+        # /day). NO behavior change here; fires once; the raw path is freed after computation.
         sb = p.state_blob
         if sb is not None and not sb.get("scalein_shape_done"):
             secs = now - p.entry_time

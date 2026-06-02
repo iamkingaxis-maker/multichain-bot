@@ -1,18 +1,29 @@
-# Phase-2 Scale-In — Design Spec (2026-06-01)
+# Phase-2 Trajectory De-Risk — Design Spec (2026-06-01, RE-AIMED 2026-06-02)
 
 **NORTH STAR (same as Phase-1): a feature of the PRODUCTION BOT, not fleet tuning.**
 
-**Premise (validated this session):** entry-snapshot features can't tell a runner from
-a pump-and-dump (held-out AUC 0.52). But the **first-8-min demand-trajectory SHAPE**
-predicts CONTINUATION at **held-out-by-token AUC 0.765** (folds 0.74–0.79; monotonic
-Q1 26% → Q4 80% continuation-rate; features: peak_position, vol_sustain_ratio,
-minutes_to_peak, higher_low_n — SHAPE only, no price-level leak). So: stop betting full
-size at t=0 when the answer isn't knowable — **enter small, let the token prove demand
-is persisting, then size in.**
+> ⚠️ **RE-AIMED 2026-06-02 — the lever is DE-RISK the LOW cohort, NOT scale-in the HIGH
+> cohort.** The trajectory all-in round (wilj94wuf) validated the +8-min SHAPE signal on
+> the bot's own trades (off-GACHA scorer AUC **0.607, p=0.01**; HIGH−LOW pnl gap **+4.16pp,
+> p=0.0004**; leak-free) — BUT, deduped + off-GACHA, the HIGH-score cohort is only
+> **break-even (+0.05%) and jackknife sign-flips**, while the LOW-score cohort is **durably
+> negative (−4.12%, stable both time-halves)**. So *adding* size to the high cohort is
+> value-neutral-to-NEGATIVE (−$2…−$12/day — burns fees on a break-even cohort), whereas
+> **de-sizing / early-exiting the LOW cohort is +$7…+$19/day off-GACHA, ALL of it
+> loss-avoidance** (erodes to ~$0 past an ~8pp add-leg haircut). This matches the standing
+> fleet thesis (edge = loss-avoidance + sizing, NOT winner selection). The signal/mechanism
+> below are unchanged; the ENFORCE DECISION flips to the low cohort.
 
-**Core idea:** production bot enters at a FRACTION of full size; at the **~+8-min
-checkpoint** it scores the live trajectory and **adds the rest only to the high-score
-cohort, holds-small on the low-score cohort.** This is a SIZE TILT, NOT an exit change.
+**Premise (validated):** entry-snapshot features can't tell a runner from a pump-and-dump
+(held-out AUC 0.52). But the **first-8-min demand-trajectory SHAPE** predicts CONTINUATION
+at **held-out-by-token AUC 0.765** universe / **0.607 off-GACHA on bot trades** (SHAPE only:
+peak_position, vol_sustain_ratio, minutes_to_peak, higher_low_n — no price-level leak). The
+useful, durable end of that signal is the LOW end: it reliably flags the dying cohort.
+
+**Core idea (re-aimed):** at the **~+8-min checkpoint** the production bot scores the live
+trajectory; on the **LOW-score cohort it DE-RISKS — holds-small (does not commit full size)
+or early-exits** — while the high cohort just runs the normal lifecycle. The value is
+avoiding the low cohort's losses, NOT amplifying the (break-even) high cohort.
 
 **Validation on the bot's REAL trades (2026-06-01, gate decision):**
 - The +8-min continuation model (universe-trained, AUC 0.765) applied to 652 real bot
@@ -35,8 +46,11 @@ cohort, holds-small on the low-score cohort.** This is a SIZE TILT, NOT an exit 
   trades. Outputs P(continuation ≥ +5% beyond the +8-min price).
 - **Non-stationarity:** retrain on a trailing window (the nightly analyzer retrains + writes
   the model artifact), per the rolling-scorer lesson. Never a frozen one-shot.
-- **Thresholds (from the validated quartiles):** add-size if P ≥ ~0.6 (Q3/Q4, 64–80%
-  continue); hold-small if mid; consider early-exit if P ≤ ~0.3 (Q1, 26%).
+- **Thresholds (RE-AIMED to de-risk):** the action is on the LOW end. `P < low_threshold`
+  (~0.6 — the cohort that, deduped/off-GACHA, realizes −4.12% and is jackknife-stable
+  negative) → **DE-RISK** (hold-small or early-exit). `P ≥ low_threshold` → run the normal
+  lifecycle (do NOT add size — the high cohort is only break-even, so adding burns fees).
+  An optional deeper `P ≤ exit_threshold` (~0.3, Q1 26% continue) early-exits the worst.
 
 ## Trajectory tracking (no extra fetches)
 - The per-bot tick loop (`dip_scanner._tick_all_bots_positions`) already fetches each
@@ -48,21 +62,29 @@ cohort, holds-small on the low-score cohort.** This is a SIZE TILT, NOT an exit 
 
 ## Rollout — shadow first (production-bot-scoped)
 
-**Phase 2a — SHADOW (no sizing change):** enter full size as today, but track the +8-min
-trajectory, score it, and **stamp `scalein_score` + the shape + the eventual realized
-outcome into the sell record.** The nightly analyzer measures: does `scalein_score`
-predict the bot's REALIZED win on actual filtered/sized trades (confirm the 0.765 holds
-forward + on real trades, not just universe continuation). Zero behavior change.
+**Phase 2a — SHADOW (no behavior change) — ALREADY BUILT (commit b6f8db6, deploy 8aa8f589):**
+the tick loop accumulates the first-8-min path and stamps the SHAPE features
+(`scalein_peak_position`/`_minutes_to_peak`/`_frac_above_entry`/`_higher_low_n`/
+`_vol_sustain_ratio`/`_n`) on every sell. Scored OFFLINE (no model in the hot path). The
+nightly analyzer scores the stamped shape and measures the **DE-RISK benefit**: the realized
+loss of the LOW-score cohort (what early-exit/hold-small would have avoided) and that the
+HIGH cohort is at-least-non-negative. Zero behavior change; accruing now.
 
-**Phase 2b — ENFORCE (after 2a confirms, on the production config only):**
-- Config (`BotConfig`): `scalein_enabled: bool=False`, `scalein_entry_fraction: float=0.4`,
-  `scalein_add_threshold: float=0.6`, `scalein_exit_threshold: Optional[float]=None`.
-- **Entry:** reserve + open at `entry_fraction × size_usd` (rest held in reserve).
-- **+8-min checkpoint:** if `score ≥ add_threshold` → **add** the remaining `(1−fraction)`
-  (reserve capital, increase the position; weighted-avg the entry price + slippage on the
-  add leg). If `score ≤ exit_threshold` (when set) → exit the small position early. Else
-  hold the small position through the normal TP/trail/stop.
-- TP1/TP2/trail/hard-stop lifecycle unchanged — scale-in is a layer *before* TP1.
+**Phase 2b — ENFORCE the DE-RISK tilt (after 2a firms, production config only):**
+- Config (`BotConfig`): `traj_derisk_enabled: bool=False`, `traj_low_threshold: float=0.6`,
+  `traj_derisk_action: str="hold_small"` (or `"early_exit"`), `traj_hold_small_frac: float=0.4`.
+- **`hold_small` variant:** enter at `hold_small_frac × size_usd`; at the +8-min checkpoint,
+  fill up to full size ONLY if `score ≥ low_threshold` (high cohort) — the LOW cohort stays
+  small. (Net effect = de-sizing the durably-negative low cohort; the high "fill-up" adds
+  ~$0 but is harmless.)
+- **`early_exit` variant:** enter full size; at +8-min, if `score < low_threshold` (esp.
+  `≤ exit_threshold`), EXIT the position early (cut the dying cohort before it bleeds to
+  slow_bleed/hard_stop) — the loss-avoidance lever directly.
+- High cohort: **do NOT add size** (it's break-even; adding burns fees — the falsified
+  scale-in lever). TP1/TP2/trail/hard-stop lifecycle otherwise unchanged.
+- **RE-GATE before enforce:** ≥100 unique off-GACHA tokens on the forward shadow, LOW-cohort
+  negative-EV confirmed forward, HIGH-cohort non-negative by-token jackknife. Until then it
+  stays a measurement probe. Enforce is a sizing/exit change → **needs user approval**.
 
 ## Files
 - `core/per_bot_position_manager.py` — accumulate `state_blob["traj"]`; `add_to_position`
