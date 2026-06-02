@@ -10,9 +10,22 @@ minutes_to_peak, higher_low_n — SHAPE only, no price-level leak). So: stop bet
 size at t=0 when the answer isn't knowable — **enter small, let the token prove demand
 is persisting, then size in.**
 
-**Core idea:** production bot enters at a FRACTION of full size on the dip signal; at the
-**~+8-min checkpoint** it scores the live trajectory and **adds the rest if continuation
-is likely (high score), exits/stays-small if not.**
+**Core idea:** production bot enters at a FRACTION of full size; at the **~+8-min
+checkpoint** it scores the live trajectory and **adds the rest only to the high-score
+cohort, holds-small on the low-score cohort.** This is a SIZE TILT, NOT an exit change.
+
+**Validation on the bot's REAL trades (2026-06-01, gate decision):**
+- The +8-min continuation model (universe-trained, AUC 0.765) applied to 652 real bot
+  trades / 50 tokens: the top score-quartile (Q4) realized **67% WR / +5.93%** (peak
+  +9.93%) vs overall ~54%/+0.5%; bottom-mid (Q2) **36% WR / −3.75%**.
+- **GACHA-robustness (the trap that killed score2):** Q4 is only 16% GACHA; **excl-GACHA
+  Q4 = 61% WR / +1.01% across 27 distinct tokens** — a durable (modest) cohort edge, NOT
+  a single-runner artifact.
+- **What does NOT work:** loosening the exit to "let Q4 run" — Q4's give-back is only 4pp
+  (the tight exit already captures ~60% of peak), and the let-run mechanism is falsified
+  (workflow: real trails give back + stops slip). So KEEP the tight exit; tilt SIZE only.
+- **Caveat:** full-curve realized AUC is 0.60 and fold-fragile (0.47–0.77); off-GACHA edge
+  is +1.01% (real but small). Hence GENTLE (≤1.5×) + SHADOW-FIRST + more-data before enforce.
 
 ---
 
@@ -62,11 +75,16 @@ forward + on real trades, not just universe continuation). Zero behavior change.
   capital reserve correctness, shadow stamps without behavior change.
 
 ## Dependencies & sequencing
-1. **Persistence model proven on the BOT's trades** (the bot-trade backfill, in progress) —
-   confirms the 0.765 continuation signal predicts the bot's REALIZED outcome, not just
-   universe continuation. **Gate for 2b.**
-2. Phase 2a (shadow) can ship as soon as the tracking + scorer are wired (low risk).
-3. Phase 2b enforces only after 2a's forward-proof + approval (paper→live discipline).
+1. **Bot-trade validation — DONE (2026-06-01):** the signal carries to the bot's realized
+   outcome but WEAKLY (full-curve AUC 0.60, fragile) — yet the high-score cohort (Q4) is
+   durably better (61% WR/+1.01% off-GACHA, 27 tokens). Verdict: enough to justify Phase 2a
+   SHADOW + a GENTLE tilt; NOT enough to enforce a strong (2×) bet. More data needed for 2b.
+2. **Phase 2a (shadow)** — ship now (low risk): wire trajectory tracking + the scorer,
+   stamp `scalein_score` + realized outcome, let the analyzer measure forward + accumulate
+   tokens (50 is thin). This is the next build.
+3. **Phase 2b (gentle ≤1.5× tilt, enforce)** — only after 2a's forward data firms the
+   off-GACHA edge on more tokens AND approval (paper→live). May stay shadow indefinitely if
+   the modest edge doesn't firm — that's an acceptable outcome.
 
 ## Honest caveats
 - 0.765 is on the universe corpus (continuation proxy) + one ~10-day regime; the bot-trade
