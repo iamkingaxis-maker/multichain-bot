@@ -288,6 +288,11 @@ class DipScanner:
         # Derived/stateless — held by reference, reflects live position state.
         from core.shared_token_registry import SharedTokenRegistry
         self._token_registry = SharedTokenRegistry(self.bot_position_managers)
+        # token -> address map (2026-06-02 data-bug fix). Buys are 100% addressed;
+        # this lets a SELL recover the address when its position object is gone/empty
+        # (the ~13% post-fix residual gap that breaks sell->buy joins). Populated from
+        # buys + restored positions; used as the sell-record address fallback.
+        self._addr_by_token: Dict[str, str] = {}
         # Per-token last-good-price state for the transient-glitch exit guard
         # (see core/exit_price_guard.py). Keyed by token across all bots —
         # they all read the same external price each cycle. {token: {last_good, pending}}
@@ -334,6 +339,11 @@ class DipScanner:
                 except Exception as _e:
                     logger.warning("[DipScanner] position restore failed for %s: %s", bc.bot_id, _e)
                 self.bot_position_managers[bc.bot_id] = pm
+                # Seed the token->address fallback from restored positions (so a sell
+                # of a pre-restart position can still recover its address).
+                for _tok, _p in pm._positions.items():
+                    if getattr(_p, "address", ""):
+                        self._addr_by_token.setdefault(_tok, _p.address)
             logger.info(
                 "[DipScanner] Multi-bot wired: %d evaluators (%s)",
                 len(bot_manager.evaluators),
@@ -838,6 +848,10 @@ class DipScanner:
         _live = should_route_live(getattr(pm.config, "live_probe", False), USE_JUPITER_ULTRA,
                                   bool(getattr(self.trader, "private_key", "")))
         _used_size = decision.size_usd
+        # Record token->address so a later SELL can recover the address if its position
+        # object is gone/empty (2026-06-02 sell-join data-bug fix). Buys always have it.
+        if decision.address:
+            self._addr_by_token[decision.token] = decision.address
         # Pool sizing de-rates (2026-06-02 fleet-mine) — adjust size DOWN before reserving
         # (honors the $100 cap; smart-money cohort exempt). Default off; on for pool bots.
         _derate_tag = None
@@ -1484,7 +1498,10 @@ class DipScanner:
                 "token": token,
                 # address/pair_address so sell records join back to their buy in
                 # attribution/postmortem/compare (were missing — 2026-05-27 audit).
-                "address": (_pos.address if _pos else ""),
+                # Fall back to the token->address map when _pos is gone/empty (2026-06-02
+                # fix for the ~13% residual unaddressed sells that broke sell->buy joins).
+                "address": ((_pos.address if (_pos and _pos.address) else None)
+                            or getattr(self, "_addr_by_token", {}).get(token, "")),
                 "pair_address": (_pos.pair_address if _pos else ""),
                 "entry_price": result.entry_price,
                 "exit_price": eff_exit,

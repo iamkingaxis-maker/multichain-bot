@@ -24,7 +24,7 @@
   "min_triggers_to_fire": 1,
   "never_runner_exit_enabled": true,
   "never_runner_loss_floor": -6.0,
-  "never_runner_minutes": 45,
+  "never_runner_minutes": 60,
   "never_runner_peak_max": 3.0,
   "paper_capital_usd": 2000.0,
   "pc_h1_max": null,

@@ -28,8 +28,15 @@ def _is_phantom(s: dict) -> bool:
     if s.get("type") != "sell":
         return False
     p = s.get("pnl_pct")
-    if isinstance(p, (int, float)) and not isinstance(p, bool) and p > PHANTOM_PCT:
-        return True
+    if isinstance(p, (int, float)) and not isinstance(p, bool):
+        # pnl_pct present is the RELIABLE phantom signal — trust it ALONE. A sane
+        # pnl_pct must NOT be scrubbed even when exit/entry>3, because that ratio
+        # fires on records with a CORRUPT entry_price FIELD whose pnl_pct is legit
+        # (2026-06-02 multi-regime mine: entry 0.00025 / exit 11.09 but real pnl
+        # +10.92% — the entry field was garbage, the trade was fine). The old
+        # "ratio OR pnl" rule silently dropped these legit pre-05-27 records.
+        return p > PHANTOM_PCT
+    # pnl_pct missing/unusable -> fall back to the exit/entry ratio heuristic.
     ep, xp = s.get("entry_price"), s.get("exit_price")
     try:
         if ep and xp and float(ep) > 0 and float(xp) / float(ep) > PHANTOM_RATIO:
