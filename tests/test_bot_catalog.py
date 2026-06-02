@@ -14,7 +14,12 @@ def catalog():
     # Exclude the live-measurement-probe scaffold (probe_*, 2026-06-02) — it is not a
     # strategy-ablation catalog member (it's a dormant live-execution clone), so it must
     # not perturb the catalog count / baseline-diff assertions.
-    reg.configs = [c for c in reg.configs if not c.bot_id.startswith("probe_")]
+    # Also exclude the no-same-token exclusion-pool A/B (pool_*, 2026-06-02) — a $100-fixed
+    # de-concentration experiment with deliberately non-standard sizing, likewise not a
+    # standard $20 strategy-ablation member.
+    reg.configs = [c for c in reg.configs
+                   if not c.bot_id.startswith("probe_")
+                   and not c.bot_id.startswith("pool_")]
     return reg
 
 
