@@ -173,6 +173,19 @@ class BotConfig:
     daily_loss_limit_usd: Optional[float] = None
     max_token_buys_per_day: Optional[int] = None
 
+    # Live measurement probe (2026-06-02). Per-bot, scaffolding for the
+    # paper->live probe — see docs/superpowers/specs/2026-06-02-live-measurement-probe-design.md.
+    # live_probe: when True AND USE_JUPITER_ULTRA AND a real private key is present,
+    #   THIS bot's fills route through the live MEV-protected Ultra swap (the bridge,
+    #   piece 1b) instead of the paper simulator. Default False = paper (the whole
+    #   fleet stays paper unless a bot opts in AND the env gates are set). It can
+    #   NEVER go live on flag alone — the bridge requires the env gates too.
+    # size_sweep_usd: if non-empty, the probe rotates entry size across these values
+    #   (e.g. (20,50,100)) to measure the real size->EV curve on live fills; empty
+    #   = fixed size_usd. Only consulted on the live-probe path.
+    live_probe: bool = False
+    size_sweep_usd: tuple[float, ...] = field(default_factory=tuple)
+
     def __post_init__(self) -> None:
         # Normalize entry_gate to a hashable tuple-of-tuples (JSON yields
         # tuple-of-lists; the frozen dataclass's auto __hash__ chokes on lists).
@@ -180,6 +193,12 @@ class BotConfig:
             object.__setattr__(
                 self, "entry_gate",
                 tuple(tuple(c) for c in self.entry_gate),
+            )
+        # size_sweep_usd: JSON yields a list; the frozen dataclass needs a tuple.
+        if self.size_sweep_usd:
+            object.__setattr__(
+                self, "size_sweep_usd",
+                tuple(float(x) for x in self.size_sweep_usd),
             )
         if self.filters_enforced is not None and self.filters_disabled:
             raise ValueError(
