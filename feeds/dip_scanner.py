@@ -1201,6 +1201,17 @@ class DipScanner:
                 "timestop45_pnl_at_fire": ((_pos.state_blob or {}).get("timestop45_pnl_at_fire") if _pos else None),
                 "timestop45_peak_at_fire": ((_pos.state_blob or {}).get("timestop45_peak_at_fire") if _pos else None),
                 "timestop45_secs": ((_pos.state_blob or {}).get("timestop45_secs") if _pos else None),
+                # Phase-2a TRAJECTORY SHADOW (measure-only, 2026-06-02): the +8min demand-
+                # shape (peak_position/minutes_to_peak/frac_above_entry/higher_low_n/
+                # vol_sustain_ratio/n) for positions that survived to +8min. Scored OFFLINE
+                # + joined to this sell's realized outcome to validate the 0.765-AUC
+                # continuation signal on the candidate forward, then Phase-2b scale-IN.
+                "scalein_peak_position": ((_pos.state_blob or {}).get("scalein_peak_position") if _pos else None),
+                "scalein_minutes_to_peak": ((_pos.state_blob or {}).get("scalein_minutes_to_peak") if _pos else None),
+                "scalein_frac_above_entry": ((_pos.state_blob or {}).get("scalein_frac_above_entry") if _pos else None),
+                "scalein_higher_low_n": ((_pos.state_blob or {}).get("scalein_higher_low_n") if _pos else None),
+                "scalein_vol_sustain_ratio": ((_pos.state_blob or {}).get("scalein_vol_sustain_ratio") if _pos else None),
+                "scalein_n": ((_pos.state_blob or {}).get("scalein_n") if _pos else None),
                 # Exit-guard DECISION on the price this sell acted on (2026-06-02
                 # instrumentation): raw/returned price, suspect/abs flags, and the
                 # OHLC/cross-source values the glitch guard saw, with a reason string.

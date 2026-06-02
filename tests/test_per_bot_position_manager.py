@@ -454,3 +454,62 @@ def test_timestop45_shadow_not_when_above_threshold():
     pm.open_position("T", 0.001, 20.0, entry_time=0.0)
     pm.tick(token="T", current_price=0.00095, now=2700.0)  # 45min but -5% (> -8)
     assert "timestop45_fired" not in pm.get_position("T").state_blob
+
+
+# ── Phase-2a trajectory SHADOW (2026-06-02, measure-only +8min demand-shape) ──
+
+def _traj_cfg():
+    # loose TP/stop so the position survives to the +8min checkpoint
+    return _cfg(tp1_pct=80.0, tp2_pct=90.0, hard_stop_pct=-95.0,
+               slow_bleed_minutes=999, pre_stop_bail_pnl_pct=-95.0)
+
+
+def test_trajectory_shadow_stamps_shape_at_8min():
+    pm = PerBotPositionManager(_traj_cfg())
+    pm.open_position("J", 1.0, 20.0, entry_time=0.0)
+    # rising-then-fading path over the first 8 min (one tick/min)
+    path = {0:1.0, 60:1.02, 120:1.05, 180:1.04, 240:1.03, 300:1.02, 360:1.01, 420:1.0}
+    for t, px in path.items():
+        pm.tick(token="J", current_price=px, now=float(t), vol_m5_usd=1000.0)
+    sb = pm.get_position("J").state_blob
+    assert "scalein_n" not in sb                 # not yet at +8min (last tick 420 < 480)
+    pm.tick(token="J", current_price=1.0, now=480.0, vol_m5_usd=1000.0)   # +8min checkpoint
+    sb = pm.get_position("J").state_blob
+    assert sb.get("scalein_shape_done") is True
+    assert sb.get("scalein_n", 0) >= 4
+    assert 0.0 <= sb["scalein_peak_position"] <= 1.0
+    assert isinstance(sb["scalein_higher_low_n"], int)
+    assert "scalein_traj" not in sb              # raw path freed after computation
+
+
+def test_trajectory_shadow_fires_once():
+    pm = PerBotPositionManager(_traj_cfg())
+    pm.open_position("J", 1.0, 20.0, entry_time=0.0)
+    for t in range(0, 481, 60):
+        pm.tick(token="J", current_price=1.02, now=float(t), vol_m5_usd=500.0)
+    n1 = pm.get_position("J").state_blob.get("scalein_n")
+    assert n1 is not None
+    pm.tick(token="J", current_price=1.5, now=600.0, vol_m5_usd=500.0)   # later, higher
+    assert pm.get_position("J").state_blob.get("scalein_n") == n1        # not recomputed
+
+
+def test_trajectory_shadow_absent_if_closed_before_8min():
+    pm = PerBotPositionManager(_traj_cfg())
+    pm.open_position("J", 1.0, 20.0, entry_time=0.0)
+    pm.tick(token="J", current_price=1.05, now=120.0, vol_m5_usd=500.0)  # only 2 min in
+    sb = pm.get_position("J").state_blob
+    assert "scalein_shape_done" not in sb
+    assert "scalein_n" not in sb
+
+
+def test_trajectory_shape_features_peak_early_vs_late():
+    from core.per_bot_position_manager import _trajectory_shape_features
+    # peak early (minute 1) -> low peak_position
+    traj_early = [(0,1.0,100),(60,1.10,100),(120,1.05,100),(180,1.03,100),(240,1.02,100)]
+    f = _trajectory_shape_features(traj_early, 1.0)
+    assert f["n"] >= 4 and f["peak_position"] < 0.5
+    # too few buckets -> None
+    assert _trajectory_shape_features([(0,1.0,100),(60,1.01,100)], 1.0) is None
+    # empty / bad entry -> None
+    assert _trajectory_shape_features([], 1.0) is None
+    assert _trajectory_shape_features(traj_early, 0.0) is None

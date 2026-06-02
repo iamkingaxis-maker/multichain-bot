@@ -26,6 +26,57 @@ def paper_uncapped() -> bool:
     )
 
 
+def _trajectory_shape_features(traj, entry_price):
+    """Phase-2a demand-trajectory SHAPE from a first-8min path [(secs, price, vol), ...].
+
+    Minute-binned to match the universe continuation-model corpus definition
+    (scripts/backfill_bot_trades.shape: closes/lows/vols per minute) so the live
+    shape is comparable to what the model was trained on (held-out-by-token AUC
+    0.765). SHAPE only — no price LEVEL (which would leak). Returns None if fewer
+    than 4 minute-buckets (too thin to score). Scored OFFLINE by the analyzer; this
+    just produces the features.
+    """
+    if not traj or entry_price is None or entry_price <= 0:
+        return None
+    buckets: dict = {}
+    for sample in traj:
+        try:
+            secs, price, vol = sample[0], sample[1], sample[2]
+        except (IndexError, TypeError):
+            continue
+        if price is None or price <= 0:
+            continue
+        m = int(secs // 60)
+        b = buckets.get(m)
+        if b is None:
+            buckets[m] = {"close": price, "low": price, "vol": vol}
+        else:
+            b["close"] = price
+            if price < b["low"]:
+                b["low"] = price
+            if vol is not None:
+                b["vol"] = vol
+    post = [buckets[m] for m in sorted(buckets)]
+    if len(post) < 4:
+        return None
+    closes = [b["close"] for b in post]
+    lows = [b["low"] for b in post]
+    vols = [b["vol"] for b in post if b["vol"] is not None]
+    n = len(post)
+    pk = max(range(n), key=lambda i: closes[i])
+    third = max(1, n // 3)
+    vf = sum(vols[:third]) if vols else 0
+    vl = sum(vols[-third:]) if vols else 0
+    return {
+        "peak_position": round(pk / (n - 1), 3) if n > 1 else 0.0,
+        "minutes_to_peak": pk,
+        "frac_above_entry": round(sum(1 for c in closes if c > entry_price) / n, 3),
+        "higher_low_n": sum(1 for i in range(1, n) if lows[i] > lows[i - 1]),
+        "vol_sustain_ratio": round(vl / vf, 3) if vf > 0 else None,
+        "n": n,
+    }
+
+
 @dataclass
 class OpenPosition:
     token: str
@@ -359,6 +410,39 @@ class PerBotPositionManager:
             p.state_blob["timestop45_pnl_at_fire"] = round(pnl_pct, 4)
             p.state_blob["timestop45_peak_at_fire"] = round(p.peak_pnl_pct, 4)
             p.state_blob["timestop45_secs"] = int(now - p.entry_time)
+
+        # TRAJECTORY SHADOW (Phase-2a, measure-only, 2026-06-02) — accumulate the
+        # first-8min price/vol path, and at the +8min checkpoint stamp the demand-
+        # trajectory SHAPE (peak_position, minutes_to_peak, frac_above_entry,
+        # higher_low_n, vol_sustain_ratio, n). The +8min SHAPE predicts continuation
+        # (held-out-by-token AUC 0.765 universe / 0.889 family-dedup, leak-free) — the
+        # ONE signal that beat the entry-prediction wall. Scored OFFLINE by the analyzer
+        # (NO model in the tick loop); join scalein_* shape -> realized outcome on the
+        # sell to validate on the candidate forward (~n>=30 in a day at ~100% coverage),
+        # then Phase-2b enforces a gentle scale-IN on the high-score cohort. NO behavior
+        # change here; fires once; the raw path is freed after the +8min computation.
+        sb = p.state_blob
+        if sb is not None and not sb.get("scalein_shape_done"):
+            secs = now - p.entry_time
+            if secs <= 8.5 * 60:
+                traj = sb.setdefault("scalein_traj", [])
+                # ~1 sample / 12s over 8min (<=~40 pts) to bound state size
+                if not traj or (secs - traj[-1][0]) >= 12.0:
+                    traj.append([round(secs, 1), current_price, vol_m5_usd])
+            if secs >= 8 * 60:
+                try:
+                    feats = _trajectory_shape_features(sb.get("scalein_traj") or [], p.entry_price)
+                except Exception:
+                    feats = None
+                if feats:
+                    sb["scalein_peak_position"] = feats["peak_position"]
+                    sb["scalein_minutes_to_peak"] = feats["minutes_to_peak"]
+                    sb["scalein_frac_above_entry"] = feats["frac_above_entry"]
+                    sb["scalein_higher_low_n"] = feats["higher_low_n"]
+                    sb["scalein_vol_sustain_ratio"] = feats["vol_sustain_ratio"]
+                    sb["scalein_n"] = feats["n"]
+                sb["scalein_shape_done"] = True
+                sb.pop("scalein_traj", None)   # free the raw path; features kept
 
         decisions: list[ExitDecision] = []
 
