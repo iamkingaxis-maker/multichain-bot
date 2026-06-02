@@ -1189,6 +1189,14 @@ class DipScanner:
                 "ng_faststop_vol_m5_at_fire": ((_pos.state_blob or {}).get("ng_faststop_vol_m5_at_fire") if _pos else None),
                 "ng_faststop_drop_velocity_pp_s": ((_pos.state_blob or {}).get("ng_faststop_drop_velocity_pp_s") if _pos else None),
                 "ng_faststop_secs_from_peak": ((_pos.state_blob or {}).get("ng_faststop_secs_from_peak") if _pos else None),
+                # Exit-guard DECISION on the price this sell acted on (2026-06-02
+                # instrumentation): raw/returned price, suspect/abs flags, and the
+                # OHLC/cross-source values the glitch guard saw, with a reason string.
+                # Stamped from guard[token]["last_decision"] (same cycle as this sell)
+                # so a phantom that ever slips is diagnosable from the record itself
+                # — Railway logs retain only ~30 min. Fail-soft: empty if unset.
+                **{f"exit_guard_{_k}": _v for _k, _v in
+                   ((self._exit_price_guard.get(token) or {}).get("last_decision") or {}).items()},
                 "pnl": result.realized_pnl_usd,
                 "pnl_pct": result.pnl_pct,
                 "peak_pnl_pct": result.peak_pnl_pct,

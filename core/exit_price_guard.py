@@ -175,7 +175,8 @@ def guarded_exit_price(
     g = guard.get(token)
     if not g or g.get("last_good", 0.0) <= 0.0:
         # First observation for this token — nothing to compare against; seed it.
-        guard[token] = {"last_good": price, "pending": None}
+        guard[token] = {"last_good": price, "pending": None,
+                        "last_decision": {"raw": price, "ret": price, "reason": "seed"}}
         return price
 
     last = g["last_good"]
@@ -190,6 +191,24 @@ def guarded_exit_price(
     catastrophic_drop = abs_drop_hit
     suspect_drop = price < last * (1.0 - max_drop) or abs_drop_hit
     suspect_rise = price > last * (1.0 + max_rise) or abs_rise_hit
+
+    # ── DECISION INSTRUMENTATION (2026-06-02) ──────────────────────────────────
+    # Record WHY the guard returned what it did, into per-token state, so a phantom
+    # that ever slips is diagnosable from the sell record (Railway logs retain only
+    # ~30 min). dip_scanner stamps guard[token]["last_decision"] onto the sell. Pure
+    # bookkeeping — no behavior change, no extra fetches (captures only what the
+    # decision branches already computed).
+    _dec = {"raw": price, "last_good": last, "suspect_rise": bool(suspect_rise),
+            "suspect_drop": bool(suspect_drop), "abs_rise_hit": bool(abs_rise_hit),
+            "abs_drop_hit": bool(abs_drop_hit), "catastrophic_drop": bool(catastrophic_drop),
+            "high_val": None, "low_val": None, "second_val": None, "reason": None}
+
+    def _rec(value, reason):
+        _dec["ret"] = value
+        _dec["reason"] = reason
+        g["last_decision"] = _dec
+        return value
+
     if suspect_drop or suspect_rise:
         # ── Suspect single-cycle gap (down OR up). Prefer an immediate opinion. ──
         midpoint = (price + last) / 2.0
@@ -207,15 +226,16 @@ def guarded_exit_price(
                 hi = high_fn()
             except Exception:
                 hi = None
+            _dec["high_val"] = hi
             if isinstance(hi, (int, float)) and hi > 0:
                 if price <= hi * (1.0 + high_tol):
                     # within the token's real traded range → genuine → act now.
                     g["last_good"] = price
                     g["pending"] = None
-                    return price
+                    return _rec(price, "rise_accepted_within_high")
                 # above the real high → glitch (or unconfirmed new spike) → reject.
                 g["pending"] = None
-                return last
+                return _rec(last, "rise_rejected_above_high")
             # high unavailable → fall through to cross-source, then reject.
 
         # ── PRIMARY drop check: the token's REAL recent OHLC low (mirror of rise). ──
@@ -230,16 +250,17 @@ def guarded_exit_price(
                 lo = low_fn()
             except Exception:
                 lo = None
+            _dec["low_val"] = lo
             if isinstance(lo, (int, float)) and lo > 0:
                 if price >= lo * (1.0 - low_tol):
                     # within the token's real recent range → genuine dump → fire now.
                     g["last_good"] = price
                     g["pending"] = None
-                    return price
+                    return _rec(price, "drop_accepted_within_low")
                 # below the real low → glitch (or unconfirmed fresh crash) → reject;
                 # re-checked next cycle (a real crash's low enters the candle → fires).
                 g["pending"] = None
-                return last
+                return _rec(last, "drop_rejected_below_low")
             # low unavailable → fall through to cross-source / temporal.
 
         if confirm_fn is not None:
@@ -248,6 +269,7 @@ def guarded_exit_price(
                 second = confirm_fn()
             except Exception:
                 second = None
+            _dec["second_val"] = second
             if isinstance(second, (int, float)) and second > 0:
                 # Corroborated when the independent source agrees the move is real:
                 # past the midpoint in the same direction as the suspect print.
@@ -256,12 +278,12 @@ def guarded_exit_price(
                     # Independent source corroborates → real move; act now.
                     g["last_good"] = price
                     g["pending"] = None
-                    return price
+                    return _rec(price, "corroborated_crosssource")
                 # Independent source says price is healthy → primary feed glitch.
                 # Ignore the bad print and act on last-good; do NOT poison last_good
                 # with the glitch, so a PERSISTENT bad source keeps being rejected.
                 g["pending"] = None
-                return last
+                return _rec(last, "disconfirmed_glitch_crosssource")
             # second source unavailable → fall through (rise rejected; drop temporal).
 
         # ── No valid independent corroboration this cycle. ──
@@ -280,7 +302,7 @@ def guarded_exit_price(
         #   booking +$64 fake wins across 3 premium bots. This closes that path.
         if suspect_rise:
             g["pending"] = None
-            return last
+            return _rec(last, "rise_capped_no_corroboration")
 
         # CATASTROPHIC DROP (beyond ``abs_drop`` below entry): mirror the rise rule —
         # never accept on temporal-only. A sticky near-zero glitch with the OHLC source
@@ -290,7 +312,7 @@ def guarded_exit_price(
         #   confirmed over 2 cycles → −100% x4 bots. This closes that path.
         if catastrophic_drop:
             g["pending"] = None
-            return last
+            return _rec(last, "catastrophic_drop_no_corroboration")
 
         # DROP: fall back to next-cycle temporal confirmation. A real fast dump
         # confirms next cycle (stop fires one cycle late, by design); a single-tick
@@ -301,13 +323,13 @@ def guarded_exit_price(
             if pending_was_drop and price <= pending * (1.0 + confirm_tol):
                 g["last_good"] = price
                 g["pending"] = None
-                return price
+                return _rec(price, "drop_confirmed_temporal")
         # First suspect drop cycle (or the low hasn't held) → defer: act on last-good
         # this cycle and hold the suspect pending for next time.
         g["pending"] = price
-        return last
+        return _rec(last, "drop_deferred_temporal")
 
     # Normal move or recovery → accept and clear any pending suspect.
     g["last_good"] = price
     g["pending"] = None
-    return price
+    return _rec(price, "normal")

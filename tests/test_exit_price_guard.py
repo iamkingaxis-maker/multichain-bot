@@ -456,3 +456,60 @@ def test_refprice_modest_drop_below_50pct_threshold_unaffected():
     eg.guarded_exit_price(guard, "D", entry, ref_price=entry)
     assert eg.guarded_exit_price(guard, "D", 0.70, ref_price=entry, low_fn=lambda: None) == 1.0  # deferred
     assert eg.guarded_exit_price(guard, "D", 0.69, ref_price=entry, low_fn=lambda: None) == 0.69  # holds → fires
+
+
+# ── decision instrumentation (2026-06-02): guard[token]["last_decision"] ──────
+# Every call records WHY it returned what it did, so dip_scanner can stamp it onto
+# the sell record and a phantom that ever slips is diagnosable from data.
+
+def test_decision_recorded_on_seed():
+    guard = {}
+    eg.guarded_exit_price(guard, "X", 1.0)
+    d = guard["X"]["last_decision"]
+    assert d["reason"] == "seed" and d["raw"] == 1.0 and d["ret"] == 1.0
+
+
+def test_decision_recorded_on_normal_move():
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    eg.guarded_exit_price(guard, "X", 0.95)
+    d = guard["X"]["last_decision"]
+    assert d["reason"] == "normal" and d["ret"] == 0.95 and d["suspect_rise"] is False
+
+
+def test_decision_recorded_rise_rejected_with_high_val():
+    guard = {"SPCX": {"last_good": 0.00092, "pending": None}}
+    eg.guarded_exit_price(guard, "SPCX", 0.00384, high_fn=lambda: 0.00141)
+    d = guard["SPCX"]["last_decision"]
+    assert d["reason"] == "rise_rejected_above_high"
+    assert d["high_val"] == 0.00141 and d["ret"] == 0.00092 and d["suspect_rise"] is True
+
+
+def test_decision_recorded_drop_rejected_with_low_val():
+    guard = {"SPCX": {"last_good": 0.00417, "pending": None}}
+    eg.guarded_exit_price(guard, "SPCX", 0.0008, low_fn=lambda: 0.00313)
+    d = guard["SPCX"]["last_decision"]
+    assert d["reason"] == "drop_rejected_below_low"
+    assert d["low_val"] == 0.00313 and d["ret"] == 0.00417
+
+
+def test_decision_recorded_catastrophic_drop():
+    guard = {}
+    entry = 0.0148
+    eg.guarded_exit_price(guard, "BUTT", entry, ref_price=entry)
+    eg.guarded_exit_price(guard, "BUTT", 2.35e-6, ref_price=entry, low_fn=lambda: None)
+    d = guard["BUTT"]["last_decision"]
+    assert d["reason"] == "catastrophic_drop_no_corroboration"
+    assert d["catastrophic_drop"] is True and d["ret"] == entry
+
+
+def test_decision_records_gradual_climb_abs_rise_flag():
+    # the SPCX overnight gap: abs_rise_hit set even though no single-cycle suspect.
+    guard = {}
+    entry = 0.00076
+    hi = lambda: 0.001415
+    eg.guarded_exit_price(guard, "SPCX", entry, ref_price=entry, high_fn=hi)
+    eg.guarded_exit_price(guard, "SPCX", 0.0015, ref_price=entry, high_fn=hi)   # accepted
+    eg.guarded_exit_price(guard, "SPCX", 0.0029, ref_price=entry, high_fn=hi)   # rejected
+    d = guard["SPCX"]["last_decision"]
+    assert d["abs_rise_hit"] is True and d["reason"] == "rise_rejected_above_high"
+    assert d["high_val"] == 0.001415
