@@ -83,6 +83,27 @@ EXIT_GUARD_HIGH_TOL = 0.15
 # ~1 cycle → fires then (one cycle late, by design). 15% margin for feed lag.
 EXIT_GUARD_LOW_TOL = 0.15
 
+# ABSOLUTE-move triggers (relative to the position's ENTRY, via ``ref_price``).
+#
+# The single-cycle suspect triggers above only fire on a SUDDEN tick-to-tick gap.
+# 2026-06-02 showed two glitches that evade them entirely:
+#   • SPCX booked +374% — a bad feed climbed GRADUALLY (0.00076→0.0015→0.0029→0.0039,
+#     each step <+100%), so ``suspect_rise`` never fired, ``high_fn`` was never
+#     consulted, ``last_good`` tracked up to the glitch, and TP booked at 4.7x entry.
+#   • Buttcoin booked −100% — a near-zero print with GeckoTerminal down (``low_fn``
+#     →None) was confirmed on temporal-only over two cycles.
+# When the caller passes ``ref_price`` (the entry), a move beyond these fractions
+# FROM ENTRY is treated as suspect regardless of the per-cycle delta, so the OHLC
+# bound is always consulted on a big absolute move. To bound egress on a sustained
+# real winner/loser, the absolute trigger fires only on a NEW high-/low-water mark
+# (a plateau re-uses the prior decision and makes no extra OHLC call).
+EXIT_GUARD_ABS_RISE = 0.5   # price > entry*(1+this) → validate every new high vs OHLC high
+# A drop beyond this fraction below entry is CATASTROPHIC: like a rise it is then
+# NEVER accepted on temporal-only — it requires OHLC-low or cross-source
+# corroboration (a real rug's low corroborates immediately; a sticky zero-glitch
+# with the OHLC source down no longer books a phantom −100%).
+EXIT_GUARD_ABS_DROP = 0.5   # price < entry*(1-this) → catastrophic (no temporal-only)
+
 
 def guarded_exit_price(
     guard: Dict[str, dict],
@@ -96,6 +117,9 @@ def guarded_exit_price(
     high_tol: float = EXIT_GUARD_HIGH_TOL,
     low_fn=None,
     low_tol: float = EXIT_GUARD_LOW_TOL,
+    ref_price: Optional[float] = None,
+    abs_rise: float = EXIT_GUARD_ABS_RISE,
+    abs_drop: float = EXIT_GUARD_ABS_DROP,
 ) -> float:
     """Return the price the exit tick should act on, filtering one-tick glitches.
 
@@ -155,8 +179,17 @@ def guarded_exit_price(
         return price
 
     last = g["last_good"]
-    suspect_drop = price < last * (1.0 - max_drop)
-    suspect_rise = price > last * (1.0 + max_rise)
+    # ABSOLUTE-from-entry triggers (only when ref_price known) — catch a gradual
+    # multi-cycle climb / sticky deep drop the single-cycle thresholds miss. Gated to
+    # a NEW extreme vs last_good (price>last / price<last) so a plateau makes no extra
+    # OHLC call. A drop beyond ``abs_drop`` below entry is "catastrophic" (treated like
+    # a rise: never accepted on temporal-only).
+    ref = ref_price if (ref_price is not None and ref_price > 0) else None
+    abs_rise_hit = ref is not None and price > last and price > ref * (1.0 + abs_rise)
+    abs_drop_hit = ref is not None and price < last and price < ref * (1.0 - abs_drop)
+    catastrophic_drop = abs_drop_hit
+    suspect_drop = price < last * (1.0 - max_drop) or abs_drop_hit
+    suspect_rise = price > last * (1.0 + max_rise) or abs_rise_hit
     if suspect_drop or suspect_rise:
         # ── Suspect single-cycle gap (down OR up). Prefer an immediate opinion. ──
         midpoint = (price + last) / 2.0
@@ -246,6 +279,16 @@ def guarded_exit_price(
         #   returned None, and the temporal check confirmed a 2-cycle sticky bad print,
         #   booking +$64 fake wins across 3 premium bots. This closes that path.
         if suspect_rise:
+            g["pending"] = None
+            return last
+
+        # CATASTROPHIC DROP (beyond ``abs_drop`` below entry): mirror the rise rule —
+        # never accept on temporal-only. A sticky near-zero glitch with the OHLC source
+        # down (low_fn → None) and no cross-source must NOT book a phantom −100%; a
+        # genuine rug's low corroborates via low_fn / confirm_fn and still fires.
+        #   2026-06-02: Buttcoin entry 0.0148, a 2.35e-6 print (GT 429'd) was temporally
+        #   confirmed over 2 cycles → −100% x4 bots. This closes that path.
+        if catastrophic_drop:
             g["pending"] = None
             return last
 

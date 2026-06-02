@@ -1074,6 +1074,12 @@ class DipScanner:
                                 low_fn=(
                                     lambda pa=position.pair_address: self._recent_low_sync(pa)
                                 ),
+                                # ABSOLUTE-from-entry trigger: a big move from entry
+                                # (>+50% / <−50%) consults the OHLC bound even when no
+                                # single tick exceeds the gap thresholds — catches a
+                                # GRADUAL climb (SPCX +374% 2026-06-02) and bars a sticky
+                                # deep drop from booking on temporal-only (Buttcoin −100%).
+                                ref_price=position.entry_price,
                             )
                         vols[token] = await self._get_vol_m5_for(token)
                     price = priced[token]

@@ -359,3 +359,100 @@ def test_lowfn_does_not_affect_rises():
     guard = {"X": {"last_good": 1.0, "pending": None}}
     out = eg.guarded_exit_price(guard, "X", 3.0, low_fn=lambda: 0.0001, high_fn=lambda: 5.0)
     assert out == 3.0   # within real high (5.0) → accepted; low_fn ignored for rise
+
+
+# ── ABSOLUTE-move guard via ref_price (2026-06-02 overnight phantoms) ─────────
+# The single-cycle suspect_rise/drop triggers (>+100% / >-22% tick-to-tick) miss a
+# GRADUAL multi-cycle climb to a glitch (each step under the threshold) and a
+# below-real-low drop confirmed only temporally. Passing ref_price=entry enables an
+# ABSOLUTE-from-entry trigger that consults the OHLC bound regardless of per-cycle
+# delta, gated to NEW extremes (high-/low-water marks) so egress stays bounded.
+
+def test_refprice_gradual_climb_above_real_high_rejected():
+    # SPCX 2026-06-02: entry 0.00076; a bad feed climbed GRADUALLY (each tick <+100%):
+    # 0.00076 → 0.0015 → 0.0029 → 0.0039 (4.7x). No single-cycle suspect_rise ever
+    # fired, so the OHLC-high check never ran and TP booked +374%. With ref_price the
+    # absolute trigger validates each NEW high against the real OHLC high (0.001415).
+    guard = {}
+    entry = 0.00076
+    hi = lambda: 0.001415
+    eg.guarded_exit_price(guard, "SPCX", entry, ref_price=entry, high_fn=hi)
+    # 0.0015 (~2x entry): within high*1.15=0.001627 → accepted, becomes the new high.
+    assert eg.guarded_exit_price(guard, "SPCX", 0.0015, ref_price=entry, high_fn=hi) == 0.0015
+    # 0.0029: +93% from 0.0015 (NOT single-cycle suspect) but a new high above
+    # high*1.15 → absolute trigger rejects (pre-fix this was accepted → poison).
+    assert eg.guarded_exit_price(guard, "SPCX", 0.0029, ref_price=entry, high_fn=hi) == 0.0015
+    # 0.0039: still above the real high → rejected.
+    assert eg.guarded_exit_price(guard, "SPCX", 0.0039, ref_price=entry, high_fn=hi) == 0.0015
+    assert guard["SPCX"]["last_good"] == 0.0015   # last_good never poisoned to the glitch
+
+
+def test_refprice_plateau_winner_not_rechecked_bounds_egress():
+    # A real winner sitting above +50% must NOT re-call high_fn every cycle — the
+    # absolute trigger fires only on a NEW high-water mark, so a plateau is free.
+    calls = []
+    def hi():
+        calls.append(1); return 2.0
+    guard = {}
+    eg.guarded_exit_price(guard, "W", 1.0, ref_price=1.0, high_fn=hi)
+    assert eg.guarded_exit_price(guard, "W", 1.8, ref_price=1.0, high_fn=hi) == 1.8  # new high → 1 call
+    assert eg.guarded_exit_price(guard, "W", 1.8, ref_price=1.0, high_fn=hi) == 1.8  # plateau → no call
+    assert eg.guarded_exit_price(guard, "W", 1.7, ref_price=1.0, high_fn=hi) == 1.7  # lower → no call
+    assert calls == [1]
+
+
+def test_refprice_disabled_when_no_ref_preserves_gradual_climb():
+    # Backward-compat: with ref_price absent the absolute trigger is OFF and a gradual
+    # climb still TPs exactly as before (mirrors test_gradual_climb_still_tps_normally).
+    guard = {}
+    eg.guarded_exit_price(guard, "C", 1.0, high_fn=lambda: 1.5)
+    assert eg.guarded_exit_price(guard, "C", 1.8, high_fn=lambda: 1.5) == 1.8   # accepted, no abs check
+    assert eg.guarded_exit_price(guard, "C", 3.2, high_fn=lambda: 1.5) == 3.2
+    assert guard["C"]["last_good"] == 3.2
+
+
+def test_refprice_catastrophic_drop_no_ohlc_never_temporal_only():
+    # Buttcoin 2026-06-02: entry 0.0148; a near-zero print (2.35e-6) with GeckoTerminal
+    # down (low_fn → None) and no cross-source got TEMPORALLY confirmed over 2 cycles and
+    # booked -100%. A below-(-50%)-from-entry drop is catastrophic → like a rise it must
+    # NEVER be accepted on temporal-only; require OHLC or cross-source corroboration.
+    guard = {}
+    entry = 0.0148
+    eg.guarded_exit_price(guard, "BUTT", entry, ref_price=entry)
+    for _ in range(3):   # sticky near-zero, GT down
+        assert eg.guarded_exit_price(guard, "BUTT", 2.35e-6, ref_price=entry,
+                                     low_fn=lambda: None) == entry
+    assert guard["BUTT"]["last_good"] == entry   # never books the -100% phantom
+
+
+def test_refprice_catastrophic_drop_with_real_low_still_fires():
+    # A GENUINE rug below -50% still fires the moment the OHLC low corroborates (the
+    # real low IS near zero), so catastrophic-drop hardening never traps a real loss.
+    guard = {}
+    entry = 0.0148
+    eg.guarded_exit_price(guard, "RUG", entry, ref_price=entry)
+    out = eg.guarded_exit_price(guard, "RUG", 1e-6, ref_price=entry, low_fn=lambda: 1e-6)
+    assert out == 1e-6
+    assert guard["RUG"]["last_good"] == 1e-6
+
+
+def test_refprice_catastrophic_drop_crosssource_corroborates_fires():
+    # Catastrophic drop with no OHLC but an independent source that AGREES (also near
+    # zero) → corroborated → fires immediately (cross-source counts, only temporal-only
+    # is barred).
+    guard = {}
+    entry = 1.0
+    eg.guarded_exit_price(guard, "Z", entry, ref_price=entry)
+    out = eg.guarded_exit_price(guard, "Z", 0.02, ref_price=entry,
+                                low_fn=lambda: None, confirm_fn=lambda: 0.018)
+    assert out == 0.02
+
+
+def test_refprice_modest_drop_below_50pct_threshold_unaffected():
+    # A -30% drop (above the -50% catastrophic line) with ref_price still uses the
+    # normal temporal/low path — the catastrophic rule only governs deep drops.
+    guard = {}
+    entry = 1.0
+    eg.guarded_exit_price(guard, "D", entry, ref_price=entry)
+    assert eg.guarded_exit_price(guard, "D", 0.70, ref_price=entry, low_fn=lambda: None) == 1.0  # deferred
+    assert eg.guarded_exit_price(guard, "D", 0.69, ref_price=entry, low_fn=lambda: None) == 0.69  # holds → fires
