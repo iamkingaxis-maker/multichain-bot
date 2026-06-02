@@ -965,13 +965,36 @@ class DipScanner:
         # REVERTS rather than executing at a ruinous price (Ultra's own RTSE estimate alone
         # is not a hard cap). PROBE_ULTRA_SLIPPAGE_BPS default 400 = 4%.
         _slip_cap = int(os.environ.get("PROBE_ULTRA_SLIPPAGE_BPS", "400"))
+        # M7 (probe red-team): snapshot the pre-swap token balance so an Ultra execute that
+        # TIMES OUT but still LANDS on-chain can be ADOPTED via the post-swap delta — not
+        # orphaned (with capital wrongly refunded while we actually hold the token).
+        try:
+            _pre_bal = await self.trader._get_token_balance_atomic(mint)
+        except Exception:
+            _pre_bal = -1
         t0 = time.time()
         res = await self.trader._execute_swap_ultra(SOL_MINT, mint, lamports, slippage_bps=_slip_cap)
         latency_ms = round((time.time() - t0) * 1000, 1)
         if not res.get("success"):
-            logger.warning("[Probe] live BUY swap FAILED token=%s reason=%s",
-                           token, res.get("reason"))
-            return None
+            # M7: a reported failure CAN still have landed (timed-out execute). Check the
+            # on-chain delta; if tokens arrived, ADOPT the position rather than orphan it.
+            _adopted = 0
+            if _pre_bal >= 0:
+                try:
+                    await asyncio.sleep(float(os.environ.get("PROBE_ADOPT_WAIT_S", "2.0")))  # tx propagate
+                    _post = await self.trader._get_token_balance_atomic(mint)
+                    if _post >= 0 and _post > _pre_bal:
+                        _adopted = _post - _pre_bal
+                except Exception:
+                    _adopted = 0
+            if _adopted > 0:
+                logger.warning("[Probe] live BUY reported FAIL but +%d atomic on-chain (%s) — ADOPTING orphan",
+                               _adopted, token)
+                res = {"success": True, "out_amount": _adopted, "route": "adopted_orphan",
+                       "signature": res.get("signature"), "realized_slippage_pct": None}
+            else:
+                logger.warning("[Probe] live BUY swap FAILED token=%s reason=%s", token, res.get("reason"))
+                return None
         # Real fill -> real entry price.
         try:
             decimals = await self.trader._get_token_decimals(mint)
@@ -1003,11 +1026,18 @@ class DipScanner:
             logger.error("[Probe] live buy open_position FAILED post-swap (MONEY SPENT sig=%s): %s",
                          res.get("signature"), e)
             return None
+        # D1 (probe red-team): populate local_low so live_entry_vs_local_low_pct isn't always
+        # null (decision.local_low is never set upstream). Reuse the guard's GT-minute-low fetch.
+        _local_low = getattr(decision, "local_low", None)
+        if _local_low is None:
+            try:
+                _local_low = self._recent_low_sync(decision.pair_address)
+            except Exception:
+                _local_low = None
         instrument = fill_metrics("buy", mid=mid, fill=real_entry, route=res.get("route"),
                                   latency_ms=latency_ms,
                                   ultra_slippage_pct=res.get("realized_slippage_pct"),
-                                  entry_price=real_entry,
-                                  local_low=getattr(decision, "local_low", None))
+                                  entry_price=real_entry, local_low=_local_low)
         instrument["live_signature"] = res.get("signature")
         instrument["live_size_usd"] = size_usd
         instrument["live_entry_suspect"] = bool(_entry_suspect)   # M10 flag

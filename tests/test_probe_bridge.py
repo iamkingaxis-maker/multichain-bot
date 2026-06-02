@@ -20,6 +20,7 @@ class StubTrader:
         self.legacy_quote = None     # M2: legacy fallback quote (None = fallback fails)
         self.legacy_ok = True
         self._last_realized_slippage_pct = 0.3
+        self.balances = []  # M7: popped [pre, post] for orphan-adoption tests
     async def _usd_to_sol(self, usd):  # $200/SOL
         return usd / 200.0
     async def _sol_to_usd(self, sol):
@@ -35,6 +36,8 @@ class StubTrader:
         return self.legacy_quote
     async def _execute_swap(self, quote):
         return self.legacy_ok
+    async def _get_token_balance_atomic(self, mint):
+        return self.balances.pop(0) if self.balances else 0
 
 
 class StubPos:
@@ -186,3 +189,38 @@ def test_sell_live_both_routes_fail_stays_open():
     ds = _ds(trader)
     pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
     assert asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, 1.25)) is None  # stays open to retry
+
+
+# ── probe must-fixes round 2: M7 orphan-adoption, D1 local_low ──
+import os
+
+def test_buy_live_m7_adopts_orphan_when_swap_reports_fail_but_lands():
+    # Ultra reports failure, but the token balance grew (timed-out-but-landed) -> ADOPT.
+    os.environ["PROBE_ADOPT_WAIT_S"] = "0"
+    trader = StubTrader({"success": False, "reason": "execute_error", "signature": "S"})
+    trader.balances = [0, 48_000_000]      # pre=0, post=48e6 (tokens arrived)
+    ds, pm = _ds(trader), StubPM()
+    r = asyncio.run(ds._execute_bot_buy_live(_decision(), pm, 50.0))
+    assert r is not None                    # adopted, not orphaned
+    assert abs(r["entry_price"] - 50.0/48.0) < 1e-9
+    assert r["instrument"]["live_route"] == "adopted_orphan"
+    os.environ.pop("PROBE_ADOPT_WAIT_S", None)
+
+
+def test_buy_live_m7_real_failure_no_balance_returns_none():
+    os.environ["PROBE_ADOPT_WAIT_S"] = "0"
+    trader = StubTrader({"success": False, "reason": "no_route"})
+    trader.balances = [0, 0]               # nothing landed
+    ds, pm = _ds(trader), StubPM()
+    assert asyncio.run(ds._execute_bot_buy_live(_decision(), pm, 50.0)) is None
+    assert pm.opened is None
+    os.environ.pop("PROBE_ADOPT_WAIT_S", None)
+
+
+def test_buy_live_d1_populates_entry_vs_local_low():
+    # decision carries local_low=0.95; entry ~1.0417 -> (1.0417-0.95)/0.95*100 ~= +9.65%
+    trader = StubTrader({"success": True, "out_amount": 48_000_000, "route": "m", "signature": "S"})
+    ds, pm = _ds(trader), StubPM()
+    r = asyncio.run(ds._execute_bot_buy_live(_decision(), pm, 50.0))
+    assert r["instrument"]["live_entry_vs_local_low_pct"] is not None
+    assert r["instrument"]["live_entry_vs_local_low_pct"] > 9.0

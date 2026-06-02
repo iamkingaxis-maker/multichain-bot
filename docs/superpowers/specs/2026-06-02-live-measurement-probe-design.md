@@ -56,13 +56,30 @@ On every live leg (BUY, TP1, TP2, trail, stop), stamp on the trade record:
 - Reuse the existing shadow stamps (exit_guard_*, tp1_knee_*, timestop45_*, scalein_*,
   phantom_pnl_pct_1leg5_s15, phantom_pnl_pct_trail25/30) so paper-vs-live is directly comparable.
 
-## SIZE SWEEP (added 2026-06-02 per user)
+**M1 — AUTHORITATIVE GO/NO-GO METRIC (registered 2026-06-02, probe red-team):** there are
+TWO slippage fields and they are NOT interchangeable:
+- `live_ultra_slippage_pct` = Jupiter Ultra's reported slippageBps/100 = quote-vs-execution
+  INSIDE the atomic swap. This is the clean **per-leg EXECUTION cost** and is the **PRIMARY
+  gate metric** — the ~0.6–1pp/leg break-even budget is an execution-cost budget, so it is
+  compared against THIS field, not the drift-confounded one.
+- `live_slippage_pct` = (fill − decision-mid)/mid = ALL-IN cost incl. decision→fill DRIFT +
+  cache staleness. **SECONDARY diagnostic only** — drift can exceed 0.6% and swamp the
+  execution cost, so it must not be the gate (it would cause false NO-GO/false GO).
+- **Coverage guard:** `live_ultra_slippage_pct` can be None (Ultra didn't return bps). The
+  analysis must report non-null coverage and **ABORT the verdict if Ultra-slippage coverage
+  < 80% of legs** (else it silently falls back to the confounded metric).
+- Report per-leg, **buy vs sell SEPARATELY** (sell on a thin post-runner pool differs), median
+  + p75 + p90, and **one row per ATTEMPT** (incl. failed/reverted) so reverts aren't censored.
 
-Rotate position size across the probe to measure the REAL size→EV curve (fee amortization vs
-live impact/MEV — the thing paper can't see):
-- Cycle sizes **$20 / $50 / $100** per entry (round-robin or randomized by entry index so each
-  size sees a comparable token mix; never bias a size toward a regime).
-- Per size, accumulate: mean realized per-leg slippage %, net eqw/tr, WR, and runner-capture.
+## SIZE SWEEP — THREE SEPARATE FIXED-SIZE BOTS (revised 2026-06-02)
+
+Measure the REAL size→slippage curve via **three separate fixed-size probe bots**
+(`probe_tightexit_live_{20,50,100}`, multipliers neutralized to 1.0), NOT a rotation within
+one bot. They evaluate every cycle, so all three buy the SAME token at the SAME tick at
+$20/$50/$100 = a **paired per-token measurement** that isolates size while controlling token
++ timing (rotation entangled size with token/timing). Each has its own daily-loss halt + a
+probe-WIDE aggregate kill. Per size, accumulate per-leg slippage (the M1 Ultra-bps metric),
+net eqw, runner-capture; compare across the three on the paired tokens.
 - Output the **live** size→EV curve to compare against the paper curve (paper: $20=1.88% /
   $50=3.72% / $100=4.25%). Expectation to test: fee-amortization benefit is real but capped
   earlier than paper says because live impact/MEV rises with size on thin pools.
