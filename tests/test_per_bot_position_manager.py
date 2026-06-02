@@ -390,3 +390,67 @@ def test_ng_faststop_captures_dip_moment_features(monkeypatch):
     assert sb["ng_faststop_secs_from_peak"] == 30          # 40s fire - 10s peak
     # drop ~5pp (+1 -> -4) over 30s = ~0.167 pp/s
     assert sb["ng_faststop_drop_velocity_pp_s"] == pytest.approx(0.167, abs=0.02)
+
+
+# ── tp1-knee + time-stop SHADOWS (2026-06-02, measure-only forward data) ──────
+
+def _shadow_cfg():
+    return _cfg(tp1_pct=5.0, slow_bleed_pnl_threshold=-8.0, slow_bleed_minutes=60)
+
+
+def test_tp1_knee_shadow_fires_at_plus3_pre_tp1():
+    pm = PerBotPositionManager(_shadow_cfg())
+    pm.open_position("K", 0.001, 20.0, entry_time=0.0)
+    pm.tick(token="K", current_price=0.00103, now=10.0)   # +3% (pre-TP1, TP1=5%)
+    sb = pm.get_position("K").state_blob
+    assert sb["tp1_knee_3_hit"] is True
+    assert sb["tp1_knee_3_secs"] == 10
+    assert "tp1_knee_4_hit" not in sb                      # +3 only, not +4 yet
+
+
+def test_tp1_knee_shadow_fires_at_plus4():
+    pm = PerBotPositionManager(_shadow_cfg())
+    pm.open_position("K", 0.001, 20.0, entry_time=0.0)
+    pm.tick(token="K", current_price=0.00104, now=20.0)   # +4%
+    sb = pm.get_position("K").state_blob
+    assert sb["tp1_knee_3_hit"] is True and sb["tp1_knee_4_hit"] is True
+
+
+def test_tp1_knee_shadow_fires_once_keeps_first_secs():
+    pm = PerBotPositionManager(_shadow_cfg())
+    pm.open_position("K", 0.001, 20.0, entry_time=0.0)
+    pm.tick(token="K", current_price=0.00103, now=10.0)   # +3% at t=10
+    pm.tick(token="K", current_price=0.00103, now=99.0)   # +3% again later
+    assert pm.get_position("K").state_blob["tp1_knee_3_secs"] == 10   # not overwritten
+
+
+def test_tp1_knee_shadow_skipped_when_already_tp1_hit():
+    pm = PerBotPositionManager(_shadow_cfg())
+    p = pm.open_position("K", 0.001, 20.0, entry_time=0.0)
+    p.tp1_hit = True
+    pm.tick(token="K", current_price=0.00103, now=10.0)   # +3% but post-TP1
+    assert "tp1_knee_3_hit" not in pm.get_position("K").state_blob
+
+
+def test_timestop45_shadow_fires_after_45min_below_threshold():
+    pm = PerBotPositionManager(_shadow_cfg())
+    pm.open_position("T", 0.001, 20.0, entry_time=0.0)
+    pm.tick(token="T", current_price=0.00091, now=2700.0)  # 45min, -9% (<= -8 slow_bleed_thr)
+    sb = pm.get_position("T").state_blob
+    assert sb["timestop45_fired"] is True
+    assert sb["timestop45_pnl_at_fire"] == pytest.approx(-9.0, abs=0.05)
+    assert sb["timestop45_secs"] == 2700
+
+
+def test_timestop45_shadow_not_before_45min():
+    pm = PerBotPositionManager(_shadow_cfg())
+    pm.open_position("T", 0.001, 20.0, entry_time=0.0)
+    pm.tick(token="T", current_price=0.00091, now=2699.0)  # < 45min
+    assert "timestop45_fired" not in pm.get_position("T").state_blob
+
+
+def test_timestop45_shadow_not_when_above_threshold():
+    pm = PerBotPositionManager(_shadow_cfg())
+    pm.open_position("T", 0.001, 20.0, entry_time=0.0)
+    pm.tick(token="T", current_price=0.00095, now=2700.0)  # 45min but -5% (> -8)
+    assert "timestop45_fired" not in pm.get_position("T").state_blob

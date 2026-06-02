@@ -328,6 +328,38 @@ class PerBotPositionManager:
                 (p.peak_pnl_pct - pnl_pct) / _secs_from_peak, 5
             )
 
+        # TP1-KNEE SHADOW (measure-only, 2026-06-02) — records when a PRE-TP1
+        # position first reaches the candidate tighter-TP1 knees (+3% / +4%), so the
+        # analyzer can measure on FORWARD trades what a lower TP1 (vs the live 5%)
+        # would have done. Round 2 saw a +4-6pp WR lift from TP1 5->3, but round 3
+        # showed it collapses to noise under the REAL ladder fractions (f1=0.75) —
+        # forward data is what resolves it. NO ExitDecision; each knee fires once;
+        # persists in state_blob; stamped onto the sell record in _execute_bot_sell.
+        if not p.tp1_hit:
+            if not (p.state_blob or {}).get("tp1_knee_3_hit") and pnl_pct >= 3.0:
+                p.state_blob["tp1_knee_3_hit"] = True
+                p.state_blob["tp1_knee_3_secs"] = int(now - p.entry_time)
+            if not (p.state_blob or {}).get("tp1_knee_4_hit") and pnl_pct >= 4.0:
+                p.state_blob["tp1_knee_4_hit"] = True
+                p.state_blob["tp1_knee_4_secs"] = int(now - p.entry_time)
+
+        # TIME-STOP SHADOW (measure-only, 2026-06-02) — records the P&L at which a
+        # 45-min time-stop on a slow-bleeding PRE-TP1 position WOULD have exited (the
+        # slow_bleed pnl predicate, but at 45min vs the live slow_bleed at 60min).
+        # Round 3 found a +45min time-stop kills ~43% of winners (slow-grind-to-TP1) —
+        # this captures the FORWARD winner-kill so the analyzer confirms/refutes before
+        # any enforce. NO action; fires once; persists; stamped onto the sell record.
+        if (
+            not p.tp1_hit
+            and not (p.state_blob or {}).get("timestop45_fired")
+            and (now - p.entry_time) >= 45 * 60
+            and pnl_pct <= self.config.slow_bleed_pnl_threshold
+        ):
+            p.state_blob["timestop45_fired"] = True
+            p.state_blob["timestop45_pnl_at_fire"] = round(pnl_pct, 4)
+            p.state_blob["timestop45_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+            p.state_blob["timestop45_secs"] = int(now - p.entry_time)
+
         decisions: list[ExitDecision] = []
 
         # 1. Hard stop (highest priority)

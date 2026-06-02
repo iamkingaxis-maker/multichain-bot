@@ -3004,6 +3004,62 @@ def simulate_phantom_tp1_100pct(entry_price, ohlcv_after, position_usd=20.0):
             'hit_tp1': False}
 
 
+def simulate_phantom_tp1_knee(entry_price, ohlcv_after, tp1_pct=5.0, position_usd=20.0,
+                              f1=0.75, tp2_pct=7.0, trail_pp=1.5, stop_pct=-15.0):
+    """PHANTOM PARITY (2026-06-02) for the tp1_knee SHADOW: the REAL prod tight ladder
+    (champion_premium_tightexit: TP1 sells f1=0.75 at +tp1_pct, remainder rides TP2 +7 /
+    trail 1.5pp post-TP1 / hard_stop -15), parametrized by the TP1 knee so we can sweep
+    +3/+4/+5 forward and compare WR x weighted-pnl. Candle-based (high/low/close), same
+    fidelity as the other phantom sims. The LIVE tp1_knee_*_hit stamps carry the exact
+    ground truth on real trades; this is the offline cross-check.
+    Returns weighted pnl_pct = sum(fraction * exit_pct)."""
+    if not ohlcv_after:
+        return {'phantom_pnl_pct': None, 'exit_reason': 'no_ohlcv', 'hit_tp1': False}
+    candles = list(reversed(ohlcv_after))
+    tp1_price = entry_price * (1 + tp1_pct / 100.0)
+    tp2_price = entry_price * (1 + tp2_pct / 100.0)
+    stop_price = entry_price * (1 + stop_pct / 100.0)
+    realized = 0.0      # accumulated fraction*exit_pct (pct-points)
+    rem = 1.0
+    tp1_hit = False
+    peak_pct = 0.0
+    for k in candles:
+        if len(k) < 5:
+            continue
+        try:
+            high = float(k[2]); low = float(k[3])
+        except (ValueError, TypeError):
+            continue
+        if not tp1_hit:
+            if low <= stop_price:                      # pre-TP1 hard stop on full size
+                realized += rem * stop_pct
+                return {'phantom_pnl_pct': round(realized, 3), 'exit_reason': 'stop_pre_tp1',
+                        'hit_tp1': False}
+            if high >= tp1_price:                      # TP1 sells f1 at the knee
+                realized += f1 * tp1_pct
+                rem -= f1
+                tp1_hit = True
+                peak_pct = tp1_pct
+                continue                               # remainder rides from next candle
+        else:
+            cur_high_pct = (high / entry_price - 1.0) * 100.0
+            if cur_high_pct > peak_pct:
+                peak_pct = cur_high_pct
+            if high >= tp2_price:                      # TP2 takes the remainder
+                realized += rem * tp2_pct
+                return {'phantom_pnl_pct': round(realized, 3), 'exit_reason': 'tp2',
+                        'hit_tp1': True}
+            cur_low_pct = (low / entry_price - 1.0) * 100.0
+            if peak_pct - cur_low_pct >= trail_pp:     # post-TP1 trailing stop
+                realized += rem * (peak_pct - trail_pp)
+                return {'phantom_pnl_pct': round(realized, 3), 'exit_reason': 'trail',
+                        'hit_tp1': True}
+    last_close = float(candles[-1][4])
+    realized += rem * (last_close / entry_price - 1.0) * 100.0
+    return {'phantom_pnl_pct': round(realized, 3), 'exit_reason': 'open_at_resolve',
+            'hit_tp1': tp1_hit}
+
+
 def simulate_phantom_smart_bearflip(entry_price, ohlcv_after, position_usd=20.0,
                                     consec_green_req=3, min_pnl_pct=3.0,
                                     min_red_body_pct=0.3):
@@ -3146,6 +3202,13 @@ def resolve_pending():
                 phantom_sbf = simulate_phantom_smart_bearflip(entry_price, ohlcv_after)
                 c['phantom_pnl_pct_smart_bearflip'] = phantom_sbf.get('phantom_pnl_pct')
                 c['phantom_exit_reason_smart_bearflip'] = phantom_sbf.get('exit_reason')
+                # PHANTOM PARITY (2026-06-02) for the tp1_knee SHADOW: sweep the TP1
+                # knee +3/+4/+5 under the REAL tight ladder so each resolved candidate
+                # carries a forward column to compare vs the live tp1_knee_*_hit stamps.
+                for _knee in (3.0, 4.0, 5.0):
+                    _pk = simulate_phantom_tp1_knee(entry_price, ohlcv_after, tp1_pct=_knee)
+                    c[f'phantom_pnl_pct_tp1knee_{int(_knee)}'] = _pk.get('phantom_pnl_pct')
+                    c[f'phantom_exit_reason_tp1knee_{int(_knee)}'] = _pk.get('exit_reason')
                 resolved_outcomes.append((c, snap['id']))
             except Exception as e:
                 c['outcome'] = f'err: {e}'

@@ -1189,6 +1189,18 @@ class DipScanner:
                 "ng_faststop_vol_m5_at_fire": ((_pos.state_blob or {}).get("ng_faststop_vol_m5_at_fire") if _pos else None),
                 "ng_faststop_drop_velocity_pp_s": ((_pos.state_blob or {}).get("ng_faststop_drop_velocity_pp_s") if _pos else None),
                 "ng_faststop_secs_from_peak": ((_pos.state_blob or {}).get("ng_faststop_secs_from_peak") if _pos else None),
+                # TP1-knee + time-stop SHADOWS (measure-only, 2026-06-02): forward data
+                # on a lower TP1 (did the position reach +3/+4 pre-TP1, and when) and on
+                # a 45-min time-stop's would-be exit. Mine vs the realized outcome to
+                # confirm/refute the round-2/3 leads before any enforce. See tick().
+                "tp1_knee_3_hit": ((_pos.state_blob or {}).get("tp1_knee_3_hit") if _pos else None),
+                "tp1_knee_3_secs": ((_pos.state_blob or {}).get("tp1_knee_3_secs") if _pos else None),
+                "tp1_knee_4_hit": ((_pos.state_blob or {}).get("tp1_knee_4_hit") if _pos else None),
+                "tp1_knee_4_secs": ((_pos.state_blob or {}).get("tp1_knee_4_secs") if _pos else None),
+                "timestop45_fired": ((_pos.state_blob or {}).get("timestop45_fired") if _pos else None),
+                "timestop45_pnl_at_fire": ((_pos.state_blob or {}).get("timestop45_pnl_at_fire") if _pos else None),
+                "timestop45_peak_at_fire": ((_pos.state_blob or {}).get("timestop45_peak_at_fire") if _pos else None),
+                "timestop45_secs": ((_pos.state_blob or {}).get("timestop45_secs") if _pos else None),
                 # Exit-guard DECISION on the price this sell acted on (2026-06-02
                 # instrumentation): raw/returned price, suspect/abs flags, and the
                 # OHLC/cross-source values the glitch guard saw, with a reason string.
