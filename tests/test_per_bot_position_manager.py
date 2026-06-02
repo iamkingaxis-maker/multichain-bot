@@ -173,6 +173,17 @@ def test_never_runner_disabled_does_not_exit_but_shadow_stamps():
     assert pm.get_position("SHDW").state_blob.get("never_runner_arm") == "timebox"
 
 
+def test_mae_excursion_tracks_max_adverse():
+    # dips to -7% then recovers to -1%: MAE (max-adverse) should stick at the -7% trough
+    pm = PerBotPositionManager(_cfg())
+    pm.open_position("MAE", 1.0, 100.0, entry_time=0.0)
+    pm.tick(token="MAE", current_price=0.93, now=60.0)    # -7%
+    pm.tick(token="MAE", current_price=0.99, now=120.0)   # recovered to -1%
+    sb = pm.get_position("MAE").state_blob
+    assert abs(sb.get("mae_pct") - (-7.0)) < 1e-6
+    assert sb.get("mae_at_secs") == 60
+
+
 def test_tick_emits_hard_stop_when_pnl_below_threshold():
     pm = PerBotPositionManager(_cfg(hard_stop_pct=-15.0))
     pm.open_position("SQUIRE", 0.001, 20.0, entry_time=1.0)

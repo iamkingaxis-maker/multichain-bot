@@ -315,6 +315,18 @@ class PerBotPositionManager:
         if pnl_pct > p.peak_pnl_pct:
             p.peak_pnl_pct = pnl_pct
             p.peak_pnl_at_secs = int(now - p.entry_time)
+        # EXCURSION INSTRUMENTATION SHADOW (2026-06-02 fleet-mine critic, read-only).
+        # peak_pnl_pct is the max-FAVORABLE excursion (MFE); track the max-ADVERSE
+        # excursion (MAE) + its timing here so future stop/exit mining can separate
+        # "dipped then recovered" from "bled straight down" (the gap the mine flagged:
+        # no intrabar trough captured). Pure state stamp, NO behavior change; stamped
+        # onto the sell record in _execute_bot_sell. Round-trips as flat floats.
+        _sb_mae = p.state_blob
+        if _sb_mae is not None:
+            _prev = _sb_mae.get("mae_pct")
+            if _prev is None or pnl_pct < _prev:
+                _sb_mae["mae_pct"] = round(pnl_pct, 4)
+                _sb_mae["mae_at_secs"] = int(now - p.entry_time)
 
         # Give-back SHADOW (measure-only, 2026-05-31) — records whether a
         # position that went solidly GREEN (peak>=+3%) ever fell back to

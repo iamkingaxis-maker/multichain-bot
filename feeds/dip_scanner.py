@@ -838,6 +838,13 @@ class DipScanner:
         _live = should_route_live(getattr(pm.config, "live_probe", False), USE_JUPITER_ULTRA,
                                   bool(getattr(self.trader, "private_key", "")))
         _used_size = decision.size_usd
+        # Pool sizing de-rates (2026-06-02 fleet-mine) — adjust size DOWN before reserving
+        # (honors the $100 cap; smart-money cohort exempt). Default off; on for pool bots.
+        _derate_tag = None
+        if getattr(pm.config, "pool_sizing_derates_enabled", False):
+            _used_size, _derate_tag = await self._apply_pool_sizing_derates(
+                decision, pm, bundle, _used_size
+            )
         try:
             capital.reserve_for_buy(_used_size)
         except ValueError as e:
@@ -912,6 +919,10 @@ class DipScanner:
             "daily_halt_would_block": bool(_daily_would_block),
             "reentry_cap_would_block": bool(_reentry_would_block),
             "token_buys_today_at_entry": int(_buys_today),
+            # Pool sizing de-rate tag (2026-06-02): which de-rate(s) applied to this entry's
+            # size (None=disabled, "none"=enabled-but-no-derate, "smartmoney_full", "conc<50",
+            # "conc_regime", or "+"-joined). Lets the analyzer measure the de-rate forward.
+            "pool_derate_tag": _derate_tag,
             # Live-probe per-leg fill instrumentation (None in paper -> no-op).
             **(_live_instrument or {}),
         }
@@ -935,6 +946,47 @@ class DipScanner:
             "[DipScanner] BUY bot=%s token=%s size=$%.2f tier=%s",
             bot_id, decision.token, decision.size_usd, decision.size_tier,
         )
+
+    async def _apply_pool_sizing_derates(self, decision, pm, bundle, size_usd):
+        """Pool sizing de-rates (2026-06-02 fleet-mine). Returns (adjusted_size, tag).
+        Cap-respecting positive selection: size only goes DOWN (never above the cap).
+        - smart-money compound EXEMPT (full size — the only 'up' under a cap).
+        - capped top10_holder_pct < 50 -> x0.5 (held-out, 72 tokens).
+        - concurrent>1 (this is the bot's 2nd+ open) AND down-regime -> x0.5.
+        Fail-OPEN: any missing feature simply skips that de-rate."""
+        meta = getattr(bundle, "raw_meta", None) or {}
+        def gf(k):
+            try:
+                return float(meta.get(k))
+            except (TypeError, ValueError):
+                return None
+        # Smart-money positive cohort = exempt from all de-rates (stays full size).
+        swc, red5, nf15 = gf("smart_wallet_count_total"), gf("5m_red_count"), gf("net_flow_15s_usd")
+        if (swc or 0) >= 1 and (red5 or 0) >= 6 and (nf15 is not None and nf15 > 0):
+            return size_usd, "smartmoney_full"
+        mult, tags = 1.0, []
+        # On-chain concentration de-rate (holder data is fetched late -> fetch here, cached).
+        try:
+            hf = await self._holder_features_cached(decision.address or decision.token)
+        except Exception:
+            hf = None
+        try:
+            t10 = float((hf or {}).get("top10_holder_pct"))
+        except (TypeError, ValueError):
+            t10 = None
+        if t10 is not None and min(t10, 100.0) < 50.0:
+            mult *= 0.5; tags.append("conc<50")
+        # Concurrent>1 regime-conditional de-rate (sign-flips in a down regime).
+        sol6 = getattr(bundle, "sol_pc_h6", None)
+        if sol6 is None:
+            sol6 = gf("sol_pc_h6")
+        btc1 = getattr(bundle, "btc_pc_h1", None)
+        if btc1 is None:
+            btc1 = gf("btc_pc_h1")
+        regime_down = (sol6 is not None and sol6 < 0) or (btc1 is not None and btc1 < 0)
+        if pm.open_count >= 1 and regime_down:
+            mult *= 0.5; tags.append("conc_regime")
+        return size_usd * mult, ("+".join(tags) if tags else "none")
 
     async def _execute_bot_buy_live(self, decision, pm, size_usd):
         """LIVE probe BUY (piece 1b): real MEV-protected Ultra swap (SOL->token) +
@@ -1486,6 +1538,10 @@ class DipScanner:
                 "never_runner_pnl_at_fire": ((_pos.state_blob or {}).get("never_runner_pnl_at_fire") if _pos else None),
                 "never_runner_peak_at_fire": ((_pos.state_blob or {}).get("never_runner_peak_at_fire") if _pos else None),
                 "never_runner_secs": ((_pos.state_blob or {}).get("never_runner_secs") if _pos else None),
+                # Excursion instrumentation (2026-06-02 critic): MAE (max-adverse) + timing;
+                # MFE is peak_pnl_pct (recorded elsewhere). For future stop/exit mining.
+                "mae_pct": ((_pos.state_blob or {}).get("mae_pct") if _pos else None),
+                "mae_at_secs": ((_pos.state_blob or {}).get("mae_at_secs") if _pos else None),
                 # Phase-2a TRAJECTORY SHADOW (measure-only, 2026-06-02): the +8min demand-
                 # shape (peak_position/minutes_to_peak/frac_above_entry/higher_low_n/
                 # vol_sustain_ratio/n) for positions that survived to +8min. Scored OFFLINE

@@ -209,6 +209,20 @@ class BotConfig:
     never_runner_loss_floor: float = -6.0
     never_runner_minutes: int = 45
 
+    # Pool sizing de-rates (2026-06-02 fleet-mine, cap-respecting positive selection).
+    # When True, position size is adjusted DOWN (never up — honors the $100 cap) for the
+    # cohorts the fleet mine flagged, with the smart-money compound EXEMPT (kept at full
+    # size = the only "up" we can do under a cap). Applied in dip_scanner before reserve:
+    #   - on-chain concentration: capped top10_holder_pct < 50 -> x0.5 (held-out, 72 tok)
+    #   - concurrent>1 in a DOWN regime (sol_pc_h6<0 or btc_pc_h1<0) -> x0.5 (regime-
+    #     conditional; conc>1 alpha sign-flips in a crash)
+    #   - smart-money compound (smart_wallet_count_total>=1 AND 5m_red_count>=6 AND
+    #     net_flow_15s_usd>0): EXEMPT from de-rates (positive selection, stays full size)
+    # Default False = no change. Enabled on the pool bots (the $100-cap forward A/B);
+    # the production candidate stays clean until forward data + the blended-PnL re-run
+    # firm the (provisional, ~3-day) magnitudes.
+    pool_sizing_derates_enabled: bool = False
+
     def __post_init__(self) -> None:
         # Normalize entry_gate to a hashable tuple-of-tuples (JSON yields
         # tuple-of-lists; the frozen dataclass's auto __hash__ chokes on lists).

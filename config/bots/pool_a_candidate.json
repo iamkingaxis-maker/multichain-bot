@@ -50,6 +50,7 @@
   "pc_h1_max": null,
   "pc_h24_max": null,
   "pc_h24_min": null,
+  "pool_sizing_derates_enabled": true,
   "pre_stop_bail_pnl_pct": -3.0,
   "pre_stop_bail_vol_m5_max": 500.0,
   "premium_runner_multiplier": 1.0,
