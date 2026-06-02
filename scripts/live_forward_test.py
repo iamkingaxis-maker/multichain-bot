@@ -3249,6 +3249,16 @@ def resolve_pending():
                 _p1 = simulate_phantom_1leg(entry_price, ohlcv_after, tp1_pct=5.0, stop_pct=-15.0)
                 c['phantom_pnl_pct_1leg5_s15'] = _p1.get('phantom_pnl_pct')
                 c['phantom_exit_reason_1leg5_s15'] = _p1.get('exit_reason')
+                # LOOSER-TRAIL SHADOW (2026-06-02, FEE-FREE in-hold-capture test): the
+                # diag round found the live ladder captures only ~53% of the in-hold peak
+                # (~3.5pp left). A wider post-TP1 trail lets winners ride further WITHOUT an
+                # extra leg/fee. Sweep trail_pp 2.5/3.0 vs the live 1.5 (= tp1knee_5 control),
+                # same TP1 5/0.75, TP2 7, stop -15. Measure-only; if a wider trail nets +EV
+                # forward, it's a fee-free profit lever (unlike the runner-tail).
+                for _tr in (2.5, 3.0):
+                    _pt = simulate_phantom_tp1_knee(entry_price, ohlcv_after, tp1_pct=5.0, trail_pp=_tr)
+                    c[f'phantom_pnl_pct_trail{str(_tr).replace(".","")}'] = _pt.get('phantom_pnl_pct')
+                    c[f'phantom_exit_reason_trail{str(_tr).replace(".","")}'] = _pt.get('exit_reason')
                 resolved_outcomes.append((c, snap['id']))
             except Exception as e:
                 c['outcome'] = f'err: {e}'
