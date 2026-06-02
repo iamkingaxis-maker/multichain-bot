@@ -286,6 +286,46 @@ def t8():
     assert lower_status >= 400, f"Lowercase mint should be rejected, got {lower_status}"
 
 
+# ── Live measurement probe invariants (2026-06-02) ──────────────────────────
+
+@_t("No ENABLED bot has live_probe set (live path off by config)")
+def test_no_enabled_live_probe_bot():
+    # FAIL-CLOSED: going live must require a DELIBERATE config enable. Until then,
+    # no bot that is actually in the running fleet (enabled) may have live_probe.
+    import glob
+    from core.bot_config import BotConfig
+    offenders = []
+    for p in glob.glob("config/bots/*.json"):
+        c = BotConfig.from_json(p)
+        if getattr(c, "live_probe", False) and c.enabled:
+            offenders.append(c.bot_id)
+    assert not offenders, f"ENABLED bot(s) with live_probe (would route live!): {offenders}"
+
+
+@_t("Probe config exists, is dormant, and has safety caps")
+def test_probe_config_dormant_with_caps():
+    from core.bot_config import BotConfig
+    c = BotConfig.from_json("config/bots/probe_premium_tightexit_live.json")
+    assert c.enabled is False, "probe must be DORMANT (enabled=false) until deliberately enabled"
+    assert c.live_probe is True, "probe must declare live_probe intent"
+    assert c.daily_loss_limit_usd and c.daily_loss_limit_usd <= 100, "probe needs a tight daily-loss halt"
+    assert c.max_concurrent_positions <= 3, "probe must cap concurrent exposure"
+    assert c.size_sweep_usd and max(c.size_sweep_usd) <= 100, "probe size sweep must be capped <= $100/leg"
+
+
+@_t("Jupiter Ultra path is dormant without a private key (paper-safe)")
+def test_ultra_dormant_without_key():
+    from core.trader import Trader, USE_JUPITER_ULTRA
+    tr = Trader.__new__(Trader)
+    tr.private_key = ""
+    tr._exec_stats = {"swaps_attempted": 0, "swap_failures": 0,
+                      "quote_failures": 0, "successful_swaps": 0}
+    res = asyncio.run(tr._execute_swap_ultra("A", "B", 1000))
+    assert res["success"] is False and res["reason"] == "paper_mode"
+    assert tr._exec_stats["swaps_attempted"] == 0
+    assert isinstance(USE_JUPITER_ULTRA, bool)
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 
