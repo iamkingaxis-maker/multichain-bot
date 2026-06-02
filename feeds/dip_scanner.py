@@ -795,19 +795,13 @@ class DipScanner:
                 return
         # LIVE PROBE bridge gate (piece 1b) — fail-closed: paper unless THIS bot opted
         # in (live_probe) AND USE_JUPITER_ULTRA AND a real private key are all present.
-        # When live, rotate the size sweep ($20/$50/$100); else use the decided size.
+        # Size is FIXED per probe bot (probe_tightexit_live_{20,50,100}, multipliers
+        # neutralized) — each size is its own bot, so we just use the decided size.
         from core.trader import USE_JUPITER_ULTRA
-        from core.probe_instrument import should_route_live, next_probe_size
+        from core.probe_instrument import should_route_live
         _live = should_route_live(getattr(pm.config, "live_probe", False), USE_JUPITER_ULTRA,
                                   bool(getattr(self.trader, "private_key", "")))
-        if _live:
-            _idx_map = self.__dict__.setdefault("_probe_entry_idx", {})
-            _i = _idx_map.get(bot_id, 0)
-            _used_size = next_probe_size(getattr(pm.config, "size_sweep_usd", ()),
-                                         decision.size_usd, _i)
-            _idx_map[bot_id] = _i + 1
-        else:
-            _used_size = decision.size_usd
+        _used_size = decision.size_usd
         try:
             capital.reserve_for_buy(_used_size)
         except ValueError as e:

@@ -180,11 +180,10 @@ class BotConfig:
     #   piece 1b) instead of the paper simulator. Default False = paper (the whole
     #   fleet stays paper unless a bot opts in AND the env gates are set). It can
     #   NEVER go live on flag alone — the bridge requires the env gates too.
-    # size_sweep_usd: if non-empty, the probe rotates entry size across these values
-    #   (e.g. (20,50,100)) to measure the real size->EV curve on live fills; empty
-    #   = fixed size_usd. Only consulted on the live-probe path.
+    # (Size variants for the probe are SEPARATE fixed-size bots — probe_tightexit_live_{20,50,100}
+    #  with multipliers neutralized — so each size is a clean per-token paired measurement,
+    #  not a rotation-within-one-bot that entangles size with token/timing.)
     live_probe: bool = False
-    size_sweep_usd: tuple[float, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         # Normalize entry_gate to a hashable tuple-of-tuples (JSON yields
@@ -193,12 +192,6 @@ class BotConfig:
             object.__setattr__(
                 self, "entry_gate",
                 tuple(tuple(c) for c in self.entry_gate),
-            )
-        # size_sweep_usd: JSON yields a list; the frozen dataclass needs a tuple.
-        if self.size_sweep_usd:
-            object.__setattr__(
-                self, "size_sweep_usd",
-                tuple(float(x) for x in self.size_sweep_usd),
             )
         if self.filters_enforced is not None and self.filters_disabled:
             raise ValueError(

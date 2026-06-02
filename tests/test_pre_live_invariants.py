@@ -302,15 +302,23 @@ def test_no_enabled_live_probe_bot():
     assert not offenders, f"ENABLED bot(s) with live_probe (would route live!): {offenders}"
 
 
-@_t("Probe config exists, is dormant, and has safety caps")
-def test_probe_config_dormant_with_caps():
+@_t("Probe configs exist, are dormant, fixed-size, and capped")
+def test_probe_configs_dormant_with_caps():
     from core.bot_config import BotConfig
-    c = BotConfig.from_json("config/bots/probe_premium_tightexit_live.json")
-    assert c.enabled is False, "probe must be DORMANT (enabled=false) until deliberately enabled"
-    assert c.live_probe is True, "probe must declare live_probe intent"
-    assert c.daily_loss_limit_usd and c.daily_loss_limit_usd <= 100, "probe needs a tight daily-loss halt"
-    assert c.max_concurrent_positions <= 3, "probe must cap concurrent exposure"
-    assert c.size_sweep_usd and max(c.size_sweep_usd) <= 100, "probe size sweep must be capped <= $100/leg"
+    sizes = {20.0: (2, 30.0), 50.0: (2, 50.0), 100.0: (1, 75.0)}
+    for sz in (20, 50, 100):
+        c = BotConfig.from_json(f"config/bots/probe_tightexit_live_{sz}.json")
+        assert c.enabled is False, f"probe_{sz} must be DORMANT (enabled=false)"
+        assert c.live_probe is True, f"probe_{sz} must declare live_probe intent"
+        assert c.base_position_usd == float(sz) and c.base_position_usd <= 100, \
+            f"probe_{sz} must be FIXED size <= $100"
+        # multipliers neutralized -> size truly fixed
+        assert (c.alpha_multiplier == c.macro_up_multiplier == c.premium_runner_multiplier
+                == c.marginal_multiplier == 1.0), f"probe_{sz} multipliers must be 1.0"
+        exp_maxc, exp_dl = sizes[float(sz)]
+        assert c.daily_loss_limit_usd == exp_dl and c.daily_loss_limit_usd <= 100, \
+            f"probe_{sz} needs a tight daily-loss halt"
+        assert c.max_concurrent_positions == exp_maxc, f"probe_{sz} concurrent cap"
 
 
 @_t("Jupiter Ultra path is dormant without a private key (paper-safe)")
