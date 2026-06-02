@@ -185,6 +185,15 @@ class BotConfig:
     #  not a rotation-within-one-bot that entangles size with token/timing.)
     live_probe: bool = False
 
+    # Shared no-same-token exclusion pool (2026-06-02). Bots that share the same
+    # non-empty pool name may NOT hold the same token concurrently — the first to
+    # open it claims it; pool siblings skip that token until it closes. This is the
+    # de-concentration lever (spread a pool of bots across DISTINCT simultaneous
+    # tokens instead of piling into one). None (default) = not in any pool = current
+    # single-bot behavior, never blocked. See core/shared_token_registry.py and
+    # the A/C design comparison (2026-06-02).
+    exclusion_pool: Optional[str] = None
+
     def __post_init__(self) -> None:
         # Normalize entry_gate to a hashable tuple-of-tuples (JSON yields
         # tuple-of-lists; the frozen dataclass's auto __hash__ chokes on lists).

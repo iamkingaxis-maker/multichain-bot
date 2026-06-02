@@ -283,6 +283,11 @@ class DipScanner:
         self.trade_store = trade_store
         self.bot_capitals: Dict[str, PerBotCapital] = {}
         self.bot_position_managers: Dict[str, PerBotPositionManager] = {}
+        # Cross-bot no-same-token exclusion (de-concentration). Bots sharing a
+        # non-empty config.exclusion_pool can't hold the same token at once.
+        # Derived/stateless — held by reference, reflects live position state.
+        from core.shared_token_registry import SharedTokenRegistry
+        self._token_registry = SharedTokenRegistry(self.bot_position_managers)
         # Per-token last-good-price state for the transient-glitch exit guard
         # (see core/exit_price_guard.py). Keyed by token across all bots —
         # they all read the same external price each cycle. {token: {last_good, pending}}
@@ -761,6 +766,17 @@ class DipScanner:
         if _cd and pm.in_reentry_cooldown(decision.token, time.time(), _cd):
             logger.info(
                 "[DipScanner] bot=%s reentry cooldown active for %s; skip",
+                bot_id, decision.token,
+            )
+            return
+        # Shared no-same-token exclusion (2026-06-02). If this bot is in an
+        # exclusion_pool and a pool SIBLING already holds this token, skip — no two
+        # pool bots hold the same token at once (de-concentration). Bots with
+        # exclusion_pool=None are unaffected. Checked BEFORE reserving capital.
+        _reg = getattr(self, "_token_registry", None)
+        if _reg is not None and _reg.is_blocked(bot_id, decision.token):
+            logger.info(
+                "[DipScanner] bot=%s exclusion-pool: %s already held by pool sibling; skip",
                 bot_id, decision.token,
             )
             return
