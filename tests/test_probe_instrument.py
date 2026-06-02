@@ -40,3 +40,24 @@ def test_fill_metrics_sell_omits_entry_gap():
     m = fill_metrics("sell", mid=1.00, fill=0.99)
     assert "live_entry_vs_local_low_pct" not in m
     assert m["live_slippage_pct"] == 1.0
+
+
+# ── 1b safety core: gating + size sweep ──
+from core.probe_instrument import should_route_live, next_probe_size
+
+
+def test_should_route_live_fail_closed():
+    # ALL three required; every other combination is paper (False).
+    assert should_route_live(True, True, True) is True
+    assert should_route_live(False, True, True) is False    # not opted in
+    assert should_route_live(True, False, True) is False    # Ultra flag off
+    assert should_route_live(True, True, False) is False    # no private key (paper)
+    assert should_route_live(False, False, False) is False
+
+
+def test_next_probe_size_rotates():
+    sweep = (20.0, 50.0, 100.0)
+    assert [next_probe_size(sweep, 20, i) for i in range(4)] == [20.0, 50.0, 100.0, 20.0]
+    # empty sweep -> fixed size
+    assert next_probe_size((), 20, 5) == 20.0
+    assert next_probe_size(None, 33, 0) == 33.0

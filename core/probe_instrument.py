@@ -61,3 +61,27 @@ def fill_metrics(side: str, mid: Optional[float], fill: Optional[float],
     if side == "buy":
         d["live_entry_vs_local_low_pct"] = entry_vs_local_low_pct(entry_price, local_low)
     return d
+
+
+# ── Live-execution bridge GATING + sizing (piece 1b safety core) ──────────────
+# The fail-closed decision for whether a bot's fill routes through the live
+# MEV-protected swap. ALL THREE must be true; any false -> paper. This is the
+# single guard that keeps the fleet paper unless a probe is DELIBERATELY enabled
+# AND the env flags are set AND a real key is present.
+def should_route_live(live_probe: bool, ultra_enabled: bool, has_private_key: bool) -> bool:
+    """True ONLY when a bot opted in (live_probe), Ultra is enabled (USE_JUPITER_ULTRA),
+    AND a real private key is present (live mode). Fail-closed: any missing -> False (paper)."""
+    return bool(live_probe) and bool(ultra_enabled) and bool(has_private_key)
+
+
+def next_probe_size(size_sweep, fixed_size_usd, entry_index):
+    """The probe's size for this entry: rotate through size_sweep (e.g. 20/50/100) by
+    entry_index if set, else the fixed size. Caps nothing here — the config + invariants
+    bound the sweep to <=$100/leg."""
+    try:
+        seq = tuple(size_sweep or ())
+    except TypeError:
+        seq = ()
+    if not seq:
+        return float(fixed_size_usd)
+    return float(seq[int(entry_index) % len(seq)])
