@@ -8,7 +8,12 @@ from core.bot_config import BotConfig
 
 @pytest.fixture(scope="module")
 def catalog():
-    return BotRegistry.from_directory(Path(__file__).parent.parent / "config" / "bots")
+    reg = BotRegistry.from_directory(Path(__file__).parent.parent / "config" / "bots")
+    # Exclude the live-measurement-probe scaffold (probe_*, 2026-06-02) — it is not a
+    # strategy-ablation catalog member (it's a dormant live-execution clone), so it must
+    # not perturb the catalog count / baseline-diff assertions.
+    reg.configs = [c for c in reg.configs if not c.bot_id.startswith("probe_")]
+    return reg
 
 
 @pytest.fixture(scope="module")

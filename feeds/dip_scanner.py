@@ -793,42 +793,74 @@ class DipScanner:
                         _buys_today, decision.token, _rc_lim)
             if _do_block:
                 return
+        # LIVE PROBE bridge gate (piece 1b) — fail-closed: paper unless THIS bot opted
+        # in (live_probe) AND USE_JUPITER_ULTRA AND a real private key are all present.
+        # When live, rotate the size sweep ($20/$50/$100); else use the decided size.
+        from core.trader import USE_JUPITER_ULTRA
+        from core.probe_instrument import should_route_live, next_probe_size
+        _live = should_route_live(getattr(pm.config, "live_probe", False), USE_JUPITER_ULTRA,
+                                  bool(getattr(self.trader, "private_key", "")))
+        if _live:
+            _idx_map = self.__dict__.setdefault("_probe_entry_idx", {})
+            _i = _idx_map.get(bot_id, 0)
+            _used_size = next_probe_size(getattr(pm.config, "size_sweep_usd", ()),
+                                         decision.size_usd, _i)
+            _idx_map[bot_id] = _i + 1
+        else:
+            _used_size = decision.size_usd
         try:
-            capital.reserve_for_buy(decision.size_usd)
+            capital.reserve_for_buy(_used_size)
         except ValueError as e:
             logger.info("[DipScanner] bot=%s buy rejected: %s", bot_id, e)
             return
-        # P2 (2026-05-25): fill at a realistic slippage+fee-adjusted price, not
-        # the raw mid. Slip scales with size from the sampled Jupiter curve, so
-        # bigger positions correctly pay more. Stash the slip estimate on the
-        # position for the (symmetric) sell-side haircut.
-        from core.slippage_model import buy_fill_price
-        eff_entry, slip_pct = buy_fill_price(
-            decision.entry_price, decision.size_usd, getattr(bundle, "raw_meta", None)
-        )
-        try:
-            _pos = pm.open_position(
-                token=decision.token,
-                entry_price=eff_entry,
-                size_usd=decision.size_usd,
-                entry_time=time.time(),
-                address=decision.address,
-                pair_address=decision.pair_address,
-            )
-            _pos.state_blob["slip_pct"] = slip_pct
-            # Seed the glitch guard with the real entry mid so the FIRST exit
-            # tick already has a known-good baseline (a glitch on the very first
-            # post-buy read would otherwise have nothing to compare against).
-            # setdefault: don't clobber a fresher last_good from an earlier buyer.
+        _live_instrument = None
+        if _live:
+            # Real MEV-protected Ultra swap + real-fill accounting.
+            _r = await self._execute_bot_buy_live(decision, pm, _used_size)
+            if _r is None:
+                capital.balance_usd += _used_size
+                capital.in_flight_usd -= _used_size
+                logger.info("[DipScanner] bot=%s LIVE buy aborted; capital refunded", bot_id)
+                return
+            _pos = _r["pos"]
+            eff_entry = _r["entry_price"]
+            slip_pct = _r["slip_pct"]
+            _live_instrument = _r["instrument"]
             self._exit_price_guard.setdefault(
-                decision.token, {"last_good": decision.entry_price, "pending": None}
+                decision.token, {"last_good": eff_entry, "pending": None}
             )
-        except ValueError as e:
-            # max_concurrent or duplicate token; refund capital
-            capital.balance_usd += decision.size_usd
-            capital.in_flight_usd -= decision.size_usd
-            logger.info("[DipScanner] bot=%s open_position rejected: %s", bot_id, e)
-            return
+        else:
+            # P2 (2026-05-25): fill at a realistic slippage+fee-adjusted price, not
+            # the raw mid. Slip scales with size from the sampled Jupiter curve, so
+            # bigger positions correctly pay more. Stash the slip estimate on the
+            # position for the (symmetric) sell-side haircut.
+            from core.slippage_model import buy_fill_price
+            eff_entry, slip_pct = buy_fill_price(
+                decision.entry_price, _used_size, getattr(bundle, "raw_meta", None)
+            )
+            try:
+                _pos = pm.open_position(
+                    token=decision.token,
+                    entry_price=eff_entry,
+                    size_usd=_used_size,
+                    entry_time=time.time(),
+                    address=decision.address,
+                    pair_address=decision.pair_address,
+                )
+                _pos.state_blob["slip_pct"] = slip_pct
+                # Seed the glitch guard with the real entry mid so the FIRST exit
+                # tick already has a known-good baseline (a glitch on the very first
+                # post-buy read would otherwise have nothing to compare against).
+                # setdefault: don't clobber a fresher last_good from an earlier buyer.
+                self._exit_price_guard.setdefault(
+                    decision.token, {"last_good": decision.entry_price, "pending": None}
+                )
+            except ValueError as e:
+                # max_concurrent or duplicate token; refund capital
+                capital.balance_usd += _used_size
+                capital.in_flight_usd -= _used_size
+                logger.info("[DipScanner] bot=%s open_position rejected: %s", bot_id, e)
+                return
         # On-chain holder-concentration instrumentation (env HOLDER_CAPTURE, default
         # on). Fetch the FULL rugcheck ONCE per token (cached, TTL) and stamp holder
         # features (top10/top1 concentration, dev holdings, LP imbalance) into the
@@ -850,6 +882,8 @@ class DipScanner:
             "daily_halt_would_block": bool(_daily_would_block),
             "reentry_cap_would_block": bool(_reentry_would_block),
             "token_buys_today_at_entry": int(_buys_today),
+            # Live-probe per-leg fill instrumentation (None in paper -> no-op).
+            **(_live_instrument or {}),
         }
         if self.trade_store is not None:
             self.trade_store.record_trade({
@@ -860,7 +894,7 @@ class DipScanner:
                 "entry_price": eff_entry,
                 "entry_mid_price": decision.entry_price,
                 "entry_slip_pct": slip_pct,
-                "amount_usd": decision.size_usd,
+                "amount_usd": _used_size,
                 "size_tier": decision.size_tier,
                 "time": datetime.now(timezone.utc).isoformat(),
                 "triggers_fired": list(decision.triggers_fired),
@@ -871,6 +905,130 @@ class DipScanner:
             "[DipScanner] BUY bot=%s token=%s size=$%.2f tier=%s",
             bot_id, decision.token, decision.size_usd, decision.size_tier,
         )
+
+    async def _execute_bot_buy_live(self, decision, pm, size_usd):
+        """LIVE probe BUY (piece 1b): real MEV-protected Ultra swap (SOL->token) +
+        real-fill accounting + per-leg instrumentation. Returns
+        {pos, entry_price, slip_pct, instrument} or None (caller refunds capital).
+        ONLY reached via should_route_live (live_probe + USE_JUPITER_ULTRA + private key).
+        PRE-CHECKS open viability BEFORE spending so a confirmed swap can't strand real
+        money in an un-trackable position; any post-swap failure logs LOUDLY (money spent)."""
+        from core.trader import SOL_MINT
+        from core.probe_instrument import fill_metrics
+        token = decision.token
+        mint = decision.address or token
+        mid = decision.entry_price
+        # PRE-CHECK (fail BEFORE spending): never swap if we can't track the result.
+        if pm.get_position(token) is not None:
+            logger.warning("[Probe] live buy skipped: %s already open", token)
+            return None
+        _maxc = getattr(pm.config, "max_concurrent_positions", 3)
+        if pm.open_count >= _maxc:
+            logger.warning("[Probe] live buy skipped: max_concurrent %d reached (%s)", _maxc, token)
+            return None
+        if not mid or mid <= 0:
+            logger.warning("[Probe] live buy skipped: bad mid %s (%s)", mid, token)
+            return None
+        try:
+            sol_amt = await self.trader._usd_to_sol(size_usd)
+            lamports = int(float(sol_amt) * 1e9)
+        except Exception as e:
+            logger.error("[Probe] live buy usd_to_sol failed (%s): %s", token, e)
+            return None
+        if lamports <= 0:
+            logger.error("[Probe] live buy bad lamports size=$%.2f (%s)", size_usd, token)
+            return None
+        t0 = time.time()
+        res = await self.trader._execute_swap_ultra(SOL_MINT, mint, lamports)
+        latency_ms = round((time.time() - t0) * 1000, 1)
+        if not res.get("success"):
+            logger.warning("[Probe] live BUY swap FAILED token=%s reason=%s",
+                           token, res.get("reason"))
+            return None
+        # Real fill -> real entry price.
+        try:
+            decimals = await self.trader._get_token_decimals(mint)
+            out_tokens = (res.get("out_amount") or 0) / (10 ** int(decimals))
+        except Exception as e:
+            logger.error("[Probe] live buy decimals/out failed (MONEY SPENT sig=%s): %s",
+                         res.get("signature"), e)
+            return None
+        if out_tokens <= 0:
+            logger.error("[Probe] live buy ZERO tokens (MONEY SPENT sig=%s) token=%s",
+                         res.get("signature"), token)
+            return None
+        real_entry = size_usd / out_tokens
+        try:
+            pos = pm.open_position(token=token, entry_price=real_entry, size_usd=size_usd,
+                                   entry_time=time.time(), address=decision.address,
+                                   pair_address=decision.pair_address)
+        except ValueError as e:
+            logger.error("[Probe] live buy open_position FAILED post-swap (MONEY SPENT sig=%s): %s",
+                         res.get("signature"), e)
+            return None
+        instrument = fill_metrics("buy", mid=mid, fill=real_entry, route=res.get("route"),
+                                  latency_ms=latency_ms,
+                                  ultra_slippage_pct=res.get("realized_slippage_pct"),
+                                  entry_price=real_entry,
+                                  local_low=getattr(decision, "local_low", None))
+        instrument["live_signature"] = res.get("signature")
+        instrument["live_size_usd"] = size_usd
+        try:
+            pos.state_blob.update(instrument)
+        except Exception:
+            pass
+        logger.info("[Probe] LIVE BUY token=%s size=$%.0f entry=%.8g slip=%s%% sig=%s",
+                    token, size_usd, real_entry, instrument.get("live_slippage_pct"),
+                    res.get("signature"))
+        return {"pos": pos, "entry_price": real_entry,
+                "slip_pct": instrument.get("live_slippage_pct") or 0.0, "instrument": instrument}
+
+    async def _execute_bot_sell_live(self, token, pm, pos, sold_frac, current_mid):
+        """LIVE probe SELL (piece 1b): real Ultra swap (token->SOL) for the sold fraction.
+        Returns {exit_price, instrument} or None (caller leaves the position OPEN to retry).
+        ONLY reached via should_route_live."""
+        from core.trader import SOL_MINT
+        from core.probe_instrument import fill_metrics
+        mint = getattr(pos, "address", None) or token
+        try:
+            decimals = await self.trader._get_token_decimals(mint)
+            held_tokens = (pos.size_usd / pos.entry_price) if pos.entry_price > 0 else 0.0
+            sell_tokens = held_tokens * sold_frac
+            atomic = int(sell_tokens * (10 ** int(decimals)))
+        except Exception as e:
+            logger.error("[Probe] live sell sizing failed (%s): %s", token, e)
+            return None
+        if atomic <= 0 or sell_tokens <= 0:
+            logger.error("[Probe] live sell zero amount (%s)", token)
+            return None
+        t0 = time.time()
+        res = await self.trader._execute_swap_ultra(mint, SOL_MINT, atomic)
+        latency_ms = round((time.time() - t0) * 1000, 1)
+        if not res.get("success"):
+            logger.warning("[Probe] live SELL swap FAILED token=%s reason=%s", token, res.get("reason"))
+            return None
+        # out_amount = SOL lamports received -> USD proceeds -> real exit price.
+        try:
+            sol_received = (res.get("out_amount") or 0) / 1e9
+            proceeds_usd = await self.trader._sol_to_usd(sol_received)
+        except Exception as e:
+            logger.error("[Probe] live sell proceeds calc failed (MONEY MOVED sig=%s): %s",
+                         res.get("signature"), e)
+            return None
+        if not proceeds_usd or proceeds_usd <= 0:
+            logger.error("[Probe] live sell zero proceeds (MONEY MOVED sig=%s) token=%s",
+                         res.get("signature"), token)
+            return None
+        real_exit = proceeds_usd / sell_tokens
+        instrument = fill_metrics("sell", mid=current_mid, fill=real_exit, route=res.get("route"),
+                                  latency_ms=latency_ms,
+                                  ultra_slippage_pct=res.get("realized_slippage_pct"))
+        instrument["live_signature"] = res.get("signature")
+        instrument["live_proceeds_usd"] = round(proceeds_usd, 6)
+        logger.info("[Probe] LIVE SELL token=%s frac=%.2f exit=%.8g slip=%s%% sig=%s",
+                    token, sold_frac, real_exit, instrument.get("live_slippage_pct"),
+                    res.get("signature"))
+        return {"exit_price": real_exit, "instrument": instrument}
 
     async def _holder_features_cached(self, token_address):
         """Full-rugcheck holder features for a token, cached per-token (30-min TTL).
@@ -1129,7 +1287,24 @@ class DipScanner:
         # 0.5% of a $20 position). sold_frac mirrors close_position's clamp.
         _sold_frac = min(sell_fraction, _pos.remaining_fraction) if _pos else sell_fraction
         _sz_sold = (_pos.size_usd * _sold_frac) if _pos else 20.0
-        eff_exit = sell_fill_price(current_price, _sz_sold, _impact)
+        # LIVE PROBE bridge gate (piece 1b) — real Ultra swap (token->SOL) for the sold
+        # fraction; else the paper slippage fill. Fail-closed via should_route_live. On a
+        # live swap failure the position stays OPEN (retry next tick) rather than booking
+        # a paper exit.
+        from core.trader import USE_JUPITER_ULTRA
+        from core.probe_instrument import should_route_live
+        _live_sell_instrument = None
+        if (_pos is not None and should_route_live(
+                getattr(pm.config, "live_probe", False), USE_JUPITER_ULTRA,
+                bool(getattr(self.trader, "private_key", "")))):
+            _lr = await self._execute_bot_sell_live(token, pm, _pos, _sold_frac, current_price)
+            if _lr is None:
+                logger.info("[DipScanner] bot=%s LIVE sell aborted; position stays open", bot_id)
+                return
+            eff_exit = _lr["exit_price"]
+            _live_sell_instrument = _lr["instrument"]
+        else:
+            eff_exit = sell_fill_price(current_price, _sz_sold, _impact)
         try:
             result = pm.close_position(
                 token=token,
@@ -1220,6 +1395,8 @@ class DipScanner:
                 # — Railway logs retain only ~30 min. Fail-soft: empty if unset.
                 **{f"exit_guard_{_k}": _v for _k, _v in
                    ((self._exit_price_guard.get(token) or {}).get("last_decision") or {}).items()},
+                # Live-probe per-leg SELL fill instrumentation (None in paper -> no-op).
+                **(_live_sell_instrument or {}),
                 "pnl": result.realized_pnl_usd,
                 "pnl_pct": result.pnl_pct,
                 "peak_pnl_pct": result.peak_pnl_pct,
