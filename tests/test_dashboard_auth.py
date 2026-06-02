@@ -119,3 +119,31 @@ def test_options_request_passes_without_auth(monkeypatch):
     req = _make_request("OPTIONS")
     resp = _run(basic_auth_middleware(req, _ok_handler))
     assert resp.status == 200
+
+
+# ── E2 (2026-06-02 security audit): fail-CLOSED in LIVE mode when creds unset ──
+def test_live_mode_creds_unset_fails_closed(monkeypatch):
+    monkeypatch.setenv("PAPER_MODE", "false")            # LIVE
+    monkeypatch.delenv("DASHBOARD_USER", raising=False)
+    monkeypatch.delenv("DASHBOARD_PASSWORD", raising=False)
+    req = _make_request("POST")
+    resp = _run(basic_auth_middleware(req, _ok_handler))
+    assert resp.status == 503                            # write REFUSED, not passed through
+
+
+def test_paper_mode_creds_unset_still_fails_open(monkeypatch):
+    monkeypatch.setenv("PAPER_MODE", "true")             # paper
+    monkeypatch.delenv("DASHBOARD_USER", raising=False)
+    monkeypatch.delenv("DASHBOARD_PASSWORD", raising=False)
+    req = _make_request("POST")
+    resp = _run(basic_auth_middleware(req, _ok_handler))
+    assert resp.status == 200                            # don't lock out paper dev
+
+
+def test_live_mode_get_still_public(monkeypatch):
+    monkeypatch.setenv("PAPER_MODE", "false")
+    monkeypatch.delenv("DASHBOARD_USER", raising=False)
+    monkeypatch.delenv("DASHBOARD_PASSWORD", raising=False)
+    req = _make_request("GET", "/read")
+    resp = _run(basic_auth_middleware(req, _ok_handler))
+    assert resp.status == 200                            # reads stay public even live

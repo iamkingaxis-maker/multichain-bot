@@ -41,12 +41,21 @@ async def basic_auth_middleware(request: web.Request, handler):
     expected_user = os.environ.get("DASHBOARD_USER", "")
     expected_pass = os.environ.get("DASHBOARD_PASSWORD", "")
     if not expected_user or not expected_pass:
-        # Fail-open with a noisy warning. Prevents accidental lockout
-        # during the staged rollout (deploy middleware first, set env
-        # vars second). Logged on EVERY mutation so it can't be missed.
+        # E2 (2026-06-02 security audit): fail-CLOSED when the wallet is LIVE.
+        # In paper mode keep failing OPEN (don't lock out local dev during the staged
+        # rollout), but if this is a live deploy (PAPER_MODE explicitly false) an unset
+        # credential MUST reject writes — otherwise /api/buy,/sell,/reset are exposed to
+        # the internet with real capital behind them.
+        _live = os.environ.get("PAPER_MODE", "true").strip().lower() in ("false", "0", "no")
+        if _live:
+            logger.critical(
+                "[Dashboard] LIVE mode but DASHBOARD_USER/PASSWORD unset — REJECTING "
+                "write (fail-closed). Set credentials in Railway env."
+            )
+            return web.Response(status=503, text="Auth not configured (live mode) — write refused")
         logger.warning(
             "[Dashboard] DASHBOARD_USER/PASSWORD env vars NOT SET — "
-            "POST endpoints UNPROTECTED. Set them in Railway env to enable auth."
+            "POST endpoints UNPROTECTED (paper mode). Set them in Railway env to enable auth."
         )
         return await handler(request)
 

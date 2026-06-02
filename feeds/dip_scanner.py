@@ -814,16 +814,25 @@ class DipScanner:
         # token at the same tick (correlated exposure), so cap the live-probe FLEET's
         # combined daily loss, not just per-bot. Halts every live-probe buy when breached.
         if _live_probe_bot:
-            _agg = 0.0
+            _agg = 0.0; _inflight = 0.0
             for _bid, _pm in self.bot_position_managers.items():
                 if getattr(_pm.config, "live_probe", False):
                     _c = self.bot_capitals.get(_bid)
                     if _c is not None:
                         _agg += float(getattr(_c, "daily_pnl_usd", 0.0) or 0.0)
+                        _inflight += float(getattr(_c, "in_flight_usd", 0.0) or 0.0)
             _agg_kill = float(os.environ.get("PROBE_AGG_DAILY_KILL_USD", "100"))
             if _agg <= -_agg_kill:
                 logger.warning("[DipScanner] PROBE AGG-KILL: live-probe fleet daily=$%.2f <= -$%.2f; halt %s %s",
                                _agg, _agg_kill, bot_id, decision.token)
+                return
+            # E1c (2026-06-02 audit): daily_pnl is REALIZED-only, so open underwater
+            # positions never trip the kill. Also cap total OPEN live exposure (in_flight)
+            # across the probe fleet so unrealized bleed is bounded independent of realized.
+            _inflight_max = float(os.environ.get("PROBE_AGG_INFLIGHT_MAX_USD", "300"))
+            if _inflight >= _inflight_max:
+                logger.warning("[DipScanner] PROBE INFLIGHT-CAP: live-probe open exposure $%.2f >= $%.2f; halt %s %s",
+                               _inflight, _inflight_max, bot_id, decision.token)
                 return
         if _daily_would_block:
             _do_block = (_rf_enforce or _live_probe_bot) and _dl_cfg is not None
@@ -869,9 +878,20 @@ class DipScanner:
             # Real MEV-protected Ultra swap + real-fill accounting.
             _r = await self._execute_bot_buy_live(decision, pm, _used_size)
             if _r is None:
+                # pre-spend abort -> safe to refund the reservation
                 capital.balance_usd += _used_size
                 capital.in_flight_usd -= _used_size
-                logger.info("[DipScanner] bot=%s LIVE buy aborted; capital refunded", bot_id)
+                logger.info("[DipScanner] bot=%s LIVE buy aborted pre-spend; capital refunded", bot_id)
+                return
+            if _r.get("spent"):
+                # E1b (2026-06-02 audit): money was SPENT on-chain but the position is
+                # un-trackable. Consume the reservation (do NOT credit balance back — the
+                # SOL is really gone; refunding would double-count) and LOUDLY flag for
+                # manual reconcile.
+                capital.in_flight_usd -= _used_size
+                logger.error("[DipScanner] bot=%s LIVE BUY MONEY SPENT but untrackable "
+                             "(reason=%s sig=%s) — capital marked spent, MANUAL RECONCILE",
+                             bot_id, _r.get("reason"), _r.get("signature"))
                 return
             _pos = _r["pos"]
             eff_entry = _r["entry_price"]
@@ -1084,11 +1104,11 @@ class DipScanner:
         except Exception as e:
             logger.error("[Probe] live buy decimals/out failed (MONEY SPENT sig=%s): %s",
                          res.get("signature"), e)
-            return None
+            return {"spent": True, "signature": res.get("signature"), "reason": "decimals_calc_failed"}
         if out_tokens <= 0:
             logger.error("[Probe] live buy ZERO tokens (MONEY SPENT sig=%s) token=%s",
                          res.get("signature"), token)
-            return None
+            return {"spent": True, "signature": res.get("signature"), "reason": "zero_out_tokens"}
         real_entry = size_usd / out_tokens
         # M10 (probe red-team): decimals-mismatch guard. A wrong decimals fallback makes
         # out_tokens (and real_entry) implausible vs the decision mid -> a phantom entry
@@ -1107,7 +1127,7 @@ class DipScanner:
         except ValueError as e:
             logger.error("[Probe] live buy open_position FAILED post-swap (MONEY SPENT sig=%s): %s",
                          res.get("signature"), e)
-            return None
+            return {"spent": True, "signature": res.get("signature"), "reason": "open_position_failed"}
         # D1 (probe red-team): populate local_low so live_entry_vs_local_low_pct isn't always
         # null (decision.local_low is never set upstream). Reuse the guard's GT-minute-low fetch.
         _local_low = getattr(decision, "local_low", None)
@@ -1142,14 +1162,29 @@ class DipScanner:
         mint = getattr(pos, "address", None) or token
         try:
             decimals = await self.trader._get_token_decimals(mint)
-            held_tokens = (pos.size_usd / pos.entry_price) if pos.entry_price > 0 else 0.0
-            sell_tokens = held_tokens * sold_frac
-            atomic = int(sell_tokens * (10 ** int(decimals)))
+            # E1a (2026-06-02 audit): size the sell from the REAL on-chain balance, NOT
+            # paper math (size_usd/entry_price diverges when M10 forced entry=mid, or on a
+            # transfer-tax token -> swapping too many atomic units reverts, stranding the
+            # position; the hard-stop routes here too). Final/full leg sells the ENTIRE
+            # remaining balance; a partial leg sells its share of the live balance.
+            bal_atomic = await self.trader._get_token_balance_atomic(mint)
+            if bal_atomic is None or bal_atomic < 0:
+                bal_atomic = 0
+            _rem = getattr(pos, "remaining_fraction", 1.0) or 1.0
+            _frac_of_bal = min(1.0, (sold_frac / _rem)) if _rem > 0 else 1.0
+            is_final = _frac_of_bal >= 0.999
+            atomic = bal_atomic if is_final else int(bal_atomic * _frac_of_bal)
+            atomic = min(atomic, bal_atomic)                  # never exceed what we hold
+            sell_tokens = atomic / (10 ** int(decimals))
+            _paper_tok = (pos.size_usd / pos.entry_price * sold_frac) if pos.entry_price > 0 else 0.0
+            if _paper_tok and abs(sell_tokens - _paper_tok) / max(_paper_tok, 1e-9) > 0.1:
+                logger.warning("[Probe] live sell balance %.6g != paper %.6g (transfer-tax/suspect-entry?) %s",
+                               sell_tokens, _paper_tok, token)
         except Exception as e:
             logger.error("[Probe] live sell sizing failed (%s): %s", token, e)
             return None
         if atomic <= 0 or sell_tokens <= 0:
-            logger.error("[Probe] live sell zero amount (%s)", token)
+            logger.error("[Probe] live sell zero on-chain balance (%s) — nothing to sell", token)
             return None
         _slip_cap = int(os.environ.get("PROBE_ULTRA_SLIPPAGE_BPS", "400"))
         t0 = time.time()

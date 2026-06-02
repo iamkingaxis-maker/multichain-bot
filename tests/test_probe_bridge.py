@@ -122,6 +122,7 @@ def test_sell_live_success_real_exit_and_instrument():
     trader = StubTrader({"success": True, "out_amount": 300_000_000, "route": "jupiterz",
                          "realized_slippage_pct": 0.4, "signature": "SELLSIG"})
     ds = _ds(trader)
+    trader.balances = [50_000_000]   # E1a: real on-chain balance (50 tokens @6dec)
     pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
     r = asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, current_mid=1.25))
     assert r is not None
@@ -137,6 +138,7 @@ def test_sell_live_success_real_exit_and_instrument():
 def test_sell_live_swap_failure_returns_none():
     trader = StubTrader({"success": False, "reason": "execute_error"})
     ds = _ds(trader)
+    trader.balances = [50_000_000]   # E1a: real on-chain balance (50 tokens @6dec)
     pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
     assert asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, 1.25)) is None
 
@@ -176,6 +178,7 @@ def test_sell_live_ultra_fail_legacy_fallback_exits():
     trader.legacy_quote = {"outAmount": 300_000_000}   # legacy quote: 0.30 SOL = $60
     trader.legacy_ok = True
     ds = _ds(trader)
+    trader.balances = [50_000_000]   # E1a: real on-chain balance (50 tokens @6dec)
     pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
     r = asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, current_mid=1.25))
     assert r is not None                               # M2: exited via fallback, not stranded
@@ -187,8 +190,33 @@ def test_sell_live_both_routes_fail_stays_open():
     trader = StubTrader({"success": False, "reason": "ultra_down"})
     trader.legacy_quote = {"outAmount": 300_000_000}; trader.legacy_ok = False   # legacy also fails
     ds = _ds(trader)
+    trader.balances = [50_000_000]   # E1a: real on-chain balance (50 tokens @6dec)
     pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
     assert asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, 1.25)) is None  # stays open to retry
+
+
+# ── audit ship-blocker fixes (2026-06-02): E1a balance-sourced sell, E1b spent sentinel ──
+def test_sell_live_E1a_sources_amount_from_onchain_balance():
+    # suspect/paper entry would mis-size (size/entry=500k tokens); the BALANCE is truth.
+    trader = StubTrader({"success": True, "out_amount": 300_000_000, "route": "m", "signature": "S"})
+    trader.balances = [50_000_000]                      # real balance = 50 tokens @6dec
+    ds = _ds(trader)
+    pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 0.0001   # paper math = 500k tokens (wrong)
+    r = asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, current_mid=1.25))
+    assert r is not None
+    assert trader.calls[0][2] == 50_000_000             # swapped the BALANCE, not paper 500k
+
+
+def test_buy_live_E1b_spent_sentinel_when_open_fails():
+    # swap LANDED (money spent) but open_position raises -> return a SPENT sentinel (NOT None),
+    # so the caller does not double-refund the (really gone) capital.
+    trader = StubTrader({"success": True, "out_amount": 48_000_000, "route": "m", "signature": "SIG"})
+    ds, pm = _ds(trader), StubPM()
+    def _raise(*a, **k):
+        raise ValueError("max_concurrent")
+    pm.open_position = _raise
+    r = asyncio.run(ds._execute_bot_buy_live(_decision(), pm, 50.0))
+    assert isinstance(r, dict) and r.get("spent") is True and r.get("signature") == "SIG"
 
 
 # ── probe must-fixes round 2: M7 orphan-adoption, D1 local_low ──
