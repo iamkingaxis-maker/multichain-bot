@@ -31,8 +31,66 @@ else:
     JUPITER_QUOTE_API = "https://quote-api.jup.ag/v6/quote"
     JUPITER_SWAP_API = "https://quote-api.jup.ag/v6/swap"
     _JUPITER_HEADERS = {}
+
+# ── Jupiter ULTRA (MEV-protected routing) — 2026-06-02, for the live measurement
+# probe. Ultra builds the swap tx server-side (RTSE slippage + protected routing)
+# and LANDS it through Jupiter's own protected infra (no public-mempool send), so
+# it is NOT sandwich-able the way the standard quote+swap+sendTransaction path is.
+# Flow: GET /ultra/v1/order -> sign the returned tx -> POST /ultra/v1/execute.
+# HARD-GATED behind USE_JUPITER_ULTRA (default off) AND only ever runs with a
+# private key (live mode) — dormant in paper. Paid key uses api.jup.ag; free tier
+# uses lite-api.jup.ag. See docs/superpowers/specs/2026-06-02-live-measurement-probe-design.md.
+USE_JUPITER_ULTRA = _os.environ.get("USE_JUPITER_ULTRA", "0").strip().lower() in ("1", "true", "yes", "on")
+_ULTRA_BASE = "https://api.jup.ag" if _JUPITER_API_KEY else "https://lite-api.jup.ag"
+JUPITER_ULTRA_ORDER_API = f"{_ULTRA_BASE}/ultra/v1/order"
+JUPITER_ULTRA_EXECUTE_API = f"{_ULTRA_BASE}/ultra/v1/execute"
+
 SOL_MINT = "So11111111111111111111111111111111111111112"
 USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+
+
+# ── Jupiter Ultra pure helpers (no I/O — unit-tested in tests/test_jupiter_ultra.py) ──
+def build_ultra_order_params(input_mint: str, output_mint: str, amount: int,
+                             taker: str, slippage_bps: "Optional[int]" = None) -> dict:
+    """Query params for GET /ultra/v1/order. Ultra estimates slippage itself (RTSE)
+    when slippageBps is omitted; pass it only to cap. amount is in atomic units."""
+    p = {"inputMint": input_mint, "outputMint": output_mint,
+         "amount": int(amount), "taker": taker}
+    if slippage_bps is not None:
+        p["slippageBps"] = int(slippage_bps)
+    return p
+
+
+def parse_ultra_order(resp: "Optional[dict]") -> dict:
+    """Normalize an Ultra /order response. Returns {ok, transaction, request_id,
+    out_amount, in_amount, router, slippage_bps, reason}. ok=False if unusable."""
+    if not isinstance(resp, dict):
+        return {"ok": False, "reason": "no_response"}
+    tx = resp.get("transaction")
+    rid = resp.get("requestId")
+    if not tx or not rid:
+        return {"ok": False, "reason": resp.get("error") or "missing_tx_or_requestId",
+                "request_id": rid}
+    def _i(v):
+        try: return int(v)
+        except (TypeError, ValueError): return 0
+    return {"ok": True, "transaction": tx, "request_id": rid,
+            "out_amount": _i(resp.get("outAmount")), "in_amount": _i(resp.get("inAmount")),
+            "router": resp.get("router") or resp.get("swapType"),
+            "slippage_bps": resp.get("slippageBps")}
+
+
+def parse_ultra_execute(resp: "Optional[dict]") -> dict:
+    """Normalize an Ultra /execute response. Returns {ok, status, signature,
+    slippage_bps, error, code}. ok=True only on status 'Success'."""
+    if not isinstance(resp, dict):
+        return {"ok": False, "status": None, "signature": None, "reason": "no_response"}
+    status = resp.get("status")
+    sig = resp.get("signature")
+    ok = (str(status).lower() == "success") and bool(sig)
+    return {"ok": ok, "status": status, "signature": sig,
+            "slippage_bps": resp.get("slippageBps"),
+            "error": resp.get("error"), "code": resp.get("code")}
 
 
 @dataclass
@@ -2677,6 +2735,85 @@ class Trader:
             except Exception as e:
                 logger.debug(f"[Trader] post-swap balance check failed: {e}")
         return True
+
+    async def _execute_swap_ultra(self, input_mint: str, output_mint: str, amount: int,
+                                  slippage_bps: Optional[int] = None) -> dict:
+        """MEV-protected swap via Jupiter Ultra (order -> sign -> execute). Jupiter
+        builds AND lands the tx through its own protected infra (not the public
+        mempool), so it is not sandwich-able like the standard quote+swap+send path.
+        Returns {success, out_amount, signature, status, route, realized_slippage_pct,
+        reason}. Only runs live (requires private key); dormant in paper. Flag-gated by
+        USE_JUPITER_ULTRA at the call site."""
+        result = {"success": False, "out_amount": 0, "signature": None, "status": None,
+                  "route": None, "realized_slippage_pct": None, "reason": None}
+        if not self.private_key:
+            result["reason"] = "paper_mode"
+            return result
+        self._exec_stats["swaps_attempted"] += 1
+        params = build_ultra_order_params(input_mint, output_mint, amount,
+                                          self._get_public_key(), slippage_bps)
+        # 1) ORDER — Jupiter builds the protected tx.
+        order = None
+        for attempt in range(3):
+            try:
+                async with aiohttp.ClientSession(headers=_JUPITER_HEADERS) as session:
+                    async with session.get(JUPITER_ULTRA_ORDER_API, params=params,
+                                           timeout=aiohttp.ClientTimeout(total=12)) as resp:
+                        if resp.status == 200:
+                            order = parse_ultra_order(await resp.json())
+                            break
+                        logger.warning(f"[Ultra] order HTTP {resp.status} (attempt {attempt+1}/3)")
+            except Exception as e:
+                logger.warning(f"[Ultra] order error (attempt {attempt+1}/3): {e}")
+            if attempt < 2:
+                await asyncio.sleep(2 ** attempt)
+        if not order or not order.get("ok"):
+            self._exec_stats["quote_failures"] += 1
+            result["reason"] = (order or {}).get("reason", "order_failed")
+            return result
+        result["out_amount"] = order["out_amount"]
+        result["route"] = order.get("router")
+        # 2) SIGN the returned tx (same solders pattern as _send_transaction).
+        try:
+            from solders.keypair import Keypair
+            from solders.transaction import VersionedTransaction
+            keypair = Keypair.from_base58_string(self.private_key)
+            unsigned = VersionedTransaction.from_bytes(base64.b64decode(order["transaction"]))
+            signed = VersionedTransaction(unsigned.message, [keypair])
+            signed_b64 = base64.b64encode(bytes(signed)).decode("utf-8")
+        except Exception as e:
+            logger.error(f"[Ultra] sign error: {e}")
+            self._exec_stats["swap_failures"] += 1
+            result["reason"] = f"sign_error:{e}"
+            return result
+        # 3) EXECUTE — Jupiter lands it through protected infra.
+        try:
+            async with aiohttp.ClientSession(headers=_JUPITER_HEADERS) as session:
+                payload = {"signedTransaction": signed_b64, "requestId": order["request_id"]}
+                async with session.post(JUPITER_ULTRA_EXECUTE_API, json=payload,
+                                        timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                    ex = parse_ultra_execute(await resp.json() if resp.status == 200 else None)
+        except Exception as e:
+            logger.error(f"[Ultra] execute error: {e}")
+            self._exec_stats["swap_failures"] += 1
+            result["reason"] = f"execute_error:{e}"
+            return result
+        result["status"] = ex.get("status")
+        result["signature"] = ex.get("signature")
+        if not ex.get("ok"):
+            self._exec_stats["swap_failures"] += 1
+            result["reason"] = ex.get("error") or f"status:{ex.get('status')}"
+            return result
+        self._exec_stats["successful_swaps"] += 1
+        result["success"] = True
+        # Ultra returns its own realized slippageBps — convert to % for the probe instrument.
+        sb = ex.get("slippage_bps")
+        if isinstance(sb, (int, float)):
+            result["realized_slippage_pct"] = round(sb / 100.0, 4)
+            self._last_realized_slippage_pct = result["realized_slippage_pct"]
+        logger.info(f"[Ultra] swap ok sig={ex.get('signature')} route={result['route']} "
+                    f"slip={result['realized_slippage_pct']}%")
+        return result
 
     async def _send_transaction(self, swap_tx_b64: str) -> bool:
         """
