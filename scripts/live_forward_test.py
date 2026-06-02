@@ -3039,6 +3039,50 @@ def simulate_phantom_1leg(entry_price, ohlcv_after, tp1_pct=5.0, stop_pct=-15.0,
             'exit_reason': 'open_at_resolve', 'hit_tp1': False}
 
 
+def simulate_phantom_never_runner(entry_price, ohlcv_after, peak_max=3.0,
+                                  loss_floor=-6.0, minutes=45):
+    """PHANTOM PARITY (2026-06-02) for the NEVER-RUNNER exit (core/per_bot_position_manager
+    tick + BotConfig.never_runner_*). Mirrors the live composed exit: for a position that
+    NEVER crossed +peak_max, exit on the fast-bleeder arm (low <= loss_floor) OR the
+    flat-liner arm (held >= minutes), whichever first. The peak gate is winner-safe by
+    construction (a candle whose HIGH crosses peak_max disables the exit thereafter), so
+    the runner trail is never clipped. Candle-based (ts_ms/high/low/close), same fidelity as
+    the other phantom sims; held-minutes derived from candle timestamps. Lets the analyzer
+    replay 30/45/60-min thresholds forward and compare against the live never_runner_* stamps."""
+    if not ohlcv_after:
+        return {'phantom_pnl_pct': None, 'exit_reason': 'no_ohlcv', 'fired': False}
+    candles = list(reversed(ohlcv_after))  # oldest-first
+    entry_ts = None
+    peak_pct = 0.0
+    for k in candles:
+        if len(k) < 5:
+            continue
+        try:
+            ts = float(k[0]); high = float(k[2]); low = float(k[3]); close = float(k[4])
+        except (ValueError, TypeError):
+            continue
+        if entry_ts is None:
+            entry_ts = ts
+        held_min = (ts - entry_ts) / 60000.0
+        # peak updates from the high FIRST (matches tick: peak set from the tick price
+        # before the exit check) — a green candle disables the never-runner thereafter.
+        high_pct = (high / entry_price - 1.0) * 100.0
+        if high_pct > peak_pct:
+            peak_pct = high_pct
+        if peak_pct >= peak_max:
+            continue  # went meaningfully green — winner-safe, never-runner can't fire
+        low_pct = (low / entry_price - 1.0) * 100.0
+        if low_pct <= loss_floor:
+            return {'phantom_pnl_pct': round(loss_floor, 3), 'exit_reason': 'nr_floor',
+                    'fired': True, 'held_min': round(held_min, 1)}
+        if held_min >= minutes:
+            return {'phantom_pnl_pct': round((close / entry_price - 1.0) * 100, 3),
+                    'exit_reason': 'nr_timebox', 'fired': True, 'held_min': round(held_min, 1)}
+    last_close = float(candles[-1][4])
+    return {'phantom_pnl_pct': round((last_close / entry_price - 1.0) * 100, 3),
+            'exit_reason': 'open_at_resolve', 'fired': False}
+
+
 def simulate_phantom_tp1_knee(entry_price, ohlcv_after, tp1_pct=5.0, position_usd=20.0,
                               f1=0.75, tp2_pct=7.0, trail_pp=1.5, stop_pct=-15.0):
     """PHANTOM PARITY (2026-06-02) for the tp1_knee SHADOW: the REAL prod tight ladder

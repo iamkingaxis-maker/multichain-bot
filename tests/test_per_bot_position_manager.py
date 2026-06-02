@@ -121,6 +121,58 @@ def test_tick_emits_tp1_when_peak_hits_threshold():
     assert any(d.kind == "TP1" for d in decisions)
 
 
+# ── Never-runner exit (2026-06-02 mine; peak<3 gate = winner-safe by construction) ──
+def _nr_cfg(**ov):
+    base = dict(never_runner_exit_enabled=True, never_runner_peak_max=3.0,
+                never_runner_loss_floor=-6.0, never_runner_minutes=45,
+                slow_bleed_minutes=60, slow_bleed_pnl_threshold=-8.0)
+    base.update(ov)
+    return _cfg(**base)
+
+
+def test_never_runner_timebox_fires_when_enabled():
+    # peak<3 (flat at -1%), held 45min -> time-box arm fires
+    pm = PerBotPositionManager(_nr_cfg())
+    pm.open_position("FLAT", 1.0, 100.0, entry_time=0.0)
+    d = pm.tick(token="FLAT", current_price=0.99, now=45 * 60, vol_m5_usd=None)
+    assert any(x.kind == "NEVER_RUNNER" for x in d)
+
+
+def test_never_runner_floor_fires_early_when_bleeding():
+    # peak<3, only 20min held but pnl -7% <= -6% floor -> floor arm fires early
+    pm = PerBotPositionManager(_nr_cfg())
+    pm.open_position("BLEED", 1.0, 100.0, entry_time=0.0)
+    d = pm.tick(token="BLEED", current_price=0.93, now=20 * 60, vol_m5_usd=None)
+    assert any(x.kind == "NEVER_RUNNER" for x in d)
+
+
+def test_never_runner_winner_safe_when_peaked_ge_3():
+    # peaked +4% then fell to -7% at 50min: peak gate (>=3) blocks the exit -> trail-safe
+    pm = PerBotPositionManager(_nr_cfg())
+    pm.open_position("RUN", 1.0, 100.0, entry_time=0.0)
+    pm.tick(token="RUN", current_price=1.04, now=60.0, vol_m5_usd=None)   # set peak +4%
+    d = pm.tick(token="RUN", current_price=0.93, now=50 * 60, vol_m5_usd=None)
+    assert not any(x.kind == "NEVER_RUNNER" for x in d)
+
+
+def test_never_runner_does_not_fire_before_either_arm():
+    # peak<3, 30min held, pnl -2% (above floor, below time) -> neither arm
+    pm = PerBotPositionManager(_nr_cfg())
+    pm.open_position("EARLY", 1.0, 100.0, entry_time=0.0)
+    d = pm.tick(token="EARLY", current_price=0.98, now=30 * 60, vol_m5_usd=None)
+    assert not any(x.kind == "NEVER_RUNNER" for x in d)
+
+
+def test_never_runner_disabled_does_not_exit_but_shadow_stamps():
+    # default disabled: no NEVER_RUNNER decision, but the shadow flag is stamped
+    pm = PerBotPositionManager(_cfg(slow_bleed_minutes=60))  # enabled defaults False
+    pm.open_position("SHDW", 1.0, 100.0, entry_time=0.0)
+    d = pm.tick(token="SHDW", current_price=0.99, now=45 * 60, vol_m5_usd=None)
+    assert not any(x.kind == "NEVER_RUNNER" for x in d)
+    assert pm.get_position("SHDW").state_blob.get("never_runner_fired") is True
+    assert pm.get_position("SHDW").state_blob.get("never_runner_arm") == "timebox"
+
+
 def test_tick_emits_hard_stop_when_pnl_below_threshold():
     pm = PerBotPositionManager(_cfg(hard_stop_pct=-15.0))
     pm.open_position("SQUIRE", 0.001, 20.0, entry_time=1.0)

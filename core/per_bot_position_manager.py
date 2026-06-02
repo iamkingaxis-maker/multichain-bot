@@ -473,8 +473,44 @@ class PerBotPositionManager:
             ))
             return decisions
 
-        # 3. Slow bleed (held too long at a loss, pre-TP1)
         hold_minutes = (now - p.entry_time) / 60.0
+
+        # 2b. Never-runner exit (2026-06-02 mine, convergent across 3 of 8 agents).
+        # The cohort that NEVER crossed never_runner_peak_max: cut it via the
+        # fast-bleeder arm (pnl <= loss_floor) OR the flat-liner arm (held >= minutes).
+        # The peak<max gate is winner-safe BY CONSTRUCTION (cannot touch a position
+        # that went meaningfully green) so the trail is untouched. SHADOW always
+        # (stamp once for phantom parity); ACTS only when never_runner_exit_enabled.
+        # Tighter/earlier than slow_bleed (-8%/60min) + stall_exit (peak<5/90min) for
+        # this cohort, so it precedes them.
+        _nr_cond = (
+            not p.tp1_hit
+            and p.peak_pnl_pct < self.config.never_runner_peak_max
+            and (pnl_pct <= self.config.never_runner_loss_floor
+                 or hold_minutes >= self.config.never_runner_minutes)
+        )
+        if _nr_cond and not (p.state_blob or {}).get("never_runner_fired"):
+            p.state_blob["never_runner_fired"] = True
+            p.state_blob["never_runner_arm"] = (
+                "floor" if pnl_pct <= self.config.never_runner_loss_floor else "timebox"
+            )
+            p.state_blob["never_runner_pnl_at_fire"] = round(pnl_pct, 4)
+            p.state_blob["never_runner_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+            p.state_blob["never_runner_secs"] = int(now - p.entry_time)
+        if _nr_cond and self.config.never_runner_exit_enabled:
+            decisions.append(ExitDecision(
+                token=token, kind="NEVER_RUNNER",
+                reason=(
+                    f"never_runner peak={p.peak_pnl_pct:.2f}%<"
+                    f"{self.config.never_runner_peak_max} pnl={pnl_pct:.2f}% "
+                    f"hold={hold_minutes:.0f}min "
+                    f"({p.state_blob.get('never_runner_arm')})"
+                ),
+                sell_fraction=1.0,
+            ))
+            return decisions
+
+        # 3. Slow bleed (held too long at a loss, pre-TP1)
         if (
             hold_minutes >= self.config.slow_bleed_minutes
             and pnl_pct <= self.config.slow_bleed_pnl_threshold

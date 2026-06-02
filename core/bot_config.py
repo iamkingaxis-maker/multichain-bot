@@ -194,6 +194,21 @@ class BotConfig:
     # the A/C design comparison (2026-06-02).
     exclusion_pool: Optional[str] = None
 
+    # Never-runner exit (2026-06-02 mine — convergent across 3 of 8 agents). A
+    # composed loss-avoidance exit for the cohort that NEVER went meaningfully
+    # green: fires when peak_pnl_pct < never_runner_peak_max AND (pnl <=
+    # never_runner_loss_floor [fast-bleeder arm] OR held >= never_runner_minutes
+    # [flat-liner arm]). The peak gate makes it winner-safe BY CONSTRUCTION (it can
+    # never touch a position that crossed the peak threshold), so the runner trail
+    # is untouched (validated 0-winner-kill, held-out by token+time). SHADOW always
+    # (state_blob never_runner_* stamped for phantom parity); ACTS only when
+    # never_runner_exit_enabled. Default off = no behavior change. Forward-test the
+    # minutes threshold (30/45/60) on the pool bots before enforcing on production.
+    never_runner_exit_enabled: bool = False
+    never_runner_peak_max: float = 3.0
+    never_runner_loss_floor: float = -6.0
+    never_runner_minutes: int = 45
+
     def __post_init__(self) -> None:
         # Normalize entry_gate to a hashable tuple-of-tuples (JSON yields
         # tuple-of-lists; the frozen dataclass's auto __hash__ chokes on lists).

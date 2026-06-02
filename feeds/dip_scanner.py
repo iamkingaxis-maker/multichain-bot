@@ -1477,6 +1477,15 @@ class DipScanner:
                 "timestop45_pnl_at_fire": ((_pos.state_blob or {}).get("timestop45_pnl_at_fire") if _pos else None),
                 "timestop45_peak_at_fire": ((_pos.state_blob or {}).get("timestop45_peak_at_fire") if _pos else None),
                 "timestop45_secs": ((_pos.state_blob or {}).get("timestop45_secs") if _pos else None),
+                # NEVER-RUNNER exit (2026-06-02 mine): shadow flag stamped on EVERY sell
+                # (fleet-wide phantom parity) even when the exit only ACTS on enabled bots.
+                # arm = floor (bled to loss_floor) | timebox (held past minutes); peak gate
+                # makes it winner-safe. Analyzer joins fired -> realized outcome.
+                "never_runner_fired": ((_pos.state_blob or {}).get("never_runner_fired") if _pos else None),
+                "never_runner_arm": ((_pos.state_blob or {}).get("never_runner_arm") if _pos else None),
+                "never_runner_pnl_at_fire": ((_pos.state_blob or {}).get("never_runner_pnl_at_fire") if _pos else None),
+                "never_runner_peak_at_fire": ((_pos.state_blob or {}).get("never_runner_peak_at_fire") if _pos else None),
+                "never_runner_secs": ((_pos.state_blob or {}).get("never_runner_secs") if _pos else None),
                 # Phase-2a TRAJECTORY SHADOW (measure-only, 2026-06-02): the +8min demand-
                 # shape (peak_position/minutes_to_peak/frac_above_entry/higher_low_n/
                 # vol_sustain_ratio/n) for positions that survived to +8min. Scored OFFLINE
