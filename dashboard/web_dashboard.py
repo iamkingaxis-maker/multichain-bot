@@ -22,6 +22,29 @@ from typing import Optional
 
 from aiohttp import web
 
+
+@web.middleware
+async def gzip_middleware(request, handler):
+    """EGRESS CONTROL (2026-06-02): gzip sizeable text/JSON responses for clients that
+    accept it. The dashboard /api/* payloads — especially /api/trades full=1&limit=5000
+    (multi-MB), pulled by the dashboard auto-refresh, scheduled agents, and analysis —
+    dominate Railway egress, and JSON gzips ~5-10x. TRANSPARENT to production: clients
+    that don't send Accept-Encoding (e.g. plain urllib) are served uncompressed and
+    unchanged; browsers / requests / curl_cffi accept + auto-decompress. SSE
+    StreamResponses are skipped (not web.Response); tiny bodies (<500B) skip the overhead.
+    """
+    resp = await handler(request)
+    try:
+        if ("gzip" in (request.headers.get("Accept-Encoding") or "")
+                and isinstance(resp, web.Response)
+                and resp.body is not None
+                and len(resp.body) > 500
+                and not resp.headers.get("Content-Encoding")):
+            resp.enable_compression(web.ContentCoding.gzip)
+    except Exception:
+        pass
+    return resp
+
 logger = logging.getLogger(__name__)
 
 # ── HTML ─────────────────────────────────────────────────────────────────────
@@ -2029,7 +2052,7 @@ class WebDashboard:
         self._tracker = tracker          # optional direct tracker ref
         self.trade_store = trade_store   # optional multi-bot TradeStore
         from dashboard.auth import basic_auth_middleware
-        self.app = web.Application(middlewares=[basic_auth_middleware])
+        self.app = web.Application(middlewares=[basic_auth_middleware, gzip_middleware])
         self._stats_providers = []
         self._alert_buffer: list = []
         self._start_time = datetime.now(timezone.utc)
