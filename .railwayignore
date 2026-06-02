@@ -4,6 +4,7 @@
 
 # Mining/analysis scratch directories (all dot-prefixed working dirs)
 .mining_*/
+.winloss_8hr/
 .watch7h/
 .chart_analysis/
 .chart_analysis_round2/
