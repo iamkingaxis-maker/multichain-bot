@@ -3004,6 +3004,41 @@ def simulate_phantom_tp1_100pct(entry_price, ohlcv_after, position_usd=20.0):
             'hit_tp1': False}
 
 
+def simulate_phantom_1leg(entry_price, ohlcv_after, tp1_pct=5.0, stop_pct=-15.0,
+                          position_usd=20.0):
+    """FEE SHADOW A/B (2026-06-02): 1-LEG exit — TP1 sells 100% at +tp1_pct, hard_stop
+    stop_pct, NO TP2/trail. The B arm vs the live 2-leg ladder (simulate_phantom_tp1_knee
+    at tp1_pct=5 = the A control). Round wd9oa4mej found collapsing to 1 leg saves the
+    redundant ~$0.10 fixed exit fee on the ~0.25 TP2 leg = ~+$0.053/tr deterministic, but
+    it forgoes the runner upside (regime-fragile). This column accrues the forward
+    runner-vs-fee balance so the enforce decision is data-gated across regimes. Uses the
+    REAL -15 stop (NOT the -10 of simulate_phantom_tp1_100pct) for a clean A/B. Note: the
+    raw price column does NOT net the fee — the fee delta vs the 2-leg arm is the known
+    +$0.053/tr; the analyzer compares this 1-leg path to the 2-leg path + applies the leg
+    fee difference."""
+    if not ohlcv_after:
+        return {'phantom_pnl_pct': None, 'exit_reason': 'no_ohlcv', 'hit_tp1': False}
+    candles = list(reversed(ohlcv_after))
+    tp1_price = entry_price * (1 + tp1_pct / 100.0)
+    stop_price = entry_price * (1 + stop_pct / 100.0)
+    for k in candles:
+        if len(k) < 5:
+            continue
+        try:
+            high = float(k[2]); low = float(k[3])
+        except (ValueError, TypeError):
+            continue
+        if low <= stop_price:
+            return {'phantom_pnl_pct': round(stop_pct, 3), 'exit_reason': 'stop',
+                    'hit_tp1': False}
+        if high >= tp1_price:
+            return {'phantom_pnl_pct': round(tp1_pct, 3), 'exit_reason': 'tp1_full',
+                    'hit_tp1': True}
+    last_close = float(candles[-1][4])
+    return {'phantom_pnl_pct': round((last_close / entry_price - 1.0) * 100, 3),
+            'exit_reason': 'open_at_resolve', 'hit_tp1': False}
+
+
 def simulate_phantom_tp1_knee(entry_price, ohlcv_after, tp1_pct=5.0, position_usd=20.0,
                               f1=0.75, tp2_pct=7.0, trail_pp=1.5, stop_pct=-15.0):
     """PHANTOM PARITY (2026-06-02) for the tp1_knee SHADOW: the REAL prod tight ladder
@@ -3209,6 +3244,11 @@ def resolve_pending():
                     _pk = simulate_phantom_tp1_knee(entry_price, ohlcv_after, tp1_pct=_knee)
                     c[f'phantom_pnl_pct_tp1knee_{int(_knee)}'] = _pk.get('phantom_pnl_pct')
                     c[f'phantom_exit_reason_tp1knee_{int(_knee)}'] = _pk.get('exit_reason')
+                # FEE SHADOW A/B (2026-06-02): 1-leg exit at +5 / stop -15 (B arm) vs the
+                # 2-leg ladder = phantom_pnl_pct_tp1knee_5 (A control). Forward runner-vs-fee.
+                _p1 = simulate_phantom_1leg(entry_price, ohlcv_after, tp1_pct=5.0, stop_pct=-15.0)
+                c['phantom_pnl_pct_1leg5_s15'] = _p1.get('phantom_pnl_pct')
+                c['phantom_exit_reason_1leg5_s15'] = _p1.get('exit_reason')
                 resolved_outcomes.append((c, snap['id']))
             except Exception as e:
                 c['outcome'] = f'err: {e}'
