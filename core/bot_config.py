@@ -238,6 +238,12 @@ class BotConfig:
     # unchanged. The trading-window + drawdown-freeze + entry_gate still apply.
     momentum_mode: bool = False
 
+    # Low-mcap probe (2026-06-02). When LOW_MCAP_PROBE env is on, a low_mcap_probe=True bot
+    # trades the [floor,$1M) mcap band ONLY (forward data: 500k-1M matches/beats the 1M-5M
+    # band we trade, ~2x throughput); production bots SKIP sub-$1M tokens. Default False +
+    # env off = no change. Tests lowering the global min_mcap to $500k on realized paths.
+    low_mcap_probe: bool = False
+
     def __post_init__(self) -> None:
         # Normalize entry_gate to a hashable tuple-of-tuples (JSON yields
         # tuple-of-lists; the frozen dataclass's auto __hash__ chokes on lists).

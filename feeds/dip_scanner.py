@@ -802,6 +802,18 @@ class DipScanner:
                 logger.info("[DipScanner] bot=%s young-probe gate: skip %s (age=%s probe_bot=%s)",
                             bot_id, decision.token, _yt_age, getattr(pm.config, "young_token_probe", False))
                 return
+        # Low-mcap probe gate (2026-06-02). When LOW_MCAP_PROBE on, probe bots trade the
+        # [floor,$1M) band only and production bots skip sub-$1M tokens. Default OFF -> no-op.
+        from core.low_mcap_probe import probe_enabled as _lm_on, is_low_mcap as _lm_is, buy_gate_skip as _lm_skip
+        if _lm_on():
+            _lm_mcap = getattr(bundle, "mcap_usd", None)
+            if _lm_mcap is None:
+                _lm_mcap = (getattr(bundle, "raw_meta", None) or {}).get("entry_market_cap_usd")
+            _std_floor = float(getattr(self, "min_mcap", 1_000_000) or 1_000_000)
+            if _lm_skip(_lm_is(_lm_mcap, _std_floor), bool(getattr(pm.config, "low_mcap_probe", False))):
+                logger.info("[DipScanner] bot=%s low-mcap-probe gate: skip %s (mcap=%s probe_bot=%s)",
+                            bot_id, decision.token, _lm_mcap, getattr(pm.config, "low_mcap_probe", False))
+                return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
         # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
@@ -1856,9 +1868,14 @@ class DipScanner:
             _yt_liq = (pair.get("liquidity") or {}).get("usd", 0)
             from core.young_token_probe import is_young_probe_candidate
             _yp = is_young_probe_candidate(mcap, _yt_liq, _yt_age_h, self.max_mcap)
+            # $500k-floor low-mcap probe (2026-06-02): surface ESTABLISHED tokens in
+            # [LOW_MCAP_PROBE_FLOOR, min_mcap) for low_mcap_probe bots; production skips them
+            # via the per-bot buy gate. Default off -> _lmp False -> no change.
+            from core.low_mcap_probe import keep_below_floor_token
+            _lmp = keep_below_floor_token(mcap, _yt_liq, self.min_mcap)
             # USER_WATCHLIST bypass: small-cap floor not applicable for
             # user-curated tokens (user chose them deliberately).
-            if mcap < self.min_mcap and not _yp:
+            if mcap < self.min_mcap and not _yp and not _lmp:
                 c["mcap_low"] += 1
                 if not _user_watch:
                     continue
