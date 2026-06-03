@@ -248,6 +248,15 @@ class BotEvaluator:
             return False
         if c.vol_h1_min is not None and (b.vol_h1_usd or 0) < c.vol_h1_min:
             return False
+        # Dead-flatline reject (2026-06-02): a token below min_token_volatility_h24_pct
+        # cannot MECHANICALLY produce the strategy's needed move (validated: 0 winners had
+        # vol<5% in 22 days). Fail-OPEN when the feature is missing (coverage-safe; protects
+        # young tokens lacking a 24h window).
+        if c.min_token_volatility_h24_pct is not None:
+            _vol = (b.raw_meta or {}).get("token_volatility_h24_pct")
+            if (isinstance(_vol, (int, float)) and not isinstance(_vol, bool)
+                    and _vol < c.min_token_volatility_h24_pct):
+                return False
         if c.require_real_pullback:
             # Held-out-validated entry-quality gate (2026-05-27): block EXTENDED
             # entries (the falling-knife signature behind the buy-into-downtrend

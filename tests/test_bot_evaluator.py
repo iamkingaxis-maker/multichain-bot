@@ -31,6 +31,22 @@ def _cfg(**overrides):
     return BotConfig(**base)
 
 
+# Dead-flatline volatility floor (2026-06-02)
+def test_min_volatility_floor_blocks_flatline():
+    ev = BotEvaluator(_cfg(min_token_volatility_h24_pct=5.0))
+    # vRse-type flatline (0.48% 24h vol) -> blocked
+    assert ev._token_regime_passes(_bundle(raw_meta={"token_volatility_h24_pct": 0.48})) is False
+    # normal token (30% vol) -> passes the floor
+    assert ev._token_regime_passes(_bundle(raw_meta={"token_volatility_h24_pct": 30.0})) is True
+    # missing feature -> fail-OPEN (protects young tokens lacking a 24h window)
+    assert ev._token_regime_passes(_bundle(raw_meta={})) is True
+
+
+def test_min_volatility_floor_off_by_default():
+    ev = BotEvaluator(_cfg())  # min_token_volatility_h24_pct=None
+    assert ev._token_regime_passes(_bundle(raw_meta={"token_volatility_h24_pct": 0.48})) is True
+
+
 # Momentum-continuation mode (#4.3)
 def test_momentum_mode_enters_on_gate_bypassing_dip_triggers():
     # No dip trigger is allowed (normal path would return None for <min_triggers), and a

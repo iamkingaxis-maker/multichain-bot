@@ -43,6 +43,14 @@ class BotConfig:
     mcap_max: Optional[float] = None
     vol_h1_min: Optional[float] = 1000.0
 
+    # Dead-flatline reject (2026-06-02). Block entries whose token_volatility_h24_pct is
+    # below this — a token that barely moves (e.g. vRse... = 0.48% 24h vol, slow-bled across
+    # 26 bots) CANNOT mechanically produce the +5-30% the strategy needs. Validated: 0
+    # winners had vol<5% in 22 days (the <5% bucket is all TP1 scratches / dead). Fail-OPEN
+    # when the feature is missing (coverage-safe). None = off. Set ~5.0 on production-track
+    # bots; NOT young probes (24h vol is ill-defined for <6h tokens).
+    min_token_volatility_h24_pct: Optional[float] = None
+
     # Entry-quality gate (2026-05-27, held-out validated). When True the bot
     # blocks EXTENDED entries (the falling-knife signature behind the
     # buy-into-downtrend losses): requires a REAL pullback
