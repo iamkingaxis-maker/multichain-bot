@@ -17,12 +17,15 @@ def catalog():
     # Also exclude the no-same-token exclusion-pool A/B (pool_*, 2026-06-02) — a $100-fixed
     # de-concentration experiment with deliberately non-standard sizing, likewise not a
     # standard $20 strategy-ablation member.
+    # Also exclude the fresh-graduation momentum probe (momentum_grad_probe, 2026-06-03)
+    # — a $100-fixed momentum_mode + young_token_probe experiment, not a $20 ablation member.
     reg.configs = [c for c in reg.configs
                    if not c.bot_id.startswith("probe_")
                    and not c.bot_id.startswith("pool_")
                    and not c.bot_id.startswith("young_probe_")
                    and not c.bot_id.startswith("low_mcap_probe")
-                   and c.bot_id != "momentum_shadow"]
+                   and c.bot_id != "momentum_shadow"
+                   and c.bot_id != "momentum_grad_probe"]
     return reg
 
 

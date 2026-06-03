@@ -94,6 +94,35 @@ def test_momentum_mode_blocks_on_overextension_above_vwap():
         raw_meta={"pc_h1": 30.0, "pct_above_vwap_h24": 40.0})) is None
 
 
+# Fresh-graduation momentum probe (2026-06-03) — early-strength entry on the rising leg
+def _grad_gate():
+    return [["1m_cum_3min_pct", ">=", 2.0], ["1m_volume_spike", ">=", 0.5],
+            ["vol_5m_burst_vs_h1", ">=", 1.3]]
+
+
+def test_grad_momentum_enters_on_early_strength():
+    cfg = _cfg(momentum_mode=True, young_token_probe=True, entry_gate=_grad_gate())
+    # fresh token making early strength: rising 1m + volume accelerating -> ENTER the rising leg
+    d = BotEvaluator(cfg).evaluate(_bundle(age_hours=2.0, raw_meta={
+        "1m_cum_3min_pct": 4.0, "1m_volume_spike": 0.9, "vol_5m_burst_vs_h1": 1.8}))
+    assert d is not None and d.triggers_fired == ("momentum_continuation",)
+
+
+def test_grad_momentum_blocks_when_not_rising():
+    cfg = _cfg(momentum_mode=True, young_token_probe=True, entry_gate=_grad_gate())
+    # flat/falling 1m (the post-peak dip the dip-stack would buy) -> momentum gate blocks
+    assert BotEvaluator(cfg).evaluate(_bundle(age_hours=2.0, raw_meta={
+        "1m_cum_3min_pct": -1.0, "1m_volume_spike": 0.9, "vol_5m_burst_vs_h1": 1.8})) is None
+
+
+def test_grad_momentum_probe_config_loads():
+    import json, pathlib
+    p = pathlib.Path("config/bots/momentum_grad_probe.json")
+    cfg = BotConfig(**json.loads(p.read_text()))
+    assert cfg.momentum_mode is True and cfg.young_token_probe is True
+    assert cfg.entry_gate and cfg.tp2_pct == 30.0  # wide exit to ride the run
+
+
 # Macro + regime gates (T9)
 def test_evaluator_returns_buy_when_triggers_fire():
     ev = BotEvaluator(_cfg())
