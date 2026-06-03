@@ -14285,6 +14285,16 @@ class DipScanner:
                 "trigger_source": _trigger_source,
                 "triggers_fired": list(_triggers_fired),
                 "liquidity_usd": float(liq_usd or 0),
+                # 24h volume + TURNOVER (vol_h24 / liquidity) — 2026-06-02. Was NOT stamped,
+                # so the low-turnover / dead-but-liquid hypothesis (the vRse... slow-bleed
+                # cluster: $506k liq but ~$140k/24h vol = ~0.28x turnover) could not be mined.
+                # Stamped now so turnover can be win/loss-validated FORWARD (the decay/flatness
+                # proxies were non-separating, d~0.1; turnover itself is the untested metric).
+                "entry_volume_h24_usd": float((pair.get("volume") or {}).get("h24", 0) or 0),
+                "turnover_h24_ratio": (
+                    float((pair.get("volume") or {}).get("h24", 0) or 0) / float(liq_usd)
+                    if (liq_usd and float(liq_usd) > 0) else None
+                ),
                 "protocol": pair.get("dexId", "") or "",
                 "peak_h24_6h_pct": float(peak_h24_6h),
                 # Filter A — DEPRECATED but still recorded shadow-only so
