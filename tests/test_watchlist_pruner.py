@@ -1,7 +1,7 @@
 """Watchlist auto-pruner (core/watchlist_pruner.find_dead) — dead-token detection.
 2026-06-03: auto-remove DEAD tokens from the user watchlist (rugged / no liquidity /
 dried-up volume), fail-OPEN on missing data so a token we can't assess is never pruned."""
-from core.watchlist_pruner import find_dead, find_adds
+from core.watchlist_pruner import find_dead, find_adds, is_rugged
 
 
 def _t(addr, liq=None, vol=None, mcap=None):
@@ -29,6 +29,15 @@ def test_low_liquidity_is_dead():
 
 def test_dried_up_volume_is_dead():
     assert find_dead([_t("d", liq=80000, vol=24000, mcap=500000)], 25000, 20000) == ["d"]
+
+
+def test_is_rugged_instant():
+    # rugged = liq or mcap <= 0 -> removed instantly (no strike wait)
+    assert is_rugged(_t("a", liq=0, vol=0, mcap=0)) is True
+    assert is_rugged(_t("b", liq=80000, vol=120000, mcap=0)) is True
+    assert is_rugged(_t("c", liq=0, vol=50000, mcap=500000)) is True
+    # dried-up but tradeable (not rugged) -> needs strikes, not instant
+    assert is_rugged(_t("d", liq=80000, vol=10000, mcap=500000)) is False
 
 
 def test_alive_token_kept():

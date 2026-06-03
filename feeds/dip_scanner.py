@@ -15703,20 +15703,16 @@ class DipScanner:
     def _maybe_autoprune_user_watchlist(self, pair_by_addr: dict) -> None:
         """Auto-remove DEAD tokens from the user watchlist (2026-06-03).
 
-        Reuses THIS cycle's DexScreener enrichment (watchlist addrs are force-included
-        in to_enrich, so pair_by_addr already holds their liq/vol/mcap) -> ZERO extra
-        egress. Requires N consecutive dead readings (strikes) before removing, so a
-        momentarily-quiet token is not pruned. FAIL-OPEN: a watchlist addr with no
-        fresh pair this cycle is skipped (no evidence). Fully wrapped by the caller in
-        try/except so it can never break the scan cycle. Env: WATCHLIST_AUTOPRUNE
-        (default on), WATCHLIST_PRUNE_MIN_VOL_H24/MIN_LIQ/STRIKES/INTERVAL_SECS."""
+        Runs EVERY scan cycle (reuses THIS cycle's DexScreener enrichment -> ZERO extra
+        egress, so there is no reason to throttle). RUGGED tokens (liq/mcap<=0) are
+        removed INSTANTLY. Dried-up / low-liq tokens need a small blip-guard of N
+        CONSECUTIVE-CYCLE dead readings (~2-3min total, not 90) before removal. FAIL-OPEN:
+        a watchlist addr with no fresh pair this cycle is skipped (no evidence). Fully
+        wrapped by the caller in try/except so it can never break the scan cycle. Env:
+        WATCHLIST_AUTOPRUNE (default on), WATCHLIST_PRUNE_MIN_VOL_H24/MIN_LIQ/STRIKES."""
         from core import watchlist_pruner as wp
         if not wp.enabled():
             return
-        now = time.monotonic()
-        if now - self._wl_last_prune_ts < wp.interval_secs():
-            return
-        self._wl_last_prune_ts = now
         addrs = list(self._user_watchlist_addrs)
         if not addrs:
             return
@@ -15736,21 +15732,28 @@ class DipScanner:
         dead_now = set(wp.find_dead(toks, wp.min_vol_h24(), wp.min_liq()))
         req = wp.strikes_required()
         removed = []
+        rugged = []
         for t in toks:
             a = t["address"]
-            if a in dead_now:
-                self._wl_dead_strikes[a] = self._wl_dead_strikes.get(a, 0) + 1
-                if self._wl_dead_strikes[a] >= req:
-                    if self.remove_user_watchlist(a, manual=False):  # auto-prune: no ban
-                        removed.append(a)
-                    self._wl_dead_strikes.pop(a, None)
-            else:
+            if a not in dead_now:
                 self._wl_dead_strikes.pop(a, None)  # alive -> reset strikes
+                continue
+            if wp.is_rugged(t):  # unambiguous (liq/mcap<=0) -> remove instantly
+                if self.remove_user_watchlist(a, manual=False):
+                    rugged.append(a)
+                self._wl_dead_strikes.pop(a, None)
+                continue
+            self._wl_dead_strikes[a] = self._wl_dead_strikes.get(a, 0) + 1
+            if self._wl_dead_strikes[a] >= req:
+                if self.remove_user_watchlist(a, manual=False):  # auto-prune: no ban
+                    removed.append(a)
+                self._wl_dead_strikes.pop(a, None)
+        if rugged:
+            logger.info(f"[DipScanner] watchlist autoprune: removed {len(rugged)} RUGGED tokens (liq/mcap<=0, instant): {rugged}")
         if removed:
             logger.info(
-                f"[DipScanner] watchlist autoprune: removed {len(removed)} DEAD tokens "
-                f"(>= {req} consecutive dead readings; vol<{wp.min_vol_h24():.0f} or "
-                f"liq<{wp.min_liq():.0f} or rugged): {removed}"
+                f"[DipScanner] watchlist autoprune: removed {len(removed)} dried-up tokens "
+                f"(>= {req} consecutive cycles; vol<{wp.min_vol_h24():.0f} or liq<{wp.min_liq():.0f}): {removed}"
             )
 
     def _maybe_autoadd_user_watchlist(self, pair_by_addr: dict) -> None:

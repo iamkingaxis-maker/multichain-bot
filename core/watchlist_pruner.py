@@ -45,17 +45,22 @@ def min_liq() -> float:
 
 
 def strikes_required() -> int:
+    # Strikes are CONSECUTIVE SCAN CYCLES (~1min each) now, NOT 30-min intervals -> 2
+    # strikes = ~2-3min, a blip-guard that's still near-instant. Rugged tokens bypass
+    # strikes entirely (is_rugged) and are removed on first detection.
     try:
-        return max(1, int(os.environ.get("WATCHLIST_PRUNE_STRIKES", "3")))
+        return max(1, int(os.environ.get("WATCHLIST_PRUNE_STRIKES", "2")))
     except (TypeError, ValueError):
-        return 3
+        return 2
 
 
-def interval_secs() -> float:
-    try:
-        return float(os.environ.get("WATCHLIST_PRUNE_INTERVAL_SECS", "1800"))  # 30 min
-    except (TypeError, ValueError):
-        return 1800.0
+def is_rugged(token) -> bool:
+    """Unambiguously dead: liquidity or market cap reads <= 0 (drained/delisted). A
+    live token never has zero liq with a present pair, so these are removed INSTANTLY
+    (no strike guard). token = dict with liq_usd / mcap."""
+    liq = _num(token.get("liq_usd"))
+    mc = _num(token.get("mcap"))
+    return (mc is not None and mc <= 0) or (liq is not None and liq <= 0)
 
 
 # ---- Auto-ADD config (2026-06-03): self-populate the watchlist with fresh live movers ----
