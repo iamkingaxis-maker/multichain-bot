@@ -13,8 +13,8 @@ def _a(addr, liq=80000, vol=120000, pc_h1=15, age_h=3):
 
 
 # defaults mirror config: max_total, min_liq, min_vol, min_pc_h1, max_age_h, max_per_run
-def _adds(tokens, current=(), max_total=150):
-    return find_adds(tokens, list(current), max_total, 40000, 75000, 8, 24, 10)
+def _adds(tokens, current=(), denylist=(), max_total=150):
+    return find_adds(tokens, list(current), list(denylist), max_total, 40000, 75000, 8, 24, 10)
 
 
 def test_rugged_is_dead():
@@ -68,6 +68,13 @@ def test_add_skips_already_on_list():
     assert _adds([_a("dup")], current=["dup"]) == []
 
 
+def test_add_skips_denylisted_manual_removal():
+    # a fresh live mover the user MANUALLY removed must NEVER be auto-re-added
+    assert _adds([_a("banned")], denylist=["banned"]) == []
+    # but a non-banned mover still adds
+    assert _adds([_a("ok"), _a("banned")], denylist=["banned"]) == ["ok"]
+
+
 def test_add_skips_stale_token():
     assert _adds([_a("old", age_h=48)]) == []          # too old (>24h)
 
@@ -86,9 +93,9 @@ def test_add_requires_full_evidence():
 def test_add_ranks_by_volume_and_caps_room():
     toks = [_a("v1", vol=300000), _a("v2", vol=200000), _a("v3", vol=100000)]
     # cap total at len(current)+2 -> only top-2 by volume added
-    assert find_adds(toks, ["x"], 3, 40000, 75000, 8, 24, 10) == ["v1", "v2"]
+    assert find_adds(toks, ["x"], [], 3, 40000, 75000, 8, 24, 10) == ["v1", "v2"]
 
 
 def test_add_respects_max_per_run():
     toks = [_a(f"t{i}", vol=100000 + i) for i in range(20)]
-    assert len(find_adds(toks, [], 150, 40000, 75000, 8, 24, 5)) == 5
+    assert len(find_adds(toks, [], [], 150, 40000, 75000, 8, 24, 5)) == 5

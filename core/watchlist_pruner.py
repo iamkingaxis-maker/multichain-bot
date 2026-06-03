@@ -116,22 +116,24 @@ def _num(v):
     return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
-def find_adds(tokens, current_addrs, max_total, min_liquidity,
+def find_adds(tokens, current_addrs, denylist, max_total, min_liquidity,
               min_vol, min_pc_h1, max_age_hours, max_per_run) -> list:
     """Return addresses to ADD to the watchlist: FRESH (age<=max_age_hours), tradeable
-    (liq>=floor, vol_h24>=floor), and RISING (pc_h1>=floor) movers not already on it.
+    (liq>=floor, vol_h24>=floor), and RISING (pc_h1>=floor) movers not already on it
+    AND NOT in the denylist (tokens the user manually removed — never auto-re-add).
     Ranked by 24h volume (strongest first), capped by remaining room (max_total) and
     max_per_run. tokens = list of dicts: address, liq_usd, vol_h24, pc_h1, age_h.
     Conservative by design — the watchlist only SURFACES tokens (mcap-bypass for
     discovery); the real triggers/filters still gate any actual buy."""
     cur = set(current_addrs)
+    banned = set(denylist or ())
     room = max_total - len(cur)
     if room <= 0:
         return []
     cands = []
     for t in tokens:
         addr = t.get("address")
-        if not addr or addr in cur:
+        if not addr or addr in cur or addr in banned:
             continue
         liq = _num(t.get("liq_usd"))
         vol = _num(t.get("vol_h24"))

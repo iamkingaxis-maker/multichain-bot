@@ -239,6 +239,8 @@ class DipScanner:
         self._user_watchlist_file_mtime = 0.0  # for hot-reload poll
         # Seed: file > env var > empty.
         self._user_watchlist_addrs: set = set()
+        # Denylist: tokens the user MANUALLY removed — auto-add never re-adds these.
+        self._user_watchlist_denylist: set = set()
         self._load_user_watchlist_file()
         if not self._user_watchlist_addrs:
             _user_watch_raw = os.environ.get("USER_WATCHLIST_ADDRESSES", "")
@@ -15619,6 +15621,8 @@ class DipScanner:
                 data = json.load(f)
             addrs = data.get("addresses") or []
             self._user_watchlist_addrs = {a.strip().lower() for a in addrs if a.strip()}
+            deny = data.get("denylist") or []
+            self._user_watchlist_denylist = {a.strip().lower() for a in deny if a.strip()}
         except Exception as e:
             logger.warning(f"[DipScanner] Could not load user_watchlist.json: {e}")
 
@@ -15628,7 +15632,8 @@ class DipScanner:
             os.makedirs(os.path.dirname(self._user_watchlist_path) or ".", exist_ok=True)
             tmp = self._user_watchlist_path + ".tmp"
             with open(tmp, "w") as f:
-                json.dump({"addresses": sorted(self._user_watchlist_addrs)}, f)
+                json.dump({"addresses": sorted(self._user_watchlist_addrs),
+                           "denylist": sorted(self._user_watchlist_denylist)}, f)
             os.replace(tmp, self._user_watchlist_path)
             self._user_watchlist_file_mtime = os.path.getmtime(self._user_watchlist_path)
         except Exception as e:
@@ -15654,28 +15659,41 @@ class DipScanner:
         except Exception as e:
             logger.debug(f"[DipScanner] user_watchlist reload err: {e}")
 
-    def add_user_watchlist(self, address: str) -> bool:
-        """Public API for dashboard. Returns True if newly added."""
+    def add_user_watchlist(self, address: str, manual: bool = True) -> bool:
+        """Add to watchlist. manual=True (dashboard) clears any denylist ban then adds.
+        manual=False (auto-add) REFUSES if the token is denylisted (user manually removed
+        it before). Returns True if newly added."""
         if not address:
             return False
         addr = address.strip().lower()
+        if not manual and addr in self._user_watchlist_denylist:
+            return False  # auto-add never re-adds a manually-removed token
         if addr in self._user_watchlist_addrs:
             return False
+        if manual:
+            self._user_watchlist_denylist.discard(addr)  # user re-adding overrides the ban
         self._user_watchlist_addrs.add(addr)
         self._save_user_watchlist_file()
-        logger.info(f"[DipScanner] User watchlist: ADD {addr}")
+        logger.info(f"[DipScanner] User watchlist: ADD {addr} ({'manual' if manual else 'auto'})")
         return True
 
-    def remove_user_watchlist(self, address: str) -> bool:
-        """Public API for dashboard. Returns True if removed."""
+    def remove_user_watchlist(self, address: str, manual: bool = True) -> bool:
+        """Remove from watchlist. manual=True (dashboard) BANS the token (denylist) so
+        auto-add never re-adds it. manual=False (auto-prune) does NOT ban — a pruned-dead
+        token may legitimately re-qualify later. Returns True if removed."""
         if not address:
             return False
         addr = address.strip().lower()
         if addr not in self._user_watchlist_addrs:
             return False
         self._user_watchlist_addrs.discard(addr)
+        if manual:
+            self._user_watchlist_denylist.add(addr)
         self._save_user_watchlist_file()
-        logger.info(f"[DipScanner] User watchlist: REMOVE {addr}")
+        logger.info(
+            f"[DipScanner] User watchlist: REMOVE {addr} "
+            f"({'manual/banned' if manual else 'auto-prune'})"
+        )
         return True
 
     def get_user_watchlist(self) -> list:
@@ -15723,7 +15741,7 @@ class DipScanner:
             if a in dead_now:
                 self._wl_dead_strikes[a] = self._wl_dead_strikes.get(a, 0) + 1
                 if self._wl_dead_strikes[a] >= req:
-                    if self.remove_user_watchlist(a):
+                    if self.remove_user_watchlist(a, manual=False):  # auto-prune: no ban
                         removed.append(a)
                     self._wl_dead_strikes.pop(a, None)
             else:
@@ -15769,10 +15787,11 @@ class DipScanner:
                 "age_h": age_h,
             })
         adds = wp.find_adds(
-            toks, self._user_watchlist_addrs, wp.max_size(), wp.add_min_liq(),
-            wp.add_min_vol_h24(), wp.add_min_pc_h1(), wp.add_max_age_h(), wp.add_max_per_run(),
+            toks, self._user_watchlist_addrs, self._user_watchlist_denylist,
+            wp.max_size(), wp.add_min_liq(), wp.add_min_vol_h24(),
+            wp.add_min_pc_h1(), wp.add_max_age_h(), wp.add_max_per_run(),
         )
-        added = [a for a in adds if self.add_user_watchlist(a)]
+        added = [a for a in adds if self.add_user_watchlist(a, manual=False)]
         if added:
             logger.info(
                 f"[DipScanner] watchlist autoadd: added {len(added)} fresh live movers "
