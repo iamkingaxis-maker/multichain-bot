@@ -1,6 +1,6 @@
 {
   "bot_id": "momentum_grad_probe",
-  "display_name": "FRESH-GRADUATION MOMENTUM pool (2026-06-03) — pool_a-style 10-slot no-same-token pool. Tests the pre-peak-capture thesis (VERIFIED: the fleet buys ~97% of pumps POST-peak / catches the fade; the rare pre-peak catches = TREND/SPCX/GACHA = the entire edge). momentum_mode (bypasses the dip filter+trigger stack) + young_token_probe (age < YOUNG_TOKEN_MAX_AGE_H) + a DATA-CALIBRATED order-flow entry_gate = enter the RISING leg of fresh pumps, NOT the post-peak dip the dip-stack waits for. CALIBRATION (5-agent fresh-grad deep dive 2026-06-03): the dominant pumper-vs-dumper separator is net_flow_60s_imbalance (Cohen d=+0.98, GOOD med +0.51 vs BAD +0.03); the originally-GUESSED candle gate was WRONG (1m_cum_3min_pct d=-0.30, BACKWARDS sign — retired). Age tightened 6h->3h: known pumpers surge in hour 0 (median 2.9x) and 12/14 drop >=20% off peak within 1 HOUR; the runnable window is ~hours 0-3, after which you enter the fade. 10 concurrent slots (exclusion_pool=momentum_grad, no two slots on the same token) = max fresh-graduation capture throughput (pumps are abundant; fills/data-accrual is the bottleneck). WIDE exits (tp1 10/0.4, tp2 30/0.3, trail 6, ride 0.3) to capture the run to peak; tight exits would defeat the purpose. never_runner cuts duds. $2k paper, $100/slot ($1k max deployed). OHLCV_CAPTURE_SIDECAR records the first-minute paths. Needs YOUNG_TOKEN_PROBE=1. FORWARD-JUDGE: (1) do its entries land PRE-peak (vs the fleet's 97% post-peak), (2) does early momentum predict continued pump, (3) realized vs the dip fleet.",
+  "display_name": "FRESH-GRADUATION MOMENTUM pool (2026-06-03) — pool_a-style 10-slot no-same-token pool. Tests the pre-peak-capture thesis (VERIFIED: the fleet buys ~97% of pumps POST-peak / catches the fade; the rare pre-peak catches = TREND/SPCX/GACHA = the entire edge). momentum_mode (bypasses the dip filter+trigger stack) + young_token_probe (age < YOUNG_TOKEN_MAX_AGE_H) + a DATA-CALIBRATED order-flow entry_gate = enter the RISING leg of fresh pumps, NOT the post-peak dip the dip-stack waits for. CALIBRATION (5-agent fresh-grad deep dive 2026-06-03): the dominant pumper-vs-dumper separator is net_flow_60s_imbalance (Cohen d=+0.98, GOOD med +0.51 vs BAD +0.03); the originally-GUESSED candle gate was WRONG (1m_cum_3min_pct d=-0.30, BACKWARDS sign — retired). Age tightened 6h->3h: known pumpers surge in hour 0 (median 2.9x) and 12/14 drop >=20% off peak within 1 HOUR; the runnable window is ~hours 0-3, after which you enter the fade. 10 concurrent slots (exclusion_pool=momentum_grad, no two slots on the same token) = max fresh-graduation capture throughput (pumps are abundant; fills/data-accrual is the bottleneck). DATA-INFORMED exits (base-rate deep dive wf_62b8f392): ~70% of grads RUG to near-zero (median retains 2-3% of peak), so SURVIVAL is an exit problem -> dominant lever is TIME-based downside protection (stall_exit 40min/peak<12, never_runner 35min, slow_bleed 35min) to bail the rug fast; TP ladder kept wide-ish (tp1 20/0.4, tp2 60/0.3, trail 8 on 0.3) because the tail is fat (~17% hit 5x, ~8% hit 10x) and tight TP would cap the EV. EXACT exit numbers are PRELIMINARY defaults (directional from base rate); refine from the probe's own forward fills. $2k paper, $100/slot ($1k max deployed). OHLCV_CAPTURE_SIDECAR records the first-minute paths. Needs YOUNG_TOKEN_PROBE=1. FORWARD-JUDGE: (1) do its entries land PRE-peak (vs the fleet's 97% post-peak), (2) does early momentum predict continued pump, (3) realized vs the dip fleet.",
   "enabled": true,
   "momentum_mode": true,
   "young_token_probe": true,
@@ -34,20 +34,23 @@
     ["net_flow_60s_imbalance", ">=", 0.3],
     ["1m_volume_spike", ">=", 0.4]
   ],
-  "tp1_pct": 10.0,
+  "tp1_pct": 20.0,
   "tp1_sell_fraction": 0.4,
-  "tp2_pct": 30.0,
+  "tp2_pct": 60.0,
   "tp2_sell_fraction": 0.3,
-  "trail_pp": 6.0,
+  "trail_pp": 8.0,
   "hard_stop_pct": -15.0,
   "pre_stop_bail_pnl_pct": -3.0,
   "pre_stop_bail_vol_m5_max": 500.0,
-  "slow_bleed_minutes": 60,
+  "slow_bleed_minutes": 35,
   "slow_bleed_pnl_threshold": -8.0,
+  "stall_exit_minutes": 40,
+  "stall_exit_peak_max": 12.0,
+  "stall_exit_drift_pp": 3.0,
   "trading_hour_utc_start": 0,
   "trading_hour_utc_end": 24,
   "never_runner_exit_enabled": true,
   "never_runner_peak_max": 3.0,
   "never_runner_loss_floor": -6.0,
-  "never_runner_minutes": 60
+  "never_runner_minutes": 35
 }

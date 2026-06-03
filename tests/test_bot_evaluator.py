@@ -121,9 +121,11 @@ def test_grad_momentum_probe_config_loads():
     p = pathlib.Path("config/bots/momentum_grad_probe.json")
     cfg = BotConfig(**json.loads(p.read_text()))
     assert cfg.momentum_mode is True and cfg.young_token_probe is True
-    assert cfg.entry_gate and cfg.tp2_pct == 30.0  # wide exit to ride the run
+    assert cfg.entry_gate  # data-calibrated order-flow gate
     # 10-slot no-same-token pool (pool_a style) for max fresh-graduation capture
     assert cfg.max_concurrent_positions == 10 and cfg.exclusion_pool == "momentum_grad"
+    # data-informed exits for the ~70%-rug regime: TIME-based downside (stall/time-stop) + tail-ride ladder
+    assert cfg.stall_exit_minutes == 40 and cfg.never_runner_minutes == 35 and cfg.tp2_pct == 60.0
 
 
 # Macro + regime gates (T9)
