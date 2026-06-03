@@ -125,6 +125,13 @@ class PerBotPositionManager:
     def __init__(self, config: BotConfig) -> None:
         self.config = config
         self._positions: dict[str, OpenPosition] = {}
+        # OHLCV-capture sidecar (#4.4): accumulate the per-cycle price path on each open
+        # position (zero extra fetch) when OHLCV_CAPTURE_SIDECAR is on. Cached once at init.
+        try:
+            from core.ohlcv_sidecar import capture_enabled as _oc_on
+            self._ohlcv_capture = _oc_on()
+        except Exception:
+            self._ohlcv_capture = False
         # token -> wall-clock time of its last FULL close. Used to enforce
         # reentry_cooldown_secs (P-stack #4): re-entry already works in the
         # multi-bot path (no dedup), so this is the *throttle* for churning the
@@ -327,6 +334,12 @@ class PerBotPositionManager:
             if _prev is None or pnl_pct < _prev:
                 _sb_mae["mae_pct"] = round(pnl_pct, 4)
                 _sb_mae["mae_at_secs"] = int(now - p.entry_time)
+        # OHLCV-capture sidecar (#4.4): accumulate the per-cycle price path (zero extra
+        # fetch — this is the price the tick loop already pulled) for deterministic backtest
+        # replay. Sampled + capped in accumulate_point. Persisted on close in _execute_bot_sell.
+        if getattr(self, "_ohlcv_capture", False) and p.state_blob is not None:
+            from core.ohlcv_sidecar import accumulate_point
+            accumulate_point(p.state_blob, now - p.entry_time, current_price)
 
         # Give-back SHADOW (measure-only, 2026-05-31) — records whether a
         # position that went solidly GREEN (peak>=+3%) ever fell back to

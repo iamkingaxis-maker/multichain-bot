@@ -1676,6 +1676,24 @@ class DipScanner:
                 "time": datetime.now(timezone.utc).isoformat(),
             }, bot_id=bot_id)
             self._save_bot_state(bot_id)
+        # OHLCV-capture sidecar (#4.4): on FULL close, persist the per-cycle price path the
+        # position experienced so the backtester can replay it deterministically. Fail-soft.
+        if result.fully_closed and _pos is not None and self.trade_store is not None:
+            try:
+                from core.ohlcv_sidecar import capture_enabled, sidecar_path, append_episode
+                _oc_path = (_pos.state_blob or {}).get("ohlcv_path")
+                if capture_enabled() and _oc_path:
+                    _dd = str(getattr(self.trade_store, "_trades_path", None).parent)
+                    append_episode(sidecar_path(_dd), {
+                        "bot_id": bot_id, "token": token,
+                        "address": getattr(_pos, "address", "") or token,
+                        "entry_price": _pos.entry_price,
+                        "entry_time_ms": int(_pos.entry_time * 1000),
+                        "exit_reason": exit_decision.reason,
+                        "path": _oc_path,
+                    })
+            except Exception:
+                pass
         logger.info(
             "[DipScanner] SELL bot=%s token=%s frac=%.2f pnl=$%.2f reason=%s%s",
             bot_id, token, result.sell_fraction, result.realized_pnl_usd,

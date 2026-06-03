@@ -1,7 +1,7 @@
 {
   "bot_id": "young_probe_candidate",
   "display_name": "YOUNG-TOKEN probe (#4.1, DORMANT): candidate (premium_tightexit) stack restricted to YOUNG tokens (age < YOUNG_TOKEN_MAX_AGE_H, surfaced past min_age with a liquidity floor). Tests whether the universe-mine age<=2 edge (69-71% WR / +24.9% fwd-peak) survives on REALIZED dip-buy paths. enabled=false + needs YOUNG_TOKEN_PROBE=1 env to run = two deliberate gates. $100 fixed (mults 1.0).",
-  "enabled": false,
+  "enabled": true,
   "young_token_probe": true,
   "ng_scorer_gate": true,
   "paper_capital_usd": 2000.0,
