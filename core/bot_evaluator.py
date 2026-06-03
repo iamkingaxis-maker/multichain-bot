@@ -80,6 +80,10 @@ class BotEvaluator:
 
     def evaluate(self, b: FeatureBundle,
                  realized_pnl_usd: float = 0.0) -> Optional[BuyDecision]:
+        # Momentum-continuation mode (#4.3) — a SEPARATE entry path that bypasses the dip
+        # filter stack + dip triggers. Default off -> the dip path below is unchanged.
+        if getattr(self.config, "momentum_mode", False):
+            return self._evaluate_momentum(b, realized_pnl_usd)
         if self._trading_window_blocks(b):
             return None
         if self._drawdown_freeze_blocks(realized_pnl_usd):
@@ -144,6 +148,31 @@ class BotEvaluator:
             size_tier=size_tier,
             triggers_fired=effective_triggers,
             reason_summary=f"triggers={','.join(effective_triggers)} tier={size_tier}",
+        )
+
+    def _evaluate_momentum(self, b: FeatureBundle,
+                           realized_pnl_usd: float = 0.0) -> Optional[BuyDecision]:
+        """Momentum-continuation entry path (#4.3). Bypasses the dip filter stack + dip
+        triggers; enters on the momentum entry_gate (evaluated via _token_regime_passes,
+        which includes the entry_gate AND-conditions). Keeps the trading-window +
+        drawdown-freeze lifecycle gates. Emits a single 'momentum_continuation' trigger."""
+        if self._trading_window_blocks(b):
+            return None
+        if self._drawdown_freeze_blocks(realized_pnl_usd):
+            return None
+        if not self._token_regime_passes(b):   # = the momentum entry_gate conditions
+            return None
+        size_usd, _ = self._size_for(("momentum_continuation",), b, realized_pnl_usd)
+        return BuyDecision(
+            bot_id=self.config.bot_id,
+            token=b.token,
+            address=b.address,
+            pair_address=b.pair_address,
+            entry_price=b.price_usd,
+            size_usd=size_usd,
+            size_tier="momentum",
+            triggers_fired=("momentum_continuation",),
+            reason_summary="momentum_continuation",
         )
 
     def _drawdown_freeze_blocks(self, realized_pnl_usd: float) -> bool:

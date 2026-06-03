@@ -31,6 +31,37 @@ def _cfg(**overrides):
     return BotConfig(**base)
 
 
+# Momentum-continuation mode (#4.3)
+def test_momentum_mode_enters_on_gate_bypassing_dip_triggers():
+    # No dip trigger is allowed (normal path would return None for <min_triggers), and a
+    # filter is enforced — momentum mode bypasses both and enters on the entry_gate.
+    cfg = _cfg(momentum_mode=True,
+               triggers_allowed=("nonexistent_dip_trigger",),
+               filters_enforced=("filter_falling_pump",),
+               entry_gate=[["pc_h1", ">=", 20], ["pct_above_vwap_h24", "<=", 20],
+                           ["1m_volume_spike", ">=", 0.4]])
+    d = BotEvaluator(cfg).evaluate(_bundle(
+        pc_h1=30.0,
+        raw_meta={"pc_h1": 30.0, "pct_above_vwap_h24": 10.0, "1m_volume_spike": 0.5}))
+    assert d is not None
+    assert d.triggers_fired == ("momentum_continuation",)
+    assert d.size_tier == "momentum"
+
+
+def test_momentum_mode_blocks_when_gate_fails():
+    cfg = _cfg(momentum_mode=True, entry_gate=[["pc_h1", ">=", 20]])
+    # pc_h1 below the momentum threshold -> no entry
+    assert BotEvaluator(cfg).evaluate(_bundle(raw_meta={"pc_h1": 5.0})) is None
+
+
+def test_momentum_mode_blocks_on_overextension_above_vwap():
+    cfg = _cfg(momentum_mode=True,
+               entry_gate=[["pc_h1", ">=", 20], ["pct_above_vwap_h24", "<=", 20]])
+    # runner but chasing far above vwap (40% > 20 cap) -> blocked (no blow-off chase)
+    assert BotEvaluator(cfg).evaluate(_bundle(
+        raw_meta={"pc_h1": 30.0, "pct_above_vwap_h24": 40.0})) is None
+
+
 # Macro + regime gates (T9)
 def test_evaluator_returns_buy_when_triggers_fire():
     ev = BotEvaluator(_cfg())

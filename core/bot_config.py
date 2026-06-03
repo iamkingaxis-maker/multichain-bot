@@ -230,6 +230,14 @@ class BotConfig:
     # universe-mine's age<=2 edge survives on realized dip-buy paths. See core/young_token_probe.py.
     young_token_probe: bool = False
 
+    # Momentum-continuation mode (2026-06-02, #4.3). When True the bot uses a SEPARATE
+    # entry path: it BYPASSES the dip-filter stack + dip triggers (which block 100% of
+    # momentum candidates) and enters on the momentum entry_gate (e.g. pc_h1>=20 AND
+    # pct_above_vwap_h24<=cap AND 1m_volume_spike>=0.40). The strongest decorrelated lead
+    # from the broad sweep (+14pp WR, both regimes). Default False = the normal dip path,
+    # unchanged. The trading-window + drawdown-freeze + entry_gate still apply.
+    momentum_mode: bool = False
+
     def __post_init__(self) -> None:
         # Normalize entry_gate to a hashable tuple-of-tuples (JSON yields
         # tuple-of-lists; the frozen dataclass's auto __hash__ chokes on lists).

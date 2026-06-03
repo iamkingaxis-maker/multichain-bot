@@ -20,7 +20,8 @@ def catalog():
     reg.configs = [c for c in reg.configs
                    if not c.bot_id.startswith("probe_")
                    and not c.bot_id.startswith("pool_")
-                   and not c.bot_id.startswith("young_probe_")]
+                   and not c.bot_id.startswith("young_probe_")
+                   and c.bot_id != "momentum_shadow"]
     return reg
 
 
