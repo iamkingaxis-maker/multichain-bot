@@ -121,6 +121,8 @@ def test_grad_momentum_probe_config_loads():
     cfg = BotConfig(**json.loads(p.read_text()))
     assert cfg.momentum_mode is True and cfg.young_token_probe is True
     assert cfg.entry_gate and cfg.tp2_pct == 30.0  # wide exit to ride the run
+    # 10-slot no-same-token pool (pool_a style) for max fresh-graduation capture
+    assert cfg.max_concurrent_positions == 10 and cfg.exclusion_pool == "momentum_grad"
 
 
 # Macro + regime gates (T9)
