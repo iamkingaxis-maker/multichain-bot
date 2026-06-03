@@ -46,6 +46,16 @@ def min_liq_usd() -> float:
         return 40000.0
 
 
+def min_mcap_usd() -> float:
+    """Young-token mcap floor for the probe path — LOWER than the fleet's $1M discovery
+    floor, because young (<2h) tokens are inherently small-cap and rarely reach $1M that
+    fast (that's exactly why the standard gate hides the whole cohort)."""
+    try:
+        return float(os.environ.get("YOUNG_TOKEN_MIN_MCAP", "150000"))
+    except (TypeError, ValueError):
+        return 150000.0
+
+
 def is_young(age_hours, max_h: Optional[float] = None) -> bool:
     """True if the token's age (hours) is below the young threshold. None -> False."""
     if age_hours is None:
@@ -75,6 +85,37 @@ def keep_subminage_token(liq_usd, age_hours=None, probe_on: Optional[bool] = Non
         min_liq = min_liq_usd()
     try:
         return (liq_usd or 0) >= min_liq
+    except (TypeError, ValueError):
+        return False
+
+
+def is_young_probe_candidate(mcap, liq_usd, age_hours, max_mcap,
+                             probe_on: Optional[bool] = None, max_h: Optional[float] = None,
+                             min_liq: Optional[float] = None, min_mcap: Optional[float] = None) -> bool:
+    """A token eligible for the young-probe discovery path: probe ON, genuinely YOUNG
+    (age < max_age_hours), clears the young LIQUIDITY floor, and sits in the young MCAP
+    band [young_min_mcap, max_mcap]. The lower young mcap floor is the fix for "few tokens
+    reach the $1M fleet floor in <2h" — without it the whole young cohort is invisible.
+    Probe OFF -> always False (the standard gates apply unchanged)."""
+    if probe_on is None:
+        probe_on = probe_enabled()
+    if not probe_on:
+        return False
+    if not is_young(age_hours, max_h):
+        return False
+    if min_liq is None:
+        min_liq = min_liq_usd()
+    if min_mcap is None:
+        min_mcap = min_mcap_usd()
+    try:
+        if (liq_usd or 0) < min_liq:
+            return False
+        m = mcap or 0
+        if m < min_mcap:
+            return False
+        if max_mcap is not None and m > max_mcap:
+            return False
+        return True
     except (TypeError, ValueError):
         return False
 

@@ -21,6 +21,25 @@ def test_discovery_keeps_young_only_with_liquidity_when_on():
     assert ytp.keep_subminage_token(liq_usd=50_000, age_hours=None, probe_on=True, min_liq=40_000) is False
 
 
+def test_young_probe_candidate_mcap_band():
+    # young + liquid + in [young_min_mcap, max_mcap] -> eligible (the low mcap floor is the
+    # fix for "few tokens reach $1M in <2h")
+    assert ytp.is_young_probe_candidate(mcap=300_000, liq_usd=50_000, age_hours=1.0,
+        max_mcap=50_000_000, probe_on=True, min_mcap=150_000, min_liq=40_000, max_h=2.0) is True
+    # below the young mcap floor -> skip
+    assert ytp.is_young_probe_candidate(mcap=50_000, liq_usd=50_000, age_hours=1.0,
+        max_mcap=50_000_000, probe_on=True, min_mcap=150_000) is False
+    # above max_mcap -> skip
+    assert ytp.is_young_probe_candidate(mcap=99_000_000, liq_usd=50_000, age_hours=1.0,
+        max_mcap=50_000_000, probe_on=True, min_mcap=150_000) is False
+    # not young (5h) -> skip
+    assert ytp.is_young_probe_candidate(mcap=300_000, liq_usd=50_000, age_hours=5.0,
+        max_mcap=50_000_000, probe_on=True, max_h=2.0) is False
+    # probe off -> skip
+    assert ytp.is_young_probe_candidate(mcap=300_000, liq_usd=50_000, age_hours=1.0,
+        max_mcap=50_000_000, probe_on=False) is False
+
+
 def test_is_young():
     assert ytp.is_young(1.5, max_h=2.0) is True
     assert ytp.is_young(3.0, max_h=2.0) is False

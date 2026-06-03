@@ -1846,9 +1846,19 @@ class DipScanner:
                     continue
 
             mcap = pair.get("marketCap") or 0
+            # Young-token probe (#4.1) eligibility — computed up front because young tokens
+            # are inherently SMALL-cap and rarely clear the fleet $1M floor in <2h (that's
+            # why the standard gate hides the whole cohort). A young-probe candidate (probe
+            # ON + age<max + liq>=floor + young mcap band) BYPASSES both the mcap_low floor
+            # and the min_age gate; production bots still skip it in the per-bot buy gate.
+            _yt_created = pair.get("pairCreatedAt") or 0
+            _yt_age_h = (now_ms - _yt_created) / 3_600_000.0 if _yt_created > 0 else 1e9
+            _yt_liq = (pair.get("liquidity") or {}).get("usd", 0)
+            from core.young_token_probe import is_young_probe_candidate
+            _yp = is_young_probe_candidate(mcap, _yt_liq, _yt_age_h, self.max_mcap)
             # USER_WATCHLIST bypass: small-cap floor not applicable for
             # user-curated tokens (user chose them deliberately).
-            if mcap < self.min_mcap:
+            if mcap < self.min_mcap and not _yp:
                 c["mcap_low"] += 1
                 if not _user_watch:
                     continue
@@ -1860,19 +1870,9 @@ class DipScanner:
             if created_ms <= 0:
                 c["age"] += 1
                 continue
-            if (now_ms - created_ms) < self.min_age_ms:
-                # Too young for the normal fleet -> skip (DEFAULT, zero change). When the
-                # young-token probe is ON (#4.1), KEEP it if it clears the young liquidity
-                # floor so young_token_probe bots can measure it on realized paths;
-                # production bots skip it in the per-bot buy gate.
-                from core.young_token_probe import keep_subminage_token
-                _yt_liq = (pair.get("liquidity") or {}).get("usd", 0)
-                _yt_age_h = (now_ms - created_ms) / 3_600_000.0
-                # Keep ONLY genuinely-young (< max_age_hours) tokens — NOT the whole sub-7d
-                # range — so production bots' universe never expands to 2h-7d tokens.
-                if not keep_subminage_token(_yt_liq, age_hours=_yt_age_h):
-                    c["age"] += 1
-                    continue
+            if (now_ms - created_ms) < self.min_age_ms and not _yp:
+                c["age"] += 1
+                continue
 
             vol_h24 = (pair.get("volume") or {}).get("h24", 0) or 0
             # USER_WATCHLIST bypass: vol_h24 minimum for universe discovery,
