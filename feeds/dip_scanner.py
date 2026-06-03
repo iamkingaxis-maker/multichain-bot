@@ -253,6 +253,11 @@ class DipScanner:
                 f"[DipScanner] User watchlist loaded: "
                 f"{len(self._user_watchlist_addrs)} addresses"
             )
+        # Watchlist auto-pruner state (2026-06-03): strike counter per addr +
+        # last-prune timestamp. A token must read DEAD on N consecutive prune
+        # checks before removal (no removal on a single quiet blip).
+        self._wl_dead_strikes: dict = {}
+        self._wl_last_prune_ts: float = 0.0
         # Tier 3: optional AxiomPriceFeed for sub-minute tick buffer reads.
         # Set externally via `dip_scanner.axiom_price_feed = axiom.price_feed`.
         # If present, we pre-subscribe candidates that pass core filters and
@@ -15676,6 +15681,59 @@ class DipScanner:
         """Public API for dashboard. Returns sorted list of addresses."""
         return sorted(self._user_watchlist_addrs)
 
+    def _maybe_autoprune_user_watchlist(self, pair_by_addr: dict) -> None:
+        """Auto-remove DEAD tokens from the user watchlist (2026-06-03).
+
+        Reuses THIS cycle's DexScreener enrichment (watchlist addrs are force-included
+        in to_enrich, so pair_by_addr already holds their liq/vol/mcap) -> ZERO extra
+        egress. Requires N consecutive dead readings (strikes) before removing, so a
+        momentarily-quiet token is not pruned. FAIL-OPEN: a watchlist addr with no
+        fresh pair this cycle is skipped (no evidence). Fully wrapped by the caller in
+        try/except so it can never break the scan cycle. Env: WATCHLIST_AUTOPRUNE
+        (default on), WATCHLIST_PRUNE_MIN_VOL_H24/MIN_LIQ/STRIKES/INTERVAL_SECS."""
+        from core import watchlist_pruner as wp
+        if not wp.enabled():
+            return
+        now = time.monotonic()
+        if now - self._wl_last_prune_ts < wp.interval_secs():
+            return
+        self._wl_last_prune_ts = now
+        addrs = list(self._user_watchlist_addrs)
+        if not addrs:
+            return
+        toks = []
+        for a in addrs:
+            p = pair_by_addr.get(a)
+            if not p:
+                continue  # no fresh data this cycle -> skip (fail-open)
+            toks.append({
+                "address": a,
+                "liq_usd": float((p.get("liquidity") or {}).get("usd") or 0),
+                "vol_h24": float((p.get("volume") or {}).get("h24") or 0),
+                "mcap": float(p.get("marketCap") or p.get("fdv") or 0),
+            })
+        if not toks:
+            return
+        dead_now = set(wp.find_dead(toks, wp.min_vol_h24(), wp.min_liq()))
+        req = wp.strikes_required()
+        removed = []
+        for t in toks:
+            a = t["address"]
+            if a in dead_now:
+                self._wl_dead_strikes[a] = self._wl_dead_strikes.get(a, 0) + 1
+                if self._wl_dead_strikes[a] >= req:
+                    if self.remove_user_watchlist(a):
+                        removed.append(a)
+                    self._wl_dead_strikes.pop(a, None)
+            else:
+                self._wl_dead_strikes.pop(a, None)  # alive -> reset strikes
+        if removed:
+            logger.info(
+                f"[DipScanner] watchlist autoprune: removed {len(removed)} DEAD tokens "
+                f"(>= {req} consecutive dead readings; vol<{wp.min_vol_h24():.0f} or "
+                f"liq<{wp.min_liq():.0f} or rugged): {removed}"
+            )
+
     def _load_h24_history(self) -> None:
         """
         Load persisted history; drop entries older than the 6h window.
@@ -16023,6 +16081,14 @@ class DipScanner:
 
         except Exception as e:
             logger.error(f"[DipScanner] Fetch error: {e}")
+
+        # Watchlist auto-pruner (2026-06-03): pair_by_addr now holds this cycle's
+        # DS enrichment for watchlist addrs (force-included in to_enrich) -> prune
+        # dead ones reusing that data (no extra egress). Fail-safe: never break the cycle.
+        try:
+            self._maybe_autoprune_user_watchlist(pair_by_addr)
+        except Exception as _pe:
+            logger.debug(f"[DipScanner] watchlist autoprune err (continuing): {_pe}")
 
         source_counts = {
             "ds_stub": 0, "ds_search": 0,
