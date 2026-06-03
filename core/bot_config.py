@@ -51,6 +51,14 @@ class BotConfig:
     # bots; NOT young probes (24h vol is ill-defined for <6h tokens).
     min_token_volatility_h24_pct: Optional[float] = None
 
+    # Range-floor reject (2026-06-03): block entries on tokens whose trailing 90-minute
+    # high-low range is below this %. A flatlining/dead token (low range) cannot produce
+    # the strategy's move. Held-out (8-Opus hunt, LOTO AUC 0.767, token-clustered null
+    # p=0.009): this is a STRICT SUPERSET of the min_token_volatility_h24_pct=5 gate (blocks
+    # everything it blocks + 389 more) with 0.6% dollar winner-kill; TREND (+2.8x) untouched
+    # (90m range 35-95%). REPLACES the 5% vol floor. Fail-OPEN on missing (token <90m old).
+    min_shape_90m_range_pct: Optional[float] = None
+
     # Entry-quality gate (2026-05-27, held-out validated). When True the bot
     # blocks EXTENDED entries (the falling-knife signature behind the
     # buy-into-downtrend losses): requires a REAL pullback

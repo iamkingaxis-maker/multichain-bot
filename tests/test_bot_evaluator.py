@@ -47,6 +47,22 @@ def test_min_volatility_floor_off_by_default():
     assert ev._token_regime_passes(_bundle(raw_meta={"token_volatility_h24_pct": 0.48})) is True
 
 
+# Range-floor reject (2026-06-03) — replaces the 5% vol floor (strict superset)
+def test_min_shape_90m_range_floor_blocks_flatline():
+    ev = BotEvaluator(_cfg(min_shape_90m_range_pct=10.0))
+    # dead-flatline (4% trailing-90m range) -> blocked
+    assert ev._token_regime_passes(_bundle(raw_meta={"shape_90m_range_pct": 4.0})) is False
+    # TREND-type runner (90m range 35%+) -> passes
+    assert ev._token_regime_passes(_bundle(raw_meta={"shape_90m_range_pct": 35.1})) is True
+    # missing feature -> fail-OPEN (token <90m old)
+    assert ev._token_regime_passes(_bundle(raw_meta={})) is True
+
+
+def test_min_shape_90m_range_floor_off_by_default():
+    ev = BotEvaluator(_cfg())  # min_shape_90m_range_pct=None
+    assert ev._token_regime_passes(_bundle(raw_meta={"shape_90m_range_pct": 4.0})) is True
+
+
 # Momentum-continuation mode (#4.3)
 def test_momentum_mode_enters_on_gate_bypassing_dip_triggers():
     # No dip trigger is allowed (normal path would return None for <min_triggers), and a

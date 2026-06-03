@@ -257,6 +257,15 @@ class BotEvaluator:
             if (isinstance(_vol, (int, float)) and not isinstance(_vol, bool)
                     and _vol < c.min_token_volatility_h24_pct):
                 return False
+        # Range-floor reject (2026-06-03): trailing-90m high-low range below the floor =
+        # flatlining/dead token. Held-out LOTO AUC 0.767; strict superset of the 5% vol
+        # gate; 0.6% dollar winner-kill; TREND (90m range 35-95%) untouched. Fail-OPEN when
+        # the feature is missing (token <90m old). REPLACES min_token_volatility_h24_pct.
+        if c.min_shape_90m_range_pct is not None:
+            _rng = (b.raw_meta or {}).get("shape_90m_range_pct")
+            if (isinstance(_rng, (int, float)) and not isinstance(_rng, bool)
+                    and _rng < c.min_shape_90m_range_pct):
+                return False
         if c.require_real_pullback:
             # Held-out-validated entry-quality gate (2026-05-27): block EXTENDED
             # entries (the falling-knife signature behind the buy-into-downtrend
