@@ -94,25 +94,26 @@ def test_momentum_mode_blocks_on_overextension_above_vwap():
         raw_meta={"pc_h1": 30.0, "pct_above_vwap_h24": 40.0})) is None
 
 
-# Fresh-graduation momentum probe (2026-06-03) — early-strength entry on the rising leg
+# Fresh-graduation momentum probe (2026-06-03) — DATA-CALIBRATED order-flow gate
+# (deep dive: net_flow_60s_imbalance is the dominant pumper-vs-dumper separator d=+0.98;
+#  the originally-guessed 1m_cum_3min gate was BACKWARDS and was retired)
 def _grad_gate():
-    return [["1m_cum_3min_pct", ">=", 2.0], ["1m_volume_spike", ">=", 0.5],
-            ["vol_5m_burst_vs_h1", ">=", 1.3]]
+    return [["net_flow_60s_imbalance", ">=", 0.3], ["1m_volume_spike", ">=", 0.4]]
 
 
-def test_grad_momentum_enters_on_early_strength():
+def test_grad_momentum_enters_on_buy_flow():
     cfg = _cfg(momentum_mode=True, young_token_probe=True, entry_gate=_grad_gate())
-    # fresh token making early strength: rising 1m + volume accelerating -> ENTER the rising leg
+    # fresh token with strong 60s buy-flow imbalance -> ENTER the rising leg
     d = BotEvaluator(cfg).evaluate(_bundle(age_hours=2.0, raw_meta={
-        "1m_cum_3min_pct": 4.0, "1m_volume_spike": 0.9, "vol_5m_burst_vs_h1": 1.8}))
+        "net_flow_60s_imbalance": 0.55, "1m_volume_spike": 0.9}))
     assert d is not None and d.triggers_fired == ("momentum_continuation",)
 
 
-def test_grad_momentum_blocks_when_not_rising():
+def test_grad_momentum_blocks_on_weak_flow():
     cfg = _cfg(momentum_mode=True, young_token_probe=True, entry_gate=_grad_gate())
-    # flat/falling 1m (the post-peak dip the dip-stack would buy) -> momentum gate blocks
+    # net flow flat/negative (the dumper signature) -> gate blocks
     assert BotEvaluator(cfg).evaluate(_bundle(age_hours=2.0, raw_meta={
-        "1m_cum_3min_pct": -1.0, "1m_volume_spike": 0.9, "vol_5m_burst_vs_h1": 1.8})) is None
+        "net_flow_60s_imbalance": 0.02, "1m_volume_spike": 0.9})) is None
 
 
 def test_grad_momentum_probe_config_loads():
