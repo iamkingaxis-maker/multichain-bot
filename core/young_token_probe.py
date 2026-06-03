@@ -58,15 +58,18 @@ def is_young(age_hours, max_h: Optional[float] = None) -> bool:
         return False
 
 
-def keep_subminage_token(liq_usd, probe_on: Optional[bool] = None,
-                         min_liq: Optional[float] = None) -> bool:
-    """Discovery gate: a token YOUNGER than the fleet min_age — should it be KEPT
-    (instead of skipped)? Only when the probe is ON and it clears the young
-    liquidity floor. When the probe is OFF this is always False -> skip as before
-    (ZERO production change)."""
+def keep_subminage_token(liq_usd, age_hours=None, probe_on: Optional[bool] = None,
+                         min_liq: Optional[float] = None, max_h: Optional[float] = None) -> bool:
+    """Discovery gate: a token younger than the fleet min_age — should it be KEPT
+    (instead of skipped)? KEEP only when ALL hold: the probe is ON, the token is
+    genuinely YOUNG (age < max_age_hours — NOT the whole sub-min-age range, so
+    production's universe never expands to e.g. 2h-7d tokens), and it clears the young
+    liquidity floor. Probe OFF -> always False -> skip as before (ZERO production change)."""
     if probe_on is None:
         probe_on = probe_enabled()
     if not probe_on:
+        return False
+    if not is_young(age_hours, max_h):
         return False
     if min_liq is None:
         min_liq = min_liq_usd()

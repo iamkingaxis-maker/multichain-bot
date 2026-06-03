@@ -5,15 +5,20 @@ from core import young_token_probe as ytp
 
 def test_off_is_zero_op_discovery_and_buy():
     # probe OFF -> sub-min-age tokens are never kept, and the buy gate never skips
-    assert ytp.keep_subminage_token(liq_usd=999_999, probe_on=False) is False
+    assert ytp.keep_subminage_token(liq_usd=999_999, age_hours=1.0, probe_on=False) is False
     assert ytp.buy_gate_skip(is_young_tok=True, is_probe_bot=False, probe_on=False) is False
     assert ytp.buy_gate_skip(is_young_tok=True, is_probe_bot=True, probe_on=False) is False
 
 
 def test_discovery_keeps_young_only_with_liquidity_when_on():
-    assert ytp.keep_subminage_token(liq_usd=50_000, probe_on=True, min_liq=40_000) is True
-    assert ytp.keep_subminage_token(liq_usd=10_000, probe_on=True, min_liq=40_000) is False  # below floor
-    assert ytp.keep_subminage_token(liq_usd=None, probe_on=True, min_liq=40_000) is False
+    # young (<2h) + liquid -> kept
+    assert ytp.keep_subminage_token(liq_usd=50_000, age_hours=1.0, probe_on=True, min_liq=40_000, max_h=2.0) is True
+    # young but below floor -> skip
+    assert ytp.keep_subminage_token(liq_usd=10_000, age_hours=1.0, probe_on=True, min_liq=40_000, max_h=2.0) is False
+    # NOT young (2h-7d range) -> skip (the bug fix: production universe must not expand)
+    assert ytp.keep_subminage_token(liq_usd=50_000, age_hours=5.0, probe_on=True, min_liq=40_000, max_h=2.0) is False
+    # missing age -> skip
+    assert ytp.keep_subminage_token(liq_usd=50_000, age_hours=None, probe_on=True, min_liq=40_000) is False
 
 
 def test_is_young():

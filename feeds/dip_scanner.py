@@ -1867,7 +1867,10 @@ class DipScanner:
                 # production bots skip it in the per-bot buy gate.
                 from core.young_token_probe import keep_subminage_token
                 _yt_liq = (pair.get("liquidity") or {}).get("usd", 0)
-                if not keep_subminage_token(_yt_liq):
+                _yt_age_h = (now_ms - created_ms) / 3_600_000.0
+                # Keep ONLY genuinely-young (< max_age_hours) tokens — NOT the whole sub-7d
+                # range — so production bots' universe never expands to 2h-7d tokens.
+                if not keep_subminage_token(_yt_liq, age_hours=_yt_age_h):
                     c["age"] += 1
                     continue
 
