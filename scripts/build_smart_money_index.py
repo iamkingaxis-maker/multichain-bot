@@ -56,13 +56,22 @@ def is_dip_close(s: Dict[str, Any]) -> bool:
     r = (s.get("reason") or "").lower()
     if "cancelled on restart" in r:
         return False
+    # 2026-06-02 fix: the legacy single-trader naming ("dip stop/tp/...") dropped EVERY
+    # multi-bot sell (they use TP1/TP2/POST_TP1_TRAIL/never_runner/slow_bleed/stall/hard
+    # stop reasons), so the index was built from ~19 legacy trades. Accept any multi-bot
+    # sell (has a real bot_id) plus the legacy dip closes.
+    if s.get("bot_id") and s.get("bot_id") != "baseline_v1":
+        return True
     return any(k in r for k in ("dip stop", "dip tp", "dip trail", "dip max", "dip stall"))
 
 
 def load_paired_trades(path: str) -> List[Dict[str, Any]]:
     raw = json.load(open(path))
     trades = raw if isinstance(raw, list) else raw.get("trades", [])
-    buys = [t for t in trades if t.get("type") == "buy" and t.get("strategy") == "dip_buy"]
+    # 2026-06-02 fix: multi-bot buys carry strategy=None (only the 3% legacy path stamps
+    # "dip_buy"), so requiring =="dip_buy" dropped 97% of buys (and all the captured
+    # top_buy_makers wallet data). Accept multi-bot (None) + legacy dip_buy buys.
+    buys = [t for t in trades if t.get("type") == "buy" and t.get("strategy") in ("dip_buy", None)]
     sells = [t for t in trades if is_dip_close(t)]
     by_pair = defaultdict(list)
     for b in buys:

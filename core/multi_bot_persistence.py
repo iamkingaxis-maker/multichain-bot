@@ -280,13 +280,26 @@ class MultiBotTradeStore:
     def load_trades(self, bot_id: Optional[str] = None) -> list[dict]:
         if not self._trades_path.exists():
             return []
-        data = json.loads(self._trades_path.read_text())
-        for t in data:
-            if "bot_id" not in t:
-                t["bot_id"] = "baseline_v1"
+        # mtime-keyed cache (2026-06-02 cost fix): load_trades is called on every ~15s
+        # dashboard poll across ~9 call sites and re-parsed the full (growing) trade DB
+        # each time — the heaviest repeated CPU+disk path. Cache the parse keyed by file
+        # mtime; record_trade rewrites the file (mtime changes) so the cache self-invalidates.
+        try:
+            mtime = self._trades_path.stat().st_mtime
+        except OSError:
+            mtime = None
+        _cache = getattr(self, "_trades_cache", None)
+        if _cache is not None and _cache[0] == mtime:
+            data = _cache[1]
+        else:
+            data = json.loads(self._trades_path.read_text())
+            for t in data:
+                if "bot_id" not in t:
+                    t["bot_id"] = "baseline_v1"
+            self._trades_cache = (mtime, data)
         if bot_id is None:
             return data
-        return [t for t in data if t["bot_id"] == bot_id]
+        return [t for t in data if t.get("bot_id") == bot_id]
 
     @staticmethod
     def _atomic_write(path, text: str) -> None:
