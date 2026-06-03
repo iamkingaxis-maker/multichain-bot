@@ -981,6 +981,44 @@ class DipScanner:
             bot_id, decision.token, decision.size_usd, decision.size_tier,
         )
 
+    def _token_recent_close_pnl(self, token, address, hours=6.0):
+        """Cross-bot token-bleed regime signal (2026-06-02 #4.2). Sum trailing-`hours`
+        REALIZED leg pnl_pct across ALL bots' sells of this same token/address. Returns
+        (n_closed_legs, net_pnl_pct). Replaces the FALSIFIED instantaneous sol/btc-sign
+        regime trigger on the concurrent de-rate — a token actively bleeding across the
+        fleet right now is the real 'down regime for THIS token' signal. Uses the cached
+        load_trades (cheap). Fail-soft -> (0, 0.0)."""
+        if getattr(self, "trade_store", None) is None:
+            return 0, 0.0
+        try:
+            trades = self.trade_store.load_trades()
+        except Exception:
+            return 0, 0.0
+        from datetime import datetime, timezone, timedelta
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        keys = {k for k in (address, token) if k}
+        n = 0
+        net = 0.0
+        for t in trades:
+            if t.get("type") != "sell":
+                continue
+            if (t.get("address") or t.get("token")) not in keys:
+                continue
+            ts = t.get("time")
+            try:
+                dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+            except Exception:
+                continue
+            if dt < cutoff:
+                continue
+            p = t.get("pnl_pct")
+            if isinstance(p, (int, float)) and not isinstance(p, bool):
+                n += 1
+                net += p
+        return n, net
+
     async def _apply_pool_sizing_derates(self, decision, pm, bundle, size_usd):
         """Pool sizing de-rates (2026-06-02 fleet-mine). Returns (adjusted_size, tag).
         Cap-respecting positive selection: size only goes DOWN (never above the cap).
@@ -1010,16 +1048,15 @@ class DipScanner:
             t10 = None
         if t10 is not None and min(t10, 100.0) < 50.0:
             mult *= 0.5; tags.append("conc<50")
-        # Concurrent>1 regime-conditional de-rate (sign-flips in a down regime).
-        sol6 = getattr(bundle, "sol_pc_h6", None)
-        if sol6 is None:
-            sol6 = gf("sol_pc_h6")
-        btc1 = getattr(bundle, "btc_pc_h1", None)
-        if btc1 is None:
-            btc1 = gf("btc_pc_h1")
-        regime_down = (sol6 is not None and sol6 < 0) or (btc1 is not None and btc1 < 0)
-        if pm.open_count >= 1 and regime_down:
-            mult *= 0.5; tags.append("conc_regime")
+        # Concurrent>1 regime-conditional de-rate. The conc>1 alpha sign-flips by regime;
+        # the multi-regime mine FALSIFIED the instantaneous sol/btc-sign trigger (time-
+        # confounded) and recommended a cross-bot TOKEN-BLEED regime signal instead
+        # (#4.2, 2026-06-02): if this token is actively bleeding across the fleet right
+        # now (>=5 closed legs trailing-6h AND net pnl < 0), de-rate the concurrent entry.
+        _n_recent, _net_recent = self._token_recent_close_pnl(decision.token, decision.address, hours=6.0)
+        token_bleeding = _n_recent >= 5 and _net_recent < 0
+        if pm.open_count >= 1 and token_bleeding:
+            mult *= 0.5; tags.append("conc_bleed")
         return size_usd * mult, ("+".join(tags) if tags else "none")
 
     async def _execute_bot_buy_live(self, decision, pm, size_usd):
