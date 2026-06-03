@@ -790,6 +790,18 @@ class DipScanner:
                 bot_id, decision.token,
             )
             return
+        # Young-token probe gate (#4.1). When the global YOUNG_TOKEN_PROBE is ON, probe
+        # bots trade young-only and production bots skip young tokens. Default OFF -> no-op
+        # (young tokens are never surfaced). Checked before reserving capital.
+        from core.young_token_probe import probe_enabled as _yt_on, is_young as _yt_young, buy_gate_skip as _yt_skip
+        if _yt_on():
+            _ytm = getattr(bundle, "raw_meta", None) or {}
+            _yt_age = (_ytm.get("entry_age_hours") or _ytm.get("lifecycle_age_hours")
+                       or _ytm.get("age_hours"))
+            if _yt_skip(_yt_young(_yt_age), bool(getattr(pm.config, "young_token_probe", False))):
+                logger.info("[DipScanner] bot=%s young-probe gate: skip %s (age=%s probe_bot=%s)",
+                            bot_id, decision.token, _yt_age, getattr(pm.config, "young_token_probe", False))
+                return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
         # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
@@ -1827,9 +1839,19 @@ class DipScanner:
                 continue
 
             created_ms = pair.get("pairCreatedAt") or 0
-            if created_ms <= 0 or (now_ms - created_ms) < self.min_age_ms:
+            if created_ms <= 0:
                 c["age"] += 1
                 continue
+            if (now_ms - created_ms) < self.min_age_ms:
+                # Too young for the normal fleet -> skip (DEFAULT, zero change). When the
+                # young-token probe is ON (#4.1), KEEP it if it clears the young liquidity
+                # floor so young_token_probe bots can measure it on realized paths;
+                # production bots skip it in the per-bot buy gate.
+                from core.young_token_probe import keep_subminage_token
+                _yt_liq = (pair.get("liquidity") or {}).get("usd", 0)
+                if not keep_subminage_token(_yt_liq):
+                    c["age"] += 1
+                    continue
 
             vol_h24 = (pair.get("volume") or {}).get("h24", 0) or 0
             # USER_WATCHLIST bypass: vol_h24 minimum for universe discovery,

@@ -19,7 +19,8 @@ def catalog():
     # standard $20 strategy-ablation member.
     reg.configs = [c for c in reg.configs
                    if not c.bot_id.startswith("probe_")
-                   and not c.bot_id.startswith("pool_")]
+                   and not c.bot_id.startswith("pool_")
+                   and not c.bot_id.startswith("young_probe_")]
     return reg
 
 

@@ -223,6 +223,13 @@ class BotConfig:
     # firm the (provisional, ~3-day) magnitudes.
     pool_sizing_derates_enabled: bool = False
 
+    # Young-token probe (2026-06-02, #4.1). When the global YOUNG_TOKEN_PROBE env flag is
+    # on, a bot with young_token_probe=True trades YOUNG tokens ONLY (age < the young
+    # threshold, surfaced past the fleet min_age gate with a liquidity floor); production
+    # bots (False) SKIP young tokens. Default False + env off = no change. Tests whether the
+    # universe-mine's age<=2 edge survives on realized dip-buy paths. See core/young_token_probe.py.
+    young_token_probe: bool = False
+
     def __post_init__(self) -> None:
         # Normalize entry_gate to a hashable tuple-of-tuples (JSON yields
         # tuple-of-lists; the frozen dataclass's auto __hash__ chokes on lists).
