@@ -46,6 +46,52 @@ def _is_phantom(s: dict) -> bool:
     return False
 
 
+def _mark_scrubbed(s: dict) -> None:
+    """Zero a phantom record's pnl AND clean its reason string, preserving the
+    originals (orig_pnl/orig_pnl_pct/orig_reason) for audit. Centralizes the scrub
+    so the misleading reason text never survives the scrub (2026-06-03: a scrubbed
+    Buttcoin record still read 'hard stop pnl=-99.98%' while its realized pnl was
+    $0, tripping reason-based audits)."""
+    s["orig_pnl"] = s.get("pnl")
+    s["orig_pnl_pct"] = s.get("pnl_pct")
+    if "orig_reason" not in s:
+        s["orig_reason"] = s.get("reason")
+    s["pnl"] = 0.0
+    s["pnl_pct"] = 0.0
+    s["reason"] = "phantom_scrubbed"
+    s["phantom_scrubbed"] = True
+
+
+def backfill_scrubbed_reasons(data_dir) -> int:
+    """Reason-only hygiene backfill for records scrubbed BEFORE _mark_scrubbed
+    cleaned the reason (e.g. the Buttcoin record). Touches ONLY the reason string
+    (never pnl), so it cannot double-correct P&L. Idempotent: skips records whose
+    reason is already 'phantom_scrubbed'. Safe to run every startup."""
+    data_dir = Path(data_dir)
+    trades_path = data_dir / "trades_multi.json"
+    if not trades_path.exists():
+        return 0
+    try:
+        trades = json.loads(trades_path.read_text())
+    except Exception as e:
+        print(f"[reason_backfill] could not read trades: {e} — aborting (safe)")
+        return 0
+    if not isinstance(trades, list):
+        return 0
+    fixed = 0
+    for s in trades:
+        if (isinstance(s, dict) and s.get("phantom_scrubbed")
+                and s.get("reason") != "phantom_scrubbed"):
+            if "orig_reason" not in s:
+                s["orig_reason"] = s.get("reason")
+            s["reason"] = "phantom_scrubbed"
+            fixed += 1
+    if fixed:
+        trades_path.write_text(json.dumps(trades))
+        print(f"[reason_backfill] cleaned {fixed} stale phantom reason strings")
+    return fixed
+
+
 def migrate(data_dir, force: bool = False) -> int:
     """Subtract phantom pnl from affected bots' bot_state. Returns # bots fixed.
     Idempotent via data_dir/phantom_scrub_done.json sentinel."""
@@ -166,11 +212,7 @@ def mark_phantom_trades(data_dir, force: bool = False) -> int:
     marked = 0
     for s in trades:
         if isinstance(s, dict) and _is_phantom(s) and not s.get("phantom_scrubbed"):
-            s["orig_pnl"] = s.get("pnl")
-            s["orig_pnl_pct"] = s.get("pnl_pct")
-            s["pnl"] = 0.0
-            s["pnl_pct"] = 0.0
-            s["phantom_scrubbed"] = True
+            _mark_scrubbed(s)
             marked += 1
 
     if marked == 0:
@@ -316,11 +358,7 @@ def scrub_unscrubbed_phantoms(data_dir, low_fn=None) -> int:
     # Mark the records (atomic with the above — same run, before any reload).
     marked = 0
     for s in new_phantoms:
-        s["orig_pnl"] = s.get("pnl")
-        s["orig_pnl_pct"] = s.get("pnl_pct")
-        s["pnl"] = 0.0
-        s["pnl_pct"] = 0.0
-        s["phantom_scrubbed"] = True
+        _mark_scrubbed(s)
         marked += 1
     trades_path.write_text(json.dumps(trades))
     print(f"[self_heal] scrubbed {marked} new phantom sells across {fixed_bots} bots "
@@ -423,3 +461,4 @@ if __name__ == "__main__":
     mark_phantom_trades(Path(a.data_dir), force=a.force)
     repair_phantom_daily_pnl(Path(a.data_dir), force=a.force)
     scrub_unscrubbed_phantoms(Path(a.data_dir))
+    backfill_scrubbed_reasons(Path(a.data_dir))
