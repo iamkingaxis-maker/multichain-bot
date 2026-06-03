@@ -258,6 +258,7 @@ class DipScanner:
         # checks before removal (no removal on a single quiet blip).
         self._wl_dead_strikes: dict = {}
         self._wl_last_prune_ts: float = 0.0
+        self._wl_last_add_ts: float = 0.0  # auto-add throttle
         # Tier 3: optional AxiomPriceFeed for sub-minute tick buffer reads.
         # Set externally via `dip_scanner.axiom_price_feed = axiom.price_feed`.
         # If present, we pre-subscribe candidates that pass core filters and
@@ -15734,6 +15735,51 @@ class DipScanner:
                 f"liq<{wp.min_liq():.0f} or rugged): {removed}"
             )
 
+    def _maybe_autoadd_user_watchlist(self, pair_by_addr: dict) -> None:
+        """Auto-ADD fresh live movers to the user watchlist (2026-06-03).
+
+        Scans THIS cycle's discovered+enriched tokens (pair_by_addr) and adds the
+        strongest FRESH (age<=max), tradeable (liq/vol floors), RISING (pc_h1 floor)
+        movers not already on the list -- up to a total cap + per-run cap. Reuses the
+        cycle's DS data (zero extra egress). The watchlist only SURFACES tokens
+        (mcap-bypass for discovery) so the real triggers/filters still gate any buy;
+        this just keeps a rolling live-mover feed (auto-add strong, auto-prune dead).
+        Fully try/except-wrapped by the caller. Env: WATCHLIST_AUTOADD (default on),
+        WATCHLIST_MAX_SIZE, WATCHLIST_ADD_MIN_LIQ/MIN_VOL_H24/MIN_PC_H1/MAX_AGE_H,
+        WATCHLIST_AUTOADD_INTERVAL_SECS, WATCHLIST_ADD_MAX_PER_RUN."""
+        from core import watchlist_pruner as wp
+        if not wp.autoadd_enabled():
+            return
+        now = time.monotonic()
+        if now - self._wl_last_add_ts < wp.add_interval_secs():
+            return
+        self._wl_last_add_ts = now
+        now_ms = int(time.time() * 1000)
+        toks = []
+        for addr, p in pair_by_addr.items():
+            if not isinstance(p, dict):
+                continue
+            created = p.get("pairCreatedAt") or 0
+            age_h = (now_ms - created) / 3_600_000.0 if created else None
+            toks.append({
+                "address": addr,
+                "liq_usd": float((p.get("liquidity") or {}).get("usd") or 0),
+                "vol_h24": float((p.get("volume") or {}).get("h24") or 0),
+                "pc_h1": (p.get("priceChange") or {}).get("h1"),
+                "age_h": age_h,
+            })
+        adds = wp.find_adds(
+            toks, self._user_watchlist_addrs, wp.max_size(), wp.add_min_liq(),
+            wp.add_min_vol_h24(), wp.add_min_pc_h1(), wp.add_max_age_h(), wp.add_max_per_run(),
+        )
+        added = [a for a in adds if self.add_user_watchlist(a)]
+        if added:
+            logger.info(
+                f"[DipScanner] watchlist autoadd: added {len(added)} fresh live movers "
+                f"(age<={wp.add_max_age_h():.0f}h, liq>={wp.add_min_liq():.0f}, "
+                f"vol>={wp.add_min_vol_h24():.0f}, pc_h1>={wp.add_min_pc_h1():.0f}): {added}"
+            )
+
     def _load_h24_history(self) -> None:
         """
         Load persisted history; drop entries older than the 6h window.
@@ -16089,6 +16135,12 @@ class DipScanner:
             self._maybe_autoprune_user_watchlist(pair_by_addr)
         except Exception as _pe:
             logger.debug(f"[DipScanner] watchlist autoprune err (continuing): {_pe}")
+        # Watchlist auto-ADD: self-populate with fresh live movers from this cycle's
+        # discovery (mirror of the pruner; reuses the same enrichment). Fail-safe.
+        try:
+            self._maybe_autoadd_user_watchlist(pair_by_addr)
+        except Exception as _ae:
+            logger.debug(f"[DipScanner] watchlist autoadd err (continuing): {_ae}")
 
         source_counts = {
             "ds_stub": 0, "ds_search": 0,

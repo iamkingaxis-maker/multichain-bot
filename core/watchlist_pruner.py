@@ -58,8 +58,94 @@ def interval_secs() -> float:
         return 1800.0
 
 
+# ---- Auto-ADD config (2026-06-03): self-populate the watchlist with fresh live movers ----
+def autoadd_enabled() -> bool:
+    return _flag("WATCHLIST_AUTOADD", "1")  # default ON
+
+
+def max_size() -> int:
+    try:
+        return max(1, int(os.environ.get("WATCHLIST_MAX_SIZE", "150")))
+    except (TypeError, ValueError):
+        return 150
+
+
+def add_min_liq() -> float:
+    try:
+        return float(os.environ.get("WATCHLIST_ADD_MIN_LIQ", "40000"))
+    except (TypeError, ValueError):
+        return 40000.0
+
+
+def add_min_vol_h24() -> float:
+    try:
+        return float(os.environ.get("WATCHLIST_ADD_MIN_VOL_H24", "75000"))
+    except (TypeError, ValueError):
+        return 75000.0
+
+
+def add_min_pc_h1() -> float:
+    try:
+        return float(os.environ.get("WATCHLIST_ADD_MIN_PC_H1", "8"))
+    except (TypeError, ValueError):
+        return 8.0
+
+
+def add_max_age_h() -> float:
+    try:
+        return float(os.environ.get("WATCHLIST_ADD_MAX_AGE_H", "24"))
+    except (TypeError, ValueError):
+        return 24.0
+
+
+def add_interval_secs() -> float:
+    try:
+        return float(os.environ.get("WATCHLIST_AUTOADD_INTERVAL_SECS", "600"))  # 10 min
+    except (TypeError, ValueError):
+        return 600.0
+
+
+def add_max_per_run() -> int:
+    try:
+        return max(1, int(os.environ.get("WATCHLIST_ADD_MAX_PER_RUN", "10")))
+    except (TypeError, ValueError):
+        return 10
+
+
 def _num(v):
     return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def find_adds(tokens, current_addrs, max_total, min_liquidity,
+              min_vol, min_pc_h1, max_age_hours, max_per_run) -> list:
+    """Return addresses to ADD to the watchlist: FRESH (age<=max_age_hours), tradeable
+    (liq>=floor, vol_h24>=floor), and RISING (pc_h1>=floor) movers not already on it.
+    Ranked by 24h volume (strongest first), capped by remaining room (max_total) and
+    max_per_run. tokens = list of dicts: address, liq_usd, vol_h24, pc_h1, age_h.
+    Conservative by design — the watchlist only SURFACES tokens (mcap-bypass for
+    discovery); the real triggers/filters still gate any actual buy."""
+    cur = set(current_addrs)
+    room = max_total - len(cur)
+    if room <= 0:
+        return []
+    cands = []
+    for t in tokens:
+        addr = t.get("address")
+        if not addr or addr in cur:
+            continue
+        liq = _num(t.get("liq_usd"))
+        vol = _num(t.get("vol_h24"))
+        pch1 = _num(t.get("pc_h1"))
+        age = _num(t.get("age_h"))
+        if liq is None or vol is None or pch1 is None:
+            continue  # need full evidence to ADD (stricter than prune)
+        if liq < min_liquidity or vol < min_vol or pch1 < min_pc_h1:
+            continue
+        if age is not None and age > max_age_hours:
+            continue  # fresh only
+        cands.append((vol, addr))
+    cands.sort(reverse=True)  # strongest movers (by volume) first
+    return [a for _, a in cands[:min(room, max_per_run)]]
 
 
 def find_dead(tokens, min_vol: Optional[float] = None, min_liquidity: Optional[float] = None) -> list:

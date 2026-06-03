@@ -1,11 +1,20 @@
 """Watchlist auto-pruner (core/watchlist_pruner.find_dead) — dead-token detection.
 2026-06-03: auto-remove DEAD tokens from the user watchlist (rugged / no liquidity /
 dried-up volume), fail-OPEN on missing data so a token we can't assess is never pruned."""
-from core.watchlist_pruner import find_dead
+from core.watchlist_pruner import find_dead, find_adds
 
 
 def _t(addr, liq=None, vol=None, mcap=None):
     return {"address": addr, "liq_usd": liq, "vol_h24": vol, "mcap": mcap}
+
+
+def _a(addr, liq=80000, vol=120000, pc_h1=15, age_h=3):
+    return {"address": addr, "liq_usd": liq, "vol_h24": vol, "pc_h1": pc_h1, "age_h": age_h}
+
+
+# defaults mirror config: max_total, min_liq, min_vol, min_pc_h1, max_age_h, max_per_run
+def _adds(tokens, current=(), max_total=150):
+    return find_adds(tokens, list(current), max_total, 40000, 75000, 8, 24, 10)
 
 
 def test_rugged_is_dead():
@@ -48,3 +57,38 @@ def test_mixed_batch():
         _t("nodata"),
     ]
     assert set(find_dead(rows, 25000, 20000)) == {"rug", "thin"}
+
+
+# ---- auto-ADD ----
+def test_add_fresh_live_mover():
+    assert _adds([_a("good")]) == ["good"]
+
+
+def test_add_skips_already_on_list():
+    assert _adds([_a("dup")], current=["dup"]) == []
+
+
+def test_add_skips_stale_token():
+    assert _adds([_a("old", age_h=48)]) == []          # too old (>24h)
+
+
+def test_add_skips_weak():
+    assert _adds([_a("lowliq", liq=10000)]) == []        # liq below floor
+    assert _adds([_a("lowvol", vol=20000)]) == []        # vol below floor
+    assert _adds([_a("flat", pc_h1=2)]) == []            # not rising enough
+
+
+def test_add_requires_full_evidence():
+    # missing any of liq/vol/pc_h1 -> not added (stricter than prune)
+    assert _adds([{"address": "x", "liq_usd": 80000, "vol_h24": 120000, "age_h": 3}]) == []
+
+
+def test_add_ranks_by_volume_and_caps_room():
+    toks = [_a("v1", vol=300000), _a("v2", vol=200000), _a("v3", vol=100000)]
+    # cap total at len(current)+2 -> only top-2 by volume added
+    assert find_adds(toks, ["x"], 3, 40000, 75000, 8, 24, 10) == ["v1", "v2"]
+
+
+def test_add_respects_max_per_run():
+    toks = [_a(f"t{i}", vol=100000 + i) for i in range(20)]
+    assert len(find_adds(toks, [], 150, 40000, 75000, 8, 24, 5)) == 5
