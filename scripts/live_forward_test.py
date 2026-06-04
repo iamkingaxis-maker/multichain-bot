@@ -174,6 +174,14 @@ def slip_asym_block(c):
         return True
     return False
 
+def buyer_concentration_block(c):
+    """Phantom mirror for buyer_concentration SHADOW (2026-06-04). Blocks when
+    buying is whale-dominated (large_buyer_volume_pct >= BUYER_CONC_BLOCK_THR,
+    default 0.5) — the fresh-token bleed signature (fleet d=-0.80). Fails open when
+    the candidate snapshot lacks the field."""
+    from core.buyer_concentration import buyer_concentration_verdict
+    return buyer_concentration_verdict(c)[0] == "BLOCK"
+
 def mtf_textbook_only_pass(c):
     """Pass only if textbook pullback pattern: 15m red AND 5m red AND 1m green."""
     return c.get('mtf_textbook_pullback') == 1
@@ -366,6 +374,7 @@ COMBOS = {
     'I_B_plus_regime_panic': lambda c: not scanner_block_reasons(c) and not turn_block(c) and not regime_panic_block(c),
     'J_B_plus_slip_asym':    lambda c: not scanner_block_reasons(c) and not turn_block(c) and not slip_asym_block(c),
     'K_B_plus_all_three':    lambda c: not scanner_block_reasons(c) and not turn_block(c) and not weak_bounce_block(c) and not regime_panic_block(c) and not slip_asym_block(c),
+    'L_B_plus_buyer_conc':   lambda c: not scanner_block_reasons(c) and not turn_block(c) and not buyer_concentration_block(c),
     # Multi-TF momentum stacking (2026-05-05).
     'L_B_plus_mtf_textbook': lambda c: not scanner_block_reasons(c) and not turn_block(c) and mtf_textbook_only_pass(c),
     'M_B_plus_mtf_2green':   lambda c: not scanner_block_reasons(c) and not turn_block(c) and not mtf_2plus_green_block(c),
