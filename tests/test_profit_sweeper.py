@@ -2,7 +2,7 @@
 bot (real-money transfer). Money-math + fail-closed + dry-run + the $5 cap."""
 from core.profit_sweeper import (
     compute_sweepable_sol, usd_to_sol, validate_destination, ratchet_target_sol,
-    ProfitSweeper,
+    ProfitSweeper, auto_sweep_decision,
 )
 
 HOT = "5xot1111111111111111111111111111111111111H"   # placeholder, not used for pubkey-validity here
@@ -120,3 +120,44 @@ def test_balance_fetch_failure_skips():
                       get_sol_price_usd=lambda: 200.0, configured_dest=COLD, hot_addr=HOT)
     r = s.sweep_once(dry_run=False)
     assert r["sent"] is False and r["reason"] == "balance_fetch_failed"
+
+
+# ── auto_sweep_decision (production fixed-floor, USD-pegged) ──
+def test_auto_sweep_keeps_floor_sweeps_excess():
+    # balance 10 SOL @ $200 = $2000; floor $1000 = 5 SOL; gas 0.05 -> sweep ~4.95 SOL (~$990)
+    d = auto_sweep_decision(balance_sol=10.0, sol_price=200.0, floor_usd=1000.0,
+                            gas_buffer_sol=0.05, min_increment_usd_v=5.0)
+    assert d["should_sweep"] is True
+    assert abs(d["sweepable_sol"] - 4.95) < 1e-6
+    assert abs(d["sweepable_usd"] - 990.0) < 0.5
+
+
+def test_auto_sweep_below_increment_skips():
+    # balance 5.02 SOL @ $200 = $1004; floor $1000 = 5 SOL; excess ~0.02 SOL minus gas
+    # -> sweepable_usd < $5 -> skip
+    d = auto_sweep_decision(5.04, 200.0, 1000.0, 0.05, 5.0)
+    assert d["should_sweep"] is False and d["reason"] == "below_increment"
+
+
+def test_auto_sweep_at_floor_skips():
+    # exactly at floor + gas -> nothing sweepable
+    d = auto_sweep_decision(5.05, 200.0, 1000.0, 0.05, 5.0)
+    assert d["should_sweep"] is False
+
+
+def test_auto_sweep_no_floor_fails_closed():
+    # floor 0 would drain the float -> never sweep
+    d = auto_sweep_decision(10.0, 200.0, 0.0, 0.05, 5.0)
+    assert d["should_sweep"] is False and d["reason"] == "no_floor_set"
+
+
+def test_auto_sweep_implausible_price_fails_closed():
+    assert auto_sweep_decision(10.0, 5.0, 1000.0, 0.05, 5.0)["reason"] == "implausible_sol_price"
+    assert auto_sweep_decision(10.0, 9999.0, 1000.0, 0.05, 5.0)["reason"] == "implausible_sol_price"
+
+
+def test_auto_sweep_usd_peg_recomputes_floor():
+    # same $1000 floor at $100/SOL = 10 SOL floor; balance 12 -> ~1.95 SOL sweepable
+    d = auto_sweep_decision(12.0, 100.0, 1000.0, 0.05, 5.0)
+    assert d["should_sweep"] is True and abs(d["floor_sol"] - 10.0) < 1e-6
+    assert abs(d["sweepable_sol"] - 1.95) < 1e-6

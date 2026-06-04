@@ -114,6 +114,44 @@ def test_cap_usd() -> float:
     return _f("PROFIT_SWEEP_MAX_USD_PER_CALL", 5.0)
 
 
+# ── production auto-sweep config (fixed-floor, USD-pegged) ──────────────────────
+def working_floor_usd() -> float:
+    # The working-capital baseline kept in the hot wallet (USD). MUST be set > 0 for
+    # the auto-sweep to run — fail-closed otherwise (never drain the float).
+    return _f("WORKING_CAPITAL_FLOOR_USD", 0.0)
+
+
+def min_increment_usd() -> float:
+    # Don't sweep until idle profit above the floor clears this (avoid fee churn).
+    return _f("SWEEP_MIN_INCREMENT_USD", 5.0)
+
+
+def min_interval_secs() -> float:
+    return _f("SWEEP_MIN_INTERVAL_SECS", 3600.0)
+
+
+def auto_sweep_decision(balance_sol, sol_price, floor_usd, gas_buffer_sol,
+                        min_increment_usd_v) -> dict:
+    """PURE production auto-sweep decision (fixed-floor, USD-pegged): keep `floor_usd`
+    of working capital in the hot wallet, sweep ALL idle SOL above it to cold once the
+    excess clears the min increment. Returns {should_sweep, reason, sweepable_sol,
+    lamports, sweepable_usd, floor_sol}. FAIL-CLOSED: no sweep if the SOL price is
+    implausible or floor_usd<=0 (an unset floor would drain the entire float)."""
+    if not (isinstance(sol_price, (int, float)) and 30.0 <= sol_price <= 2000.0):
+        return {"should_sweep": False, "reason": "implausible_sol_price"}
+    if not floor_usd or floor_usd <= 0:
+        return {"should_sweep": False, "reason": "no_floor_set"}
+    floor_sol = float(floor_usd) / float(sol_price)
+    sweepable_sol = compute_sweepable_sol(balance_sol, floor_sol, gas_buffer_sol)
+    sweepable_usd = sweepable_sol * float(sol_price)
+    if sweepable_usd < float(min_increment_usd_v):
+        return {"should_sweep": False, "reason": "below_increment",
+                "sweepable_usd": round(sweepable_usd, 2), "floor_sol": round(floor_sol, 6)}
+    return {"should_sweep": True, "sweepable_sol": round(sweepable_sol, 9),
+            "lamports": int(sweepable_sol * LAMPORTS_PER_SOL),
+            "sweepable_usd": round(sweepable_usd, 2), "floor_sol": round(floor_sol, 6)}
+
+
 # ── executor ──────────────────────────────────────────────────────────────────
 class ProfitSweeper:
     """Orchestrates one sweep. Dependencies injected so the money-moving primitive

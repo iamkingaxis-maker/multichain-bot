@@ -3012,6 +3012,57 @@ class Trader:
         return {"sent": True, "amount_sol": plan["amount_sol"], "lamports": plan["lamports"],
                 "dest": plan["dest"], "sig": sig}
 
+    async def maybe_auto_sweep(self) -> None:
+        """PRODUCTION auto profit-sweep (LIVE only). Keeps the hot wallet at the
+        working-capital floor (USD-pegged) by sweeping ALL idle SOL above it to the
+        cold wallet, at most once per min-interval, when the excess clears the min
+        increment ($5). This is the user's policy: keep $X baseline, sweep everything
+        above it. No-op in paper (no key). Best-effort — never raises into the loop.
+        Uses self.private_key (the live key, present ONLY when PAPER_MODE=false), so
+        it cannot move money in paper mode. Gated: PROFIT_SWEEP_ENABLED + a floor set;
+        DRY-RUN by default (PROFIT_SWEEP_DRY_RUN=1) — logs intent until set false."""
+        import os as _os
+        import time as _time
+        from core import profit_sweeper as _ps
+        if not self.private_key:
+            return  # paper -> no key -> no-op (cannot move money)
+        if not _ps.enabled():
+            return
+        now = _time.monotonic()
+        if (now - getattr(self, "_last_sweep_ts", 0.0)) < _ps.min_interval_secs():
+            return
+        self._last_sweep_ts = now  # claim the interval before work (avoid RPC churn)
+        try:
+            dest = _os.environ.get("PROFIT_WALLET_ADDRESS", "")
+            hot = self._get_public_key()
+            if not _ps.validate_destination(dest, hot, dest):
+                logger.error("[Sweep] AUTO: bad/mismatched destination — skip (fail-closed)")
+                return
+            price = await self._get_token_price(SOL_MINT)
+            bal = await self._get_sol_balance(force=True)
+            if not isinstance(bal, (int, float)) or bal < 0:
+                return
+            floor_usd = _ps.working_floor_usd()
+            d = _ps.auto_sweep_decision(bal, price, floor_usd, _ps.gas_buffer_sol(),
+                                        _ps.min_increment_usd())
+            if not d.get("should_sweep"):
+                logger.info(f"[Sweep] AUTO no-op: {d.get('reason')} "
+                            f"(bal={bal:.4f} SOL, floor=${floor_usd:.0f})")
+                return
+            if _ps.dry_run_default():
+                logger.critical(f"[Sweep] AUTO DRY-RUN: would sweep {d['sweepable_sol']:.4f} SOL "
+                                f"(~${d['sweepable_usd']:.2f}) -> {dest} (floor ${floor_usd:.0f})")
+                return
+            logger.critical(f"[Sweep] AUTO sweeping {d['sweepable_sol']:.4f} SOL "
+                            f"(~${d['sweepable_usd']:.2f}) -> {dest} (keep ${floor_usd:.0f})")
+            sig = await self.send_sol_transfer(dest, d["lamports"])
+            if sig:
+                logger.critical(f"[Sweep] AUTO confirmed ~${d['sweepable_usd']:.2f} sig={sig}")
+            else:
+                logger.error("[Sweep] AUTO transfer failed")
+        except Exception as e:
+            logger.error(f"[Sweep] AUTO error: {e}")
+
     async def maybe_fire_sweep_test(self) -> None:
         """One-shot BOOT trigger for the manual profit-sweep test (Option B). Fires at
         most ONCE per PROFIT_SWEEP_TEST_FIRE value, guarded by a persisted sentinel in

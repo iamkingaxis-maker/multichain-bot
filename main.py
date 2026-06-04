@@ -509,6 +509,18 @@ async def main():
         if sol_monitor:
             tasks.append(sol_monitor.run())
 
+        # Production profit-sweep loop. Self-gates: no-op in paper (no key), unless
+        # PROFIT_SWEEP_ENABLED + a working-capital floor set; DRY-RUN by default.
+        # Keeps the hot wallet at WORKING_CAPITAL_FLOOR_USD, sweeping excess to cold.
+        async def _profit_sweep_loop():
+            while True:
+                await asyncio.sleep(300)  # check every 5min; maybe_auto_sweep self-gates to the hourly min-interval
+                try:
+                    await sol_trader.maybe_auto_sweep()
+                except Exception as _e:
+                    logger.error(f"[Sweep] loop error: {_e}")
+        tasks.append(_profit_sweep_loop())
+
         # ── Graduation Sniper (wired after axiom init below) ─────────────
         grad_sniper = None
         if config.graduation_enabled:
