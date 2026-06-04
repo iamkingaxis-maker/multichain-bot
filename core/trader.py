@@ -2923,6 +2923,89 @@ class Trader:
         except Exception:
             return ""
 
+    async def send_sol_transfer(self, to_addr: str, lamports: int) -> Optional[str]:
+        """Plain System Program SOL transfer hot->cold (profit sweep). Returns the
+        CONFIRMED tx signature or None on any failure. The ONLY non-swap outbound
+        transfer the bot makes — loud + confirmation-gated. The caller
+        (execute_profit_sweep / core.profit_sweeper) validates destination, caps the
+        amount, and handles dry-run BEFORE this is ever called."""
+        if not self.private_key:
+            logger.error("[Sweep] no private key — transfer refused")
+            return None
+        try:
+            import base64 as _b64
+            from solders.keypair import Keypair
+            from solders.pubkey import Pubkey
+            from solders.system_program import transfer, TransferParams
+            from solders.message import MessageV0
+            from solders.transaction import VersionedTransaction
+            from solders.hash import Hash
+            kp = Keypair.from_base58_string(self.private_key)
+            payer = kp.pubkey()
+            to_pk = Pubkey.from_string(to_addr)
+            if to_pk == payer:
+                logger.critical("[Sweep] refusing transfer to self — abort")
+                return None
+            bh = await self._post_rpc({"jsonrpc": "2.0", "id": 1,
+                                       "method": "getLatestBlockhash",
+                                       "params": [{"commitment": "finalized"}]})
+            blockhash = (((bh or {}).get("result") or {}).get("value") or {}).get("blockhash")
+            if not blockhash:
+                logger.error("[Sweep] no blockhash — abort")
+                return None
+            ix = transfer(TransferParams(from_pubkey=payer, to_pubkey=to_pk,
+                                         lamports=int(lamports)))
+            msg = MessageV0.try_compile(payer, [ix], [], Hash.from_string(blockhash))
+            tx = VersionedTransaction(msg, [kp])
+            raw = _b64.b64encode(bytes(tx)).decode("utf-8")
+            res = await self._post_rpc({"jsonrpc": "2.0", "id": 1, "method": "sendTransaction",
+                                        "params": [raw, {"encoding": "base64",
+                                                         "skipPreflight": False}]},
+                                       total_timeout=30.0)
+            if not res or "error" in res:
+                logger.error(f"[Sweep] send failed: {(res or {}).get('error')}")
+                return None
+            sig = res.get("result", "")
+            if not sig:
+                return None
+            logger.critical(f"[Sweep] transfer sent sig={sig} — awaiting confirmation")
+            return sig if await self._await_tx_confirmation(sig) else None
+        except Exception as e:
+            logger.error(f"[Sweep] transfer error: {e}")
+            return None
+
+    async def execute_profit_sweep(self, dry_run: bool = True,
+                                   max_usd: Optional[float] = None) -> dict:
+        """Fire ONE profit sweep using this trader's live primitives. PLAN-then-SEND:
+        the tested core.profit_sweeper guard logic (balance / USD cap / fail-closed
+        destination) runs as a dry-run plan; only if a LIVE send is requested AND the
+        plan cleared every guard do we execute the async transfer. The manual $5 test
+        calls this with the default cap. Loud; no-op-safe (returns a structured dict)."""
+        import os as _os
+        from core import profit_sweeper as _ps
+        if max_usd is None:
+            max_usd = _ps.test_cap_usd()
+        dest = _os.environ.get("PROFIT_WALLET_ADDRESS", "")
+        bal = await self._get_sol_balance(force=True)
+        sol_price = await self._get_token_price(SOL_MINT)
+        sweeper = _ps.ProfitSweeper(
+            get_balance_sol=lambda: (bal if isinstance(bal, (int, float)) and bal >= 0 else None),
+            send_transfer=lambda d, l: None,  # unused — async send handled below
+            get_sol_price_usd=lambda: (sol_price if sol_price and sol_price > 0 else None),
+            configured_dest=dest, hot_addr=self._get_public_key(),
+        )
+        # Plan: runs ALL guards (balance fetch, $ cap, fail-closed destination).
+        # ignore_threshold=True because the $5 test is intentionally below the
+        # production SWEEP_THRESHOLD_SOL — the hard USD cap is the guard here.
+        plan = sweeper.sweep_once(dry_run=True, max_usd=max_usd, ignore_threshold=True)
+        if dry_run or not plan.get("dry_run"):
+            return plan  # dry-run requested, OR a guard blocked the send
+        sig = await self.send_sol_transfer(plan["dest"], plan["lamports"])
+        if not sig:
+            return {"sent": False, "reason": "transfer_failed", "amount_sol": plan["amount_sol"]}
+        return {"sent": True, "amount_sol": plan["amount_sol"], "lamports": plan["lamports"],
+                "dest": plan["dest"], "sig": sig}
+
     async def _get_token_liquidity(self, token_address: str) -> float:
         """Get token pool liquidity in USD from DexScreener."""
         try:

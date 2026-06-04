@@ -2141,6 +2141,7 @@ class WebDashboard:
         self.app.router.add_post("/api/update-axiom-token", self._handle_update_axiom_token)
         self.app.router.add_post("/api/axiom-relay",        self._handle_axiom_relay)
         self.app.router.add_post("/api/reset",              self._handle_reset)
+        self.app.router.add_post("/api/profit-sweep/execute", self._handle_profit_sweep_execute)
         self.app.router.add_post("/api/reset-daily-pnl",     self._handle_reset_daily_pnl)
         self.app.router.add_post("/api/restore",             self._handle_restore)
         self.app.router.add_get("/api/closed-positions",   self._handle_closed_positions)
@@ -2496,6 +2497,39 @@ class WebDashboard:
             content_type="application/json",
             headers={"Access-Control-Allow-Origin": "*"},
         )
+
+    async def _handle_profit_sweep_execute(self, request):
+        """POST /api/profit-sweep/execute — fire ONE profit sweep (the manual $5 test).
+        DEFENSE IN DEPTH: (1) auth middleware gates this POST and fails CLOSED in live;
+        (2) inert unless PROFIT_SWEEP_ENABLED; (3) dry_run defaults True — a LIVE send
+        needs body {"dry_run": false, "confirm": "SEND"}; (4) hard USD cap from
+        core.profit_sweeper.test_cap_usd() ($5 default). Body: {dry_run, confirm}."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        from core import profit_sweeper as _ps
+        if not _ps.enabled():
+            return web.json_response(
+                {"ok": False, "error": "PROFIT_SWEEP_ENABLED is off — sweep disabled"},
+                status=403, headers=cors)
+        if not self._trader:
+            return web.json_response({"ok": False, "error": "Trader not registered"},
+                                     status=500, headers=cors)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        dry_run = bool(body.get("dry_run", True))
+        if not dry_run and str(body.get("confirm", "")) != "SEND":
+            return web.json_response(
+                {"ok": False, "error": 'live send requires {"dry_run": false, "confirm": "SEND"}'},
+                status=400, headers=cors)
+        max_usd = _ps.test_cap_usd()
+        try:
+            result = await self._trader.execute_profit_sweep(dry_run=dry_run, max_usd=max_usd)
+        except Exception as e:
+            logger.error(f"[Dashboard] profit-sweep execute error: {e}")
+            return web.json_response({"ok": False, "error": str(e)}, status=500, headers=cors)
+        return web.json_response({"ok": True, "dry_run": dry_run, "max_usd_cap": max_usd,
+                                  "result": result}, headers=cors)
 
     async def _handle_sell(self, request):
         """POST /api/sell — manually sell an open position."""
