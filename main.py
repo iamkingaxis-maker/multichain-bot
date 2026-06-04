@@ -521,6 +521,23 @@ async def main():
                     logger.error(f"[Sweep] loop error: {_e}")
         tasks.append(_profit_sweep_loop())
 
+        # Rolling never-green scorer — nightly retrain on the trailing trade log
+        # (2026-06-04). Trains the live model on the bot's OWN closed trades so feature
+        # keys match what dip_scanner stamps. MEASURE-ONLY shadow (dip_scanner stamps the
+        # verdict; nothing gates yet). Fail-safe: errors leave the prior model in place.
+        async def _rolling_ng_retrain_loop():
+            from core.rolling_ng_retrain import retrain_and_save
+            from core.rolling_ng_live import model_path
+            _ddir = os.environ.get("DATA_DIR", ".")
+            while True:
+                try:
+                    _r = retrain_and_save(_ddir, model_path())
+                    logger.info(f"[RollingNG] nightly retrain: {_r}")
+                except Exception as _e:
+                    logger.error(f"[RollingNG] retrain loop error: {_e}")
+                await asyncio.sleep(24 * 3600)  # daily
+        tasks.append(_rolling_ng_retrain_loop())
+
         # ── Graduation Sniper (wired after axiom init below) ─────────────
         grad_sniper = None
         if config.graduation_enabled:

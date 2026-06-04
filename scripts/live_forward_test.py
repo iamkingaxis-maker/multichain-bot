@@ -190,6 +190,13 @@ def stale_drift_block(c):
     from core.stale_drift import stale_drift_verdict
     return stale_drift_verdict(c)[0] == "BLOCK"
 
+def rolling_ng_block(c):
+    """Phantom mirror for rolling_ng SHADOW (2026-06-04). Loads the nightly-retrained
+    never-green model (sklearn HistGBM, walk-forward AUC 0.66) and blocks if
+    P(never-green) >= threshold. Fails open if no model is present."""
+    from core.rolling_ng_live import score_entry
+    return score_entry(c)[0] == "BLOCK"
+
 def mtf_textbook_only_pass(c):
     """Pass only if textbook pullback pattern: 15m red AND 5m red AND 1m green."""
     return c.get('mtf_textbook_pullback') == 1

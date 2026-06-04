@@ -15181,6 +15181,21 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] stale_drift shadow err: {_e}")
 
+            # rolling_ng_scorer — SHADOW 2026-06-04. Multivariate never-green model
+            # (sklearn HistGBM, retrained nightly on trailing trades; walk-forward AUC
+            # 0.66, tail-safe: blocked cohort 5% runners vs 27% passed). MEASURE-ONLY:
+            # stamp verdict + proba + would-block counter; never gates. De-size after the
+            # live-wired model is confirmed vs the backtest. Fail-open (no model -> NEUTRAL).
+            try:
+                from core.rolling_ng_live import score_entry as _rng_score
+                _rng_v, _rng_p = _rng_score(entry_meta_dict)
+                entry_meta_dict["rolling_ng_shadow"] = _rng_v
+                entry_meta_dict["rolling_ng_proba"] = round(_rng_p, 4)
+                if _rng_v == "BLOCK":
+                    c["rolling_ng_would_block"] = c.get("rolling_ng_would_block", 0) + 1
+            except Exception as _e:
+                logger.debug(f"[DipScanner] rolling_ng shadow err: {_e}")
+
             # ── 2026-05-27 SHADOW gates (mining run, cross-regime-validated) ──
             # Observational only — stamp would-block verdicts for forward
             # confirmation; do NOT gate yet. Flip to ENFORCED after the forward
