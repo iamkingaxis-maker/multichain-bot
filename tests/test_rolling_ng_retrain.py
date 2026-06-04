@@ -79,3 +79,23 @@ def test_retrain_trains_on_sufficient_data():
                              now_epoch=calendar.timegm((2026, 6, 1, 2, 0, 0, 0, 0, 0)))
         assert r["trained"] is True and r["n"] == 200
         assert os.path.exists(os.path.join(d, "model.joblib"))
+
+
+def test_reads_trades_multi_fleet_store():
+    """The FLEET records live in trades_multi.json (MultiBotTradeStore) — retrain must
+    read that, not just legacy trades.json."""
+    import calendar
+    trades = []
+    for i in range(200):
+        addr = f"T{i}"; dud = i % 2
+        trades.append(_buy("pool_a_candidate", addr, "2026-06-01T00:00",
+                           {"pc_h1": 5.0 if dud else -5.0, "lifecycle_age_hours": 300 if dud else 5}))
+        trades.append(_sell("pool_a_candidate", addr, "2026-06-01T01:00",
+                            -8 if dud else 9, 1.0 if dud else 30.0))
+    with tempfile.TemporaryDirectory() as d:
+        # write ONLY trades_multi.json (no trades.json) -> must still train
+        with open(os.path.join(d, "trades_multi.json"), "w") as f:
+            json.dump(trades, f)
+        r = retrain_and_save(d, os.path.join(d, "model"),
+                             now_epoch=calendar.timegm((2026, 6, 1, 2, 0, 0, 0, 0, 0)))
+        assert r["trained"] is True and r["n"] == 200

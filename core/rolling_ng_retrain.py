@@ -69,12 +69,21 @@ def build_training_set(trades: List[Dict[str, Any]]
 
 
 def _load_trades(data_dir: str) -> List[Dict[str, Any]]:
-    path = os.path.join(data_dir, "trades.json")
-    if not os.path.exists(path):
-        return []
-    with open(path, encoding="utf-8") as fh:
-        d = json.load(fh)
-    return d if isinstance(d, list) else d.get("trades", [])
+    """Read the bot's trade log. The FLEET multi-bot records (pool_a, defender_2k, etc.
+    — what the scorer needs) live in trades_multi.json (MultiBotTradeStore); trades.json
+    holds the legacy baseline_v1 records. Merge both (disjoint by owner)."""
+    out: List[Dict[str, Any]] = []
+    for fname in ("trades_multi.json", "trades.json"):
+        path = os.path.join(data_dir, fname)
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                d = json.load(fh)
+            out.extend(d if isinstance(d, list) else d.get("trades", []))
+        except Exception:
+            continue
+    return out
 
 
 def _within_lookback(trades: List[Dict[str, Any]], lookback_days: int,
