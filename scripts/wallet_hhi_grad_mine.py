@@ -63,6 +63,8 @@ PUMPFUN = "https://frontend-api-v3.pump.fun/coins"
 FEATURES = ["seller_hhi", "seller_top1_share", "seller_top3_share", "n_sellers",
             "buyer_hhi", "buyer_top1_share", "n_buyers", "hhi_sell_minus_buy",
             "seller_buyer_wallet_ratio", "n_swaps"]
+# head-to-head baselines the per-wallet HHI must beat to matter
+BASELINES = ["net_imbalance", "coarse_sell_proxy"]
 
 
 def _a(s):
@@ -155,10 +157,14 @@ def snapshot():
             time.sleep(1.2)
             continue  # need real flow to compute concentration
         anchor = bars[-1]
+        # store raw swaps too (small: ~100 x 3 fields) so ANY feature can be
+        # recomputed later without re-pulling (future-proofs the analysis)
+        raw = [{"kind": s.get("kind"), "volume_usd": s.get("volume_usd"),
+                "maker": s.get("maker"), "ts": s.get("ts")} for s in sw]
         snap = {"address": g["address"], "sym": g["sym"], "pool": g["pool"],
                 "age_h": g["age_h"], "snap_wall": time.time(),
                 "anchor_ts_ms": anchor["ts_ms"], "anchor_mc": anchor["close"],
-                "features": feats}
+                "features": feats, "raw_swaps": raw}
         (PENDING / f"{g['address']}.json").write_text(json.dumps(snap))
         n += 1
         print(f"  + {_a(g['sym'])[:12]:<12} age={g['age_h']:.2f}h  seller_hhi={feats['seller_hhi']} "
@@ -186,23 +192,13 @@ def resolve():
     for p, s in due:
         _warm(sess, s["pool"])
         bars = _bars(sess, s["pool"])
-        anchor_mc = s["anchor_mc"] or 0
-        fwd = [b for b in bars if b["ts_ms"] > s["anchor_ts_ms"]
-               and b["ts_ms"] <= s["anchor_ts_ms"] + HORIZON_MIN * 60_000]
-        if anchor_mc <= 0:
+        lab = forward_label(s.get("anchor_mc"), s["anchor_ts_ms"], bars)
+        if lab is None:
             time.sleep(1.2); continue
-        if not fwd:
-            # no forward bars => token died/delisted after snapshot = bleed to ~0
-            peak_x, end_x, pump = 0.0, 0.0, 0
-        else:
-            peak = max(b["high"] for b in fwd)
-            end = fwd[-1]["close"]
-            peak_x = peak / anchor_mc
-            end_x = end / anchor_mc
-            pump = 1 if peak_x >= PUMP_X else 0
+        peak_x, end_x, pump = lab["fwd_peak_x"], lab["fwd_end_x"], lab["pump"]
         row = {"address": s["address"], "sym": s["sym"], "age_h": s["age_h"],
-               "snap_wall": s["snap_wall"], "fwd_peak_x": round(peak_x, 4),
-               "fwd_end_x": round(end_x, 4), "pump": pump, **s["features"]}
+               "snap_wall": s["snap_wall"], "fwd_peak_x": peak_x,
+               "fwd_end_x": end_x, "pump": pump, **s["features"]}
         with open(RESOLVED, "a") as f:
             f.write(json.dumps(row) + "\n")
         p.unlink()
@@ -210,6 +206,24 @@ def resolve():
         print(f"  ~ {_a(s['sym'])[:12]:<12} peak_x={peak_x:.2f} end_x={end_x:.2f} -> "
               f"{'PUMP' if pump else 'bleed'}  (seller_hhi={s['features']['seller_hhi']})")
     print(f"[resolve] resolved {n}")
+
+
+def forward_label(anchor_mc, anchor_ts_ms, bars, horizon_min=HORIZON_MIN, pump_x=PUMP_X):
+    """PURE. Given the snapshot anchor (mc + ts) and the (re-pulled) 1S bars, compute
+    the forward outcome over the horizon: peak/end multiples and the pump label. No
+    forward bars => token died/delisted after snapshot = bleed to ~0. anchor_mc<=0 =>
+    None (unusable). bars = list of {ts_ms, high, close}."""
+    if not anchor_mc or anchor_mc <= 0:
+        return None
+    fwd = [b for b in bars if b["ts_ms"] > anchor_ts_ms
+           and b["ts_ms"] <= anchor_ts_ms + horizon_min * 60_000]
+    if not fwd:
+        return {"fwd_peak_x": 0.0, "fwd_end_x": 0.0, "pump": 0}
+    peak = max(b["high"] for b in fwd)
+    end = fwd[-1]["close"]
+    return {"fwd_peak_x": round(peak / anchor_mc, 4),
+            "fwd_end_x": round(end / anchor_mc, 4),
+            "pump": 1 if peak / anchor_mc >= pump_x else 0}
 
 
 def _load_resolved():
@@ -226,6 +240,7 @@ def _load_resolved():
 
 def status():
     import statistics as st
+    import random
     rows = _load_resolved()
     pend = len(list(PENDING.glob("*.json"))) if PENDING.exists() else 0
     n = len(rows)
@@ -236,45 +251,86 @@ def status():
         return
     print(f"  base rate: pump(>={PUMP_X}x)={pumps} / bleed={n-pumps}  ({100*pumps/n:.0f}% pump)")
     if n < MIN_N:
-        print(f"  n<{MIN_N} -- distributions shown, hold statistical verdict until n>={MIN_N}:")
-    def col(f):
-        return [r[f] for r in rows if isinstance(r.get(f), (int, float))]
-    print(f"\n  {'feature':<26} {'pump_med':>9} {'bleed_med':>9} {'cohen_d':>8} {'AUC':>6} {'null_p':>7}")
+        print(f"  n<{MIN_N} -- distributions shown, HOLD the statistical verdict until n>={MIN_N}.")
     try:
         from sklearn.metrics import roc_auc_score
         have_auc = True
     except Exception:
         have_auc = False
-    import random
     rng = random.Random(42)
-    for f in FEATURES:
-        pv = [r[f] for r in rows if r["pump"] == 1 and isinstance(r.get(f), (int, float))]
-        bv = [r[f] for r in rows if r["pump"] == 0 and isinstance(r.get(f), (int, float))]
+
+    def feat_val(r, f):
+        # baselines live at top level; HHI features under 'features' (or flattened)
+        if f in r and isinstance(r.get(f), (int, float)):
+            return r[f]
+        fe = r.get("features") or {}
+        v = fe.get(f)
+        return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+    cols = FEATURES + BASELINES
+    print(f"\n  {'feature':<26} {'pump_med':>9} {'bleed_med':>9} {'cohen_d':>8} {'AUC':>6} {'null_p':>7}")
+    pvals = {}
+    for f in cols:
+        pv = [feat_val(r, f) for r in rows if r["pump"] == 1]
+        bv = [feat_val(r, f) for r in rows if r["pump"] == 0]
+        pv = [x for x in pv if x is not None]; bv = [x for x in bv if x is not None]
         if len(pv) < 2 or len(bv) < 2:
             continue
         pooled = st.pstdev(pv + bv) or 1e-9
         d = (st.mean(pv) - st.mean(bv)) / pooled
         auc, nullp = None, None
         if have_auc:
-            ys = [r["pump"] for r in rows if isinstance(r.get(f), (int, float))]
-            xs = [r[f] for r in rows if isinstance(r.get(f), (int, float))]
-            try:
-                auc = roc_auc_score(ys, xs)
-                # token-clustered null: rows==tokens, so simple label shuffle is token-clustered
-                obs = abs(auc - 0.5)
-                hits = 0; N = 2000
-                for _ in range(N):
-                    ysh = ys[:]; rng.shuffle(ysh)
-                    if abs(roc_auc_score(ysh, xs) - 0.5) >= obs:
-                        hits += 1
-                nullp = (hits + 1) / (N + 1)
-            except Exception:
-                pass
+            pairs = [(feat_val(r, f), r["pump"]) for r in rows if feat_val(r, f) is not None]
+            xs = [x for x, _ in pairs]; ys = [y for _, y in pairs]
+            if len(set(ys)) == 2:
+                try:
+                    auc = roc_auc_score(ys, xs)
+                    obs = abs(auc - 0.5); hits = 0; N = 2000
+                    for _ in range(N):
+                        ysh = ys[:]; rng.shuffle(ysh)
+                        if abs(roc_auc_score(ysh, xs) - 0.5) >= obs:
+                            hits += 1
+                    nullp = (hits + 1) / (N + 1)
+                    pvals[f] = nullp
+                except Exception:
+                    pass
+        tag = "  <-baseline" if f in BASELINES else ""
         print(f"  {f:<26} {st.median(pv):>9.3f} {st.median(bv):>9.3f} {d:>8.2f} "
               f"{(auc if auc is not None else float('nan')):>6.3f} "
-              f"{(nullp if nullp is not None else float('nan')):>7.3f}")
-    print(f"\n  (per-feature AUC is out-of-token by construction: 1 snapshot/token. "
-          f"null_p = label-shuffle permutation. Apply BH/Bonferroni across {len(FEATURES)} features.)")
+              f"{(nullp if nullp is not None else float('nan')):>7.3f}{tag}")
+
+    # Benjamini-Hochberg across everything tested
+    if pvals:
+        m = len(pvals)
+        ranked = sorted(pvals.items(), key=lambda kv: kv[1])
+        print(f"\n  BH-corrected (m={m} features) -- survivors at q<0.10:")
+        survivors = []
+        for i, (f, p) in enumerate(ranked, 1):
+            crit = 0.10 * i / m
+            if p <= crit:
+                survivors.append(f)
+        print("    " + (", ".join(survivors) if survivors else "NONE clears BH q<0.10"))
+
+    # single_whale_seller flag: pump-vs-bleed + winner-kill framing
+    def flag(r):
+        v = feat_val(r, "single_whale_seller")
+        if v is None:
+            fe = r.get("features") or {}
+            v = fe.get("single_whale_seller")
+        return bool(v)
+    whale = [r for r in rows if flag(r)]
+    if whale:
+        wp = sum(r["pump"] for r in whale)
+        nowhale = [r for r in rows if not flag(r)]
+        nwp = sum(r["pump"] for r in nowhale)
+        print(f"\n  single_whale_seller flag:")
+        print(f"    whale=True : n={len(whale):>3}  pump={wp} ({100*wp/len(whale):.0f}%)  bleed={len(whale)-wp}")
+        if nowhale:
+            print(f"    whale=False: n={len(nowhale):>3}  pump={nwp} ({100*nwp/len(nowhale):.0f}%)  bleed={len(nowhale)-nwp}")
+        print(f"    => as a BLOCK gate it would kill {wp} pumps to avoid {len(whale)-wp} bleeds "
+              f"(winner-kill {wp/max(1,len(whale)-wp):.2f}); ship only if <<1 and survives the null.")
+    print(f"\n  (1 snapshot/token => AUC is out-of-token by construction. null_p = label-shuffle "
+          f"permutation. HHI features must BEAT the <-baseline rows to justify the new axis.)")
 
 
 def main():

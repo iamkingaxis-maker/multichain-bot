@@ -67,6 +67,19 @@ def test_single_whale_seller_flag():
     assert f["hhi_sell_minus_buy"] > 0   # selling more concentrated than buying
 
 
+def test_headtohead_baselines_on_same_window():
+    # sells: whale 80 + a 20 (sell$=100); buys: b1 100 + b2 100 (buy$=200)
+    swaps = [_s("sell", 80, "whale"), _s("sell", 20, "a"),
+             _s("buy", 100, "b1"), _s("buy", 100, "b2")]
+    f = wallet_flow_features(swaps)
+    # net_imbalance = (200-100)/300
+    assert abs(f["net_imbalance"] - round(100 / 300, 4)) < 1e-4
+    # coarse proxy = max_sell/sell$ = 80/100
+    assert f["coarse_sell_proxy"] == 0.8
+    # and the per-wallet seller HHI (0.8^2+0.2^2=0.68) is a distinct number from the proxy
+    assert f["seller_hhi"] == 0.68
+
+
 def test_no_whale_when_distributed():
     swaps = [_s("sell", 10, f"w{i}") for i in range(8)] + [_s("buy", 10, f"b{i}") for i in range(8)]
     f = wallet_flow_features(swaps)

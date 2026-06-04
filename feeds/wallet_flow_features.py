@@ -75,6 +75,21 @@ def wallet_flow_features(swaps: List[Dict[str, Any]]) -> Dict[str, Any]:
     # single-whale-seller: one wallet owns most sell $ AND few unique sellers
     swd = (sell["top1_share"] is not None and sell["top1_share"] >= 0.5
            and sell["n_wallets"] <= 5)
+    # head-to-head baselines on the SAME swap window:
+    #  - net_imbalance: the net_flow analog (buy$ - sell$) / total$ in [-1,1]
+    #  - coarse_sell_proxy: the OLD dollar-share proxy (max_sell$/sell$) that FAILED
+    #    the within-token test -- computed here so we can prove per-wallet HHI beats it
+    #    on the identical tokens, not just in the abstract.
+    su, bu = sell["total_usd"] or 0.0, buy["total_usd"] or 0.0
+    tot = su + bu
+    net_imb = round((bu - su) / tot, 4) if tot > 0 else None
+    max_sell = 0.0
+    for s in swaps:
+        if s.get("kind") == "sell":
+            v = _num(s.get("volume_usd")) or 0.0
+            if v > max_sell:
+                max_sell = v
+    coarse_sell_proxy = round(max_sell / su, 4) if su > 0 else None
     return {
         # sell side (the dump-toxicity axis)
         "seller_hhi": sh,
@@ -93,4 +108,7 @@ def wallet_flow_features(swaps: List[Dict[str, Any]]) -> Dict[str, Any]:
         "seller_buyer_wallet_ratio": (round(sell["n_wallets"] / buy["n_wallets"], 3)
                                       if buy["n_wallets"] else None),
         "n_swaps": sell["n_swaps"] + buy["n_swaps"],
+        # head-to-head baselines (same window) -- HHI must BEAT these to matter
+        "net_imbalance": net_imb,
+        "coarse_sell_proxy": coarse_sell_proxy,
     }
