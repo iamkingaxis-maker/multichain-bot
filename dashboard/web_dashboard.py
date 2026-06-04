@@ -17,6 +17,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -44,6 +45,48 @@ async def gzip_middleware(request, handler):
     except Exception:
         pass
     return resp
+
+
+# ── EGRESS BURST CONTROL (2026-06-04) ──────────────────────────────────────────
+# The HEAVY payloads (/api/trades full=1|all=1 ~69MB raw, /api/universe-recorder
+# large limits) dominate Railway egress when hammered — e.g. a fan-out of analysis
+# agents each pulling full=1 in a loop (the documented "agents inflate egress"
+# failure mode). Normal dashboard polling uses the TRIMMED 200-record path and is
+# never affected by this. This is a shared global budget: heavy serves are allowed
+# at most once per MIN_INTERVAL and MAX_PER_HOUR total; beyond that, heavy requests
+# are DOWNGRADED to the trimmed response (a 99%+ byte cut) rather than served raw.
+# A single daily analyzer pull or an occasional manual audit always passes; only a
+# runaway/looping consumer gets throttled.
+_HEAVY_SERVES = []  # monotonic timestamps of recent heavy serves (rolling 1h)
+
+
+def _egress_heavy_cfg():
+    try:
+        mi = float(os.environ.get("EGRESS_HEAVY_MIN_INTERVAL_SECS", "10"))
+    except (TypeError, ValueError):
+        mi = 10.0
+    try:
+        mph = int(os.environ.get("EGRESS_HEAVY_MAX_PER_HOUR", "20"))
+    except (TypeError, ValueError):
+        mph = 20
+    return mi, mph
+
+
+def _egress_allow_heavy():
+    """Token-budget gate for heavy payloads. Returns True if a heavy response may be
+    served now (and records it); False if the caller should DOWNGRADE to trimmed."""
+    mi, mph = _egress_heavy_cfg()
+    now = time.monotonic()
+    cutoff = now - 3600
+    while _HEAVY_SERVES and _HEAVY_SERVES[0] < cutoff:
+        _HEAVY_SERVES.pop(0)
+    if _HEAVY_SERVES and (now - _HEAVY_SERVES[-1]) < mi:
+        return False
+    if len(_HEAVY_SERVES) >= mph:
+        return False
+    _HEAVY_SERVES.append(now)
+    return True
+
 
 logger = logging.getLogger(__name__)
 
@@ -1062,7 +1105,7 @@ async function updateSolGate() {
 }
 // Poll every 30s + once immediately
 updateSolGate();
-setInterval(updateSolGate, 30000);
+setInterval(updateSolGate, 60000);  // 2026-06-04 30s->60s (egress)
 
 // ── Stat cards ─────────────────────────────────────────────────────────────
 function updateStatCards(d) {
@@ -1287,7 +1330,7 @@ async function _deprecated_loadWatchlist() {
 }
 
 loadWatchlist();
-setInterval(loadWatchlist, 30000);
+setInterval(loadWatchlist, 90000);  // 2026-06-04 30s->90s (egress)
 
 // ── User Watchlist (Curator-Driven, Hot-Reload) ──────────────────────────
 function fmtMcap(v) {
@@ -1569,7 +1612,7 @@ async function loadMcRecommendations() {
     }).join('');
   } catch(e) { console.warn('MC rec error', e); }
 }
-setInterval(loadMcRecommendations, 15000);
+setInterval(loadMcRecommendations, 60000);  // 2026-06-04 15s->60s (egress)
 loadMcRecommendations();
 
 // ── Trade History ──────────────────────────────────────────────────────────
@@ -1743,7 +1786,7 @@ async function updateFleet() {
     console.error("updateFleet failed", e);
   }
 }
-setInterval(updateFleet, 15000);
+setInterval(updateFleet, 45000);  // 2026-06-04 15s->45s (egress)
 updateFleet();
 </script>
 
@@ -1865,7 +1908,7 @@ updateFleet();
       }
     }
   } catch (e) { console.error("breakout refresh failed", e); }
-  setTimeout(refreshBreakout, 10000);
+  setTimeout(refreshBreakout, 60000);  // 2026-06-04 10s->60s (egress: 4 fetches/cycle)
 })();
 
 // ── ATTRIBUTION tab ──────────────────────────────────────────────────────────
@@ -2305,11 +2348,24 @@ class WebDashboard:
         # Apply pagination unless ?all=1 is set
         try:
             want_all = request.query.get('all', '0') in ('1', 'true', 'yes')
+            want_full = request.query.get('full', '0') in ('1', 'true', 'yes')
             limit = int(request.query.get('limit', 200))
             limit = max(1, min(limit, 5000))
         except Exception:
             want_all = False
+            want_full = False
             limit = 200
+        # EGRESS BURST CONTROL (2026-06-04): the heavy payloads (full=1 ~69MB,
+        # all=1 ~20MB) are budget-gated. Beyond the shared budget, DOWNGRADE to the
+        # trimmed 200-record response (~99% byte cut) so a looping / fan-out consumer
+        # can't pull tens of MB repeatedly. A single or occasional heavy pull always
+        # passes. Normal dashboard polling uses the trimmed path and is never gated.
+        egress_throttled = False
+        if (want_all or want_full) and not _egress_allow_heavy():
+            want_all = False
+            want_full = False
+            limit = min(limit, 200)
+            egress_throttled = True
         # Always sort newest-first when paginating — even when total < limit.
         # Previously this branch only triggered when len > limit, so callers
         # asking for "limit=2000" against a 1702-record store got chronological
@@ -2324,8 +2380,7 @@ class WebDashboard:
         # Dashboard JS never reads entry_meta — shipping it adds ~25KB per trade
         # (50+ feature keys) and was driving response size to 5.4MB per /api/trades
         # poll. Removing it cuts to ~300KB. Audit/postmortem callers can request
-        # the full payload with ?full=1.
-        want_full = request.query.get('full', '0') in ('1', 'true', 'yes')
+        # the full payload with ?full=1 (subject to the egress budget above).
         if not want_full and isinstance(trades, list):
             _TRADE_KEEP = {
                 'type', 'strategy', 'chain', 'token', 'address',
@@ -2340,10 +2395,14 @@ class WebDashboard:
                 {k: v for k, v in t.items() if k in _TRADE_KEEP}
                 for t in trades if isinstance(t, dict)
             ]
+        _hdrs = {"Access-Control-Allow-Origin": "*"}
+        if egress_throttled:
+            # Tell the caller it got the trimmed payload due to the egress budget.
+            _hdrs["X-Egress-Throttled"] = "1"
         return web.Response(
             text=json.dumps(trades),
             content_type="application/json",
-            headers={"Access-Control-Allow-Origin": "*"}
+            headers=_hdrs
         )
 
     # ── Seed Wallet Helpers ──────────────────────────────────────────────────
@@ -3148,6 +3207,12 @@ class WebDashboard:
         try:
             limit = int(request.query.get('limit', '1000'))
         except ValueError:
+            limit = 1000
+        # EGRESS BURST CONTROL (2026-06-04): hard-cap the limit (was unbounded —
+        # limit=20000 pulls were a major egress source) and budget-gate large pulls.
+        # Beyond the shared heavy budget, large requests are clamped to 1000 records.
+        limit = max(1, min(limit, 5000))
+        if limit > 1000 and not _egress_allow_heavy():
             limit = 1000
         try:
             with open(path, encoding='utf-8') as f:
