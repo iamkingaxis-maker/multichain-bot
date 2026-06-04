@@ -416,7 +416,8 @@ class PositionScalper:
                     token_address=token_address,
                     token_symbol=f"{token_symbol}[SCALP]",
                     reason=f"Scalp partial sell {pct*100:.0f}%",
-                    pct=pct
+                    pct=pct,
+                    force_paper=True,  # C4 (2026-06-04 audit): scalper not on live_probe allowlist
                 )
                 return True
         except Exception as e:
@@ -431,7 +432,8 @@ class PositionScalper:
                     token_address=token_address,
                     token_symbol=f"{token_symbol}[SCALP-REBUY]",
                     reason=f"Scalp rebuy ${usd_amount:.2f}",
-                    override_usd=usd_amount
+                    override_usd=usd_amount,
+                    force_paper=True,  # C4 (2026-06-04 audit): scalper not on live_probe allowlist
                 )
                 return True
         except Exception as e:

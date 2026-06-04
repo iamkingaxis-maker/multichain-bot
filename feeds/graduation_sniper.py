@@ -358,6 +358,7 @@ class GraduationSniper:
                 chain_id="solana",
                 strategy="graduation",
                 override_impact_pct=price_impact,
+                force_paper=True,  # C5 (2026-06-04 audit): grad-sniper not on live_probe allowlist
             )
 
         except Exception as e:

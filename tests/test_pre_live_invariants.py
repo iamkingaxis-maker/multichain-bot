@@ -334,6 +334,64 @@ def test_ultra_dormant_without_key():
     assert isinstance(USE_JUPITER_ULTRA, bool)
 
 
+# ── Single-authoritative-live-gate invariants (2026-06-04 live-execution audit) ──
+
+@_t("force_paper routes a live-key buy to PAPER, never the live quote [C1]")
+def test_force_paper_routes_paper():
+    async def go():
+        trader = _make_trader(private_key="fake-key")  # live key present
+        trader._dashboard_paused = False
+        os.environ.pop("TRADING_PAUSED", None)
+        _old = os.environ.get("STRATEGY_ALLOWLIST")
+        os.environ["STRATEGY_ALLOWLIST"] = "dip_buy"  # ensure allowlist doesn't pre-block
+        called = {"q": False}
+
+        async def spy(*a, **kw):
+            called["q"] = True
+            return None
+        trader._get_quote = spy
+        try:
+            await trader.buy(token_address=BURNIE_MINT, token_symbol="T",
+                             reason="r", strategy="dip_buy", force_paper=True)
+        except Exception:
+            pass
+        finally:
+            if _old is None:
+                os.environ.pop("STRATEGY_ALLOWLIST", None)
+            else:
+                os.environ["STRATEGY_ALLOWLIST"] = _old
+        # A broken C1 (force_paper ignored) would fall through to the LIVE branch and
+        # call _get_quote. force_paper MUST keep a live-key buy on the paper path.
+        assert not called["q"], "force_paper=True reached the LIVE quote path (C1 broken)"
+    asyncio.run(go())
+
+
+@_t("Single live gate: all direct trader.buy/sell callers are allowlist-gated [C1-C6]")
+def test_single_live_gate_static():
+    """The invariant: with a key present, the ONLY route to a real order is the
+    should_route_live (live_probe) fleet path. Every direct trader.buy/sell caller must
+    be force_paper'd or allowlist-gated. Static source check — robust + key-free."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def src(p):
+        with open(os.path.join(root, p), encoding="utf-8") as f:
+            return f.read()
+    tr = src("core/trader.py")
+    assert "force_paper: bool = False" in tr, "C1: force_paper kwarg missing on trader"
+    assert tr.count("if not self.private_key or force_paper:") >= 2, \
+        "C1: force_paper not honored in BOTH buy and sell paper branches"
+    assert "STRATEGY_ALLOWLIST unset (fail-closed)" in tr, \
+        "C6: STRATEGY_ALLOWLIST does not fail CLOSED in live"
+    assert "force_paper=bool(self.trader.private_key)" in src("feeds/dip_scanner.py"), \
+        "C2: legacy dip-buy (dip_scanner.py:15549) not force_paper'd in live"
+    assert "force_paper=True" in src("core/multi_source_scanner.py"), \
+        "C3: legacy MSS buy not force_paper'd"
+    assert src("core/scalper.py").count("force_paper=True") >= 2, \
+        "C4: scalper buy+sell not force_paper'd"
+    assert "force_paper=True" in src("feeds/graduation_sniper.py"), \
+        "C5: graduation-sniper buy not force_paper'd"
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 

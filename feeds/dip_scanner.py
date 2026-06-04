@@ -15561,6 +15561,12 @@ class DipScanner:
                 age_hours=pair_age_hours,
                 volume_h1_usd=float(vol_h1 or 0),
                 entry_meta=entry_meta_dict,
+                # C2 (2026-06-04 live-execution audit): the legacy single-bot dip path
+                # runs UNCONDITIONALLY every cycle and is NOT on the live_probe allowlist.
+                # Force it to PAPER whenever a live key is present, so in live mode the
+                # allowlisted fleet fan-out (_execute_bot_buy_live -> _execute_swap_ultra)
+                # is the SOLE route to real money. In paper (no key) it behaves as before.
+                force_paper=bool(self.trader.private_key),
             )
 
         src_str = " ".join(f"{k}={v}" for k, v in source_counts.items() if v) or "-"

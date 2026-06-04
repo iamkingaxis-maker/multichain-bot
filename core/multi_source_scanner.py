@@ -3367,6 +3367,7 @@ class MultiSourceScanner:
             hh_hl_confirmed=getattr(signal, "hh_hl_confirmed", False),
             chain_id=self.chain.chain_id,
             strategy="scanner",
+            force_paper=True,  # C3 (2026-06-04 audit): legacy MSS not on live_probe allowlist -> always paper
             pair_address=signal.pair_address or "",
             market_cap_usd=signal.mcap,
             age_hours=signal.age_hours,

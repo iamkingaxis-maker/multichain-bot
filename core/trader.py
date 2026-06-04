@@ -1221,8 +1221,12 @@ class Trader:
                   volume_h1_usd: float = 0.0,
                   override_impact_pct: float = -1.0,
                   scalp_meta: Optional[dict] = None,
-                  entry_meta: Optional[dict] = None):
-        """Execute a buy order."""
+                  entry_meta: Optional[dict] = None,
+                  force_paper: bool = False):
+        """Execute a buy order. force_paper=True routes to the PAPER sim even when a
+        live key is present (C1, 2026-06-04 live-execution audit) — the single knob
+        that lets any caller be neutralized so the live_probe allowlist is the only
+        path to real money."""
         if os.environ.get("TRADING_PAUSED", "").lower() in ("true", "1", "yes"):
             logger.info(f"[Trader] Buy blocked — TRADING_PAUSED=true ({strategy}/{token_symbol})")
             return
@@ -1265,6 +1269,15 @@ class Trader:
                     f"STRATEGY_ALLOWLIST={sorted(_allowed)} ({token_symbol})"
                 )
                 return
+        elif self.private_key and not force_paper:
+            # C6 (2026-06-04 live-execution audit): FAIL-CLOSED in live. With a key
+            # present and no STRATEGY_ALLOWLIST set, refuse direct trader.buy strategies
+            # (the live_probe fleet path does NOT go through buy()). Paper (no key) keeps
+            # allow-all so research is unaffected; force_paper buys pass to the paper sim.
+            logger.critical(
+                f"[Trader] LIVE buy blocked — STRATEGY_ALLOWLIST unset (fail-closed) "
+                f"strategy='{strategy}' {token_symbol}")
+            return
 
         if token_address.lower() in self._buying:
             logger.info(f"[Trader] Buy already in flight for {token_symbol}, skipping")
@@ -1937,7 +1950,9 @@ class Trader:
             logger.info(f"💚 Buying {token_symbol} — ${position_size_usd:.0f} — {reason}")
 
             # ── PAPER TRADING MODE ────────────────────────────────────
-            if not self.private_key:
+            # C1 (2026-06-04 audit): force_paper routes here even with a live key, so a
+            # caller NOT on the live_probe allowlist never reaches the live swap below.
+            if not self.private_key or force_paper:
                 # Subscribe to real-time price feeds for this token
                 logger.info(
                     f"[Trader/paper] subscribing feeds for {token_symbol} "
@@ -2214,8 +2229,10 @@ class Trader:
         finally:
             self._buying.discard(token_address.lower())
 
-    async def sell(self, token_address: str, token_symbol: str, reason: str, pct: float = 1.0):
-        """Execute a sell order for a percentage of the position.
+    async def sell(self, token_address: str, token_symbol: str, reason: str, pct: float = 1.0,
+                   force_paper: bool = False):
+        """Execute a sell order for a percentage of the position. force_paper=True routes
+        to the PAPER sim even with a live key (C1, 2026-06-04 audit).
 
         Returns a dict {ok: bool, reason: str, pnl_usd: float|None} so callers
         (notably the dashboard /api/sell handler) can distinguish silent
@@ -2243,7 +2260,7 @@ class Trader:
 
         try:
             # ── PAPER TRADING MODE ────────────────────────────────────
-            if not self.private_key:
+            if not self.private_key or force_paper:
                 tokens_to_sell = position.amount_tokens * pct
 
                 # Paper sell: use Axiom cache / Jupiter price API / DexScreener + slippage model.
