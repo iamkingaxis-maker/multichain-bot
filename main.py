@@ -364,6 +364,9 @@ async def main():
                             kill_switch=kill_switch)
         dashboard.register_trader(sol_trader)
         kill_switch.register_trader(sol_trader)
+        # One-shot manual profit-sweep test fire (Option B): no-op unless
+        # PROFIT_SWEEP_TEST_FIRE=dry|live; sentinel-guarded so a redeploy can't re-fire.
+        await sol_trader.maybe_fire_sweep_test()
 
         for w in config.solana_copy_wallets:
             wallet_scorer.register_wallet(w, "solana")

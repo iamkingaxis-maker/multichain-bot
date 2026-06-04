@@ -3006,6 +3006,43 @@ class Trader:
         return {"sent": True, "amount_sol": plan["amount_sol"], "lamports": plan["lamports"],
                 "dest": plan["dest"], "sig": sig}
 
+    async def maybe_fire_sweep_test(self) -> None:
+        """One-shot BOOT trigger for the manual profit-sweep test (Option B). Fires at
+        most ONCE per PROFIT_SWEEP_TEST_FIRE value, guarded by a persisted sentinel in
+        the durable data dir so a redeploy can NEVER re-fire (no double-send of real
+        money). =dry -> dry-run (logs the intended $5, moves nothing). =live -> one
+        real $5-capped transfer. Unset/other -> no-op. Idempotency-first: the sentinel
+        is CLAIMED before the send, so a crash mid-send can't cause a second send (a
+        genuinely failed send is recovered by manually clearing the sentinel)."""
+        import os as _os
+        from pathlib import Path as _Path
+        mode = (_os.environ.get("PROFIT_SWEEP_TEST_FIRE", "") or "").strip().lower()
+        if mode not in ("dry", "live"):
+            return
+        data_dir = _os.environ.get("DATA_DIR") or "/data"
+        try:
+            sdir = _Path(data_dir)
+            sdir.mkdir(parents=True, exist_ok=True)
+            sentinel = sdir / f".profit_sweep_test_fired_{mode}"
+            if sentinel.exists():
+                logger.warning(f"[Sweep] BOOT test-fire '{mode}' already fired (sentinel) — skip")
+                return
+            # CLAIM before firing — guarantees no double-send across boots.
+            sentinel.write_text(f"claimed mode={mode}\n")
+        except Exception as e:
+            logger.error(f"[Sweep] sentinel claim failed ({e}) — refusing test-fire (fail-closed)")
+            return
+        logger.critical(f"[Sweep] BOOT TEST-FIRE mode={mode} (one-shot, $5-capped)")
+        try:
+            result = await self.execute_profit_sweep(dry_run=(mode == "dry"))
+            logger.critical(f"[Sweep] BOOT TEST-FIRE result: {result}")
+            try:
+                sentinel.write_text(f"fired mode={mode} result={result}\n")
+            except Exception:
+                pass
+        except Exception as e:
+            logger.error(f"[Sweep] BOOT test-fire error: {e}")
+
     async def _get_token_liquidity(self, token_address: str) -> float:
         """Get token pool liquidity in USD from DexScreener."""
         try:
