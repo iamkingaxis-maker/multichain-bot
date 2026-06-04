@@ -196,9 +196,16 @@ def resolve():
         if lab is None:
             time.sleep(1.2); continue
         peak_x, end_x, pump = lab["fwd_peak_x"], lab["fwd_end_x"], lab["pump"]
+        # multi-horizon labels (cheap, same bars) -- hedges the 35min label choice
+        multi = {}
+        for hz in (15, 35, 60):
+            lz = forward_label(s.get("anchor_mc"), s["anchor_ts_ms"], bars, horizon_min=hz)
+            if lz:
+                multi[f"fwd_peak_x_{hz}"] = lz["fwd_peak_x"]
+                multi[f"pump_{hz}"] = lz["pump"]
         row = {"address": s["address"], "sym": s["sym"], "age_h": s["age_h"],
                "snap_wall": s["snap_wall"], "fwd_peak_x": peak_x,
-               "fwd_end_x": end_x, "pump": pump, **s["features"]}
+               "fwd_end_x": end_x, "pump": pump, **multi, **s["features"]}
         with open(RESOLVED, "a") as f:
             f.write(json.dumps(row) + "\n")
         p.unlink()
