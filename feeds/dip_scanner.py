@@ -15744,11 +15744,16 @@ class DipScanner:
         addrs = list(self._user_watchlist_addrs)
         if not addrs:
             return
+        # BUGFIX 2026-06-04: watchlist addrs are stored LOWERCASE (see _user_watchlist_addrs)
+        # but pair_by_addr is keyed by the ORIGINAL-CASE token address from DexScreener, so a
+        # direct .get(lowercase) ALWAYS missed -> the pruner fail-opened on every token and
+        # never removed anything. Match case-insensitively. (Solana base58 is case-sensitive.)
+        pair_lc = {str(k).lower(): v for k, v in pair_by_addr.items()}
         toks = []
         for a in addrs:
-            p = pair_by_addr.get(a)
+            p = pair_lc.get(a)
             if not p:
-                continue  # no fresh data this cycle -> skip (fail-open)
+                continue  # genuinely no fresh data this cycle -> skip (fail-open)
             toks.append({
                 "address": a,
                 "liq_usd": float((p.get("liquidity") or {}).get("usd") or 0),
@@ -15811,7 +15816,9 @@ class DipScanner:
             created = p.get("pairCreatedAt") or 0
             age_h = (now_ms - created) / 3_600_000.0 if created else None
             toks.append({
-                "address": addr,
+                # lowercase to match the lowercase _user_watchlist_addrs + denylist, else
+                # the dedup/ban check (find_adds) misses and RE-ADDS removed/banned tokens.
+                "address": (addr or "").lower(),
                 "liq_usd": float((p.get("liquidity") or {}).get("usd") or 0),
                 "vol_h24": float((p.get("volume") or {}).get("h24") or 0),
                 "pc_h1": (p.get("priceChange") or {}).get("h1"),
@@ -16144,9 +16151,10 @@ class DipScanner:
                             elif source_by_addr.get(addr) == "axiom_trending":
                                 pair_by_addr[addr] = p
                                 source_by_addr[addr] = "axiom_enriched"
-                            elif addr in self._user_watchlist_addrs:
+                            elif addr.lower() in self._user_watchlist_addrs:
                                 # User watchlist tokens — tag and include even
-                                # if not previously in pair_by_addr.
+                                # if not previously in pair_by_addr. (lower(): DS addr is
+                                # original-case, watchlist set is lowercase — 2026-06-04.)
                                 pair_by_addr[addr] = p
                                 source_by_addr[addr] = "user_watchlist"
                             elif source_by_addr.get(addr) == "sticky_watchlist":
