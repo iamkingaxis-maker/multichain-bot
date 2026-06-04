@@ -2923,14 +2923,20 @@ class Trader:
         except Exception:
             return ""
 
-    async def send_sol_transfer(self, to_addr: str, lamports: int) -> Optional[str]:
+    async def send_sol_transfer(self, to_addr: str, lamports: int,
+                                signer_b58: Optional[str] = None) -> Optional[str]:
         """Plain System Program SOL transfer hot->cold (profit sweep). Returns the
         CONFIRMED tx signature or None on any failure. The ONLY non-swap outbound
-        transfer the bot makes — loud + confirmation-gated. The caller
-        (execute_profit_sweep / core.profit_sweeper) validates destination, caps the
-        amount, and handles dry-run BEFORE this is ever called."""
-        if not self.private_key:
-            logger.error("[Sweep] no private key — transfer refused")
+        transfer the bot makes — loud + confirmation-gated. The caller validates
+        destination, caps the amount, and handles dry-run BEFORE this is ever called.
+
+        signer_b58: explicit signing key. Defaults to self.private_key (live mode). The
+        sweep-TEST passes the env key directly so it can sign ONE capped transfer while
+        the trader's self.private_key stays empty -> the fleet's buy path stays keyless
+        (100% paper). Decouples 'sweep can sign' from 'fleet trades live'."""
+        key = signer_b58 or self.private_key
+        if not key:
+            logger.error("[Sweep] no signing key — transfer refused")
             return None
         try:
             import base64 as _b64
@@ -2940,7 +2946,7 @@ class Trader:
             from solders.message import MessageV0
             from solders.transaction import VersionedTransaction
             from solders.hash import Hash
-            kp = Keypair.from_base58_string(self.private_key)
+            kp = Keypair.from_base58_string(key)
             payer = kp.pubkey()
             to_pk = Pubkey.from_string(to_addr)
             if to_pk == payer:
@@ -3023,7 +3029,10 @@ class Trader:
         try:
             sdir = _Path(data_dir)
             sdir.mkdir(parents=True, exist_ok=True)
-            sentinel = sdir / f".profit_sweep_test_fired_{mode}"
+            # Nonce lets us cleanly re-fire a test (bump PROFIT_SWEEP_TEST_NONCE) without
+            # a stale sentinel blocking it. Each (mode,nonce) fires at most once.
+            _nonce = (_os.environ.get("PROFIT_SWEEP_TEST_NONCE", "") or "").strip()
+            sentinel = sdir / f".profit_sweep_test_fired_{mode}{('_' + _nonce) if _nonce else ''}"
             if sentinel.exists():
                 logger.warning(f"[Sweep] BOOT test-fire '{mode}' already fired (sentinel) — skip")
                 return
@@ -3034,7 +3043,7 @@ class Trader:
             return
         logger.critical(f"[Sweep] BOOT TEST-FIRE mode={mode} (one-shot, $5-capped)")
         try:
-            result = await self.execute_profit_sweep(dry_run=(mode == "dry"))
+            result = await self._fire_sweep_test(dry_run=(mode == "dry"))
             logger.critical(f"[Sweep] BOOT TEST-FIRE result: {result}")
             try:
                 sentinel.write_text(f"fired mode={mode} result={result}\n")
@@ -3042,6 +3051,54 @@ class Trader:
                 pass
         except Exception as e:
             logger.error(f"[Sweep] BOOT test-fire error: {e}")
+
+    async def _fire_sweep_test(self, dry_run: bool = True) -> dict:
+        """SELF-CONTAINED sweep test — proves the $5 transfer works BEFORE go-live,
+        WITHOUT enabling the fleet. Reads SOLANA_PRIVATE_KEY from env directly (does
+        NOT use self.private_key, so the trader's buy path stays keyless = the fleet
+        stays 100% paper), derives the hot pubkey, checks its on-chain balance, runs
+        the tested guard logic, and signs ONE capped transfer to the cold wallet.
+        Hard backstops: $5 USD cap, a SOL-price sanity bound (a bad price can't
+        inflate the cap), and an absolute 0.1-SOL ceiling regardless of price."""
+        import os as _os
+        from core import profit_sweeper as _ps
+        key = (_os.environ.get("SOLANA_PRIVATE_KEY", "") or "").strip()
+        if not key:
+            return {"sent": False, "reason": "no_private_key_env"}
+        try:
+            from solders.keypair import Keypair
+            hot = str(Keypair.from_base58_string(key).pubkey())
+        except Exception as e:
+            return {"sent": False, "reason": f"bad_key:{e}"}
+        bal_resp = await self._post_rpc({"jsonrpc": "2.0", "id": 1, "method": "getBalance",
+                                         "params": [hot]})
+        lam = (((bal_resp or {}).get("result") or {}).get("value"))
+        if not isinstance(lam, (int, float)):
+            return {"sent": False, "reason": "balance_fetch_failed", "hot": hot}
+        bal_sol = lam / 1e9
+        price = await self._get_token_price(SOL_MINT)
+        # SOL-price sanity: a wrong (too-low) price would inflate the USD->SOL cap.
+        if not (isinstance(price, (int, float)) and 30.0 <= price <= 2000.0):
+            return {"sent": False, "reason": f"sol_price_implausible:{price}",
+                    "hot_balance_sol": round(bal_sol, 6)}
+        dest = _os.environ.get("PROFIT_WALLET_ADDRESS", "")
+        sweeper = _ps.ProfitSweeper(
+            get_balance_sol=lambda: bal_sol, send_transfer=lambda d, l: None,
+            get_sol_price_usd=lambda: price, configured_dest=dest, hot_addr=hot)
+        plan = sweeper.sweep_once(dry_run=True, max_usd=_ps.test_cap_usd(),
+                                  ignore_threshold=True)
+        plan["hot"] = hot
+        plan["hot_balance_sol"] = round(bal_sol, 6)
+        if dry_run or not plan.get("dry_run"):
+            return plan  # dry-run requested, or a guard blocked it
+        # Absolute hard ceiling (defense in depth): never send > 0.1 SOL from the test.
+        ABS_MAX_LAMPORTS = int(0.1 * 1e9)
+        lamports = min(int(plan["lamports"]), ABS_MAX_LAMPORTS)
+        sig = await self.send_sol_transfer(plan["dest"], lamports, signer_b58=key)
+        if not sig:
+            return {"sent": False, "reason": "transfer_failed", "lamports": lamports}
+        return {"sent": True, "lamports": lamports, "amount_sol": round(lamports / 1e9, 6),
+                "dest": plan["dest"], "sig": sig}
 
     async def _get_token_liquidity(self, token_address: str) -> float:
         """Get token pool liquidity in USD from DexScreener."""
