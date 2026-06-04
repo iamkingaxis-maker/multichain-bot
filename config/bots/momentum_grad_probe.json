@@ -32,7 +32,8 @@
   "mcap_psych_pc_h24_max": 80.0,
   "entry_gate": [
     ["net_flow_60s_imbalance", ">=", 0.3],
-    ["1m_volume_spike", ">=", 0.4]
+    ["1m_volume_spike", ">=", 0.4],
+    ["large_buyer_volume_pct", "<=", 0.5]
   ],
   "tp1_pct": 20.0,
   "tp1_sell_fraction": 0.4,

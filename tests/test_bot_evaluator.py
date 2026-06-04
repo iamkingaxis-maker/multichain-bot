@@ -98,7 +98,10 @@ def test_momentum_mode_blocks_on_overextension_above_vwap():
 # (deep dive: net_flow_60s_imbalance is the dominant pumper-vs-dumper separator d=+0.98;
 #  the originally-guessed 1m_cum_3min gate was BACKWARDS and was retired)
 def _grad_gate():
-    return [["net_flow_60s_imbalance", ">=", 0.3], ["1m_volume_spike", ">=", 0.4]]
+    # 2026-06-04: added buyer-breadth condition (C) — reject whale-dominated buying
+    # (large_buyer_volume_pct>0.5), the fresh-token bleed signature (fleet d=-0.80).
+    return [["net_flow_60s_imbalance", ">=", 0.3], ["1m_volume_spike", ">=", 0.4],
+            ["large_buyer_volume_pct", "<=", 0.5]]
 
 
 def test_grad_momentum_enters_on_buy_flow():
@@ -114,6 +117,21 @@ def test_grad_momentum_blocks_on_weak_flow():
     # net flow flat/negative (the dumper signature) -> gate blocks
     assert BotEvaluator(cfg).evaluate(_bundle(age_hours=2.0, raw_meta={
         "net_flow_60s_imbalance": 0.02, "1m_volume_spike": 0.9})) is None
+
+
+def test_grad_momentum_rejects_whale_dominated_buying():
+    # C (2026-06-04): buyer-breadth 2nd gate condition large_buyer_volume_pct<=0.5
+    # rejects whale-dominated buying (fresh-token bleed signature, fleet d=-0.80).
+    cfg = _cfg(momentum_mode=True, young_token_probe=True, entry_gate=_grad_gate())
+    base = {"net_flow_60s_imbalance": 0.55, "1m_volume_spike": 0.9}
+    # whale-dominated buying -> gate rejects (one buyer owns >50% of buy volume)
+    assert BotEvaluator(cfg).evaluate(_bundle(age_hours=2.0, raw_meta={
+        **base, "large_buyer_volume_pct": 0.81})) is None
+    # distributed buying -> enters
+    assert BotEvaluator(cfg).evaluate(_bundle(age_hours=2.0, raw_meta={
+        **base, "large_buyer_volume_pct": 0.10})) is not None
+    # feature missing -> fail-open (enters, degrades to prior behavior)
+    assert BotEvaluator(cfg).evaluate(_bundle(age_hours=2.0, raw_meta=base)) is not None
 
 
 def test_grad_momentum_probe_config_loads():
