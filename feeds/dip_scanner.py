@@ -15138,6 +15138,28 @@ class DipScanner:
                 logger.debug(f"[DipScanner] downtrend_shadow err: {_e}")
                 entry_meta_dict["watchlist_bypass_downtrend_shadow"] = None
 
+            # buyer_concentration — SHADOW 2026-06-04. First entry-side signal to
+            # clear the fleet's full discipline (held-out-by-token + token-null + BH):
+            # whale-dominated BUYING (large_buyer_volume_pct>=0.5) is the fresh-token
+            # bleed signature (fleet d=-0.80; >=0.5 -> 9% WR). MEASURE-ONLY: stamps
+            # verdict into entry_meta_dict + counter + log; never appends to
+            # _filters_block. Validate forward (live, cross-token, post-crash) before
+            # any enforcement spreads beyond momentum_grad_probe. Fail-open.
+            try:
+                from core.buyer_concentration import buyer_concentration_verdict as _bc_v
+                _bc_verdict, _bc_reasons = _bc_v(entry_meta_dict)
+                entry_meta_dict["buyer_concentration_shadow"] = _bc_verdict
+                entry_meta_dict["buyer_concentration_shadow_reasons"] = _bc_reasons
+                if _bc_verdict == "BLOCK":
+                    c["buyer_concentration_would_block"] = c.get(
+                        "buyer_concentration_would_block", 0) + 1
+                    logger.info(
+                        f"[DipScanner] buyer_concentration SHADOW would-block: "
+                        f"{token_symbol} {';'.join(_bc_reasons)} "
+                        f"(age_h={entry_meta_dict.get('lifecycle_age_hours')})")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] buyer_concentration shadow err: {_e}")
+
             # ── 2026-05-27 SHADOW gates (mining run, cross-regime-validated) ──
             # Observational only — stamp would-block verdicts for forward
             # confirmation; do NOT gate yet. Flip to ENFORCED after the forward
