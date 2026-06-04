@@ -15161,6 +15161,26 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] buyer_concentration shadow err: {_e}")
 
+            # stale_drift — SHADOW 2026-06-04. Multivariate entry-quality signal: the
+            # bleed localizes to age x pc_h24 (NOT regime). OLD tokens (>168h) in the
+            # MIDDLE pc_h24 band [-20,+60) bleed (in-sample trough x old -$1.40/tr 27%WR
+            # n=522; OOS-validated 17.8k universe events: worst cell, 2.2% peak / 3%
+            # runners). Fresh-extension (the tail) + deep-dips WIN -> never touched.
+            # MEASURE-ONLY: stamp verdict + counter; never appends to _filters_block.
+            # De-size after forward confirm. Fail-open.
+            try:
+                from core.stale_drift import stale_drift_verdict as _sd_v
+                _sd_verdict, _sd_reasons = _sd_v(entry_meta_dict)
+                entry_meta_dict["stale_drift_shadow"] = _sd_verdict
+                entry_meta_dict["stale_drift_shadow_reasons"] = _sd_reasons
+                if _sd_verdict == "BLOCK":
+                    c["stale_drift_would_block"] = c.get("stale_drift_would_block", 0) + 1
+                    logger.info(
+                        f"[DipScanner] stale_drift SHADOW would-de-size: "
+                        f"{token_symbol} {';'.join(_sd_reasons)}")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] stale_drift shadow err: {_e}")
+
             # ── 2026-05-27 SHADOW gates (mining run, cross-regime-validated) ──
             # Observational only — stamp would-block verdicts for forward
             # confirmation; do NOT gate yet. Flip to ENFORCED after the forward

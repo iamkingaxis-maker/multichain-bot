@@ -182,6 +182,14 @@ def buyer_concentration_block(c):
     from core.buyer_concentration import buyer_concentration_verdict
     return buyer_concentration_verdict(c)[0] == "BLOCK"
 
+def stale_drift_block(c):
+    """Phantom mirror for stale_drift SHADOW (2026-06-04). Blocks (de-size target) when
+    the token is OLD (lifecycle_age_hours > STALE_DRIFT_AGE_HRS, default 168) AND in the
+    middle pc_h24 band [-20,+60) — the validated bleed cell (OOS 2.2% peak / 3% runners).
+    Fresh-extension + deep-dips PASS (the win cells). Fails open if features absent."""
+    from core.stale_drift import stale_drift_verdict
+    return stale_drift_verdict(c)[0] == "BLOCK"
+
 def mtf_textbook_only_pass(c):
     """Pass only if textbook pullback pattern: 15m red AND 5m red AND 1m green."""
     return c.get('mtf_textbook_pullback') == 1
