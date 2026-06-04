@@ -3049,6 +3049,14 @@ class Trader:
                 sentinel.write_text(f"fired mode={mode} result={result}\n")
             except Exception:
                 pass
+            # Persist to a STABLE path so the result is readable via the dashboard GET
+            # (log retention + scanner flood make the one-time boot line unreliable to scrape).
+            try:
+                import json as _json, time as _time
+                (sdir / ".profit_sweep_last_test.json").write_text(_json.dumps(
+                    {"ts": _time.time(), "mode": mode, "nonce": _nonce, "result": result}))
+            except Exception:
+                pass
         except Exception as e:
             logger.error(f"[Sweep] BOOT test-fire error: {e}")
 

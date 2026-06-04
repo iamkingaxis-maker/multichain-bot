@@ -2142,6 +2142,7 @@ class WebDashboard:
         self.app.router.add_post("/api/axiom-relay",        self._handle_axiom_relay)
         self.app.router.add_post("/api/reset",              self._handle_reset)
         self.app.router.add_post("/api/profit-sweep/execute", self._handle_profit_sweep_execute)
+        self.app.router.add_get("/api/profit-sweep/last-test", self._handle_profit_sweep_last_test)
         self.app.router.add_post("/api/reset-daily-pnl",     self._handle_reset_daily_pnl)
         self.app.router.add_post("/api/restore",             self._handle_restore)
         self.app.router.add_get("/api/closed-positions",   self._handle_closed_positions)
@@ -2497,6 +2498,22 @@ class WebDashboard:
             content_type="application/json",
             headers={"Access-Control-Allow-Origin": "*"},
         )
+
+    async def _handle_profit_sweep_last_test(self, request):
+        """GET /api/profit-sweep/last-test — read-only readout of the last sweep test-fire
+        result (dry or live). No money, no auth needed — lets us reliably verify the
+        boot test result without scraping flooded logs."""
+        import os as _os
+        from pathlib import Path as _Path
+        cors = {"Access-Control-Allow-Origin": "*"}
+        path = _Path(_os.environ.get("DATA_DIR") or "/data") / ".profit_sweep_last_test.json"
+        if not path.exists():
+            return web.json_response({"exists": False}, headers=cors)
+        try:
+            return web.json_response({"exists": True, "data": json.loads(path.read_text())},
+                                     headers=cors)
+        except Exception as e:
+            return web.json_response({"exists": True, "error": str(e)}, headers=cors)
 
     async def _handle_profit_sweep_execute(self, request):
         """POST /api/profit-sweep/execute — fire ONE profit sweep (the manual $5 test).
