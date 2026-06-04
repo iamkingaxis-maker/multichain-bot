@@ -259,6 +259,7 @@ class DipScanner:
         # last-prune timestamp. A token must read DEAD on N consecutive prune
         # checks before removal (no removal on a single quiet blip).
         self._wl_dead_strikes: dict = {}
+        self._wl_nodata_strikes: dict = {}  # consecutive cycles a watchlist addr had NO DS pair (delisted-rug rule)
         self._wl_last_prune_ts: float = 0.0
         self._wl_last_add_ts: float = 0.0  # auto-add throttle
         # Tier 3: optional AxiomPriceFeed for sub-minute tick buffer reads.
@@ -15749,17 +15750,39 @@ class DipScanner:
         # direct .get(lowercase) ALWAYS missed -> the pruner fail-opened on every token and
         # never removed anything. Match case-insensitively. (Solana base58 is case-sensitive.)
         pair_lc = {str(k).lower(): v for k, v in pair_by_addr.items()}
+        # DELISTED-RUG RULE (2026-06-04): a watchlist addr is force-enriched every cycle
+        # (to_enrich includes the watchlist). If DexScreener returns NO pair for it for N
+        # consecutive HEALTHY cycles, it's delisted / rugged-to-dust -> remove. Guard: only
+        # count "no data" when this cycle enriched a healthy number of pairs, so a transient
+        # DS outage can't strike (and remove) the whole list.
+        _enrich_healthy = len(pair_by_addr) >= wp.delisted_min_cycle_pairs()
+        _delisted_on = wp.prune_delisted_enabled()
+        _del_req = wp.delisted_strikes()
+        delisted = []
         toks = []
         for a in addrs:
             p = pair_lc.get(a)
             if not p:
-                continue  # genuinely no fresh data this cycle -> skip (fail-open)
+                # No DS pair this cycle. If the cycle is healthy, accrue a delisted strike.
+                if _delisted_on and _enrich_healthy:
+                    self._wl_nodata_strikes[a] = self._wl_nodata_strikes.get(a, 0) + 1
+                    if self._wl_nodata_strikes[a] >= _del_req:
+                        if self.remove_user_watchlist(a, manual=False):
+                            delisted.append(a)
+                        self._wl_nodata_strikes.pop(a, None)
+                continue
+            self._wl_nodata_strikes.pop(a, None)  # has a pair -> not delisted, reset
             toks.append({
                 "address": a,
                 "liq_usd": float((p.get("liquidity") or {}).get("usd") or 0),
                 "vol_h24": float((p.get("volume") or {}).get("h24") or 0),
                 "mcap": float(p.get("marketCap") or p.get("fdv") or 0),
             })
+        if delisted:
+            logger.info(
+                f"[DipScanner] watchlist autoprune: removed {len(delisted)} DELISTED tokens "
+                f"(no DexScreener pair for >= {_del_req} cycles): {delisted}"
+            )
         if not toks:
             return
         dead_now = set(wp.find_dead(toks, wp.min_vol_h24(), wp.min_liq()))

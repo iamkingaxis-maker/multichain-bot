@@ -54,6 +54,32 @@ def strikes_required() -> int:
         return 2
 
 
+# ── Delisted-rug rule (2026-06-04) ──────────────────────────────────────────
+# A watchlist token is force-enriched via DexScreener every cycle. If DS returns
+# NO pair for it for N consecutive HEALTHY cycles, it's delisted / rugged-to-dust
+# (DS only returns pairs that still exist). More conservative than dried-up pruning
+# (higher strike count) because "no data" is also DS-flakiness-prone — guarded by a
+# min-pairs healthy-cycle check so a transient global fetch failure can't nuke the list.
+def prune_delisted_enabled() -> bool:
+    return _flag("WATCHLIST_PRUNE_DELISTED", "1")
+
+
+def delisted_strikes() -> int:
+    try:
+        return max(2, int(os.environ.get("WATCHLIST_DELISTED_STRIKES", "5")))
+    except (TypeError, ValueError):
+        return 5
+
+
+def delisted_min_cycle_pairs() -> int:
+    # Only count a "no DS data" strike when THIS cycle enriched a healthy number of
+    # pairs — else a transient DS outage (few/no pairs) would wrongly strike everything.
+    try:
+        return max(1, int(os.environ.get("WATCHLIST_DELISTED_MIN_CYCLE_PAIRS", "20")))
+    except (TypeError, ValueError):
+        return 20
+
+
 def is_rugged(token) -> bool:
     """Unambiguously dead: liquidity or market cap reads <= 0 (drained/delisted). A
     live token never has zero liq with a present pair, so these are removed INSTANTLY

@@ -108,3 +108,33 @@ def test_add_ranks_by_volume_and_caps_room():
 def test_add_respects_max_per_run():
     toks = [_a(f"t{i}", vol=100000 + i) for i in range(20)]
     assert len(find_adds(toks, [], [], 150, 40000, 75000, 8, 24, 5)) == 5
+
+
+# ── delisted-rug rule config (2026-06-04) ──
+def test_delisted_defaults(monkeypatch):
+    for k in ("WATCHLIST_PRUNE_DELISTED", "WATCHLIST_DELISTED_STRIKES",
+              "WATCHLIST_DELISTED_MIN_CYCLE_PAIRS"):
+        monkeypatch.delenv(k, raising=False)
+    import core.watchlist_pruner as wp
+    assert wp.prune_delisted_enabled() is True      # default ON
+    assert wp.delisted_strikes() == 5               # conservative default
+    assert wp.delisted_min_cycle_pairs() == 20      # healthy-cycle floor
+
+
+def test_delisted_env_overrides(monkeypatch):
+    import core.watchlist_pruner as wp
+    monkeypatch.setenv("WATCHLIST_PRUNE_DELISTED", "0")
+    monkeypatch.setenv("WATCHLIST_DELISTED_STRIKES", "8")
+    monkeypatch.setenv("WATCHLIST_DELISTED_MIN_CYCLE_PAIRS", "50")
+    assert wp.prune_delisted_enabled() is False
+    assert wp.delisted_strikes() == 8
+    assert wp.delisted_min_cycle_pairs() == 50
+
+
+def test_delisted_strikes_floor(monkeypatch):
+    # never below 2 (a single no-data blip must not remove)
+    import core.watchlist_pruner as wp
+    monkeypatch.setenv("WATCHLIST_DELISTED_STRIKES", "1")
+    assert wp.delisted_strikes() == 2
+    monkeypatch.setenv("WATCHLIST_DELISTED_STRIKES", "garbage")
+    assert wp.delisted_strikes() == 5
