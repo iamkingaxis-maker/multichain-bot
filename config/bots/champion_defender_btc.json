@@ -1,7 +1,7 @@
 {
   "bot_id": "champion_defender_btc",
   "display_name": "Defender BTC overheat (btc_pc_h4>+0.5)",
-  "enabled": true,
+  "enabled": false,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
   "max_concurrent_positions": 3,

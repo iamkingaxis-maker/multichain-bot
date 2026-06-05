@@ -15238,6 +15238,29 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] rug_gate shadow err: {_e}")
 
+            # mtf_textbook_pullback CONVICTION tag — SHADOW 2026-06-05 (prune-mine).
+            # The ONLY positive-selection edge that survived the 21-bot prune mine
+            # (15 Opus agents, same-token overlap method). mtf_textbook_pullback==1
+            # entries win 60.2% vs 47.9% fleet and SURVIVE the same-token overlap test
+            # (36 tok 59.3% vs 43.6%) -> real intra-token timing signal, strongest on
+            # champion_defender_2k. MEASURE-ONLY conviction/upsize TAG — NEVER a block.
+            # NOT a $ claim: headline +$7.36/tr was a partial-sell aggregation artifact;
+            # real edge is WR/conviction only (~+$1.27/tr, 2 tokens). Per-bot n still thin
+            # (4d) -> accumulate forward data before sizing. The BAD cohort (textbook
+            # pullback AT an extension) is already suppressed upstream (mtf_textbook_pullback
+            # AND hl_delta>0 -> clear all triggers), so a surviving tag is the good context.
+            try:
+                _mtf_tp_v = entry_meta_dict.get("mtf_textbook_pullback")
+                _mtf_conv = "CONVICTION" if (_mtf_tp_v is not None and float(_mtf_tp_v) >= 1) else "NEUTRAL"
+                entry_meta_dict["mtf_conviction_shadow"] = _mtf_conv
+                if _mtf_conv == "CONVICTION":
+                    c["mtf_conviction_would_upsize"] = c.get("mtf_conviction_would_upsize", 0) + 1
+                    logger.info(
+                        f"[DipScanner] mtf_textbook_pullback CONVICTION shadow (upsize candidate): "
+                        f"{token_symbol}")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] mtf_conviction shadow err: {_e}")
+
             # ── 2026-05-27 SHADOW gates (mining run, cross-regime-validated) ──
             # Observational only — stamp would-block verdicts for forward
             # confirmation; do NOT gate yet. Flip to ENFORCED after the forward

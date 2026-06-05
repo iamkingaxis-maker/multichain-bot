@@ -14,7 +14,7 @@
   "conviction_step": 0.5,
   "display_name": "Champ Reentry Throttle",
   "drawdown_freeze_threshold_usd": null,
-  "enabled": true,
+  "enabled": false,
   "filters_disabled": [],
   "filters_enforced": null,
   "flat_exit_band_pct": 3.0,

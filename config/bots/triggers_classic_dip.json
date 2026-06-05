@@ -6,7 +6,7 @@
   "bot_id": "triggers_classic_dip",
   "btc_macro_h1_block_threshold": null,
   "display_name": "Classic dip family (deep/active/pullback n=10)",
-  "enabled": true,
+  "enabled": false,
   "filters_disabled": [],
   "filters_enforced": null,
   "hard_stop_pct": -15.0,

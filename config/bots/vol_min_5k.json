@@ -1,7 +1,7 @@
 {
   "bot_id": "vol_min_5k",
   "display_name": "vol_h1_min sweep 5k",
-  "enabled": true,
+  "enabled": false,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
   "max_concurrent_positions": 3,

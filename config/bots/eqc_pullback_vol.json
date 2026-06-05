@@ -6,7 +6,7 @@
   "bot_id": "eqc_pullback_vol",
   "btc_macro_h1_block_threshold": null,
   "display_name": "EQC: pullback+1s-reversal+volatility (compound, higher-vol, live test)",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [["pc_h1", "<=", -8.0], ["1s_green_run_end", ">=", 2.0], ["token_volatility_h24_pct", ">=", 27.0]],
   "filters_disabled": [],
   "filters_enforced": null,

@@ -14,7 +14,7 @@
   "conviction_step": 0.5,
   "display_name": "No SOL macro gate",
   "drawdown_freeze_threshold_usd": null,
-  "enabled": true,
+  "enabled": false,
   "filters_disabled": [
     "filter_sol_macro_down"
   ],

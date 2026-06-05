@@ -1,7 +1,7 @@
 {
   "bot_id": "champion_whale_buyers",
   "display_name": "Concentrated-whale positive-selection — champion_defender_v4's EXACT stack (10-filter defender + WR-preserving exits, no stall), single variable = entry_gate top_buy_makers_n<=8 (concentrated whales, NOT a FOMO crowd). Strongest held-out signal of the 2026-05-29 feature-gate scan: beats fleet WR in BOTH windows AND on the brutal 05-28 day, AND is +$/tr-positive in both regimes (the only signal that held $/tr through the bad regime). top_buy_makers_n<9: TRAIN 69% WR +$1.17/tr, TEST 63% WR +$1.82/tr, and on the TRUE worst fleet day 05-27 (fleet 23% WR) ~43% (+20pp) [correction: an earlier draft mislabeled the worst day as 05-28/78%; 05-28 was actually an easy 58% day]. The >=9 FOMO crowd is the loser (53/43 WR, -$4.97/-$3.13). concurrent_positions>=2 'hot streak' thesis was REJECTED (collapsed to TEST 48%/-$5.93). triggers open so the whale gate is the isolated variable. A/B control = champion_defender_v4. Judge n>=50 --unrealized.",
-  "enabled": true,
+  "enabled": false,
   "ng_scorer_gate": true,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,

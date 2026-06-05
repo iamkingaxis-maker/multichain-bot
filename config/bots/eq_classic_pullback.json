@@ -6,7 +6,7 @@
   "bot_id": "eq_classic_pullback",
   "btc_macro_h1_block_threshold": null,
   "display_name": "EQ: classic dip + real-pullback gate (live test)",
-  "enabled": true,
+  "enabled": false,
   "filters_disabled": [],
   "filters_enforced": null,
   "hard_stop_pct": -15.0,

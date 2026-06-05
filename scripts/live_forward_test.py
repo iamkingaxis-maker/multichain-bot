@@ -215,6 +215,18 @@ def mtf_textbook_only_pass(c):
     """Pass only if textbook pullback pattern: 15m red AND 5m red AND 1m green."""
     return c.get('mtf_textbook_pullback') == 1
 
+def mtf_conviction_tag(c):
+    """Phantom mirror for mtf_conviction_shadow CONVICTION tag (2026-06-05, prune-mine).
+    The one positive-selection edge that survived the 21-bot prune mine: textbook-pullback
+    entries win 60.2% vs 47.9% and survive the same-token overlap test. MEASURE-ONLY
+    conviction/upsize tag (never a block, WR signal not a $ claim). Mirrors the production
+    stamp exactly: True == CONVICTION (upsize candidate)."""
+    v = c.get('mtf_textbook_pullback')
+    try:
+        return v is not None and float(v) >= 1
+    except (TypeError, ValueError):
+        return False
+
 def sweep_too_recent_block(c):
     """Phantom parity for filter_sweep_too_recent (ENFORCED 2026-05-13).
 

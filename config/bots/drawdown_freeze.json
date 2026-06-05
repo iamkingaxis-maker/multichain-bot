@@ -11,7 +11,7 @@
   "compound_threshold_step_usd": 100.0,
   "display_name": "Drawdown freeze (pause when realized <= -$100)",
   "drawdown_freeze_threshold_usd": -100.0,
-  "enabled": true,
+  "enabled": false,
   "filters_disabled": [],
   "filters_enforced": null,
   "hard_stop_pct": -15.0,

@@ -1,7 +1,7 @@
 {
   "bot_id": "runner_tilt_aggressive",
   "display_name": "Runner tilt aggressive (TP1+8/33, TP2+20/33, trail 4pp)",
-  "enabled": true,
+  "enabled": false,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
   "max_concurrent_positions": 3,

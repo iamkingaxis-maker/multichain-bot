@@ -10,7 +10,7 @@
   "compound_step_amount_usd": 5.0,
   "compound_threshold_step_usd": 100.0,
   "display_name": "Stop -8% (tighter than tight_stop)",
-  "enabled": true,
+  "enabled": false,
   "filters_disabled": [],
   "filters_enforced": null,
   "hard_stop_pct": -8.0,
