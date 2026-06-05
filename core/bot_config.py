@@ -242,6 +242,16 @@ class BotConfig:
     scalein_confirm_pct: float = 1.0      # add the 2nd tranche when pnl first reaches this
     scalein_first_fraction: float = 0.5   # fraction of full size deployed at entry
 
+    # ng_faststop acting exit (2026-06-05 drawdown-mine LEVER 1). The never-green fast-stop
+    # (peak<2 AND pnl<=-4) already runs as a SHADOW; promote it to ACT. It observes the
+    # shallow -4 tick that the never_runner -6 floor GAPS PAST (slow never-green bleeders
+    # jump -4->-16 in one 60s poll, skipping [-6,-15] -> book the -15 hard stop). Acting on
+    # the -4 tick books ~-4.7 instead of -16.4: cuts ~23% of fleet loss / ~22% maxDD for
+    # 0-2 winners (save:kill ~975:1, off-06-04-durable). Winner-safe BY CONSTRUCTION (peak<2
+    # can't touch a runner); EXIT-ONLY (no size change — the user will not cut size). Default
+    # off = no behavior change; opt-in per bot (pool_a/pool_c_tightexit/def2k).
+    ng_faststop_exit_enabled: bool = False
+
     # Pool sizing de-rates (2026-06-02 fleet-mine, cap-respecting positive selection).
     # When True, position size is adjusted DOWN (never up — honors the $100 cap) for the
     # cohorts the fleet mine flagged, with the smart-money compound EXEMPT (kept at full

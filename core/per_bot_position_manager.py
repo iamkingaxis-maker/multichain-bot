@@ -410,6 +410,24 @@ class PerBotPositionManager:
             p.state_blob["gb_shadow_peak_at_fire"] = round(p.peak_pnl_pct, 4)
             p.state_blob["gb_shadow_secs_at_fire"] = int(now - p.entry_time)
 
+        # NARROW giveback SHADOW (2026-06-05 drawdown-mine LEVER 2, MEASURE-ONLY). The
+        # marginal-peak band [3,5)% that peaked then bled (WLM +3.7->-15.6, LOA +3.9->-11.4):
+        # these are slow bleeds, not real runners, and the trail only arms post-TP1 so they
+        # ride to the stop. Candidate winner-safe exit = cut peak in [3,5) at -5. Stamp the
+        # would-fire for forward parity; ACT only after a 2-week shadow confirms catch-rate.
+        # (Broad giveback rescue peak>=3 is winner-UNSAFE — kills the V-recovery tail — so
+        # this is deliberately narrow.) NO ExitDecision here.
+        if (
+            not p.tp1_hit
+            and not (p.state_blob or {}).get("gb_narrow_fired")
+            and 3.0 <= p.peak_pnl_pct < 5.0
+            and pnl_pct <= -5.0
+        ):
+            p.state_blob["gb_narrow_fired"] = True
+            p.state_blob["gb_narrow_pnl_at_fire"] = round(pnl_pct, 4)
+            p.state_blob["gb_narrow_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+            p.state_blob["gb_narrow_secs_at_fire"] = int(now - p.entry_time)
+
         # Never-green fast-stop SHADOW (measure-only, 2026-05-31) — the PRIMARY
         # avg-loss lever. Fires when a position that NEVER peaked >=2% ("never
         # showed strength" — a near-pure dying signal: only 4% of WINNERS ever
@@ -545,6 +563,26 @@ class PerBotPositionManager:
             return decisions
 
         hold_minutes = (now - p.entry_time) / 60.0
+
+        # 2a. ng-faststop ACTING exit (2026-06-05 drawdown-mine LEVER 1). Cut never-green
+        # bleeders at the SHALLOW -4 tick that the -6 never_runner floor GAPS PAST (slow
+        # never-greens jump -4 -> -16 in one 60s poll, skipping [-6,-15] -> book the -15 hard
+        # stop). Same gate as the ng_faststop shadow stamped above (peak<2 AND pnl<=-4):
+        # acting on the -4 tick books ~-4.7 instead of -16.4. Winner-safe BY CONSTRUCTION
+        # (peak<2 can't be a runner); EXIT-ONLY (no size cut). Precedes never_runner (whose
+        # -6 floor is missed on the gap). ACTS only when ng_faststop_exit_enabled.
+        if (
+            self.config.ng_faststop_exit_enabled
+            and not p.tp1_hit
+            and p.peak_pnl_pct < 2.0
+            and pnl_pct <= -4.0
+        ):
+            decisions.append(ExitDecision(
+                token=token, kind="NG_FASTSTOP",
+                reason=f"ng_faststop peak={p.peak_pnl_pct:.2f}%<2 pnl={pnl_pct:.2f}%<=-4 (never-green fast cut)",
+                sell_fraction=1.0,
+            ))
+            return decisions
 
         # 2b. Never-runner exit (2026-06-02 mine, convergent across 3 of 8 agents).
         # The cohort that NEVER crossed never_runner_peak_max: cut it via the

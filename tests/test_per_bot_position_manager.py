@@ -645,3 +645,60 @@ def test_complete_scalein_rejects_bad_inputs():
     assert pm.complete_scalein("S", fill_price=1.01, add_usd=0.0) is False
     assert pm.complete_scalein("MISSING", fill_price=1.01, add_usd=50.0) is False
     assert p.state_blob["scalein_pending"] is True   # still pending after rejects
+
+
+# ── ng_faststop ACTING exit + narrow giveback shadow (2026-06-05 drawdown-mine) ──
+
+def test_ng_faststop_exit_fires_when_enabled(monkeypatch):
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)
+    pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0, ng_faststop_exit_enabled=True))
+    pm.open_position("D", 0.001, 20.0, entry_time=0.0)
+    pm.tick("D", current_price=0.00101, now=10.0)            # +1% peak (never >=2)
+    decs = pm.tick("D", current_price=0.00096, now=20.0)     # -4% -> NG_FASTSTOP exit
+    assert any(d.kind == "NG_FASTSTOP" for d in decs)
+
+
+def test_ng_faststop_exit_off_when_disabled_but_shadow_stamps(monkeypatch):
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)
+    pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0, ng_faststop_exit_enabled=False))
+    pm.open_position("D", 0.001, 20.0, entry_time=0.0)
+    pm.tick("D", current_price=0.00101, now=10.0)
+    decs = pm.tick("D", current_price=0.00096, now=20.0)
+    assert not any(d.kind == "NG_FASTSTOP" for d in decs)    # no exit when disabled
+    assert pm.get_position("D").state_blob.get("ng_faststop_fired") is True  # shadow still fires
+
+
+def test_ng_faststop_exit_winner_safe_peak_ge_2(monkeypatch):
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)
+    pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0, ng_faststop_exit_enabled=True))
+    pm.open_position("D", 0.001, 20.0, entry_time=0.0)
+    pm.tick("D", current_price=0.00103, now=10.0)            # +3% peak (>=2 -> protected runner)
+    decs = pm.tick("D", current_price=0.00096, now=20.0)     # -4%
+    assert not any(d.kind == "NG_FASTSTOP" for d in decs)
+
+
+def test_ng_faststop_exit_not_until_minus4(monkeypatch):
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)
+    pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0, ng_faststop_exit_enabled=True))
+    pm.open_position("D", 0.001, 20.0, entry_time=0.0)
+    pm.tick("D", current_price=0.00101, now=10.0)
+    decs = pm.tick("D", current_price=0.00098, now=20.0)     # -2% (not <=-4)
+    assert not any(d.kind == "NG_FASTSTOP" for d in decs)
+
+
+def test_gb_narrow_shadow_stamps_in_band(monkeypatch):
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)
+    pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0))
+    pm.open_position("G", 0.001, 20.0, entry_time=0.0)
+    pm.tick("G", current_price=0.001037, now=10.0)           # +3.7% peak (in [3,5))
+    pm.tick("G", current_price=0.00094, now=20.0)            # -6% (<=-5) -> stamp
+    assert pm.get_position("G").state_blob.get("gb_narrow_fired") is True
+
+
+def test_gb_narrow_shadow_not_above_band(monkeypatch):
+    monkeypatch.delenv("PAPER_UNCAPPED", raising=False)
+    pm = PerBotPositionManager(_cfg(hard_stop_pct=-50.0))
+    pm.open_position("G", 0.001, 20.0, entry_time=0.0)
+    pm.tick("G", current_price=0.00106, now=10.0)            # +6% peak (>=5, outside band)
+    pm.tick("G", current_price=0.00094, now=20.0)            # -6%
+    assert not (pm.get_position("G").state_blob or {}).get("gb_narrow_fired")

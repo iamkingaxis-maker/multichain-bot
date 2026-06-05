@@ -1,6 +1,6 @@
 {
   "bot_id": "champion_v2",
-  "display_name": "Champion V2 — mined DNA synthesis 2026-05-27 (stop-20, vol-5k, midcap 5-25M, runner-tilt, bleed-120). SOL per-bot gate REMOVED as confound; scanner filter_sol_macro_down provides SOL protection.",
+  "display_name": "Champion V2 \u2014 mined DNA synthesis 2026-05-27 (stop-20, vol-5k, midcap 5-25M, runner-tilt, bleed-120). SOL per-bot gate REMOVED as confound; scanner filter_sol_macro_down provides SOL protection.",
   "enabled": false,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,

@@ -1,6 +1,6 @@
 {
   "bot_id": "champion_defender_v3",
-  "display_name": "Layered defender (6 filters) — production-successor candidate, held-out 4x lift",
+  "display_name": "Layered defender (6 filters) \u2014 production-successor candidate, held-out 4x lift",
   "enabled": true,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
@@ -9,11 +9,9 @@
   "macro_up_multiplier": 1.5,
   "premium_runner_multiplier": 3.0,
   "marginal_multiplier": 0.5,
-
   "sol_macro_h6_block_threshold": -0.3,
   "sol_macro_h1_block_threshold": -0.7,
   "btc_macro_h1_block_threshold": null,
-
   "pc_h24_max": null,
   "pc_h24_min": null,
   "pc_h1_max": null,
@@ -22,7 +20,6 @@
   "mcap_min": null,
   "mcap_max": null,
   "vol_h1_min": 1000.0,
-
   "filters_enforced": [
     "filter_falling_pump",
     "filter_fusion_floor",
@@ -37,12 +34,12 @@
   ],
   "filters_disabled": [],
   "triggers_allowed": null,
-  "triggers_disabled": ["modest_pump_deep_retrace"],
+  "triggers_disabled": [
+    "modest_pump_deep_retrace"
+  ],
   "min_triggers_to_fire": 1,
   "require_alpha_trigger": false,
-
   "mcap_psych_pc_h24_max": 80.0,
-
   "tp1_pct": 5.0,
   "tp1_sell_fraction": 0.75,
   "tp2_pct": 10.0,
