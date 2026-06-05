@@ -15213,6 +15213,25 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] holder_concentration shadow err: {_e}")
 
+            # rug_gate — SHADOW 2026-06-04. FLEET-WIDE port of trader.buy's legacy
+            # LP-UNLOCK block (which the fleet path bypassed). BLOCK when the dominant
+            # pool's LP is UNLOCKED (lp_locked_pct<threshold) AND not burned = rug-pull
+            # capability. lp_locked_pct/lp_burned/rugcheck_score now extracted in
+            # compute_holder_features (same cached rugcheck fetch -> zero extra egress).
+            # MEASURE-ONLY; enforce fleet-wide after forward confirm. Fail-open on unknown.
+            try:
+                from core.rug_gate import rug_gate_verdict as _rg_v
+                _rg_verdict, _rg_reasons = _rg_v(entry_meta_dict)
+                entry_meta_dict["rug_gate_shadow"] = _rg_verdict
+                entry_meta_dict["rug_gate_shadow_reasons"] = _rg_reasons
+                if _rg_verdict == "BLOCK":
+                    c["rug_gate_would_block"] = c.get("rug_gate_would_block", 0) + 1
+                    logger.info(
+                        f"[DipScanner] rug_gate SHADOW would-block (LP unlocked): "
+                        f"{token_symbol} {';'.join(_rg_reasons)}")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] rug_gate shadow err: {_e}")
+
             # ── 2026-05-27 SHADOW gates (mining run, cross-regime-validated) ──
             # Observational only — stamp would-block verdicts for forward
             # confirmation; do NOT gate yet. Flip to ENFORCED after the forward

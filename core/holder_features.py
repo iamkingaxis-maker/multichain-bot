@@ -76,7 +76,7 @@ def compute_holder_features(rc_full: dict) -> dict:
     try:
         markets = rc_full.get("markets") or []
         if isinstance(markets, list) and markets:
-            best = None; best_depth = -1.0
+            best = None; best_depth = -1.0; best_market = None
             for m in markets:
                 if not isinstance(m, dict):
                     continue
@@ -85,13 +85,38 @@ def compute_holder_features(rc_full: dict) -> dict:
                     continue
                 b = float(lp.get("baseUSD") or 0); q = float(lp.get("quoteUSD") or 0)
                 if b + q > best_depth:
-                    best_depth = b + q; best = (b, q)
+                    best_depth = b + q; best = (b, q); best_market = m
             if best and best_depth > 0:
                 b, q = best
                 ratio = max(b, q) / max(min(b, q), 0.01)
                 out["lp_imbalance_ratio"] = round(ratio, 3)
                 out["lp_single_sided"] = bool(ratio > 5.0)
                 out["lp_dominant_depth_usd"] = round(best_depth, 2)
+            # LP LOCK / BURN on the dominant pool — the fleet-wide rug-gate signal
+            # (mirrors trader.buy:1335-1400, which only the legacy path got). mintLP ==
+            # system address => LP BURNED, functionally MORE secure than locked (tokens
+            # can never be redeemed) => 100. Else the pool's lpLockedPct (top-level fallback).
+            if best_market is not None:
+                _bm_lp = best_market.get("lp") or {}
+                if (best_market.get("mintLP") or "") == "11111111111111111111111111111111":
+                    out["lp_locked_pct"] = 100.0
+                    out["lp_burned"] = True
+                else:
+                    _lpl = _bm_lp.get("lpLockedPct")
+                    if _lpl is None:
+                        _lpl = rc_full.get("lpLockedPct")  # top-level aggregate fallback
+                    if _lpl is not None:
+                        out["lp_locked_pct"] = round(float(_lpl or 0), 2)
+                        out["lp_burned"] = False
     except Exception as e:
         logger.debug(f"[holder_features] markets parse failed: {e}")
+    # Rugcheck risk score (0..100, higher = riskier) — top-level rug-gate signal.
+    try:
+        _sc = rc_full.get("score_normalised")
+        if _sc is None:
+            _sc = rc_full.get("score")
+        if _sc is not None:
+            out["rugcheck_score"] = round(float(_sc), 2)
+    except Exception:
+        pass
     return out

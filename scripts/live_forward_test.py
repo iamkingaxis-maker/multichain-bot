@@ -204,6 +204,13 @@ def holder_concentration_block(c):
     from core.holder_concentration import holder_concentration_verdict
     return holder_concentration_verdict(c)[0] == "BLOCK"
 
+def rug_gate_block(c):
+    """Phantom mirror for rug_gate SHADOW (2026-06-04). Fleet-wide LP-unlock block ported
+    from trader.buy: BLOCK if lp_locked_pct < RUG_GATE_LP_LOCK_MIN (default 1) and not
+    burned. Burned LP passes; unknown lp_locked_pct fails open."""
+    from core.rug_gate import rug_gate_verdict
+    return rug_gate_verdict(c)[0] == "BLOCK"
+
 def mtf_textbook_only_pass(c):
     """Pass only if textbook pullback pattern: 15m red AND 5m red AND 1m green."""
     return c.get('mtf_textbook_pullback') == 1
