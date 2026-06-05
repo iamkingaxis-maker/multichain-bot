@@ -197,6 +197,13 @@ def rolling_ng_block(c):
     from core.rolling_ng_live import score_entry
     return score_entry(c)[0] == "BLOCK"
 
+def holder_concentration_block(c):
+    """Phantom mirror for holder_concentration SHADOW (2026-06-04). Blocks when
+    top10_holder_pct >= HOLDER_CONC_TOP10_THR (default 90) — extreme concentration /
+    rug risk (held-out net +$156 at >=90). Fails open if the field is absent."""
+    from core.holder_concentration import holder_concentration_verdict
+    return holder_concentration_verdict(c)[0] == "BLOCK"
+
 def mtf_textbook_only_pass(c):
     """Pass only if textbook pullback pattern: 15m red AND 5m red AND 1m green."""
     return c.get('mtf_textbook_pullback') == 1

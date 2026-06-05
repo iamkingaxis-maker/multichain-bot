@@ -15196,6 +15196,23 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] rolling_ng shadow err: {_e}")
 
+            # holder_concentration — SHADOW 2026-06-04. Fleet-wide rug-proxy: extreme
+            # top10_holder_pct (>=90) is a rug/pump-dump signature (98.6%-rug sector).
+            # Held-out net +$156 at >=90 (24% WR in blocked cohort); lower thresholds clip
+            # winners. MEASURE-ONLY; de-size after confirm. Catches APM-type 91% rugs.
+            try:
+                from core.holder_concentration import holder_concentration_verdict as _hc_v
+                _hc_verdict, _hc_reasons = _hc_v(entry_meta_dict)
+                entry_meta_dict["holder_concentration_shadow"] = _hc_verdict
+                entry_meta_dict["holder_concentration_shadow_reasons"] = _hc_reasons
+                if _hc_verdict == "BLOCK":
+                    c["holder_concentration_would_block"] = c.get("holder_concentration_would_block", 0) + 1
+                    logger.info(
+                        f"[DipScanner] holder_concentration SHADOW would-de-size: "
+                        f"{token_symbol} {';'.join(_hc_reasons)}")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] holder_concentration shadow err: {_e}")
+
             # ── 2026-05-27 SHADOW gates (mining run, cross-regime-validated) ──
             # Observational only — stamp would-block verdicts for forward
             # confirmation; do NOT gate yet. Flip to ENFORCED after the forward
