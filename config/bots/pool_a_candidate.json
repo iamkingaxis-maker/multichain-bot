@@ -5,7 +5,7 @@
   "base_position_usd": 100.0,
   "bot_id": "pool_a_candidate",
   "btc_macro_h1_block_threshold": null,
-  "display_name": "POOL-A shadow (Design A): candidate (premium_tightexit) spine, $100 fixed, 10 non-overlapping slots. Tests the user's original idea â€” ONE strategy, many no-same-token slots (de-concentration). Multipliers neutralized to 1.0 so every position is exactly $100 (hard cap). exclusion_pool=pool_a. Forward-judge eqw/day + stability vs pool_c.",
+  "display_name": "POOL-A shadow (Design A): candidate (premium_tightexit) spine, $100 fixed, 7 selective slots (slot-sweep 2026-06-05: capital efficiency + per-trade quality degrade past ~7; 7 = sweet spot for the profit-sweep float). Tests the user's original idea â€” ONE strategy, many no-same-token slots (de-concentration). Multipliers neutralized to 1.0 so every position is exactly $100 (hard cap). exclusion_pool=pool_a. Forward-judge eqw/day + stability vs pool_c.",
   "enabled": true,
   "entry_gate": [
     [
@@ -38,7 +38,7 @@
   "hard_stop_pct": -15.0,
   "macro_up_multiplier": 1.0,
   "marginal_multiplier": 1.0,
-  "max_concurrent_positions": 10,
+  "max_concurrent_positions": 7,
   "mcap_max": null,
   "mcap_min": null,
   "mcap_psych_pc_h24_max": 80.0,
