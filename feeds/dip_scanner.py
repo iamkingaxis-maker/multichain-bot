@@ -15358,6 +15358,28 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] mtf_conviction shadow err: {_e}")
 
+            # filter_sol_flicker — ENFORCED 2026-06-05 (capital preservation). BLOCK
+            # entries during ACUTE SOL-gate flicker: flk_1h = trailing-hour count of
+            # gate clear->block flips; >=2 = a choppy/crash regime. CAUSAL (past-only).
+            # Net-positive loss-trimmer in % (sum +241pp; off-06-04 +68pp, ~2:1 save:kill,
+            # generalizes 4/5 non-nuke days); SELF-GATES to chop (flk_1h=0 on calm days,
+            # so it can't bleed the edge normally). Sacrifices a few bounce winners to
+            # preserve capital so the profit-sweep banks higher realized peaks. The hard
+            # block at higher thresholds was tuned + rejected as a 2-day artifact; flk>=2
+            # under the capital-preservation bar holds. Opt-in via DEFENDER_FILTERS ->
+            # acts on def2k/pool_a/pool_c_tightexit; shadow (verdict stamped) elsewhere.
+            try:
+                _flk1h_v = self._sol_flk_1h()
+                entry_meta_dict["sol_flk_1h"] = _flk1h_v
+                _solflk_verdict = "BLOCK" if _flk1h_v >= 2 else "PASS"
+                entry_meta_dict["sol_flicker_shadow"] = _solflk_verdict
+                if _solflk_verdict == "BLOCK":
+                    c["sol_flicker_would_block"] = c.get("sol_flicker_would_block", 0) + 1
+                    if "filter_sol_flicker" not in _filters_block:
+                        _filters_block.append("filter_sol_flicker")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] sol_flicker err: {_e}")
+
             # ── 2026-05-27 SHADOW gates (mining run, cross-regime-validated) ──
             # Observational only — stamp would-block verdicts for forward
             # confirmation; do NOT gate yet. Flip to ENFORCED after the forward

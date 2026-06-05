@@ -5,7 +5,7 @@
   "base_position_usd": 100.0,
   "bot_id": "pool_a_candidate",
   "btc_macro_h1_block_threshold": null,
-  "display_name": "POOL-A shadow (Design A): candidate (premium_tightexit) spine, $100 fixed, 10 non-overlapping slots. Tests the user's original idea \u00e2\u20ac\u201d ONE strategy, many no-same-token slots (de-concentration). Multipliers neutralized to 1.0 so every position is exactly $100 (hard cap). exclusion_pool=pool_a. Forward-judge eqw/day + stability vs pool_c.",
+  "display_name": "POOL-A shadow (Design A): candidate (premium_tightexit) spine, $100 fixed, 10 non-overlapping slots. Tests the user's original idea â€” ONE strategy, many no-same-token slots (de-concentration). Multipliers neutralized to 1.0 so every position is exactly $100 (hard cap). exclusion_pool=pool_a. Forward-judge eqw/day + stability vs pool_c.",
   "enabled": true,
   "entry_gate": [
     [
@@ -32,7 +32,8 @@
     "filter_dead_low_demand",
     "filter_dead_volume",
     "filter_huge_wick",
-    "filter_rolling_ng"
+    "filter_rolling_ng",
+    "filter_sol_flicker"
   ],
   "hard_stop_pct": -15.0,
   "macro_up_multiplier": 1.0,

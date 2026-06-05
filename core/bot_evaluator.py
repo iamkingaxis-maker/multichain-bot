@@ -57,6 +57,13 @@ DEFENDER_FILTERS = frozenset({
     # shadow-stamp. Held-out on the pools: blocks 20 fader-entries (10% WR, 0 runners),
     # keeps all 8 runners, avoids -$127 fader-loss for $6 winner-clip. Fail-open (no model).
     "filter_rolling_ng",
+    # 2026-06-05: SOL-flicker capital-preservation gate. BLOCK entries when the SOL
+    # macro gate flipped clear->block >=2x in the trailing hour (acute chop/crash
+    # regime; causal/past-only). Self-gates to chop (flk_1h=0 on calm days). Net loss-
+    # trimmer in % (+241pp; off-06-04 +68pp, ~2:1 save:kill, 4/5 non-nuke days). Opt-in:
+    # acts on def2k/pool_a/pool_c_tightexit; preserves capital so the profit-sweep banks
+    # higher realized peaks. Does NOT cut the catastrophic rug tail (separate defender).
+    "filter_sol_flicker",
 })
 
 

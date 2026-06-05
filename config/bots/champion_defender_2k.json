@@ -31,7 +31,8 @@
     "filter_dead_low_demand",
     "filter_dead_volume",
     "filter_huge_wick",
-    "filter_rolling_ng"
+    "filter_rolling_ng",
+    "filter_sol_flicker"
   ],
   "filters_disabled": [],
   "triggers_allowed": [

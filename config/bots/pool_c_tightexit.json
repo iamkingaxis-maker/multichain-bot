@@ -32,7 +32,8 @@
     "filter_dead_low_demand",
     "filter_dead_volume",
     "filter_huge_wick",
-    "filter_rolling_ng"
+    "filter_rolling_ng",
+    "filter_sol_flicker"
   ],
   "hard_stop_pct": -15.0,
   "macro_up_multiplier": 1.0,

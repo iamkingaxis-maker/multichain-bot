@@ -224,6 +224,17 @@ def sol_flicker_flk_1h(c):
     only DEFERS the winner-safe scale-in 2nd tranche. Measure-only here."""
     return c.get('sol_flk_1h')
 
+def sol_flicker_block(c):
+    """Phantom mirror for filter_sol_flicker (ENFORCED 2026-06-05, capital
+    preservation). BLOCK when the SOL gate flipped clear->block >=2x in the trailing
+    hour (flk_1h>=2 = acute chop/crash). Reads the stamped sol_flk_1h (runtime-state-
+    derived counter). Self-gates to chop (flk_1h=0 on calm days)."""
+    v = c.get('sol_flk_1h')
+    try:
+        return v is not None and float(v) >= 2
+    except (TypeError, ValueError):
+        return False
+
 def mtf_conviction_tag(c):
     """Phantom mirror for mtf_conviction_shadow CONVICTION tag (2026-06-05, prune-mine).
     The one positive-selection edge that survived the 21-bot prune mine: textbook-pullback
