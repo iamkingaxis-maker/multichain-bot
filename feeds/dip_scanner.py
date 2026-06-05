@@ -15193,6 +15193,12 @@ class DipScanner:
                 entry_meta_dict["rolling_ng_proba"] = round(_rng_p, 4)
                 if _rng_v == "BLOCK":
                     c["rolling_ng_would_block"] = c.get("rolling_ng_would_block", 0) + 1
+                    # ENFORCED 2026-06-04: append the block so the per-bot gate acts on it.
+                    # Opt-in via filters_enforced (DEFENDER_FILTERS) -> only pool_a/pool_c
+                    # actually skip the buy; every other bot ignores it (shadow). Fleet-wide
+                    # the verdict is fail-open (NEUTRAL until the nightly model is trained).
+                    if "filter_rolling_ng" not in _filters_block:
+                        _filters_block.append("filter_rolling_ng")
             except Exception as _e:
                 logger.debug(f"[DipScanner] rolling_ng shadow err: {_e}")
 

@@ -52,6 +52,11 @@ DEFENDER_FILTERS = frozenset({
     "filter_dead_low_demand",
     "filter_dead_volume",
     "filter_huge_wick",
+    # 2026-06-04: rolling_ng never-green model as a hard ENTRY BLOCK. Opt-in so only
+    # bots that list it (pool_a_candidate, pool_c_tightexit) enforce it; the rest just
+    # shadow-stamp. Held-out on the pools: blocks 20 fader-entries (10% WR, 0 runners),
+    # keeps all 8 runners, avoids -$127 fader-loss for $6 winner-clip. Fail-open (no model).
+    "filter_rolling_ng",
 })
 
 
