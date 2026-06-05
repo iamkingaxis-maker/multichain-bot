@@ -622,6 +622,45 @@ class DipScanner:
         if sol_features:
             self.last_sol_features = dict(sol_features)
             self.last_sol_features_ts = time.time()
+        self._update_sol_flip_log(sol_features, time.time())
+
+    def _update_sol_flip_log(self, sol_features, now):
+        """Track SOL-gate clear->block transitions for the CAUSAL flk_1h macro-
+        instability measure (2026-06-05 flicker-gate tune). Appends ``now`` on a
+        clear->block flip; prunes entries older than 1h. No-op on empty/None data
+        (preserves prev state). The flicker hard-BLOCK was tuned + REJECTED — it's a
+        2-day SOL-chop artifact that kills winners ~2:1 off the nuke day. flk_1h is
+        used ONLY as (a) a measure-only entry shadow for forward chop-day data and
+        (b) a winner-safe deferral of the scale-in 2nd tranche during live flicker."""
+        if not hasattr(self, "_sol_flip_log"):
+            self._sol_flip_log = []
+            self._sol_blocked_prev = False
+        if not sol_features:
+            return
+        h6 = sol_features.get("sol_pc_h6"); h1 = sol_features.get("sol_pc_h1"); m5 = sol_features.get("sol_pc_m5")
+        if h6 is None and h1 is None and m5 is None:
+            return
+        try:
+            blk = ((h6 is not None and float(h6) < -0.3)
+                   or (h1 is not None and float(h1) < -0.7)
+                   or (m5 is not None and float(m5) < -1.0))
+        except (TypeError, ValueError):
+            return
+        if blk and not self._sol_blocked_prev:
+            self._sol_flip_log.append(now)
+        self._sol_blocked_prev = blk
+        cut = now - 3600
+        if self._sol_flip_log and self._sol_flip_log[0] < cut:
+            self._sol_flip_log = [f for f in self._sol_flip_log if f >= cut]
+
+    def _sol_flk_1h(self, now=None):
+        """Count of SOL-gate clear->block flips in the trailing hour [now-3600, now).
+        Strictly causal (past-only). 0 if nothing tracked yet."""
+        if not hasattr(self, "_sol_flip_log"):
+            return 0
+        now = now if now is not None else time.time()
+        cut = now - 3600
+        return sum(1 for f in self._sol_flip_log if f >= cut)
 
     async def _fetch_sol_kraken_5m(self) -> list:
         """Fallback SOL 5m closes from Kraken (US, public, no GT rate-limit
@@ -964,10 +1003,18 @@ class DipScanner:
                     pair_address=decision.pair_address,
                 )
                 _pos.state_blob["slip_pct"] = slip_pct
+                # SOL-flicker shadow (2026-06-05 flicker-gate tune): stamp causal
+                # flk_1h on EVERY entry for forward chop-day data (the hard BLOCK was
+                # tuned + rejected as a 2-day artifact). Also drives the winner-safe
+                # scale-in deferral below.
+                _flk1h = self._sol_flk_1h()
+                _pos.state_blob["sol_flk_1h"] = _flk1h
                 if _scin_rem > 0:
                     _pos.state_blob["scalein_pending"] = True
                     _pos.state_blob["scalein_confirm_pct"] = pm.config.scalein_confirm_pct
                     _pos.state_blob["scalein_remaining_usd"] = _scin_rem
+                    if _flk1h >= 3:
+                        _pos.state_blob["defer_scale_in"] = True
                 # Seed the glitch guard with the real entry mid so the FIRST exit
                 # tick already has a known-good baseline (a glitch on the very first
                 # post-buy read would otherwise have nothing to compare against).
@@ -1550,7 +1597,12 @@ class DipScanner:
                             and (position.state_blob or {}).get("scalein_pending")
                             and position.entry_price > 0):
                         _pnl = (price / position.entry_price - 1.0) * 100.0
-                        if pm.scalein_ready(token, _pnl):
+                        # SOL-flicker deferral (2026-06-05): while the macro is actively
+                        # flickering (flk_1h>=3) hold the 2nd tranche — winner-safe (keeps
+                        # the first tranche; self-clears when the chop subsides). The hard
+                        # entry BLOCK was tuned + rejected (2-day artifact, kills winners ~2:1).
+                        if pm.scalein_ready(token, _pnl) and not (
+                                (position.state_blob or {}).get("defer_scale_in") and self._sol_flk_1h() >= 3):
                             _rem = float((position.state_blob or {}).get("scalein_remaining_usd") or 0.0)
                             cap = self.bot_capitals.get(bot_id)
                             if _rem > 0 and cap is not None:

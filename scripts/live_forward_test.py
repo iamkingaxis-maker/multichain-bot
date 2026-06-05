@@ -215,6 +215,15 @@ def mtf_textbook_only_pass(c):
     """Pass only if textbook pullback pattern: 15m red AND 5m red AND 1m green."""
     return c.get('mtf_textbook_pullback') == 1
 
+def sol_flicker_flk_1h(c):
+    """Phantom mirror for the SOL-flicker shadow (2026-06-05 flicker-gate tune).
+    flk_1h = trailing-hour count of SOL-gate clear->block flips, stamped on every
+    entry (sol_flk_1h). It's RUNTIME-state-derived (the live flip log), so parity
+    reads the stamped value rather than recomputing. The hard entry BLOCK was tuned
+    + REJECTED (2-day chop artifact, kills winners ~2:1 off the nuke day); flk_1h>=3
+    only DEFERS the winner-safe scale-in 2nd tranche. Measure-only here."""
+    return c.get('sol_flk_1h')
+
 def mtf_conviction_tag(c):
     """Phantom mirror for mtf_conviction_shadow CONVICTION tag (2026-06-05, prune-mine).
     The one positive-selection edge that survived the 21-bot prune mine: textbook-pullback
