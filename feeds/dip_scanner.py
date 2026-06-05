@@ -942,6 +942,18 @@ class DipScanner:
             eff_entry, slip_pct = buy_fill_price(
                 decision.entry_price, _used_size, getattr(bundle, "raw_meta", None)
             )
+            # SCALE-IN staged entry (2026-06-05): deploy only the first tranche now and
+            # release the deferred remainder back to balance (re-reserved on confirm in
+            # the tick loop). PAPER-only — a live bot opens full size until the 2nd-tranche
+            # live execution is wired at go-live. See BotConfig.scalein_enabled.
+            _scin_rem = 0.0
+            if pm.config.scalein_enabled and not self.trader.private_key:
+                _first = round(_used_size * pm.config.scalein_first_fraction, 6)
+                _scin_rem = round(_used_size - _first, 6)
+                if _scin_rem > 0:
+                    capital.balance_usd += _scin_rem
+                    capital.in_flight_usd -= _scin_rem
+                    _used_size = _first
             try:
                 _pos = pm.open_position(
                     token=decision.token,
@@ -952,6 +964,10 @@ class DipScanner:
                     pair_address=decision.pair_address,
                 )
                 _pos.state_blob["slip_pct"] = slip_pct
+                if _scin_rem > 0:
+                    _pos.state_blob["scalein_pending"] = True
+                    _pos.state_blob["scalein_confirm_pct"] = pm.config.scalein_confirm_pct
+                    _pos.state_blob["scalein_remaining_usd"] = _scin_rem
                 # Seed the glitch guard with the real entry mid so the FIRST exit
                 # tick already has a known-good baseline (a glitch on the very first
                 # post-buy read would otherwise have nothing to compare against).
@@ -1525,6 +1541,35 @@ class DipScanner:
                         now=now,
                         vol_m5_usd=vols.get(token),
                     )
+                    # SCALE-IN completion (2026-06-05): once a half-tranche position
+                    # confirms (pnl >= scalein_confirm_pct), deploy the deferred 2nd
+                    # tranche — reserve it from capital and blend it into the cost basis.
+                    # PAPER-only (mirror of the buy-site gate). Faders never confirm, so
+                    # they stay at half size = the bleed-halving lever (def2k -$821->~-$55).
+                    if (not self.trader.private_key
+                            and (position.state_blob or {}).get("scalein_pending")
+                            and position.entry_price > 0):
+                        _pnl = (price / position.entry_price - 1.0) * 100.0
+                        if pm.scalein_ready(token, _pnl):
+                            _rem = float((position.state_blob or {}).get("scalein_remaining_usd") or 0.0)
+                            cap = self.bot_capitals.get(bot_id)
+                            if _rem > 0 and cap is not None:
+                                try:
+                                    cap.reserve_for_buy(_rem)
+                                except ValueError:
+                                    position.state_blob["scalein_pending"] = False  # can't fund; stay half
+                                else:
+                                    from core.slippage_model import buy_fill_price
+                                    _add_fill, _ = buy_fill_price(price, _rem, None)
+                                    if pm.complete_scalein(token, _add_fill, _rem):
+                                        logger.info(
+                                            "[DipScanner] bot=%s SCALE-IN complete token=%s +$%.0f @ +%.1f%%",
+                                            bot_id, token, _rem, _pnl)
+                                    else:
+                                        cap.balance_usd += _rem   # blend failed; unwind reserve
+                                        cap.in_flight_usd -= _rem
+                            else:
+                                position.state_blob["scalein_pending"] = False
                     for d in decisions:
                         await self._execute_bot_sell(bot_id, token, d, price, now)
                 except Exception as e:

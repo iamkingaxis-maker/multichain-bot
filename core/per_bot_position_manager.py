@@ -180,6 +180,52 @@ class PerBotPositionManager:
         self._record_token_buy(token)
         return p
 
+    def scalein_ready(self, token: str, pnl_pct: float) -> bool:
+        """True if ``token`` is a pending scale-in that has now CONFIRMED (pnl reached
+        scalein_confirm_pct) and should have its deferred 2nd tranche deployed. Winner-
+        safe trigger by construction: it can only fire once the position is GREEN past
+        the confirm threshold, so faders (which never get there) stay at the first
+        tranche forever. See BotConfig.scalein_enabled."""
+        p = self._positions.get(token)
+        if p is None:
+            return False
+        sb = p.state_blob or {}
+        if not sb.get("scalein_pending"):
+            return False
+        return pnl_pct >= float(sb.get("scalein_confirm_pct", 1.0))
+
+    def complete_scalein(self, token: str, fill_price: float, add_usd: float) -> bool:
+        """Deploy the deferred 2nd tranche: buy ``add_usd`` at ``fill_price`` and blend
+        it into the position's cost basis (token-weighted average, so pnl_pct stays
+        correct on the combined position). Rebases peak_pnl_pct onto the new (higher)
+        entry so the never-green / never-runner peak gates remain consistent. Clears the
+        pending flag and stamps the outcome for phantom parity. Returns True on success;
+        the caller MUST have already reserved ``add_usd`` from capital."""
+        p = self._positions.get(token)
+        if p is None or fill_price <= 0 or add_usd <= 0:
+            return False
+        sb = p.state_blob
+        if not sb.get("scalein_pending"):
+            return False
+        old_entry = p.entry_price
+        tokens1 = (p.size_usd / old_entry) if old_entry > 0 else 0.0
+        tokens2 = add_usd / fill_price
+        if tokens1 + tokens2 <= 0:
+            return False
+        new_cost = p.size_usd + add_usd
+        p.entry_price = new_cost / (tokens1 + tokens2)
+        p.size_usd = new_cost
+        # Rebase the peak onto the new entry so peak-gated exits (ng_faststop/never_runner)
+        # don't see a stale peak relative to the old, lower entry.
+        if p.peak_pnl_pct > 0 and old_entry > 0 and p.entry_price > 0:
+            peak_price = old_entry * (1.0 + p.peak_pnl_pct / 100.0)
+            p.peak_pnl_pct = max(0.0, (peak_price / p.entry_price - 1.0) * 100.0)
+        sb["scalein_pending"] = False
+        sb["scalein_completed"] = True
+        sb["scalein_added_usd"] = round(add_usd, 4)
+        sb["scalein_fill_price"] = fill_price
+        return True
+
     def _record_token_buy(self, token: str, now_iso: Optional[str] = None) -> None:
         from core.per_bot_capital import _utc_date_iso
         today = _utc_date_iso(now_iso)

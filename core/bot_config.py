@@ -225,6 +225,23 @@ class BotConfig:
     never_runner_loss_floor: float = -6.0
     never_runner_minutes: int = 45
 
+    # Scale-in / staged entry (2026-06-05, 8-intervention SOL-flicker mine). The ONLY
+    # lever that cut the "born-before-crater" never-green bleed without killing the
+    # dip-buy edge. The fader and the dip-before-rip are inseparable at entry (proven 8
+    # ways: SOL gate/velocity, early stop, drop-velocity, volume, rug-gate all fail), so
+    # instead of trying to AVOID the bad trade we commit a HALF tranche at entry and
+    # complete to full size only once the position CONFIRMS (pnl >= scalein_confirm_pct).
+    # Faders never get the 2nd half (loss halved); winners reach FULL size on confirmation
+    # (~0.5pp cost). NOT a de-size stop (winners are full size), NOT flat de-sizing.
+    # Backtest (13d real, per-bot): champion_defender_2k -$821 -> ~-$55 (recovers +$766 at
+    # CONF=1); outlier-robust (ex-top-5 +$545), held-out positive 10/14 days. PAPER-ONLY:
+    # the 2nd-tranche LIVE execution is wired at go-live (gated by test_pre_live_invariants);
+    # in live the bot opens full size = current behavior, so enabling it cannot mis-size a
+    # live bot. Default off = no behavior change.
+    scalein_enabled: bool = False
+    scalein_confirm_pct: float = 1.0      # add the 2nd tranche when pnl first reaches this
+    scalein_first_fraction: float = 0.5   # fraction of full size deployed at entry
+
     # Pool sizing de-rates (2026-06-02 fleet-mine, cap-respecting positive selection).
     # When True, position size is adjusted DOWN (never up — honors the $100 cap) for the
     # cohorts the fleet mine flagged, with the smart-money compound EXEMPT (kept at full

@@ -576,3 +576,72 @@ def test_trajectory_shape_features_peak_early_vs_late():
     # empty / bad entry -> None
     assert _trajectory_shape_features([], 1.0) is None
     assert _trajectory_shape_features(traj_early, 0.0) is None
+
+
+# ── Scale-in / staged entry EXECUTION (2026-06-05, SOL-flicker resolution) ────────
+# Distinct from the trajectory SHADOW above (scalein_n/peak_position); these test the
+# actual half-tranche-then-complete-on-confirm blend.
+
+def _scin_cfg():
+    return _cfg(scalein_enabled=True, scalein_confirm_pct=1.0, scalein_first_fraction=0.5)
+
+
+def test_scalein_ready_false_when_not_pending():
+    pm = PerBotPositionManager(_scin_cfg())
+    pm.open_position("S", 1.0, 50.0, entry_time=0.0)   # no pending flag set
+    assert pm.scalein_ready("S", 5.0) is False
+
+
+def test_scalein_ready_true_only_at_or_above_confirm():
+    pm = PerBotPositionManager(_scin_cfg())
+    p = pm.open_position("S", 1.0, 50.0, entry_time=0.0)
+    p.state_blob["scalein_pending"] = True
+    p.state_blob["scalein_confirm_pct"] = 1.0
+    assert pm.scalein_ready("S", 0.5) is False   # below confirm
+    assert pm.scalein_ready("S", 1.0) is True    # at confirm
+    assert pm.scalein_ready("S", 3.0) is True    # above
+
+
+def test_complete_scalein_blends_entry_and_grows_size():
+    pm = PerBotPositionManager(_scin_cfg())
+    p = pm.open_position("S", 1.0, 50.0, entry_time=0.0)   # half tranche @ $1.00
+    p.state_blob["scalein_pending"] = True
+    p.state_blob["scalein_confirm_pct"] = 1.0
+    ok = pm.complete_scalein("S", fill_price=1.01, add_usd=50.0)   # 2nd half @ +1%
+    assert ok is True
+    # token-weighted blend: 50/1.00 + 50/1.01 tokens for $100 cost
+    tokens = 50/1.0 + 50/1.01
+    assert p.size_usd == pytest.approx(100.0, abs=1e-6)
+    assert p.entry_price == pytest.approx(100.0 / tokens, abs=1e-6)
+    assert p.state_blob["scalein_pending"] is False
+    assert p.state_blob["scalein_completed"] is True
+    assert p.state_blob["scalein_added_usd"] == pytest.approx(50.0, abs=1e-6)
+
+
+def test_complete_scalein_rebases_peak_onto_new_entry():
+    pm = PerBotPositionManager(_scin_cfg())
+    p = pm.open_position("S", 1.0, 50.0, entry_time=0.0)
+    p.state_blob["scalein_pending"] = True
+    p.peak_pnl_pct = 1.0   # peaked +1% on the old (lower) entry
+    pm.complete_scalein("S", fill_price=1.01, add_usd=50.0)
+    # peak price 1.01 vs new entry ~1.00497 -> rebased peak ~+0.5%, never negative
+    assert 0.0 <= p.peak_pnl_pct < 1.0
+    assert p.peak_pnl_pct == pytest.approx((1.01 / p.entry_price - 1.0) * 100.0, abs=1e-6)
+
+
+def test_complete_scalein_noop_if_not_pending():
+    pm = PerBotPositionManager(_scin_cfg())
+    p = pm.open_position("S", 1.0, 50.0, entry_time=0.0)   # not pending
+    assert pm.complete_scalein("S", fill_price=1.01, add_usd=50.0) is False
+    assert p.size_usd == 50.0   # unchanged
+    assert p.entry_price == 1.0
+
+
+def test_complete_scalein_rejects_bad_inputs():
+    pm = PerBotPositionManager(_scin_cfg())
+    p = pm.open_position("S", 1.0, 50.0, entry_time=0.0)
+    p.state_blob["scalein_pending"] = True
+    assert pm.complete_scalein("S", fill_price=0.0, add_usd=50.0) is False
+    assert pm.complete_scalein("S", fill_price=1.01, add_usd=0.0) is False
+    assert pm.complete_scalein("MISSING", fill_price=1.01, add_usd=50.0) is False
+    assert p.state_blob["scalein_pending"] is True   # still pending after rejects
