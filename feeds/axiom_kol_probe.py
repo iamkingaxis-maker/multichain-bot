@@ -96,21 +96,48 @@ def _rows(data):
     return []
 
 
+def _stat(row, window, key):
+    try:
+        return float(((row.get("stats") or {}).get(window) or {}).get(key))
+    except (TypeError, ValueError):
+        return None
+
+
+def _wr(row, window):
+    s = (row.get("stats") or {}).get(window) or {}
+    w = s.get("totalWinningPositions"); l = s.get("totalLosingPositions")
+    try:
+        w = float(w); l = float(l)
+        return round(100 * w / (w + l), 1) if (w + l) > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
 async def probe_vision_kols(auth_manager) -> dict:
-    """Pull vision-kols-v2 (top traders) and summarize the shape for inspection."""
+    """Pull vision-kols-v2 (top traders), rank by REAL profitability (the KOL label is
+    not a profit filter — many are net-negative), and surface the followable subset."""
     data = await _authed_get(auth_manager, "/vision-kols-v2?v=1")
     out = {"endpoint": "vision-kols-v2"}
     if isinstance(data, dict) and data.get("error"):
         return {**out, **data}
     rows = _rows(data)
     out["count"] = len(rows)
-    out["top_level_type"] = type(data).__name__
-    if isinstance(data, dict):
-        out["top_level_keys"] = sorted(data.keys())[:20]
-    if rows and isinstance(rows[0], dict):
-        out["row_keys"] = sorted(rows[0].keys())
-        out["sample"] = [
-            {k: rows[i].get(k) for k in list(rows[i].keys())[:12]}
-            for i in range(min(5, len(rows)))
-        ]
+    # self-select the profitable ones (7d AND 30d PnL > 0)
+    profitable = [r for r in rows
+                  if (_stat(r, "sevenDayStats", "totalPnlUsd") or 0) > 0
+                  and (_stat(r, "thirtyDayStats", "totalPnlUsd") or 0) > 0]
+    out["net_positive_7d"] = sum(1 for r in rows if (_stat(r, "sevenDayStats", "totalPnlUsd") or 0) > 0)
+    out["net_positive_30d"] = sum(1 for r in rows if (_stat(r, "thirtyDayStats", "totalPnlUsd") or 0) > 0)
+    out["profitable_7d_and_30d"] = len(profitable)
+    profitable.sort(key=lambda r: _stat(r, "sevenDayStats", "totalPnlUsd") or 0, reverse=True)
+    out["top_followable"] = [{
+        "name": r.get("name"),
+        "wallet": r.get("walletAddress"),
+        "pnl_7d_usd": round(_stat(r, "sevenDayStats", "totalPnlUsd") or 0),
+        "pnl_30d_usd": round(_stat(r, "thirtyDayStats", "totalPnlUsd") or 0),
+        "wr_7d": _wr(r, "sevenDayStats"),
+        "closed_7d": int(_stat(r, "sevenDayStats", "totalClosedPositions") or 0),
+        "avg_hold_min_7d": round((_stat(r, "sevenDayStats", "totalHoldTimeMs") or 0)
+                                 / max(1, _stat(r, "sevenDayStats", "totalClosedPositions") or 1) / 60000, 1),
+    } for r in profitable[:20]]
     return out
