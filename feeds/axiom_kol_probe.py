@@ -91,35 +91,49 @@ async def probe_kol_trades(auth_manager, wallet: str) -> dict:
     get_user_portfolio, (2) the raw tracked-wallet-transactions-v3 POST with body
     guesses. Returns the shape of whatever works -> tells us the collector's path."""
     import asyncio
-    out = {"wallet": wallet, "tried": []}
-    # (1) client.get_user_portfolio
+    out = {"wallet": wallet}
+    # (1) client.get_meme_open_positions(wallet) — current holdings = recent entries
     try:
         client = auth_manager.get_client() if hasattr(auth_manager, "get_client") else None
-        if client is not None and hasattr(client, "get_user_portfolio"):
-            res = client.get_user_portfolio(wallet)
+        if client is not None and hasattr(client, "get_meme_open_positions"):
+            res = client.get_meme_open_positions(wallet)
             if asyncio.iscoroutine(res):
                 res = await res
             if isinstance(res, dict):
-                out["get_user_portfolio"] = {"type": "dict", "keys": sorted(res.keys())[:25]}
+                out["open_positions"] = {"type": "dict", "keys": sorted(res.keys())[:30],
+                                         "sample": {k: res[k] for k in list(res.keys())[:6]}}
             elif isinstance(res, list):
-                out["get_user_portfolio"] = {"type": "list", "len": len(res),
-                                             "row_keys": sorted(res[0].keys())[:25] if res and isinstance(res[0], dict) else None}
+                out["open_positions"] = {"type": "list", "len": len(res),
+                                         "row_keys": sorted(res[0].keys())[:30] if res and isinstance(res[0], dict) else None,
+                                         "sample": res[:2]}
             else:
-                out["get_user_portfolio"] = {"type": type(res).__name__, "preview": repr(res)[:200]}
-        else:
-            out["tried"].append("get_user_portfolio: not available on client")
+                out["open_positions"] = {"type": type(res).__name__, "preview": repr(res)[:300]}
     except Exception as e:
-        out["get_user_portfolio_error"] = f"{type(e).__name__}: {e}"
-    # (2) raw tracked-wallet-transactions-v3 POST body guesses
-    for body in ({"walletAddresses": [wallet]}, {"wallets": [wallet]}, {"walletAddress": wallet}):
-        r = await _authed_post(auth_manager, "/tracked-wallet-transactions-v3", body)
-        key = "txn_" + "_".join(body.keys())
+        out["open_positions_error"] = f"{type(e).__name__}: {e}"
+    # (2) GET candidate paths for a wallet's transaction/trade HISTORY (via working GET+relay)
+    cands = [
+        f"/wallet-transactions-v3?walletAddress={wallet}",
+        f"/wallet-transactions?walletAddress={wallet}",
+        f"/transactions-v3?walletAddress={wallet}",
+        f"/portfolio-v2?walletAddress={wallet}",
+        f"/portfolio?walletAddress={wallet}",
+        f"/wallet-pnl?walletAddress={wallet}",
+        f"/token-accounts?walletAddress={wallet}",
+        f"/trader-transactions?walletAddress={wallet}",
+        f"/meme-trades?walletAddress={wallet}",
+    ]
+    out["get_candidates"] = {}
+    for path in cands:
+        r = await _authed_get(auth_manager, path, timeout_s=8.0)
+        name = path.split("?")[0]
         if isinstance(r, dict) and r.get("error"):
-            out[key] = r["error"]
+            out["get_candidates"][name] = r["error"]
         else:
             rows = _rows(r)
-            out[key] = {"rows": len(rows), "row_keys": sorted(rows[0].keys())[:25] if rows and isinstance(rows[0], dict) else (sorted(r.keys())[:20] if isinstance(r, dict) else type(r).__name__)}
-            break  # found a working body
+            out["get_candidates"][name] = {
+                "OK_rows": len(rows),
+                "row_keys": sorted(rows[0].keys())[:25] if rows and isinstance(rows[0], dict) else (sorted(r.keys())[:15] if isinstance(r, dict) else type(r).__name__),
+            }
     return out
 
 
@@ -195,6 +209,10 @@ async def probe_vision_kols(auth_manager) -> dict:
     out["net_positive_7d"] = sum(1 for r in rows if (_stat(r, "sevenDayStats", "totalPnlUsd") or 0) > 0)
     out["net_positive_30d"] = sum(1 for r in rows if (_stat(r, "thirtyDayStats", "totalPnlUsd") or 0) > 0)
     out["profitable_7d_and_30d"] = len(profitable)
+    # FULL 96 raw (name/wallet/stats) so the strategy-profiling mine has every wallet
+    out["all_96"] = [{"name": r.get("name"), "wallet": r.get("walletAddress"),
+                      "twitter": r.get("twitterUrl"), "stats": r.get("stats")}
+                     for r in rows]
     profitable.sort(key=lambda r: _stat(r, "sevenDayStats", "totalPnlUsd") or 0, reverse=True)
     out["top_followable"] = [{
         "name": r.get("name"),
