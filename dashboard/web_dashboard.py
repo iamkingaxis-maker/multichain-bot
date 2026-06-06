@@ -2172,6 +2172,7 @@ class WebDashboard:
         self.app.router.add_get("/api/bots-unrealized",       self._handle_bots_unrealized)
         self.app.router.add_get("/api/shadow-readout",        self._handle_shadow_readout)
         self.app.router.add_get("/api/axiom-kol-probe",       self._handle_axiom_kol_probe)
+        self.app.router.add_get("/api/axiom-kol-trades",      self._handle_axiom_kol_trades)
         self.app.router.add_post("/api/bots/{bot_id}/reset",  self._handle_bot_reset)
         self.app.router.add_get("/api/champion_proposal",     self._handle_champion_proposal)
 
@@ -4197,6 +4198,18 @@ class WebDashboard:
         try:
             from feeds.axiom_kol_probe import probe_vision_kols
             return web.json_response(await probe_vision_kols(self._axiom_auth))
+        except Exception as e:
+            return web.json_response({"error": f"{type(e).__name__}: {e}"})
+
+    async def _handle_axiom_kol_trades(self, request):
+        """GET /api/axiom-kol-trades?wallet=X — confirm how to pull one KOL's trades
+        (copy-trade collector feasibility). Defaults to decu (+$104k/30d) if no wallet."""
+        if not self._axiom_auth:
+            return web.json_response({"error": "axiom_auth_not_registered"})
+        wallet = request.query.get("wallet") or "4vw54BmAogeRV3vPKWyFet5yf8DTLcREzdSzx4rw9Ud9"
+        try:
+            from feeds.axiom_kol_probe import probe_kol_trades
+            return web.json_response(await probe_kol_trades(self._axiom_auth, wallet))
         except Exception as e:
             return web.json_response({"error": f"{type(e).__name__}: {e}"})
 

@@ -86,6 +86,72 @@ async def _authed_get(auth_manager, path: str, timeout_s: float = 8.0):
     return {"error": "all_failed_no_relay"}
 
 
+async def probe_kol_trades(auth_manager, wallet: str) -> dict:
+    """Confirm we can pull ONE wallet's trades/entries. Tries (1) the client's
+    get_user_portfolio, (2) the raw tracked-wallet-transactions-v3 POST with body
+    guesses. Returns the shape of whatever works -> tells us the collector's path."""
+    import asyncio
+    out = {"wallet": wallet, "tried": []}
+    # (1) client.get_user_portfolio
+    try:
+        client = auth_manager.get_client() if hasattr(auth_manager, "get_client") else None
+        if client is not None and hasattr(client, "get_user_portfolio"):
+            res = client.get_user_portfolio(wallet)
+            if asyncio.iscoroutine(res):
+                res = await res
+            if isinstance(res, dict):
+                out["get_user_portfolio"] = {"type": "dict", "keys": sorted(res.keys())[:25]}
+            elif isinstance(res, list):
+                out["get_user_portfolio"] = {"type": "list", "len": len(res),
+                                             "row_keys": sorted(res[0].keys())[:25] if res and isinstance(res[0], dict) else None}
+            else:
+                out["get_user_portfolio"] = {"type": type(res).__name__, "preview": repr(res)[:200]}
+        else:
+            out["tried"].append("get_user_portfolio: not available on client")
+    except Exception as e:
+        out["get_user_portfolio_error"] = f"{type(e).__name__}: {e}"
+    # (2) raw tracked-wallet-transactions-v3 POST body guesses
+    for body in ({"walletAddresses": [wallet]}, {"wallets": [wallet]}, {"walletAddress": wallet}):
+        r = await _authed_post(auth_manager, "/tracked-wallet-transactions-v3", body)
+        key = "txn_" + "_".join(body.keys())
+        if isinstance(r, dict) and r.get("error"):
+            out[key] = r["error"]
+        else:
+            rows = _rows(r)
+            out[key] = {"rows": len(rows), "row_keys": sorted(rows[0].keys())[:25] if rows and isinstance(rows[0], dict) else (sorted(r.keys())[:20] if isinstance(r, dict) else type(r).__name__)}
+            break  # found a working body
+    return out
+
+
+async def _authed_post(auth_manager, path: str, body: dict, timeout_s: float = 10.0):
+    """Authed POST of an Axiom REST path (direct only; relay is GET-only)."""
+    if hasattr(auth_manager, "ensure_valid_token"):
+        try:
+            await auth_manager.ensure_valid_token()
+        except Exception:
+            pass
+    try:
+        from feeds.axiom_discovery import _extract_auth_token
+        token = _extract_auth_token(auth_manager)
+    except Exception as e:
+        return {"error": f"token_{type(e).__name__}"}
+    if not token:
+        return {"error": "no_token"}
+    headers = {**_HEADERS, "Cookie": f"auth-access-token={token}", "Content-Type": "application/json"}
+    async with aiohttp.ClientSession() as s:
+        for srv in _SERVERS:
+            try:
+                async with s.post(f"{srv}{path}", headers=headers, json=body,
+                                  timeout=aiohttp.ClientTimeout(total=timeout_s)) as r:
+                    if r.status == 200:
+                        return await r.json(content_type=None)
+                    if r.status in (401, 403):
+                        return {"error": f"auth_{r.status}"}
+            except Exception:
+                continue
+    return {"error": "post_all_failed"}
+
+
 def _rows(data):
     if isinstance(data, list):
         return data
