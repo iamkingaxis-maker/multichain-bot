@@ -26,6 +26,23 @@ def paper_uncapped() -> bool:
     )
 
 
+def scalein_first_fraction(config, slip_buy_2000_pct):
+    """First-tranche fraction for staged entry. Thin EXECUTABLE depth at entry
+    (slip_buy_2000_pct >= config.scalein_flash_slip_pct) is the orthogonal flash-crash
+    signature, so deploy an even SMALLER first tranche (config.scalein_flash_first_fraction);
+    the runner still completes to FULL size on confirm. Null/unquotable slip falls back to
+    the default scalein_first_fraction (Jupiter quote is unavailable on ~44% of entries).
+    Winner-safe — never enlarges, and confirmation still reaches full size."""
+    frac = config.scalein_first_fraction
+    if slip_buy_2000_pct is not None:
+        try:
+            if float(slip_buy_2000_pct) >= float(config.scalein_flash_slip_pct):
+                frac = min(frac, float(config.scalein_flash_first_fraction))
+        except (TypeError, ValueError):
+            pass
+    return frac
+
+
 def _trajectory_shape_features(traj, entry_price):
     """Phase-2a demand-trajectory SHAPE from a first-8min path [(secs, price, vol), ...].
 

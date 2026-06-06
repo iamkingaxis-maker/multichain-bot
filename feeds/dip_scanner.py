@@ -987,7 +987,11 @@ class DipScanner:
             # live execution is wired at go-live. See BotConfig.scalein_enabled.
             _scin_rem = 0.0
             if pm.config.scalein_enabled and not self.trader.private_key:
-                _first = round(_used_size * pm.config.scalein_first_fraction, 6)
+                from core.per_bot_position_manager import scalein_first_fraction as _sif
+                # FLASH-slip de-risk: thin executable depth (slip_buy_2000_pct>=6) -> smaller
+                # first tranche; runner still completes to full on confirm. Null slip -> default.
+                _slip2k = (getattr(bundle, "raw_meta", None) or {}).get("slip_buy_2000_pct")
+                _first = round(_used_size * _sif(pm.config, _slip2k), 6)
                 _scin_rem = round(_used_size - _first, 6)
                 if _scin_rem > 0:
                     capital.balance_usd += _scin_rem
@@ -15379,6 +15383,21 @@ class DipScanner:
                         _filters_block.append("filter_sol_flicker")
             except Exception as _e:
                 logger.debug(f"[DipScanner] sol_flicker err: {_e}")
+
+            # flash-slip SHADOW (2026-06-05 flash-signature mine, MEASURE-ONLY). slip_buy_2000_pct
+            # (live Jupiter buy-impact at $2k = EXECUTABLE depth, orthogonal to nominal liquidity)
+            # is the flash-crash signature (AUC 0.80; flash ~6.9% vs winners ~3.2%). NOT a block
+            # (flash tokens are two-sided — they also moon; blocking forgoes +5037pp). Acted on as
+            # a scale-in first-tranche de-size (slip>=6 -> 1/3) at the buy site. Stamp the verdict
+            # for forward per-entry data toward the n>=30 promotion bar. UNQUOTED on ~44% (the gap).
+            try:
+                _slip2k_v = entry_meta_dict.get("slip_buy_2000_pct")
+                entry_meta_dict["flash_slip_shadow"] = (
+                    "UNQUOTED" if _slip2k_v is None
+                    else ("FLASH_RISK" if float(_slip2k_v) >= 6.0 else "CLEAR")
+                )
+            except Exception as _e:
+                logger.debug(f"[DipScanner] flash_slip shadow err: {_e}")
 
             # ── 2026-05-27 SHADOW gates (mining run, cross-regime-validated) ──
             # Observational only — stamp would-block verdicts for forward

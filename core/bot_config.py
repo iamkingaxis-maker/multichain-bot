@@ -241,6 +241,14 @@ class BotConfig:
     scalein_enabled: bool = False
     scalein_confirm_pct: float = 1.0      # add the 2nd tranche when pnl first reaches this
     scalein_first_fraction: float = 0.5   # fraction of full size deployed at entry
+    # FLASH-slip de-risk within scale-in (2026-06-05, flash-signature mine). Thin EXECUTABLE
+    # depth at entry (slip_buy_2000_pct >= scalein_flash_slip_pct) is the orthogonal flash-
+    # crash signature (AUC 0.80 vs nominal liq which failed) — but flash tokens are two-sided
+    # (they also moon), so we DON'T block: enter an even SMALLER first tranche; the runner
+    # still completes to FULL on confirm. Null slip (Jupiter quote unavailable on ~44%) ->
+    # default fraction. Applies only where scalein_enabled. Winner-safe (confirm-to-full).
+    scalein_flash_slip_pct: float = 6.0
+    scalein_flash_first_fraction: float = 0.33
 
     # ng_faststop acting exit (2026-06-05 drawdown-mine LEVER 1). The never-green fast-stop
     # (peak<2 AND pnl<=-4) already runs as a SHADOW; promote it to ACT. It observes the

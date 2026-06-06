@@ -702,3 +702,34 @@ def test_gb_narrow_shadow_not_above_band(monkeypatch):
     pm.tick("G", current_price=0.00106, now=10.0)            # +6% peak (>=5, outside band)
     pm.tick("G", current_price=0.00094, now=20.0)            # -6%
     assert not (pm.get_position("G").state_blob or {}).get("gb_narrow_fired")
+
+
+# ── flash-slip scale-in de-size (2026-06-05 flash-signature mine) ────────────────
+from core.per_bot_position_manager import scalein_first_fraction
+
+
+def test_scalein_first_fraction_default_when_slip_null():
+    cfg = _cfg(scalein_first_fraction=0.5)
+    assert scalein_first_fraction(cfg, None) == 0.5            # quote unavailable -> default
+
+
+def test_scalein_first_fraction_default_when_slip_low():
+    cfg = _cfg(scalein_first_fraction=0.5)
+    assert scalein_first_fraction(cfg, 3.0) == 0.5             # healthy depth -> default
+
+
+def test_scalein_first_fraction_flash_when_slip_high():
+    cfg = _cfg(scalein_first_fraction=0.5, scalein_flash_slip_pct=6.0, scalein_flash_first_fraction=0.33)
+    assert scalein_first_fraction(cfg, 7.0) == 0.33            # thin executable depth -> smaller
+    assert scalein_first_fraction(cfg, 6.0) == 0.33            # at threshold
+
+
+def test_scalein_first_fraction_never_enlarges():
+    # flash fraction > default -> min keeps the smaller default (never up-sizes)
+    cfg = _cfg(scalein_first_fraction=0.25, scalein_flash_first_fraction=0.33)
+    assert scalein_first_fraction(cfg, 7.0) == 0.25
+
+
+def test_scalein_first_fraction_bad_slip_falls_back():
+    cfg = _cfg(scalein_first_fraction=0.5)
+    assert scalein_first_fraction(cfg, "oops") == 0.5

@@ -224,6 +224,17 @@ def sol_flicker_flk_1h(c):
     only DEFERS the winner-safe scale-in 2nd tranche. Measure-only here."""
     return c.get('sol_flk_1h')
 
+def flash_slip_risk(c):
+    """Phantom mirror for the flash-slip shadow (2026-06-05). slip_buy_2000_pct (executable
+    depth at $2k, orthogonal to nominal liquidity) >= 6 = flash-crash-prone thin book (AUC
+    0.80). NOT a block (flash tokens are two-sided / also moon) — acted on as a scale-in
+    first-tranche de-size. None = quote unavailable (~44%). Measure-only."""
+    v = c.get('slip_buy_2000_pct')
+    try:
+        return v is not None and float(v) >= 6.0
+    except (TypeError, ValueError):
+        return False
+
 def sol_flicker_block(c):
     """Phantom mirror for filter_sol_flicker (ENFORCED 2026-06-05, capital
     preservation). BLOCK when the SOL gate flipped clear->block >=2x in the trailing
