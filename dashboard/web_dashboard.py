@@ -2171,6 +2171,7 @@ class WebDashboard:
         self.app.router.add_get("/api/profit-sweep-sim",      self._handle_profit_sweep_sim)
         self.app.router.add_get("/api/bots-unrealized",       self._handle_bots_unrealized)
         self.app.router.add_get("/api/shadow-readout",        self._handle_shadow_readout)
+        self.app.router.add_get("/api/axiom-kol-probe",       self._handle_axiom_kol_probe)
         self.app.router.add_post("/api/bots/{bot_id}/reset",  self._handle_bot_reset)
         self.app.router.add_get("/api/champion_proposal",     self._handle_champion_proposal)
 
@@ -4185,6 +4186,19 @@ class WebDashboard:
             "note": "saved_pp = bail P&L − actual exit P&L, summed in percentage points; "
                     "n is positions where SOL-macro was down + pre-TP1 + not green.",
         }})
+
+    async def _handle_axiom_kol_probe(self, request):
+        """GET /api/axiom-kol-probe — one-shot feasibility probe of Axiom Vision's
+        top-trader (KOL) feed for the copy-trade frontier (2026-06-06). Read-only;
+        one vision-kols-v2 call per hit. Temporary — replaced by the collector once
+        the data shape is confirmed."""
+        if not self._axiom_auth:
+            return web.json_response({"error": "axiom_auth_not_registered"})
+        try:
+            from feeds.axiom_kol_probe import probe_vision_kols
+            return web.json_response(await probe_vision_kols(self._axiom_auth))
+        except Exception as e:
+            return web.json_response({"error": f"{type(e).__name__}: {e}"})
 
     async def _handle_api_bots(self, request):
         """GET /api/bots — list all bots with balance/pnl/open count."""
