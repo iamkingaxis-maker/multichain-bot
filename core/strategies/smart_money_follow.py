@@ -166,11 +166,21 @@ class SmartMoneyFollowStrategy:
     async def _cycle(self):
         now = int(time.time())
         async with aiohttp.ClientSession() as session:
-            for w in self.watchlist:
-                try:
-                    got = await self._wallet_buys(session, w)
-                except Exception:
-                    got = []
+            # Parallel sweep (2026-06-08): sweep all wallets concurrently (bounded by a
+            # semaphore to respect free-RPC rate limits) so the whole pass finishes in
+            # SECONDS instead of ~60-120s sequential. Combined with the shrunk top-tier
+            # watchlist + tighter poll, this cuts follow latency from ~2-4min toward ~20-30s
+            # so we catch the pop, not the fade.
+            _sem = asyncio.Semaphore(5)
+
+            async def _sweep(_w):
+                async with _sem:
+                    try:
+                        return _w, await self._wallet_buys(session, _w)
+                    except Exception:
+                        return _w, []
+            results = await asyncio.gather(*[_sweep(w) for w in self.watchlist])
+            for w, got in results:
                 for mint, bt, side, sol in got:
                     if side == "buy":
                         self._buys.append((mint, w, bt)); self.buys_seen += 1
