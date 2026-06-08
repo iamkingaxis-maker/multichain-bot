@@ -757,7 +757,16 @@ class PositionManager:
                     entry_time=getattr(pos, "entry_time", datetime.now(timezone.utc)),
                     reason=_reason,
                     is_micro_cap=_is_mc,
-                    strategy=getattr(pos, "strategy", "scanner"),
+                    # smart_follow inherits the tuned DIP exit ladder (TP1 +3% / runner-
+                    # tilt / trail / stop) instead of the loose +35% standard fallback
+                    # (2026-06-08): it follows elites into a spike that pops +10-20% then
+                    # fades — the +35% standard ladder never fired, so it took ZERO profit
+                    # and round-tripped every winner. This maps ONLY the internal exit
+                    # state; the trade record (trader.sell -> pos.strategy) stays tagged
+                    # 'smart_follow' for the dashboard + analysis.
+                    strategy=("dip_buy"
+                              if getattr(pos, "strategy", "") == "smart_follow"
+                              else getattr(pos, "strategy", "scanner")),
                     tp1_hit=bool(getattr(pos, "take_profit_1_hit", False)),
                     tp2_hit=bool(getattr(pos, "take_profit_2_hit", False)),
                     current_price=entry_px,

@@ -584,7 +584,10 @@ async def main():
         sol_smart_follow = SmartMoneyFollowStrategy(
             scanner=sol_scanner, telegram=telegram,
             watchlist=_follow_watchlist,
-            k=3, window_sec=600, poll_interval_sec=120,
+            # 2026-06-08 anti-spray: k=3 bought 28 distinct tokens in 30 fires (fired on
+            # nearly every 3-elite touch). k=4 — still "trust the wallets", but require
+            # STRONGER consensus so it's high-conviction, not indiscriminate.
+            k=4, window_sec=600, poll_interval_sec=120,
         )
         tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run(),
                   sol_smart_follow.run()]
