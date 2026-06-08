@@ -1,0 +1,526 @@
+{
+  "age_h_max": null,
+  "age_h_min": null,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 100.0,
+  "bot_id": "pool_a_broad_trigstate",
+  "btc_macro_h1_block_threshold": null,
+  "display_name": "POOL-A BROAD TRIGGER-STATE (2026-06-08): pool_a_candidate spine, broad trigger universe (40 triggers) WITH per-trigger token-state gates. 40 archetype triggers, each held-out-validated in BOTH date folds (May26-31 & Jun1-8) over 1560 entries / 7-Opus mine. Excludes phantom-$ (low_buy_slip, demand_bottom_compound = SIZE lever not entry gate) + dormant/under-sampled (beta_retailfresh, concurrent_alpha, etc). Gate feature coverage >=97% so every gate ACTS (keep-rate 10-59%). See reference_per_trigger_state_conditioning_2026_06_08. A/B against pool_a_broad_control (SAME triggers, NO gates) -> isolates the gating effect across the full archetype set. Own exclusion_pool (independent eval). Forward-judge n>=50 compare_bots --unrealized.",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "1m_volume_spike",
+      ">=",
+      0.4
+    ],
+    [
+      "1m_cum_3min_pct",
+      ">=",
+      -3
+    ]
+  ],
+  "exclusion_pool": "pool_a_broad_ts",
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_falling_pump",
+    "filter_fusion_floor",
+    "filter_btc_overheat",
+    "filter_aged_corpse",
+    "filter_wynn_killer",
+    "filter_consec_red",
+    "filter_dead_meme_lagging_pressure",
+    "filter_dead_low_demand",
+    "filter_dead_volume",
+    "filter_huge_wick",
+    "filter_rolling_ng",
+    "filter_sol_flicker"
+  ],
+  "hard_stop_pct": -15.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 7,
+  "mcap_max": null,
+  "mcap_min": null,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_shape_90m_range_pct": 10.0,
+  "min_token_volatility_h24_pct": null,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": true,
+  "never_runner_loss_floor": -6.0,
+  "never_runner_minutes": 60,
+  "never_runner_peak_max": 3.0,
+  "ng_faststop_exit_enabled": true,
+  "ng_scorer_gate": true,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pool_sizing_derates_enabled": true,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "require_alpha_trigger": false,
+  "scalein_confirm_pct": 1.0,
+  "scalein_enabled": true,
+  "scalein_first_fraction": 0.5,
+  "slow_bleed_minutes": 60,
+  "slow_bleed_pnl_threshold": -8.0,
+  "sol_macro_h1_block_threshold": -0.7,
+  "sol_macro_h6_block_threshold": -0.3,
+  "stall_exit_drift_pp": 2.0,
+  "stall_exit_minutes": 90,
+  "stall_exit_peak_max": 5.0,
+  "tp1_pct": 5.0,
+  "tp1_sell_fraction": 0.75,
+  "tp2_pct": 7.0,
+  "tp2_sell_fraction": 0.25,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
+  "trail_pp": 1.5,
+  "trigger_state_gates": [
+    [
+      "1s_capit_reversal",
+      [
+        [
+          "macro30_pct",
+          "<=",
+          -8.3
+        ]
+      ]
+    ],
+    [
+      "1s_demand_compound",
+      [
+        [
+          "lifecycle_h24_ratio",
+          ">=",
+          0.709
+        ]
+      ]
+    ],
+    [
+      "active_dip",
+      [
+        [
+          "lifecycle_age_hours",
+          ">=",
+          50
+        ]
+      ]
+    ],
+    [
+      "bullish_engulfing_5m",
+      [
+        [
+          "chart_mtf_score",
+          ">=",
+          2
+        ]
+      ]
+    ],
+    [
+      "calm_at_support",
+      [
+        [
+          "pc_h6",
+          ">=",
+          8.12
+        ]
+      ]
+    ],
+    [
+      "calm_buyer_demand",
+      [
+        [
+          "buy_sell_volume_imbalance",
+          "<=",
+          0.378
+        ]
+      ]
+    ],
+    [
+      "channel_pos_swing",
+      [
+        [
+          "time_since_h1_peak_secs",
+          ">=",
+          10867
+        ]
+      ]
+    ],
+    [
+      "chart_channel_strong",
+      [
+        [
+          "pc_h1",
+          ">=",
+          2.55
+        ]
+      ]
+    ],
+    [
+      "chart_quality_bottom",
+      [
+        [
+          "vol_5m_burst_vs_h1",
+          ">=",
+          1.42
+        ]
+      ]
+    ],
+    [
+      "cnn_cluster_10",
+      [
+        [
+          "1s_bottom_score",
+          ">=",
+          25
+        ]
+      ]
+    ],
+    [
+      "cnn_cluster_13",
+      [
+        [
+          "bs_h6",
+          "<=",
+          1.18
+        ]
+      ]
+    ],
+    [
+      "cnn_cluster_16",
+      [
+        [
+          "buy_sell_volume_imbalance",
+          "<=",
+          0.396
+        ]
+      ]
+    ],
+    [
+      "deep_1h_dip",
+      [
+        [
+          "chart_score",
+          "<=",
+          40.9
+        ]
+      ]
+    ],
+    [
+      "demand_burst_no_crash",
+      [
+        [
+          "lifecycle_h24_ratio",
+          ">=",
+          0.713
+        ]
+      ]
+    ],
+    [
+      "extreme_sweep_1m",
+      [
+        [
+          "cycles_seen_before_buy",
+          "<=",
+          314
+        ]
+      ]
+    ],
+    [
+      "flow_reversal",
+      [
+        [
+          "pc_m5",
+          "<=",
+          -1.23
+        ]
+      ]
+    ],
+    [
+      "hot_runner_calm_5m",
+      [
+        [
+          "lifecycle_age_hours",
+          ">=",
+          807
+        ]
+      ]
+    ],
+    [
+      "hot_runner_shallow_1h",
+      [
+        [
+          "mcap_distance_to_psych_pct",
+          ">=",
+          -16.1
+        ]
+      ]
+    ],
+    [
+      "informed_cluster",
+      [
+        [
+          "buy_pressure_60s",
+          "<=",
+          0.4
+        ]
+      ]
+    ],
+    [
+      "liq_velocity_big_buyers",
+      [
+        [
+          "time_since_h1_peak_secs",
+          "<=",
+          2827
+        ]
+      ]
+    ],
+    [
+      "mcap_psych_level",
+      [
+        [
+          "bs_h1",
+          "<=",
+          1.2
+        ]
+      ]
+    ],
+    [
+      "modest_pump_deep_retrace",
+      [
+        [
+          "chart_mtf_score",
+          "<=",
+          -3
+        ]
+      ]
+    ],
+    [
+      "mtf_aligned_demand",
+      [
+        [
+          "vol_5m_burst_vs_h1",
+          ">=",
+          1.151
+        ]
+      ]
+    ],
+    [
+      "net_flow_5m_demand",
+      [
+        [
+          "lifecycle_h24_ratio",
+          ">=",
+          0.79
+        ]
+      ]
+    ],
+    [
+      "power_dip_runner",
+      [
+        [
+          "pc_m5",
+          "<=",
+          -2.43
+        ]
+      ]
+    ],
+    [
+      "pullback_in_uptrend",
+      [
+        [
+          "minutes_since_peak",
+          "<=",
+          22.1
+        ]
+      ]
+    ],
+    [
+      "small_pump_shallow_retrace",
+      [
+        [
+          "bs_m5",
+          ">=",
+          2.0
+        ]
+      ]
+    ],
+    [
+      "strong_orderflow",
+      [
+        [
+          "regime_h1_neg_pct",
+          ">=",
+          32.9
+        ]
+      ]
+    ],
+    [
+      "strong_uptrend_dip",
+      [
+        [
+          "bs_h1",
+          "<=",
+          1.21
+        ]
+      ]
+    ],
+    [
+      "support_big_buyer",
+      [
+        [
+          "pct_off_peak",
+          "<=",
+          -24.1
+        ]
+      ]
+    ],
+    [
+      "support_with_60s_flow",
+      [
+        [
+          "chart_mtf_score",
+          ">=",
+          3
+        ]
+      ]
+    ],
+    [
+      "sustained_accumulation",
+      [
+        [
+          "1s_bottom_score",
+          ">=",
+          30
+        ]
+      ]
+    ],
+    [
+      "swing_structure_rsi",
+      [
+        [
+          "buy_pressure_60s",
+          ">=",
+          0.571
+        ]
+      ]
+    ],
+    [
+      "textbook_pullback_big_buyer",
+      [
+        [
+          "macro30_pct",
+          "<=",
+          -10.98
+        ]
+      ]
+    ],
+    [
+      "textbook_pullback_vol_accel",
+      [
+        [
+          "minutes_since_peak",
+          "<=",
+          39
+        ]
+      ]
+    ],
+    [
+      "trigger_stable_compound_quality",
+      [
+        [
+          "buy_sell_volume_imbalance",
+          "<=",
+          0.478
+        ]
+      ]
+    ],
+    [
+      "vol_breakout_flat",
+      [
+        [
+          "unique_buyer_ratio",
+          ">=",
+          0.778
+        ]
+      ]
+    ],
+    [
+      "vol_surge_recent",
+      [
+        [
+          "regime_dip_breadth_pct",
+          ">=",
+          14.2
+        ]
+      ]
+    ],
+    [
+      "volume_profile_aligned",
+      [
+        [
+          "pct_off_peak",
+          "<=",
+          -26.39
+        ]
+      ]
+    ],
+    [
+      "whale_conviction",
+      [
+        [
+          "buy_sell_volume_imbalance",
+          "<=",
+          0.369
+        ]
+      ]
+    ]
+  ],
+  "triggers_allowed": [
+    "1s_capit_reversal",
+    "1s_demand_compound",
+    "active_dip",
+    "bullish_engulfing_5m",
+    "calm_at_support",
+    "calm_buyer_demand",
+    "channel_pos_swing",
+    "chart_channel_strong",
+    "chart_quality_bottom",
+    "cnn_cluster_10",
+    "cnn_cluster_13",
+    "cnn_cluster_16",
+    "deep_1h_dip",
+    "demand_burst_no_crash",
+    "extreme_sweep_1m",
+    "flow_reversal",
+    "hot_runner_calm_5m",
+    "hot_runner_shallow_1h",
+    "informed_cluster",
+    "liq_velocity_big_buyers",
+    "mcap_psych_level",
+    "modest_pump_deep_retrace",
+    "mtf_aligned_demand",
+    "net_flow_5m_demand",
+    "power_dip_runner",
+    "pullback_in_uptrend",
+    "small_pump_shallow_retrace",
+    "strong_orderflow",
+    "strong_uptrend_dip",
+    "support_big_buyer",
+    "support_with_60s_flow",
+    "sustained_accumulation",
+    "swing_structure_rsi",
+    "textbook_pullback_big_buyer",
+    "textbook_pullback_vol_accel",
+    "trigger_stable_compound_quality",
+    "vol_breakout_flat",
+    "vol_surge_recent",
+    "volume_profile_aligned",
+    "whale_conviction"
+  ],
+  "triggers_disabled": [],
+  "vol_h1_min": 1000.0
+}
