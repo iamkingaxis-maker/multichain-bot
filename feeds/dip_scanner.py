@@ -15240,6 +15240,25 @@ class DipScanner:
                 logger.debug(f"[DipScanner] downtrend_shadow err: {_e}")
                 entry_meta_dict["watchlist_bypass_downtrend_shadow"] = None
 
+            # regime_size_dial — SHADOW 2026-06-08. Day-level market-state size
+            # multiplier from the 49-day regime analysis: dip-buy edge is real but
+            # DAY-STATE-dependent (good = SOL modestly red + low memecoin downside
+            # breadth -> dips bounce; bad = broad-red/SOL-euphoria). Stamps the WOULD-BE
+            # multiplier (0.5/1.0/1.5); does NOT change actual size. Forward-validate
+            # (do 1.5x-stamped entries out-WR 0.5x ones?) before enforcing. Fail-open->1.0.
+            try:
+                from core.regime_size_dial import regime_size_verdict as _rs_v
+                _rs_mult, _rs_reasons = _rs_v(entry_meta_dict)
+                entry_meta_dict["regime_size_shadow"] = _rs_mult
+                entry_meta_dict["regime_size_shadow_reasons"] = _rs_reasons
+                if _rs_mult != 1.0:
+                    logger.info(
+                        f"[DipScanner] regime_size SHADOW {_rs_mult}x: "
+                        f"{token_symbol} {';'.join(_rs_reasons)}")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] regime_size shadow err: {_e}")
+                entry_meta_dict["regime_size_shadow"] = 1.0
+
             # buyer_concentration — SHADOW 2026-06-04. First entry-side signal to
             # clear the fleet's full discipline (held-out-by-token + token-null + BH):
             # whale-dominated BUYING (large_buyer_volume_pct>=0.5) is the fresh-token
