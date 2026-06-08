@@ -3316,7 +3316,10 @@ class MultiSourceScanner:
         # Skip check entirely if vol=0 (data unavailable, not a dead-token signal).
         if signal.mcap > 0 and signal.volume_h1 > 0:
             vol_mcap_ratio = signal.volume_h1 / signal.mcap
-            if vol_mcap_ratio < 0.05:
+            # smart_follow trusts the K=3 elite-wallet consensus over our dead-volume
+            # heuristic (smart-money tokens are often thin/early) — skip the <5% gate
+            # for it. Wash-trading (>200%) + DANGER/security + stability still apply.
+            if vol_mcap_ratio < 0.05 and strategy_tag != "smart_follow":
                 logger.info(
                     f"[{self.chain.name}] ❌ Dead volume: {signal.token_symbol} "
                     f"vol/mcap={vol_mcap_ratio*100:.1f}% < 5% "
