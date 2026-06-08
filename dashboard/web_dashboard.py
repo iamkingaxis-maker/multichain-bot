@@ -2150,6 +2150,7 @@ class WebDashboard:
         self.app.router.add_get("/api/signal-events",      self._handle_signal_events)
         self.app.router.add_get("/api/pre-gate-events",    self._handle_pre_gate_events)
         self.app.router.add_get("/api/universe-recorder",  self._handle_universe_recorder)
+        self.app.router.add_get("/api/follow-logs",         self._handle_follow_logs)
         self.app.router.add_get("/api/fresh-launches",  self._handle_fresh_launches)
         self.app.router.add_get("/api/ng-scorer-decisions",  self._handle_ng_scorer_decisions)
         self.app.router.add_get("/api/mc-recommendations", self._handle_mc_recommendations)
@@ -3212,6 +3213,43 @@ class WebDashboard:
             return web.Response(
                 text=json.dumps({"error": str(e)}),
                 status=500, content_type="application/json", headers=cors)
+
+    async def _handle_follow_logs(self, request):
+        """GET /api/follow-logs — serve smart_follow's signal + exit logs.
+
+        smart_money_follow writes follow_signals.jsonl (which elite wallets triggered
+        each fire) and follow_exits.jsonl (when followed elites sold + their hold/return)
+        to DATA_DIR. This read-only endpoint exposes the tails so scripts/follow_wallet_audit.py
+        can run off-box to find junk wallets + calibrate exits. ?limit=N per file (default 500).
+        """
+        import os as _os
+        cors = {"Access-Control-Allow-Origin": "*"}
+        dd = _os.environ.get('DATA_DIR') or '.'
+        try:
+            limit = max(1, min(int(request.query.get('limit', '500')), 2000))
+        except ValueError:
+            limit = 500
+        out = {}
+        for key, fname in (("signals", "follow_signals.jsonl"), ("exits", "follow_exits.jsonl")):
+            recs = []
+            p = _os.path.join(dd, fname)
+            if not _os.path.exists(p):
+                p = fname  # local fallback
+            try:
+                if _os.path.exists(p):
+                    with open(p, encoding='utf-8') as f:
+                        for line in f.readlines()[-limit:]:
+                            line = line.strip()
+                            if line:
+                                try:
+                                    recs.append(json.loads(line))
+                                except json.JSONDecodeError:
+                                    pass
+            except Exception:
+                pass
+            out[key] = recs
+        out["distinct_signal_tokens"] = len({r.get("token") for r in out.get("signals", []) if r.get("token")})
+        return web.Response(text=json.dumps(out), content_type="application/json", headers=cors)
 
     async def _handle_universe_recorder(self, request):
         """GET /api/universe-recorder — returns universe-recorder dip events.
