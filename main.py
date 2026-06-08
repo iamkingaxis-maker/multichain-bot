@@ -588,7 +588,10 @@ async def main():
             # require stronger consensus (still trust the wallets, just more of them).
             # 2026-06-08 speed: shrunk top-15 watchlist + PARALLEL sweep -> poll 120->30s,
             # so follow latency drops from ~2-4min (which made us buy the fade) toward ~30s.
-            k=4, window_sec=600, poll_interval_sec=30,
+            # 2026-06-08 fix: with 15 wallets, observed max_consensus=3 -> K=4 NEVER fired
+            # (fired_total=0, dead). Back to K=3 (top-15 are all high-conviction; 3 converging
+            # is strong). Drop to 2 if still too sparse.
+            k=3, window_sec=600, poll_interval_sec=30,
         )
         tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run(),
                   sol_smart_follow.run()]
