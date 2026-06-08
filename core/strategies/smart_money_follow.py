@@ -29,7 +29,11 @@ logger = logging.getLogger(__name__)
 # so trade outcomes can be attributed back to specific wallets (join to trades by token)
 # -> identify junk wallets empirically from live results. Capped so it can't grow unbounded.
 _FOLLOW_LOG = os.path.join(os.environ.get("DATA_DIR", "."), "follow_signals.jsonl")
-_FOLLOW_LOG_CAP = 5_000_000  # ~5MB; trims oldest half when exceeded
+# Per-exit log (2026-06-08): record when an elite wallet that we followed EXITS the
+# token (sells), with their hold time + their own SOL return. This is the calibration
+# data for smart_follow's TP/stop — "follow them OUT" instead of a borrowed dip ladder.
+_FOLLOW_EXITS_LOG = os.path.join(os.environ.get("DATA_DIR", "."), "follow_exits.jsonl")
+_LOG_CAP = 5_000_000  # ~5MB per log; trims oldest half when exceeded
 
 RPCS = ["https://api.mainnet-beta.solana.com", "https://solana.leorpc.com/?api_key=FREE"]
 STABLE = {"So11111111111111111111111111111111111111112",
@@ -38,18 +42,15 @@ STABLE = {"So11111111111111111111111111111111111111112",
 UA = {"User-Agent": "Mozilla/5.0"}
 
 
-def _append_follow_signal(rec: dict):
-    """Append one follow-fire record to _FOLLOW_LOG (fail-soft, size-capped)."""
+def _append_jsonl(path: str, rec: dict):
+    """Append one record to a JSONL log (fail-soft, size-capped)."""
     try:
-        import time as _t
-        line = json.dumps(rec, separators=(",", ":")) + "\n"
-        with open(_FOLLOW_LOG, "a") as f:
-            f.write(line)
-        # cheap cap: if oversized, keep the newest half
-        if os.path.getsize(_FOLLOW_LOG) > _FOLLOW_LOG_CAP:
-            with open(_FOLLOW_LOG) as f:
+        with open(path, "a") as f:
+            f.write(json.dumps(rec, separators=(",", ":")) + "\n")
+        if os.path.getsize(path) > _LOG_CAP:  # keep newest half when oversized
+            with open(path) as f:
                 lines = f.readlines()
-            with open(_FOLLOW_LOG, "w") as f:
+            with open(path, "w") as f:
                 f.writelines(lines[len(lines) // 2:])
     except Exception:
         pass  # tracking must never break the strategy
@@ -72,6 +73,7 @@ class SmartMoneyFollowStrategy:
         self._seen = {}          # wallet -> set(recent sigs)
         self._buys = []          # [(token, wallet, blockTime)]
         self._fired = {}         # token -> fire_ts
+        self._wallet_pos = {}    # (wallet, mint) -> (buy_bt, buy_sol) — open elite round-trips (for exit calibration)
         self.signals_fired = 0
         self.buys_seen = 0
         logger.info(f"[SmartFollow] init: {len(self.watchlist)} wallets | K={k} within {window_sec//60}min "
@@ -122,8 +124,13 @@ class SmartMoneyFollowStrategy:
             for mint in set(list(pre) + list(post)):
                 if mint in STABLE:
                     continue
-                if post.get(mint, 0) - pre.get(mint, 0) > 0 and sol_delta is not None and sol_delta < 0:
-                    out.append((mint, bt))
+                delta = post.get(mint, 0) - pre.get(mint, 0)
+                if sol_delta is None:
+                    continue
+                if delta > 0 and sol_delta < 0:          # BUY: token up, SOL spent
+                    out.append((mint, bt, "buy", -sol_delta))
+                elif delta < 0 and sol_delta > 0:        # SELL: token down, SOL received
+                    out.append((mint, bt, "sell", sol_delta))
         if new:
             self._seen[wallet] = set(list(seen)[-32:] + new)
         return out
@@ -164,10 +171,26 @@ class SmartMoneyFollowStrategy:
                     got = await self._wallet_buys(session, w)
                 except Exception:
                     got = []
-                for mint, bt in got:
-                    self._buys.append((mint, w, bt)); self.buys_seen += 1
+                for mint, bt, side, sol in got:
+                    if side == "buy":
+                        self._buys.append((mint, w, bt)); self.buys_seen += 1
+                        # remember the elite's entry so we can measure their EXIT later
+                        self._wallet_pos[(w, mint)] = (bt, sol)
+                    else:  # SELL — an elite we may be following is EXITING
+                        ent = self._wallet_pos.pop((w, mint), None)
+                        if ent:
+                            hold = max(0, bt - ent[0])
+                            ret = (sol / ent[1] - 1.0) if ent[1] else None
+                            _append_jsonl(_FOLLOW_EXITS_LOG, {
+                                "ts": bt, "token": mint, "wallet": w,
+                                "hold_secs": hold, "sol_in": round(ent[1], 4),
+                                "sol_out": round(sol, 4),
+                                "wallet_return_pct": round(ret * 100, 1) if ret is not None else None,
+                            })
             # prune to window
             self._buys = [b for b in self._buys if now - b[2] <= self.window_sec]
+            # TTL the open round-trips (drop entries whose buy is >24h old and never sold)
+            self._wallet_pos = {k: v for k, v in self._wallet_pos.items() if now - v[0] <= 86400}
             bytok = {}
             for mint, w, bt in self._buys:
                 bytok.setdefault(mint, set()).add(w)
@@ -186,7 +209,7 @@ class SmartMoneyFollowStrategy:
                 logger.info(f"[SmartFollow] 🎯 {reason} | {info['symbol']} {mint[:10]}")
                 # Track which wallets triggered this fire -> attribute trade outcomes to
                 # wallets later (join to /api/trades by token) -> prune junk wallets empirically.
-                _append_follow_signal({
+                _append_jsonl(_FOLLOW_LOG, {
                     "ts": now, "token": mint, "symbol": info.get("symbol"),
                     "wallets": sorted(wset), "n": len(wset),
                 })

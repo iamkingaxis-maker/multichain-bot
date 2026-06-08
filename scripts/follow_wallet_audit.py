@@ -109,6 +109,27 @@ def main():
     for r in junk:
         print(f"  prune candidate: {r[0]} (realized {r[3]:+.1f}, WR {(r[4] or 0):.0%})")
 
+    # ── Smart-money EXIT calibration (the TP/stop data) ──────────────────────
+    ex_path = os.path.join(os.environ.get("DATA_DIR", "."), "follow_exits.jsonl")
+    if not os.path.exists(ex_path):
+        ex_path = "follow_exits.jsonl"
+    exits = _load_signals(ex_path)
+    print(f"\n=== SMART-MONEY EXIT CALIBRATION (elite round-trips: {len(exits)}) ===")
+    if not exits:
+        print("  No elite exits captured yet — accrues as followed wallets sell. This is the")
+        print("  data to set smart_follow's TP/stop ('follow them OUT') instead of the dip ladder.")
+    else:
+        holds = sorted(e["hold_secs"] / 60.0 for e in exits if isinstance(e.get("hold_secs"), (int, float)))
+        rets = sorted(e["wallet_return_pct"] for e in exits if isinstance(e.get("wallet_return_pct"), (int, float)))
+        def pctl(a, p):
+            return round(a[int(len(a) * p)], 1) if a else None
+        if holds:
+            print(f"  hold-time (min):   median {statistics.median(holds):.1f}  p25 {pctl(holds,.25)}  p75 {pctl(holds,.75)}")
+        if rets:
+            win = sum(1 for r in rets if r > 0) / len(rets)
+            print(f"  exit return (%):   median {statistics.median(rets):+.1f}  p25 {pctl(rets,.25)}  p75 {pctl(rets,.75)}  | elites green {win:.0%}")
+            print(f"  -> set TP near the median exit return; stop tighter than p25. Or follow-them-out.")
+
 
 if __name__ == "__main__":
     main()
