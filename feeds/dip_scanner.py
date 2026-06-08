@@ -1157,6 +1157,18 @@ class DipScanner:
         token_bleeding = _n_recent >= 5 and _net_recent < 0
         if pm.open_count >= 1 and token_bleeding:
             mult *= 0.5; tags.append("conc_bleed")
+        # stale_drift de-size (2026-06-08): PROMOTED from shadow. Of ~7 entry shadows,
+        # stale_drift is the one that cleanly separated on real CLOSED trades (BLOCK
+        # WR 0.45 vs PASS 0.50; winsor -$0.69 vs +$1.83, n=581). De-size x0.5 (NOT a
+        # block — winner-safe + AxiS prefers de-size). Smart-money is already exempt
+        # (early return above). Acts on pool_sizing_derates_enabled bots; still
+        # SHADOW-stamped fleet-wide. Fail-OPEN. Tagged for forward measurement.
+        try:
+            from core.stale_drift import stale_drift_verdict as _sd_dv
+            if _sd_dv(meta)[0] == "BLOCK":
+                mult *= 0.5; tags.append("stale_drift")
+        except Exception:
+            pass
         return size_usd * mult, ("+".join(tags) if tags else "none")
 
     async def _execute_bot_buy_live(self, decision, pm, size_usd):
