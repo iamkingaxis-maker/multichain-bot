@@ -120,6 +120,12 @@ class PoolPriceFeed:
         # bypassing the DexScreener-indexer lag entirely.
         self.position_manager = None
 
+        # Phantom-price guard state (2026-06-08). The legacy realtime exit path was
+        # UNGUARDED — a glitchy feed (GO printed ~0 and ~71 for a $0.0004 token) booked
+        # phantom -99.9% "rug" stops. Keyed by token; persists across ticks. The fleet
+        # path already had this (dip_scanner); this brings the legacy path to parity.
+        self._exit_price_guard: Dict[str, dict] = {}
+
         # Pool registry
         self._pools: Dict[str, PoolEntry] = {}           # lower_token → PoolEntry
         self._pair_lower_to_token: Dict[str, str] = {}   # lower_pair → lower_token
@@ -723,6 +729,27 @@ class PoolPriceFeed:
         # because the indexed-tokens API lagged the real pumpswap pool).
         if self.position_manager is not None:
             try:
+                # Phantom-price guard (2026-06-08): reject glitch ticks BEFORE any exit
+                # check sees them (and before they poison the position's min/peak). Uses
+                # the position's entry as ref_price + observed min/peak as OHLC bounds —
+                # a print far below the real low (GO 2.5e-7) or above the real high (GO
+                # 71.0) is rejected; a >50%-from-entry move is never accepted on temporal-
+                # only (catches the -99.9% phantom). Fail-OPEN. See core/exit_price_guard.py.
+                try:
+                    _st = getattr(self.position_manager, "_states", {}).get(token_lower)
+                    if _st is not None:
+                        from core.exit_price_guard import guarded_exit_price
+                        _entry = getattr(_st, "entry_price", 0) or 0
+                        _lo = getattr(_st, "min_price_usd", 0) or 0
+                        _hi = getattr(_st, "peak_price", 0) or 0
+                        price_usd = guarded_exit_price(
+                            self._exit_price_guard, token_lower, price_usd,
+                            ref_price=(_entry if _entry > 0 else None),
+                            low_fn=((lambda v=_lo: v) if _lo > 0 else None),
+                            high_fn=((lambda v=_hi: v) if _hi > 0 else None),
+                        )
+                except Exception:
+                    pass  # fail-open: never block the exit checks on a guard error
                 self.position_manager.check_stop_loss_realtime(token_lower, price_usd)
                 self.position_manager.check_take_profit_realtime(token_lower, price_usd)
                 # Pre-TP1 exhaustion trail with 60s confirmation + hard guard.

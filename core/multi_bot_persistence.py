@@ -34,6 +34,7 @@ class MultiBotTradeStore:
         self._maybe_scrub_giga_phantom()
         self._maybe_scrub_eurc_phantom()
         self._maybe_scrub_cdof_phantom()
+        self._maybe_scrub_go_phantom()
         self._maybe_cleanup_phantom_backups()
         self._maybe_cleanup_cnn_dataset()
         self._maybe_reconcile_positions()
@@ -155,6 +156,33 @@ class MultiBotTradeStore:
             import logging
             logging.getLogger(__name__).error(
                 "CDOF phantom scrub skipped (non-fatal error): %s", e
+            )
+
+    def _maybe_scrub_go_phantom(self) -> None:
+        """One-shot reversal of the 2026-06-08 GO phantom-LOSS prints (broken feed
+        booked -99.9% 'rug' stops on the then-unguarded legacy path; GO did not rug —
+        price recovered after every print). Repriced to breakeven here before bots load.
+        Sentinel-guarded; never breaks boot."""
+        try:
+            import sys
+            root = str(Path(__file__).resolve().parent.parent)
+            if root not in sys.path:
+                sys.path.insert(0, root)
+            from scripts.scrub_go_phantom import scrub
+            res = scrub(self.data_dir)
+            if "skipped" not in res:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "GO phantom scrub ran: restored $%s across %d bots, %s sells repriced; backup=%s",
+                    res.get("total_restored"),
+                    len(res.get("restored_per_bot", {})),
+                    res.get("files"),
+                    res.get("backup"),
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(
+                "GO phantom scrub skipped (non-fatal error): %s", e
             )
 
     def _maybe_cleanup_phantom_backups(self) -> None:
