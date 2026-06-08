@@ -66,6 +66,7 @@ from dashboard.web_dashboard import WebDashboard
 from core.strategies.cross_wallet_convergence import CrossWalletConvergenceStrategy
 from core.strategies.wallet_clustering import WalletClusteringStrategy
 from core.strategies.capitulation_reversal import CapitulationReversalStrategy
+from core.strategies.smart_money_follow import SmartMoneyFollowStrategy
 from core.realtime_signal import RealTimeSignalLayer
 from core.bot_registry import BotRegistry
 from core.bot_evaluator import BotEvaluator
@@ -570,7 +571,23 @@ async def main():
             scanner=sol_scanner, telegram=telegram,
             min_setup_quality=65.0, scan_interval_seconds=60,
         )
-        tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run()]
+        # ── Smart-Money Follow (NEW, free-RPC; replaces the dormant Helius convergence) ──
+        # K=3 elite wallets (mined roster) buying the same token within 10min -> external signal.
+        # Routes through process_external_signal (paper under PAPER_MODE). No Helius, no paid APIs.
+        _follow_watchlist = []
+        try:
+            import json as _fwl_json
+            with open("config/follow_watchlist.json") as _fwl:
+                _follow_watchlist = _fwl_json.load(_fwl)
+        except Exception as _e:
+            logger.warning(f"[SmartFollow] watchlist load failed ({_e}); strategy idle")
+        sol_smart_follow = SmartMoneyFollowStrategy(
+            scanner=sol_scanner, telegram=telegram,
+            watchlist=_follow_watchlist,
+            k=3, window_sec=600, poll_interval_sec=120,
+        )
+        tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run(),
+                  sol_smart_follow.run()]
 
         dashboard.register_strategies(
             scanner=sol_scanner,
