@@ -45,7 +45,7 @@
   "marginal_multiplier": 1.0,
   "max_concurrent_positions": 7,
   "mcap_max": 10000000.0,
-  "mcap_min": 500000.0,
+  "mcap_min": 250000.0,
   "mcap_psych_pc_h24_max": 80.0,
   "min_shape_90m_range_pct": 10.0,
   "min_token_volatility_h24_pct": null,

@@ -595,6 +595,7 @@ async def main():
             convergence=sol_convergence,
             clustering=sol_clustering,
             capitulation=sol_capitulation,
+            smart_follow=sol_smart_follow,
         )
 
         # ── Axiom Real-Time Feed ──────────────────────────────────────────

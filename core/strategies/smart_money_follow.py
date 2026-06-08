@@ -164,6 +164,8 @@ class SmartMoneyFollowStrategy:
                     await self.scanner.process_external_signal(
                         token_address=mint, token_symbol=info["symbol"], reason=reason,
                         signal_score=self.min_signal_score, strategy_tag="smart_follow",
+                        skip_chart_dip=True,  # follow the wallets into strength; the dip gate
+                                              # (built for dip-buying) rejects every follow signal
                         price_usd=info["price"], liquidity_usd=info["liq"],
                         volume_h1=info["vol_h1"], mcap=info["mcap"], price_change_h1=info["pc_h1"])
                 except Exception as e:

@@ -2118,6 +2118,7 @@ class WebDashboard:
         self._strat_convergence = None
         self._strat_clustering = None
         self._strat_capitulation = None
+        self._strat_smart_follow = None
 
         # ScalpQueue (backend feeder) + ScalpCapitalManager (independent pool)
         self._scalp_queue = None
@@ -2278,8 +2279,11 @@ class WebDashboard:
         convergence=None,
         clustering=None,
         capitulation=None,
+        smart_follow=None,
     ):
         """Register strategy instances so the Active Strategies panel can show live status."""
+        if smart_follow is not None:
+            self._strat_smart_follow = smart_follow
         if scanner is not None:
             self._strat_scanner = scanner
         if scalper is not None:
@@ -3762,6 +3766,20 @@ class WebDashboard:
             "last_buy": last_buy,
             "last_sell": last_sell,
             "trades_today": _trades_today("capitulation"),
+            "total_pnl": round(total_pnl, 2),
+            "win_rate": round(win_rate, 1),
+        }
+
+        # ── SmartMoneyFollow (free-RPC follow signal) ─────────────────────
+        last_buy, last_sell = _last_trade_times("smart_follow")
+        total_pnl, win_rate = _strategy_pnl_and_wr("smart_follow")
+        result["smart_follow"] = {
+            "display_name": "Smart-Money Follow",
+            "running": self._strat_smart_follow is not None,
+            "signals_fired": getattr(self._strat_smart_follow, "signals_fired", None),
+            "last_buy": last_buy,
+            "last_sell": last_sell,
+            "trades_today": _trades_today("smart_follow"),
             "total_pnl": round(total_pnl, 2),
             "win_rate": round(win_rate, 1),
         }

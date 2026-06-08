@@ -2307,6 +2307,7 @@ class MultiSourceScanner:
                                      signal_score: int = 70,
                                      strategy_tag: str = "external",
                                      skip_security: bool = False,
+                                     skip_chart_dip: bool = False,
                                      price_usd: float = 0.0,
                                      liquidity_usd: float = 0.0,
                                      volume_h1: float = 0.0,
@@ -2369,13 +2370,18 @@ class MultiSourceScanner:
         )
 
         risk_level = sec_result.risk_level if not skip_security else "UNKNOWN"
-        confirmed = await self._chart_dip_check(signal, risk_level)
-        if not confirmed:
-            logger.info(
-                f"[{self.chain.name}] [{strategy_tag}] 📉 Chart check failed: "
-                f"{token_symbol} — waiting for better entry"
-            )
-            return False
+        # skip_chart_dip: strategies that FOLLOW smart-money convergence (smart_follow)
+        # must NOT be gated by the dip-check — the wallets buy into strength/momentum,
+        # not dips, so the dip gate would reject every follow signal (it did). Security
+        # still applies. Other callers keep the dip check (default False).
+        if not skip_chart_dip:
+            confirmed = await self._chart_dip_check(signal, risk_level)
+            if not confirmed:
+                logger.info(
+                    f"[{self.chain.name}] [{strategy_tag}] 📉 Chart check failed: "
+                    f"{token_symbol} — waiting for better entry"
+                )
+                return False
 
         self.signals_fired += 1
         self._last_buy_time = time.monotonic()
@@ -2384,7 +2390,7 @@ class MultiSourceScanner:
             f"{token_symbol} | Score: {signal_score} | {reason}"
         )
 
-        await self._fire_chart_buy(signal, risk_level)
+        await self._fire_chart_buy(signal, risk_level, strategy_tag=strategy_tag)
         return True
 
     async def _sol_macro_ok_check(self) -> bool:
@@ -3257,18 +3263,19 @@ class MultiSourceScanner:
         self._dip_watchlist.pop(addr_lower, None)
         return True
 
-    async def _fire_chart_buy(self, signal: TokenSignal, risk_level: str):
+    async def _fire_chart_buy(self, signal: TokenSignal, risk_level: str, strategy_tag: str = "scanner"):
         """Execute the buy after all dip/chart checks have passed."""
         addr_lower = signal.token_address.lower()
         if addr_lower in self.trader.open_positions or addr_lower in self._pending_buys:
             return
         self._pending_buys.add(addr_lower)
         try:
-            await self._fire_chart_buy_inner(signal, risk_level, addr_lower)
+            await self._fire_chart_buy_inner(signal, risk_level, addr_lower, strategy_tag=strategy_tag)
         finally:
             self._pending_buys.discard(addr_lower)
 
-    async def _fire_chart_buy_inner(self, signal: TokenSignal, risk_level: str, addr_lower: str):
+    async def _fire_chart_buy_inner(self, signal: TokenSignal, risk_level: str, addr_lower: str,
+                                    strategy_tag: str = "scanner"):
         """Inner implementation — called only by _fire_chart_buy which holds _pending_buys."""
         # Re-validate score at fire time — the signal may have been cached in the dip
         # watchlist or bounce confirmer queue and the score could have drifted below
@@ -3366,7 +3373,7 @@ class MultiSourceScanner:
             signal_score=signal.combined_score,
             hh_hl_confirmed=getattr(signal, "hh_hl_confirmed", False),
             chain_id=self.chain.chain_id,
-            strategy="scanner",
+            strategy=strategy_tag,
             force_paper=True,  # C3 (2026-06-04 audit): legacy MSS not on live_probe allowlist -> always paper
             pair_address=signal.pair_address or "",
             market_cap_usd=signal.mcap,
