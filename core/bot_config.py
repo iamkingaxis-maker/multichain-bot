@@ -184,9 +184,14 @@ class BotConfig:
     # docs/superpowers/specs/2026-06-01-phase1-risk-floor-design.md.
     # daily_loss_limit_usd: halt NEW buys once today's realized daily_pnl_usd
     #   <= -this (sells always allowed; clears at UTC 00:00).
+    #   2026-06-08: ENFORCED at last (was defined-but-dead) via dip_scanner's
+    #   daily-loss circuit-breaker, and turned ON fleet-wide (default 40.0) as the
+    #   capital-preservation backstop from the failure investigation. Normal-bad
+    #   days for these $100-position bots run ~-$20, so -$40 catches a clearly-bad
+    #   day without chopping variance; re-arms each UTC day. Per-bot override allowed.
     # max_token_buys_per_day: cap re-entries into a single token per UTC day
     #   (the death-spiral was sequential re-buys; one bot bought SPCX 16x).
-    daily_loss_limit_usd: Optional[float] = None
+    daily_loss_limit_usd: Optional[float] = 40.0
     max_token_buys_per_day: Optional[int] = None
 
     # Live measurement probe (2026-06-02). Per-bot, scaffolding for the

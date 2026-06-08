@@ -15768,8 +15768,26 @@ class DipScanner:
                         bid: cap.realized_pnl_total_usd
                         for bid, cap in self.bot_capitals.items()
                     }
+                    # Daily-loss circuit-breaker (2026-06-08): skip any bot that
+                    # has hit its daily_loss_limit_usd today. daily_loss_breached
+                    # rolls over at UTC 00:00, so it auto-re-arms each day. This
+                    # finally enforces daily_loss_limit_usd (was defined-but-dead).
+                    _blocked_daily = set()
+                    for _ev in self.bot_manager.evaluators:
+                        _lim = getattr(_ev.config, "daily_loss_limit_usd", None)
+                        if not _lim:
+                            continue
+                        _cap = self.bot_capitals.get(_ev.config.bot_id)
+                        if _cap is not None and _cap.daily_loss_breached(_lim):
+                            _blocked_daily.add(_ev.config.bot_id)
+                    if _blocked_daily:
+                        logger.info(
+                            "[DailyLossStop] halting new buys today for: %s",
+                            ",".join(sorted(_blocked_daily)),
+                        )
                     decisions = self.bot_manager.evaluate_all(
                         bundle, realized_pnl_by_bot=realized_by_bot,
+                        blocked_bot_ids=_blocked_daily,
                     )
                     for d in decisions:
                         await self._execute_bot_buy(d, bundle)
