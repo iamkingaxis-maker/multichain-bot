@@ -44,6 +44,10 @@ class PositionState:
     reason: str = ""
     is_micro_cap: bool = False
     strategy: str = "scanner"  # "graduation" gets wider stop loss
+    # Per-position TP1 sell-fraction override (2026-06-08): smart_follow rides fast-fade
+    # momentum spikes that peak +8-17% then give back ~15pp on the dip ladder's 50%-then-
+    # trail. Setting this higher (take more at TP1) captures the pop. None = use dip_tp1_sell.
+    tp1_sell_override: Optional[float] = None
 
     # TP tracking
     tp1_hit: bool = False
@@ -767,6 +771,12 @@ class PositionManager:
                     strategy=("dip_buy"
                               if getattr(pos, "strategy", "") == "smart_follow"
                               else getattr(pos, "strategy", "scanner")),
+                    # smart_follow gives back ~15pp of its +8-17% peak on the standard
+                    # 50%-TP1-then-trail (confirmed live: 3/4 green tokens round-tripped,
+                    # GO +15%->-2% -$47). Take 85% at TP1 to bank the pop; 15% still trails.
+                    tp1_sell_override=(0.85
+                                       if getattr(pos, "strategy", "") == "smart_follow"
+                                       else None),
                     tp1_hit=bool(getattr(pos, "take_profit_1_hit", False)),
                     tp2_hit=bool(getattr(pos, "take_profit_2_hit", False)),
                     current_price=entry_px,
@@ -2274,7 +2284,7 @@ class PositionManager:
                 )
                 await self._execute_sell(
                     token_address, state,
-                    pct=self.dip_tp1_sell,
+                    pct=(state.tp1_sell_override or self.dip_tp1_sell),
                     reason=f"Dip TP1 +{pnl_pct:.1f}%"
                 )
                 return
