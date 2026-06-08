@@ -399,6 +399,32 @@ class PerformanceTracker:
             elif t["type"] == "sell":
                 open_addrs.pop(addr, None)
 
+        # 2026-06-08 persistence standard: positions the trader PERSISTED to the paper
+        # book are rebuilt in-memory on boot (core/trader.py:_restore_open_positions),
+        # so they are NOT orphans. Synthetic-closing them here would (a) double-sell
+        # (a phantom 0% sell now + the real sell later) and (b) book the position at
+        # breakeven instead of its real outcome — the loser-survivorship that inflated
+        # fleet WR on every redeploy. Skip any address in the persisted paper book;
+        # only genuinely-gone positions (not persisted) are still cleaned up.
+        try:
+            _pf = os.path.join(os.environ.get("DATA_DIR", "."), "open_positions_paper.json")
+            if os.path.exists(_pf):
+                with open(_pf) as _f:
+                    _persisted = {
+                        (p.get("token_address") or "").lower()
+                        for p in (json.load(_f).get("positions") or [])
+                    }
+                for _a in list(open_addrs.keys()):
+                    if _a in _persisted:
+                        open_addrs.pop(_a, None)
+                if _persisted:
+                    logger.info(
+                        f"[Tracker] Persistence: {len(_persisted)} paper positions "
+                        f"restored from disk — exempt from cancel-on-restart"
+                    )
+        except Exception:
+            pass  # fail-open: if the paper book can't be read, fall back to flushing
+
         if open_addrs:
             now = datetime.now(timezone.utc).isoformat()
             for addr, buy in open_addrs.items():

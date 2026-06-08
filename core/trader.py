@@ -162,6 +162,14 @@ class Position:
 _DATA_DIR = os.environ.get("DATA_DIR", ".")
 _REENTRY_STATE_FILE = os.path.join(_DATA_DIR, "reentry_state.json")
 _OPEN_POSITIONS_FILE = os.path.join(_DATA_DIR, "open_positions.json")
+# 2026-06-08 persistence standard: paper positions now persist too, to a SEPARATE
+# mode-namespaced file (a paper file must never be restored by a live process, nor
+# vice-versa). Previously paper positions were ephemeral — every restart lost them
+# and PerformanceTracker synthetic-closed them at 0% ("cancelled on restart"),
+# which (a) corrupted strategy P&L and (b) HID real losses at breakeven, inflating
+# fleet win-rate via loser-survivorship on every redeploy. Paper positions now
+# survive restarts like the multi-bot fleet's do.
+_OPEN_POSITIONS_PAPER_FILE = os.path.join(_DATA_DIR, "open_positions_paper.json")
 
 
 class ReentryTracker:
@@ -461,8 +469,10 @@ class Trader:
         ephemeral so deploys reset clean).  Called after every buy/sell
         mutation so a Railway redeploy mid-flight doesn't lose state.
         """
-        if not self.private_key:
-            return  # paper mode — keep ephemeral
+        # Persist in BOTH modes (2026-06-08); mode-namespaced so paper/live never
+        # cross-restore. Paper used to early-return here (ephemeral) — that was the
+        # source of the restart flush + loser-survivorship.
+        _file = _OPEN_POSITIONS_FILE if self.private_key else _OPEN_POSITIONS_PAPER_FILE
         try:
             payload = {"positions": []}
             for addr, p in self.open_positions.items():
@@ -498,10 +508,10 @@ class Trader:
                     "rugcheck_score_snapshots": p.rugcheck_score_snapshots or {},
                     "orderflow_snapshots": p.orderflow_snapshots or {},
                 })
-            tmp = _OPEN_POSITIONS_FILE + ".tmp"
+            tmp = _file + ".tmp"
             with open(tmp, "w") as f:
                 json.dump(payload, f)
-            os.replace(tmp, _OPEN_POSITIONS_FILE)
+            os.replace(tmp, _file)
         except Exception as e:
             logger.warning(f"[Trader] _save_open_positions failed: {e}")
 
@@ -511,13 +521,15 @@ class Trader:
         reconcile_positions_on_startup which then validates each restored
         position against actual on-chain wallet holdings.
         """
-        if not self.private_key:
-            return
-        if not os.path.exists(_OPEN_POSITIONS_FILE):
+        # Restore in BOTH modes (2026-06-08) from the mode-namespaced file. Live
+        # restore is still paired with reconcile_positions_on_startup (on-chain
+        # validation); paper just rebuilds the in-memory book.
+        _file = _OPEN_POSITIONS_FILE if self.private_key else _OPEN_POSITIONS_PAPER_FILE
+        if not os.path.exists(_file):
             logger.info("[Trader] No persisted open_positions to restore")
             return
         try:
-            with open(_OPEN_POSITIONS_FILE) as f:
+            with open(_file) as f:
                 payload = json.load(f)
             for d in payload.get("positions", []):
                 try:
@@ -2092,6 +2104,9 @@ class Trader:
                     f"📝 {reason}"
                 )
                 self.tracker.record_buy(position)
+                # 2026-06-08 persistence standard: persist the paper book so this
+                # position survives a restart (was ephemeral -> flushed at 0%).
+                self._save_open_positions()
                 logger.info(
                     f"📄 [PAPER] Bought {token_symbol} — "
                     f"${position_size_usd:.0f} | "
