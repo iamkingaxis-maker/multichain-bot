@@ -15,6 +15,37 @@ def test_first_observation_seeds_and_returns():
     assert guard["X"]["pending"] is None
 
 
+def test_cold_seed_with_entry_rejects_phantom_rise():
+    # CDOF 2026-06-08: cold guard state (post-restart) + 62x phantom print + known
+    # entry. The seed path must NOT blind-accept the phantom — it seeds last_good=entry
+    # and validates against the OHLC high, rejecting it back to entry.
+    guard = {}
+    entry = 0.000163
+    phantom = entry * 62          # 62x glitch
+    out = eg.guarded_exit_price(
+        guard, "CDOF", phantom,
+        high_fn=lambda: entry * 1.2,   # real OHLC high ~1.2x entry
+        ref_price=entry,
+    )
+    assert out == entry, f"phantom rise accepted on cold seed: {out}"
+    assert guard["CDOF"]["last_decision"]["reason"] == "rise_rejected_above_high"
+
+
+def test_cold_seed_with_entry_accepts_normal_first_print():
+    # a normal first post-restart price (small move from entry) still passes through
+    guard = {}
+    out = eg.guarded_exit_price(guard, "Y", 1.05, high_fn=lambda: 1.5, ref_price=1.0)
+    assert out == 1.05
+    assert guard["Y"]["last_good"] == 1.05
+
+
+def test_cold_seed_without_entry_ref_still_seeds():
+    # no entry ref -> nothing to validate against -> seed-and-accept (unchanged)
+    guard = {}
+    assert eg.guarded_exit_price(guard, "Z", 999.0) == 999.0
+    assert guard["Z"]["last_good"] == 999.0
+
+
 def test_normal_move_passes_through_and_updates_last_good():
     guard = {"X": {"last_good": 1.0, "pending": None}}
     # small downward move (−10%), well under max_drop → acted on immediately

@@ -33,6 +33,7 @@ class MultiBotTradeStore:
         self._maybe_split_legacy()
         self._maybe_scrub_giga_phantom()
         self._maybe_scrub_eurc_phantom()
+        self._maybe_scrub_cdof_phantom()
         self._maybe_cleanup_phantom_backups()
         self._maybe_cleanup_cnn_dataset()
         self._maybe_reconcile_positions()
@@ -122,6 +123,38 @@ class MultiBotTradeStore:
             import logging
             logging.getLogger(__name__).error(
                 "EURC phantom scrub skipped (non-fatal error): %s", e
+            )
+
+    def _maybe_scrub_cdof_phantom(self) -> None:
+        """One-shot reversal of the 2026-06-08 CDOF phantom-WIN profit.
+
+        champion_defender_v3 + baseline_v1 booked +$2,456 across 4 sells when a
+        deploy restart cold-started the price feed and the exit-guard SEED path
+        blind-accepted a 62x phantom CDOF print (root cause patched in
+        core/exit_price_guard.py). Repriced to breakeven here, before any bot reads
+        its capital snapshot. Sentinel-guarded inside scrub(); wrapped so a
+        migration error can NEVER break the trading boot.
+        """
+        try:
+            import sys
+            root = str(Path(__file__).resolve().parent.parent)  # repo root
+            if root not in sys.path:
+                sys.path.insert(0, root)
+            from scripts.scrub_cdof_phantom import scrub
+            res = scrub(self.data_dir)
+            if "skipped" not in res:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "CDOF phantom scrub ran: delta $%s across %d bots, %s sells repriced; backup=%s",
+                    res.get("total_delta"),
+                    len(res.get("restored_per_bot", {})),
+                    res.get("files"),
+                    res.get("backup"),
+                )
+        except Exception as e:  # never break boot on a migration error
+            import logging
+            logging.getLogger(__name__).error(
+                "CDOF phantom scrub skipped (non-fatal error): %s", e
             )
 
     def _maybe_cleanup_phantom_backups(self) -> None:

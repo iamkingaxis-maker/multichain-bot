@@ -174,10 +174,26 @@ def guarded_exit_price(
     """
     g = guard.get(token)
     if not g or g.get("last_good", 0.0) <= 0.0:
-        # First observation for this token — nothing to compare against; seed it.
-        guard[token] = {"last_good": price, "pending": None,
-                        "last_decision": {"raw": price, "ret": price, "reason": "seed"}}
-        return price
+        # First observation for this token. Normally nothing to compare against, so
+        # seed and accept. BUT cold guard state is exactly what a RESTART produces —
+        # and the first post-restart tick can be a phantom (cold price feed). Blindly
+        # seeding last_good=price then returning it books that phantom as a real exit.
+        #   CDOF 2026-06-08: a 62x phantom print ~2 min after a deploy restart hit this
+        #   seed path (guard state empty) and booked +$2456 across 2 bots — the OHLC
+        #   high_fn was never consulted because suspect logic is below the early return.
+        # If we know the position's entry (ref_price), seed last_good=ENTRY and fall
+        # THROUGH to the suspect machinery so an extreme first print is validated against
+        # the OHLC bound just like any other cycle. Without an entry ref there is nothing
+        # to validate against, so seed-and-accept as before.
+        _ref0 = ref_price if (ref_price is not None and ref_price > 0) else None
+        if _ref0 is None:
+            guard[token] = {"last_good": price, "pending": None,
+                            "last_decision": {"raw": price, "ret": price, "reason": "seed"}}
+            return price
+        g = {"last_good": _ref0, "pending": None}
+        guard[token] = g
+        # fall through — `last` below is now the entry; an extreme first print trips
+        # suspect_rise/abs_rise_hit and is checked against high_fn before acceptance.
 
     last = g["last_good"]
     # ABSOLUTE-from-entry triggers (only when ref_price known) — catch a gradual
