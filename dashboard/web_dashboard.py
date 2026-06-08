@@ -3630,6 +3630,25 @@ class WebDashboard:
         except Exception:
             _co = ""
 
+        # smart_follow attribution (2026-06-08): smart_follow shares one position per
+        # token with the scanner (first opener tags the position), so its EXITS are
+        # recorded as strategy='scanner' and the card under-reported (showed ~flat while
+        # it was actually taking TP1/TP2). Attribute by ORIGIN: any trade on a token
+        # smart_follow BOUGHT counts toward smart_follow, regardless of the sell's tag.
+        _sf_tokens = set()
+        if self._tracker is not None:
+            _sf_tokens = {
+                (t.get("address") or "").lower()
+                for t in self._tracker.trades
+                if t.get("strategy") == "smart_follow" and t.get("type") == "buy"
+                and t.get("address")
+            }
+
+        def _match(t, strategy_key: str) -> bool:
+            if strategy_key == "smart_follow":
+                return (t.get("address") or "").lower() in _sf_tokens
+            return t.get("strategy") == strategy_key
+
         def _last_trade_times(strategy_key: str):
             """Scan tracker trades to find last buy/sell ISO timestamps for a strategy."""
             last_buy = None
@@ -3637,9 +3656,8 @@ class WebDashboard:
             if self._tracker is None:
                 return last_buy, last_sell
             for t in reversed(self._tracker.trades):
-                strat = t.get("strategy", "")
                 ttype = t.get("type", "")
-                if strat != strategy_key:
+                if not _match(t, strategy_key):
                     continue
                 ts = t.get("time")
                 if _co and (ts or "") < _co:
@@ -3657,7 +3675,7 @@ class WebDashboard:
                 return 0
             return sum(
                 1 for t in self._tracker.trades
-                if t.get("strategy") == strategy_key
+                if _match(t, strategy_key)
                 and t.get("type") == "sell"
                 and (not _co or (t.get("time") or "") >= _co)
                 and t.get("time", "")[:10] == today_prefix
@@ -3672,7 +3690,7 @@ class WebDashboard:
                 _co = ""
             sells = [t for t in self._tracker.trades
                      if t.get("type") == "sell"
-                     and t.get("strategy") == strategy_key
+                     and _match(t, strategy_key)
                      and (not _co or (t.get("time") or "") >= _co)]
             if not sells:
                 return 0.0, 0.0
