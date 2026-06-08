@@ -21,14 +21,38 @@ import json
 import logging
 import time
 import aiohttp
+import os
 
 logger = logging.getLogger(__name__)
+
+# Per-fire signal log (2026-06-08): record WHICH elite wallets triggered each follow
+# so trade outcomes can be attributed back to specific wallets (join to trades by token)
+# -> identify junk wallets empirically from live results. Capped so it can't grow unbounded.
+_FOLLOW_LOG = os.path.join(os.environ.get("DATA_DIR", "."), "follow_signals.jsonl")
+_FOLLOW_LOG_CAP = 5_000_000  # ~5MB; trims oldest half when exceeded
 
 RPCS = ["https://api.mainnet-beta.solana.com", "https://solana.leorpc.com/?api_key=FREE"]
 STABLE = {"So11111111111111111111111111111111111111112",
           "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
           "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"}
 UA = {"User-Agent": "Mozilla/5.0"}
+
+
+def _append_follow_signal(rec: dict):
+    """Append one follow-fire record to _FOLLOW_LOG (fail-soft, size-capped)."""
+    try:
+        import time as _t
+        line = json.dumps(rec, separators=(",", ":")) + "\n"
+        with open(_FOLLOW_LOG, "a") as f:
+            f.write(line)
+        # cheap cap: if oversized, keep the newest half
+        if os.path.getsize(_FOLLOW_LOG) > _FOLLOW_LOG_CAP:
+            with open(_FOLLOW_LOG) as f:
+                lines = f.readlines()
+            with open(_FOLLOW_LOG, "w") as f:
+                f.writelines(lines[len(lines) // 2:])
+    except Exception:
+        pass  # tracking must never break the strategy
 
 
 class SmartMoneyFollowStrategy:
@@ -160,6 +184,12 @@ class SmartMoneyFollowStrategy:
                 self.signals_fired += 1
                 reason = f"smart-follow: {len(wset)} elite wallets bought within {self.window_sec//60}min"
                 logger.info(f"[SmartFollow] 🎯 {reason} | {info['symbol']} {mint[:10]}")
+                # Track which wallets triggered this fire -> attribute trade outcomes to
+                # wallets later (join to /api/trades by token) -> prune junk wallets empirically.
+                _append_follow_signal({
+                    "ts": now, "token": mint, "symbol": info.get("symbol"),
+                    "wallets": sorted(wset), "n": len(wset),
+                })
                 try:
                     await self.scanner.process_external_signal(
                         token_address=mint, token_symbol=info["symbol"], reason=reason,
