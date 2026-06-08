@@ -31,6 +31,45 @@ def _cfg(**overrides):
     return BotConfig(**base)
 
 
+# Per-trigger token-state gates (2026-06-08)
+def test_trigger_state_gate_drops_trigger_when_state_fails():
+    cfg = _cfg(trigger_state_gates=[
+        ["power_dip_runner", [["pc_m5", "<=", -2.43]]],
+    ])
+    ev = BotEvaluator(cfg)
+    # state passes -> trigger kept
+    assert ev._effective_triggers(
+        _bundle(triggers_fired=("power_dip_runner",),
+                raw_meta={"pc_m5": -5.0})) == ("power_dip_runner",)
+    # state fails -> trigger dropped (won't count toward min_triggers_to_fire)
+    assert ev._effective_triggers(
+        _bundle(triggers_fired=("power_dip_runner",),
+                raw_meta={"pc_m5": -1.0})) == ()
+    # feature missing -> fail-OPEN, trigger kept (coverage-safe, matches entry_gate)
+    assert ev._effective_triggers(
+        _bundle(triggers_fired=("power_dip_runner",),
+                raw_meta={})) == ("power_dip_runner",)
+
+
+def test_trigger_state_gate_only_affects_gated_triggers():
+    cfg = _cfg(trigger_state_gates=[
+        ["power_dip_runner", [["pc_m5", "<=", -2.43]]],
+    ])
+    ev = BotEvaluator(cfg)
+    # ungated trigger (chart_quality_bottom) passes through even when gated one fails
+    out = set(ev._effective_triggers(
+        _bundle(triggers_fired=("power_dip_runner", "chart_quality_bottom"),
+                raw_meta={"pc_m5": -1.0})))
+    assert out == {"chart_quality_bottom"}
+
+
+def test_trigger_state_gates_default_none_no_change():
+    ev = BotEvaluator(_cfg())  # no gates
+    assert ev._effective_triggers(
+        _bundle(triggers_fired=("power_dip_runner",),
+                raw_meta={"pc_m5": -1.0})) == ("power_dip_runner",)
+
+
 # Dead-flatline volatility floor (2026-06-02)
 def test_min_volatility_floor_blocks_flatline():
     ev = BotEvaluator(_cfg(min_token_volatility_h24_pct=5.0))

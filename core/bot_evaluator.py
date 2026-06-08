@@ -340,6 +340,37 @@ class BotEvaluator:
             block = set(c.triggers_disabled)
             result = [t for t in result if t not in block]
 
+        # Per-trigger token-state gates (2026-06-08): drop a FIRED trigger unless its
+        # token-state conditions all pass against raw_meta. Fail-OPEN per condition when
+        # the feature is missing (same convention as entry_gate, line ~302). Triggers
+        # with no gate pass through ungated. A dropped trigger no longer counts toward
+        # min_triggers_to_fire -> the bot only enters when a trigger fires IN the state
+        # it was validated to win in. See reference_per_trigger_state_conditioning_2026_06_08.
+        if c.trigger_state_gates:
+            gates = {tg: conds for tg, conds in c.trigger_state_gates}
+            kept = []
+            for t in result:
+                conds = gates.get(t)
+                ok = True
+                if conds:
+                    for _cond in conds:
+                        try:
+                            _f, _op, _thr = _cond[0], _cond[1], float(_cond[2])
+                        except (TypeError, ValueError, IndexError):
+                            continue
+                        _v = b.raw_meta.get(_f)
+                        if not isinstance(_v, (int, float)):
+                            continue  # fail-OPEN on missing feature
+                        if _op == ">=" and _v < _thr:
+                            ok = False
+                            break
+                        if _op == "<=" and _v > _thr:
+                            ok = False
+                            break
+                if ok:
+                    kept.append(t)
+            result = kept
+
         return tuple(result)
 
     def _size_for(self, triggers: tuple[str, ...], b: FeatureBundle,

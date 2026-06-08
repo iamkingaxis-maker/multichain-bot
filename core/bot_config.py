@@ -76,6 +76,17 @@ class BotConfig:
     # Default None = no gate. See reference_entry_separator_mine_2026_05_27.
     entry_gate: Optional[tuple] = None
 
+    # Per-trigger token-state gates (2026-06-08, 7-Opus held-out validation of AxiS's
+    # "each trigger only wins in a specific token-state" thesis — see
+    # reference_per_trigger_state_conditioning_2026_06_08). Optional list of
+    # [trigger_name, [[feature, op, threshold], ...]] pairs. At entry a FIRED trigger
+    # is DROPPED from the effective set unless ALL its conditions pass against raw_meta
+    # (op in {">=","<="}; fail-OPEN per condition when the feature is missing, same as
+    # entry_gate). Dropped triggers don't count toward min_triggers_to_fire, so the bot
+    # only enters when a trigger fires IN the state it was validated to win in. Triggers
+    # with no entry here pass through ungated. Default None = no change to existing bots.
+    trigger_state_gates: Optional[tuple] = None
+
     # Filter set — semantics: if filters_enforced is None, the bot uses
     # the project baseline filter set MINUS anything in filters_disabled.
     # If filters_enforced is a list, that's the EXACT enforced set and
@@ -309,6 +320,17 @@ class BotConfig:
             object.__setattr__(
                 self, "entry_gate",
                 tuple(tuple(c) for c in self.entry_gate),
+            )
+        # Normalize trigger_state_gates (JSON: list of [trigger, [[f,op,thr],...]])
+        # to a hashable tuple-of-(trigger, tuple-of-condition-tuples). Mirrors the
+        # entry_gate normalization so the frozen dataclass stays hashable.
+        if self.trigger_state_gates is not None:
+            object.__setattr__(
+                self, "trigger_state_gates",
+                tuple(
+                    (str(tg), tuple(tuple(c) for c in conds))
+                    for tg, conds in self.trigger_state_gates
+                ),
             )
         if self.filters_enforced is not None and self.filters_disabled:
             raise ValueError(
