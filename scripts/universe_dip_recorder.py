@@ -519,6 +519,15 @@ async def cycle_universe(client: DexScreenerClient, state: RecorderState, univer
             **_demand,                       # trade-log demand (1 fetch/event)
             **_sol_ctx,                      # SOL macro context (1 fetch/cycle)
         }
+        # v3 reject-logging (2026-06-08): stamp WHICH of our fleet gates/filters would
+        # block this dip, so events.jsonl is self-describing for missed-winner analysis
+        # (config gates + modular filters; inline triggers flagged as the residual). Cheap
+        # (recorder is low-frequency); fail-soft. See core/missed_reject_diagnosis.py.
+        try:
+            from core.missed_reject_diagnosis import diagnose_reject
+            ev["reject_diagnosis"] = diagnose_reject(ev)
+        except Exception:
+            ev["reject_diagnosis"] = None
         state.pending.append(ev)
         new_events += 1
         logger.info(
