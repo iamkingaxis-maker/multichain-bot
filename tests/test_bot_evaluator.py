@@ -1,7 +1,8 @@
+import os
 import pytest
 from core.bot_config import BotConfig
 from core.feature_bundle import FeatureBundle
-from core.bot_evaluator import BotEvaluator, BuyDecision
+from core.bot_evaluator import BotEvaluator, BuyDecision, _rug_structure_blocks
 
 
 def _bundle(**overrides):
@@ -29,6 +30,43 @@ def _cfg(**overrides):
     base = dict(bot_id="b1", display_name="Bot 1")
     base.update(overrides)
     return BotConfig(**base)
+
+
+# Fleet-wide rug-structure gate (2026-06-08)
+def test_rug_structure_blocks_single_sided_or_no_buyers():
+    # one-sided LP -> block
+    assert _rug_structure_blocks(_bundle(raw_meta={"lp_single_sided": True}))[0] is True
+    # zero unique buyers -> block
+    assert _rug_structure_blocks(_bundle(raw_meta={"unique_buyers_n": 0}))[0] is True
+    # healthy: two-sided + real buyers -> no block
+    assert _rug_structure_blocks(
+        _bundle(raw_meta={"lp_single_sided": False, "unique_buyers_n": 13}))[0] is False
+    # both missing -> fail-OPEN (no block)
+    assert _rug_structure_blocks(_bundle(raw_meta={}))[0] is False
+
+
+def test_rug_gate_enforce_blocks_and_shadow_off_do_not(monkeypatch):
+    ev = BotEvaluator(_cfg())
+    rug = _bundle(raw_meta={"lp_single_sided": True})
+    monkeypatch.setenv("RUG_GATE_MODE", "enforce")
+    assert ev._rug_gate_blocks(rug) is True
+    monkeypatch.setenv("RUG_GATE_MODE", "shadow")
+    assert ev._rug_gate_blocks(rug) is False   # shadow logs but never blocks
+    monkeypatch.setenv("RUG_GATE_MODE", "off")
+    assert ev._rug_gate_blocks(rug) is False
+    # default (unset) = enforce
+    monkeypatch.delenv("RUG_GATE_MODE", raising=False)
+    assert ev._rug_gate_blocks(rug) is True
+
+
+def test_rug_gate_default_enforce_blocks_via_evaluate(monkeypatch):
+    monkeypatch.delenv("RUG_GATE_MODE", raising=False)  # default enforce
+    ev = BotEvaluator(_cfg(triggers_allowed=("vol_breakout",)))
+    # an otherwise-buyable token that is single-sided -> blocked outright
+    decision = ev.evaluate(_bundle(
+        triggers_fired=("vol_breakout",),
+        raw_meta={"lp_single_sided": True}))
+    assert decision is None
 
 
 # Per-trigger token-state gates (2026-06-08)

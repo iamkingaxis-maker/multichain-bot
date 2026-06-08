@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
@@ -67,6 +68,34 @@ DEFENDER_FILTERS = frozenset({
 })
 
 
+def _rug_gate_mode() -> str:
+    """Global fleet-wide rug-structure gate mode. Env RUG_GATE_MODE in
+    {off, shadow, enforce}; default 'enforce'. Lets the gate be downgraded
+    without a deploy if it ever misfires."""
+    m = os.environ.get("RUG_GATE_MODE", "enforce").strip().lower()
+    return m if m in ("off", "shadow", "enforce") else "enforce"
+
+
+def _rug_structure_blocks(b: FeatureBundle) -> tuple[bool, str]:
+    """Fleet-wide catastrophic-rug guard (2026-06-08). The STANDARD rug
+    fundamentals (rugcheck_score, lp_locked_pct, lp_burned) do NOT catch the
+    single-sided / no-demand rug: the GO -99.95% LP-pull (38s after entry) had a
+    CLEAN rugcheck + 100% locked + burned LP. The real signature is LIQUIDITY
+    STRUCTURE — a one-sided LP with zero real buyers is the dev's own liquidity,
+    primed to pull (a lock is worthless if there's no counter-liquidity). Held-out
+    across weeks of fleet history: `lp_single_sided OR unique_buyers_n==0` catches
+    5/6 rugs (83%, incl GO) for ~5% survivor-kill — and those survivors are
+    low-quality no-demand entries anyway. Fail-OPEN when both features are missing
+    (coverage-safe). See the rug-separation analysis 2026-06-08."""
+    ss = b.raw_meta.get("lp_single_sided")
+    ub = b.raw_meta.get("unique_buyers_n")
+    if ss is True:
+        return True, "lp_single_sided=True (one-sided LP)"
+    if isinstance(ub, (int, float)) and not isinstance(ub, bool) and ub == 0:
+        return True, "unique_buyers_n=0 (no real buyers)"
+    return False, ""
+
+
 @dataclass
 class BuyDecision:
     bot_id: str
@@ -97,6 +126,8 @@ class BotEvaluator:
         if getattr(self.config, "momentum_mode", False):
             return self._evaluate_momentum(b, realized_pnl_usd)
         if self._trading_window_blocks(b):
+            return None
+        if self._rug_gate_blocks(b):
             return None
         if self._drawdown_freeze_blocks(realized_pnl_usd):
             return None
@@ -169,6 +200,8 @@ class BotEvaluator:
         which includes the entry_gate AND-conditions). Keeps the trading-window +
         drawdown-freeze lifecycle gates. Emits a single 'momentum_continuation' trigger."""
         if self._trading_window_blocks(b):
+            return None
+        if self._rug_gate_blocks(b):
             return None
         if self._drawdown_freeze_blocks(realized_pnl_usd):
             return None
@@ -307,6 +340,25 @@ class BotEvaluator:
                 if _op == "<=" and _v > _thr:
                     return False
         return True
+
+    def _rug_gate_blocks(self, b: FeatureBundle) -> bool:
+        """Fleet-wide catastrophic-rug guard (2026-06-08). Applies to EVERY bot
+        (not opt-in like the filter stack) — gated only by env RUG_GATE_MODE
+        (off|shadow|enforce, default enforce). Logs every flagged entry in both
+        shadow and enforce so blocks stay observable forward (Railway logs evaporate
+        ~30min and a block leaves no trade record). See _rug_structure_blocks."""
+        mode = _rug_gate_mode()
+        if mode == "off":
+            return False
+        blocked, why = _rug_structure_blocks(b)
+        if not blocked:
+            return False
+        enforced = (mode == "enforce")
+        logger.info(
+            f"[rug_gate] bot={self.config.bot_id} token={b.token} {why} "
+            f"mode={mode} block={enforced}"
+        )
+        return enforced
 
     def _effective_filter_blocks(self, b: FeatureBundle) -> bool:
         c = self.config
