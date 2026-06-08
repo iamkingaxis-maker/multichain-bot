@@ -3377,6 +3377,11 @@ class MultiSourceScanner:
             hh_hl_confirmed=getattr(signal, "hh_hl_confirmed", False),
             chain_id=self.chain.chain_id,
             strategy=strategy_tag,
+            # 2026-06-08 mission: smart_follow runs the legacy ~$200 size (10% of $2000 pool).
+            # Fast-entry cohort showed entries now catch the +5.4% pop, but $200 amplified the
+            # exit-givebacks (-$19.6 single, -$4.5 x7) -> net -$41.5 even on a green token. Cap
+            # the unproven strategy to $100 while we calibrate the exit. Other tags unchanged.
+            override_usd=(100.0 if strategy_tag == "smart_follow" else 0.0),
             force_paper=True,  # C3 (2026-06-04 audit): legacy MSS not on live_probe allowlist -> always paper
             pair_address=signal.pair_address or "",
             market_cap_usd=signal.mcap,
