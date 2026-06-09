@@ -76,6 +76,62 @@ def _rug_gate_mode() -> str:
     return m if m in ("off", "shadow", "enforce") else "enforce"
 
 
+def _entry_stack_mode() -> str:
+    """Fleet-wide validated entry-stack gate mode. Env ENTRY_STACK_MODE in
+    {off, shadow, enforce}; default 'enforce'. Downgradeable without a deploy."""
+    m = os.environ.get("ENTRY_STACK_MODE", "enforce").strip().lower()
+    return m if m in ("off", "shadow", "enforce") else "enforce"
+
+
+# Control cohort: stays UNGATED so the gated-vs-ungated counterfactual keeps
+# being measured forward (same held-out discipline as every other gate).
+# Override via ENTRY_STACK_CONTROL_BOTS=csv.
+_ENTRY_STACK_DEFAULT_CONTROL = frozenset({
+    "baseline_v1", "no_filters", "pool_a_broad_control",
+})
+
+
+def _entry_stack_control_bots() -> frozenset:
+    raw = os.environ.get("ENTRY_STACK_CONTROL_BOTS")
+    if raw is None:
+        return _ENTRY_STACK_DEFAULT_CONTROL
+    return frozenset(x.strip() for x in raw.split(",") if x.strip())
+
+
+def _entry_stack_violations(b: FeatureBundle) -> list:
+    """Fleet-wide validated entry stack (2026-06-09 bleed-week decomposition,
+    28d / 18,439 closed trades): on the 11 BLEED days the fleet lost $18,338
+    while entries passing this stack lost only $395 — and violators lost 2.5x
+    more PER TRADE at SMALLER median size than passers ($20 vs $30), so the
+    bleed is ENTRY DECISIONS, not size. Binding gates are dip-depth (6,252
+    bleed-day violations) and buy-side flow (5,827); age/mcap barely bind
+    (166/136) but are kept as cheap validated bounds. Each check FAILS OPEN
+    when its feature is missing/zero (coverage-safe, matches fleet convention).
+    """
+    fails = []
+    rm = b.raw_meta or {}
+    dd = rm.get("shape_90m_drawdown_from_max_pct")
+    if isinstance(dd, (int, float)) and not isinstance(dd, bool) and dd > -16.0:
+        fails.append(f"dip_shallow({dd:.1f}>-16)")
+    nf = rm.get("net_flow_60s_usd")
+    if isinstance(nf, (int, float)) and not isinstance(nf, bool) and nf < 100.0:
+        fails.append(f"flow_weak({nf:.0f}<100)")
+    age = b.age_hours
+    if isinstance(age, (int, float)) and not isinstance(age, bool) and 0 < age < 24.0:
+        fails.append(f"age_young({age:.1f}h<24)")
+    mc = b.mcap_usd
+    if (isinstance(mc, (int, float)) and not isinstance(mc, bool) and mc > 0
+            and not (500_000 <= mc <= 10_000_000)):
+        fails.append(f"mcap_out({mc/1e6:.2f}M)")
+    return fails
+
+
+# Throttle entry_stack INFO logs to once per (token, hour) — the gate evaluates
+# for every bot x token x cycle and blocks are the COMMON case (~85% of
+# candidates), so unthrottled logging would flood Railway.
+_entry_stack_logged: set = set()
+
+
 def _rug_structure_blocks(b: FeatureBundle) -> tuple[bool, str]:
     """Fleet-wide catastrophic-rug guard (2026-06-08). The STANDARD rug
     fundamentals (rugcheck_score, lp_locked_pct, lp_burned) do NOT catch the
@@ -128,6 +184,8 @@ class BotEvaluator:
         if self._trading_window_blocks(b):
             return None
         if self._rug_gate_blocks(b):
+            return None
+        if self._entry_stack_blocks(b):
             return None
         if self._drawdown_freeze_blocks(realized_pnl_usd):
             return None
@@ -358,6 +416,43 @@ class BotEvaluator:
             f"[rug_gate] bot={self.config.bot_id} token={b.token} {why} "
             f"mode={mode} block={enforced}"
         )
+        return enforced
+
+    def _entry_stack_blocks(self, b: FeatureBundle) -> bool:
+        """Fleet-wide validated entry-stack gate (2026-06-09). Applies to every
+        bot on the dip path EXCEPT the control cohort (which stays ungated so
+        the gated-vs-ungated counterfactual keeps being measured forward).
+        Momentum-mode bots use a separate entry path and are not gated — the
+        stack was validated on dip-style entries only.
+
+        Evidence: bleed-week decomposition (28d, 18,439 closed) — gate-passing
+        entries lost $395 across 11 bleed days vs fleet -$18,338; entry
+        discipline alone removes ~98% of the bleed. See _entry_stack_violations.
+        Env: ENTRY_STACK_MODE=off|shadow|enforce (default enforce),
+        ENTRY_STACK_CONTROL_BOTS=csv (default baseline_v1,no_filters,
+        pool_a_broad_control)."""
+        mode = _entry_stack_mode()
+        if mode == "off":
+            return False
+        if self.config.bot_id in _entry_stack_control_bots():
+            return False
+        fails = _entry_stack_violations(b)
+        if not fails:
+            return False
+        enforced = (mode == "enforce")
+        # Throttled observability: one INFO per (token, hour) fleet-wide.
+        try:
+            key = (b.token, int((b.snapshot_ts or 0) // 3600))
+            if key not in _entry_stack_logged:
+                if len(_entry_stack_logged) > 8000:
+                    _entry_stack_logged.clear()
+                _entry_stack_logged.add(key)
+                logger.info(
+                    f"[entry_stack] token={b.token} {';'.join(fails)} "
+                    f"mode={mode} block={enforced} (1/token/hr)"
+                )
+        except Exception:
+            pass
         return enforced
 
     def _effective_filter_blocks(self, b: FeatureBundle) -> bool:

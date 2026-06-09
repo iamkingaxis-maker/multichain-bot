@@ -511,3 +511,72 @@ def test_macro_conditional_disabled_by_default():
     d = ev.evaluate(_bundle(triggers_fired=("vol_breakout",), sol_pc_h6=0.5))
     assert d.size_usd == 20.0  # no scaling
     assert "macro" not in d.size_tier
+
+
+# Fleet-wide validated entry-stack gate (2026-06-09)
+def test_entry_stack_violations_each_gate():
+    from core.bot_evaluator import _entry_stack_violations
+    # shallow dip -> violation
+    assert any("dip_shallow" in f for f in _entry_stack_violations(
+        _bundle(raw_meta={"shape_90m_drawdown_from_max_pct": -10.0})))
+    # deep dip -> clean
+    assert not _entry_stack_violations(
+        _bundle(raw_meta={"shape_90m_drawdown_from_max_pct": -22.0}))
+    # weak flow -> violation
+    assert any("flow_weak" in f for f in _entry_stack_violations(
+        _bundle(raw_meta={"net_flow_60s_usd": 12.0})))
+    # strong flow -> clean
+    assert not _entry_stack_violations(
+        _bundle(raw_meta={"net_flow_60s_usd": 350.0}))
+    # young token -> violation; age 0 (unknown) fails OPEN
+    assert any("age_young" in f for f in _entry_stack_violations(_bundle(age_hours=3.0)))
+    assert not _entry_stack_violations(_bundle(age_hours=0.0))
+    # mcap out of band -> violation; mcap 0 (unknown) fails OPEN
+    assert any("mcap_out" in f for f in _entry_stack_violations(_bundle(mcap_usd=120_000.0)))
+    assert not _entry_stack_violations(_bundle(mcap_usd=0.0))
+    # all features missing -> fail-OPEN (no violations)
+    assert _entry_stack_violations(_bundle(raw_meta={})) == []
+
+
+def test_entry_stack_modes_and_default_enforce(monkeypatch):
+    ev = BotEvaluator(_cfg())
+    bad = _bundle(raw_meta={"shape_90m_drawdown_from_max_pct": -5.0})
+    monkeypatch.setenv("ENTRY_STACK_MODE", "enforce")
+    assert ev._entry_stack_blocks(bad) is True
+    monkeypatch.setenv("ENTRY_STACK_MODE", "shadow")
+    assert ev._entry_stack_blocks(bad) is False   # shadow never blocks
+    monkeypatch.setenv("ENTRY_STACK_MODE", "off")
+    assert ev._entry_stack_blocks(bad) is False
+    monkeypatch.delenv("ENTRY_STACK_MODE", raising=False)
+    assert ev._entry_stack_blocks(bad) is True    # default = enforce
+
+
+def test_entry_stack_control_cohort_exempt(monkeypatch):
+    monkeypatch.delenv("ENTRY_STACK_MODE", raising=False)   # enforce
+    monkeypatch.delenv("ENTRY_STACK_CONTROL_BOTS", raising=False)
+    bad = _bundle(raw_meta={"shape_90m_drawdown_from_max_pct": -5.0,
+                            "net_flow_60s_usd": 0.0})
+    # default control bots stay ungated
+    for ctl in ("baseline_v1", "no_filters", "pool_a_broad_control"):
+        assert BotEvaluator(_cfg(bot_id=ctl))._entry_stack_blocks(bad) is False
+    # non-control bot is gated
+    assert BotEvaluator(_cfg(bot_id="champ_runner"))._entry_stack_blocks(bad) is True
+    # env override replaces the cohort
+    monkeypatch.setenv("ENTRY_STACK_CONTROL_BOTS", "champ_runner")
+    assert BotEvaluator(_cfg(bot_id="champ_runner"))._entry_stack_blocks(bad) is False
+    assert BotEvaluator(_cfg(bot_id="baseline_v1"))._entry_stack_blocks(bad) is True
+
+
+def test_entry_stack_blocks_via_evaluate(monkeypatch):
+    monkeypatch.delenv("ENTRY_STACK_MODE", raising=False)   # default enforce
+    ev = BotEvaluator(_cfg(triggers_allowed=("vol_breakout",)))
+    # otherwise-buyable token with a shallow dip -> blocked outright
+    assert ev.evaluate(_bundle(
+        triggers_fired=("vol_breakout",),
+        raw_meta={"shape_90m_drawdown_from_max_pct": -9.0})) is None
+    # same token passing the full stack -> buys
+    d = ev.evaluate(_bundle(
+        triggers_fired=("vol_breakout",),
+        raw_meta={"shape_90m_drawdown_from_max_pct": -22.0,
+                  "net_flow_60s_usd": 400.0}))
+    assert isinstance(d, BuyDecision)
