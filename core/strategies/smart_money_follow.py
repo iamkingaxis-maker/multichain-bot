@@ -222,6 +222,15 @@ class SmartMoneyFollowStrategy:
                 _append_jsonl(_FOLLOW_LOG, {
                     "ts": now, "token": mint, "symbol": info.get("symbol"),
                     "wallets": sorted(wset), "n": len(wset),
+                    # token state at fire time (2026-06-09): already in hand from the
+                    # DexScreener quote — costs no extra fetch. Enables the
+                    # momentum-vs-settled conditioning analysis on follow fires
+                    # (227 prior closes were unauditable: no state captured).
+                    "state": {
+                        "price": info.get("price"), "liq": info.get("liq"),
+                        "mcap": info.get("mcap"), "vol_h1": info.get("vol_h1"),
+                        "pc_h1": info.get("pc_h1"),
+                    },
                 })
                 try:
                     await self.scanner.process_external_signal(
