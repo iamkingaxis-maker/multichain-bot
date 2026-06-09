@@ -25,7 +25,7 @@ except Exception:
 GOAL_USD_PER_DAY = 100.0
 CANDIDATE_BOTS = {
     "pond_settled_flow_thin", "pond_settled_flow", "pond_ugly_mtf",
-    "pond_settled_flow_solcap",
+    "pond_settled_flow_solcap", "pond_bb_mtf", "pond_flow_thin",
     "pool_c_post_peak", "pool_c_tightexit", "pool_a_candidate", "momentum_shadow",
 }
 API = "https://gracious-inspiration-production.up.railway.app/api/trades?full=1&limit=5000"
