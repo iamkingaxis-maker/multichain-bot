@@ -591,7 +591,13 @@ async def main():
             # 2026-06-08 fix: with 15 wallets, observed max_consensus=3 -> K=4 NEVER fired
             # (fired_total=0, dead). Back to K=3 (top-15 are all high-conviction; 3 converging
             # is strong). Drop to 2 if still too sparse.
-            k=3, window_sec=600, poll_interval_sec=30,
+            # 2026-06-09 PIVOT (option 3): consensus mechanic abandoned. BAG-ADJUSTED audit
+            # (held dead-bag-inclusive WR) showed sell-only returns were survivorship: e.g.
+            # Abk9Efh 100%->81%, 8zkgFGV 62%->36% (142 dead bags), dmuXAmc +26.9%->8%. Only
+            # ~3 wallets clear the bar. So follow INDIVIDUAL proven wallets at K=1 on the
+            # bag-adjusted keepers (Abk9Efh 81% / V21GW8P 62% / HmP3Txu 62%); Abk9Efh is the
+            # clearly +EV one under our exit. Mining for more 80%+ wallets in parallel.
+            k=1, window_sec=600, poll_interval_sec=30,
         )
         tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run(),
                   sol_smart_follow.run()]
