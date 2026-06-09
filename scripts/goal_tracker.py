@@ -27,6 +27,11 @@ CANDIDATE_BOTS = {
     "pond_settled_flow_thin", "pond_settled_flow", "pond_ugly_mtf",
     "pond_settled_flow_solcap", "pond_bb_mtf", "pond_flow_thin",
     "pool_c_post_peak", "pool_c_tightexit", "pool_a_candidate", "momentum_shadow",
+    # young-pond probers (2026-06-09): top of the live-candidate scorecard on REALIZED
+    # results (+$2.20/tr 76% WR n=50 at $100 size; +$1.83/tr n=31) — genuine go-live
+    # contenders, and the regime evidence (fleet_floor_2h blocks 74%-won5/+36%-peak
+    # candidates) says the young pond is hot right now.
+    "young_probe_light", "young_probe_candidate",
 }
 API = "https://gracious-inspiration-production.up.railway.app/api/trades?full=1&limit=5000"
 
