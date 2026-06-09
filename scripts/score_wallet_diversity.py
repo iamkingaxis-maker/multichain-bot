@@ -119,15 +119,35 @@ def classify(m):
     return "WEAK"
 
 
+def _load_addrs(path):
+    raw = json.load(open(path))
+    out = []
+    for x in raw:
+        if isinstance(x, str):
+            out.append(x)
+        elif isinstance(x, dict):
+            w = x.get("wallet") or x.get("addr")
+            if w:
+                out.append(w)
+    return out
+
+
 def main():
     sigs = int(sys.argv[1]) if len(sys.argv) > 1 else 60
-    watch = json.load(open("config/follow_watchlist.json"))
-    try:
-        mmbots = json.load(open("_usable_wallets.json"))   # the 6 net-SOL MM bots
-    except Exception:
-        mmbots = []
-    targets = [(a, "watchlist") for a in watch] + \
-              [(a, "MMbot-set") for a in mmbots if a not in watch]
+    # optional: positional path to a candidate file (list of addrs or [{wallet:...}])
+    cand_file = next((a for a in sys.argv[2:] if not a.startswith("-")), None)
+    if cand_file:
+        cands = _load_addrs(cand_file)
+        targets = [(a, "candidate") for a in cands]
+        print(f"# scoring {len(targets)} candidates from {cand_file}\n", file=sys.stderr)
+    else:
+        watch = json.load(open("config/follow_watchlist.json"))
+        try:
+            mmbots = json.load(open("_usable_wallets.json"))   # the 6 net-SOL MM bots
+        except Exception:
+            mmbots = []
+        targets = [(a, "watchlist") for a in watch] + \
+                  [(a, "MMbot-set") for a in mmbots if a not in watch]
 
     print(f"{'wallet':14s} {'src':9s} {'swap':>4s} {'ndist':>5s} {'top%':>5s} "
           f"{'rtrip':>5s} {'rWR':>5s} {'netSOL':>8s} {'dSell':>5s}  CLASS", flush=True)
