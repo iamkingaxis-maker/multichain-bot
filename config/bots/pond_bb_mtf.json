@@ -5,7 +5,7 @@
   "base_position_usd": 100.0,
   "bot_id": "pond_bb_mtf",
   "btc_macro_h1_block_threshold": null,
-  "display_name": "POND COMBO #5 (capacity, mission 2026-06-09): bb_low + mtf_neg (bb_pos_15m<=0.452 AND chart_mtf_score<=-0.01) ON TOP of fleet entry stack. Token-day held-out: first half +4.86%/tok 82% WR, second +3.20%/66% (n=76 token-days, ~5.4 tok/day = ~+$22/day @ $100). Widest validated unshipped Pareto point; shipped to close the $100/day capacity gap (3-clone pond capacity was only ~$46/day). Trade-level test was diluted by pile-ons (+$0.29/tr) \u2014 token-level is what a 1-position/token clone experiences. Judge vs pool_a_stack + pond family at n>=50 distinct tokens.",
+  "display_name": "POND COMBO #5 (capacity, mission 2026-06-09): bb_low + mtf_neg (bb_pos_15m<=0.452 AND chart_mtf_score<=-0.01) ON TOP of fleet entry stack. Token-day held-out: first half +4.86%/tok 82% WR, second +3.20%/66% (n=76 token-days, ~5.4 tok/day = ~+$22/day @ $100). Widest validated unshipped Pareto point; shipped to close the $100/day capacity gap (3-clone pond capacity was only ~$46/day). Trade-level test was diluted by pile-ons (+$0.29/tr) \u2014 token-level is what a 1-position/token clone experiences. Judge vs pool_a_stack + pond family at n>=50 distinct tokens. [2026-06-09 mission fix: triggers_allowed=ALL \u2014 combos were mined/validated on ALL stack-passing entries; the inherited 4-trigger whitelist cut reach to 62% of the validated cohort.]",
   "enabled": true,
   "entry_gate": [
     [
@@ -87,12 +87,7 @@
   "trading_hour_utc_end": 24,
   "trading_hour_utc_start": 0,
   "trail_pp": 1.5,
-  "triggers_allowed": [
-    "deep_1h_dip",
-    "pullback_in_uptrend",
-    "power_dip_runner",
-    "chart_quality_bottom"
-  ],
+  "triggers_allowed": null,
   "triggers_disabled": [],
   "vol_h1_min": 1000.0
 }

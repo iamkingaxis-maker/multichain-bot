@@ -5,7 +5,7 @@
   "base_position_usd": 100.0,
   "bot_id": "pond_flow_thin",
   "btc_macro_h1_block_threshold": null,
-  "display_name": "POND COMBO #6 (capacity, mission 2026-06-09): flow_imbal + thin_book pair (net_flow_60s_imbalance>=0.365 AND slip_buy_2000_pct>=1.709) ON TOP of fleet entry stack. Token-day held-out: first half +0.55%/60% (weak but positive), second +3.85%/68% (~4.4 tok/day = ~+$10/day @ $100). WEAKEST evidence of the pond family \u2014 explicitly a capacity experiment; cut fast if forward WR <60% at n>=30 tokens. Judge vs pond_settled_flow_thin (its superset).",
+  "display_name": "POND COMBO #6 (capacity, mission 2026-06-09): flow_imbal + thin_book pair (net_flow_60s_imbalance>=0.365 AND slip_buy_2000_pct>=1.709) ON TOP of fleet entry stack. Token-day held-out: first half +0.55%/60% (weak but positive), second +3.85%/68% (~4.4 tok/day = ~+$10/day @ $100). WEAKEST evidence of the pond family \u2014 explicitly a capacity experiment; cut fast if forward WR <60% at n>=30 tokens. Judge vs pond_settled_flow_thin (its superset). [2026-06-09 mission fix: triggers_allowed=ALL \u2014 combos were mined/validated on ALL stack-passing entries; the inherited 4-trigger whitelist cut reach to 62% of the validated cohort.]",
   "enabled": true,
   "entry_gate": [
     [
@@ -87,12 +87,7 @@
   "trading_hour_utc_end": 24,
   "trading_hour_utc_start": 0,
   "trail_pp": 1.5,
-  "triggers_allowed": [
-    "deep_1h_dip",
-    "pullback_in_uptrend",
-    "power_dip_runner",
-    "chart_quality_bottom"
-  ],
+  "triggers_allowed": null,
   "triggers_disabled": [],
   "vol_h1_min": 1000.0
 }
