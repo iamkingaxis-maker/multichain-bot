@@ -580,3 +580,48 @@ def test_entry_stack_blocks_via_evaluate(monkeypatch):
         raw_meta={"shape_90m_drawdown_from_max_pct": -22.0,
                   "net_flow_60s_usd": 400.0}))
     assert isinstance(d, BuyDecision)
+
+
+# Post-stack filter prune (2026-06-09)
+def test_post_stack_prune_gated_bot_ignores_pruned_filter(monkeypatch):
+    monkeypatch.delenv("ENTRY_STACK_MODE", raising=False)          # enforce
+    monkeypatch.delenv("ENTRY_STACK_FILTER_PRUNE", raising=False)  # on
+    monkeypatch.delenv("ENTRY_STACK_CONTROL_BOTS", raising=False)
+    ev = BotEvaluator(_cfg(bot_id="champ_runner"))
+    # pruned filter blocking -> ignored for a gated bot
+    assert ev._effective_filter_blocks(
+        _bundle(filters_block=("filter_turn",))) is False
+    # non-pruned filter still blocks
+    assert ev._effective_filter_blocks(
+        _bundle(filters_block=("filter_topping",))) is True
+
+
+def test_post_stack_prune_control_bot_keeps_full_filters(monkeypatch):
+    monkeypatch.delenv("ENTRY_STACK_MODE", raising=False)
+    monkeypatch.delenv("ENTRY_STACK_FILTER_PRUNE", raising=False)
+    monkeypatch.delenv("ENTRY_STACK_CONTROL_BOTS", raising=False)
+    # control cohort is ungated -> pruned filters STILL block (old behavior)
+    ev = BotEvaluator(_cfg(bot_id="baseline_v1"))
+    assert ev._effective_filter_blocks(
+        _bundle(filters_block=("filter_turn",))) is True
+
+
+def test_post_stack_prune_kill_switch_and_explicit_enforced(monkeypatch):
+    monkeypatch.delenv("ENTRY_STACK_MODE", raising=False)
+    monkeypatch.delenv("ENTRY_STACK_CONTROL_BOTS", raising=False)
+    ev = BotEvaluator(_cfg(bot_id="champ_runner"))
+    # kill-switch off -> pruned filter blocks again (no deploy needed)
+    monkeypatch.setenv("ENTRY_STACK_FILTER_PRUNE", "off")
+    assert ev._effective_filter_blocks(
+        _bundle(filters_block=("filter_turn",))) is True
+    monkeypatch.delenv("ENTRY_STACK_FILTER_PRUNE", raising=False)
+    # entry stack off -> prune also off (prune only makes sense post-stack)
+    monkeypatch.setenv("ENTRY_STACK_MODE", "off")
+    assert ev._effective_filter_blocks(
+        _bundle(filters_block=("filter_turn",))) is True
+    monkeypatch.delenv("ENTRY_STACK_MODE", raising=False)
+    # explicit filters_enforced list is ALWAYS respected verbatim (no prune)
+    ev2 = BotEvaluator(_cfg(bot_id="champ_runner",
+                            filters_enforced=("filter_turn",)))
+    assert ev2._effective_filter_blocks(
+        _bundle(filters_block=("filter_turn",))) is True

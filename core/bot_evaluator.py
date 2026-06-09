@@ -132,6 +132,46 @@ def _entry_stack_violations(b: FeatureBundle) -> list:
 _entry_stack_logged: set = set()
 
 
+# Post-stack filter prune (2026-06-09). Within the 2,687 STACK-PASSING closed
+# trades of the 28d window, these blockable filters either blocked WINNERS
+# (harmful: blocked-trade P&L > passed-trade P&L, n>=100 blocks) or never fired
+# (inert: <=10 blocks). Post-stack, fear-filters mostly veto the deep dip we
+# are trying to buy — entries at -16%+ with real flow LOOK "bearish/steep/
+# seller-heavy" at the bottom by definition. Applies ONLY to entry-stack-gated
+# bots on the DEFAULT enforcement path; control cohort and bots with an
+# explicit filters_enforced list keep their exact behavior. Verdicts are still
+# computed + recorded (shadow), so the forward record continues.
+# Env kill-switch: ENTRY_STACK_FILTER_PRUNE=off restores blocking w/o deploy.
+POST_STACK_PRUNED_FILTERS = frozenset({
+    # harmful within stack-passers (blocked trades outperformed passed, n>=100)
+    "filter_1m_steep_fall",        # blk +1.10 vs ok +0.04 $/tr (n=254)
+    "filter_bs_m5_weak",           # blk +1.16 vs ok -0.08 (n=482)
+    "filter_chasing_bounce",       # blk +2.22 vs ok -0.14 (n=322)
+    "filter_knife_catch_peak",     # blk +1.07 vs ok +0.11 (n=102)
+    "filter_lp_drain",             # blk +1.87 vs ok -0.13 (n=365)
+    "filter_mtf_strong_downtrend", # blk +0.58 vs ok +0.13 (n=105)
+    "filter_negative_net_flow_5m", # blk +1.58 vs ok -0.02 (n=277)
+    "filter_reviving_lifecycle",   # blk +4.04 vs ok -0.55 (n=396)
+    "filter_seller_imbalance",     # blk +1.25 vs ok +0.08 (n=152)
+    "filter_stale_h1_peak",        # blk +3.72 vs ok -0.05 (n=139)
+    "filter_turn",                 # blk +0.44 vs ok -0.01 (n=899)
+    # inert within stack-passers (<=10 blocks in 2,687 — stack subsumes them)
+    "filter_clean_break_p90",
+    "filter_fake_bounce",
+    "filter_low_volatility",
+    "filter_microcap_trap",
+    "filter_quote_asymmetry",
+    "filter_sat_eve_midliq",
+    "filter_solo_decay",
+})
+
+
+def _entry_stack_prune_on() -> bool:
+    """Env kill-switch for the post-stack filter prune (default on)."""
+    return os.environ.get("ENTRY_STACK_FILTER_PRUNE", "on").strip().lower() \
+        not in ("off", "0", "false")
+
+
 def _rug_structure_blocks(b: FeatureBundle) -> tuple[bool, str]:
     """Fleet-wide catastrophic-rug guard (2026-06-08). The STANDARD rug
     fundamentals (rugcheck_score, lp_locked_pct, lp_burned) do NOT catch the
@@ -461,8 +501,18 @@ class BotEvaluator:
             disabled = set(c.filters_disabled)
             # Defender filters are OPT-IN only — excluded from default enforcement.
             # Existing bots with filters_enforced=None are unaffected by their addition.
+            # Post-stack prune (2026-06-09): for entry-stack-GATED bots, the
+            # POST_STACK_PRUNED_FILTERS no longer block on the default path —
+            # within stack-passers they blocked winners or never fired. Control
+            # cohort (ungated) keeps the full filter set, preserving the
+            # counterfactual. See POST_STACK_PRUNED_FILTERS.
+            pruned = frozenset()
+            if (_entry_stack_prune_on()
+                    and _entry_stack_mode() != "off"
+                    and c.bot_id not in _entry_stack_control_bots()):
+                pruned = POST_STACK_PRUNED_FILTERS
             return any(
-                f not in disabled and f not in DEFENDER_FILTERS
+                f not in disabled and f not in DEFENDER_FILTERS and f not in pruned
                 for f in b.filters_block
             )
         enforced = set(c.filters_enforced)
