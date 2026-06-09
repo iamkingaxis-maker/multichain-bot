@@ -771,10 +771,12 @@ class PositionManager:
                     strategy=("dip_buy"
                               if getattr(pos, "strategy", "") == "smart_follow"
                               else getattr(pos, "strategy", "scanner")),
-                    # smart_follow gives back ~15pp of its +8-17% peak on the standard
-                    # 50%-TP1-then-trail (confirmed live: 3/4 green tokens round-tripped,
-                    # GO +15%->-2% -$47). Take 85% at TP1 to bank the pop; 15% still trails.
-                    tp1_sell_override=(0.85
+                    # smart_follow TP1 fraction. 0.85 (bank-the-pop, fixes fader giveback)
+                    # CAPPED runners — POKE peaked +321% but 85% was dumped at +5%, only 15%
+                    # rode (manual sell, missed ~$70). 0.65 keeps giveback protection (65%
+                    # locked at +5%; remnant trails near peak on faders) while leaving a 35%
+                    # runner slice that the new peak-scaled trail lets run on moonshots (2026-06-09).
+                    tp1_sell_override=(0.65
                                        if getattr(pos, "strategy", "") == "smart_follow"
                                        else None),
                     tp1_hit=bool(getattr(pos, "take_profit_1_hit", False)),
@@ -3042,7 +3044,13 @@ class PositionManager:
         #     the hard guard (fast-flip back to scratch is real for big
         #     peaks, ambiguous for small ones).
         _MIN_PEAK_SOFT = 1.5                         # +1.5% (was self.dip_tp1_pct=+3%)
-        _DROP_PP = self.dip_winner_trail_pct  # currently 3.0 (runner-tilt)
+        # RUNNER-TILT trail (2026-06-09): the fixed 3pp trail clips mega-runners — any
+        # 3pp wiggle on the way up fires it (POKE peaked +321% but the 3pp trail would
+        # exit on the first pullback; it needed a MANUAL sell, missing ~$70). Scale the
+        # trail with the peak ONLY for big runners (>25% peak): give back ~25% of the
+        # peak so moonshots can run. Below +25% the tuned 3pp trail is UNCHANGED (faders
+        # fully protected — giveback protection preserved).
+        _DROP_PP = (peak_pct * 0.25) if peak_pct > 25 else self.dip_winner_trail_pct
         _CONFIRM_S = 5.0
         _RECOVERY_PP = 0.5
 
