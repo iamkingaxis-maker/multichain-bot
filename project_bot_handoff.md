@@ -1,333 +1,64 @@
-# Multichain Bot — Session Handoff
+# Session Handoff — Entry-Stack Enforcement Day (2026-06-09)
 
 **Bot URL**: https://gracious-inspiration-production.up.railway.app
-**Mode**: PAPER (PAPER_TRADING=true), $20/position base, max 3 concurrent, dip_buy strategy
-**Trading window**: 24/7 (TRADING_START_HOUR_CT=0, TRADING_END_HOUR_CT=24)
+**Mode: PAPER throughout** (`live_mode: False` verified after every deploy). No PAPER_MODE flip.
+**HEAD**: `defcabd` (filter prune). Deploys this session: `d511b07` → `7928c67` → `0fb03cd` → `184a53e` → `defcabd` (+ runner-tilt `dce63b5` pre-session).
+
+**THE HEADLINE: AxiS's "decisions/entries are the #1 issue" thesis was tested head-to-head against the size thesis and WON decisively. The validated entry stack is now ENFORCED fleet-wide with a control cohort, and 18 counterproductive filters were pruned. The forward gated-vs-control A/B starts today.**
 
 ---
 
-## 2026-05-22 — MEGA SESSION: 21 new entry triggers + 1 filter + race-fix + dashboard
+## SHIPPED + DEPLOYED this session (all paper, verified)
 
-### Top-level numbers
-
-**Live HEAD:** `eb6e8b8`
-
-**Ships this session (chronological):**
-
-| Commit | What | Type |
-|---|---|---|
-| `d64a37b` | vol_breakout_flat trigger | trigger |
-| `e45577a` | vol_drying + wick_rejection post-TP1 exits | exits |
-| `85925a5` | calm_buyer_demand + calm_at_support triggers | triggers |
-| `9fe8366` | filter_sol_macro_down ENFORCED | filter |
-| `4228a36` | Dashboard SOL gate indicator | UI |
-| `5ab8e74` | SOL fetch race-condition fix (cycle scope) | bug |
-| `734bab5` | Dashboard sol_price key fix | bug |
-| `f15ed43` | Ban toxic combo + retire 2 + alpha tier 1.5x | cleanup |
-| `960a354` | 3 alpha triggers (demand_burst, 1s_demand, two_pattern_demand) | triggers |
-| `6368ed4` | concurrent_alpha (highest $/tr ever mined) | trigger |
-| `f6b9113` | 10 new alpha-quality entry triggers | triggers |
-| `eb6e8b8` | 5 round-3 triggers (CNN cluster, slip, hot streak) | triggers |
-
-**21 new entry triggers + 1 filter + 2 exit rules + 1 dashboard + 2 bug fixes shipped in one session.**
-
-### Alpha-tier (1.5x sizing) — 8 triggers
-
-`1s_capit_reversal`, `deep_1h_dip`, `concurrent_alpha`, `whale_concentrated_demand`, `whale_recent_burst`, `whale_p90_size`, `textbook_pullback_vol_accel`, `textbook_pullback_big_buyer`
-
-### Top meta-discoveries
-
-1. **`concurrent_positions_at_entry > 1` is strongest big-winner predictor (Cohen's d=+1.02).** Hot streaks have real persistence. Could justify max_concurrent=4-5 (currently 3). See `[reference_concurrent_positions_alpha]`.
-2. **"Few buyers" universal alpha** — `top_buy_makers_n < 9` surfaced across 6 mining angles. 5+ shipped triggers anchor on this. See `[reference_few_buyers_alpha]`.
-3. **BTC h1 stronger than SOL h1** in current regime (d=+0.41 vs +0.33). Both gates complementary, +0.41 correlation, catch different trades.
-4. **Race condition fix:** SOL fetch was inside per-token loop, causing some tokens to silently bypass filter_sol_macro_down (WORLDCUP 01:14:42). Lifted to `_fetch_cycle_sol_features` called once per cycle. Cut 5-30x GT calls per cycle as a bonus.
-5. **Mining "exhaustion" is scope-dependent.** Every prior "exhausted" claim turned out wrong-at-different-cohort. Pivoting cohort/threshold/independence-constraint always surfaces new signal.
-
-### 13 distinct entry-trigger signal families
-
-1. Concentrated whale demand (top_buy_makers_n<9 variants)
-2. Textbook pullback compounds (mtf_textbook_pullback flag)
-3. Support + buyer confirmation (chart_sr_5m_at_support)
-4. BTC macro alignment (btc_pc_h4 + bs_h1)
-5. Mean-reversion chart_score (high chart + quiet flow)
-6. CNN cluster individual (clusters 10, 13, 16)
-7. Slip asymmetry (low buy slippage)
-8. Bot-state momentum (hot streak persistence)
-9. Concurrent positions hot streak (concurrent_alpha)
-10. 1s capitulation + variants
-11. Deep 1h dip (workhorse)
-12. Vol-breakout flat base
-13. Calm pattern + demand
-
-### Banned combos + retired triggers
-
-- **BANNED:** `chart_quality_bottom + net_flow_5m_demand` (0% WR n=6, $/tr=$-1.29). Stripped from triggers_fired when both fire; if no other trigger, entry blocked.
-- **RETIRED:** `grad_window_dip` (-$0.62/tr, 30% WR) and `controlled_greens_5m` (-$0.61/tr, 40% WR). Match flag stamped to entry_meta for forensic analysis but not added to triggers_fired.
-
-### Pending followup (PRIORITY)
-
-1. **PHANTOM PARITY OWED** on EVERY new trigger + filter this session — `scripts/live_forward_test.py` not updated. Violates `[feedback_phantom_parity]`. **Backfill ASAP.**
-2. **Forward-validate all 21 triggers** for 24-48h. Most have n=8-25 — small samples. Watch for triggers that over-fire vs mining frequencies.
-3. **Re-mine SOL gate with 500+ post-restoration trades** — current n=188 was thin.
-4. **Test max_concurrent=4-5** — concurrent_positions>1 was strongest big-winner predictor. Currently capped at 3.
-5. **Trigger attribution audit** after 50+ new-trigger fires — measure forward $/tr vs mined $/tr.
-6. **Promote `low_buy_slip`, `support_with_60s_flow`, `btc_safe_bs_h1` to alpha-tier?** Their $/tr ($0.40-$0.58) is borderline; standard 0.5x might be leaving alpha on table.
-
-### Known issues
-
-- GT 25-req/min budget shared across full scanner; SOL fetch occasionally 429s. 300s cache absorbs. Fail-CLOSED safety added (commits 5ab8e74) — if SOL feed went stale within 10min, block as safety.
-- Phantom parity gap (see above) — when bot makes a phantom-paper trade in `live_forward_test.py`, the new triggers won't fire there. Phantom dashboard will UNDER-count signals.
-- Railway 503s during deploy mid-session (intermittent). Retry pattern works.
-
-### Caveats
-
-- 21 triggers in one session is aggressive. Some will under-perform forward (regime shift, threshold drift).
-- Most mined samples are n=8-25. Statistical confidence low; mining $/tr ≠ forward $/tr.
-- Alpha-tier 1.5x sizing on 8 triggers means up to 8x more capital deployed when multiple alpha triggers fire simultaneously (each is independent — could fire together).
+1. **Fleet-wide ENTRY STACK enforcement** (`184a53e`) — every dip-path bot must pass:
+   `shape_90m_drawdown_from_max_pct <= -16` AND `net_flow_60s_usd >= 100` AND `age >= 24h` AND `mcap 500k-10M`. Fail-open per missing field. Momentum path untouched.
+   - Env: `ENTRY_STACK_MODE=off|shadow|enforce` (default **enforce**) — downgradeable without deploy.
+   - **Control cohort stays UNGATED** (forward counterfactual): `baseline_v1`, `no_filters`, `pool_a_broad_control` (`ENTRY_STACK_CONTROL_BOTS=csv` to override).
+   - Expect trade volume to DROP hard (~15% of historical entries pass). That's the design.
+2. **Post-stack filter prune** (`defcabd`) — 18 blockable filters stop blocking GATED bots only:
+   - 11 HARMFUL within stack-passers (blocked winners, n>=100): `filter_turn`(899), `filter_reviving_lifecycle`, `filter_stale_h1_peak`, `filter_lp_drain`, `filter_bs_m5_weak`, `filter_chasing_bounce`, `filter_1m_steep_fall`, `filter_seller_imbalance`, `filter_knife_catch_peak`, `filter_mtf_strong_downtrend`, `filter_negative_net_flow_5m`.
+   - 7 INERT (<=10 blocks in 2,687 passers): `filter_clean_break_p90`, `filter_fake_bounce`, `filter_low_volatility`, `filter_microcap_trap`, `filter_quote_asymmetry`, `filter_sat_eve_midliq`, `filter_solo_decay`.
+   - Control cohort + explicit `filters_enforced` bots keep exact old behavior. Verdicts still recorded (shadow record intact). Kill-switch: `ENTRY_STACK_FILTER_PRUNE=off`.
+   - 26 filters measured ADDITIVE within the pond — kept (filter_1m, filter_a, bs_m5_low, confirmation_candle, real_dip_5, vp_poc, below_vwap_shadow, fofar, weak_bounce_v2, sweep_too_recent, dip_volume…).
+3. **smart_follow watchlist → 7 diverse selectors** (`7928c67` then corrected `0fb03cd`) — cut 3 proven bleeders (8zkgFGV **−77.8 SOL/80 swaps**, DZcyYa9a −16.7, dmuXAmc −9.5) + flat/inactive (FYX5, 2Lsypd); kept Abk9Efh, 2tYcXQCfTtQg(+33.7), V21GW8P, HmP3Txu, D1aDZ, GGduK5, udH4u. K=3 unchanged. Backup: `config/follow_watchlist_12_pre_netsol_cut.bak`.
+4. **Runner-tilt exit** (`dce63b5`, just pre-session) — peak-scaled post-TP1 trail (peak>25% → trail 25% of peak) + smart_follow TP1 0.85→0.65. Fix for POKE leaving +150pp on the table.
+5. **Wallet-vetting toolchain** (committed): `scripts/score_wallet_diversity.py` (THE picker — SELECTOR vs MM_CHURN), `score_candidate_track_record.py` (net-SOL = loser-filter ONLY), `rank_watchlist.py`, `discover_wallets_dexscreener.py` (+ recurrence log), `validate_new_wallets.py`, `mine_wallet_entries.py`.
 
 ---
 
-## 2026-05-21 PM — 5 production ships, 9/9 WR since deploy, bot near production-ready
+## KEY FINDINGS (the day's evidence chain)
 
-### Session P&L
+### 1. Bleed-week decomposition (28d, 18,439 closed trades, cached `_bleed_trades.json` ~500MB)
+- **11 BLEED days: fleet −$18,338. Entries passing the stack on those SAME days: −$395.** Entry discipline alone removes ~98% of the bleed.
+- **Size thesis CONTRADICTED**: violators had SMALLER median size ($20 vs $30) yet lost 2.5× more per trade (−$1.45 vs −$0.58). It's the picks, not the bets.
+- Binding gates: **dip_shallow (6,252 bleed-day violations) + flow_weak (5,827)**; age/mcap barely bind (166/136). Fleet median entry only −12.7% off 90m high.
+- Cost: on GREEN days violators contributed +$1,368 vs passers +$799 → gating gives up ~half the green-day upside for not bleeding. Net over window: gated ≈ +$400 vs actual −$15,800.
+- May 22–23 (−$5.8k) = mostly orphan-flush accounting era, excluded from gate attribution.
 
-**Since first deploy of the day (11:32 UTC):**
-- 9 closed paired wins, 0 losses (**100% WR**)
-- NET **+$7.09**
-- Today total (00:00 CT → now): 43 trades, 77% WR, +$1.57
+### 2. Post-stack filter audit (within 2,687 stack-passing trades)
+- 91 measurable filters → **26 additive / 29 inert / 36 "harmful"** — but only ~52 filters can actually block (canonical `_filters_block` append list); the scariest "harmful" ones (two_pattern, token_ema, trend_score, vwap_h24, dying_volume…) are **verdict-only shadows** that never blocked. Actionable = the 18 pruned.
+- WHY harmful-post-stack: deep dips with real flow LOOK "bearish/steep/seller-heavy" at the bottom by definition — fear-filters veto the dip the stack just selected.
 
-**Best trades:** TYGR +$2.81 (runner trail rode peak +45.8%), UFO +$1.67 + $1.57 (2 manual sells — user chart-pattern instincts validated), VIRL +$1.12, PAC +$0.87, MORI +$0.88.
-
-### Production version
-
-**Live (deployed):** commit **`9fe8366`** — filter_sol_macro_down ENFORCED.
-
-### Commits shipped + DEPLOYED today (4)
-
-1. **`d64a37b`** — `trigger_vol_breakout_flat` (held overnight, deployed AM). First production fire on MORI at 15:00 UTC, won $0.88. Validates the per-token forensic mine.
-2. **`e45577a`** — `vol_drying` + `wick_rejection` post-TP1 exits ENFORCED. Mined from 43 winners; user UFO instincts validated (vol_m5=0 + wick rejection = $1.01/$0.18 per trade lift respectively). See `[reference_exit_signal_mining_2026_05_21]`.
-3. **`85925a5`** — `trigger_calm_buyer_demand` (T1) + `trigger_calm_at_support` (T2) ENFORCED. From today's-9/9-winner mine. T1 broad coverage (8/9 today match); T2 highest precision (93% WR mined). Awaiting first fires.
-4. **`9fe8366`** — `filter_sol_macro_down` ENFORCED (h6<-0.3 OR h1<-0.7). REVERSES prior FALSIFIED finding via outlier cleanup + filter-regime stratification. Cohen's d climbed from 0.04 lifetime → 0.33 post-restoration. Expected lift $/tr -$0.13 → +$0.26 on bigger n=1373 sample. See `[reference_sol_gate_2026_05_21]`.
-
-### Pending followup (next session priorities)
-
-1. **PHANTOM PARITY OWED** — none of the 4 today-commits wired into `scripts/live_forward_test.py`. Violates `[feedback_phantom_parity]`. Backfill ASAP.
-2. **Forward-validate 24-48h** — all 5 new pieces (1 filter, 3 triggers, 2 exit rules) need WR + $/tr confirmation. Watch for:
-   - `wick_rejection` clipping runners mid-pump (rule is precision-tuned but bar-completion may not be enough buffer)
-   - `vol_drying` early-exits on noise (low-vol minute mid-uptrend)
-   - `filter_sol_macro_down` overblocking when SOL is in a healthy range-bound regime (h6=-0.4 + h1=+0.5 = blocked but not actually a downtrend)
-3. **Re-mine SOL with bigger window** — current n=188 post-restoration was thin. Wait for 500+ trades.
-4. **Sample mid-cap cohort** ($5-20M) — yesterday's session-compare flagged only n=33 trades. Need more data on this tier.
-5. **Investigate scanner ingestion gap** — 9 watchlist tokens (HENRY, ATTENTION, MANIFEST, ROUTER, Ebola, SCAM, PENGUIN, HODL, MAGA) had real runs but 0 trades in 9d.
-
-### Key methodology learnings
-
-- **Always stratify by filter regime when mining.** SOL signal hidden in lifetime data (d=0.04) but strong post-restoration (d=0.33). Don't trust single-window mines.
-- **Always clean outliers before mining $/tr.** 20 trades with |pnl|>$100 (one was $409,471) polluted the SOL mine first pass.
-- **`/api/trades?full=1`** is the source of truth for entry_meta + trigger attribution. See `[reference_trades_api_full_param]`. Railway log retention is only ~30min — DO NOT rely on logs for historical trigger attribution.
-- **Coinbase Exchange API** works for SOL price (US-friendly, unlike Binance HTTP 451).
-
-### Caveats
-
-- All 4 deploys were ENFORCED without held-out validation per user direction. Forward-monitor closely.
-- Position sizing wasn't touched today (sizing audit pending from prior session).
+### 3. Smart-money wallet vetting (the MM-bot trap)
+- **net-SOL track record is a VOLUME metric** — it surfaced 6 "usable" wallets that were all single-token MM/churn bots (1-2 distinct tokens, one bought 89×, top%=100). 8gLQPr9Z was net **+12.9 SOL** and still garbage for following.
+- **Diversity/selection scorer separates perfectly**: 7/7 watchlist selectors → SELECTOR (21-59 distinct tokens); 62/62 MM bots → MM_CHURN (validated twice). V21GW8P 75% realized WR, HmP3Txu 67% — restoring them was right.
+- **DexScreener early-buyer discovery is structurally an MM-bot finder** (56/56 MM_CHURN) — most-active early buyers in a pool ARE its market makers. Don't re-mine trade logs for follow wallets.
+- **Cross-token roster method DOES yield selectors**: top-40 by n_winners → 4 new SELECTORS: `4jkL4dN` (26 tokens, 67% rWR — best), `2x99WSHD` (36, 50%), `45Sn4KL1` + `9fcMp3GN` (40 tokens/22 sells each — SUSPECTED TWINS, identical stats, dup-check before adding). 21/40 RPC-failed — retry pass pending.
 
 ---
 
-## 2026-05-20 → 2026-05-21 — Rough session, 8 deploys, forensic mine surfaced flat-base alpha gap
+## OPEN ITEMS for AxiS
 
-### Session P&L
+1. **Judge the gated-vs-control A/B** after a few days of forward data: gated fleet vs `baseline_v1`/`no_filters`/`pool_a_broad_control`, same days. Decomposition predicts gated ≈ flat-to-positive on bleed days while control bleeds. If control WINS over a fair sample, the gate is overturned — revisit honestly.
+2. **Re-audit the pruned filters on forward data** (verdicts still recorded) — confirm the 11 "harmful" stay harmful out-of-sample before deleting their computation (CPU saving).
+3. **Roster selector follow-up**: retry the 21 RPC-failed top-40 wallets; dup-check the 45Sn4KL1/9fcMp3GN twins; decide if 4jkL4dN earns watchlist or forward-shadow first.
+4. **Wallet discovery recurrence**: run `python scripts/discover_wallets_dexscreener.py 2` manually on PC-on days — `_wallet_discovery_log.json` accumulates; recurring wallets = real candidates (one snapshot can't rank).
+5. **Still designed-but-unwired** (deprioritized behind entry stack by today's evidence, not dead): daily_loss_limit_usd enforcement, per-token fleet exposure cap, day-state size dial, profit sweep (dormant, activates at go-live).
 
-Since 2026-05-19 14:00 UTC ("we were up $4"): **NET -$12.54** across 65 paired trades (33W/32L, WR 49%).
-- Avg win: +$1.02. Avg loss: -$1.37 (1.34x larger than wins).
-- 3 catastrophic -15% stops cost $11.21: TYGR -$7.36, WR26 -$2.20, TOLYBOT -$1.65.
-- 7 pre-stop bail-outs (dying vol) cost $11.09; 9 slow-bleed exits cost $10.28.
+## Notable context
+- **Claude Fable 5 released today** (`claude-fable-5`, $10/$50 MTok). Claude Code auto-mode classifier breaks on it → use manual-approval mode (Shift+Tab). Memory: `reference_fable5_claude_code_setup.md`.
+- Pre-existing test failure (NOT today's work): `test_bot_catalog.py::test_layered_defender_bots_present` (filter_rolling_ng config drift).
+- Deploy etiquette: no poll-loop camping — one `railway deployment list` + one `/api/stats` check.
 
-Critically: tonight's per-token forensic showed **6% capture rate** — 142 missed +15% runs in 24h vs 9 captured. The bot is bleeding *opportunity* even more than dollars.
-
-### Production version
-
-**Live (deployed):** commit `c406a6f` (hot_runner_calm_5m + hot_runner_shallow_1h)
-**Queued (pushed, NOT deployed):** `d64a37b` — trigger_vol_breakout_flat. Deploy tomorrow morning: `MSYS_NO_PATHCONV=1 railway up --detach`.
-
-### Commits shipped + DEPLOYED today (8)
-
-1. **caa8f5c → 8b4ba89** — sizing rebalance + macro_up 2.0x→1.5x rollback (after macro_up amplified Digi -$3.89, TYGR -$7.36, HERMES -$3.63, https -$3.43, BP -$1.65 on $40 sizing).
-2. **e94015b → 9559007** — `filter_1m_steep_fall` PROMOTED to ENFORCED. Driver: TYGR -$7.36 — filter flagged BLOCK at entry (1m_cum3=-9.65%) but was SHADOW. 11 SHADOWs flagged BLOCK; bot bought anyway.
-3. **36bd228** — pre-TP1 panic exit (5s confirm on 6pp drop).
-4. **1c9437d** — pre-TP1 trail carve-out (`pnl ≤ -2%` gate). Prevents false-bottom trails (AMERICA/VIRL pattern).
-5. **b6118ff** — `filter_1m_dead_vol` SHADOW + `filter_dead_vol_chart` SHADOW (compound carve-out preserves all winners).
-6. **8b2071a** — `filter_premium_shallow_dip` ENFORCED. Block premium-tier when pc_h1 > -10%. Zero winner cost.
-7. **9713459** — `filter_zero_winner_compound` ENFORCED (6 OR-rules, zero-winner-block, +$79.17 projected).
-8. **29a75fb** — Retired `trigger_deep_dip_bottom` (-$1.03/trade phantom). Added `trigger_deep_1h_dip` (Rule A) + `trigger_power_dip_runner` (Rule D). Shipped `filter_lazy_fade_buy` (Rule B) — block bs_m5∈[1.5,3.0) AND pc_h1>-8% (saves $8.27 of today's $12.31 retroactively).
-9. **c406a6f** — `trigger_hot_runner_calm_5m` (n=56/61% WR mining) + `trigger_hot_runner_shallow_1h` (n=48/**67% WR**).
-
-### Queued — NOT YET DEPLOYED
-
-**d64a37b** — `trigger_vol_breakout_flat` (Trigger A from per-token forensic):
-- Conditions: `1m_volume_spike ≥ 2.0` AND `shape_30m_chg_pct ∈ [-5%, +5%]` AND `pc_h24 > -10%`
-- Mining: 14 hits/24h across watchlist, mean run +27%
-- Captures: HENRY +122%, ATTENTION +24%, DEGEN +21%, BABYTROLL +21%, VIRL +18%, PENGUIN +16%, UFO +16%, Goblin +16%, Digi +17%
-- Mechanism: flat-base breakout precursor. Existing dip_buy requires pc_h1<0 which excludes this entire regime.
-
-### Mining work products
-
-- `.deep_mine_findings.md` — 49-token universe analysis (Rules A, B, D)
-- `.per_token_forensic.md` — per-token forensic, all 50 watchlist (481 lines, 42 live + 8 dead). Surfaced Trigger A + 142-vs-9 capture rate.
-- `.rugcheck_v2.json` — on-chain rugcheck for 35 tokens
-- `.mined_v3.json`, `.mined_v4.json`, `.mined_10_winners_v2.json` — compound mining results
-- `.recurring_signature_cohort.json` — A/B cohort of recurring losers vs winners
-
-### Critical infrastructure event: Railway 4-hour outage
-
-Railway suffered a major outage 22:17 UTC May 19 → ~02:00 UTC May 20 (Google Cloud blocked their account). During:
-- 5+ min of `PriceFeed Poll batch HTTP 429` flooded logs 22:08-22:13 UTC pre-outage
-- Bot logs went silent at 22:13:34 UTC
-- 10 trades completed during window: WR 30%, NET -$5.60
-- HERMES "trail confirmed 705s" anomaly (price-feed lag)
-- **Clean window (excluding Railway): 15 trades, 67% WR, +$3.12**
-
-Lesson: Railway-window trades are noisy. Exclude from forward audits.
-
-### Late-night spot-check (00:00 UTC May 21)
-
-After c406a6f deploy:
-- WORLDCUP buy 02:06, vol_death exit -$0.47 (vol_m5 → $0 mid-hold, bail-out at -3.6%). Sizing standard $10 limited damage. Not a regression — vol died on us post-entry.
-- BP open at +$0.08 (67min hold).
-
-### Key research findings
-
-**Top loser pattern (recurring):** "FOMO on non-runner" — losers have median pc_h24=+9% + bs_m5=+2.43 vs winners pc_h24=+71% / bs_m5=+1.51. Drove Rule B (filter_lazy_fade_buy).
-
-**Top winner archetype:** pc_h1 ≤ -22% + big_size signature → PAC R1/R2/R3 generated +$7+ today.
-
-**Mcap stratification — bot bleeds in micro-cap:**
-| Tier | n | WR | NET |
-|---|---|---|---|
-| Micro (<$1M) | 184 | 35% | **-$95.52** |
-| Small ($1-5M) | 124 | 42% | -$23.28 |
-| Mid ($5-20M) | 33 | 33% | -$6.86 |
-| Large (>$20M) | 2 | 50% | -$0.68 |
-
-**On-chain features predictive but post-rugcheck only:** top1_pct<21%, top10_pct<43%, totalHolders<13407, lp_locked_pct≥100. 8 of top-10 mined compound rules use these but can't fire as triggers (only as trader.py filters post-rugcheck — deferred).
-
-**Phantom is RUNNING** (was wrongly called "offline" mid-session). `.live_forward_test/_cron.log` updated through 2026-05-20 01:06 UTC. `^C` at log end suggests it may have been manually killed. Check at next session.
-
-### Triggers retired
-
-- `trigger_deep_dip_bottom` — phantom WR 31%, -$1.03/trade. Fire suppressed; match still stamped for forensics.
-
-### Pending work — for tomorrow / next session
-
-1. **Deploy d64a37b** — `trigger_vol_breakout_flat`. Biggest near-term alpha unlock.
-2. **Scanner ingestion gap** — 9 watchlist tokens (HENRY, ATTENTION, MANIFEST, ROUTER, Ebola, SCAM, PENGUIN, HODL, MAGA) had real runs but 0 trades in 9d. Pool-discovery filters likely excluding them. Investigate.
-3. **Loosen filter_dumping** — over-blocks Trigger C drawdown-reset bounces (~6 hits/day on Ebola/WIZARD/PAC/SPCX/HERMES cohort).
-4. **Ship filter_extended_runner_block** — block pc_h24 > +150% to kill TOLYBOT-class cohort (4/6 losses had pc_h24 > 100%).
-5. **Ship 8 on-chain rules in trader.py post-rugcheck filter** — bigger change, deferred. Specifically `oc_top1<21%` + `oc_holders<13407` + `oc_lp>=100` as quality gates.
-6. **Restart phantom cron** if dead.
-7. **Sample mid-cap cohort** ($5-20M, only 33 trades) for more data — currently can't surface mid-cap-specific rules.
-
-### Memory updates this session
-
-- Confirmed `feedback_no_bandaids` — rejected cooldown-on-loss recommendation. Right fix is upstream entry signal.
-- Confirmed `feedback_complete_task_fully` — forensic must cover all 50 tokens, no sampling.
-- Confirmed `feedback_time_chart_over_dow` — dropped time-of-day from trigger mining mid-session.
-
-### Caveats / things to watch
-
-- **Heavy ship today (8 commits, 6 ENFORCED filters/triggers)** — projected ~17% combined volume cut. Watch WR/volume forward 24-48h.
-- **Mcap micro-cap is structurally losing** — even with new filters, $500k-$1M tokens net -$0.52/trade. Long-term fix needed (mcap floor?).
-- **Per-token forensic: 6% capture rate** — even good entries are missing 94% of available alpha. Trigger A is one fix; more needed.
-
----
-
-## 2026-05-19 — Runner-tilt validation + 4-commit deploy queue (sizing/SHADOW/panic-exit/phantom-parity)
-
-### Session P&L (rough)
-
-~22:00 UTC May 18 → 02:30 UTC May 19. Net session: **~+$8-12 realized**:
-- **Winners**: RKC R1 (+$1.20), DEGEN R1 (+$2.52 blended), DEGEN R2 (+$2.45 TP1+TP2, then user manually closed runner at +21.75% peak +33.13%), Buttcoin (+$0.70), VIRL R1 (+~$3.20, ~16% blended on $20), PAC R1 (+$0.07), **PAC R2 (+$3.47, full ladder)**, RKC R2 TP1 partial (+$0.16)
-- **Losers**: Goblin -$1.58 (130min dud), FAHHHH v1 -$0.89, FAHHHH v2 -$0.84, TripleT -$0.41
-- **VIRL was the biggest single win**: +29.9% peak runner farmed perfectly by runner-tilt ladder (TP1 +5.4% then trail +23.6%)
-
-### Commits made tonight (4 — all pushed, NONE deployed yet)
-
-Held pending close of all positions.
-
-1. **e94015b** — `feat(filter_1m_steep_fall): SHADOW — block 1m_cum_3min < -1.5% entries`
-   - Stamps `filter_1m_steep_fall_verdict` into entry_meta for forward validation
-   - Validated NET +$12.26 over 4d lifetime backfill
-2. **36bd228** — `feat(pre-tp1-trail): panic exit on catastrophic drop (>=6pp from peak)`
-   - Tightens existing 60s confirmation to 5s when drop >= 6pp
-   - Lifetime data: only 1 case (memecoins -$1.93), saves ~$1.50. Surgical
-3. **9499987** — `chore(phantom-parity): wire filter_1m_steep_fall into live_forward_test`
-4. **caa8f5c** — `tune(sizing): rebalance tiers — macro_up 1.5x→2x, premium 2x→1x, standard 1x→0.5x`
-   - Lifetime + recent data showed sizing inverted relative to outcome
-   - Tonight retro: +$2.53 over 6 closed trades
-
-### Key research findings
-
-**Confirmed strong signals:**
-- **macro_up sizing cohort** (sol_pc_m1 >= +0.01): WR 45.5%, edge +1.37%. Only profitable cohort. Robust.
-- **1m_vol_spike < 0.20**: would save **+$34/4d** at lifetime scale. **Not yet shipped — top candidate for next SHADOW.**
-- **1m_cum_3min TWO-sided gate needed**: bot has both mid-fall (3min < -1.5%) AND mid-pump (3min > +3%) entry problems. SHADOW catches first; second is still unhandled.
-- **Post-TP1 trail is tight already** (5s confirm). Pre-TP1 was the 60s problem fixed by panic exit.
-
-**Confirmed non-signals:**
-- **CNN outcome_prob is NOT predictive at lifetime scale**: winners 0.174 mean vs losers 0.170. Don't gate on CNN.
-- **Fusion has small edge but cuts too much volume** as primary gate (≥0.70 = 65% volume cut).
-- **SOL macro at entry is weak in recent** (winners sol_pc_m1 median +0.034%, losers 0.000%).
-
-**Trigger combo audit (n=137 closed):**
-- **2-compound is worst** (avg -$0.79). 3-compound is sweet spot.
-- All individual triggers net-negative except chart_channel_strong, swing_structure_rsi.
-- 0% WR combos: `patient_bottom_informed_cluster` (0/4, -$7.99), `clean_break` solo, `whale_conviction` solo.
-
-### Sizing inversion (lifetime + recent confirmed)
-
-| Tier | Old | New (shipped) | WR | Edge |
-|---|---|---|---|---|
-| premium_runner | 3x | 3x | (n=0) | — |
-| **premium** | 2x | **1x** | 28.6% | -2.06% ⚠ |
-| **macro_up** | 1.5x | **2x** ✓ | 45.5% | +1.37% ✓ |
-| **standard** | 1x | **0.5x** | 14.8% recent | -3.69% ⚠ |
-| marginal | 0.5x | 0.5x | 33.3% | -0.39% |
-
-**Premium tier fires from 3 conditions** (not just v_bottom_body): big-trade-size signature (ats≥116, lv≥135, p90≥153), chart_quality_bottom+chart_score_reversal pair, or v_bottom_body. The big-trade-size cohort dominates premium trades.
-
-### Runner-tilt is validated
-
-Tonight 5 separate +10%+ runners farmed: RKC +12.8% peak, DEGEN R1 +11.5%, DEGEN R2 +33.1%, VIRL +29.9%, PAC R2 +16.9%. The TP1 +5% / TP2 +10% / 34% trail ladder caught all of them. **Don't break this.**
-
-### What to do next session
-
-1. **Deploy 4 pending commits** once positions close. (`MSYS_NO_PATHCONV=1 railway up --detach`)
-2. **Reset dashboard** after deploy.
-3. **Watch SHADOW data** — log `filter_1m_steep_fall_block` count; if "would-block" trade outcomes confirm forward, promote to ENFORCED.
-4. **Ship the 1m_vol_spike < 0.20 SHADOW next** — highest-leverage unshipped finding ($34/4d projected).
-5. **Consider two-sided 3min gate** — add `1m_cum_3min > +3%` block to catch mid-pump entries.
-6. **Watch standard-tier volume** — new 0.5x sizing means trades happen at $10 base. Will WR improve?
-7. **Trigger demotion candidates**: `patient_bottom_informed_cluster`, `clean_break` solo, `whale_conviction` solo all 0% WR.
-
-### Memory updates
-
-- Added `reference_cnn_vs_fusion_separator.md`
-- Existing constraint: `feedback_railway_cost_cap.md` (under $25/month)
-
-### Caveats
-
-- **Recent WR (25.5%) is WORSE than lifetime (36.4%).** Volume push (filter_quad demote, etc.) is hurting entry quality. Sizing rebalance is partial offset.
-- **1m_cum_3min signal flipped between eras**: lifetime had losers more negative; recent has winners more negative. SHADOW still NET-positive on both eras.
-- **My local data file is stale (20:36 UTC)** — when re-running backfills, refetch with curl first.
-- **DEGEN manual close** at +21.75% (peak +33.13%) — user's choice. Locked $2.85 instead of waiting for trail.
-
-### Open positions at handoff end (2)
-
-- **VIRL R2** (new buy 02:29:40 UTC): $0.001215, currently +~2%
-- **RKC R2** (new buy 02:34:42 UTC): $0.003941, TP1 fired +4.7%, 67% trail at +6%
-
----
-
-## Earlier session notes (preserved)
-
-(Previous handoffs retained below for context.)
+## State at handoff (~18:20 UTC)
+PAPER_MODE=true (verified). HEAD `defcabd` deployed (last build initializing at write time — spot-check `railway deployment list` once). Entry stack ENFORCED + 18-filter prune live on gated fleet; control cohort ungated. smart_follow on 7-selector watchlist, K=3. Forward A/B accumulating from today.
