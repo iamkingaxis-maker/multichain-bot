@@ -19,9 +19,13 @@ def catalog():
     # standard $20 strategy-ablation member.
     # Also exclude the fresh-graduation momentum probe (momentum_grad_probe, 2026-06-03)
     # — a $100-fixed momentum_mode + young_token_probe experiment, not a $20 ablation member.
+    # Also exclude the in-pond mined-combo clones (pond_*, 2026-06-09) — $100-fixed
+    # pool_a-family experiments (entry-stack + held-out combo gates), judged vs
+    # pool_a_stack control, likewise not standard $20 ablation members.
     reg.configs = [c for c in reg.configs
                    if not c.bot_id.startswith("probe_")
                    and not c.bot_id.startswith("pool_")
+                   and not c.bot_id.startswith("pond_")
                    and not c.bot_id.startswith("young_probe_")
                    and not c.bot_id.startswith("low_mcap_probe")
                    and c.bot_id != "momentum_shadow"
