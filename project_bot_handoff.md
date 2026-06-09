@@ -54,11 +54,18 @@
 3. **Roster selector follow-up**: retry the 21 RPC-failed top-40 wallets; dup-check the 45Sn4KL1/9fcMp3GN twins; decide if 4jkL4dN earns watchlist or forward-shadow first.
 4. **Wallet discovery recurrence**: run `python scripts/discover_wallets_dexscreener.py 2` manually on PC-on days — `_wallet_discovery_log.json` accumulates; recurring wallets = real candidates (one snapshot can't rank).
 5. **Still designed-but-unwired** (deprioritized behind entry stack by today's evidence, not dead): daily_loss_limit_usd enforcement, per-token fleet exposure cap, day-state size dial, profit sweep (dormant, activates at go-live).
+6. **STOP-WIDTH AUDIT ~2026-06-16** (when drawdown coverage matures): `max_drawdown_pct` capture went fully live 2026-06-08 (~130 sells/day carry it; before that only ~5% coverage — too thin to act). Question: is the −15% hard stop too wide for the pond cohort? Fragmentary data hints pond winners rarely dip below −8% (med −0.4%, p10 −3.2%, n=96 BIASED sample) → −10% stop could save ~6pp per hard-stopped trade at near-zero winner cost. Re-run `_exit_audit.py` on a week of full-coverage pond data, then decide. DO NOT act before coverage matures.
+   Context (exit audit 2026-06-09, full peak coverage n=2,687): TP system confirmed tuned for the pond — 5th confirmation, pond-specific: peaks med +5.9%/p90 +12.4%, only 4% reach +25%; capture median 90% of peak, money-left median 0.8pp. Big losers (≤−8%) peaked at just +1.2% median (only 20% saw ≥+3%) — straight-down losers, not rescueable by TP tweaks; never-green faststop already handles them. Exits are NOT the leak; don't re-tune TP/trail.
 
 ## Notable context
 - **Claude Fable 5 released today** (`claude-fable-5`, $10/$50 MTok). Claude Code auto-mode classifier breaks on it → use manual-approval mode (Shift+Tab). Memory: `reference_fable5_claude_code_setup.md`.
 - Pre-existing test failure (NOT today's work): `test_bot_catalog.py::test_layered_defender_bots_present` (filter_rolling_ng config drift).
 - Deploy etiquette: no poll-loop camping — one `railway deployment list` + one `/api/stats` check.
 
-## State at handoff (~18:20 UTC)
-PAPER_MODE=true (verified). HEAD `defcabd` deployed (last build initializing at write time — spot-check `railway deployment list` once). Entry stack ENFORCED + 18-filter prune live on gated fleet; control cohort ungated. smart_follow on 7-selector watchlist, K=3. Forward A/B accumulating from today.
+## Late-session additions (~19:00 UTC)
+- **3 pond combo clones SHIPPED** (in-pond held-out mine, judged vs pool_a_stack at n>=50 distinct tokens): `pond_settled_flow_thin` (86% test WR, +$2.94/tr, 14-token caveat), `pond_settled_flow` (80%, +$2.05, 26-token anchor), `pond_ugly_mtf` (81%, +$1.79, orthogonal). Memory: `reference_pond_mine_2026_06_09.md`.
+- **4th clone `pond_settled_flow_solcap`** (= settled_flow + sol_pc_h1<=0.3): SOL audit found red-side gate mis-aimed-but-inert (best band = modestly-red −0.7..−0.3: 79% WR; DON'T tighten) and SOL-GREEN h1>+0.3 the pond's worst cohort both halves but magnitude-unstable → A/B'd, not enforced.
+- **Exit audit**: TP confirmed tuned (5th time, pond-specific); stop-width audit queued for ~06-16 (above).
+
+## State at handoff (~19:00 UTC)
+PAPER_MODE=true (verified). HEAD = pond_settled_flow_solcap deploy. Entry stack ENFORCED + 18-filter prune live on gated fleet; control cohort ungated; 4 pond clones racing. smart_follow on 7-selector watchlist, K=3. Forward A/Bs accumulating: (1) gated-vs-control bleed test, (2) 4 pond clones vs pool_a_stack, (3) solcap vs settled_flow.
