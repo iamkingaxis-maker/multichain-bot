@@ -44,8 +44,14 @@ def _get(url):
 
 
 def _key(t):
+    # NO bot_id in the key: tracker records flip bot_id None <-> 'baseline_v1'
+    # across server restarts, which double-inserted the same trade (caught
+    # 2026-06-10: 23 phantom 06-09 sells). time has microsecond precision and
+    # pnl disambiguates genuine same-second fan-out sells.
+    pnl = t.get("pnl")
     return (t.get("time") or "", t.get("type") or "",
-            t.get("address") or t.get("token") or "", t.get("bot_id") or "")
+            t.get("address") or t.get("token") or "",
+            round(float(pnl), 6) if isinstance(pnl, (int, float)) else None)
 
 
 def main():

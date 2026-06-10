@@ -541,7 +541,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
   <!-- ── DAILY GOAL Panel (the question this page answers first) ── -->
   <div class="fleet-panel" id="goal-panel">
-    <h2>DAILY GOAL — $100 CLOSED P&amp;L, LIVE-CANDIDATE SET (CT DAY)</h2>
+    <h2>DAILY GOAL — $100 CLOSED P&amp;L, WALK-FORWARD LIVE SET (bots already profitable before today; CT day)</h2>
     <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
       <div style="font-size:28px;font-weight:700;" id="goal-today">$0</div>
       <div style="flex:1;min-width:200px;background:#222;border-radius:6px;height:14px;overflow:hidden;">
@@ -1796,7 +1796,7 @@ async function updateGoal() {
     if (!resp.ok) return;
     const g = await resp.json();
     _candSet = new Set(g.candidate_bots);
-    const tot = g.today.total;
+    const tot = g.today.live_total;   // HEADLINE = walk-forward live set
     const el = document.getElementById("goal-today");
     el.textContent = (tot < 0 ? "-$" : "$") + Math.abs(tot).toFixed(0);
     el.style.color = tot >= g.goal_usd ? "#4caf50" : (tot >= 0 ? "#e0e0e0" : "#f44336");
@@ -1807,13 +1807,15 @@ async function updateGoal() {
     const badge = document.getElementById("goal-badge");
     badge.textContent = tot >= g.goal_usd ? "MET ✓" : `$${(g.goal_usd - tot).toFixed(0)} to go`;
     badge.style.color = tot >= g.goal_usd ? "#4caf50" : "#888";
-    const contrib = Object.entries(g.today.by_bot).slice(0, 5)
-      .map(([b, v]) => `${b} ${v >= 0 ? "+" : ""}${v.toFixed(0)}`).join(" · ");
-    document.getElementById("goal-contrib").textContent = contrib || "no closed trades yet today";
+    const ranNames = (g.today.live_set || []).join(", ") || "none qualified yet";
+    const full = g.today.full_total;
+    document.getElementById("goal-contrib").textContent =
+      `live set today (${(g.today.live_set || []).length}): ${ranNames}  ·  ` +
+      `all-candidates ${full >= 0 ? "+" : "-"}$${Math.abs(full).toFixed(0)} (experiments included)`;
     const hist = g.history.map(h =>
-      `${h.day.slice(5)} ${h.met ? "✓" : (h.total >= 0 ? "+" : "") + h.total.toFixed(0)}`).join("  ");
+      `${h.day.slice(5)} ${h.met ? "✓" : (h.live_total >= 0 ? "+" : "") + h.live_total.toFixed(0)}`).join("  ");
     document.getElementById("goal-history").textContent =
-      (hist ? "last days: " + hist + "  ·  " : "") +
+      (hist ? "live-set last days: " + hist + "  ·  " : "") +
       `streak: ${g.streak_complete_days} (need 5 before go-live talk)`;
   } catch (e) {
     console.error("updateGoal failed", e);
@@ -4398,21 +4400,23 @@ class WebDashboard:
         return web.json_response(await asyncio.to_thread(wd.summary))
 
     async def _handle_api_goal(self, request):
-        """GET /api/goal — $100/day goal meter for the LIVE-CANDIDATE set.
+        """GET /api/goal — $100/day goal meter, WALK-FORWARD live set headline.
 
-        Mirrors scripts/goal_tracker.py exactly (single source of truth for the
-        candidate set + goal): closed-sell P&L bucketed by CT day (UTC-5),
-        smart_follow sells attributed via their buy's strategy tag. Computed
-        from trade_store locally — no API egress.
+        Mirrors scripts/goal_tracker.py exactly (single source: candidate set,
+        goal, daily bucketing, live-set selection). HEADLINE = the bots that
+        were already net-positive over the trailing window BEFORE the day
+        started (what flipping live would actually have run) — AxiS 2026-06-10:
+        'measure the goal based on if we ran the profitable bots.' The full
+        candidate-set aggregate is kept as the secondary number.
         """
         try:
-            from scripts.goal_tracker import CANDIDATE_BOTS, GOAL_USD_PER_DAY
+            from scripts.goal_tracker import (
+                CANDIDATE_BOTS, GOAL_USD_PER_DAY, LIVE_SET_TRAILING_DAYS,
+                LIVE_SET_MIN_CLOSES, build_daily, live_set_for_day)
         except Exception:
             return web.json_response({"error": "goal_tracker unavailable"}, status=500)
         # Same two sources as /api/trades: tracker (strategy-tagged records —
-        # smart_follow lives HERE, with the strategy field the attribution
-        # needs) + multi-bot trade_store (candidate-bot records). Reading only
-        # the store missed smart_follow entirely (-$38 invisible on 06-10).
+        # smart_follow lives HERE) + multi-bot trade_store.
         trades = []
         if self._tracker is not None:
             try:
@@ -4424,51 +4428,38 @@ class WebDashboard:
                 trades = trades + self.trade_store.load_trades()
             except Exception:
                 pass
-        buy_strat = {}
-        for t in trades:
-            if t.get("type") == "buy" and t.get("strategy"):
-                k = ((t.get("pair_address") or t.get("address") or "").lower(),
-                     t.get("bot_id") or "")
-                buy_strat[k] = t.get("strategy")
-        daily: dict = {}
-        for t in trades:
-            if t.get("type") != "sell":
-                continue
-            if "cancelled on restart" in (t.get("reason") or "").lower():
-                continue
-            who = t.get("bot_id") if t.get("bot_id") in CANDIDATE_BOTS else None
-            if not who:
-                k = ((t.get("pair_address") or t.get("address") or "").lower(),
-                     t.get("bot_id") or "")
-                if buy_strat.get(k) == "smart_follow":
-                    who = "smart_follow"
-            if not who:
-                continue
-            try:
-                dt = datetime.fromisoformat(str(t.get("time")).replace("Z", "+00:00"))
-                day = (dt - timedelta(hours=5)).strftime("%Y-%m-%d")
-            except Exception:
-                continue
-            daily.setdefault(day, {}).setdefault(who, 0.0)
-            daily[day][who] += float(t.get("pnl") or 0)
+        daily = await asyncio.to_thread(build_daily, trades)
         days = sorted(daily)
         today_ct = (datetime.now(timezone.utc) - timedelta(hours=5)).strftime("%Y-%m-%d")
         today_bots = daily.get(today_ct, {})
-        streak = 0  # complete CT days only (today still in progress)
+        live_today = live_set_for_day(daily, today_ct)
+        live_total = round(sum(r["pnl"] for b, r in today_bots.items()
+                               if b in live_today), 2)
+        streak = 0  # complete CT days only, on the LIVE-SET meter
+        history = []
         for day in days:
             if day >= today_ct:
                 continue
-            streak = streak + 1 if sum(daily[day].values()) >= GOAL_USD_PER_DAY else 0
-        history = [{"day": d, "total": round(sum(daily[d].values()), 2),
-                    "met": sum(daily[d].values()) >= GOAL_USD_PER_DAY}
-                   for d in days[-8:] if d < today_ct]
+            ls = live_set_for_day(daily, day)
+            lt = round(sum(r["pnl"] for b, r in daily[day].items() if b in ls), 2)
+            ft = round(sum(r["pnl"] for r in daily[day].values()), 2)
+            met = lt >= GOAL_USD_PER_DAY
+            streak = streak + 1 if met else 0
+            history.append({"day": day, "live_total": lt, "full_total": ft,
+                            "met": met, "ran": len(ls)})
         return web.json_response({
             "goal_usd": GOAL_USD_PER_DAY,
             "candidate_bots": sorted(CANDIDATE_BOTS),
-            "today": {"day": today_ct,
-                      "total": round(sum(today_bots.values()), 2),
-                      "by_bot": {b: round(v, 2) for b, v in
-                                 sorted(today_bots.items(), key=lambda kv: -kv[1])}},
+            "live_set_rule": (f"net-positive over trailing {LIVE_SET_TRAILING_DAYS}d "
+                              f"with >={LIVE_SET_MIN_CLOSES} closes, as of day start"),
+            "today": {
+                "day": today_ct,
+                "live_total": live_total,
+                "live_set": sorted(live_today),
+                "full_total": round(sum(r["pnl"] for r in today_bots.values()), 2),
+                "by_bot": {b: round(r["pnl"], 2) for b, r in
+                           sorted(today_bots.items(), key=lambda kv: -kv[1]["pnl"])},
+            },
             "history": history[-7:],
             "streak_complete_days": streak,
         })
