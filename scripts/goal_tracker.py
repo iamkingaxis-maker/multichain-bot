@@ -39,16 +39,34 @@ CANDIDATE_BOTS = {
 API = "https://gracious-inspiration-production.up.railway.app/api/trades?full=1&limit=5000"
 
 
+def _fetch():
+    req = urllib.request.Request(API, headers={"Accept-Encoding": "gzip"})
+    with urllib.request.urlopen(req, timeout=180) as r:
+        raw = r.read()
+        if r.headers.get("Content-Encoding") == "gzip":
+            raw = gzip.GzipFile(fileobj=io.BytesIO(raw)).read()
+    return json.loads(raw)
+
+
 def load(cache):
     if cache:
         d = json.load(open(cache))
     else:
-        req = urllib.request.Request(API, headers={"Accept-Encoding": "gzip"})
-        with urllib.request.urlopen(req, timeout=180) as r:
-            raw = r.read()
-            if r.headers.get("Content-Encoding") == "gzip":
-                raw = gzip.GzipFile(fileobj=io.BytesIO(raw)).read()
-        d = json.loads(raw)
+        d = _fetch()
+        if isinstance(d, dict) and d.get("egress_throttled"):
+            # The server downgraded the heavy pull to 200 records (egress budget).
+            # Reading that silently produced false day verdicts twice (-$42, -$79).
+            # One paced retry, then fail LOUDLY rather than compute on a stub.
+            print("egress-throttled response — waiting 70s for budget, retrying once...",
+                  file=sys.stderr)
+            import time
+            time.sleep(70)
+            d = _fetch()
+            if isinstance(d, dict) and d.get("egress_throttled"):
+                sys.exit("ABORT: still egress-throttled — rerun later; do NOT trust a "
+                         "200-record pull for a day verdict.")
+    if isinstance(d, dict) and d.get("egress_throttled"):
+        sys.exit("ABORT: cache file is an egress-throttled stub (200 records) — re-pull.")
     return d if isinstance(d, list) else d.get("trades", [])
 
 

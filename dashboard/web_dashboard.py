@@ -2472,7 +2472,7 @@ class WebDashboard:
         # the full payload with ?full=1 (subject to the egress budget above).
         if not want_full and isinstance(trades, list):
             _TRADE_KEEP = {
-                'type', 'strategy', 'chain', 'token', 'address',
+                'type', 'strategy', 'bot_id', 'chain', 'token', 'address',
                 'entry_price', 'exit_price', 'usd_received',
                 'pnl', 'pnl_pct', 'time', 'reason',
                 'max_drawdown_pct', 'hold_secs',
@@ -2487,9 +2487,25 @@ class WebDashboard:
         _hdrs = {"Access-Control-Allow-Origin": "*"}
         if egress_throttled:
             # Tell the caller it got the trimmed payload due to the egress budget.
+            # Header alone was MISSED twice by json.load consumers (false -$42 and
+            # -$79 goal meters) -> the throttled body is now a dict with an explicit
+            # flag. Normal (non-throttled) responses keep their list shape, so
+            # dashboard JS is unaffected (it never requests heavy payloads).
             _hdrs["X-Egress-Throttled"] = "1"
+            trades = {"egress_throttled": True,
+                      "note": ("heavy payload downgraded to trimmed 200 records by the "
+                               "egress budget — retry after ~60s for the full pull"),
+                      "trades": trades}
+        # Serialize heavy payloads OFF the event loop: json.dumps of a full=1/all=1
+        # body (tens of MB) blocked the loop long enough to starve concurrent
+        # requests (/api/stats returned empty bodies 3x on 2026-06-10 during
+        # analysis pulls). Threaded dumps keeps the server responsive.
+        if want_all or want_full:
+            _body = await asyncio.to_thread(json.dumps, trades)
+        else:
+            _body = json.dumps(trades)
         return web.Response(
-            text=json.dumps(trades),
+            text=_body,
             content_type="application/json",
             headers=_hdrs
         )
