@@ -841,8 +841,15 @@ class PositionManager:
                     tp1_hit=bool(getattr(pos, "take_profit_1_hit", False)),
                     tp2_hit=bool(getattr(pos, "take_profit_2_hit", False)),
                     current_price=entry_px,
-                    peak_price=entry_px,
-                    min_price_usd=entry_px,
+                    # Restore the TRUE peak from the persisted Position (2026-06-10):
+                    # resetting peak to entry on every restart re-armed post-TP1
+                    # trails (each deploy wiped the peak -> the remainder needed a
+                    # fresh giveback from a NEW lower peak to close). With ~12
+                    # deploys in a day, riders sat open 19h+ (MINER/ZOOMER).
+                    peak_price=entry_px * (1 + max(0.0,
+                        float(getattr(pos, "peak_pnl_pct", 0.0) or 0.0)) / 100.0),
+                    min_price_usd=(float(getattr(pos, "min_price_usd", 0.0) or 0.0)
+                                   or entry_px),
                     pyramid_signal_score=getattr(pos, "signal_score", 0),
                     hh_hl_confirmed=getattr(pos, "hh_hl_confirmed", False),
                     scalp_meta=getattr(pos, "scalp_meta", None),
