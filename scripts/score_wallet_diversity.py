@@ -179,11 +179,14 @@ def main():
     for addr, src, m, _ in mm:
         print(f"  {addr}  [{src}] ndist={m['n_distinct']} top%={m['top_share']*100:.0f}")
 
-    # validation readout: did we separate watchlist (good) from MMbot-set (bad)?
-    wl_mm = sum(1 for r in rows if r[1] == "watchlist" and r[3] == "MM_CHURN")
-    bot_mm = sum(1 for r in rows if r[1] == "MMbot-set" and r[3] == "MM_CHURN")
-    print(f"\nVALIDATION: watchlist flagged MM_CHURN={wl_mm} (want 0); "
-          f"MMbot-set flagged MM_CHURN={bot_mm}/{len(mmbots)} (want high).")
+    # validation readout (watchlist-mode only): did we separate watchlist (good)
+    # from MMbot-set (bad)? Candidate-file mode has neither cohort -> skip
+    # (this line crashed every candidate-file run with UnboundLocalError).
+    if not cand_file:
+        wl_mm = sum(1 for r in rows if r[1] == "watchlist" and r[3] == "MM_CHURN")
+        bot_mm = sum(1 for r in rows if r[1] == "MMbot-set" and r[3] == "MM_CHURN")
+        print(f"\nVALIDATION: watchlist flagged MM_CHURN={wl_mm} (want 0); "
+              f"MMbot-set flagged MM_CHURN={bot_mm}/{len(mmbots)} (want high).")
     json.dump([{"wallet": r[0], "class": r[3], **r[2]} for r in rows],
               open("_wallet_diversity_scores.json", "w"), indent=2)
     print("wrote _wallet_diversity_scores.json")
