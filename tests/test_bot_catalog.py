@@ -44,10 +44,12 @@ def _by_id(catalog):
 
 
 def test_catalog_active_bot_count(catalog):
-    # 55 ACTIVE bots (enabled or not, loaded from config/bots/*.json). Retired bots live
+    # ACTIVE bots (enabled or not, loaded from config/bots/*.json). Retired bots live
     # on disk as *.json.off and are NOT loaded. The probe_* live scaffold is excluded by
     # the catalog fixture. Update this number deliberately when adding/retiring a bot.
-    assert len(catalog.configs) == 55, (
+    # 2026-06-10 sweep: 14 disabled no-test-ref experiments retired (eq_/eqc_ probes,
+    # exit_/triggers_/tod_ variants, champion_v2, reentry_60m) -> 55 - 14 = 41.
+    assert len(catalog.configs) == 41, (
         f"Expected 55 active bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
