@@ -1,0 +1,81 @@
+{
+  "age_h_max": null,
+  "age_h_min": null,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 100.0,
+  "bot_id": "young_probe_stair",
+  "btc_macro_h1_block_threshold": null,
+  "display_name": "YOUNG-PROBE CLONE: staircase structure (higher_low_5m>=0.5 AND trend_30m_n_pivot_lows>=3.5) on the young_probe_light template. 2026-06-10 mine of 81 young-probe closes (74% WR base): held-out TEST WR 86% +$4.52/tr n=14; FULL 92% +$5.92/tr n=26 across 7 tokens. THESIS: young-token winners are in confirmed short-term UPTRENDS (staircase pivots + higher lows) \u2014 momentum-confirmation, not deep-dip. CAUTION: 7-token diversity = pseudo-replication risk. FAST-CUT: retire if forward WR<60% by n=20 closes or net-negative at n>=12 distinct tokens.",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "1m_volume_spike",
+      ">=",
+      0.4
+    ],
+    [
+      "1m_cum_3min_pct",
+      ">=",
+      -3
+    ],
+    [
+      "higher_low_5m",
+      ">=",
+      0.5
+    ],
+    [
+      "trend_30m_n_pivot_lows",
+      ">=",
+      3.5
+    ]
+  ],
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_btc_overheat",
+    "filter_consec_red",
+    "filter_huge_wick"
+  ],
+  "hard_stop_pct": -15.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 3,
+  "mcap_max": null,
+  "mcap_min": null,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": true,
+  "never_runner_loss_floor": -6.0,
+  "never_runner_minutes": 60,
+  "never_runner_peak_max": 3.0,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": 60,
+  "slow_bleed_pnl_threshold": -8.0,
+  "sol_macro_h1_block_threshold": -0.7,
+  "sol_macro_h6_block_threshold": -0.3,
+  "tp1_pct": 5.0,
+  "tp1_sell_fraction": 0.75,
+  "tp2_pct": 7.0,
+  "tp2_sell_fraction": 0.25,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
+  "trail_pp": 1.5,
+  "triggers_allowed": [
+    "deep_1h_dip",
+    "pullback_in_uptrend",
+    "power_dip_runner",
+    "chart_quality_bottom",
+    "1s_demand_compound",
+    "1s_capit_reversal"
+  ],
+  "triggers_disabled": [],
+  "vol_h1_min": 1000.0,
+  "young_token_probe": true
+}

@@ -120,6 +120,15 @@ class BotConfig:
     pre_stop_bail_vol_m5_max: float = 500.0
     slow_bleed_minutes: int = 60
     slow_bleed_pnl_threshold: float = -8.0
+    # Stop gap-through guards (2026-06-10, momentum_shadow: 13 hard stops filled
+    # at avg -15.6% on a -12 stop). Both pre-TP1 only; None = off (default).
+    # giveback floor: once peak >= giveback_floor_peak_min, exit at
+    # giveback_floor_pnl_pct (8/13 gap-stops peaked +3.8..+9.9 then collapsed).
+    giveback_floor_peak_min: Optional[float] = None
+    giveback_floor_pnl_pct: Optional[float] = None
+    # fast-dump bail: exit at this pnl at ANY volume (the vol<500 condition on
+    # pre_stop_bail never fires on high-volume momentum dumps).
+    fast_bail_pnl_pct: Optional[float] = None
 
     # Trading window (UTC hours, half-open: [start, end))
     trading_hour_utc_start: int = 0

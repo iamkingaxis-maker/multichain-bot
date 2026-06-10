@@ -35,6 +35,9 @@ CANDIDATE_BOTS = {
     # contenders, and the regime evidence (fleet_floor_2h blocks 74%-won5/+36%-peak
     # candidates) says the young pond is hot right now.
     "young_probe_light", "young_probe_candidate",
+    # young-probe clone wave (2026-06-10): mined from the 81-close family record
+    # (74% WR) — uptrend-confirmation thesis, held-out 86%/95% test WR
+    "young_probe_stair", "young_probe_baseflow",
 }
 API = "https://gracious-inspiration-production.up.railway.app/api/trades?full=1&limit=5000"
 

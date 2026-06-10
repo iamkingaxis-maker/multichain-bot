@@ -562,6 +562,41 @@ class PerBotPositionManager:
             ))
             return decisions
 
+        # 1a. Giveback floor (2026-06-10 gap-through guard, pre-TP1): position
+        # already proved demand (peak >= min) then round-tripped — exit at the
+        # floor instead of riding to a gapped -15..-22% hard-stop fill
+        # (momentum_shadow: 8/13 gap-stops peaked +3.8..+9.9 first).
+        if (
+            not p.tp1_hit
+            and self.config.giveback_floor_pnl_pct is not None
+            and self.config.giveback_floor_peak_min is not None
+            and p.peak_pnl_pct >= self.config.giveback_floor_peak_min
+            and pnl_pct <= self.config.giveback_floor_pnl_pct
+        ):
+            decisions.append(ExitDecision(
+                token=token, kind="GIVEBACK_FLOOR",
+                reason=(f"giveback floor pnl={pnl_pct:.2f}% after peak "
+                        f"{p.peak_pnl_pct:+.1f}% (gap-through guard)"),
+                sell_fraction=1.0,
+            ))
+            return decisions
+
+        # 1b. Fast-dump bail (2026-06-10, pre-TP1): any-volume bail — the
+        # volume-gated pre-stop bail below never fires on high-volume momentum
+        # dumps, which gap the poll cadence straight through the hard stop.
+        if (
+            not p.tp1_hit
+            and self.config.fast_bail_pnl_pct is not None
+            and pnl_pct <= self.config.fast_bail_pnl_pct
+        ):
+            decisions.append(ExitDecision(
+                token=token, kind="FAST_BAIL",
+                reason=(f"fast-dump bail pnl={pnl_pct:.2f}% <= "
+                        f"{self.config.fast_bail_pnl_pct} (any volume, gap-through guard)"),
+                sell_fraction=1.0,
+            ))
+            return decisions
+
         # 2. Pre-stop bail (volume-aware, only pre-TP1)
         if (
             not p.tp1_hit

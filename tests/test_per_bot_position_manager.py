@@ -733,3 +733,43 @@ def test_scalein_first_fraction_never_enlarges():
 def test_scalein_first_fraction_bad_slip_falls_back():
     cfg = _cfg(scalein_first_fraction=0.5)
     assert scalein_first_fraction(cfg, "oops") == 0.5
+
+
+# ── Stop gap-through guards (2026-06-10, momentum_shadow) ──────────────────────
+
+
+def test_giveback_floor_fires_after_peak():
+    pm = PerBotPositionManager(_cfg(
+        giveback_floor_peak_min=4.0, giveback_floor_pnl_pct=-6.0,
+    ))
+    pm.open_position("GAP", 0.001, 20.0, entry_time=1.0)
+    # ride to +4.5% (arms the floor, stays below the +5% TP1), then collapse to -7%
+    pm.tick(token="GAP", current_price=0.001045, now=2.0, vol_m5_usd=9000.0)
+    decisions = pm.tick(token="GAP", current_price=0.00093, now=3.0, vol_m5_usd=9000.0)
+    assert any(d.kind == "GIVEBACK_FLOOR" for d in decisions)
+
+
+def test_giveback_floor_NOT_armed_without_peak():
+    pm = PerBotPositionManager(_cfg(
+        giveback_floor_peak_min=4.0, giveback_floor_pnl_pct=-6.0,
+    ))
+    pm.open_position("GAP", 0.001, 20.0, entry_time=1.0)
+    # never green: -7% straight down — floor must NOT fire (never_runner's job)
+    decisions = pm.tick(token="GAP", current_price=0.00093, now=2.0, vol_m5_usd=9000.0)
+    assert not any(d.kind == "GIVEBACK_FLOOR" for d in decisions)
+
+
+def test_fast_bail_fires_at_any_volume():
+    pm = PerBotPositionManager(_cfg(fast_bail_pnl_pct=-9.0))
+    pm.open_position("DUMP", 0.001, 20.0, entry_time=1.0)
+    # high-volume dump to -10%: the volume-gated pre-stop bail can't fire, this must
+    decisions = pm.tick(token="DUMP", current_price=0.0009, now=2.0, vol_m5_usd=50000.0)
+    assert any(d.kind == "FAST_BAIL" for d in decisions)
+
+
+def test_gap_guards_off_by_default():
+    pm = PerBotPositionManager(_cfg())
+    pm.open_position("OFF", 0.001, 20.0, entry_time=1.0)
+    pm.tick(token="OFF", current_price=0.00105, now=2.0, vol_m5_usd=9000.0)
+    decisions = pm.tick(token="OFF", current_price=0.0009, now=3.0, vol_m5_usd=9000.0)
+    assert not any(d.kind in ("GIVEBACK_FLOOR", "FAST_BAIL") for d in decisions)
