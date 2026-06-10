@@ -80,8 +80,14 @@ class WalletDiscovery:
             if self._gt_session is None:
                 self._gt_session = cr.Session(impersonate="chrome")
             r = self._gt_session.get(url, timeout=30)
-            return r.json() if r.status_code == 200 else None
-        except Exception:
+            if r.status_code == 200:
+                return r.json()
+            self._last_gt_error = f"HTTP {r.status_code}"
+            return None
+        except Exception as e:
+            # pass #1 on 2026-06-10 returned 0 runners with zero diagnostics —
+            # never fail silently again
+            self._last_gt_error = f"{type(e).__name__}: {e}"
             return None
 
     async def _find_runners(self) -> list[dict]:
@@ -93,11 +99,14 @@ class WalletDiscovery:
         ]
         now = datetime.now(timezone.utc)
         seen: dict = {}
+        gt_ok = gt_fail = 0
         for u in urls:
             j = await asyncio.to_thread(self._gt_get, u)
             if not j:
+                gt_fail += 1
                 await asyncio.sleep(4)
                 continue
+            gt_ok += 1
             for it in j.get("data", []):
                 a = it.get("attributes", {})
                 ca = a.get("pool_created_at")
@@ -127,6 +136,12 @@ class WalletDiscovery:
                    if c["age_h"] <= MAX_AGE_H and c["liq"] >= MIN_LIQ
                    and c["h6"] >= MIN_PUMP_H6]
         runners.sort(key=lambda x: -x["h6"])
+        if gt_fail:
+            logger.warning(f"[WalletDiscovery] GT: {gt_ok} ok / {gt_fail} failed "
+                           f"(last: {getattr(self, '_last_gt_error', '?')}) | "
+                           f"pools seen={len(seen)} runners={len(runners)}")
+        else:
+            logger.info(f"[WalletDiscovery] GT ok: pools={len(seen)} runners={len(runners)}")
         return runners[:MAX_RUNNERS_PER_PASS]
 
     async def _harvest(self, runners: list[dict]) -> dict:

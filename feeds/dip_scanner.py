@@ -1060,6 +1060,18 @@ class DipScanner:
             # Live-probe per-leg fill instrumentation (None in paper -> no-op).
             **(_live_instrument or {}),
         }
+        # Per-trigger token-state SHADOW (2026-06-10): stamp pass/block/na for
+        # each fired trigger with a mined state gate (06-08 7-agent map, held-out
+        # in both folds). Zero behavior change — forward validation at n>=50/gate
+        # decides enforcement. See core/trigger_state_gates.py.
+        try:
+            from core.trigger_state_gates import trigger_state_verdicts
+            _ts_verdicts = trigger_state_verdicts(
+                decision.triggers_fired, bundle.raw_meta)
+            if _ts_verdicts:
+                _entry_meta = {**_entry_meta, "trigger_state_shadow": _ts_verdicts}
+        except Exception:
+            pass  # instrumentation must never block a buy
         if self.trade_store is not None:
             self.trade_store.record_trade({
                 "type": "buy",
