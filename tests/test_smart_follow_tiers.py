@@ -65,3 +65,33 @@ def test_strategy_prefix_covers_tier_pods():
     for tag in ("smart_follow", "smart_follow_k2", "smart_follow_solo"):
         assert tag.startswith("smart_follow")
     assert not "scanner".startswith("smart_follow")
+
+
+def test_convex_tier_resolution_and_cap():
+    s = _mk_strategy()
+    s.convex = {"wConvex"}
+    s.solo = set()
+    s.high_tier = set()
+    s.tier_caps_per_hour = {"k2": 8, "solo": 6, "convex": 1}
+    s._tier_fires = {"k2": [], "solo": [], "convex": []}
+    now = 1_000_000
+    # single convex-pod wallet buy -> convex tier eligible
+    assert s._tier_cap_ok("convex", now)
+    s._tier_fires["convex"].append(now)
+    assert not s._tier_cap_ok("convex", now + 10)      # cap=1 consumed
+    assert s._tier_cap_ok("convex", now + 3601)        # rolls off
+
+
+def test_convex_payoff_overrides_in_pm():
+    # convex: tiny TP1 partial + NO grace; other follow tags: 0.65 + grace-eligible
+    assert "smart_follow_convex".startswith("smart_follow")
+    tp1 = lambda strat: (0.10 if strat == "smart_follow_convex"
+                         else 0.65 if strat.startswith("smart_follow") else None)
+    assert tp1("smart_follow_convex") == 0.10
+    assert tp1("smart_follow") == 0.65
+    assert tp1("smart_follow_k2") == 0.65
+    assert tp1("scanner") is None
+    grace_eligible = lambda strat: (strat.startswith("smart_follow")
+                                    and strat != "smart_follow_convex")
+    assert not grace_eligible("smart_follow_convex")
+    assert grace_eligible("smart_follow_solo")

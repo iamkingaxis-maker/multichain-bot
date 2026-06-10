@@ -823,11 +823,20 @@ class PositionManager:
                     # rode (manual sell, missed ~$70). 0.65 keeps giveback protection (65%
                     # locked at +5%; remnant trails near peak on faders) while leaving a 35%
                     # runner slice that the new peak-scaled trail lets run on moonshots (2026-06-09).
-                    tp1_sell_override=(0.65
+                    # CONVEX tier (2026-06-10): tiny TP1 partial (10%) — the 90%
+                    # remainder rides the peak-scaled trail. The elites' payoff
+                    # is the tail (winners p90 +107%); the 0.65 bank-the-pop
+                    # override is right for consensus fires, wrong for convex.
+                    tp1_sell_override=(0.10
+                                       if getattr(pos, "strategy", "") == "smart_follow_convex"
+                                       else 0.65
                                        if getattr(pos, "strategy", "").startswith("smart_follow")
                                        else None),
                     follow_origin=getattr(pos, "strategy", "").startswith("smart_follow"),
+                    # convex NEVER takes stop-grace: the decode says cut fast
+                    # (their own median loser exit = -15.2% ≈ our -15 dip stop)
                     stop_grace=(getattr(pos, "strategy", "").startswith("smart_follow")
+                                and getattr(pos, "strategy", "") != "smart_follow_convex"
                                 and _stop_grace_arm(addr)),
                     tp1_hit=bool(getattr(pos, "take_profit_1_hit", False)),
                     tp2_hit=bool(getattr(pos, "take_profit_2_hit", False)),

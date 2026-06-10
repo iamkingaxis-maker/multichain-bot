@@ -85,8 +85,9 @@ def is_candidate(t, buy_strategy_by_key):
     # different eras (only the legacy tracker pipeline carries strategy tags,
     # so address-level attribution is unambiguous).
     k = (t.get("pair_address") or t.get("address") or "").lower()
-    if buy_strategy_by_key.get(k) == "smart_follow":
-        return "smart_follow"
+    strat = str(buy_strategy_by_key.get(k) or "")
+    if strat.startswith("smart_follow"):
+        return strat   # each tier (k3/k2/solo/convex) judged as its own line
     return None
 
 

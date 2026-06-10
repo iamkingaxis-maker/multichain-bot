@@ -126,8 +126,15 @@ class SmartMoneyFollowStrategy:
         tiers = _load_json_cfg("config/follow_tiers.json", {})
         self.high_tier = set(tiers.get("high_tier") or [])
         self.solo = set(tiers.get("solo") or [])
-        self._tier_fires = {"k2": [], "solo": []}   # rolling fire timestamps
-        self.tier_caps_per_hour = {"k2": 8, "solo": 6}
+        # CONVEX pod (2026-06-10, 4th tier): copy the tail-hunters in THEIR
+        # payoff shape — $25 probes, K=1 breadth, tiny TP1 partial (10%), 90%
+        # rides the peak-scaled trail, fast -15 cut (their own median loser),
+        # NO stop-grace, NO flush gate (they enter spikes, not dips), tighter
+        # chase limit. Decode: 500 elite round-trips = 51% WR but winners p90
+        # +107% — the tail IS the strategy; capping it was our copy's bug.
+        self.convex = set(tiers.get("convex") or [])
+        self._tier_fires = {"k2": [], "solo": [], "convex": []}   # rolling fire ts
+        self.tier_caps_per_hour = {"k2": 8, "solo": 6, "convex": 8}
         # Fire-quality sizing (config/follow_quality.json): SHADOW ONLY —
         # stamps would_size_mult into the fire log; enforce at n>=40/wallet.
         self.fire_quality = {kk: v for kk, v in
@@ -231,15 +238,19 @@ class SmartMoneyFollowStrategy:
             logger.info(f"[SmartFollow] {len(wset)} wallet(s) bought {mint[:10]} but no DexScreener price — skip")
             return
         self.signals_fired += 1
-        tag = {"k3": "smart_follow", "k2": "smart_follow_k2", "solo": "smart_follow_solo"}[tier]
+        tag = {"k3": "smart_follow", "k2": "smart_follow_k2",
+               "solo": "smart_follow_solo", "convex": "smart_follow_convex"}[tier]
         reason = f"smart-follow[{tier}]: {len(wset)} wallet(s) bought within {self.window_sec//60}min"
-        # flush-depth verdict: pc_h1 must show a real flush to fire
-        gate_mode = _flush_gate_mode()
+        # flush-depth verdict: pc_h1 must show a real flush to fire.
+        # CONVEX tier bypasses the gate (the tail-hunters enter SPIKES, not dips
+        # — dip-conditioning their copies re-introduces the payoff mismatch);
+        # verdict still logged for the forward audit.
+        gate_mode = _flush_gate_mode() if tier != "convex" else "off"
         max_pch1 = _flush_gate_max_pch1()
         pc_h1 = info.get("pc_h1")
         shallow = pc_h1 is None or pc_h1 > max_pch1
         gate_verdict = "blocked" if (shallow and gate_mode == "enforce") else (
-            "shadow_block" if (shallow and gate_mode == "shadow") else "pass")
+            "shadow_block" if (shallow and gate_mode in ("shadow", "off")) else "pass")
         # fire-quality size shadow (config/follow_quality.json): stamp only —
         # enforcement waits for n>=40/wallet on the new-list fire board.
         quals = [self.fire_quality[w] for w in wset if w in self.fire_quality]
@@ -279,8 +290,13 @@ class SmartMoneyFollowStrategy:
                 price_usd=info["price"], liquidity_usd=info["liq"],
                 volume_h1=info["vol_h1"], mcap=info["mcap"], price_change_h1=info["pc_h1"],
                 # max-chase guard: skip the fill if price ran past the fire price
-                # during security checks (we'd be buying the push, not the entry)
-                max_price_usd=info["price"] * (1 + _max_chase_pct() / 100.0))
+                # during security checks (we'd be buying the push, not the entry).
+                # convex enters spikes -> tighter limit (late on a spike = the killer).
+                max_price_usd=info["price"] * (1 + (min(_max_chase_pct(), 1.0)
+                                                    if tier == "convex"
+                                                    else _max_chase_pct()) / 100.0),
+                # convex = many small tickets: $25 probes vs the $100 default
+                override_usd=(25.0 if tier == "convex" else 0.0))
         except Exception as e:
             logger.warning(f"[SmartFollow] process_external_signal error: {e}")
 
@@ -427,6 +443,8 @@ class SmartMoneyFollowStrategy:
                     tier = "k2"
                 elif (wset & self.solo) and self._tier_cap_ok("solo", now):
                     tier = "solo"
+                elif (wset & self.convex) and self._tier_cap_ok("convex", now):
+                    tier = "convex"
                 if tier is None:
                     continue
                 if mint in self._fired and now - self._fired[mint] < self.fire_cooldown:

@@ -2314,6 +2314,7 @@ class MultiSourceScanner:
                                      mcap: float = 0.0,
                                      price_change_h1: float = 0.0,
                                      max_price_usd: float = 0.0,
+                                     override_usd: float = 0.0,
                                      ) -> bool:
         """
         Entry point for edge strategies (CrossWalletConvergence, CapitulationReversal)
@@ -2392,7 +2393,7 @@ class MultiSourceScanner:
         )
 
         await self._fire_chart_buy(signal, risk_level, strategy_tag=strategy_tag,
-                                   max_price_usd=max_price_usd)
+                                   max_price_usd=max_price_usd, override_usd=override_usd)
         return True
 
     async def _sol_macro_ok_check(self) -> bool:
@@ -3266,7 +3267,7 @@ class MultiSourceScanner:
         return True
 
     async def _fire_chart_buy(self, signal: TokenSignal, risk_level: str, strategy_tag: str = "scanner",
-                              max_price_usd: float = 0.0):
+                              max_price_usd: float = 0.0, override_usd: float = 0.0):
         """Execute the buy after all dip/chart checks have passed."""
         addr_lower = signal.token_address.lower()
         if addr_lower in self.trader.open_positions or addr_lower in self._pending_buys:
@@ -3274,12 +3275,13 @@ class MultiSourceScanner:
         self._pending_buys.add(addr_lower)
         try:
             await self._fire_chart_buy_inner(signal, risk_level, addr_lower, strategy_tag=strategy_tag,
-                                             max_price_usd=max_price_usd)
+                                             max_price_usd=max_price_usd, override_usd=override_usd)
         finally:
             self._pending_buys.discard(addr_lower)
 
     async def _fire_chart_buy_inner(self, signal: TokenSignal, risk_level: str, addr_lower: str,
-                                    strategy_tag: str = "scanner", max_price_usd: float = 0.0):
+                                    strategy_tag: str = "scanner", max_price_usd: float = 0.0,
+                                    override_usd: float = 0.0):
         """Inner implementation — called only by _fire_chart_buy which holds _pending_buys."""
         # Re-validate score at fire time — the signal may have been cached in the dip
         # watchlist or bounce confirmer queue and the score could have drifted below
@@ -3411,7 +3413,9 @@ class MultiSourceScanner:
             # Fast-entry cohort showed entries now catch the +5.4% pop, but $200 amplified the
             # exit-givebacks (-$19.6 single, -$4.5 x7) -> net -$41.5 even on a green token. Cap
             # the unproven strategy to $100 while we calibrate the exit. Other tags unchanged.
-            override_usd=(100.0 if strategy_tag == "smart_follow" else 0.0),
+            # 2026-06-10: caller-provided override (convex tier's $25 probes) wins.
+            override_usd=(override_usd if override_usd > 0
+                          else (100.0 if strategy_tag.startswith("smart_follow") else 0.0)),
             force_paper=True,  # C3 (2026-06-04 audit): legacy MSS not on live_probe allowlist -> always paper
             pair_address=signal.pair_address or "",
             market_cap_usd=signal.mcap,
