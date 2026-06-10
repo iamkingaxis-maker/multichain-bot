@@ -142,3 +142,14 @@ scripts/_*.pkl
 # cloudflare worker build/test caches (source IS committed):
 cloudflare_worker/.wrangler/
 cloudflare_worker/.pytest_cache/
+
+# Analysis archive (sprint scripts + data dumps live on disk, not in git;
+# scripts already tracked before the 2026-06-10 sweep stay tracked)
+analysis/
+!analysis/2026-06/MANIFEST.md
+
+# Root-level one-off outputs — archive scripts under analysis/<sprint>/ instead
+/_*.err
+/_*.out
+/_*.npy
+/*.pkl
