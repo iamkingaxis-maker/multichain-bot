@@ -15,6 +15,40 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
+
+# ── smart_follow stop-grace A/B (2026-06-10) ────────────────────────────────
+# See PositionState.stop_grace for the evidence. Paper A/B: treatment assigned
+# by deterministic token-address parity so the arm is recomputable offline from
+# the trade record (no new persistence needed).
+def _grace_mode() -> str:
+    m = os.environ.get("SMART_FOLLOW_STOP_GRACE_MODE", "ab").strip().lower()
+    return m if m in ("ab", "all", "off") else "ab"
+
+
+def _grace_minutes() -> float:
+    try:
+        return float(os.environ.get("SMART_FOLLOW_STOP_GRACE_MIN", "45"))
+    except Exception:
+        return 45.0
+
+
+def _grace_floor_pct() -> float:
+    """Catastrophic stop that still fires during grace (rug guard)."""
+    try:
+        return float(os.environ.get("SMART_FOLLOW_STOP_GRACE_FLOOR_PCT", "50"))
+    except Exception:
+        return 50.0
+
+
+def _stop_grace_arm(token_address: str) -> bool:
+    """Deterministic ~50/50 treatment assignment by token-address parity."""
+    mode = _grace_mode()
+    if mode == "off":
+        return False
+    if mode == "all":
+        return True
+    return sum(ord(c) for c in (token_address or "")) % 2 == 0
+
 COINGECKO_BTC = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true"
 DEXSCREENER_TOKEN = "https://api.dexscreener.com/latest/dex/tokens/"
 
@@ -44,6 +78,15 @@ class PositionState:
     reason: str = ""
     is_micro_cap: bool = False
     strategy: str = "scanner"  # "graduation" gets wider stop loss
+    # smart_follow stop-grace A/B (2026-06-10, AxiS-approved): post-stop trajectory
+    # test on all 19 hard-stopped smart_follow positions showed 14 (74%) recovered
+    # >15% above the stop within 12h (median ~+35%) — the stops fire into the entry
+    # whipsaw of multi-hour theses. Treatment arm (deterministic token-address
+    # parity) suppresses the hard stop for the first SMART_FOLLOW_STOP_GRACE_MIN
+    # minutes, with a catastrophic floor (SMART_FOLLOW_STOP_GRACE_FLOOR_PCT) that
+    # always stops — bounds the 4-in-19 keep-falling case. Control = current stops.
+    follow_origin: bool = False
+    stop_grace: bool = False  # treatment arm: hard stop deferred during grace window
     # Per-position TP1 sell-fraction override (2026-06-08): smart_follow rides fast-fade
     # momentum spikes that peak +8-17% then give back ~15pp on the dip ladder's 50%-then-
     # trail. Setting this higher (take more at TP1) captures the pop. None = use dip_tp1_sell.
@@ -459,6 +502,7 @@ class PositionManager:
         self._states: Dict[str, PositionState] = {}
         self._last_volume_check: Dict[str, datetime] = {}
         self._stop_triggered: set = set()  # De-dup for realtime stops
+        self._grace_logged: set = set()    # one STOP GRACE log per token (realtime path)
         self._tp_triggered: set = set()    # De-dup for realtime TPs
         self._trail_triggered: set = set() # De-dup for realtime pre-TP1 trail
         self._post_tp1_trail_triggered: set = set()  # De-dup for realtime post-TP1 trail
@@ -779,6 +823,9 @@ class PositionManager:
                     tp1_sell_override=(0.65
                                        if getattr(pos, "strategy", "") == "smart_follow"
                                        else None),
+                    follow_origin=(getattr(pos, "strategy", "") == "smart_follow"),
+                    stop_grace=(getattr(pos, "strategy", "") == "smart_follow"
+                                and _stop_grace_arm(addr)),
                     tp1_hit=bool(getattr(pos, "take_profit_1_hit", False)),
                     tp2_hit=bool(getattr(pos, "take_profit_2_hit", False)),
                     current_price=entry_px,
@@ -2034,6 +2081,14 @@ class PositionManager:
 
             # ── DIP STOP LOSS ─────────────────────────────────────────
             if pnl_pct <= -self.dip_stop_pct:
+                if self._stop_grace_active(state, pnl_pct, age_s):
+                    logger.info(
+                        f"[PositionManager/{self.chain_name}] ⏳ STOP GRACE: "
+                        f"{state.token_symbol} at {pnl_pct:.1f}% "
+                        f"(age {age_s/60:.0f}min) — dip stop deferred "
+                        f"(smart_follow A/B treatment)"
+                    )
+                    return
                 logger.warning(
                     f"[PositionManager/{self.chain_name}] 🛑 DIP STOP: "
                     f"{state.token_symbol} at {pnl_pct:.1f}%"
@@ -2574,6 +2629,19 @@ class PositionManager:
         # check. Works directly against the graduated exit strategy.
         # Re-enable via config flag if strategy changes.
 
+    def _stop_grace_active(self, state, pnl_pct: float, age_seconds: float) -> bool:
+        """smart_follow stop-grace A/B: True while a treatment-arm position is
+        inside its grace window — the hard stop is DEFERRED (not cancelled; it
+        fires on the first check after the window) unless the catastrophic
+        floor is breached, which always stops."""
+        if not getattr(state, "stop_grace", False):
+            return False
+        if age_seconds >= _grace_minutes() * 60:
+            return False
+        if pnl_pct <= -_grace_floor_pct():
+            return False
+        return True
+
     def check_stop_loss_realtime(self, token_address: str, price_usd: float):
         """
         Called synchronously from the Axiom price feed on every price tick.
@@ -2656,6 +2724,16 @@ class PositionManager:
                 )
 
         if pnl_pct <= -stop_pct:
+            if self._stop_grace_active(state, pnl_pct, age_seconds):
+                if token_address not in self._grace_logged:
+                    self._grace_logged.add(token_address)
+                    logger.info(
+                        f"[PositionManager/{self.chain_name}] ⏳ STOP GRACE: "
+                        f"{state.token_symbol} at {pnl_pct:.1f}% "
+                        f"(age {age_seconds/60:.0f}min) — realtime stop deferred "
+                        f"(smart_follow A/B treatment)"
+                    )
+                return
             self._stop_triggered.add(token_address)
             state.current_price = price_usd
             label = (
