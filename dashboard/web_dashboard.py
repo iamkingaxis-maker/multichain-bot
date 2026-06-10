@@ -18,7 +18,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from aiohttp import web
@@ -539,10 +539,24 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
 <div class="main">
 
-  <!-- ── FLEET Panel ── -->
+  <!-- ── DAILY GOAL Panel (the question this page answers first) ── -->
+  <div class="fleet-panel" id="goal-panel">
+    <h2>DAILY GOAL — $100 CLOSED P&amp;L, LIVE-CANDIDATE SET (CT DAY)</h2>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <div style="font-size:28px;font-weight:700;" id="goal-today">$0</div>
+      <div style="flex:1;min-width:200px;background:#222;border-radius:6px;height:14px;overflow:hidden;">
+        <div id="goal-bar" style="height:100%;width:0%;background:#f44336;transition:width .5s;"></div>
+      </div>
+      <div id="goal-badge" style="font-size:12px;font-weight:700;letter-spacing:1px;">&nbsp;</div>
+    </div>
+    <div id="goal-contrib" style="font-size:11px;color:#888;margin-top:6px;"></div>
+    <div id="goal-history" style="font-size:11px;color:#888;margin-top:4px;"></div>
+  </div>
+
+  <!-- ── GOAL CANDIDATES (the bots racing toward live) ── -->
   <div class="fleet-panel">
-    <h2>FLEET</h2>
-    <table id="fleet-table">
+    <h2>GOAL CANDIDATES</h2>
+    <table id="cand-table">
       <thead>
         <tr>
           <th>Bot</th>
@@ -558,6 +572,27 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       <tbody></tbody>
     </table>
   </div>
+
+  <!-- ── EXPERIMENTS (selection instrument — judged individually, collapsed) ── -->
+  <details class="fleet-panel" id="experiments-panel">
+    <summary style="cursor:pointer;font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:#888;">
+      Experiments (<span id="exp-count">0</span>) — selection instrument, not a portfolio</summary>
+    <table id="fleet-table" style="margin-top:10px;">
+      <thead>
+        <tr>
+          <th>Bot</th>
+          <th>Balance</th>
+          <th>Open</th>
+          <th>Trades</th>
+          <th>WR</th>
+          <th>P&amp;L</th>
+          <th>$/tr</th>
+          <th>Tput &times; $/tr</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </details>
 
   <!-- ── Top Stat Cards ── -->
   <div class="stat-row">
@@ -1753,41 +1788,85 @@ async function updateSeedWalletScore(addr, newScore) {
 loadSeedWallets();
 setInterval(loadSeedWallets, 60000);
 
-// ── FLEET panel ────────────────────────────────────────────────────────────
+// ── GOAL meter + FLEET panels ───────────────────────────────────────────────
+let _candSet = null;
+async function updateGoal() {
+  try {
+    const resp = await fetch("/api/goal");
+    if (!resp.ok) return;
+    const g = await resp.json();
+    _candSet = new Set(g.candidate_bots);
+    const tot = g.today.total;
+    const el = document.getElementById("goal-today");
+    el.textContent = (tot < 0 ? "-$" : "$") + Math.abs(tot).toFixed(0);
+    el.style.color = tot >= g.goal_usd ? "#4caf50" : (tot >= 0 ? "#e0e0e0" : "#f44336");
+    const pct = Math.max(0, Math.min(100, 100 * tot / g.goal_usd));
+    const bar = document.getElementById("goal-bar");
+    bar.style.width = pct + "%";
+    bar.style.background = tot >= g.goal_usd ? "#4caf50" : (tot >= 0 ? "#ff9800" : "#f44336");
+    const badge = document.getElementById("goal-badge");
+    badge.textContent = tot >= g.goal_usd ? "MET ✓" : `$${(g.goal_usd - tot).toFixed(0)} to go`;
+    badge.style.color = tot >= g.goal_usd ? "#4caf50" : "#888";
+    const contrib = Object.entries(g.today.by_bot).slice(0, 5)
+      .map(([b, v]) => `${b} ${v >= 0 ? "+" : ""}${v.toFixed(0)}`).join(" · ");
+    document.getElementById("goal-contrib").textContent = contrib || "no closed trades yet today";
+    const hist = g.history.map(h =>
+      `${h.day.slice(5)} ${h.met ? "✓" : (h.total >= 0 ? "+" : "") + h.total.toFixed(0)}`).join("  ");
+    document.getElementById("goal-history").textContent =
+      (hist ? "last days: " + hist + "  ·  " : "") +
+      `streak: ${g.streak_complete_days} (need 5 before go-live talk)`;
+  } catch (e) {
+    console.error("updateGoal failed", e);
+  }
+}
+
+function botRowHtml(b) {
+  const wr = b.total_trades > 0 ? (100 * b.wins / b.total_trades).toFixed(0) + "%" : "--";
+  const perTr = b.total_trades > 0 ? "$" + (b.total_pnl_realized / b.total_trades).toFixed(2) : "--";
+  const pnlClass = b.total_pnl_realized > 0 ? "pnl-pos" : (b.total_pnl_realized < 0 ? "pnl-neg" : "");
+  return `<tr>
+    <td>${escHtml(b.bot_id)}</td>
+    <td>$${b.balance_usd.toFixed(2)}</td>
+    <td>${b.open_position_count}</td>
+    <td>${b.total_trades}</td>
+    <td>${wr}</td>
+    <td class="${pnlClass}">$${b.total_pnl_realized.toFixed(2)}</td>
+    <td>${perTr}</td>
+    <td>$${b.total_pnl_realized.toFixed(2)}</td>
+  </tr>`;
+}
+
 async function updateFleet() {
   try {
+    if (_candSet === null) await updateGoal();
     const resp = await fetch("/api/leaderboard?sort=throughput_x_pnl");
     if (!resp.ok) return;
     const bots = await resp.json();
-    const tbody = document.querySelector("#fleet-table tbody");
-    tbody.innerHTML = "";
+    const cand = document.querySelector("#cand-table tbody");
+    const exp = document.querySelector("#fleet-table tbody");
+    cand.innerHTML = ""; exp.innerHTML = "";
     if (!bots.length) {
-      tbody.innerHTML = '<tr><td colspan="8" class="empty">No bots registered yet</td></tr>';
+      cand.innerHTML = '<tr><td colspan="8" class="empty">No bots registered yet</td></tr>';
       return;
     }
+    let nExp = 0;
     for (const b of bots) {
-      const wr = b.total_trades > 0 ? (100 * b.wins / b.total_trades).toFixed(0) + "%" : "--";
-      const perTr = b.total_trades > 0 ? "$" + (b.total_pnl_realized / b.total_trades).toFixed(2) : "--";
-      const tputXPnl = b.total_pnl_realized;
-      const pnlClass = b.total_pnl_realized > 0 ? "pnl-pos" : (b.total_pnl_realized < 0 ? "pnl-neg" : "");
-      const row = `<tr>
-        <td>${escHtml(b.bot_id)}</td>
-        <td>$${b.balance_usd.toFixed(2)}</td>
-        <td>${b.open_position_count}</td>
-        <td>${b.total_trades}</td>
-        <td>${wr}</td>
-        <td class="${pnlClass}">$${b.total_pnl_realized.toFixed(2)}</td>
-        <td>${perTr}</td>
-        <td>$${tputXPnl.toFixed(2)}</td>
-      </tr>`;
-      tbody.insertAdjacentHTML("beforeend", row);
+      if (_candSet && _candSet.has(b.bot_id)) {
+        cand.insertAdjacentHTML("beforeend", botRowHtml(b));
+      } else {
+        exp.insertAdjacentHTML("beforeend", botRowHtml(b));
+        nExp++;
+      }
     }
+    if (!cand.innerHTML) cand.innerHTML = '<tr><td colspan="8" class="empty">candidate bots have no rows yet</td></tr>';
+    document.getElementById("exp-count").textContent = nExp;
   } catch (e) {
     console.error("updateFleet failed", e);
   }
 }
 setInterval(updateFleet, 45000);  // 2026-06-04 15s->45s (egress)
-updateFleet();
+setInterval(updateGoal, 60000);
+updateGoal().then(updateFleet);
 </script>
 
 <!-- Breakout Strategy -->
@@ -2163,6 +2242,7 @@ class WebDashboard:
         self.app.router.add_get("/api/diagnostics",         self._handle_diagnostics)
         self.app.router.add_get("/metrics",                 self._handle_metrics)
         self.app.router.add_get("/api/bots",                self._handle_api_bots)
+        self.app.router.add_get("/api/goal",                self._handle_api_goal)
         self.app.router.add_get("/api/leaderboard",         self._handle_api_leaderboard)
         self.app.router.add_get("/api/bots/{bot_id}/trades",    self._handle_api_bot_trades)
         self.app.router.add_get("/api/bots/{bot_id}/positions", self._handle_api_bot_positions)
@@ -4290,6 +4370,68 @@ class WebDashboard:
     async def _handle_api_bots(self, request):
         """GET /api/bots — list all bots with balance/pnl/open count."""
         return web.json_response(self._build_bot_rows())
+
+    async def _handle_api_goal(self, request):
+        """GET /api/goal — $100/day goal meter for the LIVE-CANDIDATE set.
+
+        Mirrors scripts/goal_tracker.py exactly (single source of truth for the
+        candidate set + goal): closed-sell P&L bucketed by CT day (UTC-5),
+        smart_follow sells attributed via their buy's strategy tag. Computed
+        from trade_store locally — no API egress.
+        """
+        try:
+            from scripts.goal_tracker import CANDIDATE_BOTS, GOAL_USD_PER_DAY
+        except Exception:
+            return web.json_response({"error": "goal_tracker unavailable"}, status=500)
+        trades = self.trade_store.load_trades() if self.trade_store else []
+        buy_strat = {}
+        for t in trades:
+            if t.get("type") == "buy" and t.get("strategy"):
+                k = ((t.get("pair_address") or t.get("address") or "").lower(),
+                     t.get("bot_id") or "")
+                buy_strat[k] = t.get("strategy")
+        daily: dict = {}
+        for t in trades:
+            if t.get("type") != "sell":
+                continue
+            if "cancelled on restart" in (t.get("reason") or "").lower():
+                continue
+            who = t.get("bot_id") if t.get("bot_id") in CANDIDATE_BOTS else None
+            if not who:
+                k = ((t.get("pair_address") or t.get("address") or "").lower(),
+                     t.get("bot_id") or "")
+                if buy_strat.get(k) == "smart_follow":
+                    who = "smart_follow"
+            if not who:
+                continue
+            try:
+                dt = datetime.fromisoformat(str(t.get("time")).replace("Z", "+00:00"))
+                day = (dt - timedelta(hours=5)).strftime("%Y-%m-%d")
+            except Exception:
+                continue
+            daily.setdefault(day, {}).setdefault(who, 0.0)
+            daily[day][who] += float(t.get("pnl") or 0)
+        days = sorted(daily)
+        today_ct = (datetime.now(timezone.utc) - timedelta(hours=5)).strftime("%Y-%m-%d")
+        today_bots = daily.get(today_ct, {})
+        streak = 0  # complete CT days only (today still in progress)
+        for day in days:
+            if day >= today_ct:
+                continue
+            streak = streak + 1 if sum(daily[day].values()) >= GOAL_USD_PER_DAY else 0
+        history = [{"day": d, "total": round(sum(daily[d].values()), 2),
+                    "met": sum(daily[d].values()) >= GOAL_USD_PER_DAY}
+                   for d in days[-8:] if d < today_ct]
+        return web.json_response({
+            "goal_usd": GOAL_USD_PER_DAY,
+            "candidate_bots": sorted(CANDIDATE_BOTS),
+            "today": {"day": today_ct,
+                      "total": round(sum(today_bots.values()), 2),
+                      "by_bot": {b: round(v, 2) for b, v in
+                                 sorted(today_bots.items(), key=lambda kv: -kv[1])}},
+            "history": history[-7:],
+            "streak_complete_days": streak,
+        })
 
     async def _handle_api_leaderboard(self, request):
         """GET /api/leaderboard?sort=X — sortable fleet leaderboard."""
