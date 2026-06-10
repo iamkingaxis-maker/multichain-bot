@@ -1,0 +1,10 @@
+{
+  "_doc": "smart_follow K-tier pods (2026-06-10). high_tier: fire at K=2 consensus. solo: fire at K=1 (rate-capped). Edit + redeploy to retier.",
+  "high_tier": [
+    "V21GW8PGcWRE5DnbjHZXhcjiBYhJxmjBHqAUkfBm2n9",
+    "HmP3TxuVWkiJjS6mii9WPzRFeF9hnUjs1YMHCAB4AZm4"
+  ],
+  "solo": [
+    "Abk9EfhWsLnxuMm7qJXvMYNyvKgtp8sfSoL45srMzP49"
+  ]
+}

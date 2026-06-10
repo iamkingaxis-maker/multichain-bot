@@ -62,6 +62,10 @@ def _append_jsonl(path: str, rec: dict):
 # buy multi-hour theses — entering on a flat/pumping tape buys the fade.
 # Modes: enforce (default) = block shallow fires; shadow = log verdict, still fire; off.
 # Every fire (blocked included) keeps its _FOLLOW_LOG record for threshold tuning.
+def _elite_exit_on() -> bool:
+    return os.environ.get("SMART_FOLLOW_ELITE_EXIT", "on").strip().lower() != "off"
+
+
 def _flush_gate_mode() -> str:
     m = os.environ.get("SMART_FOLLOW_FLUSH_GATE", "enforce").strip().lower()
     return m if m in ("enforce", "shadow", "off") else "enforce"
@@ -74,10 +78,18 @@ def _flush_gate_max_pch1() -> float:
         return -10.0
 
 
+def _load_json_cfg(path: str, default):
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception:
+        return default
+
+
 class SmartMoneyFollowStrategy:
     def __init__(self, scanner, telegram=None, watchlist=None, quality=None,
                  k=3, window_sec=600, poll_interval_sec=120, fire_cooldown_sec=3600,
-                 min_signal_score=70):
+                 min_signal_score=70, position_manager=None):
         self.scanner = scanner
         self.telegram = telegram
         self.watchlist = list(watchlist or [])
@@ -87,15 +99,40 @@ class SmartMoneyFollowStrategy:
         self.poll_interval = poll_interval_sec
         self.fire_cooldown = fire_cooldown_sec
         self.min_signal_score = min_signal_score
+        self.position_manager = position_manager  # for elite-exit mirroring
         self._rr = 0
         self._seen = {}          # wallet -> set(recent sigs)
         self._buys = []          # [(token, wallet, blockTime)]
         self._fired = {}         # token -> fire_ts
         self._wallet_pos = {}    # (wallet, mint) -> (buy_bt, buy_sol) — open elite round-trips (for exit calibration)
+        # ── 2026-06-10 "serious love" build (AxiS) ──────────────────────────
+        # Elite-exit mirroring: remember WHICH wallets triggered each fire so
+        # their SELLS can exit our position ("follow them out"). Evidence: the
+        # dip exits fight multi-hour theses (74% of stops recovered >15%).
+        self._fired_wallets = {}   # token -> set(trigger wallets)
+        self._elite_sold = {}      # token -> set(trigger wallets that have SOLD)
+        # K-tier pods (config/follow_tiers.json): K=2 high-tier + K=1 solo,
+        # each rate-capped — the 06-09 K=1 flood starved the event loop, so
+        # solo/k2 fire at most N times per rolling hour.
+        tiers = _load_json_cfg("config/follow_tiers.json", {})
+        self.high_tier = set(tiers.get("high_tier") or [])
+        self.solo = set(tiers.get("solo") or [])
+        self._tier_fires = {"k2": [], "solo": []}   # rolling fire timestamps
+        self.tier_caps_per_hour = {"k2": 8, "solo": 6}
+        # Fire-quality sizing (config/follow_quality.json): SHADOW ONLY —
+        # stamps would_size_mult into the fire log; enforce at n>=40/wallet.
+        self.fire_quality = {kk: v for kk, v in
+                             _load_json_cfg("config/follow_quality.json", {}).items()
+                             if not kk.startswith("_")}
+        # Realtime hot-queue: WS notifications enqueue wallets for an immediate
+        # targeted sweep instead of waiting out the poll interval.
+        self._hot = set()
+        self._hot_event = asyncio.Event()
         self.signals_fired = 0
         self.buys_seen = 0
         logger.info(f"[SmartFollow] init: {len(self.watchlist)} wallets | K={k} within {window_sec//60}min "
-                    f"| poll {poll_interval_sec}s (free RPC, no Helius)")
+                    f"| poll {poll_interval_sec}s | k2_pod={len(self.high_tier)} solo={len(self.solo)} "
+                    f"| elite_exit={'on' if position_manager else 'OFF (no PM ref)'} (free RPC, no Helius)")
 
     async def _rpc(self, session, method, params, tries=4):
         body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
@@ -172,14 +209,131 @@ class SmartMoneyFollowStrategy:
         except Exception:
             return None
 
+    def _tier_cap_ok(self, tier: str, now: int) -> bool:
+        lst = self._tier_fires[tier]
+        lst[:] = [t for t in lst if now - t < 3600]
+        return len(lst) < self.tier_caps_per_hour.get(tier, 0)
+
+    async def _fire(self, session, mint, wset, now, tier):
+        """Shared fire path for every tier: quote, flush gate, fire-quality
+        size shadow, log, route through process_external_signal."""
+        info = await self._token_info(session, mint)
+        if not info:
+            logger.info(f"[SmartFollow] {len(wset)} wallet(s) bought {mint[:10]} but no DexScreener price — skip")
+            return
+        self.signals_fired += 1
+        tag = {"k3": "smart_follow", "k2": "smart_follow_k2", "solo": "smart_follow_solo"}[tier]
+        reason = f"smart-follow[{tier}]: {len(wset)} wallet(s) bought within {self.window_sec//60}min"
+        # flush-depth verdict: pc_h1 must show a real flush to fire
+        gate_mode = _flush_gate_mode()
+        max_pch1 = _flush_gate_max_pch1()
+        pc_h1 = info.get("pc_h1")
+        shallow = pc_h1 is None or pc_h1 > max_pch1
+        gate_verdict = "blocked" if (shallow and gate_mode == "enforce") else (
+            "shadow_block" if (shallow and gate_mode == "shadow") else "pass")
+        # fire-quality size shadow (config/follow_quality.json): stamp only —
+        # enforcement waits for n>=40/wallet on the new-list fire board.
+        quals = [self.fire_quality[w] for w in wset if w in self.fire_quality]
+        fq_mean = round(sum(quals) / len(quals), 2) if quals else None
+        would_mult = (1.0 if fq_mean is None else
+                      1.25 if fq_mean > 0.5 else
+                      0.5 if fq_mean < -1.5 else
+                      0.75 if fq_mean < 0 else 1.0)
+        logger.info(f"[SmartFollow] 🎯 {reason} | {info['symbol']} {mint[:10]} "
+                    f"| flush_gate={gate_verdict} pc_h1={pc_h1} fq={fq_mean} would_mult={would_mult}")
+        # Track which wallets triggered this fire -> attribute trade outcomes to
+        # wallets later (join to /api/trades by token) -> prune junk wallets empirically.
+        _append_jsonl(_FOLLOW_LOG, {
+            "ts": now, "token": mint, "symbol": info.get("symbol"),
+            "wallets": sorted(wset), "n": len(wset),
+            "tier": tier, "flush_gate": gate_verdict,
+            "fq_mean": fq_mean, "would_size_mult": would_mult,
+            # token state at fire time (2026-06-09): already in hand from the
+            # DexScreener quote — costs no extra fetch.
+            "state": {
+                "price": info.get("price"), "liq": info.get("liq"),
+                "mcap": info.get("mcap"), "vol_h1": info.get("vol_h1"),
+                "pc_h1": info.get("pc_h1"),
+            },
+        })
+        if gate_verdict == "blocked":
+            return
+        # remember the triggers so their SELLS can exit us ("follow them out")
+        self._fired_wallets[mint] = set(wset)
+        self._elite_sold.pop(mint, None)
+        try:
+            await self.scanner.process_external_signal(
+                token_address=mint, token_symbol=info["symbol"], reason=reason,
+                signal_score=self.min_signal_score, strategy_tag=tag,
+                skip_chart_dip=True,  # follow the wallets into strength; the dip gate
+                                      # (built for dip-buying) rejects every follow signal
+                price_usd=info["price"], liquidity_usd=info["liq"],
+                volume_h1=info["vol_h1"], mcap=info["mcap"], price_change_h1=info["pc_h1"])
+        except Exception as e:
+            logger.warning(f"[SmartFollow] process_external_signal error: {e}")
+
+    async def _ws_watch(self):
+        """Realtime wallet watching (2026-06-10): logsSubscribe(mentions=wallet)
+        on the public Solana WS. A notification wakes the poll loop IMMEDIATELY
+        (instead of waiting out the 30s interval) — catch the pop, not the fade.
+        Fail-soft: any error -> reconnect with backoff; polling continues either way."""
+        url = "wss://api.mainnet-beta.solana.com"
+        backoff = 5
+        while True:
+            try:
+                async with aiohttp.ClientSession() as sess:
+                    async with sess.ws_connect(url, heartbeat=20) as ws:
+                        sub_to_wallet = {}
+                        for i, w in enumerate(self.watchlist):
+                            await ws.send_json({
+                                "jsonrpc": "2.0", "id": i + 1, "method": "logsSubscribe",
+                                "params": [{"mentions": [w]}, {"commitment": "confirmed"}]})
+                        logger.info(f"[SmartFollow] WS watch: subscribing {len(self.watchlist)} wallets")
+                        backoff = 5
+                        async for msg in ws:
+                            if msg.type != aiohttp.WSMsgType.TEXT:
+                                break
+                            try:
+                                j = json.loads(msg.data)
+                            except Exception:
+                                continue
+                            if (isinstance(j.get("id"), int) and "result" in j
+                                    and 1 <= j["id"] <= len(self.watchlist)):
+                                sub_to_wallet[j["result"]] = self.watchlist[j["id"] - 1]
+                                continue
+                            if j.get("method") != "logsNotification":
+                                continue
+                            sub = (j.get("params") or {}).get("subscription")
+                            w = sub_to_wallet.get(sub)
+                            if w:
+                                self._hot.add(w)
+                                self._hot_event.set()
+            except Exception as e:
+                logger.info(f"[SmartFollow] WS watch error ({type(e).__name__}: {e}) — reconnect in {backoff}s")
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 120)
+
     async def run(self):
         logger.info("[SmartFollow] starting run loop")
+        asyncio.ensure_future(self._ws_watch())
         while True:
             try:
                 await self._cycle()
             except Exception as e:
                 logger.warning(f"[SmartFollow] cycle error: {e}")
-            await asyncio.sleep(self.poll_interval)
+            # A WS wallet notification cuts the wait short so the next sweep runs
+            # while the buy is seconds old. 5s floor after a hot wake batches
+            # notification bursts and protects the event loop + free-RPC budget.
+            woke_hot = False
+            try:
+                await asyncio.wait_for(self._hot_event.wait(), timeout=self.poll_interval)
+                woke_hot = True
+            except asyncio.TimeoutError:
+                pass
+            self._hot_event.clear()
+            self._hot.clear()
+            if woke_hot:
+                await asyncio.sleep(5)
 
     async def _cycle(self):
         now = int(time.time())
@@ -215,6 +369,34 @@ class SmartMoneyFollowStrategy:
                                 "sol_out": round(sol, 4),
                                 "wallet_return_pct": round(ret * 100, 1) if ret is not None else None,
                             })
+                        # ── Elite-exit mirroring ("follow them out", 2026-06-10) ──
+                        # When enough of the wallets that TRIGGERED our entry have
+                        # sold, exit our remainder on THEIR timing — replaces the
+                        # dip ladder's guesswork on multi-hour follow theses.
+                        trig = self._fired_wallets.get(mint)
+                        if trig and w in trig and _elite_exit_on():
+                            sold = self._elite_sold.setdefault(mint, set())
+                            sold.add(w)
+                            need = 2 if len(trig) >= 2 else 1
+                            if len(sold) >= need:
+                                closed = False
+                                if self.position_manager is not None:
+                                    try:
+                                        closed = await self.position_manager.external_exit(
+                                            mint, f"smart-follow elite-exit "
+                                                  f"({len(sold)}/{len(trig)} triggers sold)")
+                                    except Exception as e:
+                                        logger.warning(f"[SmartFollow] elite-exit error: {e}")
+                                logger.info(f"[SmartFollow] 🚪 elite-exit {mint[:10]}: "
+                                            f"{len(sold)}/{len(trig)} triggers sold "
+                                            f"-> position_closed={closed}")
+                                _append_jsonl(_FOLLOW_LOG, {
+                                    "type": "elite_exit", "ts": int(time.time()),
+                                    "token": mint, "sold": sorted(sold),
+                                    "trig_n": len(trig), "position_closed": closed,
+                                })
+                                self._fired_wallets.pop(mint, None)
+                                self._elite_sold.pop(mint, None)
             # prune to window
             self._buys = [b for b in self._buys if now - b[2] <= self.window_sec]
             # TTL the open round-trips (drop entries whose buy is >24h old and never sold)
@@ -223,56 +405,28 @@ class SmartMoneyFollowStrategy:
             for mint, w, bt in self._buys:
                 bytok.setdefault(mint, set()).add(w)
             for mint, wset in bytok.items():
-                if len(wset) < self.k:
+                # K-tier resolution: K=3 full consensus -> K=2 high-tier pod ->
+                # K=1 solo probe. Pods are rate-capped per rolling hour (the
+                # 06-09 ungated K=1 starved the event loop).
+                tier = None
+                if len(wset) >= self.k:
+                    tier = "k3"
+                elif len(wset & self.high_tier) >= 2 and self._tier_cap_ok("k2", now):
+                    tier = "k2"
+                elif (wset & self.solo) and self._tier_cap_ok("solo", now):
+                    tier = "solo"
+                if tier is None:
                     continue
                 if mint in self._fired and now - self._fired[mint] < self.fire_cooldown:
                     continue
                 self._fired[mint] = now
-                info = await self._token_info(session, mint)
-                if not info:
-                    logger.info(f"[SmartFollow] {len(wset)} elite bought {mint[:10]} but no DexScreener price — skip")
-                    continue
-                self.signals_fired += 1
-                reason = f"smart-follow: {len(wset)} elite wallets bought within {self.window_sec//60}min"
-                # flush-depth verdict: pc_h1 must show a real flush to fire
-                gate_mode = _flush_gate_mode()
-                max_pch1 = _flush_gate_max_pch1()
-                pc_h1 = info.get("pc_h1")
-                shallow = pc_h1 is None or pc_h1 > max_pch1
-                gate_verdict = "blocked" if (shallow and gate_mode == "enforce") else (
-                    "shadow_block" if (shallow and gate_mode == "shadow") else "pass")
-                logger.info(f"[SmartFollow] 🎯 {reason} | {info['symbol']} {mint[:10]} "
-                            f"| flush_gate={gate_verdict} pc_h1={pc_h1}")
-                # Track which wallets triggered this fire -> attribute trade outcomes to
-                # wallets later (join to /api/trades by token) -> prune junk wallets empirically.
-                _append_jsonl(_FOLLOW_LOG, {
-                    "ts": now, "token": mint, "symbol": info.get("symbol"),
-                    "wallets": sorted(wset), "n": len(wset),
-                    "flush_gate": gate_verdict,
-                    # token state at fire time (2026-06-09): already in hand from the
-                    # DexScreener quote — costs no extra fetch. Enables the
-                    # momentum-vs-settled conditioning analysis on follow fires
-                    # (227 prior closes were unauditable: no state captured).
-                    "state": {
-                        "price": info.get("price"), "liq": info.get("liq"),
-                        "mcap": info.get("mcap"), "vol_h1": info.get("vol_h1"),
-                        "pc_h1": info.get("pc_h1"),
-                    },
-                })
-                if gate_verdict == "blocked":
-                    continue
-                try:
-                    await self.scanner.process_external_signal(
-                        token_address=mint, token_symbol=info["symbol"], reason=reason,
-                        signal_score=self.min_signal_score, strategy_tag="smart_follow",
-                        skip_chart_dip=True,  # follow the wallets into strength; the dip gate
-                                              # (built for dip-buying) rejects every follow signal
-                        price_usd=info["price"], liquidity_usd=info["liq"],
-                        volume_h1=info["vol_h1"], mcap=info["mcap"], price_change_h1=info["pc_h1"])
-                except Exception as e:
-                    logger.warning(f"[SmartFollow] process_external_signal error: {e}")
-            # prune fired
+                if tier in self._tier_fires:
+                    self._tier_fires[tier].append(now)
+                await self._fire(session, mint, wset, now, tier)
+            # prune fired + the elite-exit trigger maps alongside
             self._fired = {m: ts for m, ts in self._fired.items() if now - ts < self.fire_cooldown * 4}
+            self._fired_wallets = {m: s for m, s in self._fired_wallets.items() if m in self._fired}
+            self._elite_sold = {m: s for m, s in self._elite_sold.items() if m in self._fired}
             logger.info(f"[SmartFollow] cycle: buys_window={len(self._buys)} active_tokens={len(bytok)} "
                         f"max_consensus={max((len(s) for s in bytok.values()), default=0)} "
                         f"fired_total={self.signals_fired}")

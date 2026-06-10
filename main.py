@@ -596,6 +596,9 @@ async def main():
             # 502'd / hung). REVERTED to K=3/12-wallet (stable for 9h) to restore service.
             # Re-do K=1 safely later: single wallet (Abk9Efh) and/or a fire-rate cap.
             k=3, window_sec=600, poll_interval_sec=30,
+            # 2026-06-10: elite-exit mirroring needs the PM to close positions
+            # when the triggering wallets sell ("follow them out").
+            position_manager=sol_position_mgr,
         )
         tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run(),
                   sol_smart_follow.run()]

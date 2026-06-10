@@ -812,8 +812,11 @@ class PositionManager:
                     # and round-tripped every winner. This maps ONLY the internal exit
                     # state; the trade record (trader.sell -> pos.strategy) stays tagged
                     # 'smart_follow' for the dashboard + analysis.
+                    # startswith: covers smart_follow + the K-tier pods
+                    # (smart_follow_k2 / smart_follow_solo, 2026-06-10) so every
+                    # follow flavor inherits the tuned dip ladder + overrides.
                     strategy=("dip_buy"
-                              if getattr(pos, "strategy", "") == "smart_follow"
+                              if getattr(pos, "strategy", "").startswith("smart_follow")
                               else getattr(pos, "strategy", "scanner")),
                     # smart_follow TP1 fraction. 0.85 (bank-the-pop, fixes fader giveback)
                     # CAPPED runners — POKE peaked +321% but 85% was dumped at +5%, only 15%
@@ -821,10 +824,10 @@ class PositionManager:
                     # locked at +5%; remnant trails near peak on faders) while leaving a 35%
                     # runner slice that the new peak-scaled trail lets run on moonshots (2026-06-09).
                     tp1_sell_override=(0.65
-                                       if getattr(pos, "strategy", "") == "smart_follow"
+                                       if getattr(pos, "strategy", "").startswith("smart_follow")
                                        else None),
-                    follow_origin=(getattr(pos, "strategy", "") == "smart_follow"),
-                    stop_grace=(getattr(pos, "strategy", "") == "smart_follow"
+                    follow_origin=getattr(pos, "strategy", "").startswith("smart_follow"),
+                    stop_grace=(getattr(pos, "strategy", "").startswith("smart_follow")
                                 and _stop_grace_arm(addr)),
                     tp1_hit=bool(getattr(pos, "take_profit_1_hit", False)),
                     tp2_hit=bool(getattr(pos, "take_profit_2_hit", False)),
@@ -2628,6 +2631,22 @@ class PositionManager:
         # A position at -2.7% that gets averaged doubles exposure into the 5min/-5%
         # check. Works directly against the graduated exit strategy.
         # Re-enable via config flag if strategy changes.
+
+    async def external_exit(self, token_address: str, reason: str) -> bool:
+        """Strategy-initiated full exit (2026-06-10, smart_follow elite-exit
+        mirroring): close an open position at market with an auditable reason.
+        Returns False if no open state for the token. Paper-safe: routes through
+        the same _execute_sell as every other exit."""
+        addr = (token_address or "").lower()
+        state = self._states.get(addr)
+        if not state:
+            return False
+        logger.info(
+            f"[PositionManager/{self.chain_name}] 🚪 EXTERNAL EXIT: "
+            f"{state.token_symbol} — {reason}"
+        )
+        await self._execute_sell(addr, state, pct=1.0, reason=reason)
+        return True
 
     def _stop_grace_active(self, state, pnl_pct: float, age_seconds: float) -> bool:
         """smart_follow stop-grace A/B: True while a treatment-arm position is
