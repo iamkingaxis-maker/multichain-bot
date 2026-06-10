@@ -600,8 +600,15 @@ async def main():
             # when the triggering wallets sell ("follow them out").
             position_manager=sol_position_mgr,
         )
+        # ── Continuous wallet discovery (2026-06-10): hourly DexScreener early-
+        # buyer harvest on current runners, recurrence persisted to DATA_DIR.
+        # Feeds the follow-watchlist pipeline 24/7 (was PC-dependent local runs).
+        from core.wallet_discovery import WalletDiscovery
+        wallet_discovery = WalletDiscovery()
+        dashboard.wallet_discovery = wallet_discovery
+
         tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run(),
-                  sol_smart_follow.run()]
+                  sol_smart_follow.run(), wallet_discovery.run()]
 
         dashboard.register_strategies(
             scanner=sol_scanner,
