@@ -56,6 +56,24 @@ def _append_jsonl(path: str, rec: dict):
         pass  # tracking must never break the strategy
 
 
+# Flush-depth fire gate (2026-06-10, AxiS-approved): only fire when the token is in a
+# real flush. Stamped-fire outcomes (n=28 closed) show pc_h1 > -10 fires are the worst
+# cohort (22% WR, -$41 over 9 fires); deep fires run 40-50% WR. The wallets we follow
+# buy multi-hour theses — entering on a flat/pumping tape buys the fade.
+# Modes: enforce (default) = block shallow fires; shadow = log verdict, still fire; off.
+# Every fire (blocked included) keeps its _FOLLOW_LOG record for threshold tuning.
+def _flush_gate_mode() -> str:
+    m = os.environ.get("SMART_FOLLOW_FLUSH_GATE", "enforce").strip().lower()
+    return m if m in ("enforce", "shadow", "off") else "enforce"
+
+
+def _flush_gate_max_pch1() -> float:
+    try:
+        return float(os.environ.get("SMART_FOLLOW_FLUSH_MAX_PCH1", "-10.0"))
+    except Exception:
+        return -10.0
+
+
 class SmartMoneyFollowStrategy:
     def __init__(self, scanner, telegram=None, watchlist=None, quality=None,
                  k=3, window_sec=600, poll_interval_sec=120, fire_cooldown_sec=3600,
@@ -216,12 +234,21 @@ class SmartMoneyFollowStrategy:
                     continue
                 self.signals_fired += 1
                 reason = f"smart-follow: {len(wset)} elite wallets bought within {self.window_sec//60}min"
-                logger.info(f"[SmartFollow] 🎯 {reason} | {info['symbol']} {mint[:10]}")
+                # flush-depth verdict: pc_h1 must show a real flush to fire
+                gate_mode = _flush_gate_mode()
+                max_pch1 = _flush_gate_max_pch1()
+                pc_h1 = info.get("pc_h1")
+                shallow = pc_h1 is None or pc_h1 > max_pch1
+                gate_verdict = "blocked" if (shallow and gate_mode == "enforce") else (
+                    "shadow_block" if (shallow and gate_mode == "shadow") else "pass")
+                logger.info(f"[SmartFollow] 🎯 {reason} | {info['symbol']} {mint[:10]} "
+                            f"| flush_gate={gate_verdict} pc_h1={pc_h1}")
                 # Track which wallets triggered this fire -> attribute trade outcomes to
                 # wallets later (join to /api/trades by token) -> prune junk wallets empirically.
                 _append_jsonl(_FOLLOW_LOG, {
                     "ts": now, "token": mint, "symbol": info.get("symbol"),
                     "wallets": sorted(wset), "n": len(wset),
+                    "flush_gate": gate_verdict,
                     # token state at fire time (2026-06-09): already in hand from the
                     # DexScreener quote — costs no extra fetch. Enables the
                     # momentum-vs-settled conditioning analysis on follow fires
@@ -232,6 +259,8 @@ class SmartMoneyFollowStrategy:
                         "pc_h1": info.get("pc_h1"),
                     },
                 })
+                if gate_verdict == "blocked":
+                    continue
                 try:
                     await self.scanner.process_external_signal(
                         token_address=mint, token_symbol=info["symbol"], reason=reason,

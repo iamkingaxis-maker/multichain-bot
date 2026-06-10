@@ -94,11 +94,15 @@ def test_layered_defender_bots_present(catalog):
     assert v4.stall_exit_minutes is None
     assert v4.base_position_usd == 20.0
 
-    # champion_defender_2k (7h-watch rec #1): 8-filter defender on cap2k $2k spine
+    # champion_defender_2k (7h-watch rec #1): v3's defender stack plus two later
+    # intentional additions — filter_rolling_ng (b87377a) + filter_sol_flicker
+    # (a27932a, capital preservation) — on the cap2k spine, size-capped 650->100
+    # (af5c09e, size-discipline backstop).
     d2k = by_id["champion_defender_2k"]
     assert d2k.filters_enforced is not None
-    assert set(d2k.filters_enforced) == set(v3.filters_enforced)
-    assert d2k.base_position_usd == 650.0
+    assert set(d2k.filters_enforced) == set(v3.filters_enforced) | {
+        "filter_rolling_ng", "filter_sol_flicker"}
+    assert d2k.base_position_usd == 100.0
     assert d2k.stall_exit_minutes == 90
 
     # champion_premium (2026-05-29): v4's EXACT defender stack + exits, single
