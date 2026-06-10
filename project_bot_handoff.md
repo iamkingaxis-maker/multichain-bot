@@ -69,3 +69,32 @@
 
 ## State at handoff (~19:00 UTC)
 PAPER_MODE=true (verified). HEAD = pond_settled_flow_solcap deploy. Entry stack ENFORCED + 18-filter prune live on gated fleet; control cohort ungated; 4 pond clones racing. smart_follow on 7-selector watchlist, K=3. Forward A/Bs accumulating: (1) gated-vs-control bleed test, (2) 4 pond clones vs pool_a_stack, (3) solcap vs settled_flow.
+
+
+---
+
+# 9-HOUR MISSION ADDENDUM (2026-06-09 19:44 → 04:44 UTC) — Fable-5 watch toward $100/day
+
+**GOAL VERDICT**: NOT MET this day — meter peaked +$76 (21:17 UTC), closed-side −$27 by 02:40
+after the late tape (Tagoh −$22, COJOT −$20, GHOST −$11). Streak 0. The goal stands for tomorrow.
+
+**VALIDATED LIVE THIS MISSION**:
+- POND COMBOS: first converged fire ('hehe') → 4/4 clones full TP1+trail cycles (+$19.04);
+  pond night-1 net +$14.98. flow_thin faststopped 2x (to its weak-evidence profile).
+- FLUSH-DEPTH RULE: deep-flush fires (Gusic +$9.67 3-leg) vs shallow/flat (zazu −$12.61,
+  BURNIE −$6.10, Tagoh −$22.30) — every stamped fire resolved by entry depth. TOP MORNING
+  PROPOSAL: require deep pc_h1 on smart_follow fires.
+- Exit ladders flawless (ZOOMER +10.8% TP2 harvest; runner-tilt trails capturing).
+- 10-wallet list: 5+ fire conversions; rotation watch + bench operational.
+
+**SHIPPED (paper, verified)**: pond clones #5 pond_bb_mtf + #6 pond_flow_thin; all-6 trigger
+unblock (reach 62%→100% of validated cohort); smart_follow fire-state stamping; goal_tracker
++ live_candidate_scorecard + wallet_activity_check + _mission_check tooling.
+
+**FIX LIST**: /api/trades full=1+large-limit falls back to 200 (bug, caused false −$42 read);
+trades-handler read contention (3 transient empties); WS diagnostics read phantom attrs
+(cosmetic); paid RPC/chart access for mining + post-stop trajectory test (16/16 unreachable:
+404-dead pools + GT throttle; lean = stops right).
+
+**DECISIONS FOR AXIS**: flush-depth fire condition; pool_c_post_peak re-enable (scorecard #1
+vs 06-05 disable); pond race judgment at n>=50 distinct tokens; paid data access.
