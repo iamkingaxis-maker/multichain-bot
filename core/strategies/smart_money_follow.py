@@ -66,6 +66,15 @@ def _elite_exit_on() -> bool:
     return os.environ.get("SMART_FOLLOW_ELITE_EXIT", "on").strip().lower() != "off"
 
 
+def _max_chase_pct() -> float:
+    """Max % the fill may run past the fire-detection price (2026-06-10: measured
+    chase mean +1.56% > the elites' ~$0.33/trade edge — don't be their exit)."""
+    try:
+        return float(os.environ.get("SMART_FOLLOW_MAX_CHASE_PCT", "1.5"))
+    except Exception:
+        return 1.5
+
+
 def _flush_gate_mode() -> str:
     m = os.environ.get("SMART_FOLLOW_FLUSH_GATE", "enforce").strip().lower()
     return m if m in ("enforce", "shadow", "off") else "enforce"
@@ -268,7 +277,10 @@ class SmartMoneyFollowStrategy:
                 skip_chart_dip=True,  # follow the wallets into strength; the dip gate
                                       # (built for dip-buying) rejects every follow signal
                 price_usd=info["price"], liquidity_usd=info["liq"],
-                volume_h1=info["vol_h1"], mcap=info["mcap"], price_change_h1=info["pc_h1"])
+                volume_h1=info["vol_h1"], mcap=info["mcap"], price_change_h1=info["pc_h1"],
+                # max-chase guard: skip the fill if price ran past the fire price
+                # during security checks (we'd be buying the push, not the entry)
+                max_price_usd=info["price"] * (1 + _max_chase_pct() / 100.0))
         except Exception as e:
             logger.warning(f"[SmartFollow] process_external_signal error: {e}")
 

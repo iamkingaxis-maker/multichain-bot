@@ -2313,6 +2313,7 @@ class MultiSourceScanner:
                                      volume_h1: float = 0.0,
                                      mcap: float = 0.0,
                                      price_change_h1: float = 0.0,
+                                     max_price_usd: float = 0.0,
                                      ) -> bool:
         """
         Entry point for edge strategies (CrossWalletConvergence, CapitulationReversal)
@@ -2390,7 +2391,8 @@ class MultiSourceScanner:
             f"{token_symbol} | Score: {signal_score} | {reason}"
         )
 
-        await self._fire_chart_buy(signal, risk_level, strategy_tag=strategy_tag)
+        await self._fire_chart_buy(signal, risk_level, strategy_tag=strategy_tag,
+                                   max_price_usd=max_price_usd)
         return True
 
     async def _sol_macro_ok_check(self) -> bool:
@@ -3263,19 +3265,21 @@ class MultiSourceScanner:
         self._dip_watchlist.pop(addr_lower, None)
         return True
 
-    async def _fire_chart_buy(self, signal: TokenSignal, risk_level: str, strategy_tag: str = "scanner"):
+    async def _fire_chart_buy(self, signal: TokenSignal, risk_level: str, strategy_tag: str = "scanner",
+                              max_price_usd: float = 0.0):
         """Execute the buy after all dip/chart checks have passed."""
         addr_lower = signal.token_address.lower()
         if addr_lower in self.trader.open_positions or addr_lower in self._pending_buys:
             return
         self._pending_buys.add(addr_lower)
         try:
-            await self._fire_chart_buy_inner(signal, risk_level, addr_lower, strategy_tag=strategy_tag)
+            await self._fire_chart_buy_inner(signal, risk_level, addr_lower, strategy_tag=strategy_tag,
+                                             max_price_usd=max_price_usd)
         finally:
             self._pending_buys.discard(addr_lower)
 
     async def _fire_chart_buy_inner(self, signal: TokenSignal, risk_level: str, addr_lower: str,
-                                    strategy_tag: str = "scanner"):
+                                    strategy_tag: str = "scanner", max_price_usd: float = 0.0):
         """Inner implementation — called only by _fire_chart_buy which holds _pending_buys."""
         # Re-validate score at fire time — the signal may have been cached in the dip
         # watchlist or bounce confirmer queue and the score could have drifted below
@@ -3364,6 +3368,32 @@ class MultiSourceScanner:
             f"[View on DexScreener]({signal.dex_url})"
         )
 
+        # MAX-CHASE GUARD (2026-06-10, smart_follow copy-tax fix): the elites'
+        # per-trade edge (~$0.33) is smaller than our measured fire->fill chase
+        # (mean +1.56%, ~$1.56 on $100 — 8/40 fills paid >+2%). If price has run
+        # past the caller's limit during security checks, we'd be exit liquidity
+        # for the wallets we're copying — skip instead. Fail-OPEN on quote errors.
+        if max_price_usd and max_price_usd > 0:
+            try:
+                import aiohttp as _aio
+                async with _aio.ClientSession() as _s:
+                    async with _s.get(
+                            f"https://api.dexscreener.com/latest/dex/tokens/{signal.token_address}",
+                            headers={"User-Agent": "Mozilla/5.0"},
+                            timeout=_aio.ClientTimeout(total=8)) as _r:
+                        _j = await _r.json()
+                _pairs = [p for p in (_j.get("pairs") or []) if p.get("priceUsd")]
+                _pairs.sort(key=lambda p: float((p.get("liquidity") or {}).get("usd") or 0),
+                            reverse=True)
+                _fresh = float(_pairs[0]["priceUsd"]) if _pairs else 0.0
+                if _fresh > max_price_usd:
+                    logger.info(
+                        f"[{self.chain.name}] [{strategy_tag}] 🏃 CHASE GUARD: "
+                        f"{signal.token_symbol} fresh ${_fresh:.8f} > limit "
+                        f"${max_price_usd:.8f} (+{(_fresh/max_price_usd-1)*100:.1f}% past) — skip")
+                    return
+            except Exception:
+                pass
         self.trader.reentry.last_h1_pct[signal.token_address.lower()] = signal.price_change_h1
         await self.trader.buy(
             token_address=signal.token_address,
