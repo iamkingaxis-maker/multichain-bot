@@ -38,6 +38,9 @@ CANDIDATE_BOTS = {
     # young-probe clone wave (2026-06-10): mined from the 81-close family record
     # (74% WR) — uptrend-confirmation thesis, held-out 86%/95% test WR
     "young_probe_stair", "young_probe_baseflow",
+    # bad-day microcap family (2026-06-10): the other half of the calendar —
+    # rug-screened 50-500k flush/momentum riders (see badday scorecard)
+    "badday_flush", "badday_momo",
 }
 API = "https://gracious-inspiration-production.up.railway.app/api/trades?full=1&limit=5000"
 

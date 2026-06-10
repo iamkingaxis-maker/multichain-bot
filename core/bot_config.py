@@ -130,6 +130,16 @@ class BotConfig:
     # pre_stop_bail never fires on high-volume momentum dumps).
     fast_bail_pnl_pct: Optional[float] = None
 
+    # Bad-day playbook (2026-06-10):
+    # entry_stack_exempt: this bot carries its OWN validated entry stack
+    # (e.g. the badday microcap family's rug screens) — the fleet stack's
+    # 500k-10M/age>=24h pond bounds don't apply to it.
+    entry_stack_exempt: bool = False
+    # regime_dial_exempt: the P7 dial's 0.5x bad-day defense does NOT de-size
+    # this bot (bad-day vehicles fish the segment that still pays on bad days;
+    # momentum_mode bots and the control cohort are auto-exempt in code).
+    regime_dial_exempt: bool = False
+
     # Trading window (UTC hours, half-open: [start, end))
     trading_hour_utc_start: int = 0
     trading_hour_utc_end: int = 24

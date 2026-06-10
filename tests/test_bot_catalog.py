@@ -26,6 +26,7 @@ def catalog():
                    if not c.bot_id.startswith("probe_")
                    and not c.bot_id.startswith("pool_")
                    and not c.bot_id.startswith("pond_")
+                   and not c.bot_id.startswith("badday_")
                    and not c.bot_id.startswith("young_probe_")
                    and not c.bot_id.startswith("low_mcap_probe")
                    and c.bot_id != "momentum_shadow"

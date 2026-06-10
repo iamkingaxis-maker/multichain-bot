@@ -290,6 +290,13 @@ class DipScanner:
         # per-token loop emits a FeatureBundle and fans out to BotManager.
         self.bot_manager = bot_manager
         self.trade_store = trade_store
+        # P7 regime dial (2026-06-10): feed it the fleet's sells. Fail-soft.
+        try:
+            from core.regime_dial import get_dial
+            if trade_store is not None:
+                get_dial().set_trades_provider(trade_store.load_trades)
+        except Exception:
+            pass
         self.bot_capitals: Dict[str, PerBotCapital] = {}
         self.bot_position_managers: Dict[str, PerBotPositionManager] = {}
         # Cross-bot no-same-token exclusion (de-concentration). Bots sharing a
@@ -1072,6 +1079,18 @@ class DipScanner:
                 _entry_meta = {**_entry_meta, "trigger_state_shadow": _ts_verdicts}
         except Exception:
             pass  # instrumentation must never block a buy
+        # P7 regime dial stamp (2026-06-10): full multiplier (incl. the shadow
+        # 1.5x upside) + signals on every buy -> the badday scorecard
+        # reconstructs each day's forecast from these stamps.
+        try:
+            from core.regime_dial import get_dial
+            _dial = get_dial().current()
+            _entry_meta = {**_entry_meta,
+                           "regime_dial_full": _dial.get("mult_full"),
+                           "regime_dial_defense": _dial.get("mult_defense"),
+                           "regime_dial_signals": _dial.get("signals")}
+        except Exception:
+            pass
         if self.trade_store is not None:
             self.trade_store.record_trade({
                 "type": "buy",

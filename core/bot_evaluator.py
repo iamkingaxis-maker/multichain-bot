@@ -476,6 +476,11 @@ class BotEvaluator:
             return False
         if self.config.bot_id in _entry_stack_control_bots():
             return False
+        # badday microcap family (2026-06-10): carries its own validated
+        # rug-screen stack; the pond bounds (500k-10M, age>=24h) are exactly
+        # what it must NOT inherit (its prey lives at 50-500k).
+        if getattr(self.config, "entry_stack_exempt", False):
+            return False
         fails = _entry_stack_violations(b)
         if not fails:
             return False
@@ -609,6 +614,22 @@ class BotEvaluator:
         if c.conviction_sizing_mode is not None:
             base, conv_tag = self._apply_conviction(base, triggers)
             tier = f"{tier}+{conv_tag}"
+        # P7 regime dial DEFENSE (2026-06-10): on dial-bad days, halve dip-pond
+        # size. Asymmetric by design — the 1.5x upsize stays shadow until its
+        # forecast record earns it. Exempt: momentum-mode bots, the entry-stack
+        # control cohort (clean counterfactual), and regime_dial_exempt bots
+        # (bad-day vehicles fish the segment that still pays). Fail-soft.
+        try:
+            if (not getattr(c, "regime_dial_exempt", False)
+                    and not c.momentum_mode
+                    and c.bot_id not in _entry_stack_control_bots()):
+                from core.regime_dial import get_dial
+                _m = get_dial().defense_multiplier()
+                if _m < 1.0:
+                    base *= _m
+                    tier = f"{tier}+dial{_m:g}"
+        except Exception:
+            pass
         return base, tier
 
     def _apply_conviction(self, base: float, triggers: tuple[str, ...]) -> tuple[float, str]:
