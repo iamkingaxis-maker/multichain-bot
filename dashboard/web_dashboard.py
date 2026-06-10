@@ -4383,7 +4383,21 @@ class WebDashboard:
             from scripts.goal_tracker import CANDIDATE_BOTS, GOAL_USD_PER_DAY
         except Exception:
             return web.json_response({"error": "goal_tracker unavailable"}, status=500)
-        trades = self.trade_store.load_trades() if self.trade_store else []
+        # Same two sources as /api/trades: tracker (strategy-tagged records —
+        # smart_follow lives HERE, with the strategy field the attribution
+        # needs) + multi-bot trade_store (candidate-bot records). Reading only
+        # the store missed smart_follow entirely (-$38 invisible on 06-10).
+        trades = []
+        if self._tracker is not None:
+            try:
+                trades = list(self._tracker.get_all_trades())
+            except Exception:
+                pass
+        if self.trade_store is not None:
+            try:
+                trades = trades + self.trade_store.load_trades()
+            except Exception:
+                pass
         buy_strat = {}
         for t in trades:
             if t.get("type") == "buy" and t.get("strategy"):
