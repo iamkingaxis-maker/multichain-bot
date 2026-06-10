@@ -26,6 +26,9 @@ GOAL_USD_PER_DAY = 100.0
 CANDIDATE_BOTS = {
     "pond_settled_flow_thin", "pond_settled_flow", "pond_ugly_mtf",
     "pond_settled_flow_solcap", "pond_bb_mtf", "pond_flow_thin",
+    # wave 2 (2026-06-10): frontier re-pull — three NEW feature axes
+    # (rsi15 oversold, sweep-reclaim, deep-60m-leg), all held-out 82-84% WR
+    "pond_ugly_rsi", "pond_sweep_flow", "pond_sweep_deep_thin",
     "pool_c_post_peak", "pool_c_tightexit", "pool_a_candidate", "momentum_shadow",
     # young-pond probers (2026-06-09): top of the live-candidate scorecard on REALIZED
     # results (+$2.20/tr 76% WR n=50 at $100 size; +$1.83/tr n=31) — genuine go-live
