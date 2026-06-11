@@ -528,10 +528,46 @@ class Trader:
         if not os.path.exists(_file):
             logger.info("[Trader] No persisted open_positions to restore")
             return
+        # Zombie-resurrection guard (2026-06-10): Railway deploys OVERLAP — the
+        # new container loads this snapshot while the old one still serves; a
+        # manual sell handled by the old container then gets overwritten by the
+        # new container's stale book on its next save (MINER/ZOOMER were
+        # manually sold TWICE and resurrected twice on a 12-deploy day). The
+        # append-only trades log is authoritative: never restore a position
+        # whose address has a MANUAL full-close sell AFTER its entry_time
+        # (manual sells are user intent with no automatic re-trigger; TP
+        # partials/remainders are untouched by this rule).
+        _manual_close = {}
+        try:
+            with open(os.path.join(_DATA_DIR, "trades.json")) as f:
+                _td = json.load(f)
+            for t in (_td if isinstance(_td, list) else _td.get("trades", [])):
+                a = (t.get("token_address") or t.get("address") or "").lower()
+                if not a:
+                    continue
+                ts = t.get("time") or ""
+                if (t.get("type") == "sell"
+                        and "manual sell" in (t.get("reason") or "").lower()):
+                    if ts >= _manual_close.get(a, ""):
+                        _manual_close[a] = ts
+                elif t.get("type") == "buy":
+                    # a later re-buy legitimately reopens the token
+                    if ts >= _manual_close.get(a, ""):
+                        _manual_close.pop(a, None)
+        except Exception:
+            _manual_close = {}
         try:
             with open(_file) as f:
                 payload = json.load(f)
             for d in payload.get("positions", []):
+                _addr_l = (d.get("token_address") or "").lower()
+                _mc_ts = _manual_close.get(_addr_l)
+                if _mc_ts and (d.get("entry_time") or "") <= _mc_ts:
+                    logger.warning(
+                        f"[Trader] 🧟 ZOMBIE DROPPED on restore: "
+                        f"{d.get('token_symbol')} was manually sold at {_mc_ts} "
+                        f"(deploy-overlap resurrection guard)")
+                    continue
                 try:
                     et = datetime.fromisoformat(d.get("entry_time")) if d.get("entry_time") else datetime.now(timezone.utc)
                 except Exception:
