@@ -330,6 +330,62 @@ class SmartMoneyFollowStrategy:
         except Exception as e:
             logger.warning(f"[SmartFollow] process_external_signal error: {e}")
 
+    async def ingest_realtime_trade(self, wallet, mint, side, sol, ts, signature=None):
+        """PumpPortal account-trade tap (2026-06-11): parsed elite trades pushed
+        in realtime at zero RPC cost. Signature-dedupes against the RPC sweep
+        through the shared _seen sets, so each tx is processed exactly once
+        regardless of which eye saw it first. Same event loop -> no races."""
+        if wallet not in self.watchlist or not mint:
+            return
+        if signature:
+            seen = self._seen.setdefault(wallet, set())
+            if signature in seen:
+                return
+            seen.add(signature)
+        if side == "buy":
+            self._buys.append((mint, wallet, int(ts), float(sol or 0)))
+            self.buys_seen += 1
+            h = self._wallet_sizes.setdefault(wallet, [])
+            h.append(float(sol or 0))
+            del h[:-40]
+            self._wallet_pos[(wallet, mint)] = (int(ts), float(sol or 0))
+            # wake the consensus cycle immediately — this is the latency win
+            self._hot.add(wallet)
+            self._hot_event.set()
+            return
+        # SELL — mirror the sweep's exit handling (round-trip log + elite-exit)
+        ent = self._wallet_pos.pop((wallet, mint), None)
+        if ent:
+            _append_jsonl(_FOLLOW_EXITS_LOG, {
+                "ts": int(ts), "token": mint, "wallet": wallet,
+                "hold_secs": max(0, int(ts) - ent[0]), "sol_in": round(ent[1], 4),
+                "sol_out": round(float(sol or 0), 4),
+                "wallet_return_pct": (round((float(sol or 0) / ent[1] - 1) * 100, 1)
+                                      if ent[1] else None),
+                "src": "pumpportal"})
+        trig = self._fired_wallets.get(mint)
+        if trig and wallet in trig and _elite_exit_on():
+            sold = self._elite_sold.setdefault(mint, set())
+            sold.add(wallet)
+            need = 2 if len(trig) >= 2 else 1
+            if len(sold) >= need:
+                closed = False
+                if self.position_manager is not None:
+                    try:
+                        closed = await self.position_manager.external_exit(
+                            mint, f"smart-follow elite-exit "
+                                  f"({len(sold)}/{len(trig)} triggers sold) [realtime]")
+                    except Exception as e:
+                        logger.warning(f"[SmartFollow] rt elite-exit error: {e}")
+                logger.info(f"[SmartFollow] 🚪 elite-exit (rt) {mint[:10]}: "
+                            f"{len(sold)}/{len(trig)} sold -> closed={closed}")
+                _append_jsonl(_FOLLOW_LOG, {
+                    "type": "elite_exit", "ts": int(ts), "token": mint,
+                    "sold": sorted(sold), "trig_n": len(trig),
+                    "position_closed": closed, "src": "pumpportal"})
+                self._fired_wallets.pop(mint, None)
+                self._elite_sold.pop(mint, None)
+
     async def _ws_watch(self):
         """Realtime wallet watching (2026-06-10): logsSubscribe(mentions=wallet)
         on the public Solana WS. A notification wakes the poll loop IMMEDIATELY

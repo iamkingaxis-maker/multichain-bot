@@ -95,3 +95,30 @@ def test_convex_payoff_overrides_in_pm():
                                     and strat != "smart_follow_convex")
     assert not grace_eligible("smart_follow_convex")
     assert grace_eligible("smart_follow_solo")
+
+
+def test_realtime_ingest_dedupe_and_buy_path():
+    import asyncio
+    s = _mk_strategy()
+    s.watchlist = ["wA", "wB"]
+    # buy: appended to window + sizes + hot-wake
+    asyncio.run(s.ingest_realtime_trade("wA", "MINT1", "buy", 0.5, 1000, "sig1"))
+    assert len(s._buys) == 1 and s._buys[0][:2] == ("MINT1", "wA")
+    assert s._wallet_sizes["wA"] == [0.5]
+    assert s._hot_event.is_set()
+    # same signature again -> deduped (the RPC sweep shares this set)
+    asyncio.run(s.ingest_realtime_trade("wA", "MINT1", "buy", 0.5, 1001, "sig1"))
+    assert len(s._buys) == 1
+    # non-watchlist wallet ignored
+    asyncio.run(s.ingest_realtime_trade("stranger", "MINT2", "buy", 1.0, 1002, "sig2"))
+    assert len(s._buys) == 1
+
+
+def test_realtime_sell_round_trip_logged_without_pm():
+    import asyncio
+    s = _mk_strategy()
+    s.watchlist = ["wA"]
+    asyncio.run(s.ingest_realtime_trade("wA", "MINT1", "buy", 1.0, 1000, "b1"))
+    # sell closes the elite round-trip without raising (no PM wired)
+    asyncio.run(s.ingest_realtime_trade("wA", "MINT1", "sell", 1.4, 1300, "s1"))
+    assert ("wA", "MINT1") not in s._wallet_pos

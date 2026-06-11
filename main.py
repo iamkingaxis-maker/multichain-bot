@@ -626,8 +626,17 @@ async def main():
         from core.attention_feed import get_feed as _get_attn
         dashboard.attention_feed = _get_attn()
 
+        # ── PumpPortal feed (2026-06-11): free realtime firehose — parsed
+        # watchlist trades (0 RPC), migrations, launch registry.
+        from core.pumpportal_feed import PumpPortalFeed
+        pumpportal = PumpPortalFeed(wallets=_follow_watchlist,
+                                    strategy=sol_smart_follow,
+                                    attention=_get_attn())
+        dashboard.pumpportal = pumpportal
+
         tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run(),
-                  sol_smart_follow.run(), wallet_discovery.run(), _get_attn().run()]
+                  sol_smart_follow.run(), wallet_discovery.run(), _get_attn().run(),
+                  pumpportal.run()]
 
         dashboard.register_strategies(
             scanner=sol_scanner,
