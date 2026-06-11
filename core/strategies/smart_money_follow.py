@@ -35,7 +35,13 @@ _FOLLOW_LOG = os.path.join(os.environ.get("DATA_DIR", "."), "follow_signals.json
 _FOLLOW_EXITS_LOG = os.path.join(os.environ.get("DATA_DIR", "."), "follow_exits.jsonl")
 _LOG_CAP = 5_000_000  # ~5MB per log; trims oldest half when exceeded
 
-RPCS = ["https://api.mainnet-beta.solana.com", "https://solana.leorpc.com/?api_key=FREE"]
+try:
+    from core.rpc_pool import rpc_pool as _rpc_pool
+    RPCS = _rpc_pool()
+except Exception:
+    RPCS = ["https://api.mainnet-beta.solana.com",
+            "https://solana-rpc.publicnode.com",
+            "https://solana.drpc.org"]
 STABLE = {"So11111111111111111111111111111111111111112",
           "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
           "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"}

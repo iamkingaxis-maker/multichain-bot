@@ -153,3 +153,6 @@ analysis/
 /_*.out
 /_*.npy
 /*.pkl
+
+# RPC key (free tier) — never commit
+alchemy_key.txt

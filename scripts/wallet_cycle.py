@@ -43,8 +43,13 @@ WATCHLIST = "config/follow_watchlist.json"
 DORMANT_H = 36.0
 TOXIC_MIN_CLOSES = 10
 MIN_ROSTER, MAX_ROSTER = 6, 12
-RPCS = ["https://api.mainnet-beta.solana.com", "https://solana-rpc.publicnode.com",
-        "https://solana.drpc.org", "https://solana.leorpc.com/?api_key=FREE"]
+try:
+    from core.rpc_pool import rpc_pool as _rpc_pool
+    RPCS = _rpc_pool()
+except Exception:
+    RPCS = ["https://api.mainnet-beta.solana.com",
+            "https://solana-rpc.publicnode.com",
+            "https://solana.drpc.org"]
 
 
 def _get(url):

@@ -37,7 +37,13 @@ except Exception:
 STABLE = {"So11111111111111111111111111111111111111112",
           "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
           "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"}
-RPCS = ["https://solana.leorpc.com/?api_key=FREE", "https://api.mainnet-beta.solana.com"]
+try:
+    from core.rpc_pool import rpc_pool as _rpc_pool
+    RPCS = _rpc_pool()
+except Exception:
+    RPCS = ["https://api.mainnet-beta.solana.com",
+            "https://solana-rpc.publicnode.com",
+            "https://solana.drpc.org"]
 
 
 def _rpc(method, params, tries=2):
