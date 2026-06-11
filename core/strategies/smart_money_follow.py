@@ -298,7 +298,7 @@ class SmartMoneyFollowStrategy:
         self._fired_wallets[mint] = set(wset)
         self._elite_sold.pop(mint, None)
         try:
-            await self.scanner.process_external_signal(
+            _converted = await self.scanner.process_external_signal(
                 token_address=mint, token_symbol=info["symbol"], reason=reason,
                 signal_score=self.min_signal_score, strategy_tag=tag,
                 skip_chart_dip=True,  # follow the wallets into strength; the dip gate
@@ -319,6 +319,14 @@ class SmartMoneyFollowStrategy:
                              "follow_tier": tier,
                              "follow_conviction_mult": conv,
                              "follow_fq_mean": fq_mean})
+            if not _converted:
+                # funnel decomposition (2026-06-11): name every unconverted fire
+                _why = getattr(self.scanner, "_ext_block_reason", None) or "unknown"
+                _append_jsonl(_FOLLOW_LOG, {
+                    "type": "fire_unconverted", "ts": int(time.time()),
+                    "token": mint, "tier": tier, "reason": _why})
+                logger.info(f"[SmartFollow] fire UNCONVERTED {info['symbol']} "
+                            f"{mint[:10]} reason={_why}")
         except Exception as e:
             logger.warning(f"[SmartFollow] process_external_signal error: {e}")
 

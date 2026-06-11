@@ -2323,7 +2323,9 @@ class MultiSourceScanner:
 
         Returns True if the buy was executed, False if blocked.
         """
+        self._ext_block_reason = None   # (2026-06-11) funnel decomposition stamp
         if signal_score < self.min_combined_score:
+            self._ext_block_reason = "low_score"
             self.signals_blocked_score += 1
             logger.info(
                 f"[{self.chain.name}] [{strategy_tag}] ❌ Low score: "
@@ -2333,6 +2335,7 @@ class MultiSourceScanner:
             return False
 
         if token_address.lower() in self.trader.open_positions:
+            self._ext_block_reason = "already_holding"
             logger.info(
                 f"[{self.chain.name}] [{strategy_tag}] "
                 f"Already holding {token_symbol} — skipping"
@@ -2340,6 +2343,7 @@ class MultiSourceScanner:
             return False
 
         if self.trader.risk_manager.is_daily_limit_hit():
+            self._ext_block_reason = "daily_limit"
             return False
 
         if not skip_security:
@@ -2349,6 +2353,7 @@ class MultiSourceScanner:
                 token_symbol
             )
             if not sec_result.passed:
+                self._ext_block_reason = f"security_{sec_result.risk_level}"
                 self.signals_blocked_security += 1
                 logger.warning(
                     f"[{self.chain.name}] [{strategy_tag}] 🛑 Security blocked "
@@ -2380,6 +2385,7 @@ class MultiSourceScanner:
         if not skip_chart_dip:
             confirmed = await self._chart_dip_check(signal, risk_level)
             if not confirmed:
+                self._ext_block_reason = "chart_dip_check"
                 logger.info(
                     f"[{self.chain.name}] [{strategy_tag}] 📉 Chart check failed: "
                     f"{token_symbol} — waiting for better entry"
@@ -3291,6 +3297,7 @@ class MultiSourceScanner:
         # watchlist or bounce confirmer queue and the score could have drifted below
         # threshold by the time we actually execute.
         if signal.combined_score < self.min_combined_score:
+            self._ext_block_reason = "stale_score"
             logger.info(
                 f"[{self.chain.name}] ⏭ Stale signal blocked: {signal.token_symbol} "
                 f"score {signal.combined_score} < {self.min_combined_score} at fire time"
@@ -3393,6 +3400,7 @@ class MultiSourceScanner:
                             reverse=True)
                 _fresh = float(_pairs[0]["priceUsd"]) if _pairs else 0.0
                 if _fresh > max_price_usd:
+                    self._ext_block_reason = "chase_guard"
                     logger.info(
                         f"[{self.chain.name}] [{strategy_tag}] 🏃 CHASE GUARD: "
                         f"{signal.token_symbol} fresh ${_fresh:.8f} > limit "
