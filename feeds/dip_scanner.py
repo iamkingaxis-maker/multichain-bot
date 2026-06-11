@@ -890,23 +890,6 @@ class DipScanner:
                 logger.info("[DipScanner] bot=%s badday-lane gate: skip %s (mcap=%s sub-floor, no microcap mandate)",
                             bot_id, decision.token, _bd_mc)
                 return
-        # Per-token FLEET exposure cap (2026-06-11): the death-cluster class
-        # (30-71 bots piling into ONE token = -$4k correlated bleed, 2026-05-28
-        # mine) gets a hard ceiling. The entry stack killed most pile-ons; this
-        # is the backstop for the ones it can't see. Env FLEET_TOKEN_CAP
-        # (default 12 — well below cluster size, above normal 2-6 co-entries),
-        # 0 = off.
-        try:
-            _ftc = int(os.environ.get("FLEET_TOKEN_CAP", "12"))
-        except Exception:
-            _ftc = 12
-        if _ftc > 0:
-            _holders = sum(1 for _pm2 in self.bot_position_managers.values()
-                           if decision.token in getattr(_pm2, "_positions", {}))
-            if _holders >= _ftc:
-                logger.info("[DipScanner] FLEET-TOKEN-CAP: %s already held by %d bots "
-                            ">= cap %d — skip %s", decision.token, _holders, _ftc, bot_id)
-                return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
         # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
