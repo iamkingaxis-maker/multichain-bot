@@ -2,7 +2,7 @@
 
 **Bot URL**: https://gracious-inspiration-production.up.railway.app
 **Mode: PAPER throughout** (`live_mode: False` verified after every deploy). No PAPER_MODE flip.
-**HEAD**: `4195d0a`. 11 commits today on top of yesterday's 17 (the 06-10 "Bad-Day Playbook Day"
+**HEAD**: `c8e4351`. 14 commits today on top of yesterday's 17 (the 06-10 "Bad-Day Playbook Day"
 record is preserved below). Suite **684 passing**.
 
 **THE HEADLINE: smart wallet went from "bleeding heavy, not ready" (AxiS, morning) to
@@ -85,6 +85,39 @@ no flush gate, TP1 0.10, their -15 cut; **first fire today**, latent k2/solo $20
 fixed), max-chase guard + copyability board (`dd5a69e`), smart-wallet own capital pool
 (`5b3ae8c` — $1000/$1000 floor, epoch 06-11 04:19, virtual hourly sweeps; **$30 banked before
 the overnight giveback** = banks-the-peak working; /api/follow-capital).
+
+## LATE-SESSION ADDENDUM (~15:00-16:15 UTC) — the "why can they and we can't" arc
+
+AxiS: "why are these smart wallets able to detect these great buys, but we arent?"
+The answer (from the 500-rtrip decode + universe data): (1) they trade the ATTENTION layer
+before price — our features were all price-derived echoes of their buys; (2) they sit
+upstream in the cascade (we detect their footprints; they are the feet); (3) they watch
+each other (a web; smart_follow buys us a node); (4) **the dirty secret: their WR is 51%**
+— they are not detectors, they are HARVESTERS (tiny probes, minute cuts, breadth, uncapped
++107% p90 tails). Nobody picks winners reliably in this market; they built a machine where
+picking barely matters. Two builds followed:
+
+A. **THE CONVEX WING** (`57eec7b`): our proven lottery-segment entries + the elite payoff
+   curve, judged head-to-head vs their grind parents:
+   - young_probe_stair_convex / young_probe_baseflow_convex / badday_flush_convex
+   - $25 probes, TP1 +5 sells 10%, TP2 +25 sells 20%, 70% rides the 4pp trail,
+     -15 hard cut (their median loser), -9 fast bail.
+   - PRE-REG: convex must beat parent $/tr at n>=25 closes each, or retire.
+   - Endgame barbell: mid-cap grind pond (floor) + convex lottery wing (tails)
+     + smart-follow (copy the masters). Candidate set 19 + smart_follow tiers.
+
+B. **ATTENTION FEED** (`c8e4351`, `core/attention_feed.py`): the social/attention layer
+   tapped for FREE — DexScreener token-boosts/latest (boosts being PURCHASED right now),
+   token-boosts/top, token-profiles/latest (marketing pushes + `cto` flag). All keyless;
+   3 tiny payloads / 5min. Validation: Gaejook+Jotchua (this week's missed bad-day runners)
+   sit on the boost leaderboard RIGHT NOW. The feed keeps first-seen history across
+   restarts -> boost RECENCY + VELOCITY (the derivative is the signal). Every entry stamps
+   attn_boost_total/latest/velocity, attn_first_seen_min, attn_on_top_board,
+   attn_profile_fresh, attn_cto, attn_links_n. `/api/attention` = velocity board.
+   SHADOW-FIRST pre-reg: no gate uses attn_* until boosted-vs-not validates on our own
+   outcomes at n>=200 stamped entries. Env ATTENTION_FEED=on|off.
+
+Also: convex-wing deploy verified paper; fleet-cap revert stands (see standing rules).
 
 ## FILL-FIDELITY VERDICT (trust checkpoint — PASSED)
 
