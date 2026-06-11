@@ -97,19 +97,27 @@ def copy_tax_verdicts(watch):
         k = (t.get("pair_address") or t.get("address") or "").lower()
         if str(buy_strat.get(k, "")).startswith("smart_follow"):
             ours[(t.get("address") or "").lower()].append(float(t.get("pnl") or 0))
-    per = defaultdict(lambda: [0.0, 0])
+    # FRACTIONAL attribution (2026-06-11 Deniz lesson): consensus fires
+    # multi-counted — one bad token charged EVERY voter full price, flipping
+    # several wallets TOXIC on shared variance. Each token's P&L now splits
+    # across its voters, so toxicity must be a wallet's OWN.
+    per = defaultdict(lambda: [0.0, 0.0])
     seen = set()
     for s in sigs:
         tok = (s.get("token") or "").lower()
         if tok not in ours or tok in seen:
             continue
         seen.add(tok)
-        for w in s.get("wallets") or []:
-            per[w][0] += sum(ours[tok])
-            per[w][1] += len(ours[tok])
+        voters = list(s.get("wallets") or [])
+        if not voters:
+            continue
+        share = 1.0 / len(voters)
+        for w in voters:
+            per[w][0] += sum(ours[tok]) * share
+            per[w][1] += len(ours[tok]) * share
     out = {}
     for w in watch:
-        pnl, n = per.get(w, [0.0, 0])
+        pnl, n = per.get(w, [0.0, 0.0])
         if n >= TOXIC_MIN_CLOSES:
             out[w] = ("TOXIC" if pnl / n < -1.0 else
                       "COPYABLE" if pnl / n > 0 else "TAXED", round(pnl / n, 2), n)
