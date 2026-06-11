@@ -50,6 +50,10 @@ class FollowCapitalManager:
         self.epoch = datetime.now(timezone.utc).isoformat()
         self._open: dict[str, float] = {}   # addr -> deployed usd (in-memory)
         self._last_sweep_check = 0.0
+        # per-token realized P&L today (UTC) — feeds smart_follow's
+        # won-today re-fire veto (persisted; resets on day roll)
+        self.token_day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        self.token_pnl_today: dict[str, float] = {}
         self._load()
 
     # ── persistence ─────────────────────────────────────────────────────────
@@ -60,6 +64,9 @@ class FollowCapitalManager:
             self.realized = float(d.get("realized", 0.0))
             self.swept_total = float(d.get("swept_total", 0.0))
             self.epoch = d.get("epoch") or self.epoch
+            if d.get("token_day") == self.token_day:
+                self.token_pnl_today = {k: float(v) for k, v in
+                                        (d.get("token_pnl_today") or {}).items()}
         except Exception:
             pass  # fresh pool
 
@@ -69,7 +76,10 @@ class FollowCapitalManager:
             with open(tmp, "w") as f:
                 json.dump({"realized": round(self.realized, 6),
                            "swept_total": round(self.swept_total, 6),
-                           "epoch": self.epoch}, f)
+                           "epoch": self.epoch,
+                           "token_day": self.token_day,
+                           "token_pnl_today": {k: round(v, 4) for k, v in
+                                               self.token_pnl_today.items()}}, f)
             os.replace(tmp, _STATE_FILE)
         except Exception as e:
             logger.warning(f"[FollowCapital] save failed: {e}")
@@ -100,6 +110,10 @@ class FollowCapitalManager:
             else:
                 self._open[a] = max(0.0, self._open[a] * (1 - pct))
         self.realized += pnl_usd
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if today != self.token_day:
+            self.token_day, self.token_pnl_today = today, {}
+        self.token_pnl_today[a] = self.token_pnl_today.get(a, 0.0) + pnl_usd
         self._save()
         self.maybe_sweep()
 
@@ -127,6 +141,12 @@ class FollowCapitalManager:
                     f"(total banked ${self.swept_total:.2f}, hot back to floor "
                     f"${self.floor:.0f}) [paper-virtual]")
         return excess
+
+    def won_today(self, addr: str) -> bool:
+        """True if this token's realized P&L today is positive (and it's today)."""
+        if datetime.now(timezone.utc).strftime("%Y-%m-%d") != self.token_day:
+            return False
+        return self.token_pnl_today.get((addr or "").lower(), 0.0) > 0
 
     def status(self) -> dict:
         return {

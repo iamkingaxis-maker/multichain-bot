@@ -169,7 +169,7 @@ def test_fire_cooldown_one_per_day_default_and_persistence(tmp_path):
     os.environ["DATA_DIR"] = str(tmp_path)
     try:
         s = _mk_strategy()
-        assert s.fire_cooldown == 86400                 # one fire per token per day
+        assert s.fire_cooldown == 3600                  # 1h anti-spam; won-today veto handles re-fires
         # persistence round-trip: a saved fire survives a "restart"
         s._fired["MINTX"] = time.time()
         with open(s._fired_path, "w") as f:
@@ -183,3 +183,23 @@ def test_fire_cooldown_one_per_day_default_and_persistence(tmp_path):
         assert "OLD" not in s3._fired
     finally:
         os.environ.pop("DATA_DIR", None)
+
+
+def test_won_today_veto_memory(tmp_path, monkeypatch):
+    import os
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    import importlib
+    import core.follow_capital as fcmod
+    importlib.reload(fcmod)
+    fc = fcmod.FollowCapitalManager()
+    fc.record_open("MintA", 50.0)
+    fc.record_close("MintA", 1.0, +4.20)        # won today
+    assert fc.won_today("MintA") is True
+    assert fc.won_today("minta") is True        # case-insensitive
+    fc.record_open("MintB", 50.0)
+    fc.record_close("MintB", 1.0, -3.10)        # lost today
+    assert fc.won_today("MintB") is False       # after-LOSS re-fires stay allowed
+    # persistence round-trip (same day)
+    fc2 = fcmod.FollowCapitalManager()
+    assert fc2.won_today("MintA") is True
+    importlib.reload(fcmod)

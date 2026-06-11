@@ -128,16 +128,18 @@ class SmartMoneyFollowStrategy:
         self.k = k
         self.window_sec = window_sec
         self.poll_interval = poll_interval_sec
-        # ONE FIRE PER TOKEN PER DAY (2026-06-11, the Deniz lesson): same-day
-        # re-fires after a WINNING episode ran n=15 net -$173 over 4 days (we
-        # re-buy the exhausted phase of the run we already won). After-loss
-        # re-fires were n=5 +$33 — the win is the danger signal, but one-per-day
-        # is the robust no-new-state rule. Env SMART_FOLLOW_FIRE_COOLDOWN_SEC.
+        # Re-fire policy (2026-06-11, refined per AxiS "memecoins change a lot
+        # in 24h"): gap analysis on 49 re-fires showed the signal is the PRIOR
+        # OUTCOME, not time — after-WIN re-fires are negative in EVERY gap
+        # bucket (-$58 cumulative <24h; exhausted-run effect), while after-LOSS
+        # re-fires at 6h+ ran +$78 (flush -> elite re-accumulation; we re-enter
+        # lower). So: short cooldown (1h, anti-spam) + WON-TODAY veto in the
+        # tier loop (outcome-conditioned). Env SMART_FOLLOW_FIRE_COOLDOWN_SEC.
         try:
             self.fire_cooldown = int(fire_cooldown_sec if fire_cooldown_sec is not None
-                                     else os.environ.get("SMART_FOLLOW_FIRE_COOLDOWN_SEC", "86400"))
+                                     else os.environ.get("SMART_FOLLOW_FIRE_COOLDOWN_SEC", "3600"))
         except Exception:
-            self.fire_cooldown = 86400
+            self.fire_cooldown = 3600
         self.min_signal_score = min_signal_score
         self.position_manager = position_manager  # for elite-exit mirroring
         self._rr = 0
@@ -592,6 +594,16 @@ class SmartMoneyFollowStrategy:
                 if tier is None:
                     continue
                 if mint in self._fired and now - self._fired[mint] < self.fire_cooldown:
+                    continue
+                # WON-TODAY veto: we already harvested this token's run today;
+                # re-fires after a win are -EV in every gap bucket. After-LOSS
+                # re-fires stay ALLOWED (+$78 at 6h+ gaps — re-accumulation).
+                fcap = getattr(getattr(self.scanner, "trader", None), "follow_capital", None)
+                if fcap is not None and fcap.won_today(mint):
+                    logger.info(f"[SmartFollow] won-today veto {mint[:10]} — "
+                                f"already harvested this run")
+                    _append_jsonl(_FOLLOW_LOG, {"type": "won_today_veto",
+                                                "ts": now, "token": mint})
                     continue
                 self._fired[mint] = now
                 try:
