@@ -619,6 +619,14 @@ async def main():
         from core.follow_capital import FollowCapitalManager
         sol_trader.follow_capital = FollowCapitalManager()
         dashboard.follow_capital = sol_trader.follow_capital
+        # Re-register restored smart_follow positions with the pool: exposure
+        # tracking is in-memory, so every deploy wiped it — deployed read $0
+        # while remainders rode (AxiS caught it 2026-06-11). Restore runs in
+        # Trader.__init__, before this wiring, so the book is ready here.
+        for _addr, _pos in (getattr(sol_trader, "open_positions", {}) or {}).items():
+            if str(getattr(_pos, "strategy", "")).startswith("smart_follow"):
+                sol_trader.follow_capital.record_open(
+                    _addr, float(getattr(_pos, "amount_usd", 0) or 0))
 
         # ── Attention feed (2026-06-11): the social/attention layer, free —
         # DexScreener boost/profile endpoints polled every 5min; features
