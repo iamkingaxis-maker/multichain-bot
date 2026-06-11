@@ -29,6 +29,7 @@ from __future__ import annotations
 import json, os, sys, time, subprocess, collections, statistics
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root (core.rpc_pool)
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 except Exception:
@@ -64,8 +65,15 @@ def _rpc(method, params, tries=2):
 
 
 def analyze(addr, sigs):
-    """Return diversity/selection metrics over the last `sigs` transactions."""
-    sl = _rpc("getSignaturesForAddress", [addr, {"limit": sigs}]) or []
+    """Return diversity/selection metrics over the last `sigs` transactions.
+    Returns None on RPC failure; {"swaps": 0} when txs parse but contain no
+    owner-attributable swaps (Jupiter/proxy custody — UNFOLLOWABLE by our
+    owner-based taps: the smart_follow sweep uses the same parsing, so such a
+    wallet can never trigger fires either; discovered via AgmLJBMD 2026-06-11)."""
+    sl = _rpc("getSignaturesForAddress", [addr, {"limit": sigs}])
+    if sl is None:
+        return None
+
     # per-token accounting
     tok = collections.defaultdict(lambda: {"buys": 0, "sells": 0, "spent": 0.0, "recv": 0.0})
     swaps = 0
@@ -100,7 +108,9 @@ def analyze(addr, sigs):
         elif d < 0 and sol_d > 0:      # sell
             tok[mint]["sells"] += 1; tok[mint]["recv"] += sol_d; swaps += 1
     if swaps == 0:
-        return None
+        return {"swaps": 0, "n_distinct": 0, "top_share": 0.0, "roundtrips": 0,
+                "realized_wr": None, "net_realized": 0.0, "distinct_sells": 0,
+                "unfollowable_custody": True}
     n_distinct = len(tok)
     top_share = max((v["buys"] + v["sells"]) for v in tok.values()) / swaps
     roundtrips = [(m, v) for m, v in tok.items() if v["buys"] >= 1 and v["sells"] >= 1]
@@ -162,7 +172,10 @@ def main():
     for addr, src in targets:
         m = analyze(addr, sigs)
         if m is None:
-            print(f"  {addr[:12]:12s} {src:9s} no-swaps/RPC-fail", flush=True); continue
+            print(f"  {addr[:12]:12s} {src:9s} RPC-fail", flush=True); continue
+        if m.get("unfollowable_custody"):
+            print(f"  {addr[:12]:12s} {src:9s} UNFOLLOWABLE (proxy/Jupiter custody — "
+                  f"our taps cannot see its trades)", flush=True); continue
         cls = classify(m)
         wr = f"{m['realized_wr']*100:.0f}%" if m["realized_wr"] is not None else " n/a"
         print(f"  {addr[:12]:12s} {src:9s} {m['swaps']:4d} {m['n_distinct']:5d} "
