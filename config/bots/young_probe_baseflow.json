@@ -5,7 +5,7 @@
   "base_position_usd": 100.0,
   "bot_id": "young_probe_baseflow",
   "btc_macro_h1_block_threshold": null,
-  "display_name": "YOUNG-PROBE CLONE: confirmed base + hourly buy dominance (1s_base_confirmed_at_entry>=0.5 AND bs_h1>=1.41) on the young_probe_light template. 2026-06-10 mine: held-out TEST WR 95% +$3.39/tr n=21; FULL 97% +$4.59/tr n=33 across 8 tokens. THESIS: a 1s-confirmed base with buyers dominating the hour = the young pond entry that sticks. CAUTION: 8-token diversity = pseudo-replication risk. FAST-CUT: retire if forward WR<60% by n=20 closes or net-negative at n>=12 distinct tokens. [STACK-EXEMPT 2026-06-11: the fleet entry stack (age>=24h, mcap>=500k) is the structural opposite of the young pond \u2014 it silenced this family from the 06-09 enforcement until now. The young lane + own entry gates are the validated stack here.]",
+  "display_name": "YOUNG-PROBE CLONE: confirmed base + hourly buy dominance (1s_base_confirmed_at_entry>=0.5 AND bs_h1>=1.41) on the young_probe_light template. 2026-06-10 mine: held-out TEST WR 95% +$3.39/tr n=21; FULL 97% +$4.59/tr n=33 across 8 tokens. THESIS: a 1s-confirmed base with buyers dominating the hour = the young pond entry that sticks. CAUTION: 8-token diversity = pseudo-replication risk. FAST-CUT: retire if forward WR<60% by n=20 closes or net-negative at n>=12 distinct tokens. [STACK-EXEMPT 2026-06-11: the fleet entry stack (age>=24h, mcap>=500k) is the structural opposite of the young pond \u2014 it silenced this family from the 06-09 enforcement until now. The young lane + own entry gates are the validated stack here.] [THROUGHPUT 2026-06-11: shared young_pond exclusion pool (siblings spread across DISTINCT tokens instead of duplicating - light/candidate closed the same 2 tokens today) + max_concurrent raised. Same entries, more at-bats; $100/day needs shots.]",
   "enabled": true,
   "entry_gate": [
     [
@@ -30,6 +30,7 @@
     ]
   ],
   "entry_stack_exempt": true,
+  "exclusion_pool": "young_pond",
   "filters_disabled": [],
   "filters_enforced": [
     "filter_btc_overheat",
@@ -39,7 +40,7 @@
   "hard_stop_pct": -15.0,
   "macro_up_multiplier": 1.0,
   "marginal_multiplier": 1.0,
-  "max_concurrent_positions": 3,
+  "max_concurrent_positions": 4,
   "mcap_max": null,
   "mcap_min": null,
   "mcap_psych_pc_h24_max": 80.0,

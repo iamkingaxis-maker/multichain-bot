@@ -636,6 +636,10 @@ async def main():
 
         # ── PumpPortal feed (2026-06-11): free realtime firehose — parsed
         # watchlist trades (0 RPC), migrations, launch registry.
+        # walk-forward live set (offense dial): same sources as /api/goal
+        from core.live_set import get_live_set
+        get_live_set().set_sources(tracker, trade_store)
+
         from core.pumpportal_feed import PumpPortalFeed
         pumpportal = PumpPortalFeed(wallets=_follow_watchlist,
                                     strategy=sol_smart_follow,

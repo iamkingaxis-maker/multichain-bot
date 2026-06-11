@@ -614,18 +614,32 @@ class BotEvaluator:
         if c.conviction_sizing_mode is not None:
             base, conv_tag = self._apply_conviction(base, triggers)
             tier = f"{tier}+{conv_tag}"
-        # P7 regime dial DEFENSE (2026-06-10): on dial-bad days, halve dip-pond
-        # size. Asymmetric by design — the 1.5x upsize stays shadow until its
-        # forecast record earns it. Exempt: momentum-mode bots, the entry-stack
-        # control cohort (clean counterfactual), and regime_dial_exempt bots
-        # (bad-day vehicles fish the segment that still pays). Fail-soft.
+        # P7 regime dial (2026-06-10; OFFENSE unlocked 2026-06-11): on dial-bad
+        # days, halve dip-pond size (everyone). On dial-good days, the 1.5x
+        # upsize applies ONLY to walk-forward LIVE-SET members — bots already
+        # net-positive trailing-7d BEFORE today (they earned size; the
+        # size-is-the-bleed disaster was size on UNqualified bots). Env
+        # REGIME_DIAL_OFFENSE=live_set(default)|off. Exempt: momentum-mode,
+        # entry-stack controls, regime_dial_exempt. Fail-soft.
         try:
             if (not getattr(c, "regime_dial_exempt", False)
                     and not c.momentum_mode
                     and c.bot_id not in _entry_stack_control_bots()):
                 from core.regime_dial import get_dial
+                import os as _os
                 _m = get_dial().defense_multiplier()
-                if _m < 1.0:
+                if (_os.environ.get("REGIME_DIAL_OFFENSE", "live_set").lower()
+                        == "live_set"):
+                    try:
+                        from core.live_set import get_live_set
+                        if c.bot_id in get_live_set().members():
+                            _full = float((get_dial().current() or {})
+                                          .get("mult_full") or 1.0)
+                            _m = max(_m, _full)   # offense only lifts, never
+                                                  # weakens defense floor
+                    except Exception:
+                        pass
+                if _m != 1.0:
                     base *= _m
                     tier = f"{tier}+dial{_m:g}"
         except Exception:

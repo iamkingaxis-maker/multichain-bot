@@ -131,6 +131,23 @@ def build_daily(trades):
     return daily
 
 
+def _bot_sizes():
+    """bot_id -> base_position_usd from configs (for $100-normalized view).
+    smart_follow tiers: $50 (k3/k2/solo) / $25 (convex) since the bleed-cut."""
+    import glob, os
+    sizes = {}
+    for f in glob.glob(os.path.join("config", "bots", "*.json")):
+        try:
+            c = json.load(open(f))
+            if c.get("bot_id"):
+                sizes[c["bot_id"]] = float(c.get("base_position_usd") or 0) or 100.0
+        except Exception:
+            pass
+    sizes.update({"smart_follow": 50.0, "smart_follow_k2": 50.0,
+                  "smart_follow_solo": 50.0, "smart_follow_convex": 25.0})
+    return sizes
+
+
 def live_set_for_day(daily, day):
     """Bots qualified BEFORE `day`: trailing-window net>0 with enough closes."""
     try:
@@ -162,21 +179,27 @@ def main():
           f"trailing {LIVE_SET_TRAILING_DAYS}d with >={LIVE_SET_MIN_CLOSES} closes "
           f"BEFORE the day started — what going live would actually have run).")
     print(f"candidate universe: {', '.join(sorted(CANDIDATE_BOTS))} + smart_follow\n")
-    print(f"{'day (CT)':12s}{'live-set $':>11s}{'vs goal':>9s}{'all-cand $':>11s}"
+    print(f"{'day (CT)':12s}{'live-set $':>11s}{'@$100':>9s}{'vs goal':>9s}{'all-cand $':>11s}"
           f"{'ran':>4s}  live set that day")
     days = sorted(daily)
     streak = 0
+    sizes = _bot_sizes()
     for day in days[-14:]:
         bots = daily[day]
         full = sum(r["pnl"] for r in bots.values())
         live = live_set_for_day(daily, day)
         live_tot = sum(bots[b]["pnl"] for b in bots if b in live)
-        ok = "MET ✓" if live_tot >= GOAL_USD_PER_DAY else f"{live_tot-GOAL_USD_PER_DAY:+.0f}"
+        # $100-normalized: what the SAME live-set trades earn at uniform $100
+        # positions (paper probes are $10-100; this answers "would going live
+        # at real size have made the goal" — AxiS 2026-06-11)
+        live_norm = sum(bots[b]["pnl"] * (100.0 / sizes.get(b, 100.0))
+                        for b in bots if b in live)
+        ok = "MET ✓" if live_norm >= GOAL_USD_PER_DAY else f"{live_norm-GOAL_USD_PER_DAY:+.0f}"
         names = ",".join(sorted(b for b in live if b in bots)) or "(none qualified)"
-        print(f"  {day} {live_tot:+11.0f} {ok:>8s} {full:+11.0f} {len(live):4d}  {names[:60]}")
-        streak = streak + 1 if live_tot >= GOAL_USD_PER_DAY else 0
+        print(f"  {day} {live_tot:+11.0f} {live_norm:+9.0f} {ok:>8s} {full:+11.0f} {len(live):4d}  {names[:54]}")
+        streak = streak + 1 if live_norm >= GOAL_USD_PER_DAY else 0
     if days:
-        print(f"\nconsecutive LIVE-SET days >= ${GOAL_USD_PER_DAY:.0f}: {streak}")
+        print(f"\nconsecutive $100-NORMALIZED live-set days >= ${GOAL_USD_PER_DAY:.0f}: {streak}")
         print("(suggest requiring >=5 consecutive MET days before the go-live conversation)")
 
 

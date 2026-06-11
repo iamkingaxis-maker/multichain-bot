@@ -5,7 +5,7 @@
   "base_position_usd": 100.0,
   "bot_id": "young_probe_light",
   "btc_macro_h1_block_threshold": null,
-  "display_name": "YOUNG-TOKEN probe \u2014 LIGHT filters (2026-06-02): young (<YOUNG_TOKEN_MAX_AGE_H) tokens with only FRESH-DATA-SAFE filters (btc_overheat/consec_red/huge_wick) + the freshness gate \u2014 because the full premium-defender stack keys on h6/h24 windows that DON'T EXIST for <2-6h tokens (false negatives). A/B vs young_probe_candidate (full stack) to isolate whether the filters or the tokens are the blocker. Needs YOUNG_TOKEN_PROBE=1 env. $100 fixed. [STACK-EXEMPT 2026-06-11: the fleet entry stack (age>=24h, mcap>=500k) is the structural opposite of the young pond \u2014 it silenced this family from the 06-09 enforcement until now. The young lane + own entry gates are the validated stack here.]",
+  "display_name": "YOUNG-TOKEN probe \u2014 LIGHT filters (2026-06-02): young (<YOUNG_TOKEN_MAX_AGE_H) tokens with only FRESH-DATA-SAFE filters (btc_overheat/consec_red/huge_wick) + the freshness gate \u2014 because the full premium-defender stack keys on h6/h24 windows that DON'T EXIST for <2-6h tokens (false negatives). A/B vs young_probe_candidate (full stack) to isolate whether the filters or the tokens are the blocker. Needs YOUNG_TOKEN_PROBE=1 env. $100 fixed. [STACK-EXEMPT 2026-06-11: the fleet entry stack (age>=24h, mcap>=500k) is the structural opposite of the young pond \u2014 it silenced this family from the 06-09 enforcement until now. The young lane + own entry gates are the validated stack here.] [THROUGHPUT 2026-06-11: shared young_pond exclusion pool (siblings spread across DISTINCT tokens instead of duplicating - light/candidate closed the same 2 tokens today) + max_concurrent raised. Same entries, more at-bats; $100/day needs shots.]",
   "enabled": true,
   "entry_gate": [
     [
@@ -20,6 +20,7 @@
     ]
   ],
   "entry_stack_exempt": true,
+  "exclusion_pool": "young_pond",
   "filters_disabled": [],
   "filters_enforced": [
     "filter_btc_overheat",
@@ -29,7 +30,7 @@
   "hard_stop_pct": -15.0,
   "macro_up_multiplier": 1.0,
   "marginal_multiplier": 1.0,
-  "max_concurrent_positions": 3,
+  "max_concurrent_positions": 5,
   "mcap_max": null,
   "mcap_min": null,
   "mcap_psych_pc_h24_max": 80.0,
