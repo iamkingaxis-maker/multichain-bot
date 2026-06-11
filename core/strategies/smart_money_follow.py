@@ -81,6 +81,22 @@ def _max_chase_pct() -> float:
         return 1.5
 
 
+def _dist_guard_mode() -> str:
+    """Distribution guard (2026-06-11): don't BUY what the roster is SELLING.
+    We already mirror elite sells post-entry (elite-exit); this is the same
+    signal applied pre-entry — veto fires on tokens any watchlist wallet sold
+    within the window. Modes: enforce (default) / shadow / off."""
+    m = os.environ.get("SMART_FOLLOW_DIST_GUARD", "enforce").strip().lower()
+    return m if m in ("enforce", "shadow", "off") else "enforce"
+
+
+def _dist_guard_sec() -> int:
+    try:
+        return int(os.environ.get("SMART_FOLLOW_DIST_GUARD_SEC", "600"))
+    except Exception:
+        return 600
+
+
 def _flush_gate_mode() -> str:
     m = os.environ.get("SMART_FOLLOW_FLUSH_GATE", "enforce").strip().lower()
     return m if m in ("enforce", "shadow", "off") else "enforce"
@@ -126,6 +142,7 @@ class SmartMoneyFollowStrategy:
         # dip exits fight multi-hour theses (74% of stops recovered >15%).
         self._fired_wallets = {}   # token -> set(trigger wallets)
         self._elite_sold = {}      # token -> set(trigger wallets that have SOLD)
+        self._recent_sells = {}    # token -> last watchlist-sell ts (distribution guard)
         # K-tier pods (config/follow_tiers.json): K=2 high-tier + K=1 solo,
         # each rate-capped — the 06-09 K=1 flood starved the event loop, so
         # solo/k2 fire at most N times per rolling hour.
@@ -259,6 +276,13 @@ class SmartMoneyFollowStrategy:
         shallow = pc_h1 is None or pc_h1 > max_pch1
         gate_verdict = "blocked" if (shallow and gate_mode == "enforce") else (
             "shadow_block" if (shallow and gate_mode in ("shadow", "off")) else "pass")
+        # distribution guard: a roster wallet SOLD this token within the window
+        # -> we'd be buying their distribution. Same signal as elite-exit, pre-entry.
+        dg_mode = _dist_guard_mode()
+        last_sell = self._recent_sells.get(mint, 0)
+        distributing = dg_mode != "off" and last_sell and (now - last_sell) <= _dist_guard_sec()
+        dist_verdict = ("blocked" if (distributing and dg_mode == "enforce") else
+                        "shadow_block" if distributing else "pass")
         # fire-quality size shadow (config/follow_quality.json): stamp only —
         # enforcement waits for n>=40/wallet on the new-list fire board.
         quals = [self.fire_quality[w] for w in wset if w in self.fire_quality]
@@ -280,14 +304,14 @@ class SmartMoneyFollowStrategy:
                     conv = c_ if conv is None else max(conv, c_)
         conv = round(conv, 2) if conv is not None else None
         logger.info(f"[SmartFollow] 🎯 {reason} | {info['symbol']} {mint[:10]} "
-                    f"| flush_gate={gate_verdict} pc_h1={pc_h1} fq={fq_mean} "
+                    f"| flush_gate={gate_verdict} dist_guard={dist_verdict} pc_h1={pc_h1} fq={fq_mean} "
                     f"would_mult={would_mult} conviction={conv}")
         # Track which wallets triggered this fire -> attribute trade outcomes to
         # wallets later (join to /api/trades by token) -> prune junk wallets empirically.
         _append_jsonl(_FOLLOW_LOG, {
             "ts": now, "token": mint, "symbol": info.get("symbol"),
             "wallets": sorted(wset), "n": len(wset),
-            "tier": tier, "flush_gate": gate_verdict,
+            "tier": tier, "flush_gate": gate_verdict, "dist_guard": dist_verdict,
             "fq_mean": fq_mean, "would_size_mult": would_mult,
             "conviction_mult": conv,
             # token state at fire time (2026-06-09): already in hand from the
@@ -298,7 +322,7 @@ class SmartMoneyFollowStrategy:
                 "pc_h1": info.get("pc_h1"),
             },
         })
-        if gate_verdict == "blocked":
+        if gate_verdict == "blocked" or dist_verdict == "blocked":
             return
         # remember the triggers so their SELLS can exit us ("follow them out")
         self._fired_wallets[mint] = set(wset)
@@ -360,6 +384,7 @@ class SmartMoneyFollowStrategy:
             self._hot_event.set()
             return
         # SELL — mirror the sweep's exit handling (round-trip log + elite-exit)
+        self._recent_sells[mint] = max(self._recent_sells.get(mint, 0), int(ts))
         ent = self._wallet_pos.pop((wallet, mint), None)
         if ent:
             _append_jsonl(_FOLLOW_EXITS_LOG, {
@@ -483,6 +508,7 @@ class SmartMoneyFollowStrategy:
                         # remember the elite's entry so we can measure their EXIT later
                         self._wallet_pos[(w, mint)] = (bt, sol)
                     else:  # SELL — an elite we may be following is EXITING
+                        self._recent_sells[mint] = max(self._recent_sells.get(mint, 0), bt)
                         ent = self._wallet_pos.pop((w, mint), None)
                         if ent:
                             hold = max(0, bt - ent[0])
@@ -525,6 +551,8 @@ class SmartMoneyFollowStrategy:
             self._buys = [b for b in self._buys if now - b[2] <= self.window_sec]
             # TTL the open round-trips (drop entries whose buy is >24h old and never sold)
             self._wallet_pos = {k: v for k, v in self._wallet_pos.items() if now - v[0] <= 86400}
+            self._recent_sells = {m: t for m, t in self._recent_sells.items()
+                                  if now - t <= max(3600, _dist_guard_sec())}
             bytok = {}
             fire_sol = {}
             for mint, w, bt, sol in self._buys:

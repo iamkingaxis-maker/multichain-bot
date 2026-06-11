@@ -122,3 +122,42 @@ def test_realtime_sell_round_trip_logged_without_pm():
     # sell closes the elite round-trip without raising (no PM wired)
     asyncio.run(s.ingest_realtime_trade("wA", "MINT1", "sell", 1.4, 1300, "s1"))
     assert ("wA", "MINT1") not in s._wallet_pos
+
+
+def test_distribution_guard_modes_and_window():
+    import os
+    from core.strategies.smart_money_follow import _dist_guard_mode, _dist_guard_sec
+    os.environ.pop("SMART_FOLLOW_DIST_GUARD", None)
+    assert _dist_guard_mode() == "enforce"              # default on
+    os.environ["SMART_FOLLOW_DIST_GUARD"] = "shadow"
+    assert _dist_guard_mode() == "shadow"
+    os.environ["SMART_FOLLOW_DIST_GUARD"] = "garbage"
+    assert _dist_guard_mode() == "enforce"              # fail-closed
+    os.environ.pop("SMART_FOLLOW_DIST_GUARD", None)
+    assert _dist_guard_sec() == 600
+
+
+def test_distribution_guard_verdict_logic():
+    # mirrors the _fire computation: roster sell within window -> blocked
+    from core.strategies.smart_money_follow import _dist_guard_sec
+    s = _mk_strategy()
+    now = 1_000_000
+    verdict = lambda mode: ("blocked" if (dist and mode == "enforce") else
+                            "shadow_block" if dist else "pass")
+    s._recent_sells["MINT1"] = now - 60                 # sold 1min ago
+    last = s._recent_sells.get("MINT1", 0)
+    dist = last and (now - last) <= _dist_guard_sec()
+    assert verdict("enforce") == "blocked"
+    assert verdict("shadow") == "shadow_block"
+    s._recent_sells["MINT1"] = now - 700                # outside 600s window
+    last = s._recent_sells.get("MINT1", 0)
+    dist = last and (now - last) <= _dist_guard_sec()
+    assert verdict("enforce") == "pass"
+
+
+def test_realtime_sell_feeds_distribution_guard():
+    import asyncio
+    s = _mk_strategy()
+    s.watchlist = ["wA"]
+    asyncio.run(s.ingest_realtime_trade("wA", "MINT9", "sell", 0.8, 5000, "sx"))
+    assert s._recent_sells.get("MINT9") == 5000
