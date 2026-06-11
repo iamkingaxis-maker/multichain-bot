@@ -2,8 +2,8 @@
 
 **Bot URL**: https://gracious-inspiration-production.up.railway.app
 **Mode: PAPER throughout** (`live_mode: False` verified after every deploy). No PAPER_MODE flip.
-**HEAD**: `c8e4351`. 14 commits today on top of yesterday's 17 (the 06-10 "Bad-Day Playbook Day"
-record is preserved below). Suite **684 passing**.
+**HEAD**: `5a5ecba`. 28 commits today on top of yesterday's 17 (the 06-10 "Bad-Day Playbook Day"
+record is preserved below). Suite **692 passing**.
 
 **THE HEADLINE: smart wallet went from "bleeding heavy, not ready" (AxiS, morning) to
 effectively POSITIVE on the day (-$25.83 hot + $30 banked = +$4 since the 04:19 pool epoch,
@@ -118,6 +118,82 @@ B. **ATTENTION FEED** (`c8e4351`, `core/attention_feed.py`): the social/attentio
    outcomes at n>=200 stamped entries. Env ATTENTION_FEED=on|off.
 
 Also: convex-wing deploy verified paper; fleet-cap revert stands (see standing rules).
+
+## EVENING ADDENDUM 2 (~16:15-20:15 UTC) — guards, free firehoses, and three deploy-amnesia bugs
+
+14 more commits (HEAD `5a5ecba`, suite **692**). The arc: AxiS's observations drove every fix.
+
+### Smart wallet guard stack (all ENFORCE, all logged per-fire)
+- **DISTRIBUTION GUARD** (`afeefff`): roster sell on token within 10min -> veto fire (both eyes
+  record sells: RPC sweep + PumpPortal). Env SMART_FOLLOW_DIST_GUARD(_SEC). FIRST-SHIFT REPLAY
+  (~90min): 6 vetoes = 3 dodges (MASCOTS k3 would-have-fired into **-43%**), 2 flats, 1 missed
+  winner (ZOOMER +10.8) -> net +$22.75 raw / ~+$10-13 ladder-modeled. Refinement theory: sub-minute
+  scalper sells carry little info (ANTH flat) — weight by seller hold time at n>=20 vetoes.
+- **WON-TODAY VETO + 1h cooldown** (`fead8fe`->`e6bd5e8`): "8 losses on 2 tokens" autopsy —
+  elonbucks was a WINNER (+$24 net; red rows = remainder slices), Deniz was the flaw: morning
+  episode won+closed, 17:32 re-fire bought the exhausted run (-$40). Gap analysis n=49: after-WIN
+  re-fires negative in EVERY gap bucket (-$58 <24h, still neg >24h); after-LOSS at 6h+ = **+$78**
+  (re-accumulation). AxiS pushed back on my blanket 24h ("memecoins change a lot") -> replaced
+  with outcome-conditioned: 1h anti-spam cooldown (persisted follow_fired.json) + veto ONLY
+  tokens already won today (FollowCapital.token_pnl_today, persisted, day-rolls). After-loss
+  re-buys flow again. won_today_veto records in follow log.
+- Stack now: flush gate, chase guard, dist guard, won-today veto, elite-exit, conviction stamps,
+  fractional copy-tax board, own capital pool.
+
+### THREE deploy-amnesia bugs (the named pattern: in-memory state dies at cutover; 10+ deploys/day)
+1. Fire cooldown wiped -> persisted (follow_fired.json).
+2. FollowCapital exposure wiped -> deployed read $0 while $67 remainders rode; re-register
+   restored positions after pool wiring in main (`78d4209`).
+3. (Yesterday: trail peak amnesia.) Anything in-memory MUST persist or re-derive on boot.
+
+### Wallet pipeline at full speed
+- **ALCHEMY KEY live** (AxiS signed up; `02d2ed6` core/rpc_pool.py: env ALCHEMY_API_KEY or
+  gitignored alchemy_key.txt; Railway var set; Alchemy-first + 4 public fallbacks in scorer/
+  cycle/strategy). Heavy-wallet mystery SOLVED: AgmLJBMD/Em8J3gBW/gasTzr94 = **UNFOLLOWABLE**
+  (Jupiter/proxy custody — owner-based parsing sees zero swaps; our sweep COULD NEVER see their
+  buys either). Scorer verdict added (`672ea3d`). Thread closed permanently.
+- **Wide harvest @ Alchemy speed**: 124 candidates / 3 funnels (runners 351, elite-cluster 292,
+  roster 8543 rows — funnel C format bug fixed). **7 FRESH bench candidates** in
+  _wide_harvest_results.json: AxQRySJb (83% rWR, 59 ndist, 2-funnel), CuTgJYbT (80%/10rt),
+  7rbxsXch (79%/14rt), 5Er9zJ1V (69%/16rt), 3fuga4 (60%, 2-funnel), Ar2Y6o1Q, 2Lsypd.
+  Per protocol: BENCHED, need time-separated re-measure at morning ritual before seating.
+- **TOMBSTONE LEDGER** (`bc7cc57` config/follow_cuts.json): harvest resurfaced 2tYcXQCf (cut
+  same morning) at 78% rWR -> quality != copyable. Cuts recorded+excluded from recruits();
+  --apply auto-records. Cycle reruns: udH4u cut on FRACTIONAL verdict (-$2.22/close n=15);
+  recruits 1eveYYxZ/HcLMmNx9 SPARED (frac n=4-5 under bar — multi-count artifact). Fractional
+  attribution now permanent in wallet_cycle (`375b4db`). Roster 8/12 + bench 8.
+- **PumpPortal firehose** (`f734ebe` core/pumpportal_feed.py): free keyless WS — watchlist
+  account trades PARSED in realtime (0 RPC; signature-dedupe vs sweep via _seen),
+  migrations->migrations.jsonl, launch registry. /api/pumpportal. Env PUMPPORTAL_FEED.
+- GMGN probed: Cloudflare 403, dead keylessly.
+
+### Fleet: the silence audit (AxiS: "young probe hasnt fired in days")
+11/46 enabled bots had ZERO buys since the 06-09 entry-stack enforcement. ROOT CAUSE: the stack
+(age>=24h, mcap>=500k) is the structural OPPOSITE of the young pond; family never exempted.
+- 6 young bots stack-exempted (`7b1947d`), 2 sub-500k mcapgate bots exempted + low_mcap_probe
+  mandate (`36cc420`). badday family: exempt but lane admissions episodic — tripwire stands.
+- Fleet ~280 buys/day vs 724 pre-stack = ~60% intended selectivity + 40% this bug.
+- NEW RULE: when a gate ships, audit every existing bot against it (pipeline-trace BACKWARDS).
+  Morning ritual gains a silence check (any enabled bot 0 buys/48h = flag).
+
+### Infra
+- **20:00 SERVER-WIDE STALL solved** (`5a5ecba`): io.dexscreener rate-limited us -> each fetch
+  hung a thread 10s -> scanner's DS calls saturated the GLOBAL to_thread pool (~32) -> dashboard
+  serialization starved, ALL endpoints 000, buys 25s apart. Fix: private 4-thread executor for
+  DS, timeouts 10->5s, circuit breaker (5 fails -> 5min open -> GT fallback). Verified healthy.
+- Dashboard Open Positions card = SMART WALLET ONLY (`42c6092`, AxiS request) — fleet probes
+  live in the Bots tab. Sizes decoded: odd numbers = remainders after banked TP slices.
+- Cycle recruits() recognizes harvest keeper format (`0393fa7`).
+
+### State at 20:12 UTC
+Pool: -$41.71 hot + $30 banked = -$11.71 effective (morning low -$84). Day: 121 closes 81W/40L
+(67% WR) net -$14.24 — hit rate fine, damage was the 4 oversized losers the new guards target.
+4 open: WAR $50 fresh + GABLE/WERLD/Percolator remainders (all green, GABLE +27%@7h).
+
+### MORNING RITUAL (updated)
+sync --full -> badday_scorecard -> goal_tracker --cache -> wallet_cycle (--apply mechanical)
+-> re-score the 7 bench candidates (2nd measure; survivors fill seats) -> silence check
+(enabled bots 0 buys/48h) -> dist-guard veto replay (grade blocks) -> convex-vs-parent check.
 
 ## FILL-FIDELITY VERDICT (trust checkpoint — PASSED)
 
