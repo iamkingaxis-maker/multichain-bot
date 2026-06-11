@@ -607,6 +607,13 @@ async def main():
         wallet_discovery = WalletDiscovery()
         dashboard.wallet_discovery = wallet_discovery
 
+        # ── Smart-wallet capital pool (2026-06-11, AxiS): own pool + own sweep
+        # floor starting CLEAN today — the strategy's launch-era debt no longer
+        # blocks banking its rebuilt self's profits. Virtual sweeps in paper.
+        from core.follow_capital import FollowCapitalManager
+        sol_trader.follow_capital = FollowCapitalManager()
+        dashboard.follow_capital = sol_trader.follow_capital
+
         tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run(),
                   sol_smart_follow.run(), wallet_discovery.run()]
 

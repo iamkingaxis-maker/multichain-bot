@@ -1344,6 +1344,10 @@ class Trader:
                     # Scalp has its own capital pool (ScalpCapitalManager); never clip
                     # against main risk manager's pool.
                     position_size_usd = override_usd
+                elif strategy.startswith("smart_follow"):
+                    # smart_follow* has its own pool too (FollowCapitalManager,
+                    # 2026-06-11) — own floor, own sweep ledger, no shared-book clip.
+                    position_size_usd = override_usd
                 else:
                     # Cap override at risk manager's normal max to prevent inflated rebuys
                     risk_max = self.risk_manager.available_capital * self.risk_manager.max_position_pct
@@ -1355,6 +1359,16 @@ class Trader:
                 return
 
             _addr_lower = token_address.lower()
+            # FollowCapital pool gate (2026-06-11): smart_follow* can only deploy
+            # what its own pool has available — losses shrink firepower, sweeps
+            # bank the excess, the legacy shared book is untouched.
+            if strategy.startswith("smart_follow") and getattr(self, "follow_capital", None):
+                if not self.follow_capital.can_open(position_size_usd):
+                    logger.info(
+                        f"[Trader] FollowCapital blocked {token_symbol}: need "
+                        f"${position_size_usd:.0f}, available "
+                        f"${self.follow_capital.available():.2f}")
+                    return
             if _addr_lower in self.open_positions:
                 logger.info(
                     f"[Trader] Buy blocked for {token_symbol} "
@@ -2128,7 +2142,9 @@ class Trader:
                 )
                 self.open_positions[token_address.lower()] = position
                 self.reentry.buy_counts[token_address.lower()] = self.reentry.buy_counts.get(token_address.lower(), 0) + 1
-                if strategy != "scalp":
+                if strategy.startswith("smart_follow") and getattr(self, "follow_capital", None):
+                    self.follow_capital.record_open(token_address, position_size_usd)
+                elif strategy != "scalp":
                     self.risk_manager.record_buy(position_size_usd)
 
                 await self.telegram.send(
@@ -2244,7 +2260,9 @@ class Trader:
             self.open_positions[token_address.lower()] = position
             self._save_open_positions()
             self.reentry.buy_counts[token_address.lower()] = self.reentry.buy_counts.get(token_address.lower(), 0) + 1
-            if strategy != "scalp":
+            if strategy.startswith("smart_follow") and getattr(self, "follow_capital", None):
+                self.follow_capital.record_open(token_address, position_size_usd)
+            elif strategy != "scalp":
                 self.risk_manager.record_buy(position_size_usd)
 
             # Subscribe real-time price feeds for live position
@@ -2477,7 +2495,10 @@ class Trader:
                     position.amount_sol_spent *= (1 - pct)
                     position.amount_usd *= (1 - pct)
 
-                if getattr(position, "strategy", "") != "scalp":
+                if (getattr(position, "strategy", "").startswith("smart_follow")
+                        and getattr(self, "follow_capital", None)):
+                    self.follow_capital.record_close(token_address, pct, pnl)
+                elif getattr(position, "strategy", "") != "scalp":
                     self.risk_manager.record_sell(usd_received, pnl)
                 emoji = "🟢" if pnl >= 0 else "🔴"
 
@@ -2649,7 +2670,10 @@ class Trader:
                 position.amount_usd *= (1 - pct)
             self._save_open_positions()
 
-            if getattr(position, "strategy", "") != "scalp":
+            if (getattr(position, "strategy", "").startswith("smart_follow")
+                    and getattr(self, "follow_capital", None)):
+                self.follow_capital.record_close(token_address, pct, pnl)
+            elif getattr(position, "strategy", "") != "scalp":
                 self.risk_manager.record_sell(usd_received, pnl)
 
             emoji = "🟢" if pnl >= 0 else "🔴"

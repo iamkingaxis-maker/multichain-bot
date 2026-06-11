@@ -2247,6 +2247,7 @@ class WebDashboard:
         self.app.router.add_get("/api/goal",                self._handle_api_goal)
         self.app.router.add_get("/api/wallet-discovery",    self._handle_wallet_discovery)
         self.app.router.add_get("/api/regime-dial",         self._handle_regime_dial)
+        self.app.router.add_get("/api/follow-capital",      self._handle_follow_capital)
         self.app.router.add_get("/api/leaderboard",         self._handle_api_leaderboard)
         self.app.router.add_get("/api/bots/{bot_id}/trades",    self._handle_api_bot_trades)
         self.app.router.add_get("/api/bots/{bot_id}/positions", self._handle_api_bot_positions)
@@ -4390,6 +4391,13 @@ class WebDashboard:
     async def _handle_api_bots(self, request):
         """GET /api/bots — list all bots with balance/pnl/open count."""
         return web.json_response(self._build_bot_rows())
+
+    async def _handle_follow_capital(self, request):
+        """GET /api/follow-capital — smart-wallet pool status + sweep ledger."""
+        fc = getattr(self, "follow_capital", None)
+        if fc is None:
+            return web.json_response({"enabled": False, "note": "pool not wired"})
+        return web.json_response(fc.status())
 
     async def _handle_regime_dial(self, request):
         """GET /api/regime-dial — P7 dial live state (signals + multipliers)."""
