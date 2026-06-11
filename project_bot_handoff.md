@@ -2,7 +2,7 @@
 
 **Bot URL**: https://gracious-inspiration-production.up.railway.app
 **Mode: PAPER throughout** (`live_mode: False` verified after every deploy). No PAPER_MODE flip.
-**HEAD**: `5a5ecba`. 28 commits today on top of yesterday's 17 (the 06-10 "Bad-Day Playbook Day"
+**HEAD**: `7756040`. 31 commits today on top of yesterday's 17 (the 06-10 "Bad-Day Playbook Day"
 record is preserved below). Suite **692 passing**.
 
 **THE HEADLINE: smart wallet went from "bleeding heavy, not ready" (AxiS, morning) to
@@ -194,6 +194,47 @@ Pool: -$41.71 hot + $30 banked = -$11.71 effective (morning low -$84). Day: 121 
 sync --full -> badday_scorecard -> goal_tracker --cache -> wallet_cycle (--apply mechanical)
 -> re-score the 7 bench candidates (2nd measure; survivors fill seats) -> silence check
 (enabled bots 0 buys/48h) -> dist-guard veto replay (grade blocks) -> convex-vs-parent check.
+
+## EVENING ADDENDUM 3 (~20:15-21:35 UTC) — THE $100/DAY PUSH (AxiS-approved 3 levers + floors)
+
+Goal status at 21:15: live-set **+$34** (12 candidates green, none red), streak 0. AxiS: "what
+else can we do to reach $100/day?" -> the gap is MAGNITUDE not edge. Shipped (`bb1aa96`,
+`7756040`, suite 692, paper verified):
+
+1. **OFFENSE DIAL UNLOCKED — for the qualified only** (`core/live_set.py` + bot_evaluator):
+   P7's 1.5x upsize leaves shadow, applied ONLY to walk-forward LIVE-SET members (bot computes
+   the set server-side from the same sources as /api/goal; 30min cache; fail-soft empty =
+   defense-only). Offense lifts via max() — the defense floor NEVER weakens. Env
+   REGIME_DIAL_OFFENSE=live_set(default)|off. Observable: `tier=...+dial1.5` on sized buys.
+   Rationale: size-is-the-bleed was size on UNqualified bots; this is size on bots that earned
+   it, regime-gated by the dial (forecast record 1/1).
+2. **GOAL METER @$100 NORMALIZED** (goal_tracker): new column = live-set P&L at uniform $100
+   positions ("would going live at real size have made the goal"); STREAK now counts the
+   normalized line. Today +34/+34 (young earners already $100-sized; diverges when $50 ponds
+   carry the set).
+3. **YOUNG POND THROUGHPUT**: light/candidate closed the SAME 2 tokens today (+$15.81 each —
+   the day's best live-set earners, pure duplication). All 4 young probes now share the
+   `young_pond` exclusion pool (siblings take DISTINCT tokens) + max_concurrent 3->5 (proven
+   pair) / 3->4 (stair/baseflow). Same entries, ~2x distinct at-bats.
+4. **DAILY LOSS FLOORS ON ALL 22 GOAL CANDIDATES** (`7756040`): audit found ZERO candidates
+   carried daily_loss_limit_usd despite RISK_FLOOR_MODE=enforce live (momentum_shadow bled
+   -$34 unchecked today). Floor = max(15, 0.6x base size) ≈ 4 stops' worth — variance room,
+   cascade-day halt.
+
+**Deliberate non-actions**: do NOT pool the pond clones (same-token duplication IS the A/B
+experiment until a winner is promoted at n>=50); do NOT add more bots/strategies (bottleneck =
+verdict speed, not idea count).
+
+**The math**: today's +$34 = ~2 effective young shots, unleveraged, smart wallet unguarded most
+of the day. Tomorrow runs ~4 distinct young shots x 1.5x dial x guarded follow engine x (maybe)
+badday conversions. Day P&L state at close of session: live-set +$34, smart-wallet pool -$41.73
+hot + $30 banked = -$11.73 effective, 67% WR (81W/40L).
+
+**MORNING RITUAL (final form)**: sync --full -> badday_scorecard -> goal_tracker --cache (note
+the @$100 column + streak) -> wallet_cycle --apply -> re-score the 7 bench candidates (2nd
+measure; survivors fill seats 9-12) -> silence check (enabled bots 0 buys/48h) -> dist-guard
+veto replay -> convex-vs-parent + dial-offense first grades -> badday lane tripwire (~13:30 UTC,
+1m-confirmation layer is the suspect if still dry).
 
 ## FILL-FIDELITY VERDICT (trust checkpoint — PASSED)
 
