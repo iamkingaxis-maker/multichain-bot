@@ -159,7 +159,10 @@ def recruits():
             if not isinstance(r, dict):
                 continue
             w = r.get("wallet")
-            cls = r.get("class") or ("SELECTOR" if "runner_hits" in r else None)
+            # harvest keepers are SELECTOR-grade by construction (the wide
+            # harvest only writes keeper rows); legacy formats carry class
+            # or runner_hits explicitly.
+            cls = r.get("class") or ("SELECTOR" if ("runner_hits" in r or "sources" in r) else None)
             if (w and cls == "SELECTOR" and (r.get("net_realized") or 0) > 0
                     and (r.get("roundtrips") or 0) >= 1):
                 cands.append({"wallet": w, "net": r.get("net_realized"),
@@ -197,7 +200,7 @@ def main():
             cuts.append(w)
             why[w] = f"copy-tax TOXIC (${avg}/close, n={n})"
             flag = "  -> CUT (toxic)"
-        print(f"   {w[:10]} {v:9s} avg/close={avg} n={n}{flag}")
+        print(f"   {w[:10]} {v:9s} avg/close={avg} n={round(n, 1)}{flag}")
 
     print("\n3) RECRUITS (vetted, daily-positive, unseated)")
     dead = tombstones()
