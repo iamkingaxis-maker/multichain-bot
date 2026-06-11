@@ -80,6 +80,21 @@ def main():
     page = _get(f"{BASE}?limit={PAGE}" + ("&full=1" if full else ""))
     page.sort(key=lambda t: t.get("time") or "")
     overlap = any(_key(t) in known for t in page[:50]) or not cache
+    upgraded = 0
+    if full:
+        # --full UPGRADES matching records that lack entry_meta (a trimmed-first
+        # sync otherwise poisons the cache forever: the dedup key matches, so the
+        # meta-carrying version was skipped — scorecard sections went blind).
+        by_key = {}
+        for t in page:
+            if t.get("entry_meta") is not None:
+                by_key[_key(t)] = t
+        if by_key:
+            for i, t in enumerate(cache):
+                k = _key(t)
+                if k in by_key and t.get("entry_meta") is None:
+                    cache[i] = by_key[k]
+                    upgraded += 1
     for t in page:
         if _key(t) not in known:
             fresh.append(t)
@@ -89,7 +104,9 @@ def main():
     cache.extend(fresh)
     cache.sort(key=lambda t: t.get("time") or "")
     json.dump(cache, open(CACHE, "w"))
-    print(f"synced: +{len(fresh)} new records | cache total {len(cache)} | "
+    print(f"synced: +{len(fresh)} new records"
+          + (f" | upgraded {upgraded} with entry_meta" if full and upgraded else "")
+          + f" | cache total {len(cache)} | "
           f"newest {max((t.get('time') or '' for t in cache), default='')[:19]}")
 
 

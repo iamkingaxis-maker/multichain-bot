@@ -144,6 +144,8 @@ class SmartMoneyFollowStrategy:
         # targeted sweep instead of waiting out the poll interval.
         self._hot = set()
         self._hot_event = asyncio.Event()
+        self._wallet_sizes = {}     # wallet -> recent buy sizes (conviction baseline)
+        self._last_fire_sol = {}    # (mint, wallet) -> triggering buy SOL
         self.signals_fired = 0
         self.buys_seen = 0
         logger.info(f"[SmartFollow] init: {len(self.watchlist)} wallets | K={k} within {window_sec//60}min "
@@ -259,8 +261,21 @@ class SmartMoneyFollowStrategy:
                       1.25 if fq_mean > 0.5 else
                       0.5 if fq_mean < -1.5 else
                       0.75 if fq_mean < 0 else 1.0)
+        # conviction (2026-06-11): triggering buy size vs the wallet's own
+        # rolling median — a 5x-median bet means more than a dust probe.
+        conv = None
+        for w in wset:
+            sol = self._last_fire_sol.get(w)
+            hist = self._wallet_sizes.get(w) or []
+            if isinstance(sol, (int, float)) and len(hist) >= 5:
+                med = sorted(hist)[len(hist) // 2]
+                if med > 0:
+                    c_ = sol / med
+                    conv = c_ if conv is None else max(conv, c_)
+        conv = round(conv, 2) if conv is not None else None
         logger.info(f"[SmartFollow] 🎯 {reason} | {info['symbol']} {mint[:10]} "
-                    f"| flush_gate={gate_verdict} pc_h1={pc_h1} fq={fq_mean} would_mult={would_mult}")
+                    f"| flush_gate={gate_verdict} pc_h1={pc_h1} fq={fq_mean} "
+                    f"would_mult={would_mult} conviction={conv}")
         # Track which wallets triggered this fire -> attribute trade outcomes to
         # wallets later (join to /api/trades by token) -> prune junk wallets empirically.
         _append_jsonl(_FOLLOW_LOG, {
@@ -268,6 +283,7 @@ class SmartMoneyFollowStrategy:
             "wallets": sorted(wset), "n": len(wset),
             "tier": tier, "flush_gate": gate_verdict,
             "fq_mean": fq_mean, "would_size_mult": would_mult,
+            "conviction_mult": conv,
             # token state at fire time (2026-06-09): already in hand from the
             # DexScreener quote — costs no extra fetch.
             "state": {
@@ -296,7 +312,13 @@ class SmartMoneyFollowStrategy:
                                                     if tier == "convex"
                                                     else _max_chase_pct()) / 100.0),
                 # convex = many small tickets: $25 probes vs the $100 default
-                override_usd=(25.0 if tier == "convex" else 0.0))
+                override_usd=(25.0 if tier == "convex" else 0.0),
+                # permanent latency/chase/conviction audit trail on the position
+                signal_meta={"follow_fire_ts": now,
+                             "follow_fire_price": info.get("price"),
+                             "follow_tier": tier,
+                             "follow_conviction_mult": conv,
+                             "follow_fq_mean": fq_mean})
         except Exception as e:
             logger.warning(f"[SmartFollow] process_external_signal error: {e}")
 
@@ -383,7 +405,11 @@ class SmartMoneyFollowStrategy:
             for w, got in results:
                 for mint, bt, side, sol in got:
                     if side == "buy":
-                        self._buys.append((mint, w, bt)); self.buys_seen += 1
+                        self._buys.append((mint, w, bt, sol)); self.buys_seen += 1
+                        # rolling per-wallet buy-size history -> conviction stamp
+                        h = self._wallet_sizes.setdefault(w, [])
+                        h.append(sol)
+                        del h[:-40]
                         # remember the elite's entry so we can measure their EXIT later
                         self._wallet_pos[(w, mint)] = (bt, sol)
                     else:  # SELL — an elite we may be following is EXITING
@@ -430,8 +456,10 @@ class SmartMoneyFollowStrategy:
             # TTL the open round-trips (drop entries whose buy is >24h old and never sold)
             self._wallet_pos = {k: v for k, v in self._wallet_pos.items() if now - v[0] <= 86400}
             bytok = {}
-            for mint, w, bt in self._buys:
+            fire_sol = {}
+            for mint, w, bt, sol in self._buys:
                 bytok.setdefault(mint, set()).add(w)
+                fire_sol[(mint, w)] = sol
             for mint, wset in bytok.items():
                 # K-tier resolution: K=3 full consensus -> K=2 high-tier pod ->
                 # K=1 solo probe. Pods are rate-capped per rolling hour (the
@@ -452,6 +480,7 @@ class SmartMoneyFollowStrategy:
                 self._fired[mint] = now
                 if tier in self._tier_fires:
                     self._tier_fires[tier].append(now)
+                self._last_fire_sol = {w: fire_sol.get((mint, w)) for w in wset}
                 await self._fire(session, mint, wset, now, tier)
             # prune fired + the elite-exit trigger maps alongside
             self._fired = {m: ts for m, ts in self._fired.items() if now - ts < self.fire_cooldown * 4}
