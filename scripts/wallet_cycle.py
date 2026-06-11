@@ -126,6 +126,26 @@ def copy_tax_verdicts(watch):
     return out
 
 
+def tombstones():
+    """Wallets cut for cause (config/follow_cuts.json) — never auto re-seat.
+    A cut wallet may only return via explicit human decision after its
+    copy-tax record is confronted (2tYcXQCf resurfaced at 78% rWR hours
+    after being cut as a bleed-engine: quality != copyable)."""
+    try:
+        return set(json.load(open("config/follow_cuts.json")))
+    except Exception:
+        return set()
+
+
+def record_cut(wallet, reason):
+    try:
+        cuts = json.load(open("config/follow_cuts.json"))
+    except Exception:
+        cuts = {}
+    cuts[wallet] = f"{reason} (cycle cut {datetime.now(timezone.utc).strftime('%Y-%m-%d')})"
+    json.dump(cuts, open("config/follow_cuts.json", "w"), indent=2)
+
+
 def recruits():
     cands = []
     for f in ("_wide_harvest_results.json", "_daily_positive_candidates.json",
@@ -180,7 +200,8 @@ def main():
         print(f"   {w[:10]} {v:9s} avg/close={avg} n={n}{flag}")
 
     print("\n3) RECRUITS (vetted, daily-positive, unseated)")
-    rec = [r for r in recruits() if r["wallet"] not in watch]
+    dead = tombstones()
+    rec = [r for r in recruits() if r["wallet"] not in watch and r["wallet"] not in dead]
     for r in rec[:8]:
         print(f"   {r['wallet'][:10]} net={r['net']} rWR={r['rWR']} ndist={r['ndist']}")
 
@@ -201,6 +222,8 @@ def main():
         json.dump(watch, open(bak, "w"), indent=2)
         new = survivors + promote
         json.dump(new, open(WATCHLIST, "w"), indent=2)
+        for w in cuts:
+            record_cut(w, why.get(w, "cycle cut"))
         print(f"\nAPPLIED. backup={bak} | new roster={len(new)} | "
               f"commit+deploy required for the strategy to reload.")
     elif cuts or promote:
