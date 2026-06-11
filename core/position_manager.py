@@ -40,6 +40,13 @@ def _grace_floor_pct() -> float:
         return 50.0
 
 
+def _follow_tp1_fraction() -> float:
+    try:
+        return float(os.environ.get("SMART_FOLLOW_TP1_FRACTION", "0.35"))
+    except Exception:
+        return 0.35
+
+
 def _stop_grace_arm(token_address: str) -> bool:
     """Deterministic ~50/50 treatment assignment by token-address parity."""
     mode = _grace_mode()
@@ -827,9 +834,15 @@ class PositionManager:
                     # remainder rides the peak-scaled trail. The elites' payoff
                     # is the tail (winners p90 +107%); the 0.65 bank-the-pop
                     # override is right for consensus fires, wrong for convex.
+                    # 2026-06-11 exit replay (120 post-gate closes, peaks recorded):
+                    # banking 0.65 at TP1 capped our own winners — replayed
+                    # +2.35%/tr vs +3.37 at 0.35 (monotonic toward smaller
+                    # fractions; the convex tier tests 0.10). Fade risk now
+                    # covered by runner-tilt trail + elite-exit + stop-grace.
+                    # Env SMART_FOLLOW_TP1_FRACTION to retune without deploy.
                     tp1_sell_override=(0.10
                                        if getattr(pos, "strategy", "") == "smart_follow_convex"
-                                       else 0.65
+                                       else _follow_tp1_fraction()
                                        if getattr(pos, "strategy", "").startswith("smart_follow")
                                        else None),
                     follow_origin=getattr(pos, "strategy", "").startswith("smart_follow"),
