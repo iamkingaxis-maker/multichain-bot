@@ -5,7 +5,8 @@
   "base_position_usd": 100.0,
   "bot_id": "pond_ugly_rsi",
   "btc_macro_h1_block_threshold": null,
-  "display_name": "POND COMBO: ugly_chart + rsi15_os (chart_score<=49.9 AND rsi_15m<=48.6) ON TOP of the fleet entry stack. 2026-06-10 frontier re-pull of the 06-09 in-pond mine, held-out TEST: WR 82% (train 84%), +$2.40/tr, n=135 across 17 tokens (~10 tr/day fleet-wide). NEW AXIS vs shipped clones: 15m RSI oversold. Thesis: the ugly-chart paradox (low chart_score = capitulation, not weakness) confirmed by 15m RSI oversold. Forward-judge vs pool_a_stack + pond_ugly_mtf at n>=50 distinct tokens. triggers_allowed=ALL (combos mined on all stack-passing entries).",
+  "daily_loss_limit_usd": 60.0,
+  "display_name": "POND COMBO: ugly_chart + rsi15_os (chart_score<=49.9 AND rsi_15m<=48.6) ON TOP of the fleet entry stack. 2026-06-10 frontier re-pull of the 06-09 in-pond mine, held-out TEST: WR 82% (train 84%), +$2.40/tr, n=135 across 17 tokens (~10 tr/day fleet-wide). NEW AXIS vs shipped clones: 15m RSI oversold. Thesis: the ugly-chart paradox (low chart_score = capitulation, not weakness) confirmed by 15m RSI oversold. Forward-judge vs pool_a_stack + pond_ugly_mtf at n>=50 distinct tokens. triggers_allowed=ALL (combos mined on all stack-passing entries). [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.]",
   "enabled": true,
   "entry_gate": [
     [

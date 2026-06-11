@@ -5,7 +5,8 @@
   "base_position_usd": 100.0,
   "bot_id": "pond_sweep_deep_thin",
   "btc_macro_h1_block_threshold": null,
-  "display_name": "POND COMBO: sweep_reclaim + deep_60m + thin_book (chart_sweep_5m_low_candles_ago>=1.01 AND shape_60m_chg_pct<=-12.11 AND slip_buy_2000_pct>=1.709) ON TOP of the fleet entry stack. 2026-06-10 frontier re-pull, held-out TEST: WR 82% (train 89%), +$3.85/tr (BEST dollar density on the frontier), n=60 across 11 tokens (~4 tr/day fleet-wide). CAUTION: 11-token diversity = pseudo-replication risk - fast-cut if forward WR<60% by n=25 closes or net negative at n>=15 distinct tokens. Thesis: swept-and-reclaimed low + deep 60m leg + thin book = maximal capitulation. triggers_allowed=ALL.",
+  "daily_loss_limit_usd": 60.0,
+  "display_name": "POND COMBO: sweep_reclaim + deep_60m + thin_book (chart_sweep_5m_low_candles_ago>=1.01 AND shape_60m_chg_pct<=-12.11 AND slip_buy_2000_pct>=1.709) ON TOP of the fleet entry stack. 2026-06-10 frontier re-pull, held-out TEST: WR 82% (train 89%), +$3.85/tr (BEST dollar density on the frontier), n=60 across 11 tokens (~4 tr/day fleet-wide). CAUTION: 11-token diversity = pseudo-replication risk - fast-cut if forward WR<60% by n=25 closes or net negative at n>=15 distinct tokens. Thesis: swept-and-reclaimed low + deep 60m leg + thin book = maximal capitulation. triggers_allowed=ALL. [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.]",
   "enabled": true,
   "entry_gate": [
     [

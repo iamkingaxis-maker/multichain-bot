@@ -5,7 +5,8 @@
   "base_position_usd": 100.0,
   "bot_id": "pool_c_post_peak",
   "btc_macro_h1_block_threshold": null,
-  "display_name": "POOL-C shadow (Design C member): post_peak (>=4h after 24h peak gate), $100 fixed, max 3 slots, no-same-token across pool_c. mults=1.0 -> $100/position. [RE-ENABLED 2026-06-10: 06-05 disable was the fleet bleed regime (twin tightexit shows identical decay shape and was kept); full record 63% WR/35 tok/+$0.39/tr beats the enabled twin. Now trades through the entry stack. Judge at n>=30 post-stack closes; fast-cut if net-negative at n>=25.]",
+  "daily_loss_limit_usd": 60.0,
+  "display_name": "POOL-C shadow (Design C member): post_peak (>=4h after 24h peak gate), $100 fixed, max 3 slots, no-same-token across pool_c. mults=1.0 -> $100/position. [RE-ENABLED 2026-06-10: 06-05 disable was the fleet bleed regime (twin tightexit shows identical decay shape and was kept); full record 63% WR/35 tok/+$0.39/tr beats the enabled twin. Now trades through the entry stack. Judge at n>=30 post-stack closes; fast-cut if net-negative at n>=25.] [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.]",
   "enabled": true,
   "entry_gate": [
     [
