@@ -869,6 +869,27 @@ class DipScanner:
                 logger.info("[DipScanner] bot=%s low-mcap-probe gate: skip %s (mcap=%s probe_bot=%s)",
                             bot_id, decision.token, _lm_mcap, getattr(pm.config, "low_mcap_probe", False))
                 return
+        # Badday-lane containment (2026-06-11): sub-floor tokens are tradeable
+        # ONLY by bots with a microcap mandate (badday_*, young probe, low-mcap
+        # probe) or user-curated tokens — controls/production universes are
+        # UNCHANGED by the lane admission upstream.
+        from core.badday_lane import lane_enabled as _bd_on, buy_gate_skip as _bd_skip
+        if _bd_on():
+            _bdm = getattr(bundle, "raw_meta", None) or {}
+            _bd_mc = getattr(bundle, "mcap_usd", None)
+            if _bd_mc is None:
+                _bd_mc = _bdm.get("entry_market_cap_usd") or _bdm.get("mcap")
+            _bd_std = float(getattr(self, "min_mcap", 1_000_000) or 1_000_000)
+            _bd_sub = isinstance(_bd_mc, (int, float)) and 0 < _bd_mc < _bd_std
+            _bd_mandate = (str(bot_id).startswith("badday_")
+                           or bool(getattr(pm.config, "young_token_probe", False))
+                           or bool(getattr(pm.config, "low_mcap_probe", False)))
+            _bd_user = ((decision.address or decision.token or "").lower()
+                        in getattr(self, "_user_watchlist_addrs", set()))
+            if _bd_skip(_bd_sub, _bd_mandate, _bd_user):
+                logger.info("[DipScanner] bot=%s badday-lane gate: skip %s (mcap=%s sub-floor, no microcap mandate)",
+                            bot_id, decision.token, _bd_mc)
+                return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
         # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
@@ -2026,9 +2047,20 @@ class DipScanner:
             # via the per-bot buy gate. Default off -> _lmp False -> no change.
             from core.low_mcap_probe import keep_below_floor_token
             _lmp = keep_below_floor_token(mcap, _yt_liq, self.min_mcap)
+            # Badday lane (2026-06-11): admit microcap flush/momo envelope tokens
+            # below the fleet floor for the badday family ONLY (containment in
+            # the per-bot buy gate). See core/badday_lane.py.
+            from core.badday_lane import keep_token as _bd_keep
+            try:
+                _bd_pc1 = float(((pair.get("priceChange") or {}).get("h1")) or 0)
+            except (TypeError, ValueError):
+                _bd_pc1 = 0.0
+            _bdl = _bd_keep(mcap, _yt_liq, _yt_age_h, _bd_pc1, self.min_mcap)
+            if _bdl:
+                c["badday_admit"] = c.get("badday_admit", 0) + 1
             # USER_WATCHLIST bypass: small-cap floor not applicable for
             # user-curated tokens (user chose them deliberately).
-            if mcap < self.min_mcap and not _yp and not _lmp:
+            if mcap < self.min_mcap and not _yp and not _lmp and not _bdl:
                 c["mcap_low"] += 1
                 if not _user_watch:
                     continue
@@ -2050,7 +2082,7 @@ class DipScanner:
             # in FRESHNESS GATE and vol_h1_decay below — those stay on.
             if vol_h24 < self.min_volume_h24:
                 c["vol"] += 1
-                if not _user_watch:
+                if not _user_watch and not _bdl:
                     continue
 
             # Turnover filter: require vol_h24 / liquidity >= threshold. Blocks
@@ -2171,7 +2203,7 @@ class DipScanner:
                 _red_h24_rescue = (
                     _rescue_vol_h6 or _rescue_buys_h1 or _rescue_h1_dip or _rescue_vol_m5
                 )
-                if not _red_h24_rescue:
+                if not _red_h24_rescue and not _bdl:
                     c["red_h24"] += 1
                     if not self.baseline_mode:
                         continue
@@ -2240,7 +2272,7 @@ class DipScanner:
                     )
                 else:
                     c["top_exhaustion"] += 1
-                    if not self.baseline_mode:
+                    if not self.baseline_mode and not _bdl:
                         continue
 
             # Trend-reversal filter: reject if current h24 has collapsed to
@@ -2260,7 +2292,7 @@ class DipScanner:
                         trend_reversal_blocked.append(
                             f"{token_symbol}({pc_h24:.0f}%/peak{peak_h24:.0f}%/h6{pc_h6:+.0f}%)"
                         )
-                    if not self.baseline_mode:
+                    if not self.baseline_mode and not _bdl:
                         continue
             # 2026-05-17 PM — loosened from (pc_h1>=0 AND pc_m5>=0) to require
             # CLEAR green (>+1% on both) before rejecting. Old gate killed
@@ -2269,7 +2301,7 @@ class DipScanner:
             # expect ~5-10/cycle post-loosening (15-20 more candidates pass).
             if pc_h1 > 1.0 and pc_m5 > 1.0:
                 c["no_dip"] += 1
-                if not self.baseline_mode:
+                if not self.baseline_mode and not _bdl:
                     continue
 
             # Mid-dip filter: h1 in [-6%, -5%) is the band where data shows
@@ -2292,7 +2324,7 @@ class DipScanner:
             # buckets >75% WR).
             if 0 <= pc_m5 < 3.0:
                 c["m5_dip_over"] += 1
-                if not self.baseline_mode:
+                if not self.baseline_mode and not _bdl:
                     continue
 
             # Falling-knife filter: block if m5 is sharply negative while h1 is
@@ -2324,7 +2356,7 @@ class DipScanner:
                     and pc_m5 < 0
                     and -15.0 <= pc_h1 <= 50.0):
                 c["mega_pump_middle"] += 1
-                if not self.baseline_mode:
+                if not self.baseline_mode and not _bdl:
                     continue
 
             # Order-flow filter: require h6 buy/sell txn ratio >= threshold.
@@ -2340,7 +2372,7 @@ class DipScanner:
                 if not self.baseline_mode:
                     continue
             ratio_h6 = (b_h6 / s_h6) if s_h6 > 0 else float("inf")
-            if ratio_h6 < self.min_txn_ratio_h6:
+            if ratio_h6 < self.min_txn_ratio_h6 and not _bdl:
                 c["bs_h6"] += 1
                 self._rejected_distribution += 1
                 if not self.baseline_mode:
@@ -2383,7 +2415,7 @@ class DipScanner:
             # truly missing data (b=0 AND s=0) but include pure-sell bars
             # (b=0, s>0 → ratio=0.0) — those are maximally bearish, not "no
             # data". Old `0 < ratio < 0.85` guard wrongly let them pass.
-            if (b_h1 > 0 or s_h1 > 0) and ratio_h1 < 0.85 and pc_m5 < 0:
+            if (b_h1 > 0 or s_h1 > 0) and ratio_h1 < 0.85 and pc_m5 < 0 and not _bdl:
                 c["seller_h1_red_m5"] += 1
                 if not self.baseline_mode:
                     continue
@@ -2397,7 +2429,7 @@ class DipScanner:
             # seller_h1_red_m5 above.
             if (pc_h1 > 3.0 and pc_m5 > -2.0
                     and (b_m5 > 0 or s_m5 > 0)
-                    and ratio_m5 < 1.0):
+                    and ratio_m5 < 1.0 and not _bdl):
                 c["seller_pump"] += 1
                 if not self.baseline_mode:
                     continue
