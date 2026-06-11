@@ -620,8 +620,14 @@ async def main():
         sol_trader.follow_capital = FollowCapitalManager()
         dashboard.follow_capital = sol_trader.follow_capital
 
+        # ── Attention feed (2026-06-11): the social/attention layer, free —
+        # DexScreener boost/profile endpoints polled every 5min; features
+        # stamped on every entry (shadow-first; mine before gating).
+        from core.attention_feed import get_feed as _get_attn
+        dashboard.attention_feed = _get_attn()
+
         tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run(),
-                  sol_smart_follow.run(), wallet_discovery.run()]
+                  sol_smart_follow.run(), wallet_discovery.run(), _get_attn().run()]
 
         dashboard.register_strategies(
             scanner=sol_scanner,

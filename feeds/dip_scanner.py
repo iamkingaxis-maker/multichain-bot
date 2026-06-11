@@ -1100,6 +1100,16 @@ class DipScanner:
                 _entry_meta = {**_entry_meta, "trigger_state_shadow": _ts_verdicts}
         except Exception:
             pass  # instrumentation must never block a buy
+        # Attention-layer stamp (2026-06-11): boost/profile features from the
+        # free DexScreener attention endpoints — the layer BEFORE price.
+        # Shadow-first: mine outcomes before any gate uses these.
+        try:
+            from core.attention_feed import get_feed as _gaf
+            _attn = _gaf().features(decision.address or decision.token)
+            if _attn:
+                _entry_meta = {**_entry_meta, **_attn}
+        except Exception:
+            pass
         # P7 regime dial stamp (2026-06-10): full multiplier (incl. the shadow
         # 1.5x upside) + signals on every buy -> the badday scorecard
         # reconstructs each day's forecast from these stamps.
