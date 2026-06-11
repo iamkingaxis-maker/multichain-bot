@@ -652,7 +652,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
     <!-- Open Positions -->
     <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--green)"></span> Open Positions</div>
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span> Open Positions — Smart Wallet</div>
       <div class="tbl-wrap">
         <table id="positions-table">
           <thead>
@@ -1242,6 +1242,14 @@ function updatePnlChart(series) {
 // ── Open Positions ─────────────────────────────────────────────────────────
 function updatePositions(positions) {
   const tbody = document.getElementById('positions-body');
+  // AxiS 2026-06-11: this card shows SMART WALLET only — fleet bots' paper
+  // probes live in the Bots tab; mixing $10 probes with follow positions
+  // made the card unreadable.
+  positions = (positions || []).filter(p => String(p.strategy || '').startsWith('smart_follow'));
+  if (!positions.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">No open smart-wallet positions</td></tr>';
+    return;
+  }
   if (!positions.length) {
     tbody.innerHTML = '<tr><td colspan="8" class="empty">No open positions</td></tr>';
     return;
