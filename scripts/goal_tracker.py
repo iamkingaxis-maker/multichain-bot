@@ -41,6 +41,9 @@ CANDIDATE_BOTS = {
     # bad-day microcap family (2026-06-10): the other half of the calendar —
     # rug-screened 50-500k flush/momentum riders (see badday scorecard)
     "badday_flush", "badday_momo",
+    # fleet-convex wing (2026-06-11): proven lottery-segment entries with the
+    # ELITE payoff curve (tiny TP1 partial, 70% rides) — judged vs parents
+    "young_probe_stair_convex", "young_probe_baseflow_convex", "badday_flush_convex",
 }
 API = "https://gracious-inspiration-production.up.railway.app/api/trades?full=1&limit=5000"
 
