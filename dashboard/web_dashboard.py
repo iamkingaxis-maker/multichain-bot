@@ -2401,7 +2401,17 @@ class WebDashboard:
         return web.Response(text=HTML_DASHBOARD, content_type="text/html")
 
     async def _handle_stats(self, request):
-        stats = await self._build_stats()
+        if getattr(self, "warming", False):
+            # early-bound server during boot (2026-06-11 deploy-502 fix):
+            # answer honestly instead of an edge 502.
+            return web.json_response({"warming": True, "live_mode": None,
+                                      "uptime": "booting",
+                                      "note": "fleet loading — full stats shortly"})
+        try:
+            stats = await self._build_stats()
+        except Exception as e:
+            return web.json_response({"warming": True, "error": str(e)[:120]},
+                                     status=503)
         # Quarantine label (2026-05-29): /api/stats reflects the LEGACY single-bot
         # trader + aggregate, NOT the 121-bot fleet. Marked so consumers don't
         # mistake its 'overall'/'daily_pnl' for fleet performance — use /api/bots,

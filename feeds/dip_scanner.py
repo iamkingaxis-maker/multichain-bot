@@ -14476,6 +14476,14 @@ class DipScanner:
                 # Stamped now so turnover can be win/loss-validated FORWARD (the decay/flatness
                 # proxies were non-separating, d~0.1; turnover itself is the untested metric).
                 "entry_volume_h24_usd": float((pair.get("volume") or {}).get("h24", 0) or 0),
+                # Attention/provenance flags (2026-06-11, bad-day study): the one
+                # violent bad-day runner was actively DexScreener-BOOSTED with
+                # socials. Free in the pair payload — stamped so the badday/young
+                # families can mine the attention signal forward.
+                "ds_boosts_active": (pair.get("boosts") or {}).get("active"),
+                "ds_dex_id": pair.get("dexId"),
+                "ds_labels": ",".join(pair.get("labels") or []) or None,
+                "ds_has_socials": bool(((pair.get("info") or {}).get("socials"))),
                 "turnover_h24_ratio": (
                     float((pair.get("volume") or {}).get("h24", 0) or 0) / float(liq_usd)
                     if (liq_usd and float(liq_usd) > 0) else None

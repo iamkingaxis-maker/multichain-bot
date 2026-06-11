@@ -271,6 +271,12 @@ async def main():
     tracker = PerformanceTracker()
     dashboard = WebDashboard(port=config.dashboard_port, trade_store=trade_store)
     telegram.register_dashboard(dashboard)  # route all alerts → live event feed
+    # Kill the deploy 502s (2026-06-11): bind the web server BEFORE the heavy
+    # fleet/feeds setup (76-bot load ≈ 2.5min of "Application failed to respond"
+    # on every deploy). Handlers are fail-soft pre-registration; /api/stats
+    # reports warming=true until setup completes.
+    dashboard.warming = True
+    await dashboard.run()
 
     # ── Shared Systems ──────────────────────────────────────────────────
     security = SecurityChecker(
@@ -845,10 +851,10 @@ async def main():
     # Collect all scanner instances for the anomaly watchdog
     all_scanners = list(dashboard._scanners.values())
 
+    dashboard.warming = False   # web server already bound at boot start
     tasks += [
         price_feed.run(),
         market_monitor.run(),
-        dashboard.run(),
         tracker.run_dashboard(),
         kill_handler.run(),
         _anomaly_watchdog(all_scanners, price_feed, dashboard, telegram),
