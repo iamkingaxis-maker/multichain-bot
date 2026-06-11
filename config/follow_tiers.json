@@ -1,11 +1,11 @@
 {
-  "_doc": "smart_follow K-tier pods (2026-06-10). high_tier: fire at K=2 consensus. solo: fire at K=1 (rate-capped). Edit + redeploy to retier. convex (2026-06-10): tail-hunter pod copied in THEIR payoff shape \u2014 $25 probes, K=1 (8/hr cap), no flush gate, 1.0% chase limit, TP1 partial 10%, 90% rides peak trail, no stop-grace. Picked from the 500-rtrip decode: 2x99WSHD (96% WR +15.2 med), 45Sn4KL1 + HmP3TxuV (1h tail-hunters w/ size). NOT 4jkL4dN ($3-probe sprayer \u2014 copy-toxic at any size we trade).",
+  "_doc": "smart_follow K-tier pods (2026-06-10). high_tier: fire at K=2 consensus. solo: fire at K=1 (rate-capped). Edit + redeploy to retier. convex (2026-06-10): tail-hunter pod copied in THEIR payoff shape \u2014 $25 probes, K=1 (8/hr cap), no flush gate, 1.0% chase limit, TP1 partial 10%, 90% rides peak trail, no stop-grace. Picked from the 500-rtrip decode: 2x99WSHD (96% WR +15.2 med), 45Sn4KL1 + HmP3TxuV (1h tail-hunters w/ size). NOT 4jkL4dN ($3-probe sprayer \u2014 copy-toxic at any size we trade). 2026-06-11 bleed-cut: solo seat -> 2x99WSHD (96% own WR, 9/9 bad-day, +fires post-overhaul); Abk9 dormant-cut.",
   "high_tier": [
     "V21GW8PGcWRE5DnbjHZXhcjiBYhJxmjBHqAUkfBm2n9",
     "HmP3TxuVWkiJjS6mii9WPzRFeF9hnUjs1YMHCAB4AZm4"
   ],
   "solo": [
-    "Abk9EfhWsLnxuMm7qJXvMYNyvKgtp8sfSoL45srMzP49"
+    "2x99WSHDpwes7d3Qqhdcnpx8Mt6WmGPaeNkX9eR6Tamh"
   ],
   "convex": [
     "2x99WSHDpwes7d3Qqhdcnpx8Mt6WmGPaeNkX9eR6Tamh",

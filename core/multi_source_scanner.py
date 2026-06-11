@@ -3414,8 +3414,11 @@ class MultiSourceScanner:
             # exit-givebacks (-$19.6 single, -$4.5 x7) -> net -$41.5 even on a green token. Cap
             # the unproven strategy to $100 while we calibrate the exit. Other tags unchanged.
             # 2026-06-10: caller-provided override (convex tier's $25 probes) wins.
+            # 2026-06-11 bleed-cut: default follow size env-tunable, halved to $50
+            # while the strategy is red (restore via SMART_FOLLOW_SIZE_USD).
             override_usd=(override_usd if override_usd > 0
-                          else (100.0 if strategy_tag.startswith("smart_follow") else 0.0)),
+                          else (float(os.environ.get("SMART_FOLLOW_SIZE_USD", "50"))
+                                if strategy_tag.startswith("smart_follow") else 0.0)),
             force_paper=True,  # C3 (2026-06-04 audit): legacy MSS not on live_probe allowlist -> always paper
             pair_address=signal.pair_address or "",
             market_cap_usd=signal.mcap,
