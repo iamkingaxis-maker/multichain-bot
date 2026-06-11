@@ -161,3 +161,25 @@ def test_realtime_sell_feeds_distribution_guard():
     s.watchlist = ["wA"]
     asyncio.run(s.ingest_realtime_trade("wA", "MINT9", "sell", 0.8, 5000, "sx"))
     assert s._recent_sells.get("MINT9") == 5000
+
+
+def test_fire_cooldown_one_per_day_default_and_persistence(tmp_path):
+    import os, json, time
+    os.environ.pop("SMART_FOLLOW_FIRE_COOLDOWN_SEC", None)
+    os.environ["DATA_DIR"] = str(tmp_path)
+    try:
+        s = _mk_strategy()
+        assert s.fire_cooldown == 86400                 # one fire per token per day
+        # persistence round-trip: a saved fire survives a "restart"
+        s._fired["MINTX"] = time.time()
+        with open(s._fired_path, "w") as f:
+            json.dump(s._fired, f)
+        s2 = _mk_strategy()
+        assert "MINTX" in s2._fired                     # no deploy amnesia
+        # stale entries (>48h) dropped on load
+        with open(s._fired_path, "w") as f:
+            json.dump({"OLD": time.time() - 200000}, f)
+        s3 = _mk_strategy()
+        assert "OLD" not in s3._fired
+    finally:
+        os.environ.pop("DATA_DIR", None)

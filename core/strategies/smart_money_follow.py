@@ -119,7 +119,7 @@ def _load_json_cfg(path: str, default):
 
 class SmartMoneyFollowStrategy:
     def __init__(self, scanner, telegram=None, watchlist=None, quality=None,
-                 k=3, window_sec=600, poll_interval_sec=120, fire_cooldown_sec=3600,
+                 k=3, window_sec=600, poll_interval_sec=120, fire_cooldown_sec=None,
                  min_signal_score=70, position_manager=None):
         self.scanner = scanner
         self.telegram = telegram
@@ -128,13 +128,31 @@ class SmartMoneyFollowStrategy:
         self.k = k
         self.window_sec = window_sec
         self.poll_interval = poll_interval_sec
-        self.fire_cooldown = fire_cooldown_sec
+        # ONE FIRE PER TOKEN PER DAY (2026-06-11, the Deniz lesson): same-day
+        # re-fires after a WINNING episode ran n=15 net -$173 over 4 days (we
+        # re-buy the exhausted phase of the run we already won). After-loss
+        # re-fires were n=5 +$33 — the win is the danger signal, but one-per-day
+        # is the robust no-new-state rule. Env SMART_FOLLOW_FIRE_COOLDOWN_SEC.
+        try:
+            self.fire_cooldown = int(fire_cooldown_sec if fire_cooldown_sec is not None
+                                     else os.environ.get("SMART_FOLLOW_FIRE_COOLDOWN_SEC", "86400"))
+        except Exception:
+            self.fire_cooldown = 86400
         self.min_signal_score = min_signal_score
         self.position_manager = position_manager  # for elite-exit mirroring
         self._rr = 0
         self._seen = {}          # wallet -> set(recent sigs)
         self._buys = []          # [(token, wallet, blockTime)]
-        self._fired = {}         # token -> fire_ts
+        self._fired = {}         # token -> fire_ts (persisted: deploys must not amnesia the cooldown)
+        self._fired_path = os.path.join(os.environ.get("DATA_DIR", "."), "follow_fired.json")
+        try:
+            with open(self._fired_path) as f:
+                saved = json.load(f)
+            cutoff = time.time() - 172800
+            self._fired = {m: ts for m, ts in saved.items()
+                           if isinstance(ts, (int, float)) and ts >= cutoff}
+        except Exception:
+            pass
         self._wallet_pos = {}    # (wallet, mint) -> (buy_bt, buy_sol) — open elite round-trips (for exit calibration)
         # ── 2026-06-10 "serious love" build (AxiS) ──────────────────────────
         # Elite-exit mirroring: remember WHICH wallets triggered each fire so
@@ -576,6 +594,11 @@ class SmartMoneyFollowStrategy:
                 if mint in self._fired and now - self._fired[mint] < self.fire_cooldown:
                     continue
                 self._fired[mint] = now
+                try:
+                    with open(self._fired_path, "w") as f:
+                        json.dump(self._fired, f)
+                except Exception:
+                    pass
                 if tier in self._tier_fires:
                     self._tier_fires[tier].append(now)
                 self._last_fire_sol = {w: fire_sol.get((mint, w)) for w in wset}
