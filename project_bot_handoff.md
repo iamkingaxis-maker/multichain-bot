@@ -1,158 +1,166 @@
-# Session Handoff — The Bad-Day Playbook Day (2026-06-10)
+# Session Handoff — Smart-Wallet Rescue + Sustainability Day (2026-06-11)
 
 **Bot URL**: https://gracious-inspiration-production.up.railway.app
 **Mode: PAPER throughout** (`live_mode: False` verified after every deploy). No PAPER_MODE flip.
-**HEAD**: `7bb48bc`. 17 commits this session (a9918c5 → 7bb48bc), ~10 serialized deploys, suite **673 passing**.
+**HEAD**: `4195d0a`. 11 commits today on top of yesterday's 17 (the 06-10 "Bad-Day Playbook Day"
+record is preserved below). Suite **684 passing**.
 
-**THE HEADLINE: the regime problem ("incredible days then a week of bleeding") got its full
-counter-system. Five independent evidence lenses agreed: bad days don't kill the market, they
-ROTATE it — to fresh launches, already-running momentum, and sub-500k microcaps, exactly the
-zone our pond excludes. Shipped: the P7 regime dial (defense ENFORCED), a rug-screened bad-day
-microcap family, SOL-gate removal on the bad-day vehicles, the smart-wallet full loop
-(elite-exit mirroring / K-tier pods / realtime WS / 24-7 discovery), the walk-forward LIVE-SET
-goal meter, and a daily accountability scorecard that grades every mechanism against its
-pre-registered forecast.**
-
----
-
-## SHIPPED + DEPLOYED this session (all paper, verified; newest first)
-
-1. **Bad-day playbook** (`7bb48bc`):
-   - **P7 regime dial** (`core/regime_dial.py`): size mult = min(yesterday fleet WR,
-     first-quarter WR, rolling-20 expectancy). Walk-forward study (9d/1,263 closes, a-priori
-     thresholds): −$677 → −$250 (63% of bleed removed); only policy catching loss-size days.
-     **ASYMMETRIC: 0.5× defense ENFORCED on dip-pond sizing; 1.5× consensus upside SHADOW.**
-     Exempt: momentum_mode, control cohort, `regime_dial_exempt` vehicles. Stamps
-     `regime_dial_full/defense/signals` on every buy; live at `/api/regime-dial`.
-     Env `REGIME_DIAL_MODE=enforce|shadow|off`. Pre-reg kill: <50% forecast acc at n>=10.
-   - **badday_flush + badday_momo** (50–500k mcap, age>=6h, rug screens: unique_buyers>=12,
-     recurring buyers>=1, wash-flag block, liq>=15k): flush entry pc_h1<=−20 (no positive-flow
-     requirement — capitulation IS negative flow) / momentum entry pc_h1>=+30 + bs_m5 1.2–2.0.
-     Fast spike exits (TP1 +6/0.75, TP2 +12/0.25, trail 2pp), gap guards, `entry_stack_exempt`.
-     **Pre-reg: >= +$2/tr at n>=30 dial-bad closes AND catastrophe(<=−35% fills) <10%, else retire.**
-   - **SOL gates OFF** the 8 bad-day vehicles (young_probe ×4, momentum ×2, badday ×2) —
-     4 confirmations the gate points backwards there (would block 64% of bad-day opportunities
-     at BETTER-than-allowed quality). Stays on the dip pond.
-   - **`scripts/badday_scorecard.py`** — the daily no-narrative grader (see CADENCE below).
-2. **Per-trigger token-state SHADOW** (`ac18284`, `core/trigger_state_gates.py`): the 06-08
-   7-agent map (18 gates, 5 archetypes) stamps pass/block/na per fired trigger into
-   `entry_meta.trigger_state_shadow`. Zero behavior change; enforce at n>=50/gate with WR lift
-   (scorecard §5 tracks).
-3. **Young-probe clone wave + momentum_shadow gap guards** (`cb07ce1`):
-   - `young_probe_stair` (higher_low_5m + 30m pivot staircase; test 86% +$4.52/tr) and
-     `young_probe_baseflow` (1s base confirmed + bs_h1>=1.41; test 95% +$3.39/tr) — mined from
-     the 81-close family record; thesis = young winners are in confirmed short-term UPTRENDS
-     (mirror of the pond's deep-dip thesis). 7–8-token diversity → fast-cut terms in configs.
-   - momentum_shadow stop gap-through fixed (13 stops filled avg −15.6% on a −12 stop):
-     **giveback floor** (peak>=+4 → exit −6, pre-TP1) + **fast-dump bail** (−9 any volume,
-     pre-TP1). Config-driven (`giveback_floor_*`, `fast_bail_pnl_pct`), default-off fleet-wide,
-     also enabled on the badday family.
-4. **Walk-forward LIVE-SET goal meter** (`90508fa`): headline = bots already net-positive
-   trailing-7d (>=3 closes) BEFORE the day started — what go-live would actually have run.
-   Proof it measures right: the −$635 fleet day was **live-set +$46**. Streak counts live-set
-   days. Also: era-proof dedup/attribution (tracker bot_id flips None↔baseline_v1 across
-   restarts — cache key now excludes bot_id; smart_follow attribution keyed by address only).
-5. **Hybrid cost model** (`ff34881`, AxiS decision: no paid tools until profitable):
-   `scripts/sync_trades_cache.py` — incremental local cache (~300KB/sync vs 20MB full pulls).
-   `--full` for entry_meta mines, `--rebuild` max ~1×/day. Bot stays on Railway; analysis local.
-6. **On-bot continuous wallet discovery** (`6084134`, SW5): hourly GT→DexScreener early-buyer
-   harvest on Railway, recurrence log in DATA_DIR, `/api/wallet-discovery`. (Pass #1 returned
-   0 runners silently → GT diagnostics added in `ac18284`; check the log line on next passes.)
-7. **smart_follow full loop** (`680db27`, SW1–SW4):
-   - **Elite-exit mirroring**: >=2 trigger wallets SELL → we exit via
-     `PositionManager.external_exit` ("follow them out"). Env `SMART_FOLLOW_ELITE_EXIT`.
-   - **K-tier pods**: K=2 high-tier (V21GW8P+HmP3Txu, tag `smart_follow_k2`, 8/hr cap),
-     K=1 solo (Abk9Efh, tag `smart_follow_solo`, 6/hr cap — the 06-09 flood lesson).
-     `config/follow_tiers.json`. PM treats all `smart_follow*` tags identically (startswith).
-   - **Fire-quality size SHADOW**: `config/follow_quality.json` → `would_size_mult` stamped
-     per fire; enforce at n>=40/wallet.
-   - **Realtime WS watch**: logsSubscribe on all 10 wallets; a notification wakes the sweep
-     in seconds (5s floor). Poll fallback intact.
-8. **pool_c_post_peak re-enabled** (`a614d89`): the 06-05 −EV disable was the REGIME (twin
-   tightexit shows identical decay shape, was kept). Judge at n>=30 post-stack closes.
-9. **Measurement integrity** (`50e74fb`, `d01c1bd`): trimmed /api/trades now carries bot_id;
-   egress-throttled heavy pulls return explicit `{"egress_throttled":true}` (header-only flag
-   was missed twice → false −$42/−$79 verdicts); heavy json.dumps off the event loop (was
-   starving /api/stats); /api/goal reads tracker+store (smart_follow was invisible, −$38).
-10. **Pond wave-2 clones** (`54c047c`): pond_ugly_rsi (82% +$2.40), pond_sweep_flow (84%
-    +$1.11), pond_sweep_deep_thin (82% **+$3.85** best $-density, 11-tok → fast-cut terms).
-11. **smart_follow stop-grace A/B** (`2ff2cc6`): treatment (token-addr parity even) defers
-    hard stops 45min, −50% catastrophic floor; control untouched. From the post-stop test:
-    **14/19 stops recovered >15% within 12h** (median ~+35%). Judge arms at ~20+ closes each.
-12. **smart_follow flush-depth gate** (`a9918c5`): fires require pc_h1<=−10 (shallow fires
-    were 22% WR, −$41/9). Env `SMART_FOLLOW_FLUSH_GATE`, threshold tunable. Blocked fires
-    still logged with verdicts.
-13. **Workflow cleanup** (`6568b69`, `388604d`, `fcf2dab`): repo root 450→68 files
-    (analysis/ archive + MANIFEST + rules), 14 dormant bots retired (.json.off, 41 active
-    catalog), dashboard goal-first (meter on top, GOAL CANDIDATES table, experiments collapsed).
+**THE HEADLINE: smart wallet went from "bleeding heavy, not ready" (AxiS, morning) to
+effectively POSITIVE on the day (-$25.83 hot + $30 banked = +$4 since the 04:19 pool epoch,
+peak recovery +$58 in under an hour after the bleed-cut). The fix was surgical, evidence-named
+wallet cuts + size discipline + letting winners run — and the day ended with the
+SUSTAINABILITY ENGINE built: a daily wallet-cycle loop (recruit -> vet -> judge -> cut) that
+executed its first enforcement (V21GW8P, copy-tax TOXIC) within minutes of existing.
+AxiS: "this is the type of daily profit im looking for... the correct cycling of new wallets
+will be the key."**
 
 ---
 
-## KEY FINDINGS (the day's evidence chain)
+## SHIPPED + DEPLOYED today (all paper, verified; newest first)
 
-- **THE BAD-DAY ROTATION (5 lenses agree)**: (1) own trades: only moderate-vol-spike entries
-  break even on bad days; every mcap/age/dip band bleeds. (2) universe 2,916 events, 2 bad-day
-  folds: age<1h 72% win10 (monotonic to >3d 23%), pc_h1>+30 63%, deep flush <=−20 56%,
-  **middle pc_h1 −5..+5 = 26% DEAD**, mcap<500k holds while 500k–5M = 22–33% (the pond band is
-  the bad-day dead zone). (3) DexScreener live: 9 movers on the whole tape (normal: 30–50),
-  median age 11.7h / FDV $184k / liq $29k; top runner boosted+social. (4) **10 elites: 303
-  buys, 57 round-trips, 67% WR, +0.60 SOL ON the bad day** (HmP3Txu 8/8, new-add 2x99 9/9);
-  the two slow accumulators (Abk9, 2tYcX) stood down — their own regime dial. Hunting ground:
-  median $55k mcap, $19k liq. (5) MAITIU case (7Pk1…pump): 30 recorder sightings 12:00–18:00,
-  15 winning windows to +44%, **100% blocked** (stack mcap floor on all 30).
-- **RUG MINE (3,959 microcap events)**: catastrophes (<=−35% in 30min) are **YOUNG + FRANTIC**,
-  not quiet — median age 1.9h vs runners 8.2h, 3× the hourly volume/churn. age>=6h cuts 79%
-  of catastrophes keeping 55% of runners; composite screen → 20%→6% cat rate. (AxiS: "50-500k
-  is where rugs live" → the screens are the family's foundation.)
-- **SOL GATE backwards on bad days**: would block 64% of opportunities; blocked cohort BETTER
-  than allowed (young: 64.1% vs 59.4% win10; flush: 59.0% vs 49.8%). 4th independent confirm.
-- **P7 study** (9d candidate closes, thresholds a priori): P7 total −$250 vs baseline −$677;
-  worst day −635→−335; the only policy that trims loss-size days (06-10). P4 yesterday-breadth
-  HURT (−$743) — breadth keying dead, don't revisit.
-- **Old findings reconciled**: "age<2h = 0% WR" (dip-style entries into young tokens = knife
-  catching) vs universe "young runs 72%" (momentum-confirmation entries) — both true; the
-  ENTRY decides. Young mine: winners are in confirmed uptrends (stair/baseflow clones).
-- **Exit-horizon verdict landed**: post-stop test (after fixing empty pair_address on
-  smart_follow buys — pool resolved via DexScreener) → 74% recovered → stop-grace A/B shipped.
-- **Today (06-10) closed ≈ −$128 candidate / −$34 live-set**: dominated by the regime turn
-  (control cohort flipped +$2.27 → −$27.59 — tape, not bots); smart_follow −$65 mostly
-  pre-gate/pre-grace; the new defenses deployed mid-day.
+1. **WALLET CYCLE engine** (`4195d0a`, `scripts/wallet_cycle.py`) — the sustainability loop.
+   Daily: DORMANCY (>36h silence = rotation cut) -> COPY-TAX verdicts (TOXIC at n>=10
+   our-closes -> cut) -> vetted daily-positive RECRUITS promoted to consensus seats ->
+   roster floor [6,12]. `--apply` executes the mechanical pre-registered rules with backups;
+   pod seats never auto-assigned. **First run cut V21GW8P** (-$1.35/close, n=10 post-overhaul
+   — the lifetime-COPYABLE wallet stopped being copyable under the new system). TAXED watch:
+   HmP3 (-0.43/49), 45Sn (-0.10/167). k2 pod down to HmP3 until a recruit earns the seat.
+2. **+4 daily-positive harvest keepers** (`1d2529d`): watchlist 6->10->9 (after the cycle cut).
+   Wide-harvest (runner-recurrence + elite-cluster funnels) -> diversity scorer on a widened
+   4-provider RPC pool (mainnet-beta, leorpc, publicnode, drpc — per-provider limits = ~4x
+   headroom): 9 SELECTORS, 4 cleared the daily-positive bar: **1eveYYxZ (100% rWR, +5.39
+   SOL), 2qnHs8fZ (25 tok, 100%), EGwERj1 (22 tok, 100%), HcLMmNx9 (42 tok, 75%)**.
+   Heavy-history front-runners (AgmLJBMD = the documented 115-win reference, Em8J3gBW,
+   gasTzr94) keep RPC-timing-out — queued for slow-paced re-score.
+3. **Fleet token cap built then REVERTED same hour** (`35abf19`->`c0ca2eb`): AxiS — "fleet
+   buying bad tokens is a sign of weakness across our bots, not a fleet issue." The cap also
+   corrupts the selection instrument (bot #13's record depends on 12 neighbors). Memory
+   strengthened (feedback_fleet_is_selection_instrument) — do NOT rebuild.
+4. **Deploy 502s killed + daily-loss floor ENFORCED + attention flags** (`2a4020f`):
+   - Web server binds BEFORE the ~2.5min fleet load; /api/stats answers {warming:true}.
+   - `RISK_FLOOR_MODE=enforce` set on Railway: shadow data showed post-halt buys ran 51% WR
+     / -$0.70/tr vs 60% baseline (net -$48 avoidable) — per-bot daily_loss_limit_usd +
+     max_token_buys_per_day now BLOCK. A go-live prerequisite now aging in production.
+   - `ds_boosts_active / ds_dex_id / ds_labels / ds_has_socials` stamped into entry_meta
+     (the bad-day boosted-runner signal becomes minable).
+5. **Funnel decomposition stamps** (`1a8ef02`): every unconverted smart_follow fire now logs
+   {type:fire_unconverted, reason} — 6 named block points (low_score/already_holding/
+   daily_limit/security_*/chart_dip_check/chase_guard/stale_score). Background: post-overhaul
+   funnel was 14% converted / 16% flush-blocked / 6% already-open / 63% unnamed — now
+   self-naming forward. Early pattern: security_BLOCK on convex fires (pre-registered:
+   revisit only if >70% of convex fires at n>=30, judged vs blocked fires' universe outcomes).
+6. **Permanent latency+conviction instrumentation** (`4b579ea`): every smart_follow position
+   carries follow_fire_ts/price/tier/conviction_mult (buy size vs the wallet's 40-buy rolling
+   median) — chase tax + latency now daily-auditable on closes. Also fixed sync --full to
+   UPGRADE trimmed cache records (628 upgraded on first run) -> scorecard dial section went
+   live: **first graded forecast = HIT (06-11 dial 0.5 vs realized -$11), 1/1**.
+7. **TP1 fraction 0.65 -> 0.35** (`4c95721`): exit replay on 120 post-gate closes (per-trade
+   peaks): entries already produce the convex shape (median peak +7.6%, p90 +18%); the 0.65
+   dump capped it. Replayed +2.35%/tr -> +3.37 (+43%). Trail conclusions NOT trusted from
+   replay (can't model continuation) — trail stays 4pp. Env SMART_FOLLOW_TP1_FRACTION.
+8. **Daily-positive wallet finder** (`c9c9923`, `scripts/find_daily_positive_wallets.py`):
+   the proven funnel formalized — recorder runners -> mid-tier buyers ($30-3k, skip the
+   earliest-10% MM zone) -> >=3-runner recurrence -> SELECTOR class -> net-positive realized.
+   First pass independently re-found AgmLJBMD (validation the method works).
+9. **THE BLEED-CUT** (`1ec9c1c`) — the day's turning point. Post-overhaul per-wallet fire
+   attribution named the bleed: **2tYcXQCf -$48.50/32tok + D1aDZ -$30.15/38tok = -$78 of the
+   -$84 pool drawdown**. Cut both + dormant Abk9Efh (2+ days silent = rotated) + GGduK5 (0%
+   own-WR). Watchlist 10->6; solo pod seat Abk9 -> 2x99WSHD; default size $100 -> **$50**
+   (env SMART_FOLLOW_SIZE_USD). Vindicating detail: cut 2tYcX resurfaced in the harvest with
+   GOOD signal hits — its tokens are fine, our copies of it bled. Quality != copyable.
+10. **Badday admission lane** (`7b33bc8`, `core/badday_lane.py`): the zero-fires audit found
+    the scanner's admission layer discards the family's prey (31 flush + 5 momo qualifying
+    microcaps overnight, ZERO reached evaluation — mcap floor 500k, $200k/day vol floor, and
+    9 regime rejects incl trend_reversal/red_h24/no_dip/bs_h6/seller gates). Lane mirrors the
+    young/low-mcap probe pattern: ADMISSION (50-500k, age>=6h, liq>=15k, pc_h1<=-20 or >=+30;
+    `badday_admit` cycle counter) + CONTAINMENT (sub-floor tokens tradeable ONLY by
+    microcap-mandate bots or user-watchlist — **controls/production universes unchanged**).
+    Env BADDAY_LANE. Memory saved: `feedback_pipeline_trace_before_build` — trace the FULL
+    upstream pipeline at design time (AxiS: "build it that way from scratch").
 
-## DAILY CADENCE (the accountability loop — run every morning)
+Overnight (pre-bleed-cut, from the 06-10 evening): zombie-resurrection guard (`522206a` —
+manual sells survive deploy overlap; MINER/ZOOMER were sold twice and resurrected twice),
+trail peak-restore fix (`c8c0a51`), the CONVEX 4th tier (`3a94c85` — $25 probes, K=1 capped,
+no flush gate, TP1 0.10, their -15 cut; **first fire today**, latent k2/solo $200-sizing bug
+fixed), max-chase guard + copyability board (`dd5a69e`), smart-wallet own capital pool
+(`5b3ae8c` — $1000/$1000 floor, epoch 06-11 04:19, virtual hourly sweeps; **$30 banked before
+the overnight giveback** = banks-the-peak working; /api/follow-capital).
+
+## FILL-FIDELITY VERDICT (trust checkpoint — PASSED)
+
+GT minute-candle method (trade-log endpoint self-throttled): 11/14 of today's fills INSIDE
+real candle ranges; sell median gap +0.27% vs mid, buys -0.74%. **Paper fills are honest on
+thin books.** Note: tracker SELL records store $-received in exit_price (decode trap) — real
+exit price = entry_price * (1+pnl_pct/100). Script: analysis/2026-06/_fill_fidelity.py.
+
+## SMART WALLET — state of the machine (the "huge potential one")
+
+- **Roster (9)**: HmP3Txu, udH4u, 4jkL4dN, 2x99WSHD, 45Sn4KL1 + recruits 1eveYYxZ, 2qnHs8fZ,
+  EGwERj1, HcLMmNx9. Pods: k2={HmP3}, solo={2x99WSHD}, convex={2x99, 45Sn, HmP3}.
+- **Pool**: $1000/$1000 floor; day 1: realized -$25.83 hot, $30 swept = +$4 effective.
+- **Fire path**: WS-latency sweep -> tier resolution (k3/k2/solo/convex, rate-capped) ->
+  flush gate (pc_h1<=-10; convex exempt) -> chase guard (1.5%; convex 1.0%) -> $50 probes
+  ($25 convex) -> security/chart -> pool capacity -> fill. Every fire stamps tier/conviction/
+  fq/state; every non-fill logs a named reason; every position carries its audit trail.
+- **Exits**: TP1 +5% sells 35% (convex 10%); peak-trail 4pp (restart-proof); elite-exit
+  mirroring; stop-grace A/B (45min, -50 floor); gap guards.
+- **Cycle cadence**: `wallet_cycle.py` daily (cuts+promotions), copyability board verdicts,
+  finder feeds the bench, on-bot discovery 24/7.
+
+## DAILY RITUAL (run every morning)
 
 ```
-python scripts/sync_trades_cache.py && python scripts/badday_scorecard.py
+python scripts/sync_trades_cache.py --full
+python scripts/badday_scorecard.py
 python scripts/goal_tracker.py --cache _trades_cache.json
+python scripts/wallet_cycle.py            # --apply for the mechanical rules
 ```
-Scorecard sections + pre-registered judgments:
-1. Day verdict (fleet / candidate / walk-forward live-set)
-2. **P7 dial forecast record** — KILL at <50% accuracy, n>=10 scored days
-3. **badday family** — RETIRE at <+$2/tr @ n>=30 dial-bad closes OR cat-rate >=10%
-4. Stop-grace arms (judge at ~20+ closes/arm)
-5. Trigger-state shadow — ENFORCE candidates at n>=50/gate with >=8pp WR lift
+Pre-registered judgments: P7 dial KILL <50% acc @ n>=10 (record: 1/1 HIT); badday family
+RETIRE <+$2/tr @ n>=30 dial-bad closes or cat>=10%; trigger-state ENFORCE @ n>=50/gate +8pp;
+stop-grace arms @ ~20 closes; convex positive @ n>=25 probes; TOXIC wallets cut @ n>=10.
 
 ## PENDING / WATCH
 
-- **badday family first fires** — brand new; if too quiet, audit live availability of
-  `unique_buyers_n` / `n_recurring_buyers_3plus` / `wash_suspected` in raw_meta.
-- **Wave-2 ponds + young stair/baseflow** first closes; pond_ugly_mtf tripwire (48h zero-fire
-  → re-audit `chart_mtf_score <= -0.01` vs live value rounding).
-- **smart_follow new systems** first events: elite-exits in follow log (`type:elite_exit`),
-  k2/solo pod fires, WS wake latency, grace-arm closes.
-- **WalletDiscovery GT diagnostics** — pass #1 was 0 runners silently; the new log line
-  (`GT: ok/failed`) tells why on the next hourly pass.
-- **Cross-day recurrent wallets**: day-2 intersect found 18; ALL rejected as single-token
-  churners by the diversity scorer. Funnel works; needs recurrence depth (3–4+ days) — now
-  accumulating 24/7 on-bot. The 23-wallet roster retry is CLOSED: 0 selectors.
-- Stop-width audit ~06-16 (drawdown coverage matures; per-bot records carry NO max_drawdown yet).
-- Gated-vs-control entry-stack A/B + pruned-filter re-audit (need days of forward data).
-- Boost/launchpad flags as entry features (free in the DexScreener pair payload; the bad-day
-  attention signal — top bad-day runner was actively boosted). Not built yet.
+- **badday family fires** — lane deployed ~13:30 UTC; `badday_admit` counter + first fires.
+  If quiet by tomorrow, check the 1m-confirmation layer (deliberately left ON, the one
+  un-bypassed gate; revisit with counter data).
+- **Convex tier**: first fire happened; security_BLOCK pattern on its microcaps accumulating
+  toward the n>=30 review.
+- **Heavy-wallet re-score** (AgmLJBMD/Em8J3gBW/gasTzr94): slow-paced off-peak pass.
+- **Goal meter**: live set was 6 bots today (4 ponds + 2 young probes); streak 0; smart_follow
+  earns in via trailing-7d like everything else.
+- **06-10 addenda still open**: gated-vs-control A/B, pruned-filter re-audit, stop-width
+  audit ~06-16 (per-bot records still lack max_drawdown), pond_ugly_mtf 48h tripwire,
+  wave-2 ponds + young stair/baseflow first closes, copyability board re-run ~06-12.
+- Funnel C of the wide harvest (old-roster slice) has a format bug ('tuple' object) — fix
+  before next pass.
 
-## STANDING RULES (unchanged)
+## STANDING RULES (additions today in bold)
 
-Paper only; never flip PAPER_MODE (pre-flight + explicit approval required). $0 tools only
-(hybrid cost model; VPS ~$5/mo fallback if Railway bill trends past $25 — check the real
-usage graph first). Commit→push→deploy ritual; no deploy camping (one status check).
-All timestamps from `date -u`. Fleet = selection instrument; judge bots individually.
-Goal: $100/day on the WALK-FORWARD LIVE SET; streak target 5 before the go-live conversation.
+Paper only; never flip PAPER_MODE. $0 tools (4-provider free RPC pool now standard).
+Commit→push→deploy; no camping. Timestamps from `date -u`. Fleet = selection instrument —
+**fleet-aggregate caps corrupt it; rebuilt+reverted once, never again**. **Pipeline-trace
+before build** (full upstream admission path, with data, at design time). Goal: $100/day
+walk-forward live set, streak 5. **Wallet seats are cycled, never owned: dormancy >36h or
+copy-tax TOXIC @ n>=10 = cut; daily-positive SELECTOR = seat.**
+
+---
+
+# PRIOR DAY (2026-06-10) — The Bad-Day Playbook Day (compressed)
+
+17 commits: fleet-wide regime system. Five-lens study (own trades / 2,916-event universe
+2-fold / DexScreener live tape / 10-elite on-chain / MAITIU case audit): bad days ROTATE the
+market to fresh launches + running momentum + sub-500k microcaps; the pond band is the
+bad-day dead zone; the middle (pc_h1 -5..+5) dies. Shipped: P7 regime dial (defense 0.5x
+ENFORCED, consensus 1.5x shadow; study: -$677 -> -$250 over 9d), badday_flush/badday_momo
+(rug-mined screens: age>=6h cuts 79% of catastrophes — rugs are YOUNG+FRANTIC), SOL gates
+OFF the 8 bad-day vehicles (gate blocks 64% of bad-day opportunity at better-than-allowed
+quality; elites bought 303x through red SOL), badday scorecard (the accountability loop),
+walk-forward LIVE-SET goal meter (the -$635 fleet day was live-set +$46), per-trigger
+token-state SHADOW (18 gates, 5 archetypes), young_probe_stair/baseflow (young winners are
+in confirmed UPTRENDS — mirror of the pond thesis), momentum_shadow gap guards (giveback
+floor + fast bail), pond wave-2 (ugly_rsi/sweep_flow/sweep_deep_thin), measurement-integrity
+fixes (bot_id in trimmed responses, loud egress-throttle, off-loop serialization), hybrid
+cost model (sync_trades_cache.py, ~300KB/sync), smart-wallet full loop SW1-SW5 (elite-exit,
+K-tier pods, fire-quality shadow, realtime WS watch, on-bot 24/7 discovery), repo sweep
+(root 450->68 files), 14 bots retired (41 active catalog), dashboard goal-first.
