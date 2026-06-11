@@ -203,3 +203,20 @@ def test_won_today_veto_memory(tmp_path, monkeypatch):
     fc2 = fcmod.FollowCapitalManager()
     assert fc2.won_today("MintA") is True
     importlib.reload(fcmod)
+
+
+def test_dexscreener_circuit_breaker():
+    import time as _t
+    from feeds.dexscreener_client import DexScreenerClient
+    c = DexScreenerClient()
+    assert c._circuit_ok()
+    for _ in range(4):
+        c._record_result(False)
+    assert c._circuit_ok()                  # 4 failures: still closed
+    c._record_result(False)                 # 5th consecutive -> opens
+    assert not c._circuit_ok()
+    assert c._circuit_open_until > _t.monotonic() + 250
+    c._circuit_open_until = 0.0             # simulate expiry
+    assert c._circuit_ok()
+    c._record_result(False); c._record_result(True); c._record_result(False)
+    assert c._circuit_ok()                  # success resets the streak

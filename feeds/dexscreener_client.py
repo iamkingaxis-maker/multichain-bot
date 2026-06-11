@@ -91,6 +91,38 @@ class DexScreenerClient:
         self._request_log: List[float] = []
         self._lock = asyncio.Lock()
         self._session = None  # lazy-init curl_cffi session
+        # Dedicated bounded executor (2026-06-11): when io.dexscreener rate-
+        # limits us, each call hangs its thread for the full timeout. On the
+        # GLOBAL to_thread pool (~32 threads) that starved the dashboard's
+        # serialization threads -> every endpoint went dark while the loop
+        # crawled. A private 4-thread pool caps the blast radius to DS itself.
+        from concurrent.futures import ThreadPoolExecutor
+        self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="dexs")
+        # Circuit breaker: consecutive failures open the circuit; while open,
+        # calls return empty immediately (callers fall back to GeckoTerminal).
+        self._fail_streak = 0
+        self._circuit_open_until = 0.0
+
+    async def _run_fetch(self, fn, *args, **kwargs):
+        """Run a sync curl_cffi call on the private executor."""
+        loop = asyncio.get_running_loop()
+        import functools
+        return await loop.run_in_executor(
+            self._executor, functools.partial(fn, *args, **kwargs))
+
+    def _circuit_ok(self) -> bool:
+        return time.monotonic() >= self._circuit_open_until
+
+    def _record_result(self, ok: bool):
+        if ok:
+            self._fail_streak = 0
+            return
+        self._fail_streak += 1
+        if self._fail_streak >= 5:
+            self._circuit_open_until = time.monotonic() + 300
+            self._fail_streak = 0
+            logger.warning("[DexScreener] circuit OPEN 5min — endpoint degraded "
+                           "(5 consecutive failures); falling back to GT")
 
     def _ensure_session(self):
         """Lazy-init curl_cffi session — keeps a single persistent connection."""
@@ -120,15 +152,19 @@ class DexScreenerClient:
         if cached_slug and cached_q:
             return cached_slug, cached_q
 
+        if not self._circuit_ok():
+            return None, None
         url = f"{_DEXS_PUBLIC}/pairs/solana/{pair_address}"
         try:
             sess = self._ensure_session()
-            resp = await asyncio.to_thread(sess.get, url, timeout=10)
+            resp = await self._run_fetch(sess.get, url, timeout=5)
             if resp.status_code != 200:
                 logger.debug(f"[DexScreener] meta {pair_address[:12]}: HTTP {resp.status_code}")
                 return None, None
             data = resp.json()
+            self._record_result(True)
         except Exception as e:
+            self._record_result(False)
             logger.debug(f"[DexScreener] meta error {pair_address[:12]}: {e}")
             return None, None
 
@@ -213,14 +249,16 @@ class DexScreenerClient:
         # so we can record success/failure for future calls.
         is_dynamic_slug = slug not in _SLUG_MAP.values()
 
+        if not self._circuit_ok():
+            return []  # circuit open — caller falls back to GT
         url = (
             f"{_DEXS_BASE}/dex/chart/amm/v3/{slug}/bars/solana/{pool_address}"
             f"?res={_RES_MAP[res]}&cb={limit}&q={quote}"
         )
         try:
             sess = self._ensure_session()
-            resp = await asyncio.to_thread(
-                sess.get, url, timeout=10,
+            resp = await self._run_fetch(
+                sess.get, url, timeout=5,
                 headers={
                     "Origin": "https://dexscreener.com",
                     "Referer": "https://dexscreener.com/",
@@ -233,9 +271,11 @@ class DexScreenerClient:
                     self._record_dynamic_slug_result(slug, False)
                 return []
             raw = resp.content
+            self._record_result(True)
             if is_dynamic_slug:
                 self._record_dynamic_slug_result(slug, True)
         except Exception as e:
+            self._record_result(False)
             logger.info(f"[DexScreener] fetch error {pool_address[:12]} res={res}: {e}")
             return []
 
@@ -302,14 +342,16 @@ class DexScreenerClient:
         if not slug or not quote:
             return []
 
+        if not self._circuit_ok():
+            return []  # circuit open — caller falls back to GT
         url = (
             f"{_DEXS_BASE}/dex/log/amm/v4/{slug}/all/solana/{pool_address}"
             f"?q={quote}&c=1"
         )
         try:
             sess = self._ensure_session()
-            resp = await asyncio.to_thread(
-                sess.get, url, timeout=10,
+            resp = await self._run_fetch(
+                sess.get, url, timeout=5,
                 headers={
                     "Origin": "https://dexscreener.com",
                     "Referer": "https://dexscreener.com/",
@@ -320,7 +362,9 @@ class DexScreenerClient:
                 logger.info(f"[DexScreener] trades {pool_address[:12]}: HTTP {resp.status_code}")
                 return []
             raw = resp.content
+            self._record_result(True)
         except Exception as e:
+            self._record_result(False)
             logger.info(f"[DexScreener] trades fetch error {pool_address[:12]}: {e}")
             return []
 
