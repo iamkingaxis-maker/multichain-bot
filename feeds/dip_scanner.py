@@ -310,8 +310,12 @@ class DipScanner:
         # buys + restored positions; used as the sell-record address fallback.
         self._addr_by_token: Dict[str, str] = {}
         # Per-token last-good-price state for the transient-glitch exit guard
-        # (see core/exit_price_guard.py). Keyed by token across all bots —
-        # they all read the same external price each cycle. {token: {last_good, pending}}
+        # (see core/exit_price_guard.py). Keyed by ADDRESS (via _price_key) across
+        # all bots — they all read the same external price each cycle.
+        # {addr: {last_good, pending}}. NEVER key by symbol: six different "SPCX"
+        # mints traded 2026-06-12 and symbol-keyed guard state let one token's
+        # real price (0.0034) be returned as another's (real 8.5e-5) → +$7.8k
+        # phantom TP1/TP2. Same-symbol ≠ same-token.
         self._exit_price_guard: Dict[str, dict] = {}
         # Per-token Jupiter slippage-sample cache (2026-05-27 audit #11): the slip
         # curve costs 8+ Jupiter calls/token/cycle and was recomputed every 30s
@@ -1028,7 +1032,8 @@ class DipScanner:
             slip_pct = _r["slip_pct"]
             _live_instrument = _r["instrument"]
             self._exit_price_guard.setdefault(
-                decision.token, {"last_good": eff_entry, "pending": None}
+                self._price_key(decision.address, decision.pair_address, decision.token),
+                {"last_good": eff_entry, "pending": None},
             )
         else:
             # P2 (2026-05-25): fill at a realistic slippage+fee-adjusted price, not
@@ -1081,8 +1086,10 @@ class DipScanner:
                 # tick already has a known-good baseline (a glitch on the very first
                 # post-buy read would otherwise have nothing to compare against).
                 # setdefault: don't clobber a fresher last_good from an earlier buyer.
+                # Keyed by ADDRESS (same-symbol ≠ same-token; see _price_key).
                 self._exit_price_guard.setdefault(
-                    decision.token, {"last_good": decision.entry_price, "pending": None}
+                    self._price_key(decision.address, decision.pair_address, decision.token),
+                    {"last_good": decision.entry_price, "pending": None},
                 )
             except ValueError as e:
                 # max_concurrent or duplicate token; refund capital
@@ -1501,6 +1508,19 @@ class DipScanner:
                 cache.pop(k, None)
         return feats
 
+    @staticmethod
+    def _price_key(address: Optional[str], pair_address: Optional[str],
+                   token: Optional[str]) -> str:
+        """Key for the per-cycle price map + exit-price guard: the token ADDRESS
+        (mint), falling back to pair address, then symbol only as a last resort.
+
+        Symbols are NOT unique — six different "SPCX" mints traded 2026-06-12,
+        and the then-symbol-keyed guard state cross-poisoned them: one token's
+        real price (0.0034) was returned as the actionable price for another
+        (real 8.5e-5), booking +$7.8k of phantom TP1/TP2. Same-symbol ≠
+        same-token, always key by address."""
+        return str(address or pair_address or token or "").lower()
+
     def _second_source_price_sync(self, address: Optional[str]) -> Optional[float]:
         """Independent (GeckoTerminal) USD price to cross-confirm a SUSPECT exit drop.
 
@@ -1630,13 +1650,17 @@ class DipScanner:
         # per token per cycle (its confirmation logic assumes consecutive calls
         # are consecutive cycles).
         now = time.time()
-        priced: Dict[str, Optional[float]] = {}   # token → guarded price (None = skip)
+        priced: Dict[str, Optional[float]] = {}   # ADDRESS → guarded price (None = skip)
         vols: Dict[str, Optional[float]] = {}
         for bot_id, pm in self.bot_position_managers.items():
             for position in pm.iter_positions():
                 token = position.token
+                # Price/guard key = ADDRESS, never symbol (same-symbol ≠ same-token;
+                # see _price_key). pm.tick/scalein still key by symbol internally —
+                # per-bot position maps are unaffected.
+                pkey = self._price_key(position.address, position.pair_address, token)
                 try:
-                    if token not in priced:
+                    if pkey not in priced:
                         raw = await self._get_current_price_for(
                             token,
                             address=position.address,
@@ -1653,15 +1677,15 @@ class DipScanner:
                                     "[DipScanner] tick skipped: token=%s price=%s (feed returned zero/negative)",
                                     token, raw,
                                 )
-                            priced[token] = None
+                            priced[pkey] = None
                         else:
                             # Transient-glitch guard: a catastrophic single-cycle
                             # drop (e.g. a bad DexScreener print — TROLL −77% on a
                             # flat $3.6M-liq token) is deferred until the next
                             # cycle corroborates it, so it can't trip every bot's
                             # hard stop at a phantom price. Real crashes confirm.
-                            priced[token] = guarded_exit_price(
-                                self._exit_price_guard, token, raw,
+                            priced[pkey] = guarded_exit_price(
+                                self._exit_price_guard, pkey, raw,
                                 confirm_fn=(
                                     lambda a=position.address: self._second_source_price_sync(a)
                                 ),
@@ -1682,8 +1706,8 @@ class DipScanner:
                                 # deep drop from booking on temporal-only (Buttcoin −100%).
                                 ref_price=position.entry_price,
                             )
-                        vols[token] = await self._get_vol_m5_for(token)
-                    price = priced[token]
+                        vols[pkey] = await self._get_vol_m5_for(token)
+                    price = priced[pkey]
                     if price is None:
                         continue
                     # SOL-bail SHADOW (no action) — records the would-be bail P&L
@@ -1694,7 +1718,7 @@ class DipScanner:
                         token=token,
                         current_price=price,
                         now=now,
-                        vol_m5_usd=vols.get(token),
+                        vol_m5_usd=vols.get(pkey),
                     )
                     # SCALE-IN completion (2026-06-05): once a half-tranche position
                     # confirms (pnl >= scalein_confirm_pct), deploy the deferred 2nd
@@ -1888,7 +1912,10 @@ class DipScanner:
                 # so a phantom that ever slips is diagnosable from the record itself
                 # — Railway logs retain only ~30 min. Fail-soft: empty if unset.
                 **{f"exit_guard_{_k}": _v for _k, _v in
-                   ((self._exit_price_guard.get(token) or {}).get("last_decision") or {}).items()},
+                   ((self._exit_price_guard.get(self._price_key(
+                       getattr(_pos, "address", None) if _pos else None,
+                       getattr(_pos, "pair_address", None) if _pos else None,
+                       token)) or {}).get("last_decision") or {}).items()},
                 # Live-probe per-leg SELL fill instrumentation (None in paper -> no-op).
                 **(_live_sell_instrument or {}),
                 "pnl": result.realized_pnl_usd,
