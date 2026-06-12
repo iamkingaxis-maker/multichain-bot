@@ -7,8 +7,8 @@ from datetime import datetime, timezone, timedelta
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 BASE = "https://gracious-inspiration-production.up.railway.app"
 MARKER = ".mission_trade_marker"
-CAND = {"pond_settled_flow_thin","pond_settled_flow","pond_ugly_mtf","pond_settled_flow_solcap",
-        "pond_bb_mtf","pond_flow_thin","pond_ugly_rsi","pond_sweep_flow","pond_sweep_deep_thin",
+CAND = {"pond_settled_flow_thin","pond_settled_flow","pond_settled_flow_solcap",
+        "pond_bb_mtf","pond_flow_thin","pond_sweep_flow","pond_sweep_deep_thin",
         "pool_c_post_peak","pool_c_tightexit","pool_a_candidate","momentum_shadow",
         "young_probe_light","young_probe_candidate","young_probe_stair","young_probe_baseflow",
         "badday_flush","badday_momo","young_probe_stair_convex","young_probe_baseflow_convex","badday_flush_convex","young_probe_thinliq","young_probe_mid","young_probe_late"}
