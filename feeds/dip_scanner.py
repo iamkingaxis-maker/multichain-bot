@@ -2052,6 +2052,35 @@ class DipScanner:
         # other tokens in the same cycle were being blocked).
         await self._fetch_cycle_sol_features()
 
+        # ── META-ALLOCATOR SHADOW (2026-06-12) — measure-only ────────────────
+        # Snapshot the day-state the family-rotation allocator would key on
+        # (SOL h24, downside breadth, badday flush-envelope count, pp_launch
+        # rate) + the V1 would-be family multipliers. Hourly persisted; nothing
+        # reads the proposal at buy time. See core/meta_allocator.py.
+        try:
+            from core.badday_lane import in_envelope as _ma_env
+            _ma_flush = 0
+            for _p in pairs:
+                try:
+                    if _ma_env((_p.get("marketCap") or 0),
+                               (time.time() * 1000 - (_p.get("pairCreatedAt") or 0)) / 3_600_000.0,
+                               ((_p.get("liquidity") or {}).get("usd", 0)),
+                               ((_p.get("priceChange") or {}).get("h1", 0) or 0)):
+                        _ma_flush += 1
+                except Exception:
+                    pass
+            if not hasattr(self, "_meta_allocator"):
+                from core.meta_allocator import MetaAllocatorShadow
+                self._meta_allocator = MetaAllocatorShadow()
+            self._meta_allocator.observe_cycle(
+                sol_h24=(getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h24"),
+                breadth_neg=(_regime_h1_neg / _regime_n) if _regime_n > 0 else None,
+                flush_count=_ma_flush,
+                launch_count=int(source_counts.get("pp_launch", 0) or 0),
+            )
+        except Exception as _ma_e:
+            logger.debug(f"[DipScanner] meta-allocator shadow error: {_ma_e}")
+
         for pair in pairs:
             c["fetched"] += 1
             token_address = (pair.get("baseToken") or {}).get("address", "")
