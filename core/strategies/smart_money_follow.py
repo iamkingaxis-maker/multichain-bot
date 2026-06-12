@@ -97,6 +97,19 @@ def _dist_guard_sec() -> int:
         return 600
 
 
+def _min_liq_usd() -> float:
+    """Thin-book fire gate (2026-06-12 fire-quality mine, HELD-OUT validated):
+    fires into liq<$20k ran -$11.64/fire and -$7.05/fire in both halves
+    independently (35 of 106 converted fires, ~$290 of the -$362 bleed).
+    Mechanism: our $50 copy IS the price impact in a thin book — entry chase
+    + exit slippage eat the edge. Matches the pond's thin-book separator.
+    0 disables."""
+    try:
+        return float(os.environ.get("SMART_FOLLOW_MIN_LIQ_USD", "20000"))
+    except Exception:
+        return 20000.0
+
+
 def _flush_gate_mode() -> str:
     m = os.environ.get("SMART_FOLLOW_FLUSH_GATE", "enforce").strip().lower()
     return m if m in ("enforce", "shadow", "off") else "enforce"
@@ -298,6 +311,10 @@ class SmartMoneyFollowStrategy:
             "shadow_block" if (shallow and gate_mode in ("shadow", "off")) else "pass")
         # distribution guard: a roster wallet SOLD this token within the window
         # -> we'd be buying their distribution. Same signal as elite-exit, pre-entry.
+        # thin-book gate: held-out-validated worst cohort
+        liq_now = info.get("liq")
+        thin_book = (_min_liq_usd() > 0 and isinstance(liq_now, (int, float))
+                     and liq_now < _min_liq_usd())
         dg_mode = _dist_guard_mode()
         last_sell = self._recent_sells.get(mint, 0)
         distributing = dg_mode != "off" and last_sell and (now - last_sell) <= _dist_guard_sec()
@@ -332,6 +349,7 @@ class SmartMoneyFollowStrategy:
             "ts": now, "token": mint, "symbol": info.get("symbol"),
             "wallets": sorted(wset), "n": len(wset),
             "tier": tier, "flush_gate": gate_verdict, "dist_guard": dist_verdict,
+            "thin_book": bool(thin_book),
             "fq_mean": fq_mean, "would_size_mult": would_mult,
             "conviction_mult": conv,
             # token state at fire time (2026-06-09): already in hand from the
@@ -342,7 +360,7 @@ class SmartMoneyFollowStrategy:
                 "pc_h1": info.get("pc_h1"),
             },
         })
-        if gate_verdict == "blocked" or dist_verdict == "blocked":
+        if gate_verdict == "blocked" or dist_verdict == "blocked" or thin_book:
             return
         # remember the triggers so their SELLS can exit us ("follow them out")
         self._fired_wallets[mint] = set(wset)
