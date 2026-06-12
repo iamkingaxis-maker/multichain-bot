@@ -3,10 +3,10 @@
   "age_h_min": null,
   "alpha_multiplier": 1.0,
   "base_position_usd": 100.0,
-  "bot_id": "young_probe_stair",
+  "bot_id": "young_probe_mid",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
-  "display_name": "YOUNG-PROBE CLONE: staircase structure (higher_low_5m>=0.5 AND trend_30m_n_pivot_lows>=3.5) on the young_probe_light template. 2026-06-10 mine of 81 young-probe closes (74% WR base): held-out TEST WR 86% +$4.52/tr n=14; FULL 92% +$5.92/tr n=26 across 7 tokens. THESIS: young-token winners are in confirmed short-term UPTRENDS (staircase pivots + higher lows) \u2014 momentum-confirmation, not deep-dip. CAUTION: 7-token diversity = pseudo-replication risk. FAST-CUT: retire if forward WR<60% by n=20 closes or net-negative at n>=12 distinct tokens. [STACK-EXEMPT 2026-06-11: the fleet entry stack (age>=24h, mcap>=500k) is the structural opposite of the young pond \u2014 it silenced this family from the 06-09 enforcement until now. The young lane + own entry gates are the validated stack here.] [THROUGHPUT 2026-06-11: shared young_pond exclusion pool (siblings spread across DISTINCT tokens instead of duplicating - light/candidate closed the same 2 tokens today) + max_concurrent raised. Same entries, more at-bats; $100/day needs shots.] [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.] [SELF-GATED 06-12: explicit bounds <2h/liq40k+/mcap150k+ = today's exact proven water, so the lane widening (24h/25k/100k for the new band probes) cannot alter this experiment.]",
+  "display_name": "MID-AGE band probe (2-6h, liq30k+): 198 ev/day, 61% won10, +13.2% med peak. PRE-REG: judge at n>=30 closes \u2014 >=+$1.50/tr at $100 promotes to candidate set; negative retires the band. $60 daily floor; badday-grade rug screens; own exclusion pool. YOUNG CAPTURE BUILD 2026-06-12 (AxiS: the ponds we are proven in offer $500-1300/day at modest capture \u2014 the gap is throughput, not edge).",
   "enabled": true,
   "entry_gate": [
     [
@@ -20,33 +20,43 @@
       -3
     ],
     [
-      "higher_low_5m",
+      "entry_age_hours",
       ">=",
-      0.5
-    ],
-    [
-      "trend_30m_n_pivot_lows",
-      ">=",
-      3.5
+      2
     ],
     [
       "entry_age_hours",
       "<=",
-      2
+      6
     ],
     [
       "liquidity_usd",
       ">=",
-      40000
+      30000
     ],
     [
       "entry_market_cap_usd",
       ">=",
-      150000
+      100000
+    ],
+    [
+      "unique_buyers_n",
+      ">=",
+      12
+    ],
+    [
+      "wash_suspected",
+      "<=",
+      0
+    ],
+    [
+      "n_recurring_buyers_3plus",
+      ">=",
+      1
     ]
   ],
   "entry_stack_exempt": true,
-  "exclusion_pool": "young_pond",
+  "exclusion_pool": "young_probe_mid",
   "filters_disabled": [],
   "filters_enforced": [
     "filter_btc_overheat",
@@ -56,7 +66,7 @@
   "hard_stop_pct": -15.0,
   "macro_up_multiplier": 1.0,
   "marginal_multiplier": 1.0,
-  "max_concurrent_positions": 4,
+  "max_concurrent_positions": 5,
   "mcap_max": null,
   "mcap_min": null,
   "mcap_psych_pc_h24_max": 80.0,

@@ -6,7 +6,7 @@
   "bot_id": "young_probe_baseflow_convex",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 15.0,
-  "display_name": "YOUNG-PROBE CLONE: confirmed base + hourly buy dominance (1s_base_confirmed_at_entry>=0.5 AND bs_h1>=1.41) on the young_probe_light template. 2026-06-10 mine: held-out TEST WR 95% +$3.39/tr n=21; FULL 97% +$4.59/tr n=33 across 8 tokens. THESIS: a 1s-confirmed base with buyers dominating the hour = the young pond entry that sticks. CAUTION: 8-token diversity = pseudo-replication risk. FAST-CUT: retire if forward WR<60% by n=20 closes or net-negative at n>=12 distinct tokens. FLEET-CONVEX EXPERIMENT (2026-06-11, AxiS: our entries + the elite payoff curve). Same entries as the parent, payoff reshaped to the decoded elite math (51 pct WR, p90 +107 tails, fast cuts): $25 probes, TP1 +5 sells only 10 pct, TP2 +25 sells 20 pct, 70 pct rides the trail, -15 cut (their median loser), -9 fast bail. PRE-REG: judge vs parent head-to-head on $/tr at n>=25 closes each; convex must beat parent or retire. The smart wallets are the existence proof. [STACK-EXEMPT 2026-06-11: the fleet entry stack (age>=24h, mcap>=500k) is the structural opposite of the young pond \u2014 it silenced this family from the 06-09 enforcement until now. The young lane + own entry gates are the validated stack here.] [DAILY FLOOR $15 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.]",
+  "display_name": "YOUNG-PROBE CLONE: confirmed base + hourly buy dominance (1s_base_confirmed_at_entry>=0.5 AND bs_h1>=1.41) on the young_probe_light template. 2026-06-10 mine: held-out TEST WR 95% +$3.39/tr n=21; FULL 97% +$4.59/tr n=33 across 8 tokens. THESIS: a 1s-confirmed base with buyers dominating the hour = the young pond entry that sticks. CAUTION: 8-token diversity = pseudo-replication risk. FAST-CUT: retire if forward WR<60% by n=20 closes or net-negative at n>=12 distinct tokens. FLEET-CONVEX EXPERIMENT (2026-06-11, AxiS: our entries + the elite payoff curve). Same entries as the parent, payoff reshaped to the decoded elite math (51 pct WR, p90 +107 tails, fast cuts): $25 probes, TP1 +5 sells only 10 pct, TP2 +25 sells 20 pct, 70 pct rides the trail, -15 cut (their median loser), -9 fast bail. PRE-REG: judge vs parent head-to-head on $/tr at n>=25 closes each; convex must beat parent or retire. The smart wallets are the existence proof. [STACK-EXEMPT 2026-06-11: the fleet entry stack (age>=24h, mcap>=500k) is the structural opposite of the young pond \u2014 it silenced this family from the 06-09 enforcement until now. The young lane + own entry gates are the validated stack here.] [DAILY FLOOR $15 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.] [SELF-GATED 06-12: explicit bounds <2h/liq40k+/mcap150k+ = today's exact proven water, so the lane widening (24h/25k/100k for the new band probes) cannot alter this experiment.]",
   "enabled": true,
   "entry_gate": [
     [
@@ -28,6 +28,21 @@
       "bs_h1",
       ">=",
       1.41
+    ],
+    [
+      "entry_age_hours",
+      "<=",
+      2
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      40000
+    ],
+    [
+      "entry_market_cap_usd",
+      ">=",
+      150000
     ]
   ],
   "entry_stack_exempt": true,

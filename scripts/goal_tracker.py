@@ -44,6 +44,9 @@ CANDIDATE_BOTS = {
     # fleet-convex wing (2026-06-11): proven lottery-segment entries with the
     # ELITE payoff curve (tiny TP1 partial, 70% rides) — judged vs parents
     "young_probe_stair_convex", "young_probe_baseflow_convex", "badday_flush_convex",
+    # young CAPTURE build (2026-06-12): band probes on the adjacent water the
+    # proven lane excludes (thin-liq 69% won10 / mid-age 61% / late-young 50%)
+    "young_probe_thinliq", "young_probe_mid", "young_probe_late",
 }
 API = "https://gracious-inspiration-production.up.railway.app/api/trades?full=1&limit=5000"
 
