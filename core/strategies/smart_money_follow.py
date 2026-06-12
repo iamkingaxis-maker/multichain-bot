@@ -392,7 +392,11 @@ class SmartMoneyFollowStrategy:
                 _why = getattr(self.scanner, "_ext_block_reason", None) or "unknown"
                 _append_jsonl(_FOLLOW_LOG, {
                     "type": "fire_unconverted", "ts": int(time.time()),
-                    "token": mint, "tier": tier, "reason": _why})
+                    "token": mint, "tier": tier, "reason": _why,
+                    # price/liq at block time -> blocked fires become replayable
+                    # (06-12: 149/150 unconverted = security_BLOCK, unjudgeable
+                    # retroactively because no entry price was recorded)
+                    "price": info.get("price"), "liq": info.get("liq")})
                 logger.info(f"[SmartFollow] fire UNCONVERTED {info['symbol']} "
                             f"{mint[:10]} reason={_why}")
         except Exception as e:
