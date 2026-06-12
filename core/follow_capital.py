@@ -54,6 +54,9 @@ class FollowCapitalManager:
         # won-today re-fire veto (persisted; resets on day roll)
         self.token_day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         self.token_pnl_today: dict[str, float] = {}
+        # rolling close P&Ls (last 40) -> the COPY-REGIME DIAL (2026-06-12,
+        # AxiS: "so we can detect a bad copy trading regime?"). Persisted.
+        self.recent_closes: list[float] = []
         self._load()
 
     # ── persistence ─────────────────────────────────────────────────────────
@@ -67,6 +70,7 @@ class FollowCapitalManager:
             if d.get("token_day") == self.token_day:
                 self.token_pnl_today = {k: float(v) for k, v in
                                         (d.get("token_pnl_today") or {}).items()}
+            self.recent_closes = [float(x) for x in (d.get("recent_closes") or [])][-40:]
         except Exception:
             pass  # fresh pool
 
@@ -78,6 +82,7 @@ class FollowCapitalManager:
                            "swept_total": round(self.swept_total, 6),
                            "epoch": self.epoch,
                            "token_day": self.token_day,
+                           "recent_closes": [round(x, 4) for x in self.recent_closes[-40:]],
                            "token_pnl_today": {k: round(v, 4) for k, v in
                                                self.token_pnl_today.items()}}, f)
             os.replace(tmp, _STATE_FILE)
@@ -114,6 +119,8 @@ class FollowCapitalManager:
         if today != self.token_day:
             self.token_day, self.token_pnl_today = today, {}
         self.token_pnl_today[a] = self.token_pnl_today.get(a, 0.0) + pnl_usd
+        self.recent_closes.append(pnl_usd)
+        del self.recent_closes[:-40]
         self._save()
         self.maybe_sweep()
 
@@ -165,6 +172,18 @@ class FollowCapitalManager:
             floor = 40.0
         return self.day_realized() <= -abs(floor)
 
+    def copy_dial(self) -> dict:
+        """Copy-regime dial: rolling-20 expectancy of the follow book.
+        bad = exp < -$1/close at n>=12 (the overnight grind read -$2 to -$3
+        by 01:30); good = exp > +$0.5. Mirrors the P7 dial design — the
+        record itself is the regime signal, no clock excuses."""
+        last = self.recent_closes[-20:]
+        if len(last) < 12:
+            return {"state": "warming", "exp": None, "n": len(last)}
+        exp = sum(last) / len(last)
+        state = "bad" if exp < -1.0 else ("good" if exp > 0.5 else "neutral")
+        return {"state": state, "exp": round(exp, 2), "n": len(last)}
+
     def won_today(self, addr: str) -> bool:
         """True if this token's realized P&L today is positive (and it's today)."""
         if datetime.now(timezone.utc).strftime("%Y-%m-%d") != self.token_day:
@@ -184,5 +203,6 @@ class FollowCapitalManager:
             "open_positions": len(self._open),
             "day_realized": round(self.day_realized(), 2),
             "daily_floor_hit": self.daily_floor_hit(),
+            "copy_dial": self.copy_dial(),
             "mode": "paper-virtual (real transfers at go-live via profit_sweeper)",
         }

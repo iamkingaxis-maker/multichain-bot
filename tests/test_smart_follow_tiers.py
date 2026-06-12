@@ -251,3 +251,23 @@ def test_trigger_state_enforcement_dormant_and_active(monkeypatch):
     assert should_drop_trigger("whale_conviction", feats_pass) is False   # in state
     assert should_drop_trigger("whale_conviction", {}) is False           # na fail-open
     assert should_drop_trigger("deep_1h_dip", feats_block) is False       # not in set
+
+
+def test_copy_regime_dial(tmp_path, monkeypatch):
+    import importlib
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    import core.follow_capital as fcmod
+    importlib.reload(fcmod)
+    fc = fcmod.FollowCapitalManager()
+    assert fc.copy_dial()["state"] == "warming"
+    for _ in range(15):                       # grind: -$2/close
+        fc.record_open("M", 50.0); fc.record_close("M", 1.0, -2.0)
+    d = fc.copy_dial()
+    assert d["state"] == "bad" and d["exp"] == -2.0
+    for _ in range(20):                       # recovery: +$3/close
+        fc.record_open("M2", 50.0); fc.record_close("M2", 1.0, 3.0)
+    assert fc.copy_dial()["state"] == "good"
+    # persistence
+    fc2 = fcmod.FollowCapitalManager()
+    assert fc2.copy_dial()["state"] == "good"
+    importlib.reload(fcmod)

@@ -372,6 +372,8 @@ class SmartMoneyFollowStrategy:
             "conviction_mult": conv,
             "horizon": (lambda hs: max(set(hs), key=hs.count) if hs else None)(
                 [self.horizons.get(w) for w in wset if self.horizons.get(w)]),
+            "copy_dial": (lambda f: f.copy_dial() if f else None)(
+                getattr(getattr(self.scanner, "trader", None), "follow_capital", None)),
             # token state at fire time (2026-06-09): already in hand from the
             # DexScreener quote — costs no extra fetch.
             "state": {
