@@ -50,6 +50,9 @@ CANDIDATE_BOTS = {
     # time-box probe (2026-06-12): the Dw5 archetype — time-boxed risk, no
     # price stop, sell-all on strength; fed by the pp_launch firehose lane
     "timebox_probe",
+    # decode-doctrine A/Bs (2026-06-12): conviction sizing (all 10 wallets do
+    # it; fleet bets flat) + the 7Gi3 surgical geometry (+154/-2.2 medians)
+    "badday_flush_conviction", "young_probe_conviction", "young_probe_surgical",
 }
 API = "https://gracious-inspiration-production.up.railway.app/api/trades?full=1&limit=5000"
 
