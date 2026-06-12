@@ -1,9 +1,10 @@
 {
-  "_doc": "Per-wallet fire-quality (avg $/close of consensus fires the wallet participated in; from the 2026-06-09 fire-quality board, n-thin \u2014 SHADOW ONLY until n>=40/wallet). Used to stamp would_size_mult into follow_signals.jsonl.",
-  "V21GW8PGcWRE5DnbjHZXhcjiBYhJxmjBHqAUkfBm2n9": 1.17,
-  "HmP3TxuVWkiJjS6mii9WPzRFeF9hnUjs1YMHCAB4AZm4": 0.9,
-  "GGduK5PAq1j1V3cDdmSf74EdDUN3pb2L3qgKnZ7TWZev": -0.5,
-  "Abk9EfhWsLnxuMm7qJXvMYNyvKgtp8sfSoL45srMzP49": -3.11,
-  "2tYcXQCfTtQg5dKLEpQn26DjrfhTXhGB8Rh1oiv69DJc": -3.05,
-  "udH4u5k3vWX7izz119MHDckeLE6pxdypupWtd41JfJL": -3.21
+  "_doc": "fire-quality shadow map (frac $/close, refreshed 2026-06-12 overnight mission); drives would_size_mult stamps only",
+  "HmP3TxuVWkiJjS6mii9WPzRFeF9hnUjs1YMHCAB4AZm4": -0.1,
+  "4jkL4dNkY2UbpYrTgLA3u5FqKwKs1LM46RcE6FQU3qXi": -2.66,
+  "2x99WSHDpwes7d3Qqhdcnpx8Mt6WmGPaeNkX9eR6Tamh": 0.22,
+  "45Sn4KL1MHqwnpvcyjLnQnCtJDmw6zDeBnPevs5b4ZyG": -0.11,
+  "1eveYYxZ2mDiAnmCh3fnAbJwjgErzokRA1b6UrRybSM": -1.87,
+  "2qnHs8fZZLUJFVCkTCEXXZnEZTgfu7HFVBFmbUmXiYiW": -2.77,
+  "EGwERj1nadcGQhwnJsMmfmDeH51D1G1kMsdYG3e9V1Dp": 1.41
 }
