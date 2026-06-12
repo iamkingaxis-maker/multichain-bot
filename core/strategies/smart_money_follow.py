@@ -122,6 +122,18 @@ def _flush_gate_max_pch1() -> float:
         return -10.0
 
 
+def _flush_gate_min_pch1() -> float:
+    """DEPTH lower bound (2026-06-12): fires below this are dead-cat collapses,
+    not dips. Mine: pc_h1<-30 cohort 33% WR, negative in BOTH held-out halves
+    (-$4.03 / -$8.12 per fire); GTA6 (-43/-47 fires) rode a dead-volume
+    collapse to -38% for -$55. The elites knife-catch and scalp out in
+    seconds; our copies ride the knife. Window is now [min, max]."""
+    try:
+        return float(os.environ.get("SMART_FOLLOW_FLUSH_MIN_PCH1", "-30.0"))
+    except Exception:
+        return -30.0
+
+
 def _load_json_cfg(path: str, default):
     try:
         with open(path) as f:
@@ -311,7 +323,8 @@ class SmartMoneyFollowStrategy:
         gate_mode = _flush_gate_mode() if tier != "convex" else "off"
         max_pch1 = _flush_gate_max_pch1()
         pc_h1 = info.get("pc_h1")
-        shallow = pc_h1 is None or pc_h1 > max_pch1
+        shallow = (pc_h1 is None or pc_h1 > max_pch1
+                   or pc_h1 < _flush_gate_min_pch1())   # too-deep = dead cat
         gate_verdict = "blocked" if (shallow and gate_mode == "enforce") else (
             "shadow_block" if (shallow and gate_mode in ("shadow", "off")) else "pass")
         # distribution guard: a roster wallet SOLD this token within the window
