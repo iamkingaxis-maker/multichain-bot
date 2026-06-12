@@ -324,6 +324,34 @@ class DipScanner:
                 existing = trade_store.load_bot_state(bc.bot_id)
                 if existing:
                     self.bot_capitals[bc.bot_id] = PerBotCapital.from_dict(existing)
+                    # Daily-pnl RE-DERIVE (2026-06-12, the momo floor-lag bug):
+                    # deploy-overlap sells book P&L into the trades ledger but
+                    # their capital update dies with the old instance — every
+                    # cutover leaks dollars OUT of the floor's counter (momo
+                    # crossed -$60 at 09:43, capital read -$62 only at 13:00,
+                    # 3h of post-floor buying). The append-only ledger is
+                    # authoritative: recompute today's pnl from it at boot.
+                    try:
+                        from datetime import datetime as _dt, timezone as _tz
+                        _today = _dt.now(_tz.utc).strftime("%Y-%m-%d")
+                        _led = 0.0
+                        for _t in trade_store.load_trades():
+                            if (_t.get("bot_id") == bc.bot_id
+                                    and _t.get("type") == "sell"
+                                    and str(_t.get("time", ""))[:10] == _today
+                                    and "cancelled" not in str(_t.get("reason", "")).lower()):
+                                _led += float(_t.get("pnl") or 0)
+                        _cap = self.bot_capitals[bc.bot_id]
+                        if abs(_led - _cap.daily_pnl_usd) > 0.01:
+                            logger.info(
+                                "[DipScanner] %s daily-pnl re-derived from ledger: "
+                                "%.2f -> %.2f (overlap leak reclaimed)",
+                                bc.bot_id, _cap.daily_pnl_usd, _led)
+                            _cap.daily_pnl_usd = _led
+                            _cap._daily_pnl_date = _today
+                    except Exception as _e:
+                        logger.warning("[DipScanner] daily-pnl re-derive failed for %s: %s",
+                                       bc.bot_id, _e)
                 else:
                     self.bot_capitals[bc.bot_id] = PerBotCapital(
                         bc.bot_id, bc.paper_capital_usd,
