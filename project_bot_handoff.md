@@ -309,6 +309,74 @@ survives with its strongest evidence yet.
   consistent), 7Gi3RNdV, AKprbkX7. Roster 10. Benched: 7rbxsXch (margin halved), 3fuga4
   (63% scalp), AxQRySJb (cross-instrument volatility). 1eve/2qnHs/4jkL hit n>=10 TODAY.
 
+## MORNING SESSION 2 (06-12 ~06:30-08:05 UTC) — capture build live, flush validates, full-system bug scan
+
+### THE FLUSH STRATEGY VALIDATES (the day's headline)
+badday_flush: **11-for-11, +$53.39** in its first 90min (SPCX +18.5%, Vox, TRILLION, Pnut x2,
+Gus — +6/+12 ladder + trail). flush_convex: +$9.53 (11W/2L; caught Vox's full +42% run with the
+patient curve — the head-to-head running live at $25). badday_momo: **-$38.49 (5W/7L)** — the
+momo side is the WEAK half (never_runner kills + Vox double-hard-stop 2min apart = the
+register_stop_loss NO-OP biting live). Family net +$24.43.
+
+**FLUSH EDGE MAP** (684 universe flush events, the n>=30 review's refinement list):
+- DEPTH MONOTONIC-BETTER: -20/-30: 42% won10 -> -60/-95: **67% won10 +18.5% med peak**
+  (OPPOSITE sign vs smart_follow deep-fire toxicity — different pond physics: capitulation
+  bounce on aged+liquid tokens vs chase-taxed thin-book follows)
+- Round-trip risk RISES with depth (34% deepest) -> the fast ladder is STRUCTURALLY right
+  (harvest the bounce, leave before the give-back)
+- Age pond = 6-96h (52-54%); >96h decays to 32% -> n>=30 refinement: envelope age ceiling
+- Rug screens = insurance not edge (50% vs 48%); <6h flushes bounce best (64%) = rug country
+  now covered by the young band probes instead
+- Mechanism: the flush bot is our COPYABLE version of elite knife-catching — minutes-for-the-
+  bounce instead of seconds-for-the-tick
+
+### YOUNG CAPTURE BUILD LIVE (657a7db + fixes)
+3 band probes fishing the adjacent water (thinliq <2h/25-40k = the 69%-won10 prize band; mid
+2-6h; late 6-24h), proven family self-gated to its exact water, lane envs widened (24h/25k/
+100k — LOAD-BEARING: code default is 2h). First fires 06:40-06:58 — and they EXPOSED the
+**band-collapse leak**: all three age-disjoint bands bought CPX because entry_gate's
+entry_age_hours doesn't exist in raw_meta (it's lifecycle_age_hours) -> every age bound failed
+OPEN. Fixed via alias resolution in the gate evaluator (8614a77) + band-disjointness regression
+test. Pre-reg per band: n>=30 closes, >=+$1.50/tr promotes, negative retires.
+
+### FULL-SYSTEM BUG SCAN (AxiS-ordered; 4 parallel auditors + the FTP lead) — 13 bugs fixed
+1. **FTP RESURRECTION PUMP** (2ec4be3): one buy -> TEN sells (~-$27); deploy-overlap dupes +
+   stale-book resurrection. Tombstones broadened to ALL full-close reasons (TP partials exempt).
+2. Dip-branch re-entrancy guard (0c8ba41): poll could fire a 2nd close while realtime stop
+   awaited Jupiter (the elonbucks slow-bleed-x4 signature).
+3. Loss-cooldown UTC-midnight hole: now persisted token_lost_at timestamps (deploy-proof).
+4-6. **All 3 daily circuit breakers reset at every deploy**: scalp $400 stop, RiskManager
+   daily_pnl, per-bot per-token cap ('persist before enforce' — live_probe enforced!). All
+   persisted (011fb62).
+7-8. mcapgate dead-band (MY 36cc420 regression: low_mcap band = empty set; env LOW_MCAP_PROBE=0,
+   flags keep lane mandate) + young vol_h1_min trap (sub-1h tokens report $0 h1 -> nulled on 7
+   sub-2h bots) (1e57b1d).
+9-11. 20:00-incident class remnants: PM 1S-bars + scanner 1S retry-ladder routed onto the DS
+   private executor + breaker (shared_client()/run_ds_fetch()); throttle sleeps moved OUTSIDE
+   client locks (DS+GT).
+12. goodpond mcap_min config-truth; 13. band-collapse alias fix (above).
+**QUEUED FOR AXIS (behavioral)**: register_stop_loss = deliberate NO-OP since 05-17 (momo's
+Vox double-stop is live evidence); process_external_signal skips all re-entry cooldowns;
+dead _dip_stop_streak (loaded, never written). Clean: all floors present, no field mismatches
+in consumers, prior fixes held.
+
+### ALSO THIS SESSION
+- GTA6 dead-cat lesson -> flush-depth window already in handoff above; GTA6 total ~-$117 was
+  partly RESURRECTION pumping (see #1), partly after-loss re-fires -> LOSS-COOLDOWN shipped
+  (e01ff67: 6h after a losing token, the +$78/-$85 gap seam).
+- Goal meter -$25 early-day audit: REAL (phantoms only -$0.55 in the live set; the big phantom
+  pumps were smart_follow-side, not in the meter). Young family small red start.
+- Smart wallet post-gate record: 22 toxic fires blocked in the first 40min (20 thin-book),
+  ZERO post-gate losses; old-book zombies (GTA6/FTP) self-closed; 4 green riders incl
+  Nong Yan +113%.
+- Exit-horizon stamps live (fast/mid/slow per fire); fire-quality map refreshed; copy dial
+  warming (n grows with each close).
+
+### MORNING RITUAL ADDENDA
++ Grade flush vs momo SEPARATELY at family n>=30 (momo may retire while flush promotes).
++ Band probes: verify post-alias-fix fires respect band disjointness (no same-token across bands).
++ Decide: stop-cooldown re-enable (scanner + external paths) — Vox double-stop = the cost of no.
+
 ## FILL-FIDELITY VERDICT (trust checkpoint — PASSED)
 
 GT minute-candle method (trade-log endpoint self-throttled): 11/14 of today's fills INSIDE
