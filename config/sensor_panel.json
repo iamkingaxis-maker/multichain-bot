@@ -61,13 +61,15 @@
  },
  "GGduK5PAq1j1mWs6tQrnE8mZWPLDnaCXAMnLqAVKx67": {
   "archetype": null,
-  "status": "active",
-  "source": "cut-sensor-grade"
+  "status": "unfollowable",
+  "source": "cut-sensor-grade",
+  "note": "0 parseable roundtrips in 400 sigs (probe 2026-06-12) \u2014 proxy custody; stream cannot attribute"
  },
  "Abk9EfhfvSVqPGY6cyxooty1Nx7hY8NTPRsq9EJtxKDC": {
   "archetype": null,
-  "status": "active",
-  "source": "cut-sensor-grade"
+  "status": "unfollowable",
+  "source": "cut-sensor-grade",
+  "note": "0 parseable roundtrips in 400 sigs (probe 2026-06-12) \u2014 proxy custody; stream cannot attribute"
  },
  "HcLMmNx9pcSM2cDuNMEcWKuDpiknGEb8djqGRsTtM9yo": {
   "archetype": null,
