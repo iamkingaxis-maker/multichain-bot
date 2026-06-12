@@ -2615,7 +2615,7 @@ class DipScanner:
                     # candidates — let them through to deeper analysis. Volume-
                     # recovery context: rejects ~13/cycle pre-loosening, expect
                     # ~5-8/cycle post-loosening.
-                    if green_in_last3 == 0 and cum_3min_pct < -2.0:
+                    if green_in_last3 == 0 and cum_3min_pct < -2.0 and not _bdl:
                         c["no_1m_reversal"] += 1
                         logger.info(
                             f"[DipScanner] 1m gate: {token_symbol} — "
@@ -2630,7 +2630,7 @@ class DipScanner:
                     # is the LAST burst of buying before reversal, not a
                     # confirmed reversal.  Lifetime: blocks 7 trades, saves
                     # +$366; today saved +$299 (4 trades, 0% win rate).
-                    if last_close_pct >= 2.0:
+                    if last_close_pct >= 2.0 and not _bdl:
                         c["m1_top_tick"] += 1
                         logger.info(
                             f"[DipScanner] m1_top_tick: {token_symbol} — "
@@ -2644,7 +2644,7 @@ class DipScanner:
                     # hasn't built" zone — buying right at the top tick of
                     # the bounce.  Lifetime: blocks 18 trades, saves +$245;
                     # today saved +$357 (7 trades, 14% win rate).
-                    if 1.0 <= cum_3min_pct < 3.0:
+                    if 1.0 <= cum_3min_pct < 3.0 and not _bdl:
                         c["m1_false_bounce"] += 1
                         logger.info(
                             f"[DipScanner] m1_false_bounce: {token_symbol} — "
