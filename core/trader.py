@@ -537,6 +537,17 @@ class Trader:
         # whose address has a MANUAL full-close sell AFTER its entry_time
         # (manual sells are user intent with no automatic re-trigger; TP
         # partials/remainders are untouched by this rule).
+        # 2026-06-12 broadened (FTP: ONE buy -> TEN sell records across a
+        # 10-deploy night; duplicate sells 70s apart booked to baseline_v1 AND
+        # None = both overlap instances selling, then the stale book
+        # resurrecting the position to die again, ~-$27 from one $57 position):
+        # tombstone ANY known FULL-CLOSE sell, not just manual. TP partials and
+        # other fraction sells never tombstone — riding remainders restore fine.
+        _FULL_CLOSE_MARKERS = (
+            "manual sell", "volume death", "pre-stop bail", "hard stop",
+            "stop loss", "elite-exit", "post-tp1 trail", "pre-tp1 trail",
+            "never-green", "fast-dud", "fast bail", "giveback floor",
+        )
         _manual_close = {}
         try:
             with open(os.path.join(_DATA_DIR, "trades.json")) as f:
@@ -546,8 +557,9 @@ class Trader:
                 if not a:
                     continue
                 ts = t.get("time") or ""
+                _why = (t.get("reason") or "").lower()
                 if (t.get("type") == "sell"
-                        and "manual sell" in (t.get("reason") or "").lower()):
+                        and any(m in _why for m in _FULL_CLOSE_MARKERS)):
                     if ts >= _manual_close.get(a, ""):
                         _manual_close[a] = ts
                 elif t.get("type") == "buy":
@@ -565,7 +577,7 @@ class Trader:
                 if _mc_ts and (d.get("entry_time") or "") <= _mc_ts:
                     logger.warning(
                         f"[Trader] 🧟 ZOMBIE DROPPED on restore: "
-                        f"{d.get('token_symbol')} was manually sold at {_mc_ts} "
+                        f"{d.get('token_symbol')} fully closed at {_mc_ts} "
                         f"(deploy-overlap resurrection guard)")
                     continue
                 try:
