@@ -16526,10 +16526,27 @@ class DipScanner:
                 # dedupe preserving first-seen order.
                 # User watchlist: force-include — always enrich even if not
                 # in the universe this cycle, so we can revisit it.
+                # PumpPortal LAUNCH LANE (2026-06-12): the firehose sees every
+                # pump.fun birth (716 today) while every other feed is
+                # popularity-ranked — the pre-trending longtail (68% of the
+                # green-in-red wallet's tokens) was invisible. Launch mints
+                # ride the SAME DS batch enrichment below; floors + young-lane
+                # admission + containment all apply unchanged downstream.
+                _pp_addrs = []
+                _ppf = getattr(self, "pumpportal", None)
+                if _ppf is not None and os.environ.get(
+                        "PP_LAUNCH_FEED", "on").lower() not in ("off", "0"):
+                    try:
+                        _pp_addrs = _ppf.launch_candidates(
+                            cap=int(os.environ.get("PP_LAUNCH_PER_CYCLE", "25")))
+                    except Exception:
+                        _pp_addrs = []
+                _pp_set = {a.lower() for a in _pp_addrs}
                 to_enrich = list(dict.fromkeys(
                     stub_addrs
                     + list(pair_by_addr.keys())
                     + list(self._user_watchlist_addrs)
+                    + _pp_addrs
                 ))
                 if to_enrich:
                     for i in range(0, len(to_enrich), 30):
@@ -16573,6 +16590,9 @@ class DipScanner:
                                 # actual price was $0.0000281 (-78% gap).
                                 pair_by_addr[addr] = p
                                 source_by_addr[addr] = "sticky_enriched"
+                            elif addr.lower() in _pp_set and addr not in pair_by_addr:
+                                pair_by_addr[addr] = p
+                                source_by_addr[addr] = "pp_launch"
                             elif addr not in pair_by_addr:
                                 pair_by_addr[addr] = p
                                 source_by_addr[addr] = "ds_stub"

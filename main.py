@@ -709,6 +709,8 @@ async def main():
                 bot_manager=bot_manager,
                 trade_store=trade_store,
             )
+            # PumpPortal launch lane: the firehose feeds discovery
+            dip_scanner.pumpportal = pumpportal
             # Tier 3: wire AxiomPriceFeed for sub-minute tick buffer reads at
             # signal-fire time. Optional — dip_scanner falls back to empty
             # tick_features if axiom_price_feed is None.

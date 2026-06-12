@@ -111,6 +111,31 @@ class PumpPortalFeed:
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 120)
 
+    def launch_candidates(self, min_age_s: int = 900, max_age_s: int = 86400,
+                          cap: int = 25) -> list:
+        """Discovery lane (2026-06-12, AxiS: 68% of a green-in-red wallet's
+        tokens never reached our scanner — every feed is popularity-ranked,
+        so our universe is the POST-trending tape). Returns up to `cap`
+        unoffered launch mints aged [min_age_s, max_age_s] (min age lets the
+        LP form). Offered mints are marked so each is enriched once; tokens
+        that later trend re-enter via the normal feeds."""
+        if not hasattr(self, "_offered"):
+            self._offered: set = set()
+        now = time.time()
+        out = []
+        for m, ts in self.launches.items():
+            if m in self._offered:
+                continue
+            age = now - ts
+            if min_age_s <= age <= max_age_s:
+                out.append((ts, m))
+        out.sort()   # oldest first (closest to falling out of window)
+        picked = [m for _, m in out[:cap]]
+        self._offered.update(picked)
+        if len(self._offered) > 30000:
+            self._offered = set(list(self._offered)[-15000:])
+        return picked
+
     def launch_age_min(self, mint: str):
         t = self.launches.get((mint or "").lower())
         return round((time.time() - t) / 60, 1) if t else None
