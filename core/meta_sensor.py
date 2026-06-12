@@ -94,8 +94,11 @@ class MetaSensor:
                     sum(1 for m in self.panel.values() if m.get("archetype")))
 
     # ── ingestion (called from the PumpPortal stream) ─────────────────────
-    def ingest(self, wallet: str, mint: str, side: str, sol: float, ts: float) -> None:
-        """One parsed panel-wallet trade. Never raises."""
+    def ingest(self, wallet: str, mint: str, side: str, sol: float, ts: float,
+               launch_ts: Optional[float] = None) -> None:
+        """One parsed panel-wallet trade. Never raises. ``launch_ts`` (from the
+        feed's own launch registry, free) gives token-age-at-entry — the POND
+        dimension a meta lives in, not just its exit geometry."""
         try:
             if wallet not in self.panel or not mint or sol is None:
                 return
@@ -106,7 +109,10 @@ class MetaSensor:
                     return   # sell with no observed buy -> position predates us; skip
                 ep = self._episodes[k] = {"spent": 0.0, "recv": 0.0,
                                           "first_ts": ts, "last_ts": ts,
-                                          "sold": False}
+                                          "sold": False,
+                                          "age_h": (round((ts - launch_ts) / 3600.0, 2)
+                                                    if launch_ts and ts > launch_ts
+                                                    else None)}
             if side == "buy":
                 ep["spent"] += float(sol)
             elif side == "sell":
@@ -130,7 +136,8 @@ class MetaSensor:
             ret = (ep["recv"] / ep["spent"] - 1.0) * 100.0
             arch = (self.panel.get(wallet) or {}).get("archetype") or "unlabeled"
             hold = max(0.0, ep["last_ts"] - ep.get("first_ts", ep["last_ts"]))
-            self._scores.append((ep["last_ts"], wallet, arch, ret, hold))
+            self._scores.append((ep["last_ts"], wallet, arch, ret, hold,
+                                 ep.get("age_h")))
         # survivorship guard: expire sell-less episodes past max age into the
         # `unresolved` health counter (never into the WR — mark unknown).
         stale = [k for k, ep in self._episodes.items()
@@ -158,7 +165,16 @@ class MetaSensor:
                      "last_score_age_secs": (round(now - self._scores[-1][0])
                                              if self._scores else None),
                      "scored_24h": len(self._scores),
+                     # per-wallet episode counts (24h): venue-coverage check
+                     # (compare vs the wallet's chain rate from the decode
+                     # probe — a big shortfall = trades on venues PumpPortal
+                     # doesn't stream) AND silence detection per sensor.
+                     "wallet_episodes_24h": {},
                      "windows": {}}
+        _wc: Dict[str, int] = {}
+        for _ts, _w, *_rest in self._scores:
+            _wc[_w[:8]] = _wc.get(_w[:8], 0) + 1
+        out["wallet_episodes_24h"] = dict(sorted(_wc.items(), key=lambda kv: -kv[1]))
         for label, secs in (("6h", 6 * 3600), ("24h", 24 * 3600)):
             cut = now - secs
             rows: Dict[str, list] = {}
@@ -192,20 +208,23 @@ class MetaSensor:
         now = now or time.time()
         self._finalize_idle(now)
         cut = now - window_secs
-        rets, holds = [], []
+        rets, holds, ages = [], [], []
         by_wallet: Dict[str, int] = {}
-        for ts, w, a, ret, *h in self._scores:
+        for ts, w, a, ret, *extra in self._scores:
             if ts < cut or a != arch:
                 continue
             rets.append(ret)
             by_wallet[w] = by_wallet.get(w, 0) + 1
-            if h and isinstance(h[0], (int, float)):
-                holds.append(float(h[0]))
+            if extra and isinstance(extra[0], (int, float)):
+                holds.append(float(extra[0]))
+            if len(extra) > 1 and isinstance(extra[1], (int, float)):
+                ages.append(float(extra[1]))
         if len(rets) < min_n:
             return None
         wins = sorted(r for r in rets if r > 0)
         losses = sorted(r for r in rets if r <= 0)
         hs = sorted(holds)
+        ag = sorted(ages)
         return {
             "n": len(rets),
             "wr": round(len(wins) / len(rets), 3),
@@ -213,6 +232,12 @@ class MetaSensor:
             "med_loss_pct": round(losses[len(losses) // 2], 1) if losses else None,
             "med_hold_secs": round(hs[len(hs) // 2]) if hs else None,
             "p75_hold_secs": round(hs[(3 * len(hs)) // 4]) if hs else None,
+            # POND (2026-06-12 gap #1): token age-at-entry of the archetype's
+            # episodes (known only for mints in the feed's launch registry —
+            # age_coverage says how much of the pond we could place).
+            "med_age_h": round(ag[len(ag) // 2], 1) if ag else None,
+            "p75_age_h": round(ag[(3 * len(ag)) // 4], 1) if ag else None,
+            "age_coverage": round(len(ages) / len(rets), 2),
             # PROVENANCE (2026-06-12, AxiS: "how are we identifying which
             # wallets are sending signals?"): exactly which wallets composed
             # this geometry, and how concentrated the signal is. A consumer

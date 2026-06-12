@@ -62,11 +62,14 @@ class PumpPortalFeed:
                 except Exception as e:
                     logger.warning(f"[PumpPortal] ingest error: {e}")
             # Meta sensor (2026-06-12): same parsed trade feeds the panel
-            # day-meta reader. Measure-only; sync + never raises.
+            # day-meta reader. Measure-only; sync + never raises. launch_ts
+            # from our own launch registry (subscribeNewToken) gives the
+            # episode's token-age-at-entry for POND tuning at zero RPC cost.
             if self.sensor is not None:
                 self.sensor.ingest(wallet=d["traderPublicKey"], mint=mint or "",
                                    side=tx_type, sol=float(d.get("solAmount") or 0),
-                                   ts=time.time())
+                                   ts=time.time(),
+                                   launch_ts=self.launches.get((mint or "").lower()))
         elif tx_type == "create" or (d.get("name") and mint and "marketCapSol" in d):
             self.stats["new_tokens"] += 1
             self.launches[(mint or "").lower()] = time.time()

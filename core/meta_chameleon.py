@@ -86,7 +86,17 @@ CLAMPS = {
     "time_stop_minutes": (10.0, 780.0),
     "tp1_pct": (8.0, 60.0),
     "hard_stop_pct": (-60.0, -10.0),
+    # POND dial (gap #1): the entry_gate's entry_age_hours ceiling — fish
+    # where the archetype fishes, not just exit how it exits. Tuned only when
+    # the sensor could place >= AGE_COVERAGE_MIN of the archetype's episodes.
+    "entry_age_max_h": (6.0, 168.0),
 }
+AGE_COVERAGE_MIN = 0.5
+
+# Slow styles (swing/thesis: holds >= this) barely register on the 6h board
+# because episodes score at CLOSE — qualify them off the 24h window instead
+# (gap #3: the sensor must not structurally favor fast metas).
+SLOW_HOLD_SECS = 4 * 3600.0
 
 _last_check = 0.0
 
@@ -108,13 +118,20 @@ def tune_from_geometry(geo: dict) -> Optional[dict]:
         if not hold or not win or win <= 0:
             return None
         loss = geo.get("med_loss_pct")
-        return {
+        tune = {
             "time_stop_minutes": _clamp("time_stop_minutes", hold / 60.0),
             "tp1_pct": _clamp("tp1_pct", win),
             "hard_stop_pct": _clamp("hard_stop_pct",
                                     (loss * 1.2) if isinstance(loss, (int, float)) and loss < 0
                                     else -60.0),
         }
+        # POND: tune the age ceiling to ~2x the archetype's p75 entry age,
+        # only when enough of its episodes could be age-placed.
+        p75_age = geo.get("p75_age_h")
+        if (isinstance(p75_age, (int, float)) and p75_age > 0
+                and float(geo.get("age_coverage") or 0) >= AGE_COVERAGE_MIN):
+            tune["entry_age_max_h"] = _clamp("entry_age_max_h", 2.0 * p75_age)
+        return tune
     except Exception:
         return None
 
@@ -136,6 +153,14 @@ def _save_state(st: dict) -> None:
 
 def _apply(config, tune: dict) -> None:
     for k, v in tune.items():
+        if k == "entry_age_max_h":
+            # rebuild entry_gate with the new age ceiling, preserving every
+            # other condition (wash screen, liquidity floor, ...)
+            gate = [list(c) for c in (config.entry_gate or [])
+                    if str(c[0]) != "entry_age_hours"]
+            gate.append(["entry_age_hours", "<=", float(v)])
+            object.__setattr__(config, "entry_gate", tuple(tuple(c) for c in gate))
+            continue
         object.__setattr__(config, k, v)
 
 
@@ -167,7 +192,18 @@ def best_qualifying(sensor, now: float):
       - no single wallet supplying > MAX_TOP_SHARE of the episodes
     """
     try:
-        board = sensor.scoreboard(now).get("windows", {}).get("6h", {})
+        windows = sensor.scoreboard(now).get("windows", {})
+        board = dict(windows.get("6h", {}))
+        # slow styles (gap #3): an archetype whose holds run >= SLOW_HOLD_SECS
+        # closes too few episodes inside 6h to ever qualify there — give it
+        # the 24h window it actually lives on.
+        for arch, row in (windows.get("24h", {}) or {}).items():
+            if arch in board or arch == "all":
+                continue
+            g24 = sensor.archetype_geometry(arch, now, window_secs=24 * 3600,
+                                            min_n=QUALIFY_N)
+            if g24 and (g24.get("med_hold_secs") or 0) >= SLOW_HOLD_SECS:
+                board[arch] = row
     except Exception:
         return None, None
     best, best_geo = None, None
@@ -178,7 +214,10 @@ def best_qualifying(sensor, now: float):
             continue
         geo = sensor.archetype_geometry(arch, now, min_n=QUALIFY_N)
         if not geo:
-            continue
+            geo = sensor.archetype_geometry(arch, now, window_secs=24 * 3600,
+                                            min_n=QUALIFY_N)
+            if not geo or (geo.get("med_hold_secs") or 0) < SLOW_HOLD_SECS:
+                continue
         if arch == "unlabeled":
             logger.warning(
                 "[Chameleon] UNIDENTIFIED META: unlabeled panel wallets running "

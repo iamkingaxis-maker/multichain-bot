@@ -196,6 +196,49 @@ def test_boot_overlay_reapplies(monkeypatch, tmp_path):
     assert (cfg.time_stop_minutes, cfg.tp1_pct, cfg.hard_stop_pct) == (55.0, 14.0, -22.0)
 
 
+def test_pond_age_band_tunes_with_coverage():
+    geo = dict(GEO, med_age_h=2.0, p75_age_h=10.0, age_coverage=0.8)
+    t = ch.tune_from_geometry(geo)
+    assert t["entry_age_max_h"] == 20.0            # 2x p75, inside clamps
+    # low coverage -> pond dial NOT tuned (don't steer on a 20% sample)
+    geo = dict(GEO, p75_age_h=10.0, age_coverage=0.2)
+    assert "entry_age_max_h" not in ch.tune_from_geometry(geo)
+    # clamps
+    geo = dict(GEO, p75_age_h=500.0, age_coverage=0.9)
+    assert ch.tune_from_geometry(geo)["entry_age_max_h"] == 168.0
+
+
+def test_apply_rebuilds_entry_gate_preserving_other_conditions():
+    cfg = _cfg()
+    ch._apply(cfg, {"entry_age_max_h": 48.0})
+    gate = [list(c) for c in cfg.entry_gate]
+    assert ["entry_age_hours", "<=", 48.0] in gate
+    feats = [c[0] for c in gate]
+    assert "wash_suspected" in feats and "liquidity_usd" in feats
+    assert feats.count("entry_age_hours") == 1
+
+
+def test_slow_style_qualifies_from_24h_window(monkeypatch, tmp_path):
+    cfg = _cfg()
+    swing = dict(GEO, med_hold_secs=6 * 3600, p75_hold_secs=10 * 3600,
+                 med_win_pct=25.0)
+
+    class _DualSensor(_FakeSensor):
+        def scoreboard(self, now=None):
+            return {"windows": {"6h": {},                       # closes too slow
+                                "24h": {"swing": {"n": 10, "wr": 0.8}}}}
+
+        def archetype_geometry(self, arch, now=None, window_secs=21600, min_n=8):
+            if arch == "swing" and window_secs >= 24 * 3600:
+                return swing
+            return None
+
+    _patch(monkeypatch, tmp_path, _DualSensor({}, {}))
+    ch.maybe_retune(_scanner(_pm(cfg, 0)), now=time.time())
+    assert cfg.time_stop_minutes == 600.0          # p75 10h
+    assert cfg.tp1_pct == 25.0
+
+
 def test_kill_switch(monkeypatch, tmp_path):
     monkeypatch.setenv("META_CHAMELEON", "off")
     cfg = _cfg()
