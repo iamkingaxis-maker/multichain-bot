@@ -5,7 +5,7 @@
   "base_position_usd": 100.0,
   "bot_id": "pool_a_goodpond",
   "btc_macro_h1_block_threshold": null,
-  "display_name": "POOL-A GOOD-POND (2026-06-08 entry-quality investigation synthesis). Clone of pool_a_candidate with the ONLY held-out-surviving entry levers from the 8-agent investigation: (1) net_flow_60s_usd>=100 (LIVE buy-side flow at entry — on-chain agent: WR 0.688/+2.09%per-tr held-out all folds, the headline lever), (2) age_h_min=24h (cut the <2h fresh-micro 0%-WR lane; good-pond + 23d agents agree, +18-22pp WR held-out), (3) mcap 500k-10M (our true edge band; sub-500k is WORST at 29-32% — so this REPLACES the backwards <=500k mcap clones). Kills dip-depth (didn't survive) and holder/smart-money features (dead OOS). Edge = enter aged mid-mcap tokens with live net buying. Own exclusion_pool. Forward-judge vs pool_a_candidate control. CAVEAT: 3.5d data, net_flow has mild recency decay (latest fold 0.63 vs 0.70) — forward A/B is the proof.",
+  "display_name": "POOL-A GOOD-POND (2026-06-08 entry-quality investigation synthesis). Clone of pool_a_candidate with the ONLY held-out-surviving entry levers from the 8-agent investigation: (1) net_flow_60s_usd>=100 (LIVE buy-side flow at entry \u00e2\u20ac\u201d on-chain agent: WR 0.688/+2.09%per-tr held-out all folds, the headline lever), (2) age_h_min=24h (cut the <2h fresh-micro 0%-WR lane; good-pond + 23d agents agree, +18-22pp WR held-out), (3) mcap 500k-10M (our true edge band; sub-500k is WORST at 29-32% \u00e2\u20ac\u201d so this REPLACES the backwards <=500k mcap clones). Kills dip-depth (didn't survive) and holder/smart-money features (dead OOS). Edge = enter aged mid-mcap tokens with live net buying. Own exclusion_pool. Forward-judge vs pool_a_candidate control. CAVEAT: 3.5d data, net_flow has mild recency decay (latest fold 0.63 vs 0.70) \u00e2\u20ac\u201d forward A/B is the proof.",
   "enabled": true,
   "entry_gate": [
     [
@@ -45,7 +45,7 @@
   "marginal_multiplier": 1.0,
   "max_concurrent_positions": 7,
   "mcap_max": 10000000.0,
-  "mcap_min": 250000.0,
+  "mcap_min": 500000.0,
   "mcap_psych_pc_h24_max": 80.0,
   "min_shape_90m_range_pct": 10.0,
   "min_token_volatility_h24_pct": null,
@@ -54,9 +54,7 @@
   "never_runner_loss_floor": -6.0,
   "never_runner_minutes": 60,
   "never_runner_peak_max": 3.0,
-  "scalein_enabled": true,
-  "scalein_confirm_pct": 1.0,
-  "scalein_first_fraction": 0.5,
+  "ng_faststop_exit_enabled": true,
   "ng_scorer_gate": true,
   "paper_capital_usd": 2000.0,
   "pc_h1_max": null,
@@ -67,6 +65,9 @@
   "pre_stop_bail_vol_m5_max": 500.0,
   "premium_runner_multiplier": 1.0,
   "require_alpha_trigger": false,
+  "scalein_confirm_pct": 1.0,
+  "scalein_enabled": true,
+  "scalein_first_fraction": 0.5,
   "slow_bleed_minutes": 60,
   "slow_bleed_pnl_threshold": -8.0,
   "sol_macro_h1_block_threshold": -0.7,
@@ -88,6 +89,5 @@
     "chart_quality_bottom"
   ],
   "triggers_disabled": [],
-  "vol_h1_min": 1000.0,
-  "ng_faststop_exit_enabled": true
+  "vol_h1_min": 1000.0
 }
