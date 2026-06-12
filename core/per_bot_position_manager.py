@@ -321,6 +321,18 @@ class PerBotPositionManager:
             )
         return len(self._positions)
 
+    def token_buys_state(self) -> dict:
+        """Per-token daily buy counts for persistence (2026-06-12 audit: the
+        per-token re-entry cap reset at every deploy — 'persist before
+        enforce' was overdue; enforced on live_probe)."""
+        return {"date": self._token_buys_date, "counts": dict(self._token_buys)}
+
+    def load_token_buys_state(self, d) -> None:
+        if isinstance(d, dict) and isinstance(d.get("counts"), dict):
+            self._token_buys_date = d.get("date")
+            self._token_buys = {k: int(v) for k, v in d["counts"].items()
+                                if isinstance(v, (int, float))}
+
     def last_close_times_dict(self) -> dict:
         """The reentry-cooldown map for persistence (else reentry_cooldown_secs is
         dead after every restart — 2026-05-27 audit)."""

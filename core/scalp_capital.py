@@ -34,6 +34,30 @@ class ScalpCapitalManager:
 
     def __post_init__(self):
         self._day_reset_ts = _next_midnight_utc()
+        # Deploy-amnesia fix (2026-06-12 audit): the daily breaker reset to
+        # zero at every cutover (~10/day) — a pool that blew its $400 stop
+        # resumed fresh. Persist pnl+flag with a same-day guard.
+        import json, os
+        self._state_path = os.path.join(os.environ.get("DATA_DIR", "."),
+                                        "scalp_capital.json")
+        try:
+            with open(self._state_path) as f:
+                d = json.load(f)
+            if d.get("day") == datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d"):
+                self._daily_pnl = float(d.get("daily_pnl", 0.0))
+                self._daily_loss_hit = bool(d.get("daily_loss_hit", False))
+        except Exception:
+            pass
+
+    def _persist(self):
+        import json
+        try:
+            with open(self._state_path, "w") as f:
+                json.dump({"day": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d"),
+                           "daily_pnl": round(self._daily_pnl, 4),
+                           "daily_loss_hit": self._daily_loss_hit}, f)
+        except Exception:
+            pass
 
     # ── Public API ──────────────────────────────────────────────
 
@@ -52,6 +76,7 @@ class ScalpCapitalManager:
         self._daily_pnl += pnl_usd
         if self._daily_pnl <= -self.daily_loss_limit:
             self._daily_loss_hit = True
+        self._persist()
 
     def deployed_usd(self) -> float:
         return sum(self._open.values())

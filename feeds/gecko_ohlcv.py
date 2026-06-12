@@ -101,7 +101,8 @@ class GeckoTerminalClient:
             cached = self._cache.get(key)
             if cached and (now - cached[0]) < self._cache_ttl:
                 return cached[1]
-            await self._throttle(now)
+        # throttle OUTSIDE the lock (2026-06-12 audit A3)
+        await self._throttle(now)
 
         url = (
             f"{_GT_BASE}/networks/solana/pools/{pool_address}/trades"

@@ -1129,7 +1129,11 @@ class PositionManager:
                 return None, None
 
         try:
-            slug, bars_raw = await asyncio.to_thread(_fetch_slug_and_bars_sync)
+            from feeds.dexscreener_client import run_ds_fetch
+            _out = await run_ds_fetch(_fetch_slug_and_bars_sync)
+            if _out is None:
+                return None   # DS circuit open — caller falls back
+            slug, bars_raw = _out
         except Exception:
             return
         if not slug or not bars_raw:

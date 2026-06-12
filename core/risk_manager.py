@@ -59,6 +59,10 @@ class RiskManager:
                     self._save_state()
                     return
 
+                # daily-stop amnesia fix (2026-06-12 audit): restore today's
+                # pnl so a blown daily limit survives the ~10 deploys/day
+                if state.get("daily_date") == date.today().isoformat():
+                    self.daily_pnl = float(state.get("daily_pnl", 0.0))
                 saved = float(state.get("available_capital", self.total_capital))
                 # Deployed capital = positions that were open at shutdown.
                 # Since positions are not persisted, they're gone — return that capital.
@@ -86,6 +90,8 @@ class RiskManager:
                 json.dump({
                     "available_capital": self.available_capital,
                     "deployed_capital": self.total_capital - self.available_capital,
+                    "daily_pnl": round(self.daily_pnl, 4),
+                    "daily_date": self.daily_date.isoformat(),
                 }, f)
             os.replace(tmp_path, _RISK_STATE_FILE)
         except Exception as e:

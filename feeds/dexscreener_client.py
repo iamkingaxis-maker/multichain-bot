@@ -38,6 +38,34 @@ from feeds.dexscreener_trades_format import parse_trades
 logger = logging.getLogger(__name__)
 
 _DEXS_BASE = "https://io.dexscreener.com"
+
+# Shared singleton accessor (2026-06-12 audit A1/A2): other modules fetching
+# io.dexscreener via curl_cffi must use THIS client's private executor +
+# circuit breaker, never bare asyncio.to_thread (which saturates the global
+# ~32-thread pool the dashboard depends on — the 06-11 20:00 incident).
+_SHARED: "DexScreenerClient | None" = None
+
+
+def shared_client() -> "DexScreenerClient":
+    global _SHARED
+    if _SHARED is None:
+        _SHARED = DexScreenerClient()
+    return _SHARED
+
+
+async def run_ds_fetch(fn, *args, **kwargs):
+    """Run a sync DS-bound callable on the private DS executor, honoring the
+    circuit breaker. Returns None when the circuit is open."""
+    cl = shared_client()
+    if not cl._circuit_ok():
+        return None
+    try:
+        out = await cl._run_fetch(fn, *args, **kwargs)
+        cl._record_result(True)
+        return out
+    except Exception:
+        cl._record_result(False)
+        raise
 _DEXS_PUBLIC = "https://api.dexscreener.com/latest/dex"
 
 # DexScreener public dexId → io.dexscreener internal slug mapping.
@@ -137,13 +165,19 @@ class DexScreenerClient:
         return self._session
 
     async def _throttle(self, now: float):
+        # 2026-06-12 audit A3: sleep OUTSIDE any caller-held context where
+        # possible — compute first, sleep after appending intent. The sleep
+        # previously ran while _lock was held by the caller, serializing every
+        # unrelated pool behind one token's rate-limit wait.
         cutoff = now - 60.0
         self._request_log = [t for t in self._request_log if t > cutoff]
+        sleep_s = 0.0
         if len(self._request_log) >= self._rate_per_min:
-            sleep_s = 60.0 - (now - self._request_log[0]) + 0.5
+            sleep_s = max(0.0, 60.0 - (now - self._request_log[0]) + 0.5)
             logger.debug(f"[DexScreener] rate-limit sleep {sleep_s:.2f}s")
-            await asyncio.sleep(max(0.0, sleep_s))
         self._request_log.append(time.monotonic())
+        if sleep_s:
+            await asyncio.sleep(sleep_s)
 
     async def _resolve_pool_meta(self, pair_address: str) -> Tuple[Optional[str], Optional[str]]:
         """Resolve (dex_slug, quote_token_mint) for a pair. Cached per pool."""
@@ -336,7 +370,10 @@ class DexScreenerClient:
             cached = self._cache.get(key)
             if cached and (now - cached[0]) < self._cache_ttl:
                 return cached[1]  # type: ignore[return-value]
-            await self._throttle(now)
+        # throttle OUTSIDE the lock (2026-06-12 audit A3): the rate-limit
+        # sleep ran lock-held, serializing every unrelated pool behind one
+        # token's wait
+        await self._throttle(now)
 
         slug, quote = await self._resolve_pool_meta(pool_address)
         if not slug or not quote:

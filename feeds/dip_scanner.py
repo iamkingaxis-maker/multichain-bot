@@ -347,6 +347,7 @@ class DipScanner:
                 try:
                     n_restored = pm.load_state_list((existing or {}).get("open_positions"))
                     pm.load_last_close_times((existing or {}).get("last_close_times"))
+                    pm.load_token_buys_state((existing or {}).get("token_buys"))
                     if n_restored:
                         logger.info(
                             "[DipScanner] restored %d open positions for %s from bot_state",
@@ -379,6 +380,7 @@ class DipScanner:
         if pm is not None:
             d["open_positions"] = pm.to_state_list()
             d["last_close_times"] = pm.last_close_times_dict()
+            d["token_buys"] = pm.token_buys_state()
         self.trade_store.save_bot_state(bot_id, d)
 
     def _restore_open_positions_from_trades(self) -> None:
@@ -11498,7 +11500,7 @@ class DipScanner:
                         return None
                     for _slug_try in _1s_slug_ladder[:3]:  # max 3 attempts
                         _1s_attempts += 1
-                        _1s_raw = await asyncio.to_thread(_fetch_1s_sync, _slug_try)
+                        _1s_raw = await __import__("feeds.dexscreener_client", fromlist=["run_ds_fetch"]).run_ds_fetch(_fetch_1s_sync, _slug_try)
                         if _1s_raw:
                             # Parse early — bail if response is non-empty but
                             # has no bars (token not on this DEX slug).
