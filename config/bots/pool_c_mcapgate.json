@@ -5,8 +5,8 @@
   "base_position_usd": 100.0,
   "bot_id": "pool_c_mcapgate",
   "btc_macro_h1_block_threshold": null,
-  "display_name": "POOL-C + MCAP GATE (A/B treatment of pool_c_tightexit). IDENTICAL to pool_c_tightexit except mcap_max=500000 (block entries >$500k). Tests the 2026-06-07 validated finding: >$500k band break-even/negative, $50-500k +4%; gating >$500k ~4x'd expectancy at low winner-cost. Own exclusion_pool=pool_c_mcap so it runs independently of the control. Forward-judge per-trade % vs pool_c_tightexit. [STACK-EXEMPT + microcap mandate 2026-06-11: this bot deliberately tests the sub-500k band; the fleet stack (mcap>=500k) made it structurally dead since 06-09 enforcement. Own mcap bounds are its validated stack.]",
-  "enabled": true,
+  "display_name": "POOL-C + MCAP GATE (A/B treatment of pool_c_tightexit). IDENTICAL to pool_c_tightexit except mcap_max=500000 (block entries >$500k). Tests the 2026-06-07 validated finding: >$500k band break-even/negative, $50-500k +4%; gating >$500k ~4x'd expectancy at low winner-cost. Own exclusion_pool=pool_c_mcap so it runs independently of the control. Forward-judge per-trade % vs pool_c_tightexit. [STACK-EXEMPT + microcap mandate 2026-06-11: this bot deliberately tests the sub-500k band; the fleet stack (mcap>=500k) made it structurally dead since 06-09 enforcement. Own mcap bounds are its validated stack.] [RETIRED 2026-06-12 by AxiS: same verdict as pool_a_mcapgate.]",
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

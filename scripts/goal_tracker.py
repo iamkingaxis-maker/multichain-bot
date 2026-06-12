@@ -40,7 +40,7 @@ CANDIDATE_BOTS = {
     "young_probe_stair", "young_probe_baseflow",
     # bad-day microcap family (2026-06-10): the other half of the calendar —
     # rug-screened 50-500k flush/momentum riders (see badday scorecard)
-    "badday_flush", "badday_momo",
+    "badday_flush",   # momo retired 06-12 (failed pre-reg)
     # fleet-convex wing (2026-06-11): proven lottery-segment entries with the
     # ELITE payoff curve (tiny TP1 partial, 70% rides) — judged vs parents
     "young_probe_stair_convex", "young_probe_baseflow_convex", "badday_flush_convex",
