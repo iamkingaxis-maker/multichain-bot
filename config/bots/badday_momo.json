@@ -6,7 +6,7 @@
   "bot_id": "badday_momo",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
-  "display_name": "BAD-DAY MICROCAP: momentum-wave rider (50-500k mcap, age>=6h, rug-screened). Entry = pc_h1>=+30 already-running (63% win10 on bad days) + moderate buy pressure bs_m5 1.2-2.0 (54% \u2014 the frantic >2 band is the rug signature). PRE-REGISTERED (2026-06-10, badday scorecard judges): >= +$2/tr realized at n>=30 closes on dial-bad days AND catastrophe rate (<=-35% fills) < 10%, else RETIRE. Rug screens from the 3,959-event microcap catastrophe mine: age>=6h cuts 79% of catastrophes (rugs are YOUNG + FRANTIC, not quiet); composite screen 20%->6% catastrophe rate.  [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.]",
+  "display_name": "BAD-DAY MICROCAP: momentum-wave rider (50-500k mcap, age>=6h, rug-screened). Entry = pc_h1>=+30 already-running (63% win10 on bad days) + moderate buy pressure bs_m5 1.2-2.0 (54% \u2014 the frantic >2 band is the rug signature). PRE-REGISTERED (2026-06-10, badday scorecard judges): >= +$2/tr realized at n>=30 closes on dial-bad days AND catastrophe rate (<=-35% fills) < 10%, else RETIRE. Rug screens from the 3,959-event microcap catastrophe mine: age>=6h cuts 79% of catastrophes (rugs are YOUNG + FRANTIC, not quiet); composite screen 20%->6% catastrophe rate.  [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.] [06-12: young_token_probe flag REMOVED \u2014 vestigial from pre-lane creation; it restricted the family to young tokens while the envelope wants age>=6h. Lane admission + badday_ prefix mandate are the real access path.]",
   "enabled": true,
   "entry_gate": [
     [
@@ -91,5 +91,5 @@
   "triggers_allowed": null,
   "triggers_disabled": [],
   "vol_h1_min": 1000.0,
-  "young_token_probe": true
+  "young_token_probe": false
 }
