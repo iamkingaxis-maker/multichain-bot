@@ -301,11 +301,13 @@ def test_entry_gate_age_alias_resolution():
                   entry_gate=[["entry_age_hours", ">=", 6],
                               ["entry_age_hours", "<=", 24]])
     ev = BotEvaluator(c)
-    class B:  # minimal bundle stub
-        raw_meta = {"lifecycle_age_hours": 2.0}
-        vol_h1_usd = None; pc_h24 = None
-    b = B()
+    from types import SimpleNamespace
+    def mk(age):
+        return SimpleNamespace(raw_meta={"lifecycle_age_hours": age},
+                               pc_h24=None, pc_h1=None, age_hours=age,
+                               mcap_usd=200000.0, vol_h1_usd=50000.0,
+                               sol_pc_h1=None, sol_pc_h6=None, sol_pc_h24=None)
+    b = mk(2.0)
     # age=2h via the ALIAS key -> >=6 condition must FAIL (band disjointness)
     assert ev._token_regime_passes(b) is False
-    b.raw_meta = {"lifecycle_age_hours": 12.0}
-    assert ev._token_regime_passes(b) is True
+    assert ev._token_regime_passes(mk(12.0)) is True
