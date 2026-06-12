@@ -1,0 +1,11 @@
+{
+  "_doc": "per-wallet exit-horizon class from elite exits (2026-06-12): fast=<5min median, slow=>=30min, mid else. Stamped on fires (shadow) -> mine horizon-matched exits at n>=30/class.",
+  "1eveYYxZ2mDiAnmCh3fnAbJwjgErzokRA1b6UrRybSM": "fast",
+  "4jkL4dNkY2UbpYrTgLA3u5FqKwKs1LM46RcE6FQU3qXi": "fast",
+  "HcLMmNx9pcSM2cDuNMEcWKuDpiknGEb8djqGRsTtM9yo": "slow",
+  "EGwERj1nadcGQhwnJsMmfmDeH51D1G1kMsdYG3e9V1Dp": "mid",
+  "HmP3TxuVWkiJjS6mii9WPzRFeF9hnUjs1YMHCAB4AZm4": "mid",
+  "2x99WSHDpwes7d3Qqhdcnpx8Mt6WmGPaeNkX9eR6Tamh": "slow",
+  "2qnHs8fZZLUJFVCkTCEXXZnEZTgfu7HFVBFmbUmXiYiW": "slow",
+  "45Sn4KL1MHqwnpvcyjLnQnCtJDmw6zDeBnPevs5b4ZyG": "slow"
+}

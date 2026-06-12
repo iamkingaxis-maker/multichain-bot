@@ -180,6 +180,11 @@ class SmartMoneyFollowStrategy:
         # each rate-capped — the 06-09 K=1 flood starved the event loop, so
         # solo/k2 fire at most N times per rolling hour.
         tiers = _load_json_cfg("config/follow_tiers.json", {})
+        # per-wallet exit-horizon classes (fast/mid/slow medians from the elite
+        # exits log) — stamped on fires so horizon-matched exits can be mined
+        self.horizons = {k: v for k, v in
+                         _load_json_cfg("config/follow_horizons.json", {}).items()
+                         if not k.startswith("_")}
         self.high_tier = set(tiers.get("high_tier") or [])
         self.solo = set(tiers.get("solo") or [])
         # CONVEX pod (2026-06-10, 4th tier): copy the tail-hunters in THEIR
@@ -352,6 +357,8 @@ class SmartMoneyFollowStrategy:
             "thin_book": bool(thin_book),
             "fq_mean": fq_mean, "would_size_mult": would_mult,
             "conviction_mult": conv,
+            "horizon": (lambda hs: max(set(hs), key=hs.count) if hs else None)(
+                [self.horizons.get(w) for w in wset if self.horizons.get(w)]),
             # token state at fire time (2026-06-09): already in hand from the
             # DexScreener quote — costs no extra fetch.
             "state": {
