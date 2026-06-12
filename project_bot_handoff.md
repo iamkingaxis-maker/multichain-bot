@@ -445,6 +445,40 @@ always held the scarce tokens first). Fleet 48 enabled. Suite 698.
 running: 3 doctrine A/Bs + timebox + 3 band probes + convex wing + flush(n->30 on dial-bad)
 | dial DEFENSE 0.5 | floors ledger-true | pp_launch lane warming.
 
+## AFTERNOON ADDENDUM (06-12 ~14:25-15:05 UTC) — bench decode sweep + the 5th geometry
+
+### BENCH DECODE SWEEP (8 wallets) — archetype catalogue grows
+- **4TeTtW1G = ARCHETYPE #5: the OVERNIGHT SWING** — 615min median holds (p75 13h!),
+  conviction whale (4.76 SOL), 75% WR, and 86% SCANNER-VISIBLE universe (swings the
+  ESTABLISHED tape, not the longtail). Green through both red windows.
+- **Micro-time-box = standard pro practice**: 7rbxsXch kills 100% of losers @ ~5min,
+  CuTgJYbT 80% @ 8min, 76WoCZAG 67% @ 12min — Dw5's 240min box was the long end of a
+  recurring pattern. SHORT-box (~10min) geometry = thrice-validated, QUEUED (build when a
+  current race clears a slot).
+- 3fuga4 = first true FIXED-size sprayer decoded (94% WR, +20.6 med win, pure breadth).
+- AxQRySJb enigma deepens: recent window 94% WR / +185% med win / best +612 — yet fails
+  other instruments in other windows; instability IS the profile; stays benched.
+- 8DRJdA5P = clean thesis-holder (64min, 81%, ±10 asymmetry) -> top seat candidate with
+  4TeTtW1G for measure-2 at the ritual.
+
+### PROBE_SWING SHIPPED (ba65470; fleet 49) — the archetype that re-tests our own history
+The midcap stack pond graded 16% won10 / -EV at our FAST exits and was written off as dead
+water — but 4TeTtW1G earns 75% WR swinging that EXACT visible tape at 10-13h holds.
+probe_swing = the validated stack entries UNCHANGED (entry_stack NOT exempt — that's the
+experiment) + only the timescale transplanted: 13h time-box (the new primitive), NO price
+exits except -45 catastrophe, +15 sells 75% / +30 the rest, slow-bleed/stall/bails/never-
+runner all disarmed (each would execute a 10h hold). PRE-REG n>=30, >=+$1.50/tr; the
+SLOWEST race on the board (13h holds x 4 slots) — patience is part of the experiment.
+If it wins: months of 'entry non-predictive' conclusions get a TIMESCALE asterisk.
+If it loses: the pond's obituary completes and the archetype retests elsewhere.
+
+### SIX GEOMETRIES NOW RACING (the decoded catalogue, each vs a proven baseline)
+fast ladder (flush) | convex rides (wing) | time-box 240m (timebox_probe) | surgical
+-4/uncapped (young_probe_surgical) | conviction sizing (x2 clones) | overnight swing
+(probe_swing). Plus 3 band probes. QUEUED: micro-box ~10min; seat re-measures 8DRJdA5P +
+4TeTtW1G; firehose overlap re-baseline in a few days (decode gave per-wallet 10-50%
+visibility numbers to measure the pp_launch lane against).
+
 ## FILL-FIDELITY VERDICT (trust checkpoint — PASSED)
 
 GT minute-candle method (trade-log endpoint self-throttled): 11/14 of today's fills INSIDE
