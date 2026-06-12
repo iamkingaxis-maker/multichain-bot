@@ -6,7 +6,7 @@
   "bot_id": "young_probe_stair",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
-  "display_name": "YOUNG-PROBE CLONE: staircase structure (higher_low_5m>=0.5 AND trend_30m_n_pivot_lows>=3.5) on the young_probe_light template. 2026-06-10 mine of 81 young-probe closes (74% WR base): held-out TEST WR 86% +$4.52/tr n=14; FULL 92% +$5.92/tr n=26 across 7 tokens. THESIS: young-token winners are in confirmed short-term UPTRENDS (staircase pivots + higher lows) \u2014 momentum-confirmation, not deep-dip. CAUTION: 7-token diversity = pseudo-replication risk. FAST-CUT: retire if forward WR<60% by n=20 closes or net-negative at n>=12 distinct tokens. [STACK-EXEMPT 2026-06-11: the fleet entry stack (age>=24h, mcap>=500k) is the structural opposite of the young pond \u2014 it silenced this family from the 06-09 enforcement until now. The young lane + own entry gates are the validated stack here.] [THROUGHPUT 2026-06-11: shared young_pond exclusion pool (siblings spread across DISTINCT tokens instead of duplicating - light/candidate closed the same 2 tokens today) + max_concurrent raised. Same entries, more at-bats; $100/day needs shots.] [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.] [SELF-GATED 06-12: explicit bounds <2h/liq40k+/mcap150k+ = today's exact proven water, so the lane widening (24h/25k/100k for the new band probes) cannot alter this experiment.]",
+  "display_name": "YOUNG-PROBE CLONE: staircase structure (higher_low_5m>=0.5 AND trend_30m_n_pivot_lows>=3.5) on the young_probe_light template. 2026-06-10 mine of 81 young-probe closes (74% WR base): held-out TEST WR 86% +$4.52/tr n=14; FULL 92% +$5.92/tr n=26 across 7 tokens. THESIS: young-token winners are in confirmed short-term UPTRENDS (staircase pivots + higher lows) \u2014 momentum-confirmation, not deep-dip. CAUTION: 7-token diversity = pseudo-replication risk. FAST-CUT: retire if forward WR<60% by n=20 closes or net-negative at n>=12 distinct tokens. [STACK-EXEMPT 2026-06-11: the fleet entry stack (age>=24h, mcap>=500k) is the structural opposite of the young pond \u2014 it silenced this family from the 06-09 enforcement until now. The young lane + own entry gates are the validated stack here.] [THROUGHPUT 2026-06-11: shared young_pond exclusion pool (siblings spread across DISTINCT tokens instead of duplicating - light/candidate closed the same 2 tokens today) + max_concurrent raised. Same entries, more at-bats; $100/day needs shots.] [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.] [SELF-GATED 06-12: explicit bounds <2h/liq40k+/mcap150k+ = today's exact proven water, so the lane widening (24h/25k/100k for the new band probes) cannot alter this experiment.] [06-12: REMOVED from young_pond exclusion pool \u2014 ZERO lifetime fires: identical gates to its firing convex twin, but pool siblings (light/candidate/baseflow) always held the scarce young tokens first (stair = last in eval order). Own experiment restored; head-to-head vs stair_convex finally fair. The dedup pool keeps the redundant pair (light/candidate) it was built for.]",
   "enabled": true,
   "entry_gate": [
     [
@@ -46,7 +46,7 @@
     ]
   ],
   "entry_stack_exempt": true,
-  "exclusion_pool": "young_pond",
+  "exclusion_pool": null,
   "filters_disabled": [],
   "filters_enforced": [
     "filter_btc_overheat",
