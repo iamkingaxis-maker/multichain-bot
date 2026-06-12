@@ -311,3 +311,27 @@ def test_entry_gate_age_alias_resolution():
     # age=2h via the ALIAS key -> >=6 condition must FAIL (band disjointness)
     assert ev._token_regime_passes(b) is False
     assert ev._token_regime_passes(mk(12.0)) is True
+
+
+def test_time_box_exit():
+    """Dw5 archetype: full close at N minutes regardless of pnl; off when None."""
+    import time as _t
+    from core.bot_config import BotConfig
+    from core.per_bot_position_manager import PerBotPositionManager
+    c = BotConfig(bot_id="tb", display_name="tb", time_stop_minutes=240.0,
+                  hard_stop_pct=-60.0, tp1_pct=20.0, tp1_sell_fraction=1.0,
+                  tp2_sell_fraction=0.0, slow_bleed_minutes=100000,
+                  slow_bleed_pnl_threshold=-99.0)
+    pm = PerBotPositionManager(c)
+    now = _t.time()
+    pm.open_position("TOK", entry_price=1.0, size_usd=75.0, entry_time=now - 241 * 60)
+    ds = pm.tick("TOK", current_price=0.80, now=now)   # -20%, past box
+    assert ds and ds[0].kind == "TIME_STOP" and ds[0].sell_fraction == 1.0
+    # inside the box, -20% does NOT exit (no price stop until -60)
+    pm2 = PerBotPositionManager(c)
+    pm2.open_position("TOK2", entry_price=1.0, size_usd=75.0, entry_time=now - 60 * 60)
+    ds2 = pm2.tick("TOK2", current_price=0.80, now=now)
+    assert not any(d.kind in ("TIME_STOP", "HARD_STOP") for d in ds2)
+    # strength sells all: +20%
+    ds3 = pm2.tick("TOK2", current_price=1.21, now=now)
+    assert any(d.kind.startswith("TP") and d.sell_fraction == 1.0 for d in ds3)

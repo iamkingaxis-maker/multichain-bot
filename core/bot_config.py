@@ -246,6 +246,11 @@ class BotConfig:
     # single-bot behavior, never blocked. See core/shared_token_registry.py and
     # the A/C design comparison (2026-06-02).
     exclusion_pool: Optional[str] = None
+    # TIME-BOX exit (2026-06-12, the Dw5Vykxu archetype): full close at N
+    # minutes of hold REGARDLESS of pnl. Risk boxed by time, not price —
+    # red-tape chop executes price-stops at local bottoms (74% of our stops
+    # recovered); a time stop is immune to wicks. None = off.
+    time_stop_minutes: Optional[float] = None
 
     # Never-runner exit (2026-06-02 mine — convergent across 3 of 8 agents). A
     # composed loss-avoidance exit for the cohort that NEVER went meaningfully

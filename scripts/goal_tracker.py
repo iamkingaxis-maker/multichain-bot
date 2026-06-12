@@ -47,6 +47,9 @@ CANDIDATE_BOTS = {
     # young CAPTURE build (2026-06-12): band probes on the adjacent water the
     # proven lane excludes (thin-liq 69% won10 / mid-age 61% / late-young 50%)
     "young_probe_thinliq", "young_probe_mid", "young_probe_late",
+    # time-box probe (2026-06-12): the Dw5 archetype — time-boxed risk, no
+    # price stop, sell-all on strength; fed by the pp_launch firehose lane
+    "timebox_probe",
 }
 API = "https://gracious-inspiration-production.up.railway.app/api/trades?full=1&limit=5000"
 

@@ -574,6 +574,19 @@ class PerBotPositionManager:
             ))
             return decisions
 
+        # 1b. TIME-BOX stop (2026-06-12, Dw5 archetype): full close at N min
+        # regardless of pnl. Sits after the catastrophic hard stop, before
+        # everything else — when armed, the box IS the loss management.
+        if (self.config.time_stop_minutes is not None
+                and (now - p.entry_time) >= self.config.time_stop_minutes * 60):
+            decisions.append(ExitDecision(
+                token=token, kind="TIME_STOP",
+                reason=(f"time-box exit {self.config.time_stop_minutes:.0f}min "
+                        f"(pnl={pnl_pct:+.2f}%)"),
+                sell_fraction=1.0,
+            ))
+            return decisions
+
         # 1a. Giveback floor (2026-06-10 gap-through guard, pre-TP1): position
         # already proved demand (peak >= min) then round-tripped — exit at the
         # floor instead of riding to a gapped -15..-22% hard-stop fill

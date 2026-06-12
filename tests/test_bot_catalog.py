@@ -29,6 +29,7 @@ def catalog():
                    and not c.bot_id.startswith("badday_")
                    and not c.bot_id.startswith("young_probe_")
                    and not c.bot_id.startswith("low_mcap_probe")
+                   and not c.bot_id.startswith("timebox_")
                    and c.bot_id != "momentum_shadow"
                    and c.bot_id != "momentum_grad_probe"]
     return reg
