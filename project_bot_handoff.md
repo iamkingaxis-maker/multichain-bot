@@ -377,6 +377,74 @@ in consumers, prior fixes held.
 + Band probes: verify post-alias-fix fires respect band disjointness (no same-token across bands).
 + Decide: stop-cooldown re-enable (scanner + external paths) — Vox double-stop = the cost of no.
 
+## MIDDAY SESSION (06-12 ~13:00-14:25 UTC) — THE WALLET-INTELLIGENCE DAY
+
+**Arc**: "entire production performed horribly overnight" -> red-tape autopsy -> the
+green-in-red hunt -> the Dw5Vykxu decode -> three structural builds + a standing
+intelligence process. AxiS: "we seem to get our best info lately from other wallets."
+
+### THE RED MORNING, DECOMPOSED (live-set -$63 final / all-cand -$319)
+1. TAPE TURNED (controls bled; the dial's rolling-20 leg caught it -> defense 0.5 engaged,
+   3rd live test). 2. badday_momo -$82 — FLOOR-LAG BUG: deploy-overlap sells leak P&L out of
+   the floor's counter (ledger crossed -$60 at 09:43; capital read it at ~13:00 = 3h of
+   post-floor buying). FIXED (1799230): per-bot daily pnl RE-DERIVES from the trades ledger
+   at boot (ledger = authoritative, the tombstone principle). 3. mcapgate pair -$47/5h.
+   RETIREMENTS (AxiS): badday_momo (failed pre-reg -$2.34/tr@n=35; flush carries the family
+   alone), mcapgate pair (question answered: sub-500k + midcap gates = toxic, 2nd confirm),
+   + earlier pond_ugly_mtf/rsi ("cant prove themselves" — 1 fire/48h can't reach n>=50).
+   smart_follow's -$152 day = 86% GTA6/FTP resurrection-pump corpse (bug killed at 07:15,
+   booked to the ledger); ex-zombies the gated engine ran ~flat on the red tape.
+
+### FORECAST CALIBRATION (AxiS: "you predict great outcomes and the opposite happens")
+Owned: winner's-curse mining, peak-proxy->dollars category error, day-1 plumbing tuition,
+heartbeat narration. STANDING RULE (memory feedback_forecast_calibration): dollars only from
+realized $/close @ n>=30 + empirical haircut; ceilings rank ponds, never forecast; new
+launches = 48h burn-in label; forecasts carry bar/date/haircut or nothing.
+
+### THE GREEN-IN-RED HUNT -> Dw5Vykxu DECODE -> 3 BUILDS
+Hunt v1: ~empty. Hunt v2 (3 nets: wider mesh / BOTH-red-days / flush-co-buyers): red-tape
+skill is RARE + hides behind proxy custody (5/26 unfollowable incl AgmLJBMD x9 runners);
+2 COPYABLE-GRADE found. **Dw5Vykxu decoded** (118 tokens/5h): fixed 0.52-SOL spray, NO price
+stop (held -27%), HARD 240min TIME stop (losers exit at 240:00 on the dot), winners sold on
+strength +20..+124%. ANTH: our -15% stop at 12:59 was ITS entry at 13:06 -> +124% at 13:42.
+**Our price-stops are its entry liquidity; red-tape chop executes price-stops at local
+bottoms (the old 74%-of-stops-recover finding was this).**
+-> BUILD 1: **PP_LAUNCH FIREHOSE LANE** (f537126): 68% of Dw5's tokens never reached our
+   scanner — every feed is popularity-ranked = we live on the POST-trending tape while the
+   PumpPortal firehose tracked 716 births/day unused. launch_candidates() rides the existing
+   DS batch enrichment (cap 25/cycle, 15min LP floor), source=pp_launch, young-lane
+   admission + containment unchanged. (Registry is in-memory: ~15min warmup per deploy.)
+-> BUILD 2: **TIMEBOX_PROBE** (5ed6d0c): new primitive BotConfig.time_stop_minutes ->
+   TIME_STOP ExitDecision. $75 fixed, -60 rug guard ONLY, 240min box, sell-ALL +20%,
+   near-indiscriminate entries, dial-exempt, $90 floor, slow-bleed disarmed in-box.
+-> BUILD 3: **wallet_decode.py** (f1c0f36): the standing instrument — trade map, sizing
+   style, hold distros, TIME-BOX signature detection, W/L asymmetry, scanner/book overlap.
+   RITUAL: decode every pre-seat candidate + 1 roster wallet/day (drift) + green-in-red
+   windows after bad days. Memory: feedback_wallet_decode_intel.
+
+### ROSTER X-RAY (all 10 decoded) -> CUTS + DOCTRINE
+Spine confirmed: dmuX (4.92 SOL conviction, 60min holds, +328/-72 medians), 7Gi3
+(+154%/-2.2% medians — the tightest loss control seen), AKprbkX7 (43min, 81%), 2x99
+(91% WR anchor). DRIFT CONVICTIONS -> CUT (AxiS): 4jkL = dust-probe lottery sniper
+(0.02 SOL, 0-min holds), 45Sn = pure 0-min scalper. Roster 10 -> 8, tombstoned with decode
+evidence. UNIVERSAL findings: (a) ALL 10 wallets are conviction sizers — the fleet bets
+flat everywhere; (b) the discovery gap is universal (scanner sees 13-50% of EVERY wallet's
+pond — baseline to re-measure post-firehose); (c) even 91%-WR wallets carry -37..-45% loss
+tails (validates our floors/guards on price-stopped bots).
+
+### DOCTRINE A/Bs SHIPPED (e35ee4a; all single-variable vs proven parents, n>=30, 48h burn-in)
+- badday_flush_conviction + young_probe_conviction: trigger-count sizing (1+0.5*(n-1), cap
+  2x) — the unused conviction_sizing_mode machinery, finally tested.
+- young_probe_surgical: the 7Gi3 geometry — fast-fail -4 any volume, +25% banks 10% arming
+  an 8pp uncapped trail, -15 gap backstop.
+Also: young_probe_stair freed from the young_pond exclusion pool (5th silencer class:
+POOL STARVATION — zero lifetime fires; identical gates to its firing convex twin; siblings
+always held the scarce tokens first). Fleet 48 enabled. Suite 698.
+
+### STATE 14:25 UTC: roster 8 | bench: 2 green-in-red names + prior | fleet 48 | races
+running: 3 doctrine A/Bs + timebox + 3 band probes + convex wing + flush(n->30 on dial-bad)
+| dial DEFENSE 0.5 | floors ledger-true | pp_launch lane warming.
+
 ## FILL-FIDELITY VERDICT (trust checkpoint — PASSED)
 
 GT minute-candle method (trade-log endpoint self-throttled): 11/14 of today's fills INSIDE
