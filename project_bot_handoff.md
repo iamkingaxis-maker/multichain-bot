@@ -281,6 +281,34 @@ E. **GUARD GRADES**: dist-guard n=30 vetoes -> **+$40.93 exit-bounded** (~$4/vet
 
 **Roster 7** (post HcLMmNx9 cut) | bench 10 gated | tombstones 7.
 
+## TIME-OF-DAY DEEP ANALYSIS (06-12, AxiS-requested) — 6th time-axis falsification + one nuance
+
+3 layers: (1) smart_follow 486 closes — apparent hour patterns are COMPOSITION artifacts
+(full-window: overnight BEST 60% WR; post-overhaul-only: overnight WORST -$2.25/close — same
+hours, opposite verdicts; the variable was the toxic-recruit era, not the clock; day-by-day
+signs flip every block). (2) Fleet candidates 754 closes/8d: FLAT all blocks (±$0.46/close,
+WR 54-56%, no block >4/8 days positive). (3) UNIVERSE 5000 dip events: the ONE real effect —
+overnight has HALF the opportunities (15% share) but HIGHEST quality (med peak +9.5%, won10
+49% vs 42% all other blocks). VERDICT: no time-based rules (would be backwards across
+windows); don't throttle overnight (fewer-but-better setups); the copy dial (record-keyed)
+is the correct bad-regime detector — catches grinds WHENEVER they occur. The 24/7 doctrine
+survives with its strongest evidence yet.
+
+## MORNING DECISIONS EXECUTED (06-12 ~05:40-06:30 UTC, AxiS)
+- TRIGGER_STATE_ENFORCE set (4 gates live fleet-wide; controls exempt).
+- BADDAY TRIPWIRE: lane tokens exempt from the 1m layer (no_1m_reversal/m1_top_tick/
+  m1_false_bounce; 0e11b83) — 468 envelope events/24h @ 51% won10 were all filtered.
+- GTA6 dead-cat lesson -> flush-depth WINDOW [-30,-10] (1507c99): deep-collapse fires
+  (pc_h1 -43/-47) rode a dead-volume crash to -38% (-$55); mine had flagged the cohort.
+- Pool floor: halted fires at -$79 day (working as designed) -> then AxiS: paper = learning
+  -> SMART_FOLLOW_DAILY_FLOOR_USD=off (code stays; re-arm at go-live).
+- COPY-REGIME DIAL shipped shadow (3ad8ceb): rolling-20 expectancy of the follow book
+  (bad < -$1/close @ n>=12; overnight grind would have flagged by 01:30). Stamped per-fire,
+  /api/follow-capital readout, scorecard grades -> enforcement on its record.
+- SEATED 3 double-vetted thesis holders (c71f373): dmuXAmcX (210min holds, +257% taxed,
+  consistent), 7Gi3RNdV, AKprbkX7. Roster 10. Benched: 7rbxsXch (margin halved), 3fuga4
+  (63% scalp), AxQRySJb (cross-instrument volatility). 1eve/2qnHs/4jkL hit n>=10 TODAY.
+
 ## FILL-FIDELITY VERDICT (trust checkpoint — PASSED)
 
 GT minute-candle method (trade-log endpoint self-throttled): 11/14 of today's fills INSIDE
