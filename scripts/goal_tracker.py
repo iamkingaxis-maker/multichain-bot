@@ -53,6 +53,10 @@ CANDIDATE_BOTS = {
     # decode-doctrine A/Bs (2026-06-12): conviction sizing (all 10 wallets do
     # it; fleet bets flat) + the 7Gi3 surgical geometry (+154/-2.2 medians)
     "badday_flush_conviction", "young_probe_conviction", "young_probe_surgical",
+    # overnight swing (2026-06-12): the 4TeTtW1G archetype — 13h time-box on
+    # the VISIBLE tape; tests whether the midcap stack pond was dead water or
+    # fished at the wrong timescale
+    "probe_swing",
 }
 API = "https://gracious-inspiration-production.up.railway.app/api/trades?full=1&limit=5000"
 
