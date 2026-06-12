@@ -87,6 +87,8 @@ class MetaSensor:
         self._scores: deque = deque()
         # expired sell-less episodes: deque of (ts, archetype) — health metric
         self._unresolved: deque = deque()
+        # per-wallet recent tx signatures (dual-eye dedupe, rolling 128)
+        self._sigs: Dict[str, list] = {}
         self._last_persist = 0.0
         self._restore()
         logger.info("[MetaSensor] panel=%d wallets (%d archetyped)",
@@ -95,13 +97,26 @@ class MetaSensor:
 
     # ── ingestion (called from the PumpPortal stream) ─────────────────────
     def ingest(self, wallet: str, mint: str, side: str, sol: float, ts: float,
-               launch_ts: Optional[float] = None) -> None:
+               launch_ts: Optional[float] = None,
+               signature: Optional[str] = None) -> None:
         """One parsed panel-wallet trade. Never raises. ``launch_ts`` (from the
         feed's own launch registry, free) gives token-age-at-entry — the POND
-        dimension a meta lives in, not just its exit geometry."""
+        dimension a meta lives in, not just its exit geometry.
+
+        DUAL-EYE dedupe (2026-06-12): trades arrive from BOTH the PumpPortal
+        stream and the RPC sweep (PumpPortal only carries pump.fun/pumpswap;
+        the panel trades graduated Raydium tokens — venue blindness measured
+        live: 0 account_trades while the sweep saw 14 buys). ``signature``
+        dedupes the same tx across eyes."""
         try:
             if wallet not in self.panel or not mint or sol is None:
                 return
+            if signature:
+                seen = self._sigs.setdefault(wallet, [])
+                if signature in seen:
+                    return
+                seen.append(signature)
+                del seen[:-128]
             k = f"{wallet}|{mint.lower()}"
             ep = self._episodes.get(k)
             if ep is None:

@@ -69,7 +69,8 @@ class PumpPortalFeed:
                 self.sensor.ingest(wallet=d["traderPublicKey"], mint=mint or "",
                                    side=tx_type, sol=float(d.get("solAmount") or 0),
                                    ts=time.time(),
-                                   launch_ts=self.launches.get((mint or "").lower()))
+                                   launch_ts=self.launches.get((mint or "").lower()),
+                                   signature=d.get("signature"))
         elif tx_type == "create" or (d.get("name") and mint and "marketCapSol" in d):
             self.stats["new_tokens"] += 1
             self.launches[(mint or "").lower()] = time.time()

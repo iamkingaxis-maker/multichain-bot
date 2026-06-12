@@ -274,9 +274,9 @@ class SmartMoneyFollowStrategy:
                 if sol_delta is None:
                     continue
                 if delta > 0 and sol_delta < 0:          # BUY: token up, SOL spent
-                    out.append((mint, bt, "buy", -sol_delta))
+                    out.append((mint, bt, "buy", -sol_delta, sig))
                 elif delta < 0 and sol_delta > 0:        # SELL: token down, SOL received
-                    out.append((mint, bt, "sell", sol_delta))
+                    out.append((mint, bt, "sell", sol_delta, sig))
         if new:
             self._seen[wallet] = set(list(seen)[-32:] + new)
         return out
@@ -561,8 +561,32 @@ class SmartMoneyFollowStrategy:
                     except Exception:
                         return _w, []
             results = await asyncio.gather(*[_sweep(w) for w in self.watchlist])
+            # META SENSOR dual-eye (2026-06-12): the RPC sweep is the venue-
+            # complete eye (PumpPortal misses graduated/Raydium trades — 0
+            # account_trades measured while this sweep saw the wallets buying).
+            # Watchlist sweeps feed the sensor here; sensor-only panel wallets
+            # get their OWN sweep below and NEVER enter follow consensus.
+            try:
+                from core.meta_sensor import get_sensor as _get_ms
+                _ms = _get_ms()
+            except Exception:
+                _ms = None
+            if _ms is not None:
+                for w, got in results:
+                    for mint, bt, side, sol, sig in got:
+                        _ms.ingest(wallet=w, mint=mint, side=side, sol=sol,
+                                   ts=bt, signature=sig)
+                _extras = [w for w, m in _ms.panel.items()
+                           if w not in self.watchlist
+                           and (m or {}).get("status") != "unfollowable"]
+                if _extras:
+                    _ex = await asyncio.gather(*[_sweep(w) for w in _extras])
+                    for w, got in _ex:
+                        for mint, bt, side, sol, sig in got:
+                            _ms.ingest(wallet=w, mint=mint, side=side, sol=sol,
+                                       ts=bt, signature=sig)
             for w, got in results:
-                for mint, bt, side, sol in got:
+                for mint, bt, side, sol, sig in got:
                     if side == "buy":
                         self._buys.append((mint, w, bt, sol)); self.buys_seen += 1
                         # rolling per-wallet buy-size history -> conviction stamp
