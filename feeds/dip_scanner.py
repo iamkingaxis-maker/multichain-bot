@@ -1079,6 +1079,17 @@ class DipScanner:
                     pair_address=decision.pair_address,
                 )
                 _pos.state_blob["slip_pct"] = slip_pct
+                # Chameleon tune attribution (2026-06-12 gap hunt): stamp the
+                # geometry this position was OPENED under, so each sell is
+                # judgeable per-tune (which archetype's geometry earned what).
+                if bot_id.startswith("meta_chameleon"):
+                    try:
+                        from core.meta_chameleon import status as _cham_st
+                        _ct = (_cham_st().get(bot_id) or {})
+                        _pos.state_blob["chameleon_archetype"] = _ct.get("archetype") or "default"
+                        _pos.state_blob["chameleon_tune"] = _ct.get("tune")
+                    except Exception:
+                        pass
                 # SOL-flicker shadow (2026-06-05 flicker-gate tune): stamp causal
                 # flk_1h on EVERY entry for forward chop-day data (the hard BLOCK was
                 # tuned + rejected as a 2-day artifact). Also drives the winner-safe
@@ -1914,6 +1925,10 @@ class DipScanner:
                 "scalein_higher_low_n": ((_pos.state_blob or {}).get("scalein_higher_low_n") if _pos else None),
                 "scalein_vol_sustain_ratio": ((_pos.state_blob or {}).get("scalein_vol_sustain_ratio") if _pos else None),
                 "scalein_n": ((_pos.state_blob or {}).get("scalein_n") if _pos else None),
+                # Chameleon tune attribution (2026-06-12): which archetype's
+                # geometry this position was opened under (None for other bots).
+                "chameleon_archetype": ((_pos.state_blob or {}).get("chameleon_archetype") if _pos else None),
+                "chameleon_tune": ((_pos.state_blob or {}).get("chameleon_tune") if _pos else None),
                 # Exit-guard DECISION on the price this sell acted on (2026-06-02
                 # instrumentation): raw/returned price, suspect/abs flags, and the
                 # OHLC/cross-source values the glitch guard saw, with a reason string.

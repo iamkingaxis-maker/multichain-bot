@@ -14,6 +14,7 @@ def _mk(panel=None, tmp_path=None, monkeypatch=None):
     s._episodes = {}
     from collections import deque
     s._scores = deque()
+    s._unresolved = deque()
     s._last_persist = 0.0
     return s
 

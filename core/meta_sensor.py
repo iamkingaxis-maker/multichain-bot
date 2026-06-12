@@ -44,6 +44,15 @@ EPISODE_IDLE_SECS = 1800.0     # no trades for 30min after a sell -> episode clo
 SCORE_RETENTION_SECS = 26 * 3600
 _PERSIST_EVERY_SECS = 600.0
 
+# SURVIVORSHIP GUARD (2026-06-12 gap hunt): an episode with NO sell ever
+# (wallet riding a bag) would otherwise never score — the board would silently
+# overstate every archetype's WR (losers-held-forever invisible). After this
+# age a sell-less episode EXPIRES: it is NOT scored as a return (we don't know
+# the mark — a thesis-holder's winning hold looks identical to a bag), but it
+# IS counted in the per-archetype `unresolved` health metric on the
+# scoreboard, so a high-bag archetype's shiny WR arrives with its asterisk.
+EPISODE_MAX_AGE_SECS = 48 * 3600.0
+
 
 def load_panel(path: str = _PANEL_FILE) -> Dict[str, dict]:
     """Panel file: {address: {archetype, status, source}}. Falls back to
@@ -74,8 +83,10 @@ class MetaSensor:
         self.panel = panel if panel is not None else load_panel()
         # (wallet, mint) -> {"spent","recv","last_ts","sold"}
         self._episodes: Dict[str, dict] = {}
-        # scored events: deque of (ts, wallet, archetype, ret_pct)
+        # scored events: deque of (ts, wallet, archetype, ret_pct, hold_secs)
         self._scores: deque = deque()
+        # expired sell-less episodes: deque of (ts, archetype) — health metric
+        self._unresolved: deque = deque()
         self._last_persist = 0.0
         self._restore()
         logger.info("[MetaSensor] panel=%d wallets (%d archetyped)",
@@ -120,9 +131,21 @@ class MetaSensor:
             arch = (self.panel.get(wallet) or {}).get("archetype") or "unlabeled"
             hold = max(0.0, ep["last_ts"] - ep.get("first_ts", ep["last_ts"]))
             self._scores.append((ep["last_ts"], wallet, arch, ret, hold))
+        # survivorship guard: expire sell-less episodes past max age into the
+        # `unresolved` health counter (never into the WR — mark unknown).
+        stale = [k for k, ep in self._episodes.items()
+                 if not ep["sold"]
+                 and now - ep.get("first_ts", ep["last_ts"]) > EPISODE_MAX_AGE_SECS]
+        for k in stale:
+            self._episodes.pop(k)
+            wallet = k.split("|", 1)[0]
+            arch = (self.panel.get(wallet) or {}).get("archetype") or "unlabeled"
+            self._unresolved.append((now, arch))
         cutoff = now - SCORE_RETENTION_SECS
         while self._scores and self._scores[0][0] < cutoff:
             self._scores.popleft()
+        while self._unresolved and self._unresolved[0][0] < cutoff:
+            self._unresolved.popleft()
 
     # ── the board ─────────────────────────────────────────────────────────
     def scoreboard(self, now: Optional[float] = None) -> dict:
@@ -130,19 +153,32 @@ class MetaSensor:
         self._finalize_idle(now)
         out: dict = {"panel_size": len(self.panel),
                      "open_episodes": len(self._episodes),
+                     # stream health: a silent/dead feed must be VISIBLE, not
+                     # read as "no meta today" (gap hunt 2026-06-12)
+                     "last_score_age_secs": (round(now - self._scores[-1][0])
+                                             if self._scores else None),
+                     "scored_24h": len(self._scores),
                      "windows": {}}
         for label, secs in (("6h", 6 * 3600), ("24h", 24 * 3600)):
             cut = now - secs
             rows: Dict[str, list] = {}
+            unres: Dict[str, int] = {}
             for ts, _w, arch, ret, *_h in self._scores:
                 if ts < cut:
                     continue
                 rows.setdefault(arch, []).append(ret)
                 rows.setdefault("all", []).append(ret)
+            for ts, arch in self._unresolved:
+                if ts >= cut:
+                    unres[arch] = unres.get(arch, 0) + 1
+                    unres["all"] = unres.get("all", 0) + 1
             out["windows"][label] = {
                 arch: {"n": len(v),
                        "wr": round(sum(1 for r in v if r > 0) / len(v), 3),
-                       "med_ret_pct": round(sorted(v)[len(v) // 2], 1)}
+                       "med_ret_pct": round(sorted(v)[len(v) // 2], 1),
+                       # bags-held-forever counter: a high-unresolved archetype's
+                       # WR is overstated — consumers see the asterisk
+                       "unresolved": unres.get(arch, 0)}
                 for arch, v in rows.items() if v
             }
         return out
@@ -157,10 +193,12 @@ class MetaSensor:
         self._finalize_idle(now)
         cut = now - window_secs
         rets, holds = [], []
-        for ts, _w, a, ret, *h in self._scores:
+        by_wallet: Dict[str, int] = {}
+        for ts, w, a, ret, *h in self._scores:
             if ts < cut or a != arch:
                 continue
             rets.append(ret)
+            by_wallet[w] = by_wallet.get(w, 0) + 1
             if h and isinstance(h[0], (int, float)):
                 holds.append(float(h[0]))
         if len(rets) < min_n:
@@ -175,6 +213,14 @@ class MetaSensor:
             "med_loss_pct": round(losses[len(losses) // 2], 1) if losses else None,
             "med_hold_secs": round(hs[len(hs) // 2]) if hs else None,
             "p75_hold_secs": round(hs[(3 * len(hs)) // 4]) if hs else None,
+            # PROVENANCE (2026-06-12, AxiS: "how are we identifying which
+            # wallets are sending signals?"): exactly which wallets composed
+            # this geometry, and how concentrated the signal is. A consumer
+            # can require multi-wallet consensus and reject one-wallet boards.
+            "wallets": {w[:8]: n for w, n in
+                        sorted(by_wallet.items(), key=lambda kv: -kv[1])},
+            "n_wallets": len(by_wallet),
+            "top_wallet_share": round(max(by_wallet.values()) / len(rets), 3),
         }
 
     # ── persistence (deploy-amnesia guard) ────────────────────────────────
@@ -182,7 +228,8 @@ class MetaSensor:
         try:
             with open(_STATE_FILE, "w", encoding="utf-8") as f:
                 json.dump({"episodes": self._episodes,
-                           "scores": list(self._scores)}, f)
+                           "scores": list(self._scores),
+                           "unresolved": list(self._unresolved)}, f)
             self._last_persist = time.time()
         except Exception as e:
             logger.debug("[MetaSensor] persist failed: %s", e)
@@ -192,6 +239,7 @@ class MetaSensor:
             d = json.load(open(_STATE_FILE))
             self._episodes = dict(d.get("episodes") or {})
             self._scores = deque(tuple(s) for s in (d.get("scores") or []))
+            self._unresolved = deque(tuple(u) for u in (d.get("unresolved") or []))
         except Exception:
             pass
 

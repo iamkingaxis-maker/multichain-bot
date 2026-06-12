@@ -42,7 +42,9 @@ def _patch(monkeypatch, tmp_path, sensor):
 
 
 GEO = {"n": 12, "wr": 0.75, "med_win_pct": 35.0, "med_loss_pct": -28.0,
-       "med_hold_secs": 1800, "p75_hold_secs": 5400}
+       "med_hold_secs": 1800, "p75_hold_secs": 5400,
+       "wallets": {"Wal1": 5, "Wal2": 4, "Wal3": 3},
+       "n_wallets": 3, "top_wallet_share": 0.42}
 
 
 def test_tune_from_geometry_and_clamps():
@@ -92,19 +94,94 @@ def test_no_qualifying_archetype_holds_current_tune(monkeypatch, tmp_path):
     assert cfg.time_stop_minutes == 240.0          # held
 
 
-def test_cadence_blocks_rapid_retune(monkeypatch, tmp_path):
+def test_same_archetype_fresher_numbers_hold(monkeypatch, tmp_path):
     cfg = _cfg()
     sensor = _FakeSensor({"timebox": {"n": 12, "wr": 0.75}}, {"timebox": GEO})
     _patch(monkeypatch, tmp_path, sensor)
     now = time.time()
     ch.maybe_retune(_scanner(_pm(cfg, 0)), now=now)
     assert cfg.tp1_pct == 35.0
-    # sensor now reports a different geometry 30min later — must NOT churn
-    geo2 = dict(GEO, med_win_pct=12.0)
-    sensor._geo = {"timebox": geo2}
+    # same archetype, jittered geometry 90min later — must NOT churn
+    sensor._geo = {"timebox": dict(GEO, med_win_pct=12.0)}
+    monkeypatch.setattr(ch, "_last_check", 0.0)
+    ch.maybe_retune(_scanner(_pm(cfg, 0)), now=now + 5400)
+    assert cfg.tp1_pct == 35.0
+
+
+def test_deterioration_triggers_fast_switch(monkeypatch, tmp_path):
+    cfg = _cfg()
+    sensor = _FakeSensor({"timebox": {"n": 12, "wr": 0.75}}, {"timebox": GEO})
+    _patch(monkeypatch, tmp_path, sensor)
+    now = time.time()
+    ch.maybe_retune(_scanner(_pm(cfg, 0)), now=now)
+    assert cfg.tp1_pct == 35.0
+    # 2h later (inside the 6h soft cadence): timebox COLLAPSES (wr 0.30),
+    # surgical qualifies -> deterioration rule fires immediately
+    surg = dict(GEO, med_win_pct=15.0, p75_hold_secs=1200)
+    sensor._board = {"timebox": {"n": 10, "wr": 0.30},
+                     "surgical": {"n": 10, "wr": 0.70}}
+    sensor._geo = {"timebox": dict(GEO, wr=0.30),
+                   "surgical": surg}
+    monkeypatch.setattr(ch, "_last_check", 0.0)
+    ch.maybe_retune(_scanner(_pm(cfg, 0)), now=now + 7200)
+    assert cfg.tp1_pct == 15.0                     # switched to surgical
+    assert cfg.time_stop_minutes == 20.0
+
+
+def test_challenger_domination_beats_soft_cadence(monkeypatch, tmp_path):
+    cfg = _cfg()
+    sensor = _FakeSensor({"timebox": {"n": 12, "wr": 0.62}}, {"timebox": GEO})
+    _patch(monkeypatch, tmp_path, sensor)
+    now = time.time()
+    ch.maybe_retune(_scanner(_pm(cfg, 0)), now=now)
+    # 2h later: timebox still healthy (0.62) but surgical runs 0.85 on n=14
+    surg = dict(GEO, wr=0.85, n=14, med_win_pct=18.0)
+    sensor._board = {"timebox": {"n": 12, "wr": 0.62},
+                     "surgical": {"n": 14, "wr": 0.85}}
+    sensor._geo = {"timebox": dict(GEO, wr=0.62), "surgical": surg}
+    monkeypatch.setattr(ch, "_last_check", 0.0)
+    ch.maybe_retune(_scanner(_pm(cfg, 0)), now=now + 7200)
+    assert cfg.tp1_pct == 18.0                     # challenger took over
+
+
+def test_retune_floor_blocks_thrash(monkeypatch, tmp_path):
+    cfg = _cfg()
+    sensor = _FakeSensor({"timebox": {"n": 12, "wr": 0.75}}, {"timebox": GEO})
+    _patch(monkeypatch, tmp_path, sensor)
+    now = time.time()
+    ch.maybe_retune(_scanner(_pm(cfg, 0)), now=now)
+    # 30min later even a collapsing current archetype cannot retune (floor)
+    sensor._board = {"timebox": {"n": 10, "wr": 0.30},
+                     "surgical": {"n": 10, "wr": 0.70}}
+    sensor._geo = {"timebox": dict(GEO, wr=0.30),
+                   "surgical": dict(GEO, med_win_pct=15.0)}
     monkeypatch.setattr(ch, "_last_check", 0.0)
     ch.maybe_retune(_scanner(_pm(cfg, 0)), now=now + 1800)
-    assert cfg.tp1_pct == 35.0                     # cadence held
+    assert cfg.tp1_pct == 35.0
+
+
+def test_unlabeled_and_single_wallet_archetypes_rejected(monkeypatch, tmp_path):
+    cfg = _cfg()
+    solo = dict(GEO, n_wallets=1, top_wallet_share=1.0)
+    sensor = _FakeSensor({"unlabeled": {"n": 30, "wr": 0.9},
+                          "surgical": {"n": 12, "wr": 0.8}},
+                         {"unlabeled": GEO, "surgical": solo})
+    _patch(monkeypatch, tmp_path, sensor)
+    ch.maybe_retune(_scanner(_pm(cfg, 0)), now=time.time())
+    assert cfg.time_stop_minutes == 240.0   # neither identity-coherent signal
+
+
+def test_pending_force_applies_after_max_age(monkeypatch, tmp_path):
+    cfg = _cfg()
+    sensor = _FakeSensor({"surgical": {"n": 10, "wr": 0.8}}, {"surgical": GEO})
+    _patch(monkeypatch, tmp_path, sensor)
+    now = time.time()
+    pm = _pm(cfg, open_positions=3)         # book never goes flat
+    ch.maybe_retune(_scanner(pm), now=now)  # queued
+    assert cfg.time_stop_minutes == 240.0
+    monkeypatch.setattr(ch, "_last_check", 0.0)
+    ch.maybe_retune(_scanner(pm), now=now + ch.PENDING_FORCE_SECS + 60)
+    assert cfg.time_stop_minutes == 90.0    # force-applied despite open book
 
 
 def test_boot_overlay_reapplies(monkeypatch, tmp_path):

@@ -49,10 +49,38 @@ _DATA_DIR = os.environ.get("DATA_DIR", ".")
 _TUNE_FILE = os.path.join(_DATA_DIR, "chameleon_tune.json")
 
 CHAMELEON_PREFIX = "meta_chameleon"
-RETUNE_MIN_SECS = 6 * 3600.0
 CHECK_MIN_SECS = 900.0
 QUALIFY_WR = 0.60
 QUALIFY_N = 8
+
+# ── Cadence (2026-06-12, AxiS: "6h may be too strict — it's crypto") ─────────
+# Evidence-based, not clock-based: STABILITY needs no reason, CHANGE needs
+# evidence. A retune fires when ANY of:
+#   - soft cadence elapsed (RETUNE_SOFT_SECS) and a qualifier improves on us
+#   - the CURRENT archetype DETERIORATED (its 6h wr < DETERIORATE_WR or its
+#     board dried up below DETERIORATE_N) -> respond NOW, market turned
+#   - a CHALLENGER dominates (wr >= current + CHALLENGER_WR_EDGE with
+#     n >= CHALLENGER_N) -> clear regime change, don't wait out the clock
+# Hard floor RETUNE_FLOOR_SECS between retunes prevents thrash either way.
+RETUNE_SOFT_SECS = 6 * 3600.0
+RETUNE_FLOOR_SECS = 3600.0
+DETERIORATE_WR = 0.45
+DETERIORATE_N = 4
+CHALLENGER_WR_EDGE = 0.15
+CHALLENGER_N = 12
+
+# ── Signal provenance / consensus (AxiS: "which wallets send the signals?") ──
+# A qualifying archetype must be a LABELED style (never the mixed "unlabeled"
+# bucket — incoherent geometry) composed of >= MIN_WALLETS distinct wallets
+# with no single wallet supplying more than MAX_TOP_SHARE of the episodes
+# (one hyper-active wallet must not BE the meta). The contributing wallets are
+# recorded on every tune (chameleon_tune.json + /api/meta-sensor).
+MIN_WALLETS = 2
+MAX_TOP_SHARE = 0.75
+
+# A queued tune older than this applies even with an open book (quiesce must
+# not starve a market response forever — max_conc 6 x 4h boxes rarely go flat).
+PENDING_FORCE_SECS = 2 * 3600.0
 
 CLAMPS = {
     "time_stop_minutes": (10.0, 780.0),
@@ -129,7 +157,15 @@ def apply_overlay(config) -> None:
 
 
 def best_qualifying(sensor, now: float):
-    """(archetype, geometry) of the best 6h archetype, or (None, None)."""
+    """(archetype, geometry) of the best qualifying 6h archetype, or (None, None).
+
+    Qualification = WR/N bar + IDENTITY + CONSENSUS:
+      - labeled archetype only ("unlabeled" pools many unrelated styles into
+        one incoherent geometry — never tune to it; a winning unlabeled bucket
+        is logged loudly as an UNIDENTIFIED META so the decode ritual labels it)
+      - >= MIN_WALLETS distinct wallets composing the board
+      - no single wallet supplying > MAX_TOP_SHARE of the episodes
+    """
     try:
         board = sensor.scoreboard(now).get("windows", {}).get("6h", {})
     except Exception:
@@ -143,9 +179,44 @@ def best_qualifying(sensor, now: float):
         geo = sensor.archetype_geometry(arch, now, min_n=QUALIFY_N)
         if not geo:
             continue
+        if arch == "unlabeled":
+            logger.warning(
+                "[Chameleon] UNIDENTIFIED META: unlabeled panel wallets running "
+                "wr=%.0f%% n=%d (wallets=%s) — decode + label them "
+                "(config/sensor_panel.json) so the chameleon can wear it.",
+                geo["wr"] * 100, geo["n"], geo.get("wallets"))
+            continue
+        if geo.get("n_wallets", 1) < MIN_WALLETS:
+            continue
+        if geo.get("top_wallet_share", 1.0) > MAX_TOP_SHARE:
+            continue
         if best_geo is None or (geo["wr"], geo["n"]) > (best_geo["wr"], best_geo["n"]):
             best, best_geo = arch, geo
     return best, best_geo
+
+
+def _should_retune(now: float, rec: dict, sensor, cand_arch: str, cand_geo: dict) -> bool:
+    """Evidence-based cadence: change needs a reason, one of three."""
+    tuned_at = float(rec.get("tuned_at") or 0)
+    if now - tuned_at < RETUNE_FLOOR_SECS:
+        return False                       # hard anti-thrash floor
+    if now - tuned_at >= RETUNE_SOFT_SECS:
+        return True                        # soft cadence elapsed
+    cur_arch = rec.get("archetype")
+    if not cur_arch:
+        return True                        # never tuned -> take the first read
+    if cand_arch == cur_arch:
+        return False                       # same meta, fresher numbers — hold
+    # (1) current archetype deteriorated -> respond NOW
+    cur_geo = sensor.archetype_geometry(cur_arch, now, min_n=1)
+    if (not cur_geo or cur_geo.get("n", 0) < DETERIORATE_N
+            or cur_geo.get("wr", 0.0) < DETERIORATE_WR):
+        return True
+    # (2) challenger dominates -> clear regime change, don't wait out the clock
+    if (cand_geo.get("n", 0) >= CHALLENGER_N
+            and cand_geo.get("wr", 0.0) >= cur_geo.get("wr", 0.0) + CHALLENGER_WR_EDGE):
+        return True
+    return False
 
 
 def maybe_retune(scanner, now: Optional[float] = None) -> None:
@@ -168,28 +239,34 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
                 continue
             rec = st.get(bot_id) or {}
             pending = rec.get("pending")
-            # 1) a deferred tune applies as soon as the book is flat
-            if pending and not list(pm.iter_positions()):
-                _apply(pm.config, pending["tune"])
-                rec.update({"tune": pending["tune"], "archetype": pending["archetype"],
-                            "geometry": pending.get("geometry"),
-                            "tuned_at": now, "tuned_at_iso": _iso(now), "pending": None})
-                st[bot_id] = rec
-                _save_state(st)
-                logger.info("[Chameleon] %s RETUNED (deferred) -> %s [archetype=%s]",
-                            bot_id, pending["tune"], pending["archetype"])
-                continue
-            # 2) cadence gate for NEW tunes
-            if now - float(rec.get("tuned_at") or 0) < RETUNE_MIN_SECS:
-                continue
+            # 1) a deferred tune applies when the book is flat — or after
+            #    PENDING_FORCE_SECS regardless (a busy chameleon must not
+            #    starve a market-condition response forever; positions opened
+            #    under the old tune close slightly differently, accepted).
+            if pending:
+                age = now - float(pending.get("queued_at") or now)
+                if not list(pm.iter_positions()) or age >= PENDING_FORCE_SECS:
+                    _apply(pm.config, pending["tune"])
+                    rec.update({"tune": pending["tune"], "archetype": pending["archetype"],
+                                "geometry": pending.get("geometry"),
+                                "tuned_at": now, "tuned_at_iso": _iso(now), "pending": None})
+                    st[bot_id] = rec
+                    _save_state(st)
+                    logger.info("[Chameleon] %s RETUNED (deferred%s) -> %s [archetype=%s]",
+                                bot_id, ", forced" if age >= PENDING_FORCE_SECS else "",
+                                pending["tune"], pending["archetype"])
+                    continue
             arch, geo = best_qualifying(sensor, now)
             if not arch:
                 continue   # HOLD current tune — never reset mid-day
+            if not _should_retune(now, rec, sensor, arch, geo):
+                continue
             tune = tune_from_geometry(geo)
             if not tune or tune == rec.get("tune"):
                 continue
             if list(pm.iter_positions()):
-                rec["pending"] = {"tune": tune, "archetype": arch, "geometry": geo}
+                rec["pending"] = {"tune": tune, "archetype": arch, "geometry": geo,
+                                  "queued_at": now}
                 st[bot_id] = rec
                 _save_state(st)
                 logger.info("[Chameleon] %s tune QUEUED (book not flat): %s [%s]",
@@ -200,8 +277,10 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
                         "tuned_at": now, "tuned_at_iso": _iso(now), "pending": None})
             st[bot_id] = rec
             _save_state(st)
-            logger.info("[Chameleon] %s RETUNED -> %s [archetype=%s wr=%.0f%% n=%d]",
-                        bot_id, tune, arch, geo["wr"] * 100, geo["n"])
+            logger.info("[Chameleon] %s RETUNED -> %s [archetype=%s wr=%.0f%% n=%d "
+                        "wallets=%d top_share=%.0f%%]",
+                        bot_id, tune, arch, geo["wr"] * 100, geo["n"],
+                        geo.get("n_wallets", 0), geo.get("top_wallet_share", 0) * 100)
     except Exception as e:
         logger.debug("[Chameleon] maybe_retune error: %s", e)
 
