@@ -283,7 +283,10 @@ def test_loss_cooldown_data_seam(tmp_path, monkeypatch):
     importlib.reload(fcmod)
     fc = fcmod.FollowCapitalManager()
     fc.record_open("MintL", 50.0); fc.record_close("MintL", 1.0, -8.0)
-    assert fc.token_pnl_today.get("mintl", 0) < 0          # lost-today readable
+    assert fc.token_lost_at.get("mintl", 0) > 0            # loss timestamp set
     fc.record_open("MintW", 50.0); fc.record_close("MintW", 1.0, +4.0)
-    assert fc.token_pnl_today.get("mintw", 0) > 0          # winner unaffected path
+    assert "mintw" not in fc.token_lost_at                 # winners don't stamp
+    # persists across "deploys" and survives UTC-day rollover by design
+    fc2 = fcmod.FollowCapitalManager()
+    assert fc2.token_lost_at.get("mintl", 0) > 0
     importlib.reload(fcmod)

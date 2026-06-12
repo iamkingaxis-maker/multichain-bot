@@ -663,11 +663,11 @@ class SmartMoneyFollowStrategy:
                 # $100 position dying in its own full bail (~$117 total). A
                 # token that lost today re-fires only after 6h.
                 try:
-                    _lost = (fcap is not None
-                             and fcap.token_pnl_today.get(mint.lower(), 0.0) < 0)
+                    _lost_at = (fcap.token_lost_at.get(mint.lower(), 0.0)
+                                if fcap is not None else 0.0)
                 except Exception:
-                    _lost = False
-                if _lost and now - self._fired.get(mint, 0) < int(
+                    _lost_at = 0.0
+                if _lost_at and now - _lost_at < int(
                         os.environ.get("SMART_FOLLOW_LOSS_COOLDOWN_SEC", "21600")):
                     logger.info(f"[SmartFollow] loss-cooldown veto {mint[:10]} "
                                 f"(lost today; re-fire allowed at 6h gap)")

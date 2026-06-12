@@ -1837,6 +1837,17 @@ class PositionManager:
         # DIP BUY POSITION MANAGEMENT
         # ═══════════════════════════════════════════════════════════════
         if state.strategy == "dip_buy":
+            # Re-entrancy guard (2026-06-12 audit #1): the MC and Standard
+            # branches early-return when a realtime exit is mid-flight; the
+            # dip branch never did — so while _do_realtime_stop awaited its
+            # Jupiter re-fetch, the 5s poll could fire a SECOND full close
+            # (often a different reason: slow-bleed fired 4x in 15min on one
+            # position). One gate for all four realtime-dedup sets.
+            if (token_address in self._stop_triggered
+                    or token_address in getattr(self, "_trail_triggered", ())
+                    or token_address in getattr(self, "_post_tp1_trail_triggered", ())
+                    or token_address in getattr(self, "_tp_triggered", ())):
+                return
 
             # ── SHADOW: chart-reader signal-flip detector ────────────
             # Re-runs chart_reader periodically (60s cadence). Logs but does

@@ -57,6 +57,10 @@ class FollowCapitalManager:
         # rolling close P&Ls (last 40) -> the COPY-REGIME DIAL (2026-06-12,
         # AxiS: "so we can detect a bad copy trading regime?"). Persisted.
         self.recent_closes: list[float] = []
+        # per-token last-LOSS timestamps (persisted; NO day reset — the
+        # loss-cooldown veto derived "lost today" from token_pnl_today which
+        # wipes at UTC midnight: a 23:50 stop + 00:30 re-fire slipped through)
+        self.token_lost_at: dict[str, float] = {}
         self._load()
 
     # ── persistence ─────────────────────────────────────────────────────────
@@ -71,6 +75,9 @@ class FollowCapitalManager:
                 self.token_pnl_today = {k: float(v) for k, v in
                                         (d.get("token_pnl_today") or {}).items()}
             self.recent_closes = [float(x) for x in (d.get("recent_closes") or [])][-40:]
+            cutoff = time.time() - 172800
+            self.token_lost_at = {k: float(v) for k, v in (d.get("token_lost_at") or {}).items()
+                                  if float(v) >= cutoff}
         except Exception:
             pass  # fresh pool
 
@@ -83,6 +90,7 @@ class FollowCapitalManager:
                            "epoch": self.epoch,
                            "token_day": self.token_day,
                            "recent_closes": [round(x, 4) for x in self.recent_closes[-40:]],
+                           "token_lost_at": self.token_lost_at,
                            "token_pnl_today": {k: round(v, 4) for k, v in
                                                self.token_pnl_today.items()}}, f)
             os.replace(tmp, _STATE_FILE)
@@ -121,6 +129,8 @@ class FollowCapitalManager:
         self.token_pnl_today[a] = self.token_pnl_today.get(a, 0.0) + pnl_usd
         self.recent_closes.append(pnl_usd)
         del self.recent_closes[:-40]
+        if pnl_usd < 0:
+            self.token_lost_at[a] = time.time()
         self._save()
         self.maybe_sweep()
 
