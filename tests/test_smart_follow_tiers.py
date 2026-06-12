@@ -237,3 +237,17 @@ def test_pool_daily_floor(tmp_path, monkeypatch):
     monkeypatch.setenv("SMART_FOLLOW_DAILY_FLOOR_USD", "off")
     assert fc.daily_floor_hit() is False        # kill switch
     importlib.reload(fcmod)
+
+
+def test_trigger_state_enforcement_dormant_and_active(monkeypatch):
+    from core.trigger_state_gates import should_drop_trigger, enforce_set
+    feats_block = {"buy_sell_volume_imbalance": 0.80}   # whale_conviction needs <=0.38
+    feats_pass = {"buy_sell_volume_imbalance": 0.20}
+    monkeypatch.delenv("TRIGGER_STATE_ENFORCE", raising=False)
+    assert enforce_set() == set()
+    assert should_drop_trigger("whale_conviction", feats_block) is False  # dormant
+    monkeypatch.setenv("TRIGGER_STATE_ENFORCE", "whale_conviction,calm_at_support")
+    assert should_drop_trigger("whale_conviction", feats_block) is True   # outside state
+    assert should_drop_trigger("whale_conviction", feats_pass) is False   # in state
+    assert should_drop_trigger("whale_conviction", {}) is False           # na fail-open
+    assert should_drop_trigger("deep_1h_dip", feats_block) is False       # not in set

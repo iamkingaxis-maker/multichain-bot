@@ -65,3 +65,29 @@ def trigger_state_verdicts(triggers_fired, feats: dict) -> dict[str, str]:
         except Exception:
             out[trig] = "na"
     return out
+
+
+# ── Enforcement (2026-06-12, built DORMANT) ───────────────────────────────────
+# The 06-11 scorecard showed 4 gates crossing the pre-registered enforce bar
+# (n>=50 + WR lift): calm_at_support (86% pass vs 57% block), informed_cluster
+# (66/55), support_with_60s_flow (80/63), whale_conviction (74/61).
+# Activation is a ONE-VAR flip (AxiS approval):
+#   TRIGGER_STATE_ENFORCE="calm_at_support,informed_cluster,support_with_60s_flow,whale_conviction"
+# Default empty = shadow-only (today's behavior). Enforcement drops a fired
+# trigger when it fired OUTSIDE its mined state; entry-stack control bots are
+# exempt in the evaluator (clean counterfactual). NOTE deep_1h_dip's gate reads
+# BACKWARDS forward (block-cohort 88% WR) — do NOT enforce it; re-mine.
+import os as _os
+
+
+def enforce_set() -> set:
+    raw = _os.environ.get("TRIGGER_STATE_ENFORCE", "").strip()
+    return {t.strip() for t in raw.split(",") if t.strip()} if raw else set()
+
+
+def should_drop_trigger(trig: str, feats: dict) -> bool:
+    """True if trig is in the enforce set AND fired outside its state."""
+    if trig not in enforce_set():
+        return False
+    v = trigger_state_verdicts((trig,), feats)
+    return v.get(trig) == "block"

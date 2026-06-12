@@ -542,6 +542,19 @@ class BotEvaluator:
             block = set(c.triggers_disabled)
             result = [t for t in result if t not in block]
 
+        # Per-trigger TOKEN-STATE enforcement (2026-06-12, DORMANT until
+        # TRIGGER_STATE_ENFORCE is set): drop a fired trigger when it fired
+        # outside its mined state (scorecard sec.5 crossed pre-reg n>=50 on 4
+        # gates). Controls exempt — clean counterfactual. Fail-open.
+        try:
+            from core.trigger_state_gates import enforce_set, should_drop_trigger
+            if (enforce_set()
+                    and c.bot_id not in _entry_stack_control_bots()):
+                result = [t for t in result
+                          if not should_drop_trigger(t, b.raw_meta)]
+        except Exception:
+            pass
+
         # Per-trigger token-state gates (2026-06-08): drop a FIRED trigger unless its
         # token-state conditions all pass against raw_meta. Fail-OPEN per condition when
         # the feature is missing (same convention as entry_gate, line ~302). Triggers
