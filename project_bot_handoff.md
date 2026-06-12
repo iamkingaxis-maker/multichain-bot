@@ -236,6 +236,51 @@ measure; survivors fill seats 9-12) -> silence check (enabled bots 0 buys/48h) -
 veto replay -> convex-vs-parent + dial-offense first grades -> badday lane tripwire (~13:30 UTC,
 1m-confirmation layer is the suspect if still dry).
 
+## OVERNIGHT MISSION (06-12 ~04:30-08:00 UTC, AxiS-mandated "work on all of these") 
+
+**Context**: pool gave back its afternoon gains overnight (-$25 effective at 04:09; ~115
+fires/6h from night-active recruits). AxiS: "if they make that many bad buys, they arent good
+wallets" -> HcLMmNx9 cut TOXIC same hour (frac -$1.14/close n=19.8); AxQRySJb promotion VETOED
+by measure-2 (83%->43% in 9h); POOL DAILY FLOOR shipped (SMART_FOLLOW_DAILY_FLOOR_USD=40 —
+fires halt at -$40/day realized; /api/follow-capital shows day_realized).
+
+**Mission results (lanes A-E):**
+A. **FIRE-QUALITY MINE** (106 converted fires, net -$362): liq<$20k fires = toxic in BOTH
+   held-out halves (-$11.64 / -$7.05 per fire; 35 fires ≈ $290 of bleed) -> **THIN-BOOK GATE
+   SHIPPED** (SMART_FOLLOW_MIN_LIQ_USD=20000, b7dd099). Also: K>=4 consensus 64% WR vs
+   k3-exact 33%; convex tier +$2.47/fire vs k3 -$4.04 (observations, not shipped).
+B. **EXIT-HORIZON MINE** (2000 elite exits): roster X-ray — 4jkL4dN ROTATED to 1-min scalper
+   (610 exits, med ret -1.6%; flag for board), EGwERj1 healthiest (+9.1% med own-ret), HmP3
+   own-trades ugly (-7.25% med). OUR disposition: winners close 13min median, losers 57min —
+   but GRACE A/B says patience EARNS: treatment -$6.33/exit vs control -$8.37 (n=32/37,
+   ~$65 saved) -> KEEP grace, judge final at n>=50/arm. Don't tighten loser exits yet.
+C. **BADDAY AUTOPSY**: lane WORKS (TRILLION admitted sub-floor, containment blocking controls
+   correctly). Bottleneck = the family's own 1m-confirmation layer. Tripwire decision 13:30 UTC.
+D. **WALLET HUNT**: dmuX-axis funnel (co-buyers of gated-bench winning thesis mints) -> 2 NEW
+   COPYABLE-GRADE: AKprbkX7 (+16.5% taxed, 75% WR), 76WoCZAG (70min holds). gasTzr94
+   auto-rejected unfollowable (pipeline consistency). **Gated bench = 10 names**
+   (_gated_bench.json; dmuX 247% taxed tops). AxQRySJb oscillates between windows = stays benched.
+E. **GUARD GRADES**: dist-guard n=30 vetoes -> **+$40.93 exit-bounded** (~$4/veto rent) ✓.
+   Won-today: 0 vetoes yet (trigger is rare by design). Attention-stamp EARLY peek (n=29):
+   boosted tokens median -$6.05/tok vs plain +$2.99 — boost reads as an AVOID candidate
+   (SPCX -$1315 and FCM -$608 death-clusters were both PAID-BOOSTED); shadow continues to n>=200.
+
+**Also shipped:**
+- **TRIGGER-STATE ENFORCEMENT built DORMANT** (b836c77): scorecard sec.5 crossed pre-reg
+  (n>=50+lift) on 4 gates (calm_at_support 86/57, informed_cluster 66/55, support_with_60s_flow
+  80/63, whale_conviction 74/61). ONE-VAR activation awaiting AxiS:
+  TRIGGER_STATE_ENFORCE=calm_at_support,informed_cluster,support_with_60s_flow,whale_conviction
+  (deep_1h_dip EXCLUDED — its gate reads backwards forward, block-cohort 88% WR; re-mine).
+- fire_unconverted records now carry price/liq (26b28ac) — security_BLOCK cohort (149/150 of
+  unconverted!) becomes replayable; only its 8% quick-death rate was measurable retroactively.
+- **DIAL NOW 2/2** (06-11 forecast 0.5, realized -$146 -> HIT).
+- 06-11 FINAL: live-set +$15 (@$100 +$15); 06-12 young qualified 8-bot live set.
+- PRE-SEAT COPYABILITY GATE (9cbf5d8 scripts/copyability_gate.py): see memory
+  reference_wallet_spec_copyability_2026_06_12 — judge the copyable SUBSET; validation set
+  caught a hallucinated address (read configs, never reconstruct).
+
+**Roster 7** (post HcLMmNx9 cut) | bench 10 gated | tombstones 7.
+
 ## FILL-FIDELITY VERDICT (trust checkpoint — PASSED)
 
 GT minute-candle method (trade-log endpoint self-throttled): 11/14 of today's fills INSIDE
