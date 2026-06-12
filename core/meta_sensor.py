@@ -94,7 +94,8 @@ class MetaSensor:
                 if side != "buy":
                     return   # sell with no observed buy -> position predates us; skip
                 ep = self._episodes[k] = {"spent": 0.0, "recv": 0.0,
-                                          "last_ts": ts, "sold": False}
+                                          "first_ts": ts, "last_ts": ts,
+                                          "sold": False}
             if side == "buy":
                 ep["spent"] += float(sol)
             elif side == "sell":
@@ -117,7 +118,8 @@ class MetaSensor:
             wallet = k.split("|", 1)[0]
             ret = (ep["recv"] / ep["spent"] - 1.0) * 100.0
             arch = (self.panel.get(wallet) or {}).get("archetype") or "unlabeled"
-            self._scores.append((ep["last_ts"], wallet, arch, ret))
+            hold = max(0.0, ep["last_ts"] - ep.get("first_ts", ep["last_ts"]))
+            self._scores.append((ep["last_ts"], wallet, arch, ret, hold))
         cutoff = now - SCORE_RETENTION_SECS
         while self._scores and self._scores[0][0] < cutoff:
             self._scores.popleft()
@@ -132,7 +134,7 @@ class MetaSensor:
         for label, secs in (("6h", 6 * 3600), ("24h", 24 * 3600)):
             cut = now - secs
             rows: Dict[str, list] = {}
-            for ts, _w, arch, ret in self._scores:
+            for ts, _w, arch, ret, *_h in self._scores:
                 if ts < cut:
                     continue
                 rows.setdefault(arch, []).append(ret)
@@ -144,6 +146,36 @@ class MetaSensor:
                 for arch, v in rows.items() if v
             }
         return out
+
+    def archetype_geometry(self, arch: str, now: Optional[float] = None,
+                           window_secs: float = 6 * 3600,
+                           min_n: int = 8) -> Optional[dict]:
+        """The winning style's measurable GEOMETRY over the window — what a
+        dynamic bot needs to re-tune itself: hold distribution + win/loss
+        return shapes. None if the sample is too thin to act on."""
+        now = now or time.time()
+        self._finalize_idle(now)
+        cut = now - window_secs
+        rets, holds = [], []
+        for ts, _w, a, ret, *h in self._scores:
+            if ts < cut or a != arch:
+                continue
+            rets.append(ret)
+            if h and isinstance(h[0], (int, float)):
+                holds.append(float(h[0]))
+        if len(rets) < min_n:
+            return None
+        wins = sorted(r for r in rets if r > 0)
+        losses = sorted(r for r in rets if r <= 0)
+        hs = sorted(holds)
+        return {
+            "n": len(rets),
+            "wr": round(len(wins) / len(rets), 3),
+            "med_win_pct": round(wins[len(wins) // 2], 1) if wins else None,
+            "med_loss_pct": round(losses[len(losses) // 2], 1) if losses else None,
+            "med_hold_secs": round(hs[len(hs) // 2]) if hs else None,
+            "p75_hold_secs": round(hs[(3 * len(hs)) // 4]) if hs else None,
+        }
 
     # ── persistence (deploy-amnesia guard) ────────────────────────────────
     def _persist(self) -> None:

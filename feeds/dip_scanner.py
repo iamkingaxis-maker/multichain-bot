@@ -325,6 +325,15 @@ class DipScanner:
         if bot_manager is not None and trade_store is not None:
             for ev in bot_manager.evaluators:
                 bc = ev.config
+                # Chameleon boot overlay (2026-06-12): re-apply the persisted
+                # dynamic tune BEFORE positions restore — restored positions
+                # were opened under that geometry. See core/meta_chameleon.py.
+                if bc.bot_id.startswith("meta_chameleon"):
+                    try:
+                        from core.meta_chameleon import apply_overlay
+                        apply_overlay(bc)
+                    except Exception as _ch_e:
+                        logger.warning("[DipScanner] chameleon overlay failed: %s", _ch_e)
                 existing = trade_store.load_bot_state(bc.bot_id)
                 if existing:
                     self.bot_capitals[bc.bot_id] = PerBotCapital.from_dict(existing)
@@ -2080,6 +2089,15 @@ class DipScanner:
             )
         except Exception as _ma_e:
             logger.debug(f"[DipScanner] meta-allocator shadow error: {_ma_e}")
+
+        # ── META CHAMELEON retune check (2026-06-12) — the autonomy loop.
+        # Rate-limited internally (15min checks, 6h retune cadence, quiesce on
+        # open positions). Never raises. See core/meta_chameleon.py.
+        try:
+            from core.meta_chameleon import maybe_retune
+            maybe_retune(self)
+        except Exception as _ch_e:
+            logger.debug(f"[DipScanner] chameleon retune error: {_ch_e}")
 
         for pair in pairs:
             c["fetched"] += 1

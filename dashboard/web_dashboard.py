@@ -4442,7 +4442,13 @@ class WebDashboard:
         if ms is None:
             return web.json_response({"enabled": False, "note": "sensor not wired"})
         try:
-            return web.json_response(ms.scoreboard())
+            board = ms.scoreboard()
+            try:
+                from core.meta_chameleon import status as _cham_status
+                board["chameleon"] = _cham_status()
+            except Exception:
+                pass
+            return web.json_response(board)
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
 

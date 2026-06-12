@@ -50,6 +50,10 @@ CANDIDATE_BOTS = {
     # time-box probe (2026-06-12): the Dw5 archetype — time-boxed risk, no
     # price stop, sell-all on strength; fed by the pp_launch firehose lane
     "timebox_probe",
+    # meta chameleon (2026-06-12): the fixed DYNAMIC bot — exit geometry
+    # retunes to the meta sensor's winning wallet archetype (AxiS's
+    # rotation thesis, the autonomy loop). Judged vs timebox_probe.
+    "meta_chameleon",
     # decode-doctrine A/Bs (2026-06-12): conviction sizing (all 10 wallets do
     # it; fleet bets flat) + the 7Gi3 surgical geometry (+154/-2.2 medians)
     "badday_flush_conviction", "young_probe_conviction", "young_probe_surgical",

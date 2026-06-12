@@ -30,6 +30,9 @@ def catalog():
                    and not c.bot_id.startswith("young_probe_")
                    and not c.bot_id.startswith("low_mcap_probe")
                    and not c.bot_id.startswith("timebox_")
+                   # meta_chameleon (2026-06-12): the fixed dynamic geometry
+                   # bot — $50 sensor-driven probe, not a $20 ablation member.
+                   and not c.bot_id.startswith("meta_chameleon")
                    and c.bot_id != "momentum_shadow"
                    and c.bot_id != "momentum_grad_probe"]
     return reg
