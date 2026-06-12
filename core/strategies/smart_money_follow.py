@@ -599,6 +599,19 @@ class SmartMoneyFollowStrategy:
                 # re-fires after a win are -EV in every gap bucket. After-LOSS
                 # re-fires stay ALLOWED (+$78 at 6h+ gaps — re-accumulation).
                 fcap = getattr(getattr(self.scanner, "trader", None), "follow_capital", None)
+                # pool daily-loss circuit breaker: stop FIRING for the day
+                # (open positions still manage/exit; matches the fleet
+                # candidates' daily_loss_limit_usd discipline)
+                if fcap is not None and fcap.daily_floor_hit():
+                    if not getattr(self, "_floor_logged", False):
+                        logger.warning(f"[SmartFollow] 🛑 POOL DAILY FLOOR hit "
+                                       f"(day ${fcap.day_realized():+.2f}) — fires halted for the day")
+                        _append_jsonl(_FOLLOW_LOG, {"type": "daily_floor_halt",
+                                                    "ts": now,
+                                                    "day_realized": round(fcap.day_realized(), 2)})
+                        self._floor_logged = True
+                    continue
+                self._floor_logged = False
                 if fcap is not None and fcap.won_today(mint):
                     logger.info(f"[SmartFollow] won-today veto {mint[:10]} — "
                                 f"already harvested this run")

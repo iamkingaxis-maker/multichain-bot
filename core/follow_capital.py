@@ -142,6 +142,29 @@ class FollowCapitalManager:
                     f"${self.floor:.0f}) [paper-virtual]")
         return excess
 
+    def day_realized(self) -> float:
+        """Today's (UTC) realized P&L across the pool."""
+        if datetime.now(timezone.utc).strftime("%Y-%m-%d") != self.token_day:
+            return 0.0
+        return sum(self.token_pnl_today.values())
+
+    def daily_floor_hit(self) -> bool:
+        """Pool circuit breaker (2026-06-12): the fleet candidates all carry
+        daily floors, but smart_follow bypasses the bot evaluator — the pool
+        could grind down all night with nothing stopping it (overnight
+        2026-06-11: ~115 fires/6h from night-active recruits, -$13.66 drip).
+        When today's realized <= -floor, the strategy stops FIRING (open
+        positions still manage/exit normally). Env SMART_FOLLOW_DAILY_FLOOR_USD
+        (default 40), 0/off disables."""
+        raw = os.environ.get("SMART_FOLLOW_DAILY_FLOOR_USD", "40").strip().lower()
+        if raw in ("0", "off", "false", ""):
+            return False
+        try:
+            floor = float(raw)
+        except Exception:
+            floor = 40.0
+        return self.day_realized() <= -abs(floor)
+
     def won_today(self, addr: str) -> bool:
         """True if this token's realized P&L today is positive (and it's today)."""
         if datetime.now(timezone.utc).strftime("%Y-%m-%d") != self.token_day:
@@ -159,5 +182,7 @@ class FollowCapitalManager:
             "deployed": round(self.deployed(), 2),
             "available": round(self.available(), 2),
             "open_positions": len(self._open),
+            "day_realized": round(self.day_realized(), 2),
+            "daily_floor_hit": self.daily_floor_hit(),
             "mode": "paper-virtual (real transfers at go-live via profit_sweeper)",
         }

@@ -220,3 +220,20 @@ def test_dexscreener_circuit_breaker():
     assert c._circuit_ok()
     c._record_result(False); c._record_result(True); c._record_result(False)
     assert c._circuit_ok()                  # success resets the streak
+
+
+def test_pool_daily_floor(tmp_path, monkeypatch):
+    import os, importlib
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("SMART_FOLLOW_DAILY_FLOOR_USD", raising=False)
+    import core.follow_capital as fcmod
+    importlib.reload(fcmod)
+    fc = fcmod.FollowCapitalManager()
+    assert fc.daily_floor_hit() is False
+    fc.record_open("M1", 50.0); fc.record_close("M1", 1.0, -39.0)
+    assert fc.daily_floor_hit() is False        # -39 > -40
+    fc.record_open("M2", 50.0); fc.record_close("M2", 1.0, -2.0)
+    assert fc.daily_floor_hit() is True         # -41 <= -40
+    monkeypatch.setenv("SMART_FOLLOW_DAILY_FLOOR_USD", "off")
+    assert fc.daily_floor_hit() is False        # kill switch
+    importlib.reload(fcmod)
