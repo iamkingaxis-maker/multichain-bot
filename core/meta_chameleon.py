@@ -329,6 +329,53 @@ def _iso(ts: float) -> str:
     return datetime.fromtimestamp(ts, timezone.utc).isoformat()
 
 
+# ── STANDBY GATE (Option B, AxiS 2026-06-12: "we only buy when we KNOW the
+# meta — to avoid unnecessary losses") ───────────────────────────────────────
+# The chameleon opens NEW positions ONLY while wearing a meta that is still
+# alive on the board. No qualifying meta -> no entries (open positions keep
+# managing normally). HYSTERESIS: it takes QUALIFY_WR (0.60) to start wearing
+# a meta, but entries stay allowed until the worn archetype decays below the
+# DETERIORATE bar (0.45 / n<4) — a hard in/out line at 0.60 would flap entries
+# on board jitter. Cached 60s (the buy path evaluates many candidates/cycle).
+_entries_cache: Dict[str, tuple] = {}
+
+
+def entries_allowed(bot_id: str, now: Optional[float] = None) -> tuple:
+    """(allowed: bool, reason: str) — the chameleon buy gate."""
+    if not enabled():
+        return True, "META_CHAMELEON=off (static clone mode, no gate)"
+    now = now or time.time()
+    cached = _entries_cache.get(bot_id)
+    if cached and now - cached[0] < 60:
+        return cached[1]
+    res = _compute_entries_allowed(bot_id, now)
+    _entries_cache[bot_id] = (now, res)
+    return res
+
+
+def _compute_entries_allowed(bot_id: str, now: float) -> tuple:
+    try:
+        from core.meta_sensor import get_sensor
+        sensor = get_sensor()
+        if sensor is None:
+            return False, "sensor not wired"
+        arch = (_load_state().get(bot_id) or {}).get("archetype")
+        if not arch:
+            return False, "STANDBY: no meta worn yet (sensor board warming)"
+        geo = sensor.archetype_geometry(arch, now, min_n=1)
+        if not geo or (geo.get("med_hold_secs") or 0) >= SLOW_HOLD_SECS:
+            geo24 = sensor.archetype_geometry(arch, now, window_secs=24 * 3600, min_n=1)
+            geo = geo24 or geo
+        if (not geo or geo.get("n", 0) < DETERIORATE_N
+                or geo.get("wr", 0.0) < DETERIORATE_WR):
+            return False, (f"STANDBY: worn meta '{arch}' decayed "
+                           f"(wr={geo.get('wr') if geo else None} "
+                           f"n={geo.get('n') if geo else 0})")
+        return True, (f"meta '{arch}' alive (wr={geo['wr']:.0%} n={geo['n']})")
+    except Exception as e:
+        return False, f"STANDBY (gate error: {e})"
+
+
 def status() -> dict:
     """For the dashboard: current tune state of every chameleon."""
     return _load_state()

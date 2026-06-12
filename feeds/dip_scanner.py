@@ -867,6 +867,21 @@ class DipScanner:
         if capital is None or pm is None:
             logger.error("[DipScanner] missing capital/pm for bot=%s", bot_id)
             return
+        # STANDBY GATE (Option B, 2026-06-12): the chameleon opens NEW
+        # positions ONLY while wearing a board-alive meta — "we only buy when
+        # we KNOW the meta." Open positions keep managing normally.
+        if bot_id.startswith("meta_chameleon"):
+            try:
+                from core.meta_chameleon import entries_allowed
+                _ok, _why = entries_allowed(bot_id)
+                if not _ok:
+                    logger.info("[DipScanner] %s %s — skip %s",
+                                bot_id, _why, decision.token)
+                    return
+            except Exception as _sg_e:
+                logger.warning("[DipScanner] chameleon standby gate error "
+                               "(fail-CLOSED): %s", _sg_e)
+                return
         # P-stack #4: per-bot re-entry throttle. Re-entry is otherwise immediate
         # (no dedup in the multi-bot path); this blocks re-buying a token within
         # reentry_cooldown_secs of its last full close. None/0 = no throttle.

@@ -239,6 +239,44 @@ def test_slow_style_qualifies_from_24h_window(monkeypatch, tmp_path):
     assert cfg.tp1_pct == 25.0
 
 
+def test_standby_gate_blocks_until_first_meta(monkeypatch, tmp_path):
+    sensor = _FakeSensor({}, {})
+    _patch(monkeypatch, tmp_path, sensor)
+    monkeypatch.setattr(ch, "_entries_cache", {})
+    ok, why = ch.entries_allowed("meta_chameleon")
+    assert not ok and "no meta worn" in why
+
+
+def test_standby_gate_allows_while_meta_alive_hysteresis(monkeypatch, tmp_path):
+    cfg = _cfg()
+    sensor = _FakeSensor({"surgical": {"n": 10, "wr": 0.8}}, {"surgical": GEO})
+    _patch(monkeypatch, tmp_path, sensor)
+    monkeypatch.setattr(ch, "_entries_cache", {})
+    ch.maybe_retune(_scanner(_pm(cfg, 0)), now=time.time())   # wears surgical
+    ok, why = ch.entries_allowed("meta_chameleon")
+    assert ok and "surgical" in why
+    # board decays to 0.50 — BELOW qualify (0.60) but ABOVE deteriorate (0.45)
+    # -> hysteresis keeps entries flowing (no flapping at the qualify line)
+    sensor._geo = {"surgical": dict(GEO, wr=0.50)}
+    monkeypatch.setattr(ch, "_entries_cache", {})
+    ok, _ = ch.entries_allowed("meta_chameleon")
+    assert ok
+    # decays below deteriorate bar -> STANDBY
+    sensor._geo = {"surgical": dict(GEO, wr=0.30)}
+    monkeypatch.setattr(ch, "_entries_cache", {})
+    ok, why = ch.entries_allowed("meta_chameleon")
+    assert not ok and "decayed" in why
+
+
+def test_standby_gate_fail_closed_without_sensor(monkeypatch, tmp_path):
+    monkeypatch.setattr(ch, "_TUNE_FILE", str(tmp_path / "tune.json"))
+    monkeypatch.setattr(ch, "_entries_cache", {})
+    import core.meta_sensor as ms
+    monkeypatch.setattr(ms, "_SENSOR", None)
+    ok, why = ch.entries_allowed("meta_chameleon")
+    assert not ok and "sensor" in why
+
+
 def test_kill_switch(monkeypatch, tmp_path):
     monkeypatch.setenv("META_CHAMELEON", "off")
     cfg = _cfg()
