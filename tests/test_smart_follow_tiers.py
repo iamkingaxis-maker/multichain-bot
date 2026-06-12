@@ -290,3 +290,22 @@ def test_loss_cooldown_data_seam(tmp_path, monkeypatch):
     fc2 = fcmod.FollowCapitalManager()
     assert fc2.token_lost_at.get("mintl", 0) > 0
     importlib.reload(fcmod)
+
+
+def test_entry_gate_age_alias_resolution():
+    """Bands must be disjoint even when raw_meta uses lifecycle_age_hours."""
+    from core.bot_evaluator import BotEvaluator
+    from core.bot_config import BotConfig
+    import core.bot_evaluator as be
+    c = BotConfig(bot_id="t", display_name="t",
+                  entry_gate=[["entry_age_hours", ">=", 6],
+                              ["entry_age_hours", "<=", 24]])
+    ev = BotEvaluator(c)
+    class B:  # minimal bundle stub
+        raw_meta = {"lifecycle_age_hours": 2.0}
+        vol_h1_usd = None; pc_h24 = None
+    b = B()
+    # age=2h via the ALIAS key -> >=6 condition must FAIL (band disjointness)
+    assert ev._token_regime_passes(b) is False
+    b.raw_meta = {"lifecycle_age_hours": 12.0}
+    assert ev._token_regime_passes(b) is True

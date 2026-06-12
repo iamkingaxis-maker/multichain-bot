@@ -425,12 +425,25 @@ class BotEvaluator:
         if c.entry_gate:
             # Generic mined-compound gate: AND of [feature, op, threshold]
             # against raw_meta. Fail-OPEN per condition when feature missing.
+            # Alias map (2026-06-12): raw_meta's age key is lifecycle_age_hours
+            # — gates written as entry_age_hours silently failed open and the
+            # young BAND probes collapsed into one overlapping pool on their
+            # first fires (all three bands bought CPX). Same defensive chain
+            # the young-probe gate uses.
+            _GATE_ALIASES = {"entry_age_hours": ("lifecycle_age_hours", "age_hours"),
+                             "liquidity_usd": ("entry_liquidity_usd", "liq_usd"),
+                             "entry_market_cap_usd": ("mcap", "market_cap_usd")}
             for _cond in c.entry_gate:
                 try:
                     _f, _op, _thr = _cond[0], _cond[1], float(_cond[2])
                 except (TypeError, ValueError, IndexError):
                     continue
                 _v = b.raw_meta.get(_f)
+                if not isinstance(_v, (int, float)):
+                    for _alt in _GATE_ALIASES.get(_f, ()):
+                        _v = b.raw_meta.get(_alt)
+                        if isinstance(_v, (int, float)):
+                            break
                 if not isinstance(_v, (int, float)):
                     continue
                 if _op == ">=" and _v < _thr:
