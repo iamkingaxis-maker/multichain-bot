@@ -39,10 +39,11 @@ def feed_enabled() -> bool:
 
 
 class PumpPortalFeed:
-    def __init__(self, wallets=None, strategy=None, attention=None):
+    def __init__(self, wallets=None, strategy=None, attention=None, sensor=None):
         self.wallets = list(wallets or [])
         self.strategy = strategy          # SmartMoneyFollowStrategy (ingest target)
         self.attention = attention        # AttentionFeed (launch recency)
+        self.sensor = sensor              # MetaSensor (panel day-meta reader)
         self.launches: dict = {}          # mint -> launch_ts (rolling)
         self.stats = {"account_trades": 0, "migrations": 0, "new_tokens": 0,
                       "reconnects": 0, "connected": False}
@@ -60,6 +61,12 @@ class PumpPortalFeed:
                         ts=int(time.time()), signature=d.get("signature"))
                 except Exception as e:
                     logger.warning(f"[PumpPortal] ingest error: {e}")
+            # Meta sensor (2026-06-12): same parsed trade feeds the panel
+            # day-meta reader. Measure-only; sync + never raises.
+            if self.sensor is not None:
+                self.sensor.ingest(wallet=d["traderPublicKey"], mint=mint or "",
+                                   side=tx_type, sol=float(d.get("solAmount") or 0),
+                                   ts=time.time())
         elif tx_type == "create" or (d.get("name") and mint and "marketCapSol" in d):
             self.stats["new_tokens"] += 1
             self.launches[(mint or "").lower()] = time.time()

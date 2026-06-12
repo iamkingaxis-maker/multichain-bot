@@ -139,6 +139,17 @@ class MetaAllocatorShadow:
             "launch_candidates": self._med(self._launch_counts),
             "proposal": propose(sol, neg),
         }
+        # Wallet-panel day-meta board (2026-06-12): snapshot the sensor's
+        # per-archetype WR alongside the market state, so the forward log can
+        # score "panel archetype-X morning WR -> our family-X rest-of-day"
+        # with zero extra plumbing. Absent/failed sensor -> column omitted.
+        try:
+            from core.meta_sensor import get_sensor
+            _ms = get_sensor()
+            if _ms is not None:
+                rec["wallet_panel"] = _ms.scoreboard(now).get("windows", {}).get("6h", {})
+        except Exception:
+            pass
         try:
             with open(self._path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec) + "\n")

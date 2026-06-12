@@ -640,10 +640,21 @@ async def main():
         from core.live_set import get_live_set
         get_live_set().set_sources(tracker, trade_store)
 
+        # ── Meta sensor (2026-06-12): continuous wallet-panel day-meta reader.
+        # Panel = roster + sensor-grade cuts (config/sensor_panel.json).
+        # Rides the same PumpPortal stream; measure-only (see core/meta_sensor.py).
+        from core.meta_sensor import init_sensor
+        meta_sensor = init_sensor()
+        dashboard.meta_sensor = meta_sensor
+
         from core.pumpportal_feed import PumpPortalFeed
-        pumpportal = PumpPortalFeed(wallets=_follow_watchlist,
+        # Subscribe the UNION of the follow watchlist and the sensor panel —
+        # sensor wallets stream trades even though no bot copies them.
+        _pp_keys = sorted(set(_follow_watchlist) | set(meta_sensor.panel))
+        pumpportal = PumpPortalFeed(wallets=_pp_keys,
                                     strategy=sol_smart_follow,
-                                    attention=_get_attn())
+                                    attention=_get_attn(),
+                                    sensor=meta_sensor)
         dashboard.pumpportal = pumpportal
 
         tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run(),

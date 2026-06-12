@@ -2256,6 +2256,7 @@ class WebDashboard:
         self.app.router.add_get("/api/wallet-discovery",    self._handle_wallet_discovery)
         self.app.router.add_get("/api/regime-dial",         self._handle_regime_dial)
         self.app.router.add_get("/api/follow-capital",      self._handle_follow_capital)
+        self.app.router.add_get("/api/meta-sensor",         self._handle_meta_sensor)
         self.app.router.add_get("/api/attention",            self._handle_attention)
         self.app.router.add_get("/api/pumpportal",           self._handle_pumpportal)
         self.app.router.add_get("/api/leaderboard",         self._handle_api_leaderboard)
@@ -4432,6 +4433,18 @@ class WebDashboard:
         if fc is None:
             return web.json_response({"enabled": False, "note": "pool not wired"})
         return web.json_response(fc.status())
+
+    async def _handle_meta_sensor(self, request):
+        """GET /api/meta-sensor — the wallet-panel day-meta scoreboard:
+        per-archetype WR/n over 6h/24h windows. Measure-only (no bot reads
+        it at buy time until the pre-registered forward bar is met)."""
+        ms = getattr(self, "meta_sensor", None)
+        if ms is None:
+            return web.json_response({"enabled": False, "note": "sensor not wired"})
+        try:
+            return web.json_response(ms.scoreboard())
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
 
     async def _handle_regime_dial(self, request):
         """GET /api/regime-dial — P7 dial live state (signals + multipliers)."""
