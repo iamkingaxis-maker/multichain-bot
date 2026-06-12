@@ -656,6 +656,24 @@ class SmartMoneyFollowStrategy:
                         self._floor_logged = True
                     continue
                 self._floor_logged = False
+                # LOSS-COOLDOWN (2026-06-12, the GTA6 loop): after-loss re-fires
+                # are +$78 at 6h+ gaps but -$85 at 0-6h gaps (the same gap
+                # analysis that built the won-today veto — I shipped one side).
+                # GTA6: lost -> re-fired ~every 90min into the collapse, each
+                # $100 position dying in its own full bail (~$117 total). A
+                # token that lost today re-fires only after 6h.
+                try:
+                    _lost = (fcap is not None
+                             and fcap.token_pnl_today.get(mint.lower(), 0.0) < 0)
+                except Exception:
+                    _lost = False
+                if _lost and now - self._fired.get(mint, 0) < int(
+                        os.environ.get("SMART_FOLLOW_LOSS_COOLDOWN_SEC", "21600")):
+                    logger.info(f"[SmartFollow] loss-cooldown veto {mint[:10]} "
+                                f"(lost today; re-fire allowed at 6h gap)")
+                    _append_jsonl(_FOLLOW_LOG, {"type": "loss_cooldown_veto",
+                                                "ts": now, "token": mint})
+                    continue
                 if fcap is not None and fcap.won_today(mint):
                     logger.info(f"[SmartFollow] won-today veto {mint[:10]} — "
                                 f"already harvested this run")

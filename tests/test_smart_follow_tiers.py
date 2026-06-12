@@ -271,3 +271,19 @@ def test_copy_regime_dial(tmp_path, monkeypatch):
     fc2 = fcmod.FollowCapitalManager()
     assert fc2.copy_dial()["state"] == "good"
     importlib.reload(fcmod)
+
+
+def test_loss_cooldown_data_seam(tmp_path, monkeypatch):
+    """After-loss re-fires: blocked <6h (the -$85 bucket), allowed at 6h+ (+$78)."""
+    import importlib, os, time
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("SMART_FOLLOW_LOSS_COOLDOWN_SEC", raising=False)
+    assert int(os.environ.get("SMART_FOLLOW_LOSS_COOLDOWN_SEC", "21600")) == 21600
+    import core.follow_capital as fcmod
+    importlib.reload(fcmod)
+    fc = fcmod.FollowCapitalManager()
+    fc.record_open("MintL", 50.0); fc.record_close("MintL", 1.0, -8.0)
+    assert fc.token_pnl_today.get("mintl", 0) < 0          # lost-today readable
+    fc.record_open("MintW", 50.0); fc.record_close("MintW", 1.0, +4.0)
+    assert fc.token_pnl_today.get("mintw", 0) > 0          # winner unaffected path
+    importlib.reload(fcmod)
