@@ -293,11 +293,13 @@ def test_no_enabled_live_probe_bot():
     # FAIL-CLOSED: going live must require a DELIBERATE config enable. The ONLY
     # enabled bots permitted to carry live_probe are the explicit go-live set
     # below. Any OTHER enabled bot with live_probe is an accident that would route
-    # real money. (2026-06-13: badday_flush_conviction added — the validated first
-    # live bot, n=181 / +$2.24/tr paper, fixed small size on a ~$40 float.)
+    # real money. (2026-06-13: badday_flush_conviction_LIVE added — a dedicated
+    # live CLONE of the validated badday_flush_conviction (n=181 / +$2.24/tr paper),
+    # float-sized ($15 base, 2x->$30, maxconc 1). The paper original stays paper for
+    # the conviction-vs-flat A/B; only the clone routes live.)
     import glob
     from core.bot_config import BotConfig
-    INTENDED_LIVE = {"badday_flush_conviction"}
+    INTENDED_LIVE = {"badday_flush_conviction_live"}
     offenders = []
     for p in glob.glob("config/bots/*.json"):
         c = BotConfig.from_json(p)

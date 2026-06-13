@@ -2,14 +2,15 @@
   "age_h_max": null,
   "age_h_min": 6.0,
   "alpha_multiplier": 1.0,
-  "base_position_usd": 100.0,
-  "bot_id": "badday_flush_conviction",
+  "base_position_usd": 15.0,
+  "bot_id": "badday_flush_conviction_live",
+  "live_probe": true,
   "btc_macro_h1_block_threshold": null,
   "conviction_max_mult": 2.0,
   "conviction_sizing_mode": "trigger_count",
   "conviction_step": 0.5,
-  "daily_loss_limit_usd": 60.0,
-  "display_name": "CONVICTION A/B of badday_flush (2026-06-12 roster decode: ALL 10 profitable wallets size with conviction \u2014 dmuX bets 10x the table; our fleet bets flat, every bot). Single variable vs parent: trigger-count sizing (1 + 0.5*(n-1), cap 2x). PRE-REG: judge vs parent $/tr at n>=30 closes each; loser retires. 48h burn-in.",
+  "daily_loss_limit_usd": 20.0,
+  "display_name": "LIVE clone of badday_flush_conviction (2026-06-13 go-live, AxiS). The validated paper bot (n=181, +$2.24/tr, 70% WR, survives the live haircut at +$1.44/tr) taken LIVE at a $40-float size: base $15 + conviction 2x -> $30 max position (fits the ~$32 tradeable float), max_concurrent 1, daily-loss halt $20. Separate from the paper original so the conviction-vs-flat A/B keeps running in paper and the live P&L stays clean. Routes live ONLY via should_route_live (live_probe + USE_JUPITER_ULTRA + key + LIVE_CONFIRMED). Own exclusion_pool. First live bot since the 2026-04-29 run; validation-not-profit at this float (fee-marginal).",
   "enabled": true,
   "entry_gate": [
     [
@@ -39,7 +40,7 @@
     ]
   ],
   "entry_stack_exempt": true,
-  "exclusion_pool": "badday_flush_conviction",
+  "exclusion_pool": "badday_flush_conviction_live",
   "fast_bail_pnl_pct": -9.0,
   "filters_disabled": [],
   "filters_enforced": [
@@ -52,7 +53,7 @@
   "hard_stop_pct": -12.0,
   "macro_up_multiplier": 1.0,
   "marginal_multiplier": 1.0,
-  "max_concurrent_positions": 3,
+  "max_concurrent_positions": 1,
   "mcap_max": 500000.0,
   "mcap_min": 50000.0,
   "mcap_psych_pc_h24_max": 80.0,
