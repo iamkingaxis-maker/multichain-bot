@@ -261,11 +261,13 @@ def test_standby_gate_allows_while_meta_alive_hysteresis(monkeypatch, tmp_path):
     monkeypatch.setattr(ch, "_entries_cache", {})
     ok, _ = ch.entries_allowed("meta_chameleon")
     assert ok
-    # decays below deteriorate bar -> STANDBY
+    # decays below deteriorate bar -> STANDBY (via whichever tripwire sees it
+    # first — this fake sensor serves the same geo to every window, so the
+    # fresh-90min check fires before the 6h deterioration check)
     sensor._geo = {"surgical": dict(GEO, wr=0.30)}
     monkeypatch.setattr(ch, "_entries_cache", {})
     ok, why = ch.entries_allowed("meta_chameleon")
-    assert not ok and "decayed" in why
+    assert not ok and ("decayed" in why or "fresh-90min" in why)
 
 
 def test_standby_gate_fail_closed_without_sensor(monkeypatch, tmp_path):
@@ -275,6 +277,79 @@ def test_standby_gate_fail_closed_without_sensor(monkeypatch, tmp_path):
     monkeypatch.setattr(ms, "_SENSOR", None)
     ok, why = ch.entries_allowed("meta_chameleon")
     assert not ok and "sensor" in why
+
+
+class _RateSensor(_FakeSensor):
+    def __init__(self, board, geo, rate=(5, 5.0), fresh=None):
+        super().__init__(board, geo)
+        self._rate, self._fresh = rate, fresh
+
+    def buy_rate(self, arch, now=None):
+        return self._rate
+
+    def archetype_geometry(self, arch, now=None, window_secs=21600, min_n=8):
+        if window_secs == ch.FRESH_WINDOW_SECS:
+            return self._fresh
+        return self._geo.get(arch)
+
+
+def _wear_meta(monkeypatch, tmp_path, sensor):
+    cfg = _cfg()
+    _patch(monkeypatch, tmp_path, sensor)
+    ch.maybe_retune(_scanner(_pm(cfg, 0)), now=time.time())
+    monkeypatch.setattr(ch, "_entries_cache", {})
+    return cfg
+
+
+def test_own_fills_dial_two_of_three(monkeypatch, tmp_path):
+    sensor = _RateSensor({"surgical": {"n": 10, "wr": 0.8}}, {"surgical": GEO})
+    _wear_meta(monkeypatch, tmp_path, sensor)
+    now = time.time()
+    ch.record_close("meta_chameleon", "T1", +5.0, True, "surgical")
+    ch.record_close("meta_chameleon", "T2", -8.0, True, "surgical")
+    ch.record_close("meta_chameleon", "T3", -3.0, True, "surgical")   # 2 of 3 lost
+    ok, why = ch.entries_allowed("meta_chameleon", now=now)
+    assert not ok and "own-fills" in why
+    # pause expires after OWN_FILLS_PAUSE_SECS
+    monkeypatch.setattr(ch, "_entries_cache", {})
+    ok, _ = ch.entries_allowed("meta_chameleon", now=now + ch.OWN_FILLS_PAUSE_SECS + 1)
+    assert ok
+
+
+def test_own_fills_legs_accumulate_to_position_net(monkeypatch, tmp_path):
+    sensor = _RateSensor({"surgical": {"n": 10, "wr": 0.8}}, {"surgical": GEO})
+    _wear_meta(monkeypatch, tmp_path, sensor)
+    # TP1 +30 leg, then final trail leg -5 -> position NET +25 = a WIN
+    ch.record_close("meta_chameleon", "TX", +30.0, False, "surgical")
+    ch.record_close("meta_chameleon", "TX", -5.0, True, "surgical")
+    st = json.load(open(str(tmp_path / "tune.json")))
+    closes = st["meta_chameleon"]["recent_closes"]
+    assert closes[-1]["win"] is True and closes[-1]["net"] == 25.0
+
+
+def test_buy_rate_collapse_blocks(monkeypatch, tmp_path):
+    sensor = _RateSensor({"surgical": {"n": 10, "wr": 0.8}}, {"surgical": GEO},
+                         rate=(1, 6.0))     # 1 recent vs norm 6/30min
+    cfg = _wear_meta(monkeypatch, tmp_path, sensor)
+    ok, why = ch.entries_allowed("meta_chameleon")
+    assert not ok and "buy-rate collapsed" in why
+
+
+def test_buy_rate_thin_norm_no_signal(monkeypatch, tmp_path):
+    sensor = _RateSensor({"surgical": {"n": 10, "wr": 0.8}}, {"surgical": GEO},
+                         rate=(0, 1.0))     # norm below BUYRATE_MIN_NORM
+    _wear_meta(monkeypatch, tmp_path, sensor)
+    ok, _ = ch.entries_allowed("meta_chameleon")
+    assert ok
+
+
+def test_fresh_window_wr_break_blocks(monkeypatch, tmp_path):
+    fresh = dict(GEO, wr=0.20, n=6)
+    sensor = _RateSensor({"surgical": {"n": 10, "wr": 0.8}}, {"surgical": GEO},
+                         fresh=fresh)
+    _wear_meta(monkeypatch, tmp_path, sensor)
+    ok, why = ch.entries_allowed("meta_chameleon")
+    assert not ok and "fresh-90min" in why
 
 
 def test_kill_switch(monkeypatch, tmp_path):

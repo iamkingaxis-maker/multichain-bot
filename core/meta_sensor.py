@@ -93,6 +93,10 @@ class MetaSensor:
         # shared by reference so SWEEP-sourced episodes get ages too (the sweep
         # eye carries no launch_ts of its own).
         self._launches: Optional[dict] = None
+        # per-archetype BUY events (ts, arch) — the LEADING meta-death signal:
+        # wallets stop ENTERING a dying meta before their losses even close.
+        self._buy_events: deque = deque()
+        self._last_ingest_ts: Optional[float] = None
         self._last_persist = 0.0
         self._restore()
 
@@ -139,10 +143,17 @@ class MetaSensor:
                                           "age_h": (round((ts - launch_ts) / 3600.0, 2)
                                                     if launch_ts and ts > launch_ts
                                                     else None)}
+            self._last_ingest_ts = ts
             if side == "buy":
                 ep["spent"] += float(sol)
                 if isinstance(tokens, (int, float)) and tokens > 0:
                     ep["tok_in"] = ep.get("tok_in", 0.0) + float(tokens)
+                # buy-rate tracking (leading meta-death signal)
+                arch = (self.panel.get(wallet) or {}).get("archetype") or "unlabeled"
+                self._buy_events.append((ts, arch))
+                cut = ts - 6 * 3600
+                while self._buy_events and self._buy_events[0][0] < cut:
+                    self._buy_events.popleft()
             elif side == "sell":
                 ep["recv"] += float(sol)
                 ep["sold"] = True
@@ -210,6 +221,11 @@ class MetaSensor:
                      # read as "no meta today" (gap hunt 2026-06-12)
                      "last_score_age_secs": (round(now - self._scores[-1][0])
                                              if self._scores else None),
+                     # ingest age = the real stream-health signal (scores are
+                     # rare under the full-exit rule; ingestion is constant)
+                     "last_ingest_age_secs": (round(now - self._last_ingest_ts)
+                                              if getattr(self, "_last_ingest_ts", None)
+                                              else None),
                      "scored_24h": len(self._scores),
                      # per-wallet episode counts (24h): venue-coverage check
                      # (compare vs the wallet's chain rate from the decode
@@ -244,6 +260,15 @@ class MetaSensor:
                 for arch, v in rows.items() if v
             }
         return out
+
+    def buy_rate(self, arch: str, now: Optional[float] = None) -> tuple:
+        """(buys_last_30min, trailing_6h_avg_per_30min) for an archetype — the
+        LEADING meta-death signal: panel wallets stop ENTERING a dying meta
+        long before their losses close. A consumer compares recent vs norm."""
+        now = now or time.time()
+        recent = sum(1 for ts, a in self._buy_events if a == arch and ts >= now - 1800)
+        total6 = sum(1 for ts, a in self._buy_events if a == arch and ts >= now - 21600)
+        return recent, total6 / 12.0
 
     def archetype_geometry(self, arch: str, now: Optional[float] = None,
                            window_secs: float = 6 * 3600,

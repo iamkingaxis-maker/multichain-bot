@@ -37,9 +37,10 @@ DEFAULT_FILES = [
     "trades_dump_candidates.json",   # 05-16 .. 05-25
     ".watch7h/val_wide.json",        # 05-27 .. 05-29
     ".overnight_trades.json",        # 05-28 .. 05-30
+    ".trades_now.json",              # 05-29 .. current (fresh pull)
 ]
 DEFAULT_TRAIN = ("2026-05-12", "2026-05-24")
-DEFAULT_TEST = ("2026-05-27", "2026-05-30")
+DEFAULT_TEST = ("2026-05-27", "2026-05-31")
 
 # Known enforcement status (from dip_scanner.py comments + memory). Annotated only.
 RETIRED = {"channel_hvn", "sweep_holder_liq", "two_pattern_demand",

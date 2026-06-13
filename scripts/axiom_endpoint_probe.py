@@ -103,22 +103,18 @@ async def main():
         headers["Cookie"] = f"auth-access-token={token}"
 
     hits = []
+    # Sequential with small delay to avoid triggering Cloudflare protection
     async with aiohttp.ClientSession() as session:
-        tasks = []
-        refs = []
-        for server in SERVERS:
+        for server in SERVERS[:3]:  # api2/3/4 only (others known broken)
+            print(f"\n--- {server} ---")
             for path in PATHS:
-                tasks.append(probe(session, server, path, headers))
-                refs.append((server, path))
-        results = await asyncio.gather(*tasks)
-
-    for (server, path), (status, sample) in zip(refs, results):
-        if status == 200 or (status and status not in (404, None)):
-            tag = "HIT" if status == 200 else f"{status}"
-            line = f"  [{tag}] {server}{path}  {sample}"
-            print(line)
-            if status == 200:
-                hits.append(line)
+                status, sample = await probe(session, server, path, headers)
+                tag = "HIT" if status == 200 else (str(status) if status else "ERR")
+                line = f"  [{tag:>5}] {path}  {sample}"
+                print(line)
+                if status == 200:
+                    hits.append(f"{server}{path}  {sample}")
+                await asyncio.sleep(0.3)
 
     print()
     print(f"=== SUMMARY: {len(hits)} 200s ===")

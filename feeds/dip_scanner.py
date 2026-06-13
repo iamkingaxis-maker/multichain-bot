@@ -1968,6 +1968,17 @@ class DipScanner:
                 "time": datetime.now(timezone.utc).isoformat(),
             }, bot_id=bot_id)
             self._save_bot_state(bot_id)
+            # Chameleon own-fills dial (2026-06-12): feed each leg into the
+            # 2-of-3 meta-death tripwire. Fail-soft.
+            if bot_id.startswith("meta_chameleon"):
+                try:
+                    from core.meta_chameleon import record_close
+                    record_close(bot_id, token, float(result.realized_pnl_usd or 0),
+                                 bool(result.fully_closed),
+                                 (_pos.state_blob or {}).get("chameleon_archetype")
+                                 if _pos else None)
+                except Exception:
+                    pass
         # OHLCV-capture sidecar (#4.4): on FULL close, persist the per-cycle price path the
         # position experienced so the backtester can replay it deterministically. Fail-soft.
         if result.fully_closed and _pos is not None and self.trade_store is not None:

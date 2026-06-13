@@ -82,6 +82,29 @@ MAX_TOP_SHARE = 0.75
 # not starve a market response forever — max_conc 6 x 4h boxes rarely go flat).
 PENDING_FORCE_SECS = 2 * 3600.0
 
+# ── META-DEATH ACCELERATORS (2026-06-12, AxiS: "how does it know BEFORE we
+# lose money?"). The 6h closed-episode board detects a dying meta HOURS late
+# (holds must finish + idle-close + average must fall). Three faster tripwires,
+# any ONE of which puts entries on standby (re-qualification still runs on the
+# full board):
+#  1. OWN-FILLS DIAL (fastest feedback on OUR money; AxiS-tuned 2-of-3): if 2
+#     of the chameleon's last 3 closed positions under the WORN meta lost,
+#     pause entries for OWN_FILLS_PAUSE_SECS. Catches the meta-works-for-them-
+#     not-for-us case (the P2b selection gap that bit timebox tonight).
+#  2. BUY-RATE COLLAPSE (leading): panel wallets stop ENTERING a dying meta
+#     before any loss closes. Recent 30min entry rate < 30% of trailing norm
+#     (with a real norm) -> standby.
+#  3. FRESH-WINDOW WR (fast lagging): last-90min WR of the worn archetype
+#     < 0.35 on n>=5 -> standby even while the 6h average still looks alive.
+OWN_FILLS_WINDOW = 3
+OWN_FILLS_LOSSES = 2
+OWN_FILLS_PAUSE_SECS = 3600.0
+BUYRATE_COLLAPSE_FRAC = 0.30
+BUYRATE_MIN_NORM = 2.0          # per-30min trailing norm below this = no signal
+FRESH_WINDOW_SECS = 5400.0
+FRESH_WR_FLOOR = 0.35
+FRESH_MIN_N = 5
+
 CLAMPS = {
     "time_stop_minutes": (10.0, 780.0),
     "tp1_pct": (8.0, 60.0),
@@ -359,9 +382,33 @@ def _compute_entries_allowed(bot_id: str, now: float) -> tuple:
         sensor = get_sensor()
         if sensor is None:
             return False, "sensor not wired"
-        arch = (_load_state().get(bot_id) or {}).get("archetype")
+        rec = _load_state().get(bot_id) or {}
+        arch = rec.get("archetype")
         if not arch:
             return False, "STANDBY: no meta worn yet (sensor board warming)"
+        # tripwire 1 — OWN FILLS (2-of-3, AxiS-tuned): our money is the
+        # fastest honest signal that this meta doesn't transfer to us.
+        closes = [c for c in (rec.get("recent_closes") or [])
+                  if c.get("archetype") == arch][-OWN_FILLS_WINDOW:]
+        losses = [c for c in closes if not c.get("win")]
+        if (len(closes) >= OWN_FILLS_WINDOW
+                and len(losses) >= OWN_FILLS_LOSSES
+                and now - max(c.get("ts", 0) for c in losses) < OWN_FILLS_PAUSE_SECS):
+            return False, (f"STANDBY: own-fills dial — {len(losses)} of last "
+                           f"{len(closes)} closes under '{arch}' lost (1h pause)")
+        # tripwire 2 — BUY-RATE COLLAPSE (leading): they stopped playing.
+        if hasattr(sensor, "buy_rate"):
+            recent, norm = sensor.buy_rate(arch, now)
+            if norm >= BUYRATE_MIN_NORM and recent <= BUYRATE_COLLAPSE_FRAC * norm:
+                return False, (f"STANDBY: '{arch}' buy-rate collapsed "
+                               f"({recent} last 30min vs norm {norm:.1f})")
+        # tripwire 3 — FRESH-WINDOW WR: the last 90min, undiluted by the 6h average.
+        fresh = sensor.archetype_geometry(arch, now, window_secs=FRESH_WINDOW_SECS,
+                                          min_n=FRESH_MIN_N)
+        if fresh and fresh.get("wr", 1.0) < FRESH_WR_FLOOR:
+            return False, (f"STANDBY: '{arch}' fresh-90min WR broke "
+                           f"({fresh['wr']:.0%} on n={fresh['n']})")
+        # baseline — the 6h board with deterioration hysteresis.
         geo = sensor.archetype_geometry(arch, now, min_n=1)
         if not geo or (geo.get("med_hold_secs") or 0) >= SLOW_HOLD_SECS:
             geo24 = sensor.archetype_geometry(arch, now, window_secs=24 * 3600, min_n=1)
@@ -374,6 +421,31 @@ def _compute_entries_allowed(bot_id: str, now: float) -> tuple:
         return True, (f"meta '{arch}' alive (wr={geo['wr']:.0%} n={geo['n']})")
     except Exception as e:
         return False, f"STANDBY (gate error: {e})"
+
+
+def record_close(bot_id: str, token: str, pnl_usd: float, fully_closed: bool,
+                 archetype: Optional[str]) -> None:
+    """Per-leg sell hook (dip_scanner): accumulate legs per position; on full
+    close push the position's NET outcome into the own-fills window. Never
+    raises."""
+    try:
+        st = _load_state()
+        rec = st.setdefault(bot_id, {})
+        acc = rec.setdefault("_leg_acc", {})
+        acc[token] = float(acc.get(token, 0.0)) + float(pnl_usd or 0.0)
+        if not fully_closed:
+            _save_state(st)
+            return
+        net = acc.pop(token, 0.0)
+        closes = rec.setdefault("recent_closes", [])
+        closes.append({"ts": time.time(), "win": net > 0,
+                       "net": round(net, 2), "archetype": archetype or "default"})
+        del closes[:-20]
+        _save_state(st)
+        # bust the entries cache so a fresh loss is felt immediately
+        _entries_cache.pop(bot_id, None)
+    except Exception as e:
+        logger.debug("[Chameleon] record_close failed: %s", e)
 
 
 def status() -> dict:

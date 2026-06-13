@@ -17,6 +17,8 @@ def _mk(panel=None, tmp_path=None, monkeypatch=None):
     s._unresolved = deque()
     s._sigs = {}
     s._launches = None
+    s._buy_events = deque()
+    s._last_ingest_ts = None
     s._last_persist = 0.0
     return s
 

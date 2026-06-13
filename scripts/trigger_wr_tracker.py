@@ -103,9 +103,13 @@ def main():
         em = b.get('entry_meta') or {}
         triggers = em.get('triggers_fired') or []
         if not triggers:
+            # Fallback for legacy entries: trigger_source is a single string
+            # joined by underscore for multi-trigger entries. We can't reliably
+            # split (underscore is also in names like "clean_break") so we
+            # just keep the full string as one bucket.
             ts_field = em.get('trigger_source')
             if ts_field:
-                triggers = ts_field.split('_') if '_' in ts_field else [ts_field]
+                triggers = [ts_field]
         paired.append({
             'buy': b, 'sell': sell, 'triggers': triggers,
             'pnl': (sell or {}).get('pnl'),

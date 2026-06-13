@@ -167,7 +167,15 @@ def validate_simulation(filter_mod):
             last_ts = bars[i]['ts']
             cdl = bars[i]
             blk = False
+            # Pass last 60 bars ending at i (inclusive) — multi-bar
+            # shape filters need this.
+            recent_bars = bars[max(0, i - 60):i + 1]
             try:
+                blk = filter_mod.should_block(cdl['o'], cdl['h'], cdl['l'], cdl['c'],
+                                              v=cdl.get('v'), em=None,
+                                              recent_bars=recent_bars)
+            except TypeError:
+                # Old-style filter that doesn't accept recent_bars
                 blk = filter_mod.should_block(cdl['o'], cdl['h'], cdl['l'], cdl['c'],
                                               v=cdl.get('v'), em=None)
             except Exception:
@@ -330,7 +338,15 @@ def validate_retro(filter_mod):
             no_data.append((b, pnl))
             continue
         em = b.get('entry_meta') or {}
+        # Find recent_bars ending at the entry candle
+        entry_idx = bars.index(cdl) if cdl in bars else None
+        recent_bars = (bars[max(0, entry_idx - 60):entry_idx + 1]
+                       if entry_idx is not None else None)
         try:
+            blk = filter_mod.should_block(cdl['o'], cdl['h'], cdl['l'], cdl['c'],
+                                          v=cdl.get('v'), em=em,
+                                          recent_bars=recent_bars)
+        except TypeError:
             blk = filter_mod.should_block(cdl['o'], cdl['h'], cdl['l'], cdl['c'],
                                           v=cdl.get('v'), em=em)
         except Exception:
