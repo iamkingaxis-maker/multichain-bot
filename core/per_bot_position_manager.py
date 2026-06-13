@@ -244,8 +244,8 @@ class PerBotPositionManager:
         return True
 
     def _record_token_buy(self, token: str, now_iso: Optional[str] = None) -> None:
-        from core.per_bot_capital import _utc_date_iso
-        today = _utc_date_iso(now_iso)
+        from core.per_bot_capital import _ct_date_iso
+        today = _ct_date_iso(now_iso)
         if today != self._token_buys_date:
             self._token_buys = {}
             self._token_buys_date = today
@@ -253,9 +253,9 @@ class PerBotPositionManager:
 
     def token_buys_today(self, token: str, now_iso: Optional[str] = None) -> int:
         """Phase-1 risk floor: how many times this bot has bought ``token`` so far
-        this UTC day (resets at rollover). Drives the per-token re-entry cap."""
-        from core.per_bot_capital import _utc_date_iso
-        if _utc_date_iso(now_iso) != self._token_buys_date:
+        this CT day (resets at CT 00:00 rollover). Drives the per-token re-entry cap."""
+        from core.per_bot_capital import _ct_date_iso
+        if _ct_date_iso(now_iso) != self._token_buys_date:
             return 0
         return self._token_buys.get(token, 0)
 

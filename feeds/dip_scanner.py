@@ -345,16 +345,21 @@ class DipScanner:
                     # 3h of post-floor buying). The append-only ledger is
                     # authoritative: recompute today's pnl from it at boot.
                     try:
-                        from datetime import datetime as _dt, timezone as _tz
-                        _today = _dt.now(_tz.utc).strftime("%Y-%m-%d")
+                        from core.per_bot_capital import _ct_date_iso
+                        _cap = self.bot_capitals[bc.bot_id]
+                        # CT day (matches the floor's boundary, 2026-06-13 fix) +
+                        # honor reset_after_iso so a daily-reset bot doesn't
+                        # re-pull pre-reset losses at boot.
+                        _today = _ct_date_iso()
+                        _ra = getattr(_cap, "reset_after_iso", None)
                         _led = 0.0
                         for _t in trade_store.load_trades():
                             if (_t.get("bot_id") == bc.bot_id
                                     and _t.get("type") == "sell"
-                                    and str(_t.get("time", ""))[:10] == _today
+                                    and _ct_date_iso(_t.get("time", "") or None) == _today
+                                    and (not _ra or str(_t.get("time", "")) > str(_ra))
                                     and "cancelled" not in str(_t.get("reason", "")).lower()):
                                 _led += float(_t.get("pnl") or 0)
-                        _cap = self.bot_capitals[bc.bot_id]
                         if abs(_led - _cap.daily_pnl_usd) > 0.01:
                             logger.info(
                                 "[DipScanner] %s daily-pnl re-derived from ledger: "

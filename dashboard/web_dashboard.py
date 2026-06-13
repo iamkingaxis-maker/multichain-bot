@@ -2274,6 +2274,8 @@ class WebDashboard:
         self.app.router.add_post("/api/bots/{bot_id}/reset",  self._handle_bot_reset)
         self.app.router.add_post("/api/bots/{bot_id}/close/{token}",
                                  self._handle_bot_close_position)
+        self.app.router.add_post("/api/bots/{bot_id}/reset-daily",
+                                 self._handle_bot_reset_daily)
         self.app.router.add_get("/api/champion_proposal",     self._handle_champion_proposal)
 
     # ── Public API ──────────────────────────────────────────────────────────
@@ -4294,6 +4296,30 @@ class WebDashboard:
         except Exception as e:
             return web.json_response({"ok": False, "error": str(e)},
                                      status=500, headers=cors)
+
+    async def _handle_bot_reset_daily(self, request):
+        """POST /api/bots/{bot_id}/reset-daily — zero ONLY today's daily-loss
+        budget + stamp reset_after_iso (so the boot re-derive won't re-pull
+        pre-reset trades). Does NOT touch realized P&L or open positions.
+        Built 2026-06-13 to unblock the chameleon whose floor was consumed by
+        pre-experiment default-geometry trades."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        bot_id = request.match_info["bot_id"]
+        scanner = self._find_scanner_with_bot(bot_id)
+        if scanner is None:
+            return web.json_response({"ok": False, "error": f"bot {bot_id} not live"},
+                                     status=404, headers=cors)
+        cap = scanner.bot_capitals.get(bot_id)
+        if cap is None:
+            return web.json_response({"ok": False, "error": "no capital for bot"},
+                                     status=404, headers=cors)
+        before = cap.daily_pnl_usd
+        cap.reset_daily()
+        scanner._save_bot_state(bot_id)
+        self.add_alert(f"reset-daily {bot_id}: daily_pnl {before:+.2f} -> 0.00")
+        return web.json_response({"ok": True, "bot_id": bot_id,
+                                  "daily_pnl_before": round(before, 2),
+                                  "reset_after_iso": cap.reset_after_iso}, headers=cors)
 
     async def _handle_bot_reset(self, request):
         """POST /api/bots/{bot_id}/reset — FULL re-baseline: flatten open
