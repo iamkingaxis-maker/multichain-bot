@@ -2272,6 +2272,8 @@ class WebDashboard:
         self.app.router.add_get("/api/axiom-kol-probe",       self._handle_axiom_kol_probe)
         self.app.router.add_get("/api/axiom-kol-trades",      self._handle_axiom_kol_trades)
         self.app.router.add_post("/api/bots/{bot_id}/reset",  self._handle_bot_reset)
+        self.app.router.add_post("/api/bots/{bot_id}/close/{token}",
+                                 self._handle_bot_close_position)
         self.app.router.add_get("/api/champion_proposal",     self._handle_champion_proposal)
 
     # ── Public API ──────────────────────────────────────────────────────────
@@ -4255,6 +4257,43 @@ class WebDashboard:
             if bot_id in (getattr(s, "bot_position_managers", {}) or {}):
                 return s
         return None
+
+    async def _handle_bot_close_position(self, request):
+        """POST /api/bots/{bot_id}/close/{token} — manually close ONE of a
+        bot's open positions at the current market price (paper). Built
+        2026-06-13 (AxiS: force-close the chameleon's last grandfathered
+        position so the conviction tune can apply). Uses the same exit path
+        as every organic sell (slippage fill, tombstones, attribution)."""
+        import types as _types
+        cors = {"Access-Control-Allow-Origin": "*"}
+        bot_id = request.match_info["bot_id"]
+        token = request.match_info["token"]
+        scanner = self._find_scanner_with_bot(bot_id)
+        if scanner is None:
+            return web.json_response({"ok": False, "error": f"bot {bot_id} not live"},
+                                     status=404, headers=cors)
+        pm = scanner.bot_position_managers[bot_id]
+        pos = pm.get_position(token)
+        if pos is None:
+            return web.json_response({"ok": False, "error": f"no open {token} for {bot_id}"},
+                                     status=404, headers=cors)
+        price = await scanner._get_current_price_for(
+            token, address=getattr(pos, "address", "") or "",
+            pair_address=getattr(pos, "pair_address", "") or "")
+        if not price or price <= 0:
+            return web.json_response({"ok": False, "error": "no current price; retry"},
+                                     status=502, headers=cors)
+        decision = _types.SimpleNamespace(
+            reason="manual sell (dashboard force-close)", kind="MANUAL",
+            sell_fraction=1.0)
+        try:
+            await scanner._execute_bot_sell(bot_id, token, decision, price, time.time())
+            self.add_alert(f"Manual force-close: {bot_id} {token} @ {price:.6g}")
+            return web.json_response({"ok": True, "bot_id": bot_id, "token": token,
+                                      "price": price}, headers=cors)
+        except Exception as e:
+            return web.json_response({"ok": False, "error": str(e)},
+                                     status=500, headers=cors)
 
     async def _handle_bot_reset(self, request):
         """POST /api/bots/{bot_id}/reset — FULL re-baseline: flatten open

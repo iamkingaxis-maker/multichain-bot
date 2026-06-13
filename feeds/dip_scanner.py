@@ -1719,7 +1719,18 @@ class DipScanner:
                             # flat $3.6M-liq token) is deferred until the next
                             # cycle corroborates it, so it can't trip every bot's
                             # hard stop at a phantom price. Real crashes confirm.
-                            priced[pkey] = guarded_exit_price(
+                            # OFF-LOOP (2026-06-13 stall fix): the guard's
+                            # corroboration callbacks (_recent_high/low_sync,
+                            # _second_source) are SYNC curl_cffi fetches with
+                            # 2.5s timeouts. A rug wave = many suspect drops =
+                            # several blocking GT calls per cycle = the 3-30s
+                            # API stalls observed 4x on 06-12 evening. Run the
+                            # whole guard (callbacks included) in a worker
+                            # thread; the await serializes calls (one guard
+                            # thread at a time -> no races on the guard dict),
+                            # and the event loop stays free to serve the API.
+                            priced[pkey] = await asyncio.to_thread(
+                                guarded_exit_price,
                                 self._exit_price_guard, pkey, raw,
                                 confirm_fn=(
                                     lambda a=position.address: self._second_source_price_sync(a)
