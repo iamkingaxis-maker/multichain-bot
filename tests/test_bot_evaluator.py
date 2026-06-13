@@ -59,6 +59,23 @@ def test_rug_gate_enforce_blocks_and_shadow_off_do_not(monkeypatch):
     assert ev._rug_gate_blocks(rug) is True
 
 
+def test_rug_gate_young_probe_exempt_from_zero_buyers(monkeypatch):
+    """young_token_probe bots buy fresh (<2h) tokens BEFORE buyers accumulate,
+    so unique_buyers_n==0 is the expected entry state, not a no-demand rug.
+    Exempt them from THAT branch only — lp_single_sided still applies."""
+    monkeypatch.setenv("RUG_GATE_MODE", "enforce")
+    young = BotEvaluator(_cfg(young_token_probe=True))
+    prod = BotEvaluator(_cfg())  # young_token_probe defaults False
+    no_buyers = _bundle(raw_meta={"unique_buyers_n": 0})
+    one_sided = _bundle(raw_meta={"lp_single_sided": True, "unique_buyers_n": 0})
+    # young probe: NOT blocked by zero buyers (the silence bug fix)...
+    assert young._rug_gate_blocks(no_buyers) is False
+    # ...but STILL blocked by a one-sided LP (real rug signature)
+    assert young._rug_gate_blocks(one_sided) is True
+    # production bot: zero buyers still blocks (no regression)
+    assert prod._rug_gate_blocks(no_buyers) is True
+
+
 def test_rug_gate_default_enforce_blocks_via_evaluate(monkeypatch):
     monkeypatch.delenv("RUG_GATE_MODE", raising=False)  # default enforce
     ev = BotEvaluator(_cfg(triggers_allowed=("vol_breakout",)))

@@ -172,7 +172,8 @@ def _entry_stack_prune_on() -> bool:
         not in ("off", "0", "false")
 
 
-def _rug_structure_blocks(b: FeatureBundle) -> tuple[bool, str]:
+def _rug_structure_blocks(b: FeatureBundle,
+                          allow_zero_buyers: bool = False) -> tuple[bool, str]:
     """Fleet-wide catastrophic-rug guard (2026-06-08). The STANDARD rug
     fundamentals (rugcheck_score, lp_locked_pct, lp_burned) do NOT catch the
     single-sided / no-demand rug: the GO -99.95% LP-pull (38s after entry) had a
@@ -182,12 +183,20 @@ def _rug_structure_blocks(b: FeatureBundle) -> tuple[bool, str]:
     across weeks of fleet history: `lp_single_sided OR unique_buyers_n==0` catches
     5/6 rugs (83%, incl GO) for ~5% survivor-kill — and those survivors are
     low-quality no-demand entries anyway. Fail-OPEN when both features are missing
-    (coverage-safe). See the rug-separation analysis 2026-06-08."""
+    (coverage-safe). See the rug-separation analysis 2026-06-08.
+
+    `allow_zero_buyers` exempts the unique_buyers_n==0 branch ONLY (2026-06-13):
+    for young_token_probe bots the thesis is buying fresh (<2h) tokens BEFORE
+    buyers accumulate, so 0 unique buyers is the EXPECTED entry state, not a
+    no-demand rug. This silenced the entire young family in enforce mode once
+    unique_buyers_n began populating 0 for fresh tokens. lp_single_sided (the
+    real one-sided-LP rug signature that caught GO) still applies to every bot."""
     ss = b.raw_meta.get("lp_single_sided")
     ub = b.raw_meta.get("unique_buyers_n")
     if ss is True:
         return True, "lp_single_sided=True (one-sided LP)"
-    if isinstance(ub, (int, float)) and not isinstance(ub, bool) and ub == 0:
+    if (not allow_zero_buyers and isinstance(ub, (int, float))
+            and not isinstance(ub, bool) and ub == 0):
         return True, "unique_buyers_n=0 (no real buyers)"
     return False, ""
 
@@ -461,7 +470,8 @@ class BotEvaluator:
         mode = _rug_gate_mode()
         if mode == "off":
             return False
-        blocked, why = _rug_structure_blocks(b)
+        allow_zero_buyers = bool(getattr(self.config, "young_token_probe", False))
+        blocked, why = _rug_structure_blocks(b, allow_zero_buyers=allow_zero_buyers)
         if not blocked:
             return False
         enforced = (mode == "enforce")
