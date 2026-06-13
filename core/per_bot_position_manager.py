@@ -772,8 +772,10 @@ class PerBotPositionManager:
                 sell_fraction=self.config.tp2_sell_fraction,
             ))
 
-        # 6. Post-TP1 trail
-        if p.tp1_hit and not decisions:
+        # 6. Post-TP1 trail (skip when trail_pp is None — e.g. probe_swing, a swing
+        # bot that exits via time_stop/tp2, not a trailing stop. A None trail_pp
+        # crashed the tick with `float - NoneType` here once a position hit TP1.)
+        if p.tp1_hit and not decisions and self.config.trail_pp is not None:
             trail_threshold = p.peak_pnl_pct - self.config.trail_pp
             if pnl_pct <= trail_threshold:
                 decisions.append(ExitDecision(

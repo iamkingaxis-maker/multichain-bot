@@ -202,6 +202,20 @@ def test_tick_emits_post_tp1_trail_when_pulled_back_pp():
     assert any(d.kind == "POST_TP1_TRAIL" for d in decisions)
 
 
+def test_tick_post_tp1_trail_skipped_when_trail_pp_none():
+    # probe_swing has trail_pp=None (a swing bot that exits via time_stop/tp2, not a
+    # trailing stop). The post-TP1 trail must SKIP, not crash with `float - NoneType`
+    # once a position hits TP1 (the 2026-06-13 probe_swing/TinyWorld tick bug).
+    pm = PerBotPositionManager(_cfg(tp1_pct=5.0, trail_pp=None))
+    pm.open_position("TINY", 0.001, 20.0, entry_time=1.0)
+    pm.tick(token="TINY", current_price=0.0011, now=2.0)        # +10% -> TP1 hit
+    assert pm.get_position("TINY").tp1_hit is True
+    # a pullback that WOULD arm the trail if trail_pp were set: must not raise, and
+    # must emit no POST_TP1_TRAIL (no trailing stop configured for this bot).
+    decisions = pm.tick(token="TINY", current_price=0.00106, now=3.0)
+    assert not any(d.kind == "POST_TP1_TRAIL" for d in decisions)
+
+
 def test_tick_no_decision_when_within_normal_band():
     pm = PerBotPositionManager(_cfg())
     pm.open_position("SQUIRE", 0.001, 20.0, entry_time=1.0)
