@@ -116,6 +116,11 @@ CLAMPS = {
 }
 AGE_COVERAGE_MIN = 0.5
 
+# Copy stop-floor (2026-06-13): a single copy can't hold through deep drawdowns
+# like a diversified wallet; cap worst-case per-trade loss no looser than this,
+# overriding an archetype's loose stop. Only bites the deep-loss tail.
+COPY_STOP_FLOOR = -25.0
+
 # Slow styles (swing/thesis: holds >= this) barely register on the 6h board
 # because episodes score at CLOSE — qualify them off the 24h window instead
 # (gap #3: the sensor must not structurally favor fast metas).
@@ -141,12 +146,23 @@ def tune_from_geometry(geo: dict) -> Optional[dict]:
         if not hold or not win or win <= 0:
             return None
         loss = geo.get("med_loss_pct")
+        _stop = _clamp("hard_stop_pct",
+                       (loss * 1.2) if isinstance(loss, (int, float)) and loss < 0
+                       else -60.0)
+        # COPY STOP-FLOOR (2026-06-13 watch, evidence-based, pre-committed): a
+        # single $50 copy can't ride a deep drawdown to recovery the way the
+        # diversified thesis-holder WALLET can — two deep losses materialized
+        # (-41%, -39%) where the archetype's loose -60% stop let losers run past
+        # what the time-box cut. Cap the copy's worst-case per-trade loss at
+        # COPY_STOP_FLOOR. Regime-AGNOSTIC (copies gap deep on any tape) and
+        # well-targeted: normal losses (-13..-24%) exit before -25% on their own,
+        # so this only bites the deep tail. (The TP-side under-capture is held —
+        # that one is regime-conditional, pending a choppy test.)
+        _stop = max(COPY_STOP_FLOOR, _stop)
         tune = {
             "time_stop_minutes": _clamp("time_stop_minutes", hold / 60.0),
             "tp1_pct": _clamp("tp1_pct", win),
-            "hard_stop_pct": _clamp("hard_stop_pct",
-                                    (loss * 1.2) if isinstance(loss, (int, float)) and loss < 0
-                                    else -60.0),
+            "hard_stop_pct": _stop,
         }
         # POND: tune the age ceiling to ~2x the archetype's p75 entry age,
         # only when enough of its episodes could be age-placed.

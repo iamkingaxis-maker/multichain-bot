@@ -48,13 +48,24 @@ GEO = {"n": 12, "wr": 0.75, "med_win_pct": 35.0, "med_loss_pct": -28.0,
 
 
 def test_tune_from_geometry_and_clamps():
+    # GEO med_loss -28 -> 1.2*-28=-33.6 -> copy-stop-floor caps at -25 (2026-06-13)
     t = ch.tune_from_geometry(GEO)
-    assert t == {"time_stop_minutes": 90.0, "tp1_pct": 35.0, "hard_stop_pct": -33.6}
+    assert t == {"time_stop_minutes": 90.0, "tp1_pct": 35.0, "hard_stop_pct": -25.0}
     wild = {"med_win_pct": 400.0, "med_loss_pct": -95.0, "p75_hold_secs": 10 * 86400}
     t = ch.tune_from_geometry(wild)
     assert t["tp1_pct"] == 60.0 and t["time_stop_minutes"] == 780.0
-    assert t["hard_stop_pct"] == -60.0
+    assert t["hard_stop_pct"] == -25.0   # -114 clamped to -60 then floored to -25
     assert ch.tune_from_geometry({"med_win_pct": None, "p75_hold_secs": None}) is None
+
+
+def test_copy_stop_floor_only_bites_deep_tail():
+    # a SHALLOW archetype stop (tight) is untouched; only the deep/loose stop is floored
+    mid = {"med_win_pct": 12.0, "med_loss_pct": -15.0, "p75_hold_secs": 1200}  # 1.2*-15=-18
+    assert ch.tune_from_geometry(mid)["hard_stop_pct"] == -18.0   # in (-25,-10), untouched
+    deep = {"med_win_pct": 12.0, "med_loss_pct": -50.0, "p75_hold_secs": 1200}     # 1.2*-50=-60
+    assert ch.tune_from_geometry(deep)["hard_stop_pct"] == -25.0     # floored
+    none_loss = {"med_win_pct": 12.0, "med_loss_pct": None, "p75_hold_secs": 1200}  # -60 default
+    assert ch.tune_from_geometry(none_loss)["hard_stop_pct"] == -25.0
 
 
 def test_retune_applies_on_flat_book(monkeypatch, tmp_path):
@@ -64,7 +75,7 @@ def test_retune_applies_on_flat_book(monkeypatch, tmp_path):
     ch.maybe_retune(_scanner(_pm(cfg, 0)), now=time.time())
     assert cfg.time_stop_minutes == 90.0
     assert cfg.tp1_pct == 35.0
-    assert cfg.hard_stop_pct == -33.6
+    assert cfg.hard_stop_pct == -25.0   # copy-stop-floor (was -33.6 pre-2026-06-13)
     st = json.load(open(str(tmp_path / "tune.json")))
     assert st["meta_chameleon"]["archetype"] == "timebox"
 
