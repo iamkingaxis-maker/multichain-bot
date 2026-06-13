@@ -161,3 +161,60 @@ def test_auto_sweep_usd_peg_recomputes_floor():
     d = auto_sweep_decision(12.0, 100.0, 1000.0, 0.05, 5.0)
     assert d["should_sweep"] is True and abs(d["floor_sol"] - 10.0) < 1e-6
     assert abs(d["sweepable_sol"] - 1.95) < 1e-6
+
+
+# ── flaw-fix guards/knobs (2026-06-13, AxiS "all of them") ──────────────────────
+def test_sol_floor_override_banks_pure_sol_no_usd_leak():
+    # #3: SOL-native floor used directly; USD floor ignored. Keep 5 SOL, bal 8 -> sweep ~3.
+    d = auto_sweep_decision(8.0, 200.0, floor_usd=99999.0, gas_buffer_sol=0.0,
+                            min_increment_usd_v=5.0, floor_sol_override=5.0)
+    assert d["should_sweep"] is True
+    assert abs(d["sweepable_sol"] - 3.0) < 1e-6
+    assert abs(d["floor_sol"] - 5.0) < 1e-9   # not floor_usd/price
+
+
+def test_below_floor_flag_set_when_capital_depleted():
+    # #2: balance below the (USD) floor -> below_floor True, no sweep.
+    d = auto_sweep_decision(2.0, 200.0, 1000.0, 0.05, 5.0)  # floor=5 SOL, bal=2
+    assert d["below_floor"] is True
+    assert d["should_sweep"] is False
+
+
+def test_floor_below_min_sanity_refused():
+    # #6: floor under the configured sanity minimum -> refuse.
+    d = auto_sweep_decision(10.0, 200.0, 50.0, 0.05, 5.0, min_floor_usd_v=500.0)
+    assert d["should_sweep"] is False and d["reason"] == "floor_below_min_sanity"
+
+
+def test_floor_drop_from_hwm_refused():
+    # #6: floor (200) far below its high-water (2000) -> fat-finger guard fires.
+    d = auto_sweep_decision(50.0, 200.0, 200.0, 0.05, 5.0, floor_hwm_usd=2000.0,
+                            floor_drop_frac=0.5)
+    assert d["should_sweep"] is False and d["reason"] == "floor_dropped_suspicious"
+    # within tolerance (floor 1500 vs hwm 2000) -> allowed
+    d2 = auto_sweep_decision(50.0, 200.0, 1500.0, 0.05, 5.0, floor_hwm_usd=2000.0,
+                             floor_drop_frac=0.5)
+    assert d2["should_sweep"] is True
+
+
+def test_max_per_sweep_clamp():
+    # #6: a single sweep is clamped to the per-sweep cap (blast-radius bound).
+    d = auto_sweep_decision(100.0, 200.0, 1000.0, 0.05, 5.0, max_per_sweep_usd_v=500.0)
+    assert d["clamped"] is True
+    assert abs(d["sweepable_usd"] - 500.0) < 1e-6
+    assert abs(d["sweepable_sol"] - 2.5) < 1e-6   # 500/200
+
+
+def test_opportunistic_flag():
+    # #5: flagged when the sweep clears the opportunistic threshold.
+    big = auto_sweep_decision(20.0, 200.0, 1000.0, 0.05, 5.0, opportunistic_usd_v=200.0)
+    assert big["opportunistic"] is True          # ~$1990 swept >> $200
+    # bal 5.30 SOL: floor 5 + gas 0.05 -> 0.25 SOL swept = $50 (>$5 incr, <$200 opp)
+    small = auto_sweep_decision(5.30, 200.0, 1000.0, 0.05, 5.0, opportunistic_usd_v=200.0)
+    assert small["should_sweep"] is True and small["opportunistic"] is False
+
+
+def test_backward_compat_existing_signature_unchanged():
+    # the original 5-arg call still works exactly as before (no regressions).
+    d = auto_sweep_decision(10.0, 200.0, 1000.0, 0.05, 5.0)
+    assert d["should_sweep"] is True and "below_floor" in d

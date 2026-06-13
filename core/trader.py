@@ -3133,9 +3133,15 @@ class Trader:
         if not _ps.enabled():
             return
         now = _time.monotonic()
-        if (now - getattr(self, "_last_sweep_ts", 0.0)) < _ps.min_interval_secs():
+        # #5 opportunistic (2026-06-13): a big realized win can be banked between
+        # hourly sweeps to shrink the giveback window. The cheaper check-interval
+        # gates RPC; the full sweep still fires hourly. opp=0 -> hourly-only (unchanged).
+        _opp = _ps.opportunistic_usd()
+        _full_due = (now - getattr(self, "_last_sweep_ts", 0.0)) >= _ps.min_interval_secs()
+        _check_due = (now - getattr(self, "_last_sweep_check_ts", 0.0)) >= _ps.check_interval_secs()
+        if not _full_due and not (_opp > 0 and _check_due):
             return
-        self._last_sweep_ts = now  # claim the interval before work (avoid RPC churn)
+        self._last_sweep_check_ts = now
         try:
             dest = _os.environ.get("PROFIT_WALLET_ADDRESS", "")
             hot = self._get_public_key()
@@ -3147,15 +3153,43 @@ class Trader:
             if not isinstance(bal, (int, float)) or bal < 0:
                 return
             floor_usd = _ps.working_floor_usd()
-            d = _ps.auto_sweep_decision(bal, price, floor_usd, _ps.gas_buffer_sol(),
-                                        _ps.min_increment_usd())
+            # #6 floor high-water (persisted): track the highest floor ever configured
+            # so a later fat-finger DROP (2000->200) is refused by the decision.
+            _fhwm = max(float(getattr(self, "_floor_hwm_usd", 0.0) or 0.0), float(floor_usd or 0.0))
+            self._floor_hwm_usd = _fhwm
+            _floor_sol_ovr = _ps.floor_sol() or None  # #3 SOL-native floor if set
+            d = _ps.auto_sweep_decision(
+                bal, price, floor_usd, _ps.gas_buffer_sol(), _ps.min_increment_usd(),
+                floor_sol_override=_floor_sol_ovr, floor_hwm_usd=_fhwm)
+            # #2 sub-floor alert (no silent throughput decay): the hot wallet has
+            # dropped BELOW the working floor — banked profit is in cold and won't
+            # auto-replenish. Loud, once per interval.
+            if d.get("below_floor"):
+                logger.critical(f"[Sweep] SUB-FLOOR: hot balance {bal:.4f} SOL below "
+                                f"working floor ${floor_usd:.0f} — throughput reduced; "
+                                f"manual re-fund needed (swept profit is in cold).")
             if not d.get("should_sweep"):
                 logger.info(f"[Sweep] AUTO no-op: {d.get('reason')} "
                             f"(bal={bal:.4f} SOL, floor=${floor_usd:.0f})")
                 return
+            # If only the opportunistic path is due (not the full hourly), require the
+            # opportunistic flag — else wait for the hourly fire.
+            if not _full_due and not d.get("opportunistic"):
+                return
+            self._last_sweep_ts = now  # claim the hourly interval now that we'll sweep
             if _ps.dry_run_default():
                 logger.critical(f"[Sweep] AUTO DRY-RUN: would sweep {d['sweepable_sol']:.4f} SOL "
-                                f"(~${d['sweepable_usd']:.2f}) -> {dest} (floor ${floor_usd:.0f})")
+                                f"(~${d['sweepable_usd']:.2f}) -> {dest} (floor ${floor_usd:.0f})"
+                                + ("" if not d.get("opportunistic") else " [opportunistic]")
+                                + ("" if not d.get("clamped") else " [clamped to max-per-sweep]"))
+                return
+            # #1 commingled-wallet ack: a LIVE sweep banks fleet-aggregate profit
+            # from a shared wallet (losers eat winners). Refuse unless the operator
+            # has confirmed the live set is a single isolated config.
+            if not _ps.single_config_ack():
+                logger.critical("[Sweep] AUTO LIVE REFUSED: SWEEP_SINGLE_CONFIG_ACK not set "
+                                "— a commingled live fleet sweep banks net-survival, not a "
+                                "single bot's alpha. Isolate to one live config + set the ack.")
                 return
             logger.critical(f"[Sweep] AUTO sweeping {d['sweepable_sol']:.4f} SOL "
                             f"(~${d['sweepable_usd']:.2f}) -> {dest} (keep ${floor_usd:.0f})")

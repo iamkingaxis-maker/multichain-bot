@@ -69,7 +69,12 @@ def validate_destination(dest: str, hot_addr: str, configured: str) -> bool:
 
 def ratchet_target_sol(realized_pnl_sol: float, profit_hwm_sol: float,
                        total_swept_sol: float, fraction: float) -> tuple[float, float]:
-    """HWM profit ratchet. Returns (new_profit_hwm, sweep_target_sol). Monotonic:
+    """DEPRECATED / DO NOT WIRE (2026-06-13). The realized-HWM ratchet was RETIRED in
+    favor of the fixed-floor policy (auto_sweep_decision) — see memory
+    feedback_sweep_banks_peak_not_net ("NOT the realized-HWM function"). Kept only so
+    its unit tests document the rejected design; nothing in the live path calls it.
+
+    HWM profit ratchet. Returns (new_profit_hwm, sweep_target_sol). Monotonic:
     profit_hwm only rises; target = max(0, fraction*hwm − already_swept)."""
     hwm = max(float(profit_hwm_sol), float(realized_pnl_sol))
     desired = max(0.0, float(fraction)) * hwm
@@ -130,26 +135,118 @@ def min_interval_secs() -> float:
     return _f("SWEEP_MIN_INTERVAL_SECS", 3600.0)
 
 
+# ── flaw-fix knobs (2026-06-13, AxiS "all of them") ─────────────────────────────
+def opportunistic_usd() -> float:
+    # #5 giveback window: bank a BIG realized win immediately (bypassing the
+    # hourly interval) once idle profit clears this. 0 = off (hourly-only, the
+    # current behavior). Closes the intra-hour exposure window for amounts that
+    # matter while small amounts still batch hourly (fee-efficient).
+    return _f("SWEEP_OPPORTUNISTIC_USD", 0.0)
+
+
+def check_interval_secs() -> float:
+    # How often the opportunistic check may run (bounds RPC). Only relevant when
+    # SWEEP_OPPORTUNISTIC_USD > 0. Default 5min.
+    return _f("SWEEP_CHECK_INTERVAL_SECS", 300.0)
+
+
+def min_floor_usd() -> float:
+    # #6 anti-mis-set: reject a floor below this sanity minimum (set it to your
+    # starting capital so a typo to a tiny value can't drain the float). 0 = off.
+    return _f("SWEEP_MIN_FLOOR_USD", 0.0)
+
+
+def max_per_sweep_usd() -> float:
+    # #6 blast-radius cap: clamp any single sweep to this (a mis-set floor then
+    # moves at most this much per fire, loudly, before you catch it). 0 = off.
+    return _f("SWEEP_MAX_PER_SWEEP_USD", 0.0)
+
+
+def floor_drop_guard_frac() -> float:
+    # #6 floor high-water guard: refuse if the configured floor drops below this
+    # fraction of the highest floor ever seen (catches "fat-fingered 2000->200").
+    return _f("SWEEP_FLOOR_DROP_FRAC", 0.5)
+
+
+def single_config_ack() -> bool:
+    # #1 commingled-wallet guard: the sweep banks FLEET-aggregate profit from one
+    # shared hot wallet — a losing live bot draws the balance down and eats a
+    # winning bot's un-swept gains. The only real fix is running ONE live config
+    # so the wallet isn't commingled. A LIVE sweep refuses unless the operator has
+    # set this ack (a deliberate "yes, the live set is a single isolated config").
+    # Dry-run never needs it. See the go-live runbook.
+    return _flag("SWEEP_SINGLE_CONFIG_ACK", "0")
+
+
 def auto_sweep_decision(balance_sol, sol_price, floor_usd, gas_buffer_sol,
-                        min_increment_usd_v) -> dict:
-    """PURE production auto-sweep decision (fixed-floor, USD-pegged): keep `floor_usd`
-    of working capital in the hot wallet, sweep ALL idle SOL above it to cold once the
-    excess clears the min increment. Returns {should_sweep, reason, sweepable_sol,
-    lamports, sweepable_usd, floor_sol}. FAIL-CLOSED: no sweep if the SOL price is
-    implausible or floor_usd<=0 (an unset floor would drain the entire float)."""
+                        min_increment_usd_v, *,
+                        floor_sol_override=None, floor_hwm_usd=None,
+                        min_floor_usd_v=None, max_per_sweep_usd_v=None,
+                        floor_drop_frac=None, opportunistic_usd_v=None) -> dict:
+    """PURE production auto-sweep decision: keep the working-capital floor in the hot
+    wallet, sweep ALL idle SOL above it to cold once the excess clears the min
+    increment. Returns {should_sweep, reason, sweepable_sol, lamports, sweepable_usd,
+    floor_sol, below_floor, opportunistic}. FAIL-CLOSED throughout.
+
+    Flaw-fix params (2026-06-13, all optional/back-compat; None = use env getter or off):
+      floor_sol_override  (#3) SOL-native floor — banks pure SOL alpha, no USD-rate
+                          leak. When set (>0) it OVERRIDES the USD floor.
+      floor_hwm_usd       (#6) highest floor ever configured — refuse if the live
+                          floor dropped below floor_drop_frac of it (fat-finger guard).
+      min_floor_usd_v     (#6) reject a floor below this sanity minimum.
+      max_per_sweep_usd_v (#6) clamp a single sweep to this (blast-radius bound).
+      opportunistic_usd_v (#5) flag the sweep `opportunistic` when it clears this, so
+                          the caller may bank a big win immediately (bypass the interval).
+    """
     if not (isinstance(sol_price, (int, float)) and 30.0 <= sol_price <= 2000.0):
         return {"should_sweep": False, "reason": "implausible_sol_price"}
-    if not floor_usd or floor_usd <= 0:
-        return {"should_sweep": False, "reason": "no_floor_set"}
-    floor_sol = float(floor_usd) / float(sol_price)
+
+    # #3 denomination: a SOL-native floor (if set) is used directly; else USD-pegged.
+    if floor_sol_override and floor_sol_override > 0:
+        floor_sol = float(floor_sol_override)
+        floor_usd_eff = floor_sol * float(sol_price)
+    else:
+        if not floor_usd or floor_usd <= 0:
+            return {"should_sweep": False, "reason": "no_floor_set"}
+        floor_usd_eff = float(floor_usd)
+        floor_sol = floor_usd_eff / float(sol_price)
+
+    # #6 mis-set guards (USD-floor path only; a SOL override is explicit by definition).
+    if floor_sol_override is None or floor_sol_override <= 0:
+        _minf = min_floor_usd() if min_floor_usd_v is None else float(min_floor_usd_v)
+        if _minf > 0 and floor_usd_eff < _minf:
+            return {"should_sweep": False, "reason": "floor_below_min_sanity",
+                    "floor_usd": round(floor_usd_eff, 2), "min_floor_usd": _minf}
+        _frac = floor_drop_guard_frac() if floor_drop_frac is None else float(floor_drop_frac)
+        if (floor_hwm_usd and floor_hwm_usd > 0 and 0 < _frac <= 1
+                and floor_usd_eff < _frac * float(floor_hwm_usd)):
+            return {"should_sweep": False, "reason": "floor_dropped_suspicious",
+                    "floor_usd": round(floor_usd_eff, 2),
+                    "floor_hwm_usd": round(float(floor_hwm_usd), 2)}
+
+    below_floor = float(balance_sol) < floor_sol
     sweepable_sol = compute_sweepable_sol(balance_sol, floor_sol, gas_buffer_sol)
     sweepable_usd = sweepable_sol * float(sol_price)
+
     if sweepable_usd < float(min_increment_usd_v):
         return {"should_sweep": False, "reason": "below_increment",
-                "sweepable_usd": round(sweepable_usd, 2), "floor_sol": round(floor_sol, 6)}
+                "sweepable_usd": round(sweepable_usd, 2), "floor_sol": round(floor_sol, 6),
+                "below_floor": below_floor}
+
+    # #6 blast-radius clamp: a single sweep moves at most max_per_sweep_usd (if set).
+    _cap = max_per_sweep_usd() if max_per_sweep_usd_v is None else float(max_per_sweep_usd_v)
+    clamped = False
+    if _cap and _cap > 0 and sweepable_usd > _cap:
+        sweepable_sol = float(_cap) / float(sol_price)
+        sweepable_usd = float(_cap)
+        clamped = True
+
+    _opp = opportunistic_usd() if opportunistic_usd_v is None else float(opportunistic_usd_v)
     return {"should_sweep": True, "sweepable_sol": round(sweepable_sol, 9),
             "lamports": int(sweepable_sol * LAMPORTS_PER_SOL),
-            "sweepable_usd": round(sweepable_usd, 2), "floor_sol": round(floor_sol, 6)}
+            "sweepable_usd": round(sweepable_usd, 2), "floor_sol": round(floor_sol, 6),
+            "below_floor": below_floor, "clamped": clamped,
+            "opportunistic": bool(_opp and _opp > 0 and sweepable_usd >= _opp)}
 
 
 # ── executor ──────────────────────────────────────────────────────────────────
