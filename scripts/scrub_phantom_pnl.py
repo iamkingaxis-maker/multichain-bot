@@ -62,6 +62,46 @@ def _mark_scrubbed(s: dict) -> None:
     s["phantom_scrubbed"] = True
 
 
+def scrub_legacy_trades_phantoms(data_dir) -> int:
+    """SELF-HEALING scrub for the LEGACY trades.json (2026-06-13). The multi-bot
+    self-heal (scrub_unscrubbed_phantoms) reads ONLY trades_multi.json, but the
+    legacy single-bot path (baseline_v1/scanner/smart_follow via trader.sell)
+    writes phantom records to trades.json — which /api/trades merges in. RAGEGUY
+    (+485,337% = +$242,668) sat there unscrubbed across boots because nothing
+    covered this file. Zero |pnl_pct|>PHANTOM_PCT sell records here too (record
+    only — the legacy risk_manager capital wasn't corrupted in the RAGEGUY case,
+    and the trader.sell glitch-ceiling guard now blocks future ones at the source).
+    Idempotent via phantom_scrubbed; backs up once. Run at boot."""
+    import shutil
+    p = Path(data_dir) / "trades.json"
+    if not p.exists():
+        return 0
+    try:
+        trades = json.loads(p.read_text())
+    except Exception as e:
+        print(f"[legacy_scrub] could not read trades.json: {e} — aborting (safe)")
+        return 0
+    if not isinstance(trades, list):
+        return 0
+    victims = [s for s in trades if isinstance(s, dict) and s.get("type") == "sell"
+               and not s.get("phantom_scrubbed") and _is_phantom(s)]
+    if not victims:
+        return 0
+    backup = p.with_name("trades.json.pre-legacy-scrub")
+    if not backup.exists():
+        try:
+            shutil.copy2(p, backup)
+        except Exception:
+            pass
+    for s in victims:
+        print(f"[legacy_scrub] zeroing phantom {s.get('token')} "
+              f"pnl=${s.get('pnl')} pnl_pct={s.get('pnl_pct')}%")
+        _mark_scrubbed(s)
+    p.write_text(json.dumps(trades))
+    print(f"[legacy_scrub] scrubbed {len(victims)} phantom record(s) in trades.json")
+    return len(victims)
+
+
 def backfill_scrubbed_reasons(data_dir) -> int:
     """Reason-only hygiene backfill for records scrubbed BEFORE _mark_scrubbed
     cleaned the reason (e.g. the Buttcoin record). Touches ONLY the reason string

@@ -48,6 +48,15 @@ JUPITER_ULTRA_EXECUTE_API = f"{_ULTRA_BASE}/ultra/v1/execute"
 SOL_MINT = "So11111111111111111111111111111111111111112"
 USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 
+# Absolute glitch ceiling for the paper-sell sanity guard (2026-06-13): a sell
+# whose price implies a gain beyond this MULTIPLE of entry is a feed glitch, even
+# if a second feed "agrees" (both can read the same bad pair/units — RAGEGUY
+# printed +485,336% = 4,850x and booked +$242,668 because the cross-check trusted
+# the agreement). No position on our hold timescale sustains this; abort the sell
+# (a genuine moonshot re-prices next tick, a glitch reverts). Mirrors the per-bot
+# exit_price_guard's OHLC-high rejection on the legacy path.
+_GLITCH_CEILING_X = 50.0
+
 
 # ── Jupiter Ultra pure helpers (no I/O — unit-tested in tests/test_jupiter_ultra.py) ──
 def build_ultra_order_params(input_mint: str, output_mint: str, amount: int,
@@ -2394,6 +2403,16 @@ class Trader:
                     # a $17M phantom profit corrupting the P&L record.
                     if position.entry_price_usd > 0 and current_price > position.entry_price_usd * 20:
                         _gain_x = current_price / position.entry_price_usd
+                        # ABSOLUTE glitch ceiling: a gain beyond _GLITCH_CEILING_X is a feed
+                        # glitch even if DexScreener agrees (both feeds can read the same bad
+                        # pair/units). This is the RAGEGUY hole — abort unconditionally; do
+                        # NOT let the cross-check below "confirm" an impossible multiple.
+                        if _gain_x > _GLITCH_CEILING_X:
+                            logger.critical(
+                                f"[Trader] ⛔ Paper sell ABORTED (glitch ceiling): {token_symbol} "
+                                f"{_gain_x:.0f}x entry > {_GLITCH_CEILING_X:.0f}x — feed glitch, "
+                                f"skipping sell (no phantom booked)")
+                            return
                         _san_confirmed = False
                         try:
                             dex_url = f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"

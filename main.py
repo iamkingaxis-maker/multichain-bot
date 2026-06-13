@@ -271,6 +271,12 @@ async def main():
         try:
             from scripts.scrub_phantom_pnl import scrub_unscrubbed_phantoms as _phantom_selfheal
             _phantom_selfheal(data_dir=data_dir, low_fn=_ohlc_low_24h)
+            # LEGACY trades.json scrub (2026-06-13): the self-heal above reads only
+            # trades_multi.json; the legacy single-bot path (baseline_v1/scanner/
+            # smart_follow) writes phantoms to trades.json — where RAGEGUY's
+            # +$242,668 sat unscrubbed. Cover that file too.
+            from scripts.scrub_phantom_pnl import scrub_legacy_trades_phantoms as _legacy_scrub
+            _legacy_scrub(data_dir=data_dir)
             # Reason-only hygiene backfill: clean stale reason strings on records
             # scrubbed before the reason-cleaning fix (no pnl change — safe).
             from scripts.scrub_phantom_pnl import backfill_scrubbed_reasons as _phantom_reason_backfill
