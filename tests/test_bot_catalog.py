@@ -33,6 +33,12 @@ def catalog():
                    # meta_chameleon (2026-06-12): the fixed dynamic geometry
                    # bot — $50 sensor-driven probe, not a $20 ablation member.
                    and not c.bot_id.startswith("meta_chameleon")
+                   # wallet-decode entry-signature experiments (2026-06-13): $100-fixed
+                   # A/Bs encoding the C3zPgDxqJ aged-scalper (pool_a_aged_scalper, caught
+                   # by the pool_ prefix) + the DaxfeJKe deep-flush time-box and young-
+                   # momentum lanes — entry-thesis probes, not $20 ablation members.
+                   and c.bot_id != "deepflush_timebox"
+                   and c.bot_id != "young_momo_launch"
                    and c.bot_id != "momentum_shadow"
                    and c.bot_id != "momentum_grad_probe"]
     return reg

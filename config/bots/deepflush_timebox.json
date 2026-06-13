@@ -1,0 +1,71 @@
+{
+  "age_h_min": null,
+  "age_h_max": null,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 100.0,
+  "bot_id": "deepflush_timebox",
+  "btc_macro_h1_block_threshold": null,
+  "daily_loss_limit_usd": 60.0,
+  "display_name": "DEEP-FLUSH TIME-BOX (wallet-decode build B, 2026-06-13): encodes the DaxfeJKe drawdown-winner signature (the 'Dw5' 6-min time-boxer; recurred = hit 2 of the period's runners). Agent-decoded entry: DEEP-FLUSH CAPITULATION buy on micro-liq young tokens — dd90 median -30% (gate -16, deeper passes), vol_spike median 7.5x (gate >=3.0), liq median $22k (admitted via trigger_volume_burst_runner's liq<=$21.3k micro-liq lane), age ~19h. The EDGE IS THE EXIT: it buys the same deep-flush state every time and lets a ~6-min TIME-BOX carry it (dip-depth does NOT separate its own winners from losers; loss-median tight -7.9% because the box caps bleeders). CONFIRMS+EXTENDS our deep-dip edge at a deeper threshold; this is a CAPITULATION-reversal entry (sellers winning + volume burst), the OPPOSITE timing philosophy to bs_m5 demand-confirmation. young_token_probe=true for the rug-gate unique_buyers_n==0 exemption (fresh micro-liq) + young admission; entry_stack_exempt (the stack's age>=24h/mcap>=500k is the structural opposite of this pond). time_stop_minutes=6 IS the mechanism. Forward-judge per-trade % at n>=30; expect low WR + tight losses + fast turnover.",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "shape_90m_drawdown_from_max_pct",
+      "<=",
+      -16.0
+    ],
+    [
+      "1m_volume_spike",
+      ">=",
+      3.0
+    ]
+  ],
+  "entry_stack_exempt": true,
+  "exclusion_pool": "deepflush_timebox",
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_falling_pump",
+    "filter_fusion_floor",
+    "filter_btc_overheat",
+    "filter_wynn_killer",
+    "filter_huge_wick"
+  ],
+  "hard_stop_pct": -12.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 6,
+  "mcap_max": null,
+  "mcap_min": null,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": false,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": null,
+  "premium_runner_multiplier": 1.0,
+  "regime_dial_exempt": true,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": null,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "stall_exit_minutes": null,
+  "time_stop_minutes": 6.0,
+  "tp1_pct": 6.0,
+  "tp1_sell_fraction": 0.8,
+  "tp2_pct": 12.0,
+  "tp2_sell_fraction": 0.2,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
+  "trail_pp": 2.0,
+  "triggers_allowed": [
+    "volume_burst_runner",
+    "deep_1h_dip",
+    "power_dip_runner"
+  ],
+  "triggers_disabled": [],
+  "vol_h1_min": null,
+  "young_token_probe": true
+}
