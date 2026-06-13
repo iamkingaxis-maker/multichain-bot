@@ -56,23 +56,37 @@ EPISODE_MAX_AGE_SECS = 48 * 3600.0
 
 def load_panel(path: str = _PANEL_FILE) -> Dict[str, dict]:
     """Panel file: {address: {archetype, status, source}}. Falls back to
-    bootstrapping from follow_watchlist + follow_cuts if absent."""
+    bootstrapping from follow_watchlist + follow_cuts if absent. The
+    panel-refresher's DATA_DIR overlay (sensor_panel_runtime.json) is merged on
+    TOP so its auto-discovered wallets survive restarts (deploy-amnesia-safe)."""
+    panel: Dict[str, dict] = {}
     try:
         p = json.load(open(path))
         if isinstance(p, dict) and p:
-            return {a: (m if isinstance(m, dict) else {}) for a, m in p.items()}
+            panel = {a: (m if isinstance(m, dict) else {}) for a, m in p.items()}
     except Exception:
         pass
-    panel: Dict[str, dict] = {}
+    if not panel:
+        try:
+            for a in json.load(open(os.path.join("config", "follow_watchlist.json"))):
+                panel[a] = {"archetype": None, "status": "active", "source": "roster"}
+        except Exception:
+            pass
+        try:
+            for a in json.load(open(os.path.join("config", "follow_cuts.json"))):
+                panel.setdefault(a, {"archetype": None, "status": "active",
+                                     "source": "cut-sensor-grade"})
+        except Exception:
+            pass
+    # Merge the panel-refresher overlay (auto-discovered wallets) on TOP so they
+    # persist across redeploys (the repo file is the curated base; the overlay is
+    # the live, self-healing additions).
     try:
-        for a in json.load(open(os.path.join("config", "follow_watchlist.json"))):
-            panel[a] = {"archetype": None, "status": "active", "source": "roster"}
-    except Exception:
-        pass
-    try:
-        for a in json.load(open(os.path.join("config", "follow_cuts.json"))):
-            panel.setdefault(a, {"archetype": None, "status": "active",
-                                 "source": "cut-sensor-grade"})
+        _ov = os.path.join(os.environ.get("DATA_DIR", "."), "sensor_panel_runtime.json")
+        with open(_ov) as _f:
+            for _a, _m in (json.load(_f) or {}).items():
+                if isinstance(_m, dict):
+                    panel[_a] = _m
     except Exception:
         pass
     return panel

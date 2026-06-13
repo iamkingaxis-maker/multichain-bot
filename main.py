@@ -709,6 +709,23 @@ async def main():
                   sol_smart_follow.run(), wallet_discovery.run(), _get_attn().run(),
                   pumpportal.run()]
 
+        # Autonomous sensor-panel refresher (2026-06-13, Design A2): keeps every
+        # wearable archetype stocked with fresh ACTIVE wallets from the runner-buyer
+        # discovery feed, so the chameleon never idles for lack of >=2-wallet
+        # consensus (panel wallets rotate out -> archetypes thin without
+        # replenishment). Paper-only (sensor -> chameleon). Self-gates to ~1.5h.
+        async def _panel_refresh_loop():
+            from core import panel_refresher as _pr
+            import time as _t
+            while True:
+                await asyncio.sleep(600)  # 10min cadence; maybe_refresh_panel self-gates
+                try:
+                    await _pr.maybe_refresh_panel(meta_sensor, wallet_discovery,
+                                                  config.solana_rpc_url, _t.time())
+                except Exception as _e:
+                    logger.error(f"[PanelRefresh] loop error: {_e}")
+        tasks.append(_panel_refresh_loop())
+
         dashboard.register_strategies(
             scanner=sol_scanner,
             scalper=sol_scalper,
