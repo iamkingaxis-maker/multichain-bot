@@ -58,6 +58,17 @@ def test_tune_from_geometry_and_clamps():
     assert ch.tune_from_geometry({"med_win_pct": None, "p75_hold_secs": None}) is None
 
 
+def test_copy_stop_floor_enforced_on_apply_of_persisted_loose_tune():
+    # a persisted/overlay tune with a loose -60 stop must be floored when APPLIED
+    # (the boot-overlay path bypasses tune_from_geometry).
+    cfg = _cfg()
+    ch._apply(cfg, {"time_stop_minutes": 90.0, "tp1_pct": 11.0, "hard_stop_pct": -60.0})
+    assert cfg.hard_stop_pct == -25.0
+    # a tighter stop is untouched
+    ch._apply(cfg, {"hard_stop_pct": -12.0})
+    assert cfg.hard_stop_pct == -12.0
+
+
 def test_copy_stop_floor_only_bites_deep_tail():
     # a SHALLOW archetype stop (tight) is untouched; only the deep/loose stop is floored
     mid = {"med_win_pct": 12.0, "med_loss_pct": -15.0, "p75_hold_secs": 1200}  # 1.2*-15=-18

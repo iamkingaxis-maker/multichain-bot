@@ -200,6 +200,13 @@ def _apply(config, tune: dict) -> None:
             gate.append(["entry_age_hours", "<=", float(v)])
             object.__setattr__(config, "entry_gate", tuple(tuple(c) for c in gate))
             continue
+        # COPY STOP-FLOOR enforced at the APPLICATION chokepoint (2026-06-13):
+        # tune_from_geometry floors computed tunes, but a PERSISTED tune restored
+        # by the boot overlay (or a pending tune) bypasses that path — so the
+        # worn config could still carry a loose stop after a restart. Clamp here
+        # so EVERY application (fresh/overlay/pending) caps the copy's loss.
+        if k == "hard_stop_pct" and isinstance(v, (int, float)):
+            v = max(COPY_STOP_FLOOR, float(v))
         object.__setattr__(config, k, v)
 
 
