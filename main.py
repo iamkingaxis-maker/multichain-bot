@@ -154,6 +154,38 @@ async def main():
     logger.info("  Solana Memecoin Bot v7 — Trader Calibrated")
     logger.info("=" * 60)
 
+    # ── EVENT-LOOP HEALTH (2026-06-13 stall fix) ────────────────────────────
+    # aiodns is not installed, so aiohttp's ThreadedResolver runs EVERY DNS
+    # lookup on the loop's DEFAULT executor (run_in_executor(None, ...)). The
+    # Python default is ~min(32, cpu+4) = ~6 workers on this box, shared with
+    # all asyncio.to_thread sync-curl calls. Under a rug wave the curl calls
+    # saturated it and DNS (hence every outbound connection + the WS reconnect)
+    # queued behind them, stalling the API ~30s. Give DNS + misc to_thread work
+    # a large dedicated pool so it can never be starved by sync fetches.
+    try:
+        import asyncio as _aio
+        from concurrent.futures import ThreadPoolExecutor as _TPE
+        _aio.get_running_loop().set_default_executor(
+            _TPE(max_workers=48, thread_name_prefix="loop-default"))
+        logger.info("[main] default executor -> 48 workers (DNS/to_thread headroom)")
+    except Exception as _e:
+        logger.warning(f"[main] could not enlarge default executor: {_e}")
+
+    # Loop-lag monitor: measure asyncio scheduling delay. If a coroutine blocks
+    # the loop, a 1s sleep takes much longer; log it WITH the lag so the next
+    # stall is MEASURED, not theorized (the v1 fix shipped without this and was
+    # wrong). Pure diagnostic; ~zero cost.
+    async def _loop_lag_monitor():
+        import asyncio as _a, time as _t
+        while True:
+            t0 = _t.monotonic()
+            await _a.sleep(1.0)
+            lag = _t.monotonic() - t0 - 1.0
+            if lag > 2.0:
+                logger.warning("[loop-lag] event loop blocked ~%.1fs (sync work on "
+                               "the loop or executor starvation)", lag)
+    asyncio.ensure_future(_loop_lag_monitor())
+
     config = Config.load()
 
     # ── Multi-Bot Harness startup ────────────────────────────────────────

@@ -1719,17 +1719,20 @@ class DipScanner:
                             # flat $3.6M-liq token) is deferred until the next
                             # cycle corroborates it, so it can't trip every bot's
                             # hard stop at a phantom price. Real crashes confirm.
-                            # OFF-LOOP (2026-06-13 stall fix): the guard's
-                            # corroboration callbacks (_recent_high/low_sync,
-                            # _second_source) are SYNC curl_cffi fetches with
-                            # 2.5s timeouts. A rug wave = many suspect drops =
-                            # several blocking GT calls per cycle = the 3-30s
-                            # API stalls observed 4x on 06-12 evening. Run the
-                            # whole guard (callbacks included) in a worker
-                            # thread; the await serializes calls (one guard
-                            # thread at a time -> no races on the guard dict),
-                            # and the event loop stays free to serve the API.
-                            priced[pkey] = await asyncio.to_thread(
+                            # OFF-LOOP, PRIVATE POOL (2026-06-13 stall fix v2):
+                            # the guard's corroboration callbacks (_recent_high/
+                            # low_sync, _second_source) are SYNC curl_cffi fetches.
+                            # v1 used asyncio.to_thread = the DEFAULT executor —
+                            # which aiohttp's ThreadedResolver ALSO uses for every
+                            # DNS lookup (aiodns not installed). During a rug wave
+                            # the guard's curl calls saturated the ~6-worker default
+                            # pool, DNS queued behind them, outbound + inbound
+                            # stalled ~30s. Route through the DS client's PRIVATE
+                            # 4-worker executor (_run_fetch) so guard load never
+                            # touches the DNS pool. await serializes per-token
+                            # (no guard-dict races).
+                            from feeds.dexscreener_client import shared_client
+                            priced[pkey] = await shared_client()._run_fetch(
                                 guarded_exit_price,
                                 self._exit_price_guard, pkey, raw,
                                 confirm_fn=(
