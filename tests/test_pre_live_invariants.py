@@ -288,18 +288,24 @@ def t8():
 
 # ── Live measurement probe invariants (2026-06-02) ──────────────────────────
 
-@_t("No ENABLED bot has live_probe set (live path off by config)")
+@_t("Only the deliberate go-live set carries live_probe (no accidental live bot)")
 def test_no_enabled_live_probe_bot():
-    # FAIL-CLOSED: going live must require a DELIBERATE config enable. Until then,
-    # no bot that is actually in the running fleet (enabled) may have live_probe.
+    # FAIL-CLOSED: going live must require a DELIBERATE config enable. The ONLY
+    # enabled bots permitted to carry live_probe are the explicit go-live set
+    # below. Any OTHER enabled bot with live_probe is an accident that would route
+    # real money. (2026-06-13: badday_flush_conviction added — the validated first
+    # live bot, n=181 / +$2.24/tr paper, fixed small size on a ~$40 float.)
     import glob
     from core.bot_config import BotConfig
+    INTENDED_LIVE = {"badday_flush_conviction"}
     offenders = []
     for p in glob.glob("config/bots/*.json"):
         c = BotConfig.from_json(p)
-        if getattr(c, "live_probe", False) and c.enabled:
+        if (getattr(c, "live_probe", False) and c.enabled
+                and c.bot_id not in INTENDED_LIVE):
             offenders.append(c.bot_id)
-    assert not offenders, f"ENABLED bot(s) with live_probe (would route live!): {offenders}"
+    assert not offenders, (f"ENABLED bot(s) with live_probe outside the go-live set "
+                           f"(would route live!): {offenders}")
 
 
 @_t("Probe configs exist, are dormant, fixed-size, and capped")
