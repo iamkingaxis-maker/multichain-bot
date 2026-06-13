@@ -50,6 +50,18 @@
   "source": "cut-sensor-grade",
   "labeled": "2026-06-12 decode batch (300 sigs)"
  },
+ "DaxfeJKeVyinftwWSV47p8EgiExYBDquRRUCxki3FrEz": {
+  "archetype": "time_boxer",
+  "status": "active",
+  "source": "drawdown-winner-hunt 2026-06-13",
+  "labeled": "Dw5 6-min time-boxer; 100% of losers exit ~6min, recurred (hit 2 drawdown runners). Added to give time_boxer >=2-wallet consensus so the chameleon can wear it instead of standing down."
+ },
+ "G1cnfANoMiT8D25jcascmUwyWXJuaW4o5DFny25GFZ6w": {
+  "archetype": "time_boxer",
+  "status": "active",
+  "source": "drawdown-winner-hunt 2026-06-13",
+  "labeled": "Clean fast time-boxer (2nd, hunted): 6min median hold, 0 open bags (closes everything), 69% WR, tight +8%/-7.8% outcomes (14-token sample). Pairs with DaxfeJKe for real >=3-wallet time_boxer diversity (low top_wallet_share), robust to 2tYcX rotating out like V21GW8 did."
+ },
  "D1aDZDVXJ1sakUevj1ckN96VK69WUWvhXPbpJwVN9F25": {
   "archetype": "conviction",
   "status": "active",
