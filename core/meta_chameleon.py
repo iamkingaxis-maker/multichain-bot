@@ -63,9 +63,37 @@ QUALIFY_N = 8
 HARD_TO_COPY = {"thesis_holder"}
 HARD_TO_COPY_WR = 0.75
 
+# Own-fill veto (2026-06-13 watch): the 0.75 board bar CANNOT detect a tape
+# turn — thesis_holder's panel WR stays ~1.0 (and med_loss_pct=None) because the
+# conviction wallets HOLD through drawdowns to recovery: their closed roundtrips
+# are all wins, their open underwater bags are invisible to the episode model
+# (survivorship). So thesis_holder trivially clears 0.75 even as it bleeds in
+# copy. The chameleon's OWN realized fills are the honest tape detector: on
+# turning tape the $50 copies hit the -25 stop and gap-through to -32/-43%
+# (the TURTLE/ICPX/SOCCERWOJAK cluster, ~-$75 over the last 6). VETO re-wearing a
+# hard-to-copy archetype while its own recent fills are net-negative over
+# >= OWN_FILL_VETO_N closes. Self-resetting: as other-archetype closes accumulate,
+# the bad closes roll out of the 20-deep recent_closes window and the veto lifts
+# — a cooldown that gives the tape time to turn, not a permanent ban. Extends
+# tripwire #1 (own-fills dial) from a 1h ENTRY cooldown into a RE-WEAR veto.
+OWN_FILL_VETO_N = 6
+
 
 def _qualify_wr_for(arch: str) -> float:
     return HARD_TO_COPY_WR if arch in HARD_TO_COPY else QUALIFY_WR
+
+
+def _own_fill_vetoed(rec: dict) -> frozenset:
+    """Hard-to-copy archetypes whose OWN realized copies are net-negative over
+    the last >= OWN_FILL_VETO_N closes — our money says this meta isn't
+    transferring right now. Reversible (recovers as the window rolls forward)."""
+    closes = rec.get("recent_closes") or []
+    vetoed = set()
+    for arch in HARD_TO_COPY:
+        rows = [c for c in closes if c.get("archetype") == arch][-OWN_FILL_VETO_N:]
+        if len(rows) >= OWN_FILL_VETO_N and sum(c.get("net", 0.0) for c in rows) < 0:
+            vetoed.add(arch)
+    return frozenset(vetoed)
 
 # ── Cadence (2026-06-12, AxiS: "6h may be too strict — it's crypto") ─────────
 # Evidence-based, not clock-based: STABILITY needs no reason, CHANGE needs
@@ -241,8 +269,11 @@ def apply_overlay(config) -> None:
             logger.warning("[Chameleon] overlay apply failed for %s: %s", config.bot_id, e)
 
 
-def best_qualifying(sensor, now: float):
+def best_qualifying(sensor, now: float, veto=frozenset()):
     """(archetype, geometry) of the best qualifying 6h archetype, or (None, None).
+
+    `veto` = archetypes to skip (own-fill veto; see _own_fill_vetoed) so the
+    search falls through to the next-best copy-friendly meta.
 
     Qualification = WR/N bar + IDENTITY + CONSENSUS:
       - labeled archetype only ("unlabeled" pools many unrelated styles into
@@ -270,6 +301,8 @@ def best_qualifying(sensor, now: float):
     for arch, row in board.items():
         if arch == "all":
             continue
+        if arch in veto:
+            continue   # own-fill veto: our money rejects this hard-to-copy meta
         # per-archetype WR bar (hard-to-copy archetypes need a higher bar; see HARD_TO_COPY)
         if row.get("n", 0) < QUALIFY_N or row.get("wr", 0) < _qualify_wr_for(arch):
             continue
@@ -356,15 +389,26 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
                                 bot_id, ", forced" if age >= PENDING_FORCE_SECS else "",
                                 pending["tune"], pending["archetype"])
                     continue
-            arch, geo = best_qualifying(sensor, now)
+            veto = _own_fill_vetoed(rec)
+            worn_vetoed = rec.get("archetype") in veto
+            arch, geo = best_qualifying(sensor, now, veto=veto)
             if not arch:
                 continue   # HOLD current tune — never reset mid-day
-            if not _should_retune(now, rec, sensor, arch, geo):
+            # A worn archetype our OWN money is bleeding on (own-fill veto) is a
+            # deterioration signal the survivorship board WR hides. Force the
+            # switch: bypass the _should_retune hold AND the open-book queue
+            # (open positions managing under the new geometry beats compounding
+            # the bleed for up to PENDING_FORCE_SECS).
+            if not worn_vetoed and not _should_retune(now, rec, sensor, arch, geo):
                 continue
             tune = tune_from_geometry(geo)
             if not tune or tune == rec.get("tune"):
                 continue
-            if list(pm.iter_positions()):
+            if worn_vetoed:
+                logger.info("[Chameleon] %s own-fill VETO: worn '%s' recent copies "
+                            "net-negative -> forcing switch to '%s' (bypass queue)",
+                            bot_id, rec.get("archetype"), arch)
+            if list(pm.iter_positions()) and not worn_vetoed:
                 # PRESERVE queued_at across re-queues of the SAME archetype so the
                 # 2h force-apply (PENDING_FORCE_SECS) actually accumulates. (Bug
                 # found 2026-06-13 watch: stamping queued_at=now every cycle reset

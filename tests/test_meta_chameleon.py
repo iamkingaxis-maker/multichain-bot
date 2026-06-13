@@ -433,3 +433,60 @@ def test_qualify_wr_for_helper():
     assert ch._qualify_wr_for("thesis_holder") == 0.75
     assert ch._qualify_wr_for("conviction") == 0.60
     assert ch._qualify_wr_for("surgical") == 0.60
+
+
+# ── Own-fill veto (2026-06-13 watch): the chameleon's OWN money vetoes
+# re-wearing a survivorship-inflated hard-to-copy archetype it's bleeding on ──
+def test_own_fill_vetoed_net_negative():
+    """6 net-negative thesis_holder copies -> our money vetoes re-wearing it."""
+    rec = {"recent_closes": [
+        {"archetype": "thesis_holder", "win": False, "net": -15.0},
+        {"archetype": "thesis_holder", "win": False, "net": -16.0},
+        {"archetype": "thesis_holder", "win": True,  "net": 8.0},
+        {"archetype": "thesis_holder", "win": False, "net": -22.0},
+        {"archetype": "thesis_holder", "win": False, "net": -16.0},
+        {"archetype": "thesis_holder", "win": False, "net": -13.0},
+    ]}
+    assert ch._own_fill_vetoed(rec) == frozenset({"thesis_holder"})
+
+
+def test_own_fill_vetoed_clears_when_net_positive():
+    """Net-positive over the window (good tape) -> NOT vetoed (don't ban it)."""
+    rec = {"recent_closes": [
+        {"archetype": "thesis_holder", "win": True,  "net": 20.0},
+        {"archetype": "thesis_holder", "win": True,  "net": 18.0},
+        {"archetype": "thesis_holder", "win": False, "net": -10.0},
+        {"archetype": "thesis_holder", "win": True,  "net": 15.0},
+        {"archetype": "thesis_holder", "win": True,  "net": 11.0},
+        {"archetype": "thesis_holder", "win": False, "net": -8.0},
+    ]}
+    assert ch._own_fill_vetoed(rec) == frozenset()
+
+
+def test_own_fill_vetoed_needs_min_n():
+    """< OWN_FILL_VETO_N closes -> no verdict yet (no veto on thin evidence)."""
+    rec = {"recent_closes": [{"archetype": "thesis_holder", "win": False, "net": -15.0}] * 5}
+    assert ch._own_fill_vetoed(rec) == frozenset()
+
+
+def test_own_fill_vetoed_only_hard_to_copy():
+    """Copy-friendly archetypes are NOT re-wear-vetoed (the 1h own-fills cooldown
+    + standby gate handle their transient losses); the veto targets the
+    survivorship-inflated hard-to-copy metas only."""
+    rec = {"recent_closes": [{"archetype": "surgical", "win": False, "net": -15.0}] * 8}
+    assert ch._own_fill_vetoed(rec) == frozenset()
+
+
+def test_best_qualifying_respects_veto():
+    """A vetoed hard-to-copy archetype is skipped so the search falls through to
+    the next-best copy-friendly meta — the thesis_holder doom-loop break."""
+    sensor = _RateSensor(
+        {"thesis_holder": {"n": 20, "wr": 0.85}, "surgical": {"n": 12, "wr": 0.65}},
+        {"thesis_holder": dict(GEO, wr=0.85), "surgical": dict(GEO, wr=0.65)})
+    # vetoed -> falls to surgical despite thesis_holder's higher board WR
+    arch, _ = ch.best_qualifying(sensor, now=time.time(),
+                                 veto=frozenset({"thesis_holder"}))
+    assert arch == "surgical"
+    # un-vetoed -> thesis_holder (0.85 clears its 0.75 bar) wins on WR
+    arch2, _ = ch.best_qualifying(sensor, now=time.time())
+    assert arch2 == "thesis_holder"
