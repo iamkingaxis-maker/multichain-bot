@@ -89,8 +89,15 @@ class MetaSensor:
         self._unresolved: deque = deque()
         # per-wallet recent tx signatures (dual-eye dedupe, rolling 128)
         self._sigs: Dict[str, list] = {}
+        # launch registry ref (P2a): the PumpPortal feed's mint->launch_ts dict,
+        # shared by reference so SWEEP-sourced episodes get ages too (the sweep
+        # eye carries no launch_ts of its own).
+        self._launches: Optional[dict] = None
         self._last_persist = 0.0
         self._restore()
+
+    def set_launch_registry(self, launches: dict) -> None:
+        self._launches = launches
         logger.info("[MetaSensor] panel=%d wallets (%d archetyped)",
                     len(self.panel),
                     sum(1 for m in self.panel.values() if m.get("archetype")))
@@ -98,7 +105,8 @@ class MetaSensor:
     # ── ingestion (called from the PumpPortal stream) ─────────────────────
     def ingest(self, wallet: str, mint: str, side: str, sol: float, ts: float,
                launch_ts: Optional[float] = None,
-               signature: Optional[str] = None) -> None:
+               signature: Optional[str] = None,
+               tokens: Optional[float] = None) -> None:
         """One parsed panel-wallet trade. Never raises. ``launch_ts`` (from the
         feed's own launch registry, free) gives token-age-at-entry — the POND
         dimension a meta lives in, not just its exit geometry.
@@ -117,12 +125,15 @@ class MetaSensor:
                     return
                 seen.append(signature)
                 del seen[:-128]
+            if launch_ts is None and self._launches is not None:
+                launch_ts = self._launches.get(mint.lower())
             k = f"{wallet}|{mint.lower()}"
             ep = self._episodes.get(k)
             if ep is None:
                 if side != "buy":
                     return   # sell with no observed buy -> position predates us; skip
                 ep = self._episodes[k] = {"spent": 0.0, "recv": 0.0,
+                                          "tok_in": 0.0, "tok_out": 0.0,
                                           "first_ts": ts, "last_ts": ts,
                                           "sold": False,
                                           "age_h": (round((ts - launch_ts) / 3600.0, 2)
@@ -130,9 +141,13 @@ class MetaSensor:
                                                     else None)}
             if side == "buy":
                 ep["spent"] += float(sol)
+                if isinstance(tokens, (int, float)) and tokens > 0:
+                    ep["tok_in"] = ep.get("tok_in", 0.0) + float(tokens)
             elif side == "sell":
                 ep["recv"] += float(sol)
                 ep["sold"] = True
+                if isinstance(tokens, (int, float)) and tokens > 0:
+                    ep["tok_out"] = ep.get("tok_out", 0.0) + float(tokens)
             ep["last_ts"] = ts
             self._finalize_idle(ts)
             if ts - self._last_persist > _PERSIST_EVERY_SECS:
@@ -140,9 +155,24 @@ class MetaSensor:
         except Exception as e:
             logger.debug("[MetaSensor] ingest error: %s", e)
 
+    @staticmethod
+    def _fully_exited(ep: dict) -> bool:
+        """Partial-exit guard (P1b, 2026-06-12): score an episode only when
+        the wallet has actually sold ~all of it. A scale-out style (sells half
+        at 2x, holds the rest) previously idle-closed at ~0% ret — making
+        exactly the styles we respect most look systematically worse. When
+        token amounts are unknown on either side, fall back to the legacy
+        sold-then-idle convention (coverage-safe)."""
+        tok_in = ep.get("tok_in") or 0.0
+        tok_out = ep.get("tok_out") or 0.0
+        if tok_in <= 0 or tok_out <= 0:
+            return True   # token amounts unknown -> legacy behavior
+        return tok_out >= 0.9 * tok_in
+
     def _finalize_idle(self, now: float) -> None:
         done = [k for k, ep in self._episodes.items()
-                if ep["sold"] and now - ep["last_ts"] > EPISODE_IDLE_SECS]
+                if ep["sold"] and now - ep["last_ts"] > EPISODE_IDLE_SECS
+                and self._fully_exited(ep)]
         for k in done:
             ep = self._episodes.pop(k)
             if ep["spent"] <= 0:
@@ -153,11 +183,12 @@ class MetaSensor:
             hold = max(0.0, ep["last_ts"] - ep.get("first_ts", ep["last_ts"]))
             self._scores.append((ep["last_ts"], wallet, arch, ret, hold,
                                  ep.get("age_h")))
-        # survivorship guard: expire sell-less episodes past max age into the
-        # `unresolved` health counter (never into the WR — mark unknown).
+        # survivorship guard: expire episodes past max age that never reached
+        # a scoreable state (no sell at all, OR partial-exit never finished)
+        # into the `unresolved` health counter (never into the WR).
         stale = [k for k, ep in self._episodes.items()
-                 if not ep["sold"]
-                 and now - ep.get("first_ts", ep["last_ts"]) > EPISODE_MAX_AGE_SECS]
+                 if now - ep.get("first_ts", ep["last_ts"]) > EPISODE_MAX_AGE_SECS
+                 and (not ep["sold"] or not self._fully_exited(ep))]
         for k in stale:
             self._episodes.pop(k)
             wallet = k.split("|", 1)[0]

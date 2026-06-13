@@ -274,9 +274,9 @@ class SmartMoneyFollowStrategy:
                 if sol_delta is None:
                     continue
                 if delta > 0 and sol_delta < 0:          # BUY: token up, SOL spent
-                    out.append((mint, bt, "buy", -sol_delta, sig))
+                    out.append((mint, bt, "buy", -sol_delta, sig, delta))
                 elif delta < 0 and sol_delta > 0:        # SELL: token down, SOL received
-                    out.append((mint, bt, "sell", sol_delta, sig))
+                    out.append((mint, bt, "sell", sol_delta, sig, -delta))
         if new:
             self._seen[wallet] = set(list(seen)[-32:] + new)
         return out
@@ -525,6 +525,11 @@ class SmartMoneyFollowStrategy:
     async def run(self):
         logger.info("[SmartFollow] starting run loop")
         asyncio.ensure_future(self._ws_watch())
+        # Sensor-extras sweep: its OWN task + cadence (P1a, 2026-06-12). The
+        # sensor wallets are measurement instruments, not follow triggers —
+        # they must never add latency to the follow cycle (whose edge is the
+        # 20-30s catch-the-pop window).
+        asyncio.ensure_future(self._sensor_extras_loop())
         while True:
             try:
                 await self._cycle()
@@ -544,6 +549,39 @@ class SmartMoneyFollowStrategy:
             if woke_hot:
                 await asyncio.sleep(5)
 
+    async def _sensor_extras_loop(self):
+        """Sweep the sensor-ONLY panel wallets (the copyability cuts) on a
+        relaxed cadence and feed the meta sensor. Decoupled from the follow
+        cycle (P1a): sensors measure the day's meta — 2min staleness is fine;
+        follow latency is not. These wallets NEVER enter follow consensus."""
+        await asyncio.sleep(20)   # let boot settle
+        while True:
+            try:
+                from core.meta_sensor import get_sensor as _get_ms
+                _ms = _get_ms()
+                if _ms is not None:
+                    extras = [w for w, m in _ms.panel.items()
+                              if w not in self.watchlist
+                              and (m or {}).get("status") != "unfollowable"]
+                    if extras:
+                        async with aiohttp.ClientSession() as session:
+                            sem = asyncio.Semaphore(3)
+
+                            async def _one(w):
+                                async with sem:
+                                    try:
+                                        return w, await self._wallet_buys(session, w)
+                                    except Exception:
+                                        return w, []
+                            for w, got in await asyncio.gather(*[_one(w) for w in extras]):
+                                for mint, bt, side, sol, sig, tok in got:
+                                    _ms.ingest(wallet=w, mint=mint, side=side,
+                                               sol=sol, ts=bt, signature=sig,
+                                               tokens=tok)
+            except Exception as e:
+                logger.debug(f"[SmartFollow] sensor-extras sweep error: {e}")
+            await asyncio.sleep(120)
+
     async def _cycle(self):
         now = int(time.time())
         async with aiohttp.ClientSession() as session:
@@ -561,11 +599,10 @@ class SmartMoneyFollowStrategy:
                     except Exception:
                         return _w, []
             results = await asyncio.gather(*[_sweep(w) for w in self.watchlist])
-            # META SENSOR dual-eye (2026-06-12): the RPC sweep is the venue-
-            # complete eye (PumpPortal misses graduated/Raydium trades — 0
-            # account_trades measured while this sweep saw the wallets buying).
-            # Watchlist sweeps feed the sensor here; sensor-only panel wallets
-            # get their OWN sweep below and NEVER enter follow consensus.
+            # META SENSOR dual-eye (2026-06-12): watchlist sweeps feed the
+            # sensor here at zero extra cost (the txs are already fetched).
+            # Sensor-ONLY panel wallets are swept by _sensor_extras_loop on
+            # its own cadence (P1a) — never inside this latency-critical cycle.
             try:
                 from core.meta_sensor import get_sensor as _get_ms
                 _ms = _get_ms()
@@ -573,20 +610,11 @@ class SmartMoneyFollowStrategy:
                 _ms = None
             if _ms is not None:
                 for w, got in results:
-                    for mint, bt, side, sol, sig in got:
+                    for mint, bt, side, sol, sig, tok in got:
                         _ms.ingest(wallet=w, mint=mint, side=side, sol=sol,
-                                   ts=bt, signature=sig)
-                _extras = [w for w, m in _ms.panel.items()
-                           if w not in self.watchlist
-                           and (m or {}).get("status") != "unfollowable"]
-                if _extras:
-                    _ex = await asyncio.gather(*[_sweep(w) for w in _extras])
-                    for w, got in _ex:
-                        for mint, bt, side, sol, sig in got:
-                            _ms.ingest(wallet=w, mint=mint, side=side, sol=sol,
-                                       ts=bt, signature=sig)
+                                   ts=bt, signature=sig, tokens=tok)
             for w, got in results:
-                for mint, bt, side, sol, sig in got:
+                for mint, bt, side, sol, sig, _tok in got:
                     if side == "buy":
                         self._buys.append((mint, w, bt, sol)); self.buys_seen += 1
                         # rolling per-wallet buy-size history -> conviction stamp

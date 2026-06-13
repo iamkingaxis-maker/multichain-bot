@@ -70,7 +70,8 @@ class PumpPortalFeed:
                                    side=tx_type, sol=float(d.get("solAmount") or 0),
                                    ts=time.time(),
                                    launch_ts=self.launches.get((mint or "").lower()),
-                                   signature=d.get("signature"))
+                                   signature=d.get("signature"),
+                                   tokens=float(d.get("tokenAmount") or 0) or None)
         elif tx_type == "create" or (d.get("name") and mint and "marketCapSol" in d):
             self.stats["new_tokens"] += 1
             self.launches[(mint or "").lower()] = time.time()

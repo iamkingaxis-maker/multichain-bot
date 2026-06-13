@@ -655,6 +655,8 @@ async def main():
                                     strategy=sol_smart_follow,
                                     attention=_get_attn(),
                                     sensor=meta_sensor)
+        # P2a: sweep-sourced episodes get token ages from the same registry
+        meta_sensor.set_launch_registry(pumpportal.launches)
         dashboard.pumpportal = pumpportal
 
         tasks += [sol_convergence.run(), sol_clustering.run(), sol_capitulation.run(),
