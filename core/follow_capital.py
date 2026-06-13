@@ -96,7 +96,13 @@ class FollowCapitalManager:
                 if not strat.startswith("smart_follow"):
                     continue
                 net += float(t.get("pnl") or 0)
-            if abs(net - self.realized) > 1.0:
+            # Fire ONLY on phantom-class corruption (realized implausible for the
+            # pool), NOT on normal drift — else this would re-zero real accrued
+            # losses on every boot (a tug-of-war), since the live record_close path
+            # is the source of truth between boots. record_close's guard now blocks
+            # new phantoms at booking; this is the cleanup for already-corrupted state.
+            implausible = abs(self.realized) > 5.0 * self.pool
+            if implausible and abs(net - self.realized) > 1.0:
                 logger.critical(
                     f"[FollowCapital] RECONCILE realized {self.realized:+.2f} -> {net:+.2f} "
                     f"(phantom corrected); swept_total {self.swept_total:.2f} -> 0.00")

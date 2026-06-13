@@ -410,3 +410,26 @@ def test_kill_switch(monkeypatch, tmp_path):
     _patch(monkeypatch, tmp_path, sensor)
     ch.maybe_retune(_scanner(_pm(cfg, 0)), now=time.time())
     assert cfg.time_stop_minutes == 240.0
+
+
+def test_hard_to_copy_archetype_needs_higher_bar(monkeypatch, tmp_path):
+    # thesis_holder (hard-to-copy) at 0.70 must NOT qualify (needs 0.75);
+    # a copy-friendly archetype (surgical) at 0.65 DOES (bar 0.60).
+    cfg = _cfg()
+    sensor = _RateSensor(
+        {"thesis_holder": {"n": 20, "wr": 0.70}, "surgical": {"n": 12, "wr": 0.65}},
+        {"thesis_holder": dict(GEO, wr=0.70), "surgical": dict(GEO, wr=0.65)})
+    _patch(monkeypatch, tmp_path, sensor)
+    arch, geo = ch.best_qualifying(sensor, now=__import__("time").time())
+    assert arch == "surgical"        # thesis_holder filtered by the higher bar
+    # thesis_holder DOES qualify once it clears 0.75
+    sensor2 = _RateSensor({"thesis_holder": {"n": 20, "wr": 0.78}},
+                          {"thesis_holder": dict(GEO, wr=0.78)})
+    arch2, _ = ch.best_qualifying(sensor2, now=__import__("time").time())
+    assert arch2 == "thesis_holder"
+
+
+def test_qualify_wr_for_helper():
+    assert ch._qualify_wr_for("thesis_holder") == 0.75
+    assert ch._qualify_wr_for("conviction") == 0.60
+    assert ch._qualify_wr_for("surgical") == 0.60

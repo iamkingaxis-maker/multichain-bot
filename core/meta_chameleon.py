@@ -53,6 +53,20 @@ CHECK_MIN_SECS = 900.0
 QUALIFY_WR = 0.60
 QUALIFY_N = 8
 
+# Soft de-prioritization (2026-06-13, AxiS): archetypes whose edge is
+# CONVICTION-HOLD (hold through deep drawdowns to recovery) don't transfer to a
+# single $50 copy — thesis_holder produced the -$73 turning-tape cluster. Don't
+# exclude them (thesis_holder won +$147 on good tape), but require a HIGHER board
+# WR to wear them, so the chameleon biases toward copy-friendly exit-discipline
+# archetypes (surgical/conviction) and only dons a hard-to-copy one when it's
+# dominating decisively.
+HARD_TO_COPY = {"thesis_holder"}
+HARD_TO_COPY_WR = 0.75
+
+
+def _qualify_wr_for(arch: str) -> float:
+    return HARD_TO_COPY_WR if arch in HARD_TO_COPY else QUALIFY_WR
+
 # ── Cadence (2026-06-12, AxiS: "6h may be too strict — it's crypto") ─────────
 # Evidence-based, not clock-based: STABILITY needs no reason, CHANGE needs
 # evidence. A retune fires when ANY of:
@@ -256,7 +270,8 @@ def best_qualifying(sensor, now: float):
     for arch, row in board.items():
         if arch == "all":
             continue
-        if row.get("n", 0) < QUALIFY_N or row.get("wr", 0) < QUALIFY_WR:
+        # per-archetype WR bar (hard-to-copy archetypes need a higher bar; see HARD_TO_COPY)
+        if row.get("n", 0) < QUALIFY_N or row.get("wr", 0) < _qualify_wr_for(arch):
             continue
         geo = sensor.archetype_geometry(arch, now, min_n=QUALIFY_N)
         if not geo:
