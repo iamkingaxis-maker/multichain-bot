@@ -104,6 +104,20 @@ EXIT_GUARD_ABS_RISE = 0.5   # price > entry*(1+this) → validate every new high
 # with the OHLC source down no longer books a phantom −100%).
 EXIT_GUARD_ABS_DROP = 0.5   # price < entry*(1-this) → catastrophic (no temporal-only)
 
+# LOSS-STOP-ZONE trigger (2026-06-13 pre-live audit, finding F1). The single-cycle
+# (``max_drop``) and catastrophic (``abs_drop``) triggers leave a NOTCH: when a
+# position sits near entry (so last_good ≈ entry), a one-tick glitch printing a
+# loss in the hard-stop band (≈ −12%..−22% from entry) is neither a >max_drop
+# single-cycle gap NOR a >abs_drop catastrophic move — it passes as "normal" and
+# fires a REAL hard stop with NO OHLC corroboration. Live, that dumps the position
+# at a fake low (the shallow mirror of the TROLL phantom). So any NEW low beyond
+# this fraction below entry is made suspect, routing it through the OHLC-low /
+# cross-source check FIRST. NOT catastrophic: a genuine stop still fires (low_fn
+# corroborates within the real range, or temporal next cycle); only a glitch below
+# the real OHLC low is rejected. 0.10 sits just under the shallowest fleet hard
+# stop (−12) so it covers the −12..−25 stop range with a small margin.
+EXIT_GUARD_ABS_STOP_ZONE = 0.10  # new low < entry*(1-this) → corroborate before a stop
+
 
 def guarded_exit_price(
     guard: Dict[str, dict],
@@ -120,6 +134,7 @@ def guarded_exit_price(
     ref_price: Optional[float] = None,
     abs_rise: float = EXIT_GUARD_ABS_RISE,
     abs_drop: float = EXIT_GUARD_ABS_DROP,
+    abs_stop_zone: float = EXIT_GUARD_ABS_STOP_ZONE,
 ) -> float:
     """Return the price the exit tick should act on, filtering one-tick glitches.
 
@@ -204,8 +219,12 @@ def guarded_exit_price(
     ref = ref_price if (ref_price is not None and ref_price > 0) else None
     abs_rise_hit = ref is not None and price > last and price > ref * (1.0 + abs_rise)
     abs_drop_hit = ref is not None and price < last and price < ref * (1.0 - abs_drop)
+    # F1 loss-stop-zone: a NEW low in the hard-stop band is corroborated via OHLC
+    # before it can fire a real stop. NOT catastrophic (a genuine stop still fires
+    # via low_fn / temporal) — it only forces the OHLC-low check first.
+    stop_zone_hit = ref is not None and price < last and price < ref * (1.0 - abs_stop_zone)
     catastrophic_drop = abs_drop_hit
-    suspect_drop = price < last * (1.0 - max_drop) or abs_drop_hit
+    suspect_drop = price < last * (1.0 - max_drop) or abs_drop_hit or stop_zone_hit
     suspect_rise = price > last * (1.0 + max_rise) or abs_rise_hit
 
     # ── DECISION INSTRUMENTATION (2026-06-02) ──────────────────────────────────
@@ -217,6 +236,7 @@ def guarded_exit_price(
     _dec = {"raw": price, "last_good": last, "suspect_rise": bool(suspect_rise),
             "suspect_drop": bool(suspect_drop), "abs_rise_hit": bool(abs_rise_hit),
             "abs_drop_hit": bool(abs_drop_hit), "catastrophic_drop": bool(catastrophic_drop),
+            "stop_zone_hit": bool(stop_zone_hit),
             "high_val": None, "low_val": None, "second_val": None, "reason": None}
 
     def _rec(value, reason):

@@ -392,6 +392,76 @@ def test_single_live_gate_static():
         "C5: graduation-sniper buy not force_paper'd"
 
 
+# ── 2026-06-13 pre-live audit fixes (#1/#3/#5) ───────────────────────────────
+
+@_t("LIVE_CONFIRMED required: a key present without it stays PAPER [fail-to-paper, #3]")
+def test_live_confirmed_required_for_live_key():
+    from utils.config import Config, _apply_env_overrides
+    keys = ("SOLANA_PRIVATE_KEY", "SCALPER_SOLANA_PRIVATE_KEY", "PAPER_MODE", "LIVE_CONFIRMED")
+    _saved = {k: os.environ.get(k) for k in keys}
+    try:
+        os.environ["SOLANA_PRIVATE_KEY"] = "fakekey123"
+        os.environ.pop("PAPER_MODE", None)
+        os.environ.pop("LIVE_CONFIRMED", None)
+        c = Config(); _apply_env_overrides(c)
+        assert c.solana_private_key == "", \
+            "key present + no LIVE_CONFIRMED must FAIL TO PAPER (the dangerous default)"
+        os.environ["LIVE_CONFIRMED"] = "true"           # explicit ack -> live key kept
+        c2 = Config(); _apply_env_overrides(c2)
+        assert c2.solana_private_key == "fakekey123", "LIVE_CONFIRMED=true must allow the key"
+        os.environ["PAPER_MODE"] = "true"               # PAPER_MODE still wins
+        c3 = Config(); _apply_env_overrides(c3)
+        assert c3.solana_private_key == "", "PAPER_MODE=true must override LIVE_CONFIRMED"
+    finally:
+        for k, v in _saved.items():
+            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+
+
+@_t("ScalperWallet refuses a live key without explicit ack [dead-route guard, #5]")
+def test_scalper_wallet_fail_closed_on_live_key():
+    from execution.scalper_wallet import ScalperWallet
+    _saved = os.environ.get("SCALPER_WALLET_LIVE_ACK")
+    try:
+        os.environ.pop("SCALPER_WALLET_LIVE_ACK", None)
+        w = ScalperWallet("sol", "Solana", "", "rpc", "weth", is_solana=True)  # paper OK
+        assert w.paper_mode is True
+        raised = False
+        try:
+            ScalperWallet("sol", "Solana", "REALKEY", "rpc", "weth", is_solana=True)
+        except RuntimeError:
+            raised = True
+        assert raised, "ScalperWallet took a live key without the ack (ungated live route!)"
+        os.environ["SCALPER_WALLET_LIVE_ACK"] = "true"     # conscious re-wire -> allowed
+        w2 = ScalperWallet("sol", "Solana", "REALKEY", "rpc", "weth", is_solana=True)
+        assert w2.paper_mode is False
+    finally:
+        if _saved is None:
+            os.environ.pop("SCALPER_WALLET_LIVE_ACK", None)
+        else:
+            os.environ["SCALPER_WALLET_LIVE_ACK"] = _saved
+
+
+@_t("Profit-sweep state (floor-HWM + interval) survives a restart [deploy-amnesia, #1]")
+def test_sweep_state_persists_across_restart():
+    d = tempfile.mkdtemp()
+    _saved = os.environ.get("DATA_DIR")
+    try:
+        os.environ["DATA_DIR"] = d
+        tr = Trader.__new__(Trader)        # no live deps; persistence uses only self + DATA_DIR
+        tr._floor_hwm_usd = 2000.0
+        tr._last_sweep_ts = 1234567.0
+        tr._persist_sweep_state()
+        tr2 = Trader.__new__(Trader)       # simulate a redeploy: fresh instance, cold attrs
+        tr2._load_sweep_state_once()
+        assert tr2._floor_hwm_usd == 2000.0, \
+            "floor high-water lost on restart — the fat-finger drop guard would be defeated"
+        assert tr2._last_sweep_ts == 1234567.0, \
+            "sweep interval lost on restart — would re-fire immediately post-deploy"
+    finally:
+        os.environ.pop("DATA_DIR", None) if _saved is None else os.environ.__setitem__("DATA_DIR", _saved)
+        shutil.rmtree(d, ignore_errors=True)
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 

@@ -59,6 +59,29 @@ def test_ordinary_stop_size_move_not_deferred():
     assert eg.guarded_exit_price(guard, "X", 0.80) == 0.80
 
 
+def test_stop_zone_glitch_rejected_with_entry_ref():
+    # F1 (2026-06-13 pre-live audit): a one-tick glitch in the hard-stop band
+    # (−18% from entry) when the token is really flat. WITHOUT ref it would pass
+    # straight through (−18% < 22% single-cycle) and fire a REAL stop. WITH ref +
+    # low_fn, the stop-zone trigger makes it suspect and the OHLC-low check rejects
+    # it (the print is below the token's real low) → no false stop.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "X", 0.82, ref_price=1.0, low_fn=lambda: 0.98)
+    assert out == 1.0                                            # rejected, not the glitch
+    assert guard["X"]["last_decision"]["reason"] == "drop_rejected_below_low"
+    assert guard["X"]["last_decision"]["stop_zone_hit"] is True
+
+
+def test_stop_zone_real_drop_still_fires_with_entry_ref():
+    # the mirror: a GENUINE −18% drop (OHLC low has caught up to it) is corroborated
+    # within range and fires immediately — the stop-zone trigger only adds a
+    # corroboration step, it does not block real stops.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "X", 0.82, ref_price=1.0, low_fn=lambda: 0.82)
+    assert out == 0.82                                           # real stop fires
+    assert guard["X"]["last_decision"]["reason"] == "drop_accepted_within_low"
+
+
 def test_catastrophic_drop_deferred_first_cycle():
     # >40% drop in one cycle → suspect → act on last-good, stash pending
     guard = {"X": {"last_good": 1.0, "pending": None}}

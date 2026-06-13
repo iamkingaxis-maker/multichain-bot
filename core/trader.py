@@ -3139,6 +3139,42 @@ class Trader:
         return {"sent": True, "amount_sol": plan["amount_sol"], "lamports": plan["lamports"],
                 "dest": plan["dest"], "sig": sig}
 
+    def _sweep_state_file(self):
+        import os as _os
+        from pathlib import Path as _Path
+        return _Path(_os.environ.get("DATA_DIR") or "/data") / ".profit_sweep_state.json"
+
+    def _load_sweep_state_once(self) -> None:
+        """Load the persisted sweep state (floor high-water + last-sweep wall-clock)
+        ONCE per process. Deploy-amnesia fix (2026-06-13): without this, the #6
+        fat-finger floor-drop guard resets to the current (possibly fat-fingered)
+        floor on every Railway redeploy, and the hourly interval re-arms to 'due' —
+        so a floor DROP + the env-change redeploy that applies it together defeat
+        the guard, and sweeps fire ~once per deploy instead of hourly."""
+        if getattr(self, "_sweep_state_loaded", False):
+            return
+        self._sweep_state_loaded = True
+        try:
+            import json as _json
+            p = self._sweep_state_file()
+            if p.exists():
+                d = _json.loads(p.read_text())
+                self._floor_hwm_usd = float(d.get("floor_hwm_usd", 0.0) or 0.0)
+                self._last_sweep_ts = float(d.get("last_sweep_ts", 0.0) or 0.0)
+        except Exception as e:
+            logger.error(f"[Sweep] state load failed: {e}")
+
+    def _persist_sweep_state(self) -> None:
+        try:
+            import json as _json
+            p = self._sweep_state_file()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(_json.dumps({
+                "floor_hwm_usd": float(getattr(self, "_floor_hwm_usd", 0.0) or 0.0),
+                "last_sweep_ts": float(getattr(self, "_last_sweep_ts", 0.0) or 0.0)}))
+        except Exception as e:
+            logger.error(f"[Sweep] state persist failed: {e}")
+
     async def maybe_auto_sweep(self) -> None:
         """PRODUCTION auto profit-sweep (LIVE only). Keeps the hot wallet at the
         working-capital floor (USD-pegged) by sweeping ALL idle SOL above it to the
@@ -3155,7 +3191,8 @@ class Trader:
             return  # paper -> no key -> no-op (cannot move money)
         if not _ps.enabled():
             return
-        now = _time.monotonic()
+        self._load_sweep_state_once()   # #1 deploy-amnesia: durable HWM + interval
+        now = _time.time()              # wall-clock so the hourly interval survives restarts
         # #5 opportunistic (2026-06-13): a big realized win can be banked between
         # hourly sweeps to shrink the giveback window. The cheaper check-interval
         # gates RPC; the full sweep still fires hourly. opp=0 -> hourly-only (unchanged).
@@ -3176,10 +3213,15 @@ class Trader:
             if not isinstance(bal, (int, float)) or bal < 0:
                 return
             floor_usd = _ps.working_floor_usd()
-            # #6 floor high-water (persisted): track the highest floor ever configured
-            # so a later fat-finger DROP (2000->200) is refused by the decision.
-            _fhwm = max(float(getattr(self, "_floor_hwm_usd", 0.0) or 0.0), float(floor_usd or 0.0))
+            # #6 floor high-water (PERSISTED via #1 fix): track the highest floor ever
+            # configured so a later fat-finger DROP (2000->200) is refused. Persist a
+            # RAISE immediately so the env-change redeploy that applies a later drop
+            # cannot reset the high-water first (the deploy-amnesia hole).
+            _prev_hwm = float(getattr(self, "_floor_hwm_usd", 0.0) or 0.0)
+            _fhwm = max(_prev_hwm, float(floor_usd or 0.0))
             self._floor_hwm_usd = _fhwm
+            if _fhwm > _prev_hwm:
+                self._persist_sweep_state()
             _floor_sol_ovr = _ps.floor_sol() or None  # #3 SOL-native floor if set
             d = _ps.auto_sweep_decision(
                 bal, price, floor_usd, _ps.gas_buffer_sol(), _ps.min_increment_usd(),
@@ -3200,6 +3242,7 @@ class Trader:
             if not _full_due and not d.get("opportunistic"):
                 return
             self._last_sweep_ts = now  # claim the hourly interval now that we'll sweep
+            self._persist_sweep_state()  # #1: durable so the interval survives a restart
             if _ps.dry_run_default():
                 logger.critical(f"[Sweep] AUTO DRY-RUN: would sweep {d['sweepable_sol']:.4f} SOL "
                                 f"(~${d['sweepable_usd']:.2f}) -> {dest} (floor ${floor_usd:.0f})"
@@ -3213,6 +3256,16 @@ class Trader:
                 logger.critical("[Sweep] AUTO LIVE REFUSED: SWEEP_SINGLE_CONFIG_ACK not set "
                                 "— a commingled live fleet sweep banks net-survival, not a "
                                 "single bot's alpha. Isolate to one live config + set the ack.")
+                return
+            # #6 blast-radius bound: a LIVE USD-floor sweep is refused unless bounded —
+            # either the SOL-NATIVE floor (no SOL-price dependency, so a transiently-high
+            # price tick can't shrink the kept floor and over-sweep) OR an explicit
+            # per-sweep USD cap. Forces a bounded live config and caps any mis-set/
+            # commingle damage to one capped transfer.
+            if not _floor_sol_ovr and not (_ps.max_per_sweep_usd() > 0):
+                logger.critical("[Sweep] AUTO LIVE REFUSED: USD floor with no blast-radius "
+                                "bound — set WORKING_CAPITAL_FLOOR_SOL (SOL-native, no price "
+                                "risk) or SWEEP_MAX_PER_SWEEP_USD before a live sweep.")
                 return
             logger.critical(f"[Sweep] AUTO sweeping {d['sweepable_sol']:.4f} SOL "
                             f"(~${d['sweepable_usd']:.2f}) -> {dest} (keep ${floor_usd:.0f})")

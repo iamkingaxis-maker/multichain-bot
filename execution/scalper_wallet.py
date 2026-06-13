@@ -17,6 +17,7 @@ Setup:
 
 import asyncio
 import logging
+import os
 import aiohttp
 from typing import Optional, Dict
 from dataclasses import dataclass, field
@@ -74,6 +75,21 @@ class ScalperWallet:
         self.max_per_scalp_usd = max_per_scalp_usd
         self.is_solana = is_solana
         self.paper_mode = not bool(private_key)
+
+        # FAIL-CLOSED (2026-06-13 pre-live audit): ScalperWallet has its OWN key and
+        # a raw Jupiter swap that bypasses the entire live-execution gate stack
+        # (should_route_live + STRATEGY_ALLOWLIST + force_paper). It is currently
+        # DEAD CODE — never instantiated; the live scalp path is scalp_queue ->
+        # trader.buy(strategy="scalp", force_paper=True), which IS gated. Refuse to
+        # construct with a REAL key unless an operator deliberately acks re-wiring it,
+        # so it can never silently become an ungated real-money route if re-enabled.
+        if private_key and os.environ.get("SCALPER_WALLET_LIVE_ACK", "").strip().lower() \
+                not in ("1", "true", "yes"):
+            raise RuntimeError(
+                "ScalperWallet refuses a live key without SCALPER_WALLET_LIVE_ACK — it "
+                "bypasses the should_route_live / STRATEGY_ALLOWLIST / force_paper gate "
+                "stack. Route scalps through trader.buy(strategy='scalp', force_paper=True) "
+                "instead, or set the ack only after adding an equivalent live gate here.")
 
         self.state = ScalperWalletState(
             chain_id=chain_id,

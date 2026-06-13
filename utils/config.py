@@ -393,6 +393,14 @@ def _apply_env_overrides(config: Config):
       (and any others you want to override)
     """
     _paper_mode = os.environ.get("PAPER_MODE", "").lower() in ("1", "true", "yes")
+    # FAIL-TO-PAPER (2026-06-13 pre-live audit): going live requires an EXPLICIT
+    # positive ack, not merely "a key is present and PAPER_MODE happens to be
+    # unset". The old default was dangerous — a missing or typo'd PAPER_MODE with a
+    # key present silently ran the WHOLE fleet live. Live now needs BOTH gates:
+    # PAPER_MODE not truthy AND LIVE_CONFIRMED truthy. Anything ambiguous → paper.
+    # (The $5 sweep test reads SOLANA_PRIVATE_KEY from env DIRECTLY, not this
+    # cleared config field, so it still works while the fleet stays paper.)
+    _live_confirmed = os.environ.get("LIVE_CONFIRMED", "").lower() in ("1", "true", "yes")
 
     # Wallet keys — most sensitive, always from env on Railway
     if os.environ.get("SOLANA_PRIVATE_KEY"):
@@ -400,8 +408,14 @@ def _apply_env_overrides(config: Config):
     if os.environ.get("SCALPER_SOLANA_PRIVATE_KEY"):
         config.scalper_solana_private_key = env("SCALPER_SOLANA_PRIVATE_KEY")
 
-    # Paper mode applied LAST so it always wins over the private key env vars above
-    if _paper_mode:
+    # Paper mode applied LAST so it always wins over the private key env vars above.
+    # Fail-CLOSED to paper unless live is unambiguously confirmed.
+    if _paper_mode or not _live_confirmed:
+        if config.solana_private_key and not _paper_mode and not _live_confirmed:
+            # A key is present and PAPER_MODE wasn't set true — the operator likely
+            # intended live but did not set the LIVE_CONFIRMED ack. Stay paper, loudly.
+            print("[config] WARNING: SOLANA_PRIVATE_KEY present but LIVE_CONFIRMED not "
+                  "set -> staying PAPER (fail-closed). Set LIVE_CONFIRMED=true to go live.")
         config.solana_private_key = ""
         config.scalper_solana_private_key = ""
 
