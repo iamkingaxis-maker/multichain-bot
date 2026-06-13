@@ -298,10 +298,12 @@ def best_qualifying(sensor, now: float, veto=frozenset()):
     except Exception:
         return None, None
     best, best_geo = None, None
+    near_miss = []  # (arch, reason) for WR-passing candidates rejected downstream
     for arch, row in board.items():
         if arch == "all":
             continue
         if arch in veto:
+            near_miss.append((arch, "own-fill-vetoed"))
             continue   # own-fill veto: our money rejects this hard-to-copy meta
         # per-archetype WR bar (hard-to-copy archetypes need a higher bar; see HARD_TO_COPY)
         if row.get("n", 0) < QUALIFY_N or row.get("wr", 0) < _qualify_wr_for(arch):
@@ -320,11 +322,18 @@ def best_qualifying(sensor, now: float, veto=frozenset()):
                 geo["wr"] * 100, geo["n"], geo.get("wallets"))
             continue
         if geo.get("n_wallets", 1) < MIN_WALLETS:
+            near_miss.append((arch, f"n_wallets={geo.get('n_wallets')}<{MIN_WALLETS}"))
             continue
         if geo.get("top_wallet_share", 1.0) > MAX_TOP_SHARE:
+            near_miss.append((arch, f"top_share={geo.get('top_wallet_share'):.2f}>{MAX_TOP_SHARE}"))
             continue
         if best_geo is None or (geo["wr"], geo["n"]) > (best_geo["wr"], best_geo["n"]):
             best, best_geo = arch, geo
+    if best is None and near_miss:
+        # Nothing qualified despite board candidates clearing the WR bar — surface
+        # WHY (consensus/veto), since this is what keeps the chameleon in standby.
+        logger.info("[Chameleon] no qualifying meta; near-misses: %s",
+                    ", ".join(f"{a}({r})" for a, r in near_miss))
     return best, best_geo
 
 
@@ -393,7 +402,21 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
             worn_vetoed = rec.get("archetype") in veto
             arch, geo = best_qualifying(sensor, now, veto=veto)
             if not arch:
-                continue   # HOLD current tune — never reset mid-day
+                # If the worn meta is own-fill-vetoed AND nothing copy-friendly
+                # qualifies (e.g. the only other board leader is one wallet's
+                # style, failing the >=2-wallet consensus), STAND DOWN rather than
+                # keep wearing the bleeder: clear the worn label so entries_allowed
+                # returns standby (AxiS: "only buy when we KNOW the meta"). The
+                # veto self-lifts as the bad closes roll out of recent_closes.
+                if worn_vetoed and rec.get("archetype"):
+                    logger.info("[Chameleon] %s STANDBY: worn '%s' own-fill-vetoed and "
+                                "no copy-friendly meta qualifies -> standing down (no new buys)",
+                                bot_id, rec.get("archetype"))
+                    rec["archetype"] = None
+                    rec["pending"] = None
+                    st[bot_id] = rec
+                    _save_state(st)
+                continue   # HOLD tune / stay in standby — never reset mid-day
             # A worn archetype our OWN money is bleeding on (own-fill veto) is a
             # deterioration signal the survivorship board WR hides. Force the
             # switch: bypass the _should_retune hold AND the open-book queue

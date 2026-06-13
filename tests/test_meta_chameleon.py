@@ -403,6 +403,36 @@ def test_pending_queued_at_preserved_across_requeues(monkeypatch, tmp_path):
     assert st2["meta_chameleon"]["pending"]["queued_at"] == 10_000.0  # NOT reset to 11000
 
 
+def test_standby_when_worn_vetoed_and_no_copy_friendly_qualifier(monkeypatch, tmp_path):
+    # 2026-06-13 watch: worn=thesis_holder, own-fills net-negative (vetoed). The
+    # only other board leader is time_boxer, but it's ONE wallet's style
+    # (n_wallets=1 -> fails the >=2-wallet consensus). best_qualifying returns
+    # None. Rather than keep wearing the bleeder, the chameleon must STAND DOWN
+    # (clear the worn label -> entries_allowed returns standby).
+    cfg = _cfg()
+    sensor = _RateSensor(
+        {"thesis_holder": {"n": 20, "wr": 0.86}, "time_boxer": {"n": 18, "wr": 0.70}},
+        {"thesis_holder": dict(GEO, wr=0.86),
+         "time_boxer": dict(GEO, wr=0.70, n_wallets=1, top_wallet_share=1.0)})
+    monkeypatch.setattr(ch, "_TUNE_FILE", str(tmp_path / "tune.json"))
+    import core.meta_sensor as ms
+    monkeypatch.setattr(ms, "_SENSOR", sensor)
+    closes = [{"ts": 100.0 + i, "win": False, "net": -12.0, "archetype": "thesis_holder"}
+              for i in range(6)]  # 6 net-negative thesis_holder copies -> veto fires
+    json.dump({"meta_chameleon": {"archetype": "thesis_holder", "tuned_at": 1.0,
+                                  "tune": {"time_stop_minutes": 90.0},
+                                  "recent_closes": closes}},
+              open(str(tmp_path / "tune.json"), "w"))
+    monkeypatch.setattr(ch, "_last_check", 0.0)
+    ch.maybe_retune(_scanner(_pm(cfg, 0)), now=10_000.0)
+    st = json.load(open(str(tmp_path / "tune.json")))
+    assert st["meta_chameleon"]["archetype"] is None    # stood down (was thesis_holder)
+    # and the standby gate now blocks entries (no meta worn)
+    monkeypatch.setattr(ch, "_entries_cache", {})
+    ok, why = ch.entries_allowed("meta_chameleon", now=10_050.0)
+    assert not ok and "STANDBY" in why
+
+
 def test_kill_switch(monkeypatch, tmp_path):
     monkeypatch.setenv("META_CHAMELEON", "off")
     cfg = _cfg()
