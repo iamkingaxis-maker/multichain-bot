@@ -651,6 +651,14 @@ async def main():
         from core.follow_capital import FollowCapitalManager
         sol_trader.follow_capital = FollowCapitalManager()
         dashboard.follow_capital = sol_trader.follow_capital
+        # PHANTOM RECONCILE (2026-06-13): re-derive the pool's realized from the
+        # clean ledger at boot — RAGEGUY (+485,336% = +$242,668) inflated realized
+        # to +$242k (real: ~-$1k) and FollowCapital is separate state the phantom
+        # scrub never touches. Idempotent (no-op when already in sync).
+        try:
+            sol_trader.follow_capital.reconcile_from_ledger(trade_store.load_trades())
+        except Exception as _fc_e:
+            logger.warning(f"[main] follow_capital reconcile failed (continuing): {_fc_e}")
         # Re-register restored smart_follow positions with the pool: exposure
         # tracking is in-memory, so every deploy wiped it — deployed read $0
         # while remainders rode (AxiS caught it 2026-06-11). Restore runs in

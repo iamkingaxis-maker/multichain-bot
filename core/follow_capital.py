@@ -32,6 +32,10 @@ _DATA_DIR = os.environ.get("DATA_DIR", ".")
 _STATE_FILE = os.path.join(_DATA_DIR, "follow_capital.json")
 _SWEEPS_FILE = os.path.join(_DATA_DIR, "follow_sweeps.jsonl")
 
+# A close whose % return exceeds this is a price-glitch phantom, not a real win
+# (matches the phantom-scrub's PHANTOM_PCT). The pool must never book it.
+PHANTOM_PNL_PCT = 200.0
+
 
 def _env_f(name: str, default: float) -> float:
     try:
@@ -62,6 +66,48 @@ class FollowCapitalManager:
         # wipes at UTC midnight: a 23:50 stop + 00:30 re-fire slipped through)
         self.token_lost_at: dict[str, float] = {}
         self._load()
+
+    def reconcile_from_ledger(self, trades) -> bool:
+        """Re-derive realized from the CLEAN smart_follow ledger since epoch — the
+        fix for a counter corrupted by a phantom that the trades-scrub zeroed but
+        FollowCapital (separate state) kept (RAGEGUY +$242k, 2026-06-13). Runs at
+        boot; idempotent (no-op when already in sync). Attribution mirrors
+        goal_tracker (strategy tag, then buy-strategy-by-address). Returns True if
+        it corrected the counter."""
+        try:
+            buy_strat = {}
+            for t in trades:
+                if t.get("type") == "buy" and t.get("strategy"):
+                    k = (t.get("pair_address") or t.get("address") or "").lower()
+                    buy_strat[k] = t.get("strategy")
+            net = 0.0
+            for t in trades:
+                if t.get("type") != "sell" or t.get("phantom_scrubbed"):
+                    continue
+                pp = t.get("pnl_pct")
+                if isinstance(pp, (int, float)) and abs(pp) > PHANTOM_PNL_PCT:
+                    continue  # phantom — never counts
+                if str(t.get("time") or "") < str(self.epoch):
+                    continue
+                strat = str(t.get("strategy") or "")
+                if not strat.startswith("smart_follow"):
+                    k = (t.get("pair_address") or t.get("address") or "").lower()
+                    strat = str(buy_strat.get(k) or "")
+                if not strat.startswith("smart_follow"):
+                    continue
+                net += float(t.get("pnl") or 0)
+            if abs(net - self.realized) > 1.0:
+                logger.critical(
+                    f"[FollowCapital] RECONCILE realized {self.realized:+.2f} -> {net:+.2f} "
+                    f"(phantom corrected); swept_total {self.swept_total:.2f} -> 0.00")
+                self.realized = net
+                self.swept_total = 0.0          # phantom sweeps were fake; real excess re-accrues
+                self.token_pnl_today = {}        # may hold the phantom for today
+                self._save()
+                return True
+        except Exception as e:
+            logger.warning(f"[FollowCapital] reconcile failed: {e}")
+        return False
 
     # ── persistence ─────────────────────────────────────────────────────────
     def _load(self):
@@ -114,14 +160,27 @@ class FollowCapitalManager:
     def record_open(self, addr: str, usd: float):
         self._open[(addr or "").lower()] = usd
 
-    def record_close(self, addr: str, pct: float, pnl_usd: float):
-        """pct = fraction of the ORIGINAL position sold in this exit leg."""
+    def record_close(self, addr: str, pct: float, pnl_usd: float,
+                     pnl_pct: float = None):
+        """pct = fraction of the ORIGINAL position sold in this exit leg.
+        pnl_pct (optional) = the leg's % return, used for the PHANTOM GUARD."""
         a = (addr or "").lower()
+        # release/reduce the open slot first (the position IS closing, even on a glitch)
         if a in self._open:
             if pct >= 0.999:
                 self._open.pop(a, None)
             else:
                 self._open[a] = max(0.0, self._open[a] * (1 - pct))
+        # PHANTOM GUARD (2026-06-13): a glitch exit must NOT book into realized.
+        # RAGEGUY printed +485,336% = +$242,668 on a ~$50 copy and inflated realized
+        # from -$1,009 to +$242,445 (maybe_sweep then "swept" it). The legacy sell path
+        # isn't exit-price-guarded and FollowCapital is separate state the phantom-scrub
+        # never touches — so reject an absurd return here and book ZERO.
+        if isinstance(pnl_pct, (int, float)) and abs(pnl_pct) > PHANTOM_PNL_PCT:
+            logger.critical(f"[FollowCapital] PHANTOM REJECTED {a[:10]}… "
+                            f"pnl=${pnl_usd:+.0f} pnl_pct={pnl_pct:+.0f}% — not booked")
+            self._save()
+            return
         self.realized += pnl_usd
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         if today != self.token_day:

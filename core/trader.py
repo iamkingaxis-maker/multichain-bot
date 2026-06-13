@@ -2509,7 +2509,9 @@ class Trader:
 
                 if (getattr(position, "strategy", "").startswith("smart_follow")
                         and getattr(self, "follow_capital", None)):
-                    self.follow_capital.record_close(token_address, pct, pnl)
+                    _cost = usd_received - pnl
+                    _ppct = (pnl / _cost * 100.0) if _cost > 0 else None
+                    self.follow_capital.record_close(token_address, pct, pnl, pnl_pct=_ppct)
                 elif getattr(position, "strategy", "") != "scalp":
                     self.risk_manager.record_sell(usd_received, pnl)
                 emoji = "🟢" if pnl >= 0 else "🔴"
@@ -2684,7 +2686,9 @@ class Trader:
 
             if (getattr(position, "strategy", "").startswith("smart_follow")
                     and getattr(self, "follow_capital", None)):
-                self.follow_capital.record_close(token_address, pct, pnl)
+                _cost = usd_received - pnl
+                _ppct = (pnl / _cost * 100.0) if _cost > 0 else None
+                self.follow_capital.record_close(token_address, pct, pnl, pnl_pct=_ppct)
             elif getattr(position, "strategy", "") != "scalp":
                 self.risk_manager.record_sell(usd_received, pnl)
 
