@@ -327,12 +327,22 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
             if not tune or tune == rec.get("tune"):
                 continue
             if list(pm.iter_positions()):
+                # PRESERVE queued_at across re-queues of the SAME archetype so the
+                # 2h force-apply (PENDING_FORCE_SECS) actually accumulates. (Bug
+                # found 2026-06-13 watch: stamping queued_at=now every cycle reset
+                # the clock to ~0, so a meta that keeps the book busy never let the
+                # force fire — the backstop was silently defeated.) Refresh the
+                # tune/geometry (fresher numbers) but keep the original clock; only
+                # reset it when the pending archetype actually changes.
+                _prev = rec.get("pending") or {}
+                _qa = _prev.get("queued_at") if _prev.get("archetype") == arch else now
                 rec["pending"] = {"tune": tune, "archetype": arch, "geometry": geo,
-                                  "queued_at": now}
+                                  "queued_at": _qa or now}
                 st[bot_id] = rec
                 _save_state(st)
-                logger.info("[Chameleon] %s tune QUEUED (book not flat): %s [%s]",
-                            bot_id, tune, arch)
+                logger.info("[Chameleon] %s tune QUEUED (book not flat): %s [%s] "
+                            "(queued_age=%.0fmin)", bot_id, tune, arch,
+                            (now - (_qa or now)) / 60.0)
                 continue
             _apply(pm.config, tune)
             rec.update({"tune": tune, "archetype": arch, "geometry": geo,

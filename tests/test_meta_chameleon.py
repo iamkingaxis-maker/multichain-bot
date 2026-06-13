@@ -352,6 +352,35 @@ def test_fresh_window_wr_break_blocks(monkeypatch, tmp_path):
     assert not ok and "fresh-90min" in why
 
 
+def test_pending_queued_at_preserved_across_requeues(monkeypatch, tmp_path):
+    # bug fix 2026-06-13: a busy book re-queues the same pending each cycle; the
+    # original queued_at MUST be preserved so the 2h force-apply accumulates
+    # (was reset to ~0 every cycle, silently defeating the backstop).
+    cfg = _cfg()
+    # worn=conviction (cooled 0.55); thesis_holder dominates (1.0, n>=12); book busy.
+    sensor = _RateSensor(
+        {"conviction": {"n": 50, "wr": 0.55}, "thesis_holder": {"n": 18, "wr": 1.0}},
+        {"conviction": dict(GEO, wr=0.55), "thesis_holder": dict(GEO, wr=1.0)})
+    monkeypatch.setattr(ch, "_TUNE_FILE", str(tmp_path / "tune.json"))
+    import core.meta_sensor as ms
+    monkeypatch.setattr(ms, "_SENSOR", sensor)
+    json.dump({"meta_chameleon": {"archetype": "conviction", "tuned_at": 1.0,
+                                  "tune": {"time_stop_minutes": 240.0}}},
+              open(str(tmp_path / "tune.json"), "w"))
+    pm = _pm(cfg, open_positions=2)              # book NOT flat -> queue
+    monkeypatch.setattr(ch, "_last_check", 0.0)
+    ch.maybe_retune(_scanner(pm), now=10_000.0)
+    st = json.load(open(str(tmp_path / "tune.json")))
+    qa1 = st["meta_chameleon"]["pending"]["queued_at"]
+    assert st["meta_chameleon"]["pending"]["archetype"] == "thesis_holder"
+    assert qa1 == 10_000.0
+    # re-queue 1000s later (still busy, same challenger) -> queued_at PRESERVED
+    monkeypatch.setattr(ch, "_last_check", 0.0)
+    ch.maybe_retune(_scanner(pm), now=11_000.0)
+    st2 = json.load(open(str(tmp_path / "tune.json")))
+    assert st2["meta_chameleon"]["pending"]["queued_at"] == 10_000.0  # NOT reset to 11000
+
+
 def test_kill_switch(monkeypatch, tmp_path):
     monkeypatch.setenv("META_CHAMELEON", "off")
     cfg = _cfg()
