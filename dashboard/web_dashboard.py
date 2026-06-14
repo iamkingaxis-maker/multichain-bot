@@ -4513,6 +4513,11 @@ class WebDashboard:
                 board["chameleon"] = _cham_status()
             except Exception:
                 pass
+            try:
+                from core.panel_refresher import status as _pr_status
+                board["panel_refresher"] = _pr_status()
+            except Exception:
+                pass
             return web.json_response(board)
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)

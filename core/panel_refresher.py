@@ -51,6 +51,14 @@ _STABLE = {"So11111111111111111111111111111111111111112",
            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}
 
 _last_run = 0.0
+_last_status: dict = {}   # last-cycle result, exposed via /api/meta-sensor (observability)
+
+
+def status() -> dict:
+    """Last refresh cycle's result — thin archetypes, candidates tried + their
+    classification, what was added/pruned. Exposed on /api/meta-sensor so the
+    refresher is observable without scrolling the (chatty, fast-rolling) logs."""
+    return dict(_last_status)
 
 
 # ── config helpers ───────────────────────────────────────────────────────────
@@ -253,7 +261,7 @@ async def maybe_refresh_panel(sensor, discovery, rpc_url: str, now: float) -> No
     """Periodic hook (called every ~10min from main; self-gates to the refresh
     interval). Stocks thin archetypes from the runner-buyer discovery feed. Never
     raises into the loop."""
-    global _last_run
+    global _last_run, _last_status
     if not enabled() or sensor is None:
         return
     if now - _last_run < _f("PANEL_REFRESH_INTERVAL_SECS", 5400.0):
@@ -269,6 +277,8 @@ async def maybe_refresh_panel(sensor, discovery, rpc_url: str, now: float) -> No
 
         thin = thin_archetypes(sensor, now)
         if not thin:
+            _last_status = {"ts": now, "thin": {}, "tried": [], "added": [],
+                            "pruned": dropped, "note": "all wearable archetypes >= consensus"}
             if dropped:
                 save_overlay(overlay)
             logger.info("[PanelRefresh] all wearable archetypes >= consensus; "
@@ -292,6 +302,8 @@ async def maybe_refresh_panel(sensor, discovery, rpc_url: str, now: float) -> No
                 logger.warning(f"[PanelRefresh] candidate pull failed: {e}")
 
         if not cands:
+            _last_status = {"ts": now, "thin": thin, "tried": [], "added": [],
+                            "pruned": dropped, "note": "no fresh discovery candidates yet"}
             logger.info(f"[PanelRefresh] thin={thin} but discovery feed has no fresh "
                         f"candidates yet (it harvests hourly) — waiting")
             if dropped:
@@ -300,11 +312,15 @@ async def maybe_refresh_panel(sensor, discovery, rpc_url: str, now: float) -> No
 
         budget = _i("PANEL_DECODE_BUDGET", 5)
         added = []
+        tried = []   # per-candidate classification (the diagnostic: do they hit a thin arch?)
         import aiohttp
         async with aiohttp.ClientSession() as session:
             for addr in cands[:budget]:
                 res = await _classify_candidate(addr, session, rpc_url)
-                if not res or res["archetype"] not in thin:
+                arch = res["archetype"] if res else None
+                fills = bool(arch and arch in thin)
+                tried.append({"w": addr[:8], "arch": arch or "no-classify", "fills_thin": fills})
+                if not fills:
                     continue
                 entry = {"archetype": res["archetype"], "status": "active",
                          "source": "panel-refresher", "added_at": now,
@@ -315,6 +331,8 @@ async def maybe_refresh_panel(sensor, discovery, rpc_url: str, now: float) -> No
                 overlay[addr] = entry           # durable across restarts
                 added.append((addr[:8], res["archetype"]))
 
+        _last_status = {"ts": now, "thin": thin, "tried": tried, "added": added,
+                        "pruned": dropped, "pool": len(cands)}
         if added or dropped:
             save_overlay(overlay)
         logger.info("[PanelRefresh] thin=%s | added=%s | pruned=%d | pool=%d",
