@@ -520,3 +520,67 @@ def test_best_qualifying_respects_veto():
     # un-vetoed -> thesis_holder (0.85 clears its 0.75 bar) wins on WR
     arch2, _ = ch.best_qualifying(sensor, now=time.time())
     assert arch2 == "thesis_holder"
+
+
+# ── Own-realized-edge selection (2026-06-14, AxiS: "rotate into REAL winners") ──
+# Pick the archetype that wins for OUR copy (own realized $/trade), not the board's
+# survivorship-inflated WR. Proven-positive (>=4 own-fills, edge>0) ranked by edge;
+# proven-negative skipped even at high board WR; unproven explored by board WR; stand
+# down when the only candidate is a proven copy-loser.
+def test_own_edge_helper():
+    closes = [{"archetype": "a", "net": 2.0}, {"archetype": "a", "net": -1.0},
+              {"archetype": "b", "net": 5.0}]
+    assert ch._own_edge(closes, "a") == (0.5, 2)      # (2 + -1)/2
+    assert ch._own_edge(closes, "b") == (5.0, 1)
+    assert ch._own_edge(closes, "c") == (None, 0)     # no fills
+    assert ch._own_edge(None, "a") == (None, 0)       # no closes
+
+
+def test_best_qualifying_skips_proven_copy_loser():
+    # thesis_holder: high board WR (0.88) but proven own-NEGATIVE -> SKIP the trap;
+    # time_boxer: lower board WR but proven own-POSITIVE -> wear it.
+    sensor = _FakeSensor(
+        {"thesis_holder": {"n": 20, "wr": 0.88}, "time_boxer": {"n": 12, "wr": 0.62}},
+        {"thesis_holder": dict(GEO, wr=0.88), "time_boxer": dict(GEO, wr=0.62)})
+    own = [{"archetype": "thesis_holder", "net": -5.0}] * 5 + [{"archetype": "time_boxer", "net": 3.0}] * 5
+    arch, _ = ch.best_qualifying(sensor, now=time.time(), own_closes=own)
+    assert arch == "time_boxer"
+
+
+def test_best_qualifying_ranks_by_own_edge_not_board_wr():
+    # two proven-positive: higher OWN edge wins even with LOWER board WR.
+    sensor = _FakeSensor(
+        {"surgical": {"n": 12, "wr": 0.80}, "time_boxer": {"n": 12, "wr": 0.62}},
+        {"surgical": dict(GEO, wr=0.80), "time_boxer": dict(GEO, wr=0.62)})
+    own = [{"archetype": "surgical", "net": 1.0}] * 5 + [{"archetype": "time_boxer", "net": 8.0}] * 5
+    arch, _ = ch.best_qualifying(sensor, now=time.time(), own_closes=own)
+    assert arch == "time_boxer"   # +8/tr beats surgical's +1/tr despite surgical's higher board WR
+
+
+def test_best_qualifying_explores_unproven_by_board_wr():
+    # nothing proven (<4 own-fills each) -> bootstrap-explore the best board WR.
+    sensor = _FakeSensor(
+        {"surgical": {"n": 12, "wr": 0.80}, "time_boxer": {"n": 12, "wr": 0.62}},
+        {"surgical": dict(GEO, wr=0.80), "time_boxer": dict(GEO, wr=0.62)})
+    own = [{"archetype": "surgical", "net": 1.0}]   # only 1 fill -> unproven
+    arch, _ = ch.best_qualifying(sensor, now=time.time(), own_closes=own)
+    assert arch == "surgical"     # highest board WR (exploration bootstrap)
+
+
+def test_best_qualifying_stands_down_when_only_proven_loser():
+    # the ONLY board candidate is a proven copy-loser -> stand down (None), don't wear it.
+    sensor = _FakeSensor(
+        {"thesis_holder": {"n": 20, "wr": 0.88}},
+        {"thesis_holder": dict(GEO, wr=0.88)})
+    own = [{"archetype": "thesis_holder", "net": -5.0}] * 5
+    arch, _ = ch.best_qualifying(sensor, now=time.time(), own_closes=own)
+    assert arch is None
+
+
+def test_best_qualifying_board_wr_fallback_without_own_closes():
+    # backward compat: no own_closes -> rank by board WR (existing behavior, existing tests).
+    sensor = _FakeSensor(
+        {"surgical": {"n": 12, "wr": 0.80}, "time_boxer": {"n": 12, "wr": 0.62}},
+        {"surgical": dict(GEO, wr=0.80), "time_boxer": dict(GEO, wr=0.62)})
+    arch, _ = ch.best_qualifying(sensor, now=time.time())
+    assert arch == "surgical"

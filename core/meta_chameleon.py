@@ -95,6 +95,26 @@ def _own_fill_vetoed(rec: dict) -> frozenset:
             vetoed.add(arch)
     return frozenset(vetoed)
 
+
+# ── Own-realized-edge selection (2026-06-14, AxiS: "rotate into REAL winners") ──
+# The board WR is survivorship-inflated (hold-through-drawdown archetypes show ~1.0
+# closed-WR while bleeding in our fast-exit copy), so the chameleon kept rotating into
+# the LEAST copyable setups. Fix: rank the wear decision by what wins for OUR COPY —
+# the chameleon's own realized $/trade per archetype — not the board WR. Need a real
+# own-fill sample (>=OWN_EDGE_MIN_N) to trust it; bootstrap unproven archetypes by board
+# WR (cautious exploration), skip proven copy-losers outright, stand down when none win.
+OWN_EDGE_MIN_N = 4
+
+
+def _own_edge(own_closes, arch):
+    """The chameleon's OWN realized $/trade for `arch` over recent closes — the
+    honest copy-edge the survivorship board WR can't give. Returns (edge or None, n)."""
+    rows = [c for c in (own_closes or []) if c.get("archetype") == arch]
+    n = len(rows)
+    if n == 0:
+        return None, 0
+    return sum(c.get("net", 0.0) for c in rows) / n, n
+
 # ── Cadence (2026-06-12, AxiS: "6h may be too strict — it's crypto") ─────────
 # Evidence-based, not clock-based: STABILITY needs no reason, CHANGE needs
 # evidence. A retune fires when ANY of:
@@ -356,7 +376,7 @@ def _restore_green(config) -> None:
         object.__setattr__(config, k, snap.get(k))
 
 
-def best_qualifying(sensor, now: float, veto=frozenset()):
+def best_qualifying(sensor, now: float, veto=frozenset(), own_closes=None):
     """(archetype, geometry) of the best qualifying 6h archetype, or (None, None).
 
     `veto` = archetypes to skip (own-fill veto; see _own_fill_vetoed) so the
@@ -385,6 +405,7 @@ def best_qualifying(sensor, now: float, veto=frozenset()):
     except Exception:
         return None, None
     best, best_geo = None, None
+    candidates = []  # (arch, geo) passing all board bars; own-edge tiering picks below
     near_miss = []  # (arch, reason) for WR-passing candidates rejected downstream
     for arch, row in board.items():
         if arch == "all":
@@ -414,8 +435,26 @@ def best_qualifying(sensor, now: float, veto=frozenset()):
         if geo.get("top_wallet_share", 1.0) > MAX_TOP_SHARE:
             near_miss.append((arch, f"top_share={geo.get('top_wallet_share'):.2f}>{MAX_TOP_SHARE}"))
             continue
-        if best_geo is None or (geo["wr"], geo["n"]) > (best_geo["wr"], best_geo["n"]):
-            best, best_geo = arch, geo
+        candidates.append((arch, geo))   # passed all board bars; own-edge tiering below
+    # ── Own-realized-edge tiering (2026-06-14): pick what wins for OUR copy, not the
+    #    board's survivorship WR. proven-positive (>=N own-fills, edge>0) ranked by edge;
+    #    proven copy-losers SKIPPED even at high board WR; unproven explored by board WR.
+    proven_pos, unproven = [], []
+    for _arch, _geo in candidates:
+        _edge, _n = _own_edge(own_closes, _arch)
+        if _n >= OWN_EDGE_MIN_N:
+            if _edge > 0:
+                proven_pos.append((_edge, _arch, _geo))
+            else:
+                near_miss.append((_arch, f"own-edge {_edge:+.2f}/{_n} <=0 (copy-loser, skip)"))
+        else:
+            unproven.append((_geo.get("wr", 0), _geo.get("n", 0), _arch, _geo))
+    if proven_pos:
+        proven_pos.sort(key=lambda x: x[0], reverse=True)        # highest own-edge wins
+        best, best_geo = proven_pos[0][1], proven_pos[0][2]
+    elif unproven:
+        unproven.sort(key=lambda x: (x[0], x[1]), reverse=True)  # bootstrap-explore best board WR
+        best, best_geo = unproven[0][2], unproven[0][3]
     if best is None and near_miss:
         # Nothing qualified despite board candidates clearing the WR bar — surface
         # WHY (consensus/veto), since this is what keeps the chameleon in standby.
@@ -512,7 +551,8 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
                 # fall through to normal board selection below
             veto = _own_fill_vetoed(rec)
             worn_vetoed = rec.get("archetype") in veto
-            arch, geo = best_qualifying(sensor, now, veto=veto)
+            arch, geo = best_qualifying(sensor, now, veto=veto,
+                                        own_closes=rec.get("recent_closes"))
             if not arch:
                 # If the worn meta is own-fill-vetoed AND nothing copy-friendly
                 # qualifies (e.g. the only other board leader is one wallet's
