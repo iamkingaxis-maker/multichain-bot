@@ -2045,6 +2045,13 @@ class DipScanner:
                 "time": datetime.now(timezone.utc).isoformat(),
             }, bot_id=bot_id)
             self._save_bot_state(bot_id)
+            # Fleet-meta-bus (#436): feed EVERY bot's realized leg into the fleet-wide
+            # per-family $/trade signal — the chameleon's leading pivot input. Fail-soft.
+            try:
+                from core.fleet_meta_bus import record as _fmb_record
+                _fmb_record(bot_id, float(result.realized_pnl_usd or 0))
+            except Exception:
+                pass
             # Chameleon own-fills dial (2026-06-12): feed each leg into the
             # 2-of-3 meta-death tripwire. Fail-soft.
             if bot_id.startswith("meta_chameleon"):

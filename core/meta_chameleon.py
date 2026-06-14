@@ -551,6 +551,18 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
             if not bot_id.startswith(CHAMELEON_PREFIX):
                 continue
             rec = st.get(bot_id) or {}
+            # fleet_meta_bus SHADOW (#436): log the fleet's live per-family $/trade winner
+            # vs what we wear — the leading pivot signal, forward-judged before it drives
+            # geometry (state proposes, fleet money disposes). LOG-ONLY, no behavior change.
+            try:
+                from core.fleet_meta_bus import best_live_family as _blf_fn
+                _blf = _blf_fn(now)
+                if _blf:
+                    logger.info("[Chameleon] %s FLEET-BUS shadow: live-winner family=%s "
+                                "($%+.2f/tr n=%.0f bots=%d) | worn=%s", bot_id,
+                                _blf[0], _blf[1], _blf[2], _blf[3], rec.get("archetype"))
+            except Exception:
+                pass
             pending = rec.get("pending")
             # 1) a deferred tune applies when the book is flat — or after
             #    PENDING_FORCE_SECS regardless (a busy chameleon must not
