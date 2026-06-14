@@ -259,6 +259,13 @@ def apply_overlay(config) -> None:
     if not enabled():
         return
     st = _load_state().get(config.bot_id)
+    if st and st.get("archetype") == RED_ARCHETYPE:
+        # red mode re-derives from the LIVE regime on the next retune (<=15min);
+        # don't restore a stale red geometry onto a fresh-from-JSON green entry_gate
+        # (that would leave a green entry paired with a red exit for ~15min).
+        logger.info("[Chameleon] %s boot: last state was RED-NIGHT MODE; re-deriving "
+                    "from live regime (no stale overlay)", config.bot_id)
+        return
     if st and isinstance(st.get("tune"), dict):
         try:
             _apply(config, {k: float(v) for k, v in st["tune"].items() if k in CLAMPS})
@@ -267,6 +274,79 @@ def apply_overlay(config) -> None:
                         st.get("tuned_at_iso"))
         except Exception as e:
             logger.warning("[Chameleon] overlay apply failed for %s: %s", config.bot_id, e)
+
+
+# ── RED-NIGHT MODE (2026-06-14, AxiS: "the chameleon is MEANT to survive red
+# nights — adapt and copy the red-winners") ──────────────────────────────────
+# It was regime-AGNOSTIC: it wore the top board-WR archetype regardless of tape.
+# On 06-14's red night (fleet -$302) the top board archetype was time_boxer
+# (MOMENTUM) and it DUMPED (timebox_probe -$138, the worst bleeder). The red-window
+# mine showed the SURVIVOR is DEEP-FLUSH CAPITULATION: deepflush_timebox went +$45
+# @ $4.50/tr (7/10W) buying deep-drawdown + volume-burst entries with a fast
+# time-box — converges with the 06-13 drawdown-winner decode (the DaxfeJKe 'Dw5'
+# 6-min boxer). So in a RED regime the chameleon DROPS its momentum-prone board
+# behavior and ADOPTS the deep-flush profile (deep-capitulation entry + fast box);
+# it reverts to normal board-wearing when the tape isn't red. RED = the
+# regime_size_dial BAD verdict (broad downside breadth h1neg>=40, or SOL euphoria)
+# — the same 49-day day-level study signal the size dial already uses.
+RED_ARCHETYPE = "deepflush_red"
+# The deepflush_timebox profile (decode build B) expressed as a chameleon override:
+# entry_gate KEEPS the config's wash/liq SAFETY rails and ADDS the deep-flush
+# capitulation conditions; triggers narrow to capitulation-only; fast-box geometry.
+RED_ENTRY_ADD = (("shape_90m_drawdown_from_max_pct", "<=", -16.0),
+                 ("1m_volume_spike", ">=", 3.0))
+RED_TRIGGERS = ("volume_burst_runner", "deep_1h_dip", "power_dip_runner")
+RED_TUNE = {"time_stop_minutes": 6.0, "tp1_pct": 6.0, "hard_stop_pct": -12.0}  # deepflush fast box (raw via _apply; stop floored by COPY_STOP_FLOOR)
+RED_EXTRA = {"tp1_sell_fraction": 0.8, "tp2_pct": 12.0, "tp2_sell_fraction": 0.2, "trail_pp": 2.0}
+_GREEN_SNAP: Dict[str, dict] = {}   # bot_id -> snapshot of the fields red mode overrides
+
+
+def _regime_is_red(scanner) -> bool:
+    """Red night per the day-level regime study (regime_size_dial BAD verdict):
+    broad downside capitulation (h1neg>=40) or SOL euphoria. Reads the scan
+    cycle's regime snapshot stashed on the scanner. Fail-safe: False (normal)."""
+    try:
+        from core.regime_size_dial import regime_size_verdict, BAD_MULT
+        meta = getattr(scanner, "_cycle_regime", None)
+        if not isinstance(meta, dict):
+            return False
+        return regime_size_verdict(meta)[0] == BAD_MULT
+    except Exception:
+        return False
+
+
+def _apply_red_profile(config) -> None:
+    """Adopt the deep-flush capitulation profile (entry_gate + triggers + fast-box
+    geometry). Snapshots the green fields once so the off-red restore is exact."""
+    bid = config.bot_id
+    if bid not in _GREEN_SNAP:
+        _GREEN_SNAP[bid] = {
+            "entry_gate": config.entry_gate,
+            "triggers_allowed": config.triggers_allowed,
+            **{k: getattr(config, k, None) for k in RED_EXTRA},
+        }
+    # keep every NON-deep-flush entry condition (wash/liq safety; drop any stale
+    # copy of the deep-flush conditions), then add the capitulation gate.
+    _keep = tuple(tuple(c) for c in (config.entry_gate or [])
+                  if str(c[0]) not in ("shape_90m_drawdown_from_max_pct", "1m_volume_spike"))
+    object.__setattr__(config, "entry_gate", _keep + RED_ENTRY_ADD)
+    object.__setattr__(config, "triggers_allowed", list(RED_TRIGGERS))
+    for k, v in RED_EXTRA.items():
+        object.__setattr__(config, k, v)
+    _apply(config, RED_TUNE)
+
+
+def _restore_green(config) -> None:
+    """Restore the pre-red entry/triggers/tp fields (exit geometry re-tunes off
+    the board on the next qualifying read)."""
+    snap = _GREEN_SNAP.pop(config.bot_id, None)
+    if not snap:
+        return
+    object.__setattr__(config, "entry_gate", snap["entry_gate"])
+    object.__setattr__(config, "triggers_allowed", snap["triggers_allowed"])
+    for k in RED_EXTRA:
+        if snap.get(k) is not None:
+            object.__setattr__(config, k, snap[k])
 
 
 def best_qualifying(sensor, now: float, veto=frozenset()):
@@ -398,6 +478,31 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
                                 bot_id, ", forced" if age >= PENDING_FORCE_SECS else "",
                                 pending["tune"], pending["archetype"])
                     continue
+            # ── RED-NIGHT MODE: the regime OVERRIDES the board. On a red tape the
+            #    chameleon becomes a deep-flush capitulation trader (the measured
+            #    red-survivor); off the red tape it reverts to normal board-wearing.
+            #    Bypasses quiesce like the own-fill force-switch — a regime turn is
+            #    urgent (don't keep buying momentum into a red tape until flat).
+            if _regime_is_red(scanner):
+                if rec.get("archetype") != RED_ARCHETYPE:
+                    _apply_red_profile(pm.config)
+                    rec.update({"tune": dict(RED_TUNE), "archetype": RED_ARCHETYPE,
+                                "geometry": {"red_mode": True,
+                                             "regime": getattr(scanner, "_cycle_regime", None)},
+                                "tuned_at": now, "tuned_at_iso": _iso(now), "pending": None})
+                    st[bot_id] = rec
+                    _save_state(st)
+                    logger.info("[Chameleon] %s RED-NIGHT MODE on -> deep-flush capitulation "
+                                "profile (regime=%s)", bot_id, getattr(scanner, "_cycle_regime", None))
+                continue   # red mode set this cycle; skip normal board selection
+            if rec.get("archetype") == RED_ARCHETYPE:
+                _restore_green(pm.config)
+                rec["archetype"] = None
+                rec["pending"] = None
+                st[bot_id] = rec
+                _save_state(st)
+                logger.info("[Chameleon] %s red tape lifted -> restored normal board mode", bot_id)
+                # fall through to normal board selection below
             veto = _own_fill_vetoed(rec)
             worn_vetoed = rec.get("archetype") in veto
             arch, geo = best_qualifying(sensor, now, veto=veto)
@@ -511,6 +616,12 @@ def _compute_entries_allowed(bot_id: str, now: float) -> tuple:
                 and now - max(c.get("ts", 0) for c in losses) < OWN_FILLS_PAUSE_SECS):
             return False, (f"STANDBY: own-fills dial — {len(losses)} of last "
                            f"{len(closes)} closes under '{arch}' lost (1h pause)")
+        # RED-NIGHT MODE is a regime-driven meta (not a sensor-board archetype), so
+        # the board-decay tripwires below don't apply to it. Entries are allowed —
+        # the deep-flush profile IS the measured red-survivor — but the own-fills
+        # dial above still pauses it if our own deep-flush copies start bleeding.
+        if arch == RED_ARCHETYPE:
+            return True, "red-night mode: deep-flush capitulation profile"
         # tripwire 2 — BUY-RATE COLLAPSE (leading): they stopped playing.
         if hasattr(sensor, "buy_rate"):
             recent, norm = sensor.buy_rate(arch, now)

@@ -252,3 +252,32 @@ def test_buy_live_d1_populates_entry_vs_local_low():
     r = asyncio.run(ds._execute_bot_buy_live(_decision(), pm, 50.0))
     assert r["instrument"]["live_entry_vs_local_low_pct"] is not None
     assert r["instrument"]["live_entry_vs_local_low_pct"] > 9.0
+
+
+# ── phantom-state fix (2026-06-14): a position with no on-chain tokens must CLOSE, not
+#    retry forever (the cap-clog bug). Distinguish a confirmed-0 balance (close) from a
+#    FAILED balance read (transient -> keep retrying; never strand a real position). ──
+def test_sell_live_confirmed_zero_balance_signals_empty_not_retry():
+    # balance read SUCCEEDS and returns 0 -> no real tokens -> signal CLOSE ({"empty": True}),
+    # and do NOT attempt a swap on an empty balance.
+    trader = StubTrader({"success": True, "out_amount": 1, "route": "m", "signature": "S"})
+    trader.balances = [0]                       # confirmed 0 on-chain
+    ds = _ds(trader)
+    pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
+    r = asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, current_mid=1.25))
+    assert isinstance(r, dict) and r.get("empty") is True   # close it (phantom / already-exited)
+    assert trader.calls == []                               # never swapped an empty balance
+
+
+def test_sell_live_balance_read_failure_returns_none_to_retry():
+    # balance read FAILS (returns None) -> transient -> return None (retry next tick),
+    # must NOT be treated as empty (would wrongly close a real position on an RPC hiccup).
+    trader = StubTrader({"success": True, "out_amount": 1, "route": "m", "signature": "S"})
+    async def _none_balance(mint):
+        return None
+    trader._get_token_balance_atomic = _none_balance
+    ds = _ds(trader)
+    pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
+    r = asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, current_mid=1.25))
+    assert r is None                                        # retry, do NOT close
+    assert trader.calls == []                               # no swap on a failed read

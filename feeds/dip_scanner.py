@@ -1456,7 +1456,8 @@ class DipScanner:
             # position; the hard-stop routes here too). Final/full leg sells the ENTIRE
             # remaining balance; a partial leg sells its share of the live balance.
             bal_atomic = await self.trader._get_token_balance_atomic(mint)
-            if bal_atomic is None or bal_atomic < 0:
+            _bal_read_failed = bal_atomic is None or bal_atomic < 0  # None = RPC read FAILED (transient), NOT a real 0
+            if _bal_read_failed:
                 bal_atomic = 0
             _rem = getattr(pos, "remaining_fraction", 1.0) or 1.0
             _frac_of_bal = min(1.0, (sold_frac / _rem)) if _rem > 0 else 1.0
@@ -1472,8 +1473,16 @@ class DipScanner:
             logger.error("[Probe] live sell sizing failed (%s): %s", token, e)
             return None
         if atomic <= 0 or sell_tokens <= 0:
-            logger.error("[Probe] live sell zero on-chain balance (%s) — nothing to sell", token)
-            return None
+            if _bal_read_failed:
+                # transient read failure — leave the position OPEN to retry; never close a
+                # real position (or swap) on an RPC hiccup.
+                logger.error("[Probe] live sell balance read FAILED (%s) — stays open, retry next tick", token)
+                return None
+            # CONFIRMED 0 on-chain: no real tokens back this position (a phantom from a
+            # paper-open before an env flip, or an already-exited position). Signal the
+            # caller to CLOSE it — NEVER retry forever (the 2026-06-14 inflight-cap clog).
+            logger.warning("[Probe] live sell CONFIRMED 0 on-chain balance (%s) — closing (no real tokens)", token)
+            return {"empty": True}
         _slip_cap = int(os.environ.get("PROBE_ULTRA_SLIPPAGE_BPS", "400"))
         t0 = time.time()
         res = await self.trader._execute_swap_ultra(mint, SOL_MINT, atomic, slippage_bps=_slip_cap)
@@ -1856,8 +1865,14 @@ class DipScanner:
             if _lr is None:
                 logger.info("[DipScanner] bot=%s LIVE sell aborted; position stays open", bot_id)
                 return
-            eff_exit = _lr["exit_price"]
-            _live_sell_instrument = _lr["instrument"]
+            if _lr.get("empty"):
+                # confirmed 0 on-chain tokens (phantom / already-exited) — book a PAPER close
+                # so it can't clog the inflight cap by retrying forever (2026-06-14 fix).
+                logger.warning("[DipScanner] bot=%s 0 on-chain tokens — closing on paper (no real sell)", bot_id)
+                eff_exit = sell_fill_price(current_price, _sz_sold, _impact)
+            else:
+                eff_exit = _lr["exit_price"]
+                _live_sell_instrument = _lr["instrument"]
         else:
             eff_exit = sell_fill_price(current_price, _sz_sold, _impact)
         try:
@@ -2153,6 +2168,12 @@ class DipScanner:
         # ── META CHAMELEON retune check (2026-06-12) — the autonomy loop.
         # Rate-limited internally (15min checks, 6h retune cadence, quiesce on
         # open positions). Never raises. See core/meta_chameleon.py.
+        # Stash this cycle's regime so the chameleon's RED-NIGHT MODE can read it
+        # (deep-flush capitulation profile when the tape is broad-red; 2026-06-14).
+        self._cycle_regime = {
+            "sol_pc_h24": (getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h24"),
+            "regime_h1_neg_pct": _regime_h1_neg_pct,
+        }
         try:
             from core.meta_chameleon import maybe_retune
             maybe_retune(self)
