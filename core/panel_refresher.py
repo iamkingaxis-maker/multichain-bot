@@ -158,15 +158,27 @@ async def _trade_map(addr: str, session, rpc_url: str, sigs: int = 60) -> dict:
     """Per-token {spent, recv, buys:[ts], sells:[ts]} from on-chain history.
     Async (non-blocking I/O), concurrency-capped. Mirrors wallet_decode.trade_map."""
     async def _rpc(method, params):
-        try:
-            import aiohttp
-            async with session.post(rpc_url,
-                                    json={"jsonrpc": "2.0", "id": 1, "method": method,
-                                          "params": params},
-                                    timeout=aiohttp.ClientTimeout(total=15)) as r:
-                return (await r.json()).get("result")
-        except Exception:
-            return None
+        # Retry on failure/429/error so transient Helius rate-limiting on the
+        # getTransaction bursts doesn't DROP txs (which under-counts trips and pushes
+        # classifiable wallets below the n_closed>=4 bar -> false "no-classify"; this
+        # was the 2026-06-13 Railway under-count bug, kEFiAX3j had 4 closed but
+        # came back no-classify). A valid result (even empty []) is accepted as-is.
+        import aiohttp
+        for attempt in range(3):
+            try:
+                async with session.post(rpc_url,
+                                        json={"jsonrpc": "2.0", "id": 1, "method": method,
+                                              "params": params},
+                                        timeout=aiohttp.ClientTimeout(total=15)) as r:
+                    if r.status == 429:
+                        await asyncio.sleep(0.4 * (attempt + 1)); continue
+                    j = await r.json()
+                    if isinstance(j, dict) and j.get("error") is not None:
+                        await asyncio.sleep(0.4 * (attempt + 1)); continue
+                    return (j or {}).get("result") if isinstance(j, dict) else None
+            except Exception:
+                await asyncio.sleep(0.4 * (attempt + 1))
+        return None
 
     sl = await _rpc("getSignaturesForAddress", [addr, {"limit": sigs}]) or []
     tok: dict = {}
