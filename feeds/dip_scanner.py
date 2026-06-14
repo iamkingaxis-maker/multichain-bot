@@ -998,7 +998,11 @@ class DipScanner:
                                _inflight, _inflight_max, bot_id, decision.token)
                 return
         if _daily_would_block:
-            _do_block = (_rf_enforce or _live_probe_bot) and _dl_cfg is not None
+            # Daily-loss halt = a REAL-MONEY capital guard, so enforce ONLY for live_probe
+            # (real-money) bots. PAPER bots are EXPERIMENTS — halting them on paper losses just
+            # kills the data/throughput for zero capital benefit (AxiS 2026-06-14), so they keep
+            # trading regardless of RISK_FLOOR_MODE (the shadow log below still records the would-block).
+            _do_block = _live_probe_bot and _dl_cfg is not None
             logger.info("[DipScanner] bot=%s daily-loss floor %s (daily=$%.2f <= -$%.2f) %s",
                         bot_id, "BLOCK" if _do_block else "SHADOW-would-block",
                         capital.daily_pnl_usd, _dl_lim, decision.token)
