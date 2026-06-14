@@ -290,14 +290,20 @@ def apply_overlay(config) -> None:
 # regime_size_dial BAD verdict (broad downside breadth h1neg>=40, or SOL euphoria)
 # — the same 49-day day-level study signal the size dial already uses.
 RED_ARCHETYPE = "deepflush_red"
-# The deepflush_timebox profile (decode build B) expressed as a chameleon override:
-# entry_gate KEEPS the config's wash/liq SAFETY rails and ADDS the deep-flush
-# capitulation conditions; triggers narrow to capitulation-only; fast-box geometry.
-RED_ENTRY_ADD = (("shape_90m_drawdown_from_max_pct", "<=", -16.0),
-                 ("1m_volume_spike", ">=", 3.0))
+# Red-tape entry profile, REFINED 2026-06-14 from the red-window winning-wallet mine
+# (17 net-positive wallets, 305 entries, 111 winners >=+30% fwd vs 26 losers <=0%).
+# The winners' entries: deep dip (-20% off 90m high), DECENT liq (~$29k, NOT thin
+# $8.5k), MID mcap (~$124k, NOT sub-$20k micro), younger (~12h), and — counter to the
+# deepflush_timebox config — MODEST volume (~1.5x). The deepflush `1m_volume_spike>=3`
+# gate was buying the LOSERS (panic-volume flushes keep dumping; loser median vol 2.1x)
+# -> DROPPED. Added an mcap floor to skip the micro-cap losers. entry_gate keeps the
+# chameleon's wash + liq(>=25k) safety (already matching the winners) and adds the
+# deep-dip condition; fast-box exit retained from the deepflush decode.
+RED_ENTRY_ADD = (("shape_90m_drawdown_from_max_pct", "<=", -18.0),)   # deep dip; NO vol gate (it selected losers)
 RED_TRIGGERS = ("volume_burst_runner", "deep_1h_dip", "power_dip_runner")
-RED_TUNE = {"time_stop_minutes": 6.0, "tp1_pct": 6.0, "hard_stop_pct": -12.0}  # deepflush fast box (raw via _apply; stop floored by COPY_STOP_FLOOR)
-RED_EXTRA = {"tp1_sell_fraction": 0.8, "tp2_pct": 12.0, "tp2_sell_fraction": 0.2, "trail_pp": 2.0}
+RED_TUNE = {"time_stop_minutes": 6.0, "tp1_pct": 6.0, "hard_stop_pct": -12.0}  # fast box (raw via _apply; stop floored by COPY_STOP_FLOOR)
+RED_EXTRA = {"tp1_sell_fraction": 0.8, "tp2_pct": 12.0, "tp2_sell_fraction": 0.2,
+             "trail_pp": 2.0, "mcap_min": 50000.0}   # mcap floor: red-winners ~$124k vs loser ~$10k micro
 _GREEN_SNAP: Dict[str, dict] = {}   # bot_id -> snapshot of the fields red mode overrides
 
 
@@ -345,8 +351,9 @@ def _restore_green(config) -> None:
     object.__setattr__(config, "entry_gate", snap["entry_gate"])
     object.__setattr__(config, "triggers_allowed", snap["triggers_allowed"])
     for k in RED_EXTRA:
-        if snap.get(k) is not None:
-            object.__setattr__(config, k, snap[k])
+        # restore the EXACT original (incl None — e.g. mcap_min was null off-red;
+        # an `is not None` guard would leave the red floor stuck on after restore).
+        object.__setattr__(config, k, snap.get(k))
 
 
 def best_qualifying(sensor, now: float, veto=frozenset()):
