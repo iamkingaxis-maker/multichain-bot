@@ -103,6 +103,32 @@ def save_overlay(d: dict) -> None:
         logger.warning(f"[PanelRefresh] overlay save failed: {e}")
 
 
+# Skip-set: candidates already tried that DIDN'T fill — unfollowable routers
+# (empty owner-decode; recurrent() surfaces these first since they appear on every
+# runner) or wallets classified into a non-thin archetype. Persisted so each cycle
+# decodes FRESH candidates and PROGRESSES through the pool instead of re-burning the
+# budget on the same top-recurrent routers every time.
+_SKIP = os.path.join(_DATA_DIR, "panel_refresher_skip.json")
+
+
+def _load_skip() -> dict:
+    try:
+        with open(_SKIP) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_skip(d: dict) -> None:
+    try:
+        tmp = _SKIP + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(d, f)
+        os.replace(tmp, _SKIP)
+    except Exception as e:
+        logger.warning(f"[PanelRefresh] skip-set save failed: {e}")
+
+
 # ── classifier: decoded geometry -> archetype label (priority-ordered) ─────────
 def classify_archetype(median_hold_min: float, wr: float, win_med_pct: float,
                        loss_med_pct: float, n_closed: int, n_tokens: int) -> Optional[str]:
@@ -287,10 +313,11 @@ async def maybe_refresh_panel(sensor, discovery, rpc_url: str, now: float) -> No
 
         # Candidate pool: recurring runner early-buyers (recurrence = the validator),
         # widened to single-day if recurrent is thin. Skip wallets already paneled.
+        skip = _load_skip()
         cands = []
         if discovery is not None:
             try:
-                seen = set(sensor.panel)
+                seen = set(sensor.panel) | set(skip)   # skip paneled + already-tried-failed
                 for md in (2, 1):
                     for c in discovery.recurrent(min_days=md):
                         w = c.get("wallet")
@@ -321,6 +348,7 @@ async def maybe_refresh_panel(sensor, discovery, rpc_url: str, now: float) -> No
                 fills = bool(arch and arch in thin)
                 tried.append({"w": addr[:8], "arch": arch or "no-classify", "fills_thin": fills})
                 if not fills:
+                    skip[addr] = {"r": arch or "unfollowable", "ts": now}   # don't retry next cycle
                     continue
                 entry = {"archetype": res["archetype"], "status": "active",
                          "source": "panel-refresher", "added_at": now,
@@ -331,8 +359,9 @@ async def maybe_refresh_panel(sensor, discovery, rpc_url: str, now: float) -> No
                 overlay[addr] = entry           # durable across restarts
                 added.append((addr[:8], res["archetype"]))
 
+        _save_skip(skip)
         _last_status = {"ts": now, "thin": thin, "tried": tried, "added": added,
-                        "pruned": dropped, "pool": len(cands)}
+                        "pruned": dropped, "pool": len(cands), "skip_set": len(skip)}
         if added or dropped:
             save_overlay(overlay)
         logger.info("[PanelRefresh] thin=%s | added=%s | pruned=%d | pool=%d",
