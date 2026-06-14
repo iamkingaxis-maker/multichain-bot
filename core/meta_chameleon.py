@@ -342,7 +342,7 @@ _GREEN_SNAP: Dict[str, dict] = {}   # bot_id -> snapshot of the fields red mode 
 # standing down; rotate back UP to a board archetype only when one proves own-positive.
 # A regime-style DIRECT profile, exactly like RED-MODE.
 GREEN_ARCHETYPE = "momentum_green"
-GREEN_ENTRY_GATE = (("wash_suspected", "<=", 0), ("liquidity_usd", ">=", 25000.0),
+GREEN_ENTRY_GATE = (("wash_suspected", "<=", 0), ("liquidity_usd", ">=", 15000.0),  # 15k = timebox_probe_mcap's EXACT floor (25k was too selective; chameleon missed buys its winning twin caught)
                     ("entry_age_hours", "<=", 24.0))
 GREEN_TRIGGERS = ["deep_1h_dip", "pullback_in_uptrend", "power_dip_runner",
                   "chart_quality_bottom", "1s_demand_compound", "1s_capit_reversal"]

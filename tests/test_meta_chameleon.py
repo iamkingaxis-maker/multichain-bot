@@ -122,6 +122,7 @@ def test_green_momentum_default_when_no_copyable_winner(monkeypatch, tmp_path):
     assert cfg.hard_stop_pct == -60.0              # runner stop REPAIRED (not -25, not held -13)
     assert cfg.time_stop_minutes == 240.0
     assert cfg.tp1_pct == 20.0
+    assert any(c[0] == "liquidity_usd" and c[2] == 15000.0 for c in cfg.entry_gate)  # 15k floor matches timebox_mcap
     st = json.load(open(str(tmp_path / "tune.json")))
     assert st["meta_chameleon"]["archetype"] == ch.GREEN_ARCHETYPE
     ok, why = ch.entries_allowed("meta_chameleon", now=time.time())
