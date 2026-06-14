@@ -40,6 +40,7 @@ def catalog():
                    and c.bot_id != "deepflush_timebox"
                    and c.bot_id != "young_momo_launch"
                    and c.bot_id != "momentum_shadow"
+                   and c.bot_id != "momentum_pump_tight"
                    and c.bot_id != "momentum_grad_probe"]
     return reg
 

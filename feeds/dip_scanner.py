@@ -953,6 +953,45 @@ class DipScanner:
                 logger.info("[DipScanner] bot=%s badday-lane gate: skip %s (mcap=%s sub-floor, no microcap mandate)",
                             bot_id, decision.token, _bd_mc)
                 return
+        # ── Anti-rug LIQUIDITY floor (#432, 2026-06-14 regime-entry hunt) ──────
+        # The liq [20k,30k) band is the RUG POCKET (forward WR 0.44 / mean -22%); a
+        # sub-25k-liq token can't be exited without catastrophic slippage, so it's
+        # rug-prone for EVERY lane (even deep-flush/microcap — an unexitable bag is an
+        # unexitable bag). Keyed on LIQUIDITY not mcap, so it doesn't break the microcap
+        # mandate. ENFORCE by default (clearly safe); ANTIRUG_FLOOR_MODE=shadow = log-only.
+        _ar_meta = getattr(bundle, "raw_meta", None) or {}
+        _ar_liq = getattr(bundle, "liquidity_usd", None)
+        if _ar_liq is None:
+            _ar_liq = _ar_meta.get("liquidity_usd") or _ar_meta.get("entry_liquidity_usd")
+        if isinstance(_ar_liq, (int, float)) and 0 < _ar_liq < float(os.environ.get("ANTIRUG_MIN_LIQ_USD", "25000")):
+            _ar_mode = os.environ.get("ANTIRUG_FLOOR_MODE", "enforce").lower()
+            logger.info("[DipScanner] bot=%s ANTI-RUG %s: liq=$%.0f < floor %s", bot_id,
+                        "BLOCK" if _ar_mode != "shadow" else "SHADOW-would-block", _ar_liq, decision.token)
+            if _ar_mode != "shadow":
+                return
+        # ── Negative gate: suppress falling-knife DIP entries in a SOL-pump (#433) ─
+        # Dip-buying INVERTS in euphoria (forward WR 0.42 / ~-$341 = the window bleed):
+        # a token down hard while SOL pumps is falling on idiosyncratic weakness, not a
+        # buyable flush. Block pc_h1<=-20 when sol_pc_h6>=1.5, EXEMPT deep capitulation
+        # (dd90<=-30, the durable red-tape edge). SHADOW by default (measure winner-kill
+        # first per discipline); NEGGATE_MODE=enforce to turn it on.
+        _ng_solh6 = (getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h6")
+        if isinstance(_ng_solh6, (int, float)) and _ng_solh6 >= float(os.environ.get("NEGGATE_SOL_H6_MIN", "1.5")):
+            _ng_pch1 = getattr(bundle, "pc_h1", None)
+            if _ng_pch1 is None:
+                _ng_pch1 = _ar_meta.get("pc_h1")
+            _ng_dd = getattr(bundle, "shape_90m_drawdown_from_max_pct", None)
+            if _ng_dd is None:
+                _ng_dd = _ar_meta.get("shape_90m_drawdown_from_max_pct")
+            _ng_capit = isinstance(_ng_dd, (int, float)) and _ng_dd <= -30.0
+            if isinstance(_ng_pch1, (int, float)) and _ng_pch1 <= -20.0 and not _ng_capit:
+                _ng_mode = os.environ.get("NEGGATE_MODE", "shadow").lower()
+                logger.info("[DipScanner] bot=%s NEG-GATE %s: falling-knife pc_h1=%.0f in SOL-pump "
+                            "(sol_h6=%.1f dd90=%s) %s", bot_id,
+                            "BLOCK" if _ng_mode == "enforce" else "SHADOW-would-block",
+                            _ng_pch1, _ng_solh6, _ng_dd, decision.token)
+                if _ng_mode == "enforce":
+                    return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
         # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
