@@ -2,11 +2,11 @@
   "age_h_max": null,
   "age_h_min": null,
   "alpha_multiplier": 1.0,
-  "base_position_usd": 50.0,
-  "bot_id": "meta_chameleon",
+  "base_position_usd": 75.0,
+  "bot_id": "timebox_probe_mcap",
   "btc_macro_h1_block_threshold": null,
-  "daily_loss_limit_usd": 60.0,
-  "display_name": "META CHAMELEON (2026-06-12, AxiS): the fixed DYNAMIC bot \u2014 its three exit-geometry dials (time_stop_minutes / tp1_pct / hard_stop_pct) retune automatically to the day's winning wallet ARCHETYPE measured by the meta sensor (panel of 17 decoded wallets, free PumpPortal stream). Quiesce: tunes apply only on a flat book; cadence max 1/6h; clamps ts[10,780]m tp1[8,60]% stop[-60,-10]%; size/lanes/filters FROZEN \u2014 it changes shape, not exposure. Defaults = the Dw5 timebox geometry until the sensor's first qualifying read. PRE-REG: judge vs timebox_probe at n>=30 closes; 48h burn-in label. [2026-06-13 watch: liq floor 15k->25k \u2014 copies gap/slip in thin books (smart_follow held-out lesson); targets the -17/-20% gap-through-stop losses on first conviction trades] [A: tp1 banks 60% at meta-win, trail 8pp rides 40% for the tail (2026-06-13)]",
+  "daily_loss_limit_usd": 90.0,
+  "display_name": "TIME-BOX PROBE + MCAP FLOOR (2026-06-14 A/B): EXACT clone of timebox_probe with the ONE change mcap_min=50000 — isolates whether a mid-mcap floor fixes the micro-cap RUG exposure that dropped timebox_probe -$326 from peak (FableTrump/Pixelands -99% etc. were ~$10k micro-caps). Red-winner mine: winners' median mcap ~$124k, losers' ~$10k. timebox_probe stays the untouched control. PRE-REG: judge vs timebox_probe at n>=30 closes — does the floor cut the deep-rug tail without killing the edge?",
   "enabled": true,
   "entry_gate": [
     [
@@ -17,7 +17,7 @@
     [
       "liquidity_usd",
       ">=",
-      25000
+      15000
     ],
     [
       "entry_age_hours",
@@ -26,7 +26,7 @@
     ]
   ],
   "entry_stack_exempt": true,
-  "exclusion_pool": "meta_chameleon",
+  "exclusion_pool": "timebox_probe_mcap",
   "fast_bail_pnl_pct": null,
   "filters_disabled": [],
   "filters_enforced": [
@@ -39,7 +39,7 @@
   "hard_stop_pct": -60.0,
   "macro_up_multiplier": 1.0,
   "marginal_multiplier": 1.0,
-  "max_concurrent_positions": 6,
+  "max_concurrent_positions": 10,
   "mcap_max": null,
   "mcap_min": 50000.0,
   "mcap_psych_pc_h24_max": 80.0,
@@ -64,12 +64,12 @@
   "sol_macro_h6_block_threshold": null,
   "time_stop_minutes": 240.0,
   "tp1_pct": 20.0,
-  "tp1_sell_fraction": 0.6,
+  "tp1_sell_fraction": 1.0,
   "tp2_pct": 999.0,
   "tp2_sell_fraction": 0.0,
   "trading_hour_utc_end": 24,
   "trading_hour_utc_start": 0,
-  "trail_pp": 8.0,
+  "trail_pp": null,
   "triggers_allowed": [
     "deep_1h_dip",
     "pullback_in_uptrend",
