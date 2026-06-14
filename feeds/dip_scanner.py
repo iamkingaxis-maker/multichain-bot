@@ -2222,6 +2222,13 @@ class DipScanner:
             maybe_retune(self)
         except Exception as _ch_e:
             logger.debug(f"[DipScanner] chameleon retune error: {_ch_e}")
+        # In-bot hourly regime-pattern miner (#435): deterministic, credit-free —
+        # writes _hourly_patterns_latest.json for the dashboard /api/regime-patterns tab.
+        try:
+            from core.regime_pattern_miner import run as _rpm_run
+            _rpm_run(self)
+        except Exception as _rpm_e:
+            logger.debug(f"[DipScanner] regime miner error: {_rpm_e}")
 
         for pair in pairs:
             c["fetched"] += 1

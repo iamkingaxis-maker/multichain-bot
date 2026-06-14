@@ -2216,6 +2216,7 @@ class WebDashboard:
         self.app.router.add_get("/",                        self._handle_index)
         self.app.router.add_get("/api/stats",               self._handle_stats)
         self.app.router.add_get("/api/trades",              self._handle_trades)
+        self.app.router.add_get("/api/regime-patterns",     self._handle_regime_patterns)
         self.app.router.add_get("/events",                  self._handle_sse)
         self.app.router.add_get("/api/seed-wallets",        self._handle_seed_wallets_get)
         self.app.router.add_post("/api/seed-wallets/add",   self._handle_seed_wallets_add)
@@ -2440,6 +2441,19 @@ class WebDashboard:
             content_type="application/json",
             headers={"Access-Control-Allow-Origin": "*"}
         )
+
+    async def _handle_regime_patterns(self, request):
+        """GET /api/regime-patterns — latest in-bot hourly regime-pattern snapshot
+        (winner-vs-loser entry-feature separators + current regime). Written each hour by
+        core/regime_pattern_miner.py on the scan loop. Deterministic, no LLM, no API."""
+        import json as _json, os as _os
+        from aiohttp import web as _web
+        _path = _os.path.join(_os.environ.get("DATA_DIR", "."), "_hourly_patterns_latest.json")
+        try:
+            with open(_path) as _fh:
+                return _web.json_response(_json.loads(_fh.read()))
+        except Exception:
+            return _web.json_response({"status": "no patterns yet — the miner runs hourly on the scan loop"})
 
     async def _handle_trades(self, request):
         """GET /api/trades — bandwidth-limited.
