@@ -279,12 +279,15 @@ def apply_overlay(config) -> None:
     if not enabled():
         return
     st = _load_state().get(config.bot_id)
-    if st and st.get("archetype") == RED_ARCHETYPE:
-        # red mode re-derives from the LIVE regime on the next retune (<=15min);
-        # don't restore a stale red geometry onto a fresh-from-JSON green entry_gate
-        # (that would leave a green entry paired with a red exit for ~15min).
-        logger.info("[Chameleon] %s boot: last state was RED-NIGHT MODE; re-deriving "
-                    "from live regime (no stale overlay)", config.bot_id)
+    if st and st.get("archetype") in (RED_ARCHETYPE, GREEN_ARCHETYPE):
+        # red/green DIRECT profiles re-derive on the next retune (<=15min). RED: avoid
+        # a stale red exit on a fresh green entry. GREEN-MOMENTUM: the fresh-from-JSON
+        # config ALREADY IS the proven winning geometry (incl. the -60 runner stop),
+        # and routing the persisted tune through _apply would clamp that -60 to the -25
+        # copy-floor — so keep the JSON base and let the next retune re-assert green.
+        logger.info("[Chameleon] %s boot: last state was %s (direct profile); keeping "
+                    "fresh JSON base, re-deriving on next retune", config.bot_id,
+                    st.get("archetype"))
         return
     if st and isinstance(st.get("tune"), dict):
         try:
@@ -325,6 +328,27 @@ RED_TUNE = {"time_stop_minutes": 6.0, "tp1_pct": 6.0, "hard_stop_pct": -12.0}  #
 RED_EXTRA = {"tp1_sell_fraction": 0.8, "tp2_pct": 12.0, "tp2_sell_fraction": 0.2,
              "trail_pp": 2.0, "mcap_min": 50000.0}   # mcap floor: red-winners ~$124k vs loser ~$10k micro
 _GREEN_SNAP: Dict[str, dict] = {}   # bot_id -> snapshot of the fields red mode overrides
+
+# ── GREEN-MOMENTUM DEFAULT (2026-06-14, AxiS: "fix chameleon — it won't get off
+# its ass and trade while the other bots are winning") ───────────────────────
+# The idleness bug had TWO faces: (1) when no own-POSITIVE copyable archetype
+# qualified, the chameleon STOOD DOWN (the standby gate blocked all buys) and sat
+# out winning momentum tape; (2) board-wearing CORRUPTED the base -60 runner stop
+# into a tight board-derived stop (tune_from_geometry under-samples the rare runners
+# that carry the edge -> it stopped out of its own winners). But the chameleon's JSON
+# BASE config ALREADY IS the proven timebox_probe_mcap winner (tp1 20 / 240-min box /
+# WIDE -60 stop / mcap 50k). Fix (wallets-as-intelligence, NOT copy): when no copyable
+# winner qualifies, RUN that proven direct geometry and ALLOW entries instead of
+# standing down; rotate back UP to a board archetype only when one proves own-positive.
+# A regime-style DIRECT profile, exactly like RED-MODE.
+GREEN_ARCHETYPE = "momentum_green"
+GREEN_ENTRY_GATE = (("wash_suspected", "<=", 0), ("liquidity_usd", ">=", 25000.0),
+                    ("entry_age_hours", "<=", 24.0))
+GREEN_TRIGGERS = ["deep_1h_dip", "pullback_in_uptrend", "power_dip_runner",
+                  "chart_quality_bottom", "1s_demand_compound", "1s_capit_reversal"]
+GREEN_TUNE = {"time_stop_minutes": 240.0, "tp1_pct": 20.0, "hard_stop_pct": -60.0}
+GREEN_EXTRA = {"mcap_min": 50000.0, "tp1_sell_fraction": 0.6, "tp2_pct": 999.0,
+               "tp2_sell_fraction": 0.0, "trail_pp": 8.0}
 
 
 def _regime_is_red(scanner) -> bool:
@@ -374,6 +398,21 @@ def _restore_green(config) -> None:
         # restore the EXACT original (incl None — e.g. mcap_min was null off-red;
         # an `is not None` guard would leave the red floor stuck on after restore).
         object.__setattr__(config, k, snap.get(k))
+
+
+def _apply_green_profile(config) -> None:
+    """GREEN-MOMENTUM default: reassert the proven timebox DIRECT geometry (the JSON
+    base winning config) so the chameleon TRADES the winner instead of standing down.
+    Set RAW via __setattr__ — the -60 runner stop IS the edge (letting the rare runners
+    run); routing it through _apply would clamp it to the -25 COPY_STOP_FLOOR and stop
+    out of the winners (the exact corruption that made board-wearing bleed). Idempotent;
+    also reasserts entry/triggers/extras (a no-op off board mode; a repair after red)."""
+    object.__setattr__(config, "entry_gate", tuple(tuple(c) for c in GREEN_ENTRY_GATE))
+    object.__setattr__(config, "triggers_allowed", list(GREEN_TRIGGERS))
+    for k, v in GREEN_EXTRA.items():
+        object.__setattr__(config, k, v)
+    for k, v in GREEN_TUNE.items():
+        object.__setattr__(config, k, v)   # RAW: -60 runner stop preserved (no copy-floor)
 
 
 def best_qualifying(sensor, now: float, veto=frozenset(), own_closes=None):
@@ -554,21 +593,25 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
             arch, geo = best_qualifying(sensor, now, veto=veto,
                                         own_closes=rec.get("recent_closes"))
             if not arch:
-                # If the worn meta is own-fill-vetoed AND nothing copy-friendly
-                # qualifies (e.g. the only other board leader is one wallet's
-                # style, failing the >=2-wallet consensus), STAND DOWN rather than
-                # keep wearing the bleeder: clear the worn label so entries_allowed
-                # returns standby (AxiS: "only buy when we KNOW the meta"). The
-                # veto self-lifts as the bad closes roll out of recent_closes.
-                if worn_vetoed and rec.get("archetype"):
-                    logger.info("[Chameleon] %s STANDBY: worn '%s' own-fill-vetoed and "
-                                "no copy-friendly meta qualifies -> standing down (no new buys)",
-                                bot_id, rec.get("archetype"))
-                    rec["archetype"] = None
-                    rec["pending"] = None
+                # GREEN-MOMENTUM DEFAULT (2026-06-14): no own-positive copyable
+                # archetype qualifies -> do NOT stand down (sitting idle through
+                # winning tape was the bug AxiS flagged). RUN the proven momentum/
+                # timebox DIRECT profile (the base winning geometry) with entries
+                # ALLOWED, and REPAIR any board-tightened runner stop back to -60.
+                # Wallets-as-intelligence, not copy. Rotate back UP to a board
+                # archetype only when one proves own-positive. Applied once on entry
+                # (idempotent guard); the own-fills dial still pauses it if it bleeds.
+                if rec.get("archetype") != GREEN_ARCHETYPE:
+                    _apply_green_profile(pm.config)
+                    rec.update({"tune": dict(GREEN_TUNE), "archetype": GREEN_ARCHETYPE,
+                                "geometry": {"green_momentum": True}, "tuned_at": now,
+                                "tuned_at_iso": _iso(now), "pending": None})
                     st[bot_id] = rec
                     _save_state(st)
-                continue   # HOLD tune / stay in standby — never reset mid-day
+                    logger.info("[Chameleon] %s GREEN-MOMENTUM default -> running the proven "
+                                "timebox direct geometry (no copyable winner qualifies; "
+                                "active, not idle)", bot_id)
+                continue
             # A worn archetype our OWN money is bleeding on (own-fill veto) is a
             # deterioration signal the survivorship board WR hides. Force the
             # switch: bypass the _should_retune hold AND the open-book queue
@@ -667,8 +710,10 @@ def _compute_entries_allowed(bot_id: str, now: float) -> tuple:
         # the board-decay tripwires below don't apply to it. Entries are allowed —
         # the deep-flush profile IS the measured red-survivor — but the own-fills
         # dial above still pauses it if our own deep-flush copies start bleeding.
-        if arch == RED_ARCHETYPE:
-            return True, "red-night mode: deep-flush capitulation profile"
+        if arch in (RED_ARCHETYPE, GREEN_ARCHETYPE):
+            return True, ("red-night mode: deep-flush capitulation profile"
+                          if arch == RED_ARCHETYPE
+                          else "green-momentum default: proven timebox direct profile")
         # tripwire 2 — BUY-RATE COLLAPSE (leading): they stopped playing.
         if hasattr(sensor, "buy_rate"):
             recent, norm = sensor.buy_rate(arch, now)

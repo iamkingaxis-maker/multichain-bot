@@ -107,13 +107,25 @@ def test_quiesce_defers_until_flat(monkeypatch, tmp_path):
     assert cfg.time_stop_minutes == 90.0
 
 
-def test_no_qualifying_archetype_holds_current_tune(monkeypatch, tmp_path):
+def test_green_momentum_default_when_no_copyable_winner(monkeypatch, tmp_path):
+    # No board archetype clears the bars -> the chameleon must NOT stand down (idle
+    # through winning tape was the bug). It runs the proven timebox DIRECT geometry
+    # and ALLOWS entries; a prior board-wear that tightened the runner stop is
+    # REPAIRED back to -60 (raw, not the -25 copy-floor, not left at the tight -13).
     cfg = _cfg()
+    object.__setattr__(cfg, "hard_stop_pct", -13.0)   # simulate prior board-wear corruption
     sensor = _FakeSensor({"timebox": {"n": 3, "wr": 0.9},        # n too thin
                           "pond": {"n": 20, "wr": 0.4}}, {})     # wr too low
     _patch(monkeypatch, tmp_path, sensor)
+    monkeypatch.setattr(ch, "_entries_cache", {})
     ch.maybe_retune(_scanner(_pm(cfg, 0)), now=time.time())
-    assert cfg.time_stop_minutes == 240.0          # held
+    assert cfg.hard_stop_pct == -60.0              # runner stop REPAIRED (not -25, not held -13)
+    assert cfg.time_stop_minutes == 240.0
+    assert cfg.tp1_pct == 20.0
+    st = json.load(open(str(tmp_path / "tune.json")))
+    assert st["meta_chameleon"]["archetype"] == ch.GREEN_ARCHETYPE
+    ok, why = ch.entries_allowed("meta_chameleon", now=time.time())
+    assert ok and "green-momentum" in why
 
 
 def test_same_archetype_fresher_numbers_hold(monkeypatch, tmp_path):
@@ -403,12 +415,14 @@ def test_pending_queued_at_preserved_across_requeues(monkeypatch, tmp_path):
     assert st2["meta_chameleon"]["pending"]["queued_at"] == 10_000.0  # NOT reset to 11000
 
 
-def test_standby_when_worn_vetoed_and_no_copy_friendly_qualifier(monkeypatch, tmp_path):
+def test_worn_vetoed_no_copyable_falls_to_green_default(monkeypatch, tmp_path):
     # 2026-06-13 watch: worn=thesis_holder, own-fills net-negative (vetoed). The
     # only other board leader is time_boxer, but it's ONE wallet's style
-    # (n_wallets=1 -> fails the >=2-wallet consensus). best_qualifying returns
-    # None. Rather than keep wearing the bleeder, the chameleon must STAND DOWN
-    # (clear the worn label -> entries_allowed returns standby).
+    # (n_wallets=1 -> fails the >=2-wallet consensus). best_qualifying returns None.
+    # The veto must still REFUSE to re-wear the bleeder (thesis_holder) — but rather
+    # than STAND DOWN idle (the old behavior; AxiS 2026-06-14: "it won't get off its
+    # ass and trade"), the chameleon falls to the proven GREEN-MOMENTUM default and
+    # keeps trading the winner.
     cfg = _cfg()
     sensor = _RateSensor(
         {"thesis_holder": {"n": 20, "wr": 0.86}, "time_boxer": {"n": 18, "wr": 0.70}},
@@ -426,11 +440,13 @@ def test_standby_when_worn_vetoed_and_no_copy_friendly_qualifier(monkeypatch, tm
     monkeypatch.setattr(ch, "_last_check", 0.0)
     ch.maybe_retune(_scanner(_pm(cfg, 0)), now=10_000.0)
     st = json.load(open(str(tmp_path / "tune.json")))
-    assert st["meta_chameleon"]["archetype"] is None    # stood down (was thesis_holder)
-    # and the standby gate now blocks entries (no meta worn)
+    # bleeder REFUSED (veto worked) but NOT idle — runs the proven green default
+    assert st["meta_chameleon"]["archetype"] == ch.GREEN_ARCHETYPE
+    assert cfg.hard_stop_pct == -60.0                   # proven runner geometry asserted
+    # and entries are ALLOWED (active), not standby
     monkeypatch.setattr(ch, "_entries_cache", {})
     ok, why = ch.entries_allowed("meta_chameleon", now=10_050.0)
-    assert not ok and "STANDBY" in why
+    assert ok and "green-momentum" in why
 
 
 def test_kill_switch(monkeypatch, tmp_path):
