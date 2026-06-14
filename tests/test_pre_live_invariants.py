@@ -59,6 +59,7 @@ class _StubRiskManager:
     def record_buy(self, *a, **kw): pass
     def record_sell(self, *a, **kw): pass
     def can_trade(self, *a, **kw): return True
+    def is_daily_limit_hit(self, *a, **kw): return False   # buy path queries this; stub: limit not hit
 
 
 class _StubKillSwitch:
