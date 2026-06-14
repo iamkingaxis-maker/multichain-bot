@@ -111,10 +111,20 @@ def save_overlay(d: dict) -> None:
 _SKIP = os.path.join(_DATA_DIR, "panel_refresher_skip.json")
 
 
-def _load_skip() -> dict:
+def _load_skip(now: float = 0.0) -> dict:
+    """Skip-set with a TTL — entries expire (default 2h) so a wallet that was
+    skipped is periodically RE-tried. Matters because a transient RPC under-count
+    can mis-skip a classifiable wallet (the 2026-06-13 bug), and unfollowable/
+    holder status can change; the TTL self-heals a poisoned skip-set without a
+    manual reset. A fresh decode (post retry-fix) re-classifies it correctly."""
     try:
         with open(_SKIP) as f:
-            return json.load(f)
+            d = json.load(f)
+        ttl = _f("PANEL_SKIP_TTL_SECS", 7200.0)
+        if now and ttl > 0:
+            return {w: v for w, v in d.items()
+                    if now - float((v or {}).get("ts", 0)) < ttl}
+        return d
     except Exception:
         return {}
 
@@ -325,7 +335,7 @@ async def maybe_refresh_panel(sensor, discovery, rpc_url: str, now: float) -> No
 
         # Candidate pool: recurring runner early-buyers (recurrence = the validator),
         # widened to single-day if recurrent is thin. Skip wallets already paneled.
-        skip = _load_skip()
+        skip = _load_skip(now)
         cands = []
         if discovery is not None:
             try:
