@@ -1,0 +1,73 @@
+{
+  "age_h_max": 24.0,
+  "age_h_min": null,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 50.0,
+  "bot_id": "momentum_pump_tight",
+  "btc_macro_h1_block_threshold": null,
+  "daily_loss_limit_usd": 30.0,
+  "display_name": "MOMENTUM-PUMP-TIGHT (2026-06-14, regime-entry-hunt): the ONLY positive entry that survived a gate-independent forward test in the live SOL-pump tape — tight momentum-CONTINUATION (pc_h1 20-60 = committed but PRE-parabolic, liq>=30k HARD floor [the 20-30k band was the RUG pocket WR 0.44/-22%], mcap 80k-3M [winners cluster 140-600k], 1m volume surge). momentum_mode bypasses the dip-filter stack because our dip-buying INVERTS + bleeds in euphoria (dip entries WR 0.42 / ~-$341 net = the window bleed). THIN: n=11 fills / ~6 distinct winner tokens (AIELON = half), single 6.5h pump day — PAPER shadow, judge at n>=30 DISTINCT tokens vs momentum_shadow, promote only if >=+$2/tr AND catastrophe(<=-35%) rate <10%, NO $ projection. CAVEAT: no in-config SOL-regime gate yet (fires every regime; the SOL-pump-conditional version = chameleon GREEN mode). $50 fixed paper, daily $30.",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "pc_h1",
+      ">=",
+      20
+    ],
+    [
+      "pc_h1",
+      "<",
+      60
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      30000
+    ],
+    [
+      "1m_volume_spike",
+      ">=",
+      0.4
+    ]
+  ],
+  "fast_bail_pnl_pct": -9.0,
+  "filters_disabled": [],
+  "filters_enforced": null,
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -6.0,
+  "hard_stop_pct": -15.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 3,
+  "mcap_max": 3000000.0,
+  "mcap_min": 80000.0,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_triggers_to_fire": 1,
+  "momentum_mode": true,
+  "never_runner_exit_enabled": true,
+  "never_runner_loss_floor": -6.0,
+  "never_runner_minutes": 60,
+  "never_runner_peak_max": 3.0,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": 60,
+  "slow_bleed_pnl_threshold": -8.0,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "tp1_pct": 8.0,
+  "tp1_sell_fraction": 0.5,
+  "tp2_pct": 20.0,
+  "tp2_sell_fraction": 0.5,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
+  "trail_pp": 4.0,
+  "triggers_allowed": null,
+  "triggers_disabled": [],
+  "vol_h1_min": 1000.0
+}
