@@ -391,10 +391,10 @@ def test_pending_queued_at_preserved_across_requeues(monkeypatch, tmp_path):
     # original queued_at MUST be preserved so the 2h force-apply accumulates
     # (was reset to ~0 every cycle, silently defeating the backstop).
     cfg = _cfg()
-    # worn=conviction (cooled 0.55); thesis_holder dominates (1.0, n>=12); book busy.
+    # worn=conviction (cooled 0.55); surgical dominates (1.0, n>=12); book busy.
     sensor = _RateSensor(
-        {"conviction": {"n": 50, "wr": 0.55}, "thesis_holder": {"n": 18, "wr": 1.0}},
-        {"conviction": dict(GEO, wr=0.55), "thesis_holder": dict(GEO, wr=1.0)})
+        {"conviction": {"n": 50, "wr": 0.55}, "surgical": {"n": 18, "wr": 1.0}},
+        {"conviction": dict(GEO, wr=0.55), "surgical": dict(GEO, wr=1.0)})
     monkeypatch.setattr(ch, "_TUNE_FILE", str(tmp_path / "tune.json"))
     import core.meta_sensor as ms
     monkeypatch.setattr(ms, "_SENSOR", sensor)
@@ -406,7 +406,7 @@ def test_pending_queued_at_preserved_across_requeues(monkeypatch, tmp_path):
     ch.maybe_retune(_scanner(pm), now=10_000.0)
     st = json.load(open(str(tmp_path / "tune.json")))
     qa1 = st["meta_chameleon"]["pending"]["queued_at"]
-    assert st["meta_chameleon"]["pending"]["archetype"] == "thesis_holder"
+    assert st["meta_chameleon"]["pending"]["archetype"] == "surgical"
     assert qa1 == 10_000.0
     # re-queue 1000s later (still busy, same challenger) -> queued_at PRESERVED
     monkeypatch.setattr(ch, "_last_check", 0.0)
@@ -458,7 +458,7 @@ def test_kill_switch(monkeypatch, tmp_path):
     assert cfg.time_stop_minutes == 240.0
 
 
-def test_hard_to_copy_archetype_needs_higher_bar(monkeypatch, tmp_path):
+def test_hard_to_copy_archetype_needs_higher_bar_and_own_proof(monkeypatch, tmp_path):
     # thesis_holder (hard-to-copy) at 0.70 must NOT qualify (needs 0.75);
     # a copy-friendly archetype (surgical) at 0.65 DOES (bar 0.60).
     cfg = _cfg()
@@ -466,13 +466,16 @@ def test_hard_to_copy_archetype_needs_higher_bar(monkeypatch, tmp_path):
         {"thesis_holder": {"n": 20, "wr": 0.70}, "surgical": {"n": 12, "wr": 0.65}},
         {"thesis_holder": dict(GEO, wr=0.70), "surgical": dict(GEO, wr=0.65)})
     _patch(monkeypatch, tmp_path, sensor)
-    arch, geo = ch.best_qualifying(sensor, now=__import__("time").time())
+    arch, geo = ch.best_qualifying(sensor, now=time.time())
     assert arch == "surgical"        # thesis_holder filtered by the higher bar
-    # thesis_holder DOES qualify once it clears 0.75
+    # clearing 0.75 is NOT enough for a hard-to-copy meta: UNPROVEN it's still not
+    # explored (the survivorship trap) -> None (maybe_retune runs green-momentum).
     sensor2 = _RateSensor({"thesis_holder": {"n": 20, "wr": 0.78}},
                           {"thesis_holder": dict(GEO, wr=0.78)})
-    arch2, _ = ch.best_qualifying(sensor2, now=__import__("time").time())
-    assert arch2 == "thesis_holder"
+    assert ch.best_qualifying(sensor2, now=time.time(), own_closes=None)[0] is None
+    # but a thesis_holder our OWN money has PROVEN positive (>=4 fills, edge>0) IS worn.
+    own = [{"archetype": "thesis_holder", "net": 6.0}] * 5
+    assert ch.best_qualifying(sensor2, now=time.time(), own_closes=own)[0] == "thesis_holder"
 
 
 def test_qualify_wr_for_helper():
@@ -524,17 +527,20 @@ def test_own_fill_vetoed_only_hard_to_copy():
 
 
 def test_best_qualifying_respects_veto():
-    """A vetoed hard-to-copy archetype is skipped so the search falls through to
-    the next-best copy-friendly meta — the thesis_holder doom-loop break."""
+    """A vetoed hard-to-copy archetype is skipped so the search falls through to the
+    next-best copy-friendly meta — the thesis_holder doom-loop break. The veto matters
+    even for a thesis_holder our own money had PROVEN positive: a fresh bleed-streak
+    vetoes re-wearing it (unproven hard-to-copy is never explored anyway)."""
     sensor = _RateSensor(
         {"thesis_holder": {"n": 20, "wr": 0.85}, "surgical": {"n": 12, "wr": 0.65}},
         {"thesis_holder": dict(GEO, wr=0.85), "surgical": dict(GEO, wr=0.65)})
-    # vetoed -> falls to surgical despite thesis_holder's higher board WR
-    arch, _ = ch.best_qualifying(sensor, now=time.time(),
+    own = [{"archetype": "thesis_holder", "net": 6.0}] * 5   # proven-positive -> wearable
+    # vetoed -> falls to surgical despite thesis_holder's higher board WR + own-proof
+    arch, _ = ch.best_qualifying(sensor, now=time.time(), own_closes=own,
                                  veto=frozenset({"thesis_holder"}))
     assert arch == "surgical"
-    # un-vetoed -> thesis_holder (0.85 clears its 0.75 bar) wins on WR
-    arch2, _ = ch.best_qualifying(sensor, now=time.time())
+    # un-vetoed -> proven-positive thesis_holder wins
+    arch2, _ = ch.best_qualifying(sensor, now=time.time(), own_closes=own)
     assert arch2 == "thesis_holder"
 
 
@@ -581,6 +587,17 @@ def test_best_qualifying_explores_unproven_by_board_wr():
     own = [{"archetype": "surgical", "net": 1.0}]   # only 1 fill -> unproven
     arch, _ = ch.best_qualifying(sensor, now=time.time(), own_closes=own)
     assert arch == "surgical"     # highest board WR (exploration bootstrap)
+
+
+def test_best_qualifying_never_explores_unproven_hard_to_copy():
+    # thesis_holder is HARD_TO_COPY: even UNPROVEN (no own-fills) with the highest board
+    # WR, it must NOT be explored (it's a known survivorship trap) -> best_qualifying
+    # returns None -> maybe_retune falls to the green-momentum default, not the trap.
+    sensor = _FakeSensor(
+        {"thesis_holder": {"n": 55, "wr": 0.94}},
+        {"thesis_holder": dict(GEO, wr=0.94)})
+    arch, _ = ch.best_qualifying(sensor, now=time.time(), own_closes=None)
+    assert arch is None
 
 
 def test_best_qualifying_stands_down_when_only_proven_loser():

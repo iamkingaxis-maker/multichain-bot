@@ -486,6 +486,12 @@ def best_qualifying(sensor, now: float, veto=frozenset(), own_closes=None):
                 proven_pos.append((_edge, _arch, _geo))
             else:
                 near_miss.append((_arch, f"own-edge {_edge:+.2f}/{_n} <=0 (copy-loser, skip)"))
+        elif _arch in HARD_TO_COPY:
+            # NEVER explore an UNPROVEN hard-to-copy archetype (thesis_holder): its board
+            # WR is survivorship-inflated and it's known not to transfer to our fast-exit
+            # copy, so "exploring" it just feeds the trap. Skip -> falls through to None ->
+            # maybe_retune runs the green-momentum default instead of the trap.
+            near_miss.append((_arch, "hard-to-copy + unproven -> not explored (green default)"))
         else:
             unproven.append((_geo.get("wr", 0), _geo.get("n", 0), _arch, _geo))
     if proven_pos:
