@@ -83,6 +83,22 @@ def _entry_stack_mode() -> str:
     return m if m in ("off", "shadow", "enforce") else "enforce"
 
 
+def _rug_bundle_mode() -> str:
+    """One-shot-sniped-rug ('bundle') gate mode. Env RUG_BUNDLE_MODE in
+    {off, shadow, enforce}; default 'enforce'. Downgradeable without a deploy."""
+    m = os.environ.get("RUG_BUNDLE_MODE", "enforce").strip().lower()
+    return m if m in ("off", "shadow", "enforce") else "enforce"
+
+
+def _rug_bundle_spread_max() -> float:
+    """Max top-10 buyer time-spread (sec) that counts as 'sniped/bundled'. Env
+    RUG_BUNDLE_SPREAD_MAX_SEC, default 25 (losers median 20s vs winners 83s)."""
+    try:
+        return float(os.environ.get("RUG_BUNDLE_SPREAD_MAX_SEC", "25"))
+    except (TypeError, ValueError):
+        return 25.0
+
+
 # Control cohort: stays UNGATED so the gated-vs-ungated counterfactual keeps
 # being measured forward (same held-out discipline as every other gate).
 # Override via ENTRY_STACK_CONTROL_BOTS=csv.
@@ -198,6 +214,29 @@ def _rug_structure_blocks(b: FeatureBundle,
     if (not allow_zero_buyers and isinstance(ub, (int, float))
             and not isinstance(ub, bool) and ub == 0):
         return True, "unique_buyers_n=0 (no real buyers)"
+    return False, ""
+
+
+def _rug_bundle_blocks(b: "FeatureBundle") -> tuple[bool, str]:
+    """Surgical 'one-shot sniped launch' rug gate (2026-06-14). Catches the rug
+    class that PASSES _rug_structure_blocks AND shows a clean rugcheck / 100%-locked
+    LP — the pump-then-dump that looks IDENTICAL to a winner on every standard rug
+    feature. Held-out separation (n=41 deep losers <=-40% vs 248 winners >=+15%):
+    liquidity_usd (~$26k), lp_locked_pct (100%), unique_buyers_n, rugcheck_score (1)
+    were statistically identical between rugs and winners; only the COMBINATION of
+    [0 recurring buyers] AND [top-10 buyers bundled within ~25s] separated them —
+    catches 49% of rugs for 12% winner-kill / 7% buy-volume. Requires BOTH (recur0
+    alone = 45% winner-kill; sniped alone = 25%). Fail-OPEN when either feature is
+    missing (coverage-safe). See the rug-separation analysis 2026-06-14."""
+    m = b.raw_meta or {}
+    rb = m.get("n_recurring_buyers_3plus")
+    sp = m.get("top10_buyer_time_spread_sec")
+    no_repeat = isinstance(rb, (int, float)) and not isinstance(rb, bool) and rb == 0
+    sniped = (isinstance(sp, (int, float)) and not isinstance(sp, bool)
+              and sp <= _rug_bundle_spread_max())
+    if no_repeat and sniped:
+        return True, (f"one-shot sniped rug (0 recurring buyers + top10 spread "
+                      f"{sp:.0f}s<={_rug_bundle_spread_max():.0f}s)")
     return False, ""
 
 
@@ -467,19 +506,37 @@ class BotEvaluator:
         (off|shadow|enforce, default enforce). Logs every flagged entry in both
         shadow and enforce so blocks stay observable forward (Railway logs evaporate
         ~30min and a block leaves no trade record). See _rug_structure_blocks."""
-        mode = _rug_gate_mode()
-        if mode == "off":
-            return False
         allow_zero_buyers = bool(getattr(self.config, "young_token_probe", False))
-        blocked, why = _rug_structure_blocks(b, allow_zero_buyers=allow_zero_buyers)
-        if not blocked:
-            return False
-        enforced = (mode == "enforce")
-        logger.info(
-            f"[rug_gate] bot={self.config.bot_id} token={b.token} {why} "
-            f"mode={mode} block={enforced}"
-        )
-        return enforced
+        # (1) LP-structure / no-demand instant-pull gate (RUG_GATE_MODE).
+        mode = _rug_gate_mode()
+        if mode != "off":
+            blocked, why = _rug_structure_blocks(b, allow_zero_buyers=allow_zero_buyers)
+            if blocked:
+                enforced = (mode == "enforce")
+                logger.info(
+                    f"[rug_gate] bot={self.config.bot_id} token={b.token} {why} "
+                    f"mode={mode} block={enforced}"
+                )
+                if enforced:
+                    return True
+        # (2) One-shot-sniped 'bundle' rug gate (2026-06-14, RUG_BUNDLE_MODE) — the
+        # pump-then-dump class that passes (1) with a clean rugcheck. Exempt
+        # young_token_probe bots: buying FRESH (<2h) tokens before buyers accumulate
+        # makes 0 recurring buyers + a sniped top-10 the EXPECTED entry state, not a
+        # rug (mirrors allow_zero_buyers; the young/microcap family carries its own
+        # rug screen).
+        bmode = _rug_bundle_mode()
+        if bmode != "off" and not allow_zero_buyers:
+            bblocked, bwhy = _rug_bundle_blocks(b)
+            if bblocked:
+                benforced = (bmode == "enforce")
+                logger.info(
+                    f"[rug_bundle] bot={self.config.bot_id} token={b.token} {bwhy} "
+                    f"mode={bmode} block={benforced}"
+                )
+                if benforced:
+                    return True
+        return False
 
     def _entry_stack_blocks(self, b: FeatureBundle) -> bool:
         """Fleet-wide validated entry-stack gate (2026-06-09). Applies to every

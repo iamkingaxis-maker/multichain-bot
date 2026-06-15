@@ -71,3 +71,53 @@ def test_endtoend_burned_token_passes_gate():
 def test_endtoend_unlocked_token_blocks():
     rc = {"markets": [{"mintLP": "realmint", "lp": {"baseUSD": 100, "quoteUSD": 5000, "lpLockedPct": 0.0}}]}
     assert rug_gate_verdict(compute_holder_features(rc))[0] == "BLOCK"
+
+
+# ── one-shot-sniped 'bundle' rug gate (2026-06-14) ──
+from core.bot_evaluator import _rug_bundle_blocks, _rug_bundle_mode, _rug_bundle_spread_max
+
+
+class _B:
+    def __init__(self, **meta):
+        self.raw_meta = meta
+        self.token = "TST"
+
+
+def test_bundle_blocks_norepeat_and_sniped():
+    # 0 recurring buyers AND top-10 bundled within 25s = one-shot sniped rug
+    assert _rug_bundle_blocks(_B(n_recurring_buyers_3plus=0, top10_buyer_time_spread_sec=15))[0] is True
+
+
+def test_bundle_passes_with_recurring_buyers():
+    # real returning demand -> never block, even if sniped (winners look like this)
+    assert _rug_bundle_blocks(_B(n_recurring_buyers_3plus=2, top10_buyer_time_spread_sec=5))[0] is False
+
+
+def test_bundle_passes_organic_spread():
+    # buyers spread out (organic) -> never block, even with 0 recurring
+    assert _rug_bundle_blocks(_B(n_recurring_buyers_3plus=0, top10_buyer_time_spread_sec=200))[0] is False
+
+
+def test_bundle_fails_open_when_missing():
+    assert _rug_bundle_blocks(_B())[0] is False
+    assert _rug_bundle_blocks(_B(n_recurring_buyers_3plus=0))[0] is False          # spread missing
+    assert _rug_bundle_blocks(_B(top10_buyer_time_spread_sec=5))[0] is False       # recurring missing
+
+
+def test_bundle_bool_not_treated_as_number():
+    # guard: False must NOT be read as 0 (would falsely fire)
+    assert _rug_bundle_blocks(_B(n_recurring_buyers_3plus=False, top10_buyer_time_spread_sec=5))[0] is False
+
+
+def test_bundle_mode_default_enforce(monkeypatch):
+    monkeypatch.delenv("RUG_BUNDLE_MODE", raising=False)
+    assert _rug_bundle_mode() == "enforce"
+    monkeypatch.setenv("RUG_BUNDLE_MODE", "shadow")
+    assert _rug_bundle_mode() == "shadow"
+
+
+def test_bundle_spread_threshold_env(monkeypatch):
+    monkeypatch.setenv("RUG_BUNDLE_SPREAD_MAX_SEC", "40")
+    assert _rug_bundle_spread_max() == 40.0
+    assert _rug_bundle_blocks(_B(n_recurring_buyers_3plus=0, top10_buyer_time_spread_sec=35))[0] is True   # 35<=40
+    assert _rug_bundle_blocks(_B(n_recurring_buyers_3plus=0, top10_buyer_time_spread_sec=45))[0] is False  # 45>40
