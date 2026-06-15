@@ -526,7 +526,8 @@ class BotEvaluator:
         # rug (mirrors allow_zero_buyers; the young/microcap family carries its own
         # rug screen).
         bmode = _rug_bundle_mode()
-        if bmode != "off" and not allow_zero_buyers:
+        if bmode != "off" and (not allow_zero_buyers
+                               or getattr(self.config, "rug_bundle_gate_force", False)):
             bblocked, bwhy = _rug_bundle_blocks(b)
             if bblocked:
                 benforced = (bmode == "enforce")

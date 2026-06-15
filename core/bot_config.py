@@ -139,6 +139,12 @@ class BotConfig:
     # this bot (bad-day vehicles fish the segment that still pays on bad days;
     # momentum_mode bots and the control cohort are auto-exempt in code).
     regime_dial_exempt: bool = False
+    # rug_bundle_gate_force: opt INTO the one-shot-sniped bundle rug gate even when
+    # young_token_probe=True (which otherwise exempts it). The chameleon is flagged
+    # young_token_probe for the zero-buyers STRUCTURE carve-out, but is NOT a genuine
+    # fresh-launch probe — it must still be blocked from sniped-no-recurring rugs.
+    # Default False = the young-probe family keeps its bundle-gate exemption.
+    rug_bundle_gate_force: bool = False
 
     # Trading window (UTC hours, half-open: [start, end))
     trading_hour_utc_start: int = 0

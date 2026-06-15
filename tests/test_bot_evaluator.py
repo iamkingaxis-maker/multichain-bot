@@ -86,6 +86,32 @@ def test_rug_gate_default_enforce_blocks_via_evaluate(monkeypatch):
     assert decision is None
 
 
+# One-shot-sniped 'bundle' rug gate via _rug_gate_blocks (2026-06-14, #437/#434)
+def test_rug_bundle_gate_blocks_sniped_no_recurring(monkeypatch):
+    monkeypatch.setenv("RUG_GATE_MODE", "off")        # isolate the bundle gate
+    monkeypatch.setenv("RUG_BUNDLE_MODE", "enforce")
+    ev = BotEvaluator(_cfg())                          # young_token_probe defaults False
+    sniped = _bundle(raw_meta={"n_recurring_buyers_3plus": 0, "top10_buyer_time_spread_sec": 12})
+    assert ev._rug_gate_blocks(sniped) is True
+    organic = _bundle(raw_meta={"n_recurring_buyers_3plus": 2, "top10_buyer_time_spread_sec": 12})
+    assert ev._rug_gate_blocks(organic) is False       # recurring buyers = real demand
+    monkeypatch.setenv("RUG_BUNDLE_MODE", "shadow")
+    assert ev._rug_gate_blocks(sniped) is False         # shadow logs, never blocks
+
+
+def test_rug_bundle_gate_young_probe_exempt_unless_forced(monkeypatch):
+    """young_token_probe exempts a bot from the bundle gate (fresh-launch thesis),
+    UNLESS rug_bundle_gate_force opts it back in (the chameleon: young-probe for the
+    zero-buyers carve-out, but must still dodge sniped-no-recurring rugs)."""
+    monkeypatch.setenv("RUG_GATE_MODE", "off")
+    monkeypatch.setenv("RUG_BUNDLE_MODE", "enforce")
+    sniped = _bundle(raw_meta={"n_recurring_buyers_3plus": 0, "top10_buyer_time_spread_sec": 12})
+    young = BotEvaluator(_cfg(young_token_probe=True))
+    forced = BotEvaluator(_cfg(young_token_probe=True, rug_bundle_gate_force=True))
+    assert young._rug_gate_blocks(sniped) is False       # exempt by young_token_probe
+    assert forced._rug_gate_blocks(sniped) is True        # chameleon's forced opt-in
+
+
 # Per-trigger token-state gates (2026-06-08)
 def test_trigger_state_gate_drops_trigger_when_state_fails():
     cfg = _cfg(trigger_state_gates=[
