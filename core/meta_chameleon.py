@@ -352,15 +352,24 @@ GREEN_EXTRA = {"mcap_min": 50000.0, "tp1_sell_fraction": 0.6, "tp2_pct": 999.0,
 
 
 def _regime_is_red(scanner) -> bool:
-    """Red night per the day-level regime study (regime_size_dial BAD verdict):
-    broad downside capitulation (h1neg>=40) or SOL euphoria. Reads the scan
-    cycle's regime snapshot stashed on the scanner. Fail-safe: False (normal)."""
+    """Red NIGHT = broad downside CAPITULATION only (h1neg>=40), where deep-flush
+    dip-buying catches the bounce. NOT SOL-euphoria: regime_size_verdict flags
+    euphoria BAD too (correct for SIZING) but deep-flush dip-buying INVERTS in
+    euphoria -- "chasing tops = bad for dip-buying" (the dial's own docstring; #433).
+    Gating red-mode on the full BAD_MULT made the chameleon deep-flush INTO the
+    SOL-pump and bleed (root-cause 2026-06-15: its loss was 8 extra red-mode entries
+    the static green base never took; on shared tokens it was ~flat at -$9 while the
+    base made +$189). So gate on the broad_red REASON only; in euphoria stay on the
+    proven green base. Fail-safe: False (normal)."""
     try:
         from core.regime_size_dial import regime_size_verdict, BAD_MULT
         meta = getattr(scanner, "_cycle_regime", None)
         if not isinstance(meta, dict):
             return False
-        return regime_size_verdict(meta)[0] == BAD_MULT
+        mult, reasons = regime_size_verdict(meta)
+        if mult != BAD_MULT:
+            return False
+        return any("broad_red" in str(r) for r in reasons)
     except Exception:
         return False
 

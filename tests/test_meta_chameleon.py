@@ -23,6 +23,18 @@ def _scanner(pm):
     return types.SimpleNamespace(bot_position_managers={"meta_chameleon": pm})
 
 
+def test_regime_red_only_on_broad_red_not_euphoria():
+    """Root-cause fix 2026-06-15: red deep-flush must fire on broad-RED capitulation
+    ONLY, never SOL-euphoria (deep-flush dip-buying inverts in euphoria -> the chameleon
+    was deep-flushing into the SOL-pump and bleeding -$90)."""
+    R = lambda regime: ch._regime_is_red(types.SimpleNamespace(_cycle_regime=regime))
+    assert R({"sol_pc_h24": 0.0, "regime_h1_neg_pct": 55}) is True     # broad capitulation -> red
+    assert R({"sol_pc_h24": 3.0, "regime_h1_neg_pct": 15}) is False    # SOL euphoria -> NOT red (stay green)
+    assert R({"sol_pc_h24": 3.0, "regime_h1_neg_pct": 55}) is True     # both -> red (broad_red present)
+    assert R({"sol_pc_h24": -1.0, "regime_h1_neg_pct": 19}) is False   # good regime -> not red
+    assert R(None) is False                                             # no regime snapshot -> not red
+
+
 class _FakeSensor:
     def __init__(self, board, geo):
         self._board, self._geo = board, geo
