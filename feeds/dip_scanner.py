@@ -963,7 +963,13 @@ class DipScanner:
         _ar_liq = getattr(bundle, "liquidity_usd", None)
         if _ar_liq is None:
             _ar_liq = _ar_meta.get("liquidity_usd") or _ar_meta.get("entry_liquidity_usd")
-        if isinstance(_ar_liq, (int, float)) and 0 < _ar_liq < float(os.environ.get("ANTIRUG_MIN_LIQ_USD", "25000")):
+        # antirug_floor_exempt (2026-06-15): a TINY-size, fast-time-box rug-pocket probe
+        # (wallet-mimic) opts out of the 25k floor — the copyable winners' habitat is
+        # $9-20k liq, and at ~$20 size the exit slippage is small (the floor's "unexitable"
+        # logic is size-dependent) while the 6-min time-box caps rug-development exposure.
+        _ar_exempt = bool(getattr(pm.config, "antirug_floor_exempt", False))
+        if (not _ar_exempt and isinstance(_ar_liq, (int, float))
+                and 0 < _ar_liq < float(os.environ.get("ANTIRUG_MIN_LIQ_USD", "25000"))):
             _ar_mode = os.environ.get("ANTIRUG_FLOOR_MODE", "enforce").lower()
             logger.info("[DipScanner] bot=%s ANTI-RUG %s: liq=$%.0f < floor %s", bot_id,
                         "BLOCK" if _ar_mode != "shadow" else "SHADOW-would-block", _ar_liq, decision.token)

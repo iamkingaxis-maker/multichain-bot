@@ -1,0 +1,82 @@
+{
+  "age_h_max": null,
+  "age_h_min": null,
+  "alpha_multiplier": 1.0,
+  "antirug_floor_exempt": true,
+  "base_position_usd": 20.0,
+  "bot_id": "rugpocket_scalper",
+  "btc_macro_h1_block_threshold": null,
+  "display_name": "RUG-POCKET SCALPER (2026-06-15, wallet-mimic). Faithful mimic of the 3 copyable pond winners (8zkg/1eveYY/7BNaxx) = deep-dip FAST-time-box scalpers in the DEEP-MICROCAP rug pocket they profit in but we normally avoid. Edge (mission wallet-mine): deep flush (shape_90m_drawdown<=-30) in microcaps (mcap 15k-200k, liq>=12k) + FAST 6-min time-box (their survival mechanism: 79% of losers flushed at ~5min) + tight fast_bail -10. RUG-SAFETY = TINY $20 size (low slippage even at $9-20k liq = why antirug_floor_exempt is safe here) + the fleet RUG_BUNDLE sniped-rug gate + lp-structure gate STILL apply + max 3 concurrent. PAPER test of whether the copyable rug-pocket edge is capturable safely. Forward-judge realized %/WR at n>=30; promote only if +EV AND catastrophe(<=-35%) rate <10%. NO $ projection.",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "shape_90m_drawdown_from_max_pct",
+      "<=",
+      -30.0
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      12000.0
+    ],
+    [
+      "1m_volume_spike",
+      ">=",
+      0.4
+    ]
+  ],
+  "entry_stack_exempt": true,
+  "exclusion_pool": "rugpocket_scalper",
+  "fast_bail_pnl_pct": -10.0,
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_btc_overheat",
+    "filter_huge_wick"
+  ],
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -2.0,
+  "hard_stop_pct": -18.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 3,
+  "mcap_max": 200000.0,
+  "mcap_min": 15000.0,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_shape_90m_range_pct": 10.0,
+  "min_token_volatility_h24_pct": null,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": false,
+  "never_runner_loss_floor": -6.0,
+  "never_runner_minutes": 60,
+  "never_runner_peak_max": 3.0,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": 100000,
+  "slow_bleed_pnl_threshold": -99.0,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "tp1_pct": 12.0,
+  "tp1_sell_fraction": 0.6,
+  "tp2_pct": 40.0,
+  "tp2_sell_fraction": 0.4,
+  "time_stop_minutes": 6.0,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
+  "trail_pp": 4.0,
+  "triggers_allowed": [
+    "deep_1h_dip",
+    "power_dip_runner",
+    "chart_quality_bottom",
+    "1s_capit_reversal"
+  ],
+  "triggers_disabled": [],
+  "vol_h1_min": 1000.0,
+  "young_token_probe": false
+}

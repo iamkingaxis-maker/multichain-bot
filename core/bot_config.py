@@ -145,6 +145,11 @@ class BotConfig:
     # fresh-launch probe — it must still be blocked from sniped-no-recurring rugs.
     # Default False = the young-probe family keeps its bundle-gate exemption.
     rug_bundle_gate_force: bool = False
+    # antirug_floor_exempt: skip the fleet #432 anti-rug liq floor (>=25k). ONLY for
+    # tiny-size + fast-time-box rug-pocket probes (wallet-mimic): the copyable winners'
+    # habitat is $9-20k liq; at ~$20 size the exit slippage is small + the fast box caps
+    # rug exposure. Default False = every other bot keeps the floor.
+    antirug_floor_exempt: bool = False
 
     # Trading window (UTC hours, half-open: [start, end))
     trading_hour_utc_start: int = 0
