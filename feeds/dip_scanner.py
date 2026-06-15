@@ -1786,6 +1786,46 @@ class DipScanner:
         except Exception as e:
             logger.debug(f"[DipScanner] sol_bail_shadow stamp err: {e}")
 
+    def _stamp_liq_drain_shadow(self, position, price, now):
+        """LIQUIDITY-DRAIN SHADOW (no action by default, 2026-06-15) — Mechanism A, the
+        gap-through EXIT lever (docs/gap_through_detector_scope.md). A rug drains LP as/just-
+        before it craters the price, so a sharp liquidity REMOVE verdict from the
+        LiquidityFlowTracker is a LEADING indicator the price-reactive stop can't see (the
+        single-poll -66% gap-throughs = the real dollar bleed). Each cycle, read the drain
+        verdict for this held token and, on FIRST would-bail, stamp the would-be bail P&L +
+        the drain signal so the close record lets us measure: did the drain LEAD the cliff,
+        and what would it have saved? Winner-safe via the not-green guard. LIQ_DRAIN_MODE=
+        enforce would flip this to a real exit (NOT wired here — this is the shadow build);
+        default shadow. Mirrors _stamp_sol_bail_shadow. lp_history_samples is stamped so the
+        measurement reveals per-token liquidity coverage (the open question before enforce)."""
+        try:
+            if os.environ.get("LIQ_DRAIN_MODE", "shadow").strip().lower() == "off":
+                return
+            sb = position.state_blob
+            if sb is None or "liq_drain_shadow_pnl_pct" in sb:
+                return  # first-fire only
+            if position.entry_price <= 0 or price <= 0:
+                return
+            lp = getattr(self, "_lp_flow", None)
+            if lp is None:
+                return
+            analysis = lp.analyze(position.address)
+            pnl_pct = (price / position.entry_price - 1.0) * 100.0
+            from feeds.liquidity_flow import drain_bail_decision
+            _wsafe = float(os.environ.get("LIQ_DRAIN_WINNER_SAFE_PNL", "3.0"))
+            would_bail, reason = drain_bail_decision(analysis, pnl_pct, winner_safe_pnl_min=_wsafe)
+            if not would_bail:
+                return
+            sb["liq_drain_shadow_pnl_pct"] = round(pnl_pct, 3)
+            sb["liq_drain_shadow_secs"] = int(now - position.entry_time)
+            sb["liq_drain_shadow_verdict"] = analysis.get("lp_event_verdict")
+            sb["liq_drain_shadow_delta5m"] = analysis.get("lp_delta_5m_pct")
+            sb["liq_drain_shadow_samples"] = analysis.get("lp_history_samples")
+            logger.info("[DipScanner] LIQ-DRAIN SHADOW would-bail %s: pnl=%.1f%% %s (peak=%.1f%%)",
+                        position.token, pnl_pct, reason, getattr(position, "peak_pnl_pct", 0.0))
+        except Exception as e:
+            logger.debug(f"[DipScanner] liq_drain_shadow stamp err: {e}")
+
     async def _tick_all_bots_positions(self):
         """Per-bot exit-decision loop. Iterates each bot's open positions,
         fetches current price + vol from the shared PoolPriceFeed, and acts
@@ -1877,6 +1917,7 @@ class DipScanner:
                     # so we can measure save-vs-lose before enforcing. See
                     # _stamp_sol_bail_shadow.
                     self._stamp_sol_bail_shadow(position, price, now)
+                    self._stamp_liq_drain_shadow(position, price, now)
                     decisions = pm.tick(
                         token=token,
                         current_price=price,

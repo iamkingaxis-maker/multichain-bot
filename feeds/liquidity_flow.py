@@ -208,3 +208,26 @@ class LiquidityFlowTracker:
             "lp_delta_60m_pct": d_60m,
             "lp_history_samples": len(hist),
         }
+
+
+def drain_bail_decision(analysis, pnl_pct, *, winner_safe_pnl_min: float = 3.0):
+    """Pure decision for the liquidity-drain bail — the gap-through EXIT lever (2026-06-15).
+
+    A rug drains LP as/just-before it craters the price, so a sharp liquidity REMOVE event is a
+    LEADING indicator the price-reactive stop can't see (the single-poll -66% gap-throughs that
+    are the real dollar bleed). Fires when LP is being REMOVED (analyze() verdict starts with
+    'REMOVE') AND the position is NOT solidly green (winner-safe: a token can drain liquidity
+    while a holder exits into strength — don't bail those). Returns (would_bail, reason).
+
+    Caller decides shadow (stamp only) vs enforce (act) via LIQ_DRAIN_MODE. Pure + side-effect
+    free so it's unit-testable; thresholds (the REMOVE verdict) live in LiquidityFlowTracker.analyze."""
+    a = analysis or {}
+    verdict = a.get("lp_event_verdict")
+    samples = a.get("lp_history_samples") or 0
+    if samples <= 0 or not isinstance(verdict, str):
+        return False, "no-data"
+    if not verdict.startswith("REMOVE"):
+        return False, "stable"
+    if pnl_pct is not None and pnl_pct >= winner_safe_pnl_min:
+        return False, f"winner-safe(pnl={round(pnl_pct, 1)}>={winner_safe_pnl_min})"
+    return True, f"{verdict} d5m={a.get('lp_delta_5m_pct')}"
