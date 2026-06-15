@@ -860,6 +860,23 @@ class DipScanner:
     # self.bot_manager is wired. They live on DipScanner so they share
     # state with the existing per-token loop (pool_price_feed, etc.).
 
+    def _live_token_exposure(self, address: str) -> tuple:
+        """Fleet-wide (count, $usd) of OPEN positions in ONE token, keyed by ADDRESS.
+        Address-keyed on purpose: symbols collide (the SPCX phantom) so concentration
+        MUST be measured per-mint. Powers the live per-token exposure cap (the DEGEN-x198
+        / 05-23 correlated-rug guard). Reads every per-bot book; cheap (fleet is ~hundreds
+        of open positions at most)."""
+        n = 0
+        usd = 0.0
+        if not address:
+            return n, usd
+        for _pm in self.bot_position_managers.values():
+            for _p in _pm._positions.values():
+                if getattr(_p, "address", "") == address:
+                    n += 1
+                    usd += float(getattr(_p, "size_usd", 0.0) or 0.0)
+        return n, usd
+
     async def _execute_bot_buy(self, decision, bundle):
         """Execute a BuyDecision from a single bot.
 
@@ -1080,6 +1097,39 @@ class DipScanner:
             _used_size, _derate_tag = await self._apply_pool_sizing_derates(
                 decision, pm, bundle, _used_size
             )
+        # PER-TOKEN FLEET EXPOSURE CAP (2026-06-15) — the DEGEN-x198 / 05-23 guard.
+        # LIVE-MONEY ONLY: gated on _live (should_route_live -> requires a real key), so the
+        # paper fleet (the 70-experiment selection instrument) is NEVER touched. The
+        # catastrophic drawdowns were MANY bots holding the SAME token when it rugged
+        # (198 live positions in one mint on 05-23 = a -$5k equal-weight day). Cap the
+        # fleet's concurrent LIVE positions AND $ exposure in one token (by address).
+        # Fail-CLOSED: a real-money safety cap skips ONE buy rather than risk pile-on.
+        # Tunables: LIVE_PER_TOKEN_MAX_POSITIONS (2), LIVE_PER_TOKEN_MAX_USD (60),
+        # LIVE_PER_TOKEN_CAP_MODE (enforce|shadow|off).
+        _ptc_mode = os.environ.get("LIVE_PER_TOKEN_CAP_MODE", "enforce").strip().lower()
+        if _live and _ptc_mode != "off":
+            try:
+                _ptc_n = int(os.environ.get("LIVE_PER_TOKEN_MAX_POSITIONS", "2"))
+                _ptc_usd = float(os.environ.get("LIVE_PER_TOKEN_MAX_USD", "60"))
+                _ptc_addr = decision.address or self._addr_by_token.get(decision.token, "")
+                _ptc_open_n, _ptc_open_usd = self._live_token_exposure(_ptc_addr)
+                if _ptc_addr and (_ptc_open_n >= _ptc_n
+                                  or (_ptc_open_usd + _used_size) > _ptc_usd):
+                    logger.warning(
+                        "[DipScanner] LIVE PER-TOKEN CAP %s: %s has %d live pos/$%.2f open "
+                        "(cap %d/$%.2f) +$%.2f; %s %s",
+                        "SHADOW-would-block" if _ptc_mode == "shadow" else "BLOCK",
+                        decision.token, _ptc_open_n, _ptc_open_usd, _ptc_n, _ptc_usd,
+                        _used_size, bot_id, _ptc_addr)
+                    if _ptc_mode != "shadow":
+                        return
+            except Exception as e:
+                if _ptc_mode == "shadow":
+                    logger.error("[DipScanner] LIVE PER-TOKEN CAP error (%s) — shadow, allowing", e)
+                else:
+                    logger.error("[DipScanner] LIVE PER-TOKEN CAP error (%s) — fail-closed, "
+                                 "blocking live buy %s %s", e, bot_id, decision.token)
+                    return
         try:
             capital.reserve_for_buy(_used_size)
         except ValueError as e:
