@@ -963,7 +963,8 @@ class DipScanner:
             _bd_sub = isinstance(_bd_mc, (int, float)) and 0 < _bd_mc < _bd_std
             _bd_mandate = (str(bot_id).startswith("badday_")
                            or bool(getattr(pm.config, "young_token_probe", False))
-                           or bool(getattr(pm.config, "low_mcap_probe", False)))
+                           or bool(getattr(pm.config, "low_mcap_probe", False))
+                           or bool(getattr(pm.config, "microcap_mandate", False)))
             _bd_user = ((decision.address or decision.token or "").lower()
                         in getattr(self, "_user_watchlist_addrs", set()))
             if _bd_skip(_bd_sub, _bd_mandate, _bd_user):

@@ -5,6 +5,7 @@
   "antirug_floor_exempt": true,
   "base_position_usd": 20.0,
   "bot_id": "rugpocket_scalper",
+  "microcap_mandate": true,
   "btc_macro_h1_block_threshold": null,
   "display_name": "RUG-POCKET SCALPER (2026-06-15, wallet-mimic). Faithful mimic of the 3 copyable pond winners (8zkg/1eveYY/7BNaxx) = deep-dip FAST-time-box scalpers in the DEEP-MICROCAP rug pocket they profit in but we normally avoid. Edge (mission wallet-mine): deep flush (shape_90m_drawdown<=-30) in microcaps (mcap 15k-200k, liq>=12k) + FAST 6-min time-box (their survival mechanism: 79% of losers flushed at ~5min) + tight fast_bail -10. RUG-SAFETY = TINY $20 size (low slippage even at $9-20k liq = why antirug_floor_exempt is safe here) + the fleet RUG_BUNDLE sniped-rug gate + lp-structure gate STILL apply + max 3 concurrent. PAPER test of whether the copyable rug-pocket edge is capturable safely. Forward-judge realized %/WR at n>=30; promote only if +EV AND catastrophe(<=-35%) rate <10%. NO $ projection.",
   "enabled": true,

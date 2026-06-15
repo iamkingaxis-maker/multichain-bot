@@ -150,6 +150,11 @@ class BotConfig:
     # habitat is $9-20k liq; at ~$20 size the exit slippage is small + the fast box caps
     # rug exposure. Default False = every other bot keeps the floor.
     antirug_floor_exempt: bool = False
+    # microcap_mandate: passes the badday-lane buy-gate containment for sub-$1M tokens
+    # (2026-06-15). REQUIRED for any non-badday/non-probe bot hunting the deep-microcap
+    # pocket (e.g. rugpocket_scalper): without it the badday-lane containment skips the buy
+    # even after the lane admits the token. Per-bot mcap/dip/rug gates still contain it.
+    microcap_mandate: bool = False
 
     # Trading window (UTC hours, half-open: [start, end))
     trading_hour_utc_start: int = 0
