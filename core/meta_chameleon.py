@@ -347,8 +347,13 @@ GREEN_ENTRY_GATE = (("wash_suspected", "<=", 0), ("liquidity_usd", ">=", 15000.0
 GREEN_TRIGGERS = ["deep_1h_dip", "pullback_in_uptrend", "power_dip_runner",
                   "chart_quality_bottom", "1s_demand_compound", "1s_capit_reversal"]
 GREEN_TUNE = {"time_stop_minutes": 240.0, "tp1_pct": 20.0, "hard_stop_pct": -60.0}
-GREEN_EXTRA = {"mcap_min": 50000.0, "tp1_sell_fraction": 0.6, "tp2_pct": 999.0,
-               "tp2_sell_fraction": 0.0, "trail_pp": 8.0}
+GREEN_EXTRA = {"mcap_min": 50000.0, "tp1_sell_fraction": 1.0, "tp2_pct": 999.0,
+               "tp2_sell_fraction": 0.0, "trail_pp": None}
+# 2026-06-15: bank 100% at TP1 (was 0.6 + trail-8 riding the 40%). Post-fix isolation
+# showed the ride-40% IS the remaining drag: on the SAME tokens its static twin
+# timebox_probe_mcap (tp1_sell 1.0, no trail) banks, the chameleon gave back the +20%
+# TP1 wins via the 40% tail (shared-token: chameleon -$7 vs timebox +$22). The +75%
+# runner the ride was meant to catch is a rare tail; the common case is give-back.
 
 
 def _regime_is_red(scanner) -> bool:
