@@ -23,7 +23,7 @@
   ],
   "entry_stack_exempt": false,
   "exclusion_pool": "probe_swing",
-  "fast_bail_pnl_pct": null,
+  "fast_bail_pnl_pct": -15.0,
   "filters_disabled": [],
   "filters_enforced": [
     "filter_falling_pump",
@@ -39,8 +39,8 @@
     "filter_rolling_ng",
     "filter_sol_flicker"
   ],
-  "giveback_floor_peak_min": null,
-  "giveback_floor_pnl_pct": null,
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -6.0,
   "hard_stop_pct": -45.0,
   "low_mcap_probe": false,
   "macro_up_multiplier": 1.0,

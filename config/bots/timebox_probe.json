@@ -27,15 +27,15 @@
   ],
   "entry_stack_exempt": true,
   "exclusion_pool": "timebox_probe",
-  "fast_bail_pnl_pct": null,
+  "fast_bail_pnl_pct": -15.0,
   "filters_disabled": [],
   "filters_enforced": [
     "filter_btc_overheat",
     "filter_consec_red",
     "filter_huge_wick"
   ],
-  "giveback_floor_peak_min": null,
-  "giveback_floor_pnl_pct": null,
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -6.0,
   "hard_stop_pct": -60.0,
   "macro_up_multiplier": 1.0,
   "marginal_multiplier": 1.0,
