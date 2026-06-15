@@ -347,7 +347,14 @@ GREEN_ENTRY_GATE = (("wash_suspected", "<=", 0), ("liquidity_usd", ">=", 15000.0
 GREEN_TRIGGERS = ["deep_1h_dip", "pullback_in_uptrend", "power_dip_runner",
                   "chart_quality_bottom", "1s_demand_compound", "1s_capit_reversal"]
 GREEN_TUNE = {"time_stop_minutes": 240.0, "tp1_pct": 20.0, "hard_stop_pct": -60.0}
-GREEN_EXTRA = {"mcap_min": 50000.0, "tp1_sell_fraction": 1.0, "tp2_pct": 999.0,
+# 2026-06-15 (18-Opus overhaul wf_b7e6cb8b-2a6, root-cause #2): mcap_min was anchored to
+# timebox_probe_MCAP (50k floor) under the now-FALSIFIED belief it was "the +$ twin". The
+# data says the floored twin LOSES (timebox_probe_mcap -$19.67/n104) while the UNFLOORED
+# timebox_probe WINS (+$82.64/n264) — identical configs except this floor. So the green
+# default must fish the WINNING (unfloored) pond. RED keeps its own 50k via RED_EXTRA;
+# rug protection survives (liq>=15k green gate + RUG_BUNDLE force). Verified ship; the
+# +$ edge rides a realized-dollar tail so JUDGE the fresh green-base default at n>=30.
+GREEN_EXTRA = {"mcap_min": None, "tp1_sell_fraction": 1.0, "tp2_pct": 999.0,
                "tp2_sell_fraction": 0.0, "trail_pp": None}
 # 2026-06-15: bank 100% at TP1 (was 0.6 + trail-8 riding the 40%). Post-fix isolation
 # showed the ride-40% IS the remaining drag: on the SAME tokens its static twin
