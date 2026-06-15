@@ -624,6 +624,16 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
             worn_vetoed = rec.get("archetype") in veto
             arch, geo = best_qualifying(sensor, now, veto=veto,
                                         own_closes=rec.get("recent_closes"))
+            # Archetype-wearing gate (2026-06-15 mission). Default to the proven GREEN
+            # BASE (= timebox_probe_mcap, the +$ static twin); wear board archetypes only
+            # when CHAMELEON_WEAR_ARCHETYPES=on. Forward isolation across the mission showed
+            # board-wearing retunes exits OFF the green base (cut winners short / held losers
+            # deeper vs the twin on shared tokens: BATTLE +16.9% vs +28.5%, ONLYFANS -27.7%
+            # vs -19.3%) — board WR is survivorship-inflated (reference_chameleon_copy_transfer).
+            # Keeps RED-night deep-flush (validated, above). Reversible; logs would-wear.
+            if arch and os.environ.get("CHAMELEON_WEAR_ARCHETYPES", "off").strip().lower() not in ("on", "1", "true"):
+                logger.info("[Chameleon] %s wear-gate OFF -> green base (would-wear board archetype=%s)", bot_id, arch)
+                arch, geo = None, None
             if not arch:
                 # GREEN-MOMENTUM DEFAULT (2026-06-14): no own-positive copyable
                 # archetype qualifies -> do NOT stand down (sitting idle through

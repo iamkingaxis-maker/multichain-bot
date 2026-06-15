@@ -6,6 +6,16 @@ import types
 
 import core.meta_chameleon as ch
 from core.bot_config import BotConfig
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _wear_on(monkeypatch):
+    """Board-archetype WEARING is opt-in since the 2026-06-15 wear-gate (production
+    default = green base = the +$ static twin). These tests exercise the wearing
+    mechanism, so enable it here; the green-base/regime tests are unaffected (the gate
+    only fires when an archetype qualifies)."""
+    monkeypatch.setenv("CHAMELEON_WEAR_ARCHETYPES", "on")
 
 
 def _cfg():
