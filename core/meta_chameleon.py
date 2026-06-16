@@ -279,7 +279,7 @@ def apply_overlay(config) -> None:
     if not enabled():
         return
     st = _load_state().get(config.bot_id)
-    if st and st.get("archetype") in (RED_ARCHETYPE, GREEN_ARCHETYPE):
+    if st and st.get("archetype") in (RED_ARCHETYPE, GREEN_ARCHETYPE, STATIC_ARCHETYPE):
         # red/green DIRECT profiles re-derive on the next retune (<=15min). RED: avoid
         # a stale red exit on a fresh green entry. GREEN-MOMENTUM: the fresh-from-JSON
         # config ALREADY IS the proven winning geometry (incl. the -60 runner stop),
@@ -361,6 +361,56 @@ GREEN_EXTRA = {"mcap_min": None, "tp1_sell_fraction": 1.0, "tp2_pct": 999.0,
 # timebox_probe_mcap (tp1_sell 1.0, no trail) banks, the chameleon gave back the +20%
 # TP1 wins via the 40% tail (shared-token: chameleon -$7 vs timebox +$22). The +75%
 # runner the ride was meant to catch is a rare tail; the common case is give-back.
+
+# ── STATIC-BASE MODE (chameleon mission 2026-06-16) ──────────────────────────────
+# The dynamic 15-min AND slow daily best-bot TRACKERS both LOSE to running the best
+# STATIC bot (wf_b292581a / wf_24e01cc3: leadership non-persistent, corr ~0.08-0.14,
+# blind to the sparse winner). chameleon's regime-mode is the per-dollar-WORST option
+# + a unique 6% catastrophe rate; the ROBUST static best is badday_flush (+3.88/+4.80
+# in BOTH backtest windows, WR69, 0% catastrophe). So CHAMELEON_STATIC_BASE lets the
+# chameleon statically ADOPT a proven bot's population+geometry. Default OFF (unset) =
+# zero behavior change. Flip to "badday_flush" (paper) to activate; JSON untouched =
+# instant reversibility. RED-night still overrides (urgent regime turn).
+STATIC_ARCHETYPE = "static_badday_flush"
+_STATIC_SHAPE_FIELDS = ("time_stop_minutes", "tp1_pct", "tp1_sell_fraction", "tp2_pct",
+                        "tp2_sell_fraction", "hard_stop_pct", "trail_pp", "fast_bail_pnl_pct",
+                        "giveback_floor_peak_min", "giveback_floor_pnl_pct",
+                        "slow_bleed_minutes", "slow_bleed_pnl_threshold",
+                        "never_runner_exit_enabled", "never_runner_minutes",
+                        "never_runner_peak_max", "never_runner_loss_floor")
+
+
+def static_base() -> Optional[str]:
+    """The bot_id whose proven base chameleon statically adopts, or None (off). Reads
+    CHAMELEON_STATIC_BASE (default ""). Off = chameleon keeps its red/green behavior."""
+    v = os.environ.get("CHAMELEON_STATIC_BASE", "").strip()
+    return v or None
+
+
+def _apply_static_base(config, base_id: str) -> None:
+    """Statically adopt base_id's proven SHAPE + POPULATION (RAW setattr, like the green
+    applier — NOT through _apply, so stops aren't copy-floored). Copies entry_gate +
+    triggers + exit geometry + the microcap population mandate (mcap envelope + the
+    sub-floor buy-gate access). NEVER touches size/concurrency/capital/live flags (frozen
+    per the chameleon contract). Two MANDATORY asserts guard the documented zero-fire traps
+    (no microcap_mandate -> every sub-floor buy is skipped; mcap_max null -> over-fishes).
+    Idempotent (pure setattr; safe to re-run every cycle)."""
+    import json as _json
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "config", "bots", f"{base_id}.json")
+    base = _json.load(open(path, encoding="utf-8"))
+    object.__setattr__(config, "entry_gate", tuple(tuple(c) for c in (base.get("entry_gate") or [])))
+    object.__setattr__(config, "triggers_allowed", base.get("triggers_allowed"))
+    for k in _STATIC_SHAPE_FIELDS:
+        if k in base:
+            object.__setattr__(config, k, base[k])
+    object.__setattr__(config, "mcap_min", base.get("mcap_min", 50000.0))
+    object.__setattr__(config, "mcap_max", base.get("mcap_max", 500000.0))
+    object.__setattr__(config, "microcap_mandate", True)
+    assert getattr(config, "microcap_mandate", False) is True, \
+        "static-base: microcap_mandate not set -> sub-floor buys silently skipped"
+    assert config.mcap_max and config.mcap_max <= 500000.0, \
+        "static-base: mcap_max missing/over-fishes >500k"
 
 
 def _regime_is_red(scanner) -> bool:
@@ -667,6 +717,31 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
                 _save_state(st)
                 logger.info("[Chameleon] %s red tape lifted -> restored normal board mode", bot_id)
                 # fall through to normal board selection below
+            # ── STATIC-BASE: when CHAMELEON_STATIC_BASE is set, become that bot's proven
+            #    base (population+geometry) and bypass ALL board/green/wear selection below.
+            #    RED-night above is checked FIRST (urgent regime turn still overrides). Off-red,
+            #    this fires + continues, so RED/GREEN board switching is fully bypassed while the
+            #    flag is set. Default OFF (unset) = no behavior change. Fail-soft: on any error
+            #    (e.g. bad base_id), log + fall through to normal mode (never brick the bot).
+            _sbase = static_base()
+            if _sbase:
+                try:
+                    if rec.get("archetype") != STATIC_ARCHETYPE:
+                        _apply_static_base(pm.config, _sbase)
+                        rec.update({"tune": {"time_stop_minutes": pm.config.time_stop_minutes,
+                                             "tp1_pct": pm.config.tp1_pct,
+                                             "hard_stop_pct": pm.config.hard_stop_pct},
+                                    "archetype": STATIC_ARCHETYPE,
+                                    "geometry": {"static_base": _sbase},
+                                    "tuned_at": now, "tuned_at_iso": _iso(now), "pending": None})
+                        st[bot_id] = rec
+                        _save_state(st)
+                        logger.info("[Chameleon] %s STATIC-BASE -> %s profile (population+geometry)",
+                                    bot_id, _sbase)
+                    continue
+                except Exception as e:
+                    logger.error("[Chameleon] %s STATIC-BASE %s failed (%s) -> normal mode",
+                                 bot_id, _sbase, e)
             veto = _own_fill_vetoed(rec)
             worn_vetoed = rec.get("archetype") in veto
             arch, geo = best_qualifying(sensor, now, veto=veto,
@@ -766,6 +841,10 @@ def entries_allowed(bot_id: str, now: Optional[float] = None) -> tuple:
     """(allowed: bool, reason: str) — the chameleon buy gate."""
     if not enabled():
         return True, "META_CHAMELEON=off (static clone mode, no gate)"
+    if static_base():
+        # static-base manages its own entries via the adopted entry_gate/triggers; the
+        # meta-sensor standby gate (built for board-wearing) must not gate it.
+        return True, "CHAMELEON_STATIC_BASE active (static profile, no standby gate)"
     now = now or time.time()
     cached = _entries_cache.get(bot_id)
     if cached and now - cached[0] < 60:
