@@ -1,0 +1,50 @@
+{
+  "bot_id": "champion_minimal_avgbuy80",
+  "display_name": "WIN-SIG A/B of champion_minimal (2026-06-16 campaign C2). +1 entry clause: rt_avg_buy_usd <= 80. froth filter: small recent avg buy size (wins quiet, loses in froth). Expect: kept WR68->84.6; n=19 shadow. Control=champion_minimal. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote clause to champion_minimal only if it lifts $/tr. paper, single-variable A/B.",
+  "enabled": true,
+  "paper_capital_usd": 2000.0,
+  "base_position_usd": 20.0,
+  "max_concurrent_positions": 3,
+  "alpha_multiplier": 1.5,
+  "macro_up_multiplier": 1.5,
+  "premium_runner_multiplier": 3.0,
+  "marginal_multiplier": 0.5,
+  "sol_macro_h6_block_threshold": -0.3,
+  "sol_macro_h1_block_threshold": -0.7,
+  "btc_macro_h1_block_threshold": null,
+  "vol_h1_min": 1000.0,
+  "filters_enforced": [
+    "filter_dead_volume"
+  ],
+  "filters_disabled": [],
+  "triggers_allowed": null,
+  "triggers_disabled": [],
+  "min_triggers_to_fire": 1,
+  "require_alpha_trigger": false,
+  "entry_gate": [
+    [
+      "time_since_h24_peak_secs",
+      ">=",
+      14400
+    ],
+    [
+      "rt_avg_buy_usd",
+      "<=",
+      80
+    ]
+  ],
+  "mcap_psych_pc_h24_max": 80.0,
+  "tp1_pct": 5.0,
+  "tp1_sell_fraction": 0.75,
+  "tp2_pct": 10.0,
+  "tp2_sell_fraction": 0.25,
+  "trail_pp": 3.0,
+  "hard_stop_pct": -15.0,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "slow_bleed_minutes": 60,
+  "slow_bleed_pnl_threshold": -8.0,
+  "trading_hour_utc_start": 0,
+  "trading_hour_utc_end": 24,
+  "exclusion_pool": "champion_minimal_avgbuy80"
+}

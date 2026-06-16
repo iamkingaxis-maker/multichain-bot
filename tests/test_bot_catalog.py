@@ -51,7 +51,13 @@ def catalog():
                    and c.bot_id != "deepflush_timebox_bottom1s"
                    and c.bot_id != "pool_a_dipgate_vwap1h"
                    and c.bot_id != "deepflush_timebox_h6peak"
-                   and c.bot_id != "champion_premium_tightexit_reaccum"]
+                   and c.bot_id != "champion_premium_tightexit_reaccum"
+                   and c.bot_id != "pool_a_candidate_shape30dd"
+                   and c.bot_id != "pool_a_stack_5mred2"
+                   and c.bot_id != "champion_minimal_avgbuy80"
+                   and c.bot_id != "pool_a_solmacro_reaccum20"
+                   and c.bot_id != "pool_a_goodpond_reaccum15"
+                   and c.bot_id != "pool_c_tightexit_h24peak55"]
     return reg
 
 
