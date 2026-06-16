@@ -1,0 +1,76 @@
+{
+  "age_h_min": null,
+  "age_h_max": null,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 100.0,
+  "bot_id": "deepflush_timebox_bottom1s",
+  "btc_macro_h1_block_threshold": null,
+  "daily_loss_limit_usd": 60.0,
+  "display_name": "WIN-SIG A/B of deepflush_timebox (2026-06-16 campaign). +1 entry clause: 1s_bottom_score >= 20. aligns with the bot's native bottom trigger (winner 35 vs loser 10). Expect: WR-inside 88 vs 69; n=29 so shadow-judge at n>=30. Control=deepflush_timebox. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote the clause to deepflush_timebox only if it lifts $/tr. paper, single-variable A/B.",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "shape_90m_drawdown_from_max_pct",
+      "<=",
+      -16.0
+    ],
+    [
+      "1m_volume_spike",
+      ">=",
+      3.0
+    ],
+    [
+      "1s_bottom_score",
+      ">=",
+      20
+    ]
+  ],
+  "entry_stack_exempt": true,
+  "exclusion_pool": "deepflush_timebox_bottom1s",
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_falling_pump",
+    "filter_fusion_floor",
+    "filter_btc_overheat",
+    "filter_wynn_killer",
+    "filter_huge_wick"
+  ],
+  "hard_stop_pct": -12.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 6,
+  "mcap_max": null,
+  "mcap_min": null,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": false,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": null,
+  "premium_runner_multiplier": 1.0,
+  "regime_dial_exempt": true,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": null,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "stall_exit_minutes": null,
+  "time_stop_minutes": 6.0,
+  "tp1_pct": 6.0,
+  "tp1_sell_fraction": 0.8,
+  "tp2_pct": 12.0,
+  "tp2_sell_fraction": 0.2,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
+  "trail_pp": 2.0,
+  "triggers_allowed": [
+    "volume_burst_runner",
+    "deep_1h_dip",
+    "power_dip_runner"
+  ],
+  "triggers_disabled": [],
+  "vol_h1_min": null,
+  "young_token_probe": true
+}

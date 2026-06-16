@@ -43,7 +43,15 @@ def catalog():
                    and c.bot_id != "momentum_pump_tight"
                    and c.bot_id != "momentum_grad_probe"
                    and c.bot_id != "rugpocket_scalper"
-                   and c.bot_id != "badday_flush_conviction_demand"]
+                   and c.bot_id != "badday_flush_conviction_demand"
+                   and c.bot_id != "badday_flush_nf15"
+                   and c.bot_id != "champion_premium_dip90m"
+                   and c.bot_id != "pool_c_post_peak_chl1m"
+                   and c.bot_id != "timebox_probe_5mgreen"
+                   and c.bot_id != "deepflush_timebox_bottom1s"
+                   and c.bot_id != "pool_a_dipgate_vwap1h"
+                   and c.bot_id != "deepflush_timebox_h6peak"
+                   and c.bot_id != "champion_premium_tightexit_reaccum"]
     return reg
 
 
