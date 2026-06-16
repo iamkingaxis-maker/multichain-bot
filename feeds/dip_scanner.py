@@ -2166,6 +2166,13 @@ class DipScanner:
                 _fmb_record(bot_id, float(result.realized_pnl_usd or 0))
             except Exception:
                 pass
+            # Chameleon base-proof (2026-06-16): per-bot per-day size-normalized pnl_pct rollup
+            # -> SHADOW would-swap logger for the static base. Feed pnl_pct (already per-dollar). Fail-soft.
+            try:
+                from core.chameleon_base_proof import record as _bp_record
+                _bp_record(bot_id, result.pnl_pct)
+            except Exception:
+                pass
             # Chameleon own-fills dial (2026-06-12): feed each leg into the
             # 2-of-3 meta-death tripwire. Fail-soft.
             if bot_id.startswith("meta_chameleon"):

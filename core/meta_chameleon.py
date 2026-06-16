@@ -674,6 +674,15 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
                                 os.environ.get("CHAMELEON_CLONE_MODE", "shadow").strip().lower())
             except Exception:
                 pass
+            # Base-proof SHADOW (2026-06-16): log a WOULD-SWAP off the static-base incumbent
+            # only on rigorous, time-separated proof (>=2 distinct n>=30 days, lane-flagged).
+            # The swap is a MANUAL env flip; this never mutates. Cooldown-throttled internally.
+            try:
+                from core.chameleon_base_proof import maybe_log as _bp_log
+                _bp_log(static_base() or "badday_flush", _clone_eligible,
+                        lambda b: str(b).startswith("badday_"))
+            except Exception:
+                pass
             pending = rec.get("pending")
             # 1) a deferred tune applies when the book is flat — or after
             #    PENDING_FORCE_SECS regardless (a busy chameleon must not
