@@ -42,7 +42,8 @@ def catalog():
                    and c.bot_id != "momentum_shadow"
                    and c.bot_id != "momentum_pump_tight"
                    and c.bot_id != "momentum_grad_probe"
-                   and c.bot_id != "rugpocket_scalper"]
+                   and c.bot_id != "rugpocket_scalper"
+                   and c.bot_id != "badday_flush_conviction_demand"]
     return reg
 
 
