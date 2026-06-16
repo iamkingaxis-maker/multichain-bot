@@ -553,6 +553,30 @@ def _should_retune(now: float, rec: dict, sensor, cand_arch: str, cand_geo: dict
     return False
 
 
+# Dynamic-clone SHADOW eligibility (chameleon mission 2026-06-16). The design+backtest
+# (wf_b292581a) said NO-GO on enforcing a 15-min best-bot clone (it loses to static), so this
+# only powers a SHADOW log of which eligible bot we WOULD clone. Excludes self, probes, live
+# bots, and the win-sig A/B clones (EXPLICIT tag suffixes — a generic prefix match would wrongly
+# drop real strategy bots like badday_flush_conviction).
+_CLONE_ABTEST_SUFFIXES = (
+    "_nf15", "_dip90m", "_5mgreen", "_demand", "_shape30dd", "_nf60imb0", "_chl1m", "_h6peak",
+    "_bottom1s", "_5mred2", "_avgbuy80", "_reaccum20", "_reaccum15", "_h24peak55", "_vwap1h",
+    "_trendbreak5m", "_trend60r040", "_trend60r020", "_pch1le5",
+)
+
+
+def _clone_eligible(bot_id: str) -> bool:
+    """True if bot_id may be the dynamic-clone SHADOW's 'best bot' pick. SHADOW-only filter."""
+    b = str(bot_id)
+    if b.startswith("meta_chameleon"):
+        return False
+    if "probe" in b or "live" in b:
+        return False
+    if any(b.endswith(s) for s in _CLONE_ABTEST_SUFFIXES):
+        return False
+    return True
+
+
 def maybe_retune(scanner, now: Optional[float] = None) -> None:
     """Hourly-ish hook from the scan cycle. Never raises."""
     global _last_check
@@ -582,6 +606,22 @@ def maybe_retune(scanner, now: Optional[float] = None) -> None:
                     logger.info("[Chameleon] %s FLEET-BUS shadow: live-winner family=%s "
                                 "($%+.2f/tr n=%.0f bots=%d) | worn=%s", bot_id,
                                 _blf[0], _blf[1], _blf[2], _blf[3], rec.get("archetype"))
+            except Exception:
+                pass
+            # DYNAMIC-CLONE SHADOW (chameleon mission 2026-06-16): the per-BOT version — log the
+            # best ELIGIBLE bot we WOULD clone every cycle vs what we wear. SHADOW-ONLY: the
+            # design+backtest (wf_b292581a) decisively showed cloning the trailing-best bot LOSES
+            # to running the best static bot (0/15 backtest cells beat static; forward-corr ~0.08;
+            # structurally blind to the sparse true winner). So CHAMELEON_CLONE_MODE=enforce is
+            # UNBUILT — this only collects forward evidence vs static. NO mutation, ever, here.
+            try:
+                from core.fleet_meta_bus import best_live_bot as _blb_fn
+                _blb = _blb_fn(now, _clone_eligible)
+                if _blb:
+                    logger.info("[Chameleon] %s DYN-CLONE shadow: would-clone bot=%s ($%+.2f/tr "
+                                "n=%.0f) | worn=%s | mode=%s", bot_id, _blb[0], _blb[1], _blb[2],
+                                rec.get("archetype"),
+                                os.environ.get("CHAMELEON_CLONE_MODE", "shadow").strip().lower())
             except Exception:
                 pass
             pending = rec.get("pending")

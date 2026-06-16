@@ -77,6 +77,35 @@ def best_live_family(now=None):
     return best
 
 
+def best_live_bot(now=None, eligible=None):
+    """(bot_id, decayed_$/trade, decayed_n) for the eligible BOT paying best right now, or None.
+    Per-bot version of best_live_family for the dynamic-clone SHADOW (chameleon mission 2026-06-16).
+    `eligible(bot_id)->bool` filters the pool (caller owns the exclude list). Requires >=MIN_N
+    decayed trades for that bot. SHADOW-USE ONLY: the design+backtest (wf_b292581a) showed cloning
+    the trailing-best bot LOSES to running the best static bot (forward-corr ~0.08, structurally
+    blind to the sparse true winner) — so this only collects forward evidence, never drives money."""
+    now = now or time.time()
+    cutoff = now - WINDOW_SECS
+    d_dollars = defaultdict(float)
+    d_n = defaultdict(float)
+    for ts, fam, net, bot in _ring:
+        if ts < cutoff:
+            continue
+        if eligible is not None and not eligible(bot):
+            continue
+        w = 0.5 ** ((now - ts) / HALFLIFE_SECS)
+        d_dollars[bot] += net * w
+        d_n[bot] += w
+    best = None
+    for bot, dn in d_n.items():
+        if dn < MIN_N:
+            continue
+        per = d_dollars[bot] / dn
+        if best is None or per > best[1]:
+            best = (bot, round(per, 3), round(dn, 1))
+    return best
+
+
 def family_scoreboard(now=None):
     """All families' decayed $/trade + n + distinct-bots (for logging / the dashboard)."""
     now = now or time.time()
