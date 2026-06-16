@@ -57,7 +57,12 @@ def catalog():
                    and c.bot_id != "champion_minimal_avgbuy80"
                    and c.bot_id != "pool_a_solmacro_reaccum20"
                    and c.bot_id != "pool_a_goodpond_reaccum15"
-                   and c.bot_id != "pool_c_tightexit_h24peak55"]
+                   and c.bot_id != "pool_c_tightexit_h24peak55"
+                   and c.bot_id != "champion_defender_2k_trendbreak5m"
+                   and c.bot_id != "no_filters_trend60r040"
+                   and c.bot_id != "pool_a_broad_control_nf60imb0"
+                   and c.bot_id != "champion_defender_v3_pch1le5"
+                   and c.bot_id != "champion_defender_v4_trend60r020"]
     return reg
 
 
