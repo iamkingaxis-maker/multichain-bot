@@ -1910,6 +1910,22 @@ class DipScanner:
                                 ref_price=position.entry_price,
                             )
                         vols[pkey] = await self._get_vol_m5_for(token)
+                        # LIQ-DRAIN FEED (2026-06-16): the exit-side drain detector's
+                        # tracker was fed ONLY at scan time, so HELD tokens not re-scanned
+                        # had no liquidity history and the drain shadow stayed blind
+                        # (Chaton, n=0 fires). Record this token's current liquidity ONCE
+                        # per cycle (inside the per-token guard) so LiquidityFlowTracker.
+                        # analyze() has fresh history to detect a REMOVE. Gated on
+                        # LIQ_DRAIN_MODE (off -> no extra fetch). Address-keyed. None-on-
+                        # fail (never records a fallback).
+                        if (os.environ.get("LIQ_DRAIN_MODE", "shadow").strip().lower() != "off"
+                                and position.address):
+                            try:
+                                _lq = await self._get_liq_for(position.address)
+                                if _lq is not None:
+                                    self._lp_flow.record(position.address, _lq)
+                            except Exception:
+                                pass
                     price = priced[pkey]
                     if price is None:
                         continue
@@ -2232,6 +2248,27 @@ class DipScanner:
                     return await pool_price_feed.get_vol_m5(token)
             except Exception:
                 pass
+        return None
+
+    async def _get_liq_for(self, address: str):
+        """Current pool liquidity (USD) for a HELD token, for the liq-drain tracker feed.
+        Returns None on failure/no-data (NOT a fallback) so a failed fetch never poisons
+        LiquidityFlowTracker with a fake 'stable' value. DexScreener tokens endpoint."""
+        if not address:
+            return None
+        try:
+            import aiohttp
+            url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                    data = await resp.json(content_type=None)
+            pairs = (data or {}).get("pairs") or []
+            if pairs:
+                liq = (pairs[0].get("liquidity") or {}).get("usd")
+                if liq is not None:
+                    return float(liq)
+        except Exception:
+            pass
         return None
 
     async def _scan_cycle(self):
