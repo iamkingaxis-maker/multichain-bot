@@ -300,7 +300,8 @@ def test_no_enabled_live_probe_bot():
     # the conviction-vs-flat A/B; only the clone routes live.)
     import glob
     from core.bot_config import BotConfig
-    INTENDED_LIVE = {"badday_flush_conviction_live"}
+    INTENDED_LIVE = {"badday_flush_conviction_live", "badday_flush_live",
+                     "deepflush_timebox_live", "timebox_probe_5mgreen_live"}
     offenders = []
     for p in glob.glob("config/bots/*.json"):
         c = BotConfig.from_json(p)

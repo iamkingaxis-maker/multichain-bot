@@ -1,0 +1,90 @@
+{
+  "age_h_max": null,
+  "age_h_min": null,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 75.0,
+  "bot_id": "timebox_probe_5mgreen_live",
+  "btc_macro_h1_block_threshold": null,
+  "daily_loss_limit_usd": 90.0,
+  "display_name": "WIN-SIG A/B of timebox_probe (2026-06-16 campaign). +1 entry clause: 5m_consec_green >= 1. momentum confirm: a 5m green streak (monotonic dose-response). Expect: WR 58.4->61.9%, blocks the stall cohort. Control=timebox_probe. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote the clause to timebox_probe only if it lifts $/tr. paper, single-variable A/B.",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "wash_suspected",
+      "<=",
+      0
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      15000
+    ],
+    [
+      "entry_age_hours",
+      "<=",
+      24
+    ],
+    [
+      "5m_consec_green",
+      ">=",
+      1
+    ]
+  ],
+  "entry_stack_exempt": true,
+  "exclusion_pool": "timebox_probe_5mgreen_live",
+  "fast_bail_pnl_pct": -15.0,
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_btc_overheat",
+    "filter_consec_red",
+    "filter_huge_wick"
+  ],
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -6.0,
+  "hard_stop_pct": -25.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 10,
+  "mcap_max": null,
+  "mcap_min": null,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": true,
+  "never_runner_loss_floor": -6.0,
+  "never_runner_minutes": 20,
+  "never_runner_peak_max": 3.0,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "regime_dial_exempt": true,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": 100000,
+  "slow_bleed_pnl_threshold": -99.0,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "time_stop_minutes": 240.0,
+  "tp1_pct": 20.0,
+  "tp1_sell_fraction": 1.0,
+  "tp2_pct": 999.0,
+  "tp2_sell_fraction": 0.0,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
+  "trail_pp": null,
+  "triggers_allowed": [
+    "deep_1h_dip",
+    "pullback_in_uptrend",
+    "power_dip_runner",
+    "chart_quality_bottom",
+    "1s_demand_compound",
+    "1s_capit_reversal"
+  ],
+  "triggers_disabled": [],
+  "vol_h1_min": null,
+  "young_token_probe": true,
+  "live_probe": true
+}
