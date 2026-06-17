@@ -220,6 +220,49 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   }
   .card-title .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
+  /* ── LIVE TRADING card (the 4 real-money bots) ── */
+  .live-card {
+    background: linear-gradient(180deg, #1a1110 0%, var(--card) 60%);
+    border: 2px solid var(--red);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin: 16px auto 0;
+    max-width: 1800px;
+    box-shadow: 0 0 18px #d4351c22;
+  }
+  .live-card.armed { border-color: var(--border); box-shadow: none;
+    background: linear-gradient(180deg, #14171a 0%, var(--card) 60%); }
+  .live-card .live-head {
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .live-pill {
+    font-size: 12px; font-weight: 800; letter-spacing: 1.5px;
+    padding: 4px 10px; border-radius: 6px;
+    background: #2e1414; color: var(--red); border: 1px solid #d4351c80;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .live-pill.armed { background: #1c2128; color: var(--muted);
+    border: 1px solid var(--border2); animation: none; }
+  .live-big { font-size: 22px; font-weight: 700; }
+  .live-sub { font-size: 11px; color: var(--muted); }
+  .live-grid { display: flex; gap: 28px; flex-wrap: wrap; margin: 10px 0 6px; }
+  .live-stat .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .live-stat .val { font-size: 15px; font-weight: 700; }
+  .live-table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 8px; }
+  .live-table th { text-align: left; color: var(--muted); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 1px; padding: 4px 8px;
+    border-bottom: 1px solid var(--border); }
+  .live-table td { padding: 5px 8px; border-bottom: 1px solid var(--border2); }
+  .live-risk { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 12px; }
+  .live-bar-wrap { min-width: 220px; flex: 1; }
+  .live-bar-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 3px; display: flex; justify-content: space-between; }
+  .live-bar { height: 8px; border-radius: 4px; background: #222; overflow: hidden; }
+  .live-bar > div { height: 100%; border-radius: 4px; transition: width .4s; }
+  .live-sweep { font-size: 11px; color: var(--muted); margin-top: 12px;
+    border-top: 1px solid var(--border2); padding-top: 8px; }
+
   /* ── Stat Cards Row ── */
   .stat-row {
     display: grid;
@@ -513,6 +556,43 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     <span>Uptime: <span id="uptime">—</span></span>
     <span id="clock">—</span>
   </div>
+</div>
+
+<!-- ── LIVE TRADING (the 4 real-money bots) — read-only ── -->
+<div class="live-card armed" id="live-card">
+  <div class="card-title" style="color:var(--red);font-size:12px;">
+    <span class="dot" style="background:var(--red)"></span> &#128308; LIVE TRADING
+    <span class="live-sub" style="margin-left:8px;text-transform:none;letter-spacing:0;">— the 4 real-money bots (read-only)</span>
+  </div>
+  <div class="live-head">
+    <span class="live-pill armed" id="live-pill">PAPER &mdash; ARMED</span>
+    <span class="live-big" id="live-today">Today: $0.00</span>
+    <span class="live-sub" id="live-realized">realized total: $0.00</span>
+  </div>
+  <div class="live-grid">
+    <div class="live-stat"><div class="lbl">Wallet</div><div class="val" id="live-wallet">&mdash;</div></div>
+    <div class="live-stat"><div class="lbl">Floor (working capital)</div><div class="val" id="live-floor">$1104</div></div>
+    <div class="live-stat"><div class="lbl">Above floor (sweepable)</div><div class="val" id="live-abovefloor">&mdash;</div></div>
+    <div class="live-stat"><div class="lbl">Open positions</div><div class="val" id="live-open">0</div></div>
+  </div>
+  <table class="live-table">
+    <thead><tr><th>bot</th><th>today $</th><th>total $</th><th>open</th><th>WR%</th><th>size</th></tr></thead>
+    <tbody id="live-tbody"><tr><td colspan="6" style="color:var(--muted)">Loading&hellip;</td></tr></tbody>
+  </table>
+  <div class="live-risk">
+    <div class="live-bar-wrap">
+      <div class="live-bar-lbl"><span>Inflight</span><span id="live-inflight-lbl">$0 / $1000</span></div>
+      <div class="live-bar"><div id="live-inflight-bar" style="width:0%;background:var(--accent)"></div></div>
+    </div>
+    <div class="live-bar-wrap">
+      <div class="live-bar-lbl"><span>Daily loss vs kill</span><span id="live-kill-lbl">$0 / -$150</span></div>
+      <div class="live-bar"><div id="live-kill-bar" style="width:0%;background:var(--red)"></div></div>
+    </div>
+    <div class="live-stat" style="align-self:center;">
+      <div class="lbl">Per-token cap</div><div class="val" id="live-pertoken">4 / $400</div>
+    </div>
+  </div>
+  <div class="live-sweep" id="live-sweep">Profit-sweep: &mdash;</div>
 </div>
 
 <!-- ── PROFIT SECURED banner (always visible, shadow sim) ── -->
@@ -1877,6 +1957,100 @@ async function updateFleet() {
 setInterval(updateFleet, 45000);  // 2026-06-04 15s->45s (egress)
 setInterval(updateGoal, 60000);
 updateGoal().then(updateFleet);
+
+// ── LIVE TRADING card (read-only view of the 4 real-money bots) ──
+function _liveMoney(v) {
+  if (v === null || v === undefined || isNaN(v)) return "--";
+  const n = Number(v);
+  return (n < 0 ? "-$" : "$") + Math.abs(n).toFixed(2);
+}
+function _liveMoneyClass(v) {
+  if (v === null || v === undefined || isNaN(v)) return "";
+  return Number(v) > 0 ? "green" : (Number(v) < 0 ? "red" : "");
+}
+async function updateLive() {
+  try {
+    const resp = await fetch("/api/live");
+    if (!resp.ok) return;
+    const d = await resp.json();
+    const card = document.getElementById("live-card");
+    const pill = document.getElementById("live-pill");
+    if (d.live_mode) {
+      card.classList.remove("armed"); pill.classList.remove("armed");
+      pill.textContent = "🔴 LIVE";
+    } else {
+      card.classList.add("armed"); pill.classList.add("armed");
+      pill.textContent = "PAPER — ARMED, NOT LIVE YET";
+    }
+    const t = d.totals || {};
+    const today = document.getElementById("live-today");
+    today.textContent = "Today: " + _liveMoney(t.today_pnl_usd);
+    today.className = "live-big " + _liveMoneyClass(t.today_pnl_usd);
+    document.getElementById("live-realized").textContent =
+      "realized total: " + _liveMoney(t.realized_pnl_usd);
+
+    const w = d.wallet || {};
+    document.getElementById("live-wallet").textContent =
+      (w.sol_balance === null || w.sol_balance === undefined)
+        ? "-- (paper)"
+        : w.sol_balance.toFixed(3) + " SOL" +
+          (w.usd_value !== null && w.usd_value !== undefined ? " (" + _liveMoney(w.usd_value) + ")" : "");
+    document.getElementById("live-floor").textContent =
+      w.floor_usd !== null && w.floor_usd !== undefined ? "$" + Number(w.floor_usd).toFixed(0) : "--";
+    const af = document.getElementById("live-abovefloor");
+    af.textContent = _liveMoney(w.above_floor_usd);
+    af.className = "val " + _liveMoneyClass(w.above_floor_usd);
+    document.getElementById("live-open").textContent = (t.open_positions ?? 0);
+
+    const tb = document.getElementById("live-tbody");
+    tb.innerHTML = "";
+    for (const b of (d.bots || [])) {
+      const wr = b.win_rate_pct === null || b.win_rate_pct === undefined ? "--" : b.win_rate_pct.toFixed(0) + "%";
+      const sz = b.base_position_usd === null || b.base_position_usd === undefined ? "--" : "$" + Number(b.base_position_usd).toFixed(0);
+      tb.insertAdjacentHTML("beforeend",
+        `<tr>
+          <td>${escHtml(b.bot_id)}${b.registered ? "" : ' <span class="live-sub">(not registered)</span>'}</td>
+          <td class="${_liveMoneyClass(b.daily_pnl_usd)}">${_liveMoney(b.daily_pnl_usd)}</td>
+          <td class="${_liveMoneyClass(b.realized_pnl_total_usd)}">${_liveMoney(b.realized_pnl_total_usd)}</td>
+          <td>${b.open_position_count ?? 0}</td>
+          <td>${wr}</td>
+          <td>${sz}</td>
+        </tr>`);
+    }
+    if (!tb.innerHTML) tb.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">no live bots</td></tr>';
+
+    const c = d.caps || {};
+    const inUsed = Number(c.inflight_used_usd || 0), inCap = Number(c.inflight_max_usd || 0);
+    document.getElementById("live-inflight-lbl").textContent =
+      "$" + inUsed.toFixed(0) + " / $" + inCap.toFixed(0);
+    document.getElementById("live-inflight-bar").style.width =
+      (inCap > 0 ? Math.min(100, 100 * inUsed / inCap) : 0) + "%";
+    // Daily loss vs kill: only the loss side fills the bar.
+    const dp = Number(c.daily_pnl_usd || 0), kill = Number(c.daily_kill_usd || 0);
+    const lossUsed = dp < 0 ? Math.abs(dp) : 0;
+    document.getElementById("live-kill-lbl").textContent =
+      _liveMoney(dp) + " / -$" + kill.toFixed(0);
+    document.getElementById("live-kill-bar").style.width =
+      (kill > 0 ? Math.min(100, 100 * lossUsed / kill) : 0) + "%";
+    document.getElementById("live-pertoken").textContent =
+      (c.per_token_max_positions ?? "--") + " / $" + (c.per_token_max_usd ?? "--");
+
+    const ps = d.profit_sweep || {};
+    const cold = ps.cold_wallet ? (ps.cold_wallet.slice(0, 4) + ".." + ps.cold_wallet.slice(-4)) : "unset";
+    const swept = (ps.total_swept_usd === null || ps.total_swept_usd === undefined)
+      ? "n/a (not tracked)" : _liveMoney(ps.total_swept_usd);
+    document.getElementById("live-sweep").textContent =
+      "Profit-sweep: " + (ps.enabled ? "ENABLED" : "disabled") +
+      (ps.dry_run ? " (dry-run)" : " (LIVE)") +
+      "  ·  floor $" + (ps.floor_usd !== null && ps.floor_usd !== undefined ? Number(ps.floor_usd).toFixed(0) : "--") +
+      "  ·  cold " + cold +
+      "  ·  swept " + swept;
+  } catch (e) {
+    console.error("updateLive failed", e);
+  }
+}
+setInterval(updateLive, 45000);
+updateLive();
 </script>
 
 <!-- Breakout Strategy -->
@@ -2261,6 +2435,7 @@ class WebDashboard:
         self.app.router.add_get("/api/attention",            self._handle_attention)
         self.app.router.add_get("/api/pumpportal",           self._handle_pumpportal)
         self.app.router.add_get("/api/leaderboard",         self._handle_api_leaderboard)
+        self.app.router.add_get("/api/live",                self._handle_api_live)
         self.app.router.add_get("/api/bots/{bot_id}/trades",    self._handle_api_bot_trades)
         self.app.router.add_get("/api/bots/{bot_id}/positions", self._handle_api_bot_positions)
         self.app.router.add_get("/api/attribution/filters",   self._handle_attribution_filters)
@@ -4637,6 +4812,238 @@ class WebDashboard:
         else:
             bots.sort(key=lambda b: b.get(sort, 0), reverse=True)
         return web.json_response(bots)
+
+    # ── LIVE TRADING pool (read-only view of the 4 real-money bots) ───────────
+    # The ONLY 4 bots that trade real money. Everything else is paper. This view
+    # is strictly read-only — it computes nothing that moves money or touches a
+    # config. All per-bot P&L comes from the SAME authoritative source as the
+    # leaderboard (_build_bot_rows -> bot_state realized/daily), NOT the
+    # known-corrupted per-trade pnl feed.
+    LIVE_BOT_IDS = (
+        "badday_flush_conviction_live",
+        "badday_flush_live",
+        "deepflush_timebox_live",
+        "timebox_probe_5mgreen_live",
+    )
+
+    def _live_base_sizes(self) -> dict:
+        """Map live bot_id -> base_position_usd from its config (default 20).
+        Cached 60s; fail-open to {} so a missing config never 500s the view."""
+        import time as _t, pathlib as _pl
+        if (hasattr(self, "_live_base_cache")
+                and _t.monotonic() - getattr(self, "_live_base_cache_ts", 0.0) <= 60):
+            return self._live_base_cache
+        out = {}
+        try:
+            _cfg_dir = _pl.Path(__file__).resolve().parent.parent / "config" / "bots"
+            for bid in self.LIVE_BOT_IDS:
+                try:
+                    p = _cfg_dir / f"{bid}.json"
+                    if p.exists():
+                        d = json.loads(p.read_text())
+                        out[bid] = float(d.get("base_position_usd", 20.0))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        self._live_base_cache = out
+        self._live_base_cache_ts = _t.monotonic()
+        return out
+
+    def _build_live_pool(self) -> dict:
+        """Read-only snapshot of the 4 real-money bots. Defensive throughout:
+        any missing value falls back to null/0 so this never raises a 500."""
+        import os as _os
+
+        def _envf(name, default):
+            try:
+                return float(_os.environ.get(name, default))
+            except Exception:
+                try:
+                    return float(default)
+                except Exception:
+                    return None
+
+        def _envs(name, default=None):
+            v = _os.environ.get(name, default)
+            return v if v not in ("", None) else default
+
+        def _envbool(name, default=False):
+            v = _os.environ.get(name)
+            if v is None:
+                return default
+            return v.strip().lower() in ("1", "true", "yes", "on")
+
+        live_ids = set(self.LIVE_BOT_IDS)
+        base_sizes = self._live_base_sizes()
+
+        # Per-bot rows from the authoritative source (bot_state), filtered to live.
+        rows = []
+        try:
+            all_rows = self._build_bot_rows()
+        except Exception as e:
+            logger.warning("api/live _build_bot_rows failed: %s", e)
+            all_rows = []
+        by_id = {r.get("bot_id"): r for r in all_rows}
+
+        tot_today = 0.0
+        tot_realized = 0.0
+        tot_open = 0
+        tot_open_usd = 0.0
+        for bid in self.LIVE_BOT_IDS:
+            r = by_id.get(bid)
+            base = base_sizes.get(bid)
+            if r is None:
+                rows.append({
+                    "bot_id": bid,
+                    "registered": False,
+                    "daily_pnl_usd": None,
+                    "realized_pnl_total_usd": None,
+                    "open_position_count": 0,
+                    "total_trades": 0,
+                    "wins": 0,
+                    "win_rate_pct": None,
+                    "base_position_usd": base,
+                })
+                continue
+            tt = int(r.get("total_trades") or 0)
+            wins = int(r.get("wins") or 0)
+            wr = round(100.0 * wins / tt, 1) if tt > 0 else None
+            daily = r.get("daily_pnl_usd")
+            realized = r.get("realized_pnl_total_usd")
+            oc = int(r.get("open_position_count") or 0)
+            rows.append({
+                "bot_id": bid,
+                "registered": True,
+                "daily_pnl_usd": daily,
+                "realized_pnl_total_usd": realized,
+                "open_position_count": oc,
+                "total_trades": tt,
+                "wins": wins,
+                "win_rate_pct": wr,
+                "base_position_usd": base,
+            })
+            try:
+                tot_today += float(daily or 0.0)
+            except Exception:
+                pass
+            try:
+                tot_realized += float(realized or 0.0)
+            except Exception:
+                pass
+            tot_open += oc
+            # Open notional: prefer the real persisted in_flight_usd; fall back to
+            # open_count * base size when in_flight isn't available.
+            inflight = r.get("in_flight_usd")
+            if isinstance(inflight, (int, float)) and inflight > 0:
+                tot_open_usd += float(inflight)
+            elif base is not None:
+                tot_open_usd += oc * float(base)
+
+        # Wallet balance (live only; None in paper). Trader caches SOL balance.
+        wallet_sol = None
+        wallet_usd = None
+        sol_price = None
+        try:
+            tr = getattr(self, "_trader", None)
+            if tr is not None:
+                _sb = getattr(tr, "_sol_balance", -1.0)
+                if isinstance(_sb, (int, float)) and _sb >= 0:
+                    wallet_sol = round(float(_sb), 4)
+                _sp = getattr(tr, "_sol_price_usd", None) or getattr(tr, "sol_price_usd", None)
+                if isinstance(_sp, (int, float)) and _sp > 0:
+                    sol_price = round(float(_sp), 2)
+                    if wallet_sol is not None:
+                        wallet_usd = round(wallet_sol * float(_sp), 2)
+        except Exception as e:
+            logger.debug("api/live wallet read failed: %s", e)
+
+        floor_usd = _envf("WORKING_CAPITAL_FLOOR_USD", "1104")
+        above_floor_usd = None
+        if wallet_usd is not None and floor_usd is not None:
+            above_floor_usd = round(wallet_usd - floor_usd, 2)
+
+        # Caps / risk envelope.
+        inflight_cap = _envf("PROBE_AGG_INFLIGHT_MAX_USD", "1000")
+        daily_kill = _envf("PROBE_AGG_DAILY_KILL_USD", "150")
+        per_token_max_positions = _envf("LIVE_PER_TOKEN_MAX_POSITIONS", "4")
+        per_token_max_usd = _envf("LIVE_PER_TOKEN_MAX_USD", "400")
+
+        # Profit-sweep config + any persisted state (floor HWM + last-sweep ts).
+        # Cumulative total-swept is NOT tracked anywhere (sweep state persists only
+        # floor_hwm_usd + last_sweep_ts), so total_swept is reported null.
+        sweep_last_ts = None
+        sweep_floor_hwm_usd = None
+        try:
+            from pathlib import Path as _Path
+            _sf = _Path(_os.environ.get("DATA_DIR") or "/data") / ".profit_sweep_state.json"
+            if _sf.exists():
+                _d = json.loads(_sf.read_text())
+                _lt = _d.get("last_sweep_ts")
+                if _lt:
+                    sweep_last_ts = float(_lt)
+                _fh = _d.get("floor_hwm_usd")
+                if _fh:
+                    sweep_floor_hwm_usd = float(_fh)
+        except Exception as e:
+            logger.debug("api/live sweep state read failed: %s", e)
+
+        profit_sweep = {
+            "enabled": _envbool("PROFIT_SWEEP_ENABLED", False),
+            "dry_run": _envbool("PROFIT_SWEEP_DRY_RUN", True),
+            "floor_usd": floor_usd,
+            "cold_wallet": _envs("PROFIT_WALLET_ADDRESS"),
+            "last_sweep_ts": sweep_last_ts,
+            "floor_hwm_usd": sweep_floor_hwm_usd,
+            "total_swept_usd": None,  # not tracked anywhere in the codebase
+            "note": ("total_swept is not persisted; only floor_hwm_usd + "
+                     "last_sweep_ts are tracked in .profit_sweep_state.json"),
+        }
+
+        return {
+            "live_mode": bool(self._live_mode),
+            "bot_ids": list(self.LIVE_BOT_IDS),
+            "bots": rows,
+            "totals": {
+                "today_pnl_usd": round(tot_today, 2),
+                "realized_pnl_usd": round(tot_realized, 2),
+                "open_positions": tot_open,
+                "open_notional_usd": round(tot_open_usd, 2),
+            },
+            "wallet": {
+                "sol_balance": wallet_sol,
+                "usd_value": wallet_usd,
+                "sol_price_usd": sol_price,
+                "floor_usd": floor_usd,
+                "above_floor_usd": above_floor_usd,
+            },
+            "caps": {
+                "inflight_max_usd": inflight_cap,
+                "inflight_used_usd": round(tot_open_usd, 2),
+                "daily_kill_usd": daily_kill,
+                "daily_pnl_usd": round(tot_today, 2),
+                "per_token_max_positions": per_token_max_positions,
+                "per_token_max_usd": per_token_max_usd,
+            },
+            "profit_sweep": profit_sweep,
+        }
+
+    async def _handle_api_live(self, request):
+        """GET /api/live — read-only snapshot of the 4 real-money bots.
+
+        Reuses _build_bot_rows (the leaderboard's authoritative bot_state source)
+        for per-bot realized/daily P&L; never sums the corrupted per-trade pnl.
+        Fully defensive — returns a best-effort payload rather than a 500."""
+        try:
+            return web.json_response(self._build_live_pool())
+        except Exception as e:
+            logger.warning("api/live failed: %s", e)
+            return web.json_response({
+                "live_mode": bool(getattr(self, "_live_mode", False)),
+                "bot_ids": list(self.LIVE_BOT_IDS),
+                "bots": [], "totals": {}, "wallet": {}, "caps": {},
+                "profit_sweep": {}, "error": str(e),
+            })
 
     async def _handle_api_bot_trades(self, request):
         """GET /api/bots/{bot_id}/trades — per-bot trade history."""
