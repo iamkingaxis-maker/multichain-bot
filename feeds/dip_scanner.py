@@ -889,6 +889,17 @@ class DipScanner:
         if capital is None or pm is None:
             logger.error("[DipScanner] missing capital/pm for bot=%s", bot_id)
             return
+        # REGIME BUY-GATE (2026-06-17): binary don't-buy on a CLEAR crash (broad-red
+        # downside breadth >=35 OR SOL 6h <= -3%). Enforced on live AND paper; cycle
+        # verdict stashed in the scan loop, re-evaluated each cycle (fast release, no
+        # overblock). Momentum-mode bots EXEMPT (not dip-buyers). Fail-open (no verdict
+        # -> buy). See core/regime_buy_gate.py.
+        _bg = getattr(self, "_buy_gate", None)
+        if (_bg and _bg.get("enforced")
+                and not bool(getattr(pm.config, "momentum_mode", False))):
+            logger.info("[DipScanner] bot=%s BUY-GATE OFF (%s) — skip %s",
+                        bot_id, _bg.get("reason"), decision.token)
+            return
         # STANDBY GATE (Option B, 2026-06-12): the chameleon opens NEW
         # positions ONLY while wearing a board-alive meta — "we only buy when
         # we KNOW the meta." Open positions keep managing normally.
@@ -2327,6 +2338,25 @@ class DipScanner:
         # filter_sol_macro_down (WORLDCUP 01:14:42 slipped through while
         # other tokens in the same cycle were being blocked).
         await self._fetch_cycle_sol_features()
+
+        # ── REGIME BUY-GATE (2026-06-17) — binary buy/DON'T-BUY for dip entries.
+        # Don't catch the falling knife: a CLEAR crash (broad downside breadth
+        # regime_h1_neg_pct >= 35 OR SOL 6h <= -3%) -> dip bots open ZERO new positions
+        # until it clears. Computed ONCE per cycle here, enforced in _execute_bot_buy.
+        # Re-evaluated every cycle (h1 breadth + h6 SOL) -> releases fast, no lockout /
+        # no overblock. Fail-OPEN. mode=enforce|shadow|off. See core/regime_buy_gate.py.
+        try:
+            from core.regime_buy_gate import verdict as _bg_verdict
+            _bg_sol_h6 = (getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h6")
+            self._buy_gate = _bg_verdict(_regime_h1_neg_pct, _bg_sol_h6)
+            if self._buy_gate.get("block"):
+                logger.info("[DipScanner] BUY-GATE %s: %s (breadth=%s sol_h6=%s)",
+                            "ENFORCED-OFF (dip bots stand down)" if self._buy_gate.get("enforced")
+                            else "would-block [shadow]",
+                            self._buy_gate.get("reason"), _regime_h1_neg_pct, _bg_sol_h6)
+        except Exception as _bg_e:
+            self._buy_gate = None
+            logger.debug(f"[DipScanner] buy-gate verdict error: {_bg_e}")
 
         # ── META-ALLOCATOR SHADOW (2026-06-12) — measure-only ────────────────
         # Snapshot the day-state the family-rotation allocator would key on
