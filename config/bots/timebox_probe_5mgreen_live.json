@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 90.0,
   "display_name": "WIN-SIG A/B of timebox_probe (2026-06-16 campaign). +1 entry clause: 5m_consec_green >= 1. momentum confirm: a 5m green streak (monotonic dose-response). Expect: WR 58.4->61.9%, blocks the stall cohort. Control=timebox_probe. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote the clause to timebox_probe only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "wash_suspected",
