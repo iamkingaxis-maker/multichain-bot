@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 15.0,
   "display_name": "YOUNG-PROBE CLONE: staircase structure (higher_low_5m>=0.5 AND trend_30m_n_pivot_lows>=3.5) on the young_probe_light template. 2026-06-10 mine of 81 young-probe closes (74% WR base): held-out TEST WR 86% +$4.52/tr n=14; FULL 92% +$5.92/tr n=26 across 7 tokens. THESIS: young-token winners are in confirmed short-term UPTRENDS (staircase pivots + higher lows) \u2014 momentum-confirmation, not deep-dip. CAUTION: 7-token diversity = pseudo-replication risk. FAST-CUT: retire if forward WR<60% by n=20 closes or net-negative at n>=12 distinct tokens. FLEET-CONVEX EXPERIMENT (2026-06-11, AxiS: our entries + the elite payoff curve). Same entries as the parent, payoff reshaped to the decoded elite math (51 pct WR, p90 +107 tails, fast cuts): $25 probes, TP1 +5 sells only 10 pct, TP2 +25 sells 20 pct, 70 pct rides the trail, -15 cut (their median loser), -9 fast bail. PRE-REG: judge vs parent head-to-head on $/tr at n>=25 closes each; convex must beat parent or retire. The smart wallets are the existence proof. [STACK-EXEMPT 2026-06-11: the fleet entry stack (age>=24h, mcap>=500k) is the structural opposite of the young pond \u2014 it silenced this family from the 06-09 enforcement until now. The young lane + own entry gates are the validated stack here.] [DAILY FLOOR $15 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.] [SELF-GATED 06-12: explicit bounds <2h/liq40k+/mcap150k+ = today's exact proven water, so the lane widening (24h/25k/100k for the new band probes) cannot alter this experiment.]",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

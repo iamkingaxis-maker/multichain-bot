@@ -10,7 +10,7 @@
   "conviction_step": 0.5,
   "daily_loss_limit_usd": 60.0,
   "display_name": "CONVICTION A/B of young_probe_light (2026-06-12 roster decode: ALL 10 profitable wallets size with conviction \u2014 dmuX bets 10x the table; our fleet bets flat, every bot). Single variable vs parent: trigger-count sizing (1 + 0.5*(n-1), cap 2x). PRE-REG: judge vs parent $/tr at n>=30 closes each; loser retires. 48h burn-in.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

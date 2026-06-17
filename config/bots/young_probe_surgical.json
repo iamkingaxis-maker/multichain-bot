@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "SURGICAL A/B (2026-06-12, the 7Gi3 geometry: median win +154% / median loss -2.2% \u2014 kill anything that doesn't work immediately, ride everything that does, uncapped). Parent entries (young_probe_light); geometry: fast-fail -4% any volume, tiny +25% bank (10%) arms a WIDE 8pp trail, no TP cap, -15 gap backstop. PRE-REG: judge vs parent $/tr at n>=30 closes; loser retires. 48h burn-in.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

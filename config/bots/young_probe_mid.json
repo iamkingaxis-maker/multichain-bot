@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "MID-AGE band probe (2-6h, liq30k+): 198 ev/day, 61% won10, +13.2% med peak. PRE-REG: judge at n>=30 closes \u2014 >=+$1.50/tr at $100 promotes to candidate set; negative retires the band. $60 daily floor; badday-grade rug screens; own exclusion pool. YOUNG CAPTURE BUILD 2026-06-12 (AxiS: the ponds we are proven in offer $500-1300/day at modest capture \u2014 the gap is throughput, not edge).",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",
