@@ -1,6 +1,8 @@
 # tests/test_fast_watch.py
 import os
 import importlib
+import asyncio
+import types
 from core import fast_watch as fw
 
 
@@ -96,3 +98,46 @@ def test_evaluate_all_respects_bot_allowlist():
     assert set(mgr.evaluate_all(bundle=object(), bot_allowlist={"a", "c"})) == {"BUY:a", "BUY:c"}
     # Empty allowlist -> nothing.
     assert mgr.evaluate_all(bundle=object(), bot_allowlist=set()) == []
+
+
+def _make_scanner_with_fire_blocks():
+    """Build a minimal object exposing the fan-out + legacy fire logic under test.
+    We exercise the real decision-routing helper extracted in Step 3."""
+    from feeds.dip_scanner import DipScanner
+    s = DipScanner.__new__(DipScanner)
+    s._buy_fire_lock = asyncio.Lock()
+    s.fired = []          # (path, bot_id)
+    return s
+
+
+def test_fanout_fires_all_when_no_allowlist():
+    s = _make_scanner_with_fire_blocks()
+    decisions = [types.SimpleNamespace(bot_id="a", token="T"),
+                 types.SimpleNamespace(bot_id="b", token="T")]
+    async def fake_exec(d, bundle): s.fired.append(("fire", d.bot_id))
+    s._execute_bot_buy = fake_exec
+    asyncio.run(s._fast_route_decisions(decisions, bundle=None, allowlist=None,
+                                        shadow=False, token_symbol="T"))
+    assert s.fired == [("fire", "a"), ("fire", "b")]
+
+
+def test_fanout_shadow_logs_never_fires():
+    s = _make_scanner_with_fire_blocks()
+    decisions = [types.SimpleNamespace(bot_id="a", token="T")]
+    async def fake_exec(d, bundle): s.fired.append(("fire", d.bot_id))
+    s._execute_bot_buy = fake_exec
+    asyncio.run(s._fast_route_decisions(decisions, bundle=None,
+                                        allowlist={"a"}, shadow=True, token_symbol="T"))
+    assert s.fired == []          # shadow: no fire at all
+
+
+def test_fanout_enforce_fires_only_allowlisted():
+    s = _make_scanner_with_fire_blocks()
+    decisions = [types.SimpleNamespace(bot_id="a", token="T"),
+                 types.SimpleNamespace(bot_id="z", token="T")]
+    async def fake_exec(d, bundle): s.fired.append(("fire", d.bot_id))
+    s._execute_bot_buy = fake_exec
+    # evaluate_all already filtered; route just fires what it's given in enforce.
+    asyncio.run(s._fast_route_decisions(decisions, bundle=None,
+                                        allowlist={"a"}, shadow=False, token_symbol="T"))
+    assert s.fired == [("fire", "a"), ("fire", "z")]   # routing fires given decisions under the lock

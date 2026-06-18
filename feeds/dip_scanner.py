@@ -2714,6 +2714,23 @@ class DipScanner:
         except Exception as _e:
             logger.debug("[DipScanner] _warm_jup_slip err for %s: %s", token_address, _e)
 
+    async def _fast_route_decisions(self, decisions, bundle, allowlist, shadow, token_symbol):
+        """Fire (or shadow-log) the fan-out decisions under the buy-fire lock.
+
+        Used by both the normal scan fan-out and the fast-watch path. `allowlist`
+        is informational here (evaluate_all already filtered); `shadow=True`
+        replaces the real fire with a log line and moves no money.
+        """
+        for d in decisions:
+            async with self._buy_fire_lock:
+                if shadow:
+                    logger.info(
+                        "[fast-watch] would-fire bot=%s token=%s (shadow)",
+                        getattr(d, "bot_id", "?"), token_symbol,
+                    )
+                else:
+                    await self._execute_bot_buy(d, bundle)
+
     async def _evaluate_pair(self, pair, _eval_ctx):
         """FIX 4: the per-token scan body, extracted verbatim from the former
         inline `for pair in pairs:` loop so it can run either serially (default)
@@ -2736,6 +2753,8 @@ class DipScanner:
         flags; and every real buy fire is serialized via self._buy_fire_lock.
         """
         now_ms = _eval_ctx["now_ms"]
+        _fp_allow = _eval_ctx.get("_fast_path_allowlist")   # set/frozenset or None
+        _fp_shadow = bool(_eval_ctx.get("_fast_path_shadow"))
         _regime_n = _eval_ctx["_regime_n"]
         _regime_dip_breadth_pct = _eval_ctx["_regime_dip_breadth_pct"]
         _regime_h1_neg_pct = _eval_ctx["_regime_h1_neg_pct"]
@@ -16729,17 +16748,19 @@ class DipScanner:
                     # daily_loss_limit_usd / max_token_buys_per_day configs).
                     decisions = self.bot_manager.evaluate_all(
                         bundle, realized_pnl_by_bot=realized_by_bot,
+                        bot_allowlist=_fp_allow,
                     )
-                    for d in decisions:
-                        # FIX 4 concurrency-safety: serialize every real buy
-                        # fire through the per-cycle buy lock so that under
-                        # PARALLEL_SCAN_MODE=on two tasks can NEVER interleave a
-                        # buy (race the exclusion pool / per-token exposure cap /
-                        # concurrency caps inside _execute_bot_buy). The lock is
-                        # an uncontended no-op acquire in serial mode -> behaviour
-                        # is byte-identical when the flag is off.
-                        async with self._buy_fire_lock:
-                            await self._execute_bot_buy(d, bundle)
+                    # FIX 4 concurrency-safety: serialize every real buy fire
+                    # through the per-cycle buy lock so that under
+                    # PARALLEL_SCAN_MODE=on two tasks can NEVER interleave a buy
+                    # (race the exclusion pool / per-token exposure cap /
+                    # concurrency caps inside _execute_bot_buy). The lock is an
+                    # uncontended no-op acquire in serial mode -> behaviour is
+                    # byte-identical when the flag is off. _fp_allow is None and
+                    # _fp_shadow False on the main path -> all bots, real fire.
+                    await self._fast_route_decisions(
+                        decisions, bundle, _fp_allow, _fp_shadow, token_symbol,
+                    )
                 except Exception as e:
                     logger.error(
                         "[DipScanner] multi-bot fan-out failed for %s: %s",
@@ -16749,6 +16770,10 @@ class DipScanner:
             # Sub-project 2: legacy single-bot gate. Honors all filters_block at
             # the end of the filter chain. Multi-bot bots above had full
             # filters_block info on the FeatureBundle and can override blocks.
+            # Fast-watch path: only the scoped fan-out fires; skip the legacy
+            # single-bot dip fire entirely (it is not in the bot allowlist model).
+            if _fp_allow is not None:
+                continue
             if _filters_block:
                 continue
 
