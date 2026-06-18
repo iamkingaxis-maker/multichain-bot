@@ -63,9 +63,9 @@ positions today.
 
 **New / changed in Rev 2:**
 - `FastWatchConfig` gains `armed_max`, `sample_window`, `volatility_reserve`; drops `trend_secs` (Axiom).
-- New arming driven by **distance-to-fire**: `_evaluate_pair` records a per-token near-miss arming record
-  on price-sensitive rejections; `_fast_arm_subset()` builds the armed set (near-miss cusp + volatility
-  reserve) at end of `_scan_cycle`.
+- New arming by **proxy distance-to-fire**: `_fast_arm_subset()` (end of `_scan_cycle`) computes
+  `distance = cached pc_h1 − dip-zone-edge` per watchlist token and arms the smallest-distance cusp tokens
+  + a volatility reserve. **No `_evaluate_pair` change** (money path untouched beyond Tasks 1–3).
 - New DexScreener batch price source + per-armed-token rolling price-sample buffers.
 - `_fast_watch_tick` rewritten to: (read armed set) → batch-poll → dip-from-samples → escalate. **No
   Axiom calls.**
@@ -76,27 +76,31 @@ positions today.
 
 A background coroutine on the `DipScanner` instance (unchanged spawn). Three tiers:
 
-### Tier 0 — Arm the near-miss subset (during/after each scan cycle, no extra fetch)
-Arming is driven by the scan's own **distance-to-fire**, captured while `_evaluate_pair` already runs —
-not a separate crude rank. The dominant entry path is dip-buy, so the primary signal is **dip-distance to
-threshold**: `_evaluate_pair` already computes a token's current dip depth (off its 90m/recent high) and
-the dip-gate threshold; when a token is *rejected* for being too shallow, record `distance =
-gate_threshold − current_dip` (e.g. gate −20%, token −18% → distance 2pp). A small further drop fires it,
-and that is exactly what a 3s re-check catches.
+### Tier 0 — Arm the near-miss subset (each scan cycle, no fetch, no money-path changes)
+Arming approximates the scan's **distance-to-fire** from the cached `pair` data — **not** a crude
+"most-negative" rank, and **not** by instrumenting the tangled multi-gate `_evaluate_pair` (which would be
+fragile on the money path and is per-bot). The dominant entry is dip-buy, so the proxy distance is how
+far a token's recent move is from *entering* the deep-dip zone:
 
-Mechanism: `_evaluate_pair` writes a per-token arming record into `self._fast_arm_candidates[addr] =
-{pair, distance, ts}` for tokens it rejects on a **price-sensitive near-miss** (dip too shallow is the
-primary; bs_m5 / m1-reversal / confirmation-candle just-under are secondary, same `distance` shape). At
-the end of `_scan_cycle`, `_fast_arm_subset()` builds `self._fast_armed` (dict addr→pair) by:
-1. taking the smallest-`distance` near-miss candidates (the cusp), up to
+> `distance = current_move − DIP_ZONE_EDGE`, using the cached `priceChange.h1` (fallback `m5`) as
+> `current_move` and `FAST_WATCH_DIP_ZONE_PCT` (default −12%, the approach edge of the deep-dip band) as
+> `DIP_ZONE_EDGE`. A token at −8% has distance 4pp (a small further drop tips it into the zone → arm it);
+> a token at +5% is far (distance 17pp); a token already at −25% is *past* the edge (distance ≤ 0 →
+> already fired or beyond the cusp → not armed).
+
+`_fast_arm_subset()` runs at the end of `_scan_cycle` and builds `self._fast_armed` (dict addr→pair) from
+`_sticky_watchlist`, in-band only (`self.min_mcap`/`max_mcap`/`min_age_ms` + anti-rug liq floor):
+1. keep tokens with `0 < distance ≤ FAST_WATCH_ARM_BAND_PP` (default 12pp — approaching the zone, not past
+   it), sorted by smallest distance (closest to firing), up to
    `FAST_WATCH_ARMED_MAX × (1 − FAST_WATCH_VOLATILITY_RESERVE)` slots;
-2. filling the remaining `FAST_WATCH_VOLATILITY_RESERVE` fraction (default 20% → ~6 of 30) with the
-   highest recent-volatility watchlist tokens (widest recent range / highest `volume.h1`, from cached
-   `pair` data) that are in the mcap/liq/age band — so a *sudden* crash on a token that wasn't a near-miss
-   at scan time still has a chance of being armed.
-This is pure in-memory selection (no network). Re-armed every cycle, so the set tracks the freshest scan
-and rotates; the exposure window for an un-armed sudden crash is bounded by the scan cadence (the ~150s
-sweep is the backstop). `_fast_arm_candidates` is reset at the start of each `_scan_cycle`.
+2. fill the remaining `FAST_WATCH_VOLATILITY_RESERVE` fraction (default 20% → ~6 of 30) with the highest
+   recent-volatility in-band tokens (highest cached `volume.h1`) so a *sudden* crash on a token that
+   wasn't a near-miss at scan time still has a chance of being armed.
+Pure in-memory selection (no network, no `_evaluate_pair` change). Re-armed every cycle, so the set tracks
+the freshest scan and rotates; the un-armed-sudden-crash window is bounded by the scan cadence (the ~150s
+sweep is the backstop). **The proxy is validated by the armed-hit-rate (below); if hit-rate is poor we
+refine the distance signal (e.g. cache the 90m-drawdown shape from the scan) — but the cheap proxy ships
+first.**
 
 ### Tier 1 — Batch-poll the armed subset (every `FAST_WATCH_INTERVAL_SECS`, default 3s)
 One DexScreener call per ≤30 armed tokens:
@@ -124,11 +128,9 @@ already reviewed SHIP).
 ## Data flow (Rev 2)
 
 ```
-_evaluate_pair (per token, during the scan)
-   └─> on price-sensitive near-miss (dip too shallow): self._fast_arm_candidates[addr]={pair,distance,ts}
-
 _scan_cycle (every ~150s)
-   └─> Tier 0 _fast_arm_subset(): smallest-distance near-misses + volatility reserve, cap 30
+   └─> Tier 0 _fast_arm_subset(): from cached pair, distance = pc_h1 − DIP_ZONE_EDGE ;
+       keep 0<distance<=band, smallest-first + volatility reserve, cap 30
                    -> self._fast_armed {addr: pair}
 
 _fast_watch_tick (every ~3s)
@@ -168,18 +170,15 @@ _fast_watch_tick (every ~3s)
   (drop `trend_secs`); add a tiny `rolling_dip_pct(samples, current)` helper (pure) used by the loop's
   `get_trend` callback. `dip_trigger`/`FastWatchDedup`/`shortlist` unchanged.
 - **Modify `feeds/dip_scanner.py`** —
-  - In `_evaluate_pair`: on a price-sensitive near-miss rejection (primary: dip too shallow), write
-    `self._fast_arm_candidates[addr] = {pair, distance, ts}` where `distance = threshold − current`. Reads
-    values it already computes; no new fetch; guarded so it never alters the decision.
-  - Reset `self._fast_arm_candidates = {}` at the start of `_scan_cycle`; call `_fast_arm_subset()` at its
-    end to build `self._fast_armed` (near-miss cusp + volatility-reserve fill, cap `armed_max`).
+  - Add `_fast_arm_subset()` (called at the END of `_scan_cycle`): pure in-memory selection over
+    `_sticky_watchlist` → `self._fast_armed` (cusp by proxy distance from cached `pc_h1` + volatility
+    reserve, in-band, cap `armed_max`). No `_evaluate_pair` change.
   - Add `_fast_batch_prices(addrs)` (DexScreener `/latest/dex/tokens/{≤30 csv}` fetch, map by
     `baseToken.address`); rewrite `_fast_watch_tick` for read-armed → batch-poll → dip-from-samples →
-    escalate; add `self._fast_armed`, `self._fast_arm_candidates`, `self._fast_samples` (dict[addr→deque])
-    init in `__init__`.
+    escalate; add `self._fast_armed`, `self._fast_samples` (dict[addr→deque]) init in `__init__`.
   - Add the **armed-hit-rate** log: where a buy actually fires (main fan-out + legacy path), emit
     `[fast-watch] hit-rate buy bot=X token=Y armed=<bool> last_fast_sample_age=<s>` so shadow can compute
-    coverage of real entries.
+    coverage of real entries. (`armed` reads `addr in self._fast_armed`; additive log, decision-neutral.)
   - Remove the Axiom subscribe + `_fast_trend`/`get_tick_trend` usage from the loop. `_fast_held_or_blocked`,
     `_fast_route_decisions`, `_fast_watch_loop` skeleton, and the `run()` spawn stay.
 - **Modify `tests/test_fast_watch.py`** — replace the Axiom-tick tick tests with armed-subset tests
@@ -193,6 +192,8 @@ _fast_watch_tick (every ~3s)
 | `FAST_WATCH_MODE` | `off` | `off` / `shadow` / `enforce` |
 | `FAST_WATCH_INTERVAL_SECS` | `3` | Tier-1 batch-poll cadence |
 | `FAST_WATCH_ARMED_MAX` | `30` | max armed tokens (= 1 DexScreener batch call) |
+| `FAST_WATCH_DIP_ZONE_PCT` | `-12` | the deep-dip approach edge (cached pc_h1 below this = in/near the zone) |
+| `FAST_WATCH_ARM_BAND_PP` | `12` | arm tokens whose distance to the dip edge is within this many pp |
 | `FAST_WATCH_VOLATILITY_RESERVE` | `0.2` | fraction of armed slots for high-volatility (sudden-crash) tokens vs near-miss cusp |
 | `FAST_WATCH_SAMPLE_WINDOW` | `40` | per-token rolling price samples (~2 min at 3s) |
 | `FAST_WATCH_DIP_PCT` | `3` | dip threshold off the rolling high (loose superset trigger) |
@@ -215,12 +216,11 @@ _fast_watch_tick (every ~3s)
 
 Unit (`tests/test_fast_watch.py`):
 - Tasks 1–3 tests unchanged (allowlist filter, shadow no-fire, route order, byte-identical-off).
-- Arming (`_fast_arm_subset`): given near-miss candidates with distances + a watchlist, selects the
-  smallest-`distance` tokens for the cusp slots and fills the `volatility_reserve` fraction with the
-  highest-volatility in-band tokens; respects `armed_max`; deterministic for a given input.
-- Distance capture: a price-sensitive near-miss rejection writes a candidate record with
-  `distance = threshold − current`; a clean pass or a non-price rejection writes none; the capture never
-  changes the decision (assert decision identical with/without the capture path).
+- Arming (`_fast_arm_subset`): from a synthetic watchlist with cached `pc_h1`/`volume.h1`/band fields,
+  selects only in-band tokens with `0 < distance ≤ ARM_BAND_PP` (distance = `pc_h1 − DIP_ZONE_EDGE`),
+  smallest-distance first for the cusp slots, fills `volatility_reserve` with highest-`volume.h1` in-band
+  tokens; respects `armed_max`; excludes tokens already past the edge (distance ≤ 0) and out-of-band;
+  deterministic for a given input.
 - Armed-hit-rate log: a fired buy emits the hit-rate line with `armed=<bool>` reflecting whether the
   token was in `self._fast_armed`.
 - Batch parse: maps `pairs[]` to tokens by lowercased `baseToken.address`; ignores unknown/extra pairs;
