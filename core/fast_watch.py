@@ -39,12 +39,11 @@ class FastWatchConfig:
     mode: str                 # "off" | "shadow" | "enforce"
     interval_secs: float
     dip_pct: float
+    rise_pct: float
     eval_cooldown_secs: float
     bot_allowlist: frozenset
     armed_max: int
     sample_window: int
-    volatility_reserve: float
-    dip_zone_pct: float
     arm_band_pp: float
 
     @classmethod
@@ -59,13 +58,12 @@ class FastWatchConfig:
             mode=mode,
             interval_secs=_f("FAST_WATCH_INTERVAL_SECS", 3.0),
             dip_pct=_f("FAST_WATCH_DIP_PCT", 3.0),
+            rise_pct=_f("FAST_WATCH_RISE_PCT", 3.0),
             eval_cooldown_secs=_f("FAST_WATCH_EVAL_COOLDOWN_SECS", 60.0),
             bot_allowlist=allow,
             armed_max=_i("FAST_WATCH_ARMED_MAX", 30),
             sample_window=_i("FAST_WATCH_SAMPLE_WINDOW", 40),
-            volatility_reserve=_f("FAST_WATCH_VOLATILITY_RESERVE", 0.2),
-            dip_zone_pct=_f("FAST_WATCH_DIP_ZONE_PCT", -12.0),
-            arm_band_pp=_f("FAST_WATCH_ARM_BAND_PP", 12.0),
+            arm_band_pp=_f("FAST_WATCH_ARM_BAND_PP", 15.0),
         )
 
 
@@ -97,53 +95,40 @@ class FastWatchDedup:
         self._last[addr] = now
 
 
-def shortlist(snapshot, get_trend: Callable, dedup: FastWatchDedup,
-              is_held_or_blocked: Callable, cfg: FastWatchConfig, now: float):
-    """Return [(addr, entry, trend)] for armed tokens worth a full evaluation.
-    `get_trend(addr)` and `is_held_or_blocked(addr)` are injected for testability."""
+def shortlist(snapshot, trigger_fn: Callable, dedup: FastWatchDedup,
+              is_held_or_blocked: Callable, now: float):
+    """Return [(addr, entry)] for armed tokens worth a full evaluation.
+    `trigger_fn(addr)` and `is_held_or_blocked(addr)` are injected for testability.
+    `trigger_fn` is a generic move detector (dip OR rise) — see `move_fires`."""
     out = []
     for addr, entry in snapshot:
-        trend = get_trend(addr)
-        if not dip_trigger(trend, cfg.dip_pct):
+        if not trigger_fn(addr):
             continue
         if not dedup.should_eval(addr, now):
             continue
         if is_held_or_blocked(addr):
             continue
-        out.append((addr, entry, trend))
+        out.append((addr, entry))
     return out
 
 
 def arm_subset(candidates, cfg: FastWatchConfig):
-    """Select the armed token addresses for the fast loop.
+    """Select the armed token addresses for the fast loop (Rev 2.1: in-play, volume-ranked).
 
     `candidates`: list of dicts {addr, pc_h1 (float|None), vol_h1 (float|None), in_band (bool)}.
-    distance = pc_h1 − cfg.dip_zone_pct  (pp ABOVE the dip-zone edge; e.g. pc_h1=-8, edge=-12 → 4pp).
-    Arm tokens approaching the zone (0 < distance ≤ arm_band_pp), smallest distance first (closest to
-    firing), filling cfg.armed_max; reserve a fraction for highest-volatility in-band tokens so a sudden
-    crash on a non-near-miss can still be caught. Returns an ordered list of addresses (≤ armed_max).
+    Arm the in-band tokens that are *in play* — near a threshold on either side
+    (`abs(pc_h1) ≤ cfg.arm_band_pp`, i.e. not already far gone up *or* down) — ranked by recent
+    volume (`vol_h1` desc, the tokens the fleet is most likely to buy). Returns an ordered list of
+    addresses (≤ armed_max). Entry-type-agnostic so it serves both dip and momentum bots.
     """
-    in_band = [c for c in candidates if c.get("in_band")]
-    cusp = []
-    for c in in_band:
-        pc = c.get("pc_h1")
-        if pc is None:
-            continue
-        dist = pc - cfg.dip_zone_pct
-        if 0 < dist <= cfg.arm_band_pp:
-            cusp.append((dist, c["addr"]))
-    cusp.sort(key=lambda t: t[0])
-    n_cusp = max(0, int(round(cfg.armed_max * (1.0 - cfg.volatility_reserve))))
-    armed = [a for _d, a in cusp[:n_cusp]]
-    chosen = set(armed)
-    n_reserve = cfg.armed_max - n_cusp
-    if n_reserve > 0:
-        vol = sorted(
-            (c for c in in_band if c["addr"] not in chosen and c.get("vol_h1") is not None),
-            key=lambda c: c["vol_h1"], reverse=True,
-        )
-        armed.extend(c["addr"] for c in vol[:n_reserve])
-    return armed[:cfg.armed_max]
+    inplay = [
+        c for c in candidates
+        if c.get("in_band")
+        and c.get("pc_h1") is not None
+        and abs(c["pc_h1"]) <= cfg.arm_band_pp
+    ]
+    inplay.sort(key=lambda c: (c.get("vol_h1") or 0.0), reverse=True)
+    return [c["addr"] for c in inplay][:cfg.armed_max]
 
 
 def rolling_dip_pct(samples):
@@ -156,3 +141,28 @@ def rolling_dip_pct(samples):
     if hi <= 0:
         return None
     return round((vals[-1] / hi - 1.0) * 100.0, 6)
+
+
+def rolling_rise_pct(samples):
+    """% gain of the latest sample off the window min. None if <2 valid (>0) samples.
+    `samples`: iterable of prices (oldest→newest)."""
+    vals = [p for p in samples if isinstance(p, (int, float)) and p > 0]
+    if len(vals) < 2:
+        return None
+    lo = min(vals)
+    if lo <= 0:
+        return None
+    return round((vals[-1] / lo - 1.0) * 100.0, 6)
+
+
+def move_fires(samples, dip_pct: float, rise_pct: float) -> bool:
+    """Bidirectional move detector: True on a fresh dip (off the window max) serving dip bots,
+    OR a fresh rise (off the window min) serving momentum bots. Loose superset — the per-bot gates
+    in `_evaluate_pair` make the actual buy decision."""
+    dip = rolling_dip_pct(samples)
+    if dip is not None and dip <= -abs(dip_pct):
+        return True
+    rise = rolling_rise_pct(samples)
+    if rise is not None and rise >= abs(rise_pct):
+        return True
+    return False

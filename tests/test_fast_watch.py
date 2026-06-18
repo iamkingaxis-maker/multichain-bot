@@ -26,7 +26,6 @@ def test_dedup_suppresses_within_ttl_then_allows():
 
 
 def test_shortlist_filters_held_blocked_and_recent():
-    cfg = _cfg()
     trends = {"DIP": -4.0, "FLAT": -0.5, "HELD": -9.0, "RECENT": -4.0}
     dedup = fw.FastWatchDedup(60)
     dedup.mark("RECENT", now=1000.0)
@@ -34,17 +33,17 @@ def test_shortlist_filters_held_blocked_and_recent():
                 ("HELD", {"pair": {}}), ("RECENT", {"pair": {}})]
     out = fw.shortlist(
         snapshot,
-        get_trend=lambda addr: trends.get(addr),
+        trigger_fn=lambda a: trends.get(a, 0) <= -3,
         dedup=dedup,
-        is_held_or_blocked=lambda addr: addr == "HELD",
-        cfg=cfg,
+        is_held_or_blocked=lambda a: a == "HELD",
         now=1001.0,
     )
-    assert [a for a, _e, _t in out] == ["DIP"]        # FLAT no-dip, HELD blocked, RECENT deduped
+    assert [a for a, _e in out] == ["DIP"]        # FLAT no-dip, HELD blocked, RECENT deduped
 
 
 def test_config_from_env_defaults_and_overrides(monkeypatch):
     for k in ("FAST_WATCH_MODE", "FAST_WATCH_INTERVAL_SECS", "FAST_WATCH_DIP_PCT",
+              "FAST_WATCH_RISE_PCT",
               "FAST_WATCH_EVAL_COOLDOWN_SECS", "FAST_WATCH_BOT_ALLOWLIST", "FAST_WATCH_ARMED_MAX",
               "FAST_WATCH_SAMPLE_WINDOW", "FAST_WATCH_VOLATILITY_RESERVE",
               "FAST_WATCH_DIP_ZONE_PCT", "FAST_WATCH_ARM_BAND_PP"):
@@ -53,12 +52,13 @@ def test_config_from_env_defaults_and_overrides(monkeypatch):
     assert cfg.mode == "off"
     assert cfg.interval_secs == 3.0
     assert cfg.dip_pct == 3.0
+    assert cfg.rise_pct == 3.0
     assert cfg.eval_cooldown_secs == 60.0
     assert cfg.armed_max == 30
     assert cfg.sample_window == 40
-    assert cfg.volatility_reserve == 0.2
-    assert cfg.dip_zone_pct == -12.0
-    assert cfg.arm_band_pp == 12.0
+    assert cfg.arm_band_pp == 15.0
+    assert not hasattr(cfg, "dip_zone_pct")
+    assert not hasattr(cfg, "volatility_reserve")
     assert "badday_flush_conviction" in cfg.bot_allowlist
     assert not hasattr(cfg, "trend_secs")
     monkeypatch.setenv("FAST_WATCH_MODE", "ShAdOw")
@@ -77,42 +77,44 @@ def test_config_bad_numbers_fall_back_to_defaults(monkeypatch):
 
 
 def _cfg(**kw):
-    base = dict(mode="shadow", interval_secs=3.0, dip_pct=3.0, eval_cooldown_secs=60.0,
-                bot_allowlist=frozenset({"x"}), armed_max=30, sample_window=40,
-                volatility_reserve=0.2, dip_zone_pct=-12.0, arm_band_pp=12.0)
+    base = dict(mode="shadow", interval_secs=3.0, dip_pct=3.0, rise_pct=3.0,
+                eval_cooldown_secs=60.0, bot_allowlist=frozenset({"x"}), armed_max=30,
+                sample_window=40, arm_band_pp=15.0)
     base.update(kw)
     return fw.FastWatchConfig(**base)
 
 
-def test_arm_subset_picks_cusp_excludes_far_and_past():
-    cfg = _cfg(armed_max=3, volatility_reserve=0.0)
+def test_arm_subset_inplay_volume_ranked():
+    cfg = _cfg(armed_max=5, arm_band_pp=15.0)
     cands = [
-        {"addr": "NEAR", "pc_h1": -8.0, "vol_h1": 1.0, "in_band": True},   # dist 4 -> cusp
-        {"addr": "FLAT", "pc_h1": -2.0, "vol_h1": 1.0, "in_band": True},   # dist 10 -> cusp (farther)
-        {"addr": "FAR",  "pc_h1": +5.0, "vol_h1": 1.0, "in_band": True},   # dist 17 > band -> out
-        {"addr": "PAST", "pc_h1": -20.0,"vol_h1": 1.0, "in_band": True},   # dist -8 <=0 -> out (already in zone)
-        {"addr": "OOB",  "pc_h1": -8.0, "vol_h1": 9.0, "in_band": False},  # out of band -> out
+        {"addr": "LOW",  "pc_h1": -5.0, "vol_h1": 1.0, "in_band": True},    # in-play, low vol
+        {"addr": "HIGH", "pc_h1": +10.0, "vol_h1": 99.0, "in_band": True},  # in-play, high vol
+        {"addr": "MID",  "pc_h1": -2.0, "vol_h1": 50.0, "in_band": True},   # in-play, mid vol
     ]
     armed = fw.arm_subset(cands, cfg)
-    assert armed == ["NEAR", "FLAT"]   # smallest-distance first; FAR/PAST/OOB excluded
+    assert armed == ["HIGH", "MID", "LOW"]   # in-band + |pc_h1|<=band, ranked by vol_h1 desc
 
 
-def test_arm_subset_volatility_reserve_fills_remaining():
-    cfg = _cfg(armed_max=2, volatility_reserve=0.5)   # 1 cusp slot, 1 reserve slot
+def test_arm_subset_excludes_already_gone_either_direction():
+    cfg = _cfg(armed_max=5, arm_band_pp=15.0)
     cands = [
-        {"addr": "CUSP", "pc_h1": -8.0, "vol_h1": 1.0, "in_band": True},   # cusp
-        {"addr": "VOLA", "pc_h1": +50.0, "vol_h1": 99.0, "in_band": True}, # far (no cusp) but high vol
-        {"addr": "VOLB", "pc_h1": +40.0, "vol_h1": 50.0, "in_band": True},
+        {"addr": "INPLAY",   "pc_h1": -8.0, "vol_h1": 1.0, "in_band": True},   # |pc|<=15 -> keep
+        {"addr": "GONEUP",   "pc_h1": +20.0, "vol_h1": 9.0, "in_band": True},  # |pc|>15 -> drop
+        {"addr": "GONEDOWN", "pc_h1": -25.0, "vol_h1": 9.0, "in_band": True},  # |pc|>15 -> drop
+        {"addr": "OOB",      "pc_h1": -5.0, "vol_h1": 9.0, "in_band": False},  # out of band -> drop
+        {"addr": "NOPC",     "pc_h1": None, "vol_h1": 9.0, "in_band": True},   # no pc_h1 -> drop
     ]
     armed = fw.arm_subset(cands, cfg)
-    assert armed[0] == "CUSP"
-    assert "VOLA" in armed and len(armed) == 2   # reserve filled by highest vol_h1
+    assert armed == ["INPLAY"]
 
 
 def test_arm_subset_caps_at_armed_max():
-    cfg = _cfg(armed_max=2, volatility_reserve=0.0)
-    cands = [{"addr": f"T{i}", "pc_h1": -float(i), "vol_h1": 1.0, "in_band": True} for i in range(1, 6)]
-    assert len(fw.arm_subset(cands, cfg)) == 2
+    cfg = _cfg(armed_max=2, arm_band_pp=15.0)
+    cands = [{"addr": f"T{i}", "pc_h1": -1.0, "vol_h1": float(i), "in_band": True}
+             for i in range(1, 6)]
+    armed = fw.arm_subset(cands, cfg)
+    assert len(armed) == 2
+    assert armed == ["T5", "T4"]   # highest vol first, capped at armed_max
 
 
 def test_rolling_dip_pct():
@@ -121,6 +123,21 @@ def test_rolling_dip_pct():
     assert fw.rolling_dip_pct([100.0, 90.0]) == -10.0      # 10% off the high
     assert fw.rolling_dip_pct([100.0, 120.0, 114.0]) == -5.0  # off the window MAX (120), not first
     assert fw.rolling_dip_pct([0.0, 0.0]) is None          # bad data
+
+
+def test_rolling_rise_pct():
+    assert fw.rolling_rise_pct([]) is None
+    assert fw.rolling_rise_pct([100.0]) is None            # <2 samples
+    assert fw.rolling_rise_pct([100.0, 110.0]) == 10.0     # 10% off the low
+    assert fw.rolling_rise_pct([100.0, 80.0, 84.0]) == 5.0  # off the window MIN (80), not first
+    assert fw.rolling_rise_pct([0.0, 0.0]) is None         # bad data
+
+
+def test_move_fires_either_direction():
+    assert fw.move_fires([100.0, 96.0], 3.0, 3.0) is True    # dip -4% fires
+    assert fw.move_fires([100.0, 104.0], 3.0, 3.0) is True   # rise +4% fires
+    assert fw.move_fires([100.0, 101.0], 3.0, 3.0) is False  # neither (within bands)
+    assert fw.move_fires([100.0], 3.0, 3.0) is False         # <2 samples -> False
 
 
 class _FakeCfg:

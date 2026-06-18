@@ -2828,10 +2828,10 @@ class DipScanner:
         return out
 
     async def _fast_watch_tick(self, cfg, dedup):
-        from core.fast_watch import shortlist, rolling_dip_pct
+        from core.fast_watch import shortlist, move_fires
         armed = dict(self._fast_armed)   # snapshot
         if not armed:
-            logger.info("[fast-watch] tick armed=0 polled=0 dipped=0 mode=%s", cfg.mode)
+            logger.info("[fast-watch] tick armed=0 polled=0 fired=0 mode=%s", cfg.mode)
             return
         addrs = list(armed.keys())
         prices = await self._fast_batch_prices(addrs)
@@ -2848,15 +2848,15 @@ class DipScanner:
         snapshot = [(addr, armed[addr]) for addr in addrs]
         survivors = shortlist(
             snapshot,
-            get_trend=lambda a: rolling_dip_pct(self._fast_samples.get(a) or ()),
+            trigger_fn=lambda a: move_fires(self._fast_samples.get(a) or (), cfg.dip_pct, cfg.rise_pct),
             dedup=dedup,
             is_held_or_blocked=lambda a: self._fast_held_or_blocked(a, cfg.bot_allowlist),
-            cfg=cfg, now=now,
+            now=now,
         )
-        logger.info("[fast-watch] tick armed=%d polled=%d dipped=%d mode=%s",
+        logger.info("[fast-watch] tick armed=%d polled=%d fired=%d mode=%s",
                     len(addrs), polled, len(survivors), cfg.mode)
         regime = getattr(self, "_fast_watch_regime", {}) or {}
-        for addr, pair, _trend in survivors:
+        for addr, pair in survivors:
             dedup.mark(addr, now)
             if not pair:
                 continue
