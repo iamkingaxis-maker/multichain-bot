@@ -27,6 +27,33 @@ logger = logging.getLogger(__name__)
 HELIUS_WS_BASE = "wss://mainnet.helius-rpc.com/?api-key="
 
 
+# ── Jupiter lite-api price/v3 helpers (free/keyless, 50 ids/call hard cap) ──
+def _jup_clean_ids(ids):
+    """Strip CRLF/whitespace, drop empties (Windows CRLF breaks the URL -> HTTP 000)."""
+    return [s.strip() for s in ids if s and s.strip()]
+
+
+def _jup_chunks(ids, size=50):
+    """Jupiter hard-caps at 50 ids/call and SILENTLY truncates beyond -> must chunk at 50."""
+    return [ids[i:i+size] for i in range(0, len(ids), size)]
+
+
+def _parse_jupiter(payload):
+    """resp[mint] -> (usdPrice float, blockId|None); drop null/missing prices."""
+    out = {}
+    for mint, v in (payload or {}).items():
+        if not isinstance(v, dict):
+            continue
+        p = v.get("usdPrice")
+        if p is None:
+            continue
+        try:
+            out[mint] = (float(p), v.get("blockId"))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 @dataclass
 class PriceTick:
     """A single real-time price update."""
@@ -78,6 +105,10 @@ class PriceFeed:
         # Prevents 2-RPS retry storm + log spam while IP cools down. Helius/Axiom
         # feeds carry Solana stops during the window; only cross-chain stops degrade.
         self._ds_backoff_until: float = 0.0
+
+        # Jupiter lite-api 429 backoff: no Retry-After header; ~60-70s clears.
+        # A2 will fail over to DexScreener while this window is in the future.
+        self._jup_backoff_until: float = 0.0
 
     # ── AxiomPriceFeed-compatible subscription API ──────────────────────────
 
@@ -332,6 +363,84 @@ class PriceFeed:
 
         except Exception as e:
             logger.debug(f"[PriceFeed] Poll batch error: {e}")
+
+    async def _poll_batch_jupiter(self, addresses: list):
+        """Jupiter lite price/v3 — keyless, 50 ids/call, SERIALIZED (parallel burst = 429 self-DoS).
+        Writes price_cache via _process_jupiter_price. Returns count fetched.
+
+        A1: defined but NOT yet called by the poll loop (A2 wires it as primary)."""
+        ids = _jup_clean_ids(addresses)
+        fetched = 0
+        for chunk in _jup_chunks(ids, 50):
+            url = "https://lite-api.jup.ag/price/v3?ids=" + ",".join(chunk)
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                        if resp.status != 200:
+                            if resp.status == 429:
+                                self._jup_backoff_until = time.time() + 60.0  # no Retry-After; ~60-70s clear
+                                logger.warning("[PriceFeed] Jupiter 429 — 60s backoff, failing over to DexScreener")
+                            return fetched
+                        data = await resp.json(content_type=None)
+            except Exception as e:
+                logger.debug("[PriceFeed] Jupiter fetch error: %s", e)
+                return fetched
+            for mint, (price, block) in _parse_jupiter(data).items():
+                m = mint.lower()
+                if m in self._watched:
+                    await self._process_jupiter_price(m, price, block)
+                    fetched += 1
+        return fetched
+
+    async def _process_jupiter_price(self, addr_lower, price, block_id):
+        """Feed a Jupiter quote into the same cache/sample path as poll updates.
+
+        Adapted to this file's real PriceTick signature (token_address/chain_id/
+        price_usd/volume_usd/price_change_pct/liquidity_usd, source) and the
+        AxiomPriceFeed-compatible caches (price_cache + price_timestamps). Jupiter
+        gives only price (no volume/liquidity), so those caches are left untouched
+        and prior volume/liquidity values persist."""
+        if price is None or price <= 0:
+            return
+
+        chain_id = self._watch_chains.get(addr_lower, "solana")
+        prev = self._latest.get(addr_lower)
+        change_pct = 0.0
+        if prev and prev.price_usd > 0:
+            change_pct = ((price - prev.price_usd) / prev.price_usd) * 100
+
+        tick = PriceTick(
+            token_address=addr_lower,
+            chain_id=chain_id,
+            price_usd=price,
+            volume_usd=self.volume_cache.get(addr_lower, 0.0),
+            price_change_pct=change_pct,
+            liquidity_usd=self.liquidity_cache.get(addr_lower, 0.0),
+            source="jupiter",
+        )
+        self._latest[addr_lower] = tick
+        self._tick_count += 1
+
+        # AxiomPriceFeed-compatible caches (same writes as _process_pair_update).
+        self.price_cache[addr_lower] = price
+        self.price_timestamps[addr_lower] = time.time()
+
+        # Fire realtime stop/TP checks — same pattern as _process_pair_update.
+        if self.position_manager is not None:
+            self.position_manager.check_stop_loss_realtime(addr_lower, price)
+            self.position_manager.check_take_profit_realtime(addr_lower, price)
+            self.position_manager.check_exhaustion_realtime(addr_lower, price)
+            self.position_manager.check_post_tp1_trail_realtime(addr_lower, price)
+
+        # Notify subscribers.
+        for callback in self._subscribers.get(addr_lower, []):
+            try:
+                if asyncio.iscoroutinefunction(callback):
+                    await callback(tick)
+                else:
+                    callback(tick)
+            except Exception as e:
+                logger.debug(f"[PriceFeed] Callback error: {e}")
 
     async def _poll_pair_direct(self, token_address: str, pair_address: str):
         """Poll a specific pair address directly — used for tokens not yet in DexScreener index."""
