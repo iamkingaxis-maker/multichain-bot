@@ -1,194 +1,197 @@
-# Fast-Watch Loop — Design Spec
+# Fast-Watch Loop — Design Spec (Revision 2: armed-subset + DexScreener batch)
 
 **Date:** 2026-06-18
-**Status:** Approved design (pending implementation plan)
+**Status:** Approved design (Rev 2 supersedes Rev 1's Axiom-tick approach)
 **Author:** Claude (with AxiS)
 
-## Problem
+## Problem (unchanged)
 
-The main scanner loop (`DipScanner._scan_cycle` in `feeds/dip_scanner.py`) sweeps the full ~485-token
-universe each cycle. Its effective cadence is **~150–165s** because the per-token decision work
-(ML fusion model + rug-bundle + trigger features + decision logic) over the ~150–230 surviving tokens
-is **serial and CPU/GIL-bound**. The 2026-06-18 latency investigation proved this is *compute*-bound,
-not fetch-bound: parallelizing the read-only fetches (`PARALLEL_SCAN_DECISION_MODE`) produced **zero**
-cadence improvement and was reverted (see `_mission_latency_2026_06_18.md`).
+The main scanner loop (`DipScanner._scan_cycle`, `feeds/dip_scanner.py`) is compute-bound at
+**~150–165s** effective cadence (serial per-token ML/rug/decision over ~150–230 survivors; proven not
+fetch-bound — see `_mission_latency_2026_06_18.md`). When an **already-watched** token dips, we may not
+re-evaluate it for up to ~160s — far too slow for memecoin entries. Tokens we want to buy are almost
+always already on the sticky watchlist, so the fix is a **separate fast loop that re-checks watched
+tokens** and front-runs the slow sweep.
 
-Consequence: when an **already-watched** token dips, we may not re-evaluate it for up to ~160s. For
-memecoin entries that is far too slow — the target is to act within a few seconds of the dip.
+## Why Rev 1 (Axiom tick buffers) was abandoned
 
-Key insight: the tokens we actually want to buy are almost always **already on the sticky watchlist**.
-So entry timing does not require speeding up the full universe sweep — it requires a **separate fast
-loop that re-checks the already-watched cohort** and front-runs the slow sweep's cadence.
+Rev 1 read `AxiomPriceFeed.get_tick_trend()` over the whole ~415-token sticky cohort. Shadow deployment
+(2026-06-18) proved this dead: `[fast-watch] tick cohort=415 live_ticks=0` on every tick. Root cause:
+the Axiom price WebSocket (Cloudflare-proxy, `target=socket8`) connects and accepts our room-joins but
+streams **zero messages back** (0 heartbeats / 0 raw messages over 130s while `sub_manager` stayed
+alive). Axiom's price socket went silent industry-wide (the code already documents the legacy `<addr>`
+room dying; the `t:/s:/td:` rooms are silent too; direct `api4.axiom.trade` fails DNS). Axiom was
+originally scoped to **open positions only** (a handful), never the full cohort — so the cohort-wide
+real-time premise was never sound. **We will not depend on Axiom.**
 
-## Goal
+Critically, the rate-limit math also kills a naive "poll all 415 via DexScreener": even via the 30-token
+batch endpoint that is ~14 calls/tick → ~280/min, over DexScreener's limits. **Neither feed gives cheap
+real-time prices for 415 tokens.** That is the real constraint Rev 2 designs around.
 
-Catch a dip on an already-watched token within **~3–5s** instead of up to ~160s, by re-checking the
-sticky cohort in a cheap in-memory loop and triggering the **existing** entry evaluation sooner —
-**without changing what we buy or which gates apply**.
+## Goal (unchanged)
 
-Non-goals (explicitly out of scope):
-- New entry criteria / a tighter "fast-entry" gate. The fast loop reuses the existing `_evaluate_pair`
-  decision verbatim. (AxiS decision: "Reuse existing gates.")
-- Firing the whole fleet. Scoped to the live pool + dip-entry bots. (AxiS decision: "Live pool +
-  dip-entry bots.")
-- Speeding up the main sweep or its per-token compute (separate future work).
-- Replacing the main sweep. The main loop remains the discovery path and the safety net.
+Catch a dip on an already-watched token within **~3–5s** instead of up to ~160s, triggering the
+**existing** `_evaluate_pair` decision sooner — without changing what we buy, which gates apply, or which
+bots fire (live pool + dip-entry, allowlisted).
 
-## Decisions locked
+## The Rev 2 idea: arm a small subset, batch-poll only that
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Entry logic | Reuse existing `_evaluate_pair` gates | No new buy-path logic to validate; lowest risk; the real ML/rug/dip filters still judge. The fast loop only changes *when* the existing decision runs. |
-| Bot scope | Live pool + dip-entry bots | Entry timing matters most for real money + the dip-buy cohort; smaller blast radius; less buy-lock contention than the full ~70-bot fleet. |
-| Rollout | Shadow → enforce, default off | Project convention (shadow-before-enforce) and this is the buy-firing path. |
+Don't watch all 415. Each main scan cycle, **arm** the small subset of watchlist tokens that are
+plausibly *close to a buy* (cheap synchronous gates on cached `pair` data — no fetch). Then a fast loop
+**batch-polls only the armed subset** for fresh prices via DexScreener's multi-token JSON endpoint
+(≤30 addresses per call) every ~3s, detects a fresh dip from its own price samples, and escalates the
+0–N survivors into the existing `_evaluate_pair`.
 
-## Architecture
+At ≤30 armed tokens that is **1 DexScreener call / 3s = ~20 calls/min** against a ~300/min public limit —
+huge headroom, no dead-socket dependency, and it reuses the HTTP price path that already prices open
+positions today.
 
-A new long-lived background coroutine on the **same `DipScanner` instance** (so it can reach
-`_sticky_watchlist`, `axiom_price_feed`, `_buy_fire_lock`, and the buy path). Spawned via
-`asyncio.create_task` inside `DipScanner.run()` before the `while True` sweep loop.
+## What's reused vs new
 
-Three tiers, designed so the per-tick cost is dominated by cheap in-memory reads and the expensive
-`_evaluate_pair` runs only for the 0–3 tokens that actually tripped a dip trigger.
+**Reused as-is (already merged, feed-agnostic — Rev 1 commits stay):**
+- `core/fast_watch.py`: `dip_trigger()`, `FastWatchDedup`, `shortlist()` (its `get_trend` callback is an
+  injected abstraction — Rev 2 passes a DexScreener-sample-based dip function instead of an Axiom one).
+- `core/bot_manager.evaluate_all(bot_allowlist=...)`.
+- `_evaluate_pair` allowlist+shadow threading (`_fast_path_allowlist` / `_fast_path_shadow`) +
+  `_fast_route_decisions`. Escalation + buy-safety model are **unchanged**.
+- `DipScanner.run()` spawn of `_fast_watch_loop` (no-op when `FAST_WATCH_MODE=off`).
+- The startup-window `__init__` initialization of the per-cycle attrs.
 
-### Tier 0 — Subscribe the cohort
-On startup and refreshed each main cycle, push every `_sticky_watchlist` address into
-`AxiomPriceFeed.subscribe_token(addr)` so `price_cache` and `_tick_buffers` populate. Subscription is
-idempotent and safe before the WS connects (`feeds/axiom_price_feed.py:135`).
+**New / changed in Rev 2:**
+- `FastWatchConfig` gains `armed_max` and `sample_window`; drops `trend_secs` (Axiom-specific).
+- New arming step (cheap-gate subset selection over the sticky watchlist).
+- New DexScreener batch price source + per-armed-token rolling price-sample buffers.
+- `_fast_watch_tick` rewritten to: arm → batch-poll → dip-from-samples → escalate. **No Axiom calls.**
 
-### Tier 1 — Cheap shortlist (every `FAST_WATCH_INTERVAL_SECS`, default 3s)
-Iterate a **snapshot** (`list(self._sticky_watchlist.items())`) to avoid dict-mutation races with
-`_prune_sticky`/`_fetch_candidates` (which reassign the dict). For each token, read **in-memory only**:
-- `trend = axiom_price_feed.get_tick_trend(addr, FAST_WATCH_TREND_SECS)` — % change over last N
-  seconds from the buffered ticks (`feeds/axiom_price_feed.py:90`); `None` if <2 ticks.
+## Architecture (Rev 2)
 
-Shortlist a token when **all** hold:
-1. `trend is not None and trend <= -FAST_WATCH_DIP_PCT` (default −3%). Deliberately **looser** than the
-   real entry gates — it is only a "worth a full evaluation now" superset signal.
-2. Token is not already held by, or blocked for, the scoped bots (quick pre-check; re-verified inside
-   the lock at fire time — see Safety).
-3. Token was not fast-evaluated within `FAST_WATCH_EVAL_COOLDOWN_SECS` (default 60s) — the fast loop's
-   own TTL dedup, so it does not hammer the same token every 3s.
+A background coroutine on the `DipScanner` instance (unchanged spawn). Three tiers:
 
-Expected survivors per tick: 0–3.
+### Tier 0 — Arm the subset (each main scan cycle, no fetch)
+After `_scan_cycle` refreshes the watchlist, compute the armed set from `_sticky_watchlist` using only
+cached `pair` fields + existing scanner thresholds (`self.min_mcap`, `self.max_mcap`, `self.min_age_ms`,
+the anti-rug liq floor): keep tokens in the mcap/liq/age band, rank by "closeness to a dip" (most
+negative cached `priceChange.h1`/`m5`), and cap to `FAST_WATCH_ARMED_MAX` (default 30). Store the armed
+set as `self._fast_armed: dict[addr -> pair]`. This is pure in-memory selection — no network, no
+side effects. Re-armed every cycle so the set tracks the freshest scan data and rotates as tokens age out.
 
-### Tier 2 — Real evaluation (shortlisted tokens only)
-For each shortlisted token, call the existing `_evaluate_pair(pair, _eval_ctx)` with the sticky entry's
-`pair` dict, **restricted to the scoped bots** (live pool + dip-entry, via `FAST_WATCH_BOT_ALLOWLIST`).
-`_evaluate_pair` applies all real filters and, on a pass, fires under `_buy_fire_lock`. The looseness of
-the Tier-1 trigger is intentional: `_evaluate_pair`'s gates make the actual buy decision.
+### Tier 1 — Batch-poll the armed subset (every `FAST_WATCH_INTERVAL_SECS`, default 3s)
+One DexScreener call per ≤30 armed tokens:
+`GET https://api.dexscreener.com/latest/dex/tokens/{comma-joined armed addresses}` (chunk into
+`ceil(n/30)` calls if armed > 30). Parse `pairs[]`, map each to its token by `baseToken.address`
+(lowercased), take `priceUsd`. Append `(ts, price)` to a per-token rolling sample deque
+(`maxlen=FAST_WATCH_SAMPLE_WINDOW`, default 40 ≈ 2 min at 3s). This deque is the loop's *own* fresh
+price history — no external feed, no rolling-high to maintain elsewhere.
 
-Restriction mechanism: pass a bot-allowlist through the eval context so only the scoped bots are
-evaluated/fired on the fast path. (Exact wiring — an allowlist param on `bot_manager.evaluate_all` or an
-`_eval_ctx` field consulted in the fan-out — is an implementation-plan detail; the **requirement** is
-that the fast path evaluates and can fire only the configured scoped bots.)
+### Tier 1 (cont.) — Dip detection from samples
+For each armed token with ≥2 samples, the injected `get_trend` computes the drop off the recent rolling
+high: `dip_pct = (current / max(window) - 1) * 100`. `shortlist()` keeps tokens where `dip_trigger(dip,
+FAST_WATCH_DIP_PCT)` is true AND `FastWatchDedup.should_eval` (TTL `FAST_WATCH_EVAL_COOLDOWN_SECS`, 60s)
+AND not held/blocked for the allowlisted bots. Expect 0–N survivors. This is true *fresh sub-minute* dip
+detection built from our own 3s polls (DexScreener's `priceChange.m5` is also available from the same
+payload as a coarse corroborating signal, but the rolling-high-from-samples is primary).
 
-## Data flow
+### Tier 2 — Escalate (unchanged)
+For each survivor: refresh the cached `pair["priceUsd"]` with the fresh batch price, then call
+`_evaluate_pair(pair, ctx)` with `_fast_path_allowlist`=cfg.bot_allowlist and
+`_fast_path_shadow`=(mode=="shadow"). The existing filters/ML/rug/dip gates decide; fires (or shadow-logs)
+go through `_buy_fire_lock` + the durable in-`_execute_bot_buy` guards. No double-buy (same model as Rev 1,
+already reviewed SHIP).
+
+## Data flow (Rev 2)
 
 ```
-AxiomPriceFeed (WS, push)  ──updates──>  price_cache / _tick_buffers   (in-memory)
-                                                  │
-        ┌─────────────────────────────────────────┘
-        ▼
-Tier 1 cheap scan (every 3s) over snapshot(_sticky_watchlist)
-        │  get_tick_trend(addr, 90s) <= -3%  AND not-held  AND not-recently-evaluated
-        ▼
-shortlist (0–3 tokens)
-        │
-        ▼
-Tier 2: _evaluate_pair(pair, ctx, scoped-bot allowlist)
-        │   (existing filters/ML/rug/dip gates decide)
-        ▼
-  async with _buy_fire_lock:
-        re-check durable guards (exclusion pool, open_positions, capital, cooldown)
-        shadow:  log "would-fire bot=X token=Y dip=Z% ~Ns ahead of main loop"
-        enforce: fire scoped bot(s)
+_scan_cycle (every ~150s)
+   └─> Tier 0 arm: cheap-gate subset of _sticky_watchlist (mcap/liq/age band, ranked, cap 30)
+                   -> self._fast_armed {addr: pair}
+
+_fast_watch_tick (every ~3s)
+   └─> Tier 1: DexScreener batch GET /latest/dex/tokens/{<=30 armed addrs}   (1 call)
+               -> append (ts, price) to per-token sample deque
+   └─> dip = (price / rolling_high - 1)*100 ; shortlist(dip<=-X%, not-deduped, not-held)
+   └─> Tier 2: for survivor -> pair["priceUsd"]=fresh ; _evaluate_pair(pair, ctx[allowlist,shadow])
+                shadow: log "would-fire"   enforce: fire scoped bots under _buy_fire_lock
 ```
 
-## Safety — why it cannot double-buy
+## Safety (unchanged from Rev 1, re-confirmed)
 
-The buy path already serializes through the **process-lifetime** `self._buy_fire_lock`
-(`feeds/dip_scanner.py:16950`), the exact primitive the existing parallel-scan mode uses to prevent two
-concurrent tasks racing the exclusion pool / caps / double-buying. The fast loop reuses it:
-
-1. **Hold `_buy_fire_lock` across the entire decide-and-fire.** Never cache a "this token is buyable"
-   decision across an `await`.
-2. **Re-check the durable cross-loop guards inside the lock, immediately before firing:** exclusion pool
-   `self._token_registry.is_blocked(bot_id, token)` (`:997`), `open_positions_ref` membership,
-   `capital.reserve_for_buy` (`:1210`, raises on insufficient), `pm.in_reentry_cooldown` (`:986`).
-   These — not the per-cycle `_cycle_bought_addrs` (reset every cycle, main-loop only) — are what protect
-   against the fast loop and the main loop both trying the same token.
-3. **Lock-creation guard:** `_buy_fire_lock` is lazily created inside `_scan_cycle`. The fast loop must
-   create it if `None` before first use (it may start before the first main cycle).
-4. **Snapshot iteration:** iterate `list(...items())`, never the live dict, to avoid mutation races with
-   `_prune_sticky` (reassigns the dict at `:17418`).
-5. **Fast-loop TTL dedup:** an internal `addr -> last_eval_ts` map (TTL `FAST_WATCH_EVAL_COOLDOWN_SECS`)
-   stops repeated same-token evaluation between cycles.
+- Buy fires only inside `_evaluate_pair` via `_fast_route_decisions` under the process-lifetime
+  `_buy_fire_lock`; durable cross-loop guards (exclusion pool `is_blocked`, `open_positions_ref`,
+  `capital.reserve_for_buy`, re-entry cooldown) re-checked inside the lock. No double-buy.
+- `_fast_path_allowlist=None` on the main path ⇒ byte-identical to today (proven; the 16-test pre-live
+  invariants + parallel-scan regression remain the guard).
+- Shadow mode moves no money (logs only). Default `FAST_WATCH_MODE=off` ⇒ loop returns immediately.
+- Tier 0/1 are side-effect-free reads + idempotent dict writes; iterate snapshots, never live dicts.
 
 ## Error handling & degradation
 
-- **Axiom WS unreliability** (it disconnects/reconnects; some rooms have gone silent): the fast loop is
-  **best-effort**. If `get_tick_trend` returns `None` (no buffered ticks) the token simply isn't
-  triggered — the 30s main sweep still covers it. If Axiom is fully down, the fast loop is inert; no harm.
-- **Coverage health log:** each tick (throttled) logs the % of the sticky cohort that currently has live
-  ticks, so we know how much of the cohort the fast loop actually accelerates.
-- **Fail-open per token:** every tier is wrapped so one token's exception cannot kill the loop; the loop
-  catches and continues, and never crashes the process (mirrors `DipScanner.run`'s cycle try/except).
-- **Stale sticky price:** the stored `pair["priceUsd"]` can be up to ~150s stale; the **dip trigger uses
-  the live Axiom tick trend**, not the stale pair price. `_evaluate_pair` re-fetches what it needs.
+- **DexScreener batch failure** (timeout/429/non-200): the tick logs and skips this round; armed tokens
+  simply don't get a fresh sample this tick — the main sweep remains the safety net. No exception escapes
+  the loop (whole-tick try/except, mirrors Rev 1).
+- **Rate-limit self-defense:** armed set is capped (`FAST_WATCH_ARMED_MAX`) so calls/min stay far under
+  the public limit; the batch call uses a short timeout (5s) and a per-tick budget. If armed > cap, the
+  lowest-ranked tokens are dropped and the count is logged (no silent truncation).
+- **Coverage health log** each tick: `[fast-watch] tick armed=N polled=M dipped=K mode=X` (replaces the
+  Axiom `live_ticks` metric; `polled` = tokens that got a fresh price this tick).
+- **Stale/missing price:** a token with <2 samples or no fresh price is skipped (not triggered); it
+  re-accumulates samples over subsequent ticks.
 
 ## Components / files
 
-- **New `core/fast_watch.py`** — pure, unit-testable logic:
-  - `dip_trigger(trend_pct, threshold_pct) -> bool`
-  - `FastWatchDedup(ttl_secs)` — `should_eval(addr, now)` / `mark(addr, now)`
-  - `shortlist(snapshot, get_trend, dedup, held_or_blocked, cfg, now) -> list[addr]`
-- **Modify `feeds/dip_scanner.py`** — `_fast_watch_loop` coroutine; spawn it in `run()`; subscribe the
-  cohort each cycle; scoped-eval call into `_evaluate_pair`; coverage health log.
-- **New `tests/test_fast_watch.py`**.
-- **No change to `feeds/axiom_price_feed.py`** — `get_tick_trend` + `subscribe_token` + `price_cache`
-  already provide everything.
+- **Modify `core/fast_watch.py`** — add `armed_max` + `sample_window` to `FastWatchConfig.from_env`
+  (drop `trend_secs`); add a tiny `rolling_dip_pct(samples, current)` helper (pure) used by the loop's
+  `get_trend` callback. `dip_trigger`/`FastWatchDedup`/`shortlist` unchanged.
+- **Modify `feeds/dip_scanner.py`** — add `_fast_arm_subset()` (Tier 0, called at end of `_scan_cycle`);
+  add `_fast_batch_prices(addrs)` (DexScreener batch fetch); rewrite `_fast_watch_tick` for arm→poll→
+  dip→escalate; add `self._fast_armed` + `self._fast_samples` (dict[addr -> deque]) init in `__init__`.
+  Remove the Axiom subscribe + `_fast_trend`/`get_tick_trend` usage from the loop. `_fast_held_or_blocked`,
+  `_fast_route_decisions`, `_fast_watch_loop` skeleton, and the `run()` spawn stay.
+- **Modify `tests/test_fast_watch.py`** — replace the Axiom-tick tick tests with armed-subset tests
+  (arming selects the right band/cap; batch-parse maps by baseToken.address; rolling-dip triggers; dedup;
+  shadow no-fire; exception-survival). Keep the Tasks 1–3 tests (allowlist/shadow/route — still valid).
+- **No new external dependency.** Uses `aiohttp` + the public DexScreener JSON endpoint already in use.
 
 ### Config (env)
 | Flag | Default | Meaning |
 |---|---|---|
 | `FAST_WATCH_MODE` | `off` | `off` / `shadow` / `enforce` |
-| `FAST_WATCH_INTERVAL_SECS` | `3` | Tier-1 cadence |
-| `FAST_WATCH_TREND_SECS` | `90` | tick-trend window for the dip signal |
-| `FAST_WATCH_DIP_PCT` | `3` | dip threshold (loose superset trigger) |
+| `FAST_WATCH_INTERVAL_SECS` | `3` | Tier-1 batch-poll cadence |
+| `FAST_WATCH_ARMED_MAX` | `30` | max armed tokens (= 1 DexScreener batch call) |
+| `FAST_WATCH_SAMPLE_WINDOW` | `40` | per-token rolling price samples (~2 min at 3s) |
+| `FAST_WATCH_DIP_PCT` | `3` | dip threshold off the rolling high (loose superset trigger) |
 | `FAST_WATCH_EVAL_COOLDOWN_SECS` | `60` | per-token fast-eval TTL dedup |
 | `FAST_WATCH_BOT_ALLOWLIST` | live pool + dip-entry bot_ids | scoped bots the fast path may fire |
 
-## Phasing
+## Phasing (unchanged)
 
-1. **Shadow (`FAST_WATCH_MODE=shadow`, the default once shipped):** all three tiers run; Tier 2 **logs**
-   `fast-watch would-fire bot=X token=Y dip=Z% main-lag~Ns` instead of firing. Validate over real cycles:
-   (a) it would catch entries meaningfully earlier than the main loop, and (b) **zero** double-decisions
-   vs the main loop. No money moves.
-2. **Enforce (`FAST_WATCH_MODE=enforce`, explicit flip):** actually fire the scoped bots. **Paper first**;
-   live is a separate AxiS decision (`PAPER_MODE` unchanged by this work).
+1. **Shadow** (default once shipped): arm + poll + log `would-fire bot=X token=Y dip=Z% ~Ns ahead`. No
+   money. Validate: (a) `polled` ≈ `armed` (DexScreener coverage is healthy, unlike Axiom's 0), (b)
+   would-fire entries lead the main loop, (c) zero double-decisions.
+2. **Enforce** (explicit flip): fire scoped bots. **Paper first**; live is a separate AxiS decision
+   (`PAPER_MODE` unchanged by this work).
 
 ## Testing
 
 Unit (`tests/test_fast_watch.py`):
-- `dip_trigger` fires at/below threshold, not above; `None` trend never triggers.
-- `FastWatchDedup` suppresses within TTL, allows after expiry.
-- `shortlist` excludes held/blocked tokens and recently-evaluated tokens; includes a fresh dip.
-- Shadow mode never calls the fire path (assert no `_execute_bot_buy` / `trader.buy`).
-- Enforce mode evaluates/fires **only** allowlisted bots.
-- **Double-fire guard:** fast loop and a simulated main-loop fire on the same token → exactly one buy
-  (shared `_buy_fire_lock` + durable re-check).
-- Snapshot iteration is safe while the sticky dict is reassigned mid-iteration.
-- Loop never raises out: an injected per-token exception is caught and the loop continues.
+- Tasks 1–3 tests unchanged (allowlist filter, shadow no-fire, route order, byte-identical-off).
+- Arming: selects only in-band tokens (mcap/liq/age), ranks by dip-closeness, caps to `armed_max`.
+- Batch parse: maps `pairs[]` to tokens by lowercased `baseToken.address`; ignores unknown/extra pairs;
+  missing token → no sample.
+- `rolling_dip_pct`: correct % off the window max; <2 samples → None (no trigger).
+- Shortlist integration: a token dropping ≥ threshold off its rolling high is shortlisted; held/blocked
+  and recently-evaluated are excluded.
+- Shadow mode calls no fire path; enforce fires only allowlisted bots; double-fire guard via shared lock.
+- Batch fetch failure → tick logs + continues, no exception escapes; token with no fresh price skipped.
 
-Shadow validation (pre-enforce, on the deployed bot): measured would-fire timing advantage + zero
-double-decisions across real cycles before flipping to enforce.
+Shadow validation (pre-enforce, deployed): `polled≈armed`, would-fire lead-time recorded, zero
+double-decisions across real cycles.
 
 ## Acceptance criteria
 
-- With `FAST_WATCH_MODE=off`, behavior is byte-identical to today (loop not spawned).
-- In shadow, logs show fast-watch detecting dips on watched tokens seconds ahead of the main loop, with
-  zero double-decisions.
-- In enforce (paper), buys fire only for allowlisted bots; no double-buys vs the main loop across a
-  sustained run; the loop survives Axiom WS disconnects (goes inert, recovers).
+- `FAST_WATCH_MODE=off` ⇒ byte-identical to today (loop returns immediately).
+- In shadow: `[fast-watch] tick armed=N polled=M dipped=K` shows `M≈N` (healthy DexScreener coverage,
+  not 0), would-fire lines lead the main loop, zero double-decisions.
+- DexScreener call rate stays ≪ limit (≤ a few calls per tick).
+- In enforce (paper): buys fire only for allowlisted bots; no double-buys vs the main loop; loop survives
+  DexScreener errors (skips a tick, recovers).
 - Pre-live invariants (`tests/test_pre_live_invariants.py`) still pass.
