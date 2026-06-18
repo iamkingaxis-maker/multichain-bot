@@ -87,6 +87,42 @@ def price_sol_from_curve(decoded):
     return (vsr / 1e9) / (vtr / 1e6)
 
 
+def resolve_price_account(mint, account_bytes):
+    """Classify a token's price account and (if live) derive its SOL price.
+
+    PURE -- no network. ``account_bytes`` is the raw bonding-curve PDA account
+    data (caller fetches it; B3). ``mint`` is accepted for forward pool-discovery
+    (e.g. deriving the PDA via ``bonding_curve_pda``); v1 does not need it here.
+
+    Returns ``{kind, decoded, price_sol}``:
+      - ``'unknown'``  -- account missing/empty/too short, or undecodable.
+                          decoded None, price_sol None.
+      - ``'migrated'`` -- complete AND virtual_token_reserves == 0 (curve dead,
+                          moved to pump-AMM/Raydium). decoded present, price_sol
+                          None. v1 SKIPS these -- decoding a migrated pool as a
+                          bonding curve would yield a WRONG price.
+      - ``'bonding'``  -- live curve. decoded present, price_sol from the curve.
+
+    Raydium / pump-AMM price decoders are an explicit later follow-up.
+    """
+    if not account_bytes or len(account_bytes) < _MIN_LEN:
+        return {"kind": "unknown", "decoded": None, "price_sol": None}
+
+    decoded = decode_bonding_curve(account_bytes)
+    if decoded is None:
+        return {"kind": "unknown", "decoded": None, "price_sol": None}
+
+    vtr = decoded.get("virtual_token_reserves")
+    if bool(decoded.get("complete")) and (vtr == 0 or vtr is None):
+        return {"kind": "migrated", "decoded": decoded, "price_sol": None}
+
+    return {
+        "kind": "bonding",
+        "decoded": decoded,
+        "price_sol": price_sol_from_curve(decoded),
+    }
+
+
 def bonding_curve_pda(mint_str):
     """Derive the bonding-curve PDA address (str) for a pump.fun mint."""
     mint = Pubkey.from_string(mint_str)
