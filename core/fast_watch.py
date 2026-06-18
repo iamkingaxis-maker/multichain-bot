@@ -113,19 +113,22 @@ def shortlist(snapshot, trigger_fn: Callable, dedup: FastWatchDedup,
 
 
 def arm_subset(candidates, cfg: FastWatchConfig):
-    """Select the armed token addresses for the fast loop (Rev 2.1: in-play, volume-ranked).
+    """Select the armed token addresses for the fast loop (Rev 2.2: one-sided, volume-ranked).
 
     `candidates`: list of dicts {addr, pc_h1 (float|None), vol_h1 (float|None), in_band (bool)}.
-    Arm the in-band tokens that are *in play* — near a threshold on either side
-    (`abs(pc_h1) ≤ cfg.arm_band_pp`, i.e. not already far gone up *or* down) — ranked by recent
-    volume (`vol_h1` desc, the tokens the fleet is most likely to buy). Returns an ordered list of
-    addresses (≤ armed_max). Entry-type-agnostic so it serves both dip and momentum bots.
+    Arm the in-band tokens that are *in play* — ONE-SIDED: keep every down/flat/mild-up token
+    (`pc_h1 ≤ cfg.arm_band_pp`, INCLUDING deep dips like -36% which the fleet actually dip-buys),
+    and exclude ONLY tokens that have already PUMPED (`pc_h1 > +cfg.arm_band_pp`, already mooned).
+    The prior symmetric `abs(pc_h1) ≤ band` filter wrongly excluded the deep-dip tokens the fleet
+    buys (0/34 live hit-rate). Ranked by recent volume (`vol_h1` desc, the tokens the fleet is most
+    likely to buy). Returns an ordered list of addresses (≤ armed_max). Entry-type-agnostic so it
+    serves both dip and momentum bots.
     """
     inplay = [
         c for c in candidates
         if c.get("in_band")
         and c.get("pc_h1") is not None
-        and abs(c["pc_h1"]) <= cfg.arm_band_pp
+        and c["pc_h1"] <= cfg.arm_band_pp
     ]
     inplay.sort(key=lambda c: (c.get("vol_h1") or 0.0), reverse=True)
     return [c["addr"] for c in inplay][:cfg.armed_max]

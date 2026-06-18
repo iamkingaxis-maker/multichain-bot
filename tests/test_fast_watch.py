@@ -85,32 +85,40 @@ def _cfg(**kw):
 
 
 def test_arm_subset_inplay_volume_ranked():
+    # One-sided rule: arm all down/flat/mild-up tokens (pc_h1 <= band), incl DEEP dips
+    # — the fleet dip-buys deep dips. Rank by vol_h1 desc.
     cfg = _cfg(armed_max=5, arm_band_pp=15.0)
     cands = [
-        {"addr": "LOW",  "pc_h1": -5.0, "vol_h1": 1.0, "in_band": True},    # in-play, low vol
-        {"addr": "HIGH", "pc_h1": +10.0, "vol_h1": 99.0, "in_band": True},  # in-play, high vol
-        {"addr": "MID",  "pc_h1": -2.0, "vol_h1": 50.0, "in_band": True},   # in-play, mid vol
+        {"addr": "DEEPDIP", "pc_h1": -36.0, "vol_h1": 1.0, "in_band": True},  # deep dip, low vol -> ARM
+        {"addr": "MILDUP",  "pc_h1": +10.0, "vol_h1": 99.0, "in_band": True}, # mild-up in band, high vol -> ARM
+        {"addr": "MID",     "pc_h1": -2.0, "vol_h1": 50.0, "in_band": True},  # near-flat, mid vol -> ARM
     ]
     armed = fw.arm_subset(cands, cfg)
-    assert armed == ["HIGH", "MID", "LOW"]   # in-band + |pc_h1|<=band, ranked by vol_h1 desc
+    assert armed == ["MILDUP", "MID", "DEEPDIP"]  # pc_h1<=band (deep dip incl), ranked vol desc
 
 
-def test_arm_subset_excludes_already_gone_either_direction():
+def test_arm_subset_excludes_only_big_pumps():
+    # One-sided: exclude only already-PUMPED tokens (pc_h1 > +band). Deep dips ARE armed.
     cfg = _cfg(armed_max=5, arm_band_pp=15.0)
     cands = [
-        {"addr": "INPLAY",   "pc_h1": -8.0, "vol_h1": 1.0, "in_band": True},   # |pc|<=15 -> keep
-        {"addr": "GONEUP",   "pc_h1": +20.0, "vol_h1": 9.0, "in_band": True},  # |pc|>15 -> drop
-        {"addr": "GONEDOWN", "pc_h1": -25.0, "vol_h1": 9.0, "in_band": True},  # |pc|>15 -> drop
-        {"addr": "OOB",      "pc_h1": -5.0, "vol_h1": 9.0, "in_band": False},  # out of band -> drop
-        {"addr": "NOPC",     "pc_h1": None, "vol_h1": 9.0, "in_band": True},   # no pc_h1 -> drop
+        {"addr": "INPLAY",  "pc_h1": -8.0, "vol_h1": 1.0, "in_band": True},   # down -> keep
+        {"addr": "DEEPDIP", "pc_h1": -36.0, "vol_h1": 5.0, "in_band": True},  # deep dip -> KEEP (was wrongly dropped)
+        {"addr": "DIP25",   "pc_h1": -24.8, "vol_h1": 4.0, "in_band": True},  # real fleet buy -> keep
+        {"addr": "BIGPUMP", "pc_h1": +30.0, "vol_h1": 9.0, "in_band": True},  # already mooned -> DROP
+        {"addr": "OOB",     "pc_h1": -5.0, "vol_h1": 9.0, "in_band": False},  # out of band -> drop
+        {"addr": "NOPC",    "pc_h1": None, "vol_h1": 9.0, "in_band": True},   # no pc_h1 -> drop
     ]
     armed = fw.arm_subset(cands, cfg)
-    assert armed == ["INPLAY"]
+    # ranked by vol desc among kept: DEEPDIP(5), DIP25(4), INPLAY(1)
+    assert armed == ["DEEPDIP", "DIP25", "INPLAY"]
+    assert "BIGPUMP" not in armed
+    assert "DEEPDIP" in armed
 
 
 def test_arm_subset_caps_at_armed_max():
     cfg = _cfg(armed_max=2, arm_band_pp=15.0)
-    cands = [{"addr": f"T{i}", "pc_h1": -1.0, "vol_h1": float(i), "in_band": True}
+    # deep dips included; cap still applies after vol ranking
+    cands = [{"addr": f"T{i}", "pc_h1": -30.0, "vol_h1": float(i), "in_band": True}
              for i in range(1, 6)]
     armed = fw.arm_subset(cands, cfg)
     assert len(armed) == 2
