@@ -76,31 +76,23 @@ positions today.
 
 A background coroutine on the `DipScanner` instance (unchanged spawn). Three tiers:
 
-### Tier 0 — Arm the near-miss subset (each scan cycle, no fetch, no money-path changes)
-Arming approximates the scan's **distance-to-fire** from the cached `pair` data — **not** a crude
-"most-negative" rank, and **not** by instrumenting the tangled multi-gate `_evaluate_pair` (which would be
-fragile on the money path and is per-bot). The dominant entry is dip-buy, so the proxy distance is how
-far a token's recent move is from *entering* the deep-dip zone:
-
-> `distance = current_move − DIP_ZONE_EDGE`, using the cached `priceChange.h1` (fallback `m5`) as
-> `current_move` and `FAST_WATCH_DIP_ZONE_PCT` (default −12%, the approach edge of the deep-dip band) as
-> `DIP_ZONE_EDGE`. A token at −8% has distance 4pp (a small further drop tips it into the zone → arm it);
-> a token at +5% is far (distance 17pp); a token already at −25% is *past* the edge (distance ≤ 0 →
-> already fired or beyond the cusp → not armed).
+### Tier 0 — Arm the in-play subset (each scan cycle, no fetch, no money-path changes)
+**Rev 2.1 (after the first shadow read).** The first arming proxy was dip-only (`distance to the deep-dip
+edge`), which scored **0/10 armed-hit-rate** in shadow: the allowlist mixes **dip** bots (badday family,
+deepflush) and a **momentum** bot (`timebox_probe_5mgreen`), and the tokens that actually fire buys are
+the *active/in-play* ones — a dip-only signal structurally misses momentum entries. So arming is now
+**entry-type-agnostic**: arm the in-band tokens that are *in play* (near a threshold on either side) and
+**most active**, since recent activity is what precedes a buy.
 
 `_fast_arm_subset()` runs at the end of `_scan_cycle` and builds `self._fast_armed` (dict addr→pair) from
-`_sticky_watchlist`, in-band only (`self.min_mcap`/`max_mcap`/`min_age_ms` + anti-rug liq floor):
-1. keep tokens with `0 < distance ≤ FAST_WATCH_ARM_BAND_PP` (default 12pp — approaching the zone, not past
-   it), sorted by smallest distance (closest to firing), up to
-   `FAST_WATCH_ARMED_MAX × (1 − FAST_WATCH_VOLATILITY_RESERVE)` slots;
-2. fill the remaining `FAST_WATCH_VOLATILITY_RESERVE` fraction (default 20% → ~6 of 30) with the highest
-   recent-volatility in-band tokens (highest cached `volume.h1`) so a *sudden* crash on a token that
-   wasn't a near-miss at scan time still has a chance of being armed.
-Pure in-memory selection (no network, no `_evaluate_pair` change). Re-armed every cycle, so the set tracks
-the freshest scan and rotates; the un-armed-sudden-crash window is bounded by the scan cadence (the ~150s
-sweep is the backstop). **The proxy is validated by the armed-hit-rate (below); if hit-rate is poor we
-refine the distance signal (e.g. cache the 90m-drawdown shape from the scan) — but the cheap proxy ships
-first.**
+`_sticky_watchlist`, in-band only (`self.min_mcap`/`max_mcap`/`min_age_ms` + liq > 0):
+1. keep tokens that are **in play**: `abs(cached priceChange.h1) ≤ FAST_WATCH_ARM_BAND_PP` (default 15pp
+   — not already far gone up *or* down; a token at ±20% has likely already made its move);
+2. rank the in-play set by **recent volume** (`volume.h1` desc) — the most-traded tokens are the ones the
+   fleet is most likely to buy — and take the top `FAST_WATCH_ARMED_MAX` (default 30).
+Pure in-memory selection (no network, no `_evaluate_pair` change). Re-armed every cycle. Still validated
+by the armed-hit-rate; if volume-ranking underperforms we iterate (e.g. blend in the dip cusp or cache
+the 90m shape) — but this directly targets "tokens about to be bought" across both entry types.
 
 ### Tier 1 — Batch-poll the armed subset (every `FAST_WATCH_INTERVAL_SECS`, default 3s)
 One DexScreener call per ≤30 armed tokens:
@@ -110,13 +102,13 @@ One DexScreener call per ≤30 armed tokens:
 (`maxlen=FAST_WATCH_SAMPLE_WINDOW`, default 40 ≈ 2 min at 3s). This deque is the loop's *own* fresh
 price history — no external feed, no rolling-high to maintain elsewhere.
 
-### Tier 1 (cont.) — Dip detection from samples
-For each armed token with ≥2 samples, the injected `get_trend` computes the drop off the recent rolling
-high: `dip_pct = (current / max(window) - 1) * 100`. `shortlist()` keeps tokens where `dip_trigger(dip,
-FAST_WATCH_DIP_PCT)` is true AND `FastWatchDedup.should_eval` (TTL `FAST_WATCH_EVAL_COOLDOWN_SECS`, 60s)
-AND not held/blocked for the allowlisted bots. Expect 0–N survivors. This is true *fresh sub-minute* dip
-detection built from our own 3s polls (DexScreener's `priceChange.m5` is also available from the same
-payload as a coarse corroborating signal, but the rolling-high-from-samples is primary).
+### Tier 1 (cont.) — Bidirectional move detection from samples
+**Rev 2.1.** For each armed token with ≥2 samples, the loop computes a fresh move in **either direction**
+off the rolling window: a dip `(current/max − 1)*100 ≤ −FAST_WATCH_DIP_PCT` (serves dip bots) OR a rise
+`(current/min − 1)*100 ≥ +FAST_WATCH_RISE_PCT` (serves momentum bots). A token fires the shortlist if
+**either** triggers AND `FastWatchDedup.should_eval` (TTL `FAST_WATCH_EVAL_COOLDOWN_SECS`, 60s) AND it's
+not held/blocked. Expect 0–N survivors. The threshold is a loose superset — `_evaluate_pair`'s per-bot
+gates make the actual buy decision, so a rise that no momentum bot wants simply gets rejected downstream.
 
 ### Tier 2 — Escalate (unchanged)
 For each survivor: refresh the cached `pair["priceUsd"]` with the fresh batch price, then call
@@ -192,11 +184,10 @@ _fast_watch_tick (every ~3s)
 | `FAST_WATCH_MODE` | `off` | `off` / `shadow` / `enforce` |
 | `FAST_WATCH_INTERVAL_SECS` | `3` | Tier-1 batch-poll cadence |
 | `FAST_WATCH_ARMED_MAX` | `30` | max armed tokens (= 1 DexScreener batch call) |
-| `FAST_WATCH_DIP_ZONE_PCT` | `-12` | the deep-dip approach edge (cached pc_h1 below this = in/near the zone) |
-| `FAST_WATCH_ARM_BAND_PP` | `12` | arm tokens whose distance to the dip edge is within this many pp |
-| `FAST_WATCH_VOLATILITY_RESERVE` | `0.2` | fraction of armed slots for high-volatility (sudden-crash) tokens vs near-miss cusp |
+| `FAST_WATCH_ARM_BAND_PP` | `15` | in-play band: arm in-band tokens with `abs(pc_h1) ≤ this` (not already gone either way) |
 | `FAST_WATCH_SAMPLE_WINDOW` | `40` | per-token rolling price samples (~2 min at 3s) |
-| `FAST_WATCH_DIP_PCT` | `3` | dip threshold off the rolling high (loose superset trigger) |
+| `FAST_WATCH_DIP_PCT` | `3` | dip trigger: drop off the rolling high (serves dip bots) |
+| `FAST_WATCH_RISE_PCT` | `3` | rise trigger: gain off the rolling low (serves momentum bots) |
 | `FAST_WATCH_EVAL_COOLDOWN_SECS` | `60` | per-token fast-eval TTL dedup |
 | `FAST_WATCH_BOT_ALLOWLIST` | live pool + dip-entry bot_ids | scoped bots the fast path may fire |
 
