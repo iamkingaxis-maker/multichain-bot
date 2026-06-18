@@ -129,6 +129,21 @@ async def assemble_chart_data(
     # fetches let the rate-limiter inside each client space requests
     # properly. The 60s cache absorbs the latency cost on re-scans.
 
+    # CHART_DS_PRIMARY (2026-06-17) — strict DexScreener-primary chart routing.
+    #   off (default): byte-identical legacy behaviour — the 2-attempt
+    #                  DS→GT flow below, which calls GT on the FIRST DS miss.
+    #   on:            DS is strictly primary. We RETRY DexScreener on a
+    #                  transient empty (its own backoff) and only fall to
+    #                  GeckoTerminal once DS is genuinely exhausted — i.e. a
+    #                  true bar gap, not a transient 429/slug miss. This
+    #                  removes the routine "second call goes to GT" that the
+    #                  legacy loop incurs whenever DS blips, cutting GT calls
+    #                  per token from up to ~8 (worst case, 2 attempts × 4 TFs)
+    #                  toward ~0 in steady state (GT only for real DS gaps).
+    _ds_primary = os.environ.get(
+        "CHART_DS_PRIMARY", "off"
+    ).strip().lower() in ("on", "1", "true", "yes")
+
     async def _fetch_one(timeframe: str, gt_factory, dexs_factory):
         """Try DexScreener first if available; fall back to GT on empty.
 
@@ -136,12 +151,29 @@ async def assemble_chart_data(
         only construct the coroutine for the path we actually await — avoids
         orphan-coroutine RuntimeWarnings.
 
-        Retries the full DS→GT flow once after a 500ms backoff if both
-        sources return empty on the first attempt. Catches transient 429s,
-        timeouts, and slug-resolution misses that resolve on a second hit.
-        Empirical: 86% of `?` 1h verdicts are tokens that SHOULD have data
-        (age >= 6h, established pools) — fetch failures, not history gaps.
+        Legacy (CHART_DS_PRIMARY off): retries the full DS→GT flow once after
+        a 500ms backoff if both sources return empty on the first attempt.
+        Catches transient 429s, timeouts, and slug-resolution misses that
+        resolve on a second hit. Empirical: 86% of `?` 1h verdicts are tokens
+        that SHOULD have data (age >= 6h, established pools) — fetch failures,
+        not history gaps.
+
+        Strict DS-primary (CHART_DS_PRIMARY on): exhaust DexScreener FIRST
+        (two DS attempts with a 500ms backoff) before touching GT. GT is
+        called at most once, and only when DS truly has no bars — so a token
+        DexScreener serves never costs a GT request.
         """
+        if _ds_primary and dexs_client is not None and dexs_factory is not None:
+            # DS strictly primary: retry DS on transient empty BEFORE GT.
+            for ds_attempt in range(2):
+                r = await _safe(dexs_factory())
+                if r:
+                    return r
+                if ds_attempt == 0:
+                    await asyncio.sleep(0.5)
+            # DS genuinely exhausted (true gap) -> single GT fallback.
+            return await _safe(gt_factory())
+
         for attempt in range(2):
             if dexs_client is not None and dexs_factory is not None:
                 r = await _safe(dexs_factory())

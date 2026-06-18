@@ -168,6 +168,32 @@ def floor_drop_guard_frac() -> float:
     return _f("SWEEP_FLOOR_DROP_FRAC", 0.5)
 
 
+def price_risk_ack() -> bool:
+    # #4 over-sweep guard (2026-06-17): a USD-pegged floor is re-converted to a SOL
+    # amount at the LIVE SOL price every cycle. On a transiently-HIGH price tick the
+    # kept SOL floor shrinks -> a LARGER sweep is authorized; when price reverts down
+    # the SOL left is worth LESS than the USD floor -> the hot wallet drains BELOW its
+    # working capital (the 2026-06-17 ~$330 sub-floor drain). A SOL-NATIVE floor
+    # (WORKING_CAPITAL_FLOOR_SOL) has no price dependency and is the correct fix; a
+    # bare blast-radius cap (SWEEP_MAX_PER_SWEEP_USD) does NOT remove this price risk.
+    # This ack is the explicit "yes, I accept the SOL-price risk of a USD-only floor"
+    # escape hatch — required (alongside a bound) for a LIVE USD-floor sweep.
+    return _flag("SWEEP_PRICE_RISK_ACK", "0")
+
+
+def floor_price_buffer_frac() -> float:
+    # #4 over-sweep haircut (USD-floor path only): keep extra SOL so the floor stays
+    # >= the USD target even if SOL drops by this fraction before price reverts. The
+    # effective kept floor becomes floor_usd / (price * (1 - buffer_frac)), i.e. we
+    # value our retained SOL at a STRESSED (lower) price so a real-money drop can't
+    # take the hot wallet sub-floor. 0 = off (legacy behavior; the trader guard then
+    # requires a SOL-native floor or an explicit price-risk ack). Capped at 0.9.
+    v = _f("SWEEP_FLOOR_PRICE_BUFFER_FRAC", 0.0)
+    if v < 0.0:
+        return 0.0
+    return min(v, 0.9)
+
+
 def single_config_ack() -> bool:
     # #1 commingled-wallet guard: the sweep banks FLEET-aggregate profit from one
     # shared hot wallet — a losing live bot draws the balance down and eats a
@@ -182,7 +208,8 @@ def auto_sweep_decision(balance_sol, sol_price, floor_usd, gas_buffer_sol,
                         min_increment_usd_v, *,
                         floor_sol_override=None, floor_hwm_usd=None,
                         min_floor_usd_v=None, max_per_sweep_usd_v=None,
-                        floor_drop_frac=None, opportunistic_usd_v=None) -> dict:
+                        floor_drop_frac=None, opportunistic_usd_v=None,
+                        floor_price_buffer_frac_v=None) -> dict:
     """PURE production auto-sweep decision: keep the working-capital floor in the hot
     wallet, sweep ALL idle SOL above it to cold once the excess clears the min
     increment. Returns {should_sweep, reason, sweepable_sol, lamports, sweepable_usd,
@@ -197,6 +224,10 @@ def auto_sweep_decision(balance_sol, sol_price, floor_usd, gas_buffer_sol,
       max_per_sweep_usd_v (#6) clamp a single sweep to this (blast-radius bound).
       opportunistic_usd_v (#5) flag the sweep `opportunistic` when it clears this, so
                           the caller may bank a big win immediately (bypass the interval).
+      floor_price_buffer_frac_v (#4) USD-floor over-sweep haircut: value retained SOL at
+                          a STRESSED price (price * (1 - buffer)) so the kept floor stays
+                          >= the USD target even if SOL drops before price reverts. Ignored
+                          for a SOL-native floor (no price dependency).
     """
     if not (isinstance(sol_price, (int, float)) and 30.0 <= sol_price <= 2000.0):
         return {"should_sweep": False, "reason": "implausible_sol_price"}
@@ -209,7 +240,19 @@ def auto_sweep_decision(balance_sol, sol_price, floor_usd, gas_buffer_sol,
         if not floor_usd or floor_usd <= 0:
             return {"should_sweep": False, "reason": "no_floor_set"}
         floor_usd_eff = float(floor_usd)
-        floor_sol = floor_usd_eff / float(sol_price)
+        # #4 over-sweep haircut: convert the USD floor to SOL at a STRESSED (lower)
+        # price so we KEEP MORE SOL than the naive floor_usd/price. This makes the kept
+        # floor robust to a SOL-price drop after the sweep (the cause of the 06-17
+        # sub-floor drain). buffer=0 -> legacy floor_usd/price (the trader guard then
+        # demands a SOL-native floor or an explicit price-risk ack instead).
+        _buf = floor_price_buffer_frac() if floor_price_buffer_frac_v is None \
+            else float(floor_price_buffer_frac_v)
+        if _buf < 0.0:
+            _buf = 0.0
+        if _buf > 0.9:
+            _buf = 0.9
+        _stressed_price = float(sol_price) * (1.0 - _buf)
+        floor_sol = floor_usd_eff / _stressed_price
 
     # #6 mis-set guards (USD-floor path only; a SOL override is explicit by definition).
     if floor_sol_override is None or floor_sol_override <= 0:
@@ -240,6 +283,18 @@ def auto_sweep_decision(balance_sol, sol_price, floor_usd, gas_buffer_sol,
         sweepable_sol = float(_cap) / float(sol_price)
         sweepable_usd = float(_cap)
         clamped = True
+
+    # #3/#4 HARD post-conversion floor assertion: a sweep can NEVER reduce the hot
+    # balance below the floor SOL used in THIS decision. This is the last-line backstop
+    # that makes an over-sweep arithmetically impossible regardless of how floor_sol was
+    # derived (USD peg, stressed-price haircut, or SOL-native) and after the clamp. Use a
+    # tiny epsilon for float noise. Fail-CLOSED (never sweep) on any violation.
+    _post_balance = float(balance_sol) - float(sweepable_sol)
+    if _post_balance < floor_sol - 1e-9:
+        return {"should_sweep": False, "reason": "floor_assertion_failed",
+                "floor_sol": round(floor_sol, 9),
+                "post_sweep_balance_sol": round(_post_balance, 9),
+                "sweepable_sol": round(sweepable_sol, 9)}
 
     _opp = opportunistic_usd() if opportunistic_usd_v is None else float(opportunistic_usd_v)
     return {"should_sweep": True, "sweepable_sol": round(sweepable_sol, 9),

@@ -3225,7 +3225,8 @@ class Trader:
             _floor_sol_ovr = _ps.floor_sol() or None  # #3 SOL-native floor if set
             d = _ps.auto_sweep_decision(
                 bal, price, floor_usd, _ps.gas_buffer_sol(), _ps.min_increment_usd(),
-                floor_sol_override=_floor_sol_ovr, floor_hwm_usd=_fhwm)
+                floor_sol_override=_floor_sol_ovr, floor_hwm_usd=_fhwm,
+                floor_price_buffer_frac_v=_ps.floor_price_buffer_frac())  # #4 over-sweep haircut
             # #2 sub-floor alert (no silent throughput decay): the hot wallet has
             # dropped BELOW the working floor — banked profit is in cold and won't
             # auto-replenish. Loud, once per interval.
@@ -3257,16 +3258,26 @@ class Trader:
                                 "— a commingled live fleet sweep banks net-survival, not a "
                                 "single bot's alpha. Isolate to one live config + set the ack.")
                 return
-            # #6 blast-radius bound: a LIVE USD-floor sweep is refused unless bounded —
-            # either the SOL-NATIVE floor (no SOL-price dependency, so a transiently-high
-            # price tick can't shrink the kept floor and over-sweep) OR an explicit
-            # per-sweep USD cap. Forces a bounded live config and caps any mis-set/
-            # commingle damage to one capped transfer.
-            if not _floor_sol_ovr and not (_ps.max_per_sweep_usd() > 0):
-                logger.critical("[Sweep] AUTO LIVE REFUSED: USD floor with no blast-radius "
-                                "bound — set WORKING_CAPITAL_FLOOR_SOL (SOL-native, no price "
-                                "risk) or SWEEP_MAX_PER_SWEEP_USD before a live sweep.")
-                return
+            # #4 over-sweep guard (2026-06-17, HARDENED): a LIVE USD-pegged floor is
+            # re-converted to SOL at the live price every cycle -> a transiently-HIGH
+            # price tick shrinks the kept floor and authorizes a LARGER sweep; when the
+            # price reverts down the SOL left is worth < the USD floor -> SUB-FLOOR drain
+            # (the 06-17 ~$330 over-sweep). The ONLY price-risk-free fix is a SOL-NATIVE
+            # floor (WORKING_CAPITAL_FLOOR_SOL). A bare SWEEP_MAX_PER_SWEEP_USD is a
+            # blast-radius cap, NOT price-risk protection, so it ALONE no longer satisfies
+            # this guard. A live USD-only floor now REQUIRES an explicit price-risk ack
+            # (SWEEP_PRICE_RISK_ACK) AND a bound — either the stressed-price haircut
+            # (SWEEP_FLOOR_PRICE_BUFFER_FRAC) or a per-sweep USD cap (SWEEP_MAX_PER_SWEEP_USD).
+            if not _floor_sol_ovr:
+                _has_bound = (_ps.floor_price_buffer_frac() > 0) or (_ps.max_per_sweep_usd() > 0)
+                if not (_ps.price_risk_ack() and _has_bound):
+                    logger.critical(
+                        "[Sweep] AUTO LIVE REFUSED: USD-pegged floor carries SOL-price "
+                        "over-sweep risk. Set WORKING_CAPITAL_FLOOR_SOL (SOL-native, no "
+                        "price risk) — OR, to keep a USD floor, set SWEEP_PRICE_RISK_ACK=1 "
+                        "AND a bound (SWEEP_FLOOR_PRICE_BUFFER_FRAC or SWEEP_MAX_PER_SWEEP_USD). "
+                        "A bare SWEEP_MAX_PER_SWEEP_USD alone no longer satisfies this guard.")
+                    return
             logger.critical(f"[Sweep] AUTO sweeping {d['sweepable_sol']:.4f} SOL "
                             f"(~${d['sweepable_usd']:.2f}) -> {dest} (keep ${floor_usd:.0f})")
             sig = await self.send_sol_transfer(dest, d["lamports"])

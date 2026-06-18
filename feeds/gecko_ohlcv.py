@@ -5,6 +5,7 @@ Returns 5m candles oldest-first. In-memory 60s cache to stay under rate limit.
 """
 import asyncio
 import logging
+import os
 import time
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -26,8 +27,25 @@ class GeckoTerminalClient:
     ):
         self._cache_ttl = cache_ttl
         self._cache: Dict[str, Tuple[float, List[Candle]]] = {}
+        # Shared GT rate cap (2026-06-17). This GeckoTerminalClient instance is
+        # a process-wide singleton shared by every bot and the chart-data
+        # assembler, so its _throttle IS the global GT rate limiter. An env
+        # override lets ops tighten the cap below the constructor default if
+        # parallel scanning is later enabled — the throttle still serializes
+        # through self._lock, so GT can never burst past _rate_per_min/min even
+        # under an asyncio.gather of timeframe fetches.
+        try:
+            _env_cap = int(os.environ.get("GT_RATE_PER_MIN", "").strip())
+            if _env_cap > 0:
+                rate_per_min = min(rate_per_min, _env_cap)
+        except (TypeError, ValueError):
+            pass
         self._rate_per_min = rate_per_min
         self._request_log: List[float] = []
+        # Cheap always-on counter: total GT HTTP requests this client has let
+        # through the throttle. Lets the scan loop MEASURE GT calls/cycle (the
+        # CHART_DS_PRIMARY reduction) without touching behaviour. Inert.
+        self.gt_request_count = 0
         self._lock = asyncio.Lock()
         # Request coalescing — when N parallel callers request the same key,
         # only one HTTP request goes out and the rest await its result.
@@ -351,7 +369,13 @@ class GeckoTerminalClient:
             sleep_s = 60.0 - (now - self._request_log[0]) + 0.5
             logger.debug(f"[GeckoOHLCV] rate-limit sleep {sleep_s:.2f}s")
             await asyncio.sleep(max(0.0, sleep_s))
+            # After sleeping, the window has shifted — re-prune so a long sleep
+            # doesn't leave stale timestamps inflating the count (keeps the cap
+            # a true rolling 60s window even under sustained parallel pressure).
+            now2 = time.monotonic()
+            self._request_log = [t for t in self._request_log if t > (now2 - 60.0)]
         self._request_log.append(time.monotonic())
+        self.gt_request_count += 1
 
     @staticmethod
     def _parse(data: dict) -> List[Candle]:

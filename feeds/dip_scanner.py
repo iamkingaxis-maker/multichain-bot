@@ -92,16 +92,38 @@ def fast_prefilter_cull(liq_usd, pc_m5, pc_h1, pc_h6, buys_m5, sells_m5,
     """Pure, cheap, network-free prefilter predicate (FIX 2 latency lever).
 
     Returns (cull: bool, reason: str|None). True ONLY when the token CANNOT
-    qualify for ANY bot's entry — strictly LOOSER than every downstream gate so
-    it never removes a buyable token. Uses ONLY already-in-memory pair fields.
+    qualify for ANY enabled bot's entry — a STRICT SUBSET of the gates EVERY
+    enabled bot already enforces, so it never removes a buyable token. Uses
+    ONLY already-in-memory pair fields (no network fetch).
 
-    Two universal cull conditions:
-      (A) low_liq: liquidity below `min_liq_usd`, a floor set WELL below the
-          lowest admission-lane floor (badday LIQ_MIN=$15k) — no bot can buy
-          below it. liq_usd<=0 is treated as UNKNOWN (fail-open, never cull).
-      (B) runaway_sellers: running up hard on EVERY timeframe (m5/h1/h6 all
-          > +8%) AND m5 sells dominate buys — past every dip gate and lacking
-          the buy-side flow that momentum-continuation entries require.
+    SIGNAL-NEUTRALITY (Part B recalibration, 2026-06-17):
+      The prior `runaway_sellers` momentum rule was REMOVED — it culled real
+      winners (BRIM h1 +59%, Monkey h1 +90%, both fired buys) because momentum
+      is a SIGNAL, not a universal disqualifier. A prefilter that culls on a
+      directional/flow feature is by construction NOT signal-neutral. The cull
+      now mirrors ONLY the one hard, non-directional gate that EVERY enabled
+      bot shares: a minimum-liquidity floor.
+
+    Single cull condition:
+      (A) low_liq: liquidity below `min_liq_usd`. The floor is set strictly
+          BELOW the lowest enabled-bot liquidity floor so NO bot could buy a
+          culled token:
+            - fleet anti-rug floor       : liq >= $25k (ENFORCE, dip_scanner:1034)
+            - lowest antirug-EXEMPT lane : rugpocket_scalper liq >= $12k entry_gate,
+              real habitat $9-20k (config/bots/rugpocket_scalper.json:19-22)
+          The most-permissive enabled bot can buy at $12k (real-habitat tokens
+          dip to ~$9k), so the prefilter floor MUST sit strictly below ~$9k.
+          Default $8k clears that. liq_usd<=0 is treated as UNKNOWN
+          (fail-OPEN, never cull).
+
+    mcap / age are intentionally NOT culled on: the most-permissive enabled bot
+    (rugpocket_scalper) accepts mcap down to $15k and ANY age (age_h_min=null),
+    so a signal-neutral mcap/age floor would sit so low it culls nothing while
+    risking a winner-drop. When unsure -> fail-OPEN.
+
+    `pc_m5/pc_h1/pc_h6/buys_m5/sells_m5` are accepted for signature stability
+    (callers pass them) but are NO LONGER used to cull — they are momentum/flow
+    SIGNALS, never disqualifiers.
     """
     try:
         liq = float(liq_usd or 0)
@@ -109,14 +131,6 @@ def fast_prefilter_cull(liq_usd, pc_m5, pc_h1, pc_h6, buys_m5, sells_m5,
         liq = 0.0
     if liq > 0 and liq < float(min_liq_usd):
         return True, "low_liq"
-    try:
-        m5 = float(pc_m5 or 0); h1 = float(pc_h1 or 0); h6 = float(pc_h6 or 0)
-        b = int(buys_m5 or 0); s = int(sells_m5 or 0)
-    except (TypeError, ValueError):
-        return False, None
-    sellers_winning = (s > 0) and (b < s)
-    if m5 > 8.0 and h1 > 8.0 and h6 > 8.0 and sellers_winning:
-        return True, "runaway_sellers"
     return False, None
 
 
@@ -2853,16 +2867,22 @@ class DipScanner:
             # the heavy network fetch (assemble_chart_data) below, the single
             # biggest latency cost in the scan loop. This cheap prefilter runs
             # EVEN in baseline_mode, using ONLY the already-in-memory pair dict
-            # (no network), to drop tokens that CANNOT qualify for ANY bot's
-            # entry — strictly LOOSER than every downstream gate so it never
-            # removes a buyable token.
+            # (no network), to drop tokens that CANNOT qualify for ANY enabled
+            # bot's entry — a STRICT SUBSET of the gates every enabled bot
+            # already enforces, so it never removes a buyable token.
             #
-            # Two universal cull conditions:
-            #   (A) liquidity below a floor set WELL below the lowest admission
-            #       lane floor (badday LIQ_MIN=$15k) — no bot can buy below it.
-            #   (B) running up hard on EVERY timeframe (m5/h1/h6 all strongly
-            #       green) with m5 sell-side flow dominating — past every dip
-            #       gate AND lacking the buy-flow that momentum entries require.
+            # SIGNAL-NEUTRAL cull (Part B, 2026-06-17): mirrors ONLY the one
+            # hard, non-directional gate every enabled bot shares — a minimum
+            # liquidity floor. The prior `runaway_sellers` momentum rule was
+            # REMOVED (it culled real winners BRIM h1+59% / Monkey h1+90%, both
+            # fired buys — momentum is a SIGNAL, not a disqualifier).
+            #   (A) liquidity below a floor set strictly BELOW the lowest
+            #       enabled-bot liq floor — fleet anti-rug floor is $25k, the
+            #       lowest antirug-EXEMPT lane (rugpocket_scalper) buys at $12k
+            #       entry_gate / $9k real habitat, so the $8k default floor sits
+            #       below even that -> no bot can buy a culled token. mcap/age
+            #       are NOT culled on (rugpocket accepts mcap>=$15k / any age,
+            #       so a neutral floor there culls nothing). Fail-OPEN if unsure.
             #
             # Flag FAST_PREFILTER_MODE = off | shadow | enforce (default shadow):
             #   off     -> byte-identical to prior behavior (no count, no skip)

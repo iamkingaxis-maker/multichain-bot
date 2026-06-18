@@ -1,9 +1,30 @@
 """Profit-sweep executor (core/profit_sweeper) — the most sensitive code in the
 bot (real-money transfer). Money-math + fail-closed + dry-run + the $5 cap."""
+import os
+
+import core.profit_sweeper as ps
 from core.profit_sweeper import (
     compute_sweepable_sol, usd_to_sol, validate_destination, ratchet_target_sol,
     ProfitSweeper, auto_sweep_decision,
 )
+
+
+def _live_usd_floor_guard_allows(env):
+    """Mirror of the trader.py:3265 LIVE USD-floor guard, driven by env, so the guard
+    LOGIC is unit-tested without spinning up the async Trader. Returns True if a live
+    USD-only-floor sweep would be ALLOWED. (A SOL-native floor bypasses this guard.)"""
+    old = dict(os.environ)
+    try:
+        os.environ.clear()
+        os.environ.update(env)
+        floor_sol_ovr = ps.floor_sol() or None
+        if floor_sol_ovr:
+            return True  # SOL-native floor -> price-risk-free -> always allowed
+        has_bound = (ps.floor_price_buffer_frac() > 0) or (ps.max_per_sweep_usd() > 0)
+        return bool(ps.price_risk_ack() and has_bound)
+    finally:
+        os.environ.clear()
+        os.environ.update(old)
 
 HOT = "5xot1111111111111111111111111111111111111H"   # placeholder, not used for pubkey-validity here
 COLD = "DqdZwedYRwkHhsvX3s6Ae3aG876AF2Fy7wUXBkKP48C9"  # the real cold wallet (valid pubkey)
@@ -218,3 +239,113 @@ def test_backward_compat_existing_signature_unchanged():
     # the original 5-arg call still works exactly as before (no regressions).
     d = auto_sweep_decision(10.0, 200.0, 1000.0, 0.05, 5.0)
     assert d["should_sweep"] is True and "below_floor" in d
+
+
+# ── #4 over-sweep guards (2026-06-17, USD-floor SOL-price drain) ─────────────────
+def test_usd_floor_high_then_low_price_cannot_drain_below_floor():
+    """THE BUG: USD floor $884, balance enough to sweep. At a HIGH price tick the naive
+    floor_sol is small -> a big sweep is authorized; when price reverts DOWN the SOL left
+    is worth < $884. With the stressed-price haircut the kept SOL is valued at the LOW
+    (stressed) price, so after a real drop the hot wallet is STILL >= the USD floor."""
+    floor_usd = 884.0
+    high_price = 250.0   # transiently high tick at decision time
+    low_price = 200.0    # price reverts down after the sweep (= 20% drop)
+    buf = (high_price - low_price) / high_price  # 0.20 -> stressed price == low price
+
+    # naive (legacy, no buffer) WOULD over-sweep: keep only 884/250 = 3.536 SOL.
+    bal = 10.0
+    naive = auto_sweep_decision(bal, high_price, floor_usd, 0.0, 5.0,
+                                floor_price_buffer_frac_v=0.0)
+    kept_naive = bal - naive["sweepable_sol"]
+    assert kept_naive * low_price < floor_usd - 0.01   # legacy DRAINS below $884 after revert
+
+    # hardened: stressed-price haircut keeps 884/200 = 4.42 SOL.
+    d = auto_sweep_decision(bal, high_price, floor_usd, 0.0, 5.0,
+                            floor_price_buffer_frac_v=buf)
+    assert d["should_sweep"] is True
+    kept = bal - d["sweepable_sol"]
+    # after the price reverts to the LOW price, the kept SOL is STILL worth >= the floor.
+    assert kept * low_price >= floor_usd - 0.01
+
+
+def test_post_conversion_floor_assertion_never_oversweeps():
+    # #3: at the conversion price used, post-sweep balance is ALWAYS >= floor_sol.
+    for bal, price, floor_usd in [(10.0, 200.0, 1000.0), (12.0, 100.0, 1000.0),
+                                  (50.0, 180.0, 884.0), (8.0, 250.0, 884.0)]:
+        d = auto_sweep_decision(bal, price, floor_usd, 0.05, 5.0)
+        if d.get("should_sweep"):
+            floor_sol = d["floor_sol"]
+            assert bal - d["sweepable_sol"] >= floor_sol - 1e-9
+
+
+def test_sol_native_floor_never_moves_with_price():
+    # #3: a SOL-native floor keeps the SAME SOL regardless of price (no USD-rate leak).
+    lo = auto_sweep_decision(8.0, 100.0, 99999.0, 0.0, 5.0, floor_sol_override=5.0)
+    hi = auto_sweep_decision(8.0, 300.0, 99999.0, 0.0, 5.0, floor_sol_override=5.0)
+    assert lo["floor_sol"] == hi["floor_sol"] == 5.0
+    assert lo["sweepable_sol"] == hi["sweepable_sol"]  # kept SOL identical at any price
+
+
+def test_buffer_haircut_keeps_more_sol_than_naive():
+    # the haircut ALWAYS keeps >= the naive amount (never sweeps more than legacy).
+    naive = auto_sweep_decision(10.0, 200.0, 884.0, 0.0, 5.0, floor_price_buffer_frac_v=0.0)
+    buffered = auto_sweep_decision(10.0, 200.0, 884.0, 0.0, 5.0, floor_price_buffer_frac_v=0.15)
+    assert buffered["sweepable_sol"] <= naive["sweepable_sol"]
+    assert buffered["floor_sol"] > naive["floor_sol"]
+
+
+def test_buffer_zero_is_legacy_behavior():
+    # buffer 0 (default) reproduces the exact legacy floor_usd/price math.
+    d = auto_sweep_decision(10.0, 200.0, 1000.0, 0.05, 5.0, floor_price_buffer_frac_v=0.0)
+    assert abs(d["floor_sol"] - 5.0) < 1e-9   # 1000/200, unchanged
+
+
+# ── #4 hardened LIVE USD-floor guard (trader.py:3265 logic) ─────────────────────
+def test_guard_refuses_usd_floor_with_max_per_sweep_alone():
+    # THE FIX: a bare SWEEP_MAX_PER_SWEEP_USD no longer satisfies the guard (it is a
+    # blast-radius cap, NOT price-risk protection).
+    assert _live_usd_floor_guard_allows({
+        "WORKING_CAPITAL_FLOOR_USD": "884", "SWEEP_MAX_PER_SWEEP_USD": "100",
+    }) is False
+
+
+def test_guard_refuses_usd_floor_with_ack_but_no_bound():
+    # the ack alone is not enough — a bound is still required.
+    assert _live_usd_floor_guard_allows({
+        "WORKING_CAPITAL_FLOOR_USD": "884", "SWEEP_PRICE_RISK_ACK": "1",
+    }) is False
+
+
+def test_guard_allows_usd_floor_with_ack_and_buffer():
+    assert _live_usd_floor_guard_allows({
+        "WORKING_CAPITAL_FLOOR_USD": "884", "SWEEP_PRICE_RISK_ACK": "1",
+        "SWEEP_FLOOR_PRICE_BUFFER_FRAC": "0.15",
+    }) is True
+
+
+def test_guard_allows_usd_floor_with_ack_and_cap():
+    assert _live_usd_floor_guard_allows({
+        "WORKING_CAPITAL_FLOOR_USD": "884", "SWEEP_PRICE_RISK_ACK": "1",
+        "SWEEP_MAX_PER_SWEEP_USD": "100",
+    }) is True
+
+
+def test_guard_sol_native_floor_bypasses_price_risk():
+    # the preferred path: a SOL-native floor is allowed with no ack/bound (no price risk).
+    assert _live_usd_floor_guard_allows({
+        "WORKING_CAPITAL_FLOOR_SOL": "4.5",
+    }) is True
+
+
+def test_floor_price_buffer_frac_clamped_and_default():
+    old = dict(os.environ)
+    try:
+        os.environ.pop("SWEEP_FLOOR_PRICE_BUFFER_FRAC", None)
+        assert ps.floor_price_buffer_frac() == 0.0   # off by default (legacy)
+        os.environ["SWEEP_FLOOR_PRICE_BUFFER_FRAC"] = "5"   # absurd -> clamp to 0.9
+        assert ps.floor_price_buffer_frac() == 0.9
+        os.environ["SWEEP_FLOOR_PRICE_BUFFER_FRAC"] = "-1"  # negative -> 0
+        assert ps.floor_price_buffer_frac() == 0.0
+    finally:
+        os.environ.clear()
+        os.environ.update(old)

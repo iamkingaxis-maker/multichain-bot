@@ -567,3 +567,94 @@ def test_decision_records_gradual_climb_abs_rise_flag():
     d = guard["SPCX"]["last_decision"]
     assert d["abs_rise_hit"] is True and d["reason"] == "rise_rejected_above_high"
     assert d["high_val"] == 0.001415
+
+
+# ── OHLC-HIGH SANITY BOUND (2026-06-17, FIX #2 — GTFS +$244,197 phantom) ──────
+# A corrupted OHLC high must NOT rubber-stamp an absurd exit tick. The acceptance
+# test ``price <= hi*1.15`` was trivially true when the OHLC source itself returned
+# garbage (147.51 for a ~0.000149 token), accepting a 3,256x tick → +$244,197.
+
+def test_gtfs_2026_06_16_corrupted_ohlc_high_rejects_3256x_tick():
+    # GTFS: entry ~0.000149, real price ~0.000138; the 240-min time-box exit got a
+    # bad DexScreener tick exit_price=0.4872 (~3,256x entry). high_fn (GeckoTerminal)
+    # was ALSO corrupted → returned 147.51 (~990,000x entry). Pre-fix: 0.4872 <=
+    # 147.51*1.15 → ACCEPTED → +$244,197 phantom. Post-fix: the 147.51 high is >25x
+    # the reference → distrusted → tick rejected back to last_good.
+    entry = 0.000149
+    last_good = 0.000138
+    guard = {"GTFS": {"last_good": last_good, "pending": None}}
+    out = eg.guarded_exit_price(
+        guard, "GTFS", 0.4872,
+        high_fn=lambda: 147.51,      # corrupted OHLC high
+        ref_price=entry,
+    )
+    assert out == last_good, f"corrupted-high phantom accepted: {out}"
+    d = guard["GTFS"]["last_decision"]
+    assert d["high_insane"] is True
+    assert d["reason"] == "rise_capped_no_corroboration"
+    assert guard["GTFS"]["last_good"] == last_good   # not poisoned
+
+
+def test_legit_5x_win_still_accepted_with_sane_high():
+    # A real 5x win: OHLC high ~5.2x the reference (< 25x) → trusted → accepted.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "X", 5.0, high_fn=lambda: 5.2, ref_price=1.0)
+    assert out == 5.0
+    assert guard["X"]["last_good"] == 5.0
+    assert guard["X"]["last_decision"]["reason"] == "rise_accepted_within_high"
+    assert guard["X"]["last_decision"]["high_insane"] is False
+
+
+def test_legit_10x_win_still_accepted_with_sane_high():
+    # A real 10x win: OHLC high ~10.5x reference (still < 25x) → trusted → accepted.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(guard, "X", 10.0, high_fn=lambda: 10.5, ref_price=1.0)
+    assert out == 10.0
+    assert guard["X"]["last_good"] == 10.0
+    assert guard["X"]["last_decision"]["high_insane"] is False
+
+
+def test_corrupted_high_distrusted_falls_through_to_crosssource():
+    # When the OHLC high is insane but an independent cross-source CORROBORATES the
+    # rise (genuinely near the print), the move is still captured — the sanity bound
+    # only stops the high from being a free pass, it does not bar real corroboration.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    out = eg.guarded_exit_price(
+        guard, "X", 3.0,
+        high_fn=lambda: 9999.0,        # corrupted high (> 25x) → distrusted
+        confirm_fn=lambda: 2.9,        # independent source agrees → real moon
+        ref_price=1.0,
+    )
+    assert out == 3.0
+    assert guard["X"]["last_decision"]["high_insane"] is True
+    assert guard["X"]["last_decision"]["reason"] == "corroborated_crosssource"
+
+
+def test_sanity_guard_off_restores_rubber_stamp():
+    # With EXIT_SANITY_GUARD disabled the legacy (vulnerable) behavior returns: the
+    # corrupted high rubber-stamps the absurd tick. Proves the fix is behind the flag.
+    guard = {"GTFS": {"last_good": 0.000138, "pending": None}}
+    out = eg.guarded_exit_price(
+        guard, "GTFS", 0.4872, high_fn=lambda: 147.51, ref_price=0.000149,
+        sanity_guard=False,
+    )
+    assert out == 0.4872   # legacy rubber-stamp (the bug) when guard is off
+    assert guard["GTFS"]["last_decision"]["high_insane"] is False
+
+
+def test_sanity_bound_uses_last_good_not_only_entry():
+    # The reference prefers last_good (most recent real price) over entry. A token
+    # that legitimately climbed to last_good=10.0 (entry 1.0) can still accept a high
+    # up to 25x of 10.0 — the bound tracks the real price, not the stale entry.
+    guard = {"X": {"last_good": 10.0, "pending": None}}
+    # high 50.0 = 5x last_good (< 25x) → trusted; price 30.0 within high*1.15 → accept
+    out = eg.guarded_exit_price(guard, "X", 30.0, high_fn=lambda: 50.0, ref_price=1.0)
+    assert out == 30.0
+    assert guard["X"]["last_decision"]["high_insane"] is False
+
+
+def test_decision_high_insane_default_false_on_normal():
+    # the new flag defaults False and stays False on a normal move.
+    guard = {"X": {"last_good": 1.0, "pending": None}}
+    eg.guarded_exit_price(guard, "X", 0.95)
+    assert guard["X"]["last_decision"]["high_insane"] is False

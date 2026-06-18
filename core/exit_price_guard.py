@@ -26,6 +26,7 @@ NEXT cycle corroborates it:
 Call :func:`guarded_exit_price` exactly once per token per management cycle.
 """
 
+import os
 from typing import Dict, Optional
 
 # A single-cycle drop beyond this fraction below the last known-good price is
@@ -118,6 +119,35 @@ EXIT_GUARD_ABS_DROP = 0.5   # price < entry*(1-this) → catastrophic (no tempor
 # stop (−12) so it covers the −12..−25 stop range with a small margin.
 EXIT_GUARD_ABS_STOP_ZONE = 0.10  # new low < entry*(1-this) → corroborate before a stop
 
+# ── OHLC-HIGH SANITY BOUND (2026-06-17, FIX #2 — GTFS +$244,197 phantom) ──────
+# The PRIMARY rise check (line ~267) accepts a suspect upward print when it sits
+# within ``high_tol`` of the token's REAL recent OHLC high. That check trusts the
+# OHLC high *implicitly* — but the OHLC source (GeckoTerminal) can itself be
+# CORRUPTED and return an absurd high, which then rubber-stamps a garbage exit:
+#
+#   GTFS 2026-06-16: a token entered ~$0.000149 hit the 240-min time-box exit.
+#   DexScreener returned a bad tick exit_price=0.4872 (~3,256x entry); the rise
+#   guard fired and consulted high_fn → GeckoTerminal *also* returned a corrupted
+#   high=$147.51 (~990,000x entry). The acceptance test ``price <= hi*1.15`` was
+#   trivially true (0.4872 <= 147.51*1.15) so the 3,256x garbage tick was ACCEPTED
+#   → pnl_pct ~325,000% (+$244,197 / +$162,373 leaderboard phantoms).
+#
+# Defense: an OHLC high that exceeds the position's real reference price (prefer
+# ``last_good`` — the most recent real price — over entry) by more than this
+# multiple cannot be a real candle high (no memecoin we hold 25x's between two
+# management cycles' worth of real candles). When the high is itself implausible
+# we MUST NOT trust it to accept a suspect rise: treat it as if the OHLC source
+# were unavailable (fall through to cross-source, then reject — a rise is never
+# accepted on temporal-only). This can NOT reject a real win: a legitimate 5x/10x
+# move has an OHLC high ~5-10x the reference, far under 25x, so it is still trusted
+# and accepted exactly as before. Behind EXIT_SANITY_GUARD (default ON — corruption
+# guard — but conservative: the ceiling is ~2.5x the largest sane single-cycle win
+# the OHLC could legitimately show).
+EXIT_GUARD_MAX_HIGH_MULT = 25.0  # reject an OHLC high > ref * this as corrupted
+EXIT_SANITY_GUARD = os.environ.get("EXIT_SANITY_GUARD", "1").strip().lower() not in (
+    "0", "false", "no", "off", ""
+)
+
 
 def guarded_exit_price(
     guard: Dict[str, dict],
@@ -135,6 +165,8 @@ def guarded_exit_price(
     abs_rise: float = EXIT_GUARD_ABS_RISE,
     abs_drop: float = EXIT_GUARD_ABS_DROP,
     abs_stop_zone: float = EXIT_GUARD_ABS_STOP_ZONE,
+    max_high_mult: float = EXIT_GUARD_MAX_HIGH_MULT,
+    sanity_guard: bool = EXIT_SANITY_GUARD,
 ) -> float:
     """Return the price the exit tick should act on, filtering one-tick glitches.
 
@@ -237,7 +269,8 @@ def guarded_exit_price(
             "suspect_drop": bool(suspect_drop), "abs_rise_hit": bool(abs_rise_hit),
             "abs_drop_hit": bool(abs_drop_hit), "catastrophic_drop": bool(catastrophic_drop),
             "stop_zone_hit": bool(stop_zone_hit),
-            "high_val": None, "low_val": None, "second_val": None, "reason": None}
+            "high_val": None, "low_val": None, "second_val": None,
+            "high_insane": False, "reason": None}
 
     def _rec(value, reason):
         _dec["ret"] = value
@@ -263,6 +296,22 @@ def guarded_exit_price(
             except Exception:
                 hi = None
             _dec["high_val"] = hi
+            # ── OHLC-HIGH SANITY BOUND (FIX #2, GTFS 2026-06-16) ──
+            # A corrupted OHLC high (e.g. GeckoTerminal returning 147.51 for a
+            # ~0.000149 token) would otherwise rubber-stamp an absurd exit tick
+            # because ``price <= hi*1.15`` is trivially true. Reject an OHLC high
+            # that exceeds the real reference (prefer last_good — the most recent
+            # real price — else entry) by more than ``max_high_mult``: no token we
+            # hold 25x's between cycles, so such a high is itself garbage and must
+            # NOT be trusted to accept a suspect rise. Treat it as if high were
+            # unavailable → fall through to cross-source, then reject. A real
+            # 5x/10x win has hi ~5-10x ref (< 25x) → still trusted → still accepted.
+            _hi_ref = last if (isinstance(last, (int, float)) and last > 0) else ref
+            if (sanity_guard and isinstance(hi, (int, float)) and hi > 0
+                    and _hi_ref is not None and _hi_ref > 0
+                    and hi > _hi_ref * max_high_mult):
+                _dec["high_insane"] = True
+                hi = None  # corrupted high → distrust, fall through (→ reject)
             if isinstance(hi, (int, float)) and hi > 0:
                 if price <= hi * (1.0 + high_tol):
                     # within the token's real traded range → genuine → act now.
