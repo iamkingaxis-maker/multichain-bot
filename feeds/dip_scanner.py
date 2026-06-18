@@ -34,8 +34,13 @@ from core.per_bot_capital import PerBotCapital
 from core.per_bot_position_manager import PerBotPositionManager, paper_uncapped
 from core.multi_bot_persistence import MultiBotTradeStore
 from core.exit_price_guard import guarded_exit_price
+from core.onchain_ws_feed import OnchainWsFeed
 
 MULTI_BOT_ENABLED = os.getenv("MULTI_BOT_ENABLED", "false").lower() == "true"
+
+# Freshness window (seconds) below which an on-chain WS price is preferred over
+# Jupiter (B4). Default 2.0 -- the measured ~0.4-1s WS push latency plus margin.
+ONCHAIN_FRESH_SECS_DEFAULT = 2.0
 
 logger = logging.getLogger(__name__)
 
@@ -267,6 +272,11 @@ class DipScanner:
         self._sticky_watchlist: Dict[str, dict] = {}
         self._fast_armed: Dict[str, dict] = {}      # addr -> pair (armed subset, rebuilt each cycle)
         self._fast_samples: Dict[str, deque] = {}   # addr -> rolling price deque (fast-watch batch poll)
+        # On-chain WS hot-layer (B4). None until _maybe_spawn_onchain_feed()
+        # creates it (only when ONCHAIN_WS_MODE != off). Cached SOL/USD for the
+        # feed's get_sol_usd callable, refreshed each cycle from sol features.
+        self._onchain_feed = None
+        self._last_sol_usd: float = 0.0
         # Initialized here too so the fast-watch loop can call _evaluate_pair
         # before the first _scan_cycle sets these per-cycle (else AttributeError
         # in the startup window).
@@ -625,6 +635,12 @@ class DipScanner:
             asyncio.create_task(self._fast_watch_loop())
         except Exception as e:
             logger.error("[fast-watch] failed to spawn: %s", e)
+        # B4: on-chain WS hot-layer (shadow-validated vs Jupiter). True no-op
+        # when ONCHAIN_WS_MODE=off. Best-effort; never breaks the scanner.
+        try:
+            await self._maybe_spawn_onchain_feed()
+        except Exception as e:
+            logger.error("[onchain] failed to spawn WS feed: %s", e)
         while True:
             try:
                 await self._scan_cycle()
@@ -750,6 +766,14 @@ class DipScanner:
         self._cycle_sol_features = sol_features
         self._cycle_sol_5m = sol_5m
         self._cycle_sol_1m = sol_1m
+        # B4: feed the on-chain WS feed's SOL/USD callable (cached, refreshed
+        # each cycle). price_usd = price_sol * sol_usd inside the WS feed.
+        try:
+            _sp = sol_features.get("sol_price")
+            if _sp and float(_sp) > 0:
+                self._last_sol_usd = float(_sp)
+        except (TypeError, ValueError):
+            pass
         # Mirror to last_sol_features for /api/sol-gate dashboard endpoint
         # if we actually got data — otherwise preserve the previous snapshot
         # so the dashboard can detect staleness.
@@ -2768,6 +2792,98 @@ class DipScanner:
                 pass
         return False
 
+    def _onchain_hot_mints(self):
+        """B4: the hot subset for the on-chain WS feed = armed set UNION the
+        open-position addresses (best-effort). The on-chain precision layer is
+        scoped to ONLY the tokens we are actively watching to fire on or hold,
+        never the whole watchlist (public-RPC sub limits)."""
+        armed = set((getattr(self, "_fast_armed", {}) or {}).keys())
+        try:
+            opens = set((getattr(self, "open_positions_ref", {}) or {}).keys())
+        except Exception:
+            opens = set()
+        return list(armed | opens)
+
+    def _fast_price_for(self, addr, jupiter_price):
+        """B4 price-selection (SYNC, testable). Returns (price, source).
+
+        SHADOW-FIRST money-path safety:
+        - ONCHAIN_WS_MODE=off (DEFAULT): always (jupiter_price, 'jupiter'); the
+          on-chain feed is never even read -> byte-identical to pre-B4 behaviour.
+        - ONCHAIN_WS_MODE=on + a FRESH on-chain price (now - ts <= fresh_secs):
+          returns (onchain_usd, 'onchain') -> the only mode that lets on-chain
+          drive the injected price.
+        - ONCHAIN_WS_MODE=shadow + a fresh on-chain price: LOGS the
+          on-chain-vs-Jupiter delta and returns (jupiter_price, 'jupiter') --
+          on-chain is validated, NEVER used.
+        - stale / missing on-chain (any mode): (jupiter_price, 'jupiter')."""
+        try:
+            mode = os.environ.get("ONCHAIN_WS_MODE", "off").strip().lower()
+        except Exception:
+            mode = "off"
+        if mode == "off":
+            return (jupiter_price, "jupiter")
+
+        feed = getattr(self, "_onchain_feed", None)
+        if feed is None:
+            return (jupiter_price, "jupiter")
+        try:
+            got = feed.get_price(addr)
+        except Exception:
+            got = None
+        if not got:
+            return (jupiter_price, "jupiter")
+        onchain_usd, ts = got
+        try:
+            fresh_secs = float(os.environ.get("ONCHAIN_FRESH_SECS",
+                                              ONCHAIN_FRESH_SECS_DEFAULT))
+        except (TypeError, ValueError):
+            fresh_secs = ONCHAIN_FRESH_SECS_DEFAULT
+        if not onchain_usd or onchain_usd <= 0:
+            return (jupiter_price, "jupiter")
+        if (time.time() - (ts or 0.0)) > fresh_secs:
+            return (jupiter_price, "jupiter")   # stale -> Jupiter
+
+        if mode == "on":
+            return (onchain_usd, "onchain")
+
+        # shadow: LOG the delta, but USE Jupiter (never drives a decision).
+        try:
+            jp = float(jupiter_price) if jupiter_price is not None else 0.0
+            delta_pct = ((onchain_usd - jp) / jp * 100.0) if jp else float("nan")
+        except (TypeError, ValueError, ZeroDivisionError):
+            delta_pct = float("nan")
+        logger.info(
+            "[onchain] token=%s onchain=$%.8g jupiter=$%.8g delta=%.3f%%",
+            addr, onchain_usd, (jupiter_price or 0.0), delta_pct,
+        )
+        return (jupiter_price, "jupiter")
+
+    async def _maybe_spawn_onchain_feed(self):
+        """B4: spawn the on-chain WS hot-layer feed (best-effort, never breaks
+        the scanner). TRUE no-op when ONCHAIN_WS_MODE=off (feed not constructed).
+
+        v1 spawns ONCE with the current hot set (armed union open). Re-pointing
+        the subscription set as the hot set rotates each cycle is a documented
+        nice-to-have; OnchainWsFeed.run already best-effort reconnects, but it
+        does not yet re-subscribe a changed mint set -- noted for a follow-up."""
+        try:
+            mode = os.environ.get("ONCHAIN_WS_MODE", "off").strip().lower()
+        except Exception:
+            mode = "off"
+        if mode == "off":
+            return
+        if getattr(self, "_onchain_feed", None) is not None:
+            return
+        try:
+            feed = OnchainWsFeed(get_sol_usd=lambda: getattr(self, "_last_sol_usd", 0.0))
+            self._onchain_feed = feed
+            asyncio.create_task(feed.run(self._onchain_hot_mints()))
+            logger.info("[onchain] WS hot-layer spawned mode=%s subset=%d",
+                        mode, len(self._onchain_hot_mints()))
+        except Exception as e:
+            logger.warning("[onchain] failed to spawn WS feed: %s", e)
+
     def _fast_arm_subset(self, cfg, now_ms):
         """Tier 0: build self._fast_armed from the watchlist via proxy distance-to-dip-zone.
         Pure in-memory selection over cached pair data; no network, no _evaluate_pair change."""
@@ -2888,6 +3004,11 @@ class DipScanner:
                 continue
             fresh = prices.get(addr.lower())
             if fresh:
+                # B4: shadow-validated on-chain hot-layer. In mode 'on' a fresh
+                # on-chain price replaces Jupiter for the injected pair price; in
+                # 'shadow' the delta is logged only (Jupiter still used); off ->
+                # byte-identical (always Jupiter).
+                fresh, _src = self._fast_price_for(addr, fresh)
                 pair = dict(pair)
                 pair["priceUsd"] = str(fresh)
             ctx = {
