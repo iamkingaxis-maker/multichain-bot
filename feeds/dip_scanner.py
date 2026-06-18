@@ -265,6 +265,12 @@ class DipScanner:
         self.last_sol_features: dict = {}
         self.last_sol_features_ts: float = 0.0
         self._sticky_watchlist: Dict[str, dict] = {}
+        # Initialized here too so the fast-watch loop can call _evaluate_pair
+        # before the first _scan_cycle sets these per-cycle (else AttributeError
+        # in the startup window).
+        self._cycle_bought_addrs: set = set()
+        self._cycle_trend_reversal_blocked: List[str] = []
+        self._fp_shadow_culled: set = set()
         # Sticky-watchlist bounds (2026-05-27). The universe-coverage widening
         # (commit 62a9781) blew the sticky set to ~7300 tokens at the old 12h
         # TTL — ~81% of every scan cycle's fetched set (7395/cycle), causing slow

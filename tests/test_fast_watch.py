@@ -224,3 +224,13 @@ def test_run_spawns_fast_watch_task(monkeypatch):
     except KeyboardInterrupt:
         pass
     assert len(created) == 1            # the fast-watch loop was scheduled once
+
+
+def test_evaluate_pair_cycle_attrs_initialized_in_init():
+    """Fast-watch can call _evaluate_pair before the first _scan_cycle; the
+    per-cycle attrs it reads must exist on a fresh instance (no AttributeError)."""
+    import inspect
+    from feeds.dip_scanner import DipScanner
+    src = inspect.getsource(DipScanner.__init__)
+    for attr in ("_cycle_bought_addrs", "_cycle_trend_reversal_blocked", "_fp_shadow_culled"):
+        assert f"self.{attr}" in src, f"{attr} not initialized in __init__"
