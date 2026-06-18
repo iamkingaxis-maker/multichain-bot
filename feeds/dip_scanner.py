@@ -1922,6 +1922,101 @@ class DipScanner:
         except Exception as e:
             logger.debug(f"[DipScanner] liq_drain_shadow stamp err: {e}")
 
+    async def _fetch_tick_price(self, position, pkey, priced, vols, now):
+        """FETCH-ONLY phase for one UNIQUE open token (data gathering, no exit
+        decision). Populates priced[pkey] (guarded exit price; None = skip) and
+        vols[pkey], and records the per-cycle liquidity sample for the drain
+        shadow. NO-OP if pkey is already populated (first-encounter wins, exactly
+        like the original inline `if pkey not in priced:` guard). Idempotent +
+        address-keyed so it is safe to run under a bounded asyncio.gather: every
+        write targets pkey's own slot — no token's price can land in another's.
+
+        This is the SOLE network-bound part of the tick; the exit DECISION
+        (guard corroboration ran HERE at fetch time, shadows, pm.tick, sells)
+        stays in the serial per-position phase of _tick_all_bots_positions so
+        exit logic / sells are unchanged and un-raced. Extracted 2026-06-17 to
+        let PARALLEL_TICK_MODE=on gather unique-token prices concurrently.
+        """
+        if pkey in priced:
+            return
+        token = position.token
+        raw = await self._get_current_price_for(
+            token,
+            address=position.address,
+            pair_address=position.pair_address,
+        )
+        # CRITICAL: never accept price=0 as real. The feed
+        # returns 0/null when DexScreener has no pair data, the
+        # token rugged, or the pool is empty. Treating 0 as the
+        # exit price computes pnl_pct = -100% which trips the
+        # hard stop → records a fake $-20 sell at zero proceeds.
+        if raw is None or raw <= 0:
+            if raw is not None:
+                logger.warning(
+                    "[DipScanner] tick skipped: token=%s price=%s (feed returned zero/negative)",
+                    token, raw,
+                )
+            priced[pkey] = None
+        else:
+            # Transient-glitch guard: a catastrophic single-cycle
+            # drop (e.g. a bad DexScreener print — TROLL −77% on a
+            # flat $3.6M-liq token) is deferred until the next
+            # cycle corroborates it, so it can't trip every bot's
+            # hard stop at a phantom price. Real crashes confirm.
+            # OFF-LOOP, PRIVATE POOL (2026-06-13 stall fix v2):
+            # the guard's corroboration callbacks (_recent_high/
+            # low_sync, _second_source) are SYNC curl_cffi fetches.
+            # v1 used asyncio.to_thread = the DEFAULT executor —
+            # which aiohttp's ThreadedResolver ALSO uses for every
+            # DNS lookup (aiodns not installed). During a rug wave
+            # the guard's curl calls saturated the ~6-worker default
+            # pool, DNS queued behind them, outbound + inbound
+            # stalled ~30s. Route through the DS client's PRIVATE
+            # 4-worker executor (_run_fetch) so guard load never
+            # touches the DNS pool. await serializes per-token
+            # (no guard-dict races).
+            from feeds.dexscreener_client import shared_client
+            priced[pkey] = await shared_client()._run_fetch(
+                guarded_exit_price,
+                self._exit_price_guard, pkey, raw,
+                confirm_fn=(
+                    lambda a=position.address: self._second_source_price_sync(a)
+                ),
+                # PRIMARY rise check: reject a print above the token's
+                # real OHLC high (a glitch can't exceed what it traded).
+                high_fn=(
+                    lambda pa=position.pair_address: self._recent_high_sync(pa)
+                ),
+                # PRIMARY drop check: reject a stop fill below the
+                # token's real recent low (mirror of high_fn).
+                low_fn=(
+                    lambda pa=position.pair_address: self._recent_low_sync(pa)
+                ),
+                # ABSOLUTE-from-entry trigger: a big move from entry
+                # (>+50% / <−50%) consults the OHLC bound even when no
+                # single tick exceeds the gap thresholds — catches a
+                # GRADUAL climb (SPCX +374% 2026-06-02) and bars a sticky
+                # deep drop from booking on temporal-only (Buttcoin −100%).
+                ref_price=position.entry_price,
+            )
+        vols[pkey] = await self._get_vol_m5_for(token)
+        # LIQ-DRAIN FEED (2026-06-16): the exit-side drain detector's
+        # tracker was fed ONLY at scan time, so HELD tokens not re-scanned
+        # had no liquidity history and the drain shadow stayed blind
+        # (Chaton, n=0 fires). Record this token's current liquidity ONCE
+        # per cycle (inside the per-token guard) so LiquidityFlowTracker.
+        # analyze() has fresh history to detect a REMOVE. Gated on
+        # LIQ_DRAIN_MODE (off -> no extra fetch). Address-keyed. None-on-
+        # fail (never records a fallback).
+        if (os.environ.get("LIQ_DRAIN_MODE", "shadow").strip().lower() != "off"
+                and position.address):
+            try:
+                _lq = await self._get_liq_for(position.address)
+                if _lq is not None:
+                    self._lp_flow.record(position.address, _lq)
+            except Exception:
+                pass
+
     async def _tick_all_bots_positions(self):
         """Per-bot exit-decision loop. Iterates each bot's open positions,
         fetches current price + vol from the shared PoolPriceFeed, and acts
@@ -1937,6 +2032,64 @@ class DipScanner:
         now = time.time()
         priced: Dict[str, Optional[float]] = {}   # ADDRESS → guarded price (None = skip)
         vols: Dict[str, Optional[float]] = {}
+
+        # PARALLEL TICK (FIX, 2026-06-17): the per-unique-open-token exit-price
+        # FETCH (the sole network-bound work) is the ~43s residual of the cycle.
+        # PARALLEL_TICK_MODE=on pre-fetches every UNIQUE token's guarded price +
+        # vol concurrently under a bounded semaphore BEFORE the decision loop, so
+        # the exit DECISIONS (shadows, pm.tick, sells) still run SERIALLY over the
+        # gathered prices below — identical exit logic, just un-serialized fetch.
+        # Default off => the gather is skipped and priced/vols are filled lazily
+        # in the decision loop exactly as before (byte-identical serial behaviour).
+        # Address-keyed: each _fetch_tick_price writes only its own pkey slot, so
+        # no token's price can be mismatched to another even under gather; the
+        # exit-price guard + transient-glitch corroboration are unchanged (they
+        # run inside _fetch_tick_price, one guarded reading per token per cycle).
+        _ptick_mode = os.environ.get(
+            "PARALLEL_TICK_MODE", "off"
+        ).strip().lower() in ("on", "1", "true", "yes")
+        if _ptick_mode:
+            # Collect ONE representative position per unique pkey (first wins,
+            # mirroring the decision loop's first-encounter fetch). The guard's
+            # callbacks bind address/pair_address/entry_price off this rep — the
+            # same fields the serial path bound off the first-seen position.
+            _reps: Dict[str, object] = {}
+            for _pm in self.bot_position_managers.values():
+                for _position in _pm.iter_positions():
+                    _pk = self._price_key(
+                        _position.address, _position.pair_address, _position.token)
+                    if _pk not in _reps:
+                        _reps[_pk] = _position
+            if _reps:
+                try:
+                    _conc = int(os.environ.get(
+                        "PARALLEL_TICK_CONCURRENCY",
+                        os.environ.get("PARALLEL_SCAN_CONCURRENCY", "12")))
+                except (TypeError, ValueError):
+                    _conc = 12
+                if _conc < 1:
+                    _conc = 1
+                _sem = asyncio.Semaphore(_conc)
+
+                async def _bounded_fetch(_pk, _pos):
+                    async with _sem:
+                        await self._fetch_tick_price(_pos, _pk, priced, vols, now)
+
+                # Bounded gather; per-pkey writes are isolated so order doesn't
+                # matter. Exceptions are isolated per token (a failed fetch just
+                # leaves that pkey unpopulated → the decision loop fills it
+                # lazily/serially below, same as off-mode).
+                _res = await asyncio.gather(
+                    *[_bounded_fetch(_pk, _pos) for _pk, _pos in _reps.items()],
+                    return_exceptions=True,
+                )
+                for _pk, _r in zip(list(_reps.keys()), _res):
+                    if isinstance(_r, Exception):
+                        logger.error(
+                            "[DipScanner] parallel tick fetch failed pkey=%s: %s",
+                            _pk, _r,
+                        )
+
         for bot_id, pm in self.bot_position_managers.items():
             for position in pm.iter_positions():
                 token = position.token
@@ -1945,83 +2098,11 @@ class DipScanner:
                 # per-bot position maps are unaffected.
                 pkey = self._price_key(position.address, position.pair_address, token)
                 try:
-                    if pkey not in priced:
-                        raw = await self._get_current_price_for(
-                            token,
-                            address=position.address,
-                            pair_address=position.pair_address,
-                        )
-                        # CRITICAL: never accept price=0 as real. The feed
-                        # returns 0/null when DexScreener has no pair data, the
-                        # token rugged, or the pool is empty. Treating 0 as the
-                        # exit price computes pnl_pct = -100% which trips the
-                        # hard stop → records a fake $-20 sell at zero proceeds.
-                        if raw is None or raw <= 0:
-                            if raw is not None:
-                                logger.warning(
-                                    "[DipScanner] tick skipped: token=%s price=%s (feed returned zero/negative)",
-                                    token, raw,
-                                )
-                            priced[pkey] = None
-                        else:
-                            # Transient-glitch guard: a catastrophic single-cycle
-                            # drop (e.g. a bad DexScreener print — TROLL −77% on a
-                            # flat $3.6M-liq token) is deferred until the next
-                            # cycle corroborates it, so it can't trip every bot's
-                            # hard stop at a phantom price. Real crashes confirm.
-                            # OFF-LOOP, PRIVATE POOL (2026-06-13 stall fix v2):
-                            # the guard's corroboration callbacks (_recent_high/
-                            # low_sync, _second_source) are SYNC curl_cffi fetches.
-                            # v1 used asyncio.to_thread = the DEFAULT executor —
-                            # which aiohttp's ThreadedResolver ALSO uses for every
-                            # DNS lookup (aiodns not installed). During a rug wave
-                            # the guard's curl calls saturated the ~6-worker default
-                            # pool, DNS queued behind them, outbound + inbound
-                            # stalled ~30s. Route through the DS client's PRIVATE
-                            # 4-worker executor (_run_fetch) so guard load never
-                            # touches the DNS pool. await serializes per-token
-                            # (no guard-dict races).
-                            from feeds.dexscreener_client import shared_client
-                            priced[pkey] = await shared_client()._run_fetch(
-                                guarded_exit_price,
-                                self._exit_price_guard, pkey, raw,
-                                confirm_fn=(
-                                    lambda a=position.address: self._second_source_price_sync(a)
-                                ),
-                                # PRIMARY rise check: reject a print above the token's
-                                # real OHLC high (a glitch can't exceed what it traded).
-                                high_fn=(
-                                    lambda pa=position.pair_address: self._recent_high_sync(pa)
-                                ),
-                                # PRIMARY drop check: reject a stop fill below the
-                                # token's real recent low (mirror of high_fn).
-                                low_fn=(
-                                    lambda pa=position.pair_address: self._recent_low_sync(pa)
-                                ),
-                                # ABSOLUTE-from-entry trigger: a big move from entry
-                                # (>+50% / <−50%) consults the OHLC bound even when no
-                                # single tick exceeds the gap thresholds — catches a
-                                # GRADUAL climb (SPCX +374% 2026-06-02) and bars a sticky
-                                # deep drop from booking on temporal-only (Buttcoin −100%).
-                                ref_price=position.entry_price,
-                            )
-                        vols[pkey] = await self._get_vol_m5_for(token)
-                        # LIQ-DRAIN FEED (2026-06-16): the exit-side drain detector's
-                        # tracker was fed ONLY at scan time, so HELD tokens not re-scanned
-                        # had no liquidity history and the drain shadow stayed blind
-                        # (Chaton, n=0 fires). Record this token's current liquidity ONCE
-                        # per cycle (inside the per-token guard) so LiquidityFlowTracker.
-                        # analyze() has fresh history to detect a REMOVE. Gated on
-                        # LIQ_DRAIN_MODE (off -> no extra fetch). Address-keyed. None-on-
-                        # fail (never records a fallback).
-                        if (os.environ.get("LIQ_DRAIN_MODE", "shadow").strip().lower() != "off"
-                                and position.address):
-                            try:
-                                _lq = await self._get_liq_for(position.address)
-                                if _lq is not None:
-                                    self._lp_flow.record(position.address, _lq)
-                            except Exception:
-                                pass
+                    # FETCH phase: serial (off-mode) populates priced/vols lazily
+                    # on first encounter; parallel mode already pre-filled them
+                    # above, so this is a no-op. Identical first-encounter semantics
+                    # either way (the helper no-ops when pkey is already priced).
+                    await self._fetch_tick_price(position, pkey, priced, vols, now)
                     price = priced[pkey]
                     if price is None:
                         continue
