@@ -71,3 +71,28 @@ def test_config_bad_numbers_fall_back_to_defaults(monkeypatch):
     cfg = fw.FastWatchConfig.from_env()
     assert cfg.interval_secs == 3.0
     assert cfg.trend_secs == 90
+
+
+class _FakeCfg:
+    def __init__(self, bot_id, enabled=True):
+        self.bot_id = bot_id
+        self.enabled = enabled
+
+
+class _FakeEvaluator:
+    def __init__(self, bot_id, enabled=True):
+        self.config = _FakeCfg(bot_id, enabled)
+    def evaluate(self, bundle, realized_pnl_usd=0.0):
+        return f"BUY:{self.config.bot_id}"
+
+
+def test_evaluate_all_respects_bot_allowlist():
+    from core.bot_manager import BotManager
+    mgr = BotManager.__new__(BotManager)            # bypass real __init__
+    mgr.evaluators = [_FakeEvaluator("a"), _FakeEvaluator("b"), _FakeEvaluator("c")]
+    # No allowlist -> all enabled bots evaluated (unchanged behavior).
+    assert set(mgr.evaluate_all(bundle=object())) == {"BUY:a", "BUY:b", "BUY:c"}
+    # Allowlist -> only listed bots.
+    assert set(mgr.evaluate_all(bundle=object(), bot_allowlist={"a", "c"})) == {"BUY:a", "BUY:c"}
+    # Empty allowlist -> nothing.
+    assert mgr.evaluate_all(bundle=object(), bot_allowlist=set()) == []
