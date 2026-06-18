@@ -87,6 +87,39 @@ _STABLECOIN_SYMBOLS = {
 }
 
 
+def fast_prefilter_cull(liq_usd, pc_m5, pc_h1, pc_h6, buys_m5, sells_m5,
+                        min_liq_usd=8000.0):
+    """Pure, cheap, network-free prefilter predicate (FIX 2 latency lever).
+
+    Returns (cull: bool, reason: str|None). True ONLY when the token CANNOT
+    qualify for ANY bot's entry — strictly LOOSER than every downstream gate so
+    it never removes a buyable token. Uses ONLY already-in-memory pair fields.
+
+    Two universal cull conditions:
+      (A) low_liq: liquidity below `min_liq_usd`, a floor set WELL below the
+          lowest admission-lane floor (badday LIQ_MIN=$15k) — no bot can buy
+          below it. liq_usd<=0 is treated as UNKNOWN (fail-open, never cull).
+      (B) runaway_sellers: running up hard on EVERY timeframe (m5/h1/h6 all
+          > +8%) AND m5 sells dominate buys — past every dip gate and lacking
+          the buy-side flow that momentum-continuation entries require.
+    """
+    try:
+        liq = float(liq_usd or 0)
+    except (TypeError, ValueError):
+        liq = 0.0
+    if liq > 0 and liq < float(min_liq_usd):
+        return True, "low_liq"
+    try:
+        m5 = float(pc_m5 or 0); h1 = float(pc_h1 or 0); h6 = float(pc_h6 or 0)
+        b = int(buys_m5 or 0); s = int(sells_m5 or 0)
+    except (TypeError, ValueError):
+        return False, None
+    sellers_winning = (s > 0) and (b < s)
+    if m5 > 8.0 and h1 > 8.0 and h6 > 8.0 and sellers_winning:
+        return True, "runaway_sellers"
+    return False, None
+
+
 class _JupSlipCached(Exception):
     """Control-flow sentinel: skip the (cached) Jupiter slippage network block.
     Lets us short-circuit the 8-call slippage sample on a fresh per-token cache
@@ -1444,6 +1477,44 @@ class DipScanner:
         if not mid or mid <= 0:
             logger.warning("[Probe] live buy skipped: bad mid %s (%s)", mid, token)
             return None
+        # BUY-REPRICE guard (money leak): the decision mid can be STALE by the time we
+        # actually fire — buying a token that already ran up +X% off the decision price
+        # pays away the dip edge. Fetch a FRESH price and ASYMMETRICALLY abort only on a
+        # RUN-UP past BUY_REPRICE_MAX_RUNUP (a further DIP is the edge -> never abort).
+        # Flag BUY_REPRICE_MODE=off|shadow|enforce (default shadow). Fails OPEN (allow)
+        # when the fresh price is unavailable so we never block on a transient feed gap.
+        _reprice_mode = os.environ.get("BUY_REPRICE_MODE", "shadow").strip().lower()
+        if _reprice_mode != "off":
+            try:
+                _max_runup = float(os.environ.get("BUY_REPRICE_MAX_RUNUP", "0.05"))
+            except (TypeError, ValueError):
+                _max_runup = 0.05
+            _fresh = None
+            try:
+                _fresh = await self._get_current_price_for(
+                    token, address=decision.address, pair_address=decision.pair_address,
+                )
+            except Exception as e:
+                logger.debug("[Probe] BUY-REPRICE fresh-price fetch err (%s): %s", token, e)
+                _fresh = None
+            if _fresh and _fresh > 0:
+                _runup = (_fresh / mid) - 1.0
+                if _runup > _max_runup:
+                    if _reprice_mode == "enforce":
+                        logger.warning(
+                            "[Probe] BUY-REPRICE ABORT token=%s fresh=%.8g mid=%.8g runup=%.2f%% > %.2f%%",
+                            token, _fresh, mid, _runup * 100.0, _max_runup * 100.0,
+                        )
+                        return None
+                    logger.info(
+                        "[Probe] BUY-REPRICE would-abort (shadow) token=%s fresh=%.8g mid=%.8g runup=%.2f%% > %.2f%%",
+                        token, _fresh, mid, _runup * 100.0, _max_runup * 100.0,
+                    )
+                elif _reprice_mode == "enforce":
+                    # ALLOWED in enforce: use the fresh price as the recorded entry basis
+                    # (covers a further DIP and any sub-threshold drift up). A dip is the edge.
+                    mid = _fresh
+            # _fresh missing/<=0 -> fail OPEN (allow), do not block on a feed gap.
         try:
             sol_amt = await self.trader._usd_to_sol(size_usd)
             lamports = int(float(sol_amt) * 1e9)
@@ -2289,127 +2360,37 @@ class DipScanner:
             pass
         return None
 
-    async def _scan_cycle(self):
-        # Don't scan if already at max concurrent dip positions
-        dip_count = sum(
-            1 for pos in self.open_positions_ref.values()
-            if getattr(pos, "strategy", "") == "dip_buy"
-        )
-        if dip_count >= self.max_concurrent and not paper_uncapped():
-            logger.info(
-                f"[DipScanner] Cycle: at max concurrent ({dip_count}) — skipping scan"
-            )
-            return
+    async def _evaluate_pair(self, pair, _eval_ctx):
+        """FIX 4: the per-token scan body, extracted verbatim from the former
+        inline `for pair in pairs:` loop so it can run either serially (default)
+        or under a bounded asyncio.gather (PARALLEL_SCAN_MODE=on).
 
-        pairs, source_counts = await self._fetch_candidates()
-        now_ms = time.time() * 1000
+        Returns (c, signals, cap_stop):
+          - c: a per-CALL Counter of this token's reject/telemetry tallies
+            (merged by the caller; no shared mutation).
+          - signals: this token's contribution to the cycle `signals` count.
+          - cap_stop: True iff the body hit the max-concurrent cap `break` (the
+            ONE loop-level break) -> the serial caller stops scanning, the exact
+            original behaviour. Distinguished from a normal `continue` (skip this
+            token) via the single-iteration loop's `else`: `continue` /
+            fall-through run the `else` (cap_stop=False); the cap `break` skips
+            the `else` (cap_stop=True). The body below is byte-identical.
 
+        Shared state is task-safe: Counter `c`/`signals` are call-local; the
+        trend_reversal_blocked list + _h24_history + _fp_shadow_culled are shared
+        `self` structures touched only via atomic ops / distinct keys / idempotent
+        flags; and every real buy fire is serialized via self._buy_fire_lock.
+        """
+        now_ms = _eval_ctx["now_ms"]
+        _regime_n = _eval_ctx["_regime_n"]
+        _regime_dip_breadth_pct = _eval_ctx["_regime_dip_breadth_pct"]
+        _regime_h1_neg_pct = _eval_ctx["_regime_h1_neg_pct"]
         c: Counter = Counter()
-        trend_reversal_blocked: List[str] = []  # token symbols blocked this cycle
         signals = 0
-
-        # Cross-token regime breadth (Tier-2 feature). Counts how many of the
-        # candidates this cycle are dipping (m5<-1.5%) or rolling over (h1<0).
-        # When breadth is high (>50% of scanned tokens are dipping), our entry
-        # is correlated noise, not opportunity — the whole market is selling.
-        _regime_n = len(pairs)
-        _regime_dipping = 0
-        _regime_h1_neg = 0
-        for _p in pairs:
-            _pc = (_p.get("priceChange") or {})
-            try:
-                if float(_pc.get("m5", 0) or 0) < -1.5:
-                    _regime_dipping += 1
-                if float(_pc.get("h1", 0) or 0) < 0:
-                    _regime_h1_neg += 1
-            except Exception:
-                pass
-        _regime_dip_breadth_pct = (
-            round(_regime_dipping / _regime_n * 100, 1) if _regime_n > 0 else 0.0
-        )
-        _regime_h1_neg_pct = (
-            round(_regime_h1_neg / _regime_n * 100, 1) if _regime_n > 0 else 0.0
-        )
-
-        # ── Cycle-level SOL fetch — 2026-05-22 ──────────────────────────
-        # Fetch SOL ONCE per cycle and cache on self for the per-token loop
-        # to read. Previously this fetch lived inside the per-token loop and
-        # ran 5-30x per cycle, causing race-condition bypasses of
-        # filter_sol_macro_down (WORLDCUP 01:14:42 slipped through while
-        # other tokens in the same cycle were being blocked).
-        await self._fetch_cycle_sol_features()
-
-        # ── REGIME BUY-GATE (2026-06-17) — binary buy/DON'T-BUY for dip entries.
-        # Don't catch the falling knife: a CLEAR crash (broad downside breadth
-        # regime_h1_neg_pct >= 35 OR SOL 6h <= -3%) -> dip bots open ZERO new positions
-        # until it clears. Computed ONCE per cycle here, enforced in _execute_bot_buy.
-        # Re-evaluated every cycle (h1 breadth + h6 SOL) -> releases fast, no lockout /
-        # no overblock. Fail-OPEN. mode=enforce|shadow|off. See core/regime_buy_gate.py.
-        try:
-            from core.regime_buy_gate import verdict as _bg_verdict
-            _bg_sol_h6 = (getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h6")
-            self._buy_gate = _bg_verdict(_regime_h1_neg_pct, _bg_sol_h6)
-            if self._buy_gate.get("block"):
-                logger.info("[DipScanner] BUY-GATE %s: %s (breadth=%s sol_h6=%s)",
-                            "ENFORCED-OFF (dip bots stand down)" if self._buy_gate.get("enforced")
-                            else "would-block [shadow]",
-                            self._buy_gate.get("reason"), _regime_h1_neg_pct, _bg_sol_h6)
-        except Exception as _bg_e:
-            self._buy_gate = None
-            logger.debug(f"[DipScanner] buy-gate verdict error: {_bg_e}")
-
-        # ── META-ALLOCATOR SHADOW (2026-06-12) — measure-only ────────────────
-        # Snapshot the day-state the family-rotation allocator would key on
-        # (SOL h24, downside breadth, badday flush-envelope count, pp_launch
-        # rate) + the V1 would-be family multipliers. Hourly persisted; nothing
-        # reads the proposal at buy time. See core/meta_allocator.py.
-        try:
-            from core.badday_lane import in_envelope as _ma_env
-            _ma_flush = 0
-            for _p in pairs:
-                try:
-                    if _ma_env((_p.get("marketCap") or 0),
-                               (time.time() * 1000 - (_p.get("pairCreatedAt") or 0)) / 3_600_000.0,
-                               ((_p.get("liquidity") or {}).get("usd", 0)),
-                               ((_p.get("priceChange") or {}).get("h1", 0) or 0)):
-                        _ma_flush += 1
-                except Exception:
-                    pass
-            if not hasattr(self, "_meta_allocator"):
-                from core.meta_allocator import MetaAllocatorShadow
-                self._meta_allocator = MetaAllocatorShadow()
-            self._meta_allocator.observe_cycle(
-                sol_h24=(getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h24"),
-                breadth_neg=(_regime_h1_neg / _regime_n) if _regime_n > 0 else None,
-                flush_count=_ma_flush,
-                launch_count=int(source_counts.get("pp_launch", 0) or 0),
-            )
-        except Exception as _ma_e:
-            logger.debug(f"[DipScanner] meta-allocator shadow error: {_ma_e}")
-
-        # ── META CHAMELEON retune check (2026-06-12) — the autonomy loop.
-        # Rate-limited internally (15min checks, 6h retune cadence, quiesce on
-        # open positions). Never raises. See core/meta_chameleon.py.
-        # Stash this cycle's regime so the chameleon's RED-NIGHT MODE can read it
-        # (deep-flush capitulation profile when the tape is broad-red; 2026-06-14).
-        self._cycle_regime = {
-            "sol_pc_h24": (getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h24"),
-            "regime_h1_neg_pct": _regime_h1_neg_pct,
-        }
-        try:
-            from core.meta_chameleon import maybe_retune
-            maybe_retune(self)
-        except Exception as _ch_e:
-            logger.debug(f"[DipScanner] chameleon retune error: {_ch_e}")
-        # In-bot hourly regime-pattern miner (#435): deterministic, credit-free —
-        # writes _hourly_patterns_latest.json for the dashboard /api/regime-patterns tab.
-        try:
-            from core.regime_pattern_miner import run as _rpm_run
-            _rpm_run(self)
-        except Exception as _rpm_e:
-            logger.debug(f"[DipScanner] regime miner error: {_rpm_e}")
-
-        for pair in pairs:
+        # Shared cycle-level list (preserves the cycle-wide len<6 log cap).
+        trend_reversal_blocked = self._cycle_trend_reversal_blocked
+        _eval_completed = False
+        for pair in (pair,):
             c["fetched"] += 1
             token_address = (pair.get("baseToken") or {}).get("address", "")
             token_symbol = (pair.get("baseToken") or {}).get("symbol", "?")
@@ -2865,6 +2846,63 @@ class DipScanner:
             if dip_count >= self.max_concurrent and not paper_uncapped():
                 c["cap_reached"] += 1
                 break
+
+            # ── FAST PREFILTER (2026-06-17, FIX 2 latency lever) ──────────
+            # Production runs baseline_mode=true, which disables the cheap
+            # `continue` culls above — so EVERY token (~100-300/cycle) reaches
+            # the heavy network fetch (assemble_chart_data) below, the single
+            # biggest latency cost in the scan loop. This cheap prefilter runs
+            # EVEN in baseline_mode, using ONLY the already-in-memory pair dict
+            # (no network), to drop tokens that CANNOT qualify for ANY bot's
+            # entry — strictly LOOSER than every downstream gate so it never
+            # removes a buyable token.
+            #
+            # Two universal cull conditions:
+            #   (A) liquidity below a floor set WELL below the lowest admission
+            #       lane floor (badday LIQ_MIN=$15k) — no bot can buy below it.
+            #   (B) running up hard on EVERY timeframe (m5/h1/h6 all strongly
+            #       green) with m5 sell-side flow dominating — past every dip
+            #       gate AND lacking the buy-flow that momentum entries require.
+            #
+            # Flag FAST_PREFILTER_MODE = off | shadow | enforce (default shadow):
+            #   off     -> byte-identical to prior behavior (no count, no skip)
+            #   shadow  -> count + log would-cull, but DO NOT skip; also mark the
+            #              token so the signal-fire path can detect a signal-drop
+            #              (a would-culled token that later fired a buy = a miss).
+            #   enforce -> actually `continue` (skip the heavy fetch).
+            _fp_mode = os.environ.get("FAST_PREFILTER_MODE", "shadow").strip().lower()
+            if _fp_mode in ("shadow", "enforce"):
+                try:
+                    _fp_min_liq = float(os.environ.get("FAST_PREFILTER_MIN_LIQ_USD", "8000"))
+                except (TypeError, ValueError):
+                    _fp_min_liq = 8000.0
+                # liq_usd already includes the GT 0.5 reserve discount applied at
+                # the turnover gate above. m5 flow from the in-memory pair dict.
+                _fp_tx_m5 = (pair.get("txns") or {}).get("m5") or {}
+                _fp_cull, _fp_reason = fast_prefilter_cull(
+                    liq_usd, pc_m5, pc_h1, pc_h6,
+                    _fp_tx_m5.get("buys"), _fp_tx_m5.get("sells"),
+                    min_liq_usd=_fp_min_liq,
+                )
+                if _fp_cull:
+                    c["fast_prefilter_cull"] = c.get("fast_prefilter_cull", 0) + 1
+                    if _fp_mode == "enforce":
+                        c["fast_prefilter_enforced"] = c.get("fast_prefilter_enforced", 0) + 1
+                        logger.info(
+                            f"[DipScanner] FAST_PREFILTER ENFORCE cull {token_symbol} "
+                            f"({_fp_reason}: liq=${liq_usd:.0f} "
+                            f"m5={pc_m5:+.1f}% h1={pc_h1:+.1f}% h6={pc_h6:+.1f}%)"
+                        )
+                        continue
+                    # shadow: record the would-cull on the instance so the
+                    # signal-fire path can flag a signal-drop, and log it.
+                    self._fp_shadow_culled.add(_addr_lower)
+                    logger.info(
+                        f"[DipScanner] FAST_PREFILTER SHADOW would-cull {token_symbol} "
+                        f"({_fp_reason}: liq=${liq_usd:.0f} "
+                        f"m5={pc_m5:+.1f}% h1={pc_h1:+.1f}% h6={pc_h6:+.1f}%) "
+                        f"— NOT skipping (shadow)"
+                    )
 
             # ── Final pre-buy gate: 1m candle reversal confirmation ──
             # All other filters passed.  Fetch last 5 × 1m candles for the
@@ -3412,6 +3450,18 @@ class DipScanner:
 
             c["signal"] += 1
             signals += 1
+
+            # FAST_PREFILTER signal-drop check (shadow): if this token would
+            # have been culled by the prefilter but went on to fire a buy, the
+            # prefilter would have DROPPED a real signal. Count + warn so we can
+            # validate the prefilter is safe before flipping it to enforce.
+            if _addr_lower in self._fp_shadow_culled:
+                c["fast_prefilter_signal_drop"] = c.get("fast_prefilter_signal_drop", 0) + 1
+                logger.warning(
+                    f"[DipScanner] FAST_PREFILTER SIGNAL-DROP: {token_symbol} "
+                    f"would have been culled by the prefilter but FIRED a buy — "
+                    f"prefilter is too tight, do NOT enforce"
+                )
 
             # Format bs_m5/bs_h1 as 'inf' when we have buys but zero sells — clearer
             # than a giant float when everyone's buying and nobody's selling.
@@ -16302,7 +16352,15 @@ class DipScanner:
                         bundle, realized_pnl_by_bot=realized_by_bot,
                     )
                     for d in decisions:
-                        await self._execute_bot_buy(d, bundle)
+                        # FIX 4 concurrency-safety: serialize every real buy
+                        # fire through the per-cycle buy lock so that under
+                        # PARALLEL_SCAN_MODE=on two tasks can NEVER interleave a
+                        # buy (race the exclusion pool / per-token exposure cap /
+                        # concurrency caps inside _execute_bot_buy). The lock is
+                        # an uncontended no-op acquire in serial mode -> behaviour
+                        # is byte-identical when the flag is off.
+                        async with self._buy_fire_lock:
+                            await self._execute_bot_buy(d, bundle)
                 except Exception as e:
                     logger.error(
                         "[DipScanner] multi-bot fan-out failed for %s: %s",
@@ -16315,28 +16373,254 @@ class DipScanner:
             if _filters_block:
                 continue
 
-            await self.trader.buy(
-                token_address=token_address,
-                token_symbol=token_symbol,
-                chain_id="solana",
-                override_usd=_position_size,
-                reason=(
-                    f"dip_buy [{_size_tier}]: 24h={pc_h24:+.1f}% 1h={pc_h1:+.1f}% 5m={pc_m5:+.1f}% "
-                    f"bs_h6={ratio_h6:.2f} bs_h1={bs_h1_str} bs_m5={bs_m5_str}"
-                ),
-                strategy="dip_buy",
-                pair_address=pair.get("pairAddress", "") or "",
-                market_cap_usd=float(mcap or 0),
-                age_hours=pair_age_hours,
-                volume_h1_usd=float(vol_h1 or 0),
-                entry_meta=entry_meta_dict,
-                # C2 (2026-06-04 live-execution audit): the legacy single-bot dip path
-                # runs UNCONDITIONALLY every cycle and is NOT on the live_probe allowlist.
-                # Force it to PAPER whenever a live key is present, so in live mode the
-                # allowlisted fleet fan-out (_execute_bot_buy_live -> _execute_swap_ultra)
-                # is the SOLE route to real money. In paper (no key) it behaves as before.
-                force_paper=bool(self.trader.private_key),
+            # FIX 4 concurrency-safety: serialize the legacy single-bot buy fire
+            # through the per-cycle buy lock + a per-cycle bought-address guard.
+            # The lock makes the open_positions / cap checks inside trader.buy
+            # race-free across tasks; the address guard is belt-and-suspenders
+            # against any future duplicate-pair regression (candidates are addr-
+            # deduped today, so this set normally never collides). In serial mode
+            # the lock is uncontended and the set never collides -> byte-identical.
+            async with self._buy_fire_lock:
+                if _addr_lower in self._cycle_bought_addrs:
+                    c["double_buy_guard"] = c.get("double_buy_guard", 0) + 1
+                    logger.warning(
+                        "[DipScanner] FIX4 double-buy guard skipped legacy buy "
+                        "for %s (already bought this cycle)", token_symbol,
+                    )
+                    continue
+                self._cycle_bought_addrs.add(_addr_lower)
+                await self.trader.buy(
+                    token_address=token_address,
+                    token_symbol=token_symbol,
+                    chain_id="solana",
+                    override_usd=_position_size,
+                    reason=(
+                        f"dip_buy [{_size_tier}]: 24h={pc_h24:+.1f}% 1h={pc_h1:+.1f}% 5m={pc_m5:+.1f}% "
+                        f"bs_h6={ratio_h6:.2f} bs_h1={bs_h1_str} bs_m5={bs_m5_str}"
+                    ),
+                    strategy="dip_buy",
+                    pair_address=pair.get("pairAddress", "") or "",
+                    market_cap_usd=float(mcap or 0),
+                    age_hours=pair_age_hours,
+                    volume_h1_usd=float(vol_h1 or 0),
+                    entry_meta=entry_meta_dict,
+                    # C2 (2026-06-04 live-execution audit): the legacy single-bot dip path
+                    # runs UNCONDITIONALLY every cycle and is NOT on the live_probe allowlist.
+                    # Force it to PAPER whenever a live key is present, so in live mode the
+                    # allowlisted fleet fan-out (_execute_bot_buy_live -> _execute_swap_ultra)
+                    # is the SOLE route to real money. In paper (no key) it behaves as before.
+                    force_paper=bool(self.trader.private_key),
+                )
+        else:
+            # Body fell through / `continue`d the single-iteration loop -> a
+            # normal skip, NOT the cap break. (The cap `break` skips this else.)
+            _eval_completed = True
+        return c, signals, (not _eval_completed)
+
+    async def _scan_cycle(self):
+        # Don't scan if already at max concurrent dip positions
+        dip_count = sum(
+            1 for pos in self.open_positions_ref.values()
+            if getattr(pos, "strategy", "") == "dip_buy"
+        )
+        if dip_count >= self.max_concurrent and not paper_uncapped():
+            logger.info(
+                f"[DipScanner] Cycle: at max concurrent ({dip_count}) — skipping scan"
             )
+            return
+
+        pairs, source_counts = await self._fetch_candidates()
+        now_ms = time.time() * 1000
+
+        c: Counter = Counter()
+        trend_reversal_blocked: List[str] = []  # token symbols blocked this cycle
+        signals = 0
+        # FAST_PREFILTER shadow bookkeeping: addrs the prefilter WOULD cull this
+        # cycle (shadow mode only). Reset per-cycle; used by the signal-fire path
+        # to detect a signal-drop (would-cull token that still fired a buy).
+        self._fp_shadow_culled = set()
+
+        # Cross-token regime breadth (Tier-2 feature). Counts how many of the
+        # candidates this cycle are dipping (m5<-1.5%) or rolling over (h1<0).
+        # When breadth is high (>50% of scanned tokens are dipping), our entry
+        # is correlated noise, not opportunity — the whole market is selling.
+        _regime_n = len(pairs)
+        _regime_dipping = 0
+        _regime_h1_neg = 0
+        for _p in pairs:
+            _pc = (_p.get("priceChange") or {})
+            try:
+                if float(_pc.get("m5", 0) or 0) < -1.5:
+                    _regime_dipping += 1
+                if float(_pc.get("h1", 0) or 0) < 0:
+                    _regime_h1_neg += 1
+            except Exception:
+                pass
+        _regime_dip_breadth_pct = (
+            round(_regime_dipping / _regime_n * 100, 1) if _regime_n > 0 else 0.0
+        )
+        _regime_h1_neg_pct = (
+            round(_regime_h1_neg / _regime_n * 100, 1) if _regime_n > 0 else 0.0
+        )
+
+        # ── Cycle-level SOL fetch — 2026-05-22 ──────────────────────────
+        # Fetch SOL ONCE per cycle and cache on self for the per-token loop
+        # to read. Previously this fetch lived inside the per-token loop and
+        # ran 5-30x per cycle, causing race-condition bypasses of
+        # filter_sol_macro_down (WORLDCUP 01:14:42 slipped through while
+        # other tokens in the same cycle were being blocked).
+        await self._fetch_cycle_sol_features()
+
+        # ── REGIME BUY-GATE (2026-06-17) — binary buy/DON'T-BUY for dip entries.
+        # Don't catch the falling knife: a CLEAR crash (broad downside breadth
+        # regime_h1_neg_pct >= 35 OR SOL 6h <= -3%) -> dip bots open ZERO new positions
+        # until it clears. Computed ONCE per cycle here, enforced in _execute_bot_buy.
+        # Re-evaluated every cycle (h1 breadth + h6 SOL) -> releases fast, no lockout /
+        # no overblock. Fail-OPEN. mode=enforce|shadow|off. See core/regime_buy_gate.py.
+        try:
+            from core.regime_buy_gate import verdict as _bg_verdict
+            _bg_sol_h6 = (getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h6")
+            self._buy_gate = _bg_verdict(_regime_h1_neg_pct, _bg_sol_h6)
+            if self._buy_gate.get("block"):
+                logger.info("[DipScanner] BUY-GATE %s: %s (breadth=%s sol_h6=%s)",
+                            "ENFORCED-OFF (dip bots stand down)" if self._buy_gate.get("enforced")
+                            else "would-block [shadow]",
+                            self._buy_gate.get("reason"), _regime_h1_neg_pct, _bg_sol_h6)
+        except Exception as _bg_e:
+            self._buy_gate = None
+            logger.debug(f"[DipScanner] buy-gate verdict error: {_bg_e}")
+
+        # ── META-ALLOCATOR SHADOW (2026-06-12) — measure-only ────────────────
+        # Snapshot the day-state the family-rotation allocator would key on
+        # (SOL h24, downside breadth, badday flush-envelope count, pp_launch
+        # rate) + the V1 would-be family multipliers. Hourly persisted; nothing
+        # reads the proposal at buy time. See core/meta_allocator.py.
+        try:
+            from core.badday_lane import in_envelope as _ma_env
+            _ma_flush = 0
+            for _p in pairs:
+                try:
+                    if _ma_env((_p.get("marketCap") or 0),
+                               (time.time() * 1000 - (_p.get("pairCreatedAt") or 0)) / 3_600_000.0,
+                               ((_p.get("liquidity") or {}).get("usd", 0)),
+                               ((_p.get("priceChange") or {}).get("h1", 0) or 0)):
+                        _ma_flush += 1
+                except Exception:
+                    pass
+            if not hasattr(self, "_meta_allocator"):
+                from core.meta_allocator import MetaAllocatorShadow
+                self._meta_allocator = MetaAllocatorShadow()
+            self._meta_allocator.observe_cycle(
+                sol_h24=(getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h24"),
+                breadth_neg=(_regime_h1_neg / _regime_n) if _regime_n > 0 else None,
+                flush_count=_ma_flush,
+                launch_count=int(source_counts.get("pp_launch", 0) or 0),
+            )
+        except Exception as _ma_e:
+            logger.debug(f"[DipScanner] meta-allocator shadow error: {_ma_e}")
+
+        # ── META CHAMELEON retune check (2026-06-12) — the autonomy loop.
+        # Rate-limited internally (15min checks, 6h retune cadence, quiesce on
+        # open positions). Never raises. See core/meta_chameleon.py.
+        # Stash this cycle's regime so the chameleon's RED-NIGHT MODE can read it
+        # (deep-flush capitulation profile when the tape is broad-red; 2026-06-14).
+        self._cycle_regime = {
+            "sol_pc_h24": (getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h24"),
+            "regime_h1_neg_pct": _regime_h1_neg_pct,
+        }
+        try:
+            from core.meta_chameleon import maybe_retune
+            maybe_retune(self)
+        except Exception as _ch_e:
+            logger.debug(f"[DipScanner] chameleon retune error: {_ch_e}")
+        # In-bot hourly regime-pattern miner (#435): deterministic, credit-free —
+        # writes _hourly_patterns_latest.json for the dashboard /api/regime-patterns tab.
+        try:
+            from core.regime_pattern_miner import run as _rpm_run
+            _rpm_run(self)
+        except Exception as _rpm_e:
+            logger.debug(f"[DipScanner] regime miner error: {_rpm_e}")
+
+        # FIX 4 (2026-06-17): per-token evaluation dispatcher.
+        # The per-token scan body (formerly the inline `for pair in pairs:`
+        # loop) is now `self._evaluate_pair`. SERIAL mode (default) calls it in
+        # the exact original order with the exact original cap-break semantics
+        # -> behaviour is byte-identical to the prior inline loop. PARALLEL mode
+        # (PARALLEL_SCAN_MODE=on) runs evaluations under a bounded
+        # asyncio.Semaphore + asyncio.gather, then MERGES per-task results
+        # deterministically in pairs order. CONCURRENCY-SAFETY:
+        #   - per-task Counter `c` / `signals` are LOCAL to each _evaluate_pair
+        #     call and merged AFTER gather (Counter.update + int sums are
+        #     order-independent -> identical totals; no concurrent mutation).
+        #   - trend_reversal_blocked stays a shared cycle-level list (preserves
+        #     the cycle-wide len<6 log cap); append is atomic with no await
+        #     between the len-check and the append.
+        #   - the actual BUY FIRES (_execute_bot_buy + legacy trader.buy) are
+        #     serialized through self._buy_fire_lock + the per-cycle
+        #     self._cycle_bought_addrs guard so two tasks can NEVER double-buy a
+        #     token or race the exclusion pool / per-token exposure cap / caps.
+        #   - concurrency is BOUNDED (PARALLEL_SCAN_CONCURRENCY, default 12); the
+        #     GT (25/min, self-locked) + DexScreener (4-worker) clients enforce
+        #     their own rate limits underneath -> no unbounded gather / DNS
+        #     saturation (2026-06-11 incident).
+        self._cycle_trend_reversal_blocked = trend_reversal_blocked
+        self._cycle_bought_addrs = set()
+        # Lazily bind the buy-fire lock to the running loop (created here so it
+        # is bound to the live event loop; a single Lock instance is reused for
+        # the process lifetime). Serializes every real buy fire in both modes.
+        if getattr(self, "_buy_fire_lock", None) is None:
+            self._buy_fire_lock = asyncio.Lock()
+        _eval_ctx = {
+            "now_ms": now_ms,
+            "_regime_n": _regime_n,
+            "_regime_dip_breadth_pct": _regime_dip_breadth_pct,
+            "_regime_h1_neg_pct": _regime_h1_neg_pct,
+        }
+        _parallel_mode = os.environ.get(
+            "PARALLEL_SCAN_MODE", "off"
+        ).strip().lower() in ("on", "1", "true", "yes")
+
+        if not _parallel_mode:
+            # SERIAL (default) -- identical order + cap-break behaviour.
+            for pair in pairs:
+                _r_c, _r_sig, _r_cap_stop = await self._evaluate_pair(pair, _eval_ctx)
+                c.update(_r_c)
+                signals += _r_sig
+                if _r_cap_stop:
+                    break
+        else:
+            try:
+                _conc = int(os.environ.get("PARALLEL_SCAN_CONCURRENCY", "12"))
+            except (TypeError, ValueError):
+                _conc = 12
+            if _conc < 1:
+                _conc = 1
+            _sem = asyncio.Semaphore(_conc)
+
+            async def _bounded_eval(_p):
+                async with _sem:
+                    return await self._evaluate_pair(_p, _eval_ctx)
+
+            # Bounded gather; results returned in the SAME order as pairs.
+            _results = await asyncio.gather(
+                *[_bounded_eval(_p) for _p in pairs],
+                return_exceptions=True,
+            )
+            for _p, _res in zip(pairs, _results):
+                if isinstance(_res, Exception):
+                    logger.error(
+                        "[DipScanner] _evaluate_pair raised for %s: %s",
+                        (_p.get("baseToken") or {}).get("symbol", "?"),
+                        _res, exc_info=_res,
+                    )
+                    continue
+                _r_c, _r_sig, _r_cap_stop = _res
+                c.update(_r_c)
+                signals += _r_sig
+                # cap_stop in parallel mode does NOT short-circuit the already-
+                # launched tasks; the concurrency cap is enforced authoritatively
+                # (race-free) inside _execute_bot_buy under the serialized buy
+                # lock, so honouring it post-hoc is unnecessary.
 
         src_str = " ".join(f"{k}={v}" for k, v in source_counts.items() if v) or "-"
         rej_str = " ".join(

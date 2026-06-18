@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -152,26 +153,67 @@ async def assemble_chart_data(
             await asyncio.sleep(0.5)
         return []
 
-    candles_1m = await _fetch_one(
-        "1m",
-        lambda: gt_client.fetch_1m(pool_address, limit=limit_1m),
-        (lambda: dexs_client.fetch_1m(pool_address, limit=limit_1m)) if dexs_client else None,
-    )
-    candles_5m = await _fetch_one(
-        "5m",
-        lambda: gt_client.fetch_5m(pool_address, limit=limit_5m),
-        (lambda: dexs_client.fetch_5m(pool_address, limit=limit_5m)) if dexs_client else None,
-    )
-    candles_15m = await _fetch_one(
-        "15m",
-        lambda: gt_client.fetch_15m(pool_address, limit=limit_15m),
-        (lambda: dexs_client.fetch_15m(pool_address, limit=limit_15m)) if dexs_client else None,
-    )
-    candles_1h = await _fetch_one(
-        "1h",
-        lambda: gt_client.fetch_1h(pool_address, limit=limit_1h),
-        (lambda: dexs_client.fetch_1h(pool_address, limit=limit_1h)) if dexs_client else None,
-    )
+    # FIX 4 (2026-06-17) re-parallelization, behind the SAME PARALLEL_SCAN_MODE
+    # flag that gates the dip-scanner's parallel per-token loop. Default off ->
+    # the SEQUENTIAL path below runs EXACTLY as before (byte-identical behaviour).
+    #
+    # When on, the four `_fetch_one` flows run under a single asyncio.gather. This
+    # is rate-limit-safe WITHOUT a new limiter because the SHARED rate limiter
+    # already lives INSIDE the clients: GeckoTerminalClient serializes every fetch
+    # through its own asyncio.Lock + 25/30-per-minute request log, and the
+    # DexScreener client paces its 4-worker pool. The four coroutines therefore
+    # queue behind those existing limiters rather than bursting -- the gather just
+    # overlaps the DS-primary path of one timeframe with the GT-fallback wait of
+    # another, recovering the latency the sequential note (above) gave up, while
+    # the per-client locks keep total in-flight requests within budget.
+    _parallel_chart = os.environ.get(
+        "PARALLEL_SCAN_MODE", "off"
+    ).strip().lower() in ("on", "1", "true", "yes")
+
+    if _parallel_chart:
+        candles_1m, candles_5m, candles_15m, candles_1h = await asyncio.gather(
+            _fetch_one(
+                "1m",
+                lambda: gt_client.fetch_1m(pool_address, limit=limit_1m),
+                (lambda: dexs_client.fetch_1m(pool_address, limit=limit_1m)) if dexs_client else None,
+            ),
+            _fetch_one(
+                "5m",
+                lambda: gt_client.fetch_5m(pool_address, limit=limit_5m),
+                (lambda: dexs_client.fetch_5m(pool_address, limit=limit_5m)) if dexs_client else None,
+            ),
+            _fetch_one(
+                "15m",
+                lambda: gt_client.fetch_15m(pool_address, limit=limit_15m),
+                (lambda: dexs_client.fetch_15m(pool_address, limit=limit_15m)) if dexs_client else None,
+            ),
+            _fetch_one(
+                "1h",
+                lambda: gt_client.fetch_1h(pool_address, limit=limit_1h),
+                (lambda: dexs_client.fetch_1h(pool_address, limit=limit_1h)) if dexs_client else None,
+            ),
+        )
+    else:
+        candles_1m = await _fetch_one(
+            "1m",
+            lambda: gt_client.fetch_1m(pool_address, limit=limit_1m),
+            (lambda: dexs_client.fetch_1m(pool_address, limit=limit_1m)) if dexs_client else None,
+        )
+        candles_5m = await _fetch_one(
+            "5m",
+            lambda: gt_client.fetch_5m(pool_address, limit=limit_5m),
+            (lambda: dexs_client.fetch_5m(pool_address, limit=limit_5m)) if dexs_client else None,
+        )
+        candles_15m = await _fetch_one(
+            "15m",
+            lambda: gt_client.fetch_15m(pool_address, limit=limit_15m),
+            (lambda: dexs_client.fetch_15m(pool_address, limit=limit_15m)) if dexs_client else None,
+        )
+        candles_1h = await _fetch_one(
+            "1h",
+            lambda: gt_client.fetch_1h(pool_address, limit=limit_1h),
+            (lambda: dexs_client.fetch_1h(pool_address, limit=limit_1h)) if dexs_client else None,
+        )
 
     # ────────────────────────────────────────────────────────────
     # 2026-05-12: Fallback aggregation for fresh-token coverage gaps
