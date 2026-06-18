@@ -140,6 +140,15 @@ class _JupSlipCached(Exception):
     hit without re-indenting the whole block. 2026-05-27 audit (#11)."""
 
 
+# Sentinel for the read-only prefetch cache (PARALLEL_SCAN_DECISION_MODE).
+# Distinguishes "this key is present and the value is genuinely absent / the
+# fetch failed" (-> degrade to inline await, identical to today) from "no
+# prefetch entry at all". A bare None or [] is a LEGITIMATE fetched value
+# (e.g. recent_trades=[] = a real empty trade log), so we cannot use None as
+# the miss marker — we use this dedicated object.
+_PREFETCH_MISS = object()
+
+
 class DipScanner:
     def __init__(self,
                  trader,
@@ -369,6 +378,14 @@ class DipScanner:
         # cycle. Cache the result ~90s so a token is sampled at most ~once/3 cycles.
         self._jup_slip_cache: Dict[str, tuple] = {}
         self._jup_slip_ttl: float = 90.0
+        # Per-CYCLE read-only prefetch cache (FIX, PARALLEL_SCAN_DECISION_MODE,
+        # 2026-06-17): address-keyed (lowercased) store of the heavy read-only
+        # per-token fetches (chart_data, recent_trades) warmed concurrently
+        # BEFORE the serial decision loop. _evaluate_pair reads from this cache
+        # when the flag is on; a missing/failed entry falls back to the existing
+        # inline-await path so behaviour never regresses. Rebuilt every cycle.
+        # NEVER symbol-keyed (symbol collisions are a known prior money bug).
+        self._scan_prefetch_cache: Dict[str, dict] = {}
         if bot_manager is not None and trade_store is not None:
             for ev in bot_manager.evaluators:
                 bc = ev.config
@@ -2455,6 +2472,248 @@ class DipScanner:
             pass
         return None
 
+    def _cheap_scan_survivor(self, pair, now_ms) -> bool:
+        """PARALLEL_SCAN_DECISION_MODE first-pass gate. Returns True if `pair`
+        should be PREFETCHED (warmed) — i.e. it could plausibly reach the heavy
+        per-token network fetches in _evaluate_pair.
+
+        SIDE-EFFECT-FREE by construction: reads only the in-memory pair dict +
+        self.open_positions_ref + the cooldown query. It does NOT mutate
+        self._h24_history, counters, or any cycle state (that all stays inside
+        the authoritative serial _evaluate_pair).
+
+        Deliberately CONSERVATIVE (a SUPERSET of true survivors): it only
+        applies the early `continue` gates that have NO baseline_mode /
+        _bdl / _user_watch / _yp bypass — the ones that unconditionally skip a
+        token in _evaluate_pair today (no_addr, stablecoin, already_open,
+        mcap_high, missing/invalid age). Bypassable gates (mcap_low, vol,
+        turnover, red_h24, the flow/dip filters) are NOT applied here, so a
+        token that _evaluate_pair would keep is NEVER excluded from the warm
+        set. Over-prefetching is harmless (just an unused warmed cache entry);
+        under-prefetching would only cause a graceful inline-await fallback.
+        Returns False -> not warmed (and _evaluate_pair will reject or
+        inline-fetch it exactly as today)."""
+        try:
+            bt = pair.get("baseToken") or {}
+            token_address = bt.get("address", "") or ""
+            if not token_address:
+                return False
+            if (bt.get("symbol", "?") or "").upper() in _STABLECOIN_SYMBOLS:
+                return False
+            _addr_lower = token_address.lower()
+            if _addr_lower in self.open_positions_ref or token_address in self.open_positions_ref:
+                return False
+            mcap = pair.get("marketCap") or 0
+            if mcap > self.max_mcap:
+                return False
+            created_ms = pair.get("pairCreatedAt") or 0
+            if created_ms <= 0:
+                return False
+            # Needs a pool address for the chart-data / recent-trades fetches.
+            if not (pair.get("pairAddress", "") or ""):
+                return False
+            return True
+        except Exception:
+            # Fail-OPEN: on any unexpected shape, let _evaluate_pair handle it
+            # inline (no behaviour change vs today).
+            return True
+
+    async def _prefetch_scan_reads(self, pairs, now_ms) -> None:
+        """PARALLEL_SCAN_DECISION_MODE warm pass (read-only).
+
+        1. FIRST pass: cheap synchronous survivor filter (_cheap_scan_survivor)
+           — no network, no buys, no state mutation.
+        2. Bounded-concurrency gather (semaphore) of the heavy READ-ONLY
+           per-token fetches for survivors, written into the address-keyed
+           self._scan_prefetch_cache (chart_data + recent_trades) and into the
+           existing self._jup_slip_cache (slippage curve warm). Goes THROUGH the
+           same client methods that already enforce GT/DexScreener rate limits.
+        3. The serial decision + buy-firing loop (_evaluate_pair) then reads
+           these caches instead of awaiting inline.
+
+        Every fetch is individually try/except'd; a failure stores the
+        _PREFETCH_MISS sentinel so _evaluate_pair degrades to its existing
+        inline-await path. No exception escapes this method.
+        """
+        # Dedup survivors by lowercased address (address-keyed throughout).
+        survivors: dict = {}
+        for pair in pairs:
+            if not self._cheap_scan_survivor(pair, now_ms):
+                continue
+            bt = pair.get("baseToken") or {}
+            _addr_lower = (bt.get("address", "") or "").lower()
+            if not _addr_lower or _addr_lower in survivors:
+                continue
+            survivors[_addr_lower] = pair
+        if not survivors:
+            return
+
+        try:
+            _conc = int(os.environ.get("PARALLEL_SCAN_DECISION_CONCURRENCY", "12"))
+        except (TypeError, ValueError):
+            _conc = 12
+        if _conc < 1:
+            _conc = 1
+        if _conc > 16:  # hard clamp — respect the underlying rate limits
+            _conc = 16
+        _sem = asyncio.Semaphore(_conc)
+
+        _slip_warm = os.environ.get(
+            "PARALLEL_SCAN_DECISION_SLIP_WARM", "on"
+        ).strip().lower() in ("on", "1", "true", "yes")
+
+        async def _warm_one(_addr_lower, pair):
+            entry = {
+                "chart_data": _PREFETCH_MISS,
+                "recent_trades": _PREFETCH_MISS,
+            }
+            token_address = (pair.get("baseToken") or {}).get("address", "") or ""
+            pair_addr = pair.get("pairAddress", "") or ""
+            async with _sem:
+                # (a) chart_data — same call _evaluate_pair makes inline.
+                if pair_addr:
+                    try:
+                        from feeds.chart_data import assemble_chart_data as _assemble
+                        entry["chart_data"] = await _assemble(
+                            self.gt_client, pair_addr, dexs_client=self.dexs_client
+                        )
+                    except Exception as _e:
+                        logger.debug(
+                            "[DipScanner] prefetch chart_data error for %s: %s",
+                            token_address, _e,
+                        )
+                        entry["chart_data"] = _PREFETCH_MISS
+                # (b) recent_trades — DexScreener primary, GT fallback (mirrors
+                #     _evaluate_pair exactly). [] is a real value, not a miss.
+                if pair_addr:
+                    _rt = None
+                    if self.dexs_client is not None:
+                        try:
+                            _rt = await self.dexs_client.fetch_recent_trades(pair_addr, limit=30)
+                        except Exception:
+                            _rt = None
+                    if not _rt:
+                        try:
+                            _rt = await self.gt_client.fetch_recent_trades(pair_addr, limit=30)
+                        except Exception:
+                            _rt = None
+                    entry["recent_trades"] = _rt if _rt is not None else _PREFETCH_MISS
+                # (c) slippage-curve warm -> fills the EXISTING _jup_slip_cache
+                #     (TTL-keyed by token_address) so _evaluate_pair takes its
+                #     cache-hit path. Best-effort; never raises.
+                if _slip_warm and token_address:
+                    try:
+                        await self._warm_jup_slip(token_address)
+                    except Exception as _e:
+                        logger.debug(
+                            "[DipScanner] prefetch slip warm error for %s: %s",
+                            token_address, _e,
+                        )
+            self._scan_prefetch_cache[_addr_lower] = entry
+
+        _tasks = [_warm_one(a, p) for a, p in survivors.items()]
+        _res = await asyncio.gather(*_tasks, return_exceptions=True)
+        for _r in _res:
+            if isinstance(_r, Exception):
+                logger.debug("[DipScanner] prefetch task error: %s", _r)
+
+    async def _warm_jup_slip(self, token_address: str) -> None:
+        """Pre-fill self._jup_slip_cache for `token_address` if not already
+        fresh, using the SAME 8-call Jupiter slippage sample _evaluate_pair runs
+        inline. On success _evaluate_pair takes the _JupSlipCached fast-path and
+        fires zero extra Jupiter calls; on any failure it simply re-samples
+        inline exactly as today. Best-effort — swallows all errors."""
+        _jc = self._jup_slip_cache.get(token_address)
+        if _jc and (time.time() - _jc[0]) < self._jup_slip_ttl:
+            return  # already fresh — nothing to do
+        try:
+            import aiohttp as _aio
+            _SOL_MINT = "So11111111111111111111111111111111111111112"
+            _JUP_URL = "https://api.jup.ag/swap/v1/quote"
+            sol_5m = getattr(self, "_cycle_sol_5m", []) or []
+            sol_price_est = sol_5m[-1].close if sol_5m else 80.0
+
+            async def _quote(session, params):
+                try:
+                    async with session.get(
+                        _JUP_URL, params=params,
+                        timeout=_aio.ClientTimeout(total=8),
+                    ) as _r:
+                        return await _r.json() if _r.status == 200 else None
+                except Exception:
+                    return None
+
+            async def _slippage_at(session, usd: float):
+                sol_amount = usd / max(sol_price_est, 1.0)
+                lamports = max(int(sol_amount * 1e9), 1_000_000)
+                buy_q = await _quote(session, {
+                    "inputMint": _SOL_MINT, "outputMint": token_address,
+                    "amount": lamports, "slippageBps": 300,
+                })
+                if not buy_q or not buy_q.get("outAmount"):
+                    return (None, None)
+                bi = float(buy_q.get("priceImpactPct") or 0) * 100
+                out_amt = int(buy_q["outAmount"])
+                si = None
+                for frac, slip_bps in ((1.0, 300), (0.5, 800), (0.25, 1500)):
+                    amount_try = max(int(out_amt * frac), 1)
+                    sell_q = await _quote(session, {
+                        "inputMint": token_address, "outputMint": _SOL_MINT,
+                        "amount": amount_try, "slippageBps": slip_bps,
+                    })
+                    if sell_q and sell_q.get("priceImpactPct") is not None:
+                        si = float(sell_q.get("priceImpactPct")) * 100
+                        break
+                return (bi, si)
+
+            jup_features: dict = {}
+            async with _aio.ClientSession() as _s:
+                base_buy_sol = self.position_usd / max(sol_price_est, 1.0)
+                base_lamports = max(int(base_buy_sol * 1e9), 1_000_000)
+                base_buy_q = await _quote(_s, {
+                    "inputMint": _SOL_MINT, "outputMint": token_address,
+                    "amount": base_lamports, "slippageBps": 300,
+                })
+                if base_buy_q and base_buy_q.get("outAmount"):
+                    bi0 = float(base_buy_q.get("priceImpactPct") or 0) * 100
+                    base_sell_q = await _quote(_s, {
+                        "inputMint": token_address, "outputMint": _SOL_MINT,
+                        "amount": int(base_buy_q["outAmount"]),
+                        "slippageBps": 300,
+                    })
+                    si0 = float(base_sell_q.get("priceImpactPct") or 0) * 100 if base_sell_q else 0.0
+                    jup_features = {
+                        "quote_buy_impact_pct": round(bi0, 4),
+                        "quote_sell_impact_pct": round(si0, 4),
+                        "quote_asymmetry_pct": round(si0 - bi0, 4),
+                    }
+                s500, s2k, s5k = await asyncio.gather(
+                    _slippage_at(_s, 500.0),
+                    _slippage_at(_s, 2000.0),
+                    _slippage_at(_s, 5000.0),
+                    return_exceptions=False,
+                )
+                for label, (bi, si) in (("500", s500), ("2000", s2k), ("5000", s5k)):
+                    if bi is not None:
+                        jup_features[f"slip_buy_{label}_pct"] = round(bi, 4)
+                    if si is not None:
+                        jup_features[f"slip_sell_{label}_pct"] = round(si, 4)
+                    if bi is not None and si is not None:
+                        jup_features[f"slip_asym_{label}_pct"] = round(si - bi, 4)
+                if s500[0] is not None and s5k[0] is not None:
+                    jup_features["slip_buy_curve_steepness"] = round(s5k[0] - s500[0], 4)
+                if s500[1] is not None and s5k[1] is not None:
+                    jup_features["slip_sell_curve_steepness"] = round(s5k[1] - s500[1], 4)
+            if jup_features:
+                _nowj = time.time()
+                self._jup_slip_cache[token_address] = (_nowj, dict(jup_features))
+                if len(self._jup_slip_cache) > 2000:
+                    for _k in [k for k, v in self._jup_slip_cache.items()
+                               if _nowj - v[0] > self._jup_slip_ttl]:
+                        self._jup_slip_cache.pop(_k, None)
+        except Exception as _e:
+            logger.debug("[DipScanner] _warm_jup_slip err for %s: %s", token_address, _e)
+
     async def _evaluate_pair(self, pair, _eval_ctx):
         """FIX 4: the per-token scan body, extracted verbatim from the former
         inline `for pair in pairs:` loop so it can run either serially (default)
@@ -3023,7 +3282,16 @@ class DipScanner:
             # `chart_data=` keyword arg — zero extra GT calls.
             from feeds.chart_data import assemble_chart_data as _assemble
             _chart_data = None
-            if pair_addr_for_1m:
+            # PARALLEL_SCAN_DECISION_MODE: prefer the warmed, address-keyed
+            # prefetch (populated concurrently before this serial loop). A
+            # genuine fetched value (incl. a falsy ChartData) is used directly;
+            # a MISS/absent entry falls through to the original inline await
+            # below -> byte-identical behaviour on any prefetch failure.
+            _pf = self._scan_prefetch_cache.get(_addr_lower)
+            _pf_chart = _pf.get("chart_data", _PREFETCH_MISS) if _pf else _PREFETCH_MISS
+            if _pf_chart is not _PREFETCH_MISS:
+                _chart_data = _pf_chart
+            elif pair_addr_for_1m:
                 try:
                     _chart_data = await _assemble(self.gt_client, pair_addr_for_1m, dexs_client=self.dexs_client)
                 except Exception as _e:
@@ -3871,25 +4139,35 @@ class DipScanner:
             # Single API call per signal-fire, cached 60s. Fail-open.
             recent_trades_features: dict = {}
             recent_trades = []
-            # Try DexScreener primary (much higher rate-limit headroom; GT
-            # was 100% 429-ing on this endpoint per pre-DexScreener audit).
-            if self.dexs_client is not None:
-                try:
-                    recent_trades = await self.dexs_client.fetch_recent_trades(
-                        pair_addr_for_1m, limit=30
-                    )
-                except Exception as _e:
-                    logger.debug(f"[DipScanner] dexs recent_trades error for {token_symbol}: {_e}")
-                    recent_trades = []
-            # Fall back to GT only if DexScreener returned nothing.
-            if not recent_trades:
-                try:
-                    recent_trades = await self.gt_client.fetch_recent_trades(
-                        pair_addr_for_1m, limit=30
-                    )
-                except Exception as _e:
-                    logger.debug(f"[DipScanner] recent_trades error for {token_symbol}: {_e}")
-                    recent_trades = []
+            # PARALLEL_SCAN_DECISION_MODE: prefer the warmed prefetch
+            # (address-keyed). A fetched value (incl. a real empty list) is used
+            # directly; a MISS/absent entry falls through to the inline
+            # DexScreener-primary / GT-fallback path below -> identical
+            # behaviour on any prefetch failure.
+            _pf2 = self._scan_prefetch_cache.get(_addr_lower)
+            _pf_rt = _pf2.get("recent_trades", _PREFETCH_MISS) if _pf2 else _PREFETCH_MISS
+            if _pf_rt is not _PREFETCH_MISS:
+                recent_trades = _pf_rt or []
+            else:
+                # Try DexScreener primary (much higher rate-limit headroom; GT
+                # was 100% 429-ing on this endpoint per pre-DexScreener audit).
+                if self.dexs_client is not None:
+                    try:
+                        recent_trades = await self.dexs_client.fetch_recent_trades(
+                            pair_addr_for_1m, limit=30
+                        )
+                    except Exception as _e:
+                        logger.debug(f"[DipScanner] dexs recent_trades error for {token_symbol}: {_e}")
+                        recent_trades = []
+                # Fall back to GT only if DexScreener returned nothing.
+                if not recent_trades:
+                    try:
+                        recent_trades = await self.gt_client.fetch_recent_trades(
+                            pair_addr_for_1m, limit=30
+                        )
+                    except Exception as _e:
+                        logger.debug(f"[DipScanner] recent_trades error for {token_symbol}: {_e}")
+                        recent_trades = []
             if recent_trades:
                 buys = [t for t in recent_trades if t.get("kind") == "buy"]
                 sells = [t for t in recent_trades if t.get("kind") == "sell"]
@@ -16680,6 +16958,29 @@ class DipScanner:
         _parallel_mode = os.environ.get(
             "PARALLEL_SCAN_MODE", "off"
         ).strip().lower() in ("on", "1", "true", "yes")
+
+        # ── PARALLEL_SCAN_DECISION_MODE warm pass (read-only prefetch) ───────
+        # Default 'off' -> cache stays EMPTY this cycle -> every _evaluate_pair
+        # cache lookup misses -> the inline-await path runs -> behaviour is
+        # BYTE-IDENTICAL to today. When 'on', warm the survivors' read-only
+        # fetches concurrently (bounded) BEFORE the serial decision/buy loop;
+        # _evaluate_pair then reads the cache. The decision + buy-firing loop
+        # below is UNCHANGED in either case (still serial, still _buy_fire_lock-
+        # serialized) — only the read-only fetches moved earlier.
+        self._scan_prefetch_cache = {}
+        _decision_prefetch = os.environ.get(
+            "PARALLEL_SCAN_DECISION_MODE", "off"
+        ).strip().lower() in ("on", "1", "true", "yes")
+        if _decision_prefetch:
+            try:
+                await self._prefetch_scan_reads(pairs, now_ms)
+            except Exception as _pf_e:
+                # Fail-OPEN: a prefetch-pass error leaves the cache as-is; every
+                # token simply degrades to its inline-await path. No regression.
+                logger.error(
+                    "[DipScanner] prefetch pass error (degrading to inline): %s",
+                    _pf_e, exc_info=_pf_e,
+                )
 
         if not _parallel_mode:
             # SERIAL (default) -- identical order + cap-break behaviour.
