@@ -27,7 +27,9 @@ and GT as the fallback.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -38,6 +40,23 @@ from feeds.dexscreener_trades_format import parse_trades
 logger = logging.getLogger(__name__)
 
 _DEXS_BASE = "https://io.dexscreener.com"
+
+# ── slug/quote cache persistence (BUILD A, 2026-06-17) ────────────────────────
+# _slug_cache and _quote_cache are stable pool->slug/quote IDENTITY mappings
+# (not prices) — they rarely change for a given pool. In-memory only, they were
+# wiped on every restart, forcing a cold cycle to re-resolve ~190 tokens via the
+# UNTHROTTLED public meta call (api.dexscreener.com/.../pairs/solana/{pair}).
+# Persisting them to DATA_DIR kills that cold-after-deploy re-resolution.
+# Default ON: pure speed/cost win with no signal effect (the live FILL re-prices
+# via BUY_REPRICE; this only affects pool->slug identity resolution).
+_SLUG_CACHE_PERSIST = (
+    os.environ.get("SLUG_CACHE_PERSIST", "on").strip().lower()
+    not in ("off", "0", "false", "no")
+)
+_DATA_DIR = os.environ.get("DATA_DIR", ".")
+_SLUG_CACHE_PATH = os.path.join(_DATA_DIR, "dexs_slug_quote_cache.json")
+# Throttle disk writes: persist at most once per this many seconds.
+_SLUG_CACHE_SAVE_INTERVAL = 60.0
 
 # Shared singleton accessor (2026-06-12 audit A1/A2): other modules fetching
 # io.dexscreener via curl_cffi must use THIS client's private executor +
@@ -115,21 +134,117 @@ class DexScreenerClient:
         self._cache: Dict[str, Tuple[float, List[Candle]]] = {}
         self._slug_cache: Dict[str, str] = {}
         self._quote_cache: Dict[str, str] = {}
+        # BUILD A: persisted slug/quote identity cache (survives restarts).
+        self._persist_path = _SLUG_CACHE_PATH
+        self._persist_enabled = _SLUG_CACHE_PERSIST
+        self._last_persist_save = 0.0
+        self._persist_dirty = False
+        if self._persist_enabled:
+            self._load_slug_cache()
         self._rate_per_min = rate_per_min
         self._request_log: List[float] = []
         self._lock = asyncio.Lock()
         self._session = None  # lazy-init curl_cffi session
+
+        # BUILD B (2026-06-17) — chart-BAR cross-cycle cache reuse.
+        # The bar-fetch cache TTL (used ONLY for OHLCV chart bars, NOT for the
+        # trades cache, which keeps `cache_ttl`) is env-tunable via
+        # CHART_BAR_TTL_SECS. Default = the constructor cache_ttl (60s) so
+        # behaviour is byte-identical when the env is unset. Setting it ABOVE
+        # the scan-cycle length (e.g. 180s) lets sticky tokens (re-scanned every
+        # cycle) reuse bars across cycles instead of re-fetching every cycle.
+        # The scan DECISION tolerates minutes-old bars; the live FILL re-prices
+        # separately via the BUY_REPRICE guard, so staleness here is safe.
+        # Fail-safe: any bad/zero value falls back to the constructor cache_ttl.
+        self._bar_cache_ttl = cache_ttl
+        try:
+            _bar_ttl = int(os.environ.get("CHART_BAR_TTL_SECS", "").strip())
+            if _bar_ttl > 0:
+                self._bar_cache_ttl = _bar_ttl
+        except (TypeError, ValueError):
+            pass
+
+        # BUILD B (2026-06-17) — DS fetch executor throughput.
         # Dedicated bounded executor (2026-06-11): when io.dexscreener rate-
         # limits us, each call hangs its thread for the full timeout. On the
         # GLOBAL to_thread pool (~32 threads) that starved the dashboard's
         # serialization threads -> every endpoint went dark while the loop
-        # crawled. A private 4-thread pool caps the blast radius to DS itself.
+        # crawled. A private bounded pool caps the blast radius to DS itself.
+        # Worker count is env-tunable via DS_FETCH_WORKERS (default 4, the prior
+        # hard-coded value; clamped to [1, 12] to keep the blast radius bounded).
+        _workers = 4
+        try:
+            _w = int(os.environ.get("DS_FETCH_WORKERS", "").strip())
+            if _w > 0:
+                _workers = max(1, min(12, _w))
+        except (TypeError, ValueError):
+            pass
+        self._fetch_workers = _workers
+
+        # DS per-call HTTP timeout (seconds), env-tunable via DS_FETCH_TIMEOUT_SECS.
+        # Default = 5 (the prior hard-coded value). Bad/zero values fall back.
+        _timeout = 5
+        try:
+            _t = int(os.environ.get("DS_FETCH_TIMEOUT_SECS", "").strip())
+            if _t > 0:
+                _timeout = _t
+        except (TypeError, ValueError):
+            pass
+        self._fetch_timeout = _timeout
+
         from concurrent.futures import ThreadPoolExecutor
-        self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="dexs")
+        self._executor = ThreadPoolExecutor(
+            max_workers=self._fetch_workers, thread_name_prefix="dexs")
         # Circuit breaker: consecutive failures open the circuit; while open,
         # calls return empty immediately (callers fall back to GeckoTerminal).
         self._fail_streak = 0
         self._circuit_open_until = 0.0
+
+    # ── slug/quote cache persistence (BUILD A) ───────────────────────────────
+    def _load_slug_cache(self) -> None:
+        """Load persisted slug/quote identity mappings on init. Best-effort;
+        a missing/corrupt file just leaves the in-memory caches empty (cold)."""
+        try:
+            with open(self._persist_path) as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            return
+        except Exception as e:
+            logger.warning(f"[DexScreener] slug-cache load failed: {e}")
+            return
+        slugs = data.get("slug") if isinstance(data, dict) else None
+        quotes = data.get("quote") if isinstance(data, dict) else None
+        if isinstance(slugs, dict):
+            self._slug_cache.update({str(k): str(v) for k, v in slugs.items() if v})
+        if isinstance(quotes, dict):
+            self._quote_cache.update({str(k): str(v) for k, v in quotes.items() if v})
+        logger.info(
+            f"[DexScreener] slug-cache loaded: {len(self._slug_cache)} slug / "
+            f"{len(self._quote_cache)} quote mappings (cold re-resolution avoided)"
+        )
+
+    def _save_slug_cache(self, force: bool = False) -> None:
+        """Atomically persist slug/quote caches to DATA_DIR. Throttled to once
+        per _SLUG_CACHE_SAVE_INTERVAL unless force=True. No-ops when persistence
+        is disabled or nothing changed since the last save."""
+        if not self._persist_enabled or not self._persist_dirty:
+            return
+        now = time.monotonic()
+        if not force and (now - self._last_persist_save) < _SLUG_CACHE_SAVE_INTERVAL:
+            return
+        try:
+            tmp = self._persist_path + ".tmp"
+            payload = {"slug": dict(self._slug_cache), "quote": dict(self._quote_cache)}
+            d = os.path.dirname(self._persist_path)
+            if d:
+                os.makedirs(d, exist_ok=True)
+            with open(tmp, "w") as f:
+                json.dump(payload, f)
+            os.replace(tmp, self._persist_path)
+            self._last_persist_save = now
+            self._persist_dirty = False
+        except Exception as e:
+            logger.warning(f"[DexScreener] slug-cache save failed: {e}")
 
     async def _run_fetch(self, fn, *args, **kwargs):
         """Run a sync curl_cffi call on the private executor."""
@@ -229,9 +344,16 @@ class DexScreenerClient:
                     f"— attempting dexId-as-slug fallback"
                 )
         if slug:
-            self._slug_cache[pair_address] = slug
+            if self._slug_cache.get(pair_address) != slug:
+                self._slug_cache[pair_address] = slug
+                self._persist_dirty = True
         if quote:
-            self._quote_cache[pair_address] = quote
+            if self._quote_cache.get(pair_address) != quote:
+                self._quote_cache[pair_address] = quote
+                self._persist_dirty = True
+        # BUILD A: persist newly-resolved identity mappings (throttled + atomic).
+        if self._persist_dirty:
+            self._save_slug_cache()
         return slug, quote or None
 
     @staticmethod
@@ -266,7 +388,13 @@ class DexScreenerClient:
             logger.debug(f"[DexScreener] unsupported res={res} (tf={timeframe} agg={aggregate})")
             return []
 
-        ttl = cache_ttl_override if cache_ttl_override is not None else self._cache_ttl
+        # BUILD B: chart-bar cache TTL = env-tunable _bar_cache_ttl (default 60s,
+        # the prior self._cache_ttl). When a per-call override is given (fetch_1h
+        # passes 300s because 1h bars only change hourly), keep the LONGER of the
+        # two so the env can only LENGTHEN reuse, never shorten the 1h floor.
+        ttl = self._bar_cache_ttl
+        if cache_ttl_override is not None:
+            ttl = max(ttl, cache_ttl_override)
         key = f"{res}:{pool_address}:{limit}"
         now = time.monotonic()
         async with self._lock:
@@ -292,7 +420,7 @@ class DexScreenerClient:
         try:
             sess = self._ensure_session()
             resp = await self._run_fetch(
-                sess.get, url, timeout=5,
+                sess.get, url, timeout=self._fetch_timeout,
                 headers={
                     "Origin": "https://dexscreener.com",
                     "Referer": "https://dexscreener.com/",
@@ -388,7 +516,7 @@ class DexScreenerClient:
         try:
             sess = self._ensure_session()
             resp = await self._run_fetch(
-                sess.get, url, timeout=5,
+                sess.get, url, timeout=self._fetch_timeout,
                 headers={
                     "Origin": "https://dexscreener.com",
                     "Referer": "https://dexscreener.com/",
