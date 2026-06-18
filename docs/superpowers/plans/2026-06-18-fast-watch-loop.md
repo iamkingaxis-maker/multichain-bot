@@ -214,7 +214,9 @@ def arm_subset(candidates, cfg: FastWatchConfig):
     n_cusp = max(0, int(round(cfg.armed_max * (1.0 - cfg.volatility_reserve))))
     armed = [a for _d, a in cusp[:n_cusp]]
     chosen = set(armed)
-    n_reserve = cfg.armed_max - len(armed)
+    # Reserve slots are gated on the volatility fraction (n_cusp), NOT leftover cusp capacity —
+    # so volatility_reserve=0 means NO backfill even when cusp under-fills.
+    n_reserve = cfg.armed_max - n_cusp
     if n_reserve > 0:
         vol = sorted(
             (c for c in in_band if c["addr"] not in chosen and c.get("vol_h1") is not None),
@@ -233,7 +235,7 @@ def rolling_dip_pct(samples):
     hi = max(vals)
     if hi <= 0:
         return None
-    return (vals[-1] / hi - 1.0) * 100.0
+    return round((vals[-1] / hi - 1.0) * 100.0, 6)   # round: 90/100 isn't exact in float
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -258,9 +260,9 @@ git commit -m "feat(fast-watch): Rev2 config + pure arm_subset + rolling_dip_pct
 
 - [ ] **Step 1: Replace the failing tick tests**
 
-In `tests/test_fast_watch.py`, REMOVE the Rev-1 Axiom-based helper `_scanner_for_tick` and its three
-tests (`test_fast_watch_tick_escalates_only_the_dip`, `_dedups_second_call`, `_survives_eval_exception`)
-and REPLACE with the armed-subset versions:
+In `tests/test_fast_watch.py`, ADD the armed-subset tick tests below. (NOTE: the Rev-1 Axiom-based
+`_scanner_for_tick` helper + its three tests were already removed in R1 to keep R1 green — do not look
+for them.)
 
 ```python
 def _scanner_for_tick_v2():
