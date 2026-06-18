@@ -24,8 +24,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-BREADTH_OFF = float(os.environ.get("BUY_GATE_BREADTH_OFF", "35"))   # h1_neg_pct >= -> broad-dump crash
-SOL_H6_OFF = float(os.environ.get("BUY_GATE_SOL_H6_OFF", "-3"))     # sol_pc_h6 <= -> hard SOL crash (6h, fast-release)
+# Recalibrated 2026-06-18 from the 4-week backtest (n=763): the unambiguous crash cliff is
+# breadth >= 40 ([40,50)=-6.93%/tr, 27% WR); the [35,40) zone is TWO-SIDED (51% WR) so it is
+# only a don't-buy when SOL is ALSO down on the day. The prior sol_pc_h6<=-3 arm was DEAD
+# (never fired); replaced with sol_pc_h24<=-1 gating only the mid-breadth band. Net: removes
+# ~311pp of bleed killing only ~9 winners (vs ~35 at the old flat breadth>=35).
+BREADTH_OFF = float(os.environ.get("BUY_GATE_BREADTH_OFF", "40"))     # >= -> crash cliff, block outright
+BREADTH_MID = float(os.environ.get("BUY_GATE_BREADTH_MID", "35"))     # [MID,OFF) two-sided -> block only if SOL also down
+SOL_H24_OFF = float(os.environ.get("BUY_GATE_SOL_H24_OFF", "-1"))     # sol_pc_h24 <= -> the day's tape is red
 
 
 def mode() -> str:
@@ -33,28 +39,32 @@ def mode() -> str:
     return os.environ.get("REGIME_BUY_GATE_MODE", "shadow").strip().lower()
 
 
-def gate_blocks(regime_h1_neg_pct, sol_pc_h6):
+def gate_blocks(regime_h1_neg_pct, sol_pc_h24):
     """Return (block: bool, reason: str). DON'T-BUY only on a clear crash.
-    FAIL-OPEN: any missing/bad feature contributes no block (never halts on a data gap).
-    OR of the two crash arms; re-evaluate each cycle for fast release."""
-    reasons = []
+    FAIL-OPEN: missing/bad feature contributes no block (never halts on a data gap).
+    Two arms: breadth>=40 (outright), OR breadth in [35,40) AND sol_pc_h24<=-1 (mid-breadth
+    on a red day). Re-evaluated each cycle (h1 breadth + h24 SOL) for fast release."""
+    b = s = None
     try:
-        if regime_h1_neg_pct is not None and float(regime_h1_neg_pct) >= BREADTH_OFF:
-            reasons.append(f"breadth={float(regime_h1_neg_pct):.0f}>={BREADTH_OFF:.0f}")
+        b = float(regime_h1_neg_pct) if regime_h1_neg_pct is not None else None
     except Exception:
-        pass
+        b = None
     try:
-        if sol_pc_h6 is not None and float(sol_pc_h6) <= SOL_H6_OFF:
-            reasons.append(f"sol_h6={float(sol_pc_h6):+.1f}<={SOL_H6_OFF:.0f}")
+        s = float(sol_pc_h24) if sol_pc_h24 is not None else None
     except Exception:
-        pass
-    return (bool(reasons), " OR ".join(reasons) if reasons else "ok")
+        s = None
+    if b is not None and b >= BREADTH_OFF:
+        return True, f"breadth={b:.0f}>={BREADTH_OFF:.0f}"
+    if (b is not None and b >= BREADTH_MID
+            and s is not None and s <= SOL_H24_OFF):
+        return True, f"breadth={b:.0f}>={BREADTH_MID:.0f} AND sol_h24={s:+.1f}<={SOL_H24_OFF:.0f}"
+    return False, "ok"
 
 
-def verdict(regime_h1_neg_pct, sol_pc_h6):
+def verdict(regime_h1_neg_pct, sol_pc_h24):
     """Cycle-level convenience: returns dict the scanner stashes + logs.
     off=False means the gate is OFF (don't buy); enforced reflects mode."""
-    block, reason = gate_blocks(regime_h1_neg_pct, sol_pc_h6)
+    block, reason = gate_blocks(regime_h1_neg_pct, sol_pc_h24)
     m = mode()
     return {
         "block": block,                 # would-block (regime is a crash)
@@ -62,5 +72,5 @@ def verdict(regime_h1_neg_pct, sol_pc_h6):
         "mode": m,
         "reason": reason,
         "breadth": regime_h1_neg_pct,
-        "sol_h6": sol_pc_h6,
+        "sol_h24": sol_pc_h24,
     }

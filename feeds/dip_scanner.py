@@ -16499,13 +16499,13 @@ class DipScanner:
         # no overblock. Fail-OPEN. mode=enforce|shadow|off. See core/regime_buy_gate.py.
         try:
             from core.regime_buy_gate import verdict as _bg_verdict
-            _bg_sol_h6 = (getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h6")
-            self._buy_gate = _bg_verdict(_regime_h1_neg_pct, _bg_sol_h6)
+            _bg_sol_h24 = (getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h24")
+            self._buy_gate = _bg_verdict(_regime_h1_neg_pct, _bg_sol_h24)
             if self._buy_gate.get("block"):
-                logger.info("[DipScanner] BUY-GATE %s: %s (breadth=%s sol_h6=%s)",
+                logger.info("[DipScanner] BUY-GATE %s: %s (breadth=%s sol_h24=%s)",
                             "ENFORCED-OFF (dip bots stand down)" if self._buy_gate.get("enforced")
                             else "would-block [shadow]",
-                            self._buy_gate.get("reason"), _regime_h1_neg_pct, _bg_sol_h6)
+                            self._buy_gate.get("reason"), _regime_h1_neg_pct, _bg_sol_h24)
         except Exception as _bg_e:
             self._buy_gate = None
             logger.debug(f"[DipScanner] buy-gate verdict error: {_bg_e}")
