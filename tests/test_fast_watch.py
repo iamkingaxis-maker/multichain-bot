@@ -141,3 +141,65 @@ def test_fanout_enforce_fires_only_allowlisted():
     asyncio.run(s._fast_route_decisions(decisions, bundle=None,
                                         allowlist={"a"}, shadow=False, token_symbol="T"))
     assert s.fired == [("fire", "a"), ("fire", "z")]   # routing fires given decisions under the lock
+
+
+def _scanner_for_tick(mode="shadow"):
+    from feeds.dip_scanner import DipScanner
+    s = DipScanner.__new__(DipScanner)
+    s._buy_fire_lock = asyncio.Lock()
+    s._sticky_watchlist = {
+        "DIPADDR": {"pair": {"pairAddress": "P", "priceUsd": "1"}},
+        "FLATADDR": {"pair": {"pairAddress": "P2"}},
+    }
+    s._token_registry = None
+    s._fast_watch_regime = {"_regime_n": 0, "_regime_dip_breadth_pct": None,
+                            "_regime_h1_neg_pct": None}
+
+    class _Feed:
+        def __init__(self): self.subscribed = []
+        def subscribe_token(self, a): self.subscribed.append(a)
+        def get_tick_trend(self, a, secs): return -5.0 if a == "DIPADDR" else -0.1
+    s.axiom_price_feed = _Feed()
+
+    s.evaluated = []
+    async def fake_eval(pair, ctx):
+        s.evaluated.append((pair.get("pairAddress"), ctx.get("_fast_path_shadow"),
+                            ctx.get("_fast_path_allowlist")))
+        return (None, 0, False)
+    s._evaluate_pair = fake_eval
+    return s
+
+
+def test_fast_watch_tick_escalates_only_the_dip(monkeypatch):
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    monkeypatch.setenv("FAST_WATCH_BOT_ALLOWLIST", "x,y")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s = _scanner_for_tick()
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    # Only the dipping token was evaluated; ctx carried shadow + allowlist.
+    assert s.evaluated == [("P", True, frozenset({"x", "y"}))]
+    # The whole cohort was subscribed (Tier 0).
+    assert set(s.axiom_price_feed.subscribed) == {"DIPADDR", "FLATADDR"}
+
+
+def test_fast_watch_tick_dedups_second_call(monkeypatch):
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s = _scanner_for_tick()
+    dedup = FastWatchDedup(cfg.eval_cooldown_secs)
+    asyncio.run(s._fast_watch_tick(cfg, dedup))
+    asyncio.run(s._fast_watch_tick(cfg, dedup))      # immediate re-tick
+    assert len(s.evaluated) == 1                     # deduped within TTL
+
+
+def test_fast_watch_tick_survives_eval_exception(monkeypatch):
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s = _scanner_for_tick()
+    async def boom(pair, ctx): raise RuntimeError("eval blew up")
+    s._evaluate_pair = boom
+    # Must not raise out of the tick.
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))

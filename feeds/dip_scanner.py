@@ -2731,6 +2731,96 @@ class DipScanner:
                 else:
                     await self._execute_bot_buy(d, bundle)
 
+    def _fast_held_or_blocked(self, addr, allowlist):
+        """Best-effort pre-check to skip tokens already held/blocked for the
+        scoped bots. Authoritative dedup still happens inside _execute_bot_buy
+        under the buy-fire lock (exclusion pool, capital, open positions)."""
+        reg = getattr(self, "_token_registry", None)
+        if reg is None:
+            return False
+        for bid in allowlist:
+            try:
+                if reg.is_blocked(bid, addr):
+                    return True
+            except Exception:
+                pass
+        return False
+
+    async def _fast_watch_tick(self, cfg, dedup):
+        from core.fast_watch import shortlist
+        feed = getattr(self, "axiom_price_feed", None)
+        if feed is None:
+            return
+        snapshot = list(self._sticky_watchlist.items())
+        # Tier 0: subscribe the cohort (idempotent; safe before WS connects).
+        for addr, _entry in snapshot:
+            try:
+                feed.subscribe_token(addr)
+            except Exception:
+                pass
+        now = time.time()
+        now_ms = int(now * 1000)
+        # Tier 1: cheap in-memory shortlist.
+        survivors = shortlist(
+            snapshot,
+            get_trend=lambda a, secs: self._fast_trend(feed, a, secs),
+            dedup=dedup,
+            is_held_or_blocked=lambda a: self._fast_held_or_blocked(a, cfg.bot_allowlist),
+            cfg=cfg,
+            now=now,
+        )
+        # Coverage health (how much of the cohort actually has live ticks).
+        have = sum(1 for a, _e in snapshot
+                   if self._fast_trend(feed, a, cfg.trend_secs) is not None)
+        logger.info("[fast-watch] tick cohort=%d live_ticks=%d shortlisted=%d mode=%s",
+                    len(snapshot), have, len(survivors), cfg.mode)
+        regime = getattr(self, "_fast_watch_regime", {}) or {}
+        # Tier 2: escalate survivors into the existing evaluation.
+        for addr, entry, _trend in survivors:
+            dedup.mark(addr, now)
+            pair = (entry or {}).get("pair")
+            if not pair:
+                continue
+            ctx = {
+                "now_ms": now_ms,
+                "_regime_n": regime.get("_regime_n", 0),
+                "_regime_dip_breadth_pct": regime.get("_regime_dip_breadth_pct"),
+                "_regime_h1_neg_pct": regime.get("_regime_h1_neg_pct"),
+                "_fast_path_allowlist": cfg.bot_allowlist,
+                "_fast_path_shadow": (cfg.mode == "shadow"),
+            }
+            try:
+                await self._evaluate_pair(pair, ctx)
+            except Exception as e:
+                logger.error("[fast-watch] eval failed token=%s: %s", addr, e, exc_info=True)
+
+    @staticmethod
+    def _fast_trend(feed, addr, secs):
+        try:
+            return feed.get_tick_trend(addr, secs)
+        except Exception:
+            return None
+
+    async def _fast_watch_loop(self):
+        from core.fast_watch import FastWatchConfig, FastWatchDedup
+        cfg = FastWatchConfig.from_env()
+        if cfg.mode == "off":
+            logger.info("[fast-watch] disabled (FAST_WATCH_MODE=off)")
+            return
+        logger.info("[fast-watch] starting mode=%s interval=%.1fs dip<=-%.1f%% "
+                    "trend=%ds allowlist=%d bots",
+                    cfg.mode, cfg.interval_secs, cfg.dip_pct, cfg.trend_secs,
+                    len(cfg.bot_allowlist))
+        if getattr(self, "_buy_fire_lock", None) is None:
+            self._buy_fire_lock = asyncio.Lock()
+        dedup = FastWatchDedup(cfg.eval_cooldown_secs)
+        while True:
+            try:
+                await self._fast_watch_tick(cfg, dedup)
+            except Exception as e:
+                logger.error("[fast-watch] tick error: %s", e, exc_info=True)
+            await asyncio.sleep(cfg.interval_secs)
+
     async def _evaluate_pair(self, pair, _eval_ctx):
         """FIX 4: the per-token scan body, extracted verbatim from the former
         inline `for pair in pairs:` loop so it can run either serially (default)
@@ -16976,6 +17066,13 @@ class DipScanner:
             self._buy_fire_lock = asyncio.Lock()
         _eval_ctx = {
             "now_ms": now_ms,
+            "_regime_n": _regime_n,
+            "_regime_dip_breadth_pct": _regime_dip_breadth_pct,
+            "_regime_h1_neg_pct": _regime_h1_neg_pct,
+        }
+        # Snapshot the regime ctx so the fast-watch loop can reuse the latest
+        # values between full cycles (it has no cycle of its own).
+        self._fast_watch_regime = {
             "_regime_n": _regime_n,
             "_regime_dip_breadth_pct": _regime_dip_breadth_pct,
             "_regime_h1_neg_pct": _regime_h1_neg_pct,
