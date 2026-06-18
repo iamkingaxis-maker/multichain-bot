@@ -292,3 +292,20 @@ def test_fast_tick_v2_empty_armed_is_noop(monkeypatch):
     s._fast_armed = {}
     asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
     assert s.evaluated == []
+
+
+def test_hitrate_log_marks_armed(monkeypatch, caplog):
+    import logging, types, asyncio as aio
+    from feeds.dip_scanner import DipScanner
+    s = DipScanner.__new__(DipScanner)
+    s._buy_fire_lock = aio.Lock()
+    s._fast_armed = {"TOKADDR": {"pairAddress": "P"}}
+    fired = []
+    async def fake_exec(d, bundle): fired.append(d.bot_id)
+    s._execute_bot_buy = fake_exec
+    d = types.SimpleNamespace(bot_id="a", token="TOKADDR")
+    with caplog.at_level(logging.INFO):
+        aio.run(s._fast_route_decisions([d], bundle=None, allowlist=None, shadow=False,
+                                        token_symbol="TOK"))
+    assert fired == ["a"]
+    assert any("hit-rate" in r.message and "armed=True" in r.message for r in caplog.records)

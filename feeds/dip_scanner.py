@@ -2744,6 +2744,13 @@ class DipScanner:
                         getattr(d, "bot_id", "?"), token_symbol,
                     )
                 else:
+                    _armed = getattr(self, "_fast_armed", {}) or {}
+                    _tok = getattr(d, "token", "") or ""
+                    logger.info(
+                        "[fast-watch] hit-rate buy bot=%s token=%s armed=%s",
+                        getattr(d, "bot_id", "?"), token_symbol,
+                        (_tok in _armed),
+                    )
                     await self._execute_bot_buy(d, bundle)
 
     def _fast_held_or_blocked(self, addr, allowlist):
@@ -16952,6 +16959,11 @@ class DipScanner:
                     )
                     continue
                 self._cycle_bought_addrs.add(_addr_lower)
+                _armed = getattr(self, "_fast_armed", {}) or {}
+                logger.info(
+                    "[fast-watch] hit-rate buy bot=legacy_dip token=%s armed=%s",
+                    token_symbol, (token_address in _armed),
+                )
                 await self.trader.buy(
                     token_address=token_address,
                     token_symbol=token_symbol,
