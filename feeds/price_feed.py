@@ -408,10 +408,18 @@ class PriceFeed:
                             if resp.status == 429:
                                 self._jup_backoff_until = time.time() + 60.0  # no Retry-After; ~60-70s clear
                                 logger.warning("[PriceFeed] Jupiter 429 — 60s backoff, failing over to DexScreener")
+                            else:
+                                # 5xx/other: short backoff so the NEXT sweep fails over to
+                                # DexScreener instead of retrying a down Jupiter (stops stay fed).
+                                self._jup_backoff_until = time.time() + 15.0
+                                logger.warning("[PriceFeed] Jupiter HTTP %s — 15s backoff, failing over to DexScreener", resp.status)
                             return fetched
                         data = await resp.json(content_type=None)
             except Exception as e:
                 logger.debug("[PriceFeed] Jupiter fetch error: %s", e)
+                # timeout/DNS/network error: short backoff -> next sweep uses DexScreener
+                # (don't leave stops blind retrying a down Jupiter).
+                self._jup_backoff_until = time.time() + 15.0
                 return fetched
             for mint, (price, block) in _parse_jupiter(data).items():
                 m = mint.lower()
