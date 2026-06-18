@@ -34,13 +34,17 @@ Catch a dip on an already-watched token within **~3–5s** instead of up to ~160
 **existing** `_evaluate_pair` decision sooner — without changing what we buy, which gates apply, or which
 bots fire (live pool + dip-entry, allowlisted).
 
-## The Rev 2 idea: arm a small subset, batch-poll only that
+## The Rev 2 idea: arm the near-miss subset, batch-poll only that
 
-Don't watch all 415. Each main scan cycle, **arm** the small subset of watchlist tokens that are
-plausibly *close to a buy* (cheap synchronous gates on cached `pair` data — no fetch). Then a fast loop
-**batch-polls only the armed subset** for fresh prices via DexScreener's multi-token JSON endpoint
-(≤30 addresses per call) every ~3s, detects a fresh dip from its own price samples, and escalates the
-0–N survivors into the existing `_evaluate_pair`.
+Don't watch all 415. Each main scan cycle, **arm** the small subset of watchlist tokens that are *one
+nudge from a buy* — measured by the scan's own **distance-to-fire** (see "Arming" below), not a crude
+price rank. Then a fast loop **batch-polls only the armed subset** for fresh prices via DexScreener's
+multi-token JSON endpoint (≤30 addresses per call) every ~3s, detects a fresh dip from its own price
+samples, and escalates the 0–N survivors into the existing `_evaluate_pair`.
+
+**Arming correctly is the entire value proposition.** If we arm the wrong tokens, the fast loop adds no
+speed (the ~150s sweep still catches the entry — no worse than today, just no win). So arming is driven
+by the richest signal available and validated empirically in shadow before enforce.
 
 At ≤30 armed tokens that is **1 DexScreener call / 3s = ~20 calls/min** against a ~300/min public limit —
 huge headroom, no dead-socket dependency, and it reuses the HTTP price path that already prices open
@@ -58,22 +62,41 @@ positions today.
 - The startup-window `__init__` initialization of the per-cycle attrs.
 
 **New / changed in Rev 2:**
-- `FastWatchConfig` gains `armed_max` and `sample_window`; drops `trend_secs` (Axiom-specific).
-- New arming step (cheap-gate subset selection over the sticky watchlist).
+- `FastWatchConfig` gains `armed_max`, `sample_window`, `volatility_reserve`; drops `trend_secs` (Axiom).
+- New arming driven by **distance-to-fire**: `_evaluate_pair` records a per-token near-miss arming record
+  on price-sensitive rejections; `_fast_arm_subset()` builds the armed set (near-miss cusp + volatility
+  reserve) at end of `_scan_cycle`.
 - New DexScreener batch price source + per-armed-token rolling price-sample buffers.
-- `_fast_watch_tick` rewritten to: arm → batch-poll → dip-from-samples → escalate. **No Axiom calls.**
+- `_fast_watch_tick` rewritten to: (read armed set) → batch-poll → dip-from-samples → escalate. **No
+  Axiom calls.**
+- New shadow instrumentation: **armed-set hit-rate** — every main-loop buy logs whether its token was
+  armed and the fast-loop lead time, so arming correctness is measured, not assumed.
 
 ## Architecture (Rev 2)
 
 A background coroutine on the `DipScanner` instance (unchanged spawn). Three tiers:
 
-### Tier 0 — Arm the subset (each main scan cycle, no fetch)
-After `_scan_cycle` refreshes the watchlist, compute the armed set from `_sticky_watchlist` using only
-cached `pair` fields + existing scanner thresholds (`self.min_mcap`, `self.max_mcap`, `self.min_age_ms`,
-the anti-rug liq floor): keep tokens in the mcap/liq/age band, rank by "closeness to a dip" (most
-negative cached `priceChange.h1`/`m5`), and cap to `FAST_WATCH_ARMED_MAX` (default 30). Store the armed
-set as `self._fast_armed: dict[addr -> pair]`. This is pure in-memory selection — no network, no
-side effects. Re-armed every cycle so the set tracks the freshest scan data and rotates as tokens age out.
+### Tier 0 — Arm the near-miss subset (during/after each scan cycle, no extra fetch)
+Arming is driven by the scan's own **distance-to-fire**, captured while `_evaluate_pair` already runs —
+not a separate crude rank. The dominant entry path is dip-buy, so the primary signal is **dip-distance to
+threshold**: `_evaluate_pair` already computes a token's current dip depth (off its 90m/recent high) and
+the dip-gate threshold; when a token is *rejected* for being too shallow, record `distance =
+gate_threshold − current_dip` (e.g. gate −20%, token −18% → distance 2pp). A small further drop fires it,
+and that is exactly what a 3s re-check catches.
+
+Mechanism: `_evaluate_pair` writes a per-token arming record into `self._fast_arm_candidates[addr] =
+{pair, distance, ts}` for tokens it rejects on a **price-sensitive near-miss** (dip too shallow is the
+primary; bs_m5 / m1-reversal / confirmation-candle just-under are secondary, same `distance` shape). At
+the end of `_scan_cycle`, `_fast_arm_subset()` builds `self._fast_armed` (dict addr→pair) by:
+1. taking the smallest-`distance` near-miss candidates (the cusp), up to
+   `FAST_WATCH_ARMED_MAX × (1 − FAST_WATCH_VOLATILITY_RESERVE)` slots;
+2. filling the remaining `FAST_WATCH_VOLATILITY_RESERVE` fraction (default 20% → ~6 of 30) with the
+   highest recent-volatility watchlist tokens (widest recent range / highest `volume.h1`, from cached
+   `pair` data) that are in the mcap/liq/age band — so a *sudden* crash on a token that wasn't a near-miss
+   at scan time still has a chance of being armed.
+This is pure in-memory selection (no network). Re-armed every cycle, so the set tracks the freshest scan
+and rotates; the exposure window for an un-armed sudden crash is bounded by the scan cadence (the ~150s
+sweep is the backstop). `_fast_arm_candidates` is reset at the start of each `_scan_cycle`.
 
 ### Tier 1 — Batch-poll the armed subset (every `FAST_WATCH_INTERVAL_SECS`, default 3s)
 One DexScreener call per ≤30 armed tokens:
@@ -101,8 +124,11 @@ already reviewed SHIP).
 ## Data flow (Rev 2)
 
 ```
+_evaluate_pair (per token, during the scan)
+   └─> on price-sensitive near-miss (dip too shallow): self._fast_arm_candidates[addr]={pair,distance,ts}
+
 _scan_cycle (every ~150s)
-   └─> Tier 0 arm: cheap-gate subset of _sticky_watchlist (mcap/liq/age band, ranked, cap 30)
+   └─> Tier 0 _fast_arm_subset(): smallest-distance near-misses + volatility reserve, cap 30
                    -> self._fast_armed {addr: pair}
 
 _fast_watch_tick (every ~3s)
@@ -141,11 +167,21 @@ _fast_watch_tick (every ~3s)
 - **Modify `core/fast_watch.py`** — add `armed_max` + `sample_window` to `FastWatchConfig.from_env`
   (drop `trend_secs`); add a tiny `rolling_dip_pct(samples, current)` helper (pure) used by the loop's
   `get_trend` callback. `dip_trigger`/`FastWatchDedup`/`shortlist` unchanged.
-- **Modify `feeds/dip_scanner.py`** — add `_fast_arm_subset()` (Tier 0, called at end of `_scan_cycle`);
-  add `_fast_batch_prices(addrs)` (DexScreener batch fetch); rewrite `_fast_watch_tick` for arm→poll→
-  dip→escalate; add `self._fast_armed` + `self._fast_samples` (dict[addr -> deque]) init in `__init__`.
-  Remove the Axiom subscribe + `_fast_trend`/`get_tick_trend` usage from the loop. `_fast_held_or_blocked`,
-  `_fast_route_decisions`, `_fast_watch_loop` skeleton, and the `run()` spawn stay.
+- **Modify `feeds/dip_scanner.py`** —
+  - In `_evaluate_pair`: on a price-sensitive near-miss rejection (primary: dip too shallow), write
+    `self._fast_arm_candidates[addr] = {pair, distance, ts}` where `distance = threshold − current`. Reads
+    values it already computes; no new fetch; guarded so it never alters the decision.
+  - Reset `self._fast_arm_candidates = {}` at the start of `_scan_cycle`; call `_fast_arm_subset()` at its
+    end to build `self._fast_armed` (near-miss cusp + volatility-reserve fill, cap `armed_max`).
+  - Add `_fast_batch_prices(addrs)` (DexScreener `/latest/dex/tokens/{≤30 csv}` fetch, map by
+    `baseToken.address`); rewrite `_fast_watch_tick` for read-armed → batch-poll → dip-from-samples →
+    escalate; add `self._fast_armed`, `self._fast_arm_candidates`, `self._fast_samples` (dict[addr→deque])
+    init in `__init__`.
+  - Add the **armed-hit-rate** log: where a buy actually fires (main fan-out + legacy path), emit
+    `[fast-watch] hit-rate buy bot=X token=Y armed=<bool> last_fast_sample_age=<s>` so shadow can compute
+    coverage of real entries.
+  - Remove the Axiom subscribe + `_fast_trend`/`get_tick_trend` usage from the loop. `_fast_held_or_blocked`,
+    `_fast_route_decisions`, `_fast_watch_loop` skeleton, and the `run()` spawn stay.
 - **Modify `tests/test_fast_watch.py`** — replace the Axiom-tick tick tests with armed-subset tests
   (arming selects the right band/cap; batch-parse maps by baseToken.address; rolling-dip triggers; dedup;
   shadow no-fire; exception-survival). Keep the Tasks 1–3 tests (allowlist/shadow/route — still valid).
@@ -157,6 +193,7 @@ _fast_watch_tick (every ~3s)
 | `FAST_WATCH_MODE` | `off` | `off` / `shadow` / `enforce` |
 | `FAST_WATCH_INTERVAL_SECS` | `3` | Tier-1 batch-poll cadence |
 | `FAST_WATCH_ARMED_MAX` | `30` | max armed tokens (= 1 DexScreener batch call) |
+| `FAST_WATCH_VOLATILITY_RESERVE` | `0.2` | fraction of armed slots for high-volatility (sudden-crash) tokens vs near-miss cusp |
 | `FAST_WATCH_SAMPLE_WINDOW` | `40` | per-token rolling price samples (~2 min at 3s) |
 | `FAST_WATCH_DIP_PCT` | `3` | dip threshold off the rolling high (loose superset trigger) |
 | `FAST_WATCH_EVAL_COOLDOWN_SECS` | `60` | per-token fast-eval TTL dedup |
@@ -166,7 +203,11 @@ _fast_watch_tick (every ~3s)
 
 1. **Shadow** (default once shipped): arm + poll + log `would-fire bot=X token=Y dip=Z% ~Ns ahead`. No
    money. Validate: (a) `polled` ≈ `armed` (DexScreener coverage is healthy, unlike Axiom's 0), (b)
-   would-fire entries lead the main loop, (c) zero double-decisions.
+   would-fire entries lead the main loop, (c) zero double-decisions, **and (d) the ARMED-HIT-RATE gate —
+   of the entries the main loop actually fired, the fraction whose token was armed at fire time (with the
+   median lead time)**. This is the direct test that we are arming the *correct* tokens. A low hit-rate
+   means the arming signal is wrong → tune `distance`/`volatility_reserve`/`armed_max` and re-measure
+   BEFORE enforce. Do not flip to enforce until the hit-rate is satisfactory.
 2. **Enforce** (explicit flip): fire scoped bots. **Paper first**; live is a separate AxiS decision
    (`PAPER_MODE` unchanged by this work).
 
@@ -174,7 +215,14 @@ _fast_watch_tick (every ~3s)
 
 Unit (`tests/test_fast_watch.py`):
 - Tasks 1–3 tests unchanged (allowlist filter, shadow no-fire, route order, byte-identical-off).
-- Arming: selects only in-band tokens (mcap/liq/age), ranks by dip-closeness, caps to `armed_max`.
+- Arming (`_fast_arm_subset`): given near-miss candidates with distances + a watchlist, selects the
+  smallest-`distance` tokens for the cusp slots and fills the `volatility_reserve` fraction with the
+  highest-volatility in-band tokens; respects `armed_max`; deterministic for a given input.
+- Distance capture: a price-sensitive near-miss rejection writes a candidate record with
+  `distance = threshold − current`; a clean pass or a non-price rejection writes none; the capture never
+  changes the decision (assert decision identical with/without the capture path).
+- Armed-hit-rate log: a fired buy emits the hit-rate line with `armed=<bool>` reflecting whether the
+  token was in `self._fast_armed`.
 - Batch parse: maps `pairs[]` to tokens by lowercased `baseToken.address`; ignores unknown/extra pairs;
   missing token → no sample.
 - `rolling_dip_pct`: correct % off the window max; <2 samples → None (no trigger).
@@ -190,7 +238,8 @@ double-decisions across real cycles.
 
 - `FAST_WATCH_MODE=off` ⇒ byte-identical to today (loop returns immediately).
 - In shadow: `[fast-watch] tick armed=N polled=M dipped=K` shows `M≈N` (healthy DexScreener coverage,
-  not 0), would-fire lines lead the main loop, zero double-decisions.
+  not 0), would-fire lines lead the main loop, zero double-decisions, and the **armed-hit-rate** of actual
+  fired entries is high enough to justify enforce (the explicit go/no-go on whether arming is correct).
 - DexScreener call rate stays ≪ limit (≤ a few calls per tick).
 - In enforce (paper): buys fire only for allowlisted bots; no double-buys vs the main loop; loop survives
   DexScreener errors (skips a tick, recovers).
