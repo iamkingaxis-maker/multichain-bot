@@ -2771,6 +2771,7 @@ class DipScanner:
     def _fast_arm_subset(self, cfg, now_ms):
         """Tier 0: build self._fast_armed from the watchlist via proxy distance-to-dip-zone.
         Pure in-memory selection over cached pair data; no network, no _evaluate_pair change."""
+        import dataclasses
         from core.fast_watch import arm_subset
         cands = []
         for addr, entry in list(self._sticky_watchlist.items()):
@@ -2788,6 +2789,11 @@ class DipScanner:
             age_ok = created and (now_ms - created) >= self.min_age_ms
             in_band = bool(self.min_mcap <= mcap <= self.max_mcap and liq > 0 and age_ok)
             cands.append({"addr": addr, "pc_h1": pc_h1, "vol_h1": vol_h1, "in_band": in_band})
+        # Jupiter does 50 ids/call at 84 req/min -> can poll the WHOLE in-band watchlist;
+        # the 30-cap was a workaround for the DexScreener pair-limit, not a Jupiter constraint.
+        if os.environ.get("JUPITER_PRICE_PRIMARY", "off").strip().lower() in ("on", "1", "true", "yes"):
+            n_inband = sum(1 for c in cands if c.get("in_band"))
+            cfg = dataclasses.replace(cfg, armed_max=max(cfg.armed_max, n_inband))
         armed_addrs = arm_subset(cands, cfg)
         new_armed = {}
         for addr in armed_addrs:
@@ -2802,12 +2808,32 @@ class DipScanner:
                 self._fast_samples.pop(addr, None)
 
     async def _fast_batch_prices(self, addrs):
-        """Tier 1 fetch: fresh priceUsd for <=30 addrs per DexScreener call.
-        Returns {addr_lower: price}. Best-effort — returns partial/{} on failure."""
+        """Tier 1 fetch: fresh priceUsd per batch call. Returns {addr_lower: price}.
+        Best-effort — returns partial/{} on failure.
+
+        JUPITER_PRICE_PRIMARY=on -> Jupiter lite price/v3 (keyless, 50 ids/call,
+        SERIALIZED — a parallel burst self-DoSes into 429; strip CRLF). Else the
+        legacy DexScreener /latest/dex/tokens path (chunk 30)."""
         out = {}
         if not addrs:
             return out
         import aiohttp
+        if os.environ.get("JUPITER_PRICE_PRIMARY", "off").strip().lower() in ("on", "1", "true", "yes"):
+            from feeds.price_feed import _jup_chunks, _jup_clean_ids, _parse_jupiter
+            ids = _jup_clean_ids(addrs)
+            for chunk in _jup_chunks(ids, 50):
+                url = "https://lite-api.jup.ag/price/v3?ids=" + ",".join(chunk)
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                            if resp.status != 200:
+                                continue
+                            data = await resp.json(content_type=None)
+                    for mint, (price, _block) in _parse_jupiter(data).items():
+                        out[mint.lower()] = price
+                except Exception as e:
+                    logger.debug("[fast-watch] jupiter batch price fetch failed: %s", e)
+            return out
         for i in range(0, len(addrs), 30):
             chunk = addrs[i:i + 30]
             url = "https://api.dexscreener.com/latest/dex/tokens/" + ",".join(chunk)

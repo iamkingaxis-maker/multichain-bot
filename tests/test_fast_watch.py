@@ -311,6 +311,133 @@ def test_fast_tick_v2_empty_armed_is_noop(monkeypatch):
     assert s.evaluated == []
 
 
+def test_fast_batch_prices_uses_jupiter_when_primary(monkeypatch):
+    """JUPITER_PRICE_PRIMARY=on -> _fast_batch_prices builds lite-api.jup.ag
+    price/v3 URLs chunked at 50, SERIALIZED, parses usdPrice -> {addr_lower: price}."""
+    monkeypatch.setenv("JUPITER_PRICE_PRIMARY", "on")
+    from feeds.dip_scanner import DipScanner
+    s = DipScanner.__new__(DipScanner)
+    addrs = [f"M{i}" for i in range(120)]
+    captured = {"urls": []}
+
+    class _FakeResp:
+        def __init__(self, url):
+            self._url = url
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            return False
+        @property
+        def status(self):
+            return 200
+        async def json(self, content_type=None):
+            # echo back a Jupiter payload for the ids in this chunk
+            ids = self._url.split("ids=", 1)[1].split(",")
+            return {mid: {"usdPrice": 0.5, "blockId": 1} for mid in ids}
+
+    class _FakeSession:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            return False
+        def get(self, url, timeout=None):
+            captured["urls"].append(url)
+            return _FakeResp(url)
+
+    import aiohttp
+    monkeypatch.setattr(aiohttp, "ClientSession", lambda *a, **k: _FakeSession())
+
+    out = asyncio.run(s._fast_batch_prices(addrs))
+    # 120 ids -> chunked at 50 -> 3 calls
+    assert len(captured["urls"]) == 3
+    assert all(u.startswith("https://lite-api.jup.ag/price/v3?ids=") for u in captured["urls"])
+    # chunk sizes 50/50/20 (count commas+1)
+    sizes = [u.split("ids=", 1)[1].count(",") + 1 for u in captured["urls"]]
+    assert sizes == [50, 50, 20]
+    # parsed -> lowercased addr -> price
+    assert out == {f"m{i}": 0.5 for i in range(120)}
+
+
+def test_fast_batch_prices_uses_dexscreener_when_flag_off(monkeypatch):
+    """Flag off -> existing DexScreener /latest/dex/tokens path (chunk 30), unchanged."""
+    monkeypatch.delenv("JUPITER_PRICE_PRIMARY", raising=False)
+    from feeds.dip_scanner import DipScanner
+    s = DipScanner.__new__(DipScanner)
+    addrs = ["AAA", "BBB"]
+    captured = {"urls": []}
+
+    class _FakeResp:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            return False
+        async def json(self, content_type=None):
+            return {"pairs": [{"baseToken": {"address": "AAA"}, "priceUsd": "1.5"},
+                              {"baseToken": {"address": "BBB"}, "priceUsd": "2.0"}]}
+
+    class _FakeSession:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            return False
+        def get(self, url, timeout=None):
+            captured["urls"].append(url)
+            return _FakeResp()
+
+    import aiohttp
+    monkeypatch.setattr(aiohttp, "ClientSession", lambda *a, **k: _FakeSession())
+
+    out = asyncio.run(s._fast_batch_prices(addrs))
+    assert len(captured["urls"]) == 1
+    assert captured["urls"][0].startswith("https://api.dexscreener.com/latest/dex/tokens/")
+    assert out == {"aaa": 1.5, "bbb": 2.0}
+
+
+def _scanner_for_arm(n_inband):
+    from feeds.dip_scanner import DipScanner
+    s = DipScanner.__new__(DipScanner)
+    s.min_age_ms = 0
+    s.min_mcap = 1.0
+    s.max_mcap = 1e12
+    s._fast_samples = {}
+    now_ms = 10_000_000
+    wl = {}
+    for i in range(n_inband):
+        wl[f"T{i}"] = {"pair": {
+            "marketCap": 100_000,
+            "liquidity": {"usd": 50_000},
+            "pairCreatedAt": 1,
+            "priceChange": {"h1": -1.0},   # |pc_h1| <= band -> in-play
+            "volume": {"h1": float(i)},
+        }}
+    s._sticky_watchlist = wl
+    return s, now_ms
+
+
+def test_fast_arm_subset_arms_whole_watchlist_when_jupiter_primary(monkeypatch):
+    """JUPITER_PRICE_PRIMARY=on -> arm ALL in-band in-play candidates (no 30 cap)."""
+    monkeypatch.setenv("JUPITER_PRICE_PRIMARY", "on")
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig(mode="shadow", interval_secs=3.0, dip_pct=3.0, rise_pct=3.0,
+                          eval_cooldown_secs=60.0, bot_allowlist=frozenset({"x"}),
+                          armed_max=30, sample_window=40, arm_band_pp=15.0)
+    s, now_ms = _scanner_for_arm(100)
+    s._fast_arm_subset(cfg, now_ms)
+    assert len(s._fast_armed) == 100   # whole in-band watchlist, not capped at 30
+
+
+def test_fast_arm_subset_caps_at_30_when_flag_off(monkeypatch):
+    """Flag off -> existing armed_max=30 cap preserved (unchanged behavior)."""
+    monkeypatch.delenv("JUPITER_PRICE_PRIMARY", raising=False)
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig(mode="shadow", interval_secs=3.0, dip_pct=3.0, rise_pct=3.0,
+                          eval_cooldown_secs=60.0, bot_allowlist=frozenset({"x"}),
+                          armed_max=30, sample_window=40, arm_band_pp=15.0)
+    s, now_ms = _scanner_for_arm(100)
+    s._fast_arm_subset(cfg, now_ms)
+    assert len(s._fast_armed) == 30    # capped at armed_max
+
+
 def test_hitrate_log_marks_armed(monkeypatch, caplog):
     import logging, types, asyncio as aio
     from feeds.dip_scanner import DipScanner
