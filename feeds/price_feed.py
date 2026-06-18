@@ -278,14 +278,42 @@ class PriceFeed:
                 continue
 
             tokens_to_poll = list(self._watched)
-            # Batch into groups of 30 (DexScreener limit)
-            for i in range(0, len(tokens_to_poll), 30):
-                batch = tokens_to_poll[i:i+30]
-                await self._poll_batch(batch)
-                if len(tokens_to_poll) > 30:
-                    await asyncio.sleep(0.5)
+            jup_primary = (
+                os.environ.get("JUPITER_PRICE_PRIMARY", "off").strip().lower()
+                in ("on", "1", "true", "yes")
+                and time.time() >= self._jup_backoff_until
+            )
+            await self._poll_one_sweep(tokens_to_poll)
+            if jup_primary:
+                # Jupiter-primary cadence (5s default). On 429 the next sweep
+                # auto-falls to DexScreener via _poll_one_sweep's gate.
+                await asyncio.sleep(float(os.environ.get("JUPITER_POLL_SECS", "5.0")))
+            else:
+                await asyncio.sleep(0.5)
 
-            await asyncio.sleep(0.5)
+    async def _poll_one_sweep(self, tokens_to_poll: list):
+        """Run ONE price sweep over the watchlist, choosing the feed per-sweep.
+
+        - Jupiter-primary (flag JUPITER_PRICE_PRIMARY on AND not in 429 backoff):
+          one serialized Jupiter sweep (chunks 50 internally).
+        - Otherwise (flag off OR Jupiter backing off): DexScreener — BOTH the
+          flag-off default AND the Jupiter-backoff failover. The DexScreener
+          path here is byte-identical to the legacy 30-batch loop.
+        """
+        if (
+            os.environ.get("JUPITER_PRICE_PRIMARY", "off").strip().lower()
+            in ("on", "1", "true", "yes")
+            and time.time() >= self._jup_backoff_until
+        ):
+            await self._poll_batch_jupiter(tokens_to_poll)
+            return
+
+        # DexScreener: batch into groups of 30 (DexScreener limit)
+        for i in range(0, len(tokens_to_poll), 30):
+            batch = tokens_to_poll[i:i+30]
+            await self._poll_batch(batch)
+            if len(tokens_to_poll) > 30:
+                await asyncio.sleep(0.5)
 
     async def _poll_batch(self, addresses: list):
         """Poll a batch of token addresses from DexScreener."""
@@ -309,14 +337,14 @@ class PriceFeed:
                         if resp.status == 429:
                             # Enter 30s backoff. Only log when first entering the
                             # window (suppresses thousands of duplicate WARNINGs
-                            # during a ban). Helius/Axiom price feeds still
-                            # cover Solana stops during the cooldown.
+                            # during a ban). Jupiter/DexScreener cross-CDN
+                            # failover covers Solana stops during the cooldown.
                             already_in_backoff = time.time() < self._ds_backoff_until
                             self._ds_backoff_until = time.time() + 30.0
                             if not already_in_backoff:
                                 logger.warning(
                                     f"[PriceFeed] DexScreener 429 ({len(addresses)} tokens) — "
-                                    f"backing off 30s. Helius/Axiom feeds carry Solana stops."
+                                    f"backing off 30s. Jupiter/DexScreener cross-CDN failover active."
                                 )
                         elif resp.status >= 500:
                             logger.warning(
