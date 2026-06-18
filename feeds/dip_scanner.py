@@ -265,6 +265,8 @@ class DipScanner:
         self.last_sol_features: dict = {}
         self.last_sol_features_ts: float = 0.0
         self._sticky_watchlist: Dict[str, dict] = {}
+        self._fast_armed: Dict[str, dict] = {}      # addr -> pair (armed subset, rebuilt each cycle)
+        self._fast_samples: Dict[str, deque] = {}   # addr -> rolling price deque (fast-watch batch poll)
         # Initialized here too so the fast-watch loop can call _evaluate_pair
         # before the first _scan_cycle sets these per-cycle (else AttributeError
         # in the startup window).
@@ -2759,41 +2761,102 @@ class DipScanner:
                 pass
         return False
 
-    async def _fast_watch_tick(self, cfg, dedup):
-        from core.fast_watch import shortlist
-        feed = getattr(self, "axiom_price_feed", None)
-        if feed is None:
-            return
-        snapshot = list(self._sticky_watchlist.items())
-        # Tier 0: subscribe the cohort (idempotent; safe before WS connects).
-        for addr, _entry in snapshot:
+    def _fast_arm_subset(self, cfg, now_ms):
+        """Tier 0: build self._fast_armed from the watchlist via proxy distance-to-dip-zone.
+        Pure in-memory selection over cached pair data; no network, no _evaluate_pair change."""
+        from core.fast_watch import arm_subset
+        cands = []
+        for addr, entry in list(self._sticky_watchlist.items()):
+            pair = (entry or {}).get("pair") or {}
             try:
-                feed.subscribe_token(addr)
-            except Exception:
-                pass
+                mcap = float(pair.get("marketCap") or 0)
+                liq = float((pair.get("liquidity") or {}).get("usd") or 0)
+                created = pair.get("pairCreatedAt") or 0
+                pch = pair.get("priceChange") or {}
+                _h1 = pch.get("h1")
+                pc_h1 = float(_h1) if _h1 is not None else None
+                vol_h1 = float((pair.get("volume") or {}).get("h1") or 0)
+            except (TypeError, ValueError):
+                continue
+            age_ok = created and (now_ms - created) >= self.min_age_ms
+            in_band = bool(self.min_mcap <= mcap <= self.max_mcap and liq > 0 and age_ok)
+            cands.append({"addr": addr, "pc_h1": pc_h1, "vol_h1": vol_h1, "in_band": in_band})
+        armed_addrs = arm_subset(cands, cfg)
+        new_armed = {}
+        for addr in armed_addrs:
+            entry = self._sticky_watchlist.get(addr) or {}
+            pair = entry.get("pair")
+            if pair:
+                new_armed[addr] = pair
+        self._fast_armed = new_armed
+        # Drop sample buffers for tokens no longer armed (bound memory).
+        for addr in list(self._fast_samples.keys()):
+            if addr not in self._fast_armed:
+                self._fast_samples.pop(addr, None)
+
+    async def _fast_batch_prices(self, addrs):
+        """Tier 1 fetch: fresh priceUsd for <=30 addrs per DexScreener call.
+        Returns {addr_lower: price}. Best-effort — returns partial/{} on failure."""
+        out = {}
+        if not addrs:
+            return out
+        import aiohttp
+        for i in range(0, len(addrs), 30):
+            chunk = addrs[i:i + 30]
+            url = "https://api.dexscreener.com/latest/dex/tokens/" + ",".join(chunk)
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                        data = await resp.json(content_type=None)
+                for p in (data or {}).get("pairs") or []:
+                    base = ((p.get("baseToken") or {}).get("address") or "").lower()
+                    pr = p.get("priceUsd")
+                    if base and pr:
+                        try:
+                            out[base] = float(pr)
+                        except (TypeError, ValueError):
+                            pass
+            except Exception as e:
+                logger.debug("[fast-watch] batch price fetch failed: %s", e)
+        return out
+
+    async def _fast_watch_tick(self, cfg, dedup):
+        from core.fast_watch import shortlist, rolling_dip_pct
+        armed = dict(self._fast_armed)   # snapshot
+        if not armed:
+            logger.info("[fast-watch] tick armed=0 polled=0 dipped=0 mode=%s", cfg.mode)
+            return
+        addrs = list(armed.keys())
+        prices = await self._fast_batch_prices(addrs)
         now = time.time()
         now_ms = int(now * 1000)
-        # Tier 1: cheap in-memory shortlist.
+        polled = 0
+        for addr in addrs:
+            pr = prices.get(addr.lower())
+            if pr is None:
+                continue
+            polled += 1
+            buf = self._fast_samples.setdefault(addr, deque(maxlen=cfg.sample_window))
+            buf.append(pr)
+        snapshot = [(addr, armed[addr]) for addr in addrs]
         survivors = shortlist(
             snapshot,
-            get_trend=lambda a, secs: self._fast_trend(feed, a, secs),
+            get_trend=lambda a: rolling_dip_pct(self._fast_samples.get(a) or ()),
             dedup=dedup,
             is_held_or_blocked=lambda a: self._fast_held_or_blocked(a, cfg.bot_allowlist),
-            cfg=cfg,
-            now=now,
+            cfg=cfg, now=now,
         )
-        # Coverage health (how much of the cohort actually has live ticks).
-        have = sum(1 for a, _e in snapshot
-                   if self._fast_trend(feed, a, cfg.trend_secs) is not None)
-        logger.info("[fast-watch] tick cohort=%d live_ticks=%d shortlisted=%d mode=%s",
-                    len(snapshot), have, len(survivors), cfg.mode)
+        logger.info("[fast-watch] tick armed=%d polled=%d dipped=%d mode=%s",
+                    len(addrs), polled, len(survivors), cfg.mode)
         regime = getattr(self, "_fast_watch_regime", {}) or {}
-        # Tier 2: escalate survivors into the existing evaluation.
-        for addr, entry, _trend in survivors:
+        for addr, pair, _trend in survivors:
             dedup.mark(addr, now)
-            pair = (entry or {}).get("pair")
             if not pair:
                 continue
+            fresh = prices.get(addr.lower())
+            if fresh:
+                pair = dict(pair)
+                pair["priceUsd"] = str(fresh)
             ctx = {
                 "now_ms": now_ms,
                 "_regime_n": regime.get("_regime_n", 0),
@@ -2807,13 +2870,6 @@ class DipScanner:
             except Exception as e:
                 logger.error("[fast-watch] eval failed token=%s: %s", addr, e, exc_info=True)
 
-    @staticmethod
-    def _fast_trend(feed, addr, secs):
-        try:
-            return feed.get_tick_trend(addr, secs)
-        except Exception:
-            return None
-
     async def _fast_watch_loop(self):
         from core.fast_watch import FastWatchConfig, FastWatchDedup
         cfg = FastWatchConfig.from_env()
@@ -2821,8 +2877,8 @@ class DipScanner:
             logger.info("[fast-watch] disabled (FAST_WATCH_MODE=off)")
             return
         logger.info("[fast-watch] starting mode=%s interval=%.1fs dip<=-%.1f%% "
-                    "trend=%ds allowlist=%d bots",
-                    cfg.mode, cfg.interval_secs, cfg.dip_pct, cfg.trend_secs,
+                    "armed_max=%d allowlist=%d bots",
+                    cfg.mode, cfg.interval_secs, cfg.dip_pct, cfg.armed_max,
                     len(cfg.bot_allowlist))
         if getattr(self, "_buy_fire_lock", None) is None:
             self._buy_fire_lock = asyncio.Lock()
@@ -17090,6 +17146,14 @@ class DipScanner:
             "_regime_dip_breadth_pct": _regime_dip_breadth_pct,
             "_regime_h1_neg_pct": _regime_h1_neg_pct,
         }
+        # Tier 0: re-arm the fast-watch subset from this cycle's fresh watchlist data.
+        try:
+            from core.fast_watch import FastWatchConfig as _FWC
+            _fw_cfg = _FWC.from_env()
+            if _fw_cfg.mode != "off":
+                self._fast_arm_subset(_fw_cfg, now_ms)
+        except Exception as _arm_e:
+            logger.error("[fast-watch] arm subset error: %s", _arm_e)
         _parallel_mode = os.environ.get(
             "PARALLEL_SCAN_MODE", "off"
         ).strip().lower() in ("on", "1", "true", "yes")

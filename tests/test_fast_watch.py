@@ -220,3 +220,75 @@ def test_evaluate_pair_cycle_attrs_initialized_in_init():
     src = inspect.getsource(DipScanner.__init__)
     for attr in ("_cycle_bought_addrs", "_cycle_trend_reversal_blocked", "_fp_shadow_culled"):
         assert f"self.{attr}" in src, f"{attr} not initialized in __init__"
+
+
+def _scanner_for_tick_v2():
+    from feeds.dip_scanner import DipScanner
+    s = DipScanner.__new__(DipScanner)
+    s._buy_fire_lock = asyncio.Lock()
+    s._token_registry = None
+    s._fast_watch_regime = {"_regime_n": 0, "_regime_dip_breadth_pct": None, "_regime_h1_neg_pct": None}
+    # armed set: DIP token will be made to dip via injected batch prices; FLAT will not.
+    s._fast_armed = {
+        "DIPADDR": {"pairAddress": "P", "priceUsd": "1"},
+        "FLATADDR": {"pairAddress": "P2", "priceUsd": "1"},
+    }
+    from collections import deque
+    s._fast_samples = {}
+    # Pre-seed a high sample so a single fresh low price registers as a dip.
+    s._fast_samples["DIPADDR"] = deque([1.00], maxlen=40)
+    s._fast_samples["FLATADDR"] = deque([1.00], maxlen=40)
+
+    async def fake_batch(addrs):
+        return {"dipaddr": 0.90, "flataddr": 1.00}   # DIP drops 10%, FLAT flat
+    s._fast_batch_prices = fake_batch
+
+    s.evaluated = []
+    async def fake_eval(pair, ctx):
+        s.evaluated.append((pair.get("pairAddress"), ctx.get("_fast_path_shadow"),
+                            ctx.get("_fast_path_allowlist")))
+        return (None, 0, False)
+    s._evaluate_pair = fake_eval
+    return s
+
+
+def test_fast_tick_v2_escalates_only_the_dip(monkeypatch):
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    monkeypatch.setenv("FAST_WATCH_BOT_ALLOWLIST", "x,y")
+    monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s = _scanner_for_tick_v2()
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    assert s.evaluated == [("P", True, frozenset({"x", "y"}))]   # only DIP, shadow + allowlist
+
+
+def test_fast_tick_v2_dedups(monkeypatch):
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s = _scanner_for_tick_v2()
+    d = FastWatchDedup(cfg.eval_cooldown_secs)
+    asyncio.run(s._fast_watch_tick(cfg, d))
+    asyncio.run(s._fast_watch_tick(cfg, d))
+    assert len(s.evaluated) == 1
+
+
+def test_fast_tick_v2_survives_eval_exception(monkeypatch):
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s = _scanner_for_tick_v2()
+    async def boom(pair, ctx): raise RuntimeError("x")
+    s._evaluate_pair = boom
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))   # must not raise
+
+
+def test_fast_tick_v2_empty_armed_is_noop(monkeypatch):
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s = _scanner_for_tick_v2()
+    s._fast_armed = {}
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    assert s.evaluated == []
