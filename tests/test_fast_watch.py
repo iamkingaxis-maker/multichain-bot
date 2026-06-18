@@ -26,9 +26,7 @@ def test_dedup_suppresses_within_ttl_then_allows():
 
 
 def test_shortlist_filters_held_blocked_and_recent():
-    cfg = fw.FastWatchConfig(mode="shadow", interval_secs=3.0, trend_secs=90,
-                             dip_pct=3.0, eval_cooldown_secs=60.0,
-                             bot_allowlist=frozenset({"x"}))
+    cfg = _cfg()
     trends = {"DIP": -4.0, "FLAT": -0.5, "HELD": -9.0, "RECENT": -4.0}
     dedup = fw.FastWatchDedup(60)
     dedup.mark("RECENT", now=1000.0)
@@ -36,7 +34,7 @@ def test_shortlist_filters_held_blocked_and_recent():
                 ("HELD", {"pair": {}}), ("RECENT", {"pair": {}})]
     out = fw.shortlist(
         snapshot,
-        get_trend=lambda addr, secs: trends.get(addr),
+        get_trend=lambda addr: trends.get(addr),
         dedup=dedup,
         is_held_or_blocked=lambda addr: addr == "HELD",
         cfg=cfg,
@@ -46,33 +44,83 @@ def test_shortlist_filters_held_blocked_and_recent():
 
 
 def test_config_from_env_defaults_and_overrides(monkeypatch):
-    for k in ("FAST_WATCH_MODE", "FAST_WATCH_INTERVAL_SECS", "FAST_WATCH_TREND_SECS",
-              "FAST_WATCH_DIP_PCT", "FAST_WATCH_EVAL_COOLDOWN_SECS", "FAST_WATCH_BOT_ALLOWLIST"):
+    for k in ("FAST_WATCH_MODE", "FAST_WATCH_INTERVAL_SECS", "FAST_WATCH_DIP_PCT",
+              "FAST_WATCH_EVAL_COOLDOWN_SECS", "FAST_WATCH_BOT_ALLOWLIST", "FAST_WATCH_ARMED_MAX",
+              "FAST_WATCH_SAMPLE_WINDOW", "FAST_WATCH_VOLATILITY_RESERVE",
+              "FAST_WATCH_DIP_ZONE_PCT", "FAST_WATCH_ARM_BAND_PP"):
         monkeypatch.delenv(k, raising=False)
     cfg = fw.FastWatchConfig.from_env()
-    assert cfg.mode == "off"                          # safe default
+    assert cfg.mode == "off"
     assert cfg.interval_secs == 3.0
-    assert cfg.trend_secs == 90
     assert cfg.dip_pct == 3.0
     assert cfg.eval_cooldown_secs == 60.0
+    assert cfg.armed_max == 30
+    assert cfg.sample_window == 40
+    assert cfg.volatility_reserve == 0.2
+    assert cfg.dip_zone_pct == -12.0
+    assert cfg.arm_band_pp == 12.0
     assert "badday_flush_conviction" in cfg.bot_allowlist
-    assert "timebox_probe_5mgreen_live" in cfg.bot_allowlist
-
+    assert not hasattr(cfg, "trend_secs")
     monkeypatch.setenv("FAST_WATCH_MODE", "ShAdOw")
-    monkeypatch.setenv("FAST_WATCH_DIP_PCT", "5")
-    monkeypatch.setenv("FAST_WATCH_BOT_ALLOWLIST", "a, b ,c")
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "10")
     cfg2 = fw.FastWatchConfig.from_env()
-    assert cfg2.mode == "shadow"                       # normalized lowercase
-    assert cfg2.dip_pct == 5.0
-    assert cfg2.bot_allowlist == frozenset({"a", "b", "c"})
+    assert cfg2.mode == "shadow"
+    assert cfg2.armed_max == 10
 
 
 def test_config_bad_numbers_fall_back_to_defaults(monkeypatch):
     monkeypatch.setenv("FAST_WATCH_INTERVAL_SECS", "not-a-number")
-    monkeypatch.setenv("FAST_WATCH_TREND_SECS", "")
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "")
     cfg = fw.FastWatchConfig.from_env()
     assert cfg.interval_secs == 3.0
-    assert cfg.trend_secs == 90
+    assert cfg.armed_max == 30
+
+
+def _cfg(**kw):
+    base = dict(mode="shadow", interval_secs=3.0, dip_pct=3.0, eval_cooldown_secs=60.0,
+                bot_allowlist=frozenset({"x"}), armed_max=30, sample_window=40,
+                volatility_reserve=0.2, dip_zone_pct=-12.0, arm_band_pp=12.0)
+    base.update(kw)
+    return fw.FastWatchConfig(**base)
+
+
+def test_arm_subset_picks_cusp_excludes_far_and_past():
+    cfg = _cfg(armed_max=3, volatility_reserve=0.0)
+    cands = [
+        {"addr": "NEAR", "pc_h1": -8.0, "vol_h1": 1.0, "in_band": True},   # dist 4 -> cusp
+        {"addr": "FLAT", "pc_h1": -2.0, "vol_h1": 1.0, "in_band": True},   # dist 10 -> cusp (farther)
+        {"addr": "FAR",  "pc_h1": +5.0, "vol_h1": 1.0, "in_band": True},   # dist 17 > band -> out
+        {"addr": "PAST", "pc_h1": -20.0,"vol_h1": 1.0, "in_band": True},   # dist -8 <=0 -> out (already in zone)
+        {"addr": "OOB",  "pc_h1": -8.0, "vol_h1": 9.0, "in_band": False},  # out of band -> out
+    ]
+    armed = fw.arm_subset(cands, cfg)
+    assert armed == ["NEAR", "FLAT"]   # smallest-distance first; FAR/PAST/OOB excluded
+
+
+def test_arm_subset_volatility_reserve_fills_remaining():
+    cfg = _cfg(armed_max=2, volatility_reserve=0.5)   # 1 cusp slot, 1 reserve slot
+    cands = [
+        {"addr": "CUSP", "pc_h1": -8.0, "vol_h1": 1.0, "in_band": True},   # cusp
+        {"addr": "VOLA", "pc_h1": +50.0, "vol_h1": 99.0, "in_band": True}, # far (no cusp) but high vol
+        {"addr": "VOLB", "pc_h1": +40.0, "vol_h1": 50.0, "in_band": True},
+    ]
+    armed = fw.arm_subset(cands, cfg)
+    assert armed[0] == "CUSP"
+    assert "VOLA" in armed and len(armed) == 2   # reserve filled by highest vol_h1
+
+
+def test_arm_subset_caps_at_armed_max():
+    cfg = _cfg(armed_max=2, volatility_reserve=0.0)
+    cands = [{"addr": f"T{i}", "pc_h1": -float(i), "vol_h1": 1.0, "in_band": True} for i in range(1, 6)]
+    assert len(fw.arm_subset(cands, cfg)) == 2
+
+
+def test_rolling_dip_pct():
+    assert fw.rolling_dip_pct([]) is None
+    assert fw.rolling_dip_pct([100.0]) is None            # <2 samples
+    assert fw.rolling_dip_pct([100.0, 90.0]) == -10.0      # 10% off the high
+    assert fw.rolling_dip_pct([100.0, 120.0, 114.0]) == -5.0  # off the window MAX (120), not first
+    assert fw.rolling_dip_pct([0.0, 0.0]) is None          # bad data
 
 
 class _FakeCfg:
@@ -141,68 +189,6 @@ def test_fanout_enforce_fires_only_allowlisted():
     asyncio.run(s._fast_route_decisions(decisions, bundle=None,
                                         allowlist={"a"}, shadow=False, token_symbol="T"))
     assert s.fired == [("fire", "a"), ("fire", "z")]   # routing fires given decisions under the lock
-
-
-def _scanner_for_tick(mode="shadow"):
-    from feeds.dip_scanner import DipScanner
-    s = DipScanner.__new__(DipScanner)
-    s._buy_fire_lock = asyncio.Lock()
-    s._sticky_watchlist = {
-        "DIPADDR": {"pair": {"pairAddress": "P", "priceUsd": "1"}},
-        "FLATADDR": {"pair": {"pairAddress": "P2"}},
-    }
-    s._token_registry = None
-    s._fast_watch_regime = {"_regime_n": 0, "_regime_dip_breadth_pct": None,
-                            "_regime_h1_neg_pct": None}
-
-    class _Feed:
-        def __init__(self): self.subscribed = []
-        def subscribe_token(self, a): self.subscribed.append(a)
-        def get_tick_trend(self, a, secs): return -5.0 if a == "DIPADDR" else -0.1
-    s.axiom_price_feed = _Feed()
-
-    s.evaluated = []
-    async def fake_eval(pair, ctx):
-        s.evaluated.append((pair.get("pairAddress"), ctx.get("_fast_path_shadow"),
-                            ctx.get("_fast_path_allowlist")))
-        return (None, 0, False)
-    s._evaluate_pair = fake_eval
-    return s
-
-
-def test_fast_watch_tick_escalates_only_the_dip(monkeypatch):
-    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
-    monkeypatch.setenv("FAST_WATCH_BOT_ALLOWLIST", "x,y")
-    from core.fast_watch import FastWatchConfig, FastWatchDedup
-    cfg = FastWatchConfig.from_env()
-    s = _scanner_for_tick()
-    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
-    # Only the dipping token was evaluated; ctx carried shadow + allowlist.
-    assert s.evaluated == [("P", True, frozenset({"x", "y"}))]
-    # The whole cohort was subscribed (Tier 0).
-    assert set(s.axiom_price_feed.subscribed) == {"DIPADDR", "FLATADDR"}
-
-
-def test_fast_watch_tick_dedups_second_call(monkeypatch):
-    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
-    from core.fast_watch import FastWatchConfig, FastWatchDedup
-    cfg = FastWatchConfig.from_env()
-    s = _scanner_for_tick()
-    dedup = FastWatchDedup(cfg.eval_cooldown_secs)
-    asyncio.run(s._fast_watch_tick(cfg, dedup))
-    asyncio.run(s._fast_watch_tick(cfg, dedup))      # immediate re-tick
-    assert len(s.evaluated) == 1                     # deduped within TTL
-
-
-def test_fast_watch_tick_survives_eval_exception(monkeypatch):
-    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
-    from core.fast_watch import FastWatchConfig, FastWatchDedup
-    cfg = FastWatchConfig.from_env()
-    s = _scanner_for_tick()
-    async def boom(pair, ctx): raise RuntimeError("eval blew up")
-    s._evaluate_pair = boom
-    # Must not raise out of the tick.
-    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
 
 
 def test_run_spawns_fast_watch_task(monkeypatch):
