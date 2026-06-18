@@ -203,3 +203,24 @@ def test_fast_watch_tick_survives_eval_exception(monkeypatch):
     s._evaluate_pair = boom
     # Must not raise out of the tick.
     asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+
+
+def test_run_spawns_fast_watch_task(monkeypatch):
+    """run() must create the fast-watch task exactly once before the sweep loop."""
+    import feeds.dip_scanner as ds
+    from feeds.dip_scanner import DipScanner
+    s = DipScanner.__new__(DipScanner)
+    created = []
+    monkeypatch.setattr(ds.asyncio, "create_task",
+                        lambda coro, *a, **k: created.append(coro) or coro.close())
+
+    # Stop run() after one iteration by raising out of _scan_cycle.
+    async def stop_cycle():
+        raise KeyboardInterrupt
+    s._scan_cycle = stop_cycle
+    s.bot_manager = None
+    try:
+        asyncio.run(s.run())
+    except KeyboardInterrupt:
+        pass
+    assert len(created) == 1            # the fast-watch loop was scheduled once

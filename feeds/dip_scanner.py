@@ -610,6 +610,13 @@ class DipScanner:
 
     async def run(self):
         logger.info("[DipScanner] Starting — targeting $1M+ mcap dip entries")
+        # Fast-watch loop: re-checks the watched cohort every few seconds and
+        # escalates fresh dips into _evaluate_pair sooner than the slow sweep.
+        # No-op when FAST_WATCH_MODE=off (the loop returns immediately).
+        try:
+            asyncio.create_task(self._fast_watch_loop())
+        except Exception as e:
+            logger.error("[fast-watch] failed to spawn: %s", e)
         while True:
             try:
                 await self._scan_cycle()
