@@ -54,7 +54,7 @@ def test_config_from_env_defaults_and_overrides(monkeypatch):
     assert cfg.dip_pct == 3.0
     assert cfg.rise_pct == 3.0
     assert cfg.eval_cooldown_secs == 60.0
-    assert cfg.armed_max == 400
+    assert cfg.armed_max == 500
     assert cfg.sample_window == 40
     assert cfg.arm_band_pp == 15.0
     assert not hasattr(cfg, "dip_zone_pct")
@@ -73,7 +73,7 @@ def test_config_bad_numbers_fall_back_to_defaults(monkeypatch):
     monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "")
     cfg = fw.FastWatchConfig.from_env()
     assert cfg.interval_secs == 3.0
-    assert cfg.armed_max == 400
+    assert cfg.armed_max == 500
 
 
 def _cfg(**kw):
@@ -434,28 +434,28 @@ def _scanner_for_arm(n_inband):
 
 def test_fast_arm_subset_arms_whole_watchlist_when_jupiter_primary(monkeypatch):
     """JUPITER_PRICE_PRIMARY=on -> arm ALL in-band candidates up to the rate-safe
-    ceiling (no artificial small cap). 100 in-band < 400 ceiling -> all 100 armed."""
+    ceiling (no artificial small cap). 100 in-band < 500 ceiling -> all 100 armed."""
     monkeypatch.setenv("JUPITER_PRICE_PRIMARY", "on")
     monkeypatch.delenv("FAST_WATCH_ARMED_MAX", raising=False)
     from core.fast_watch import FastWatchConfig
-    cfg = FastWatchConfig.from_env()          # armed_max default 400 (rate-safe ceiling)
+    cfg = FastWatchConfig.from_env()          # armed_max default 500 (rate-safe ceiling)
     s, now_ms = _scanner_for_arm(100)
     s._fast_arm_subset(cfg, now_ms)
-    assert len(s._fast_armed) == 100   # whole in-band watchlist (under the 400 ceiling)
+    assert len(s._fast_armed) == 100   # whole in-band watchlist (under the 500 ceiling)
 
 
 def test_fast_arm_subset_clamps_to_rate_safe_ceiling_under_jupiter(monkeypatch):
     """JUPITER_PRICE_PRIMARY=on lifts armed_max to n_inband, but clamps to the
-    rate-safe FAST_WATCH_ARMED_MAX ceiling (default 400) so adding pumps to the
+    rate-safe FAST_WATCH_ARMED_MAX ceiling (default 500) so adding pumps to the
     armed set can't blow past the Jupiter ~110 req/min budget."""
     monkeypatch.setenv("JUPITER_PRICE_PRIMARY", "on")
     monkeypatch.delenv("FAST_WATCH_ARMED_MAX", raising=False)
     from core.fast_watch import FastWatchConfig
-    cfg = FastWatchConfig.from_env()          # armed_max default 400
-    assert cfg.armed_max == 400
-    s, now_ms = _scanner_for_arm(500)          # 500 in-band tokens
+    cfg = FastWatchConfig.from_env()          # armed_max default 500
+    assert cfg.armed_max == 500
+    s, now_ms = _scanner_for_arm(700)          # 700 in-band tokens
     s._fast_arm_subset(cfg, now_ms)
-    assert len(s._fast_armed) == 400           # clamped to the rate-safe ceiling, not 500
+    assert len(s._fast_armed) == 500           # clamped to the rate-safe ceiling, not 700
 
 
 def test_fast_arm_subset_caps_at_30_when_flag_off(monkeypatch):
@@ -615,11 +615,12 @@ def test_hitrate_log_not_armed_address(monkeypatch, caplog):
     assert any("hit-rate" in r.message and "armed=False" in r.message for r in caplog.records)
 
 
-# ---- FIX 2: arm the whole watched set (drop in_band/lane re-filter) ----------
-# in_band is now the MINIMAL "real and buyable-ish" test:
-#     in_band = (mcap <= max_mcap and liq > 0)
-# No min_mcap floor, no age gate, no lane re-derive. The bought tokens are all
-# already in the watched (sticky) set, so armed ⊇ bought is guaranteed.
+# ---- FIX 3: arm EVERY watched token (drop the mcap/liq gate entirely) --------
+# in_band is now simply bool(pair) — any sticky entry with a non-empty cached
+# pair dict is armed. The cached mcap/liq is UNRELIABLE for microcaps (missing
+# liquidity.usd -> liq==0 -> the residual ~50% miss on tokens like Metacraft /
+# BubbleMan), so ANY mcap/liq filter keeps dropping real buys. The bought tokens
+# are all in the watched (sticky) set, so armed ⊇ bought is guaranteed.
 
 def _scanner_for_lane_arm(pairs):
     """Scanner with min_mcap=$1M / max_mcap=$50M fleet band, watchlist = `pairs`
@@ -635,10 +636,11 @@ def _scanner_for_lane_arm(pairs):
     return s, 10_000_000_000
 
 
-def test_fast_arm_subset_arms_subband_no_lane_token(monkeypatch):
-    """FIX 2: a sub-$500k token with NO lane match (previously excluded by the
-    strict min_mcap floor / lane re-derive) is NOW armed — in_band True simply
-    because mcap<=max_mcap and liq>0. (Kelsey-class $90k microcap, lanes OFF.)"""
+def test_fast_arm_subset_arms_missing_liq_microcap(monkeypatch):
+    """FIX 3: the Metacraft case — a $0.3M microcap whose cached pair has MISSING
+    liquidity (no 'liquidity' key / liquidity.usd absent) was excluded by FIX 2's
+    liq>0 gate and never armed (the residual ~50% miss). It is NOW armed because
+    in_band = bool(pair). A >max_mcap token (BubbleMan +677%) is NOW armed too."""
     monkeypatch.setenv("BADDAY_LANE", "off")
     monkeypatch.delenv("YOUNG_TOKEN_PROBE", raising=False)
     monkeypatch.delenv("LOW_MCAP_PROBE", raising=False)
@@ -648,12 +650,14 @@ def test_fast_arm_subset_arms_subband_no_lane_token(monkeypatch):
     now_ms = 10_000_000_000
     created = now_ms - int(24 * 3_600_000)
     pairs = {
-        "KELSEY90K": {"marketCap": 90_000, "liquidity": {"usd": 30_000},
-                      "pairCreatedAt": created, "priceChange": {"h1": -25.0},
-                      "volume": {"h1": 5.0}},
-        "INBAND2M": {"marketCap": 2_000_000, "liquidity": {"usd": 80_000},
-                     "pairCreatedAt": created, "priceChange": {"h1": -5.0},
-                     "volume": {"h1": 9.0}},
+        # Metacraft: $0.3M, cached pair has NO liquidity key (liq -> 0).
+        "METACRAFT": {"marketCap": 300_000, "pairCreatedAt": created,
+                      "priceChange": {"h1": -27.0}, "volume": {"h1": 5.0}},
+        # Liquidity key present but usd absent (also -> liq 0).
+        "BUBBLEMAN": {"marketCap": 300_000, "liquidity": {},
+                      "pairCreatedAt": created, "priceChange": {"h1": +677.0},
+                      "volume": {"h1": 9.0}},
+        # A token well above max_mcap is NOW armed too (drop the ceiling).
         "HUGE100M": {"marketCap": 100_000_000, "liquidity": {"usd": 80_000},
                      "pairCreatedAt": created, "priceChange": {"h1": -5.0},
                      "volume": {"h1": 9.0}},
@@ -662,15 +666,15 @@ def test_fast_arm_subset_arms_subband_no_lane_token(monkeypatch):
     s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
     s._fast_arm_subset(cfg, now_ms)
     armed = set(s._fast_armed.keys())
-    assert "KELSEY90K" in armed     # sub-band, no lane -> NOW armed (FIX 2)
-    assert "INBAND2M" in armed      # in-band still armed
-    assert "HUGE100M" not in armed  # mcap > max_mcap -> excluded
+    assert "METACRAFT" in armed     # missing-liq microcap -> NOW armed (FIX 3)
+    assert "BUBBLEMAN" in armed     # missing-liq pump -> NOW armed (FIX 3)
+    assert "HUGE100M" in armed      # mcap > max_mcap -> NOW armed (ceiling dropped)
 
 
-def test_fast_arm_subset_arms_dip_and_pump_drops_huge_and_dead(monkeypatch):
-    """FIX 2 + FIX 1 preserved: a deep dip AND a pump (both <= max_mcap, liq>0)
-    are armed; a token with mcap>max_mcap is NOT armed; a token with liq<=0 is
-    NOT armed."""
+def test_fast_arm_subset_arms_dip_pump_huge_and_deadliq_but_not_empty(monkeypatch):
+    """FIX 3 + FIX 1 preserved: deep dip AND pump are armed; a >max_mcap token is
+    NOW armed; a liq<=0 token is NOW armed; only a sticky entry with an EMPTY/None
+    pair (in_band=bool(pair) false) is NOT armed."""
     monkeypatch.delenv("BADDAY_LANE", raising=False)
     monkeypatch.delenv("YOUNG_TOKEN_PROBE", raising=False)
     monkeypatch.delenv("LOW_MCAP_PROBE", raising=False)
@@ -694,17 +698,22 @@ def test_fast_arm_subset_arms_dip_and_pump_drops_huge_and_dead(monkeypatch):
                     "volume": {"h1": 9.0}},
     }
     s, _ = _scanner_for_lane_arm(pairs)
-    s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
+    wl = {a: {"pair": p} for a, p in pairs.items()}
+    wl["EMPTYPAIR"] = {"pair": {}}    # empty pair dict -> in_band bool({}) false
+    wl["NONEPAIR"] = {"pair": None}   # None pair -> in_band false
+    s._sticky_watchlist = wl
     s._fast_arm_subset(cfg, now_ms)
     armed = set(s._fast_armed.keys())
-    assert "DEEPDIP" in armed       # dip armed (FIX 1)
-    assert "PUMP" in armed          # pump armed (FIX 1)
-    assert "HUGE" not in armed      # mcap > max_mcap -> excluded
-    assert "DEADLIQ" not in armed   # liq <= 0 -> excluded
+    assert "DEEPDIP" in armed        # dip armed (FIX 1)
+    assert "PUMP" in armed           # pump armed (FIX 1)
+    assert "HUGE" in armed           # mcap > max_mcap -> NOW armed (FIX 3)
+    assert "DEADLIQ" in armed        # liq <= 0 -> NOW armed (FIX 3)
+    assert "EMPTYPAIR" not in armed  # empty pair -> NOT armed
+    assert "NONEPAIR" not in armed   # None pair -> NOT armed
 
 
 def test_fast_arm_subset_volume_ranks_under_cap(monkeypatch):
-    """FIX 2: volume ranking + armed_max cap still hold — cap=2 -> top-2 by
+    """FIX 3: volume ranking + armed_max cap still hold — cap=2 -> top-2 by
     volume.h1, even with the whole watched set in_band."""
     monkeypatch.delenv("BADDAY_LANE", raising=False)
     monkeypatch.delenv("YOUNG_TOKEN_PROBE", raising=False)

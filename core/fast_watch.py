@@ -61,7 +61,7 @@ class FastWatchConfig:
             rise_pct=_f("FAST_WATCH_RISE_PCT", 3.0),
             eval_cooldown_secs=_f("FAST_WATCH_EVAL_COOLDOWN_SECS", 60.0),
             bot_allowlist=allow,
-            armed_max=_i("FAST_WATCH_ARMED_MAX", 400),
+            armed_max=_i("FAST_WATCH_ARMED_MAX", 500),
             sample_window=_i("FAST_WATCH_SAMPLE_WINDOW", 40),
             arm_band_pp=_f("FAST_WATCH_ARM_BAND_PP", 15.0),
         )

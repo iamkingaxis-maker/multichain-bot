@@ -3062,40 +3062,41 @@ class DipScanner:
         Pure in-memory selection over cached pair data; no network, no _evaluate_pair change."""
         import dataclasses
         from core.fast_watch import arm_subset
-        # FIX 2 (arm the whole watched set): STOP re-deriving fleet-band/lane
-        # admission here. We patched the lane re-derive 4 times and it still kept
-        # MISSING the bots' actual admissions (bought tokens are WATCHED for hours
-        # but excluded by the re-filter -> ~50% armed-hit-rate). The bought tokens
-        # are ALL already in self._sticky_watchlist (the scanner's watched set), so
-        # arming the whole watched universe makes armed ⊇ bought GUARANTEED (modulo
-        # non-persisted sources + true fresh-discovery, both minimal). in_band is now
-        # a MINIMAL "real and buyable-ish" test: mcap <= max_mcap (don't arm >$50M
-        # tokens no bot buys) AND liq > 0 (skip dead/empty). No min_mcap floor, no
-        # age gate, no lane re-derive. (FIX 1 — pc_h1-agnostic dips+pumps — preserved
-        # in arm_subset.) Address-keyed throughout; no buy-decision change (SHADOW).
+        # FIX 3 (arm EVERY watched token): DROP the mcap/liq gate entirely. FIX 2
+        # kept a MINIMAL in_band = (mcap <= max_mcap and liq > 0), but the cached
+        # sticky-pair mcap/liq is UNRELIABLE for microcaps: tokens like Metacraft
+        # ($0.3M, cycles_seen=227, pc_h1 -27% dip) and BubbleMan ($0.3M, +677%) are
+        # clearly watched + actively bought, yet their cached pair has MISSING
+        # liquidity (liquidity.usd absent -> liq==0 -> liq>0 fails) and so were
+        # NEVER armed (the residual ~50% miss). ANY mcap/liq filter over cached
+        # microcap pair data keeps dropping real buys. The bought tokens are ALL
+        # already in self._sticky_watchlist (high cycles_seen), so arming the WHOLE
+        # watched set with a usable pair dict makes armed ⊇ bought GUARANTEED. The
+        # only inclusion test is now bool(pair) — a non-empty cached pair dict.
+        # (FIX 1 — pc_h1-agnostic dips+pumps — preserved in arm_subset; volume
+        # ranking + armed_max cap still apply.) Address-keyed; SHADOW (no buy change).
         cands = []
         for addr, entry in list(self._sticky_watchlist.items()):
             pair = (entry or {}).get("pair") or {}
             try:
-                mcap = float(pair.get("marketCap") or 0)
-                liq = float((pair.get("liquidity") or {}).get("usd") or 0)
                 pch = pair.get("priceChange") or {}
                 _h1 = pch.get("h1")
                 pc_h1 = float(_h1) if _h1 is not None else None
                 vol_h1 = float((pair.get("volume") or {}).get("h1") or 0)
             except (TypeError, ValueError):
                 continue
-            in_band = bool(mcap <= self.max_mcap and liq > 0)
+            in_band = bool(pair)   # arm the WHOLE watched set; cached mcap/liq are unreliable
             cands.append({"addr": addr, "pc_h1": pc_h1, "vol_h1": vol_h1, "in_band": in_band})
-        # Jupiter does 50 ids/call at ~110 req/min -> can poll most of the watched
+        # Jupiter does 50 ids/call at ~110 req/min -> can poll the whole watched
         # set; the 30-cap was a workaround for the DexScreener pair-limit, not a
-        # Jupiter constraint. Lift toward n_inband (the whole watched universe after
-        # FIX 2 drops the lane re-derive) but CLAMP to the rate-safe FAST_WATCH_ARMED_MAX
-        # ceiling (default 400, covers a ~400-token sticky watchlist) so the per-tick
-        # Jupiter call count (ceil(armed/50) = 8 at 400) stays under the ~110 req/min
-        # budget — the deploy sets FAST_WATCH_INTERVAL_SECS=6 (8 calls x 10 ticks/min =
-        # 80/min, safe). Volume ranking in arm_subset keeps the most-active/buyable
-        # tokens in the armed set when n_inband exceeds the ceiling.
+        # Jupiter constraint. Lift toward n_inband (the WHOLE watched universe now
+        # that FIX 3 arms every token with a pair) but CLAMP to the rate-safe
+        # FAST_WATCH_ARMED_MAX ceiling (default 500, covers a ~400-426-token sticky
+        # watchlist with margin -> no clamp -> armed = ALL watched) so the per-tick
+        # Jupiter call count (ceil(armed/50) = 10 at 500) stays under the ~110
+        # req/min budget — the deploy sets FAST_WATCH_INTERVAL_SECS=8 (10 calls x
+        # 7.5 ticks/min = 75/min, safe). Volume ranking in arm_subset keeps the
+        # most-active/buyable tokens in the armed set when n_inband exceeds the ceiling.
         if os.environ.get("JUPITER_PRICE_PRIMARY", "off").strip().lower() in ("on", "1", "true", "yes"):
             n_inband = sum(1 for c in cands if c.get("in_band"))
             cfg = dataclasses.replace(cfg, armed_max=min(cfg.armed_max, n_inband))
