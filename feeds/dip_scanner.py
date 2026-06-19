@@ -3062,49 +3062,40 @@ class DipScanner:
         Pure in-memory selection over cached pair data; no network, no _evaluate_pair change."""
         import dataclasses
         from core.fast_watch import arm_subset
-        # Lane admission mirrors the scanner's OWN discovery gate (~3286): a token
-        # is admitted if it's in the fleet band OR any lane keeps it. The fast-watch
-        # armed set MUST be a superset of what the bots can buy, else lane tokens
-        # (e.g. a $90k badday microcap) are never armed -> the 0/36 phantom.
-        from core.young_token_probe import is_young_probe_candidate
-        from core.low_mcap_probe import keep_below_floor_token
-        from core.badday_lane import keep_token as _bd_keep
+        # FIX 2 (arm the whole watched set): STOP re-deriving fleet-band/lane
+        # admission here. We patched the lane re-derive 4 times and it still kept
+        # MISSING the bots' actual admissions (bought tokens are WATCHED for hours
+        # but excluded by the re-filter -> ~50% armed-hit-rate). The bought tokens
+        # are ALL already in self._sticky_watchlist (the scanner's watched set), so
+        # arming the whole watched universe makes armed ⊇ bought GUARANTEED (modulo
+        # non-persisted sources + true fresh-discovery, both minimal). in_band is now
+        # a MINIMAL "real and buyable-ish" test: mcap <= max_mcap (don't arm >$50M
+        # tokens no bot buys) AND liq > 0 (skip dead/empty). No min_mcap floor, no
+        # age gate, no lane re-derive. (FIX 1 — pc_h1-agnostic dips+pumps — preserved
+        # in arm_subset.) Address-keyed throughout; no buy-decision change (SHADOW).
         cands = []
         for addr, entry in list(self._sticky_watchlist.items()):
             pair = (entry or {}).get("pair") or {}
             try:
                 mcap = float(pair.get("marketCap") or 0)
                 liq = float((pair.get("liquidity") or {}).get("usd") or 0)
-                created = pair.get("pairCreatedAt") or 0
                 pch = pair.get("priceChange") or {}
                 _h1 = pch.get("h1")
                 pc_h1 = float(_h1) if _h1 is not None else None
                 vol_h1 = float((pair.get("volume") or {}).get("h1") or 0)
             except (TypeError, ValueError):
                 continue
-            age_ok = created and (now_ms - created) >= self.min_age_ms
-            # Lane flags use the cached pair fields (same inputs the scanner's
-            # admission block at ~3286 feeds these helpers). age_h from created.
-            age_h = ((now_ms - created) / 3_600_000.0) if created else 1e9
-            _bd_pc1 = pc_h1 if pc_h1 is not None else 0.0
-            _yp = is_young_probe_candidate(mcap, liq, age_h, self.max_mcap)
-            _lmp = keep_below_floor_token(mcap, liq, self.min_mcap)
-            _bdl = _bd_keep(mcap, liq, age_h, _bd_pc1, self.min_mcap)
-            # In-band (fleet floor + age) OR admitted by any lane. Still require
-            # mcap <= max_mcap (exclude the truly-huge) and liq>0; lanes carry
-            # their own mcap/liq/age floors so the strict min_mcap/min_age is
-            # dropped when a lane admits.
-            in_fleet_band = bool(self.min_mcap <= mcap <= self.max_mcap and liq > 0 and age_ok)
-            lane_admit = bool((_yp or _lmp or _bdl) and mcap <= self.max_mcap and liq > 0)
-            in_band = in_fleet_band or lane_admit
+            in_band = bool(mcap <= self.max_mcap and liq > 0)
             cands.append({"addr": addr, "pc_h1": pc_h1, "vol_h1": vol_h1, "in_band": in_band})
-        # Jupiter does 50 ids/call at ~110 req/min -> can poll most of the in-band
-        # watchlist; the 30-cap was a workaround for the DexScreener pair-limit, not a
-        # Jupiter constraint. Lift toward n_inband (now dips AND pumps after dropping the
-        # one-sided pc_h1 ceiling) but CLAMP to the rate-safe FAST_WATCH_ARMED_MAX ceiling
-        # (default 150) so the per-tick Jupiter call count (ceil(armed/50)) stays well under
-        # the ~110 req/min budget at the ~3s tick. Volume ranking in arm_subset keeps the
-        # most-active/buyable tokens in the armed set when n_inband exceeds the ceiling.
+        # Jupiter does 50 ids/call at ~110 req/min -> can poll most of the watched
+        # set; the 30-cap was a workaround for the DexScreener pair-limit, not a
+        # Jupiter constraint. Lift toward n_inband (the whole watched universe after
+        # FIX 2 drops the lane re-derive) but CLAMP to the rate-safe FAST_WATCH_ARMED_MAX
+        # ceiling (default 400, covers a ~400-token sticky watchlist) so the per-tick
+        # Jupiter call count (ceil(armed/50) = 8 at 400) stays under the ~110 req/min
+        # budget — the deploy sets FAST_WATCH_INTERVAL_SECS=6 (8 calls x 10 ticks/min =
+        # 80/min, safe). Volume ranking in arm_subset keeps the most-active/buyable
+        # tokens in the armed set when n_inband exceeds the ceiling.
         if os.environ.get("JUPITER_PRICE_PRIMARY", "off").strip().lower() in ("on", "1", "true", "yes"):
             n_inband = sum(1 for c in cands if c.get("in_band"))
             cfg = dataclasses.replace(cfg, armed_max=min(cfg.armed_max, n_inband))

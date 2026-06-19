@@ -54,7 +54,7 @@ def test_config_from_env_defaults_and_overrides(monkeypatch):
     assert cfg.dip_pct == 3.0
     assert cfg.rise_pct == 3.0
     assert cfg.eval_cooldown_secs == 60.0
-    assert cfg.armed_max == 150
+    assert cfg.armed_max == 400
     assert cfg.sample_window == 40
     assert cfg.arm_band_pp == 15.0
     assert not hasattr(cfg, "dip_zone_pct")
@@ -73,7 +73,7 @@ def test_config_bad_numbers_fall_back_to_defaults(monkeypatch):
     monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "")
     cfg = fw.FastWatchConfig.from_env()
     assert cfg.interval_secs == 3.0
-    assert cfg.armed_max == 150
+    assert cfg.armed_max == 400
 
 
 def _cfg(**kw):
@@ -434,28 +434,28 @@ def _scanner_for_arm(n_inband):
 
 def test_fast_arm_subset_arms_whole_watchlist_when_jupiter_primary(monkeypatch):
     """JUPITER_PRICE_PRIMARY=on -> arm ALL in-band candidates up to the rate-safe
-    ceiling (no artificial small cap). 100 in-band < 150 ceiling -> all 100 armed."""
+    ceiling (no artificial small cap). 100 in-band < 400 ceiling -> all 100 armed."""
     monkeypatch.setenv("JUPITER_PRICE_PRIMARY", "on")
     monkeypatch.delenv("FAST_WATCH_ARMED_MAX", raising=False)
     from core.fast_watch import FastWatchConfig
-    cfg = FastWatchConfig.from_env()          # armed_max default 150 (rate-safe ceiling)
+    cfg = FastWatchConfig.from_env()          # armed_max default 400 (rate-safe ceiling)
     s, now_ms = _scanner_for_arm(100)
     s._fast_arm_subset(cfg, now_ms)
-    assert len(s._fast_armed) == 100   # whole in-band watchlist (under the 150 ceiling)
+    assert len(s._fast_armed) == 100   # whole in-band watchlist (under the 400 ceiling)
 
 
 def test_fast_arm_subset_clamps_to_rate_safe_ceiling_under_jupiter(monkeypatch):
     """JUPITER_PRICE_PRIMARY=on lifts armed_max to n_inband, but clamps to the
-    rate-safe FAST_WATCH_ARMED_MAX ceiling (default 150) so adding pumps to the
+    rate-safe FAST_WATCH_ARMED_MAX ceiling (default 400) so adding pumps to the
     armed set can't blow past the Jupiter ~110 req/min budget."""
     monkeypatch.setenv("JUPITER_PRICE_PRIMARY", "on")
     monkeypatch.delenv("FAST_WATCH_ARMED_MAX", raising=False)
     from core.fast_watch import FastWatchConfig
-    cfg = FastWatchConfig.from_env()          # armed_max default 150
-    assert cfg.armed_max == 150
-    s, now_ms = _scanner_for_arm(400)          # 400 in-band tokens
+    cfg = FastWatchConfig.from_env()          # armed_max default 400
+    assert cfg.armed_max == 400
+    s, now_ms = _scanner_for_arm(500)          # 500 in-band tokens
     s._fast_arm_subset(cfg, now_ms)
-    assert len(s._fast_armed) == 150           # clamped to the rate-safe ceiling, not 400
+    assert len(s._fast_armed) == 400           # clamped to the rate-safe ceiling, not 500
 
 
 def test_fast_arm_subset_caps_at_30_when_flag_off(monkeypatch):
@@ -615,11 +615,16 @@ def test_hitrate_log_not_armed_address(monkeypatch, caplog):
     assert any("hit-rate" in r.message and "armed=False" in r.message for r in caplog.records)
 
 
-# ---- FIX A: lane-aware arming ----------------------------------------------
+# ---- FIX 2: arm the whole watched set (drop in_band/lane re-filter) ----------
+# in_band is now the MINIMAL "real and buyable-ish" test:
+#     in_band = (mcap <= max_mcap and liq > 0)
+# No min_mcap floor, no age gate, no lane re-derive. The bought tokens are all
+# already in the watched (sticky) set, so armed ⊇ bought is guaranteed.
 
 def _scanner_for_lane_arm(pairs):
     """Scanner with min_mcap=$1M / max_mcap=$50M fleet band, watchlist = `pairs`
-    {addr: pair_dict}. Lanes default OFF unless env flips them on per test."""
+    {addr: pair_dict}. (min_mcap is retained on the instance but no longer
+    consulted by _fast_arm_subset — the floor was dropped.)"""
     from feeds.dip_scanner import DipScanner
     s = DipScanner.__new__(DipScanner)
     s.min_age_ms = 0
@@ -630,17 +635,16 @@ def _scanner_for_lane_arm(pairs):
     return s, 10_000_000_000
 
 
-def test_fast_arm_subset_arms_badday_lane_token(monkeypatch):
-    """A sub-$500k token the badday lane admits (envelope: 50-500k mcap, age>=6h,
-    liq>=15k, deep flush pc_h1<=-20) is now ARMED — was excluded by the strict
-    in_band min_mcap floor. (Kelsey-class $90k microcap.)"""
-    monkeypatch.setenv("BADDAY_LANE", "on")
+def test_fast_arm_subset_arms_subband_no_lane_token(monkeypatch):
+    """FIX 2: a sub-$500k token with NO lane match (previously excluded by the
+    strict min_mcap floor / lane re-derive) is NOW armed — in_band True simply
+    because mcap<=max_mcap and liq>0. (Kelsey-class $90k microcap, lanes OFF.)"""
+    monkeypatch.setenv("BADDAY_LANE", "off")
     monkeypatch.delenv("YOUNG_TOKEN_PROBE", raising=False)
     monkeypatch.delenv("LOW_MCAP_PROBE", raising=False)
     monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "30")
     from core.fast_watch import FastWatchConfig
     cfg = FastWatchConfig.from_env()
-    # age = 24h so (now_ms - created) >= 6h envelope floor.  pc_h1 -25 = flush state.
     now_ms = 10_000_000_000
     created = now_ms - int(24 * 3_600_000)
     pairs = {
@@ -658,49 +662,67 @@ def test_fast_arm_subset_arms_badday_lane_token(monkeypatch):
     s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
     s._fast_arm_subset(cfg, now_ms)
     armed = set(s._fast_armed.keys())
-    assert "KELSEY90K" in armed     # lane-admitted sub-band microcap now armed (FIX A)
+    assert "KELSEY90K" in armed     # sub-band, no lane -> NOW armed (FIX 2)
     assert "INBAND2M" in armed      # in-band still armed
-    assert "HUGE100M" not in armed  # truly out-of-band (mcap>max), no lane -> excluded
+    assert "HUGE100M" not in armed  # mcap > max_mcap -> excluded
 
 
-def test_fast_arm_subset_excludes_subband_token_with_no_lane(monkeypatch):
-    """All lanes OFF -> a sub-$1M token NOT admitted by any lane stays excluded
-    (regression guard: lane-aware in_band must not become 'arm everything')."""
-    monkeypatch.setenv("BADDAY_LANE", "off")
+def test_fast_arm_subset_arms_dip_and_pump_drops_huge_and_dead(monkeypatch):
+    """FIX 2 + FIX 1 preserved: a deep dip AND a pump (both <= max_mcap, liq>0)
+    are armed; a token with mcap>max_mcap is NOT armed; a token with liq<=0 is
+    NOT armed."""
+    monkeypatch.delenv("BADDAY_LANE", raising=False)
     monkeypatch.delenv("YOUNG_TOKEN_PROBE", raising=False)
     monkeypatch.delenv("LOW_MCAP_PROBE", raising=False)
     monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "30")
     from core.fast_watch import FastWatchConfig
     cfg = FastWatchConfig.from_env()
     now_ms = 10_000_000_000
-    created = now_ms - int(24 * 3_600_000)
+    created = now_ms - int(2 * 3_600_000)   # young (age gate dropped -> still armed)
     pairs = {
-        "MICRO90K": {"marketCap": 90_000, "liquidity": {"usd": 30_000},
-                     "pairCreatedAt": created, "priceChange": {"h1": -25.0},
-                     "volume": {"h1": 5.0}},
+        "DEEPDIP": {"marketCap": 200_000, "liquidity": {"usd": 40_000},
+                    "pairCreatedAt": created, "priceChange": {"h1": -36.0},
+                    "volume": {"h1": 5.0}},
+        "PUMP":    {"marketCap": 300_000, "liquidity": {"usd": 40_000},
+                    "pairCreatedAt": created, "priceChange": {"h1": +905.0},
+                    "volume": {"h1": 9.0}},
+        "HUGE":    {"marketCap": 80_000_000, "liquidity": {"usd": 80_000},
+                    "pairCreatedAt": created, "priceChange": {"h1": -5.0},
+                    "volume": {"h1": 9.0}},
+        "DEADLIQ": {"marketCap": 200_000, "liquidity": {"usd": 0.0},
+                    "pairCreatedAt": created, "priceChange": {"h1": -30.0},
+                    "volume": {"h1": 9.0}},
     }
     s, _ = _scanner_for_lane_arm(pairs)
     s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
     s._fast_arm_subset(cfg, now_ms)
-    assert "MICRO90K" not in set(s._fast_armed.keys())
+    armed = set(s._fast_armed.keys())
+    assert "DEEPDIP" in armed       # dip armed (FIX 1)
+    assert "PUMP" in armed          # pump armed (FIX 1)
+    assert "HUGE" not in armed      # mcap > max_mcap -> excluded
+    assert "DEADLIQ" not in armed   # liq <= 0 -> excluded
 
 
-def test_fast_arm_subset_arms_low_mcap_lane_token(monkeypatch):
-    """LOW_MCAP_PROBE on -> a token in [500k, 1M) the low-mcap lane admits is armed."""
-    monkeypatch.setenv("LOW_MCAP_PROBE", "1")
-    monkeypatch.setenv("BADDAY_LANE", "off")
+def test_fast_arm_subset_volume_ranks_under_cap(monkeypatch):
+    """FIX 2: volume ranking + armed_max cap still hold — cap=2 -> top-2 by
+    volume.h1, even with the whole watched set in_band."""
+    monkeypatch.delenv("BADDAY_LANE", raising=False)
     monkeypatch.delenv("YOUNG_TOKEN_PROBE", raising=False)
-    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "30")
+    monkeypatch.delenv("LOW_MCAP_PROBE", raising=False)
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "2")
     from core.fast_watch import FastWatchConfig
     cfg = FastWatchConfig.from_env()
+    assert cfg.armed_max == 2
     now_ms = 10_000_000_000
     created = now_ms - int(24 * 3_600_000)
     pairs = {
-        "LOWMCAP700K": {"marketCap": 700_000, "liquidity": {"usd": 60_000},
-                        "pairCreatedAt": created, "priceChange": {"h1": -8.0},
-                        "volume": {"h1": 5.0}},
+        f"T{i}": {"marketCap": 300_000, "liquidity": {"usd": 40_000},
+                  "pairCreatedAt": created, "priceChange": {"h1": -10.0},
+                  "volume": {"h1": float(i)}}
+        for i in range(1, 6)
     }
     s, _ = _scanner_for_lane_arm(pairs)
     s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
     s._fast_arm_subset(cfg, now_ms)
-    assert "LOWMCAP700K" in set(s._fast_armed.keys())
+    armed = set(s._fast_armed.keys())
+    assert armed == {"T4", "T5"}    # top-2 by volume.h1, capped at armed_max
