@@ -38,6 +38,7 @@ _TELEMETRY_LOGS = frozenset({
     "ohlcv_sidecar.jsonl",
     "follow_signals.jsonl",
     "follow_exits.jsonl",
+    "fill_speed_forward.jsonl",
 })
 
 _MB = 1024 * 1024

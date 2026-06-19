@@ -2437,6 +2437,7 @@ class WebDashboard:
         self.app.router.add_get("/api/leaderboard",         self._handle_api_leaderboard)
         self.app.router.add_get("/api/live",                self._handle_api_live)
         self.app.router.add_get("/api/fast-watch",          self._handle_api_fast_watch)
+        self.app.router.add_get("/api/fill-speed",          self._handle_api_fill_speed)
         self.app.router.add_get("/api/bots/{bot_id}/trades",    self._handle_api_bot_trades)
         self.app.router.add_get("/api/bots/{bot_id}/positions", self._handle_api_bot_positions)
         self.app.router.add_get("/api/attribution/filters",   self._handle_attribution_filters)
@@ -3101,6 +3102,57 @@ class WebDashboard:
             "ticks": stats.get("ticks", 0),
             "would_fire": stats.get("would_fire", 0),
             "flags": flags,
+        }
+        return web.Response(
+            text=json.dumps(payload), content_type="application/json", headers=cors,
+        )
+
+    async def _handle_api_fill_speed(self, request):
+        """GET /api/fill-speed — read-only observability for the FORWARD fill-speed
+        capture (fast would-fill price vs main-sweep fill, shadow). Tails the
+        DATA_DIR/fill_speed_forward.jsonl log and reports counts + the median
+        delta_pct (sweep vs fast at capture; the OFFLINE joiner adds realized P&L by
+        joining to closed trades). No money path, no behavior change."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        import statistics as _stats
+        path = os.path.join(os.environ.get("DATA_DIR", "/data"),
+                            "fill_speed_forward.jsonl")
+        mode = os.environ.get("FILL_SPEED_LOG_MODE", "shadow")
+        recs = []
+        try:
+            if os.path.exists(path):
+                with open(path) as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            recs.append(json.loads(line))
+                        except Exception:
+                            continue
+        except Exception as e:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": str(e),
+                                 "FILL_SPEED_LOG_MODE": mode}),
+                content_type="application/json", headers=cors,
+            )
+        deltas = [r.get("delta_pct") for r in recs
+                  if isinstance(r.get("delta_pct"), (int, float))]
+        leads = [r.get("lead_secs") for r in recs
+                 if isinstance(r.get("lead_secs"), (int, float))]
+        by_bot: dict = {}
+        for r in recs:
+            by_bot[r.get("bot")] = by_bot.get(r.get("bot"), 0) + 1
+        payload = {
+            "ok": True,
+            "FILL_SPEED_LOG_MODE": mode,
+            "n_records": len(recs),
+            "median_delta_pct": (_stats.median(deltas) if deltas else None),
+            "median_lead_secs": (_stats.median(leads) if leads else None),
+            "by_bot": by_bot,
+            "recent": recs[-10:],
+            "note": ("realized fast-vs-sweep P&L (edge_pp) comes from the OFFLINE "
+                     "joiner: python scripts/fill_speed_forward.py"),
         }
         return web.Response(
             text=json.dumps(payload), content_type="application/json", headers=cors,

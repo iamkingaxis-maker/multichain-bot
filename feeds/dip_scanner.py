@@ -275,6 +275,16 @@ class DipScanner:
         # addr -> time.time() of the LAST fast-watch poll that returned a price for it.
         # Powers _has_fresh_fast_price (the no-fast-price entry gate freshness signal).
         self._fast_samples_ts: Dict[str, float] = {}
+        # FORWARD FILL-SPEED CAPTURE (2026-06-18, shadow). The fast-watch loop sees
+        # the price it WOULD fill at (the would-fill price) ~3-9s after a dip; the
+        # main sweep produces the ACTUAL fill ~85s later. To measure realized
+        # fill-speed P&L going forward (the historical counterfactual is data-blocked
+        # — DexScreener drops pre-entry trajectory), we stash the fast would-fill
+        # price+ts here at escalation and join it to the sweep fill in _execute_bot_buy.
+        # ADDRESS-keyed (never symbol — same-ticker mints cross-poison symbol state).
+        # Bounded (evict-oldest) so it can never leak. value = (price, monotonic_ts, iso_ts).
+        self._fast_seen_price: Dict[str, tuple] = {}
+        self._fast_seen_price_max = int(os.environ.get("FILL_SPEED_SEEN_MAX", "1000"))
         # No-fast-price gate observability (would-block volume + per-bot, winner-safety).
         # Exception-safe; an obs counter must NEVER break a buy.
         self._nfp_stats: dict = {"would_block": 0, "priceable": 0, "by_bot": {}}
@@ -1115,6 +1125,93 @@ class DipScanner:
             max_age = 30.0
         return (time.time() - float(ts)) <= max_age
 
+    def _fast_stash_seen_price(self, addr, price, now_ts):
+        """Record the would-fill price the fast-watch saw for `addr` this tick.
+
+        ADDRESS-keyed (never symbol). Bounded — evicts the oldest entries once the
+        dict exceeds `_fast_seen_price_max` so it can never leak. Stores
+        (float_price, monotonic_now, iso_ts). Best-effort: a bad price is dropped
+        (no stash) rather than raising — the caller already fail-opens."""
+        if not addr:
+            return
+        try:
+            pr = float(price)
+        except (TypeError, ValueError):
+            return
+        if pr <= 0:
+            return
+        seen = getattr(self, "_fast_seen_price", None)
+        if seen is None:
+            seen = {}
+            self._fast_seen_price = seen
+        from datetime import datetime, timezone
+        seen[addr] = (pr, now_ts, datetime.now(timezone.utc).isoformat())
+        # Evict oldest (by stash order) when over the cap. dict preserves insertion
+        # order; re-stashing an addr keeps its old slot — pop+reinsert to refresh it.
+        cap = int(getattr(self, "_fast_seen_price_max", 1000) or 1000)
+        if len(seen) > cap:
+            # drop the oldest ~10% in one pass to amortize the trim cost
+            for k in list(seen.keys())[: max(1, len(seen) - cap)]:
+                seen.pop(k, None)
+
+    def _fast_lookup_seen_price(self, addr):
+        """Case-insensitive lookup of a stashed fast would-fill price for `addr`.
+        Returns (price, monotonic_ts, iso_ts) or None. Pure read, never raises."""
+        seen = getattr(self, "_fast_seen_price", None) or {}
+        if not addr:
+            return None
+        v = seen.get(addr)
+        if v is not None:
+            return v
+        _lower = addr.lower()
+        for k, val in seen.items():
+            if k.lower() == _lower:
+                return val
+        return None
+
+    def _log_fill_speed_record(self, decision, bot_id, sweep_price, sweep_ts):
+        """Append ONE forward fill-speed shadow record joining the stashed fast
+        would-fill price to this sweep fill. Flag-gated (FILL_SPEED_LOG_MODE),
+        ADDRESS-keyed, FAIL-OPEN: any error is swallowed at debug — this must NEVER
+        block or alter the buy. Writes JSONL to DATA_DIR/fill_speed_forward.jsonl."""
+        mode = os.environ.get("FILL_SPEED_LOG_MODE", "shadow").strip().lower()
+        if mode == "off":
+            return
+        try:
+            addr = decision.address or self._addr_by_token.get(decision.token, "")
+            if not addr:
+                return
+            seen = self._fast_lookup_seen_price(addr)
+            if seen is None:
+                return  # no fast price stashed for this arming window — nothing to compare
+            fast_price, fast_mono, fast_iso = seen
+            from core.fast_watch import fill_speed_record
+            rec = fill_speed_record(
+                token=decision.token, bot=bot_id,
+                fast_price=fast_price, fast_ts=fast_iso,
+                sweep_price=sweep_price, sweep_ts=sweep_ts,
+                address=addr,
+            )
+            # lead_secs from ISO strings is unreliable; recompute from monotonic.
+            try:
+                if fast_mono is not None and sweep_ts is not None:
+                    rec["lead_secs"] = round(float(sweep_ts) - float(fast_mono), 3)
+            except (TypeError, ValueError):
+                pass
+            path = os.path.join(
+                os.environ.get("DATA_DIR", "/data"), "fill_speed_forward.jsonl")
+            with open(path, "a") as f:
+                f.write(json.dumps(rec, separators=(",", ":")) + "\n")
+            # Consume the stash so the same fast price isn't re-joined to a later buy
+            # of the same token from a stale arming window.
+            try:
+                self._fast_seen_price.pop(addr, None)
+            except Exception:
+                pass
+        except Exception as e:
+            logger.debug("[fill-speed] log record failed bot=%s token=%s: %s",
+                         bot_id, getattr(decision, "token", "?"), e)
+
     async def _execute_bot_buy(self, decision, bundle):
         """Execute a BuyDecision from a single bot.
 
@@ -1652,6 +1749,11 @@ class DipScanner:
             "[DipScanner] BUY bot=%s token=%s size=$%.2f tier=%s",
             bot_id, decision.token, decision.size_usd, decision.size_tier,
         )
+        # FORWARD FILL-SPEED CAPTURE (shadow, FILL_SPEED_LOG_MODE): if the fast-watch
+        # stashed a would-fill price for this token THIS arming window, log it vs the
+        # actual sweep fill (eff_entry). Fail-open inside the helper — can never block
+        # the buy. sweep_ts uses time.time() to match the fast stash's monotonic ref.
+        self._log_fill_speed_record(decision, bot_id, eff_entry, time.time())
 
     def _token_recent_close_pnl(self, token, address, hours=6.0):
         """Cross-bot token-bleed regime signal (2026-06-02 #4.2). Sum trailing-`hours`
@@ -3407,6 +3509,14 @@ class DipScanner:
                     pair["priceUsd"] = str(pinned)
                 else:
                     pair["priceUsd"] = str(fresh)
+                # FORWARD FILL-SPEED CAPTURE (shadow): stash the would-fill price
+                # this fast tick saw for `addr` so _execute_bot_buy can log it vs the
+                # actual sweep fill. The escalation price (pinned > jupiter) is the
+                # one the fast loop WOULD have filled at. Fail-open: never break eval.
+                try:
+                    self._fast_stash_seen_price(addr, pair.get("priceUsd"), now)
+                except Exception as _fs_e:
+                    logger.debug("[fill-speed] stash failed token=%s: %s", addr, _fs_e)
             ctx = {
                 "now_ms": now_ms,
                 "_regime_n": regime.get("_regime_n", 0),

@@ -199,3 +199,96 @@ def move_fires(samples, dip_pct: float, rise_pct: float) -> bool:
     if rise is not None and rise >= abs(rise_pct):
         return True
     return False
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# FORWARD FILL-SPEED CAPTURE (shadow) — fast-entry-price vs main-sweep-entry-price
+# ──────────────────────────────────────────────────────────────────────────────
+# The historical counterfactual (scripts/fill_speed_pnl.py) is data-blocked:
+# DexScreener doesn't retain pre-entry price trajectory for old trades. Instead we
+# capture the comparison AT THE MOMENT it exists — the fast-watch loop already holds
+# the fresh price it WOULD fill at (the would-fill price), the main sweep produces
+# the ACTUAL fill (entry_price). We log both keyed by ADDRESS (never symbol — a
+# symbol-keyed price cross-poisons same-ticker mints) so we accumulate real per-trade
+# (fast-entry-price vs sweep-entry-price, same exit) deltas to judge fill-speed P&L
+# at n>=30 going forward. Pure + deterministic so it is trivially unit-testable.
+
+
+def _pos_num(x):
+    """Return float(x) if it is a real, strictly-positive number, else None."""
+    if isinstance(x, bool):  # bool is an int subclass — reject it explicitly
+        return None
+    if not isinstance(x, (int, float)):
+        return None
+    f = float(x)
+    if f <= 0.0:
+        return None
+    return f
+
+
+def fill_speed_delta_pct(fast_price, sweep_price):
+    """(sweep/fast - 1) * 100 — how much DEARER the main-sweep fill was vs the fast
+    would-fill price (positive = the fast entry was cheaper; negative = the fast
+    entry front-ran a further drop). None on any non-positive / bad input."""
+    f = _pos_num(fast_price)
+    s = _pos_num(sweep_price)
+    if f is None or s is None:
+        return None
+    return (s / f - 1.0) * 100.0
+
+
+def realized_pair(fast_price, sweep_price, exit_price):
+    """Given the SAME exit, the realized P&L of each entry side and the edge.
+
+    Returns (fast_pnl_pct, sweep_pnl_pct, edge_pp) where
+        fast_pnl_pct  = (exit/fast  - 1) * 100
+        sweep_pnl_pct = (exit/sweep - 1) * 100
+        edge_pp       = fast_pnl_pct - sweep_pnl_pct   (the decisive number)
+    None if any price is missing or <= 0 (guards bad/half-recorded rows)."""
+    f = _pos_num(fast_price)
+    s = _pos_num(sweep_price)
+    x = _pos_num(exit_price)
+    if f is None or s is None or x is None:
+        return None
+    fast_pnl = (x / f - 1.0) * 100.0
+    sweep_pnl = (x / s - 1.0) * 100.0
+    return (fast_pnl, sweep_pnl, fast_pnl - sweep_pnl)
+
+
+def fill_speed_record(token, bot, fast_price, fast_ts, sweep_price, sweep_ts,
+                      address, exit_price=None, now_ts=None):
+    """Build ONE forward fill-speed shadow record (a plain dict, JSON-safe).
+
+    ADDRESS-keyed (`token_address`) — NEVER symbol-keyed (same-ticker mints
+    cross-poison symbol-keyed price state). `token`/`symbol` is carried for human
+    reading only. `lead_secs` = sweep_ts - fast_ts (how much earlier the fast loop
+    saw the price). `delta_pct` = fill_speed_delta_pct (sweep vs fast). Exit P&L is
+    NOT captured here — the trade lifecycle already records exit_price; the offline
+    joiner (scripts/fill_speed_forward.py) fills realized P&L by joining on
+    address+entry. All fields degrade to None on bad input (never raises)."""
+    lead = None
+    try:
+        if fast_ts is not None and sweep_ts is not None:
+            lead = float(sweep_ts) - float(fast_ts)
+    except (TypeError, ValueError):
+        lead = None
+    rec = {
+        "ts": (now_ts if now_ts is not None else _now_iso()),
+        "token_address": address,
+        "symbol": token,
+        "bot": bot,
+        "fast_price": fast_price,
+        "fast_ts": fast_ts,
+        "sweep_price": sweep_price,
+        "sweep_ts": sweep_ts,
+        "lead_secs": lead,
+        "delta_pct": fill_speed_delta_pct(fast_price, sweep_price),
+    }
+    if exit_price is not None:
+        rec["exit_price"] = exit_price
+    return rec
+
+
+def _now_iso():
+    import datetime as _dt
+    return _dt.datetime.now(_dt.timezone.utc).isoformat()

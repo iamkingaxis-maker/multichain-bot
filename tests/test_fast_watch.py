@@ -1021,3 +1021,74 @@ def test_fast_arm_subset_falls_back_to_sticky_when_cycle_unset(monkeypatch):
     assert not hasattr(s, "_cycle_pair_by_addr")
     s._fast_arm_subset(cfg, now_ms)               # must not raise
     assert "stickyonly" in {k.lower() for k in s._fast_armed.keys()}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# FORWARD FILL-SPEED CAPTURE — pure logic (fast-entry-price vs sweep-entry-price)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_fill_speed_delta_pct_basic():
+    # sweep filled DEARER than the fast price -> positive delta (fast was cheaper)
+    assert round(fw.fill_speed_delta_pct(100.0, 110.0), 6) == 10.0
+    # sweep filled CHEAPER than fast -> negative (fast front-ran a further drop)
+    assert round(fw.fill_speed_delta_pct(100.0, 90.0), 6) == -10.0
+    assert fw.fill_speed_delta_pct(100.0, 100.0) == 0.0
+
+
+def test_fill_speed_delta_pct_guards():
+    assert fw.fill_speed_delta_pct(0.0, 100.0) is None      # bad fast price
+    assert fw.fill_speed_delta_pct(-1.0, 100.0) is None
+    assert fw.fill_speed_delta_pct(100.0, 0.0) is None      # bad sweep price
+    assert fw.fill_speed_delta_pct(100.0, -5.0) is None
+    assert fw.fill_speed_delta_pct(None, 100.0) is None
+    assert fw.fill_speed_delta_pct(100.0, None) is None
+    assert fw.fill_speed_delta_pct("x", 100.0) is None
+
+
+def test_fill_speed_record_is_address_keyed_dict():
+    rec = fw.fill_speed_record(
+        token="BONK", bot="dip_buy",
+        fast_price=100.0, fast_ts=1000.0,
+        sweep_price=110.0, sweep_ts=1085.0,
+        address="So111ADDR",
+    )
+    assert rec["token_address"] == "So111ADDR"   # ADDRESS-keyed, never symbol
+    assert rec["symbol"] == "BONK"
+    assert rec["bot"] == "dip_buy"
+    assert rec["fast_price"] == 100.0
+    assert rec["fast_ts"] == 1000.0
+    assert rec["sweep_price"] == 110.0
+    assert rec["sweep_ts"] == 1085.0
+    assert rec["lead_secs"] == 85.0              # sweep_ts - fast_ts
+    assert round(rec["delta_pct"], 6) == 10.0
+    assert "ts" in rec
+
+
+def test_fill_speed_record_handles_missing_ts_and_bad_prices():
+    rec = fw.fill_speed_record(
+        token="X", bot="b",
+        fast_price=0.0, fast_ts=None,
+        sweep_price=110.0, sweep_ts=None,
+        address="A",
+    )
+    assert rec["lead_secs"] is None       # cannot compute without both ts
+    assert rec["delta_pct"] is None       # bad fast price -> None delta
+
+
+def test_realized_pair_edge():
+    # fast entry 100, sweep entry 110, same exit 120
+    fast_pnl, sweep_pnl, edge = fw.realized_pair(100.0, 110.0, 120.0)
+    assert round(fast_pnl, 6) == 20.0
+    assert round(sweep_pnl, 6) == round((120.0 / 110.0 - 1) * 100.0, 6)
+    assert round(edge, 6) == round(fast_pnl - sweep_pnl, 6)
+    assert edge > 0    # cheaper fast entry -> more P&L
+
+
+def test_realized_pair_guards():
+    assert fw.realized_pair(0.0, 110.0, 120.0) is None
+    assert fw.realized_pair(100.0, 0.0, 120.0) is None
+    assert fw.realized_pair(100.0, 110.0, 0.0) is None
+    assert fw.realized_pair(None, 110.0, 120.0) is None
+    assert fw.realized_pair(100.0, None, 120.0) is None
+    assert fw.realized_pair(100.0, 110.0, None) is None
+    assert fw.realized_pair(-1.0, 110.0, 120.0) is None
