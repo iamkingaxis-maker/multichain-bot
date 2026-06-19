@@ -1006,6 +1006,48 @@ class DipScanner:
                     usd += float(getattr(_p, "size_usd", 0.0) or 0.0)
         return n, usd
 
+    def _paper_token_exposure(self, address: str) -> tuple:
+        """Fleet-wide (count, $usd) of OPEN *PAPER* positions in ONE token, keyed by
+        ADDRESS (lowercased). The PAPER sibling of _live_token_exposure: it counts only
+        positions held by bots that are NOT routing live, so it powers the PAPER per-token
+        concentration cap (crash-protection lever #1 — the death-cluster / gap-rug tail
+        where 7-37 paper bots pile a single mint like Chaton/cat-token/MEEP). The LIVE cap
+        already covers live bots, so excluding them here keeps the two caps disjoint.
+
+        Address-keyed + LOWERCASED on purpose: symbols collide (the SPCX phantom), so
+        concentration MUST be measured per-mint. In a pure-paper fleet (no private key)
+        nothing routes live, so this counts the whole fleet — which is exactly the gap."""
+        n = 0
+        usd = 0.0
+        if not address:
+            return n, usd
+        _addr = address.lower()
+        # Per-bot live routing: a position is LIVE iff its bot opted in (live_probe) AND
+        # Ultra is on AND a real key is present (should_route_live). Compute the global
+        # gates once; only live_probe varies per bot.
+        try:
+            from core.trader import USE_JUPITER_ULTRA
+            from core.probe_instrument import should_route_live
+            _has_key = bool(getattr(self.trader, "private_key", ""))
+        except Exception:
+            USE_JUPITER_ULTRA = False
+            should_route_live = None
+            _has_key = False
+        for _pm in self.bot_position_managers.values():
+            _cfg = getattr(_pm, "config", None)
+            _bot_live = False
+            if should_route_live is not None:
+                _bot_live = should_route_live(
+                    bool(getattr(_cfg, "live_probe", False)), USE_JUPITER_ULTRA, _has_key
+                )
+            if _bot_live:
+                continue  # live position -> covered by the LIVE cap, not the paper cap
+            for _p in _pm._positions.values():
+                if str(getattr(_p, "address", "") or "").lower() == _addr:
+                    n += 1
+                    usd += float(getattr(_p, "size_usd", 0.0) or 0.0)
+        return n, usd
+
     async def _execute_bot_buy(self, decision, bundle):
         """Execute a BuyDecision from a single bot.
 
@@ -1271,6 +1313,43 @@ class DipScanner:
                     logger.error("[DipScanner] LIVE PER-TOKEN CAP error (%s) — fail-closed, "
                                  "blocking live buy %s %s", e, bot_id, decision.token)
                     return
+        # PAPER PER-TOKEN CONCENTRATION CAP (2026-06-18) — crash-protection lever #1.
+        # The PAPER fleet (the 70-experiment selection instrument) is NEVER touched by the
+        # LIVE cap above, so today 7-37 paper bots pile the SAME mint (Chaton/cat-token/MEEP)
+        # = the death-cluster / gap-rug tail. This is the ONLY winner-safe defense: it limits
+        # HOW MANY bots hold the same token (by ADDRESS, lowercased — the SPCX symbol-collision
+        # lesson), it does NOT filter WHICH tokens we buy, so it never kills buy volume.
+        # SHADOW-FIRST: default 'shadow' = log-only (no behavior change on deploy); 'enforce'
+        # is the only mode that blocks (a later AxiS decision once shadow data shows it would
+        # block the death-clusters, not winners). Fails OPEN in BOTH shadow AND enforce — this
+        # is paper experiment-protection, NOT a real-money safety, so prefer allowing the buy
+        # (preserve data) over crashing (differs from the LIVE cap, which fails CLOSED).
+        # Tunables: PAPER_PER_TOKEN_CAP_MODE (off|shadow|enforce, default shadow),
+        # PAPER_PER_TOKEN_MAX_POSITIONS (4), PAPER_PER_TOKEN_MAX_USD (600 — generous so the
+        # POSITION-COUNT bites first). Sits BEFORE capital.reserve_for_buy and the buy fire,
+        # same place as the live cap.
+        _pptc_mode = os.environ.get("PAPER_PER_TOKEN_CAP_MODE", "shadow").strip().lower()
+        if _pptc_mode != "off" and not _live:
+            try:
+                _pptc_n = int(os.environ.get("PAPER_PER_TOKEN_MAX_POSITIONS", "4"))
+                _pptc_usd = float(os.environ.get("PAPER_PER_TOKEN_MAX_USD", "600"))
+                _pptc_addr = decision.address or self._addr_by_token.get(decision.token, "")
+                _pptc_open_n, _pptc_open_usd = self._paper_token_exposure(_pptc_addr)
+                if _pptc_addr and (_pptc_open_n >= _pptc_n
+                                   or (_pptc_open_usd + _used_size) > _pptc_usd):
+                    logger.info(
+                        "[DipScanner] PAPER PER-TOKEN CAP %s: token=%s %d pos/$%.2f "
+                        "(cap %d/$%.2f) +$%.2f bot=%s %s",
+                        "BLOCK" if _pptc_mode == "enforce" else "SHADOW-would-block",
+                        decision.token, _pptc_open_n, _pptc_open_usd, _pptc_n, _pptc_usd,
+                        _used_size, bot_id, _pptc_addr)
+                    if _pptc_mode == "enforce":
+                        return
+            except Exception as e:
+                # Fail-OPEN (shadow AND enforce): paper experiment-protection — prefer
+                # allowing the buy (preserve data) over crashing on a counting error.
+                logger.error("[DipScanner] PAPER PER-TOKEN CAP error (%s) — fail-open, "
+                             "allowing %s %s", e, bot_id, decision.token)
         try:
             capital.reserve_for_buy(_used_size)
         except ValueError as e:
