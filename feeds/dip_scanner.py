@@ -1278,6 +1278,11 @@ class DipScanner:
                     logger.info("[no-fast-price] %s bot=%s token=%s (no fresh Jupiter price)",
                                 "BLOCK" if _nfp_mode == "enforce" else "SHADOW-would-block",
                                 bot_id, decision.token)
+                    if _nfp_mode == "shadow":
+                        from core.shadow_gate_log import log_shadow_block as _sgl
+                        _sgl("no_fast_price", bot_id,
+                             _nfp_addr or self._addr_by_token.get(decision.token, ""),
+                             decision.token, mode=_nfp_mode)
                     if _nfp_mode == "enforce":
                         return
                 else:
@@ -1293,11 +1298,22 @@ class DipScanner:
         # overblock). Momentum-mode bots EXEMPT (not dip-buyers). Fail-open (no verdict
         # -> buy). See core/regime_buy_gate.py.
         _bg = getattr(self, "_buy_gate", None)
-        if (_bg and _bg.get("enforced")
+        if (_bg and _bg.get("block")
                 and not bool(getattr(pm.config, "momentum_mode", False))):
-            logger.info("[DipScanner] bot=%s BUY-GATE OFF (%s) — skip %s",
-                        bot_id, _bg.get("reason"), decision.token)
-            return
+            if _bg.get("enforced"):
+                logger.info("[DipScanner] bot=%s BUY-GATE OFF (%s) — skip %s",
+                            bot_id, _bg.get("reason"), decision.token)
+                return
+            # SHADOW would-block: regime gate would have blocked this dip entry but
+            # mode!=enforce, so the buy STILL EXECUTES — record it for attribution.
+            if _bg.get("mode") == "shadow":
+                logger.info("[DipScanner] bot=%s REGIME BUY-GATE SHADOW-would-block (%s) %s",
+                            bot_id, _bg.get("reason"), decision.token)
+                from core.shadow_gate_log import log_shadow_block as _sgl
+                _sgl("regime_buy_gate", bot_id,
+                     decision.address or self._addr_by_token.get(decision.token, ""),
+                     decision.token, breadth=_bg.get("breadth"),
+                     sol_h24=_bg.get("sol_h24"), reason=_bg.get("reason"))
         # STANDBY GATE (Option B, 2026-06-12): the chameleon opens NEW
         # positions ONLY while wearing a board-alive meta — "we only buy when
         # we KNOW the meta." Open positions keep managing normally.
@@ -1423,6 +1439,11 @@ class DipScanner:
                             "(sol_h6=%.1f dd90=%s) %s", bot_id,
                             "BLOCK" if _ng_mode == "enforce" else "SHADOW-would-block",
                             _ng_pch1, _ng_solh6, _ng_dd, decision.token)
+                if _ng_mode == "shadow":
+                    from core.shadow_gate_log import log_shadow_block as _sgl
+                    _sgl("solpump_neg_gate", bot_id,
+                         decision.address or self._addr_by_token.get(decision.token, ""),
+                         decision.token, pc_h1=_ng_pch1, sol_h6=_ng_solh6, dd90=_ng_dd)
                 if _ng_mode == "enforce":
                     return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
@@ -1570,6 +1591,11 @@ class DipScanner:
                         "BLOCK" if _pptc_mode == "enforce" else "SHADOW-would-block",
                         decision.token, _pptc_open_n, _pptc_open_usd, _pptc_n, _pptc_usd,
                         _used_size, bot_id, _pptc_addr)
+                    if _pptc_mode == "shadow":
+                        from core.shadow_gate_log import log_shadow_block as _sgl
+                        _sgl("paper_per_token_cap", bot_id, _pptc_addr, decision.token,
+                             n_pos=_pptc_open_n, usd_in_token=_pptc_open_usd,
+                             add_usd=_used_size)
                     if _pptc_mode == "enforce":
                         return
             except Exception as e:
@@ -7470,6 +7496,11 @@ class DipScanner:
                     f"[DipScanner] filter_stale_watch SHADOW would-block: {token_symbol} "
                     f"reasons={','.join(_filter_stale_watch_block_reasons)}"
                 )
+                # filter_stale_watch is a SCAN-LEVEL (fleet-wide) filter — no single
+                # bot_id here; bot="_scan". ADDRESS-keyed via token_address.
+                from core.shadow_gate_log import log_shadow_block as _sgl
+                _sgl("filter_stale_watch", "_scan", token_address, token_symbol,
+                     reasons=";".join(_filter_stale_watch_block_reasons))
 
             # ── filter_confirmation_candle — SHADOW 2026-05-05 PM ─────────────
             # Timing fix: require POSITIVE confirmation on the entry 1m candle
