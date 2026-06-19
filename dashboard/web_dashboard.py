@@ -2344,6 +2344,60 @@ setInterval(updateProfitSweepBanner, 60000);
 """
 
 
+# ── Unified filter-shadow read helper ─────────────────────────────────────────
+
+def read_filter_shadow_payload(data_dir: str) -> dict:
+    """Pure, BLOCKING read of the two precomputed shadow-P&L JSONs (run off the
+    loop via asyncio.to_thread). Returns the unified /api/filter-shadow payload.
+
+    FAIL-OPEN: if neither precomputed file exists yet (scorer hasn't run), or a
+    file is unreadable, the corresponding section is {} and a note is set —
+    never raises. Reads only the SMALL precomputed JSONs, never the raw .jsonl.
+    raw_counts are cheap line-counts of the source logs for an at-a-glance
+    'is data flowing' signal."""
+    import datetime as _dt
+
+    def _load_json(name: str) -> dict:
+        try:
+            p = os.path.join(data_dir, name)
+            if not os.path.exists(p):
+                return {}
+            with open(p, encoding="utf-8") as f:
+                d = json.load(f)
+            return d if isinstance(d, dict) else {}
+        except Exception:
+            return {}
+
+    def _count_lines(name: str) -> int:
+        try:
+            p = os.path.join(data_dir, name)
+            if not os.path.exists(p):
+                return 0
+            n = 0
+            with open(p, "rb") as f:
+                for _ in f:
+                    n += 1
+            return n
+        except Exception:
+            return 0
+
+    filters = _load_json("filter_shadow_pnl.json")
+    gates = _load_json("shadow_gate_pnl.json")
+    payload = {
+        "ok": True,
+        "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+        "filters": filters,
+        "gates": gates,
+        "raw_counts": {
+            "filter_log_lines": _count_lines("filter_shadow_log.jsonl"),
+            "gate_log_lines": _count_lines("shadow_gate_events.jsonl"),
+        },
+    }
+    if not filters and not gates:
+        payload["note"] = "scorer not yet run"
+    return payload
+
+
 # ── Dashboard Server ──────────────────────────────────────────────────────────
 
 class WebDashboard:
@@ -2438,6 +2492,7 @@ class WebDashboard:
         self.app.router.add_get("/api/live",                self._handle_api_live)
         self.app.router.add_get("/api/fast-watch",          self._handle_api_fast_watch)
         self.app.router.add_get("/api/fill-speed",          self._handle_api_fill_speed)
+        self.app.router.add_get("/api/filter-shadow",       self._handle_api_filter_shadow)
         self.app.router.add_get("/api/bots/{bot_id}/trades",    self._handle_api_bot_trades)
         self.app.router.add_get("/api/bots/{bot_id}/positions", self._handle_api_bot_positions)
         self.app.router.add_get("/api/attribution/filters",   self._handle_attribution_filters)
@@ -3103,6 +3158,25 @@ class WebDashboard:
             "would_fire": stats.get("would_fire", 0),
             "flags": flags,
         }
+        return web.Response(
+            text=json.dumps(payload), content_type="application/json", headers=cors,
+        )
+
+    async def _handle_api_filter_shadow(self, request):
+        """GET /api/filter-shadow — UNIFIED read of both shadow-P&L scorers.
+
+        Reads the small PRECOMPUTED JSONs the in-bot scorer writes
+        (filter_shadow_pnl.json = forward-candle per-filter; shadow_gate_pnl.json
+        = trade-join per routing-gate) OFF THE EVENT LOOP via asyncio.to_thread.
+        It NEVER reads the raw multi-MB .jsonl logs on the loop. FAIL-OPEN:
+        missing files -> {ok:true, filters:{}, gates:{}, note:...}."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        data_dir = os.environ.get("DATA_DIR", "/data")
+        try:
+            payload = await asyncio.to_thread(read_filter_shadow_payload, data_dir)
+        except Exception as e:
+            payload = {"ok": True, "filters": {}, "gates": {},
+                       "note": f"read error (fail-open): {e}"}
         return web.Response(
             text=json.dumps(payload), content_type="application/json", headers=cors,
         )

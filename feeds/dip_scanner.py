@@ -696,6 +696,15 @@ class DipScanner:
             self._maybe_spawn_log_rotator()
         except Exception as e:
             logger.error("[log-rotator] failed to spawn: %s", e)
+        # Shadow-P&L scorers: low-cadence in-bot task that writes the precomputed
+        # filter_shadow_pnl.json + shadow_gate_pnl.json the /api/filter-shadow
+        # endpoint reads. Off-loop + egress-bounded; true no-op when
+        # SHADOW_PNL_SCORER_MODE=off. Best-effort; never breaks the scanner.
+        try:
+            from core.shadow_pnl_scorer import maybe_spawn as _spawn_shadow_pnl
+            _spawn_shadow_pnl()
+        except Exception as e:
+            logger.error("[shadow-pnl] failed to spawn: %s", e)
         while True:
             try:
                 await self._scan_cycle()
@@ -3661,6 +3670,16 @@ class DipScanner:
             # bot gate at the END of the filter chain honors them all at once.
             _filters_block: list[str] = []
 
+            # Filter-shadow capture accumulator: each filter_* site appends
+            # (filter_name, verdict, reasons) here (a pure, never-raising list op
+            # — NO IO on the hot path). One consolidated recorder loop at the END
+            # of the filter chain writes them all to filter_shadow_log.jsonl with
+            # the candidate's feature snapshot (gated by FILTER_SHADOW_CAPTURE_MODE,
+            # fail-open). This scores would-block candidates that may never trade
+            # via forward candles. NOTE: filter_stale_watch is a ROUTING gate owned
+            # by core/shadow_gate_log.py (trade-join scored) — never recorded here.
+            _filter_verdicts: list = []
+
             if _addr_lower in self.open_positions_ref or token_address in self.open_positions_ref:
                 c["already_open"] += 1
                 continue
@@ -5230,6 +5249,10 @@ class DipScanner:
                 _filter_a_block_reasons.append(f"peak={_peak_for_filter:.0f}%>200%")
             _filter_a_verdict = "BLOCK" if _filter_a_block_reasons else "PASS"
             c[f"filter_a_{_filter_a_verdict.lower()}"] = c.get(f"filter_a_{_filter_a_verdict.lower()}", 0) + 1
+            try:
+                _filter_verdicts.append(("filter_a", _filter_a_verdict, ""))
+            except Exception:
+                pass
             # NO `continue` — Filter A is shadow-only.
 
             # Filter peak-floor — ENFORCED 2026-05-02, threshold relaxed
@@ -5293,6 +5316,10 @@ class DipScanner:
             c[f"filter_corpse_{_filter_corpse_verdict.lower()}"] = c.get(
                 f"filter_corpse_{_filter_corpse_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_corpse", _filter_corpse_verdict, ""))
+            except Exception:
+                pass
             if _filter_corpse_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_corpse SHADOW would-block: {token_symbol} "
@@ -5372,6 +5399,10 @@ class DipScanner:
             c[f"filter_fake_bounce_{_filter_fake_bounce_verdict.lower()}"] = c.get(
                 f"filter_fake_bounce_{_filter_fake_bounce_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_fake_bounce", _filter_fake_bounce_verdict, ""))
+            except Exception:
+                pass
             if _filter_fake_bounce_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_fake_bounce: {token_symbol} "
@@ -5439,6 +5470,10 @@ class DipScanner:
             c[f"filter_round_trip_{_filter_round_trip_verdict.lower()}"] = c.get(
                 f"filter_round_trip_{_filter_round_trip_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_round_trip", _filter_round_trip_verdict, ""))
+            except Exception:
+                pass
             if _filter_round_trip_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_round_trip: {token_symbol} "
@@ -5499,6 +5534,10 @@ class DipScanner:
             c[f"filter_extended_chase_{_filter_extended_chase_verdict.lower()}"] = c.get(
                 f"filter_extended_chase_{_filter_extended_chase_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_extended_chase", _filter_extended_chase_verdict, ""))
+            except Exception:
+                pass
             if _filter_extended_chase_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_extended_chase SHADOW would-block: "
@@ -5561,6 +5600,10 @@ class DipScanner:
             c[f"filter_weak_bounce_v2_{_filter_weak_bounce_v2_verdict.lower()}"] = c.get(
                 f"filter_weak_bounce_v2_{_filter_weak_bounce_v2_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_weak_bounce_v2", _filter_weak_bounce_v2_verdict, ""))
+            except Exception:
+                pass
             # DEMOTED to SHADOW 2026-05-14 evening — gather counterfactual
             # data (no BLOCK→executed-trade samples exist; can't audit while
             # enforced). Re-evaluate after 24h of forward data.
@@ -5672,6 +5715,10 @@ class DipScanner:
             c[f"filter_real_dip_3_{_filter_real_dip_3_verdict.lower()}"] = c.get(
                 f"filter_real_dip_3_{_filter_real_dip_3_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_real_dip_3", _filter_real_dip_3_verdict, ""))
+            except Exception:
+                pass
             if _filter_real_dip_3_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_real_dip_3 SHADOW would-block: {token_symbol} "
@@ -5703,6 +5750,10 @@ class DipScanner:
             c[f"filter_real_dip_5_{_filter_real_dip_5_verdict.lower()}"] = c.get(
                 f"filter_real_dip_5_{_filter_real_dip_5_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_real_dip_5", _filter_real_dip_5_verdict, ""))
+            except Exception:
+                pass
 
             # Filter 1M — SHADOW MODE: tests whether 1-minute momentum signals
             # explain the time-of-day P&L pattern. Hour-of-day analysis showed
@@ -5723,6 +5774,10 @@ class DipScanner:
                 _filter_1m_block_reasons.append(f"1m_vol_spike={_m1_vol_spike:.2f}<0.40")
             _filter_1m_verdict = "BLOCK" if _filter_1m_block_reasons else "PASS"
             c[f"filter_1m_{_filter_1m_verdict.lower()}"] = c.get(f"filter_1m_{_filter_1m_verdict.lower()}", 0) + 1
+            try:
+                _filter_verdicts.append(("filter_1m", _filter_1m_verdict, ""))
+            except Exception:
+                pass
             logger.info(
                 f"[DipScanner] FILTER_1M_SHADOW: {token_symbol} "
                 f"1m_cum3={_m1_cum if _m1_cum is not None else 'n/a'} "
@@ -6005,6 +6060,10 @@ class DipScanner:
             c[f"filter_fofar_{_filter_fofar_verdict.lower()}"] = c.get(
                 f"filter_fofar_{_filter_fofar_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_fofar", _filter_fofar_verdict, ""))
+            except Exception:
+                pass
             if _filter_fofar_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_fofar SHADOW would-block: {token_symbol} "
@@ -6101,6 +6160,10 @@ class DipScanner:
             c[f"filter_two_pattern_{_filter_two_pattern_verdict.lower()}"] = c.get(
                 f"filter_two_pattern_{_filter_two_pattern_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_two_pattern", _filter_two_pattern_verdict, ""))
+            except Exception:
+                pass
             if _filter_two_pattern_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_two_pattern SHADOW would-block: {token_symbol} "
@@ -6854,6 +6917,10 @@ class DipScanner:
             c[f"filter_rsi_overbought_{_filter_rsi_overbought_verdict.lower()}"] = c.get(
                 f"filter_rsi_overbought_{_filter_rsi_overbought_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_rsi_overbought", _filter_rsi_overbought_verdict, ""))
+            except Exception:
+                pass
             # DEMOTED to SHADOW 2026-05-14 evening — gather counterfactual
             # data (no BLOCK→executed-trade samples exist; can't audit while
             # enforced). Re-evaluate after 24h of forward data.
@@ -7118,6 +7185,10 @@ class DipScanner:
             c[f"filter_weak_bounce_{_filter_weak_bounce_verdict.lower()}"] = c.get(
                 f"filter_weak_bounce_{_filter_weak_bounce_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_weak_bounce", _filter_weak_bounce_verdict, ""))
+            except Exception:
+                pass
             if _filter_weak_bounce_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_weak_bounce SHADOW would-block: {token_symbol} "
@@ -7141,6 +7212,10 @@ class DipScanner:
             c[f"filter_slip_asym_{_filter_slip_asym_verdict.lower()}"] = c.get(
                 f"filter_slip_asym_{_filter_slip_asym_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_slip_asym", _filter_slip_asym_verdict, ""))
+            except Exception:
+                pass
             if _filter_slip_asym_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_slip_asym SHADOW would-block: {token_symbol} "
@@ -7157,6 +7232,10 @@ class DipScanner:
             c[f"filter_regime_panic_{_filter_regime_panic_verdict.lower()}"] = c.get(
                 f"filter_regime_panic_{_filter_regime_panic_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_regime_panic", _filter_regime_panic_verdict, ""))
+            except Exception:
+                pass
             if _filter_regime_panic_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_regime_panic SHADOW would-block: {token_symbol} "
@@ -7174,6 +7253,10 @@ class DipScanner:
             c[f"filter_dev_dumping_{_filter_dev_dumping_verdict.lower()}"] = c.get(
                 f"filter_dev_dumping_{_filter_dev_dumping_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_dev_dumping", _filter_dev_dumping_verdict, ""))
+            except Exception:
+                pass
             if _filter_dev_dumping_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_dev_dumping SHADOW would-block: {token_symbol} "
@@ -7280,7 +7363,7 @@ class DipScanner:
                             from feeds.filter_shadow_recorder import get_recorder as _gfsr
                             _gfsr().record(
                                 token_address=token_address, token_symbol=token_symbol,
-                                pair=pair, filter_name="filter_chasing_top", verdict="SHADOW_BLOCK",
+                                pair=pair, filter_name="filter_chasing_top", verdict="BLOCK",
                                 block_reasons=f"5m_state=uptrend AND mtf={_ct_mtf}",
                             )
                         except Exception:
@@ -7354,6 +7437,10 @@ class DipScanner:
             c[f"filter_bs_m5_low_{_filter_bs_m5_low_verdict.lower()}"] = c.get(
                 f"filter_bs_m5_low_{_filter_bs_m5_low_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_bs_m5_low", _filter_bs_m5_low_verdict, ""))
+            except Exception:
+                pass
             if _filter_bs_m5_low_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_bs_m5_low SHADOW would-block: {token_symbol} "
@@ -7419,6 +7506,10 @@ class DipScanner:
             c[f"filter_bs_m5_weak_{_filter_bs_m5_weak_verdict.lower()}"] = c.get(
                 f"filter_bs_m5_weak_{_filter_bs_m5_weak_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_bs_m5_weak", _filter_bs_m5_weak_verdict, ""))
+            except Exception:
+                pass
             if _filter_bs_m5_weak_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_bs_m5_weak: {token_symbol} "
@@ -7458,6 +7549,10 @@ class DipScanner:
             c[f"filter_big_trade_size_{_filter_big_trade_size_verdict.lower()}"] = c.get(
                 f"filter_big_trade_size_{_filter_big_trade_size_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_big_trade_size", _filter_big_trade_size_verdict, ""))
+            except Exception:
+                pass
             if _filter_big_trade_size_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_big_trade_size SHADOW would-block: {token_symbol} "
@@ -7531,6 +7626,10 @@ class DipScanner:
             c[f"filter_confirmation_candle_{_filter_confirm_verdict.lower()}"] = c.get(
                 f"filter_confirmation_candle_{_filter_confirm_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_confirmation_candle", _filter_confirm_verdict, ""))
+            except Exception:
+                pass
             if _filter_confirm_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_confirmation_candle SHADOW would-block: {token_symbol} "
@@ -7611,6 +7710,10 @@ class DipScanner:
             c[f"filter_sol_macro_down_{_filter_sol_macro_down_verdict.lower()}"] = c.get(
                 f"filter_sol_macro_down_{_filter_sol_macro_down_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_sol_macro_down", _filter_sol_macro_down_verdict, ""))
+            except Exception:
+                pass
             if _filter_sol_macro_down_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_sol_macro_down: {token_symbol} "
@@ -7650,6 +7753,10 @@ class DipScanner:
             c[f"filter_sol_macro_loose_{_filter_sol_loose_verdict.lower()}"] = c.get(
                 f"filter_sol_macro_loose_{_filter_sol_loose_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_sol_macro_loose", _filter_sol_loose_verdict, ""))
+            except Exception:
+                pass
             # Log only the actionable divergence: strict BLOCKs but loose ALLOWs.
             if (_filter_sol_macro_down_verdict == "BLOCK"
                     and _filter_sol_loose_verdict == "PASS"):
@@ -7694,6 +7801,10 @@ class DipScanner:
             c[f"filter_falling_pump_{_filter_falling_pump_verdict.lower()}"] = c.get(
                 f"filter_falling_pump_{_filter_falling_pump_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_falling_pump", _filter_falling_pump_verdict, ""))
+            except Exception:
+                pass
             if _filter_falling_pump_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_falling_pump: {token_symbol} "
@@ -7721,6 +7832,10 @@ class DipScanner:
             c[f"filter_fusion_floor_{_filter_fusion_floor_verdict.lower()}"] = c.get(
                 f"filter_fusion_floor_{_filter_fusion_floor_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_fusion_floor", _filter_fusion_floor_verdict, ""))
+            except Exception:
+                pass
             if _filter_fusion_floor_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_fusion_floor: {token_symbol} "
@@ -7749,6 +7864,10 @@ class DipScanner:
             c[f"filter_btc_overheat_{_filter_btc_overheat_verdict.lower()}"] = c.get(
                 f"filter_btc_overheat_{_filter_btc_overheat_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_btc_overheat", _filter_btc_overheat_verdict, ""))
+            except Exception:
+                pass
             if _filter_btc_overheat_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_btc_overheat: {token_symbol} "
@@ -7792,6 +7911,10 @@ class DipScanner:
             c[f"filter_aged_corpse_{_filter_aged_corpse_verdict.lower()}"] = c.get(
                 f"filter_aged_corpse_{_filter_aged_corpse_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_aged_corpse", _filter_aged_corpse_verdict, ""))
+            except Exception:
+                pass
             if _filter_aged_corpse_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_aged_corpse: {token_symbol} "
@@ -7821,6 +7944,10 @@ class DipScanner:
             c[f"filter_wynn_killer_{_filter_wynn_killer_verdict.lower()}"] = c.get(
                 f"filter_wynn_killer_{_filter_wynn_killer_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_wynn_killer", _filter_wynn_killer_verdict, ""))
+            except Exception:
+                pass
             if _filter_wynn_killer_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_wynn_killer: {token_symbol} "
@@ -7848,6 +7975,10 @@ class DipScanner:
             c[f"filter_consec_red_{_filter_consec_red_verdict.lower()}"] = c.get(
                 f"filter_consec_red_{_filter_consec_red_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_consec_red", _filter_consec_red_verdict, ""))
+            except Exception:
+                pass
             if _filter_consec_red_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_consec_red: {token_symbol} "
@@ -7890,6 +8021,10 @@ class DipScanner:
             c[f"filter_dead_meme_lagging_pressure_{_filter_dead_meme_verdict.lower()}"] = c.get(
                 f"filter_dead_meme_lagging_pressure_{_filter_dead_meme_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_dead_meme_lagging_pressure", _filter_dead_meme_verdict, ""))
+            except Exception:
+                pass
             if _filter_dead_meme_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_dead_meme_lagging_pressure: {token_symbol} "
@@ -7931,6 +8066,10 @@ class DipScanner:
             c[f"filter_dead_low_demand_{_filter_dead_low_demand_verdict.lower()}"] = c.get(
                 f"filter_dead_low_demand_{_filter_dead_low_demand_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_dead_low_demand", _filter_dead_low_demand_verdict, ""))
+            except Exception:
+                pass
             if _filter_dead_low_demand_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_dead_low_demand: {token_symbol} "
@@ -7968,6 +8107,10 @@ class DipScanner:
             c[f"filter_dead_volume_{_filter_dead_volume_verdict.lower()}"] = c.get(
                 f"filter_dead_volume_{_filter_dead_volume_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_dead_volume", _filter_dead_volume_verdict, ""))
+            except Exception:
+                pass
             if _filter_dead_volume_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_dead_volume: {token_symbol} "
@@ -8000,6 +8143,10 @@ class DipScanner:
             c[f"filter_huge_wick_{_filter_huge_wick_verdict.lower()}"] = c.get(
                 f"filter_huge_wick_{_filter_huge_wick_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_huge_wick", _filter_huge_wick_verdict, ""))
+            except Exception:
+                pass
             if _filter_huge_wick_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_huge_wick: {token_symbol} "
@@ -8048,6 +8195,10 @@ class DipScanner:
             c[f"filter_clean_break_{_filter_clean_break_verdict.lower()}"] = c.get(
                 f"filter_clean_break_{_filter_clean_break_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_clean_break", _filter_clean_break_verdict, ""))
+            except Exception:
+                pass
 
             # ── trigger_4combo — PARALLEL ENTRY TRIGGER 2026-05-06 PM ─────────
             # Fires INDEPENDENTLY of clean_break when all 4 conditions match:
@@ -10837,6 +10988,10 @@ class DipScanner:
             c[f"filter_mtf_strong_downtrend_{_filter_mtf_dn_verdict.lower()}"] = c.get(
                 f"filter_mtf_strong_downtrend_{_filter_mtf_dn_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_mtf_strong_downtrend", _filter_mtf_dn_verdict, ""))
+            except Exception:
+                pass
             if _filter_mtf_dn_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_mtf_strong_downtrend: "
@@ -10926,6 +11081,10 @@ class DipScanner:
             c[f"filter_falling_knife_{_filter_falling_knife_verdict.lower()}"] = c.get(
                 f"filter_falling_knife_{_filter_falling_knife_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_falling_knife", _filter_falling_knife_verdict, ""))
+            except Exception:
+                pass
             if _filter_falling_knife_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] SHADOW filter_falling_knife would BLOCK: "
@@ -13161,6 +13320,10 @@ class DipScanner:
             c[f"filter_solo_decay_{_fsd_verdict.lower()}"] = c.get(
                 f"filter_solo_decay_{_fsd_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_solo_decay", _fsd_verdict, ""))
+            except Exception:
+                pass
             if _fsd_breakthrough_carve:
                 logger.info(
                     f"[DipScanner] filter_solo_decay RESCUED by breakthrough_late: "
@@ -14069,6 +14232,10 @@ class DipScanner:
             c[f"filter_no_signatures_{_filter_no_signatures_verdict.lower()}"] = c.get(
                 f"filter_no_signatures_{_filter_no_signatures_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_no_signatures", _filter_no_signatures_verdict, ""))
+            except Exception:
+                pass
             if _filter_no_signatures_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_no_signatures: "
@@ -14189,6 +14356,10 @@ class DipScanner:
             c[f"filter_double_bear_{_filter_double_bear_verdict.lower()}"] = c.get(
                 f"filter_double_bear_{_filter_double_bear_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_double_bear", _filter_double_bear_verdict, ""))
+            except Exception:
+                pass
             if _filter_double_bear_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] SHADOW filter_double_bear would BLOCK: {token_symbol} "
@@ -14238,6 +14409,10 @@ class DipScanner:
             c[f"filter_seller_dominant_{_filter_seller_dominant_verdict.lower()}"] = c.get(
                 f"filter_seller_dominant_{_filter_seller_dominant_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_seller_dominant", _filter_seller_dominant_verdict, ""))
+            except Exception:
+                pass
             # 2026-05-07: DEMOTED to SHADOW. Live phantom forward test (55
             # snapshots, ~2 days) showed -$5.04 lift on T_clean_break_only vs
             # S_live_prod_stack — opposite direction from the original held-out
@@ -14291,6 +14466,10 @@ class DipScanner:
             c[f"filter_quote_asymmetry_{_filter_quote_asymmetry_verdict.lower()}"] = c.get(
                 f"filter_quote_asymmetry_{_filter_quote_asymmetry_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_quote_asymmetry", _filter_quote_asymmetry_verdict, ""))
+            except Exception:
+                pass
             if _qa_breakthrough_carve:
                 logger.info(
                     f"[DipScanner] filter_quote_asymmetry RESCUED by breakthrough_late: "
@@ -14338,6 +14517,10 @@ class DipScanner:
             c[f"filter_15s_dump_{_filter_15s_dump_verdict.lower()}"] = c.get(
                 f"filter_15s_dump_{_filter_15s_dump_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_15s_dump", _filter_15s_dump_verdict, ""))
+            except Exception:
+                pass
             if _filter_15s_dump_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] SHADOW filter_15s_dump would BLOCK: {token_symbol} "
@@ -14390,6 +14573,10 @@ class DipScanner:
             c[f"filter_5m_downtrend_{_filter_5m_downtrend_verdict.lower()}"] = c.get(
                 f"filter_5m_downtrend_{_filter_5m_downtrend_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_5m_downtrend", _filter_5m_downtrend_verdict, ""))
+            except Exception:
+                pass
             if _filter_5m_downtrend_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] SHADOW filter_5m_downtrend would BLOCK: {token_symbol} "
@@ -14442,6 +14629,10 @@ class DipScanner:
             c[f"filter_lower_low_{_filter_lower_low_verdict.lower()}"] = c.get(
                 f"filter_lower_low_{_filter_lower_low_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_lower_low", _filter_lower_low_verdict, ""))
+            except Exception:
+                pass
             if _ll_breakthrough_carve:
                 logger.info(
                     f"[DipScanner] filter_lower_low RESCUED by breakthrough_late: "
@@ -14493,6 +14684,10 @@ class DipScanner:
             c[f"filter_lp_drain_{_filter_lp_drain_verdict.lower()}"] = c.get(
                 f"filter_lp_drain_{_filter_lp_drain_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_lp_drain", _filter_lp_drain_verdict, ""))
+            except Exception:
+                pass
             if _filter_lp_drain_verdict == "BLOCK":
                 # CARVE-OUT 2026-05-15: rescue if any high-WR on-chain
                 # trigger fires. Lifetime evidence is thin for the
@@ -14554,6 +14749,10 @@ class DipScanner:
             c[f"filter_buyer_fomo_{_filter_buyer_fomo_verdict.lower()}"] = c.get(
                 f"filter_buyer_fomo_{_filter_buyer_fomo_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_buyer_fomo", _filter_buyer_fomo_verdict, ""))
+            except Exception:
+                pass
             if _filter_buyer_fomo_verdict == "BLOCK":
                 # CARVE-OUT 2026-05-15: rescue if a triangulating on-chain
                 # trigger fires. filter_buyer_fomo flags pure 60s buyer
@@ -14717,6 +14916,10 @@ class DipScanner:
             c[f"filter_low_volatility_{_filter_low_vol_verdict.lower()}"] = c.get(
                 f"filter_low_volatility_{_filter_low_vol_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_low_volatility", _filter_low_vol_verdict, ""))
+            except Exception:
+                pass
             if _filter_low_vol_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_low_volatility: "
@@ -14767,6 +14970,10 @@ class DipScanner:
             c[f"filter_dead_5m_eve_wknd_{_filter_dead_5m_eve_wknd_verdict.lower()}"] = c.get(
                 f"filter_dead_5m_eve_wknd_{_filter_dead_5m_eve_wknd_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_dead_5m_eve_wknd", _filter_dead_5m_eve_wknd_verdict, ""))
+            except Exception:
+                pass
             if _filter_dead_5m_eve_wknd_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_dead_5m_eve_wknd: "
@@ -14798,6 +15005,10 @@ class DipScanner:
             c[f"filter_sat_eve_midliq_{_filter_sat_eve_midliq_verdict.lower()}"] = c.get(
                 f"filter_sat_eve_midliq_{_filter_sat_eve_midliq_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_sat_eve_midliq", _filter_sat_eve_midliq_verdict, ""))
+            except Exception:
+                pass
             if _filter_sat_eve_midliq_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_sat_eve_midliq: "
@@ -14841,6 +15052,10 @@ class DipScanner:
             c[f"filter_microcap_trap_{_filter_microcap_trap_verdict.lower()}"] = c.get(
                 f"filter_microcap_trap_{_filter_microcap_trap_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_microcap_trap", _filter_microcap_trap_verdict, ""))
+            except Exception:
+                pass
             if _filter_microcap_trap_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_microcap_trap: "
@@ -14883,6 +15098,10 @@ class DipScanner:
             c[f"filter_clean_break_p90_{_filter_cb_p90_verdict.lower()}"] = c.get(
                 f"filter_clean_break_p90_{_filter_cb_p90_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_clean_break_p90", _filter_cb_p90_verdict, ""))
+            except Exception:
+                pass
             if _filter_cb_p90_verdict == "BLOCK":
                 _triggers_fired = [t for t in _triggers_fired if t != "clean_break"]
                 if not _triggers_fired:
@@ -14938,6 +15157,10 @@ class DipScanner:
             c[f"filter_high_regime_buyvol_{_filter_hr_buyvol_verdict.lower()}"] = c.get(
                 f"filter_high_regime_buyvol_{_filter_hr_buyvol_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_high_regime_buyvol", _filter_hr_buyvol_verdict, ""))
+            except Exception:
+                pass
             if _filter_hr_buyvol_verdict == "BLOCK":
                 _triggers_fired = [t for t in _triggers_fired if t != "high_regime"]
                 if not _triggers_fired:
@@ -15221,6 +15444,10 @@ class DipScanner:
             c[f"filter_blowoff_top_{_filter_blowoff_top_verdict.lower()}"] = c.get(
                 f"filter_blowoff_top_{_filter_blowoff_top_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_blowoff_top", _filter_blowoff_top_verdict, ""))
+            except Exception:
+                pass
             if _filter_blowoff_top_verdict == "BLOCK":
                 # 2026-05-18 — RE-ENFORCED. Lifetime audit (n=128 closed
                 # trades, BLOCK n=8, avg -3.03%, save +24pp) + Mira-specific:
@@ -15282,6 +15509,10 @@ class DipScanner:
             c[f"filter_high_activity_fomo_{_filter_high_fomo_verdict.lower()}"] = c.get(
                 f"filter_high_activity_fomo_{_filter_high_fomo_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_high_activity_fomo", _filter_high_fomo_verdict, ""))
+            except Exception:
+                pass
             if _filter_high_fomo_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] SHADOW filter_high_activity_fomo would BLOCK: "
@@ -15334,6 +15565,10 @@ class DipScanner:
             c[f"filter_post_pump_corpse_{_filter_post_pump_corpse_verdict.lower()}"] = c.get(
                 f"filter_post_pump_corpse_{_filter_post_pump_corpse_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_post_pump_corpse", _filter_post_pump_corpse_verdict, ""))
+            except Exception:
+                pass
             if _filter_post_pump_corpse_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_post_pump_corpse: "
@@ -15409,6 +15644,10 @@ class DipScanner:
             c[f"filter_macro_panic_{_filter_macro_panic_verdict.lower()}"] = c.get(
                 f"filter_macro_panic_{_filter_macro_panic_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_macro_panic", _filter_macro_panic_verdict, ""))
+            except Exception:
+                pass
             if _filter_macro_panic_verdict == "BLOCK":
                 _rescue_tag = (
                     " (PREMIUM_RESCUE)" if _filter_macro_panic_premium_rescue
@@ -15453,6 +15692,10 @@ class DipScanner:
             c[f"filter_1h_v_bottom_{_filter_v_bottom_verdict.lower()}"] = c.get(
                 f"filter_1h_v_bottom_{_filter_v_bottom_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_1h_v_bottom", _filter_v_bottom_verdict, ""))
+            except Exception:
+                pass
             if _filter_v_bottom_verdict == "BLOCK":
                 # CARVE-OUT 2026-05-15: rescue if a high-WR trigger fires.
                 # The v-bottom-fake-recovery filter flags 1h reversal
@@ -15515,6 +15758,10 @@ class DipScanner:
             c[f"filter_topping_{_filter_topping_verdict.lower()}"] = c.get(
                 f"filter_topping_{_filter_topping_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_topping", _filter_topping_verdict, ""))
+            except Exception:
+                pass
             if _filter_topping_verdict == "BLOCK":
                 # 2026-05-18 — RE-ENFORCED. Lifetime audit (n=128 closed):
                 # BLOCK n=29, avg -0.99%, save +29pp. Mira buy 1 had
@@ -15569,6 +15816,10 @@ class DipScanner:
             c[f"filter_wide_range_entry_{_filter_wide_range_verdict.lower()}"] = c.get(
                 f"filter_wide_range_entry_{_filter_wide_range_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_wide_range_entry", _filter_wide_range_verdict, ""))
+            except Exception:
+                pass
             if _filter_wide_range_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_wide_range_entry SHADOW would-block: "
@@ -15616,6 +15867,10 @@ class DipScanner:
             c[f"filter_double_bottom_{_filter_double_bottom_verdict.lower()}"] = c.get(
                 f"filter_double_bottom_{_filter_double_bottom_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_double_bottom", _filter_double_bottom_verdict, ""))
+            except Exception:
+                pass
             if _filter_double_bottom_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_double_bottom SHADOW would-block: "
@@ -15697,6 +15952,10 @@ class DipScanner:
             c[f"filter_stairstep_{_filter_stairstep_verdict.lower()}"] = c.get(
                 f"filter_stairstep_{_filter_stairstep_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_stairstep", _filter_stairstep_verdict, ""))
+            except Exception:
+                pass
             if _filter_stairstep_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] filter_stairstep SHADOW would-block: "
@@ -15743,6 +16002,10 @@ class DipScanner:
             c[f"filter_seller_imbalance_{_filter_seller_imbalance_verdict.lower()}"] = c.get(
                 f"filter_seller_imbalance_{_filter_seller_imbalance_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_seller_imbalance", _filter_seller_imbalance_verdict, ""))
+            except Exception:
+                pass
             # PROMOTED 2026-05-14 from SHADOW to ENFORCED.
             # CARVE-OUT 2026-05-14 PM: rescue big-buyer entries
             # (liq_velocity_h1 >= 115). Same logic as filter_turn rescue.
@@ -15805,6 +16068,10 @@ class DipScanner:
             c[f"filter_negative_net_flow_5m_{_filter_neg_nf5m_verdict.lower()}"] = c.get(
                 f"filter_negative_net_flow_5m_{_filter_neg_nf5m_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_negative_net_flow_5m", _filter_neg_nf5m_verdict, ""))
+            except Exception:
+                pass
             # CARVE-OUT: same big-buyer rescue (liq_velocity_h1 >= 115).
             _big_buyer_carve_out_nf = False
             _lv_h1_nf = None
@@ -15893,6 +16160,10 @@ class DipScanner:
             c[f"filter_above_vwap_chase_{_filter_avc_verdict.lower()}"] = c.get(
                 f"filter_above_vwap_chase_{_filter_avc_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_above_vwap_chase", _filter_avc_verdict, ""))
+            except Exception:
+                pass
             _avc_rescued, _avc_lvh1 = _big_buyer_rescued()
             if _filter_avc_verdict == "BLOCK" and not _avc_rescued:
                 logger.info(
@@ -15932,6 +16203,10 @@ class DipScanner:
             c[f"filter_knife_catch_peak_{_filter_kcp_verdict.lower()}"] = c.get(
                 f"filter_knife_catch_peak_{_filter_kcp_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_knife_catch_peak", _filter_kcp_verdict, ""))
+            except Exception:
+                pass
             _kcp_rescued, _kcp_lvh1 = _big_buyer_rescued()
             if _filter_kcp_verdict == "BLOCK" and not _kcp_rescued:
                 logger.info(
@@ -15961,6 +16236,10 @@ class DipScanner:
             c[f"filter_reviving_lifecycle_{_filter_rvl_verdict.lower()}"] = c.get(
                 f"filter_reviving_lifecycle_{_filter_rvl_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_reviving_lifecycle", _filter_rvl_verdict, ""))
+            except Exception:
+                pass
             _rvl_rescued, _rvl_lvh1 = _big_buyer_rescued()
             if _filter_rvl_verdict == "BLOCK" and not _rvl_rescued:
                 logger.info(
@@ -15991,6 +16270,10 @@ class DipScanner:
             c[f"filter_already_mooned_{_filter_am_verdict.lower()}"] = c.get(
                 f"filter_already_mooned_{_filter_am_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_already_mooned", _filter_am_verdict, ""))
+            except Exception:
+                pass
             _am_rescued, _am_lvh1 = _big_buyer_rescued()
             if _filter_am_verdict == "BLOCK" and not _am_rescued:
                 logger.info(
@@ -16029,6 +16312,10 @@ class DipScanner:
             c[f"filter_stale_h1_peak_{_filter_shp_verdict.lower()}"] = c.get(
                 f"filter_stale_h1_peak_{_filter_shp_verdict.lower()}", 0
             ) + 1
+            try:
+                _filter_verdicts.append(("filter_stale_h1_peak", _filter_shp_verdict, ""))
+            except Exception:
+                pass
             _shp_rescued, _shp_lvh1 = _big_buyer_rescued()
             if _filter_shp_verdict == "BLOCK" and not _shp_rescued:
                 logger.info(
@@ -17551,6 +17838,21 @@ class DipScanner:
                     "filter_premium_shallow_dip_block", 0
                 ) + 1
                 _filters_block.append("filter_premium_shallow_dip")
+
+            # ── FILTER-SHADOW CAPTURE CHOKE POINT ───────────────────────────
+            # Every candidate reaches here after the full filter chain. One
+            # consolidated, FAIL-OPEN loop records each accumulated filter verdict
+            # with the candidate's feature snapshot (pair). Gated by
+            # FILTER_SHADOW_CAPTURE_MODE (default on). Pure observability — does
+            # NOT touch any block/allow logic. token_address is the join key.
+            try:
+                if _filter_verdicts:
+                    from feeds.filter_shadow_recorder import record_verdict as _rv
+                    for _fname, _fverdict, _freasons in _filter_verdicts:
+                        _rv(token_address, token_symbol, pair, _fname,
+                            _fverdict, _freasons)
+            except Exception:
+                pass
 
             # 2026-05-23 — Multi-bot fan-out (Sub-project 1).
             # Gated behind MULTI_BOT_ENABLED env flag. When false, this

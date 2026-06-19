@@ -255,6 +255,35 @@ def gate_attribution(events: List[dict], trades: List[dict],
     return out
 
 
+def compute_gate_pnl(events_path: str, trades: List[dict],
+                     max_skew: float = 600.0,
+                     out_path: Optional[str] = None) -> Dict[str, dict]:
+    """Importable wrapper: load shadow_gate_events.jsonl from `events_path`,
+    join to `trades` (already-parsed list of closed sells), and return the
+    per-gate attribution dict. If out_path is given, also write the dict to
+    disk (atomic temp + replace). FAIL-OPEN: a missing events file returns {}
+    (forward-only — nothing captured yet); never raises.
+
+    `trades` is passed in already-parsed so the caller controls the (heavy)
+    trades read off-loop — this function does no trades IO."""
+    if not events_path or not os.path.exists(events_path):
+        return {}
+    try:
+        events = _load_jsonl(events_path)
+    except Exception:
+        return {}
+    out = gate_attribution(events, trades, max_skew=max_skew)
+    if out_path:
+        try:
+            tmp = out_path + ".tmp"
+            with open(tmp, "w") as fh:
+                json.dump(out, fh)
+            os.replace(tmp, out_path)
+        except Exception:
+            pass
+    return out
+
+
 def verdict_line(gate: str, g: dict) -> str:
     """One-line ENFORCE verdict for a gate. Calls out the winner-kill count and
     warns at low n. $ figures are reconstructed (pct x size)."""

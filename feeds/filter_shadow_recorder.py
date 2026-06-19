@@ -148,3 +148,56 @@ def get_recorder() -> FilterShadowRecorder:
         path = os.path.join(data_dir, "filter_shadow_log.jsonl")
         _singleton = FilterShadowRecorder(log_path=path)
     return _singleton
+
+
+def _normalize_verdict(verdict: str) -> str:
+    """Canonicalize a raw filter verdict to "BLOCK" or "PASS".
+
+    Several filter sites emit non-canonical strings — notably
+    filter_chasing_top's "SHADOW_BLOCK" — which the forward-candle scorer
+    buckets literally and therefore drops from the PASS-vs-BLOCK diff. Any
+    verdict that is not an explicit PASS is treated as a BLOCK (the
+    conservative bucket: a "would-block" is a block for scoring purposes).
+    """
+    v = (verdict or "").strip().upper()
+    if v == "PASS":
+        return "PASS"
+    return "BLOCK"
+
+
+def record_verdict(
+    token_address: str,
+    token_symbol: str,
+    pair: dict,
+    filter_name: str,
+    verdict: str,
+    reasons: str = "",
+) -> None:
+    """Thin, FAIL-OPEN wrapper around the singleton recorder used to wire the
+    ~35 previously-uncaptured filter_* would-block sites in one line each.
+
+    * Gated by env FILTER_SHADOW_CAPTURE_MODE (default 'on'; 'off' = dormant,
+      no recording at all — used to disable the expanded capture wholesale).
+    * verdict is NORMALIZED to "BLOCK"/"PASS" (SHADOW_BLOCK -> BLOCK) so the
+      scorer stops dropping non-canonical verdicts.
+    * NEVER raises into the scan/buy path — any error is swallowed. This is
+      pure observability; it must not alter what we trade.
+    * ADDRESS-keyed: token_address is the join key — always pass the real mint,
+      never symbol-only.
+
+    NOTE: filter_stale_watch is owned by core/shadow_gate_log.py (a routing
+    gate, trade-join scored) — do NOT record it here (would double-count).
+    """
+    try:
+        if os.environ.get("FILTER_SHADOW_CAPTURE_MODE", "on").strip().lower() == "off":
+            return
+        get_recorder().record(
+            token_address=token_address,
+            token_symbol=token_symbol,
+            pair=pair or {},
+            filter_name=filter_name,
+            verdict=_normalize_verdict(verdict),
+            block_reasons=reasons or "",
+        )
+    except Exception:  # pragma: no cover - defensive; must never raise
+        pass
