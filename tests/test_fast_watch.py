@@ -57,6 +57,8 @@ def test_config_from_env_defaults_and_overrides(monkeypatch):
     assert cfg.armed_max == 500
     assert cfg.sample_window == 40
     assert cfg.arm_band_pp == 15.0
+    assert cfg.hot_max == 50
+    assert cfg.full_poll_every == 3
     assert not hasattr(cfg, "dip_zone_pct")
     assert not hasattr(cfg, "volatility_reserve")
     assert "badday_flush_conviction" in cfg.bot_allowlist
@@ -79,7 +81,7 @@ def test_config_bad_numbers_fall_back_to_defaults(monkeypatch):
 def _cfg(**kw):
     base = dict(mode="shadow", interval_secs=3.0, dip_pct=3.0, rise_pct=3.0,
                 eval_cooldown_secs=60.0, bot_allowlist=frozenset({"x"}), armed_max=30,
-                sample_window=40, arm_band_pp=15.0)
+                sample_window=40, arm_band_pp=15.0, hot_max=50, full_poll_every=3)
     base.update(kw)
     return fw.FastWatchConfig(**base)
 
@@ -126,6 +128,28 @@ def test_arm_subset_caps_at_armed_max():
     armed = fw.arm_subset(cands, cfg)
     assert len(armed) == 2
     assert armed == ["T5", "T4"]   # highest vol first (dips+pumps), capped at armed_max
+
+
+def test_hot_subset_top_n_by_volume():
+    """TIERED POLL: hot subset = top-N armed addrs ranked by pair volume.h1 desc."""
+    armed = {
+        "LOW":  {"volume": {"h1": 1.0}},
+        "HIGH": {"volume": {"h1": 99.0}},
+        "MID":  {"volume": {"h1": 50.0}},
+        " NONE": {"volume": {}},          # missing h1 -> treated as 0
+    }
+    assert fw.hot_subset(armed, hot_max=2) == ["HIGH", "MID"]   # top-2 by vol desc
+    # cap respected: hot_max larger than the set returns all, still ranked
+    assert fw.hot_subset(armed, hot_max=10) == ["HIGH", "MID", "LOW", " NONE"]
+    # original case preserved (FIX5: never lowercase the Jupiter query addr)
+    armed2 = {"AbCdEf": {"volume": {"h1": 5.0}}}
+    assert fw.hot_subset(armed2, hot_max=5) == ["AbCdEf"]
+
+
+def test_hot_subset_cap_zero_or_empty():
+    assert fw.hot_subset({"A": {"volume": {"h1": 1.0}}}, hot_max=0) == []
+    assert fw.hot_subset({}, hot_max=50) == []
+    assert fw.hot_subset(None, hot_max=50) == []
 
 
 def test_rolling_dip_pct():
@@ -265,9 +289,12 @@ def _scanner_for_tick_v2():
     s._fast_watch_regime = {"_regime_n": 0, "_regime_dip_breadth_pct": None, "_regime_h1_neg_pct": None}
     # armed set: DIP token will be made to dip via injected batch prices; FLAT will not.
     s._fast_armed = {
-        "DIPADDR": {"pairAddress": "P", "priceUsd": "1"},
-        "FLATADDR": {"pairAddress": "P2", "priceUsd": "1"},
+        "DIPADDR": {"pairAddress": "P", "priceUsd": "1", "volume": {"h1": 9.0}},
+        "FLATADDR": {"pairAddress": "P2", "priceUsd": "1", "volume": {"h1": 1.0}},
     }
+    s._fw_tick_n = 0
+    s._fw_stats = {"armed_hits": 0, "armed_misses": 0, "by_bot": {},
+                   "last_tick": {}, "ticks": 0, "would_fire": 0}
     from collections import deque
     s._fast_samples = {}
     # Pre-seed a high sample so a single fresh low price registers as a dip.
@@ -327,6 +354,134 @@ def test_fast_tick_v2_empty_armed_is_noop(monkeypatch):
     s._fast_armed = {}
     asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
     assert s.evaluated == []
+
+
+def _scanner_for_tier(armed):
+    """Scanner wired so _fast_batch_prices RECORDS the addr list it is asked for
+    (one record per tick) and returns a flat price for each, so we can assert
+    which tier (hot-only vs full) was polled on a given tick."""
+    from feeds.dip_scanner import DipScanner
+    from collections import deque
+    s = DipScanner.__new__(DipScanner)
+    s._buy_fire_lock = asyncio.Lock()
+    s._token_registry = None
+    s._fast_watch_regime = {"_regime_n": 0, "_regime_dip_breadth_pct": None,
+                            "_regime_h1_neg_pct": None}
+    s._fast_armed = armed
+    s._fast_samples = {a: deque([1.00], maxlen=40) for a in armed}
+    s._fast_samples_ts = {}
+    s._fw_tick_n = 0
+    s._fw_stats = {"armed_hits": 0, "armed_misses": 0, "by_bot": {},
+                   "last_tick": {}, "ticks": 0, "would_fire": 0}
+    s.fetched = []     # list[list[addr]] — one entry per _fast_batch_prices call
+
+    async def fake_batch(addrs):
+        s.fetched.append(list(addrs))
+        return {a.lower(): 1.00 for a in addrs}
+    s._fast_batch_prices = fake_batch
+
+    s.evaluated = []
+    async def fake_eval(pair, ctx):
+        s.evaluated.append(pair.get("pairAddress"))
+        return (None, 0, False)
+    s._evaluate_pair = fake_eval
+    return s
+
+
+def _tier_cfg(**kw):
+    base = dict(mode="shadow", interval_secs=3.0, dip_pct=3.0, rise_pct=3.0,
+                eval_cooldown_secs=60.0, bot_allowlist=frozenset({"x"}),
+                armed_max=500, sample_window=40, arm_band_pp=15.0,
+                hot_max=2, full_poll_every=3)
+    base.update(kw)
+    return fw.FastWatchConfig(**base)
+
+
+def _tier_armed(n):
+    # n armed tokens, descending volume so hot subset is deterministic (T0 highest)
+    return {f"T{i}": {"pairAddress": f"P{i}", "priceUsd": "1",
+                      "volume": {"h1": float(n - i)}} for i in range(n)}
+
+
+def test_tiered_non_full_tick_polls_hot_only():
+    """On a NON-full-poll tick (tick_n % full_poll_every != 0) only the hot subset
+    addrs are passed to _fast_batch_prices."""
+    from core.fast_watch import FastWatchDedup
+    s = _scanner_for_tier(_tier_armed(10))
+    cfg = _tier_cfg(hot_max=2, full_poll_every=3)
+    s._fw_tick_n = 0                      # next tick -> tick_n becomes 1 (1%3 != 0 -> hot only)
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(60)))
+    assert len(s.fetched) == 1
+    assert s.fetched[0] == ["T0", "T1"]    # hot subset only (top-2 by volume)
+
+
+def test_tiered_full_tick_polls_full_armed_set():
+    """On a full-poll tick (tick_n % full_poll_every == 0) the FULL armed set is
+    fetched (hot + the remaining tokens), covering 100% of the universe."""
+    from core.fast_watch import FastWatchDedup
+    s = _scanner_for_tier(_tier_armed(10))
+    cfg = _tier_cfg(hot_max=2, full_poll_every=3)
+    s._fw_tick_n = 2                      # next tick -> 3 (3%3 == 0 -> full poll)
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(60)))
+    # full tick fetches the full armed set (order: hot first, then remainder)
+    polled = sorted(a for call in s.fetched for a in call)
+    assert polled == sorted(f"T{i}" for i in range(10))   # 100% coverage
+
+
+def test_tiered_hot_token_dip_escalates_on_hot_only_tick():
+    """A HOT token that dips escalates even on a hot-only tick; samples updated."""
+    from collections import deque
+    from core.fast_watch import FastWatchDedup
+    s = _scanner_for_tier(_tier_armed(10))
+    s._fast_samples["T0"] = deque([1.00], maxlen=40)   # pre-seed a high sample
+    async def dip_batch(addrs):
+        s.fetched.append(list(addrs))
+        return {a.lower(): (0.90 if a == "T0" else 1.00) for a in addrs}   # T0 dips 10%
+    s._fast_batch_prices = dip_batch
+    async def pinned_eval(pair, ctx):
+        s.evaluated.append(pair.get("pairAddress"))
+        return (None, 0, False)
+    s._evaluate_pair = pinned_eval
+    # avoid the pinned-price network hop
+    class _T:
+        async def _get_token_price(self, a, pair_address=""):
+            return None
+    s.trader = _T()
+    cfg = _tier_cfg(hot_max=2, full_poll_every=3)
+    s._fw_tick_n = 0                      # tick -> 1 -> hot only
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(60)))
+    assert s.fetched[0] == ["T0", "T1"]   # hot only
+    assert s.evaluated == ["P0"]          # the dipping HOT token escalated
+    assert list(s._fast_samples["T0"])[-1] == 0.90   # sample updated for polled token
+
+
+def test_tiered_tick_survives_fetch_exception():
+    """A fetch error on a tick doesn't crash the tick."""
+    from core.fast_watch import FastWatchDedup
+    s = _scanner_for_tier(_tier_armed(10))
+    async def boom(addrs):
+        raise RuntimeError("fetch down")
+    s._fast_batch_prices = boom
+    cfg = _tier_cfg(hot_max=2, full_poll_every=3)
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(60)))   # must not raise
+
+
+def test_tiered_stats_record_both_tiers():
+    """_fw_stats.last_tick records armed/polled/fired; full=0 on a hot-only tick
+    and the full count on a full tick."""
+    from core.fast_watch import FastWatchDedup
+    s = _scanner_for_tier(_tier_armed(10))
+    cfg = _tier_cfg(hot_max=2, full_poll_every=3)
+    # hot-only tick (tick 1)
+    s._fw_tick_n = 0
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(60)))
+    lt = s._fw_stats["last_tick"]
+    assert lt["hot"] == 2 and lt["full"] == 0 and lt["armed"] == 10
+    # full tick (tick 3)
+    s._fw_tick_n = 2
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(60)))
+    lt = s._fw_stats["last_tick"]
+    assert lt["full"] == 10 and lt["armed"] == 10
 
 
 def test_fast_batch_prices_uses_jupiter_when_primary(monkeypatch):
@@ -464,7 +619,8 @@ def test_fast_arm_subset_caps_at_30_when_flag_off(monkeypatch):
     from core.fast_watch import FastWatchConfig
     cfg = FastWatchConfig(mode="shadow", interval_secs=3.0, dip_pct=3.0, rise_pct=3.0,
                           eval_cooldown_secs=60.0, bot_allowlist=frozenset({"x"}),
-                          armed_max=30, sample_window=40, arm_band_pp=15.0)
+                          armed_max=30, sample_window=40, arm_band_pp=15.0,
+                          hot_max=50, full_poll_every=3)
     s, now_ms = _scanner_for_arm(100)
     s._fast_arm_subset(cfg, now_ms)
     assert len(s._fast_armed) == 30    # capped at armed_max
@@ -482,8 +638,12 @@ def _scanner_for_pinned_tick(pinned_return):
     s._fast_watch_regime = {"_regime_n": 0, "_regime_dip_breadth_pct": None,
                             "_regime_h1_neg_pct": None}
     # cached pair price = "1" (the stale pre-escalation value)
-    s._fast_armed = {"DIPADDR": {"pairAddress": "POOLX", "priceUsd": "1"}}
+    s._fast_armed = {"DIPADDR": {"pairAddress": "POOLX", "priceUsd": "1",
+                                 "volume": {"h1": 5.0}}}
     s._fast_samples = {"DIPADDR": deque([1.00], maxlen=40)}
+    s._fw_tick_n = 0
+    s._fw_stats = {"armed_hits": 0, "armed_misses": 0, "by_bot": {},
+                   "last_tick": {}, "ticks": 0, "would_fire": 0}
 
     async def fake_batch(addrs):
         return {"dipaddr": 0.90}   # Jupiter aggregate fresh = 0.90 (10% dip)

@@ -45,6 +45,8 @@ class FastWatchConfig:
     armed_max: int
     sample_window: int
     arm_band_pp: float
+    hot_max: int
+    full_poll_every: int
 
     @classmethod
     def from_env(cls) -> "FastWatchConfig":
@@ -64,6 +66,13 @@ class FastWatchConfig:
             armed_max=_i("FAST_WATCH_ARMED_MAX", 500),
             sample_window=_i("FAST_WATCH_SAMPLE_WINDOW", 40),
             arm_band_pp=_f("FAST_WATCH_ARM_BAND_PP", 15.0),
+            # TIERED POLL: hot subset (top-N armed by volume.h1) is polled EVERY
+            # tick for ~3s freshness; the FULL armed set is polled every
+            # full_poll_every-th tick for ~9s coverage. hot_max=50 keeps the
+            # hot tier at exactly ONE Jupiter 50-id call. See _fast_watch_tick
+            # for the req/min rate math.
+            hot_max=_i("FAST_WATCH_HOT_MAX", 50),
+            full_poll_every=max(1, _i("FAST_WATCH_FULL_POLL_EVERY", 3)),
         )
 
 
@@ -128,6 +137,31 @@ def arm_subset(candidates, cfg: FastWatchConfig):
     inplay = [c for c in candidates if c.get("in_band")]
     inplay.sort(key=lambda c: (c.get("vol_h1") or 0.0), reverse=True)
     return [c["addr"] for c in inplay][:cfg.armed_max]
+
+
+def hot_subset(armed, hot_max: int):
+    """TIERED-POLL hot tier: the top `hot_max` armed addresses ranked by recent
+    volume (pair `volume.h1` desc — the most-active tokens are the most likely to
+    be bought, so they get the fastest ~3s freshness). Pure in-memory sort over
+    the already-armed `self._fast_armed` (addr -> pair); does NOT change which
+    tokens are armed (arm_subset owns that) or the trigger/escalate logic.
+
+    `armed`: mapping addr -> pair dict (ORIGINAL-case keys; pairs carry volume.h1).
+    Returns an ordered list of ≤ hot_max addresses (original case preserved). A
+    non-positive `hot_max` yields an empty hot tier.
+    """
+    if hot_max <= 0:
+        return []
+    items = list((armed or {}).items())
+
+    def _vol(pair):
+        try:
+            return float((pair or {}).get("volume", {}).get("h1") or 0.0)
+        except (TypeError, ValueError, AttributeError):
+            return 0.0
+
+    items.sort(key=lambda kv: _vol(kv[1]), reverse=True)
+    return [addr for addr, _pair in items][:hot_max]
 
 
 def rolling_dip_pct(samples):

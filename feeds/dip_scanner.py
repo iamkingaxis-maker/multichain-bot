@@ -290,6 +290,10 @@ class DipScanner:
             "ticks": 0,
             "would_fire": 0,
         }
+        # TIERED-POLL tick counter: every tick polls the HOT subset (top-N armed
+        # by volume) for ~3s freshness; every FULL_POLL_EVERY-th tick ALSO polls
+        # the full armed set for ~9s coverage. Decided off this counter.
+        self._fw_tick_n: int = 0
         # On-chain WS hot-layer (B4). None until _maybe_spawn_onchain_feed()
         # creates it (only when ONCHAIN_WS_MODE != off). Cached SOL/USD for the
         # feed's get_sol_usd callable, refreshed each cycle from sol features.
@@ -2999,13 +3003,20 @@ class DipScanner:
         except Exception:
             return None
 
-    def _fw_record_tick(self, armed, polled, fired, mode, ts, would_fire=0):
-        """Observability only: record last-tick coverage. Exception-safe."""
+    def _fw_record_tick(self, armed, polled, fired, mode, ts, would_fire=0,
+                        hot=0, full=0):
+        """Observability only: record last-tick coverage. Exception-safe.
+
+        TIERED POLL: `hot` = hot-subset tokens polled this tick (every tick);
+        `full` = full-armed tokens polled this tick (0 on a hot-only tick, the
+        full count on a full-poll tick). `polled`/`armed`/`fired` stay the
+        meaningful aggregate last-tick numbers."""
         try:
             st = self._fw_stats
             st["last_tick"] = {
                 "armed": int(armed), "polled": int(polled),
                 "fired": int(fired), "mode": str(mode), "ts": float(ts),
+                "hot": int(hot), "full": int(full),
             }
             st["ticks"] = st.get("ticks", 0) + 1
             if would_fire:
@@ -3285,14 +3296,49 @@ class DipScanner:
         return out
 
     async def _fast_watch_tick(self, cfg, dedup):
-        from core.fast_watch import shortlist, move_fires
+        from core.fast_watch import shortlist, move_fires, hot_subset
         armed = dict(self._fast_armed)   # snapshot
         if not armed:
-            logger.info("[fast-watch] tick armed=0 polled=0 fired=0 mode=%s", cfg.mode)
-            self._fw_record_tick(0, 0, 0, getattr(cfg, "mode", "off"), time.time())
+            logger.info("[fast-watch] tick hot=0 full=0 polled=0 fired=0 mode=%s", cfg.mode)
+            self._fw_record_tick(0, 0, 0, getattr(cfg, "mode", "off"), time.time(),
+                                 hot=0, full=0)
             return
-        addrs = list(armed.keys())
-        prices = await self._fast_batch_prices(addrs)
+        # ---- TIERED POLL ----------------------------------------------------
+        # HOT subset (top-N armed by volume.h1, default 50 = ONE Jupiter call) is
+        # polled EVERY tick -> at the deploy's FAST_WATCH_INTERVAL_SECS=3 the
+        # most-active (most-buyable) tokens get ~3s detection latency. The FULL
+        # armed set (~410 remaining = ~9 more calls) is ALSO polled every
+        # FULL_POLL_EVERY-th tick (default 3 -> ~9s) so the whole watched universe
+        # keeps ~9s freshness + 100% coverage. Which tokens are ARMED and the
+        # trigger/escalate logic are unchanged — this only tiers the POLL cadence.
+        #
+        # RATE MATH (Jupiter ~110 req/min, 50 ids/call) at interval=3s (20 ticks/min):
+        #   hot : 1 call  x 20 ticks/min                 = 20/min
+        #   full: ~10 calls x (20 / FULL_POLL_EVERY=3)    ≈ 67/min   (every ~9s)
+        #   total ≈ 87/min  <  110/min  -> SAFE.
+        # hot_max=50 keeps the hot tier at exactly 1 call; raising it past 50
+        # makes hot >1 call/tick -> keep the default 50.
+        self._fw_tick_n = getattr(self, "_fw_tick_n", 0) + 1
+        full_every = max(1, int(getattr(cfg, "full_poll_every", 3) or 1))
+        is_full_tick = (self._fw_tick_n % full_every) == 0
+        all_addrs = list(armed.keys())
+        hot_addrs = hot_subset(armed, int(getattr(cfg, "hot_max", 50) or 0))
+        if is_full_tick:
+            # FULL universe: hot first (so the hot tokens are always covered),
+            # then the remaining armed tokens. Original-case keys (FIX5).
+            _hot_set = set(hot_addrs)
+            addrs = hot_addrs + [a for a in all_addrs if a not in _hot_set]
+            full_n = len(addrs)
+        else:
+            addrs = hot_addrs
+            full_n = 0
+        try:
+            prices = await self._fast_batch_prices(addrs)
+        except Exception as e:
+            logger.error("[fast-watch] batch price fetch crashed: %s", e, exc_info=True)
+            self._fw_record_tick(len(all_addrs), 0, 0, getattr(cfg, "mode", "off"),
+                                 time.time(), hot=len(hot_addrs), full=full_n)
+            return
         now = time.time()
         now_ms = int(now * 1000)
         polled = 0
@@ -3316,12 +3362,15 @@ class DipScanner:
             is_held_or_blocked=lambda a: self._fast_held_or_blocked(a, cfg.bot_allowlist),
             now=now,
         )
-        logger.info("[fast-watch] tick armed=%d polled=%d fired=%d mode=%s",
-                    len(addrs), polled, len(survivors), cfg.mode)
+        logger.info("[fast-watch] tick hot=%d full=%d polled=%d fired=%d mode=%s",
+                    len(hot_addrs), full_n, polled, len(survivors), cfg.mode)
         # Observability: a survivor escalating under shadow mode is a "would-fire".
         _wf = len(survivors) if getattr(cfg, "mode", None) == "shadow" else 0
-        self._fw_record_tick(len(addrs), polled, len(survivors),
-                             getattr(cfg, "mode", "off"), now, would_fire=_wf)
+        # `armed` = the FULL armed-set size (the universe), `polled` = tokens that
+        # returned a price this tick (hot-only or full depending on the tier).
+        self._fw_record_tick(len(all_addrs), polled, len(survivors),
+                             getattr(cfg, "mode", "off"), now, would_fire=_wf,
+                             hot=len(hot_addrs), full=full_n)
         regime = getattr(self, "_fast_watch_regime", {}) or {}
         for addr, pair in survivors:
             dedup.mark(addr, now)
