@@ -665,10 +665,10 @@ def test_fast_arm_subset_arms_missing_liq_microcap(monkeypatch):
     s, _ = _scanner_for_lane_arm(pairs)
     s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
     s._fast_arm_subset(cfg, now_ms)
-    armed = set(s._fast_armed.keys())
-    assert "METACRAFT" in armed     # missing-liq microcap -> NOW armed (FIX 3)
-    assert "BUBBLEMAN" in armed     # missing-liq pump -> NOW armed (FIX 3)
-    assert "HUGE100M" in armed      # mcap > max_mcap -> NOW armed (ceiling dropped)
+    armed = set(s._fast_armed.keys())   # FIX 4: armed keys are lowercased
+    assert "metacraft" in armed     # missing-liq microcap -> NOW armed (FIX 3)
+    assert "bubbleman" in armed     # missing-liq pump -> NOW armed (FIX 3)
+    assert "huge100m" in armed      # mcap > max_mcap -> NOW armed (ceiling dropped)
 
 
 def test_fast_arm_subset_arms_dip_pump_huge_and_deadliq_but_not_empty(monkeypatch):
@@ -703,13 +703,13 @@ def test_fast_arm_subset_arms_dip_pump_huge_and_deadliq_but_not_empty(monkeypatc
     wl["NONEPAIR"] = {"pair": None}   # None pair -> in_band false
     s._sticky_watchlist = wl
     s._fast_arm_subset(cfg, now_ms)
-    armed = set(s._fast_armed.keys())
-    assert "DEEPDIP" in armed        # dip armed (FIX 1)
-    assert "PUMP" in armed           # pump armed (FIX 1)
-    assert "HUGE" in armed           # mcap > max_mcap -> NOW armed (FIX 3)
-    assert "DEADLIQ" in armed        # liq <= 0 -> NOW armed (FIX 3)
-    assert "EMPTYPAIR" not in armed  # empty pair -> NOT armed
-    assert "NONEPAIR" not in armed   # None pair -> NOT armed
+    armed = set(s._fast_armed.keys())   # FIX 4: armed keys are lowercased
+    assert "deepdip" in armed        # dip armed (FIX 1)
+    assert "pump" in armed           # pump armed (FIX 1)
+    assert "huge" in armed           # mcap > max_mcap -> NOW armed (FIX 3)
+    assert "deadliq" in armed        # liq <= 0 -> NOW armed (FIX 3)
+    assert "emptypair" not in armed  # empty pair -> NOT armed
+    assert "nonepair" not in armed   # None pair -> NOT armed
 
 
 def test_fast_arm_subset_volume_ranks_under_cap(monkeypatch):
@@ -733,5 +733,131 @@ def test_fast_arm_subset_volume_ranks_under_cap(monkeypatch):
     s, _ = _scanner_for_lane_arm(pairs)
     s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
     s._fast_arm_subset(cfg, now_ms)
+    armed = set(s._fast_armed.keys())   # FIX 4: armed keys are lowercased
+    assert armed == {"t4", "t5"}    # top-2 by volume.h1, capped at armed_max
+
+
+# ---- FIX 4: arm from the EVALUATED UNIVERSE (pair_by_addr) ∪ sticky ----------
+# The residual ~50% miss: tokens bought from NON-PERSISTED sources (gt_trending /
+# axiom_trending — excluded from the sticky persist-allowlist) are evaluated EVERY
+# cycle (they're in pair_by_addr, that's where their buys come from) but were never
+# in _sticky_watchlist, so the arm set (built only from sticky) never armed them.
+# FIX: arm from the UNION of self._cycle_pair_by_addr (this cycle's evaluated pairs)
+# AND _sticky_watchlist. armed ⊇ bought becomes guaranteed (bought ⊆ evaluated).
+
+def _pair(pc_h1=-10.0, vol_h1=1.0):
+    return {"marketCap": 300_000, "liquidity": {"usd": 40_000},
+            "pairCreatedAt": 1, "priceChange": {"h1": pc_h1},
+            "volume": {"h1": vol_h1}}
+
+
+def test_fast_arm_subset_arms_token_only_in_pair_by_addr(monkeypatch):
+    """The GTAVI/VSK case: a token evaluated this cycle from a non-persisted source
+    (in self._cycle_pair_by_addr only, NOT in _sticky_watchlist) is NOW armed."""
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "500")
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig.from_env()
+    s, now_ms = _scanner_for_lane_arm({})        # empty sticky
+    s._sticky_watchlist = {}
+    s._cycle_pair_by_addr = {"GTAVI": _pair(), "VSK": _pair()}
+    s._fast_arm_subset(cfg, now_ms)
     armed = set(s._fast_armed.keys())
-    assert armed == {"T4", "T5"}    # top-2 by volume.h1, capped at armed_max
+    assert "gtavi" in armed                      # was missed; now armed (lowercased)
+    assert "vsk" in armed
+
+
+def test_fast_arm_subset_arms_token_only_in_sticky(monkeypatch):
+    """A token only in sticky (not in this cycle's pair_by_addr) is still armed."""
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "500")
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig.from_env()
+    s, now_ms = _scanner_for_lane_arm({})
+    s._sticky_watchlist = {"STICKYONLY": {"pair": _pair()}}
+    s._cycle_pair_by_addr = {"GTAVI": _pair()}
+    s._fast_arm_subset(cfg, now_ms)
+    armed = set(s._fast_armed.keys())
+    assert "stickyonly" in armed
+    assert "gtavi" in armed
+
+
+def test_fast_arm_subset_dedups_token_in_both(monkeypatch):
+    """A token in BOTH sources is armed exactly once (dedup by lowercased addr)."""
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "500")
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig.from_env()
+    s, now_ms = _scanner_for_lane_arm({})
+    s._sticky_watchlist = {"BOTH": {"pair": _pair(vol_h1=1.0)}}
+    s._cycle_pair_by_addr = {"BOTH": _pair(vol_h1=2.0)}
+    s._fast_arm_subset(cfg, now_ms)
+    keys = list(s._fast_armed.keys())
+    assert keys.count("both") == 1               # armed exactly once
+
+
+def test_fast_arm_subset_prefers_live_pair_when_in_both(monkeypatch):
+    """When a token is in both, the LIVE cycle pair_by_addr entry (fresher) is the
+    pair stored in _fast_armed, not the cached sticky one."""
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "500")
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig.from_env()
+    s, now_ms = _scanner_for_lane_arm({})
+    sticky_pair = _pair(vol_h1=1.0); sticky_pair["_src"] = "sticky"
+    live_pair = _pair(vol_h1=1.0);  live_pair["_src"] = "live"
+    s._sticky_watchlist = {"BOTH": {"pair": sticky_pair}}
+    s._cycle_pair_by_addr = {"BOTH": live_pair}
+    s._fast_arm_subset(cfg, now_ms)
+    assert s._fast_armed["both"]["_src"] == "live"   # fresher live pair preferred
+
+
+def test_fast_arm_subset_empty_or_none_pair_not_armed_in_union(monkeypatch):
+    """An evaluated entry with an empty/None pair is not armed (in_band=bool(pair))."""
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "500")
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig.from_env()
+    s, now_ms = _scanner_for_lane_arm({})
+    s._sticky_watchlist = {}
+    s._cycle_pair_by_addr = {"GOOD": _pair(), "EMPTY": {}, "NONE": None}
+    s._fast_arm_subset(cfg, now_ms)
+    armed = set(s._fast_armed.keys())
+    assert "good" in armed
+    assert "empty" not in armed
+    assert "none" not in armed
+
+
+def test_fast_arm_subset_union_caps_and_volume_ranks(monkeypatch):
+    """Volume ranking + armed_max cap hold across the UNION (cap=2 -> top-2 by vol)."""
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "2")
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig.from_env()
+    s, now_ms = _scanner_for_lane_arm({})
+    s._sticky_watchlist = {"S1": {"pair": _pair(vol_h1=1.0)},
+                           "S2": {"pair": _pair(vol_h1=2.0)}}
+    s._cycle_pair_by_addr = {"C1": _pair(vol_h1=9.0), "C2": _pair(vol_h1=8.0)}
+    s._fast_arm_subset(cfg, now_ms)
+    assert set(s._fast_armed.keys()) == {"c1", "c2"}   # top-2 by volume across union
+
+
+def test_fast_arm_subset_default_armed_max_is_500(monkeypatch):
+    """Default armed_max ceiling is 500 (the union ~480-token universe fits)."""
+    monkeypatch.delenv("FAST_WATCH_ARMED_MAX", raising=False)
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig.from_env()
+    assert cfg.armed_max == 500
+    s, now_ms = _scanner_for_lane_arm({})
+    s._sticky_watchlist = {}
+    s._cycle_pair_by_addr = {f"T{i}": _pair(vol_h1=float(i)) for i in range(600)}
+    s._fast_arm_subset(cfg, now_ms)
+    assert len(s._fast_armed) == 500              # clamped to default ceiling
+
+
+def test_fast_arm_subset_falls_back_to_sticky_when_cycle_unset(monkeypatch):
+    """First cycle: self._cycle_pair_by_addr unset -> fall back to sticky only,
+    no crash."""
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "500")
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig.from_env()
+    s, now_ms = _scanner_for_lane_arm({})
+    s._sticky_watchlist = {"STICKYONLY": {"pair": _pair()}}
+    # do NOT set s._cycle_pair_by_addr at all
+    assert not hasattr(s, "_cycle_pair_by_addr")
+    s._fast_arm_subset(cfg, now_ms)               # must not raise
+    assert "stickyonly" in set(s._fast_armed.keys())

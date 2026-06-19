@@ -3075,9 +3075,34 @@ class DipScanner:
         # only inclusion test is now bool(pair) — a non-empty cached pair dict.
         # (FIX 1 — pc_h1-agnostic dips+pumps — preserved in arm_subset; volume
         # ranking + armed_max cap still apply.) Address-keyed; SHADOW (no buy change).
-        cands = []
-        for addr, entry in list(self._sticky_watchlist.items()):
+        #
+        # FIX 4 (arm from the EVALUATED UNIVERSE, not just sticky): the residual
+        # ~50% miss was tokens bought from NON-PERSISTED sources (gt_trending /
+        # axiom_trending — excluded from the sticky persist-allowlist). Those
+        # tokens ARE evaluated every cycle (they live in this cycle's
+        # `pair_by_addr` — that's where their buys come from) but were never in
+        # `_sticky_watchlist`, so the arm set (built only from sticky) never armed
+        # them (e.g. GTAVI, VSK: bought, armed=False). Build candidates from the
+        # UNION of this cycle's evaluated pairs (self._cycle_pair_by_addr) AND the
+        # sticky watchlist, deduped by LOWERCASED address. For an address in both,
+        # prefer the LIVE cycle pair (fresher) over the cached sticky pair. Result:
+        # armed = every token evaluated this cycle OR watched = superset of bought
+        # (bought ⊆ evaluated, guaranteed). First cycle: _cycle_pair_by_addr unset
+        # -> fall back to sticky only (no crash).
+        merged: dict = {}   # lowercased addr -> pair (live cycle pair wins over sticky)
+        for addr, entry in list((self._sticky_watchlist or {}).items()):
             pair = (entry or {}).get("pair") or {}
+            if not pair:
+                continue
+            merged[str(addr).lower()] = pair
+        # Live cycle pairs LAST so they overwrite the cached sticky entry (fresher).
+        cycle_pairs = getattr(self, "_cycle_pair_by_addr", None) or {}
+        for addr, pair in list(cycle_pairs.items()):
+            if not pair:
+                continue
+            merged[str(addr).lower()] = pair
+        cands = []
+        for addr, pair in merged.items():
             try:
                 pch = pair.get("priceChange") or {}
                 _h1 = pch.get("h1")
@@ -3085,7 +3110,7 @@ class DipScanner:
                 vol_h1 = float((pair.get("volume") or {}).get("h1") or 0)
             except (TypeError, ValueError):
                 continue
-            in_band = bool(pair)   # arm the WHOLE watched set; cached mcap/liq are unreliable
+            in_band = bool(pair)   # arm the WHOLE evaluated∪watched set; cached mcap/liq are unreliable
             cands.append({"addr": addr, "pc_h1": pc_h1, "vol_h1": vol_h1, "in_band": in_band})
         # Jupiter does 50 ids/call at ~110 req/min -> can poll the whole watched
         # set; the 30-cap was a workaround for the DexScreener pair-limit, not a
@@ -3100,11 +3125,10 @@ class DipScanner:
         if os.environ.get("JUPITER_PRICE_PRIMARY", "off").strip().lower() in ("on", "1", "true", "yes"):
             n_inband = sum(1 for c in cands if c.get("in_band"))
             cfg = dataclasses.replace(cfg, armed_max=min(cfg.armed_max, n_inband))
-        armed_addrs = arm_subset(cands, cfg)
+        armed_addrs = arm_subset(cands, cfg)   # lowercased addrs ranked by vol
         new_armed = {}
         for addr in armed_addrs:
-            entry = self._sticky_watchlist.get(addr) or {}
-            pair = entry.get("pair")
+            pair = merged.get(addr)            # the live-or-sticky pair chosen above
             if pair:
                 new_armed[addr] = pair
         self._fast_armed = new_armed
@@ -18301,5 +18325,13 @@ class DipScanner:
                        "sticky_enriched"):
                 self._sticky_watchlist[addr] = {"pair": p, "last_seen_ts": _now}
         self._save_sticky()
+
+        # FIX 4: expose THIS cycle's full evaluated universe (address -> pair) to
+        # the fast-watch arming step. _fast_arm_subset arms from the UNION of this
+        # dict and _sticky_watchlist so tokens from non-persisted sources
+        # (gt_trending / axiom_trending) — bought but never sticky-persisted — are
+        # armed too (armed ⊇ bought). Address-keyed (original case; arm step
+        # lowercases). SHADOW only: does not change buy logic or the persist set.
+        self._cycle_pair_by_addr = pair_by_addr
 
         return list(pair_by_addr.values()), source_counts
