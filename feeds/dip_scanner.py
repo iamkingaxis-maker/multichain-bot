@@ -2874,11 +2874,16 @@ class DipScanner:
                     )
                 else:
                     _armed = getattr(self, "_fast_armed", {}) or {}
-                    _tok = getattr(d, "token", "") or ""
+                    # FIX: compare the mint ADDRESS (case-insensitive) to the
+                    # address-keyed armed dict. d.token is the SYMBOL — comparing
+                    # it made armed=False ALWAYS (the 0/36 phantom).
+                    _addr = (getattr(d, "address", "") or "")
+                    _armed_lc = {k.lower() for k in _armed}
+                    _is_armed = bool(_addr) and _addr.lower() in _armed_lc
                     logger.info(
                         "[fast-watch] hit-rate buy bot=%s token=%s armed=%s",
                         getattr(d, "bot_id", "?"), token_symbol,
-                        (_tok in _armed),
+                        _is_armed,
                     )
                     await self._execute_bot_buy(d, bundle)
 
@@ -2999,6 +3004,13 @@ class DipScanner:
         Pure in-memory selection over cached pair data; no network, no _evaluate_pair change."""
         import dataclasses
         from core.fast_watch import arm_subset
+        # Lane admission mirrors the scanner's OWN discovery gate (~3286): a token
+        # is admitted if it's in the fleet band OR any lane keeps it. The fast-watch
+        # armed set MUST be a superset of what the bots can buy, else lane tokens
+        # (e.g. a $90k badday microcap) are never armed -> the 0/36 phantom.
+        from core.young_token_probe import is_young_probe_candidate
+        from core.low_mcap_probe import keep_below_floor_token
+        from core.badday_lane import keep_token as _bd_keep
         cands = []
         for addr, entry in list(self._sticky_watchlist.items()):
             pair = (entry or {}).get("pair") or {}
@@ -3013,7 +3025,20 @@ class DipScanner:
             except (TypeError, ValueError):
                 continue
             age_ok = created and (now_ms - created) >= self.min_age_ms
-            in_band = bool(self.min_mcap <= mcap <= self.max_mcap and liq > 0 and age_ok)
+            # Lane flags use the cached pair fields (same inputs the scanner's
+            # admission block at ~3286 feeds these helpers). age_h from created.
+            age_h = ((now_ms - created) / 3_600_000.0) if created else 1e9
+            _bd_pc1 = pc_h1 if pc_h1 is not None else 0.0
+            _yp = is_young_probe_candidate(mcap, liq, age_h, self.max_mcap)
+            _lmp = keep_below_floor_token(mcap, liq, self.min_mcap)
+            _bdl = _bd_keep(mcap, liq, age_h, _bd_pc1, self.min_mcap)
+            # In-band (fleet floor + age) OR admitted by any lane. Still require
+            # mcap <= max_mcap (exclude the truly-huge) and liq>0; lanes carry
+            # their own mcap/liq/age floors so the strict min_mcap/min_age is
+            # dropped when a lane admits.
+            in_fleet_band = bool(self.min_mcap <= mcap <= self.max_mcap and liq > 0 and age_ok)
+            lane_admit = bool((_yp or _lmp or _bdl) and mcap <= self.max_mcap and liq > 0)
+            in_band = in_fleet_band or lane_admit
             cands.append({"addr": addr, "pc_h1": pc_h1, "vol_h1": vol_h1, "in_band": in_band})
         # Jupiter does 50 ids/call at 84 req/min -> can poll the WHOLE in-band watchlist;
         # the 30-cap was a workaround for the DexScreener pair-limit, not a Jupiter constraint.
@@ -17239,9 +17264,12 @@ class DipScanner:
                     continue
                 self._cycle_bought_addrs.add(_addr_lower)
                 _armed = getattr(self, "_fast_armed", {}) or {}
+                # Address-keyed, case-insensitive (token_address is the mint).
+                _armed_lc = {k.lower() for k in _armed}
+                _is_armed = bool(token_address) and token_address.lower() in _armed_lc
                 logger.info(
                     "[fast-watch] hit-rate buy bot=legacy_dip token=%s armed=%s",
-                    token_symbol, (token_address in _armed),
+                    token_symbol, _is_armed,
                 )
                 await self.trader.buy(
                     token_address=token_address,

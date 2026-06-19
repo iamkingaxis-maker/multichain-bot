@@ -545,17 +545,145 @@ def test_fast_tick_leaves_cached_when_pin_and_jupiter_missing(monkeypatch):
 
 
 def test_hitrate_log_marks_armed(monkeypatch, caplog):
+    """FIX B: the hit-rate metric keys off the decision ADDRESS (mint), not the
+    SYMBOL. A buy whose address is in _fast_armed must log armed=True (the prior
+    symbol-vs-address compare was always-False -> the 0/36 phantom)."""
     import logging, types, asyncio as aio
     from feeds.dip_scanner import DipScanner
     s = DipScanner.__new__(DipScanner)
     s._buy_fire_lock = aio.Lock()
-    s._fast_armed = {"TOKADDR": {"pairAddress": "P"}}
+    s._fast_armed = {"TokenMintAddr111": {"pairAddress": "P"}}
     fired = []
     async def fake_exec(d, bundle): fired.append(d.bot_id)
     s._execute_bot_buy = fake_exec
-    d = types.SimpleNamespace(bot_id="a", token="TOKADDR")
+    # token is the SYMBOL (does NOT match the armed key); address is the mint (matches).
+    d = types.SimpleNamespace(bot_id="a", token="TOK", address="TokenMintAddr111")
     with caplog.at_level(logging.INFO):
         aio.run(s._fast_route_decisions([d], bundle=None, allowlist=None, shadow=False,
                                         token_symbol="TOK"))
     assert fired == ["a"]
     assert any("hit-rate" in r.message and "armed=True" in r.message for r in caplog.records)
+
+
+def test_hitrate_log_armed_is_case_insensitive(monkeypatch, caplog):
+    """FIX B: membership test lowercases both sides so a mixed-case decision
+    address still matches an armed key in a different case."""
+    import logging, types, asyncio as aio
+    from feeds.dip_scanner import DipScanner
+    s = DipScanner.__new__(DipScanner)
+    s._buy_fire_lock = aio.Lock()
+    s._fast_armed = {"AbCdEf123": {"pairAddress": "P"}}
+    async def fake_exec(d, bundle): pass
+    s._execute_bot_buy = fake_exec
+    d = types.SimpleNamespace(bot_id="a", token="TOK", address="abcdef123")  # different case
+    with caplog.at_level(logging.INFO):
+        aio.run(s._fast_route_decisions([d], bundle=None, allowlist=None, shadow=False,
+                                        token_symbol="TOK"))
+    assert any("hit-rate" in r.message and "armed=True" in r.message for r in caplog.records)
+
+
+def test_hitrate_log_not_armed_address(monkeypatch, caplog):
+    """FIX B: an address that is NOT armed logs armed=False."""
+    import logging, types, asyncio as aio
+    from feeds.dip_scanner import DipScanner
+    s = DipScanner.__new__(DipScanner)
+    s._buy_fire_lock = aio.Lock()
+    s._fast_armed = {"ArmedMint": {"pairAddress": "P"}}
+    async def fake_exec(d, bundle): pass
+    s._execute_bot_buy = fake_exec
+    d = types.SimpleNamespace(bot_id="a", token="TOK", address="SomeOtherMint")
+    with caplog.at_level(logging.INFO):
+        aio.run(s._fast_route_decisions([d], bundle=None, allowlist=None, shadow=False,
+                                        token_symbol="TOK"))
+    assert any("hit-rate" in r.message and "armed=False" in r.message for r in caplog.records)
+
+
+# ---- FIX A: lane-aware arming ----------------------------------------------
+
+def _scanner_for_lane_arm(pairs):
+    """Scanner with min_mcap=$1M / max_mcap=$50M fleet band, watchlist = `pairs`
+    {addr: pair_dict}. Lanes default OFF unless env flips them on per test."""
+    from feeds.dip_scanner import DipScanner
+    s = DipScanner.__new__(DipScanner)
+    s.min_age_ms = 0
+    s.min_mcap = 1_000_000.0
+    s.max_mcap = 50_000_000.0
+    s._fast_samples = {}
+    s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
+    return s, 10_000_000_000
+
+
+def test_fast_arm_subset_arms_badday_lane_token(monkeypatch):
+    """A sub-$500k token the badday lane admits (envelope: 50-500k mcap, age>=6h,
+    liq>=15k, deep flush pc_h1<=-20) is now ARMED — was excluded by the strict
+    in_band min_mcap floor. (Kelsey-class $90k microcap.)"""
+    monkeypatch.setenv("BADDAY_LANE", "on")
+    monkeypatch.delenv("YOUNG_TOKEN_PROBE", raising=False)
+    monkeypatch.delenv("LOW_MCAP_PROBE", raising=False)
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "30")
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig.from_env()
+    # age = 24h so (now_ms - created) >= 6h envelope floor.  pc_h1 -25 = flush state.
+    now_ms = 10_000_000_000
+    created = now_ms - int(24 * 3_600_000)
+    pairs = {
+        "KELSEY90K": {"marketCap": 90_000, "liquidity": {"usd": 30_000},
+                      "pairCreatedAt": created, "priceChange": {"h1": -25.0},
+                      "volume": {"h1": 5.0}},
+        "INBAND2M": {"marketCap": 2_000_000, "liquidity": {"usd": 80_000},
+                     "pairCreatedAt": created, "priceChange": {"h1": -5.0},
+                     "volume": {"h1": 9.0}},
+        "HUGE100M": {"marketCap": 100_000_000, "liquidity": {"usd": 80_000},
+                     "pairCreatedAt": created, "priceChange": {"h1": -5.0},
+                     "volume": {"h1": 9.0}},
+    }
+    s, _ = _scanner_for_lane_arm(pairs)
+    s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
+    s._fast_arm_subset(cfg, now_ms)
+    armed = set(s._fast_armed.keys())
+    assert "KELSEY90K" in armed     # lane-admitted sub-band microcap now armed (FIX A)
+    assert "INBAND2M" in armed      # in-band still armed
+    assert "HUGE100M" not in armed  # truly out-of-band (mcap>max), no lane -> excluded
+
+
+def test_fast_arm_subset_excludes_subband_token_with_no_lane(monkeypatch):
+    """All lanes OFF -> a sub-$1M token NOT admitted by any lane stays excluded
+    (regression guard: lane-aware in_band must not become 'arm everything')."""
+    monkeypatch.setenv("BADDAY_LANE", "off")
+    monkeypatch.delenv("YOUNG_TOKEN_PROBE", raising=False)
+    monkeypatch.delenv("LOW_MCAP_PROBE", raising=False)
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "30")
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig.from_env()
+    now_ms = 10_000_000_000
+    created = now_ms - int(24 * 3_600_000)
+    pairs = {
+        "MICRO90K": {"marketCap": 90_000, "liquidity": {"usd": 30_000},
+                     "pairCreatedAt": created, "priceChange": {"h1": -25.0},
+                     "volume": {"h1": 5.0}},
+    }
+    s, _ = _scanner_for_lane_arm(pairs)
+    s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
+    s._fast_arm_subset(cfg, now_ms)
+    assert "MICRO90K" not in set(s._fast_armed.keys())
+
+
+def test_fast_arm_subset_arms_low_mcap_lane_token(monkeypatch):
+    """LOW_MCAP_PROBE on -> a token in [500k, 1M) the low-mcap lane admits is armed."""
+    monkeypatch.setenv("LOW_MCAP_PROBE", "1")
+    monkeypatch.setenv("BADDAY_LANE", "off")
+    monkeypatch.delenv("YOUNG_TOKEN_PROBE", raising=False)
+    monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "30")
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig.from_env()
+    now_ms = 10_000_000_000
+    created = now_ms - int(24 * 3_600_000)
+    pairs = {
+        "LOWMCAP700K": {"marketCap": 700_000, "liquidity": {"usd": 60_000},
+                        "pairCreatedAt": created, "priceChange": {"h1": -8.0},
+                        "volume": {"h1": 5.0}},
+    }
+    s, _ = _scanner_for_lane_arm(pairs)
+    s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
+    s._fast_arm_subset(cfg, now_ms)
+    assert "LOWMCAP700K" in set(s._fast_armed.keys())
