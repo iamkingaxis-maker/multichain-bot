@@ -110,6 +110,15 @@ class PriceFeed:
         # A2 will fail over to DexScreener while this window is in the future.
         self._jup_backoff_until: float = 0.0
 
+        # Jupiter staleness guard: per-token (last_block_id, first_seen_ts_at_that_block).
+        # On a fast-moving token a Jupiter quote whose blockId is FROZEN across
+        # several seconds is stale — using it could lag a real stop by a few %.
+        # When frozen > JUPITER_STALE_SECS we still write the cache but skip the
+        # stale Jupiter realtime stop checks and fail over to DexScreener for that
+        # token (cross-CDN backstop). Fail-open on any error / blockId=None.
+        self._jup_block_seen: Dict[str, tuple] = {}
+        self._jup_stale_logged: Set[str] = set()  # log-once-per-token throttle
+
     # ── AxiomPriceFeed-compatible subscription API ──────────────────────────
 
     def subscribe_token(self, token_address: str, chain_id: str = "solana", pair_address: str = ""):
@@ -428,6 +437,35 @@ class PriceFeed:
                     fetched += 1
         return fetched
 
+    def _jup_is_stale(self, addr_lower, block_id, now):
+        """Pure staleness decision for a Jupiter quote (testable, fail-open).
+
+        Updates self._jup_block_seen as a side effect:
+          - block_id None              -> not stale (fail-open, behave as today)
+          - block_id changed vs stored -> update (block_id, now), not stale
+          - block_id unchanged         -> keep first_seen_ts; stale iff
+                                          (now - first_seen_ts) > JUPITER_STALE_SECS
+        Any error -> False (not stale = behave as today).
+        """
+        try:
+            if block_id is None:
+                return False
+            try:
+                stale_secs = float(os.environ.get("JUPITER_STALE_SECS", "10.0"))
+            except (TypeError, ValueError):
+                stale_secs = 10.0
+            prev = self._jup_block_seen.get(addr_lower)
+            if prev is None or prev[0] != block_id:
+                # New/changed block — record it; quote is fresh.
+                self._jup_block_seen[addr_lower] = (block_id, now)
+                self._jup_stale_logged.discard(addr_lower)
+                return False
+            # block_id unchanged — keep original first_seen_ts.
+            first_seen_ts = prev[1]
+            return (now - first_seen_ts) > stale_secs
+        except Exception:
+            return False
+
     async def _process_jupiter_price(self, addr_lower, price, block_id):
         """Feed a Jupiter quote into the same cache/sample path as poll updates.
 
@@ -458,15 +496,49 @@ class PriceFeed:
         self._tick_count += 1
 
         # AxiomPriceFeed-compatible caches (same writes as _process_pair_update).
+        # ALWAYS write the cache (so it isn't empty) even when the quote is stale.
         self.price_cache[addr_lower] = price
         self.price_timestamps[addr_lower] = time.time()
 
-        # Fire realtime stop/TP checks — same pattern as _process_pair_update.
-        if self.position_manager is not None:
-            self.position_manager.check_stop_loss_realtime(addr_lower, price)
-            self.position_manager.check_take_profit_realtime(addr_lower, price)
-            self.position_manager.check_exhaustion_realtime(addr_lower, price)
-            self.position_manager.check_post_tp1_trail_realtime(addr_lower, price)
+        # Jupiter staleness guard: if this token's blockId has been frozen
+        # > JUPITER_STALE_SECS, the quote can lag a real stop on a fast mover.
+        # Don't drive the realtime stop/TP callbacks off the stale price — fail
+        # over to DexScreener for THIS token so the position manager gets a fresh
+        # non-Jupiter price (its _process_pair_update fires the callbacks). Fail-open.
+        stale = False
+        try:
+            stale = self._jup_is_stale(addr_lower, block_id, time.time())
+        except Exception:
+            stale = False
+
+        if stale:
+            try:
+                if addr_lower not in self._jup_stale_logged:
+                    self._jup_stale_logged.add(addr_lower)
+                    seen = self._jup_block_seen.get(addr_lower)
+                    frozen_for = (time.time() - seen[1]) if seen else 0.0
+                    logger.warning(
+                        "[PriceFeed] Jupiter quote STALE for %s (blockId frozen %.0fs) -> DexScreener failover",
+                        addr_lower, frozen_for,
+                    )
+                # Trigger a fresh DexScreener fetch for THIS token. Prefer the
+                # pinned-pair direct path; else the batch path. The re-fetch's
+                # _process_pair_update fires the realtime stop/TP callbacks.
+                pinned_pair = self._pair_addresses.get(addr_lower)
+                if pinned_pair:
+                    await self._poll_pair_direct(addr_lower, pinned_pair)
+                else:
+                    await self._poll_batch([addr_lower])
+            except Exception as e:
+                logger.debug("[PriceFeed] Jupiter stale failover error for %s: %s", addr_lower, e)
+        else:
+            # Fresh Jupiter quote — fire realtime stop/TP checks (same pattern
+            # as _process_pair_update).
+            if self.position_manager is not None:
+                self.position_manager.check_stop_loss_realtime(addr_lower, price)
+                self.position_manager.check_take_profit_realtime(addr_lower, price)
+                self.position_manager.check_exhaustion_realtime(addr_lower, price)
+                self.position_manager.check_post_tp1_trail_realtime(addr_lower, price)
 
         # Notify subscribers.
         for callback in self._subscribers.get(addr_lower, []):
