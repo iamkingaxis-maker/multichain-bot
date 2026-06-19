@@ -641,6 +641,13 @@ class DipScanner:
             await self._maybe_spawn_onchain_feed()
         except Exception as e:
             logger.error("[onchain] failed to spawn WS feed: %s", e)
+        # Telemetry log rotator: caps the growing append-only .jsonl logs on
+        # the /data volume (allowlist-only — NEVER touches trade state). True
+        # no-op when LOG_ROTATE_MODE=off. Best-effort; never breaks the scanner.
+        try:
+            self._maybe_spawn_log_rotator()
+        except Exception as e:
+            logger.error("[log-rotator] failed to spawn: %s", e)
         while True:
             try:
                 await self._scan_cycle()
@@ -654,6 +661,25 @@ class DipScanner:
             except Exception as e:
                 logger.error(f"[DipScanner] Scan cycle error: {e}")
             await asyncio.sleep(_SCAN_INTERVAL)
+
+    def _maybe_spawn_log_rotator(self) -> None:
+        """Spawn the telemetry log rotator once (best-effort, no-op when off).
+
+        Caps the growing append-only telemetry .jsonl logs under DATA_DIR so
+        they can't refill the /data volume. Allowlist-only — never touches
+        trade/position state files.
+        """
+        try:
+            from core.log_rotator import LogRotator, RotatorConfig
+            cfg = RotatorConfig.from_env()
+            if cfg.mode == "off":
+                logger.info("[log-rotator] LOG_ROTATE_MODE=off — not spawned")
+                return
+            data_dir = os.environ.get("DATA_DIR", "/data")
+            asyncio.create_task(LogRotator(cfg).run(data_dir))
+            logger.info("[log-rotator] spawned for %s", data_dir)
+        except Exception as e:
+            logger.error("[log-rotator] spawn error: %s", e)
 
     async def _fetch_cycle_sol_features(self) -> None:
         """Fetch SOL price+regime ONCE per cycle and cache on self.
