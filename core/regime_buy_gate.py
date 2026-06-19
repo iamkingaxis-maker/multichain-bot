@@ -3,19 +3,21 @@
 AxiS: "buy or don't buy, not size." When the market is clearly crashing, dip bots
 should open ZERO new positions until it clears — not catch the falling knife.
 
-Backtest (34k-trade / 4-week _bleed_trades set, 331 w/ regime features):
-  - downside breadth (regime_h1_neg_pct) >= 35 = the bleed cliff: [35,40)=-2.3%/tr,
-    [40,50)=-10.7%/tr; blocking >=35 removed -218% of bleed and flipped the kept book
-    from net-negative to breakeven. BELOW 35 the edge is breakeven+ ([30,35)=+0.2%) ->
-    do NOT block there (that's the overblock AxiS warned about).
-  - SOL arm uses the 6h window, NOT 24h: sol_pc_h24<=-3 would keep the gate OFF for up
-    to 24h after a crash (the lookback "remembers" it) -> miss the recovery bounce =
-    overblock. sol_pc_h6 releases within hours.
+Backtest (RECALIBRATED 2026-06-18, 4-week set, n=763 — supersedes the old >=35 flat cliff):
+  - downside breadth (regime_h1_neg_pct) >= 40 = the unambiguous crash cliff
+    ([40,50)=-6.93%/tr, 27% WR) -> block outright.
+  - the [35,40) band is TWO-SIDED (51% WR) -> a don't-buy ONLY when SOL is ALSO down on
+    the day (sol_pc_h24 <= -1). BELOW 35 the edge is breakeven+ ([30,35)=+0.2%) -> do NOT
+    block there (that's the overblock AxiS warned about).
+  - net: removes ~311pp of bleed killing only ~9 winners (vs ~35 at the old flat >=35).
+    (The prior sol_pc_h6<=-3 arm was DEAD/never-fired; replaced by sol_pc_h24<=-1 gating
+    only the mid-breadth band.)
 
 ANTI-OVERBLOCK (AxiS constraint "don't overblock or for too long, or dip buying won't
-work"): (1) thresholds catch only the crash cliff, not the breakeven mid-zone; (2)
-re-evaluated EVERY scan cycle off live breadth + 6h SOL -> releases the instant the
-regime clears, no cooldown/lockout; (3) FAIL-OPEN: missing features never block.
+work"): (1) thresholds catch only the crash cliff (>=40) + the SOL-confirmed mid-band, not
+the breakeven mid-zone; (2) re-evaluated EVERY scan cycle off live breadth + 24h SOL ->
+releases the instant the regime clears, no cooldown/lockout; (3) FAIL-OPEN: missing
+features never block.
 
 Applies to dip entries on live AND paper. Momentum-mode bots are exempt (they are not
 dip-buyers; momentum continuation can work when dips don't)."""
