@@ -2968,10 +2968,12 @@ class DipScanner:
         """B4: spawn the on-chain WS hot-layer feed (best-effort, never breaks
         the scanner). TRUE no-op when ONCHAIN_WS_MODE=off (feed not constructed).
 
-        v1 spawns ONCE with the current hot set (armed union open). Re-pointing
-        the subscription set as the hot set rotates each cycle is a documented
-        nice-to-have; OnchainWsFeed.run already best-effort reconnects, but it
-        does not yet re-subscribe a changed mint set -- noted for a follow-up."""
+        Spawns ONCE; the feed re-points its subscription set to the rotating hot
+        set itself via the `get_mints` CALLABLE (armed union open) on its own
+        ONCHAIN_REFRESH_SECS loop, so coverage tracks rotation instead of
+        decaying to ~0 over a long run. SOL-gate is observable: at boot
+        _last_sol_usd=0 so every decode is discarded -- the feed heartbeat logs
+        "[onchain] waiting for SOL price" until the first scan cycle sets it."""
         try:
             mode = os.environ.get("ONCHAIN_WS_MODE", "off").strip().lower()
         except Exception:
@@ -2983,8 +2985,11 @@ class DipScanner:
         try:
             feed = OnchainWsFeed(get_sol_usd=lambda: getattr(self, "_last_sol_usd", 0.0))
             self._onchain_feed = feed
-            asyncio.create_task(feed.run(self._onchain_hot_mints()))
-            logger.info("[onchain] WS hot-layer spawned mode=%s subset=%d",
+            # Pass the CALLABLE so the feed refresh loop sees the rotating set.
+            asyncio.create_task(feed.run(get_mints=self._onchain_hot_mints))
+            if float(getattr(self, "_last_sol_usd", 0.0) or 0.0) <= 0:
+                logger.info("[onchain] waiting for SOL price (sol_usd=0 at spawn)")
+            logger.info("[onchain] WS hot-layer spawned mode=%s subset=%d (refresh-tracking)",
                         mode, len(self._onchain_hot_mints()))
         except Exception as e:
             logger.warning("[onchain] failed to spawn WS feed: %s", e)

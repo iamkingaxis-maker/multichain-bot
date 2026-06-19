@@ -163,3 +163,86 @@ def test_run_noop_when_mode_explicit_off(monkeypatch):
     import asyncio
     asyncio.run(feed.run([f"m{i}" for i in range(120)]))
     assert feed.last_run_was_noop is True
+
+
+# --- subscription refresh: tracked set transitions A -> B -------------------
+
+def test_apply_refresh_transitions_tracked_set():
+    feed = _feed()
+    set_a = ["AaA", "BbB", "CcC"]
+    set_b = ["BbB", "DdD"]
+
+    added, dropped = feed._apply_refresh(set_a)
+    assert feed._tracked == {"aaa", "bbb", "ccc"}
+    assert added == {"aaa", "bbb", "ccc"} and dropped == set()
+
+    added, dropped = feed._apply_refresh(set_b)
+    # A -> B: new subscribed, dropped removed
+    assert feed._tracked == {"bbb", "ddd"}
+    assert added == {"ddd"}
+    assert dropped == {"aaa", "ccc"}
+
+
+def test_apply_refresh_prunes_caches_and_routing_for_dropped():
+    feed = _feed()
+    # seed routing + cache as if A was subscribed and priced
+    feed._tracked = {"keepme", "dropme"}
+    feed._pda_to_mint = {"pdaK": "KeepMe", "pdaD": "DropMe"}
+    feed.price_cache = {"keepme": 1.0, "dropme": 2.0}
+    feed.ts = {"keepme": 111.0, "dropme": 222.0}
+
+    feed._apply_refresh(["KeepMe"])
+
+    assert feed._tracked == {"keepme"}
+    # dropped mint pruned from cache + routing; kept mint untouched
+    assert "dropme" not in feed.price_cache
+    assert "dropme" not in feed.ts
+    assert "keepme" in feed.price_cache
+    assert "pdaD" not in feed._pda_to_mint
+    assert feed._pda_to_mint.get("pdaK") == "KeepMe"
+
+
+def test_resolve_mints_accepts_callable_and_list():
+    feed = _feed()
+    assert feed._resolve_mints(["a", "b"]) == ["a", "b"]
+    assert feed._resolve_mints(lambda: ["x"]) == ["x"]
+
+    def boom():
+        raise RuntimeError("no")
+    assert feed._resolve_mints(boom) == []        # exception-safe -> []
+    assert feed._resolve_mints(None) == []
+
+
+# --- heartbeat: unconditional liveness line ---------------------------------
+
+def test_heartbeat_line_format(monkeypatch):
+    monkeypatch.setenv("ONCHAIN_WS_MODE", "shadow")
+    feed = _feed(sol_usd=152.5)
+    feed._tracked = {"a", "b"}
+    feed.price_cache = {"a": 1.0}
+    feed.ws_msgs = 7
+    line = feed._heartbeat_line()
+    assert line.startswith("[onchain] heartbeat ")
+    assert "mode=shadow" in line
+    assert "subs=2" in line
+    assert "cached=1" in line
+    assert "ws_msgs=7" in line
+    assert "sol_usd=152.5000" in line
+
+
+def test_heartbeat_line_safe_when_sol_callable_raises():
+    def boom():
+        raise RuntimeError("down")
+    feed = OnchainWsFeed(get_sol_usd=boom)
+    line = feed._heartbeat_line()       # must not raise
+    assert "sol_usd=0.0000" in line
+
+
+# --- SOL-gate: sol_usd=0 writes nothing -------------------------------------
+
+def test_sol_gate_zero_writes_nothing():
+    feed = _feed(sol_usd=0.0)
+    raw = _live_curve_bytes(1_000_000_000_000_000, 30_000_000_000)
+    feed._handle_account_data("GaTeD", _b64(raw))
+    assert feed.price_cache == {}
+    assert feed.ts == {}

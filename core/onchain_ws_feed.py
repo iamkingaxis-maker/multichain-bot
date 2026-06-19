@@ -39,6 +39,15 @@ _CLOSE_CODE_TOO_MANY = 1013
 _COMMITMENT = "processed"
 
 
+def _env_int(name, default):
+    """Parse a positive int env var; fall back to default on bad/missing."""
+    try:
+        v = int(os.environ.get(name, "").strip())
+        return v if v > 0 else default
+    except Exception:
+        return default
+
+
 class OnchainWsFeed:
     """WS accountSubscribe feed over the pump.fun bonding-curve PDAs of a hot subset."""
 
@@ -60,6 +69,11 @@ class OnchainWsFeed:
 
         # pda(str) -> mint(original-case) routing map, built in run()
         self._pda_to_mint = {}
+        # currently-tracked hot mint set (lowercased) -- what we believe is
+        # subscribed. Maintained by the refresh loop so coverage tracks rotation.
+        self._tracked = set()
+        # ws notifications received (any frame) -- heartbeat liveness counter.
+        self.ws_msgs = 0
         # last run took the no-op path (mode off) -- testable without sockets
         self.last_run_was_noop = False
         self._stop = False
@@ -131,14 +145,84 @@ class OnchainWsFeed:
     def stop(self):
         self._stop = True
 
+    # --- refresh / heartbeat (SYNC, testable) --------------------------------
+
+    def _heartbeat_line(self):
+        """Build the unconditional heartbeat string (pure -> testable).
+
+        Format is stable so silence-is-news monitoring can parse it.
+        """
+        try:
+            sol = float(self.get_sol_usd() or 0.0)
+        except Exception:
+            sol = 0.0
+        return (
+            "[onchain] heartbeat mode=%s subs=%d cached=%d ws_msgs=%d sol_usd=%.4f"
+            % (self._mode(), len(self._tracked), len(self.price_cache),
+               int(self.ws_msgs), sol)
+        )
+
+    def _apply_refresh(self, new_mints):
+        """Transition the tracked subscription set toward `new_mints` (SYNC,
+        testable, exception-safe). Returns (added, dropped) lower-cased sets.
+
+        v1 semantics: the tracked set BECOMES the new hot set. Caches and the
+        pda->mint map for mints that fell out of the hot set are pruned so the
+        cache footprint + reported coverage track the rotating armed/open set
+        rather than growing unbounded. New mints are returned to the caller so
+        the connection loops can accountSubscribe them; dropped mints stop being
+        routed (their pda entry is removed) which is an effective unsubscribe.
+        """
+        try:
+            new_lower = {m.lower() for m in (new_mints or []) if m}
+        except Exception:
+            new_lower = set()
+        old = set(self._tracked)
+        added = new_lower - old
+        dropped = old - new_lower
+
+        # Prune caches + routing for dropped mints (best-effort).
+        if dropped:
+            for pda, mint in list(self._pda_to_mint.items()):
+                try:
+                    if mint.lower() in dropped:
+                        self._pda_to_mint.pop(pda, None)
+                except Exception:
+                    self._pda_to_mint.pop(pda, None)
+            for k in list(self.price_cache.keys()):
+                if k in dropped:
+                    self.price_cache.pop(k, None)
+                    self.ts.pop(k, None)
+
+        self._tracked = new_lower
+        return (added, dropped)
+
     # --- async socket I/O (runtime; not unit-tested) -------------------------
 
-    async def run(self, mints):
-        """Subscribe to the bonding-curve PDAs of `mints` and stream prices.
+    @staticmethod
+    def _resolve_mints(get_mints):
+        """Accept either a callable (current hot list) or a static list.
+        Returns a fresh list, exception-safe (empty on error)."""
+        try:
+            if callable(get_mints):
+                return list(get_mints() or [])
+            return list(get_mints or [])
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("[onchain-ws] get_mints error: %s", e)
+            return []
+
+    async def run(self, get_mints):
+        """Subscribe to the bonding-curve PDAs of the hot set and stream prices.
+
+        `get_mints` may be a CALLABLE returning the current hot mint list (the
+        armed/open set, which rotates) OR a static list (back-compat). When a
+        callable is given, a refresh loop re-points the subscription set every
+        ONCHAIN_REFRESH_SECS so coverage tracks rotation instead of decaying.
 
         TRUE no-op when ONCHAIN_WS_MODE is off (default) -- returns immediately,
         opens NO sockets. In shadow/on mode, opens the planned connections and
         keeps them alive best-effort (any error caught + retried with backoff).
+        An UNCONDITIONAL heartbeat logs liveness every ONCHAIN_HEARTBEAT_SECS.
         """
         if self._mode() == "off":
             self.last_run_was_noop = True
@@ -148,7 +232,10 @@ class OnchainWsFeed:
         self.last_run_was_noop = False
         self._stop = False
 
-        # Build pda->mint routing for notification dispatch.
+        # Initial hot set.
+        mints = self._resolve_mints(get_mints)
+
+        # Build pda->mint routing for notification dispatch + seed tracked set.
         self._pda_to_mint = {}
         valid = []
         for m in mints:
@@ -159,19 +246,76 @@ class OnchainWsFeed:
                 continue
             self._pda_to_mint[pda] = m
             valid.append(m)
+        self._tracked = {m.lower() for m in valid}
 
         chunks = self._plan_connections(valid)
         logger.info(
             "[onchain-ws] mode=%s subset=%d connections=%d (<=%d subs each)",
             self._mode(), len(valid), len(chunks), SUBS_PER_CONN,
         )
-        if not chunks:
-            return
 
-        await asyncio.gather(
-            *(self._connection_loop(chunk) for chunk in chunks),
-            return_exceptions=True,
-        )
+        # Heartbeat + refresh run regardless of whether there are chunks yet --
+        # silence-is-news + an empty startup set should still rotate in mints.
+        coros = [self._heartbeat_loop()]
+        if callable(get_mints):
+            coros.append(self._refresh_loop(get_mints))
+        coros.extend(self._connection_loop(chunk) for chunk in chunks)
+
+        await asyncio.gather(*coros, return_exceptions=True)
+
+    async def _heartbeat_loop(self):
+        """Unconditional periodic heartbeat -> silence-is-news. Never raises."""
+        secs = _env_int("ONCHAIN_HEARTBEAT_SECS", 30)
+        while not self._stop:
+            try:
+                logger.info("%s", self._heartbeat_line())
+                # SOL-gate observability: at boot SOL=0 -> every decode is
+                # discarded; make the wait explicit instead of silent.
+                try:
+                    sol = float(self.get_sol_usd() or 0.0)
+                except Exception:
+                    sol = 0.0
+                if sol <= 0:
+                    logger.info("[onchain] waiting for SOL price (sol_usd=0 -> decodes discarded)")
+            except Exception as e:  # pragma: no cover - defensive
+                logger.debug("[onchain-ws] heartbeat error: %s", e)
+            await asyncio.sleep(secs)
+
+    async def _refresh_loop(self, get_mints):
+        """Periodically re-point the subscription set as the hot set rotates.
+
+        Best-effort: a refresh error is caught and never crashes the feed. v1
+        (re)subscribes the current hot set on fresh connections and prunes the
+        pda->mint map + caches for mints no longer hot (see _apply_refresh).
+        """
+        secs = _env_int("ONCHAIN_REFRESH_SECS", 60)
+        while not self._stop:
+            await asyncio.sleep(secs)
+            if self._stop:
+                break
+            try:
+                new_mints = self._resolve_mints(get_mints)
+                added, dropped = self._apply_refresh(new_mints)
+                if added or dropped:
+                    logger.info(
+                        "[onchain] refresh +%d -%d tracked=%d",
+                        len(added), len(dropped), len(self._tracked),
+                    )
+                    # Re-derive pda routing for the (possibly new) tracked set so
+                    # reconnecting connection loops subscribe the current hot set.
+                    self._rebuild_pda_routing(new_mints)
+            except Exception as e:
+                logger.debug("[onchain-ws] refresh error: %s", e)
+
+    def _rebuild_pda_routing(self, mints):
+        """Rebuild _pda_to_mint for the given hot set (best-effort, sync)."""
+        routing = {}
+        for m in (mints or []):
+            try:
+                routing[bonding_curve_pda(m)] = m
+            except Exception:
+                continue
+        self._pda_to_mint = routing
 
     async def _connection_loop(self, mint_chunk):
         """Maintain one WS connection for a chunk; reconnect on close/1013/error."""
@@ -252,6 +396,7 @@ class OnchainWsFeed:
 
         while not self._stop:
             raw = await ws.recv()
+            self.ws_msgs += 1
             try:
                 msg = json.loads(raw)
             except Exception:
