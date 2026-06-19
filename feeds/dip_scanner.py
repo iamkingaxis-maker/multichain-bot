@@ -17852,12 +17852,25 @@ class DipScanner:
 
         if not _parallel_mode:
             # SERIAL (default) -- identical order + cap-break behaviour.
-            for pair in pairs:
+            # LOOP-LAG FIX (2026-06-19): the per-token body is synchronous CPU work
+            # (bot_manager.evaluate_all is a sync def; chart fetches no-op on warm
+            # cache after 650cc21) with NO yield, so the ~150-165s sweep pinned the
+            # event loop -> dashboard went dark + the fast-watch ~3s tick couldn't
+            # fire. Cooperatively yield every N tokens so the loop breathes between
+            # bursts. Decision logic / order / cap-break are byte-identical; this only
+            # interleaves. Disable via SCAN_YIELD_EVERY=0.
+            try:
+                _yield_every = int(os.environ.get("SCAN_YIELD_EVERY", "8"))
+            except (TypeError, ValueError):
+                _yield_every = 8
+            for _pi, pair in enumerate(pairs):
                 _r_c, _r_sig, _r_cap_stop = await self._evaluate_pair(pair, _eval_ctx)
                 c.update(_r_c)
                 signals += _r_sig
                 if _r_cap_stop:
                     break
+                if _yield_every > 0 and (_pi + 1) % _yield_every == 0:
+                    await asyncio.sleep(0)
         else:
             try:
                 _conc = int(os.environ.get("PARALLEL_SCAN_CONCURRENCY", "12"))
