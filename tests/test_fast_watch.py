@@ -446,6 +446,97 @@ def test_fast_arm_subset_caps_at_30_when_flag_off(monkeypatch):
     assert len(s._fast_armed) == 30    # capped at armed_max
 
 
+def _scanner_for_pinned_tick(pinned_return):
+    """Single-armed DIP scanner whose trader._get_token_price returns
+    `pinned_return` (a float, None, or a callable(addr, pair_address)).
+    The fake _evaluate_pair captures the escalated pair's priceUsd."""
+    from feeds.dip_scanner import DipScanner
+    from collections import deque
+    s = DipScanner.__new__(DipScanner)
+    s._buy_fire_lock = asyncio.Lock()
+    s._token_registry = None
+    s._fast_watch_regime = {"_regime_n": 0, "_regime_dip_breadth_pct": None,
+                            "_regime_h1_neg_pct": None}
+    # cached pair price = "1" (the stale pre-escalation value)
+    s._fast_armed = {"DIPADDR": {"pairAddress": "POOLX", "priceUsd": "1"}}
+    s._fast_samples = {"DIPADDR": deque([1.00], maxlen=40)}
+
+    async def fake_batch(addrs):
+        return {"dipaddr": 0.90}   # Jupiter aggregate fresh = 0.90 (10% dip)
+    s._fast_batch_prices = fake_batch
+
+    captured = {"calls": []}
+
+    class _FakeTrader:
+        async def _get_token_price(self, token_address, pair_address=""):
+            captured["calls"].append((token_address, pair_address))
+            if callable(pinned_return):
+                return pinned_return(token_address, pair_address)
+            return pinned_return
+    s.trader = _FakeTrader()
+
+    s.evaluated = []
+    async def fake_eval(pair, ctx):
+        s.evaluated.append(pair.get("priceUsd"))
+        return (None, 0, False)
+    s._evaluate_pair = fake_eval
+    return s, captured
+
+
+def test_fast_tick_injects_pair_pinned_price_not_jupiter(monkeypatch):
+    """Escalated pair["priceUsd"] = the PAIR-PINNED price, not the Jupiter
+    aggregate (0.90), and the pin is queried with the token's pairAddress."""
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s, captured = _scanner_for_pinned_tick(0.123)   # pinned pool price
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    assert s.evaluated == ["0.123"]                  # pinned, NOT "0.9"
+    assert captured["calls"] == [("DIPADDR", "POOLX")]   # pinned to the pool
+
+
+def test_fast_tick_falls_back_to_jupiter_when_pin_none(monkeypatch):
+    """Pinned fetch None -> use the Jupiter aggregate fresh price (0.90)."""
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s, captured = _scanner_for_pinned_tick(None)
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    assert s.evaluated == ["0.9"]                    # Jupiter fresh fallback
+    assert captured["calls"] == [("DIPADDR", "POOLX")]
+
+
+def test_fast_tick_pin_zero_falls_back_to_jupiter(monkeypatch):
+    """Pinned fetch <=0 -> use the Jupiter aggregate fresh price (0.90)."""
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s, _captured = _scanner_for_pinned_tick(0.0)
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    assert s.evaluated == ["0.9"]                    # Jupiter fresh fallback
+
+
+def test_fast_tick_leaves_cached_when_pin_and_jupiter_missing(monkeypatch):
+    """Pin None AND no Jupiter fresh -> leave the cached pair price ("1")."""
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s, _captured = _scanner_for_pinned_tick(None)
+    # Pre-seed two high samples so move_fires triggers on the dip even though
+    # the *current* batch returns no fresh price for the token.
+    from collections import deque
+    s._fast_samples["DIPADDR"] = deque([1.00, 0.90], maxlen=40)
+    async def fake_batch(addrs):
+        return {}   # no fresh price this tick
+    s._fast_batch_prices = fake_batch
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    assert s.evaluated == ["1"]                      # cached pair price left untouched
+
+
 def test_hitrate_log_marks_armed(monkeypatch, caplog):
     import logging, types, asyncio as aio
     from feeds.dip_scanner import DipScanner

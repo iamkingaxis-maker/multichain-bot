@@ -3114,8 +3114,30 @@ class DipScanner:
                 # 'shadow' the delta is logged only (Jupiter still used); off ->
                 # byte-identical (always Jupiter).
                 fresh, _src = self._fast_price_for(addr, fresh)
+                # Enforce-safe entry price: `fresh` is the JUPITER AGGREGATE,
+                # which for a multi-pool token can be the WRONG pool (PENGUIN
+                # 37x-divergence class) and would mis-time the entry once
+                # fast-watch is enforced. Prefer a PAIR-PINNED price pinned to
+                # the exact pool we trade on (same path the trader uses
+                # everywhere else). Escalation-only (0-N survivors/tick) so the
+                # extra fetch is cheap. Fall back to the Jupiter `fresh` if the
+                # pin is unavailable (still fresher than the cached pair price).
+                pair_addr = pair.get("pairAddress")
+                pinned = None
+                if pair_addr:
+                    try:
+                        pinned = await self.trader._get_token_price(
+                            addr, pair_address=pair_addr)
+                    except Exception as e:
+                        logger.debug(
+                            "[fast-watch] pinned price fetch failed token=%s "
+                            "pair=%s: %s", addr, pair_addr, e)
+                        pinned = None
                 pair = dict(pair)
-                pair["priceUsd"] = str(fresh)
+                if pinned is not None and pinned > 0:
+                    pair["priceUsd"] = str(pinned)
+                else:
+                    pair["priceUsd"] = str(fresh)
             ctx = {
                 "now_ms": now_ms,
                 "_regime_n": regime.get("_regime_n", 0),
