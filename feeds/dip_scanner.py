@@ -272,6 +272,12 @@ class DipScanner:
         self._sticky_watchlist: Dict[str, dict] = {}
         self._fast_armed: Dict[str, dict] = {}      # addr -> pair (armed subset, rebuilt each cycle)
         self._fast_samples: Dict[str, deque] = {}   # addr -> rolling price deque (fast-watch batch poll)
+        # addr -> time.time() of the LAST fast-watch poll that returned a price for it.
+        # Powers _has_fresh_fast_price (the no-fast-price entry gate freshness signal).
+        self._fast_samples_ts: Dict[str, float] = {}
+        # No-fast-price gate observability (would-block volume + per-bot, winner-safety).
+        # Exception-safe; an obs counter must NEVER break a buy.
+        self._nfp_stats: dict = {"would_block": 0, "priceable": 0, "by_bot": {}}
         # Read-only observability counters for the fast-watch armed-hit-rate.
         # Exposed via GET /api/fast-watch so the metric is observable over HTTP
         # instead of fragile railway-log scraping. All increments are
@@ -1060,6 +1066,51 @@ class DipScanner:
                     usd += float(getattr(_p, "size_usd", 0.0) or 0.0)
         return n, usd
 
+    def _has_fresh_fast_price(self, addr) -> bool:
+        """True iff the fast-watch has a FRESH Jupiter price sample for `addr`.
+
+        Powers the no-fast-price entry gate (AxiS 2026-06-18): the fast-watch arms
+        ~457 tokens but Jupiter only polls ~353 (77%); the other ~23% have no fresh
+        fast price and we don't want to trade them blind.
+
+        Freshness model: `self._fast_samples` is `addr -> deque(price)` (ORIGINAL-case
+        keys after FIX5, plain prices with NO embedded timestamp). The fast-watch tick
+        (8s) appends ONE sample per polled addr and stamps `self._fast_samples_ts[addr]`
+        with `time.time()` of that poll. So:
+          * priceable  = a non-empty deque whose last-update is within
+                         NO_FAST_PRICE_MAX_AGE_SECS (default 30 = ~3-4 ticks).
+          * fallback   = if `_fast_samples_ts` is missing/has no entry for this addr
+                         (pre-deploy / first cycle before the tick wrote a ts), fall
+                         back to PRESENCE: a non-empty deque counts as priceable
+                         (never FALSE-block when we lack a timestamp).
+        Case-insensitive lookup because `_fast_samples` is original-case keyed.
+        Pure read; raising is the CALLER's fail-open concern (it does not raise here
+        for normal inputs)."""
+        if not addr:
+            return False
+        samples = getattr(self, "_fast_samples", None) or {}
+        # case-insensitive: try exact, then a lowercased scan (keys are original-case)
+        buf = samples.get(addr)
+        ts_map = getattr(self, "_fast_samples_ts", None) or {}
+        ts = ts_map.get(addr)
+        if buf is None:
+            _lower = addr.lower()
+            for k, v in samples.items():
+                if k.lower() == _lower:
+                    buf = v
+                    ts = ts_map.get(k)
+                    break
+        if buf is None or len(buf) == 0:
+            return False
+        # No timestamp available -> presence-only (don't false-block on missing ts).
+        if ts is None:
+            return True
+        try:
+            max_age = float(os.environ.get("NO_FAST_PRICE_MAX_AGE_SECS", "30"))
+        except (TypeError, ValueError):
+            max_age = 30.0
+        return (time.time() - float(ts)) <= max_age
+
     async def _execute_bot_buy(self, decision, bundle):
         """Execute a BuyDecision from a single bot.
 
@@ -1072,6 +1123,53 @@ class DipScanner:
         if capital is None or pm is None:
             logger.error("[DipScanner] missing capital/pm for bot=%s", bot_id)
             return
+        # ── NO-FAST-PRICE ENTRY GATE (2026-06-18, AxiS) ────────────────────────
+        # Tokens we can't FAST-price should not be traded. The fast-watch arms ~457
+        # tokens but Jupiter only polls ~353 (77%); the other ~23% have no fresh fast
+        # price. This gate flags entries on those un-pollable tokens.
+        # WARMUP-SAFE: only flag a token that IS in self._fast_armed (we ARE trying to
+        # poll it) but has NO fresh sample (Jupiter isn't returning it = the real 23%) —
+        # NOT a brand-new token armed this very cycle whose first sample hasn't landed.
+        # SHADOW-FIRST: default 'shadow' = log-only (no behavior change on deploy);
+        # 'enforce' blocks the buy; 'off' = no gate. FAIL-OPEN: any error -> allow the
+        # buy (inverse of a safety cap — never block on a gate bug, esp. in shadow).
+        # Env: NO_FAST_PRICE_GATE_MODE (off|shadow|enforce, default shadow),
+        #      NO_FAST_PRICE_MAX_AGE_SECS (default 30).
+        _nfp_mode = os.environ.get("NO_FAST_PRICE_GATE_MODE", "shadow").strip().lower()
+        if _nfp_mode != "off":
+            try:
+                _nfp_addr = decision.address or self._addr_by_token.get(decision.token, "")
+                _nfp_armed = getattr(self, "_fast_armed", {}) or {}
+                # case-insensitive "is this addr armed?"
+                _nfp_is_armed = False
+                if _nfp_addr:
+                    if _nfp_addr in _nfp_armed:
+                        _nfp_is_armed = True
+                    else:
+                        _al = _nfp_addr.lower()
+                        _nfp_is_armed = any(k.lower() == _al for k in _nfp_armed)
+                _nfp_stats = getattr(self, "_nfp_stats", None)
+                if _nfp_stats is None:
+                    _nfp_stats = {"would_block": 0, "priceable": 0, "by_bot": {}}
+                    self._nfp_stats = _nfp_stats
+                _nfp_bb = _nfp_stats["by_bot"].setdefault(bot_id, {"block": 0, "ok": 0})
+                # Only judge tokens we ARE polling (armed). A non-armed token is brand-new
+                # / not in the fast-watch universe -> warmup-safe: leave it alone.
+                if _nfp_is_armed and not self._has_fresh_fast_price(_nfp_addr):
+                    _nfp_stats["would_block"] += 1
+                    _nfp_bb["block"] += 1
+                    logger.info("[no-fast-price] %s bot=%s token=%s (no fresh Jupiter price)",
+                                "BLOCK" if _nfp_mode == "enforce" else "SHADOW-would-block",
+                                bot_id, decision.token)
+                    if _nfp_mode == "enforce":
+                        return
+                else:
+                    _nfp_stats["priceable"] += 1
+                    _nfp_bb["ok"] += 1
+            except Exception as _nfp_e:
+                # FAIL-OPEN: never block a buy on a gate bug (esp. in shadow).
+                logger.error("[no-fast-price] gate error (%s) — fail-open, allowing %s %s",
+                             _nfp_e, bot_id, getattr(decision, "token", "?"))
         # REGIME BUY-GATE (2026-06-17): binary don't-buy on a CLEAR crash (broad-red
         # downside breadth >=35 OR SOL 6h <= -3%). Enforced on live AND paper; cycle
         # verdict stashed in the scan loop, re-evaluated each cycle (fast release, no
@@ -3136,6 +3234,9 @@ class DipScanner:
         for addr in list(self._fast_samples.keys()):
             if addr not in self._fast_armed:
                 self._fast_samples.pop(addr, None)
+                _ts_map = getattr(self, "_fast_samples_ts", None)
+                if _ts_map is not None:
+                    _ts_map.pop(addr, None)
 
     async def _fast_batch_prices(self, addrs):
         """Tier 1 fetch: fresh priceUsd per batch call. Returns {addr_lower: price}.
@@ -3202,6 +3303,11 @@ class DipScanner:
             polled += 1
             buf = self._fast_samples.setdefault(addr, deque(maxlen=cfg.sample_window))
             buf.append(pr)
+            # Stamp last-poll time for the no-fast-price gate freshness check.
+            try:
+                self._fast_samples_ts[addr] = now
+            except Exception:
+                pass
         snapshot = [(addr, armed[addr]) for addr in addrs]
         survivors = shortlist(
             snapshot,
