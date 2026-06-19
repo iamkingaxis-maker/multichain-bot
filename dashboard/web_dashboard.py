@@ -2436,6 +2436,7 @@ class WebDashboard:
         self.app.router.add_get("/api/pumpportal",           self._handle_pumpportal)
         self.app.router.add_get("/api/leaderboard",         self._handle_api_leaderboard)
         self.app.router.add_get("/api/live",                self._handle_api_live)
+        self.app.router.add_get("/api/fast-watch",          self._handle_api_fast_watch)
         self.app.router.add_get("/api/bots/{bot_id}/trades",    self._handle_api_bot_trades)
         self.app.router.add_get("/api/bots/{bot_id}/positions", self._handle_api_bot_positions)
         self.app.router.add_get("/api/attribution/filters",   self._handle_attribution_filters)
@@ -3059,6 +3060,51 @@ class WebDashboard:
             if inner is not None and hasattr(inner, "add_user_watchlist"):
                 return inner
         return None
+
+    async def _handle_api_fast_watch(self, request):
+        """GET /api/fast-watch — read-only observability for the fast-watch
+        armed-hit-rate, tick coverage, and per-bot breakdown.
+
+        Replaces fragile railway-log scraping of the
+        '[fast-watch] hit-rate buy ... armed=<bool>' and
+        '[fast-watch] tick armed=N polled=M fired=K' lines. No money path,
+        no behavior change — fast-watch stays shadow."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        dip = self._get_dip_scanner()
+        if dip is None:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": "DipScanner not registered"}),
+                content_type="application/json", headers=cors,
+            )
+        stats = getattr(dip, "_fw_stats", {}) or {}
+        # Compute hit_rate via the scanner's own helper when available; fall back
+        # to inline math so the endpoint never 500s on a partial stats dict.
+        try:
+            hit_rate = type(dip).fw_hit_rate(stats)
+        except Exception:
+            h = stats.get("armed_hits", 0)
+            m = stats.get("armed_misses", 0)
+            hit_rate = (h / (h + m)) if (h + m) > 0 else None
+        flags = {
+            "FAST_WATCH_MODE": os.environ.get("FAST_WATCH_MODE", "off"),
+            "JUPITER_PRICE_PRIMARY": os.environ.get("JUPITER_PRICE_PRIMARY"),
+            "ONCHAIN_WS_MODE": os.environ.get("ONCHAIN_WS_MODE", "off"),
+            "PAPER_PER_TOKEN_CAP_MODE": os.environ.get("PAPER_PER_TOKEN_CAP_MODE"),
+        }
+        payload = {
+            "ok": True,
+            "armed_hits": stats.get("armed_hits", 0),
+            "armed_misses": stats.get("armed_misses", 0),
+            "hit_rate": hit_rate,
+            "by_bot": stats.get("by_bot", {}),
+            "last_tick": stats.get("last_tick", {}),
+            "ticks": stats.get("ticks", 0),
+            "would_fire": stats.get("would_fire", 0),
+            "flags": flags,
+        }
+        return web.Response(
+            text=json.dumps(payload), content_type="application/json", headers=cors,
+        )
 
     async def _handle_user_watchlist_get(self, request):
         """GET /api/user-watchlist — return curator-curated tokens with DexScreener enrichment."""

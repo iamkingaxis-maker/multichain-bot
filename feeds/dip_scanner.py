@@ -272,6 +272,18 @@ class DipScanner:
         self._sticky_watchlist: Dict[str, dict] = {}
         self._fast_armed: Dict[str, dict] = {}      # addr -> pair (armed subset, rebuilt each cycle)
         self._fast_samples: Dict[str, deque] = {}   # addr -> rolling price deque (fast-watch batch poll)
+        # Read-only observability counters for the fast-watch armed-hit-rate.
+        # Exposed via GET /api/fast-watch so the metric is observable over HTTP
+        # instead of fragile railway-log scraping. All increments are
+        # exception-safe (an obs counter must NEVER break a buy or the tick).
+        self._fw_stats: dict = {
+            "armed_hits": 0,
+            "armed_misses": 0,
+            "by_bot": {},      # bot_id -> {"hits": x, "misses": y}
+            "last_tick": {"armed": 0, "polled": 0, "fired": 0, "mode": "off", "ts": 0},
+            "ticks": 0,
+            "would_fire": 0,
+        }
         # On-chain WS hot-layer (B4). None until _maybe_spawn_onchain_feed()
         # creates it (only when ONCHAIN_WS_MODE != off). Cached SOL/USD for the
         # feed's get_sol_usd callable, refreshed each cycle from sol features.
@@ -2858,6 +2870,51 @@ class DipScanner:
         except Exception as _e:
             logger.debug("[DipScanner] _warm_jup_slip err for %s: %s", token_address, _e)
 
+    def _fw_record_hit(self, bot_id, is_armed):
+        """Observability only: record a real-buy armed-hit-rate sample for the
+        fast-watch path. Exception-safe by construction — must NEVER break the
+        buy path. bot_id is keyed verbatim (already address/id-scoped upstream)."""
+        try:
+            st = self._fw_stats
+            bid = str(bot_id)
+            if is_armed:
+                st["armed_hits"] = st.get("armed_hits", 0) + 1
+            else:
+                st["armed_misses"] = st.get("armed_misses", 0) + 1
+            by_bot = st.setdefault("by_bot", {})
+            row = by_bot.setdefault(bid, {"hits": 0, "misses": 0})
+            if is_armed:
+                row["hits"] = row.get("hits", 0) + 1
+            else:
+                row["misses"] = row.get("misses", 0) + 1
+        except Exception:
+            pass
+
+    @staticmethod
+    def fw_hit_rate(stats):
+        """armed_hits / (armed_hits + armed_misses), or None when denom==0."""
+        try:
+            h = int((stats or {}).get("armed_hits", 0))
+            m = int((stats or {}).get("armed_misses", 0))
+            denom = h + m
+            return (h / denom) if denom > 0 else None
+        except Exception:
+            return None
+
+    def _fw_record_tick(self, armed, polled, fired, mode, ts, would_fire=0):
+        """Observability only: record last-tick coverage. Exception-safe."""
+        try:
+            st = self._fw_stats
+            st["last_tick"] = {
+                "armed": int(armed), "polled": int(polled),
+                "fired": int(fired), "mode": str(mode), "ts": float(ts),
+            }
+            st["ticks"] = st.get("ticks", 0) + 1
+            if would_fire:
+                st["would_fire"] = st.get("would_fire", 0) + int(would_fire)
+        except Exception:
+            pass
+
     async def _fast_route_decisions(self, decisions, bundle, allowlist, shadow, token_symbol):
         """Fire (or shadow-log) the fan-out decisions under the buy-fire lock.
 
@@ -2885,6 +2942,7 @@ class DipScanner:
                         getattr(d, "bot_id", "?"), token_symbol,
                         _is_armed,
                     )
+                    self._fw_record_hit(getattr(d, "bot_id", "?"), _is_armed)
                     await self._execute_bot_buy(d, bundle)
 
     def _fast_held_or_blocked(self, addr, allowlist):
@@ -3109,6 +3167,7 @@ class DipScanner:
         armed = dict(self._fast_armed)   # snapshot
         if not armed:
             logger.info("[fast-watch] tick armed=0 polled=0 fired=0 mode=%s", cfg.mode)
+            self._fw_record_tick(0, 0, 0, getattr(cfg, "mode", "off"), time.time())
             return
         addrs = list(armed.keys())
         prices = await self._fast_batch_prices(addrs)
@@ -3132,6 +3191,10 @@ class DipScanner:
         )
         logger.info("[fast-watch] tick armed=%d polled=%d fired=%d mode=%s",
                     len(addrs), polled, len(survivors), cfg.mode)
+        # Observability: a survivor escalating under shadow mode is a "would-fire".
+        _wf = len(survivors) if getattr(cfg, "mode", None) == "shadow" else 0
+        self._fw_record_tick(len(addrs), polled, len(survivors),
+                             getattr(cfg, "mode", "off"), now, would_fire=_wf)
         regime = getattr(self, "_fast_watch_regime", {}) or {}
         for addr, pair in survivors:
             dedup.mark(addr, now)
@@ -17271,6 +17334,7 @@ class DipScanner:
                     "[fast-watch] hit-rate buy bot=legacy_dip token=%s armed=%s",
                     token_symbol, _is_armed,
                 )
+                self._fw_record_hit("legacy_dip", _is_armed)
                 await self.trader.buy(
                     token_address=token_address,
                     token_symbol=token_symbol,
