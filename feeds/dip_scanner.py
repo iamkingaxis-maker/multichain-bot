@@ -3098,11 +3098,16 @@ class DipScanner:
             lane_admit = bool((_yp or _lmp or _bdl) and mcap <= self.max_mcap and liq > 0)
             in_band = in_fleet_band or lane_admit
             cands.append({"addr": addr, "pc_h1": pc_h1, "vol_h1": vol_h1, "in_band": in_band})
-        # Jupiter does 50 ids/call at 84 req/min -> can poll the WHOLE in-band watchlist;
-        # the 30-cap was a workaround for the DexScreener pair-limit, not a Jupiter constraint.
+        # Jupiter does 50 ids/call at ~110 req/min -> can poll most of the in-band
+        # watchlist; the 30-cap was a workaround for the DexScreener pair-limit, not a
+        # Jupiter constraint. Lift toward n_inband (now dips AND pumps after dropping the
+        # one-sided pc_h1 ceiling) but CLAMP to the rate-safe FAST_WATCH_ARMED_MAX ceiling
+        # (default 150) so the per-tick Jupiter call count (ceil(armed/50)) stays well under
+        # the ~110 req/min budget at the ~3s tick. Volume ranking in arm_subset keeps the
+        # most-active/buyable tokens in the armed set when n_inband exceeds the ceiling.
         if os.environ.get("JUPITER_PRICE_PRIMARY", "off").strip().lower() in ("on", "1", "true", "yes"):
             n_inband = sum(1 for c in cands if c.get("in_band"))
-            cfg = dataclasses.replace(cfg, armed_max=max(cfg.armed_max, n_inband))
+            cfg = dataclasses.replace(cfg, armed_max=min(cfg.armed_max, n_inband))
         armed_addrs = arm_subset(cands, cfg)
         new_armed = {}
         for addr in armed_addrs:

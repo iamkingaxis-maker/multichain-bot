@@ -61,7 +61,7 @@ class FastWatchConfig:
             rise_pct=_f("FAST_WATCH_RISE_PCT", 3.0),
             eval_cooldown_secs=_f("FAST_WATCH_EVAL_COOLDOWN_SECS", 60.0),
             bot_allowlist=allow,
-            armed_max=_i("FAST_WATCH_ARMED_MAX", 30),
+            armed_max=_i("FAST_WATCH_ARMED_MAX", 150),
             sample_window=_i("FAST_WATCH_SAMPLE_WINDOW", 40),
             arm_band_pp=_f("FAST_WATCH_ARM_BAND_PP", 15.0),
         )
@@ -113,23 +113,19 @@ def shortlist(snapshot, trigger_fn: Callable, dedup: FastWatchDedup,
 
 
 def arm_subset(candidates, cfg: FastWatchConfig):
-    """Select the armed token addresses for the fast loop (Rev 2.2: one-sided, volume-ranked).
+    """Select the armed token addresses for the fast loop (Rev 2.3: pc_h1-AGNOSTIC, volume-ranked).
 
     `candidates`: list of dicts {addr, pc_h1 (float|None), vol_h1 (float|None), in_band (bool)}.
-    Arm the in-band tokens that are *in play* — ONE-SIDED: keep every down/flat/mild-up token
-    (`pc_h1 ≤ cfg.arm_band_pp`, INCLUDING deep dips like -36% which the fleet actually dip-buys),
-    and exclude ONLY tokens that have already PUMPED (`pc_h1 > +cfg.arm_band_pp`, already mooned).
-    The prior symmetric `abs(pc_h1) ≤ band` filter wrongly excluded the deep-dip tokens the fleet
-    buys (0/34 live hit-rate). Ranked by recent volume (`vol_h1` desc, the tokens the fleet is most
-    likely to buy). Returns an ordered list of addresses (≤ armed_max). Entry-type-agnostic so it
-    serves both dip and momentum bots.
+    The ONLY inclusion test is `in_band` (lane/fleet-band membership computed in
+    `dip_scanner._fast_arm_subset` — the real filter). `pc_h1` direction does NOT gate which
+    tokens are armed: the fleet buys BOTH deep dips AND pumps, so a one-sided `pc_h1 ≤ band`
+    ceiling structurally excluded every momentum/pump token (6 bot families were 0/38 hits) and
+    dropped any token with `pc_h1 = None`. `cfg.arm_band_pp` is retained on the config for docs/
+    back-compat but is no longer consulted here. Ranked by recent volume (`vol_h1` desc — the
+    most-active, most-buyable tokens, dips AND pumps); returns an ordered list of addresses
+    (≤ armed_max, the rate-safe ceiling). Entry-type-agnostic so it serves dip and momentum bots.
     """
-    inplay = [
-        c for c in candidates
-        if c.get("in_band")
-        and c.get("pc_h1") is not None
-        and c["pc_h1"] <= cfg.arm_band_pp
-    ]
+    inplay = [c for c in candidates if c.get("in_band")]
     inplay.sort(key=lambda c: (c.get("vol_h1") or 0.0), reverse=True)
     return [c["addr"] for c in inplay][:cfg.armed_max]
 

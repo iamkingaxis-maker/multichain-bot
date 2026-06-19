@@ -54,7 +54,7 @@ def test_config_from_env_defaults_and_overrides(monkeypatch):
     assert cfg.dip_pct == 3.0
     assert cfg.rise_pct == 3.0
     assert cfg.eval_cooldown_secs == 60.0
-    assert cfg.armed_max == 30
+    assert cfg.armed_max == 150
     assert cfg.sample_window == 40
     assert cfg.arm_band_pp == 15.0
     assert not hasattr(cfg, "dip_zone_pct")
@@ -73,7 +73,7 @@ def test_config_bad_numbers_fall_back_to_defaults(monkeypatch):
     monkeypatch.setenv("FAST_WATCH_ARMED_MAX", "")
     cfg = fw.FastWatchConfig.from_env()
     assert cfg.interval_secs == 3.0
-    assert cfg.armed_max == 30
+    assert cfg.armed_max == 150
 
 
 def _cfg(**kw):
@@ -84,45 +84,48 @@ def _cfg(**kw):
     return fw.FastWatchConfig(**base)
 
 
-def test_arm_subset_inplay_volume_ranked():
-    # One-sided rule: arm all down/flat/mild-up tokens (pc_h1 <= band), incl DEEP dips
-    # — the fleet dip-buys deep dips. Rank by vol_h1 desc.
+def test_arm_subset_arms_dips_and_pumps_volume_ranked():
+    # pc_h1-AGNOSTIC: arm EVERY in_band token regardless of direction (dips AND
+    # pumps) — the fleet buys both. Rank by vol_h1 desc. pc_h1 no longer gates.
     cfg = _cfg(armed_max=5, arm_band_pp=15.0)
     cands = [
-        {"addr": "DEEPDIP", "pc_h1": -36.0, "vol_h1": 1.0, "in_band": True},  # deep dip, low vol -> ARM
-        {"addr": "MILDUP",  "pc_h1": +10.0, "vol_h1": 99.0, "in_band": True}, # mild-up in band, high vol -> ARM
-        {"addr": "MID",     "pc_h1": -2.0, "vol_h1": 50.0, "in_band": True},  # near-flat, mid vol -> ARM
+        {"addr": "DEEPDIP", "pc_h1": -36.0, "vol_h1": 1.0, "in_band": True},  # deep dip -> ARM
+        {"addr": "BIGPUMP", "pc_h1": +905.0, "vol_h1": 99.0, "in_band": True}, # huge pump -> ARM (was excluded)
+        {"addr": "MID",     "pc_h1": -2.0, "vol_h1": 50.0, "in_band": True},  # near-flat -> ARM
     ]
     armed = fw.arm_subset(cands, cfg)
-    assert armed == ["MILDUP", "MID", "DEEPDIP"]  # pc_h1<=band (deep dip incl), ranked vol desc
+    assert armed == ["BIGPUMP", "MID", "DEEPDIP"]  # all in_band, ranked vol desc; pump now armed
 
 
-def test_arm_subset_excludes_only_big_pumps():
-    # One-sided: exclude only already-PUMPED tokens (pc_h1 > +band). Deep dips ARE armed.
+def test_arm_subset_arms_pumps_and_none_pc_h1():
+    # pc_h1-AGNOSTIC: pumped tokens (momentum bots buy these) AND pc_h1=None
+    # tokens are NOW armed. Only the out-of-band token is excluded.
     cfg = _cfg(armed_max=5, arm_band_pp=15.0)
     cands = [
         {"addr": "INPLAY",  "pc_h1": -8.0, "vol_h1": 1.0, "in_band": True},   # down -> keep
-        {"addr": "DEEPDIP", "pc_h1": -36.0, "vol_h1": 5.0, "in_band": True},  # deep dip -> KEEP (was wrongly dropped)
+        {"addr": "DEEPDIP", "pc_h1": -36.0, "vol_h1": 5.0, "in_band": True},  # deep dip -> keep
         {"addr": "DIP25",   "pc_h1": -24.8, "vol_h1": 4.0, "in_band": True},  # real fleet buy -> keep
-        {"addr": "BIGPUMP", "pc_h1": +30.0, "vol_h1": 9.0, "in_band": True},  # already mooned -> DROP
-        {"addr": "OOB",     "pc_h1": -5.0, "vol_h1": 9.0, "in_band": False},  # out of band -> drop
-        {"addr": "NOPC",    "pc_h1": None, "vol_h1": 9.0, "in_band": True},   # no pc_h1 -> drop
+        {"addr": "BIGPUMP", "pc_h1": +905.0, "vol_h1": 9.0, "in_band": True}, # momentum buy -> KEEP now
+        {"addr": "OOB",     "pc_h1": -5.0, "vol_h1": 99.0, "in_band": False}, # out of band -> drop
+        {"addr": "NOPC",    "pc_h1": None, "vol_h1": 7.0, "in_band": True},   # no pc_h1 -> KEEP now
     ]
     armed = fw.arm_subset(cands, cfg)
-    # ranked by vol desc among kept: DEEPDIP(5), DIP25(4), INPLAY(1)
-    assert armed == ["DEEPDIP", "DIP25", "INPLAY"]
-    assert "BIGPUMP" not in armed
-    assert "DEEPDIP" in armed
+    # ranked by vol desc among in_band kept: BIGPUMP(9), NOPC(7), DEEPDIP(5), DIP25(4), INPLAY(1)
+    assert armed == ["BIGPUMP", "NOPC", "DEEPDIP", "DIP25", "INPLAY"]
+    assert "BIGPUMP" in armed       # pump armed (momentum bots were 0/38)
+    assert "NOPC" in armed          # pc_h1=None armed (was dropped)
+    assert "DEEPDIP" in armed       # dip still armed
+    assert "OOB" not in armed       # only out-of-band excluded
 
 
 def test_arm_subset_caps_at_armed_max():
     cfg = _cfg(armed_max=2, arm_band_pp=15.0)
-    # deep dips included; cap still applies after vol ranking
-    cands = [{"addr": f"T{i}", "pc_h1": -30.0, "vol_h1": float(i), "in_band": True}
-             for i in range(1, 6)]
+    # mix of dips and pumps; cap still applies after vol ranking
+    cands = [{"addr": f"T{i}", "pc_h1": (-30.0 if i % 2 else +50.0), "vol_h1": float(i),
+              "in_band": True} for i in range(1, 6)]
     armed = fw.arm_subset(cands, cfg)
     assert len(armed) == 2
-    assert armed == ["T5", "T4"]   # highest vol first, capped at armed_max
+    assert armed == ["T5", "T4"]   # highest vol first (dips+pumps), capped at armed_max
 
 
 def test_rolling_dip_pct():
@@ -430,15 +433,29 @@ def _scanner_for_arm(n_inband):
 
 
 def test_fast_arm_subset_arms_whole_watchlist_when_jupiter_primary(monkeypatch):
-    """JUPITER_PRICE_PRIMARY=on -> arm ALL in-band in-play candidates (no 30 cap)."""
+    """JUPITER_PRICE_PRIMARY=on -> arm ALL in-band candidates up to the rate-safe
+    ceiling (no artificial small cap). 100 in-band < 150 ceiling -> all 100 armed."""
     monkeypatch.setenv("JUPITER_PRICE_PRIMARY", "on")
+    monkeypatch.delenv("FAST_WATCH_ARMED_MAX", raising=False)
     from core.fast_watch import FastWatchConfig
-    cfg = FastWatchConfig(mode="shadow", interval_secs=3.0, dip_pct=3.0, rise_pct=3.0,
-                          eval_cooldown_secs=60.0, bot_allowlist=frozenset({"x"}),
-                          armed_max=30, sample_window=40, arm_band_pp=15.0)
+    cfg = FastWatchConfig.from_env()          # armed_max default 150 (rate-safe ceiling)
     s, now_ms = _scanner_for_arm(100)
     s._fast_arm_subset(cfg, now_ms)
-    assert len(s._fast_armed) == 100   # whole in-band watchlist, not capped at 30
+    assert len(s._fast_armed) == 100   # whole in-band watchlist (under the 150 ceiling)
+
+
+def test_fast_arm_subset_clamps_to_rate_safe_ceiling_under_jupiter(monkeypatch):
+    """JUPITER_PRICE_PRIMARY=on lifts armed_max to n_inband, but clamps to the
+    rate-safe FAST_WATCH_ARMED_MAX ceiling (default 150) so adding pumps to the
+    armed set can't blow past the Jupiter ~110 req/min budget."""
+    monkeypatch.setenv("JUPITER_PRICE_PRIMARY", "on")
+    monkeypatch.delenv("FAST_WATCH_ARMED_MAX", raising=False)
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig.from_env()          # armed_max default 150
+    assert cfg.armed_max == 150
+    s, now_ms = _scanner_for_arm(400)          # 400 in-band tokens
+    s._fast_arm_subset(cfg, now_ms)
+    assert len(s._fast_armed) == 150           # clamped to the rate-safe ceiling, not 400
 
 
 def test_fast_arm_subset_caps_at_30_when_flag_off(monkeypatch):
