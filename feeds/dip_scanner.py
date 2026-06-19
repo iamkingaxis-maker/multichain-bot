@@ -543,6 +543,22 @@ class DipScanner:
             d["token_buys"] = pm.token_buys_state()
         self.trade_store.save_bot_state(bot_id, d)
 
+    async def _save_bot_state_async(self, bot_id: str) -> None:
+        """Async twin of _save_bot_state (2026-06-19 loop-freeze fix): builds
+        the snapshot on the loop (cheap, in-memory) but offloads the blocking
+        disk write off the event loop. State is SNAPSHOTTED before the offload
+        so a later book change can't race into the persisted dict."""
+        cap = self.bot_capitals.get(bot_id)
+        if cap is None or self.trade_store is None:
+            return
+        d = cap.to_dict()
+        pm = self.bot_position_managers.get(bot_id)
+        if pm is not None:
+            d["open_positions"] = pm.to_state_list()
+            d["last_close_times"] = pm.last_close_times_dict()
+            d["token_buys"] = pm.token_buys_state()
+        await self.trade_store.save_bot_state_async(bot_id, d)
+
     def _restore_open_positions_from_trades(self) -> None:
         """Rebuild PerBotPositionManager._positions from trades.json.
 
@@ -1730,7 +1746,11 @@ class DipScanner:
         except Exception:
             pass
         if self.trade_store is not None:
-            self.trade_store.record_trade({
+            # Offload the per-fill ledger write off the event loop (2026-06-19
+            # loop-freeze fix). Order preserved: the BUY is recorded, THEN the
+            # bot-state snapshot is persisted, before any downstream step. Both
+            # awaits return only once the durable write has completed.
+            await self.trade_store.record_trade_async({
                 "type": "buy",
                 "token": decision.token,
                 "address": decision.address,
@@ -1744,7 +1764,7 @@ class DipScanner:
                 "triggers_fired": list(decision.triggers_fired),
                 "entry_meta": _entry_meta,
             }, bot_id=bot_id)
-            self._save_bot_state(bot_id)
+            await self._save_bot_state_async(bot_id)
         logger.info(
             "[DipScanner] BUY bot=%s token=%s size=$%.2f tier=%s",
             bot_id, decision.token, decision.size_usd, decision.size_tier,
@@ -2607,7 +2627,11 @@ class DipScanner:
             proceeds_usd=result.proceeds_usd,
         )
         if self.trade_store is not None:
-            self.trade_store.record_trade({
+            # Offload the per-fill ledger write off the event loop (2026-06-19
+            # loop-freeze fix). Order preserved: the SELL is recorded, THEN the
+            # bot-state snapshot, before the fleet-meta-bus / chameleon hooks
+            # below (which read the in-memory `result`, not the file).
+            await self.trade_store.record_trade_async({
                 "type": "sell",
                 "token": token,
                 # address/pair_address so sell records join back to their buy in
@@ -2712,7 +2736,7 @@ class DipScanner:
                 "fully_closed": result.fully_closed,
                 "time": datetime.now(timezone.utc).isoformat(),
             }, bot_id=bot_id)
-            self._save_bot_state(bot_id)
+            await self._save_bot_state_async(bot_id)
             # Fleet-meta-bus (#436): feed EVERY bot's realized leg into the fleet-wide
             # per-family $/trade signal — the chameleon's leading pivot input. Fail-soft.
             try:

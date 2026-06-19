@@ -1,8 +1,17 @@
 from __future__ import annotations
+import asyncio
 import json
+import os
 import threading
 from pathlib import Path
 from typing import Optional
+
+
+def _offload_enabled() -> bool:
+    """LEDGER_WRITE_OFFLOAD gate (default ON). Set to off/0/false/no to restore
+    the pure-synchronous write path without a redeploy."""
+    return os.environ.get("LEDGER_WRITE_OFFLOAD", "on").strip().lower() not in (
+        "off", "0", "false", "no", "")
 
 
 class MultiBotTradeStore:
@@ -377,6 +386,49 @@ class MultiBotTradeStore:
         path = self.data_dir / "bot_state" / f"{bot_id}.json"
         with self._lock:
             self._atomic_write(path, json.dumps(state, indent=2))
+
+    # -- Loop-freeze fix (2026-06-19) ----------------------------------------
+    # record_trade()/save_bot_state() do O(history) synchronous disk work under
+    # self._lock. Called inline from the async buy/sell fill paths, a slow write
+    # (the ledger grows unbounded) froze the event loop for tens of seconds on
+    # fill clusters (57.5s on a 4-sell, 110.8s on a 7-bot BUY) — starving the
+    # dashboard + fast-watch tick. These async wrappers push the blocking write
+    # onto a worker thread (asyncio.to_thread) so it can't block the loop. The
+    # sync methods are unchanged: the SAME self._lock (threading.Lock) is taken
+    # INSIDE the worker thread, so the write stays atomic, durable, and
+    # serialized. Order is preserved by awaiting in the caller.
+    #
+    # Gated behind LEDGER_WRITE_OFFLOAD (default on). Off => pure-sync (the old
+    # behavior), instantly reversible without a redeploy.
+
+    @staticmethod
+    def _offload_write_sync(fn, *args, **kwargs):
+        """Run a blocking write `fn(*args, **kwargs)` synchronously on the
+        calling thread. The fallback path when there is no running event loop
+        (non-async callers and tests)."""
+        return fn(*args, **kwargs)
+
+    async def _offload_write(self, fn, *args, **kwargs):
+        """Await `fn(*args, **kwargs)` off the event loop via asyncio.to_thread
+        when offload is enabled AND a loop is running; otherwise call it
+        synchronously. Fail-safe: the write ALWAYS happens. The threading.Lock
+        is acquired inside `fn` (in the worker thread), not here on the loop."""
+        if not _offload_enabled():
+            return self._offload_write_sync(fn, *args, **kwargs)
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop — fall back to a direct synchronous call.
+            return self._offload_write_sync(fn, *args, **kwargs)
+        return await asyncio.to_thread(fn, *args, **kwargs)
+
+    async def record_trade_async(self, trade: dict, bot_id: str) -> None:
+        """Offloaded record_trade. Durable + lock-serialized; see _offload_write."""
+        await self._offload_write(self.record_trade, trade, bot_id=bot_id)
+
+    async def save_bot_state_async(self, bot_id: str, state: dict) -> None:
+        """Offloaded save_bot_state. Durable + lock-serialized; see _offload_write."""
+        await self._offload_write(self.save_bot_state, bot_id, state)
 
     def load_bot_state(self, bot_id: str) -> Optional[dict]:
         path = self.data_dir / "bot_state" / f"{bot_id}.json"

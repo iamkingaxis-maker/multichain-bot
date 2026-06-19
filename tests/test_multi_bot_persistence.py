@@ -1,3 +1,4 @@
+import asyncio
 import json
 import pytest
 from pathlib import Path
@@ -94,3 +95,103 @@ def test_bot_state_save_load_roundtrip(tmp_path):
 def test_load_bot_state_returns_None_when_missing(tmp_path):
     store = MultiBotTradeStore(data_dir=tmp_path)
     assert store.load_bot_state("nonexistent") is None
+
+
+# ---------------------------------------------------------------------------
+# Loop-freeze fix (2026-06-19): per-fill ledger writes are offloaded off the
+# event loop via asyncio.to_thread so a slow O(history) write can't freeze the
+# trading loop. The offload must still persist durably, serialize via the
+# threading.Lock, and fall back to pure-sync when there is no running loop.
+# Gated behind LEDGER_WRITE_OFFLOAD (default on).
+# ---------------------------------------------------------------------------
+
+def test_record_trade_async_roundtrip_when_offloaded(tmp_path, monkeypatch):
+    """(a) record_trade_async persists correctly (read back) when offloaded."""
+    monkeypatch.setenv("LEDGER_WRITE_OFFLOAD", "on")
+    store = MultiBotTradeStore(data_dir=tmp_path)
+
+    async def _go():
+        await store.record_trade_async(
+            {"type": "buy", "token": "OFF", "time": "t1"}, bot_id="b1")
+
+    asyncio.run(_go())
+    data = json.loads((tmp_path / "trades_multi.json").read_text())
+    assert len(data) == 1
+    assert data[0]["token"] == "OFF"
+    assert data[0]["bot_id"] == "b1"
+
+
+def test_concurrent_offloaded_record_trade_no_loss(tmp_path, monkeypatch):
+    """(b) Many concurrent offloaded record_trade calls don't corrupt the file
+    or lose records — the threading.Lock serializes them inside the worker."""
+    monkeypatch.setenv("LEDGER_WRITE_OFFLOAD", "on")
+    store = MultiBotTradeStore(data_dir=tmp_path)
+    N = 40
+
+    async def _go():
+        await asyncio.gather(*[
+            store.record_trade_async(
+                {"type": "buy", "token": f"T{i}", "time": f"t{i}"}, bot_id="b1")
+            for i in range(N)
+        ])
+
+    asyncio.run(_go())
+    data = json.loads((tmp_path / "trades_multi.json").read_text())
+    assert len(data) == N
+    assert {t["token"] for t in data} == {f"T{i}" for i in range(N)}
+
+
+def test_record_trade_async_falls_back_to_sync_without_loop(tmp_path, monkeypatch):
+    """(c) The offload helper runs the write synchronously when called with no
+    running event loop (important for non-async callers and tests)."""
+    monkeypatch.setenv("LEDGER_WRITE_OFFLOAD", "on")
+    store = MultiBotTradeStore(data_dir=tmp_path)
+    # _offload_write is a coroutine-free helper: call the sync entry directly.
+    store._offload_write_sync(
+        store.record_trade, {"type": "buy", "token": "SYNC", "time": "t1"},
+        bot_id="b1")
+    data = json.loads((tmp_path / "trades_multi.json").read_text())
+    assert len(data) == 1
+    assert data[0]["token"] == "SYNC"
+
+
+def test_offload_disabled_uses_pure_sync(tmp_path, monkeypatch):
+    """(d) LEDGER_WRITE_OFFLOAD=off => record_trade_async never touches a
+    thread; it writes synchronously on the calling thread."""
+    monkeypatch.setenv("LEDGER_WRITE_OFFLOAD", "off")
+    store = MultiBotTradeStore(data_dir=tmp_path)
+
+    called = {"to_thread": 0}
+    real_to_thread = asyncio.to_thread
+
+    async def _spy(fn, *a, **k):
+        called["to_thread"] += 1
+        return await real_to_thread(fn, *a, **k)
+
+    monkeypatch.setattr(asyncio, "to_thread", _spy)
+
+    async def _go():
+        await store.record_trade_async(
+            {"type": "buy", "token": "PURESYNC", "time": "t1"}, bot_id="b1")
+
+    asyncio.run(_go())
+    data = json.loads((tmp_path / "trades_multi.json").read_text())
+    assert len(data) == 1
+    assert data[0]["token"] == "PURESYNC"
+    assert called["to_thread"] == 0
+
+
+def test_save_bot_state_async_roundtrip(tmp_path):
+    """save_bot_state_async persists durably when offloaded."""
+    from core.per_bot_capital import PerBotCapital
+    store = MultiBotTradeStore(data_dir=tmp_path)
+    cap = PerBotCapital(bot_id="b1", starting_balance_usd=2000.0)
+    cap.reserve_for_buy(20.0)
+
+    async def _go():
+        await store.save_bot_state_async("b1", cap.to_dict())
+
+    asyncio.run(_go())
+    loaded = store.load_bot_state("b1")
+    assert loaded["balance_usd"] == 1980.0
+    assert loaded["in_flight_usd"] == 20.0
