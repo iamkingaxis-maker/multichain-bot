@@ -83,59 +83,114 @@ class FilterShadowRecorder:
         verdict: str,
         block_reasons: str = "",
     ) -> bool:
-        """Write one record. verdict in {"BLOCK", "PASS"}."""
-        if not self._disk_has_space():
-            return False
+        """Write one record. verdict in {"BLOCK", "PASS"}.
+
+        Legacy single-write path (5 direct callers). Delegates to the pure
+        ``build_record`` + the batched ``write_records`` so there is exactly
+        ONE code path that touches disk.
+        """
         try:
-            pc = pair.get("priceChange") or {}
-            txns = pair.get("txns") or {}
-            vol = pair.get("volume") or {}
-            liq = pair.get("liquidity") or {}
+            rec = build_record(
+                token_address, token_symbol, pair, filter_name, verdict,
+                block_reasons,
+            )
+        except Exception as e:  # pragma: no cover - defensive; build is pure
+            logger.debug(f"[FilterShadow] build err: {e}")
+            return False
+        return self.write_records([rec]) > 0
 
-            def _bs(window: str) -> Optional[float]:
-                t = txns.get(window) or {}
-                b = int(t.get("buys") or 0)
-                s = int(t.get("sells") or 0)
-                if s > 0:
-                    return b / s
-                if b > 0:
-                    return float("inf")
-                return 0.0
+    def write_records(self, records) -> int:
+        """Flush a BATCH of pre-built record dicts in ONE pass.
 
-            bsh6 = _bs("h6")
-            bsh1 = _bs("h1")
-            bsm5 = _bs("m5")
-            rec = {
-                "ts": datetime.now(timezone.utc).isoformat(),
-                "token_address": token_address,
-                "token_symbol": token_symbol,
-                "pair_address": pair.get("pairAddress") or "",
-                "filter_name": filter_name,
-                "verdict": verdict,
-                "block_reasons": block_reasons,
-                "pc_h24": _safe_float(pc.get("h24")),
-                "pc_h6": _safe_float(pc.get("h6")),
-                "pc_h1": _safe_float(pc.get("h1")),
-                "pc_m5": _safe_float(pc.get("m5")),
-                "bs_h6": None if bsh6 == float("inf") else bsh6,
-                "bs_h1": None if bsh1 == float("inf") else bsh1,
-                "bs_m5": None if bsm5 == float("inf") else bsm5,
-                "vol_h24": _safe_float(vol.get("h24")),
-                "liquidity_usd": _safe_float(liq.get("usd")),
-                "mcap": _safe_float(pair.get("marketCap")),
-            }
+        ONE disk-space check + ONE cap_jsonl + ONE open("a") that writes every
+        line. Returns the count actually written. FAIL-OPEN: never raises; on
+        any error (no space, bad path, IO failure) returns the count written
+        so far (0 on a hard failure). This is the SOLE disk writer.
+        """
+        if not records:
+            return 0
+        if not self._disk_has_space():
+            return 0
+        try:
             try:
                 from core.jsonl_rotation import cap_jsonl
                 cap_jsonl(self.log_path)
             except Exception:
                 pass
+            written = 0
             with open(self.log_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(rec) + "\n")
-            self.records_written += 1
-            return True
+                for rec in records:
+                    f.write(json.dumps(rec) + "\n")
+                    written += 1
+            self.records_written += written
+            return written
         except Exception as e:
-            logger.debug(f"[FilterShadow] record err: {e}")
-            return False
+            logger.debug(f"[FilterShadow] write_records err: {e}")
+            return 0
+
+
+def build_record(
+    token_address: str,
+    token_symbol: str,
+    pair: dict,
+    filter_name: str,
+    verdict: str,
+    reasons: str = "",
+) -> dict:
+    """Build ONE record dict — PURE CPU, NO file I/O (no open/disk_usage).
+
+    Same field shape ``record()`` historically wrote. Cheap enough to call
+    on the event loop; the actual disk write is batched off-loop via
+    ``write_records``. ``verdict`` is stored verbatim here (callers normalize
+    via ``_normalize_verdict`` before building).
+    """
+    pair = pair or {}
+    pc = pair.get("priceChange") or {}
+    txns = pair.get("txns") or {}
+    vol = pair.get("volume") or {}
+    liq = pair.get("liquidity") or {}
+
+    def _bs(window: str) -> Optional[float]:
+        t = txns.get(window) or {}
+        b = int(t.get("buys") or 0)
+        s = int(t.get("sells") or 0)
+        if s > 0:
+            return b / s
+        if b > 0:
+            return float("inf")
+        return 0.0
+
+    bsh6 = _bs("h6")
+    bsh1 = _bs("h1")
+    bsm5 = _bs("m5")
+    return {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "token_address": token_address,
+        "token_symbol": token_symbol,
+        "pair_address": pair.get("pairAddress") or "",
+        "filter_name": filter_name,
+        "verdict": verdict,
+        "block_reasons": reasons,
+        "pc_h24": _safe_float(pc.get("h24")),
+        "pc_h6": _safe_float(pc.get("h6")),
+        "pc_h1": _safe_float(pc.get("h1")),
+        "pc_m5": _safe_float(pc.get("m5")),
+        "bs_h6": None if bsh6 == float("inf") else bsh6,
+        "bs_h1": None if bsh1 == float("inf") else bsh1,
+        "bs_m5": None if bsm5 == float("inf") else bsm5,
+        "vol_h24": _safe_float(vol.get("h24")),
+        "liquidity_usd": _safe_float(liq.get("usd")),
+        "mcap": _safe_float(pair.get("marketCap")),
+    }
+
+
+def write_records(records) -> int:
+    """Module-level batched writer — FAIL-OPEN. Delegates to the singleton
+    recorder so the off-loop scanner flush has a single import target."""
+    try:
+        return get_recorder().write_records(records)
+    except Exception:  # pragma: no cover - defensive; must never raise
+        return 0
 
 
 _singleton: Optional[FilterShadowRecorder] = None

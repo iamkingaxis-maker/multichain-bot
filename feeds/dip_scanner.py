@@ -436,6 +436,20 @@ class DipScanner:
         # inline-await path so behaviour never regresses. Rebuilt every cycle.
         # NEVER symbol-keyed (symbol collisions are a known prior money bug).
         self._scan_prefetch_cache: Dict[str, dict] = {}
+        # Filter-shadow capture buffer (2026-06-19 LOOP-LAG FIX): the choke
+        # point used to call record_verdict() -> disk_usage()+stat()+open/write
+        # per filter verdict, hundreds of synchronous opens/cycle ON the loop.
+        # Now each verdict is built (pure CPU) and APPENDED here on-loop, then
+        # flushed in ONE off-loop batched write per cycle via
+        # _flush_filter_shadow_buf. Bounded (FILTER_SHADOW_BUF_MAX) so a flush
+        # failure can never grow it unbounded; fail-open throughout.
+        self._filter_shadow_buf: list = []
+        try:
+            self._filter_shadow_buf_max = int(
+                os.environ.get("FILTER_SHADOW_BUF_MAX", "5000")
+            )
+        except (TypeError, ValueError):
+            self._filter_shadow_buf_max = 5000
         if bot_manager is not None and trade_store is not None:
             for ev in bot_manager.evaluators:
                 bc = ev.config
@@ -17845,12 +17859,30 @@ class DipScanner:
             # with the candidate's feature snapshot (pair). Gated by
             # FILTER_SHADOW_CAPTURE_MODE (default on). Pure observability — does
             # NOT touch any block/allow logic. token_address is the join key.
+            # LOOP-LAG FIX (2026-06-19): NO on-loop file I/O here. Each verdict
+            # is BUILT (pure CPU — build_record does no open/disk_usage) and
+            # APPENDED to a bounded in-memory buffer. The actual disk write is a
+            # SINGLE off-loop batched flush once per cycle
+            # (_flush_filter_shadow_buf). Still gated by
+            # FILTER_SHADOW_CAPTURE_MODE, still fail-open, still address-keyed,
+            # filter_stale_watch still excluded upstream.
             try:
-                if _filter_verdicts:
-                    from feeds.filter_shadow_recorder import record_verdict as _rv
+                if _filter_verdicts and os.environ.get(
+                    "FILTER_SHADOW_CAPTURE_MODE", "on"
+                ).strip().lower() != "off":
+                    from feeds.filter_shadow_recorder import (
+                        build_record as _build_rec,
+                        _normalize_verdict as _norm_v,
+                    )
+                    _buf = self._filter_shadow_buf
+                    _cap = self._filter_shadow_buf_max
                     for _fname, _fverdict, _freasons in _filter_verdicts:
-                        _rv(token_address, token_symbol, pair, _fname,
-                            _fverdict, _freasons)
+                        if len(_buf) >= _cap:
+                            break  # bounded — drop overflow, never grow unbounded
+                        _buf.append(_build_rec(
+                            token_address, token_symbol, pair, _fname,
+                            _norm_v(_fverdict), _freasons or "",
+                        ))
             except Exception:
                 pass
 
@@ -18262,6 +18294,11 @@ class DipScanner:
                 # (race-free) inside _execute_bot_buy under the serialized buy
                 # lock, so honouring it post-hoc is unnecessary.
 
+        # END-OF-SWEEP: flush the filter-shadow capture buffer in ONE off-loop
+        # batched write (asyncio.to_thread). The per-token choke point only
+        # buffers in memory (no on-loop I/O); this is the sole writer per cycle.
+        await self._flush_filter_shadow_buf()
+
         src_str = " ".join(f"{k}={v}" for k, v in source_counts.items() if v) or "-"
         rej_str = " ".join(
             f"{k}={c[k]}" for k in (
@@ -18330,6 +18367,27 @@ class DipScanner:
         if self._h24_history_dirty:
             self._save_h24_history()
             self._h24_history_dirty = False
+
+    async def _flush_filter_shadow_buf(self) -> None:
+        """Flush buffered filter-shadow records in ONE off-loop batched write.
+
+        Called once per scan cycle at end-of-sweep. Swaps the buffer out
+        (atomic list reassignment), then runs the SINGLE batched disk write via
+        ``asyncio.to_thread`` so the event loop never blocks on the
+        disk_usage()+stat()+open/write. No-op on an empty buffer. FAIL-OPEN:
+        any error is logged at debug and swallowed (this is pure observability).
+        """
+        try:
+            buf = self._filter_shadow_buf
+            if not buf:
+                return
+            # Atomic swap: take the batch, reset the live buffer so the next
+            # cycle accumulates fresh while we write off-loop.
+            self._filter_shadow_buf = []
+            from feeds.filter_shadow_recorder import write_records as _wr
+            await asyncio.to_thread(_wr, buf)
+        except Exception as e:  # pragma: no cover - defensive; must never raise
+            logger.debug(f"[DipScanner] filter-shadow flush err: {e}")
 
     # ── User watchlist persistence (dashboard-mutable) ────────────────────
     def _load_user_watchlist_file(self) -> None:
