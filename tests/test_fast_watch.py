@@ -665,7 +665,7 @@ def test_fast_arm_subset_arms_missing_liq_microcap(monkeypatch):
     s, _ = _scanner_for_lane_arm(pairs)
     s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
     s._fast_arm_subset(cfg, now_ms)
-    armed = set(s._fast_armed.keys())   # FIX 4: armed keys are lowercased
+    armed = {k.lower() for k in s._fast_armed.keys()}   # FIX 4: armed keys are lowercased
     assert "metacraft" in armed     # missing-liq microcap -> NOW armed (FIX 3)
     assert "bubbleman" in armed     # missing-liq pump -> NOW armed (FIX 3)
     assert "huge100m" in armed      # mcap > max_mcap -> NOW armed (ceiling dropped)
@@ -703,7 +703,7 @@ def test_fast_arm_subset_arms_dip_pump_huge_and_deadliq_but_not_empty(monkeypatc
     wl["NONEPAIR"] = {"pair": None}   # None pair -> in_band false
     s._sticky_watchlist = wl
     s._fast_arm_subset(cfg, now_ms)
-    armed = set(s._fast_armed.keys())   # FIX 4: armed keys are lowercased
+    armed = {k.lower() for k in s._fast_armed.keys()}   # FIX 4: armed keys are lowercased
     assert "deepdip" in armed        # dip armed (FIX 1)
     assert "pump" in armed           # pump armed (FIX 1)
     assert "huge" in armed           # mcap > max_mcap -> NOW armed (FIX 3)
@@ -733,7 +733,7 @@ def test_fast_arm_subset_volume_ranks_under_cap(monkeypatch):
     s, _ = _scanner_for_lane_arm(pairs)
     s._sticky_watchlist = {a: {"pair": p} for a, p in pairs.items()}
     s._fast_arm_subset(cfg, now_ms)
-    armed = set(s._fast_armed.keys())   # FIX 4: armed keys are lowercased
+    armed = {k.lower() for k in s._fast_armed.keys()}   # FIX 4: armed keys are lowercased
     assert armed == {"t4", "t5"}    # top-2 by volume.h1, capped at armed_max
 
 
@@ -761,7 +761,7 @@ def test_fast_arm_subset_arms_token_only_in_pair_by_addr(monkeypatch):
     s._sticky_watchlist = {}
     s._cycle_pair_by_addr = {"GTAVI": _pair(), "VSK": _pair()}
     s._fast_arm_subset(cfg, now_ms)
-    armed = set(s._fast_armed.keys())
+    armed = {k.lower() for k in s._fast_armed.keys()}
     assert "gtavi" in armed                      # was missed; now armed (lowercased)
     assert "vsk" in armed
 
@@ -775,7 +775,7 @@ def test_fast_arm_subset_arms_token_only_in_sticky(monkeypatch):
     s._sticky_watchlist = {"STICKYONLY": {"pair": _pair()}}
     s._cycle_pair_by_addr = {"GTAVI": _pair()}
     s._fast_arm_subset(cfg, now_ms)
-    armed = set(s._fast_armed.keys())
+    armed = {k.lower() for k in s._fast_armed.keys()}
     assert "stickyonly" in armed
     assert "gtavi" in armed
 
@@ -789,8 +789,8 @@ def test_fast_arm_subset_dedups_token_in_both(monkeypatch):
     s._sticky_watchlist = {"BOTH": {"pair": _pair(vol_h1=1.0)}}
     s._cycle_pair_by_addr = {"BOTH": _pair(vol_h1=2.0)}
     s._fast_arm_subset(cfg, now_ms)
-    keys = list(s._fast_armed.keys())
-    assert keys.count("both") == 1               # armed exactly once
+    keys = [k.lower() for k in s._fast_armed.keys()]
+    assert keys.count("both") == 1               # armed exactly once (original-case key, case-insens check)
 
 
 def test_fast_arm_subset_prefers_live_pair_when_in_both(monkeypatch):
@@ -805,7 +805,7 @@ def test_fast_arm_subset_prefers_live_pair_when_in_both(monkeypatch):
     s._sticky_watchlist = {"BOTH": {"pair": sticky_pair}}
     s._cycle_pair_by_addr = {"BOTH": live_pair}
     s._fast_arm_subset(cfg, now_ms)
-    assert s._fast_armed["both"]["_src"] == "live"   # fresher live pair preferred
+    assert {k.lower(): v for k, v in s._fast_armed.items()}["both"]["_src"] == "live"   # fresher live pair preferred (original-case key)
 
 
 def test_fast_arm_subset_empty_or_none_pair_not_armed_in_union(monkeypatch):
@@ -817,7 +817,7 @@ def test_fast_arm_subset_empty_or_none_pair_not_armed_in_union(monkeypatch):
     s._sticky_watchlist = {}
     s._cycle_pair_by_addr = {"GOOD": _pair(), "EMPTY": {}, "NONE": None}
     s._fast_arm_subset(cfg, now_ms)
-    armed = set(s._fast_armed.keys())
+    armed = {k.lower() for k in s._fast_armed.keys()}
     assert "good" in armed
     assert "empty" not in armed
     assert "none" not in armed
@@ -833,7 +833,7 @@ def test_fast_arm_subset_union_caps_and_volume_ranks(monkeypatch):
                            "S2": {"pair": _pair(vol_h1=2.0)}}
     s._cycle_pair_by_addr = {"C1": _pair(vol_h1=9.0), "C2": _pair(vol_h1=8.0)}
     s._fast_arm_subset(cfg, now_ms)
-    assert set(s._fast_armed.keys()) == {"c1", "c2"}   # top-2 by volume across union
+    assert {k.lower() for k in s._fast_armed.keys()} == {"c1", "c2"}   # top-2 by volume across union
 
 
 def test_fast_arm_subset_default_armed_max_is_500(monkeypatch):
@@ -860,4 +860,4 @@ def test_fast_arm_subset_falls_back_to_sticky_when_cycle_unset(monkeypatch):
     # do NOT set s._cycle_pair_by_addr at all
     assert not hasattr(s, "_cycle_pair_by_addr")
     s._fast_arm_subset(cfg, now_ms)               # must not raise
-    assert "stickyonly" in set(s._fast_armed.keys())
+    assert "stickyonly" in {k.lower() for k in s._fast_armed.keys()}

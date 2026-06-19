@@ -3094,13 +3094,13 @@ class DipScanner:
             pair = (entry or {}).get("pair") or {}
             if not pair:
                 continue
-            merged[str(addr).lower()] = pair
+            merged[addr] = pair   # FIX5: ORIGINAL-case key (Solana base58 is case-sensitive; lowercasing broke the Jupiter poll -> polled=0)
         # Live cycle pairs LAST so they overwrite the cached sticky entry (fresher).
         cycle_pairs = getattr(self, "_cycle_pair_by_addr", None) or {}
         for addr, pair in list(cycle_pairs.items()):
             if not pair:
                 continue
-            merged[str(addr).lower()] = pair
+            merged[addr] = pair   # FIX5: ORIGINAL-case key (Solana base58 is case-sensitive; lowercasing broke the Jupiter poll -> polled=0)
         cands = []
         for addr, pair in merged.items():
             try:
