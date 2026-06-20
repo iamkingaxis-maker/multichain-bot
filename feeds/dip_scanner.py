@@ -1017,7 +1017,7 @@ class DipScanner:
             logger.debug(f"[DipScanner] Kraken SOL fetch error: {_e}")
             return cached or []
 
-    async def _fetch_btc_klines(self) -> list:
+    async def _fetch_btc_klines(self, cache_only: bool = False) -> list:
         """
         Fetch recent 1h BTC klines from Kraken public API. Returns a list of
         rows where row[4] is the close price (matches the Binance schema we
@@ -1028,11 +1028,17 @@ class DipScanner:
         in baseline-mode audit). Kraken is US-based, public, no auth, no
         rate-limit concerns for our 1/min poll. We slice last 5 bars to
         match the prior code's len-5 expectation.
+
+        cache_only=True (FAST-WATCH PATH): return whatever is cached (possibly
+        []) and NEVER cold-fetch — the fast path must not block on a network
+        call. The 60s-TTL cache is kept warm by the main scan.
         """
         now = time.monotonic()
         cached_ts, cached = self._btc_cache
         if cached and (now - cached_ts) < 60:
             return cached
+        if cache_only:
+            return cached or []
         url = "https://api.kraken.com/0/public/OHLC?pair=XBTUSDT&interval=60"
         try:
             import aiohttp as _aio
@@ -1063,7 +1069,7 @@ class DipScanner:
             pass
         return cached
 
-    async def _fetch_meme_sector(self) -> Optional[dict]:
+    async def _fetch_meme_sector(self, cache_only: bool = False) -> Optional[dict]:
         """
         Memecoin sector breadth via CoinGecko categories endpoint. Returns
         a dict with category id, market_cap_change_24h (pct), and 24h
@@ -1074,10 +1080,16 @@ class DipScanner:
         from the same /coins/categories response (one API call covers all).
         Free tier, no key required, ~10 req/min limit — at 60s cache we're
         well within budget.
+
+        cache_only=True (FAST-WATCH PATH): return the cached value (possibly
+        None) and NEVER cold-fetch — keeps the fast path off the network. The
+        60s-TTL cache is kept warm by the main scan.
         """
         now = time.monotonic()
         cached_ts, cached = self._meme_cache
         if cached is not None and (now - cached_ts) < 60:
+            return cached
+        if cache_only:
             return cached
         url = "https://api.coingecko.com/api/v3/coins/categories"
         try:
@@ -3537,8 +3549,12 @@ class DipScanner:
         if not addrs:
             return out
         import aiohttp
-        from core.fast_watch import chunk_addrs, price_concurrency
+        from core.fast_watch import chunk_addrs, price_concurrency, price_timeout_secs
         _conc = price_concurrency()
+        # FAST-FAIL TIMEOUT (2026-06-20): a stalled/429'd chunk must skip THIS
+        # tick (next ~3s later retries), not block the tick near the old 8s
+        # ceiling — two slow waves at 8s was the measured ~15s price stall.
+        _fast_to = price_timeout_secs()
 
         _jup = os.environ.get("JUPITER_PRICE_PRIMARY", "off").strip().lower() in (
             "on", "1", "true", "yes")
@@ -3547,7 +3563,7 @@ class DipScanner:
             ids = _jup_clean_ids(addrs)
             chunks = chunk_addrs(ids, 50)
             base_url = "https://lite-api.jup.ag/price/v3?ids="
-            timeout = aiohttp.ClientTimeout(total=8)
+            timeout = aiohttp.ClientTimeout(total=_fast_to)
 
             async def _fetch_jup(session, chunk):
                 url = base_url + ",".join(chunk)
@@ -3581,7 +3597,7 @@ class DipScanner:
 
         # Legacy DexScreener path (chunk 30) — same single-session bounded gather.
         chunks = chunk_addrs(list(addrs), 30)
-        timeout = aiohttp.ClientTimeout(total=5)
+        timeout = aiohttp.ClientTimeout(total=min(5.0, _fast_to))
 
         async def _fetch_dexs(session, chunk):
             url = "https://api.dexscreener.com/latest/dex/tokens/" + ",".join(chunk)
@@ -5065,7 +5081,7 @@ class DipScanner:
             # (last close vs 4 candles ago). Cached 60s via _btc_cache.
             try:
                 with _SubOp("btc_klines"):
-                    btc_klines = await self._fetch_btc_klines()
+                    btc_klines = await self._fetch_btc_klines(cache_only=_fast_cache_only)
                 if btc_klines and len(btc_klines) >= 5:
                     last_close = float(btc_klines[-1][4])
                     prev_close = float(btc_klines[-2][4])
@@ -5084,7 +5100,7 @@ class DipScanner:
             # version of the regime tag could fold it in.
             try:
                 with _SubOp("meme_sector"):
-                    meme = await self._fetch_meme_sector()
+                    meme = await self._fetch_meme_sector(cache_only=_fast_cache_only)
                 if meme:
                     _msc = meme.get("market_cap_change_24h")
                     if _msc is not None:
@@ -7454,8 +7470,15 @@ class DipScanner:
             # Dev wallet (async RPC). Wrapped in its own try so RPC stalls
             # don't kill the rest of tier-1.
             try:
+                # FAST-WATCH CACHE-ONLY (2026-06-20): on the fast path, NEVER fire
+                # the dev-wallet RPC chain (up to ~12 serial Solana RPC calls @ 8s
+                # timeout under a global Semaphore(1) — the measured 16–35s survivor
+                # stall). cache_only returns warm cached features or {} (fail-open);
+                # the main scan refreshes the baseline. Same gate as the chart /
+                # recent-trades cache-only path (_fast_cache_only_charts ctx flag).
                 with _SubOp("dev_wallet_rpc"):
-                    _dev_feats = await self._dev_wallet.get_features(token_address)
+                    _dev_feats = await self._dev_wallet.get_features(
+                        token_address, cache_only=_fast_cache_only)
                 _tier1_features.update(_dev_feats)
             except Exception as _e:
                 logger.debug(f"[DipScanner] dev-wallet error: {_e}")

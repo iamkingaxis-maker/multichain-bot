@@ -1187,6 +1187,20 @@ def test_max_survivors_per_tick_from_env(monkeypatch):
     assert fw.max_survivors_per_tick() == 20
 
 
+def test_price_timeout_secs_from_env(monkeypatch):
+    """FAST_WATCH_PRICE_TIMEOUT_S: SHORT per-call price GET timeout so a 429/
+    stalled chunk fails fast (skip the tick, retry ~3s later) instead of blocking
+    near the old 8s ceiling. Default 4.0, floor 1.0, bad/empty -> default."""
+    monkeypatch.delenv("FAST_WATCH_PRICE_TIMEOUT_S", raising=False)
+    assert fw.price_timeout_secs() == 4.0
+    monkeypatch.setenv("FAST_WATCH_PRICE_TIMEOUT_S", "3")
+    assert fw.price_timeout_secs() == 3.0
+    monkeypatch.setenv("FAST_WATCH_PRICE_TIMEOUT_S", "0.1")
+    assert fw.price_timeout_secs() == 1.0       # floored at 1.0
+    monkeypatch.setenv("FAST_WATCH_PRICE_TIMEOUT_S", "junk")
+    assert fw.price_timeout_secs() == 4.0        # bad -> default
+
+
 # ── Integration: the concurrent tick still escalates+fires for triggering tokens
 
 def _scanner_for_concurrent_tick(n_survivors):

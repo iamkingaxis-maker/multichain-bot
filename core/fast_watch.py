@@ -139,6 +139,20 @@ def price_concurrency() -> int:
     return max(1, _i("FAST_WATCH_PRICE_CONCURRENCY", 4))
 
 
+def price_timeout_secs() -> float:
+    """Per-call timeout (seconds) for the fast-watch batch price GETs
+    (FAST_WATCH_PRICE_TIMEOUT_S, default 4.0). Floor 1.0. SHORT by design:
+    the fast loop ticks ~every 3s, so a stalled/429'd chunk must FAIL-FAST and
+    skip those addrs THIS tick (next tick ~3s later retries) rather than block
+    the tick near the old 8s timeout. Two slow waves at 8s = the measured ~15s
+    backoff-style stall; a 4s cap bounds the worst-case tick to ~2 short waves."""
+    try:
+        v = float(os.environ.get("FAST_WATCH_PRICE_TIMEOUT_S", "").strip())
+    except (TypeError, ValueError):
+        v = 4.0
+    return max(1.0, v)
+
+
 def eval_concurrency() -> int:
     """Bounded concurrency for the per-survivor heavy _evaluate_pair (FAST_WATCH_
     EVAL_CONCURRENCY, default 5). Floor 1. Low so concurrent chart fetches don't

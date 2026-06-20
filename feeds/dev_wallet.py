@@ -195,7 +195,8 @@ async def _identify_dev_wallet(
 
 
 async def fetch_dev_features(
-    mint: str, baselines: Dict[str, Dict[str, Any]]
+    mint: str, baselines: Dict[str, Dict[str, Any]],
+    cache_only: bool = False,
 ) -> Dict[str, Any]:
     """
     Compute dev-wallet features for a token. Updates `baselines` in place
@@ -205,6 +206,14 @@ async def fetch_dev_features(
     values without making an RPC call. This bounds RPC pressure to once
     per token per 5 minutes — important on public RPC which rate-limits
     getTokenLargestAccounts.
+
+    cache_only=True (FAST-WATCH PATH, 2026-06-20): NEVER make an RPC call.
+    On a warm baseline (<5 min) return the cached features; on a cache MISS
+    return {} (fail-open — the feature is simply absent this fast tick, and
+    the main scan / next tick refreshes it). This is the fix for the 16–35s
+    fast-watch survivor stall: a cache-miss here used to fire a serial chain
+    of up to ~12 Solana RPC calls (8s timeout each) under a global Semaphore(1),
+    blocking the very fills the fast path exists to accelerate.
     """
     global _RPC_SEMAPHORE
     if _RPC_SEMAPHORE is None:
@@ -235,6 +244,11 @@ async def fetch_dev_features(
             ),
             "dev_features_source": "cache",
         }
+
+    # FAST-WATCH CACHE-ONLY: a cache miss must NOT hit the RPC chain (the 16–35s
+    # survivor stall). Fail-open with no features; the main scan refreshes them.
+    if cache_only:
+        return out
 
     try:
         async with _RPC_SEMAPHORE:
@@ -312,8 +326,8 @@ class DevWalletTracker:
             logger.info(f"[DevWallet] Pruned {removed} stale baselines on startup")
         logger.info(f"[DevWallet] Loaded {len(self._baselines)} baselines")
 
-    async def get_features(self, mint: str) -> Dict[str, Any]:
-        feats = await fetch_dev_features(mint, self._baselines)
+    async def get_features(self, mint: str, cache_only: bool = False) -> Dict[str, Any]:
+        feats = await fetch_dev_features(mint, self._baselines, cache_only=cache_only)
         if feats:
             self._updates_since_save += 1
             if self._updates_since_save >= self._save_every:
