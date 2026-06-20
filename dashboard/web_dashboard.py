@@ -3271,6 +3271,19 @@ class WebDashboard:
                     b: round(_stats.median(v), 4)
                     for b, v in _bot_deltas.items() if len(v) >= 3
                 },
+                # Per-bot full record for the enforce decision. Judge on MEAN +
+                # win-rate at n>=30 (the median misleads under the left skew).
+                "per_bot": {
+                    b: {
+                        "n": len(v),
+                        "mean_delta_pct": round(_stats.mean(v), 4),
+                        "median_delta_pct": round(_stats.median(v), 4),
+                        "fast_cheaper_pct": round(
+                            100.0 * sum(1 for d in v if d > 0) / len(v), 1),
+                        "sum_delta_pct": round(sum(v), 4),
+                    }
+                    for b, v in _bot_deltas.items() if len(v) >= 3
+                },
             }
         payload = {
             "ok": True,
