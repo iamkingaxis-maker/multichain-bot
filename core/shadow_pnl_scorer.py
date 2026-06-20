@@ -27,11 +27,44 @@ import asyncio
 import json
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 _INITIAL_DELAY_SECS = 90.0
+
+
+def _parse_rec_ts(rec) -> "float | None":
+    """Unix seconds from a record's ISO ``ts`` field. None on any problem."""
+    try:
+        return datetime.fromisoformat(rec["ts"]).timestamp()
+    except Exception:
+        return None
+
+
+def select_mature_records(records, now_ts, min_forward_min, max_age_min):
+    """Select records in the MATURE age window — OLD enough to have forward
+    candles, YOUNG enough that DexScreener still serves the forward window and
+    the data is relevant.
+
+    A record is MATURE when:
+        min_forward_min*60 <= (now_ts - ts) <= max_age_min*60
+
+    i.e. too-young (no forward candles yet) AND too-old (forward window expired)
+    are BOTH excluded. PURE — no IO. Records with an unparseable ts are dropped.
+    Returns the list of mature records (verbatim dicts, untruncated)."""
+    min_age_s = float(min_forward_min) * 60.0
+    max_age_s = float(max_age_min) * 60.0
+    mature = []
+    for r in records:
+        ts = _parse_rec_ts(r)
+        if ts is None:
+            continue
+        age = now_ts - ts
+        if min_age_s <= age <= max_age_s:
+            mature.append(r)
+    return mature
 
 
 def _enabled() -> bool:
@@ -89,8 +122,20 @@ async def _run_forward_candle_scorer() -> None:
         logger.info("[shadow-pnl] no filter_shadow_log.jsonl yet — skipping forward scorer")
         return
 
-    # Load records OFF-LOOP (the .jsonl can be large).
-    def _load() -> list:
+    import time as _time
+
+    min_forward_min = int(float(os.environ.get("SHADOW_PNL_MIN_FORWARD_MIN", 30)))
+    max_age_min = int(float(os.environ.get("SHADOW_PNL_MAX_AGE_MIN", 1440)))
+    sample_per_filter = int(float(os.environ.get("SHADOW_PNL_SAMPLE_PER_FILTER", 200)))
+
+    # Load + select the MATURE AGE WINDOW off-loop (the .jsonl can be large).
+    # AGE-WINDOW, NOT most-recent-N (2026-06-19 fix): the old "[-4000:]" slice
+    # spanned only minutes on the high write rate, so every record was younger
+    # than min_forward_min and nothing ever scored. We now STREAM the file and
+    # keep records whose age is in [min_forward_min, max_age_min].
+    def _load() -> "tuple[int, list]":
+        loaded = 0
+        now_ts = _time.time()
         recs = []
         try:
             with open(log_path, encoding="utf-8") as f:
@@ -100,30 +145,40 @@ async def _run_forward_candle_scorer() -> None:
                         continue
                     try:
                         recs.append(json.loads(line))
+                        loaded += 1
                     except Exception:
                         continue
         except Exception:
-            return []
-        # bound: only score the most-recent slice
-        max_n = 4000
-        return recs[-max_n:] if len(recs) > max_n else recs
+            return (0, [])
+        mature = select_mature_records(
+            recs, now_ts, min_forward_min, max_age_min)
+        return (loaded, mature)
 
-    records = await asyncio.to_thread(_load)
-    if not records:
+    loaded, mature = await asyncio.to_thread(_load)
+    if not mature:
+        # NON-SILENT empty path (2026-06-19): the prior `if not records: return`
+        # hid the empty case. Always log the mature count so a re-check SEES
+        # whether any record fell in the window.
+        logger.info(
+            "[shadow-pnl] forward-candle: loaded=%d mature=0 scored 0 filters "
+            "(window=[%d,%d]min) — nothing matured yet",
+            loaded, min_forward_min, max_age_min)
         return
     client = DexScreenerClient()
     # The fetch itself is async + paced + dedup-by-pair + sampled inside
-    # compute_filter_pnl; this is the only network in the scorer.
+    # compute_filter_pnl; this is the only network in the scorer. The per-filter
+    # sample is drawn from the MATURE set (mature records are what we pass in).
     result = await compute_filter_pnl(
-        records=records,
+        records=mature,
         client=client,
-        min_forward_min=int(float(os.environ.get("SHADOW_PNL_MIN_FORWARD_MIN", 30))),
-        sample_per_filter=int(float(os.environ.get("SHADOW_PNL_SAMPLE_PER_FILTER", 200))),
+        min_forward_min=min_forward_min,
+        sample_per_filter=sample_per_filter,
         pace_secs=float(os.environ.get("SHADOW_PNL_PACE_SECS", 0.4)),
         out_path=out_path,
     )
-    logger.info("[shadow-pnl] forward-candle scored %d filters -> %s",
-                len(result), out_path)
+    logger.info(
+        "[shadow-pnl] forward-candle: loaded=%d mature=%d scored %d filters -> %s",
+        loaded, len(mature), len(result), out_path)
 
 
 async def _run_trade_join_scorer() -> None:

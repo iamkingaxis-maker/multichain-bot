@@ -28,6 +28,7 @@ Outcome stamping happens later via a separate scanner that pulls forward
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -40,6 +41,47 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 _DISK_GUARD_FREE_PCT = 0.05
+
+
+def _pass_sample_n() -> int:
+    """1-in-N PASS sampling rate from env FILTER_SHADOW_PASS_SAMPLE (default 50).
+
+    0 (or negative / unparseable-as-zero) => record NO pass at all. The default
+    50 keeps ~2% of the PASS stream — the main volume lever for the over-stuffed
+    filter_shadow_log.jsonl (BLOCK is always kept; PASS dominates volume)."""
+    raw = os.environ.get("FILTER_SHADOW_PASS_SAMPLE", "50")
+    try:
+        n = int(float(raw))
+    except (TypeError, ValueError):
+        return 50
+    return n if n > 0 else 0
+
+
+def should_record_verdict(token_address: str, filter_name: str, verdict: str,
+                          sample_n: Optional[int] = None) -> bool:
+    """Decide whether ONE filter verdict should be recorded.
+
+    * BLOCK (and any non-PASS) is ALWAYS recorded — it is the signal ("what
+      would enforcing this filter cost").
+    * PASS is DETERMINISTICALLY sampled 1-in-N by a stable md5 hash of
+      (token_address + filter_name) modulo N — NOT random, NOT clock-based, so
+      the same candidate is consistently sampled and the rate is uniform.
+    * N == 0 => record NO pass at all.
+
+    ADDRESS-keyed (the join key); FAIL-OPEN (any error => record it, never drop
+    a would-be signal on a hashing error). Pure CPU — safe on the event loop."""
+    try:
+        if _normalize_verdict(verdict) != "PASS":
+            return True  # BLOCK always recorded
+        n = sample_n if sample_n is not None else _pass_sample_n()
+        if n <= 0:
+            return False  # record no PASS at all
+        if n == 1:
+            return True   # 1-in-1 => keep every PASS
+        key = ((token_address or "") + (filter_name or "")).encode("utf-8")
+        return int(hashlib.md5(key).hexdigest(), 16) % n == 0
+    except Exception:  # pragma: no cover - defensive; fail-open keeps the signal
+        return True
 _WARN_THROTTLE_S = 300.0
 
 
@@ -114,7 +156,16 @@ class FilterShadowRecorder:
         try:
             try:
                 from core.jsonl_rotation import cap_jsonl
-                cap_jsonl(self.log_path)
+                # Post-volume-cut (Fix 1) the 200MB default holds many hours, so a
+                # mature record survives to the scorer's 30min-24h window. The cap
+                # for THIS file is overridable via FILTER_SHADOW_LOG_MAX_MB (default
+                # 400) — kept conservative; the real lever is the PASS sampling.
+                try:
+                    _max_mb = float(
+                        os.environ.get("FILTER_SHADOW_LOG_MAX_MB", "400"))
+                except (TypeError, ValueError):
+                    _max_mb = 400.0
+                cap_jsonl(self.log_path, max_mb=_max_mb)
             except Exception:
                 pass
             written = 0

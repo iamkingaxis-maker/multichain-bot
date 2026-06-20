@@ -17873,12 +17873,20 @@ class DipScanner:
                     from feeds.filter_shadow_recorder import (
                         build_record as _build_rec,
                         _normalize_verdict as _norm_v,
+                        should_record_verdict as _should_rec,
                     )
                     _buf = self._filter_shadow_buf
                     _cap = self._filter_shadow_buf_max
                     for _fname, _fverdict, _freasons in _filter_verdicts:
                         if len(_buf) >= _cap:
                             break  # bounded — drop overflow, never grow unbounded
+                        # VOLUME LEVER (2026-06-19): record ALL BLOCK verdicts but
+                        # SAMPLE PASS ~1-in-N (FILTER_SHADOW_PASS_SAMPLE, default 50)
+                        # deterministically by address+filter hash. BLOCK is never
+                        # sampled out. Cuts the dominant PASS stream to ~2% so mature
+                        # records survive to the scorer's 30min-24h window. Pure CPU.
+                        if not _should_rec(token_address, _fname, _fverdict):
+                            continue
                         _buf.append(_build_rec(
                             token_address, token_symbol, pair, _fname,
                             _norm_v(_fverdict), _freasons or "",
