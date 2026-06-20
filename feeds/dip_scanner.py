@@ -3937,6 +3937,15 @@ class DipScanner:
         # this eval is running on the fast-watch path (cache-only flag set) so we
         # don't spam the main scan. Additive, fail-safe, gated by SCAN_PHASE_TIMING.
         _fp_is_fast = bool(_eval_ctx.get("_fast_cache_only_charts"))
+        # SUB-OP TIMING ACCUMULATOR (2026-06-20 capstone) — break the per-survivor
+        # ~1-2s eval into its parts on BOTH the main scan AND the fast-watch path
+        # (previously fast-only, which hid the dominant MAIN-scan starvation). Each
+        # _SubOp(name) accumulates its seconds into this per-CALL dict; a single
+        # consolidated breakdown line is emitted at the end of the eval for any
+        # survivor that crossed the threshold (so we attribute the residual to
+        # evaluate_all vs filter_chain vs cnn/cluster vs feature_compute). Additive,
+        # fail-safe, gated by SCAN_PHASE_TIMING (no-op when off).
+        _subop_totals: dict[str, float] = {}
 
         class _SubOp:
             __slots__ = ("name", "t0")
@@ -3946,7 +3955,7 @@ class DipScanner:
                 _s.t0 = 0.0
 
             def __enter__(_s):
-                if _SCAN_PHASE_TIMING and _fp_is_fast:
+                if _SCAN_PHASE_TIMING:
                     try:
                         _s.t0 = time.monotonic()
                     except Exception:
@@ -3954,11 +3963,15 @@ class DipScanner:
                 return _s
 
             def __exit__(_s, et, ev, tb):
-                if not (_SCAN_PHASE_TIMING and _fp_is_fast) or not _s.t0:
+                if not _SCAN_PHASE_TIMING or not _s.t0:
                     return False
                 try:
                     _dt = time.monotonic() - _s.t0
-                    if _dt > 1.0:
+                    _subop_totals[_s.name] = _subop_totals.get(_s.name, 0.0) + _dt
+                    # Verbose per-subop line only on the fast-watch path (it is the
+                    # rate-limited cohort; the main scan uses the consolidated
+                    # breakdown below to avoid log spam across all survivors).
+                    if _fp_is_fast and _dt > 1.0:
                         logger.warning(
                             "[phase-timing] survivor=%s %s=%.2fs",
                             (pair.get("baseToken") or {}).get("symbol", "?")
@@ -6727,12 +6740,13 @@ class DipScanner:
                 from core.chart_cluster_inference import get_cluster_inference
                 _cluster_inf = get_cluster_inference()
                 if not _cluster_inf.disabled and _chart_data:
-                    _cnn_cluster_id = _cluster_inf.classify(
-                        token_address=token_address,
-                        candles_1m=_chart_data.candles_1m or [],
-                        candles_5m=_chart_data.candles_5m or [],
-                        candles_15m=_chart_data.candles_15m or [],
-                    )
+                    with _SubOp("cluster_classify"):
+                        _cnn_cluster_id = _cluster_inf.classify(
+                            token_address=token_address,
+                            candles_1m=_chart_data.candles_1m or [],
+                            candles_5m=_chart_data.candles_5m or [],
+                            candles_15m=_chart_data.candles_15m or [],
+                        )
                     if _cluster_inf.is_rug_cluster(_cnn_cluster_id):
                         _cluster_19_rug_block = True
             except Exception as _e:
@@ -6746,6 +6760,16 @@ class DipScanner:
                 )
                 c["filter_cluster_19_rug_block"] = c.get("filter_cluster_19_rug_block", 0) + 1
                 _filters_block.append("filter_cluster_19_rug")
+
+            # feature_compute checkpoint START (2026-06-20): the big pure-Python
+            # feature + filter-chain region from here to the trigger decision. We
+            # bracket it with a monotonic checkpoint accumulated into _subop_totals
+            # (a plain `with` can't span this region cleanly — too many `continue`
+            # exits). Cheap; fail-safe; only read when SCAN_PHASE_TIMING is on.
+            try:
+                _feat_t0 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
+            except Exception:
+                _feat_t0 = 0.0
 
             # Forward dataset collector — dumps image + context for every
             # evaluated candidate. Outcome label gets stamped later by the
@@ -13058,6 +13082,17 @@ class DipScanner:
                 _trigger_reaccum_vol_match = False
                 _trigger_tight_buyer_mtf_match = False
 
+            # feature_compute checkpoint END (2026-06-20): accumulate the elapsed
+            # pure-Python feature/filter compute into the per-call breakdown.
+            try:
+                if _SCAN_PHASE_TIMING and _feat_t0:
+                    _subop_totals["feature_compute"] = (
+                        _subop_totals.get("feature_compute", 0.0)
+                        + (time.monotonic() - _feat_t0)
+                    )
+            except Exception:
+                pass
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _trigger_strong_orderflow_match:
@@ -18396,6 +18431,27 @@ class DipScanner:
             # Body fell through / `continue`d the single-iteration loop -> a
             # normal skip, NOT the cap break. (The cap `break` skips this else.)
             _eval_completed = True
+        # CONSOLIDATED SUB-OP BREAKDOWN (2026-06-20) — one line per survivor whose
+        # measured sub-ops summed past the threshold, attributing the residual to
+        # each part (native = GIL-releasing torch; the rest = pure-Python). Cheap;
+        # fail-safe; gated by SCAN_PHASE_TIMING. NEVER affects the return / decision.
+        try:
+            if _SCAN_PHASE_TIMING and _subop_totals:
+                _sum = sum(_subop_totals.values())
+                if _sum > _SCAN_PHASE_TIMING_THRESHOLD_S:
+                    _parts = " ".join(
+                        f"{_k}={_v:.2f}s"
+                        for _k, _v in sorted(
+                            _subop_totals.items(), key=lambda kv: kv[1], reverse=True)
+                    )
+                    logger.warning(
+                        "[phase-timing] subop-breakdown sym=%s fast=%s sum=%.2fs %s",
+                        (pair.get("baseToken") or {}).get("symbol", "?")
+                        if isinstance(pair, dict) else "?",
+                        _fp_is_fast, _sum, _parts,
+                    )
+        except Exception:
+            pass
         return c, signals, (not _eval_completed)
 
     async def _scan_cycle(self):
