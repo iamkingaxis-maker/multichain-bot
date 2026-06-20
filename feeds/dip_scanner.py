@@ -4552,15 +4552,53 @@ class DipScanner:
             # gracefully on a None chart. Outside the fast path (normal scan) this
             # flag is unset -> byte-identical cold-fetch behaviour.
             _fast_cache_only = bool(_eval_ctx.get("_fast_cache_only_charts"))
+            # FEATURE MEMO (2026-06-20 capstone): short-TTL, ADDRESS-keyed reuse of
+            # the chart the MAIN scan just assembled. The fast-watch survivor eval
+            # reads it BEFORE degrading to None on a prefetch miss (it previously
+            # threw away the main scan's fresh chart and ran chart-less). The main
+            # scan WRITES it after a fresh assemble. Gate FEATURE_MEMO (default on);
+            # fail-safe (a MISS just takes the existing fallback). Lazily created.
+            _memo = None
+            _memo_now = None
+            try:
+                from core.fast_watch import (
+                    ChartMemo as _ChartMemo, chart_memo_enabled as _memo_on,
+                    chart_memo_ttl_secs as _memo_ttl,
+                )
+                if _memo_on():
+                    _memo = getattr(self, "_chart_memo", None)
+                    if _memo is None:
+                        _memo = _ChartMemo(_memo_ttl())
+                        self._chart_memo = _memo
+                    _memo_now = time.monotonic()
+            except Exception:
+                _memo = None
             if _pf_chart is not _PREFETCH_MISS:
                 _chart_data = _pf_chart
             elif _fast_cache_only:
-                _chart_data = None   # fast path, no warm chart -> skip cold fetch
+                # Fast path: try the memo (main scan's fresh chart) before None.
+                _chart_data = None
+                if _memo is not None and token_address:
+                    try:
+                        _mhit = _memo.get(token_address, _memo_now)
+                        if _mhit is not _ChartMemo.MISS and _mhit:
+                            _chart_data = _mhit
+                    except Exception:
+                        _chart_data = None
             elif pair_addr_for_1m:
                 try:
                     _chart_data = await _assemble(self.gt_client, pair_addr_for_1m, dexs_client=self.dexs_client)
                 except Exception as _e:
                     logger.debug(f"[DipScanner] chart_data assemble error for {token_symbol}: {_e}")
+            # Main-scan WRITE: memoize a freshly-assembled (truthy) chart so the
+            # next fast-watch tick can reuse it. Never on the fast path (it only
+            # reads) and never a falsy/None chart (don't memoize a miss).
+            try:
+                if (_memo is not None and not _fast_cache_only
+                        and token_address and _chart_data):
+                    _memo.put(token_address, _chart_data, _memo_now)
+            except Exception:
+                pass
             m1_features: dict = {}
             if pair_addr_for_1m:
                 # Slice to last 5 × 1m candles to preserve original m1 feature
@@ -6716,12 +6754,37 @@ class DipScanner:
                 _cnn_inf = get_inference()
                 if not _cnn_inf.disabled and _chart_data:
                     with _SubOp("cnn_predict"):
-                        _cnn_result = _cnn_inf.predict(
-                            token_address=token_address,
-                            candles_1m=_chart_data.candles_1m or [],
-                            candles_5m=_chart_data.candles_5m or [],
-                            candles_15m=_chart_data.candles_15m or [],
-                        )
+                        # to_thread the torch forward pass — it's NATIVE (GIL-
+                        # RELEASING), so offloading genuinely frees the event loop
+                        # (unlike pure-Python work). Gate CNN_TO_THREAD (default
+                        # on); FAIL-OPEN to the inline call on any error.
+                        _cnn_to_thread = os.environ.get(
+                            "CNN_TO_THREAD", "on"
+                        ).strip().lower() not in ("off", "0", "false", "no")
+                        _cnn_done = False
+                        _cnn_result = None
+                        if _cnn_to_thread:
+                            try:
+                                _cnn_result = await asyncio.to_thread(
+                                    _cnn_inf.predict,
+                                    token_address=token_address,
+                                    candles_1m=_chart_data.candles_1m or [],
+                                    candles_5m=_chart_data.candles_5m or [],
+                                    candles_15m=_chart_data.candles_15m or [],
+                                )
+                                _cnn_done = True
+                            except Exception as _cnn_te:
+                                logger.debug(
+                                    "[DipScanner] CNN to_thread err (inline): %s",
+                                    _cnn_te)
+                                _cnn_done = False
+                        if not _cnn_done:
+                            _cnn_result = _cnn_inf.predict(
+                                token_address=token_address,
+                                candles_1m=_chart_data.candles_1m or [],
+                                candles_5m=_chart_data.candles_5m or [],
+                                candles_15m=_chart_data.candles_15m or [],
+                            )
                     if _cnn_result:
                         _cnn_pattern = _cnn_result.get("pattern")
                         _cnn_pattern_conf = _cnn_result.get("pattern_conf")
@@ -6741,12 +6804,35 @@ class DipScanner:
                 _cluster_inf = get_cluster_inference()
                 if not _cluster_inf.disabled and _chart_data:
                     with _SubOp("cluster_classify"):
-                        _cnn_cluster_id = _cluster_inf.classify(
-                            token_address=token_address,
-                            candles_1m=_chart_data.candles_1m or [],
-                            candles_5m=_chart_data.candles_5m or [],
-                            candles_15m=_chart_data.candles_15m or [],
-                        )
+                        # to_thread the NATIVE (GIL-releasing) cluster classify.
+                        # Gate CNN_TO_THREAD (shared with the CNN forward pass);
+                        # FAIL-OPEN to inline on any error.
+                        _cl_to_thread = os.environ.get(
+                            "CNN_TO_THREAD", "on"
+                        ).strip().lower() not in ("off", "0", "false", "no")
+                        _cl_done = False
+                        if _cl_to_thread:
+                            try:
+                                _cnn_cluster_id = await asyncio.to_thread(
+                                    _cluster_inf.classify,
+                                    token_address=token_address,
+                                    candles_1m=_chart_data.candles_1m or [],
+                                    candles_5m=_chart_data.candles_5m or [],
+                                    candles_15m=_chart_data.candles_15m or [],
+                                )
+                                _cl_done = True
+                            except Exception as _cl_te:
+                                logger.debug(
+                                    "[DipScanner] cluster to_thread err (inline): %s",
+                                    _cl_te)
+                                _cl_done = False
+                        if not _cl_done:
+                            _cnn_cluster_id = _cluster_inf.classify(
+                                token_address=token_address,
+                                candles_1m=_chart_data.candles_1m or [],
+                                candles_5m=_chart_data.candles_5m or [],
+                                candles_15m=_chart_data.candles_15m or [],
+                            )
                     if _cluster_inf.is_rug_cluster(_cnn_cluster_id):
                         _cluster_19_rug_block = True
             except Exception as _e:
@@ -13093,6 +13179,20 @@ class DipScanner:
             except Exception:
                 pass
 
+            # COOPERATIVE YIELD (2026-06-20 capstone): the feature/filter chain
+            # above is the big pure-Python block. Breathe here so a 20-60s
+            # contiguous starvation across N concurrent survivors becomes ~1s
+            # micro-blocks (the loop runs fills/dashboard/the tick between them).
+            # This is BEFORE any buy decision/commit — never splits the buy-fire
+            # lock's critical section, so it cannot open a double-buy race.
+            # Gate EVAL_PAIR_YIELD (default on); fail-safe.
+            try:
+                if os.environ.get("EVAL_PAIR_YIELD", "on").strip().lower() \
+                        not in ("off", "0", "false", "no"):
+                    await asyncio.sleep(0)
+            except Exception:
+                pass
+
             # Determine effective entry decision: enter if ANY trigger fires
             _triggers_fired = []
             if _trigger_strong_orderflow_match:
@@ -18348,11 +18448,66 @@ class DipScanner:
                     # enforced canonically inside _execute_bot_buy (the Phase-1
                     # risk-floor block, gated by RISK_FLOOR_MODE + the per-bot
                     # daily_loss_limit_usd / max_token_buys_per_day configs).
-                    with _SubOp("evaluate_all"):
-                        decisions = self.bot_manager.evaluate_all(
-                            bundle, realized_pnl_by_bot=realized_by_bot,
-                            bot_allowlist=_fp_allow,
-                        )
+                    #
+                    # ── HEAVY-EVAL PRE-SCREEN (2026-06-20 capstone) ──────────────
+                    # The 70-bot fan-out is the dominant pure-Python CPU chunk on
+                    # the single event loop. A token that fired NO dip trigger can
+                    # only buy via a MOMENTUM bot (those bypass triggers); a token
+                    # with triggers OR a live momentum bot can fire. So skip the
+                    # whole fan-out when NOTHING could buy this tick:
+                    #   no triggers fired AND no enabled+allowlisted momentum bot.
+                    # This is BUY-PRESERVING by construction (dip bots require
+                    # >=1 trigger; momentum bots are explicitly accounted for).
+                    # Gate HEAVY_EVAL_PRESCREEN (default on); FAIL-OPEN — any error
+                    # in the cheap check falls through to the full eval.
+                    _triggers_now = _local.get("_triggers_fired") or ()
+                    _prescreen_skip = False
+                    try:
+                        _prescreen_on = os.environ.get(
+                            "HEAVY_EVAL_PRESCREEN", "on"
+                        ).strip().lower() not in ("off", "0", "false", "no")
+                        if _prescreen_on and not _triggers_now:
+                            _has_mom = self.bot_manager.has_momentum_bot(_fp_allow)
+                            if not _has_mom:
+                                _prescreen_skip = True
+                    except Exception:
+                        _prescreen_skip = False  # fail-open: run the full eval
+                    if _prescreen_skip:
+                        c["heavy_eval_prescreen_skip"] = (
+                            c.get("heavy_eval_prescreen_skip", 0) + 1)
+                        decisions = []
+                    else:
+                        # Cooperative-yield async fan-out (EVALUATE_ALL_YIELD,
+                        # default on): un-starves the loop between bursts of bots.
+                        # GIL-correct (sleep(0) lets the loop run ready tasks). Any
+                        # error -> fall back to the byte-identical sync path.
+                        with _SubOp("evaluate_all"):
+                            _yield_on = os.environ.get(
+                                "EVALUATE_ALL_YIELD", "on"
+                            ).strip().lower() not in ("off", "0", "false", "no")
+                            decisions = None
+                            if _yield_on:
+                                try:
+                                    _k = int(os.environ.get(
+                                        "EVALUATE_ALL_YIELD_EVERY", "15"))
+                                except (TypeError, ValueError):
+                                    _k = 15
+                                try:
+                                    decisions = await self.bot_manager.evaluate_all_async(
+                                        bundle, realized_pnl_by_bot=realized_by_bot,
+                                        bot_allowlist=_fp_allow, yield_every=_k,
+                                    )
+                                except Exception as _ea_e:
+                                    logger.error(
+                                        "[DipScanner] evaluate_all_async failed "
+                                        "(falling back to sync): %s", _ea_e,
+                                    )
+                                    decisions = None
+                            if decisions is None:
+                                decisions = self.bot_manager.evaluate_all(
+                                    bundle, realized_pnl_by_bot=realized_by_bot,
+                                    bot_allowlist=_fp_allow,
+                                )
                     # FIX 4 concurrency-safety: serialize every real buy fire
                     # through the per-cycle buy lock so that under
                     # PARALLEL_SCAN_MODE=on two tasks can NEVER interleave a buy

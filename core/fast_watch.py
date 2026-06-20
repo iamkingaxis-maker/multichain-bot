@@ -88,6 +88,69 @@ def dip_trigger(trend_pct: Optional[float], threshold_pct: float) -> bool:
     return trend_pct <= -abs(threshold_pct)
 
 
+class ChartMemo:
+    """Short-TTL, ADDRESS-keyed memo for the per-token chart_data the MAIN scan
+    just assembled, so a fast-watch survivor eval can REUSE it instead of either
+    cold-fetching fresh GT OHLC (429 storm) or degrading to a None chart.
+
+    Pure + clock-injected for testability. ADDRESS-keyed only (NEVER symbol — a
+    symbol-keyed chart cross-poisons same-ticker mints, the 2026-06-12 SPCX bug).
+    `get` returns the memoized value only within `ttl_secs` of the `put`; after
+    that it MISSes (returns the sentinel) so a stale chart never drives a buy.
+    Fail-safe by construction: a MISS just means the caller takes its existing
+    fallback path (cold fetch / None), so the memo can only ever HELP.
+    """
+
+    MISS = object()
+
+    def __init__(self, ttl_secs: float):
+        self.ttl = float(ttl_secs)
+        self._d: dict[str, tuple[float, object]] = {}
+
+    def put(self, address: str, chart_data, now: float) -> None:
+        if not address:
+            return
+        self._d[address.lower()] = (float(now), chart_data)
+
+    def get(self, address: str, now: float):
+        if not address:
+            return ChartMemo.MISS
+        hit = self._d.get(address.lower())
+        if hit is None:
+            return ChartMemo.MISS
+        ts, val = hit
+        if (now - ts) > self.ttl:
+            # Expired — drop it so the dict doesn't grow unbounded over a long run.
+            self._d.pop(address.lower(), None)
+            return ChartMemo.MISS
+        return val
+
+    def purge_expired(self, now: float) -> None:
+        """Drop expired entries (called opportunistically to bound memory)."""
+        dead = [k for k, (ts, _v) in self._d.items() if (now - ts) > self.ttl]
+        for k in dead:
+            self._d.pop(k, None)
+
+
+def chart_memo_enabled() -> bool:
+    """Whether the fast-watch eval reuses the main scan's freshly-assembled chart
+    via ChartMemo (FEATURE_MEMO, default 'on'). off/0/false/no disables it (the
+    fast path then degrades to None on a prefetch miss, as before)."""
+    v = os.environ.get("FEATURE_MEMO", "on").strip().lower()
+    return v not in ("off", "0", "false", "no")
+
+
+def chart_memo_ttl_secs() -> float:
+    """TTL (seconds) for ChartMemo (FEATURE_MEMO_TTL_S, default 20.0, floor 1.0).
+    Short by design: a memecoin chart older than ~20s is stale for entry timing,
+    so we MISS and let the caller re-derive rather than buy off a stale shape."""
+    try:
+        v = float(os.environ.get("FEATURE_MEMO_TTL_S", "").strip())
+    except (TypeError, ValueError):
+        v = 20.0
+    return max(1.0, v)
+
+
 class FastWatchDedup:
     """Per-token TTL guard so the fast loop doesn't re-evaluate the same token
     every tick. `now` is injected (seconds) for testability."""

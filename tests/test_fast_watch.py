@@ -6,6 +6,53 @@ import types
 from core import fast_watch as fw
 
 
+def test_chart_memo_returns_cached_within_ttl_then_misses():
+    m = fw.ChartMemo(ttl_secs=20.0)
+    chart = object()
+    m.put("MintAbc", chart, now=100.0)
+    # Hit within TTL (case-insensitive address).
+    assert m.get("mintabc", now=110.0) is chart
+    assert m.get("MINTABC", now=119.999) is chart
+    # MISS after TTL -> caller takes its fallback (never a stale buy).
+    assert m.get("mintabc", now=121.0) is fw.ChartMemo.MISS
+    # Unknown address -> MISS.
+    assert m.get("other", now=110.0) is fw.ChartMemo.MISS
+    # Empty address never stored / never hit.
+    m.put("", chart, now=100.0)
+    assert m.get("", now=100.0) is fw.ChartMemo.MISS
+
+
+def test_chart_memo_address_keyed_not_cross_poisoned():
+    m = fw.ChartMemo(ttl_secs=20.0)
+    a, b = object(), object()
+    m.put("MINT_A", a, now=0.0)
+    m.put("MINT_B", b, now=0.0)
+    assert m.get("mint_a", now=1.0) is a
+    assert m.get("mint_b", now=1.0) is b   # no cross-poison between mints
+
+
+def test_chart_memo_purge_expired_bounds_memory():
+    m = fw.ChartMemo(ttl_secs=10.0)
+    m.put("X", object(), now=0.0)
+    m.put("Y", object(), now=5.0)
+    m.purge_expired(now=12.0)              # X expired (>10s), Y still live
+    assert m.get("x", now=12.0) is fw.ChartMemo.MISS
+    assert m.get("y", now=12.0) is not fw.ChartMemo.MISS
+
+
+def test_chart_memo_flags(monkeypatch):
+    monkeypatch.delenv("FEATURE_MEMO", raising=False)
+    assert fw.chart_memo_enabled() is True
+    monkeypatch.setenv("FEATURE_MEMO", "off")
+    assert fw.chart_memo_enabled() is False
+    monkeypatch.delenv("FEATURE_MEMO_TTL_S", raising=False)
+    assert fw.chart_memo_ttl_secs() == 20.0
+    monkeypatch.setenv("FEATURE_MEMO_TTL_S", "5")
+    assert fw.chart_memo_ttl_secs() == 5.0
+    monkeypatch.setenv("FEATURE_MEMO_TTL_S", "garbage")
+    assert fw.chart_memo_ttl_secs() == 20.0  # bad -> default
+
+
 def test_dip_trigger_fires_at_or_below_threshold():
     assert fw.dip_trigger(-3.0, 3.0) is True      # exactly at threshold
     assert fw.dip_trigger(-5.5, 3.0) is True       # below
@@ -241,6 +288,94 @@ def test_fanout_enforce_fires_only_allowlisted():
     asyncio.run(s._fast_route_decisions(decisions, bundle=None,
                                         allowlist={"a"}, shadow=False, token_symbol="T"))
     assert s.fired == [("fire", "a"), ("fire", "z")]   # routing fires given decisions under the lock
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CAPSTONE FILL-SPEED (2026-06-20) — MONEY-PATH SAFETY: the added cooperative
+# yields / async fan-out INCREASE interleaving between concurrent survivors. The
+# acceptance criterion is that two survivors for the SAME token can NEVER both
+# buy. _fast_route_decisions fires under _buy_fire_lock around the ENTIRE
+# check-then-buy (_execute_bot_buy), so the dedup decision + the buy must be
+# atomic even when the executor yields mid-buy.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_no_double_buy_same_token_under_concurrent_survivors():
+    s = _make_scanner_with_fire_blocks()
+    # Shared registry: first buyer of a token registers it; a second buyer that
+    # sees it registered must SKIP. This mirrors the real exclusion-pool /
+    # open-positions dedup inside _execute_bot_buy (which runs under the lock).
+    registered = set()
+    s.bought = []
+    # An interleave detector: True while a buy's check-then-commit is in flight.
+    s._inflight = False
+    s.interleaved = False
+
+    async def fake_exec(d, bundle):
+        # If the lock did NOT serialize, two execs overlap here.
+        if s._inflight:
+            s.interleaved = True
+        s._inflight = True
+        addr = (d.address or "").lower()
+        if addr in registered:
+            s._inflight = False
+            return                      # dedup: token already bought -> skip
+        # Yield MID-buy to maximally tempt an interleave (the lock must hold).
+        await asyncio.sleep(0)
+        registered.add(addr)
+        s.bought.append((d.bot_id, addr))
+        s._inflight = False
+
+    s._execute_bot_buy = fake_exec
+
+    # Two concurrent survivor tasks, SAME token address, different bots.
+    d1 = types.SimpleNamespace(bot_id="botA", token="DUP", address="MINTX")
+    d2 = types.SimpleNamespace(bot_id="botB", token="DUP", address="MINTX")
+
+    async def _go():
+        await asyncio.gather(
+            s._fast_route_decisions([d1], bundle=None, allowlist=None,
+                                    shadow=False, token_symbol="DUP"),
+            s._fast_route_decisions([d2], bundle=None, allowlist=None,
+                                    shadow=False, token_symbol="DUP"),
+        )
+
+    asyncio.run(_go())
+    # The lock serialized the two routes -> their critical sections never overlapped.
+    assert s.interleaved is False, "buy-fire lock failed to serialize concurrent buys"
+    # Exactly ONE buy of the duplicated token fired (no double-buy).
+    assert s.bought == [("botA", "mintx")] or s.bought == [("botB", "mintx")], s.bought
+    assert len(s.bought) == 1
+
+
+def test_no_double_buy_distinct_tokens_both_fire():
+    """Sanity: distinct tokens are NOT deduped — both fire (the lock serializes
+    but does not block legitimate distinct buys)."""
+    s = _make_scanner_with_fire_blocks()
+    registered = set()
+    s.bought = []
+
+    async def fake_exec(d, bundle):
+        addr = (d.address or "").lower()
+        if addr in registered:
+            return
+        await asyncio.sleep(0)
+        registered.add(addr)
+        s.bought.append(addr)
+
+    s._execute_bot_buy = fake_exec
+    d1 = types.SimpleNamespace(bot_id="a", token="A", address="MINT_A")
+    d2 = types.SimpleNamespace(bot_id="b", token="B", address="MINT_B")
+
+    async def _go():
+        await asyncio.gather(
+            s._fast_route_decisions([d1], bundle=None, allowlist=None,
+                                    shadow=False, token_symbol="A"),
+            s._fast_route_decisions([d2], bundle=None, allowlist=None,
+                                    shadow=False, token_symbol="B"),
+        )
+
+    asyncio.run(_go())
+    assert sorted(s.bought) == ["mint_a", "mint_b"]
 
 
 def test_run_spawns_fast_watch_task(monkeypatch):
