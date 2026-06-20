@@ -69,6 +69,64 @@ _SEARCH_TERMS_POOL = [
 _SEARCH_TERMS_PER_CYCLE = 8
 _SCAN_INTERVAL = 30  # seconds between full scan cycles (lowered 90→30 2026-05-15 for 3x throughput)
 
+# ── SCAN PHASE TIMING (2026-06-20) — locate the residual ~12-15s/cycle loop block.
+# Additive, env-gated (SCAN_PHASE_TIMING, default 'on'), fail-safe diagnostic ONLY.
+# Wraps each major cycle phase in a monotonic bracket and logs
+#   [phase-timing] <name> took Xs
+# when X exceeds SCAN_PHASE_TIMING_THRESHOLD_S (default 1.5). Changes NO decision
+# logic. Set SCAN_PHASE_TIMING=off to disable entirely (then it is a no-op).
+_SCAN_PHASE_TIMING = os.environ.get("SCAN_PHASE_TIMING", "on").strip().lower() in (
+    "on", "1", "true", "yes",
+)
+try:
+    _SCAN_PHASE_TIMING_THRESHOLD_S = float(
+        os.environ.get("SCAN_PHASE_TIMING_THRESHOLD_S", "1.5")
+    )
+except (TypeError, ValueError):
+    _SCAN_PHASE_TIMING_THRESHOLD_S = 1.5
+
+
+class _PhaseTimer:
+    """Cheap monotonic bracket for one cycle phase. Used as a context manager:
+
+        with _PhaseTimer("fetch_candidates"):
+            pairs = await self._fetch_candidates()
+
+    Logs ``[phase-timing] <name> took Xs`` on exit iff timing is enabled AND the
+    elapsed exceeds the threshold. NEVER raises into the cycle — the only work in
+    __enter__/__exit__ is a monotonic read + a conditional log, both swallowed.
+    """
+
+    __slots__ = ("name", "t0", "extra")
+
+    def __init__(self, name, extra=""):
+        self.name = name
+        self.extra = extra
+        self.t0 = 0.0
+
+    def __enter__(self):
+        if _SCAN_PHASE_TIMING:
+            try:
+                self.t0 = time.monotonic()
+            except Exception:
+                self.t0 = 0.0
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        # Never suppress an exception from the wrapped block; never raise our own.
+        if not _SCAN_PHASE_TIMING or not self.t0:
+            return False
+        try:
+            dt = time.monotonic() - self.t0
+            if dt > _SCAN_PHASE_TIMING_THRESHOLD_S:
+                logger.warning(
+                    "[phase-timing] %s took %.2fs%s",
+                    self.name, dt, (" " + self.extra) if self.extra else "",
+                )
+        except Exception:
+            pass
+        return False
+
 # Fresh-pool / volume discovery (2026-05-27) — closes the coverage gap: we polled
 # trending + meme-keyword search only, missing ~half the liquid fresh movers
 # (they hit new_pools before trending; non-meme names evade keyword search). The
@@ -2470,6 +2528,14 @@ class DipScanner:
         """
         if not self.bot_position_managers:
             return
+        _tick_timer = _PhaseTimer("tick_all_bots_positions")
+        _tick_timer.__enter__()
+        try:
+            await self._tick_all_bots_positions_inner()
+        finally:
+            _tick_timer.__exit__(None, None, None)
+
+    async def _tick_all_bots_positions_inner(self):
         # One management cycle = one timestamp + one price fetch per token. Many
         # bots hold the same token; fetching once per token (not per position)
         # cuts external calls AND lets the glitch guard see exactly one reading
@@ -2536,8 +2602,19 @@ class DipScanner:
                             _pk, _r,
                         )
 
+        # Phase timing: bracket the serial decision loop (fetch lazy-fill +
+        # pm.tick + shadows + sells over EVERY open position) and track the
+        # single slowest position so we can tell "one slow token" from "many
+        # positions" as the residual loop-block source. Cheap monotonic only.
+        _dec_slowest_dt = 0.0
+        _dec_slowest_tok = "?"
+        _dec_n = 0
+        _dec_timer = _PhaseTimer("tick_decision_loop")
+        _dec_timer.__enter__()
         for bot_id, pm in self.bot_position_managers.items():
             for position in pm.iter_positions():
+                _dec_n += 1
+                _dec_t0 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
                 token = position.token
                 # Price/guard key = ADDRESS, never symbol (same-symbol ≠ same-token;
                 # see _price_key). pm.tick/scalein still key by symbol internally —
@@ -2604,6 +2681,24 @@ class DipScanner:
                         "[DipScanner] tick failed bot=%s token=%s: %s",
                         bot_id, token, e,
                     )
+                finally:
+                    if _SCAN_PHASE_TIMING and _dec_t0:
+                        try:
+                            _dt = time.monotonic() - _dec_t0
+                            if _dt > _dec_slowest_dt:
+                                _dec_slowest_dt = _dt
+                                _dec_slowest_tok = token
+                        except Exception:
+                            pass
+        _dec_timer.__exit__(None, None, None)
+        if _SCAN_PHASE_TIMING and _dec_slowest_dt > _SCAN_PHASE_TIMING_THRESHOLD_S:
+            try:
+                logger.warning(
+                    "[phase-timing] slowest position token=%s tick=%.2fs (n_positions=%d)",
+                    _dec_slowest_tok, _dec_slowest_dt, _dec_n,
+                )
+            except Exception:
+                pass
 
     async def _execute_bot_sell(self, bot_id, token, exit_decision, current_price, now):
         """Execute an ExitDecision from a single bot's position tick.
@@ -18058,7 +18153,8 @@ class DipScanner:
             )
             return
 
-        pairs, source_counts = await self._fetch_candidates()
+        with _PhaseTimer("fetch_candidates"):
+            pairs, source_counts = await self._fetch_candidates()
         now_ms = time.time() * 1000
 
         c: Counter = Counter()
@@ -18098,7 +18194,8 @@ class DipScanner:
         # ran 5-30x per cycle, causing race-condition bypasses of
         # filter_sol_macro_down (WORLDCUP 01:14:42 slipped through while
         # other tokens in the same cycle were being blocked).
-        await self._fetch_cycle_sol_features()
+        with _PhaseTimer("fetch_cycle_sol_features"):
+            await self._fetch_cycle_sol_features()
 
         # ── REGIME BUY-GATE (2026-06-17) — binary buy/DON'T-BUY for dip entries.
         # Don't catch the falling knife: a CLEAR crash (broad downside breadth
@@ -18124,6 +18221,8 @@ class DipScanner:
         # (SOL h24, downside breadth, badday flush-envelope count, pp_launch
         # rate) + the V1 would-be family multipliers. Hourly persisted; nothing
         # reads the proposal at buy time. See core/meta_allocator.py.
+        _ma_timer = _PhaseTimer("meta_allocator.observe_cycle")
+        _ma_timer.__enter__()
         try:
             from core.badday_lane import in_envelope as _ma_env
             _ma_flush = 0
@@ -18147,6 +18246,8 @@ class DipScanner:
             )
         except Exception as _ma_e:
             logger.debug(f"[DipScanner] meta-allocator shadow error: {_ma_e}")
+        finally:
+            _ma_timer.__exit__(None, None, None)
 
         # ── META CHAMELEON retune check (2026-06-12) — the autonomy loop.
         # Rate-limited internally (15min checks, 6h retune cadence, quiesce on
@@ -18159,14 +18260,16 @@ class DipScanner:
         }
         try:
             from core.meta_chameleon import maybe_retune
-            maybe_retune(self)
+            with _PhaseTimer("meta_chameleon.maybe_retune"):
+                maybe_retune(self)
         except Exception as _ch_e:
             logger.debug(f"[DipScanner] chameleon retune error: {_ch_e}")
         # In-bot hourly regime-pattern miner (#435): deterministic, credit-free —
         # writes _hourly_patterns_latest.json for the dashboard /api/regime-patterns tab.
         try:
             from core.regime_pattern_miner import run as _rpm_run
-            _rpm_run(self)
+            with _PhaseTimer("regime_pattern_miner.run"):
+                _rpm_run(self)
         except Exception as _rpm_e:
             logger.debug(f"[DipScanner] regime miner error: {_rpm_e}")
 
@@ -18260,14 +18363,41 @@ class DipScanner:
                 _yield_every = int(os.environ.get("SCAN_YIELD_EVERY", "8"))
             except (TypeError, ValueError):
                 _yield_every = 8
+            # Phase timing: bracket the whole serial per-token loop AND track the
+            # single slowest _evaluate_pair so we can tell "one slow token" from
+            # "the loop total is slow". Cheap monotonic diffs only.
+            _slowest_dt = 0.0
+            _slowest_sym = "?"
+            _loop_timer = _PhaseTimer("per_token_loop")
+            _loop_timer.__enter__()
             for _pi, pair in enumerate(pairs):
-                _r_c, _r_sig, _r_cap_stop = await self._evaluate_pair(pair, _eval_ctx)
+                if _SCAN_PHASE_TIMING:
+                    _tk0 = time.monotonic()
+                    _r_c, _r_sig, _r_cap_stop = await self._evaluate_pair(pair, _eval_ctx)
+                    try:
+                        _tk_dt = time.monotonic() - _tk0
+                        if _tk_dt > _slowest_dt:
+                            _slowest_dt = _tk_dt
+                            _slowest_sym = (pair.get("baseToken") or {}).get("symbol", "?")
+                    except Exception:
+                        pass
+                else:
+                    _r_c, _r_sig, _r_cap_stop = await self._evaluate_pair(pair, _eval_ctx)
                 c.update(_r_c)
                 signals += _r_sig
                 if _r_cap_stop:
                     break
                 if _yield_every > 0 and (_pi + 1) % _yield_every == 0:
                     await asyncio.sleep(0)
+            _loop_timer.__exit__(None, None, None)
+            if _SCAN_PHASE_TIMING and _slowest_dt > _SCAN_PHASE_TIMING_THRESHOLD_S:
+                try:
+                    logger.warning(
+                        "[phase-timing] slowest token=%s _evaluate_pair=%.2fs (n_tokens=%d)",
+                        _slowest_sym, _slowest_dt, len(pairs),
+                    )
+                except Exception:
+                    pass
         else:
             try:
                 _conc = int(os.environ.get("PARALLEL_SCAN_CONCURRENCY", "12"))
@@ -18305,7 +18435,8 @@ class DipScanner:
         # END-OF-SWEEP: flush the filter-shadow capture buffer in ONE off-loop
         # batched write (asyncio.to_thread). The per-token choke point only
         # buffers in memory (no on-loop I/O); this is the sole writer per cycle.
-        await self._flush_filter_shadow_buf()
+        with _PhaseTimer("flush_filter_shadow_buf"):
+            await self._flush_filter_shadow_buf()
 
         src_str = " ".join(f"{k}={v}" for k, v in source_counts.items() if v) or "-"
         rej_str = " ".join(
@@ -18373,7 +18504,8 @@ class DipScanner:
         # Persist h24 history once per cycle (atomic) so trend_reversal
         # filter survives process restarts.
         if self._h24_history_dirty:
-            self._save_h24_history()
+            with _PhaseTimer("save_h24_history"):
+                self._save_h24_history()
             self._h24_history_dirty = False
 
     async def _flush_filter_shadow_buf(self) -> None:
