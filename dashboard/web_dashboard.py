@@ -3217,8 +3217,17 @@ class WebDashboard:
                                  "FILL_SPEED_LOG_MODE": mode}),
                 content_type="application/json", headers=cors,
             )
-        deltas = [r.get("delta_pct") for r in recs
-                  if isinstance(r.get("delta_pct"), (int, float))]
+        # PHANTOM GUARD: a near-zero/bad fast_price yields an absurd delta_pct ratio
+        # (e.g. +130,396%) that poisons mean/stdev/sum. Drop |delta|>PHANTOM_BOUND as
+        # corrupt (same "drop |>300|" convention used for phantom P&L elsewhere).
+        try:
+            _phantom_bound = float(os.environ.get("FILL_SPEED_PHANTOM_BOUND", "300"))
+        except (TypeError, ValueError):
+            _phantom_bound = 300.0
+        _all_deltas = [r.get("delta_pct") for r in recs
+                       if isinstance(r.get("delta_pct"), (int, float))]
+        deltas = [d for d in _all_deltas if abs(d) <= _phantom_bound]
+        phantom_dropped = len(_all_deltas) - len(deltas)
         leads = [r.get("lead_secs") for r in recs
                  if isinstance(r.get("lead_secs"), (int, float))]
         by_bot: dict = {}
@@ -3226,7 +3235,7 @@ class WebDashboard:
         for r in recs:
             by_bot[r.get("bot")] = by_bot.get(r.get("bot"), 0) + 1
             _d = r.get("delta_pct")
-            if isinstance(_d, (int, float)):
+            if isinstance(_d, (int, float)) and abs(_d) <= _phantom_bound:
                 _bot_deltas.setdefault(r.get("bot"), []).append(_d)
 
         def _pctile(vals, q):
@@ -3244,6 +3253,7 @@ class WebDashboard:
         if deltas:
             distribution = {
                 "n": len(deltas),
+                "phantom_dropped": phantom_dropped,
                 "fast_cheaper_pct": round(
                     100.0 * sum(1 for d in deltas if d > 0) / len(deltas), 1),
                 "mean_delta_pct": round(_stats.mean(deltas), 4),
