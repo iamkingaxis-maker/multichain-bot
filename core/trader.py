@@ -102,6 +102,49 @@ def parse_ultra_execute(resp: "Optional[dict]") -> dict:
             "error": resp.get("error"), "code": resp.get("code")}
 
 
+def _trim_ultra_order_resp(resp: "Optional[dict]") -> "Optional[dict]":
+    """Trim an Ultra /order response to a few KEY debug fields (never the full
+    blob — the transaction base64 is huge). Pure + defensive: None on bad input."""
+    if not isinstance(resp, dict):
+        return None
+    rp = resp.get("routePlan")
+    route_summary = None
+    try:
+        if isinstance(rp, list):
+            route_summary = [
+                (((step or {}).get("swapInfo") or {}).get("label")
+                 or ((step or {}).get("swapInfo") or {}).get("ammKey"))
+                for step in rp[:6]
+            ]
+    except Exception:
+        route_summary = None
+    return {
+        "outAmount": resp.get("outAmount"),
+        "inAmount": resp.get("inAmount"),
+        "slippageBps": resp.get("slippageBps"),
+        "priceImpactPct": resp.get("priceImpactPct"),
+        "router": resp.get("router") or resp.get("swapType"),
+        "requestId": resp.get("requestId"),
+        "routePlan": route_summary,
+        "prioritizationFeeLamports": resp.get("prioritizationFeeLamports"),
+    }
+
+
+def _trim_ultra_execute_resp(resp: "Optional[dict]") -> "Optional[dict]":
+    """Trim an Ultra /execute response to KEY debug fields. Pure + defensive."""
+    if not isinstance(resp, dict):
+        return None
+    return {
+        "status": resp.get("status"),
+        "signature": resp.get("signature"),
+        "slippageBps": resp.get("slippageBps"),
+        "error": resp.get("error"),
+        "code": resp.get("code"),
+        "totalInputAmount": resp.get("totalInputAmount"),
+        "totalOutputAmount": resp.get("totalOutputAmount"),
+    }
+
+
 @dataclass
 class Position:
     token_address: str
@@ -2906,7 +2949,16 @@ class Trader:
         default 0.3s) — buys are time-sensitive (the dip edge decays); the slower 1s/2s
         exponential backoff is preserved for the sell path (buy_context=False)."""
         result = {"success": False, "out_amount": 0, "signature": None, "status": None,
-                  "route": None, "realized_slippage_pct": None, "reason": None}
+                  "route": None, "realized_slippage_pct": None, "reason": None,
+                  # ── live-swap telemetry stamps (fail-open extras; ignored by callers
+                  # that don't read them). Durations are monotonic-ms; counts are ints.
+                  "in_amount": 0, "slippage_cap_bps": slippage_bps,
+                  "order_duration_ms": None, "sign_duration_ms": None,
+                  "execute_duration_ms": None,
+                  "order_attempts": 0, "order_429_count": 0, "execute_429_count": 0,
+                  "backoff_total_ms": 0.0,
+                  "ultra_slippage_bps": None,
+                  "raw_order_response": None, "raw_execute_response": None}
         if not self.private_key:
             result["reason"] = "paper_mode"
             return result
@@ -2915,14 +2967,23 @@ class Trader:
                                           self._get_public_key(), slippage_bps)
         # 1) ORDER — Jupiter builds the protected tx.
         order = None
+        _t_order0 = time.monotonic()
         for attempt in range(3):
+            result["order_attempts"] = attempt + 1
             try:
                 async with aiohttp.ClientSession(headers=_JUPITER_HEADERS) as session:
                     async with session.get(JUPITER_ULTRA_ORDER_API, params=params,
                                            timeout=aiohttp.ClientTimeout(total=12)) as resp:
                         if resp.status == 200:
-                            order = parse_ultra_order(await resp.json())
+                            _oj = await resp.json()
+                            order = parse_ultra_order(_oj)
+                            try:
+                                result["raw_order_response"] = _trim_ultra_order_resp(_oj)
+                            except Exception:
+                                pass
                             break
+                        if resp.status == 429:
+                            result["order_429_count"] += 1
                         logger.warning(f"[Ultra] order HTTP {resp.status} (attempt {attempt+1}/3)")
             except Exception as e:
                 logger.warning(f"[Ultra] order error (attempt {attempt+1}/3): {e}")
@@ -2936,16 +2997,23 @@ class Trader:
                             _buy_bo = 0.3
                     except (TypeError, ValueError):
                         _buy_bo = 0.3
+                    result["backoff_total_ms"] += _buy_bo * 1000.0
                     await asyncio.sleep(_buy_bo)
                 else:
-                    await asyncio.sleep(2 ** attempt)  # sell path: unchanged 1s/2s backoff
+                    _bo = 2 ** attempt  # sell path: unchanged 1s/2s backoff
+                    result["backoff_total_ms"] += _bo * 1000.0
+                    await asyncio.sleep(_bo)
+        result["order_duration_ms"] = round((time.monotonic() - _t_order0) * 1000, 1)
         if not order or not order.get("ok"):
             self._exec_stats["quote_failures"] += 1
             result["reason"] = (order or {}).get("reason", "order_failed")
             return result
         result["out_amount"] = order["out_amount"]
+        result["in_amount"] = order.get("in_amount") or 0
         result["route"] = order.get("router")
+        result["ultra_slippage_bps"] = order.get("slippage_bps")
         # 2) SIGN the returned tx (same solders pattern as _send_transaction).
+        _t_sign0 = time.monotonic()
         try:
             from solders.keypair import Keypair
             from solders.transaction import VersionedTransaction
@@ -2958,18 +3026,29 @@ class Trader:
             self._exec_stats["swap_failures"] += 1
             result["reason"] = f"sign_error:{e}"
             return result
+        result["sign_duration_ms"] = round((time.monotonic() - _t_sign0) * 1000, 1)
         # 3) EXECUTE — Jupiter lands it through protected infra.
+        _t_exec0 = time.monotonic()
         try:
             async with aiohttp.ClientSession(headers=_JUPITER_HEADERS) as session:
                 payload = {"signedTransaction": signed_b64, "requestId": order["request_id"]}
                 async with session.post(JUPITER_ULTRA_EXECUTE_API, json=payload,
                                         timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                    ex = parse_ultra_execute(await resp.json() if resp.status == 200 else None)
+                    if resp.status == 429:
+                        result["execute_429_count"] += 1
+                    _ej = await resp.json() if resp.status == 200 else None
+                    ex = parse_ultra_execute(_ej)
+                    try:
+                        result["raw_execute_response"] = _trim_ultra_execute_resp(_ej)
+                    except Exception:
+                        pass
         except Exception as e:
+            result["execute_duration_ms"] = round((time.monotonic() - _t_exec0) * 1000, 1)
             logger.error(f"[Ultra] execute error: {e}")
             self._exec_stats["swap_failures"] += 1
             result["reason"] = f"execute_error:{e}"
             return result
+        result["execute_duration_ms"] = round((time.monotonic() - _t_exec0) * 1000, 1)
         result["status"] = ex.get("status")
         result["signature"] = ex.get("signature")
         if not ex.get("ok"):
@@ -2982,6 +3061,7 @@ class Trader:
         sb = ex.get("slippage_bps")
         if isinstance(sb, (int, float)):
             result["realized_slippage_pct"] = round(sb / 100.0, 4)
+            result["ultra_slippage_bps"] = sb
             self._last_realized_slippage_pct = result["realized_slippage_pct"]
         logger.info(f"[Ultra] swap ok sig={ex.get('signature')} route={result['route']} "
                     f"slip={result['realized_slippage_pct']}%")

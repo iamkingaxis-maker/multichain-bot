@@ -2492,6 +2492,7 @@ class WebDashboard:
         self.app.router.add_get("/api/live",                self._handle_api_live)
         self.app.router.add_get("/api/fast-watch",          self._handle_api_fast_watch)
         self.app.router.add_get("/api/fill-speed",          self._handle_api_fill_speed)
+        self.app.router.add_get("/api/live-swaps",          self._handle_api_live_swaps)
         self.app.router.add_get("/api/filter-shadow",       self._handle_api_filter_shadow)
         self.app.router.add_get("/api/bots/{bot_id}/trades",    self._handle_api_bot_trades)
         self.app.router.add_get("/api/bots/{bot_id}/positions", self._handle_api_bot_positions)
@@ -3179,6 +3180,50 @@ class WebDashboard:
                        "note": f"read error (fail-open): {e}"}
         return web.Response(
             text=json.dumps(payload), content_type="application/json", headers=cors,
+        )
+
+    async def _handle_api_live_swaps(self, request):
+        """GET /api/live-swaps — COMPLETE live-swap telemetry (the probe data we pull
+        WITHOUT SSH). Reads DATA_DIR/live_swaps.jsonl OFF the event loop via
+        asyncio.to_thread and returns recent records + a summary (n, success rate,
+        median/p90 total_latency_ms + execute_duration_ms, median/mean
+        fill_vs_mid_slippage_pct, 429 totals, failure_reason histogram). Fail-open:
+        missing file -> empty summary. No money path, no behavior change."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        import asyncio as _asyncio
+        from core.live_swap_log import (read_live_swaps as _read,
+                                        summarize_live_swaps as _summarize,
+                                        LOG_BASENAME as _BN)
+        path = os.path.join(os.environ.get("DATA_DIR", "/data"), _BN)
+        mode = os.environ.get("LIVE_SWAP_LOG_MODE", "on")
+        try:
+            limit = int(request.query.get("limit", "50"))
+        except (TypeError, ValueError):
+            limit = 50
+        try:
+            recs = await _asyncio.to_thread(_read, path)
+        except Exception as e:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": str(e),
+                                 "LIVE_SWAP_LOG_MODE": mode}),
+                content_type="application/json", headers=cors,
+            )
+        try:
+            summary = await _asyncio.to_thread(_summarize, recs)
+        except Exception as e:
+            summary = {"error": str(e)}
+        payload = {
+            "ok": True,
+            "LIVE_SWAP_LOG_MODE": mode,
+            "n_records": len(recs),
+            "summary": summary,
+            "recent": recs[-max(0, limit):] if recs else [],
+            "note": ("fill_vs_mid_slippage_pct>0 = ADVERSE (paid up on buy / got less "
+                     "on sell). durations are monotonic-ms; ts is wall-clock ISO."),
+        }
+        return web.Response(
+            text=json.dumps(payload, default=str), content_type="application/json",
+            headers=cors,
         )
 
     async def _handle_api_fill_speed(self, request):

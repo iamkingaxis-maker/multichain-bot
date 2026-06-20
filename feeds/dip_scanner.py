@@ -1999,6 +1999,11 @@ class DipScanner:
         token = decision.token
         mint = decision.address or token
         mid = decision.entry_price
+        decision_mid_price = mid   # snapshot the ORIGINAL decision mid for telemetry
+        # Live-swap telemetry accumulators (fail-open; never gate the swap).
+        _decision_mono = time.monotonic()
+        _reprice_price = None
+        _reprice_runup_pct = None
         # PRE-CHECK (fail BEFORE spending): never swap if we can't track the result.
         if pm.get_position(token) is not None:
             logger.warning("[Probe] live buy skipped: %s already open", token)
@@ -2036,6 +2041,8 @@ class DipScanner:
                 _fresh = None
             if _fresh and _fresh > 0:
                 _runup = (_fresh / mid) - 1.0
+                _reprice_price = _fresh
+                _reprice_runup_pct = round(_runup * 100.0, 4)
                 if _runup > _max_runup:
                     if _reprice_mode == "enforce":
                         logger.warning(
@@ -2118,10 +2125,78 @@ class DipScanner:
         # REVERTS rather than executing at a ruinous price (Ultra's own RTSE estimate alone
         # is not a hard cap). PROBE_ULTRA_SLIPPAGE_BPS default 400 = 4%.
         _slip_cap = int(os.environ.get("PROBE_ULTRA_SLIPPAGE_BPS", "400"))
+        # Cost-reconciliation: SOL balance BEFORE the swap (fail-open -> None).
+        try:
+            _sol_before = await self.trader._get_sol_balance(force=True)
+            if _sol_before is not None and _sol_before < 0:
+                _sol_before = None
+        except Exception:
+            _sol_before = None
         t0 = time.time()
+        _order_start_mono = time.monotonic()
         res = await self.trader._execute_swap_ultra(SOL_MINT, mint, lamports, slippage_bps=_slip_cap,
                                                     buy_context=True)
+        _confirmed_mono = time.monotonic()
         latency_ms = round((time.time() - t0) * 1000, 1)
+
+        def _emit_buy_telemetry(success, real_fill_price, decimals, tokens_received,
+                                failure_reason, sol_after=None):
+            """COMPLETE live-swap record for the buy leg. Fail-open: never raises,
+            runs AFTER the swap so it can't delay the fill. Address-keyed."""
+            try:
+                from core.live_swap_log import log_live_swap
+                from core.probe_instrument import fill_slippage_pct
+                from core import trader as _tr
+                _sb = res.get("slippage_cap_bps")
+                _ub = res.get("ultra_slippage_bps")
+                _cap_bound = None
+                try:
+                    if _sb is not None and _ub is not None:
+                        _cap_bound = float(_ub) >= 0.9 * float(_sb)
+                except Exception:
+                    _cap_bound = None
+                _spent = None
+                if _sol_before is not None and sol_after is not None:
+                    _spent = round(_sol_before - sol_after, 9)
+                log_live_swap(
+                    side="buy", bot_id=getattr(decision, "bot_id", None) or getattr(self, "_active_bot_id", None),
+                    token_address=mint, token_symbol=token,
+                    pair_address=getattr(decision, "pair_address", None),
+                    trigger=getattr(decision, "reason", None) or getattr(decision, "trigger", None),
+                    size_usd=size_usd, size_sol=(lamports / 1e9 if lamports else None),
+                    lamports=lamports,
+                    liquidity_usd=getattr(decision, "liquidity_usd", None),
+                    mcap=getattr(decision, "market_cap", None) or getattr(decision, "mcap", None),
+                    jupiter_api_base=_tr._ULTRA_BASE, live_mode=True, paper=False,
+                    decision_ts=_decision_mono, order_start_ts=_order_start_mono,
+                    order_duration_ms=res.get("order_duration_ms"),
+                    sign_duration_ms=res.get("sign_duration_ms"),
+                    execute_start_ts=None,
+                    execute_duration_ms=res.get("execute_duration_ms"),
+                    confirmed_ts=_confirmed_mono,
+                    total_latency_ms=round((_confirmed_mono - _decision_mono) * 1000, 1),
+                    decision_mid_price=decision_mid_price, reprice_price=_reprice_price,
+                    reprice_runup_pct=_reprice_runup_pct, real_fill_price=real_fill_price,
+                    fill_vs_mid_slippage_pct=fill_slippage_pct(mid, real_fill_price, "buy"),
+                    ultra_reported_slippage_bps=_ub, slippage_cap_bps=_sb, cap_bound=_cap_bound,
+                    success=bool(success), failure_reason=failure_reason,
+                    error_text=(res.get("reason") if not success else None),
+                    tx_signature=res.get("signature"),
+                    in_amount=res.get("in_amount"), out_amount=res.get("out_amount"),
+                    decimals=decimals,
+                    order_attempts=res.get("order_attempts"),
+                    order_429_count=res.get("order_429_count"),
+                    execute_429_count=res.get("execute_429_count"),
+                    backoff_total_ms=res.get("backoff_total_ms"),
+                    sol_before=_sol_before, sol_after=sol_after, sol_spent=_spent,
+                    tokens_received=tokens_received,
+                    priority_fee_lamports=None,  # GAP: Ultra /execute does not expose realized priority fee
+                    raw_order_response=res.get("raw_order_response"),
+                    raw_execute_response=res.get("raw_execute_response"),
+                )
+            except Exception:
+                pass
+
         if not res.get("success"):
             # M7: a reported failure CAN still have landed (timed-out execute). Check the
             # on-chain delta; if tokens arrived, ADOPT the position rather than orphan it.
@@ -2141,6 +2216,7 @@ class DipScanner:
                        "signature": res.get("signature"), "realized_slippage_pct": None}
             else:
                 logger.warning("[Probe] live BUY swap FAILED token=%s reason=%s", token, res.get("reason"))
+                _emit_buy_telemetry(False, None, None, None, None)
                 return None
         # Real fill -> real entry price.
         try:
@@ -2149,10 +2225,12 @@ class DipScanner:
         except Exception as e:
             logger.error("[Probe] live buy decimals/out failed (MONEY SPENT sig=%s): %s",
                          res.get("signature"), e)
+            _emit_buy_telemetry(True, None, None, None, "decimals_calc_failed")
             return {"spent": True, "signature": res.get("signature"), "reason": "decimals_calc_failed"}
         if out_tokens <= 0:
             logger.error("[Probe] live buy ZERO tokens (MONEY SPENT sig=%s) token=%s",
                          res.get("signature"), token)
+            _emit_buy_telemetry(True, None, decimals, out_tokens, "zero_out_tokens")
             return {"spent": True, "signature": res.get("signature"), "reason": "zero_out_tokens"}
         real_entry = size_usd / out_tokens
         # M10 (probe red-team): decimals-mismatch guard. A wrong decimals fallback makes
@@ -2172,6 +2250,7 @@ class DipScanner:
         except ValueError as e:
             logger.error("[Probe] live buy open_position FAILED post-swap (MONEY SPENT sig=%s): %s",
                          res.get("signature"), e)
+            _emit_buy_telemetry(True, real_entry, decimals, out_tokens, "open_position_failed")
             return {"spent": True, "signature": res.get("signature"), "reason": "open_position_failed"}
         # D1 (probe red-team): populate local_low so live_entry_vs_local_low_pct isn't always
         # null (decision.local_low is never set upstream). Reuse the guard's GT-minute-low fetch.
@@ -2195,6 +2274,14 @@ class DipScanner:
         logger.info("[Probe] LIVE BUY token=%s size=$%.0f entry=%.8g slip=%s%% sig=%s",
                     token, size_usd, real_entry, instrument.get("live_slippage_pct"),
                     res.get("signature"))
+        # COMPLETE live-swap telemetry (AFTER the fill — cannot delay the swap).
+        _sol_after = None
+        try:
+            _sa = await self.trader._get_sol_balance(force=True)
+            _sol_after = _sa if (_sa is not None and _sa >= 0) else None
+        except Exception:
+            _sol_after = None
+        _emit_buy_telemetry(True, real_entry, decimals, out_tokens, "ok", sol_after=_sol_after)
         return {"pos": pos, "entry_price": real_entry,
                 "slip_pct": instrument.get("live_slippage_pct") or 0.0, "instrument": instrument}
 
@@ -2205,6 +2292,7 @@ class DipScanner:
         from core.trader import SOL_MINT
         from core.probe_instrument import fill_metrics
         mint = getattr(pos, "address", None) or token
+        _decision_mono = time.monotonic()
         try:
             decimals = await self.trader._get_token_decimals(mint)
             # E1a (2026-06-02 audit): size the sell from the REAL on-chain balance, NOT
@@ -2241,9 +2329,74 @@ class DipScanner:
             logger.warning("[Probe] live sell CONFIRMED 0 on-chain balance (%s) — closing (no real tokens)", token)
             return {"empty": True}
         _slip_cap = int(os.environ.get("PROBE_ULTRA_SLIPPAGE_BPS", "400"))
+        try:
+            _sol_before = await self.trader._get_sol_balance(force=True)
+            if _sol_before is not None and _sol_before < 0:
+                _sol_before = None
+        except Exception:
+            _sol_before = None
         t0 = time.time()
+        _order_start_mono = time.monotonic()
         res = await self.trader._execute_swap_ultra(mint, SOL_MINT, atomic, slippage_bps=_slip_cap)
         latency_ms = round((time.time() - t0) * 1000, 1)
+
+        def _emit_sell_telemetry(success, real_exit_price, proceeds_usd, failure_reason,
+                                 sol_after=None, confirmed_mono=None):
+            """COMPLETE live-swap record for the sell leg. Fail-open; AFTER the swap."""
+            try:
+                from core.live_swap_log import log_live_swap
+                from core.probe_instrument import fill_slippage_pct
+                from core import trader as _tr
+                _cm = confirmed_mono if confirmed_mono is not None else time.monotonic()
+                _sb = res.get("slippage_cap_bps")
+                _ub = res.get("ultra_slippage_bps")
+                _cap_bound = None
+                try:
+                    if _sb is not None and _ub is not None:
+                        _cap_bound = float(_ub) >= 0.9 * float(_sb)
+                except Exception:
+                    _cap_bound = None
+                _spent = None  # sell: SOL flows IN, so this is the SOL received (negative spend)
+                if _sol_before is not None and sol_after is not None:
+                    _spent = round(_sol_before - sol_after, 9)
+                log_live_swap(
+                    side="sell", bot_id=getattr(pos, "strategy", None) or getattr(self, "_active_bot_id", None),
+                    token_address=mint, token_symbol=token,
+                    pair_address=getattr(pos, "pair_address", None),
+                    trigger="exit", size_usd=getattr(pos, "size_usd", None),
+                    size_sol=None, lamports=None,
+                    liquidity_usd=None, mcap=None,
+                    jupiter_api_base=_tr._ULTRA_BASE, live_mode=True, paper=False,
+                    decision_ts=_decision_mono, order_start_ts=_order_start_mono,
+                    order_duration_ms=res.get("order_duration_ms"),
+                    sign_duration_ms=res.get("sign_duration_ms"),
+                    execute_start_ts=None,
+                    execute_duration_ms=res.get("execute_duration_ms"),
+                    confirmed_ts=_cm,
+                    total_latency_ms=round((_cm - _decision_mono) * 1000, 1),
+                    decision_mid_price=current_mid, reprice_price=None, reprice_runup_pct=None,
+                    real_fill_price=real_exit_price,
+                    fill_vs_mid_slippage_pct=fill_slippage_pct(current_mid, real_exit_price, "sell"),
+                    ultra_reported_slippage_bps=_ub, slippage_cap_bps=_sb, cap_bound=_cap_bound,
+                    success=bool(success), failure_reason=failure_reason,
+                    error_text=(res.get("reason") if not success else None),
+                    tx_signature=res.get("signature"),
+                    in_amount=res.get("in_amount"), out_amount=res.get("out_amount"),
+                    decimals=decimals,
+                    order_attempts=res.get("order_attempts"),
+                    order_429_count=res.get("order_429_count"),
+                    execute_429_count=res.get("execute_429_count"),
+                    backoff_total_ms=res.get("backoff_total_ms"),
+                    sol_before=_sol_before, sol_after=sol_after, sol_spent=_spent,
+                    tokens_received=None,  # sell: tokens go OUT (= -sell_tokens); proceeds tracked via proceeds_usd
+                    priority_fee_lamports=None,  # GAP: Ultra /execute does not expose realized priority fee
+                    raw_order_response=res.get("raw_order_response"),
+                    raw_execute_response=res.get("raw_execute_response"),
+                    proceeds_usd=proceeds_usd, sell_tokens=sell_tokens,
+                )
+            except Exception:
+                pass
+
         if not res.get("success"):
             # M2 (probe red-team): Ultra sell failed — FALL BACK to the legacy Jupiter swap
             # so the position can still EXIT. A stranded un-sellable token bleeds toward
@@ -2259,9 +2412,11 @@ class DipScanner:
                            "realized_slippage_pct": getattr(self.trader, "_last_realized_slippage_pct", None)}
                 else:
                     logger.error("[Probe] live SELL legacy fallback ALSO failed token=%s — stays open", token)
+                    _emit_sell_telemetry(False, None, None, None)
                     return None
             except Exception as e:
                 logger.error("[Probe] live SELL fallback err token=%s: %s — stays open", token, e)
+                _emit_sell_telemetry(False, None, None, None)
                 return None
         # out_amount = SOL lamports received -> USD proceeds -> real exit price.
         try:
@@ -2284,6 +2439,13 @@ class DipScanner:
         logger.info("[Probe] LIVE SELL token=%s frac=%.2f exit=%.8g slip=%s%% sig=%s",
                     token, sold_frac, real_exit, instrument.get("live_slippage_pct"),
                     res.get("signature"))
+        _sol_after = None
+        try:
+            _sa = await self.trader._get_sol_balance(force=True)
+            _sol_after = _sa if (_sa is not None and _sa >= 0) else None
+        except Exception:
+            _sol_after = None
+        _emit_sell_telemetry(True, real_exit, round(proceeds_usd, 6), "ok", sol_after=_sol_after)
         return {"exit_price": real_exit, "instrument": instrument}
 
     async def _holder_features_cached(self, token_address):
