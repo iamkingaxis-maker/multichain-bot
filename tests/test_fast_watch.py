@@ -531,6 +531,65 @@ def test_fast_batch_prices_uses_jupiter_when_primary(monkeypatch):
     assert out == {f"m{i}": 0.5 for i in range(120)}
 
 
+def test_fast_batch_prices_uses_single_session_for_whole_batch(monkeypatch):
+    """PERF (2026-06-20): the Jupiter batch must open ONE shared aiohttp session
+    for the whole batch (not one-per-chunk) and run the chunk GETs under a bounded
+    asyncio.gather (FAST_WATCH_PRICE_CONCURRENCY)."""
+    monkeypatch.setenv("JUPITER_PRICE_PRIMARY", "on")
+    monkeypatch.setenv("FAST_WATCH_PRICE_CONCURRENCY", "4")
+    from feeds.dip_scanner import DipScanner
+    s = DipScanner.__new__(DipScanner)
+    addrs = [f"M{i}" for i in range(120)]   # 3 chunks of 50/50/20
+    sessions_created = {"n": 0}
+    conc = {"running": 0, "peak": 0}
+
+    class _FakeResp:
+        def __init__(self, url):
+            self._url = url
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            return False
+        @property
+        def status(self):
+            return 200
+        async def json(self, content_type=None):
+            ids = self._url.split("ids=", 1)[1].split(",")
+            return {mid: {"usdPrice": 0.5, "blockId": 1} for mid in ids}
+
+    class _FakeReqCtx:
+        def __init__(self, url):
+            self._url = url
+        async def __aenter__(self):
+            conc["running"] += 1
+            conc["peak"] = max(conc["peak"], conc["running"])
+            await asyncio.sleep(0.01)
+            return _FakeResp(self._url)
+        async def __aexit__(self, *a):
+            conc["running"] -= 1
+            return False
+
+    class _FakeSession:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            return False
+        def get(self, url, timeout=None):
+            return _FakeReqCtx(url)
+
+    import aiohttp
+    def _mk_session(*a, **k):
+        sessions_created["n"] += 1
+        return _FakeSession()
+    monkeypatch.setattr(aiohttp, "ClientSession", _mk_session)
+
+    out = asyncio.run(s._fast_batch_prices(addrs))
+    assert sessions_created["n"] == 1            # ONE shared session, not per-chunk
+    assert conc["peak"] > 1                       # chunks fetched concurrently
+    assert conc["peak"] <= 4                       # bounded by concurrency
+    assert out == {f"m{i}": 0.5 for i in range(120)}
+
+
 def test_fast_batch_prices_uses_dexscreener_when_flag_off(monkeypatch):
     """Flag off -> existing DexScreener /latest/dex/tokens path (chunk 30), unchanged."""
     monkeypatch.delenv("JUPITER_PRICE_PRIMARY", raising=False)
@@ -1021,6 +1080,236 @@ def test_fast_arm_subset_falls_back_to_sticky_when_cycle_unset(monkeypatch):
     assert not hasattr(s, "_cycle_pair_by_addr")
     s._fast_arm_subset(cfg, now_ms)               # must not raise
     assert "stickyonly" in {k.lower() for k in s._fast_armed.keys()}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CONCURRENT FAST-WATCH TICK (2026-06-20) — unblock-the-loop / faster-fills perf
+# ──────────────────────────────────────────────────────────────────────────────
+# Pure/structural pieces of the concurrent tick: (a) survivor cap+prioritization,
+# (b) the chunk-parallelization helper, (c) the cache-only chart decision.
+
+def test_chunk_addrs_splits_into_bounded_chunks():
+    assert fw.chunk_addrs([], 50) == []
+    assert fw.chunk_addrs(["a"], 50) == [["a"]]
+    addrs = [f"M{i}" for i in range(120)]
+    chunks = fw.chunk_addrs(addrs, 50)
+    assert [len(c) for c in chunks] == [50, 50, 20]   # 120 -> 50/50/20
+    # round-trips (order preserved, nothing dropped/dup'd)
+    assert [a for c in chunks for a in c] == addrs
+
+
+def test_chunk_addrs_bad_chunk_size_falls_back():
+    addrs = ["a", "b", "c"]
+    # zero / negative chunk size -> one chunk (never an infinite loop / crash)
+    assert fw.chunk_addrs(addrs, 0) == [addrs]
+    assert fw.chunk_addrs(addrs, -5) == [addrs]
+
+
+def test_cap_survivors_returns_all_when_under_cap():
+    samples = {"A": [1.0, 0.90], "B": [1.0, 1.04]}
+    survivors = [("A", {"x": 1}), ("B", {"x": 2})]
+    capped, was_capped = fw.cap_survivors(survivors, samples, max_n=20,
+                                          dip_pct=3.0, rise_pct=3.0)
+    assert was_capped is False
+    assert [a for a, _ in capped] == ["A", "B"]   # unchanged order under cap
+
+
+def test_cap_survivors_keeps_biggest_movers_first():
+    # |move|: A=10% dip, B=4% rise, C=30% dip, D=5% rise. Keep top-2 by |move|.
+    samples = {
+        "A": [1.0, 0.90],          # -10%
+        "B": [1.0, 1.04],          # +4%
+        "C": [1.0, 0.70],          # -30%
+        "D": [1.0, 1.05],          # +5%
+    }
+    survivors = [("A", {}), ("B", {}), ("C", {}), ("D", {})]
+    capped, was_capped = fw.cap_survivors(survivors, samples, max_n=2,
+                                          dip_pct=3.0, rise_pct=3.0)
+    assert was_capped is True
+    assert [a for a, _ in capped] == ["C", "A"]   # 30% dip, then 10% dip
+
+
+def test_cap_survivors_zero_or_negative_cap_is_noop():
+    samples = {"A": [1.0, 0.90]}
+    survivors = [("A", {})]
+    capped, was_capped = fw.cap_survivors(survivors, samples, max_n=0,
+                                          dip_pct=3.0, rise_pct=3.0)
+    assert was_capped is False
+    assert capped == survivors            # 0 cap -> disabled (no cap)
+
+
+def test_cap_survivors_missing_samples_sort_last():
+    samples = {"A": [1.0, 0.95]}          # -5% ; B has no samples
+    survivors = [("B", {}), ("A", {})]
+    capped, was_capped = fw.cap_survivors(survivors, samples, max_n=1,
+                                          dip_pct=3.0, rise_pct=3.0)
+    assert was_capped is True
+    assert [a for a, _ in capped] == ["A"]   # the one with a real move kept
+
+
+def test_cache_only_charts_flag_defaults_on(monkeypatch):
+    monkeypatch.delenv("FAST_WATCH_CACHE_ONLY_CHARTS", raising=False)
+    assert fw.cache_only_charts_enabled() is True
+    monkeypatch.setenv("FAST_WATCH_CACHE_ONLY_CHARTS", "off")
+    assert fw.cache_only_charts_enabled() is False
+    monkeypatch.setenv("FAST_WATCH_CACHE_ONLY_CHARTS", "on")
+    assert fw.cache_only_charts_enabled() is True
+
+
+def test_eval_concurrency_from_env(monkeypatch):
+    monkeypatch.delenv("FAST_WATCH_EVAL_CONCURRENCY", raising=False)
+    assert fw.eval_concurrency() == 5
+    monkeypatch.setenv("FAST_WATCH_EVAL_CONCURRENCY", "9")
+    assert fw.eval_concurrency() == 9
+    monkeypatch.setenv("FAST_WATCH_EVAL_CONCURRENCY", "0")
+    assert fw.eval_concurrency() == 1       # floor of 1
+    monkeypatch.setenv("FAST_WATCH_EVAL_CONCURRENCY", "junk")
+    assert fw.eval_concurrency() == 5       # bad -> default
+
+
+def test_price_concurrency_from_env(monkeypatch):
+    monkeypatch.delenv("FAST_WATCH_PRICE_CONCURRENCY", raising=False)
+    assert fw.price_concurrency() == 4
+    monkeypatch.setenv("FAST_WATCH_PRICE_CONCURRENCY", "2")
+    assert fw.price_concurrency() == 2
+    monkeypatch.setenv("FAST_WATCH_PRICE_CONCURRENCY", "0")
+    assert fw.price_concurrency() == 1
+    monkeypatch.setenv("FAST_WATCH_PRICE_CONCURRENCY", "junk")
+    assert fw.price_concurrency() == 4
+
+
+def test_max_survivors_per_tick_from_env(monkeypatch):
+    monkeypatch.delenv("FAST_WATCH_MAX_SURVIVORS_PER_TICK", raising=False)
+    assert fw.max_survivors_per_tick() == 20
+    monkeypatch.setenv("FAST_WATCH_MAX_SURVIVORS_PER_TICK", "5")
+    assert fw.max_survivors_per_tick() == 5
+    monkeypatch.setenv("FAST_WATCH_MAX_SURVIVORS_PER_TICK", "junk")
+    assert fw.max_survivors_per_tick() == 20
+
+
+# ── Integration: the concurrent tick still escalates+fires for triggering tokens
+
+def _scanner_for_concurrent_tick(n_survivors):
+    """Scanner whose armed set has n tokens that ALL dip (so all become
+    survivors), wired to record the eval order + observe concurrency."""
+    from feeds.dip_scanner import DipScanner
+    from collections import deque
+    s = DipScanner.__new__(DipScanner)
+    s._buy_fire_lock = asyncio.Lock()
+    s._token_registry = None
+    s._fast_watch_regime = {"_regime_n": 0, "_regime_dip_breadth_pct": None,
+                            "_regime_h1_neg_pct": None}
+    s._fast_armed = {
+        f"T{i}": {"pairAddress": f"P{i}", "priceUsd": "1",
+                  "volume": {"h1": float(n_survivors - i)}}
+        for i in range(n_survivors)
+    }
+    s._fast_samples = {f"T{i}": deque([1.00], maxlen=40) for i in range(n_survivors)}
+    s._fast_samples_ts = {}
+    s._fw_tick_n = 0
+    s._fw_stats = {"armed_hits": 0, "armed_misses": 0, "by_bot": {},
+                   "last_tick": {}, "ticks": 0, "would_fire": 0}
+
+    # All tokens dip 10% so all trigger move_fires.
+    async def fake_batch(addrs):
+        return {a.lower(): 0.90 for a in addrs}
+    s._fast_batch_prices = fake_batch
+
+    class _T:
+        async def _get_token_price(self, a, pair_address=""):
+            return None     # no pinned price -> use jupiter fresh
+    s.trader = _T()
+
+    s.evaluated = []
+    conc = {"running": 0, "peak": 0}
+    s._conc = conc
+
+    async def fake_eval(pair, ctx):
+        conc["running"] += 1
+        conc["peak"] = max(conc["peak"], conc["running"])
+        await asyncio.sleep(0.01)
+        s.evaluated.append(pair.get("pairAddress"))
+        conc["running"] -= 1
+        return (None, 0, False)
+    s._evaluate_pair = fake_eval
+    return s
+
+
+def test_concurrent_tick_evaluates_all_survivors(monkeypatch):
+    """All triggering tokens still get evaluated (buy-correctness: same set)."""
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    monkeypatch.setenv("FAST_WATCH_FULL_POLL_EVERY", "1")   # poll full set
+    monkeypatch.setenv("FAST_WATCH_HOT_MAX", "100")
+    monkeypatch.setenv("FAST_WATCH_EVAL_CONCURRENCY", "5")
+    monkeypatch.setenv("FAST_WATCH_MAX_SURVIVORS_PER_TICK", "100")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s = _scanner_for_concurrent_tick(8)
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    assert sorted(s.evaluated) == sorted(f"P{i}" for i in range(8))
+
+
+def test_concurrent_tick_runs_evals_concurrently(monkeypatch):
+    """Eval loop runs concurrently (peak>1) but bounded by the semaphore."""
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    monkeypatch.setenv("FAST_WATCH_FULL_POLL_EVERY", "1")
+    monkeypatch.setenv("FAST_WATCH_HOT_MAX", "100")
+    monkeypatch.setenv("FAST_WATCH_EVAL_CONCURRENCY", "4")
+    monkeypatch.setenv("FAST_WATCH_MAX_SURVIVORS_PER_TICK", "100")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s = _scanner_for_concurrent_tick(12)
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    assert s._conc["peak"] > 1               # concurrency happened
+    assert s._conc["peak"] <= 4              # bounded by the semaphore
+
+
+def test_concurrent_tick_threads_cache_only_flag(monkeypatch):
+    """The tick threads FAST_WATCH_CACHE_ONLY_CHARTS into _evaluate_pair's ctx so
+    the fast path can avoid cold GT OHLC fetches (the 429-storm cut)."""
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    monkeypatch.setenv("FAST_WATCH_FULL_POLL_EVERY", "1")
+    monkeypatch.setenv("FAST_WATCH_HOT_MAX", "100")
+    monkeypatch.setenv("FAST_WATCH_CACHE_ONLY_CHARTS", "on")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s = _scanner_for_concurrent_tick(1)
+    seen = {}
+    async def cap_eval(pair, ctx):
+        seen["cache_only"] = ctx.get("_fast_cache_only_charts")
+        return (None, 0, False)
+    s._evaluate_pair = cap_eval
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    assert seen["cache_only"] is True
+    # flag off -> ctx carries False (cold-fetch path)
+    monkeypatch.setenv("FAST_WATCH_CACHE_ONLY_CHARTS", "off")
+    s2 = _scanner_for_concurrent_tick(1)
+    seen2 = {}
+    async def cap_eval2(pair, ctx):
+        seen2["cache_only"] = ctx.get("_fast_cache_only_charts")
+        return (None, 0, False)
+    s2._evaluate_pair = cap_eval2
+    asyncio.run(s2._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    assert seen2["cache_only"] is False
+
+
+def test_concurrent_tick_caps_survivors(monkeypatch):
+    """With more survivors than the per-tick cap, only the cap count is evaluated;
+    the biggest movers are kept (here all dip equally, so just count is bounded)."""
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    monkeypatch.setenv("FAST_WATCH_FULL_POLL_EVERY", "1")
+    monkeypatch.setenv("FAST_WATCH_HOT_MAX", "100")
+    monkeypatch.setenv("FAST_WATCH_EVAL_CONCURRENCY", "5")
+    monkeypatch.setenv("FAST_WATCH_MAX_SURVIVORS_PER_TICK", "3")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s = _scanner_for_concurrent_tick(10)
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    assert len(s.evaluated) == 3             # capped at MAX_SURVIVORS_PER_TICK
 
 
 # ──────────────────────────────────────────────────────────────────────────────

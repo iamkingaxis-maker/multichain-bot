@@ -121,6 +121,94 @@ def shortlist(snapshot, trigger_fn: Callable, dedup: FastWatchDedup,
     return out
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# CONCURRENT-TICK PERF (2026-06-20) — pure, env-gated knobs + structural helpers.
+# The fast-watch tick used to block the loop 12–109s/tick (serial per-chunk price
+# GETs + a serial heavy survivor eval loop), DELAYING the very fills it should
+# accelerate. These helpers let the tick run prices in a bounded gather (single
+# session), cap+prioritize survivors (biggest movers first), eval concurrently
+# under a bounded semaphore, and prefer warm charts to avoid GT 429 storms. All
+# behind env knobs with safe defaults; all fail-safe; all address-keyed.
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def price_concurrency() -> int:
+    """Bounded concurrency for the per-chunk Jupiter price GETs (FAST_WATCH_
+    PRICE_CONCURRENCY, default 4). Floor 1. Modest by design — a big parallel
+    burst self-DoSes Jupiter into 429."""
+    return max(1, _i("FAST_WATCH_PRICE_CONCURRENCY", 4))
+
+
+def eval_concurrency() -> int:
+    """Bounded concurrency for the per-survivor heavy _evaluate_pair (FAST_WATCH_
+    EVAL_CONCURRENCY, default 5). Floor 1. Low so concurrent chart fetches don't
+    worsen the free GT 25/min budget."""
+    return max(1, _i("FAST_WATCH_EVAL_CONCURRENCY", 5))
+
+
+def max_survivors_per_tick() -> int:
+    """Max survivors evaluated in one tick (FAST_WATCH_MAX_SURVIVORS_PER_TICK,
+    default 20). The rest are picked up next tick (~3s later). 0/negative -> no
+    cap (disabled)."""
+    return _i("FAST_WATCH_MAX_SURVIVORS_PER_TICK", 20)
+
+
+def cache_only_charts_enabled() -> bool:
+    """Fast-watch eval prefers the WARM chart cache and does NOT cold-fetch fresh
+    GT OHLC (cutting the per-survivor 429 storm). Gate: FAST_WATCH_CACHE_ONLY_
+    CHARTS, default 'on'. Any of off/0/false/no disables it (back to cold-fetch)."""
+    v = os.environ.get("FAST_WATCH_CACHE_ONLY_CHARTS", "on").strip().lower()
+    return v not in ("off", "0", "false", "no")
+
+
+def chunk_addrs(addrs, chunk_size: int):
+    """Split `addrs` into contiguous chunks of <= chunk_size (order preserved).
+    A non-positive chunk_size yields a single chunk (never an infinite loop).
+    [] -> []."""
+    seq = list(addrs or [])
+    if not seq:
+        return []
+    if chunk_size is None or chunk_size <= 0:
+        return [seq]
+    return [seq[i:i + chunk_size] for i in range(0, len(seq), chunk_size)]
+
+
+def _abs_move_pct(samples, dip_pct: float, rise_pct: float):
+    """The |move| magnitude (%) for prioritization: the larger of |dip| / |rise|
+    off the window extremes. None/empty -> 0.0 (sorts last)."""
+    dip = rolling_dip_pct(samples or ())
+    rise = rolling_rise_pct(samples or ())
+    best = 0.0
+    if dip is not None:
+        best = max(best, abs(dip))
+    if rise is not None:
+        best = max(best, abs(rise))
+    return best
+
+
+def cap_survivors(survivors, samples_by_addr, max_n: int,
+                  dip_pct: float, rise_pct: float):
+    """Cap a survivor list to the `max_n` BIGGEST movers (most time-sensitive),
+    leaving the rest for the next tick.
+
+    `survivors`: list of (addr, pair). `samples_by_addr`: addr -> price samples.
+    Returns (kept_survivors, was_capped). max_n <= 0 disables the cap (returns the
+    input unchanged, was_capped False). When <= max_n survivors, returns them in
+    ORIGINAL order unchanged (no reorder churn). When over, sorts by |price move|
+    desc and keeps the top max_n. Pure + deterministic; never raises."""
+    if max_n is None or max_n <= 0:
+        return survivors, False
+    if len(survivors) <= max_n:
+        return survivors, False
+    ranked = sorted(
+        survivors,
+        key=lambda av: _abs_move_pct((samples_by_addr or {}).get(av[0]),
+                                     dip_pct, rise_pct),
+        reverse=True,
+    )
+    return ranked[:max_n], True
+
+
 def arm_subset(candidates, cfg: FastWatchConfig):
     """Select the armed token addresses for the fast loop (Rev 2.3: pc_h1-AGNOSTIC, volume-ranked).
 

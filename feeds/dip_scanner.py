@@ -3523,46 +3523,100 @@ class DipScanner:
         """Tier 1 fetch: fresh priceUsd per batch call. Returns {addr_lower: price}.
         Best-effort — returns partial/{} on failure.
 
-        JUPITER_PRICE_PRIMARY=on -> Jupiter lite price/v3 (keyless, 50 ids/call,
-        SERIALIZED — a parallel burst self-DoSes into 429; strip CRLF). Else the
-        legacy DexScreener /latest/dex/tokens path (chunk 30)."""
+        PERF (2026-06-20): the chunk GETs now run under a BOUNDED asyncio.gather
+        (FAST_WATCH_PRICE_CONCURRENCY, default 4) over a SINGLE shared aiohttp
+        ClientSession for the whole batch — was ~10 serial GETs each opening a
+        fresh session (~15s/tick). Concurrency is kept modest per the in-code
+        "parallel burst self-DoSes into 429" warning; the existing 429/5xx skip
+        (non-200 -> drop chunk; never time.sleep) is preserved. Target ~15s->~3-4s.
+
+        JUPITER_PRICE_PRIMARY=on -> Jupiter lite price/v3 (keyless, 50 ids/call;
+        strip CRLF). Else the legacy DexScreener /latest/dex/tokens path (chunk 30).
+        """
         out = {}
         if not addrs:
             return out
         import aiohttp
-        if os.environ.get("JUPITER_PRICE_PRIMARY", "off").strip().lower() in ("on", "1", "true", "yes"):
+        from core.fast_watch import chunk_addrs, price_concurrency
+        _conc = price_concurrency()
+
+        _jup = os.environ.get("JUPITER_PRICE_PRIMARY", "off").strip().lower() in (
+            "on", "1", "true", "yes")
+        if _jup:
             from feeds.price_feed import _jup_chunks, _jup_clean_ids, _parse_jupiter
             ids = _jup_clean_ids(addrs)
-            for chunk in _jup_chunks(ids, 50):
-                url = "https://lite-api.jup.ag/price/v3?ids=" + ",".join(chunk)
+            chunks = chunk_addrs(ids, 50)
+            base_url = "https://lite-api.jup.ag/price/v3?ids="
+            timeout = aiohttp.ClientTimeout(total=8)
+
+            async def _fetch_jup(session, chunk):
+                url = base_url + ",".join(chunk)
                 try:
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
-                            if resp.status != 200:
-                                continue
-                            data = await resp.json(content_type=None)
-                    for mint, (price, _block) in _parse_jupiter(data).items():
-                        out[mint.lower()] = price
+                    async with session.get(url, timeout=timeout) as resp:
+                        if resp.status != 200:
+                            return {}
+                        data = await resp.json(content_type=None)
+                    return {mint.lower(): price
+                            for mint, (price, _b) in _parse_jupiter(data).items()}
                 except Exception as e:
                     logger.debug("[fast-watch] jupiter batch price fetch failed: %s", e)
-            return out
-        for i in range(0, len(addrs), 30):
-            chunk = addrs[i:i + 30]
-            url = "https://api.dexscreener.com/latest/dex/tokens/" + ",".join(chunk)
+                    return {}
+
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
-                        data = await resp.json(content_type=None)
+                    sem = asyncio.Semaphore(_conc)
+
+                    async def _bounded(chunk):
+                        async with sem:
+                            return await _fetch_jup(session, chunk)
+
+                    results = await asyncio.gather(
+                        *[_bounded(c) for c in chunks], return_exceptions=True)
+                for r in results:
+                    if isinstance(r, dict):
+                        out.update(r)
+            except Exception as e:
+                logger.debug("[fast-watch] jupiter batch session failed: %s", e)
+            return out
+
+        # Legacy DexScreener path (chunk 30) — same single-session bounded gather.
+        chunks = chunk_addrs(list(addrs), 30)
+        timeout = aiohttp.ClientTimeout(total=5)
+
+        async def _fetch_dexs(session, chunk):
+            url = "https://api.dexscreener.com/latest/dex/tokens/" + ",".join(chunk)
+            try:
+                async with session.get(url, timeout=timeout) as resp:
+                    data = await resp.json(content_type=None)
+                _o = {}
                 for p in (data or {}).get("pairs") or []:
                     base = ((p.get("baseToken") or {}).get("address") or "").lower()
                     pr = p.get("priceUsd")
                     if base and pr:
                         try:
-                            out[base] = float(pr)
+                            _o[base] = float(pr)
                         except (TypeError, ValueError):
                             pass
+                return _o
             except Exception as e:
                 logger.debug("[fast-watch] batch price fetch failed: %s", e)
+                return {}
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                sem = asyncio.Semaphore(_conc)
+
+                async def _bounded_ds(chunk):
+                    async with sem:
+                        return await _fetch_dexs(session, chunk)
+
+                results = await asyncio.gather(
+                    *[_bounded_ds(c) for c in chunks], return_exceptions=True)
+            for r in results:
+                if isinstance(r, dict):
+                    out.update(r)
+        except Exception as e:
+            logger.debug("[fast-watch] dexscreener batch session failed: %s", e)
         return out
 
     async def _fast_watch_tick(self, cfg, dedup):
@@ -3648,20 +3702,43 @@ class DipScanner:
                              getattr(cfg, "mode", "off"), now, would_fire=_wf,
                              hot=len(hot_addrs), full=full_n)
         regime = getattr(self, "_fast_watch_regime", {}) or {}
+        # ── SURVIVOR CAP + PRIORITIZE (2026-06-20) ───────────────────────────
+        # A 59-survivor tick used to run 59 heavy serial evals (16–109s, blocking
+        # the loop -> DELAYING fills). Cap to the N biggest movers (most
+        # time-sensitive) and defer the rest to the next tick (~3s later). Pure,
+        # deterministic, env-gated (FAST_WATCH_MAX_SURVIVORS_PER_TICK, default 20;
+        # 0 disables). The deferred survivors are NOT marked in dedup (so they're
+        # re-considered next tick); only EVALUATED survivors get marked below.
+        from core.fast_watch import (cap_survivors, max_survivors_per_tick,
+                                     eval_concurrency, cache_only_charts_enabled)
+        _max_surv = max_survivors_per_tick()
+        _orig_surv_n = len(survivors)
+        survivors, _was_capped = cap_survivors(
+            survivors, self._fast_samples, _max_surv, cfg.dip_pct, cfg.rise_pct)
+        if _was_capped:
+            logger.info("[fast-watch] capped survivors %d->%d",
+                        _orig_surv_n, len(survivors))
+        _cache_only = cache_only_charts_enabled()
         # Phase timing: the fast-watch tick runs OFF the main scan cycle (every
         # ~3s) and calls the SAME heavy _evaluate_pair per survivor. Bracket the
         # survivor eval loop + track the slowest survivor so a fast-watch-side
         # block is attributable. Cheap monotonic only; never raises.
-        _fw_slowest_dt = 0.0
-        _fw_slowest_sym = "?"
+        _fw_timing = {"slowest_dt": 0.0, "slowest_sym": "?"}
         _fw_eval_timer = _PhaseTimer("fastwatch_eval_loop",
                                      extra="(n_survivors=%d)" % len(survivors))
         _fw_eval_timer.__enter__()
-        for addr, pair in survivors:
+
+        async def _eval_one_survivor(addr, pair):
+            # Per-survivor heavy eval — runs under a bounded semaphore so the
+            # loop BREATHES (concurrent awaits yield) and survivors don't stack
+            # serially. Every real buy inside _evaluate_pair is still serialized
+            # via self._buy_fire_lock (same guarantee PARALLEL_SCAN_MODE relies
+            # on), so concurrent eval is buy-safe. Fail-safe: never raises.
             _fw_e0 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
             dedup.mark(addr, now)
             if not pair:
-                continue
+                return
+            _pair = pair
             fresh = prices.get(addr.lower())
             if fresh:
                 # B4: shadow-validated on-chain hot-layer. In mode 'on' a fresh
@@ -3677,7 +3754,7 @@ class DipScanner:
                 # everywhere else). Escalation-only (0-N survivors/tick) so the
                 # extra fetch is cheap. Fall back to the Jupiter `fresh` if the
                 # pin is unavailable (still fresher than the cached pair price).
-                pair_addr = pair.get("pairAddress")
+                pair_addr = _pair.get("pairAddress")
                 pinned = None
                 if pair_addr:
                     try:
@@ -3688,17 +3765,17 @@ class DipScanner:
                             "[fast-watch] pinned price fetch failed token=%s "
                             "pair=%s: %s", addr, pair_addr, e)
                         pinned = None
-                pair = dict(pair)
+                _pair = dict(_pair)
                 if pinned is not None and pinned > 0:
-                    pair["priceUsd"] = str(pinned)
+                    _pair["priceUsd"] = str(pinned)
                 else:
-                    pair["priceUsd"] = str(fresh)
+                    _pair["priceUsd"] = str(fresh)
                 # FORWARD FILL-SPEED CAPTURE (shadow): stash the would-fill price
                 # this fast tick saw for `addr` so _execute_bot_buy can log it vs the
                 # actual sweep fill. The escalation price (pinned > jupiter) is the
                 # one the fast loop WOULD have filled at. Fail-open: never break eval.
                 try:
-                    self._fast_stash_seen_price(addr, pair.get("priceUsd"), now)
+                    self._fast_stash_seen_price(addr, _pair.get("priceUsd"), now)
                 except Exception as _fs_e:
                     logger.debug("[fill-speed] stash failed token=%s: %s", addr, _fs_e)
             ctx = {
@@ -3708,27 +3785,55 @@ class DipScanner:
                 "_regime_h1_neg_pct": regime.get("_regime_h1_neg_pct"),
                 "_fast_path_allowlist": cfg.bot_allowlist,
                 "_fast_path_shadow": (cfg.mode == "shadow"),
+                # CACHE-ONLY CHARTS (2026-06-20): tell _evaluate_pair NOT to
+                # cold-fetch fresh GT OHLC in the fast path (which 429-stormed and
+                # 30s-backed-off per survivor). It uses the WARM prefetch cache and
+                # otherwise degrades to NO chart (fail-open) — covered by the main
+                # scan / next tick. Gated by FAST_WATCH_CACHE_ONLY_CHARTS.
+                "_fast_cache_only_charts": _cache_only,
             }
             try:
-                await self._evaluate_pair(pair, ctx)
+                await self._evaluate_pair(_pair, ctx)
             except Exception as e:
                 logger.error("[fast-watch] eval failed token=%s: %s", addr, e, exc_info=True)
             finally:
                 if _SCAN_PHASE_TIMING and _fw_e0:
                     try:
                         _fw_dt = time.monotonic() - _fw_e0
-                        if _fw_dt > _fw_slowest_dt:
-                            _fw_slowest_dt = _fw_dt
-                            _fw_slowest_sym = (pair.get("baseToken") or {}).get("symbol", addr[:6]) \
-                                if isinstance(pair, dict) else addr[:6]
+                        if _fw_dt > _fw_timing["slowest_dt"]:
+                            _fw_timing["slowest_dt"] = _fw_dt
+                            _fw_timing["slowest_sym"] = (
+                                (_pair.get("baseToken") or {}).get("symbol", addr[:6])
+                                if isinstance(_pair, dict) else addr[:6])
                     except Exception:
                         pass
+
+        # ── CONCURRENT BOUNDED EVAL (2026-06-20) ─────────────────────────────
+        # Run the per-survivor heavy evals under a bounded asyncio.Semaphore +
+        # gather instead of the old serial for-loop, so the loop yields between
+        # awaits and a cluster of survivors no longer blocks 16–109s. Concurrency
+        # is LOW (default 5) so concurrent chart fetches don't worsen the free GT
+        # 25/min budget. return_exceptions keeps one bad survivor from killing the
+        # tick. Buy-correctness unchanged: same survivors, same _evaluate_pair,
+        # buys still serialized under _buy_fire_lock.
+        _eval_conc = max(1, eval_concurrency())
+        _eval_sem = asyncio.Semaphore(_eval_conc)
+
+        async def _bounded_survivor(_a, _p):
+            async with _eval_sem:
+                await _eval_one_survivor(_a, _p)
+
+        if survivors:
+            await asyncio.gather(
+                *[_bounded_survivor(a, p) for a, p in survivors],
+                return_exceptions=True,
+            )
         _fw_eval_timer.__exit__(None, None, None)
-        if _SCAN_PHASE_TIMING and _fw_slowest_dt > _SCAN_PHASE_TIMING_THRESHOLD_S:
+        if _SCAN_PHASE_TIMING and _fw_timing["slowest_dt"] > _SCAN_PHASE_TIMING_THRESHOLD_S:
             try:
                 logger.warning(
                     "[phase-timing] fastwatch slowest survivor=%s _evaluate_pair=%.2fs (n_survivors=%d)",
-                    _fw_slowest_sym, _fw_slowest_dt, len(survivors),
+                    _fw_timing["slowest_sym"], _fw_timing["slowest_dt"], len(survivors),
                 )
             except Exception:
                 pass
@@ -4340,8 +4445,18 @@ class DipScanner:
             # below -> byte-identical behaviour on any prefetch failure.
             _pf = self._scan_prefetch_cache.get(_addr_lower)
             _pf_chart = _pf.get("chart_data", _PREFETCH_MISS) if _pf else _PREFETCH_MISS
+            # FAST-WATCH CACHE-ONLY (2026-06-20): in the fast path, prefer the WARM
+            # prefetch chart and do NOT cold-fetch fresh GT OHLC — the per-survivor
+            # cold fetch 429-stormed GT (30s backoffs). On a prefetch MISS leave
+            # _chart_data = None (fail-open): the token is covered by the main scan
+            # / next tick, and the chart-consuming gates below already degrade
+            # gracefully on a None chart. Outside the fast path (normal scan) this
+            # flag is unset -> byte-identical cold-fetch behaviour.
+            _fast_cache_only = bool(_eval_ctx.get("_fast_cache_only_charts"))
             if _pf_chart is not _PREFETCH_MISS:
                 _chart_data = _pf_chart
+            elif _fast_cache_only:
+                _chart_data = None   # fast path, no warm chart -> skip cold fetch
             elif pair_addr_for_1m:
                 try:
                     _chart_data = await _assemble(self.gt_client, pair_addr_for_1m, dexs_client=self.dexs_client)
@@ -5199,6 +5314,13 @@ class DipScanner:
             _pf_rt = _pf2.get("recent_trades", _PREFETCH_MISS) if _pf2 else _PREFETCH_MISS
             if _pf_rt is not _PREFETCH_MISS:
                 recent_trades = _pf_rt or []
+            elif _fast_cache_only:
+                # FAST-WATCH CACHE-ONLY (2026-06-20): same as the chart fetch —
+                # the fast path does NOT cold-fetch the recent-trades log (another
+                # per-survivor GT/DexScreener call that fed the 429 storm). On a
+                # prefetch miss leave recent_trades=[] (fail-open); the rt-derived
+                # features degrade gracefully and the main scan covers the token.
+                recent_trades = []
             else:
                 # Try DexScreener primary (much higher rate-limit headroom; GT
                 # was 100% 429-ing on this endpoint per pre-DexScreener audit).
