@@ -282,6 +282,12 @@ class Trader:
         self._last_realized_slippage_pct: float = 0.0
         self._realized_slippage_history: list = []  # rolling window for avg
 
+        # Decimals cache (perf, free): mint decimals NEVER change, so cache them
+        # permanently per (original-case) address. Pre-warmed when a token is armed
+        # so the live fire path's _get_token_decimals is always a cache hit (no cold
+        # getAccountInfo blocking the swap). Fail-safe: a miss just does the RPC.
+        self._token_decimals_cache: Dict[str, int] = {}
+
         # Dashboard pause flag — set by /api/pause on the dashboard.  Lives in
         # memory (no env round-trip), so toggles take effect immediately.
         # Buy gate ORs this with the env-based TRADING_PAUSED flag.
@@ -655,6 +661,13 @@ class Trader:
         """
         if not mint:
             return 6
+        # Cache hit (decimals never change) — keeps the live fire path off the RPC.
+        try:
+            _cached = self._token_decimals_cache.get(mint)
+            if isinstance(_cached, int):
+                return _cached
+        except Exception:
+            pass
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -667,10 +680,26 @@ class Trader:
             parsed = info.get("parsed", {}).get("info", {}) if isinstance(info, dict) else {}
             decimals = parsed.get("decimals")
             if isinstance(decimals, int) and 0 <= decimals <= 18:
+                try:
+                    self._token_decimals_cache[mint] = decimals  # permanent: never changes
+                except Exception:
+                    pass
                 return decimals
         except Exception as e:
             logger.debug(f"[Trader] _get_token_decimals failed for {mint[:8]}…: {e}")
-        return 6  # fallback: pump.fun is the most common case
+        return 6  # fallback: pump.fun is the most common case (NOT cached — retry next time)
+
+    async def prewarm_decimals(self, mint: str) -> None:
+        """Pre-populate the decimals cache for an ARMED token so the live fire path's
+        _get_token_decimals is a cache hit (never blocks on a cold getAccountInfo).
+        Idempotent + fail-safe: a hit is a no-op; any error is swallowed (the live path
+        falls back to a fresh RPC). Free (one getAccountInfo, only on a cold miss)."""
+        try:
+            if not mint or mint in self._token_decimals_cache:
+                return
+            await self._get_token_decimals(mint)  # populates the cache on success
+        except Exception:
+            pass
 
     async def capture_holder_snapshot(self, token_address: str, label: str) -> None:
         """
@@ -2864,13 +2893,18 @@ class Trader:
         return True
 
     async def _execute_swap_ultra(self, input_mint: str, output_mint: str, amount: int,
-                                  slippage_bps: Optional[int] = None) -> dict:
+                                  slippage_bps: Optional[int] = None,
+                                  buy_context: bool = False) -> dict:
         """MEV-protected swap via Jupiter Ultra (order -> sign -> execute). Jupiter
         builds AND lands the tx through its own protected infra (not the public
         mempool), so it is not sandwich-able like the standard quote+swap+send path.
         Returns {success, out_amount, signature, status, route, realized_slippage_pct,
         reason}. Only runs live (requires private key); dormant in paper. Flag-gated by
-        USE_JUPITER_ULTRA at the call site."""
+        USE_JUPITER_ULTRA at the call site.
+
+        buy_context=True uses a SHORTER /order retry backoff (LIVE_BUY_ORDER_BACKOFF_S,
+        default 0.3s) — buys are time-sensitive (the dip edge decays); the slower 1s/2s
+        exponential backoff is preserved for the sell path (buy_context=False)."""
         result = {"success": False, "out_amount": 0, "signature": None, "status": None,
                   "route": None, "realized_slippage_pct": None, "reason": None}
         if not self.private_key:
@@ -2893,7 +2927,18 @@ class Trader:
             except Exception as e:
                 logger.warning(f"[Ultra] order error (attempt {attempt+1}/3): {e}")
             if attempt < 2:
-                await asyncio.sleep(2 ** attempt)
+                if buy_context:
+                    # Buy path: short fixed backoff (time-sensitive). Fail-safe: any bad
+                    # env value falls back to 0.3s; the retry count + 12s timeout unchanged.
+                    try:
+                        _buy_bo = float(os.environ.get("LIVE_BUY_ORDER_BACKOFF_S", "0.3"))
+                        if _buy_bo < 0:
+                            _buy_bo = 0.3
+                    except (TypeError, ValueError):
+                        _buy_bo = 0.3
+                    await asyncio.sleep(_buy_bo)
+                else:
+                    await asyncio.sleep(2 ** attempt)  # sell path: unchanged 1s/2s backoff
         if not order or not order.get("ok"):
             self._exec_stats["quote_failures"] += 1
             result["reason"] = (order or {}).get("reason", "order_failed")

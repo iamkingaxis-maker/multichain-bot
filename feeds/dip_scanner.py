@@ -1345,6 +1345,9 @@ class DipScanner:
         # buy (inverse of a safety cap — never block on a gate bug, esp. in shadow).
         # Env: NO_FAST_PRICE_GATE_MODE (off|shadow|enforce, default shadow),
         #      NO_FAST_PRICE_MAX_AGE_SECS (default 30).
+        # ⭐ GO-LIVE CHECKLIST: flip NO_FAST_PRICE_GATE_MODE=enforce at go-live (paired
+        # with BUY_REPRICE_MODE=enforce). Verified enforce-READY (blocks an armed-but-
+        # unpriceable token), NOT flipped here — default stays shadow.
         _nfp_mode = os.environ.get("NO_FAST_PRICE_GATE_MODE", "shadow").strip().lower()
         if _nfp_mode != "off":
             try:
@@ -2013,6 +2016,10 @@ class DipScanner:
         # RUN-UP past BUY_REPRICE_MAX_RUNUP (a further DIP is the edge -> never abort).
         # Flag BUY_REPRICE_MODE=off|shadow|enforce (default shadow). Fails OPEN (allow)
         # when the fresh price is unavailable so we never block on a transient feed gap.
+        # ⭐ GO-LIVE CHECKLIST: flip BUY_REPRICE_MODE=enforce at go-live (with
+        # NO_FAST_PRICE_GATE_MODE=enforce below) — both are SHADOW-by-default here; this
+        # block is verified enforce-READY (abort on run-up > BUY_REPRICE_MAX_RUNUP; rebase
+        # entry to the fresh price on a dip), NOT flipped. Default stays shadow.
         _reprice_mode = os.environ.get("BUY_REPRICE_MODE", "shadow").strip().lower()
         if _reprice_mode != "off":
             try:
@@ -2045,8 +2052,57 @@ class DipScanner:
                     # (covers a further DIP and any sub-threshold drift up). A dip is the edge.
                     mid = _fresh
             # _fresh missing/<=0 -> fail OPEN (allow), do not block on a feed gap.
+        # PRE-SWAP READS — three INDEPENDENT I/O reads gate the swap:
+        #   (a) _usd_to_sol(size_usd)        -> lamports sizing (must precede the order)
+        #   (b) _check_sol_reserve(token)    -> gas gate (must ABORT before spending)
+        #   (c) _get_token_balance_atomic    -> M7 pre-snapshot (orphan adoption on timeout)
+        # They have NO data dependency on each other, so overlap their latency via gather.
+        # The DECISION is unchanged: lamports>0 + reserve-ok still gate the swap exactly as
+        # before; only the I/O wait overlaps. Gate LIVE_PRESWAP_PARALLEL (default on);
+        # fail-safe -> serial fallback on ANY gather error (never drop/dup a buy).
+        _parallel = os.environ.get("LIVE_PRESWAP_PARALLEL", "on").strip().lower() not in ("off", "0", "false")
+        sol_amt = None; _reserve_ok = None; _pre_bal = -1
+        if _parallel:
+            try:
+                _r_sol, _r_res, _r_bal = await asyncio.gather(
+                    self.trader._usd_to_sol(size_usd),
+                    self.trader._check_sol_reserve(token),
+                    self.trader._get_token_balance_atomic(mint),
+                    return_exceptions=True,
+                )
+                # _usd_to_sol error -> fall back to serial (mirror prior error handling).
+                if isinstance(_r_sol, Exception):
+                    raise _r_sol
+                sol_amt = _r_sol
+                # reserve: an exception there is treated as "abort (safe)" same as serial.
+                if isinstance(_r_res, Exception):
+                    logger.warning("[Probe] live buy SOL-reserve check err (%s): %s — abort (safe)", token, _r_res)
+                    return None
+                _reserve_ok = bool(_r_res)
+                # pre-balance: an exception -> -1 (M7 adoption simply disabled), same as serial.
+                _pre_bal = _r_bal if isinstance(_r_bal, int) else -1
+            except Exception as e:
+                logger.warning("[Probe] live buy pre-swap parallel reads failed (%s): %s — serial fallback", token, e)
+                _parallel = False
+                sol_amt = None; _reserve_ok = None; _pre_bal = -1
+        if not _parallel:
+            # Serial fallback (original ordering preserved exactly).
+            try:
+                sol_amt = await self.trader._usd_to_sol(size_usd)
+            except Exception as e:
+                logger.error("[Probe] live buy usd_to_sol failed (%s): %s", token, e)
+                return None
+            try:
+                _reserve_ok = await self.trader._check_sol_reserve(token)
+            except Exception as e:
+                logger.warning("[Probe] live buy SOL-reserve check err (%s): %s — abort (safe)", token, e)
+                return None
+            try:
+                _pre_bal = await self.trader._get_token_balance_atomic(mint)
+            except Exception:
+                _pre_bal = -1
+        # Sizing gate (unchanged): lamports must be > 0.
         try:
-            sol_amt = await self.trader._usd_to_sol(size_usd)
             lamports = int(float(sol_amt) * 1e9)
         except Exception as e:
             logger.error("[Probe] live buy usd_to_sol failed (%s): %s", token, e)
@@ -2054,28 +2110,17 @@ class DipScanner:
         if lamports <= 0:
             logger.error("[Probe] live buy bad lamports size=$%.2f (%s)", size_usd, token)
             return None
-        # M3 (probe red-team): ensure enough SOL for gas BEFORE spending — 3 probe bots
-        # can drain the wallet's gas and later sells would fail (stranding positions).
-        try:
-            if not await self.trader._check_sol_reserve(token):
-                logger.warning("[Probe] live buy ABORT: SOL reserve too low for gas (%s)", token)
-                return None
-        except Exception as e:
-            logger.warning("[Probe] live buy SOL-reserve check err (%s): %s — abort (safe)", token, e)
+        # M3 gas gate (unchanged): reserve must be OK before spending.
+        if not _reserve_ok:
+            logger.warning("[Probe] live buy ABORT: SOL reserve too low for gas (%s)", token)
             return None
         # M6 (probe red-team): pass an explicit slippage cap so a bad fill on a thin token
         # REVERTS rather than executing at a ruinous price (Ultra's own RTSE estimate alone
         # is not a hard cap). PROBE_ULTRA_SLIPPAGE_BPS default 400 = 4%.
         _slip_cap = int(os.environ.get("PROBE_ULTRA_SLIPPAGE_BPS", "400"))
-        # M7 (probe red-team): snapshot the pre-swap token balance so an Ultra execute that
-        # TIMES OUT but still LANDS on-chain can be ADOPTED via the post-swap delta — not
-        # orphaned (with capital wrongly refunded while we actually hold the token).
-        try:
-            _pre_bal = await self.trader._get_token_balance_atomic(mint)
-        except Exception:
-            _pre_bal = -1
         t0 = time.time()
-        res = await self.trader._execute_swap_ultra(SOL_MINT, mint, lamports, slippage_bps=_slip_cap)
+        res = await self.trader._execute_swap_ultra(SOL_MINT, mint, lamports, slippage_bps=_slip_cap,
+                                                    buy_context=True)
         latency_ms = round((time.time() - t0) * 1000, 1)
         if not res.get("success"):
             # M7: a reported failure CAN still have landed (timed-out execute). Check the
@@ -3530,6 +3575,40 @@ class DipScanner:
                 _ts_map = getattr(self, "_fast_samples_ts", None)
                 if _ts_map is not None:
                     _ts_map.pop(addr, None)
+        # PRE-WARM DECIMALS (perf, free) — decimals never change, so populate the
+        # trader's permanent decimals cache for newly-armed tokens NOW (off the live
+        # fire path) so _execute_bot_buy_live's post-swap _get_token_decimals is always
+        # a cache hit (never blocks on a cold getAccountInfo). LIVE-ONLY (key present):
+        # in paper there is no live buy path to warm and it would spend free RPC budget.
+        # Bounded per-tick (PREWARM_DECIMALS_MAX, default 50) + fail-safe (any error is
+        # swallowed; a miss just does a fresh RPC at fire time). Gate LIVE_PREWARM_DECIMALS.
+        # Fire-and-forget (this method is SYNC): schedule one off-loop task that warms
+        # cold-miss addresses, so it never blocks arming or the live fire path.
+        try:
+            if (os.environ.get("LIVE_PREWARM_DECIMALS", "on").strip().lower() not in ("off", "0", "false")
+                    and bool(getattr(self.trader, "private_key", ""))):
+                _pw_cache = getattr(self.trader, "_token_decimals_cache", None)
+                if _pw_cache is not None:
+                    try:
+                        _pw_max = int(os.environ.get("PREWARM_DECIMALS_MAX", "50"))
+                    except (TypeError, ValueError):
+                        _pw_max = 50
+                    _to_warm = [a for a in new_armed if a not in _pw_cache][:max(0, _pw_max)]
+                    if _to_warm:
+                        async def _pw_run(_addrs):
+                            try:
+                                await asyncio.gather(
+                                    *[self.trader.prewarm_decimals(a) for a in _addrs],
+                                    return_exceptions=True,
+                                )
+                            except Exception:
+                                pass
+                        try:
+                            asyncio.get_running_loop().create_task(_pw_run(_to_warm))
+                        except RuntimeError:
+                            pass  # no running loop (e.g. unit test) -> skip, fail-safe
+        except Exception as _pw_e:
+            logger.debug("[prewarm-decimals] skipped (%s)", _pw_e)
 
     async def _fast_batch_prices(self, addrs):
         """Tier 1 fetch: fresh priceUsd per batch call. Returns {addr_lower: price}.
