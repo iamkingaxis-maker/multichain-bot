@@ -153,6 +153,22 @@ def price_timeout_secs() -> float:
     return max(1.0, v)
 
 
+def pinned_price_timeout_secs() -> float:
+    """Hard wall-clock timeout (seconds) for the per-survivor PAIR-PINNED price
+    fetch in the fast-watch escalation path (FAST_WATCH_PINNED_TIMEOUT_S, default
+    3.0, floor 0.5). trader._get_token_price cascades up to ~3 serial HTTP calls
+    (DexScreener pair 5s + Jupiter v6 5s + DexScreener tokens 5s = ~15s worst
+    case) — under the survivor semaphore that stacks into the measured ~14s
+    survivor stall. On timeout the fast path FAILS OPEN to the Jupiter aggregate
+    price already in hand (the buy still fires this tick, just off the aggregate
+    rather than the pinned pool; the main scan re-pins on the next cycle)."""
+    try:
+        v = float(os.environ.get("FAST_WATCH_PINNED_TIMEOUT_S", "").strip())
+    except (TypeError, ValueError):
+        v = 3.0
+    return max(0.5, v)
+
+
 def eval_concurrency() -> int:
     """Bounded concurrency for the per-survivor heavy _evaluate_pair (FAST_WATCH_
     EVAL_CONCURRENCY, default 5). Floor 1. Low so concurrent chart fetches don't

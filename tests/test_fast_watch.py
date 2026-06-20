@@ -762,6 +762,31 @@ def test_fast_tick_pin_zero_falls_back_to_jupiter(monkeypatch):
     assert s.evaluated == ["0.9"]                    # Jupiter fresh fallback
 
 
+def test_fast_tick_pinned_fetch_timeout_falls_back_to_jupiter(monkeypatch):
+    """A SLOW pinned fetch (the trader._get_token_price ~15s cascade) must be hard-
+    capped by FAST_WATCH_PINNED_TIMEOUT_S and FAIL OPEN to the Jupiter aggregate
+    (0.90) — the buy still escalates this tick instead of stalling the survivor."""
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    monkeypatch.setenv("FAST_WATCH_PINNED_TIMEOUT_S", "0.5")   # short cap
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+
+    s, captured = _scanner_for_pinned_tick(0.123)
+
+    class _SlowTrader:
+        async def _get_token_price(self, token_address, pair_address=""):
+            await asyncio.sleep(5.0)        # would-be ~15s cascade; we cap at 0.5s
+            return 0.123
+    s.trader = _SlowTrader()
+    import time as _t
+    _t0 = _t.monotonic()
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    _elapsed = _t.monotonic() - _t0
+    assert s.evaluated == ["0.9"]        # fell back to Jupiter aggregate (timed out)
+    assert _elapsed < 3.0                 # capped, NOT the 5s slow fetch
+
+
 def test_fast_tick_leaves_cached_when_pin_and_jupiter_missing(monkeypatch):
     """Pin None AND no Jupiter fresh -> leave the cached pair price ("1")."""
     monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
@@ -1185,6 +1210,21 @@ def test_max_survivors_per_tick_from_env(monkeypatch):
     assert fw.max_survivors_per_tick() == 5
     monkeypatch.setenv("FAST_WATCH_MAX_SURVIVORS_PER_TICK", "junk")
     assert fw.max_survivors_per_tick() == 20
+
+
+def test_pinned_price_timeout_secs_from_env(monkeypatch):
+    """FAST_WATCH_PINNED_TIMEOUT_S: hard wall-clock cap on the per-survivor pinned
+    price fetch (trader._get_token_price cascades ~3 serial 5s calls). Default
+    3.0, floor 0.5, bad/empty -> default. On timeout the escalation fails open to
+    the Jupiter aggregate price already in hand."""
+    monkeypatch.delenv("FAST_WATCH_PINNED_TIMEOUT_S", raising=False)
+    assert fw.pinned_price_timeout_secs() == 3.0
+    monkeypatch.setenv("FAST_WATCH_PINNED_TIMEOUT_S", "2")
+    assert fw.pinned_price_timeout_secs() == 2.0
+    monkeypatch.setenv("FAST_WATCH_PINNED_TIMEOUT_S", "0.1")
+    assert fw.pinned_price_timeout_secs() == 0.5       # floored at 0.5
+    monkeypatch.setenv("FAST_WATCH_PINNED_TIMEOUT_S", "junk")
+    assert fw.pinned_price_timeout_secs() == 3.0        # bad -> default
 
 
 def test_price_timeout_secs_from_env(monkeypatch):

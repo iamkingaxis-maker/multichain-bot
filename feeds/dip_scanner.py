@@ -3773,14 +3773,41 @@ class DipScanner:
                 pair_addr = _pair.get("pairAddress")
                 pinned = None
                 if pair_addr:
+                    # FAST-FAIL PINNED FETCH (2026-06-20): trader._get_token_price
+                    # cascades up to ~3 serial 5s HTTP calls (~15s worst case) —
+                    # under the survivor semaphore that was the measured ~14s
+                    # survivor stall (survivor=WHEN _evaluate_pair=13.89s, no
+                    # sub-op = this pre-eval pinned fetch). Hard-cap it with a
+                    # short wall-clock timeout; on timeout/err FAIL OPEN to the
+                    # Jupiter aggregate `fresh` already in hand (the buy still
+                    # fires this tick). Env: FAST_WATCH_PINNED_TIMEOUT_S.
+                    from core.fast_watch import pinned_price_timeout_secs
+                    _pin_t0 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
                     try:
-                        pinned = await self.trader._get_token_price(
-                            addr, pair_address=pair_addr)
+                        pinned = await asyncio.wait_for(
+                            self.trader._get_token_price(addr, pair_address=pair_addr),
+                            timeout=pinned_price_timeout_secs(),
+                        )
+                    except asyncio.TimeoutError:
+                        logger.debug(
+                            "[fast-watch] pinned price fetch TIMEOUT token=%s "
+                            "pair=%s -> jupiter-aggregate fallback", addr, pair_addr)
+                        pinned = None
                     except Exception as e:
                         logger.debug(
                             "[fast-watch] pinned price fetch failed token=%s "
                             "pair=%s: %s", addr, pair_addr, e)
                         pinned = None
+                    finally:
+                        if _SCAN_PHASE_TIMING and _pin_t0:
+                            try:
+                                _pin_dt = time.monotonic() - _pin_t0
+                                if _pin_dt > 1.0:
+                                    logger.warning(
+                                        "[phase-timing] survivor=%s pinned_price_fetch=%.2fs",
+                                        addr[:6], _pin_dt)
+                            except Exception:
+                                pass
                 _pair = dict(_pair)
                 if pinned is not None and pinned > 0:
                     _pair["priceUsd"] = str(pinned)
