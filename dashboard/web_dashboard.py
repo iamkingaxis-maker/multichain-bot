@@ -3189,21 +3189,28 @@ class WebDashboard:
         joining to closed trades). No money path, no behavior change."""
         cors = {"Access-Control-Allow-Origin": "*"}
         import statistics as _stats
+        import asyncio as _asyncio
         path = os.path.join(os.environ.get("DATA_DIR", "/data"),
                             "fill_speed_forward.jsonl")
         mode = os.environ.get("FILL_SPEED_LOG_MODE", "shadow")
-        recs = []
-        try:
-            if os.path.exists(path):
-                with open(path) as f:
+
+        def _read_recs(_p):
+            # Loop-safe: the jsonl grows, so read it OFF the event loop.
+            out = []
+            if os.path.exists(_p):
+                with open(_p) as f:
                     for line in f:
                         line = line.strip()
                         if not line:
                             continue
                         try:
-                            recs.append(json.loads(line))
+                            out.append(json.loads(line))
                         except Exception:
                             continue
+            return out
+
+        try:
+            recs = await _asyncio.to_thread(_read_recs, path)
         except Exception as e:
             return web.Response(
                 text=json.dumps({"ok": False, "error": str(e),
@@ -3215,18 +3222,57 @@ class WebDashboard:
         leads = [r.get("lead_secs") for r in recs
                  if isinstance(r.get("lead_secs"), (int, float))]
         by_bot: dict = {}
+        _bot_deltas: dict = {}
         for r in recs:
             by_bot[r.get("bot")] = by_bot.get(r.get("bot"), 0) + 1
+            _d = r.get("delta_pct")
+            if isinstance(_d, (int, float)):
+                _bot_deltas.setdefault(r.get("bot"), []).append(_d)
+
+        def _pctile(vals, q):
+            if not vals:
+                return None
+            s = sorted(vals)
+            i = min(len(s) - 1, max(0, int(round(q * (len(s) - 1)))))
+            return s[i]
+
+        # Full distribution of delta_pct (= fast-vs-sweep entry edge; since the exit
+        # is identical, this IS the realized per-trade P&L edge of the faster fill).
+        # Positive delta = fast fill got in CHEAPER (better). fast_cheaper_pct is the
+        # win-rate of filling faster.
+        distribution = None
+        if deltas:
+            distribution = {
+                "n": len(deltas),
+                "fast_cheaper_pct": round(
+                    100.0 * sum(1 for d in deltas if d > 0) / len(deltas), 1),
+                "mean_delta_pct": round(_stats.mean(deltas), 4),
+                "median_delta_pct": round(_stats.median(deltas), 4),
+                "stdev_delta_pct": (round(_stats.pstdev(deltas), 4)
+                                    if len(deltas) >= 2 else None),
+                "p10": round(_pctile(deltas, 0.10), 4),
+                "p25": round(_pctile(deltas, 0.25), 4),
+                "p75": round(_pctile(deltas, 0.75), 4),
+                "p90": round(_pctile(deltas, 0.90), 4),
+                "min": round(min(deltas), 4),
+                "max": round(max(deltas), 4),
+                "sum_delta_pct": round(sum(deltas), 4),
+                "per_bot_median": {
+                    b: round(_stats.median(v), 4)
+                    for b, v in _bot_deltas.items() if len(v) >= 3
+                },
+            }
         payload = {
             "ok": True,
             "FILL_SPEED_LOG_MODE": mode,
             "n_records": len(recs),
             "median_delta_pct": (_stats.median(deltas) if deltas else None),
             "median_lead_secs": (_stats.median(leads) if leads else None),
+            "distribution": distribution,
             "by_bot": by_bot,
             "recent": recs[-10:],
-            "note": ("realized fast-vs-sweep P&L (edge_pp) comes from the OFFLINE "
-                     "joiner: python scripts/fill_speed_forward.py"),
+            "note": ("delta_pct>0 = faster fill got in cheaper (= realized P&L edge, "
+                     "same exit). distribution = full fast-vs-sweep spread."),
         }
         return web.Response(
             text=json.dumps(payload), content_type="application/json", headers=cors,
