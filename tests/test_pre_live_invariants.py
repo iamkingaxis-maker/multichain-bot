@@ -300,7 +300,13 @@ def test_no_enabled_live_probe_bot():
     # the conviction-vs-flat A/B; only the clone routes live.)
     import glob
     from core.bot_config import BotConfig
-    INTENDED_LIVE = {"badday_flush_conviction_live", "badday_flush_live",
+    # 2026-06-20: live bot swapped to badday_flush_nf15_live (FLAT $100 + net_flow_15s>=0
+    # demand gate) — best drawdown of the badday family (worst -$18 within AxiS's -$21 pain
+    # line), real-selection edge (not leverage). badday_flush_conviction_live RETIRED to
+    # paper (live_probe=false, still enabled for the conviction-vs-flat A/B) so it no longer
+    # routes money; it stays in this set harmlessly (the test only flags enabled+live_probe).
+    INTENDED_LIVE = {"badday_flush_nf15_live",
+                     "badday_flush_conviction_live", "badday_flush_live",
                      "deepflush_timebox_live", "timebox_probe_5mgreen_live"}
     offenders = []
     for p in glob.glob("config/bots/*.json"):

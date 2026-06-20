@@ -3,13 +3,10 @@
   "age_h_min": 6.0,
   "alpha_multiplier": 1.0,
   "base_position_usd": 100.0,
-  "bot_id": "badday_flush_conviction_live",
+  "bot_id": "badday_flush_nf15_live",
   "btc_macro_h1_block_threshold": null,
-  "conviction_max_mult": 2.0,
-  "conviction_sizing_mode": "trigger_count",
-  "conviction_step": 0.5,
   "daily_loss_limit_usd": 60.0,
-  "display_name": "CONVICTION A/B of badday_flush (2026-06-12 roster decode: ALL 10 profitable wallets size with conviction \u2014 dmuX bets 10x the table; our fleet bets flat, every bot). Single variable vs parent: trigger-count sizing (1 + 0.5*(n-1), cap 2x). PRE-REG: judge vs parent $/tr at n>=30 closes each; loser retires. 48h burn-in.",
+  "display_name": "LIVE bot (chosen 2026-06-20) = badday_flush_nf15 (FLAT $100 + net_flow_15s_imbalance >= 0 demand gate). Decode of today's drawdown profile: nf15-flat has the BEST drawdown of the badday family (worst trade -$18, INSIDE AxiS's -$21 pain line; ~half the give-back of the base bots) AND its $/tr edge is REAL SELECTION, not leverage. FLAT sizing only — NO conviction sizing. Replaces badday_flush_conviction_live (whose trigger-count conviction sizing reintroduced ~1.5-1.6x deeper $ drawdown). Routes real money ONLY under the existing PAPER_MODE=false + live_probe + key state. Reversible: flip live_probe=false to retire.",
   "enabled": true,
   "entry_gate": [
     [
@@ -36,10 +33,15 @@
       "pc_h1",
       "<=",
       -20
+    ],
+    [
+      "net_flow_15s_imbalance",
+      ">=",
+      0
     ]
   ],
   "entry_stack_exempt": true,
-  "exclusion_pool": "badday_flush_conviction_live",
+  "exclusion_pool": "badday_flush_nf15_live",
   "fast_bail_pnl_pct": -9.0,
   "filters_disabled": [],
   "filters_enforced": [
@@ -50,6 +52,7 @@
   "giveback_floor_peak_min": 4.0,
   "giveback_floor_pnl_pct": -6.0,
   "hard_stop_pct": -12.0,
+  "live_probe": true,
   "macro_up_multiplier": 1.0,
   "marginal_multiplier": 1.0,
   "max_concurrent_positions": 3,
@@ -85,6 +88,5 @@
   "triggers_allowed": null,
   "triggers_disabled": [],
   "vol_h1_min": 1000.0,
-  "young_token_probe": false,
-  "live_probe": false
+  "young_token_probe": false
 }
