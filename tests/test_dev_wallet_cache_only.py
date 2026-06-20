@@ -61,7 +61,7 @@ def test_tracker_get_features_passes_cache_only(monkeypatch):
     """DevWalletTracker.get_features forwards cache_only to fetch_dev_features."""
     seen = {}
 
-    async def _fake_fetch(mint, baselines, cache_only=False):
+    async def _fake_fetch(mint, baselines, cache_only=False, **kwargs):
         seen["cache_only"] = cache_only
         return {}
 

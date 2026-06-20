@@ -18874,6 +18874,14 @@ class DipScanner:
         # to detect a signal-drop (would-cull token that still fired a buy).
         self._fp_shadow_culled = set()
 
+        # Per-cycle dev-wallet cold-refresh budget reset (2026-06-20 cost fix).
+        # Bounds Solana RPC fan-out so a cold-universe cycle can't fire hundreds
+        # of dev-wallet refreshes (the 15.8s/token RPC cost). Fail-open.
+        try:
+            self._dev_wallet.reset_cycle()
+        except Exception:
+            pass
+
         # Cross-token regime breadth (Tier-2 feature). Counts how many of the
         # candidates this cycle are dipping (m5<-1.5%) or rolling over (h1<0).
         # When breadth is high (>50% of scanned tokens are dipping), our entry

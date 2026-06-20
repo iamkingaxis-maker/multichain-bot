@@ -56,10 +56,49 @@ SOLANA_RPC_URL = os.environ.get(
 )
 
 # Single-flight: at most ONE getTokenLargestAccounts call in flight
-# at a time. Public RPC bursts trigger 429 on this method. Per-token
-# baseline check throttling: skip RPC if baseline_age < 300s.
+# at a time. Public RPC bursts trigger 429 on this method.
 _RPC_SEMAPHORE: Optional[asyncio.Semaphore] = None
-_BASELINE_REFRESH_MIN_AGE_SECS = 300.0
+
+# ── Cost-control knobs (2026-06-20) ─────────────────────────────────────
+# The dev-wallet RPC chain (getTokenSupply + getTokenLargestAccounts +
+# getAccountInfo x10) was the #1 Railway CPU/egress/memory(OOM) driver:
+# dev_wallet_rpc=15.8s PER TOKEN on the main scan, re-paid every 300s.
+# Creator-holdings is a SLOW-moving rug signal, so a much longer baseline
+# TTL is fine and cuts re-fetches ~12x. All knobs env-tunable + reversible.
+_DEFAULT_BASELINE_TTL_SECS = 3600.0   # was 300; 1h baseline is fine for the rug filter
+_DEFAULT_RPC_TIMEOUT_S = 3.0          # per-call, was hardcoded 8
+_DEFAULT_MAX_REFRESH_PER_CYCLE = 15   # cold/stale tokens refreshed per scan cycle
+_DEFAULT_RPC_CONCURRENCY = 4          # parallel top-10 getAccountInfo gather
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.environ.get(name, "") or default)
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(float(os.environ.get(name, "") or default))
+    except (TypeError, ValueError):
+        return default
+
+
+def _baseline_ttl_secs() -> float:
+    return _env_float("DEV_WALLET_BASELINE_TTL_SECS", _DEFAULT_BASELINE_TTL_SECS)
+
+
+def _rpc_timeout_s() -> float:
+    return _env_float("DEV_WALLET_RPC_TIMEOUT_S", _DEFAULT_RPC_TIMEOUT_S)
+
+
+def _max_refresh_per_cycle() -> int:
+    return _env_int("DEV_WALLET_MAX_REFRESH_PER_CYCLE", _DEFAULT_MAX_REFRESH_PER_CYCLE)
+
+
+def _rpc_concurrency() -> int:
+    return max(1, _env_int("DEV_WALLET_RPC_CONCURRENCY", _DEFAULT_RPC_CONCURRENCY))
 
 # Known program IDs we want to exclude as "dev wallets" (these are
 # AMM/program accounts, not user wallets).
@@ -114,7 +153,7 @@ async def _rpc_call(session: aiohttp.ClientSession, method: str, params: list) -
     try:
         async with session.post(
             SOLANA_RPC_URL, json=body,
-            timeout=aiohttp.ClientTimeout(total=8)
+            timeout=aiohttp.ClientTimeout(total=_rpc_timeout_s())
         ) as r:
             if r.status != 200:
                 return None
@@ -178,14 +217,32 @@ async def _identify_dev_wallet(
     accounts = await _get_largest_accounts(session, mint)
     if not accounts or total_supply <= 0:
         return None
-    # Walk top 10 — typical layout has LP first, then dev/treasury
-    for acc in accounts[:10]:
-        ui_amount = acc.get("uiAmount") or 0
-        addr = acc.get("address")
-        if not addr or ui_amount <= 0:
-            continue
-        owner = await _resolve_owner(session, addr)
-        if not owner:
+
+    # Top-10 candidates (skip zero-balance/missing-addr up front).
+    top = [
+        (acc.get("address"), acc.get("uiAmount") or 0)
+        for acc in accounts[:10]
+        if acc.get("address") and (acc.get("uiAmount") or 0) > 0
+    ]
+    if not top:
+        return None
+
+    # PARALLELIZE owner resolution under a small bounded gather (was a serial
+    # chain of up to 10 getAccountInfo calls @ 8s each — the bulk of the
+    # 15.8s/token cost). Single shared session; concurrency env-bounded.
+    sem = asyncio.Semaphore(_rpc_concurrency())
+
+    async def _resolve_bounded(addr: str) -> Optional[str]:
+        async with sem:
+            return await _resolve_owner(session, addr)
+
+    owners = await asyncio.gather(
+        *(_resolve_bounded(addr) for addr, _ in top),
+        return_exceptions=True,
+    )
+    # Preserve largest-first order: return the first non-program owner.
+    for (addr, ui_amount), owner in zip(top, owners):
+        if not owner or isinstance(owner, BaseException):
             continue
         if owner in KNOWN_PROGRAMS:
             continue
@@ -197,23 +254,30 @@ async def _identify_dev_wallet(
 async def fetch_dev_features(
     mint: str, baselines: Dict[str, Dict[str, Any]],
     cache_only: bool = False,
+    refresh_allowed: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Compute dev-wallet features for a token. Updates `baselines` in place
     when a new token is first seen. Returns dict suitable for entry_meta.
 
-    Throttling: if a baseline exists and is <5 min old, returns cached
-    values without making an RPC call. This bounds RPC pressure to once
-    per token per 5 minutes — important on public RPC which rate-limits
-    getTokenLargestAccounts.
+    Throttling: if a baseline exists and is younger than the env-tunable TTL
+    (DEV_WALLET_BASELINE_TTL_SECS, default 1h), returns cached values with
+    ZERO RPC. Creator-holdings is a SLOW-moving rug signal, so a 1h+ baseline
+    is fine for filter_dev_dumping and cuts re-fetches ~12x vs the old 300s.
 
     cache_only=True (FAST-WATCH PATH, 2026-06-20): NEVER make an RPC call.
-    On a warm baseline (<5 min) return the cached features; on a cache MISS
-    return {} (fail-open — the feature is simply absent this fast tick, and
-    the main scan / next tick refreshes it). This is the fix for the 16–35s
-    fast-watch survivor stall: a cache-miss here used to fire a serial chain
-    of up to ~12 Solana RPC calls (8s timeout each) under a global Semaphore(1),
+    On a warm baseline return the cached features; on a cache MISS return {}
+    (fail-open — the feature is simply absent this fast tick, and the main
+    scan / next tick refreshes it). This is the fix for the 16–35s fast-watch
+    survivor stall: a cache-miss here used to fire a serial chain of up to
+    ~12 Solana RPC calls (8s timeout each) under a global Semaphore(1),
     blocking the very fills the fast path exists to accelerate.
+
+    refresh_allowed (per-cycle cap, 2026-06-20): optional zero-arg callable
+    returning True if this cold/stale token may spend an RPC refresh THIS
+    cycle. When it returns False (per-cycle budget exhausted), fail-open with
+    {} — no RPC — and let the next cycle pick the token up. Fail-open: a
+    None callable means "always allowed" (back-compat).
     """
     global _RPC_SEMAPHORE
     if _RPC_SEMAPHORE is None:
@@ -223,10 +287,11 @@ async def fetch_dev_features(
         return out
     key = mint  # don't lowercase Solana addrs (they're case-sensitive)
     now = time.time()
+    ttl = _baseline_ttl_secs()
 
-    # Fast path: recent baseline → use cached values, no RPC
+    # Fast path: baseline younger than TTL → use cached values, no RPC
     base = baselines.get(key)
-    if base and (now - float(base.get("last_seen_ts") or 0)) < _BASELINE_REFRESH_MIN_AGE_SECS:
+    if base and (now - float(base.get("last_seen_ts") or 0)) < ttl:
         baseline_pct = float(base.get("baseline_pct_supply") or 0)
         cached_pct = float(base.get("last_pct_supply") or baseline_pct)
         return {
@@ -249,6 +314,18 @@ async def fetch_dev_features(
     # survivor stall). Fail-open with no features; the main scan refreshes them.
     if cache_only:
         return out
+
+    # PER-CYCLE REFRESH CAP: a cold-universe cycle can churn hundreds of new
+    # tokens; each cold refresh is several Solana RPC round-trips. Bound how
+    # many cold/stale tokens spend an RPC refresh per scan cycle — the rest
+    # fail-open this cycle and get picked up next cycle. Fail-open if the
+    # gate itself errors (NEVER block the scan on the budget check).
+    if refresh_allowed is not None:
+        try:
+            if not refresh_allowed():
+                return out
+        except Exception:
+            pass
 
     try:
         async with _RPC_SEMAPHORE:
@@ -320,14 +397,38 @@ class DevWalletTracker:
         self._baselines = _load_baselines()
         self._updates_since_save = 0
         self._save_every = save_every_n_updates
+        # Per-cycle cold-refresh budget (reset at each scan cycle start via
+        # reset_cycle()). Bounds Solana RPC fan-out on a cold-universe cycle.
+        self._refresh_this_cycle = 0
         # Periodic prune at startup
         removed = prune_baselines(self._baselines)
         if removed:
             logger.info(f"[DevWallet] Pruned {removed} stale baselines on startup")
         logger.info(f"[DevWallet] Loaded {len(self._baselines)} baselines")
 
+    def reset_cycle(self) -> None:
+        """Reset the per-cycle cold-refresh counter. Call at scan-cycle start."""
+        self._refresh_this_cycle = 0
+
+    def _refresh_allowed(self) -> bool:
+        """Token-bucket: True if a cold/stale token may spend an RPC refresh
+        this cycle. Consumes one unit of budget on each True. Fail-open: a
+        non-positive cap means unbounded (back-compat)."""
+        cap = _max_refresh_per_cycle()
+        if cap <= 0:
+            return True
+        if self._refresh_this_cycle >= cap:
+            return False
+        self._refresh_this_cycle += 1
+        return True
+
     async def get_features(self, mint: str, cache_only: bool = False) -> Dict[str, Any]:
-        feats = await fetch_dev_features(mint, self._baselines, cache_only=cache_only)
+        # Only the live RPC path (not cache_only) is gated by the per-cycle cap.
+        refresh_allowed = None if cache_only else self._refresh_allowed
+        feats = await fetch_dev_features(
+            mint, self._baselines, cache_only=cache_only,
+            refresh_allowed=refresh_allowed,
+        )
         if feats:
             self._updates_since_save += 1
             if self._updates_since_save >= self._save_every:
