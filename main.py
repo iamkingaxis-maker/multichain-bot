@@ -165,9 +165,17 @@ async def main():
     try:
         import asyncio as _aio
         from concurrent.futures import ThreadPoolExecutor as _TPE
+        # 2026-06-20 cost/OOM fix: 48 workers was a thread+memory sink (each thread
+        # carries a stack; 48 + OpenMP/BLAS pools tripped 'thread creation failed' +
+        # drove the Railway memory bill). Env-tunable; 16 gives DNS + to_thread
+        # headroom at ~1/3 the threads. Raise only if DNS queues behind to_thread.
+        try:
+            _ew = int(os.environ.get("DEFAULT_EXECUTOR_WORKERS", "16"))
+        except (TypeError, ValueError):
+            _ew = 16
         _aio.get_running_loop().set_default_executor(
-            _TPE(max_workers=48, thread_name_prefix="loop-default"))
-        logger.info("[main] default executor -> 48 workers (DNS/to_thread headroom)")
+            _TPE(max_workers=_ew, thread_name_prefix="loop-default"))
+        logger.info("[main] default executor -> %d workers (DNS/to_thread headroom)", _ew)
     except Exception as _e:
         logger.warning(f"[main] could not enlarge default executor: {_e}")
 
