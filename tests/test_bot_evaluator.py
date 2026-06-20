@@ -266,6 +266,47 @@ def test_grad_momentum_probe_config_loads():
     assert cfg.stall_exit_minutes == 40 and cfg.never_runner_minutes == 35 and cfg.tp2_pct == 60.0
 
 
+# badday_flush_nf15_dense (2026-06-20 thin-tape-floor decode) — clone of
+# badday_flush_nf15 with ONE added entry_gate clause net_flow_15s_n>=3. The
+# net_flow_15s_n feature has IDENTICAL coverage to net_flow_15s_imbalance
+# (both emitted together by tier3_features.compute_net_flow_windows when the
+# 15s window has trades) and merges into raw_meta via _tier3_features, so the
+# clause resolves in the same namespace the existing nf15 clause uses.
+def test_badday_flush_nf15_dense_config_loads():
+    import json, pathlib
+    p = pathlib.Path("config/bots/badday_flush_nf15_dense.json")
+    cfg = BotConfig(**json.loads(p.read_text()))
+    assert cfg.bot_id == "badday_flush_nf15_dense"
+    assert cfg.enabled is True
+    assert cfg.exclusion_pool == "badday_flush_nf15_dense"
+    # flat sizing, no conviction (identical to _nf15 control)
+    assert cfg.base_position_usd == 100.0
+    assert cfg.conviction_sizing_mode is None
+    # paper-only — no live_probe field on the clone
+    assert not getattr(cfg, "live_probe", None)
+    # the new thin-tape-floor clause is the ONLY entry_gate difference vs _nf15
+    nf15 = BotConfig(**json.loads(
+        pathlib.Path("config/bots/badday_flush_nf15.json").read_text()))
+    assert list(cfg.entry_gate) == list(nf15.entry_gate) + [("net_flow_15s_n", ">=", 3.0)]
+
+
+def test_badday_flush_nf15_dense_gate_passes_on_dense_tape():
+    # nf15>=0 AND net_flow_15s_n=5 (>=3) -> gate PASSES (dense demand window).
+    cfg = _cfg(entry_gate=[["net_flow_15s_imbalance", ">=", 0],
+                          ["net_flow_15s_n", ">=", 3]])
+    assert BotEvaluator(cfg)._token_regime_passes(_bundle(raw_meta={
+        "net_flow_15s_imbalance": 0.4, "net_flow_15s_n": 5})) is True
+
+
+def test_badday_flush_nf15_dense_gate_blocks_thin_tape():
+    # the saturated thin-tape trap: imbalance ok but only 1 trade in the
+    # window (net_flow_15s_n=1 < 3) -> the new clause BLOCKS.
+    cfg = _cfg(entry_gate=[["net_flow_15s_imbalance", ">=", 0],
+                          ["net_flow_15s_n", ">=", 3]])
+    assert BotEvaluator(cfg)._token_regime_passes(_bundle(raw_meta={
+        "net_flow_15s_imbalance": 1.0, "net_flow_15s_n": 1})) is False
+
+
 # Macro + regime gates (T9)
 def test_evaluator_returns_buy_when_triggers_fire():
     ev = BotEvaluator(_cfg())
