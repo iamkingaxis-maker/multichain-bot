@@ -3882,6 +3882,44 @@ class DipScanner:
         now_ms = _eval_ctx["now_ms"]
         _fp_allow = _eval_ctx.get("_fast_path_allowlist")   # set/frozenset or None
         _fp_shadow = bool(_eval_ctx.get("_fast_path_shadow"))
+        # ── FAST-PATH SUB-OP TIMING (2026-06-20) ─────────────────────────────
+        # A fast-watch survivor still takes 16–35s in this eval EVEN with cache-
+        # only charts — so a NON-chart cold fetch (Solana RPC / btc / meme /
+        # recent-trades) is blocking. Bracket the suspect sub-ops, but ONLY when
+        # this eval is running on the fast-watch path (cache-only flag set) so we
+        # don't spam the main scan. Additive, fail-safe, gated by SCAN_PHASE_TIMING.
+        _fp_is_fast = bool(_eval_ctx.get("_fast_cache_only_charts"))
+
+        class _SubOp:
+            __slots__ = ("name", "t0")
+
+            def __init__(_s, name):
+                _s.name = name
+                _s.t0 = 0.0
+
+            def __enter__(_s):
+                if _SCAN_PHASE_TIMING and _fp_is_fast:
+                    try:
+                        _s.t0 = time.monotonic()
+                    except Exception:
+                        _s.t0 = 0.0
+                return _s
+
+            def __exit__(_s, et, ev, tb):
+                if not (_SCAN_PHASE_TIMING and _fp_is_fast) or not _s.t0:
+                    return False
+                try:
+                    _dt = time.monotonic() - _s.t0
+                    if _dt > 1.0:
+                        logger.warning(
+                            "[phase-timing] survivor=%s %s=%.2fs",
+                            (pair.get("baseToken") or {}).get("symbol", "?")
+                            if isinstance(pair, dict) else "?",
+                            _s.name, _dt,
+                        )
+                except Exception:
+                    pass
+                return False
         _regime_n = _eval_ctx["_regime_n"]
         _regime_dip_breadth_pct = _eval_ctx["_regime_dip_breadth_pct"]
         _regime_h1_neg_pct = _eval_ctx["_regime_h1_neg_pct"]
@@ -5026,7 +5064,8 @@ class DipScanner:
             # 1h candles × 5 → enough for h1 (last close vs prev) and h4
             # (last close vs 4 candles ago). Cached 60s via _btc_cache.
             try:
-                btc_klines = await self._fetch_btc_klines()
+                with _SubOp("btc_klines"):
+                    btc_klines = await self._fetch_btc_klines()
                 if btc_klines and len(btc_klines) >= 5:
                     last_close = float(btc_klines[-1][4])
                     prev_close = float(btc_klines[-2][4])
@@ -5044,7 +5083,8 @@ class DipScanner:
             # level on the free tier). Stored as analytics field; a future
             # version of the regime tag could fold it in.
             try:
-                meme = await self._fetch_meme_sector()
+                with _SubOp("meme_sector"):
+                    meme = await self._fetch_meme_sector()
                 if meme:
                     _msc = meme.get("market_cap_change_24h")
                     if _msc is not None:
@@ -5326,18 +5366,20 @@ class DipScanner:
                 # was 100% 429-ing on this endpoint per pre-DexScreener audit).
                 if self.dexs_client is not None:
                     try:
-                        recent_trades = await self.dexs_client.fetch_recent_trades(
-                            pair_addr_for_1m, limit=30
-                        )
+                        with _SubOp("recent_trades_dexs"):
+                            recent_trades = await self.dexs_client.fetch_recent_trades(
+                                pair_addr_for_1m, limit=30
+                            )
                     except Exception as _e:
                         logger.debug(f"[DipScanner] dexs recent_trades error for {token_symbol}: {_e}")
                         recent_trades = []
                 # Fall back to GT only if DexScreener returned nothing.
                 if not recent_trades:
                     try:
-                        recent_trades = await self.gt_client.fetch_recent_trades(
-                            pair_addr_for_1m, limit=30
-                        )
+                        with _SubOp("recent_trades_gt"):
+                            recent_trades = await self.gt_client.fetch_recent_trades(
+                                pair_addr_for_1m, limit=30
+                            )
                     except Exception as _e:
                         logger.debug(f"[DipScanner] recent_trades error for {token_symbol}: {_e}")
                         recent_trades = []
@@ -6612,12 +6654,13 @@ class DipScanner:
                 from core.chart_cnn_inference import get_inference
                 _cnn_inf = get_inference()
                 if not _cnn_inf.disabled and _chart_data:
-                    _cnn_result = _cnn_inf.predict(
-                        token_address=token_address,
-                        candles_1m=_chart_data.candles_1m or [],
-                        candles_5m=_chart_data.candles_5m or [],
-                        candles_15m=_chart_data.candles_15m or [],
-                    )
+                    with _SubOp("cnn_predict"):
+                        _cnn_result = _cnn_inf.predict(
+                            token_address=token_address,
+                            candles_1m=_chart_data.candles_1m or [],
+                            candles_5m=_chart_data.candles_5m or [],
+                            candles_15m=_chart_data.candles_15m or [],
+                        )
                     if _cnn_result:
                         _cnn_pattern = _cnn_result.get("pattern")
                         _cnn_pattern_conf = _cnn_result.get("pattern_conf")
@@ -7411,7 +7454,8 @@ class DipScanner:
             # Dev wallet (async RPC). Wrapped in its own try so RPC stalls
             # don't kill the rest of tier-1.
             try:
-                _dev_feats = await self._dev_wallet.get_features(token_address)
+                with _SubOp("dev_wallet_rpc"):
+                    _dev_feats = await self._dev_wallet.get_features(token_address)
                 _tier1_features.update(_dev_feats)
             except Exception as _e:
                 logger.debug(f"[DipScanner] dev-wallet error: {_e}")
@@ -18214,10 +18258,11 @@ class DipScanner:
                     # enforced canonically inside _execute_bot_buy (the Phase-1
                     # risk-floor block, gated by RISK_FLOOR_MODE + the per-bot
                     # daily_loss_limit_usd / max_token_buys_per_day configs).
-                    decisions = self.bot_manager.evaluate_all(
-                        bundle, realized_pnl_by_bot=realized_by_bot,
-                        bot_allowlist=_fp_allow,
-                    )
+                    with _SubOp("evaluate_all"):
+                        decisions = self.bot_manager.evaluate_all(
+                            bundle, realized_pnl_by_bot=realized_by_bot,
+                            bot_allowlist=_fp_allow,
+                        )
                     # FIX 4 concurrency-safety: serialize every real buy fire
                     # through the per-cycle buy lock so that under
                     # PARALLEL_SCAN_MODE=on two tasks can NEVER interleave a buy
