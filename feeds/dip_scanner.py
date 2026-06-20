@@ -3603,7 +3603,9 @@ class DipScanner:
             addrs = hot_addrs
             full_n = 0
         try:
-            prices = await self._fast_batch_prices(addrs)
+            with _PhaseTimer("fastwatch_batch_prices",
+                             extra="(n_addrs=%d full=%s)" % (len(addrs), is_full_tick)):
+                prices = await self._fast_batch_prices(addrs)
         except Exception as e:
             logger.error("[fast-watch] batch price fetch crashed: %s", e, exc_info=True)
             self._fw_record_tick(len(all_addrs), 0, 0, getattr(cfg, "mode", "off"),
@@ -3612,6 +3614,9 @@ class DipScanner:
         now = time.time()
         now_ms = int(now * 1000)
         polled = 0
+        _fw_poll_timer = _PhaseTimer("fastwatch_poll_shortlist",
+                                     extra="(n_addrs=%d)" % len(addrs))
+        _fw_poll_timer.__enter__()
         for addr in addrs:
             pr = prices.get(addr.lower())
             if pr is None:
@@ -3632,6 +3637,7 @@ class DipScanner:
             is_held_or_blocked=lambda a: self._fast_held_or_blocked(a, cfg.bot_allowlist),
             now=now,
         )
+        _fw_poll_timer.__exit__(None, None, None)
         logger.info("[fast-watch] tick hot=%d full=%d polled=%d fired=%d mode=%s",
                     len(hot_addrs), full_n, polled, len(survivors), cfg.mode)
         # Observability: a survivor escalating under shadow mode is a "would-fire".
@@ -3642,7 +3648,17 @@ class DipScanner:
                              getattr(cfg, "mode", "off"), now, would_fire=_wf,
                              hot=len(hot_addrs), full=full_n)
         regime = getattr(self, "_fast_watch_regime", {}) or {}
+        # Phase timing: the fast-watch tick runs OFF the main scan cycle (every
+        # ~3s) and calls the SAME heavy _evaluate_pair per survivor. Bracket the
+        # survivor eval loop + track the slowest survivor so a fast-watch-side
+        # block is attributable. Cheap monotonic only; never raises.
+        _fw_slowest_dt = 0.0
+        _fw_slowest_sym = "?"
+        _fw_eval_timer = _PhaseTimer("fastwatch_eval_loop",
+                                     extra="(n_survivors=%d)" % len(survivors))
+        _fw_eval_timer.__enter__()
         for addr, pair in survivors:
+            _fw_e0 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
             dedup.mark(addr, now)
             if not pair:
                 continue
@@ -3697,6 +3713,25 @@ class DipScanner:
                 await self._evaluate_pair(pair, ctx)
             except Exception as e:
                 logger.error("[fast-watch] eval failed token=%s: %s", addr, e, exc_info=True)
+            finally:
+                if _SCAN_PHASE_TIMING and _fw_e0:
+                    try:
+                        _fw_dt = time.monotonic() - _fw_e0
+                        if _fw_dt > _fw_slowest_dt:
+                            _fw_slowest_dt = _fw_dt
+                            _fw_slowest_sym = (pair.get("baseToken") or {}).get("symbol", addr[:6]) \
+                                if isinstance(pair, dict) else addr[:6]
+                    except Exception:
+                        pass
+        _fw_eval_timer.__exit__(None, None, None)
+        if _SCAN_PHASE_TIMING and _fw_slowest_dt > _SCAN_PHASE_TIMING_THRESHOLD_S:
+            try:
+                logger.warning(
+                    "[phase-timing] fastwatch slowest survivor=%s _evaluate_pair=%.2fs (n_survivors=%d)",
+                    _fw_slowest_sym, _fw_slowest_dt, len(survivors),
+                )
+            except Exception:
+                pass
 
     async def _fast_watch_loop(self):
         from core.fast_watch import FastWatchConfig, FastWatchDedup
