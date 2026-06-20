@@ -728,9 +728,11 @@ def _scanner_for_pinned_tick(pinned_return):
 
 def test_fast_tick_injects_pair_pinned_price_not_jupiter(monkeypatch):
     """Escalated pair["priceUsd"] = the PAIR-PINNED price, not the Jupiter
-    aggregate (0.90), and the pin is queried with the token's pairAddress."""
+    aggregate (0.90), and the pin is queried with the token's pairAddress.
+    (Pin is opt-in now — FAST_WATCH_PINNED_PRICE=on.)"""
     monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
     monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    monkeypatch.setenv("FAST_WATCH_PINNED_PRICE", "on")
     from core.fast_watch import FastWatchConfig, FastWatchDedup
     cfg = FastWatchConfig.from_env()
     s, captured = _scanner_for_pinned_tick(0.123)   # pinned pool price
@@ -740,9 +742,11 @@ def test_fast_tick_injects_pair_pinned_price_not_jupiter(monkeypatch):
 
 
 def test_fast_tick_falls_back_to_jupiter_when_pin_none(monkeypatch):
-    """Pinned fetch None -> use the Jupiter aggregate fresh price (0.90)."""
+    """Pinned fetch None -> use the Jupiter aggregate fresh price (0.90).
+    (Pin is opt-in now — FAST_WATCH_PINNED_PRICE=on.)"""
     monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
     monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    monkeypatch.setenv("FAST_WATCH_PINNED_PRICE", "on")
     from core.fast_watch import FastWatchConfig, FastWatchDedup
     cfg = FastWatchConfig.from_env()
     s, captured = _scanner_for_pinned_tick(None)
@@ -752,9 +756,11 @@ def test_fast_tick_falls_back_to_jupiter_when_pin_none(monkeypatch):
 
 
 def test_fast_tick_pin_zero_falls_back_to_jupiter(monkeypatch):
-    """Pinned fetch <=0 -> use the Jupiter aggregate fresh price (0.90)."""
+    """Pinned fetch <=0 -> use the Jupiter aggregate fresh price (0.90).
+    (Pin is opt-in now — FAST_WATCH_PINNED_PRICE=on.)"""
     monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
     monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    monkeypatch.setenv("FAST_WATCH_PINNED_PRICE", "on")
     from core.fast_watch import FastWatchConfig, FastWatchDedup
     cfg = FastWatchConfig.from_env()
     s, _captured = _scanner_for_pinned_tick(0.0)
@@ -768,6 +774,7 @@ def test_fast_tick_pinned_fetch_timeout_falls_back_to_jupiter(monkeypatch):
     (0.90) — the buy still escalates this tick instead of stalling the survivor."""
     monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
     monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    monkeypatch.setenv("FAST_WATCH_PINNED_PRICE", "on")
     monkeypatch.setenv("FAST_WATCH_PINNED_TIMEOUT_S", "0.5")   # short cap
     from core.fast_watch import FastWatchConfig, FastWatchDedup
     cfg = FastWatchConfig.from_env()
@@ -1210,6 +1217,33 @@ def test_max_survivors_per_tick_from_env(monkeypatch):
     assert fw.max_survivors_per_tick() == 5
     monkeypatch.setenv("FAST_WATCH_MAX_SURVIVORS_PER_TICK", "junk")
     assert fw.max_survivors_per_tick() == 20
+
+
+def test_pinned_price_in_fast_path_default_off(monkeypatch):
+    """FAST_WATCH_PINNED_PRICE default OFF (the executor-starvation fix). The
+    pinned fetch (trader._get_token_price -> default-executor Axiom step) is
+    skipped in the fast path unless explicitly enabled."""
+    monkeypatch.delenv("FAST_WATCH_PINNED_PRICE", raising=False)
+    assert fw.pinned_price_in_fast_path() is False
+    monkeypatch.setenv("FAST_WATCH_PINNED_PRICE", "on")
+    assert fw.pinned_price_in_fast_path() is True
+    monkeypatch.setenv("FAST_WATCH_PINNED_PRICE", "off")
+    assert fw.pinned_price_in_fast_path() is False
+
+
+def test_fast_tick_skips_pinned_fetch_by_default(monkeypatch):
+    """DEFAULT (FAST_WATCH_PINNED_PRICE unset): the fast path does NOT call the
+    pinned fetch at all and uses the Jupiter aggregate (0.90) — keeps the
+    executor-starving trader._get_token_price off the fill path."""
+    monkeypatch.delenv("FAST_WATCH_PINNED_PRICE", raising=False)
+    monkeypatch.setenv("FAST_WATCH_MODE", "shadow")
+    monkeypatch.setenv("FAST_WATCH_DIP_PCT", "3")
+    from core.fast_watch import FastWatchConfig, FastWatchDedup
+    cfg = FastWatchConfig.from_env()
+    s, captured = _scanner_for_pinned_tick(0.123)   # pin WOULD return 0.123 if called
+    asyncio.run(s._fast_watch_tick(cfg, FastWatchDedup(cfg.eval_cooldown_secs)))
+    assert s.evaluated == ["0.9"]      # Jupiter aggregate, pin NOT consulted
+    assert captured["calls"] == []      # trader._get_token_price never called
 
 
 def test_pinned_price_timeout_secs_from_env(monkeypatch):

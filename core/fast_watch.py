@@ -153,6 +153,23 @@ def price_timeout_secs() -> float:
     return max(1.0, v)
 
 
+def pinned_price_in_fast_path() -> bool:
+    """Whether the fast-watch escalation does the extra PAIR-PINNED price fetch
+    (FAST_WATCH_PINNED_PRICE, default 'off'). DEFAULT OFF (2026-06-20): the pinned
+    fetch goes through trader._get_token_price, whose Axiom step uses
+    loop.run_in_executor(None, ...) on the DEFAULT ThreadPoolExecutor. With many
+    concurrent survivors that executor is STARVED (the main-scan sync sweep +
+    ledger to_thread offload share it) — measured: 3-19 survivors ALL showing an
+    IDENTICAL ~15-69s pinned_price_fetch (loop/executor starvation, not the
+    network; asyncio.wait_for's timer can't even fire while the loop is blocked).
+    With it OFF the fast path uses the Jupiter price/v3 AGGREGATE already in hand
+    (pool-aware, fetched off a bounded aiohttp gather — no executor) so a triggered
+    buy fires within a couple seconds. Set FAST_WATCH_PINNED_PRICE=on to restore
+    the pinned fetch (e.g. once the main-loop executor starvation is resolved)."""
+    v = os.environ.get("FAST_WATCH_PINNED_PRICE", "off").strip().lower()
+    return v in ("on", "1", "true", "yes")
+
+
 def pinned_price_timeout_secs() -> float:
     """Hard wall-clock timeout (seconds) for the per-survivor PAIR-PINNED price
     fetch in the fast-watch escalation path (FAST_WATCH_PINNED_TIMEOUT_S, default

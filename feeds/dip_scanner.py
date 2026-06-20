@@ -3772,16 +3772,21 @@ class DipScanner:
                 # pin is unavailable (still fresher than the cached pair price).
                 pair_addr = _pair.get("pairAddress")
                 pinned = None
-                if pair_addr:
-                    # FAST-FAIL PINNED FETCH (2026-06-20): trader._get_token_price
-                    # cascades up to ~3 serial 5s HTTP calls (~15s worst case) —
-                    # under the survivor semaphore that was the measured ~14s
-                    # survivor stall (survivor=WHEN _evaluate_pair=13.89s, no
-                    # sub-op = this pre-eval pinned fetch). Hard-cap it with a
-                    # short wall-clock timeout; on timeout/err FAIL OPEN to the
-                    # Jupiter aggregate `fresh` already in hand (the buy still
-                    # fires this tick). Env: FAST_WATCH_PINNED_TIMEOUT_S.
-                    from core.fast_watch import pinned_price_timeout_secs
+                # PINNED FETCH OPT-IN (2026-06-20): default OFF — the pinned
+                # fetch goes through trader._get_token_price whose Axiom step uses
+                # the DEFAULT ThreadPoolExecutor, which is STARVED by the main-scan
+                # sync sweep + ledger offload under many concurrent survivors
+                # (measured: 3-19 survivors ALL at an identical ~15-69s = loop/
+                # executor starvation, NOT the network; wait_for can't fire while
+                # the loop is blocked). With it off the fast path uses the Jupiter
+                # price/v3 aggregate already in hand (pool-aware, executor-free).
+                from core.fast_watch import (pinned_price_timeout_secs,
+                                             pinned_price_in_fast_path)
+                if pair_addr and pinned_price_in_fast_path():
+                    # FAST-FAIL PINNED FETCH: hard-cap with a short wall-clock
+                    # timeout; on timeout/err FAIL OPEN to the Jupiter aggregate
+                    # `fresh` already in hand (the buy still fires this tick).
+                    # Env: FAST_WATCH_PINNED_TIMEOUT_S.
                     _pin_t0 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
                     try:
                         pinned = await asyncio.wait_for(
