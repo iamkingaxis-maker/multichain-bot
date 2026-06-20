@@ -29,7 +29,7 @@ class StubTrader:
         return self.decimals
     async def _check_sol_reserve(self, token_symbol="?"):
         return self.sol_reserve_ok
-    async def _execute_swap_ultra(self, inp, out, amount, slippage_bps=None):
+    async def _execute_swap_ultra(self, inp, out, amount, slippage_bps=None, buy_context=False):
         self.calls.append((inp, out, amount)); self.slip_caps.append(slippage_bps)
         return self._swap
     async def _get_quote(self, inp, out, amount, slippage_bps=100):

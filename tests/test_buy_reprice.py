@@ -42,7 +42,7 @@ class _FakeTrader:
     async def _get_token_balance_atomic(self, mint):
         return 0
 
-    async def _execute_swap_ultra(self, src, dst, lamports, slippage_bps=400):
+    async def _execute_swap_ultra(self, src, dst, lamports, slippage_bps=400, buy_context=False):
         self.swap_called = True
         self.last_lamports = lamports
         return {"success": True, "out_amount": 1_000_000, "route": "test",
