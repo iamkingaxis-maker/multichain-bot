@@ -68,5 +68,5 @@
   "triggers_disabled": [],
   "vol_h1_min": null,
   "young_token_probe": true,
-  "live_probe": true
+  "live_probe": false
 }

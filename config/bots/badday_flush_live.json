@@ -82,6 +82,6 @@
   "triggers_disabled": [],
   "vol_h1_min": 1000.0,
   "young_token_probe": false,
-  "live_probe": true,
+  "live_probe": false,
   "exclusion_pool": "badday_flush_live"
 }
