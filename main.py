@@ -216,6 +216,54 @@ async def main():
                                "the loop or executor starvation)", lag)
     asyncio.ensure_future(_loop_lag_monitor())
 
+    # CGROUP CPU-THROTTLE MONITOR (env-gated, default OFF). DECISIVE test for the
+    # "loop thread starved -> trivial callbacks freeze 12s" symptom: reads the
+    # container's cgroup cpu.stat and logs the DELTA of nr_throttled +
+    # throttled_usec per interval. If the kernel is throttling the process
+    # (CPU quota exhausted), that's the loop-lag root cause -> needs less work or
+    # more vCPU. Pure read of /sys/fs/cgroup; ~zero cost. Toggle CGROUP_THROTTLE_LOG.
+    async def _cgroup_throttle_monitor():
+        import asyncio as _a
+        if os.environ.get("CGROUP_THROTTLE_LOG", "off").strip().lower() not in (
+            "on", "1", "true", "yes"
+        ):
+            return
+
+        def _read_cpu_stat():
+            for _p in ("/sys/fs/cgroup/cpu.stat", "/sys/fs/cgroup/cpu/cpu.stat"):
+                try:
+                    with open(_p) as _f:
+                        _d = {}
+                        for _ln in _f:
+                            _parts = _ln.split()
+                            if len(_parts) == 2:
+                                _d[_parts[0]] = int(_parts[1])
+                        if _d:
+                            return _d
+                except Exception:
+                    continue
+            return {}
+
+        _prev = _read_cpu_stat()
+        await _a.sleep(20)
+        while True:
+            try:
+                _cur = _read_cpu_stat()
+                if _prev and _cur:
+                    _dn = _cur.get("nr_throttled", 0) - _prev.get("nr_throttled", 0)
+                    _dt = (_cur.get("throttled_usec", _cur.get("throttled_time", 0))
+                           - _prev.get("throttled_usec", _prev.get("throttled_time", 0)))
+                    logger.warning(
+                        "[cgroup-throttle] +nr_throttled=%d +throttled=%.2fs/30s "
+                        "(periods+=%d) — high = CPU-quota wall = loop-lag cause",
+                        _dn, _dt / 1e6,
+                        _cur.get("nr_periods", 0) - _prev.get("nr_periods", 0))
+                _prev = _cur
+            except Exception as _e:
+                logger.warning("[cgroup-throttle] read failed: %s", _e)
+            await _a.sleep(30)
+    asyncio.ensure_future(_cgroup_throttle_monitor())
+
     # GC PAUSE MITIGATION (env-gated, default OFF). The bot holds a large, mostly
     # long-lived heap (hundreds of tokens' history/samples/baselines + position
     # state). Python's cyclic gen2 GC then stop-the-world pauses several seconds
