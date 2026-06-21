@@ -179,6 +179,28 @@ async def main():
     except Exception as _e:
         logger.warning(f"[main] could not enlarge default executor: {_e}")
 
+    # ASYNCIO SLOW-CALLBACK DIAGNOSTIC (env-gated, default OFF). When on, asyncio
+    # logs "Executing <Handle ...> took X.Xs" for any single callback that blocks
+    # the loop beyond the threshold — i.e. it NAMES the exact sync blocker behind
+    # the [loop-lag] warnings (which only measure the symptom). Low-noise 2s
+    # threshold so only real offenders surface. Reversible: unset the env flag.
+    try:
+        if os.environ.get("ASYNCIO_SLOW_CALLBACK_DEBUG", "off").strip().lower() in (
+            "on", "1", "true", "yes"
+        ):
+            _diag_loop = _aio.get_running_loop()
+            _diag_loop.set_debug(True)
+            try:
+                _thr = float(os.environ.get("ASYNCIO_SLOW_CALLBACK_SECS", "2.0"))
+            except (TypeError, ValueError):
+                _thr = 2.0
+            _diag_loop.slow_callback_duration = _thr
+            logger.warning(
+                "[asyncio-debug] slow-callback logging ON (threshold %.1fs) — "
+                "names the exact loop blocker", _thr)
+    except Exception as _e:
+        logger.warning("[asyncio-debug] could not enable slow-callback logging: %s", _e)
+
     # Loop-lag monitor: measure asyncio scheduling delay. If a coroutine blocks
     # the loop, a 1s sleep takes much longer; log it WITH the lag so the next
     # stall is MEASURED, not theorized (the v1 fix shipped without this and was
