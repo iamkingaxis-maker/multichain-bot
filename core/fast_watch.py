@@ -362,6 +362,53 @@ def hot_subset(armed, hot_max: int):
     return [addr for addr, _pair in items][:hot_max]
 
 
+def hot_subset_movers(armed, hot_max, samples_by_addr, dip_pct, rise_pct):
+    """Hot tier prioritizing recent MOVERS (so dip/pump buy candidates get the
+    fast ~2s poll instead of the ~6s full tier), then top recent volume.
+
+    `armed`: addr -> pair. `samples_by_addr`: addr -> rolling price samples. Ranks
+    a token's |rolling dip| / rolling rise (from its samples) above pure volume:
+    anything moving past the trigger band sorts first (by move magnitude desc),
+    the rest fill remaining slots by volume desc. Guarantees tokens about to fire a
+    dip/momentum trigger are on the fast poll, collapsing buy-lag for real
+    candidates to the hot-tier cadence. Returns <= hot_max addresses (original
+    case). Pure; never raises. Same call-count cost as hot_subset — only the RANK
+    changes, not the tier size."""
+    if hot_max <= 0:
+        return []
+    samples_by_addr = samples_by_addr or {}
+
+    def _vol(pair):
+        try:
+            return float((pair or {}).get("volume", {}).get("h1") or 0.0)
+        except (TypeError, ValueError, AttributeError):
+            return 0.0
+
+    def _move(addr):
+        s = samples_by_addr.get(addr)
+        if not s:
+            return 0.0
+        d = rolling_dip_pct(s)
+        r = rolling_rise_pct(s)
+        return max(abs(d) if d is not None else 0.0,
+                   r if r is not None else 0.0)
+
+    try:
+        _thr = min(abs(float(dip_pct)), abs(float(rise_pct)))
+    except (TypeError, ValueError):
+        _thr = 0.0
+
+    def _key(kv):
+        addr, pair = kv
+        m = _move(addr)
+        is_mover = 1 if (m > 0 and m >= _thr) else 0
+        return (is_mover, m, _vol(pair))
+
+    items = list((armed or {}).items())
+    items.sort(key=_key, reverse=True)
+    return [addr for addr, _pair in items][:hot_max]
+
+
 def rolling_dip_pct(samples):
     """% drop of the latest sample off the window max. None if <2 valid (>0) samples.
     `samples`: iterable of prices (oldest→newest)."""

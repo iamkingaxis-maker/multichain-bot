@@ -3920,7 +3920,20 @@ class DipScanner:
         full_every = max(1, int(getattr(cfg, "full_poll_every", 3) or 1))
         is_full_tick = (self._fw_tick_n % full_every) == 0
         all_addrs = list(armed.keys())
-        hot_addrs = hot_subset(armed, int(getattr(cfg, "hot_max", 50) or 0))
+        # Hot tier ranks by recent MOVEMENT (dip/pump candidates) not just volume,
+        # so the tokens about to fire a trigger get the fast ~2s poll instead of
+        # the ~6s full tier -> collapses buy-lag for real candidates. Env-gated
+        # FAST_WATCH_HOT_MOVERS (default off = volume-only, byte-identical). Same
+        # tier size/call-count, only the ranking changes.
+        if os.environ.get("FAST_WATCH_HOT_MOVERS", "off").strip().lower() in (
+            "on", "1", "true", "yes"
+        ):
+            from core.fast_watch import hot_subset_movers
+            hot_addrs = hot_subset_movers(
+                armed, int(getattr(cfg, "hot_max", 50) or 0),
+                self._fast_samples, cfg.dip_pct, cfg.rise_pct)
+        else:
+            hot_addrs = hot_subset(armed, int(getattr(cfg, "hot_max", 50) or 0))
         if is_full_tick:
             # FULL universe: hot first (so the hot tokens are always covered),
             # then the remaining armed tokens. Original-case keys (FIX5).
