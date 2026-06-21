@@ -7092,13 +7092,33 @@ class DipScanner:
             # Chart CNN inference — SHADOW 2026-05-15. Plugs into _chart_data
             # (already fetched above). Returns None if weights missing or render
             # failure; all degradation is silent. Output goes into entry_meta_dict.
+            # ML-CANDIDATE GATE (perf; env-gated, default OFF = byte-identical).
+            # CNN + cluster torch inference is the dominant per-token CPU cost
+            # (~0.3s) and runs across the WHOLE universe every scan AND fast-tick —
+            # ~130 CPU-seconds/scan on a small box, the primary loop-lag / CPU-
+            # saturation driver. Flat tokens (|pc_h1| < thr AND |pc_m5| < thr2) are
+            # never dip/momentum buy candidates, so their (shadow) CNN pattern and
+            # the cluster-19 rug block are irrelevant — skip ML for them. Fail-OPEN
+            # (run ML) on ANY error/uncertainty so a buy candidate never loses its
+            # rug block. Toggle: ML_CANDIDATE_GATE; thresholds ML_GATE_PC_H1/M5.
+            _ml_candidate = True
+            if os.environ.get("ML_CANDIDATE_GATE", "off").strip().lower() in (
+                "on", "1", "true", "yes"
+            ):
+                try:
+                    _ml_h1_thr = float(os.environ.get("ML_GATE_PC_H1", "5.0"))
+                    _ml_m5_thr = float(os.environ.get("ML_GATE_PC_M5", "3.0"))
+                    _ml_candidate = (abs(float(pc_h1)) >= _ml_h1_thr) or (
+                        abs(float(pc_m5)) >= _ml_m5_thr)
+                except Exception:
+                    _ml_candidate = True  # fail-open: run ML if uncertain
             _cnn_pattern = None
             _cnn_pattern_conf = None
             _cnn_outcome_prob = None
             try:
                 from core.chart_cnn_inference import get_inference
                 _cnn_inf = get_inference()
-                if not _cnn_inf.disabled and _chart_data:
+                if not _cnn_inf.disabled and _chart_data and _ml_candidate:
                     with _SubOp("cnn_predict"):
                         # to_thread the torch forward pass — it's NATIVE (GIL-
                         # RELEASING), so offloading genuinely frees the event loop
@@ -7148,7 +7168,7 @@ class DipScanner:
             try:
                 from core.chart_cluster_inference import get_cluster_inference
                 _cluster_inf = get_cluster_inference()
-                if not _cluster_inf.disabled and _chart_data:
+                if not _cluster_inf.disabled and _chart_data and _ml_candidate:
                     with _SubOp("cluster_classify"):
                         # to_thread the NATIVE (GIL-releasing) cluster classify.
                         # Gate CNN_TO_THREAD (shared with the CNN forward pass);
