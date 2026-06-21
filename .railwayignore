@@ -58,3 +58,16 @@ _archive/
 .watch_loop.out
 .watch_snapshots.json
 .uni_raw.json
+
+# 2026-06-21: underscore-prefixed session scratch (mining/decode/watch outputs,
+# trade-pull dumps). These are working scratch at the repo root and must NEVER
+# upload — multi-GB of them accumulated (513MB/486MB/482MB + many 70MB pulls)
+# and would 413 the deploy. None are runtime code (start command is python main.py;
+# runtime data lives in DATA_DIR, a volume mount — not these).
+_*.json
+_*.json.gz
+_*.jsonl
+_*.txt
+_*.out
+_*.err
+.mission_trade_marker
