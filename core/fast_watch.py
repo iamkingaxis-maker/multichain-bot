@@ -420,6 +420,12 @@ def rt_mode(flag, bot_cfg=None, default="off"):
     return val if val in _RT_VALID else default
 
 
+def should_rearm_this_tick(rt_arm_mode):
+    """True when the fast tick should rebuild the armed set from the freshest
+    evaluated universe (RT_ARM_MODE shadow or enforce). Pure."""
+    return str(rt_arm_mode).strip().lower() in ("shadow", "enforce")
+
+
 def rolling_rise_pct(samples):
     """% gain of the latest sample off the window min. None if <2 valid (>0) samples.
     `samples`: iterable of prices (oldest→newest)."""

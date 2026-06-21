@@ -56,3 +56,14 @@ def test_rt_mode_per_bot_override_wins(monkeypatch):
 def test_rt_mode_invalid_falls_back_to_default(monkeypatch):
     monkeypatch.setenv("RT_TRIGGER_MODE", "garbage")
     assert rt_mode("RT_TRIGGER_MODE", default="off") == "off"
+
+
+def test_should_rearm_off():
+    from core.fast_watch import should_rearm_this_tick
+    assert should_rearm_this_tick("off") is False
+
+
+def test_should_rearm_shadow_and_enforce():
+    from core.fast_watch import should_rearm_this_tick
+    assert should_rearm_this_tick("shadow") is True
+    assert should_rearm_this_tick("enforce") is True

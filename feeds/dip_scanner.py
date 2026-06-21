@@ -3939,6 +3939,15 @@ class DipScanner:
             return
         now = time.time()
         now_ms = int(now * 1000)
+        # COMPONENT B: refresh the armed set from the freshest evaluated universe
+        # each tick (not just once per ~30s main cycle), so a token entering the
+        # evaluated set is watched within one fast tick. Gated by RT_ARM_MODE.
+        from core.fast_watch import rt_mode as _rt_mode, should_rearm_this_tick
+        if should_rearm_this_tick(_rt_mode("RT_ARM_MODE")):
+            try:
+                self._fast_arm_subset(cfg, now_ms)
+            except Exception as _arm_e:
+                logger.debug("[rt-arm] re-arm failed: %s", _arm_e)
         polled = 0
         _fw_poll_timer = _PhaseTimer("fastwatch_poll_shortlist",
                                      extra="(n_addrs=%d)" % len(addrs))
