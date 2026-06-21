@@ -216,6 +216,39 @@ async def main():
                                "the loop or executor starvation)", lag)
     asyncio.ensure_future(_loop_lag_monitor())
 
+    # GC PAUSE MITIGATION (env-gated, default OFF). The bot holds a large, mostly
+    # long-lived heap (hundreds of tokens' history/samples/baselines + position
+    # state). Python's cyclic gen2 GC then stop-the-world pauses several seconds
+    # periodically — surfacing as [loop-lag] and trivial-callback stalls that are
+    # IMMUNE to CPU-work cuts (a fixed-cost, periodic pause). After warmup we
+    # gc.collect() then gc.freeze() to move all long-lived objects into a
+    # permanent generation the collector no longer scans (slashing gen2 pause
+    # cost), and raise thresholds so collections are rarer. GC stays ENABLED
+    # (no leak risk). Toggle GC_TUNE; GC_FREEZE_DELAY_S; GC_GEN0.
+    async def _gc_tune():
+        import gc as _gc, asyncio as _a
+        if os.environ.get("GC_TUNE", "off").strip().lower() not in (
+            "on", "1", "true", "yes"
+        ):
+            return
+        try:
+            _delay = float(os.environ.get("GC_FREEZE_DELAY_S", "150"))
+        except (TypeError, ValueError):
+            _delay = 150.0
+        await _a.sleep(_delay)  # let the steady-state heap build first
+        try:
+            _gc.collect()
+            _gc.freeze()
+            _g0 = int(os.environ.get("GC_GEN0", "50000"))
+            _gc.set_threshold(_g0, 500, 1000)
+            _frozen = _gc.get_freeze_count() if hasattr(_gc, "get_freeze_count") else -1
+            logger.warning(
+                "[gc-tune] post-warmup gc.freeze()+threshold(%d,500,1000) done "
+                "(frozen=%d) — mitigate GC stop-world loop-lag", _g0, _frozen)
+        except Exception as _e:
+            logger.warning("[gc-tune] failed: %s", _e)
+    asyncio.ensure_future(_gc_tune())
+
     config = Config.load()
 
     # ── Multi-Bot Harness startup ────────────────────────────────────────
