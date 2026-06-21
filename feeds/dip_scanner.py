@@ -19092,7 +19092,7 @@ class DipScanner:
             # bursts. Decision logic / order / cap-break are byte-identical; this only
             # interleaves. Disable via SCAN_YIELD_EVERY=0.
             try:
-                _yield_every = int(os.environ.get("SCAN_YIELD_EVERY", "8"))
+                _yield_every = int(os.environ.get("SCAN_YIELD_EVERY", "4"))
             except (TypeError, ValueError):
                 _yield_every = 8
             # Phase timing: bracket the whole serial per-token loop AND track the
