@@ -14,6 +14,17 @@ def _offload_enabled() -> bool:
         "off", "0", "false", "no", "")
 
 
+def _append_enabled() -> bool:
+    """LEDGER_APPEND_MODE gate (default OFF). When ON, record_trade does an O(1)
+    append (one JSONL line + in-memory list) instead of re-reading + re-serializing
+    the WHOLE trades_multi.json every fill. The old path's pure-Python json.dumps of
+    the growing ledger held the GIL ~12s inside a to_thread, FREEZING the event loop
+    (cgroup nr_throttled=0 proved GIL contention, not CPU quota) — the loop-lag root
+    cause. Reversible: unset the env flag."""
+    return os.environ.get("LEDGER_APPEND_MODE", "off").strip().lower() in (
+        "on", "1", "true", "yes")
+
+
 class MultiBotTradeStore:
     """Bot-aware trade persistence.
 
@@ -38,6 +49,8 @@ class MultiBotTradeStore:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         (self.data_dir / "bot_state").mkdir(exist_ok=True)
         self._trades_path = self.data_dir / "trades_multi.json"
+        self._trades_jsonl_path = self.data_dir / "trades_multi.jsonl"
+        self._trades_mem = None   # append-mode in-memory ledger (lazy-loaded)
         self._lock = threading.Lock()
         self._maybe_split_legacy()
         self._maybe_scrub_giga_phantom()
@@ -334,9 +347,60 @@ class MultiBotTradeStore:
             f"split-at-{len(all_records)}-into-{len(legacy_only)}-legacy+{len(multi)}-multi"
         )
 
+    def _ensure_trades_loaded(self) -> None:
+        """Append-mode: load the ledger into memory ONCE (base array + any JSONL
+        appends), then compact (fold the JSONL into the base array + clear it) so
+        the sidecar stays bounded to this session. Idempotent; one-time O(n) work
+        at boot (off the hot fill path)."""
+        if self._trades_mem is not None:
+            return
+        with self._lock:
+            if self._trades_mem is not None:
+                return
+            mem = []
+            if self._trades_path.exists():
+                try:
+                    mem = json.loads(self._trades_path.read_text())
+                    for t in mem:
+                        if "bot_id" not in t:
+                            t["bot_id"] = "baseline_v1"
+                except json.JSONDecodeError:
+                    mem = []
+            had_jsonl = False
+            if self._trades_jsonl_path.exists():
+                try:
+                    for _ln in self._trades_jsonl_path.read_text().splitlines():
+                        _ln = _ln.strip()
+                        if _ln:
+                            mem.append(json.loads(_ln))
+                            had_jsonl = True
+                except Exception:
+                    pass
+            self._trades_mem = mem
+            # Boot compaction: fold prior-session JSONL appends into the base
+            # array + truncate the sidecar so it never grows across restarts.
+            if had_jsonl:
+                try:
+                    self._atomic_write(self._trades_path, json.dumps(mem))
+                    self._trades_jsonl_path.write_text("")
+                except Exception:
+                    pass
+
     def record_trade(self, trade: dict, bot_id: str) -> None:
         record = dict(trade)
         record["bot_id"] = bot_id
+        if _append_enabled():
+            # O(1) durable append: one JSONL line + in-memory list. No whole-file
+            # read/dump -> no GIL-holding json.dumps -> no event-loop freeze.
+            self._ensure_trades_loaded()
+            with self._lock:
+                self._trades_mem.append(record)
+                try:
+                    with open(self._trades_jsonl_path, "a") as f:
+                        f.write(json.dumps(record) + "\n")
+                except Exception:
+                    pass
+            return
         with self._lock:
             existing = []
             if self._trades_path.exists():
@@ -348,6 +412,13 @@ class MultiBotTradeStore:
             self._atomic_write(self._trades_path, json.dumps(existing))
 
     def load_trades(self, bot_id: Optional[str] = None) -> list[dict]:
+        if _append_enabled():
+            # In-memory source of truth (fresh + O(1) read; no disk re-parse).
+            self._ensure_trades_loaded()
+            data = self._trades_mem or []
+            if bot_id is None:
+                return list(data)
+            return [t for t in data if t.get("bot_id") == bot_id]
         if not self._trades_path.exists():
             return []
         # mtime-keyed cache (2026-06-02 cost fix): load_trades is called on every ~15s
@@ -424,6 +495,11 @@ class MultiBotTradeStore:
 
     async def record_trade_async(self, trade: dict, bot_id: str) -> None:
         """Offloaded record_trade. Durable + lock-serialized; see _offload_write."""
+        if _append_enabled():
+            # Append-mode write is O(1) (one JSONL line) — GIL-cheap, no whole-file
+            # dump — so run inline; no to_thread needed (to_thread wouldn't have
+            # helped the old path anyway: json.dumps holds the GIL).
+            return self.record_trade(trade, bot_id=bot_id)
         await self._offload_write(self.record_trade, trade, bot_id=bot_id)
 
     async def save_bot_state_async(self, bot_id: str, state: dict) -> None:
