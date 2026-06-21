@@ -18934,6 +18934,23 @@ class DipScanner:
                             _has_mom = self.bot_manager.has_momentum_bot(_fp_allow)
                             if not _has_mom:
                                 _prescreen_skip = True
+                            elif os.environ.get(
+                                "MOM_PRESCREEN", "off"
+                            ).strip().lower() in ("on", "1", "true", "yes"):
+                                # Momentum bots bypass triggers but only buy
+                                # PUMPING tokens. A non-triggered token below a
+                                # conservative pump floor can't be bought by any
+                                # dip bot (no trigger) OR momentum bot (not pumping)
+                                # -> skip the ~70-bot fan-out. Floor well under real
+                                # momentum thresholds (~+20%) = buy-preserving.
+                                # Env MOM_PRESCREEN_PC_H1 (default +5). Fail-open.
+                                try:
+                                    _mom_floor = float(os.environ.get(
+                                        "MOM_PRESCREEN_PC_H1", "5.0"))
+                                    if float(pc_h1) < _mom_floor:
+                                        _prescreen_skip = True
+                                except Exception:
+                                    pass  # fail-open: run the full eval
                     except Exception:
                         _prescreen_skip = False  # fail-open: run the full eval
                     if _prescreen_skip:
