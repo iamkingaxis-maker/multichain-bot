@@ -7697,6 +7697,18 @@ class DipScanner:
                 _tier2_features["regime_h1_neg_pct"] = _regime_h1_neg_pct
                 _tier2_features["regime_n_tokens_scanned"] = _regime_n
 
+            # COOPERATIVE MID-SPAN YIELD (2026-06-20) — seam after feat_tier2.
+            # Breathe mid-compute so a long contiguous feature/trigger chain
+            # becomes micro-blocks. BEFORE any buy decision (buy-fire is the
+            # _buy_fire_lock block far below), so it cannot split the buy.
+            # Gate EVAL_PAIR_MID_YIELD (default on); fail-safe.
+            try:
+                if os.environ.get("EVAL_PAIR_MID_YIELD", "on").strip().lower() \
+                        not in ("off", "0", "false", "no"):
+                    await asyncio.sleep(0)
+            except Exception:
+                pass
+
             # Filter rsi_overbought — ENFORCED 2026-05-11.
             # Mined from 684 modern trades (with lifecycle_age tracking):
             #   rsi_5m < 50: WR 75% (n=253, 37% fire rate) — CV 75%, $+0.12/tr
@@ -7856,6 +7868,16 @@ class DipScanner:
                         )
                 except Exception as _e_fus_pre:
                     logger.debug(f"[DipScanner] early fusion err: {_e_fus_pre}")
+
+            # COOPERATIVE MID-SPAN YIELD (2026-06-20) — seam after feat_fusion.
+            # BEFORE any buy decision; cannot split the buy-fire lock. Gate
+            # EVAL_PAIR_MID_YIELD (default on); fail-safe.
+            try:
+                if os.environ.get("EVAL_PAIR_MID_YIELD", "on").strip().lower() \
+                        not in ("off", "0", "false", "no"):
+                    await asyncio.sleep(0)
+            except Exception:
+                pass
 
             # [phase-timing] trigger-chain thirds START (2026-06-20). The long
             # trigger/filter chain below (~5.6k lines, no single fn to wrap) is
@@ -9809,6 +9831,16 @@ class DipScanner:
             except Exception:
                 _trg_t1 = 0.0
 
+            # COOPERATIVE MID-SPAN YIELD (2026-06-20) — seam after feat_triggers_a
+            # (A→B trigger boundary). BEFORE any buy decision; cannot split the
+            # buy-fire lock. Gate EVAL_PAIR_MID_YIELD (default on); fail-safe.
+            try:
+                if os.environ.get("EVAL_PAIR_MID_YIELD", "on").strip().lower() \
+                        not in ("off", "0", "false", "no"):
+                    await asyncio.sleep(0)
+            except Exception:
+                pass
+
             # ── 6of7_green_vol parallel trigger — ENFORCED 2026-05-07 PM ───────
             # Fires when:
             #   1. Current 1m green
@@ -11696,6 +11728,16 @@ class DipScanner:
                 _trg_t2 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
             except Exception:
                 _trg_t2 = 0.0
+
+            # COOPERATIVE MID-SPAN YIELD (2026-06-20) — seam after feat_triggers_b
+            # (B→C trigger boundary). BEFORE any buy decision; cannot split the
+            # buy-fire lock. Gate EVAL_PAIR_MID_YIELD (default on); fail-safe.
+            try:
+                if os.environ.get("EVAL_PAIR_MID_YIELD", "on").strip().lower() \
+                        not in ("off", "0", "false", "no"):
+                    await asyncio.sleep(0)
+            except Exception:
+                pass
 
             # ── trigger_cascade_v_bottom — SHADOW 2026-05-14 PM ─────────────
             # Catches V-bottoms after a violent 1m cascade. Ground-truth from

@@ -21,3 +21,12 @@ def test_subop_keys_documented():
     for k in ("feat_tier2", "feat_tier3", "feat_fusion",
               "feat_triggers_a", "feat_triggers_b", "feat_triggers_c"):
         assert k in src, k
+
+
+def test_mid_yield_flag_referenced():
+    # Guard (Task 2): the cooperative mid-span yields are gated by the new
+    # EVAL_PAIR_MID_YIELD flag. Source-text check — the yields are runtime
+    # (soak) validated, not behaviorally unit-testable.
+    import inspect
+    import feeds.dip_scanner as ds
+    assert "EVAL_PAIR_MID_YIELD" in inspect.getsource(ds)
