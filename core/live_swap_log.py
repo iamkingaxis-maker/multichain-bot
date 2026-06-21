@@ -39,8 +39,8 @@ LOG_BASENAME = "live_swaps.jsonl"
 REQUIRED_FIELDS = (
     # Identity / context
     "ts", "side", "bot_id", "token_address", "token_symbol", "pair_address",
-    "trigger", "size_usd", "size_sol", "lamports", "liquidity_usd", "mcap",
-    "jupiter_api_base", "live_mode", "paper",
+    "trigger", "trigger_source", "size_usd", "size_sol", "lamports",
+    "liquidity_usd", "mcap", "jupiter_api_base", "live_mode", "paper",
     # Latency per-step (ms; monotonic-derived)
     "decision_ts", "order_start_ts", "order_duration_ms", "sign_duration_ms",
     "execute_start_ts", "execute_duration_ms", "confirmed_ts", "total_latency_ms",

@@ -2161,6 +2161,7 @@ class DipScanner:
             try:
                 from core.live_swap_log import log_live_swap
                 from core.probe_instrument import fill_slippage_pct
+                from core.fast_watch import rt_mode
                 from core import trader as _tr
                 _sb = res.get("slippage_cap_bps")
                 _ub = res.get("ultra_slippage_bps")
@@ -2178,6 +2179,7 @@ class DipScanner:
                     token_address=mint, token_symbol=token,
                     pair_address=getattr(decision, "pair_address", None),
                     trigger=getattr(decision, "reason", None) or getattr(decision, "trigger", None),
+                    trigger_source=("realtime" if rt_mode("RT_TRIGGER_MODE") == "enforce" else "legacy"),
                     size_usd=size_usd, size_sol=(lamports / 1e9 if lamports else None),
                     lamports=lamports,
                     liquidity_usd=getattr(decision, "liquidity_usd", None),

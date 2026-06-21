@@ -98,3 +98,20 @@ def test_compute_net_flow_windows_15s_imbalance():
 def test_rt_demand_turn_mode_default_off(monkeypatch):
     monkeypatch.delenv("RT_DEMAND_TURN_MODE", raising=False)
     assert rt_mode("RT_DEMAND_TURN_MODE") == "off"
+
+
+# --- Task 6: trigger_source telemetry tag --------------------------------
+
+def test_trigger_source_in_required_fields():
+    from core import live_swap_log
+    assert "trigger_source" in live_swap_log.REQUIRED_FIELDS
+
+
+def test_log_live_swap_writes_trigger_source(tmp_path, monkeypatch):
+    from core import live_swap_log
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LIVE_SWAP_LOG_MODE", "on")
+    live_swap_log.log_live_swap(side="buy", token_address="X", trigger_source="realtime")
+    import json
+    line = (tmp_path / "live_swaps.jsonl").read_text().strip().splitlines()[-1]
+    assert json.loads(line)["trigger_source"] == "realtime"
