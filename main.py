@@ -249,6 +249,21 @@ async def main():
                 _top = ", ".join(
                     "%s=%d" % (_n, _c) for _n, _c in _hist.most_common(20))
                 logger.warning("[gc-heap] n_objs=%d top_types: %s", len(_objs), _top)
+                # Identify WHAT the dominant lists are: first-element type +
+                # length distribution over a sample. Candles=list[5]/float,
+                # price samples=list[2]/float, trades=list/dict, etc.
+                _lists = [_o for _o in _objs if type(_o) is list]
+                _elt = _Ctr()
+                _lens = _Ctr()
+                for _l in _lists[:300000]:
+                    _lens[len(_l)] += 1
+                    if _l:
+                        _elt[type(_l[0]).__name__] += 1
+                logger.warning(
+                    "[gc-heap] lists=%d sample_elt0: %s | sample_len: %s",
+                    len(_lists),
+                    ", ".join("%s=%d" % (_k, _v) for _k, _v in _elt.most_common(8)),
+                    ", ".join("len%s=%d" % (_k, _v) for _k, _v in _lens.most_common(8)))
         except Exception as _e:
             logger.warning("[gc-heap] histogram failed: %s", _e)
         try:
