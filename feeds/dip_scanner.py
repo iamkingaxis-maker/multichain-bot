@@ -7646,53 +7646,56 @@ class DipScanner:
             # candle series come from the same _chart_data fetched at top of
             # this iteration — zero extra GT calls.
             _tier2_features: dict = {}
-            try:
-                from feeds.tier2_features import (
-                    compute_anchored_vwap_1h,
-                    compute_pct_off_peak,
-                    compute_higher_low_5m,
-                    compute_rsi_bb,
-                    compute_bundle_v2,
-                    compute_trade_size_shift,
-                    compute_bottom_signature_v1,
-                )
-                _cs5_full = (_chart_data.candles_5m if _chart_data and _chart_data.candles_5m else [])
-                _cs15_full = (_chart_data.candles_15m if _chart_data and _chart_data.candles_15m else [])
-                _cur_price = _cs5_full[-1].close if _cs5_full else 0.0
-                # 1. Anchored VWAP — 1h window
-                _tier2_features.update(
-                    compute_anchored_vwap_1h(_cs15_full, _cur_price)
-                )
-                # 2. pct_off_peak + minutes_since_peak
-                _tspk = trajectory_features.get("time_since_h24_peak_secs") if trajectory_features else None
-                _tier2_features.update(
-                    compute_pct_off_peak(float(pc_h24 or 0), float(peak_h24_6h or 0), _tspk)
-                )
-                # 3. Higher-low confirmation (uses full 5m series, not just 12)
-                _tier2_features.update(compute_higher_low_5m(_cs5_full))
-                # 4. RSI(14) + BB(20,2) on 5m and 15m
-                _tier2_features.update(compute_rsi_bb(_cs5_full, _cs15_full))
-                # 5. Bundle-v2 detector (top-10 buyer cluster timing)
-                _tier2_features.update(
-                    compute_bundle_v2(recent_trades or [], pair_age_hours)
-                )
-                # 6. Trade-size distribution shift (last-60s vs prior-60s)
-                _tier2_features.update(
-                    compute_trade_size_shift(recent_trades or [])
-                )
-                # 7. Bottom signature v1 — SHADOW 2026-05-13.
-                # Universal-coverage bottom-detection features from 1m+5m.
-                _cs1_full = (_chart_data.candles_1m if _chart_data and _chart_data.candles_1m else [])
-                _tier2_features.update(
-                    compute_bottom_signature_v1(_cs1_full, _cs5_full)
-                )
-            except Exception as _e:
-                logger.debug(f"[DipScanner] tier2 features error: {_e}")
+            # [phase-timing] feat_tier2 — pure-Python tier2 builders (no await /
+            # no control-flow escape inside; safe to wrap in _SubOp).
+            with _SubOp("feat_tier2"):
+                try:
+                    from feeds.tier2_features import (
+                        compute_anchored_vwap_1h,
+                        compute_pct_off_peak,
+                        compute_higher_low_5m,
+                        compute_rsi_bb,
+                        compute_bundle_v2,
+                        compute_trade_size_shift,
+                        compute_bottom_signature_v1,
+                    )
+                    _cs5_full = (_chart_data.candles_5m if _chart_data and _chart_data.candles_5m else [])
+                    _cs15_full = (_chart_data.candles_15m if _chart_data and _chart_data.candles_15m else [])
+                    _cur_price = _cs5_full[-1].close if _cs5_full else 0.0
+                    # 1. Anchored VWAP — 1h window
+                    _tier2_features.update(
+                        compute_anchored_vwap_1h(_cs15_full, _cur_price)
+                    )
+                    # 2. pct_off_peak + minutes_since_peak
+                    _tspk = trajectory_features.get("time_since_h24_peak_secs") if trajectory_features else None
+                    _tier2_features.update(
+                        compute_pct_off_peak(float(pc_h24 or 0), float(peak_h24_6h or 0), _tspk)
+                    )
+                    # 3. Higher-low confirmation (uses full 5m series, not just 12)
+                    _tier2_features.update(compute_higher_low_5m(_cs5_full))
+                    # 4. RSI(14) + BB(20,2) on 5m and 15m
+                    _tier2_features.update(compute_rsi_bb(_cs5_full, _cs15_full))
+                    # 5. Bundle-v2 detector (top-10 buyer cluster timing)
+                    _tier2_features.update(
+                        compute_bundle_v2(recent_trades or [], pair_age_hours)
+                    )
+                    # 6. Trade-size distribution shift (last-60s vs prior-60s)
+                    _tier2_features.update(
+                        compute_trade_size_shift(recent_trades or [])
+                    )
+                    # 7. Bottom signature v1 — SHADOW 2026-05-13.
+                    # Universal-coverage bottom-detection features from 1m+5m.
+                    _cs1_full = (_chart_data.candles_1m if _chart_data and _chart_data.candles_1m else [])
+                    _tier2_features.update(
+                        compute_bottom_signature_v1(_cs1_full, _cs5_full)
+                    )
+                except Exception as _e:
+                    logger.debug(f"[DipScanner] tier2 features error: {_e}")
 
-            # 7. Cross-token regime breadth (computed once per scan cycle above)
-            _tier2_features["regime_dip_breadth_pct"] = _regime_dip_breadth_pct
-            _tier2_features["regime_h1_neg_pct"] = _regime_h1_neg_pct
-            _tier2_features["regime_n_tokens_scanned"] = _regime_n
+                # 7. Cross-token regime breadth (computed once per scan cycle above)
+                _tier2_features["regime_dip_breadth_pct"] = _regime_dip_breadth_pct
+                _tier2_features["regime_h1_neg_pct"] = _regime_h1_neg_pct
+                _tier2_features["regime_n_tokens_scanned"] = _regime_n
 
             # Filter rsi_overbought — ENFORCED 2026-05-11.
             # Mined from 684 modern trades (with lifecycle_age tracking):
@@ -7749,23 +7752,26 @@ class DipScanner:
             # windows, hours_since_graduation. All computed from data
             # already fetched. Each function fail-opens.
             _tier3_features: dict = {}
-            try:
-                from feeds.tier3_features import (
-                    compute_support_touches, compute_wick_body_ratios,
-                    compute_freq_derivative, compute_net_flow_windows,
-                    compute_hours_since_grad,
-                )
-                _cs5_full2 = (_chart_data.candles_5m if _chart_data and _chart_data.candles_5m else [])
-                _tier3_features.update(compute_support_touches(_cs5_full2))
-                _tier3_features.update(compute_wick_body_ratios(_cs5_full2))
-                _tier3_features.update(compute_freq_derivative(recent_trades or []))
-                _tier3_features.update(compute_net_flow_windows(recent_trades or []))
-                _grad_status = (_graduation_dict or {}).get("graduation_status", "?")
-                _tier3_features.update(
-                    compute_hours_since_grad(_grad_status, pair_age_hours)
-                )
-            except Exception as _e:
-                logger.debug(f"[DipScanner] tier3 features error: {_e}")
+            # [phase-timing] feat_tier3 — pure-Python tier3 builders (no await /
+            # no control-flow escape inside; safe to wrap in _SubOp).
+            with _SubOp("feat_tier3"):
+                try:
+                    from feeds.tier3_features import (
+                        compute_support_touches, compute_wick_body_ratios,
+                        compute_freq_derivative, compute_net_flow_windows,
+                        compute_hours_since_grad,
+                    )
+                    _cs5_full2 = (_chart_data.candles_5m if _chart_data and _chart_data.candles_5m else [])
+                    _tier3_features.update(compute_support_touches(_cs5_full2))
+                    _tier3_features.update(compute_wick_body_ratios(_cs5_full2))
+                    _tier3_features.update(compute_freq_derivative(recent_trades or []))
+                    _tier3_features.update(compute_net_flow_windows(recent_trades or []))
+                    _grad_status = (_graduation_dict or {}).get("graduation_status", "?")
+                    _tier3_features.update(
+                        compute_hours_since_grad(_grad_status, pair_age_hours)
+                    )
+                except Exception as _e:
+                    logger.debug(f"[DipScanner] tier3 features error: {_e}")
 
             # ── DEFENDER PREP 2026-05-29: early fusion_constrained score ───
             # The fusion meta-model was previously only computed inside
@@ -7787,66 +7793,79 @@ class DipScanner:
             # lifecycle_age_hours. Only 3 (top10, lp_locked, rugcheck) are not
             # available at this point — those come from rugcheck post-this-point
             # and remain None (the model handles None via _safe_float defaults).
-            try:
-                from models.fusion_constrained import get_fusion_constrained
-                from datetime import datetime as _dt_fus, timezone as _tz_fus
-                _fc_inf_pre = get_fusion_constrained()
-                if not _fc_inf_pre.disabled:
-                    _early_em: dict = dict(c)
-                    # Buyer/seller ratios — local vars from tier1
-                    try:
-                        if 'ratio_h1' in dir() and ratio_h1 not in (None, float("inf")):
-                            _early_em["bs_h1"] = float(ratio_h1)
-                    except Exception: pass
-                    try:
-                        if ratio_m5 not in (None, float("inf")):
-                            _early_em["bs_m5"] = float(ratio_m5)
-                    except Exception: pass
-                    # CNN cluster — local var
-                    _early_em["cnn_cluster_id"] = _cnn_cluster_id
-                    # 1m features — local dict (may not exist if 1m fetch failed)
-                    try:
-                        if 'm1_features' in dir() and isinstance(m1_features, dict):
-                            for _k in ("1m_cum_3min_pct", "1m_volume_spike"):
-                                _v = m1_features.get(_k)
+            # [phase-timing] feat_fusion — early fusion_constrained score build
+            # (pure-Python; no await / no control-flow escape; safe to wrap).
+            with _SubOp("feat_fusion"):
+                try:
+                    from models.fusion_constrained import get_fusion_constrained
+                    from datetime import datetime as _dt_fus, timezone as _tz_fus
+                    _fc_inf_pre = get_fusion_constrained()
+                    if not _fc_inf_pre.disabled:
+                        _early_em: dict = dict(c)
+                        # Buyer/seller ratios — local vars from tier1
+                        try:
+                            if 'ratio_h1' in dir() and ratio_h1 not in (None, float("inf")):
+                                _early_em["bs_h1"] = float(ratio_h1)
+                        except Exception: pass
+                        try:
+                            if ratio_m5 not in (None, float("inf")):
+                                _early_em["bs_m5"] = float(ratio_m5)
+                        except Exception: pass
+                        # CNN cluster — local var
+                        _early_em["cnn_cluster_id"] = _cnn_cluster_id
+                        # 1m features — local dict (may not exist if 1m fetch failed)
+                        try:
+                            if 'm1_features' in dir() and isinstance(m1_features, dict):
+                                for _k in ("1m_cum_3min_pct", "1m_volume_spike"):
+                                    _v = m1_features.get(_k)
+                                    if _v is not None:
+                                        _early_em[_k] = _v
+                        except Exception: pass
+                        # Trajectory features — local dict
+                        try:
+                            if 'trajectory_features' in dir() and isinstance(trajectory_features, dict):
+                                _v = trajectory_features.get("pc_h1_change_since_lookback")
                                 if _v is not None:
-                                    _early_em[_k] = _v
-                    except Exception: pass
-                    # Trajectory features — local dict
-                    try:
-                        if 'trajectory_features' in dir() and isinstance(trajectory_features, dict):
-                            _v = trajectory_features.get("pc_h1_change_since_lookback")
-                            if _v is not None:
-                                _early_em["pc_h1_change_since_lookback"] = _v
-                    except Exception: pass
-                    # Chart context — pct_in_5m_range, chart_mtf_score
-                    try:
-                        if '_chart_ctx_dict' in dir() and isinstance(_chart_ctx_dict, dict):
-                            for _k in ("chart_mtf_score", "pct_in_5m_range"):
-                                _v = _chart_ctx_dict.get(_k)
-                                if _v is not None:
-                                    _early_em[_k] = _v
-                    except Exception: pass
-                    # Tier3 features (note: tier3 stores hours_since_graduation;
-                    # the model reads lifecycle_age_hours — they're the same value).
-                    if _tier3_features:
-                        for _k in ("lifecycle_age_hours", "top10_holder_pct",
-                                   "lp_locked_pct", "rugcheck_score"):
-                            if _k in _tier3_features:
-                                _early_em[_k] = _tier3_features[_k]
-                        # Map hours_since_graduation -> lifecycle_age_hours if
-                        # only the former is present.
-                        if ("lifecycle_age_hours" not in _early_em
-                            and "hours_since_graduation" in _tier3_features):
-                            _early_em["lifecycle_age_hours"] = _tier3_features["hours_since_graduation"]
-                    c["fusion_constrained_score_shadow"] = (
-                        _fc_inf_pre.score_from_entry_meta(
-                            _early_em,
-                            time_iso=_dt_fus.now(_tz_fus.utc).isoformat(),
+                                    _early_em["pc_h1_change_since_lookback"] = _v
+                        except Exception: pass
+                        # Chart context — pct_in_5m_range, chart_mtf_score
+                        try:
+                            if '_chart_ctx_dict' in dir() and isinstance(_chart_ctx_dict, dict):
+                                for _k in ("chart_mtf_score", "pct_in_5m_range"):
+                                    _v = _chart_ctx_dict.get(_k)
+                                    if _v is not None:
+                                        _early_em[_k] = _v
+                        except Exception: pass
+                        # Tier3 features (note: tier3 stores hours_since_graduation;
+                        # the model reads lifecycle_age_hours — they're the same value).
+                        if _tier3_features:
+                            for _k in ("lifecycle_age_hours", "top10_holder_pct",
+                                       "lp_locked_pct", "rugcheck_score"):
+                                if _k in _tier3_features:
+                                    _early_em[_k] = _tier3_features[_k]
+                            # Map hours_since_graduation -> lifecycle_age_hours if
+                            # only the former is present.
+                            if ("lifecycle_age_hours" not in _early_em
+                                and "hours_since_graduation" in _tier3_features):
+                                _early_em["lifecycle_age_hours"] = _tier3_features["hours_since_graduation"]
+                        c["fusion_constrained_score_shadow"] = (
+                            _fc_inf_pre.score_from_entry_meta(
+                                _early_em,
+                                time_iso=_dt_fus.now(_tz_fus.utc).isoformat(),
+                            )
                         )
-                    )
-            except Exception as _e_fus_pre:
-                logger.debug(f"[DipScanner] early fusion err: {_e_fus_pre}")
+                except Exception as _e_fus_pre:
+                    logger.debug(f"[DipScanner] early fusion err: {_e_fus_pre}")
+
+            # [phase-timing] trigger-chain thirds START (2026-06-20). The long
+            # trigger/filter chain below (~5.6k lines, no single fn to wrap) is
+            # split into feat_triggers_a/b/c via monotonic checkpoints at clean
+            # seams BETWEEN trigger try/except blocks. Fail-safe; only read when
+            # SCAN_PHASE_TIMING is on. Accumulates into _subop_totals directly.
+            try:
+                _trg_t0 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
+            except Exception:
+                _trg_t0 = 0.0
 
             # ── Breakthrough-trigger EARLY preview (2026-05-16 PM) ─────────
             # The 6 on-chain compound triggers shipped 2026-05-15 had
@@ -9778,6 +9797,18 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] range_expansion_qualified err: {_e}")
 
+            # [phase-timing] trigger-chain seam A→B (clean seam between
+            # range_expansion_qualified and 6of7_green_vol try/except blocks).
+            try:
+                if _SCAN_PHASE_TIMING and _trg_t0:
+                    _subop_totals["feat_triggers_a"] = (
+                        _subop_totals.get("feat_triggers_a", 0.0)
+                        + (time.monotonic() - _trg_t0)
+                    )
+                _trg_t1 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
+            except Exception:
+                _trg_t1 = 0.0
+
             # ── 6of7_green_vol parallel trigger — ENFORCED 2026-05-07 PM ───────
             # Fires when:
             #   1. Current 1m green
@@ -11653,6 +11684,19 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] whale_conviction trigger err: {_e}")
 
+            # [phase-timing] trigger-chain seam B→C (clean seam between
+            # trigger_whale_conviction and trigger_cascade_v_bottom try/except
+            # blocks).
+            try:
+                if _SCAN_PHASE_TIMING and _trg_t1:
+                    _subop_totals["feat_triggers_b"] = (
+                        _subop_totals.get("feat_triggers_b", 0.0)
+                        + (time.monotonic() - _trg_t1)
+                    )
+                _trg_t2 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
+            except Exception:
+                _trg_t2 = 0.0
+
             # ── trigger_cascade_v_bottom — SHADOW 2026-05-14 PM ─────────────
             # Catches V-bottoms after a violent 1m cascade. Ground-truth from
             # BURNIE 2026-05-14 15:53:18 CT: after the 15:50 -5.12% cascade
@@ -13513,6 +13557,18 @@ class DipScanner:
                 _trigger_vp_orderflow_match = False
                 _trigger_reaccum_vol_match = False
                 _trigger_tight_buyer_mtf_match = False
+
+            # [phase-timing] trigger-chain thirds END (2026-06-20): close the
+            # final third. Placed at the same seam as the feature_compute END so
+            # feat_triggers_c covers the rest of the trigger/filter chain.
+            try:
+                if _SCAN_PHASE_TIMING and _trg_t2:
+                    _subop_totals["feat_triggers_c"] = (
+                        _subop_totals.get("feat_triggers_c", 0.0)
+                        + (time.monotonic() - _trg_t2)
+                    )
+            except Exception:
+                pass
 
             # feature_compute checkpoint END (2026-06-20): accumulate the elapsed
             # pure-Python feature/filter compute into the per-call breakdown.
