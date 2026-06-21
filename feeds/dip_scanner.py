@@ -1131,16 +1131,31 @@ class DipScanner:
     # state with the existing per-token loop (pool_price_feed, etc.).
 
     def _live_token_exposure(self, address: str) -> tuple:
-        """Fleet-wide (count, $usd) of OPEN positions in ONE token, keyed by ADDRESS.
-        Address-keyed on purpose: symbols collide (the SPCX phantom) so concentration
-        MUST be measured per-mint. Powers the live per-token exposure cap (the DEGEN-x198
-        / 05-23 correlated-rug guard). Reads every per-bot book; cheap (fleet is ~hundreds
-        of open positions at most)."""
+        """Fleet-wide (count, $usd) of OPEN *LIVE* positions in ONE token, keyed by ADDRESS.
+        Counts ONLY positions held by bots that ROUTE LIVE (should_route_live: live_probe +
+        Ultra + real key). 2026-06-21 BUG FIX: this used to count EVERY bot's positions
+        (paper included), so the ~70 paper bots piling one mint tripped the LIVE per-token
+        cap and shut the single live bot out (badday_flush_nf15_live blocked on OGFLOKI =
+        '7 live pos/$925' that were actually paper). Mirrors the live-detection in
+        _paper_token_exposure (which excludes live bots) — here we INCLUDE only live ones.
+        Address-keyed (symbols collide — SPCX phantom). Powers the live per-token cap."""
         n = 0
         usd = 0.0
         if not address:
             return n, usd
+        try:
+            from core.trader import USE_JUPITER_ULTRA
+            from core.probe_instrument import should_route_live
+            _has_key = bool(getattr(self.trader, "private_key", ""))
+        except Exception:
+            return n, usd  # can't resolve the live set -> count nothing (don't block live)
         for _pm in self.bot_position_managers.values():
+            _cfg = getattr(_pm, "config", None)
+            _bot_live = bool(should_route_live(
+                bool(getattr(_cfg, "live_probe", False)), USE_JUPITER_ULTRA, _has_key
+            )) if should_route_live is not None else False
+            if not _bot_live:
+                continue  # paper position -> NOT counted by the LIVE cap
             for _p in _pm._positions.values():
                 if getattr(_p, "address", "") == address:
                     n += 1
