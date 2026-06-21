@@ -973,10 +973,23 @@ class Trader:
                 {"encoding": "jsonParsed"},
             ],
         }
-        data = await self._post_rpc(payload, total_timeout=5.0) or {}
-        accounts = (data.get("result") or {}).get("value") or []
+        data = await self._post_rpc(payload, total_timeout=5.0)
+        # Distinguish a FAILED read from a genuine zero. _post_rpc returns
+        # None (or a dict carrying an "error" / no usable "result") on a
+        # timeout, 429, or RPC error. Returning 0 in those cases made a
+        # transient hiccup look like "0 tokens on chain" -> the sell path
+        # (_execute_bot_sell_live) booked a phantom PAPER close on a REAL
+        # live position, stranding the tokens in the wallet (2026-06-21 BOB).
+        # A failed read MUST be -1 so the caller's `bal is None or bal < 0`
+        # sentinel keeps the position OPEN and retries next tick.
+        if not isinstance(data, dict) or data.get("error") is not None:
+            return -1
+        result = data.get("result")
+        if not isinstance(result, dict):
+            return -1
+        accounts = result.get("value") or []
         if not accounts:
-            return 0
+            return 0  # RPC succeeded; owner genuinely holds no account for this mint
         try:
             total = 0
             for acct in accounts:
