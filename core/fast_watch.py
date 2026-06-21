@@ -374,6 +374,28 @@ def rolling_dip_pct(samples):
     return round((vals[-1] / hi - 1.0) * 100.0, 6)
 
 
+def reprice_change_pct(snapshot_pct, snapshot_price, fresh_price):
+    """Recompute a price-change % (e.g. pc_h1) using a FRESH price against the
+    slow high-reference encoded in the snapshot %.
+
+    snapshot_pct: the DexScreener priceChange % at snapshot time (percent units,
+        e.g. -20.0). snapshot_price: the priceUsd at snapshot time. fresh_price:
+        the live price now. Returns the repriced % (percent units), or None if
+        prices are unusable. When fresh_price == snapshot_price, returns
+        snapshot_pct exactly (identity / inversion fallback). Pure; never raises.
+    """
+    try:
+        sp = float(snapshot_price)
+        fp = float(fresh_price)
+        pc = float(snapshot_pct)
+    except (TypeError, ValueError):
+        return None
+    if sp <= 0 or fp <= 0:
+        return None
+    fresh = ((fp / sp) * (1.0 + pc / 100.0) - 1.0) * 100.0
+    return round(fresh, 6)
+
+
 def rolling_rise_pct(samples):
     """% gain of the latest sample off the window min. None if <2 valid (>0) samples.
     `samples`: iterable of prices (oldest→newest)."""
