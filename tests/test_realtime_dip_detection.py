@@ -1,7 +1,7 @@
 import os
 
 import math
-from core.fast_watch import reprice_change_pct
+from core.fast_watch import reprice_change_pct, rt_mode
 
 
 def test_reprice_identity_when_price_unchanged():
@@ -38,3 +38,21 @@ def test_scan_yield_every_default_is_tight(monkeypatch):
     # Scan the module source for the default.
     msrc = inspect.getsource(ds)
     assert 'os.environ.get("SCAN_YIELD_EVERY", "4")' in msrc
+
+
+def test_rt_mode_env_default(monkeypatch):
+    monkeypatch.delenv("RT_TRIGGER_MODE", raising=False)
+    assert rt_mode("RT_TRIGGER_MODE") == "off"
+    monkeypatch.setenv("RT_TRIGGER_MODE", "shadow")
+    assert rt_mode("RT_TRIGGER_MODE") == "shadow"
+
+
+def test_rt_mode_per_bot_override_wins(monkeypatch):
+    monkeypatch.setenv("RT_TRIGGER_MODE", "off")
+    # bot config override (dict form) beats the env default
+    assert rt_mode("RT_TRIGGER_MODE", {"rt_trigger_mode": "enforce"}) == "enforce"
+
+
+def test_rt_mode_invalid_falls_back_to_default(monkeypatch):
+    monkeypatch.setenv("RT_TRIGGER_MODE", "garbage")
+    assert rt_mode("RT_TRIGGER_MODE", default="off") == "off"

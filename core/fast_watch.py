@@ -396,6 +396,30 @@ def reprice_change_pct(snapshot_pct, snapshot_price, fresh_price):
     return round(fresh, 6)
 
 
+_RT_VALID = ("off", "shadow", "enforce")
+
+
+def rt_mode(flag, bot_cfg=None, default="off"):
+    """Resolve an off/shadow/enforce mode flag, per-bot override winning over env.
+
+    flag: env var name (e.g. 'RT_TRIGGER_MODE'). bot_cfg: optional bot config —
+    a dict or object that may carry the lowercased flag name as a per-bot
+    override. default: returned when neither source has a valid value. Always
+    returns one of off/shadow/enforce. Pure-ish (reads env); never raises.
+    """
+    key = flag.lower()
+    val = None
+    if bot_cfg is not None:
+        if isinstance(bot_cfg, dict):
+            val = bot_cfg.get(key)
+        else:
+            val = getattr(bot_cfg, key, None)
+    if val is None:
+        val = os.environ.get(flag)
+    val = (str(val).strip().lower() if val is not None else default)
+    return val if val in _RT_VALID else default
+
+
 def rolling_rise_pct(samples):
     """% gain of the latest sample off the window min. None if <2 valid (>0) samples.
     `samples`: iterable of prices (oldest→newest)."""

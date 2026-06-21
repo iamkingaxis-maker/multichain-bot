@@ -4070,10 +4070,38 @@ class DipScanner:
                             except Exception:
                                 pass
                 _pair = dict(_pair)
-                if pinned is not None and pinned > 0:
-                    _pair["priceUsd"] = str(pinned)
-                else:
-                    _pair["priceUsd"] = str(fresh)
+                _snap_price = None
+                try:
+                    _snap_price = float(pair.get("priceUsd") or 0) or None
+                except (TypeError, ValueError):
+                    _snap_price = None
+                _fresh_price = pinned if (pinned is not None and pinned > 0) else fresh
+                _pair["priceUsd"] = str(_fresh_price)
+                # COMPONENT A: recompute the short-horizon dip metrics off the
+                # FRESH price vs the slow high-reference encoded in the snapshot %,
+                # so the dip trigger in _evaluate_pair gates on the LIVE move
+                # instead of stale pair["priceChange"]. Per-bot/env RT_TRIGGER_MODE.
+                from core.fast_watch import reprice_change_pct, rt_mode
+                _rt_trig = rt_mode("RT_TRIGGER_MODE")
+                if _rt_trig != "off" and _snap_price and _fresh_price and _fresh_price > 0:
+                    _pch = dict(_pair.get("priceChange") or {})
+                    _fresh_pc = {}
+                    for _k in ("h1", "m5"):
+                        _snap_pc = _pch.get(_k)
+                        if _snap_pc is None:
+                            continue
+                        _rp = reprice_change_pct(_snap_pc, _snap_price, _fresh_price)
+                        if _rp is not None:
+                            _fresh_pc[_k] = _rp
+                    if _fresh_pc:
+                        if _rt_trig == "enforce":
+                            _pch.update(_fresh_pc)
+                            _pair["priceChange"] = _pch
+                        logger.info(
+                            "[rt-trigger] %s mode=%s snap_pc_h1=%s fresh_pc_h1=%s "
+                            "snap_px=%.8f fresh_px=%.8f",
+                            addr[:6], _rt_trig, _pch.get("h1"),
+                            _fresh_pc.get("h1"), _snap_price, _fresh_price)
                 # FORWARD FILL-SPEED CAPTURE (shadow): stash the would-fill price
                 # this fast tick saw for `addr` so _execute_bot_buy can log it vs the
                 # actual sweep fill. The escalation price (pinned > jupiter) is the
