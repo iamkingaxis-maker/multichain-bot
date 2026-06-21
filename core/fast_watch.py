@@ -420,6 +420,19 @@ def rt_mode(flag, bot_cfg=None, default="off"):
     return val if val in _RT_VALID else default
 
 
+def demand_turn_fresh_ok(fresh_imbalance, fetch_ok):
+    """Whether the FRESH demand-turn confirms (net_flow_15s_imbalance >= 0).
+
+    fetch_ok False or fresh_imbalance None -> None (caller falls back to existing
+    behavior; NEVER returns True on missing data = never fail-open). Pure; never raises."""
+    if not fetch_ok or fresh_imbalance is None:
+        return None
+    try:
+        return float(fresh_imbalance) >= 0.0
+    except (TypeError, ValueError):
+        return None
+
+
 def should_rearm_this_tick(rt_arm_mode):
     """True when the fast tick should rebuild the armed set from the freshest
     evaluated universe (RT_ARM_MODE shadow or enforce). Pure."""

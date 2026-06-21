@@ -5753,6 +5753,57 @@ class DipScanner:
                 # prefetch miss leave recent_trades=[] (fail-open); the rt-derived
                 # features degrade gracefully and the main scan covers the token.
                 recent_trades = []
+                # COMPONENT C (RT_DEMAND_TURN_MODE, 2026-06-20): the nf15 entry gate
+                # reads net_flow_15s_imbalance, which compute_net_flow_windows derives
+                # from recent_trades. Cache-only leaves it stale/empty. When the flag
+                # is on, re-fetch FRESH recent_trades for THIS survivor only (the small
+                # armed-and-moving set — NOT a fleet-wide refetch, so no 429 storm) so
+                # the demand-turn is live for the entry gate + all downstream consumers.
+                # NEVER fail-open: a fetch failure/empty falls back to the cache-only
+                # [] above. enforce=use fresh; shadow=fetch+log only.
+                from core.fast_watch import (
+                    rt_mode as _rt_mode_dt,
+                    demand_turn_fresh_ok as _demand_turn_fresh_ok,
+                )
+                _rt_dt = _rt_mode_dt("RT_DEMAND_TURN_MODE")
+                if _rt_dt != "off":
+                    _fresh_rt = []
+                    try:
+                        if self.dexs_client is not None:
+                            with _SubOp("recent_trades_dexs_demandturn"):
+                                _fresh_rt = await self.dexs_client.fetch_recent_trades(
+                                    pair_addr_for_1m, limit=30
+                                ) or []
+                        if not _fresh_rt:
+                            with _SubOp("recent_trades_gt_demandturn"):
+                                _fresh_rt = await self.gt_client.fetch_recent_trades(
+                                    pair_addr_for_1m, limit=30
+                                ) or []
+                    except Exception as _e:
+                        logger.debug(
+                            f"[rt-demand-turn] fresh fetch error for {token_symbol}: {_e}"
+                        )
+                        _fresh_rt = []
+                    _fetch_ok = bool(_fresh_rt)
+                    _fresh_imb = None
+                    if _fetch_ok:
+                        try:
+                            from feeds.tier3_features import compute_net_flow_windows as _cnfw
+                            _fresh_imb = _cnfw(_fresh_rt).get("net_flow_15s_imbalance")
+                        except Exception as _e:
+                            logger.debug(
+                                f"[rt-demand-turn] net_flow compute error for {token_symbol}: {_e}"
+                            )
+                    _turn_ok = _demand_turn_fresh_ok(_fresh_imb, _fetch_ok)
+                    if _rt_dt == "enforce" and _fetch_ok:
+                        # USE the fresh trades -> compute_net_flow_windows downstream
+                        # produces a fresh net_flow_15s for the entry gate.
+                        recent_trades = _fresh_rt
+                    logger.info(
+                        "[rt-demand-turn] %s mode=%s fetch_ok=%s fresh_imb=%s turn_ok=%s n=%d",
+                        token_symbol, _rt_dt, _fetch_ok, _fresh_imb, _turn_ok,
+                        len(_fresh_rt),
+                    )
             else:
                 # Try DexScreener primary (much higher rate-limit headroom; GT
                 # was 100% 429-ing on this endpoint per pre-DexScreener audit).

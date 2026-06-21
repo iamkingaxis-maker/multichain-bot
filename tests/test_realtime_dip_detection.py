@@ -67,3 +67,34 @@ def test_should_rearm_shadow_and_enforce():
     from core.fast_watch import should_rearm_this_tick
     assert should_rearm_this_tick("shadow") is True
     assert should_rearm_this_tick("enforce") is True
+
+
+# ── Task 5: Component C — faithful fresh demand-turn ──────────────────────────
+from core.fast_watch import demand_turn_fresh_ok
+from feeds.tier3_features import compute_net_flow_windows
+
+
+def test_demand_turn_fresh_ok_semantics():
+    assert demand_turn_fresh_ok(0.4, True) is True
+    assert demand_turn_fresh_ok(-0.1, True) is False
+    assert demand_turn_fresh_ok(None, True) is None      # missing -> None, never True
+    assert demand_turn_fresh_ok(0.4, False) is None      # fetch failed -> None
+    assert demand_turn_fresh_ok("x", True) is None
+
+
+def test_compute_net_flow_windows_15s_imbalance():
+    # newest-anchored 15s window; all within 15s of the max ts
+    trades = [
+        {"kind": "buy",  "volume_usd": 100, "ts": "2026-06-21T00:00:10Z"},
+        {"kind": "sell", "volume_usd": 40,  "ts": "2026-06-21T00:00:08Z"},
+        {"kind": "buy",  "volume_usd": 60,  "ts": "2026-06-21T00:00:01Z"},
+    ]
+    out = compute_net_flow_windows(trades)
+    assert out["net_flow_15s_usd"] == 120.0          # 100 - 40 + 60
+    assert out["net_flow_15s_n"] == 3
+    assert out["net_flow_15s_imbalance"] == 0.6      # 120 / 200
+
+
+def test_rt_demand_turn_mode_default_off(monkeypatch):
+    monkeypatch.delenv("RT_DEMAND_TURN_MODE", raising=False)
+    assert rt_mode("RT_DEMAND_TURN_MODE") == "off"
