@@ -264,8 +264,33 @@ async def main():
                     len(_lists),
                     ", ".join("%s=%d" % (_k, _v) for _k, _v in _elt.most_common(8)),
                     ", ".join("len%s=%d" % (_k, _v) for _k, _v in _lens.most_common(8)))
+                # REFERRER ANALYSIS: for a sample of EMPTY lists (the 80% hog),
+                # find what holds them -> names the leaking container (e.g. a
+                # defaultdict(list) keyed by wallet/token that never prunes).
+                _empties = [_l for _l in _lists if len(_l) == 0]
+                _ref_types = _Ctr()
+                _ref_samples = []
+                for _el in _empties[:40]:
+                    for _r in _gc.get_referrers(_el):
+                        _rt = type(_r).__name__
+                        _ref_types[_rt] += 1
+                        if _rt == "dict" and len(_ref_samples) < 6:
+                            _ks = list(_r.keys())[:3]
+                            _ref_samples.append("dict(n=%d,keys=%s)" % (
+                                len(_r), [str(_k)[:40] for _k in _ks]))
+                        elif _rt not in ("list", "frame") and len(_ref_samples) < 6:
+                            _ref_samples.append("%s:%s" % (_rt, str(_r)[:60]))
+                logger.warning(
+                    "[gc-heap] empties=%d referrer_types: %s | samples: %s",
+                    len(_empties),
+                    ", ".join("%s=%d" % (_k, _v) for _k, _v in _ref_types.most_common(8)),
+                    " || ".join(_ref_samples))
         except Exception as _e:
             logger.warning("[gc-heap] histogram failed: %s", _e)
+        if os.environ.get("GC_FREEZE", "off").strip().lower() not in (
+            "on", "1", "true", "yes"
+        ):
+            return  # freeze is opt-in (it caused a one-time ~30s pause; off by default)
         try:
             _gc.collect()
             _gc.freeze()
