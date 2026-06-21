@@ -247,6 +247,21 @@ async def main():
                 "(frozen=%d) — mitigate GC stop-world loop-lag", _g0, _frozen)
         except Exception as _e:
             logger.warning("[gc-tune] failed: %s", _e)
+        # ONE-TIME HEAP HISTOGRAM (find the retention hog behind the huge heap /
+        # memory bill). Iterates all tracked objects once — a few seconds, off the
+        # hot path, gated by GC_HEAP_HISTOGRAM (default on when GC_TUNE on).
+        try:
+            if os.environ.get("GC_HEAP_HISTOGRAM", "on").strip().lower() in (
+                "on", "1", "true", "yes"
+            ):
+                from collections import Counter as _Ctr
+                _objs = _gc.get_objects()
+                _hist = _Ctr(type(_o).__name__ for _o in _objs)
+                _top = ", ".join(
+                    "%s=%d" % (_n, _c) for _n, _c in _hist.most_common(18))
+                logger.warning("[gc-heap] n_objs=%d top_types: %s", len(_objs), _top)
+        except Exception as _e:
+            logger.warning("[gc-heap] histogram failed: %s", _e)
     asyncio.ensure_future(_gc_tune())
 
     config = Config.load()
