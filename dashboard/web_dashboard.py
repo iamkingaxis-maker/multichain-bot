@@ -2494,6 +2494,7 @@ class WebDashboard:
         self.app.router.add_get("/api/fill-speed",          self._handle_api_fill_speed)
         self.app.router.add_get("/api/live-swaps",          self._handle_api_live_swaps)
         self.app.router.add_get("/api/paper-live-skips",    self._handle_api_paper_live_skips)
+        self.app.router.add_get("/api/top-bots",            self._handle_api_top_bots)
         self.app.router.add_get("/api/filter-shadow",       self._handle_api_filter_shadow)
         self.app.router.add_get("/api/bots/{bot_id}/trades",    self._handle_api_bot_trades)
         self.app.router.add_get("/api/bots/{bot_id}/positions", self._handle_api_bot_positions)
@@ -3269,6 +3270,58 @@ class WebDashboard:
         return web.Response(
             text=json.dumps(payload, default=str), content_type="application/json",
             headers=cors,
+        )
+
+    async def _handle_api_top_bots(self, request):
+        """GET /api/top-bots — the curated TOP-BOTS scoreboard.
+
+        Replaces noisy fleet-daily P&L with a clean per-bot view of the PROVEN
+        top bots, measured the durable way (realized $/trade + WR + downside
+        tail at n>=30). Reads the SAME trade set as /api/trades — tracker
+        get_all_trades() + the live append-mode ledger (trade_store) — OFF the
+        event loop, then aggregates via the pure core.top_bots helper.
+        Fail-open: any error -> ok:False/empty, never 500-crashes the dashboard.
+        No money path, read-only."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        import asyncio as _asyncio
+        try:
+            from core.top_bots import compute_top_bots, top_bots_set
+        except Exception as e:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": str(e),
+                                 "bots": [], "scoreboard": {}}),
+                content_type="application/json", headers=cors,
+            )
+
+        def _load_trades():
+            # Mirror _handle_trades: tracker records + append-mode ledger.
+            trades = []
+            if self._tracker is not None:
+                try:
+                    trades = list(self._tracker.get_all_trades())
+                except Exception:
+                    trades = []
+            if self.trade_store is not None:
+                try:
+                    trades = trades + self.trade_store.load_trades()
+                except Exception:
+                    pass
+            return trades
+
+        try:
+            bots = top_bots_set()
+            trades = await _asyncio.to_thread(_load_trades)
+            scoreboard = await _asyncio.to_thread(compute_top_bots, trades, bots)
+        except Exception as e:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": str(e),
+                                 "bots": [], "scoreboard": {}}),
+                content_type="application/json", headers=cors,
+            )
+        payload = {"ok": True, "bots": bots, "scoreboard": scoreboard}
+        return web.Response(
+            text=json.dumps(payload, default=str),
+            content_type="application/json", headers=cors,
         )
 
     async def _handle_api_fill_speed(self, request):
