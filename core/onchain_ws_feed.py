@@ -69,6 +69,11 @@ class OnchainWsFeed:
 
         # pda(str) -> mint(original-case) routing map, built in run()
         self._pda_to_mint = {}
+        # live connection-loop tasks keyed by stable chunk key (sorted lower
+        # tuple of the chunk's mints). Managed dynamically by the supervisor so
+        # the open socket set tracks the rotating hot set instead of freezing at
+        # boot. {} until run() opens connections.
+        self._conn_tasks = {}
         # currently-tracked hot mint set (lowercased) -- what we believe is
         # subscribed. Maintained by the refresh loop so coverage tracks rotation.
         self._tracked = set()
@@ -89,6 +94,44 @@ class OnchainWsFeed:
     def _plan_connections(self, mints, per_conn=SUBS_PER_CONN):
         """Chunk mints into connection groups of <=per_conn subscriptions each."""
         return [mints[i:i + per_conn] for i in range(0, len(mints), per_conn)]
+
+    @staticmethod
+    def _chunk_key(chunk):
+        """Stable, order-insensitive key for a connection chunk (sorted lower tuple).
+
+        Identical mint sets => identical key, so a refresh that yields the same
+        chunk does NOT churn the live connection task.
+        """
+        try:
+            return tuple(sorted((m or "").lower() for m in (chunk or []) if m))
+        except Exception:  # pragma: no cover - defensive
+            return tuple()
+
+    def _reconcile_connection_chunks(self, desired_chunks, active_keys):
+        """PURE reconciler: given the desired chunk list and the set of currently
+        active connection-task keys, return (to_start, to_cancel).
+
+        to_start = list of desired chunks (the chunk lists themselves) whose key
+        is not yet active; to_cancel = list of active keys no longer desired.
+        Side-effect free + exception-safe so the supervisor can call it on every
+        refresh without risk of crashing the feed.
+        """
+        try:
+            active = set(active_keys or set())
+            desired_by_key = {}
+            for chunk in (desired_chunks or []):
+                k = self._chunk_key(chunk)
+                if not k:
+                    continue
+                # first chunk wins for a given key (dedupe identical sets)
+                desired_by_key.setdefault(k, chunk)
+            to_start = [chunk for k, chunk in desired_by_key.items()
+                        if k not in active]
+            to_cancel = [k for k in active if k not in desired_by_key]
+            return (to_start, to_cancel)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("[onchain-ws] reconcile error: %s", e)
+            return ([], [])
 
     # --- decode/handle (SYNC, testable, exception-safe) ----------------------
 
@@ -254,14 +297,72 @@ class OnchainWsFeed:
             self._mode(), len(valid), len(chunks), SUBS_PER_CONN,
         )
 
+        # DYNAMIC supervisor: connection-loop tasks track the current tracked
+        # set (re-chunked) instead of freezing at boot. Start the initial
+        # desired chunks now; the refresh loop reconciles (start new / cancel
+        # gone) as the hot set rotates. Boot-empty self-heals once mints arrive.
+        self._conn_tasks = {}
+        self._apply_chunk_reconcile(chunks)
+
         # Heartbeat + refresh run regardless of whether there are chunks yet --
         # silence-is-news + an empty startup set should still rotate in mints.
-        coros = [self._heartbeat_loop()]
+        supervisors = [self._heartbeat_loop()]
         if callable(get_mints):
-            coros.append(self._refresh_loop(get_mints))
-        coros.extend(self._connection_loop(chunk) for chunk in chunks)
+            supervisors.append(self._refresh_loop(get_mints))
 
-        await asyncio.gather(*coros, return_exceptions=True)
+        try:
+            await asyncio.gather(*supervisors, return_exceptions=True)
+        finally:
+            # Tear down any live connection tasks on exit (stop()/cancellation).
+            for key, task in list(self._conn_tasks.items()):
+                try:
+                    task.cancel()
+                except Exception:
+                    pass
+            self._conn_tasks = {}
+
+    def _apply_chunk_reconcile(self, desired_chunks):
+        """Reconcile live connection tasks toward `desired_chunks` (best-effort).
+
+        Spawns a _connection_loop task for each newly-desired chunk and cancels
+        tasks for chunks no longer desired. Fail-open: any error is logged and
+        swallowed so a reconcile bug can never crash the feed. Also prunes tasks
+        that have already finished (so a re-add re-spawns them).
+        """
+        try:
+            # Drop finished tasks so their keys are eligible to restart.
+            for key in list(self._conn_tasks.keys()):
+                t = self._conn_tasks.get(key)
+                if t is not None and t.done():
+                    self._conn_tasks.pop(key, None)
+
+            to_start, to_cancel = self._reconcile_connection_chunks(
+                desired_chunks, set(self._conn_tasks.keys())
+            )
+            for key in to_cancel:
+                task = self._conn_tasks.pop(key, None)
+                if task is not None:
+                    try:
+                        task.cancel()
+                    except Exception:
+                        pass
+            for chunk in to_start:
+                key = self._chunk_key(chunk)
+                if not key or key in self._conn_tasks:
+                    continue
+                try:
+                    self._conn_tasks[key] = asyncio.ensure_future(
+                        self._connection_loop(list(chunk))
+                    )
+                except Exception as e:  # pragma: no cover - defensive
+                    logger.debug("[onchain-ws] start chunk failed: %s", e)
+            if to_start or to_cancel:
+                logger.info(
+                    "[onchain-ws] connection reconcile +%d -%d live=%d",
+                    len(to_start), len(to_cancel), len(self._conn_tasks),
+                )
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("[onchain-ws] chunk reconcile error: %s", e)
 
     async def _heartbeat_loop(self):
         """Unconditional periodic heartbeat -> silence-is-news. Never raises."""
@@ -304,6 +405,14 @@ class OnchainWsFeed:
                     # Re-derive pda routing for the (possibly new) tracked set so
                     # reconnecting connection loops subscribe the current hot set.
                     self._rebuild_pda_routing(new_mints)
+                # Reconcile the live connection tasks against the current hot set
+                # EVERY refresh (even when added/dropped is empty -- e.g. boot
+                # started empty and the very first non-empty set should still
+                # spawn connections; the reconciler is a no-op when stable).
+                # Build desired chunks from the routable mints (those whose PDA
+                # derived) keyed by original-case for accountSubscribe.
+                desired = self._plan_connections(list(self._pda_to_mint.values()))
+                self._apply_chunk_reconcile(desired)
             except Exception as e:
                 logger.debug("[onchain-ws] refresh error: %s", e)
 
