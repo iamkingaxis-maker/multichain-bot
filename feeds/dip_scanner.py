@@ -1783,10 +1783,37 @@ class DipScanner:
                     except Exception:
                         _fresh_source = "jupiter"
                     _max_runup = float(os.environ.get("BUY_REPRICE_MAX_RUNUP", "0.05"))
+                    # FILL CALIBRATION (2026-06-22): instead of the FIXED ~1.5%
+                    # placeholder, learn the slip paper should pay from the REAL
+                    # live fills in live_swaps.jsonl, per liquidity bucket — so
+                    # paper books what live actually paid. DEFAULT-SAFE: thin live
+                    # sample => calibrated_slip_pct returns the placeholder, so no
+                    # behavior change until real fills accrue. Gate FILL_CALIBRATION_ENABLED
+                    # (default 'on'; 'off' => byte-identical placeholder _mlsp()).
+                    # FAIL-OPEN: any error => placeholder. No LIVE path touched.
+                    _slip_used = _mlsp()
+                    try:
+                        if os.environ.get("FILL_CALIBRATION_ENABLED", "on").strip().lower() != "off":
+                            from core.fill_calibration import (
+                                load_calibration as _load_cal,
+                                calibrated_slip_pct as _cal_slip,
+                                realistic_slip_with_cap as _real_slip,
+                            )
+                            _liq = getattr(bundle, "liquidity_usd", None)
+                            if _liq is None:
+                                _rm = getattr(bundle, "raw_meta", None) or {}
+                                _liq = _rm.get("liquidity_usd") or _rm.get("entry_liquidity_usd")
+                            _cal = _load_cal()
+                            _slip_used = _real_slip(
+                                _cal_slip(_cal, _liq, default=_mlsp()))
+                    except Exception as _cal_e:
+                        logger.debug("[fill-calibration] fail-open to placeholder "
+                                     "bot=%s token=%s: %s", bot_id, decision.token, _cal_e)
+                        _slip_used = _mlsp()
                     _eb, _why = _ped(
                         decision.entry_price, _fresh, _fresh_source,
                         modeled_slip_pct=_mlsp(), mode=_pf_mode, size_usd=_used_size,
-                        slip_pct=_mlsp(), fee_usd=_pfee(), max_runup=_max_runup)
+                        slip_pct=_slip_used, fee_usd=_pfee(), max_runup=_max_runup)
                     # PAPER↔LIVE RECONCILE (Task 8, 2026-06-22) — SHADOW telemetry only.
                     # For this paper buy, record whether LIVE would also take it: True only
                     # if NONE of the live constraints would block — the fidelity reason is
