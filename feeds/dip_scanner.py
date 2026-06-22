@@ -1551,10 +1551,43 @@ class DipScanner:
                             "BLOCK" if _ng_mode == "enforce" else "SHADOW-would-block",
                             _ng_pch1, _ng_solh6, _ng_dd, decision.token)
                 if _ng_mode == "shadow":
-                    from core.shadow_gate_log import log_shadow_block as _sgl
-                    _sgl("solpump_neg_gate", bot_id,
-                         decision.address or self._addr_by_token.get(decision.token, ""),
-                         decision.token, pc_h1=_ng_pch1, sol_h6=_ng_solh6, dd90=_ng_dd)
+                    # FORWARD-CANDLE measurement (re-classified 2026-06-22): the
+                    # trade-join path STARVED (blocked candidates rarely become
+                    # closed trades — caught by other enforcing gates / never
+                    # execute), so n_blocked stuck at 0 forever. Measure it the way
+                    # the candidate-filters are: score the forward return of the
+                    # BLOCKED token directly (no executed trade needed). Pure
+                    # observability — NEGGATE_MODE stays shadow, no gate-logic change.
+                    # Per-scan-cycle dedup (the gate runs once per (bot,token) so the
+                    # same token would record once per dip bot otherwise; the
+                    # candidate-filters record once per token per cycle).
+                    _ng_taddr = (decision.address
+                                 or self._addr_by_token.get(decision.token, ""))
+                    try:
+                        _ng_seen = getattr(self, "_solpump_shadow_seen", None)
+                        if _ng_seen is None:
+                            _ng_seen = set()
+                            self._solpump_shadow_seen = _ng_seen
+                        _ng_key = (_ng_taddr or decision.token or "").lower()
+                        if _ng_key not in _ng_seen:
+                            _ng_seen.add(_ng_key)
+                            from feeds.filter_shadow_recorder import record_verdict as _rv
+                            _ng_mc = (getattr(bundle, "mcap", None)
+                                      or _ar_meta.get("mcap")
+                                      or _ar_meta.get("marketCap"))
+                            _ng_pair = {
+                                "pairAddress": getattr(decision, "pair_address", "") or "",
+                                "priceChange": {"h1": _ng_pch1},
+                                "liquidity": {"usd": _ar_liq},
+                                "marketCap": _ng_mc,
+                            }
+                            _rv(token_address=_ng_taddr,
+                                token_symbol=decision.token, pair=_ng_pair,
+                                filter_name="solpump_neg_gate", verdict="BLOCK",
+                                reasons=f"falling-knife pc_h1={_ng_pch1:.0f} "
+                                        f"sol_h6={_ng_solh6:.1f} dd90={_ng_dd}")
+                    except Exception:
+                        pass
                 if _ng_mode == "enforce":
                     return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
@@ -19355,6 +19388,10 @@ class DipScanner:
         # cycle (shadow mode only). Reset per-cycle; used by the signal-fire path
         # to detect a signal-drop (would-cull token that still fired a buy).
         self._fp_shadow_culled = set()
+        # Per-scan-cycle dedup for the solpump_neg_gate forward-candle shadow
+        # recorder (the gate runs once per (bot,token); record once per token
+        # per cycle, matching the candidate-filter cadence). Fail-open.
+        self._solpump_shadow_seen = set()
 
         # Per-cycle dev-wallet cold-refresh budget reset (2026-06-20 cost fix).
         # Bounds Solana RPC fan-out so a cold-universe cycle can't fire hundreds
