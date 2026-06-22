@@ -1787,6 +1787,49 @@ class DipScanner:
                         decision.entry_price, _fresh, _fresh_source,
                         modeled_slip_pct=_mlsp(), mode=_pf_mode, size_usd=_used_size,
                         slip_pct=_mlsp(), fee_usd=_pfee(), max_runup=_max_runup)
+                    # PAPER↔LIVE RECONCILE (Task 8, 2026-06-22) — SHADOW telemetry only.
+                    # For this paper buy, record whether LIVE would also take it: True only
+                    # if NONE of the live constraints would block — the fidelity reason is
+                    # NOT a hard live-skip (no_route/runup_abort/slippage_cap) AND the LIVE
+                    # per-token caps (caps_would_block, computed from the live exposure) pass.
+                    # This NEVER changes whether paper takes the trade (paper keeps its
+                    # throughput for selection data); it only RECORDS the verdict so Task 7's
+                    # scoreboard can subtract live-would-skip trades. FAIL-OPEN: telemetry
+                    # never breaks a trade.
+                    try:
+                        from core.paper_fidelity import caps_would_block as _cwb
+                        from core.paper_live_reconcile import (
+                            log_paper_live_decision as _lpld,
+                        )
+                        _live_skip = (_why in ("no_route", "runup_abort", "slippage_cap"))
+                        _cap_n = int(os.environ.get("LIVE_PER_TOKEN_MAX_POSITIONS", "2"))
+                        _cap_usd = float(os.environ.get("LIVE_PER_TOKEN_MAX_USD", "60"))
+                        _open_n, _open_usd = self._live_token_exposure((_addr or "").lower())
+                        _caps_block = _cwb(_open_n, _open_usd, _used_size, _cap_n, _cap_usd)
+                        if _live_skip:
+                            _skip_reason = _why
+                        elif _caps_block:
+                            _skip_reason = "caps"
+                        else:
+                            _skip_reason = ""
+                        _would_take = (not _live_skip) and (not _caps_block)
+                        try:
+                            _delta_pct = ((float(_fresh) / float(decision.entry_price)) - 1.0) * 100.0 \
+                                if (_fresh and decision.entry_price) else None
+                        except Exception:
+                            _delta_pct = None
+                        _lpld(
+                            token_address=(_addr or "").lower(),
+                            token_symbol=decision.token,
+                            paper_took=True,
+                            live_would_take=_would_take,
+                            skip_reason=_skip_reason,
+                            fresh_source=_fresh_source,
+                            delta_pct=_delta_pct,
+                        )
+                    except Exception as _rec_e:
+                        logger.debug("[paper-live-reconcile] wire skipped (%s) bot=%s token=%s",
+                                     _rec_e, bot_id, decision.token)
                     if _pf_mode == "enforce":
                         if _eb is None:
                             logger.info("[paper-fidelity] SKIP %s bot=%s token=%s addr=%s",

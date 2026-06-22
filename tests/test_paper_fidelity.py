@@ -9,6 +9,7 @@ from core.paper_fidelity import (
     gap_through_extra_pct,
     paper_entry_decision,
     paper_exit_decision,
+    caps_would_block,
 )
 
 def test_fresh_price_used_as_entry_on_dip():
@@ -196,3 +197,35 @@ def test_paper_exit_fail_open_on_garbage():
     # gap multiply raises -> outer fail-open returns decision_mid, never raises
     eb, why = paper_exit_decision("notaprice", None, "HARD_STOP", "enforce", 100)
     assert eb == "notaprice" and why == "error_fallback"
+
+
+# --- caps_would_block (Task 8): mirror the LIVE per-token cap arithmetic ---
+
+def test_caps_block_at_max_n():
+    # open_n already at the cap -> block regardless of usd headroom
+    assert caps_would_block(open_n=2, open_usd=0.0, size_usd=10.0,
+                            max_n=2, max_usd=60.0) is True
+
+def test_caps_block_over_max_usd():
+    # under position cap but (open_usd + size_usd) exceeds the $ cap -> block
+    assert caps_would_block(open_n=1, open_usd=55.0, size_usd=10.0,
+                            max_n=2, max_usd=60.0) is True
+
+def test_caps_pass_under_both():
+    # below position cap AND within $ cap -> do not block
+    assert caps_would_block(open_n=1, open_usd=40.0, size_usd=10.0,
+                            max_n=2, max_usd=60.0) is False
+
+def test_caps_exactly_at_usd_cap_passes():
+    # boundary: (open_usd + size_usd) == max_usd is NOT > max_usd -> pass (mirror live)
+    assert caps_would_block(open_n=0, open_usd=50.0, size_usd=10.0,
+                            max_n=2, max_usd=60.0) is False
+
+def test_caps_fail_open_on_none():
+    # any None/garbage -> fail-open (do NOT block)
+    assert caps_would_block(None, 0.0, 10.0, 2, 60.0) is False
+    assert caps_would_block(1, None, 10.0, 2, 60.0) is False
+    assert caps_would_block(1, 0.0, None, 2, 60.0) is False
+    assert caps_would_block(1, 0.0, 10.0, None, 60.0) is False
+    assert caps_would_block(1, 0.0, 10.0, 2, None) is False
+    assert caps_would_block("x", "y", "z", "a", "b") is False

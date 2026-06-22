@@ -99,6 +99,28 @@ def slippage_cap_skip(modeled_slip_pct, cap_pct=None) -> bool:
         return False
     return slip >= cap
 
+def caps_would_block(open_n, open_usd, size_usd, max_n, max_usd) -> bool:
+    """Mirror the LIVE per-token cap arithmetic so the PAPER twin can flag a buy
+    that LIVE's caps would refuse (recorded as a reconcile/scoreboard flag — it
+    does NOT remove paper's own throughput).
+
+    Returns True (would block) when EITHER the position-count cap is met
+    (open_n >= max_n) OR adding this buy exceeds the $ cap
+    ((open_usd + size_usd) > max_usd). Matches feeds/dip_scanner.py LIVE cap
+    (>= on count, strictly > on usd).
+
+    FAIL-OPEN: any None/garbage input => False (don't block) — this is shadow
+    telemetry, never a real-money gate."""
+    try:
+        n = int(open_n)
+        ou = float(open_usd)
+        sz = float(size_usd)
+        mn = int(max_n)
+        mu = float(max_usd)
+    except (TypeError, ValueError):
+        return False
+    return n >= mn or (ou + sz) > mu
+
 def paper_entry_decision(decision_mid, fresh_price, fresh_source, modeled_slip_pct,
                          mode, size_usd, slip_pct=None, fee_usd=None, max_runup=0.05):
     """Compose the full paper-buy fidelity decision into a single pure call.
