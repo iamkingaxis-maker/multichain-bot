@@ -4,6 +4,8 @@ from core.paper_fidelity import (
     effective_fill,
     measured_live_slip_pct,
     paper_fee_usd,
+    no_route_skip,
+    slippage_cap_skip,
 )
 
 def test_fresh_price_used_as_entry_on_dip():
@@ -35,3 +37,30 @@ def test_sell_receives_less_slip_and_fee():
 def test_defaults():
     assert measured_live_slip_pct() == 1.5
     assert paper_fee_usd() == 0.17
+
+def test_no_route_skip_when_no_fresh_price():
+    assert no_route_skip(fresh_source="none", mode="enforce") is True
+    assert no_route_skip(fresh_source="onchain", mode="enforce") is False
+    assert no_route_skip(fresh_source="none", mode="off") is False  # gate off
+
+def test_slippage_cap_skip():
+    assert slippage_cap_skip(5.0, cap_pct=4.0) is True
+    assert slippage_cap_skip(2.0, cap_pct=4.0) is False
+    assert slippage_cap_skip(None) is False  # fail-open
+
+def test_no_route_skip_shadow_mode():
+    assert no_route_skip(fresh_source="none", mode="shadow") is True
+
+def test_no_route_skip_fail_open_missing_source():
+    assert no_route_skip(fresh_source=None, mode="enforce") is False
+
+def test_slippage_cap_default_from_env(monkeypatch):
+    monkeypatch.setenv("PROBE_ULTRA_SLIPPAGE_BPS", "100")  # /100 = 1.0%
+    assert slippage_cap_skip(1.5) is True
+    assert slippage_cap_skip(0.5) is False
+
+def test_slippage_cap_default_no_env(monkeypatch):
+    monkeypatch.delenv("PROBE_ULTRA_SLIPPAGE_BPS", raising=False)
+    # default 400 bps -> 4.0%
+    assert slippage_cap_skip(4.5) is True
+    assert slippage_cap_skip(3.5) is False

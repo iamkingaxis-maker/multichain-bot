@@ -64,3 +64,37 @@ def effective_fill(mid, side, slip_pct, fee_usd, size_usd) -> float:
     if str(side).strip().lower() == "buy":
         return m * (1.0 + drag)
     return m * (1.0 - drag)
+
+def no_route_skip(fresh_source, mode) -> bool:
+    """True (skip) when the gate is armed (mode shadow/enforce) AND there is no
+    on-chain fresh price route, mirroring a live no-route abort. Fail-open: any
+    missing/unrecognized data => False (don't skip)."""
+    try:
+        m = str(mode).strip().lower()
+        if m not in ("shadow", "enforce"):
+            return False
+        if fresh_source is None:
+            return False
+        src = str(fresh_source).strip().lower()
+        if not src:
+            return False
+        return src != "onchain"
+    except Exception:
+        return False
+
+def slippage_cap_skip(modeled_slip_pct, cap_pct=None) -> bool:
+    """True (skip) when modeled slippage (%) meets/exceeds the cap, mirroring a
+    live slippage-cap revert. Default cap = PROBE_ULTRA_SLIPPAGE_BPS env /100
+    (default 400 bps => 4.0%). Fail-open: bad/missing slip => False."""
+    try:
+        slip = float(modeled_slip_pct)
+    except (TypeError, ValueError):
+        return False
+    try:
+        if cap_pct is None:
+            cap = float(os.environ.get("PROBE_ULTRA_SLIPPAGE_BPS", "400")) / 100.0
+        else:
+            cap = float(cap_pct)
+    except (TypeError, ValueError):
+        return False
+    return slip >= cap
