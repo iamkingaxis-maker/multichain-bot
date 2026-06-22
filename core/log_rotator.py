@@ -41,6 +41,7 @@ _TELEMETRY_LOGS = frozenset({
     "fill_speed_forward.jsonl",
     "shadow_gate_events.jsonl",
     "live_swaps.jsonl",
+    "paper_live_reconcile.jsonl",
 })
 
 _MB = 1024 * 1024

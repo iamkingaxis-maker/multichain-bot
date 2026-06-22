@@ -2493,6 +2493,7 @@ class WebDashboard:
         self.app.router.add_get("/api/fast-watch",          self._handle_api_fast_watch)
         self.app.router.add_get("/api/fill-speed",          self._handle_api_fill_speed)
         self.app.router.add_get("/api/live-swaps",          self._handle_api_live_swaps)
+        self.app.router.add_get("/api/paper-live-skips",    self._handle_api_paper_live_skips)
         self.app.router.add_get("/api/filter-shadow",       self._handle_api_filter_shadow)
         self.app.router.add_get("/api/bots/{bot_id}/trades",    self._handle_api_bot_trades)
         self.app.router.add_get("/api/bots/{bot_id}/positions", self._handle_api_bot_positions)
@@ -3220,6 +3221,50 @@ class WebDashboard:
             "recent": recs[-max(0, limit):] if recs else [],
             "note": ("fill_vs_mid_slippage_pct>0 = ADVERSE (paid up on buy / got less "
                      "on sell). durations are monotonic-ms; ts is wall-clock ISO."),
+        }
+        return web.Response(
+            text=json.dumps(payload, default=str), content_type="application/json",
+            headers=cors,
+        )
+
+    async def _handle_api_paper_live_skips(self, request):
+        """GET /api/paper-live-skips — the paper-vs-live 1:1 SKIP scoreboard.
+        Reads DATA_DIR/paper_live_reconcile.jsonl OFF the event loop via
+        asyncio.to_thread and returns recent records + a summary (n,
+        paper_only_n, by_skip_reason histogram) — i.e. per paper buy, whether
+        live would take it and WHY NOT. Fail-open: missing file -> empty summary.
+        No money path, no behavior change."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        import asyncio as _asyncio
+        from core.paper_live_reconcile import (read_paper_live_reconcile as _read,
+                                               summarize_reconcile as _summarize,
+                                               LOG_BASENAME as _BN)
+        path = os.path.join(os.environ.get("DATA_DIR", "/data"), _BN)
+        mode = os.environ.get("PAPER_LIVE_RECONCILE_MODE", "on")
+        try:
+            limit = int(request.query.get("limit", "50"))
+        except (TypeError, ValueError):
+            limit = 50
+        try:
+            recs = await _asyncio.to_thread(_read, path)
+        except Exception as e:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": str(e),
+                                 "PAPER_LIVE_RECONCILE_MODE": mode}),
+                content_type="application/json", headers=cors,
+            )
+        try:
+            summary = await _asyncio.to_thread(_summarize, recs)
+        except Exception as e:
+            summary = {"error": str(e)}
+        payload = {
+            "ok": True,
+            "PAPER_LIVE_RECONCILE_MODE": mode,
+            "n_records": len(recs),
+            "summary": summary,
+            "recent": recs[-max(0, limit):] if recs else [],
+            "note": ("paper_only_n = paper_took AND NOT live_would_take; "
+                     "by_skip_reason histograms WHY live skipped those trades."),
         }
         return web.Response(
             text=json.dumps(payload, default=str), content_type="application/json",
