@@ -1804,7 +1804,7 @@ class DipScanner:
                         _live_skip = (_why in ("no_route", "runup_abort", "slippage_cap"))
                         _cap_n = int(os.environ.get("LIVE_PER_TOKEN_MAX_POSITIONS", "2"))
                         _cap_usd = float(os.environ.get("LIVE_PER_TOKEN_MAX_USD", "60"))
-                        _open_n, _open_usd = self._live_token_exposure((_addr or "").lower())
+                        _open_n, _open_usd = self._live_token_exposure(_addr)
                         _caps_block = _cwb(_open_n, _open_usd, _used_size, _cap_n, _cap_usd)
                         if _live_skip:
                             _skip_reason = _why
@@ -1813,6 +1813,10 @@ class DipScanner:
                         else:
                             _skip_reason = ""
                         _would_take = (not _live_skip) and (not _caps_block)
+                        # paper_took: enforce SKIPS the paper buy when _eb is None
+                        # (Task-5 entry decision aborted); shadow always takes the
+                        # paper fill regardless of _eb. Record accordingly.
+                        _paper_took = True if _pf_mode != "enforce" else (_eb is not None)
                         try:
                             _delta_pct = ((float(_fresh) / float(decision.entry_price)) - 1.0) * 100.0 \
                                 if (_fresh and decision.entry_price) else None
@@ -1821,7 +1825,7 @@ class DipScanner:
                         _lpld(
                             token_address=(_addr or "").lower(),
                             token_symbol=decision.token,
-                            paper_took=True,
+                            paper_took=_paper_took,
                             live_would_take=_would_take,
                             skip_reason=_skip_reason,
                             fresh_source=_fresh_source,
