@@ -28,3 +28,39 @@ def reprice_entry(decision_mid, fresh_price, max_runup=None):
         if runup > float(max_runup):
             return (None, "runup_abort")
     return (fp, "fresh")
+
+def measured_live_slip_pct() -> float:
+    """Measured live slippage (%) for the token class. Env PAPER_LIVE_SLIP_PCT, default 1.5."""
+    try:
+        return float(os.environ.get("PAPER_LIVE_SLIP_PCT", "1.5"))
+    except Exception:
+        return 1.5
+
+def paper_fee_usd() -> float:
+    """Per-tx fee in USD that paper should book. Env PAPER_FEE_USD_PER_TX, default 0.17."""
+    try:
+        return float(os.environ.get("PAPER_FEE_USD_PER_TX", "0.17"))
+    except Exception:
+        return 0.17
+
+def effective_fill(mid, side, slip_pct, fee_usd, size_usd) -> float:
+    """Price paper should BOOK including measured live slippage + fee drag.
+    buy pays up (mid * (1 + slip + fee_frac)); sell receives less. Fail-open:
+    bad mid => return mid unchanged."""
+    try:
+        m = float(mid)
+    except (TypeError, ValueError):
+        return mid
+    try:
+        slip = float(slip_pct) / 100.0
+    except (TypeError, ValueError):
+        slip = 0.0
+    try:
+        sz = float(size_usd)
+        fee_frac = (float(fee_usd) / sz) if sz else 0.0
+    except (TypeError, ValueError, ZeroDivisionError):
+        fee_frac = 0.0
+    drag = slip + fee_frac
+    if str(side).strip().lower() == "buy":
+        return m * (1.0 + drag)
+    return m * (1.0 - drag)
