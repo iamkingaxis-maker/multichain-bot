@@ -411,13 +411,57 @@ class MultiBotTradeStore:
             existing.append(record)
             self._atomic_write(self._trades_path, json.dumps(existing))
 
+    def _read_disk_ledger(self) -> list[dict]:
+        """Append-mode read: base array (frozen post-boot) + JSONL sidecar (this
+        session's appends), both mtime-cached. Any instance reading the same
+        files gets the current union, so readers never go stale. base/sidecar
+        are disjoint (compaction folds + truncates only at boot) -> no dup."""
+        out: list[dict] = []
+        try:
+            if self._trades_path.exists():
+                mt = self._trades_path.stat().st_mtime
+                c = getattr(self, "_base_cache", None)
+                if c is not None and c[0] == mt:
+                    base = c[1]
+                else:
+                    base = json.loads(self._trades_path.read_text())
+                    for t in base:
+                        if "bot_id" not in t:
+                            t["bot_id"] = "baseline_v1"
+                    self._base_cache = (mt, base)
+                out.extend(base)
+        except Exception:
+            pass
+        try:
+            if self._trades_jsonl_path.exists():
+                mt = self._trades_jsonl_path.stat().st_mtime
+                c = getattr(self, "_jsonl_cache", None)
+                if c is not None and c[0] == mt:
+                    side = c[1]
+                else:
+                    side = [json.loads(_ln) for _ln in
+                            self._trades_jsonl_path.read_text().splitlines() if _ln.strip()]
+                    self._jsonl_cache = (mt, side)
+                out.extend(side)
+        except Exception:
+            pass
+        return out
+
     def load_trades(self, bot_id: Optional[str] = None) -> list[dict]:
         if _append_enabled():
-            # In-memory source of truth (fresh + O(1) read; no disk re-parse).
+            # Disk-truth read so a READER instance (e.g. the dashboard's store,
+            # a SEPARATE object from the bot's) stays current with the WRITER's
+            # appends. Returning the per-instance in-memory `_trades_mem` made
+            # the reader stale — it loaded once at boot and never replayed the
+            # JSONL sidecar the bot appends to, so /api/trades froze at the last
+            # full base write (2026-06-22 fix). base + sidecar are disjoint
+            # (boot compaction folds + truncates only once), so no double-count.
+            # Both reads are mtime-cached: the frozen base is a cache-hit after
+            # boot; only the small growing sidecar re-parses on change.
             self._ensure_trades_loaded()
-            data = self._trades_mem or []
+            data = self._read_disk_ledger()
             if bot_id is None:
-                return list(data)
+                return data
             return [t for t in data if t.get("bot_id") == bot_id]
         if not self._trades_path.exists():
             return []
