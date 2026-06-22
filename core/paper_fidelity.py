@@ -66,19 +66,19 @@ def effective_fill(mid, side, slip_pct, fee_usd, size_usd) -> float:
     return m * (1.0 - drag)
 
 def no_route_skip(fresh_source, mode) -> bool:
-    """True (skip) when the gate is armed (mode shadow/enforce) AND there is no
-    on-chain fresh price route, mirroring a live no-route abort. Fail-open: any
-    missing/unrecognized data => False (don't skip)."""
+    """True (skip) when the gate is armed (mode shadow/enforce) AND the fresh
+    source indicates NO reachable price route at all, mirroring a live no-route
+    abort. A reachable route = "onchain" OR "jupiter" (both are live-fillable).
+    Only "none"/""/None/unknown sources are treated as no-route. Fail-open: any
+    error => False (don't skip)."""
     try:
         m = str(mode).strip().lower()
         if m not in ("shadow", "enforce"):
             return False
         if fresh_source is None:
-            return False
+            return True
         src = str(fresh_source).strip().lower()
-        if not src:
-            return False
-        return src != "onchain"
+        return src not in ("onchain", "jupiter")
     except Exception:
         return False
 

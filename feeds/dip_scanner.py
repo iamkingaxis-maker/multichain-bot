@@ -1762,11 +1762,15 @@ class DipScanner:
             from core.paper_fidelity import paper_fidelity_enabled as _pf_enabled
             _pf_mode = _pf_enabled("PAPER_FIDELITY_MODE", "shadow")
             _pf_entry_mid = decision.entry_price
+            # When True, paper_entry_decision already OWNS the slippage+fee drag
+            # (its returned value is effective_fill(mid, ...)). Booking it through
+            # buy_fill_price again would double-count slippage, so enforce books
+            # _pf_entry_mid DIRECTLY. shadow/off leave this False => byte-identical.
+            _pf_owns_slippage = False
             if _pf_mode in ("shadow", "enforce"):
                 try:
                     from core.paper_fidelity import (
                         paper_entry_decision as _ped,
-                        effective_fill as _eff_fill,
                         measured_live_slip_pct as _mlsp,
                         paper_fee_usd as _pfee,
                     )
@@ -1790,7 +1794,11 @@ class DipScanner:
                             capital.balance_usd += _used_size
                             capital.in_flight_usd -= _used_size
                             return
+                        # _eb is already effective_fill(mid, "buy", slip, fee) —
+                        # book it directly; do NOT re-apply buy_fill_price (would
+                        # double-count slippage). fidelity owns the drag here.
                         _pf_entry_mid = _eb
+                        _pf_owns_slippage = True
                     else:  # shadow — log delta, do NOT change the fill
                         if _eb is None:
                             logger.info("[paper-fidelity] SHADOW-would-SKIP %s bot=%s "
@@ -1804,9 +1812,20 @@ class DipScanner:
                     logger.error("[paper-fidelity] error (%s) — fail-open, original fill "
                                  "bot=%s token=%s", _pf_e, bot_id, decision.token)
                     _pf_entry_mid = decision.entry_price
-            eff_entry, slip_pct = buy_fill_price(
-                _pf_entry_mid, _used_size, getattr(bundle, "raw_meta", None)
-            )
+            if _pf_owns_slippage:
+                # enforce: _pf_entry_mid IS the effective buy fill (slip+fee already
+                # baked in by paper_entry_decision). Book it directly so slippage is
+                # counted exactly ONCE. Still derive impact_pct from buy_fill_price so
+                # the sell leg reuses a consistent per-side impact estimate (the
+                # returned price is discarded here — only the impact is kept).
+                eff_entry = _pf_entry_mid
+                _, slip_pct = buy_fill_price(
+                    decision.entry_price, _used_size, getattr(bundle, "raw_meta", None)
+                )
+            else:
+                eff_entry, slip_pct = buy_fill_price(
+                    _pf_entry_mid, _used_size, getattr(bundle, "raw_meta", None)
+                )
             # SCALE-IN staged entry (2026-06-05): deploy only the first tranche now and
             # release the deferred remainder back to balance (re-reserved on confirm in
             # the tick loop). PAPER-only — a live bot opens full size until the 2nd-tranche

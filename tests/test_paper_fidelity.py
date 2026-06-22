@@ -45,6 +45,15 @@ def test_no_route_skip_when_no_fresh_price():
     assert no_route_skip(fresh_source="onchain", mode="enforce") is False
     assert no_route_skip(fresh_source="none", mode="off") is False  # gate off
 
+def test_no_route_skip_jupiter_is_a_route():
+    # a jupiter price IS a reachable route -> never skip (the default-config path)
+    assert no_route_skip(fresh_source="jupiter", mode="enforce") is False
+    assert no_route_skip(fresh_source="jupiter", mode="shadow") is False
+
+def test_no_route_skip_unknown_source_is_no_route():
+    assert no_route_skip(fresh_source="", mode="enforce") is True
+    assert no_route_skip(fresh_source="something_else", mode="enforce") is True
+
 def test_slippage_cap_skip():
     assert slippage_cap_skip(5.0, cap_pct=4.0) is True
     assert slippage_cap_skip(2.0, cap_pct=4.0) is False
@@ -53,8 +62,10 @@ def test_slippage_cap_skip():
 def test_no_route_skip_shadow_mode():
     assert no_route_skip(fresh_source="none", mode="shadow") is True
 
-def test_no_route_skip_fail_open_missing_source():
-    assert no_route_skip(fresh_source=None, mode="enforce") is False
+def test_no_route_skip_none_source_is_no_route_when_gated():
+    # None source = no fresh price at all -> skip when the gate is armed
+    assert no_route_skip(fresh_source=None, mode="enforce") is True
+    assert no_route_skip(fresh_source=None, mode="off") is False  # gate off
 
 def test_slippage_cap_default_from_env(monkeypatch):
     monkeypatch.setenv("PROBE_ULTRA_SLIPPAGE_BPS", "100")  # /100 = 1.0%
@@ -117,8 +128,15 @@ def test_paper_entry_runup_skips():
     assert eb is None and why == "runup_abort"
 
 def test_paper_entry_no_route_skips():
-    eb, why = paper_entry_decision(0.10, 0.09, "jupiter", 1.0, "enforce", 100)
+    eb, why = paper_entry_decision(0.10, 0.09, "none", 1.0, "enforce", 100)
     assert eb is None and why == "no_route"
+
+def test_paper_entry_jupiter_source_does_not_skip():
+    # jupiter is a reachable route -> entry books normally (default-config path)
+    eb, why = paper_entry_decision(0.10, 0.09, "jupiter", 1.0, "enforce", 100,
+                                   slip_pct=1.5, fee_usd=0.17, max_runup=0.05)
+    expected = 0.09 * (1 + 0.015 + 0.17/100)
+    assert why == "fresh" and abs(eb - expected) < 1e-9
 
 def test_paper_entry_slippage_cap_skips():
     eb, why = paper_entry_decision(0.10, 0.09, "onchain", 9.0, "enforce", 100,
