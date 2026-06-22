@@ -16553,6 +16553,44 @@ class DipScanner:
                 )
                 _filters_block.append("filter_post_pump_corpse")
 
+            # ── filter_terminal_collapse — ENFORCED 2026-06-22 ─────────────
+            # pc_h6 floor: a token collapsed deeply over the WHOLE 6h window is
+            # a death-spiral corpse, not a buyable dip. The dip-buy entry mistook
+            # QAI's terminal crash (pc_h6=-85%) for a dip and lost -55% live.
+            # Data-validated on labelled live buys: worst WINNER was -32% pc_h6,
+            # next-deepest trade -46% — a 39pt gap below QAI, so a -60 floor
+            # catches the corpse class and clips ZERO winners. Distinct from
+            # filter_post_pump_corpse (pumped+calm) — this is the bled-to-death
+            # end. Fleet-wide (every bot routes through _evaluate_pair). Env:
+            # TERMINAL_COLLAPSE_MODE off/shadow/enforce (default enforce),
+            # TERMINAL_COLLAPSE_H6_PCT threshold (default -60). Fail-open on
+            # missing pc_h6.
+            _tc_mode = os.environ.get("TERMINAL_COLLAPSE_MODE", "enforce").strip().lower()
+            _tc_block, _tc_reason = (False, "")
+            if _tc_mode in ("shadow", "enforce"):
+                try:
+                    from core.bot_evaluator import terminal_collapse_blocks
+                    _tc_block, _tc_reason = terminal_collapse_blocks(pc_h6)
+                except Exception as _e:
+                    logger.debug(f"[DipScanner] terminal_collapse err: {_e}")
+            _filter_terminal_collapse_verdict = "BLOCK" if _tc_block else "PASS"
+            c[f"filter_terminal_collapse_{_filter_terminal_collapse_verdict.lower()}"] = c.get(
+                f"filter_terminal_collapse_{_filter_terminal_collapse_verdict.lower()}", 0) + 1
+            try:
+                _filter_verdicts.append(("filter_terminal_collapse", _filter_terminal_collapse_verdict, ""))
+            except Exception:
+                pass
+            if _tc_block:
+                if _tc_mode == "enforce":
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_terminal_collapse: "
+                        f"{token_symbol} {_tc_reason}")
+                    _filters_block.append("filter_terminal_collapse")
+                else:
+                    logger.info(
+                        f"[DipScanner] SHADOW filter_terminal_collapse would BLOCK: "
+                        f"{token_symbol} {_tc_reason}")
+
             # ── filter_macro_panic — SHADOW 2026-05-16 PM ──────────────────
             # Macro context gate. Existing regime tag already classifies
             # sol/btc/meme-sector state into up/flat/down (lines 1264-1284).

@@ -240,6 +240,38 @@ def _rug_bundle_blocks(b: "FeatureBundle") -> tuple[bool, str]:
     return False, ""
 
 
+def _terminal_collapse_h6_pct() -> float:
+    """pc_h6 floor for the terminal-collapse gate (default -60.0%). Below this,
+    the 6-hour price has collapsed so far the token is a death-spiral corpse, not
+    a buyable dip. Tunable without redeploy via TERMINAL_COLLAPSE_H6_PCT."""
+    try:
+        return float(os.environ.get("TERMINAL_COLLAPSE_H6_PCT", "-60.0"))
+    except (TypeError, ValueError):
+        return -60.0
+
+
+def terminal_collapse_blocks(pc_h6, threshold: float | None = None) -> tuple[bool, str]:
+    """Block buying a token in TERMINAL multi-hour collapse (2026-06-22, QAI -$55).
+
+    A real dip is a recent flush (deep pc_h1) on a token still ALIVE over 6h; a
+    corpse has collapsed across the whole 6h window and keeps dying. Live-data
+    separation (n=22 labelled live buys): the QAI rug entered at pc_h6=-85.3% and
+    lost -55.7%, while the NEXT-deepest trade was -46.3% and EVERY winner was
+    >= -32% pc_h6 — a 39-point gap. A pc_h6 <= -60% floor catches the QAI class
+    with a wide margin and clips ZERO winners in the live set. Distinct from
+    filter_post_pump_corpse (pumped + calm) — this is the bled-to-death end.
+
+    Pure. Fail-OPEN on missing/garbage pc_h6 (never blocks on absent data)."""
+    thr = _terminal_collapse_h6_pct() if threshold is None else threshold
+    try:
+        v = float(pc_h6)
+    except (TypeError, ValueError):
+        return False, ""
+    if v <= thr:
+        return True, f"pc_h6={v:.1f}%<={thr:.0f}% (terminal 6h collapse — corpse, not a dip)"
+    return False, ""
+
+
 @dataclass
 class BuyDecision:
     bot_id: str
