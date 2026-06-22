@@ -145,8 +145,8 @@ def test_shadow_spawns_onchain_feed_for_hot_subset(monkeypatch):
             self.get_sol_usd = get_sol_usd
             spawned["feed"] = self
 
-        async def run(self, mints):
-            spawned["mints"] = list(mints)
+        async def run(self, get_mints=None):
+            spawned["mints"] = list(get_mints() if callable(get_mints) else (get_mints or []))
 
     monkeypatch.setattr(ds, "OnchainWsFeed", _Spy)
     # capture the task coroutine and actually await it

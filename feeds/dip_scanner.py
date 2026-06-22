@@ -3627,19 +3627,23 @@ class DipScanner:
         if (time.time() - (ts or 0.0)) > fresh_secs:
             return (jupiter_price, "jupiter")   # stale -> Jupiter
 
-        if mode == "on":
-            return (onchain_usd, "onchain")
-
-        # shadow: LOG the delta, but USE Jupiter (never drives a decision).
+        # Fresh on-chain price available. Log the on-chain-vs-Jupiter delta in
+        # BOTH on + shadow so accuracy is MONITORABLE in enforce — and so we can
+        # confirm `on` is actually USING on-chain, not silently falling back to
+        # Jupiter when the feed has no fresh price (2026-06-22). used= tells us
+        # which price drove the decision.
         try:
             jp = float(jupiter_price) if jupiter_price is not None else 0.0
             delta_pct = ((onchain_usd - jp) / jp * 100.0) if jp else float("nan")
         except (TypeError, ValueError, ZeroDivisionError):
             delta_pct = float("nan")
+        _used = "onchain" if mode == "on" else "jupiter"
         logger.info(
-            "[onchain] token=%s onchain=$%.8g jupiter=$%.8g delta=%.3f%%",
-            addr, onchain_usd, (jupiter_price or 0.0), delta_pct,
+            "[onchain] token=%s onchain=$%.8g jupiter=$%.8g delta=%.3f%% mode=%s used=%s",
+            addr, onchain_usd, (jupiter_price or 0.0), delta_pct, mode, _used,
         )
+        if mode == "on":
+            return (onchain_usd, "onchain")
         return (jupiter_price, "jupiter")
 
     async def _maybe_spawn_onchain_feed(self):
