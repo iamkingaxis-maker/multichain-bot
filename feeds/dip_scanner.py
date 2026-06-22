@@ -1753,8 +1753,59 @@ class DipScanner:
             # bigger positions correctly pay more. Stash the slip estimate on the
             # position for the (symmetric) sell-side haircut.
             from core.slippage_model import buy_fill_price
+            # PAPER↔LIVE FIDELITY (2026-06-22): book the REACHABLE fresh price +
+            # real measured slippage, and SKIP trades a live bot couldn't reach
+            # (run-up past the decision mid / no on-chain route / slippage-cap).
+            # Default mode=shadow => log the would-change delta but DON'T alter the
+            # fill (byte-identical to today). enforce => apply / skip. off => the
+            # original path runs untouched. FAIL-OPEN: never raise into the buy.
+            from core.paper_fidelity import paper_fidelity_enabled as _pf_enabled
+            _pf_mode = _pf_enabled("PAPER_FIDELITY_MODE", "shadow")
+            _pf_entry_mid = decision.entry_price
+            if _pf_mode in ("shadow", "enforce"):
+                try:
+                    from core.paper_fidelity import (
+                        paper_entry_decision as _ped,
+                        effective_fill as _eff_fill,
+                        measured_live_slip_pct as _mlsp,
+                        paper_fee_usd as _pfee,
+                    )
+                    _addr = decision.address or self._addr_by_token.get(decision.token, "")
+                    _fresh = await self._get_current_price_for(
+                        decision.token, address=decision.address,
+                        pair_address=decision.pair_address)
+                    try:
+                        _fresh_source = self._fast_price_for(_addr, _fresh)[1]
+                    except Exception:
+                        _fresh_source = "jupiter"
+                    _max_runup = float(os.environ.get("BUY_REPRICE_MAX_RUNUP", "0.05"))
+                    _eb, _why = _ped(
+                        decision.entry_price, _fresh, _fresh_source,
+                        modeled_slip_pct=_mlsp(), mode=_pf_mode, size_usd=_used_size,
+                        slip_pct=_mlsp(), fee_usd=_pfee(), max_runup=_max_runup)
+                    if _pf_mode == "enforce":
+                        if _eb is None:
+                            logger.info("[paper-fidelity] SKIP %s bot=%s token=%s addr=%s",
+                                        _why, bot_id, decision.token, _addr)
+                            capital.balance_usd += _used_size
+                            capital.in_flight_usd -= _used_size
+                            return
+                        _pf_entry_mid = _eb
+                    else:  # shadow — log delta, do NOT change the fill
+                        if _eb is None:
+                            logger.info("[paper-fidelity] SHADOW-would-SKIP %s bot=%s "
+                                        "token=%s addr=%s", _why, bot_id, decision.token, _addr)
+                        else:
+                            logger.info("[paper-fidelity] SHADOW bot=%s token=%s addr=%s "
+                                        "decision_mid=%.10g fresh=%s would_book=%.10g (%s)",
+                                        bot_id, decision.token, _addr,
+                                        decision.entry_price, _fresh, _eb, _why)
+                except Exception as _pf_e:
+                    logger.error("[paper-fidelity] error (%s) — fail-open, original fill "
+                                 "bot=%s token=%s", _pf_e, bot_id, decision.token)
+                    _pf_entry_mid = decision.entry_price
             eff_entry, slip_pct = buy_fill_price(
-                decision.entry_price, _used_size, getattr(bundle, "raw_meta", None)
+                _pf_entry_mid, _used_size, getattr(bundle, "raw_meta", None)
             )
             # SCALE-IN staged entry (2026-06-05): deploy only the first tranche now and
             # release the deferred remainder back to balance (re-reserved on confirm in

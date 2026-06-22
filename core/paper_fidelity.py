@@ -99,6 +99,38 @@ def slippage_cap_skip(modeled_slip_pct, cap_pct=None) -> bool:
         return False
     return slip >= cap
 
+def paper_entry_decision(decision_mid, fresh_price, fresh_source, modeled_slip_pct,
+                         mode, size_usd, slip_pct=None, fee_usd=None, max_runup=0.05):
+    """Compose the full paper-buy fidelity decision into a single pure call.
+
+    Returns (entry_basis|None, reason). None => paper should SKIP the buy
+    (mirrors a live abort). FAIL-OPEN: any exception => (decision_mid,
+    "error_fallback") so this never blocks the buy path.
+
+    Order, when mode != off:
+      no_route_skip -> (None,"no_route")
+      reprice_entry -> if None (runup) => (None,"runup_abort")
+      slippage_cap_skip -> (None,"slippage_cap")
+      effective_fill(repriced,"buy",...) => (eff,"fresh")
+    """
+    try:
+        m = str(mode).strip().lower() if mode is not None else "off"
+        if m == "off":
+            return (decision_mid, "off")
+        if no_route_skip(fresh_source, m):
+            return (None, "no_route")
+        eb, why = reprice_entry(decision_mid, fresh_price, max_runup=max_runup)
+        if eb is None:
+            return (None, why or "runup_abort")
+        if slippage_cap_skip(modeled_slip_pct):
+            return (None, "slippage_cap")
+        sp = slip_pct if slip_pct is not None else measured_live_slip_pct()
+        fu = fee_usd if fee_usd is not None else paper_fee_usd()
+        eff = effective_fill(eb, "buy", sp, fu, size_usd)
+        return (eff, "fresh")
+    except Exception:
+        return (decision_mid, "error_fallback")
+
 def gap_through_extra_pct(exit_reason, base_pct=None) -> float:
     """Extra NEGATIVE slippage (%) for gap-prone exits, mirroring live fills
     landing BELOW the trigger on dumps. Returns GAP_THROUGH_HAIRCUT_PCT (env,
