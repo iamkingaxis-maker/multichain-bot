@@ -98,3 +98,25 @@ def slippage_cap_skip(modeled_slip_pct, cap_pct=None) -> bool:
     except (TypeError, ValueError):
         return False
     return slip >= cap
+
+def gap_through_extra_pct(exit_reason, base_pct=None) -> float:
+    """Extra NEGATIVE slippage (%) for gap-prone exits, mirroring live fills
+    landing BELOW the trigger on dumps. Returns GAP_THROUGH_HAIRCUT_PCT (env,
+    default 5.0) when the exit reason names a gap-prone exit (substring match on
+    lowercased reason: hard_stop/stop/fast_bail/giveback); else 0.0 (e.g. TP).
+    Caller subtracts this from the sell price for those exits only. Pure +
+    fail-open: None/garbage reason or bad env => 0.0 / default, never raises."""
+    try:
+        r = str(exit_reason).strip().lower()
+    except Exception:
+        return 0.0
+    if not r:
+        return 0.0
+    if not any(tok in r for tok in ("hard_stop", "stop", "fast_bail", "giveback")):
+        return 0.0
+    try:
+        if base_pct is not None:
+            return float(base_pct)
+        return float(os.environ.get("GAP_THROUGH_HAIRCUT_PCT", "5.0"))
+    except (TypeError, ValueError):
+        return 5.0

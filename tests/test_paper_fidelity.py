@@ -6,6 +6,7 @@ from core.paper_fidelity import (
     paper_fee_usd,
     no_route_skip,
     slippage_cap_skip,
+    gap_through_extra_pct,
 )
 
 def test_fresh_price_used_as_entry_on_dip():
@@ -64,3 +65,34 @@ def test_slippage_cap_default_no_env(monkeypatch):
     # default 400 bps -> 4.0%
     assert slippage_cap_skip(4.5) is True
     assert slippage_cap_skip(3.5) is False
+
+def test_hard_stop_gaps():
+    assert gap_through_extra_pct("HARD_STOP pnl=-25%") == 5.0
+
+def test_tp_does_not_gap():
+    assert gap_through_extra_pct("TP1 pnl=6.0%") == 0.0
+
+def test_none_safe():
+    assert gap_through_extra_pct(None) == 0.0
+
+def test_gap_matches_fast_bail_and_giveback():
+    assert gap_through_extra_pct("FAST_BAIL pnl=-10%") == 5.0
+    assert gap_through_extra_pct("giveback trail") == 5.0
+
+def test_gap_matches_generic_stop_substring():
+    assert gap_through_extra_pct("trail-stop hit") == 5.0
+    assert gap_through_extra_pct("never_runner_stop") == 5.0
+
+def test_gap_garbage_reason_fail_open():
+    assert gap_through_extra_pct(12345) == 0.0
+    assert gap_through_extra_pct("") == 0.0
+    assert gap_through_extra_pct("manual_close") == 0.0
+
+def test_gap_haircut_from_env(monkeypatch):
+    monkeypatch.setenv("GAP_THROUGH_HAIRCUT_PCT", "8.0")
+    assert gap_through_extra_pct("HARD_STOP") == 8.0
+    assert gap_through_extra_pct("TP1") == 0.0
+
+def test_gap_bad_env_fails_open_to_default(monkeypatch):
+    monkeypatch.setenv("GAP_THROUGH_HAIRCUT_PCT", "notanumber")
+    assert gap_through_extra_pct("HARD_STOP") == 5.0
