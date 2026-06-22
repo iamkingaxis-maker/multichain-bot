@@ -107,7 +107,39 @@ def _load_trades_file() -> list:
                         return d[k]
         except Exception:
             continue
-    return []
+    # FALLBACK: no dump file present -> read the LIVE append-mode ledger (the only
+    # thing actually written on the server). Mirrors
+    # core/multi_bot_persistence._read_disk_ledger: frozen base array
+    # (trades_multi.json) + this-session JSONL sidecar (trades_multi.jsonl), one
+    # JSON object per non-blank line. base/sidecar are disjoint (boot compaction
+    # truncates the sidecar once) -> union, no dup. FAIL-OPEN: any error returns
+    # whatever we have so far; never raises. Blocking read is fine — this runs in
+    # asyncio.to_thread, off the event loop.
+    out: list = []
+    try:
+        base_path = os.path.join(dd, "trades_multi.json")
+        if os.path.exists(base_path):
+            with open(base_path) as f:
+                base = json.load(f)
+            if isinstance(base, list):
+                out.extend(base)
+    except Exception:
+        pass
+    try:
+        side_path = os.path.join(dd, "trades_multi.jsonl")
+        if os.path.exists(side_path):
+            with open(side_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        out.append(json.loads(line))
+                    except Exception:
+                        continue
+    except Exception:
+        pass
+    return out
 
 
 async def _run_forward_candle_scorer() -> None:
