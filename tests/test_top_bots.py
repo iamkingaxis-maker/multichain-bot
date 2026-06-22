@@ -103,3 +103,26 @@ def test_malformed_records_skipped_fail_open():
     assert e["n"] == 2  # only the two valid sells
     assert e["realized_usd"] == 17
     assert e["wr"] == 100.0
+
+
+def test_max_drawdown_pure():
+    # cum: 10,5,-3,0,-20,30 ; running peak 10 ; deepest drop = 10-(-20)=30 -> -30
+    assert tb._max_drawdown([10, -5, -8, 3, -20, 50]) == -30.0
+    assert tb._max_drawdown([5, 5, 5]) == 0          # monotonic up -> no drawdown
+    assert tb._max_drawdown([-5, -5]) == -10.0       # starts at peak 0
+    assert tb._max_drawdown([]) == 0
+
+
+def test_compute_top_bots_drawdown_is_time_ordered():
+    # Insert SCRAMBLED; time-ordered usds are +10,-30,+5 -> cum 10,-20,-15 -> dd 30.
+    trades = [
+        {"type": "sell", "bot_id": "botX", "pnl_pct": -3.0, "pnl_usd": -30.0, "time": "2026-06-22T02:00:00Z"},
+        {"type": "sell", "bot_id": "botX", "pnl_pct": 1.0, "pnl_usd": 10.0, "time": "2026-06-22T01:00:00Z"},
+        {"type": "sell", "bot_id": "botX", "pnl_pct": 0.5, "pnl_usd": 5.0, "time": "2026-06-22T03:00:00Z"},
+    ]
+    r = tb.compute_top_bots(trades, ["botX"])["botX"]
+    assert r["max_drawdown_usd"] == -30.0          # time-ordered, not insertion-ordered
+    assert r["max_loss_usd"] == -30.0              # worst single trade also -30 here
+    assert r["realized_usd"] == -15.0
+    # zeroed entry carries the new key too
+    assert tb.compute_top_bots([], ["none"])["none"]["max_drawdown_usd"] == 0

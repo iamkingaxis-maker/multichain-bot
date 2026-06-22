@@ -50,6 +50,7 @@ def _zeroed() -> dict:
         "median_pnl_pct": 0,
         "worst_decile_pnl_pct": 0,
         "max_loss_usd": 0,
+        "max_drawdown_usd": 0,
         "enough_n": False,
     }
 
@@ -92,6 +93,27 @@ def _nearest_rank(sorted_vals: list[float], pct: float) -> float:
     return sorted_vals[rank - 1]
 
 
+def _max_drawdown(usds_in_time_order: list[float]) -> float:
+    """Max drawdown (loss-from-peak) of the cumulative-P&L equity curve, in $.
+
+    Walk the trades in TIME order, track the running peak of cumulative P&L, and
+    record the deepest drop below that peak. Returned as a NEGATIVE number (the
+    loss), matching the sign of max_loss_usd; 0 if the curve never dips below a
+    prior peak. Equity starts at 0 (a peak), so a first losing trade counts.
+    Pure."""
+    peak = 0.0
+    cum = 0.0
+    max_dd = 0.0  # largest peak-to-trough drop (positive magnitude)
+    for u in usds_in_time_order:
+        cum += u
+        if cum > peak:
+            peak = cum
+        drop = peak - cum
+        if drop > max_dd:
+            max_dd = drop
+    return -round(max_dd, 2)
+
+
 def compute_top_bots(trades: list, bots: list) -> dict:
     """PURE, fail-open. For each bot in ``bots`` aggregate its CLOSED sells
     (records where ``(type|side)=='sell'`` and ``pnl_pct`` is numeric and
@@ -108,7 +130,7 @@ def compute_top_bots(trades: list, bots: list) -> dict:
         wanted = []
 
     # Bucket valid sells by bot in a single pass (fail-open per record).
-    buckets: dict[str, list[tuple[float, float]]] = {b: [] for b in wanted}
+    buckets: dict[str, list[tuple[str, float, float]]] = {b: [] for b in wanted}
     wanted_set = set(wanted)
     try:
         for rec in (trades or []):
@@ -128,7 +150,10 @@ def compute_top_bots(trades: list, bots: list) -> dict:
                     usd = _as_float(rec.get("pnl"))
                 if usd is None:
                     usd = 0.0
-                buckets[bot].append((pct, usd))
+                # time key orders the equity curve for drawdown; ISO strings sort
+                # chronologically. Missing time -> "" (stable insertion order kept).
+                tkey = str(rec.get("time") or "")
+                buckets[bot].append((tkey, pct, usd))
             except Exception:
                 continue
     except Exception:
@@ -141,11 +166,14 @@ def compute_top_bots(trades: list, bots: list) -> dict:
             if n == 0:
                 out[bot] = _zeroed()
                 continue
-            pcts = [r[0] for r in rows]
-            usds = [r[1] for r in rows]
+            pcts = [r[1] for r in rows]
+            usds = [r[2] for r in rows]
             realized = sum(usds)
             wins = sum(1 for p in pcts if p > 0)
             sorted_pcts = sorted(pcts)
+            # Drawdown needs trades in TIME order (stable sort keeps insertion
+            # order for equal/empty time keys).
+            usds_time_ordered = [r[2] for r in sorted(rows, key=lambda x: x[0])]
             out[bot] = {
                 "n": n,
                 "realized_usd": round(realized, 2),
@@ -154,6 +182,7 @@ def compute_top_bots(trades: list, bots: list) -> dict:
                 "median_pnl_pct": round(statistics.median(pcts), 2),
                 "worst_decile_pnl_pct": round(_nearest_rank(sorted_pcts, 10), 2),
                 "max_loss_usd": round(min(usds), 2),
+                "max_drawdown_usd": _max_drawdown(usds_time_ordered),
                 "enough_n": n >= ENOUGH_N,
             }
         except Exception:
