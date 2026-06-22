@@ -8,6 +8,7 @@ from core.paper_fidelity import (
     slippage_cap_skip,
     gap_through_extra_pct,
     paper_entry_decision,
+    paper_exit_decision,
 )
 
 def test_fresh_price_used_as_entry_on_dip():
@@ -154,3 +155,44 @@ def test_paper_entry_fail_open_on_garbage():
     # effective_fill is itself fail-open (fee_frac->0), so still computes;
     # force a real exception via a non-numeric mode path is covered by off.
     assert eb is not None  # never raises into buy path
+
+# --- paper_exit_decision (composition, SELL side) ---
+
+def test_paper_exit_hard_stop_gets_gap_haircut():
+    # fresh reprice -> sell receives less (slip+fee) -> THEN gap haircut on a stop
+    eb, why = paper_exit_decision(0.10, 0.095, "HARD_STOP pnl=-25%", "enforce", 100,
+                                  slip_pct=1.5, fee_usd=0.17)
+    base = 0.095 * (1 - 0.015 - 0.17/100)  # effective sell fill on fresh
+    expected = base * (1 - 5.0/100)        # gap-through haircut
+    assert why == "fresh" and abs(eb - expected) < 1e-9
+
+def test_paper_exit_tp1_no_gap_haircut():
+    eb, why = paper_exit_decision(0.10, 0.095, "TP1 pnl=6.0%", "enforce", 100,
+                                  slip_pct=1.5, fee_usd=0.17)
+    expected = 0.095 * (1 - 0.015 - 0.17/100)  # no gap haircut for a TP
+    assert why == "fresh" and abs(eb - expected) < 1e-9
+
+def test_paper_exit_off_returns_mid_unchanged():
+    eb, why = paper_exit_decision(0.10, 0.095, "HARD_STOP", "off", 100)
+    assert eb == 0.10 and why == "off"
+
+def test_paper_exit_stale_fresh_falls_back_to_decision_mid():
+    # no reachable fresh price -> reprice to decision_mid (sell never skips)
+    eb, why = paper_exit_decision(0.10, None, "TP1", "enforce", 100,
+                                  slip_pct=1.5, fee_usd=0.17)
+    expected = 0.10 * (1 - 0.015 - 0.17/100)
+    assert why == "fresh" and abs(eb - expected) < 1e-9
+    eb0, _ = paper_exit_decision(0.10, 0.0, "TP1", "enforce", 100,
+                                 slip_pct=1.5, fee_usd=0.17)
+    assert abs(eb0 - expected) < 1e-9
+
+def test_paper_exit_defaults_slip_fee_when_none():
+    eb, why = paper_exit_decision(0.10, 0.095, "TP1", "shadow", 100)
+    expected = 0.095 * (1 - measured_live_slip_pct()/100 - paper_fee_usd()/100)
+    assert why == "fresh" and abs(eb - expected) < 1e-9
+
+def test_paper_exit_fail_open_on_garbage():
+    # garbage mid + stale fresh -> effective_fill returns the str unchanged, the
+    # gap multiply raises -> outer fail-open returns decision_mid, never raises
+    eb, why = paper_exit_decision("notaprice", None, "HARD_STOP", "enforce", 100)
+    assert eb == "notaprice" and why == "error_fallback"

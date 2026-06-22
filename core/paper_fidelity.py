@@ -131,6 +131,39 @@ def paper_entry_decision(decision_mid, fresh_price, fresh_source, modeled_slip_p
     except Exception:
         return (decision_mid, "error_fallback")
 
+def paper_exit_decision(decision_mid, fresh_price, exit_reason, mode, size_usd,
+                        slip_pct=None, fee_usd=None):
+    """Compose the full paper-SELL fidelity decision into a single pure call.
+
+    Returns (exit_basis, reason). Unlike the buy path, a sell NEVER aborts/skips
+    (a held position must ALWAYS be able to exit) — there is no runup_abort /
+    no_route skip here.
+
+    Order, when mode != off:
+      reprice to fresh (fresh_price if valid >0 else decision_mid)
+      base = effective_fill(repriced, "sell", slip, fee, size)
+      exit_basis = base * (1 - gap_through_extra_pct(exit_reason)/100)  # stops only
+
+    FAIL-OPEN: mode=="off" => (decision_mid, "off"); any exception =>
+    (decision_mid, "error_fallback") so this never raises into the sell path.
+    """
+    try:
+        m = str(mode).strip().lower() if mode is not None else "off"
+        if m == "off":
+            return (decision_mid, "off")
+        try:
+            fp = float(fresh_price) if fresh_price is not None else 0.0
+        except (TypeError, ValueError):
+            fp = 0.0
+        repriced = fp if fp > 0 else decision_mid
+        sp = slip_pct if slip_pct is not None else measured_live_slip_pct()
+        fu = fee_usd if fee_usd is not None else paper_fee_usd()
+        base = effective_fill(repriced, "sell", sp, fu, size_usd)
+        exit_basis = base * (1.0 - gap_through_extra_pct(exit_reason) / 100.0)
+        return (exit_basis, "fresh")
+    except Exception:
+        return (decision_mid, "error_fallback")
+
 def gap_through_extra_pct(exit_reason, base_pct=None) -> float:
     """Extra NEGATIVE slippage (%) for gap-prone exits, mirroring live fills
     landing BELOW the trigger on dumps. Returns GAP_THROUGH_HAIRCUT_PCT (env,

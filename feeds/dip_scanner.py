@@ -3055,7 +3055,47 @@ class DipScanner:
                 eff_exit = _lr["exit_price"]
                 _live_sell_instrument = _lr["instrument"]
         else:
+            # PAPER↔LIVE FIDELITY (2026-06-22, SELL side): book the REACHABLE fresh
+            # exit price + real measured slippage + a gap-through haircut on stops
+            # (live stop fills land BELOW the trigger on dumps). A sell NEVER skips
+            # — a held position must always be able to exit. Default mode=shadow =>
+            # log the would-change delta but DON'T alter eff_exit (byte-identical to
+            # today). enforce => book the fidelity value directly (slippage applied
+            # ONCE, bypassing sell_fill_price's separate haircut). off => original.
+            # FAIL-OPEN: never raise into the sell path.
+            from core.paper_fidelity import paper_fidelity_enabled as _pf_enabled
+            _pf_mode = _pf_enabled("PAPER_FIDELITY_MODE", "shadow")
             eff_exit = sell_fill_price(current_price, _sz_sold, _impact)
+            if _pf_mode in ("shadow", "enforce"):
+                try:
+                    from core.paper_fidelity import (
+                        paper_exit_decision as _pxd,
+                        measured_live_slip_pct as _mlsp,
+                        paper_fee_usd as _pfee,
+                    )
+                    _addr = (_pos.address if (_pos and _pos.address) else None) \
+                        or getattr(self, "_addr_by_token", {}).get(token, "")
+                    _fresh = await self._get_current_price_for(
+                        token, address=_addr,
+                        pair_address=(_pos.pair_address if _pos else ""))
+                    _xb, _why = _pxd(
+                        current_price, _fresh, exit_decision.reason,
+                        mode=_pf_mode, size_usd=_sz_sold,
+                        slip_pct=_mlsp(), fee_usd=_pfee())
+                    if _pf_mode == "enforce":
+                        # _xb already bakes in slip+fee+gap — book it DIRECTLY so
+                        # slippage is counted exactly ONCE (bypass sell_fill_price).
+                        eff_exit = _xb
+                    else:  # shadow — log delta, do NOT change eff_exit
+                        logger.info("[paper-fidelity] SHADOW-SELL bot=%s token=%s addr=%s "
+                                    "decision_mid=%.10g fresh=%s sell_fill=%.10g "
+                                    "would_book=%.10g reason=%s (%s)",
+                                    bot_id, token, _addr, current_price, _fresh,
+                                    eff_exit, _xb, exit_decision.reason, _why)
+                except Exception as _pf_e:
+                    logger.error("[paper-fidelity] SELL error (%s) — fail-open, original "
+                                 "fill bot=%s token=%s", _pf_e, bot_id, token)
+                    eff_exit = sell_fill_price(current_price, _sz_sold, _impact)
         try:
             result = pm.close_position(
                 token=token,
