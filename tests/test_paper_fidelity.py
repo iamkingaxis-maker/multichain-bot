@@ -124,10 +124,13 @@ def test_paper_entry_fresh_used_with_slip_and_fee():
     expected = 0.09 * (1 + 0.015 + 0.17/100)
     assert why == "fresh" and abs(eb - expected) < 1e-9
 
-def test_paper_entry_runup_skips():
+def test_paper_entry_runup_takes_at_fresh():
+    # run-up past max => TAKE IT at the FRESH price (honest fill), NOT a skip
     eb, why = paper_entry_decision(0.10, 0.20, "onchain", 1.0, "enforce", 100,
-                                   max_runup=0.05)
-    assert eb is None and why == "runup_abort"
+                                   slip_pct=1.5, fee_usd=0.17, max_runup=0.05)
+    expected = 0.20 * (1 + 0.015 + 0.17/100)  # fresh price + buy pay-up
+    assert why == "runup_taken" and eb is not None
+    assert abs(eb - expected) < 1e-9
 
 def test_paper_entry_no_route_skips():
     eb, why = paper_entry_decision(0.10, 0.09, "none", 1.0, "enforce", 100)
@@ -140,10 +143,26 @@ def test_paper_entry_jupiter_source_does_not_skip():
     expected = 0.09 * (1 + 0.015 + 0.17/100)
     assert why == "fresh" and abs(eb - expected) < 1e-9
 
-def test_paper_entry_slippage_cap_skips():
+def test_paper_entry_slippage_cap_takes_at_modeled_slip():
+    # modeled slip 9.0% >= cap => TAKE IT at max(baseline 1.5, modeled 9.0) = 9.0%
     eb, why = paper_entry_decision(0.10, 0.09, "onchain", 9.0, "enforce", 100,
                                    slip_pct=1.5, fee_usd=0.17)
-    assert eb is None and why == "slippage_cap"
+    expected = 0.09 * (1 + 0.09 + 0.17/100)  # fresh + 9% slip + fee
+    assert why == "slippage_taken" and eb is not None
+    assert abs(eb - expected) < 1e-9
+
+def test_paper_entry_slippage_cap_uses_baseline_when_higher():
+    # cap fires (modeled >= cap) but baseline slip is HIGHER => use baseline
+    import os as _os
+    _os.environ["PROBE_ULTRA_SLIPPAGE_BPS"] = "100"  # cap 1.0%
+    try:
+        eb, why = paper_entry_decision(0.10, 0.09, "onchain", 1.2, "enforce", 100,
+                                       slip_pct=1.5, fee_usd=0.17)
+    finally:
+        del _os.environ["PROBE_ULTRA_SLIPPAGE_BPS"]
+    expected = 0.09 * (1 + 0.015 + 0.17/100)  # max(1.5, 1.2) = 1.5%
+    assert why == "slippage_taken"
+    assert abs(eb - expected) < 1e-9
 
 def test_paper_entry_defaults_slip_fee_when_none():
     eb, why = paper_entry_decision(0.10, 0.09, "onchain", 1.0, "shadow", 100)

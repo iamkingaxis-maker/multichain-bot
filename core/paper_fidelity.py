@@ -125,29 +125,57 @@ def paper_entry_decision(decision_mid, fresh_price, fresh_source, modeled_slip_p
                          mode, size_usd, slip_pct=None, fee_usd=None, max_runup=0.05):
     """Compose the full paper-buy fidelity decision into a single pure call.
 
-    Returns (entry_basis|None, reason). None => paper should SKIP the buy
-    (mirrors a live abort). FAIL-OPEN: any exception => (decision_mid,
-    "error_fallback") so this never blocks the buy path.
+    A dip that PRINTED was genuinely fillable (someone filled it) — the issue is
+    execution price/speed, NOT that the opportunity is fake. So paper TAKES the
+    trade at the realistic fill price instead of skipping; only a genuine no-route
+    (no on-chain swap path) hard-skips.
+
+    Returns (entry_basis|None, reason). None => paper should SKIP the buy. The
+    ONLY None return is "no_route" (can't fill what has no route). FAIL-OPEN:
+    any exception => (decision_mid, "error_fallback") so this never blocks the
+    buy path.
 
     Order, when mode != off:
-      no_route_skip -> (None,"no_route")
-      reprice_entry -> if None (runup) => (None,"runup_abort")
-      slippage_cap_skip -> (None,"slippage_cap")
-      effective_fill(repriced,"buy",...) => (eff,"fresh")
+      no_route_skip            -> (None, "no_route")   # ONLY hard skip
+      reprice past max_runup   -> TAKE at FRESH price -> (eff, "runup_taken")
+      slippage_cap exceeded    -> TAKE at max(baseline, modeled) slip
+                                  -> (eff, "slippage_taken")
+      normal                   -> (eff, "fresh")
     """
     try:
         m = str(mode).strip().lower() if mode is not None else "off"
         if m == "off":
             return (decision_mid, "off")
+        # 1) no_route is the ONLY hard skip — can't fill what has no route.
         if no_route_skip(fresh_source, m):
             return (None, "no_route")
-        eb, why = reprice_entry(decision_mid, fresh_price, max_runup=max_runup)
-        if eb is None:
-            return (None, why or "runup_abort")
-        if slippage_cap_skip(modeled_slip_pct):
-            return (None, "slippage_cap")
         sp = slip_pct if slip_pct is not None else measured_live_slip_pct()
         fu = fee_usd if fee_usd is not None else paper_fee_usd()
+        eb, why = reprice_entry(decision_mid, fresh_price, max_runup=max_runup)
+        # 2) Run-up past max: TAKE IT at the real (fresh) price — honest fill,
+        #    not a skip. reprice_entry returns None+"runup_abort" on run-up; in
+        #    that case use the FRESH price as the entry basis.
+        if eb is None and why == "runup_abort":
+            try:
+                basis = float(fresh_price)
+            except (TypeError, ValueError):
+                basis = decision_mid
+            eff = effective_fill(basis, "buy", sp, fu, size_usd)
+            return (eff, "runup_taken")
+        if eb is None:
+            # any other reprice failure (bad_mid) — fail-open to decision_mid
+            eff = effective_fill(decision_mid, "buy", sp, fu, size_usd)
+            return (eff, "fresh")
+        # 3) Slippage-cap: do NOT skip — TAKE IT at the realistic (higher) slip,
+        #    reflecting the real thin-book fill cost.
+        if slippage_cap_skip(modeled_slip_pct):
+            try:
+                slip_used = max(float(sp), float(modeled_slip_pct or 0))
+            except (TypeError, ValueError):
+                slip_used = sp
+            eff = effective_fill(eb, "buy", slip_used, fu, size_usd)
+            return (eff, "slippage_taken")
+        # 4) Normal fresh fill.
         eff = effective_fill(eb, "buy", sp, fu, size_usd)
         return (eff, "fresh")
     except Exception:

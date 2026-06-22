@@ -1801,7 +1801,10 @@ class DipScanner:
                         from core.paper_live_reconcile import (
                             log_paper_live_decision as _lpld,
                         )
-                        _live_skip = (_why in ("no_route", "runup_abort", "slippage_cap"))
+                        # PAPER↔LIVE TAKE-NOT-SKIP (2026-06-22): runup/slippage are
+                        # now TAKES (we fill at the realistic price), NOT skips. Only a
+                        # genuine no_route is a live hard-skip; caps are the other block.
+                        _live_skip = (_why == "no_route")
                         _cap_n = int(os.environ.get("LIVE_PER_TOKEN_MAX_POSITIONS", "2"))
                         _cap_usd = float(os.environ.get("LIVE_PER_TOKEN_MAX_USD", "60"))
                         _open_n, _open_usd = self._live_token_exposure(_addr)

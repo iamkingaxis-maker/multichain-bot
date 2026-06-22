@@ -160,18 +160,23 @@ def test_buy_enforce_reprices_to_fresh_above_stale(monkeypatch):
     assert pos.entry_price > stale
 
 
-def test_buy_enforce_runup_past_max_skips(monkeypatch):
-    """enforce + fresh run-up PAST BUY_REPRICE_MAX_RUNUP => paper buy SKIPPED,
-    no position, capital reservation refunded."""
+def test_buy_enforce_runup_past_max_takes_at_fresh(monkeypatch):
+    """enforce + fresh run-up PAST BUY_REPRICE_MAX_RUNUP => paper TAKES the buy
+    at the realistic FRESH price (honest fill), NOT skipped — a printed dip was
+    genuinely fillable."""
     _set_buy_env(monkeypatch, "enforce", runup="0.05")
-    stale, fresh = 1.00, 1.20           # +20% > +5% cap => runup_abort
+    stale, fresh = 1.00, 1.20           # +20% > +5% cap => runup_taken
     sc, pm, cap = _make_scanner(fresh_price=fresh)
-    start_bal = cap.balance_usd
     _run(sc._execute_bot_buy(_decision(stale, size_usd=30.0), _Bundle()))
 
-    assert pm.get_position("TOK") is None, "run-up past max must SKIP the buy"
-    assert cap.balance_usd == pytest.approx(start_bal), "capital must be refunded"
-    assert cap.in_flight_usd == pytest.approx(0.0)
+    pos = pm.get_position("TOK")
+    assert pos is not None, "run-up past max must now TAKE the buy at fresh price"
+    expected = effective_fill(
+        fresh, "buy", measured_live_slip_pct(), paper_fee_usd(), 30.0
+    )
+    assert pos.entry_price == pytest.approx(expected)
+    # Filled at the run-up fresh price (we paid up), not the stale mid.
+    assert pos.entry_price > stale
 
 
 def test_buy_enforce_no_route_skips(monkeypatch):
