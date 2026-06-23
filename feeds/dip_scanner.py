@@ -1588,7 +1588,13 @@ class DipScanner:
                                         f"sol_h6={_ng_solh6:.1f} dd90={_ng_dd}")
                     except Exception:
                         pass
-                if _ng_mode == "enforce":
+                _ng_rb = False
+                try:
+                    from core.gate_rollback import is_rolled_back as _irb
+                    _ng_rb = _irb("solpump_neg_gate")
+                except Exception:
+                    _ng_rb = False
+                if _ng_mode == "enforce" and not _ng_rb:
                     return
         # ── Falling-day flush gate (#loss-tail decomposition 2026-06-22) ───────
         # A deep h1 flush is a buyable PULLBACK when the token is UP on the day,
@@ -1638,7 +1644,15 @@ class DipScanner:
                             reasons=_fdf_why)
                 except Exception:
                     pass
-                if _fdf_mode == "enforce":
+                # AUTO-ROLLBACK (2026-06-22): if the forward watcher found this veto
+                # is clipping winners, it falls back to shadow (records above, no block).
+                _fdf_rb = False
+                try:
+                    from core.gate_rollback import is_rolled_back as _irb
+                    _fdf_rb = _irb("falling_day_flush")
+                except Exception:
+                    _fdf_rb = False
+                if _fdf_mode == "enforce" and not _fdf_rb:
                     return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp

@@ -211,6 +211,15 @@ async def _run_forward_candle_scorer() -> None:
     logger.info(
         "[shadow-pnl] forward-candle: loaded=%d mature=%d scored %d filters -> %s",
         loaded, len(mature), len(result), out_path)
+    # AUTO-ROLLBACK watcher (2026-06-22): after scoring, check each enforced
+    # entry-veto gate's forward BLOCKED-cohort outcome; STICKY-revert any gate
+    # whose blocked tokens are forward-WINNING (clipping winners) to shadow +
+    # alarm. Fail-open — never breaks the scorer.
+    try:
+        from core.gate_rollback import run_gate_rollback_check
+        run_gate_rollback_check(result)
+    except Exception as e:
+        logger.debug("[shadow-pnl] gate-rollback check err: %s", e)
 
 
 async def _run_trade_join_scorer() -> None:
