@@ -1,7 +1,7 @@
 {
   "bot_id": "no_filters_trend60r040",
   "display_name": "WIN-SIG RESCUE A/B of no_filters (2026-06-16 campaign C3, a LOSING control). +1 entry clause: trend_60m_r_squared >= 0.4. clean linear 60m trend (most recurrent rescue axis, 4/8 bots). RESCUE: -2.97->+0.51, WR43->61, 100% cov. Control=no_filters. PRE-REG: forward-judge kept-subset $/tr vs control at clone n>=30; promote clause to no_filters only if it flips $/tr positive with no catastrophe regression. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
   "max_concurrent_positions": 3,

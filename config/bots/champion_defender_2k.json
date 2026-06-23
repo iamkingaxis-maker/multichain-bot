@@ -1,7 +1,7 @@
 {
   "bot_id": "champion_defender_2k",
   "display_name": "$2k Defended Turnover \u2014 cap2k_turnover spine ($650x3 flat, TP1 75%@+5 / 25%@+10, trail3, stop-12, bleed45, flat-exit-30m) PLUS the 8-filter layered defender + stall-exit(90m). 7h-watch rec #1: cap2k was the biggest loss source (-$757, mostly the TOESCOIN correlated cluster) yet carries real size; defenders had 0 losses but only $20. This puts the protection on the size-carrying spine. cap2k_turnover stays as the unfiltered control for the A/B. [2026-06-08 BACKSTOP: base_position_usd 650->100 — the 8-agent failure audit found this bot's size was 29-72% of the entire fleet dollar bleed; capping to fleet-typical $100 removes ~$388 of bleed at near-zero winner cost.]",
-  "enabled": true,
+  "enabled": false,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 100.0,
   "max_concurrent_positions": 3,

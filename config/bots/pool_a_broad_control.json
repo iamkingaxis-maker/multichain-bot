@@ -6,7 +6,7 @@
   "bot_id": "pool_a_broad_control",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A BROAD CONTROL (2026-06-08): pool_a_candidate spine, SAME broad 40-trigger universe as pool_a_broad_trigstate but NO token-state gates (fires on any allowed trigger, one-size-fits-all). Matched ungated baseline for the broad per-trigger-state A/B. Own exclusion_pool. Expected to bleed more / win less if AxiS's thesis holds. See reference_per_trigger_state_conditioning_2026_06_08.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

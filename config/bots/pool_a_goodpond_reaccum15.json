@@ -6,7 +6,7 @@
   "bot_id": "pool_a_goodpond_reaccum15",
   "btc_macro_h1_block_threshold": null,
   "display_name": "WIN-SIG A/B of pool_a_goodpond (2026-06-16 campaign C2). +1 entry clause: chart_reaccum_drawdown_pct <= 15. same recurring re-accum lever (cross-bot corroboration). Expect: n=11 PERFECT split=overfit; SHADOW only. Control=pool_a_goodpond. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote clause to pool_a_goodpond only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

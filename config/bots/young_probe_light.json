@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "YOUNG-TOKEN probe \u2014 LIGHT filters (2026-06-02): young (<YOUNG_TOKEN_MAX_AGE_H) tokens with only FRESH-DATA-SAFE filters (btc_overheat/consec_red/huge_wick) + the freshness gate \u2014 because the full premium-defender stack keys on h6/h24 windows that DON'T EXIST for <2-6h tokens (false negatives). A/B vs young_probe_candidate (full stack) to isolate whether the filters or the tokens are the blocker. Needs YOUNG_TOKEN_PROBE=1 env. $100 fixed. [STACK-EXEMPT 2026-06-11: the fleet entry stack (age>=24h, mcap>=500k) is the structural opposite of the young pond \u2014 it silenced this family from the 06-09 enforcement until now. The young lane + own entry gates are the validated stack here.] [THROUGHPUT 2026-06-11: shared young_pond exclusion pool (siblings spread across DISTINCT tokens instead of duplicating - light/candidate closed the same 2 tokens today) + max_concurrent raised. Same entries, more at-bats; $100/day needs shots.] [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.] [SELF-GATED 06-12: explicit bounds <2h/liq40k+/mcap150k+ = today's exact proven water, so the lane widening (24h/25k/100k for the new band probes) cannot alter this experiment.]",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "AGED-SCALPER (wallet-decode build A, 2026-06-13): encodes the C3zPgDxqJ drawdown-winner signature (73% WR, ~3.6h discretion-held scalper, +11.6% win-median / -16% loss-median). Agent-decoded entry (100% coverage, 20 winners): buys AGED survivors (17/17 winners >24h, median ~10 DAYS old) on a -13 to -16% dip off the 90m HIGH (winners -15.8% vs its own losers -11.8%; split vanishes at 60m -> validates the 90m window), in the $100k-$1M mcap band. EXTENDS pool_a_dipgate: its -16 gate REJECTS half C3zP's winners (cluster -13..-16), so this variant uses dd90<=-13 + an age>=24h floor + mcap 100k-1M. entry_stack_exempt because the stack's mcap>=500k floor would silence the $100k-$500k part of the band. Exits widened to C3zP's geometry (hard -16, tp +10/+15, ~3.6h holds). Forward-judge per-trade % vs pool_a_dipgate (control, -16 no-floor). In-sample thresholds optimistic; the A/B is the proof.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "POND COMBO + SOL-GREEN CAP: pond_settled_flow (settled_dip + flow_imbal) PLUS sol_pc_h1<=0.3 \u2014 direct A/B vs pond_settled_flow to measure the green-side cap. 2026-06-09 in-pond SOL audit: sol_h1>+0.3 was the pond's WORST cohort in BOTH halves (train 46% WR/-$2.27/tr, test 62%/-$0.25) but magnitude is unstable (saves +$1074 train vs +$110 test) -> A/B, not fleet enforce. Modestly-red SOL (-0.7..-0.3) = best band (79% WR +$2.32, confirms day-level regime at trade level). Existing red-side gate (h1<-0.7) left untouched. Judge vs pond_settled_flow at n>=50 distinct tokens; if the cap wins, roll into the other pond clones; if marginal (test-half truth), drop. [2026-06-09 mission fix: triggers_allowed=ALL \u2014 combos were mined/validated on ALL stack-passing entries; the inherited 4-trigger whitelist cut reach to 62% of the validated cohort.] [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.]",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

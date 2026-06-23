@@ -6,7 +6,7 @@
   "bot_id": "champion_premium_tightexit",
   "btc_macro_h1_block_threshold": null,
   "display_name": "Tight-exit A/B of champion_premium_fresh (IDENTICAL stack+freshness gate+ng_scorer_gate) with ONE change: tighter exit to plug the trailing-stop leak. trail_pp 3.0->1.5, tp2_pct 10->7 (lock the trailing portion before the trail gives it back). Calibrated 2026-05-31: live trail exits peak 6.6%->realized 0.7% = 5.3pp give-back, 11% capture (n=480 clean). Runner cost tiny (3/613 trail exits peaked >=15%). A/B vs champion_premium_fresh isolates exit aggressiveness -> tests whether capturing the leak beats the whipsaw cost (unquantifiable offline). Forward-judge avg_win + EV at n>=50.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

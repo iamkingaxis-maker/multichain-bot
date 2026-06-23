@@ -6,7 +6,7 @@
   "bot_id": "pool_a_trigstate",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A TRIGGER-STATE (2026-06-08, 7-Opus held-out validation of AxiS's thesis: each trigger only WINS in a specific token-state; we've been firing them one-size-fits-all). Exact clone of pool_a_candidate (same spine/triggers/exits) + the ONE change: per-trigger token-state gates on its 4 triggers, each validated in BOTH date folds (May26-31 & Jun1-8): deep_1h_dip needs a washed-out chart (chart_score<=40.9, WR .54->.68); pullback_in_uptrend needs a FRESH peak (minutes_since_peak<=22, .40->.68 +28pp); power_dip_runner needs a real 5m flush (pc_m5<=-2.43, .53->.66, the n=100 rescue); chart_quality_bottom needs a live vol burst (vol_5m_burst_vs_h1>=1.42, .49->.62). Own exclusion_pool so it evaluates the SAME tokens independently of pool_a_candidate (the control). Fail-open on missing feature. Forward-judge vs pool_a_candidate at n>=50 (compare_bots --unrealized). See reference_per_trigger_state_conditioning_2026_06_08.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

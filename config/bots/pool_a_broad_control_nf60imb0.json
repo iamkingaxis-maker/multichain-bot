@@ -6,7 +6,7 @@
   "bot_id": "pool_a_broad_control_nf60imb0",
   "btc_macro_h1_block_threshold": null,
   "display_name": "WIN-SIG RESCUE A/B of pool_a_broad_control (2026-06-16 campaign C3, a LOSING control). +1 entry clause: net_flow_60s_imbalance >= 0. non-negative 60s buy-flow imbalance (recurring family). RESCUE: -1.466->+0.973, WR36->54, 100% cov. Control=pool_a_broad_control. PRE-REG: forward-judge kept-subset $/tr vs control at clone n>=30; promote clause to pool_a_broad_control only if it flips $/tr positive with no catastrophe regression. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

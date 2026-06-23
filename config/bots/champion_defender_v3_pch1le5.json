@@ -1,7 +1,7 @@
 {
   "bot_id": "champion_defender_v3_pch1le5",
   "display_name": "WIN-SIG RESCUE A/B of champion_defender_v3 (2026-06-16 campaign C3, a LOSING control). +1 entry clause: pc_h1_lookback <= 5. anti-euphoria: h1 flat-to-down, not chasing pumps. RESCUE: -0.07->+4.18; n38 thin -> shadow lead. Control=champion_defender_v3. PRE-REG: forward-judge kept-subset $/tr vs control at clone n>=30; promote clause to champion_defender_v3 only if it flips $/tr positive with no catastrophe regression. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
   "max_concurrent_positions": 3,

@@ -6,7 +6,7 @@
   "bot_id": "pool_a_dipgate_cool1h_tight",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A DIPGATE + TIGHT COOL-1H (2026-06-15 A/B arm 2). Clone of pool_a_dipgate, ONE change: pc_h1_max=0.0 (require NON-positive 1h momentum on the dip = a REAL pullback, not a bounce-chase). The cool-1h edge is TRIANGULATED: (1) 8zkgFGVZ copyable winner (winners cool pc_h1, losers chase +69/+143% parabolas), (2) the in-bot #435 regime miner on the FLEET'S OWN trades = pc_h1 is the #1 separator, rel_gap -1.0: winner med -10.3% vs loser med +3.4%. The +40 arm (pool_a_dipgate_cool1h) is too loose for the fleet (losers sit at +3.4, far under +40 -> ~no-op); this arm cuts at the SIGN boundary where the fleet's winners/losers actually split. 3-point sweep vs control (pool_a_dipgate) / +40 (cool1h) / 0 (this). Forward-judge per-trade %/WR at n>=30. paper.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

@@ -6,7 +6,7 @@
   "bot_id": "pool_a_mcap1m",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A + MCAP GATE <=$1M (A/B treatment #2 of pool_a_candidate). IDENTICAL to pool_a_candidate except mcap_max=1000000. Pairs with pool_a_mcapgate (<=$500k) and pool_a_candidate (no gate) for a clean 3-way band sweep on the same base: control / $500k / $1M. ~2x the $500k clone's volume (~12/day) so it reaches n>=50 faster; tests whether the $500k-1M band is worth keeping (low_mcap_probe note: 500k-1M ~= 1M-5M, never sub-split before). Own exclusion_pool=pool_a_mcap1m. Forward-judge per-trade % vs the other two.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

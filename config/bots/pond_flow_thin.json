@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "POND COMBO #6 (capacity, mission 2026-06-09): flow_imbal + thin_book pair (net_flow_60s_imbalance>=0.365 AND slip_buy_2000_pct>=1.709) ON TOP of fleet entry stack. Token-day held-out: first half +0.55%/60% (weak but positive), second +3.85%/68% (~4.4 tok/day = ~+$10/day @ $100). WEAKEST evidence of the pond family \u2014 explicitly a capacity experiment; cut fast if forward WR <60% at n>=30 tokens. Judge vs pond_settled_flow_thin (its superset). [2026-06-09 mission fix: triggers_allowed=ALL \u2014 combos were mined/validated on ALL stack-passing entries; the inherited 4-trigger whitelist cut reach to 62% of the validated cohort.] [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.]",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

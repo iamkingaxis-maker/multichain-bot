@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 30.0,
   "display_name": "MOMENTUM-PUMP-TIGHT (2026-06-14, regime-entry-hunt): the ONLY positive entry that survived a gate-independent forward test in the live SOL-pump tape — tight momentum-CONTINUATION (pc_h1 20-60 = committed but PRE-parabolic, liq>=30k HARD floor [the 20-30k band was the RUG pocket WR 0.44/-22%], mcap 80k-3M [winners cluster 140-600k], 1m volume surge). momentum_mode bypasses the dip-filter stack because our dip-buying INVERTS + bleeds in euphoria (dip entries WR 0.42 / ~-$341 net = the window bleed). THIN: n=11 fills / ~6 distinct winner tokens (AIELON = half), single 6.5h pump day — PAPER shadow, judge at n>=30 DISTINCT tokens vs momentum_shadow, promote only if >=+$2/tr AND catastrophe(<=-35%) rate <10%, NO $ projection. CORRECTED 2026-06-14 (0-fire diagnosis): the BINDER was age_h_max=24 (0/3 live momentum candidates passed) + mcap_max=3M (only 1/3, candidates median $4.7M). The n=11 hunt sample was over-fit to a microcap pump day; the REAL momentum-continuation pond (verified vs live momentum_shadow candidates) is MATURE (>24h) + bigger-cap (median mcap $4.7M, median liq $322k), NOT the $100-160k thin-liq RUG pond the chameleon green-default keeps buying (SPIRPIX $142k->$3.5k). Fix: age_h_max 24->null, mcap_max 3M->10M; kept liq>=30k + mcap_min 80k (both 100%-pass). CAVEAT: no in-config SOL-regime gate yet (fires every regime; the SOL-pump-conditional version = chameleon GREEN mode). $50 fixed paper, daily $30.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "pc_h1",

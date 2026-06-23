@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "WIN-SIG A/B of pool_a_candidate (2026-06-16 campaign C2). +1 entry clause: shape_30m_drawdown_from_max_pct <= -10. deeper 30m dip (n=230 monotonic, the ONLY powered c2 case). Expect: KEEP WR57.3 vs REJECT 31.7; ENFORCE-track. Control=pool_a_candidate. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote clause to pool_a_candidate only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

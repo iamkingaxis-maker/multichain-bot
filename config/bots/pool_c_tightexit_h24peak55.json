@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "WIN-SIG A/B of pool_c_tightexit (2026-06-16 campaign C2). +1 entry clause: h24_ratio_to_peak <= 0.55. deep off the 24h peak, not a chase (deep-pullback thesis). Expect: n=8 noise; hypothesis-rank/shadow only. Control=pool_c_tightexit. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote clause to pool_c_tightexit only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

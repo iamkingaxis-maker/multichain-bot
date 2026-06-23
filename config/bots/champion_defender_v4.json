@@ -1,7 +1,7 @@
 {
   "bot_id": "champion_defender_v4",
   "display_name": "Defender v4 (WR-preserving) \u2014 v3's full 9-filter stack + vol_accel, but NO stall_exit/flat_exit. A/B vs v3: tests whether dropping the corpse-booking recycle exits recovers btc-like WR (75%+) now that vol_accel filters most never-green corpses at ENTRY. v3 keeps stall_exit as the control.",
-  "enabled": true,
+  "enabled": false,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
   "max_concurrent_positions": 3,

@@ -1,7 +1,7 @@
 {
   "bot_id": "champion_post_peak",
   "display_name": "Post-peak positive-selection \u2014 champion_defender_v4's EXACT stack (10-filter defender + WR-preserving exits, no stall), single variable = entry_gate time_since_h24_peak_secs>=14400 (only enter a token >=4h AFTER its 24h peak \u2014 well past the top, into the post-peak base; NOT a near-top extended runner). Directly targets the recurring 'bot buys extended runners near local tops' complaint. Broad held-out+worst-day feature scan survivor (2026-05-29): the relationship is NON-monotonic (mid-range Q3 ~1.7-4.2h since peak is a TEST disaster, 27% WR) but the >=4h cohort is uniformly strong and +$/tr-positive in BOTH regimes: TRAIN 64% WR +$0.20/tr, TEST 76% WR +$0.78/tr, and on the TRUE worst fleet day 05-27 (fleet 23% WR) 43% (+20pp) [correction: an earlier draft mislabeled the worst day as 05-28/87%; 05-28 was actually an easy 58% day]. Robust across the 4-5h threshold plateau. ~48% overlaps the top_buy_makers_n<9 whale gate, so a genuinely orthogonal axis. triggers open so the post-peak gate is the isolated variable. A/B control = champion_defender_v4. Judge n>=50 --unrealized.",
-  "enabled": true,
+  "enabled": false,
   "ng_scorer_gate": true,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,

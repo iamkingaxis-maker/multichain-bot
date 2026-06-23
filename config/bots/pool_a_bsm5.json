@@ -6,7 +6,7 @@
   "bot_id": "pool_a_bsm5",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A + BUY-SIDE-FLOW GATE (A/B treatment of pool_a_candidate). IDENTICAL to pool_a_candidate except entry_gate adds bs_m5>=1.5 (5m buy/sell trade-count ratio = buy-side demand confirmation). Encodes the 2026-06-07 held-out entry-signature mine's STRONGEST separator: bs_m5 TEST AUC 0.661 core / 0.600 fleet, ~98% coverage, survives both passes; alone flips core family -2.11%->~break-even (+1.9pp), keeps 54% of volume. Pairs with pool_a_dipgate (dip-depth) for parallel single-variable entry A/Bs vs pool_a_candidate control. Own exclusion_pool=pool_a_bsm5. entry_gate fail-OPEN if bs_m5 missing (~2%). Forward-judge per-trade % vs pool_a_candidate; in-sample lift optimistic (short test window), forward A/B is the proof.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

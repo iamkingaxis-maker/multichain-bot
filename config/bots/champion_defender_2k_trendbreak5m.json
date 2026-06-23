@@ -1,7 +1,7 @@
 {
   "bot_id": "champion_defender_2k_trendbreak5m",
   "display_name": "WIN-SIG RESCUE A/B of champion_defender_2k (2026-06-16 campaign C3, a LOSING control). +1 entry clause: chart_trendline_5m_breakdown >= 1. require a confirmed 5m trendline breakdown (real flush); cd_2k bleeds buying mid-trend. RESCUE: kept -1.125->+0.965 (n463, -$593 biggest loser). >=1 gates True-vs-False; ~5% None fail-open. Control=champion_defender_2k. PRE-REG: forward-judge kept-subset $/tr vs control at clone n>=30; promote clause to champion_defender_2k only if it flips $/tr positive with no catastrophe regression. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 100.0,
   "max_concurrent_positions": 3,

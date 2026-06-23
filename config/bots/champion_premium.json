@@ -1,7 +1,7 @@
 {
   "bot_id": "champion_premium",
   "display_name": "Premium positive-selection  -  champion_defender_v4's EXACT stack (10-filter defender + WR-preserving exits, no stall) with ONE variable changed: triggers_allowed restricted to 4 BAD-DAY-ROBUST premium triggers. Selection method: systematic per-trigger held-out scan (train 05-16..24 / test 05-27..29) kept only triggers beating fleet WR in BOTH windows, then a per-day stability gate kept only those that ALSO beat fleet on the TRUE worst fleet day 05-27 (fleet 23% WR) [correction: 05-28 was mislabeled as worst; it was an easy 58% day]. Survivors: power_dip_runner (87/72 WR across windows; robust on the true worst day 05-27), chart_quality_bottom (34%; big vol; +$2.65/tr test), deep_1h_dip (32%; 76/55 WR), pullback_in_uptrend (60%; 91/59). REJECTED as good-day artifacts (flashy test-$/tr but cratered on the brutal day): demand_burst_no_crash 14%, liq_velocity 12%, 1s_capit_reversal 6%, net_flow_5m_demand 17%. Converting the WR edge to +$/tr is the defender stack + tight exits' job, measured FORWARD. A/B control = champion_defender_v4. Judge n>=50 --unrealized.",
-  "enabled": true,
+  "enabled": false,
   "ng_scorer_gate": true,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,

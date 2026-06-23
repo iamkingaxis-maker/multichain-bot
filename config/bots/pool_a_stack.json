@@ -6,7 +6,7 @@
   "bot_id": "pool_a_stack",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A + STACKED ENTRY GATE (bs_m5>=1.5 AND shape_90m_drawdown<=-16). Combines the two held-out entry levers: buy-side-flow confirmation + deep-dip. The 2026-06-07 signature mine's best held-out gate (core WR 0.39->0.62, ~21% throughput). Tests whether stacking BOTH levers beats each alone (pool_a_bsm5 / pool_a_dipgate). Lower volume, highest selectivity. Own exclusion_pool=pool_a_stack. entry_gate fail-OPEN per missing feature. Forward-judge per-trade % vs pool_a_candidate control + the single-lever clones.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

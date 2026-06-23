@@ -6,7 +6,7 @@
   "bot_id": "pool_a_nopullback",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A MINUS pullback_in_uptrend trigger (A/B treatment of pool_a_candidate). IDENTICAL except triggers_allowed drops pullback_in_uptrend. The 2026-06-07 archetype mine flagged pullback_in_uptrend as the ONE clean CUT candidate: 54% never-green rate (highest), negative mean net% even WITH positive buy-side flow, and it buys shallow/near-high (the weakest entry timing). Tests whether removing the worst trigger lifts per-trade %. Keeps deep_1h_dip/power_dip_runner (the +2.1% edge) + chart_quality_bottom. Own exclusion_pool=pool_a_nopullback. Forward-judge vs pool_a_candidate control.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "MOMENTUM-continuation shadow (#4.3): the strongest DECORRELATED lead from the broad sweep (+14pp WR, both regimes; 100% of momentum candidates are blocked by the dip-filter stack). momentum_mode bypasses the dip filters+triggers and enters on pc_h1>=20 AND pct_above_vwap_h24<=20 (no blow-off chase) AND 1m_volume_spike>=0.40 (freshness). Wider exits than the dip ladder to capture continuation asymmetry. $100 fixed, paper. Forward-judge WR + decorrelation vs the dip fleet. [GAP-THROUGH GUARDS 2026-06-10: 13 hard stops filled avg -15.6% on the -12 stop. giveback floor (peak>=+4 -> exit -6, pre-TP1) + fast-dump bail (-9 any volume, pre-TP1). Judge: avg loss on stopped positions should compress toward -7..-10; watch for TP1 winner-kill (positions exited -6..-9 that would have TP1d).] [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.]",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "pc_h1",

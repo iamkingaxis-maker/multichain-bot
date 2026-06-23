@@ -6,7 +6,7 @@
   "bot_id": "pool_a_goodpond",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A GOOD-POND (2026-06-08 entry-quality investigation synthesis). Clone of pool_a_candidate with the ONLY held-out-surviving entry levers from the 8-agent investigation: (1) net_flow_60s_usd>=100 (LIVE buy-side flow at entry \u00e2\u20ac\u201d on-chain agent: WR 0.688/+2.09%per-tr held-out all folds, the headline lever), (2) age_h_min=24h (cut the <2h fresh-micro 0%-WR lane; good-pond + 23d agents agree, +18-22pp WR held-out), (3) mcap 500k-10M (our true edge band; sub-500k is WORST at 29-32% \u00e2\u20ac\u201d so this REPLACES the backwards <=500k mcap clones). Kills dip-depth (didn't survive) and holder/smart-money features (dead OOS). Edge = enter aged mid-mcap tokens with live net buying. Own exclusion_pool. Forward-judge vs pool_a_candidate control. CAVEAT: 3.5d data, net_flow has mild recency decay (latest fold 0.63 vs 0.70) \u00e2\u20ac\u201d forward A/B is the proof.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

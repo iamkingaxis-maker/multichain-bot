@@ -6,7 +6,7 @@
   "bot_id": "pool_a_dipgate_vwap1h",
   "btc_macro_h1_block_threshold": null,
   "display_name": "WIN-SIG A/B of pool_a_dipgate (2026-06-16 campaign). +1 entry clause: pct_above_vwap_1h <= -4.0. buy the discount below the 1h VWAP (deep-dip family). Expect: WR 45.6->63% on data-present subset; re-measure on fresh pull. Control=pool_a_dipgate. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote the clause to pool_a_dipgate only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

@@ -6,7 +6,7 @@
   "bot_id": "pool_a_dipgate",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A + DIP-DEPTH GATE (A/B treatment of pool_a_candidate). IDENTICAL to pool_a_candidate except entry_gate adds shape_90m_drawdown_from_max_pct<=-16.0 (require entry to be >=16% below the 90-min recent high). Encodes the 2026-06-06 smart-money finding (n=248 elite buys: median dip -16% off recent high, buy weakness not breakouts) AND our own validation (core-family backtest: -16% gate lifts net +1.19%->+2.30%/tr, WR 62%->69%, keeps 55% of volume; winners entered -23% vs losers -14%). The gate also auto-neutralizes shallow-buying triggers (chart_quality_bottom/pullback_in_uptrend too shallow to clear it). Own exclusion_pool=pool_a_dipgate. Forward-judge per-trade % vs pool_a_candidate (control). In-sample threshold is optimistic; forward A/B is the real proof.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "POOL-A shadow (Design A): candidate (premium_tightexit) spine, $100 fixed, 7 selective slots (slot-sweep 2026-06-05: capital efficiency + per-trade quality degrade past ~7; 7 = sweet spot for the profit-sweep float). Tests the user's original idea \u00e2\u20ac\u201d ONE strategy, many no-same-token slots (de-concentration). Multipliers neutralized to 1.0 so every position is exactly $100 (hard cap). exclusion_pool=pool_a. Forward-judge eqw/day + stability vs pool_c. [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.]",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

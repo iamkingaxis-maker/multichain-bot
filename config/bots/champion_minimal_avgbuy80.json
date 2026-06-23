@@ -1,7 +1,7 @@
 {
   "bot_id": "champion_minimal_avgbuy80",
   "display_name": "WIN-SIG A/B of champion_minimal (2026-06-16 campaign C2). +1 entry clause: rt_avg_buy_usd <= 80. froth filter: small recent avg buy size (wins quiet, loses in froth). Expect: kept WR68->84.6; n=19 shadow. Control=champion_minimal. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote clause to champion_minimal only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
   "max_concurrent_positions": 3,

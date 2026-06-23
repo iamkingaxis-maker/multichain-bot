@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "DEEP-FLUSH TIME-BOX (wallet-decode build B, 2026-06-13): encodes the DaxfeJKe drawdown-winner signature (the 'Dw5' 6-min time-boxer; recurred = hit 2 of the period's runners). Agent-decoded entry: DEEP-FLUSH CAPITULATION buy on micro-liq young tokens — dd90 median -30% (gate -16, deeper passes), vol_spike median 7.5x (gate >=3.0), liq median $22k (admitted via trigger_volume_burst_runner's liq<=$21.3k micro-liq lane), age ~19h. The EDGE IS THE EXIT: it buys the same deep-flush state every time and lets a ~6-min TIME-BOX carry it (dip-depth does NOT separate its own winners from losers; loss-median tight -7.9% because the box caps bleeders). CONFIRMS+EXTENDS our deep-dip edge at a deeper threshold; this is a CAPITULATION-reversal entry (sellers winning + volume burst), the OPPOSITE timing philosophy to bs_m5 demand-confirmation. young_token_probe=true for the rug-gate unique_buyers_n==0 exemption (fresh micro-liq) + young admission; entry_stack_exempt (the stack's age>=24h/mcap>=500k is the structural opposite of this pond). time_stop_minutes=6 IS the mechanism. Forward-judge per-trade % at n>=30; expect low WR + tight losses + fast turnover.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "shape_90m_drawdown_from_max_pct",

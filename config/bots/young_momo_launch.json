@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "YOUNG-MOMENTUM LAUNCH (wallet-decode build C, 2026-06-13): the SECOND lane DaxfeJKe runs (decoded alongside its deep-flush lane). On ultra-young <1h launches it buys the OPPOSITE shape — m5 +53% to +65% (ripping UP), shallow drawdown, i.e. a young-launch MOMENTUM/breakout, the 'Dw5 -> firehose' lane our memory flagged but we lacked a clean trigger for. Points the just-un-silenced young family (rug-gate unique_buyers_n==0 exemption shipped 2026-06-13) at the momentum lane: trigger_volume_burst_runner admits young micro-liq volume-burst tokens; entry_gate requires age<=1h + RISING momentum (1m_cum_3min_pct>=3, the opposite of the dip gates) + a real volume spike. Paired with Dax's fast time-box (time_stop_minutes=8, a touch longer than the deep-flush 6 to let a launch run) + trail for the runners. RUG RISK is real on <1h launches (Dax ate a -96% at 0.04h) -> lp_single_sided rug-gate STILL applies (only the no-buyers branch is exempted), tight hard stop, fusion/wynn/huge_wick filters on. entry_stack_exempt + regime_dial_exempt (young pond). Forward-judge per-trade %; this is the most speculative of the three.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "entry_age_hours",

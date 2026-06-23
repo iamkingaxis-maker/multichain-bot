@@ -6,7 +6,7 @@
   "bot_id": "pool_a_broad_trigstate",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A BROAD TRIGGER-STATE (2026-06-08): pool_a_candidate spine, broad trigger universe (40 triggers) WITH per-trigger token-state gates. 40 archetype triggers, each held-out-validated in BOTH date folds (May26-31 & Jun1-8) over 1560 entries / 7-Opus mine. Excludes phantom-$ (low_buy_slip, demand_bottom_compound = SIZE lever not entry gate) + dormant/under-sampled (beta_retailfresh, concurrent_alpha, etc). Gate feature coverage >=97% so every gate ACTS (keep-rate 10-59%). See reference_per_trigger_state_conditioning_2026_06_08. A/B against pool_a_broad_control (SAME triggers, NO gates) -> isolates the gating effect across the full archetype set. Own exclusion_pool (independent eval). Forward-judge n>=50 compare_bots --unrealized.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

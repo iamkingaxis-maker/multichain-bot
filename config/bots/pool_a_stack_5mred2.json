@@ -6,7 +6,7 @@
   "bot_id": "pool_a_stack_5mred2",
   "btc_macro_h1_block_threshold": null,
   "display_name": "WIN-SIG A/B of pool_a_stack (2026-06-16 campaign C2). +1 entry clause: 5m_consec_red >= 2. require a confirmed >=2-candle 5m red flush (sep 2.01). Expect: kept WR71 vs rejected 19; n=34 forward-judge. Control=pool_a_stack. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote clause to pool_a_stack only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

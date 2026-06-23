@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "WIN-SIG A/B of pool_c_post_peak (2026-06-16 campaign). +1 entry clause: consec_higher_lows_1m >= 1. momentum confirmation: at least one 1m higher-low. Expect: WR 51.9->64.7% (+12.8pp), keeps 33/40 winners. Control=pool_c_post_peak. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote the clause to pool_c_post_peak only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "time_since_h24_peak_secs",

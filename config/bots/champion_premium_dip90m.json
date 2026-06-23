@@ -1,7 +1,7 @@
 {
   "bot_id": "champion_premium_dip90m",
   "display_name": "WIN-SIG A/B of champion_premium (2026-06-16 campaign). +1 entry clause: shape_90m_drawdown_from_max_pct <= -16.0. deeper dip off the 90m high (n=411, monotonic). Expect: WR 56->63.9%, keeps 61% winners. Control=champion_premium. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote the clause to champion_premium only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "ng_scorer_gate": true,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,

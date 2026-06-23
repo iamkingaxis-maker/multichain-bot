@@ -6,7 +6,7 @@
   "bot_id": "champion_premium_tightexit_reaccum",
   "btc_macro_h1_block_threshold": null,
   "display_name": "WIN-SIG A/B of champion_premium_tightexit (2026-06-16 campaign). +1 entry clause: chart_reaccum_drawdown_pct <= 16.0. dont buy a re-accum already bled >16% from trough. Expect: n=13 UNDERPOWERED - directional shadow, judge n>=20-30. Control=champion_premium_tightexit. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote the clause to champion_premium_tightexit only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

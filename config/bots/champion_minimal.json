@@ -1,7 +1,7 @@
 {
   "bot_id": "champion_minimal",
   "display_name": "MINIMAL +EV candidate (2026-05-31) \u2014 isolates the TWO components that carry the fleet's edge: filter_dead_volume (the volume-freshness gate shared by EVERY +EV defender bot \u2014 volaccel/btc/falling_pump/post_peak/v3 all enforce it) + entry_gate time_since_h24_peak_secs>=14400 (enter only >=4h after the 24h peak \u2014 anti-top timing, the constructive form of filter_extended_chase). NOTHING redundant: no other defender filters (btc_overheat/falling_pump were INERT this regime), no ng_scorer, no stall \u2014 a clean test of whether the 2 carrying gates alone reproduce post_peak's +EV (post_peak's full 10-filter stack +$6.27 does NOT beat single-filter volaccel +$7.97, so the extra filters add ~nothing). Default ladder (swept-optimal), $20 base (sizing only amplifies, never tested up). JUDGE at n>=50 via /api/leaderboard realized_pnl_total_usd (NOT /api/trades). Control = baseline_v1.",
-  "enabled": true,
+  "enabled": false,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
   "max_concurrent_positions": 3,

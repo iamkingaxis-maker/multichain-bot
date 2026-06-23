@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "WIN-SIG A/B of deepflush_timebox (2026-06-16 campaign). +1 entry clause: time_since_h6_peak_secs <= 9000. recent-h6-peak flushes recover, stale ones bleed (parallel deepflush arm). Expect: WR-inside 79 vs 69, higher winner-retention; n=29 shadow. Control=deepflush_timebox. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote the clause to deepflush_timebox only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "shape_90m_drawdown_from_max_pct",

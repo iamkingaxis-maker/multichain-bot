@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 90.0,
   "display_name": "TIME-BOX PROBE + MCAP FLOOR (2026-06-14 A/B): EXACT clone of timebox_probe with the ONE change mcap_min=50000 \u00e2\u20ac\u201d isolates whether a mid-mcap floor fixes the micro-cap RUG exposure that dropped timebox_probe -$326 from peak (FableTrump/Pixelands -99% etc. were ~$10k micro-caps). Red-winner mine: winners' median mcap ~$124k, losers' ~$10k. timebox_probe stays the untouched control. PRE-REG: judge vs timebox_probe at n>=30 closes \u00e2\u20ac\u201d does the floor cut the deep-rug tail without killing the edge?",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "wash_suspected",

@@ -6,7 +6,7 @@
   "bot_id": "pool_a_solmacro_reaccum20",
   "btc_macro_h1_block_threshold": null,
   "display_name": "WIN-SIG A/B of pool_a_solmacro (2026-06-16 campaign C2). +1 entry clause: chart_reaccum_drawdown_pct <= 20. tight re-accum, not still-bleeding (chart_reaccum recurs on 3 bots). Expect: kept WR23.5->50; n=17 shadow. Control=pool_a_solmacro. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote clause to pool_a_solmacro only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

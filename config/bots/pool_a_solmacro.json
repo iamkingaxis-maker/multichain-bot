@@ -6,7 +6,7 @@
   "bot_id": "pool_a_solmacro",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A SOL-MACRO RELAX (2026-06-08): exact clone of pool_a_candidate, ONLY change = sol_macro thresholds relaxed h1 -0.7->-2.5, h6 -0.3->-1.5 (block only DEEP SOL crashes). Tests the v2 missed-winner finding: sol_macro was the #1 config gate blocking missed held-winners (97% of gate-blocked), AND it contradicts the day-regime edge (SOL modestly-red -1..-3% is our BEST dip-buy market, but the -0.7 gate vetoed exactly those days). Own exclusion_pool -> independent A/B vs pool_a_candidate (control). Judge realized n>=50 compare_bots --unrealized. See reference_day_level_regime_real_2026_06_08.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

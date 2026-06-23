@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 90.0,
   "display_name": "TIME-BOX PROBE (2026-06-12, the Dw5Vykxu archetype \u2014 decoded from the only copyable wallet green through BOTH red windows): fixed $75 probes, -25% stop + never-runner cut at 20min (TIGHTENED 2026-06-15: 16-Opus consistency mine FALSIFIED the no-price-stop thesis -- the -60 rug-guard was 60% of all variance, WR is stop-INVARIANT, and 0 winners ever peaked past +20 TP1 so 0 are killed), hard 240min TIME stop, sell-ALL on strength at +20%. Risk boxed by time, not price \u2014 red-tape chop executes price-stops at local bottoms (74% of our stops recovered; ANTH: our -15% stop at 12:59 was ITS +124% entry at 13:06). Near-indiscriminate entries by design (the edge is the geometry, not selection). PRE-REG: n>=30 closes, >=+$1.50/tr -> promote; negative -> retire. 48h burn-in label.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "wash_suspected",

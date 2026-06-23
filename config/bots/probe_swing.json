@@ -8,7 +8,7 @@
   "conviction_sizing_mode": null,
   "daily_loss_limit_usd": 90.0,
   "display_name": "OVERNIGHT SWING PROBE (2026-06-12, the 4TeTtW1G archetype \u2014 green through BOTH red windows, 86% scanner-visible universe): 615min median holds (p75 13h), 75% WR, +15.6 med win. Geometry: ride the ESTABLISHED tape's swings \u2014 13h time-box, NO price exits except a -45% catastrophe stop, sell 75% at +15 / rest at +30. THE EXPERIMENT: our mid-cap stack pond read 16% won10 at FAST exits \u2014 was it dead water, or fished at the wrong timescale? Same validated stack entries, swing horizon. PRE-REG: n>=30 closes, >=+$1.50/tr promotes; negative retires. 48h burn-in; slow accrual expected (13h holds x 4 slots).",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

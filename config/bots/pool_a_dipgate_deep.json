@@ -6,7 +6,7 @@
   "bot_id": "pool_a_dipgate_deep",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A DIPGATE DEEP (2026-06-15 A/B). Clone of pool_a_dipgate, ONE change: shape_90m_drawdown_from_max_pct <= -25 (was -16) — tests whether a DEEPER dip gate beats our -16 on the tradeable pond. From the mission wallet-mine: copyable winners enter DEEPER dips than our gate (7BNaxx winners median -43%, smart-money median -23% vs our -16%); their richest edge is rug-pocket microcaps we avoid, so this tests the transferable DEPTH lever on our own pond. Forward-judge per-trade %/WR vs pool_a_dipgate (-16 control) at n>=30 closes. paper.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",

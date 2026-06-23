@@ -6,7 +6,7 @@
   "bot_id": "pool_a_dipgate_cool1h",
   "btc_macro_h1_block_threshold": null,
   "display_name": "POOL-A DIPGATE + COOL-1H CEILING (2026-06-15 A/B). EXACT clone of pool_a_dipgate, ONE change: pc_h1_max=40.0 (anti-parabolic ceiling - reject a dip entry when 1h momentum is HOT >+40%). From the 8zkgFGVZ copyable-winner entry-mine: on a DIP entry, hot 1h momentum is a CONTRA signal (buying a shallow pullback inside a parabola = the top). Its winners entered dips with COOL 1h (pc_h1 med ~+18%); its 2 worst trades chased parabolas (pc_h1 +69/+143%). Realized on that wallet: dip<=-15 + pc_h1<=+40 + age>=10 = 82% WR / +9.5% med (n=11), monotone gate ladder. The dip/age elements restate pool_a_dipgate/goodpond; the pc_h1<=+40 ceiling on a DIP is genuinely NEW (nothing bounds 1h momentum from above; momentum_pump_tight does the opposite). Forward-judge per-trade %/WR vs pool_a_dipgate (control) at n>=30 closes. paper.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "1m_volume_spike",
