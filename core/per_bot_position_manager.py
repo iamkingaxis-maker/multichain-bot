@@ -565,6 +565,46 @@ class PerBotPositionManager:
 
         decisions: list[ExitDecision] = []
 
+        # 0. In-flight loss-floor (badday gap audit 2026-06-22, 35-agent verify) —
+        # the flagship loss-cut. PRE-TP1 doomed legs currently ride the -9 fast-bail
+        # /-12 hard-stop down to a mean -12.3%; a -7% MAE floor exits them ~5pp
+        # earlier with ZERO winner-kill (worst-winner MAE -5.85% vs nearest loser
+        # -6.01% = empty 1.15pp band; 98 losers / 0 winners on the ledger). A
+        # never-green FAST collapse (peak<2 AND pnl<=-4 AND drop_vel>=0.012) bails
+        # at the fire point before -7. Scoped to the badday family (the audit's
+        # evidence boundary; timebox excluded). ENFORCE by default;
+        # IN_FLIGHT_FLOOR_MODE=shadow (stamp-only) | off. Fires BEFORE the -12 hard
+        # stop (it's tighter). NOTE: live microcap stops gap THROUGH, so a -55%
+        # feed-gap leg still fills deep — that residual is a separate feed-gap guard.
+        _iff_mode = os.environ.get("IN_FLIGHT_FLOOR_MODE", "enforce").lower()
+        if (_iff_mode != "off" and not p.tp1_hit
+                and str(getattr(self.config, "bot_id", "")).startswith("badday_")):
+            try:
+                from core.bot_evaluator import in_flight_floor_fires as _ifff
+                _iff_floor = float(os.environ.get("IN_FLIGHT_FLOOR_PCT", "-7.0"))
+                _iff_pps = float(os.environ.get("IN_FLIGHT_VELBAIL_PPS", "0.012"))
+                _iff_sfp = max(int(now - p.entry_time) - p.peak_pnl_at_secs, 1)
+                _iff_fire, _iff_why = _ifff(
+                    pnl_pct, p.peak_pnl_pct, _iff_sfp,
+                    floor_pct=_iff_floor, velbail_pps=_iff_pps)
+            except Exception:
+                _iff_fire, _iff_why = False, ""
+            if _iff_fire:
+                if p.state_blob is not None and not p.state_blob.get("iff_fired"):
+                    p.state_blob["iff_fired"] = True
+                    p.state_blob["iff_why"] = _iff_why
+                    p.state_blob["iff_mode"] = _iff_mode
+                    p.state_blob["iff_pnl_at_fire"] = round(pnl_pct, 4)
+                    p.state_blob["iff_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+                    p.state_blob["iff_secs"] = int(now - p.entry_time)
+                if _iff_mode == "enforce":
+                    decisions.append(ExitDecision(
+                        token=token, kind="IN_FLIGHT_FLOOR",
+                        reason=f"in-flight {_iff_why} (floor {_iff_floor:.0f})",
+                        sell_fraction=1.0,
+                    ))
+                    return decisions
+
         # 1. Hard stop (highest priority)
         if pnl_pct <= self.config.hard_stop_pct:
             decisions.append(ExitDecision(

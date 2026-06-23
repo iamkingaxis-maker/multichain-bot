@@ -272,6 +272,46 @@ def terminal_collapse_blocks(pc_h6, threshold: float | None = None) -> tuple[boo
     return False, ""
 
 
+def in_flight_floor_fires(pnl_pct, peak_pnl_pct, secs_from_peak,
+                          floor_pct: float = -7.0, velbail_pps: float = 0.012,
+                          velbail_peak_max: float = 2.0,
+                          velbail_pnl: float = -4.0) -> tuple[bool, str]:
+    """In-flight loss-floor for PRE-TP1 legs (badday gap audit 2026-06-22).
+
+    Fires a full-close when EITHER:
+      * MAE floor: live intratrade pnl_pct <= floor_pct (default -7.0). The badday
+        loss-tail rode the -9 fast-bail/-12 hard-stop down to a mean -12.3%; a -7
+        floor exits ~5pp earlier with ZERO winner-kill (worst-winner MAE -5.85% vs
+        nearest loser -6.01% = empty 1.15pp band; n=89 losers / 0 winners).
+      * Velocity pre-empt: a never-green fast collapse — peak_pnl_pct<velbail_peak_max
+        AND pnl_pct<=velbail_pnl AND drop_velocity>=velbail_pps — bails at the fire
+        point BEFORE -7 (drop_velocity=(peak-pnl)/secs_from_peak pp/s). Refines the
+        already-built ng_faststop shadow: the velocity gate flips it from
+        value-destroying to value-saving (its only winner-kills were one token).
+
+    Returns (fires, why). Pure, FAIL-SAFE: non-numeric/NaN inputs -> (False, "")
+    (never fire spuriously on bad data). Caller gates on not-tp1_hit + mode + scope."""
+    try:
+        p = float(pnl_pct)
+        pk = float(peak_pnl_pct)
+    except (TypeError, ValueError):
+        return False, ""
+    if p != p or pk != pk:  # NaN guard
+        return False, ""
+    # velocity pre-empt (fast never-green collapse) — checked first (fires shallower)
+    if pk < velbail_peak_max and p <= velbail_pnl:
+        try:
+            sfp = max(float(secs_from_peak), 1.0)
+            vel = (pk - p) / sfp
+            if vel >= velbail_pps:
+                return True, f"velocity-bail pnl={p:.2f}% vel={vel:.4f}pp/s"
+        except (TypeError, ValueError):
+            pass
+    if p <= float(floor_pct):
+        return True, f"MAE-floor pnl={p:.2f}%<={float(floor_pct):.0f}%"
+    return False, ""
+
+
 def _falling_day_flush_h1_max() -> float:
     """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
     extreme flush, combined with a down day, the token is in freefall. Tunable via
