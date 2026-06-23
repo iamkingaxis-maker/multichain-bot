@@ -6,7 +6,7 @@
   "bot_id": "badday_flush",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
-  "display_name": "BAD-DAY MICROCAP: deep-flush rider (50-500k mcap, age>=6h, rug-screened). Entry = pc_h1<=-20 (the flush state holds 56-59% win10 on bad days universe-wide; MAITIU case: four +12..+19% flushes in 22min, all blocked by the pond stack). NO positive-flow requirement \u2014 capitulation IS negative flow. PRE-REGISTERED (2026-06-10, badday scorecard judges): >= +$2/tr realized at n>=30 closes on dial-bad days AND catastrophe rate (<=-35% fills) < 10%, else RETIRE. Rug screens from the 3,959-event microcap catastrophe mine: age>=6h cuts 79% of catastrophes (rugs are YOUNG + FRANTIC, not quiet); composite screen 20%->6% catastrophe rate.  [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.] [06-12: young_token_probe flag REMOVED \u2014 vestigial from pre-lane creation; it restricted the family to young tokens while the envelope wants age>=6h. Lane admission + badday_ prefix mandate are the real access path.]",
+  "display_name": "BAD-DAY MICROCAP: deep-flush rider (50-500k mcap, age>=6h, rug-screened). Entry = pc_h1<=-20 (the flush state holds 56-59% win10 on bad days universe-wide; MAITIU case: four +12..+19% flushes in 22min, all blocked by the pond stack). DEMAND-TURN PROMOTED 2026-06-23 (net_flow_15s_imbalance>=0): the nf15 A/B lifted $/tr $0.57->$1.07 AND cut max-drawdown -$141->-$96 at n>=321 vs this control, so the clause graduates from A/B into the base \u2014 require buyers to have stepped in (15s flow non-negative), NOT still net-selling. Overturns the original 'capitulation IS negative flow' thesis (the demand turn beats raw capitulation on both $/tr and drawdown). PRE-REGISTERED (2026-06-10, badday scorecard judges): >= +$2/tr realized at n>=30 closes on dial-bad days AND catastrophe rate (<=-35% fills) < 10%, else RETIRE. Rug screens from the 3,959-event microcap catastrophe mine: age>=6h cuts 79% of catastrophes (rugs are YOUNG + FRANTIC, not quiet); composite screen 20%->6% catastrophe rate.  [DAILY FLOOR $60 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.] [06-12: young_token_probe flag REMOVED \u2014 vestigial from pre-lane creation; it restricted the family to young tokens while the envelope wants age>=6h. Lane admission + badday_ prefix mandate are the real access path.]",
   "enabled": true,
   "entry_gate": [
     [
@@ -33,6 +33,11 @@
       "pc_h1",
       "<=",
       -20
+    ],
+    [
+      "net_flow_15s_imbalance",
+      ">=",
+      0
     ]
   ],
   "entry_stack_exempt": true,
