@@ -1590,6 +1590,56 @@ class DipScanner:
                         pass
                 if _ng_mode == "enforce":
                     return
+        # ── Falling-day flush gate (#loss-tail decomposition 2026-06-22) ───────
+        # A deep h1 flush is a buyable PULLBACK when the token is UP on the day,
+        # but a structural COLLAPSE when it's DOWN on the day. The 8-trade badday
+        # loss-tail (1.9% of trades, 21% of all negative P&L, incl the two -55%
+        # catastrophes) ALL share pc_h24<0 AND pc_h1<=-35 — 8/8 losers, 0 winners.
+        # The pc_h24 SIGN is the state-switch the base pc_h1<=-20 gate can't see.
+        # ENFORCE by default (clean separator, principled thresholds);
+        # FALLING_DAY_FLUSH_MODE=shadow = measure-only, off = disabled. Records to
+        # the forward-candle scorer EVEN in enforce so we keep proving it
+        # mostly-kills-losers. Fail-open.
+        _fdf_mode = os.environ.get("FALLING_DAY_FLUSH_MODE", "enforce").lower()
+        if _fdf_mode != "off":
+            _fdf_h24 = getattr(bundle, "pc_h24", None)
+            if _fdf_h24 is None:
+                _fdf_h24 = _ar_meta.get("pc_h24")
+            _fdf_h1 = getattr(bundle, "pc_h1", None)
+            if _fdf_h1 is None:
+                _fdf_h1 = _ar_meta.get("pc_h1")
+            from core.bot_evaluator import falling_day_flush_blocks as _fdfb
+            _fdf_block, _fdf_why = _fdfb(_fdf_h24, _fdf_h1)
+            if _fdf_block:
+                logger.info("[DipScanner] bot=%s FALLING-DAY-FLUSH %s: %s %s", bot_id,
+                            "BLOCK" if _fdf_mode == "enforce" else "SHADOW-would-block",
+                            _fdf_why, decision.token)
+                # forward-candle measurement (once per token per cycle), even in
+                # enforce — the scorer reads the BLOCKED token's forward return.
+                _fdf_taddr = (decision.address
+                              or self._addr_by_token.get(decision.token, ""))
+                try:
+                    _fdf_seen = getattr(self, "_fdf_shadow_seen", None)
+                    if _fdf_seen is None:
+                        _fdf_seen = set()
+                        self._fdf_shadow_seen = _fdf_seen
+                    _fdf_key = (_fdf_taddr or decision.token or "").lower()
+                    if _fdf_key not in _fdf_seen:
+                        _fdf_seen.add(_fdf_key)
+                        from feeds.filter_shadow_recorder import record_verdict as _rv
+                        _fdf_mc = (getattr(bundle, "mcap", None)
+                                   or _ar_meta.get("mcap")
+                                   or _ar_meta.get("marketCap"))
+                        _rv(token_address=_fdf_taddr, token_symbol=decision.token,
+                            pair={"pairAddress": getattr(decision, "pair_address", "") or "",
+                                  "priceChange": {"h1": _fdf_h1, "h24": _fdf_h24},
+                                  "liquidity": {"usd": _ar_liq}, "marketCap": _fdf_mc},
+                            filter_name="falling_day_flush", verdict="BLOCK",
+                            reasons=_fdf_why)
+                except Exception:
+                    pass
+                if _fdf_mode == "enforce":
+                    return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
         # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
@@ -19392,6 +19442,9 @@ class DipScanner:
         # recorder (the gate runs once per (bot,token); record once per token
         # per cycle, matching the candidate-filter cadence). Fail-open.
         self._solpump_shadow_seen = set()
+        # Same per-scan-cycle dedup for the falling_day_flush forward-candle
+        # recorder (record once per token per cycle). Fail-open.
+        self._fdf_shadow_seen = set()
 
         # Per-cycle dev-wallet cold-refresh budget reset (2026-06-20 cost fix).
         # Bounds Solana RPC fan-out so a cold-universe cycle can't fire hundreds

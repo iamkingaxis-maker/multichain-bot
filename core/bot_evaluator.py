@@ -272,6 +272,45 @@ def terminal_collapse_blocks(pc_h6, threshold: float | None = None) -> tuple[boo
     return False, ""
 
 
+def _falling_day_flush_h1_max() -> float:
+    """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
+    extreme flush, combined with a down day, the token is in freefall. Tunable via
+    FALLING_DAY_FLUSH_H1_MAX."""
+    try:
+        return float(os.environ.get("FALLING_DAY_FLUSH_H1_MAX", "-35.0"))
+    except (TypeError, ValueError):
+        return -35.0
+
+
+def falling_day_flush_blocks(pc_h24, pc_h1, h24_max: float = 0.0,
+                             h1_max: float | None = None) -> tuple[bool, str]:
+    """Block a 'dying token in freefall' entry: DOWN on the day AND in an extreme
+    h1 flush (2026-06-22 loss-tail decomposition).
+
+    The pc_h24 SIGN is the state-switch the base pc_h1<=-20 gate cannot see: a deep
+    h1 flush is a buyable PULLBACK when the token is UP on the day, but a structural
+    COLLAPSE when it is DOWN on the day. Mined on the 4-bot badday family (n=420):
+    the 8-trade loss-tail (1.9% of trades, 21% of all negative P&L, incl the two
+    -55% catastrophes) ALL share pc_h24<0 AND pc_h1<=-35 — 8/8 losers, 0 winners
+    clipped, kept-mean +21%. Single conditions each kill many winners; only the
+    INTERSECTION is surgical.
+
+    Pure. Fail-OPEN: if either input is non-numeric/NaN, returns False (don't
+    block on absent data)."""
+    hi = _falling_day_flush_h1_max() if h1_max is None else h1_max
+    try:
+        a = float(pc_h24)
+        b = float(pc_h1)
+    except (TypeError, ValueError):
+        return False, ""
+    if a != a or b != b:  # NaN guard
+        return False, ""
+    if a < float(h24_max) and b <= float(hi):
+        return True, (f"pc_h24={a:.0f}%<0 AND pc_h1={b:.0f}%<={hi:.0f}% "
+                      f"(dying-token freefall, not a pullback)")
+    return False, ""
+
+
 @dataclass
 class BuyDecision:
     bot_id: str
