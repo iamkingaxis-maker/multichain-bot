@@ -457,6 +457,26 @@ class PerBotPositionManager:
             p.state_blob["gb_narrow_peak_at_fire"] = round(p.peak_pnl_pct, 4)
             p.state_blob["gb_narrow_secs_at_fire"] = int(now - p.entry_time)
 
+        # PEAK-ANCHORED BREAKEVEN-LOCK SHADOW (2026-06-22 gap audit, MEASURE-ONLY).
+        # The exit_giveback dimension: a leg that peaked HIGH (>= +7%, above winners'
+        # typical -3..-5% retrace) then round-tripped to <=0 pre-TP1 is a giveback
+        # loser the post-TP1 trail can't protect. The naive peak>=3 lock was a
+        # winner-killer (60% of >=+3 winners touch breakeven then run); anchoring at
+        # +7 should separate the round-trip losers from the V-recoverers. Stamp the
+        # would-lock-fire P&L (~breakeven) so the analyzer measures save (final<0) vs
+        # cost (recovered to a winner) before any enforce. SHADOW only — NO
+        # ExitDecision. Fires once; persists in state_blob; stamped on the sell.
+        _bel_min = float(os.environ.get("BREAKEVEN_LOCK_PEAK_MIN", "7.0"))
+        if (os.environ.get("BREAKEVEN_LOCK_MODE", "shadow").strip().lower() != "off"
+                and not p.tp1_hit
+                and not (p.state_blob or {}).get("bel_shadow_fired")
+                and p.peak_pnl_pct >= _bel_min
+                and pnl_pct <= 0.0):
+            p.state_blob["bel_shadow_fired"] = True
+            p.state_blob["bel_shadow_pnl_at_fire"] = round(pnl_pct, 4)
+            p.state_blob["bel_shadow_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+            p.state_blob["bel_shadow_secs"] = int(now - p.entry_time)
+
         # Never-green fast-stop SHADOW (measure-only, 2026-05-31) — the PRIMARY
         # avg-loss lever. Fires when a position that NEVER peaked >=2% ("never
         # showed strength" — a near-pure dying signal: only 4% of WINNERS ever

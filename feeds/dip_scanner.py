@@ -3325,6 +3325,17 @@ class DipScanner:
                     if (_pos and (_pos.state_blob or {}).get("sol_bail_shadow_pnl_pct") is not None)
                     else None
                 ),
+                # PEAK-ANCHORED BREAKEVEN-LOCK SHADOW (measure-only): would-lock-fire
+                # P&L (~breakeven) for a leg that peaked >=+7% then round-tripped <=0.
+                # saved_pp>0 = locking would have helped (final was worse); <0 = it
+                # recovered (lock would have cost the recovery).
+                "bel_shadow_pnl_at_fire": ((_pos.state_blob or {}).get("bel_shadow_pnl_at_fire") if _pos else None),
+                "bel_shadow_peak_at_fire": ((_pos.state_blob or {}).get("bel_shadow_peak_at_fire") if _pos else None),
+                "bel_shadow_saved_pp": (
+                    round((_pos.state_blob or {}).get("bel_shadow_pnl_at_fire") - result.pnl_pct, 3)
+                    if (_pos and (_pos.state_blob or {}).get("bel_shadow_pnl_at_fire") is not None)
+                    else None
+                ),
                 # Give-back SHADOW (measure-only): did this position peak >=+3%
                 # then fall back to <=0% while pre-TP1? Winner-kill audit input —
                 # a winner with fired=True = the cost of a breakeven rescue, a

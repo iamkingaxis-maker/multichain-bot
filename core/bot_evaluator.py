@@ -817,7 +817,7 @@ class BotEvaluator:
             base, macro_tag = self._apply_macro_conditional(base, b)
             tier = f"{tier}+{macro_tag}"
         if c.conviction_sizing_mode is not None:
-            base, conv_tag = self._apply_conviction(base, triggers)
+            base, conv_tag = self._apply_conviction(base, triggers, b)
             tier = f"{tier}+{conv_tag}"
         # P7 regime dial (2026-06-10; OFFENSE unlocked 2026-06-11): on dial-bad
         # days, halve dip-pond size (everyone). On dial-good days, the 1.5x
@@ -851,13 +851,30 @@ class BotEvaluator:
             pass
         return base, tier
 
-    def _apply_conviction(self, base: float, triggers: tuple[str, ...]) -> tuple[float, str]:
+    def _apply_conviction(self, base: float, triggers: tuple[str, ...],
+                          b=None) -> tuple[float, str]:
         """Scale size by entry conviction. 'trigger_count' mode: more
-        confluent triggers → bigger size, capped at conviction_max_mult."""
+        confluent triggers → bigger size, capped at conviction_max_mult.
+
+        SOL-RED DOWN-SIZE (badday gap audit 2026-06-22, ENFORCE): conviction
+        up-sizing while SOL itself is falling is the conviction-drawdown amplifier
+        — don't 2x into a falling tape. When the conviction mult would up-size
+        (>1x) AND b.sol_pc_h1 <= CONVICTION_SOLRED_H1_MAX (default -0.3), cap to 1x.
+        SIZE-DOWN ONLY — never blocks a trade, never adds risk. Gated
+        CONVICTION_SOLRED_MODE (enforce default; off disables)."""
         c = self.config
         if c.conviction_sizing_mode == "trigger_count":
             n = len(triggers)
             mult = min(1.0 + c.conviction_step * max(0, n - 1), c.conviction_max_mult)
+            if mult > 1.0 and os.environ.get(
+                    "CONVICTION_SOLRED_MODE", "enforce").strip().lower() != "off":
+                _sh1 = getattr(b, "sol_pc_h1", None) if b is not None else None
+                try:
+                    _thr = float(os.environ.get("CONVICTION_SOLRED_H1_MAX", "-0.3"))
+                except (TypeError, ValueError):
+                    _thr = -0.3
+                if isinstance(_sh1, (int, float)) and _sh1 == _sh1 and _sh1 <= _thr:
+                    return base, f"conviction_x1.00_solred(sol_h1={_sh1:.2f})"
             return base * mult, f"conviction_x{mult:.2f}"
         return base, "conviction_off"
 
