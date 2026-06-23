@@ -3010,6 +3010,7 @@ class DipScanner:
         now = time.time()
         priced: Dict[str, Optional[float]] = {}   # ADDRESS → guarded price (None = skip)
         vols: Dict[str, Optional[float]] = {}
+        _liq_recorded: set = set()  # per-cycle token dedup for the liq-drain feed
 
         # PARALLEL TICK (FIX, 2026-06-17): the per-unique-open-token exit-price
         # FETCH (the sole network-bound work) is the ~43s residual of the cycle.
@@ -3099,6 +3100,27 @@ class DipScanner:
                     # so we can measure save-vs-lose before enforcing. See
                     # _stamp_sol_bail_shadow.
                     self._stamp_sol_bail_shadow(position, price, now)
+                    # LIQ-DRAIN FEED (2026-06-23 activation): the per-bot loop (the
+                    # badday bots' path) stamped the drain shadow below but NEVER
+                    # recorded liquidity into _lp_flow — only the LEGACY tick did —
+                    # so analyze() saw 0 samples and the shadow stayed blind (0/420
+                    # telemetry; the QAI/HERALD low-liq gap-through rugs went
+                    # unmeasured). Record this held token's current liquidity ONCE
+                    # per token per cycle (dedup across bots holding the same token)
+                    # so the drain detector accrues history. Gated LIQ_DRAIN_MODE
+                    # (off -> no extra fetch). Address-keyed; None-on-fail never
+                    # records a fallback. Runs BEFORE the stamp so analyze() includes
+                    # this cycle's sample. Pure instrumentation — no exit behavior change.
+                    if (os.environ.get("LIQ_DRAIN_MODE", "shadow").strip().lower() != "off"
+                            and position.address
+                            and position.address.lower() not in _liq_recorded):
+                        _liq_recorded.add(position.address.lower())
+                        try:
+                            _lq = await self._get_liq_for(position.address)
+                            if _lq is not None:
+                                self._lp_flow.record(position.address, _lq)
+                        except Exception:
+                            pass
                     self._stamp_liq_drain_shadow(position, price, now)
                     decisions = pm.tick(
                         token=token,
