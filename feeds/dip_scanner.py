@@ -2000,6 +2000,47 @@ class DipScanner:
                 eff_entry, slip_pct = buy_fill_price(
                     _pf_entry_mid, _used_size, getattr(bundle, "raw_meta", None)
                 )
+            # QUOTE-BASED FILL-ACCURACY SHADOW PROBE (FILL_PROBE_MODE, default off
+            # => DORMANT). For a deterministically-sampled paper buy, fetch the REAL
+            # Jupiter quote (true priceImpactPct vs live liquidity) and record
+            # modeled-vs-real fill cost. PURE OBSERVABILITY: NON-BLOCKING (fired as a
+            # background task), FAIL-OPEN, READS quotes only (never swaps), and NEVER
+            # alters what paper trades — the buy below proceeds unchanged regardless.
+            try:
+                from core.fill_probe import _enabled as _fp_enabled
+                if _fp_enabled():
+                    from feeds.filter_shadow_recorder import (
+                        should_record_verdict as _fp_should,
+                    )
+                    _fp_addr = (decision.address
+                                or self._addr_by_token.get(decision.token, "")
+                                or "")
+                    try:
+                        _fp_sample = int(os.environ.get("FILL_PROBE_SAMPLE", "5"))
+                    except (TypeError, ValueError):
+                        _fp_sample = 5
+                    # Reuse the stable-hash 1-in-N sampler (PASS branch), keyed by
+                    # the token address so sampling is cheap + deterministic.
+                    if _fp_should(_fp_addr, "fill_probe", "PASS", sample_n=_fp_sample):
+                        _fp_liq = getattr(bundle, "liquidity_usd", None)
+                        if _fp_liq is None:
+                            _fp_rm = getattr(bundle, "raw_meta", None) or {}
+                            _fp_liq = (_fp_rm.get("liquidity_usd")
+                                       or _fp_rm.get("entry_liquidity_usd"))
+                        # eff_entry is the price paper actually books (modeled fill).
+                        asyncio.ensure_future(self._run_fill_probe(
+                            bot_id=bot_id,
+                            token=decision.token,
+                            address=_fp_addr,
+                            pair_address=decision.pair_address,
+                            decision_mid=decision.entry_price,
+                            modeled_fill=eff_entry,
+                            size_usd=_used_size,
+                            liquidity_usd=_fp_liq,
+                        ))
+            except Exception as _fp_e:  # never let the probe touch the buy path
+                logger.debug("[fill-probe] dispatch skipped (%s) bot=%s token=%s",
+                             _fp_e, bot_id, decision.token)
             # SCALE-IN staged entry (2026-06-05): deploy only the first tranche now and
             # release the deferred remainder back to balance (re-reserved on confirm in
             # the tick loop). PAPER-only — a live bot opens full size until the 2nd-tranche
@@ -3529,6 +3570,75 @@ class DipScanner:
                     "[DipScanner] _get_token_price failed for %s: %s", token, e,
                 )
         return None
+
+    async def _run_fill_probe(
+        self, bot_id, token, address, pair_address,
+        decision_mid, modeled_fill, size_usd, liquidity_usd,
+    ) -> None:
+        """Quote-based fill-accuracy probe — runs OFF the buy path (background
+        task). Fetches the REAL Jupiter quote for the ACTUAL size, reads the true
+        priceImpactPct, fetches a fresh price for the drift term, computes
+        modeled-vs-real via core.fill_probe.compute_fill_probe, and appends one
+        JSONL line. PURE OBSERVABILITY: READS a quote only (never swaps), short
+        timeout, FAIL-OPEN — any error/timeout is swallowed; the buy is already
+        booked and is NEVER affected by this method."""
+        try:
+            import asyncio as _asyncio
+            from core.trader import SOL_MINT, USDC_MINT
+            from core.fill_probe import (
+                compute_fill_probe as _cfp, log_fill_probe as _lfp,
+            )
+            trader = getattr(self, "trader", None)
+            if trader is None or not hasattr(trader, "_get_quote"):
+                return
+            # Size the quote in the REAL swap input mint. Prefer SOL (matches the
+            # live buy path: SOL_MINT -> token). Convert size_usd -> SOL via the
+            # cached SOL/USD price the scanner already holds; if unavailable, fall
+            # back to USDC-mint input with int(size_usd*1e6).
+            _sol_usd = float(getattr(self, "_last_sol_usd", 0.0) or 0.0)
+            try:
+                _size = float(size_usd)
+            except (TypeError, ValueError):
+                return
+            if _sol_usd > 0 and _size > 0:
+                input_mint = SOL_MINT
+                amount = int((_size / _sol_usd) * 1e9)
+            else:
+                input_mint = USDC_MINT
+                amount = int(_size * 1e6)
+            if amount <= 0 or not address:
+                return
+            # Short-timeout, READ-ONLY quote fetch. The quote call itself retries
+            # internally; bound the whole thing so a slow quote never lingers.
+            try:
+                quote = await _asyncio.wait_for(
+                    trader._get_quote(input_mint, address, amount),
+                    timeout=float(os.environ.get("FILL_PROBE_TIMEOUT_S", "8")),
+                )
+            except Exception:
+                return
+            if not quote:
+                return
+            try:
+                impact_pct = float(quote.get("priceImpactPct", 0)) * 100.0
+            except (TypeError, ValueError):
+                return
+            # Fresh price for the drift term (decision -> fill window move).
+            try:
+                fresh = await self._get_current_price_for(
+                    token, address=address, pair_address=pair_address)
+            except Exception:
+                fresh = None
+            if fresh is None or fresh <= 0:
+                # No fresh price -> assume no drift (impact-only probe).
+                fresh = decision_mid
+            probe = _cfp(decision_mid, fresh, impact_pct, modeled_fill,
+                         size_usd, liquidity_usd)
+            if probe:
+                _lfp(bot_id, address, token, probe)
+        except Exception as e:  # pragma: no cover - defensive; never raise
+            logger.debug("[fill-probe] run failed bot=%s token=%s: %s",
+                         bot_id, token, e)
 
     async def _get_vol_m5_for(self, token: str) -> Optional[float]:
         """Helper — returns None if not available. Pre-stop bail will simply

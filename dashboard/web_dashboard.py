@@ -2494,6 +2494,7 @@ class WebDashboard:
         self.app.router.add_get("/api/fill-speed",          self._handle_api_fill_speed)
         self.app.router.add_get("/api/live-swaps",          self._handle_api_live_swaps)
         self.app.router.add_get("/api/paper-live-skips",    self._handle_api_paper_live_skips)
+        self.app.router.add_get("/api/fill-probe",          self._handle_api_fill_probe)
         self.app.router.add_get("/api/top-bots",            self._handle_api_top_bots)
         self.app.router.add_get("/api/filter-shadow",       self._handle_api_filter_shadow)
         self.app.router.add_get("/api/bots/{bot_id}/trades",    self._handle_api_bot_trades)
@@ -3266,6 +3267,55 @@ class WebDashboard:
             "recent": recs[-max(0, limit):] if recs else [],
             "note": ("paper_only_n = paper_took AND NOT live_would_take; "
                      "by_skip_reason histograms WHY live skipped those trades."),
+        }
+        return web.Response(
+            text=json.dumps(payload, default=str), content_type="application/json",
+            headers=cors,
+        )
+
+    async def _handle_api_fill_probe(self, request):
+        """GET /api/fill-probe — the QUOTE-BASED fill-accuracy scoreboard.
+
+        Reads DATA_DIR/fill_probe.jsonl OFF the event loop (asyncio.to_thread)
+        and summarizes whether PAPER's modeled fill matches the REAL on-chain
+        cost implied by the live Jupiter quote: median/p90 real_impact_pct,
+        real_total_cost_pct, real_drift_pct, and the KEY metric model_error_pct
+        (median/p90 + the fraction of trades where |model_error| > 2 = paper
+        materially wrong), bucketed by liquidity (thin/mid/deep). Fail-open:
+        missing file -> empty summary. No money path, read-only."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        import asyncio as _asyncio
+        from core.fill_probe import (read_fill_probes as _read,
+                                     summarize_fill_probes as _summarize,
+                                     LOG_BASENAME as _BN)
+        path = os.path.join(os.environ.get("DATA_DIR", "/data"), _BN)
+        mode = os.environ.get("FILL_PROBE_MODE", "off")
+        try:
+            limit = int(request.query.get("limit", "50"))
+        except (TypeError, ValueError):
+            limit = 50
+        try:
+            recs = await _asyncio.to_thread(_read, path)
+        except Exception as e:
+            return web.Response(
+                text=json.dumps({"ok": False, "error": str(e),
+                                 "FILL_PROBE_MODE": mode}),
+                content_type="application/json", headers=cors,
+            )
+        try:
+            summary = await _asyncio.to_thread(_summarize, recs)
+        except Exception as e:
+            summary = {"error": str(e)}
+        payload = {
+            "ok": True,
+            "FILL_PROBE_MODE": mode,
+            "n_records": len(recs),
+            "summary": summary,
+            "recent": recs[-max(0, limit):] if recs else [],
+            "note": ("model_error_pct = paper_total_cost - real_total_cost; "
+                     ">0 = paper too optimistic/cheap vs the real quote, <0 = too "
+                     "pessimistic. frac_abs_error_gt_2 = fraction where paper is "
+                     "materially wrong. Bucketed by liquidity (thin<30k/mid/deep>=100k)."),
         }
         return web.Response(
             text=json.dumps(payload, default=str), content_type="application/json",
