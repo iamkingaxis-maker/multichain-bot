@@ -182,7 +182,7 @@ def paper_entry_decision(decision_mid, fresh_price, fresh_source, modeled_slip_p
         return (decision_mid, "error_fallback")
 
 def paper_exit_decision(decision_mid, fresh_price, exit_reason, mode, size_usd,
-                        slip_pct=None, fee_usd=None):
+                        slip_pct=None, fee_usd=None, low_price=None):
     """Compose the full paper-SELL fidelity decision into a single pure call.
 
     Returns (exit_basis, reason). Unlike the buy path, a sell NEVER aborts/skips
@@ -210,6 +210,20 @@ def paper_exit_decision(decision_mid, fresh_price, exit_reason, mode, size_usd,
         fu = fee_usd if fee_usd is not None else paper_fee_usd()
         base = effective_fill(repriced, "sell", sp, fu, size_usd)
         exit_basis = base * (1.0 - gap_through_extra_pct(exit_reason) / 100.0)
+        # CLAMP-TO-LOW (2026-06-23): a paper sell can NOT fill below the lowest price
+        # the token actually traded. The flat gap-through haircut was booking exits
+        # ~5pp below the observed low (a -13.35% stop booked -19.1%), inflating the
+        # drawdown beyond reality. Clamp to ``low_price`` (the position's MAE price)
+        # so the haircut still models REAL gap-through (a true rug's MAE is already
+        # deep — QAI MAE -55% still books ~-55%) but can't penalize below what the
+        # token printed. Fail-open: bad/absent low_price -> no clamp.
+        if low_price is not None:
+            try:
+                lp = float(low_price)
+                if lp > 0 and exit_basis < lp:
+                    exit_basis = lp
+            except (TypeError, ValueError):
+                pass
         return (exit_basis, "fresh")
     except Exception:
         return (decision_mid, "error_fallback")

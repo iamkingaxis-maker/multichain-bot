@@ -3274,10 +3274,21 @@ class DipScanner:
                     _fresh = await self._get_current_price_for(
                         token, address=_addr,
                         pair_address=(_pos.pair_address if _pos else ""))
+                    # CLAMP-TO-LOW: the paper exit can't book below the lowest price
+                    # the token actually traded (the MAE) — stops the flat gap-through
+                    # haircut from inflating losses below reality (2026-06-23 regression).
+                    _low_px = None
+                    try:
+                        if _pos and _pos.entry_price and _pos.entry_price > 0:
+                            _mae = (_pos.state_blob or {}).get("mae_pct")
+                            if isinstance(_mae, (int, float)):
+                                _low_px = _pos.entry_price * (1.0 + float(_mae) / 100.0)
+                    except Exception:
+                        _low_px = None
                     _xb, _why = _pxd(
                         current_price, _fresh, exit_decision.reason,
                         mode=_pf_mode, size_usd=_sz_sold,
-                        slip_pct=_mlsp(), fee_usd=_pfee())
+                        slip_pct=_mlsp(), fee_usd=_pfee(), low_price=_low_px)
                     if _pf_mode == "enforce":
                         # _xb already bakes in slip+fee+gap — book it DIRECTLY so
                         # slippage is counted exactly ONCE (bypass sell_fill_price).
