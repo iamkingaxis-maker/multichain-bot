@@ -2,11 +2,11 @@
   "age_h_max": null,
   "age_h_min": 6.0,
   "alpha_multiplier": 1.0,
-  "base_position_usd": 100.0,
-  "bot_id": "badday_flush_nf15_live",
+  "base_position_usd": 5.0,
+  "bot_id": "badday_fill_probe_live",
   "btc_macro_h1_block_threshold": null,
-  "daily_loss_limit_usd": 60.0,
-  "display_name": "LIVE bot (chosen 2026-06-20) = badday_flush_nf15 (FLAT $100 + net_flow_15s_imbalance >= 0 demand gate). Decode of today's drawdown profile: nf15-flat has the BEST drawdown of the badday family (worst trade -$18, INSIDE AxiS's -$21 pain line; ~half the give-back of the base bots) AND its $/tr edge is REAL SELECTION, not leverage. FLAT sizing only \u00e2\u20ac\u201d NO conviction sizing. Replaces badday_flush_conviction_live (whose trigger-count conviction sizing reintroduced ~1.5-1.6x deeper $ drawdown). Routes real money ONLY under the existing PAPER_MODE=false + live_probe + key state. Reversible: flip live_probe=false to retire.",
+  "daily_loss_limit_usd": 10.0,
+  "display_name": "TINY LIVE FILL-ACCURACY PROBE (2026-06-24, AxiS-funded $50 wallet). $5 real swaps on representative badday deep-flush dips, HELD to the normal badday exit, to measure the ONE thing the free quote/sim probe can't: decision->LANDED-fill (landing latency + MEV residual). Clone of badday_flush_nf15_live at $5/daily-loss-$10/max-2-buys-per-token. Data -> live_swap_log -> fill_calibration. MEASUREMENT INSTRUMENT, not a strategy: campaign of ~30-50 round-trips then OFF. SOLE live bot (live_probe=true); everything else force_paper'd. Kill: PAPER_MODE=true or enabled=false.",
   "enabled": true,
   "entry_gate": [
     [
@@ -41,7 +41,7 @@
     ]
   ],
   "entry_stack_exempt": true,
-  "exclusion_pool": "badday_flush_nf15_live",
+  "exclusion_pool": "badday_fill_probe_live",
   "fast_bail_pnl_pct": -9.0,
   "filters_disabled": [],
   "filters_enforced": [
@@ -52,7 +52,7 @@
   "giveback_floor_peak_min": 4.0,
   "giveback_floor_pnl_pct": -6.0,
   "hard_stop_pct": -12.0,
-  "live_probe": false,
+  "live_probe": true,
   "macro_up_multiplier": 1.0,
   "marginal_multiplier": 1.0,
   "max_concurrent_positions": 3,
@@ -88,5 +88,6 @@
   "triggers_allowed": null,
   "triggers_disabled": [],
   "vol_h1_min": 1000.0,
-  "young_token_probe": false
+  "young_token_probe": false,
+  "max_token_buys_per_day": 2
 }

@@ -305,7 +305,13 @@ def test_no_enabled_live_probe_bot():
     # line), real-selection edge (not leverage). badday_flush_conviction_live RETIRED to
     # paper (live_probe=false, still enabled for the conviction-vs-flat A/B) so it no longer
     # routes money; it stays in this set harmlessly (the test only flags enabled+live_probe).
-    INTENDED_LIVE = {"badday_flush_nf15_live",
+    # 2026-06-24: tiny LIVE FILL-ACCURACY PROBE sanctioned. badday_fill_probe_live ($5,
+    # daily-loss $10, max-2-buys/token) is the SOLE live_probe=true+enabled bot — it measures
+    # decision->landed-fill (landing latency + MEV residual) on $5 swaps held to the normal
+    # badday exit. nf15_live was set live_probe=false (neutralized to paper) so the $100 bot no
+    # longer routes money; only the $5 probe does.
+    INTENDED_LIVE = {"badday_fill_probe_live",
+                     "badday_flush_nf15_live",
                      "badday_flush_conviction_live", "badday_flush_live",
                      "deepflush_timebox_live", "timebox_probe_5mgreen_live"}
     offenders = []
