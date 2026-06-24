@@ -68,6 +68,16 @@ class BotConfig:
     # reference_entry_separator_mine_2026_05_27.
     require_real_pullback: bool = False
 
+    # Real-time dip-detection trigger modes (2026-06-21 plan). Each off|shadow|
+    # enforce, resolved per-bot by core.fast_watch.rt_mode (bot config wins over
+    # the env default of the same name). DEFAULT "off" = legacy stale-snapshot
+    # trigger, no behavior change. enforce = the bot enters off FRESH-repriced
+    # pc_h1/m5 (rt_trigger_mode), re-arms every fast tick (rt_arm_mode), and
+    # confirms a fresh net_flow_15s demand-turn (rt_demand_turn_mode).
+    rt_trigger_mode: str = "off"
+    rt_arm_mode: str = "off"
+    rt_demand_turn_mode: str = "off"
+
     # Generic per-bot entry gate (2026-05-27, held-out-validated compound mine).
     # Optional list of [feature, op, threshold] conditions ANDed against raw_meta
     # at entry; op in {">=", "<="}. Fail-OPEN per condition when the feature is

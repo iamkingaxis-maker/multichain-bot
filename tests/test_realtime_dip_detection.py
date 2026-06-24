@@ -115,3 +115,50 @@ def test_log_live_swap_writes_trigger_source(tmp_path, monkeypatch):
     import json
     line = (tmp_path / "live_swaps.jsonl").read_text().strip().splitlines()[-1]
     assert json.loads(line)["trigger_source"] == "realtime"
+
+
+# --- Task 7: A/B bot configs --------------------------------------------
+# NOTE deviation from plan: the control (nf15_live) is currently NEUTRALIZED
+# (live_probe=false) — the sole live bot is badday_fill_probe_live ($5). And
+# PAPER_MODE is currently false (live). So the treatment is created DORMANT
+# (enabled=false): activating it is the GATED live step (needs AxiS go), to
+# avoid a second live bot on deploy. Tests assert that safety, not the plan's
+# original "control live_probe=true" (which would itself be a gated change).
+
+def _load_bot_cfg(name):
+    import json
+    import os
+    p = os.path.join("config", "bots", name)
+    with open(p, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def test_control_bot_is_legacy_trigger():
+    cfg = _load_bot_cfg("badday_flush_nf15_live.json")
+    assert cfg.get("rt_trigger_mode", "off") == "off"
+    assert cfg.get("rt_arm_mode", "off") == "off"
+    assert cfg.get("rt_demand_turn_mode", "off") == "off"
+
+
+def test_treatment_bot_is_realtime_capped_and_dormant():
+    cfg = _load_bot_cfg("badday_flush_nf15_rt_live.json")
+    assert cfg["rt_trigger_mode"] == "enforce"
+    assert cfg["rt_arm_mode"] == "enforce"
+    assert cfg["rt_demand_turn_mode"] == "enforce"
+    # capped
+    assert cfg["daily_loss_limit_usd"] <= 60
+    # flat sizing, no conviction leverage (all multipliers neutral)
+    assert cfg.get("alpha_multiplier", 1.0) == 1.0
+    assert cfg.get("marginal_multiplier", 1.0) == 1.0
+    # SAFETY: dormant until the gated live step (no 2nd live bot on deploy)
+    assert cfg["enabled"] is False
+    assert cfg["live_probe"] is True  # ready for the gated step
+
+
+def test_treatment_matches_control_entry_gate():
+    # The A/B isolates the TRIGGER only: entry gate + sizing must be identical.
+    a = _load_bot_cfg("badday_flush_nf15_live.json")
+    b = _load_bot_cfg("badday_flush_nf15_rt_live.json")
+    assert a["entry_gate"] == b["entry_gate"]
+    assert a["base_position_usd"] == b["base_position_usd"]
+    assert a["hard_stop_pct"] == b["hard_stop_pct"]
