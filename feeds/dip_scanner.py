@@ -6326,20 +6326,41 @@ class DipScanner:
                 _rt_dt = _rt_mode_dt("RT_DEMAND_TURN_MODE")
                 if _rt_dt != "off":
                     _fresh_rt = []
-                    try:
+
+                    # I3 GUARD (loop-lag): the demand-turn does up to TWO ~5s HTTP
+                    # fetches per survivor, sequentially, in the eval hot path —
+                    # exactly the additive in-loop await that re-introduces loop-lag
+                    # (the hard-won fix). Bound the WHOLE demand-turn fetch with an
+                    # explicit asyncio budget (RT_DEMAND_FETCH_BUDGET_SECS, default
+                    # 2.0s). On timeout -> [] (fail-CLOSED: nf15 gate blocks, never
+                    # fail-open to a buy). Runs in shadow too, so this cap matters
+                    # even before enforce.
+                    async def _fetch_demand_trades():
+                        _rt = []
                         if self.dexs_client is not None:
                             with _SubOp("recent_trades_dexs_demandturn"):
-                                _fresh_rt = await self.dexs_client.fetch_recent_trades(
+                                _rt = await self.dexs_client.fetch_recent_trades(
                                     pair_addr_for_1m, limit=30
                                 ) or []
-                        if not _fresh_rt:
+                        if not _rt and self.gt_client is not None:
                             with _SubOp("recent_trades_gt_demandturn"):
-                                _fresh_rt = await self.gt_client.fetch_recent_trades(
+                                _rt = await self.gt_client.fetch_recent_trades(
                                     pair_addr_for_1m, limit=30
                                 ) or []
-                    except Exception as _e:
+                        return _rt
+
+                    try:
+                        _dt_budget = float(
+                            os.environ.get("RT_DEMAND_FETCH_BUDGET_SECS", "2.0"))
+                    except (TypeError, ValueError):
+                        _dt_budget = 2.0
+                    try:
+                        _fresh_rt = await asyncio.wait_for(
+                            _fetch_demand_trades(), timeout=_dt_budget) or []
+                    except (asyncio.TimeoutError, Exception) as _e:
                         logger.debug(
-                            f"[rt-demand-turn] fresh fetch error for {token_symbol}: {_e}"
+                            f"[rt-demand-turn] fetch bounded-fail for {token_symbol}: "
+                            f"{type(_e).__name__} -> fail-closed"
                         )
                         _fresh_rt = []
                     _fetch_ok = bool(_fresh_rt)
