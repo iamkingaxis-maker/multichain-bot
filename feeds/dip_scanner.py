@@ -1654,6 +1654,57 @@ class DipScanner:
                     _fdf_rb = False
                 if _fdf_mode == "enforce" and not _fdf_rb:
                     return
+        # ── Structure-edge gate (#true-edge decomposition 2026-06-24) — SHADOW ──
+        # The verified +EV entry condition: fire ONLY when pc_h6>=0 (dip within a
+        # 6h-reclaimed structure) OR liquidity>=48k (deep book). BLOCK only a
+        # falling-knife (pc_h6<0) in a thin book. TRUE-edge: INSIDE +2.6% median /
+        # 61% win vs -1.65%/49% baseline, keeps 61% volume, both arms independently
+        # +EV, day-robust. The edge is STRUCTURE not demand-flow. DEFAULT SHADOW
+        # (4-day/bot-replicated data — validate forward before enforce);
+        # STRUCTURE_EDGE_MODE=enforce flips it (the auto-rollback watcher guards it).
+        # Records to the forward-candle scorer even in enforce. Fail-open.
+        _se_mode = os.environ.get("STRUCTURE_EDGE_MODE", "shadow").lower()
+        if _se_mode != "off":
+            _se_h6 = getattr(bundle, "pc_h6", None)
+            if _se_h6 is None:
+                _se_h6 = _ar_meta.get("pc_h6")
+            _se_liq = _ar_liq  # liquidity_usd resolved above for the anti-rug floor
+            from core.bot_evaluator import structure_edge_blocks as _seb
+            _se_block, _se_why = _seb(_se_h6, _se_liq)
+            if _se_block:
+                logger.info("[DipScanner] bot=%s STRUCTURE-EDGE %s: %s %s", bot_id,
+                            "BLOCK" if _se_mode == "enforce" else "SHADOW-would-block",
+                            _se_why, decision.token)
+                _se_taddr = (decision.address
+                             or self._addr_by_token.get(decision.token, ""))
+                try:
+                    _se_seen = getattr(self, "_se_shadow_seen", None)
+                    if _se_seen is None:
+                        _se_seen = set()
+                        self._se_shadow_seen = _se_seen
+                    _se_key = (_se_taddr or decision.token or "").lower()
+                    if _se_key not in _se_seen:
+                        _se_seen.add(_se_key)
+                        from feeds.filter_shadow_recorder import record_verdict as _rv
+                        _se_mc = (getattr(bundle, "mcap", None)
+                                  or _ar_meta.get("mcap")
+                                  or _ar_meta.get("marketCap"))
+                        _rv(token_address=_se_taddr, token_symbol=decision.token,
+                            pair={"pairAddress": getattr(decision, "pair_address", "") or "",
+                                  "priceChange": {"h6": _se_h6},
+                                  "liquidity": {"usd": _se_liq}, "marketCap": _se_mc},
+                            filter_name="structure_edge", verdict="BLOCK",
+                            reasons=_se_why)
+                except Exception:
+                    pass
+                _se_rb = False
+                try:
+                    from core.gate_rollback import is_rolled_back as _irb2
+                    _se_rb = _irb2("structure_edge")
+                except Exception:
+                    _se_rb = False
+                if _se_mode == "enforce" and not _se_rb:
+                    return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
         # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
@@ -19643,6 +19694,8 @@ class DipScanner:
         # Same per-scan-cycle dedup for the falling_day_flush forward-candle
         # recorder (record once per token per cycle). Fail-open.
         self._fdf_shadow_seen = set()
+        # Same per-cycle dedup for the structure_edge gate's forward-candle recorder.
+        self._se_shadow_seen = set()
 
         # Per-cycle dev-wallet cold-refresh budget reset (2026-06-20 cost fix).
         # Bounds Solana RPC fan-out so a cold-universe cycle can't fire hundreds

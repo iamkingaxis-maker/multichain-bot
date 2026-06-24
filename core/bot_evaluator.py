@@ -312,6 +312,45 @@ def in_flight_floor_fires(pnl_pct, peak_pnl_pct, secs_from_peak,
     return False, ""
 
 
+def _structure_edge_liq_floor() -> float:
+    """Liquidity floor (USD) for the structure-edge gate (default 48000 — the p75
+    of the badday cohort; deeper book = better fills + out of the rug pocket).
+    Tunable via STRUCTURE_EDGE_LIQ_FLOOR."""
+    try:
+        return float(os.environ.get("STRUCTURE_EDGE_LIQ_FLOOR", "48000"))
+    except (TypeError, ValueError):
+        return 48000.0
+
+
+def structure_edge_blocks(pc_h6, liquidity_usd, liq_floor=None) -> tuple[bool, str]:
+    """Fire badday dip entries ONLY when the STRUCTURE is favorable — `pc_h6 >= 0`
+    (the dip is a pullback within a 6h-reclaimed structure, not a falling knife) OR
+    `liquidity_usd >= floor` (deep book → good fills, out of the rug pocket). BLOCK
+    only when BOTH fail: a falling-knife (pc_h6<0) in a thin book (liq<floor).
+
+    The verified +EV gate (2026-06-24 TRUE-edge decomposition, fraction-weighted +
+    haircut-corrected): INSIDE the gate +2.6% median / 61% win vs the -1.65%/49%
+    breakeven baseline, keeping 61% of volume; both arms independently +EV, robust
+    across all 4 days and 35 tokens. The edge is STRUCTURE, not demand-flow.
+
+    Pure. FAIL-OPEN: blocks ONLY when BOTH features are present AND both fail — any
+    missing/NaN value means the OR-of-passes can't be disproven, so do NOT block."""
+    floor = _structure_edge_liq_floor() if liq_floor is None else float(liq_floor)
+    try:
+        a = float(pc_h6) if pc_h6 is not None else None
+        l = float(liquidity_usd) if liquidity_usd is not None else None
+    except (TypeError, ValueError):
+        return False, ""
+    if a is not None and a != a:  # NaN
+        a = None
+    if l is not None and l != l:
+        l = None
+    if (a is not None and a < 0.0) and (l is not None and l < floor):
+        return True, (f"falling-knife thin-book (pc_h6={a:.0f}%<0 AND "
+                      f"liq=${l:.0f}<${floor:.0f}) — no structure edge")
+    return False, ""
+
+
 def _falling_day_flush_h1_max() -> float:
     """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
     extreme flush, combined with a down day, the token is in freefall. Tunable via

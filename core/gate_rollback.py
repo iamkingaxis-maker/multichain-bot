@@ -31,7 +31,7 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 # Forward-candle-measured entry vetoes this watcher guards.
-MONITORED_GATES = ["falling_day_flush", "solpump_neg_gate"]
+MONITORED_GATES = ["falling_day_flush", "solpump_neg_gate", "structure_edge"]
 
 
 def _path() -> str:
