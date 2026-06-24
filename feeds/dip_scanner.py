@@ -1725,6 +1725,65 @@ class DipScanner:
                     _se_rb = False
                 if _se_mode == "enforce" and not _se_rb:
                     return
+        # ── Liquidity-exit-floor gate (exit-tail design 2026-06-24) — SHADOW ────
+        # "Don't enter what you can't exit." Refuse a badday entry into a book too
+        # thin to EXIT cleanly: the live exit gaps through 20-30%+ past mid (the
+        # ANT/$CWIF tail), un-fixable with exit logic because the FILL itself gaps.
+        # Block when ENTRY liquidity is finite AND below LIQ_EXIT_FLOOR_USD. SCOPED
+        # to the badday family + the live probe (bot_id startswith 'badday_'),
+        # layered on top of the fleet anti-rug floor. DEFAULT SHADOW (threshold is
+        # human-set from Part 2's measured exit-slip table at the Part 4 bar — never
+        # auto-fit). LIQ_EXIT_FLOOR_MODE=enforce flips it (auto-rollback guarded);
+        # records to the forward-candle scorer even in enforce. Fail-OPEN.
+        _lef_mode = os.environ.get("LIQ_EXIT_FLOOR_MODE", "shadow").lower()
+        if _lef_mode != "off" and str(bot_id).startswith("badday_"):
+            _lef_liq = _ar_liq  # ENTRY liquidity resolved above (anti-rug floor)
+            from core.bot_evaluator import liquidity_exit_floor_blocks as _lefb
+            _lef_block, _lef_why = _lefb(_lef_liq)
+            _lef_taddr = (decision.address
+                          or self._addr_by_token.get(decision.token, ""))
+            try:
+                _lef_seen = getattr(self, "_lef_shadow_seen", None)
+                if _lef_seen is None:
+                    _lef_seen = set()
+                    self._lef_shadow_seen = _lef_seen
+                _lef_key = (_lef_taddr or decision.token or "").lower()
+                if _lef_key not in _lef_seen:
+                    _lef_verdict = "BLOCK" if _lef_block else "PASS"
+                    from feeds.filter_shadow_recorder import (
+                        should_record_verdict as _lef_should,
+                        record_verdict as _rv,
+                    )
+                    try:
+                        _lef_psample = int(float(
+                            os.environ.get("LIQ_EXIT_FLOOR_PASS_SAMPLE", "1")))
+                    except (TypeError, ValueError):
+                        _lef_psample = 1
+                    if _lef_should(_lef_taddr, "liquidity_exit_floor", _lef_verdict,
+                                   sample_n=_lef_psample):
+                        _lef_seen.add(_lef_key)
+                        _lef_mc = (getattr(bundle, "mcap", None)
+                                   or _ar_meta.get("mcap")
+                                   or _ar_meta.get("marketCap"))
+                        _rv(token_address=_lef_taddr, token_symbol=decision.token,
+                            pair={"pairAddress": getattr(decision, "pair_address", "") or "",
+                                  "liquidity": {"usd": _lef_liq}, "marketCap": _lef_mc},
+                            filter_name="liquidity_exit_floor", verdict=_lef_verdict,
+                            reasons=_lef_why)
+            except Exception:
+                pass
+            if _lef_block:
+                logger.info("[DipScanner] bot=%s LIQ-EXIT-FLOOR %s: %s %s", bot_id,
+                            "BLOCK" if _lef_mode == "enforce" else "SHADOW-would-block",
+                            _lef_why, decision.token)
+                _lef_rb = False
+                try:
+                    from core.gate_rollback import is_rolled_back as _irb3
+                    _lef_rb = _irb3("liquidity_exit_floor")
+                except Exception:
+                    _lef_rb = False
+                if _lef_mode == "enforce" and not _lef_rb:
+                    return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
         # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
@@ -19769,6 +19828,8 @@ class DipScanner:
         self._fdf_shadow_seen = set()
         # Same per-cycle dedup for the structure_edge gate's forward-candle recorder.
         self._se_shadow_seen = set()
+        # Same per-cycle dedup for the liquidity_exit_floor gate's recorder.
+        self._lef_shadow_seen = set()
 
         # Per-cycle dev-wallet cold-refresh budget reset (2026-06-20 cost fix).
         # Bounds Solana RPC fan-out so a cold-universe cycle can't fire hundreds

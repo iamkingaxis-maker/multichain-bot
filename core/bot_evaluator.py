@@ -351,6 +351,40 @@ def structure_edge_blocks(pc_h6, liquidity_usd, liq_floor=None) -> tuple[bool, s
     return False, ""
 
 
+def _liquidity_exit_floor_usd() -> float:
+    """Liquidity floor (USD) for the exit-tail gate (default 30000 — conservative;
+    a human raises it from Part 2's measured exit-slip-by-liquidity table at the
+    Part 4 bar). Tunable via LIQ_EXIT_FLOOR_USD."""
+    try:
+        return float(os.environ.get("LIQ_EXIT_FLOOR_USD", "30000"))
+    except (TypeError, ValueError):
+        return 30000.0
+
+
+def liquidity_exit_floor_blocks(liquidity_usd, floor_usd=None) -> tuple[bool, str]:
+    """Refuse a badday entry into a book too thin to EXIT cleanly — the
+    liquidity-conditional exit-tail lever (2026-06-24 design).
+
+    "Don't enter what you can't exit." A live exit into a sub-floor book gaps
+    through 20-30%+ past mid (the ANT/$CWIF tail), un-fixable with exit logic
+    because the FILL itself gaps past the price. Block when ENTRY ``liquidity_usd``
+    is a finite number AND below ``floor_usd``.
+
+    Pure. FAIL-OPEN: a None/NaN/non-finite liquidity can't disprove exitability,
+    so do NOT block (telemetry-gap safety). Never raises."""
+    floor = _liquidity_exit_floor_usd() if floor_usd is None else float(floor_usd)
+    try:
+        l = float(liquidity_usd) if liquidity_usd is not None else None
+    except (TypeError, ValueError):
+        return False, ""
+    if l is None or l != l or l in (float("inf"), float("-inf")):  # None/NaN/inf
+        return False, ""
+    if l < floor:
+        return True, (f"liq=${l:.0f} below exit-floor ${floor:.0f} "
+                      f"(too thin to exit cleanly — gap-through tail risk)")
+    return False, ""
+
+
 def _falling_day_flush_h1_max() -> float:
     """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
     extreme flush, combined with a down day, the token is in freefall. Tunable via
