@@ -1,0 +1,6 @@
+red-window-1 runners: 40 | red-window-2 runners: 40
+flush winning tokens: 14
+[red1] wallets seen: 145
+[red2] wallets seen: 208
+[flushwin] wallets seen: 89
+candidates: 26

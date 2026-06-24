@@ -1,0 +1,1 @@
+2h: live bot armed, no real buy yet (sparse badday lane), live_mode True, no errors

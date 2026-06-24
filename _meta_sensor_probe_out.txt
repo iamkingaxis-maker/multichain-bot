@@ -1,0 +1,26 @@
+panel: 17 wallets, 400 sigs each
+
+  HmP3TxuV… 107 roundtrips spanning 0.3d (06-12 -> 06-12)
+  2x99WSHD… 98 roundtrips spanning 0.6d (06-12 -> 06-12)
+  1eveYYxZ… 72 roundtrips spanning 0.1d (06-12 -> 06-12)
+  2qnHs8fZ… 113 roundtrips spanning 0.2d (06-12 -> 06-12)
+  EGwERj1n… 119 roundtrips spanning 0.4d (06-12 -> 06-12)
+  dmuXAmcX… 31 roundtrips spanning 0.5d (06-12 -> 06-12)
+  7Gi3RNdV… 109 roundtrips spanning 0.3d (06-12 -> 06-12)
+  AKprbkX7… 85 roundtrips spanning 0.4d (06-12 -> 06-12)
+  2tYcXQCf… 105 roundtrips spanning 0.3d (06-12 -> 06-12)
+  D1aDZDVX… 119 roundtrips spanning 0.3d (06-12 -> 06-12)
+  udH4u5k3… 84 roundtrips spanning 0.5d (06-12 -> 06-12)
+  V21GW8PG… 63 roundtrips spanning 0.5d (06-12 -> 06-12)
+  GGduK5PA… 0 roundtrips (unfollowable custody or quiet)
+  Abk9Efhf… 0 roundtrips (unfollowable custody or quiet)
+  HcLMmNx9… 86 roundtrips spanning 0.3d (06-12 -> 06-12)
+  4jkL4dNk… 40 roundtrips spanning 0.0d (06-12 -> 06-12)
+  45Sn4KL1… 130 roundtrips spanning 0.2d (06-12 -> 06-12)
+
+Q1 CO-MOVEMENT (do wallet days move together?)
+  insufficient overlapping coverage for co-movement
+
+Q2 PANEL-EARLY -> OUR REST-OF-DAY (the zero-tuition dial)
+  2026-06-12: panel-early WR 56% | our-early WR 53% | our rest-of-day $+56
+  only 1 joinable days — coverage-limited (see Q3)

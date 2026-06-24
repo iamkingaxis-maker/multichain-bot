@@ -1,0 +1,41 @@
+runners (peak>=25%): 30
+runners: 30
+  $USAPY     peak=490% buys=0 window=1
+  $WCUP      peak=467% buys=0 window=1
+  SPCX       peak=349% buys=0 window=1
+  IPOOR      peak=328% buys=3 window=1
+  GUILTY     peak=326% buys=0 window=1
+  $TSOC      peak=298% buys=40 window=16
+  WORLDKINS  peak=297% buys=5 window=2
+  trelon     peak=293% buys=28 window=11
+  IF         peak=249% buys=12 window=4
+  ICPX       peak=240% buys=12 window=4
+  B4GTA6     peak=220% buys=24 window=9
+  $TRUJAN    peak=213% buys=0 window=1
+  Merlin     peak=197% buys=21 window=8
+  HAPPY      peak=196% buys=12 window=4
+  Fable      peak=173% buys=23 window=9
+  FIFA       peak=164% buys=6 window=2
+  MATCH      peak=155% buys=6 window=2
+  GTA6       peak=138% buys=4 window=1
+  47Coin     peak=138% buys=6 window=2
+  Gaejuki    peak=133% buys=8 window=3
+  ISPCX      peak=129% buys=6 window=2
+  Trillionai peak=128% buys=17 window=6
+  Trilly     peak=126% buys=16 window=6
+  SPCX       peak=125% buys=12 window=4
+  MMB        peak=124% buys=6 window=2
+  SPCX       peak=121% buys=0 window=1
+  WINDOWS7PC peak=121% buys=3 window=1
+  ZUL        peak=118% buys=31 window=12
+  Arie       peak=116% buys=11 window=4
+  SUN        peak=101% buys=1 window=1
+buyers on >=2 distinct runners: 5
+
+=== DRAWDOWN WINNERS (net-positive, >=3 closed trips) ===
+wallet                                         hits trips   WR   netSOL
+9LUH6U5x33wmYnZs4JjjJuUwYbeLRNTYxmmNScVR5fBL      2     7  57%   +1.529  <-- WINNER
+kEFiAX3jo5NmemysQov342TZ9mGh6yp92GDRjhA8XDf       3    17  59%   +0.800  <-- WINNER
+96x8akBzyvf1UbrJ3rg3tcCZRsCz3vhSa7Ry1ykhiqcL      2    17  29%   -9.006
+
+2 net-positive winners of 3 validated

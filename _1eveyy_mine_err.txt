@@ -1,0 +1,25 @@
+trade_map 1eveYYxZ2mDi sigs=120 ...
+  38 tokens touched
+  22 closed trips
+  [1/22] yoA2CoHk ret=+0.0 dip=-7.1 age=62.3 liq=69,138 mcap=595,858 pch1=8.614678101360408
+  [2/22] 5E2woTdd ret=-2.1 dip=+0.0 age=781.8 liq=25,070 mcap=90,268 pch1=9.399242120098883
+  [3/22] SPCXwBHV ret=+8.9 dip=-1.5 age=69.7 liq=128,865 mcap=2,502,324 pch1=11.238254971466421
+  [4/22] dFybjfpA no pool/ohlc
+  [5/22] Ddrae7at ret=+56.0 dip=-35.6 age=2619.7 liq=36,025 mcap=179,696 pch1=-27.093828138263376
+  [6/22] AvxFBjWy ret=-3.5 dip=-7.3 age=68.5 liq=45,037 mcap=263,820 pch1=-1.9465593633664513
+  [7/22] FUkQZqqY ret=-5.1 dip=-1.8 age=862.8 liq=25,929 mcap=73,383 pch1=2.658448368965649
+  [8/22] FFGQzvcN ret=-38.4 dip=-23.6 age=402.7 liq=56,401 mcap=289,542 pch1=-18.870623275214204
+  [9/22] EAs5pP5A ret=+4.3 dip=-10.8 age=8496.2 liq=44,657 mcap=185,543 pch1=84.33361605058161
+  [10/22] FeMrhDed ret=-1.9 dip=+0.0 age=409.7 liq=27,608 mcap=70,958 pch1=18.434500801184186
+  [11/22] EmcxFTNV ret=-38.4 dip=-6.8 age=256.4 liq=105,217 mcap=894,248 pch1=-3.136411532240635
+  [12/22] 9qpDk7hG ret=+4.3 dip=-14.5 age=100.5 liq=30,364 mcap=94,548 pch1=4.462597287386605
+  [13/22] 8PrKyi8n ret=-34.3 dip=-62.5 age=204.9 liq=8,982 mcap=14,725 pch1=-61.42118519064056
+  [14/22] EBc6YWys ret=+13.4 dip=-31.0 age=90.2 liq=12,862 mcap=29,626 pch1=-16.37796907918503
+  [15/22] EfPoo4wW ret=+4.5 dip=-15.6 age=5795.7 liq=120,191 mcap=912,576 pch1=-11.877781784515374
+  [16/22] E8RR8MAJ ret=+128.0 dip=-22.1 age=163.7 liq=24,699 mcap=86,111 pch1=-14.042728418183748
+  [17/22] 72FkeF1c ret=+4.2 dip=-10.0 age=5140.6 liq=24,839 mcap=96,234 pch1=-5.5134238086177785
+  [18/22] 97bMMJD7 ret=+1.3 dip=-15.5 age=122.1 liq=10,732 mcap=20,646 pch1=-12.409778589995724
+  [19/22] UATFsvbS ret=-6.5 dip=-5.1 age=203.2 liq=30,002 mcap=164,195 pch1=25.143840758275825
+  [20/22] 7BsaJwmc ret=-15.0 dip=-44.1 age=73.8 liq=14,308 mcap=38,990 pch1=-20.34366273043312
+  [21/22] DSSXu6Xb ret=+9.6 dip=-21.1 age=1915.7 liq=35,898 mcap=156,700 pch1=-20.354136157780545
+  [22/22] AaJ8TeBi ret=+6.4 dip=-2.3 age=184.5 liq=30,468 mcap=141,404 pch1=23.050295033086353

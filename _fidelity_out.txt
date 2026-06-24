@@ -1,0 +1,6 @@
+fills to audit (today, smart_follow): 14
+
+matched 0/14 fills against tape prints (±90s)
+
+READ: buys gap>0 = paper charged us more than tape (conservative);
+      sells gap>0 = paper paid us more than tape (FLATTERING).

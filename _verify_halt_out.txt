@@ -1,0 +1,5 @@
+check 1: live_mode=True
+check 2: live_mode=True
+check 3: live_mode=True
+check 4: live_mode=True
+HALT CONFIRMED: live_mode=None (paper — no real trades possible)

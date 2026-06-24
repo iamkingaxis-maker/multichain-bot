@@ -1,0 +1,22 @@
+red-window runners (peak>=25%): 61, harvesting top 20
+  runner peak=378% buys=12
+  runner peak=349% buys=36
+  runner peak=328% buys=2
+  runner peak=326% buys=29
+  runner peak=249% buys=9
+  runner peak=220% buys=26
+  runner peak=164% buys=1
+  runner peak=138% buys=16
+  runner peak=138% buys=7
+  runner peak=133% buys=6
+  runner peak=125% buys=18
+  runner peak=121% buys=40
+  runner peak=101% buys=8
+  runner peak=95% buys=25
+  runner peak=92% buys=0
+  runner peak=91% buys=1
+  runner peak=88% buys=13
+  runner peak=85% buys=18
+  runner peak=84% buys=2
+  runner peak=83% buys=20
+recurrent candidates (>=2 red-window runners): 2

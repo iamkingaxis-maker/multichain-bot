@@ -1,0 +1,89 @@
+
+TOTAL candidates pre-score: 123
+  AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51  src=elite-cluster,runners hits=18
+  2Zhd5xxv6mnLwkThX8EdRrWTSL5BSJumBrT97xUytSB1  src=elite-cluster,roster hits=8
+  AxQRySJbPDstHXdd2rwGKbGzaYSn6EGxVt8psEkY3CeF  src=elite-cluster,roster hits=8
+  DZbgq3yE3r41EFszV3XastvyS8j8QnmNT37nsq7sxR66  src=roster,runners hits=7
+  BGzLYcFcUZkW5GPZZAYK4Jxyf1W7aigyHQbvmKsQeeuq  src=roster,runners hits=7
+  DZcyYa9aPRFnbkDPn3HYvfpiRH9GBz3EjTB5fLjk8Vge  src=elite-cluster,roster hits=7
+  7Gi3RNdV3nZU9fhnLodZ6p662dQgQDe5ck2VWn9d45Tn  src=elite-cluster,roster hits=6
+  3fuga4fDgNY974eJDfBgYX8pwTCW9wtWS9qoxSWdSPRu  src=elite-cluster,roster hits=6
+  5tBTAtVB2QhK5QrrAciwfQooFyrPin9QhDDJMPWRf5ZY  src=elite-cluster,roster hits=6
+  Em8J3gBWapfVBGVhVipwQnLrqCvnWBnLajw6XFsFECPF  src=runners hits=5
+  A89vGputSuAjbfcKEbVVAtLiSnA159YePyuKHGNMsscX  src=elite-cluster hits=5
+  2tYcXQCfTtQg5dKLEpQn26DjrfhTXhGB8Rh1oiv69DJc  src=roster hits=5
+  8pY1AukbuPgUE3EetyLa59rFLMimJGT94ZzbMEZcQF4w  src=roster hits=5
+  AkCyNQ7vxJeQRXx94VkM5xdcDz6KvhyvZSjk7Ztu85qq  src=roster hits=5
+  D1aDZDVXJ1sakUevj1ckN96VK69WUWvhXPbpJwVN9F25  src=roster hits=5
+  GxAViS92bFU1jeSRTAuqgQ2SRkkafsvqnYm6KGXfAf67  src=roster hits=5
+  HFX2dqzyQeRAdkjp41D4qThfsPPSyBDkVoruBr93zhY9  src=roster hits=5
+  sdQ3nsqfX1cgqYLipBFf6C39LSk1Jg1P2psAdnKWBng  src=roster hits=5
+  V21GW8PGcWRE5DnbjHZXhcjiBYhJxmjBHqAUkfBm2n9  src=roster hits=5
+  En3NPq8o9Cynf1Q3eP69AqZmPKmBaDugYnE832o2YuzP  src=roster hits=5
+  QiqikhBQhmpa4zcrZ4kDS8sYfWhWWsK8r3fUTqnpL4J  src=roster hits=5
+  RustQQ98WMbUrgL5i7sL5fFdyPbmk1sSh1QQkXHZrWs  src=roster hits=5
+  78Bo7xxGWBEvqbh3VMKvkFG4Z63cXKSJ2LCEXAanhN7a  src=roster hits=5
+  CatyeC3LgBxub7HcpW2n7cZZZ66CUKdcZ8DzHucHrSiP  src=roster hits=5
+  FePyVnttxm1raRUGSAbYJCRwr5BH72MBurt2dRaxvjGb  src=roster hits=5
+  AgmLJBMDCqWy src=elite-cluster,runners  ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  2Zhd5xxv6mnL src=elite-cluster,roster   ndist= 13 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  AxQRySJbPDst src=elite-cluster,roster   ndist= 54 rtrips=  7 rWR= 57% net=  -0.18 SELECTOR
+  DZbgq3yE3r41 src=roster,runners         ndist= 18 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  BGzLYcFcUZkW src=roster,runners         ndist= 21 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  DZcyYa9aPRFn src=elite-cluster,roster   ndist= 69 rtrips=  0 rWR= n/a net=  +0.00 SELECTOR
+  7Gi3RNdV3nZU src=elite-cluster,roster   ndist= 57 rtrips=  7 rWR= 86% net=  +0.49 SELECTOR  *** KEEPER-GRADE
+  3fuga4fDgNY9 src=elite-cluster,roster   ndist= 49 rtrips=  8 rWR= 62% net=  +0.45 SELECTOR  *** KEEPER-GRADE
+  5tBTAtVB2QhK src=elite-cluster,roster   ndist= 21 rtrips= 13 rWR= 46% net=  +0.33 SELECTOR  *** KEEPER-GRADE
+  Em8J3gBWapfV src=runners                ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  A89vGputSuAj src=elite-cluster          ndist= 26 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  2tYcXQCfTtQg src=roster                 ndist= 60 rtrips=  5 rWR= 60% net=  +0.65 SELECTOR  *** KEEPER-GRADE
+  8pY1AukbuPgU src=roster                 ndist=  1 rtrips=  0 rWR= n/a net=  +0.00 MM_CHURN
+  AkCyNQ7vxJeQ src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  D1aDZDVXJ1sa src=roster                 ndist= 55 rtrips= 14 rWR= 57% net=  +0.04 SELECTOR  *** KEEPER-GRADE
+  GxAViS92bFU1 src=roster                 ndist= 13 rtrips= 12 rWR= 33% net=  -0.02 SELECTOR
+  HFX2dqzyQeRA src=roster                 ndist= 29 rtrips=  8 rWR= 50% net=  -0.05 SELECTOR
+  sdQ3nsqfX1cg src=roster                 ndist= 25 rtrips= 19 rWR= 21% net=  +0.53 SELECTOR  *** KEEPER-GRADE
+  V21GW8PGcWRE src=roster                 ndist= 43 rtrips= 19 rWR= 74% net=  +0.02 SELECTOR  *** KEEPER-GRADE
+  En3NPq8o9Cyn src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  QiqikhBQhmpa src=roster                 ndist= 28 rtrips= 12 rWR= 25% net=  -0.00 SELECTOR
+  RustQQ98WMbU src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  78Bo7xxGWBEv src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  CatyeC3LgBxu src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  FePyVnttxm1r src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  Dw5VykxuTNQe src=elite-cluster          ndist= 66 rtrips=  1 rWR=100% net=  +0.18 SELECTOR
+  888888UPfaYP src=elite-cluster          ndist= 36 rtrips= 13 rWR=  8% net=  -0.00 SELECTOR
+  GHPNRuZ43Bg7 src=elite-cluster          ndist= 31 rtrips= 11 rWR=  0% net=  -0.00 SELECTOR
+  Ar2Y6o1QmrRA src=roster                 ndist= 18 rtrips= 14 rWR= 43% net=  +1.27 SELECTOR  *** KEEPER-GRADE
+  HjjhSHoQPg2s src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  8zkgFGVZrDLi src=roster                 ndist= 38 rtrips= 14 rWR= 64% net=  +8.89 SELECTOR  *** KEEPER-GRADE
+  8ye8pkkJowEw src=roster                 ndist=  1 rtrips=  0 rWR= n/a net=  +0.00 MM_CHURN
+  8iYkvMwwXZbM src=roster                 ndist= 64 rtrips=  1 rWR=100% net=  +0.00 SELECTOR
+  dmuXAmcXJcdN src=roster                 ndist= 30 rtrips=  9 rWR= 78% net= +22.06 SELECTOR  *** KEEPER-GRADE
+  54Pz1e35z9uo src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  B2pxhqmAMkBj src=roster                 ndist= 57 rtrips=  6 rWR= 17% net=  -0.10 SELECTOR
+  3SD2pHV9bKbr src=roster                 ndist= 57 rtrips=  8 rWR= 50% net=  -0.01 SELECTOR
+  7rbxsXchaL1J src=roster                 ndist= 21 rtrips= 12 rWR= 67% net=  +1.55 SELECTOR  *** KEEPER-GRADE
+  3TzTEHGV5GJt src=roster                 ndist= 19 rtrips= 16 rWR=  0% net=  -0.00 SELECTOR
+  FkdDHrM8j8ps src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  9QYLGAQYaay2 src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  7rtiKSUDLBm5 src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  5aLY85pyxiuX src=roster                 ndist= 31 rtrips= 19 rWR= 37% net=  -0.00 SELECTOR
+  hnu5iBK8UoHb src=roster                 ndist=  8 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  STorreSu8X6y src=roster                 ndist= 23 rtrips=  6 rWR= 67% net=  -0.64 SELECTOR
+  3fZftz6m8d37 src=roster                 ndist= 15 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  6AQEpWFegWvF src=roster                 ndist=  9 rtrips=  7 rWR= 57% net=  +0.02 SELECTOR  *** KEEPER-GRADE
+  3hABxPaFS81T src=roster                 ndist= 24 rtrips= 22 rWR=  0% net=  -0.01 SELECTOR
+  GGduK5PAq1j1 src=roster                 ndist= 60 rtrips=  3 rWR= 67% net=  +0.02 SELECTOR
+  7VnVRypd6p5y src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  megtqkFQTHfx src=roster                 ndist=  0 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  8w1Zdm1GEzMX src=roster                 ndist=  5 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  2LsypdLpNwWi src=roster                 ndist= 58 rtrips=  1 rWR=  0% net=  -0.32 SELECTOR
+  FYX5JQ2kP7TD src=roster                 ndist= 15 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  4HKxuU8GSB8d src=roster                 ndist= 23 rtrips= 18 rWR= 33% net=  -0.01 SELECTOR
+  udH4u5k3vWX7 src=roster                 ndist= 70 rtrips=  0 rWR= n/a net=  +0.00 SELECTOR
+  GuqtTntfKM9K src=roster                 ndist= 58 rtrips=  6 rWR= 33% net=  -0.00 SELECTOR
+  8DRJdA5Pqqyd src=roster                 ndist= 51 rtrips= 10 rWR= 70% net=  +0.24 SELECTOR  *** KEEPER-GRADE
+  5Er9zJ1VJRyq src=roster                 ndist= 22 rtrips= 17 rWR= 59% net=  +0.18 SELECTOR  *** KEEPER-GRADE
+  CuTgJYbTjfYi src=roster                 ndist= 55 rtrips=  5 rWR= 60% net=  -0.13 SELECTOR
+
+KEEPER-GRADE: 14 | RPC-retry queue: 0 -> _wide_harvest_results.json

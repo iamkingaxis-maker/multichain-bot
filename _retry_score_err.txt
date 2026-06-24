@@ -1,0 +1,2 @@
+# scoring 24 candidates from _retry_wallets.json
+

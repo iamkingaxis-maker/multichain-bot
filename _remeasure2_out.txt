@@ -1,0 +1,9 @@
+wallet                                                 verdict rtrip  medHold scalp% taxedRet taxedWR
+dmuXAmcXJcdNuK264vsJQNBpVBPAx4JLujBzBMahJ6C     COPYABLE-GRADE    17    210.0   0.35   256.83      55
+3fuga4fDgNY974eJDfBgYX8pwTCW9wtWS9qoxSWdSPRu    COPYABLE-GRADE    19     14.9   0.63    37.31      71
+7Gi3RNdV3nZU9fhnLodZ6p662dQgQDe5ck2VWn9d45Tn    COPYABLE-GRADE    26     63.0   0.31    17.89      78
+AxQRySJbPDstHXdd2rwGKbGzaYSn6EGxVt8psEkY3CeF    COPYABLE-GRADE    22     15.1    0.5     23.2      82
+AKprbkX7HKoSFYtKshbGPxwM1hyrg3AxEAVhLNSqyyEB    COPYABLE-GRADE    26     27.0    0.5    16.53      77
+7rbxsXchaL1Jz46BXbF88k1hBYoWHLaKo8YbofMndW46    COPYABLE-GRADE    31     15.1   0.29     7.31      55
+
+COPYABLE-GRADE: 6/6 -> _copyability_gate.json

@@ -1,0 +1,10 @@
+=== SYMBOL-COLLISION AUDIT (last 1d) ===
+episodes: 577 | symbols with multi-mint concurrent holds: 2 | overlap windows: 11
+  SPCX: 4 mints, 10 windows, 4.4h total overlap
+  🚀: 2 mints, 1 windows, 0.0h total overlap
+
+flagged sells inside overlap windows: 4
+  06-12 15:32 SPCX     bot=badday_flush_conviction pnl=$+5860.23 (+3906.8%) addr=BhTPX3YwwV… | F1 |pnl_pct|=3907%; F2 exit≈sibling E6ifp2mJ… scale (own ratio 40.1x)
+  06-12 15:36 SPCX     bot=momentum_shadow pnl=$-97.30 (-97.3%) addr=E6ifp2mJy8… | F2 exit≈sibling BhTPX3Yw… scale (own ratio 0.0x)
+  06-12 15:36 SPCX     bot=no_filters pnl=$-19.46 (-97.3%) addr=E6ifp2mJy8… | F2 exit≈sibling BhTPX3Yw… scale (own ratio 0.0x)
+  06-12 15:38 SPCX     bot=no_filters pnl=$-17.08 (-85.4%) addr=9qpDk7hGSH… | F2 exit≈sibling BhTPX3Yw… scale (own ratio 0.1x)

@@ -1,0 +1,2 @@
+# scoring 51 candidates from _new_wallet_candidates.json
+

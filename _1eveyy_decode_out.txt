@@ -1,0 +1,21 @@
+=== DECODE 1eveYYxZ2mDiAnmC… | 38 tokens, 22 closed, 8 open ===
+SIZING: median 1.38 SOL/token | variable (conviction sizer)
+HOLDS: median 7min | p25 2m | p75 22m
+  ** TIME-BOX SIGNATURE: 70% of losers exit at ~6min (the Dw5 archetype)
+RETURNS: WR 55% | win med +7.7% | loss med -11.8% | best +128.0%
+OVERLAP: our scanner saw 13/38 of its tokens (34%) | we traded 19/38
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds
+
+last 12 closed trips:
+  06-15 11:31 -> 06-15 11:30 hold=     0min ret=  -15.0%  7BsaJwmcg6
+  06-15 11:33 -> 06-15 11:33 hold=     0min ret=   -6.5%  UATFsvbSir
+  06-15 11:35 -> 06-15 11:35 hold=     0min ret=   +4.2%  72FkeF1cpB
+  06-15 11:41 -> 06-15 12:03 hold=    22min ret=   +4.3%  EAs5pP5Auo
+  06-15 11:41 -> 06-15 11:42 hold=     1min ret=  +13.4%  EBc6YWysUJ
+  06-15 11:43 -> 06-15 11:45 hold=     2min ret=  -34.3%  8PrKyi8nVN
+  06-15 11:46 -> 06-15 12:22 hold=    36min ret=   +8.9%  SPCXwBHVrK
+  06-15 11:46 -> 06-15 11:46 hold=     0min ret=   +4.3%  9qpDk7hGSH
+  06-15 11:49 -> 06-15 12:16 hold=    26min ret=  +56.0%  Ddrae7atuj
+  06-15 11:55 -> 06-15 12:01 hold=     6min ret=   -1.9%  FeMrhDeddU
+  06-15 12:03 -> 06-15 12:07 hold=     3min ret=   -5.1%  FUkQZqqYSx
+  06-15 12:09 -> 06-15 12:14 hold=     5min ret=   -3.5%  AvxFBjWydM

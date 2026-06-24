@@ -1,0 +1,11 @@
+iter 1: armed, no live buy yet
+iter 2: armed, no live buy yet
+iter 3: armed, no live buy yet
+iter 4: armed, no live buy yet
+iter 5: armed, no live buy yet
+iter 6: armed, no live buy yet
+iter 7: armed, no live buy yet
+iter 8: armed, no live buy yet
+iter 9: armed, no live buy yet
+iter 10: armed, no live buy yet
+no live buy in ~30min (badday lane is sparse) — still armed

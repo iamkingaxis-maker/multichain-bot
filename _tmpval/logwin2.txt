@@ -1,0 +1,169 @@
+Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/94498434-f3ed-480f-be28-3dbc4d31dbfa/vol_7hl3wybqqqlwwlbz
+Starting Container
+2026-06-18 23:37:26,516 [INFO] ============================================================
+2026-06-18 23:37:26,517 [INFO]   Solana Memecoin Bot v7 — Trader Calibrated
+2026-06-18 23:37:26,517 [INFO] ============================================================
+2026-06-18 23:37:26,518 [INFO] [main] default executor -> 48 workers (DNS/to_thread headroom)
+Warning: BIRDEYE_API_KEY not set — DexScreener only
+Migration complete: 0 records updated, 2386 total
+[sp5_reset] sentinel exists at /data/sp5_reset_done.json for same cutoff — skipping
+[phantom_scrub] sentinel exists at /data/phantom_scrub_done.json — skipping
+[phantom_mark] sentinel exists at /data/phantom_trades_marked.json — skipping
+[daily_repair] sentinel exists at /data/phantom_daily_repair_done.json — skipping
+2026-06-18 23:37:44,080 [INFO] [main] MULTI_BOT_ENABLED — loaded 121 bots: ['badday_flush', 'badday_flush_convex', 'badday_flush_conviction', 'badday_flush_conviction_demand', 'badday_flush_conviction_live', 'badday_flush_live', 'badday_flush_nf15', 'badday_momo', 'baseline_v1', 'champ_conviction', 'champ_reentry_throttle', 'champ_regime_rider', 'champ_runner', 'champ_sniper', 'champ_specialist', 'champ_velocity', 'champ_workhorse', 'champion_defender_2k', 'champion_defender_2k_trendbreak5m', 'champion_defender_btc', 'champion_defender_falling_pump', 'champion_defender_fusion', 'champion_defender_v3', 'champion_defender_v3_pch1le5', 'champion_defender_v4', 'champion_defender_v4_trend60r020', 'champion_defender_volaccel', 'champion_minimal', 'champion_minimal_avgbuy80', 'champion_post_peak', 'champion_premium', 'champion_premium_dip90m', 'champion_premium_fresh', 'champion_premium_tightexit', 'champion_premium_tightexit_reaccum', 'champion_proposal', 'champion_whale_buyers', 'compound_winners_only', 'deep_dip_only', 'deepflush_timebox', 'deepflush_timebox_bottom1s', 'deepflush_timebox_h6peak', 'deepflush_timebox_live', 'drawdown_freeze', 'flow_only', 'macro_conditional', 'meta_chameleon', 'momentum_grad_probe', 'momentum_pump_tight', 'momentum_shadow', 'no_filters', 'no_filters_trend60r040', 'no_sol_gate', 'one_sec_only', 'pond_bb_mtf', 'pond_flow_thin', 'pond_settled_flow', 'pond_settled_flow_solcap', 'pond_settled_flow_thin', 'pond_sweep_deep_thin', 'pond_sweep_flow', 'pond_ugly_mtf', 'pond_ugly_rsi', 'pool_a_aged_scalper', 'pool_a_broad_control', 'pool_a_broad_control_nf60imb0', 'pool_a_broad_trigstate', 'pool_a_bsm5', 'pool_a_candidate', 'pool_a_candidate_shape30dd', 'pool_a_dipgate', 'pool_a_dipgate_cool1h', 'pool_a_dipgate_cool1h_tight', 'pool_a_dipgate_deep', 'pool_a_dipgate_vwap1h', 'pool_a_goodpond', 'pool_a_goodpond_reaccum15', 'pool_a_mcap1m', 'pool_a_mcapgate', 'pool_a_nopullback', 'pool_a_solmacro', 'pool_a_solmacro_reaccum20', 'pool_a_stack', 'pool_a_stack_5mred2', 'pool_a_trigstate', 'pool_c_mcapgate', 'pool_c_post_peak', 'pool_c_post_peak_chl1m', 'pool_c_tightexit', 'pool_c_tightexit_h24peak55', 'probe_swing', 'probe_tightexit_live_100', 'probe_tightexit_live_20', 'probe_tightexit_live_50', 'psych_h24_100', 'regime_aware_bullish', 'rugpocket_scalper', 'runner_tilt_aggressive', 'sol_h6_loose', 'stop_8', 'timebox_probe', 'timebox_probe_5mgreen', 'timebox_probe_5mgreen_live', 'timebox_probe_mcap', 'tod_morning', 'tp_runner', 'vol_min_500', 'vol_min_5k', 'wide_stop', 'young_momo_launch', 'young_probe_baseflow', 'young_probe_baseflow_convex', 'young_probe_candidate', 'young_probe_conviction', 'young_probe_late', 'young_probe_light', 'young_probe_mid', 'young_probe_stair', 'young_probe_stair_convex', 'young_probe_surgical', 'young_probe_thinliq']
+2026-06-18 23:37:44,081 [INFO] [Config] Effective settings:
+  Capital: $999990 | Daily loss limit: $1000000
+  Score: 0 | Liquidity: $10,000
+  TP1: +35.0% → sell 50%
+  TP2: +75.0% → sell 40%
+  TP3: +150.0% → sell 100%
+  Stop loss: -25.0% | Winner trail: -15.0%
+  Paper mode: True
+2026-06-18 23:37:44,081 [WARNING] Telegram not configured — alerts disabled
+2026-06-18 23:37:44,627 [INFO] Loaded 2386 historical trades from /data/trades.json
+2026-06-18 23:37:44,631 [INFO] [Tracker] Persistence: 1 paper positions restored from disk — exempt from cancel-on-restart
+2026-06-18 23:37:44,635 [INFO] [Dashboard] Web dashboard running at http://0.0.0.0:8080
+2026-06-18 23:37:44,635 [INFO] [KillSwitch] Initialized — monitoring active
+2026-06-18 23:37:44,635 [INFO] [AdaptiveThreshold] Registered solana — starting threshold: 0
+2026-06-18 23:37:44,637 [INFO] [RiskManager] Restored available_capital: $999990 (total: $999990, reclaimed deployed: $0)
+2026-06-18 23:37:45,098 [INFO] [ReentryTracker] Loaded 793 previously-held tokens
+2026-06-18 23:37:45,566 [WARNING] [Trader] 🧟 ZOMBIE DROPPED on restore: ZERO fully closed at 2026-06-18T12:26:15.762400+00:00 (deploy-overlap resurrection guard)
+2026-06-18 23:37:45,566 [INFO] [Trader] Restored 0 open positions from disk
+2026-06-18 23:37:45,600 [INFO] [Main] PositionScalper DISABLED (set SCALPER_ENABLED=true to re-enable)
+2026-06-18 23:37:45,600 [INFO] [Main] MultiSourceScanner disabled (SCANNER_ENABLED=false) — MSS polling loop not started
+2026-06-18 23:37:45,604 [INFO] [SmartFollow] init: 8 wallets | K=3 within 10min | poll 30s | k2_pod=1 solo=1 | elite_exit=on (free RPC, no Helius)
+2026-06-18 23:37:45,592 [INFO] [WalletScorer] Registered CiPEzM...TBeh on solana
+2026-06-18 23:37:45,592 [INFO] [WalletScorer] Registered 5p2bA4...mWKv on solana
+2026-06-18 23:37:45,592 [INFO] [WalletScorer] Registered Ao3ir1...vL1J on solana
+2026-06-18 23:37:45,592 [INFO] [WalletScorer] Registered 8QPamA...bEB4 on solana
+2026-06-18 23:37:45,592 [INFO] [WalletScorer] Registered suqh5s...HQfK on solana
+2026-06-18 23:37:45,592 [INFO] [WalletScorer] Registered CgkXJF...QArh on solana
+2026-06-18 23:37:45,592 [INFO] [WalletScorer] Registered 89HbgW...mkDi on solana
+2026-06-18 23:37:45,592 [INFO] [WalletScorer] Registered 2W14ah...uvP3 on solana
+2026-06-18 23:37:45,592 [INFO] [WalletScorer] Registered 4BdKax...EFUk on solana
+2026-06-18 23:37:45,600 [INFO] [Main] Loaded 12 seed wallets from /data/seed_wallets.json
+2026-06-18 23:37:45,592 [INFO] [WalletScorer] Registered Eh1E9z...gERk on solana
+2026-06-18 23:37:54,481 [INFO] [DipScanner] DexScreener primary OHLCV enabled (GT fallback)
+2026-06-18 23:37:54,491 [INFO] [DipScanner] Loaded h24 history: 118 tokens, 5120 samples
+2026-06-18 23:37:54,468 [INFO] [AxiomIntegration] Connected | Scanner: real-time | Axiom scanners: OFF (dip-only mode)
+2026-06-18 23:37:54,468 [INFO] [Main] Graduation sniper disabled (GRADUATION_ENABLED=false)
+2026-06-18 23:37:54,466 [INFO] [MetaSensor] panel=33 wallets (31 archetyped)
+2026-06-18 23:37:54,481 [INFO] [DexScreener] slug-cache loaded: 270 slug / 271 quote mappings (cold re-resolution avoided)
+2026-06-18 23:37:54,468 [INFO] [AxiomAuth] Loaded saved tokens from disk (saved 8 min ago)
+2026-06-18 23:37:54,508 [INFO] [DipScanner] Loaded 423 sticky-watchlist tokens
+2026-06-18 23:37:54,510 [INFO] [DipScanner] User watchlist loaded: 22 addresses
+2026-06-18 23:37:54,515 [INFO] [LiquidityFlow] Loaded 193 samples across 36 tokens from /data/lp_flow_history.json
+2026-06-18 23:37:54,521 [INFO] [SmartMoney] Index path resolved to: assets/smart_money_index.json (exists=True, cwd=/app, candidates=['/data/smart_money_index.json', 'assets/smart_money_index.json'])
+2026-06-18 23:37:54,526 [INFO] [DevWallet] Pruned 4 stale baselines on startup
+2026-06-18 23:37:54,526 [INFO] [DevWallet] Loaded 521 baselines
+2026-06-18 23:37:54,617 [INFO] [DipScanner] badday_momo daily-pnl re-derived from ledger: -62.52 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,628 [INFO] [DipScanner] restored 2 open positions for baseline_v1 from bot_state
+2026-06-18 23:37:54,739 [INFO] [DipScanner] champion_defender_btc daily-pnl re-derived from ledger: -27.03 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,749 [INFO] [DipScanner] champion_defender_falling_pump daily-pnl re-derived from ledger: -27.03 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,759 [INFO] [DipScanner] champion_defender_fusion daily-pnl re-derived from ledger: -18.69 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,772 [INFO] [DipScanner] restored 1 open positions for champion_defender_v3 from bot_state
+2026-06-18 23:37:54,784 [INFO] [DipScanner] restored 1 open positions for champion_defender_v3_pch1le5 from bot_state
+2026-06-18 23:37:54,797 [INFO] [DipScanner] restored 1 open positions for champion_defender_v4 from bot_state
+2026-06-18 23:37:54,638 [INFO] [DipScanner] champ_conviction daily-pnl re-derived from ledger: -16.99 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,650 [INFO] [DipScanner] champ_reentry_throttle daily-pnl re-derived from ledger: -9.03 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,660 [INFO] [DipScanner] champ_regime_rider daily-pnl re-derived from ledger: -3.23 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,689 [INFO] [DipScanner] champ_specialist daily-pnl re-derived from ledger: -10.50 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,700 [INFO] [DipScanner] champ_velocity daily-pnl re-derived from ledger: -7.33 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,709 [INFO] [DipScanner] champ_workhorse daily-pnl re-derived from ledger: -9.03 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,855 [INFO] [DipScanner] champion_post_peak daily-pnl re-derived from ledger: 1.41 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,009 [INFO] [DipScanner] deepflush_timebox_h6peak daily-pnl re-derived from ledger: -15.95 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,932 [INFO] [DipScanner] champion_proposal daily-pnl re-derived from ledger: 1.28 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,020 [INFO] [DipScanner] deepflush_timebox_live daily-pnl re-derived from ledger: -11.56 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,945 [INFO] [DipScanner] champion_whale_buyers daily-pnl re-derived from ledger: -11.30 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,969 [INFO] [DipScanner] deep_dip_only daily-pnl re-derived from ledger: -8.17 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,808 [INFO] [DipScanner] restored 1 open positions for champion_defender_v4_trend60r020 from bot_state
+2026-06-18 23:37:54,982 [INFO] [DipScanner] deepflush_timebox daily-pnl re-derived from ledger: -10.45 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,822 [INFO] [DipScanner] champion_defender_volaccel daily-pnl re-derived from ledger: -27.03 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,996 [INFO] [DipScanner] deepflush_timebox_bottom1s daily-pnl re-derived from ledger: 2.98 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,834 [INFO] [DipScanner] champion_minimal daily-pnl re-derived from ledger: 1.55 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:54,844 [INFO] [DipScanner] champion_minimal_avgbuy80 daily-pnl re-derived from ledger: 2.32 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,033 [INFO] [DipScanner] drawdown_freeze daily-pnl re-derived from ledger: -10.56 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,167 [INFO] [DipScanner] pond_bb_mtf daily-pnl re-derived from ledger: -1.66 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,064 [INFO] [Chameleon] meta_chameleon boot: last state was static_badday_flush (direct profile); keeping fresh JSON base, re-deriving on next retune
+2026-06-18 23:37:55,100 [INFO] [DipScanner] restored 1 open positions for momentum_pump_tight from bot_state
+2026-06-18 23:37:55,077 [INFO] [DipScanner] restored 1 open positions for meta_chameleon from bot_state
+2026-06-18 23:37:55,124 [INFO] [DipScanner] restored 3 open positions for no_filters from bot_state
+2026-06-18 23:37:55,133 [INFO] [DipScanner] restored 2 open positions for no_filters_trend60r040 from bot_state
+2026-06-18 23:37:55,144 [INFO] [DipScanner] no_sol_gate daily-pnl re-derived from ledger: -9.84 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,202 [INFO] [DipScanner] pond_settled_flow_solcap daily-pnl re-derived from ledger: -1.66 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,223 [INFO] [DipScanner] pond_sweep_deep_thin daily-pnl re-derived from ledger: 4.18 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,241 [INFO] [DipScanner] pond_ugly_mtf daily-pnl re-derived from ledger: -1.45 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,232 [INFO] [DipScanner] pond_sweep_flow daily-pnl re-derived from ledger: -1.66 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,497 [INFO] [DipScanner] pool_c_mcapgate daily-pnl re-derived from ledger: -22.19 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,510 [INFO] [DipScanner] pool_c_post_peak daily-pnl re-derived from ledger: 5.43 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,421 [INFO] [DipScanner] pool_a_mcapgate daily-pnl re-derived from ledger: -22.19 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,466 [INFO] [DipScanner] pool_a_stack daily-pnl re-derived from ledger: 4.18 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,475 [INFO] [DipScanner] pool_a_stack_5mred2 daily-pnl re-derived from ledger: 4.18 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,487 [INFO] [DipScanner] pool_a_trigstate daily-pnl re-derived from ledger: 4.18 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,253 [INFO] [DipScanner] pond_ugly_rsi daily-pnl re-derived from ledger: 1.35 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,274 [INFO] [DipScanner] restored 1 open positions for pool_a_broad_control from bot_state
+2026-06-18 23:37:55,306 [INFO] [DipScanner] pool_a_bsm5 daily-pnl re-derived from ledger: 4.18 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,370 [INFO] [DipScanner] pool_a_dipgate_deep daily-pnl re-derived from ledger: 4.18 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,520 [INFO] [DipScanner] pool_c_post_peak_chl1m daily-pnl re-derived from ledger: 5.43 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,623 [INFO] [DipScanner] regime_aware_bullish daily-pnl re-derived from ledger: -8.19 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,779 [INFO] [DipScanner] young_momo_launch daily-pnl re-derived from ledger: -75.85 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,789 [INFO] [DipScanner] young_probe_baseflow daily-pnl re-derived from ledger: 16.34 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,647 [INFO] [DipScanner] runner_tilt_aggressive daily-pnl re-derived from ledger: -10.03 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,658 [INFO] [DipScanner] sol_h6_loose daily-pnl re-derived from ledger: -9.82 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,671 [INFO] [DipScanner] stop_8 daily-pnl re-derived from ledger: -5.33 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,683 [INFO] [DipScanner] restored 1 open positions for timebox_probe from bot_state
+2026-06-18 23:37:55,697 [INFO] [DipScanner] restored 1 open positions for timebox_probe_5mgreen from bot_state
+2026-06-18 23:37:55,706 [INFO] [DipScanner] timebox_probe_5mgreen_live daily-pnl re-derived from ledger: -109.69 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,717 [INFO] [DipScanner] restored 2 open positions for timebox_probe_mcap from bot_state
+2026-06-18 23:37:55,727 [INFO] [DipScanner] tod_morning daily-pnl re-derived from ledger: 1.66 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,738 [INFO] [DipScanner] tp_runner daily-pnl re-derived from ledger: -10.73 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,760 [INFO] [DipScanner] vol_min_5k daily-pnl re-derived from ledger: -11.28 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,769 [INFO] [DipScanner] wide_stop daily-pnl re-derived from ledger: -10.83 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,864 [INFO] [DipScanner] young_probe_stair_convex daily-pnl re-derived from ledger: -2.78 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,873 [INFO] [DipScanner] young_probe_surgical daily-pnl re-derived from ledger: -24.00 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,882 [INFO] [DipScanner] young_probe_thinliq daily-pnl re-derived from ledger: 2.16 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,798 [INFO] [DipScanner] young_probe_baseflow_convex daily-pnl re-derived from ledger: 17.21 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,883 [INFO] [DipScanner] Multi-bot wired: 121 evaluators (badday_flush,badday_flush_convex,badday_flush_conviction,badday_flush_conviction_demand,badday_flush_conviction_live,badday_flush_live,badday_flush_nf15,badday_momo,baseline_v1,champ_conviction,champ_reentry_throttle,champ_regime_rider,champ_runner,champ_sniper,champ_specialist,champ_velocity,champ_workhorse,champion_defender_2k,champion_defender_2k_trendbreak5m,champion_defender_btc,champion_defender_falling_pump,champion_defender_fusion,champion_defender_v3,champion_defender_v3_pch1le5,champion_defender_v4,champion_defender_v4_trend60r020,champion_defender_volaccel,champion_minimal,champion_minimal_avgbuy80,champion_post_peak,champion_premium,champion_premium_dip90m,champion_premium_fresh,champion_premium_tightexit,champion_premium_tightexit_reaccum,champion_proposal,champion_whale_buyers,compound_winners_only,deep_dip_only,deepflush_timebox,deepflush_timebox_bottom1s,deepflush_timebox_h6peak,deepflush_timebox_live,drawdown_freeze,flow_only,macro_conditional,meta_chameleon,momentum_grad_probe,momentum_pump_tight,momentum_shadow,no_filters,no_filters_trend60r040,no_sol_gate,one_sec_only,pond_bb_mtf,pond_flow_thin,pond_settled_flow,pond_settled_flow_solcap,pond_settled_flow_thin,pond_sweep_deep_thin,pond_sweep_flow,pond_ugly_mtf,pond_ugly_rsi,pool_a_aged_scalper,pool_a_broad_control,pool_a_broad_control_nf60imb0,pool_a_broad_trigstate,pool_a_bsm5,pool_a_candidate,pool_a_candidate_shape30dd,pool_a_dipgate,pool_a_dipgate_cool1h,pool_a_dipgate_cool1h_tight,pool_a_dipgate_deep,pool_a_dipgate_vwap1h,pool_a_goodpond,pool_a_goodpond_reaccum15,pool_a_mcap1m,pool_a_mcapgate,pool_a_nopullback,pool_a_solmacro,pool_a_solmacro_reaccum20,pool_a_stack,pool_a_stack_5mred2,pool_a_trigstate,pool_c_mcapgate,pool_c_post_peak,pool_c_post_peak_chl1m,pool_c_tightexit,pool_c_tightexit_h24peak55,probe_swing,probe_tightexit_live_100,probe_tightexit_live_20,probe_tightexit_live_50,psych_h24_100,regime_aware_bullish,rugpocket_scalper,runner_tilt_aggressive,sol_h6_loose,stop_8,timebox_probe,timebox_probe_5mgreen,timebox_probe_5mgreen_live,timebox_probe_mcap,tod_morning,tp_runner,vol_min_500,vol_min_5k,wide_stop,young_momo_launch,young_probe_baseflow,young_probe_baseflow_convex,young_probe_candidate,young_probe_conviction,young_probe_late,young_probe_light,young_probe_mid,young_probe_stair,young_probe_stair_convex,young_probe_surgical,young_probe_thinliq)
+2026-06-18 23:37:55,807 [INFO] [DipScanner] young_probe_candidate daily-pnl re-derived from ledger: -42.68 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,815 [INFO] [DipScanner] young_probe_conviction daily-pnl re-derived from ledger: 7.82 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,826 [INFO] [DipScanner] young_probe_late daily-pnl re-derived from ledger: 27.41 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,844 [INFO] [DipScanner] young_probe_mid daily-pnl re-derived from ledger: 20.73 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,853 [INFO] [DipScanner] young_probe_stair daily-pnl re-derived from ledger: 21.22 -> 0.00 (overlap leak reclaimed)
+2026-06-18 23:37:55,883 [INFO] [Main] DipScanner enabled — $20/position, mcap $0M-$50M, max 100 concurrent, min bs_h6=0.90, min turnover=2.0x, min vol_h1_ratio=0.50 (vol_m5_required=True)
+2026-06-18 23:37:55,883 [INFO] [Main] Breakout disabled (BREAKOUT_ENABLED=false)
+2026-06-18 23:37:55,892 [INFO] [Main] PoolPriceFeed enabled (Helius WS, on-chain vault decode)
+2026-06-18 23:37:55,892 [INFO] [Main] KOL wallet tracker configured (12 wallets, min_score=0)
+2026-06-18 23:37:55,892 [INFO] [TELEGRAM DISABLED] Solana Bot v7 Started
+
+Active strategy: dip_buy (real-dip-3 entry filter)
+  TP1: +5% → sell 33% of o
+2026-06-18 23:37:55,892 [INFO] [UniverseRecorder] thread started (daemon)
+2026-06-18 23:37:55,893 [INFO] All systems go — 23 tasks
+2026-06-18 23:37:55,893 [INFO] [PositionManager/Solana] Started
+  DIP TP1: +5.0% → sell 33%
+  DIP TP2: +10.0% → sell 50% remaining
+  DIP Stop: -15.0% hard | trail after TP1: 3.0% from peak
+  SCALP TP1: +10.0% sell 50% | TP2: +15.0% sell 35%
+  SCALP Stop: -6.0% | max-hold: 45.0min
+  MC TP1: +25.0% → sell 100%
+  MC Stop: -25.0%
+  Standard (legacy fallback) TP1/TP2/TP3: +35.0/+75.0/+150.0% — applies to non-dip/non-scalp/non-MC only
+2026-06-18 23:37:55,893 [INFO] [RTSignal/Solana] Real-time signal layer started
+2026-06-18 23:37:55,991 [INFO] Loaded 74794 seen-event keys
+2026-06-18 23:37:55,992 [INFO] [DexScreener] slug-cache loaded: 270 slug / 271 quote mappings (cold re-resolution avoided)
+2026-06-18 23:37:55,992 [INFO] [Cycle 1] Refreshing universe...
+2026-06-18 23:37:55,893 [INFO] [RTSignal/Tick] Pattern detector started
+2026-06-18 23:37:55,902 [INFO] Data dir: /data/universe_recorder
+2026-06-18 23:37:55,913 [INFO] Loaded 62 pending events
+2026-06-18 23:38:25,762 [INFO] Universe: 145 unique addresses (65 tokens, 80 pairs)
+2026-06-18 23:38:28,008 [INFO] Resolved 2 outcomes; 60 still pending
+2026-06-18 23:38:28,743 [INFO] DIP OGFLOKI      pair=8dRpKoih body=-2.0% cum5m=-6.9% pc_h6=-42.27 liq=$25519 age=51.2h
+2026-06-18 23:38:29,417 [INFO] DIP BLX          pair=FwWudhys body=-1.7% cum5m=-9.8% pc_h6=63.74 liq=$26876 age=121.4h
+2026-06-18 23:38:31,629 [INFO] [DexScreener] CFewdGnZGJjN slug=meteora res=1: HTTP 404
+2026-06-18 23:38:33,007 [INFO] DIP COMOS        pair=DgkNjKwA body=-3.0% cum5m=-16.4% pc_h6=182 liq=$20035 age=1.1h
+2026-06-18 23:38:35,145 [INFO] DIP youngin      pair=ARj9Pskk body=-1.9% cum5m=-4.8% pc_h6=-37.48 liq=$29632 age=22.1h
+2026-06-18 23:38:41,577 [INFO] [DexScreener] 6qz7THwQvcjF slug=meteora res=1: HTTP 404
+2026-06-18 23:38:58,017 [INFO] [DexScreener] dynamic slug 'metadao' VALIDATED — caching
+2026-06-18 23:39:09,147 [INFO] [DexScreener] fetch error 3nMFwZXwY1s1 res=1: Failed to perform, curl: (28) Operation timed out after 5003 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+2026-06-18 23:39:10,385 [INFO] Cycle done: 4 new dips detected, 76 skipped, 64 pending outcomes
+2026-06-18 23:39:10,453 [INFO] [Cycle 1] Total resolved events on disk: 13857

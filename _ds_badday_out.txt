@@ -1,0 +1,10 @@
+TODAY'S RUNNERS (bad-day tape): 1 with h6>=+50%, liq>=10k
+
+sym         dex       labels        age_h      mcap      liq   h6%   b/s24 boost soc
+Gaejook     pumpswap                  6.2    251203    36376    6935984/19784   500   Y
+
+profile: median age 6.2h | median mcap $251k | dex mix: {'pumpswap': 1} | labels: {} | boosted: 1/1
+
+TRADE-LOG MICROSTRUCTURE (earliest 35% of window):
+sym          trades earlyN   med$    p90$ top1maker%  uniq
+Gaejook         100      3     73     105        33%     3

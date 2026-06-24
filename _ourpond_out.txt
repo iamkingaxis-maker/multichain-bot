@@ -1,0 +1,35 @@
+
+fleet winners (net pnl >= $10): 17
+  GUARDIAN         $  +88.11  7YMkZZwdcwUbXKjYpr5gFAVoB6aF4f9iLWK6pUcppump
+  TURTLE           $  +86.93  2dJniDEAGCG7zWKseCkyrML3W23WLjDf1CGxpNv3pump
+  USBC             $  +83.12  EA6jvQhjR2iMkRaVy9P9drM2ExowaFZWGn3Uo8FPpump
+  ANSEM            $  +68.73  6KDh3wLSZMg37nnU7prtKZr7Rut7WQGSf33Vp1G7pump
+  Vox              $  +60.45  DrESFkkBLL7Bcx9f1vdGBSAq9Cq8jUeXeoM4uZBZpump
+  REKILL           $  +48.39  ADnE9o6B7WHhzaRctmbqdPCRiLiA34WBXzYPbrFqBAGS
+  Trilly           $  +38.67  6Fnnq2bRqzRkodesB4edt8EY3Vmx3rDay4PA5Caspump
+  Merlin           $  +35.38  AvxFBjWydMYWD7C8pHzSkGxNYAFWr7aNBbAKm84bpump
+  XRPS             $  +34.34  7XLu71Wvq7zuNU7TP5qjYY8kqg9zxtrsb7sJEEF6pump
+  SIEGE            $  +29.72  HvBBPNYDgumNsdCJJSjqVC6VYDPpwrHsPsurUxmrpump
+  Worlds           $  +27.15  2NK1zUACYojPGdVESHwHT8shKHusNWxiMSAgMRcwpump
+  PUMPI            $  +26.85  q2yC2PPhZqjru2c6UWZfKJqJUtG1xJGTJKx8oy2pump
+  ZUL              $  +22.91  4A2fVsyESNT4QMk3qmWS4eHqEppPbkSvCAEVYEAVpump
+  ICPX             $  +19.52  HdeAPoHivsm9MZfeY5tW7apJEprc8Fs594bWmnzfpump
+  comrade          $  +19.37  4Bbn8VwMwYh2MCNN3BDs7QMg6rxCdGNoQBywajwmf2qW
+  REALM            $  +19.10  E8RR8MAJDqiux39JM69QbUqvo2uhpUHXAJsnZP4jpump
+  Jotchua          $  +14.04  BcHEaaTCvycPwwsJ9yQTXdHP9X2gCLkznDbZ8VySpump
+
+(resolved 17/17 winner pools)
+
+=== makers EARLY on >=2 distinct FLEET-WINNER tokens: 5 ===
+wallet                                          wins    early$  flags
+  gasTzr94Pmp4Gf8vknQnqxeYxdgwFjbgdJa4msYRpnB      3   $    1280  NEW
+  iK7BmyUoFm2GDXfXSi61u94kJXSFyknFnGFQukbF2bb      3   $     347  NEW
+  1eveYYxZ2mDiAnmCh3fnAbJwjgErzokRA1b6UrRybSM      2   $     212  NEW
+  AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51     2   $     148  NEW
+  HzA15vYiFgqYnjbGe1kYS2zhLbyAYmCU8KbLaJx9cDaZ     2   $     121  NEW
+
+Wrote 5 candidates to _our_pond_candidates.json
+
+=== recurrence: 1 run(s) -> 0 wallets early across >=2 runs ===
+
+NEXT: decode the top (wallet_decode) — these OVERLAP our pond, so unlike the GT catch they're ACTIONABLE. ALSO-GT-CATCH wallets (early in both ponds) decode FIRST.

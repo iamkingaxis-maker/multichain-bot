@@ -1,0 +1,11 @@
+iter 1: no PanelRefresh log yet (deploy may still be building)
+iter 2: no PanelRefresh log yet (deploy may still be building)
+iter 3: no PanelRefresh log yet (deploy may still be building)
+iter 4: no PanelRefresh log yet (deploy may still be building)
+iter 5: 2026-06-13 23:23:59,182 [INFO] [PanelRefresh] thin={'thesis_holder': 'top_share=0.79>0.75', 'time_boxer': 'top_share=0.91>0.75', 'surgical': 'n_wallets=1<2', 'swing': 'n_wallets=1<2', 'lottery': 'n_wallets=1<2'} | added=[] | pruned=0 | pool=60
+iter 6: no PanelRefresh log yet (deploy may still be building)
+iter 7: no PanelRefresh log yet (deploy may still be building)
+iter 8: no PanelRefresh log yet (deploy may still be building)
+iter 9: no PanelRefresh log yet (deploy may still be building)
+iter 10: no PanelRefresh log yet (deploy may still be building)
+TIMEOUT: no fill in ~30min — relaunch

@@ -1,0 +1,1 @@
+LIVE BOT OK after deploy: live_mode=True

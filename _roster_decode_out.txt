@@ -1,0 +1,81 @@
+
+==========================================================================================
+=== DECODE HmP3TxuVWkiJjS6m… | 72 tokens, 15 closed, 24 open ===
+SIZING: median 0.30 SOL/token | variable (conviction sizer)
+HOLDS: median 9min | p25 0m | p75 45m
+RETURNS: WR 73% | win med +12.6% | loss med -45.3% | best +242.8%
+OVERLAP: our scanner saw 14/72 of its tokens (19%) | we traded 23/72
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds
+
+==========================================================================================
+=== DECODE 4jkL4dNkY2UbpYrT… | 46 tokens, 14 closed, 12 open ===
+SIZING: median 0.02 SOL/token | variable (conviction sizer)
+HOLDS: median 0min | p25 0m | p75 7m
+  ** TIME-BOX SIGNATURE: 100% of losers exit at ~4min (the Dw5 archetype)
+RETURNS: WR 50% | win med +62.4% | loss med -65.1% | best +239582.3%
+OVERLAP: our scanner saw 19/46 of its tokens (41%) | we traded 11/46
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds
+
+==========================================================================================
+=== DECODE 2x99WSHDpwes7d3Q… | 82 tokens, 11 closed, 46 open ===
+SIZING: median 0.18 SOL/token | variable (conviction sizer)
+HOLDS: median 30min | p25 0m | p75 62m
+RETURNS: WR 91% | win med +15.0% | loss med -19.1% | best +193.3%
+(overlap check unavailable: HTTP Error 502: Bad Gateway)
+
+==========================================================================================
+=== DECODE 45Sn4KL1MHqwnpvc… | 88 tokens, 9 closed, 53 open ===
+SIZING: median 0.36 SOL/token | variable (conviction sizer)
+HOLDS: median 0min | p25 0m | p75 0m
+RETURNS: WR 56% | win med +3.9% | loss med -9.1% | best +16.0%
+OVERLAP: our scanner saw 28/88 of its tokens (32%) | we traded 28/88
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds
+
+==========================================================================================
+=== DECODE 1eveYYxZ2mDiAnmC… | 36 tokens, 12 closed, 11 open ===
+SIZING: median 1.05 SOL/token | variable (conviction sizer)
+HOLDS: median 6min | p25 0m | p75 10m
+  ** TIME-BOX SIGNATURE: 100% of losers exit at ~7min (the Dw5 archetype)
+RETURNS: WR 58% | win med +9.6% | loss med -12.1% | best +13.6%
+OVERLAP: our scanner saw 10/36 of its tokens (28%) | we traded 14/36
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds
+
+==========================================================================================
+=== DECODE 2qnHs8fZZLUJFVCk… | 66 tokens, 19 closed, 27 open ===
+SIZING: median 0.30 SOL/token | variable (conviction sizer)
+HOLDS: median 12min | p25 2m | p75 35m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 74% | win med +15.3% | loss med -38.0% | best +325.9%
+OVERLAP: our scanner saw 10/66 of its tokens (15%) | we traded 21/66
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds
+
+==========================================================================================
+=== DECODE EGwERj1nadcGQhwn… | 66 tokens, 23 closed, 24 open ===
+SIZING: median 0.64 SOL/token | variable (conviction sizer)
+HOLDS: median 5min | p25 3m | p75 21m
+RETURNS: WR 91% | win med +9.0% | loss med -36.9% | best +59.0%
+OVERLAP: our scanner saw 22/66 of its tokens (33%) | we traded 18/66
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds
+
+==========================================================================================
+=== DECODE dmuXAmcXJcdNuK26… | 34 tokens, 8 closed, 11 open ===
+SIZING: median 4.92 SOL/token | variable (conviction sizer)
+HOLDS: median 60min | p25 31m | p75 150m
+RETURNS: WR 62% | win med +328.5% | loss med -71.7% | best +837.9%
+OVERLAP: our scanner saw 17/34 of its tokens (50%) | we traded 23/34
+
+==========================================================================================
+=== DECODE 7Gi3RNdV3nZU9fhn… | 76 tokens, 12 closed, 23 open ===
+SIZING: median 0.10 SOL/token | variable (conviction sizer)
+HOLDS: median 4min | p25 0m | p75 32m
+RETURNS: WR 83% | win med +154.2% | loss med -2.2% | best +621.1%
+OVERLAP: our scanner saw 13/76 of its tokens (17%) | we traded 32/76
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds
+
+==========================================================================================
+=== DECODE AKprbkX7HKoSFYtK… | 62 tokens, 16 closed, 15 open ===
+SIZING: median 0.60 SOL/token | variable (conviction sizer)
+HOLDS: median 43min | p25 19m | p75 68m
+RETURNS: WR 81% | win med +7.7% | loss med -19.1% | best +295.5%
+OVERLAP: our scanner saw 14/62 of its tokens (23%) | we traded 28/62
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds

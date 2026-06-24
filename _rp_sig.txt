@@ -1,0 +1,9 @@
+2026-06-15 22:21:06,963 [INFO] [DipScanner] Signal: Merlin mcap=$0.5M | 24h=+105.0% 1h=+62.7% 5m=+17.9% vol24h=$331k bs_h6=1.06 bs_h1=1.02 bs_m5=0.84
+2026-06-15 22:21:10,991 [INFO] [DipScanner] Signal: TREX mcap=$0.8M | 24h=+2337.0% 1h=-16.9% 5m=-17.1% vol24h=$3782k bs_h6=1.54 bs_h1=1.50 bs_m5=1.14
+2026-06-15 22:21:34,087 [INFO] [DipScanner] Signal: WOC mcap=$1.6M | 24h=+220.0% 1h=+12.4% 5m=-8.9% vol24h=$1326k bs_h6=1.02 bs_h1=1.26 bs_m5=1.46
+2026-06-15 22:21:36,262 [INFO] [DipScanner] Signal: 01 mcap=$0.4M | 24h=+231.0% 1h=-22.5% 5m=-3.2% vol24h=$892k bs_h6=1.18 bs_h1=1.46 bs_m5=0.77
+2026-06-15 22:22:48,477 [INFO] [DipScanner] Signal: SPCX69 mcap=$4.1M | 24h=+91.0% 1h=-14.0% 5m=-1.1% vol24h=$2018k bs_h6=3.49 bs_h1=2.92 bs_m5=1.38
+2026-06-15 22:22:51,117 [INFO] [DipScanner] Signal: USBC mcap=$0.4M | 24h=+145.0% 1h=-23.6% 5m=-4.1% vol24h=$894k bs_h6=1.07 bs_h1=0.99 bs_m5=1.00
+2026-06-15 22:22:53,490 [INFO] [DipScanner] Signal: EITHER mcap=$11.0M | 24h=-4.6% 1h=-0.7% 5m=-0.1% vol24h=$1212k bs_h6=1.33 bs_h1=1.42 bs_m5=1.37
+2026-06-15 22:22:55,552 [INFO] [DipScanner] Signal: chic mcap=$0.2M | 24h=+453.0% 1h=+69.6% 5m=+1.6% vol24h=$687k bs_h6=1.20 bs_h1=1.06 bs_m5=0.94
+2026-06-15 22:22:57,081 [INFO] [DipScanner] Signal: drooling mcap=$1.7M | 24h=+43.9% 1h=-9.2% 5m=-2.8% vol24h=$1104k bs_h6=1.11 bs_h1=1.16 bs_m5=0.75

@@ -1,0 +1,37 @@
+trade_map 7BNaxx6KdUYr sigs=120 ...
+  54 tokens touched
+  34 closed trips
+  [1/34] FvAPw4Xq ret=+157.5 dip=-15.2 age=17.6 liq=10,714 mcap=19,606 pch1=44.523601965557646
+  [2/34] gusmFBcX ret=+46.1 dip=-63.8 age=4.0 liq=28,827 mcap=136,863 pch1=97.31288513973735
+  [3/34] DY2ZAaZr ret=-46.3 dip=-29.3 age=86.9 liq=29,949 mcap=116,232 pch1=-18.913014581917164
+  [4/34] 9bDyiR3Y ret=+99.5 dip=-21.5 age=19.0 liq=5,322 mcap=5,947 pch1=-1.2838944435146216
+  [5/34] 4B4NkRh4 ret=+34.2 dip=-1.6 age=9.8 liq=5,509 mcap=5,561 pch1=35.35959051397801
+  [6/34] 7kkQU6Ah ret=+6.2 dip=-61.8 age=15.8 liq=28,011 mcap=108,063 pch1=-58.8684981698465
+  [7/34] 9spN3Lrz ret=-32.3 dip=-15.6 age=21.9 liq=45,347 mcap=313,532 pch1=26.73820385179877
+  [8/34] 3pEVRBJi ret=+12.2 dip=-45.6 age=0.0 liq=3,280 mcap=2,049 pch1=None
+  [9/34] 5WrhAdqr ret=+4.9 dip=-46.3 age=5.8 liq=110,496 mcap=476,333 pch1=-40.42831196124538
+  [10/34] D27puSXK ret=+19.5 dip=-16.3 age=19.2 liq=5,098 mcap=4,926 pch1=110.43428541906776
+  [11/34] HEokmdJy ret=-4.9 dip=-7.1 age=63.8 liq=7,042 mcap=7,595 pch1=46.266658615961575
+  [12/34] 7w5ayJSj ret=+2.2 dip=-62.4 age=89.0 liq=5,393 mcap=5,026 pch1=155.23049231843578
+  [13/34] 6KDh3wLS ret=+6.8 dip=-26.5 age=42.8 liq=27,774 mcap=110,631 pch1=-16.64308051994057
+  [14/34] AwwobFR4 ret=+6.5 dip=-62.2 age=0.6 liq=13,001 mcap=26,825 pch1=None
+  [15/34] 92XvWBEr ret=-4.4 dip=+0.0 age=72.1 liq=5,648 mcap=6,035 pch1=69.57224382481877
+  [16/34] 4oY2Fieq ret=+34.3 dip=-21.7 age=26.7 liq=20,871 mcap=70,787 pch1=11.228545051291094
+  [17/34] SPCXwBHV ret=-48.9 dip=-15.0 age=74.1 liq=152,969 mcap=3,401,513 pch1=31.061537713165887
+  [18/34] HeC2xWqG ret=-0.9 dip=-24.7 age=1815.5 liq=49,242 mcap=216,926 pch1=12.620084700029622
+  [19/34] 2dVNRp6P ret=-5.8 dip=-85.0 age=2.3 liq=7,111 mcap=9,082 pch1=23.873495523206877
+  [20/34] FfbrMHZX ret=-27.8 dip=-80.7 age=0.2 liq=4,113 mcap=3,155 pch1=None
+  [21/34] BXbha4Md ret=-15.5 dip=-79.6 age=0.4 liq=3,716 mcap=2,610 pch1=None
+  [22/34] 6d9PCh5o ret=-2.6 dip=-16.7 age=50.3 liq=43,864 mcap=276,064 pch1=80.84191610887876
+  [23/34] ERUz5wBo ret=+1.0 dip=-67.9 age=20.6 liq=4,123 mcap=3,359 pch1=28.97137399689418
+  [24/34] GSMfrHEc ret=-5.2 dip=-86.8 age=1.2 liq=4,645 mcap=4,067 pch1=-83.72412770021063
+  [25/34] J8cXU1EF ret=+7.7 dip=-38.9 age=184.7 liq=31,084 mcap=117,937 pch1=144.06176371990372
+  [26/34] wXwiVyTk ret=-12.9 dip=-21.8 age=29.6 liq=9,196 mcap=15,928 pch1=24.750210254570582
+  [27/34] E8UXwqhN ret=-0.8 dip=-74.0 age=0.6 liq=24,175 mcap=107,499 pch1=None
+  [28/34] E6wooXoQ ret=+9.0 dip=-39.8 age=143.1 liq=4,493 mcap=3,188 pch1=29.521682311377905
+  [29/34] Ago3xFUD ret=+87.9 dip=-46.8 age=5.3 liq=12,429 mcap=26,897 pch1=64.81541628327925
+  [30/34] D664MthK ret=+15.5 dip=-81.7 age=0.5 liq=8,142 mcap=12,780 pch1=None
+  [31/34] 2kWatFv2 ret=-10.0 dip=-4.0 age=10.8 liq=3,639 mcap=2,421 pch1=54.045338285274646
+  [32/34] BDjsFtoU ret=+26.2 dip=-19.4 age=22.5 liq=6,381 mcap=6,505 pch1=77.03672781155824
+  [33/34] AtJ351dU ret=+5.0 dip=-31.3 age=125.4 liq=35,995 mcap=217,794 pch1=56.11970802367754
+  [34/34] BQTrwqCS ret=+7.6 dip=-87.2 age=0.6 liq=3,618 mcap=2,445 pch1=None

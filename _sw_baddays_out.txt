@@ -1,0 +1,19 @@
+
+PER-DAY ELITE ACTIVITY + REALIZED (SOL):
+day           buys sells rtrips  rtWR   rtSOL  bad?
+2026-06-09       1   146      1  100%   +0.09  
+2026-06-10     303   234     57   67%   +0.60  BAD
+
+PER-WALLET on BAD days:
+  Abk9EfhWsL bad-day buys=0 rtrips=0 winrate=0/0 sol=+0.00
+  2tYcXQCfTt bad-day buys=0 rtrips=0 winrate=0/0 sol=+0.00
+  V21GW8PGcW bad-day buys=41 rtrips=20 winrate=13/20 sol=+0.01
+  HmP3TxuVWk bad-day buys=41 rtrips=8 winrate=8/8 sol=+0.34
+  D1aDZDVXJ1 bad-day buys=42 rtrips=9 winrate=4/9 sol=+0.01
+  GGduK5PAq1 bad-day buys=1 rtrips=0 winrate=0/0 sol=+0.00
+  udH4u5k3vW bad-day buys=56 rtrips=0 winrate=0/0 sol=+0.00
+  4jkL4dNkY2 bad-day buys=34 rtrips=11 winrate=4/11 sol=-0.01
+  2x99WSHDpw bad-day buys=41 rtrips=9 winrate=9/9 sol=+0.25
+  45Sn4KL1MH bad-day buys=47 rtrips=0 winrate=0/0 sol=+0.00
+
+bad-day buy mints saved: 202 -> _elite_badday_mints.json

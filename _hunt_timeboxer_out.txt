@@ -1,0 +1,73 @@
+########## 7d54PtGUtqVPZoF3qzGHRFUQQstrHyCdm4uwwrhDSHLW ##########
+=== DECODE 7d54PtGUtqVPZoF3… | 46 tokens, 8 closed, 32 open ===
+SIZING: median 0.00 SOL/token | variable (conviction sizer)
+HOLDS: median 7min | p25 2m | p75 86m
+RETURNS: WR 88% | win med +184.9% | loss med -48.1% | best +47544.2%
+
+########## 9LUH6U5x33wmYnZs4JjjJuUwYbeLRNTYxmmNScVR5fBL ##########
+=== DECODE 9LUH6U5x33wmYnZs… | 8 tokens, 5 closed, 2 open ===
+SIZING: median 1.10 SOL/token | variable (conviction sizer)
+HOLDS: median 14min | p25 6m | p75 39m
+RETURNS: WR 60% | win med +12.9% | loss med -9.9% | best +744.0%
+
+########## KGqhAC8HJrSbRfTxLC3dBKr8S6jD5otHWXcqkN8LF9z ##########
+=== DECODE KGqhAC8HJrSbRfTx… | 25 tokens, 25 closed, 0 open ===
+SIZING: median 2.02 SOL/token | variable (conviction sizer)
+HOLDS: median 53min | p25 10m | p75 149m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 28% | win med +24.9% | loss med -23.7% | best +316.2%
+
+########## 3GDfzrjrV3cvZE1g71mvV6ipfNTR1qrHQsC3tDWLr81i ##########
+=== DECODE 3GDfzrjrV3cvZE1g… | 20 tokens, 13 closed, 0 open ===
+SIZING: median 2.00 SOL/token | variable (conviction sizer)
+HOLDS: median 18min | p25 9m | p75 179m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 31% | win med +90.8% | loss med -68.0% | best +394.0%
+
+########## 8G2mgkgEjs59CoKzh4Veeia2V2HiBZfwEWKzyPzuxtFA ##########
+=== DECODE 8G2mgkgEjs59CoKz… | 21 tokens, 10 closed, 2 open ===
+SIZING: median 2.04 SOL/token | variable (conviction sizer)
+HOLDS: median 148min | p25 18m | p75 230m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 40% | win med +87.0% | loss med -34.8% | best +115.8%
+
+########## Gj8DM8DLBXvQ6x1DdALbCHWSrtybwtNQtVJ7XuPPCgU5 ##########
+=== DECODE Gj8DM8DLBXvQ6x1D… | 25 tokens, 23 closed, 0 open ===
+SIZING: median 2.50 SOL/token | variable (conviction sizer)
+HOLDS: median 26min | p25 16m | p75 378m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 39% | win med +43.8% | loss med -20.7% | best +15179.1%
+
+########## 6SckxkNGVq8345g14FJLvDiQz6cMnQfJPzMB4sKLYPjq ##########
+=== DECODE 6SckxkNGVq8345g1… | 17 tokens, 12 closed, 5 open ===
+SIZING: median 1.27 SOL/token | variable (conviction sizer)
+HOLDS: median 313min | p25 124m | p75 780m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 50% | win med +15.3% | loss med -26.5% | best +122850593.6%
+
+########## DzuQjKaRLsuQgrxbUJKq3wzoeVYfg3Cn9QcJQzq8vyzX ##########
+=== DECODE DzuQjKaRLsuQgrxb… | 18 tokens, 6 closed, 10 open ===
+SIZING: median 1.09 SOL/token | variable (conviction sizer)
+HOLDS: median 3036min | p25 1002m | p75 6695m
+RETURNS: WR 33% | win med +20792.7% | loss med -41.0% | best +41356.3%
+
+########## 7c82ZFFQThHprwYNsB9Lc1zz2EpCD2uiQ8g4iK1uiHo3 ##########
+=== DECODE 7c82ZFFQThHprwYN… | 44 tokens, 29 closed, 0 open ===
+SIZING: median 0.51 SOL/token | variable (conviction sizer)
+HOLDS: median 22min | p25 14m | p75 52m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 28% | win med +81.5% | loss med -24.5% | best +225.8%
+
+########## G1cnfANoMiT8D25jcascmUwyWXJuaW4o5DFny25GFZ6w ##########
+=== DECODE G1cnfANoMiT8D25j… | 14 tokens, 13 closed, 0 open ===
+SIZING: median 1.52 SOL/token | variable (conviction sizer)
+HOLDS: median 6min | p25 2m | p75 82m
+RETURNS: WR 69% | win med +8.0% | loss med -7.8% | best +133.3%
+
+########## 4mAW6RMGQjCKddRQ6ZZnSU59RA7WJJxS9XZKVVuVeEGy ##########
+=== DECODE 4mAW6RMGQjCKddRQ… | 17 tokens, 16 closed, 1 open ===
+SIZING: median 1.43 SOL/token | variable (conviction sizer)
+HOLDS: median 59min | p25 19m | p75 239m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 56% | win med +22.2% | loss med -17.7% | best +10061.1%
+

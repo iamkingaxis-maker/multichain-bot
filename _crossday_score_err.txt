@@ -1,0 +1,9 @@
+# scoring 18 candidates from _crossday_wallets.json
+
+Traceback (most recent call last):
+  File "C:\Users\jcole\multichain-bot\scripts\score_wallet_diversity.py", line 193, in <module>
+    main()
+  File "C:\Users\jcole\multichain-bot\scripts\score_wallet_diversity.py", line 186, in main
+    f"MMbot-set flagged MM_CHURN={bot_mm}/{len(mmbots)} (want high).")
+                                               ^^^^^^
+UnboundLocalError: cannot access local variable 'mmbots' where it is not associated with a value

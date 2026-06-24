@@ -1,0 +1,5 @@
+wallet                                          winNet winTrips   gate verdict taxedRet
+1aDerPKk87xJHCAqTY5bGxF5Xet2MG476y4Zmq2WJ8Y      -0.50       13      THIN-EDGE    15.87
+3gubYnreSffR5qRqmkoCTketmCXj3jMQu4UdiqRGy13t        --       --    unparseable
+
+GREEN-IN-RED bench: 0 -> _green_in_red_bench.json

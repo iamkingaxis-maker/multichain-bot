@@ -1,0 +1,5 @@
+[A] runners: 60
+[A] wallets seen: 351
+[B] elite-token pools resolved: 35
+[B] wallets seen: 292
+[C] roster rows: 8543

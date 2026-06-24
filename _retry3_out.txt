@@ -1,0 +1,39 @@
+wallet         src       swap ndist  top% rtrip   rWR   netSOL dSell  CLASS
+--------------------------------------------------------------------------------------------
+  GxDC9e7SP9mz candidate no-swaps/RPC-fail
+  Em8J3gBWapfV candidate no-swaps/RPC-fail
+  7iVCXQn4u6ti candidate no-swaps/RPC-fail
+  7JCe3GHwkEr3 candidate no-swaps/RPC-fail
+  AgmLJBMDCqWy candidate no-swaps/RPC-fail
+  MRiYA4oN3158 candidate    3     1  100%     0   n/a    +0.00     0  MM_CHURN
+  8L2y55D11k63 candidate    1     1  100%     0   n/a    +0.00     0  MM_CHURN
+  eLLnsiBsWvER candidate    1     1  100%     0   n/a    +0.00     0  MM_CHURN
+  UUAhspPgUdGu candidate no-swaps/RPC-fail
+  gtagyESa99t4 candidate no-swaps/RPC-fail
+  JApBGtbBtsNo candidate no-swaps/RPC-fail
+  GgGap6tiUKhD candidate no-swaps/RPC-fail
+  theo9SfM3dKg candidate    2     2   50%     0   n/a    +0.00     0  MM_CHURN
+  Fgej4SPuW282 candidate no-swaps/RPC-fail
+  SUPErMoycPz7 candidate no-swaps/RPC-fail
+  4SgwtApqXAXm candidate    1     1  100%     0   n/a    +0.00     0  MM_CHURN
+  BSfQT2AmdxQf candidate no-swaps/RPC-fail
+  12BLKXs2JUSz candidate no-swaps/RPC-fail
+  F7p3dFrjRTbt candidate    1     1  100%     0   n/a    +0.00     0  MM_CHURN
+  GHigB15jr7wZ candidate no-swaps/RPC-fail
+  freeupq4fM9n candidate no-swaps/RPC-fail
+  DtvmxrTACskM candidate    2     2   50%     0   n/a    +0.00     0  MM_CHURN
+  7HsyYYLEP5nR candidate    3     2   67%     0   n/a    +0.00     0  MM_CHURN
+
+=== SELECTORS (follow-worthy): 0 | MM_CHURN (reject): 8 | WEAK: 0 ===
+
+SELECTORS ranked:
+
+MM_CHURN (correctly rejected — single/few-token churn):
+  MRiYA4oN3158fCV8evhuCofrDzbHyYvYnGZUDJvoCsa  [candidate] ndist=1 top%=100
+  8L2y55D11k63CAftvW7uMM2mBhtMxLoLnivG9uY2bt8j  [candidate] ndist=1 top%=100
+  eLLnsiBsWvERB34kgiJ4wPhdRzqM17gMG4cHouMqaHz  [candidate] ndist=1 top%=100
+  theo9SfM3dKgKFbq4kFVmEXwSQ1pdr61wDqEWXKJpYs  [candidate] ndist=2 top%=50
+  4SgwtApqXAXmkNSGGBzAvndVjXjnGkk8xS44DHm2as4s  [candidate] ndist=1 top%=100
+  F7p3dFrjRTbtRp8FRF6qHLomXbKRBzpvBLjtQcfcgmNe  [candidate] ndist=1 top%=100
+  DtvmxrTACskMG2W8a6KXgSemUfvyNVeQTgfpJoGvMVKx  [candidate] ndist=2 top%=50
+  7HsyYYLEP5nRMcSfkkbe1zYCW5ps951q33kPfvqr3jBL  [candidate] ndist=2 top%=67

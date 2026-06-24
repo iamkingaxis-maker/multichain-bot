@@ -3,10 +3,14 @@ the ENTIRE workflow each pass; don't be lazy). Runs as a Monitor: every ~20min
 it walks every stage of the chameleon loop, prints a compact health line, and
 emits a multi-line ALARM block if ANY process looks wrong. One pass = one
 notification."""
-import json, time, urllib.request, traceback
+import json, time, urllib.request, traceback, sys
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows cp1252 can't encode ⚠ → force utf-8
+except Exception:
+    pass
 BASE = "https://gracious-inspiration-production.up.railway.app"
 
-def get(path, timeout=30):
+def _get_once(path, timeout):
     req = urllib.request.Request(BASE + path, headers={"Accept-Encoding": "gzip"})
     import gzip, io
     with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -15,8 +19,26 @@ def get(path, timeout=30):
             raw = gzip.GzipFile(fileobj=io.BytesIO(raw)).read()
     return json.loads(raw)
 
+def get(path, timeout=45):
+    # retry once on a transient stall (the intermittent >45s slow window clears
+    # within seconds — a single retry turns a skipped 20-min pass into a 10s wait).
+    try:
+        return _get_once(path, timeout)
+    except Exception:
+        time.sleep(10)
+        return _get_once(path, timeout)
+
+def get_safe(path, timeout=45):
+    """Sub-request that degrades gracefully — a timed-out pull returns None so
+    one slow endpoint (boot blip) doesn't kill the whole audit pass."""
+    try:
+        return get(path, timeout)
+    except Exception:
+        return None
+
 CLAMPS = {"time_stop_minutes": (10, 780), "tp1_pct": (8, 60), "hard_stop_pct": (-60, -10)}
 LABELED = {"conviction","thesis_holder","time_boxer","surgical","swing","lottery"}
+_seen_phantoms = set()  # (token, time) of big-move sells already flagged — alarm each ONCE, not every cycle
 
 def audit():
     alarms, notes = [], []
@@ -69,17 +91,26 @@ def audit():
     losses = [c for c in rc if not c.get("win")]
     own_fills_should_pause = len(rc)>=3 and len(losses)>=2
     fresh = None  # not exposed; checked via board freshness proxy
-    # ---- 8. TRADES ----  (full=1 so chameleon_archetype isn't trimmed)
-    tr = get("/api/trades?full=1&limit=1500")
-    rows = tr if isinstance(tr,list) else tr.get("trades",[])
+    # ---- 8. TRADES ----  authoritative lifetime P&L from leaderboard (small/fast);
+    # phantom check from a LIGHT recent window (trimmed; full=1 timed out under load).
+    lb = get_safe("/api/leaderboard")
+    lb_rows = (lb if isinstance(lb,list) else (lb or {}).get("leaderboard") or (lb or {}).get("bots") or []) if lb else []
+    cham_lb = next((r for r in lb_rows if r.get("bot_id")=="meta_chameleon"), {})
+    tb_lb = next((r for r in lb_rows if r.get("bot_id")=="timebox_probe"), {})
+    net = float(cham_lb.get("realized_pnl_total_usd") or 0.0)       # lifetime, authoritative
+    tb_net = float(tb_lb.get("realized_pnl_total_usd") or 0.0)
+    n_buys = int(cham_lb.get("total_trades") or 0); n_wins = cham_lb.get("wins")
+    tr = get_safe("/api/trades?limit=300")
+    rows = tr if isinstance(tr,list) else (tr or {}).get("trades",[]) if tr else []
     cb = [t for t in rows if t.get("bot_id")=="meta_chameleon"]
     buys = [t for t in cb if t.get("type")=="buy"]
     sells = [t for t in cb if t.get("type")=="sell"]
-    net = sum(float(t.get("pnl") or 0) for t in sells)
-    # phantom regression
     phantom = [t for t in sells if isinstance(t.get("pnl_pct"),(int,float)) and abs(t["pnl_pct"])>150]
-    if phantom:
-        alarms.append(f"PHANTOM: {len(phantom)} chameleon sell(s) |pnl_pct|>150 — guard regression!")
+    new_ph = [t for t in phantom if (t.get("token"), t.get("time")) not in _seen_phantoms]
+    for t in new_ph: _seen_phantoms.add((t.get("token"), t.get("time")))
+    if new_ph:
+        toks = ", ".join("%s(%+.0f%%)" % (t.get("token"), t["pnl_pct"]) for t in new_ph)
+        alarms.append(f"PHANTOM: {len(new_ph)} NEW sell(s) |pnl_pct|>150 [{toks}] — verify real-vs-guard (check OHLC high)")
     # signal-driven breakdown — AUTHORITATIVE source is the tune state's
     # recent_closes (the trades endpoint can trim the archetype field).
     rc_all = ch.get("recent_closes") or []
@@ -90,20 +121,16 @@ def audit():
         a=c.get("archetype"); d=by_arch.setdefault(a,[0,0.0,0])
         d[0]+=1; d[1]+=float(c.get("net") or 0); d[2]+= 1 if c.get("win") else 0
     sig_net = sum(float(c.get("net") or 0) for c in conv_closes)
-    # ---- 9. GATE-BYPASS SANITY: any conviction-tagged buy while no meta was worn? ----
-    # (can't see historical gate state; flag if signal-driven sells exist but worn is None now is fine)
-    # ---- timebox window-match (rough): same 24h ----
-    tb = [t for t in rows if t.get("bot_id")=="timebox_probe" and t.get("type")=="sell"]
-    tb_net = sum(float(t.get("pnl") or 0) for t in tb)
-    # ---- REPORT ----
+    # ---- REPORT ---- (lifetime net + tb_net from leaderboard; signal-driven from recent_closes)
     sig_n = len(conv_closes)
-    flag = "⚠ALARM" if alarms else "ok"
+    flag = "ALARM" if alarms else "ok"  # ASCII — no non-encodable chars in the status flag
+    deg = "" if (lb is not None and tr is not None) else "  [DEGRADED: a sub-pull timed out]"
     line = (f"[{flag}] worn={worn} tune(ts={tune.get('time_stop_minutes')},tp1={tune.get('tp1_pct')},"
             f"stop={tune.get('hard_stop_pct')}) | qual={quals} | board6h={ {a:(r['n'],round(r['wr'],2)) for a,r in w6.items() if a!='all'} } | "
-            f"chameleon buys={len(buys)} sells={len(sells)} lifetime_net=${net:.2f} | "
-            f"recent-window: signal-driven={sig_n} (net=${sig_net:.2f}) default={default_n} | "
+            f"chameleon trades={n_buys} wins={n_wins} lifetime_net=${net:.2f} | "
+            f"conviction-experiment: signal-driven={sig_n} (net=${sig_net:.2f}) default={default_n} | "
             f"per-arch={ {a:(d[0],round(d[1],1),f'{d[2]}/{d[0]}W') for a,d in by_arch.items()} } | "
-            f"ingest={ing}s open_ep={opn} scored={scored} uptime={upt} | tb_sells={len(tb)} tb_net=${tb_net:.0f}")
+            f"ingest={ing}s open_ep={opn} scored={scored} uptime={upt} | tb_net=${tb_net:.0f}{deg}")
     print(line, flush=True)
     if own_fills_should_pause:
         print(f"  note: own-fills shows {len(losses)}/{len(rc)} recent '{worn}' closes lost — gate should be paused; verify next buy is blocked", flush=True)

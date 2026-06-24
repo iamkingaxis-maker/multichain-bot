@@ -1,0 +1,9 @@
+
+cross-token recurrent (>= 3 distinct runners): 1
+  AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51  hits=3
+
+wallet       hits ndist rtrips  rWR  netSOL  class  daily(last days)
+  AgmLJBMDCqWy    3     0      0  n/a   +0.00  WEAK     
+
+FINAL daily-positive SELECTOR candidates: 0 -> _daily_positive_candidates.json
+next: forward-shadow 24-48h (fire-quality on their would-be fires) before any watchlist add.

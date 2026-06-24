@@ -1,0 +1,21 @@
+=== Phase 1: fleet winner tokens (OUR pond) ===
+
+=== Phase 2: harvest early buyers from 18 winner pools ===
+  [1/18] Chaton         pnl=$+248 trades=100 early_buyers=14
+  [2/18] WELLTH         pnl=$+116 trades=100 early_buyers=11
+  [3/18] drooling       pnl=$+103 trades=100 early_buyers=5
+  [4/18] JAMESON        pnl=$+95 trades=100 early_buyers=9
+  [5/18] FRAG           pnl=$+92 trades=0 early_buyers=1
+  [6/18] XP             pnl=$+71 trades=100 early_buyers=7
+  [7/18] BOB            pnl=$+69 trades=100 early_buyers=11
+  [8/18] ZERO           pnl=$+42 trades=100 early_buyers=9
+  [9/18] TURTLE         pnl=$+31 trades=0 early_buyers=1
+  [10/18] Jameson        pnl=$+28 trades=100 early_buyers=7
+  [11/18] Chaton         pnl=$+25 trades=100 early_buyers=10
+  [12/18] UATF           pnl=$+23 trades=100 early_buyers=12
+  [13/18] Peace          pnl=$+22 trades=100 early_buyers=10
+  [14/18] MANLET         pnl=$+16 trades=100 early_buyers=8
+  [15/18] BRIM           pnl=$+14 trades=100 early_buyers=10
+  [16/18] Islands        pnl=$+9 trades=100 early_buyers=8
+  [17/18] ARENA          pnl=$+7 trades=100 early_buyers=8
+  [18/18] COZY           pnl=$+6 trades=100 early_buyers=9

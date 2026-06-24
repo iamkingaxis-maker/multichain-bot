@@ -1,0 +1,97 @@
+
+fleet winners (net pnl >= $5): 18
+  Chaton           $ +248.21  7kkQU6AhUadtoszttEKprirvpgBihJHPoHVczebvi7i3
+  WELLTH           $ +116.39  J3pjYP2D3KK2rBRqys6D2WP3ZMdQiyN4MSs93Uc4pump
+  drooling         $ +103.16  7DivLxFHvpzW5i9Dd1wd7UZmVAVGv6dkeL3JaxTDpump
+  JAMESON          $  +95.30  H9L9apxE8RREZZgTaNLmGeUfCYJQfHBwQxuXzvPNpump
+  FRAG             $  +91.59  J4Y92jy5Lr9ho1aV41bhguytnzBbsPhZJahmaVszpump
+  XP               $  +71.20  9spN3Lrz4tnFXaXfR9QzKdiMd2hE4AUbAJntui21pump
+  BOB              $  +68.80  7DWRAaAecR2bhPRUjg7VN6XqoXpRYCRqsq7W6t2Vpump
+  ZERO             $  +42.19  EmcxFTNVDqyLHp11NvwvLZ4D7LKGbG9i7B8RF7dwpump
+  TURTLE           $  +31.05  2dJniDEAGCG7zWKseCkyrML3W23WLjDf1CGxpNv3pump
+  Jameson          $  +28.42  2TqdkbSjzkpKW8rDNKGPiDBkYAxtga4cCzY6WK4Wpump
+  Chaton           $  +25.04  5WrhAdqrtaBqzjoPEQ4bVkukQGCmR9mrcKeeifCKpump
+  UATF             $  +23.48  2JXnRgA9fLDUBtvKdppiiuTA2QfvS1bKzmAmQX1pUATF
+  Peace            $  +22.26  atVjZ7uM8sVrLFi5Xe1JiLGW6mW9pvQdTCWzhNFpump
+  MANLET           $  +15.86  FamUNkepHXkVxjWHeMSpJmD4xVhCSyNnUG9GVsdmR2xQ
+  BRIM             $  +13.80  9smMJxtru37j29w7pfcQZfpKXdsUohuDXqHFaLJcpump
+  Islands          $   +8.98  yoA2CoHk6HRNtFuTP1kVt5xkcvG7mr5raQ5zuNxpump
+  ARENA            $   +6.99  Ddrae7atujkL2Np8myWgMF2LBU1E4ewRVQ3cwpAJpump
+  COZY             $   +5.61  3SkiyPUMD5KT6SfTKqJC5pEkYfrs68THth2HCvp9pump
+
+(resolved 18/18 winner pools)
+
+=== makers EARLY on >=1 distinct FLEET-WINNER tokens: 125 ===
+wallet                                          wins    early$  flags
+  hnu5iBK8UoHb51UFsH1RYTUAYdrhjHvV5YMTf9T1CYN      2   $     536  NEW
+  AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51     2   $     464  NEW
+  13VK7ZrRrx1uZ4Frm2TjacNsbipun21qqifE8wibPVys     2   $     269  NEW
+  EYvwg12vXcUN7pF1fASQZZgQ9RbVUMLjKqqCfi961ptw     2   $      97  NEW
+  gasTzr94Pmp4Gf8vknQnqxeYxdgwFjbgdJa4msYRpnB      2   $      78  NEW
+  2tgUbS9UMoQD6GkDZBiqKYCURnGrSb6ocYwRABrSJUvY     2   $      63  NEW
+  HZWRMUrfp1AZT3zTSuD8znGKmvAuyTeLki72FtiqZrCx     1   $    1137  NEW
+  Hn6m92deJDhiUVAUassMurJBPfn6Xjj1fRtEj3omXVka     1   $     575  NEW
+  5NbmLh6KTLvaZmh13cVCSmGBwrUn8KFuGdNgZnxJaWks     1   $     554  NEW
+  CSH8DjG7sC5MEfQDVTCtsQriPXJzAf5MS866hnsca9bw     1   $     422  NEW
+  7kbE2Th6shvHXKhPxCavJ2mN2FmKYM29jkrpGYhXUFMW     1   $     391  NEW
+  DH7UgKyjzWW6Jg1FZDkYTxyjpbyPXaR9DkDqGXyc2sg      1   $     371  NEW
+  Ha8tkzgh1cPpmoCEb79QvjcGjMGpoEjypD1APvZeCd9q     1   $     358  NEW
+  8wtkaYZHocTHnKX1hCdu9Mwt9jCTQn3DPoZjdJSSHyFS     1   $     324  NEW
+  8DNCyg6MgqXW5mqAeCDsjRxULAs4sLAtGBLfEUYWsMxT     1   $     291  NEW
+  popo3Rj6arKNttyUFpWfbkv2gG8uS13TGtmH6JPMuHz      1   $     265  NEW
+  5tJQ3dfsMR5cK9tcqJxtyZQqN5ragQCsWSJ8J64Ef78F     1   $     216  NEW
+  6jxywQRBWmtJNUi1qJPeEyyuv134nZSx4eg4uBLbJZft     1   $     206  NEW
+  BSHdFzWq6BfXpTx49LcCuvF4FVZakEZTibkKgjBcJqLD     1   $     194  NEW
+  DMEE69JMGaS8Qy2YyDKkK4AmHqxHPvMGewy8ZeNEHyD      1   $     193  NEW
+  EQNZFK15a1KVqnjEqjfqqbct7huc8KPKj237qaUWkvHH     1   $     180  NEW
+  FdHEV7sRsHJch6LmnEBtzLtU28zK3Dogb9tbhXLNyyGT     1   $     178  NEW
+  D1cgFRBHk56vb8hH85fN9vtPUaKZtnFMjuNGHEkBxihX     1   $     153  NEW
+  DJocqRPK2uKWvmR5WnWcd7m8fDw6az1L54R4UuH3GrGN     1   $     148  NEW
+  7iVCXQn4u6tiTEfNVqbWSEsRdEi69E9oYsSMiepuECwi     1   $     145  NEW
+  AL96R7MjUomTcza6PBnSiHnSstgwnnsiKyHBhkyozgGA     1   $     145  NEW
+  6C1Uep3J7ttgo2oWBcsGBgPm3iLSEFL9Dgiq7FT5uDjJ     1   $     145  NEW
+  98u1S8NKyKc3EXPdWYNctXdNyWvutoM8QX35vuVXEMGg     1   $     145  NEW
+  HYi3mttQ1Ywa6STTziygzXtb3Cu6BpYE5nBMbGRBbrqa     1   $     144  NEW
+  2TPnNNgHq17sJXms9JLin4EaYugTfqgT8ppXTvbEFF42     1   $     143  NEW
+  45kyjKdw7AmQ8j6pCYk7DTufBL7ghMNa8QPYzG2in3e7     1   $     143  NEW
+  HuBgvxFsxqgpcyBTvV57Yzi8m7ykwRPxuGjC5WoPGAnW     1   $     139  NEW
+  8avtb3GZapmpYWUjXoJYCXfATRBhH8SGQkyDSoqF6CPC     1   $     137  NEW
+  kEFiAX3jo5NmemysQov342TZ9mGh6yp92GDRjhA8XDf      1   $     137  NEW
+  DV6hK2RRqSHmacBvaaWEjDWksPVHZdJ9BFAfHVSxwtKi     1   $     135  NEW
+  DyQ9cpX3zRSHYWckn2eLZwDMUjuiWq2VF8zh2D8My2Gs     1   $     131  NEW
+  3fZftz6m8d37X5pBhnF4rHhgrG5hW8rsCKgdhtuPBf6u     1   $     127  NEW
+  FYX5JQ2kP7TD8gWb9WP1tjmwWWUAzi8edEZTr5Z8F1ck     1   $     127  NEW
+  GJsbHxePFj6htTVMAN76pAKy7VPrWmzyfxGEpTR7ktu      1   $     123  NEW
+  iK7BmyUoFm2GDXfXSi61u94kJXSFyknFnGFQukbF2bb      1   $     121  NEW
+  7wEHL4jTV77kqvenNMXSFuwAoaHf7dggUdcNZfvm3xdY     1   $     119  NEW
+  1eveYYxZ2mDiAnmCh3fnAbJwjgErzokRA1b6UrRybSM      1   $     116  NEW
+  DwJT5deM91nJQK2hugWqQhdMXav4yXaxeX8zsEJ8HQf9     1   $     116  NEW
+  JApBGtbBtsNosE1Z5CiyUkTMhAxATqH1NAuJJenHUceR     1   $     101  NEW
+  J3pyX4pApYh7oPBJJyFmBjPP9XzsGLewjcemELnsU2UN     1   $      98  NEW
+  fGyU4QNAjZTHoouyzXXYWkRK4tDgcb893v3oDuVRYpj      1   $      97  NEW
+  ADBDVjWF6bymcCSRTJVJ1hd7q1DZeiTwDhV8EWFqctMf     1   $      97  NEW
+  CvSaXhksQhVUDf1LFUZXcSggT1d3V3UXvbcRuctzLif2     1   $      96  NEW
+  J1sfMsbxGNXDPMUPXyGs5D6oCEe7fSYgdPMRyVzZuZUW     1   $      94  NEW
+  dmuXAmcXJcdNuK264vsJQNBpVBPAx4JLujBzBMahJ6C      1   $      94  NEW
+  CcMC5E8UZFW8sLoagxtJEFnxjZ4XwM2xGhpF1e79sj9M     1   $      93  NEW
+  BgBzJKMQdYD7jSXDLyZLQe8T6pYFnvDoCZYdhrZskGkJ     1   $      92  NEW
+  GoMVapTMvj3DXRs1kMHcndkPRXduH6u4xtan1hs6G3du     1   $      90  NEW
+  SNrNNUu7pFUsqixLRX154in7q62HSET3kgZCRqQHhsS      1   $      84  NEW
+  BucVKhpwsw3ndnSsS4p5ctLR3JfNPzb5atGv6eHUXvkT     1   $      83  NEW
+  Fgej4SPuW282TdrQRfizRHAeRasNqCtAWZizL3jDqMdS     1   $      72  NEW
+  FQX5En1pWmYpQqLFv2XkrgcbTEz9JsrdrNqbsdsFEFJm     1   $      72  NEW
+  EPoKgNDhpevEtt6JHxGknZtLxoczzQfQCRHqqtChKbMB     1   $      72  NEW
+  2Ju1JhcvpaPDL8r7n7P1hdXM8n8sQGgKsybpUv4S8sEg     1   $      72  NEW
+  t5kkAnVmNE4sSB2KtrsqGKAyNBVyrerK1J5yNkuXH8S      1   $      71  NEW
+
+Wrote 125 candidates to _our_pond_candidates.json
+
+=== recurrence: 4 run(s) -> 6 wallets early across >=2 runs ===
+  AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51  seen in 4 runs
+  1eveYYxZ2mDiAnmCh3fnAbJwjgErzokRA1b6UrRybSM  seen in 3 runs
+  gasTzr94Pmp4Gf8vknQnqxeYxdgwFjbgdJa4msYRpnB  seen in 2 runs
+  iK7BmyUoFm2GDXfXSi61u94kJXSFyknFnGFQukbF2bb  seen in 2 runs
+  2tgUbS9UMoQD6GkDZBiqKYCURnGrSb6ocYwRABrSJUvY  seen in 2 runs
+  7iVCXQn4u6tiTEfNVqbWSEsRdEi69E9oYsSMiepuECwi  seen in 2 runs
+
+NEXT: decode the top (wallet_decode) — these OVERLAP our pond, so unlike the GT catch they're ACTIONABLE. ALSO-GT-CATCH wallets (early in both ponds) decode FIRST.

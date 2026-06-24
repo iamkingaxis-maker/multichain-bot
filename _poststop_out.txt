@@ -1,0 +1,24 @@
+hard-stopped smart_follow positions: 19
+  GO         $    +0 post-stop 12h max   +60.4%  RECOVERED
+  FINDER     $   -48 post-stop 12h max   +59.6%  RECOVERED
+  SENSE      $   -34 post-stop 12h max    +1.2%  kept falling
+  SENSE      $   -52 post-stop 12h max    +0.7%  kept falling
+  FC         $   -41 post-stop 12h max   +66.4%  RECOVERED
+  HORSE      $   -33 post-stop 12h max    +6.5%  bounced
+  BOUNTREE   $   -18 post-stop 12h max   +52.4%  RECOVERED
+  MILLION    $   -16 post-stop 12h max   +28.6%  RECOVERED
+  LOKI       $   -22 post-stop 12h max   +48.1%  RECOVERED
+  LOKI       $   -42 post-stop 12h max   +98.3%  RECOVERED
+  POKERX     $   -24 post-stop 12h max   +35.5%  RECOVERED
+  STEVEN     $   -17 post-stop 12h max   +45.8%  RECOVERED
+  ZOO        $   -25 post-stop 12h max   +20.5%  RECOVERED
+  WERLDKUP   $   -17 post-stop 12h max    +1.1%  kept falling
+  GNUT       $   -17 post-stop 12h max   +32.0%  RECOVERED
+  Gak        $   -16 post-stop 12h max   +33.7%  RECOVERED
+  NICO       $   -29 post-stop 12h max   +64.7%  RECOVERED
+  发财         $   -17 post-stop 12h max    +2.3%  kept falling
+  Tagoh      $   -22 post-stop 12h max   +27.4%  RECOVERED
+
+VERDICT INPUTS — RECOVERED(>15%): 14 | bounced(5-15%): 1 | kept falling: 4 | dead/fail: 0
+If RECOVERED dominates -> grace-period exit fix for smart_follow justified.
+If kept-falling/dead dominates -> stops are RIGHT; exit-horizon fix is TP-side only (let winners run), not stop-side.

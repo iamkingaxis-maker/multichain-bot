@@ -1,0 +1,135 @@
+Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/ef097cfd-6cf9-4df3-bafa-b7ba49eb6b8a/vol_7hl3wybqqqlwwlbz
+Starting Container
+2026-06-11 13:49:09,553 [INFO] ============================================================
+2026-06-11 13:49:09,553 [INFO]   Solana Memecoin Bot v7 — Trader Calibrated
+2026-06-11 13:49:09,553 [INFO] ============================================================
+Warning: BIRDEYE_API_KEY not set — DexScreener only
+Migration complete: 4 records updated, 1905 total
+[sp5_reset] sentinel exists at /data/sp5_reset_done.json for same cutoff — skipping
+[phantom_scrub] sentinel exists at /data/phantom_scrub_done.json — skipping
+[phantom_mark] sentinel exists at /data/phantom_trades_marked.json — skipping
+[daily_repair] sentinel exists at /data/phantom_daily_repair_done.json — skipping
+  Score: 0 | Liquidity: $10,000
+  TP1: +35.0% → sell 50%
+  TP2: +75.0% → sell 40%
+2026-06-11 13:49:21,559 [INFO] [main] MULTI_BOT_ENABLED — loaded 76 bots: ['badday_flush', 'badday_momo', 'baseline_v1', 'champ_conviction', 'champ_reentry_throttle', 'champ_regime_rider', 'champ_runner', 'champ_sniper', 'champ_specialist', 'champ_velocity', 'champ_workhorse', 'champion_defender_2k', 'champion_defender_btc', 'champion_defender_falling_pump', 'champion_defender_fusion', 'champion_defender_v3', 'champion_defender_v4', 'champion_defender_volaccel', 'champion_minimal', 'champion_post_peak', 'champion_premium', 'champion_premium_fresh', 'champion_premium_tightexit', 'champion_proposal', 'champion_whale_buyers', 'compound_winners_only', 'deep_dip_only', 'drawdown_freeze', 'flow_only', 'macro_conditional', 'momentum_grad_probe', 'momentum_shadow', 'no_filters', 'no_sol_gate', 'one_sec_only', 'pond_bb_mtf', 'pond_flow_thin', 'pond_settled_flow', 'pond_settled_flow_solcap', 'pond_settled_flow_thin', 'pond_sweep_deep_thin', 'pond_sweep_flow', 'pond_ugly_mtf', 'pond_ugly_rsi', 'pool_a_broad_control', 'pool_a_broad_trigstate', 'pool_a_bsm5', 'pool_a_candidate', 'pool_a_dipgate', 'pool_a_goodpond', 'pool_a_mcap1m', 'pool_a_mcapgate', 'pool_a_nopullback', 'pool_a_solmacro', 'pool_a_stack', 'pool_a_trigstate', 'pool_c_mcapgate', 'pool_c_post_peak', 'pool_c_tightexit', 'probe_tightexit_live_100', 'probe_tightexit_live_20', 'probe_tightexit_live_50', 'psych_h24_100', 'regime_aware_bullish', 'runner_tilt_aggressive', 'sol_h6_loose', 'stop_8', 'tod_morning', 'tp_runner', 'vol_min_500', 'vol_min_5k', 'wide_stop', 'young_probe_baseflow', 'young_probe_candidate', 'young_probe_light', 'young_probe_stair']
+2026-06-11 13:49:21,560 [INFO] [Config] Effective settings:
+  Capital: $999990 | Daily loss limit: $1000000
+  TP3: +150.0% → sell 100%
+  Stop loss: -25.0% | Winner trail: -15.0%
+  Paper mode: True
+2026-06-11 13:49:21,560 [WARNING] Telegram not configured — alerts disabled
+2026-06-11 13:49:21,922 [INFO] Loaded 1905 historical trades from /data/trades.json
+2026-06-11 13:49:21,924 [INFO] [Tracker] Persistence: 6 paper positions restored from disk — exempt from cancel-on-restart
+2026-06-11 13:49:21,927 [INFO] [KillSwitch] Initialized — monitoring active
+2026-06-11 13:49:21,927 [INFO] [AdaptiveThreshold] Registered solana — starting threshold: 0
+2026-06-11 13:49:21,927 [INFO] [RiskManager] Restored available_capital: $999990 (total: $999990, reclaimed deployed: $212)
+2026-06-11 13:49:22,303 [INFO] [ReentryTracker] Loaded 722 previously-held tokens
+2026-06-11 13:49:22,706 [INFO] [Trader] Restored 6 open positions from disk
+2026-06-11 13:49:22,724 [INFO] [RiskManager] Reconciled with 6 open positions: deployed=$128, available $999990 → $999862
+2026-06-11 13:49:22,724 [INFO] [WalletScorer] Registered 89HbgW...mkDi on solana
+2026-06-11 13:49:22,724 [INFO] [WalletScorer] Registered 4BdKax...EFUk on solana
+2026-06-11 13:49:22,724 [INFO] [WalletScorer] Registered suqh5s...HQfK on solana
+2026-06-11 13:49:22,724 [INFO] [WalletScorer] Registered 2W14ah...uvP3 on solana
+2026-06-11 13:49:22,724 [INFO] [WalletScorer] Registered Eh1E9z...gERk on solana
+2026-06-11 13:49:22,724 [INFO] [WalletScorer] Registered CiPEzM...TBeh on solana
+2026-06-11 13:49:22,724 [INFO] [WalletScorer] Registered 5p2bA4...mWKv on solana
+2026-06-11 13:49:22,724 [INFO] [WalletScorer] Registered Ao3ir1...vL1J on solana
+2026-06-11 13:49:22,725 [INFO] [WalletScorer] Registered 8QPamA...bEB4 on solana
+2026-06-11 13:49:22,725 [INFO] [WalletScorer] Registered CgkXJF...QArh on solana
+2026-06-11 13:49:22,727 [INFO] [Main] Loaded 12 seed wallets from /data/seed_wallets.json
+2026-06-11 13:49:22,727 [INFO] [Main] PositionScalper DISABLED (set SCALPER_ENABLED=true to re-enable)
+2026-06-11 13:49:22,727 [INFO] [Main] MultiSourceScanner disabled (SCANNER_ENABLED=false) — MSS polling loop not started
+2026-06-11 13:49:22,728 [INFO] [SmartFollow] init: 6 wallets | K=3 within 10min | poll 30s | k2_pod=2 solo=1 | elite_exit=on (free RPC, no Helius)
+2026-06-11 13:49:22,735 [INFO] [AxiomAuth] Loaded saved tokens from disk (saved 4 min ago)
+2026-06-11 13:49:22,735 [INFO] [AxiomIntegration] Connected | Scanner: real-time | Axiom scanners: OFF (dip-only mode)
+2026-06-11 13:49:22,735 [INFO] [Main] Graduation sniper disabled (GRADUATION_ENABLED=false)
+2026-06-11 13:49:22,742 [INFO] [DipScanner] DexScreener primary OHLCV enabled (GT fallback)
+2026-06-11 13:49:22,787 [INFO] [DipScanner] Loaded h24 history: 76 tokens, 8347 samples
+2026-06-11 13:49:22,794 [INFO] [DipScanner] Loaded 429 sticky-watchlist tokens
+2026-06-11 13:49:22,794 [INFO] [DipScanner] User watchlist loaded: 12 addresses
+2026-06-11 13:49:22,797 [INFO] [LiquidityFlow] Loaded 453 samples across 41 tokens from /data/lp_flow_history.json
+2026-06-11 13:49:22,803 [INFO] [SmartMoney] Index path resolved to: assets/smart_money_index.json (exists=True, cwd=/app, candidates=['/data/smart_money_index.json', 'assets/smart_money_index.json'])
+2026-06-11 13:49:22,806 [INFO] [DevWallet] Loaded 224 baselines
+2026-06-11 13:49:22,811 [INFO] [DipScanner] restored 1 open positions for baseline_v1 from bot_state
+2026-06-11 13:49:22,814 [INFO] [DipScanner] restored 1 open positions for momentum_shadow from bot_state
+2026-06-11 13:49:22,877 [INFO] [DipScanner] restored 3 open positions for no_filters from bot_state
+2026-06-11 13:49:22,881 [INFO] [DipScanner] Multi-bot wired: 76 evaluators (badday_flush,badday_momo,baseline_v1,champ_conviction,champ_reentry_throttle,champ_regime_rider,champ_runner,champ_sniper,champ_specialist,champ_velocity,champ_workhorse,champion_defender_2k,champion_defender_btc,champion_defender_falling_pump,champion_defender_fusion,champion_defender_v3,champion_defender_v4,champion_defender_volaccel,champion_minimal,champion_post_peak,champion_premium,champion_premium_fresh,champion_premium_tightexit,champion_proposal,champion_whale_buyers,compound_winners_only,deep_dip_only,drawdown_freeze,flow_only,macro_conditional,momentum_grad_probe,momentum_shadow,no_filters,no_sol_gate,one_sec_only,pond_bb_mtf,pond_flow_thin,pond_settled_flow,pond_settled_flow_solcap,pond_settled_flow_thin,pond_sweep_deep_thin,pond_sweep_flow,pond_ugly_mtf,pond_ugly_rsi,pool_a_broad_control,pool_a_broad_trigstate,pool_a_bsm5,pool_a_candidate,pool_a_dipgate,pool_a_goodpond,pool_a_mcap1m,pool_a_mcapgate,pool_a_nopullback,pool_a_solmacro,pool_a_stack,pool_a_trigstate,pool_c_mcapgate,pool_c_post_peak,pool_c_tightexit,probe_tightexit_live_100,probe_tightexit_live_20,probe_tightexit_live_50,psych_h24_100,regime_aware_bullish,runner_tilt_aggressive,sol_h6_loose,stop_8,tod_morning,tp_runner,vol_min_500,vol_min_5k,wide_stop,young_probe_baseflow,young_probe_candidate,young_probe_light,young_probe_stair)
+2026-06-11 13:49:22,881 [INFO] [Main] DipScanner enabled — $20/position, mcap $0M-$50M, max 100 concurrent, min bs_h6=0.90, min turnover=2.0x, min vol_h1_ratio=0.50 (vol_m5_required=True)
+2026-06-11 13:49:22,881 [INFO] [Main] Breakout disabled (BREAKOUT_ENABLED=false)
+2026-06-11 13:49:22,889 [INFO] [PoolFeed] Registered pool CxkrTqNUJLjqMG4c… type=unknown token=xlyhqfsw8ukj…
+2026-06-11 13:49:22,890 [INFO] [UniverseRecorder] thread started (daemon)
+2026-06-11 13:49:22,889 [INFO] [Main] PoolPriceFeed enabled (Helius WS, on-chain vault decode)
+2026-06-11 13:49:22,890 [INFO] All systems go — 21 tasks
+2026-06-11 13:49:22,889 [INFO] [Main] KOL wallet tracker configured (12 wallets, min_score=0)
+2026-06-11 13:49:22,898 [INFO] Data dir: /data/universe_recorder
+2026-06-11 13:49:22,900 [INFO] [PositionManager/Solana] Started
+2026-06-11 13:49:22,889 [INFO] [TELEGRAM DISABLED] Solana Bot v7 Started
+  DIP TP1: +5.0% → sell 33%
+
+Active strategy: dip_buy (real-dip-3 entry filter)
+  TP1: +5% → sell 33% of o
+  DIP TP2: +10.0% → sell 50% remaining
+  DIP Stop: -15.0% hard | trail after TP1: 3.0% from peak
+  SCALP TP1: +10.0% sell 50% | TP2: +15.0% sell 35%
+  SCALP Stop: -6.0% | max-hold: 45.0min
+  MC TP1: +25.0% → sell 100%
+  MC Stop: -25.0%
+  Standard (legacy fallback) TP1/TP2/TP3: +35.0/+75.0/+150.0% — applies to non-dip/non-scalp/non-MC only
+2026-06-11 13:49:22,908 [INFO] Loaded 89 pending events
+2026-06-11 13:49:22,910 [INFO] [PEAK_RECORDER] Reloaded in-flight state for 18 position(s) from _active_state.json
+2026-06-11 13:49:22,910 [INFO] [PEAK_RECORDER] init WORLDCUP entry=$0.00684700
+2026-06-11 13:49:22,910 [INFO] [PEAK_RECORDER] init DragonWorm entry=$0.00218620
+2026-06-11 13:49:22,910 [INFO] [PEAK_RECORDER] init meowl entry=$0.00016840
+2026-06-11 13:49:22,910 [INFO] [PEAK_RECORDER] init GABLE entry=$0.00006160
+2026-06-11 13:49:22,910 [INFO] [PEAK_RECORDER] init elonbucks entry=$0.00002672
+2026-06-11 13:49:22,910 [INFO] [PEAK_RECORDER] init peg entry=$0.00005832
+2026-06-11 13:49:22,911 [INFO] [RTSignal/Solana] Real-time signal layer started
+2026-06-11 13:49:22,911 [INFO] [RTSignal/Tick] Pattern detector started
+2026-06-11 13:49:22,985 [INFO] Loaded 53157 seen-event keys
+2026-06-11 13:49:22,986 [INFO] [Cycle 1] Refreshing universe...
+2026-06-11 13:49:36,133 [INFO] [Dashboard] Web dashboard running at http://0.0.0.0:8080
+2026-06-11 13:49:36,212 [INFO] [AxiomPriceFeed] Worker proxy connected — no tokens yet, will subscribe as positions open
+2026-06-11 13:49:36,069 [INFO] [RollingNG] nightly retrain: {'trained': True, 'n': 3409, 'ng_rate': 0.466, 'n_feats': 338, 'threshold': 0.851}
+2026-06-11 13:49:36,070 [INFO] [CrossWalletConvergence] Started | Monitoring 12 wallets | Min 2 for signal | Window: 15min
+2026-06-11 13:49:36,070 [INFO] [WalletClustering] Started | Looking for wallets early on 5.0x+ tokens | Rescan every 4h
+2026-06-11 13:49:36,070 [INFO] [CapitulationReversal] Started | Min drop: 60.0% | Min quality: 65
+2026-06-11 13:49:36,070 [INFO] [SmartFollow] starting run loop
+2026-06-11 13:49:36,071 [INFO] [WalletDiscovery] starting: every 60min, log -> /data/wallet_discovery_log.json
+2026-06-11 13:49:36,071 [INFO] [AxiomPriceFeed] Starting real-time price feed (socket8.axiom.trade)
+2026-06-11 13:49:36,071 [INFO] [AxiomPriceFeed] Connecting via Cloudflare Worker proxy (socket8)
+2026-06-11 13:49:36,123 [INFO] [RpcPriceFeed] Starting (Solana RPC + Jupiter Price API)
+2026-06-11 13:49:36,121 [INFO] [DipScanner] Starting — targeting $1M+ mcap dip entries
+2026-06-11 13:49:36,123 [INFO] [PoolFeed] Starting Solana pool price feed (on-chain reserve decode)…
+2026-06-11 13:49:36,124 [INFO] [PriceFeed] Starting real-time price feed...
+2026-06-11 13:49:36,124 [INFO] [MarketMonitor] Started — watching BTC 24h change
+2026-06-11 13:49:36,392 [INFO] [DipScanner] Sticky-watchlist pruned: 429 -> 400
+2026-06-11 13:49:36,392 [INFO] [DipScanner] Sticky-watchlist re-seeded 364 tokens
+2026-06-11 13:49:36,355 [INFO] [SmartFollow] WS watch: subscribing 6 wallets
+2026-06-11 13:49:36,364 [INFO] [AxiomDiscovery] Worker proxy: 38 raw / 38 normalized
+2026-06-11 13:49:36,390 [INFO] [AxiomDiscovery] Worker proxy: 38 raw / 38 normalized
+2026-06-11 13:49:36,391 [INFO] [DipScanner] Axiom feeds: top=38 + trending=38 = 76 pairs
+2026-06-11 13:49:36,213 [INFO] [AxiomDiscovery] direct https://api2.axiom.trade returned HTTP 404
+2026-06-11 13:49:36,234 [INFO] [AxiomDiscovery] direct https://api3.axiom.trade returned HTTP 404
+2026-06-11 13:49:36,286 [INFO] [AxiomDiscovery] direct https://api4.axiom.trade failed: Cannot connect to host api4.axiom.trade:443 ssl:default [No address associated with hostname]
+2026-06-11 13:49:36,287 [INFO] [AxiomDiscovery] direct all failed (last=404) — trying Worker proxy
+2026-06-11 13:49:36,296 [INFO] [PositionManager/Solana] 📊 Baseline set: WORLDCUP $97,085/hr — stall threshold: 20% ($19,417/hr)
+2026-06-11 13:49:36,302 [INFO] [PositionManager/Solana] 📊 Baseline set: DragonWorm $582,022/hr — stall threshold: 15% ($87,303/hr)
+2026-06-11 13:49:36,352 [INFO] [PoolFeed] Connected to Helius WebSocket
+2026-06-11 13:49:36,716 [INFO] [PositionManager/Solana] 📊 Baseline set: meowl $35/hr — stall threshold: 30% ($10/hr)
+2026-06-11 13:49:36,851 [INFO] [PositionManager/Solana] 📊 Baseline set: GABLE $880/hr — stall threshold: 30% ($264/hr)
+2026-06-11 13:49:37,153 [WARNING] [PositionManager/Solana] ⚠️  Price spike rejected (1/3, awaiting confirmation): peg 0.00005832 → 0.00008614 (+47.7% single tick) — likely corrupted feed data
+2026-06-11 13:49:37,019 [INFO] [PositionManager/Solana] 📊 Baseline set: elonbucks $3,449/hr — stall threshold: 30% ($1,035/hr)
+2026-06-11 13:49:38,236 [INFO] [DipScanner] SOL macro via Kraken fallback: h1=0.66 h6=1.033
+2026-06-11 13:49:38,113 [INFO] [DipScanner] User watchlist: ADD 43rumko4ktnekqjgsbm4ntsnl2da8kf2mopf12eepump (auto)
+2026-06-11 13:49:38,113 [INFO] [DipScanner] watchlist autoadd: added 1 fresh live movers (age<=24h, liq>=40000, vol>=75000, pc_h1>=8): ['43rumko4ktnekqjgsbm4ntsnl2da8kf2mopf12eepump']
+2026-06-11 13:49:38,178 [INFO] [GeckoOHLCV] 83v8iPyZihDE: HTTP 429
+2026-06-11 13:49:38,195 [INFO] [GeckoOHLCV] 83v8iPyZihDE: HTTP 429
+2026-06-11 13:49:38,986 [INFO] [DipScanner] Signal: Jotchua mcap=$3.3M | 24h=-49.4% 1h=-3.1% 5m=-0.6% vol24h=$2845k bs_h6=1.38 bs_h1=1.22 bs_m5=1.31
+2026-06-11 13:49:39,826 [WARNING] [DipScanner] OBSERVATIONAL: Jotchua cycles_seen=349 (>=60 historically -EV; not blocking)
+2026-06-11 13:49:39,826 [INFO] [DipScanner] filter_peak_floor SHADOW would-block: Jotchua peak_h24_6h=-21.0% < +5%
+2026-06-11 13:49:39,826 [INFO] [DipScanner] FILTER_1M_SHADOW: Jotchua 1m_cum3=0.243 1m_vol_spike=0.004 verdict=BLOCK reasons=1m_vol_spike=0.00<0.40
+2026-06-11 13:49:39,827 [INFO] [DipScanner] FILTER_1M_DEAD_VOL_SHADOW: Jotchua reasons=1m_vol_spike=0.004<0.20 (dead 1m volume) -- shadow only
+2026-06-11 13:49:39,827 [INFO] [DipScanner] BLOCKED by filter_dead_vol_with_cnn_carveout: Jotchua reasons=1m_vol_spike=0.004<=0.115 AND cnn_outcome_prob=None < 0.265 (dead-vol AND no cnn rescue)
+2026-06-11 13:49:39,869 [INFO] [DipScanner] CHART_READER: Jotchua score=43.5 verdict=neutral mtf=strong_bear sr_5m_supp=False pattern_5m=None
+2026-06-11 13:49:41,598 [INFO] [ChartCNN] loaded weights from /app/models/chart_cnn_v1.pt

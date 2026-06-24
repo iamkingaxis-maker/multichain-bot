@@ -1,0 +1,35 @@
+
+reconstructed 41/41 entries -> _8zkg_entry_feats.json
+
+=== 8zkg ENTRY-STATE: WINNERS vs LOSERS  (realized) ===
+reconstructed WR = 25/41 = 61%
+
+--- WINNERS  (n=25) ---
+  dip_90m %      p25=-25.2  median=-16.0  p75=-9.1
+  age_h          p25=10.6  median=38.3  p75=77.7
+  liq $          p25=9,820  median=16,352  p75=29,831
+  fdv/mcap $     p25=16,864  median=50,476  p75=126,135
+  pc_h1 %        p25=-9.3  median=17.9  p75=30.4
+  ret %          p25=5.8  median=20.1  p75=53.9
+
+--- LOSERS  (n=16) ---
+  dip_90m %      p25=-32.8  median=-8.2  p75=-4.0
+  age_h          p25=11.1  median=18.9  p75=56.7
+  liq $          p25=6,882  median=11,612  p75=31,487
+  fdv/mcap $     p25=8,696  median=25,076  p75=165,869
+  pc_h1 %        p25=-6.8  median=27.9  p75=56.0
+  ret %          p25=-13.3  median=-7.1  p75=-1.1
+
+=== SEPARATORS (winner median vs loser median) ===
+  dip off 90m high   WIN=-16.0%  LOSE=-8.2%
+  age (h)            WIN=38.3h  LOSE=18.9h
+  liquidity $        WIN=16,352  LOSE=11,612
+  mcap $             WIN=50,476  LOSE=25,076
+  pc_h1 momentum     WIN=+17.9%  LOSE=+27.9%
+
+=== vs OUR CURRENT GATES (dip<=-16, age>=24h, mcap 500k-10M, liq>=25k) ===
+  0/41 of its entries pass ALL our gates (WR among passed = 0/0)
+    dip<=-16    : 17/41 pass individually
+    age>=24h    : 21/41 pass individually
+    liq>=25k    : 16/41 pass individually
+    mcap-band  : 1/41 pass individually

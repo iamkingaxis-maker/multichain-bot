@@ -1,0 +1,74 @@
+runners (peak>=25%): 30
+runners: 30
+  $USAPY     peak=490% buys=0 window=1
+  $WCUP      peak=467% buys=0 window=1
+  SPCX       peak=349% buys=0 window=1
+  IPOOR      peak=328% buys=3 window=1
+  GUILTY     peak=326% buys=0 window=1
+  $TSOC      peak=298% buys=42 window=16
+  WORLDKINS  peak=297% buys=5 window=2
+  trelon     peak=293% buys=30 window=12
+  IF         peak=249% buys=12 window=4
+  ICPX       peak=240% buys=12 window=4
+  B4GTA6     peak=220% buys=24 window=9
+  $TRUJAN    peak=213% buys=0 window=1
+  Merlin     peak=197% buys=18 window=7
+  HAPPY      peak=196% buys=12 window=4
+  Fable      peak=173% buys=18 window=7
+  GTA6       peak=138% buys=4 window=1
+  47Coin     peak=138% buys=6 window=2
+  Gaejuki    peak=133% buys=8 window=3
+  ISPCX      peak=129% buys=4 window=1
+  Trillionai peak=128% buys=17 window=6
+  Trilly     peak=126% buys=18 window=7
+  SPCX       peak=125% buys=12 window=4
+  MMB        peak=124% buys=6 window=2
+  SPCX       peak=121% buys=0 window=1
+  WINDOWS7PC peak=121% buys=3 window=1
+  ZUL        peak=118% buys=31 window=12
+  Arie       peak=116% buys=11 window=4
+  SUN        peak=101% buys=1 window=1
+  SOCCER     peak=99% buys=16 window=6
+  CUMROCKET  peak=95% buys=7 window=2
+buyers (>=1 runner): 90
+
+=== DRAWDOWN WINNERS (net-positive, >=3 closed trips) ===
+wallet                                         hits trips   WR   netSOL
+DznHqBUWQR1uVJxKkY1cgZuu2C1qzisU7qGSutGyte1a      1     5  60%  +53.140  <-- WINNER
+DU25XyVifBP3bTetkK124cZ2iXcxvXw7dpZrgzKoVJvW      1    14  64%  +17.702  <-- WINNER
+KGqhAC8HJrSbRfTxLC3dBKr8S6jD5otHWXcqkN8LF9z       1    22  36%  +15.826  <-- WINNER
+3GDfzrjrV3cvZE1g71mvV6ipfNTR1qrHQsC3tDWLr81i      1    12  33%  +13.389  <-- WINNER
+ArWirdsAEcB9etH4RoAkp4Khx8PiXryEm44A8RBqv7Kr      1     6  67%  +11.322  <-- WINNER
+8G2mgkgEjs59CoKzh4Veeia2V2HiBZfwEWKzyPzuxtFA      1     9  33%  +10.295  <-- WINNER
+Gj8DM8DLBXvQ6x1DdALbCHWSrtybwtNQtVJ7XuPPCgU5      1    17  35%   +6.457  <-- WINNER
+B1zhrWqDoJdZ9paihqcLN3UY1LzXxxch1zLBzgoaQnKz      1    23  57%   +5.423  <-- WINNER
+jStURX8S5RX8iVvV9ajQ2nkSdzakc4hFpn7RFY6fMYz       1    12  58%   +5.334  <-- WINNER
+DaxfeJKeVyinftwWSV47p8EgiExYBDquRRUCxki3FrEz      2    16  56%   +4.384  <-- WINNER
+7d54PtGUtqVPZoF3qzGHRFUQQstrHyCdm4uwwrhDSHLW      1     6  83%   +3.809  <-- WINNER
+6SckxkNGVq8345g14FJLvDiQz6cMnQfJPzMB4sKLYPjq      1    12  42%   +2.913  <-- WINNER
+DzuQjKaRLsuQgrxbUJKq3wzoeVYfg3Cn9QcJQzq8vyzX      1     6  33%   +2.653  <-- WINNER
+9LUH6U5x33wmYnZs4JjjJuUwYbeLRNTYxmmNScVR5fBL      2     7  57%   +1.529  <-- WINNER
+Zsp75pPCt115MgZZwAgmKyDq8vZ94cjBNnLPhwJespQ       1    20  60%   +1.377  <-- WINNER
+7c82ZFFQThHprwYNsB9Lc1zz2EpCD2uiQ8g4iK1uiHo3      1    24  29%   +1.163  <-- WINNER
+5rcLpUN6TsrGTtnkcvGVnP1ikwz3kUCaCppUAScYeiyi      1     5  40%   +1.135  <-- WINNER
+C3zPgDxqJYN4Gf9RotKuHTbBMfpKEsAFSY7hSbFWdSdQ      1    18  83%   +1.132  <-- WINNER
+G1cnfANoMiT8D25jcascmUwyWXJuaW4o5DFny25GFZ6w      1    10  50%   +0.885  <-- WINNER
+4mAW6RMGQjCKddRQ6ZZnSU59RA7WJJxS9XZKVVuVeEGy      1    13  54%   +0.254  <-- WINNER
+J8SJGXTSe9Z7QGx6hJT3w43rS5Q2NpVNY6NDXtMHtDW5      1    13  31%   -0.309
+AVo9cY46ghXsrHV46CCHBb8v3fbSc4Xmw3AeGF45j4TQ      1     5  20%   -0.367
+DRn2pwnECe43U1XabspUakDkTjaWPVPCZaQEnusZDhDp      1     9  22%   -1.565
+2ef9Z4xtLFQUtgy8Lkh5FPVYgxhj6MRN9okChsrSxSbm      1    19  47%   -2.727
+8eqzyKJsqjXHiiGAeVUQA3v4pk9TJtZywrs7q9urhnTJ      1     5  60%   -4.871
+8zkgFGVZrDLieViwqiXFCydSX6WL5hsxmUu55yBdsNsZ      1    26  58%   -5.037
+23JbhfJbQaaGnpwoRSP1BuUima6yqfSXRsd7R6nZip3C      1     9  22%   -5.286
+9UJVg9VoWY52yrVMbtcSACH3vMefaYrMNHJtUf4rAHry      1    22  14%   -6.594
+Esz85bQdB7Zdq5CmmiAd9H4wXNVqgZikyNCxStaWi6sF      1    12  17%   -7.737
+96x8akBzyvf1UbrJ3rg3tcCZRsCz3vhSa7Ry1ykhiqcL      2    17  29%   -9.006
+kdKr3pXbMCJZYd2Arj1h9cMURH6HcbzPJnqpULoskRm       1    14  21%  -14.827
+4gQog9qtUGeE5ypwFvrdLVrns6yV7K1bpVXWXCbQYH2B      1    13   8%  -16.400
+DEL4gyJLSCVExcXZjXPPGZgzxRcR4RajFgw8AXWvxAco      1    23  30%  -20.060
+EwULEMHShrMhpfKzGF8Tff3zdYFzxdh73DMFPeQpNcDY      1     8  38%  -35.830
+2Ju1JhcvpaPDL8r7n7P1hdXM8n8sQGgKsybpUv4S8sEg      1     7  29%  -38.713
+9sa6qnyPpi3N7LT9cQQk1BNZojB5ZXLJT48WRpqKvRCe      1    16  56%  -38.788
+
+20 net-positive winners of 36 validated

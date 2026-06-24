@@ -1,0 +1,108 @@
+Dw5Vykxu trade map (118 tokens):
+  buy 06-12 08:23 x1 (0.52 SOL) -> sell 06-12 11:16 x1 hold=  173min ret=+23.6%  6JfonM6a24
+  buy 06-12 08:23 x1 (0.52 SOL) -> sell 06-12 12:23 x1 hold=  240min ret=-22.3%  Fp9j2CieSJ
+  buy 06-12 08:24 x1 (0.52 SOL) -> sell 06-12 12:24 x1 hold=  240min ret=-10.0%  BXkxVcDj5f
+  buy 06-12 08:29 x1 (0.52 SOL) -> sell 06-12 12:29 x1 hold=  240min ret=-2.9%  9C9WrDWEe7
+  buy 06-12 08:46 x1 (0.52 SOL) -> sell 06-12 12:46 x1 hold=  240min ret=-21.3%  FpBhnZLzHj
+  buy 06-12 08:47 x1 (0.52 SOL) -> sell 06-12 12:47 x1 hold=  240min ret=-2.9%  C3DwDjT17g
+  buy 06-12 08:52 x1 (0.52 SOL) -> sell 06-12 12:52 x1 hold=  240min ret=-27.0%  CvPrreLgpZ
+  buy 06-12 09:07 x1 (0.52 SOL) -> sell 06-12 13:07 x1 hold=  240min ret=-12.6%  EVg8pTACjr
+  buy 06-12 09:12 x1 (0.52 SOL) -> sell 06-12 10:41 x1 hold=   89min ret=+25.8%  wa2zbE9EFH
+  buy 06-12 09:13 x1 (0.52 SOL) -> sell 06-12 13:13 x1 hold=  240min ret=-2.7%  NV2RYH954c
+  buy 06-12 09:14 x1 (0.52 SOL) -> sell 06-12 13:14 x1 hold=  240min ret=-1.3%  71vDdeajwp
+  buy 06-12 09:20 x1 (0.52 SOL) -> sell 06-12 13:20 x1 hold=  240min ret=+3.8%  8AdsF2QXFA
+  buy 06-12 09:45 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  6hKtz8FV7c
+  buy 06-12 09:57 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  hyTr7ZCeW3
+  buy 06-12 10:07 x1 (0.52 SOL) -> sell 06-12 13:35 x1 hold=  208min ret=+34.5%  Fdoj7yRbbp
+  buy 06-12 10:08 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  HcrWkcgVMu
+  buy 06-12 10:16 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  BWXSNRBKMv
+  buy 06-12 10:25 x1 (0.52 SOL) -> sell 06-12 11:28 x1 hold=   62min ret=+33.5%  2APfuDUoCz
+  buy 06-12 10:26 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  HtTYHz1Kf3
+  buy 06-12 10:27 x1 (0.52 SOL) -> sell 06-12 12:53 x1 hold=  145min ret=+65.2%  2J1M9QbcjR
+  buy 06-12 10:27 x1 (0.52 SOL) -> sell 06-12 11:12 x1 hold=   44min ret=+20.4%  4Ao18zkndF
+  buy 06-12 10:27 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  Jambjx1oJo
+  buy 06-12 10:37 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  2JXnRgA9fL
+  buy 06-12 10:45 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  6DEvB7wEj1
+  buy 06-12 10:45 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  E6ifp2mJy8
+  buy 06-12 10:45 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  GDfnEsia2W
+  buy 06-12 10:48 x1 (0.52 SOL) -> sell 06-12 11:30 x1 hold=   42min ret=+23.0%  FrKzkPQMGN
+  buy 06-12 10:49 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  5wxVBRmjaR
+  buy 06-12 11:02 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  7QXDpKoeEe
+  buy 06-12 11:19 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  4AjvPXMn8Y
+  buy 06-12 11:25 x1 (0.52 SOL) -> sell 06-12 12:00 x1 hold=   35min ret=+26.5%  bS532krUcX
+  buy 06-12 11:28 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  Xx9x8PEiv5
+  buy 06-12 11:29 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  CW5sVPgJKh
+  buy 06-12 11:47 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  C4AYNMP4Ho
+  buy 06-12 12:01 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  GFjDh5ULNa
+  buy 06-12 12:07 x1 (0.52 SOL) -> sell 06-12 09:10 x1 hold= -177min ret=+9.5%  Cntmo5DJNQ
+  buy 06-12 12:08 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  4fSWEw2wbY
+  buy 06-12 12:12 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  BFBwDbNpf5
+  buy 06-12 12:38 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  8uucgKcBNb
+  buy 06-12 12:51 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  4rWuWZei2i
+  buy 06-12 12:51 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  CFkd4S4iQE
+  buy 06-12 13:00 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  3pnmkpukqZ
+  buy 06-12 13:00 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  7KiuQ3bcsm
+  buy 06-12 13:06 x1 (0.52 SOL) -> sell 06-12 13:42 x2 hold=   35min ret=+124.0%  5pMLECdhSe
+  buy 06-12 13:11 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  EWiVNxCqNa
+  buy 06-12 13:20 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  7LNfxxMAu5
+  buy 06-12 13:22 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  72FkeF1cpB
+  buy 06-12 13:36 x1 (0.52 SOL) -> sell 06-12 13:37 x1 hold=    1min ret=+24.7%  8AmBdpNmhT
+  buy 06-12 13:39 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  DFjCdahW6n
+  buy 06-12 13:40 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  2akXpuyFXA
+  buy 06-12 13:40 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  F5tfztTnE4
+  buy 06-12 13:42 x1 (0.52 SOL) -> sell -- x0 hold=    OPEN ret=--  jk1T35eWK4
+
+ENTRY-STATE join (nearest recorder event before its buy):
+time          pc_h1  age_h     mcap     liq our scanner saw? we traded?
+06-12 08:23      --     --       --      --               NO         no
+06-12 08:23      --     --       --      --               NO         no
+06-12 08:24      --     --       --      --               NO         no
+06-12 08:29      --     --       --      --               NO         no
+06-12 08:46  -11.69  796.0   622670   74329              yes        yes
+06-12 08:47      --     --       --      --               NO         no
+06-12 08:52    -9.1   70.6   587623   82709              yes        yes
+06-12 09:07      --     --       --      --               NO         no
+06-12 09:12      --     --       --      --               NO        yes
+06-12 09:13      --     --       --      --              yes        yes
+06-12 09:14      --     --       --      --               NO         no
+06-12 09:20      --     --       --      --               NO         no
+06-12 09:45      --     --       --      --               NO         no
+06-12 09:57  -17.18    3.1    87262   21191              yes         no
+06-12 10:07      --     --       --      --               NO         no
+06-12 10:08      --     --       --      --               NO         no
+06-12 10:16      --     --       --      --               NO         no
+06-12 10:25      --     --       --      --               NO         no
+06-12 10:26      --     --       --      --               NO        yes
+06-12 10:27      --     --       --      --               NO         no
+06-12 10:27      --     --       --      --               NO         no
+06-12 10:27      --     --       --      --               NO         no
+06-12 10:37      --     --       --      --               NO         no
+06-12 10:45   -2.97  198.6   141988   29233              yes        yes
+06-12 10:45   -9.88 1720.8  4818526  258259              yes        yes
+06-12 10:45      --     --       --      --               NO         no
+06-12 10:48      --     --       --      --               NO        yes
+06-12 10:49      --     --       --      --               NO        yes
+06-12 11:02      --     --       --      --               NO        yes
+06-12 11:19      --     --       --      --               NO        yes
+06-12 11:25   -1.83   10.6   131497   34813              yes        yes
+06-12 11:28      --     --       --      --               NO         no
+06-12 11:29      --     --       --      --               NO        yes
+06-12 11:47      --     --       --      --               NO        yes
+06-12 12:01      --     --       --      --               NO        yes
+06-12 12:07      --     --       --      --               NO         no
+06-12 12:08      --     --       --      --               NO        yes
+06-12 12:12      --     --       --      --               NO         no
+06-12 12:38   -5.34   34.8   126166   26393              yes        yes
+06-12 12:51      --     --       --      --               NO        yes
+06-12 12:51      --     --       --      --               NO         no
+06-12 13:00      --     --       --      --               NO         no
+06-12 13:00      --     --       --      --               NO         no
+06-12 13:06  -10.45   52.4   127177   24899              yes        yes
+06-12 13:11      --     --       --      --               NO         no
+06-12 13:20   -0.41    2.6   126984   25332              yes        yes
+06-12 13:22      --     --       --      --               NO        yes
+06-12 13:36      --     --       --      --               NO         no
+06-12 13:39      --     --       --      --               NO         no
+06-12 13:40      --     --       --      --               NO         no
+06-12 13:40      --     --       --      --               NO        yes
+06-12 13:42      --     --       --      --               NO         no

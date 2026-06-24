@@ -1,0 +1,44 @@
+wallet         src       swap ndist  top% rtrip   rWR   netSOL dSell  CLASS
+--------------------------------------------------------------------------------------------
+  3cNyJZvEfmju candidate   58     1  100%     1  100%   +15.52     1  MM_CHURN
+  3oXVfvMryXsB candidate   59     1  100%     1    0%    -0.59     1  MM_CHURN
+  3ruK6B4izjuW candidate   54     1  100%     1    0%    -1.83     1  MM_CHURN
+  5kKuo5c1KHBr candidate   56     1  100%     1    0%    -0.47     1  MM_CHURN
+  5nMKetqf2BKH candidate   55     1  100%     1  100%   +17.11     1  MM_CHURN
+  6rdcPw77hZZZ candidate   55     1  100%     1    0%   -15.68     1  MM_CHURN
+  6yxRpBGev7Ad candidate   57     1  100%     1    0%   -17.62     1  MM_CHURN
+  8gLQPr9Z8YQJ candidate   56     1  100%     1  100%    +3.42     1  MM_CHURN
+  A3Neyg5y9ofQ candidate   56     1  100%     1  100%   +17.32     1  MM_CHURN
+  B9FkyTVkh7jk candidate   60     1  100%     1  100%    +0.12     1  MM_CHURN
+  BkeoETwZP9f6 candidate   60     1  100%     1  100%    +0.99     1  MM_CHURN
+  CnE2KrHA8oCp candidate   58     1  100%     1  100%    +4.89     1  MM_CHURN
+  DCEJbBbCiccp candidate   59     1  100%     1    0%   -15.46     1  MM_CHURN
+  DtnhtT7SLCLi candidate   57     1  100%     1    0%   -18.78     1  MM_CHURN
+  GhEptaaKExdF candidate   59     1  100%     1    0%   -13.78     1  MM_CHURN
+  HGzEyTcfPy7J candidate   58     1  100%     1  100%    +9.52     1  MM_CHURN
+  Hyy45BWzZM1B candidate   53     1  100%     1    0%   -17.29     1  MM_CHURN
+  NYxMnTK32Kes candidate   58     1  100%     1    0%    -8.56     1  MM_CHURN
+
+=== SELECTORS (follow-worthy): 0 | MM_CHURN (reject): 18 | WEAK: 0 ===
+
+SELECTORS ranked:
+
+MM_CHURN (correctly rejected — single/few-token churn):
+  3cNyJZvEfmjuqoN5EvCCjkpFDwsntLvAh9gtU5Vx2ykC  [candidate] ndist=1 top%=100
+  3oXVfvMryXsBUBwKqJZNWnKh7mXBEVMHPfpPKWjcAUz4  [candidate] ndist=1 top%=100
+  3ruK6B4izjuWpPvYEhna8C8p4o6Js7udeBQJHBKNkhmb  [candidate] ndist=1 top%=100
+  5kKuo5c1KHBrh28nyZZmzamcmYmz1zcHwUQ98kKpzZGr  [candidate] ndist=1 top%=100
+  5nMKetqf2BKH3sg57tLFBN4opxm2StAvrwnnZ7TbZzLi  [candidate] ndist=1 top%=100
+  6rdcPw77hZZZMVWMkE8UKEbMZU9jw5EbJGVDcK7DXKLg  [candidate] ndist=1 top%=100
+  6yxRpBGev7Adf5WRsbw1MgkG2TBBJYkuhQAHdE126RTT  [candidate] ndist=1 top%=100
+  8gLQPr9Z8YQJarJuvpPWwzc7SXMjrq6zfwqLS191c3Q3  [candidate] ndist=1 top%=100
+  A3Neyg5y9ofQiBohsY3Rq7t9oT8tgbEErLQsre787EwK  [candidate] ndist=1 top%=100
+  B9FkyTVkh7jkiyhS29tjocxw7obbGZ4ssPNbsn46VSxw  [candidate] ndist=1 top%=100
+  BkeoETwZP9f6azzMjhaBHsGwmwApQk8cXZydZ3zxMtcv  [candidate] ndist=1 top%=100
+  CnE2KrHA8oCppYeTQ94cGwicistuj7DHbLaNhuXBdTWj  [candidate] ndist=1 top%=100
+  DCEJbBbCiccpYhDu7jxE5V61mKcMhDxtPzgyTMmoNLL2  [candidate] ndist=1 top%=100
+  DtnhtT7SLCLiWsa658YuwraE9v5UQHZUD3yNjWzsLArD  [candidate] ndist=1 top%=100
+  GhEptaaKExdFoN7mpyizoNkEAZL9qVhcDnm1FQy48uWZ  [candidate] ndist=1 top%=100
+  HGzEyTcfPy7JHdSLSZ5PMo87Xbc92sp5TjodJZotWvsb  [candidate] ndist=1 top%=100
+  Hyy45BWzZM1B51UcEyBRLYUyFdJbqojNEyMW4gXYbpTp  [candidate] ndist=1 top%=100
+  NYxMnTK32KesJWgvTjHuKzUPBTSr9RcCaTvrVpFPCwu  [candidate] ndist=1 top%=100

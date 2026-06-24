@@ -1,0 +1,874 @@
+=== recur run 1 @ 21:46UTC ===
+=== Phase 1: find recent Solana runners (GeckoTerminal) ===
+  GT works/solana/trending_pools?page=1: cum 20
+  GT works/solana/trending_pools?page=2: cum 40
+  GT works/solana/trending_pools?page=3: cum 60
+  GT ls?sort=h24_volume_usd_desc&page=1: cum 80
+  GT ls?sort=h24_volume_usd_desc&page=2: cum 100
+  GT ls?sort=h24_volume_usd_desc&page=3: cum 120
+  GT ls?sort=h24_volume_usd_desc&page=4: cum 140
+  GT ls?sort=h24_volume_usd_desc&page=5: cum 160
+  GT ls?sort=h24_volume_usd_desc&page=6: cum 180
+  GT ls?sort=h24_volume_usd_desc&page=7: cum 199
+  GT ls?sort=h24_volume_usd_desc&page=8: cum 219
+  GT ls?sort=h24_volume_usd_desc&page=9: cum 239
+  GT s?sort=h24_volume_usd_desc&page=10: cum 259
+  GT FAIL sort=h6_volume_usd_desc&page=1
+  GT FAIL sort=h6_volume_usd_desc&page=2
+  GT FAIL sort=h6_volume_usd_desc&page=3
+  GT FAIL sort=h6_volume_usd_desc&page=4
+  GT FAIL sort=h6_volume_usd_desc&page=5
+
+=== Phase 2: harvest early buy-makers from 36 runner trade logs ===
+  [1/36] 6Kvj2fScpPQtvcxNoP h6=+16255% trades=100 early_buyers=16
+  [2/36] SPCX / SOL         h6=+1749% trades=99 early_buyers=15
+  [3/36] XEF / SOL          h6=+891% trades=99 early_buyers=17
+  [4/36] BARRON / SOL       h6=+829% trades=99 early_buyers=16
+  [5/36] XP / SOL           h6=+804% trades=100 early_buyers=9
+  [6/36] SEa / SOL          h6=+594% trades=99 early_buyers=16
+  [7/36] RoboFly / SOL      h6=+584% trades=99 early_buyers=17
+  [8/36] ISPCX / SOL        h6=+488% trades=100 early_buyers=17
+  [9/36] UATF / SOL         h6=+439% trades=99 early_buyers=10
+  [10/36] 世界杯 / SOL          h6=+427% trades=100 early_buyers=17
+  [11/36] Cointara / SOL     h6=+364% trades=100 early_buyers=8
+  [12/36] WORLDCUP / SOL     h6=+341% trades=99 early_buyers=16
+  [13/36] ISOR / SOL         h6=+313% trades=99 early_buyers=17
+  [14/36] USWR / SOL         h6=+297% trades=100 early_buyers=17
+  [15/36] 世界杯 / SOL          h6=+286% trades=100 early_buyers=17
+  [16/36] UATF / SOL         h6=+249% trades=100 early_buyers=17
+  [17/36] WCUP / SOL         h6=+198% trades=100 early_buyers=14
+  [18/36] USWR / SOL         h6=+182% trades=100 early_buyers=17
+  [19/36] SPCX / SOL         h6=+174% trades=100 early_buyers=16
+  [20/36] UFCF250 / SOL      h6=+166% trades=99 early_buyers=17
+  [21/36] KINS / SOL         h6=+165% trades=100 early_buyers=15
+  [22/36] XP / SOL           h6=+159% trades=99 early_buyers=17
+  [23/36] XP / SOL           h6=+157% trades=100 early_buyers=14
+  [24/36] 80TRUMP / SOL      h6=+156% trades=99 early_buyers=17
+  [25/36] FIGHTHOUSE / SOL   h6=+147% trades=99 early_buyers=15
+  [26/36] IRAN / SOL         h6=+137% trades=100 early_buyers=15
+  [27/36] UFC250 / SOL       h6=+128% trades=99 early_buyers=17
+  [28/36] Obuma / SOL        h6=+120% trades=99 early_buyers=17
+  [29/36] FIGHTHOUSE / SOL   h6=+108% trades=99 early_buyers=16
+  [30/36] FIGHTHOUSE / SOL   h6=+96% trades=100 early_buyers=12
+  [31/36] TURTLE / SOL       h6=+91% trades=100 early_buyers=12
+  [32/36] UFCF250 / SOL      h6=+79% trades=99 early_buyers=8
+  [33/36] 世界杯 / SOL          h6=+68% trades=99 early_buyers=0
+  [34/36] HX7z8ie6a4SZKy4fcn h6=+37% trades=99 early_buyers=15
+  [35/36] SPCX / SOL         h6=+30% trades=100 early_buyers=12
+  [36/36] REDCARD / SOL      h6=+29% trades=100 early_buyers=17
+
+runners (age<=24.0h, liq>=$15k, h6>=+20%): 36
+  6Kvj2fScpPQtvcxNoPbAJSKWyZ h6=+ 16255% h1=+     7% age= 4.4h liq=$186k
+  SPCX / SOL                 h6=+  1749% h1=+     0% age= 5.4h liq=$216k
+  XEF / SOL                  h6=+   891% h1=+     0% age= 5.7h liq=$195k
+  BARRON / SOL               h6=+   829% h1=+     7% age= 2.7h liq=$232k
+  XP / SOL                   h6=+   804% h1=+     3% age= 3.6h liq=$30k
+  SEa / SOL                  h6=+   594% h1=+     0% age= 7.0h liq=$383k
+  RoboFly / SOL              h6=+   584% h1=+     0% age= 5.3h liq=$71k
+  ISPCX / SOL                h6=+   488% h1=+   124% age= 1.4h liq=$126k
+  UATF / SOL                 h6=+   439% h1=+    -7% age= 5.8h liq=$93k
+  世界杯 / SOL                  h6=+   427% h1=+   102% age= 1.3h liq=$102k
+  Cointara / SOL             h6=+   364% h1=+    -7% age= 4.3h liq=$27k
+  WORLDCUP / SOL             h6=+   341% h1=+     0% age= 5.3h liq=$38k
+  ISOR / SOL                 h6=+   313% h1=+     0% age= 6.0h liq=$83k
+  USWR / SOL                 h6=+   297% h1=+    13% age= 5.7h liq=$68k
+  世界杯 / SOL                  h6=+   286% h1=+    17% age= 2.5h liq=$121k
+  UATF / SOL                 h6=+   249% h1=+    73% age= 7.8h liq=$69k
+  WCUP / SOL                 h6=+   198% h1=+   198% age= 0.7h liq=$87k
+  USWR / SOL                 h6=+   182% h1=+     3% age= 4.8h liq=$93k
+  SPCX / SOL                 h6=+   174% h1=+    17% age= 8.0h liq=$720k
+  UFCF250 / SOL              h6=+   166% h1=+     0% age= 3.3h liq=$187k
+  KINS / SOL                 h6=+   165% h1=+    67% age= 1.1h liq=$208k
+  XP / SOL                   h6=+   159% h1=+    24% age= 1.6h liq=$177k
+  XP / SOL                   h6=+   157% h1=+   157% age= 0.8h liq=$133k
+  80TRUMP / SOL              h6=+   156% h1=+     0% age= 6.3h liq=$63k
+  FIGHTHOUSE / SOL           h6=+   147% h1=+     0% age= 5.6h liq=$270k
+  IRAN / SOL                 h6=+   137% h1=+    -2% age= 9.0h liq=$261k
+  UFC250 / SOL               h6=+   128% h1=+     0% age= 3.1h liq=$84k
+  Obuma / SOL                h6=+   120% h1=+     6% age= 1.3h liq=$117k
+  FIGHTHOUSE / SOL           h6=+   108% h1=+     0% age= 3.3h liq=$193k
+  FIGHTHOUSE / SOL           h6=+    96% h1=+    20% age= 1.9h liq=$138k
+  TURTLE / SOL               h6=+    91% h1=+    19% age= 1.9h liq=$139k
+  UFCF250 / SOL              h6=+    79% h1=+     0% age= 6.3h liq=$241k
+  世界杯 / SOL                  h6=+    68% h1=+     0% age= 6.8h liq=$203k
+  HX7z8ie6a4SZKy4fcnFgD1CMa7 h6=+    37% h1=+     0% age= 7.9h liq=$198k
+  SPCX / SOL                 h6=+    30% h1=+     9% age=12.7h liq=$333k
+  REDCARD / SOL              h6=+    29% h1=+     5% age=12.8h liq=$62k
+
+(runners spanned 36 DISTINCT tokens across 36 pools)
+
+=== makers that were EARLY buyers on >=2 distinct TOKENS: 56 (56 NEW, not in stored roster) ===
+wallet                                          tokens    early$  status
+  DpdN6cmoguofBZWtVynxggkFwsjKWYAFJpY3o2gm2YoF     3   $    3401  *** NEW ***
+  25tnphbg8du2bEACcDmN3XJXoDmEXkBVoydg1mt3Jovm     3   $    2474  *** NEW ***
+  gVg6bJqaqYmPz1eiDJZKeLJvpmLqRC2HdcYedNvcs5d      3   $    1966  *** NEW ***
+  5j6ukAbpcgywrTdJoz4KsYGbQKVSg2asY6YQR87dMeJN     3   $    1099  *** NEW ***
+  7BQJ9Pu6Zunf79oJUsZm8uyk7YZQmCvkMV2HhXpjF2ji     3   $     887  *** NEW ***
+  CkS9uU1wtTEn1rBRaBucjXhkL5shf3HAZxQpRQQXHKAc     3   $     494  *** NEW ***
+  fqTxBpxkuyiTbAPUxysF3XkcfLgnSL6Lj8FRcT7euWr      2   $    3929  *** NEW ***
+  4BM7wYwcZzJGBFo1n82Na4qFbYXHK3duYatH4YMUgruy     2   $    3340  *** NEW ***
+  FT88dwCBffDE9DVUuDaDXEzFYTuTXJ9NiVrjpY9FAdJv     2   $    2997  *** NEW ***
+  6g9rgUeBJc7CdKsVfV3sA9FG3hTjiPNj5ZqSjQmuRSnR     2   $    2759  *** NEW ***
+  rFY2vAEAoccD1TX87EhoaF1iUPM85hhFtpE66qGLWwh      2   $    2351  *** NEW ***
+  DoryCTo8658ihztbhs2zfcDWXQ3V1JBQtCRwd5wKRPk5     2   $    2347  *** NEW ***
+  E4T3USNen1NCjX6CaPh3yPk8MS4BAsw8mdJ9XYjPzsXB     2   $    2328  *** NEW ***
+  7ugJi5j4ZraXSy7NGRAzTU93bMtdNy4coetpY21qycXw     2   $    2315  *** NEW ***
+  Ck8fBAW276xY3j98SMogBhAGSRMQtHgrkLiEbtX4Du5L     2   $    2306  *** NEW ***
+  CsYDRgfMB5Yt1g2KD6bCa1nqYZUtzZr4tiMoRmbFbS6L     2   $    2283  *** NEW ***
+  6hE35qr8sSzWSQrh2NtSw6qLPHsHmjWEQF1rRDVUdTqg     2   $    2268  *** NEW ***
+  DQr5c5g2eKeMPTK7hW58CXTRMa8mHsofVqRZNXdV71we     2   $    2265  *** NEW ***
+  ARhs2JMc9TeHqZJBUXms1hU4EmXKKLNLdHgMDCsv1sZ      2   $    2260  *** NEW ***
+  9d2gVXxxxy4D7A8WhzNv1V2BxHEeWtUFBVbjs54M1C3p     2   $    2255  *** NEW ***
+  7ef8AQLb9zhPPU7mihv4hGqNxC9HQiyx4nEyRJrDuyrM     2   $    2247  *** NEW ***
+  6kJ9nUp7n4tqHuWipsKD7FWY8quhR5zc6uPkNwxGkP4G     2   $    2233  *** NEW ***
+  DR1fRprCszWiToXJJ5oSiyrT6vqQJE8RWMmdCxuh6Thu     2   $    2223  *** NEW ***
+  GBdLLxFs84yVLHszPGvcc25kA4agkC6f66NgGsWZWJ97     2   $    2176  *** NEW ***
+  29eVohGiwBq63y4B3t5nBkX8GeAco7CLnFnynXiznuPR     2   $    2175  *** NEW ***
+  CzgK1iFsKva9z1YAD1Kyvf7quFcbRcHLwyXiVJEKSc7z     2   $    2161  *** NEW ***
+  8UNCF7UCYLao5tKJJF6sRTgfo6sRBUnG7B13wDGn5JAY     2   $    2157  *** NEW ***
+  8g72Sr3jPDzzEa2USGxwmEsEou2mSseoLMUyLSoGh7f9     2   $    2153  *** NEW ***
+  7UaYpKCM4YXjwqwvaoaEX9623pj9QcNZqeQ7VQUnsyUa     2   $    2152  *** NEW ***
+  F6ZBkwPYodmKYrp8Zi1KdAwpDbgjX2P5Ku1AzgdLqVWT     2   $    2142  *** NEW ***
+  DAi9aCg4dyDUbFSo4NZFrigUAYYALBZANJoN88PezHSa     2   $    2112  *** NEW ***
+  6RUnMvP2MxM9uvtznyURdgYs5X15WJ5QXRQPU7ioRc4n     2   $    2094  *** NEW ***
+  CkP33SXmTZt757sPwj3bDuSiphsZY7kaueqmXD5bn6hb     2   $    1984  *** NEW ***
+  5YfT5nCwDgTGo8iqFop2ZWHT8YELAm2dN54LRwgrZFFV     2   $    1975  *** NEW ***
+  4HeJNEGY5hAVu5RyrWGoz5sLtcwGt4jLnDF7Gn6Uu3Jm     2   $    1917  *** NEW ***
+  6u6T35bp2yzGgF2M9zJVk9WhrqCCddsyo9mvDSGP5mVJ     2   $    1856  *** NEW ***
+  DYgw6rPEfHLVPKfCoqyuqo9B5n71M1R6zP3LUDRqoq7C     2   $    1670  *** NEW ***
+  FQbEHhytYY9ke4JdLZkgh5ba5X6mFW87jzwejRHXaVCX     2   $    1574  *** NEW ***
+  91yUa7wk5BkUbhFb79X21p1HF87VaWa4n98DN46oob19     2   $    1494  *** NEW ***
+  8LLrXPVRmyFAtdXgdS4UBQ1i8xWbbp2kX8tDqxQY9u17     2   $    1420  *** NEW ***
+  BTm12Tkn1u5Wzp9gBFJewEYBCrkkdFDDKyuTpXEKcBBC     2   $    1411  *** NEW ***
+  5GuMDUpuzSPeBiGL1HJqVq2KrU4uwfFK9j3ywbKSHT8J     2   $    1382  *** NEW ***
+  BRWL3isRkNh2bYW4uunSnr3ExJS4ZysjdjLfp9BNYSmV     2   $    1380  *** NEW ***
+  EhNsRZM9b6Pk1833rmYeT4iydKT5VdQZTSqqr7HTT8rV     2   $    1231  *** NEW ***
+  6MLdoXaGzcbk3exPZbghDYr4sUnKtrUV11Qv7FMcEQWa     2   $    1206  *** NEW ***
+  63jBpyNK5bkaxHxaMiRuqWfeCxMA2ZwRCM1NCneAXzdo     2   $    1200  *** NEW ***
+  93s3p7XkbvGzcc6dLYvtJ61Xqi7CN5yi5S9XXkjWSSy4     2   $     846  *** NEW ***
+  A66Uo46wJYtGkV6JhddnT8tktMjJzFATRDJcuFiz1Mwt     2   $     816  *** NEW ***
+  PGhYoUt8awqicsPSAzcnutWHUc5efkcgixdXHYBSaMC      2   $     779  *** NEW ***
+  36uWVq7Qu9iBgFFMJJzUG8eC8wiEYcAtLJiGMZmJYEXy     2   $     774  *** NEW ***
+  D7i5Mq8dyX1z818TbXSSjbBaCzFB4VXUGiy4L1jG47d9     2   $     769  *** NEW ***
+  CHsJ9DAtX2fjBpZzuZNZvSi2HtSns884ybdwvfwk4zTp     2   $     717  *** NEW ***
+  8fYVsdmrCHMXjwJsAQe9HNqqjxbtqYUHfYnDWDdHDpiT     2   $     585  *** NEW ***
+  43YjwEj6dbYccaxLyftCEZ7VV7Zj74CXGezpzPu3B6Yf     2   $     574  *** NEW ***
+  6LkGY852ponKKMuq2e7yZXrxnz1jd6weU1XBs7tEvHS      2   $     418  *** NEW ***
+  CazzHVpzqw5x3KmEeVXeZ8oCmXxwXpwpmN6h7ZDg4nz7     2   $     394  *** NEW ***
+
+Wrote 56 NEW candidates to _new_wallet_candidates.json
+
+=== recurrence log: 4 run(s) recorded -> C:\Users\jcole\multichain-bot\_wallet_discovery_log.json ===
+wallets seen early across >=2 runs: 51  (THESE are the real candidates)
+  63jBpyNK5bkaxHxaMiRuqWfeCxMA2ZwRCM1NCneAXzdo  seen in 3 runs  last_early=$1200
+  5kKuo5c1KHBrh28nyZZmzamcmYmz1zcHwUQ98kKpzZGr  seen in 2 runs  last_early=$4328
+  8gLQPr9Z8YQJarJuvpPWwzc7SXMjrq6zfwqLS191c3Q3  seen in 2 runs  last_early=$1507
+  Hyy45BWzZM1B51UcEyBRLYUyFdJbqojNEyMW4gXYbpTp  seen in 2 runs  last_early=$769
+  3oXVfvMryXsBUBwKqJZNWnKh7mXBEVMHPfpPKWjcAUz4  seen in 2 runs  last_early=$1500
+  HGzEyTcfPy7JHdSLSZ5PMo87Xbc92sp5TjodJZotWvsb  seen in 2 runs  last_early=$1482
+  NYxMnTK32KesJWgvTjHuKzUPBTSr9RcCaTvrVpFPCwu  seen in 2 runs  last_early=$2529
+  A3Neyg5y9ofQiBohsY3Rq7t9oT8tgbEErLQsre787EwK  seen in 2 runs  last_early=$2400
+  CnE2KrHA8oCppYeTQ94cGwicistuj7DHbLaNhuXBdTWj  seen in 2 runs  last_early=$1525
+  GhEptaaKExdFoN7mpyizoNkEAZL9qVhcDnm1FQy48uWZ  seen in 2 runs  last_early=$2327
+  3ruK6B4izjuWpPvYEhna8C8p4o6Js7udeBQJHBKNkhmb  seen in 2 runs  last_early=$769
+  DtnhtT7SLCLiWsa658YuwraE9v5UQHZUD3yNjWzsLArD  seen in 2 runs  last_early=$901
+  6yxRpBGev7Adf5WRsbw1MgkG2TBBJYkuhQAHdE126RTT  seen in 2 runs  last_early=$1698
+  B9FkyTVkh7jkiyhS29tjocxw7obbGZ4ssPNbsn46VSxw  seen in 2 runs  last_early=$1824
+  3cNyJZvEfmjuqoN5EvCCjkpFDwsntLvAh9gtU5Vx2ykC  seen in 2 runs  last_early=$1187
+  5nMKetqf2BKH3sg57tLFBN4opxm2StAvrwnnZ7TbZzLi  seen in 2 runs  last_early=$1611
+  6rdcPw77hZZZMVWMkE8UKEbMZU9jw5EbJGVDcK7DXKLg  seen in 2 runs  last_early=$2809
+  DCEJbBbCiccpYhDu7jxE5V61mKcMhDxtPzgyTMmoNLL2  seen in 2 runs  last_early=$1202
+  BkeoETwZP9f6azzMjhaBHsGwmwApQk8cXZydZ3zxMtcv  seen in 2 runs  last_early=$2762
+  DQr5c5g2eKeMPTK7hW58CXTRMa8mHsofVqRZNXdV71we  seen in 2 runs  last_early=$2265
+  9d2gVXxxxy4D7A8WhzNv1V2BxHEeWtUFBVbjs54M1C3p  seen in 2 runs  last_early=$2255
+  FQbEHhytYY9ke4JdLZkgh5ba5X6mFW87jzwejRHXaVCX  seen in 2 runs  last_early=$1574
+  7ef8AQLb9zhPPU7mihv4hGqNxC9HQiyx4nEyRJrDuyrM  seen in 2 runs  last_early=$2247
+  DAi9aCg4dyDUbFSo4NZFrigUAYYALBZANJoN88PezHSa  seen in 2 runs  last_early=$2112
+  E4T3USNen1NCjX6CaPh3yPk8MS4BAsw8mdJ9XYjPzsXB  seen in 2 runs  last_early=$2328
+  gVg6bJqaqYmPz1eiDJZKeLJvpmLqRC2HdcYedNvcs5d  seen in 2 runs  last_early=$1966
+  CkS9uU1wtTEn1rBRaBucjXhkL5shf3HAZxQpRQQXHKAc  seen in 2 runs  last_early=$494
+  5j6ukAbpcgywrTdJoz4KsYGbQKVSg2asY6YQR87dMeJN  seen in 2 runs  last_early=$1099
+  PGhYoUt8awqicsPSAzcnutWHUc5efkcgixdXHYBSaMC  seen in 2 runs  last_early=$779
+  7BQJ9Pu6Zunf79oJUsZm8uyk7YZQmCvkMV2HhXpjF2ji  seen in 2 runs  last_early=$887
+  4BM7wYwcZzJGBFo1n82Na4qFbYXHK3duYatH4YMUgruy  seen in 2 runs  last_early=$3340
+  FT88dwCBffDE9DVUuDaDXEzFYTuTXJ9NiVrjpY9FAdJv  seen in 2 runs  last_early=$2997
+  rFY2vAEAoccD1TX87EhoaF1iUPM85hhFtpE66qGLWwh  seen in 2 runs  last_early=$2351
+  7ugJi5j4ZraXSy7NGRAzTU93bMtdNy4coetpY21qycXw  seen in 2 runs  last_early=$2315
+  CsYDRgfMB5Yt1g2KD6bCa1nqYZUtzZr4tiMoRmbFbS6L  seen in 2 runs  last_early=$2283
+  ARhs2JMc9TeHqZJBUXms1hU4EmXKKLNLdHgMDCsv1sZ  seen in 2 runs  last_early=$2260
+  6kJ9nUp7n4tqHuWipsKD7FWY8quhR5zc6uPkNwxGkP4G  seen in 2 runs  last_early=$2233
+  DpdN6cmoguofBZWtVynxggkFwsjKWYAFJpY3o2gm2YoF  seen in 2 runs  last_early=$3401
+  CzgK1iFsKva9z1YAD1Kyvf7quFcbRcHLwyXiVJEKSc7z  seen in 2 runs  last_early=$2161
+  6RUnMvP2MxM9uvtznyURdgYs5X15WJ5QXRQPU7ioRc4n  seen in 2 runs  last_early=$2094
+
+NEXT: once a wallet recurs across several runs, bag-validate + forward-track before adding to the follow set.
+=== recur run 2 @ 22:56UTC ===
+=== Phase 1: find recent Solana runners (GeckoTerminal) ===
+  GT works/solana/trending_pools?page=1: cum 20
+  GT works/solana/trending_pools?page=2: cum 40
+  GT works/solana/trending_pools?page=3: cum 60
+  GT ls?sort=h24_volume_usd_desc&page=1: cum 80
+  GT ls?sort=h24_volume_usd_desc&page=2: cum 100
+  GT ls?sort=h24_volume_usd_desc&page=3: cum 120
+  GT ls?sort=h24_volume_usd_desc&page=4: cum 140
+  GT ls?sort=h24_volume_usd_desc&page=5: cum 160
+  GT ls?sort=h24_volume_usd_desc&page=6: cum 179
+  GT ls?sort=h24_volume_usd_desc&page=7: cum 199
+  GT ls?sort=h24_volume_usd_desc&page=8: cum 219
+  GT ls?sort=h24_volume_usd_desc&page=9: cum 239
+  GT s?sort=h24_volume_usd_desc&page=10: cum 259
+  GT FAIL sort=h6_volume_usd_desc&page=1
+  GT FAIL sort=h6_volume_usd_desc&page=2
+  GT FAIL sort=h6_volume_usd_desc&page=3
+  GT FAIL sort=h6_volume_usd_desc&page=4
+  GT FAIL sort=h6_volume_usd_desc&page=5
+
+=== Phase 2: harvest early buy-makers from 35 runner trade logs ===
+  [1/35] 6Kvj2fScpPQtvcxNoP h6=+24323% trades=100 early_buyers=16
+  [2/35] USA 250 / SOL      h6=+1316% trades=100 early_buyers=17
+  [3/35] TRAMP80 / SOL      h6=+954% trades=100 early_buyers=15
+  [4/35] BARRON / SOL       h6=+829% trades=99 early_buyers=16
+  [5/35] XP / SOL           h6=+680% trades=100 early_buyers=10
+  [6/35] 世界杯 / SOL          h6=+629% trades=100 early_buyers=17
+  [7/35] HAPPY / SOL        h6=+561% trades=100 early_buyers=17
+  [8/35] ISPCX / SOL        h6=+522% trades=100 early_buyers=17
+  [9/35] SPCX / SOL         h6=+474% trades=99 early_buyers=15
+  [10/35] Cointara / SOL     h6=+463% trades=100 early_buyers=9
+  [11/35] WCUP / SOL         h6=+387% trades=100 early_buyers=16
+  [12/35] AOAF / SOL         h6=+381% trades=100 early_buyers=17
+  [13/35] SEa / SOL          h6=+316% trades=99 early_buyers=16
+  [14/35] RoboFly / SOL      h6=+297% trades=99 early_buyers=17
+  [15/35] XEF / SOL          h6=+283% trades=99 early_buyers=17
+  [16/35] XEF / SOL          h6=+274% trades=100 early_buyers=14
+  [17/35] XP / SOL           h6=+269% trades=100 early_buyers=13
+  [18/35] KINS / SOL         h6=+268% trades=100 early_buyers=13
+  [19/35] USMNT / SOL        h6=+241% trades=100 early_buyers=17
+  [20/35] UATF / SOL         h6=+215% trades=99 early_buyers=17
+  [21/35] UATF / SOL         h6=+194% trades=100 early_buyers=12
+  [22/35] UFCF250 / SOL      h6=+166% trades=99 early_buyers=17
+  [23/35] USWR / SOL         h6=+136% trades=100 early_buyers=17
+  [24/35] UFC250 / SOL       h6=+128% trades=99 early_buyers=17
+  [25/35] Obuma / SOL        h6=+120% trades=99 early_buyers=17
+  [26/35] EURO / SOL         h6=+118% trades=100 early_buyers=12
+  [27/35] FIGHTHOUSE / SOL   h6=+116% trades=100 early_buyers=11
+  [28/35] FIGHTHOUSE / SOL   h6=+108% trades=99 early_buyers=16
+  [29/35] USWR / SOL         h6=+106% trades=100 early_buyers=17
+  [30/35] TURTLE / SOL       h6=+104% trades=100 early_buyers=12
+  [31/35] UATF / SOL         h6=+99% trades=99 early_buyers=10
+  [32/35] ISOR / SOL         h6=+63% trades=99 early_buyers=17
+  [33/35] FIGHTHOUSE / SOL   h6=+40% trades=99 early_buyers=15
+  [34/35] REDCARD / SOL      h6=+27% trades=100 early_buyers=17
+  [35/35] BOB / USDC         h6=+22% trades=100 early_buyers=9
+
+runners (age<=24.0h, liq>=$15k, h6>=+20%): 35
+  6Kvj2fScpPQtvcxNoPbAJSKWyZ h6=+ 24323% h1=+    43% age= 5.6h liq=$237k
+  USA 250 / SOL              h6=+  1316% h1=+   -23% age= 3.9h liq=$59k
+  TRAMP80 / SOL              h6=+   954% h1=+   -40% age= 3.2h liq=$50k
+  BARRON / SOL               h6=+   829% h1=+     0% age= 3.9h liq=$234k
+  XP / SOL                   h6=+   680% h1=+   -25% age= 4.7h liq=$28k
+  世界杯 / SOL                  h6=+   629% h1=+    36% age= 2.5h liq=$158k
+  HAPPY / SOL                h6=+   561% h1=+   -73% age= 3.9h liq=$39k
+  ISPCX / SOL                h6=+   522% h1=+    23% age= 2.5h liq=$147k
+  SPCX / SOL                 h6=+   474% h1=+     0% age= 6.6h liq=$217k
+  Cointara / SOL             h6=+   463% h1=+     6% age= 5.5h liq=$30k
+  WCUP / SOL                 h6=+   387% h1=+    45% age= 1.8h liq=$141k
+  AOAF / SOL                 h6=+   381% h1=+    48% age= 2.3h liq=$50k
+  SEa / SOL                  h6=+   316% h1=+     0% age= 8.2h liq=$385k
+  RoboFly / SOL              h6=+   297% h1=+     0% age= 6.5h liq=$71k
+  XEF / SOL                  h6=+   283% h1=+     0% age= 6.9h liq=$198k
+  XEF / SOL                  h6=+   274% h1=+    28% age= 1.9h liq=$65k
+  XP / SOL                   h6=+   269% h1=+    42% age= 1.9h liq=$190k
+  KINS / SOL                 h6=+   268% h1=+    39% age= 2.3h liq=$283k
+  USMNT / SOL                h6=+   241% h1=+   241% age= 0.8h liq=$92k
+  UATF / SOL                 h6=+   215% h1=+     7% age= 9.0h liq=$74k
+  UATF / SOL                 h6=+   194% h1=+    63% age= 1.1h liq=$149k
+  UFCF250 / SOL              h6=+   166% h1=+     0% age= 4.5h liq=$188k
+  USWR / SOL                 h6=+   136% h1=+    11% age= 6.9h liq=$74k
+  UFC250 / SOL               h6=+   128% h1=+     0% age= 4.2h liq=$84k
+  Obuma / SOL                h6=+   120% h1=+     0% age= 2.5h liq=$118k
+  EURO / SOL                 h6=+   118% h1=+    39% age= 1.1h liq=$135k
+  FIGHTHOUSE / SOL           h6=+   116% h1=+     7% age= 3.0h liq=$150k
+  FIGHTHOUSE / SOL           h6=+   108% h1=+     0% age= 4.5h liq=$194k
+  USWR / SOL                 h6=+   106% h1=+     0% age= 6.0h liq=$94k
+  TURTLE / SOL               h6=+   104% h1=+     7% age= 3.1h liq=$148k
+  UATF / SOL                 h6=+    99% h1=+     0% age= 7.0h liq=$94k
+  ISOR / SOL                 h6=+    63% h1=+     0% age= 7.2h liq=$83k
+  FIGHTHOUSE / SOL           h6=+    40% h1=+     0% age= 6.8h liq=$272k
+  REDCARD / SOL              h6=+    27% h1=+     3% age=14.0h liq=$63k
+  BOB / USDC                 h6=+    22% h1=+    20% age=20.9h liq=$40k
+
+(runners spanned 35 DISTINCT tokens across 35 pools)
+
+=== makers that were EARLY buyers on >=2 distinct TOKENS: 41 (41 NEW, not in stored roster) ===
+wallet                                          tokens    early$  status
+  6RUnMvP2MxM9uvtznyURdgYs5X15WJ5QXRQPU7ioRc4n     3   $    3190  *** NEW ***
+  gVg6bJqaqYmPz1eiDJZKeLJvpmLqRC2HdcYedNvcs5d      3   $    1966  *** NEW ***
+  5j6ukAbpcgywrTdJoz4KsYGbQKVSg2asY6YQR87dMeJN     3   $    1099  *** NEW ***
+  7BQJ9Pu6Zunf79oJUsZm8uyk7YZQmCvkMV2HhXpjF2ji     3   $     887  *** NEW ***
+  CkS9uU1wtTEn1rBRaBucjXhkL5shf3HAZxQpRQQXHKAc     3   $     494  *** NEW ***
+  774pMp4oJLwPWRortUySP7Tc6t3uGyHG8RbLFVngQLgV     2   $    4845  *** NEW ***
+  8hcJ1CcSFoopKahqdukEkqWZFwewgmHkwh4sbbocN8YW     2   $    3386  *** NEW ***
+  DR1fRprCszWiToXJJ5oSiyrT6vqQJE8RWMmdCxuh6Thu     2   $    3343  *** NEW ***
+  4BM7wYwcZzJGBFo1n82Na4qFbYXHK3duYatH4YMUgruy     2   $    3340  *** NEW ***
+  FZPuE5unH8GjV4VVFU4sSLH3nmV9133LEqrTbwH91MHp     2   $    3228  *** NEW ***
+  6eSLfY9EkExFrbuuWkJpo2ipi3A7eEGsqg5xHXXAmW4k     2   $    2790  *** NEW ***
+  EpDEEqEq7S764ALkZQHsZtkHn9H7jUK2ywn9V3evmZyD     2   $    2374  *** NEW ***
+  ARhs2JMc9TeHqZJBUXms1hU4EmXKKLNLdHgMDCsv1sZ      2   $    2260  *** NEW ***
+  7UaYpKCM4YXjwqwvaoaEX9623pj9QcNZqeQ7VQUnsyUa     2   $    2171  *** NEW ***
+  DpdN6cmoguofBZWtVynxggkFwsjKWYAFJpY3o2gm2YoF     2   $    2170  *** NEW ***
+  F6ZBkwPYodmKYrp8Zi1KdAwpDbgjX2P5Ku1AzgdLqVWT     2   $    2135  *** NEW ***
+  CkP33SXmTZt757sPwj3bDuSiphsZY7kaueqmXD5bn6hb     2   $    1984  *** NEW ***
+  6u6T35bp2yzGgF2M9zJVk9WhrqCCddsyo9mvDSGP5mVJ     2   $    1856  *** NEW ***
+  EzYDNKryTh2HF1fqpEvBKHYVnPbigNML1YkvWDKsDxXa     2   $    1796  *** NEW ***
+  91yUa7wk5BkUbhFb79X21p1HF87VaWa4n98DN46oob19     2   $    1494  *** NEW ***
+  BejFa7kDCbVMqPJVYuoxmeCDpQGMuxnjRrRVAeGe6tCq     2   $    1487  *** NEW ***
+  BTm12Tkn1u5Wzp9gBFJewEYBCrkkdFDDKyuTpXEKcBBC     2   $    1411  *** NEW ***
+  9cjrtrvnQs8KqPfT1YbiSQpFebcjfEj2nV3P4Y1bnzxt     2   $    1318  *** NEW ***
+  AfFv7c76Pz7Wp76v8jfyfYMnSBwxkck7o71uBUReyN5t     2   $    1151  *** NEW ***
+  9PD9GUD7ddWgkd3GYdLHZRo1aRjNDHyujSvfaeoLfsoQ     2   $    1126  *** NEW ***
+  5htNdapVC7QdDFiCyGZ352QJBLFnzK99A8VGawwWybA5     2   $    1096  *** NEW ***
+  DJ1vsao3ceJBpzR4jJwxLFtrjTbBg3jeNybomjnBYs36     2   $    1038  *** NEW ***
+  A66Uo46wJYtGkV6JhddnT8tktMjJzFATRDJcuFiz1Mwt     2   $     816  *** NEW ***
+  G9yyiaineULTGRQb2qAQrWcWeaEYLsTEX8UHnYuqR3Wh     2   $     797  *** NEW ***
+  PGhYoUt8awqicsPSAzcnutWHUc5efkcgixdXHYBSaMC      2   $     779  *** NEW ***
+  36uWVq7Qu9iBgFFMJJzUG8eC8wiEYcAtLJiGMZmJYEXy     2   $     774  *** NEW ***
+  D7i5Mq8dyX1z818TbXSSjbBaCzFB4VXUGiy4L1jG47d9     2   $     769  *** NEW ***
+  8PPJjex9MbtzkU1rMc1ZpMieG723NYpcTnMZ9dcgVr5J     2   $     763  *** NEW ***
+  85qGumgYxHgBRTqZKJReVDNPjcphKhuW52W33yxrkPNk     2   $     746  *** NEW ***
+  3AiUcJxPo8BrnUYYVonMV2Y3aGDVHjufvXW7RubGbBrY     2   $     737  *** NEW ***
+  CHsJ9DAtX2fjBpZzuZNZvSi2HtSns884ybdwvfwk4zTp     2   $     717  *** NEW ***
+  14M5kb8iPB4PzjDVmjKRo2b69v9skVXYQ9JDkPJZekyV     2   $     690  *** NEW ***
+  HVKuRWxsqAftfTwfW44xs4RCecxibjdbu9k6cuJG25oK     2   $     673  *** NEW ***
+  FHWA1yamrQy9FreXsHjKv4U8k1d362WCK87soncybKEF     2   $     654  *** NEW ***
+  6LkGY852ponKKMuq2e7yZXrxnz1jd6weU1XBs7tEvHS      2   $     418  *** NEW ***
+  2tgUbS9UMoQD6GkDZBiqKYCURnGrSb6ocYwRABrSJUvY     2   $     114  *** NEW ***
+
+Wrote 41 NEW candidates to _new_wallet_candidates.json
+
+=== recurrence log: 5 run(s) recorded -> C:\Users\jcole\multichain-bot\_wallet_discovery_log.json ===
+wallets seen early across >=2 runs: 56  (THESE are the real candidates)
+  63jBpyNK5bkaxHxaMiRuqWfeCxMA2ZwRCM1NCneAXzdo  seen in 3 runs  last_early=$1200
+  gVg6bJqaqYmPz1eiDJZKeLJvpmLqRC2HdcYedNvcs5d  seen in 3 runs  last_early=$1966
+  CkS9uU1wtTEn1rBRaBucjXhkL5shf3HAZxQpRQQXHKAc  seen in 3 runs  last_early=$494
+  5j6ukAbpcgywrTdJoz4KsYGbQKVSg2asY6YQR87dMeJN  seen in 3 runs  last_early=$1099
+  PGhYoUt8awqicsPSAzcnutWHUc5efkcgixdXHYBSaMC  seen in 3 runs  last_early=$779
+  7BQJ9Pu6Zunf79oJUsZm8uyk7YZQmCvkMV2HhXpjF2ji  seen in 3 runs  last_early=$887
+  4BM7wYwcZzJGBFo1n82Na4qFbYXHK3duYatH4YMUgruy  seen in 3 runs  last_early=$3340
+  ARhs2JMc9TeHqZJBUXms1hU4EmXKKLNLdHgMDCsv1sZ  seen in 3 runs  last_early=$2260
+  DpdN6cmoguofBZWtVynxggkFwsjKWYAFJpY3o2gm2YoF  seen in 3 runs  last_early=$2170
+  6RUnMvP2MxM9uvtznyURdgYs5X15WJ5QXRQPU7ioRc4n  seen in 3 runs  last_early=$3190
+  91yUa7wk5BkUbhFb79X21p1HF87VaWa4n98DN46oob19  seen in 3 runs  last_early=$1494
+  BTm12Tkn1u5Wzp9gBFJewEYBCrkkdFDDKyuTpXEKcBBC  seen in 3 runs  last_early=$1411
+  CkP33SXmTZt757sPwj3bDuSiphsZY7kaueqmXD5bn6hb  seen in 3 runs  last_early=$1984
+  A66Uo46wJYtGkV6JhddnT8tktMjJzFATRDJcuFiz1Mwt  seen in 3 runs  last_early=$816
+  D7i5Mq8dyX1z818TbXSSjbBaCzFB4VXUGiy4L1jG47d9  seen in 3 runs  last_early=$769
+  36uWVq7Qu9iBgFFMJJzUG8eC8wiEYcAtLJiGMZmJYEXy  seen in 3 runs  last_early=$774
+  6LkGY852ponKKMuq2e7yZXrxnz1jd6weU1XBs7tEvHS  seen in 3 runs  last_early=$418
+  5kKuo5c1KHBrh28nyZZmzamcmYmz1zcHwUQ98kKpzZGr  seen in 2 runs  last_early=$4328
+  8gLQPr9Z8YQJarJuvpPWwzc7SXMjrq6zfwqLS191c3Q3  seen in 2 runs  last_early=$1507
+  Hyy45BWzZM1B51UcEyBRLYUyFdJbqojNEyMW4gXYbpTp  seen in 2 runs  last_early=$769
+  3oXVfvMryXsBUBwKqJZNWnKh7mXBEVMHPfpPKWjcAUz4  seen in 2 runs  last_early=$1500
+  HGzEyTcfPy7JHdSLSZ5PMo87Xbc92sp5TjodJZotWvsb  seen in 2 runs  last_early=$1482
+  NYxMnTK32KesJWgvTjHuKzUPBTSr9RcCaTvrVpFPCwu  seen in 2 runs  last_early=$2529
+  A3Neyg5y9ofQiBohsY3Rq7t9oT8tgbEErLQsre787EwK  seen in 2 runs  last_early=$2400
+  CnE2KrHA8oCppYeTQ94cGwicistuj7DHbLaNhuXBdTWj  seen in 2 runs  last_early=$1525
+  GhEptaaKExdFoN7mpyizoNkEAZL9qVhcDnm1FQy48uWZ  seen in 2 runs  last_early=$2327
+  3ruK6B4izjuWpPvYEhna8C8p4o6Js7udeBQJHBKNkhmb  seen in 2 runs  last_early=$769
+  DtnhtT7SLCLiWsa658YuwraE9v5UQHZUD3yNjWzsLArD  seen in 2 runs  last_early=$901
+  6yxRpBGev7Adf5WRsbw1MgkG2TBBJYkuhQAHdE126RTT  seen in 2 runs  last_early=$1698
+  B9FkyTVkh7jkiyhS29tjocxw7obbGZ4ssPNbsn46VSxw  seen in 2 runs  last_early=$1824
+  3cNyJZvEfmjuqoN5EvCCjkpFDwsntLvAh9gtU5Vx2ykC  seen in 2 runs  last_early=$1187
+  5nMKetqf2BKH3sg57tLFBN4opxm2StAvrwnnZ7TbZzLi  seen in 2 runs  last_early=$1611
+  6rdcPw77hZZZMVWMkE8UKEbMZU9jw5EbJGVDcK7DXKLg  seen in 2 runs  last_early=$2809
+  DCEJbBbCiccpYhDu7jxE5V61mKcMhDxtPzgyTMmoNLL2  seen in 2 runs  last_early=$1202
+  BkeoETwZP9f6azzMjhaBHsGwmwApQk8cXZydZ3zxMtcv  seen in 2 runs  last_early=$2762
+  DQr5c5g2eKeMPTK7hW58CXTRMa8mHsofVqRZNXdV71we  seen in 2 runs  last_early=$2265
+  9d2gVXxxxy4D7A8WhzNv1V2BxHEeWtUFBVbjs54M1C3p  seen in 2 runs  last_early=$2255
+  FQbEHhytYY9ke4JdLZkgh5ba5X6mFW87jzwejRHXaVCX  seen in 2 runs  last_early=$1574
+  7ef8AQLb9zhPPU7mihv4hGqNxC9HQiyx4nEyRJrDuyrM  seen in 2 runs  last_early=$2247
+  DAi9aCg4dyDUbFSo4NZFrigUAYYALBZANJoN88PezHSa  seen in 2 runs  last_early=$2112
+
+NEXT: once a wallet recurs across several runs, bag-validate + forward-track before adding to the follow set.
+=== recur run 3 @ 00:07UTC ===
+=== Phase 1: find recent Solana runners (GeckoTerminal) ===
+  GT works/solana/trending_pools?page=1: cum 20
+  GT works/solana/trending_pools?page=2: cum 40
+  GT works/solana/trending_pools?page=3: cum 59
+  GT ls?sort=h24_volume_usd_desc&page=1: cum 79
+  GT ls?sort=h24_volume_usd_desc&page=2: cum 99
+  GT ls?sort=h24_volume_usd_desc&page=3: cum 119
+  GT ls?sort=h24_volume_usd_desc&page=4: cum 139
+  GT ls?sort=h24_volume_usd_desc&page=5: cum 158
+  GT ls?sort=h24_volume_usd_desc&page=6: cum 177
+  GT ls?sort=h24_volume_usd_desc&page=7: cum 197
+  GT ls?sort=h24_volume_usd_desc&page=8: cum 217
+  GT ls?sort=h24_volume_usd_desc&page=9: cum 237
+  GT s?sort=h24_volume_usd_desc&page=10: cum 257
+  GT FAIL sort=h6_volume_usd_desc&page=1
+  GT FAIL sort=h6_volume_usd_desc&page=2
+  GT FAIL sort=h6_volume_usd_desc&page=3
+  GT FAIL sort=h6_volume_usd_desc&page=4
+  GT FAIL sort=h6_volume_usd_desc&page=5
+
+=== Phase 2: harvest early buy-makers from 33 runner trade logs ===
+  [1/33] TRAMP80 / SOL      h6=+1274% trades=99 early_buyers=17
+  [2/33] trelon / SOL       h6=+1152% trades=100 early_buyers=12
+  [3/33] XP / SOL           h6=+1047% trades=100 early_buyers=11
+  [4/33] SPCX / SOL         h6=+951% trades=100 early_buyers=16
+  [5/33] HUNTER / SOL       h6=+855% trades=100 early_buyers=17
+  [6/33] BARRON / SOL       h6=+829% trades=99 early_buyers=16
+  [7/33] 世界杯 / SOL          h6=+705% trades=100 early_buyers=17
+  [8/33] AOAF / SOL         h6=+599% trades=99 early_buyers=17
+  [9/33] WCUP / SOL         h6=+460% trades=100 early_buyers=17
+  [10/33] UATF / SOL         h6=+380% trades=100 early_buyers=17
+  [11/33] XEF / SOL          h6=+338% trades=100 early_buyers=17
+  [12/33] XP / SOL           h6=+324% trades=100 early_buyers=17
+  [13/33] KINS / SOL         h6=+301% trades=100 early_buyers=15
+  [14/33] EURO / SOL         h6=+287% trades=100 early_buyers=17
+  [15/33] HAPPY / SOL        h6=+281% trades=99 early_buyers=17
+  [16/33] SPCX / SOL         h6=+231% trades=100 early_buyers=16
+  [17/33] USMNT / SOL        h6=+212% trades=100 early_buyers=17
+  [18/33] UFCF250 / SOL      h6=+179% trades=100 early_buyers=17
+  [19/33] UATF / SOL         h6=+167% trades=99 early_buyers=17
+  [20/33] UFCF250 / SOL      h6=+166% trades=99 early_buyers=17
+  [21/33] SPCX / SOL         h6=+155% trades=100 early_buyers=10
+  [22/33] USWR / SOL         h6=+139% trades=100 early_buyers=17
+  [23/33] TURTLE / SOL       h6=+133% trades=99 early_buyers=11
+  [24/33] Obuma / SOL        h6=+120% trades=99 early_buyers=17
+  [25/33] FIGHTHOUSE / SOL   h6=+108% trades=99 early_buyers=16
+  [26/33] RoboFly / SOL      h6=+106% trades=99 early_buyers=17
+  [27/33] SPCX / SOL         h6=+98% trades=99 early_buyers=15
+  [28/33] BOB / USDC         h6=+71% trades=100 early_buyers=15
+  [29/33] 6Kvj2fScpPQtvcxNoP h6=+47% trades=100 early_buyers=17
+  [30/33] XEF / SOL          h6=+30% trades=99 early_buyers=17
+  [31/33] USWR / SOL         h6=+29% trades=100 early_buyers=17
+  [32/33] REDCARD / SOL      h6=+26% trades=100 early_buyers=17
+  [33/33] UATF / SOL         h6=+21% trades=99 early_buyers=10
+
+runners (age<=24.0h, liq>=$15k, h6>=+20%): 33
+  TRAMP80 / SOL              h6=+  1274% h1=+    -0% age= 4.4h liq=$61k
+  trelon / SOL               h6=+  1152% h1=+   132% age= 3.8h liq=$64k
+  XP / SOL                   h6=+  1047% h1=+    43% age= 5.9h liq=$35k
+  SPCX / SOL                 h6=+   951% h1=+   164% age= 3.2h liq=$151k
+  HUNTER / SOL               h6=+   855% h1=+    -4% age= 4.3h liq=$54k
+  BARRON / SOL               h6=+   829% h1=+     0% age= 5.1h liq=$234k
+  世界杯 / SOL                  h6=+   705% h1=+     5% age= 3.7h liq=$185k
+  AOAF / SOL                 h6=+   599% h1=+    43% age= 3.5h liq=$67k
+  WCUP / SOL                 h6=+   460% h1=+    10% age= 3.0h liq=$176k
+  UATF / SOL                 h6=+   380% h1=+    43% age= 2.3h liq=$240k
+  XEF / SOL                  h6=+   338% h1=+     4% age= 3.1h liq=$81k
+  XP / SOL                   h6=+   324% h1=+     7% age= 3.1h liq=$225k
+  KINS / SOL                 h6=+   301% h1=+     8% age= 3.5h liq=$324k
+  EURO / SOL                 h6=+   287% h1=+    62% age= 2.3h liq=$196k
+  HAPPY / SOL                h6=+   281% h1=+    -5% age= 5.1h liq=$32k
+  SPCX / SOL                 h6=+   231% h1=+   148% age= 1.2h liq=$343k
+  USMNT / SOL                h6=+   212% h1=+     7% age= 2.0h liq=$107k
+  UFCF250 / SOL              h6=+   179% h1=+    66% age= 1.2h liq=$195k
+  UATF / SOL                 h6=+   167% h1=+     0% age=10.2h liq=$74k
+  UFCF250 / SOL              h6=+   166% h1=+     0% age= 5.7h liq=$189k
+  SPCX / SOL                 h6=+   155% h1=+    17% age= 4.3h liq=$286k
+  USWR / SOL                 h6=+   139% h1=+    10% age= 8.1h liq=$85k
+  TURTLE / SOL               h6=+   133% h1=+     9% age= 4.3h liq=$164k
+  Obuma / SOL                h6=+   120% h1=+     0% age= 3.6h liq=$118k
+  FIGHTHOUSE / SOL           h6=+   108% h1=+     0% age= 5.7h liq=$195k
+  RoboFly / SOL              h6=+   106% h1=+     0% age= 7.6h liq=$71k
+  SPCX / SOL                 h6=+    98% h1=+     0% age= 7.7h liq=$218k
+  BOB / USDC                 h6=+    71% h1=+    45% age=22.1h liq=$48k
+  6Kvj2fScpPQtvcxNoPbAJSKWyZ h6=+    47% h1=+   -74% age= 6.8h liq=$127k
+  XEF / SOL                  h6=+    30% h1=+     0% age= 8.1h liq=$199k
+  USWR / SOL                 h6=+    29% h1=+     1% age= 7.1h liq=$96k
+  REDCARD / SOL              h6=+    26% h1=+     4% age=15.2h liq=$65k
+  UATF / SOL                 h6=+    21% h1=+     0% age= 8.2h liq=$94k
+
+(runners spanned 33 DISTINCT tokens across 33 pools)
+
+=== makers that were EARLY buyers on >=2 distinct TOKENS: 43 (43 NEW, not in stored roster) ===
+wallet                                          tokens    early$  status
+  36uWVq7Qu9iBgFFMJJzUG8eC8wiEYcAtLJiGMZmJYEXy     3   $    1295  *** NEW ***
+  CkS9uU1wtTEn1rBRaBucjXhkL5shf3HAZxQpRQQXHKAc     3   $    1082  *** NEW ***
+  A66Uo46wJYtGkV6JhddnT8tktMjJzFATRDJcuFiz1Mwt     3   $     953  *** NEW ***
+  7BQJ9Pu6Zunf79oJUsZm8uyk7YZQmCvkMV2HhXpjF2ji     3   $     930  *** NEW ***
+  EhNsRZM9b6Pk1833rmYeT4iydKT5VdQZTSqqr7HTT8rV     2   $    3528  *** NEW ***
+  29eVohGiwBq63y4B3t5nBkX8GeAco7CLnFnynXiznuPR     2   $    3497  *** NEW ***
+  79LX32eBFbXEBukmSiYvnbRN2yaFUs2Q6ts2xxneH1pw     2   $    2728  *** NEW ***
+  FZPuE5unH8GjV4VVFU4sSLH3nmV9133LEqrTbwH91MHp     2   $    2445  *** NEW ***
+  fqTxBpxkuyiTbAPUxysF3XkcfLgnSL6Lj8FRcT7euWr      2   $    2326  *** NEW ***
+  8UNCF7UCYLao5tKJJF6sRTgfo6sRBUnG7B13wDGn5JAY     2   $    2227  *** NEW ***
+  25tnphbg8du2bEACcDmN3XJXoDmEXkBVoydg1mt3Jovm     2   $    2181  *** NEW ***
+  BkR1Cg1bLCRq1ERiXkWBu7QWq7fcRoAtMCcrPoX1AeaW     2   $    2112  *** NEW ***
+  DJ1vsao3ceJBpzR4jJwxLFtrjTbBg3jeNybomjnBYs36     2   $    2103  *** NEW ***
+  6u6T35bp2yzGgF2M9zJVk9WhrqCCddsyo9mvDSGP5mVJ     2   $    1856  *** NEW ***
+  PGhYoUt8awqicsPSAzcnutWHUc5efkcgixdXHYBSaMC      2   $    1839  *** NEW ***
+  gVg6bJqaqYmPz1eiDJZKeLJvpmLqRC2HdcYedNvcs5d      2   $    1827  *** NEW ***
+  CkP33SXmTZt757sPwj3bDuSiphsZY7kaueqmXD5bn6hb     2   $    1767  *** NEW ***
+  9PD9GUD7ddWgkd3GYdLHZRo1aRjNDHyujSvfaeoLfsoQ     2   $    1576  *** NEW ***
+  ARhs2JMc9TeHqZJBUXms1hU4EmXKKLNLdHgMDCsv1sZ      2   $    1539  *** NEW ***
+  9d2gVXxxxy4D7A8WhzNv1V2BxHEeWtUFBVbjs54M1C3p     2   $    1492  *** NEW ***
+  9yqN3RMuMQYrJRozWMe2N6NfDtcf6wt4Bcke6YFhicrw     2   $    1455  *** NEW ***
+  BTm12Tkn1u5Wzp9gBFJewEYBCrkkdFDDKyuTpXEKcBBC     2   $    1411  *** NEW ***
+  DE84saYgB72bpf3jyb8BERMe93d6UEPf1MHuJKL43Vn8     2   $    1364  *** NEW ***
+  72nn7t83dDFAWUevt7MDLzHJ8aTDxNy1vXuBS8fYrjFd     2   $    1359  *** NEW ***
+  5htNdapVC7QdDFiCyGZ352QJBLFnzK99A8VGawwWybA5     2   $    1171  *** NEW ***
+  8LLrXPVRmyFAtdXgdS4UBQ1i8xWbbp2kX8tDqxQY9u17     2   $     768  *** NEW ***
+  5j6ukAbpcgywrTdJoz4KsYGbQKVSg2asY6YQR87dMeJN     2   $     760  *** NEW ***
+  Ag74AxWqwyL33dcwEq11PerbBJi4PRs4hKJzNDXWSuu8     2   $     756  *** NEW ***
+  CHsJ9DAtX2fjBpZzuZNZvSi2HtSns884ybdwvfwk4zTp     2   $     717  *** NEW ***
+  AfFv7c76Pz7Wp76v8jfyfYMnSBwxkck7o71uBUReyN5t     2   $     663  *** NEW ***
+  14M5kb8iPB4PzjDVmjKRo2b69v9skVXYQ9JDkPJZekyV     2   $     651  *** NEW ***
+  CJjbLLa6PFC6R9cWunnoKyCYpWixxissns7meH71tNgx     2   $     641  *** NEW ***
+  FHWA1yamrQy9FreXsHjKv4U8k1d362WCK87soncybKEF     2   $     635  *** NEW ***
+  2KTuW52GGSzWJkGDBoFKXMLexrLFTjwKYe4zC6y3v8Aq     2   $     563  *** NEW ***
+  Gr5tRigknty4WA2ESJPY22cFmvo6FwEuBCHhV959vhZX     2   $     563  *** NEW ***
+  3AiUcJxPo8BrnUYYVonMV2Y3aGDVHjufvXW7RubGbBrY     2   $     563  *** NEW ***
+  G9yyiaineULTGRQb2qAQrWcWeaEYLsTEX8UHnYuqR3Wh     2   $     562  *** NEW ***
+  Dp1Wn9cTGEutLX8bxxzcHHpX2h6YV4FmWeHUQtVCprU3     2   $     562  *** NEW ***
+  HvWp9eKzNneq1tMVkrgvFpVfWxHa9aCv8M6t3PhDy645     2   $     562  *** NEW ***
+  7bnEAV9NSEwoazWohHJhUR7tcsqZzuxiqJpqcAUtEpA4     2   $     562  *** NEW ***
+  91yUa7wk5BkUbhFb79X21p1HF87VaWa4n98DN46oob19     2   $     540  *** NEW ***
+  D7i5Mq8dyX1z818TbXSSjbBaCzFB4VXUGiy4L1jG47d9     2   $     400  *** NEW ***
+  3nPoZ5YgQ1FNutW7SacWvG7DkisPHHJSyhmoYhpKk4cC     2   $     366  *** NEW ***
+
+Wrote 43 NEW candidates to _new_wallet_candidates.json
+
+=== recurrence log: 6 run(s) recorded -> C:\Users\jcole\multichain-bot\_wallet_discovery_log.json ===
+wallets seen early across >=2 runs: 71  (THESE are the real candidates)
+  gVg6bJqaqYmPz1eiDJZKeLJvpmLqRC2HdcYedNvcs5d  seen in 4 runs  last_early=$1827
+  CkS9uU1wtTEn1rBRaBucjXhkL5shf3HAZxQpRQQXHKAc  seen in 4 runs  last_early=$1082
+  5j6ukAbpcgywrTdJoz4KsYGbQKVSg2asY6YQR87dMeJN  seen in 4 runs  last_early=$760
+  PGhYoUt8awqicsPSAzcnutWHUc5efkcgixdXHYBSaMC  seen in 4 runs  last_early=$1839
+  7BQJ9Pu6Zunf79oJUsZm8uyk7YZQmCvkMV2HhXpjF2ji  seen in 4 runs  last_early=$930
+  ARhs2JMc9TeHqZJBUXms1hU4EmXKKLNLdHgMDCsv1sZ  seen in 4 runs  last_early=$1539
+  91yUa7wk5BkUbhFb79X21p1HF87VaWa4n98DN46oob19  seen in 4 runs  last_early=$540
+  BTm12Tkn1u5Wzp9gBFJewEYBCrkkdFDDKyuTpXEKcBBC  seen in 4 runs  last_early=$1411
+  CkP33SXmTZt757sPwj3bDuSiphsZY7kaueqmXD5bn6hb  seen in 4 runs  last_early=$1767
+  A66Uo46wJYtGkV6JhddnT8tktMjJzFATRDJcuFiz1Mwt  seen in 4 runs  last_early=$953
+  D7i5Mq8dyX1z818TbXSSjbBaCzFB4VXUGiy4L1jG47d9  seen in 4 runs  last_early=$400
+  36uWVq7Qu9iBgFFMJJzUG8eC8wiEYcAtLJiGMZmJYEXy  seen in 4 runs  last_early=$1295
+  9d2gVXxxxy4D7A8WhzNv1V2BxHEeWtUFBVbjs54M1C3p  seen in 3 runs  last_early=$1492
+  63jBpyNK5bkaxHxaMiRuqWfeCxMA2ZwRCM1NCneAXzdo  seen in 3 runs  last_early=$1200
+  4BM7wYwcZzJGBFo1n82Na4qFbYXHK3duYatH4YMUgruy  seen in 3 runs  last_early=$3340
+  DpdN6cmoguofBZWtVynxggkFwsjKWYAFJpY3o2gm2YoF  seen in 3 runs  last_early=$2170
+  6RUnMvP2MxM9uvtznyURdgYs5X15WJ5QXRQPU7ioRc4n  seen in 3 runs  last_early=$3190
+  EhNsRZM9b6Pk1833rmYeT4iydKT5VdQZTSqqr7HTT8rV  seen in 3 runs  last_early=$3528
+  25tnphbg8du2bEACcDmN3XJXoDmEXkBVoydg1mt3Jovm  seen in 3 runs  last_early=$2181
+  6LkGY852ponKKMuq2e7yZXrxnz1jd6weU1XBs7tEvHS  seen in 3 runs  last_early=$418
+  6u6T35bp2yzGgF2M9zJVk9WhrqCCddsyo9mvDSGP5mVJ  seen in 3 runs  last_early=$1856
+  CHsJ9DAtX2fjBpZzuZNZvSi2HtSns884ybdwvfwk4zTp  seen in 3 runs  last_early=$717
+  5kKuo5c1KHBrh28nyZZmzamcmYmz1zcHwUQ98kKpzZGr  seen in 2 runs  last_early=$4328
+  8gLQPr9Z8YQJarJuvpPWwzc7SXMjrq6zfwqLS191c3Q3  seen in 2 runs  last_early=$1507
+  Hyy45BWzZM1B51UcEyBRLYUyFdJbqojNEyMW4gXYbpTp  seen in 2 runs  last_early=$769
+  3oXVfvMryXsBUBwKqJZNWnKh7mXBEVMHPfpPKWjcAUz4  seen in 2 runs  last_early=$1500
+  HGzEyTcfPy7JHdSLSZ5PMo87Xbc92sp5TjodJZotWvsb  seen in 2 runs  last_early=$1482
+  NYxMnTK32KesJWgvTjHuKzUPBTSr9RcCaTvrVpFPCwu  seen in 2 runs  last_early=$2529
+  A3Neyg5y9ofQiBohsY3Rq7t9oT8tgbEErLQsre787EwK  seen in 2 runs  last_early=$2400
+  CnE2KrHA8oCppYeTQ94cGwicistuj7DHbLaNhuXBdTWj  seen in 2 runs  last_early=$1525
+  GhEptaaKExdFoN7mpyizoNkEAZL9qVhcDnm1FQy48uWZ  seen in 2 runs  last_early=$2327
+  3ruK6B4izjuWpPvYEhna8C8p4o6Js7udeBQJHBKNkhmb  seen in 2 runs  last_early=$769
+  DtnhtT7SLCLiWsa658YuwraE9v5UQHZUD3yNjWzsLArD  seen in 2 runs  last_early=$901
+  6yxRpBGev7Adf5WRsbw1MgkG2TBBJYkuhQAHdE126RTT  seen in 2 runs  last_early=$1698
+  B9FkyTVkh7jkiyhS29tjocxw7obbGZ4ssPNbsn46VSxw  seen in 2 runs  last_early=$1824
+  3cNyJZvEfmjuqoN5EvCCjkpFDwsntLvAh9gtU5Vx2ykC  seen in 2 runs  last_early=$1187
+  5nMKetqf2BKH3sg57tLFBN4opxm2StAvrwnnZ7TbZzLi  seen in 2 runs  last_early=$1611
+  6rdcPw77hZZZMVWMkE8UKEbMZU9jw5EbJGVDcK7DXKLg  seen in 2 runs  last_early=$2809
+  DCEJbBbCiccpYhDu7jxE5V61mKcMhDxtPzgyTMmoNLL2  seen in 2 runs  last_early=$1202
+  BkeoETwZP9f6azzMjhaBHsGwmwApQk8cXZydZ3zxMtcv  seen in 2 runs  last_early=$2762
+
+NEXT: once a wallet recurs across several runs, bag-validate + forward-track before adding to the follow set.
+=== recur run 4 @ 01:17UTC ===
+=== Phase 1: find recent Solana runners (GeckoTerminal) ===
+  GT works/solana/trending_pools?page=1: cum 20
+  GT works/solana/trending_pools?page=2: cum 40
+  GT works/solana/trending_pools?page=3: cum 60
+  GT ls?sort=h24_volume_usd_desc&page=1: cum 80
+  GT ls?sort=h24_volume_usd_desc&page=2: cum 100
+  GT ls?sort=h24_volume_usd_desc&page=3: cum 120
+  GT ls?sort=h24_volume_usd_desc&page=4: cum 140
+  GT ls?sort=h24_volume_usd_desc&page=5: cum 159
+  GT ls?sort=h24_volume_usd_desc&page=6: cum 178
+  GT ls?sort=h24_volume_usd_desc&page=7: cum 198
+  GT ls?sort=h24_volume_usd_desc&page=8: cum 218
+  GT ls?sort=h24_volume_usd_desc&page=9: cum 238
+  GT s?sort=h24_volume_usd_desc&page=10: cum 258
+  GT FAIL sort=h6_volume_usd_desc&page=1
+  GT FAIL sort=h6_volume_usd_desc&page=2
+  GT FAIL sort=h6_volume_usd_desc&page=3
+  GT FAIL sort=h6_volume_usd_desc&page=4
+  GT FAIL sort=h6_volume_usd_desc&page=5
+
+=== Phase 2: harvest early buy-makers from 31 runner trade logs ===
+  [1/31] SPCX / SOL         h6=+4072% trades=100 early_buyers=16
+  [2/31] KINS / SOL         h6=+2024% trades=100 early_buyers=18
+  [3/31] TRAMP80 / SOL      h6=+1274% trades=99 early_buyers=17
+  [4/31] trelon / SOL       h6=+728% trades=99 early_buyers=16
+  [5/31] 世界杯 / SOL          h6=+700% trades=100 early_buyers=17
+  [6/31] AOAF / SOL         h6=+599% trades=99 early_buyers=17
+  [7/31] HUNTER / SOL       h6=+587% trades=100 early_buyers=16
+  [8/31] WW3 / SOL          h6=+426% trades=99 early_buyers=17
+  [9/31] EURO / SOL         h6=+423% trades=100 early_buyers=17
+  [10/31] UNNF / SOL         h6=+371% trades=100 early_buyers=17
+  [11/31] XEF / SOL          h6=+370% trades=100 early_buyers=17
+  [12/31] BARRON / SOL       h6=+355% trades=99 early_buyers=16
+  [13/31] XP / SOL           h6=+344% trades=99 early_buyers=17
+  [14/31] SPCX / SOL         h6=+337% trades=100 early_buyers=16
+  [15/31] SPCX / SOL         h6=+320% trades=100 early_buyers=10
+  [16/31] USMNT / SOL        h6=+319% trades=100 early_buyers=17
+  [17/31] KINS / SOL         h6=+306% trades=99 early_buyers=17
+  [18/31] KINS / SOL         h6=+213% trades=100 early_buyers=12
+  [19/31] UFCF250 / SOL      h6=+182% trades=99 early_buyers=17
+  [20/31] SPCX / SOL         h6=+157% trades=100 early_buyers=5
+  [21/31] XP / SOL           h6=+122% trades=99 early_buyers=11
+  [22/31] UATF / SOL         h6=+121% trades=99 early_buyers=17
+  [23/31] BOB / USDC         h6=+121% trades=100 early_buyers=7
+  [24/31] Obuma / SOL        h6=+120% trades=99 early_buyers=17
+  [25/31] SPCX / SOL         h6=+117% trades=100 early_buyers=14
+  [26/31] UFCF250 / SOL      h6=+110% trades=100 early_buyers=13
+  [27/31] TURTLE / SOL       h6=+82% trades=100 early_buyers=14
+  [28/31] USWR / SOL         h6=+67% trades=100 early_buyers=17
+  [29/31] UFCF250 / SOL      h6=+27% trades=99 early_buyers=17
+  [30/31] SIEGE / SOL        h6=+23% trades=100 early_buyers=2
+  [31/31] REDCARD / SOL      h6=+22% trades=100 early_buyers=17
+
+runners (age<=24.0h, liq>=$15k, h6>=+20%): 31
+  SPCX / SOL                 h6=+  4072% h1=+   195% age= 4.4h liq=$350k
+  KINS / SOL                 h6=+  2024% h1=+     2% age= 4.2h liq=$76k
+  TRAMP80 / SOL              h6=+  1274% h1=+     0% age= 5.5h liq=$61k
+  trelon / SOL               h6=+   728% h1=+    33% age= 4.9h liq=$54k
+  世界杯 / SOL                  h6=+   700% h1=+    -1% age= 4.8h liq=$186k
+  AOAF / SOL                 h6=+   599% h1=+     0% age= 4.6h liq=$67k
+  HUNTER / SOL               h6=+   587% h1=+   -15% age= 5.5h liq=$50k
+  WW3 / SOL                  h6=+   426% h1=+    36% age= 3.5h liq=$91k
+  EURO / SOL                 h6=+   423% h1=+    26% age= 3.5h liq=$234k
+  UNNF / SOL                 h6=+   371% h1=+    37% age= 2.3h liq=$72k
+  XEF / SOL                  h6=+   370% h1=+     6% age= 4.3h liq=$89k
+  BARRON / SOL               h6=+   355% h1=+     0% age= 6.2h liq=$235k
+  XP / SOL                   h6=+   344% h1=+     2% age= 4.3h liq=$231k
+  SPCX / SOL                 h6=+   337% h1=+    24% age= 2.4h liq=$429k
+  SPCX / SOL                 h6=+   320% h1=+    44% age= 5.4h liq=$400k
+  USMNT / SOL                h6=+   319% h1=+    26% age= 3.2h liq=$131k
+  KINS / SOL                 h6=+   306% h1=+     1% age= 4.6h liq=$329k
+  KINS / SOL                 h6=+   213% h1=+   213% age= 0.8h liq=$135k
+  UFCF250 / SOL              h6=+   182% h1=+     0% age= 2.4h liq=$203k
+  SPCX / SOL                 h6=+   157% h1=+    27% age= 5.4h liq=$243k
+  XP / SOL                   h6=+   122% h1=+    13% age= 7.0h liq=$105k
+  UATF / SOL                 h6=+   121% h1=+     0% age=11.4h liq=$74k
+  BOB / USDC                 h6=+   121% h1=+    11% age=23.3h liq=$44k
+  Obuma / SOL                h6=+   120% h1=+     0% age= 4.8h liq=$119k
+  SPCX / SOL                 h6=+   117% h1=+    39% age= 1.3h liq=$147k
+  UFCF250 / SOL              h6=+   110% h1=+   110% age= 0.5h liq=$146k
+  TURTLE / SOL               h6=+    82% h1=+    82% age= 0.9h liq=$136k
+  USWR / SOL                 h6=+    67% h1=+    -2% age= 9.3h liq=$87k
+  UFCF250 / SOL              h6=+    27% h1=+     0% age= 6.9h liq=$189k
+  SIEGE / SOL                h6=+    23% h1=+    26% age=21.0h liq=$19k
+  REDCARD / SOL              h6=+    22% h1=+     2% age=16.3h liq=$66k
+
+(runners spanned 31 DISTINCT tokens across 31 pools)
+
+=== makers that were EARLY buyers on >=2 distinct TOKENS: 26 (26 NEW, not in stored roster) ===
+wallet                                          tokens    early$  status
+  8UNCF7UCYLao5tKJJF6sRTgfo6sRBUnG7B13wDGn5JAY     3   $    3470  *** NEW ***
+  GBdLLxFs84yVLHszPGvcc25kA4agkC6f66NgGsWZWJ97     3   $    3405  *** NEW ***
+  7jysTypkmEDg5CXXWuPaAcytWC5UxWUCmj9NUJb1NetG     3   $    3312  *** NEW ***
+  CkHKXBA85t92AkjmhBcU5C6rSAQx3odNfqUkVVSQ8mdK     2   $    3554  *** NEW ***
+  DpWMPx8jwhYiUty1rta6Y7X8Ng5937oLR9bDcYXBTz7k     2   $    2389  *** NEW ***
+  E6wmjn8PjpiGU8N4HzpUWrAqQssnQAC1bMEWUSvhsbEh     2   $    2380  *** NEW ***
+  FQbEHhytYY9ke4JdLZkgh5ba5X6mFW87jzwejRHXaVCX     2   $    2330  *** NEW ***
+  6MLdoXaGzcbk3exPZbghDYr4sUnKtrUV11Qv7FMcEQWa     2   $    2240  *** NEW ***
+  BKdzGgarYKD3ttpo5hgxpwaRGkeGE5MxzMgMGy2Shddu     2   $    2206  *** NEW ***
+  EhNsRZM9b6Pk1833rmYeT4iydKT5VdQZTSqqr7HTT8rV     2   $    2164  *** NEW ***
+  6u6T35bp2yzGgF2M9zJVk9WhrqCCddsyo9mvDSGP5mVJ     2   $    2160  *** NEW ***
+  DQr5c5g2eKeMPTK7hW58CXTRMa8mHsofVqRZNXdV71we     2   $    2127  *** NEW ***
+  6hE35qr8sSzWSQrh2NtSw6qLPHsHmjWEQF1rRDVUdTqg     2   $    2121  *** NEW ***
+  29eVohGiwBq63y4B3t5nBkX8GeAco7CLnFnynXiznuPR     2   $    2112  *** NEW ***
+  Hr1FTjAd8pLgsH1jwM7MnHzAUVPPzYY3PTvrrvcmpaEU     2   $    2065  *** NEW ***
+  CkP33SXmTZt757sPwj3bDuSiphsZY7kaueqmXD5bn6hb     2   $    1566  *** NEW ***
+  91yUa7wk5BkUbhFb79X21p1HF87VaWa4n98DN46oob19     2   $    1560  *** NEW ***
+  DMACqd6tQRSCQnoCS2oSMLu26cpDnbk3cvuVNmeGjNGA     2   $    1368  *** NEW ***
+  CkS9uU1wtTEn1rBRaBucjXhkL5shf3HAZxQpRQQXHKAc     2   $    1079  *** NEW ***
+  FY8ykcLfcq7dpBYkCuFhAQmH6FquEC478RXFmff2HYDv     2   $     768  *** NEW ***
+  J76AEfKYC7HDb6EwiDkKtieR1Tn3jeuGKkzjNcJciveH     2   $     723  *** NEW ***
+  A66Uo46wJYtGkV6JhddnT8tktMjJzFATRDJcuFiz1Mwt     2   $     696  *** NEW ***
+  6LkGY852ponKKMuq2e7yZXrxnz1jd6weU1XBs7tEvHS      2   $     548  *** NEW ***
+  CHsJ9DAtX2fjBpZzuZNZvSi2HtSns884ybdwvfwk4zTp     2   $     547  *** NEW ***
+  gVg6bJqaqYmPz1eiDJZKeLJvpmLqRC2HdcYedNvcs5d      2   $     464  *** NEW ***
+  BTm12Tkn1u5Wzp9gBFJewEYBCrkkdFDDKyuTpXEKcBBC     2   $     327  *** NEW ***
+
+Wrote 26 NEW candidates to _new_wallet_candidates.json
+
+=== recurrence log: 7 run(s) recorded -> C:\Users\jcole\multichain-bot\_wallet_discovery_log.json ===
+wallets seen early across >=2 runs: 78  (THESE are the real candidates)
+  gVg6bJqaqYmPz1eiDJZKeLJvpmLqRC2HdcYedNvcs5d  seen in 5 runs  last_early=$464
+  CkS9uU1wtTEn1rBRaBucjXhkL5shf3HAZxQpRQQXHKAc  seen in 5 runs  last_early=$1079
+  91yUa7wk5BkUbhFb79X21p1HF87VaWa4n98DN46oob19  seen in 5 runs  last_early=$1560
+  BTm12Tkn1u5Wzp9gBFJewEYBCrkkdFDDKyuTpXEKcBBC  seen in 5 runs  last_early=$327
+  CkP33SXmTZt757sPwj3bDuSiphsZY7kaueqmXD5bn6hb  seen in 5 runs  last_early=$1566
+  A66Uo46wJYtGkV6JhddnT8tktMjJzFATRDJcuFiz1Mwt  seen in 5 runs  last_early=$696
+  5j6ukAbpcgywrTdJoz4KsYGbQKVSg2asY6YQR87dMeJN  seen in 4 runs  last_early=$760
+  PGhYoUt8awqicsPSAzcnutWHUc5efkcgixdXHYBSaMC  seen in 4 runs  last_early=$1839
+  7BQJ9Pu6Zunf79oJUsZm8uyk7YZQmCvkMV2HhXpjF2ji  seen in 4 runs  last_early=$930
+  ARhs2JMc9TeHqZJBUXms1hU4EmXKKLNLdHgMDCsv1sZ  seen in 4 runs  last_early=$1539
+  EhNsRZM9b6Pk1833rmYeT4iydKT5VdQZTSqqr7HTT8rV  seen in 4 runs  last_early=$2164
+  D7i5Mq8dyX1z818TbXSSjbBaCzFB4VXUGiy4L1jG47d9  seen in 4 runs  last_early=$400
+  36uWVq7Qu9iBgFFMJJzUG8eC8wiEYcAtLJiGMZmJYEXy  seen in 4 runs  last_early=$1295
+  6LkGY852ponKKMuq2e7yZXrxnz1jd6weU1XBs7tEvHS  seen in 4 runs  last_early=$548
+  6u6T35bp2yzGgF2M9zJVk9WhrqCCddsyo9mvDSGP5mVJ  seen in 4 runs  last_early=$2160
+  CHsJ9DAtX2fjBpZzuZNZvSi2HtSns884ybdwvfwk4zTp  seen in 4 runs  last_early=$547
+  DQr5c5g2eKeMPTK7hW58CXTRMa8mHsofVqRZNXdV71we  seen in 3 runs  last_early=$2127
+  9d2gVXxxxy4D7A8WhzNv1V2BxHEeWtUFBVbjs54M1C3p  seen in 3 runs  last_early=$1492
+  FQbEHhytYY9ke4JdLZkgh5ba5X6mFW87jzwejRHXaVCX  seen in 3 runs  last_early=$2330
+  63jBpyNK5bkaxHxaMiRuqWfeCxMA2ZwRCM1NCneAXzdo  seen in 3 runs  last_early=$1200
+  4BM7wYwcZzJGBFo1n82Na4qFbYXHK3duYatH4YMUgruy  seen in 3 runs  last_early=$3340
+  DpdN6cmoguofBZWtVynxggkFwsjKWYAFJpY3o2gm2YoF  seen in 3 runs  last_early=$2170
+  6RUnMvP2MxM9uvtznyURdgYs5X15WJ5QXRQPU7ioRc4n  seen in 3 runs  last_early=$3190
+  6MLdoXaGzcbk3exPZbghDYr4sUnKtrUV11Qv7FMcEQWa  seen in 3 runs  last_early=$2240
+  25tnphbg8du2bEACcDmN3XJXoDmEXkBVoydg1mt3Jovm  seen in 3 runs  last_early=$2181
+  29eVohGiwBq63y4B3t5nBkX8GeAco7CLnFnynXiznuPR  seen in 3 runs  last_early=$2112
+  8UNCF7UCYLao5tKJJF6sRTgfo6sRBUnG7B13wDGn5JAY  seen in 3 runs  last_early=$3470
+  5kKuo5c1KHBrh28nyZZmzamcmYmz1zcHwUQ98kKpzZGr  seen in 2 runs  last_early=$4328
+  8gLQPr9Z8YQJarJuvpPWwzc7SXMjrq6zfwqLS191c3Q3  seen in 2 runs  last_early=$1507
+  Hyy45BWzZM1B51UcEyBRLYUyFdJbqojNEyMW4gXYbpTp  seen in 2 runs  last_early=$769
+  3oXVfvMryXsBUBwKqJZNWnKh7mXBEVMHPfpPKWjcAUz4  seen in 2 runs  last_early=$1500
+  HGzEyTcfPy7JHdSLSZ5PMo87Xbc92sp5TjodJZotWvsb  seen in 2 runs  last_early=$1482
+  NYxMnTK32KesJWgvTjHuKzUPBTSr9RcCaTvrVpFPCwu  seen in 2 runs  last_early=$2529
+  A3Neyg5y9ofQiBohsY3Rq7t9oT8tgbEErLQsre787EwK  seen in 2 runs  last_early=$2400
+  CnE2KrHA8oCppYeTQ94cGwicistuj7DHbLaNhuXBdTWj  seen in 2 runs  last_early=$1525
+  GhEptaaKExdFoN7mpyizoNkEAZL9qVhcDnm1FQy48uWZ  seen in 2 runs  last_early=$2327
+  3ruK6B4izjuWpPvYEhna8C8p4o6Js7udeBQJHBKNkhmb  seen in 2 runs  last_early=$769
+  DtnhtT7SLCLiWsa658YuwraE9v5UQHZUD3yNjWzsLArD  seen in 2 runs  last_early=$901
+  6yxRpBGev7Adf5WRsbw1MgkG2TBBJYkuhQAHdE126RTT  seen in 2 runs  last_early=$1698
+  B9FkyTVkh7jkiyhS29tjocxw7obbGZ4ssPNbsn46VSxw  seen in 2 runs  last_early=$1824
+
+NEXT: once a wallet recurs across several runs, bag-validate + forward-track before adding to the follow set.
+=== recur run 5 @ 02:27UTC ===
+=== Phase 1: find recent Solana runners (GeckoTerminal) ===
+  GT works/solana/trending_pools?page=1: cum 20
+  GT works/solana/trending_pools?page=2: cum 40
+  GT works/solana/trending_pools?page=3: cum 60
+  GT ls?sort=h24_volume_usd_desc&page=1: cum 80
+  GT ls?sort=h24_volume_usd_desc&page=2: cum 100
+  GT ls?sort=h24_volume_usd_desc&page=3: cum 120
+  GT ls?sort=h24_volume_usd_desc&page=4: cum 140
+  GT FAIL ort=h24_volume_usd_desc&page=5
+  GT ls?sort=h24_volume_usd_desc&page=6: cum 159
+  GT ls?sort=h24_volume_usd_desc&page=7: cum 179
+  GT ls?sort=h24_volume_usd_desc&page=8: cum 199
+  GT ls?sort=h24_volume_usd_desc&page=9: cum 219
+  GT s?sort=h24_volume_usd_desc&page=10: cum 239
+  GT FAIL sort=h6_volume_usd_desc&page=1
+  GT FAIL sort=h6_volume_usd_desc&page=2
+  GT FAIL sort=h6_volume_usd_desc&page=3
+  GT FAIL sort=h6_volume_usd_desc&page=4
+  GT FAIL sort=h6_volume_usd_desc&page=5
+
+=== Phase 2: harvest early buy-makers from 23 runner trade logs ===
+  [1/23] USMNT / SOL        h6=+68312% trades=99 early_buyers=15
+  [2/23] trelon / SOL       h6=+728% trades=99 early_buyers=16
+  [3/23] AOAF / SOL         h6=+599% trades=99 early_buyers=17
+  [4/23] SPCX / SOL         h6=+465% trades=100 early_buyers=16
+  [5/23] SPCX / SOL         h6=+427% trades=100 early_buyers=16
+  [6/23] KINS / SOL         h6=+406% trades=99 early_buyers=17
+  [7/23] MTFF / SOL         h6=+345% trades=100 early_buyers=17
+  [8/23] XP / SOL           h6=+344% trades=99 early_buyers=17
+  [9/23] SPCX / SOL         h6=+316% trades=100 early_buyers=10
+  [10/23] KINS / SOL         h6=+306% trades=99 early_buyers=17
+  [11/23] 世界杯 / SOL          h6=+262% trades=100 early_buyers=0
+  [12/23] UFCF250 / SOL      h6=+182% trades=99 early_buyers=17
+  [13/23] BARRON / SOL       h6=+176% trades=99 early_buyers=16
+  [14/23] MTFF / SOL         h6=+173% trades=100 early_buyers=15
+  [15/23] SPCX / SOL         h6=+147% trades=99 early_buyers=15
+  [16/23] Obuma / SOL        h6=+120% trades=99 early_buyers=17
+  [17/23] FOUR / SOL         h6=+119% trades=100 early_buyers=17
+  [18/23] XP / SOL           h6=+107% trades=99 early_buyers=11
+  [19/23] SPCX / SOL         h6=+98% trades=100 early_buyers=10
+  [20/23] UFCF250 / SOL      h6=+98% trades=100 early_buyers=13
+  [21/23] UATF / SOL         h6=+96% trades=99 early_buyers=17
+  [22/23] XEF / SOL          h6=+76% trades=100 early_buyers=12
+  [23/23] REDCARD / SOL      h6=+20% trades=100 early_buyers=17
+
+runners (age<=24.0h, liq>=$15k, h6>=+20%): 23
+  USMNT / SOL                h6=+ 68312% h1=+ 15442% age= 4.3h liq=$139k
+  trelon / SOL               h6=+   728% h1=+     0% age= 6.1h liq=$54k
+  AOAF / SOL                 h6=+   599% h1=+     0% age= 5.8h liq=$67k
+  SPCX / SOL                 h6=+   465% h1=+   153% age= 1.2h liq=$132k
+  SPCX / SOL                 h6=+   427% h1=+    15% age= 3.5h liq=$495k
+  KINS / SOL                 h6=+   406% h1=+   -75% age= 5.3h liq=$40k
+  MTFF / SOL                 h6=+   345% h1=+   345% age= 0.4h liq=$171k
+  XP / SOL                   h6=+   344% h1=+     0% age= 5.5h liq=$232k
+  SPCX / SOL                 h6=+   316% h1=+    23% age= 6.6h liq=$492k
+  KINS / SOL                 h6=+   306% h1=+     0% age= 5.8h liq=$330k
+  世界杯 / SOL                  h6=+   262% h1=+     1% age= 6.0h liq=$188k
+  UFCF250 / SOL              h6=+   182% h1=+     0% age= 3.5h liq=$204k
+  BARRON / SOL               h6=+   176% h1=+     0% age= 7.4h liq=$236k
+  MTFF / SOL                 h6=+   173% h1=+   173% age= 0.6h liq=$144k
+  SPCX / SOL                 h6=+   147% h1=+    10% age= 2.5h liq=$167k
+  Obuma / SOL                h6=+   120% h1=+     0% age= 6.0h liq=$119k
+  FOUR / SOL                 h6=+   119% h1=+    20% age= 1.4h liq=$85k
+  XP / SOL                   h6=+   107% h1=+     0% age= 8.1h liq=$105k
+  SPCX / SOL                 h6=+    98% h1=+    39% age= 1.5h liq=$103k
+  UFCF250 / SOL              h6=+    98% h1=+    98% age= 0.5h liq=$145k
+  UATF / SOL                 h6=+    96% h1=+     0% age=12.5h liq=$74k
+  XEF / SOL                  h6=+    76% h1=+    76% age= 0.6h liq=$177k
+  REDCARD / SOL              h6=+    20% h1=+     4% age=17.5h liq=$67k
+
+(runners spanned 23 DISTINCT tokens across 23 pools)
+
+=== makers that were EARLY buyers on >=2 distinct TOKENS: 11 (11 NEW, not in stored roster) ===
+wallet                                          tokens    early$  status
+  2pqEjzff6grz4Gx9xo7gR4YEGUtWjsSNekrr9GxrwVqg     2   $    3820  *** NEW ***
+  FcoFoNCm57Pgop3YK4gNDmHGjt3cB74dY68jXD4eLaKy     2   $    2650  *** NEW ***
+  FQbEHhytYY9ke4JdLZkgh5ba5X6mFW87jzwejRHXaVCX     2   $    2641  *** NEW ***
+  EhNsRZM9b6Pk1833rmYeT4iydKT5VdQZTSqqr7HTT8rV     2   $    2473  *** NEW ***
+  6hE35qr8sSzWSQrh2NtSw6qLPHsHmjWEQF1rRDVUdTqg     2   $    2451  *** NEW ***
+  DpWMPx8jwhYiUty1rta6Y7X8Ng5937oLR9bDcYXBTz7k     2   $    2411  *** NEW ***
+  5L6GxeEtLWxXXgCV83h3NS7XV7wgZRX8PSNzsqU48aPA     2   $     700  *** NEW ***
+  TEGQuLRfx7zWJcyQkxt2b9kFQfRtkHNqcPFeXqkGT3Z      2   $     653  *** NEW ***
+  88Juc3T168u2UpScE65S4kPV9N16Nr7oWhAo6feTtjNC     2   $     619  *** NEW ***
+  8xVpe7DzkebXyKbJFKf4W4EbtHc12iFUabdEdAZThYXU     2   $     564  *** NEW ***
+  D3VwXzDxjZEYsEHaZ53Y4eNbsooFFKpHPxKN1kewEw2f     2   $     558  *** NEW ***
+
+Wrote 11 NEW candidates to _new_wallet_candidates.json
+
+=== recurrence log: 8 run(s) recorded -> C:\Users\jcole\multichain-bot\_wallet_discovery_log.json ===
+wallets seen early across >=2 runs: 79  (THESE are the real candidates)
+  gVg6bJqaqYmPz1eiDJZKeLJvpmLqRC2HdcYedNvcs5d  seen in 5 runs  last_early=$464
+  CkS9uU1wtTEn1rBRaBucjXhkL5shf3HAZxQpRQQXHKAc  seen in 5 runs  last_early=$1079
+  91yUa7wk5BkUbhFb79X21p1HF87VaWa4n98DN46oob19  seen in 5 runs  last_early=$1560
+  BTm12Tkn1u5Wzp9gBFJewEYBCrkkdFDDKyuTpXEKcBBC  seen in 5 runs  last_early=$327
+  EhNsRZM9b6Pk1833rmYeT4iydKT5VdQZTSqqr7HTT8rV  seen in 5 runs  last_early=$2473
+  CkP33SXmTZt757sPwj3bDuSiphsZY7kaueqmXD5bn6hb  seen in 5 runs  last_early=$1566
+  A66Uo46wJYtGkV6JhddnT8tktMjJzFATRDJcuFiz1Mwt  seen in 5 runs  last_early=$696
+  FQbEHhytYY9ke4JdLZkgh5ba5X6mFW87jzwejRHXaVCX  seen in 4 runs  last_early=$2641
+  5j6ukAbpcgywrTdJoz4KsYGbQKVSg2asY6YQR87dMeJN  seen in 4 runs  last_early=$760
+  PGhYoUt8awqicsPSAzcnutWHUc5efkcgixdXHYBSaMC  seen in 4 runs  last_early=$1839
+  7BQJ9Pu6Zunf79oJUsZm8uyk7YZQmCvkMV2HhXpjF2ji  seen in 4 runs  last_early=$930
+  ARhs2JMc9TeHqZJBUXms1hU4EmXKKLNLdHgMDCsv1sZ  seen in 4 runs  last_early=$1539
+  D7i5Mq8dyX1z818TbXSSjbBaCzFB4VXUGiy4L1jG47d9  seen in 4 runs  last_early=$400
+  36uWVq7Qu9iBgFFMJJzUG8eC8wiEYcAtLJiGMZmJYEXy  seen in 4 runs  last_early=$1295
+  6LkGY852ponKKMuq2e7yZXrxnz1jd6weU1XBs7tEvHS  seen in 4 runs  last_early=$548
+  6u6T35bp2yzGgF2M9zJVk9WhrqCCddsyo9mvDSGP5mVJ  seen in 4 runs  last_early=$2160
+  CHsJ9DAtX2fjBpZzuZNZvSi2HtSns884ybdwvfwk4zTp  seen in 4 runs  last_early=$547
+  DQr5c5g2eKeMPTK7hW58CXTRMa8mHsofVqRZNXdV71we  seen in 3 runs  last_early=$2127
+  9d2gVXxxxy4D7A8WhzNv1V2BxHEeWtUFBVbjs54M1C3p  seen in 3 runs  last_early=$1492
+  63jBpyNK5bkaxHxaMiRuqWfeCxMA2ZwRCM1NCneAXzdo  seen in 3 runs  last_early=$1200
+  DpWMPx8jwhYiUty1rta6Y7X8Ng5937oLR9bDcYXBTz7k  seen in 3 runs  last_early=$2411
+  4BM7wYwcZzJGBFo1n82Na4qFbYXHK3duYatH4YMUgruy  seen in 3 runs  last_early=$3340
+  DpdN6cmoguofBZWtVynxggkFwsjKWYAFJpY3o2gm2YoF  seen in 3 runs  last_early=$2170
+  6RUnMvP2MxM9uvtznyURdgYs5X15WJ5QXRQPU7ioRc4n  seen in 3 runs  last_early=$3190
+  6MLdoXaGzcbk3exPZbghDYr4sUnKtrUV11Qv7FMcEQWa  seen in 3 runs  last_early=$2240
+  25tnphbg8du2bEACcDmN3XJXoDmEXkBVoydg1mt3Jovm  seen in 3 runs  last_early=$2181
+  6hE35qr8sSzWSQrh2NtSw6qLPHsHmjWEQF1rRDVUdTqg  seen in 3 runs  last_early=$2451
+  29eVohGiwBq63y4B3t5nBkX8GeAco7CLnFnynXiznuPR  seen in 3 runs  last_early=$2112
+  8UNCF7UCYLao5tKJJF6sRTgfo6sRBUnG7B13wDGn5JAY  seen in 3 runs  last_early=$3470
+  5kKuo5c1KHBrh28nyZZmzamcmYmz1zcHwUQ98kKpzZGr  seen in 2 runs  last_early=$4328
+  8gLQPr9Z8YQJarJuvpPWwzc7SXMjrq6zfwqLS191c3Q3  seen in 2 runs  last_early=$1507
+  Hyy45BWzZM1B51UcEyBRLYUyFdJbqojNEyMW4gXYbpTp  seen in 2 runs  last_early=$769
+  3oXVfvMryXsBUBwKqJZNWnKh7mXBEVMHPfpPKWjcAUz4  seen in 2 runs  last_early=$1500
+  HGzEyTcfPy7JHdSLSZ5PMo87Xbc92sp5TjodJZotWvsb  seen in 2 runs  last_early=$1482
+  NYxMnTK32KesJWgvTjHuKzUPBTSr9RcCaTvrVpFPCwu  seen in 2 runs  last_early=$2529
+  A3Neyg5y9ofQiBohsY3Rq7t9oT8tgbEErLQsre787EwK  seen in 2 runs  last_early=$2400
+  CnE2KrHA8oCppYeTQ94cGwicistuj7DHbLaNhuXBdTWj  seen in 2 runs  last_early=$1525
+  GhEptaaKExdFoN7mpyizoNkEAZL9qVhcDnm1FQy48uWZ  seen in 2 runs  last_early=$2327
+  3ruK6B4izjuWpPvYEhna8C8p4o6Js7udeBQJHBKNkhmb  seen in 2 runs  last_early=$769
+  DtnhtT7SLCLiWsa658YuwraE9v5UQHZUD3yNjWzsLArD  seen in 2 runs  last_early=$901
+
+NEXT: once a wallet recurs across several runs, bag-validate + forward-track before adding to the follow set.
+RECURRENCE LOOP DONE (5 runs)

@@ -1,0 +1,20 @@
+=== Phase 1: fleet winner tokens (OUR pond) ===
+
+=== Phase 2: harvest early buyers from 17 winner pools ===
+  [1/17] GUARDIAN       pnl=$+88 trades=100 early_buyers=8
+  [2/17] TURTLE         pnl=$+87 trades=0 early_buyers=1
+  [3/17] USBC           pnl=$+83 trades=100 early_buyers=10
+  [4/17] ANSEM          pnl=$+69 trades=100 early_buyers=9
+  [5/17] Vox            pnl=$+60 trades=100 early_buyers=9
+  [6/17] REKILL         pnl=$+48 trades=100 early_buyers=10
+  [7/17] Trilly         pnl=$+39 trades=100 early_buyers=8
+  [8/17] Merlin         pnl=$+35 trades=100 early_buyers=14
+  [9/17] XRPS           pnl=$+34 trades=100 early_buyers=10
+  [10/17] SIEGE          pnl=$+30 trades=100 early_buyers=1
+  [11/17] Worlds         pnl=$+27 trades=100 early_buyers=11
+  [12/17] PUMPI          pnl=$+27 trades=100 early_buyers=5
+  [13/17] ZUL            pnl=$+23 trades=100 early_buyers=7
+  [14/17] ICPX           pnl=$+20 trades=100 early_buyers=10
+  [15/17] comrade        pnl=$+19 trades=100 early_buyers=9
+  [16/17] REALM          pnl=$+19 trades=100 early_buyers=13
+  [17/17] Jotchua        pnl=$+14 trades=100 early_buyers=12

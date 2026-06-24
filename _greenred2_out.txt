@@ -1,0 +1,23 @@
+wallet                                                        source         verdict taxedRet  medHold  wr
+8XTqGhi6PTi1MwP5wyt2Y1fBkZwAMxYAjvzWrK4H9DYK      BOTH-RED-DAYS(1+1)            THIN        -        -   -
+3fZftz6m8d37X5pBhnF4rHhgrG5hW8rsCKgdhtuPBf6u      BOTH-RED-DAYS(1+1)            THIN        -        -   -
+JApBGtbBtsNosE1Z5CiyUkTMhAxATqH1NAuJJenHUceR      BOTH-RED-DAYS(2+1)RPC-FAIL/UNFOLLOWABLE        -        -   -
+3LdFsgyZnDwgKgzaKJK4VtQwR6hWSpUTiMvhQFVAh8k7      BOTH-RED-DAYS(1+1)       THIN-EDGE    -9.92     52.0  18
+Em8J3gBWapfVBGVhVipwQnLrqCvnWBnLajw6XFsFECPF      BOTH-RED-DAYS(1+2)RPC-FAIL/UNFOLLOWABLE        -        -   -
+AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51      BOTH-RED-DAYS(9+1)RPC-FAIL/UNFOLLOWABLE        -        -   -
+13VK7ZrRrx1uZ4Frm2TjacNsbipun21qqifE8wibPVys      BOTH-RED-DAYS(1+1)            THIN        -        -   -
+HzA15vYiFgqYnjbGe1kYS2zhLbyAYmCU8KbLaJx9cDaZ      BOTH-RED-DAYS(1+1)            THIN        -        -   -
+Cdp5TyiBRjKCExoN2f6WQjDSUv1qPiSP9CqAUFpiW6Pf      BOTH-RED-DAYS(1+1)       THIN-EDGE   -39.99    909.5   0
+9JrV1787qufyU8MvVKYjSJTBUAaxzd7VbQHq6NNPsbCF      BOTH-RED-DAYS(1+1)            THIN        -        -   -
+J2vTUp933Xrifcc2EqCVUQHxitChBfvCRPYXkBxsDj6L      BOTH-RED-DAYS(1+1)            THIN        -        -   -
+7iVCXQn4u6tiTEfNVqbWSEsRdEi69E9oYsSMiepuECwi      BOTH-RED-DAYS(2+2)RPC-FAIL/UNFOLLOWABLE        -        -   -
+Dw5VykxuTNQeh8c9TxUPsaM7Rwxkmy74rLr63wB3LG8j      BOTH-RED-DAYS(1+1)  COPYABLE-GRADE    23.95    145.3  88
+gasBidSWW5zmwXs3gn8TG2ijzKkrwpyM7ucwjgDQst6       BOTH-RED-DAYS(1+1)RPC-FAIL/UNFOLLOWABLE        -        -   -
+STorreSu8X6yPLmiEScNHSGDinqV7j84hWjmvH9SPwk       BOTH-RED-DAYS(1+1)       THIN-EDGE   -10.52     10.7  22
+BSHdFzWq6BfXpTx49LcCuvF4FVZakEZTibkKgjBcJqLD      BOTH-RED-DAYS(1+2)            THIN        -        -   -
+6AGp6zbGNuyZpmzeswv9KCNU15Rf37UQDqDqFAeHmS8d      BOTH-RED-DAYS(1+1)            THIN        -        -   -
+93PUvYdpQg7P4ePSCr4zXnyvbSUwHvKLXJQqjfGEJrFo      BOTH-RED-DAYS(1+1)       THIN-EDGE     9.28     32.5  40
+AeBgCFnkSWMAwv3zjaJPB93hxEBUEVkhEyKVFaxT84pJ      BOTH-RED-DAYS(1+1)            THIN        -        -   -
+4TeTtW1GcHM9EFtmGBBymxiSXFLM6PPqVfcdbMuoCKBP      BOTH-RED-DAYS(1+1)  COPYABLE-GRADE     2.06    270.7  60
+
+GREEN-IN-RED v2 bench: 2 -> _green_in_red_bench.json

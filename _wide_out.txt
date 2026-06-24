@@ -1,0 +1,37 @@
+
+TOTAL candidates pre-score: 32
+  AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51  src=elite-cluster,runners hits=15
+  Em8J3gBWapfVBGVhVipwQnLrqCvnWBnLajw6XFsFECPF  src=elite-cluster,runners hits=8
+  gasTzr94Pmp4Gf8vknQnqxeYxdgwFjbgdJa4msYRpnB  src=elite-cluster,runners hits=7
+  2tYcXQCfTtQg5dKLEpQn26DjrfhTXhGB8Rh1oiv69DJc  src=elite-cluster,runners hits=5
+  2qnHs8fZZLUJFVCkTCEXXZnEZTgfu7HFVBFmbUmXiYiW  src=elite-cluster hits=5
+  AKprbkX7HKoSFYtKshbGPxwM1hyrg3AxEAVhLNSqyyEB  src=elite-cluster hits=4
+  H8ioGeFfkj4FT4hPT5LPNSSdt8zgAdKCWvieusc1nbVn  src=runners hits=3
+  Fgej4SPuW282TdrQRfizRHAeRasNqCtAWZizL3jDqMdS  src=runners hits=3
+  DZbgq3yE3r41EFszV3XastvyS8j8QnmNT37nsq7sxR66  src=runners hits=3
+  Ar2Y6o1QmrRAskjii1cRfijeKugHH13ycxW5cd7rro1x  src=runners hits=3
+  2Zhd5xxv6mnLwkThX8EdRrWTSL5BSJumBrT97xUytSB1  src=runners hits=3
+  3fuga4fDgNY974eJDfBgYX8pwTCW9wtWS9qoxSWdSPRu  src=elite-cluster hits=3
+  STorreSu8X6yPLmiEScNHSGDinqV7j84hWjmvH9SPwk  src=elite-cluster hits=3
+  1eveYYxZ2mDiAnmCh3fnAbJwjgErzokRA1b6UrRybSM  src=elite-cluster hits=3
+  CuTgJYbTjfYiMBM6y3zKXoiwWDHUn1PSyaP855W2v4Ky  src=elite-cluster hits=3
+  HcLMmNx9pcSM2cDuNMEcWKuDpiknGEb8djqGRsTtM9yo  src=elite-cluster hits=3
+  APostAke7pn6jWuvzHqTCC5cWAeDvgLDto85845xmQed  src=runners hits=2
+  DJocqRPK2uKWvmR5WnWcd7m8fDw6az1L54R4UuH3GrGN  src=runners hits=2
+  HZBmjtgG8MDownvB9wTLTRN2stjozUBwDaBUhUpybvrm  src=runners hits=2
+  7iVCXQn4u6tiTEfNVqbWSEsRdEi69E9oYsSMiepuECwi  src=runners hits=2
+  EGwERj1nadcGQhwnJsMmfmDeH51D1G1kMsdYG3e9V1Dp  src=runners hits=2
+  DjiJKVgtS3MrR9VasbQWMMZUpB4zsbipeKUJR1YLw91r  src=runners hits=2
+  hnu5iBK8UoHb51UFsH1RYTUAYdrhjHvV5YMTf9T1CYN  src=runners hits=2
+  6ijwGYMoTtb7FzfndTnA2qe1iirRPDb9Zpf1ReNFWwRH  src=runners hits=2
+  F8qsJofRMpj5LhbPiZzp41be7RjP4bxLZr1PB7UFdHAU  src=runners hits=2
+  2tYcXQCfTtQg src=elite-cluster,runners  ndist= 24 rtrips=  2 rWR=100% net=  +0.19 SELECTOR
+  STorreSu8X6y src=elite-cluster          ndist= 13 rtrips=  2 rWR= 50% net=  -0.96 SELECTOR
+  hnu5iBK8UoHb src=runners                ndist= 10 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  6ijwGYMoTtb7 src=runners                ndist=  6 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  iK7BmyUoFm2G src=runners                ndist=  8 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  3gubYnreSffR src=runners                ndist=  8 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  AeBgCFnkSWMA src=runners                ndist= 18 rtrips=  0 rWR= n/a net=  +0.00 WEAK
+  FxTw69nWXf9z src=runners                ndist=  8 rtrips=  1 rWR=  0% net=  -0.05 WEAK
+
+KEEPER-GRADE: 0 | RPC-retry queue: 24 -> _wide_harvest_results.json

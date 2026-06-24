@@ -1,0 +1,44 @@
+wallet         src       swap ndist  top% rtrip   rWR   netSOL dSell  CLASS
+--------------------------------------------------------------------------------------------
+  AgmLJBMDCqWy candidate no-swaps/RPC-fail
+  Em8J3gBWapfV candidate no-swaps/RPC-fail
+  gasTzr94Pmp4 candidate no-swaps/RPC-fail
+  2qnHs8fZZLUJ candidate   26    25    8%     1  100%    +0.19    10  SELECTOR
+  AKprbkX7HKoS candidate   21    21    5%     0   n/a    +0.00    12  SELECTOR
+  H8ioGeFfkj4F candidate   26    15   31%     3   33%    -0.86    10  SELECTOR
+  Fgej4SPuW282 candidate no-swaps/RPC-fail
+  DZbgq3yE3r41 candidate   16    13   12%     0   n/a    +0.00     0  WEAK
+  Ar2Y6o1QmrRA candidate   32    15   28%     5   60%    -0.17    14  SELECTOR
+  2Zhd5xxv6mnL candidate   14    10   21%     0   n/a    +0.00     0  WEAK
+  3fuga4fDgNY9 candidate   20    18   10%     2   50%    -0.28    12  SELECTOR
+  1eveYYxZ2mDi candidate   22    14   23%     3  100%    +5.39     8  SELECTOR
+  CuTgJYbTjfYi candidate   19    19    5%     0   n/a    +0.00    11  SELECTOR
+  HcLMmNx9pcSM candidate   46    42    4%     4   75%    +0.30    14  SELECTOR
+  APostAke7pn6 candidate no-swaps/RPC-fail
+  DJocqRPK2uKW candidate   11     9   18%     0   n/a    +0.00     0  WEAK
+  HZBmjtgG8MDo candidate no-swaps/RPC-fail
+  7iVCXQn4u6ti candidate no-swaps/RPC-fail
+  EGwERj1nadcG candidate   26    22   12%     3  100%    +0.87    10  SELECTOR
+  DjiJKVgtS3Mr candidate   19    11   32%     2   50%    +5.27     5  WEAK
+  F8qsJofRMpj5 candidate   22     3   77%     0   n/a    +0.00     2  MM_CHURN
+  6dQz6cyk3VVi candidate   16     4   69%     2   50%    -0.33     3  MM_CHURN
+  1aDerPKk87xJ candidate    7     5   43%     1    0%    -1.08     1  WEAK
+  HzA15vYiFgqY candidate    8     6   25%     0   n/a    +0.00     0  WEAK
+
+=== SELECTORS (follow-worthy): 9 | MM_CHURN (reject): 2 | WEAK: 6 ===
+
+SELECTORS ranked:
+  2qnHs8fZZLUJFVCkTCEXXZnEZTgfu7HFVBFmbUmXiYiW  [candidate] ndist=25 rWR=100% netSOL=+0.19 dSell=10
+  EGwERj1nadcGQhwnJsMmfmDeH51D1G1kMsdYG3e9V1Dp  [candidate] ndist=22 rWR=100% netSOL=+0.87 dSell=10
+  1eveYYxZ2mDiAnmCh3fnAbJwjgErzokRA1b6UrRybSM  [candidate] ndist=14 rWR=100% netSOL=+5.39 dSell=8
+  HcLMmNx9pcSM2cDuNMEcWKuDpiknGEb8djqGRsTtM9yo  [candidate] ndist=42 rWR=75% netSOL=+0.30 dSell=14
+  Ar2Y6o1QmrRAskjii1cRfijeKugHH13ycxW5cd7rro1x  [candidate] ndist=15 rWR=60% netSOL=-0.17 dSell=14
+  3fuga4fDgNY974eJDfBgYX8pwTCW9wtWS9qoxSWdSPRu  [candidate] ndist=18 rWR=50% netSOL=-0.28 dSell=12
+  H8ioGeFfkj4FT4hPT5LPNSSdt8zgAdKCWvieusc1nbVn  [candidate] ndist=15 rWR=33% netSOL=-0.86 dSell=10
+  AKprbkX7HKoSFYtKshbGPxwM1hyrg3AxEAVhLNSqyyEB  [candidate] ndist=21 rWR=n/a netSOL=+0.00 dSell=12
+  CuTgJYbTjfYiMBM6y3zKXoiwWDHUn1PSyaP855W2v4Ky  [candidate] ndist=19 rWR=n/a netSOL=+0.00 dSell=11
+
+MM_CHURN (correctly rejected — single/few-token churn):
+  F8qsJofRMpj5LhbPiZzp41be7RjP4bxLZr1PB7UFdHAU  [candidate] ndist=3 top%=77
+  6dQz6cyk3VViqCji5mhzkzownPBJC2F3QU3ckxb8kFHD  [candidate] ndist=4 top%=69
+wrote _wallet_diversity_scores.json

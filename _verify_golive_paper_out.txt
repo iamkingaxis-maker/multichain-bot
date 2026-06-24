@@ -1,0 +1,12 @@
+poll 1: BUILDING
+poll 2: BUILDING
+poll 3: BUILDING
+poll 4: BUILDING
+poll 5: BUILDING
+poll 6: BUILDING
+poll 7: BUILDING
+poll 8: BUILDING
+poll 9: BUILDING
+poll 10: DEPLOYING
+poll 11: DEPLOYING
+DEPLOY SUCCESS | live_mode=False (MUST be False/None = paper holds with live_probe set, no env)

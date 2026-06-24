@@ -1,0 +1,183 @@
+########## DU25XyVifBP3bTetkK124cZ2iXcxvXw7dpZrgzKoVJvW ##########
+=== DECODE DU25XyVifBP3bTet… | 18 tokens, 14 closed, 4 open ===
+SIZING: median 1.50 SOL/token | variable (conviction sizer)
+HOLDS: median 9718min | p25 2353m | p75 15867m
+RETURNS: WR 71% | win med +62.7% | loss med -48.9% | best +178097.5%
+OVERLAP: our scanner saw 5/18 of its tokens (28%) | we traded 11/18
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds
+
+last 12 closed trips:
+  04-21 23:34 -> 05-02 01:15 hold= 14501min ret=  +36.2%  4HhWcsfjaW
+  04-24 16:48 -> 04-28 07:14 hold=  5186min ret=  -66.3%  ERZrVfHz9D
+  05-06 12:43 -> 05-20 11:27 hold= 20084min ret= +791.8%  EnqCw742Nb
+  05-07 00:12 -> 05-08 15:25 hold=  2353min ret=+73314.5%  9S8edqWxoW
+  05-07 06:20 -> 05-09 08:00 hold=  2980min ret=+178097.5%  6cgUrnK8ix
+  05-08 15:25 -> 05-19 15:52 hold= 15867min ret=   +4.0%  wMNSTc9xcR
+  05-19 15:53 -> 05-26 09:51 hold=  9718min ret=  +18.7%  217dt9idH1
+  05-22 00:33 -> 06-08 22:38 hold= 25805min ret=  +53.6%  33eum82LaA
+  05-23 01:54 -> 05-24 14:49 hold=  2215min ret=  -44.4%  yxqegfnoem
+  06-08 15:57 -> 06-11 15:03 hold=  4265min ret=  -20.3%  EN2nnxrg8u
+  06-09 16:22 -> 06-09 23:22 hold=   420min ret=  +88.7%  BcHEaaTCvy
+  06-12 07:02 -> 06-13 05:36 hold=  1354min ret=  -53.4%  Tqj8yFmagr
+
+########## C3zPgDxqJYN4Gf9RotKuHTbBMfpKEsAFSY7hSbFWdSdQ ##########
+=== DECODE C3zPgDxqJYN4Gf9R… | 35 tokens, 22 closed, 7 open ===
+SIZING: median 0.66 SOL/token | variable (conviction sizer)
+HOLDS: median 219min | p25 143m | p75 627m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 73% | win med +11.6% | loss med -16.1% | best +198.0%
+OVERLAP: our scanner saw 22/35 of its tokens (63%) | we traded 34/35
+
+last 12 closed trips:
+  06-13 02:43 -> 06-13 06:23 hold=   219min ret=  +28.5%  8avjtjHAHF
+  06-13 06:24 -> 06-13 16:51 hold=   627min ret=   -0.6%  BcHEaaTCvy
+  06-13 08:26 -> 06-13 11:31 hold=   184min ret= +198.0%  7XLu71Wvq7
+  06-13 10:35 -> 06-13 13:26 hold=   171min ret=  +13.8%  DrESFkkBLL
+  06-13 11:05 -> 06-13 12:20 hold=    76min ret=   +8.3%  JCKwsT8UAb
+  06-13 11:33 -> 06-13 14:22 hold=   169min ret=  +10.8%  7QXDpKoeEe
+  06-13 12:14 -> 06-13 14:04 hold=   109min ret=   +4.3%  HtTYHz1Kf3
+  06-13 12:43 -> 06-13 16:19 hold=   216min ret=  -45.4%  DY2ZAaZrt2
+  06-13 13:07 -> 06-13 18:26 hold=   319min ret=   +6.4%  Cy1mCA7qAe
+  06-13 15:03 -> 06-13 17:20 hold=   137min ret=   +3.7%  3Dkwrjfmt3
+  06-13 15:34 -> 06-13 17:52 hold=   138min ret=   +9.6%  VtwGKv7dcp
+  06-13 17:33 -> 06-13 15:18 hold=     0min ret=  +61.8%  33eum82LaA
+
+########## B1zhrWqDoJdZ9paihqcLN3UY1LzXxxch1zLBzgoaQnKz ##########
+=== DECODE B1zhrWqDoJdZ9pai… | 42 tokens, 28 closed, 9 open ===
+SIZING: median 1.00 SOL/token | variable (conviction sizer)
+HOLDS: median 87min | p25 25m | p75 254m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 57% | win med +85.6% | loss med -13.0% | best +186.0%
+(overlap check unavailable: HTTP Error 502: Bad Gateway)
+
+last 12 closed trips:
+  06-12 21:45 -> 06-12 23:57 hold=   131min ret=  -26.6%  FxHzvtCGet
+  06-12 23:56 -> 06-13 00:00 hold=     5min ret=  +14.6%  CNcnXNmSSY
+  06-13 04:56 -> 06-13 08:46 hold=   230min ret=  -37.8%  FJoKnnnDy6
+  06-13 09:05 -> 06-13 13:19 hold=   254min ret=   +2.4%  7H8PXXnCSr
+  06-13 13:11 -> 06-13 14:18 hold=    67min ret=   -9.7%  HekScrY6ts
+  06-13 13:20 -> 06-13 13:46 hold=    25min ret=  -13.7%  gRHJb318Qo
+  06-13 15:07 -> 06-13 18:13 hold=   186min ret=  +28.5%  JD5sqUJ69N
+  06-13 15:59 -> 06-13 18:25 hold=   146min ret=  +13.5%  7LmVQxr8UU
+  06-13 18:01 -> 06-13 18:35 hold=    34min ret=   -6.1%  9TdYvCWsT2
+  06-13 18:06 -> 06-13 18:28 hold=    22min ret=   -8.2%  E1S2RV6aNS
+  06-13 18:16 -> 06-13 18:26 hold=    11min ret=  +51.8%  Gp7Ke62udV
+  06-13 18:56 -> 06-13 19:04 hold=     8min ret=   -6.9%  CHBPw8NYTR
+
+########## Zsp75pPCt115MgZZwAgmKyDq8vZ94cjBNnLPhwJespQ ##########
+=== DECODE Zsp75pPCt115MgZZ… | 28 tokens, 25 closed, 1 open ===
+SIZING: median 0.93 SOL/token | variable (conviction sizer)
+HOLDS: median 114min | p25 30m | p75 846m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 52% | win med +22.1% | loss med -13.0% | best +155.2%
+OVERLAP: our scanner saw 17/28 of its tokens (61%) | we traded 21/28
+
+last 12 closed trips:
+  06-13 12:00 -> 06-13 18:56 hold=   415min ret=  -15.8%  9smMJxtru3
+  06-13 12:30 -> 06-13 13:00 hold=    30min ret=  -19.4%  5Wy5M14iHC
+  06-13 12:30 -> 06-13 17:53 hold=   324min ret=  -16.1%  4XuBH9bngH
+  06-13 12:32 -> 06-13 18:56 hold=   384min ret=  +22.1%  D5MZMfvPvh
+  06-13 12:49 -> 06-13 14:13 hold=    84min ret=   -8.3%  BcHEaaTCvy
+  06-13 13:00 -> 06-13 13:21 hold=    21min ret=  +52.7%  yoA2CoHk6H
+  06-13 13:17 -> 06-13 13:56 hold=    39min ret=  +27.5%  AKUYQxitb6
+  06-13 13:18 -> 06-13 17:21 hold=   243min ret=  -31.4%  EeSHyt1ahS
+  06-13 15:25 -> 06-13 18:40 hold=   196min ret=   +0.5%  7bK4jRMa3a
+  06-13 16:14 -> 06-13 16:44 hold=    30min ret=  +11.1%  FUkQZqqYSx
+  06-13 16:33 -> 06-13 17:03 hold=    30min ret=  -13.7%  E2oecxpiXH
+  06-13 18:20 -> 06-13 18:50 hold=    30min ret=   +6.8%  7XLu71Wvq7
+
+########## jStURX8S5RX8iVvV9ajQ2nkSdzakc4hFpn7RFY6fMYz ##########
+=== DECODE jStURX8S5RX8iVvV… | 21 tokens, 15 closed, 6 open ===
+SIZING: median 1.68 SOL/token | variable (conviction sizer)
+HOLDS: median 154min | p25 16m | p75 870m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 53% | win med +553.5% | loss med -34.3% | best +9834860.9%
+OVERLAP: our scanner saw 13/21 of its tokens (62%) | we traded 13/21
+
+last 12 closed trips:
+  06-12 02:30 -> 06-13 17:57 hold=  2367min ret=  -51.7%  DY2ZAaZrt2
+  06-12 05:35 -> 06-12 05:37 hold=     1min ret=  +28.1%  9smMJxtru3
+  06-12 05:46 -> 06-13 17:50 hold=  2164min ret=  -29.1%  6RXiM7kFbV
+  06-12 06:13 -> 06-13 05:57 hold=  1425min ret=  -34.3%  CcZShPVDms
+  06-12 06:14 -> 06-12 07:33 hold=    79min ret=   -5.8%  3x6apzqJKg
+  06-12 06:20 -> 06-12 06:36 hold=    16min ret=   -2.0%  6TPQEMKviA
+  06-12 07:34 -> 06-12 10:08 hold=   154min ret=+436989.4%  EeSHyt1ahS
+  06-12 17:04 -> 06-12 17:18 hold=    14min ret=   +5.4%  BcHEaaTCvy
+  06-12 17:35 -> 06-12 18:12 hold=    37min ret=  -90.9%  Tqj8yFmagr
+  06-13 01:41 -> 06-13 03:06 hold=    85min ret=+9834860.9%  CARDSccUMF
+  06-13 05:58 -> 06-13 17:57 hold=   719min ret=  +42.3%  q2yC2PPhZq
+  06-13 07:51 -> 06-13 07:58 hold=     7min ret=   +9.2%  8fc2o2vPgX
+
+########## 7d54PtGUtqVPZoF3qzGHRFUQQstrHyCdm4uwwrhDSHLW ##########
+=== DECODE 7d54PtGUtqVPZoF3… | 46 tokens, 8 closed, 32 open ===
+SIZING: median 0.00 SOL/token | variable (conviction sizer)
+HOLDS: median 7min | p25 2m | p75 86m
+RETURNS: WR 88% | win med +184.9% | loss med -48.1% | best +47544.2%
+OVERLAP: our scanner saw 2/46 of its tokens (4%) | we traded 1/46
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds
+
+last 12 closed trips:
+  06-04 17:13 -> 06-04 18:39 hold=    86min ret=+18451.3%  4MQBR5zmSJ
+  06-04 18:39 -> 06-04 22:31 hold=   232min ret=  +68.2%  Yv7eLDZxGs
+  06-05 14:59 -> 06-05 15:01 hold=     2min ret=+18441.9%  24FFS5emD3
+  06-12 01:35 -> 06-12 01:37 hold=     2min ret=+47544.2%  5cMcYeG4PS
+  06-12 01:37 -> 06-12 01:42 hold=     5min ret= +164.7%  DY2ZAaZrt2
+  06-12 04:19 -> 06-12 04:26 hold=     7min ret=  +53.0%  HxTwxWrwJ8
+  06-12 13:11 -> 06-12 13:42 hold=    31min ret=  -48.1%  5K2mmc16PD
+  06-12 17:39 -> 06-12 04:13 hold=     0min ret= +184.9%  5rka6RgVX3
+
+########## ArWirdsAEcB9etH4RoAkp4Khx8PiXryEm44A8RBqv7Kr ##########
+=== DECODE ArWirdsAEcB9etH4… | 10 tokens, 8 closed, 2 open ===
+SIZING: median 11.75 SOL/token | variable (conviction sizer)
+HOLDS: median 395min | p25 10m | p75 1256m
+RETURNS: WR 75% | win med +19.2% | loss med -13.6% | best +162261.3%
+OVERLAP: our scanner saw 7/10 of its tokens (70%) | we traded 9/10
+
+last 12 closed trips:
+  06-11 12:35 -> 06-11 12:39 hold=     4min ret=+14089.1%  SV151D5pjy
+  06-11 22:00 -> 06-12 10:37 hold=   757min ret=+162261.3%  7QpiDt12Wk
+  06-12 10:40 -> 06-12 10:45 hold=     5min ret=  +15.1%  4EjSzThNDV
+  06-12 10:48 -> 06-13 17:43 hold=  1855min ret=  +12.9%  JCKwsT8UAb
+  06-12 17:59 -> 06-12 18:09 hold=    10min ret=   +9.2%  VtwGKv7dcp
+  06-12 20:47 -> 06-13 17:43 hold=  1256min ret=  +23.3%  HdeAPoHivs
+  06-13 10:56 -> 06-13 11:11 hold=    15min ret=   -4.8%  33eum82LaA
+  06-13 11:32 -> 06-13 18:07 hold=   395min ret=  -22.4%  J4x1EMmQjF
+
+########## DaxfeJKeVyinftwWSV47p8EgiExYBDquRRUCxki3FrEz ##########
+=== DECODE DaxfeJKeVyinftwW… | 25 tokens, 18 closed, 4 open ===
+SIZING: median 0.77 SOL/token | variable (conviction sizer)
+HOLDS: median 9min | p25 2m | p75 14m
+  ** TIME-BOX SIGNATURE: 100% of losers exit at ~6min (the Dw5 archetype)
+RETURNS: WR 44% | win med +6.9% | loss med -7.9% | best +32.2%
+OVERLAP: our scanner saw 16/25 of its tokens (64%) | we traded 9/25
+
+last 12 closed trips:
+  06-13 18:41 -> 06-13 18:42 hold=     1min ret=   -8.8%  yoA2CoHk6H
+  06-13 18:42 -> 06-13 19:06 hold=    25min ret=   +1.3%  2dJniDEAGC
+  06-13 18:45 -> 06-13 18:45 hold=     0min ret=  -96.1%  CHBPw8NYTR
+  06-13 18:46 -> 06-13 19:00 hold=    14min ret=   -5.6%  E2oecxpiXH
+  06-13 18:46 -> 06-13 18:48 hold=     2min ret=   +1.5%  4XuBH9bngH
+  06-13 18:47 -> 06-13 18:49 hold=     1min ret=   -4.5%  6d9PCh5ocA
+  06-13 18:48 -> 06-13 18:57 hold=     9min ret=  -30.8%  3WjLscH2Js
+  06-13 18:53 -> 06-13 18:55 hold=     2min ret=   -6.9%  7YMkZZwdcw
+  06-13 18:53 -> 06-13 18:55 hold=     2min ret=   +7.5%  6yV9ukrWJc
+  06-13 18:54 -> 06-13 19:07 hold=    13min ret=   +0.6%  pnYrxqat1m
+  06-13 18:57 -> 06-13 19:03 hold=     6min ret=   -3.7%  Cy1mCA7qAe
+  06-13 19:07 -> 06-13 19:09 hold=     2min ret=   +6.3%  DrESFkkBLL
+
+########## DznHqBUWQR1uVJxKkY1cgZuu2C1qzisU7qGSutGyte1a ##########
+=== DECODE DznHqBUWQR1uVJxK… | 8 tokens, 6 closed, 2 open ===
+SIZING: median 23.98 SOL/token | variable (conviction sizer)
+HOLDS: median 685min | p25 4m | p75 2036m
+RETURNS: WR 67% | win med +26.8% | loss med -42.6% | best +78.3%
+OVERLAP: our scanner saw 3/8 of its tokens (38%) | we traded 4/8
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds
+
+last 12 closed trips:
+  06-11 02:11 -> 06-13 00:33 hold=  2782min ret=  -26.6%  3ne9QxYRHy
+  06-11 10:02 -> 06-11 14:20 hold=   258min ret=  +78.3%  9ZtbETDNjn
+  06-11 14:37 -> 06-13 00:33 hold=  2036min ret=  +27.8%  BcHEaaTCvy
+  06-12 02:22 -> 06-12 13:46 hold=   685min ret=  +25.8%  DY2ZAaZrt2
+  06-13 02:06 -> 06-13 02:07 hold=     2min ret=  -58.5%  CeL9aMU8Dm
+  06-13 02:10 -> 06-13 02:14 hold=     4min ret=   +0.7%  139jgJYu2N
+

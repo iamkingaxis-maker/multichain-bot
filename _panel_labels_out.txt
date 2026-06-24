@@ -1,0 +1,16 @@
+decoding 12 unlabeled wallets (300 sigs each)
+
+HmP3TxuV… n= 78 wr=63% hold med=88m p75=146m win=13.4 loss=-11.2 VAR-size -> conviction
+1eveYYxZ… n= 47 wr=47% hold med=30m p75=60m win=6.3 loss=-7.4 VAR-size -> conviction
+2qnHs8fZ… n= 83 wr=52% hold med=58m p75=96m win=10.4 loss=-6.5 VAR-size -> conviction
+EGwERj1n… n= 83 wr=80% hold med=50m p75=201m win=9.5 loss=-46.4 VAR-size -> thesis_holder
+AKprbkX7… n= 70 wr=64% hold med=121m p75=236m win=16.4 loss=-36.5 VAR-size -> conviction
+2tYcXQCf… n= 85 wr=54% hold med=145m p75=240m win=24.5 loss=-27.2 VAR-size TIMEBOX -> time_boxer
+D1aDZDVX… n=100 wr=49% hold med=83m p75=127m win=13.7 loss=-11.7 VAR-size -> conviction
+udH4u5k3… n= 60 wr=37% hold med=360m p75=364m win=10.3 loss=-8.7 VAR-size -> swing
+V21GW8PG… n= 51 wr=51% hold med=19m p75=100m win=18.5 loss=-21.3 VAR-size TIMEBOX -> time_boxer
+HcLMmNx9… n= 53 wr=47% hold med=104m p75=162m win=18.5 loss=-26.1 VAR-size -> conviction
+4jkL4dNk… n= 35 wr=31% hold med=18m p75=50m win=156.6 loss=-20.0 VAR-size -> conviction
+45Sn4KL1… n=100 wr=49% hold med=62m p75=83m win=10.9 loss=-8.3 VAR-size -> conviction
+
+proposals saved to _panel_label_proposals.json

@@ -1,0 +1,428 @@
+Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/5a32ca32-9b01-4ff1-b92f-a987676a9987/vol_7hl3wybqqqlwwlbz
+Starting Container
+2026-06-19 01:35:05,978 [INFO] ============================================================
+2026-06-19 01:35:05,978 [INFO]   Solana Memecoin Bot v7 — Trader Calibrated
+2026-06-19 01:35:05,978 [INFO] ============================================================
+2026-06-19 01:35:05,980 [INFO] [main] default executor -> 48 workers (DNS/to_thread headroom)
+Warning: BIRDEYE_API_KEY not set — DexScreener only
+Migration complete: 0 records updated, 2386 total
+[sp5_reset] sentinel exists at /data/sp5_reset_done.json for same cutoff — skipping
+[phantom_scrub] sentinel exists at /data/phantom_scrub_done.json — skipping
+[phantom_mark] sentinel exists at /data/phantom_trades_marked.json — skipping
+[daily_repair] sentinel exists at /data/phantom_daily_repair_done.json — skipping
+2026-06-19 01:35:23,716 [INFO] [main] MULTI_BOT_ENABLED — loaded 121 bots: ['badday_flush', 'badday_flush_convex', 'badday_flush_conviction', 'badday_flush_conviction_demand', 'badday_flush_conviction_live', 'badday_flush_live', 'badday_flush_nf15', 'badday_momo', 'baseline_v1', 'champ_conviction', 'champ_reentry_throttle', 'champ_regime_rider', 'champ_runner', 'champ_sniper', 'champ_specialist', 'champ_velocity', 'champ_workhorse', 'champion_defender_2k', 'champion_defender_2k_trendbreak5m', 'champion_defender_btc', 'champion_defender_falling_pump', 'champion_defender_fusion', 'champion_defender_v3', 'champion_defender_v3_pch1le5', 'champion_defender_v4', 'champion_defender_v4_trend60r020', 'champion_defender_volaccel', 'champion_minimal', 'champion_minimal_avgbuy80', 'champion_post_peak', 'champion_premium', 'champion_premium_dip90m', 'champion_premium_fresh', 'champion_premium_tightexit', 'champion_premium_tightexit_reaccum', 'champion_proposal', 'champion_whale_buyers', 'compound_winners_only', 'deep_dip_only', 'deepflush_timebox', 'deepflush_timebox_bottom1s', 'deepflush_timebox_h6peak', 'deepflush_timebox_live', 'drawdown_freeze', 'flow_only', 'macro_conditional', 'meta_chameleon', 'momentum_grad_probe', 'momentum_pump_tight', 'momentum_shadow', 'no_filters', 'no_filters_trend60r040', 'no_sol_gate', 'one_sec_only', 'pond_bb_mtf', 'pond_flow_thin', 'pond_settled_flow', 'pond_settled_flow_solcap', 'pond_settled_flow_thin', 'pond_sweep_deep_thin', 'pond_sweep_flow', 'pond_ugly_mtf', 'pond_ugly_rsi', 'pool_a_aged_scalper', 'pool_a_broad_control', 'pool_a_broad_control_nf60imb0', 'pool_a_broad_trigstate', 'pool_a_bsm5', 'pool_a_candidate', 'pool_a_candidate_shape30dd', 'pool_a_dipgate', 'pool_a_dipgate_cool1h', 'pool_a_dipgate_cool1h_tight', 'pool_a_dipgate_deep', 'pool_a_dipgate_vwap1h', 'pool_a_goodpond', 'pool_a_goodpond_reaccum15', 'pool_a_mcap1m', 'pool_a_mcapgate', 'pool_a_nopullback', 'pool_a_solmacro', 'pool_a_solmacro_reaccum20', 'pool_a_stack', 'pool_a_stack_5mred2', 'pool_a_trigstate', 'pool_c_mcapgate', 'pool_c_post_peak', 'pool_c_post_peak_chl1m', 'pool_c_tightexit', 'pool_c_tightexit_h24peak55', 'probe_swing', 'probe_tightexit_live_100', 'probe_tightexit_live_20', 'probe_tightexit_live_50', 'psych_h24_100', 'regime_aware_bullish', 'rugpocket_scalper', 'runner_tilt_aggressive', 'sol_h6_loose', 'stop_8', 'timebox_probe', 'timebox_probe_5mgreen', 'timebox_probe_5mgreen_live', 'timebox_probe_mcap', 'tod_morning', 'tp_runner', 'vol_min_500', 'vol_min_5k', 'wide_stop', 'young_momo_launch', 'young_probe_baseflow', 'young_probe_baseflow_convex', 'young_probe_candidate', 'young_probe_conviction', 'young_probe_late', 'young_probe_light', 'young_probe_mid', 'young_probe_stair', 'young_probe_stair_convex', 'young_probe_surgical', 'young_probe_thinliq']
+2026-06-19 01:35:24,137 [INFO] [Dashboard] Web dashboard running at http://0.0.0.0:8080
+2026-06-19 01:35:24,137 [INFO] [KillSwitch] Initialized — monitoring active
+2026-06-19 01:35:23,716 [INFO] [Config] Effective settings:
+  Stop loss: -25.0% | Winner trail: -15.0%
+  Paper mode: True
+  Capital: $999990 | Daily loss limit: $1000000
+2026-06-19 01:35:23,716 [WARNING] Telegram not configured — alerts disabled
+  Score: 0 | Liquidity: $10,000
+  TP1: +35.0% → sell 50%
+2026-06-19 01:35:24,128 [INFO] Loaded 2386 historical trades from /data/trades.json
+  TP2: +75.0% → sell 40%
+  TP3: +150.0% → sell 100%
+2026-06-19 01:35:24,133 [INFO] [Tracker] Persistence: 1 paper positions restored from disk — exempt from cancel-on-restart
+2026-06-19 01:35:24,137 [INFO] [AdaptiveThreshold] Registered solana — starting threshold: 0
+2026-06-19 01:35:24,139 [INFO] [RiskManager] Restored available_capital: $999990 (total: $999990, reclaimed deployed: $0)
+2026-06-19 01:35:24,601 [INFO] [ReentryTracker] Loaded 793 previously-held tokens
+2026-06-19 01:35:25,059 [WARNING] [Trader] 🧟 ZOMBIE DROPPED on restore: ZERO fully closed at 2026-06-18T12:26:15.762400+00:00 (deploy-overlap resurrection guard)
+2026-06-19 01:35:25,059 [INFO] [Trader] Restored 0 open positions from disk
+2026-06-19 01:35:25,086 [INFO] [WalletScorer] Registered 89HbgW...mkDi on solana
+2026-06-19 01:35:25,086 [INFO] [WalletScorer] Registered 4BdKax...EFUk on solana
+2026-06-19 01:35:25,086 [INFO] [WalletScorer] Registered 2W14ah...uvP3 on solana
+2026-06-19 01:35:25,086 [INFO] [WalletScorer] Registered suqh5s...HQfK on solana
+2026-06-19 01:35:25,086 [INFO] [WalletScorer] Registered Eh1E9z...gERk on solana
+2026-06-19 01:35:25,086 [INFO] [WalletScorer] Registered CiPEzM...TBeh on solana
+2026-06-19 01:35:25,086 [INFO] [WalletScorer] Registered 5p2bA4...mWKv on solana
+2026-06-19 01:35:25,086 [INFO] [WalletScorer] Registered Ao3ir1...vL1J on solana
+2026-06-19 01:35:25,086 [INFO] [WalletScorer] Registered 8QPamA...bEB4 on solana
+2026-06-19 01:35:25,086 [INFO] [WalletScorer] Registered CgkXJF...QArh on solana
+2026-06-19 01:35:25,089 [INFO] [Main] Loaded 12 seed wallets from /data/seed_wallets.json
+2026-06-19 01:35:25,089 [INFO] [Main] PositionScalper DISABLED (set SCALPER_ENABLED=true to re-enable)
+2026-06-19 01:35:25,089 [INFO] [Main] MultiSourceScanner disabled (SCANNER_ENABLED=false) — MSS polling loop not started
+2026-06-19 01:35:25,091 [INFO] [SmartFollow] init: 8 wallets | K=3 within 10min | poll 30s | k2_pod=1 solo=1 | elite_exit=on (free RPC, no Helius)
+2026-06-19 01:35:33,804 [INFO] [SmartMoney] Index path resolved to: assets/smart_money_index.json (exists=True, cwd=/app, candidates=['/data/smart_money_index.json', 'assets/smart_money_index.json'])
+2026-06-19 01:35:33,808 [INFO] [DevWallet] Pruned 1 stale baselines on startup
+2026-06-19 01:35:33,808 [INFO] [DevWallet] Loaded 521 baselines
+2026-06-19 01:35:33,894 [INFO] [DipScanner] badday_momo daily-pnl re-derived from ledger: -62.52 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:33,748 [INFO] [AxiomAuth] Loaded saved tokens from disk (saved 20 min ago)
+2026-06-19 01:35:33,912 [INFO] [DipScanner] champ_conviction daily-pnl re-derived from ledger: -16.99 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:33,748 [INFO] [AxiomIntegration] Connected | Scanner: real-time | Axiom scanners: OFF (dip-only mode)
+2026-06-19 01:35:33,749 [INFO] [Main] Graduation sniper disabled (GRADUATION_ENABLED=false)
+2026-06-19 01:35:33,769 [INFO] [DexScreener] slug-cache loaded: 283 slug / 284 quote mappings (cold re-resolution avoided)
+2026-06-19 01:35:33,769 [INFO] [DipScanner] DexScreener primary OHLCV enabled (GT fallback)
+2026-06-19 01:35:33,779 [INFO] [DipScanner] Loaded h24 history: 113 tokens, 5257 samples
+2026-06-19 01:35:33,793 [INFO] [DipScanner] Loaded 426 sticky-watchlist tokens
+2026-06-19 01:35:33,795 [INFO] [DipScanner] User watchlist loaded: 22 addresses
+2026-06-19 01:35:33,799 [INFO] [LiquidityFlow] Loaded 194 samples across 28 tokens from /data/lp_flow_history.json
+2026-06-19 01:35:33,747 [INFO] [MetaSensor] panel=33 wallets (31 archetyped)
+2026-06-19 01:35:34,077 [INFO] [DipScanner] restored 1 open positions for champion_defender_v4 from bot_state
+2026-06-19 01:35:33,974 [INFO] [DipScanner] champ_velocity daily-pnl re-derived from ledger: -7.33 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:33,985 [INFO] [DipScanner] champ_workhorse daily-pnl re-derived from ledger: -9.03 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:33,996 [INFO] [DipScanner] restored 1 open positions for champion_defender_2k from bot_state
+2026-06-19 01:35:34,016 [INFO] [DipScanner] champion_defender_btc daily-pnl re-derived from ledger: -27.03 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,026 [INFO] [DipScanner] champion_defender_falling_pump daily-pnl re-derived from ledger: -27.03 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,036 [INFO] [DipScanner] champion_defender_fusion daily-pnl re-derived from ledger: -18.69 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,048 [INFO] [DipScanner] restored 1 open positions for champion_defender_v3 from bot_state
+2026-06-19 01:35:33,922 [INFO] [DipScanner] champ_reentry_throttle daily-pnl re-derived from ledger: -9.03 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:33,934 [INFO] [DipScanner] champ_regime_rider daily-pnl re-derived from ledger: -3.23 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,062 [INFO] [DipScanner] restored 1 open positions for champion_defender_v3_pch1le5 from bot_state
+2026-06-19 01:35:33,964 [INFO] [DipScanner] champ_specialist daily-pnl re-derived from ledger: -10.50 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,133 [INFO] [DipScanner] champion_post_peak daily-pnl re-derived from ledger: 1.41 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,147 [INFO] [DipScanner] restored 1 open positions for champion_premium from bot_state
+2026-06-19 01:35:34,088 [INFO] [DipScanner] restored 1 open positions for champion_defender_v4_trend60r020 from bot_state
+2026-06-19 01:35:34,099 [INFO] [DipScanner] champion_defender_volaccel daily-pnl re-derived from ledger: -27.03 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,111 [INFO] [DipScanner] champion_minimal daily-pnl re-derived from ledger: 1.55 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,121 [INFO] [DipScanner] champion_minimal_avgbuy80 daily-pnl re-derived from ledger: 2.32 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,157 [INFO] [DipScanner] restored 1 open positions for champion_premium_dip90m from bot_state
+2026-06-19 01:35:34,169 [INFO] [DipScanner] restored 1 open positions for champion_premium_fresh from bot_state
+2026-06-19 01:35:34,183 [INFO] [DipScanner] restored 1 open positions for champion_premium_tightexit from bot_state
+2026-06-19 01:35:34,204 [INFO] [DipScanner] restored 1 open positions for champion_proposal from bot_state
+2026-06-19 01:35:34,215 [INFO] [DipScanner] champion_whale_buyers daily-pnl re-derived from ledger: -11.30 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,236 [INFO] [DipScanner] deep_dip_only daily-pnl re-derived from ledger: -8.17 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,246 [INFO] [DipScanner] deepflush_timebox daily-pnl re-derived from ledger: -10.45 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,256 [INFO] [DipScanner] deepflush_timebox_bottom1s daily-pnl re-derived from ledger: 2.98 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,267 [INFO] [DipScanner] deepflush_timebox_h6peak daily-pnl re-derived from ledger: -15.95 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,278 [INFO] [DipScanner] deepflush_timebox_live daily-pnl re-derived from ledger: -11.56 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,287 [INFO] [DipScanner] drawdown_freeze daily-pnl re-derived from ledger: -10.56 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,707 [INFO] [DipScanner] pool_a_trigstate daily-pnl re-derived from ledger: 4.18 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,559 [INFO] [DipScanner] restored 1 open positions for pool_a_candidate_shape30dd from bot_state
+2026-06-19 01:35:34,572 [INFO] [DipScanner] restored 1 open positions for pool_a_dipgate from bot_state
+2026-06-19 01:35:34,605 [INFO] [DipScanner] pool_a_dipgate_deep daily-pnl re-derived from ledger: 4.18 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,584 [INFO] [DipScanner] restored 1 open positions for pool_a_dipgate_cool1h from bot_state
+2026-06-19 01:35:34,649 [INFO] [DipScanner] pool_a_mcapgate daily-pnl re-derived from ledger: -22.19 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,593 [INFO] [DipScanner] restored 1 open positions for pool_a_dipgate_cool1h_tight from bot_state
+2026-06-19 01:35:34,686 [INFO] [DipScanner] pool_a_stack daily-pnl re-derived from ledger: 4.18 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,697 [INFO] [DipScanner] pool_a_stack_5mred2 daily-pnl re-derived from ledger: 4.18 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,516 [INFO] [DipScanner] restored 1 open positions for pool_a_broad_control_nf60imb0 from bot_state
+2026-06-19 01:35:34,529 [INFO] [DipScanner] restored 1 open positions for pool_a_broad_trigstate from bot_state
+2026-06-19 01:35:34,539 [INFO] [DipScanner] restored 1 open positions for pool_a_bsm5 from bot_state
+2026-06-19 01:35:34,549 [INFO] [DipScanner] restored 1 open positions for pool_a_candidate from bot_state
+2026-06-19 01:35:34,315 [INFO] [Chameleon] meta_chameleon boot: last state was static_badday_flush (direct profile); keeping fresh JSON base, re-deriving on next retune
+2026-06-19 01:35:34,325 [INFO] [DipScanner] restored 1 open positions for meta_chameleon from bot_state
+2026-06-19 01:35:34,335 [INFO] [DipScanner] restored 1 open positions for momentum_grad_probe from bot_state
+2026-06-19 01:35:34,363 [INFO] [DipScanner] restored 3 open positions for no_filters from bot_state
+2026-06-19 01:35:34,373 [INFO] [DipScanner] restored 1 open positions for no_filters_trend60r040 from bot_state
+2026-06-19 01:35:34,385 [INFO] [DipScanner] no_sol_gate daily-pnl re-derived from ledger: -9.84 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,408 [INFO] [DipScanner] restored 1 open positions for pond_bb_mtf from bot_state
+2026-06-19 01:35:34,438 [INFO] [DipScanner] pond_settled_flow_solcap daily-pnl re-derived from ledger: -1.66 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,459 [INFO] [DipScanner] restored 1 open positions for pond_sweep_deep_thin from bot_state
+2026-06-19 01:35:34,467 [INFO] [DipScanner] pond_sweep_flow daily-pnl re-derived from ledger: -1.66 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,477 [INFO] [DipScanner] pond_ugly_mtf daily-pnl re-derived from ledger: -1.45 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,487 [INFO] [DipScanner] pond_ugly_rsi daily-pnl re-derived from ledger: 1.35 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,507 [INFO] [DipScanner] restored 1 open positions for pool_a_broad_control from bot_state
+2026-06-19 01:35:34,884 [INFO] [DipScanner] restored 1 open positions for timebox_probe from bot_state
+2026-06-19 01:35:34,727 [INFO] [DipScanner] pool_c_post_peak daily-pnl re-derived from ledger: 5.43 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,716 [INFO] [DipScanner] pool_c_mcapgate daily-pnl re-derived from ledger: -22.19 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,897 [INFO] [DipScanner] restored 1 open positions for timebox_probe_5mgreen from bot_state
+2026-06-19 01:35:34,738 [INFO] [DipScanner] pool_c_post_peak_chl1m daily-pnl re-derived from ledger: 5.43 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,848 [INFO] [DipScanner] runner_tilt_aggressive daily-pnl re-derived from ledger: -10.03 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,906 [INFO] [DipScanner] timebox_probe_5mgreen_live daily-pnl re-derived from ledger: -109.69 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,824 [INFO] [DipScanner] regime_aware_bullish daily-pnl re-derived from ledger: -8.19 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,919 [INFO] [DipScanner] restored 1 open positions for timebox_probe_mcap from bot_state
+2026-06-19 01:35:34,858 [INFO] [DipScanner] sol_h6_loose daily-pnl re-derived from ledger: -9.82 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,931 [INFO] [DipScanner] tod_morning daily-pnl re-derived from ledger: 1.66 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,870 [INFO] [DipScanner] stop_8 daily-pnl re-derived from ledger: -5.33 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:35,068 [INFO] [DipScanner] young_probe_stair daily-pnl re-derived from ledger: 21.22 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:35,078 [INFO] [DipScanner] young_probe_stair_convex daily-pnl re-derived from ledger: -2.78 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,973 [INFO] [DipScanner] wide_stop daily-pnl re-derived from ledger: -10.83 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,982 [INFO] [DipScanner] young_momo_launch daily-pnl re-derived from ledger: -75.85 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:35,028 [INFO] [DipScanner] young_probe_conviction daily-pnl re-derived from ledger: 7.82 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:35,038 [INFO] [DipScanner] young_probe_late daily-pnl re-derived from ledger: 27.41 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,994 [INFO] [DipScanner] young_probe_baseflow daily-pnl re-derived from ledger: 16.34 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:35,059 [INFO] [DipScanner] young_probe_mid daily-pnl re-derived from ledger: 20.73 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:35,006 [INFO] [DipScanner] young_probe_baseflow_convex daily-pnl re-derived from ledger: 17.21 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:35,018 [INFO] [DipScanner] young_probe_candidate daily-pnl re-derived from ledger: -42.68 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,942 [INFO] [DipScanner] tp_runner daily-pnl re-derived from ledger: -10.73 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:34,963 [INFO] [DipScanner] vol_min_5k daily-pnl re-derived from ledger: -11.28 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:35,090 [INFO] [DipScanner] young_probe_surgical daily-pnl re-derived from ledger: -24.00 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:35,101 [INFO] [DipScanner] young_probe_thinliq daily-pnl re-derived from ledger: 2.16 -> 0.00 (overlap leak reclaimed)
+2026-06-19 01:35:35,101 [INFO] [DipScanner] Multi-bot wired: 121 evaluators (badday_flush,badday_flush_convex,badday_flush_conviction,badday_flush_conviction_demand,badday_flush_conviction_live,badday_flush_live,badday_flush_nf15,badday_momo,baseline_v1,champ_conviction,champ_reentry_throttle,champ_regime_rider,champ_runner,champ_sniper,champ_specialist,champ_velocity,champ_workhorse,champion_defender_2k,champion_defender_2k_trendbreak5m,champion_defender_btc,champion_defender_falling_pump,champion_defender_fusion,champion_defender_v3,champion_defender_v3_pch1le5,champion_defender_v4,champion_defender_v4_trend60r020,champion_defender_volaccel,champion_minimal,champion_minimal_avgbuy80,champion_post_peak,champion_premium,champion_premium_dip90m,champion_premium_fresh,champion_premium_tightexit,champion_premium_tightexit_reaccum,champion_proposal,champion_whale_buyers,compound_winners_only,deep_dip_only,deepflush_timebox,deepflush_timebox_bottom1s,deepflush_timebox_h6peak,deepflush_timebox_live,drawdown_freeze,flow_only,macro_conditional,meta_chameleon,momentum_grad_probe,momentum_pump_tight,momentum_shadow,no_filters,no_filters_trend60r040,no_sol_gate,one_sec_only,pond_bb_mtf,pond_flow_thin,pond_settled_flow,pond_settled_flow_solcap,pond_settled_flow_thin,pond_sweep_deep_thin,pond_sweep_flow,pond_ugly_mtf,pond_ugly_rsi,pool_a_aged_scalper,pool_a_broad_control,pool_a_broad_control_nf60imb0,pool_a_broad_trigstate,pool_a_bsm5,pool_a_candidate,pool_a_candidate_shape30dd,pool_a_dipgate,pool_a_dipgate_cool1h,pool_a_dipgate_cool1h_tight,pool_a_dipgate_deep,pool_a_dipgate_vwap1h,pool_a_goodpond,pool_a_goodpond_reaccum15,pool_a_mcap1m,pool_a_mcapgate,pool_a_nopullback,pool_a_solmacro,pool_a_solmacro_reaccum20,pool_a_stack,pool_a_stack_5mred2,pool_a_trigstate,pool_c_mcapgate,pool_c_post_peak,pool_c_post_peak_chl1m,pool_c_tightexit,pool_c_tightexit_h24peak55,probe_swing,probe_tightexit_live_100,probe_tightexit_live_20,probe_tightexit_live_50,psych_h24_100,regime_aware_bullish,rugpocket_scalper,runner_tilt_aggressive,sol_h6_loose,stop_8,timebox_probe,timebox_probe_5mgreen,timebox_probe_5mgreen_live,timebox_probe_mcap,tod_morning,tp_runner,vol_min_500,vol_min_5k,wide_stop,young_momo_launch,young_probe_baseflow,young_probe_baseflow_convex,young_probe_candidate,young_probe_conviction,young_probe_late,young_probe_light,young_probe_mid,young_probe_stair,young_probe_stair_convex,young_probe_surgical,young_probe_thinliq)
+2026-06-19 01:35:35,102 [INFO] [Main] DipScanner enabled — $20/position, mcap $0M-$50M, max 100 concurrent, min bs_h6=0.90, min turnover=2.0x, min vol_h1_ratio=0.50 (vol_m5_required=True)
+  MC TP1: +25.0% → sell 100%
+2026-06-19 01:35:35,102 [INFO] [Main] Breakout disabled (BREAKOUT_ENABLED=false)
+  MC Stop: -25.0%
+2026-06-19 01:35:35,110 [INFO] [Main] PoolPriceFeed enabled (Helius WS, on-chain vault decode)
+  Standard (legacy fallback) TP1/TP2/TP3: +35.0/+75.0/+150.0% — applies to non-dip/non-scalp/non-MC only
+2026-06-19 01:35:35,110 [INFO] [Main] KOL wallet tracker configured (12 wallets, min_score=0)
+2026-06-19 01:35:35,111 [INFO] [RTSignal/Solana] Real-time signal layer started
+2026-06-19 01:35:35,110 [INFO] [TELEGRAM DISABLED] Solana Bot v7 Started
+
+Active strategy: dip_buy (real-dip-3 entry filter)
+  TP1: +5% → sell 33% of o
+2026-06-19 01:35:35,111 [INFO] [UniverseRecorder] thread started (daemon)
+2026-06-19 01:35:35,111 [INFO] All systems go — 23 tasks
+2026-06-19 01:35:35,111 [INFO] [PositionManager/Solana] Started
+  DIP TP1: +5.0% → sell 33%
+  DIP TP2: +10.0% → sell 50% remaining
+  DIP Stop: -15.0% hard | trail after TP1: 3.0% from peak
+  SCALP TP1: +10.0% sell 50% | TP2: +15.0% sell 35%
+  SCALP Stop: -6.0% | max-hold: 45.0min
+2026-06-19 01:35:35,112 [INFO] [RTSignal/Tick] Pattern detector started
+2026-06-19 01:35:35,121 [INFO] Data dir: /data/universe_recorder
+2026-06-19 01:35:35,130 [INFO] Loaded 60 pending events
+2026-06-19 01:35:35,227 [INFO] Loaded 74973 seen-event keys
+2026-06-19 01:35:35,228 [INFO] [DexScreener] slug-cache loaded: 283 slug / 284 quote mappings (cold re-resolution avoided)
+2026-06-19 01:35:35,228 [INFO] [Cycle 1] Refreshing universe...
+2026-06-19 01:36:05,608 [INFO] Universe: 123 unique addresses (64 tokens, 59 pairs)
+2026-06-19 01:36:09,986 [INFO] DIP GTAVI        pair=3jTCvdJp body=-4.2% cum5m=-5.4% pc_h6=8.88 liq=$60067 age=12.5h
+2026-06-19 01:36:09,111 [INFO] Resolved 14 outcomes; 46 still pending
+2026-06-19 01:36:11,525 [INFO] DIP CookingTrump pair=C7f5AwRW body=+1.7% cum5m=-8.5% pc_h6=189 liq=$42440 age=22.7h
+2026-06-19 01:36:12,619 [INFO] DIP JAMESON      pair=HFSywti5 body=-1.7% cum5m=-7.0% pc_h6=-18.87 liq=$39957 age=82.0h
+2026-06-19 01:36:14,300 [INFO] DIP Ranch        pair=Df3dpzCq body=-4.5% cum5m=-5.8% pc_h6=288 liq=$24530 age=0.9h
+2026-06-19 01:36:22,253 [INFO] [DexScreener] 6qz7THwQvcjF slug=meteora res=1: HTTP 404
+2026-06-19 01:36:22,713 [INFO] DIP MEEP         pair=CGVKaKBH body=-0.5% cum5m=-5.1% pc_h6=-36.48 liq=$51064 age=3816.0h
+2026-06-19 01:36:24,293 [INFO] DIP FRAG         pair=jpqfphDx body=+1.2% cum5m=-6.1% pc_h6=-13.19 liq=$91810 age=95.0h
+2026-06-19 01:36:29,867 [INFO] DIP VOXEL        pair=BHbTwNzu body=+0.5% cum5m=-4.7% pc_h6=-0.29 liq=$55089 age=357.8h
+2026-06-19 01:36:34,756 [INFO] Cycle done: 7 new dips detected, 72 skipped, 53 pending outcomes
+2026-06-19 01:36:34,904 [INFO] [Cycle 1] Total resolved events on disk: 14065
+2026-06-19 01:36:47,339 [INFO] [log-rotator] spawned for /data
+2026-06-19 01:36:47,326 [INFO] [SmartFollow] starting run loop
+2026-06-19 01:36:47,340 [INFO] [RpcPriceFeed] Starting (Solana RPC + Jupiter Price API)
+2026-06-19 01:36:47,326 [INFO] [WalletDiscovery] starting: every 60min, log -> /data/wallet_discovery_log.json
+2026-06-19 01:36:47,341 [INFO] [PoolFeed] Starting Solana pool price feed (on-chain reserve decode)…
+2026-06-19 01:36:47,326 [INFO] [AttentionFeed] starting: every 5min, 3 free endpoints
+2026-06-19 01:36:47,335 [INFO] [AxiomPriceFeed] Starting real-time price feed (socket8.axiom.trade)
+2026-06-19 01:36:47,336 [INFO] [AxiomAuth] Token expired — refreshing before WebSocket connect...
+2026-06-19 01:36:47,324 [INFO] [RollingNG] nightly retrain: {'trained': True, 'n': 4849, 'ng_rate': 0.383, 'n_feats': 358, 'threshold': 0.6571}
+2026-06-19 01:36:47,336 [INFO] [DipScanner] Starting — targeting $1M+ mcap dip entries
+2026-06-19 01:36:47,337 [INFO] [onchain] waiting for SOL price (sol_usd=0 at spawn)
+2026-06-19 01:36:47,325 [INFO] [CrossWalletConvergence] Started | Monitoring 12 wallets | Min 2 for signal | Window: 15min
+2026-06-19 01:36:47,337 [INFO] [onchain] WS hot-layer spawned mode=shadow subset=0 (refresh-tracking)
+2026-06-19 01:36:47,325 [INFO] [WalletClustering] Started | Looking for wallets early on 5.0x+ tokens | Rescan every 4h
+2026-06-19 01:36:47,325 [INFO] [CapitulationReversal] Started | Min drop: 60.0% | Min quality: 65
+2026-06-19 01:36:47,341 [INFO] [MarketMonitor] Started — watching BTC 24h change
+2026-06-19 01:36:47,347 [INFO] [fast-watch] starting mode=shadow interval=3.0s dip<=-3.0% armed_max=30 allowlist=8 bots
+2026-06-19 01:36:47,352 [WARNING] [loop-lag] event loop blocked ~82.2s (sync work on the loop or executor starvation)
+2026-06-19 01:36:47,348 [INFO] [fast-watch] tick armed=0 polled=0 fired=0 mode=shadow
+2026-06-19 01:36:47,348 [INFO] [onchain-ws] mode=shadow subset=0 connections=0 (<=90 subs each)
+2026-06-19 01:36:47,354 [INFO] [onchain] heartbeat mode=shadow subs=0 cached=0 ws_msgs=0 sol_usd=0.0000
+2026-06-19 01:36:47,348 [INFO] [log-rotator] started: data_dir=/data max=80.0MB keep=40.0MB every 3600s
+2026-06-19 01:36:47,354 [INFO] [onchain] waiting for SOL price (sol_usd=0 -> decodes discarded)
+2026-06-19 01:36:47,341 [INFO] [PriceFeed] Starting real-time price feed...
+2026-06-19 01:36:47,354 [INFO] [AxiomAuth] Token expired — refreshing before WebSocket connect...
+2026-06-19 01:36:47,354 [INFO] [AxiomAuth] Token expired — refreshing before WebSocket connect...
+2026-06-19 01:36:47,473 [INFO] 100.64.0.3 [19/Jun/2026:01:36:47 +0000] "GET /api/live HTTP/1.1" 200 868 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:47,495 [INFO] 100.64.0.3 [19/Jun/2026:01:36:47 +0000] "GET /api/mc-recommendations HTTP/1.1" 200 192 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:47,495 [INFO] 100.64.0.6 [19/Jun/2026:01:36:47 +0000] "GET /api/seed-wallets HTTP/1.1" 200 715 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:47,507 [INFO] 100.64.0.8 [19/Jun/2026:01:36:47 +0000] "GET /api/sol-gate HTTP/1.1" 200 392 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:47,750 [INFO] 100.64.0.5 [19/Jun/2026:01:36:47 +0000] "GET /api/trades HTTP/1.1" 200 11413 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:47,757 [INFO] 100.64.0.7 [19/Jun/2026:01:36:47 +0000] "GET /api/goal HTTP/1.1" 200 819 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:47,757 [INFO] 100.64.0.9 [19/Jun/2026:01:36:47 +0000] "GET /api/leaderboard?sort=throughput_x_pnl HTTP/1.1" 200 3912 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:47,758 [INFO] 100.64.0.6 [19/Jun/2026:01:36:47 +0000] "GET /api/mc-recommendations HTTP/1.1" 200 192 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:48,099 [INFO] 100.64.0.3 [19/Jun/2026:01:36:47 +0000] "GET /api/profit-sweep-sim HTTP/1.1" 200 2255 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:48,101 [INFO] [PumpPortal] connected: launches + migrations + 33 wallet trade streams (free, 0 RPC)
+2026-06-19 01:36:47,853 [INFO] 100.64.0.6 [19/Jun/2026:01:36:47 +0000] "GET /api/sol-gate HTTP/1.1" 200 392 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:48,099 [INFO] 100.64.0.6 [19/Jun/2026:01:36:47 +0000] "GET /api/goal HTTP/1.1" 200 819 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:47,760 [INFO] 100.64.0.2 [19/Jun/2026:01:36:47 +0000] "GET /api/profit-sweep-sim HTTP/1.1" 200 2255 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:47,852 [INFO] 100.64.0.9 [19/Jun/2026:01:36:47 +0000] "GET /api/live HTTP/1.1" 200 868 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:47,759 [INFO] 100.64.0.3 [19/Jun/2026:01:36:47 +0000] "GET /api/seed-wallets HTTP/1.1" 200 715 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:48,252 [INFO] 100.64.0.10 [19/Jun/2026:01:36:48 +0000] "GET /api/leaderboard?sort=throughput_x_pnl HTTP/1.1" 200 3912 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:48,342 [INFO] [AttentionFeed] poll #1: tracking 2248 attention tokens (latest=30 top=30 profiles=30)
+2026-06-19 01:36:48,357 [INFO] [SmartFollow] WS watch: subscribing 8 wallets
+2026-06-19 01:36:48,419 [INFO] [PoolFeed] Connected to Helius WebSocket
+2026-06-19 01:36:48,482 [INFO] 100.64.0.4 [19/Jun/2026:01:36:47 +0000] "GET /api/user-watchlist HTTP/1.1" 200 2778 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:48,581 [INFO] 100.64.0.3 [19/Jun/2026:01:36:48 +0000] "GET /api/user-watchlist HTTP/1.1" 200 2778 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0"
+2026-06-19 01:36:48,625 [INFO] [AxiomAuth] Proxy+curl_cffi success: https://api.axiom.trade/refresh-access-token
+2026-06-19 01:36:48,626 [INFO] [AxiomAuth] Token refreshed via proxy+curl_cffi — valid for 16.0 min
+2026-06-19 01:36:48,626 [INFO] [AxiomAuth] Token saved to disk (/data/axiom_tokens.json)
+2026-06-19 01:36:48,626 [INFO] [AxiomPriceFeed] Connecting via Cloudflare Worker proxy (socket8)
+2026-06-19 01:36:48,659 [INFO] [AxiomAuth] Proxy+curl_cffi success: https://api.axiom.trade/refresh-access-token
+2026-06-19 01:36:49,319 [INFO] [AxiomDiscovery] direct https://api4.axiom.trade failed: Cannot connect to host api4.axiom.trade:443 ssl:default [No address associated with hostname]
+2026-06-19 01:36:49,320 [INFO] [AxiomDiscovery] direct all failed (last=404) — trying Worker proxy
+2026-06-19 01:36:49,391 [INFO] [AxiomDiscovery] Worker proxy: 38 raw / 38 normalized
+2026-06-19 01:36:49,392 [INFO] [DipScanner] Axiom feeds: top=38 + trending=38 = 76 pairs
+2026-06-19 01:36:49,392 [INFO] [DipScanner] Sticky-watchlist pruned: 426 -> 400
+2026-06-19 01:36:48,659 [INFO] [AxiomAuth] Token refreshed via proxy+curl_cffi — valid for 16.0 min
+2026-06-19 01:36:48,659 [INFO] [AxiomAuth] Token saved to disk (/data/axiom_tokens.json)
+2026-06-19 01:36:48,772 [INFO] [AxiomPriceFeed] Worker proxy connected — no tokens yet, will subscribe as positions open
+2026-06-19 01:36:48,890 [INFO] [AxiomDiscovery] Worker proxy: 38 raw / 38 normalized
+2026-06-19 01:36:49,277 [INFO] [AxiomAuth] Proxy+curl_cffi success: https://api.axiom.trade/refresh-access-token
+2026-06-19 01:36:49,278 [INFO] [AxiomAuth] Token refreshed via proxy+curl_cffi — valid for 16.0 min
+2026-06-19 01:36:49,278 [INFO] [AxiomAuth] Token saved to disk (/data/axiom_tokens.json)
+2026-06-19 01:36:49,298 [INFO] [AxiomDiscovery] direct https://api2.axiom.trade returned HTTP 404
+2026-06-19 01:36:49,318 [INFO] [AxiomDiscovery] direct https://api3.axiom.trade returned HTTP 404
+2026-06-19 01:36:51,819 [INFO] [DipScanner] BUY-GATE ENFORCED-OFF (dip bots stand down): breadth=35>=35 AND sol_h24=-3.7<=-1 (breadth=35.3 sol_h24=-3.722)
+2026-06-19 01:36:51,974 [INFO] [DipScanner] FRESHNESS GATE blocked: BELIEVE vol_m5=$103<$200 AND txns_m5=3<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-06-19 01:36:51,839 [INFO] [MetaAllocator] SHADOW snapshot sol_h24=-3.72 breadth_neg=0.35 -> {'young': 1.5, 'momentum': 0.5}
+2026-06-19 01:36:51,976 [INFO] [DipScanner] FRESHNESS GATE blocked: OGDOGE vol_m5=$161<$200 AND txns_m5=4<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-06-19 01:36:51,957 [INFO] [RegimeMiner] 43 closes (WR 0.512) regime=deep-dip top=['pc_h24', 'pc_h1', 'bs_m5', '1m_volume_spike', 'liquidity_usd', 'shape_90m_drawdown_from_max_pct']
+2026-06-19 01:36:51,966 [INFO] [DipScanner] FRESHNESS GATE blocked: TOESCOIN vol_m5=$5<$200 AND txns_m5=1<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-06-19 01:36:51,971 [INFO] [DipScanner] FRESHNESS GATE blocked: Jotchua vol_m5=$39<$200 AND txns_m5=3<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-06-19 01:36:50,349 [INFO] [fast-watch] tick armed=0 polled=0 fired=0 mode=shadow
+2026-06-19 01:36:51,628 [INFO] [GeckoOHLCV] 83v8iPyZihDE: HTTP 429
+2026-06-19 01:36:51,646 [INFO] [GeckoOHLCV] 83v8iPyZihDE: HTTP 429
+2026-06-19 01:36:51,817 [INFO] [DipScanner] SOL macro via Kraken fallback: h1=-0.1 h6=0.709
+2026-06-19 01:36:49,392 [INFO] [DipScanner] Sticky-watchlist re-seeded 363 tokens
+2026-06-19 01:36:52,144 [INFO] [DipScanner] Signal: Kelsey mcap=$0.1M | 24h=+219.0% 1h=-22.2% 5m=-4.9% vol24h=$1247k bs_h6=1.18 bs_h1=1.34 bs_m5=1.62
+2026-06-19 01:36:52,150 [INFO] [DipScanner] m1_top_tick: CookingTrump — last 1m close +3.69% — skipping
+2026-06-19 01:36:52,226 [INFO] [DipScanner] Signal: KINS mcap=$18.7M | 24h=+28.5% 1h=-3.1% 5m=-0.9% vol24h=$2845k bs_h6=1.13 bs_h1=0.96 bs_m5=1.35
+2026-06-19 01:36:52,243 [INFO] [DipScanner] Signal: youngin mcap=$0.1M | 24h=+204.0% 1h=-44.0% 5m=+5.1% vol24h=$1404k bs_h6=1.56 bs_h1=1.86 bs_m5=2.33
+2026-06-19 01:36:52,281 [INFO] [DipScanner] 1m gate: GTAVI — no green close in last 3 min AND cum_3min=-6.8%<-2 — skipping
+2026-06-19 01:36:52,403 [INFO] [DipScanner] Signal: Merlin mcap=$1.9M | 24h=+23.5% 1h=-20.5% 5m=+3.4% vol24h=$1332k bs_h6=1.41 bs_h1=1.99 bs_m5=0.91
+2026-06-19 01:36:52,405 [INFO] [DipScanner] Signal: Pitoco mcap=$0.1M | 24h=+81.1% 1h=+32.1% 5m=-7.1% vol24h=$186k bs_h6=1.28 bs_h1=1.30 bs_m5=1.60
+2026-06-19 01:36:52,515 [INFO] [DipScanner] Signal: Nudaeng mcap=$0.1M | 24h=+164.0% 1h=+2.5% 5m=-3.5% vol24h=$1034k bs_h6=1.18 bs_h1=0.97 bs_m5=1.23
+2026-06-19 01:36:52,587 [INFO] [DipScanner] Signal: TinyWorld mcap=$0.7M | 24h=+11.2% 1h=+0.1% 5m=-2.9% vol24h=$287k bs_h6=0.97 bs_h1=1.03 bs_m5=5.33
+2026-06-19 01:36:52,677 [INFO] [DipScanner] Signal: FRAG mcap=$1.2M | 24h=+25.6% 1h=+2.3% 5m=-1.5% vol24h=$865k bs_h6=1.37 bs_h1=1.03 bs_m5=1.62
+2026-06-19 01:36:52,754 [INFO] [DipScanner] Signal: EITHER mcap=$10.3M | 24h=-8.9% 1h=-0.5% 5m=-0.2% vol24h=$1133k bs_h6=1.34 bs_h1=1.23 bs_m5=1.42
+2026-06-19 01:36:52,780 [INFO] [AxiomPriceFeed] Subscribed: 7bk4jrma…
+2026-06-19 01:36:52,780 [INFO] [AxiomPriceFeed] Subscribed: dt5bdfbk…
+2026-06-19 01:36:52,780 [INFO] [AxiomPriceFeed] Subscribed: crtjcetf…
+2026-06-19 01:36:52,782 [INFO] [AxiomPriceFeed] Subscribed: 9udqgc6d…
+2026-06-19 01:36:52,782 [INFO] [AxiomPriceFeed] Subscribed: j4y92jy5…
+2026-06-19 01:36:52,782 [INFO] [AxiomPriceFeed] Subscribed: 9yyv1whb…
+2026-06-19 01:36:52,783 [INFO] [AxiomPriceFeed] Subscribed: tqj8yfma…
+2026-06-19 01:36:52,783 [INFO] [AxiomPriceFeed] Subscribed: avxfbjwy…
+2026-06-19 01:36:52,787 [INFO] [DipScanner] Signal: Goblin mcap=$4.6M | 24h=+9.3% 1h=-4.8% 5m=-1.5% vol24h=$1025k bs_h6=1.15 bs_h1=0.91 bs_m5=0.00
+2026-06-19 01:36:52,837 [INFO] [DipScanner] Signal: Metacraft mcap=$0.4M | 24h=+951.0% 1h=+107.0% 5m=-6.1% vol24h=$821k bs_h6=3.27 bs_h1=3.14 bs_m5=3.56
+2026-06-19 01:36:52,841 [WARNING] [DipScanner] OBSERVATIONAL: Kelsey cycles_seen=85 (>=60 historically -EV; not blocking)
+2026-06-19 01:36:52,842 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: Kelsey reasons=pc_h24=+219%>=200 (already pumped on the day)
+2026-06-19 01:36:52,842 [INFO] [DipScanner] FILTER_1M_SHADOW: Kelsey 1m_cum3=-4.741 1m_vol_spike=0.074 verdict=BLOCK reasons=1m_cum3=-4.74%<-1.0%,1m_vol_spike=0.07<0.40
+2026-06-19 01:36:52,843 [INFO] [DipScanner] FILTER_1M_DEAD_VOL_SHADOW: Kelsey reasons=1m_vol_spike=0.074<0.20 (dead 1m volume) -- shadow only
+2026-06-19 01:36:52,843 [INFO] [DipScanner] BLOCKED by filter_dead_vol_with_cnn_carveout: Kelsey reasons=1m_vol_spike=0.074<=0.115 AND cnn_outcome_prob=None < 0.265 (dead-vol AND no cnn rescue)
+2026-06-19 01:36:52,849 [INFO] [DipScanner] BLOCKED by filter_1m_steep_fall: Kelsey reasons=1m_cum3=-4.74%<-1.5% (steep 3min fall)
+2026-06-19 01:36:52,849 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: Kelsey reason=neither A nor B [1h_rng=0.10 h24_r=0.61 red=4]
+2026-06-19 01:36:52,896 [INFO] [DipScanner] CHART_READER: Kelsey score=51.7 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-06-19 01:36:54,599 [INFO] [ChartCNN] loaded weights from /app/models/chart_cnn_v1.pt
+2026-06-19 01:36:54,768 [INFO] [ChartCluster] loaded encoder + 20 cluster centers; rug clusters: [19]
+2026-06-19 01:36:54,900 [INFO] [UptrendScanner] WOULD-BLOCK: Kelsey gates=G1 mtf=mixed not in (bull, strong_bull)
+2026-06-19 01:36:54,902 [INFO] [DipScanner] FILTER_DEAD_VOL_CHART_SHADOW: Kelsey reasons=vs=0.074<0.20 AND chart_conf=0.0<=47.2 AND pct_to_sup=-6.95<=17.4 (dead-vol + weak chart near support) -- shadow only
+2026-06-19 01:36:54,902 [INFO] [DipScanner] filter_turn rescued by bs_h6 carve-out: Kelsey bs_h6=1.18<=1.20 (64% won_10pct on n=295 in 4d mining)
+/nix/store/901c80rlps5q05bnjk1sj4zaz5k736nc-python3-3.12.7/lib/python3.12/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator StandardScaler from version 1.8.0 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/nix/store/901c80rlps5q05bnjk1sj4zaz5k736nc-python3-3.12.7/lib/python3.12/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator LogisticRegression from version 1.8.0 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+2026-06-19 01:36:54,922 [INFO] [FusionConstrained] loaded n=58 AUC=0.592 features=14
+2026-06-19 01:36:54,925 [INFO] [SmartMoney] Loaded index: 59 wallets, 19 above threshold (>=2 winners)
+2026-06-19 01:36:54,929 [WARNING] [DipScanner] OBSERVATIONAL: Merlin cycles_seen=148 (>=60 historically -EV; not blocking)
+2026-06-19 01:36:54,930 [INFO] [DipScanner] FILTER_1M_SHADOW: Merlin 1m_cum3=-0.858 1m_vol_spike=1.619 verdict=PASS
+2026-06-19 01:36:54,934 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: Merlin reason=neither A nor B [1h_rng=0.14 h24_r=0.26 red=1]
+2026-06-19 01:36:54,956 [INFO] [DipScanner] CHART_READER: Merlin score=47.6 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-06-19 01:36:55,125 [INFO] [UptrendScanner] WOULD-BLOCK: Merlin gates=G1 mtf=mixed not in (bull, strong_bull),G2 5m_state=downtrend != uptrend,G5 chart_score=47.6<50
+2026-06-19 01:36:55,126 [INFO] [DipScanner] BLOCKED by filter_turn: Merlin reasons=pct_in_5m_range=0.092<0.5 (catching knife)
+2026-06-19 01:36:55,140 [WARNING] [DipScanner] OBSERVATIONAL: TinyWorld cycles_seen=129 (>=60 historically -EV; not blocking)
+2026-06-19 01:36:55,141 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: TinyWorld reasons=shape_90m_chg=+14.1%>=5 (90m up-chase, not a dip)
+2026-06-19 01:36:55,144 [INFO] [DipScanner] filter_real_dip_3 SHADOW would-block: TinyWorld 5m=-2.85% 1h=+0.09% reasons=5m=-2.85%>-3 AND 1h=+0.09%>-3 (no real pullback)
+2026-06-19 01:36:55,145 [INFO] [DipScanner] FILTER_1M_SHADOW: TinyWorld 1m_cum3=-2.807 1m_vol_spike=12.123 verdict=BLOCK reasons=1m_cum3=-2.81%<-1.0%
+2026-06-19 01:36:55,147 [INFO] [DipScanner] BLOCKED by filter_1m_steep_fall: TinyWorld reasons=1m_cum3=-2.81%<-1.5% (steep 3min fall)
+2026-06-19 01:36:55,147 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: TinyWorld reason=neither A nor B [1h_rng=0.18 h24_r=0.33 red=2]
+2026-06-19 01:36:55,158 [INFO] [DipScanner] CHART_READER: TinyWorld score=50.0 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-06-19 01:36:55,435 [INFO] [UptrendScanner] WOULD-BLOCK: TinyWorld gates=G1 mtf=mixed not in (bull, strong_bull)
+2026-06-19 01:36:55,436 [INFO] [DipScanner] filter_turn rescued by big_buyer carve-out: TinyWorld liq_velocity_h1=$142/txn>=115
+2026-06-19 01:36:55,446 [WARNING] [DipScanner] OBSERVATIONAL: youngin cycles_seen=163 (>=60 historically -EV; not blocking)
+2026-06-19 01:36:55,446 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: youngin reasons=pc_h24=+204%>=200 (already pumped on the day)
+2026-06-19 01:36:55,447 [INFO] [DipScanner] FILTER_1M_SHADOW: youngin 1m_cum3=-3.231 1m_vol_spike=0.641 verdict=BLOCK reasons=1m_cum3=-3.23%<-1.0%
+2026-06-19 01:36:55,449 [INFO] [DipScanner] BLOCKED by filter_1m_steep_fall: youngin reasons=1m_cum3=-3.23%<-1.5% (steep 3min fall)
+2026-06-19 01:36:55,450 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: youngin reason=neither A nor B [1h_rng=0.11 h24_r=0.32 red=1]
+2026-06-19 01:36:55,463 [INFO] [DipScanner] CHART_READER: youngin score=34.4 verdict=bearish mtf=strong_bear sr_5m_supp=False pattern_5m=None
+2026-06-19 01:36:55,714 [INFO] [UptrendScanner] WOULD-BLOCK: youngin gates=G1 mtf=strong_bear not in (bull, strong_bull),G2 5m_state=downtrend != uptrend,G5 chart_score=34.4<50
+2026-06-19 01:36:55,716 [INFO] [DipScanner] BLOCKED by filter_turn: youngin reasons=pct_in_5m_range=0.149<0.5 (catching knife)
+2026-06-19 01:36:55,727 [WARNING] [DipScanner] OBSERVATIONAL: Nudaeng cycles_seen=135 (>=60 historically -EV; not blocking)
+2026-06-19 01:36:55,728 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: Nudaeng reasons=pct_above_vwap_h24=+14.9%>=10 (extended above VWAP),shape_90m_chg=+9.0%>=5 (90m up-chase, not a dip)
+2026-06-19 01:36:55,728 [INFO] [DipScanner] FILTER_1M_SHADOW: Nudaeng 1m_cum3=-4.934 1m_vol_spike=1.002 verdict=BLOCK reasons=1m_cum3=-4.93%<-1.0%
+2026-06-19 01:36:55,731 [INFO] [DipScanner] BLOCKED by filter_1m_steep_fall: Nudaeng reasons=1m_cum3=-4.93%<-1.5% (steep 3min fall)
+2026-06-19 01:36:55,738 [INFO] [DipScanner] CHART_READER: Nudaeng score=53.2 verdict=neutral mtf=flat sr_5m_supp=False pattern_5m=double_bottom
+2026-06-19 01:36:55,939 [INFO] [UptrendScanner] WOULD-BLOCK: Nudaeng gates=G1 mtf=flat not in (bull, strong_bull)
+2026-06-19 01:36:55,940 [INFO] [DipScanner] filter_turn rescued by bs_h6 carve-out: Nudaeng bs_h6=1.18<=1.20 (64% won_10pct on n=295 in 4d mining)
+2026-06-19 01:36:55,954 [INFO] [DipScanner] filter_corpse SHADOW would-block: Pitoco reasons=pct_in_1h_range=0.86>0.55 AND h24_ratio_to_peak=0.14<0.30 (post-pump corpse)
+2026-06-19 01:36:55,954 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: Pitoco reasons=pct_above_vwap_h24=+97.0%>=10 (extended above VWAP),shape_90m_chg=+33.4%>=5 (90m up-chase, not a dip)
+2026-06-19 01:36:55,956 [INFO] [DipScanner] FILTER_1M_SHADOW: Pitoco 1m_cum3=6.999 1m_vol_spike=0.673 verdict=PASS
+2026-06-19 01:36:55,958 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: Pitoco reason=neither A nor B [1h_rng=0.86 h24_r=0.14 red=0]
+2026-06-19 01:36:55,968 [INFO] [DipScanner] CHART_READER: Pitoco score=53.2 verdict=neutral mtf=strong_bull sr_5m_supp=False pattern_5m=None
+2026-06-19 01:36:56,383 [INFO] [DipScanner] CHART_READER: KINS score=64.7 verdict=bullish mtf=mixed sr_5m_supp=True pattern_5m=double_bottom
+2026-06-19 01:36:56,848 [INFO] [UptrendScanner] WOULD-BLOCK: KINS gates=G1 mtf=mixed not in (bull, strong_bull)
+2026-06-19 01:36:56,848 [INFO] [DipScanner] filter_turn rescued by chart_score carve-out: KINS chart_score=64.7>=56
+2026-06-19 01:36:56,856 [WARNING] [DipScanner] OBSERVATIONAL: FRAG cycles_seen=131 (>=60 historically -EV; not blocking)
+2026-06-19 01:36:56,857 [INFO] [DipScanner] filter_real_dip_3 SHADOW would-block: FRAG 5m=-1.48% 1h=+2.27% reasons=5m=-1.48%>-3 AND 1h=+2.27%>-3 (no real pullback)
+2026-06-19 01:36:56,857 [INFO] [DipScanner] FILTER_1M_SHADOW: FRAG 1m_cum3=-0.585 1m_vol_spike=0.34 verdict=BLOCK reasons=1m_vol_spike=0.34<0.40
+2026-06-19 01:36:56,368 [INFO] [UptrendScanner] WOULD-BLOCK: Pitoco gates=G2 5m_state=downtrend != uptrend
+2026-06-19 01:36:56,369 [INFO] [DipScanner] BLOCKED by filter_vp_poc: Pitoco reasons=chart_vp_poc_distance_pct=+80.7%>20 AND 1m_volume_spike=0.67<1.0 (extreme above POC on dead volume = clear chase)
+2026-06-19 01:36:56,370 [INFO] [DipScanner] filter_rsi_overbought SHADOW would-block: Pitoco reasons=rsi_5m=62.3>=55 (5m momentum reset, not oversold)
+2026-06-19 01:36:56,374 [WARNING] [DipScanner] OBSERVATIONAL: KINS cycles_seen=94 (>=60 historically -EV; not blocking)
+2026-06-19 01:36:56,374 [INFO] [DipScanner] FILTER_1M_SHADOW: KINS 1m_cum3=0.111 1m_vol_spike=0.605 verdict=PASS
+2026-06-19 01:36:56,376 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: KINS reason=neither A nor B [1h_rng=0.05 h24_r=0.38 red=0]
+2026-06-19 01:36:56,859 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: FRAG reason=neither A nor B [1h_rng=0.28 h24_r=0.51 red=0]
+2026-06-19 01:36:56,872 [INFO] [DipScanner] CHART_READER: FRAG score=51.9 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=double_bottom
+2026-06-19 01:36:58,128 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: Goblin reason=neither A nor B [1h_rng=0.52 h24_r=0.21 red=4]
+2026-06-19 01:36:58,138 [INFO] [DipScanner] CHART_READER: Goblin score=44.1 verdict=neutral mtf=strong_bear sr_5m_supp=False pattern_5m=None
+2026-06-19 01:36:58,125 [INFO] [DipScanner] FILTER_1M_SHADOW: Goblin 1m_cum3=-0.319 1m_vol_spike=0.652 verdict=PASS
+2026-06-19 01:36:57,342 [INFO] [UptrendScanner] WOULD-BLOCK: FRAG gates=G1 mtf=mixed not in (bull, strong_bull)
+2026-06-19 01:36:57,361 [WARNING] [DipScanner] OBSERVATIONAL: EITHER cycles_seen=134 (>=60 historically -EV; not blocking)
+2026-06-19 01:36:57,362 [INFO] [DipScanner] filter_peak_floor SHADOW would-block: EITHER peak_h24_6h=-5.0% < +5%
+2026-06-19 01:36:57,362 [INFO] [DipScanner] real-dip-3 EXEMPT (big-cap): EITHER mcap=$10.3M>$10M 5m=-0.21% 1h=-0.50%
+2026-06-19 01:36:57,362 [INFO] [DipScanner] FILTER_1M_SHADOW: EITHER 1m_cum3=0.0 1m_vol_spike=0.439 verdict=PASS
+2026-06-19 01:36:57,364 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: EITHER reason=neither A nor B [1h_rng=0.48 h24_r=1.00 red=2]
+2026-06-19 01:36:57,377 [INFO] [DipScanner] CHART_READER: EITHER score=44.8 verdict=neutral mtf=strong_bear sr_5m_supp=True pattern_5m=None
+2026-06-19 01:36:57,878 [INFO] [UptrendScanner] WOULD-BLOCK: EITHER gates=G1 mtf=strong_bear not in (bull, strong_bull),G5 chart_score=44.8<50
+2026-06-19 01:36:57,881 [INFO] [DipScanner] BLOCKED by filter_turn: EITHER reasons=pct_in_5m_range=0.000<0.5 (catching knife)
+2026-06-19 01:36:57,896 [WARNING] [loop-lag] event loop blocked ~4.5s (sync work on the loop or executor starvation)
+2026-06-19 01:36:57,897 [INFO] [AxiomPriceFeed] Subscribed: hmbdm8vb…
+2026-06-19 01:36:57,972 [INFO] [DipScanner] Signal: TOLYBOT mcap=$0.2M | 24h=+75.2% 1h=-31.9% 5m=-3.5% vol24h=$116k bs_h6=0.96 bs_h1=1.08 bs_m5=0.86
+2026-06-19 01:36:58,125 [WARNING] [DipScanner] OBSERVATIONAL: Goblin cycles_seen=145 (>=60 historically -EV; not blocking)
+2026-06-19 01:36:58,405 [INFO] [UptrendScanner] WOULD-BLOCK: Goblin gates=G1 mtf=strong_bear not in (bull, strong_bull),G2 5m_state=downtrend != uptrend,G5 chart_score=44.1<50
+2026-06-19 01:36:58,405 [INFO] [DipScanner] filter_turn rescued by big_buyer carve-out: Goblin liq_velocity_h1=$117/txn>=115
+2026-06-19 01:36:58,410 [WARNING] [DipScanner] OBSERVATIONAL: Metacraft cycles_seen=120 (>=60 historically -EV; not blocking)
+2026-06-19 01:36:58,411 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: Metacraft reasons=pc_h24=+951%>=200 (already pumped on the day),pct_above_vwap_h24=+85.8%>=10 (extended above VWAP),shape_90m_chg=+112.4%>=5 (90m up-chase, not a dip)
+2026-06-19 01:36:58,411 [INFO] [DipScanner] FILTER_1M_SHADOW: Metacraft 1m_cum3=-2.959 1m_vol_spike=1.009 verdict=BLOCK reasons=1m_cum3=-2.96%<-1.0%
+2026-06-19 01:36:58,414 [INFO] [DipScanner] BLOCKED by filter_1m_steep_fall: Metacraft reasons=1m_cum3=-2.96%<-1.5% (steep 3min fall)
+2026-06-19 01:36:58,418 [INFO] [DipScanner] CHART_READER: Metacraft score=54.3 verdict=neutral mtf=bull sr_5m_supp=False pattern_5m=None
+2026-06-19 01:36:58,421 [INFO] [DipScanner] filter_rsi_overbought SHADOW would-block: Metacraft reasons=rsi_5m=62.7>=55 (5m momentum reset, not oversold)
+2026-06-19 01:36:58,425 [INFO] [DipScanner] filter_round_trip RESCUED by vol_h24=$116k<=1396k: TOLYBOT
+2026-06-19 01:36:58,425 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: TOLYBOT reasons=shape_90m_chg=+20.7%>=5 (90m up-chase, not a dip)
+2026-06-19 01:36:58,426 [INFO] [DipScanner] FILTER_1M_SHADOW: TOLYBOT 1m_cum3=-3.36 1m_vol_spike=5.455 verdict=BLOCK reasons=1m_cum3=-3.36%<-1.0%
+2026-06-19 01:36:58,428 [INFO] [DipScanner] BLOCKED by filter_1m_steep_fall: TOLYBOT reasons=1m_cum3=-3.36%<-1.5% (steep 3min fall)
+2026-06-19 01:36:58,428 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: TOLYBOT reason=neither A nor B [1h_rng=0.07 h24_r=0.65 red=4]
+2026-06-19 01:36:58,438 [INFO] [DipScanner] CHART_READER: TOLYBOT score=50.6 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-06-19 01:36:58,799 [INFO] [UptrendScanner] WOULD-BLOCK: TOLYBOT gates=G1 mtf=mixed not in (bull, strong_bull)
+2026-06-19 01:36:58,800 [INFO] [DipScanner] filter_turn rescued by bs_h6 carve-out: TOLYBOT bs_h6=0.96<=1.20 (64% won_10pct on n=295 in 4d mining)
+2026-06-19 01:36:58,811 [INFO] [fast-watch] tick armed=68 polled=68 fired=0 mode=shadow
+2026-06-19 01:36:58,887 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: Kelsey reasons=dev_pct_remaining=12.7%<50 (creator dumped >half pre-entry)
+2026-06-19 01:36:58,888 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: Kelsey reasons=cycles_seen=85>15 (stale watch — fresh dips beat stale ones)
+2026-06-19 01:36:58,888 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: Kelsey reasons=1m_last_close=-1.49%<0.3 (no real green confirmation),1m_vol_spike=0.07<1.0 (bounce on weak volume)
+2026-06-19 01:36:58,888 [INFO] [DipScanner] TRIGGER_FEATURES: Kelsey top10_60s=9.000 vwap_1h=-16.300 min_peak=42.500 hr_grad=20.450 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=0.193 liq_vel_h1=None h24_ratio=0.607
+2026-06-19 01:36:58,890 [INFO] [DipScanner] SHADOW filter_falling_knife would BLOCK: Kelsey reasons=mtf_score=-1.0<=-1 AND 1m_last_close=-1.49%<0 (falling knife — no green confirmation)
+2026-06-19 01:36:58,893 [INFO] [DexScreener] slug-cache loaded: 283 slug / 284 quote mappings (cold re-resolution avoided)
+2026-06-19 01:36:58,898 [INFO] [AxiomPriceFeed] Subscribed: fjgxcl8o…
+2026-06-19 01:36:58,899 [INFO] [AxiomPriceFeed] Subscribed: 9zxlzbtr…
+2026-06-19 01:36:58,899 [INFO] [AxiomPriceFeed] Subscribed: 3khmzhpt…
+2026-06-19 01:36:59,139 [INFO] [DipScanner] BLOCKED by filter_lp_drain: Kelsey reasons=lp_delta_15m=-8.4%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-06-19 01:36:59,140 [INFO] [DipScanner] BLOCKED by filter_post_pump_corpse: Kelsey reasons=pc_h24=219%>=200 AND buys_per_min_recent=0<=2 (post-pump corpse: pumped + currently calm)
+2026-06-19 01:36:59,141 [INFO] [DipScanner] filter_double_bottom SHADOW would-block: Kelsey reasons=p5m=0.000<0.10 AND p1h=0.095<0.10 (rock-bottom in both timeframes)
+2026-06-19 01:36:59,141 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: Kelsey reasons=net_flow_5m_usd=$-215<0 (sellers winning 5m USD flow)
+2026-06-19 01:36:59,144 [INFO] [FusionV2] model not found at /app/models/fusion_v2.pkl; disabled
+2026-06-19 01:36:58,892 [INFO] [DipScanner] ENTRY via whale_conviction (clean_break BLOCKed): Kelsey top10_buyer_within_60s_count=9>=3 (clustered top-10 buyers)
+2026-06-19 01:36:59,421 [INFO] [fast-watch] hit-rate buy bot=no_filters token=Kelsey armed=False
+2026-06-19 01:36:59,421 [INFO] [DipScanner] bot=no_filters BUY-GATE OFF (breadth=35>=35 AND sol_h24=-3.7<=-1) — skip Kelsey
+2026-06-19 01:36:59,421 [INFO] [fast-watch] hit-rate buy bot=timebox_probe token=Kelsey armed=False
+2026-06-19 01:36:59,421 [INFO] [DipScanner] bot=timebox_probe BUY-GATE OFF (breadth=35>=35 AND sol_h24=-3.7<=-1) — skip Kelsey
+2026-06-19 01:36:59,421 [INFO] [fast-watch] hit-rate buy bot=timebox_probe_mcap token=Kelsey armed=False
+2026-06-19 01:36:59,421 [INFO] [DipScanner] bot=timebox_probe_mcap BUY-GATE OFF (breadth=35>=35 AND sol_h24=-3.7<=-1) — skip Kelsey
+2026-06-19 01:36:59,424 [INFO] [DipScanner] FRESHNESS GATE blocked: ALTSZN vol_m5=$83<$200 AND txns_m5=1<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-06-19 01:36:59,424 [INFO] [DipScanner] FRESHNESS GATE blocked: ALGOPUB vol_m5=$0<$200 AND txns_m5=1<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-06-19 01:36:59,491 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: Merlin reasons=dev_pct_remaining=3.6%<50 (creator dumped >half pre-entry)
+2026-06-19 01:36:59,417 [INFO] [DipScanner] Position size tier: marginal $10 (base $20) for Kelsey triggers=['whale_conviction', '1s_capit_reversal']
+2026-06-19 01:36:59,418 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: Kelsey fired=R4(pc_h1=-22.17<-22.1,poc=-11.60<16.6),R6(pc_h1=-22.17<-8.2,poc=-11.60<-7.5)
+2026-06-19 01:36:59,418 [INFO] [entry_stack] token=Kelsey flow_weak(-183<100);age_young(20.4h<24);mcap_out(0.09M) mode=enforce block=True (1/token/hr)
+2026-06-19 01:36:59,491 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: Merlin reasons=bs_m5=0.91<1.40 (sellers dominating 5m order flow)
+2026-06-19 01:36:59,492 [INFO] [DipScanner] filter_big_trade_size SHADOW would-block: Merlin reasons=avg_trade_size_h1=$82>$80 (whale-sized trades preceding dip)
+2026-06-19 01:36:59,492 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: Merlin reasons=cycles_seen=148>15 (stale watch — fresh dips beat stale ones)
+2026-06-19 01:36:59,492 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: Merlin reasons=1m_last_close=-3.52%<0.3 (no real green confirmation)
+2026-06-19 01:36:59,492 [INFO] [DipScanner] TRIGGER_FEATURES: Merlin top10_60s=9.000 vwap_1h=-7.520 min_peak=103.800 hr_grad=153.960 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=1.831 liq_vel_h1=None h24_ratio=0.256
+2026-06-19 01:36:59,494 [INFO] [DipScanner] trigger_active_dip FIRED: Merlin buys_h1=1144>=200 AND pc_h1=-20.5%<=-15 AND 1m_vol_spike=1.62>=0.40 AND 1m_cum_3m=-0.86%>=-3
+2026-06-19 01:36:59,495 [INFO] [DipScanner] ENTRY via active_dip_whale_conviction (clean_break BLOCKed): Merlin top10_buyer_within_60s_count=9>=3 (clustered top-10 buyers)
+2026-06-19 01:36:59,572 [INFO] [DipScanner] Signal: MOON mcap=$0.1M | 24h=-48.5% 1h=-24.3% 5m=+1.9% vol24h=$757k bs_h6=1.20 bs_h1=1.35 bs_m5=1.25
+2026-06-19 01:36:59,808 [INFO] [DipScanner] SHADOW filter_high_activity_fomo would BLOCK: Merlin reasons=buys_per_min_recent=18>=10 (FOMO peak — n=20 lifetime, 15% WR, -$4.63 avg)
+2026-06-19 01:36:59,808 [INFO] [DipScanner] BLOCKED by filter_seller_imbalance: Merlin reasons=net_flow_5m_imbalance=-0.478<-0.2 (sellers dominating 5m dollar flow)
+2026-06-19 01:36:59,809 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: Merlin reasons=net_flow_5m_usd=$-1094<0 (sellers winning 5m USD flow)
+2026-06-19 01:36:59,810 [INFO] [DipScanner] filter_no_demand_entry SHADOW would-block: Merlin arms=chase (pc_m5=3.36,smart_wallet=0,higher_low=False,bs_m5=0.9111111111111111)
+2026-06-19 01:36:59,897 [INFO] [DipScanner] Position size tier: standard $10 (base $20) for Merlin triggers=['active_dip', 'whale_conviction']
+2026-06-19 01:36:59,898 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: Merlin fired=R3(pc_m5=+3.36>3.20,bs_h1=1.99>1.30),R5(pc_h24=+23.5<32.9,pc_m5=+3.36>-0.1)
+2026-06-19 01:36:59,899 [INFO] [entry_stack] token=Merlin flow_weak(-1177<100) mode=enforce block=True (1/token/hr)
+2026-06-19 01:38:38,740 [INFO] [DexScreener] CFewdGnZGJjN slug=meteora res=1: HTTP 404
+2026-06-19 01:38:41,800 [INFO] [DexScreener] 6qz7THwQvcjF slug=meteora res=1: HTTP 404
+2026-06-19 01:38:46,468 [INFO] Cycle done: 0 new dips detected, 73 skipped, 53 pending outcomes
+2026-06-19 01:38:46,536 [INFO] [Cycle 2] Total resolved events on disk: 14065

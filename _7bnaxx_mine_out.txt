@@ -1,0 +1,41 @@
+
+reconstructed 34/34 entries -> _7bnaxx_entry_feats.json
+
+=== HOLD-TIME (min) — archetype discriminator ===
+  ALL    p25=4.0  median=7.2  p75=24.6  max=61.0
+  WINNERS p25=6.3 median=11.9 p75=27.8
+  LOSERS  p25=4.0 median=4.8 p75=7.9
+  SIZE SOL/tok p25=0.80 median=1.71 p75=6.07
+
+=== 7BNaxx ENTRY-STATE: WINNERS vs LOSERS  (realized) ===
+reconstructed WR = 20/34 = 59%
+
+--- WINNERS  (n=20) ---
+  dip_90m %      p25=-62.2  median=-42.7  p75=-21.7
+  age_h          p25=5.3  median=18.3  p75=26.7
+  liq $          p25=5,322  median=9,428  p75=27,774
+  fdv/mcap $     p25=5,026  median=16,193  p75=108,063
+  pc_h1 %        p25=11.2  median=39.9  p75=77.0
+  ret %          p25=6.5  median=10.6  p75=34.2
+
+--- LOSERS  (n=14) ---
+  dip_90m %      p25=-79.6  median=-23.2  p75=-15.0
+  age_h          p25=1.2  median=25.7  p75=72.1
+  liq $          p25=4,645  median=8,154  p75=43,864
+  fdv/mcap $     p25=4,067  median=12,505  p75=216,926
+  pc_h1 %        p25=12.6  median=26.7  p75=54.0
+  ret %          p25=-27.8  median=-7.9  p75=-4.4
+
+=== SEPARATORS (winner median vs loser median) ===
+  dip off 90m high   WIN=-42.7%  LOSE=-23.2%
+  age (h)            WIN=18.3h  LOSE=25.7h
+  liquidity $        WIN=9,428  LOSE=8,154
+  mcap $             WIN=16,193  LOSE=12,505
+  pc_h1 momentum     WIN=+39.9%  LOSE=+26.7%
+
+=== vs OUR CURRENT GATES (dip<=-16, age>=24h, mcap 500k-10M, liq>=25k) ===
+  0/34 of its entries pass ALL our gates (WR among passed = 0/0)
+    dip<=-16    : 27/34 pass individually
+    age>=24h    : 13/34 pass individually
+    liq>=25k    : 11/34 pass individually
+    mcap-band  : 1/34 pass individually

@@ -1,0 +1,111 @@
+wallet         src       swap ndist  top% rtrip   rWR   netSOL dSell  CLASS
+--------------------------------------------------------------------------------------------
+  gVg6bJqaqYmP candidate   60     3   80%     3   33%    -7.91     3  MM_CHURN
+  CkS9uU1wtTEn candidate   60     3   82%     3   33%   -10.01     3  MM_CHURN
+  5j6ukAbpcgyw candidate   60     3   88%     3    0%   -18.61     3  MM_CHURN
+  PGhYoUt8awqi candidate   60     3   83%     3   33%    -5.01     3  MM_CHURN
+  CRU8tcjFPsYU candidate   60     3   87%     3   33%   +33.28     3  MM_CHURN
+  7BQJ9Pu6Zunf candidate   60     3   82%     3  100%    +1.33     3  MM_CHURN
+  4BM7wYwcZzJG candidate   55     2   56%     2  100%    +1.93     2  MM_CHURN
+  FT88dwCBffDE candidate   51     2   98%     1    0%    -2.28     1  MM_CHURN
+  rFY2vAEAoccD candidate   48     2   58%     2   50%    -4.20     2  MM_CHURN
+  7ugJi5j4ZraX candidate   58     1  100%     1  100%    +0.16     1  MM_CHURN
+  CsYDRgfMB5Yt candidate   50     2   86%     2   50%    +0.52     2  MM_CHURN
+  ARhs2JMc9TeH candidate   55     2   76%     2    0%   -13.38     2  MM_CHURN
+  6kJ9nUp7n4tq candidate   57     1  100%     1    0%    -3.10     1  MM_CHURN
+  DpdN6cmoguof candidate   55     2   53%     2  100%    +1.68     2  MM_CHURN
+  CzgK1iFsKva9 candidate   55     1  100%     1    0%    -1.11     1  MM_CHURN
+  6RUnMvP2MxM9 candidate   54     2   80%     2   50%   -11.89     2  MM_CHURN
+  9U9j667j2WVB candidate   58     2   88%     2  100%   +12.39     2  MM_CHURN
+  WNi2XNFCmU5M candidate   52     1  100%     1    0%    -1.23     1  MM_CHURN
+  78R3iZ8z9Ydk candidate   58     1  100%     1  100%    +0.16     1  MM_CHURN
+  91yUa7wk5BkU candidate   59     2   90%     2  100%   +12.98     2  MM_CHURN
+  mE9fwNbv1ytq candidate   57     1  100%     1    0%    -0.77     1  MM_CHURN
+  8SkjfejWVmGy candidate   60     1  100%     1    0%    -0.04     1  MM_CHURN
+  Di4rS9bXx9Xm candidate   60     1  100%     1    0%    -0.04     1  MM_CHURN
+  5GuMDUpuzSPe candidate   60     1  100%     1  100%    +0.55     1  MM_CHURN
+  BTm12Tkn1u5W candidate   59     2   93%     2   50%   +11.61     2  MM_CHURN
+  6CRgFKymiNUM candidate   60     1  100%     1    0%    -0.77     1  MM_CHURN
+  EhNsRZM9b6Pk candidate   55     1  100%     1  100%   +23.39     1  MM_CHURN
+  AB726xkwPFw2 candidate   36     1  100%     1    0%    -6.70     1  MM_CHURN
+  6MLdoXaGzcbk candidate   59     1  100%     1    0%   -15.17     1  MM_CHURN
+  63jBpyNK5bka candidate   56     1  100%     1  100%    +0.07     1  MM_CHURN
+  25tnphbg8du2 candidate   55     1  100%     1  100%   +15.12     1  MM_CHURN
+  CkP33SXmTZt7 candidate   58     2   81%     2   50%    +3.22     2  MM_CHURN
+  7Zy8WgPuWzTp candidate   41     1  100%     1  100%    +1.37     1  MM_CHURN
+  2Xbp1ZNLFgVf candidate   58     1  100%     1    0%    -1.93     1  MM_CHURN
+  A66Uo46wJYtG candidate   58     2   69%     2    0%    -3.55     2  MM_CHURN
+  DgMSVFHQrTex candidate   31     1  100%     1  100%    +1.79     1  MM_CHURN
+  D7i5Mq8dyX1z candidate   58     2   74%     2   50%   -30.58     2  MM_CHURN
+  BPCrNgrfsiuV candidate   49     1  100%     1    0%    -0.81     1  MM_CHURN
+  EfPkFmC4WwSa candidate   58     1  100%     1    0%    -0.03     1  MM_CHURN
+  3MRHhtSfAc1W candidate   49     1  100%     1  100%    +5.63     1  MM_CHURN
+  Ecei1rstC1N1 candidate   36     1  100%     1    0%   -10.70     1  MM_CHURN
+  BHYkbZGGdepK candidate   40     1  100%     1  100%    +7.27     1  MM_CHURN
+  Aa2KM8j9tyEt candidate   37     1  100%     1    0%    -2.45     1  MM_CHURN
+  FEPPsQGkQpWA candidate   59     1  100%     1  100%    +3.82     1  MM_CHURN
+  3nPoZ5YgQ1FN candidate   57     2   67%     2   50%    -4.81     2  MM_CHURN
+  AdFBo4DqF1Qr candidate   20     1  100%     1  100%    +0.88     1  MM_CHURN
+  36uWVq7Qu9iB candidate   58     2   81%     2   50%   +17.91     2  MM_CHURN
+  6LkGY852ponK candidate   57     2   60%     2   50%   -16.30     2  MM_CHURN
+  RmxGaFTitTsu candidate   60     1  100%     1    0%    -0.73     1  MM_CHURN
+  8zhhELFg8GjZ candidate   59     1  100%     1    0%    -4.46     1  MM_CHURN
+  7WwaAzvdoNyw candidate   56     3   57%     2  100%    +7.09     2  MM_CHURN
+
+=== SELECTORS (follow-worthy): 0 | MM_CHURN (reject): 51 | WEAK: 0 ===
+
+SELECTORS ranked:
+
+MM_CHURN (correctly rejected — single/few-token churn):
+  gVg6bJqaqYmPz1eiDJZKeLJvpmLqRC2HdcYedNvcs5d  [candidate] ndist=3 top%=80
+  CkS9uU1wtTEn1rBRaBucjXhkL5shf3HAZxQpRQQXHKAc  [candidate] ndist=3 top%=82
+  5j6ukAbpcgywrTdJoz4KsYGbQKVSg2asY6YQR87dMeJN  [candidate] ndist=3 top%=88
+  PGhYoUt8awqicsPSAzcnutWHUc5efkcgixdXHYBSaMC  [candidate] ndist=3 top%=83
+  CRU8tcjFPsYUbMMs6A5N6HDxvUB3nrRM72BT7WUpHzB9  [candidate] ndist=3 top%=87
+  7BQJ9Pu6Zunf79oJUsZm8uyk7YZQmCvkMV2HhXpjF2ji  [candidate] ndist=3 top%=82
+  4BM7wYwcZzJGBFo1n82Na4qFbYXHK3duYatH4YMUgruy  [candidate] ndist=2 top%=56
+  FT88dwCBffDE9DVUuDaDXEzFYTuTXJ9NiVrjpY9FAdJv  [candidate] ndist=2 top%=98
+  rFY2vAEAoccD1TX87EhoaF1iUPM85hhFtpE66qGLWwh  [candidate] ndist=2 top%=58
+  7ugJi5j4ZraXSy7NGRAzTU93bMtdNy4coetpY21qycXw  [candidate] ndist=1 top%=100
+  CsYDRgfMB5Yt1g2KD6bCa1nqYZUtzZr4tiMoRmbFbS6L  [candidate] ndist=2 top%=86
+  ARhs2JMc9TeHqZJBUXms1hU4EmXKKLNLdHgMDCsv1sZ  [candidate] ndist=2 top%=76
+  6kJ9nUp7n4tqHuWipsKD7FWY8quhR5zc6uPkNwxGkP4G  [candidate] ndist=1 top%=100
+  DpdN6cmoguofBZWtVynxggkFwsjKWYAFJpY3o2gm2YoF  [candidate] ndist=2 top%=53
+  CzgK1iFsKva9z1YAD1Kyvf7quFcbRcHLwyXiVJEKSc7z  [candidate] ndist=1 top%=100
+  6RUnMvP2MxM9uvtznyURdgYs5X15WJ5QXRQPU7ioRc4n  [candidate] ndist=2 top%=80
+  9U9j667j2WVBXJohGUZN8gxsn6xBd19UHQ7wm7Dbkysy  [candidate] ndist=2 top%=88
+  WNi2XNFCmU5Mqcba62TbV4JkuM5EMi9sC5pLJbXYyoP  [candidate] ndist=1 top%=100
+  78R3iZ8z9YdkjKwQVG95wK4nyv8wq2otghFEX27PYVzC  [candidate] ndist=1 top%=100
+  91yUa7wk5BkUbhFb79X21p1HF87VaWa4n98DN46oob19  [candidate] ndist=2 top%=90
+  mE9fwNbv1ytqnfiFHZeZvDT972gxbTF67YQpfpyCcdH  [candidate] ndist=1 top%=100
+  8SkjfejWVmGysYWTirDmnnEX8HatFmLE6DhSxY6oXFQA  [candidate] ndist=1 top%=100
+  Di4rS9bXx9XmVgeyXvuBLr4MFAe411ix4vY7Mo6axnmt  [candidate] ndist=1 top%=100
+  5GuMDUpuzSPeBiGL1HJqVq2KrU4uwfFK9j3ywbKSHT8J  [candidate] ndist=1 top%=100
+  BTm12Tkn1u5Wzp9gBFJewEYBCrkkdFDDKyuTpXEKcBBC  [candidate] ndist=2 top%=93
+  6CRgFKymiNUMSmqD2d2Cw5VX8ghE4TDnhcdGocJ7XtpX  [candidate] ndist=1 top%=100
+  EhNsRZM9b6Pk1833rmYeT4iydKT5VdQZTSqqr7HTT8rV  [candidate] ndist=1 top%=100
+  AB726xkwPFw2x192ZdVbwXwj388PhfJbxPiaF98pk8Ag  [candidate] ndist=1 top%=100
+  6MLdoXaGzcbk3exPZbghDYr4sUnKtrUV11Qv7FMcEQWa  [candidate] ndist=1 top%=100
+  63jBpyNK5bkaxHxaMiRuqWfeCxMA2ZwRCM1NCneAXzdo  [candidate] ndist=1 top%=100
+  25tnphbg8du2bEACcDmN3XJXoDmEXkBVoydg1mt3Jovm  [candidate] ndist=1 top%=100
+  CkP33SXmTZt757sPwj3bDuSiphsZY7kaueqmXD5bn6hb  [candidate] ndist=2 top%=81
+  7Zy8WgPuWzTprUecVmdzZsttYR3xmpSs3aDsPm5XvXBQ  [candidate] ndist=1 top%=100
+  2Xbp1ZNLFgVftzrgC9uM4nZk5X4HMWwFo7LxNLvEyrsU  [candidate] ndist=1 top%=100
+  A66Uo46wJYtGkV6JhddnT8tktMjJzFATRDJcuFiz1Mwt  [candidate] ndist=2 top%=69
+  DgMSVFHQrTexxgcBpeLZPi9QUBDB1ANJeFQAEApfYjGE  [candidate] ndist=1 top%=100
+  D7i5Mq8dyX1z818TbXSSjbBaCzFB4VXUGiy4L1jG47d9  [candidate] ndist=2 top%=74
+  BPCrNgrfsiuVkG9TUFotYuxfrnU8kmqZS9SEmPx8mpHu  [candidate] ndist=1 top%=100
+  EfPkFmC4WwSa2Ap2EYy3GY7X1bjK75A97mXhV6gwE3Sg  [candidate] ndist=1 top%=100
+  3MRHhtSfAc1WYVdAQpKE6vKBJVoyFiuSdVooKUciH964  [candidate] ndist=1 top%=100
+  Ecei1rstC1N1c9FYV41XopLmqkALFQw4PUhUthxQhYqd  [candidate] ndist=1 top%=100
+  BHYkbZGGdepKT9AXdTABRjUagL9YdeFVDJKMnsCJswog  [candidate] ndist=1 top%=100
+  Aa2KM8j9tyEtszWXG9K9ejA5GiMEK8B7gnNV3AwR2WUX  [candidate] ndist=1 top%=100
+  FEPPsQGkQpWAuKGrvkpuj7LDxNa2P9a2bc7Lkw4ZLSiX  [candidate] ndist=1 top%=100
+  3nPoZ5YgQ1FNutW7SacWvG7DkisPHHJSyhmoYhpKk4cC  [candidate] ndist=2 top%=67
+  AdFBo4DqF1QrRKJmQuioZ93GPMtVYEAjGkV1MaEdytuY  [candidate] ndist=1 top%=100
+  36uWVq7Qu9iBgFFMJJzUG8eC8wiEYcAtLJiGMZmJYEXy  [candidate] ndist=2 top%=81
+  6LkGY852ponKKMuq2e7yZXrxnz1jd6weU1XBs7tEvHS  [candidate] ndist=2 top%=60
+  RmxGaFTitTsuZd2vrKzxkcjNTD5hsRnkkDa3LXkaGNa  [candidate] ndist=1 top%=100
+  8zhhELFg8GjZpS3TiLpkbafTpq7M7V93KBwWWR3FCLXi  [candidate] ndist=1 top%=100
+  7WwaAzvdoNyw1jcyqU8gtuqECKrHob2Pr5vZf7hNAf5o  [candidate] ndist=3 top%=57
+wrote _wallet_diversity_scores.json
