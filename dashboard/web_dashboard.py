@@ -3215,11 +3215,21 @@ class WebDashboard:
             summary = await _asyncio.to_thread(_summarize, recs)
         except Exception as e:
             summary = {"error": str(e)}
+        # Part 2 (exit-tail design): the per-liquidity-bucket EXIT slip table
+        # (thin/mid/deep slip_p50/p90/n) a human reads to set LIQ_EXIT_FLOOR_USD.
+        # Read-only, fail-open -> {}; never reads the live gate at decision time.
+        try:
+            from core.fill_calibration import (
+                calibrate_exit_from_live_swaps as _cal_exit)
+            exit_slip = await _asyncio.to_thread(_cal_exit, recs)
+        except Exception:
+            exit_slip = {}
         payload = {
             "ok": True,
             "LIVE_SWAP_LOG_MODE": mode,
             "n_records": len(recs),
             "summary": summary,
+            "exit_slip_by_liquidity": exit_slip,
             "recent": recs[-max(0, limit):] if recs else [],
             "note": ("fill_vs_mid_slippage_pct>0 = ADVERSE (paid up on buy / got less "
                      "on sell). durations are monotonic-ms; ts is wall-clock ISO."),

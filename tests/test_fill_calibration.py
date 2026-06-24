@@ -7,6 +7,7 @@ import pytest
 from core.fill_calibration import (
     LIQ_BUCKETS,
     calibrate_from_live_swaps,
+    calibrate_exit_from_live_swaps,
     calibrated_slip_pct,
     realistic_slip_with_cap,
     load_calibration,
@@ -102,6 +103,64 @@ def test_skips_records_missing_slip():
     out2 = calibrate_from_live_swaps([_rec(liq=10000, slip=None, runup=None),
                                       _rec(liq=10000, slip=5.0, runup=2.0)])
     assert out2["thin"]["n"] == 1
+
+
+# ── Part 2: exit (sell) calibration ─────────────────────────────────────────
+def test_buy_path_unchanged_by_default_side():
+    # the default side stays 'buy' -> sells are ignored, byte-identical to before
+    recs = [
+        _rec(side="buy", liq=10000, slip=2.0, runup=1.0),
+        _rec(side="sell", liq=10000, slip=99.0, runup=99.0),  # MUST be ignored
+    ]
+    out = calibrate_from_live_swaps(recs)
+    assert out["thin"]["n"] == 1
+    assert out["thin"]["slip_p50"] == 2.0
+    assert out["overall"]["n"] == 1
+
+
+def test_side_param_selects_sells():
+    recs = [
+        _rec(side="buy", liq=10000, slip=2.0, runup=1.0),   # ignored when side=sell
+        _rec(side="sell", liq=10000, slip=5.0, runup=0.0),  # counts
+    ]
+    out = calibrate_from_live_swaps(recs, side="sell")
+    assert out["thin"]["n"] == 1
+    assert out["thin"]["slip_p50"] == 5.0
+    assert out["overall"]["n"] == 1
+
+
+def test_exit_calibration_buckets_and_tail():
+    # thin sells slips 1..5 -> p50=3, p90 nearest-rank=5 (the TAIL we care about)
+    thin = [_rec(side="sell", liq=10000, slip=s) for s in (1, 2, 3, 4, 5)]
+    mid = [_rec(side="sell", liq=50000, slip=8.0),
+           _rec(side="sell", liq=50000, slip=12.0)]
+    deep = [_rec(side="sell", liq=200000, slip=0.5)]
+    out = calibrate_exit_from_live_swaps(thin + mid + deep)
+    assert out["thin"]["n"] == 5
+    assert out["thin"]["slip_p50"] == 3.0
+    assert out["thin"]["slip_p90"] == 5.0   # tail
+    assert out["mid"]["n"] == 2
+    assert out["mid"]["slip_p50"] == 10.0
+    assert out["deep"]["n"] == 1
+    assert out["overall"]["n"] == 8
+
+
+def test_exit_calibration_ignores_buys_and_failed():
+    recs = [
+        _rec(side="buy", success=True, liq=10000, slip=2.0),    # buy -> ignored
+        _rec(side="sell", success=False, liq=10000, slip=9.0),  # failed -> ignored
+        _rec(side="sell", success=True, liq=10000, slip=4.0),   # counts
+    ]
+    out = calibrate_exit_from_live_swaps(recs)
+    assert out["thin"]["n"] == 1
+    assert out["thin"]["slip_p50"] == 4.0
+
+
+def test_exit_calibration_empty_and_garbage():
+    assert calibrate_exit_from_live_swaps([]) == {}
+    assert calibrate_exit_from_live_swaps(None) == {}
+    # only buys present -> no sells -> empty
+    assert calibrate_exit_from_live_swaps([_rec(side="buy", liq=1, slip=1.0)]) == {}
 
 
 # ── _bucket_label ──────────────────────────────────────────────────────────

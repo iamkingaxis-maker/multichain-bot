@@ -70,14 +70,17 @@ def _bucket_stats(slips: list, runups: list, n_records: int) -> dict:
     }
 
 
-def calibrate_from_live_swaps(records: list) -> dict:
+def calibrate_from_live_swaps(records: list, side: str = "buy") -> dict:
     """Build the per-bucket slippage/run-up calibration from live-swap records.
 
-    PURE + FAIL-OPEN. Considers only SUCCESSFUL BUY records (side=='buy' and a
-    truthy ``success``). Buckets each by ``liquidity_usd`` (None/missing ->
-    'unknown'). Per bucket computes slip_p50 (median fill_vs_mid_slippage_pct),
-    slip_p90 (90th pct, nearest-rank), runup_p50 (median reprice_runup_pct), and
-    n. Also an 'overall' bucket across all qualifying records.
+    PURE + FAIL-OPEN. Considers only SUCCESSFUL records matching ``side`` (default
+    'buy' — the historical contract, so the buy path is byte-identical; pass
+    side='sell' for the exit-tail calibration, or use the
+    ``calibrate_exit_from_live_swaps`` wrapper). Buckets each by ``liquidity_usd``
+    (None/missing -> 'unknown'). Per bucket computes slip_p50 (median
+    fill_vs_mid_slippage_pct), slip_p90 (90th pct, nearest-rank — the TAIL that
+    matters for the exit floor), runup_p50 (median reprice_runup_pct; ~empty for
+    sells), and n. Also an 'overall' bucket across all qualifying records.
 
     Records missing the needed numeric fields are skipped. A bucket appears only
     if at least one qualifying record landed in it. Empty/garbage -> {}.
@@ -95,7 +98,7 @@ def calibrate_from_live_swaps(records: list) -> dict:
             try:
                 if not isinstance(r, dict):
                     continue
-                if r.get("side") != "buy":
+                if r.get("side") != side:
                     continue
                 if not r.get("success"):
                     continue
@@ -125,6 +128,19 @@ def calibrate_from_live_swaps(records: list) -> dict:
         return out
     except Exception:
         return {}
+
+
+def calibrate_exit_from_live_swaps(records: list) -> dict:
+    """Per-liquidity-bucket EXIT (sell) slippage calibration — Part 2 of the
+    liquidity-conditional exit-tail design.
+
+    Thin wrapper over ``calibrate_from_live_swaps(records, side='sell')``:
+    aggregates SUCCESSFUL sell records the same way buys are, surfacing per
+    thin/mid/deep/overall bucket the slip_p50, slip_p90 (the TAIL — the
+    gap-through risk a human reads to set LIQ_EXIT_FLOOR_USD), and n. The buy
+    path is unchanged. PURE + FAIL-OPEN: empty/garbage/no-sells -> {}, never
+    raises. NOT read by the live gate at decision time (measurement only)."""
+    return calibrate_from_live_swaps(records, side="sell")
 
 
 def calibrated_slip_pct(calib: dict, liq_usd: Any, default: float,
