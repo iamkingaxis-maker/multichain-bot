@@ -1671,21 +1671,37 @@ class DipScanner:
             _se_liq = _ar_liq  # liquidity_usd resolved above for the anti-rug floor
             from core.bot_evaluator import structure_edge_blocks as _seb
             _se_block, _se_why = _seb(_se_h6, _se_liq)
-            if _se_block:
-                logger.info("[DipScanner] bot=%s STRUCTURE-EDGE %s: %s %s", bot_id,
-                            "BLOCK" if _se_mode == "enforce" else "SHADOW-would-block",
-                            _se_why, decision.token)
-                _se_taddr = (decision.address
-                             or self._addr_by_token.get(decision.token, ""))
-                try:
-                    _se_seen = getattr(self, "_se_shadow_seen", None)
-                    if _se_seen is None:
-                        _se_seen = set()
-                        self._se_shadow_seen = _se_seen
-                    _se_key = (_se_taddr or decision.token or "").lower()
-                    if _se_key not in _se_seen:
+            # Record BOTH arms to the forward-candle scorer. The BLOCKED arm
+            # (falling-knife thin-book) measures what enforcing would AVOID; the
+            # PASS/INSIDE arm is what the ENFORCE-BAR measures (INSIDE median
+            # >=+2% AND win >=55%), so it MUST be captured — without it the bar
+            # is unmeasurable. BLOCK is always recorded; PASS is sampled by a
+            # DEDICATED rate (STRUCTURE_EDGE_PASS_SAMPLE, default 1 = capture
+            # EVERY entry decision — they're infrequent and each is precious
+            # validation signal), independent of the global FILTER_SHADOW_PASS_SAMPLE.
+            # Per-cycle dedup by address (a token blocks XOR passes per cycle).
+            _se_taddr = (decision.address
+                         or self._addr_by_token.get(decision.token, ""))
+            try:
+                _se_seen = getattr(self, "_se_shadow_seen", None)
+                if _se_seen is None:
+                    _se_seen = set()
+                    self._se_shadow_seen = _se_seen
+                _se_key = (_se_taddr or decision.token or "").lower()
+                if _se_key not in _se_seen:
+                    _se_verdict = "BLOCK" if _se_block else "PASS"
+                    from feeds.filter_shadow_recorder import (
+                        should_record_verdict as _se_should,
+                        record_verdict as _rv,
+                    )
+                    try:
+                        _se_psample = int(float(
+                            os.environ.get("STRUCTURE_EDGE_PASS_SAMPLE", "1")))
+                    except (TypeError, ValueError):
+                        _se_psample = 1
+                    if _se_should(_se_taddr, "structure_edge", _se_verdict,
+                                  sample_n=_se_psample):
                         _se_seen.add(_se_key)
-                        from feeds.filter_shadow_recorder import record_verdict as _rv
                         _se_mc = (getattr(bundle, "mcap", None)
                                   or _ar_meta.get("mcap")
                                   or _ar_meta.get("marketCap"))
@@ -1693,10 +1709,14 @@ class DipScanner:
                             pair={"pairAddress": getattr(decision, "pair_address", "") or "",
                                   "priceChange": {"h6": _se_h6},
                                   "liquidity": {"usd": _se_liq}, "marketCap": _se_mc},
-                            filter_name="structure_edge", verdict="BLOCK",
+                            filter_name="structure_edge", verdict=_se_verdict,
                             reasons=_se_why)
-                except Exception:
-                    pass
+            except Exception:
+                pass
+            if _se_block:
+                logger.info("[DipScanner] bot=%s STRUCTURE-EDGE %s: %s %s", bot_id,
+                            "BLOCK" if _se_mode == "enforce" else "SHADOW-would-block",
+                            _se_why, decision.token)
                 _se_rb = False
                 try:
                     from core.gate_rollback import is_rolled_back as _irb2
