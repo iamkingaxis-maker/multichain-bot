@@ -10,7 +10,7 @@
   "conviction_step": 0.5,
   "daily_loss_limit_usd": 60.0,
   "display_name": "DEMAND-GATE A/B of badday_flush_conviction (2026-06-15 win-signature mine). ONE added entry clause: net_flow_15s_imbalance >= 0. From the 442-entry signature, winners enter at +0.63 vs losers -0.10 (buyers stepping in vs still net-selling) -- the strongest single separator (sep 0.91). Tests whether gating OUT still-falling-knife entries (negative 15s flow) cuts losers while keeping the winners. Control = badday_flush_conviction (identical except this clause). PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30 closes; promote the gate to the live baddays ONLY if it lifts $/tr. paper, 48h burn-in.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "unique_buyers_n",
