@@ -86,7 +86,10 @@ def parse_ultra_order(resp: "Optional[dict]") -> dict:
     return {"ok": True, "transaction": tx, "request_id": rid,
             "out_amount": _i(resp.get("outAmount")), "in_amount": _i(resp.get("inAmount")),
             "router": resp.get("router") or resp.get("swapType"),
-            "slippage_bps": resp.get("slippageBps")}
+            "slippage_bps": resp.get("slippageBps"),
+            # priceImpactPct = quote's estimated price impact (fraction, e.g. "0.0287").
+            # Surfaced first-class for the Tier-B in-flight fill-quality abort. May be None.
+            "price_impact_pct": resp.get("priceImpactPct")}
 
 
 def parse_ultra_execute(resp: "Optional[dict]") -> dict:
@@ -2970,7 +2973,7 @@ class Trader:
                   "execute_duration_ms": None,
                   "order_attempts": 0, "order_429_count": 0, "execute_429_count": 0,
                   "backoff_total_ms": 0.0,
-                  "ultra_slippage_bps": None,
+                  "ultra_slippage_bps": None, "price_impact_pct": None,
                   "raw_order_response": None, "raw_execute_response": None}
         if not self.private_key:
             result["reason"] = "paper_mode"
@@ -3025,6 +3028,38 @@ class Trader:
         result["in_amount"] = order.get("in_amount") or 0
         result["route"] = order.get("router")
         result["ultra_slippage_bps"] = order.get("slippage_bps")
+        result["price_impact_pct"] = order.get("price_impact_pct")
+        # ── Tier-B in-flight fill-quality abort (BUY only). The built order is in hand but
+        # NOT yet signed/sent. If LIVE_FILL_QUALITY_MODE != off AND the quote's
+        # priceImpactPct*100 exceeds LIVE_FILL_QUALITY_MAX_IMPACT_PCT (default 2.0), bail
+        # BEFORE signing — costs $0, zero MEV exposure. Exits NEVER abort (don't trap a
+        # position). FAIL-OPEN: any missing/non-numeric impact or error -> proceed as today.
+        try:
+            _fq_mode = os.environ.get("LIVE_FILL_QUALITY_MODE", "shadow").strip().lower()
+            if buy_context and _fq_mode in ("shadow", "enforce"):
+                _imp_raw = order.get("price_impact_pct")
+                _imp_pct = None
+                if _imp_raw is not None:
+                    _imp_pct = float(_imp_raw) * 100.0  # raises -> caught -> fail-open
+                if _imp_pct is not None:
+                    try:
+                        _ceil = float(os.environ.get("LIVE_FILL_QUALITY_MAX_IMPACT_PCT", "2.0"))
+                    except (TypeError, ValueError):
+                        _ceil = 2.0
+                    if _imp_pct > _ceil:
+                        if _fq_mode == "enforce":
+                            logger.warning(
+                                "[Ultra] fill-quality ABORT (enforce): impact=%.3f%% > %.3f%% "
+                                "(in=%s out=%s) — $0 abort, not signed",
+                                _imp_pct, _ceil, input_mint, output_mint)
+                            result["reason"] = "fill_quality_impact"
+                            return result
+                        # shadow: log the would-block, DO NOT abort.
+                        logger.info(
+                            "[Ultra] fill-quality would-ABORT (shadow): impact=%.3f%% > %.3f%% "
+                            "(in=%s out=%s)", _imp_pct, _ceil, input_mint, output_mint)
+        except Exception as e:
+            logger.debug("[Ultra] fill-quality gate error (%s) — fail-open (proceed)", e)
         # 2) SIGN the returned tx (same solders pattern as _send_transaction).
         _t_sign0 = time.monotonic()
         try:

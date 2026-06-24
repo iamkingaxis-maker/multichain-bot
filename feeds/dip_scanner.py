@@ -2423,8 +2423,35 @@ class DipScanner:
             return None
         # M6 (probe red-team): pass an explicit slippage cap so a bad fill on a thin token
         # REVERTS rather than executing at a ruinous price (Ultra's own RTSE estimate alone
-        # is not a hard cap). PROBE_ULTRA_SLIPPAGE_BPS default 400 = 4%.
-        _slip_cap = int(os.environ.get("PROBE_ULTRA_SLIPPAGE_BPS", "400"))
+        # is not a hard cap). PROBE_ULTRA_SLIPPAGE_BPS default 250 = 2.5% (BUY cap; 16-fill
+        # study found real buy fills cluster ~2.8%, optimal cap 250bps). Fail-safe default
+        # survives an env wipe; env is set to 250 live.
+        _slip_cap = int(os.environ.get("PROBE_ULTRA_SLIPPAGE_BPS", "250"))
+        # ── SHADOW proactive fill-quality gate (Tier A). LIVE money path; FAIL-OPEN.
+        # mode off|shadow|enforce (default shadow): SKIP the buy if the Jupiter quote's
+        # priceImpactPct*100 exceeds LIVE_FILL_QUALITY_MAX_IMPACT_PCT (default 2.0).
+        # NOTE: the buy-path quote is fetched INSIDE _execute_swap_ultra, not here — the
+        # quote's priceImpactPct is NOT available at this site without an extra fetch
+        # (which we will NOT add on the time-sensitive buy path). So Tier A is a
+        # no-op-with-TODO; the real in-flight $0 abort lives in trader._execute_swap_ultra
+        # (Tier B), where the built order's priceImpactPct IS in scope. Address-keyed.
+        try:
+            _fq_mode = os.environ.get("LIVE_FILL_QUALITY_MODE", "shadow").strip().lower()
+            if _fq_mode not in ("off", "shadow", "enforce"):
+                _fq_mode = "shadow"
+            if _fq_mode != "off":
+                # TODO(fill-quality Tier A): priceImpactPct is not available pre-swap at
+                # this site (quote fetched in _execute_swap_ultra). The decision-time
+                # liquidity_usd does NOT predict fill cost (study REJECTED liq/vol gates),
+                # so we deliberately do not gate here. Enforcement happens in Tier B.
+                _fq_addr = getattr(decision, "address", None) or mint
+                logger.debug(
+                    "[Probe] live_fill_quality Tier-A no-op (mode=%s) token=%s addr=%s "
+                    "liq=%s — impact gate enforced in Tier B (_execute_swap_ultra)",
+                    _fq_mode, token, _fq_addr, getattr(decision, "liquidity_usd", None))
+        except Exception as e:
+            # FAIL-OPEN: never block a live buy on a gate bookkeeping error.
+            logger.debug("[Probe] live_fill_quality Tier-A error (%s) — fail-open", e)
         # Cost-reconciliation: SOL balance BEFORE the swap (fail-open -> None).
         try:
             _sol_before = await self.trader._get_sol_balance(force=True)
@@ -2630,7 +2657,10 @@ class DipScanner:
             # caller to CLOSE it — NEVER retry forever (the 2026-06-14 inflight-cap clog).
             logger.warning("[Probe] live sell CONFIRMED 0 on-chain balance (%s) — closing (no real tokens)", token)
             return {"empty": True}
-        _slip_cap = int(os.environ.get("PROBE_ULTRA_SLIPPAGE_BPS", "400"))
+        # SELL cap is SPLIT from the buy cap: a too-tight sell cap would REVERT crash-exits
+        # and trap positions. Read a SEPARATE var (default 600 = 6%, the looser exit-safe
+        # behavior). NEVER share the tightened buy cap on the exit leg.
+        _slip_cap = int(os.environ.get("PROBE_ULTRA_SELL_SLIPPAGE_BPS", "600"))
         try:
             _sol_before = await self.trader._get_sol_balance(force=True)
             if _sol_before is not None and _sol_before < 0:
