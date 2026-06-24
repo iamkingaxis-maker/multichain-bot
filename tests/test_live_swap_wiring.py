@@ -166,6 +166,66 @@ def test_live_buy_populates_complete_record(tmp_path, monkeypatch):
     assert rec["raw_order_response"]["slippageBps"] == 200
 
 
+def test_live_buy_stamps_entry_liquidity_on_position_and_record(tmp_path, monkeypatch):
+    """Part 1: the REAL entry liquidity/mcap (resolved upstream as _ar_liq) is
+    plumbed into the buy via explicit args, written to the buy live-swap record,
+    AND stamped onto the opened position's state_blob so the SELL leg can read it."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LIVE_SWAP_LOG_MODE", "on")
+    monkeypatch.setenv("BUY_REPRICE_MODE", "off")
+    swap = {"success": True, "out_amount": 48_000_000, "in_amount": 250_000_000,
+            "route": "metis", "realized_slippage_pct": 2.0, "signature": "BUYSIG",
+            "slippage_cap_bps": 400, "ultra_slippage_bps": 200,
+            "order_duration_ms": 150.0, "sign_duration_ms": 8.0,
+            "execute_duration_ms": 2200.0, "order_attempts": 1,
+            "order_429_count": 0, "execute_429_count": 0, "backoff_total_ms": 0.0}
+    trader = StubTrader(swap)
+    ds, pm = _ds(trader), StubPM()
+    # decision carries NO liquidity (mirrors reality: it comes through None on the
+    # decision); the real value arrives via the explicit entry_liquidity_usd arg.
+    dec = types.SimpleNamespace(token="TOK", address="MINTADDR", entry_price=1.0,
+                                pair_address="PAIR", local_low=0.95,
+                                reason="deep_dip", bot_id="badday_flush_live")
+    r = asyncio.run(ds._execute_bot_buy_live(dec, pm, 50.0,
+                                             entry_liquidity_usd=41234.0,
+                                             entry_mcap=555000.0))
+    assert r is not None
+    rec = _last_record(tmp_path)
+    assert rec["side"] == "buy"
+    assert rec["liquidity_usd"] == 41234.0
+    assert rec["mcap"] == 555000.0
+    # position carries entry liquidity (the SELL leg reads from here)
+    pos = r["pos"]
+    assert pos.state_blob.get("entry_liquidity_usd") == 41234.0
+    assert pos.state_blob.get("entry_mcap") == 555000.0
+
+
+def test_live_sell_reads_entry_liquidity_from_position(tmp_path, monkeypatch):
+    """Part 1: the SELL leg stamps the ENTRY liquidity (carried on the position's
+    state_blob from the buy) onto its live-swap record — NOT a literal None."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LIVE_SWAP_LOG_MODE", "on")
+    swap = {"success": True, "out_amount": 300_000_000, "route": "jupiterz",
+            "realized_slippage_pct": 0.4, "signature": "SELLSIG",
+            "slippage_cap_bps": 400, "ultra_slippage_bps": 40,
+            "order_duration_ms": 120.0, "sign_duration_ms": 7.0,
+            "execute_duration_ms": 1800.0, "order_attempts": 1,
+            "order_429_count": 0, "execute_429_count": 0, "backoff_total_ms": 0.0,
+            "in_amount": 50_000_000}
+    trader = StubTrader(swap)
+    trader._sol_seq = [0.5, 0.8]
+    trader.balances = [50_000_000]
+    ds = _ds(trader)
+    pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
+    pos.state_blob = {"entry_liquidity_usd": 41234.0, "entry_mcap": 555000.0}
+    r = asyncio.run(ds._execute_bot_sell_live("TOK", StubPM(), pos, 1.0, current_mid=1.25))
+    assert r is not None
+    rec = _last_record(tmp_path)
+    assert rec["side"] == "sell"
+    assert rec["liquidity_usd"] == 41234.0  # entry liq, read from the position
+    assert rec["mcap"] == 555000.0
+
+
 def test_live_buy_failure_writes_record_with_reason(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setenv("LIVE_SWAP_LOG_MODE", "on")

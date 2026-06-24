@@ -1889,8 +1889,15 @@ class DipScanner:
             return
         _live_instrument = None
         if _live:
-            # Real MEV-protected Ultra swap + real-fill accounting.
-            _r = await self._execute_bot_buy_live(decision, pm, _used_size)
+            # Real MEV-protected Ultra swap + real-fill accounting. Plumb the REAL
+            # decision-time liquidity (_ar_liq, resolved above for the anti-rug floor)
+            # + mcap into the live-swap telemetry + onto the position (Part 1).
+            _buy_mcap = (getattr(bundle, "mcap", None)
+                         or _ar_meta.get("mcap")
+                         or _ar_meta.get("marketCap"))
+            _r = await self._execute_bot_buy_live(
+                decision, pm, _used_size,
+                entry_liquidity_usd=_ar_liq, entry_mcap=_buy_mcap)
             if _r is None:
                 # pre-spend abort -> safe to refund the reservation
                 capital.balance_usd += _used_size
@@ -2358,7 +2365,8 @@ class DipScanner:
             pass
         return size_usd * mult, ("+".join(tags) if tags else "none")
 
-    async def _execute_bot_buy_live(self, decision, pm, size_usd):
+    async def _execute_bot_buy_live(self, decision, pm, size_usd,
+                                    entry_liquidity_usd=None, entry_mcap=None):
         """LIVE probe BUY (piece 1b): real MEV-protected Ultra swap (SOL->token) +
         real-fill accounting + per-leg instrumentation. Returns
         {pos, entry_price, slip_pct, instrument} or None (caller refunds capital).
@@ -2371,6 +2379,18 @@ class DipScanner:
         mint = decision.address or token
         mid = decision.entry_price
         decision_mid_price = mid   # snapshot the ORIGINAL decision mid for telemetry
+        # ENTRY liquidity/mcap (Part 1 telemetry, fail-open): the REAL decision-time
+        # liquidity is resolved upstream in the scan path (_ar_liq for the anti-rug
+        # floor) and passed in here. The decision object itself carries None today, so
+        # fall back to it only if the explicit arg is absent. Stamped onto the buy
+        # record AND the position (so the SELL leg can read ENTRY liquidity — the
+        # gating variable for the exit-tail). None stays None (telemetry never blocks).
+        _entry_liq = (entry_liquidity_usd
+                      if entry_liquidity_usd is not None
+                      else getattr(decision, "liquidity_usd", None))
+        _entry_mcap = (entry_mcap if entry_mcap is not None
+                       else (getattr(decision, "market_cap", None)
+                             or getattr(decision, "mcap", None)))
         # Live-swap telemetry accumulators (fail-open; never gate the swap).
         _decision_mono = time.monotonic()
         _reprice_price = None
@@ -2565,8 +2585,8 @@ class DipScanner:
                     trigger_source=("realtime" if rt_mode("RT_TRIGGER_MODE") == "enforce" else "legacy"),
                     size_usd=size_usd, size_sol=(lamports / 1e9 if lamports else None),
                     lamports=lamports,
-                    liquidity_usd=getattr(decision, "liquidity_usd", None),
-                    mcap=getattr(decision, "market_cap", None) or getattr(decision, "mcap", None),
+                    liquidity_usd=_entry_liq,
+                    mcap=_entry_mcap,
                     jupiter_api_base=_tr._ULTRA_BASE, live_mode=True, paper=False,
                     decision_ts=_decision_mono, order_start_ts=_order_start_mono,
                     order_duration_ms=res.get("order_duration_ms"),
@@ -2671,6 +2691,15 @@ class DipScanner:
             pos.state_blob.update(instrument)
         except Exception:
             pass
+        # Part 1: stamp ENTRY liquidity/mcap onto the position so the SELL leg can
+        # read the gating variable (entry, not exit-time, liquidity). Fail-open.
+        try:
+            if _entry_liq is not None:
+                pos.state_blob["entry_liquidity_usd"] = _entry_liq
+            if _entry_mcap is not None:
+                pos.state_blob["entry_mcap"] = _entry_mcap
+        except Exception:
+            pass
         logger.info("[Probe] LIVE BUY token=%s size=$%.0f entry=%.8g slip=%s%% sig=%s",
                     token, size_usd, real_entry, instrument.get("live_slippage_pct"),
                     res.get("signature"))
@@ -2768,7 +2797,10 @@ class DipScanner:
                     pair_address=getattr(pos, "pair_address", None),
                     trigger="exit", size_usd=getattr(pos, "size_usd", None),
                     size_sol=None, lamports=None,
-                    liquidity_usd=None, mcap=None,
+                    # Part 1: ENTRY liquidity/mcap carried on the position from the buy
+                    # leg (the gating variable for the exit-tail). Fail-open -> None.
+                    liquidity_usd=(getattr(pos, "state_blob", None) or {}).get("entry_liquidity_usd"),
+                    mcap=(getattr(pos, "state_blob", None) or {}).get("entry_mcap"),
                     jupiter_api_base=_tr._ULTRA_BASE, live_mode=True, paper=False,
                     decision_ts=_decision_mono, order_start_ts=_order_start_mono,
                     order_duration_ms=res.get("order_duration_ms"),
