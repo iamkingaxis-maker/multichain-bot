@@ -115,11 +115,25 @@ def realized_from_bars(bars: list, block_ts: int):
     max_gain = (max_high / block_close - 1) * 100
     min_loss = (min_low / block_close - 1) * 100
     end_pct = (end_close / block_close - 1) * 100
-    if min_loss <= -7:
-        realized = -7.0
-    elif max_gain >= 5:
-        realized = 2.5 + min((max_gain - 5.0) * 0.5, 5.0)
-    else:
+    # CHRONOLOGICAL realized (2026-06-25 fix): walk forward bars IN ORDER and
+    # score whichever threshold is reached FIRST — the -7% stop or the +5% TP1.
+    # The old code checked the window-wide min_low <= -7 BEFORE max_gain, so any
+    # path that EVER wicked -7% scored as a stop even if it pumped +50% first;
+    # on volatile microcaps (wick >7% routinely) that collapsed ~every entry to
+    # -7 and destroyed block-vs-pass discrimination. Within-bar tie (a single bar
+    # that breaches BOTH) -> assume the stop hit first (conservative). TP branch
+    # keeps the established trail approximation off the overall max_gain.
+    realized = None
+    for b in forward:
+        lo_pct = (b.low / block_close - 1) * 100
+        hi_pct = (b.high / block_close - 1) * 100
+        if lo_pct <= -7:
+            realized = -7.0
+            break
+        if hi_pct >= 5:
+            realized = 2.5 + min((max_gain - 5.0) * 0.5, 5.0)
+            break
+    if realized is None:
         realized = max(end_pct, -7.0)
     return (len(forward), max_gain, min_loss, end_pct, realized)
 
