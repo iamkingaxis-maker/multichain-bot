@@ -19624,6 +19624,15 @@ class DipScanner:
                         _price_usd_f = float(pair.get("priceUsd") or 0) or 0.0
                     except (TypeError, ValueError):
                         _price_usd_f = 0.0
+                    # P1 fix (2026-06-25): populate liquidity_usd on the bundle from
+                    # the pair so _ar_liq is real on EVERY path (was always None) —
+                    # feeds the anti-rug / structure_edge / liquidity_exit_floor gates
+                    # AND the live-swap telemetry. Fail-open to None.
+                    _bndl_liq = (pair.get("liquidity") or {}).get("usd")
+                    try:
+                        _bndl_liq = float(_bndl_liq) if _bndl_liq is not None else None
+                    except (TypeError, ValueError):
+                        _bndl_liq = None
                     bundle = FeatureBundle(
                         token=token_symbol,
                         address=token_address,
@@ -19632,6 +19641,7 @@ class DipScanner:
                         snapshot_ts=time.time(),
                         price_usd=_price_usd_f,
                         mcap_usd=float(mcap or 0),
+                        liquidity_usd=_bndl_liq,
                         age_hours=float(_local.get("pair_age_hours") or 0.0),
                         pc_h24=pc_h24 if "pc_h24" in _local else None,
                         pc_h6=_local.get("pc_h6"),

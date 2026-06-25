@@ -71,3 +71,6 @@ _*.txt
 _*.out
 _*.err
 .mission_trade_marker
+_full_trades.json
+_df_full.json.gz
+_df_trades.json.gz

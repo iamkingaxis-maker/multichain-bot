@@ -58,5 +58,13 @@ class FeatureBundle:
     filters_pass: tuple[str, ...]
     filters_shadow: tuple[str, ...]
 
+    # Liquidity (added 2026-06-25). Was MISSING entirely, so bundle.liquidity_usd
+    # was always None on every path -> _ar_liq fell through to raw_meta (often
+    # absent on the fast path) -> the anti-rug / structure_edge / liquidity_exit
+    # floor gates fail-open AND the live-swap telemetry logged liquidity_usd=None
+    # (0/28 records). Default None so no construction site breaks; dip_scanner
+    # populates it from the pair's liquidity.usd at build time.
+    liquidity_usd: Optional[float] = None
+
     # Legacy passthrough for fields not yet promoted to typed slots
     raw_meta: dict = field(default_factory=dict)
