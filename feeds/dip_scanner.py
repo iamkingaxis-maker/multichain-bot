@@ -1784,6 +1784,61 @@ class DipScanner:
                     _lef_rb = False
                 if _lef_mode == "enforce" and not _lef_rb:
                     return
+        # ── No-bounce-knife gate (2026-06-25 bounce-vs-knife 28-agent study) ────
+        # Block buying into 3+ consecutive red 1m candles = the token is STILL
+        # falling at entry (a no-bounce knife, not a demand-turn). At >=3: bounce
+        # 38% inside vs 20% blocked (18pp), winner-kill 0.295, held-out by
+        # token+time — the ONLY rule that passed the winner-kill bar in both time
+        # halves. A main-scan filter_consec_red already exists; this places the
+        # same cut on the ENTRY/fast path (where the live + fast-watch buys flow
+        # past the candidate filters) and MEASURES the leak. DEFAULT SHADOW (edge
+        # decaying in the latest slice → validate forward before enforce);
+        # CONSEC_RED_KNIFE_MODE=enforce flips it (auto-rollback guarded). Fail-OPEN.
+        _crk_mode = os.environ.get("CONSEC_RED_KNIFE_MODE", "shadow").lower()
+        if _crk_mode != "off" and str(bot_id).startswith("badday_"):
+            _crk_cr = _ar_meta.get("1m_consec_red")
+            from core.bot_evaluator import consec_red_knife_blocks as _crkb
+            _crk_block, _crk_why = _crkb(_crk_cr)
+            _crk_taddr = (decision.address
+                          or self._addr_by_token.get(decision.token, ""))
+            try:
+                _crk_seen = getattr(self, "_crk_shadow_seen", None)
+                if _crk_seen is None:
+                    _crk_seen = set()
+                    self._crk_shadow_seen = _crk_seen
+                _crk_key = (_crk_taddr or decision.token or "").lower()
+                if _crk_key not in _crk_seen:
+                    _crk_verdict = "BLOCK" if _crk_block else "PASS"
+                    from feeds.filter_shadow_recorder import (
+                        should_record_verdict as _crk_should,
+                        record_verdict as _rv2,
+                    )
+                    try:
+                        _crk_psample = int(float(
+                            os.environ.get("CONSEC_RED_KNIFE_PASS_SAMPLE", "1")))
+                    except (TypeError, ValueError):
+                        _crk_psample = 1
+                    if _crk_should(_crk_taddr, "consec_red_knife", _crk_verdict,
+                                   sample_n=_crk_psample):
+                        _crk_seen.add(_crk_key)
+                        _rv2(token_address=_crk_taddr, token_symbol=decision.token,
+                             pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                             filter_name="consec_red_knife", verdict=_crk_verdict,
+                             reasons=_crk_why)
+            except Exception:
+                pass
+            if _crk_block:
+                logger.info("[DipScanner] bot=%s CONSEC-RED-KNIFE %s: %s %s", bot_id,
+                            "BLOCK" if _crk_mode == "enforce" else "SHADOW-would-block",
+                            _crk_why, decision.token)
+                _crk_rb = False
+                try:
+                    from core.gate_rollback import is_rolled_back as _irb4
+                    _crk_rb = _irb4("consec_red_knife")
+                except Exception:
+                    _crk_rb = False
+                if _crk_mode == "enforce" and not _crk_rb:
+                    return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
         # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
@@ -19828,6 +19883,9 @@ class DipScanner:
         self._fdf_shadow_seen = set()
         # Same per-cycle dedup for the structure_edge gate's forward-candle recorder.
         self._se_shadow_seen = set()
+        # Same per-cycle dedup for the liquidity_exit_floor + consec_red_knife gates.
+        self._lef_shadow_seen = set()
+        self._crk_shadow_seen = set()
         # Same per-cycle dedup for the liquidity_exit_floor gate's recorder.
         self._lef_shadow_seen = set()
 

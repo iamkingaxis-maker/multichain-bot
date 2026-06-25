@@ -385,6 +385,43 @@ def liquidity_exit_floor_blocks(liquidity_usd, floor_usd=None) -> tuple[bool, st
     return False, ""
 
 
+def _consec_red_knife_threshold() -> int:
+    """1m_consec_red threshold for the no-bounce-knife gate (default 3). Tunable
+    via CONSEC_RED_KNIFE_THRESHOLD."""
+    try:
+        return int(float(os.environ.get("CONSEC_RED_KNIFE_THRESHOLD", "3")))
+    except (TypeError, ValueError):
+        return 3
+
+
+def consec_red_knife_blocks(consec_red_1m, threshold=None) -> tuple[bool, str]:
+    """Refuse a badday dip entry that is buying into N+ consecutive red 1-minute
+    candles — the token is STILL falling at entry (a no-bounce knife), not a
+    demand-turn.
+
+    28-agent bounce-vs-knife study (2026-06-25, 1130 joined badday pairs, held-out
+    by token via clustered bootstrap + by time): at threshold >=3, bounce rate is
+    38.1% inside vs 20.2% in the blocked cohort (18pp separation), blocked cohort
+    68% knives, winner-kill ratio 0.295 (~1 bounce per 3.4 knives) — the only rule
+    that passed the winner-kill bar in BOTH time halves and never inverted. (A
+    main-scan filter_consec_red already exists; this places the same cut on the
+    entry/fast path where structure_edge/liq-exit-floor live, to close the leak.)
+
+    Pure. FAIL-OPEN: None/NaN consec_red can't prove a knife -> do NOT block
+    (telemetry-gap safety; the fast path sometimes lacks 1m features). Never raises."""
+    thr = _consec_red_knife_threshold() if threshold is None else int(threshold)
+    try:
+        c = float(consec_red_1m) if consec_red_1m is not None else None
+    except (TypeError, ValueError):
+        return False, ""
+    if c is None or c != c:  # None / NaN
+        return False, ""
+    if c >= thr:
+        return True, (f"1m_consec_red={int(c)}>={thr} "
+                      f"(still falling at entry — no-bounce knife, not a demand-turn)")
+    return False, ""
+
+
 def _falling_day_flush_h1_max() -> float:
     """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
     extreme flush, combined with a down day, the token is in freefall. Tunable via
