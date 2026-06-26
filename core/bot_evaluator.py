@@ -484,6 +484,41 @@ def not_dipping_blocks(macro30_pct, ma50_dist_pct, slope_30m, pct_in_1h_range,
     return False, ""
 
 
+def _winner_size_threshold() -> float:
+    """median_buy_size_usd threshold for the winner size-up selector (default
+    34.3). Tunable via WINNER_SIZE_MEDIAN_BUY_USD."""
+    try:
+        return float(os.environ.get("WINNER_SIZE_MEDIAN_BUY_USD", "34.3"))
+    except (TypeError, ValueError):
+        return 34.3
+
+
+def winner_demand_selected(median_buy_size_usd, threshold=None) -> tuple[bool, str]:
+    """POSITIVE winner-selection signal (2026-06-25 37-agent winner mine) — a
+    big-winner badday entry is a DEEP flush MET BY GENUINE BUYER SIZE. The single
+    most robust, ADDITIVE selector is median_buy_size_usd >= 34.3 (big-winner rate
+    15.7% vs 4.1%, realized +6.74pp, keeps ~20% volume, held-out by token+time,
+    RECOVERS runners structure_edge would block).
+
+    This is a FIRE-ON / SIZE-UP signal, NOT a filter — and a FAT-TAIL one: it lifts
+    the runner RATE and the MEAN but NOT the median (selected median stays ~-3..-5%),
+    so it is a size-up BIAS toward the +EV tail, never a hard profitability gate.
+
+    Pure. FAIL-OPEN: missing/NaN -> (False, '') = not selected (no size change).
+    Never raises."""
+    thr = _winner_size_threshold() if threshold is None else float(threshold)
+    try:
+        v = float(median_buy_size_usd) if median_buy_size_usd is not None else None
+    except (TypeError, ValueError):
+        return False, ""
+    if v is None or v != v:  # None / NaN
+        return False, ""
+    if v >= thr:
+        return True, (f"median_buy_size=${v:.0f}>=${thr:g} "
+                      f"(big buyers stepping in — runner-tail selector)")
+    return False, ""
+
+
 def _falling_day_flush_h1_max() -> float:
     """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
     extreme flush, combined with a down day, the token is in freefall. Tunable via

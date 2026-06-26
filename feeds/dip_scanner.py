@@ -1896,6 +1896,43 @@ class DipScanner:
                     _nd_rb = False
                 if _nd_mode == "enforce" and not _nd_rb:
                     return
+        # ── Winner size-up SHADOW signal (2026-06-25 winner mine) ──────────────
+        # POSITIVE selector (NOT a filter, NOT a block): median_buy_size_usd>=34.3
+        # = big real buyers stepping into a deep flush = the +EV runner tail (winner
+        # 15.7% vs 4.1%, +6.74pp realized, recovers runners structure_edge blocks).
+        # MEASUREMENT-ONLY: records selected(PASS) vs not(BLOCK) so the scorer + the
+        # live probe measure the realized lift forward. NO sizing change here — it's
+        # a FAT-TAIL signal (lifts mean not median) so any size-up is gated on live
+        # n>=30 validation, never applied on backtest. Fail-open (missing -> not sel).
+        _wsz_mode = os.environ.get("WINNER_SIZE_MODE", "shadow").lower()
+        if _wsz_mode != "off" and str(bot_id).startswith("badday_"):
+            from core.bot_evaluator import winner_demand_selected as _wds
+            _wsz_sel, _wsz_why = _wds(_ar_meta.get("median_buy_size_usd"))
+            _wsz_taddr = (decision.address
+                          or self._addr_by_token.get(decision.token, ""))
+            try:
+                _wsz_seen = getattr(self, "_wsz_shadow_seen", None)
+                if _wsz_seen is None:
+                    _wsz_seen = set()
+                    self._wsz_shadow_seen = _wsz_seen
+                _wsz_key = (_wsz_taddr or decision.token or "").lower()
+                if _wsz_key not in _wsz_seen:
+                    _wsz_seen.add(_wsz_key)
+                    from feeds.filter_shadow_recorder import record_verdict as _rv4
+                    # PASS = winner-selected (size-up candidate); BLOCK = not selected.
+                    # Both arms recorded (per-cycle deduped) so the scorer measures
+                    # the selected-vs-rest realized lift.
+                    _rv4(token_address=_wsz_taddr, token_symbol=decision.token,
+                         pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                         filter_name="winner_demand_size",
+                         verdict=("PASS" if _wsz_sel else "BLOCK"),
+                         reasons=(_wsz_why if _wsz_sel
+                                  else "below winner buyer-size threshold"))
+            except Exception:
+                pass
+            if _wsz_sel:
+                logger.info("[DipScanner] bot=%s WINNER-SIZEUP shadow (size-up candidate): %s %s",
+                            bot_id, _wsz_why, decision.token)
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
         # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
@@ -19955,6 +19992,7 @@ class DipScanner:
         self._lef_shadow_seen = set()
         self._crk_shadow_seen = set()
         self._nd_shadow_seen = set()
+        self._wsz_shadow_seen = set()
         # Same per-cycle dedup for the liquidity_exit_floor gate's recorder.
         self._lef_shadow_seen = set()
 
