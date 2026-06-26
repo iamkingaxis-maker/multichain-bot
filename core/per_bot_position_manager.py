@@ -131,7 +131,7 @@ class CloseResult:
 @dataclass
 class ExitDecision:
     token: str
-    kind: Literal["TP1", "TP2", "POST_TP1_TRAIL", "HARD_STOP", "PRE_STOP_BAIL", "FLAT_EXIT"]
+    kind: Literal["TP1", "TP2", "POST_TP1_TRAIL", "HARD_STOP", "PRE_STOP_BAIL", "FLAT_EXIT", "BREAKEVEN_LOCK"]
     reason: str
     sell_fraction: float  # 0.0 to 1.0; full exit = 1.0
 
@@ -457,25 +457,8 @@ class PerBotPositionManager:
             p.state_blob["gb_narrow_peak_at_fire"] = round(p.peak_pnl_pct, 4)
             p.state_blob["gb_narrow_secs_at_fire"] = int(now - p.entry_time)
 
-        # PEAK-ANCHORED BREAKEVEN-LOCK SHADOW (2026-06-22 gap audit, MEASURE-ONLY).
-        # The exit_giveback dimension: a leg that peaked HIGH (>= +7%, above winners'
-        # typical -3..-5% retrace) then round-tripped to <=0 pre-TP1 is a giveback
-        # loser the post-TP1 trail can't protect. The naive peak>=3 lock was a
-        # winner-killer (60% of >=+3 winners touch breakeven then run); anchoring at
-        # +7 should separate the round-trip losers from the V-recoverers. Stamp the
-        # would-lock-fire P&L (~breakeven) so the analyzer measures save (final<0) vs
-        # cost (recovered to a winner) before any enforce. SHADOW only — NO
-        # ExitDecision. Fires once; persists in state_blob; stamped on the sell.
-        _bel_min = float(os.environ.get("BREAKEVEN_LOCK_PEAK_MIN", "7.0"))
-        if (os.environ.get("BREAKEVEN_LOCK_MODE", "shadow").strip().lower() != "off"
-                and not p.tp1_hit
-                and not (p.state_blob or {}).get("bel_shadow_fired")
-                and p.peak_pnl_pct >= _bel_min
-                and pnl_pct <= 0.0):
-            p.state_blob["bel_shadow_fired"] = True
-            p.state_blob["bel_shadow_pnl_at_fire"] = round(pnl_pct, 4)
-            p.state_blob["bel_shadow_peak_at_fire"] = round(p.peak_pnl_pct, 4)
-            p.state_blob["bel_shadow_secs"] = int(now - p.entry_time)
+        # PEAK-ANCHORED BREAKEVEN-LOCK is now a shadow+enforce gate in the decisions
+        # section below (see "0b") — recording + optional ExitDecision unified there.
 
         # Never-green fast-stop SHADOW (measure-only, 2026-05-31) — the PRIMARY
         # avg-loss lever. Fires when a position that NEVER peaked >=2% ("never
@@ -621,6 +604,39 @@ class PerBotPositionManager:
                     decisions.append(ExitDecision(
                         token=token, kind="IN_FLIGHT_FLOOR",
                         reason=f"in-flight {_iff_why} (floor {_iff_floor:.0f})",
+                        sell_fraction=1.0,
+                    ))
+                    return decisions
+
+        # 0b. PEAK-ANCHORED BREAKEVEN-LOCK (winner-comparison 2026-06-26). A PRE-TP1 leg
+        # that CONFIRMED green (peak>=+7%) then round-tripped to <=0 is a give-back loser
+        # the post-TP1 trail can't protect — lock ~breakeven instead of riding to the -7
+        # floor / hard stop. Validated path-aware on the give-back cohort (n=82 @ peak>=7:
+        # 70 saves / 12 winner-kills = +349pp net, winner-kill 0.15; vs 0.30 at peak>=3).
+        # Fires at pnl<=0 (above the -7 IN_FLIGHT_FLOOR), so on a gradual round-trip it
+        # pre-empts the floor; on a gap-through the floor above already caught it.
+        # BREAKEVEN_LOCK_MODE=shadow (default, record-only) | enforce | off. PAPER
+        # OVER-STATES this (deep stops gap through live) -> stays SHADOW until forward/
+        # live-confirmed at n>=30. Records once; persists in state_blob; stamped on sell.
+        _bel_mode = os.environ.get("BREAKEVEN_LOCK_MODE", "shadow").strip().lower()
+        if _bel_mode != "off" and not p.tp1_hit:
+            try:
+                from core.bot_evaluator import breakeven_lock_fires as _belf
+                _bel_min = float(os.environ.get("BREAKEVEN_LOCK_PEAK_MIN", "7.0"))
+                _bel_fire, _bel_why = _belf(p.peak_pnl_pct, pnl_pct, p.tp1_hit, peak_min=_bel_min)
+            except Exception:
+                _bel_fire, _bel_why = False, ""
+            if _bel_fire:
+                if p.state_blob is not None and not p.state_blob.get("bel_shadow_fired"):
+                    p.state_blob["bel_shadow_fired"] = True
+                    p.state_blob["bel_shadow_pnl_at_fire"] = round(pnl_pct, 4)
+                    p.state_blob["bel_shadow_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+                    p.state_blob["bel_shadow_secs"] = int(now - p.entry_time)
+                    p.state_blob["bel_mode"] = _bel_mode
+                if _bel_mode == "enforce":
+                    decisions.append(ExitDecision(
+                        token=token, kind="BREAKEVEN_LOCK",
+                        reason=f"{_bel_why} (lock ~breakeven, pre-TP1)",
                         sell_fraction=1.0,
                     ))
                     return decisions

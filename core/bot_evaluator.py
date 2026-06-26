@@ -312,6 +312,36 @@ def in_flight_floor_fires(pnl_pct, peak_pnl_pct, secs_from_peak,
     return False, ""
 
 
+def breakeven_lock_fires(peak_pnl_pct, pnl_pct, tp1_hit,
+                         peak_min: float = 7.0) -> tuple[bool, str]:
+    """Peak-anchored breakeven-arm for PRE-TP1 legs (winner-comparison 2026-06-26).
+
+    Fires a full-close when a leg that CONFIRMED green (peak_pnl_pct >= peak_min,
+    default +7%) round-trips back to breakeven (pnl_pct <= 0) before TP1 — locking
+    ~0 instead of riding the give-back down to the -7 floor / hard stop.
+
+    Validated path-aware on the give-back cohort (n=82 fires at peak>=7): 70 saves /
+    12 winner-kills = +349pp net, winner-kill 0.15 (vs 0.30 at peak>=3). The +7 anchor
+    is what separates round-trip losers from V-recoverers. NOTE: PAPER over-states this
+    (deep stops gap THROUGH live) — keep shadow until forward/live-confirmed.
+
+    Returns (fires, why). Pure, FAIL-SAFE: non-numeric/NaN -> (False, "") (never fire
+    on bad data). Caller gates on mode + scope; tp1_hit guards post-TP1 (trail owns it)."""
+    if tp1_hit:
+        return False, ""
+    try:
+        p = float(pnl_pct)
+        pk = float(peak_pnl_pct)
+        pm = float(peak_min)
+    except (TypeError, ValueError):
+        return False, ""
+    if p != p or pk != pk:  # NaN guard
+        return False, ""
+    if pk >= pm and p <= 0.0:
+        return True, f"breakeven-lock peak={pk:+.1f}%>={pm:.0f}% pnl={p:+.2f}%<=0"
+    return False, ""
+
+
 def _structure_edge_liq_floor() -> float:
     """Liquidity floor (USD) for the structure-edge gate (default 48000 — the p75
     of the badday cohort; deeper book = better fills + out of the rug pocket).
