@@ -1839,6 +1839,63 @@ class DipScanner:
                     _crk_rb = False
                 if _crk_mode == "enforce" and not _crk_rb:
                     return
+        # ── No-dip / slow-bleeder gate (2026-06-25 slow-bleeder 24-agent mine) ──
+        # Block when the token is NOT actually dipping at entry (flat/green 30m
+        # macro, above MA50, non-falling 30m slope, OR near its 1h high) — no real
+        # dip to catch, so it slow-bleeds to the -7 floor. THE answer to "why we
+        # keep losing": the dominant loss is never-green entries that pass cr3 +
+        # structure_edge. 90.4% never-green blocked vs 48.7% kept (41.7pp), winner-
+        # kill 0.107, +52.5pp within-token, survives dropping the killer tokens.
+        # DEFAULT SHADOW (paper overstates the deep-dip edge); NOT_DIPPING_MODE=
+        # enforce flips it (rollback-guarded). Fail-OPEN (missing signals -> allow).
+        _nd_mode = os.environ.get("NOT_DIPPING_MODE", "shadow").lower()
+        if _nd_mode != "off" and str(bot_id).startswith("badday_"):
+            from core.bot_evaluator import not_dipping_blocks as _ndb
+            _nd_block, _nd_why = _ndb(
+                _ar_meta.get("macro30_pct"),
+                _ar_meta.get("trend_ma50_dist_pct"),
+                _ar_meta.get("trend_30m_slope_pct_per_min"),
+                _ar_meta.get("pct_in_1h_range"))
+            _nd_taddr = (decision.address
+                         or self._addr_by_token.get(decision.token, ""))
+            try:
+                _nd_seen = getattr(self, "_nd_shadow_seen", None)
+                if _nd_seen is None:
+                    _nd_seen = set()
+                    self._nd_shadow_seen = _nd_seen
+                _nd_key = (_nd_taddr or decision.token or "").lower()
+                if _nd_key not in _nd_seen:
+                    _nd_verdict = "BLOCK" if _nd_block else "PASS"
+                    from feeds.filter_shadow_recorder import (
+                        should_record_verdict as _nd_should,
+                        record_verdict as _rv3,
+                    )
+                    try:
+                        _nd_psample = int(float(
+                            os.environ.get("NOT_DIPPING_PASS_SAMPLE", "1")))
+                    except (TypeError, ValueError):
+                        _nd_psample = 1
+                    if _nd_should(_nd_taddr, "not_dipping", _nd_verdict,
+                                  sample_n=_nd_psample):
+                        _nd_seen.add(_nd_key)
+                        _rv3(token_address=_nd_taddr, token_symbol=decision.token,
+                             pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                             filter_name="not_dipping", verdict=_nd_verdict,
+                             reasons=_nd_why)
+            except Exception:
+                pass
+            if _nd_block:
+                logger.info("[DipScanner] bot=%s NOT-DIPPING %s: %s %s", bot_id,
+                            "BLOCK" if _nd_mode == "enforce" else "SHADOW-would-block",
+                            _nd_why, decision.token)
+                _nd_rb = False
+                try:
+                    from core.gate_rollback import is_rolled_back as _irb5
+                    _nd_rb = _irb5("not_dipping")
+                except Exception:
+                    _nd_rb = False
+                if _nd_mode == "enforce" and not _nd_rb:
+                    return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
         # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
@@ -19893,9 +19950,11 @@ class DipScanner:
         self._fdf_shadow_seen = set()
         # Same per-cycle dedup for the structure_edge gate's forward-candle recorder.
         self._se_shadow_seen = set()
-        # Same per-cycle dedup for the liquidity_exit_floor + consec_red_knife gates.
+        # Same per-cycle dedup for the liquidity_exit_floor + consec_red_knife +
+        # not_dipping gates.
         self._lef_shadow_seen = set()
         self._crk_shadow_seen = set()
+        self._nd_shadow_seen = set()
         # Same per-cycle dedup for the liquidity_exit_floor gate's recorder.
         self._lef_shadow_seen = set()
 

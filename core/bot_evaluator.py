@@ -422,6 +422,68 @@ def consec_red_knife_blocks(consec_red_1m, threshold=None) -> tuple[bool, str]:
     return False, ""
 
 
+def _nd_env(name: str, default: float) -> float:
+    """Float env override with default for the not-dipping gate."""
+    try:
+        return float(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def _nd_num(v):
+    """None/NaN-safe float coercion (bool excluded)."""
+    if v is None or isinstance(v, bool):
+        return None
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    return None if x != x else x  # drop NaN
+
+
+def not_dipping_blocks(macro30_pct, ma50_dist_pct, slope_30m, pct_in_1h_range,
+                       macro30_floor=None, ma50_floor=None,
+                       slope_floor=None, range_ceil=None) -> tuple[bool, str]:
+    """Block a badday dip entry when the token is NOT actually dipping at decision
+    time — the dip-buyer fires but the token is flat/green on its 30m macro, above
+    its MA50, has a non-falling 30m regression slope, OR is sitting near its 1h
+    high. There is no real dip to catch, so it slow-bleeds to the -7 floor.
+
+    THE slow-bleeder no-bounce signature (2026-06-25 24-agent mine, gate-passing
+    cohort 1m_consec_red<3 AND (pc_h6>=0 OR liq>=48k)): blocks 90.4% never-green
+    vs 48.7% kept (41.7pp), winner-kill 0.107, +52.5pp WITHIN-token separation,
+    survives dropping STARMIND+CASHBACK+$CWIF together, both time halves. Catches
+    STARMIND/$CWIF (1h-range arm) + CASHBACK's trend slice. Orthogonal to cr3 (1m
+    freefall) and structure_edge (thin book).
+
+    RULE = NOT_DIPPING_TREND OR HIGH_IN_1H_RANGE, where
+      NOT_DIPPING_TREND = macro30>=-4.83 OR ma50_dist>=-5.463 OR slope30m>=-0.1816
+      HIGH_IN_1H_RANGE  = pct_in_1h_range>=0.198
+
+    Pure. FAIL-OPEN: each term contributes ONLY when its signal is present; if
+    every signal is missing/NaN the OR is False -> do NOT block. Never raises."""
+    mc = _nd_num(macro30_pct)
+    ma = _nd_num(ma50_dist_pct)
+    sl = _nd_num(slope_30m)
+    rg = _nd_num(pct_in_1h_range)
+    mcf = _nd_env("NOT_DIPPING_MACRO30_FLOOR", -4.83) if macro30_floor is None else float(macro30_floor)
+    maf = _nd_env("NOT_DIPPING_MA50_FLOOR", -5.463) if ma50_floor is None else float(ma50_floor)
+    slf = _nd_env("NOT_DIPPING_SLOPE_FLOOR", -0.1816) if slope_floor is None else float(slope_floor)
+    rgc = _nd_env("NOT_DIPPING_RANGE_CEIL", 0.198) if range_ceil is None else float(range_ceil)
+    reasons = []
+    if mc is not None and mc >= mcf:
+        reasons.append(f"macro30={mc:.2f}>={mcf:g}")
+    if ma is not None and ma >= maf:
+        reasons.append(f"ma50_dist={ma:.2f}>={maf:g}")
+    if sl is not None and sl >= slf:
+        reasons.append(f"slope30m={sl:.3f}>={slf:g}")
+    if rg is not None and rg >= rgc:
+        reasons.append(f"in_1h_range={rg:.3f}>={rgc:g} (near 1h high)")
+    if reasons:
+        return True, "not dipping (no real dip to catch): " + ", ".join(reasons)
+    return False, ""
+
+
 def _falling_day_flush_h1_max() -> float:
     """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
     extreme flush, combined with a down day, the token is in freefall. Tunable via
