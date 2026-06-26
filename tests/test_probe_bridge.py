@@ -117,8 +117,10 @@ def test_buy_live_precheck_blocks_before_spending():
 
 # ── SELL live ──
 def test_sell_live_success_real_exit_and_instrument():
-    # position: $50 @ entry 1.0 -> 50 tokens held; sell 100%. swap returns 0.30 SOL
-    # (out_amount 300_000_000 lamports) -> proceeds $60 -> exit 60/50 = 1.20
+    # position: $50 @ entry 1.0 -> 50 tokens held; sell 100%. The full leg leaves
+    # 0.1% dust headroom (49_950_000 atomic = 49.95 tokens) so the router doesn't
+    # abort at the cleanup step. The fixed-out stub returns 0.30 SOL ($60) -> exit
+    # 60/49.95 = 1.20120 (the headroom slightly raises per-token exit in this stub).
     trader = StubTrader({"success": True, "out_amount": 300_000_000, "route": "jupiterz",
                          "realized_slippage_pct": 0.4, "signature": "SELLSIG"})
     ds = _ds(trader)
@@ -126,13 +128,13 @@ def test_sell_live_success_real_exit_and_instrument():
     pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
     r = asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, current_mid=1.25))
     assert r is not None
-    assert abs(r["exit_price"] - 1.20) < 1e-9
+    assert abs(r["exit_price"] - (60.0 / 49.95)) < 1e-6
     inst = r["instrument"]
     assert inst["live_proceeds_usd"] == 60.0 and inst["live_signature"] == "SELLSIG"
-    # sell slippage adverse-positive: got 1.20 vs mid 1.25 -> +4% (received less)
-    assert inst["live_slippage_pct"] == 4.0
-    # swap was token->SOL of 50 tokens @ 6 decimals = 50_000_000 atomic
-    assert trader.calls[0][2] == 50_000_000
+    # sell slippage adverse-positive: got ~1.2012 vs mid 1.25 -> +3.90% (received less)
+    assert abs(inst["live_slippage_pct"] - 3.9039) < 0.01
+    # full sell of 50-token balance @6dec WITH 0.1% dust headroom = 49_950_000 atomic
+    assert trader.calls[0][2] == 49_950_000
 
 
 def test_sell_live_swap_failure_returns_none():
@@ -157,7 +159,9 @@ def test_buy_live_passes_slippage_cap():
     trader = StubTrader({"success": True, "out_amount": 48_000_000, "route": "m", "signature": "S"})
     ds, pm = _ds(trader), StubPM()
     asyncio.run(ds._execute_bot_buy_live(_decision(), pm, 50.0))
-    assert trader.slip_caps and trader.slip_caps[0] == 400   # M6: explicit cap passed
+    # M6: explicit buy cap passed. Default retuned 400->250bps (2.5%) per the 16-fill
+    # study (dip_scanner.py:2725) — env is 250 live. (Unrelated stale-expectation fix.)
+    assert trader.slip_caps and trader.slip_caps[0] == 250
 
 
 def test_buy_live_decimals_mismatch_falls_back_to_mid_flagged():
@@ -182,7 +186,7 @@ def test_sell_live_ultra_fail_legacy_fallback_exits():
     pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
     r = asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, current_mid=1.25))
     assert r is not None                               # M2: exited via fallback, not stranded
-    assert abs(r["exit_price"] - 1.20) < 1e-9          # $60 / 50 tokens
+    assert abs(r["exit_price"] - (60.0 / 49.95)) < 1e-6  # $60 / 49.95 tokens (0.1% dust headroom)
     assert r["instrument"]["live_route"] == "legacy_fallback"
 
 
@@ -204,7 +208,8 @@ def test_sell_live_E1a_sources_amount_from_onchain_balance():
     pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 0.0001   # paper math = 500k tokens (wrong)
     r = asyncio.run(ds._execute_bot_sell_live("T", StubPM(), pos, 1.0, current_mid=1.25))
     assert r is not None
-    assert trader.calls[0][2] == 50_000_000             # swapped the BALANCE, not paper 500k
+    # swapped the BALANCE (not paper 500k), with 0.1% dust headroom on the full leg
+    assert trader.calls[0][2] == 49_950_000
 
 
 def test_buy_live_E1b_spent_sentinel_when_open_fails():

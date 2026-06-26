@@ -259,15 +259,16 @@ def test_live_sell_populates_complete_record(tmp_path, monkeypatch):
     ds = _ds(trader)
     pos = StubPos(); pos.size_usd = 50.0; pos.entry_price = 1.0
     r = asyncio.run(ds._execute_bot_sell_live("TOK", StubPM(), pos, 1.0, current_mid=1.25))
-    assert r is not None and abs(r["exit_price"] - 1.20) < 1e-9
+    # full leg sells 49.95 tokens (0.1% dust headroom); fixed-out stub -> 60/49.95
+    assert r is not None and abs(r["exit_price"] - (60.0 / 49.95)) < 1e-6
     rec = _last_record(tmp_path)
     for k in lsl.REQUIRED_FIELDS:
         assert k in rec, f"missing {k}"
     assert rec["side"] == "sell" and rec["success"] is True
     assert rec["tx_signature"] == "SELLSIG"
     assert rec["token_address"] == "MINTADDR"
-    # sell adverse: 1.20 vs mid 1.25 -> +4%
-    assert rec["fill_vs_mid_slippage_pct"] == 4.0
+    # sell adverse: ~1.2012 vs mid 1.25 -> +3.90% (full leg has 0.1% dust headroom)
+    assert abs(rec["fill_vs_mid_slippage_pct"] - 3.9039) < 0.01
     assert rec["execute_duration_ms"] == 1800.0
     assert rec["sol_before"] == 0.5 and rec["sol_after"] == 0.8
     assert rec["proceeds_usd"] == 60.0  # forward-compat extra field

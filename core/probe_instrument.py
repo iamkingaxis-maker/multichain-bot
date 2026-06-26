@@ -74,3 +74,25 @@ def should_route_live(live_probe: bool, ultra_enabled: bool, has_private_key: bo
     Size is FIXED per probe bot (probe_tightexit_live_{20,50,100}) — no in-bot rotation;
     each size is its own bot for a clean per-token paired measurement."""
     return bool(live_probe) and bool(ultra_enabled) and bool(has_private_key)
+
+
+def sell_atomic_units(bal_atomic: int, sold_frac: float, remaining_fraction: float,
+                      dust_headroom_frac: float = 0.999) -> int:
+    """Atomic token units to sell on a live leg, sized from the REAL on-chain balance.
+
+    The FINAL/full leg leaves `1 - dust_headroom_frac` dust headroom: selling the
+    literal 100% of the balance makes the router abort at the cleanup/settle step
+    with "Insufficient funds" (LAZARUS/SWCH, 2026-06-26). The legacy `trader.sell()`
+    path already clamps full sells to 99.9% for exactly this reason — this is that
+    haircut ported to the probe/Ultra path (it also covers the legacy fallback,
+    which reuses the same atomic amount).
+
+    A genuine PARTIAL leg (frac_of_bal < 0.999) sells only its share and so leaves
+    a natural remainder — no extra haircut is applied there. Never returns more than
+    `bal_atomic`.
+    """
+    rem = remaining_fraction or 1.0
+    frac_of_bal = min(1.0, (sold_frac / rem)) if rem > 0 else 1.0
+    is_final = frac_of_bal >= 0.999
+    atomic = int(bal_atomic * dust_headroom_frac) if is_final else int(bal_atomic * frac_of_bal)
+    return min(atomic, bal_atomic)

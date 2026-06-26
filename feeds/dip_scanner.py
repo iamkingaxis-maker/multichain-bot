@@ -2941,11 +2941,14 @@ class DipScanner:
             _bal_read_failed = bal_atomic is None or bal_atomic < 0  # None = RPC read FAILED (transient), NOT a real 0
             if _bal_read_failed:
                 bal_atomic = 0
+            # Size from the real on-chain balance. The FINAL/full leg leaves 0.1%
+            # dust headroom: selling the literal 100% makes the router abort at the
+            # cleanup/settle step with "Insufficient funds" (LAZARUS/SWCH 2026-06-26).
+            # Mirrors the legacy trader.sell() clamp; also covers the legacy fallback
+            # below (it reuses this same `atomic`). See core.probe_instrument.
+            from core.probe_instrument import sell_atomic_units
             _rem = getattr(pos, "remaining_fraction", 1.0) or 1.0
-            _frac_of_bal = min(1.0, (sold_frac / _rem)) if _rem > 0 else 1.0
-            is_final = _frac_of_bal >= 0.999
-            atomic = bal_atomic if is_final else int(bal_atomic * _frac_of_bal)
-            atomic = min(atomic, bal_atomic)                  # never exceed what we hold
+            atomic = sell_atomic_units(bal_atomic, sold_frac, _rem)
             sell_tokens = atomic / (10 ** int(decimals))
             _paper_tok = (pos.size_usd / pos.entry_price * sold_frac) if pos.entry_price > 0 else 0.0
             if _paper_tok and abs(sell_tokens - _paper_tok) / max(_paper_tok, 1e-9) > 0.1:
