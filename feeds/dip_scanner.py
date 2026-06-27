@@ -12899,11 +12899,24 @@ class DipScanner:
             except Exception:
                 pass
             if _filter_mtf_dn_verdict == "BLOCK":
+                # MTF_STRONG_DOWNTREND_MODE (2026-06-27 filter audit): mtf<=-2 is a
+                # magnitude/downtrend cut that now BLOCKS a cohort which OUTPERFORMS
+                # (audit Jun12-16 BLOCK +0.87%/WR57 vs PASS -0.86%/WR49; scoreboard
+                # 06-21..26 d=-1.55; wallet cycle: in 5/5 winner-kill tokens) — strong
+                # multi-tf bearishness at entry is deep capitulation that bounces, and
+                # the genuine still-falling knife is already owned by falling_knife
+                # (mtf<=-1 & 1m red) + consec_red_knife. Flag added to demote to shadow
+                # reversibly; verdict/counter/carve-outs unchanged (scoreboard keeps
+                # measuring). DEFAULT enforce = no-op; MTF_STRONG_DOWNTREND_MODE=shadow
+                # to loosen. Confirm on a fresh forward window before flipping.
+                from core.bot_evaluator import gate_blocks as _gb
+                _mtfdn_mode = os.environ.get("MTF_STRONG_DOWNTREND_MODE", "enforce")
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_mtf_strong_downtrend: "
-                    f"{token_symbol} reasons={','.join(_filter_mtf_dn_block_reasons)}"
-                )
-                _filters_block.append("filter_mtf_strong_downtrend")
+                    "[DipScanner] filter_mtf_strong_downtrend %s: %s reasons=%s",
+                    "BLOCK" if _gb("BLOCK", _mtfdn_mode) else "SHADOW-would-block",
+                    token_symbol, ",".join(_filter_mtf_dn_block_reasons))
+                if _gb(_filter_mtf_dn_verdict, _mtfdn_mode):
+                    _filters_block.append("filter_mtf_strong_downtrend")
             if _mtf_dn_chart_carve and _filter_mtf_dn_block_reasons:
                 logger.info(
                     f"[DipScanner] filter_mtf_strong_downtrend RESCUED by chart_score: "
