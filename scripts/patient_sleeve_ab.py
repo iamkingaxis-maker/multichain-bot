@@ -21,22 +21,41 @@ PATIENT_BOT = "patient_sleeve"
 TAIL_PCT = 25.0
 
 
-def _closed_pnls_by_token(records, bot_pred):
-    """{token_address: [pnl_pct, ...]} for fully-closed legs whose bot matches bot_pred."""
-    out: dict[str, list[float]] = {}
+def _blended_by_token(records, bot_pred):
+    """{token_address: [blended_pct per POSITION, ...]} for bots matching bot_pred.
+
+    A position is (bot_id, address, entry_price); its blended realized is the
+    FRACTION-WEIGHTED sum of all its sell legs `sum(pnl_pct_i * sell_fraction_i)`
+    — NOT the single fully_closed leg (which would drop every partial-TP gain and
+    falsely score a partial-TP-then-stop trade as a full -22 loss). This is the
+    sum-ALL-sell-legs methodology (memory: final-leg-only falsely condemned conviction_x2).
+    Single full closes with no sell_fraction fall back to that leg's pnl_pct."""
+    from collections import defaultdict
+    groups: dict[tuple, list] = defaultdict(list)
     for r in records:
-        if not r.get("fully_closed"):
-            continue
         bid = r.get("bot_id") or ""
         if not bot_pred(bid):
             continue
-        pnl = r.get("pnl_pct")
-        if not isinstance(pnl, (int, float)):
+        if not isinstance(r.get("pnl_pct"), (int, float)):
             continue
         addr = r.get("address")
         if not addr:
             continue
-        out.setdefault(addr, []).append(float(pnl))
+        groups[(bid, addr, r.get("entry_price"))].append(r)
+
+    out: dict[str, list[float]] = defaultdict(list)
+    for (bid, addr, _ep), legs in groups.items():
+        fracs = [(float(l["pnl_pct"]), float(l["sell_fraction"]))
+                 for l in legs if isinstance(l.get("sell_fraction"), (int, float))]
+        total_frac = sum(f for _p, f in fracs)
+        if fracs and 0.8 <= total_frac <= 1.2:
+            blended = sum(p * f for p, f in fracs)          # fully realized, fraction-weighted
+        else:
+            closed = [float(l["pnl_pct"]) for l in legs if l.get("fully_closed")]
+            if not closed:
+                continue                                     # position not fully exited -> skip
+            blended = sum(closed) / len(closed)             # single/fallback full close
+        out[addr].append(blended)
     return out
 
 
@@ -44,8 +63,8 @@ def compare_arms(records):
     """Pure A/B over a list of trade-leg records. Pairs tokens where BOTH the
     patient sleeve and a time-box (badday_*) bot have a fully-closed leg; per token
     each arm uses its mean realized pnl_pct. Returns summary dict."""
-    patient = _closed_pnls_by_token(records, lambda b: b == PATIENT_BOT)
-    timebox = _closed_pnls_by_token(records, lambda b: b.startswith("badday_"))
+    patient = _blended_by_token(records, lambda b: b == PATIENT_BOT)
+    timebox = _blended_by_token(records, lambda b: b.startswith("badday_"))
     shared = sorted(set(patient) & set(timebox))
 
     p_vals = [st.mean(patient[t]) for t in shared]   # per-token mean (avoids re-entry weighting)
