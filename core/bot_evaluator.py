@@ -342,6 +342,20 @@ def breakeven_lock_fires(peak_pnl_pct, pnl_pct, tp1_hit,
     return False, ""
 
 
+def winner_select_entry_blocks(median_buy_size_usd, gate_on, threshold=None) -> tuple[bool, str]:
+    """Entry gate for the patient sleeve (winner-comparison 2026-06-26): when gate_on,
+    ALLOW only winner-selected entries (median_buy_size_usd >= threshold, default 34.3 —
+    deep capitulation met by real buyer size, the +tail signal). FAIL-CLOSED: a missing/
+    garbage signal while gated -> BLOCK (the sleeve holds ONLY qualified +tail entries).
+    gate_on False -> never blocks (every other bot is unaffected). Returns (block, why)."""
+    if not gate_on:
+        return False, ""
+    sel, why = winner_demand_selected(median_buy_size_usd, threshold=threshold)
+    if sel:
+        return False, why
+    return True, "winner_select_entry: not a qualified +tail entry"
+
+
 def _structure_edge_liq_floor() -> float:
     """Liquidity floor (USD) for the structure-edge gate (default 48000 — the p75
     of the badday cohort; deeper book = better fills + out of the rug pocket).

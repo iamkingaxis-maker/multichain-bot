@@ -1933,6 +1933,17 @@ class DipScanner:
             if _wsz_sel:
                 logger.info("[DipScanner] bot=%s WINNER-SIZEUP shadow (size-up candidate): %s %s",
                             bot_id, _wsz_why, decision.token)
+        # ── Patient-sleeve ENTRY GATE (2026-06-26): hold ONLY winner-selected +tail
+        # entries. Per-bot (winner_select_entry flag); FAIL-CLOSED (missing signal ->
+        # skip). The sleeve's entry filter for the patient-hold A/B; no effect on any
+        # bot without the flag set. ──────────────────────────────────────────────────
+        if bool(getattr(pm.config, "winner_select_entry", False)):
+            from core.bot_evaluator import winner_select_entry_blocks as _wseb
+            _wse_block, _wse_why = _wseb(_ar_meta.get("median_buy_size_usd"), gate_on=True)
+            if _wse_block:
+                logger.info("[DipScanner] bot=%s WINNER-SELECT-ENTRY skip: %s %s",
+                            bot_id, _wse_why, decision.token)
+                return
         # ── Phase-1 risk floors (2026-06-01) — SHADOW by default. ──────────────
         # RISK_FLOOR_MODE=shadow (default): compute the would-block flags, log + stamp
         # them into entry_meta (the nightly analyzer measures fire-rate + winner-kill),
