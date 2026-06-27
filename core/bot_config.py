@@ -145,6 +145,11 @@ class BotConfig:
     # (e.g. the badday microcap family's rug screens) — the fleet stack's
     # 500k-10M/age>=24h pond bounds don't apply to it.
     entry_stack_exempt: bool = False
+    # winner_select_entry (patient sleeve, 2026-06-26): fire ONLY on winner-selected
+    # entries (median_buy_size_usd >= 34.3 — deep capitulation met by real buyer size,
+    # the +tail signal). FAIL-CLOSED when gated (no signal -> skip). The entry filter
+    # for the patient-hold A/B sleeve. See core.bot_evaluator.winner_select_entry_blocks.
+    winner_select_entry: bool = False
     # regime_dial_exempt: the P7 dial's 0.5x bad-day defense does NOT de-size
     # this bot (bad-day vehicles fish the segment that still pays on bad days;
     # momentum_mode bots and the control cohort are auto-exempt in code).
