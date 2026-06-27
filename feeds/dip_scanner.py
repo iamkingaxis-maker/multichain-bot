@@ -1839,6 +1839,63 @@ class DipScanner:
                     _crk_rb = False
                 if _crk_mode == "enforce" and not _crk_rb:
                     return
+        # ── Falling-knife gate (2026-06-27 winner-mining cycle) ──────────────────
+        # Block a badday dip entry that is a falling knife: chart_mtf_score<=-1 AND
+        # the latest 1m bar still red (1m_last_close_pct<0) — no green confirmation
+        # candle yet. A main-scan filter_falling_knife already computes this (SHADOW
+        # since a 2026-05-16 small-n revert); this places the SAME cut on the entry/
+        # fast path so it's measured + enforce-ready. Fresh trade-join (n=1121,
+        # independently verified) FLIPS the small-n revert: knife-BLOCK -3.80%/22%WR
+        # vs PASS -2.71%/30%WR (newest half -3.02 vs -0.51), blocked cohort 53%
+        # never-green vs 45%. DEFAULT SHADOW (was reverted once -> AxiS reviews
+        # before enforce); FALLING_KNIFE_MODE=enforce flips it (rollback-guarded).
+        # Fail-OPEN (missing chart/1m features -> allow).
+        _fk_mode = os.environ.get("FALLING_KNIFE_MODE", "shadow").lower()
+        if _fk_mode != "off" and str(bot_id).startswith("badday_"):
+            _fk_mtf = _ar_meta.get("chart_mtf_score")
+            _fk_lcp = _ar_meta.get("1m_last_close_pct")
+            from core.bot_evaluator import falling_knife_blocks as _fkb
+            _fk_block, _fk_why = _fkb(_fk_mtf, _fk_lcp)
+            _fk_taddr = (decision.address
+                         or self._addr_by_token.get(decision.token, ""))
+            try:
+                _fk_seen = getattr(self, "_fk_shadow_seen", None)
+                if _fk_seen is None:
+                    _fk_seen = set()
+                    self._fk_shadow_seen = _fk_seen
+                _fk_key = (_fk_taddr or decision.token or "").lower()
+                if _fk_key not in _fk_seen:
+                    _fk_verdict = "BLOCK" if _fk_block else "PASS"
+                    from feeds.filter_shadow_recorder import (
+                        should_record_verdict as _fk_should,
+                        record_verdict as _rv3,
+                    )
+                    try:
+                        _fk_psample = int(float(
+                            os.environ.get("FALLING_KNIFE_PASS_SAMPLE", "1")))
+                    except (TypeError, ValueError):
+                        _fk_psample = 1
+                    if _fk_should(_fk_taddr, "falling_knife_entry", _fk_verdict,
+                                  sample_n=_fk_psample):
+                        _fk_seen.add(_fk_key)
+                        _rv3(token_address=_fk_taddr, token_symbol=decision.token,
+                             pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                             filter_name="falling_knife_entry", verdict=_fk_verdict,
+                             reasons=_fk_why)
+            except Exception:
+                pass
+            if _fk_block:
+                logger.info("[DipScanner] bot=%s FALLING-KNIFE %s: %s %s", bot_id,
+                            "BLOCK" if _fk_mode == "enforce" else "SHADOW-would-block",
+                            _fk_why, decision.token)
+                _fk_rb = False
+                try:
+                    from core.gate_rollback import is_rolled_back as _irb5
+                    _fk_rb = _irb5("falling_knife_entry")
+                except Exception:
+                    _fk_rb = False
+                if _fk_mode == "enforce" and not _fk_rb:
+                    return
         # ── No-dip / slow-bleeder gate (2026-06-25 slow-bleeder 24-agent mine) ──
         # Block when the token is NOT actually dipping at entry (flat/green 30m
         # macro, above MA50, non-falling 30m slope, OR near its 1h high) — no real

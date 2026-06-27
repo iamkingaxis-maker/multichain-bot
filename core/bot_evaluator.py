@@ -466,6 +466,37 @@ def consec_red_knife_blocks(consec_red_1m, threshold=None) -> tuple[bool, str]:
     return False, ""
 
 
+def falling_knife_blocks(mtf_score, last_close_pct, mtf_max=-1.0) -> tuple[bool, str]:
+    """Refuse a badday dip entry that is a falling knife: multi-timeframe trend is
+    bearish (chart_mtf_score <= -1) AND the most recent 1m bar is still red
+    (1m_last_close_pct < 0) — there is no green confirmation candle yet, so the
+    "bottom" has not formed (the RAGEGUY 2026-05-15 pattern: 4 triggers stacked,
+    mtf=-1, last 1m -0.83%, kept falling another -8.5% post-entry).
+
+    A main-scan filter_falling_knife already computes this (dip_scanner ~12793,
+    SHADOW since the 2026-05-16 small-n revert); this places the SAME cut on the
+    entry/fast path (where structure_edge / consec_red_knife / liq-exit-floor live)
+    so it can be measured and, on AxiS's go, enforced. Fresh trade-join (n=1121
+    positions, 2026-06-26) flips the small-n May revert: knife-BLOCK cohort mean
+    -3.80%/22%WR vs PASS -2.71%/30%WR (newest half -3.02 vs -0.51), and the blocked
+    cohort is 53% never-green vs 45% — it removes a higher fraction of doomed
+    entries (the confirmed entry leak).
+
+    Pure. FAIL-OPEN: either feature None/NaN -> do NOT block (telemetry-gap safety;
+    the fast path sometimes lacks 1m / chart features). Never raises."""
+    try:
+        m = float(mtf_score) if mtf_score is not None else None
+        lc = float(last_close_pct) if last_close_pct is not None else None
+    except (TypeError, ValueError):
+        return False, ""
+    if m is None or m != m or lc is None or lc != lc:  # None / NaN -> fail-open
+        return False, ""
+    if m <= float(mtf_max) and lc < 0.0:
+        return True, (f"mtf_score={m:.1f}<={mtf_max:.0f} AND 1m_last_close={lc:+.2f}%<0 "
+                      f"(falling knife — no green confirmation candle yet)")
+    return False, ""
+
+
 def _nd_env(name: str, default: float) -> float:
     """Float env override with default for the not-dipping gate."""
     try:
