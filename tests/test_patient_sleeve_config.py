@@ -14,5 +14,6 @@ def test_patient_sleeve_loads_with_patient_params():
     assert c.tp2_pct > c.tp1_pct                        # TP ordering sane
     assert c.max_concurrent_positions >= 20            # the Little's-Law slot budget
     assert c.microcap_mandate is True                  # in the lane for sub-floor too
+    assert c.mcap_max is not None and c.mcap_max <= 500000.0   # fat-tail pond, no large-cap over-fish
     assert c.antirug_floor_exempt is False             # rug guards STAY on
     assert (c.tp1_sell_fraction + c.tp2_sell_fraction) < 1.0    # remainder rides the trail

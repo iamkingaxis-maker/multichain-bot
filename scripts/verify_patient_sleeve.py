@@ -27,6 +27,8 @@ if ps is not None:
         ("non-badday id (skips -7 IN_FLIGHT_FLOOR)", not ps.bot_id.startswith("badday_")),
         ("winner_select_entry gate ON", ps.winner_select_entry is True),
         ("microcap_mandate (lane admits sub-floor)", ps.microcap_mandate is True),
+        ("mcap_max set (fat-tail pond, no large-cap over-fish)",
+         ps.mcap_max is not None and ps.mcap_max <= 500000.0),
         ("rug guards on (antirug NOT exempt)", ps.antirug_floor_exempt is False),
         ("hard_stop -22", ps.hard_stop_pct == -22.0),
         ("time_stop 240", ps.time_stop_minutes == 240),

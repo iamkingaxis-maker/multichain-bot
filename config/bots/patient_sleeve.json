@@ -4,6 +4,7 @@
   "enabled": true,
   "winner_select_entry": true,
   "microcap_mandate": true,
+  "mcap_max": 500000.0,
   "base_position_usd": 100.0,
   "max_concurrent_positions": 20,
   "hard_stop_pct": -22.0,
