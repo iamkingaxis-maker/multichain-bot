@@ -5234,10 +5234,29 @@ class DipScanner:
             _bdl = _bd_keep(mcap, _yt_liq, _yt_age_h, _bd_pc1, self.min_mcap)
             if _bdl:
                 c["badday_admit"] = c.get("badday_admit", 0) + 1
+            # FRESH-LAUNCH FUNNEL counters (2026-06-27 winner-mining cycle, SHADOW/
+            # observability only — zero control-flow change). Our 0-1h-age cohort is
+            # our only net-positive realized bucket but we barely trade fresh tokens;
+            # this sizes the sub-60min candidate funnel and pins WHERE each dies
+            # (mcap floor / vol floor / #432 anti-rug liq floor) before deciding
+            # whether a fresh-launch lane is worth building. Pure Counter ops.
+            _is_fresh60 = (_yt_age_h is not None and _yt_age_h < 1.0)
+            if _is_fresh60:
+                c["fresh60_seen"] = c.get("fresh60_seen", 0) + 1
+                # universe-level proxy for the #432 anti-rug $25k floor (the buy-gate
+                # enforce point is per-bot, out of this Counter's scope): how many
+                # fresh candidates sit under the liq floor that would later block them.
+                try:
+                    if 0 < float(_yt_liq) < 25000.0:
+                        c["fresh60_liq_below_25k"] = c.get("fresh60_liq_below_25k", 0) + 1
+                except (TypeError, ValueError):
+                    pass
             # USER_WATCHLIST bypass: small-cap floor not applicable for
             # user-curated tokens (user chose them deliberately).
             if mcap < self.min_mcap and not _yp and not _lmp and not _bdl:
                 c["mcap_low"] += 1
+                if _is_fresh60:
+                    c["fresh60_mcap_low"] = c.get("fresh60_mcap_low", 0) + 1
                 if not _user_watch:
                     continue
             if mcap > self.max_mcap:
@@ -5258,6 +5277,8 @@ class DipScanner:
             # in FRESHNESS GATE and vol_h1_decay below — those stay on.
             if vol_h24 < self.min_volume_h24:
                 c["vol"] += 1
+                if _is_fresh60:
+                    c["fresh60_vol"] = c.get("fresh60_vol", 0) + 1
                 if not _user_watch and not _bdl:
                     continue
 
@@ -20410,6 +20431,15 @@ class DipScanner:
             f"[DipScanner] Cycle: fetched={c['fetched']} ({src_str}) "
             f"signals={signals} | rejects: {rej_str}{tr_log}"
         )
+        # FRESH-LAUNCH FUNNEL (2026-06-27, observability only): size the sub-60min
+        # candidate cohort + where it dies, to decide if a fresh-launch lane is worth
+        # building. Logged only on cycles that saw >=1 fresh candidate.
+        if c.get("fresh60_seen", 0):
+            logger.info(
+                "[DipScanner] FRESH60 funnel: seen=%d mcap_low=%d vol=%d liq_below_25k=%d",
+                c.get("fresh60_seen", 0), c.get("fresh60_mcap_low", 0),
+                c.get("fresh60_vol", 0), c.get("fresh60_liq_below_25k", 0),
+            )
 
         # Persist h24 history once per cycle (atomic) so trend_reversal
         # filter survives process restarts.
