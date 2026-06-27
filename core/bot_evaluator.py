@@ -497,6 +497,36 @@ def falling_knife_blocks(mtf_score, last_close_pct, mtf_max=-1.0) -> tuple[bool,
     return False, ""
 
 
+def post_pump_corpse_blocks(pc_h1, pc_h24, buys_per_min_recent) -> tuple[bool, str]:
+    """Refuse an entry into a post-pump corpse: a token that just had an extreme
+    pump and is now mean-reverting / dying. Either (a) pc_h1>=+500% (extreme
+    single-hour pump, always followed by reversion — the SPCX/PAC class) OR
+    (b) pc_h24>=+200% AND buys_per_min_recent<=2 (recently pumped + now calm).
+
+    This is the SAME predicate as the main-scan filter_post_pump_corpse (ENFORCED
+    fleet-wide 2026-05-16), ported to the entry/fast path because that filter LEAKS
+    there: 145 flagged positions traded in the 06-21..26 window (NEW BLOCK -3.37%
+    vs PASS -1.12%, the scoreboard's #2 enforce-ready leaker). Mirrors consec_red_
+    knife / falling_knife. Pure. FAIL-OPEN: missing/NaN features -> do NOT block.
+    Never raises."""
+    reasons = []
+    try:
+        h1 = float(pc_h1) if pc_h1 is not None else None
+        h24 = float(pc_h24) if pc_h24 is not None else None
+        bpm = float(buys_per_min_recent) if buys_per_min_recent is not None else None
+    except (TypeError, ValueError):
+        return False, ""
+    if h1 is not None and h1 == h1 and h1 >= 500.0:
+        reasons.append(f"pc_h1={h1:.0f}%>=500 (extreme single-hour pump)")
+    if (h24 is not None and h24 == h24 and h24 >= 200.0
+            and bpm is not None and bpm == bpm and bpm <= 2.0):
+        reasons.append(f"pc_h24={h24:.0f}%>=200 AND buys_per_min_recent={bpm:.0f}<=2 "
+                       f"(post-pump corpse: pumped + currently calm)")
+    if reasons:
+        return True, "; ".join(reasons)
+    return False, ""
+
+
 def _nd_env(name: str, default: float) -> float:
     """Float env override with default for the not-dipping gate."""
     try:

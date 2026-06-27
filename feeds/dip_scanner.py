@@ -1896,6 +1896,64 @@ class DipScanner:
                     _fk_rb = False
                 if _fk_mode == "enforce" and not _fk_rb:
                     return
+        # ── Post-pump-corpse entry gate (2026-06-27 scoreboard leak fix) ─────────
+        # The fleet-enforced main-scan filter_post_pump_corpse LEAKS on the entry/
+        # fast path: 145 flagged positions traded in the 06-21..26 window (NEW BLOCK
+        # -3.37%/31%WR vs PASS -1.12%/29% — scoreboard #2 enforce-ready leaker).
+        # Port the SAME predicate (pc_h1>=500 OR pc_h24>=200 & bpm<=2) onto the entry
+        # path, mirroring falling_knife. DEFAULT SHADOW (entry/live path is sensitive;
+        # AxiS flips); POST_PUMP_CORPSE_ENTRY_MODE=enforce closes the leak. Fail-OPEN.
+        _ppc_mode = os.environ.get("POST_PUMP_CORPSE_ENTRY_MODE", "shadow").lower()
+        if _ppc_mode != "off" and str(bot_id).startswith("badday_"):
+            _ppc_h1 = _ar_meta.get("pc_h1")
+            if _ppc_h1 is None:
+                _ppc_h1 = getattr(bundle, "pc_h1", None)
+            _ppc_h24 = _ar_meta.get("pc_h24")
+            if _ppc_h24 is None:
+                _ppc_h24 = getattr(bundle, "pc_h24", None)
+            _ppc_bpm = _ar_meta.get("buys_per_min_recent")
+            from core.bot_evaluator import post_pump_corpse_blocks as _ppcb
+            _ppc_block, _ppc_why = _ppcb(_ppc_h1, _ppc_h24, _ppc_bpm)
+            _ppc_taddr = (decision.address
+                          or self._addr_by_token.get(decision.token, ""))
+            try:
+                _ppc_seen = getattr(self, "_ppc_shadow_seen", None)
+                if _ppc_seen is None:
+                    _ppc_seen = set()
+                    self._ppc_shadow_seen = _ppc_seen
+                _ppc_key = (_ppc_taddr or decision.token or "").lower()
+                if _ppc_key not in _ppc_seen:
+                    _ppc_verdict = "BLOCK" if _ppc_block else "PASS"
+                    from feeds.filter_shadow_recorder import (
+                        should_record_verdict as _ppc_should,
+                        record_verdict as _rv4,
+                    )
+                    try:
+                        _ppc_psample = int(float(
+                            os.environ.get("POST_PUMP_CORPSE_ENTRY_PASS_SAMPLE", "1")))
+                    except (TypeError, ValueError):
+                        _ppc_psample = 1
+                    if _ppc_should(_ppc_taddr, "post_pump_corpse_entry", _ppc_verdict,
+                                   sample_n=_ppc_psample):
+                        _ppc_seen.add(_ppc_key)
+                        _rv4(token_address=_ppc_taddr, token_symbol=decision.token,
+                             pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                             filter_name="post_pump_corpse_entry", verdict=_ppc_verdict,
+                             reasons=_ppc_why)
+            except Exception:
+                pass
+            if _ppc_block:
+                logger.info("[DipScanner] bot=%s POST-PUMP-CORPSE %s: %s %s", bot_id,
+                            "BLOCK" if _ppc_mode == "enforce" else "SHADOW-would-block",
+                            _ppc_why, decision.token)
+                _ppc_rb = False
+                try:
+                    from core.gate_rollback import is_rolled_back as _irb6
+                    _ppc_rb = _irb6("post_pump_corpse_entry")
+                except Exception:
+                    _ppc_rb = False
+                if _ppc_mode == "enforce" and not _ppc_rb:
+                    return
         # ── No-dip / slow-bleeder gate (2026-06-25 slow-bleeder 24-agent mine) ──
         # Block when the token is NOT actually dipping at entry (flat/green 30m
         # macro, above MA50, non-falling 30m slope, OR near its 1h high) — no real
