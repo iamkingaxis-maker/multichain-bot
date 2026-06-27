@@ -497,6 +497,18 @@ def falling_knife_blocks(mtf_score, last_close_pct, mtf_max=-1.0) -> tuple[bool,
     return False, ""
 
 
+def gate_blocks(verdict, mode, default_mode="enforce") -> bool:
+    """Reusable MODE-flag arbiter for a computed filter verdict. A gate ACTUALLY
+    blocks only when its verdict is BLOCK and its env MODE resolves to 'enforce'.
+    'shadow'/'off'/anything-else -> measure-only (no block). Lets a hard-enforced
+    filter be demoted to shadow via a single env flag without touching its verdict/
+    counter/log (so the forward scoreboard keeps measuring it). FAIL-SAFE: a bad/empty
+    mode falls back to default_mode (default 'enforce' = behavior-preserving for a
+    gate that was hard-enforced before the flag existed)."""
+    m = (mode or default_mode).strip().lower() if isinstance(mode, str) else default_mode
+    return verdict == "BLOCK" and m == "enforce"
+
+
 def post_pump_corpse_blocks(pc_h1, pc_h24, buys_per_min_recent) -> tuple[bool, str]:
     """Refuse an entry into a post-pump corpse: a token that just had an extreme
     pump and is now mean-reverting / dying. Either (a) pc_h1>=+500% (extreme

@@ -7717,11 +7717,23 @@ class DipScanner:
                 c.get(f"filter_1m_steep_fall_{_filter_1m_steep_fall_verdict.lower()}", 0) + 1
             )
             if _filter_1m_steep_fall_verdict == "BLOCK":
+                # STEEP_FALL_1M_MODE (2026-06-27 inversion study): the flat -1.5%
+                # magnitude cut is miscalibrated+redundant — realized P&L by depth is
+                # U-shaped (shallow dips AND deep capitulation flushes both +EV; only
+                # the [-10,-6) middle band is the real knife), and 67% of its blocks
+                # are NOT still-falling (already owned by consec_red_knife + falling_
+                # knife) with a +3.16% median and the biggest winner. Flag added to
+                # demote it to shadow without losing the verdict/counter (scoreboard
+                # keeps measuring; reband [-10,-6) validates forward). DEFAULT enforce
+                # = behavior-preserving; set STEEP_FALL_1M_MODE=shadow to loosen.
+                from core.bot_evaluator import gate_blocks as _gb
+                _sf_mode = os.environ.get("STEEP_FALL_1M_MODE", "enforce")
                 logger.info(
-                    f"[DipScanner] BLOCKED by filter_1m_steep_fall: {token_symbol} "
-                    f"reasons={','.join(_filter_1m_steep_fall_block_reasons)}"
-                )
-                _filters_block.append("filter_1m_steep_fall")
+                    "[DipScanner] filter_1m_steep_fall %s: %s reasons=%s",
+                    "BLOCK" if _gb("BLOCK", _sf_mode) else "SHADOW-would-block",
+                    token_symbol, ",".join(_filter_1m_steep_fall_block_reasons))
+                if _gb(_filter_1m_steep_fall_verdict, _sf_mode):
+                    _filters_block.append("filter_1m_steep_fall")
 
             # Filter FOFAR-confluence — ENFORCED 2026-05-02.
             # Catches the "rolling-over topping pattern" where multiple
