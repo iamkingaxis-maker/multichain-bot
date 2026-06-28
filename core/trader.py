@@ -89,7 +89,11 @@ def parse_ultra_order(resp: "Optional[dict]") -> dict:
             "slippage_bps": resp.get("slippageBps"),
             # priceImpactPct = quote's estimated price impact (fraction, e.g. "0.0287").
             # Surfaced first-class for the Tier-B in-flight fill-quality abort. May be None.
-            "price_impact_pct": resp.get("priceImpactPct")}
+            "price_impact_pct": resp.get("priceImpactPct"),
+            # prioritizationFeeLamports = the REAL priority fee Ultra set on the built tx
+            # (~175k lamports typical, NOT the 1M-2M cap). Promoted so telemetry / paper-fee
+            # calibration can read the actual cost instead of assuming the cap. May be None.
+            "priority_fee_lamports": resp.get("prioritizationFeeLamports")}
 
 
 def parse_ultra_execute(resp: "Optional[dict]") -> dict:
@@ -2974,6 +2978,7 @@ class Trader:
                   "order_attempts": 0, "order_429_count": 0, "execute_429_count": 0,
                   "backoff_total_ms": 0.0,
                   "ultra_slippage_bps": None, "price_impact_pct": None,
+                  "priority_fee_lamports": None,
                   "raw_order_response": None, "raw_execute_response": None}
         if not self.private_key:
             result["reason"] = "paper_mode"
@@ -3029,6 +3034,9 @@ class Trader:
         result["route"] = order.get("router")
         result["ultra_slippage_bps"] = order.get("slippage_bps")
         result["price_impact_pct"] = order.get("price_impact_pct")
+        # Real priority fee Ultra set on the built tx (~175k lamports, not the cap).
+        # Telemetry/paper-fee calibration reads this; pure surface, no behavior change.
+        result["priority_fee_lamports"] = order.get("priority_fee_lamports")
         # ── Tier-B in-flight fill-quality abort (BUY only). The built order is in hand but
         # NOT yet signed/sent. If LIVE_FILL_QUALITY_MODE != off AND the quote's
         # priceImpactPct*100 exceeds LIVE_FILL_QUALITY_MAX_IMPACT_PCT (default 2.0), bail

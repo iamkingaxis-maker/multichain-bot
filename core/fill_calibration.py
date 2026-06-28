@@ -171,6 +171,91 @@ def calibrated_slip_pct(calib: dict, liq_usd: Any, default: float,
         return default
 
 
+# ── per-tx fee calibration (priority fee) ──────────────────────────────────
+# Solana charges a fixed 5000-lamport base signature fee per tx ON TOP OF the
+# priority fee. The real per-tx cost ≈ (priority_fee_lamports + 5000) / 1e9 * SOL$.
+BASE_FEE_LAMPORTS = 5000
+
+
+def calibrated_fee_usd(records: list, default: float, sol_price_usd: Any,
+                       min_n: int = 10) -> float:
+    """Median realized per-tx fee (USD) from live records, fail-open to default.
+
+    Mirrors ``calibrated_slip_pct``: learns what live ACTUALLY paid instead of the
+    fixed placeholder. Per SUCCESSFUL record, fee_usd =
+    (priority_fee_lamports + BASE_FEE_LAMPORTS) / 1e9 * sol_price_usd; returns the
+    median across qualifying records.
+
+    DEFAULT-SAFE: returns ``default`` until at least ``min_n`` qualifying records
+    exist (thin sample -> no change), or if ``sol_price_usd`` is missing/<=0.
+    PURE + FAIL-OPEN: skips records missing/garbage priority_fee_lamports; any
+    error -> ``default``; never raises."""
+    try:
+        sp = _as_float(sol_price_usd)
+        if sp is None or sp <= 0:
+            return default
+        fees: list = []
+        for r in records or []:
+            try:
+                if not isinstance(r, dict):
+                    continue
+                if not r.get("success"):
+                    continue
+                lam = _as_float(r.get("priority_fee_lamports"))
+                if lam is None or lam < 0:
+                    continue
+                fees.append((lam + BASE_FEE_LAMPORTS) / 1e9 * sp)
+            except Exception:
+                continue
+        if len(fees) < min_n:
+            return default
+        return round(statistics.median(fees), 6)
+    except Exception:
+        return default
+
+
+# module-level cache for the live-swap records the fee calibration reads, keyed
+# by file mtime (same off-loop pattern as ``load_calibration``).
+_FEE_REC_CACHE: dict = {}
+
+
+def _load_live_swap_records_cached() -> list:
+    """Read DATA_DIR/live_swaps.jsonl records, cached by file mtime. Fail-open
+    to [] (missing file / any error). Blocking read — callers are off-loop /
+    infrequent and the live path is gated default-off."""
+    try:
+        path = _live_swaps_path()
+        try:
+            mtime = os.path.getmtime(path)
+        except OSError:
+            mtime = None
+        if _FEE_REC_CACHE.get("mtime") == mtime and "recs" in _FEE_REC_CACHE:
+            return _FEE_REC_CACHE["recs"]
+        if mtime is None:
+            _FEE_REC_CACHE["mtime"] = None
+            _FEE_REC_CACHE["recs"] = []
+            return _FEE_REC_CACHE["recs"]
+        from core.live_swap_log import read_live_swaps
+        recs = read_live_swaps(path)
+        _FEE_REC_CACHE["mtime"] = mtime
+        _FEE_REC_CACHE["recs"] = recs
+        return recs
+    except Exception:
+        return []
+
+
+def load_fee_calibration(default: float, sol_price_usd: Any,
+                         min_n: int = 10) -> float:
+    """Cached convenience wrapper: read live_swaps (mtime-cached) and return the
+    calibrated per-tx fee (USD), fail-open to ``default``. Used by the gated
+    paper-fee path; default-off byte-identical (never called when mode=off)."""
+    try:
+        recs = _load_live_swap_records_cached()
+        return calibrated_fee_usd(recs, default, sol_price_usd, min_n=min_n)
+    except Exception:
+        return default
+
+
 def _ultra_cap_pct_from_env(fallback: float = 4.0) -> float:
     """Ultra slippage cap (%) from PROBE_ULTRA_SLIPPAGE_BPS / 100. Fail-open."""
     try:

@@ -3004,7 +3004,10 @@ class DipScanner:
                     backoff_total_ms=res.get("backoff_total_ms"),
                     sol_before=_sol_before, sol_after=sol_after, sol_spent=_spent,
                     tokens_received=tokens_received,
-                    priority_fee_lamports=None,  # GAP: Ultra /execute does not expose realized priority fee
+                    priority_fee_lamports=(  # REAL priority fee from the Ultra /order build
+                        res.get("priority_fee_lamports")
+                        if res.get("priority_fee_lamports") is not None
+                        else (res.get("raw_order_response") or {}).get("prioritizationFeeLamports")),
                     raw_order_response=res.get("raw_order_response"),
                     raw_execute_response=res.get("raw_execute_response"),
                 )
@@ -3506,7 +3509,10 @@ class DipScanner:
                     backoff_total_ms=res.get("backoff_total_ms"),
                     sol_before=_sol_before, sol_after=sol_after, sol_spent=_spent,
                     tokens_received=None,  # sell: tokens go OUT (= -sell_tokens); proceeds tracked via proceeds_usd
-                    priority_fee_lamports=None,  # GAP: Ultra /execute does not expose realized priority fee
+                    priority_fee_lamports=(  # REAL priority fee from the Ultra /order build
+                        res.get("priority_fee_lamports")
+                        if res.get("priority_fee_lamports") is not None
+                        else (res.get("raw_order_response") or {}).get("prioritizationFeeLamports")),
                     raw_order_response=res.get("raw_order_response"),
                     raw_execute_response=res.get("raw_execute_response"),
                     proceeds_usd=proceeds_usd, sell_tokens=sell_tokens,

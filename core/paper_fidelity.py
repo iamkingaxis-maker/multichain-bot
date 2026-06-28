@@ -1,7 +1,10 @@
 """Pure helpers that make the PAPER twin simulate the LIVE bot's execution
 constraints, so paper P&L predicts live. Every helper is pure + fail-open."""
 from __future__ import annotations
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 # Hard backstop so a modeled fill can never cross zero / invert. A normal fill
 # has drag well under 0.1; this only ever bites the pathological dust-slice case
@@ -44,12 +47,63 @@ def measured_live_slip_pct() -> float:
     except Exception:
         return 1.5
 
-def paper_fee_usd() -> float:
-    """Per-tx fee in USD that paper should book. Env PAPER_FEE_USD_PER_TX, default 0.17."""
+def _paper_fee_placeholder() -> float:
+    """The fixed placeholder per-tx fee (USD). Env PAPER_FEE_USD_PER_TX, default 0.17.
+    This is the historical value — assumes the priority fee = the 1M-2M lamport cap,
+    which overstates the REAL ~175k-lamport priority fee ~6x."""
     try:
         return float(os.environ.get("PAPER_FEE_USD_PER_TX", "0.17"))
     except Exception:
         return 0.17
+
+def _sol_price_for_fee_calib(sol_price_usd=None):
+    """Resolve a SOL price (USD) for fee calibration: explicit arg first, else env
+    SOL_PRICE_USD. None when unavailable (calibrator then fails open to placeholder)."""
+    try:
+        if sol_price_usd is not None:
+            v = float(sol_price_usd)
+            return v if v > 0 else None
+    except (TypeError, ValueError):
+        pass
+    try:
+        env = os.environ.get("SOL_PRICE_USD")
+        if env is not None and str(env).strip() != "":
+            v = float(env)
+            return v if v > 0 else None
+    except (TypeError, ValueError):
+        pass
+    return None
+
+def paper_fee_usd(sol_price_usd=None) -> float:
+    """Per-tx fee in USD that paper should book.
+
+    Default-off byte-identical: env PAPER_FEE_CALIBRATION_MODE (off/shadow/enforce,
+    default off). When off -> the fixed placeholder (PAPER_FEE_USD_PER_TX, 0.17)
+    EXACTLY as before. When shadow -> log the calibrated-vs-placeholder delta but
+    still BOOK the placeholder. When enforce -> book the calibrated fee (median real
+    priority+base fee from live_swaps), fail-open to the placeholder until the live
+    sample is sufficient. Pure + fail-open: any error -> placeholder."""
+    placeholder = _paper_fee_placeholder()
+    try:
+        mode = paper_fidelity_enabled("PAPER_FEE_CALIBRATION_MODE")
+        if mode not in ("shadow", "enforce"):
+            return placeholder
+        sol_px = _sol_price_for_fee_calib(sol_price_usd)
+        from core.fill_calibration import load_fee_calibration
+        calibrated = load_fee_calibration(placeholder, sol_px)
+        if mode == "enforce":
+            return calibrated
+        # shadow: log the delta, but BOOK the placeholder (no behavior change).
+        try:
+            if calibrated != placeholder:
+                logger.info("[paper-fee-calib] SHADOW calibrated=$%.4f vs placeholder=$%.4f "
+                            "(delta $%.4f) — booking placeholder",
+                            calibrated, placeholder, calibrated - placeholder)
+        except Exception:
+            pass
+        return placeholder
+    except Exception:
+        return placeholder
 
 def effective_fill(mid, side, slip_pct, fee_usd, size_usd) -> float:
     """Price paper should BOOK including measured live slippage + fee drag.
