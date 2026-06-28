@@ -3087,6 +3087,196 @@ class DipScanner:
         return {"pos": pos, "entry_price": real_entry,
                 "slip_pct": instrument.get("live_slippage_pct") or 0.0, "instrument": instrument}
 
+    def _append_corpse_shadow(self, rec):
+        """Append one CORPSE-watchdog shadow record (would-force-exit) to
+        {DATA_DIR}/corpse_shadow.jsonl. Fail-open; never raises."""
+        try:
+            path = os.path.join(
+                os.environ.get("DATA_DIR", "/data"), "corpse_shadow.jsonl")
+            with open(path, "a") as f:
+                f.write(json.dumps(rec, separators=(",", ":")) + "\n")
+        except Exception as e:
+            logger.debug("[corpse] shadow write failed: %s", e)
+
+    async def _corpse_has_route(self, position):
+        """Read-only Jupiter quote probe: does a token->SOL SELL route still exist?
+
+        Returns True = a route exists (recoverable corpse — a forced sell can
+        execute), False = NO route (un-sellable corpse — the pair is gone/rugged).
+        Uses the SAME read-only `trader._get_quote` the fill probe / legacy sell
+        fallback use; NEVER swaps. FAIL-OPEN -> True: any error/timeout assumes the
+        route is reachable so a transient quote miss can never falsely declare
+        no_route (which would paper-close a real position)."""
+        try:
+            trader = getattr(self, "trader", None)
+            if trader is None or not hasattr(trader, "_get_quote"):
+                return True
+            from core.trader import SOL_MINT
+            mint = getattr(position, "address", None) or getattr(position, "token", None)
+            if not mint or mint == SOL_MINT:
+                return True
+            # Read-only probe: a small fixed notional is enough to detect whether
+            # a route exists at all (route presence, not fill quality). 6% sell cap.
+            q = await trader._get_quote(mint, SOL_MINT, int(1e6), slippage_bps=600)
+            return bool(q)
+        except Exception:
+            return True
+
+    async def _maybe_corpse_exit(self, bot_id, pm, position, now):
+        """Forced-exit watchdog for the FEED-DEAD / NO-ROUTE corpse class.
+
+        Reached ONLY from the decision loop's `price is None` branch (the exit
+        pipeline is gated on a live price, so a token whose feed died / pair was
+        pulled / has no Jupiter route is SKIPPED every cycle forever -> pm.tick()
+        never runs -> even time_stop / never_runner can't fire -> the bag is held
+        to ~-100%). This is the only path that can free such a position.
+
+        Modes (CORPSE_EXIT_MODE, resolved via the shared off/shadow/enforce
+        resolver): off (DEFAULT) -> returns IMMEDIATELY, no side effects =
+        byte-identical. shadow -> log + append ONE JSONL would-fire record per
+        position, NEVER sells. enforce + route reachable -> route a synthetic
+        ExitDecision through the EXISTING _execute_bot_sell at the last-known good
+        price (live sizing comes from the on-chain balance). enforce + no route ->
+        do NOT fabricate a live sell; book a paper close flagged no_route + emit a
+        DISTINCT alert to release the inflight cap and stop infinite retries.
+
+        Does NOT duplicate never_runner / time_stop: CORPSE_MAX_HOLD_MIN (240)
+        >> never_runner_minutes (45), so this only catches the feed-dead/no-route
+        class those in-tick exits can never reach. FAIL-OPEN everywhere."""
+        from core.fast_watch import rt_mode as _rt_mode
+        mode = _rt_mode("CORPSE_EXIT_MODE")
+        if mode == "off":
+            return
+        try:
+            sb = position.state_blob
+            if sb is None:
+                sb = {}
+                position.state_blob = sb
+        except Exception:
+            return
+        try:
+            stale_secs_cfg = float(os.environ.get("CORPSE_STALE_SECS", "900"))
+        except (TypeError, ValueError):
+            stale_secs_cfg = 900.0
+        try:
+            max_hold_min_cfg = float(os.environ.get("CORPSE_MAX_HOLD_MIN", "240"))
+        except (TypeError, ValueError):
+            max_hold_min_cfg = 240.0
+        entry_time = getattr(position, "entry_time", None)
+        if not entry_time:
+            entry_time = now
+        last_good = sb.get("corpse_last_good_ts") or entry_time
+        stale_secs = now - last_good
+        hold_min = (now - entry_time) / 60.0
+        stale_hit = stale_secs >= stale_secs_cfg
+        maxage_hit = hold_min >= max_hold_min_cfg
+        if not (stale_hit or maxage_hit):
+            return
+        reason = "corpse_exit_stale" if stale_hit else "corpse_exit_maxage"
+        last_price = sb.get("corpse_last_price")
+        token = getattr(position, "token", None)
+        addr = getattr(position, "address", None)
+        # Shadow emits ONCE per position — bail BEFORE the (network) route probe
+        # so a dead position doesn't fire a Jupiter quote every single cycle
+        # forever. (enforce still probes each cycle: it sells/closes on trigger,
+        # so it can't loop.)
+        if mode == "shadow" and sb.get("corpse_shadow_emitted"):
+            return
+        # Route-reachability probe (read-only). no_route distinguishes the
+        # recoverable corpse (sell can execute) from the un-sellable one.
+        no_route = not await self._corpse_has_route(position)
+
+        if mode == "shadow":
+            sb["corpse_shadow_emitted"] = True
+            logger.warning(
+                "[corpse] SHADOW bot=%s token=%s addr=%s stale_secs=%.0f "
+                "hold_min=%.1f no_route=%s last_price=%s reason=%s",
+                bot_id, token, addr, stale_secs, hold_min, no_route,
+                last_price, reason)
+            self._append_corpse_shadow({
+                "ts": now, "bot": bot_id, "token": token, "addr": addr,
+                "reason": reason, "stale_secs": round(stale_secs, 1),
+                "hold_min": round(hold_min, 2), "no_route": no_route,
+                "last_price": last_price,
+                "entry_price": getattr(position, "entry_price", None),
+                "remaining_fraction": getattr(position, "remaining_fraction", None),
+            })
+            return
+
+        # mode == "enforce"
+        if not no_route:
+            # Recoverable corpse: route a real exit at the last-known good price
+            # (live sizing reads the on-chain balance inside _execute_bot_sell).
+            from core.per_bot_position_manager import ExitDecision
+            frac = getattr(position, "remaining_fraction", 1.0) or 1.0
+            px = last_price if (last_price and last_price > 0) \
+                else getattr(position, "entry_price", 0.0)
+            d = ExitDecision(token=token, kind="HARD_STOP",
+                             reason=reason, sell_fraction=frac)
+            logger.warning(
+                "[corpse] ENFORCE force-exit bot=%s token=%s addr=%s reason=%s "
+                "px=%s stale_secs=%.0f hold_min=%.1f",
+                bot_id, token, addr, reason, px, stale_secs, hold_min)
+            await self._execute_bot_sell(bot_id, token, d, px, now)
+        else:
+            # Un-sellable corpse: NEVER fabricate a live sell (no route -> the
+            # swap can only fail and re-trap). Book a paper close flagged no_route
+            # to free the inflight cap + stop infinite retries, with a DISTINCT
+            # alert so realized P&L isn't mistaken for a real fill.
+            await self._book_corpse_no_route_close(
+                bot_id, pm, position, last_price, now)
+
+    async def _book_corpse_no_route_close(self, bot_id, pm, position, last_price, now):
+        """Paper-close an UN-SELLABLE corpse (no route) at the last-known price,
+        flagged no_route, to release the inflight cap (mirror of the live
+        confirmed-0-balance `{"empty": True}` paper close). NEVER a real fill.
+        FAIL-OPEN; never raises into the tick loop."""
+        token = getattr(position, "token", None)
+        addr = getattr(position, "address", None)
+        px = last_price if (last_price and last_price > 0) \
+            else getattr(position, "entry_price", 0.0)
+        frac = getattr(position, "remaining_fraction", 1.0) or 1.0
+        try:
+            result = pm.close_position(
+                token=token, exit_price=px, exit_time=now,
+                reason="corpse_no_route", sell_fraction=frac)
+        except KeyError:
+            return  # already closed
+        except Exception as e:
+            logger.error("[corpse] no-route paper close failed bot=%s token=%s: %s",
+                         bot_id, token, e)
+            return
+        try:
+            cap = (getattr(self, "bot_capitals", {}) or {}).get(bot_id)
+            if cap is not None and getattr(result, "cost_usd", 0) > 0:
+                cap.realize_sell(cost_usd=result.cost_usd,
+                                 proceeds_usd=result.proceeds_usd)
+        except Exception as e:
+            logger.error("[corpse] no-route realize failed bot=%s: %s", bot_id, e)
+        logger.warning(
+            "[corpse] ENFORCE no_route PAPER-CLOSE (NOT a real fill) bot=%s "
+            "token=%s addr=%s last_price=%s reason=corpse_no_route",
+            bot_id, token, addr, px)
+        try:
+            ts = getattr(self, "trade_store", None)
+            if ts is not None and getattr(result, "cost_usd", 0) > 0:
+                await ts.record_trade_async({
+                    "type": "sell",
+                    "token": token,
+                    "address": addr or "",
+                    "pair_address": getattr(position, "pair_address", "") or "",
+                    "entry_price": getattr(result, "entry_price", None),
+                    "exit_price": px,
+                    "reason": "corpse_no_route",
+                    # DISTINCT flags so this paper-only close is never mistaken for
+                    # a real fill in realized-P&L / live attribution.
+                    "corpse": True,
+                    "no_route": True,
+                    "paper_close_no_fill": True,
+                }, bot_id=bot_id)
+        except Exception as e:
+            logger.debug("[corpse] no-route trade record failed: %s", e)
+
     async def _execute_bot_sell_live(self, token, pm, pos, sold_frac, current_mid):
         """LIVE probe SELL (piece 1b): real Ultra swap (token->SOL) for the sold fraction.
         Returns {exit_price, instrument} or None (caller leaves the position OPEN to retry).
@@ -3659,7 +3849,32 @@ class DipScanner:
                     await self._fetch_tick_price(position, pkey, priced, vols, now)
                     price = priced[pkey]
                     if price is None:
+                        # CORPSE watchdog (2026-06-28): the ENTIRE exit pipeline is
+                        # gated on this live price — a feed-dead / rugged / no-route
+                        # token returns None here EVERY cycle, so pm.tick() (and thus
+                        # time_stop / never_runner) can NEVER fire and the position is
+                        # booked toward ~-100% (real example: live BOB, 1 buy/0 sell).
+                        # Give the no-price branch ONE chance to force-exit the
+                        # feed-dead / no-route corpse class those time exits can't
+                        # reach. Default CORPSE_EXIT_MODE=off -> returns immediately =
+                        # byte-identical. FAIL-OPEN: never break the tick loop.
+                        try:
+                            await self._maybe_corpse_exit(bot_id, pm, position, now)
+                        except Exception as _ce:
+                            logger.debug("[corpse] watchdog error bot=%s: %s", bot_id, _ce)
                         continue
+                    # CORPSE watchdog feed-health stamp: a VALID price means the feed is
+                    # alive this cycle — record it so the no-price branch above can tell
+                    # "feed dead for N cycles" from a single transient miss. Gated via the
+                    # SAME rt_mode resolver _maybe_corpse_exit uses (garbage -> off
+                    # uniformly) so default-off writes NOTHING (byte-identical).
+                    from core.fast_watch import rt_mode as _corpse_rt_mode
+                    if _corpse_rt_mode("CORPSE_EXIT_MODE") != "off":
+                        try:
+                            position.state_blob["corpse_last_good_ts"] = now
+                            position.state_blob["corpse_last_price"] = price
+                        except Exception:
+                            pass
                     # SOL-bail SHADOW (no action) — records the would-be bail P&L
                     # so we can measure save-vs-lose before enforcing. See
                     # _stamp_sol_bail_shadow.
