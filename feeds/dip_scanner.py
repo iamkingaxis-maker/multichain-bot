@@ -3176,14 +3176,17 @@ class DipScanner:
         last_price = sb.get("corpse_last_price")
         token = getattr(position, "token", None)
         addr = getattr(position, "address", None)
+        # Shadow emits ONCE per position — bail BEFORE the (network) route probe
+        # so a dead position doesn't fire a Jupiter quote every single cycle
+        # forever. (enforce still probes each cycle: it sells/closes on trigger,
+        # so it can't loop.)
+        if mode == "shadow" and sb.get("corpse_shadow_emitted"):
+            return
         # Route-reachability probe (read-only). no_route distinguishes the
         # recoverable corpse (sell can execute) from the un-sellable one.
         no_route = not await self._corpse_has_route(position)
 
         if mode == "shadow":
-            # Emit ONCE per position (no per-cycle spam).
-            if sb.get("corpse_shadow_emitted"):
-                return
             sb["corpse_shadow_emitted"] = True
             logger.warning(
                 "[corpse] SHADOW bot=%s token=%s addr=%s stale_secs=%.0f "
@@ -3270,7 +3273,7 @@ class DipScanner:
                     "corpse": True,
                     "no_route": True,
                     "paper_close_no_fill": True,
-                })
+                }, bot_id=bot_id)
         except Exception as e:
             logger.debug("[corpse] no-route trade record failed: %s", e)
 
@@ -3862,9 +3865,11 @@ class DipScanner:
                         continue
                     # CORPSE watchdog feed-health stamp: a VALID price means the feed is
                     # alive this cycle — record it so the no-price branch above can tell
-                    # "feed dead for N cycles" from a single transient miss. Gated on
-                    # CORPSE_EXIT_MODE != off so default-off writes NOTHING (byte-identical).
-                    if os.environ.get("CORPSE_EXIT_MODE", "off").strip().lower() != "off":
+                    # "feed dead for N cycles" from a single transient miss. Gated via the
+                    # SAME rt_mode resolver _maybe_corpse_exit uses (garbage -> off
+                    # uniformly) so default-off writes NOTHING (byte-identical).
+                    from core.fast_watch import rt_mode as _corpse_rt_mode
+                    if _corpse_rt_mode("CORPSE_EXIT_MODE") != "off":
                         try:
                             position.state_blob["corpse_last_good_ts"] = now
                             position.state_blob["corpse_last_price"] = price

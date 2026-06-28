@@ -99,8 +99,9 @@ def _scanner_with_position(entry_time=0.0, last_good_ts=None, last_price=0.5,
     sc._record_calls = []
 
     class _TS:
-        async def record_trade_async(self, rec):
-            sc._record_calls.append(rec)
+        # mirror the REAL signature: record_trade_async(self, trade, bot_id)
+        async def record_trade_async(self, rec, bot_id):
+            sc._record_calls.append((rec, bot_id))
     sc.trade_store = _TS()
     return sc, pos, pm
 
@@ -214,7 +215,8 @@ def test_enforce_no_route_paper_closes(monkeypatch):
     assert pm.closed[0].reason == "corpse_no_route"
     assert pm.closed[0].exit_price == pytest.approx(0.5)
     assert len(sc._record_calls) == 1
-    rec = sc._record_calls[0]
+    rec, rec_bot_id = sc._record_calls[0]
+    assert rec_bot_id == "badday_flush"        # required bot_id arg is passed
     assert rec["no_route"] is True
     assert rec["corpse"] is True
     assert rec["paper_close_no_fill"] is True
