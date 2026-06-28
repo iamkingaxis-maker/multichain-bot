@@ -108,11 +108,24 @@ def realized_by_bot(recs: list, sol_price_usd: float | None = None) -> list:
       unsold_corpse_sol, win_rate_pct (per closed token, real outcome).
     Pure + defensive."""
     px = _f(sol_price_usd)
+    # Sells in the live-swap log do NOT carry bot_id (only buys do), so attribute
+    # each sell to the bot that BOUGHT that token. Without this, every named bot
+    # looks like all-corpses (buys only) and a phantom "?" bucket holds all sells
+    # at 100% WR. Build token -> bot from buys first.
+    tok_bot: dict = {}
+    for r in recs or []:
+        if bool(r.get("success")) and (r.get("side") or "").strip().lower() == "buy":
+            b = r.get("bot_id")
+            if b:
+                tok_bot.setdefault(r.get("token_address") or "", b)
     grouped: dict = {}
     for r in recs or []:
         if not bool(r.get("success")):
             continue
-        grouped.setdefault(r.get("bot_id") or "?", []).append(r)
+        bid = r.get("bot_id")
+        if not bid:  # sell (or untagged) -> the bot that bought this token
+            bid = tok_bot.get(r.get("token_address") or "", "?")
+        grouped.setdefault(bid, []).append(r)
     out = []
     for bid, brecs in grouped.items():
         bt = realized_by_token(brecs)

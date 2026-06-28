@@ -140,6 +140,22 @@ def test_by_bot_win_rate_and_corpses_are_per_bot():
     assert abs(r["unsold_corpse_sol"] - 0.05) < 1e-9
 
 
+def test_by_bot_attributes_untagged_sell_to_buying_bot():
+    # Live log: buys carry bot_id, sells DON'T. The sell must be credited to the
+    # bot that bought the token (not dumped in a phantom "?" 100%-WR bucket).
+    recs = [
+        _b(_buy("A", size_sol=0.10), "conviction"),
+        {"side": "sell", "token_address": "A", "success": True,
+         "out_amount": int(0.06 * L), "bot_id": None},  # -0.04, untagged
+    ]
+    rows = realized_by_bot(recs, sol_price_usd=100.0)
+    assert len(rows) == 1
+    assert rows[0]["bot_id"] == "conviction"
+    assert rows[0]["n_closed_tokens"] == 1          # paired, not a corpse
+    assert rows[0]["unsold_corpse_count"] == 0
+    assert rows[0]["real_realized_usd"] == -4.0
+
+
 def test_by_bot_skips_failed_and_handles_missing_bot_id():
     recs = [
         _buy("A", size_sol=0.1),  # no bot_id -> "?"
