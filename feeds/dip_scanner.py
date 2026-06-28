@@ -14,6 +14,7 @@ Sources: DexScreener REST + GeckoTerminal trending pools (both free, no API key)
 """
 
 import asyncio
+import copy
 import json
 import logging
 import os
@@ -3916,30 +3917,38 @@ class DipScanner:
                         except Exception:
                             pass
                     self._stamp_liq_drain_shadow(position, price, now)
+                    # EXIT-TRIGGER RECON (MEASUREMENT ONLY, 2026-06-28): the SAME
+                    # exit triggers (tp1/tp2/trail/hard_stop/never_runner/
+                    # in_flight_floor) that pm.tick evaluates at the ~150s-STALE
+                    # main-scan snapshot `price` are evaluated LIVE on the ~2s
+                    # FRESH fast-watch price — a different trigger can fire at a
+                    # different pnl. The counterfactual we want is "what if we'd
+                    # ticked on the FRESH price instead of the stale price, from
+                    # the SAME pre-tick state", so we DEEP COPY the position BEFORE
+                    # the real tick mutates its peak/tp-tiers/trail-arm, then re-run
+                    # the EXACT same logic on that pre-tick snapshot with the fresh
+                    # price. Default EXIT_TRIGGER_RECON_MODE=off -> no snapshot, no
+                    # recon (byte-identical). NEVER sells/mutates the real position
+                    # or manager. FAIL-OPEN: a recon bug must never affect the tick.
+                    _recon_on = os.environ.get(
+                        "EXIT_TRIGGER_RECON_MODE", "off").strip().lower() != "off"
+                    _recon_snap = None
+                    if _recon_on:
+                        try:
+                            _recon_snap = copy.deepcopy(position)
+                        except Exception:
+                            _recon_snap = None
                     decisions = pm.tick(
                         token=token,
                         current_price=price,
                         now=now,
                         vol_m5_usd=vols.get(pkey),
                     )
-                    # EXIT-TRIGGER RECON (MEASUREMENT ONLY, 2026-06-28): the SAME
-                    # exit triggers (tp1/tp2/trail/hard_stop/never_runner/
-                    # in_flight_floor) that pm.tick just evaluated at the ~150s-
-                    # STALE main-scan snapshot `price` are evaluated LIVE on the
-                    # ~2s FRESH fast-watch price — a different trigger can fire at
-                    # a different pnl. Re-run the EXACT same logic on the fresh
-                    # price against a DEEP COPY of the position and log whether the
-                    # fresh decision DIFFERS from the stale one. NEVER sells, NEVER
-                    # mutates the real position/manager, NEVER changes the exit.
-                    # Default EXIT_TRIGGER_RECON_MODE=off -> the env check below
-                    # skips it entirely (byte-identical). FAIL-OPEN: a recon bug
-                    # must never affect the real exit tick.
-                    if os.environ.get(
-                            "EXIT_TRIGGER_RECON_MODE", "off").strip().lower() != "off":
+                    if _recon_on and _recon_snap is not None:
                         try:
                             self._maybe_exit_trigger_recon(
-                                bot_id, pm, position, price, decisions, now,
-                                vols.get(pkey))
+                                bot_id, pm, position, _recon_snap, price,
+                                decisions, now, vols.get(pkey))
                         except Exception as _re:
                             logger.debug(
                                 "[exit-recon] error bot=%s token=%s: %s",
@@ -4809,8 +4818,8 @@ class DipScanner:
         except Exception as e:
             logger.debug("[exit-recon] recon write failed: %s", e)
 
-    def _maybe_exit_trigger_recon(self, bot_id, pm, position, stale_price,
-                                  stale_decisions, now, vol_m5):
+    def _maybe_exit_trigger_recon(self, bot_id, pm, position, snapshot_pos,
+                                  stale_price, stale_decisions, now, vol_m5):
         """EXIT-TRIGGER REACHABILITY recon (MEASUREMENT ONLY, 2026-06-28).
 
         Paper evaluates ALL exit triggers (tp1/tp2/trail/hard_stop/never_runner/
@@ -4821,21 +4830,26 @@ class DipScanner:
         25% into a reversal) while a live leg that mistimes tp1 holds 100% into the
         reversal -> live loss >> paper loss. This is currently UNMEASURED.
 
-        Per exit decision, re-run the EXACT same trigger logic on the FRESH price
-        against a DEEP COPY of the position (the copy absorbs every mutation) via a
-        throwaway manager that shares the read-only-in-tick config, then log
-        whether the fresh decision DIFFERS from the stale one (reason and/or pnl).
+        ``snapshot_pos`` is a DEEP COPY of the position taken by the caller BEFORE
+        the real pm.tick mutated it (peak/tp-tiers/trail-arm). Re-running the EXACT
+        same trigger logic on this PRE-TICK snapshot with the FRESH price gives the
+        clean counterfactual "fresh price from the SAME pre-tick state" — free of
+        the stale tick's contamination. The fresh re-eval runs against a throwaway
+        manager that shares the read-only-in-tick config; all mutations land on the
+        snapshot copy, so the real position/manager are GUARANTEED untouched (we
+        NEVER tick the real position).
 
         EXIT_TRIGGER_RECON_MODE=off (DEFAULT) -> caller never invokes this
         (byte-identical). shadow -> log + append a JSONL record. There is NO
         enforce path -- this is measurement only: it NEVER sells, NEVER mutates the
         real position or the real manager's shared state, NEVER changes an exit.
         FAIL-OPEN: any error here is swallowed by the caller's try/except so the
-        real exit tick is never affected. The deep-copy GUARANTEES non-mutation --
-        the real position is never the object that gets ticked."""
+        real exit tick is never affected."""
         from core.fast_watch import rt_mode as _rt_mode
         mode = _rt_mode("EXIT_TRIGGER_RECON_MODE")
         if mode == "off":
+            return
+        if snapshot_pos is None:
             return
         addr = getattr(position, "address", "") or ""
         if not addr:
@@ -4860,19 +4874,15 @@ class DipScanner:
             return
         if ep <= 0 or stale_price is None or stale_price <= 0:
             return
-        # LOGIC-PARITY re-eval on a DEEP COPY so the real position + real manager
-        # are GUARANTEED untouched: we NEVER tick the real position. A throwaway
-        # manager shares the (read-only-in-tick) config so the trigger logic +
-        # bot-id scoping are byte-identical to the real evaluation, with all
-        # mutations (peak/tp tiers/trail/iff/state_blob) landing on the copy.
-        import copy as _copy
-        try:
-            pos_copy = _copy.deepcopy(position)
-        except Exception:
-            return
+        # LOGIC-PARITY re-eval on the PRE-TICK snapshot (already a deep copy) so the
+        # real position + real manager are GUARANTEED untouched: we NEVER tick the
+        # real position. A throwaway manager shares the (read-only-in-tick) config
+        # so the trigger logic + bot-id scoping are byte-identical to the real
+        # evaluation, with all mutations (peak/tp tiers/trail/iff/state_blob)
+        # landing on the snapshot copy.
         clone = PerBotPositionManager(pm.config)
         clone._ohlcv_capture = False
-        clone._positions = {token: pos_copy}
+        clone._positions = {token: snapshot_pos}
         fresh_decisions = clone.tick(
             token=token, current_price=fresh, now=now, vol_m5_usd=vol_m5)
         stale_reason = stale_decisions[0].kind if stale_decisions else "HOLD"
