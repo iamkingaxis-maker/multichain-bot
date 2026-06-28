@@ -2494,6 +2494,7 @@ class WebDashboard:
         self.app.router.add_get("/api/fill-speed",          self._handle_api_fill_speed)
         self.app.router.add_get("/api/live-swaps",          self._handle_api_live_swaps)
         self.app.router.add_get("/api/live-real-pnl",       self._handle_api_live_real_pnl)
+        self.app.router.add_get("/api/live-faithful-pnl",   self._handle_api_live_faithful_pnl)
         self.app.router.add_get("/api/rt-shadow",           self._handle_api_rt_shadow)
         self.app.router.add_get("/api/paper-live-skips",    self._handle_api_paper_live_skips)
         self.app.router.add_get("/api/fill-probe",          self._handle_api_fill_probe)
@@ -3298,6 +3299,56 @@ class WebDashboard:
         except Exception as e:
             logger.debug("sol price fetch failed: %s", e)
             return cache[1] if cache else None
+
+    async def _handle_api_live_faithful_pnl(self, request):
+        """GET /api/live-faithful-pnl — paper vs LIVE-FAITHFUL P&L fidelity gap.
+
+        Reconstructs the realized P&L a funded live bot would have booked by EXCLUDING
+        paper buys whose entry_meta daily_halt_would_block / reentry_cap_would_block was
+        True (the trades a live_probe bot's daily-loss halt / re-entry cap would have
+        skipped, but paper twins still booked). delta_usd = paper_total - live_faithful_total
+        == sum of would-blocked realized $.
+
+        Reads the SAME ledger source as /api/trades + /api/top-bots (tracker records +
+        MultiBotTradeStore) OFF the event loop. Result cached 300s (ledger read + FIFO
+        pairing is expensive) like _read_hot_wallet_sol / _sol_price_usd_cached.
+        Read-only, fail-open: any error -> {"ok": false, "error": ...} with HTTP 200."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        import time as _t
+        now = _t.monotonic()
+        cache = getattr(self, "_live_faithful_cache", None)
+        if cache and now - cache[0] < 300.0:
+            return web.Response(text=cache[1], content_type="application/json",
+                                headers=cors)
+        try:
+            import asyncio as _asyncio
+            from core.live_faithful_pnl import compute_live_faithful as _compute
+
+            def _load_trades():
+                trades = []
+                if self._tracker is not None:
+                    try:
+                        trades = list(self._tracker.get_all_trades())
+                    except Exception:
+                        trades = []
+                if self.trade_store is not None:
+                    try:
+                        trades = trades + self.trade_store.load_trades()
+                    except Exception:
+                        pass
+                return trades
+
+            trades = await _asyncio.to_thread(_load_trades)
+            result = await _asyncio.to_thread(_compute, trades)
+            payload = {"ok": True, **result}
+            text = json.dumps(payload, default=str)
+            self._live_faithful_cache = (now, text)
+            return web.Response(text=text, content_type="application/json",
+                                headers=cors)
+        except Exception as e:
+            logger.debug("live-faithful-pnl failed: %s", e)
+            return web.Response(text=json.dumps({"ok": False, "error": str(e)}),
+                                content_type="application/json", headers=cors)
 
     async def _handle_api_rt_shadow(self, request):
         """GET /api/rt-shadow — running tally of RT-trigger shadow divergences
