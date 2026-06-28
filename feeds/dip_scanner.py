@@ -20053,9 +20053,37 @@ class DipScanner:
                     # uncontended no-op acquire in serial mode -> behaviour is
                     # byte-identical when the flag is off. _fp_allow is None and
                     # _fp_shadow False on the main path -> all bots, real fire.
-                    await self._fast_route_decisions(
-                        decisions, bundle, _fp_allow, _fp_shadow, token_symbol,
-                    )
+                    # ZERO-STALE ENTRY (2026-06-28): the main-scan price is the
+                    # ~2-min DexScreener snapshot. When MAIN_SCAN_BUY_MODE != 'on',
+                    # the main-scan path must NOT commit a buy on that stale price —
+                    # instead ARM each would-buy token so the FAST-WATCH path
+                    # re-decides on a FRESH price next tick (~3s). This makes the
+                    # armed set a SUPERSET of main-scan buys BY CONSTRUCTION (we arm
+                    # the exact would-buy token), so no entry is lost; the commit
+                    # just moves onto the fresh path. Default 'on' = byte-identical
+                    # to prior behavior. The FAST-WATCH path (_fp_allow not None)
+                    # always fires here regardless of this flag.
+                    _ms_buy_mode = (os.environ.get("MAIN_SCAN_BUY_MODE", "on")
+                                    or "on").strip().lower()
+                    if (decisions and _fp_allow is None
+                            and _ms_buy_mode in ("arm_only", "off", "shadow")):
+                        _armed_n = 0
+                        for _d in decisions:
+                            _da = (getattr(_d, "address", "") or "")
+                            if _da:
+                                self._fast_armed[_da] = pair
+                                _armed_n += 1
+                        if _armed_n:
+                            logger.info(
+                                "[main-scan->arm] %d would-buy decision(s) for %s "
+                                "ARMED for fresh-path decision "
+                                "(MAIN_SCAN_BUY_MODE=%s) — stale main-scan price "
+                                "NOT committed", _armed_n, token_symbol, _ms_buy_mode,
+                            )
+                    else:
+                        await self._fast_route_decisions(
+                            decisions, bundle, _fp_allow, _fp_shadow, token_symbol,
+                        )
                 except Exception as e:
                     logger.error(
                         "[DipScanner] multi-bot fan-out failed for %s: %s",
