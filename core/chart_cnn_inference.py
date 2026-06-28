@@ -15,17 +15,18 @@ import time
 from collections import OrderedDict
 from typing import Dict, List, Optional
 
-import torch
+import numpy as np
 
 from feeds.candle_utils import Candle
 from feeds.chart_image_renderer import render_chart_image
-from models.chart_cnn import ChartCNN, IDX_TO_CLASS
+from core.chart_cnn_np import ChartCNNNP, IDX_TO_CLASS
+from core import np_nn
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_WEIGHTS = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "models", "chart_cnn_v1.pt",
+    "models", "chart_cnn_v1.npz",
 )
 _CACHE_MAX = 512
 _DISABLE_DURATION_S = 60.0
@@ -37,7 +38,7 @@ class ChartCNNInference:
 
     def __init__(self, weights_path: str = _DEFAULT_WEIGHTS):
         self.weights_path = weights_path
-        self.model: Optional[ChartCNN] = None
+        self.model: Optional[ChartCNNNP] = None
         self.disabled = False
         self._disabled_until = 0.0
         self._last_warn = 0.0
@@ -56,10 +57,7 @@ class ChartCNNInference:
             self.disabled = True
             return
         try:
-            self.model = ChartCNN()
-            sd = torch.load(self.weights_path, map_location="cpu", weights_only=True)
-            self.model.load_state_dict(sd)
-            self.model.eval()
+            self.model = ChartCNNNP.from_npz(self.weights_path)
             self.disabled = False
             logger.info(f"[ChartCNN] loaded weights from {self.weights_path}")
         except Exception as e:
@@ -98,14 +96,12 @@ class ChartCNNInference:
             img = render_chart_image(candles_1m, candles_5m, candles_15m)
             if img is None:
                 return None
-            # numpy (3, 64, 64) uint8 → torch (1, 3, 64, 64)
-            tensor = torch.from_numpy(img).unsqueeze(0)
-            with torch.no_grad():
-                pattern_logits, outcome_logit = self.model(tensor)
-                pattern_probs = torch.softmax(pattern_logits, dim=1)[0]
-                outcome_prob = torch.sigmoid(outcome_logit)[0, 0].item()
-                top_idx = int(pattern_probs.argmax().item())
-                top_conf = float(pattern_probs[top_idx].item())
+            # numpy (3, 64, 64) uint8 -> numpy forward (normalizes /255 internally)
+            pattern_logits, outcome_logit = self.model(img)
+            pattern_probs = np_nn.softmax(pattern_logits)  # (15,)
+            outcome_prob = float(np_nn.sigmoid(outcome_logit)[0])
+            top_idx = int(np.argmax(pattern_probs))
+            top_conf = float(pattern_probs[top_idx])
             result = {
                 "pattern": IDX_TO_CLASS.get(top_idx, "unknown"),
                 "pattern_conf": top_conf,

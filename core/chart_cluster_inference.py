@@ -20,17 +20,16 @@ from collections import OrderedDict
 from typing import List, Optional
 
 import numpy as np
-import torch
 
 from feeds.candle_utils import Candle
 from feeds.chart_image_renderer import render_chart_image
-from models.chart_autoencoder import ChartEncoder
+from core.chart_encoder_np import ChartEncoderNP
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_ENCODER = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "models", "chart_encoder_v1.pt",
+    "models", "chart_encoder_v1.npz",
 )
 _DEFAULT_CENTERS = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -55,7 +54,7 @@ class ChartClusterInference:
                  centers_path: str = _DEFAULT_CENTERS):
         self.encoder_path = encoder_path
         self.centers_path = centers_path
-        self.encoder: Optional[ChartEncoder] = None
+        self.encoder: Optional[ChartEncoderNP] = None
         self.centers: Optional[np.ndarray] = None  # (N, 64)
         self.disabled = False
         self._disabled_until = 0.0
@@ -79,10 +78,7 @@ class ChartClusterInference:
             self.disabled = True
             return
         try:
-            self.encoder = ChartEncoder()
-            sd = torch.load(self.encoder_path, map_location="cpu", weights_only=True)
-            self.encoder.load_state_dict(sd)
-            self.encoder.eval()
+            self.encoder = ChartEncoderNP.from_npz(self.encoder_path)
             self.centers = np.load(self.centers_path).astype(np.float32)
             self.disabled = False
             logger.info(
@@ -121,9 +117,7 @@ class ChartClusterInference:
             img = render_chart_image(candles_1m, candles_5m, candles_15m)
             if img is None:
                 return None
-            tensor = torch.from_numpy(img).unsqueeze(0).float() / 255.0
-            with torch.no_grad():
-                embedding = self.encoder(tensor).cpu().numpy()[0]  # (64,)
+            embedding = self.encoder(img)  # (64,) float32; normalizes /255 internally
             # Nearest-center via Euclidean distance
             dists = np.linalg.norm(self.centers - embedding, axis=1)
             cluster_id = int(np.argmin(dists))
