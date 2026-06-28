@@ -3152,6 +3152,7 @@ class WebDashboard:
             "JUPITER_PRICE_PRIMARY": os.environ.get("JUPITER_PRICE_PRIMARY"),
             "ONCHAIN_WS_MODE": os.environ.get("ONCHAIN_WS_MODE", "off"),
             "PAPER_PER_TOKEN_CAP_MODE": os.environ.get("PAPER_PER_TOKEN_CAP_MODE"),
+            "EXIT_REPRICE_MODE": os.environ.get("EXIT_REPRICE_MODE", "off"),
         }
         payload = {
             "ok": True,

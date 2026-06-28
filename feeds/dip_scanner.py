@@ -3641,6 +3641,21 @@ class DipScanner:
                     # so we can measure save-vs-lose before enforcing. See
                     # _stamp_sol_bail_shadow.
                     self._stamp_sol_bail_shadow(position, price, now)
+                    # EXIT-REPRICE telemetry: stamp this slow-tick's pnl + ts so the
+                    # fast-tick reprice shadow can report slow_tick_pnl / secs_since_
+                    # slow_tick (the gap it closes). Active ONLY when EXIT_REPRICE_MODE
+                    # != off -> byte-identical when off. Address-keyed; fail-open.
+                    if os.environ.get("EXIT_REPRICE_MODE", "off").strip().lower() != "off":
+                        try:
+                            if position.address and position.entry_price > 0:
+                                _erp_map = getattr(self, "_exit_reprice_slow", None)
+                                if _erp_map is None:
+                                    _erp_map = {}
+                                    self._exit_reprice_slow = _erp_map
+                                _erp_map[position.address.lower()] = (
+                                    round((price / position.entry_price - 1.0) * 100.0, 4), now)
+                        except Exception:
+                            pass
                     # LIQ-DRAIN FEED (2026-06-23 activation): the per-bot loop (the
                     # badday bots' path) stamped the drain shadow below but NEVER
                     # recorded liquidity into _lp_flow — only the LEGACY tick did —
@@ -4511,6 +4526,149 @@ class DipScanner:
             opens = set()
         return list(armed | opens)
 
+    def _append_exit_reprice_shadow(self, rec):
+        """Append one EXIT-REPRICE shadow record (would-fire-on-fresh) to
+        {DATA_DIR}/exit_reprice_shadow.jsonl. Fail-open; never raises."""
+        try:
+            path = os.path.join(
+                os.environ.get("DATA_DIR", "/data"), "exit_reprice_shadow.jsonl")
+            with open(path, "a") as f:
+                f.write(json.dumps(rec, separators=(",", ":")) + "\n")
+        except Exception as e:
+            logger.debug("[exit-reprice] shadow write failed: %s", e)
+
+    async def _reprice_exit_floors(self, cfg, prices, now):
+        """EXIT-side fresh-reprice loss floor (exit-side twin of BUY-REPRICE).
+
+        The in-flight loss floor (IN_FLIGHT_FLOOR, -7%) is evaluated ONLY on the
+        slow ~150s main sweep, so a PRE-TP1 badday leg can plunge between two slow
+        ticks while a fresh ~3s Jupiter price already sits in self._fast_samples.
+        This runs the SAME floor check on the freshest fast samples each fast tick.
+
+        EXIT_REPRICE_MODE=off (DEFAULT) -> returns immediately, byte-identical (no
+        shadow records, no sells). shadow -> logs + appends a JSONL would-fire
+        record, NEVER sells. enforce -> routes the SAME IN_FLIGHT_FLOOR exit through
+        _execute_bot_sell at the fresh price, reusing iff_fired idempotency so the
+        slow tick can't double-fire. FAIL-OPEN everywhere — a bug here must never
+        break the fast tick or sell by accident."""
+        from core.fast_watch import rt_mode as _rt_mode, exit_reprice_would_fire
+        mode = _rt_mode("EXIT_REPRICE_MODE")
+        if mode == "off":
+            return
+        pms = getattr(self, "bot_position_managers", None)
+        if not pms:
+            return
+        try:
+            floor_pct = float(os.environ.get("EXIT_REPRICE_FLOOR_PCT", "-7.0"))
+        except (TypeError, ValueError):
+            floor_pct = -7.0
+        try:
+            confirm_ticks = int(os.environ.get("EXIT_REPRICE_CONFIRM_TICKS", "2"))
+        except (TypeError, ValueError):
+            confirm_ticks = 2
+        if confirm_ticks < 1:
+            confirm_ticks = 1
+        # In-scope opens: badday_* family, PRE-TP1 — mirror the in-flight-floor
+        # scoping in per_bot_position_manager.tick EXACTLY.
+        scoped = []   # (bot_id, pm, position)
+        try:
+            for bot_id, pm in pms.items():
+                if not str(getattr(getattr(pm, "config", None), "bot_id", bot_id)).startswith("badday_"):
+                    continue
+                for p in pm.iter_positions():
+                    if getattr(p, "tp1_hit", False):
+                        continue
+                    if not getattr(p, "address", "") or getattr(p, "entry_price", 0) <= 0:
+                        continue
+                    scoped.append((bot_id, pm, p))
+        except Exception as e:
+            logger.debug("[exit-reprice] enumerate opens failed: %s", e)
+            return
+        if not scoped:
+            return
+        # Opens-union (mirror _onchain_hot_mints): an open may not be in the armed/
+        # polled set, so ensure it has a FRESH price via one extra <=50-id batch.
+        prices = dict(prices or {})
+        sw = int(getattr(cfg, "sample_window", 20) or 20)
+        try:
+            missing = [p.address for (_, _, p) in scoped
+                       if p.address.lower() not in prices][:50]
+            if missing:
+                extra = await self._fast_batch_prices(missing) or {}
+                for (_, _, p) in scoped:
+                    pr = extra.get(p.address.lower())
+                    if pr is None:
+                        continue
+                    prices[p.address.lower()] = pr
+                    buf = self._fast_samples.setdefault(
+                        p.address, deque(maxlen=sw))
+                    buf.append(pr)
+        except Exception as e:
+            logger.debug("[exit-reprice] opens batch price failed: %s", e)
+        slow_map = getattr(self, "_exit_reprice_slow", {}) or {}
+        for bot_id, pm, p in scoped:
+            try:
+                addr = p.address
+                buf = self._fast_samples.get(addr)
+                fires, fresh_pnl, why = exit_reprice_would_fire(
+                    buf, p.entry_price, p.peak_pnl_pct,
+                    max(int(now - p.entry_time) - int(getattr(p, "peak_pnl_at_secs", 0)), 1),
+                    floor_pct=floor_pct, confirm_ticks=confirm_ticks)
+                if not fires or fresh_pnl is None:
+                    continue
+                sb = p.state_blob if p.state_blob is not None else None
+                # idempotency: never double-fire with the slow tick / a prior reprice
+                if sb is not None and sb.get("iff_fired"):
+                    continue
+                fresh_price = prices.get(addr.lower())
+                if fresh_price is None and buf:
+                    fresh_price = buf[-1]
+                if fresh_price is None or fresh_price <= 0:
+                    continue
+                _slow = slow_map.get(addr.lower())
+                slow_pnl = _slow[0] if _slow else None
+                secs_since_slow = round(now - _slow[1], 1) if _slow else None
+                if mode == "shadow":
+                    if sb is not None and sb.get("exit_reprice_shadow_fired"):
+                        continue   # one record per position (measure saved_pp)
+                    logger.info(
+                        "[exit-reprice] SHADOW bot=%s token=%s addr=%s fresh_pnl=%.2f "
+                        "floor=%.1f slow_tick_pnl=%s secs_since_slow_tick=%s",
+                        bot_id, p.token, addr, fresh_pnl, floor_pct,
+                        slow_pnl, secs_since_slow)
+                    self._append_exit_reprice_shadow({
+                        "ts": now, "bot": bot_id, "token": p.token, "addr": addr,
+                        "fresh_pnl": round(fresh_pnl, 4), "floor_pct": floor_pct,
+                        "peak_pnl_pct": round(float(p.peak_pnl_pct), 4),
+                        "secs_since_entry": int(now - p.entry_time),
+                        "slow_tick_pnl": slow_pnl,
+                        "secs_since_slow_tick": secs_since_slow,
+                        "confirm_ticks": confirm_ticks, "why": why,
+                    })
+                    if sb is not None:
+                        sb["exit_reprice_shadow_fired"] = True
+                        sb["exit_reprice_shadow_pnl"] = round(fresh_pnl, 4)
+                        sb["exit_reprice_shadow_secs"] = int(now - p.entry_time)
+                elif mode == "enforce":
+                    if sb is not None:
+                        sb["iff_fired"] = True
+                        sb["iff_why"] = why
+                        sb["iff_mode"] = "enforce_reprice"
+                        sb["iff_pnl_at_fire"] = round(fresh_pnl, 4)
+                        sb["iff_peak_at_fire"] = round(float(p.peak_pnl_pct), 4)
+                        sb["iff_secs"] = int(now - p.entry_time)
+                    from core.per_bot_position_manager import ExitDecision
+                    d = ExitDecision(
+                        token=p.token, kind="IN_FLIGHT_FLOOR",
+                        reason=f"in-flight {why} (floor {floor_pct:.0f}) [reprice]",
+                        sell_fraction=1.0)
+                    logger.info(
+                        "[exit-reprice] ENFORCE sell bot=%s token=%s fresh_pnl=%.2f floor=%.1f",
+                        bot_id, p.token, fresh_pnl, floor_pct)
+                    await self._execute_bot_sell(bot_id, p.token, d, fresh_price, now)
+            except Exception as e:
+                logger.debug("[exit-reprice] position eval failed bot=%s: %s", bot_id, e)
+
     def _fast_price_for(self, addr, jupiter_price):
         """B4 price-selection (SYNC, testable). Returns (price, source).
 
@@ -4907,6 +5065,14 @@ class DipScanner:
                 self._fast_samples_ts[addr] = now
             except Exception:
                 pass
+        # EXIT-REPRICE: run the in-flight loss floor on the freshest fast samples
+        # (exit-side twin of BUY-REPRICE). Default EXIT_REPRICE_MODE=off -> the
+        # method returns immediately (byte-identical). Fail-open: a bug here must
+        # NEVER break the fast tick or sell by accident.
+        try:
+            await self._reprice_exit_floors(cfg, prices, now)
+        except Exception as _erp_e:
+            logger.debug("[exit-reprice] tick hook failed: %s", _erp_e)
         snapshot = [(addr, armed[addr]) for addr in addrs]
         survivors = shortlist(
             snapshot,

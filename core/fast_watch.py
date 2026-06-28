@@ -517,6 +517,73 @@ def should_rearm_this_tick(rt_arm_mode):
     return str(rt_arm_mode).strip().lower() in ("shadow", "enforce")
 
 
+def exit_reprice_would_fire(samples, entry_price, peak_pnl_pct, secs_from_peak,
+                            floor_pct=-7.0, confirm_ticks=2):
+    """Exit-side fresh-reprice floor check (EXIT_REPRICE, 2026-06-28).
+
+    The exit-side twin of BUY-REPRICE: the in-flight loss floor is evaluated only
+    on the slow ~150s sweep, so a position can plunge between two slow ticks while
+    a fresh ~3s Jupiter price already sits in self._fast_samples. This runs the
+    SAME in-flight-floor logic on the freshest fast samples.
+
+    samples: iterable of recent fresh prices (oldest -> newest), e.g. a deque.
+    Two gates, both must hold:
+      1. WICK GUARD — the ``confirm_ticks`` NEWEST samples must each be below the
+         floor (pnl <= floor_pct), so a single wick print can't trip a sell.
+      2. in_flight_floor_fires(fresh_pnl, peak, secs_from_peak, floor_pct) — the
+         EXACT slow-tick floor function, reused.
+
+    Returns (fires: bool, fresh_pnl: float|None, why: str). FAIL-SAFE: bad data
+    (empty samples / entry<=0 / dead prices) -> (False, None, ""). Pure; never raises."""
+    from core.bot_evaluator import in_flight_floor_fires
+    try:
+        ep = float(entry_price)
+    except (TypeError, ValueError):
+        return False, None, ""
+    if ep <= 0 or ep != ep:
+        return False, None, ""
+    seq = list(samples or [])
+    if not seq:
+        return False, None, ""
+    # freshest valid (>0) price = fresh_pnl basis
+    fresh_price = None
+    for s in reversed(seq):
+        try:
+            v = float(s)
+        except (TypeError, ValueError):
+            continue
+        if v > 0:
+            fresh_price = v
+            break
+    if fresh_price is None:
+        return False, None, ""
+    fresh_pnl = (fresh_price / ep - 1.0) * 100.0
+    try:
+        ct = int(confirm_ticks)
+    except (TypeError, ValueError):
+        ct = 2
+    if ct < 1:
+        ct = 1
+    # wick guard: count trailing consecutive sub-floor samples
+    consec = 0
+    for s in reversed(seq):
+        try:
+            v = float(s)
+        except (TypeError, ValueError):
+            break
+        if v <= 0:
+            break
+        if (v / ep - 1.0) * 100.0 <= float(floor_pct):
+            consec += 1
+        else:
+            break
+    if consec < ct:
+        return False, fresh_pnl, ""
+    fires, why = in_flight_floor_fires(
+        fresh_pnl, peak_pnl_pct, secs_from_peak, floor_pct=float(floor_pct))
+    return bool(fires), fresh_pnl, (why or "")
+
+
 def rolling_rise_pct(samples):
     """% gain of the latest sample off the window min. None if <2 valid (>0) samples.
     `samples`: iterable of prices (oldest→newest)."""
