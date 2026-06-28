@@ -3922,6 +3922,28 @@ class DipScanner:
                         now=now,
                         vol_m5_usd=vols.get(pkey),
                     )
+                    # EXIT-TRIGGER RECON (MEASUREMENT ONLY, 2026-06-28): the SAME
+                    # exit triggers (tp1/tp2/trail/hard_stop/never_runner/
+                    # in_flight_floor) that pm.tick just evaluated at the ~150s-
+                    # STALE main-scan snapshot `price` are evaluated LIVE on the
+                    # ~2s FRESH fast-watch price — a different trigger can fire at
+                    # a different pnl. Re-run the EXACT same logic on the fresh
+                    # price against a DEEP COPY of the position and log whether the
+                    # fresh decision DIFFERS from the stale one. NEVER sells, NEVER
+                    # mutates the real position/manager, NEVER changes the exit.
+                    # Default EXIT_TRIGGER_RECON_MODE=off -> the env check below
+                    # skips it entirely (byte-identical). FAIL-OPEN: a recon bug
+                    # must never affect the real exit tick.
+                    if os.environ.get(
+                            "EXIT_TRIGGER_RECON_MODE", "off").strip().lower() != "off":
+                        try:
+                            self._maybe_exit_trigger_recon(
+                                bot_id, pm, position, price, decisions, now,
+                                vols.get(pkey))
+                        except Exception as _re:
+                            logger.debug(
+                                "[exit-recon] error bot=%s token=%s: %s",
+                                bot_id, token, _re)
                     # SCALE-IN completion (2026-06-05): once a half-tranche position
                     # confirms (pnl >= scalein_confirm_pct), deploy the deferred 2nd
                     # tranche — reserve it from capital and blend it into the cost basis.
@@ -4774,6 +4796,135 @@ class DipScanner:
                 f.write(json.dumps(rec, separators=(",", ":")) + "\n")
         except Exception as e:
             logger.debug("[exit-reprice] shadow write failed: %s", e)
+
+    def _append_exit_trigger_recon(self, rec):
+        """Append one EXIT-TRIGGER-RECON record to
+        {DATA_DIR}/exit_trigger_recon.jsonl. Fail-open; never raises.
+        Mirrors _append_exit_reprice_shadow."""
+        try:
+            path = os.path.join(
+                os.environ.get("DATA_DIR", "/data"), "exit_trigger_recon.jsonl")
+            with open(path, "a") as f:
+                f.write(json.dumps(rec, separators=(",", ":")) + "\n")
+        except Exception as e:
+            logger.debug("[exit-recon] recon write failed: %s", e)
+
+    def _maybe_exit_trigger_recon(self, bot_id, pm, position, stale_price,
+                                  stale_decisions, now, vol_m5):
+        """EXIT-TRIGGER REACHABILITY recon (MEASUREMENT ONLY, 2026-06-28).
+
+        Paper evaluates ALL exit triggers (tp1/tp2/trail/hard_stop/never_runner/
+        in_flight_floor) inside pm.tick at the ~150s-STALE main-scan snapshot
+        price; LIVE evaluates the SAME pm.tick on the ~2s FRESH fast-watch price.
+        Same position, different price -> a DIFFERENT trigger can fire at a
+        different pnl. The asymmetric danger: paper books tp1 (75% off, rides only
+        25% into a reversal) while a live leg that mistimes tp1 holds 100% into the
+        reversal -> live loss >> paper loss. This is currently UNMEASURED.
+
+        Per exit decision, re-run the EXACT same trigger logic on the FRESH price
+        against a DEEP COPY of the position (the copy absorbs every mutation) via a
+        throwaway manager that shares the read-only-in-tick config, then log
+        whether the fresh decision DIFFERS from the stale one (reason and/or pnl).
+
+        EXIT_TRIGGER_RECON_MODE=off (DEFAULT) -> caller never invokes this
+        (byte-identical). shadow -> log + append a JSONL record. There is NO
+        enforce path -- this is measurement only: it NEVER sells, NEVER mutates the
+        real position or the real manager's shared state, NEVER changes an exit.
+        FAIL-OPEN: any error here is swallowed by the caller's try/except so the
+        real exit tick is never affected. The deep-copy GUARANTEES non-mutation --
+        the real position is never the object that gets ticked."""
+        from core.fast_watch import rt_mode as _rt_mode
+        mode = _rt_mode("EXIT_TRIGGER_RECON_MODE")
+        if mode == "off":
+            return
+        addr = getattr(position, "address", "") or ""
+        if not addr:
+            return
+        # FRESH fast-watch price for THIS position's address (newest sample).
+        buf = (getattr(self, "_fast_samples", {}) or {}).get(addr)
+        if not buf:
+            return  # no fresh price -> skip this position's recon (no log)
+        fresh = None
+        try:
+            v = float(buf[-1])
+            if v > 0:
+                fresh = v
+        except (TypeError, ValueError):
+            fresh = None
+        if fresh is None:
+            return
+        token = position.token
+        try:
+            ep = float(getattr(position, "entry_price", 0) or 0)
+        except (TypeError, ValueError):
+            return
+        if ep <= 0 or stale_price is None or stale_price <= 0:
+            return
+        # LOGIC-PARITY re-eval on a DEEP COPY so the real position + real manager
+        # are GUARANTEED untouched: we NEVER tick the real position. A throwaway
+        # manager shares the (read-only-in-tick) config so the trigger logic +
+        # bot-id scoping are byte-identical to the real evaluation, with all
+        # mutations (peak/tp tiers/trail/iff/state_blob) landing on the copy.
+        import copy as _copy
+        try:
+            pos_copy = _copy.deepcopy(position)
+        except Exception:
+            return
+        clone = PerBotPositionManager(pm.config)
+        clone._ohlcv_capture = False
+        clone._positions = {token: pos_copy}
+        fresh_decisions = clone.tick(
+            token=token, current_price=fresh, now=now, vol_m5_usd=vol_m5)
+        stale_reason = stale_decisions[0].kind if stale_decisions else "HOLD"
+        fresh_reason = fresh_decisions[0].kind if fresh_decisions else "HOLD"
+        agree = (stale_reason == fresh_reason)
+        stale_pnl = round((stale_price / ep - 1.0) * 100.0, 4)
+        fresh_pnl = round((fresh / ep - 1.0) * 100.0, 4)
+        pnl_delta = round(fresh_pnl - stale_pnl, 4)
+        ts = (getattr(self, "_fast_samples_ts", {}) or {}).get(addr)
+        secs_stale = round(now - ts, 1) if isinstance(ts, (int, float)) else None
+        # THROTTLE/DEDUP at SCANNER level (a dict on self, NEVER the position's
+        # state_blob) so the real position stays 100% untouched. Emit one record
+        # per addr per distinct (stale_reason,fresh_reason) transition, or once
+        # per throttle window, so a long hold can't spam the log/JSONL.
+        try:
+            throttle = float(os.environ.get(
+                "EXIT_TRIGGER_RECON_THROTTLE_SECS", "300"))
+        except (TypeError, ValueError):
+            throttle = 300.0
+        dd = getattr(self, "_exit_recon_dedup", None)
+        if dd is None:
+            dd = {}
+            self._exit_recon_dedup = dd
+        pair = (stale_reason, fresh_reason)
+        last = dd.get(addr)
+        if last is not None:
+            last_pair, last_ts = last
+            if last_pair == pair and (now - last_ts) < throttle:
+                return
+        dd[addr] = (pair, now)
+        logger.info(
+            "[exit-recon] bot=%s token=%s addr=%s stale_reason=%s stale_pnl=%.4f "
+            "fresh_reason=%s fresh_pnl=%.4f agree=%s pnl_delta=%.4f secs_stale=%s",
+            bot_id, token, addr, stale_reason, stale_pnl, fresh_reason, fresh_pnl,
+            agree, pnl_delta, secs_stale)
+        self._append_exit_trigger_recon({
+            "ts": now, "bot": bot_id, "token": token, "addr": addr,
+            "stale_reason": stale_reason,
+            "stale_detail": (stale_decisions[0].reason if stale_decisions else None),
+            "stale_pnl": stale_pnl,
+            "fresh_reason": fresh_reason,
+            "fresh_detail": (fresh_decisions[0].reason if fresh_decisions else None),
+            "fresh_pnl": fresh_pnl,
+            "agree": agree,
+            "pnl_delta": pnl_delta,
+            "secs_stale": secs_stale,
+            "stale_price": stale_price,
+            "fresh_price": fresh,
+            "peak_pnl_pct": round(float(getattr(position, "peak_pnl_pct", 0.0)), 4),
+            "tp1_hit": bool(getattr(position, "tp1_hit", False)),
+            "secs_since_entry": int(now - getattr(position, "entry_time", now)),
+        })
 
     async def _reprice_exit_floors(self, cfg, prices, now):
         """EXIT-side fresh-reprice loss floor (exit-side twin of BUY-REPRICE).
