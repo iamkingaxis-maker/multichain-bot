@@ -336,6 +336,8 @@ class DipScanner:
         # >=3% swing) — so deferring the buy to the fresh path never LOSES the entry.
         # One-shot per arm; TTL-evicted so it can't grow unbounded.
         self._fast_force_eval: Dict[str, float] = {}
+        # throttle clock for the arm_only dark-fleet warning (FAST_WATCH_MODE != enforce)
+        self._ms_arm_warn_ts: float = 0.0
         self._fast_samples: Dict[str, deque] = {}   # addr -> rolling price deque (fast-watch batch poll)
         # addr -> time.time() of the LAST fast-watch poll that returned a price for it.
         # Powers _has_fresh_fast_price (the no-fast-price entry gate freshness signal).
