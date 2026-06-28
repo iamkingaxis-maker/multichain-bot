@@ -329,6 +329,13 @@ class DipScanner:
         self.last_sol_features_ts: float = 0.0
         self._sticky_watchlist: Dict[str, dict] = {}
         self._fast_armed: Dict[str, dict] = {}      # addr -> pair (armed subset, rebuilt each cycle)
+        # addr -> time.time() when the MAIN-SCAN path armed a would-buy token
+        # instead of firing (MAIN_SCAN_BUY_MODE != on). The fast-watch tick drains
+        # this into survivors and FORCE-evaluates them on a fresh price even if
+        # move_fires wouldn't surface them (a bottomed-then-FLAT dip has no fresh
+        # >=3% swing) — so deferring the buy to the fresh path never LOSES the entry.
+        # One-shot per arm; TTL-evicted so it can't grow unbounded.
+        self._fast_force_eval: Dict[str, float] = {}
         self._fast_samples: Dict[str, deque] = {}   # addr -> rolling price deque (fast-watch batch poll)
         # addr -> time.time() of the LAST fast-watch poll that returned a price for it.
         # Powers _has_fresh_fast_price (the no-fast-price entry gate freshness signal).
@@ -4933,6 +4940,30 @@ class DipScanner:
         if _was_capped:
             logger.info("[fast-watch] capped survivors %d->%d",
                         _orig_surv_n, len(survivors))
+        # FORCE-EVAL drain (zero-stale entry): tokens the main-scan path ARMED
+        # instead of buying must be re-decided on a FRESH price even if move_fires
+        # wouldn't surface them (a bottomed-then-flat dip has no fresh >=3% swing).
+        # Inject them AFTER the cap so a deferred decision is never dropped, and
+        # only once a price is in hand this tick. One-shot per arm; TTL-evicted.
+        _force = getattr(self, "_fast_force_eval", None)
+        if _force:
+            _surv_addrs = {a for a, _ in survivors}
+            _force_inj = 0
+            for _fa, _fts in list(_force.items()):
+                if now - _fts > 120.0:
+                    _force.pop(_fa, None)            # TTL evict (un-pollable/stale)
+                    continue
+                _fa_pair = armed.get(_fa)
+                if _fa_pair is not None and prices.get(_fa.lower()) is not None:
+                    if _fa not in _surv_addrs:
+                        survivors.append((_fa, _fa_pair))
+                        _surv_addrs.add(_fa)
+                        _force_inj += 1
+                    _force.pop(_fa, None)            # injected -> one-shot complete
+                # else: not priced/armed this tick -> keep until a full tick prices it
+            if _force_inj:
+                logger.info("[fast-watch] force-eval injected %d main-scan-armed "
+                            "token(s) past move_fires", _force_inj)
         _cache_only = cache_only_charts_enabled()
         # Phase timing: the fast-watch tick runs OFF the main scan cycle (every
         # ~3s) and calls the SAME heavy _evaluate_pair per survivor. Bracket the
@@ -20068,18 +20099,37 @@ class DipScanner:
                     if (decisions and _fp_allow is None
                             and _ms_buy_mode in ("arm_only", "off", "shadow")):
                         _armed_n = 0
+                        _now_arm = time.time()
                         for _d in decisions:
                             _da = (getattr(_d, "address", "") or "")
                             if _da:
                                 self._fast_armed[_da] = pair
+                                # Force a fresh-price re-eval next fast tick even if
+                                # move_fires wouldn't surface a flat-after-bottom dip.
+                                self._fast_force_eval[_da] = _now_arm
                                 _armed_n += 1
                         if _armed_n:
                             logger.info(
                                 "[main-scan->arm] %d would-buy decision(s) for %s "
-                                "ARMED for fresh-path decision "
+                                "ARMED+force-eval for fresh-path decision "
                                 "(MAIN_SCAN_BUY_MODE=%s) — stale main-scan price "
                                 "NOT committed", _armed_n, token_symbol, _ms_buy_mode,
                             )
+                            # GUARD: arm_only only produces buys when the fast-watch
+                            # loop actually FIRES (FAST_WATCH_MODE=enforce). off=loop
+                            # idle, shadow=would-fire-only -> the whole fleet goes
+                            # dark. Warn loudly (throttled) so a misconfig is visible.
+                            if (os.environ.get("FAST_WATCH_MODE", "off").strip().lower()
+                                    != "enforce"):
+                                _lw = getattr(self, "_ms_arm_warn_ts", 0.0)
+                                if _now_arm - _lw > 60.0:
+                                    self._ms_arm_warn_ts = _now_arm
+                                    logger.warning(
+                                        "[main-scan->arm] MAIN_SCAN_BUY_MODE=%s but "
+                                        "FAST_WATCH_MODE!=enforce — armed tokens will "
+                                        "NOT fire (fleet dark). Set FAST_WATCH_MODE="
+                                        "enforce or MAIN_SCAN_BUY_MODE=on.", _ms_buy_mode,
+                                    )
                     else:
                         await self._fast_route_decisions(
                             decisions, bundle, _fp_allow, _fp_shadow, token_symbol,
