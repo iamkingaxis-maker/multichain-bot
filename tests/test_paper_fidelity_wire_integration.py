@@ -187,6 +187,23 @@ def test_buy_enforce_no_route_skips(monkeypatch):
     _run(sc._execute_bot_buy(_decision(1.00, size_usd=30.0), _Bundle()))
 
     assert pm.get_position("TOK") is None, "no_route must SKIP the buy"
+
+
+def test_buy_enforce_none_fresh_price_skips_as_no_route(monkeypatch):
+    """enforce + fresh price UNAVAILABLE (None) => treated as no_route => SKIP.
+
+    Regression for the dead-code bug: _fast_price_for launders a None price to
+    source 'jupiter', so no_route_skip never fired and paper booked the buy at
+    the stale mid. The fix derives source='none' when fresh is falsy. (Live can't
+    fill without a quote, so paper must skip too.) NO_FAST_PRICE_GATE is off here,
+    so the skip is attributable to the no_route path specifically."""
+    _set_buy_env(monkeypatch, "enforce")
+    sc, pm, cap = _make_scanner(fresh_price=None, fresh_source="jupiter")
+    start_bal = cap.balance_usd
+    _run(sc._execute_bot_buy(_decision(1.00, size_usd=30.0), _Bundle()))
+
+    assert pm.get_position("TOK") is None, "no fresh price must SKIP (no_route)"
+    assert cap.balance_usd == pytest.approx(start_bal), "skipped buy must refund capital"
     assert cap.balance_usd == pytest.approx(start_bal), "capital must be refunded"
     assert cap.in_flight_usd == pytest.approx(0.0)
 

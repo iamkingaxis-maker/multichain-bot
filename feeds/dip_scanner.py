@@ -2288,7 +2288,14 @@ class DipScanner:
                         decision.token, address=decision.address,
                         pair_address=decision.pair_address)
                     try:
-                        _fresh_source = self._fast_price_for(_addr, _fresh)[1]
+                        # A missing/zero fresh price IS a no-route condition: live
+                        # can't fill without a quote, so paper must skip it too.
+                        # _fast_price_for launders provenance to "jupiter" even when
+                        # the price is None, which made no_route_skip dead code — so
+                        # gate on _fresh directly. (paper-only; enforce skips, shadow
+                        # logs would-skip; fail-open to "jupiter".)
+                        _fresh_source = ("none" if not _fresh
+                                         else self._fast_price_for(_addr, _fresh)[1])
                     except Exception:
                         _fresh_source = "jupiter"
                     _max_runup = float(os.environ.get("BUY_REPRICE_MAX_RUNUP", "0.05"))
@@ -5021,6 +5028,7 @@ class DipScanner:
                 _rt_trig = rt_mode("RT_TRIGGER_MODE")
                 if _rt_trig != "off" and _snap_price and _fresh_price and _fresh_price > 0:
                     _pch = dict(_pair.get("priceChange") or {})
+                    _snap_h1_orig = _pch.get("h1")  # capture BEFORE any enforce overwrite
                     _fresh_pc = {}
                     for _k in ("h1", "m5"):
                         _snap_pc = _pch.get(_k)
@@ -5036,8 +5044,20 @@ class DipScanner:
                         logger.info(
                             "[rt-trigger] %s mode=%s snap_pc_h1=%s fresh_pc_h1=%s "
                             "snap_px=%.8f fresh_px=%.8f",
-                            addr[:6], _rt_trig, _pch.get("h1"),
+                            addr[:6], _rt_trig, _snap_h1_orig,
                             _fresh_pc.get("h1"), _snap_price, _fresh_price)
+                        # SHADOW STATS: fold the snap-vs-fresh h1 divergence into the
+                        # running tally so the enforce decision rests on
+                        # catastrophic_miss_rate (deep dips the stale snapshot misses
+                        # that the fresh price catches), not log-tailing. Accrues in
+                        # ANY armed mode (shadow OR enforce) and even while paused
+                        # (paper) since the fast-watch eval runs regardless. Fail-open.
+                        try:
+                            if _snap_h1_orig is not None and _fresh_pc.get("h1") is not None:
+                                from core import rt_shadow_stats as _rtss
+                                _rtss.record_trigger(_snap_h1_orig, _fresh_pc.get("h1"))
+                        except Exception:
+                            pass
                 # FORWARD FILL-SPEED CAPTURE (shadow): stash the would-fill price
                 # this fast tick saw for `addr` so _execute_bot_buy can log it vs the
                 # actual sweep fill. The escalation price (pinned > jupiter) is the

@@ -2494,6 +2494,7 @@ class WebDashboard:
         self.app.router.add_get("/api/fill-speed",          self._handle_api_fill_speed)
         self.app.router.add_get("/api/live-swaps",          self._handle_api_live_swaps)
         self.app.router.add_get("/api/live-real-pnl",       self._handle_api_live_real_pnl)
+        self.app.router.add_get("/api/rt-shadow",           self._handle_api_rt_shadow)
         self.app.router.add_get("/api/paper-live-skips",    self._handle_api_paper_live_skips)
         self.app.router.add_get("/api/fill-probe",          self._handle_api_fill_probe)
         self.app.router.add_get("/api/top-bots",            self._handle_api_top_bots)
@@ -3296,6 +3297,25 @@ class WebDashboard:
         except Exception as e:
             logger.debug("sol price fetch failed: %s", e)
             return cache[1] if cache else None
+
+    async def _handle_api_rt_shadow(self, request):
+        """GET /api/rt-shadow — running tally of RT-trigger shadow divergences
+        (stale snapshot pc_h1 vs FRESH-price pc_h1). The enforce-readiness signal
+        is catastrophic_miss_rate: the fraction where the stale snapshot does NOT
+        see a deep dip but the fresh price does (the HERALD class the live bot was
+        blind to). Read-only, off-loop, fail-open."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        try:
+            import asyncio as _asyncio
+            from core.rt_shadow_stats import snapshot as _snap
+            data = await _asyncio.to_thread(_snap)
+        except Exception as e:
+            return web.Response(text=json.dumps({"ok": False, "error": str(e)}),
+                                content_type="application/json", headers=cors)
+        payload = {"ok": True, "RT_TRIGGER_MODE": os.environ.get("RT_TRIGGER_MODE", "off"),
+                   **data}
+        return web.Response(text=json.dumps(payload, default=str),
+                            content_type="application/json", headers=cors)
 
     async def _handle_api_live_real_pnl(self, request):
         """GET /api/live-real-pnl — HONEST live P&L from REAL on-chain fills.
