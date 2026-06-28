@@ -3312,7 +3312,8 @@ class WebDashboard:
         from core.live_swap_log import (read_live_swaps as _read,
                                         LOG_BASENAME as _BN)
         from core.live_pnl import (summarize_real_pnl as _summ,
-                                   realized_by_token as _byt)
+                                   realized_by_token as _byt,
+                                   realized_by_bot as _bybot)
         path = os.path.join(os.environ.get("DATA_DIR", "/data"), _BN)
         try:
             recs = await _asyncio.to_thread(_read, path)
@@ -3365,6 +3366,7 @@ class WebDashboard:
                        "sol_price_usd": sol_price,
                        "source": "on-chain getBalance(HOT_WALLET_ADDRESS)"},
             "real_pnl": summary,
+            "by_bot": _bybot(recs, sol_price_usd=sol_price),
             "worst_unsold_corpses": corpses,
         }
         return web.Response(text=json.dumps(payload, default=str),

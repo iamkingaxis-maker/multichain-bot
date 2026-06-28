@@ -97,6 +97,49 @@ def realized_by_token(recs: list) -> dict:
     return out
 
 
+def realized_by_bot(recs: list, sol_price_usd: float | None = None) -> list:
+    """Per-bot real-fill realized P&L, so we can see which config's REAL edge is
+    least-negative (vs the simulated ledger which credits them all).
+
+    Groups successful swaps by bot_id, pairs buys/sells per token WITHIN each bot,
+    and returns a list (worst real_realized_sol first) of:
+      bot_id, n_swaps, n_tokens, n_closed_tokens, buy_sol, sell_sol,
+      real_realized_sol, real_realized_usd, unsold_corpse_count,
+      unsold_corpse_sol, win_rate_pct (per closed token, real outcome).
+    Pure + defensive."""
+    px = _f(sol_price_usd)
+    grouped: dict = {}
+    for r in recs or []:
+        if not bool(r.get("success")):
+            continue
+        grouped.setdefault(r.get("bot_id") or "?", []).append(r)
+    out = []
+    for bid, brecs in grouped.items():
+        bt = realized_by_token(brecs)
+        real_sol = round(sum(d["net_sol"] for d in bt.values()), 9)
+        buy_sol = round(sum(d["buy_sol"] for d in bt.values()), 9)
+        sell_sol = round(sum(d["sell_sol"] for d in bt.values()), 9)
+        corpses = {t: d for t, d in bt.items()
+                   if d["n_buys"] > 0 and d["n_sells"] == 0}
+        closed = {t: d for t, d in bt.items() if d["n_sells"] > 0}
+        wins = sum(1 for d in closed.values() if d["net_sol"] > 0)
+        out.append({
+            "bot_id": bid,
+            "n_swaps": len(brecs),
+            "n_tokens": len(bt),
+            "n_closed_tokens": len(closed),
+            "buy_sol": buy_sol,
+            "sell_sol": sell_sol,
+            "real_realized_sol": real_sol,
+            "real_realized_usd": (round(real_sol * px, 2) if px is not None else None),
+            "unsold_corpse_count": len(corpses),
+            "unsold_corpse_sol": round(sum(d["buy_sol"] for d in corpses.values()), 9),
+            "win_rate_pct": (round(100.0 * wins / len(closed), 1) if closed else None),
+        })
+    out.sort(key=lambda d: d["real_realized_sol"])
+    return out
+
+
 def summarize_real_pnl(recs: list, sol_price_usd: float | None = None,
                        simulated_ledger_usd: float | None = None) -> dict:
     """Aggregate real-fill realized P&L and reconcile against the simulated ledger.

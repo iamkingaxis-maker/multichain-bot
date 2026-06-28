@@ -5,6 +5,7 @@ real SOL paid on buys vs real SOL received on sells, unsold-corpse detection,
 and the gap-vs-simulated reconciliation."""
 from core.live_pnl import (
     buy_sol_spent, sell_sol_received, realized_by_token, summarize_real_pnl,
+    realized_by_bot,
 )
 
 L = 1_000_000_000.0
@@ -104,3 +105,45 @@ def test_summary_no_price_leaves_usd_none():
     s = summarize_real_pnl(recs)
     assert s["real_realized_sol"] > 0
     assert s["real_realized_usd"] is None and s["gap_vs_simulated_usd"] is None
+
+
+# ── per-bot breakdown ─────────────────────────────────────────────────────────
+def _b(rec, bot):
+    rec["bot_id"] = bot
+    return rec
+
+
+def test_by_bot_splits_and_sorts_worst_first():
+    recs = [
+        _b(_buy("A", size_sol=0.10), "winner"),
+        _b(_sell("A", out_amount=int(0.20 * L)), "winner"),   # +0.10
+        _b(_buy("B", size_sol=0.10), "loser"),
+        _b(_sell("B", out_amount=int(0.02 * L)), "loser"),    # -0.08
+    ]
+    rows = realized_by_bot(recs, sol_price_usd=100.0)
+    assert [r["bot_id"] for r in rows] == ["loser", "winner"]  # worst first
+    assert rows[0]["real_realized_usd"] == -8.0
+    assert rows[1]["real_realized_usd"] == 10.0
+
+
+def test_by_bot_win_rate_and_corpses_are_per_bot():
+    recs = [
+        _b(_buy("A", size_sol=0.10), "b1"),
+        _b(_sell("A", out_amount=int(0.20 * L)), "b1"),  # win
+        _b(_buy("RUG", size_sol=0.05), "b1"),            # corpse (no sell)
+    ]
+    rows = realized_by_bot(recs)
+    r = rows[0]
+    assert r["bot_id"] == "b1"
+    assert r["n_closed_tokens"] == 1 and r["win_rate_pct"] == 100.0
+    assert r["unsold_corpse_count"] == 1
+    assert abs(r["unsold_corpse_sol"] - 0.05) < 1e-9
+
+
+def test_by_bot_skips_failed_and_handles_missing_bot_id():
+    recs = [
+        _buy("A", size_sol=0.1),  # no bot_id -> "?"
+        _b(_buy("B", size_sol=0.1, success=False), "dead"),  # failed -> skipped
+    ]
+    rows = realized_by_bot(recs)
+    assert len(rows) == 1 and rows[0]["bot_id"] == "?"
