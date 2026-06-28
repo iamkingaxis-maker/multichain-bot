@@ -2247,6 +2247,26 @@ class DipScanner:
                 # allowing the buy (preserve data) over crashing on a counting error.
                 logger.error("[DipScanner] PAPER PER-TOKEN CAP error (%s) — fail-open, "
                              "allowing %s %s", e, bot_id, decision.token)
+        # LIVE FUNDING-GATE SHADOW (Tier-2 GAP C, 2026-06-28) — MEASUREMENT ONLY.
+        # PAPER books buys against the PAPER balance_usd and NEVER sees the real
+        # wallet SOL; LIVE aborts every buy when wallet SOL < MIN_SOL_RESERVE
+        # (trader._check_sol_reserve -> dip buy returns on `not _reserve_ok`). So a
+        # drained live wallet would have killed buys paper happily books, inflating
+        # paper throughput vs live with NO counter. This SHADOW counts (it NEVER
+        # blocks/skips) the paper buys a funded-live wallet would have aborted on.
+        # Default LIVE_FUNDING_SHADOW_MODE=off == byte-identical. FAIL-OPEN — never
+        # raises into, blocks, or alters a paper buy. Sits right before reserve_for_buy,
+        # same slot as the PAPER PER-TOKEN CAP shadow above.
+        if not _live:
+            try:
+                from core.live_funding_shadow import shadow_mode as _lfs_mode
+                if _lfs_mode() != "off":
+                    from core.live_funding_shadow import note_paper_buy as _lfs_note
+                    _lfs_need = await self.trader._usd_to_sol(_used_size)
+                    _lfs_addr = decision.address or self._addr_by_token.get(decision.token, "")
+                    _lfs_note(_lfs_need, bot_id, _lfs_addr, decision.token)
+            except Exception:
+                pass  # pure observability — must never block a paper buy
         try:
             capital.reserve_for_buy(_used_size)
         except ValueError as e:
