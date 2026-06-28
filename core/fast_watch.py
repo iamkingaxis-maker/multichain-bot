@@ -443,6 +443,37 @@ def reprice_change_pct(snapshot_pct, snapshot_price, fresh_price):
     return round(fresh, 6)
 
 
+# Horizons the entry decision gates on. All four are repriceable from a fresh
+# spot price; the numerator (current price) is fully refreshed. Anchor staleness
+# (the ~2-min-old snapshot reference) is negligible for h1/h6/h24 (<3.3% of the
+# window) but is ~40% of the m5 window — so the repriced m5 is a DIRECTIONAL
+# "is there a fresh short dip" signal, trustworthy in sign but not in exact
+# magnitude. h6/h24 were previously left stale even in enforce; including them
+# closes that gap (their anchor error is <1%).
+REPRICE_HORIZONS = ("h1", "m5", "h6", "h24")
+
+
+def reprice_all(price_change, snapshot_price, fresh_price, horizons=REPRICE_HORIZONS):
+    """Reprice every horizon's % change in `price_change` off the fresh price.
+
+    Returns a NEW dict {horizon: fresh_pct} for each horizon present with a
+    non-None snapshot pct that reprices to a usable value. Pure; never raises;
+    empty dict if nothing repriceable (caller falls back to the stale values)."""
+    out = {}
+    try:
+        pc = price_change or {}
+        for h in horizons:
+            sp = pc.get(h)
+            if sp is None:
+                continue
+            rp = reprice_change_pct(sp, snapshot_price, fresh_price)
+            if rp is not None:
+                out[h] = rp
+    except Exception:
+        return out
+    return out
+
+
 _RT_VALID = ("off", "shadow", "enforce")
 
 

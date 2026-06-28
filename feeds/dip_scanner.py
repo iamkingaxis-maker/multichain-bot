@@ -5024,19 +5024,15 @@ class DipScanner:
                 # FRESH price vs the slow high-reference encoded in the snapshot %,
                 # so the dip trigger in _evaluate_pair gates on the LIVE move
                 # instead of stale pair["priceChange"]. Per-bot/env RT_TRIGGER_MODE.
-                from core.fast_watch import reprice_change_pct, rt_mode
+                from core.fast_watch import reprice_all, rt_mode
                 _rt_trig = rt_mode("RT_TRIGGER_MODE")
                 if _rt_trig != "off" and _snap_price and _fresh_price and _fresh_price > 0:
                     _pch = dict(_pair.get("priceChange") or {})
                     _snap_h1_orig = _pch.get("h1")  # capture BEFORE any enforce overwrite
-                    _fresh_pc = {}
-                    for _k in ("h1", "m5"):
-                        _snap_pc = _pch.get(_k)
-                        if _snap_pc is None:
-                            continue
-                        _rp = reprice_change_pct(_snap_pc, _snap_price, _fresh_price)
-                        if _rp is not None:
-                            _fresh_pc[_k] = _rp
+                    # Reprice ALL gated horizons (h1/m5/h6/h24), not just h1/m5 —
+                    # h6/h24 feed structure_edge / terminal_collapse / falling_day_flush /
+                    # post_pump_corpse and were previously left stale even in enforce.
+                    _fresh_pc = reprice_all(_pch, _snap_price, _fresh_price)
                     if _fresh_pc:
                         if _rt_trig == "enforce":
                             _pch.update(_fresh_pc)
