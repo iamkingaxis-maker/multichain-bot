@@ -20,7 +20,7 @@ import os
 import time
 from datetime import datetime, timezone
 import aiohttp
-from collections import Counter, deque
+from collections import Counter, deque, OrderedDict
 from typing import Optional, Dict, Deque, Tuple, List
 
 from feeds.gecko_ohlcv import GeckoTerminalClient
@@ -481,7 +481,12 @@ class DipScanner:
         # this lets a SELL recover the address when its position object is gone/empty
         # (the ~13% post-fix residual gap that breaks sell->buy joins). Populated from
         # buys + restored positions; used as the sell-record address fallback.
-        self._addr_by_token: Dict[str, str] = {}
+        # LRU (2026-06-28 RAM fix): grows one entry per distinct token EVER seen,
+        # with no eviction, across a long session. OrderedDict + move_to_end on
+        # write + a capped throttled evict (_evict_stale_token_state) keeps it
+        # bounded. Recently-touched tokens (incl. anything about to sell) stay at
+        # the MRU end, so the cap only ever drops cold, long-untouched tokens.
+        self._addr_by_token: "OrderedDict[str, str]" = OrderedDict()
         # Per-token last-good-price state for the transient-glitch exit guard
         # (see core/exit_price_guard.py). Keyed by ADDRESS (via _price_key) across
         # all bots — they all read the same external price each cycle.
@@ -490,6 +495,21 @@ class DipScanner:
         # real price (0.0034) be returned as another's (real 8.5e-5) → +$7.8k
         # phantom TP1/TP2. Same-symbol ≠ same-token.
         self._exit_price_guard: Dict[str, dict] = {}
+        # Parallel touch-timestamps for the exit-price guard (2026-06-28 RAM fix).
+        # The guard entry dict is RE-CREATED in core/exit_price_guard.py (so an
+        # inline ts key would be dropped); a side map is the safe place to record
+        # when a key was last seeded. Open-position keys are protected from
+        # eviction outright, so an entry only ages out once its token has no live
+        # position. {pkey: last_touch_ts}.
+        self._exit_price_guard_ts: Dict[str, float] = {}
+        # Throttled per-token-state eviction config (2026-06-28 RAM fix). TTL is
+        # far longer than the ~30s pricing cadence so any actively priced/watched
+        # token is always retouched well within the window; the cap is far above
+        # the realistic live-token count so it only drops cold history.
+        self._evict_interval_s: float = 300.0
+        self._evict_ttl_s: float = 1800.0
+        self._addr_by_token_max: int = 20000
+        self._last_evict_ts: float = 0.0
         # Per-token Jupiter slippage-sample cache (2026-05-27 audit #11): the slip
         # curve costs 8+ Jupiter calls/token/cycle and was recomputed every 30s
         # cycle. Cache the result ~90s so a token is sampled at most ~once/3 cycles.
@@ -2143,6 +2163,7 @@ class DipScanner:
         # object is gone/empty (2026-06-02 sell-join data-bug fix). Buys always have it.
         if decision.address:
             self._addr_by_token[decision.token] = decision.address
+            self._addr_by_token.move_to_end(decision.token)  # LRU: mark MRU
         # Pool sizing de-rates (2026-06-02 fleet-mine) — adjust size DOWN before reserving
         # (honors the $100 cap; smart-money cohort exempt). Default off; on for pool bots.
         _derate_tag = None
@@ -2261,10 +2282,11 @@ class DipScanner:
             eff_entry = _r["entry_price"]
             slip_pct = _r["slip_pct"]
             _live_instrument = _r["instrument"]
+            _epg_key = self._price_key(decision.address, decision.pair_address, decision.token)
             self._exit_price_guard.setdefault(
-                self._price_key(decision.address, decision.pair_address, decision.token),
-                {"last_good": eff_entry, "pending": None},
+                _epg_key, {"last_good": eff_entry, "pending": None},
             )
+            self._exit_price_guard_ts[_epg_key] = time.time()
         else:
             # P2 (2026-05-25): fill at a realistic slippage+fee-adjusted price, not
             # the raw mid. Slip scales with size from the sampled Jupiter curve, so
@@ -2523,10 +2545,11 @@ class DipScanner:
                 # post-buy read would otherwise have nothing to compare against).
                 # setdefault: don't clobber a fresher last_good from an earlier buyer.
                 # Keyed by ADDRESS (same-symbol ≠ same-token; see _price_key).
+                _epg_key2 = self._price_key(decision.address, decision.pair_address, decision.token)
                 self._exit_price_guard.setdefault(
-                    self._price_key(decision.address, decision.pair_address, decision.token),
-                    {"last_good": decision.entry_price, "pending": None},
+                    _epg_key2, {"last_good": decision.entry_price, "pending": None},
                 )
+                self._exit_price_guard_ts[_epg_key2] = time.time()
             except ValueError as e:
                 # max_concurrent or duplicate token; refund capital
                 capital.balance_usd += _used_size
@@ -20809,6 +20832,103 @@ class DipScanner:
             with _PhaseTimer("save_h24_history"):
                 self._save_h24_history()
             self._h24_history_dirty = False
+
+        # RAM control (2026-06-28): throttled TTL/LRU eviction of unbounded
+        # per-token state dicts. Self-throttled (~every 300s), O(n), fail-open —
+        # never breaks the scan loop. Active tokens are always retained.
+        self._evict_stale_token_state()
+
+    def _evict_stale_token_state(self) -> None:
+        """TTL/LRU-evict the per-token state dicts that otherwise grow one entry
+        per distinct token EVER seen, unbounded, across a long-running session
+        (the Railway RAM leak). Self-throttled to ~every ``_evict_interval_s``;
+        O(n) off the hot path; fail-open (any error is swallowed so the scan loop
+        is never broken).
+
+        SAFETY — never drops an ACTIVE token's state:
+          • Every open-position price-key / token / address (across ALL bots) is
+            collected up front and explicitly protected from eviction.
+          • The 1800s TTL is ~60x the ~30s pricing cadence, so any token still
+            being priced or watched is re-touched far inside the window.
+          • The LRU cap (20000) is far above the realistic concurrent-token count,
+            and writes move_to_end, so only cold, long-untouched tokens are shed.
+        """
+        try:
+            now = time.time()
+            if now - self._last_evict_ts < self._evict_interval_s:
+                return
+            self._last_evict_ts = now
+            ttl = self._evict_ttl_s
+
+            # Protected set: anything tied to a LIVE (open) position, any bot.
+            protected_pkeys: set = set()
+            protected_tokens: set = set()
+            protected_addrs: set = set()
+            try:
+                for pm in self.bot_position_managers.values():
+                    for _tok, _p in getattr(pm, "_positions", {}).items():
+                        _addr = getattr(_p, "address", None)
+                        _pair = getattr(_p, "pair_address", None)
+                        protected_pkeys.add(self._price_key(_addr, _pair, _tok))
+                        if _tok:
+                            protected_tokens.add(_tok)
+                        if _addr:
+                            protected_addrs.add(str(_addr).lower())
+            except Exception:
+                pass
+
+            # 1) _exit_price_guard — evict entries not touched in >ttl, unless the
+            #    key belongs to an open position. (parallel ts side-map.)
+            try:
+                ts_map = self._exit_price_guard_ts
+                stale = [
+                    k for k in list(self._exit_price_guard.keys())
+                    if k not in protected_pkeys
+                    and (now - ts_map.get(k, 0.0)) > ttl
+                ]
+                for k in stale:
+                    self._exit_price_guard.pop(k, None)
+                    ts_map.pop(k, None)
+                # Drop any orphaned ts entries (defensive; keeps the side-map bounded).
+                for k in list(ts_map.keys()):
+                    if k not in self._exit_price_guard:
+                        ts_map.pop(k, None)
+            except Exception:
+                pass
+
+            # 2) _slip_history — deque(maxlen=10) of (ts, buy, sell); evict a whole
+            #    addr whose NEWEST sample is older than ttl (and isn't an open pos).
+            try:
+                stale = []
+                for _addr, _dq in self._slip_history.items():
+                    if str(_addr).lower() in protected_addrs:
+                        continue
+                    newest = _dq[-1][0] if _dq else 0.0
+                    if (now - newest) > ttl:
+                        stale.append(_addr)
+                for _addr in stale:
+                    self._slip_history.pop(_addr, None)
+            except Exception:
+                pass
+
+            # 3) _addr_by_token — LRU cap: pop the oldest (last=False) while over
+            #    capacity, but NEVER an open-position token.
+            try:
+                d = self._addr_by_token
+                cap = self._addr_by_token_max
+                if len(d) > cap:
+                    n_over = len(d) - cap
+                    for _tok in list(d.keys()):  # oldest-first iteration order
+                        if n_over <= 0:
+                            break
+                        if _tok in protected_tokens:
+                            continue
+                        d.pop(_tok, None)
+                        n_over -= 1
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     async def _flush_filter_shadow_buf(self) -> None:
         """Flush buffered filter-shadow records in ONE off-loop batched write.
