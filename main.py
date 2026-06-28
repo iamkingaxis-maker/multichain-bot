@@ -747,7 +747,28 @@ async def main():
                 except Exception as _e:
                     logger.error(f"[RollingNG] retrain loop error: {_e}")
                 await asyncio.sleep(24 * 3600)  # daily
-        tasks.append(_rolling_ng_retrain_loop())
+        # COST CONTROL (2026-06-28): the nightly retrain imports sklearn+scipy
+        # (~150-200MB, resident for the whole process once loaded) to train a
+        # model that ONLY matters when a bot sets ng_scorer_gate=True. With no
+        # enabled bot gating on it, the retrain trains an unused model and
+        # permanently inflates RAM. Run it ONLY when something actually uses the
+        # gate (auto-detected from live configs) or when explicitly forced.
+        _ng_gated = any(
+            getattr(ev.config, "ng_scorer_gate", False)
+            for ev in bot_manager.evaluators
+            if getattr(ev.config, "enabled", True)
+        )
+        _ng_retrain_on = _ng_gated or os.environ.get(
+            "NG_RETRAIN_ENABLED", ""
+        ).strip().lower() in ("1", "true", "on", "yes")
+        if _ng_retrain_on:
+            tasks.append(_rolling_ng_retrain_loop())
+        else:
+            logger.info(
+                "[RollingNG] retrain loop SKIPPED — no enabled bot uses "
+                "ng_scorer_gate (set NG_RETRAIN_ENABLED=on to force). "
+                "Avoids loading sklearn+scipy (~150-200MB RAM)."
+            )
 
         # ── Graduation Sniper (wired after axiom init below) ─────────────
         grad_sniper = None
