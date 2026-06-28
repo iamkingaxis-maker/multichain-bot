@@ -181,6 +181,72 @@ def test_offload_disabled_uses_pure_sync(tmp_path, monkeypatch):
     assert called["to_thread"] == 0
 
 
+# ---------------------------------------------------------------------------
+# RAM fix (2026-06-28): in LEDGER_APPEND_MODE the store no longer keeps the full
+# ledger in memory (it was a dead duplicate — reads come from disk). Boot
+# compaction still folds the prior-session JSONL sidecar into the base file and
+# truncates the sidecar. These tests pin: appends are all readable, restart
+# compaction is loss/dup-free, and no in-memory list grows with total records.
+# ---------------------------------------------------------------------------
+
+def test_append_mode_load_returns_all_appends(tmp_path, monkeypatch):
+    """(a) After several record_trade appends, load_trades returns all of them."""
+    monkeypatch.setenv("LEDGER_APPEND_MODE", "on")
+    store = MultiBotTradeStore(data_dir=tmp_path)
+    for i in range(7):
+        store.record_trade({"type": "buy", "token": f"T{i}", "time": f"t{i}"}, bot_id="b1")
+    loaded = store.load_trades()
+    assert len(loaded) == 7
+    assert {t["token"] for t in loaded} == {f"T{i}" for i in range(7)}
+
+
+def test_append_mode_restart_compaction_no_loss_no_dup(tmp_path, monkeypatch):
+    """(b) A restart (new store instance, same data_dir, non-empty JSONL sidecar)
+    folds the sidecar into the base file, truncates the sidecar, and load_trades
+    still returns the full set with no loss and no duplicates."""
+    monkeypatch.setenv("LEDGER_APPEND_MODE", "on")
+    s1 = MultiBotTradeStore(data_dir=tmp_path)
+    for i in range(5):
+        s1.record_trade({"type": "buy", "token": f"A{i}", "time": f"t{i}"}, bot_id="b1")
+    # Sidecar is non-empty before the "restart"
+    sidecar = tmp_path / "trades_multi.jsonl"
+    assert len([ln for ln in sidecar.read_text().splitlines() if ln.strip()]) == 5
+
+    # Restart: brand-new instance on the same data_dir triggers boot compaction.
+    s2 = MultiBotTradeStore(data_dir=tmp_path)
+    loaded = s2.load_trades()
+    assert len(loaded) == 5
+    toks = [t["token"] for t in loaded]
+    assert sorted(toks) == [f"A{i}" for i in range(5)]
+    assert len(set(toks)) == 5  # no duplicates
+    # Compaction folded into base + truncated the sidecar
+    base = json.loads((tmp_path / "trades_multi.json").read_text())
+    assert len(base) == 5
+    assert sidecar.read_text().strip() == ""
+    # Further appends after restart still accumulate without dropping the base
+    s2.record_trade({"type": "buy", "token": "A5", "time": "t5"}, bot_id="b1")
+    loaded2 = s2.load_trades()
+    assert len(loaded2) == 6
+    assert {t["token"] for t in loaded2} == {f"A{i}" for i in range(6)}
+
+
+def test_append_mode_no_resident_ledger_list(tmp_path, monkeypatch):
+    """(c) The store does NOT retain an in-memory list that grows with total
+    records (the RAM leak we removed). After many appends, no instance attribute
+    is a list whose length tracks the record count."""
+    monkeypatch.setenv("LEDGER_APPEND_MODE", "on")
+    store = MultiBotTradeStore(data_dir=tmp_path)
+    for i in range(30):
+        store.record_trade({"type": "buy", "token": f"R{i}", "time": f"t{i}"}, bot_id="b1")
+    # No instance attribute should be a list holding all 30 records.
+    for name, val in vars(store).items():
+        if isinstance(val, list):
+            assert len(val) < 30, f"{name} retained a full ledger list ({len(val)})"
+    # Legacy attribute name is gone; only the lightweight flag remains.
+    assert getattr(store, "_trades_mem", None) is None
+    assert store._trades_loaded is True
+
+
 def test_save_bot_state_async_roundtrip(tmp_path):
     """save_bot_state_async persists durably when offloaded."""
     from core.per_bot_capital import PerBotCapital

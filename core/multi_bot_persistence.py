@@ -50,7 +50,7 @@ class MultiBotTradeStore:
         (self.data_dir / "bot_state").mkdir(exist_ok=True)
         self._trades_path = self.data_dir / "trades_multi.json"
         self._trades_jsonl_path = self.data_dir / "trades_multi.jsonl"
-        self._trades_mem = None   # append-mode in-memory ledger (lazy-loaded)
+        self._trades_loaded = False   # append-mode: boot-compaction-done flag
         self._lock = threading.Lock()
         self._maybe_split_legacy()
         self._maybe_scrub_giga_phantom()
@@ -348,14 +348,21 @@ class MultiBotTradeStore:
         )
 
     def _ensure_trades_loaded(self) -> None:
-        """Append-mode: load the ledger into memory ONCE (base array + any JSONL
-        appends), then compact (fold the JSONL into the base array + clear it) so
-        the sidecar stays bounded to this session. Idempotent; one-time O(n) work
-        at boot (off the hot fill path)."""
-        if self._trades_mem is not None:
+        """Append-mode: perform one-time BOOT COMPACTION — fold any prior-session
+        JSONL sidecar into the base array + truncate the sidecar so it stays
+        bounded to this session. Idempotent; one-time O(n) work at boot (off the
+        hot fill path).
+
+        Does NOT retain the ledger in memory. Reads are served from disk via
+        _read_disk_ledger (base + sidecar, both mtime-cached), so holding a full
+        in-memory copy here was a dead duplicate (~0.8-1.2GB on a long session).
+        The folded ledger lives only in the LOCAL `mem` here and is released when
+        this method returns; afterwards a lightweight `_trades_loaded` flag marks
+        boot compaction done."""
+        if self._trades_loaded:
             return
         with self._lock:
-            if self._trades_mem is not None:
+            if self._trades_loaded:
                 return
             mem = []
             if self._trades_path.exists():
@@ -376,7 +383,6 @@ class MultiBotTradeStore:
                             had_jsonl = True
                 except Exception:
                     pass
-            self._trades_mem = mem
             # Boot compaction: fold prior-session JSONL appends into the base
             # array + truncate the sidecar so it never grows across restarts.
             if had_jsonl:
@@ -385,16 +391,19 @@ class MultiBotTradeStore:
                     self._trades_jsonl_path.write_text("")
                 except Exception:
                     pass
+            # Mark done and release the local ledger copy (do not retain).
+            self._trades_loaded = True
+            mem = None
 
     def record_trade(self, trade: dict, bot_id: str) -> None:
         record = dict(trade)
         record["bot_id"] = bot_id
         if _append_enabled():
-            # O(1) durable append: one JSONL line + in-memory list. No whole-file
-            # read/dump -> no GIL-holding json.dumps -> no event-loop freeze.
-            self._ensure_trades_loaded()
+            # O(1) durable append: a single JSONL line. No in-memory full-ledger
+            # copy (reads come from disk via _read_disk_ledger, mtime-cached) and
+            # no whole-file read/dump -> no GIL-holding json.dumps -> no loop freeze.
+            self._ensure_trades_loaded()  # idempotent one-time boot compaction
             with self._lock:
-                self._trades_mem.append(record)
                 try:
                     with open(self._trades_jsonl_path, "a") as f:
                         f.write(json.dumps(record) + "\n")
@@ -451,10 +460,11 @@ class MultiBotTradeStore:
         if _append_enabled():
             # Disk-truth read so a READER instance (e.g. the dashboard's store,
             # a SEPARATE object from the bot's) stays current with the WRITER's
-            # appends. Returning the per-instance in-memory `_trades_mem` made
-            # the reader stale — it loaded once at boot and never replayed the
-            # JSONL sidecar the bot appends to, so /api/trades froze at the last
-            # full base write (2026-06-22 fix). base + sidecar are disjoint
+            # appends. A per-instance in-memory ledger made the reader stale —
+            # it loaded once at boot and never replayed the JSONL sidecar the bot
+            # appends to, so /api/trades froze at the last full base write
+            # (2026-06-22 fix). It was also a dead RAM duplicate, now removed
+            # (2026-06-28). base + sidecar are disjoint
             # (boot compaction folds + truncates only once), so no double-count.
             # Both reads are mtime-cached: the frozen base is a cache-hit after
             # boot; only the small growing sidecar re-parses on change.
