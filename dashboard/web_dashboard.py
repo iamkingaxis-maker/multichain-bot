@@ -2493,6 +2493,7 @@ class WebDashboard:
         self.app.router.add_get("/api/fast-watch",          self._handle_api_fast_watch)
         self.app.router.add_get("/api/fill-speed",          self._handle_api_fill_speed)
         self.app.router.add_get("/api/live-swaps",          self._handle_api_live_swaps)
+        self.app.router.add_get("/api/live-real-pnl",       self._handle_api_live_real_pnl)
         self.app.router.add_get("/api/paper-live-skips",    self._handle_api_paper_live_skips)
         self.app.router.add_get("/api/fill-probe",          self._handle_api_fill_probe)
         self.app.router.add_get("/api/top-bots",            self._handle_api_top_bots)
@@ -3238,6 +3239,136 @@ class WebDashboard:
             text=json.dumps(payload, default=str), content_type="application/json",
             headers=cors,
         )
+
+    async def _read_hot_wallet_sol(self):
+        """On-chain SOL balance of HOT_WALLET_ADDRESS (public key), so the real-P&L
+        view works even when paused (PAPER_MODE=true), where the trader's live-only
+        cache is empty. Off-loop urllib getBalance, 120s TTL cache, fail-open -> None.
+        Never reads the private key — only the public address env."""
+        import time as _t
+        addr = (os.environ.get("HOT_WALLET_ADDRESS") or "").strip()
+        rpc = (os.environ.get("SOLANA_RPC_URL") or "").strip()
+        if not addr or not rpc:
+            return None
+        now = _t.monotonic()
+        cache = getattr(self, "_hot_sol_cache", None)
+        if cache and now - cache[0] < 120.0:
+            return cache[1]
+
+        def _fetch():
+            import urllib.request as _u
+            body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "getBalance",
+                               "params": [addr]}).encode()
+            req = _u.Request(rpc, data=body, headers={"Content-Type": "application/json"})
+            with _u.urlopen(req, timeout=8) as r:
+                d = json.loads(r.read())
+            return d["result"]["value"] / 1e9
+        try:
+            import asyncio as _asyncio
+            sol = await _asyncio.to_thread(_fetch)
+            self._hot_sol_cache = (now, sol)
+            return sol
+        except Exception as e:
+            logger.debug("hot-wallet balance read failed: %s", e)
+            return cache[1] if cache else None
+
+    async def _sol_price_usd_cached(self):
+        """SOL/USD with a 300s TTL cache, off-loop, fail-open -> None. Fallback for
+        the real-P&L view when the trader's live-only price cache is empty (paper
+        mode). Free public endpoint (Coinbase spot), no key."""
+        import time as _t
+        now = _t.monotonic()
+        cache = getattr(self, "_sol_px_cache", None)
+        if cache and now - cache[0] < 300.0:
+            return cache[1]
+
+        def _fetch():
+            import urllib.request as _u
+            req = _u.Request("https://api.coinbase.com/v2/prices/SOL-USD/spot",
+                             headers={"User-Agent": "multichain-bot"})
+            with _u.urlopen(req, timeout=8) as r:
+                return float(json.loads(r.read())["data"]["amount"])
+        try:
+            import asyncio as _asyncio
+            px = await _asyncio.to_thread(_fetch)
+            self._sol_px_cache = (now, px)
+            return px
+        except Exception as e:
+            logger.debug("sol price fetch failed: %s", e)
+            return cache[1] if cache else None
+
+    async def _handle_api_live_real_pnl(self, request):
+        """GET /api/live-real-pnl — HONEST live P&L from REAL on-chain fills.
+
+        The dashboard's per-bot realized_pnl_total_usd (bot_state ledger) is
+        SIMULATED (snapshot-priced, paper-dominated) and reported +$185 while the
+        live wallet drained ~$48 (2026-06-28). This endpoint reads the persisted
+        live_swaps.jsonl real-fill log OFF the event loop, pairs buys/sells at the
+        actual fill amounts, anchors on the real on-chain wallet balance, and
+        contrasts against the simulated ledger so the gap (drift + slippage +
+        unsold corpses) is explicit. Read-only, fail-open, no money path."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        import asyncio as _asyncio
+        from core.live_swap_log import (read_live_swaps as _read,
+                                        LOG_BASENAME as _BN)
+        from core.live_pnl import (summarize_real_pnl as _summ,
+                                   realized_by_token as _byt)
+        path = os.path.join(os.environ.get("DATA_DIR", "/data"), _BN)
+        try:
+            recs = await _asyncio.to_thread(_read, path)
+        except Exception as e:
+            return web.Response(text=json.dumps({"ok": False, "error": str(e)}),
+                                content_type="application/json", headers=cors)
+        # SOL price + simulated-ledger total from the live-pool snapshot (off-loop).
+        sol_price = None
+        sim_usd = None
+        try:
+            pool = await _asyncio.to_thread(self._build_live_pool)
+            sol_price = (pool.get("wallet") or {}).get("sol_price_usd")
+            sim_usd = (pool.get("totals") or {}).get("realized_pnl_usd")
+        except Exception:
+            pass
+        # Fallback SOL price (trader cache is empty in paper mode) so the USD
+        # fields populate even while paused.
+        if not sol_price:
+            sol_price = await self._sol_price_usd_cached()
+        # Ground-truth wallet balance: on-chain (works while paused too).
+        wallet_sol = await self._read_hot_wallet_sol()
+        wallet_usd = (round(wallet_sol * sol_price, 2)
+                      if (wallet_sol is not None and sol_price) else None)
+        try:
+            summary = _summ(recs, sol_price_usd=sol_price,
+                            simulated_ledger_usd=sim_usd)
+        except Exception as e:
+            summary = {"error": str(e)}
+        # Worst unsold corpses (buys that never sold = real money, never booked).
+        corpses = []
+        try:
+            bt = _byt(recs)
+            corpses = sorted(
+                ({"token": t, **v} for t, v in bt.items()
+                 if v["n_buys"] > 0 and v["n_sells"] == 0),
+                key=lambda d: d["net_sol"])[:15]
+        except Exception:
+            pass
+        payload = {
+            "ok": True,
+            "explainer": ("REAL P&L from on-chain fills + wallet balance. The "
+                          "per-bot realized_pnl_total_usd tile is SIMULATED "
+                          "(snapshot-priced, paper-dominated) and must NOT be "
+                          "trusted for live money. gap_vs_simulated_usd = how much "
+                          "the simulated ledger overstates reality."),
+            "n_records": len(recs),
+            "wallet": {"sol_balance": (round(wallet_sol, 6)
+                                       if wallet_sol is not None else None),
+                       "usd_value": wallet_usd,
+                       "sol_price_usd": sol_price,
+                       "source": "on-chain getBalance(HOT_WALLET_ADDRESS)"},
+            "real_pnl": summary,
+            "worst_unsold_corpses": corpses,
+        }
+        return web.Response(text=json.dumps(payload, default=str),
+                            content_type="application/json", headers=cors)
 
     async def _handle_api_paper_live_skips(self, request):
         """GET /api/paper-live-skips — the paper-vs-live 1:1 SKIP scoreboard.
