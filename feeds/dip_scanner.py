@@ -5095,12 +5095,29 @@ class DipScanner:
                     self._fast_stash_seen_price(addr, _pair.get("priceUsd"), now)
                 except Exception as _fs_e:
                     logger.debug("[fill-speed] stash failed token=%s: %s", addr, _fs_e)
+            # ZERO-STALE ENTRY (2026-06-28): when MAIN_SCAN_BUY_MODE != 'on', the
+            # main scan only ARMS (never commits a buy), so the fast-watch path is
+            # the SOLE fire route. cfg.bot_allowlist is the *supplementary-escalation*
+            # roster (its hardcoded default even lists disabled bots and EXCLUDES
+            # enabled ones like badday_flush_nf15) — using it here would silently
+            # drop every enabled bot not in it (it arms but never fires). The main
+            # scan arms a token if ANY enabled bot wanted it (evaluate_all allowlist
+            # =None), so the fresh re-eval must cover the FULL enabled roster or it
+            # loses entries. 'on' = unchanged (fast-watch stays supplementary).
+            _fw_allow = cfg.bot_allowlist
+            try:
+                _ms_mode_fw = (os.environ.get("MAIN_SCAN_BUY_MODE", "on")
+                               or "on").strip().lower()
+                if _ms_mode_fw in ("arm_only", "off", "shadow"):
+                    _fw_allow = frozenset(self.bot_manager.enabled_bot_ids())
+            except Exception:
+                _fw_allow = cfg.bot_allowlist
             ctx = {
                 "now_ms": now_ms,
                 "_regime_n": regime.get("_regime_n", 0),
                 "_regime_dip_breadth_pct": regime.get("_regime_dip_breadth_pct"),
                 "_regime_h1_neg_pct": regime.get("_regime_h1_neg_pct"),
-                "_fast_path_allowlist": cfg.bot_allowlist,
+                "_fast_path_allowlist": _fw_allow,
                 "_fast_path_shadow": (cfg.mode == "shadow"),
                 # CACHE-ONLY CHARTS (2026-06-20): tell _evaluate_pair NOT to
                 # cold-fetch fresh GT OHLC in the fast path (which 429-stormed and
