@@ -3099,6 +3099,101 @@ class DipScanner:
         except Exception as e:
             logger.debug("[corpse] shadow write failed: %s", e)
 
+    def _append_partial_burn_shadow(self, rec):
+        """Append one PARTIAL-BURN shadow record (a tier flag set with 0 tokens
+        sold) to {DATA_DIR}/partial_burn_shadow.jsonl. Fail-open; never raises."""
+        try:
+            path = os.path.join(
+                os.environ.get("DATA_DIR", "/data"), "partial_burn_shadow.jsonl")
+            with open(path, "a") as f:
+                f.write(json.dumps(rec, separators=(",", ":")) + "\n")
+        except Exception as e:
+            logger.debug("[partial-burn] shadow write failed: %s", e)
+
+    def _handle_partial_burn(self, bot_id, token, exit_decision, position,
+                             current_price, now):
+        """PARTIAL-TP BURN guard (SHADOW-first, 2026-06-28).
+
+        The tier flag (tp1_hit/tp2_hit) is set in PerBotPositionManager.tick()
+        BEFORE the sell executes. On the LIVE sell path a transient failure
+        returns None and close_position is NEVER called -> 0 tokens sold but the
+        flag stays set: the partial is BURNED and every pre-TP1 loss-cutter
+        (IN_FLIGHT_FLOOR / NEVER_RUNNER / NG_FASTSTOP / GIVEBACK_FLOOR, all gated
+        on `not tp1_hit`) is silently disabled. Paper never returns None so this
+        is live-exclusive — but the guard is gated on the mode regardless.
+
+        PARTIAL_BURN_MODE (off/shadow/enforce, default off):
+          off     -> no-op (current behavior; flag stays set, partial burned).
+          shadow  -> measure only: stamp state_blob counters + log + ONE JSONL
+                     record per burn event. Behavior UNCHANGED.
+          enforce -> roll back ONLY the tier flag the failed decision set, so the
+                     partial RE-ISSUES next tick (restoring the loss-cutters) ->
+                     matches paper's "always books" semantics. NEVER sells.
+
+        Fail-open: any error is swallowed (must never break the sell path)."""
+        try:
+            kind = getattr(exit_decision, "kind", None)
+            # Only the partial tiers set a tp flag in tick(); other exit kinds are
+            # full closes whose flag-state isn't burned by a failed sell.
+            if kind not in ("TP1", "TP2"):
+                return
+            from core.fast_watch import rt_mode
+            pm = self.bot_position_managers.get(bot_id)
+            cfg = getattr(pm, "config", None)
+            mode = rt_mode("PARTIAL_BURN_MODE", cfg)
+            if mode == "off":
+                return
+            sb = getattr(position, "state_blob", None)
+            if sb is None:
+                sb = {}
+                try:
+                    position.state_blob = sb
+                except Exception:
+                    pass
+            # P&L at the burn moment (decision price vs entry).
+            pnl_pct = None
+            try:
+                ep = float(getattr(position, "entry_price", 0) or 0)
+                if ep > 0 and current_price:
+                    pnl_pct = round((float(current_price) / ep - 1.0) * 100.0, 4)
+            except Exception:
+                pnl_pct = None
+            remaining = getattr(position, "remaining_fraction", None)
+            sb["partial_burn_count"] = int(sb.get("partial_burn_count", 0) or 0) + 1
+            sb["partial_burn_kind"] = kind
+            sb["partial_burn_pnl"] = pnl_pct
+            sb["partial_burn_remaining"] = remaining
+            logger.info(
+                "[partial-burn] %s bot=%s token=%s kind=%s pnl_pct=%s remaining=%s",
+                mode.upper(), bot_id, token, kind, pnl_pct, remaining,
+            )
+            self._append_partial_burn_shadow({
+                "ts": now,
+                "time": datetime.now(timezone.utc).isoformat(),
+                "mode": mode,
+                "bot_id": bot_id,
+                "token": token,
+                "address": (getattr(position, "address", "") or
+                            getattr(self, "_addr_by_token", {}).get(token, "")),
+                "kind": kind,
+                "sell_fraction": getattr(exit_decision, "sell_fraction", None),
+                "pnl_pct": pnl_pct,
+                "remaining_fraction": remaining,
+                "reason": getattr(exit_decision, "reason", ""),
+            })
+            if mode == "enforce":
+                # Roll back ONLY the tier flag this failed decision set, so the
+                # partial re-issues next tick once a sell actually fills. Never
+                # sells here — the position simply stays open with the flag
+                # cleared, restoring the pre-TP1 loss-cutters.
+                if kind == "TP1":
+                    position.tp1_hit = False
+                elif kind == "TP2":
+                    position.tp2_hit = False
+        except Exception as e:
+            logger.error("[partial-burn] guard error (%s) — fail-open bot=%s token=%s",
+                         e, bot_id, token)
+
     async def _corpse_has_route(self, position):
         """Read-only Jupiter quote probe: does a token->SOL SELL route still exist?
 
@@ -4051,6 +4146,17 @@ class DipScanner:
                 bool(getattr(self.trader, "private_key", "")))):
             _lr = await self._execute_bot_sell_live(token, pm, _pos, _sold_frac, current_price)
             if _lr is None:
+                # PARTIAL-TP BURN guard (2026-06-28): tick() already set the tier
+                # flag (tp1_hit/tp2_hit) BEFORE this sell; a live failure here
+                # leaves 0 tokens sold but the flag set -> the partial is burned
+                # and the pre-TP1 loss-cutters go dark. SHADOW-first; default off
+                # = no-op. Wrapped fail-open so it can NEVER break the sell path.
+                try:
+                    self._handle_partial_burn(bot_id, token, exit_decision, _pos,
+                                              current_price, now)
+                except Exception as _pb_e:
+                    logger.error("[partial-burn] call-site error (%s) — fail-open "
+                                 "bot=%s token=%s", _pb_e, bot_id, token)
                 logger.info("[DipScanner] bot=%s LIVE sell aborted; position stays open", bot_id)
                 return
             if _lr.get("empty"):
