@@ -20838,6 +20838,78 @@ class DipScanner:
         # never breaks the scan loop. Active tokens are always retained.
         self._evict_stale_token_state()
 
+        # RAM observability (2026-06-28): periodic RSS + top-suspect-structure
+        # sizes behind MEM_REPORT (default OFF = no-op). Lets us VERIFY the win
+        # after deploy. Fully wrapped — an obs line must NEVER break the loop.
+        self._maybe_mem_report()
+
+    def _maybe_mem_report(self) -> None:
+        """Gated periodic memory report (MEM_REPORT env, default OFF -> no-op).
+
+        Reads RSS with zero deps from /proc/self/status (VmRSS), falling back to
+        resource.getrusage. Logs one line: rss_mb + len() of the top suspect
+        structures. Self-throttled to ~every 300s; off the hot path; wrapped in
+        try/except so an observability line can never break the scan loop."""
+        try:
+            if os.environ.get("MEM_REPORT", "").strip().lower() in (
+                    "", "0", "false", "no", "off"):
+                return
+            now = time.time()
+            if now - getattr(self, "_last_mem_report_ts", 0.0) < 300.0:
+                return
+            self._last_mem_report_ts = now
+
+            rss_mb = None
+            try:
+                with open("/proc/self/status") as _f:
+                    for _ln in _f:
+                        if _ln.startswith("VmRSS:"):
+                            rss_mb = float(_ln.split()[1]) / 1024.0  # kB -> MB
+                            break
+            except Exception:
+                rss_mb = None
+            if rss_mb is None:
+                try:
+                    import resource
+                    _ru = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+                    # Linux reports ru_maxrss in kB; macOS in bytes. Assume kB.
+                    rss_mb = float(_ru) / 1024.0
+                except Exception:
+                    rss_mb = -1.0
+
+            def _ln_(obj):
+                try:
+                    return len(obj)
+                except Exception:
+                    return -1
+
+            # Trade store resident size: the in-mem ledger duplicate is gone; only
+            # the mtime-keyed disk caches remain resident. Report their combined len.
+            store_resident = -1
+            try:
+                ts = self.trade_store
+                if ts is not None:
+                    _b = getattr(ts, "_base_cache", None)
+                    _j = getattr(ts, "_jsonl_cache", None)
+                    store_resident = (
+                        (len(_b[1]) if _b else 0) + (len(_j[1]) if _j else 0)
+                    )
+            except Exception:
+                store_resident = -1
+
+            logger.info(
+                "[MEM] rss_mb=%.1f store_resident=%d exit_guard=%d addr_by_token=%d "
+                "slip_history=%d h24_history=%d sticky_watchlist=%d fast_samples=%d "
+                "scan_prefetch=%d",
+                rss_mb, store_resident,
+                _ln_(self._exit_price_guard), _ln_(self._addr_by_token),
+                _ln_(self._slip_history), _ln_(self._h24_history),
+                _ln_(self._sticky_watchlist), _ln_(self._fast_samples),
+                _ln_(self._scan_prefetch_cache),
+            )
+        except Exception:
+            pass
+
     def _evict_stale_token_state(self) -> None:
         """TTL/LRU-evict the per-token state dicts that otherwise grow one entry
         per distinct token EVER seen, unbounded, across a long-running session

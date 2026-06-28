@@ -127,3 +127,38 @@ def test_eviction_fail_open_on_bad_state():
     s._slip_history = None  # type: ignore
     s._last_evict_ts = 0.0
     s._evict_stale_token_state()  # should not raise
+
+
+# --- MEM_REPORT (COMMIT 3) ---------------------------------------------------
+
+def _make_scanner_for_mem():
+    s = _make_scanner()
+    s.trade_store = None
+    s._h24_history = {}
+    s._sticky_watchlist = {}
+    s._fast_samples = {}
+    s._scan_prefetch_cache = {}
+    s._last_mem_report_ts = 0.0
+    return s
+
+
+def test_mem_report_noop_when_disabled(monkeypatch, caplog):
+    monkeypatch.delenv("MEM_REPORT", raising=False)
+    s = _make_scanner_for_mem()
+    with caplog.at_level("INFO"):
+        s._maybe_mem_report()
+    assert not any("[MEM]" in r.message for r in caplog.records)
+
+
+def test_mem_report_logs_when_enabled_and_throttles(monkeypatch, caplog):
+    monkeypatch.setenv("MEM_REPORT", "1")
+    s = _make_scanner_for_mem()
+    s._exit_price_guard = {"a": {}, "b": {}}
+    with caplog.at_level("INFO", logger="feeds.dip_scanner"):
+        s._maybe_mem_report()
+        first = [r for r in caplog.records if "[MEM]" in r.message]
+        assert len(first) == 1, first
+        assert "exit_guard=2" in first[0].message
+        # Immediate second call is throttled (no new line).
+        s._maybe_mem_report()
+        assert len([r for r in caplog.records if "[MEM]" in r.message]) == 1

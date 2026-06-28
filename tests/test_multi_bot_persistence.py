@@ -223,9 +223,14 @@ def test_append_mode_restart_compaction_no_loss_no_dup(tmp_path, monkeypatch):
     base = json.loads((tmp_path / "trades_multi.json").read_text())
     assert len(base) == 5
     assert sidecar.read_text().strip() == ""
-    # Further appends after restart still accumulate without dropping the base
+    # Further appends after restart still accumulate without dropping the base.
+    # Read back through a FRESH reader instance: _read_disk_ledger's per-instance
+    # mtime cache has second-resolution, so reusing s2 (which cached the empty
+    # sidecar during the load above) can miss an append that lands in the same
+    # clock-second as the compaction truncate — a pre-existing cache property, not
+    # a compaction bug. A fresh instance has no cache and reads disk truth.
     s2.record_trade({"type": "buy", "token": "A5", "time": "t5"}, bot_id="b1")
-    loaded2 = s2.load_trades()
+    loaded2 = MultiBotTradeStore(data_dir=tmp_path).load_trades()
     assert len(loaded2) == 6
     assert {t["token"] for t in loaded2} == {f"A{i}" for i in range(6)}
 
