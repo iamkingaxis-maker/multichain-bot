@@ -10,6 +10,7 @@ from core.paper_fidelity import (
     paper_entry_decision,
     paper_exit_decision,
     caps_would_block,
+    MAX_FILL_DRAG,
 )
 
 def test_fresh_price_used_as_entry_on_dip():
@@ -37,6 +38,30 @@ def test_buy_pays_up_slip_and_fee():
 def test_sell_receives_less_slip_and_fee():
     f = effective_fill(0.10, "sell", slip_pct=1.5, fee_usd=0.17, size_usd=100)
     assert abs(f - 0.10*(1-0.0167)) < 1e-9
+
+def test_normal_sell_unaffected_by_clamp():
+    # $20 slice, $0.17 fee (0.85%), 1% slip -> drag 0.0185, well under the clamp.
+    # Clamp must be INACTIVE: equals the raw slip+fee math exactly.
+    f = effective_fill(0.10, "sell", slip_pct=1.0, fee_usd=0.17, size_usd=20.0)
+    assert abs(f - 0.10 * (1 - 0.01 - 0.17/20.0)) < 1e-12
+
+def test_dust_sell_never_books_negative():
+    # $0.10 slice, $0.17 fee -> fee_frac 1.7 -> raw drag > 1 -> raw price NEGATIVE.
+    # Clamp must floor the booked price at mid*(1-MAX_FILL_DRAG) > 0.
+    f = effective_fill(0.10, "sell", slip_pct=1.0, fee_usd=0.17, size_usd=0.10)
+    assert f > 0
+    assert f >= 0.10 * (1.0 - MAX_FILL_DRAG)
+    assert abs(f - 0.10 * (1.0 - MAX_FILL_DRAG)) < 1e-12
+    assert f >= 0.10 * 0.05
+
+def test_dust_buy_does_not_blow_up_to_absurd_multiple():
+    # dust buy: raw drag > 1 would pay >2x mid. Clamp caps the upside drag too.
+    f = effective_fill(0.10, "buy", slip_pct=1.0, fee_usd=0.17, size_usd=0.10)
+    assert abs(f - 0.10 * (1.0 + MAX_FILL_DRAG)) < 1e-12
+    assert f <= 0.10 * (1.0 + MAX_FILL_DRAG)
+
+def test_effective_fill_fail_open_bad_mid():
+    assert effective_fill("notaprice", "sell", 1.0, 0.17, 100) == "notaprice"
 
 def test_defaults():
     assert measured_live_slip_pct() == 1.5

@@ -3,6 +3,14 @@ constraints, so paper P&L predicts live. Every helper is pure + fail-open."""
 from __future__ import annotations
 import os
 
+# Hard backstop so a modeled fill can never cross zero / invert. A normal fill
+# has drag well under 0.1; this only ever bites the pathological dust-slice case
+# where fee_usd >= size_usd (e.g. a $0.10 remainder sell vs a $0.17 fee), which
+# without clamping yields drag > 1 -> a NEGATIVE booked sell price (phantom
+# catastrophic loss) or an absurd buy pay-up. 0.95 => a sell never books below
+# ~5% of mid, a buy never above ~195% of mid.
+MAX_FILL_DRAG = 0.95
+
 def paper_fidelity_enabled(flag: str, default: str = "off") -> str:
     try:
         v = os.environ.get(flag, default).strip().lower()
@@ -61,6 +69,12 @@ def effective_fill(mid, side, slip_pct, fee_usd, size_usd) -> float:
     except (TypeError, ValueError, ZeroDivisionError):
         fee_frac = 0.0
     drag = slip + fee_frac
+    # Backstop: a tiny dust slice (size_usd < fee_usd) makes fee_frac > 1 ->
+    # drag > 1 -> a sell would book a NEGATIVE price (and a buy an absurd
+    # multiple). Clamp so a fill can never cross zero / invert. No effect on
+    # normal fills (drag << MAX_FILL_DRAG).
+    if drag > MAX_FILL_DRAG:
+        drag = MAX_FILL_DRAG
     if str(side).strip().lower() == "buy":
         return m * (1.0 + drag)
     return m * (1.0 - drag)
