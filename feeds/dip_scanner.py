@@ -391,6 +391,7 @@ class DipScanner:
         self._sticky_watchlist: Dict[str, dict] = {}
         self._fast_armed: Dict[str, dict] = {}      # addr -> pair (armed subset, rebuilt each cycle)
         self._rt_dip_bar_cache: Dict[str, Tuple[list, float]] = {}  # addr -> (bars, fetched_ts); RT_DIP bar reference
+        self._rt_dip_windows: Dict[str, object] = {}  # addr -> RollingPriceWindow; RT_DIP reference
         # addr -> time.time() when the MAIN-SCAN path armed a would-buy token
         # instead of firing (MAIN_SCAN_BUY_MODE != on). The fast-watch tick drains
         # this into survivors and FORCE-evaluates them on a fresh price even if
@@ -6556,6 +6557,29 @@ class DipScanner:
                                 _rtss.record_trigger(_snap_h1_orig, _fresh_pc.get("h1"))
                         except Exception:
                             pass
+                # RT_DIP (2026-06-29): real-time dip reference off io.dexscreener
+                # bars + the in-memory rolling buffer, superseding the stale-anchor
+                # reprice_all above when usable. RT_DIP_MODE off=byte-identical;
+                # enforce overwrites priceChange only when coverage != NONE (else
+                # falls back to the reprice result — never fail-open into a buy).
+                from core.fast_watch import rt_mode as _rt_mode
+                _rt_dip = _rt_mode("RT_DIP_MODE")
+                if _rt_dip != "off" and _snap_price and _fresh_price and _fresh_price > 0:
+                    if addr not in self._rt_dip_windows:
+                        from core.realtime_dip import RollingPriceWindow as _RPW
+                        self._rt_dip_windows[addr] = _RPW()
+                    _rt_dex_id = (pair.get("dexId") or "").lower()
+                    _rt_slug = {"pumpswap": "pumpfundex", "pumpfun": "pumpfundex",
+                                "raydium": "solamm", "meteora": "meteora"}.get(
+                                    _rt_dex_id, _rt_dex_id or "pumpfundex")
+                    _rt_bars = []
+                    try:
+                        _rt_bars = await self._get_rt_dip_bars(
+                            addr, _rt_slug, pair_addr, res="1m")
+                    except Exception:
+                        _rt_bars = []
+                    self._apply_rt_dip(_pair, _snap_price, _fresh_price, _rt_dip,
+                                       bars=_rt_bars, now=now)
                 # FORWARD FILL-SPEED CAPTURE (shadow): stash the would-fill price
                 # this fast tick saw for `addr` so _execute_bot_buy can log it vs the
                 # actual sweep fill. The escalation price (pinned > jupiter) is the
@@ -21724,6 +21748,38 @@ class DipScanner:
         except Exception:
             pass
         return c, signals, (not _eval_completed)
+
+    def _apply_rt_dip(self, pair, snap_price, fresh_price, mode, *, bars, now):
+        """Apply the RT_DIP reference to pair['priceChange'] per mode.
+
+        off: no-op. shadow: log divergence, no mutation. enforce: overwrite the
+        computed horizons when coverage != NONE, else leave priceChange as-is
+        (fall back to the existing reprice — never fabricate a dip). Returns the
+        (price_change_dict, coverage) it computed (for logging/tests). Never raises."""
+        from core.realtime_dip import compute_rt_price_change
+        if mode == "off":
+            return {}, "off"
+        addr = (pair.get("address") or "") if isinstance(pair, dict) else ""
+        win = self._rt_dip_windows.get(addr)
+        if win is not None:
+            try:
+                win.append(now, float(fresh_price))
+            except (TypeError, ValueError):
+                pass
+        rt_pc, coverage = compute_rt_price_change(win, bars, fresh_price, now)
+        if mode == "shadow":
+            try:
+                _pch = pair.get("priceChange") or {}
+                logger.info("[rt-dip] %s cov=%s rt_h1=%s stale_h1=%s",
+                            addr[:6], coverage, rt_pc.get("h1"), _pch.get("h1"))
+            except Exception:
+                pass
+            return rt_pc, coverage
+        if mode == "enforce" and coverage != "NONE" and rt_pc:
+            _pch = dict(pair.get("priceChange") or {})
+            _pch.update(rt_pc)
+            pair["priceChange"] = _pch
+        return rt_pc, coverage
 
     async def _get_rt_dip_bars(self, addr, dex_slug, pair_addr, *, res="1m",
                                ttl_secs=60.0, now=None):
