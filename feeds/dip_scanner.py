@@ -2953,7 +2953,13 @@ class DipScanner:
         # block is verified enforce-READY (abort on run-up > BUY_REPRICE_MAX_RUNUP; rebase
         # entry to the fresh price on a dip), NOT flipped. Default stays shadow.
         _reprice_mode = os.environ.get("BUY_REPRICE_MODE", "shadow").strip().lower()
-        if _reprice_mode != "off":
+        # A2 (latency): the BUY-REPRICE fresh-price fetch is an EXTRA network hop on
+        # the time-sensitive fire path. Only enforce mode actually USES the repriced
+        # result to gate/rebase the fill, so only enforce pays for the fetch. shadow/off
+        # skip it entirely (shadow's measure-only run-up log is sacrificed for latency;
+        # the repriced gate is what matters and only fires in enforce). Enforce behavior
+        # below is BYTE-IDENTICAL to before. Kill A2: set BUY_REPRICE_MODE=enforce.
+        if _reprice_mode == "enforce":
             try:
                 _max_runup = float(os.environ.get("BUY_REPRICE_MAX_RUNUP", "0.05"))
             except (TypeError, ValueError):
@@ -3080,12 +3086,29 @@ class DipScanner:
             # FAIL-OPEN: never block a live buy on a gate bookkeeping error.
             logger.debug("[Probe] live_fill_quality Tier-A error (%s) — fail-open", e)
         # Cost-reconciliation: SOL balance BEFORE the swap (fail-open -> None).
-        try:
-            _sol_before = await self.trader._get_sol_balance(force=True)
-            if _sol_before is not None and _sol_before < 0:
+        # A1 (latency): the forced un-cached getBalance RPC here used to sit on the
+        # critical path RIGHT BEFORE the swap (~150-400ms). The reserve check in the
+        # pre-swap gather already fetched the balance and populated trader._sol_balance,
+        # so by default (LIVE_POSTSWAP_COST_RECON=on) we reuse that cached value for the
+        # "before" snapshot instead of an EXTRA forced hop — the forced read survives only
+        # on the post-swap "after" side. Telemetry only (sol_spent reconcile); NEVER gates.
+        # Kill A1: LIVE_POSTSWAP_COST_RECON=off restores the original forced pre-swap read.
+        _postswap_recon = os.environ.get(
+            "LIVE_POSTSWAP_COST_RECON", "on").strip().lower() not in ("off", "0", "false")
+        if _postswap_recon:
+            try:
+                _cached_bal = getattr(self.trader, "_sol_balance", None)
+                _sol_before = _cached_bal if (
+                    _cached_bal is not None and _cached_bal >= 0) else None
+            except Exception:
                 _sol_before = None
-        except Exception:
-            _sol_before = None
+        else:
+            try:
+                _sol_before = await self.trader._get_sol_balance(force=True)
+                if _sol_before is not None and _sol_before < 0:
+                    _sol_before = None
+            except Exception:
+                _sol_before = None
         t0 = time.time()
         _order_start_mono = time.monotonic()
         res = await self.trader._execute_swap_ultra(SOL_MINT, mint, lamports, slippage_bps=_slip_cap,

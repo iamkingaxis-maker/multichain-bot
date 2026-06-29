@@ -29,6 +29,7 @@ class StubTrader:
         self._last_realized_slippage_pct = 0.5
         self.balances = []
         self._sol_seq = [1.0, 0.74]  # before, after (buy spent 0.25 SOL + fees)
+        self._sol_balance = -1.0     # mirror real Trader's getBalance cache
 
     async def _usd_to_sol(self, usd):
         return usd / 200.0
@@ -40,10 +41,16 @@ class StubTrader:
         return self.decimals
 
     async def _check_sol_reserve(self, token_symbol="?"):
+        # Mirror the real Trader: the reserve check fetches the balance and
+        # populates the _sol_balance cache (A1 reads "before" from that cache).
+        await self._get_sol_balance()
         return self.sol_reserve_ok
 
     async def _get_sol_balance(self, force=False):
-        return self._sol_seq.pop(0) if self._sol_seq else 0.5
+        val = self._sol_seq.pop(0) if self._sol_seq else 0.5
+        if val is not None and val >= 0:
+            self._sol_balance = val
+        return val
 
     async def _execute_swap_ultra(self, inp, out, amount, slippage_bps=None, buy_context=False):
         self.calls.append((inp, out, amount))
