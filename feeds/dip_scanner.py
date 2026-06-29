@@ -21830,30 +21830,30 @@ class DipScanner:
             except Exception:
                 pass
             return rt_pc, coverage
+        _stale_h1 = (pair.get("priceChange") or {}).get("h1")
         if mode == "enforce" and coverage != "NONE" and rt_pc:
             _pch = dict(pair.get("priceChange") or {})
-            _stale_h1 = _pch.get("h1")
             _pch.update(rt_pc)
             pair["priceChange"] = _pch
-            # Observability (sampled): enforce is otherwise silent. One line per
-            # ~50 applies shows coverage + the rt-vs-stale anchor delta so we can
-            # confirm RT_DIP is live and measure its effect. Never raises.
+        if mode == "enforce":
+            # Coverage observability: cumulative counters + a 60s summary so the
+            # distribution (BARS+BUFFER / BUFFER_ONLY / NONE) is visible — sparse
+            # per-apply sampling could not show it. Counts every enforce apply
+            # (incl. NONE fallback, which keeps the reprice/stale anchor). The
+            # `last` token is just the most recent example. Never raises.
             try:
-                self._rt_dip_apply_n = getattr(self, "_rt_dip_apply_n", 0) + 1
-                if self._rt_dip_apply_n % 50 == 1:
-                    logger.info("[rt-dip] ENFORCE applied #%d %s cov=%s rt_h1=%s stale_h1=%s rt_m5=%s",
-                                self._rt_dip_apply_n, addr[:6], coverage,
-                                rt_pc.get("h1"), _stale_h1, rt_pc.get("m5"))
-            except Exception:
-                pass
-        elif mode == "enforce":
-            # Coverage NONE (or empty rt_pc) → kept the reprice/stale anchor
-            # (never fail-open into a buy). Sampled count so we see fallback rate.
-            try:
-                self._rt_dip_none_n = getattr(self, "_rt_dip_none_n", 0) + 1
-                if self._rt_dip_none_n % 100 == 1:
-                    logger.info("[rt-dip] ENFORCE fallback #%d %s cov=%s (kept reprice/stale)",
-                                self._rt_dip_none_n, (addr or "")[:6], coverage)
+                _ctr = getattr(self, "_rt_dip_cov_ctr", None)
+                if _ctr is None:
+                    _ctr = {}
+                    self._rt_dip_cov_ctr = _ctr
+                _ctr[coverage] = _ctr.get(coverage, 0) + 1
+                if now - getattr(self, "_rt_dip_cov_log_ts", 0.0) >= 60.0:
+                    self._rt_dip_cov_log_ts = now
+                    logger.info(
+                        "[rt-dip] cov-summary %s | last %s cov=%s rt_h1=%s "
+                        "stale_h1=%s rt_m5=%s",
+                        dict(_ctr), (addr or "")[:6], coverage,
+                        rt_pc.get("h1"), _stale_h1, rt_pc.get("m5"))
             except Exception:
                 pass
         return rt_pc, coverage
