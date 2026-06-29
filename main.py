@@ -35,7 +35,7 @@ import logging
 import os
 import time as _time
 from pathlib import Path
-from utils.config import Config
+from utils.config import Config, legacy_engine_enabled
 from utils.telegram_bot import TelegramNotifier
 from core.risk_manager import RiskManager
 from core.trader import Trader
@@ -707,7 +707,9 @@ async def main():
             sol_rt_layer.run(),
             _auto_kill_check()
         ]
-        if config.scalper_enabled:
+        if config.scalper_enabled and not legacy_engine_enabled():
+            logger.info("[Main] PositionScalper NOT spawned — LEGACY_ENGINE_ENABLED=false (legacy kill switch)")
+        elif config.scalper_enabled:
             tasks.append(sol_scalper.run())
             logger.info("[Main] PositionScalper enabled")
         else:
@@ -772,7 +774,9 @@ async def main():
 
         # ── Graduation Sniper (wired after axiom init below) ─────────────
         grad_sniper = None
-        if config.graduation_enabled:
+        if config.graduation_enabled and not legacy_engine_enabled():
+            logger.info("[Main] GraduationSniper NOT constructed — LEGACY_ENGINE_ENABLED=false (legacy kill switch)")
+        elif config.graduation_enabled:
             grad_sniper = GraduationSniper(
                 rpc_url=config.solana_rpc_url,
                 trader=sol_trader,

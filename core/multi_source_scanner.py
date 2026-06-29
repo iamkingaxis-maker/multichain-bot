@@ -3408,6 +3408,18 @@ class MultiSourceScanner:
                     return
             except Exception:
                 pass
+        # LEGACY ENGINE KILL SWITCH (LEGACY_ENGINE_ENABLED, default true =
+        # byte-identical). This is the LEGACY MultiSourceScanner chart-buy commit
+        # — a non-fleet paper path (force_paper'd below, C3 2026-06-04 audit).
+        # When the switch is OFF, skip the NEW-entry commit. Exits of any already-
+        # open MSS position are managed elsewhere (position manager) and unaffected.
+        from utils.config import legacy_engine_enabled as _legacy_engine_on
+        if not _legacy_engine_on():
+            logger.info(
+                f"[{self.chain.name}] [{strategy_tag}] LEGACY_ENGINE_ENABLED=false "
+                f"— skipping legacy buy commit for {signal.token_symbol}"
+            )
+            return
         self.trader.reentry.last_h1_pct[signal.token_address.lower()] = signal.price_change_h1
         await self.trader.buy(
             token_address=signal.token_address,

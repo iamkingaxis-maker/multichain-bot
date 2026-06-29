@@ -47,6 +47,27 @@ def env_int(key: str, default: int = 0) -> int:
         return default
 
 
+def legacy_engine_enabled() -> bool:
+    """KILL SWITCH for the LEGACY (non-fleet) paper-trading strategies.
+
+    Default "true" => BYTE-IDENTICAL to historical behavior (every legacy path
+    fires exactly as before — this is the shipped default). When set to a falsey
+    value (0/false/off/no) the legacy engines no longer COMMIT NEW BUYS / are not
+    spawned:
+      - the legacy single-bot ``dip_buy [<tier>]`` commit in feeds/dip_scanner.py
+      - sol_scalper (core/scalper.py)            — not spawned
+      - graduation_sniper (feeds/graduation_sniper.py) — not constructed/wired
+      - the MultiSourceScanner legacy chart buy (core/multi_source_scanner.py)
+
+    The 11-bot FLEET (BotManager / per_bot / _execute_bot_buy / should_route_live)
+    is NEVER gated by this flag — it lives on a SEPARATE branch the flag does not
+    touch. Already-open legacy positions still EXIT normally; this blocks only NEW
+    legacy ENTRIES.
+    """
+    return os.environ.get("LEGACY_ENGINE_ENABLED", "true").strip().lower() \
+        not in ("0", "false", "off", "no")
+
+
 def env_list(key: str, default: list = None) -> list:
     """Read comma-separated list from environment variable."""
     val = os.environ.get(key)

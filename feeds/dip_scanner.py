@@ -21633,6 +21633,19 @@ class DipScanner:
             if _filters_block:
                 continue
 
+            # LEGACY ENGINE KILL SWITCH (LEGACY_ENGINE_ENABLED, default true =
+            # byte-identical). The commit below is the LEGACY single-bot dip_buy
+            # path — the NON-FLEET paper engine (force_paper'd, can't go live per
+            # the 2026-06-04 audit) that writes strategy="dip_buy" positions into
+            # /api/positions. When the switch is OFF we skip ONLY this legacy buy
+            # commit. The FLEET fan-out (Sub-project 1: _fast_route_decisions ->
+            # _execute_bot_buy, above) already ran and is NOT gated by this flag —
+            # it is on a separate branch. Already-open legacy positions still exit
+            # normally (this blocks only NEW legacy entries).
+            from utils.config import legacy_engine_enabled as _legacy_engine_on
+            if not _legacy_engine_on():
+                continue
+
             # FIX 4 concurrency-safety: serialize the legacy single-bot buy fire
             # through the per-cycle buy lock + a per-cycle bought-address guard.
             # The lock makes the open_positions / cap checks inside trader.buy
