@@ -3161,7 +3161,13 @@ class DipScanner:
         both are tried. Never raises."""
         if not address:
             return None
-        for _feed_attr in ("axiom_price_feed", "dex_price_feed", "pool_price_feed"):
+        # FIX 4: liq-scaled exit data ONLY flows when the axiom WS feed is enabled
+        # (ONCHAIN/axiom feed on). dex_price_feed / pool_price_feed were DEAD probes
+        # — never set on DipScanner (only axiom_price_feed is) — so they are dropped.
+        # When live is paused and the WS is off this returns None and the gate
+        # correctly fails open to the flat slip; the shadow study simply gathers no
+        # signal until the feed is back. Known effectiveness gate, not a bug.
+        for _feed_attr in ("axiom_price_feed",):
             try:
                 feed = getattr(self, _feed_attr, None)
                 cache = getattr(feed, "liquidity_cache", None) if feed is not None else None
@@ -4324,33 +4330,100 @@ class DipScanner:
                     _esl_booked, _esl_info = _eslb(
                         _esl_mode, eff_exit, current_price, _esl_fresh,
                         exit_decision.reason, _sz_sold, _esl_liq, low_price=_esl_low)
-                    if _esl_mode == "enforce" and _esl_booked is _ESL_HOLD:
-                        logger.info(
-                            "[exit-slip-liq] ENFORCE hold/retry bot=%s token=%s "
-                            "liq=%s slip=%.3f%% >= cap %.3f%% — position stays open",
-                            bot_id, token, _esl_liq,
-                            _esl_info["liq_scaled_slip_pct"], _esl_info["sell_cap_pct"])
-                        return  # NON-FILL: mirror live cap-revert (don't book this tick)
+                    # FIX 2: structured-log the shadow record FIRST — BEFORE any
+                    # HOLD `return` — so the would_revert/cap-revert HOLD events (the
+                    # most important to analyze) are captured in enforce too. Logged
+                    # exactly once per tick (the old code emitted it on the fill path
+                    # only); no double-log below.
                     if _esl_info is not None:
-                        self._append_exit_slip_shadow({
-                            "ts": now,
-                            "time": datetime.now(timezone.utc).isoformat(),
-                            "mode": _esl_mode,
-                            "bot_id": bot_id,
-                            "address": _esl_addr,
-                            "token": token,
-                            "size_usd": _sz_sold,
-                            "exit_liq_usd": _esl_info["exit_liq_usd"],
-                            "flat_slip_pct": _esl_info["flat_slip_pct"],
-                            "liq_scaled_slip_pct": _esl_info["liq_scaled_slip_pct"],
-                            "sell_cap_pct": _esl_info["sell_cap_pct"],
-                            "would_revert": _esl_info["would_revert"],
-                            "eff_exit_flat": _esl_info["eff_exit_flat"],
-                            "eff_exit_liqscaled": _esl_info["eff_exit_liqscaled"],
-                            "exit_price_delta_pct": _esl_info["exit_price_delta_pct"],
-                        })
-                    if _esl_mode == "enforce":
+                        try:
+                            self._append_exit_slip_shadow({
+                                "ts": now,
+                                "time": datetime.now(timezone.utc).isoformat(),
+                                "mode": _esl_mode,
+                                "bot_id": bot_id,
+                                "address": _esl_addr,
+                                "token": token,
+                                "size_usd": _sz_sold,
+                                "exit_liq_usd": _esl_info["exit_liq_usd"],
+                                "flat_slip_pct": _esl_info["flat_slip_pct"],
+                                "liq_scaled_slip_pct": _esl_info["liq_scaled_slip_pct"],
+                                "sell_cap_pct": _esl_info["sell_cap_pct"],
+                                "would_revert": _esl_info["would_revert"],
+                                "eff_exit_flat": _esl_info["eff_exit_flat"],
+                                "eff_exit_liqscaled": _esl_info["eff_exit_liqscaled"],
+                                "exit_price_delta_pct": _esl_info["exit_price_delta_pct"],
+                            })
+                        except Exception:
+                            pass
+                    if _esl_mode == "enforce" and _esl_booked is _ESL_HOLD:
+                        # FIX 3: bounded retry so a permanently-thin position can't
+                        # HOLD forever and clog the in-flight cap. Count consecutive
+                        # HOLD ticks on the position; after EXIT_SLIP_LIQ_MAX_HOLDS
+                        # (default 6) fall through and BOOK the flat exit (the same
+                        # value off-mode would book — eff_exit is already that flat
+                        # booking). Fail-open: ANY counter error -> book (never strand).
+                        _esl_book_through = False
+                        try:
+                            _esl_max_holds = int(
+                                os.environ.get("EXIT_SLIP_LIQ_MAX_HOLDS", "6"))
+                        except Exception:
+                            _esl_max_holds = 6
+                        try:
+                            if _pos is not None:
+                                _esl_sb = _pos.state_blob if _pos.state_blob is not None else {}
+                                _esl_hc = int(_esl_sb.get("exit_slip_liq_holds", 0)) + 1
+                                _esl_sb["exit_slip_liq_holds"] = _esl_hc
+                                _pos.state_blob = _esl_sb
+                                _esl_book_through = _esl_hc >= _esl_max_holds
+                            else:
+                                # no position state to track -> don't strand, book through
+                                _esl_book_through = True
+                        except Exception:
+                            _esl_book_through = True  # fail-open: never strand
+                        if not _esl_book_through:
+                            logger.info(
+                                "[exit-slip-liq] ENFORCE hold/retry bot=%s token=%s "
+                                "liq=%s slip=%.3f%% >= cap %.3f%% — position stays open",
+                                bot_id, token, _esl_liq,
+                                _esl_info["liq_scaled_slip_pct"], _esl_info["sell_cap_pct"])
+                            # FIX 1: a HOLD on a PARTIAL (TP1/TP2, sell_fraction<1.0)
+                            # must run the SAME partial-burn handling the live `_lr is
+                            # None` abort does — tick() set tp1_hit/tp2_hit BEFORE the
+                            # sell, so a non-fill would otherwise BURN the partial and
+                            # disable every `not tp1_hit`-gated loss-cutter. Only a
+                            # FULL exit (sell_fraction>=1.0) may HOLD without the guard.
+                            if sell_fraction < 1.0:
+                                try:
+                                    self._handle_partial_burn(
+                                        bot_id, token, exit_decision, _pos,
+                                        current_price, now)
+                                except Exception as _pb_e:
+                                    logger.error(
+                                        "[exit-slip-liq] partial-burn call error (%s) "
+                                        "— fail-open bot=%s token=%s",
+                                        _pb_e, bot_id, token)
+                            return  # NON-FILL: mirror live cap-revert (don't book)
+                        logger.info(
+                            "[exit-slip-liq] ENFORCE max-holds=%d reached bot=%s "
+                            "token=%s — booking flat exit (anti-strand)",
+                            _esl_max_holds, bot_id, token)
+                        # fall through: eff_exit stays the flat booking; reset counter
+                        try:
+                            if _pos is not None and _pos.state_blob:
+                                _pos.state_blob["exit_slip_liq_holds"] = 0
+                        except Exception:
+                            pass
+                    elif _esl_mode == "enforce":
+                        # non-HOLD enforce fill: book the worse liq-scaled value and
+                        # reset the consecutive-HOLD counter (a fill occurred).
                         eff_exit = _esl_booked
+                        try:
+                            if _pos is not None and _pos.state_blob and \
+                                    "exit_slip_liq_holds" in _pos.state_blob:
+                                _pos.state_blob["exit_slip_liq_holds"] = 0
+                        except Exception:
+                            pass
                 except Exception as _esl_e:
                     logger.error("[exit-slip-liq] error (%s) — fail-open, flat booking "
                                  "bot=%s token=%s", _esl_e, bot_id, token)
