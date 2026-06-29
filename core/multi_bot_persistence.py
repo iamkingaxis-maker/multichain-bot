@@ -510,6 +510,28 @@ class MultiBotTradeStore:
     def save_bot_state(self, bot_id: str, state: dict) -> None:
         path = self.data_dir / "bot_state" / f"{bot_id}.json"
         with self._lock:
+            # No-clobber guard (2026-06-29 deploy-amnesia fix): a capital-only
+            # save (a dict that OMITS the "open_positions" key — e.g. the
+            # new-bot seed at dip_scanner.py) must NOT erase a populated
+            # open_positions book already on disk. Only an EXPLICIT
+            # open_positions value (incl. an empty list = a real close-to-flat)
+            # is honored. Fail-open: a read error falls through to the raw write.
+            if isinstance(state, dict) and "open_positions" not in state:
+                try:
+                    if path.exists():
+                        prior = json.loads(path.read_text())
+                        prior_op = prior.get("open_positions") if isinstance(prior, dict) else None
+                        if prior_op:
+                            state = dict(state)
+                            state["open_positions"] = prior_op
+                            # Carry the sibling position-book keys too, so the
+                            # preserved positions keep their cooldown / buy-count
+                            # context across a capital-only save.
+                            for _k in ("last_close_times", "token_buys"):
+                                if _k not in state and _k in prior:
+                                    state[_k] = prior[_k]
+                except Exception:
+                    pass
             self._atomic_write(path, json.dumps(state, indent=2))
 
     # -- Loop-freeze fix (2026-06-19) ----------------------------------------

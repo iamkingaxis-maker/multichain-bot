@@ -720,6 +720,24 @@ class DipScanner:
                 for _tok, _p in pm._positions.items():
                     if getattr(_p, "address", ""):
                         self._addr_by_token.setdefault(_tok, _p.address)
+            # Ledger-reconcile MERGE fallback (2026-06-29 deploy-amnesia fix):
+            # re-hydrate any buy-without-sell orphaned in the durable ledger but
+            # missing from bot_state (offloaded write lost to a redeploy SIGKILL
+            # right after the inline ledger append). Runs AFTER all bots' bot_state
+            # restore so the merge dedups against the restored book per bot.
+            # Fail-open (never breaks boot); env gate POSITION_LEDGER_RECONCILE_MODE.
+            try:
+                self._restore_open_positions_from_trades()
+                # Re-seed token->address fallback for any newly re-hydrated tokens.
+                for _bid, _pm in self.bot_position_managers.items():
+                    for _tok, _p in _pm._positions.items():
+                        if getattr(_p, "address", ""):
+                            self._addr_by_token.setdefault(_tok, _p.address)
+            except Exception as _rec_e:
+                logger.warning(
+                    "[DipScanner] ledger-reconcile fallback failed (non-fatal): %s",
+                    _rec_e,
+                )
             logger.info(
                 "[DipScanner] Multi-bot wired: %d evaluators (%s)",
                 len(bot_manager.evaluators),
@@ -759,15 +777,32 @@ class DipScanner:
         await self.trade_store.save_bot_state_async(bot_id, d)
 
     def _restore_open_positions_from_trades(self) -> None:
-        """Rebuild PerBotPositionManager._positions from trades.json.
+        """Ledger-reconcile MERGE fallback — re-hydrate orphaned open positions
+        from the durable trades ledger (2026-06-29 deploy-amnesia fix).
 
-        For each bot, finds buy records with no matching sell (paired by
-        token + entry_price), reconstructs them as OpenPosition entries.
-        Resets peak_pnl/tp1_hit/tp2_hit to defaults — those weren't
-        persisted. Acceptable loss: trail may restart from current price
-        instead of true peak, but this is small vs. the win of being
-        able to close positions at all.
+        Runs AFTER the bot_state restore (load_state_list) as a MERGE: for each
+        bot, finds buy records with no matching sell (paired by token; ANY sell
+        for a (bot, token) skips it, conservative) and ADDS only those NOT already
+        in the restored book. bot_state-restored positions (which carry the
+        lossless tp1_hit/peak/remaining_fraction/state_blob) ALWAYS take
+        precedence — a ledger-reconstructed position is never used to overwrite or
+        downgrade one. Ledger-only positions necessarily default peak=0 /
+        tp1_hit=False / remaining_fraction=1.0 (not in the ledger): better a
+        managed position than an orphan whose in_flight is stuck forever.
+
+        Why this is needed: on a fresh buy the ledger append is inline-durable
+        (append mode) but the bot_state write is offloaded; a redeploy SIGKILL
+        between them leaves the position in the ledger but absent from bot_state,
+        so load_state_list restores 0 and the position is orphaned. This fallback
+        re-hydrates it from the authoritative ledger.
+
+        Env gate POSITION_LEDGER_RECONCILE_MODE (default "on"; off/0/false/no to
+        kill). Fail-open: any error here must NEVER break boot/scan.
         """
+        if os.environ.get(
+            "POSITION_LEDGER_RECONCILE_MODE", "on"
+        ).strip().lower() in ("off", "0", "false", "no", ""):
+            return
         if self.trade_store is None:
             return
         try:
@@ -830,6 +865,11 @@ class DipScanner:
             # No sells — restore the first buy as an open position
             buy = grp["buys"][0]
             pm = self.bot_position_managers[bid]
+            # MERGE/dedup: bot_state precedence. A token already in the restored
+            # book (from load_state_list) carries the lossless lifecycle state —
+            # NEVER overwrite/downgrade it with a ledger-reconstructed one.
+            if tok in pm._positions:
+                continue
             capital = self.bot_capitals.get(bid)
             try:
                 import time as _t
@@ -849,6 +889,11 @@ class DipScanner:
                     bypass_max_concurrent=True,
                 )
                 restored_count[bid] += 1
+                logger.info(
+                    "[DipScanner] ledger-reconcile re-hydrated orphan %s for %s "
+                    "(entry=%s size=$%s, peak/tp1/remaining defaulted)",
+                    tok, bid, buy.get("entry_price"), buy.get("amount_usd"),
+                )
             except ValueError as e:
                 # Duplicate token only — bypass_max_concurrent=True means
                 # max_concurrent no longer raises here. Log the duplicate so

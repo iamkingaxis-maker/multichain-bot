@@ -149,6 +149,106 @@ async def _anomaly_watchdog(scanners: list, price_feed, dashboard, telegram):
                     dashboard._anomaly_log.pop(0)
 
 
+# ── Graceful-shutdown flush (2026-06-29 deploy-amnesia fix) ────────────────
+# A Railway redeploy sends SIGTERM (then SIGKILL). Without a handler, an
+# in-flight buy whose offloaded bot_state write hasn't landed yet is orphaned
+# (the durable ledger has the BUY but bot_state doesn't, so the next boot's
+# restore finds 0). On shutdown we SYNCHRONOUSLY persist every fleet bot's full
+# bot_state (capital + open_positions) and flush the trader's open_positions —
+# blocking, because the event loop is being torn down and an async to_thread may
+# never complete. Idempotent + fail-open. Env gate GRACEFUL_SHUTDOWN_FLUSH
+# (default "on"; off/0/false/no to disable).
+_shutdown_flush_targets: dict = {"scanner": None, "trader": None}
+_shutdown_flush_done = False
+
+
+def _graceful_flush_enabled() -> bool:
+    return os.environ.get("GRACEFUL_SHUTDOWN_FLUSH", "on").strip().lower() not in (
+        "off", "0", "false", "no", "")
+
+
+def _flush_fleet_state(scanner, trader=None) -> dict:
+    """Synchronously persist every fleet bot's full bot_state (capital +
+    open_positions via scanner._save_bot_state) and flush the trader's
+    open_positions. Fail-open per bot; never raises."""
+    result = {"enabled": _graceful_flush_enabled(), "bots_flushed": 0,
+              "trader_flushed": False}
+    if not result["enabled"]:
+        return result
+    try:
+        pms = getattr(scanner, "bot_position_managers", None) or {}
+        for bot_id in list(pms.keys()):
+            try:
+                # Full path (capital + open_positions + cooldown/buy state).
+                scanner._save_bot_state(bot_id)
+                result["bots_flushed"] += 1
+            except Exception as e:
+                logger.warning("[graceful-flush] bot_state flush failed for %s: %s",
+                               bot_id, e)
+    except Exception as e:
+        logger.error("[graceful-flush] fleet flush failed: %s", e)
+    if trader is not None:
+        try:
+            trader._save_open_positions()
+            result["trader_flushed"] = True
+        except Exception as e:
+            logger.warning("[graceful-flush] trader flush failed: %s", e)
+    logger.info("[graceful-flush] flushed %d fleet bot_state file(s), trader=%s",
+                result["bots_flushed"], result["trader_flushed"])
+    return result
+
+
+def _run_shutdown_flush() -> None:
+    """Idempotent shutdown-flush entrypoint for signal/atexit handlers."""
+    global _shutdown_flush_done
+    if _shutdown_flush_done:
+        return
+    _shutdown_flush_done = True
+    try:
+        _flush_fleet_state(_shutdown_flush_targets.get("scanner"),
+                           _shutdown_flush_targets.get("trader"))
+    except Exception as e:
+        logger.error("[graceful-flush] shutdown flush error: %s", e)
+
+
+def _install_graceful_shutdown(scanner, trader=None) -> None:
+    """Register SIGTERM/SIGINT + atexit handlers that flush fleet state before
+    exit. Idempotent; fail-open (a registration error never breaks boot)."""
+    if not _graceful_flush_enabled():
+        logger.info("[graceful-flush] GRACEFUL_SHUTDOWN_FLUSH=off — not installed")
+        return
+    _shutdown_flush_targets["scanner"] = scanner
+    _shutdown_flush_targets["trader"] = trader
+    try:
+        import atexit
+        import signal as _signal
+        atexit.register(_run_shutdown_flush)
+
+        def _handler(signum, frame):
+            _run_shutdown_flush()
+            # Restore the default disposition and re-raise so the process
+            # terminates normally (we only interposed to flush state).
+            try:
+                _signal.signal(signum, _signal.SIG_DFL)
+                os.kill(os.getpid(), signum)
+            except Exception:
+                os._exit(0)
+
+        for _sig in (getattr(_signal, "SIGTERM", None), getattr(_signal, "SIGINT", None)):
+            if _sig is None:
+                continue
+            try:
+                _signal.signal(_sig, _handler)
+            except (ValueError, OSError, RuntimeError) as e:
+                # Not in the main thread / unsupported on this platform — atexit
+                # still covers normal interpreter shutdown.
+                logger.warning("[graceful-flush] could not install handler for %s: %s",
+                               _sig, e)
+        logger.info("[graceful-flush] SIGTERM/SIGINT/atexit handlers installed")
+    except Exception as e:
+        logger.error("[graceful-flush] install failed (non-fatal): %s", e)
+
+
 async def main():
     logger.info("=" * 60)
     logger.info("  Solana Memecoin Bot v7 — Trader Calibrated")
@@ -985,6 +1085,13 @@ async def main():
                 dip_scanner.axiom_price_feed = axiom.price_feed
             # Register with dashboard so /api/user-watchlist endpoints can mutate it.
             dashboard.register_scanner("dip_scanner", dip_scanner)
+            # Graceful-shutdown flush (2026-06-29 deploy-amnesia fix): on
+            # SIGTERM/SIGINT/atexit, synchronously persist fleet bot_state +
+            # trader open_positions so a redeploy can't orphan an in-flight buy.
+            try:
+                _install_graceful_shutdown(dip_scanner, sol_trader)
+            except Exception as _gs_e:
+                logger.warning("[Main] graceful-shutdown install failed: %s", _gs_e)
             tasks.append(dip_scanner.run())
             logger.info(
                 f"[Main] DipScanner enabled — "
