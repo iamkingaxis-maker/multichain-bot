@@ -3486,19 +3486,27 @@ class DipScanner:
         EXIT_ROUTE_DEAD_MODE (off/shadow/enforce, default off):
           off     -> BYTE-IDENTICAL: short-circuit BEFORE any route probe / compute
                      / log; returns False (caller books the normal exit).
-          shadow  -> probe the route (read-only); if DEAD, append ONE JSONL
-                     would-overstate record and BOOK THE NORMAL EXIT UNCHANGED
-                     (zero P&L change); if ALIVE, do nothing. Always returns False.
-          enforce -> probe the route; if DEAD, route the close through the no-route
-                     path (returns True so the clean credit is NOT booked); if
-                     ALIVE, normal exit (returns False).
+          shadow  -> returns False IMMEDIATELY (books the normal exit, zero P&L
+                     change) and schedules the read-only route probe + JSONL append
+                     OFF-LOOP (asyncio.create_task -> _erd_shadow_probe) so the
+                     serial decision loop is NOT blocked on the un-cached Jupiter
+                     round-trip. That background task logs ONE would-overstate
+                     record iff the route is DEAD; never touches booking.
+          enforce -> AWAITS the route probe INLINE (the result gates booking — you
+                     cannot book the no-route close without knowing route is dead);
+                     if DEAD, routes the close through _book_corpse_no_route_close,
+                     which TAGS the close (corpse/no_route/paper_close_no_fill) so
+                     the flag-aware live-faithful analyzer EXCLUDES the unfillable
+                     exit — it does NOT reduce realized capital P&L. Returns True so
+                     the caller skips the clean-credit close. If ALIVE, returns
+                     False (normal exit).
 
         Fires ONLY on a FULL-close exit (sell_fraction >= 1.0) — a partial leaves
         the position open and live retries it. FAIL-OPEN EVERYWHERE: the probe
         raising / timing out / returning unknown is treated as route ALIVE (never
         block / penalize on uncertainty); the gate never raises into the sell
-        path. The probe only runs in shadow/enforce (never off), guarded by the
-        existing probe's own fail-open timeout — off adds zero latency."""
+        path. The probe runs in shadow (OFF-LOOP background task -> never blocks
+        the loop) and enforce (inline await), never off — off adds zero latency."""
         try:
             from core.paper_fidelity import paper_fidelity_enabled as _pf_enabled
             mode = _pf_enabled("EXIT_ROUTE_DEAD_MODE")
@@ -3513,15 +3521,8 @@ class DipScanner:
                 return False
             if _pos is None:
                 return False
-            # Read-only live SELL-route probe (REUSE the corpse probe; fail-open
-            # -> True so a transient quote miss never falsely declares no-route).
-            try:
-                route_alive = await self._corpse_has_route(_pos)
-            except Exception:
-                route_alive = True
-            if route_alive:
-                return False  # live could sell here -> paper's credit is honest
-            # route DEAD: paper booked an exit a funded live bot could NOT execute.
+            # Resolve the address + booked pnl up front (cheap, NO network) so the
+            # shadow record is self-contained even after the position closes.
             addr = (_pos.address if (_pos and getattr(_pos, "address", None)) else None) \
                 or getattr(self, "_addr_by_token", {}).get(token, "")
             booked_pnl_pct = None
@@ -3531,33 +3532,58 @@ class DipScanner:
                     booked_pnl_pct = round((float(eff_exit) / ep - 1.0) * 100.0, 4)
             except Exception:
                 booked_pnl_pct = None
+            exit_reason = getattr(exit_decision, "reason", "")
             if mode == "shadow":
-                logger.warning(
-                    "[exit-route-dead] SHADOW bot=%s token=%s addr=%s reason=%s "
-                    "booked_exit=%s booked_pnl_pct=%s route_dead=True — paper "
-                    "credited an unfillable full-close exit",
-                    bot_id, token, addr, getattr(exit_decision, "reason", ""),
-                    eff_exit, booked_pnl_pct)
-                self._append_exit_route_dead_shadow({
-                    "ts": now,
-                    "time": datetime.now(timezone.utc).isoformat(),
-                    "mode": mode,
-                    "bot_id": bot_id,
-                    "address": addr,
-                    "token": token,
-                    "exit_reason": getattr(exit_decision, "reason", ""),
-                    "booked_exit_pnl_pct": booked_pnl_pct,
-                    "booked_exit_price": eff_exit,
-                    "route_dead": True,
-                })
+                # SHADOW must NOT block the serial decision loop (shared with
+                # live-probe bots): _corpse_has_route is an un-cached Jupiter
+                # network round-trip and its result does NOT affect booking (it
+                # only feeds the JSONL). So schedule the probe + JSONL append
+                # OFF-LOOP and return immediately -> the exit books the normal
+                # close without waiting on the round-trip.
+                # NOTE (record parity): the shadow record stamps booked_exit_price
+                # = eff_exit (the price paper actually books); enforce instead
+                # books the no-route close at current_price via
+                # _book_corpse_no_route_close. That difference is INTENTIONAL —
+                # shadow records the would-book exit price; enforce's no-route
+                # close is a TAG (not a credited clean-exit price).
+                try:
+                    bg = getattr(self, "_erd_bg_tasks", None)
+                    if bg is None:
+                        bg = self._erd_bg_tasks = set()
+                    task = asyncio.create_task(self._erd_shadow_probe(
+                        _pos, bot_id, token, addr, exit_reason, eff_exit,
+                        booked_pnl_pct, now))
+                    # Retain a ref (set) + done-callback discard so the task isn't
+                    # GC'd mid-flight and its result/exception is retrieved.
+                    bg.add(task)
+                    task.add_done_callback(bg.discard)
+                except Exception as _sched_e:
+                    logger.debug("[exit-route-dead] shadow schedule skipped (%s) "
+                                 "bot=%s token=%s", _sched_e, bot_id, token)
                 return False  # BOOK THE NORMAL PAPER EXIT UNCHANGED (no P&L change)
-            # mode == "enforce": route the close through the no-route booking
-            # instead of crediting the clean exit, so paper stops over-crediting.
+            # mode == "enforce": the probe result GATES booking — we cannot book the
+            # no-route close without first knowing the route is dead — so the await
+            # is INLINE here (blocking is justified; off/shadow never reach it).
+            # Read-only probe; fail-open -> True so a transient quote miss never
+            # falsely declares no-route.
+            try:
+                route_alive = await self._corpse_has_route(_pos)
+            except Exception:
+                route_alive = True
+            if route_alive:
+                return False  # live could sell here -> paper's credit is honest
+            # route DEAD: route the close through the no-route booking path. This
+            # does NOT reduce realized capital P&L — _book_corpse_no_route_close
+            # still credits ~current_price capital — it TAGS the close
+            # (corpse/no_route/paper_close_no_fill) so the flag-aware live-faithful
+            # analyzer (scripts/analyze_live_faithful_pnl.py / core/live_faithful_pnl.py)
+            # EXCLUDES the unfillable exit. Returns True so the caller skips the
+            # normal clean-credit close below.
             logger.warning(
                 "[exit-route-dead] ENFORCE no_route close bot=%s token=%s addr=%s "
-                "reason=%s — live sell route DEAD, booking no-route close "
-                "(NOT the clean exit credit)",
-                bot_id, token, addr, getattr(exit_decision, "reason", ""))
+                "reason=%s — live sell route DEAD, tagging no-route close so "
+                "flag-aware live-faithful analysis excludes the unfillable exit",
+                bot_id, token, addr, exit_reason)
             await self._book_corpse_no_route_close(
                 bot_id, pm, _pos, current_price, now)
             return True
@@ -3565,6 +3591,47 @@ class DipScanner:
             logger.error("[exit-route-dead] gate error (%s) — fail-open, normal "
                          "exit bot=%s token=%s", e, bot_id, token)
             return False
+
+    async def _erd_shadow_probe(self, _pos, bot_id, token, addr, exit_reason,
+                                eff_exit, booked_pnl_pct, now):
+        """OFF-LOOP shadow probe for EXIT_ROUTE_DEAD_MODE=shadow.
+
+        Scheduled via asyncio.create_task from _maybe_exit_route_dead so the serial
+        decision loop NEVER blocks on the un-cached Jupiter route round-trip — the
+        normal exit is already booked on the hot path before this runs; this only
+        feeds the JSONL study. If the live SELL route is DEAD, append ONE
+        would-overstate record; if ALIVE (or uncertain), do nothing.
+
+        FULLY SELF-CONTAINED + FAIL-SAFE: the whole body is wrapped so any failure
+        (incl. a slow / raising / timing-out probe) is swallowed here and can never
+        surface as an unobserved-task exception or warning."""
+        try:
+            try:
+                route_alive = await self._corpse_has_route(_pos)
+            except Exception:
+                route_alive = True  # fail-open: uncertainty -> route ALIVE, no line
+            if route_alive:
+                return  # live could sell here -> paper's credit is honest, no line
+            logger.warning(
+                "[exit-route-dead] SHADOW bot=%s token=%s addr=%s reason=%s "
+                "booked_exit=%s booked_pnl_pct=%s route_dead=True — paper "
+                "credited an unfillable full-close exit",
+                bot_id, token, addr, exit_reason, eff_exit, booked_pnl_pct)
+            self._append_exit_route_dead_shadow({
+                "ts": now,
+                "time": datetime.now(timezone.utc).isoformat(),
+                "mode": "shadow",
+                "bot_id": bot_id,
+                "address": addr,
+                "token": token,
+                "exit_reason": exit_reason,
+                "booked_exit_pnl_pct": booked_pnl_pct,
+                "booked_exit_price": eff_exit,
+                "route_dead": True,
+            })
+        except Exception as e:
+            logger.debug("[exit-route-dead] shadow bg probe error (%s) — swallowed "
+                         "bot=%s token=%s", e, bot_id, token)
 
     async def _execute_bot_sell_live(self, token, pm, pos, sold_frac, current_mid):
         """LIVE probe SELL (piece 1b): real Ultra swap (token->SOL) for the sold fraction.

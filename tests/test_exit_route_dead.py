@@ -204,3 +204,78 @@ def test_failopen_enforce_probe_raises(monkeypatch):
         NS(reason="hard_stop"), 1.0, eff_exit=0.8, current_price=0.8, now=1.0))
     assert preempt is False                  # never enforce a no-route on uncertainty
     assert pm.closed == []
+
+
+# ---- 7) shadow is NON-BLOCKING: probe runs OFF the hot path -----------------
+
+def test_shadow_non_blocking_probe_offloop(monkeypatch):
+    """A SLOW probe (blocks on an Event) must NOT delay the gate's return: shadow
+    returns False PROMPTLY (before the probe completes), then the background task
+    writes the JSONL record once the probe is driven to completion. Proves the
+    await is off the serial decision loop's hot path."""
+    monkeypatch.setenv("EXIT_ROUTE_DEAD_MODE", "shadow")
+    sc, pos, pm = _scanner(entry_price=1.0)
+
+    async def _drive():
+        ev = asyncio.Event()
+
+        async def _slow_probe(position):
+            sc._probe_calls.append(position)
+            await ev.wait()       # block until the test releases it
+            return False          # route DEAD
+
+        sc._corpse_has_route = _slow_probe
+
+        preempt = await sc._maybe_exit_route_dead(
+            "badday_flush", pm, "TOK", pos,
+            NS(reason="hard_stop"), 1.0, eff_exit=0.8, current_price=0.8, now=9.0)
+        assert preempt is False               # returned WITHOUT awaiting the probe
+        assert sc._erd_recs == []             # nothing logged yet (probe pending)
+        assert pm.closed == []                # gate didn't book anything itself
+
+        # Let the background task start and block on the Event.
+        await asyncio.sleep(0)
+        assert sc._erd_recs == []             # still blocked inside the probe
+
+        # Release the probe and drive the loop until the bg task writes.
+        ev.set()
+        for _ in range(20):
+            await asyncio.sleep(0)
+            if sc._erd_recs:
+                break
+        assert len(sc._probe_calls) == 1
+        assert len(sc._erd_recs) == 1         # background task DID write the record
+        rec = sc._erd_recs[0]
+        assert rec["route_dead"] is True
+        assert rec["mode"] == "shadow"
+        assert rec["booked_exit_price"] == pytest.approx(0.8)
+        assert rec["booked_exit_pnl_pct"] == pytest.approx(-20.0)
+
+    _run(_drive())
+
+
+# ---- 8) shadow background task SWALLOWS a raising probe ----------------------
+
+def test_shadow_bg_swallows_raising_probe(monkeypatch):
+    """A raising probe in the OFF-LOOP shadow task must not crash / surface an
+    unobserved-exception, and must write NO 'dead' record (fail-open -> alive)."""
+    monkeypatch.setenv("EXIT_ROUTE_DEAD_MODE", "shadow")
+    sc, pos, pm = _scanner()
+    _set_route(sc, raises=True)
+
+    async def _drive():
+        preempt = await sc._maybe_exit_route_dead(
+            "badday_flush", pm, "TOK", pos,
+            NS(reason="hard_stop"), 1.0, eff_exit=0.8, current_price=0.8, now=1.0)
+        assert preempt is False
+        # Drive the loop so the background task runs to completion.
+        for _ in range(20):
+            await asyncio.sleep(0)
+        assert sc._probe_calls == [pos]       # probe was invoked off-loop
+        assert sc._erd_recs == []             # raise -> treated alive -> no record
+        assert pm.closed == []                # no crash, no booking
+        # No tasks left pending (the bg task finished cleanly, exception retrieved).
+        leftover = [t for t in getattr(sc, "_erd_bg_tasks", set()) if not t.done()]
+        assert leftover == []
+
+    _run(_drive())
