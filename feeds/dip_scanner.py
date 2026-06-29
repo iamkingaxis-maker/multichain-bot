@@ -45,23 +45,30 @@ ONCHAIN_FRESH_SECS_DEFAULT = 2.0
 
 # EXIT-ARM trigger classification (2026-06-28). PROFIT triggers fire on a price
 # AT/ABOVE a target (a stale DexScreener SPIKE Jupiter never reached = a PHANTOM
-# TP that books a profit live couldn't get) or a trail/giveback whose stale DIP
-# fresh has already recovered past. LOSS triggers cut on weakness. Everything not
-# listed here is treated as a LOSS trigger (confirm-on-fresh-and-cut). Kinds come
-# from core.per_bot_position_manager.tick's ExitDecision(kind=...).
+# TP that books a profit live couldn't get) and each sells a DIFFERENT fraction,
+# so they require an EXACT-kind fresh match to confirm. LOSS triggers (incl. the
+# full-close protective cuts GIVEBACK_FLOOR / BREAKEVEN_LOCK — both downside,
+# sell_fraction=1.0, NOT upside phantoms) cut on weakness and confirm if the fresh
+# re-tick fires ANY loss kind. Everything not listed here is treated as a LOSS
+# trigger (confirm-on-fresh-and-cut). C1 fix (2026-06-28): GIVEBACK_FLOOR and
+# BREAKEVEN_LOCK were wrongly profit kinds — as profit kinds they demanded the
+# exact fresh kind, so a stale protective cut whose fresh price flushed DEEPER
+# (fresh fires IN_FLIGHT_FLOOR/HARD_STOP, not the exact kind) was REJECTED -> held
+# into a bleeding bag. They belong under the loss rule. Kinds come from
+# core.per_bot_position_manager.tick's ExitDecision(kind=...).
 _EXIT_ARM_PROFIT_KINDS = frozenset({
-    "TP1", "TP2", "POST_TP1_TRAIL", "BREAKEVEN_LOCK", "GIVEBACK_FLOOR",
+    "TP1", "TP2", "POST_TP1_TRAIL",
 })
 
 
 def _exit_arm_confirms(kind, fresh_kinds):
     """Whether the FRESH re-tick CONFIRMS the armed exit `kind`. Pure; testable.
 
-    PROFIT trigger (TP1/TP2/trail/giveback/breakeven-lock): confirm ONLY if the
-    fresh re-tick reproduces the EXACT same kind — a fresh price that no longer
-    reaches that profit target is a phantom and must not book (and the TP tiers
-    sell different fractions, so an exact match matters). LOSS trigger
-    (stop/floor/never_runner/...): confirm if the fresh re-tick fires ANY loss
+    PROFIT trigger (TP1/TP2/POST_TP1_TRAIL): confirm ONLY if the fresh re-tick
+    reproduces the EXACT same kind — a fresh price that no longer reaches that
+    profit target is a phantom and must not book (and the TP tiers sell different
+    fractions, so an exact match matters). LOSS trigger (stop/floor/never_runner/
+    giveback/breakeven-lock/...): confirm if the fresh re-tick fires ANY loss
     trigger — the cut is a full close either way, and the floor preceding the
     hard stop (or vice versa) is the same protective intent; only a fresh price
     that recovered OUT of loss territory (fresh fires a profit / HOLD) rejects
@@ -70,6 +77,26 @@ def _exit_arm_confirms(kind, fresh_kinds):
     if kind in _EXIT_ARM_PROFIT_KINDS:
         return kind in fk
     return bool(set(fk) - _EXIT_ARM_PROFIT_KINDS - {""})
+
+
+# I1 (2026-06-28). LOSS triggers stamp a once-fired guard on the REAL position's
+# state_blob during pm.tick BEFORE the arm gate sees the decision. If the gate
+# then REJECTS that loss decision (fresh recovered) the position is HELD, but the
+# stale once-fired stamp persists — and _reprice_exit_floors skips iff_fired
+# positions, so the held position loses fast-loop flush protection. On a loss
+# reject we roll back ONLY the stamps the rejected decision newly set this tick
+# (diff vs the pre-tick snapshot). Map: loss kind -> (gate flag, full key group).
+_EXIT_ARM_LOSS_STAMP_GROUPS = {
+    "IN_FLIGHT_FLOOR": ("iff_fired", (
+        "iff_fired", "iff_why", "iff_mode", "iff_pnl_at_fire",
+        "iff_peak_at_fire", "iff_secs")),
+    "BREAKEVEN_LOCK": ("bel_shadow_fired", (
+        "bel_shadow_fired", "bel_shadow_pnl_at_fire", "bel_shadow_peak_at_fire",
+        "bel_shadow_secs", "bel_mode")),
+    "NEVER_RUNNER": ("never_runner_fired", (
+        "never_runner_fired", "never_runner_arm", "never_runner_pnl_at_fire",
+        "never_runner_peak_at_fire", "never_runner_secs")),
+}
 
 
 logger = logging.getLogger(__name__)
@@ -3762,13 +3789,20 @@ class DipScanner:
                    serial exit loop / delays a live exit.
         enforce -> AWAIT the fresh fetch INLINE (the result gates booking) and
                    return only the decisions the fresh price confirms. A REJECTED
-                   PROFIT exit HOLDS; because pm.tick already set tp1_hit/tp2_hit
-                   (and bumped peak) when it produced that decision, we ROLL THOSE
-                   BACK to the pre-tick snapshot so every `not tp1_hit`-gated loss
-                   cutter (in_flight_floor/hard_stop/never_runner/...) stays LIVE on
-                   the held position (the #1 enforce risk). The gate only decides
-                   fire/hold; the booked exit PRICE stays paper-fidelity's job
-                   (no double-haircut), and it never SUBSTITUTES a new exit.
+                   exit HOLDS, and the once-set flags pm.tick stamped for that
+                   rejected trigger are ROLLED BACK to the pre-tick snapshot so the
+                   held position stays protected:
+                     PROFIT reject -> restore tp1_hit/tp2_hit (so every
+                       `not tpN_hit`-gated loss cutter stays LIVE, the #1 enforce
+                       risk) + peak (un-does the phantom-spike bump).
+                     LOSS reject (I1) -> roll back the rejected loss kind's
+                       once-fired guard (iff_fired/never_runner_fired/
+                       bel_shadow_fired) so the fast _reprice_exit_floors loop (which
+                       skips iff_fired) stays eligible and the kind can re-fire.
+                   Only stamps the rejected decision newly set THIS tick are touched
+                   (snapshot diff). The gate only decides fire/hold; the booked exit
+                   PRICE stays paper-fidelity's job (no double-haircut), and it never
+                   SUBSTITUTES a new exit.
 
         FAIL-OPEN everywhere: no fresh price / re-eval error / unknown kind ->
         return `decisions` unchanged (fire on the stale tick, today's behavior).
@@ -3826,24 +3860,67 @@ class DipScanner:
                 "stale_price=%.10g fresh_price=%.10g -> HOLD (re-arms next tick)",
                 bot_id, token, kind, "profit" if is_profit else "loss",
                 stale_price, fresh)
-            # Roll back ONLY the tier/peak flags pm.tick set for THIS profit
-            # trigger, so the loss floor/stop stay live on the held position. TP1
-            # reject -> back to pre-TP1 (restore tp1_hit + peak); TP2 reject ->
-            # restore tp2_hit. Loss triggers set no tier flag and re-evaluate purely
-            # on price/time each tick, so a held loss reject needs no rollback.
+            # Roll back the once-set flags pm.tick stamped for THIS rejected
+            # trigger so the held position re-arms cleanly and stays protected:
+            #  - PROFIT (TP1/TP2): restore the tier flag (tp1_hit/tp2_hit) so every
+            #    `not tpN_hit`-gated loss cutter stays live.
+            #  - LOSS (I1): roll back the rejected loss kind's once-fired guard
+            #    (iff_fired/never_runner_fired/bel_shadow_fired) so the fast
+            #    _reprice_exit_floors loop (which skips iff_fired) stays eligible and
+            #    the kind can re-fire next slow tick. Only stamps THIS decision newly
+            #    set this tick (snapshot diff) are touched.
+            #  - PEAK (I2): restore peak_pnl_pct/peak_pnl_at_secs on EVERY reject —
+            #    on a profit reject this un-does the phantom-spike peak bump that
+            #    would loosen the post-TP1 trail; on a loss reject price<peak so it's
+            #    a no-op (safe to apply uniformly). M1: SKIP the peak restore when a
+            #    scale-in completed this tick (entry_price was rebased between tick
+            #    and gate, so peak is on the NEW basis; restoring the pre-scalein
+            #    snapshot peak would mix bases) — detect via snapshot vs current
+            #    entry_price.
             try:
                 if kind == "TP1":
                     position.tp1_hit = snap_tp1
+                elif kind == "TP2":
+                    position.tp2_hit = snap_tp2
+                elif kind in _EXIT_ARM_LOSS_STAMP_GROUPS:
+                    self._exit_arm_rollback_stamps(position, snapshot_pos, kind)
+                _snap_ep = getattr(snapshot_pos, "entry_price", None)
+                _cur_ep = getattr(position, "entry_price", None)
+                _scalein_rebased = (
+                    _snap_ep is not None and _cur_ep is not None
+                    and abs(float(_cur_ep) - float(_snap_ep)) > 1e-12)
+                if not _scalein_rebased:
                     if snap_peak is not None:
                         position.peak_pnl_pct = snap_peak
                     if snap_peak_secs is not None:
                         position.peak_pnl_at_secs = snap_peak_secs
-                elif kind == "TP2":
-                    position.tp2_hit = snap_tp2
             except Exception as _re:
                 logger.error("[exit-arm] rollback error (%s) bot=%s token=%s",
                              _re, bot_id, token)
         return survivors
+
+    @staticmethod
+    def _exit_arm_rollback_stamps(position, snapshot_pos, kind):
+        """I1: roll back the once-fired loss-guard stamps the REJECTED loss `kind`
+        set on the REAL position this tick, diffing against the pre-tick snapshot so
+        only stamps THIS decision newly set are touched (never clobber a pre-existing
+        stamp). Restores each key to its snapshot value, or removes it if the snapshot
+        had none. No-op unless the gate flag flipped False->True this tick."""
+        grp = _EXIT_ARM_LOSS_STAMP_GROUPS.get(kind)
+        if not grp:
+            return
+        fired_key, keys = grp
+        cur = getattr(position, "state_blob", None)
+        if not isinstance(cur, dict):
+            return
+        snap = getattr(snapshot_pos, "state_blob", None) or {}
+        # only roll back when THIS tick newly set the once-fired flag
+        if bool(cur.get(fired_key)) and not bool(snap.get(fired_key)):
+            for k in keys:
+                if k in snap:
+                    cur[k] = snap[k]
+                else:
+                    cur.pop(k, None)
 
     async def _exit_arm_shadow_probe(self, bot_id, pm, token, snapshot_pos,
                                      armed_kinds, stale_price, now, vol_m5):

@@ -354,3 +354,167 @@ def test_fresh_price_falls_back_to_fast_sample(monkeypatch):
     sc._fast_samples = {"mintTOK": deque([1.02], maxlen=20)}
     px = _run(sc._exit_arm_fresh_price("TOK", pos))
     assert px == pytest.approx(1.02)
+
+
+# --------------------------------------------------------------------------- #
+# 9) CALL-SITE off guard: the real decision loop must NOT deepcopy the          #
+#    position (arm snapshot) nor fetch a fresh price when EXIT_ARM_MODE=off.    #
+# --------------------------------------------------------------------------- #
+
+def test_off_callsite_no_deepcopy_no_fresh(monkeypatch):
+    """Drive the real _tick_all_bots_positions_inner loop with EXIT_ARM_MODE off
+    and assert the CALL SITE skips the expensive arm work — no deepcopy(position)
+    for the snapshot, no fresh-price fetch — not merely the gate's own off-path."""
+    import feeds.dip_scanner as dip_mod
+    for _v in ("EXIT_ARM_MODE", "EXIT_TRIGGER_RECON_MODE", "CORPSE_EXIT_MODE",
+               "EXIT_REPRICE_MODE", "PARALLEL_TICK_MODE"):
+        monkeypatch.delenv(_v, raising=False)
+
+    sc, pm, pos = _scanner(entry_price=1.0)
+    sc.trader = NS(private_key="x")        # truthy key -> skip the paper scale-in branch
+    sc.bot_capitals = {}
+    sc._stamp_sol_bail_shadow = lambda *a, **k: None
+
+    async def _fetch(position, pkey, priced, vols, now):
+        priced[pkey] = 1.0                 # populate the price slot the loop reads
+        vols[pkey] = None
+    sc._fetch_tick_price = _fetch
+
+    sells = []
+
+    async def _sell(bot_id, token, d, price, now):
+        sells.append(d)
+    sc._execute_bot_sell = _sell
+
+    fresh_calls = {"n": 0}
+
+    async def _spy_fresh(token, address="", pair_address=""):
+        fresh_calls["n"] += 1
+        return 2.0
+    sc._get_current_price_for = _spy_fresh
+
+    real_deepcopy = dip_mod.copy.deepcopy
+    dc = {"n": 0}
+
+    def _spy_dc(obj, *a, **k):
+        dc["n"] += 1
+        return real_deepcopy(obj, *a, **k)
+    monkeypatch.setattr(dip_mod.copy, "deepcopy", _spy_dc)
+
+    _run(sc._tick_all_bots_positions_inner())
+    assert dc["n"] == 0           # off -> no arm/recon snapshot deepcopy at the call site
+    assert fresh_calls["n"] == 0  # off -> no fresh-price fetch
+
+
+# --------------------------------------------------------------------------- #
+# 10) C1: a stale PROTECTIVE CUT (GIVEBACK_FLOOR / BREAKEVEN_LOCK) whose fresh   #
+#     price flushed DEEPER (fires IN_FLIGHT_FLOOR) must CONFIRM and CUT — not    #
+#     get rejected/held (the pre-fix bug treated them as exact-kind profits).   #
+# --------------------------------------------------------------------------- #
+
+def test_c1_stale_protective_cut_fresh_deeper_confirms_and_cuts(monkeypatch):
+    monkeypatch.setenv("EXIT_ARM_MODE", "enforce")
+    monkeypatch.setenv("IN_FLIGHT_FLOOR_MODE", "enforce")
+    for kind in ("GIVEBACK_FLOOR", "BREAKEVEN_LOCK"):
+        sc, pm, pos = _scanner(entry_price=1.0)
+        snap = OpenPosition(token="TOK", entry_price=1.0, size_usd=20.0,
+                            entry_time=0.0, address="mintTOK", state_blob={},
+                            tp1_hit=False, peak_pnl_pct=0.0)
+        decisions = [NS(kind=kind, reason=kind, sell_fraction=1.0)]
+        _set_fresh(sc, 0.92)   # fresh -8% -> fires IN_FLIGHT_FLOOR (a DIFFERENT loss kind)
+        out = _run(sc._exit_arm_gate("badday_flush", pm, "TOK", pos, snap,
+                                     decisions, 0.95, 30.0, None))
+        assert out == decisions, f"{kind} should CONFIRM and cut on a deeper fresh flush"
+
+
+# --------------------------------------------------------------------------- #
+# 11) C1: a stale GIVEBACK_FLOOR whose fresh price RECOVERED out of loss       #
+#     territory correctly REJECTS (holds).                                     #
+# --------------------------------------------------------------------------- #
+
+def test_c1_stale_giveback_fresh_recovered_holds(monkeypatch):
+    monkeypatch.setenv("EXIT_ARM_MODE", "enforce")
+    monkeypatch.setenv("IN_FLIGHT_FLOOR_MODE", "enforce")
+    sc, pm, pos = _scanner(entry_price=1.0)
+    snap = OpenPosition(token="TOK", entry_price=1.0, size_usd=20.0,
+                        entry_time=0.0, address="mintTOK", state_blob={},
+                        tp1_hit=False, peak_pnl_pct=0.0)
+    decisions = [NS(kind="GIVEBACK_FLOOR", reason="giveback", sell_fraction=1.0)]
+    _set_fresh(sc, 1.02)   # fresh +2% -> no loss kind fires -> reject/hold
+    out = _run(sc._exit_arm_gate("badday_flush", pm, "TOK", pos, snap,
+                                 decisions, 0.98, 30.0, None))
+    assert out == []
+
+
+# --------------------------------------------------------------------------- #
+# 12) I1: a rejected LOSS floor must roll back the iff_fired stamp the real     #
+#     tick set, so the held position stays eligible for the fast reprice floor. #
+# --------------------------------------------------------------------------- #
+
+def test_i1_loss_reject_rolls_back_iff_fired(monkeypatch):
+    monkeypatch.setenv("EXIT_ARM_MODE", "enforce")
+    monkeypatch.setenv("IN_FLIGHT_FLOOR_MODE", "enforce")
+    sc, pm, pos = _scanner(entry_price=1.0)
+    # the REAL slow tick fired IN_FLIGHT_FLOOR and stamped the once-fired guard
+    # BEFORE the gate; the PRE-tick snapshot is clean.
+    pos.state_blob = {"iff_fired": True, "iff_why": "floor", "iff_mode": "enforce",
+                      "iff_pnl_at_fire": -8.0, "iff_peak_at_fire": 0.0, "iff_secs": 30}
+    snap = OpenPosition(token="TOK", entry_price=1.0, size_usd=20.0,
+                        entry_time=0.0, address="mintTOK", state_blob={},
+                        tp1_hit=False, peak_pnl_pct=0.0)
+    decisions = [NS(kind="IN_FLIGHT_FLOOR", reason="floor", sell_fraction=1.0)]
+    _set_fresh(sc, 1.02)   # fresh recovered -> reject/hold
+    out = _run(sc._exit_arm_gate("badday_flush", pm, "TOK", pos, snap,
+                                 decisions, 0.92, 30.0, None))
+    assert out == []
+    # iff_fired (and its companion stamps) rolled back -> reprice floor eligible
+    assert not pos.state_blob.get("iff_fired")
+    assert "iff_why" not in pos.state_blob
+    # proof of eligibility: a subsequent fresh-low real tick re-fires the floor
+    loss = pm.tick(token="TOK", current_price=0.92, now=31.0, vol_m5_usd=None)
+    assert any(d.kind in ("IN_FLIGHT_FLOOR", "HARD_STOP") for d in loss)
+
+
+# --------------------------------------------------------------------------- #
+# 13) I2: a rejected TP2 must restore peak_pnl_pct/peak_pnl_at_secs to the      #
+#     pre-tick snapshot (not leave the phantom-spike peak loosening the trail). #
+# --------------------------------------------------------------------------- #
+
+def test_i2_tp2_reject_restores_peak(monkeypatch):
+    monkeypatch.setenv("EXIT_ARM_MODE", "enforce")
+    sc, pm, pos = _scanner(entry_price=1.0)
+    # the stale tick fired TP2 off a phantom +13% spike, bumping peak.
+    pos.tp2_hit = True
+    pos.peak_pnl_pct = 13.0
+    pos.peak_pnl_at_secs = 20
+    snap = OpenPosition(token="TOK", entry_price=1.0, size_usd=20.0,
+                        entry_time=0.0, address="mintTOK", state_blob={},
+                        tp1_hit=False, tp2_hit=False,
+                        peak_pnl_pct=5.0, peak_pnl_at_secs=10)
+    decisions = [NS(kind="TP2", reason="TP2", sell_fraction=0.25)]
+    _set_fresh(sc, 1.06)   # fresh +6% < tp2(12) -> TP2 not reproduced -> reject
+    out = _run(sc._exit_arm_gate("badday_flush", pm, "TOK", pos, snap,
+                                 decisions, 1.13, 30.0, None))
+    assert out == []
+    assert pos.tp2_hit is False
+    assert pos.peak_pnl_pct == pytest.approx(5.0)
+    assert pos.peak_pnl_at_secs == 10
+
+
+# --------------------------------------------------------------------------- #
+# 14) cross-kind LOSS confirm: an armed FAST_BAIL whose fresh fires a DIFFERENT #
+#     loss kind (HARD_STOP) still CONFIRMS and cuts (loss rule = any loss kind).#
+# --------------------------------------------------------------------------- #
+
+def test_cross_kind_loss_confirms(monkeypatch):
+    monkeypatch.setenv("EXIT_ARM_MODE", "enforce")
+    monkeypatch.setenv("IN_FLIGHT_FLOOR_MODE", "off")  # let HARD_STOP be the fresh kind
+    sc, pm, pos = _scanner(entry_price=1.0)
+    snap = OpenPosition(token="TOK", entry_price=1.0, size_usd=20.0,
+                        entry_time=0.0, address="mintTOK", state_blob={},
+                        tp1_hit=False, peak_pnl_pct=0.0)
+    decisions = [NS(kind="FAST_BAIL", reason="fast bail", sell_fraction=1.0)]
+    _set_fresh(sc, 0.80)   # fresh -20% -> fires HARD_STOP (a different loss kind)
+    out = _run(sc._exit_arm_gate("badday_flush", pm, "TOK", pos, snap,
+                                 decisions, 0.84, 30.0, None))
+    assert out == decisions
