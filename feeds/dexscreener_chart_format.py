@@ -113,3 +113,40 @@ def parse_chart_bars(raw: bytes) -> List[Dict[str, Any]]:
         seen[bar["ts_ms"]] = bar
         p = np
     return sorted(seen.values(), key=lambda b: b["ts_ms"])
+
+
+def rolling_high_from_bars(bars, window_secs, now_ms):
+    """Max bar high over bars whose ts_ms is within window_secs of now_ms.
+
+    Returns None if no qualifying bar with a positive high. Pure; never raises;
+    skips malformed/non-numeric bars."""
+    lo_ms = float(now_ms) - float(window_secs) * 1000.0
+    best = None
+    for b in bars or []:
+        try:
+            if float(b["ts_ms"]) < lo_ms:
+                continue
+            h = float(b["high"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if h > 0 and (best is None or h > best):
+            best = h
+    return best
+
+
+def rolling_low_from_bars(bars, window_secs, now_ms):
+    """Min bar low over bars whose ts_ms is within window_secs of now_ms.
+
+    Returns None if no qualifying bar with a positive low. Pure; never raises."""
+    lo_ms = float(now_ms) - float(window_secs) * 1000.0
+    best = None
+    for b in bars or []:
+        try:
+            if float(b["ts_ms"]) < lo_ms:
+                continue
+            lw = float(b["low"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if lw > 0 and (best is None or lw < best):
+            best = lw
+    return best
