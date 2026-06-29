@@ -2495,6 +2495,7 @@ class WebDashboard:
         self.app.router.add_get("/api/live-swaps",          self._handle_api_live_swaps)
         self.app.router.add_get("/api/live-real-pnl",       self._handle_api_live_real_pnl)
         self.app.router.add_get("/api/live-faithful-pnl",   self._handle_api_live_faithful_pnl)
+        self.app.router.add_get("/api/exit-trigger-recon",   self._handle_api_exit_trigger_recon)
         self.app.router.add_get("/api/rt-shadow",           self._handle_api_rt_shadow)
         self.app.router.add_get("/api/paper-live-skips",    self._handle_api_paper_live_skips)
         self.app.router.add_get("/api/fill-probe",          self._handle_api_fill_probe)
@@ -3349,6 +3350,68 @@ class WebDashboard:
             logger.debug("live-faithful-pnl failed: %s", e)
             return web.Response(text=json.dumps({"ok": False, "error": str(e)}),
                                 content_type="application/json", headers=cors)
+
+    async def _handle_api_exit_trigger_recon(self, request):
+        """GET /api/exit-trigger-recon — paper-vs-fresh EXIT-TRIGGER divergence lens.
+
+        Reads DATA_DIR/exit_trigger_recon.jsonl (written by dip_scanner's
+        _maybe_exit_trigger_recon under EXIT_TRIGGER_RECON_MODE=shadow) OFF the event
+        loop via asyncio.to_thread, then summarizes how often paper's STALE-price exit
+        DECISION (peak/tp1/tp2/trail/stop/never_runner/floor/HOLD) diverges from a FRESH
+        Jupiter-priced re-tick of the same pre-tick state, and which way paper's booked
+        exit pnl is biased on disagreements (pnl_delta = stale - fresh; >0 == paper
+        OVERSTATES). Result cached 300s like /api/live-faithful-pnl. Read-only,
+        fail-open: any error -> {"ok": false, "error": ...} with HTTP 200."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        import time as _t
+        now = _t.monotonic()
+        mode = os.environ.get("EXIT_TRIGGER_RECON_MODE", "off")
+        cache = getattr(self, "_exit_trigger_recon_cache", None)
+        if cache and now - cache[0] < 300.0:
+            return web.Response(text=cache[1], content_type="application/json",
+                                headers=cors)
+        try:
+            import asyncio as _asyncio
+            from core.exit_trigger_recon_summary import (
+                summarize_exit_trigger_recon as _summarize)
+            path = os.path.join(
+                os.environ.get("DATA_DIR", "/data"), "exit_trigger_recon.jsonl")
+
+            def _read(p):
+                out = []
+                try:
+                    if not os.path.exists(p):
+                        return out
+                    with open(p) as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line:
+                                continue
+                            try:
+                                out.append(json.loads(line))
+                            except Exception:
+                                continue
+                except Exception:
+                    pass
+                return out
+
+            recs = await _asyncio.to_thread(_read, path)
+            summary = await _asyncio.to_thread(_summarize, recs)
+            payload = {
+                "ok": True,
+                "EXIT_TRIGGER_RECON_MODE": mode,
+                "n_records": len(recs),
+                "summary": summary,
+            }
+            text = json.dumps(payload, default=str)
+            self._exit_trigger_recon_cache = (now, text)
+            return web.Response(text=text, content_type="application/json",
+                                headers=cors)
+        except Exception as e:
+            logger.debug("exit-trigger-recon failed: %s", e)
+            return web.Response(
+                text=json.dumps({"ok": False, "error": str(e)}),
+                content_type="application/json", headers=cors)
 
     async def _handle_api_rt_shadow(self, request):
         """GET /api/rt-shadow — running tally of RT-trigger shadow divergences
