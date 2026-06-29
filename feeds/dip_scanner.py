@@ -21860,47 +21860,32 @@ class DipScanner:
 
     async def _get_rt_dip_bars(self, addr, dex_slug, pair_addr, *, res="1m",
                                ttl_secs=60.0, now=None):
-        """Cached io.dexscreener bars for the RT dip reference. Tries a slug
-        ladder (the mapped primary + known Solana DEX slugs, max 3 attempts,
-        bailing on the first slug that yields bars) because the dexId->slug map
-        misses often — single-slug single-shot gave only ~10% coverage, forcing
-        BUFFER_ONLY fleet-wide. Returns cached bars within ttl, else fetches
-        off-loop, parses, caches. On any failure returns the last cached bars
-        (or []). Never raises."""
+        """Cached 1m bars for the RT dip reference, fetched via the canonical
+        DexScreenerClient (self.dexs_client). That client resolves the pool's
+        slug + quote mint + res value correctly and carries its own
+        throttle/circuit-breaker. The previous bespoke single-URL fetch sent
+        res=1m (the API wants res=1) with a hardcoded q=SOL quote, so it 400'd
+        on every pool — forcing BUFFER_ONLY fleet-wide. Converts the returned
+        Candle objects to the {ts_ms, high, low} dicts the rolling-high helpers
+        expect (open_time is in SECONDS -> *1000). Returns cached bars within
+        ttl, else fetches; on empty/failure returns the last cached bars (or
+        []). `dex_slug`/`res` are retained for signature compat but unused — the
+        client derives them. Never raises."""
         import time as _t
         now = _t.time() if now is None else now
         cached = self._rt_dip_bar_cache.get(addr)
         if cached is not None and (now - cached[1]) < ttl_secs:
             return cached[0]
-        _SOL_QUOTE = "So11111111111111111111111111111111111111112"
-        # Primary first, then the known Solana DEX slugs as fallbacks (skip the
-        # primary so it is not retried). Mirrors the proven 1S chart ladder.
-        _ladder = [dex_slug] + [
-            s for s in ("pumpfundex", "solamm", "meteora", "orcawhirl")
-            if s != dex_slug
-        ]
-
-        def _fetch_sync(slug):
-            try:
-                from curl_cffi import requests as _cf
-                _url = (
-                    f"https://io.dexscreener.com/dex/chart/amm/v3/{slug}"
-                    f"/bars/solana/{pair_addr}?res={res}&cb=999&q={_SOL_QUOTE}"
-                )
-                _r = _cf.get(_url, impersonate="chrome", timeout=8,
-                             headers={"Origin": "https://dexscreener.com",
-                                      "Referer": "https://dexscreener.com/"})
-                if _r.status_code == 200 and _r.content:
-                    return _r.content
-            except Exception:
-                return None
-            return None
-
         try:
-            for _slug_try in _ladder[:3]:  # max 3 attempts
-                raw = await run_ds_fetch(_fetch_sync, _slug_try)
-                bars = parse_chart_bars(raw) if raw else None
-                if bars:
+            client = getattr(self, "dexs_client", None)
+            if client is not None and pair_addr:
+                candles = await client.fetch_1m(pair_addr, limit=999)
+                if candles:
+                    bars = [
+                        {"ts_ms": int(getattr(c, "open_time", 0)) * 1000,
+                         "high": float(c.high), "low": float(c.low)}
+                        for c in candles
+                    ]
                     self._rt_dip_bar_cache[addr] = (bars, now)
                     return bars
         except Exception:
