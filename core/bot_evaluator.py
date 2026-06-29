@@ -933,6 +933,23 @@ class BotEvaluator:
                     return False
                 if _op == "<=" and _v > _thr:
                     return False
+        # Per-bot 15m-RSI oversold gate (2026-06-28, rsi_oversold_ab A/B). Default
+        # None = disabled (every other bot byte-identical — this branch is skipped).
+        # When set, the bot fires only on tokens whose 15m RSI is KNOWN and <= the cap.
+        # FAIL-CLOSED: a missing/non-numeric rsi_15m skips the token, so the A/B
+        # measures only tokens where the signal is observable. Threshold = env
+        # RSI_OVERSOLD_MAX if set+parseable, else the per-bot config default.
+        _rsi_cap = getattr(c, "entry_rsi_15m_max", None)
+        if _rsi_cap is not None:
+            try:
+                _rsi_cap = float(os.environ.get("RSI_OVERSOLD_MAX", _rsi_cap))
+            except (TypeError, ValueError):
+                _rsi_cap = float(_rsi_cap)
+            _rsi_v = (b.raw_meta or {}).get("rsi_15m")
+            if not isinstance(_rsi_v, (int, float)) or isinstance(_rsi_v, bool):
+                return False  # fail-CLOSED: rsi unknown -> skip
+            if float(_rsi_v) > _rsi_cap:
+                return False
         return True
 
     def _rug_gate_blocks(self, b: FeatureBundle) -> bool:

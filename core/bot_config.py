@@ -86,6 +86,16 @@ class BotConfig:
     # Default None = no gate. See reference_entry_separator_mine_2026_05_27.
     entry_gate: Optional[tuple] = None
 
+    # Per-bot 15m-RSI oversold entry cap (2026-06-28, rsi_oversold_ab A/B). When set,
+    # the bot only fires on tokens whose 15-min RSI (raw_meta["rsi_15m"], computed live
+    # by feeds.tier2_features.compute_rsi_bb) is KNOWN and <= this cap. Missing rsi
+    # FAIL-CLOSED (token skipped) so the A/B measures only tokens where the signal is
+    # actually observable. The cap here is the per-bot default; env RSI_OVERSOLD_MAX
+    # overrides it at runtime (affects ONLY bots that opt in via this field). Default
+    # None = disabled -> every other bot's decision is byte-identical. Consumed in
+    # core/bot_evaluator.py::_token_regime_passes (alongside entry_gate).
+    entry_rsi_15m_max: Optional[float] = None
+
     # Per-trigger token-state gates (2026-06-08, 7-Opus held-out validation of AxiS's
     # "each trigger only wins in a specific token-state" thesis — see
     # reference_per_trigger_state_conditioning_2026_06_08). Optional list of
