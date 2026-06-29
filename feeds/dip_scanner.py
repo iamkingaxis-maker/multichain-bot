@@ -3152,6 +3152,25 @@ class DipScanner:
         except Exception as e:
             logger.debug("[exit-slip-liq] shadow write failed: %s", e)
 
+    def _append_exit_route_dead_shadow(self, rec):
+        """Append one EXIT-ROUTE-DEAD shadow record to
+        {DATA_DIR}/exit_route_dead_shadow.jsonl (size-capped via the shared
+        cap_jsonl helper, same idiom as the other shadow recorders). Fail-open;
+        never raises into the sell path."""
+        try:
+            path = os.path.join(
+                os.environ.get("DATA_DIR", "/data"), "exit_route_dead_shadow.jsonl")
+            try:
+                from core.jsonl_rotation import cap_jsonl
+                cap_jsonl(path, max_mb=float(
+                    os.environ.get("EXIT_ROUTE_DEAD_SHADOW_MAX_MB", "100")))
+            except Exception:
+                pass
+            with open(path, "a") as f:
+                f.write(json.dumps(rec, separators=(",", ":")) + "\n")
+        except Exception as e:
+            logger.debug("[exit-route-dead] shadow write failed: %s", e)
+
     def _fresh_exit_liquidity(self, address):
         """Best FRESH exit-time liquidity (USD) for ``address`` from the WS
         price-feed liquidity caches — NOT the buy-time stamped slip. Returns a
@@ -3443,6 +3462,109 @@ class DipScanner:
                 }, bot_id=bot_id)
         except Exception as e:
             logger.debug("[corpse] no-route trade record failed: %s", e)
+
+    async def _maybe_exit_route_dead(self, bot_id, pm, token, _pos, exit_decision,
+                                     sell_fraction, eff_exit, current_price, now):
+        """EXIT-ROUTE-DEAD execution-fidelity gate (SHADOW-first, EXIT_ROUTE_DEAD_MODE).
+
+        Detects when the PAPER twin books a clean FULL-close exit on a token whose
+        LIVE sell route is DEAD (no Jupiter route / honeypot / transfer-tax /
+        route-revert) — i.e. paper credits an exit a funded live bot could NOT
+        execute, OVERSTATING live P&L by ~the whole position. Confirmed gap #2 of
+        the sell-leg fidelity audit (subsumes the measurement intent of #3).
+
+        Distinct from CORPSE_EXIT_MODE, which only catches FEED-DEAD tokens (the
+        `price is None` branch). This fires on tokens that STILL PRINT a price (so
+        corpse never runs) but whose live SELL route is dead. Called ONLY from the
+        PAPER sell branch (live already faces real route failure).
+
+        Returns True when it PREEMPTED the normal close (enforce + dead route ->
+        booked via _book_corpse_no_route_close); the caller must then NOT credit
+        the clean exit. Returns False otherwise (off / shadow / route alive /
+        partial / any error) -> the caller books the normal exit unchanged.
+
+        EXIT_ROUTE_DEAD_MODE (off/shadow/enforce, default off):
+          off     -> BYTE-IDENTICAL: short-circuit BEFORE any route probe / compute
+                     / log; returns False (caller books the normal exit).
+          shadow  -> probe the route (read-only); if DEAD, append ONE JSONL
+                     would-overstate record and BOOK THE NORMAL EXIT UNCHANGED
+                     (zero P&L change); if ALIVE, do nothing. Always returns False.
+          enforce -> probe the route; if DEAD, route the close through the no-route
+                     path (returns True so the clean credit is NOT booked); if
+                     ALIVE, normal exit (returns False).
+
+        Fires ONLY on a FULL-close exit (sell_fraction >= 1.0) — a partial leaves
+        the position open and live retries it. FAIL-OPEN EVERYWHERE: the probe
+        raising / timing out / returning unknown is treated as route ALIVE (never
+        block / penalize on uncertainty); the gate never raises into the sell
+        path. The probe only runs in shadow/enforce (never off), guarded by the
+        existing probe's own fail-open timeout — off adds zero latency."""
+        try:
+            from core.paper_fidelity import paper_fidelity_enabled as _pf_enabled
+            mode = _pf_enabled("EXIT_ROUTE_DEAD_MODE")
+            if mode not in ("shadow", "enforce"):
+                return False  # off / unknown -> byte-identical, NO probe / log
+            # FULL closes only — a partial leg leaves the position open (live
+            # retries), so an unfillable route there isn't a credited full exit.
+            try:
+                if float(sell_fraction) < 1.0:
+                    return False
+            except (TypeError, ValueError):
+                return False
+            if _pos is None:
+                return False
+            # Read-only live SELL-route probe (REUSE the corpse probe; fail-open
+            # -> True so a transient quote miss never falsely declares no-route).
+            try:
+                route_alive = await self._corpse_has_route(_pos)
+            except Exception:
+                route_alive = True
+            if route_alive:
+                return False  # live could sell here -> paper's credit is honest
+            # route DEAD: paper booked an exit a funded live bot could NOT execute.
+            addr = (_pos.address if (_pos and getattr(_pos, "address", None)) else None) \
+                or getattr(self, "_addr_by_token", {}).get(token, "")
+            booked_pnl_pct = None
+            try:
+                ep = float(getattr(_pos, "entry_price", 0) or 0)
+                if ep > 0 and eff_exit:
+                    booked_pnl_pct = round((float(eff_exit) / ep - 1.0) * 100.0, 4)
+            except Exception:
+                booked_pnl_pct = None
+            if mode == "shadow":
+                logger.warning(
+                    "[exit-route-dead] SHADOW bot=%s token=%s addr=%s reason=%s "
+                    "booked_exit=%s booked_pnl_pct=%s route_dead=True — paper "
+                    "credited an unfillable full-close exit",
+                    bot_id, token, addr, getattr(exit_decision, "reason", ""),
+                    eff_exit, booked_pnl_pct)
+                self._append_exit_route_dead_shadow({
+                    "ts": now,
+                    "time": datetime.now(timezone.utc).isoformat(),
+                    "mode": mode,
+                    "bot_id": bot_id,
+                    "address": addr,
+                    "token": token,
+                    "exit_reason": getattr(exit_decision, "reason", ""),
+                    "booked_exit_pnl_pct": booked_pnl_pct,
+                    "booked_exit_price": eff_exit,
+                    "route_dead": True,
+                })
+                return False  # BOOK THE NORMAL PAPER EXIT UNCHANGED (no P&L change)
+            # mode == "enforce": route the close through the no-route booking
+            # instead of crediting the clean exit, so paper stops over-crediting.
+            logger.warning(
+                "[exit-route-dead] ENFORCE no_route close bot=%s token=%s addr=%s "
+                "reason=%s — live sell route DEAD, booking no-route close "
+                "(NOT the clean exit credit)",
+                bot_id, token, addr, getattr(exit_decision, "reason", ""))
+            await self._book_corpse_no_route_close(
+                bot_id, pm, _pos, current_price, now)
+            return True
+        except Exception as e:
+            logger.error("[exit-route-dead] gate error (%s) — fail-open, normal "
+                         "exit bot=%s token=%s", e, bot_id, token)
+            return False
 
     async def _execute_bot_sell_live(self, token, pm, pos, sold_frac, current_mid):
         """LIVE probe SELL (piece 1b): real Ultra swap (token->SOL) for the sold fraction.
@@ -4427,6 +4549,23 @@ class DipScanner:
                 except Exception as _esl_e:
                     logger.error("[exit-slip-liq] error (%s) — fail-open, flat booking "
                                  "bot=%s token=%s", _esl_e, bot_id, token)
+            # EXIT-ROUTE-DEAD execution-fidelity gate (SHADOW-first,
+            # EXIT_ROUTE_DEAD_MODE, default off). PAPER-branch ONLY (live already
+            # faces real route failure). On a FULL-close paper exit whose LIVE
+            # sell route is DEAD (no Jupiter route / honeypot / transfer-tax),
+            # paper credits an exit a funded live bot could NOT execute. off =>
+            # short-circuit BEFORE the probe (byte-identical). shadow => log the
+            # would-overstate event, book the normal exit. enforce => book the
+            # no-route close instead of the clean credit (returns True -> skip the
+            # close below). FAIL-OPEN: uncertainty/error -> treat route ALIVE.
+            try:
+                if await self._maybe_exit_route_dead(
+                        bot_id, pm, token, _pos, exit_decision, sell_fraction,
+                        eff_exit, current_price, now):
+                    return  # enforce booked the no-route close; skip clean credit
+            except Exception as _erd_e:
+                logger.error("[exit-route-dead] call-site error (%s) — fail-open "
+                             "bot=%s token=%s", _erd_e, bot_id, token)
         try:
             result = pm.close_position(
                 token=token,
