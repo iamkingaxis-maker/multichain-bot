@@ -151,6 +151,13 @@ except (TypeError, ValueError):
 # first; oldest-inserted dropped if still over. Bounds memory growth.
 _RT_DIP_WINDOWS_MAX = 3000
 
+# RT_DIP bars are fetched only for the hot/dipping subset. A survivor is "dipping"
+# when any freshly-repriced horizon (m5/h1/h6) is at or below this pct — loose so
+# genuine dip candidates are never starved of deep history; pumpers/flats are
+# excluded (they won't buy on a dip bot) so the rate-limited fetch budget is
+# spent where it matters. Hot-set members are always fetched regardless.
+_RT_DIP_BARS_FETCH_PCT = -1.5
+
 
 class _PhaseTimer:
     """Cheap monotonic bracket for one cycle phase. Used as a context manager:
@@ -6329,10 +6336,13 @@ class DipScanner:
                 self._fast_samples, cfg.dip_pct, cfg.rise_pct)
         else:
             hot_addrs = hot_subset(armed, int(getattr(cfg, "hot_max", 50) or 0))
+        # Hoisted so it is defined on BOTH tiers — the RT_DIP bars gate (in the
+        # _eval_one_survivor closure below) restricts the rate-limited io.dx
+        # fetch to the hot/dipping subset and reads this set.
+        _hot_set = set(hot_addrs)
         if is_full_tick:
             # FULL universe: hot first (so the hot tokens are always covered),
             # then the remaining armed tokens. Original-case keys (FIX5).
-            _hot_set = set(hot_addrs)
             addrs = hot_addrs + [a for a in all_addrs if a not in _hot_set]
             full_n = len(addrs)
         else:
@@ -6593,12 +6603,29 @@ class DipScanner:
                     _rt_slug = {"pumpswap": "pumpfundex", "pumpfun": "pumpfundex",
                                 "raydium": "solamm", "meteora": "meteora"}.get(
                                     _rt_dex_id, _rt_dex_id or "pumpfundex")
+                    # Restrict the rate-limited io.dx bars fetch (now a 3-slug
+                    # ladder) to the hot/dipping subset: a flat or pumping
+                    # survivor won't buy on a dip bot, so it needs no deep
+                    # h1/h6/h24 history — buffer-only m5 suffices. Without this
+                    # gate every survivor (incl. pumpers) competed for the fetch
+                    # budget, starving real dippers -> BUFFER_ONLY fleet-wide.
+                    # The dip check reads the freshly-repriced priceChange in hand.
+                    _rt_pch = _pair.get("priceChange") or {}
+                    def _rt_neg(_v):
+                        try:
+                            return float(_v) <= _RT_DIP_BARS_FETCH_PCT
+                        except (TypeError, ValueError):
+                            return False
+                    _rt_is_dipping = (_rt_neg(_rt_pch.get("m5"))
+                                      or _rt_neg(_rt_pch.get("h1"))
+                                      or _rt_neg(_rt_pch.get("h6")))
                     _rt_bars = []
-                    try:
-                        _rt_bars = await self._get_rt_dip_bars(
-                            addr, _rt_slug, pair_addr, res="1m")
-                    except Exception:
-                        _rt_bars = []
+                    if addr in _hot_set or _rt_is_dipping:
+                        try:
+                            _rt_bars = await self._get_rt_dip_bars(
+                                addr, _rt_slug, pair_addr, res="1m")
+                        except Exception:
+                            _rt_bars = []
                     self._apply_rt_dip(_pair, _snap_price, _fresh_price, _rt_dip,
                                        bars=_rt_bars, now=now, addr=addr)
                 # FORWARD FILL-SPEED CAPTURE (shadow): stash the would-fill price
@@ -21833,15 +21860,25 @@ class DipScanner:
 
     async def _get_rt_dip_bars(self, addr, dex_slug, pair_addr, *, res="1m",
                                ttl_secs=60.0, now=None):
-        """Cached io.dexscreener bars for the RT dip reference. Returns the
-        cached bars within ttl, else fetches off-loop, parses, caches. On any
-        fetch/parse failure returns the last cached bars (or []). Never raises."""
+        """Cached io.dexscreener bars for the RT dip reference. Tries a slug
+        ladder (the mapped primary + known Solana DEX slugs, max 3 attempts,
+        bailing on the first slug that yields bars) because the dexId->slug map
+        misses often — single-slug single-shot gave only ~10% coverage, forcing
+        BUFFER_ONLY fleet-wide. Returns cached bars within ttl, else fetches
+        off-loop, parses, caches. On any failure returns the last cached bars
+        (or []). Never raises."""
         import time as _t
         now = _t.time() if now is None else now
         cached = self._rt_dip_bar_cache.get(addr)
         if cached is not None and (now - cached[1]) < ttl_secs:
             return cached[0]
         _SOL_QUOTE = "So11111111111111111111111111111111111111112"
+        # Primary first, then the known Solana DEX slugs as fallbacks (skip the
+        # primary so it is not retried). Mirrors the proven 1S chart ladder.
+        _ladder = [dex_slug] + [
+            s for s in ("pumpfundex", "solamm", "meteora", "orcawhirl")
+            if s != dex_slug
+        ]
 
         def _fetch_sync(slug):
             try:
@@ -21860,11 +21897,12 @@ class DipScanner:
             return None
 
         try:
-            raw = await run_ds_fetch(_fetch_sync, dex_slug)
-            bars = parse_chart_bars(raw) if raw else None
-            if bars:
-                self._rt_dip_bar_cache[addr] = (bars, now)
-                return bars
+            for _slug_try in _ladder[:3]:  # max 3 attempts
+                raw = await run_ds_fetch(_fetch_sync, _slug_try)
+                bars = parse_chart_bars(raw) if raw else None
+                if bars:
+                    self._rt_dip_bar_cache[addr] = (bars, now)
+                    return bars
         except Exception:
             pass
         return cached[0] if cached is not None else []
