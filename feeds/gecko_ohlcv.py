@@ -296,6 +296,49 @@ class GeckoTerminalClient:
         return await self.fetch_pool_feed("pools?sort=h24_volume_usd_desc", pages, min_liq_usd)
 
     @staticmethod
+    def _filter_decliners(pairs: List[dict], h1_min: float = -45.0,
+                          h1_max: float = -8.0, min_liq_usd: float = 0.0) -> List[dict]:
+        """Keep only pairs whose 1h price change is in the dip band
+        [h1_min, h1_max] and liquidity >= min_liq_usd, deduped by base address.
+
+        Pure. This is the decline-selection that GT's native sorts cannot
+        express — every other source ranks by promotion/trending/freshness/
+        volume, which de-rank a quiet capitulation flush."""
+        out: List[dict] = []
+        seen: set = set()
+        for p in pairs or []:
+            addr = (p.get("baseToken") or {}).get("address", "")
+            if not addr or addr in seen:
+                continue
+            try:
+                h1 = float((p.get("priceChange") or {}).get("h1") or 0)
+                liq = float((p.get("liquidity") or {}).get("usd") or 0)
+            except (TypeError, ValueError):
+                continue
+            if h1_min <= h1 <= h1_max and liq >= min_liq_usd:
+                seen.add(addr)
+                out.append(p)
+        return out
+
+    async def fetch_decliner_pools(self, pages: int = 5, min_liq_usd: float = 0.0,
+                                   h1_min: float = -45.0, h1_max: float = -8.0) -> List[dict]:
+        """Decline-sorted discovery lane. GT has no native price-decline sort, so
+        we pull a WIDE slice of the volume-desc + new-pool feeds and admit only
+        the capitulation decliners (1h in [h1_min, h1_max]). This is the only
+        discovery source that selects for the dip directly; the others surface a
+        quiet flush only incidentally (coverage audit 2026-06-29)."""
+        feeds = await asyncio.gather(
+            self.fetch_pool_feed("pools?sort=h24_volume_usd_desc", pages, 0.0),
+            self.fetch_pool_feed("new_pools", max(1, pages // 2), 0.0),
+            return_exceptions=True,
+        )
+        merged: List[dict] = []
+        for f in feeds:
+            if not isinstance(f, Exception):
+                merged.extend(f)
+        return self._filter_decliners(merged, h1_min, h1_max, min_liq_usd)
+
+    @staticmethod
     def _parse_trending(data: dict) -> List[dict]:
         items = data.get("data") or []
         included = {i["id"]: i for i in (data.get("included") or [])}

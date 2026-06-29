@@ -208,6 +208,20 @@ class _PhaseTimer:
 _DISCOVERY_FRESH_MIN_LIQ = float(os.environ.get("DISCOVERY_FRESH_MIN_LIQ", "40000"))
 _DISCOVERY_FRESH_PAGES = int(os.environ.get("DISCOVERY_FRESH_PAGES", "2"))
 
+# gt_decliner discovery lane (2026-06-29, coverage audit) — the ONLY source that
+# selects for price DECLINE directly. Every other source ranks by promotion /
+# trending / freshness / volume, which de-rank quiet capitulation flushes — the
+# fat-tail winners. ENABLED by default (enforced); kill via GT_DECLINER_ENABLED=off.
+# min_liq lower than the 40k fresh floor because dip-with-buyers winners are
+# microcaps (coverage audit: liq down to ~$8-27k). Pages wide to reach the
+# decliner tail below the top volume pages.
+_DISCOVERY_DECLINER_ENABLED = os.environ.get(
+    "GT_DECLINER_ENABLED", "on").strip().lower() in ("on", "1", "true", "yes")
+_DISCOVERY_DECLINER_PAGES = int(os.environ.get("GT_DECLINER_PAGES", "5"))
+_DISCOVERY_DECLINER_MIN_LIQ = float(os.environ.get("GT_DECLINER_MIN_LIQ", "15000"))
+_DISCOVERY_DECLINER_H1_MIN = float(os.environ.get("GT_DECLINER_H1_MIN", "-45"))
+_DISCOVERY_DECLINER_H1_MAX = float(os.environ.get("GT_DECLINER_H1_MAX", "-8"))
+
 # Fiat-pegged stablecoins are never valid dip-buy candidates — they don't pump
 # (that's the whole point), so any "signal" on one is noise, and a glitched price
 # tick on one produces an absurd phantom P&L. 2026-05-27: no_filters bought EURC
@@ -22913,8 +22927,21 @@ class DipScanner:
                     pages=_DISCOVERY_FRESH_PAGES, min_liq_usd=_DISCOVERY_FRESH_MIN_LIQ)
                 vol_task = self.gt_client.fetch_top_volume_pools(
                     pages=_DISCOVERY_FRESH_PAGES, min_liq_usd=_DISCOVERY_FRESH_MIN_LIQ)
-                results, gt_pairs, axiom_pairs, new_pairs, vol_pairs = await asyncio.gather(
-                    ds_task, gt_task, _axiom_task(), new_task, vol_task,
+                # gt_decliner lane (enforced) — surfaces price-decline tokens the
+                # other (momentum-shaped) sources de-rank. Fail-open to [].
+                async def _decliner_task():
+                    if not _DISCOVERY_DECLINER_ENABLED:
+                        return []
+                    try:
+                        return await self.gt_client.fetch_decliner_pools(
+                            pages=_DISCOVERY_DECLINER_PAGES,
+                            min_liq_usd=_DISCOVERY_DECLINER_MIN_LIQ,
+                            h1_min=_DISCOVERY_DECLINER_H1_MIN,
+                            h1_max=_DISCOVERY_DECLINER_H1_MAX)
+                    except Exception:
+                        return []
+                results, gt_pairs, axiom_pairs, new_pairs, vol_pairs, decliner_pairs = await asyncio.gather(
+                    ds_task, gt_task, _axiom_task(), new_task, vol_task, _decliner_task(),
                     return_exceptions=True
                 )
                 if isinstance(results, Exception):
@@ -22927,6 +22954,8 @@ class DipScanner:
                     new_pairs = []
                 if isinstance(vol_pairs, Exception):
                     vol_pairs = []
+                if isinstance(decliner_pairs, Exception):
+                    decliner_pairs = []
 
                 # Seed GT entries — will be overwritten by DS enrichment below
                 # so the final pair dict has txns data for the bs_h6 filter.
@@ -22954,6 +22983,21 @@ class DipScanner:
                     if addr and addr not in pair_by_addr:
                         pair_by_addr[addr] = p
                         source_by_addr[addr] = "gt_volume"
+                # gt_decliner lane (enforced) — seed AFTER the momentum sources so
+                # it only adds the decline-band tokens the others missed (its
+                # unique value = the quiet flushers below top-volume/trending).
+                _decliner_added = 0
+                for p in (decliner_pairs or []):
+                    addr = (p.get("baseToken") or {}).get("address", "")
+                    if addr and addr not in pair_by_addr:
+                        pair_by_addr[addr] = p
+                        source_by_addr[addr] = "gt_decliner"
+                        _decliner_added += 1
+                if _decliner_added:
+                    logger.info(
+                        f"[DipScanner] gt_decliner lane surfaced {_decliner_added} "
+                        f"dip-band tokens (h1∈[{_DISCOVERY_DECLINER_H1_MIN:g},"
+                        f"{_DISCOVERY_DECLINER_H1_MAX:g}], liq>={_DISCOVERY_DECLINER_MIN_LIQ:g})")
 
                 # Hot-reload user watchlist from disk (dashboard mutations).
                 self._maybe_reload_user_watchlist()
