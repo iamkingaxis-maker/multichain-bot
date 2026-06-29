@@ -146,6 +146,11 @@ try:
 except (TypeError, ValueError):
     _SCAN_PHASE_TIMING_THRESHOLD_S = 1.5
 
+# Cap on the in-memory RT_DIP rolling-price windows dict (one entry per token
+# addr ever seen). Stale entries (no recent bar-cache activity) are evicted
+# first; oldest-inserted dropped if still over. Bounds memory growth.
+_RT_DIP_WINDOWS_MAX = 3000
+
 
 class _PhaseTimer:
     """Cheap monotonic bracket for one cycle phase. Used as a context manager:
@@ -6562,12 +6567,28 @@ class DipScanner:
                 # reprice_all above when usable. RT_DIP_MODE off=byte-identical;
                 # enforce overwrites priceChange only when coverage != NONE (else
                 # falls back to the reprice result — never fail-open into a buy).
-                from core.fast_watch import rt_mode as _rt_mode
-                _rt_dip = _rt_mode("RT_DIP_MODE")
+                _rt_dip = rt_mode("RT_DIP_MODE")
                 if _rt_dip != "off" and _snap_price and _fresh_price and _fresh_price > 0:
                     if addr not in self._rt_dip_windows:
                         from core.realtime_dip import RollingPriceWindow as _RPW
                         self._rt_dip_windows[addr] = _RPW()
+                        # Bound memory: evict stale windows (no recent bar cache
+                        # activity) once over the cap; never raises. Cheap.
+                        if len(self._rt_dip_windows) > _RT_DIP_WINDOWS_MAX:
+                            try:
+                                _bar_keys = self._rt_dip_bar_cache
+                                _stale = [k for k in self._rt_dip_windows
+                                          if k not in _bar_keys]
+                                for _k in _stale:
+                                    if len(self._rt_dip_windows) <= _RT_DIP_WINDOWS_MAX:
+                                        break
+                                    self._rt_dip_windows.pop(_k, None)
+                                # Still over? drop oldest-inserted (dict is ordered).
+                                while len(self._rt_dip_windows) > _RT_DIP_WINDOWS_MAX:
+                                    _oldest = next(iter(self._rt_dip_windows))
+                                    self._rt_dip_windows.pop(_oldest, None)
+                            except Exception:
+                                pass
                     _rt_dex_id = (pair.get("dexId") or "").lower()
                     _rt_slug = {"pumpswap": "pumpfundex", "pumpfun": "pumpfundex",
                                 "raydium": "solamm", "meteora": "meteora"}.get(
@@ -6579,7 +6600,7 @@ class DipScanner:
                     except Exception:
                         _rt_bars = []
                     self._apply_rt_dip(_pair, _snap_price, _fresh_price, _rt_dip,
-                                       bars=_rt_bars, now=now)
+                                       bars=_rt_bars, now=now, addr=addr)
                 # FORWARD FILL-SPEED CAPTURE (shadow): stash the would-fill price
                 # this fast tick saw for `addr` so _execute_bot_buy can log it vs the
                 # actual sweep fill. The escalation price (pinned > jupiter) is the
@@ -21749,17 +21770,24 @@ class DipScanner:
             pass
         return c, signals, (not _eval_completed)
 
-    def _apply_rt_dip(self, pair, snap_price, fresh_price, mode, *, bars, now):
+    def _apply_rt_dip(self, pair, snap_price, fresh_price, mode, *, bars, now, addr=None):
         """Apply the RT_DIP reference to pair['priceChange'] per mode.
 
         off: no-op. shadow: log divergence, no mutation. enforce: overwrite the
         computed horizons when coverage != NONE, else leave priceChange as-is
         (fall back to the existing reprice — never fabricate a dip). Returns the
-        (price_change_dict, coverage) it computed (for logging/tests). Never raises."""
+        (price_change_dict, coverage) it computed (for logging/tests). Never raises.
+
+        `addr` (the in-scope token address from the caller) is the canonical
+        window key — the explicit param wins so the wiring and this helper key
+        the rolling buffer identically. Falls back to the pair dict only when
+        no addr is passed (this scanner has no top-level pair['address'] — the
+        token address lives at pair['baseToken']['address'])."""
         from core.realtime_dip import compute_rt_price_change
         if mode == "off":
             return {}, "off"
-        addr = (pair.get("address") or "") if isinstance(pair, dict) else ""
+        if addr is None:
+            addr = (pair.get("address") or (pair.get("baseToken") or {}).get("address") or "") if isinstance(pair, dict) else ""
         win = self._rt_dip_windows.get(addr)
         if win is not None:
             try:
