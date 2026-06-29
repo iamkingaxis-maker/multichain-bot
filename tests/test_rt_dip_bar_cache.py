@@ -50,8 +50,8 @@ def test_cache_miss_fetches_via_client_and_converts():
 
     bars = asyncio.run(run())
     assert bars == [
-        {"ts_ms": 1_700_000, "high": 9.0, "low": 8.0},
-        {"ts_ms": 1_760_000, "high": 8.7, "low": 7.5},
+        {"ts_ms": 1_700_000, "high": 9.0, "low": 8.0, "close": 8.5},
+        {"ts_ms": 1_760_000, "high": 8.7, "low": 7.5, "close": 7.6},
     ]
     assert s._rt_dip_bar_cache["BBB"][0] == bars
     assert s.dexs_client.calls and s.dexs_client.calls[0][0] == "poolXYZ"

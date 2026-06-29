@@ -21883,7 +21883,8 @@ class DipScanner:
                 if candles:
                     bars = [
                         {"ts_ms": int(getattr(c, "open_time", 0)) * 1000,
-                         "high": float(c.high), "low": float(c.low)}
+                         "high": float(c.high), "low": float(c.low),
+                         "close": float(c.close)}
                         for c in candles
                     ]
                     self._rt_dip_bar_cache[addr] = (bars, now)

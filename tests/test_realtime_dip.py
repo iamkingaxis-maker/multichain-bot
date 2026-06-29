@@ -76,6 +76,35 @@ def test_compute_uses_bars_when_buffer_stale():
     assert pc["m5"] == -75.0
 
 
+def test_scale_guard_rejects_offscale_bars():
+    # io.dx bars come back 30x off-scale (microcap unit bug): newest bar close
+    # is 30x the fresh price -> ratio 0.033 < 0.1 -> reject bars, fall back to
+    # buffer-only so a real dip is NOT overwritten with a fake pump.
+    now = 2_000_000_000.0
+    now_ms = now * 1000.0
+    w = RollingPriceWindow()
+    w.append(now - 200, 1.0)   # buffer in correct (fresh) scale
+    w.append(now - 1, 1.0)
+    # newest bar close=30.0 (30x fresh=1.0); high also off-scale
+    bars = [_bar(now_ms - 1800_000, 120.0, 90.0), _bar(now_ms - 1000, 33.0, 30.0)]
+    pc, cov = compute_rt_price_change(w, bars, fresh_price=1.0, now=now)
+    assert cov == "BUFFER_ONLY"      # bars rejected by scale guard
+    assert "h1" not in pc or pc.get("h1") == 0.0  # no garbage +pump from bars
+
+
+def test_scale_guard_keeps_inscale_bars():
+    # newest bar close ~= fresh price (ratio ~1) -> bars accepted normally.
+    now = 2_000_000_000.0
+    now_ms = now * 1000.0
+    w = RollingPriceWindow()
+    w.append(now - 200, 1.0)
+    w.append(now - 1, 1.0)
+    bars = [_bar(now_ms - 1800_000, 4.0, 1.0)]  # close=low=1.0 ~= fresh 1.0
+    pc, cov = compute_rt_price_change(w, bars, fresh_price=1.0, now=now)
+    assert cov == "BARS+BUFFER"
+    assert pc["h1"] == -75.0  # bar high 4.0 used -> real -75% dip preserved
+
+
 def test_append_and_window_high_low():
     w = RollingPriceWindow()
     w.append(1000.0, 1.0)

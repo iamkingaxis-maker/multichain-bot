@@ -88,6 +88,25 @@ def compute_rt_price_change(buffer, bars, fresh_price, now,
         return {}, "NONE"
 
     has_bars = bool(bars)
+    # SCALE GUARD: io.dexscreener bars occasionally come back in a different
+    # price scale than the fresh (Jupiter/USD) price — observed 28-74x off on
+    # low-priced microcaps (which are exactly our dip targets). Mixing scales
+    # produced garbage (e.g. a -56% dip computed as +7569%), and under enforce
+    # that overwrites a real dip with a fake pump → suppresses the buy. The
+    # newest bar's close is contemporaneous with `fresh_price` (both ~now), so
+    # in a REAL dip the ratio is ~1 regardless of dip depth (the dip lives in
+    # OLDER bars' highs, not the newest close). The observed scale errors are
+    # 28-74x, so a wide [0.1, 10] band catches them with huge margin while never
+    # rejecting a legitimate deep dip or a fast intra-minute move.
+    if has_bars:
+        try:
+            newest_close = float((bars[-1] or {}).get("close") or 0)
+            if newest_close > 0:
+                ratio = fp / newest_close
+                if ratio > 10.0 or ratio < 0.1:
+                    has_bars = False
+        except (TypeError, ValueError, IndexError, KeyError, AttributeError):
+            pass
     newest = buffer.newest_ts() if buffer is not None else None
     buffer_stale = (newest is None) or (float(now) - float(newest) > float(max_age_secs))
     if buffer_stale and not has_bars:
