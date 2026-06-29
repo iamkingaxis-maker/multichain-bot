@@ -108,3 +108,62 @@ New test `test_rt_dip_windows_eviction_bounds_dict` proves the dict stays bounde
 
 Semantics unchanged: off=byte-identical, enforce overwrites only when coverage!=NONE,
 shadow no-mutation, helper never raises, io.dx fetch stays off-loop.
+
+## Task 5 — RT_DIP review fix: gate long horizons on actual reference span (enforce-safe BUFFER_ONLY)
+
+### Finding
+In `compute_rt_price_change`, BUFFER_ONLY coverage computed long horizons (h6/h24)
+from a buffer that may span only a few minutes, returning a shallow/understated
+long-horizon high. Under RT_DIP_MODE=enforce that would overwrite the real
+stale-but-true pc_h6/pc_h24 with a wrong shallow value, wrongly nudging
+structure_edge-class gates reading pc_h6>=0. Harmless in shadow; must be fixed
+before enforce (imminent deploy).
+
+### Fix (pure logic, core/realtime_dip.py)
+1. `RollingPriceWindow.oldest_ts() -> float | None` — ts of oldest retained sample,
+   None when empty. Pure, never raises.
+2. Module constant `COVERAGE_FRAC = 0.5`.
+3. Per-horizon span rule in `compute_rt_price_change`:
+   - `bar_contributed_h = bar_hi is not None and bar_hi > 0` (bars = true OHLC,
+     trustworthy for ANY horizon -> always eligible when present).
+   - `buf_spans = buffer is not None and buffer.oldest_ts() is not None and
+     (now - oldest_ts) >= COVERAGE_FRAC * secs` (buffer's oldest sample must span
+     >=half the window).
+   - buffer high eligible only when `buf_hi>0 AND buf_spans`.
+   - `highs` = eligible bar high + eligible buffer high; empty -> skip horizon
+     (`continue`, never emitted). `_apply_rt_dip` only `.update()`s emitted
+     horizons, so a skipped horizon keeps its existing reprice/stale value.
+   - `bars_contributed`/`buffer_contributed` flags set only for the eligible
+     source(s) used. Coverage stamping unchanged: empty->NONE, any bar->BARS+BUFFER,
+     else BUFFER_ONLY.
+   Unchanged: fresh<=0->NONE guard, buffer-stale+no-bars early NONE return,
+   len>=2 guard, round(...,6), dip-off-window-high semantics, _apply_rt_dip.
+
+Net: m5 (300s) emits from buffer once it spans ~150s; h1 (3600s) once ~1800s;
+h6/h24 from buffer alone are SKIPPED until io.dx bars provide real depth. With
+bars present, all horizons emit (BARS+BUFFER) as before.
+
+### Tests (tests/test_realtime_dip.py)
+- `test_oldest_ts` — oldest sample ts; None when empty.
+- `test_buffer_only_short_span_skips_m5` — buffer spans ~120s: m5 skipped
+  (span<0.5*300); nothing buffer-only spans h1/h6/h24 -> overall NONE.
+- `test_buffer_only_spanning_m5_emits_m5_not_long` — buffer spans ~200s: m5
+  emitted (-50%), h6/h24 never buffer-only.
+- `test_bars_unlock_long_horizon_with_shallow_buffer` — shallow ~120s buffer +
+  2h-old bar inside h6 window -> h6/h24 emitted BARS+BUFFER; m5/h1 skipped.
+- Adjusted existing tests for the span rule:
+  - `test_compute_dip_off_buffer_only` — seeded an old now-1800 anchor so the
+    buffer spans both m5 (>=150s) and h1 (>=1800s); added asserts that h6/h24
+    are NOT emitted buffer-only.
+  - `test_compute_combines_bars_and_buffer` — buffer sample moved now-120 ->
+    now-200 so it spans m5 (>=150s); m5 still emits 0% from the buffer.
+
+### Test commands + outputs
+1) python -m pytest tests/test_realtime_dip.py -q   -> 16 passed in 0.44s
+2) python -m pytest tests/test_realtime_dip.py tests/test_rolling_high_from_bars.py tests/test_rt_dip_bar_cache.py tests/test_rt_dip_mode.py tests/test_pre_live_invariants.py -q
+   -> 38 passed in 1.08s
+3) python -c "import core.realtime_dip, feeds.dip_scanner"  -> IMPORT OK
+
+Constraints honored: pure logic, never raises, free tools only; coverage stays
+one of BARS+BUFFER/BUFFER_ONLY/NONE; off/shadow/enforce/NONE-fallback semantics
+unchanged.

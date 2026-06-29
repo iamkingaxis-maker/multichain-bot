@@ -10,20 +10,26 @@ def _bar(ts_ms, high, low):
 def test_compute_dip_off_buffer_only():
     now = 2_000_000_000.0  # seconds
     w = RollingPriceWindow()
-    w.append(now - 60, 2.0)   # recent high
+    # oldest sample at now-1800 makes the buffer span both m5 (>=150s) and
+    # h1 (>=1800s) windows; the 2.0 high sits inside both horizon windows.
+    w.append(now - 1800, 1.0)  # old span anchor (also inside h1 window)
+    w.append(now - 200, 2.0)   # recent high (inside m5 window)
     w.append(now - 1, 1.0)
     pc, cov = compute_rt_price_change(w, [], fresh_price=1.0, now=now)
     assert cov == "BUFFER_ONLY"
     # m5/h1 windows both see high 2.0 -> -50%
     assert pc["m5"] == -50.0
     assert pc["h1"] == -50.0
+    # h6/h24 require ~10800s/43200s of buffer span -> never emitted buffer-only here
+    assert "h6" not in pc
+    assert "h24" not in pc
 
 
 def test_compute_combines_bars_and_buffer():
     now = 2_000_000_000.0
     now_ms = now * 1000.0
     w = RollingPriceWindow()
-    w.append(now - 120, 1.0)                      # >=2 samples so the buffer is usable
+    w.append(now - 200, 1.0)                      # >=2 samples; spans m5 (>=150s)
     w.append(now - 1, 1.0)
     bars = [_bar(now_ms - 1800_000, 4.0, 3.0)]   # 30min-old bar high 4.0 (in h1 window)
     pc, cov = compute_rt_price_change(w, bars, fresh_price=1.0, now=now)
@@ -123,3 +129,56 @@ def test_empty_window_returns_none():
     assert w.window_high(10.0, 1000.0) is None
     assert w.window_low(10.0, 1000.0) is None
     assert len(w) == 0
+
+
+def test_oldest_ts():
+    w = RollingPriceWindow()
+    assert w.oldest_ts() is None
+    w.append(1000.0, 1.0)
+    w.append(1005.0, 2.0)
+    assert w.oldest_ts() == 1000.0
+    assert w.newest_ts() == 1005.0
+
+
+def test_buffer_only_short_span_skips_m5():
+    # Buffer spans only ~120s: m5 needs >=0.5*300=150s span -> SKIPPED.
+    now = 2_000_000_000.0
+    w = RollingPriceWindow()
+    w.append(now - 120, 2.0)
+    w.append(now - 1, 1.0)
+    pc, cov = compute_rt_price_change(w, [], fresh_price=1.0, now=now)
+    assert "m5" not in pc
+    # Nothing buffer-only spans h1/h6/h24 either -> overall NONE.
+    assert "h1" not in pc and "h6" not in pc and "h24" not in pc
+    assert cov == "NONE"
+    assert pc == {}
+
+
+def test_buffer_only_spanning_m5_emits_m5_not_long():
+    # Buffer spans ~200s: m5 (>=150s) emitted; h6/h24 never buffer-only.
+    now = 2_000_000_000.0
+    w = RollingPriceWindow()
+    w.append(now - 200, 2.0)   # high inside m5 window, span 200>=150
+    w.append(now - 1, 1.0)
+    pc, cov = compute_rt_price_change(w, [], fresh_price=1.0, now=now)
+    assert cov == "BUFFER_ONLY"
+    assert pc["m5"] == -50.0
+    assert "h6" not in pc
+    assert "h24" not in pc
+
+
+def test_bars_unlock_long_horizon_with_shallow_buffer():
+    # Shallow buffer (~120s span) but a real bar inside the h6 window -> h6 emitted.
+    now = 2_000_000_000.0
+    now_ms = now * 1000.0
+    w = RollingPriceWindow()
+    w.append(now - 120, 1.0)
+    w.append(now - 1, 1.0)
+    bars = [_bar(now_ms - 7200_000, 4.0, 3.0)]  # 2h-old bar high 4.0 (inside h6 window)
+    pc, cov = compute_rt_price_change(w, bars, fresh_price=1.0, now=now)
+    assert cov == "BARS+BUFFER"
+    assert pc["h6"] == -75.0
+    assert pc["h24"] == -75.0
+    # m5/h1: bar is 2h old (outside both), buffer span 120s < 150s -> skipped.
+    assert "m5" not in pc
+    assert "h1" not in pc

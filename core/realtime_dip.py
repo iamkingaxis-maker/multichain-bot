@@ -55,11 +55,19 @@ class RollingPriceWindow:
     def newest_ts(self) -> Optional[float]:
         return self._samples[-1][0] if self._samples else None
 
+    def oldest_ts(self) -> Optional[float]:
+        return self._samples[0][0] if self._samples else None
+
     def __len__(self) -> int:
         return len(self._samples)
 
 
 HORIZON_SECS = {"m5": 300.0, "h1": 3600.0, "h6": 21600.0, "h24": 86400.0}
+
+# A buffer-only horizon is emitted only when the buffer's oldest retained sample
+# spans at least this fraction of the horizon window. Bars (real OHLC history)
+# unlock any horizon regardless of buffer depth.
+COVERAGE_FRAC = 0.5
 
 
 def compute_rt_price_change(buffer, bars, fresh_price, now,
@@ -98,14 +106,28 @@ def compute_rt_price_change(buffer, bars, fresh_price, now,
             continue
         bar_hi = rolling_high_from_bars(bars, secs, now_ms) if has_bars else None
         buf_hi = buffer.window_high(secs, now) if buf_usable else None
-        highs = [x for x in (bar_hi, buf_hi) if x is not None and x > 0]
+        # A horizon is emitted only when the reference actually spans it. Bars are
+        # true OHLC history -> trustworthy for any horizon. The buffer is only
+        # eligible when its oldest retained sample spans most of the window.
+        bar_contributed_h = bar_hi is not None and bar_hi > 0
+        buf_spans = (
+            buffer is not None
+            and buffer.oldest_ts() is not None
+            and (float(now) - buffer.oldest_ts()) >= COVERAGE_FRAC * secs
+        )
+        buf_eligible = buf_hi is not None and buf_hi > 0 and buf_spans
+        highs = []
+        if bar_contributed_h:
+            highs.append(bar_hi)
+        if buf_eligible:
+            highs.append(buf_hi)
         if not highs:
             continue
         window_high = max(highs)
         out[h] = round((fp / window_high - 1.0) * 100.0, 6)
-        if bar_hi is not None and bar_hi > 0:
+        if bar_contributed_h:
             bars_contributed = True
-        if buf_hi is not None and buf_hi > 0:
+        if buf_eligible:
             buffer_contributed = True
 
     if not out:
