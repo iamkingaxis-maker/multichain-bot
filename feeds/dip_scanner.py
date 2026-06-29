@@ -21805,8 +21805,30 @@ class DipScanner:
             return rt_pc, coverage
         if mode == "enforce" and coverage != "NONE" and rt_pc:
             _pch = dict(pair.get("priceChange") or {})
+            _stale_h1 = _pch.get("h1")
             _pch.update(rt_pc)
             pair["priceChange"] = _pch
+            # Observability (sampled): enforce is otherwise silent. One line per
+            # ~50 applies shows coverage + the rt-vs-stale anchor delta so we can
+            # confirm RT_DIP is live and measure its effect. Never raises.
+            try:
+                self._rt_dip_apply_n = getattr(self, "_rt_dip_apply_n", 0) + 1
+                if self._rt_dip_apply_n % 50 == 1:
+                    logger.info("[rt-dip] ENFORCE applied #%d %s cov=%s rt_h1=%s stale_h1=%s rt_m5=%s",
+                                self._rt_dip_apply_n, addr[:6], coverage,
+                                rt_pc.get("h1"), _stale_h1, rt_pc.get("m5"))
+            except Exception:
+                pass
+        elif mode == "enforce":
+            # Coverage NONE (or empty rt_pc) → kept the reprice/stale anchor
+            # (never fail-open into a buy). Sampled count so we see fallback rate.
+            try:
+                self._rt_dip_none_n = getattr(self, "_rt_dip_none_n", 0) + 1
+                if self._rt_dip_none_n % 100 == 1:
+                    logger.info("[rt-dip] ENFORCE fallback #%d %s cov=%s (kept reprice/stale)",
+                                self._rt_dip_none_n, (addr or "")[:6], coverage)
+            except Exception:
+                pass
         return rt_pc, coverage
 
     async def _get_rt_dip_bars(self, addr, dex_slug, pair_addr, *, res="1m",
