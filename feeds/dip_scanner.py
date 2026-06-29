@@ -43,6 +43,35 @@ MULTI_BOT_ENABLED = os.getenv("MULTI_BOT_ENABLED", "false").lower() == "true"
 # Jupiter (B4). Default 2.0 -- the measured ~0.4-1s WS push latency plus margin.
 ONCHAIN_FRESH_SECS_DEFAULT = 2.0
 
+# EXIT-ARM trigger classification (2026-06-28). PROFIT triggers fire on a price
+# AT/ABOVE a target (a stale DexScreener SPIKE Jupiter never reached = a PHANTOM
+# TP that books a profit live couldn't get) or a trail/giveback whose stale DIP
+# fresh has already recovered past. LOSS triggers cut on weakness. Everything not
+# listed here is treated as a LOSS trigger (confirm-on-fresh-and-cut). Kinds come
+# from core.per_bot_position_manager.tick's ExitDecision(kind=...).
+_EXIT_ARM_PROFIT_KINDS = frozenset({
+    "TP1", "TP2", "POST_TP1_TRAIL", "BREAKEVEN_LOCK", "GIVEBACK_FLOOR",
+})
+
+
+def _exit_arm_confirms(kind, fresh_kinds):
+    """Whether the FRESH re-tick CONFIRMS the armed exit `kind`. Pure; testable.
+
+    PROFIT trigger (TP1/TP2/trail/giveback/breakeven-lock): confirm ONLY if the
+    fresh re-tick reproduces the EXACT same kind — a fresh price that no longer
+    reaches that profit target is a phantom and must not book (and the TP tiers
+    sell different fractions, so an exact match matters). LOSS trigger
+    (stop/floor/never_runner/...): confirm if the fresh re-tick fires ANY loss
+    trigger — the cut is a full close either way, and the floor preceding the
+    hard stop (or vice versa) is the same protective intent; only a fresh price
+    that recovered OUT of loss territory (fresh fires a profit / HOLD) rejects
+    the cut. fresh_kinds None/empty -> not confirmed."""
+    fk = fresh_kinds or set()
+    if kind in _EXIT_ARM_PROFIT_KINDS:
+        return kind in fk
+    return bool(set(fk) - _EXIT_ARM_PROFIT_KINDS - {""})
+
+
 logger = logging.getLogger(__name__)
 
 # Full-population signal recorder — captures every Signal: emit and its
@@ -3633,6 +3662,245 @@ class DipScanner:
             logger.debug("[exit-route-dead] shadow bg probe error (%s) — swallowed "
                          "bot=%s token=%s", e, bot_id, token)
 
+    def _append_exit_arm_shadow(self, rec):
+        """Append one EXIT-ARM shadow record to {DATA_DIR}/exit_arm_shadow.jsonl
+        (size-capped via the shared cap_jsonl helper, same idiom as the other
+        shadow recorders). Fail-open; never raises into the exit path."""
+        try:
+            path = os.path.join(
+                os.environ.get("DATA_DIR", "/data"), "exit_arm_shadow.jsonl")
+            try:
+                from core.jsonl_rotation import cap_jsonl
+                cap_jsonl(path, max_mb=float(
+                    os.environ.get("EXIT_ARM_SHADOW_MAX_MB", "100")))
+            except Exception:
+                pass
+            with open(path, "a") as f:
+                f.write(json.dumps(rec, separators=(",", ":")) + "\n")
+        except Exception as e:
+            logger.debug("[exit-arm] shadow write failed: %s", e)
+
+    async def _exit_arm_fresh_price(self, token, position):
+        """Freshest reachable price for the armed-exit re-eval. Tries the live
+        WS/Jupiter fetch (_get_current_price_for — the SAME source the
+        paper-fidelity SELL uses), then falls back to the freshest fast-watch
+        sample (the recon source). Returns a positive float or None.
+
+        None is the COMMON case (buy drought + WS off) — the caller fails open to
+        today's behavior. Never raises."""
+        addr = ""
+        pair = ""
+        try:
+            addr = (getattr(position, "address", "") or "") \
+                or getattr(self, "_addr_by_token", {}).get(token, "")
+            pair = getattr(position, "pair_address", "") or ""
+        except Exception:
+            addr, pair = "", ""
+        try:
+            p = await self._get_current_price_for(
+                token, address=addr, pair_address=pair)
+            if p is not None and float(p) > 0:
+                return float(p)
+        except Exception:
+            pass
+        # fallback: freshest fast-watch sample (recon's source)
+        try:
+            samples = getattr(self, "_fast_samples", {}) or {}
+            buf = samples.get(addr) or samples.get(
+                getattr(position, "address", "") or "")
+            if buf:
+                v = float(buf[-1])
+                if v > 0:
+                    return v
+        except Exception:
+            pass
+        return None
+
+    def _exit_arm_fresh_kinds(self, pm, token, snapshot_pos, fresh, now, vol_m5):
+        """Re-run the EXACT exit-trigger logic on the FRESH price from the PRE-tick
+        snapshot (mirror _maybe_exit_trigger_recon's throwaway-clone re-tick) and
+        return the set of trigger kinds that fire. A throwaway manager shares the
+        (read-only-in-tick) config so the logic + bot-id scoping are byte-identical
+        to the real evaluation; ALL mutations land on the snapshot copy (the real
+        position/manager are NEVER ticked here). Returns None on any error (the
+        caller fails open). NOTE: this MUTATES snapshot_pos (tier flags/peak) — the
+        enforce caller must capture its rollback scalars BEFORE calling this."""
+        try:
+            from core.per_bot_position_manager import PerBotPositionManager
+            clone = PerBotPositionManager(pm.config)
+            clone._ohlcv_capture = False
+            clone._positions = {token: snapshot_pos}
+            fresh_decisions = clone.tick(
+                token=token, current_price=fresh, now=now, vol_m5_usd=vol_m5)
+            return {getattr(d, "kind", "") for d in (fresh_decisions or [])}
+        except Exception as e:
+            logger.debug("[exit-arm] fresh re-eval failed token=%s: %s", token, e)
+            return None
+
+    async def _exit_arm_gate(self, bot_id, pm, token, position, snapshot_pos,
+                             decisions, stale_price, now, vol_m5):
+        """EXIT-ARM fresh-confirm gate (SHADOW-first, EXIT_ARM_MODE, default off).
+
+        The slow ~150s DexScreener tick decided one or more exit triggers fire on
+        the STALE snapshot price. Instead of committing on that stale price, treat
+        each as an ARMED intent and re-evaluate it on the FRESH Jupiter price
+        (re-tick the PRE-tick snapshot via _exit_arm_fresh_kinds):
+          PROFIT trigger (TP1/TP2/trail/giveback/breakeven-lock): fire ONLY if the
+            fresh price STILL reproduces it. Stale spike but fresh below threshold
+            -> REJECT (hold) — the core fix (no phantom TP).
+          LOSS trigger (stop/floor/never_runner/...): confirm on fresh and cut. A
+            rejection means fresh is BETTER than stale -> holding is correct.
+        The fire/hold decision is uniform: the kind fires iff the fresh re-tick
+        reproduces it. The PROFIT/LOSS split only drives logging + the enforce
+        rollback (below).
+
+        off     -> caller never invokes this (byte-identical); defensive re-check.
+        shadow  -> schedule the fresh re-eval + JSONL append OFF-LOOP
+                   (asyncio.create_task, ref-retained, exception-safe) and return
+                   `decisions` UNCHANGED so the exit books on the stale tick exactly
+                   as today (ZERO P&L change). A shadow probe NEVER blocks the
+                   serial exit loop / delays a live exit.
+        enforce -> AWAIT the fresh fetch INLINE (the result gates booking) and
+                   return only the decisions the fresh price confirms. A REJECTED
+                   PROFIT exit HOLDS; because pm.tick already set tp1_hit/tp2_hit
+                   (and bumped peak) when it produced that decision, we ROLL THOSE
+                   BACK to the pre-tick snapshot so every `not tp1_hit`-gated loss
+                   cutter (in_flight_floor/hard_stop/never_runner/...) stays LIVE on
+                   the held position (the #1 enforce risk). The gate only decides
+                   fire/hold; the booked exit PRICE stays paper-fidelity's job
+                   (no double-haircut), and it never SUBSTITUTES a new exit.
+
+        FAIL-OPEN everywhere: no fresh price / re-eval error / unknown kind ->
+        return `decisions` unchanged (fire on the stale tick, today's behavior).
+        Reconciliation: this gates the SLOW-tick decisions only; the fast-watch
+        _reprice_exit_floors (EXIT_REPRICE_MODE) independently fires the in-flight
+        floor and is untouched here — they operate on different loops and the
+        iff_fired idempotency prevents a double-fire, so the floor is never
+        double-gated."""
+        from core.fast_watch import rt_mode as _rt_mode
+        mode = _rt_mode("EXIT_ARM_MODE")
+        if mode == "off" or snapshot_pos is None or not decisions:
+            return decisions
+        armed_kinds = [getattr(d, "kind", "") for d in decisions]
+        if mode == "shadow":
+            # SHADOW must NOT block the serial decision loop: the fresh fetch is a
+            # network round-trip whose result does NOT affect booking (it only
+            # feeds the JSONL). Schedule it OFF-LOOP and return immediately so the
+            # exit books the normal (stale-tick) close without waiting.
+            try:
+                bg = getattr(self, "_exit_arm_bg_tasks", None)
+                if bg is None:
+                    bg = self._exit_arm_bg_tasks = set()
+                task = asyncio.create_task(self._exit_arm_shadow_probe(
+                    bot_id, pm, token, snapshot_pos, list(armed_kinds),
+                    stale_price, now, vol_m5))
+                bg.add(task)
+                task.add_done_callback(bg.discard)
+            except Exception as _sched_e:
+                logger.debug("[exit-arm] shadow schedule skipped (%s) bot=%s "
+                             "token=%s", _sched_e, bot_id, token)
+            return decisions  # BOOK THE NORMAL (stale-tick) EXIT UNCHANGED
+        # mode == "enforce": capture the pre-tick rollback scalars BEFORE the clone
+        # re-tick mutates the snapshot.
+        snap_tp1 = bool(getattr(snapshot_pos, "tp1_hit", False))
+        snap_tp2 = bool(getattr(snapshot_pos, "tp2_hit", False))
+        snap_peak = getattr(snapshot_pos, "peak_pnl_pct", None)
+        snap_peak_secs = getattr(snapshot_pos, "peak_pnl_at_secs", None)
+        fresh = await self._exit_arm_fresh_price(token, position)
+        if fresh is None or fresh <= 0:
+            return decisions  # FAIL-OPEN: no fresh price -> fire on stale (today)
+        fresh_kinds = self._exit_arm_fresh_kinds(
+            pm, token, snapshot_pos, fresh, now, vol_m5)
+        if fresh_kinds is None:
+            return decisions  # FAIL-OPEN: re-eval error -> fire on stale (today)
+        survivors = []
+        for d in decisions:
+            kind = getattr(d, "kind", "")
+            if _exit_arm_confirms(kind, fresh_kinds):
+                survivors.append(d)   # fresh CONFIRMS -> fire
+                continue
+            # REJECT: fresh does not reproduce this trigger -> HOLD.
+            is_profit = kind in _EXIT_ARM_PROFIT_KINDS
+            logger.info(
+                "[exit-arm] ENFORCE reject bot=%s token=%s kind=%s class=%s "
+                "stale_price=%.10g fresh_price=%.10g -> HOLD (re-arms next tick)",
+                bot_id, token, kind, "profit" if is_profit else "loss",
+                stale_price, fresh)
+            # Roll back ONLY the tier/peak flags pm.tick set for THIS profit
+            # trigger, so the loss floor/stop stay live on the held position. TP1
+            # reject -> back to pre-TP1 (restore tp1_hit + peak); TP2 reject ->
+            # restore tp2_hit. Loss triggers set no tier flag and re-evaluate purely
+            # on price/time each tick, so a held loss reject needs no rollback.
+            try:
+                if kind == "TP1":
+                    position.tp1_hit = snap_tp1
+                    if snap_peak is not None:
+                        position.peak_pnl_pct = snap_peak
+                    if snap_peak_secs is not None:
+                        position.peak_pnl_at_secs = snap_peak_secs
+                elif kind == "TP2":
+                    position.tp2_hit = snap_tp2
+            except Exception as _re:
+                logger.error("[exit-arm] rollback error (%s) bot=%s token=%s",
+                             _re, bot_id, token)
+        return survivors
+
+    async def _exit_arm_shadow_probe(self, bot_id, pm, token, snapshot_pos,
+                                     armed_kinds, stale_price, now, vol_m5):
+        """OFF-LOOP shadow re-eval for EXIT_ARM_MODE=shadow. Books NOTHING — the
+        normal (stale-tick) exit already fired on the hot path before this runs;
+        this only feeds the JSONL study. Re-ticks the PRE-tick snapshot on the
+        FRESH price and logs one arm/confirm/reject record per armed trigger.
+
+        FULLY SELF-CONTAINED + FAIL-SAFE: the whole body is wrapped so any failure
+        (incl. a slow / raising fresh-fetch) is swallowed here and can never
+        surface as an unobserved-task exception."""
+        try:
+            fresh = await self._exit_arm_fresh_price(token, snapshot_pos)
+            if fresh is None or fresh <= 0:
+                return  # no fresh price -> no record (fail-open; drought is common)
+            fresh_kinds = self._exit_arm_fresh_kinds(
+                pm, token, snapshot_pos, fresh, now, vol_m5)
+            if fresh_kinds is None:
+                return
+            try:
+                ep = float(getattr(snapshot_pos, "entry_price", 0) or 0)
+            except (TypeError, ValueError):
+                ep = 0.0
+            addr = (getattr(snapshot_pos, "address", "") or "") \
+                or getattr(self, "_addr_by_token", {}).get(token, "")
+            stale_pnl = round((stale_price / ep - 1.0) * 100.0, 4) if ep > 0 else None
+            fresh_pnl = round((fresh / ep - 1.0) * 100.0, 4) if ep > 0 else None
+            secs = int(now - getattr(snapshot_pos, "entry_time", now))
+            for kind in armed_kinds:
+                would_fire = _exit_arm_confirms(kind, fresh_kinds)
+                is_profit = kind in _EXIT_ARM_PROFIT_KINDS
+                logger.info(
+                    "[exit-arm] SHADOW bot=%s token=%s kind=%s class=%s %s "
+                    "stale_pnl=%s fresh_pnl=%s (books stale-tick exit unchanged)",
+                    bot_id, token, kind, "profit" if is_profit else "loss",
+                    "confirm" if would_fire else "reject", stale_pnl, fresh_pnl)
+                self._append_exit_arm_shadow({
+                    "ts": now,
+                    "time": datetime.now(timezone.utc).isoformat(),
+                    "mode": "shadow",
+                    "bot_id": bot_id,
+                    "token": token,
+                    "address": addr,
+                    "kind": kind,
+                    "trigger_class": "profit" if is_profit else "loss",
+                    "decision": "confirm" if would_fire else "reject",
+                    "would_fire": would_fire,
+                    "stale_price": stale_price,
+                    "fresh_price": fresh,
+                    "stale_pnl_pct": stale_pnl,
+                    "fresh_pnl_pct": fresh_pnl,
+                    "secs_since_entry": secs,
+                })
+        except Exception as e:
+            logger.debug("[exit-arm] shadow bg probe error (%s) — swallowed "
+                         "bot=%s token=%s", e, bot_id, token)
+
     async def _execute_bot_sell_live(self, token, pm, pos, sold_frac, current_mid):
         """LIVE probe SELL (piece 1b): real Ultra swap (token->SOL) for the sold fraction.
         Returns {exit_price, instrument} or None (caller leaves the position OPEN to retry).
@@ -4296,6 +4564,22 @@ class DipScanner:
                             _recon_snap = copy.deepcopy(position)
                         except Exception:
                             _recon_snap = None
+                    # EXIT-ARM fresh-confirm gate (SHADOW-first, EXIT_ARM_MODE,
+                    # default off). Like recon, take a PRE-tick DEEP COPY before
+                    # pm.tick mutates the tier flags / peak, so the gate can re-run
+                    # the EXACT trigger logic on the FRESH price from clean state
+                    # (and, in enforce, roll those flags back on a rejected profit
+                    # exit so the loss floor stays live). off => no snapshot, no
+                    # gate (byte-identical). See _exit_arm_gate.
+                    from core.fast_watch import rt_mode as _arm_rt_mode
+                    _arm_mode = _arm_rt_mode("EXIT_ARM_MODE")
+                    _arm_on = _arm_mode != "off"
+                    _arm_snap = None
+                    if _arm_on:
+                        try:
+                            _arm_snap = copy.deepcopy(position)
+                        except Exception:
+                            _arm_snap = None
                     decisions = pm.tick(
                         token=token,
                         current_price=price,
@@ -4345,7 +4629,26 @@ class DipScanner:
                                         cap.in_flight_usd -= _rem
                             else:
                                 position.state_blob["scalein_pending"] = False
-                    for d in decisions:
+                    # EXIT-ARM fresh-confirm gate: in shadow it schedules an
+                    # OFF-LOOP probe and returns `decisions` UNCHANGED (books
+                    # today's behavior, zero P&L change); in enforce it gates each
+                    # armed exit on the fresh Jupiter price (profit triggers fire
+                    # only if fresh still satisfies the threshold; loss triggers cut
+                    # on fresh). off short-circuits inside the gate (defensive — we
+                    # only call it when _arm_on). FAIL-OPEN: any error -> fire the
+                    # un-gated decisions exactly as today.
+                    _arm_decisions = decisions
+                    if _arm_on and _arm_snap is not None and decisions:
+                        try:
+                            _arm_decisions = await self._exit_arm_gate(
+                                bot_id, pm, token, position, _arm_snap,
+                                decisions, price, now, vols.get(pkey))
+                        except Exception as _ae:
+                            logger.error(
+                                "[exit-arm] gate error (%s) — fail-open, normal "
+                                "exit bot=%s token=%s", _ae, bot_id, token)
+                            _arm_decisions = decisions
+                    for d in _arm_decisions:
                         await self._execute_bot_sell(bot_id, token, d, price, now)
                 except Exception as e:
                     logger.error(
