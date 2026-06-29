@@ -2,7 +2,13 @@
 constraints, so paper P&L predicts live. Every helper is pure + fail-open."""
 from __future__ import annotations
 import logging
+import math
 import os
+
+# Imported at module level so the EXIT_SLIP_LIQ liquidity-scaled path can be
+# monkeypatched in tests (patch core.paper_fidelity.impact_pct_for_size) and so a
+# raise inside it is caught by the gate's fail-open guard.
+from core.slippage_model import impact_pct_for_size
 
 logger = logging.getLogger(__name__)
 
@@ -317,3 +323,151 @@ def gap_through_extra_pct(exit_reason, base_pct=None) -> float:
         return float(os.environ.get("GAP_THROUGH_HAIRCUT_PCT", "5.0"))
     except (TypeError, ValueError):
         return 5.0
+
+# ─── EXIT-SLIP LIQUIDITY-AWARENESS (SHADOW-first, EXIT_SLIP_LIQ_MODE) ──────────
+# Today the PAPER twin books an exit with a FLAT slip (measured_live_slip_pct,
+# default 1.5%) that is BLIND to liquidity, and it never models that LIVE REVERTS
+# a sell when the real price-impact exceeds the sell cap (PROBE_ULTRA_SELL_SLIPPAGE_BPS,
+# default 600 bps = 6%). So paper OVERSTATES live exit P&L on every illiquid /
+# crashing exit. These helpers make the exit slip liquidity-scaled and flag the
+# would-revert case. Pure + fail-open; the caller gates on EXIT_SLIP_LIQ_MODE so
+# OFF never reaches any of this (byte-identical short-circuit upstream).
+
+# Solana sqrt market-impact coefficient — mirrors core/paper_slippage.py
+# IMPACT_COEFFICIENT["solana"] (the only liquidity-aware impact model already in
+# the tree). impact% = COEFF * sqrt(size/liq) * 100.
+_EXIT_IMPACT_COEFF = 0.10
+_EXIT_CURVE_SAMPLE_SIZES = (500.0, 2000.0, 5000.0)
+
+# Sentinel: the exit must NOT be booked this tick (mirror live's sell cap-revert —
+# the position stays open and retries). Distinct object so callers test identity.
+EXIT_HOLD = object()
+
+
+def sell_slippage_cap_pct() -> float:
+    """LIVE sell-slippage cap (%). Env PROBE_ULTRA_SELL_SLIPPAGE_BPS (default
+    600 bps = 6.0%) — the SAME var the live sell path reads. Fail-open => 6.0."""
+    try:
+        return float(os.environ.get("PROBE_ULTRA_SELL_SLIPPAGE_BPS", "600")) / 100.0
+    except Exception:
+        return 6.0
+
+
+def liq_scaled_exit_slip_pct(size_usd, exit_liq_usd):
+    """Liquidity-aware exit slip (%) for a SELL of ``size_usd`` into a pool with
+    ``exit_liq_usd`` USD of FRESH liquidity.
+
+    Builds a sqrt market-impact SELL slip curve from the fresh liquidity (sampled
+    at the canonical 500/2000/5000 sizes) and lets ``impact_pct_for_size``
+    interpolate for the actual trade size — so this reuses the existing impact
+    machinery rather than inventing a parallel model.
+
+    Returns None when liquidity/size is missing or non-positive (the caller then
+    fails open to the flat slip). Does NOT swallow an ``impact_pct_for_size``
+    raise — that propagates so the gate's fail-open guard books the flat value."""
+    try:
+        sz = float(size_usd)
+        liq = float(exit_liq_usd)
+    except (TypeError, ValueError):
+        return None
+    if not (sz > 0 and liq > 0):
+        return None
+    curve = {}
+    for s, label in zip(_EXIT_CURVE_SAMPLE_SIZES, ("500", "2000", "5000")):
+        curve[f"slip_sell_{label}_pct"] = _EXIT_IMPACT_COEFF * math.sqrt(s / liq) * 100.0
+    # may raise -> propagates to exit_slip_liq_eval's guarded call site
+    return impact_pct_for_size(sz, curve, "sell")
+
+
+def exit_slip_liq_eval(decision_mid, fresh_price, exit_reason, size_usd,
+                       exit_liq_usd, flat_slip_pct=None, fee_usd=None,
+                       low_price=None, sell_cap_pct=None) -> dict:
+    """Pure liquidity-aware exit-slip evaluation (no mode branching — the caller
+    gates on EXIT_SLIP_LIQ_MODE first so OFF never reaches here).
+
+    Computes the flat-slip booked exit and the liquidity-scaled booked exit
+    (both through ``paper_exit_decision`` so reprice / gap-through / clamp-to-low
+    are identical and ONLY the slip term differs), plus the would-revert flag
+    (modeled liq slip >= sell cap).
+
+    FAIL-OPEN: when fresh liquidity is missing/non-positive OR
+    ``impact_pct_for_size`` raises, the liq-scaled path degrades to the flat slip
+    (``liq_available`` False, ``would_revert`` False, eff_liqscaled == eff_flat)
+    so booking never changes. Returns a dict of shadow fields + booked candidates."""
+    flat = flat_slip_pct if flat_slip_pct is not None else measured_live_slip_pct()
+    fee = fee_usd if fee_usd is not None else paper_fee_usd()
+    cap = sell_cap_pct if sell_cap_pct is not None else sell_slippage_cap_pct()
+    try:
+        liq_scaled = liq_scaled_exit_slip_pct(size_usd, exit_liq_usd)
+    except Exception:
+        # impact_pct_for_size (or curve build) failed — fail open to flat.
+        liq_scaled = None
+    eff_flat = paper_exit_decision(
+        decision_mid, fresh_price, exit_reason, "enforce", size_usd,
+        slip_pct=flat, fee_usd=fee, low_price=low_price)[0]
+    if liq_scaled is None:
+        liq_available = False
+        liq_scaled_out = float(flat) if flat is not None else flat
+        would_revert = False
+        eff_liq = eff_flat
+    else:
+        liq_available = True
+        liq_scaled_out = liq_scaled
+        try:
+            would_revert = float(liq_scaled) >= float(cap)
+        except (TypeError, ValueError):
+            would_revert = False
+        eff_liq = paper_exit_decision(
+            decision_mid, fresh_price, exit_reason, "enforce", size_usd,
+            slip_pct=liq_scaled, fee_usd=fee, low_price=low_price)[0]
+    try:
+        delta = ((float(eff_liq) / float(eff_flat) - 1.0) * 100.0) if eff_flat else 0.0
+    except (TypeError, ValueError, ZeroDivisionError):
+        delta = 0.0
+    return {
+        "exit_liq_usd": (float(exit_liq_usd) if isinstance(exit_liq_usd, (int, float)) else None),
+        "liq_available": liq_available,
+        "flat_slip_pct": flat,
+        "liq_scaled_slip_pct": liq_scaled_out,
+        "sell_cap_pct": cap,
+        "would_revert": bool(would_revert),
+        "eff_exit_flat": eff_flat,
+        "eff_exit_liqscaled": eff_liq,
+        "exit_price_delta_pct": delta,
+    }
+
+
+def exit_slip_liq_book(mode, current_booked_exit, decision_mid, fresh_price,
+                       exit_reason, size_usd, exit_liq_usd, flat_slip_pct=None,
+                       fee_usd=None, low_price=None, sell_cap_pct=None):
+    """Resolve what the PAPER twin should book for this exit under
+    EXIT_SLIP_LIQ_MODE. Returns ``(booked_exit, info_or_None)``:
+
+      off / unknown -> (current_booked_exit, None)   # BYTE-IDENTICAL short-circuit
+      shadow        -> (current_booked_exit, info)    # book the OLD value; info=>JSONL
+      enforce       -> (eff_exit_liqscaled, info)     # book the worse liq-scaled fill
+                       (EXIT_HOLD, info) when would_revert (NON-FILL — hold/retry)
+                       (current_booked_exit, info) when fresh liq is unavailable
+                       (fail open to the existing flat booking).
+
+    FAIL-OPEN: any exception => (current_booked_exit, None) so the exit path is
+    never broken and booking is unchanged."""
+    try:
+        m = str(mode).strip().lower() if mode is not None else "off"
+        if m not in ("shadow", "enforce"):
+            return (current_booked_exit, None)
+        info = exit_slip_liq_eval(
+            decision_mid, fresh_price, exit_reason, size_usd, exit_liq_usd,
+            flat_slip_pct=flat_slip_pct, fee_usd=fee_usd, low_price=low_price,
+            sell_cap_pct=sell_cap_pct)
+        if m == "enforce":
+            if not info.get("liq_available"):
+                # no fresh liq -> keep the existing flat booking (fail open)
+                return (current_booked_exit, info)
+            if info.get("would_revert"):
+                return (EXIT_HOLD, info)
+            return (info["eff_exit_liqscaled"], info)
+        # shadow: book the OLD value, return info for the JSONL log
+        return (current_booked_exit, info)
+    except Exception:
+        return (current_booked_exit, None)

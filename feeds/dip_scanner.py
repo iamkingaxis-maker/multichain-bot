@@ -3133,6 +3133,48 @@ class DipScanner:
         except Exception as e:
             logger.debug("[partial-burn] shadow write failed: %s", e)
 
+    def _append_exit_slip_shadow(self, rec):
+        """Append one EXIT-SLIP-LIQ shadow record to
+        {DATA_DIR}/exit_slip_shadow.jsonl (size-capped via the shared cap_jsonl
+        helper, same idiom as the other shadow recorders). Fail-open; never
+        raises into the sell path."""
+        try:
+            path = os.path.join(
+                os.environ.get("DATA_DIR", "/data"), "exit_slip_shadow.jsonl")
+            try:
+                from core.jsonl_rotation import cap_jsonl
+                cap_jsonl(path, max_mb=float(
+                    os.environ.get("EXIT_SLIP_SHADOW_MAX_MB", "100")))
+            except Exception:
+                pass
+            with open(path, "a") as f:
+                f.write(json.dumps(rec, separators=(",", ":")) + "\n")
+        except Exception as e:
+            logger.debug("[exit-slip-liq] shadow write failed: %s", e)
+
+    def _fresh_exit_liquidity(self, address):
+        """Best FRESH exit-time liquidity (USD) for ``address`` from the WS
+        price-feed liquidity caches — NOT the buy-time stamped slip. Returns a
+        positive float, or None when no live cache entry exists (the common
+        fast-watch case -> the liq-scaled exit gate fails open to flat). The
+        caches are keyed by raw and lowercased address depending on the feed, so
+        both are tried. Never raises."""
+        if not address:
+            return None
+        for _feed_attr in ("axiom_price_feed", "dex_price_feed", "pool_price_feed"):
+            try:
+                feed = getattr(self, _feed_attr, None)
+                cache = getattr(feed, "liquidity_cache", None) if feed is not None else None
+                if not cache:
+                    continue
+                for _k in (address, address.lower()):
+                    v = cache.get(_k)
+                    if isinstance(v, (int, float)) and v > 0:
+                        return float(v)
+            except Exception:
+                continue
+        return None
+
     def _handle_partial_burn(self, bot_id, token, exit_decision, position,
                              current_price, now):
         """PARTIAL-TP BURN guard (SHADOW-first, 2026-06-28).
@@ -4246,6 +4288,72 @@ class DipScanner:
                     logger.error("[paper-fidelity] SELL error (%s) — fail-open, original "
                                  "fill bot=%s token=%s", _pf_e, bot_id, token)
                     eff_exit = sell_fill_price(current_price, _sz_sold, _impact)
+            # EXIT-SLIP LIQUIDITY-AWARENESS (SHADOW-first, EXIT_SLIP_LIQ_MODE,
+            # default off). Makes the PAPER exit slip liquidity-scaled and models
+            # live's sell cap-revert (PROBE_ULTRA_SELL_SLIPPAGE_BPS, default 6%):
+            # paper today books a FLAT liquidity-blind slip and never reverts an
+            # unfillable exit -> it OVERSTATES live exit P&L on illiquid/crashing
+            # exits. OFF => short-circuit here BEFORE any new compute (no liq
+            # resample, no log) => byte-identical. shadow => log only (book the old
+            # value). enforce => book the worse liq-scaled fill, and on a modeled
+            # slip >= cap leave the position OPEN this tick (mirror live revert).
+            # FAIL-OPEN: any error / missing fresh liq -> keep the flat booking.
+            _esl_mode = _pf_enabled("EXIT_SLIP_LIQ_MODE")
+            if _esl_mode != "off":
+                try:
+                    from core.paper_fidelity import (
+                        exit_slip_liq_book as _eslb, EXIT_HOLD as _ESL_HOLD,
+                    )
+                    _esl_addr = (_pos.address if (_pos and _pos.address) else None) \
+                        or getattr(self, "_addr_by_token", {}).get(token, "")
+                    # FRESH exit-time liquidity from the WS price-feed caches (NOT
+                    # the buy-time stamped slip). None = common fast-watch case ->
+                    # fail open to flat.
+                    _esl_liq = self._fresh_exit_liquidity(_esl_addr)
+                    _esl_fresh = await self._get_current_price_for(
+                        token, address=_esl_addr,
+                        pair_address=(_pos.pair_address if _pos else ""))
+                    _esl_low = None
+                    try:
+                        if _pos and _pos.entry_price and _pos.entry_price > 0:
+                            _esl_mae = (_pos.state_blob or {}).get("mae_pct")
+                            if isinstance(_esl_mae, (int, float)):
+                                _esl_low = _pos.entry_price * (1.0 + float(_esl_mae) / 100.0)
+                    except Exception:
+                        _esl_low = None
+                    _esl_booked, _esl_info = _eslb(
+                        _esl_mode, eff_exit, current_price, _esl_fresh,
+                        exit_decision.reason, _sz_sold, _esl_liq, low_price=_esl_low)
+                    if _esl_mode == "enforce" and _esl_booked is _ESL_HOLD:
+                        logger.info(
+                            "[exit-slip-liq] ENFORCE hold/retry bot=%s token=%s "
+                            "liq=%s slip=%.3f%% >= cap %.3f%% — position stays open",
+                            bot_id, token, _esl_liq,
+                            _esl_info["liq_scaled_slip_pct"], _esl_info["sell_cap_pct"])
+                        return  # NON-FILL: mirror live cap-revert (don't book this tick)
+                    if _esl_info is not None:
+                        self._append_exit_slip_shadow({
+                            "ts": now,
+                            "time": datetime.now(timezone.utc).isoformat(),
+                            "mode": _esl_mode,
+                            "bot_id": bot_id,
+                            "address": _esl_addr,
+                            "token": token,
+                            "size_usd": _sz_sold,
+                            "exit_liq_usd": _esl_info["exit_liq_usd"],
+                            "flat_slip_pct": _esl_info["flat_slip_pct"],
+                            "liq_scaled_slip_pct": _esl_info["liq_scaled_slip_pct"],
+                            "sell_cap_pct": _esl_info["sell_cap_pct"],
+                            "would_revert": _esl_info["would_revert"],
+                            "eff_exit_flat": _esl_info["eff_exit_flat"],
+                            "eff_exit_liqscaled": _esl_info["eff_exit_liqscaled"],
+                            "exit_price_delta_pct": _esl_info["exit_price_delta_pct"],
+                        })
+                    if _esl_mode == "enforce":
+                        eff_exit = _esl_booked
+                except Exception as _esl_e:
+                    logger.error("[exit-slip-liq] error (%s) — fail-open, flat booking "
+                                 "bot=%s token=%s", _esl_e, bot_id, token)
         try:
             result = pm.close_position(
                 token=token,
