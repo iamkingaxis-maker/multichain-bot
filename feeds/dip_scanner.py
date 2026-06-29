@@ -2237,8 +2237,12 @@ class DipScanner:
             _ftc_h6 = getattr(bundle, "pc_h6", None)
             if _ftc_h6 is None:
                 _ftc_h6 = _ar_meta.get("pc_h6")
-            _ftc_sel, _ftc_block, _ftc_why = _ftce(
-                _ftc_h6, _ar_meta.get("median_buy_size_usd"))
+            try:
+                _ftc_sel, _ftc_block, _ftc_why = _ftce(
+                    _ftc_h6, _ar_meta.get("median_buy_size_usd"))
+            except Exception:
+                # Defense-in-depth: a gate eval error must FAIL OPEN (never block).
+                _ftc_sel, _ftc_block, _ftc_why = (False, False, "ftc eval error -> allow")
             _ftc_taddr = (decision.address
                           or self._addr_by_token.get(decision.token, ""))
             # RECORD (dedup once per cycle) — enforce is NEVER gated by this set.
@@ -22197,6 +22201,10 @@ class DipScanner:
         self._crk_shadow_seen = set()
         self._nd_shadow_seen = set()
         self._wsz_shadow_seen = set()
+        # Same per-cycle dedup for the full_thesis_cohort gate's recorder (reset
+        # per cycle so coverage is sampled per-cycle, not once-per-process, and the
+        # set can't grow unbounded). Fail-open.
+        self._ftc_shadow_seen = set()
         # Same per-cycle dedup for the liquidity_exit_floor gate's recorder.
         self._lef_shadow_seen = set()
 
