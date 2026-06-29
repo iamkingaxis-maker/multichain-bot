@@ -7506,6 +7506,7 @@ class DipScanner:
             # fail-safe (a MISS just takes the existing fallback). Lazily created.
             _memo = None
             _memo_now = None
+            _chart_from_memo = False
             try:
                 from core.fast_watch import (
                     ChartMemo as _ChartMemo, chart_memo_enabled as _memo_on,
@@ -7532,16 +7533,40 @@ class DipScanner:
                     except Exception:
                         _chart_data = None
             elif pair_addr_for_1m:
-                try:
-                    _chart_data = await _assemble(self.gt_client, pair_addr_for_1m, dexs_client=self.dexs_client)
-                except Exception as _e:
-                    logger.debug(f"[DipScanner] chart_data assemble error for {token_symbol}: {_e}")
+                # COLD path (on-arm instant fresh-fire, cache_only=False): the MAIN
+                # scan assembled THIS token's chart milliseconds ago and wrote it to
+                # the memo. Read the memo FIRST (same address-key + TTL freshness the
+                # tick path uses) and reuse a HIT — skipping a redundant cold GT OHLC
+                # fetch. On a market-wide dip many tokens arm at once; without this,
+                # the bounded concurrent cold fetches 429-stormed GT -> fail-open to
+                # None chart -> entry triggers never fired -> fleet re-darkened exactly
+                # when opportunity was highest. Strictly an optimization: a genuine
+                # MISS (or any memo error) falls through to the cold fetch below, so
+                # correctness can't regress and triggers still fire on a truly cold
+                # memo. A reused HIT is NOT re-written below (see WRITE guard) so the
+                # TTL stays anchored to the original main-scan assemble (no staleness
+                # extension across cycles).
+                if _memo is not None and token_address:
+                    try:
+                        _mhit = _memo.get(token_address, _memo_now)
+                        if _mhit is not _ChartMemo.MISS and _mhit:
+                            _chart_data = _mhit
+                            _chart_from_memo = True
+                    except Exception:
+                        _chart_data = None
+                if not _chart_from_memo:
+                    try:
+                        _chart_data = await _assemble(self.gt_client, pair_addr_for_1m, dexs_client=self.dexs_client)
+                    except Exception as _e:
+                        logger.debug(f"[DipScanner] chart_data assemble error for {token_symbol}: {_e}")
             # Main-scan WRITE: memoize a freshly-assembled (truthy) chart so the
             # next fast-watch tick can reuse it. Never on the fast path (it only
-            # reads) and never a falsy/None chart (don't memoize a miss).
+            # reads), never a falsy/None chart (don't memoize a miss), and never a
+            # value that itself CAME FROM the memo (re-putting would refresh the TTL
+            # and let a chart outlive its original main-scan-anchored freshness).
             try:
                 if (_memo is not None and not _fast_cache_only
-                        and token_address and _chart_data):
+                        and token_address and _chart_data and not _chart_from_memo):
                     _memo.put(token_address, _chart_data, _memo_now)
             except Exception:
                 pass

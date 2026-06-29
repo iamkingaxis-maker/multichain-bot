@@ -389,6 +389,90 @@ def test_arm_fresh_fire_failopen_no_price(monkeypatch):
 #          exactly one _execute_bot_buy.
 # =========================================================================
 
+# =========================================================================
+# TEST 6 — ChartMemo dedup (the fast-follow): the on-arm COLD eval
+#          (cache_only=False) REUSES a warm ChartMemo entry the main scan
+#          just wrote WITHOUT a redundant cold GT fetch (kills the 429 storm),
+#          and STILL cold-fetches when the memo is genuinely absent.
+# =========================================================================
+
+def _spy_assemble(monkeypatch, chart):
+    """Stub assemble_chart_data + count cold-fetch invocations."""
+    calls = []
+
+    async def _fake_assemble(gt_client, pool_address, dexs_client=None):
+        calls.append(pool_address)
+        return chart
+    monkeypatch.setattr(cd_mod, "assemble_chart_data", _fake_assemble)
+    return calls
+
+
+def test_cold_eval_reuses_warm_memo_without_fetch(monkeypatch):
+    _base_env(monkeypatch)
+    monkeypatch.setenv("FEATURE_MEMO", "on")
+    # The cold GT fetch is spied: a HIT must NOT call it.
+    cold_calls = _spy_assemble(monkeypatch, _dip_chart())
+
+    sc, eval_calls, buy_calls = _make_scanner(user_watch=False)
+    cfg, dedup = _cfg_dedup()
+
+    # Pre-populate the memo exactly as the MAIN scan would have, milliseconds ago
+    # (well within the default 20s TTL): address-keyed, truthy dip chart.
+    from core.fast_watch import ChartMemo
+    sc._chart_memo = ChartMemo(20.0)
+    sc._chart_memo.put(ADDR, _dip_chart(), time.monotonic())
+
+    pair = _dip_pair(STALE_PX)
+    prices = {ADDR.lower(): FRESH_PX}
+    now = time.time()
+
+    _run(sc._fast_eval_one(ADDR, pair, prices, now, int(now * 1000),
+                           {}, hot_set={ADDR}, cache_only=False,
+                           cfg=cfg, dedup=dedup))
+
+    assert len(cold_calls) == 0, (
+        "warm ChartMemo must SHORT-CIRCUIT the cold GT fetch on the on-arm path "
+        f"(assemble_chart_data was called {len(cold_calls)} time(s) — the 429 storm)"
+    )
+    # The memo chart still drives a real trigger -> buy on the FRESH price.
+    assert len(eval_calls) == 1, (
+        f"warm-memo cold eval must still REACH evaluate_all (got {len(eval_calls)})"
+    )
+    assert len(buy_calls) == 1, (
+        f"warm-memo cold eval must route exactly one buy (got {len(buy_calls)})"
+    )
+    assert buy_calls[0]["bundle"].price_usd == pytest.approx(FRESH_PX)
+
+
+def test_cold_eval_fetches_when_memo_absent(monkeypatch):
+    _base_env(monkeypatch)
+    monkeypatch.setenv("FEATURE_MEMO", "on")
+    cold_calls = _spy_assemble(monkeypatch, _dip_chart())
+
+    sc, eval_calls, buy_calls = _make_scanner(user_watch=False)
+    cfg, dedup = _cfg_dedup()
+
+    # Empty memo (genuinely cold) — the on-arm path MUST still cold-fetch so the
+    # entry triggers can fire (no regression of the dark-fleet fix).
+    from core.fast_watch import ChartMemo
+    sc._chart_memo = ChartMemo(20.0)
+
+    pair = _dip_pair(STALE_PX)
+    prices = {ADDR.lower(): FRESH_PX}
+    now = time.time()
+
+    _run(sc._fast_eval_one(ADDR, pair, prices, now, int(now * 1000),
+                           {}, hot_set={ADDR}, cache_only=False,
+                           cfg=cfg, dedup=dedup))
+
+    assert len(cold_calls) == 1, (
+        "absent ChartMemo must FALL THROUGH to exactly one cold GT fetch "
+        f"(assemble_chart_data was called {len(cold_calls)} time(s))"
+    )
+    assert len(eval_calls) == 1, "cold-fetched chart must reach evaluate_all"
+    assert len(buy_calls) == 1, "cold-fetched chart must route one buy"
+
+
 def test_no_double_fire(monkeypatch):
     _base_env(monkeypatch)
     _stub_chart(monkeypatch, _dip_chart())
