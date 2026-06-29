@@ -25,6 +25,10 @@ from collections import Counter, deque, OrderedDict
 from typing import Optional, Dict, Deque, Tuple, List
 
 from feeds.gecko_ohlcv import GeckoTerminalClient
+# Module-scope so unit tests can monkeypatch feeds.dip_scanner.run_ds_fetch /
+# parse_chart_bars, and the RT-dip helper can reference them as bare names.
+from feeds.dexscreener_client import run_ds_fetch
+from feeds.dexscreener_chart_format import parse_chart_bars
 
 # Multi-bot harness imports (2026-05-23, Sub-project 1). All new code paths
 # are gated behind MULTI_BOT_ENABLED. When false (default), DipScanner
@@ -386,6 +390,7 @@ class DipScanner:
         self.last_sol_features_ts: float = 0.0
         self._sticky_watchlist: Dict[str, dict] = {}
         self._fast_armed: Dict[str, dict] = {}      # addr -> pair (armed subset, rebuilt each cycle)
+        self._rt_dip_bar_cache: Dict[str, Tuple[list, float]] = {}  # addr -> (bars, fetched_ts); RT_DIP bar reference
         # addr -> time.time() when the MAIN-SCAN path armed a would-buy token
         # instead of firing (MAIN_SCAN_BUY_MODE != on). The fast-watch tick drains
         # this into survivors and FORCE-evaluates them on a fresh price even if
@@ -21719,6 +21724,44 @@ class DipScanner:
         except Exception:
             pass
         return c, signals, (not _eval_completed)
+
+    async def _get_rt_dip_bars(self, addr, dex_slug, pair_addr, *, res="1m",
+                               ttl_secs=60.0, now=None):
+        """Cached io.dexscreener bars for the RT dip reference. Returns the
+        cached bars within ttl, else fetches off-loop, parses, caches. On any
+        fetch/parse failure returns the last cached bars (or []). Never raises."""
+        import time as _t
+        now = _t.time() if now is None else now
+        cached = self._rt_dip_bar_cache.get(addr)
+        if cached is not None and (now - cached[1]) < ttl_secs:
+            return cached[0]
+        _SOL_QUOTE = "So11111111111111111111111111111111111111112"
+
+        def _fetch_sync(slug):
+            try:
+                from curl_cffi import requests as _cf
+                _url = (
+                    f"https://io.dexscreener.com/dex/chart/amm/v3/{slug}"
+                    f"/bars/solana/{pair_addr}?res={res}&cb=999&q={_SOL_QUOTE}"
+                )
+                _r = _cf.get(_url, impersonate="chrome", timeout=8,
+                             headers={"Origin": "https://dexscreener.com",
+                                      "Referer": "https://dexscreener.com/"})
+                if _r.status_code == 200 and _r.content:
+                    return _r.content
+            except Exception:
+                return None
+            return None
+
+        try:
+            raw = await run_ds_fetch(_fetch_sync, dex_slug)
+            bars = parse_chart_bars(raw) if raw else None
+            if bars:
+                self._rt_dip_bar_cache[addr] = (bars, now)
+                return bars
+        except Exception:
+            pass
+        return cached[0] if cached is not None else []
 
     async def _scan_cycle(self):
         # Don't scan if already at max concurrent dip positions
