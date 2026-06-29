@@ -636,6 +636,60 @@ def winner_demand_selected(median_buy_size_usd, threshold=None) -> tuple[bool, s
     return False, ""
 
 
+def full_thesis_cohort_eval(pc_h6, median_buy_size_usd,
+                            buyer_threshold=None) -> tuple[bool, bool, str]:
+    """Full-thesis cohort (coverage audit 2026-06-29): a profitable badday dip =
+    a GENUINE 6h decliner (pc_h6 <= 0, a real decline not a pump-retrace) MET BY
+    real buyer size (median_buy_size_usd >= ~34.3, reusing the validated winner
+    selector). Returns (selected, blocked, why):
+      selected = both signals present AND in-cohort  (PASS / would-keep)
+      blocked  = a signal is PRESENT and CONFIRMED out-of-cohort (pc_h6>0 pump-retrace,
+                 or buyer<threshold low-buyer)  -> the ONLY case enforce should block
+      neither  = data missing/NaN -> (False, False, 'unknown ...')  -> enforce ALLOWS (fail-open)
+    NEVER returns blocked=True on missing data — the median_buy_size_usd FeatureBundle
+    gap on fast-watch entries would re-create the 24h dark-fleet outage. Composes the
+    buyer half from winner_demand_selected (+ its threshold helper) — no hardcoded 34.3.
+    Pure. Never raises (any coercion error -> that signal is treated as missing)."""
+    thr = _winner_size_threshold() if buyer_threshold is None else float(buyer_threshold)
+    # ── decline half: parse pc_h6 safely (None/bool/str/NaN -> not present) ──
+    try:
+        h6 = None if (pc_h6 is None or isinstance(pc_h6, bool)) else float(pc_h6)
+    except (TypeError, ValueError):
+        h6 = None
+    if h6 is not None and h6 != h6:  # NaN
+        h6 = None
+    decline_present = h6 is not None
+    decline_ok = decline_present and h6 <= 0.0
+    # ── buyer half: presence coerced here, ok delegated to winner_demand_selected ──
+    try:
+        bv = None if (median_buy_size_usd is None or isinstance(median_buy_size_usd, bool)) \
+            else float(median_buy_size_usd)
+    except (TypeError, ValueError):
+        bv = None
+    if bv is not None and bv != bv:  # NaN
+        bv = None
+    buyer_present = bv is not None
+    buyer_ok, _ = winner_demand_selected(median_buy_size_usd, threshold=buyer_threshold)
+    buyer_ok = bool(buyer_ok)
+
+    selected = decline_present and decline_ok and buyer_present and buyer_ok
+    blocked = (decline_present and not decline_ok) or (buyer_present and not buyer_ok)
+
+    if blocked:
+        reasons = []
+        if decline_present and not decline_ok:
+            reasons.append(f"pc_h6={h6:+.1f}>0 pump-retrace")
+        if buyer_present and not buyer_ok:
+            reasons.append(f"buyer${bv:.1f}<{thr:g}")
+        return False, True, "BLOCK: " + ", ".join(reasons)
+    if selected:
+        return True, False, f"PASS: pc_h6={h6:+.1f}<=0 & buyer${bv:.1f}>={thr:g}"
+    # fail-open: at least one signal missing and nothing present-and-failing
+    parts = ["pc_h6 present" if decline_present else "pc_h6 missing",
+             "buyer present" if buyer_present else "buyer missing"]
+    return False, False, "unknown: " + ", ".join(parts) + " -> allow"
+
+
 def _falling_day_flush_h1_max() -> float:
     """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
     extreme flush, combined with a down day, the token is in freefall. Tunable via

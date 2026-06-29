@@ -2220,6 +2220,58 @@ class DipScanner:
             if _wsz_sel:
                 logger.info("[DipScanner] bot=%s WINNER-SIZEUP shadow (size-up candidate): %s %s",
                             bot_id, _wsz_why, decision.token)
+        # ── Full-thesis cohort ENTRY GATE (coverage audit 2026-06-29) ───────────
+        # The ONLY profitable selection slice: a GENUINE 6h decliner (pc_h6<=0, not
+        # a pump-retrace) MET BY real buyer size (median_buy_size_usd>=34.3, reusing
+        # the validated winner selector). The post-restart loss signature is "never-
+        # green" pump-retrace / low-buyer entries (WYNN peak +0.8%, GOKHSHTEIN +0.0%)
+        # amplified by 8-9 bots buying the same token. AxiS 2026-06-29: ENFORCE.
+        # CRITICAL SAFETY — FAIL-OPEN: enforce blocks ONLY a CONFIRMED out-of-cohort
+        # candidate (a signal PRESENT and failing); any missing/NaN signal (the known
+        # median_buy_size_usd FeatureBundle gap on fast-watch) -> ALLOW (never dark the
+        # fleet). ALWAYS records the verdict so /api/filter-shadow keeps measuring even
+        # while enforcing. FULL_THESIS_COHORT_MODE=enforce(default)|shadow|off.
+        _ftc_mode = os.environ.get("FULL_THESIS_COHORT_MODE", "enforce").lower()
+        if _ftc_mode != "off" and str(bot_id).startswith("badday_"):
+            from core.bot_evaluator import full_thesis_cohort_eval as _ftce
+            _ftc_h6 = getattr(bundle, "pc_h6", None)
+            if _ftc_h6 is None:
+                _ftc_h6 = _ar_meta.get("pc_h6")
+            _ftc_sel, _ftc_block, _ftc_why = _ftce(
+                _ftc_h6, _ar_meta.get("median_buy_size_usd"))
+            _ftc_taddr = (decision.address
+                          or self._addr_by_token.get(decision.token, ""))
+            # RECORD (dedup once per cycle) — enforce is NEVER gated by this set.
+            try:
+                _ftc_seen = getattr(self, "_ftc_shadow_seen", None)
+                if _ftc_seen is None:
+                    _ftc_seen = set()
+                    self._ftc_shadow_seen = _ftc_seen
+                _ftc_key = (_ftc_taddr or decision.token or "").lower()
+                if _ftc_key not in _ftc_seen:
+                    _ftc_seen.add(_ftc_key)
+                    from feeds.filter_shadow_recorder import record_verdict as _rv5
+                    # PASS = in-cohort (would-keep); BLOCK = confirmed out-of-cohort;
+                    # the unknown-allow path is recorded as PASS-with-unknown-reason so
+                    # coverage is measured without polluting the BLOCK arm.
+                    _rv5(token_address=_ftc_taddr, token_symbol=decision.token,
+                         pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                         filter_name="full_thesis_cohort",
+                         verdict=("BLOCK" if _ftc_block else "PASS"),
+                         reasons=_ftc_why)
+            except Exception:
+                pass
+            # ENFORCE — block ONLY a confirmed out-of-cohort candidate. selected OR
+            # unknown (fail-open) both ALLOW. Never block on missing data.
+            if _ftc_block:
+                logger.info("[DipScanner] bot=%s FULL-THESIS-COHORT %s: %s %s", bot_id,
+                            "enforce skip" if _ftc_mode == "enforce" else "SHADOW-would-block",
+                            _ftc_why, decision.token)
+                if _ftc_mode == "enforce":
+                    return
+            elif _ftc_sel:
+                logger.info("[DipScanner] bot=%s FULL-THESIS-COHORT in-cohort: %s %s",
+                            bot_id, _ftc_why, decision.token)
         # ── Patient-sleeve ENTRY GATE (2026-06-26): hold ONLY winner-selected +tail
         # entries. Per-bot (winner_select_entry flag); FAIL-CLOSED (missing signal ->
         # skip). The sleeve's entry filter for the patient-hold A/B; no effect on any
