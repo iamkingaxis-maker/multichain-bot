@@ -299,6 +299,15 @@ class _JupSlipCached(Exception):
 _PREFETCH_MISS = object()
 
 
+def _arm_instant_fire_enabled() -> bool:
+    """ARM_INSTANT_FIRE: on a main-scan ARM (MAIN_SCAN_BUY_MODE != on) schedule an
+    instant COLD fresh-price re-eval off-loop so the dip fleet fires immediately
+    instead of waiting for an unreliable fast-tick force-eval drain. Default 'on'
+    (resume the dark fleet). Any of off/0/false/no disables it."""
+    v = os.environ.get("ARM_INSTANT_FIRE_MODE", "on").strip().lower()
+    return v in ("on", "1", "true", "yes")
+
+
 class DipScanner:
     def __init__(self,
                  trader,
@@ -6475,227 +6484,6 @@ class DipScanner:
                                      extra="(n_survivors=%d)" % len(survivors))
         _fw_eval_timer.__enter__()
 
-        async def _eval_one_survivor(addr, pair):
-            # Per-survivor heavy eval — runs under a bounded semaphore so the
-            # loop BREATHES (concurrent awaits yield) and survivors don't stack
-            # serially. Every real buy inside _evaluate_pair is still serialized
-            # via self._buy_fire_lock (same guarantee PARALLEL_SCAN_MODE relies
-            # on), so concurrent eval is buy-safe. Fail-safe: never raises.
-            _fw_e0 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
-            dedup.mark(addr, now)
-            if not pair:
-                return
-            _pair = pair
-            fresh = prices.get(addr.lower())
-            if fresh:
-                # B4: shadow-validated on-chain hot-layer. In mode 'on' a fresh
-                # on-chain price replaces Jupiter for the injected pair price; in
-                # 'shadow' the delta is logged only (Jupiter still used); off ->
-                # byte-identical (always Jupiter).
-                fresh, _src = self._fast_price_for(addr, fresh)
-                # Enforce-safe entry price: `fresh` is the JUPITER AGGREGATE,
-                # which for a multi-pool token can be the WRONG pool (PENGUIN
-                # 37x-divergence class) and would mis-time the entry once
-                # fast-watch is enforced. Prefer a PAIR-PINNED price pinned to
-                # the exact pool we trade on (same path the trader uses
-                # everywhere else). Escalation-only (0-N survivors/tick) so the
-                # extra fetch is cheap. Fall back to the Jupiter `fresh` if the
-                # pin is unavailable (still fresher than the cached pair price).
-                pair_addr = _pair.get("pairAddress")
-                pinned = None
-                # PINNED FETCH OPT-IN (2026-06-20): default OFF — the pinned
-                # fetch goes through trader._get_token_price whose Axiom step uses
-                # the DEFAULT ThreadPoolExecutor, which is STARVED by the main-scan
-                # sync sweep + ledger offload under many concurrent survivors
-                # (measured: 3-19 survivors ALL at an identical ~15-69s = loop/
-                # executor starvation, NOT the network; wait_for can't fire while
-                # the loop is blocked). With it off the fast path uses the Jupiter
-                # price/v3 aggregate already in hand (pool-aware, executor-free).
-                from core.fast_watch import (pinned_price_timeout_secs,
-                                             pinned_price_in_fast_path)
-                if pair_addr and pinned_price_in_fast_path():
-                    # FAST-FAIL PINNED FETCH: hard-cap with a short wall-clock
-                    # timeout; on timeout/err FAIL OPEN to the Jupiter aggregate
-                    # `fresh` already in hand (the buy still fires this tick).
-                    # Env: FAST_WATCH_PINNED_TIMEOUT_S.
-                    _pin_t0 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
-                    try:
-                        pinned = await asyncio.wait_for(
-                            self.trader._get_token_price(addr, pair_address=pair_addr),
-                            timeout=pinned_price_timeout_secs(),
-                        )
-                    except asyncio.TimeoutError:
-                        logger.debug(
-                            "[fast-watch] pinned price fetch TIMEOUT token=%s "
-                            "pair=%s -> jupiter-aggregate fallback", addr, pair_addr)
-                        pinned = None
-                    except Exception as e:
-                        logger.debug(
-                            "[fast-watch] pinned price fetch failed token=%s "
-                            "pair=%s: %s", addr, pair_addr, e)
-                        pinned = None
-                    finally:
-                        if _SCAN_PHASE_TIMING and _pin_t0:
-                            try:
-                                _pin_dt = time.monotonic() - _pin_t0
-                                if _pin_dt > 1.0:
-                                    logger.warning(
-                                        "[phase-timing] survivor=%s pinned_price_fetch=%.2fs",
-                                        addr[:6], _pin_dt)
-                            except Exception:
-                                pass
-                _pair = dict(_pair)
-                _snap_price = None
-                try:
-                    _snap_price = float(pair.get("priceUsd") or 0) or None
-                except (TypeError, ValueError):
-                    _snap_price = None
-                _fresh_price = pinned if (pinned is not None and pinned > 0) else fresh
-                _pair["priceUsd"] = str(_fresh_price)
-                # COMPONENT A: recompute the short-horizon dip metrics off the
-                # FRESH price vs the slow high-reference encoded in the snapshot %,
-                # so the dip trigger in _evaluate_pair gates on the LIVE move
-                # instead of stale pair["priceChange"]. Per-bot/env RT_TRIGGER_MODE.
-                from core.fast_watch import reprice_all, rt_mode
-                _rt_trig = rt_mode("RT_TRIGGER_MODE")
-                if _rt_trig != "off" and _snap_price and _fresh_price and _fresh_price > 0:
-                    _pch = dict(_pair.get("priceChange") or {})
-                    _snap_h1_orig = _pch.get("h1")  # capture BEFORE any enforce overwrite
-                    # Reprice ALL gated horizons (h1/m5/h6/h24), not just h1/m5 —
-                    # h6/h24 feed structure_edge / terminal_collapse / falling_day_flush /
-                    # post_pump_corpse and were previously left stale even in enforce.
-                    _fresh_pc = reprice_all(_pch, _snap_price, _fresh_price)
-                    if _fresh_pc:
-                        if _rt_trig == "enforce":
-                            _pch.update(_fresh_pc)
-                            _pair["priceChange"] = _pch
-                        logger.info(
-                            "[rt-trigger] %s mode=%s snap_pc_h1=%s fresh_pc_h1=%s "
-                            "snap_px=%.8f fresh_px=%.8f",
-                            addr[:6], _rt_trig, _snap_h1_orig,
-                            _fresh_pc.get("h1"), _snap_price, _fresh_price)
-                        # SHADOW STATS: fold the snap-vs-fresh h1 divergence into the
-                        # running tally so the enforce decision rests on
-                        # catastrophic_miss_rate (deep dips the stale snapshot misses
-                        # that the fresh price catches), not log-tailing. Accrues in
-                        # ANY armed mode (shadow OR enforce) and even while paused
-                        # (paper) since the fast-watch eval runs regardless. Fail-open.
-                        try:
-                            if _snap_h1_orig is not None and _fresh_pc.get("h1") is not None:
-                                from core import rt_shadow_stats as _rtss
-                                _rtss.record_trigger(_snap_h1_orig, _fresh_pc.get("h1"))
-                        except Exception:
-                            pass
-                # RT_DIP (2026-06-29): real-time dip reference off io.dexscreener
-                # bars + the in-memory rolling buffer, superseding the stale-anchor
-                # reprice_all above when usable. RT_DIP_MODE off=byte-identical;
-                # enforce overwrites priceChange only when coverage != NONE (else
-                # falls back to the reprice result — never fail-open into a buy).
-                _rt_dip = rt_mode("RT_DIP_MODE")
-                if _rt_dip != "off" and _snap_price and _fresh_price and _fresh_price > 0:
-                    if addr not in self._rt_dip_windows:
-                        from core.realtime_dip import RollingPriceWindow as _RPW
-                        self._rt_dip_windows[addr] = _RPW()
-                        # Bound memory: evict stale windows (no recent bar cache
-                        # activity) once over the cap; never raises. Cheap.
-                        if len(self._rt_dip_windows) > _RT_DIP_WINDOWS_MAX:
-                            try:
-                                _bar_keys = self._rt_dip_bar_cache
-                                _stale = [k for k in self._rt_dip_windows
-                                          if k not in _bar_keys]
-                                for _k in _stale:
-                                    if len(self._rt_dip_windows) <= _RT_DIP_WINDOWS_MAX:
-                                        break
-                                    self._rt_dip_windows.pop(_k, None)
-                                # Still over? drop oldest-inserted (dict is ordered).
-                                while len(self._rt_dip_windows) > _RT_DIP_WINDOWS_MAX:
-                                    _oldest = next(iter(self._rt_dip_windows))
-                                    self._rt_dip_windows.pop(_oldest, None)
-                            except Exception:
-                                pass
-                    _rt_dex_id = (pair.get("dexId") or "").lower()
-                    _rt_slug = {"pumpswap": "pumpfundex", "pumpfun": "pumpfundex",
-                                "raydium": "solamm", "meteora": "meteora"}.get(
-                                    _rt_dex_id, _rt_dex_id or "pumpfundex")
-                    # Restrict the rate-limited io.dx bars fetch (now a 3-slug
-                    # ladder) to the hot/dipping subset: a flat or pumping
-                    # survivor won't buy on a dip bot, so it needs no deep
-                    # h1/h6/h24 history — buffer-only m5 suffices. Without this
-                    # gate every survivor (incl. pumpers) competed for the fetch
-                    # budget, starving real dippers -> BUFFER_ONLY fleet-wide.
-                    # The dip check reads the freshly-repriced priceChange in hand.
-                    _rt_pch = _pair.get("priceChange") or {}
-                    def _rt_neg(_v):
-                        try:
-                            return float(_v) <= _RT_DIP_BARS_FETCH_PCT
-                        except (TypeError, ValueError):
-                            return False
-                    _rt_is_dipping = (_rt_neg(_rt_pch.get("m5"))
-                                      or _rt_neg(_rt_pch.get("h1"))
-                                      or _rt_neg(_rt_pch.get("h6")))
-                    _rt_bars = []
-                    if addr in _hot_set or _rt_is_dipping:
-                        try:
-                            _rt_bars = await self._get_rt_dip_bars(
-                                addr, _rt_slug, pair_addr, res="1m")
-                        except Exception:
-                            _rt_bars = []
-                    self._apply_rt_dip(_pair, _snap_price, _fresh_price, _rt_dip,
-                                       bars=_rt_bars, now=now, addr=addr)
-                # FORWARD FILL-SPEED CAPTURE (shadow): stash the would-fill price
-                # this fast tick saw for `addr` so _execute_bot_buy can log it vs the
-                # actual sweep fill. The escalation price (pinned > jupiter) is the
-                # one the fast loop WOULD have filled at. Fail-open: never break eval.
-                try:
-                    self._fast_stash_seen_price(addr, _pair.get("priceUsd"), now)
-                except Exception as _fs_e:
-                    logger.debug("[fill-speed] stash failed token=%s: %s", addr, _fs_e)
-            # ZERO-STALE ENTRY (2026-06-28): when MAIN_SCAN_BUY_MODE != 'on', the
-            # main scan only ARMS (never commits a buy), so the fast-watch path is
-            # the SOLE fire route. cfg.bot_allowlist is the *supplementary-escalation*
-            # roster (its hardcoded default even lists disabled bots and EXCLUDES
-            # enabled ones like badday_flush_nf15) — using it here would silently
-            # drop every enabled bot not in it (it arms but never fires). The main
-            # scan arms a token if ANY enabled bot wanted it (evaluate_all allowlist
-            # =None), so the fresh re-eval must cover the FULL enabled roster or it
-            # loses entries. 'on' = unchanged (fast-watch stays supplementary).
-            _fw_allow = cfg.bot_allowlist
-            try:
-                _ms_mode_fw = (os.environ.get("MAIN_SCAN_BUY_MODE", "on")
-                               or "on").strip().lower()
-                if _ms_mode_fw in ("arm_only", "off", "shadow"):
-                    _fw_allow = frozenset(self.bot_manager.enabled_bot_ids())
-            except Exception:
-                _fw_allow = cfg.bot_allowlist
-            ctx = {
-                "now_ms": now_ms,
-                "_regime_n": regime.get("_regime_n", 0),
-                "_regime_dip_breadth_pct": regime.get("_regime_dip_breadth_pct"),
-                "_regime_h1_neg_pct": regime.get("_regime_h1_neg_pct"),
-                "_fast_path_allowlist": _fw_allow,
-                "_fast_path_shadow": (cfg.mode == "shadow"),
-                # CACHE-ONLY CHARTS (2026-06-20): tell _evaluate_pair NOT to
-                # cold-fetch fresh GT OHLC in the fast path (which 429-stormed and
-                # 30s-backed-off per survivor). It uses the WARM prefetch cache and
-                # otherwise degrades to NO chart (fail-open) — covered by the main
-                # scan / next tick. Gated by FAST_WATCH_CACHE_ONLY_CHARTS.
-                "_fast_cache_only_charts": _cache_only,
-            }
-            try:
-                await self._evaluate_pair(_pair, ctx)
-            except Exception as e:
-                logger.error("[fast-watch] eval failed token=%s: %s", addr, e, exc_info=True)
-            finally:
-                if _SCAN_PHASE_TIMING and _fw_e0:
-                    try:
-                        _fw_dt = time.monotonic() - _fw_e0
-                        if _fw_dt > _fw_timing["slowest_dt"]:
-                            _fw_timing["slowest_dt"] = _fw_dt
-                            _fw_timing["slowest_sym"] = (
-                                (_pair.get("baseToken") or {}).get("symbol", addr[:6])
-                                if isinstance(_pair, dict) else addr[:6])
-                    except Exception:
-                        pass
 
         # ── CONCURRENT BOUNDED EVAL (2026-06-20) ─────────────────────────────
         # Run the per-survivor heavy evals under a bounded asyncio.Semaphore +
@@ -6710,7 +6498,9 @@ class DipScanner:
 
         async def _bounded_survivor(_a, _p):
             async with _eval_sem:
-                await _eval_one_survivor(_a, _p)
+                await self._fast_eval_one(
+                    _a, _p, prices, now, now_ms, regime, _hot_set,
+                    _cache_only, cfg, dedup, timing=_fw_timing)
 
         if survivors:
             await asyncio.gather(
@@ -6727,6 +6517,296 @@ class DipScanner:
             except Exception:
                 pass
 
+    async def _fast_eval_one(self, addr, pair, prices, now, now_ms, regime,
+                             hot_set, cache_only, cfg, dedup, timing=None):
+        """Per-survivor heavy eval, extracted VERBATIM from the former nested
+        `_eval_one_survivor` closure in `_fast_watch_tick` (free vars are now
+        explicit params). Runs under a bounded semaphore so the loop BREATHES;
+        every real buy inside `_evaluate_pair` is still serialized via
+        `self._buy_fire_lock`. Fail-safe: never raises out of the eval.
+
+        `cache_only` controls `_fast_cache_only_charts` in the eval ctx: the
+        tick passes cache_only=True (warm cache, no cold GT fetch); the on-arm
+        instant-fire path passes cache_only=False so the chart/order-flow ENTRY
+        TRIGGERS actually compute (cache-only strips them -> the eval bails
+        before evaluate_all = the dark-fleet bug). `timing` is the optional
+        tick phase-timing accumulator (None -> no-op)."""
+        # Per-survivor heavy eval — runs under a bounded semaphore so the
+        # loop BREATHES (concurrent awaits yield) and survivors don't stack
+        # serially. Every real buy inside _evaluate_pair is still serialized
+        # via self._buy_fire_lock (same guarantee PARALLEL_SCAN_MODE relies
+        # on), so concurrent eval is buy-safe. Fail-safe: never raises.
+        _fw_e0 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
+        dedup.mark(addr, now)
+        if not pair:
+            return
+        _pair = pair
+        fresh = prices.get(addr.lower())
+        if fresh:
+            # B4: shadow-validated on-chain hot-layer. In mode 'on' a fresh
+            # on-chain price replaces Jupiter for the injected pair price; in
+            # 'shadow' the delta is logged only (Jupiter still used); off ->
+            # byte-identical (always Jupiter).
+            fresh, _src = self._fast_price_for(addr, fresh)
+            # Enforce-safe entry price: `fresh` is the JUPITER AGGREGATE,
+            # which for a multi-pool token can be the WRONG pool (PENGUIN
+            # 37x-divergence class) and would mis-time the entry once
+            # fast-watch is enforced. Prefer a PAIR-PINNED price pinned to
+            # the exact pool we trade on (same path the trader uses
+            # everywhere else). Escalation-only (0-N survivors/tick) so the
+            # extra fetch is cheap. Fall back to the Jupiter `fresh` if the
+            # pin is unavailable (still fresher than the cached pair price).
+            pair_addr = _pair.get("pairAddress")
+            pinned = None
+            # PINNED FETCH OPT-IN (2026-06-20): default OFF — the pinned
+            # fetch goes through trader._get_token_price whose Axiom step uses
+            # the DEFAULT ThreadPoolExecutor, which is STARVED by the main-scan
+            # sync sweep + ledger offload under many concurrent survivors
+            # (measured: 3-19 survivors ALL at an identical ~15-69s = loop/
+            # executor starvation, NOT the network; wait_for can't fire while
+            # the loop is blocked). With it off the fast path uses the Jupiter
+            # price/v3 aggregate already in hand (pool-aware, executor-free).
+            from core.fast_watch import (pinned_price_timeout_secs,
+                                         pinned_price_in_fast_path)
+            if pair_addr and pinned_price_in_fast_path():
+                # FAST-FAIL PINNED FETCH: hard-cap with a short wall-clock
+                # timeout; on timeout/err FAIL OPEN to the Jupiter aggregate
+                # `fresh` already in hand (the buy still fires this tick).
+                # Env: FAST_WATCH_PINNED_TIMEOUT_S.
+                _pin_t0 = time.monotonic() if _SCAN_PHASE_TIMING else 0.0
+                try:
+                    pinned = await asyncio.wait_for(
+                        self.trader._get_token_price(addr, pair_address=pair_addr),
+                        timeout=pinned_price_timeout_secs(),
+                    )
+                except asyncio.TimeoutError:
+                    logger.debug(
+                        "[fast-watch] pinned price fetch TIMEOUT token=%s "
+                        "pair=%s -> jupiter-aggregate fallback", addr, pair_addr)
+                    pinned = None
+                except Exception as e:
+                    logger.debug(
+                        "[fast-watch] pinned price fetch failed token=%s "
+                        "pair=%s: %s", addr, pair_addr, e)
+                    pinned = None
+                finally:
+                    if _SCAN_PHASE_TIMING and _pin_t0:
+                        try:
+                            _pin_dt = time.monotonic() - _pin_t0
+                            if _pin_dt > 1.0:
+                                logger.warning(
+                                    "[phase-timing] survivor=%s pinned_price_fetch=%.2fs",
+                                    addr[:6], _pin_dt)
+                        except Exception:
+                            pass
+            _pair = dict(_pair)
+            _snap_price = None
+            try:
+                _snap_price = float(pair.get("priceUsd") or 0) or None
+            except (TypeError, ValueError):
+                _snap_price = None
+            _fresh_price = pinned if (pinned is not None and pinned > 0) else fresh
+            _pair["priceUsd"] = str(_fresh_price)
+            # COMPONENT A: recompute the short-horizon dip metrics off the
+            # FRESH price vs the slow high-reference encoded in the snapshot %,
+            # so the dip trigger in _evaluate_pair gates on the LIVE move
+            # instead of stale pair["priceChange"]. Per-bot/env RT_TRIGGER_MODE.
+            from core.fast_watch import reprice_all, rt_mode
+            _rt_trig = rt_mode("RT_TRIGGER_MODE")
+            if _rt_trig != "off" and _snap_price and _fresh_price and _fresh_price > 0:
+                _pch = dict(_pair.get("priceChange") or {})
+                _snap_h1_orig = _pch.get("h1")  # capture BEFORE any enforce overwrite
+                # Reprice ALL gated horizons (h1/m5/h6/h24), not just h1/m5 —
+                # h6/h24 feed structure_edge / terminal_collapse / falling_day_flush /
+                # post_pump_corpse and were previously left stale even in enforce.
+                _fresh_pc = reprice_all(_pch, _snap_price, _fresh_price)
+                if _fresh_pc:
+                    if _rt_trig == "enforce":
+                        _pch.update(_fresh_pc)
+                        _pair["priceChange"] = _pch
+                    logger.info(
+                        "[rt-trigger] %s mode=%s snap_pc_h1=%s fresh_pc_h1=%s "
+                        "snap_px=%.8f fresh_px=%.8f",
+                        addr[:6], _rt_trig, _snap_h1_orig,
+                        _fresh_pc.get("h1"), _snap_price, _fresh_price)
+                    # SHADOW STATS: fold the snap-vs-fresh h1 divergence into the
+                    # running tally so the enforce decision rests on
+                    # catastrophic_miss_rate (deep dips the stale snapshot misses
+                    # that the fresh price catches), not log-tailing. Accrues in
+                    # ANY armed mode (shadow OR enforce) and even while paused
+                    # (paper) since the fast-watch eval runs regardless. Fail-open.
+                    try:
+                        if _snap_h1_orig is not None and _fresh_pc.get("h1") is not None:
+                            from core import rt_shadow_stats as _rtss
+                            _rtss.record_trigger(_snap_h1_orig, _fresh_pc.get("h1"))
+                    except Exception:
+                        pass
+            # RT_DIP (2026-06-29): real-time dip reference off io.dexscreener
+            # bars + the in-memory rolling buffer, superseding the stale-anchor
+            # reprice_all above when usable. RT_DIP_MODE off=byte-identical;
+            # enforce overwrites priceChange only when coverage != NONE (else
+            # falls back to the reprice result — never fail-open into a buy).
+            _rt_dip = rt_mode("RT_DIP_MODE")
+            if _rt_dip != "off" and _snap_price and _fresh_price and _fresh_price > 0:
+                if addr not in self._rt_dip_windows:
+                    from core.realtime_dip import RollingPriceWindow as _RPW
+                    self._rt_dip_windows[addr] = _RPW()
+                    # Bound memory: evict stale windows (no recent bar cache
+                    # activity) once over the cap; never raises. Cheap.
+                    if len(self._rt_dip_windows) > _RT_DIP_WINDOWS_MAX:
+                        try:
+                            _bar_keys = self._rt_dip_bar_cache
+                            _stale = [k for k in self._rt_dip_windows
+                                      if k not in _bar_keys]
+                            for _k in _stale:
+                                if len(self._rt_dip_windows) <= _RT_DIP_WINDOWS_MAX:
+                                    break
+                                self._rt_dip_windows.pop(_k, None)
+                            # Still over? drop oldest-inserted (dict is ordered).
+                            while len(self._rt_dip_windows) > _RT_DIP_WINDOWS_MAX:
+                                _oldest = next(iter(self._rt_dip_windows))
+                                self._rt_dip_windows.pop(_oldest, None)
+                        except Exception:
+                            pass
+                _rt_dex_id = (pair.get("dexId") or "").lower()
+                _rt_slug = {"pumpswap": "pumpfundex", "pumpfun": "pumpfundex",
+                            "raydium": "solamm", "meteora": "meteora"}.get(
+                                _rt_dex_id, _rt_dex_id or "pumpfundex")
+                # Restrict the rate-limited io.dx bars fetch (now a 3-slug
+                # ladder) to the hot/dipping subset: a flat or pumping
+                # survivor won't buy on a dip bot, so it needs no deep
+                # h1/h6/h24 history — buffer-only m5 suffices. Without this
+                # gate every survivor (incl. pumpers) competed for the fetch
+                # budget, starving real dippers -> BUFFER_ONLY fleet-wide.
+                # The dip check reads the freshly-repriced priceChange in hand.
+                _rt_pch = _pair.get("priceChange") or {}
+                def _rt_neg(_v):
+                    try:
+                        return float(_v) <= _RT_DIP_BARS_FETCH_PCT
+                    except (TypeError, ValueError):
+                        return False
+                _rt_is_dipping = (_rt_neg(_rt_pch.get("m5"))
+                                  or _rt_neg(_rt_pch.get("h1"))
+                                  or _rt_neg(_rt_pch.get("h6")))
+                _rt_bars = []
+                if addr in hot_set or _rt_is_dipping:
+                    try:
+                        _rt_bars = await self._get_rt_dip_bars(
+                            addr, _rt_slug, pair_addr, res="1m")
+                    except Exception:
+                        _rt_bars = []
+                self._apply_rt_dip(_pair, _snap_price, _fresh_price, _rt_dip,
+                                   bars=_rt_bars, now=now, addr=addr)
+            # FORWARD FILL-SPEED CAPTURE (shadow): stash the would-fill price
+            # this fast tick saw for `addr` so _execute_bot_buy can log it vs the
+            # actual sweep fill. The escalation price (pinned > jupiter) is the
+            # one the fast loop WOULD have filled at. Fail-open: never break eval.
+            try:
+                self._fast_stash_seen_price(addr, _pair.get("priceUsd"), now)
+            except Exception as _fs_e:
+                logger.debug("[fill-speed] stash failed token=%s: %s", addr, _fs_e)
+        # ZERO-STALE ENTRY (2026-06-28): when MAIN_SCAN_BUY_MODE != 'on', the
+        # main scan only ARMS (never commits a buy), so the fast-watch path is
+        # the SOLE fire route. cfg.bot_allowlist is the *supplementary-escalation*
+        # roster (its hardcoded default even lists disabled bots and EXCLUDES
+        # enabled ones like badday_flush_nf15) — using it here would silently
+        # drop every enabled bot not in it (it arms but never fires). The main
+        # scan arms a token if ANY enabled bot wanted it (evaluate_all allowlist
+        # =None), so the fresh re-eval must cover the FULL enabled roster or it
+        # loses entries. 'on' = unchanged (fast-watch stays supplementary).
+        _fw_allow = cfg.bot_allowlist
+        try:
+            _ms_mode_fw = (os.environ.get("MAIN_SCAN_BUY_MODE", "on")
+                           or "on").strip().lower()
+            if _ms_mode_fw in ("arm_only", "off", "shadow"):
+                _fw_allow = frozenset(self.bot_manager.enabled_bot_ids())
+        except Exception:
+            _fw_allow = cfg.bot_allowlist
+        ctx = {
+            "now_ms": now_ms,
+            "_regime_n": regime.get("_regime_n", 0),
+            "_regime_dip_breadth_pct": regime.get("_regime_dip_breadth_pct"),
+            "_regime_h1_neg_pct": regime.get("_regime_h1_neg_pct"),
+            "_fast_path_allowlist": _fw_allow,
+            "_fast_path_shadow": (cfg.mode == "shadow"),
+            # CACHE-ONLY CHARTS (2026-06-20): tell _evaluate_pair NOT to
+            # cold-fetch fresh GT OHLC in the fast path (which 429-stormed and
+            # 30s-backed-off per survivor). It uses the WARM prefetch cache and
+            # otherwise degrades to NO chart (fail-open) — covered by the main
+            # scan / next tick. Gated by FAST_WATCH_CACHE_ONLY_CHARTS.
+            "_fast_cache_only_charts": cache_only,
+        }
+        try:
+            await self._evaluate_pair(_pair, ctx)
+        except Exception as e:
+            logger.error("[fast-watch] eval failed token=%s: %s", addr, e, exc_info=True)
+        finally:
+            if _SCAN_PHASE_TIMING and _fw_e0 and timing is not None:
+                try:
+                    _fw_dt = time.monotonic() - _fw_e0
+                    if _fw_dt > timing["slowest_dt"]:
+                        timing["slowest_dt"] = _fw_dt
+                        timing["slowest_sym"] = (
+                            (_pair.get("baseToken") or {}).get("symbol", addr[:6])
+                            if isinstance(_pair, dict) else addr[:6])
+                except Exception:
+                    pass
+
+    async def _arm_fresh_fire(self, addr, pair):
+        """Instant fresh-price fire for a main-scan-armed token. Off-loop, bounded,
+        fail-open. Runs the REAL fast eval COLD (cache_only=False) so the chart/
+        order-flow ENTRY TRIGGERS actually fire (cache-only strips them -> the eval
+        bails before evaluate_all -> the 24h dark-fleet bug).
+
+        NEVER fires on the stale main-scan price: it re-fetches a FRESH price via
+        `_fast_batch_prices` (same source the tick uses) and the pinned/RT path
+        inside `_fast_eval_one`. Every real buy stays serialized under
+        `_buy_fire_lock` (inside `_fast_route_decisions`). One-shot: pops
+        `_fast_force_eval[addr]` on completion so the tick drain can't double it."""
+        if not _arm_instant_fire_enabled():
+            return
+        from core.fast_watch import (FastWatchConfig, FastWatchDedup,
+                                     eval_concurrency)
+        cfg = getattr(self, "_fast_cfg", None) or FastWatchConfig.from_env()
+        if cfg.mode == "off":
+            return
+        dedup = (getattr(self, "_fast_dedup", None)
+                 or FastWatchDedup(cfg.eval_cooldown_secs))
+        # Bound concurrent on-arm fires (lazily init; mirrors the loop's setup).
+        if getattr(self, "_arm_fire_sem", None) is None:
+            self._arm_fire_sem = asyncio.Semaphore(max(1, eval_concurrency()))
+            self._arm_fire_tasks = set()
+        try:
+            async with self._arm_fire_sem:
+                # FRESH price (bounded/fail-open already). NEVER the stale snapshot.
+                prices = await self._fast_batch_prices([addr])
+                if not prices or prices.get(addr.lower()) is None:
+                    # No fresh price this attempt -> leave _fast_force_eval[addr]
+                    # in place so the tick drain can still try later (weak fallback).
+                    logger.info("[arm-instant-fire] no fresh price for %s -> "
+                                "deferring to fast-tick drain", addr[:6])
+                    return
+                now = time.time()
+                now_ms = int(now * 1000)
+                regime = getattr(self, "_fast_watch_regime", {}) or {}
+                # hot_set={addr}: same pinned-price + RT-DIP bars treatment a hot
+                # survivor gets. cache_only=False is THE fix (cold chart/order-flow).
+                await self._fast_eval_one(
+                    addr, pair, prices, now, now_ms, regime,
+                    hot_set={addr}, cache_only=False, cfg=cfg, dedup=dedup)
+                # One-shot: completed a fresh-price eval -> drop the force-eval flag
+                # so the tick drain can't re-fire the same arm (double-buy guard #2;
+                # shared dedup + open-position dedup are #1/#3). Only on a COMPLETED
+                # eval — a no-price return above leaves it for the drain fallback.
+                try:
+                    getattr(self, "_fast_force_eval", {}).pop(addr, None)
+                except Exception:
+                    pass
+        except Exception as e:
+            # Fail-open: a bug here must NEVER break the main scan / fast tick.
+            logger.error("[arm-instant-fire] failed token=%s: %s", addr, e,
+                         exc_info=True)
+
     async def _fast_watch_loop(self):
         from core.fast_watch import FastWatchConfig, FastWatchDedup
         cfg = FastWatchConfig.from_env()
@@ -6740,6 +6820,10 @@ class DipScanner:
         if getattr(self, "_buy_fire_lock", None) is None:
             self._buy_fire_lock = asyncio.Lock()
         dedup = FastWatchDedup(cfg.eval_cooldown_secs)
+        # Share cfg/dedup with the on-arm instant-fire path so it cooperates with
+        # the tick (shared dedup prevents double-eval/double-fire of an arm).
+        self._fast_cfg = cfg
+        self._fast_dedup = dedup
         while True:
             try:
                 await self._fast_watch_tick(cfg, dedup)
@@ -21682,6 +21766,29 @@ class DipScanner:
                                 # move_fires wouldn't surface a flat-after-bottom dip.
                                 self._fast_force_eval[_da] = _now_arm
                                 _armed_n += 1
+                                # ARM_INSTANT_FIRE (2026-06-29): schedule an instant
+                                # COLD fresh-price re-eval OFF-LOOP so the dip fleet
+                                # fires NOW instead of waiting on the unreliable
+                                # fast-tick force-eval drain (the 24h dark-fleet bug).
+                                # create_task runs AFTER this main-scan _evaluate_pair
+                                # yields -> off the synchronous sweep (loop-safe).
+                                # _fast_force_eval stays as the (weak) drain fallback.
+                                if _arm_instant_fire_enabled():
+                                    try:
+                                        from core.fast_watch import eval_concurrency
+                                        if getattr(self, "_arm_fire_sem", None) is None:
+                                            self._arm_fire_sem = asyncio.Semaphore(
+                                                max(1, eval_concurrency()))
+                                            self._arm_fire_tasks = set()
+                                        _t = asyncio.create_task(
+                                            self._arm_fresh_fire(_da, pair))
+                                        self._arm_fire_tasks.add(_t)
+                                        _t.add_done_callback(
+                                            self._arm_fire_tasks.discard)
+                                    except RuntimeError:
+                                        # no running loop (sync/test context) ->
+                                        # drain fallback covers it
+                                        pass
                         if _armed_n:
                             logger.info(
                                 "[main-scan->arm] %d would-buy decision(s) for %s "
