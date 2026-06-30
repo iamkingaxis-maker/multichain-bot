@@ -690,6 +690,44 @@ def full_thesis_cohort_eval(pc_h6, median_buy_size_usd,
     return False, False, "unknown: " + ", ".join(parts) + " -> allow"
 
 
+def stale_knife_blocks(stale_watch_verdict, mtf_verdicts) -> tuple[bool, str]:
+    """STALE-KNIFE entry gate (fresh-fill-fork validation 2026-06-30). The clean
+    -EV cohort in the realized-outcome study (33 distinct tokens) was the
+    INTERSECTION: a STALE watch candidate (filter_stale_watch_verdict == 'BLOCK',
+    i.e. seen >15 cycles — "fresh dips beat stale ones") AND an ALL-BEAR multi-
+    timeframe chart (1m AND 5m AND 15m all 'bear'). That slice ran -3.13% mean /
+    -4.70% median / 2-of-11 token win (18%). Neither signal alone gates cleanly
+    (stale-alone is ~breakeven; 2-bear is the BEST cohort and 3-bear-alone is fat-
+    tailed +mean/-median) — it is specifically the AND that isolates the dead-cat
+    knife we fill on the bounce.
+
+    Returns (blocked, why). blocked=True ONLY when BOTH conditions are CONFIRMED
+    present-and-true. FAIL-OPEN: any missing/unparseable signal -> (False, ...) =
+    allow (never dark the fleet on absent chart/stale meta — same discipline as
+    full_thesis_cohort_eval). Pure; never raises.
+
+    mtf_verdicts: the chart_mtf_verdicts dict, e.g. {'1m':'bear','5m':'bear',
+    '15m':'bear','1h':'flat'} (1h intentionally ignored — the 1m/5m/15m triple is
+    the validated knife signature)."""
+    stale = str(stale_watch_verdict).upper() if stale_watch_verdict is not None else ""
+    stale_block = (stale == "BLOCK")
+    if not stale_block:
+        return False, f"not stale (stale_watch={stale or 'missing'}) -> allow"
+    # all-bear half: need 1m AND 5m AND 15m ALL == 'bear', all present
+    if not isinstance(mtf_verdicts, dict) or not mtf_verdicts:
+        return False, "mtf missing -> allow"
+    tfs = ("1m", "5m", "15m")
+    vals = {tf: str(mtf_verdicts.get(tf, "")).lower() for tf in tfs}
+    if any(vals[tf] == "" for tf in tfs):
+        return False, "mtf incomplete -> allow"
+    all_bear = all(vals[tf] == "bear" for tf in tfs)
+    if stale_block and all_bear:
+        return True, ("BLOCK: stale-watch + all-bear MTF "
+                      "(1m/5m/15m bear) = dead-cat knife")
+    return False, (f"stale but not all-bear (mtf={vals['1m']}/{vals['5m']}/{vals['15m']})"
+                   " -> allow")
+
+
 def _falling_day_flush_h1_max() -> float:
     """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
     extreme flush, combined with a down day, the token is in freefall. Tunable via

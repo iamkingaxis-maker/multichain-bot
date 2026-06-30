@@ -2276,6 +2276,53 @@ class DipScanner:
             elif _ftc_sel:
                 logger.info("[DipScanner] bot=%s FULL-THESIS-COHORT in-cohort: %s %s",
                             bot_id, _ftc_why, decision.token)
+        # ── Stale-knife ENTRY GATE (fresh-fill-fork validation 2026-06-30) ──────
+        # The realized-outcome study (33 distinct tokens) found the clean -EV cohort
+        # is the INTERSECTION: stale watch (filter_stale_watch_verdict=BLOCK, seen
+        # >15 cycles) AND all-bear MTF (1m/5m/15m all bear) = -3.13%mean/-4.70%med/
+        # 18% token-win — the dead-cat knife we arm at a stale low and fill on the
+        # +4% bounce (POINT signature). Neither signal alone gates (stale-alone
+        # ~breakeven; 2-bear is BEST; 3-bear-alone fat-tailed) — only the AND.
+        # SHADOW-FIRST (n=11 tokens / one green regime): default shadow records the
+        # would-block for the scorer; enforce blocks only the confirmed intersection.
+        # FAIL-OPEN: any missing stale/mtf signal -> ALLOW. STALE_KNIFE_GATE_MODE=
+        # shadow(default)|enforce|off. Mirrors the full_thesis_cohort pattern above.
+        _sk_mode = os.environ.get("STALE_KNIFE_GATE_MODE", "shadow").lower()
+        if _sk_mode != "off" and str(bot_id).startswith("badday_"):
+            from core.bot_evaluator import stale_knife_blocks as _skb
+            try:
+                _sk_block, _sk_why = _skb(
+                    _ar_meta.get("filter_stale_watch_verdict"),
+                    _ar_meta.get("chart_mtf_verdicts"))
+            except Exception:
+                # Defense-in-depth: a gate eval error must FAIL OPEN (never block).
+                _sk_block, _sk_why = (False, "stale_knife eval error -> allow")
+            _sk_taddr = (decision.address
+                         or self._addr_by_token.get(decision.token, ""))
+            try:
+                _sk_seen = getattr(self, "_sk_shadow_seen", None)
+                if _sk_seen is None:
+                    _sk_seen = set()
+                    self._sk_shadow_seen = _sk_seen
+                _sk_key = (_sk_taddr or decision.token or "").lower()
+                if _sk_key not in _sk_seen:
+                    _sk_seen.add(_sk_key)
+                    from feeds.filter_shadow_recorder import record_verdict as _rv6
+                    # BLOCK = confirmed stale-knife intersection; PASS = everything
+                    # else (incl. fail-open unknowns) so coverage keeps measuring.
+                    _rv6(token_address=_sk_taddr, token_symbol=decision.token,
+                         pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                         filter_name="stale_knife",
+                         verdict=("BLOCK" if _sk_block else "PASS"),
+                         reasons=_sk_why)
+            except Exception:
+                pass
+            if _sk_block:
+                logger.info("[DipScanner] bot=%s STALE-KNIFE %s: %s %s", bot_id,
+                            "enforce skip" if _sk_mode == "enforce" else "SHADOW-would-block",
+                            _sk_why, decision.token)
+                if _sk_mode == "enforce":
+                    return
         # ── Patient-sleeve ENTRY GATE (2026-06-26): hold ONLY winner-selected +tail
         # entries. Per-bot (winner_select_entry flag); FAIL-CLOSED (missing signal ->
         # skip). The sleeve's entry filter for the patient-hold A/B; no effect on any
