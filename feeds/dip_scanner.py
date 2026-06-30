@@ -11717,12 +11717,25 @@ class DipScanner:
                 _filter_verdicts.append(("filter_sol_macro_down", _filter_sol_macro_down_verdict, ""))
             except Exception:
                 pass
+            # SOL_MACRO_GATE_MODE=strict(default) enforces the h6<-0.3/h1<-0.7
+            # gate; =loose enforces the crash-only thresholds computed just below
+            # (filter_sol_macro_loose) instead — relaxing the noise-level block
+            # that vetoes the fleet on mild SOL drift (20k-dip analysis: h6 has
+            # ~zero corr with bounce; mild trigger is pure opportunity cost).
+            _sol_gate_mode = os.environ.get("SOL_MACRO_GATE_MODE", "strict").lower()
             if _filter_sol_macro_down_verdict == "BLOCK":
-                logger.info(
-                    f"[DipScanner] BLOCKED by filter_sol_macro_down: {token_symbol} "
-                    f"reasons={','.join(_filter_sol_macro_down_block_reasons)}"
-                )
-                _filters_block.append("filter_sol_macro_down")
+                if _sol_gate_mode != "loose":
+                    logger.info(
+                        f"[DipScanner] BLOCKED by filter_sol_macro_down: {token_symbol} "
+                        f"reasons={','.join(_filter_sol_macro_down_block_reasons)}"
+                    )
+                    _filters_block.append("filter_sol_macro_down")
+                else:
+                    logger.info(
+                        f"[DipScanner] filter_sol_macro_down strict-would-block "
+                        f"(loose mode active, NOT enforced): {token_symbol} "
+                        f"reasons={','.join(_filter_sol_macro_down_block_reasons)}"
+                    )
 
             # ── filter_sol_macro_loose — SHADOW A/B 2026-06-01 (measure-only) ──
             # The strict gate above (h6<-0.3 OR h1<-0.7 OR m5<-1.0) fires ~half the
@@ -11768,6 +11781,14 @@ class DipScanner:
                     f"(strict blocked on {','.join(_filter_sol_macro_down_block_reasons)}; "
                     f"loose crash-gate passes)"
                 )
+            # SOL_MACRO_GATE_MODE=loose: ENFORCE the crash-only gate in place of
+            # strict (genuine SOL crash protection intact; mild-drift block dropped).
+            if _sol_gate_mode == "loose" and _filter_sol_loose_verdict == "BLOCK":
+                logger.info(
+                    f"[DipScanner] BLOCKED by filter_sol_macro_loose: {token_symbol} "
+                    f"reasons={','.join(_filter_sol_loose_reasons)} (crash-only enforce)"
+                )
+                _filters_block.append("filter_sol_macro_loose")
 
             # ── LAYERED DEFENDER FILTERS — ADDED 2026-05-28 (perf-diff mine) ──
             # All 6 filters are OPT-IN via filters_enforced. The DEFENDER_FILTERS
