@@ -765,6 +765,45 @@ def dev_not_dumped_blocks(dev_pct_remaining, min_pct=None) -> tuple[bool, str]:
     return False, f"dev holds {v:.1f}%>={thr:g} -> allow"
 
 
+def _shallow_dip_depth_max() -> float:
+    """pc_h6 depth REQUIREMENT for the shallow-dip gate (default -30.0). The
+    solve-it army's honest-fill band analysis (2026-06-30, token-level, full
+    sample) found decline DEPTH — not sign — separates winners from losers:
+    pc_h6>0 (pump-retrace) -1.94%/35%win, (-15,0] mild -2.09%/24%win,
+    (-30,-15] moderate -2.00%/35%win, BUT (-45,-30] deep +3.29%/51%win and
+    <=-45 crater +11.10%/52%win. So a genuine *deep* decline is the edge; a
+    shallow dip is the trash. full_thesis_cohort only checks pc_h6<=0 (SIGN),
+    so it admits the shallow losers. Require pc_h6 <= this. Tunable via
+    SHALLOW_DIP_DEPTH_MAX. (NOTE: opposite of a 'too-deep floor' — deeper is
+    BETTER here; the cohort is fat-tail, so pair with exit/size to harvest it.)"""
+    try:
+        return float(os.environ.get("SHALLOW_DIP_DEPTH_MAX", "-30.0"))
+    except (TypeError, ValueError):
+        return -30.0
+
+
+def shallow_dip_blocks(pc_h6, depth_max=None) -> tuple[bool, str]:
+    """SHALLOW-DIP entry gate (solve-it band analysis 2026-06-30). Block a dip
+    that is NOT DEEP ENOUGH: pc_h6 is PRESENT and > depth_max (e.g. > -30 =
+    shallow/pump-retrace = the -2%/24%-win loser cohort). Deep declines
+    (pc_h6 <= depth_max) are the +3..+11% fat-tail winners and PASS.
+
+    Returns (blocked, why). FAIL-OPEN: missing/NaN pc_h6 -> (False, ...) = allow
+    (same discipline as full_thesis_cohort/dev_not_dumped). Pure; never raises.
+    Fat-tail caveat: this keeps the winner POOL (mean+) but the median stays ~0,
+    so it is the ENTRY half — exit/size must harvest the tail."""
+    thr = _shallow_dip_depth_max() if depth_max is None else float(depth_max)
+    try:
+        v = None if (pc_h6 is None or isinstance(pc_h6, bool)) else float(pc_h6)
+    except (TypeError, ValueError):
+        return False, "pc_h6 unparseable -> allow"
+    if v is None or v != v:
+        return False, "pc_h6 missing -> allow"
+    if v > thr:
+        return True, f"BLOCK: pc_h6={v:+.1f} > {thr:g} (shallow dip / pump-retrace — not a deep decline)"
+    return False, f"deep decline pc_h6={v:+.1f}<={thr:g} -> allow"
+
+
 def _falling_day_flush_h1_max() -> float:
     """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
     extreme flush, combined with a down day, the token is in freefall. Tunable via

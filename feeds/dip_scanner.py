@@ -2383,6 +2383,50 @@ class DipScanner:
                             _dnd_why, decision.token)
                 if _dnd_mode == "enforce":
                     return
+        # ── Shallow-dip ENTRY GATE (solve-it band analysis 2026-06-30) ──────────
+        # full_thesis_cohort checks decline SIGN (pc_h6<=0) not DEPTH, so it admits
+        # shallow dips / pump-retraces — the honest-fill band study (token-level)
+        # found those are the LOSERS (pc_h6>0 -1.94%/35%win, (-15,0] -2.09%/24%win)
+        # while DEEP declines are the winners (pc_h6 (-45,-30] +3.29%/51%win, <=-45
+        # +11.10%/52%win). Block a dip that isn't deep enough (pc_h6 > depth_max);
+        # FAIL-OPEN on missing pc_h6. Fat-tail: keeps the winner POOL (mean+, median
+        # ~0) — the ENTRY half; exit/size harvests the tail. SHALLOW_DIP_MODE=
+        # shadow(default)|enforce|off. Mirrors dev_not_dumped/stale_knife.
+        _shd_mode = os.environ.get("SHALLOW_DIP_MODE", "shadow").lower()
+        if _shd_mode != "off" and str(bot_id).startswith("badday_"):
+            from core.bot_evaluator import shallow_dip_blocks as _shdb
+            _shd_h6 = getattr(bundle, "pc_h6", None)
+            if _shd_h6 is None:
+                _shd_h6 = _ar_meta.get("pc_h6")
+            try:
+                _shd_block, _shd_why = _shdb(_shd_h6)
+            except Exception:
+                _shd_block, _shd_why = (False, "shallow_dip eval error -> allow")
+            _shd_taddr = (decision.address
+                          or self._addr_by_token.get(decision.token, ""))
+            try:
+                _shd_seen = getattr(self, "_shd_shadow_seen", None)
+                if _shd_seen is None:
+                    _shd_seen = set()
+                    self._shd_shadow_seen = _shd_seen
+                _shd_key = (_shd_taddr or decision.token or "").lower()
+                if _shd_key not in _shd_seen:
+                    _shd_seen.add(_shd_key)
+                    from feeds.filter_shadow_recorder import record_verdict as _rv8
+                    # BLOCK = shallow/not-deep-enough; PASS = deep decline OR unknown.
+                    _rv8(token_address=_shd_taddr, token_symbol=decision.token,
+                         pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                         filter_name="shallow_dip",
+                         verdict=("BLOCK" if _shd_block else "PASS"),
+                         reasons=_shd_why)
+            except Exception:
+                pass
+            if _shd_block:
+                logger.info("[DipScanner] bot=%s SHALLOW-DIP %s: %s %s", bot_id,
+                            "enforce skip" if _shd_mode == "enforce" else "SHADOW-would-block",
+                            _shd_why, decision.token)
+                if _shd_mode == "enforce":
+                    return
         # ── Patient-sleeve ENTRY GATE (2026-06-26): hold ONLY winner-selected +tail
         # entries. Per-bot (winner_select_entry flag); FAIL-CLOSED (missing signal ->
         # skip). The sleeve's entry filter for the patient-hold A/B; no effect on any
