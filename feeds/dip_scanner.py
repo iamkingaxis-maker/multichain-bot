@@ -2427,6 +2427,52 @@ class DipScanner:
                             _shd_why, decision.token)
                 if _shd_mode == "enforce":
                     return
+        # ── Oversold-held POSITIVE SELECTOR (solve-it backtest 2026-06-30) ──────
+        # The ONLY config that survived held-out + leave-one-out: rsi_15m<=44 AND
+        # dev_pct_remaining>=10 = token-mean +4.30%/med +0.54%/53%win (vs baseline
+        # -1.55/-0.90/31%), POSITIVE in BOTH time halves, survives drop-top-5. The
+        # first median-positive lever found. FAIL-CLOSED positive selector (block
+        # unless confirmed oversold-held) -> HIGH-VOLUME (~30% kept) so SHADOW-FIRST
+        # + verify coverage before enforce (don't dark the fleet like arm_only).
+        # OVERSOLD_HELD_MODE=shadow(default)|enforce|off. Mirrors the gate pattern.
+        _oh_mode = os.environ.get("OVERSOLD_HELD_MODE", "shadow").lower()
+        if _oh_mode != "off" and str(bot_id).startswith("badday_"):
+            from core.bot_evaluator import oversold_held_blocks as _ohb
+            _oh_rsi = getattr(bundle, "rsi_15m", None)
+            if _oh_rsi is None:
+                _oh_rsi = _ar_meta.get("rsi_15m")
+            _oh_dev = getattr(bundle, "dev_pct_remaining", None)
+            if _oh_dev is None:
+                _oh_dev = _ar_meta.get("dev_pct_remaining")
+            try:
+                _oh_block, _oh_why = _ohb(_oh_rsi, _oh_dev)
+            except Exception:
+                _oh_block, _oh_why = (False, "oversold_held eval error -> allow")
+            _oh_taddr = (decision.address
+                         or self._addr_by_token.get(decision.token, ""))
+            try:
+                _oh_seen = getattr(self, "_oh_shadow_seen", None)
+                if _oh_seen is None:
+                    _oh_seen = set()
+                    self._oh_shadow_seen = _oh_seen
+                _oh_key = (_oh_taddr or decision.token or "").lower()
+                if _oh_key not in _oh_seen:
+                    _oh_seen.add(_oh_key)
+                    from feeds.filter_shadow_recorder import record_verdict as _rv9
+                    # PASS = oversold-held (the +4.30 cohort); BLOCK = everything else.
+                    _rv9(token_address=_oh_taddr, token_symbol=decision.token,
+                         pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                         filter_name="oversold_held",
+                         verdict=("BLOCK" if _oh_block else "PASS"),
+                         reasons=_oh_why)
+            except Exception:
+                pass
+            if _oh_block:
+                logger.info("[DipScanner] bot=%s OVERSOLD-HELD %s: %s %s", bot_id,
+                            "enforce skip" if _oh_mode == "enforce" else "SHADOW-would-block",
+                            _oh_why, decision.token)
+                if _oh_mode == "enforce":
+                    return
         # ── Patient-sleeve ENTRY GATE (2026-06-26): hold ONLY winner-selected +tail
         # entries. Per-bot (winner_select_entry flag); FAIL-CLOSED (missing signal ->
         # skip). The sleeve's entry filter for the patient-hold A/B; no effect on any

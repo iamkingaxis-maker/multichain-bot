@@ -804,6 +804,61 @@ def shallow_dip_blocks(pc_h6, depth_max=None) -> tuple[bool, str]:
     return False, f"deep decline pc_h6={v:+.1f}<={thr:g} -> allow"
 
 
+def _oversold_held_thresholds() -> tuple[float, float]:
+    """(rsi_max, dev_min) for the oversold-held positive selector. The ONLY
+    config that survived the solve-it army's held-out + leave-one-out backtest
+    (2026-06-30): rsi_15m<=44 AND dev_pct_remaining>=10 = token-mean +4.30%
+    /med +0.54%/53% win (vs baseline -1.55/-0.90/31%), POSITIVE in BOTH time
+    halves (train +0.81, test +7.10), survives dropping the top 5 tokens (+0.26).
+    Median-positive (not pure fat-tail). Keeps ~30% of volume. Tunable via
+    OVERSOLD_HELD_RSI_MAX / OVERSOLD_HELD_DEV_MIN."""
+    try:
+        rsi_max = float(os.environ.get("OVERSOLD_HELD_RSI_MAX", "44"))
+    except (TypeError, ValueError):
+        rsi_max = 44.0
+    try:
+        dev_min = float(os.environ.get("OVERSOLD_HELD_DEV_MIN", "10"))
+    except (TypeError, ValueError):
+        dev_min = 10.0
+    return rsi_max, dev_min
+
+
+def oversold_held_blocks(rsi_15m, dev_pct_remaining,
+                         rsi_max=None, dev_min=None) -> tuple[bool, str]:
+    """OVERSOLD-HELD positive selector (solve-it backtest 2026-06-30). The cohort
+    that held up out-of-sample: rsi_15m <= rsi_max (oversold) AND
+    dev_pct_remaining >= dev_min (dev hasn't dumped). Returns (blocked, why).
+
+    This is a POSITIVE selector, so it is FAIL-CLOSED by construction: block
+    UNLESS the token is confirmed oversold-AND-dev-held (both signals present and
+    passing). A missing rsi or dev -> not selected -> blocked. That is the
+    validated cohort (require both), BUT it darks any token missing those features
+    -> HIGH-VOLUME (~30% kept) -> SHADOW-FIRST + verify coverage before enforce
+    (don't repeat the arm_only dark-fleet). Pure; never raises (coercion error on
+    a signal -> that signal treated as absent -> blocked)."""
+    rmax, dmin = _oversold_held_thresholds()
+    if rsi_max is not None:
+        rmax = float(rsi_max)
+    if dev_min is not None:
+        dmin = float(dev_min)
+    def _num(x):
+        try:
+            v = None if (x is None or isinstance(x, bool)) else float(x)
+        except (TypeError, ValueError):
+            return None
+        return None if (v is None or v != v) else v
+    rsi = _num(rsi_15m)
+    dev = _num(dev_pct_remaining)
+    rsi_ok = rsi is not None and rsi <= rmax
+    dev_ok = dev is not None and dev >= dmin
+    if rsi_ok and dev_ok:
+        return False, f"oversold-held: rsi_15m={rsi:.0f}<={rmax:g} & dev={dev:.0f}>={dmin:g} -> keep"
+    why = []
+    why.append(f"rsi_15m={rsi:.0f}" if rsi is not None else "rsi missing")
+    why.append(f"dev={dev:.0f}" if dev is not None else "dev missing")
+    return True, "BLOCK (not oversold-held): " + ", ".join(why) + f" (need rsi<={rmax:g} & dev>={dmin:g})"
+
+
 def _falling_day_flush_h1_max() -> float:
     """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
     extreme flush, combined with a down day, the token is in freefall. Tunable via
