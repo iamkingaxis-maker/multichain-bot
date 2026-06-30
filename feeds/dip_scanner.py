@@ -10109,7 +10109,11 @@ class DipScanner:
             try:
                 from feeds.forward_dataset_collector import get_collector
                 from datetime import datetime, timezone
-                if _chart_data:
+                # Skip on the fast-watch path (_fp_allow set): this dumps an
+                # image+context snapshot EVERY eval (disk + egress) and is pure
+                # SHADOW data collection — the main scan (_fp_allow is None) already
+                # covers the universe each cycle, so the fire path needn't pay it.
+                if _chart_data and _fp_allow is None:
                     get_collector().dump_snapshot(
                         token_address=token_address,
                         ts_iso=datetime.now(timezone.utc).isoformat(),
@@ -10134,15 +10138,20 @@ class DipScanner:
             # without affecting any dip_scanner decision. Fail-open on any
             # exception — must not break the live dip_buy pipeline.
             try:
-                from feeds.uptrend_scanner import get_instance as _ut_get
-                _ut_get().evaluate(
-                    token_symbol=token_symbol,
-                    token_address=token_address,
-                    chart_ctx_dict=_chart_ctx_dict,
-                    m1_features=m1_features,
-                    peak_h24_6h_pct=float(peak_h24_6h) if isinstance(peak_h24_6h, (int, float)) else None,
-                    lifecycle_h24_ratio=None,  # not yet computed at this point
-                )
+                # SHADOW companion-strategy eval — "without affecting any dip_scanner
+                # decision". Skip on the fast-watch path (_fp_allow set); the main scan
+                # (_fp_allow is None) covers the same tokens each cycle, so the fire
+                # path needn't pay this second full evaluation.
+                if _fp_allow is None:
+                    from feeds.uptrend_scanner import get_instance as _ut_get
+                    _ut_get().evaluate(
+                        token_symbol=token_symbol,
+                        token_address=token_address,
+                        chart_ctx_dict=_chart_ctx_dict,
+                        m1_features=m1_features,
+                        peak_h24_6h_pct=float(peak_h24_6h) if isinstance(peak_h24_6h, (int, float)) else None,
+                        lifecycle_h24_ratio=None,  # not yet computed at this point
+                    )
             except Exception as _ut_e:
                 logger.debug(f"[UptrendScanner] shadow eval error: {_ut_e}")
 
