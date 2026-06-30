@@ -608,6 +608,22 @@ class DipScanner:
         self._evict_ttl_s: float = 1800.0
         self._addr_by_token_max: int = 20000
         self._last_evict_ts: float = 0.0
+        # ARM-FEATURE CACHE (2026-06-30, eval->fire latency cut #484). The PURE
+        # chart-derived tier2/tier3 builders (VWAP/RSI/higher-low/bottom-sig/
+        # support/wick) are a deterministic function of the candle series. On the
+        # fast-watch FIRE path the chart is cache_only (the SAME candles the main
+        # scan fetched), so recomputing them at fire is wasted CPU (~part of the
+        # ~1s feature_compute). Memo them keyed by a chart FINGERPRINT (last
+        # candle open_time per TF) so a fire reuses the arm-computed values when
+        # the chart is unchanged; trade-derived features (bundle/trade_size/
+        # freq/net_flow=nf15 demand gate) and snapshot-derived (pct_off_peak) are
+        # ALWAYS recomputed fresh. Bounded LRU. Correct-by-construction: identical
+        # fingerprint => identical pure inputs => identical output. {addr: (fp, dict)}.
+        from collections import OrderedDict as _OD_afc
+        self._chart_feat_cache: "OrderedDict[str, tuple]" = _OD_afc()
+        self._chart_feat_cache_max: int = 4000
+        self._chart_feat_hits: int = 0
+        self._chart_feat_misses: int = 0
         # Per-token Jupiter slippage-sample cache (2026-05-27 audit #11): the slip
         # curve costs 8+ Jupiter calls/token/cycle and was recomputed every 30s
         # cycle. Cache the result ~90s so a token is sampled at most ~once/3 cycles.
@@ -7002,6 +7018,68 @@ class DipScanner:
                 logger.error("[fast-watch] tick error: %s", e, exc_info=True)
             await asyncio.sleep(cfg.interval_secs)
 
+    def _chart_fp(self, chart_data):
+        """Fingerprint of the candle series for the arm-feature cache. Includes
+        each TF's length AND the LAST candle's OHLC — so an in-progress candle
+        whose close moves within the same open_time still changes the fingerprint
+        (no stale reuse). None when no chart (memo then never caches). Pure/cheap."""
+        try:
+            def _sig(cs):
+                if not cs:
+                    return None
+                last = cs[-1]
+                return (len(cs), getattr(last, "open_time", None),
+                        getattr(last, "close", None), getattr(last, "high", None),
+                        getattr(last, "low", None))
+            s1 = _sig(chart_data.candles_1m if chart_data else None)
+            s5 = _sig(chart_data.candles_5m if chart_data else None)
+            s15 = _sig(chart_data.candles_15m if chart_data else None)
+            if s1 is None and s5 is None and s15 is None:
+                return None   # no chart at all -> don't cache a featureless eval
+            return (s1, s5, s15)
+        except Exception:
+            return None
+
+    def _arm_feat_memo(self, addr, chart_data, tag, builder, mode):
+        """Return the PURE chart-derived feature dict for ``tag``, memoized by the
+        chart fingerprint (arm-feature cache, #484). mode: off -> always build
+        (byte-identical); on -> reuse on fingerprint hit (the latency cut); verify
+        -> build fresh AND compare to cache, log any mismatch, return FRESH (proves
+        parity before trusting). Correct-by-construction: same fingerprint => same
+        pure candle inputs => same output. Fail-open: any error -> builder()."""
+        if mode not in ("on", "verify"):
+            return builder()
+        try:
+            fp = self._chart_fp(chart_data)
+            if fp is None:
+                return builder()
+            cache = self._chart_feat_cache
+            key = (addr or "") + "|" + tag
+            ent = cache.get(key)
+            if ent is not None and ent[0] == fp:
+                self._chart_feat_hits += 1
+                cache.move_to_end(key)
+                if mode == "verify":
+                    fresh = builder()
+                    if fresh != ent[1]:
+                        logger.warning("[arm-feat-cache] PARITY MISMATCH tag=%s addr=%s",
+                                       tag, (addr or "")[:8])
+                    return fresh
+                return dict(ent[1])
+            self._chart_feat_misses += 1
+            val = builder()
+            cache[key] = (fp, dict(val))
+            cache.move_to_end(key)
+            while len(cache) > self._chart_feat_cache_max:
+                cache.popitem(last=False)
+            return val
+        except Exception as _afc_e:
+            logger.debug("[arm-feat-cache] fail-open (%s) tag=%s", _afc_e, tag)
+            try:
+                return builder()
+            except Exception:
+                return {}
+
     async def _evaluate_pair(self, pair, _eval_ctx):
         """FIX 4: the per-token scan body, extracted verbatim from the former
         inline `for pair in pairs:` loop so it can run either serially (default)
@@ -10570,33 +10648,35 @@ class DipScanner:
                     )
                     _cs5_full = (_chart_data.candles_5m if _chart_data and _chart_data.candles_5m else [])
                     _cs15_full = (_chart_data.candles_15m if _chart_data and _chart_data.candles_15m else [])
+                    _cs1_full = (_chart_data.candles_1m if _chart_data and _chart_data.candles_1m else [])
                     _cur_price = _cs5_full[-1].close if _cs5_full else 0.0
-                    # 1. Anchored VWAP — 1h window
+                    _afc_mode = os.environ.get("ARM_FEATURE_CACHE_MODE", "off").strip().lower()
+                    # CHART-PURE subset (VWAP / higher-low / RSI-BB / bottom-sig) — a
+                    # deterministic function of the candle series, so memo it by chart
+                    # fingerprint (reused at fire when the chart is unchanged). #484.
+                    def _build_chart_t2():
+                        d: dict = {}
+                        d.update(compute_anchored_vwap_1h(_cs15_full, _cur_price))   # 1. Anchored VWAP 1h
+                        d.update(compute_higher_low_5m(_cs5_full))                   # 3. Higher-low
+                        d.update(compute_rsi_bb(_cs5_full, _cs15_full))              # 4. RSI(14)+BB(20,2)
+                        d.update(compute_bottom_signature_v1(_cs1_full, _cs5_full))  # 7. Bottom signature v1
+                        return d
                     _tier2_features.update(
-                        compute_anchored_vwap_1h(_cs15_full, _cur_price)
+                        self._arm_feat_memo(token_address, _chart_data, "t2", _build_chart_t2, _afc_mode)
                     )
-                    # 2. pct_off_peak + minutes_since_peak
+                    # SNAPSHOT/TRADE-derived — ALWAYS fresh (never cached):
+                    # 2. pct_off_peak (snapshot pc_h24/peak, repriced at fire)
                     _tspk = trajectory_features.get("time_since_h24_peak_secs") if trajectory_features else None
                     _tier2_features.update(
                         compute_pct_off_peak(float(pc_h24 or 0), float(peak_h24_6h or 0), _tspk)
                     )
-                    # 3. Higher-low confirmation (uses full 5m series, not just 12)
-                    _tier2_features.update(compute_higher_low_5m(_cs5_full))
-                    # 4. RSI(14) + BB(20,2) on 5m and 15m
-                    _tier2_features.update(compute_rsi_bb(_cs5_full, _cs15_full))
-                    # 5. Bundle-v2 detector (top-10 buyer cluster timing)
+                    # 5. Bundle-v2 detector (fresh recent_trades)
                     _tier2_features.update(
                         compute_bundle_v2(recent_trades or [], pair_age_hours)
                     )
-                    # 6. Trade-size distribution shift (last-60s vs prior-60s)
+                    # 6. Trade-size distribution shift (fresh recent_trades)
                     _tier2_features.update(
                         compute_trade_size_shift(recent_trades or [])
-                    )
-                    # 7. Bottom signature v1 — SHADOW 2026-05-13.
-                    # Universal-coverage bottom-detection features from 1m+5m.
-                    _cs1_full = (_chart_data.candles_1m if _chart_data and _chart_data.candles_1m else [])
-                    _tier2_features.update(
-                        compute_bottom_signature_v1(_cs1_full, _cs5_full)
                     )
                 except Exception as _e:
                     logger.debug(f"[DipScanner] tier2 features error: {_e}")
@@ -10683,8 +10763,17 @@ class DipScanner:
                         compute_hours_since_grad,
                     )
                     _cs5_full2 = (_chart_data.candles_5m if _chart_data and _chart_data.candles_5m else [])
-                    _tier3_features.update(compute_support_touches(_cs5_full2))
-                    _tier3_features.update(compute_wick_body_ratios(_cs5_full2))
+                    _afc_mode3 = os.environ.get("ARM_FEATURE_CACHE_MODE", "off").strip().lower()
+                    # CHART-PURE subset (support touches + wick:body) — memo by fingerprint.
+                    def _build_chart_t3():
+                        d: dict = {}
+                        d.update(compute_support_touches(_cs5_full2))
+                        d.update(compute_wick_body_ratios(_cs5_full2))
+                        return d
+                    _tier3_features.update(
+                        self._arm_feat_memo(token_address, _chart_data, "t3", _build_chart_t3, _afc_mode3)
+                    )
+                    # TRADE-derived — ALWAYS fresh (net_flow = the nf15 demand gate):
                     _tier3_features.update(compute_freq_derivative(recent_trades or []))
                     _tier3_features.update(compute_net_flow_windows(recent_trades or []))
                     _grad_status = (_graduation_dict or {}).get("graduation_status", "?")
