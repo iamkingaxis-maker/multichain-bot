@@ -10905,9 +10905,18 @@ class DipScanner:
                 # stall). cache_only returns warm cached features or {} (fail-open);
                 # the main scan refreshes the baseline. Same gate as the chart /
                 # recent-trades cache-only path (_fast_cache_only_charts ctx flag).
+                # dev-wallet is TOKEN-STATIC -> on ANY fast-watch eval (the cheap
+                # tick AND the on-arm instant-FIRE, which sets cache_only_charts=False
+                # for fresh chart/order-flow triggers) reuse the main-scan-populated
+                # cache; NEVER fire the ~12-call serial dev-RPC chain in the fire path.
+                # That chain was ~1.0s of the ~3.3s fire eval AND a per-buy egress
+                # spike — pure waste, since the main scan (_fp_allow is None) already
+                # fired it to refresh the baseline this cycle. Fail-open to {} on a
+                # cold cache (dev-based filters fail-open). Latency + egress win.
+                _dev_cache_only = _fast_cache_only or (_fp_allow is not None)
                 with _SubOp("dev_wallet_rpc"):
                     _dev_feats = await self._dev_wallet.get_features(
-                        token_address, cache_only=_fast_cache_only)
+                        token_address, cache_only=_dev_cache_only)
                 _tier1_features.update(_dev_feats)
             except Exception as _e:
                 logger.debug(f"[DipScanner] dev-wallet error: {_e}")
