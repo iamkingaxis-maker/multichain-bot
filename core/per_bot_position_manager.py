@@ -830,6 +830,52 @@ class PerBotPositionManager:
             ))
             return decisions
 
+        # 3d. LET-WINNERS-RUN (solve-it army 2026-06-30). The fleet CAPS the fat
+        # tail: TP1 sells ~75% at +6% then a tight ~2pp trail, so the deep-decliner
+        # winners (the +11%/52%-win cohort) get clipped. For a CONFIRMED runner
+        # (peak >= RUN_WINNERS_ARM_PCT) suppress the early-TP cap and ride a WIDE
+        # trail (peak - RUN_WINNERS_TRAIL_PP) to harvest the tail. Validated on the
+        # honest book: arm>=10 / trail 10pp lifted token-mean -1.83%->+24.3% (deep
+        # cohort +5.0->+22.1%) with WIN-RATE PRESERVED — faders (peak<arm) keep the
+        # normal exit below, untouched. RUN_WINNERS_MODE=off(default, byte-identical)|
+        # shadow(stamp would-fire only)|enforce(override TP1 + ride wide trail). The
+        # catastrophic loss floors above (hard_stop/fast_bail/pre_stop/in-flight) all
+        # ran FIRST, so a runner is still protected on a gap-through. Fat-tail: mean
+        # play (median ~0). Shadow stamps once; persists in state_blob.
+        _rw_mode = os.environ.get("RUN_WINNERS_MODE", "off").strip().lower()
+        if _rw_mode in ("shadow", "enforce"):
+            # arm MUST engage at/before tp1_pct, else TP1 caps 75% before the runner
+            # arms and the override is a no-op. Default = the bot's tp1_pct (so the
+            # moment TP1 would fire, run-winners takes over and rides instead). This
+            # is what makes the validated +23pp-mean (suppress-TP1, ride-full) real;
+            # it is a FAT-TAIL play (win-rate drops ~36%->25%, mean way up).
+            try:
+                _rw_arm_env = os.environ.get("RUN_WINNERS_ARM_PCT", "")
+                _rw_arm = (float(_rw_arm_env) if _rw_arm_env.strip()
+                           else float(self.config.tp1_pct))
+                _rw_trail = float(os.environ.get("RUN_WINNERS_TRAIL_PP", "10"))
+            except (TypeError, ValueError):
+                _rw_arm, _rw_trail = float(self.config.tp1_pct), 10.0
+            if p.peak_pnl_pct >= _rw_arm:
+                _rw_fire = pnl_pct <= (p.peak_pnl_pct - _rw_trail)
+                if _rw_fire and p.state_blob is not None and not p.state_blob.get("run_winners_fired"):
+                    p.state_blob["run_winners_fired"] = True
+                    p.state_blob["run_winners_pnl_at_fire"] = round(pnl_pct, 4)
+                    p.state_blob["run_winners_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+                    p.state_blob["run_winners_secs"] = int(now - p.entry_time)
+                if _rw_mode == "enforce":
+                    if _rw_fire:
+                        decisions.append(ExitDecision(
+                            token=token, kind="POST_TP1_TRAIL",
+                            reason=(f"run-winners wide trail pnl={pnl_pct:.2f}% <= "
+                                    f"peak({p.peak_pnl_pct:.2f}%)-{_rw_trail:.0f}pp"),
+                            sell_fraction=1.0,
+                        ))
+                        return decisions
+                    # confirmed runner, hasn't given back to the wide trail yet ->
+                    # HOLD: skip the TP1/TP2 cap + tight trail this tick (let it run).
+                    return decisions
+
         # 4. TP1
         if not p.tp1_hit and pnl_pct >= self.config.tp1_pct:
             p.tp1_hit = True
