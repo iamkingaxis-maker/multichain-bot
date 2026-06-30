@@ -728,6 +728,43 @@ def stale_knife_blocks(stale_watch_verdict, mtf_verdicts) -> tuple[bool, str]:
                    " -> allow")
 
 
+def _dev_not_dumped_min_pct() -> float:
+    """dev_pct_remaining floor for the dev-not-dumped gate (default 20.0). The
+    reachability/MAE selection mine (2026-06-30, n=152 tokens) found the deep-MAE
+    losers we keep eating are largely DEV DUMPS: tokens where the dev has sold most
+    of their bag then crater. dev_pct_remaining>=20 (dev still holds >=20%) lifted
+    token-mean -1.55%->+8.46% / win 31%->56%; <20 (dev dumped 80%+) is the knife.
+    Tunable via DEV_NOT_DUMPED_MIN_PCT."""
+    try:
+        return float(os.environ.get("DEV_NOT_DUMPED_MIN_PCT", "20.0"))
+    except (TypeError, ValueError):
+        return 20.0
+
+
+def dev_not_dumped_blocks(dev_pct_remaining, min_pct=None) -> tuple[bool, str]:
+    """DEV-NOT-DUMPED entry gate (MAE selection mine 2026-06-30). Block ONLY a
+    CONFIRMED dev-dump: dev_pct_remaining is PRESENT and < min_pct (dev has sold
+    down to <min_pct of their original bag = abandoning/rugging = the deep-MAE
+    knife cohort). Returns (blocked, why).
+
+    FAIL-OPEN: missing/NaN dev_pct_remaining -> (False, ...) = allow (never dark the
+    fleet on absent dev data — same discipline as full_thesis_cohort/stale_knife).
+    Pure; never raises. NOTE: ~86% of our dev-known tokens sit below 20 (we are
+    mostly buying dev-abandoned tokens) so this gate is HIGH-VOLUME — shadow-first
+    + tune the threshold on realized outcomes before enforce."""
+    thr = _dev_not_dumped_min_pct() if min_pct is None else float(min_pct)
+    try:
+        v = None if (dev_pct_remaining is None or isinstance(dev_pct_remaining, bool)) \
+            else float(dev_pct_remaining)
+    except (TypeError, ValueError):
+        return False, "dev_pct_remaining unparseable -> allow"
+    if v is None or v != v:  # None / NaN
+        return False, "dev_pct_remaining missing -> allow"
+    if v < thr:
+        return True, f"BLOCK: dev_pct_remaining={v:.1f}<{thr:g} (dev dumped {100 - v:.0f}% — abandon/rug risk)"
+    return False, f"dev holds {v:.1f}%>={thr:g} -> allow"
+
+
 def _falling_day_flush_h1_max() -> float:
     """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
     extreme flush, combined with a down day, the token is in freefall. Tunable via

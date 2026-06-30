@@ -2339,6 +2339,50 @@ class DipScanner:
                             _sk_why, decision.token)
                 if _sk_mode == "enforce":
                     return
+        # ── Dev-not-dumped ENTRY GATE (MAE selection mine 2026-06-30) ────────────
+        # The deep-MAE losers we keep eating are largely DEV DUMPS: tokens where the
+        # dev has sold most of their bag, then crater. dev_pct_remaining>=20 lifted
+        # token-mean -1.55%->+8.46% / win 31%->56% (n thin=16 tok; ~86% of dev-known
+        # tokens sit BELOW 20 — we mostly buy dev-abandoned tokens). Block ONLY a
+        # CONFIRMED dev-dump (dev_pct_remaining present AND < min); FAIL-OPEN on
+        # missing dev data. HIGH-VOLUME gate -> SHADOW-FIRST + tune on realized
+        # outcomes before enforce. DEV_NOT_DUMPED_MODE=shadow(default)|enforce|off.
+        _dnd_mode = os.environ.get("DEV_NOT_DUMPED_MODE", "shadow").lower()
+        if _dnd_mode != "off" and str(bot_id).startswith("badday_"):
+            from core.bot_evaluator import dev_not_dumped_blocks as _dndb
+            _dnd_dev = getattr(bundle, "dev_pct_remaining", None)
+            if _dnd_dev is None:
+                _dnd_dev = _ar_meta.get("dev_pct_remaining")
+            try:
+                _dnd_block, _dnd_why = _dndb(_dnd_dev)
+            except Exception:
+                # Defense-in-depth: a gate eval error must FAIL OPEN (never block).
+                _dnd_block, _dnd_why = (False, "dev_not_dumped eval error -> allow")
+            _dnd_taddr = (decision.address
+                          or self._addr_by_token.get(decision.token, ""))
+            try:
+                _dnd_seen = getattr(self, "_dnd_shadow_seen", None)
+                if _dnd_seen is None:
+                    _dnd_seen = set()
+                    self._dnd_shadow_seen = _dnd_seen
+                _dnd_key = (_dnd_taddr or decision.token or "").lower()
+                if _dnd_key not in _dnd_seen:
+                    _dnd_seen.add(_dnd_key)
+                    from feeds.filter_shadow_recorder import record_verdict as _rv7
+                    # BLOCK = confirmed dev-dump; PASS = dev-holds OR unknown (fail-open).
+                    _rv7(token_address=_dnd_taddr, token_symbol=decision.token,
+                         pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                         filter_name="dev_not_dumped",
+                         verdict=("BLOCK" if _dnd_block else "PASS"),
+                         reasons=_dnd_why)
+            except Exception:
+                pass
+            if _dnd_block:
+                logger.info("[DipScanner] bot=%s DEV-NOT-DUMPED %s: %s %s", bot_id,
+                            "enforce skip" if _dnd_mode == "enforce" else "SHADOW-would-block",
+                            _dnd_why, decision.token)
+                if _dnd_mode == "enforce":
+                    return
         # ── Patient-sleeve ENTRY GATE (2026-06-26): hold ONLY winner-selected +tail
         # entries. Per-bot (winner_select_entry flag); FAIL-CLOSED (missing signal ->
         # skip). The sleeve's entry filter for the patient-hold A/B; no effect on any
