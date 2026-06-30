@@ -188,6 +188,17 @@ def _entry_stack_prune_on() -> bool:
         not in ("off", "0", "false")
 
 
+def _globally_relaxed_filters() -> frozenset:
+    """FILTERS_RELAX_LIST (comma-separated) removes named filters from
+    enforcement FLEET-WIDE — both the default (filters_enforced=None) path and
+    the explicit filters_enforced path. Audit basis (2026-06-30 realized stack
+    audit): the listed filters each BLOCK a cohort that was realized-GREEN on
+    BOTH mean and median (>50% win) — i.e. they mislabel recoverable dips as
+    blowoff/chase/FOMO. Default empty = no change; reversible by unsetting."""
+    raw = os.environ.get("FILTERS_RELAX_LIST", "")
+    return frozenset(f.strip() for f in raw.split(",") if f.strip())
+
+
 def _rug_structure_blocks(b: FeatureBundle,
                           allow_zero_buyers: bool = False) -> tuple[bool, str]:
     """Fleet-wide catastrophic-rug guard (2026-06-08). The STANDARD rug
@@ -1272,12 +1283,15 @@ class BotEvaluator:
                     and _entry_stack_mode() != "off"
                     and c.bot_id not in _entry_stack_control_bots()):
                 pruned = POST_STACK_PRUNED_FILTERS
+            relaxed = _globally_relaxed_filters()
             return any(
                 f not in disabled and f not in DEFENDER_FILTERS and f not in pruned
+                and f not in relaxed
                 for f in b.filters_block
             )
         enforced = set(c.filters_enforced)
-        return any(f in enforced for f in b.filters_block)
+        relaxed = _globally_relaxed_filters()
+        return any(f in enforced and f not in relaxed for f in b.filters_block)
 
     def _effective_triggers(self, b: FeatureBundle) -> tuple[str, ...]:
         c = self.config
