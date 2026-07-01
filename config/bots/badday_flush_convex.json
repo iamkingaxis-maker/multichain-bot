@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 15.0,
   "display_name": "BAD-DAY MICROCAP: deep-flush rider (50-500k mcap, age>=6h, rug-screened). Entry = pc_h1<=-20 (the flush state holds 56-59% win10 on bad days universe-wide; MAITIU case: four +12..+19% flushes in 22min, all blocked by the pond stack). NO positive-flow requirement \u2014 capitulation IS negative flow. PRE-REGISTERED (2026-06-10, badday scorecard judges): >= +$2/tr realized at n>=30 closes on dial-bad days AND catastrophe rate (<=-35% fills) < 10%, else RETIRE. Rug screens from the 3,959-event microcap catastrophe mine: age>=6h cuts 79% of catastrophes (rugs are YOUNG + FRANTIC, not quiet); composite screen 20%->6% catastrophe rate.  FLEET-CONVEX EXPERIMENT (2026-06-11, AxiS: our entries + the elite payoff curve). Same entries as the parent, payoff reshaped to the decoded elite math (51 pct WR, p90 +107 tails, fast cuts): $25 probes, TP1 +5 sells only 10 pct, TP2 +25 sells 20 pct, 70 pct rides the trail, -15 cut (their median loser), -9 fast bail. PRE-REG: judge vs parent head-to-head on $/tr at n>=25 closes each; convex must beat parent or retire. The smart wallets are the existence proof. [DAILY FLOOR $15 2026-06-11: ~4 stops' worth \u2014 cascade-day halt; shadow proved post-halt buys run -EV. Goal candidates must not torch the meter.] [06-12: young_token_probe flag REMOVED \u2014 vestigial from pre-lane creation; it restricted the family to young tokens while the envelope wants age>=6h. Lane admission + badday_ prefix mandate are the real access path.]",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "unique_buyers_n",
@@ -75,8 +75,8 @@
   "tp1_sell_fraction": 0.1,
   "tp2_pct": 25.0,
   "tp2_sell_fraction": 0.2,
-  "trading_hour_utc_end": 24,
-  "trading_hour_utc_start": 0,
+  "trading_hour_utc_end": 3,
+  "trading_hour_utc_start": 8,
   "trail_pp": 4.0,
   "triggers_allowed": null,
   "triggers_disabled": [],

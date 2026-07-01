@@ -9,12 +9,36 @@
   "display_name": "PATIENT-SLOT A/B (green-day winner decode 2026-06-29). IDENTICAL entry to the firing baseline badday_flush_nf15 (unique_buyers>=12, recurring>=1, liq>=15k, pc_h1<=-20, net_flow_15s>=0) so this isolates ONE lever bundle: relax the 3-slot cap (->12) + extend hold (no time-box, never_runner/slow_bleed only cut LOSERS) + UNCAP the winner (sell 25% at TP1 not 75%, ride 50% on a WIDE 12pp trail). KEEPS the tight loss cuts the decode says are our edge (badday_ -7 in-flight floor, hard_stop -12, fast_bail -9, pre_stop_bail -3, ng_faststop -4). Tests the winner-decode thesis: winners aren't a different ENTRY, they hold many positions and let winners RUN with tight cuts. PAPER ONLY (live_probe=false). Distinct from patient_sleeve (which NEVER fired - its winner_select_entry FAIL-CLOSED + microcap starved it) and from #486 exit-giveback (which tests peak-armed giveback on the EXISTING tight ladder). Retire by enabled=false.",
   "enabled": true,
   "entry_gate": [
-    ["unique_buyers_n", ">=", 12],
-    ["wash_suspected", "<=", 0],
-    ["n_recurring_buyers_3plus", ">=", 1],
-    ["liquidity_usd", ">=", 15000],
-    ["pc_h1", "<=", -20],
-    ["net_flow_15s_imbalance", ">=", 0]
+    [
+      "unique_buyers_n",
+      ">=",
+      12
+    ],
+    [
+      "wash_suspected",
+      "<=",
+      0
+    ],
+    [
+      "n_recurring_buyers_3plus",
+      ">=",
+      1
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      15000
+    ],
+    [
+      "pc_h1",
+      "<=",
+      -20
+    ],
+    [
+      "net_flow_15s_imbalance",
+      ">=",
+      0
+    ]
   ],
   "entry_stack_exempt": true,
   "exclusion_pool": "badday_flush_patient_slot_ab",
@@ -63,8 +87,8 @@
   "tp1_sell_fraction": 0.25,
   "tp2_pct": 30.0,
   "tp2_sell_fraction": 0.25,
-  "trading_hour_utc_end": 24,
-  "trading_hour_utc_start": 0,
+  "trading_hour_utc_end": 3,
+  "trading_hour_utc_start": 8,
   "trail_pp": 12.0,
   "triggers_allowed": null,
   "triggers_disabled": [],

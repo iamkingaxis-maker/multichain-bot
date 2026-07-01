@@ -6,7 +6,7 @@
   "bot_id": "badday_flush_rsi_ab",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
-  "display_name": "RSI-OVERSOLD A/B: EXACT clone of badday_flush (50-500k microcap deep-flush rider) PLUS one added entry requirement — entry_rsi_15m_max=44 (15-min RSI oversold, raw_meta.rsi_15m computed live by tier2_features.compute_rsi_bb). Its A/B TWIN is badday_flush itself (same tokens, same sizing/caps/exits/family gates; the ONLY decision difference is this rsi gate). Validated NEW axis (adversarial: lifts winner-rate + forward-peak median two-sided, orthogonal to median_buy_size_usd, fires only in down-MTF — a refinement of the existing dip stack). FAIL-CLOSED on missing rsi (measures only tokens where the signal is observable; age>=6h universe reliably has 15m OHLC). Threshold overridable via env RSI_OVERSOLD_MAX. bot_id keeps the badday_ prefix DELIBERATELY: the prefix is load-bearing (grants the microcap-lane buy mandate + scopes the in_flight_floor exit and the lef/crk/fk/ppc/nd/wsz family entry gates) — only with it is this a true twin of badday_flush. PAPER-ONLY (no live key). Read the A/B off realized $/tr + forward-candle winner-rate per bot_id (badday_flush_rsi_ab vs badday_flush) once both reach n>=30 closes. [DAILY FLOOR $60 mirrors the control — only the rsi gate is the variable.]",
+  "display_name": "RSI-OVERSOLD A/B: EXACT clone of badday_flush (50-500k microcap deep-flush rider) PLUS one added entry requirement \u2014 entry_rsi_15m_max=44 (15-min RSI oversold, raw_meta.rsi_15m computed live by tier2_features.compute_rsi_bb). Its A/B TWIN is badday_flush itself (same tokens, same sizing/caps/exits/family gates; the ONLY decision difference is this rsi gate). Validated NEW axis (adversarial: lifts winner-rate + forward-peak median two-sided, orthogonal to median_buy_size_usd, fires only in down-MTF \u2014 a refinement of the existing dip stack). FAIL-CLOSED on missing rsi (measures only tokens where the signal is observable; age>=6h universe reliably has 15m OHLC). Threshold overridable via env RSI_OVERSOLD_MAX. bot_id keeps the badday_ prefix DELIBERATELY: the prefix is load-bearing (grants the microcap-lane buy mandate + scopes the in_flight_floor exit and the lef/crk/fk/ppc/nd/wsz family entry gates) \u2014 only with it is this a true twin of badday_flush. PAPER-ONLY (no live key). Read the A/B off realized $/tr + forward-candle winner-rate per bot_id (badday_flush_rsi_ab vs badday_flush) once both reach n>=30 closes. [DAILY FLOOR $60 mirrors the control \u2014 only the rsi gate is the variable.]",
   "enabled": true,
   "entry_gate": [
     [
@@ -81,8 +81,8 @@
   "tp1_sell_fraction": 0.75,
   "tp2_pct": 12.0,
   "tp2_sell_fraction": 0.25,
-  "trading_hour_utc_end": 24,
-  "trading_hour_utc_start": 0,
+  "trading_hour_utc_end": 3,
+  "trading_hour_utc_start": 8,
   "trail_pp": 2.0,
   "triggers_allowed": null,
   "triggers_disabled": [],

@@ -6,7 +6,7 @@
   "bot_id": "badday_flush_nf15_rt_live",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
-  "display_name": "TREATMENT bot for the real-time dip-detection A/B (Task 7/8 of the 2026-06-21 plan). IDENTICAL to badday_flush_nf15_live (the legacy/control) EXCEPT it enters via the real-time trigger: rt_trigger_mode/rt_arm_mode/rt_demand_turn_mode = enforce (gates on FRESH-repriced pc_h1/m5 + fresh net_flow_15s demand-turn + per-tick re-arm) instead of the stale DexScreener snapshot. FLAT $100, no conviction. enabled=FALSE on purpose: this is the GATED live step — activating it (enabled=true + live_probe routing under PAPER_MODE=false) makes it a SECOND live bot and requires explicit AxiS approval + the go-live runbook. Reversible: enabled=false to retire.",
+  "display_name": "TREATMENT bot for the real-time dip-detection A/B (Task 7/8 of the 2026-06-21 plan). IDENTICAL to badday_flush_nf15_live (the legacy/control) EXCEPT it enters via the real-time trigger: rt_trigger_mode/rt_arm_mode/rt_demand_turn_mode = enforce (gates on FRESH-repriced pc_h1/m5 + fresh net_flow_15s demand-turn + per-tick re-arm) instead of the stale DexScreener snapshot. FLAT $100, no conviction. enabled=FALSE on purpose: this is the GATED live step \u2014 activating it (enabled=true + live_probe routing under PAPER_MODE=false) makes it a SECOND live bot and requires explicit AxiS approval + the go-live runbook. Reversible: enabled=false to retire.",
   "enabled": false,
   "entry_gate": [
     [
@@ -85,8 +85,8 @@
   "tp1_sell_fraction": 0.75,
   "tp2_pct": 12.0,
   "tp2_sell_fraction": 0.25,
-  "trading_hour_utc_end": 24,
-  "trading_hour_utc_start": 0,
+  "trading_hour_utc_end": 3,
+  "trading_hour_utc_start": 8,
   "trail_pp": 2.0,
   "triggers_allowed": null,
   "triggers_disabled": [],

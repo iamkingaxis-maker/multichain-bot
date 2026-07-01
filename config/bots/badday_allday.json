@@ -6,7 +6,7 @@
   "bot_id": "badday_allday",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
-  "display_name": "ALL-DAY VOLUME (2026-07-01, AxiS 'we need buys all day'): loose-entry activity bot. Entry loosened pc_h1<=-8 (was -20) + unique_buyers>=8 (was 12); DISCRETIONARY filters OFF (filters_enforced=[]) so fusion_floor/zero_winner_compound/morning_dead_zone/etc. don't block. CORE RUG SHIELD KEPT: RUG_GATE_MODE + rug_bundle (single-sided LP / sniped-rug) are fleet-wide (still enforce), liquidity_usd>=15000, recurring_buyers>=1, wash<=0, age>=6h (cuts 79% of catastrophes). $5 sizing (ruin-safe) + wide-stop/let-winners-run exit (calibrated 2026-07-01). Purpose = consistent all-day activity + data on the widened universe, measured vs the tight validated bots. PAPER. If still thin, next lever is loosening rug_bundle (AxiS call — accepts rug risk on fresh sniped microcaps).",
+  "display_name": "ALL-DAY VOLUME (2026-07-01, AxiS 'we need buys all day'): loose-entry activity bot. Entry loosened pc_h1<=-8 (was -20) + unique_buyers>=8 (was 12); DISCRETIONARY filters OFF (filters_enforced=[]) so fusion_floor/zero_winner_compound/morning_dead_zone/etc. don't block. CORE RUG SHIELD KEPT: RUG_GATE_MODE + rug_bundle (single-sided LP / sniped-rug) are fleet-wide (still enforce), liquidity_usd>=15000, recurring_buyers>=1, wash<=0, age>=6h (cuts 79% of catastrophes). $5 sizing (ruin-safe) + wide-stop/let-winners-run exit (calibrated 2026-07-01). Purpose = consistent all-day activity + data on the widened universe, measured vs the tight validated bots. PAPER. If still thin, next lever is loosening rug_bundle (AxiS call \u2014 accepts rug risk on fresh sniped microcaps).",
   "enabled": true,
   "entry_gate": [
     [
@@ -66,8 +66,8 @@
   "tp1_sell_fraction": 0.3,
   "tp2_pct": 30.0,
   "tp2_sell_fraction": 0.3,
-  "trading_hour_utc_end": 24,
-  "trading_hour_utc_start": 0,
+  "trading_hour_utc_end": 3,
+  "trading_hour_utc_start": 8,
   "trail_pp": 6.0,
   "triggers_allowed": null,
   "triggers_disabled": [],
