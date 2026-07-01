@@ -2473,6 +2473,50 @@ class DipScanner:
                             _oh_why, decision.token)
                 if _oh_mode == "enforce":
                     return
+        # ── GREEN-DAY regime gate (2026-07-01, measured on 892-position honest
+        # book: 73.7% of gross losses were SOL-green entries; blocked cohort
+        # -$1093 / 25.9% win / negative all 4 firing days). Rules in
+        # core/bot_evaluator.green_day_blocks. GREEN_DAY_MODE=off|shadow|enforce
+        # (default off -> shipped at shadow via env). badday_ only. FAIL-OPEN on
+        # missing sol fields. Enforce bar: n>=30 shadow-blocked positions across
+        # >=3 sol-green days & >=15 unique tokens on REALIZED trade-join. ──────
+        _gd_mode = os.environ.get("GREEN_DAY_MODE", "off").lower()
+        if _gd_mode != "off" and str(bot_id).startswith("badday_"):
+            from core.bot_evaluator import green_day_blocks as _gdb
+            def _gd_get(name):
+                v = getattr(bundle, name, None)
+                return v if v is not None else _ar_meta.get(name)
+            try:
+                _gd_block, _gd_why = _gdb(
+                    _gd_get("sol_pc_h6"), _gd_get("sol_pc_h1"),
+                    _gd_get("pc_h6"), _gd_get("rsi_15m"),
+                    _gd_get("dev_pct_remaining"))
+            except Exception:
+                _gd_block, _gd_why = (False, "green_day eval error -> allow")
+            _gd_taddr = (decision.address
+                         or self._addr_by_token.get(decision.token, ""))
+            try:
+                _gd_seen = getattr(self, "_gd_shadow_seen", None)
+                if _gd_seen is None:
+                    _gd_seen = set()
+                    self._gd_shadow_seen = _gd_seen
+                _gd_key = (_gd_taddr or decision.token or "").lower()
+                if _gd_key not in _gd_seen:
+                    _gd_seen.add(_gd_key)
+                    from feeds.filter_shadow_recorder import record_verdict as _rv10
+                    _rv10(token_address=_gd_taddr, token_symbol=decision.token,
+                          pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                          filter_name="green_day",
+                          verdict=("BLOCK" if _gd_block else "PASS"),
+                          reasons=_gd_why)
+            except Exception:
+                pass
+            if _gd_block:
+                logger.info("[DipScanner] bot=%s GREEN-DAY %s: %s %s", bot_id,
+                            "enforce skip" if _gd_mode == "enforce" else "SHADOW-would-block",
+                            _gd_why, decision.token)
+                if _gd_mode == "enforce":
+                    return
         # ── Patient-sleeve ENTRY GATE (2026-06-26): hold ONLY winner-selected +tail
         # entries. Per-bot (winner_select_entry flag); FAIL-CLOSED (missing signal ->
         # skip). The sleeve's entry filter for the patient-hold A/B; no effect on any
@@ -5822,7 +5866,7 @@ class DipScanner:
                     _rt = None
                     if self.dexs_client is not None:
                         try:
-                            _rt = await self.dexs_client.fetch_recent_trades(pair_addr, limit=30)
+                            _rt = await self.dexs_client.fetch_recent_trades(pair_addr, limit=100)
                         except Exception:
                             _rt = None
                     if not _rt:
@@ -8843,7 +8887,7 @@ class DipScanner:
                         if self.dexs_client is not None:
                             with _SubOp("recent_trades_dexs_demandturn"):
                                 _rt = await self.dexs_client.fetch_recent_trades(
-                                    pair_addr_for_1m, limit=30
+                                    pair_addr_for_1m, limit=100
                                 ) or []
                         if not _rt and self.gt_client is not None:
                             with _SubOp("recent_trades_gt_demandturn"):
@@ -8889,12 +8933,33 @@ class DipScanner:
             else:
                 # Try DexScreener primary (much higher rate-limit headroom; GT
                 # was 100% 429-ing on this endpoint per pre-DexScreener audit).
+                # 2026-07-01 HOT-PATH BUDGET (4-agent diagnosis P6): this fetch
+                # was observed running 25-77s per survivor (client throttle
+                # queueing, NOT the 5s HTTP timeout) inside the 2s fast-watch
+                # tick — flush lows last seconds, so the loop starved and
+                # events/day fell 164 -> 7. Hard wall-clock budget per source
+                # (env FASTPATH_TRADES_BUDGET_SECS, default 3s): on timeout,
+                # recent_trades=[] -> maker features read None (fail-open per
+                # the trade_log_features fix), and the eval proceeds on time.
+                _rt_budget = 3.0
+                try:
+                    _rt_budget = float(os.environ.get(
+                        "FASTPATH_TRADES_BUDGET_SECS", "3") or 3)
+                except (TypeError, ValueError):
+                    pass
                 if self.dexs_client is not None:
                     try:
                         with _SubOp("recent_trades_dexs"):
-                            recent_trades = await self.dexs_client.fetch_recent_trades(
-                                pair_addr_for_1m, limit=30
+                            recent_trades = await asyncio.wait_for(
+                                self.dexs_client.fetch_recent_trades(
+                                    pair_addr_for_1m, limit=100
+                                ),
+                                timeout=_rt_budget,
                             )
+                    except asyncio.TimeoutError:
+                        logger.debug(f"[DipScanner] dexs recent_trades budget "
+                                     f"({_rt_budget:.0f}s) hit for {token_symbol}")
+                        recent_trades = []
                     except Exception as _e:
                         logger.debug(f"[DipScanner] dexs recent_trades error for {token_symbol}: {_e}")
                         recent_trades = []
@@ -8902,9 +8967,16 @@ class DipScanner:
                 if not recent_trades:
                     try:
                         with _SubOp("recent_trades_gt"):
-                            recent_trades = await self.gt_client.fetch_recent_trades(
-                                pair_addr_for_1m, limit=30
+                            recent_trades = await asyncio.wait_for(
+                                self.gt_client.fetch_recent_trades(
+                                    pair_addr_for_1m, limit=30
+                                ),
+                                timeout=_rt_budget,
                             )
+                    except asyncio.TimeoutError:
+                        logger.debug(f"[DipScanner] gt recent_trades budget "
+                                     f"({_rt_budget:.0f}s) hit for {token_symbol}")
+                        recent_trades = []
                     except Exception as _e:
                         logger.debug(f"[DipScanner] recent_trades error for {token_symbol}: {_e}")
                         recent_trades = []

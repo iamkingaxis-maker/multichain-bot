@@ -177,7 +177,16 @@ def compute_net_flow_windows(recent_trades: Sequence[Dict[str, Any]]) -> Dict[st
             gross = sum(abs(v) for v in win)
             out[f"net_flow_{label}_usd"] = round(net, 2)
             out[f"net_flow_{label}_n"] = len(win)
-            if gross > 0:
+            # 2026-07-01 FIX (4-agent diagnosis P3): the 15s imbalance on a
+            # 1-2 trade window is pure noise that reads -1.0 at every genuine
+            # flush (the last trades at a capitulation ARE sells) — it flipped
+            # the nf15>=0 entry clause from inert (on stale ~2min data, bounce
+            # already begun) to a family-killer on fresh data (blocked 6 of 11
+            # badday bots; token "bull" was bought only by the 2 non-nf15 bots).
+            # Emit the 15s imbalance only when the window has >=3 trades;
+            # missing -> entry_gate + demand-turn fail OPEN (both None-safe).
+            # usd/n stay emitted (informational; consumers use `or 0`).
+            if gross > 0 and not (label == "15s" and len(win) < 3):
                 out[f"net_flow_{label}_imbalance"] = round(net / gross, 3)
     return out
 

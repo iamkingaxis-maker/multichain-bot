@@ -84,8 +84,11 @@ def test_catalog_active_bot_count(catalog):
     # exit_/triggers_/tod_ variants, champion_v2, reentry_60m) -> 55 - 14 = 41.
     # (pond_/pool_/young_probe_/probe_ bots are excluded by the catalog fixture,
     # so pond clone waves don't move this number.)
-    assert len(catalog.configs) == 41, (
-        f"Expected 41 active bots, got {len(catalog.configs)}: "
+    # 2026-07-01 deliberate update: +badday_allday (loose all-day volume bot)
+    # +badday_flush_wideexit_ab (wide-stop/let-run exit A/B) landed without
+    # bumping this count -> observed 42 with the fixture's exclusions applied.
+    assert len(catalog.configs) == 42, (
+        f"Expected 42 active bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )
 

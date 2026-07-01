@@ -834,6 +834,54 @@ def _oversold_held_thresholds() -> tuple[float, float]:
     return rsi_max, dev_min
 
 
+def green_day_blocks(sol_pc_h6, sol_pc_h1, pc_h6, rsi_15m,
+                     dev_pct_remaining) -> tuple[bool, str]:
+    """GREEN-DAY regime gate (measured 2026-07-01, 892-position honest book):
+    73.7% of gross losses came from SOL-green entries. Rules (R5+R7, the best
+    measured combo — kept cohort +$700-1090 over baseline on the 6-day book;
+    blocked cohort -$1093, 25.9% win, negative on all 4 days it fired):
+
+      sol_pc_h1 > 1       -> BLOCK regardless (SOL ripping RIGHT NOW: blocked
+                             cohort -$220, 29% win, 0/2 days positive)
+      sol_pc_h6 <= 0      -> PASS (the dip bot's home turf)
+      0 < sol_pc_h6 <=1.5 -> require genuine capitulation pc_h6 <= -25
+                             (that cell: +4.57%/55.6% win vs pump-retrace -5.39%)
+      sol_pc_h6 > 1.5     -> require oversold_held (rsi<=44 AND dev>=10)
+                             (best rip-day slice: 49.6% win, 4/5 days positive;
+                             everything else: -1.71%/31% win, the reliable bleed)
+
+    FAIL-OPEN: missing sol fields -> PASS (matches fleet null-handling).
+    Exits/size unchanged by design (green-day bounces measured SMALLER — p90
+    peak 22.6 rip vs 90.1 red — do NOT uncap on green days). Pure; never raises."""
+    def _num(x):
+        try:
+            v = None if (x is None or isinstance(x, bool)) else float(x)
+        except (TypeError, ValueError):
+            return None
+        return None if (v is None or v != v) else v
+    s6 = _num(sol_pc_h6)
+    s1 = _num(sol_pc_h1)
+    if s1 is not None and s1 > 1.0:
+        return True, f"greenday_h1_spike: sol_pc_h1={s1:+.2f}>1 (SOL ripping now)"
+    if s6 is None:
+        return False, "greenday: sol_pc_h6 missing -> pass (fail-open)"
+    if s6 <= 0:
+        return False, f"greenday: sol_pc_h6={s6:+.2f}<=0 home turf -> pass"
+    p6 = _num(pc_h6)
+    if s6 <= 1.5:
+        if p6 is not None and p6 <= -25.0:
+            return False, (f"greenday mild ({s6:+.2f}): genuine capitulation "
+                           f"pc_h6={p6:+.1f}<=-25 -> pass")
+        return True, (f"greenday_mild_no_capit: sol_pc_h6={s6:+.2f} in (0,1.5] "
+                      f"and pc_h6={'missing' if p6 is None else f'{p6:+.1f}'}"
+                      f">-25 (not a capitulation)")
+    osh_block, _ = oversold_held_blocks(rsi_15m, dev_pct_remaining)
+    if not osh_block:
+        return False, f"greenday rip ({s6:+.2f}): oversold_held -> pass"
+    return True, (f"greenday_rip_not_oversold: sol_pc_h6={s6:+.2f}>1.5 and not "
+                  f"oversold_held (the reliable rip-day bleed)")
+
+
 def oversold_held_blocks(rsi_15m, dev_pct_remaining,
                          rsi_max=None, dev_min=None) -> tuple[bool, str]:
     """OVERSOLD-HELD positive selector (solve-it backtest 2026-06-30). The cohort

@@ -47,12 +47,21 @@ def _empty() -> Dict[str, Any]:
         # Wash-detection / buyer-uniqueness (requires maker address — only
         # populated when DexScreener trade-log was used; GT fallback strips
         # maker so these stay at defaults.)
-        "unique_buyers_n": 0,
-        "unique_buyer_ratio": 0.0,
-        "top5_buyer_volume_pct": 0.0,
-        "wash_suspected": False,
+        # 2026-07-01 FIX (4-agent diagnosis P5): these five maker-derived keys
+        # are None (UNKNOWN), not 0, in the empty/no-buys case. An empty trade
+        # log here is overwhelmingly a FETCH FAILURE (io.dexscreener timeout /
+        # slug-miss / circuit-open -> [] -> this path) or a tiny all-sell window
+        # at the flush moment — NOT proof of zero buyers. Returning 0 made the
+        # fleet-wide rug gate (unique_buyers_n==0) and entry demand-floors
+        # fail-CLOSED on a data gap (~20% of surviving signal tokens blocked).
+        # None -> gates skip (fail-open); structural rug shields (lp_single_
+        # sided, liquidity, age, rug_bundle-when-known) still apply.
+        "unique_buyers_n": None,
+        "unique_buyer_ratio": None,
+        "top5_buyer_volume_pct": None,
+        "wash_suspected": None,
         # Buyer-profile signals
-        "n_recurring_buyers_3plus": 0,
+        "n_recurring_buyers_3plus": None,
         "whale_buy_present_2k": False,
         "whale_max_buy_usd": 0.0,
     }
