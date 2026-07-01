@@ -1,430 +1,349 @@
 {
-  "version": 1,
-  "generated_at": "2026-05-05T03:10:57.241955+00:00",
-  "smart_threshold": 2,
-  "min_winner_pnl_pct": 5.0,
-  "stats": {
-    "trades_total": 933,
-    "winners_total": 512,
-    "losers_total": 421,
-    "trades_with_makers_captured": 19,
-    "trades_without_makers_captured": 914,
-    "wallets_seen": 59,
-    "wallets_above_threshold": 19
+ "version": 2,
+ "generated_at": "2026-07-01T21:31:45Z",
+ "smart_threshold": 2,
+ "note": "v2 2026-07-01: merged externally-validated winners \u2014 23-wallet greenday decode (06-29) + ripday mine repeatable winners (>=3 profitable tokens, covered-net) + prior index survivors (winners>=2, wr>=50%). Signal feeds smart_wallet_count_* (shadow/entry_meta only).",
+ "wallets": {
+  "AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51": {
+   "winners": 5,
+   "losers": 1,
+   "win_rate": 0.833,
+   "total_volume_usd": 2229.93,
+   "avg_winner_volume_usd": 427.57
   },
-  "wallets": {
-    "22dTK7TCjPEXNWqexmEoRFzudBYMLvxX8ubTEdVgNVMe": {
-      "winners": 0,
-      "losers": 2,
-      "win_rate": 0.0,
-      "total_volume_usd": 1686.08,
-      "avg_winner_volume_usd": 0.0
-    },
-    "5coQzWFxUcRpg5jMbwACC2D7Mic8yr3J1Kj9QBtjGp2V": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 251.5,
-      "avg_winner_volume_usd": 0.0
-    },
-    "HjtFxYG85TUSDbGowfeKMbWHhu6gRTdDCR4BPe6kfdDd": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 155.85,
-      "avg_winner_volume_usd": 0.0
-    },
-    "7CKQGG3Fzq4TMVfhVE5R8uydfck8gPCTiUWYhmkhqkVA": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 111.98,
-      "avg_winner_volume_usd": 0.0
-    },
-    "AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51": {
-      "winners": 5,
-      "losers": 1,
-      "win_rate": 0.833,
-      "total_volume_usd": 2229.93,
-      "avg_winner_volume_usd": 427.57
-    },
-    "9VFPRuUYrmb9ZBvFRjikH45vrfC14ap8tNJ18tbEZABP": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 502.98,
-      "avg_winner_volume_usd": 0.0
-    },
-    "FJ5VHAMLLsLqpzA3xgFt2PawvMFXjyDprDfe3qvcycxd": {
-      "winners": 2,
-      "losers": 1,
-      "win_rate": 0.667,
-      "total_volume_usd": 1089.62,
-      "avg_winner_volume_usd": 335.16
-    },
-    "CdcXYv7RcFdcENCTv54ZcbYiAud31tPT9SMJPoZMrara": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 315.69,
-      "avg_winner_volume_usd": 0.0
-    },
-    "FMBEreW1ALQAhaGQEAELrqtpZMKvAmATjhW8RyeE9oEd": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 115.57,
-      "avg_winner_volume_usd": 0.0
-    },
-    "BrJH44GpEcfkM39NuEsZhvz5d8a2JkTJMYAG268Lb1Pq": {
-      "winners": 1,
-      "losers": 1,
-      "win_rate": 0.5,
-      "total_volume_usd": 595.04,
-      "avg_winner_volume_usd": 297.52
-    },
-    "7iVCXQn4u6tiTEfNVqbWSEsRdEi69E9oYsSMiepuECwi": {
-      "winners": 1,
-      "losers": 1,
-      "win_rate": 0.5,
-      "total_volume_usd": 353.22,
-      "avg_winner_volume_usd": 176.61
-    },
-    "F7c7dgqCpeBBy3Ngq3h6kEmSBj49oAY75fmwmhN8DMbh": {
-      "winners": 1,
-      "losers": 1,
-      "win_rate": 0.5,
-      "total_volume_usd": 180.54,
-      "avg_winner_volume_usd": 90.27
-    },
-    "7PQoZt4DyQtkjiFEmgr1FVDAJKmp8T41CcBvzkz5iFSR": {
-      "winners": 1,
-      "losers": 1,
-      "win_rate": 0.5,
-      "total_volume_usd": 99.8,
-      "avg_winner_volume_usd": 49.9
-    },
-    "74yZE8UNqZZu8UzgJqKaaW1uMBwZuu2pkDqmXQZe3aSS": {
-      "winners": 1,
-      "losers": 1,
-      "win_rate": 0.5,
-      "total_volume_usd": 83.66,
-      "avg_winner_volume_usd": 41.83
-    },
-    "HejBwcPk3MQ8miTHx4cmpetDpLALXdfJmKKmNZwcPuqi": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 165.24,
-      "avg_winner_volume_usd": 82.62
-    },
-    "4hwz6CrxukVmP5c8ped8Mq79XjpFYLuP5GYT3HgvukAu": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 103.88,
-      "avg_winner_volume_usd": 51.94
-    },
-    "AW4jYyLFbstpitrYET5o5KMfvHcXGAJG5ZrEkUaUtyyK": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 96.3,
-      "avg_winner_volume_usd": 48.15
-    },
-    "Ei5wSugXDntxUdeNqa7p85g68GyCcUvW3zrcxzPxxQes": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 83.04,
-      "avg_winner_volume_usd": 41.52
-    },
-    "CcquRsUM6QBAwYaoPKPH3DR4nVYWsUewZ6tpAD3XLNMT": {
-      "winners": 2,
-      "losers": 1,
-      "win_rate": 0.667,
-      "total_volume_usd": 347.94,
-      "avg_winner_volume_usd": 99.42
-    },
-    "9t5s9GMELRdJpUukaU5J943VTuxfTzS8udcNS2goZxPh": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 108.38,
-      "avg_winner_volume_usd": 0.0
-    },
-    "DtvmxrTACskMG2W8a6KXgSemUfvyNVeQTgfpJoGvMVKx": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 56.26,
-      "avg_winner_volume_usd": 0.0
-    },
-    "Cu2EjqbHvxzRHVbefGa2ogfGfZBdJducrCniQf1thdv1": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 23.94,
-      "avg_winner_volume_usd": 0.0
-    },
-    "54Pz1e35z9uoFdnxtzjp7xZQoFiofqhdayQWBMN7dsuy": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 14.61,
-      "avg_winner_volume_usd": 0.0
-    },
-    "J8A1VRV8MjiiQESvguYRTGeBMoyULQ7ocz3Y3LJqWLc8": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 1112.46,
-      "avg_winner_volume_usd": 556.23
-    },
-    "7hNLzqGwzTM4AdADkbL75yX9LsbxEfjQSg7yH9eHc1Zv": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 200.98,
-      "avg_winner_volume_usd": 100.49
-    },
-    "3uVe66kGTd3CGYYK9TetnNF1nZ3aby12addtDdFVVrdn": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 165.8,
-      "avg_winner_volume_usd": 82.9
-    },
-    "FG8LEP14GKw6ADNcqNHhVLNLuyMiJJFjzLrbiUEVQ75j": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 384.34,
-      "avg_winner_volume_usd": 0.0
-    },
-    "GCvHhEUYQwTJ8jyf8Lc4bv8jBXyZU4LMMsZCobwEPzvM": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 198.94,
-      "avg_winner_volume_usd": 0.0
-    },
-    "GUXT1SwPV48yv8uzws6PSPXRMG7B4juyb6o73pchqYFA": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 145.71,
-      "avg_winner_volume_usd": 0.0
-    },
-    "tdDmurGTJ288UndUeueSpYcjwpSQY2kGxzrTC2FyvT8": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 100.28,
-      "avg_winner_volume_usd": 0.0
-    },
-    "7HmXhHSYjFwJ2iHVcNQgTvciLhMESRLwDj9m4LdacDGy": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 42.54,
-      "avg_winner_volume_usd": 0.0
-    },
-    "5c9gaDpbWmbeSL5gAjeq6YepxmudSBzQHA4wQLW233xM": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 937.34,
-      "avg_winner_volume_usd": 468.67
-    },
-    "4z2451hwVdV1KpM7Ci5aRDLd6kNsPWwTb5Y8nPJBtqsd": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 723.5,
-      "avg_winner_volume_usd": 361.75
-    },
-    "6TpVTxTkESbWiRE8FvtSqoheB5LsZ9k6289a7msixven": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 663.68,
-      "avg_winner_volume_usd": 331.84
-    },
-    "AFrPzmBpa3oBusBtDz7VfuPViiP3N68jLZxsA2NvmKUp": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 603.76,
-      "avg_winner_volume_usd": 301.88
-    },
-    "2gxXM8yAZsdoWfzShFWGBHZqpGz8y5ykxw53BuVaoUFT": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 439.22,
-      "avg_winner_volume_usd": 219.61
-    },
-    "CsVh5qTnTkfr7syoyxAvfMWUqZhEk3VNwcfTCtcFBNLF": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 724.7,
-      "avg_winner_volume_usd": 0.0
-    },
-    "22r7hkZf6Wp9kJQabsunpBLiZPynejmVrymeX5qN4QbK": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 359.46,
-      "avg_winner_volume_usd": 0.0
-    },
-    "4RCRqnt4FiaByWVvAbgp8v5vHZbdLRDAHXi9fKTwhoWi": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 62.34,
-      "avg_winner_volume_usd": 0.0
-    },
-    "3mDAyEbTxy4gqsZzVgjVwocLHK9Z9Hw5UrLhW4U7ouCY": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 46.35,
-      "avg_winner_volume_usd": 0.0
-    },
-    "Bamu8ZzhGmHyUvqCS9R7cSzZBDWQVAbRBmPhPX3KAXoJ": {
-      "winners": 0,
-      "losers": 1,
-      "win_rate": 0.0,
-      "total_volume_usd": 35.65,
-      "avg_winner_volume_usd": 0.0
-    },
-    "gasBidSWW5zmwXs3gn8TG2ijzKkrwpyM7ucwjgDQst6": {
-      "winners": 1,
-      "losers": 1,
-      "win_rate": 0.5,
-      "total_volume_usd": 16779.38,
-      "avg_winner_volume_usd": 8389.69
-    },
-    "megtqkFQTHfx1y9eHCMSpYNN7BeHiDT3cUMcMUiVRxo": {
-      "winners": 1,
-      "losers": 1,
-      "win_rate": 0.5,
-      "total_volume_usd": 144.06,
-      "avg_winner_volume_usd": 72.03
-    },
-    "gtagyESa99t49VmUqnnfsuowYnigSNKuYXdXWyXWNdd": {
-      "winners": 1,
-      "losers": 1,
-      "win_rate": 0.5,
-      "total_volume_usd": 138.96,
-      "avg_winner_volume_usd": 69.48
-    },
-    "FkdDHrM8j8psKbxuwjV1jBKCM2JGPygkj7WCX8sSCzNm": {
-      "winners": 1,
-      "losers": 1,
-      "win_rate": 0.5,
-      "total_volume_usd": 85.08,
-      "avg_winner_volume_usd": 42.54
-    },
-    "44zas59yMsNv3nwsjtf9zPCxvaxyvuhLPx6x4ERKXPti": {
-      "winners": 1,
-      "losers": 1,
-      "win_rate": 0.5,
-      "total_volume_usd": 55.44,
-      "avg_winner_volume_usd": 27.72
-    },
-    "Em8J3gBWapfVBGVhVipwQnLrqCvnWBnLajw6XFsFECPF": {
-      "winners": 1,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 98.73,
-      "avg_winner_volume_usd": 98.73
-    },
-    "zQjJHqX5fPxvefKLdX1hYqxXHG9hH8e1xDhMwKjGpgE": {
-      "winners": 1,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 56.57,
-      "avg_winner_volume_usd": 56.57
-    },
-    "H3carF38MErbo2i3xEDKPrvUF2MEcaR9tmyNrHaRxzMm": {
-      "winners": 1,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 48.47,
-      "avg_winner_volume_usd": 48.47
-    },
-    "4kUThFtQ25ALP2AJE76EeXfzGeckppieYd9GJHiNYobS": {
-      "winners": 1,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 47.48,
-      "avg_winner_volume_usd": 47.48
-    },
-    "9WENYrZraz5R36P5VJTSiyDy8rpGrehsXmpFsFgSTpTp": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 1000.12,
-      "avg_winner_volume_usd": 500.06
-    },
-    "GWzyALZtwGkQkrTfyWbgNAdsy2LfybvnSJbFxBpQw6iS": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 202.12,
-      "avg_winner_volume_usd": 101.06
-    },
-    "8dZBEbckXJR7HJPqZddHKqwDPQ12rvo4EGAjD9o8j7Um": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 139.68,
-      "avg_winner_volume_usd": 69.84
-    },
-    "Bo1ZzCA7s7QVRZTUJYEpw6CFcnpGGjqKRYNtcg7DBtTW": {
-      "winners": 2,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 70.86,
-      "avg_winner_volume_usd": 35.43
-    },
-    "J3MtuG9pHkvxVSjhiYxsYEbdGgx57QnreebZAP9aKiu8": {
-      "winners": 1,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 133.85,
-      "avg_winner_volume_usd": 133.85
-    },
-    "4yrk3Kkh3L6r4SekprgKZqdKnAqABWe4D4bCmBC6ATxP": {
-      "winners": 1,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 89.82,
-      "avg_winner_volume_usd": 89.82
-    },
-    "ByzsdTk5FnxpUTKZKrTxWVepcWtPa3ghgzkPD3GXyPhK": {
-      "winners": 1,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 87.73,
-      "avg_winner_volume_usd": 87.73
-    },
-    "3cviUJdDaUbqrR4BgSCg2GuSdPTtTokF9b4Src8u6HNF": {
-      "winners": 1,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 84.98,
-      "avg_winner_volume_usd": 84.98
-    },
-    "EFr2dAZQ98nqXhLPqKLVEC5jjJVZi8jpSmqEmw4FANir": {
-      "winners": 1,
-      "losers": 0,
-      "win_rate": 1.0,
-      "total_volume_usd": 82.19,
-      "avg_winner_volume_usd": 82.19
-    }
+  "FJ5VHAMLLsLqpzA3xgFt2PawvMFXjyDprDfe3qvcycxd": {
+   "winners": 2,
+   "losers": 1,
+   "win_rate": 0.667,
+   "total_volume_usd": 1089.62,
+   "avg_winner_volume_usd": 335.16
+  },
+  "HejBwcPk3MQ8miTHx4cmpetDpLALXdfJmKKmNZwcPuqi": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 165.24,
+   "avg_winner_volume_usd": 82.62
+  },
+  "4hwz6CrxukVmP5c8ped8Mq79XjpFYLuP5GYT3HgvukAu": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 103.88,
+   "avg_winner_volume_usd": 51.94
+  },
+  "AW4jYyLFbstpitrYET5o5KMfvHcXGAJG5ZrEkUaUtyyK": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 96.3,
+   "avg_winner_volume_usd": 48.15
+  },
+  "Ei5wSugXDntxUdeNqa7p85g68GyCcUvW3zrcxzPxxQes": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 83.04,
+   "avg_winner_volume_usd": 41.52
+  },
+  "CcquRsUM6QBAwYaoPKPH3DR4nVYWsUewZ6tpAD3XLNMT": {
+   "winners": 2,
+   "losers": 1,
+   "win_rate": 0.667,
+   "total_volume_usd": 347.94,
+   "avg_winner_volume_usd": 99.42
+  },
+  "J8A1VRV8MjiiQESvguYRTGeBMoyULQ7ocz3Y3LJqWLc8": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 1112.46,
+   "avg_winner_volume_usd": 556.23
+  },
+  "7hNLzqGwzTM4AdADkbL75yX9LsbxEfjQSg7yH9eHc1Zv": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 200.98,
+   "avg_winner_volume_usd": 100.49
+  },
+  "3uVe66kGTd3CGYYK9TetnNF1nZ3aby12addtDdFVVrdn": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 165.8,
+   "avg_winner_volume_usd": 82.9
+  },
+  "5c9gaDpbWmbeSL5gAjeq6YepxmudSBzQHA4wQLW233xM": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 937.34,
+   "avg_winner_volume_usd": 468.67
+  },
+  "4z2451hwVdV1KpM7Ci5aRDLd6kNsPWwTb5Y8nPJBtqsd": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 723.5,
+   "avg_winner_volume_usd": 361.75
+  },
+  "6TpVTxTkESbWiRE8FvtSqoheB5LsZ9k6289a7msixven": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 663.68,
+   "avg_winner_volume_usd": 331.84
+  },
+  "AFrPzmBpa3oBusBtDz7VfuPViiP3N68jLZxsA2NvmKUp": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 603.76,
+   "avg_winner_volume_usd": 301.88
+  },
+  "2gxXM8yAZsdoWfzShFWGBHZqpGz8y5ykxw53BuVaoUFT": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 439.22,
+   "avg_winner_volume_usd": 219.61
+  },
+  "9WENYrZraz5R36P5VJTSiyDy8rpGrehsXmpFsFgSTpTp": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 1000.12,
+   "avg_winner_volume_usd": 500.06
+  },
+  "GWzyALZtwGkQkrTfyWbgNAdsy2LfybvnSJbFxBpQw6iS": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 202.12,
+   "avg_winner_volume_usd": 101.06
+  },
+  "8dZBEbckXJR7HJPqZddHKqwDPQ12rvo4EGAjD9o8j7Um": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 139.68,
+   "avg_winner_volume_usd": 69.84
+  },
+  "Bo1ZzCA7s7QVRZTUJYEpw6CFcnpGGjqKRYNtcg7DBtTW": {
+   "winners": 2,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 70.86,
+   "avg_winner_volume_usd": 35.43
+  },
+  "4nsNd4YvKi7CaSqwCA1vRToZYz4QcW6itx5yJCtuJAUM": {
+   "winners": 19,
+   "losers": 0,
+   "win_rate": 0.11,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "Ejp2S85hfMXwjKkAYYKDPhdN91AHQuscmRSwDiUWWHc1": {
+   "winners": 11,
+   "losers": 0,
+   "win_rate": 0.64,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "CaajBntpFoNuZZsWySQ2ER9BpCe7czS51t7r9QW132dL": {
+   "winners": 18,
+   "losers": 0,
+   "win_rate": 0.72,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "B7VerjrZbjz9khqKGhTTGiveC5dTCcCVvmj8U97q52hA": {
+   "winners": 5,
+   "losers": 0,
+   "win_rate": 0.4,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "GZ3TfSYi5Cv6ywvPYZvdansestqqcoCAyEA5gCWKdqUf": {
+   "winners": 5,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "BiqeYSDoic38ptXkxJMgWqK4rCSJmdVKrWnyVJ6kCuEe": {
+   "winners": 7,
+   "losers": 0,
+   "win_rate": 0.57,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "333mjD4KxAC1LCR29xYMztmWRyLP3mJEbKfjnPe8AEoc": {
+   "winners": 26,
+   "losers": 0,
+   "win_rate": 0.54,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "gSGVUyFwkrw7UxfKqmNxXCM8ZF5xx55WwR5fLFr5qs5": {
+   "winners": 6,
+   "losers": 0,
+   "win_rate": 0.33,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "B8LoP7D7XWHrW3H8qtzf5gdmuJVkMgfnBRNTDyDgRuv5": {
+   "winners": 3,
+   "losers": 0,
+   "win_rate": 0.67,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "DMdbb784EUaorYrC34LE4jbUM3ovYjJnNTwV7r4EH2eP": {
+   "winners": 3,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "5uez2R1fXyJ6YW1wVPqFoEq91WJufuWceVQy647qVYHF": {
+   "winners": 28,
+   "losers": 0,
+   "win_rate": 0.61,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "EqK3ZmQKAVe2cxyw81QAYfR2pB4dXLPCNPbX6xWmJfFt": {
+   "winners": 20,
+   "losers": 0,
+   "win_rate": 0.4,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "3YFawWJV2CCRdW8SvFFj9S1PmKLpZGUy3WT6pZmnaKRu": {
+   "winners": 10,
+   "losers": 0,
+   "win_rate": 0.7,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "AgTM7bcPQo2kkru8o2igeiwbAjJY2bubEHHZUQPRhyqG": {
+   "winners": 22,
+   "losers": 0,
+   "win_rate": 0.77,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "EwecAnTceDJY7U41AbZbPebrFvcyC7FUeMpz5TijxFNw": {
+   "winners": 4,
+   "losers": 0,
+   "win_rate": 0.75,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "6FYgn2apNXSqNVyXHTV8CFHiRQhw5TPdDUEHrBMyR8og": {
+   "winners": 21,
+   "losers": 0,
+   "win_rate": 0.76,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "BB2SSRNoS32YkqDTPyu1C2bPZ5pv6oaDz54pjoyGcxe5": {
+   "winners": 7,
+   "losers": 0,
+   "win_rate": 0.57,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "Ar2Y6o1QmrRAskjii1cRfijeKugHH13ycxW5cd7rro1x": {
+   "winners": 28,
+   "losers": 0,
+   "win_rate": 0.54,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "DG8nTNQxu44GQHHYNQyFoXpq9DV2L6SnsoroQ2S7nER1": {
+   "winners": 18,
+   "losers": 0,
+   "win_rate": 0.44,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "2fLcT3MNmKT418KQxo2GF1pDJqQx6GfxVAk6G8wkPMeF": {
+   "winners": 14,
+   "losers": 0,
+   "win_rate": 0.43,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "6dzn1gFuWrNeV9oByVeVmAZhMaVWSheA6HjpNU9xputR": {
+   "winners": 10,
+   "losers": 0,
+   "win_rate": 0.4,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "72QUWNCwsmYUMwkCGqvagCKAmq7Ng5mfG7yCeUYSLzEc": {
+   "winners": 30,
+   "losers": 0,
+   "win_rate": 0.6,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "4mdpm59apd6PktGhSwu1385Kr4X9KTvM1rxxSrUBHA6C": {
+   "winners": 31,
+   "losers": 0,
+   "win_rate": 0.58,
+   "total_volume_usd": 0.0,
+   "avg_winner_volume_usd": 0.0,
+   "source": "greenday_decode_2026_06_29"
+  },
+  "BGzLYcFcUZkW5GPZZAYK4Jxyf1W7aigyHQbvmKsQeeuq": {
+   "winners": 3,
+   "losers": 3,
+   "win_rate": 0.5,
+   "total_volume_usd": 1.68,
+   "avg_winner_volume_usd": 0.0,
+   "source": "ripday_mine_2026_07_01"
+  },
+  "J1sfMsbxGNXDPMUPXyGs5D6oCEe7fSYgdPMRyVzZuZUW": {
+   "winners": 3,
+   "losers": 0,
+   "win_rate": 1.0,
+   "total_volume_usd": 9.66,
+   "avg_winner_volume_usd": 0.0,
+   "source": "ripday_mine_2026_07_01"
+  },
+  "kEFiAX3jo5NmemysQov342TZ9mGh6yp92GDRjhA8XDf": {
+   "winners": 3,
+   "losers": 1,
+   "win_rate": 0.75,
+   "total_volume_usd": 291.78,
+   "avg_winner_volume_usd": 0.0,
+   "source": "ripday_mine_2026_07_01"
   }
+ }
 }
