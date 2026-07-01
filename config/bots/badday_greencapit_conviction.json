@@ -1,0 +1,95 @@
+{
+  "age_h_max": null,
+  "age_h_min": 6.0,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 200.0,
+  "bot_id": "badday_greencapit_conviction",
+  "btc_macro_h1_block_threshold": null,
+  "daily_loss_limit_usd": 60.0,
+  "display_name": "GREEN-DAY OFFENSE lane 1 (2026-07-01, measured 892-pos honest book): trades ONLY the one green cell that is +EV — MILD-GREEN CAPITULATIONS. Cell = 0<sol_pc_h6<=1.5 AND pc_h6<=-25: +4.57% mean / +4.01 median / 55.6% win, positive ALL 3 firing days, 14 distinct tokens (vs mild-green pump-retrace -5.39%/18.6%). CONVICTION SIZE $200 (2x family $100) because the cell is the only day-consistent green slice — the point is to make green days PAY, not just stop bleeding. Exits = family tight profile UNCHANGED (the +4.57 was realized WITH these exits; green-day bounces measured SMALLER, p90 peak 22.6 vs 90.1 red — do NOT let winners run here). Entry gate fail-open per condition on missing features (sol_pc_h6 coverage 100%). PAPER A/B vs the family; judge on scripts/honest_book.py scrubbed + per-token at n>=20 closes across >=3 mild-green days. Complements GREEN_DAY_MODE (defense) + the rip-day offense spec (wallet mine, sol>1.5 lane).",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "sol_pc_h6",
+      ">=",
+      0.01
+    ],
+    [
+      "sol_pc_h6",
+      "<=",
+      1.5
+    ],
+    [
+      "pc_h6",
+      "<=",
+      -25
+    ],
+    [
+      "pc_h1",
+      "<=",
+      -8
+    ],
+    [
+      "unique_buyers_n",
+      ">=",
+      1
+    ],
+    [
+      "wash_suspected",
+      "<=",
+      0
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      15000
+    ]
+  ],
+  "entry_stack_exempt": true,
+  "fast_bail_pnl_pct": -9.0,
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_btc_overheat",
+    "filter_consec_red",
+    "filter_huge_wick"
+  ],
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -6.0,
+  "hard_stop_pct": -12.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 3,
+  "mcap_max": 500000.0,
+  "mcap_min": 50000.0,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": true,
+  "never_runner_loss_floor": -6.0,
+  "never_runner_minutes": 60,
+  "never_runner_peak_max": 3.0,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "regime_dial_exempt": true,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": 60,
+  "slow_bleed_pnl_threshold": -8.0,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "tp1_pct": 6.0,
+  "tp1_sell_fraction": 0.75,
+  "tp2_pct": 12.0,
+  "tp2_sell_fraction": 0.25,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
+  "trail_pp": 2.0,
+  "triggers_allowed": null,
+  "triggers_disabled": [],
+  "vol_h1_min": 1000.0,
+  "young_token_probe": false
+}
