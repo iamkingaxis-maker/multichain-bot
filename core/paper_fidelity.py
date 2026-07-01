@@ -53,6 +53,25 @@ def measured_live_slip_pct() -> float:
     except Exception:
         return 1.5
 
+def ultra_platform_fee_pct(token_age_hours) -> float:
+    """Jupiter Ultra platform fee (%) per swap leg — 0.5% on tokens <24h old
+    (2026-07-01 diagnosis P10: previously modeled NOWHERE in the paper fill;
+    ~19% of buys are <24h -> paper overstated live by ~1.0pp round-trip on
+    each). Added to the slip haircut at the fill sites so paper books it.
+    FAIL-OPEN: unknown age -> 0 (no haircut). Env ULTRA_FEE_MODEL=off disables
+    (default on). Pure; never raises."""
+    try:
+        if os.environ.get("ULTRA_FEE_MODEL", "on").strip().lower() in (
+                "off", "0", "false"):
+            return 0.0
+        a = None if (token_age_hours is None or isinstance(token_age_hours, bool)) \
+            else float(token_age_hours)
+        if a is None or a != a:
+            return 0.0
+        return 0.5 if a < 24.0 else 0.0
+    except (TypeError, ValueError):
+        return 0.0
+
 def _paper_fee_placeholder() -> float:
     """The fixed placeholder per-tx fee (USD). Env PAPER_FEE_USD_PER_TX, default 0.17.
     This is the historical value — assumes the priority fee = the 1M-2M lamport cap,

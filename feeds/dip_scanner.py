@@ -2817,6 +2817,13 @@ class DipScanner:
                         logger.debug("[fill-calibration] fail-open to placeholder "
                                      "bot=%s token=%s: %s", bot_id, decision.token, _cal_e)
                         _slip_used = _mlsp()
+                    # Ultra platform fee (2026-07-01 P10): +0.5pp on <24h tokens,
+                    # previously unmodeled -> paper overstated live. Fail-open.
+                    try:
+                        from core.paper_fidelity import ultra_platform_fee_pct as _upf
+                        _slip_used += _upf(getattr(bundle, "age_hours", None))
+                    except Exception:
+                        pass
                     _eb, _why = _ped(
                         decision.entry_price, _fresh, _fresh_source,
                         modeled_slip_pct=_mlsp(), mode=_pf_mode, size_usd=_used_size,
@@ -5251,10 +5258,23 @@ class DipScanner:
                                 _low_px = _pos.entry_price * (1.0 + float(_mae) / 100.0)
                     except Exception:
                         _low_px = None
+                    # Ultra platform fee (2026-07-01 P10): +0.5pp on <24h tokens,
+                    # per-leg — the exit leg pays it too. Age from the position's
+                    # entry stamp when available. Fail-open (unknown age -> 0).
+                    _x_slip = _mlsp()
+                    try:
+                        from core.paper_fidelity import ultra_platform_fee_pct as _upf
+                        _x_age = None
+                        if _pos is not None:
+                            _x_age = ((_pos.state_blob or {}).get("age_hours")
+                                      if getattr(_pos, "state_blob", None) else None)
+                        _x_slip += _upf(_x_age)
+                    except Exception:
+                        pass
                     _xb, _why = _pxd(
                         current_price, _fresh, exit_decision.reason,
                         mode=_pf_mode, size_usd=_sz_sold,
-                        slip_pct=_mlsp(), fee_usd=_pfee(), low_price=_low_px)
+                        slip_pct=_x_slip, fee_usd=_pfee(), low_price=_low_px)
                     if _pf_mode == "enforce":
                         # _xb already bakes in slip+fee+gap — book it DIRECTLY so
                         # slippage is counted exactly ONCE (bypass sell_fill_price).
