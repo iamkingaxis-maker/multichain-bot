@@ -1,0 +1,81 @@
+{
+  "age_h_max": null,
+  "age_h_min": 6.0,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 100.0,
+  "bot_id": "badday_allday",
+  "btc_macro_h1_block_threshold": null,
+  "daily_loss_limit_usd": 60.0,
+  "display_name": "ALL-DAY VOLUME (2026-07-01, AxiS 'we need buys all day'): loose-entry activity bot. Entry loosened pc_h1<=-8 (was -20) + unique_buyers>=8 (was 12); DISCRETIONARY filters OFF (filters_enforced=[]) so fusion_floor/zero_winner_compound/morning_dead_zone/etc. don't block. CORE RUG SHIELD KEPT: RUG_GATE_MODE + rug_bundle (single-sided LP / sniped-rug) are fleet-wide (still enforce), liquidity_usd>=15000, recurring_buyers>=1, wash<=0, age>=6h (cuts 79% of catastrophes). $5 sizing (ruin-safe) + wide-stop/let-winners-run exit (calibrated 2026-07-01). Purpose = consistent all-day activity + data on the widened universe, measured vs the tight validated bots. PAPER. If still thin, next lever is loosening rug_bundle (AxiS call — accepts rug risk on fresh sniped microcaps).",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "unique_buyers_n",
+      ">=",
+      8
+    ],
+    [
+      "wash_suspected",
+      "<=",
+      0
+    ],
+    [
+      "n_recurring_buyers_3plus",
+      ">=",
+      1
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      15000
+    ],
+    [
+      "pc_h1",
+      "<=",
+      -8
+    ]
+  ],
+  "entry_stack_exempt": true,
+  "fast_bail_pnl_pct": -12.0,
+  "filters_disabled": [],
+  "filters_enforced": [],
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -12.0,
+  "hard_stop_pct": -12.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 3,
+  "mcap_max": 500000.0,
+  "mcap_min": 50000.0,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": true,
+  "never_runner_loss_floor": -12.0,
+  "never_runner_minutes": 60,
+  "never_runner_peak_max": 3.0,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": -12.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "regime_dial_exempt": true,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": 60,
+  "slow_bleed_pnl_threshold": -12.0,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "tp1_pct": 13.0,
+  "tp1_sell_fraction": 0.3,
+  "tp2_pct": 30.0,
+  "tp2_sell_fraction": 0.3,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
+  "trail_pp": 6.0,
+  "triggers_allowed": null,
+  "triggers_disabled": [],
+  "vol_h1_min": 1000.0,
+  "young_token_probe": false
+}
