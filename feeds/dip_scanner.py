@@ -6393,6 +6393,122 @@ class DipScanner:
             except Exception as e:
                 logger.debug("[exit-reprice] position eval failed bot=%s: %s", bot_id, e)
 
+    async def _reprice_trail_exits(self, cfg, prices, now):
+        """POST-TP1 trail on the freshest fast samples (family re-mine 2026-07-01).
+
+        The winner-side twin of _reprice_exit_floors: trail closers booked
+        peak-7.29pp avg vs the peak-2pp config because the trail only runs on
+        the slow sweep — 3.42pp median 'fired-below-line' = pure scan-cadence
+        latency, worth ~+300-450 token-pp/8.5d (15-20% of the book loss), zero
+        volume cost. Uses the PER-BOT config trail_pp (respects the wideexit
+        A/B's 6pp vs family 2pp).
+
+        TRAIL_REPRICE_MODE=off (DEFAULT) -> immediate return, byte-identical.
+        shadow -> logs + stamps would-fire, NEVER sells. enforce -> routes the
+        SAME POST_TP1_TRAIL exit through _execute_bot_sell at the fresh price.
+        FAIL-OPEN everywhere; idempotent vs the slow tick via state_blob stamp."""
+        from core.fast_watch import rt_mode as _rt_mode, trail_reprice_would_fire
+        mode = _rt_mode("TRAIL_REPRICE_MODE")
+        if mode == "off":
+            return
+        pms = getattr(self, "bot_position_managers", None)
+        if not pms:
+            return
+        try:
+            confirm_ticks = int(os.environ.get("TRAIL_REPRICE_CONFIRM_TICKS", "2"))
+        except (TypeError, ValueError):
+            confirm_ticks = 2
+        if confirm_ticks < 1:
+            confirm_ticks = 1
+        # In-scope opens: badday_* family, POST-TP1 (the complement of the
+        # floor's pre-TP1 scope).
+        scoped = []   # (bot_id, pm, position, trail_pp)
+        try:
+            for bot_id, pm in pms.items():
+                pcfg = getattr(pm, "config", None)
+                if not str(getattr(pcfg, "bot_id", bot_id)).startswith("badday_"):
+                    continue
+                try:
+                    trail_pp = float(getattr(pcfg, "trail_pp", 2.0) or 2.0)
+                except (TypeError, ValueError):
+                    trail_pp = 2.0
+                for p in pm.iter_positions():
+                    if not getattr(p, "tp1_hit", False):
+                        continue
+                    if not getattr(p, "address", "") or getattr(p, "entry_price", 0) <= 0:
+                        continue
+                    scoped.append((bot_id, pm, p, trail_pp))
+        except Exception as e:
+            logger.debug("[trail-reprice] enumerate opens failed: %s", e)
+            return
+        if not scoped:
+            return
+        # Opens-union: held winners may not be armed/polled — one extra batch.
+        prices = dict(prices or {})
+        sw = int(getattr(cfg, "sample_window", 20) or 20)
+        try:
+            missing = [p.address for (_, _, p, _) in scoped
+                       if p.address.lower() not in prices][:50]
+            if missing:
+                extra = await self._fast_batch_prices(missing) or {}
+                for (_, _, p, _) in scoped:
+                    pr = extra.get(p.address.lower())
+                    if pr is None:
+                        continue
+                    prices[p.address.lower()] = pr
+                    buf = self._fast_samples.setdefault(
+                        p.address, deque(maxlen=sw))
+                    buf.append(pr)
+        except Exception as e:
+            logger.debug("[trail-reprice] opens batch price failed: %s", e)
+        for bot_id, pm, p, trail_pp in scoped:
+            try:
+                addr = p.address
+                buf = self._fast_samples.get(addr)
+                fires, fresh_pnl, eff_peak, why = trail_reprice_would_fire(
+                    buf, p.entry_price, p.peak_pnl_pct, trail_pp,
+                    confirm_ticks=confirm_ticks)
+                if not fires or fresh_pnl is None:
+                    continue
+                sb = p.state_blob if p.state_blob is not None else None
+                # idempotency vs the slow tick / a prior reprice fire
+                if sb is not None and sb.get("trail_reprice_fired"):
+                    continue
+                fresh_price = prices.get(addr.lower())
+                if fresh_price is None and buf:
+                    fresh_price = buf[-1]
+                if fresh_price is None or fresh_price <= 0:
+                    continue
+                if mode == "shadow":
+                    if sb is not None and sb.get("trail_reprice_shadow_fired"):
+                        continue   # one record per position
+                    logger.info(
+                        "[trail-reprice] SHADOW bot=%s token=%s fresh_pnl=%.2f "
+                        "eff_peak=%.2f trail=%.1f (%s)",
+                        bot_id, p.token, fresh_pnl, eff_peak, trail_pp, why)
+                    if sb is not None:
+                        sb["trail_reprice_shadow_fired"] = True
+                        sb["trail_reprice_shadow_pnl"] = round(fresh_pnl, 4)
+                        sb["trail_reprice_shadow_peak"] = round(eff_peak, 4)
+                        sb["trail_reprice_shadow_secs"] = int(now - p.entry_time)
+                elif mode == "enforce":
+                    if sb is not None:
+                        sb["trail_reprice_fired"] = True
+                        sb["trail_reprice_pnl_at_fire"] = round(fresh_pnl, 4)
+                        sb["trail_reprice_peak_at_fire"] = round(eff_peak, 4)
+                    from core.per_bot_position_manager import ExitDecision
+                    d = ExitDecision(
+                        token=p.token, kind="POST_TP1_TRAIL",
+                        reason=f"{why} [trail-reprice]",
+                        sell_fraction=1.0)
+                    logger.info(
+                        "[trail-reprice] ENFORCE sell bot=%s token=%s fresh_pnl=%.2f "
+                        "eff_peak=%.2f trail=%.1f",
+                        bot_id, p.token, fresh_pnl, eff_peak, trail_pp)
+                    await self._execute_bot_sell(bot_id, p.token, d, fresh_price, now)
+            except Exception as e:
+                logger.debug("[trail-reprice] position eval failed bot=%s: %s", bot_id, e)
+
     def _fast_price_for(self, addr, jupiter_price):
         """B4 price-selection (SYNC, testable). Returns (price, source).
 
@@ -6800,6 +6916,14 @@ class DipScanner:
             await self._reprice_exit_floors(cfg, prices, now)
         except Exception as _erp_e:
             logger.debug("[exit-reprice] tick hook failed: %s", _erp_e)
+        # TRAIL-REPRICE (family re-mine 2026-07-01): the winner-side twin — run
+        # the post-TP1 trail on the freshest samples too. Trail closers were
+        # giving back peak-7.29pp vs the 2pp config (3.42pp = slow-scan latency,
+        # ~15-20% of the whole book loss). Default TRAIL_REPRICE_MODE=off.
+        try:
+            await self._reprice_trail_exits(cfg, prices, now)
+        except Exception as _trp_e:
+            logger.debug("[trail-reprice] tick hook failed: %s", _trp_e)
         snapshot = [(addr, armed[addr]) for addr in addrs]
         survivors = shortlist(
             snapshot,

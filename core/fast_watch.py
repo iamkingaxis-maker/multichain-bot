@@ -700,3 +700,45 @@ def fill_speed_record(token, bot, fast_price, fast_ts, sweep_price, sweep_ts,
 def _now_iso():
     import datetime as _dt
     return _dt.datetime.now(_dt.timezone.utc).isoformat()
+
+
+def trail_reprice_would_fire(samples, entry_price, peak_pnl_pct, trail_pp,
+                             confirm_ticks=2):
+    """POST-TP1 trail check on FRESH fast samples (TRAIL_REPRICE, 2026-07-01).
+
+    Family re-mine: trail closers gave back peak-7.29pp avg vs the configured
+    peak-2pp because the trail is only evaluated on the slow sweep (3.42pp
+    median fired-below-line = scan-cadence latency). This runs the SAME trail
+    logic every fast tick for HELD post-TP1 positions — the exit-side fidelity
+    twin of exit_reprice_would_fire, for winners.
+
+    eff_peak = max(recorded peak_pnl_pct, max pnl seen in the fresh buffer) —
+    strictly MORE accurate than the slow path (can't fire against a stale peak
+    that fresh samples already exceeded).
+    Fires when the ``confirm_ticks`` NEWEST samples are ALL at/below
+    (eff_peak - trail_pp) — a single wick print can't trip a sell.
+
+    Returns (fires, fresh_pnl, eff_peak, why). FAIL-SAFE: bad data ->
+    (False, None, None, ""). Pure; never raises."""
+    try:
+        ep = float(entry_price)
+        tp = float(trail_pp)
+        pk = float(peak_pnl_pct)
+    except (TypeError, ValueError):
+        return False, None, None, ""
+    if ep <= 0 or ep != ep or tp <= 0:
+        return False, None, None, ""
+    seq = [s for s in list(samples or []) if isinstance(s, (int, float)) and s > 0]
+    if len(seq) < max(int(confirm_ticks), 1):
+        return False, None, None, ""
+    pnls = [(s / ep - 1.0) * 100.0 for s in seq]
+    eff_peak = max(pk, max(pnls))
+    line = eff_peak - tp
+    n = max(int(confirm_ticks), 1)
+    newest = pnls[-n:]
+    fresh_pnl = pnls[-1]
+    if all(x <= line for x in newest):
+        why = (f"trail pnl={fresh_pnl:.2f}% <= peak({eff_peak:.2f}%) - "
+               f"{tp:g}pp [fresh x{n}]")
+        return True, fresh_pnl, eff_peak, why
+    return False, fresh_pnl, eff_peak, ""
