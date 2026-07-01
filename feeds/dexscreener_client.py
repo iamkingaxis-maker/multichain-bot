@@ -513,24 +513,39 @@ class DexScreenerClient:
             f"{_DEXS_BASE}/dex/log/amm/v4/{slug}/all/solana/{pool_address}"
             f"?q={quote}&c=1"
         )
-        try:
-            sess = self._ensure_session()
-            resp = await self._run_fetch(
-                sess.get, url, timeout=self._fetch_timeout,
-                headers={
-                    "Origin": "https://dexscreener.com",
-                    "Referer": "https://dexscreener.com/",
-                    "Accept": "*/*",
-                },
-            )
-            if resp.status_code != 200:
-                logger.info(f"[DexScreener] trades {pool_address[:12]}: HTTP {resp.status_code}")
+        # Retry ONCE on a transient timeout/connection error (2026-07-01). The io
+        # endpoint intermittently times out at the 5s budget -> [] -> GT fallback
+        # which STRIPS maker -> unique_buyers_n=0 -> fleet-wide rug-gate. A single
+        # retry recovers most transient misses AND — because a failure only counts
+        # once — keeps the 5-consecutive-fail circuit from tripping and darking the
+        # whole fleet for 5min. HTTP-status errors (slug/404/429) are NOT retried
+        # (retry can't fix them). Maker fetch is off the critical fire path.
+        raw = None
+        for _attempt in range(2):
+            try:
+                sess = self._ensure_session()
+                resp = await self._run_fetch(
+                    sess.get, url, timeout=self._fetch_timeout,
+                    headers={
+                        "Origin": "https://dexscreener.com",
+                        "Referer": "https://dexscreener.com/",
+                        "Accept": "*/*",
+                    },
+                )
+                if resp.status_code != 200:
+                    logger.info(f"[DexScreener] trades {pool_address[:12]}: HTTP {resp.status_code}")
+                    return []
+                raw = resp.content
+                self._record_result(True)
+                break
+            except Exception as e:
+                if _attempt == 0:
+                    await asyncio.sleep(0.3)  # brief backoff, then one retry
+                    continue
+                self._record_result(False)  # count the failure ONLY after the retry
+                logger.info(f"[DexScreener] trades fetch error {pool_address[:12]} (after 1 retry): {e}")
                 return []
-            raw = resp.content
-            self._record_result(True)
-        except Exception as e:
-            self._record_result(False)
-            logger.info(f"[DexScreener] trades fetch error {pool_address[:12]}: {e}")
+        if raw is None:
             return []
 
         trades = parse_trades(raw)[:limit]
