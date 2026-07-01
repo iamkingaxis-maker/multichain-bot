@@ -134,6 +134,16 @@ def analyze(recent_trades: List[Dict[str, Any]]) -> Dict[str, Any]:
         n_recur = sum(1 for c in per_maker_count.values() if c >= 3)
         whale_present = max_buy >= 2000.0
 
+    # 2026-07-01 FIX: maker-derived buyer features are UNKNOWN (None), not 0,
+    # when the trade log carried buys but NO maker field (the GT-fallback path
+    # strips maker; io.dexscreener slug-miss / circuit-open -> GT). Returning 0
+    # made the rug gate (unique_buyers_n==0) + entry demand-floors fail-CLOSED on
+    # a data GAP, darkening ~95% of the fleet when DexScreener trade-log coverage
+    # dropped. None makes those gates fail-OPEN as documented (block only on a
+    # REAL measured 0). Genuine screening is unchanged when maker data IS present;
+    # the other rug shields (rug_bundle, lp_single_sided, liquidity, age) still
+    # apply to unknown-maker tokens. (buys exist here — we passed the buys_v guard.)
+    _maker_known = bool(makers_with_v)
     return {
         "median_buy_size_usd": round(median, 2),
         "p90_buy_size_usd": round(p90, 2),
@@ -144,11 +154,11 @@ def analyze(recent_trades: List[Dict[str, Any]]) -> Dict[str, Any]:
         "buy_sell_volume_imbalance": round(bs_imb, 3),
         "largest_buy_to_largest_sell": round(big_ratio, 2),
         "n_consecutive_buys_at_end": n_consec,
-        "unique_buyers_n": unique_n,
-        "unique_buyer_ratio": round(unique_ratio, 3),
-        "top5_buyer_volume_pct": round(top5_pct, 3),
-        "wash_suspected": wash,
-        "n_recurring_buyers_3plus": n_recur,
+        "unique_buyers_n": unique_n if _maker_known else None,
+        "unique_buyer_ratio": round(unique_ratio, 3) if _maker_known else None,
+        "top5_buyer_volume_pct": round(top5_pct, 3) if _maker_known else None,
+        "wash_suspected": wash if _maker_known else None,
+        "n_recurring_buyers_3plus": n_recur if _maker_known else None,
         "whale_buy_present_2k": whale_present,
         "whale_max_buy_usd": round(whale_max, 2),
     }
