@@ -11731,6 +11731,52 @@ class DipScanner:
                     f"reasons={','.join(_filter_confirm_block_reasons)}"
                 )
 
+            # ── RIP_PULLBACK_ABSORB — SHADOW RECORDER (2026-07-01 rip-day wallet
+            # mine, 5.5k wallets decoded). The ONE surviving rip-day archetype:
+            # on sol_pc_h6>1.5, winners buy an ALREADY-IGNITED young runner on its
+            # first SELL-DOMINANT flush ONLY when a whale-sized buy is absorbing
+            # it, low in the range (FLUSH-ABSORB: 56% WR vs 33% base, +15-23pp
+            # across 25 tokens/42 wallets — conservative-scored; profit soft,
+            # ONE day of data). This records would-fires for the realized
+            # validation bar (n>=30 fires / >=3 rip windows / >=15 tokens ->
+            # mean >+2% & WR>=45% before ANY capital). RIP_ABSORB_MODE=
+            # off|shadow (default shadow; v1 NEVER fires a buy — recorder only).
+            # Mirror of the badday thesis: capitulation met by buyer size.
+            try:
+                _ra_mode = os.environ.get("RIP_ABSORB_MODE", "shadow").strip().lower()
+                if _ra_mode != "off":
+                    _ra_s6 = sol_features.get("sol_pc_h6")
+                    _ra_rip = _ra_s6 is not None and float(_ra_s6) > 1.5
+                    if _ra_rip:
+                        _ra_ignited = pc_h1 is not None and float(pc_h1) >= 25.0
+                        _ra_young = pair_age_hours is not None and float(pair_age_hours) <= 48.0
+                        _ra_nf5 = (_tier3_features or {}).get("net_flow_5m_usd")
+                        _ra_selldom = _ra_nf5 is not None and float(_ra_nf5) <= -100.0
+                        _ra_maxbuy = (_tier2_features or {}).get("buy_size_max_last60s")
+                        _ra_absorb = _ra_maxbuy is not None and float(_ra_maxbuy) >= 75.0
+                        _ra_pos = (range_features or {}).get("pct_in_1h_range") \
+                            if isinstance(locals().get("range_features"), dict) else None
+                        _ra_low = _ra_pos is not None and float(_ra_pos) <= 0.35
+                        _ra_fire = (_ra_ignited and _ra_young and _ra_selldom
+                                    and _ra_absorb and _ra_low)
+                        _ra_why = (f"s6={_ra_s6} ign={_ra_ignited}(pc_h1={pc_h1}) "
+                                   f"young={_ra_young}(age={pair_age_hours}) "
+                                   f"selldom={_ra_selldom}(nf5m={_ra_nf5}) "
+                                   f"absorb={_ra_absorb}(maxbuy60={_ra_maxbuy}) "
+                                   f"low={_ra_low}(pos1h={_ra_pos})")
+                        _v = "PASS" if _ra_fire else "BLOCK"
+                        c[f"rip_absorb_{_v.lower()}"] = c.get(f"rip_absorb_{_v.lower()}", 0) + 1
+                        try:
+                            _filter_verdicts.append(("rip_absorb", _v, _ra_why))
+                        except Exception:
+                            pass
+                        if _ra_fire:
+                            logger.info(
+                                f"[DipScanner] RIP-ABSORB SHADOW would-FIRE: {token_symbol} {_ra_why}"
+                            )
+            except Exception as _ra_e:
+                logger.debug(f"[DipScanner] rip_absorb shadow err: {_ra_e}")
+
             # ── filter_sol_macro_down — ENFORCED 2026-05-21 PM ────────────────
             # Macro SOL regime gate. Mining (.sol_clean_annotated.json,
             # n=4276 lifetime trades with SOL price annotation):
