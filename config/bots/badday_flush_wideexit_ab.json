@@ -1,0 +1,90 @@
+{
+  "age_h_max": null,
+  "age_h_min": 6.0,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 100.0,
+  "bot_id": "badday_flush_wideexit_ab",
+  "btc_macro_h1_block_threshold": null,
+  "daily_loss_limit_usd": 60.0,
+  "display_name": "EXIT A/B (vs badday_flush control): IDENTICAL entry (pc_h1<=-20, nf15>=0, 50-500k mcap, same filters) — the ONLY difference is the exit profile. Tests WIDER STOP + LET-WINNERS-RUN, calibrated from 2590 real trades (winners' median MAE only -1.9%, p90 all-trades MAE -7.8%, p90 peak +22.5% on the 25% we let ride past the old +6% TP). Widened: all early cuts (giveback/pre_stop/never_runner/slow_bleed/fast_bail) pulled from -3..-9 to the -12 hard-stop floor so noise doesn't whipsaw winners; upside uncapped: tp1 +6->+13 selling 30% (was 75%), tp2 +12->+30 selling 30%, trail 2->6pp so the ~40% remainder rides the fat tail. Hypothesis: on a fat-tail book, forfeiting fewer winners to noise-stops + capturing the >+22% tail beats the tight-cap profile. PAPER A/B; compare $/tr + max-drawdown vs badday_flush at n>=30 closes before promoting.",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "unique_buyers_n",
+      ">=",
+      12
+    ],
+    [
+      "wash_suspected",
+      "<=",
+      0
+    ],
+    [
+      "n_recurring_buyers_3plus",
+      ">=",
+      1
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      15000
+    ],
+    [
+      "pc_h1",
+      "<=",
+      -20
+    ],
+    [
+      "net_flow_15s_imbalance",
+      ">=",
+      0
+    ]
+  ],
+  "entry_stack_exempt": true,
+  "fast_bail_pnl_pct": -12.0,
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_btc_overheat",
+    "filter_consec_red",
+    "filter_huge_wick"
+  ],
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -12.0,
+  "hard_stop_pct": -12.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 3,
+  "mcap_max": 500000.0,
+  "mcap_min": 50000.0,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": true,
+  "never_runner_loss_floor": -12.0,
+  "never_runner_minutes": 60,
+  "never_runner_peak_max": 3.0,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": -12.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "regime_dial_exempt": true,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": 60,
+  "slow_bleed_pnl_threshold": -12.0,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "tp1_pct": 13.0,
+  "tp1_sell_fraction": 0.3,
+  "tp2_pct": 30.0,
+  "tp2_sell_fraction": 0.3,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
+  "trail_pp": 6.0,
+  "triggers_allowed": null,
+  "triggers_disabled": [],
+  "vol_h1_min": 1000.0,
+  "young_token_probe": false
+}

@@ -20660,6 +20660,14 @@ class DipScanner:
                 "trigger_source": _trigger_source,
                 "triggers_fired": list(_triggers_fired),
                 "liquidity_usd": float(liq_usd or 0),
+                # Entry-time market cap (2026-07-01) — stamped so exit/selection
+                # calibration can bucket trades BY MCAP (small-caps swing wider ->
+                # need wider stops + more let-winners-run). Was absent, so per-band
+                # exit tuning was impossible from the ledger. From the DexScreener
+                # pair (marketCap, else fdv). None when the payload lacks both.
+                "mcap_usd": (
+                    float(pair.get("marketCap") or pair.get("fdv") or 0) or None
+                ),
                 # 24h volume + TURNOVER (vol_h24 / liquidity) — 2026-06-02. Was NOT stamped,
                 # so the low-turnover / dead-but-liquid hypothesis (the vRse... slow-bleed
                 # cluster: $506k liq but ~$140k/24h vol = ~0.28x turnover) could not be mined.
