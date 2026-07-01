@@ -12,17 +12,12 @@
     [
       "unique_buyers_n",
       ">=",
-      8
+      1
     ],
     [
       "wash_suspected",
       "<=",
       0
-    ],
-    [
-      "n_recurring_buyers_3plus",
-      ">=",
-      1
     ],
     [
       "liquidity_usd",
