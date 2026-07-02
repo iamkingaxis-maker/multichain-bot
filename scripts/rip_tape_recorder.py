@@ -136,21 +136,23 @@ def main():
             log("sol h6 unreadable; retry in 5min")
             time.sleep(IDLE_SLEEP)
             continue
-        if s6 > RIP_THRESHOLD:
-            if not ripping:
-                log(f"=== RIP WINDOW OPEN (sol_h6={s6:+.2f}) — sweeping ===")
-                ripping = True
-            runners = fresh_runners()
-            log(f"sol_h6={s6:+.2f} runners={len(runners)}")
-            if runners:
-                n = asyncio.run(sweep(runners))
-                log(f"sweep done: +{n} new trades")
-            time.sleep(SWEEP_INTERVAL)
-        else:
-            if ripping:
-                log(f"=== rip window closed (sol_h6={s6:+.2f}) ===")
-                ripping = False
-            time.sleep(IDLE_SLEEP)
+        # ALWAYS-ON sweeping (2026-07-02, absorption decode v2): tape-window
+        # coverage was the new bottleneck (56% of labeled flushes lost to tape
+        # gaps; died-class accrual ~5 pairs/day). Sweeping every cycle — not
+        # just SOL rips — triples flush coverage at zero Railway cost (all
+        # calls originate locally). The rip flag now only tags the log.
+        if s6 > RIP_THRESHOLD and not ripping:
+            log(f"=== RIP WINDOW OPEN (sol_h6={s6:+.2f}) ===")
+            ripping = True
+        elif s6 <= RIP_THRESHOLD and ripping:
+            log(f"=== rip window closed (sol_h6={s6:+.2f}) ===")
+            ripping = False
+        runners = fresh_runners()
+        log(f"sol_h6={s6:+.2f} rip={ripping} runners={len(runners)}")
+        if runners:
+            n = asyncio.run(sweep(runners))
+            log(f"sweep done: +{n} new trades")
+        time.sleep(SWEEP_INTERVAL)
 
 
 if __name__ == "__main__":
