@@ -2543,6 +2543,25 @@ class DipScanner:
         # both time halves + dropTop). NF5M_TOXIC_MODE=off|shadow|enforce
         # (default off -> shipped shadow via env). badday_ only, FAIL-OPEN.
         # Enforce bar: shadow-blocked realized mean <= -2 at n>=30 tokens. ──
+        # ── STOPOUT COOLDOWN (GAPLA 2026-07-02): after any badday bot books a
+        # <=-10% exit on a token, the WHOLE fleet skips new entries in it for
+        # STOPOUT_COOLDOWN_MINS (default 20; 0 disables). Kills the instant-
+        # rebuy-the-same-knife artifact (fleet re-entered GAPLA 80s after a
+        # -17 gap-through; rebuy artifact ~= half of historical $ losses).
+        # Mechanical anti-pattern guard, not a selection signal — enforce.
+        try:
+            _sc_mins = float(os.environ.get("STOPOUT_COOLDOWN_MINS", "20"))
+        except (TypeError, ValueError):
+            _sc_mins = 20.0
+        if _sc_mins > 0 and str(bot_id).startswith("badday_"):
+            _sc = getattr(self, "_stopout_cooldown_ts", None) or {}
+            _sc_ts = _sc.get(str(decision.token).lower())
+            if _sc_ts is not None and (now - _sc_ts) < _sc_mins * 60:
+                logger.info(
+                    "[DipScanner] bot=%s STOPOUT-COOLDOWN skip %s (%.0fs since "
+                    "deep stop, cooldown %.0fm)", bot_id, decision.token,
+                    now - _sc_ts, _sc_mins)
+                return
         _nt_mode = os.environ.get("NF5M_TOXIC_MODE", "off").lower()
         if _nt_mode != "off" and str(bot_id).startswith("badday_"):
             from core.bot_evaluator import nf5m_toxic_zone_blocks as _ntb
@@ -5513,6 +5532,19 @@ class DipScanner:
             # bad-price guard in close_position — skip rather than book garbage
             logger.warning("[DipScanner] close_position rejected bad price: %s", _e)
             return
+        # STOPOUT COOLDOWN stamp (GAPLA 2026-07-02): a deep stop-out marks the
+        # token untouchable for STOPOUT_COOLDOWN_MINS fleet-wide — the fleet
+        # re-bought GAPLA 80s after a -17 gap-through stop and ate a 2nd round
+        # (the documented rebuy artifact ~= half of historical $ losses).
+        try:
+            if float(getattr(result, "pnl_pct", 0) or 0) <= -10.0:
+                _sc = getattr(self, "_stopout_cooldown_ts", None)
+                if _sc is None:
+                    _sc = {}
+                    self._stopout_cooldown_ts = _sc
+                _sc[str(token).lower()] = now
+        except Exception:
+            pass
         if result.cost_usd <= 0:
             return  # nothing left to sell (remaining_fraction already ~0)
         capital.realize_sell(
