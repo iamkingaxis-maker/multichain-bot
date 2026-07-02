@@ -28,6 +28,16 @@ STATE = os.path.join("scratchpad", "market_watch_state.json")
 SOL_PAIR = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"
 
 
+def _dash_auth_header():
+    """Basic-auth header for the bot's write endpoints (MW_DASH_USER/PASS env,
+    injected at launch — never persisted)."""
+    import base64
+    u, pw = os.environ.get("MW_DASH_USER", ""), os.environ.get("MW_DASH_PASS", "")
+    if not u or not pw:
+        return {}
+    return {"Authorization": "Basic " + base64.b64encode(f"{u}:{pw}".encode()).decode()}
+
+
 def get(url, timeout=25):
     req = urllib.request.Request(url, headers={
         "User-Agent": "Mozilla/5.0", "Accept-Encoding": "gzip"})
@@ -68,7 +78,8 @@ def inject_watchlist(state, addr, sym):
         body = json.dumps({"address": addr}).encode()
         req = urllib.request.Request(f"{DASH}/api/user-watchlist/add", data=body,
                                      headers={"Content-Type": "application/json",
-                                              "User-Agent": "mw/1"})
+                                              "User-Agent": "mw/1",
+                                              **_dash_auth_header()})
         urllib.request.urlopen(req, timeout=15)
         inj[addr] = time.time()
         emit("INJECTED", f"{sym} -> scanner watchlist (24h pin)")
@@ -85,7 +96,8 @@ def expire_injections(state):
                 req = urllib.request.Request(f"{DASH}/api/user-watchlist/remove",
                                              data=body,
                                              headers={"Content-Type": "application/json",
-                                                      "User-Agent": "mw/1"})
+                                                      "User-Agent": "mw/1",
+                                                      **_dash_auth_header()})
                 try:
                     urllib.request.urlopen(req, timeout=15)
                 except Exception:
