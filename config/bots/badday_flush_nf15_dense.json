@@ -89,7 +89,9 @@
   "trading_hour_utc_start": 8,
   "trail_pp": 2.0,
   "triggers_allowed": null,
-  "triggers_disabled": [],
+  "triggers_disabled": [
+    "demand_bottom_compound"
+  ],
   "vol_h1_min": 1000.0,
   "young_token_probe": false,
   "exclusion_pool": "badday_flush_nf15_dense"
