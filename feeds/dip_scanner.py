@@ -6526,6 +6526,17 @@ class DipScanner:
                         "[trail-reprice] SHADOW bot=%s token=%s fresh_pnl=%.2f "
                         "eff_peak=%.2f trail=%.1f (%s)",
                         bot_id, p.token, fresh_pnl, eff_peak, trail_pp, why)
+                    # durable record (log buffer rotates) — reuse the
+                    # exit-reprice JSONL sink with a kind marker
+                    self._append_exit_reprice_shadow({
+                        "kind": "trail_reprice", "ts": now, "bot": bot_id,
+                        "token": p.token, "addr": addr,
+                        "fresh_pnl": round(fresh_pnl, 4),
+                        "eff_peak": round(eff_peak, 4),
+                        "trail_pp": trail_pp,
+                        "secs_since_entry": int(now - p.entry_time),
+                        "why": why,
+                    })
                     if sb is not None:
                         sb["trail_reprice_shadow_fired"] = True
                         sb["trail_reprice_shadow_pnl"] = round(fresh_pnl, 4)
