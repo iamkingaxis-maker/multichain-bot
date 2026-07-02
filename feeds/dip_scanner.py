@@ -2515,6 +2515,26 @@ class DipScanner:
                 logger.info("[DipScanner] bot=%s GREEN-DAY %s: %s %s", bot_id,
                             "enforce skip" if _gd_mode == "enforce" else "SHADOW-would-block",
                             _gd_why, decision.token)
+                # durable verdict (2026-07-02): the rip-window blocked cohort
+                # bounced +33..+84 on today's tape — the enforce decision must
+                # be adjudicable from persistent records, not the rotating log.
+                try:
+                    _gd_taddr = (decision.address
+                                 or self._addr_by_token.get(decision.token, ""))
+                    _gd_seen = getattr(self, "_gd_verdict_seen", None)
+                    if _gd_seen is None:
+                        _gd_seen = set()
+                        self._gd_verdict_seen = _gd_seen
+                    _gd_key = (_gd_taddr or decision.token or "").lower()
+                    if _gd_key not in _gd_seen:
+                        _gd_seen.add(_gd_key)
+                        from feeds.filter_shadow_recorder import record_verdict as _rv12
+                        _rv12(token_address=_gd_taddr, token_symbol=decision.token,
+                              pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                              filter_name="green_day_gate",
+                              verdict="BLOCK", reasons=_gd_why)
+                except Exception:
+                    pass
                 if _gd_mode == "enforce":
                     return
         # ── NF5M TOXIC-ZONE gate (wallet-flow mine 2026-07-02): block the
