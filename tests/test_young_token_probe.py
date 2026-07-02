@@ -87,7 +87,8 @@ def _mk(probe_bot, age):
     ds.trade_store = None
     ds.trader = types.SimpleNamespace(private_key="")
     ds._token_registry = None
-    ds._addr_by_token = {}
+    from collections import OrderedDict
+    ds._addr_by_token = OrderedDict()
     dec = types.SimpleNamespace(bot_id="b", token="T", address="addr", pair_address="pair",
                                 entry_price=1.0, size_usd=20.0, size_tier="base", triggers_fired=[])
     bundle = types.SimpleNamespace(raw_meta={"age_hours": age})
