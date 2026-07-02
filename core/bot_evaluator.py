@@ -834,6 +834,31 @@ def _oversold_held_thresholds() -> tuple[float, float]:
     return rsi_max, dev_min
 
 
+def nf5m_toxic_zone_blocks(net_flow_5m_usd, lo=0.0, hi=300.0) -> tuple[bool, str]:
+    """NF5M TOXIC-ZONE gate (wallet-flow mine 2026-07-02). The 'weak bounce
+    already started' band: entries with net_flow_5m_usd in [0, +300) were the
+    single most robust losing cell in the study — full book n=27 tokens,
+    mean -3.37 / 11% win / 33% never-green, holds BOTH time halves AND
+    drop-top-token; additive on the re-derived entry stack (+0.71pp/token,
+    +8.2pp win, -6.3pp never-green at 18% volume cost). Interpretation: a
+    small positive 5m inflow at a deep dip = the weak bounce ALREADY happened
+    and fizzled — we're buying the failed recovery, not the turn. STRONG
+    outflow (still capitulating) or REAL inflow (>=$300) are both fine.
+    FAIL-OPEN on missing/garbage. Do NOT ship the stricter 'require nf<0'
+    variant — it failed the early time-half. Pure; never raises."""
+    try:
+        v = None if (net_flow_5m_usd is None or isinstance(net_flow_5m_usd, bool)) \
+            else float(net_flow_5m_usd)
+    except (TypeError, ValueError):
+        return False, "nf5m missing -> allow"
+    if v is None or v != v:
+        return False, "nf5m missing -> allow"
+    if lo <= v < hi:
+        return True, (f"nf5m_toxic_zone: net_flow_5m_usd=${v:+.0f} in "
+                      f"[{lo:g},{hi:g}) (weak bounce already fizzled)")
+    return False, f"nf5m=${v:+.0f} outside toxic zone -> allow"
+
+
 def green_day_blocks(sol_pc_h6, sol_pc_h1, pc_h6, rsi_15m,
                      dev_pct_remaining) -> tuple[bool, str]:
     """GREEN-DAY regime gate (measured 2026-07-01, 892-position honest book):

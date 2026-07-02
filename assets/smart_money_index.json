@@ -2,15 +2,8 @@
  "version": 2,
  "generated_at": "2026-07-01T21:31:45Z",
  "smart_threshold": 2,
- "note": "v2 2026-07-01: merged externally-validated winners \u2014 23-wallet greenday decode (06-29) + ripday mine repeatable winners (>=3 profitable tokens, covered-net) + prior index survivors (winners>=2, wr>=50%). Signal feeds smart_wallet_count_* (shadow/entry_meta only). | 2026-07-01 wallet-mine: identity signals DEAD for badday entry (top-5 maker coverage too sparse; holdout 0-1/24); index is for green/rip context only.",
+ "note": "v2 2026-07-01: merged externally-validated winners \u2014 23-wallet greenday decode (06-29) + ripday mine repeatable winners (>=3 profitable tokens, covered-net) + prior index survivors (winners>=2, wr>=50%). Signal feeds smart_wallet_count_* (shadow/entry_meta only). | 2026-07-01 wallet-mine: identity signals DEAD for badday entry (top-5 maker coverage too sparse; holdout 0-1/24); index is for green/rip context only. | v2.1: kill-listed bot-farm wallets removed (tape lens: AgmLJBMD=43% of tokens, volume-proportional noise).",
  "wallets": {
-  "AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51": {
-   "winners": 5,
-   "losers": 1,
-   "win_rate": 0.833,
-   "total_volume_usd": 2229.93,
-   "avg_winner_volume_usd": 427.57
-  },
   "FJ5VHAMLLsLqpzA3xgFt2PawvMFXjyDprDfe3qvcycxd": {
    "winners": 2,
    "losers": 1,

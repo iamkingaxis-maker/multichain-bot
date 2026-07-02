@@ -2517,6 +2517,46 @@ class DipScanner:
                             _gd_why, decision.token)
                 if _gd_mode == "enforce":
                     return
+        # ── NF5M TOXIC-ZONE gate (wallet-flow mine 2026-07-02): block the
+        # 'weak bounce already fizzled' band net_flow_5m_usd in [0,+300) —
+        # most robust losing cell in the study (27 tok, -3.37 mean, 11% win,
+        # both time halves + dropTop). NF5M_TOXIC_MODE=off|shadow|enforce
+        # (default off -> shipped shadow via env). badday_ only, FAIL-OPEN.
+        # Enforce bar: shadow-blocked realized mean <= -2 at n>=30 tokens. ──
+        _nt_mode = os.environ.get("NF5M_TOXIC_MODE", "off").lower()
+        if _nt_mode != "off" and str(bot_id).startswith("badday_"):
+            from core.bot_evaluator import nf5m_toxic_zone_blocks as _ntb
+            _nt_v = getattr(bundle, "net_flow_5m_usd", None)
+            if _nt_v is None:
+                _nt_v = _ar_meta.get("net_flow_5m_usd")
+            try:
+                _nt_block, _nt_why = _ntb(_nt_v)
+            except Exception:
+                _nt_block, _nt_why = (False, "nf5m eval error -> allow")
+            _nt_taddr = (decision.address
+                         or self._addr_by_token.get(decision.token, ""))
+            try:
+                _nt_seen = getattr(self, "_nt_shadow_seen", None)
+                if _nt_seen is None:
+                    _nt_seen = set()
+                    self._nt_shadow_seen = _nt_seen
+                _nt_key = (_nt_taddr or decision.token or "").lower()
+                if _nt_key not in _nt_seen:
+                    _nt_seen.add(_nt_key)
+                    from feeds.filter_shadow_recorder import record_verdict as _rv11
+                    _rv11(token_address=_nt_taddr, token_symbol=decision.token,
+                          pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                          filter_name="nf5m_toxic_zone",
+                          verdict=("BLOCK" if _nt_block else "PASS"),
+                          reasons=_nt_why)
+            except Exception:
+                pass
+            if _nt_block:
+                logger.info("[DipScanner] bot=%s NF5M-TOXIC %s: %s %s", bot_id,
+                            "enforce skip" if _nt_mode == "enforce" else "SHADOW-would-block",
+                            _nt_why, decision.token)
+                if _nt_mode == "enforce":
+                    return
         # ── Patient-sleeve ENTRY GATE (2026-06-26): hold ONLY winner-selected +tail
         # entries. Per-bot (winner_select_entry flag); FAIL-CLOSED (missing signal ->
         # skip). The sleeve's entry filter for the patient-hold A/B; no effect on any
