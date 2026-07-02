@@ -179,7 +179,29 @@ def main():
                         state[key] = 1
                         emit("BUY-STALL", f"buys last2h={last2} vs 12h-rate {base_rate:.1f}/2h "
                                           f"(open={open_n}) — check the funnel")
-            our_tokens = {str(t.get("token")).lower() for t in buys[-120:]}
+            our_tokens = {str(t.get("token")).lower() for t in buys[-300:]}
+
+            # LOSS-EVENT (standing rule 2026-07-02: every loss gets analyzed):
+            # per-token fleet net <= -40pp within the last 2h -> alert for
+            # immediate root-cause analysis (gap-through? rebuy? new mode?)
+            try:
+                import datetime as _dt
+                _cut2 = (now - _dt.timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M")
+                _tok_net = {}
+                for t in arr:
+                    if (t.get("type") == "sell" and t.get("pnl_pct") is not None
+                            and str(t.get("time", "")) > _cut2):
+                        _tok_net[t.get("token")] = _tok_net.get(t.get("token"), 0.0) +                             float(t["pnl_pct"]) * (t.get("sell_fraction") or 1.0)
+                _seen_loss = state.setdefault("loss_seen", {})
+                for tok, netpp in _tok_net.items():
+                    if netpp <= -40:
+                        k = f"loss_{str(tok).lower()}"
+                        if time.time() - _seen_loss.get(k, 0) > 4 * 3600:
+                            _seen_loss[k] = time.time()
+                            emit("LOSS-EVENT", f"{tok} fleet net {netpp:+.0f}pp in 2h — "
+                                               f"root-cause analysis required")
+            except Exception:
+                pass
 
             # --- missed winners in our band (source = the fleet's own broad
             # scan via universe-recorder; the DexScreener q=SOL search proved
