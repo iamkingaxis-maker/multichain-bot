@@ -34,15 +34,27 @@ from typing import Any, Dict, List
 def _empty() -> Dict[str, Any]:
     return {
         # Order-size distribution
-        "median_buy_size_usd": 0.0,
-        "p90_buy_size_usd": 0.0,
-        "mean_buy_size_usd": 0.0,
+        # 2026-07-02 FIX (missing-data-read-as-zero bug-class sweep): the size/
+        # ratio keys are None (UNKNOWN), not 0/0.5, in the empty/no-buys case.
+        # An empty trade log here is overwhelmingly a FETCH FAILURE (same class
+        # as the 07-01 maker-key fix below), and a fabricated 0 defeated the
+        # None-safe fail-open gates downstream: full_thesis_cohort_eval read
+        # median=0.0 as "buyer$0<34.3 -> BLOCK" (FULL_THESIS_COHORT_MODE=enforce
+        # darked entries on a data gap), filter_premium_required read p90=0.0 as
+        # premium-known-and-failing -> BLOCK, and the trigger-state gates read
+        # buy_sell_volume_imbalance=0.5 as a real neutral flow measurement.
+        # None -> every consumer's isinstance/is-not-None guard fails open.
+        # Counts/flags (n_large_*, n_consecutive, whale_*) keep their historical
+        # defaults: no blocking-direction consumer exists for them.
+        "median_buy_size_usd": None,
+        "p90_buy_size_usd": None,
+        "mean_buy_size_usd": None,
         "n_large_buys_500_30m": 0,
         "n_large_buys_2000_30m": 0,
-        "large_buyer_volume_pct": 0.0,
+        "large_buyer_volume_pct": None,
         # Buy/sell asymmetry
-        "buy_sell_volume_imbalance": 0.5,
-        "largest_buy_to_largest_sell": 0.0,
+        "buy_sell_volume_imbalance": None,
+        "largest_buy_to_largest_sell": None,
         "n_consecutive_buys_at_end": 0,
         # Wash-detection / buyer-uniqueness (requires maker address — only
         # populated when DexScreener trade-log was used; GT fallback strips

@@ -183,14 +183,25 @@ def extract_top_makers(
       top_buy_makers       — list of {addr, volume_usd, n_buys}
       top_buy_makers_n     — total unique buyer count
 
-    Fail-open: returns {"top_buy_makers": [], "top_buy_makers_n": 0} on
+    Fail-open: returns {"top_buy_makers": [], "top_buy_makers_n": None} on
     bad input.
+
+    2026-07-02 FIX (missing-data-read-as-zero bug-class sweep): top_buy_makers_n
+    is None (UNKNOWN), not 0, when no maker-tagged buys exist. An empty/maker-
+    stripped trade log (io.dexscreener timeout / GT fallback strips maker) is a
+    DATA GAP, not a measurement of buyer concentration — the fabricated 0 made
+    the whale_concentrated_demand / whale_recent_burst / whale_p90_size triggers
+    read "top_buy_makers_n=0 < 9 (concentrated!)" on missing data and half-fire
+    on tokens whose buyer count was simply unknown. When maker data IS present,
+    n >= 1 by construction, so None is unambiguous. All consumers are
+    is-not-None guarded (dip_scanner whale triggers, FeatureBundle Optional,
+    missed_reject_diagnosis).
     """
     if not recent_trades:
-        return {"top_buy_makers": [], "top_buy_makers_n": 0}
+        return {"top_buy_makers": [], "top_buy_makers_n": None}
     buys = [t for t in recent_trades if t.get("kind") == "buy" and t.get("maker")]
     if not buys:
-        return {"top_buy_makers": [], "top_buy_makers_n": 0}
+        return {"top_buy_makers": [], "top_buy_makers_n": None}
     per_maker_vol: Dict[str, float] = {}
     per_maker_count: Dict[str, int] = {}
     for t in buys:

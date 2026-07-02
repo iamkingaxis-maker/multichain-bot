@@ -2099,7 +2099,16 @@ class DipScanner:
             _ppc_h24 = _ar_meta.get("pc_h24")
             if _ppc_h24 is None:
                 _ppc_h24 = getattr(bundle, "pc_h24", None)
-            _ppc_bpm = _ar_meta.get("buys_per_min_recent")
+            # 2026-07-02 FIX (missing-data-read-as-zero bug-class sweep — the
+            # ELON false-block twin of the main-scan corpse fix a1ef294): the
+            # armed meta's buys_per_min_recent is trade_velocity's blank 0.0
+            # when the arm-time trade fetch failed/returned empty, and the
+            # calm-branch (pc_h24>=200 AND bpm<=2) read that fabricated 0 as
+            # "dead tape". Only pass bpm when the arm snapshot carried REAL
+            # tape (rt_n from recent_trades_features, merged only when trades
+            # were fetched); no tape => bpm unknown (None) => gate fail-opens.
+            _ppc_bpm = (_ar_meta.get("buys_per_min_recent")
+                        if _ar_meta.get("rt_n") else None)
             from core.bot_evaluator import post_pump_corpse_blocks as _ppcb
             _ppc_block, _ppc_why = _ppcb(_ppc_h1, _ppc_h24, _ppc_bpm)
             _ppc_taddr = (decision.address
@@ -11790,9 +11799,22 @@ class DipScanner:
             try:
                 _bsw_val = float(ratio_m5) if ratio_m5 != float("inf") else None
                 if _bsw_val is not None and _bsw_val < 1.0:
-                    _ub_n = _trade_log_dict.get('unique_buyers_n') or 0
+                    # 2026-07-02 FIX (missing-data-read-as-zero bug-class sweep):
+                    # unique_buyers_n is None on a fetch failure / maker-stripped
+                    # GT-fallback tape since the 07-01 maker fix — the old `or 0`
+                    # re-fabricated the zero and read the data gap as "few unique
+                    # buyers -> no rescue -> BLOCK". Conclude <12 only from a
+                    # MEASURED number; unknown => fail-open (no block).
+                    # NOTE (inventory, not changed here): the net_flow_15s_n
+                    # lookup reads _trade_log_dict, which never emits that key
+                    # (it's a tier3 net-flow key), so that rescue arm has always
+                    # been inert — left as-is to avoid changing the filter's
+                    # behavior on real data; flagged for review.
+                    _ub_n = _trade_log_dict.get('unique_buyers_n')
                     _nf15 = _trade_log_dict.get('net_flow_15s_n') or 0
-                    if _ub_n < 12 and _nf15 < 4:
+                    _ub_low = (isinstance(_ub_n, (int, float))
+                               and not isinstance(_ub_n, bool) and _ub_n < 12)
+                    if _ub_low and _nf15 < 4:
                         _filter_bs_m5_weak_block_reasons.append(
                             f"bs_m5={_bsw_val:.2f}<1.0 AND no rescue "
                             f"(unique_buyers_n={_ub_n}<12 AND net_flow_15s_n={_nf15}<4)"

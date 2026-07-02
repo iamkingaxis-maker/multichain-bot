@@ -47,7 +47,18 @@ def analyze(recent_trades: List[Dict[str, Any]]) -> Dict[str, Any]:
         "buy_burst_30s_count": 0,
         "sell_burst_30s_count": 0,
         "max_burst_size_30s": 0,
-        "buy_pressure_60s": 0.5,
+        # 2026-07-02 FIX (missing-data-read-as-zero bug-class sweep): an empty
+        # trade list here is overwhelmingly a FETCH FAILURE, and the fabricated
+        # neutral 0.5 was consumed by the trigger-state gates (informed_cluster
+        # <=0.40 / swing_structure_rsi >=0.57) as a REAL flow measurement —
+        # dropping triggers in BOTH directions on a data gap. None -> the
+        # gates' isinstance guards fail open ("na"). The other blank keys keep
+        # their historical defaults deliberately: the corpse gates now guard on
+        # real tape at their call sites, filter_high_activity_fomo blocks only
+        # on HIGH bpm (0 = pass), and filter_fake_bounce's calm-tape carve-out
+        # RESCUES (allows) on spm=0 — flipping those to None would make missing
+        # data MORE blocking, the opposite of this bug class's fix direction.
+        "buy_pressure_60s": None,
         "trade_density_30s_vs_5m": 0.0,
         "velocity_verdict": "QUIET",
     }
