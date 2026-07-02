@@ -147,8 +147,15 @@ def main():
                             continue
                         k = f"mw_{sym.lower()}"
                         if time.time() - seen_alerts.get(k, 0) > 6 * 3600:
-                            seen_alerts[k] = time.time()
                             dd, at, nb = chart_dip_check(e.get("pair_address") or "")
+                            if dd is None:
+                                # GT throttled — do NOT mark seen; re-verify next cycle
+                                # (cap retries via a short 20-min soft mark)
+                                if time.time() - seen_alerts.get(k + "_na", 0) < 1200:
+                                    continue
+                                seen_alerts[k + "_na"] = time.time()
+                            else:
+                                seen_alerts[k] = time.time()
                             if dd is None:
                                 tag = "chart n/a"
                             elif dd <= -85:
