@@ -20028,7 +20028,12 @@ class DipScanner:
             try:
                 _ppc_pc_h1 = pc_h1
                 _ppc_pc_h24 = pc_h24
-                _ppc_bpm = (_velocity_dict or {}).get("buys_per_min_recent")
+                # ELON 2026-07-02: empty/failed trade fetch -> analyze() blank
+                # default bpm=0.0 -> a token doing ~126 buys/min read as "calm"
+                # -> corpse-blocked a 2x runner. The calm-branch may only fire
+                # on REAL tape: no trades fetched => bpm unknown => fail-open.
+                _ppc_bpm = ((_velocity_dict or {}).get("buys_per_min_recent")
+                            if recent_trades else None)
                 # (a) extreme h1 pump
                 if isinstance(_ppc_pc_h1, (int, float)) and _ppc_pc_h1 >= 500.0:
                     _filter_corpse_pump_block_reasons.append(
