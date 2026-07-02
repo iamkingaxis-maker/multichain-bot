@@ -5744,6 +5744,25 @@ class WebDashboard:
             except Exception:
                 stats["drawdown"] = {}
 
+        # EGRESS FIX (2026-07-02, $13.65/273GB billing line): recent_trades
+        # records carried full entry_meta (~32KB each -> 1.62MB of the 1.71MB
+        # /api/stats payload) and the dashboard polls this endpoint all day.
+        # Slim to the fields the UI renders; full records stay on /api/trades.
+        try:
+            _RT_KEEP = ("token", "address", "bot_id", "type", "time", "pnl_pct",
+                        "pnl_usd", "amount_usd", "entry_price", "exit_price",
+                        "price", "sell_fraction", "exit_kind", "exit_reason",
+                        "strategy", "chain", "peak_pnl_pct")
+            _rt = stats.get("recent_trades")
+            if isinstance(_rt, list) and _rt:
+                stats["recent_trades"] = [
+                    {k: t.get(k) for k in _RT_KEEP if k in t}
+                    if isinstance(t, dict) else t
+                    for t in _rt[:50]
+                ]
+        except Exception:
+            pass
+
         # Attach slippage stats from paper simulator
         if self._trader is not None:
             slip_sim = getattr(self._trader, "paper_slippage", None)
