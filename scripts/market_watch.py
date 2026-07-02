@@ -56,6 +56,33 @@ def emit(tag, msg):
     print(f"[{tag}] {msg}", flush=True)
 
 
+def chart_dip_check(pair_address):
+    """GT minute bars -> (max_drawdown_pct, at_hhmm, n_bars). The recorder
+    only samples tokens at runner moments, so dip existence MUST come from
+    the chart (2026-07-02 lesson: 7/7 'pump-only' labels were wrong).
+    Fail-open: any error -> (None, None, 0). Paced by the 6h alert dedup."""
+    try:
+        q = get(f"https://api.geckoterminal.com/api/v2/networks/solana/pools/"
+                f"{pair_address}/ohlcv/minute?aggregate=1&limit=360")
+        bars = sorted(((q.get("data") or {}).get("attributes") or {})
+                      .get("ohlcv_list") or [])
+        if len(bars) < 15:
+            return None, None, len(bars)
+        rollhi = 0.0
+        maxdd = 0.0
+        at = ""
+        for b in bars:
+            c = float(b[4])
+            rollhi = max(rollhi, c)
+            dd = (c / rollhi - 1) * 100 if rollhi > 0 else 0
+            if dd < maxdd:
+                maxdd = dd
+                at = time.strftime("%H:%M", time.gmtime(b[0]))
+        return maxdd, at, len(bars)
+    except Exception:
+        return None, None, 0
+
+
 def main():
     state = load_state()
     fails = 0
@@ -121,8 +148,17 @@ def main():
                         k = f"mw_{sym.lower()}"
                         if time.time() - seen_alerts.get(k, 0) > 6 * 3600:
                             seen_alerts[k] = time.time()
-                            emit("MISSED-WINNER", f"{sym} peaked +{pk:.0f}% (recorder) — "
-                                                  f"scanned but never bought")
+                            dd, at, nb = chart_dip_check(e.get("pair_address") or "")
+                            if dd is None:
+                                tag = "chart n/a"
+                            elif dd <= -85:
+                                tag = f"TERMINAL {dd:+.0f}% @{at} — avoided rug, not a miss"
+                            elif dd <= -20:
+                                tag = f"REAL DIP {dd:+.0f}% @{at} — in-thesis miss"
+                            else:
+                                tag = f"shallow ({dd:+.0f}%) — momentum-only"
+                            emit("MISSED-WINNER", f"{sym} peaked +{pk:.0f}% | {tag}")
+                            time.sleep(3.2)
                     except Exception:
                         continue
             except Exception:
