@@ -6,7 +6,7 @@
   "bot_id": "badday_flush_nf15",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
-  "display_name": "WIN-SIG A/B of badday_flush (2026-06-16 campaign). +1 entry clause: net_flow_15s_imbalance >= 0. net_flow_15s>=0 = demand turned (the proven badday find, recurs in 3 bots). Expect: cut ~50% losers / keep 66% winners, WR 56->63%. Control=badday_flush. PRE-REG: judge loser-cut vs winner-keep + $/tr vs control at n>=30; promote the clause to badday_flush only if it lifts $/tr. paper, single-variable A/B.",
+  "display_name": "NO-RECUR A/B (2026-07-02, was nf15 clone slated for retirement): IDENTICAL to badday_flush EXCEPT n_recurring_buyers_3plus>=1 REMOVED. Evidence: the recur wall blocked 5/9 of today's chart-verified missed dips (PEACE -26->+53, TRENCH -32->+84, RUSH, TMB, KALEO); allday (no recur) outperformed the family +4.82 vs +2.3/token on the same tape; historically a thin-fetch artifact. Judge vs badday_flush matched-pair at n>=30 common tokens on honest_book scrubbed per-token.",
   "enabled": true,
   "entry_gate": [
     [
@@ -18,11 +18,6 @@
       "wash_suspected",
       "<=",
       0
-    ],
-    [
-      "n_recurring_buyers_3plus",
-      ">=",
-      1
     ],
     [
       "liquidity_usd",
