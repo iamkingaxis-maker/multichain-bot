@@ -2,7 +2,7 @@
  "version": 2,
  "generated_at": "2026-07-01T21:31:45Z",
  "smart_threshold": 2,
- "note": "v2 2026-07-01: merged externally-validated winners \u2014 23-wallet greenday decode (06-29) + ripday mine repeatable winners (>=3 profitable tokens, covered-net) + prior index survivors (winners>=2, wr>=50%). Signal feeds smart_wallet_count_* (shadow/entry_meta only).",
+ "note": "v2 2026-07-01: merged externally-validated winners \u2014 23-wallet greenday decode (06-29) + ripday mine repeatable winners (>=3 profitable tokens, covered-net) + prior index survivors (winners>=2, wr>=50%). Signal feeds smart_wallet_count_* (shadow/entry_meta only). | 2026-07-01 wallet-mine: identity signals DEAD for badday entry (top-5 maker coverage too sparse; holdout 0-1/24); index is for green/rip context only.",
  "wallets": {
   "AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51": {
    "winners": 5,
@@ -343,7 +343,8 @@
    "win_rate": 0.75,
    "total_volume_usd": 291.78,
    "avg_winner_volume_usd": 0.0,
-   "source": "ripday_mine_2026_07_01"
+   "source": "ripday_mine_2026_07_01",
+   "badday_association": "1W/8L on our entries (2026-07-01 mine) \u2014 demotion review; do NOT weight for badday"
   }
  }
 }
