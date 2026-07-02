@@ -103,24 +103,28 @@ def main():
                                           f"(open={open_n}) — check the funnel")
             our_tokens = {str(t.get("token")).lower() for t in buys[-120:]}
 
-            # --- missed winners in our band ---
+            # --- missed winners in our band (source = the fleet's own broad
+            # scan via universe-recorder; the DexScreener q=SOL search proved
+            # near-blind for band movers 2026-07-02) ---
             try:
-                d = get("https://api.dexscreener.com/latest/dex/search?q=SOL&chainId=solana")
+                d = get(f"{DASH}/api/universe-recorder?limit=800")
+                events = d.get("events", d) if isinstance(d, dict) else d
                 seen_alerts = state.setdefault("mw_seen", {})
-                for p in (d.get("pairs") or [])[:80]:
-                    if p.get("chainId") != "solana":
-                        continue
-                    mc = p.get("marketCap") or p.get("fdv") or 0
-                    h1p = float((p.get("priceChange") or {}).get("h1") or 0)
-                    vol1 = float((p.get("volume") or {}).get("h1") or 0)
-                    sym = str((p.get("baseToken") or {}).get("symbol") or "?")
-                    if (50_000 <= float(mc) <= 1e9 and h1p >= 30 and vol1 >= 50_000
-                            and sym.lower() not in our_tokens):
+                cut = time.time() - 3 * 3600
+                for e in (events or []):
+                    try:
+                        pk = float(e.get("peak_pct") or 0)
+                        ts_e = float(e.get("event_ts") or e.get("ts") or 0)
+                        sym = str(e.get("symbol") or e.get("token_symbol") or "?")
+                        if pk < 30 or ts_e < cut or sym.lower() in our_tokens:
+                            continue
                         k = f"mw_{sym.lower()}"
                         if time.time() - seen_alerts.get(k, 0) > 6 * 3600:
                             seen_alerts[k] = time.time()
-                            emit("MISSED-WINNER", f"{sym} +{h1p:.0f}%/h1 vol1h=${vol1/1e3:.0f}k "
-                                                  f"mc=${float(mc)/1e6:.2f}M — in band, no position")
+                            emit("MISSED-WINNER", f"{sym} peaked +{pk:.0f}% (recorder) — "
+                                                  f"scanned but never bought")
+                    except Exception:
+                        continue
             except Exception:
                 pass
         except Exception as e:
