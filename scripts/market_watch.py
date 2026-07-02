@@ -137,13 +137,13 @@ def main():
                 d = get(f"{DASH}/api/universe-recorder?limit=800")
                 events = d.get("events", d) if isinstance(d, dict) else d
                 seen_alerts = state.setdefault("mw_seen", {})
-                cut = time.time() - 3 * 3600
+                cut = time.time() - 6 * 3600
                 for e in (events or []):
                     try:
                         pk = float(e.get("peak_pct") or 0)
                         ts_e = float(e.get("event_ts") or e.get("ts") or 0)
                         sym = str(e.get("symbol") or e.get("token_symbol") or "?")
-                        if pk < 30 or ts_e < cut or sym.lower() in our_tokens:
+                        if pk < 20 or ts_e < cut or sym.lower() in our_tokens:
                             continue
                         k = f"mw_{sym.lower()}"
                         if time.time() - seen_alerts.get(k, 0) > 6 * 3600:
@@ -161,6 +161,48 @@ def main():
                             time.sleep(3.2)
                     except Exception:
                         continue
+            except Exception:
+                pass
+            # --- fresh listings + trending (outside our scanned universe) ---
+            try:
+                seen_new = state.setdefault("nl_seen", {})
+                cand = []
+                for src in ("token-profiles/latest/v1", "token-boosts/top/v1"):
+                    try:
+                        for tp in (get(f"https://api.dexscreener.com/{src}") or [])[:40]:
+                            if tp.get("chainId") == "solana" and tp.get("tokenAddress"):
+                                cand.append(tp["tokenAddress"])
+                    except Exception:
+                        continue
+                fresh = [a for a in dict.fromkeys(cand)
+                         if time.time() - seen_new.get(a, 0) > 12 * 3600][:30]
+                if fresh:
+                    d = get("https://api.dexscreener.com/tokens/v1/solana/" + ",".join(fresh))
+                    for pr in (d or []):
+                        try:
+                            base = (pr.get("baseToken") or {})
+                            addr = base.get("address") or ""
+                            sym = str(base.get("symbol") or "?")
+                            liq = float(((pr.get("liquidity") or {}).get("usd")) or 0)
+                            v1 = float((pr.get("volume") or {}).get("h1") or 0)
+                            mc = float(pr.get("marketCap") or pr.get("fdv") or 0)
+                            h1p = float((pr.get("priceChange") or {}).get("h1") or 0)
+                            age_h = None
+                            if pr.get("pairCreatedAt"):
+                                age_h = (time.time() - pr["pairCreatedAt"] / 1000) / 3600
+                            if addr:
+                                seen_new[addr] = time.time()
+                            # traction bar: real liq + real volume (not rug spam)
+                            if liq >= 15_000 and v1 >= 10_000 and sym.lower() not in our_tokens:
+                                kind = ("NEW-LISTING" if age_h is not None and age_h <= 24
+                                        else "TRENDING")
+                                emit(kind, f"{sym} mc=${mc/1e6:.2f}M liq=${liq/1e3:.0f}k "
+                                           f"vol1h=${v1/1e3:.0f}k h1={h1p:+.0f}% "
+                                           f"age={age_h:.1f}h" if age_h is not None else
+                                           f"{sym} mc=${mc/1e6:.2f}M liq=${liq/1e3:.0f}k "
+                                           f"vol1h=${v1/1e3:.0f}k h1={h1p:+.0f}%")
+                        except Exception:
+                            continue
             except Exception:
                 pass
         except Exception as e:
