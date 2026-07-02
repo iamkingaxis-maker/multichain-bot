@@ -56,6 +56,45 @@ def emit(tag, msg):
     print(f"[{tag}] {msg}", flush=True)
 
 
+def inject_watchlist(state, addr, sym):
+    """POST a qualified find into the bot's user-watchlist (force-include in
+    every discovery/enrichment cycle — gates still decide entries). Client-side
+    24h TTL: we remove our own injections after expiry so the set stays clean.
+    Fail-open."""
+    try:
+        inj = state.setdefault("injected", {})
+        if addr in inj:
+            return
+        body = json.dumps({"address": addr}).encode()
+        req = urllib.request.Request(f"{DASH}/api/user-watchlist/add", data=body,
+                                     headers={"Content-Type": "application/json",
+                                              "User-Agent": "mw/1"})
+        urllib.request.urlopen(req, timeout=15)
+        inj[addr] = time.time()
+        emit("INJECTED", f"{sym} -> scanner watchlist (24h pin)")
+    except Exception:
+        pass
+
+
+def expire_injections(state):
+    try:
+        inj = state.get("injected") or {}
+        for addr, ts in list(inj.items()):
+            if time.time() - ts > 24 * 3600:
+                body = json.dumps({"address": addr}).encode()
+                req = urllib.request.Request(f"{DASH}/api/user-watchlist/remove",
+                                             data=body,
+                                             headers={"Content-Type": "application/json",
+                                                      "User-Agent": "mw/1"})
+                try:
+                    urllib.request.urlopen(req, timeout=15)
+                except Exception:
+                    pass
+                del inj[addr]
+    except Exception:
+        pass
+
+
 def chart_dip_check(pair_address):
     """GT minute bars -> (max_drawdown_pct, at_hhmm, n_bars). The recorder
     only samples tokens at runner moments, so dip existence MUST come from
@@ -162,6 +201,9 @@ def main():
                                 tag = f"TERMINAL {dd:+.0f}% @{at} — avoided rug, not a miss"
                             elif dd <= -20:
                                 tag = f"REAL DIP {dd:+.0f}% @{at} — in-thesis miss"
+                                _tok_addr = e.get("token_address") or e.get("address") or ""
+                                if _tok_addr:
+                                    inject_watchlist(state, _tok_addr, sym)
                             else:
                                 tag = f"shallow ({dd:+.0f}%) — momentum-only"
                             emit("MISSED-WINNER", f"{sym} peaked +{pk:.0f}% | {tag}")
@@ -203,6 +245,7 @@ def main():
                             if liq >= 15_000 and v1 >= 10_000 and sym.lower() not in our_tokens:
                                 kind = ("NEW-LISTING" if age_h is not None and age_h <= 24
                                         else "TRENDING")
+                                inject_watchlist(state, addr, sym)
                                 emit(kind, f"{sym} mc=${mc/1e6:.2f}M liq=${liq/1e3:.0f}k "
                                            f"vol1h=${v1/1e3:.0f}k h1={h1p:+.0f}% "
                                            f"age={age_h:.1f}h" if age_h is not None else
@@ -216,6 +259,7 @@ def main():
             fails += 1
             if fails == 2:
                 emit("FLEET-DARK", f"API unreadable 2 cycles: {str(e)[:80]}")
+        expire_injections(state)
         save_state(state)
         time.sleep(CYCLE_SECS)
 
