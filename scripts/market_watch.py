@@ -134,6 +134,83 @@ def chart_dip_check(pair_address):
         return None, None, 0
 
 
+def greenday_forecast_tick(state):
+    """Green-day forecaster HARNESS v1 (2026-07-03 study, n=17 days, NOT
+    significant — this accrues the forward validation, one point/day).
+    Candidate signal: median net_flow_60s_usd across the first-fill-per-token
+    early entries (08:00-10:00 UTC) >= +$50 -> RED day call (modest positive
+    early inflow = chase demand / pump-retrace day; capitulation days enter on
+    flat/negative flow). Bar to act: >=30 forward days, both classes present,
+    >=70% accuracy, binomial p<0.05, era-confound check. Records to
+    scratchpad/greenday_forecast.jsonl; outcome backfilled next morning with
+    the standard scrub + per-token bot-averaging. Fail-open everywhere."""
+    import datetime as dt
+    now = dt.datetime.now(dt.timezone.utc)
+    today = now.strftime("%Y-%m-%d")
+    path = os.path.join("scratchpad", "greenday_forecast.jsonl")
+    excl = ("badday_young_absorb", "badday_fill_probe_live")
+    # 1) the 10:00 UTC call (once per day)
+    if now.hour >= 10 and state.get("gd_call_day") != today:
+        try:
+            first_by_tok = {}
+            for bot in ("badday_flush", "badday_allday"):
+                try:
+                    arr = get(f"{DASH}/api/bots/{bot}/trades?limit=300")
+                except Exception:
+                    continue
+                for t in arr or []:
+                    tm = str(t.get("time", ""))
+                    if (t.get("type") == "buy" and tm[:10] == today
+                            and "08:00" <= tm[11:16] < "10:00"):
+                        first_by_tok.setdefault(t.get("token"),
+                                                t.get("entry_meta") or {})
+            nf = [em.get("net_flow_60s_usd") for em in first_by_tok.values()]
+            nf = sorted(float(x) for x in nf
+                        if isinstance(x, (int, float)) and not isinstance(x, bool))
+            med = nf[len(nf) // 2] if nf else None
+            call = ("no_signal" if med is None else "red" if med >= 50 else "green")
+            with open(path, "a") as f:
+                f.write(json.dumps({"day": today, "ts": time.time(),
+                                    "med_nf60": med, "n_nf60": len(nf),
+                                    "n_early_tokens": len(first_by_tok),
+                                    "call_v1": call}) + "\n")
+            state["gd_call_day"] = today
+            state["gd_pending_outcome"] = today
+        except Exception:
+            pass
+    # 2) outcome backfill for the pending day (next morning, after 08:00)
+    pend = state.get("gd_pending_outcome")
+    if pend and pend != today and now.hour >= 8:
+        try:
+            arr = get(f"{DASH}/api/trades?limit=3000")
+            arr = arr.get("trades", arr) if isinstance(arr, dict) else arr
+            lo, hi = pend + "T10:00", today + "T08:00"
+            tok, tb = {}, {}
+            for t in arr:
+                b = str(t.get("bot_id", ""))
+                if (t.get("type") == "sell" and t.get("pnl_pct") is not None
+                        and b.startswith("badday_") and b not in excl
+                        and lo <= str(t.get("time", "")) < hi):
+                    p = float(t["pnl_pct"]); h = t.get("hold_secs")
+                    if p > 0 and isinstance(h, (int, float)) and h < 10:
+                        continue  # scrub unrealizable spikes
+                    tk = t.get("token")
+                    tok[tk] = tok.get(tk, 0.0) + p * (t.get("sell_fraction") or 1.0)
+                    tb.setdefault(tk, set()).add(b)
+            vals = [tok[k] / max(1, len(tb[k])) for k in tok]
+            mean = sum(vals) / len(vals) if vals else None
+            with open(path, "a") as f:
+                f.write(json.dumps({"day": pend, "ts": time.time(),
+                                    "outcome_rest_mean_per_token": mean,
+                                    "n_tokens": len(vals),
+                                    "outcome": ("green" if (mean or 0) > 0 else
+                                                "red" if mean is not None else
+                                                "no_data")}) + "\n")
+            state["gd_pending_outcome"] = None
+        except Exception:
+            pass
+
+
 def main():
     state = load_state()
     fails = 0
@@ -293,6 +370,7 @@ def main():
             fails += 1
             if fails == 2:
                 emit("FLEET-DARK", f"API unreadable 2 cycles: {str(e)[:80]}")
+        greenday_forecast_tick(state)
         expire_injections(state)
         save_state(state)
         time.sleep(CYCLE_SECS)
