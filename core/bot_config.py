@@ -374,6 +374,15 @@ class BotConfig:
     # winning legs leave re-entry open (pair with reentry_cooldown_secs=0).
     streak_latch: bool = False
 
+    # Per-bot velocity-bail pnl threshold override (2026-07-03 current-regime
+    # winner decode). The in-flight velocity pre-empt (bail at pnl<=-4 on a
+    # fast never-green collapse) was 48% of family exits since 07-01 at mean
+    # -5.78 = 83% of the bleed, and 77% of bailed tokens hit +6% ABOVE the
+    # bail within 60m (n=48, thin) — winners sit through -7/-12 wicks. None ->
+    # the -4 default. Set to -8 (below the -7 MAE floor) to effectively
+    # disable the velocity leg while keeping the floor — the wickride A/B arm.
+    velbail_pnl_pct: Optional[float] = None
+
     # Momentum-continuation mode (2026-06-02, #4.3). When True the bot uses a SEPARATE
     # entry path: it BYPASSES the dip-filter stack + dip triggers (which block 100% of
     # momentum candidates) and enters on the momentum entry_gate (e.g. pc_h1>=20 AND

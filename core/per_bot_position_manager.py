@@ -587,9 +587,14 @@ class PerBotPositionManager:
                 _iff_floor = float(os.environ.get("IN_FLIGHT_FLOOR_PCT", "-7.0"))
                 _iff_pps = float(os.environ.get("IN_FLIGHT_VELBAIL_PPS", "0.012"))
                 _iff_sfp = max(int(now - p.entry_time) - p.peak_pnl_at_secs, 1)
+                # per-bot velocity-bail threshold override (wickride A/B): -8
+                # sits below the -7 MAE floor = velocity leg off, floor kept.
+                _iff_vp = getattr(self.config, "velbail_pnl_pct", None)
                 _iff_fire, _iff_why = _ifff(
                     pnl_pct, p.peak_pnl_pct, _iff_sfp,
-                    floor_pct=_iff_floor, velbail_pps=_iff_pps)
+                    floor_pct=_iff_floor, velbail_pps=_iff_pps,
+                    velbail_pnl=(float(_iff_vp) if isinstance(_iff_vp, (int, float))
+                                 and not isinstance(_iff_vp, bool) else -4.0))
             except Exception:
                 _iff_fire, _iff_why = False, ""
             if _iff_fire:
