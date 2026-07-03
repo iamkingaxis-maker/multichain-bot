@@ -1,6 +1,6 @@
 {
   "bot_id": "badday_swing_latch",
-  "display_name": "SWING LATCH v2 (2026-07-03 serial-swinger discriminator): ride-the-streak on the SERIAL-SWINGER pond. v1 pointed at the anti-pond (age>=6h+liq25k stack = n=13, 31% serial, NET -9.98/token); discriminator study: serial swingers (>=3 winning swings, 35.4% base) are YOUNG (median 0.70h; age<=1h = 65% precision/1.8x lift) and the young cell is MEDIAN-POSITIVE: +28.2 net/token, median +18.9, 62% tokens positive, split-stable all four ways (n=37, single window). v2 = young-probe bot, age 0.1-1.5h, mcap>=100k (young admission floor), liq>=25k KEPT (fleet anti-rug floor; study wanted 10k \u2014 blocked, AxiS call; costs the sub-25k-liq serial subset). Streak rule unchanged: drop token on first losing leg, free re-entry after wins, TP +25/0.75 + TP2 +40, stop -12, ~90m timestops, velocity leg off. Young holder rug guard applies (probe bot). Judge vs badday_young_absorb AND flush at n>=30 distinct tokens scrubbed; enforce-bar per-token >=+2 over >=5 days. 2nd wave queued: range_mean_60m>=12 shadow, bounce<=5min continuation rule.",
+  "display_name": "SWING LATCH v2 (2026-07-03 serial-swinger discriminator): ride-the-streak on the SERIAL-SWINGER pond. v1 pointed at the anti-pond (age>=6h+liq25k stack = n=13, 31% serial, NET -9.98/token); discriminator study: serial swingers (>=3 winning swings, 35.4% base) are YOUNG (median 0.70h; age<=1h = 65% precision/1.8x lift) and the young cell is MEDIAN-POSITIVE: +28.2 net/token, median +18.9, 62% tokens positive, split-stable all four ways (n=37, single window). v2 = young-probe bot, age 0.1-1.5h, mcap>=100k (young admission floor), liq>=10k (AxiS-approved loosening 07-03: within the YOUNG swing pond the June rug-pocket rule INVERTS \u2014 liq 10-25k = the BEST band, mean +52.4/median +49.1/82% positive/73% serial, stable both split halves, n=11 thin; <10k stays blocked \u2014 weaker + slippage hell. antirug_floor_exempt=true; young admission env lowered to 10k.) Streak rule unchanged: drop token on first losing leg, free re-entry after wins, TP +25/0.75 + TP2 +40, stop -12, ~90m timestops, velocity leg off. Young holder rug guard applies (probe bot). Judge vs badday_young_absorb AND flush at n>=30 distinct tokens scrubbed; enforce-bar per-token >=+2 over >=5 days. 2nd wave queued: range_mean_60m>=12 shadow, bounce<=5min continuation rule.",
   "enabled": true,
   "base_position_usd": 100.0,
   "paper_capital_usd": 2000.0,
@@ -27,7 +27,7 @@
     [
       "liquidity_usd",
       ">=",
-      25000
+      10000
     ],
     [
       "pc_h1",
@@ -86,5 +86,6 @@
   "btc_macro_h1_block_threshold": null,
   "pc_h1_max": null,
   "pc_h24_max": null,
-  "pc_h24_min": null
+  "pc_h24_min": null,
+  "antirug_floor_exempt": true
 }

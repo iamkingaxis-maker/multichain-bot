@@ -35,8 +35,15 @@ class TestConfig:
         c = _cfg()
         gate = [tuple(x) for x in c.entry_gate]
         assert ("pc_h1", "<=", -35) in gate          # deep swing, not the -20 family dip
-        assert ("liquidity_usd", ">=", 25000) in gate  # fleet anti-rug floor KEPT
+        # AxiS-approved 07-03: in the YOUNG swing pond the rug-pocket rule
+        # inverts (10-25k = best band, +52.4 mean/82% pos, both halves);
+        # <10k stays out (slippage + weaker). antirug_floor_exempt paired.
+        assert ("liquidity_usd", ">=", 10000) in gate
         assert ("unique_buyers_n", ">=", 12) in gate  # demand gates stay on
+
+    def test_antirug_exemption_is_deliberate(self):
+        c = _cfg()
+        assert c.antirug_floor_exempt is True
 
     def test_serial_swinger_pond_v2(self):
         # discriminator study 2026-07-03: serial swingers are YOUNG (median
