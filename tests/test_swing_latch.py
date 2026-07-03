@@ -35,8 +35,17 @@ class TestConfig:
         c = _cfg()
         gate = [tuple(x) for x in c.entry_gate]
         assert ("pc_h1", "<=", -35) in gate          # deep swing, not the -20 family dip
-        assert ("liquidity_usd", ">=", 25000) in gate
+        assert ("liquidity_usd", ">=", 25000) in gate  # fleet anti-rug floor KEPT
         assert ("unique_buyers_n", ">=", 12) in gate  # demand gates stay on
+
+    def test_serial_swinger_pond_v2(self):
+        # discriminator study 2026-07-03: serial swingers are YOUNG (median
+        # 0.70h; age<=1h cell +28.2 net/token, median-positive, split-stable).
+        # v1's age>=6h stack was the anti-pond (-9.98/token).
+        c = _cfg()
+        assert c.young_token_probe is True           # young lane admission
+        assert (c.age_h_min, c.age_h_max) == (0.1, 1.5)
+        assert c.mcap_min == 100000.0                # young admission floor
 
     def test_let_run_exits(self):
         c = _cfg()

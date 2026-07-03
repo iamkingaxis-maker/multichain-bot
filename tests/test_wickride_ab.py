@@ -50,7 +50,10 @@ class TestAdolescentConfig:
     def test_pond_and_mechanics(self):
         a, y = _cfg("badday_adolescent_absorb"), _cfg("badday_young_absorb")
         assert a.enabled is True and not getattr(a, "live_probe", None)
-        assert a.young_token_probe is False          # normal lane, not the probe
+        # REQUIRED: YOUNG_TOKEN_MAX_AGE_H=24 makes production bots SKIP all <24h
+        # tokens — without the probe flag this bot is dead on arrival. Its own
+        # age_h_min=6 keeps it off the fresh launches.
+        assert a.young_token_probe is True
         assert (a.age_h_min, a.age_h_max) == (6.0, 24.0)   # the winners' pond
         assert (a.trading_hour_utc_start, a.trading_hour_utc_end) == (13, 22)
         assert a.velbail_pnl_pct == -8.0             # wick-tolerant
