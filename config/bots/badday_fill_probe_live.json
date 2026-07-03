@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 10.0,
   "display_name": "TINY LIVE FILL-ACCURACY PROBE (2026-06-24, AxiS-funded $50 wallet). $5 real swaps on representative badday deep-flush dips, HELD to the normal badday exit, to measure the ONE thing the free quote/sim probe can't: decision->LANDED-fill (landing latency + MEV residual). Clone of badday_flush_nf15_live at $5/daily-loss-$10/max-2-buys-per-token. Data -> live_swap_log -> fill_calibration. MEASUREMENT INSTRUMENT, not a strategy: campaign of ~30-50 round-trips then OFF. SOLE live bot (live_probe=true); everything else force_paper'd. Kill: PAPER_MODE=true or enabled=false.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "unique_buyers_n",

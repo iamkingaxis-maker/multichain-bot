@@ -10,7 +10,7 @@
   "conviction_step": 0.5,
   "daily_loss_limit_usd": 60.0,
   "display_name": "CONVICTION A/B of badday_flush (2026-06-12 roster decode: ALL 10 profitable wallets size with conviction \u2014 dmuX bets 10x the table; our fleet bets flat, every bot). Single variable vs parent: trigger-count sizing (1 + 0.5*(n-1), cap 2x). PRE-REG: judge vs parent $/tr at n>=30 closes each; loser retires. 48h burn-in. DEMAND-TURN PROMOTED 2026-06-24 (net_flow_15s_imbalance>=0): the conviction_demand A/B decisively beat this control \u2014 $/tr $0.72->$1.83, realized $638->$705, WR 66->68%, max-drawdown -$363->-$261 at n>=385. The demand clause graduates from A/B into the conviction base (require buyers stepping in, not still net-selling). conviction_demand is now the redundant A/B twin.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "unique_buyers_n",

@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
   "display_name": "THIN-TAPE-FLOOR A/B of badday_flush_nf15 (2026-06-20 decode). Adds ONE entry clause: net_flow_15s_n >= 3 (min 3 trades in the 15s demand window). Drops the saturated net_flow_15s_imbalance==1.0 thin-tape trap (median 1 trade = noise, 45% WR / -1.88%). Empirically nf15>=0 AND net_flow_15s_n>=3 = 67% WR / +3.58% median vs 55%/+1.85% for plain nf15>=0, keeping 59% of entries. Control = badday_flush_nf15 (identical except this clause; flat sizing, no conviction). PRE-REG: forward-judge per-trade pnl_pct at n>=30 vs badday_flush_nf15; promote the clause to badday_flush_nf15 only if it lifts $/tr. paper, single-variable A/B.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "unique_buyers_n",

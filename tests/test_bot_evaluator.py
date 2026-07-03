@@ -277,7 +277,9 @@ def test_badday_flush_nf15_dense_config_loads():
     p = pathlib.Path("config/bots/badday_flush_nf15_dense.json")
     cfg = BotConfig(**json.loads(p.read_text()))
     assert cfg.bot_id == "badday_flush_nf15_dense"
-    assert cfg.enabled is True
+    # RETIRED in the 2026-07-03 fleet consolidation (third nf15 jersey; the
+    # no-recur A/B runs on nf15-vs-flush). Config kept for the record.
+    assert cfg.enabled is False
     assert cfg.exclusion_pool == "badday_flush_nf15_dense"
     # flat sizing, no conviction (identical to _nf15 control)
     assert cfg.base_position_usd == 100.0
