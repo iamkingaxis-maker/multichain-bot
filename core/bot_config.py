@@ -364,6 +364,16 @@ class BotConfig:
     # universe-mine's age<=2 edge survives on realized dip-buy paths. See core/young_token_probe.py.
     young_token_probe: bool = False
 
+    # Streak-latch mode (2026-07-03 swing-latch study). Market-only sim on 216
+    # traction tokens: deep-swing re-entry AFTER a won swing = +4.09 gross/swing
+    # (~+1.5 net of live costs), stable across time/token splits — but the edge
+    # lives in a minority of SERIAL SWINGERS (per-token mean only ~+0.5). This
+    # flag implements the ride-the-streak rule that concentrates onto them:
+    # after any LOSING sell leg on a token, this bot drops that token
+    # permanently (in-memory; resets on redeploy — fine for the paper A/B);
+    # winning legs leave re-entry open (pair with reentry_cooldown_secs=0).
+    streak_latch: bool = False
+
     # Momentum-continuation mode (2026-06-02, #4.3). When True the bot uses a SEPARATE
     # entry path: it BYPASSES the dip-filter stack + dip triggers (which block 100% of
     # momentum candidates) and enters on the momentum entry_gate (e.g. pc_h1>=20 AND

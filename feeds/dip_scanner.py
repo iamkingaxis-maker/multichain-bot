@@ -1638,6 +1638,20 @@ class DipScanner:
                 bot_id, decision.token,
             )
             return
+        # STREAK-LATCH drop-list (2026-07-03 swing-latch study): a streak_latch
+        # bot rides a token's swings only while they keep WINNING — after any
+        # losing sell leg the token was dropped permanently (stamped at close).
+        # Keyed by address when resolvable, symbol as fallback (symbols collide
+        # across mints; acceptable false-skip risk for a paper A/B).
+        if bool(getattr(pm.config, "streak_latch", False)):
+            _slb = self.__dict__.setdefault("_streak_latch_banned", set())
+            _sl_addr = str(decision.address or "").lower()
+            _sl_sym = str(decision.token or "").lower()
+            if ((bot_id, _sl_addr) in _slb and _sl_addr) or (bot_id, _sl_sym) in _slb:
+                logger.info(
+                    "[DipScanner] bot=%s streak-latch: %s was dropped after a "
+                    "losing swing; skip", bot_id, decision.token)
+                return
         # Shared no-same-token exclusion (2026-06-02). If this bot is in an
         # exclusion_pool and a pool SIBLING already holds this token, skip — no two
         # pool bots hold the same token at once (de-concentration). Bots with
@@ -5702,6 +5716,25 @@ class DipScanner:
                     _sc = {}
                     self._stopout_cooldown_ts = _sc
                 _sc[str(token).lower()] = now
+        except Exception:
+            pass
+        # STREAK-LATCH stamp (2026-07-03 swing-latch study): a streak_latch bot
+        # drops a token on its FIRST losing sell leg — the ride-the-streak rule
+        # that concentrates the bot onto serial swingers (any negative leg,
+        # partial or full, ends the latch; conservative by design). Winning legs
+        # leave re-entry open. In-memory; resets on redeploy (paper A/B).
+        try:
+            if (bool(getattr(pm.config, "streak_latch", False))
+                    and float(getattr(result, "pnl_pct", 0) or 0) < 0):
+                _slb = self.__dict__.setdefault("_streak_latch_banned", set())
+                _slb.add((bot_id, str(token).lower()))
+                _sl_addr = str(self._addr_by_token.get(token, "") or "").lower()
+                if _sl_addr:
+                    _slb.add((bot_id, _sl_addr))
+                logger.info(
+                    "[DipScanner] streak-latch: %s dropped %s after losing leg "
+                    "(%.1f%%)", bot_id, token,
+                    float(getattr(result, "pnl_pct", 0) or 0))
         except Exception:
             pass
         if result.cost_usd <= 0:
