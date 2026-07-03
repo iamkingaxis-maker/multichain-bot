@@ -2687,6 +2687,26 @@ class DipScanner:
                     "deep stop, cooldown %.0fm)", bot_id, decision.token,
                     now - _sc_ts, _sc_mins)
                 return
+        # ── BAIL COOLDOWN (BongoCat 2026-07-03): the churn twin of the stopout
+        # cooldown. A negative in-flight bail (velocity-bail / MAE-floor) means
+        # 'still falling' but lands ABOVE the -10 stopout bar, so the fleet
+        # re-bought BongoCat 3x in 3 minutes (-4.7 each, x6 bots = -76pp).
+        # Measured on 74 historical would-blocked rebuy rounds: mean -3.77,
+        # sum -279pp, only 9 winners >+5 forfeited. BAIL_COOLDOWN_MINS
+        # (default 10; 0 disables) fleet-wide on badday_.
+        try:
+            _bc_mins = float(os.environ.get("BAIL_COOLDOWN_MINS", "10"))
+        except (TypeError, ValueError):
+            _bc_mins = 10.0
+        if _bc_mins > 0 and str(bot_id).startswith("badday_"):
+            _bc = getattr(self, "_bail_cooldown_ts", None) or {}
+            _bc_ts = _bc.get(str(decision.token).lower())
+            if _bc_ts is not None and (now - _bc_ts) < _bc_mins * 60:
+                logger.info(
+                    "[DipScanner] bot=%s BAIL-COOLDOWN skip %s (%.0fs since "
+                    "negative bail, cooldown %.0fm)", bot_id, decision.token,
+                    now - _bc_ts, _bc_mins)
+                return
         _nt_mode = os.environ.get("NF5M_TOXIC_MODE", "off").lower()
         if _nt_mode != "off" and str(bot_id).startswith("badday_"):
             from core.bot_evaluator import nf5m_toxic_zone_blocks as _ntb
@@ -5716,6 +5736,21 @@ class DipScanner:
                     _sc = {}
                     self._stopout_cooldown_ts = _sc
                 _sc[str(token).lower()] = now
+        except Exception:
+            pass
+        # BAIL COOLDOWN stamp (BongoCat 2026-07-03): a NEGATIVE in-flight bail
+        # (velocity-bail / MAE-floor) = 'still falling' signal that lands above
+        # the -10 stopout bar — stamp a shorter fleet-wide no-rebuy window so
+        # the fleet can't churn the same falling knife every 60 seconds.
+        try:
+            _bc_reason = str(getattr(exit_decision, "reason", "") or "")
+            if (float(getattr(result, "pnl_pct", 0) or 0) < 0
+                    and ("velocity-bail" in _bc_reason or "MAE-floor" in _bc_reason)):
+                _bc = getattr(self, "_bail_cooldown_ts", None)
+                if _bc is None:
+                    _bc = {}
+                    self._bail_cooldown_ts = _bc
+                _bc[str(token).lower()] = now
         except Exception:
             pass
         # STREAK-LATCH stamp (2026-07-03 swing-latch study): a streak_latch bot
