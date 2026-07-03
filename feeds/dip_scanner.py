@@ -1698,6 +1698,18 @@ class DipScanner:
                             pass
                         if _yh_m == "enforce":
                             return
+                # Young TAPE shadow (2026-07-03 launch-arc mine) — record-only,
+                # fired as a detached task AFTER the decision so the buy path
+                # pays ZERO latency. Two trough signals: bars_printed_15 (<8 =
+                # dead tape; recoverers keep a live tape, corpses go silent) and
+                # dd_from_peak_pct (<=-85 = rug floor; 0/9 that deep recovered).
+                # Enforce is a later decision on realized joins.
+                from core.young_token_probe import tape_shadow_mode as _yts_mode
+                if _yts_mode() == "on":
+                    _yts_pair = getattr(decision, "pair_address", "") or ""
+                    if _yts_pair:
+                        asyncio.create_task(self._young_tape_shadow(
+                            bot_id, decision.token, decision.address, _yts_pair))
         # Low-mcap probe gate (2026-06-02). When LOW_MCAP_PROBE on, probe bots trade the
         # [floor,$1M) band only and production bots skip sub-$1M tokens. Default OFF -> no-op.
         from core.low_mcap_probe import probe_enabled as _lm_on, is_low_mcap as _lm_is, buy_gate_skip as _lm_skip
@@ -4871,6 +4883,54 @@ class DipScanner:
             return min(lows) if lows else None
         except Exception:
             return None
+
+    async def _young_tape_shadow(self, bot_id, token, address, pair_address):
+        """SHADOW record (2026-07-03 launch-arc mine): fetch 6h of GT minute bars
+        for a young-probe buy candidate and log the two trough signals —
+        bars_printed_15 (tape-alive absorption) and dd_from_peak_pct (rug floor).
+        Detached task fired AFTER the buy decision: zero fire-path latency; a GT
+        miss just means no record. Per-token 5-min dedup bounds the call rate to
+        the young lane's candidate flow (~dozens/day)."""
+        try:
+            cache = self.__dict__.setdefault("_young_tape_seen", {})
+            now = time.time()
+            key = (pair_address or token or "").lower()
+            if now - cache.get(key, 0) < 300:
+                return
+            cache[key] = now
+            if len(cache) > 500:
+                for k in sorted(cache, key=cache.get)[:250]:
+                    cache.pop(k, None)
+
+            def _fetch():
+                from curl_cffi import requests as _cf
+                r = _cf.get(
+                    f"https://api.geckoterminal.com/api/v2/networks/solana/pools/"
+                    f"{pair_address}/ohlcv/minute?limit=360",
+                    impersonate="chrome", timeout=8)
+                if r.status_code != 200:
+                    return None
+                return ((((r.json() or {}).get("data") or {}).get("attributes")
+                         or {}).get("ohlcv_list") or [])
+            rows = await asyncio.to_thread(_fetch)
+            if not rows:
+                return
+            from core.young_token_probe import tape_absorption_metrics
+            m = tape_absorption_metrics(rows, now)
+            if not m:
+                return
+            self._append_exit_reprice_shadow({
+                "kind": "young_tape_shadow", "ts": now, "bot_id": bot_id,
+                "token": token, "address": address,
+                "pair_address": pair_address, **m})
+            if m.get("tape_dead") or m.get("rug_floor"):
+                logger.info(
+                    "[DipScanner] young-tape SHADOW would-flag %s: bars15=%s "
+                    "dd_peak=%s (dead=%s rug_floor=%s)", token,
+                    m.get("bars_printed_15"), m.get("dd_from_peak_pct"),
+                    m.get("tape_dead"), m.get("rug_floor"))
+        except Exception as e:
+            logger.debug(f"[DipScanner] young_tape_shadow err: {e}")
 
     def _stamp_sol_bail_shadow(self, position, price, now):
         """SHADOW (no action, 2026-05-29): if SOL macro is down while this

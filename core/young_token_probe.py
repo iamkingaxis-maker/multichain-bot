@@ -161,6 +161,47 @@ def holder_guard_max_top10() -> float:
         return 70.0
 
 
+def tape_shadow_mode() -> str:
+    """YOUNG_TAPE_SHADOW_MODE: off | on (default on). SHADOW-ONLY measurement
+    (2026-07-03 launch-arc mine): records two trough signals on every young-probe
+    buy candidate, fetched AFTER the buy decision so the fire path pays zero
+    latency. Enforce is a later, separate decision on realized joins."""
+    return os.environ.get("YOUNG_TAPE_SHADOW_MODE", "on").strip().lower()
+
+
+def tape_absorption_metrics(ohlcv_rows, now_ts: float) -> dict:
+    """Launch-arc trough signals from GT minute OHLCV rows [ts,o,h,l,c,v].
+
+    - bars_printed_15: minute-bars that actually traded in the last 15 wall-clock
+      minutes. Recoverers keep a live tape through the trough (15/15 printing);
+      corpses go silent (1/15). Mine separator: >=8 = 100% precision/recall on
+      the (thin) pooled set.
+    - dd_from_peak_pct: last close vs the highest high in the supplied window
+      (fetch 6h). Depth is ANTI-predictive: 0/9 troughs deeper than -85%
+      recovered -> rug_floor flag at <= -85.
+    Pure; returns {} on malformed/empty input (fail-soft)."""
+    try:
+        rows = [r for r in (ohlcv_rows or [])
+                if isinstance(r, (list, tuple)) and len(r) >= 5]
+        if not rows:
+            return {}
+        rows.sort(key=lambda r: r[0])
+        cutoff = float(now_ts) - 15 * 60
+        printed = sum(1 for r in rows if float(r[0]) >= cutoff)
+        highs = [float(r[2]) for r in rows if r[2] is not None and float(r[2]) > 0]
+        last_close = next((float(r[4]) for r in reversed(rows)
+                           if r[4] is not None and float(r[4]) > 0), None)
+        out = {"bars_printed_15": printed, "n_bars": len(rows)}
+        if highs and last_close:
+            dd = (last_close / max(highs) - 1.0) * 100.0
+            out["dd_from_peak_pct"] = round(dd, 2)
+            out["rug_floor"] = dd <= -85.0
+        out["tape_dead"] = printed < 8
+        return out
+    except (TypeError, ValueError):
+        return {}
+
+
 def holder_guard_blocks(top1_holder_pct, top10_holder_pct,
                         max_top1: Optional[float] = None,
                         max_top10: Optional[float] = None) -> bool:
