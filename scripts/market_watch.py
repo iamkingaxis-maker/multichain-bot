@@ -134,6 +134,82 @@ def chart_dip_check(pair_address):
         return None, None, 0
 
 
+def launch_watch_tick(state):
+    """WATCH-EARLIER v0 (2026-07-03 traction predictor, 4-window validated:
+    n_bars_15>=8 & vol_15>=5k = 100% recall on every traction cohort incl
+    110/110 production pools; pass ~15-25% of launches). Two-stage funnel:
+    (1) each cycle, pull GT new_pools pages 1-3 and STAGE pools with
+    reserve>=~$10k (the free prefilter); (2) once a staged pool is 12-25min
+    old, one minute-bar call decides — participating pools get pinned into
+    the scanner watchlist ~1.5h before discovery would see them (the
+    Bullcoin-class miss). COVERAGE CAVEAT: GT polling sees only the newest
+    ~60/cycle of ~130 launches/6min (~45%); the full-coverage feed
+    (PumpPortal/io.dexscreener firehose) is the v1 upgrade. Fail-open."""
+    try:
+        staged = state.setdefault("lw_staged", {})
+        seen = state.setdefault("lw_seen", {})
+        now = time.time()
+        # stage newest pools with real seed liquidity
+        for page in (1, 2, 3):
+            try:
+                q = get("https://api.geckoterminal.com/api/v2/networks/solana/"
+                        f"new_pools?page={page}")
+            except Exception:
+                break
+            for it in (q.get("data") or []):
+                try:
+                    at = it.get("attributes") or {}
+                    pa = (at.get("address") or "").strip()
+                    if not pa or pa in staged or pa in seen:
+                        continue
+                    res = float(at.get("reserve_in_usd") or 0)
+                    ts = at.get("pool_created_at")
+                    import datetime as dt
+                    cts = dt.datetime.fromisoformat(
+                        str(ts).replace("Z", "+00:00")).timestamp() if ts else now
+                    if res >= 10000 and now - cts < 12 * 60:
+                        staged[pa] = {"t": cts, "sym": ((it.get("relationships") or {})
+                                      .get("base_token") or {}).get("data", {}).get("id", pa[:8])}
+                except Exception:
+                    continue
+            time.sleep(3.1)
+        # decide staged pools that reached the 12-25min window
+        for pa, info in list(staged.items()):
+            age = now - info["t"]
+            if age > 25 * 60:
+                staged.pop(pa, None); seen[pa] = now
+                continue
+            if age < 12 * 60:
+                continue
+            try:
+                q = get("https://api.geckoterminal.com/api/v2/networks/solana/"
+                        f"pools/{pa}/ohlcv/minute?limit=25")
+                bars = (((q.get("data") or {}).get("attributes") or {})
+                        .get("ohlcv_list") or [])
+                cut = now - 15 * 60
+                printed = sum(1 for b in bars if float(b[0]) >= cut)
+                vol15 = sum(float(b[5] or 0) for b in bars if float(b[0]) >= cut)
+                if printed >= 8 and vol15 >= 5000:
+                    sym = str(info.get("sym") or pa[:8]).split("_")[-1][:12]
+                    inject_watchlist(state, pa, f"LW:{sym}")
+                    try:
+                        with open(os.path.join("scratchpad", "launch_watch.jsonl"), "a") as f:
+                            f.write(json.dumps({"ts": now, "pair": pa, "sym": sym,
+                                                "bars15": printed, "vol15": round(vol15)}) + "\n")
+                    except Exception:
+                        pass
+                staged.pop(pa, None); seen[pa] = now
+                time.sleep(3.1)
+            except Exception:
+                continue
+        # bound state
+        if len(seen) > 3000:
+            for k in sorted(seen, key=seen.get)[:1500]:
+                seen.pop(k, None)
+    except Exception:
+        pass
+
+
 def greenday_forecast_tick(state):
     """Green-day forecaster HARNESS v1 (2026-07-03 study, n=17 days, NOT
     significant — this accrues the forward validation, one point/day).
@@ -370,6 +446,7 @@ def main():
             fails += 1
             if fails == 2:
                 emit("FLEET-DARK", f"API unreadable 2 cycles: {str(e)[:80]}")
+        launch_watch_tick(state)
         greenday_forecast_tick(state)
         expire_injections(state)
         save_state(state)
