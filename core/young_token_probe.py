@@ -132,3 +132,57 @@ def buy_gate_skip(is_young_tok: bool, is_probe_bot: bool,
     if is_probe_bot:
         return not is_young_tok      # probe bot: young-only
     return is_young_tok              # production bot: skip young
+
+
+def holder_guard_mode() -> str:
+    """YOUNG_HOLDER_GUARD_MODE: off | shadow | enforce (default enforce).
+
+    Young-lane rug guard (2026-07-03). NEVER rugged -83% in 113s on the lane's
+    first day; at entry its rugcheck holder features read top1=44.9 / top10=100.6
+    while EVERY young winner that day sat at top1 20-24 / top10 54-64 (or missing
+    -> fail-open). MENSA/KEVIN/the losing COTORO rebuy were also above the line:
+    perfect win/loss separation on the day (+~108pp saved, 0 winner pp lost).
+    One wallet holding a third of the float IS rug capability — causal, not
+    curve-fit — so this ships enforce on the isolated young lane only."""
+    return os.environ.get("YOUNG_HOLDER_GUARD_MODE", "enforce").strip().lower()
+
+
+def holder_guard_max_top1() -> float:
+    try:
+        return float(os.environ.get("YOUNG_HOLDER_MAX_TOP1", "30"))
+    except (TypeError, ValueError):
+        return 30.0
+
+
+def holder_guard_max_top10() -> float:
+    try:
+        return float(os.environ.get("YOUNG_HOLDER_MAX_TOP10", "70"))
+    except (TypeError, ValueError):
+        return 70.0
+
+
+def holder_guard_blocks(top1_holder_pct, top10_holder_pct,
+                        max_top1: Optional[float] = None,
+                        max_top10: Optional[float] = None) -> bool:
+    """True when holder concentration marks a young entry as rug-capable:
+    top1 >= max_top1 (default 30) OR top10 >= max_top10 (default 70).
+
+    FAIL-OPEN on missing/garbage data (None/bool/NaN -> that axis passes) — the
+    missing-data-read-as-zero bug-class rule: never block on fabricated values.
+    LP + insider wallets are already excluded upstream (compute_holder_features)."""
+    if max_top1 is None:
+        max_top1 = holder_guard_max_top1()
+    if max_top10 is None:
+        max_top10 = holder_guard_max_top10()
+    for val, cap in ((top1_holder_pct, max_top1), (top10_holder_pct, max_top10)):
+        if isinstance(val, bool) or not isinstance(val, (int, float)):
+            continue  # missing/garbage -> this axis passes (fail-open)
+        try:
+            f = float(val)
+        except (TypeError, ValueError):
+            continue
+        if f != f:  # NaN
+            continue
+        if f >= cap:
+            return True
+    return False

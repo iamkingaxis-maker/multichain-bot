@@ -1661,6 +1661,43 @@ class DipScanner:
                 logger.info("[DipScanner] bot=%s young-probe gate: skip %s (age=%s probe_bot=%s)",
                             bot_id, decision.token, _yt_age, getattr(pm.config, "young_token_probe", False))
                 return
+            # Young-lane HOLDER-CONCENTRATION rug guard (2026-07-03). NEVER rugged
+            # -83% in 113s on the lane's first day; entry-time holder features
+            # (top1>=30 OR top10>=70, LP/insiders excluded) perfectly separated the
+            # day's rugs (NEVER 44.9/100.6, MENSA 35/87, KEVIN 65/167, COTORO-rebuy
+            # 43/95) from every winner (top1 20-24 / top10 54-64). Applies ONLY to
+            # probe bots buying young tokens; fail-open on missing data; uses the
+            # 30-min holder cache (zero extra egress on repeat evaluations).
+            if bool(getattr(pm.config, "young_token_probe", False)):
+                from core.young_token_probe import (
+                    holder_guard_mode as _yh_mode, holder_guard_blocks as _yh_blocks)
+                _yh_m = _yh_mode()
+                if _yh_m in ("shadow", "enforce"):
+                    try:
+                        _yh_hf = await self._holder_features_cached(
+                            decision.address or decision.token) or {}
+                    except Exception:
+                        _yh_hf = {}
+                    _yh_t1 = _yh_hf.get("top1_holder_pct")
+                    _yh_t10 = _yh_hf.get("top10_holder_pct")
+                    if _yh_blocks(_yh_t1, _yh_t10):
+                        logger.info(
+                            "[DipScanner] bot=%s young-holder-guard %s: %s top1=%s top10=%s "
+                            "(rug-capable concentration)",
+                            bot_id, _yh_m.upper(), decision.token, _yh_t1, _yh_t10)
+                        try:
+                            self._append_exit_reprice_shadow({
+                                "kind": "young_holder_guard", "mode": _yh_m,
+                                "ts": time.time(), "bot_id": bot_id,
+                                "token": decision.token,
+                                "address": decision.address,
+                                "top1_holder_pct": _yh_t1,
+                                "top10_holder_pct": _yh_t10,
+                            })
+                        except Exception:
+                            pass
+                        if _yh_m == "enforce":
+                            return
         # Low-mcap probe gate (2026-06-02). When LOW_MCAP_PROBE on, probe bots trade the
         # [floor,$1M) band only and production bots skip sub-$1M tokens. Default OFF -> no-op.
         from core.low_mcap_probe import probe_enabled as _lm_on, is_low_mcap as _lm_is, buy_gate_skip as _lm_skip
