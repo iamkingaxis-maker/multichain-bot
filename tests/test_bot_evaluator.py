@@ -284,10 +284,17 @@ def test_badday_flush_nf15_dense_config_loads():
     assert cfg.conviction_sizing_mode is None
     # paper-only — no live_probe field on the clone
     assert not getattr(cfg, "live_probe", None)
-    # the new thin-tape-floor clause is the ONLY entry_gate difference vs _nf15
+    # vs _nf15 (the NO-RECUR A/B arm since 2026-07-02): dense keeps the
+    # n_recurring_buyers_3plus clause nf15 dropped, plus the thin-tape floor.
     nf15 = BotConfig(**json.loads(
         pathlib.Path("config/bots/badday_flush_nf15.json").read_text()))
-    assert list(cfg.entry_gate) == list(nf15.entry_gate) + [("net_flow_15s_n", ">=", 3.0)]
+    dense_gate = [tuple(c) for c in cfg.entry_gate]
+    nf15_gate = [tuple(c) for c in nf15.entry_gate]
+    assert ("n_recurring_buyers_3plus", ">=", 1) in dense_gate
+    assert ("n_recurring_buyers_3plus", ">=", 1) not in nf15_gate  # the A/B delta
+    assert dense_gate[-1] == ("net_flow_15s_n", ">=", 3)           # thin-tape floor
+    # every nf15 clause is still present in dense (dense = nf15 + recur + tape-n)
+    assert all(c in dense_gate for c in nf15_gate)
 
 
 def test_badday_flush_nf15_dense_gate_passes_on_dense_tape():

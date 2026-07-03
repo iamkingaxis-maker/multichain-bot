@@ -1879,6 +1879,59 @@ class DipScanner:
                     _fdf_rb = False
                 if _fdf_mode == "enforce" and not _fdf_rb:
                     return
+        # ── Pump-retrace gate (2026-07-03 evening-bleed autopsy) ────────────────
+        # Block family dip entries on tokens still UP >+50% on the 6h window: that
+        # dip is the unwind of a fresh pump (distribution), not a capitulation
+        # (TATE fired at pc_h6=+286, Goofreck +73 on the 07-02 evening -150pp
+        # bleed). Scrubbed realized on badday_flush, 16d: BLOCK cohort negative
+        # BOTH time halves (-7.80/-4.74, WR 34%/19%) vs PASS; ~-326pp blocked vs
+        # ~+80pp winners forfeited. YOUNG-PROBE BOTS EXEMPT (a young token's
+        # post-launch retrace IS the young_absorb setup). ENFORCE by default
+        # (both-halves realized separation + live corroboration same night);
+        # PUMP_RETRACE_GATE_MODE=shadow|off; auto-rollback watcher guards it.
+        # Records to the forward-candle scorer even in enforce. Fail-open.
+        _pr_mode = os.environ.get("PUMP_RETRACE_GATE_MODE", "enforce").lower()
+        if (_pr_mode != "off" and str(bot_id).startswith("badday_")
+                and not bool(getattr(pm.config, "young_token_probe", False))):
+            _pr_h6 = getattr(bundle, "pc_h6", None)
+            if _pr_h6 is None:
+                _pr_h6 = _ar_meta.get("pc_h6")
+            from core.bot_evaluator import pump_retrace_blocks as _prb
+            _pr_block, _pr_why = _prb(_pr_h6)
+            if _pr_block:
+                logger.info("[DipScanner] bot=%s PUMP-RETRACE %s: %s %s", bot_id,
+                            "BLOCK" if _pr_mode == "enforce" else "SHADOW-would-block",
+                            _pr_why, decision.token)
+                _pr_taddr = (decision.address
+                             or self._addr_by_token.get(decision.token, ""))
+                try:
+                    _pr_seen = getattr(self, "_pump_retrace_shadow_seen", None)
+                    if _pr_seen is None:
+                        _pr_seen = set()
+                        self._pump_retrace_shadow_seen = _pr_seen
+                    _pr_key = (_pr_taddr or decision.token or "").lower()
+                    if _pr_key not in _pr_seen:
+                        _pr_seen.add(_pr_key)
+                        from feeds.filter_shadow_recorder import record_verdict as _rv
+                        _pr_mc = (getattr(bundle, "mcap", None)
+                                  or _ar_meta.get("mcap")
+                                  or _ar_meta.get("marketCap"))
+                        _rv(token_address=_pr_taddr, token_symbol=decision.token,
+                            pair={"pairAddress": getattr(decision, "pair_address", "") or "",
+                                  "priceChange": {"h6": _pr_h6},
+                                  "liquidity": {"usd": _ar_liq}, "marketCap": _pr_mc},
+                            filter_name="pump_retrace_gate", verdict="BLOCK",
+                            reasons=_pr_why)
+                except Exception:
+                    pass
+                _pr_rb = False
+                try:
+                    from core.gate_rollback import is_rolled_back as _irb
+                    _pr_rb = _irb("pump_retrace_gate")
+                except Exception:
+                    _pr_rb = False
+                if _pr_mode == "enforce" and not _pr_rb:
+                    return
         # ── Structure-edge gate (#true-edge decomposition 2026-06-24) — SHADOW ──
         # The verified +EV entry condition: fire ONLY when pc_h6>=0 (dip within a
         # 6h-reclaimed structure) OR liquidity>=48k (deep book). BLOCK only a
@@ -22941,6 +22994,8 @@ class DipScanner:
         self._fdf_shadow_seen = set()
         # Same per-cycle dedup for the structure_edge gate's forward-candle recorder.
         self._se_shadow_seen = set()
+        # Same per-cycle dedup for the pump_retrace gate's recorder.
+        self._pump_retrace_shadow_seen = set()
         # Same per-cycle dedup for the liquidity_exit_floor + consec_red_knife +
         # not_dipping gates.
         self._lef_shadow_seen = set()

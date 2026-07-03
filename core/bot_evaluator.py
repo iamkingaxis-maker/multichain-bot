@@ -982,6 +982,46 @@ def falling_day_flush_blocks(pc_h24, pc_h1, h24_max: float = 0.0,
     return False, ""
 
 
+def _pump_retrace_h6_min() -> float:
+    try:
+        return float(os.environ.get("PUMP_RETRACE_H6_MIN", "50"))
+    except (TypeError, ValueError):
+        return 50.0
+
+
+def pump_retrace_blocks(pc_h6, h6_min: float | None = None) -> tuple[bool, str]:
+    """Block a 'retrace of a fresh pump' entry: token still UP > h6_min (default
+    +50%) on the 6h window at fire time (2026-07-03 evening-bleed autopsy).
+
+    A dip on a token that pumped hard in the last 6h is distribution, not
+    capitulation — the dip machine keeps catching the unwind (TATE entered at
+    pc_h6=+286, Goofreck +73 on the 07-02 evening bleed). Scrubbed per-token
+    realized on badday_flush (16 days, n=50 blocked at +50): BLOCK cohort
+    -7.80 EARLY / -4.74 LATE (negative BOTH time halves, WR 34%/19%) vs PASS
+    +0.45/-4.17; forfeits 5 winners (~+80pp) against ~-326pp of blocked losses.
+    Corroborates the coverage audit (pump-retraces = 54% of admissions, the
+    never-profitable slice), green-day track B (losers = pump-retraces) and the
+    full-thesis cohort (pc_h6<=0 arm).
+
+    NOT for the young lane: a young token's post-launch-pump retrace IS the
+    young_absorb setup — callers must exempt young-probe bots.
+
+    Pure. Fail-OPEN on non-numeric/bool/NaN (never block on absent data)."""
+    lo = _pump_retrace_h6_min() if h6_min is None else h6_min
+    if isinstance(pc_h6, bool):
+        return False, ""
+    try:
+        a = float(pc_h6)
+    except (TypeError, ValueError):
+        return False, ""
+    if a != a:  # NaN guard
+        return False, ""
+    if a > float(lo):
+        return True, (f"pc_h6={a:.0f}%>+{lo:.0f}% "
+                      f"(fresh-pump retrace/distribution, not a capitulation dip)")
+    return False, ""
+
+
 @dataclass
 class BuyDecision:
     bot_id: str

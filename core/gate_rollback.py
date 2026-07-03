@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 
 # Forward-candle-measured entry vetoes this watcher guards.
 MONITORED_GATES = ["falling_day_flush", "solpump_neg_gate", "structure_edge",
-                   "liquidity_exit_floor", "consec_red_knife", "not_dipping"]
+                   "liquidity_exit_floor", "consec_red_knife", "not_dipping",
+                   "pump_retrace_gate"]
 
 
 def _path() -> str:
