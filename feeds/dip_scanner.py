@@ -1845,7 +1845,12 @@ class DipScanner:
                     _ng_rb = _irb("solpump_neg_gate")
                 except Exception:
                     _ng_rb = False
-                if _ng_mode == "enforce" and not _ng_rb:
+                # YOUNG-PROBE EXEMPT (2026-07-03, enforced during the SOL-rip
+                # flip): young launch-arc dips are launch-mechanics-driven, not
+                # SOL-beta — the young lane stayed green through the green-SOL
+                # day that bled the family. Block applies to the family only.
+                _ng_young = bool(getattr(pm.config, "young_token_probe", False))
+                if _ng_mode == "enforce" and not _ng_rb and not _ng_young:
                     return
         # ── Falling-day flush gate (#loss-tail decomposition 2026-06-22) ───────
         # A deep h1 flush is a buyable PULLBACK when the token is UP on the day,
