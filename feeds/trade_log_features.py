@@ -75,7 +75,11 @@ def _empty() -> Dict[str, Any]:
         # Buyer-profile signals
         "n_recurring_buyers_3plus": None,
         "whale_buy_present_2k": False,
-        "whale_max_buy_usd": 0.0,
+        # None on missing tape (read-as-zero bug-class rule, 2026-07-03): a
+        # fabricated $0 max-print would let a future absorption print-gate
+        # block on failed fetches. Boolean whale_buy_present_2k stays False
+        # (absence-of-evidence is the correct trigger semantic there).
+        "whale_max_buy_usd": None,
     }
 
 

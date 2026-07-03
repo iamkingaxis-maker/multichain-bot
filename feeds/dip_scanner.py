@@ -14199,7 +14199,7 @@ class DipScanner:
                 _tf_grad_status = _tier3_features.get("graduation_status") if _tier3_features else None
                 _tf_nfi60 = _tier2_features.get("net_flow_60s_imbalance") if _tier2_features else None
                 _tf_bp60 = _tier2_features.get("buy_pressure_60s") if _tier2_features else None
-                _tf_buy_max = _tier2_features.get("buy_size_max_trend") if _tier2_features else None
+                _tf_buy_max = (_trade_log_dict or {}).get("buy_size_max_trend")
                 _tf_lvh1 = _tier2_features.get("liq_velocity_h1_usd_per_txn") if _tier2_features else None
                 _tf_lc_ratio = (_lifecycle_dict or {}).get("lifecycle_h24_ratio")
                 logger.info(
@@ -17200,8 +17200,11 @@ class DipScanner:
             _trigger_vp_orderflow_match = False
             _trigger_vp_orderflow_reasons: list = []
             try:
-                _mbs_vp = (_tier1_features.get("mean_buy_size_usd")
-                           if isinstance(_tier1_features, dict) else None)
+                # DEAD-LOOKUP FIX 2026-07-03: correct source = trade-log dict
+                # (tier1/tier3 never carried this key -> trigger never fired).
+                _mbs_vp = (_trade_log_dict or {}).get("mean_buy_size_usd")
+                if _mbs_vp is None and isinstance(_tier1_features, dict):
+                    _mbs_vp = _tier1_features.get("mean_buy_size_usd")
                 if _mbs_vp is None and isinstance(_tier3_features, dict):
                     _mbs_vp = _tier3_features.get("mean_buy_size_usd")
                 _nf60_vp = _tier3_features.get("net_flow_60s_usd") if isinstance(_tier3_features, dict) else None
@@ -17350,8 +17353,13 @@ class DipScanner:
             _mean_buy_size = (entry_meta_dict.get("mean_buy_size_usd")
                               if False else None)  # placeholder; meta not built yet
             try:
-                _mbs = (_tier1_features.get("mean_buy_size_usd")
-                        if isinstance(_tier1_features, dict) else None)
+                # DEAD-LOOKUP FIX 2026-07-03: mean_buy_size_usd lives in the
+                # TRADE-LOG dict (trade_log_features.analyze), not tier1/tier3 —
+                # the guard read the wrong dicts since ship = always None =
+                # never fired. Tier fallbacks kept for safety.
+                _mbs = (_trade_log_dict or {}).get("mean_buy_size_usd")
+                if _mbs is None and isinstance(_tier1_features, dict):
+                    _mbs = _tier1_features.get("mean_buy_size_usd")
                 if _mbs is None and isinstance(_tier3_features, dict):
                     _mbs = _tier3_features.get("mean_buy_size_usd")
             except Exception:

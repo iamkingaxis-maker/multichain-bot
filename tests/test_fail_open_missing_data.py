@@ -250,3 +250,30 @@ def test_bs_m5_weak_unknown_buyers_is_not_low():
     assert ub_low(True) is False
     assert ub_low(3) is True        # real low -> still blocks
     assert ub_low(15) is False      # real high -> rescue
+
+
+class TestWhaleMaxBuyNoneOnEmpty:
+    """2026-07-03: whale_max_buy_usd fabricated $0 on missing tape — a future
+    absorption print-gate (max_print>=50) would block on failed fetches. Now
+    None on empty; real tapes still produce the measured max."""
+
+    def test_empty_tape_yields_none(self):
+        from feeds.trade_log_features import analyze
+        assert analyze([])["whale_max_buy_usd"] is None
+        assert analyze(None)["whale_max_buy_usd"] is None
+
+    def test_no_buys_yields_none(self):
+        from feeds.trade_log_features import analyze
+        out = analyze([{"kind": "sell", "volume_usd": 100.0}])
+        assert out["whale_max_buy_usd"] is None
+
+    def test_real_tape_measures_max(self):
+        from feeds.trade_log_features import analyze
+        out = analyze([{"kind": "buy", "volume_usd": 55.0},
+                       {"kind": "buy", "volume_usd": 210.0}])
+        assert out["whale_max_buy_usd"] == 210.0
+
+    def test_boolean_whale_present_stays_false_on_empty(self):
+        # absence-of-evidence IS the correct semantic for a presence trigger
+        from feeds.trade_log_features import analyze
+        assert analyze([])["whale_buy_present_2k"] is False
