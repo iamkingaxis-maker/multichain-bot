@@ -2703,6 +2703,9 @@ class DipScanner:
         # rebuy-the-same-knife artifact (fleet re-entered GAPLA 80s after a
         # -17 gap-through; rebuy artifact ~= half of historical $ losses).
         # Mechanical anti-pattern guard, not a selection signal — enforce.
+        # (2026-07-04 fix: `now` was never assigned in this method — the cooldown
+        # comparisons below NameError'd the buy the first time a cooldown ts existed.)
+        now = time.time()
         try:
             _sc_mins = float(os.environ.get("STOPOUT_COOLDOWN_MINS", "20"))
         except (TypeError, ValueError):
@@ -2736,6 +2739,63 @@ class DipScanner:
                     "negative bail, cooldown %.0fm)", bot_id, decision.token,
                     now - _bc_ts, _bc_mins)
                 return
+        # ── FLEET PER-TOKEN CONCURRENCY CAP (go-live audit #4, 2026-07-04):
+        # cap CONCURRENT distinct badday_/young-probe bots holding the SAME
+        # token — the residual mirror pile-on (07-03 BongoCat first-entry wave
+        # hit 7 bots at once; June's -$5k live day = one token x 198 entries).
+        # Scope = badday_ prefix OR young_token_probe flag (a young pile-on is
+        # still a pile-on). Keyed address-when-available / symbol fallback
+        # (streak-latch keying — symbols collide). Counts OTHER bots only.
+        # FLEET_TOKEN_CAP_MODE=off|shadow|enforce (default SHADOW — measure
+        # winner-cost on the 9-bot roster before enforcing; the June cap-2-3
+        # analysis was on the old 70-bot fleet). FLEET_TOKEN_CAP default 3.
+        # FAIL-OPEN: any counting error -> allow the buy. ──────────────────
+        from core.fleet_token_cap import (
+            cap_mode as _ftc_mode_fn, cap_n as _ftc_cap_fn,
+            other_holders as _ftc_holders, blocks as _ftc_blocks)
+        _ftc_mode = _ftc_mode_fn()
+        if _ftc_mode != "off" and (
+                str(bot_id).startswith("badday_")
+                or bool(getattr(pm.config, "young_token_probe", False))):
+            try:
+                _ftc_addr = str(decision.address
+                                or self._addr_by_token.get(decision.token, "") or "")
+                _ftc_keys = {k for k in (_ftc_addr.lower(),
+                                         str(decision.token or "").lower()) if k}
+                _ftc_book = {}
+                for _fb, _fpm in self.bot_position_managers.items():
+                    if not (str(_fb).startswith("badday_")
+                            or bool(getattr(getattr(_fpm, "config", None),
+                                            "young_token_probe", False))):
+                        continue
+                    _ftc_book[_fb] = {
+                        (str(getattr(_fp, "address", "") or "").lower()
+                         or str(getattr(_fp, "token", "") or "").lower())
+                        for _fp in getattr(_fpm, "_positions", {}).values()}
+                _ftc_who = _ftc_holders(_ftc_book, bot_id, _ftc_keys)
+                _ftc_cap = _ftc_cap_fn()
+                if _ftc_blocks(len(_ftc_who), _ftc_cap):
+                    _ftc_c = self.__dict__.setdefault(
+                        "_fleet_cap_stats", {"would_block": 0, "block": 0})
+                    _ftc_c["block" if _ftc_mode == "enforce" else "would_block"] += 1
+                    logger.info(
+                        "[DipScanner] FLEET-TOKEN-CAP %s: %s held by %d sibling "
+                        "bots (cap %d) bot=%s addr=%s",
+                        "BLOCK" if _ftc_mode == "enforce" else "SHADOW-would-block",
+                        decision.token, len(_ftc_who), _ftc_cap, bot_id, _ftc_addr)
+                    self._append_exit_reprice_shadow({
+                        "kind": "fleet_token_cap", "mode": _ftc_mode,
+                        "ts": time.time(), "bot_id": bot_id,
+                        "token": decision.token, "address": _ftc_addr,
+                        "holders": len(_ftc_who), "holder_bots": _ftc_who,
+                        "cap": _ftc_cap,
+                    })
+                    if _ftc_mode == "enforce":
+                        return
+            except Exception as _ftc_e:
+                # FAIL-OPEN: never block a buy on a counting bug.
+                logger.error("[DipScanner] FLEET-TOKEN-CAP error (%s) — fail-open, "
+                             "allowing %s %s", _ftc_e, bot_id, decision.token)
         _nt_mode = os.environ.get("NF5M_TOXIC_MODE", "off").lower()
         if _nt_mode != "off" and str(bot_id).startswith("badday_"):
             from core.bot_evaluator import nf5m_toxic_zone_blocks as _ntb
