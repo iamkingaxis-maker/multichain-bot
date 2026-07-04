@@ -1787,7 +1787,31 @@ class DipScanner:
         # (dd90<=-30, the durable red-tape edge). SHADOW by default (measure winner-kill
         # first per discipline); NEGGATE_MODE=enforce to turn it on.
         _ng_solh6 = (getattr(self, "_cycle_sol_features", {}) or {}).get("sol_pc_h6")
-        if isinstance(_ng_solh6, (int, float)) and _ng_solh6 >= float(os.environ.get("NEGGATE_SOL_H6_MIN", "1.5")):
+        # SUSTAINED-RIP condition (2026-07-04): SOL h6 oscillated across the 1.5
+        # line ~15x in 40min on 07-04 — an instantaneous reading thrashes the
+        # gate. Hysteresis (arm at >=NEGGATE_SOL_H6_MIN, disarm below 1.2) +
+        # persistence: the gate acts only after NEGGATE_SUSTAIN_MINS (default
+        # 10) of continuous rip. Boundary jitter never arms it.
+        try:
+            _ng_min = float(os.environ.get("NEGGATE_SOL_H6_MIN", "1.5"))
+        except (TypeError, ValueError):
+            _ng_min = 1.5
+        try:
+            _ng_sust = float(os.environ.get("NEGGATE_SUSTAIN_MINS", "10")) * 60.0
+        except (TypeError, ValueError):
+            _ng_sust = 600.0
+        _ng_now = time.time()
+        if isinstance(_ng_solh6, (int, float)) and not isinstance(_ng_solh6, bool):
+            if _ng_solh6 >= _ng_min:
+                if getattr(self, "_ng_rip_since", None) is None:
+                    self._ng_rip_since = _ng_now
+            elif _ng_solh6 < 1.2:
+                self._ng_rip_since = None
+        _ng_armed = (isinstance(_ng_solh6, (int, float)) and not isinstance(_ng_solh6, bool)
+                     and _ng_solh6 >= _ng_min
+                     and getattr(self, "_ng_rip_since", None) is not None
+                     and (_ng_now - self._ng_rip_since) >= _ng_sust)
+        if _ng_armed:
             _ng_pch1 = getattr(bundle, "pc_h1", None)
             if _ng_pch1 is None:
                 _ng_pch1 = _ar_meta.get("pc_h1")
