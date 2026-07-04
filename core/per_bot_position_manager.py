@@ -646,6 +646,30 @@ class PerBotPositionManager:
                     ))
                     return decisions
 
+        # 0c. GIVEBACK-TRAIL SHADOW (2026-07-04 giveback-lever study). The
+        # recoverable slice of the 91 token-pp/day giveback pool is the
+        # PRE-TP1 peak-armed trail: arm at peak>=5, fire at pnl<=peak-2,
+        # stand down once TP1 fills. Fleet-wide enforce is sign-ambiguous
+        # (path-unobserved wick kills could flip it); allday-scoped net was
+        # +15..+61pp/7d pessimistic (thin n=12). STAMP-ONLY here — the
+        # decision gate is n>=30 shadow TP1-hitter joins with kills <50% of
+        # recovered under -2pp fills. GIVEBACK_TRAIL_SHADOW=off disables.
+        if (os.environ.get("GIVEBACK_TRAIL_SHADOW", "on").strip().lower() != "off"
+                and not p.tp1_hit):
+            try:
+                _gb2_arm = float(os.environ.get("GIVEBACK_TRAIL_PEAK_MIN", "5.0"))
+                _gb2_x = float(os.environ.get("GIVEBACK_TRAIL_PP", "2.0"))
+                if (p.peak_pnl_pct >= _gb2_arm
+                        and pnl_pct <= p.peak_pnl_pct - _gb2_x
+                        and p.state_blob is not None
+                        and not p.state_blob.get("gb2_shadow_fired")):
+                    p.state_blob["gb2_shadow_fired"] = True
+                    p.state_blob["gb2_shadow_pnl_at_fire"] = round(pnl_pct, 4)
+                    p.state_blob["gb2_shadow_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+                    p.state_blob["gb2_shadow_secs"] = int(now - p.entry_time)
+            except Exception:
+                pass
+
         # 1. Hard stop (highest priority)
         if pnl_pct <= self.config.hard_stop_pct:
             decisions.append(ExitDecision(
