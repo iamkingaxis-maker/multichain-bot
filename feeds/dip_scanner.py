@@ -22327,6 +22327,30 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] holder_concentration shadow err: {_e}")
 
+            # medbuy_sub8 — SHADOW 2026-07-04 (daily decode, pooled 07-01..03
+            # flush events n=245): the crowd-quality bounce CLIFF is median buy
+            # size < $8 — 66% bounce (n=29) vs 82-84% at every band >= $8;
+            # TP1-reach 59% vs 77-78%. NOT the $8-13 "signature" from the
+            # week's autopsies (that REVERSED — Martolexx/RUSH flushes bounced;
+            # those losses were exit mechanics). MEASURE-ONLY verdict stamped +
+            # counted; enforce/de-size decision on realized joins at n>=30.
+            # Fail-open on missing (isinstance-guard, read-as-zero rule).
+            try:
+                _mb8 = entry_meta_dict.get("median_buy_size_usd")
+                if _mb8 is None:
+                    _mb8 = (_trade_log_dict or {}).get("median_buy_size_usd")
+                if isinstance(_mb8, (int, float)) and not isinstance(_mb8, bool):
+                    _mb8_v = "BLOCK" if float(_mb8) < 8.0 else "PASS"
+                    entry_meta_dict["medbuy_sub8_shadow"] = _mb8_v
+                    if _mb8_v == "BLOCK":
+                        c["medbuy_sub8_would_block"] = c.get("medbuy_sub8_would_block", 0) + 1
+                        logger.info(
+                            f"[DipScanner] medbuy_sub8 SHADOW would-block: "
+                            f"{token_symbol} median_buy=${float(_mb8):.2f}<8 "
+                            f"(crowd-quality cliff)")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] medbuy_sub8 shadow err: {_e}")
+
             # rug_gate — SHADOW 2026-06-04. FLEET-WIDE port of trader.buy's legacy
             # LP-UNLOCK block (which the fleet path bypassed). BLOCK when the dominant
             # pool's LP is UNLOCKED (lp_locked_pct<threshold) AND not burned = rug-pull
