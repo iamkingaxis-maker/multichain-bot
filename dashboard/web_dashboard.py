@@ -5219,13 +5219,31 @@ class WebDashboard:
             })
 
     async def _handle_api_bot_trades(self, request):
-        """GET /api/bots/{bot_id}/trades — per-bot trade history."""
+        """GET /api/bots/{bot_id}/trades — per-bot trade history.
+
+        EGRESS (2026-07-04): full entry_meta makes 1000 records ~3.3MB even
+        gzipped, and daily research agents pull this repeatedly. Optional
+        ?meta_keys=a,b,c projects entry_meta to just those keys server-side
+        (a typical decode needs 5-10 of ~200 fields -> ~10-20x lighter).
+        Omit the param for full meta (unchanged default)."""
         bot_id = request.match_info["bot_id"]
         limit = int(request.query.get("limit", 50))
         if self.trade_store is None:
             return web.json_response([])
         trades = self.trade_store.load_trades(bot_id=bot_id)
-        return web.json_response(trades[-limit:])
+        out = trades[-limit:]
+        mk = (request.query.get("meta_keys") or "").strip()
+        if mk:
+            keys = {k.strip() for k in mk.split(",") if k.strip()}
+            slim = []
+            for t in out:
+                t2 = dict(t)
+                em = t2.get("entry_meta")
+                if isinstance(em, dict):
+                    t2["entry_meta"] = {k: em.get(k) for k in keys if k in em}
+                slim.append(t2)
+            out = slim
+        return web.json_response(out)
 
     async def _handle_api_bot_positions(self, request):
         """GET /api/bots/{bot_id}/positions — per-bot open positions.
