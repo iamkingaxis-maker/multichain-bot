@@ -85,5 +85,6 @@
   "vol_h1_min": 50000.0,
   "young_token_probe": true,
   "exclusion_pool": "badday_adolescent_absorb",
-  "velbail_pnl_pct": -8.0
+  "velbail_pnl_pct": -8.0,
+  "entry_gate_require_data": true
 }

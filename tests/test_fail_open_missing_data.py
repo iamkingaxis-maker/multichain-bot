@@ -277,3 +277,36 @@ class TestWhaleMaxBuyNoneOnEmpty:
         # absence-of-evidence IS the correct semantic for a presence trigger
         from feeds.trade_log_features import analyze
         assert analyze([])["whale_buy_present_2k"] is False
+
+
+class TestEntryGateRequireData:
+    """2026-07-04: demand-thesis bots opt into FAIL-CLOSED entry gates.
+    young_absorb bled -40pp in a day when tape fetches failed and
+    buyers/nf15=None waived the demand gates (5 no-data entries all lost;
+    the observed-demand entry won). Default stays fail-open."""
+
+    def _eval(self, require, meta):
+        import json, pathlib
+        from core.bot_config import BotConfig
+        from core.bot_evaluator import BotEvaluator, FeatureBundle
+        base = json.loads(pathlib.Path("config/bots/badday_young_absorb.json").read_text())
+        base["entry_gate_require_data"] = require
+        cfg = BotConfig(**base)
+        ev = BotEvaluator.__new__(BotEvaluator)
+        b = FeatureBundle.__new__(FeatureBundle)
+        b.raw_meta = meta
+        return ev._entry_gate_passes(cfg, b) if hasattr(ev, "_entry_gate_passes") else None
+
+    def test_configs_carry_the_flag(self):
+        import json, pathlib
+        for name in ("badday_young_absorb", "badday_adolescent_absorb",
+                     "badday_swing_latch"):
+            c = json.loads(pathlib.Path(f"config/bots/{name}.json").read_text())
+            assert c.get("entry_gate_require_data") is True, name
+
+    def test_family_default_stays_fail_open(self):
+        import json, pathlib
+        from core.bot_config import BotConfig
+        c = BotConfig(**json.loads(
+            pathlib.Path("config/bots/badday_flush.json").read_text()))
+        assert getattr(c, "entry_gate_require_data", False) is False

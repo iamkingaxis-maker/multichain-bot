@@ -383,6 +383,15 @@ class BotConfig:
     # disable the velocity leg while keeping the floor — the wickride A/B arm.
     velbail_pnl_pct: Optional[float] = None
 
+    # FAIL-CLOSED entry gate (2026-07-04 young no-data bleed). When True, a
+    # missing/non-numeric feature in ANY entry_gate clause SKIPS the token
+    # (default False = fail-open per the read-as-zero rule). For demand-thesis
+    # bots (young/adolescent/swing lanes): unknown demand is not a waived
+    # gate, it's an unqualified entry — 07-04: 5/7 young entries fired with
+    # buyers/nf15=None and all lost (-40pp day); the one observed-demand entry
+    # won. Candidates are plentiful; skipping unknowns costs little.
+    entry_gate_require_data: bool = False
+
     # Momentum-continuation mode (2026-06-02, #4.3). When True the bot uses a SEPARATE
     # entry path: it BYPASSES the dip-filter stack + dip triggers (which block 100% of
     # momentum candidates) and enters on the momentum entry_gate (e.g. pc_h1>=20 AND

@@ -87,5 +87,6 @@
   "pc_h1_max": null,
   "pc_h24_max": null,
   "pc_h24_min": null,
-  "antirug_floor_exempt": true
+  "antirug_floor_exempt": true,
+  "entry_gate_require_data": true
 }

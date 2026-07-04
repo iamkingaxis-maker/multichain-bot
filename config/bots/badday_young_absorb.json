@@ -84,5 +84,6 @@
   ],
   "vol_h1_min": 50000.0,
   "young_token_probe": true,
-  "exclusion_pool": "badday_young_absorb"
+  "exclusion_pool": "badday_young_absorb",
+  "entry_gate_require_data": true
 }

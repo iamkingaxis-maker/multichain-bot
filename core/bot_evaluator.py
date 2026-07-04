@@ -1275,6 +1275,16 @@ class BotEvaluator:
                         if isinstance(_v, (int, float)):
                             break
                 if not isinstance(_v, (int, float)):
+                    # Default FAIL-OPEN (missing data never blocks — the
+                    # read-as-zero bug-class rule). DEMAND-THESIS bots opt into
+                    # FAIL-CLOSED via entry_gate_require_data (2026-07-04):
+                    # young_absorb bled -40pp in one day when tape fetches
+                    # failed and buyers/nf15=None silently waived the demand
+                    # gates — 5 no-data entries all lost, the one with real
+                    # tape won. "Deep dip MET BY demand" requires the demand
+                    # to be OBSERVED; unknown demand = skip, not waive.
+                    if bool(getattr(c, "entry_gate_require_data", False)):
+                        return False
                     continue
                 if _op == ">=" and _v < _thr:
                     return False
