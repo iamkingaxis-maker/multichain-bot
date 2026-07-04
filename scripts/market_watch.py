@@ -300,8 +300,18 @@ def main():
                 pc = (d.get("pair") or (d.get("pairs") or [{}])[0]).get("priceChange") or {}
                 h1, h6 = float(pc.get("h1") or 0), float(pc.get("h6") or 0)
                 prev = state.get("sol_zone")
-                zone = ("rip" if h6 > 1.5 else "crash" if h6 < -3 or h1 < -2
-                        else "green" if h6 > 0 else "red")
+                # HYSTERESIS (2026-07-04): SOL oscillated across the 1.5 rip
+                # line ~15x in 40min on 07-04 and the watcher alerted every
+                # crossing. Enter rip above +1.8, leave below +1.2 — boundary
+                # jitter inside the band keeps the previous zone.
+                if h6 < -3 or h1 < -2:
+                    zone = "crash"
+                elif prev == "rip":
+                    zone = "rip" if h6 > 1.2 else ("green" if h6 > 0 else "red")
+                elif h6 > 1.8:
+                    zone = "rip"
+                else:
+                    zone = "green" if h6 > 0 else "red"
                 if prev and zone != prev and ("rip" in (zone, prev) or "crash" in (zone, prev)):
                     emit("REGIME-FLIP", f"SOL {prev} -> {zone} (h1={h1:+.2f} h6={h6:+.2f})")
                 state["sol_zone"] = zone
