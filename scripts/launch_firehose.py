@@ -138,11 +138,14 @@ def inject_watchlist(state, addr, sym):
 
 
 def expire_injections(state):
-    """Remove our own injections after the 24h TTL. Fail-open."""
+    """Remove our own injections after the TTL. Fail-open.
+    TTL 24h -> 3h (2026-07-04): a launch pin is only useful for the token's
+    young window; day-long pins bloat the scanner's armed set and starve the
+    fast-path tape budget (the buyers=None bleed)."""
     try:
         inj = state.get("injected") or {}
         for addr, ts in list(inj.items()):
-            if time.time() - ts > 24 * 3600:
+            if time.time() - ts > 3 * 3600:
                 body = json.dumps({"address": addr}).encode()
                 req = urllib.request.Request(f"{DASH}/api/user-watchlist/remove",
                                              data=body,

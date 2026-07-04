@@ -91,7 +91,10 @@ def expire_injections(state):
     try:
         inj = state.get("injected") or {}
         for addr, ts in list(inj.items()):
-            if time.time() - ts > 24 * 3600:
+            # TTL 24h -> 6h (2026-07-04): pin bloat (141 stale of 156) deepened
+            # the fast-path tape-fetch queue past its 3s budget -> buyers=None
+            # entries. A missed-dip pin is only interesting for hours, not a day.
+            if time.time() - ts > 6 * 3600:
                 body = json.dumps({"address": addr}).encode()
                 req = urllib.request.Request(f"{DASH}/api/user-watchlist/remove",
                                              data=body,
