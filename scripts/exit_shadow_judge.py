@@ -33,6 +33,10 @@ INSTRUMENTS = {
     "trail_reprice": ("trail_reprice_shadow_pnl", 1.0),
     "breakeven_lock": ("bel_shadow_pnl_at_fire", 1.0),
 }
+# Instruments already ENFORCED in prod: the join is CIRCULAR (realized IS the
+# instrument's own exit, so 'save' ~ fill drift, not counterfactual value).
+# Annotated instead of judged (2026-07-05: BEL enforces at peak>=3 live).
+ALREADY_ENFORCED = {"breakeven_lock"}
 
 
 def g(p):
@@ -85,8 +89,11 @@ def main():
         hurt = sum(1 for s, r, _, _ in v if r > 0 and s < 0)
         helps = sum(1 for s in saves if s > 0)
         bar = len(v) >= 30 and st.mean(saves) > 0 and (hurt == 0 or hurt < 0.5 * max(helps, 1))
+        verdict = ("(already enforced — join circular, fill-drift only)"
+                   if name in ALREADY_ENFORCED
+                   else ("ENFORCE-READY" if bar else "accrue"))
         print(f"{name:16} {len(v):>4} {st.mean(saves):>+9.2f} {st.median(saves):>+8.2f} "
-              f"{hurt:>5}/{len(v):<6} {'ENFORCE-READY' if bar else 'accrue'}")
+              f"{hurt:>5}/{len(v):<6} {verdict}")
         worst = sorted(v)[:3]
         best = sorted(v, reverse=True)[:3]
         print(f"  best saves : {[(x[3], round(x[0],1)) for x in best]}")
