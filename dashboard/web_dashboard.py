@@ -537,6 +537,25 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- ── WALLET TRUTH (on-chain, the ONLY honest live number) ── -->
+  <div class="card" id="wallet-truth-panel">
+    <div class="card-title">
+      <span class="dot"></span> WALLET TRUTH
+      <span style="text-transform:none;letter-spacing:0;color:var(--muted);">&mdash; on-chain SOL delta since go-live baseline &middot; the exact wallet gain/loss, nothing simulated</span>
+    </div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:baseline;padding:6px 2px;">
+      <div><div style="color:var(--muted);font-size:11px;">LIVE Δ (SOL)</div>
+        <div id="wt-delta" style="font-size:26px;font-weight:700;">—</div></div>
+      <div><div style="color:var(--muted);font-size:11px;">wallet now</div>
+        <div id="wt-now" style="font-size:16px;">—</div></div>
+      <div><div style="color:var(--muted);font-size:11px;">baseline</div>
+        <div id="wt-base" style="font-size:16px;">—</div></div>
+      <div><div style="color:var(--muted);font-size:11px;">open live positions</div>
+        <div id="wt-open" style="font-size:16px;">—</div></div>
+      <div id="wt-note" style="color:var(--muted);font-size:12px;align-self:center;"></div>
+    </div>
+  </div>
+
   <!-- ── LIVE-SLOT RACE (per-bot — who earns the live slot) ── -->
   <div class="card" id="race-panel">
     <div class="card-title">
@@ -1043,6 +1062,37 @@ async function updateHonestBook() {
 }
 updateHonestBook();
 setInterval(updateHonestBook, 120000);
+
+// ── WALLET TRUTH (on-chain SOL delta — the only honest live number) ─────────
+async function updateWalletTruth() {
+  try {
+    const r = await fetch('/api/wallet-truth');
+    if (!r.ok) return;
+    const d = await r.json();
+    const delta = document.getElementById('wt-delta');
+    if (!delta) return;
+    if (typeof d.delta_sol === 'number') {
+      const s = d.delta_sol;
+      delta.textContent = (s >= 0 ? '+' : '') + s.toFixed(4) + ' SOL';
+      delta.style.color = s >= 0 ? 'var(--green, #2ecc71)' : 'var(--red, #e74c3c)';
+    } else {
+      delta.textContent = d.paper_mode ? 'paper mode' : '—';
+      delta.style.color = 'var(--muted)';
+    }
+    document.getElementById('wt-now').textContent =
+      (typeof d.sol_now === 'number') ? d.sol_now.toFixed(4) + ' SOL' : '—';
+    document.getElementById('wt-base').textContent =
+      (typeof d.baseline_sol === 'number') ? d.baseline_sol.toFixed(4) + ' SOL' : '—';
+    document.getElementById('wt-open').textContent =
+      (d.open_live_positions == null) ? '—' : String(d.open_live_positions);
+    document.getElementById('wt-note').textContent =
+      (d.stale ? 'STALE (rpc error) · ' : '') + (d.note || '') +
+      (typeof d.delta_sol === 'number' && d.open_live_positions > 0
+        ? ' Δ dips while positions are open — final truth on close.' : '');
+  } catch (e) {}
+}
+setInterval(updateWalletTruth, 60000);
+updateWalletTruth();
 
 // ── LIVE-SLOT RACE (per-bot scrubbed 7d scoreboard) ─────────────────────────
 async function updateRace() {
@@ -2161,6 +2211,8 @@ class WebDashboard:
         # 2026-07-04: LIVE-SLOT RACE — per-bot scrubbed 7d scoreboard (GET,
         # UI-additive, aggregates only).
         self.app.router.add_get("/api/race",                  self._handle_api_race)
+        self.app.router.add_get("/api/wallet-truth",          self._handle_api_wallet_truth)
+        self.app.router.add_post("/api/wallet-truth/rebase",  self._handle_api_wallet_truth_rebase)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -5642,6 +5694,104 @@ class WebDashboard:
                                       "days": [], "pooled": {}})
         self._honest_book_cache = (_t.monotonic(), payload)
         return web.json_response(payload)
+
+    async def _handle_api_wallet_truth(self, request):
+        """GET /api/wallet-truth — the ON-CHAIN wallet delta, nothing else.
+
+        AxiS 2026-07-05: 'live probe lost $40 while the dashboard showed -$7.
+        That cannot ever happen. The dashboard should show my exact wallet
+        amount gained or lost.' The June incident (+$185 shown vs -$48 real)
+        came from the simulated realized-P&L ledger. This endpoint reads the
+        HOT WALLET's SOL balance from the chain (public RPC, no key, no
+        Helius) and reports the delta vs a persisted baseline:
+          - baseline auto-created on first call while LIVE (PAPER_MODE=false),
+            stored at {DATA_DIR}/live_wallet_baseline.json
+          - POST /api/wallet-truth/rebase (Basic auth) resets the baseline
+            (use after deposits/withdrawals so the delta stays honest)
+        SOL balance excludes SPL tokens by construction, so AxiS's personal
+        holdings (GFOF, …Cmoon) never enter the number; open live positions
+        temporarily depress the delta until they close (shown as context).
+        Cached 60s; fail-open (rpc error -> last known + stale flag)."""
+        import time as _t
+        cache = getattr(self, "_wt_cache", None)
+        if cache and (_t.monotonic() - cache[0]) < 60:
+            return web.json_response(cache[1])
+        wallet = os.environ.get(
+            "HOT_WALLET_PUBKEY", "Ao8uMKCyprmHVjwzw93bRKxPJHBnRtC6XkMc85zzyjPL")
+        base_path = os.path.join(os.environ.get("DATA_DIR", "/data"),
+                                 "live_wallet_baseline.json")
+
+        def _fetch():
+            import urllib.request as _ur
+            body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "getBalance",
+                               "params": [wallet]}).encode()
+            req = _ur.Request("https://api.mainnet-beta.solana.com", data=body,
+                              headers={"Content-Type": "application/json"})
+            r = json.loads(_ur.urlopen(req, timeout=15).read())
+            return float(r["result"]["value"]) / 1e9
+
+        out = {"ok": True, "wallet": wallet[:6] + "…" + wallet[-4:]}
+        try:
+            sol_now = await asyncio.to_thread(_fetch)
+            out["sol_now"] = round(sol_now, 6)
+            # baseline: load, or create on first live call
+            baseline = None
+            try:
+                with open(base_path) as f:
+                    baseline = json.load(f)
+            except Exception:
+                pass
+            paper = str(os.environ.get("PAPER_MODE", "true")).lower() != "false"
+            if baseline is None and not paper:
+                baseline = {"sol": sol_now, "ts": time.time()}
+                try:
+                    with open(base_path, "w") as f:
+                        json.dump(baseline, f)
+                except Exception:
+                    pass
+            if baseline:
+                out["baseline_sol"] = round(float(baseline["sol"]), 6)
+                out["baseline_ts"] = baseline.get("ts")
+                out["delta_sol"] = round(sol_now - float(baseline["sol"]), 6)
+            else:
+                out["note"] = "baseline arms on first call in LIVE mode"
+            out["paper_mode"] = paper
+            # context: open live positions (they hold value outside SOL)
+            try:
+                lt = getattr(self, "live_trader", None) or getattr(self, "trader", None)
+                out["open_live_positions"] = (
+                    len(getattr(lt, "positions", {}) or {}) if lt else None)
+            except Exception:
+                pass
+            self._wt_cache = (_t.monotonic(), out)
+        except Exception as e:
+            out = dict((cache[1] if cache else {"ok": False}),
+                       stale=True, error=str(e)[:80])
+        return web.json_response(out)
+
+    async def _handle_api_wallet_truth_rebase(self, request):
+        """POST /api/wallet-truth/rebase — reset the baseline to the current
+        on-chain balance (after deposits/withdrawals). Basic-auth protected
+        like every write endpoint."""
+        wallet = os.environ.get(
+            "HOT_WALLET_PUBKEY", "Ao8uMKCyprmHVjwzw93bRKxPJHBnRtC6XkMc85zzyjPL")
+        base_path = os.path.join(os.environ.get("DATA_DIR", "/data"),
+                                 "live_wallet_baseline.json")
+        try:
+            import urllib.request as _ur
+            body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "getBalance",
+                               "params": [wallet]}).encode()
+            req = _ur.Request("https://api.mainnet-beta.solana.com", data=body,
+                              headers={"Content-Type": "application/json"})
+            r = json.loads(await asyncio.to_thread(
+                lambda: _ur.urlopen(req, timeout=15).read()))
+            sol_now = float(r["result"]["value"]) / 1e9
+            with open(base_path, "w") as f:
+                json.dump({"sol": sol_now, "ts": time.time()}, f)
+            self._wt_cache = None
+            return web.json_response({"ok": True, "baseline_sol": round(sol_now, 6)})
+        except Exception as e:
+            return web.json_response({"ok": False, "error": str(e)[:80]}, status=500)
 
     async def _handle_api_race(self, request):
         """GET /api/race — LIVE-SLOT RACE: per-bot scrubbed per-token per-day
