@@ -954,6 +954,13 @@ class DipScanner:
             asyncio.create_task(self._fast_watch_loop())
         except Exception as e:
             logger.error("[fast-watch] failed to spawn: %s", e)
+        # Warm-tape sampler: keeps recent-trades fresh for the armed set so
+        # decision-time demand reads never race the fetch queue (the None-tape
+        # structural fix). No-op when TAPE_SAMPLER_MODE=off.
+        try:
+            asyncio.create_task(self._tape_sampler_loop())
+        except Exception as e:
+            logger.error("[tape-sampler] failed to spawn: %s", e)
         # B4: on-chain WS hot-layer (shadow-validated vs Jupiter). True no-op
         # when ONCHAIN_WS_MODE=off. Best-effort; never breaks the scanner.
         try:
@@ -5017,6 +5024,61 @@ class DipScanner:
             return min(lows) if lows else None
         except Exception:
             return None
+
+    async def _tape_sampler_loop(self):
+        """Background warm-tape sampler (2026-07-05 structural None-tape fix).
+
+        Decision-time tape fetches race the throttled client queue and lose
+        exactly when the market is busiest — congestion clusters on volatile
+        moments, so the blind (buyers=None) entries are adversely selected
+        into the never-green killer class. This loop keeps recent-trades WARM
+        for the ARMED set (~15 tokens post-TTL-fix): every
+        TAPE_SAMPLER_INTERVAL_SECS (default 20) it refreshes each armed
+        pair's trade log sequentially with a small gap, storing into
+        self._tape_cache. The decision site reads the cache FIRST (max age
+        TAPE_CACHE_MAX_AGE_SECS, 45s) and only falls through to the live
+        fetch + retry chain on a miss. TAPE_SAMPLER_MODE=off disables.
+        Fail-safe: any error skips that pair; the loop never dies."""
+        from core.fast_watch import tape_cache_put
+        if os.environ.get("TAPE_SAMPLER_MODE", "on").strip().lower() in (
+                "off", "0", "false", "no"):
+            logger.info("[tape-sampler] TAPE_SAMPLER_MODE=off — not running")
+            return
+        self._tape_cache = getattr(self, "_tape_cache", {})
+        logger.info("[tape-sampler] warm-tape loop up (armed set, cache-first)")
+        while True:
+            try:
+                interval = 20.0
+                try:
+                    interval = float(os.environ.get(
+                        "TAPE_SAMPLER_INTERVAL_SECS", "20") or 20)
+                except (TypeError, ValueError):
+                    pass
+                await asyncio.sleep(max(5.0, interval))
+                if self.dexs_client is None:
+                    continue
+                armed = dict(getattr(self, "_fast_armed", {}) or {})
+                pairs = []
+                for _mint, _pair in list(armed.items())[:20]:
+                    _pa = (_pair or {}).get("pairAddress") if isinstance(_pair, dict) else None
+                    if _pa:
+                        pairs.append(str(_pa))
+                for _pa in pairs:
+                    try:
+                        trades = await asyncio.wait_for(
+                            self.dexs_client.fetch_recent_trades(_pa, limit=100),
+                            timeout=5.0,
+                        )
+                        if trades:
+                            tape_cache_put(self._tape_cache, _pa, trades,
+                                           time.monotonic())
+                    except Exception:
+                        pass
+                    await asyncio.sleep(0.4)   # throttle-friendly pacing
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.debug(f"[tape-sampler] cycle error: {str(e)[:80]}")
 
     async def _young_tape_shadow(self, bot_id, token, address, pair_address):
         """SHADOW record (2026-07-03 launch-arc mine): fetch 6h of GT minute bars
@@ -9641,13 +9703,28 @@ class DipScanner:
                 # (env FASTPATH_TRADES_BUDGET_SECS, default 3s): on timeout,
                 # recent_trades=[] -> maker features read None (fail-open per
                 # the trade_log_features fix), and the eval proceeds on time.
+                # WARM-TAPE CACHE FIRST (2026-07-05 structural None-tape
+                # fix): the background _tape_sampler_loop keeps recent-trades
+                # fresh for the armed set; a hit here means the demand read
+                # never touches the fetch queue at the moment it's congested.
+                try:
+                    from core.fast_watch import tape_cache_get as _tc_get
+                    _tc_max = float(os.environ.get(
+                        "TAPE_CACHE_MAX_AGE_SECS", "45") or 45)
+                    _tc_hit = _tc_get(getattr(self, "_tape_cache", None),
+                                      pair_addr_for_1m, time.monotonic(), _tc_max)
+                    if _tc_hit:
+                        recent_trades = _tc_hit
+                        c["tape_cache_hits"] = c.get("tape_cache_hits", 0) + 1
+                except Exception:
+                    pass
                 _rt_budget = 3.0
                 try:
                     _rt_budget = float(os.environ.get(
                         "FASTPATH_TRADES_BUDGET_SECS", "3") or 3)
                 except (TypeError, ValueError):
                     pass
-                if self.dexs_client is not None:
+                if not recent_trades and self.dexs_client is not None:
                     try:
                         with _SubOp("recent_trades_dexs"):
                             recent_trades = await asyncio.wait_for(

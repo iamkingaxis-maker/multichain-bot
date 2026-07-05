@@ -777,3 +777,37 @@ def tp1_fastfill_would_fire(samples, entry_price, tp1_pct, confirm_ticks=2):
         why = f"TP1 fastfill pnl={fresh_pnl:.2f}% >= {t1:g} [fresh x{n}]"
         return True, fresh_pnl, why
     return False, fresh_pnl, ""
+
+
+# ── warm tape cache (2026-07-05 structural fix for None-tape) ───────────────
+# Decision-time tape fetches race a throttled client queue and lose exactly
+# when the market is busiest (adverse selection into the never-green class).
+# The background sampler keeps recent-trades warm for the ARMED set; these
+# pure helpers define the cache contract. Fail-safe: any miss returns None
+# and the caller falls through to the live fetch + retry chain.
+
+def tape_cache_get(cache, key, now_mono, max_age_secs):
+    """Return the cached trades list if fresh, else None. Pure; never raises."""
+    try:
+        ent = (cache or {}).get(key)
+        if not ent:
+            return None
+        ts, trades = ent
+        if not trades or (now_mono - float(ts)) > float(max_age_secs):
+            return None
+        return trades
+    except Exception:
+        return None
+
+
+def tape_cache_put(cache, key, trades, now_mono, max_entries=64):
+    """Store trades under key; evict oldest beyond max_entries. Mutates cache."""
+    try:
+        if not key or trades is None:
+            return
+        cache[key] = (float(now_mono), trades)
+        if len(cache) > int(max_entries):
+            for k in sorted(cache, key=lambda k: cache[k][0])[:len(cache) - int(max_entries)]:
+                cache.pop(k, None)
+    except Exception:
+        pass
