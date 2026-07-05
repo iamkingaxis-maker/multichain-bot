@@ -7,7 +7,7 @@
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 25.0,
   "display_name": "YOUNG LIVE PROBE (pre-staged 2026-07-04, DORMANT): exact badday_young_absorb clone at $25/2-slot/$25-daily-kill for the T1 live probe. Candidate bar: scrubbed per-token >=+2 over >=5 days + n>=30 (young at 3/3 green days when staged). GO-LIVE ONLY via the runbook: test_pre_live_invariants.py GO + AxiS explicit approval + enabled=true + PAPER_MODE flip per reference_golive_LIVE_badday_2026_06_13. Fee math: $25 in our pools = ~2.7pp RT vs young edge +24/token = viable. Ladder: $25 -> $50 -> $100, edge-gated not calendar-gated.",
-  "enabled": true,
+  "enabled": false,
   "entry_gate": [
     [
       "unique_buyers_n",
