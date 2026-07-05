@@ -189,6 +189,15 @@ class Firehose(threading.Thread):
             or (tx != "create" and "migrat" in raw[:200].lower())
         if tx != "create" and not mig:
             return
+        # MIGRATIONS-ONLY by default (2026-07-05 zero-pin diagnosis): raw
+        # pump.fun creates (~14/min) almost never reach $10k REAL liquidity
+        # inside the 25-min window — 5,368 decision checks pinned ZERO. The
+        # valuable event is the MIGRATION (graduation to a real pool = the
+        # birth-cohort study's reserve>=10k moment). v0 (GT new_pools polling
+        # in market_watch) still covers the non-pumpfun pool layer.
+        # LF_STAGE_CREATES=1 re-enables create staging for experiments.
+        if not mig and os.environ.get("LF_STAGE_CREATES", "0") != "1":
+            return  # not marked seen — a later migration of this mint stages
         sym = str(ev.get("symbol") or "").strip() or mint[:8]
         with self.lock:
             if mint in self.staged or mint in self.seen:
