@@ -275,6 +275,24 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   .hb-stat .val.big { font-size: 30px; }
   .hb-note { font-size: 10px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
 
+  /* ── LIVE-SLOT RACE ── */
+  .race-cells { display: inline-flex; gap: 3px; vertical-align: middle; }
+  .race-cell {
+    width: 13px; height: 13px; border-radius: 3px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07);
+  }
+  .race-cell.g { background: rgba(0,255,157,0.45); border-color: rgba(0,255,157,0.6); box-shadow: 0 0 6px rgba(0,255,157,0.25); }
+  .race-cell.r { background: rgba(255,41,101,0.40); border-color: rgba(255,41,101,0.55); }
+  .race-bar-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 8px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.8px; white-space: nowrap;
+    background: var(--glass2); color: var(--muted); border: 1px solid var(--border);
+  }
+  .race-bar-badge.lit {
+    background: rgba(0,255,157,0.12); color: var(--green);
+    border: 1px solid rgba(0,255,157,0.5); box-shadow: 0 0 10px rgba(0,255,157,0.18);
+  }
+
   /* ── LIVE TRADING card ── */
   .live-card { border: 1px solid rgba(255,41,101,0.20); }
   .live-card.is-live {
@@ -516,6 +534,23 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     <div class="hb-note" id="hb-note">
       Scrub rule: pnl&gt;0 AND first-sell hold&lt;10s AND mae&ge;0 = unrealizable latency spike (excluded, reported separately).
       Tokens column dedupes mirror bots. Enforce / go-live decisions quote THESE columns.
+    </div>
+  </div>
+
+  <!-- ── LIVE-SLOT RACE (per-bot — who earns the live slot) ── -->
+  <div class="card" id="race-panel">
+    <div class="card-title">
+      <span class="dot"></span> LIVE-SLOT RACE
+      <span style="text-transform:none;letter-spacing:0;color:var(--muted);">&mdash; per-bot scrubbed per-token/day, last 7d &middot; bar: &ge;+2.0/tok on &ge;5 days, n&ge;30 tokens</span>
+    </div>
+    <div class="tbl-wrap">
+      <table class="num-table" id="race-table">
+        <thead><tr>
+          <th>bot</th><th>7d mean/tok</th><th style="text-align:left;">last 7 days</th>
+          <th>tokens n</th><th>green days</th><th style="text-align:left;">live bar</th>
+        </tr></thead>
+        <tbody><tr><td colspan="6" class="empty">Loading race&hellip;</td></tr></tbody>
+      </table>
     </div>
   </div>
 
@@ -1008,6 +1043,46 @@ async function updateHonestBook() {
 }
 updateHonestBook();
 setInterval(updateHonestBook, 120000);
+
+// ── LIVE-SLOT RACE (per-bot scrubbed 7d scoreboard) ─────────────────────────
+async function updateRace() {
+  try {
+    const r = await fetch('/api/race');
+    if (!r.ok) return;
+    const d = await r.json();
+    const tbody = document.querySelector('#race-table tbody');
+    if (!tbody) return;
+    const bots = d.bots || [];
+    if (!bots.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">No badday_* sells in the last 7 days</td></tr>';
+      return;
+    }
+    const win = d.window_days || [];
+    tbody.innerHTML = bots.map(b => {
+      const byDay = {};
+      (b.per_day || []).forEach(p => { byDay[p.day] = p; });
+      const cells = win.map(day => {
+        const p = byDay[day];
+        if (!p) return `<span class="race-cell" title="${day}: no tokens"></span>`;
+        return `<span class="race-cell ${p.green ? 'g' : 'r'}" title="${day}: ${_hbSign(p.mean_per_token)}%/tok (${p.tokens} tok)"></span>`;
+      }).join('');
+      const lb = b.live_bar || {};
+      const badge = lb.pace
+        ? '<span class="race-bar-badge lit" title="on live-bar pace: >=+2.0/tok on >=5 days AND n>=30">LIVE BAR</span>'
+        : `<span class="race-bar-badge" title="live bar: >=+2.0/tok days AND distinct tokens">${lb.met_days || 0}/5d &middot; n ${b.distinct_tokens_7d}/30</span>`;
+      return `<tr>
+        <td>${escHtml(b.bot_id)}</td>
+        <td class="${pnlClass(b.mean_per_token_7d)}">${_hbSign(b.mean_per_token_7d)}%</td>
+        <td style="text-align:left;"><span class="race-cells">${cells}</span></td>
+        <td>${b.distinct_tokens_7d}</td>
+        <td class="${(b.green_days || 0) * 2 > (b.day_count || 0) ? 'green' : ''}">${b.green_days}/${b.day_count}</td>
+        <td style="text-align:left;">${badge}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) { console.warn('race fetch failed', e); }
+}
+updateRace();
+setInterval(updateRace, 60000);
 
 // ── Status strip: gates + SOL ────────────────────────────────────────────────
 function _chip(id, txt, state, title) {
@@ -1855,6 +1930,110 @@ def compute_honest_book(trades: list, days: int = 10,
     }
 
 
+# ── Live-slot race (mirrors scripts/bot_leaderboard.py) ──────────────────────
+
+def compute_race(trades: list, enabled_ids=None, days: int = 7,
+                 spike_hold_secs: float = 10.0) -> dict:
+    """Pure, BLOCKING per-bot LIVE-SLOT RACE scoreboard over the last `days`
+    UTC calendar days (run off the loop via asyncio.to_thread). Reproduces
+    scripts/bot_leaderboard.py math: sells joined per bot per token, weight =
+    pnl_pct * sell_fraction, SCRUB = exclude sells with pnl_pct>0 AND
+    hold_secs<10 (the slim-record heuristic; the position-level scrub lives
+    in compute_honest_book), per-day green = mean of per-token nets > 0.
+
+    Live bar per bot: per-token mean >= +2.0pp on >= 5 days AND >= 30
+    distinct tokens. `pace` = both legs met inside the window.
+
+    enabled_ids: optional set of enabled bot ids (config/bots). Restricts
+    rows to enabled bots AND emits zero rows for enabled badday_* bots with
+    no in-window sells, so idle candidates stay visible. None = fail-open
+    (every badday_* bot with sells appears).
+
+    Never raises for a malformed record — skips it. Aggregates only (a few
+    KB payload) — no trade lists (egress discipline)."""
+    import statistics as _st
+    from datetime import timedelta as _td
+
+    def _fl(x):
+        try:
+            v = float(x)
+            return None if v != v else v
+        except (TypeError, ValueError):
+            return None
+
+    today = datetime.now(timezone.utc).date()
+    window = [(today - _td(days=i)).isoformat() for i in range(days - 1, -1, -1)]
+    win_set = set(window)
+
+    per_tok: dict = {}    # bot -> token -> net pp (sell-fraction weighted)
+    per_day: dict = {}    # bot -> day -> token -> net pp
+    for t in trades:
+        if not isinstance(t, dict) or t.get("type") != "sell":
+            continue
+        b = str(t.get("bot_id", ""))
+        if not b.startswith("badday_"):
+            continue
+        if enabled_ids is not None and b not in enabled_ids:
+            continue
+        p = _fl(t.get("pnl_pct"))
+        if p is None:
+            continue
+        day = str(t.get("time", ""))[:10]
+        if day not in win_set:
+            continue
+        h = _fl(t.get("hold_secs"))
+        if p > 0 and h is not None and h < spike_hold_secs:
+            continue  # SCRUB: unrealizable latency spike
+        w = p * (_fl(t.get("sell_fraction")) or 1.0)
+        tok = t.get("address") or t.get("token")
+        per_tok.setdefault(b, {}).setdefault(tok, 0.0)
+        per_tok[b][tok] += w
+        per_day.setdefault(b, {}).setdefault(day, {}).setdefault(tok, 0.0)
+        per_day[b][day][tok] += w
+
+    bot_ids = set(per_tok)
+    if enabled_ids is not None:
+        bot_ids |= {b for b in enabled_ids if str(b).startswith("badday_")}
+
+    rows = []
+    for b in sorted(bot_ids):
+        days_map = per_day.get(b, {})
+        pd_rows, green, met = [], 0, 0
+        for day in window:
+            dtoks = days_map.get(day)
+            if not dtoks:
+                continue
+            m = _st.mean(list(dtoks.values()))
+            g = m > 0
+            green += 1 if g else 0
+            met += 1 if m >= 2.0 else 0
+            pd_rows.append({"day": day, "tokens": len(dtoks),
+                            "mean_per_token": round(m, 2), "green": g})
+        vals = list(per_tok.get(b, {}).values())
+        n7 = len(vals)
+        n_ok = n7 >= 30
+        rows.append({
+            "bot_id": b,
+            "per_day": pd_rows,
+            "distinct_tokens_7d": n7,
+            "mean_per_token_7d": round(_st.mean(vals), 2) if vals else 0.0,
+            "green_days": green,
+            "day_count": len(pd_rows),
+            "live_bar": {"met_days": met, "n_ok": n_ok,
+                         "pace": met >= 5 and n_ok},
+        })
+    rows.sort(key=lambda r: r["mean_per_token_7d"], reverse=True)
+    return {
+        "ok": True,
+        "window_days": window,
+        "scrub_rule": (f"sell excluded when pnl_pct>0 AND "
+                       f"hold_secs<{spike_hold_secs:.0f}s (latency spike)"),
+        "live_bar_rule": ("per-token mean >= +2.0pp on >= 5 days "
+                          "AND >= 30 distinct tokens"),
+        "bots": rows,
+    }
+
+
 # ── Dashboard Server ──────────────────────────────────────────────────────────
 
 class WebDashboard:
@@ -1979,6 +2158,9 @@ class WebDashboard:
         # UI-additive — no existing route or response shape was touched).
         self.app.router.add_get("/api/honest-book",           self._handle_api_honest_book)
         self.app.router.add_get("/api/gates",                 self._handle_api_gates)
+        # 2026-07-04: LIVE-SLOT RACE — per-bot scrubbed 7d scoreboard (GET,
+        # UI-additive, aggregates only).
+        self.app.router.add_get("/api/race",                  self._handle_api_race)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -5459,6 +5641,59 @@ class WebDashboard:
             return web.json_response({"ok": False, "error": str(e)[:200],
                                       "days": [], "pooled": {}})
         self._honest_book_cache = (_t.monotonic(), payload)
+        return web.json_response(payload)
+
+    async def _handle_api_race(self, request):
+        """GET /api/race — LIVE-SLOT RACE: per-bot scrubbed per-token per-day
+        scoreboard over the last 7 UTC days (mirrors scripts/bot_leaderboard.py).
+        Computed server-side over the same merged ledger /api/trades serves
+        (tracker + multi-bot trade_store) — NO external calls. Cached 60s
+        (the compute is O(trades)); payload is aggregates only, a few KB
+        (egress discipline). Compute runs off the event loop."""
+        import time as _t
+        cache = getattr(self, "_race_cache", None)
+        if cache and (_t.monotonic() - cache[0]) < 60:
+            return web.json_response(cache[1])
+        # Enabled bot ids from config/bots (60s cache; fail-OPEN -> None so a
+        # config-read hiccup never blanks the race panel).
+        if (not hasattr(self, "_race_enabled_ids")
+                or _t.monotonic() - getattr(self, "_race_enabled_ids_ts", 0.0) > 60):
+            en = None
+            try:
+                import pathlib as _pl
+                cfg_dir = _pl.Path(__file__).resolve().parent.parent / "config" / "bots"
+                found = set()
+                for p in cfg_dir.glob("*.json"):
+                    try:
+                        d = json.loads(p.read_text())
+                        if d.get("enabled", True):
+                            found.add(d.get("bot_id") or p.stem)
+                    except Exception:
+                        found.add(p.stem)  # unreadable single config -> show it
+                en = found or None
+            except Exception:
+                en = None
+            self._race_enabled_ids = en
+            self._race_enabled_ids_ts = _t.monotonic()
+        trades = []
+        if self._tracker is not None:
+            try:
+                trades = list(self._tracker.get_all_trades())
+            except Exception:
+                pass
+        if self.trade_store is not None:
+            try:
+                trades = trades + self.trade_store.load_trades()
+            except Exception:
+                pass
+        try:
+            payload = await asyncio.to_thread(compute_race, trades,
+                                              self._race_enabled_ids)
+        except Exception as e:
+            logger.warning("api/race failed: %s", e)
+            return web.json_response({"ok": False, "error": str(e)[:200],
+                                      "bots": []})
+        self._race_cache = (_t.monotonic(), payload)
         return web.json_response(payload)
 
     async def _handle_api_gates(self, request):
