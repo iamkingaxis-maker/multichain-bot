@@ -59,6 +59,31 @@ _GLITCH_CEILING_X = 50.0
 
 
 # ── Jupiter Ultra pure helpers (no I/O — unit-tested in tests/test_jupiter_ultra.py) ──
+def exit_slippage_bps_for_attempt(is_urgent: bool, attempt: int) -> int:
+    """Slippage cap for a live SELL by retry attempt (2026-07-05 tail audit).
+
+    A reverted exit means price already moved past the cap — re-quoting at the
+    SAME cap keeps failing while the token crashes, and after 3 failures the
+    position rides the dump ('remains open, will retry on next tick'). Urgent
+    exits (stops/bails/floors/manual) therefore ESCALATE: 300 -> 800 -> 1500
+    bps; normal sells stay tight (100/100/300 — the 3rd attempt loosens a
+    hair so profit-taking can't wedge either). EXIT_SLIP_ESCALATION=off
+    restores the flat legacy caps (300 urgent / 100 normal). Values beyond
+    the schedule clamp to the last step. Pure; never raises."""
+    try:
+        if os.environ.get("EXIT_SLIP_ESCALATION", "on").strip().lower() in (
+                "off", "0", "false", "no"):
+            return 300 if is_urgent else 100
+    except Exception:
+        pass
+    sched = (300, 800, 1500) if is_urgent else (100, 100, 300)
+    try:
+        a = max(0, int(attempt))
+    except (TypeError, ValueError):
+        a = 0
+    return sched[min(a, len(sched) - 1)]
+
+
 def build_ultra_order_params(input_mint: str, output_mint: str, amount: int,
                              taker: str, slippage_bps: "Optional[int]" = None) -> dict:
     """Query params for GET /ultra/v1/order. Ultra estimates slippage itself (RTSE)
@@ -2687,8 +2712,16 @@ class Trader:
             # a fast crash or on a thin pair the token may move 1-3% between
             # quote and swap submission, causing 1%-tolerance swaps to reject.
             _r = reason.lower()
-            _is_urgent_exit = ("stop" in _r) or ("manual" in _r)
-            _slip_bps = 300 if _is_urgent_exit else 100
+            # URGENT-EXIT classification: stops/manual closes must LAND, not
+            # revert. 2026-07-05 tail audit: bails/floors ("bail", "floor",
+            # "velocity") were NOT classified urgent -> they sold with the 1%
+            # cap into crashes -> revert -> 1-2s sleep -> re-quote lower x3 ->
+            # after 3 failures the position RIDES THE CRASH ("remains open,
+            # will retry on next tick") — a mechanical gap-through amplifier.
+            _is_urgent_exit = (("stop" in _r) or ("manual" in _r)
+                               or ("bail" in _r) or ("floor" in _r)
+                               or ("velocity" in _r))
+            _slip_bps = exit_slippage_bps_for_attempt(_is_urgent_exit, 0)
 
             # Retry: refetch quote + retry swap up to 3 times.  Fresh quote
             # each attempt because slippage failures often mean price moved past
@@ -2701,6 +2734,14 @@ class Trader:
             pnl_pct = 0.0
             success = False
             for _attempt in range(3):
+                # ESCALATING slippage on urgent-exit retries (2026-07-05 tail
+                # audit): a revert means price already moved past the cap —
+                # re-quoting at the SAME cap keeps failing while the token
+                # crashes. Attempt schedule (urgent): 300 -> 800 -> 1500 bps;
+                # normal sells keep 100/100/300. On a $25 probe position the
+                # worst-case last-resort fill costs ~$3.75 vs riding a dump
+                # unbounded. EXIT_SLIP_ESCALATION=off restores flat caps.
+                _slip_bps = exit_slippage_bps_for_attempt(_is_urgent_exit, _attempt)
                 quote = await self._get_quote(
                     input_mint=token_address,
                     output_mint=SOL_MINT,
