@@ -105,6 +105,17 @@ _EXIT_ARM_LOSS_STAMP_GROUPS = {
 
 logger = logging.getLogger(__name__)
 
+
+def _safe_float(v):
+    """float(v) or None — never raises, never fabricates (bool/NaN -> None)."""
+    if isinstance(v, bool) or v is None:
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return None if f != f else f
+
 # Full-population signal recorder — captures every Signal: emit and its
 # outcome (BUY/BLOCK/CONTINUED) to {DATA_DIR}/signal_events.jsonl. Lets
 # us mine across BOTH bought and rejected populations, which trades.db
@@ -22941,7 +22952,14 @@ class DipScanner:
                         liquidity_usd=_bndl_liq,
                         age_hours=float(_local.get("pair_age_hours") or 0.0),
                         pc_h24=pc_h24 if "pc_h24" in _local else None,
-                        pc_h6=_local.get("pc_h6"),
+                        # DEAD LOCAL FIX (2026-07-05): no bare `pc_h6` local
+                        # exists in _evaluate_pair -> this was ALWAYS None ->
+                        # every bundle.pc_h6 consumer (pump_retrace_gate,
+                        # structure_edge, NEGGATE's h6 reads) starved on the
+                        # main-scan path and failed open (MUTUMBO entered at
+                        # pc_h6=+2840 through a live enforce gate). Read the
+                        # pair snapshot directly, matching entry_meta.
+                        pc_h6=_safe_float((pair.get("priceChange") or {}).get("h6")),
                         pc_h1=pc_h1 if "pc_h1" in _local else None,
                         pc_m5=pc_m5 if "pc_m5" in _local else None,
                         vol_h1_usd=float(vol_h1) if "vol_h1" in _local and vol_h1 else None,
