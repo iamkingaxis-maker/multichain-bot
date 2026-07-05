@@ -197,6 +197,20 @@ def tape_absorption_metrics(ohlcv_rows, now_ts: float) -> dict:
             out["dd_from_peak_pct"] = round(dd, 2)
             out["rug_floor"] = dd <= -85.0
         out["tape_dead"] = printed < 8
+        # range_mean_60m (serial-swinger 2nd wave, 2026-07-05): mean per-bar
+        # 1m range% over the last 60 bars — the discriminator study's #2
+        # separator (>=12 = wide oscillation; spearman -0.87 with age, use as
+        # AND-refinement). Free: same bars this fetch already pulled.
+        try:
+            last60 = rows[-60:]
+            ranges = [(float(b[2]) - float(b[3])) / float(b[4]) * 100.0
+                      for b in last60
+                      if b[4] is not None and float(b[4]) > 0
+                      and b[2] is not None and b[3] is not None]
+            if ranges:
+                out["range_mean_60m"] = round(sum(ranges) / len(ranges), 3)
+        except (TypeError, ValueError, ZeroDivisionError):
+            pass
         return out
     except (TypeError, ValueError):
         return {}

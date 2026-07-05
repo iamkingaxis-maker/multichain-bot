@@ -74,3 +74,20 @@ def test_mode_default_on(monkeypatch):
     assert tape_shadow_mode() == "on"
     monkeypatch.setenv("YOUNG_TAPE_SHADOW_MODE", "off")
     assert tape_shadow_mode() == "off"
+
+
+class TestRangeMean60m:
+    """Serial-swinger 2nd-wave instrumentation: mean per-bar 1m range% over
+    the last 60 bars, computed free from the same tape-shadow fetch."""
+
+    def test_range_computed(self):
+        # two bars: ranges 10% and 20% of close -> mean 15
+        rows = [[NOW - 120, 1.0, 1.1, 1.0, 1.0, 5],
+                [NOW - 60, 1.0, 1.2, 1.0, 1.0, 5]]
+        m = tape_absorption_metrics(rows, NOW)
+        assert abs(m["range_mean_60m"] - 15.0) < 0.1
+
+    def test_zero_close_bars_skipped(self):
+        rows = [[NOW - 60, 0, 0, 0, 0, 0], [NOW - 30, 1.0, 1.1, 1.0, 1.0, 5]]
+        m = tape_absorption_metrics(rows, NOW)
+        assert abs(m["range_mean_60m"] - 10.0) < 0.1
