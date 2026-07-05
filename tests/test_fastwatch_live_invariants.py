@@ -29,6 +29,30 @@ from types import SimpleNamespace as NS
 from feeds.dip_scanner import DipScanner
 from core.trader import build_ultra_order_params
 
+# ── ENV-LEAK GUARD (2026-07-05) ──────────────────────────────────────────────
+# This file writes PROBE_ULTRA_SLIPPAGE_BPS / BUY_REPRICE_MODE /
+# NO_FAST_PRICE_GATE_MODE with raw os.environ and never cleaned up —
+# poisoning every test collected AFTER it in the same process (probe_bridge's
+# 250bps assertion saw the leaked 400; the chronic test_no_fast_price_gate
+# failures trace to the leaked GATE_MODE). Snapshot + restore around each
+# pytest test; the __main__ runner restores once at exit.
+_LEAKED_KEYS = ("PROBE_ULTRA_SLIPPAGE_BPS", "BUY_REPRICE_MODE",
+                "NO_FAST_PRICE_GATE_MODE")
+try:
+    import pytest
+
+    @pytest.fixture(autouse=True)
+    def _env_leak_guard():
+        snap = {k: os.environ.get(k) for k in _LEAKED_KEYS}
+        yield
+        for k, v in snap.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+except ImportError:
+    pass
+
 
 results = []
 
