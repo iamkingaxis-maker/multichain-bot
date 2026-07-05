@@ -66,6 +66,8 @@ def test_record_tick_updates_last_tick_and_counts():
     assert st["would_fire"] == 2
     assert st["last_tick"] == {
         "armed": 0, "polled": 0, "fired": 0, "mode": "shadow", "ts": 1235.0,
+        # TIERED POLL (hot-subset vs full-armed) counters — default 0
+        "hot": 0, "full": 0,
     }
 
 

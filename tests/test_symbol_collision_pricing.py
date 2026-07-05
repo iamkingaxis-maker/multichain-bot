@@ -52,6 +52,7 @@ class _PM:
 def _mk_scanner(prices_by_address):
     ds = DipScanner.__new__(DipScanner)
     ds._exit_price_guard = {}
+    ds._exit_price_guard_ts = {}  # production inits this in __init__ (dip_scanner L613)
     ds.trader = types.SimpleNamespace(private_key="")
     ds._stamp_sol_bail_shadow = lambda *a, **k: None
 

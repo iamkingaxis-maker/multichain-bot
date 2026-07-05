@@ -23,6 +23,7 @@ import pytest
 from types import SimpleNamespace as NS
 
 from feeds.dip_scanner import DipScanner
+from collections import OrderedDict
 
 
 def _run(coro):
@@ -53,7 +54,7 @@ def _scanner(bot_id="badday_flush", addr="mintTOK", entry_price=1.0,
 
     pm = _PM()
     sc.bot_position_managers = {bot_id: pm}
-    sc._addr_by_token = {"TOK": addr}
+    sc._addr_by_token = OrderedDict({"TOK": addr})  # production LRU
 
     # shadow JSONL sink (capture instead of writing to disk)
     sc._erd_recs = []

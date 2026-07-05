@@ -42,7 +42,11 @@ async def _ok_handler(request):
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    # asyncio.run, NOT get_event_loop(): on Python 3.12 any earlier test that
+    # used asyncio.run() leaves the main-thread loop unset, so get_event_loop()
+    # raises RuntimeError when this file runs mid-suite (the chronic
+    # "passes alone, fails in the full run" contamination, fixed 2026-07-05).
+    return asyncio.run(coro)
 
 
 def test_get_request_passes_without_auth(monkeypatch):

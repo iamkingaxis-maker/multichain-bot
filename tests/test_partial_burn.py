@@ -18,6 +18,7 @@ from types import SimpleNamespace as NS
 
 from core.fast_watch import rt_mode
 from feeds.dip_scanner import DipScanner
+from collections import OrderedDict
 
 
 def _run(coro):
@@ -81,7 +82,7 @@ def _scanner_with_live_sell(monkeypatch, live_result, bot_id="badday_flush",
     sc.bot_position_managers = {bot_id: pm}
     sc.bot_capitals = {bot_id: NS(realize_sell=lambda cost_usd, proceeds_usd: None)}
     sc.trader = NS(private_key="deadbeef")
-    sc._addr_by_token = {}
+    sc._addr_by_token = OrderedDict()  # production is an LRU OrderedDict (dip_scanner ~L598)
 
     async def _sell_live(token, pm_, pos_, sold_frac, current_mid):
         return live_result

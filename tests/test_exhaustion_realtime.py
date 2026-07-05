@@ -24,6 +24,24 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
 
+# ── ENSURE_FUTURE LEAK GUARD (2026-07-05) ────────────────────────────────────
+# _build_pm() used to do `pm_mod.asyncio.ensure_future = _fake_ef` — pm_mod's
+# `asyncio` IS the global module, so the fake (which CLOSES the coroutine and
+# returns None) replaced asyncio.ensure_future PROCESS-WIDE for every test
+# collected after this file (test_onchain_reconcile's supervisor tasks never
+# started -> the chronic "passes alone, fails in the suite" quartet). Snapshot
+# and restore the real ensure_future around every test in this file.
+_REAL_ENSURE_FUTURE = asyncio.ensure_future
+try:
+    import pytest
+
+    @pytest.fixture(autouse=True)
+    def _restore_ensure_future():
+        yield
+        asyncio.ensure_future = _REAL_ENSURE_FUTURE
+except ImportError:
+    pass
+
 
 def _build_pm():
     """Minimal PositionManager built for unit testing — only what

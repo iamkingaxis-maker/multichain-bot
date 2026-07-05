@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from types import SimpleNamespace as NS
 
 from feeds.dip_scanner import DipScanner
+from collections import OrderedDict
 from core.trader import build_ultra_order_params
 
 # ── ENV-LEAK GUARD (2026-07-05) ──────────────────────────────────────────────
@@ -204,7 +205,7 @@ def _nfp_scanner(has_fresh):
     proceed normally if not blocked."""
     sc = DipScanner.__new__(DipScanner)
     sc._fast_armed = {"mintTOK": {}}            # token IS armed (we are polling it)
-    sc._addr_by_token = {"TOK": "mintTOK"}
+    sc._addr_by_token = OrderedDict({"TOK": "mintTOK"})  # production LRU
     sc._has_fresh_fast_price = lambda addr: has_fresh
     proceeded = {"v": False}
     # Valid capital + pm so _execute_bot_buy does NOT early-return before the gate.

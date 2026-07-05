@@ -33,7 +33,7 @@ import asyncio
 import os
 import sys
 import time
-from collections import deque
+from collections import deque, OrderedDict
 from types import SimpleNamespace as NS
 
 import pytest
@@ -160,7 +160,7 @@ def _make_scanner(decision_factory):
     sc._last_buy_time = 0.0
     sc.signals_fired = 0
     sc.tokens_evaluated = 0
-    sc._addr_by_token = {}
+    sc._addr_by_token = OrderedDict()  # production is an LRU OrderedDict (dip_scanner ~L598)
     sc._filter_shadow_buf = []
     sc._filter_shadow_buf_max = 5000
     sc._token_registry = None

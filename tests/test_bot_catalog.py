@@ -347,12 +347,13 @@ def test_deep_dip_only_uses_allowlist(catalog):
 
 def test_champion_proposal_is_enabled_synthesis(catalog):
     """2026-05-25: champion_proposal populated as the integrated production
-    candidate (proven knobs only) + ENABLED to compete from the fresh
-    baseline. Specialist universe + scale-out partial ladder (P1) + no SOL
-    gate + vol floor. The SP5 cutover target. Conviction/velocity/reentry
-    deliberately excluded until their solo bots validate (held-out discipline)."""
+    candidate (proven knobs only). Specialist universe + scale-out partial
+    ladder (P1) + no SOL gate + vol floor. The SP5 cutover target.
+    2026-06+: DISABLED by the paper-fleet cost trim (commit 6a3c955 — fleet
+    slimmed to the badday family; config + synthesis knobs preserved for
+    research). The knob assertions below still guard the preserved config."""
     bot = _by_id(catalog)["champion_proposal"]
-    assert bot.enabled is True
+    assert bot.enabled is False  # fleet trim 6a3c955; knobs preserved
     assert bot.mcap_min == 500000.0 and bot.mcap_max == 25000000.0
     assert bot.tp1_sell_fraction == 0.5 and bot.tp2_sell_fraction == 0.25
     assert bot.sol_macro_h6_block_threshold is None
@@ -380,7 +381,10 @@ def test_all_base_position_20(catalog):
               "cap2k_whales", "cap2k_deepdip", "cap2k_no_topping",
               "cap2k_volmin5k", "cap2k_regime",
               # $2k defended-spine candidate (7h-watch rec #1)
-              "champion_defender_2k"}
+              "champion_defender_2k",
+              # patient_sleeve: winner-selection sleeve created at $100 base
+              # (62dcae6, the $100-bet era) — deliberately non-$20.
+              "patient_sleeve"}
     for c in catalog.configs:
         if c.bot_id in EXEMPT:
             continue

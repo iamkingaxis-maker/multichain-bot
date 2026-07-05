@@ -27,6 +27,7 @@ from types import SimpleNamespace as NS
 from core.bot_config import BotConfig
 from core.per_bot_position_manager import PerBotPositionManager, OpenPosition
 from feeds.dip_scanner import DipScanner
+from collections import OrderedDict
 
 
 def _run(coro):
@@ -58,7 +59,7 @@ def _scanner(bot_id="badday_flush", entry_price=1.0, addr="mintTOK"):
         address=addr, pair_address="pairTOK", state_blob={})
     pm._positions["TOK"] = pos
     sc.bot_position_managers = {bot_id: pm}
-    sc._addr_by_token = {"TOK": addr}
+    sc._addr_by_token = OrderedDict({"TOK": addr})  # production LRU
     sc._fast_samples = {}
     # capture JSONL writes instead of touching disk
     sc._arm_recs = []

@@ -158,6 +158,7 @@ import asyncio
 from types import SimpleNamespace as NS
 
 from feeds.dip_scanner import DipScanner
+from collections import OrderedDict
 
 
 def _run(coro):
@@ -203,7 +204,7 @@ def _scanner_paper_exit(monkeypatch, exit_liq, bot_id="badday_flush",
     sc.bot_position_managers = {bot_id: pm}
     sc.bot_capitals = {bot_id: NS(realize_sell=lambda cost_usd, proceeds_usd: None)}
     sc.trader = NS(private_key="")  # no key -> paper anyway
-    sc._addr_by_token = {}
+    sc._addr_by_token = OrderedDict()  # production is an LRU OrderedDict (dip_scanner ~L598)
 
     # fresh exit liquidity the gate consumes
     sc._fresh_exit_liquidity = lambda addr: exit_liq

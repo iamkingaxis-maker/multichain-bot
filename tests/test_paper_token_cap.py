@@ -16,6 +16,7 @@ from types import SimpleNamespace as NS
 import pytest
 
 from feeds.dip_scanner import DipScanner
+from collections import OrderedDict
 
 
 def _pos(token, address, size_usd):
@@ -159,7 +160,7 @@ def _exec_scanner(books, size_usd, addr, buyer_bot="newbot"):
     for bid in books:
         sc.bot_capitals[bid] = _Cap()
     sc.trader = NS(private_key="")
-    sc._addr_by_token = {}
+    sc._addr_by_token = OrderedDict()  # production is an LRU OrderedDict (dip_scanner ~L598)
     sc._buy_gate = None
     sc._token_registry = None
     sc._user_watchlist_addrs = set()

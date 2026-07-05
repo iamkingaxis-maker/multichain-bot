@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from types import SimpleNamespace as NS
 
 from feeds.dip_scanner import DipScanner
+from collections import OrderedDict
 from core.bot_config import BotConfig
 from core.per_bot_capital import PerBotCapital
 from core.per_bot_position_manager import PerBotPositionManager, ExitDecision
@@ -92,11 +93,12 @@ def _make_scanner(fresh_price, fresh_source="jupiter"):
     sc.bot_position_managers = {BOT_ID: pm}
 
     sc.trader = NS(private_key="")          # paper route
-    sc._addr_by_token = {}
+    sc._addr_by_token = OrderedDict()  # production is an LRU OrderedDict (dip_scanner ~L598)
     sc._fast_armed = {}                     # nothing armed -> no-fast-price gate inert
     sc._buy_gate = None
     sc._token_registry = None
     sc._exit_price_guard = {}
+    sc._exit_price_guard_ts = {}  # production inits this in __init__ (dip_scanner L613)
     sc._cycle_sol_features = {}
     sc.min_mcap = 1_000_000
     sc._user_watchlist_addrs = set()
@@ -126,6 +128,13 @@ def _set_buy_env(monkeypatch, mode, runup="0.05"):
     # Keep the modeled slippage well below the cap so slippage_cap never fires.
     monkeypatch.setenv("PROBE_ULTRA_SLIPPAGE_BPS", "400")
     monkeypatch.setenv("PAPER_LIVE_SLIP_PCT", "1.5")
+    # FILL_CALIBRATION (2026-06-22) learns slip from live_swaps.jsonl in the repo,
+    # making the booked fill data-dependent; pin it OFF so this wire test asserts
+    # the documented byte-identical placeholder path (measured_live_slip_pct).
+    monkeypatch.setenv("FILL_CALIBRATION_ENABLED", "off")
+    # ULTRA_FEE_MODEL (2026-07-01 P10) adds +0.5pp on <24h tokens; the test
+    # bundle has no age -> already 0, pinned off for determinism anyway.
+    monkeypatch.setenv("ULTRA_FEE_MODEL", "off")
     monkeypatch.setenv("PAPER_FEE_USD_PER_TX", "0.17")
     # Neutralize gates that could short-circuit the buy before the paper branch.
     monkeypatch.setenv("NO_FAST_PRICE_GATE_MODE", "off")

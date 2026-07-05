@@ -11,7 +11,7 @@ blocks the buy. FAIL-OPEN: any gate error allows the buy (inverse of a safety ca
 import asyncio
 import time
 import types
-from collections import deque
+from collections import deque, OrderedDict
 
 import pytest
 
@@ -99,7 +99,7 @@ def _gate_scanner(mode, armed_addr, priceable):
     s._fast_samples = {}
     s._fast_samples_ts = {}
     s._fast_armed = {}
-    s._addr_by_token = {}
+    s._addr_by_token = OrderedDict()  # production is an LRU OrderedDict (dip_scanner ~L598)
     s._nfp_stats = {"would_block": 0, "priceable": 0, "by_bot": {}}
 
     addr = armed_addr

@@ -82,6 +82,7 @@ def test_registry_reflects_pool_added_later():
 
 # ── wiring: _execute_bot_buy must short-circuit BEFORE spending capital ──
 from feeds.dip_scanner import DipScanner
+from collections import OrderedDict
 
 
 class SpyCapital:
@@ -104,7 +105,7 @@ def test_buy_blocked_by_pool_returns_before_capital():
     ds.bot_capitals = {"a": cap}
     ds.trade_store = None
     ds._token_registry = SharedTokenRegistry(ds.bot_position_managers)
-    ds._addr_by_token = {}
+    ds._addr_by_token = OrderedDict()  # production is an LRU OrderedDict (dip_scanner ~L598)
     decision = types.SimpleNamespace(bot_id="a", token="T", address="addr",
                                      pair_address="pair", entry_price=1.0,
                                      size_usd=20.0, size_tier="base",
@@ -124,7 +125,7 @@ def test_buy_not_blocked_when_token_free_reaches_capital():
     ds.trade_store = None
     ds.trader = types.SimpleNamespace(private_key="")   # paper (no live route)
     ds._token_registry = SharedTokenRegistry(ds.bot_position_managers)
-    ds._addr_by_token = {}
+    ds._addr_by_token = OrderedDict()  # production is an LRU OrderedDict (dip_scanner ~L598)
     decision = types.SimpleNamespace(bot_id="a", token="T", address="addr",
                                      pair_address="pair", entry_price=1.0,
                                      size_usd=20.0, size_tier="base",

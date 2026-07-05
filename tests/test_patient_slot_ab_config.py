@@ -11,7 +11,9 @@ from core.bot_config import BotConfig
 def test_patient_slot_ab_loads_with_ab_params():
     c = BotConfig.from_json("config/bots/badday_flush_patient_slot_ab.json")
     assert c.bot_id == "badday_flush_patient_slot_ab"
-    assert c.enabled is True
+    # 2026-07: patient_slot RETIRED (commit a603628) — config preserved,
+    # disabled. The A/B param assertions below still pin the preserved levers.
+    assert c.enabled is False
     assert c.live_probe is False                       # PAPER A/B only
 
     # --- the levers under test ---
