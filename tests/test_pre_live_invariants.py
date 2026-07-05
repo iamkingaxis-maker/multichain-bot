@@ -310,10 +310,14 @@ def test_no_enabled_live_probe_bot():
     # decision->landed-fill (landing latency + MEV residual) on $5 swaps held to the normal
     # badday exit. nf15_live was set live_probe=false (neutralized to paper) so the $100 bot no
     # longer routes money; only the $5 probe does.
+    # 2026-07-05: young T1 probe sanctioned — AxiS explicit GO ("probe now
+    # then"). badday_young_absorb_live: $25 x2 slots, $25 daily kill,
+    # fail-closed demand gates (twin parity verified at flip time).
     INTENDED_LIVE = {"badday_fill_probe_live",
                      "badday_flush_nf15_live",
                      "badday_flush_conviction_live", "badday_flush_live",
-                     "deepflush_timebox_live", "timebox_probe_5mgreen_live"}
+                     "deepflush_timebox_live", "timebox_probe_5mgreen_live",
+                     "badday_young_absorb_live"}
     offenders = []
     for p in glob.glob("config/bots/*.json"):
         c = BotConfig.from_json(p)
