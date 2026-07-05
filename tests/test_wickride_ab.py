@@ -55,7 +55,10 @@ class TestAdolescentConfig:
         # age_h_min=6 keeps it off the fresh launches.
         assert a.young_token_probe is True
         assert (a.age_h_min, a.age_h_max) == (6.0, 24.0)   # the winners' pond
-        assert (a.trading_hour_utc_start, a.trading_hour_utc_end) == (13, 22)
+        # hours widened 13-22 -> family 8-3 on 2026-07-05: the daily decode
+        # found the pond premise HELD but the hours leg went NEUTRAL, and the
+        # 9h window throttled the bot to ~2.5 fires/day.
+        assert (a.trading_hour_utc_start, a.trading_hour_utc_end) == (8, 3)
         assert a.velbail_pnl_pct == -8.0             # wick-tolerant
         # same demand/absorption entry as young
         assert [tuple(x) for x in a.entry_gate] == [tuple(x) for x in y.entry_gate]
