@@ -22,7 +22,7 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 print("# live-trade watch up — polling railway logs for live money-path events")
 while True:
     try:
-        out = subprocess.run(["railway", "logs"], capture_output=True,
+        out = subprocess.run("railway logs", shell=True, capture_output=True,
                              text=True, timeout=60, encoding="utf-8",
                              errors="replace").stdout or ""
         for line in out.splitlines():
