@@ -84,5 +84,6 @@
   ],
   "vol_h1_min": 1000.0,
   "young_token_probe": false,
-  "exclusion_pool": "badday_flush_nf15"
+  "exclusion_pool": "badday_flush_nf15",
+  "entry_gate_require_data": true
 }
