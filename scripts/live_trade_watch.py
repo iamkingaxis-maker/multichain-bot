@@ -9,6 +9,7 @@ Ultra order/execute, live buy/sell records, the probe bot by name, and the
 live-swap logger. Poll ~45s; railway CLI returns the recent window.
 """
 import hashlib
+import re
 import subprocess
 import sys
 import time
@@ -33,6 +34,12 @@ while True:
             # dedup on the DECISION, not the timestamped line — a rejected
             # candidate re-fires identical gate verdicts every re-arm.
             core = line.split("] ", 1)[-1].strip()
+            # gate/skip chatter: normalize numbers so drifting values (age,
+            # breadth) don't defeat dedup. Money events keep full fidelity —
+            # every Ultra/swap line is a distinct event by definition.
+            if not any(k in core for k in ("[Ultra]", "Live sell", "Live buy",
+                                           "LIVE-SWAP", "LIVE BUY", "LIVE SELL")):
+                core = re.sub(r"[\d.]+", "#", core)
             h = hashlib.md5(core.encode()).hexdigest()
             if h in seen:
                 continue
