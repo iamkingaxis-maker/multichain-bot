@@ -811,3 +811,55 @@ def tape_cache_put(cache, key, trades, now_mono, max_entries=64):
                 cache.pop(k, None)
     except Exception:
         pass
+
+
+# ── HL-confirm entry (2026-07-05 trough anatomy study) ──────────────────────
+# scratchpad/_trough_anatomy.md: our dip entries fire MID-KNIFE (median fill
+# +14.8% above the eventual flush low; low still ahead in 54% of episodes).
+# The confirmed higher-low trigger flips crude EV -2.51 -> +1.03 pp/episode,
+# TP1-before-stop 36.9% -> 64.4%, halves stops, and fixes the never-green
+# cohort from the price side (-4.76 -> +0.51). Pond resolves FAST (median
+# HL 4 min after low) so the window is short. This is the pure state logic;
+# the scanner feeds it fresh samples (2-3s cadence) and reads the state.
+
+def hl_confirm_update(st, price, now_mono):
+    """Update one token's confirm-window state with a fresh price sample.
+
+    st: mutable dict {} on first call. Tracks running low + its timestamp.
+    Returns st (mutated). Pure besides st; never raises on garbage price."""
+    try:
+        p = float(price)
+        if p <= 0 or p != p:
+            return st
+    except (TypeError, ValueError):
+        return st
+    if "low" not in st or p < st["low"]:
+        st["low"] = p
+        st["low_ts"] = float(now_mono)
+    if "armed_ts" not in st:
+        st["armed_ts"] = float(now_mono)
+    st["last"] = p
+    st["last_ts"] = float(now_mono)
+    return st
+
+
+def hl_confirm_state(st, now_mono, hold_secs=150.0, bounce_frac=0.01,
+                     expiry_secs=1800.0, stale_secs=30.0):
+    """Read a token's confirm state -> 'TRACKING' | 'CONFIRMED' | 'EXPIRED' | 'STALE'.
+
+    CONFIRMED = no new low for >= hold_secs AND last price >= low*(1+bounce_frac).
+    EXPIRED   = armed longer than expiry_secs (flush is old news; re-arm).
+    STALE     = no fresh sample within stale_secs (can't trust the low).
+    Defaults from the study: hold 120-180s (150 middle), bounce +1%, 30min expiry."""
+    try:
+        if not st or "low" not in st or "last" not in st:
+            return "TRACKING"
+        if float(now_mono) - float(st.get("armed_ts", 0.0)) >= float(expiry_secs):
+            return "EXPIRED"
+        if float(now_mono) - float(st.get("last_ts", 0.0)) > float(stale_secs):
+            return "STALE"
+        no_new_low = (float(now_mono) - float(st["low_ts"])) >= float(hold_secs)
+        bounced = float(st["last"]) >= float(st["low"]) * (1.0 + float(bounce_frac))
+        return "CONFIRMED" if (no_new_low and bounced) else "TRACKING"
+    except Exception:
+        return "TRACKING"

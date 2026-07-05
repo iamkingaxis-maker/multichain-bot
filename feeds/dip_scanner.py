@@ -2757,6 +2757,30 @@ class DipScanner:
                     "negative bail, cooldown %.0fm)", bot_id, decision.token,
                     now - _bc_ts, _bc_mins)
                 return
+        # ── HL-CONFIRM ENTRY (2026-07-05 trough anatomy): per-bot opt-in via
+        # hl_confirm_entry. Buy ONLY when the confirm-window state machine
+        # reads CONFIRMED (no new low >=~150s AND price >= low*1.01). We fire
+        # mid-knife otherwise: median fill +14.8% above the eventual low, low
+        # still ahead in 54% of episodes; HL flips EV -2.51 -> +1.03
+        # pp/episode. TRACKING/STALE/EXPIRED all skip — candidates are
+        # plentiful, unconfirmed knives are not scarce opportunities.
+        try:
+            _cfg_hl = bool(getattr(pm.config, "hl_confirm_entry", False))
+        except Exception:
+            _cfg_hl = False
+        if _cfg_hl:
+            try:
+                from core.fast_watch import hl_confirm_state as _hl_st2
+                _hl_ent = (getattr(self, "_hl_confirm", {}) or {}).get(
+                    getattr(decision, "address", "") or "")
+                _hl_state = _hl_st2(_hl_ent, time.monotonic())
+            except Exception:
+                _hl_state = "TRACKING"
+            if _hl_state != "CONFIRMED":
+                logger.info(
+                    "[DipScanner] bot=%s HL-CONFIRM skip %s (state=%s)",
+                    bot_id, decision.token, _hl_state)
+                return
         # ── FLEET PER-TOKEN CONCURRENCY CAP (go-live audit #4, 2026-07-04):
         # cap CONCURRENT distinct badday_/young-probe bots holding the SAME
         # token — the residual mirror pile-on (07-03 BongoCat first-entry wave
@@ -7523,6 +7547,22 @@ class DipScanner:
             # Stamp last-poll time for the no-fast-price gate freshness check.
             try:
                 self._fast_samples_ts[addr] = now
+            except Exception:
+                pass
+            # HL-CONFIRM (2026-07-05 trough anatomy): feed the confirm-window
+            # state machine on every fresh sample. Read at decision time:
+            # entry_meta stamp for everyone + enforce for hl_confirm_entry
+            # bots. Map bounded + pruned below with the samples themselves.
+            try:
+                _hl_map = getattr(self, "_hl_confirm", None)
+                if _hl_map is None:
+                    _hl_map = self._hl_confirm = {}
+                from core.fast_watch import hl_confirm_update as _hl_up
+                _hl_up(_hl_map.setdefault(addr, {}), pr, time.monotonic())
+                if len(_hl_map) > 256:   # bound: drop oldest-armed half
+                    for _k in sorted(_hl_map, key=lambda k: _hl_map[k].get(
+                            "armed_ts", 0.0))[:128]:
+                        _hl_map.pop(_k, None)
             except Exception:
                 pass
         # EXIT-REPRICE: run the in-flight loss floor on the freshest fast samples
@@ -22648,6 +22688,23 @@ class DipScanner:
                         "BLOCK" if float(_wm) <= 0 else "PASS")
             except Exception as _e:
                 logger.debug(f"[DipScanner] p1_lbls shadow err: {_e}")
+
+            # hl_confirm — SHADOW stamp 2026-07-05 (trough anatomy study,
+            # scratchpad/_trough_anatomy.md): we fire MID-KNIFE (median fill
+            # +14.8% above the eventual low; low still ahead in 54% of
+            # episodes). Confirmed-higher-low entry flips EV -2.51 -> +1.03
+            # pp/episode, TP1-before-stop 36.9 -> 64.4%. Stamp the confirm-
+            # window state at decision time for every entry (join later);
+            # ENFORCE is per-bot via hl_confirm_entry (one A/B mirror).
+            try:
+                from core.fast_watch import hl_confirm_state as _hl_st
+                _hl = (getattr(self, "_hl_confirm", {}) or {}).get(token_address)
+                entry_meta_dict["hl_confirm_state"] = _hl_st(_hl, time.monotonic())
+                if _hl and "low" in _hl and _price_usd_f:
+                    entry_meta_dict["hl_dist_from_low_pct"] = round(
+                        (float(_price_usd_f) / float(_hl["low"]) - 1) * 100, 2)
+            except Exception as _e:
+                logger.debug(f"[DipScanner] hl_confirm stamp err: {_e}")
 
             # rug_gate — SHADOW 2026-06-04. FLEET-WIDE port of trader.buy's legacy
             # LP-UNLOCK block (which the fleet path bypassed). BLOCK when the dominant

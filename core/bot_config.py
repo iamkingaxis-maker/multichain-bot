@@ -392,6 +392,16 @@ class BotConfig:
     # won. Candidates are plentiful; skipping unknowns costs little.
     entry_gate_require_data: bool = False
 
+    # HL-CONFIRM entry (2026-07-05 trough anatomy, scratchpad/
+    # _trough_anatomy.md). When True the bot buys ONLY when the fast-watch
+    # confirm-window state machine reads CONFIRMED (no new low >=~150s AND
+    # price >= low*1.01) — we fire mid-knife otherwise (median fill +14.8%
+    # above the eventual low). Study: EV -2.51 -> +1.03 pp/episode,
+    # TP1-before-stop 36.9 -> 64.4%, stops halved, holds in both half-splits.
+    # TRACKING/STALE/EXPIRED -> skip (the flush either just started, went
+    # quiet, or is old news; candidates are plentiful).
+    hl_confirm_entry: bool = False
+
     # Momentum-continuation mode (2026-06-02, #4.3). When True the bot uses a SEPARATE
     # entry path: it BYPASSES the dip-filter stack + dip triggers (which block 100% of
     # momentum candidates) and enters on the momentum entry_gate (e.g. pc_h1>=20 AND
