@@ -14,8 +14,8 @@ import sys
 import time
 
 PATTERNS = ("young_absorb_live", "[Ultra]", "Live sell", "Live buy",
-            "LIVE-SWAP", "live_swap", "LIVE BUY", "LIVE SELL",
-            "wallet-truth", "GO-LIVE")
+            "LIVE-SWAP", "LIVE BUY", "LIVE SELL")
+NOISE = ("GET /", "POST /", "HTTP/1.1")   # dashboard access-log lines
 seen = set()
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -27,6 +27,8 @@ while True:
                              errors="replace").stdout or ""
         for line in out.splitlines():
             if not any(p in line for p in PATTERNS):
+                continue
+            if any(n in line for n in NOISE):
                 continue
             h = hashlib.md5(line.strip().encode()).hexdigest()
             if h in seen:
