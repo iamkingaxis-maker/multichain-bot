@@ -85,5 +85,6 @@
   "vol_h1_min": 50000.0,
   "young_token_probe": true,
   "exclusion_pool": "badday_young_absorb_live",
-  "live_probe": true
+  "live_probe": true,
+  "entry_gate_require_data": true
 }
