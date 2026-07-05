@@ -11,8 +11,9 @@ pre-registered bar), (2) AxiS explicit approval, (3) hot wallet funded.
 - [x] Probe config staged DORMANT: config/bots/badday_young_absorb_live.json
       ($25 base, 2 slots, $25 daily kill, live_probe=true, enabled=false)
 - [x] Zero other enabled live_probe bots (fully fail-closed live set)
-- [ ] **FUNDING (AxiS): hot wallet Ao8uMKCy… holds 0.1495 SOL (~$12).
-      Needs ~0.75-0.9 SOL (~$60-70) for $25 x 2 slots + fees/rent buffer.**
+- [x] **FUNDING: DONE 2026-07-05 — hot wallet holds 0.7769 SOL (~$62),
+      verified on-chain.** NOTE: the GFOF token (and …Cmoon) in this wallet
+      are AxiS's PERSONAL holdings — never sold/swept/counted by anything.
 - [ ] 07-05 young day close green (verdict ~00:15 UTC 07-06)
 - [ ] AxiS approval
 
