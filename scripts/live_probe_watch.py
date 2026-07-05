@@ -47,8 +47,19 @@ def main():
     cut_ts = (dt.datetime.now(dt.UTC) - dt.timedelta(hours=hours)).timestamp()
 
     d = g("/api/live-swaps")
-    swaps = d.get("swaps", d) if isinstance(d, dict) else d
-    swaps = [s for s in (swaps or []) if float(s.get("ts") or 0) >= cut_ts]
+    swaps = (d.get("recent") or []) if isinstance(d, dict) else (d or [])
+    swaps = [s for s in swaps if isinstance(s, dict)]
+
+    def _ts(s):
+        v = s.get("ts")
+        if isinstance(v, (int, float)):
+            return float(v)
+        try:
+            return dt.datetime.fromisoformat(
+                str(v).replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return 0.0
+    swaps = [s for s in swaps if _ts(s) >= cut_ts]
     if not swaps:
         print("no live swaps in window yet — probe idle or pre-flip")
     else:
@@ -76,7 +87,7 @@ def main():
             pairs = []
             for s in swaps:
                 stok = str(s.get("token") or s.get("symbol") or "").lower()
-                sts = float(s.get("ts") or 0)
+                sts = _ts(s)
                 sp = s.get("fill_price") or s.get("price_usd")
                 if not stok or not isinstance(sp, (int, float)):
                     continue
