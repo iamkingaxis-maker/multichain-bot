@@ -2773,7 +2773,10 @@ class DipScanner:
                 from core.fast_watch import hl_confirm_state as _hl_st2
                 _hl_ent = (getattr(self, "_hl_confirm", {}) or {}).get(
                     getattr(decision, "address", "") or "")
-                _hl_state = _hl_st2(_hl_ent, time.monotonic())
+                _hl_state = _hl_st2(
+                    _hl_ent, time.monotonic(),
+                    hold_secs=float(os.environ.get("HL_CONFIRM_HOLD_SECS", "120") or 120),
+                    bounce_frac=float(os.environ.get("HL_CONFIRM_BOUNCE", "0.01") or 0.01))
             except Exception:
                 _hl_state = "TRACKING"
             if _hl_state != "CONFIRMED":
@@ -22699,7 +22702,13 @@ class DipScanner:
             try:
                 from core.fast_watch import hl_confirm_state as _hl_st
                 _hl = (getattr(self, "_hl_confirm", {}) or {}).get(token_address)
-                entry_meta_dict["hl_confirm_state"] = _hl_st(_hl, time.monotonic())
+                # sensitivity sweep 2026-07-05: surface FLAT (all 12 cells
+                # positive); hold 90-120s slightly beats 150 (+0.2pp) -> 120
+                # default, env-tunable.
+                entry_meta_dict["hl_confirm_state"] = _hl_st(
+                    _hl, time.monotonic(),
+                    hold_secs=float(os.environ.get("HL_CONFIRM_HOLD_SECS", "120") or 120),
+                    bounce_frac=float(os.environ.get("HL_CONFIRM_BOUNCE", "0.01") or 0.01))
                 if _hl and "low" in _hl and _price_usd_f:
                     entry_meta_dict["hl_dist_from_low_pct"] = round(
                         (float(_price_usd_f) / float(_hl["low"]) - 1) * 100, 2)
