@@ -72,5 +72,6 @@
   "triggers_allowed": null,
   "triggers_disabled": [],
   "vol_h1_min": 1000.0,
-  "young_token_probe": false
+  "young_token_probe": false,
+  "entry_gate_require_data": true
 }
