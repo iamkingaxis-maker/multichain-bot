@@ -22488,6 +22488,37 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] medbuy_sub8 shadow err: {_e}")
 
+            # p1_lbls — SHADOW 2026-07-05 (never-green DS decode, scratchpad/
+            # _nevergreen_ds_decode.md): the never-green killer signature is
+            # BUY-SIDE ABSENCE, not sell pressure (sell features AUC~0.5).
+            # Bounces have a big buyer meeting the dump; killers are small-buy
+            # churn. P1: largest_buy_to_largest_sell < 0.3 -> on flush 22% NG
+            # recall at 11% winner-kill (all killed bounces peaked <=10.2),
+            # +92pp/4d, positive every day + both half-splits. Self-normalizing
+            # ratio (absolute-$ whale gates were regime-fragile -> rejected).
+            # Second stamp: whale_absent (whale_max_buy_usd==0) — higher recall
+            # but 15%+ winner-kill, SHADOW-ONLY for the realized-join decision.
+            # YOUNG: decode verdict NO-SHIP (kills +45/+70pp winners) — stamps
+            # are still written for joins but any enforce is flush-family only.
+            # Fail-open on missing (isinstance guard, read-as-zero rule).
+            try:
+                _p1r = entry_meta_dict.get("largest_buy_to_largest_sell")
+                if isinstance(_p1r, (int, float)) and not isinstance(_p1r, bool):
+                    _p1_v = "BLOCK" if float(_p1r) < 0.3 else "PASS"
+                    entry_meta_dict["p1_lbls_shadow"] = _p1_v
+                    if _p1_v == "BLOCK":
+                        c["p1_lbls_would_block"] = c.get("p1_lbls_would_block", 0) + 1
+                        logger.info(
+                            f"[DipScanner] p1_lbls SHADOW would-block: "
+                            f"{token_symbol} lbls={float(_p1r):.2f}<0.3 "
+                            f"(no big buyer meeting the dump)")
+                _wm = entry_meta_dict.get("whale_max_buy_usd")
+                if isinstance(_wm, (int, float)) and not isinstance(_wm, bool):
+                    entry_meta_dict["whale_absent_shadow"] = (
+                        "BLOCK" if float(_wm) <= 0 else "PASS")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] p1_lbls shadow err: {_e}")
+
             # rug_gate — SHADOW 2026-06-04. FLEET-WIDE port of trader.buy's legacy
             # LP-UNLOCK block (which the fleet path bypassed). BLOCK when the dominant
             # pool's LP is UNLOCKED (lp_locked_pct<threshold) AND not burned = rug-pull
