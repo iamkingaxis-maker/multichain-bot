@@ -22952,14 +22952,19 @@ class DipScanner:
                         liquidity_usd=_bndl_liq,
                         age_hours=float(_local.get("pair_age_hours") or 0.0),
                         pc_h24=pc_h24 if "pc_h24" in _local else None,
-                        # DEAD LOCAL FIX (2026-07-05): no bare `pc_h6` local
-                        # exists in _evaluate_pair -> this was ALWAYS None ->
-                        # every bundle.pc_h6 consumer (pump_retrace_gate,
-                        # structure_edge, NEGGATE's h6 reads) starved on the
-                        # main-scan path and failed open (MUTUMBO entered at
-                        # pc_h6=+2840 through a live enforce gate). Read the
-                        # pair snapshot directly, matching entry_meta.
-                        pc_h6=_safe_float((pair.get("priceChange") or {}).get("h6")),
+                        # DEAD LOCAL FIX (2026-07-05, two rounds): the original
+                        # _local.get("pc_h6") was ALWAYS None here -> every
+                        # bundle.pc_h6 consumer (pump_retrace_gate,
+                        # structure_edge, NEGGATE's h6 reads) starved and
+                        # failed open (MUTUMBO entered at +2840 through a live
+                        # enforce gate). Round 1 read the pair snapshot; round
+                        # 2 (Balloon leaked at h6=115 post-fix, 08:05): the
+                        # fast-watch re-eval's injected pair can LACK
+                        # priceChange -> chain to the iteration-top local that
+                        # entry_meta itself stamps (source of the meta value).
+                        pc_h6=(_safe_float((pair.get("priceChange") or {}).get("h6"))
+                               if _safe_float((pair.get("priceChange") or {}).get("h6")) is not None
+                               else _safe_float(_local.get("pc_h6"))),
                         pc_h1=pc_h1 if "pc_h1" in _local else None,
                         pc_m5=pc_m5 if "pc_m5" in _local else None,
                         vol_h1_usd=float(vol_h1) if "vol_h1" in _local and vol_h1 else None,
