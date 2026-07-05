@@ -9680,6 +9680,59 @@ class DipScanner:
                     except Exception as _e:
                         logger.debug(f"[DipScanner] recent_trades error for {token_symbol}: {_e}")
                         recent_trades = []
+                # TAPE RETRY (2026-07-05, never-green DS decode): when BOTH
+                # sources came back empty the entry_meta demand features read
+                # None and the fail-closed bots (young trio, allday, nf15)
+                # SKIP — but the decode proved 40/40 such tokens served a
+                # valid DS log at that exact moment: None-tape is transient
+                # fetch failure, not missing data. ONE retry with its own
+                # budget converts those skips back into informed decisions.
+                # Loop-starvation guards (the 07-01 P6 lesson): max one retry
+                # per pair per TAPE_RETRY_COOLDOWN_SECS (90s), budget-capped
+                # (TAPE_RETRY_BUDGET_SECS, 4s), TAPE_RETRY_MODE=off kills it.
+                if (not recent_trades and self.dexs_client is not None
+                        and os.environ.get("TAPE_RETRY_MODE", "on").strip().lower()
+                        not in ("off", "0", "false", "no")):
+                    try:
+                        _tr_now = time.monotonic()
+                        _tr_map = getattr(self, "_tape_retry_last", None)
+                        if _tr_map is None:
+                            _tr_map = self._tape_retry_last = {}
+                        _tr_cd = 90.0
+                        try:
+                            _tr_cd = float(os.environ.get(
+                                "TAPE_RETRY_COOLDOWN_SECS", "90") or 90)
+                        except (TypeError, ValueError):
+                            pass
+                        if _tr_now - _tr_map.get(pair_addr_for_1m, 0.0) >= _tr_cd:
+                            _tr_map[pair_addr_for_1m] = _tr_now
+                            if len(_tr_map) > 512:   # bound: drop oldest half
+                                for _k in sorted(_tr_map, key=_tr_map.get)[:256]:
+                                    _tr_map.pop(_k, None)
+                            _tr_budget = 4.0
+                            try:
+                                _tr_budget = float(os.environ.get(
+                                    "TAPE_RETRY_BUDGET_SECS", "4") or 4)
+                            except (TypeError, ValueError):
+                                pass
+                            c["tape_retry_attempts"] = c.get("tape_retry_attempts", 0) + 1
+                            with _SubOp("recent_trades_retry"):
+                                recent_trades = await asyncio.wait_for(
+                                    self.dexs_client.fetch_recent_trades(
+                                        pair_addr_for_1m, limit=100
+                                    ),
+                                    timeout=_tr_budget,
+                                )
+                            if recent_trades:
+                                c["tape_retry_recovered"] = c.get("tape_retry_recovered", 0) + 1
+                                logger.info(
+                                    f"[DipScanner] TAPE-RETRY recovered "
+                                    f"{len(recent_trades)} prints for {token_symbol} "
+                                    f"(was None-tape)")
+                    except Exception as _e:
+                        recent_trades = recent_trades or []
+                        logger.debug(f"[DipScanner] tape retry miss for "
+                                     f"{token_symbol}: {str(_e)[:60]}")
             if recent_trades:
                 buys = [t for t in recent_trades if t.get("kind") == "buy"]
                 sells = [t for t in recent_trades if t.get("kind") == "sell"]
