@@ -552,6 +552,8 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         <div id="wt-base" style="font-size:16px;">—</div></div>
       <div><div style="color:var(--muted);font-size:11px;">open live positions</div>
         <div id="wt-open" style="font-size:16px;">—</div></div>
+      <div><div style="color:var(--muted);font-size:11px;">deployed (cost basis)</div>
+        <div id="wt-deployed" style="font-size:16px;">—</div></div>
       <div id="wt-note" style="color:var(--muted);font-size:12px;align-self:center;"></div>
     </div>
   </div>
@@ -1085,6 +1087,9 @@ async function updateWalletTruth() {
       (typeof d.baseline_sol === 'number') ? d.baseline_sol.toFixed(4) + ' SOL' : '—';
     document.getElementById('wt-open').textContent =
       (d.open_live_positions == null) ? '—' : String(d.open_live_positions);
+    document.getElementById('wt-deployed').textContent =
+      (typeof d.deployed_sol === 'number' && d.deployed_sol > 0)
+        ? d.deployed_sol.toFixed(4) + ' SOL' : '—';
     document.getElementById('wt-note').textContent =
       (d.stale ? 'STALE (rpc error) · ' : '') + (d.note || '') +
       (typeof d.delta_sol === 'number' && d.open_live_positions > 0
@@ -5756,11 +5761,25 @@ class WebDashboard:
             else:
                 out["note"] = "baseline arms on first call in LIVE mode"
             out["paper_mode"] = paper
-            # context: open live positions (they hold value outside SOL)
+            # context: open live positions (they hold value outside SOL).
+            # deployed_sol = COST BASIS (sum amount_sol_spent) — the exact
+            # lamports that left the wallet for currently-open BOT positions.
+            # Deliberately NOT marked-to-market (AxiS 2026-07-05: no
+            # fluctuating valuations in the truth panel) and structurally
+            # blind to personal holdings (the trader's book only contains
+            # bot-bought positions). delta_sol + deployed_sol ~= break-even.
             try:
                 lt = getattr(self, "live_trader", None) or getattr(self, "trader", None)
-                out["open_live_positions"] = (
-                    len(getattr(lt, "positions", {}) or {}) if lt else None)
+                pos = (getattr(lt, "positions", {}) or {}) if lt else {}
+                out["open_live_positions"] = len(pos) if lt else None
+                dep = 0.0
+                for _p in pos.values():
+                    v = getattr(_p, "amount_sol_spent", None)
+                    if v is None and isinstance(_p, dict):
+                        v = _p.get("amount_sol_spent")
+                    if isinstance(v, (int, float)):
+                        dep += float(v)
+                out["deployed_sol"] = round(dep, 6)
             except Exception:
                 pass
             self._wt_cache = (_t.monotonic(), out)
