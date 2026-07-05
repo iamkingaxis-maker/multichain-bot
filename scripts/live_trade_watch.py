@@ -30,7 +30,10 @@ while True:
                 continue
             if any(n in line for n in NOISE):
                 continue
-            h = hashlib.md5(line.strip().encode()).hexdigest()
+            # dedup on the DECISION, not the timestamped line — a rejected
+            # candidate re-fires identical gate verdicts every re-arm.
+            core = line.split("] ", 1)[-1].strip()
+            h = hashlib.md5(core.encode()).hexdigest()
             if h in seen:
                 continue
             seen.add(h)
