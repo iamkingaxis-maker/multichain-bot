@@ -5,7 +5,8 @@ import core.gate_rollback as gr
 
 def test_rollback_when_blocked_cohort_winning():
     # blocked cohort forward-winning (majority win + positive mean, enough n) -> roll back
-    s = {"block_n": 30, "wr": 62.0, "block_avg": 8.5}
+    # BLACKOUT RCA 2026-07-05: rollback consumes the BLOCKED cohort wr only
+    s = {"block_n": 30, "block_wr": 62.0, "block_avg": 8.5}
     should, why = gr.evaluate_gate_rollback(s)
     assert should is True and "clipping winners" in why
 
@@ -51,7 +52,7 @@ def test_state_roundtrip_and_failsafe(tmp_path, monkeypatch):
 def test_run_check_sticky_and_triggers(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     fwd = {
-        "falling_day_flush": {"block_n": 30, "wr": 65.0, "block_avg": 9.0},   # winning -> roll back
+        "falling_day_flush": {"block_n": 30, "block_wr": 65.0, "block_avg": 9.0},   # winning -> roll back
         "solpump_neg_gate": {"block_n": 40, "wr": 15.0, "block_avg": -25.0},  # losing -> keep
     }
     res = dict((g, (rb, why)) for g, rb, why in gr.run_gate_rollback_check(fwd))

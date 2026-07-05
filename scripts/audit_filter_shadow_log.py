@@ -232,6 +232,11 @@ async def compute_filter_pnl(
         n = len(all_rs)
         wins = sum(1 for x in all_rs if x > 0)
         block_avg = (sum(block_rs) / len(block_rs)) if block_rs else None
+        # BLACKOUT RCA 2026-07-05: gate_rollback needs the BLOCKED cohort's
+        # win rate, not the mixed one — the mixed "wr" latched structure_edge
+        # off because its PASSES were winning.
+        block_wins = sum(1 for x in block_rs if x > 0)
+        block_wr = (100.0 * block_wins / len(block_rs)) if block_rs else None
         pass_avg = (sum(pass_rs) / len(pass_rs)) if pass_rs else None
         diff = (pass_avg - block_avg) if (block_avg is not None and pass_avg is not None) else None
         result[f] = {
@@ -241,6 +246,7 @@ async def compute_filter_pnl(
             "net_pct": sum(all_rs),
             "block_n": len(block_rs),
             "block_avg": block_avg,
+            "block_wr": block_wr,
             "pass_n": len(pass_rs),
             "pass_avg": pass_avg,
             "pass_block_diff": diff,

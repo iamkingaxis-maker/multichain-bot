@@ -1892,6 +1892,11 @@ class DipScanner:
                 # SOL-beta — the young lane stayed green through the green-SOL
                 # day that bled the family. Block applies to the family only.
                 _ng_young = bool(getattr(pm.config, "young_token_probe", False))
+                if _ng_mode == "enforce" and _ng_rb and not _ng_young:
+                    logger.warning(
+                        "[DipScanner] GATE-ROLLED-BACK (neggate): latched OFF by "
+                        "gate_rollback — the BLOCK above did NOT enforce (bot=%s)",
+                        bot_id)
                 if _ng_mode == "enforce" and not _ng_rb and not _ng_young:
                     return
         # ── Falling-day flush gate (#loss-tail decomposition 2026-06-22) ───────
@@ -1950,6 +1955,15 @@ class DipScanner:
                     _fdf_rb = _irb("falling_day_flush")
                 except Exception:
                     _fdf_rb = False
+                if _fdf_mode == "enforce" and _fdf_rb:
+                    # BLACKOUT RCA 2026-07-05: the log line above says BLOCK but a
+                    # sticky rollback latch means this gate is NOT enforcing. Say
+                    # so LOUDLY on every hit instead of lying silently (structure
+                    # _edge was latched for days; 1074/1589 buys violated it).
+                    logger.warning(
+                        "[DipScanner] GATE-ROLLED-BACK (fdf): latched OFF by "
+                        "gate_rollback — the BLOCK above did NOT enforce (bot=%s)",
+                        bot_id)
                 if _fdf_mode == "enforce" and not _fdf_rb:
                     return
         # ── Pump-retrace gate (2026-07-03 evening-bleed autopsy) ────────────────
@@ -2003,6 +2017,15 @@ class DipScanner:
                     _pr_rb = _irb("pump_retrace_gate")
                 except Exception:
                     _pr_rb = False
+                if _pr_mode == "enforce" and _pr_rb:
+                    # BLACKOUT RCA 2026-07-05: the log line above says BLOCK but a
+                    # sticky rollback latch means this gate is NOT enforcing. Say
+                    # so LOUDLY on every hit instead of lying silently (structure
+                    # _edge was latched for days; 1074/1589 buys violated it).
+                    logger.warning(
+                        "[DipScanner] GATE-ROLLED-BACK (pr): latched OFF by "
+                        "gate_rollback — the BLOCK above did NOT enforce (bot=%s)",
+                        bot_id)
                 if _pr_mode == "enforce" and not _pr_rb:
                     return
         # ── Structure-edge gate (#true-edge decomposition 2026-06-24) — SHADOW ──
@@ -2074,6 +2097,15 @@ class DipScanner:
                     _se_rb = _irb2("structure_edge")
                 except Exception:
                     _se_rb = False
+                if _se_mode == "enforce" and _se_rb:
+                    # BLACKOUT RCA 2026-07-05: the log line above says BLOCK but a
+                    # sticky rollback latch means this gate is NOT enforcing. Say
+                    # so LOUDLY on every hit instead of lying silently (structure
+                    # _edge was latched for days; 1074/1589 buys violated it).
+                    logger.warning(
+                        "[DipScanner] GATE-ROLLED-BACK (se): latched OFF by "
+                        "gate_rollback — the BLOCK above did NOT enforce (bot=%s)",
+                        bot_id)
                 if _se_mode == "enforce" and not _se_rb:
                     return
         # ── Liquidity-exit-floor gate (exit-tail design 2026-06-24) — SHADOW ────
@@ -2133,6 +2165,15 @@ class DipScanner:
                     _lef_rb = _irb3("liquidity_exit_floor")
                 except Exception:
                     _lef_rb = False
+                if _lef_mode == "enforce" and _lef_rb:
+                    # BLACKOUT RCA 2026-07-05: the log line above says BLOCK but a
+                    # sticky rollback latch means this gate is NOT enforcing. Say
+                    # so LOUDLY on every hit instead of lying silently (structure
+                    # _edge was latched for days; 1074/1589 buys violated it).
+                    logger.warning(
+                        "[DipScanner] GATE-ROLLED-BACK (lef): latched OFF by "
+                        "gate_rollback — the BLOCK above did NOT enforce (bot=%s)",
+                        bot_id)
                 if _lef_mode == "enforce" and not _lef_rb:
                     return
         # ── No-bounce-knife gate (2026-06-25 bounce-vs-knife 28-agent study) ────
@@ -2188,6 +2229,15 @@ class DipScanner:
                     _crk_rb = _irb4("consec_red_knife")
                 except Exception:
                     _crk_rb = False
+                if _crk_mode == "enforce" and _crk_rb:
+                    # BLACKOUT RCA 2026-07-05: the log line above says BLOCK but a
+                    # sticky rollback latch means this gate is NOT enforcing. Say
+                    # so LOUDLY on every hit instead of lying silently (structure
+                    # _edge was latched for days; 1074/1589 buys violated it).
+                    logger.warning(
+                        "[DipScanner] GATE-ROLLED-BACK (crk): latched OFF by "
+                        "gate_rollback — the BLOCK above did NOT enforce (bot=%s)",
+                        bot_id)
                 if _crk_mode == "enforce" and not _crk_rb:
                     return
         # ── Falling-knife gate (2026-06-27 winner-mining cycle) ──────────────────
@@ -2245,6 +2295,15 @@ class DipScanner:
                     _fk_rb = _irb5("falling_knife_entry")
                 except Exception:
                     _fk_rb = False
+                if _fk_mode == "enforce" and _fk_rb:
+                    # BLACKOUT RCA 2026-07-05: the log line above says BLOCK but a
+                    # sticky rollback latch means this gate is NOT enforcing. Say
+                    # so LOUDLY on every hit instead of lying silently (structure
+                    # _edge was latched for days; 1074/1589 buys violated it).
+                    logger.warning(
+                        "[DipScanner] GATE-ROLLED-BACK (fk): latched OFF by "
+                        "gate_rollback — the BLOCK above did NOT enforce (bot=%s)",
+                        bot_id)
                 if _fk_mode == "enforce" and not _fk_rb:
                     return
         # ── Post-pump-corpse entry gate (2026-06-27 scoreboard leak fix) ─────────
@@ -2312,6 +2371,15 @@ class DipScanner:
                     _ppc_rb = _irb6("post_pump_corpse_entry")
                 except Exception:
                     _ppc_rb = False
+                if _ppc_mode == "enforce" and _ppc_rb:
+                    # BLACKOUT RCA 2026-07-05: the log line above says BLOCK but a
+                    # sticky rollback latch means this gate is NOT enforcing. Say
+                    # so LOUDLY on every hit instead of lying silently (structure
+                    # _edge was latched for days; 1074/1589 buys violated it).
+                    logger.warning(
+                        "[DipScanner] GATE-ROLLED-BACK (ppc): latched OFF by "
+                        "gate_rollback — the BLOCK above did NOT enforce (bot=%s)",
+                        bot_id)
                 if _ppc_mode == "enforce" and not _ppc_rb:
                     return
         # ── No-dip / slow-bleeder gate (2026-06-25 slow-bleeder 24-agent mine) ──
@@ -2369,6 +2437,15 @@ class DipScanner:
                     _nd_rb = _irb5("not_dipping")
                 except Exception:
                     _nd_rb = False
+                if _nd_mode == "enforce" and _nd_rb:
+                    # BLACKOUT RCA 2026-07-05: the log line above says BLOCK but a
+                    # sticky rollback latch means this gate is NOT enforcing. Say
+                    # so LOUDLY on every hit instead of lying silently (structure
+                    # _edge was latched for days; 1074/1589 buys violated it).
+                    logger.warning(
+                        "[DipScanner] GATE-ROLLED-BACK (nd): latched OFF by "
+                        "gate_rollback — the BLOCK above did NOT enforce (bot=%s)",
+                        bot_id)
                 if _nd_mode == "enforce" and not _nd_rb:
                     return
         # ── Winner size-up SHADOW signal (2026-06-25 winner mine) ──────────────
@@ -3084,7 +3161,13 @@ class DipScanner:
                 # pre-spend abort -> safe to refund the reservation
                 capital.balance_usd += _used_size
                 capital.in_flight_usd -= _used_size
-                logger.info("[DipScanner] bot=%s LIVE buy aborted pre-spend; capital refunded", bot_id)
+                # BLACKOUT RCA: this fires for pre-spend aborts INCLUDING the
+                # double-eval race (second invocation aborts on 'already open'
+                # AFTER the first one bought) — name the token so the log can't
+                # read as a rollback of the executed buy.
+                logger.info("[DipScanner] bot=%s LIVE buy aborted pre-spend "
+                            "(no swap was executed by THIS invocation); capital "
+                            "reservation refunded token=%s", bot_id, decision.token)
                 return
             if _r.get("spent"):
                 # E1b (2026-06-02 audit): money was SPENT on-chain but the position is
@@ -3858,6 +3941,25 @@ class DipScanner:
                                _adopted, token)
                 res = {"success": True, "out_amount": _adopted, "route": "adopted_orphan",
                        "signature": res.get("signature"), "realized_slippage_pct": None}
+            elif res.get("signature") and _pre_bal < 0:
+                # BLACKOUT RCA 2026-07-05 (Bug B latent hole): a SIGNED swap
+                # that Ultra reports failed CAN have landed (timed-out
+                # execute), and with the pre-balance read blind (_pre_bal=-1)
+                # the adoption check above cannot verify either way. Returning
+                # None here refunds capital that may be SPENT — the exact
+                # refund-after-spend class. Invariant: signature + cannot-
+                # verify => treat as SPENT (consume the reservation, flag for
+                # manual reconcile). Worst case of this conservatism: a truly
+                # failed tx mis-ledgers ~one position size until reconcile —
+                # vs silently corrupting the wallet ledger the other way.
+                logger.error(
+                    "[Probe] live BUY UNCONFIRMED: signed (sig=%s) but reported "
+                    "fail AND adoption check blind — treating as SPENT, manual "
+                    "reconcile required token=%s", res.get("signature"), token)
+                _emit_buy_telemetry(False, None, None, None,
+                                    "unconfirmed_execute_adoption_blind")
+                return {"spent": True, "signature": res.get("signature"),
+                        "reason": "unconfirmed_execute_adoption_blind"}
             else:
                 logger.warning("[Probe] live BUY swap FAILED token=%s reason=%s", token, res.get("reason"))
                 _emit_buy_telemetry(False, None, None, None, None)

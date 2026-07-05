@@ -58,10 +58,18 @@ def evaluate_gate_rollback(stats, *, min_n: int = 20, winner_wr: float = 50.0,
         bn = stats.get("block_n") or 0
         if bn < min_n:
             return False, f"thin (block_n={bn}<{min_n})"
-        wr = stats.get("wr")
+        # BLACKOUT RCA 2026-07-05: this previously consumed stats["wr"], which
+        # the scorer computes over PASS+BLOCK COMBINED — a gate whose passes
+        # win (i.e. a WORKING gate) read as "blocked cohort winning" and
+        # latched itself off (structure_edge sat rolled-back for days while
+        # its logs said BLOCK; 1074/1589 buys violated it). Consume the
+        # blocked-cohort win rate ONLY; if the scorer hasn't emitted it,
+        # DON'T roll back (fail-safe: a gate stays enforcing unless the
+        # correct cohort proves it clips winners).
+        wr = stats.get("block_wr")
         avg = stats.get("block_avg")
         if wr is None or avg is None:
-            return False, "missing wr/block_avg"
+            return False, "missing block_wr/block_avg (no rollback without blocked-cohort stats)"
         wr = float(wr)
         avg = float(avg)
         if wr >= winner_wr and avg > winner_avg:
@@ -81,10 +89,49 @@ def read_rollback_state() -> dict:
         return {}
 
 
+_cleared_once = False
+
+
+def _maybe_clear_latches() -> None:
+    """BLACKOUT RCA 2026-07-05: latches set by the OLD mixed-cohort wr bug
+    must be clearable without shell access to /data. GATE_ROLLBACK_CLEAR
+    (comma-separated gate names, or 'all') removes those latches ONCE per
+    process. Idempotent; fail-safe (errors leave state untouched)."""
+    global _cleared_once
+    if _cleared_once:
+        return
+    _cleared_once = True
+    raw = os.environ.get("GATE_ROLLBACK_CLEAR", "").strip()
+    if not raw:
+        return
+    try:
+        st = read_rollback_state()
+        targets = (list(st.keys()) if raw.lower() == "all"
+                   else [g.strip() for g in raw.split(",") if g.strip()])
+        changed = [g for g in targets if st.get(g, {}).get("rolled_back")]
+        if not changed:
+            return
+        for g in changed:
+            st[g] = {"rolled_back": False,
+                     "reason": "cleared via GATE_ROLLBACK_CLEAR (RCA 2026-07-05: "
+                               "latch was set by the mixed-cohort wr bug)",
+                     "stats": {},
+                     "ts": datetime.now(timezone.utc).isoformat()}
+        tmp = _path() + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(st, f)
+        os.replace(tmp, _path())
+        logging.getLogger(__name__).warning(
+            "[gate-rollback] CLEARED latches via env: %s", changed)
+    except Exception:
+        pass
+
+
 def is_rolled_back(gate: str) -> bool:
     """FAIL-SAFE: any error -> False (gate keeps ENFORCING). Never disable a
     loss-cut on an IO/parse glitch."""
     try:
+        _maybe_clear_latches()
         return bool(read_rollback_state().get(gate, {}).get("rolled_back"))
     except Exception:
         return False
