@@ -5912,6 +5912,17 @@ class DipScanner:
                 "giveback_shadow_fired": ((_pos.state_blob or {}).get("gb_shadow_fired") if _pos else None),
                 "giveback_shadow_pnl_at_fire": ((_pos.state_blob or {}).get("gb_shadow_pnl_at_fire") if _pos else None),
                 "giveback_shadow_peak_at_fire": ((_pos.state_blob or {}).get("gb_shadow_peak_at_fire") if _pos else None),
+                # TRAIL-REPRICE + GB2 + TP1-FASTFILL shadow stamps (2026-07-05):
+                # these lived only in state_blob — invisible to remote analysis
+                # (giveback study: 0/875 API sells carried them), which BLOCKED
+                # every fast-path exit enforce decision. Now on the sell record.
+                "trail_reprice_shadow_pnl": ((_pos.state_blob or {}).get("trail_reprice_shadow_pnl") if _pos else None),
+                "trail_reprice_shadow_peak": ((_pos.state_blob or {}).get("trail_reprice_shadow_peak") if _pos else None),
+                "trail_reprice_shadow_secs": ((_pos.state_blob or {}).get("trail_reprice_shadow_secs") if _pos else None),
+                "gb2_shadow_pnl_at_fire": ((_pos.state_blob or {}).get("gb2_shadow_pnl_at_fire") if _pos else None),
+                "gb2_shadow_peak_at_fire": ((_pos.state_blob or {}).get("gb2_shadow_peak_at_fire") if _pos else None),
+                "tp1_ff_shadow_pnl": ((_pos.state_blob or {}).get("tp1_ff_shadow_pnl") if _pos else None),
+                "tp1_ff_shadow_secs": ((_pos.state_blob or {}).get("tp1_ff_shadow_secs") if _pos else None),
                 # Never-green fast-stop SHADOW: position never peaked >=2% AND
                 # hit <=-4% (the 78%-of-loss dying slice). Winner-kill audit
                 # input — a loser fired = rescue benefit (cut at -4 vs the -8.27
@@ -6928,6 +6939,120 @@ class DipScanner:
             except Exception as e:
                 logger.debug("[trail-reprice] position eval failed bot=%s: %s", bot_id, e)
 
+    async def _reprice_tp1_fastfill(self, cfg, prices, now):
+        """PRE-TP1 take-profit on the freshest fast samples (bounced-but-we-lost
+        replay 2026-07-05). The exit loop checks TP1 on scan-cadence prices while
+        peaks happen between sweeps: 27 rounds peaked ABOVE the TP1 line, never
+        filled, and bled -84.6pp via breakeven-lock (replay: +24pp) — a ~260pp/wk
+        TP1-fill-mechanics prize, 88.9% reachable. Pre-TP1 twin of
+        _reprice_trail_exits; same wick guard (confirm_ticks fresh samples all
+        at/above the line).
+
+        TP1_FASTFILL_MODE=off (DEFAULT) -> immediate return, byte-identical.
+        shadow -> stamps tp1_ff_shadow_* (surfaced on the sell record) + durable
+        JSONL, never sells. enforce -> routes the bot's OWN TP1 decision
+        (tp1_sell_fraction) through _execute_bot_sell at the fresh price.
+        FAIL-OPEN everywhere; idempotent via state_blob stamps."""
+        mode = os.environ.get("TP1_FASTFILL_MODE", "off").strip().lower()
+        if mode not in ("shadow", "enforce"):
+            return
+        pms = getattr(self, "bot_position_managers", None)
+        if not pms:
+            return
+        from core.fast_watch import tp1_fastfill_would_fire
+        try:
+            confirm_ticks = int(os.environ.get("TP1_FASTFILL_CONFIRM_TICKS", "2"))
+        except (TypeError, ValueError):
+            confirm_ticks = 2
+        scoped = []   # (bot_id, pm, position, tp1_pct, tp1_frac)
+        try:
+            for bot_id, pm in pms.items():
+                pcfg = getattr(pm, "config", None)
+                if not str(getattr(pcfg, "bot_id", bot_id)).startswith("badday_"):
+                    continue
+                try:
+                    tp1 = float(getattr(pcfg, "tp1_pct", 0) or 0)
+                    frac = float(getattr(pcfg, "tp1_sell_fraction", 0) or 0)
+                except (TypeError, ValueError):
+                    continue
+                if tp1 <= 0 or frac <= 0:
+                    continue
+                for p in pm.iter_positions():
+                    if getattr(p, "tp1_hit", False):
+                        continue
+                    if not getattr(p, "address", "") or getattr(p, "entry_price", 0) <= 0:
+                        continue
+                    scoped.append((bot_id, pm, p, tp1, frac))
+        except Exception as e:
+            logger.debug("[tp1-fastfill] enumerate opens failed: %s", e)
+            return
+        if not scoped:
+            return
+        prices = dict(prices or {})
+        sw = int(getattr(cfg, "sample_window", 20) or 20)
+        try:
+            missing = [p.address for (_, _, p, _, _) in scoped
+                       if p.address.lower() not in prices][:50]
+            if missing:
+                extra = await self._fast_batch_prices(missing) or {}
+                for (_, _, p, _, _) in scoped:
+                    pr = extra.get(p.address.lower())
+                    if pr is None:
+                        continue
+                    prices[p.address.lower()] = pr
+                    buf = self._fast_samples.setdefault(
+                        p.address, deque(maxlen=sw))
+                    buf.append(pr)
+        except Exception as e:
+            logger.debug("[tp1-fastfill] opens batch price failed: %s", e)
+        for bot_id, pm, p, tp1, frac in scoped:
+            try:
+                addr = p.address
+                buf = self._fast_samples.get(addr)
+                fires, fresh_pnl, why = tp1_fastfill_would_fire(
+                    buf, p.entry_price, tp1, confirm_ticks=confirm_ticks)
+                if not fires or fresh_pnl is None:
+                    continue
+                sb = p.state_blob if p.state_blob is not None else None
+                if sb is not None and sb.get("tp1_ff_fired"):
+                    continue
+                fresh_price = prices.get(addr.lower())
+                if fresh_price is None and buf:
+                    fresh_price = buf[-1]
+                if fresh_price is None or fresh_price <= 0:
+                    continue
+                if mode == "shadow":
+                    if sb is not None and sb.get("tp1_ff_shadow_pnl") is not None:
+                        continue   # one record per position
+                    logger.info(
+                        "[tp1-fastfill] SHADOW bot=%s token=%s fresh_pnl=%.2f "
+                        "tp1=%.1f (%s)", bot_id, p.token, fresh_pnl, tp1, why)
+                    self._append_exit_reprice_shadow({
+                        "kind": "tp1_fastfill", "ts": now, "bot": bot_id,
+                        "token": p.token, "addr": addr,
+                        "fresh_pnl": round(fresh_pnl, 4), "tp1": tp1,
+                        "secs_since_entry": int(now - p.entry_time),
+                    })
+                    if sb is not None:
+                        sb["tp1_ff_shadow_pnl"] = round(fresh_pnl, 4)
+                        sb["tp1_ff_shadow_secs"] = int(now - p.entry_time)
+                elif mode == "enforce":
+                    if sb is not None:
+                        sb["tp1_ff_fired"] = True
+                        sb["tp1_ff_pnl_at_fire"] = round(fresh_pnl, 4)
+                    from core.per_bot_position_manager import ExitDecision
+                    d = ExitDecision(
+                        token=p.token, kind="TP1",
+                        reason=f"TP1 pnl={fresh_pnl:.2f}% >= {tp1:g} [tp1-fastfill]",
+                        sell_fraction=frac)
+                    logger.info(
+                        "[tp1-fastfill] ENFORCE sell bot=%s token=%s "
+                        "fresh_pnl=%.2f tp1=%.1f frac=%.2f",
+                        bot_id, p.token, fresh_pnl, tp1, frac)
+                    await self._execute_bot_sell(bot_id, p.token, d, fresh_price, now)
+            except Exception as e:
+                logger.debug("[tp1-fastfill] position eval failed bot=%s: %s", bot_id, e)
+
     def _fast_price_for(self, addr, jupiter_price):
         """B4 price-selection (SYNC, testable). Returns (price, source).
 
@@ -7341,6 +7466,7 @@ class DipScanner:
         # ~15-20% of the whole book loss). Default TRAIL_REPRICE_MODE=off.
         try:
             await self._reprice_trail_exits(cfg, prices, now)
+            await self._reprice_tp1_fastfill(cfg, prices, now)
         except Exception as _trp_e:
             logger.debug("[trail-reprice] tick hook failed: %s", _trp_e)
         snapshot = [(addr, armed[addr]) for addr in addrs]

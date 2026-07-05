@@ -742,3 +742,38 @@ def trail_reprice_would_fire(samples, entry_price, peak_pnl_pct, trail_pp,
                f"{tp:g}pp [fresh x{n}]")
         return True, fresh_pnl, eff_peak, why
     return False, fresh_pnl, eff_peak, ""
+
+
+def tp1_fastfill_would_fire(samples, entry_price, tp1_pct, confirm_ticks=2):
+    """PRE-TP1 take-profit check on FRESH fast samples (TP1_FASTFILL,
+    2026-07-05 bounced-but-we-lost replay).
+
+    The exit loop evaluates TP1 on scan-cadence prices while peaks happen on
+    fresh ones: 27 rounds since 07-01 peaked +7.5 mean (ABOVE the +6 TP1
+    line), TP1 never filled, and they bled to -84.6pp via breakeven-lock —
+    replay banks +24pp instead (~260pp/week, 88.9% reachable). This is the
+    pre-TP1 fidelity twin of trail_reprice_would_fire: the strategy already
+    SAYS sell at tp1_pct; the engine just misses the touch.
+
+    Fires when the ``confirm_ticks`` NEWEST fresh samples are ALL at/above
+    the TP1 line — a single wick/glitch print can't trip a 75% sell.
+
+    Returns (fires, fresh_pnl, why). FAIL-SAFE: bad data -> (False, None, "").
+    Pure; never raises."""
+    try:
+        ep = float(entry_price)
+        t1 = float(tp1_pct)
+    except (TypeError, ValueError):
+        return False, None, ""
+    if ep <= 0 or ep != ep or t1 <= 0:
+        return False, None, ""
+    seq = [s for s in list(samples or []) if isinstance(s, (int, float)) and s > 0]
+    n = max(int(confirm_ticks), 1)
+    if len(seq) < n:
+        return False, None, ""
+    pnls = [(s / ep - 1.0) * 100.0 for s in seq]
+    fresh_pnl = pnls[-1]
+    if all(x >= t1 for x in pnls[-n:]):
+        why = f"TP1 fastfill pnl={fresh_pnl:.2f}% >= {t1:g} [fresh x{n}]"
+        return True, fresh_pnl, why
+    return False, fresh_pnl, ""
