@@ -4901,6 +4901,24 @@ class DipScanner:
             if _paper_tok and abs(sell_tokens - _paper_tok) / max(_paper_tok, 1e-9) > 0.1:
                 logger.warning("[Probe] live sell balance %.6g != paper %.6g (transfer-tax/suspect-entry?) %s",
                                sell_tokens, _paper_tok, token)
+            # STALE-BALANCE guard (DONALT 2026-07-06 11:07:50): right after a
+            # partial leg lands, a lagging RPC node can still serve the
+            # PRE-sell balance — the full-leg clamp then sizes the ENTIRE
+            # pre-partial stack (113,794 tokens vs 28,449 held; only the
+            # on-chain "Insufficient funds" revert stopped an oversell).
+            # Transfer-tax only makes real < paper, never 1.5x MORE — a read
+            # that exceeds paper-expected by >1.5x within 120s of a prior live
+            # sell on this mint is a stale read: stay open, retry next tick.
+            _last_sell_mono = getattr(self, "_live_sell_last_mono", {}).get(mint)
+            if (_last_sell_mono is not None
+                    and time.monotonic() - _last_sell_mono < 120.0
+                    and _paper_tok > 0 and sell_tokens > _paper_tok * 1.5):
+                logger.error(
+                    "[Probe] STALE-BALANCE guard: sized %.6g tokens > 1.5x paper-expected "
+                    "%.6g within 120s of a prior live sell leg (%s) — balance read "
+                    "pre-dates the last fill; stays open, retry next tick",
+                    sell_tokens, _paper_tok, token)
+                return None
         except Exception as e:
             logger.error("[Probe] live sell sizing failed (%s): %s", token, e)
             return None
@@ -5035,6 +5053,10 @@ class DipScanner:
         logger.info("[Probe] LIVE SELL token=%s frac=%.2f exit=%.8g slip=%s%% sig=%s",
                     token, sold_frac, real_exit, instrument.get("live_slippage_pct"),
                     res.get("signature"))
+        # Arm the STALE-BALANCE guard window for this mint (see sizing above).
+        if not hasattr(self, "_live_sell_last_mono"):
+            self._live_sell_last_mono = {}
+        self._live_sell_last_mono[mint] = time.monotonic()
         _sol_after = None
         try:
             _sa = await self.trader._get_sol_balance(force=True)
@@ -7351,6 +7373,19 @@ class DipScanner:
                     if sb is not None:
                         sb["tp1_ff_fired"] = True
                         sb["tp1_ff_pnl_at_fire"] = round(fresh_pnl, 4)
+                    # Mirror tick()'s TP1 contract (per_bot_position_manager
+                    # ~909): the tier flag + peel stamps are set BEFORE the
+                    # sell. Without tp1_hit the next regular tick fired TP1
+                    # AGAIN — the duplicate live sell sized the full
+                    # pre-partial stack off a not-yet-settled balance read
+                    # (DONALT 2026-07-06 11:07:50 double-sell race).
+                    p.tp1_hit = True
+                    if sb is not None:
+                        sb["tp1_fill_pnl"] = round(fresh_pnl, 4)
+                        if (bool(getattr(pm.config, "peel_exit", False))
+                                and fresh_pnl < float(getattr(
+                                    pm.config, "peel_threshold_pct", 12.0) or 12.0)):
+                            sb["peel_active"] = True
                     from core.per_bot_position_manager import ExitDecision
                     d = ExitDecision(
                         token=p.token, kind="TP1",
