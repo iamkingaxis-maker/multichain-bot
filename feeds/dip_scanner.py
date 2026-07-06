@@ -2126,6 +2126,17 @@ class DipScanner:
         # auto-fit). LIQ_EXIT_FLOOR_MODE=enforce flips it (auto-rollback guarded);
         # records to the forward-candle scorer even in enforce. Fail-OPEN.
         _lef_mode = os.environ.get("LIQ_EXIT_FLOOR_MODE", "shadow").lower()
+        # PER-BOT enforce override (2026-07-06, AxiS 'live must be less
+        # penalizing'): the 公牛 round trip priced thin books at ~2.45% RT
+        # slip — the probe (and its paper twin, for parity) refuse books too
+        # thin to exit cleanly regardless of the fleet-wide shadow mode.
+        # A restriction only: can skip entries, never add them.
+        try:
+            if (_lef_mode == "shadow"
+                    and bool(getattr(pm.config, "liq_exit_floor_enforce", False))):
+                _lef_mode = "enforce"
+        except Exception:
+            pass
         if _lef_mode != "off" and str(bot_id).startswith("badday_"):
             _lef_liq = _ar_liq  # ENTRY liquidity resolved above (anti-rug floor)
             from core.bot_evaluator import liquidity_exit_floor_blocks as _lefb

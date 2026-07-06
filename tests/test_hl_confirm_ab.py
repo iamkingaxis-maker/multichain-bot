@@ -22,3 +22,13 @@ def test_clone_matches_flush_except_hl():
 def test_default_off_everywhere_else():
     for name in ("badday_flush", "badday_young_absorb", "badday_allday"):
         assert _cfg(name).hl_confirm_entry is False
+
+
+def test_liq_floor_enforced_on_probe_twins_only():
+    # 2026-07-06: thin books priced ~2.45% RT on the first live round trip —
+    # the probe + its paper twin (parity) refuse sub-floor books; family A/Bs
+    # stay on the fleet-wide shadow mode.
+    assert _cfg("badday_young_absorb").liq_exit_floor_enforce is True
+    assert _cfg("badday_young_absorb_live").liq_exit_floor_enforce is True
+    for name in ("badday_flush", "badday_flush_nf15", "badday_allday"):
+        assert _cfg(name).liq_exit_floor_enforce is False

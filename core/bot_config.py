@@ -402,6 +402,13 @@ class BotConfig:
     # quiet, or is old news; candidates are plentiful).
     hl_confirm_entry: bool = False
 
+    # LIQ-EXIT-FLOOR per-bot enforce (2026-07-06): refuse entries whose book
+    # is too thin to EXIT cleanly (< LIQ_EXIT_FLOOR_USD, default $30k) even
+    # while the fleet-wide gate stays shadow. Set on the live probe + its
+    # paper twin (parity): thin books priced ~2.45% RT slip on the first
+    # live round trip; depth is the one structural live-friction lever.
+    liq_exit_floor_enforce: bool = False
+
     # Momentum-continuation mode (2026-06-02, #4.3). When True the bot uses a SEPARATE
     # entry path: it BYPASSES the dip-filter stack + dip triggers (which block 100% of
     # momentum candidates) and enters on the momentum entry_gate (e.g. pc_h1>=20 AND
