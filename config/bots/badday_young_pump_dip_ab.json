@@ -1,0 +1,86 @@
+{
+  "age_h_max": null,
+  "age_h_min": 0.5,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 100.0,
+  "bot_id": "badday_young_pump_dip_ab",
+  "btc_macro_h1_block_threshold": null,
+  "daily_loss_limit_usd": 40.0,
+  "display_name": "YOUNG PUMP-DIP A/B (2026-07-06, operator: the pumps I see are YOUNG). Young twin of badday_pump_dip_ab: young_absorb clone (young pond <=36h, young_token_probe) + pump_dip_exempt (drops full-thesis pc_h6<=0 half, shallow-dip, green-rip; pump-retrace already young-exempt) + deep-h1 entry req removed. KEEPS young selection: buyers>=10, wash<=0, liq>=25k, net-flow turn, buyer-size>=$34 (full-thesis buyer half), holder rug-guard, liq-exit-floor (Ansem-class exit-depth safety). Targets the sub-6h pump-dips the operator watched on Axiom (Ansem 0.8h buyer$72, SAPIJIJU 2.9h) that the 6h+ pump_dip_ab lane misses. SPECULATIVE: young pump-dips NOT directly validated in the decode (that was 6h+); this is the operator-driven extension \u2014 judge per-bot vs badday_young_absorb at n>=20, watch rug rate closely.",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "unique_buyers_n",
+      ">=",
+      10
+    ],
+    [
+      "wash_suspected",
+      "<=",
+      0
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      25000
+    ],
+    [
+      "net_flow_15s_imbalance",
+      ">=",
+      0
+    ]
+  ],
+  "entry_stack_exempt": true,
+  "fast_bail_pnl_pct": -9.0,
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_btc_overheat",
+    "filter_consec_red",
+    "filter_huge_wick"
+  ],
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -6.0,
+  "hard_stop_pct": -12.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 2,
+  "mcap_max": 1000000.0,
+  "mcap_min": 100000.0,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": true,
+  "never_runner_loss_floor": -6.0,
+  "never_runner_minutes": 45,
+  "never_runner_peak_max": 3.0,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "regime_dial_exempt": true,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": 45,
+  "slow_bleed_pnl_threshold": -8.0,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "tp1_pct": 6.0,
+  "tp1_sell_fraction": 0.75,
+  "tp2_pct": 12.0,
+  "tp2_sell_fraction": 0.25,
+  "trading_hour_utc_end": 3,
+  "trading_hour_utc_start": 8,
+  "trail_pp": 2.0,
+  "triggers_allowed": null,
+  "triggers_disabled": [
+    "demand_bottom_compound"
+  ],
+  "vol_h1_min": 50000.0,
+  "young_token_probe": true,
+  "exclusion_pool": "badday_young_pump_dip_ab",
+  "entry_gate_require_data": true,
+  "liq_exit_floor_enforce": true,
+  "pump_dip_exempt": true
+}
