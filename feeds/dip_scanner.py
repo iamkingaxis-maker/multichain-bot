@@ -5267,7 +5267,18 @@ class DipScanner:
             logger.info("[hl-ws-pump] HL_WS_PUMP_MODE=off — not running")
             return
         self._hl_confirm = getattr(self, "_hl_confirm", {})
+        # 30s-bucket variant map (price-trough validation 2026-07-06: the
+        # 0-30s post-low window is 68.3% WR while the 60s confirm fires
+        # median +90s and lands in the 60-300s zone ~always). Shadow-only:
+        # stamped as hl30_confirm_state at entry; enforce stays on 60s.
+        self._hl_confirm_30 = getattr(self, "_hl_confirm_30", {})
+        try:
+            _alt_bkt = float(os.environ.get(
+                "HL_CONFIRM_ALT_BUCKET_SECS", "30") or 30)
+        except (TypeError, ValueError):
+            _alt_bkt = 30.0
         _seen_ts = {}
+        _seen_ts_30 = {}
         _ticks_total = 0
         _last_log = time.monotonic()
         logger.info("[hl-ws-pump] up (ws ticks -> HL-confirm, armed set)")
@@ -5290,6 +5301,9 @@ class DipScanner:
                 _ticks_total += pump_ws_ticks(
                     armed, feed.get_price, self._hl_confirm, _seen_ts,
                     time.monotonic())
+                pump_ws_ticks(
+                    armed, feed.get_price, self._hl_confirm_30, _seen_ts_30,
+                    time.monotonic(), bucket_secs=_alt_bkt)
                 if time.monotonic() - _last_log >= 3600:
                     _last_log = time.monotonic()
                     logger.info("[hl-ws-pump] HB ticks_consumed=%d armed=%d",
@@ -7812,6 +7826,17 @@ class DipScanner:
                     for _k in sorted(_hl_map, key=lambda k: _hl_map[k].get(
                             "armed_ts", 0.0))[:128]:
                         _hl_map.pop(_k, None)
+                # 30s-bucket variant (shadow; see _hl_ws_pump_loop note)
+                _hl30 = getattr(self, "_hl_confirm_30", None)
+                if _hl30 is None:
+                    _hl30 = self._hl_confirm_30 = {}
+                _hl_up(_hl30.setdefault(addr, {}), pr, time.monotonic(),
+                       bucket_secs=float(os.environ.get(
+                           "HL_CONFIRM_ALT_BUCKET_SECS", "30") or 30))
+                if len(_hl30) > 256:
+                    for _k in sorted(_hl30, key=lambda k: _hl30[k].get(
+                            "armed_ts", 0.0))[:128]:
+                        _hl30.pop(_k, None)
             except Exception:
                 pass
         # EXIT-REPRICE: run the in-flight loss floor on the freshest fast samples
@@ -22958,6 +22983,17 @@ class DipScanner:
                 if _hl and "low" in _hl and _price_usd_f:
                     entry_meta_dict["hl_dist_from_low_pct"] = round(
                         (float(_price_usd_f) / float(_hl["low"]) - 1) * 100, 2)
+                # 30s-bucket variant stamp (price-trough validation
+                # 2026-07-06: 0-30s post-low = 68.3% WR; the 60s confirm
+                # fires median +90s, outside the window). Join later; the
+                # enforce mirror stays on the 60s study cell until this
+                # accrues.
+                _hl30 = (getattr(self, "_hl_confirm_30", {}) or {}).get(
+                    token_address)
+                entry_meta_dict["hl30_confirm_state"] = _hl_st(
+                    _hl30, time.monotonic(),
+                    hold_secs=float(os.environ.get("HL_CONFIRM_HOLD_SECS", "120") or 120),
+                    bounce_frac=float(os.environ.get("HL_CONFIRM_BOUNCE", "0.005") or 0.005))
             except Exception as _e:
                 logger.debug(f"[DipScanner] hl_confirm stamp err: {_e}")
 

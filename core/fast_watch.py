@@ -890,7 +890,8 @@ def hl_confirm_state(st, now_mono, hold_secs=None, bounce_frac=0.005,
         return "TRACKING"
 
 
-def pump_ws_ticks(armed_addrs, price_lookup, hl_map, seen_ts, now_mono):
+def pump_ws_ticks(armed_addrs, price_lookup, hl_map, seen_ts, now_mono,
+                  bucket_secs=60.0):
     """Feed NEW on-chain WS ticks into the HL-confirm states (2026-07-06).
 
     The poll path samples armed tokens every 2-3s; the on-chain WS feed sees
@@ -899,7 +900,10 @@ def pump_ws_ticks(armed_addrs, price_lookup, hl_map, seen_ts, now_mono):
     run at WS resolution — the trough study's oracle gap (+1.03 bar-level vs
     +2.66 one-minute-after-true-low) says sub-second low-tracking is where
     the remaining edge lives. price_lookup(addr) -> (usd, ts) | None.
-    Mutates hl_map/seen_ts; never raises; returns ticks consumed."""
+    Mutates hl_map/seen_ts; never raises; returns ticks consumed.
+    bucket_secs sizes the higher-low buckets (price-trough validation
+    2026-07-06: the 0-30s post-low window is the winning cell — a 30s
+    variant map accrues alongside the 60s study cell)."""
     n = 0
     try:
         armed = list(armed_addrs)
@@ -914,7 +918,8 @@ def pump_ws_ticks(armed_addrs, price_lookup, hl_map, seen_ts, now_mono):
             if not ts or ts <= seen_ts.get(addr, 0.0):
                 continue
             seen_ts[addr] = ts
-            hl_confirm_update(hl_map.setdefault(addr, {}), usd, now_mono)
+            hl_confirm_update(hl_map.setdefault(addr, {}), usd, now_mono,
+                              bucket_secs=bucket_secs)
             n += 1
         if len(seen_ts) > 512:   # prune disarmed
             keep = set(armed)
