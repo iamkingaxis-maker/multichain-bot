@@ -961,6 +961,13 @@ class DipScanner:
             asyncio.create_task(self._tape_sampler_loop())
         except Exception as e:
             logger.error("[tape-sampler] failed to spawn: %s", e)
+        # HL WS pump: on-chain WS ticks -> HL-confirm states at sub-second
+        # resolution (the trough study's oracle gap). No-op when
+        # HL_WS_PUMP_MODE=off.
+        try:
+            asyncio.create_task(self._hl_ws_pump_loop())
+        except Exception as e:
+            logger.error("[hl-ws-pump] failed to spawn: %s", e)
         # B4: on-chain WS hot-layer (shadow-validated vs Jupiter). True no-op
         # when ONCHAIN_WS_MODE=off. Best-effort; never breaks the scanner.
         try:
@@ -5208,6 +5215,56 @@ class DipScanner:
                 return
             except Exception as e:
                 logger.debug(f"[tape-sampler] cycle error: {str(e)[:80]}")
+
+    async def _hl_ws_pump_loop(self):
+        """WS-tick pump for HL-confirm (2026-07-06, AxiS 'wire the HL state
+        machine to WS ticks'). The poll path feeds HL states every 2-3s; the
+        on-chain WS feed (accountSubscribe, armed+opens subset) sees pool
+        state at ~400-800ms. This loop drains NEW ws ticks into the same
+        _hl_confirm map every HL_WS_PUMP_INTERVAL_SECS (0.3s) — pure local
+        cache reads, zero network cost. The trough study's oracle gap
+        (bar-level +1.03 vs 1-min-after-true-low +2.66 pp/episode) is the
+        prize: sub-second low-tracking tightens both the low and the hold
+        clock. Poll updates keep flowing too (same map — both writers only
+        ever LOWER the low or refresh last/ts, so interleaving is safe).
+        HL_WS_PUMP_MODE=off disables."""
+        from core.fast_watch import pump_ws_ticks
+        if os.environ.get("HL_WS_PUMP_MODE", "on").strip().lower() in (
+                "off", "0", "false", "no"):
+            logger.info("[hl-ws-pump] HL_WS_PUMP_MODE=off — not running")
+            return
+        self._hl_confirm = getattr(self, "_hl_confirm", {})
+        _seen_ts = {}
+        _ticks_total = 0
+        _last_log = time.monotonic()
+        logger.info("[hl-ws-pump] up (ws ticks -> HL-confirm, armed set)")
+        while True:
+            try:
+                interval = 0.3
+                try:
+                    interval = float(os.environ.get(
+                        "HL_WS_PUMP_INTERVAL_SECS", "0.3") or 0.3)
+                except (TypeError, ValueError):
+                    pass
+                await asyncio.sleep(max(0.1, interval))
+                feed = getattr(self, "_onchain_feed", None)
+                if feed is None:
+                    await asyncio.sleep(5.0)
+                    continue
+                armed = list((getattr(self, "_fast_armed", {}) or {}).keys())
+                if not armed:
+                    continue
+                _ticks_total += pump_ws_ticks(
+                    armed, feed.get_price, self._hl_confirm, _seen_ts,
+                    time.monotonic())
+                if time.monotonic() - _last_log >= 3600:
+                    _last_log = time.monotonic()
+                    logger.info("[hl-ws-pump] HB ticks_consumed=%d armed=%d",
+                                _ticks_total, len(armed))
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.debug(f"[hl-ws-pump] cycle err: {str(e)[:80]}")
 
     async def _young_tape_shadow(self, bot_id, token, address, pair_address):
         """SHADOW record (2026-07-03 launch-arc mine): fetch 6h of GT minute bars

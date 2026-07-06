@@ -863,3 +863,39 @@ def hl_confirm_state(st, now_mono, hold_secs=150.0, bounce_frac=0.01,
         return "CONFIRMED" if (no_new_low and bounced) else "TRACKING"
     except Exception:
         return "TRACKING"
+
+
+def pump_ws_ticks(armed_addrs, price_lookup, hl_map, seen_ts, now_mono):
+    """Feed NEW on-chain WS ticks into the HL-confirm states (2026-07-06).
+
+    The poll path samples armed tokens every 2-3s; the on-chain WS feed sees
+    pool-state changes at ~400-800ms. This pump consumes only ticks NEWER
+    than the last one seen per address (seen_ts), so the HL low/hold clocks
+    run at WS resolution — the trough study's oracle gap (+1.03 bar-level vs
+    +2.66 one-minute-after-true-low) says sub-second low-tracking is where
+    the remaining edge lives. price_lookup(addr) -> (usd, ts) | None.
+    Mutates hl_map/seen_ts; never raises; returns ticks consumed."""
+    n = 0
+    try:
+        armed = list(armed_addrs)
+        for addr in armed:
+            try:
+                got = price_lookup(addr)
+            except Exception:
+                got = None
+            if not got:
+                continue
+            usd, ts = got
+            if not ts or ts <= seen_ts.get(addr, 0.0):
+                continue
+            seen_ts[addr] = ts
+            hl_confirm_update(hl_map.setdefault(addr, {}), usd, now_mono)
+            n += 1
+        if len(seen_ts) > 512:   # prune disarmed
+            keep = set(armed)
+            for k in list(seen_ts):
+                if k not in keep:
+                    seen_ts.pop(k, None)
+    except Exception:
+        pass
+    return n
