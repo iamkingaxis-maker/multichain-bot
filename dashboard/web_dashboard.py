@@ -1088,8 +1088,8 @@ async function updateWalletTruth() {
     document.getElementById('wt-open').textContent =
       (d.open_live_positions == null) ? '—' : String(d.open_live_positions);
     document.getElementById('wt-deployed').textContent =
-      (typeof d.deployed_sol === 'number' && d.deployed_sol > 0)
-        ? d.deployed_sol.toFixed(4) + ' SOL' : '—';
+      (typeof d.deployed_usd === 'number' && d.deployed_usd > 0)
+        ? '$' + d.deployed_usd.toFixed(2) + ' (cost)' : '—';
     document.getElementById('wt-note').textContent =
       (d.stale ? 'STALE (rpc error) · ' : '') + (d.note || '') +
       (typeof d.delta_sol === 'number' && d.open_live_positions > 0
@@ -5769,17 +5769,36 @@ class WebDashboard:
             # blind to personal holdings (the trader's book only contains
             # bot-bought positions). delta_sol + deployed_sol ~= break-even.
             try:
-                lt = getattr(self, "live_trader", None) or getattr(self, "trader", None)
-                pos = (getattr(lt, "positions", {}) or {}) if lt else {}
-                out["open_live_positions"] = len(pos) if lt else None
-                dep = 0.0
-                for _p in pos.values():
-                    v = getattr(_p, "amount_sol_spent", None)
-                    if v is None and isinstance(_p, dict):
-                        v = _p.get("amount_sol_spent")
-                    if isinstance(v, (int, float)):
-                        dep += float(v)
-                out["deployed_sol"] = round(dep, 6)
+                # 公牛 round-trip 2026-07-06: trader.positions was the WRONG
+                # book (read 0 during a real hold). Live positions live in the
+                # per-bot state stores — read bot_state/*.json for live_probe
+                # bots directly (the restore source of truth).
+                import glob as _gl
+                import pathlib as _pl
+                n_open = 0
+                dep_usd = 0.0
+                cfg_dir = _pl.Path(__file__).resolve().parent.parent / "config" / "bots"
+                data_dir = os.environ.get("DATA_DIR", "/data")
+                for cfg_p in _gl.glob(str(cfg_dir / "*.json")):
+                    try:
+                        cfg = json.load(open(cfg_p))
+                        if not (cfg.get("live_probe") and cfg.get("enabled")):
+                            continue
+                        st_p = os.path.join(data_dir, "bot_state",
+                                            cfg["bot_id"] + ".json")
+                        st = json.load(open(st_p))
+                        opens = st.get("open_positions") or []
+                        if isinstance(opens, dict):
+                            opens = list(opens.values())
+                        n_open += len(opens)
+                        for p_ in opens:
+                            v = (p_ or {}).get("size_usd")
+                            if isinstance(v, (int, float)):
+                                dep_usd += float(v)
+                    except Exception:
+                        continue
+                out["open_live_positions"] = n_open
+                out["deployed_usd"] = round(dep_usd, 2)
             except Exception:
                 pass
             self._wt_cache = (_t.monotonic(), out)
