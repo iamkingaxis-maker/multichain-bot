@@ -648,7 +648,8 @@ def winner_demand_selected(median_buy_size_usd, threshold=None) -> tuple[bool, s
 
 
 def full_thesis_cohort_eval(pc_h6, median_buy_size_usd,
-                            buyer_threshold=None) -> tuple[bool, bool, str]:
+                            buyer_threshold=None,
+                            direction_exempt=False) -> tuple[bool, bool, str]:
     """Full-thesis cohort (coverage audit 2026-06-29): a profitable badday dip =
     a GENUINE 6h decliner (pc_h6 <= 0, a real decline not a pump-retrace) MET BY
     real buyer size (median_buy_size_usd >= ~34.3, reusing the validated winner
@@ -671,6 +672,13 @@ def full_thesis_cohort_eval(pc_h6, median_buy_size_usd,
         h6 = None
     decline_present = h6 is not None
     decline_ok = decline_present and h6 <= 0.0
+    # PUMP-DIP lane (2026-07-06 decode): pump-dips (pc_h6>0) bounce at the SAME
+    # rate as base-flushes (47.0% vs 46.9%) and are ~7x more numerous — the
+    # exclusion was pure DIRECTION, not quality. direction_exempt drops the
+    # decline half so the lane keeps the BUYER-SIZE selection (the real edge)
+    # while admitting dips regardless of prior pump sign. Buyer half untouched.
+    if direction_exempt:
+        decline_ok = True
     # ── buyer half: presence coerced here, ok delegated to winner_demand_selected ──
     try:
         bv = None if (median_buy_size_usd is None or isinstance(median_buy_size_usd, bool)) \
@@ -694,7 +702,9 @@ def full_thesis_cohort_eval(pc_h6, median_buy_size_usd,
             reasons.append(f"buyer${bv:.1f}<{thr:g}")
         return False, True, "BLOCK: " + ", ".join(reasons)
     if selected:
-        return True, False, f"PASS: pc_h6={h6:+.1f}<=0 & buyer${bv:.1f}>={thr:g}"
+        _dir = (f"pc_h6={h6:+.1f} (direction-exempt)" if direction_exempt
+                else f"pc_h6={h6:+.1f}<=0")
+        return True, False, f"PASS: {_dir} & buyer${bv:.1f}>={thr:g}"
     # fail-open: at least one signal missing and nothing present-and-failing
     parts = ["pc_h6 present" if decline_present else "pc_h6 missing",
              "buyer present" if buyer_present else "buyer missing"]

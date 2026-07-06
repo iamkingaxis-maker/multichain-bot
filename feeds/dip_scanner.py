@@ -2049,7 +2049,8 @@ class DipScanner:
                         "[DipScanner] GATE-ROLLED-BACK (pr): latched OFF by "
                         "gate_rollback — the BLOCK above did NOT enforce (bot=%s)",
                         bot_id)
-                if _pr_mode == "enforce" and not _pr_rb:
+                if (_pr_mode == "enforce" and not _pr_rb
+                        and not bool(getattr(pm.config, "pump_dip_exempt", False))):
                     return
         # ── Structure-edge gate (#true-edge decomposition 2026-06-24) — SHADOW ──
         # The verified +EV entry condition: fire ONLY when pc_h6>=0 (dip within a
@@ -2538,7 +2539,8 @@ class DipScanner:
                 _ftc_h6 = _ar_meta.get("pc_h6")
             try:
                 _ftc_sel, _ftc_block, _ftc_why = _ftce(
-                    _ftc_h6, _ar_meta.get("median_buy_size_usd"))
+                    _ftc_h6, _ar_meta.get("median_buy_size_usd"),
+                    direction_exempt=bool(getattr(pm.config, "pump_dip_exempt", False)))
             except Exception:
                 # Defense-in-depth: a gate eval error must FAIL OPEN (never block).
                 _ftc_sel, _ftc_block, _ftc_why = (False, False, "ftc eval error -> allow")
@@ -2705,10 +2707,12 @@ class DipScanner:
             except Exception:
                 pass
             if _shd_block:
+                _shd_exempt = bool(getattr(pm.config, "pump_dip_exempt", False))
                 logger.info("[DipScanner] bot=%s SHALLOW-DIP %s: %s %s", bot_id,
-                            "enforce skip" if _shd_mode == "enforce" else "SHADOW-would-block",
+                            "PUMP-DIP-EXEMPT" if (_shd_mode == "enforce" and _shd_exempt)
+                            else ("enforce skip" if _shd_mode == "enforce" else "SHADOW-would-block"),
                             _shd_why, decision.token)
-                if _shd_mode == "enforce":
+                if _shd_mode == "enforce" and not _shd_exempt:
                     return
         # ── Oversold-held POSITIVE SELECTOR (solve-it backtest 2026-06-30) ──────
         # The ONLY config that survived held-out + leave-one-out: rsi_15m<=44 AND
@@ -2818,7 +2822,8 @@ class DipScanner:
                               verdict="BLOCK", reasons=_gd_why)
                 except Exception:
                     pass
-                if _gd_mode == "enforce":
+                if _gd_mode == "enforce" and not bool(
+                        getattr(pm.config, "pump_dip_exempt", False)):
                     return
         # ── NF5M TOXIC-ZONE gate (wallet-flow mine 2026-07-02): block the
         # 'weak bounce already fizzled' band net_flow_5m_usd in [0,+300) —

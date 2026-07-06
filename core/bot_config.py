@@ -448,6 +448,19 @@ class BotConfig:
     runner_trail_k: float = 0.2
     runner_trail_cap_pp: float = 20.0
 
+    # PUMP-DIP lane (2026-07-06 decode scratchpad/_pump_dip_turn): pump-dips
+    # (a dip INSIDE a pump, pc_h6>0) bounce at 47.0% vs base-flush 46.9% —
+    # statistically IDENTICAL quality — and are ~7x more numerous. The fleet
+    # excluded them on DIRECTION alone (pc_h6<=0 / shallow-dip / pump-retrace /
+    # green-rip gates). This flag exempts a lane from those four pure-direction
+    # blocks ONLY, keeping the full SELECTION funnel (buyer-size>=$34 via the
+    # full-thesis buyer half, liq, wash, quote-asymmetry exit-depth, structure)
+    # — because the decode showed neither population is positive UNCONDITIONALLY;
+    # the edge is selection, not direction. Blow-off exclusion also dropped
+    # (bigger pumps bounced BETTER). Default False = no bot changes. The A/B
+    # question: does the fleet's selection edge hold on the 7x-larger set?
+    pump_dip_exempt: bool = False
+
     # Momentum-continuation mode (2026-06-02, #4.3). When True the bot uses a SEPARATE
     # entry path: it BYPASSES the dip-filter stack + dip triggers (which block 100% of
     # momentum candidates) and enters on the momentum entry_gate (e.g. pc_h1>=20 AND

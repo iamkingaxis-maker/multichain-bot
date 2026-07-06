@@ -99,3 +99,41 @@ def test_never_raises_on_weird_input():
     for h6, buyer in [(True, 41.0), (-3.0, True), (object(), 41.0)]:
         selected, blocked, _ = ftc(h6, buyer)
         assert blocked is False
+
+
+# ── PUMP-DIP direction exemption (2026-07-06 decode) ───────────────────────
+from core.bot_evaluator import full_thesis_cohort_eval as _ftce_pd
+
+
+class TestDirectionExempt:
+    """direction_exempt drops the pc_h6<=0 (decline) half so a lane admits
+    dips regardless of prior pump sign, WHILE keeping the buyer-size selection
+    (the real edge per the pump-dip decode: pump-dips bounce identically to
+    base-flushes, so the exclusion was pure direction, not quality)."""
+
+    def test_pump_with_buyer_selected(self):
+        # pc_h6=+548 (pumped) + buyer $50 >= 34.3 -> SELECTED when exempt
+        sel, blocked, why = _ftce_pd(548.0, 50.0, direction_exempt=True)
+        assert sel is True and blocked is False
+        assert "direction-exempt" in why
+
+    def test_pump_low_buyer_still_blocked(self):
+        # exemption drops DIRECTION only — a low buyer still blocks (selection kept)
+        sel, blocked, why = _ftce_pd(548.0, 10.0, direction_exempt=True)
+        assert blocked is True and "buyer$" in why
+
+    def test_pump_with_buyer_blocked_when_NOT_exempt(self):
+        # baseline behavior unchanged: pumped token blocks without the flag
+        sel, blocked, why = _ftce_pd(548.0, 50.0, direction_exempt=False)
+        assert blocked is True and "pump-retrace" in why
+
+    def test_base_flush_unaffected_by_exempt(self):
+        # a genuine decliner with a good buyer selects either way
+        for ex in (True, False):
+            sel, blocked, why = _ftce_pd(-25.0, 50.0, direction_exempt=ex)
+            assert sel is True and blocked is False
+
+    def test_missing_data_still_fails_open_when_exempt(self):
+        # exemption must NOT turn a missing-data case into a block
+        sel, blocked, why = _ftce_pd(None, None, direction_exempt=True)
+        assert blocked is False
