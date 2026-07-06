@@ -5,7 +5,7 @@
   "base_position_usd": 100.0,
   "bot_id": "badday_young_bounce_ab",
   "btc_macro_h1_block_threshold": null,
-  "daily_loss_limit_usd": 40.0,
+  "daily_loss_limit_usd": 80.0,
   "display_name": "YOUNG BOUNCE lane (2026-07-06, AxiS: constant bounces are the miss): the turn is the edge, not the depth. Price-trough study: 0-30s post-turn = 64.7% WR on ORDINARY dips (n=1,429) ~ flush-tier 68.3% \u2014 but the young funnel requires pc_h1<=-30 disasters and never sees them. This racer inverts it: dip widened to pc_h1<=-12, entry HARD-GATED on confirmed higher-low (hl_confirm_entry) + the same demand stack (buyers>=10, wash<=0, liq>=25k, nf15>=0, vol_h1>=50k). Depth optional, turn mandatory. Corroboration: nf15 (demand-turn variant) was the only green family bot on the 07-06 red day. Paper measurement lane; judged per-token honest books at n>=20.",
   "enabled": true,
   "entry_gate": [
@@ -48,7 +48,7 @@
   "hard_stop_pct": -12.0,
   "macro_up_multiplier": 1.0,
   "marginal_multiplier": 1.0,
-  "max_concurrent_positions": 2,
+  "max_concurrent_positions": 4,
   "mcap_max": 1000000.0,
   "mcap_min": 100000.0,
   "mcap_psych_pc_h24_max": 80.0,
