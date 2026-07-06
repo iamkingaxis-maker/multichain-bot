@@ -3,11 +3,11 @@
   "age_h_min": 6.0,
   "alpha_multiplier": 1.0,
   "base_position_usd": 100.0,
-  "bot_id": "badday_flush_wideexit_ab",
+  "bot_id": "badday_flush_peel_ab",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 60.0,
-  "display_name": "WIDEEXIT A/B v2 (2026-07-03 winner exit decode, re-armed \u2014 v1 tp1+13/30%/stop-12 was trending BEHIND control 17/30 tokens, n resets): grid-optimal ladder from 198 configs replayed on regime-winner episodes \u2014 TP1 +13 (sell 50%) / TP2 +30 / trail 2pp / FLOOR -18. Worth +2.0-2.5pp/trade on that cohort; floor -12 -> -18 alone ~+1.2pp (our -12 fires on 36% of winner episodes and kills 24% of eventual greens; their entries wick p25 -12.4 then run). CAVEAT: -18 validated on winner-selected entries only \u2014 never-green cuts (velocity bail, MAE floor, ng_faststop) stay ON in this arm so duds still cut early; the floor only widens for legs that survive the in-flight stack. Judge vs badday_flush at n>=30 distinct tokens scrubbed. Decode also REFUTED breakeven-arm at +4 (win% collapses 23-29%) and validated our re-entry cooldowns (their <10%-discount rebuys realize median -6.6).",
-  "enabled": false,
+  "display_name": "CONDITIONAL-PEEL A/B (2026-07-06 TP-peel replay): flush clone; TP1 sells 0.5 at +6; fill <+12 -> remainder becomes an UNCAPPED runner trailed 5pp from peak (TP2 skipped), floor -12; fill >=+12 (soft-cap wick) -> standard ladder. Replay: +72pp/4.5d, flush +63.7 both halves positive, losers untouched by construction (never reach TP1). Converted from the retired wideexit slot. Judged per-bot vs flush on the race panel.",
+  "enabled": true,
   "entry_gate": [
     [
       "unique_buyers_n",
@@ -41,7 +41,7 @@
     ]
   ],
   "entry_stack_exempt": true,
-  "fast_bail_pnl_pct": -12.0,
+  "fast_bail_pnl_pct": -9.0,
   "filters_disabled": [],
   "filters_enforced": [
     "filter_btc_overheat",
@@ -49,8 +49,8 @@
     "filter_huge_wick"
   ],
   "giveback_floor_peak_min": 4.0,
-  "giveback_floor_pnl_pct": -12.0,
-  "hard_stop_pct": -18.0,
+  "giveback_floor_pnl_pct": -6.0,
+  "hard_stop_pct": -12.0,
   "macro_up_multiplier": 1.0,
   "marginal_multiplier": 1.0,
   "max_concurrent_positions": 3,
@@ -59,7 +59,7 @@
   "mcap_psych_pc_h24_max": 80.0,
   "min_triggers_to_fire": 1,
   "never_runner_exit_enabled": true,
-  "never_runner_loss_floor": -12.0,
+  "never_runner_loss_floor": -6.0,
   "never_runner_minutes": 60,
   "never_runner_peak_max": 3.0,
   "ng_scorer_gate": false,
@@ -67,19 +67,19 @@
   "pc_h1_max": null,
   "pc_h24_max": null,
   "pc_h24_min": null,
-  "pre_stop_bail_pnl_pct": -12.0,
+  "pre_stop_bail_pnl_pct": -3.0,
   "pre_stop_bail_vol_m5_max": 500.0,
   "premium_runner_multiplier": 1.0,
   "regime_dial_exempt": true,
   "require_alpha_trigger": false,
   "slow_bleed_minutes": 60,
-  "slow_bleed_pnl_threshold": -12.0,
+  "slow_bleed_pnl_threshold": -8.0,
   "sol_macro_h1_block_threshold": null,
   "sol_macro_h6_block_threshold": null,
-  "tp1_pct": 13.0,
+  "tp1_pct": 6.0,
   "tp1_sell_fraction": 0.5,
-  "tp2_pct": 30.0,
-  "tp2_sell_fraction": 0.5,
+  "tp2_pct": 12.0,
+  "tp2_sell_fraction": 0.25,
   "trading_hour_utc_end": 3,
   "trading_hour_utc_start": 8,
   "trail_pp": 2.0,
@@ -88,5 +88,7 @@
     "demand_bottom_compound"
   ],
   "vol_h1_min": 1000.0,
-  "young_token_probe": false
+  "young_token_probe": false,
+  "peel_exit": true,
+  "exclusion_pool": "badday_flush_peel_ab"
 }

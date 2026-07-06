@@ -908,14 +908,28 @@ class PerBotPositionManager:
         # 4. TP1
         if not p.tp1_hit and pnl_pct >= self.config.tp1_pct:
             p.tp1_hit = True
+            # PEEL (2026-07-06, TP-peel replay scratchpad/_tp_peel_replay.md):
+            # conditional runner. When the TP1 FILL lands below the wick
+            # threshold (<+12: a normal fill, not a soft-cap wick fill), sell
+            # the TP1 fraction and convert the remainder into an UNCAPPED
+            # giveback-trailed runner: TP2 is skipped, the trail widens to
+            # peel_giveback_pp. Wick fills (>=12) keep today's behavior — the
+            # unconditional peel LOSES -59.6pp there (trail gives wick fills
+            # back); the conditional gains +72pp/4.5d, both halves positive.
+            if p.state_blob is not None:
+                p.state_blob["tp1_fill_pnl"] = round(pnl_pct, 4)
+                if (bool(getattr(self.config, "peel_exit", False))
+                        and pnl_pct < float(getattr(self.config, "peel_threshold_pct", 12.0) or 12.0)):
+                    p.state_blob["peel_active"] = True
             decisions.append(ExitDecision(
                 token=token, kind="TP1",
                 reason=f"TP1 pnl={pnl_pct:.2f}% >= {self.config.tp1_pct}",
                 sell_fraction=self.config.tp1_sell_fraction,
             ))
 
-        # 5. TP2
-        if p.tp1_hit and not p.tp2_hit and pnl_pct >= self.config.tp2_pct:
+        # 5. TP2 (skipped while a PEEL runner is active — no cap on the tail)
+        _peel_on = bool((p.state_blob or {}).get("peel_active"))
+        if p.tp1_hit and not p.tp2_hit and not _peel_on and pnl_pct >= self.config.tp2_pct:
             p.tp2_hit = True
             decisions.append(ExitDecision(
                 token=token, kind="TP2",
@@ -926,14 +940,19 @@ class PerBotPositionManager:
         # 6. Post-TP1 trail (skip when trail_pp is None — e.g. probe_swing, a swing
         # bot that exits via time_stop/tp2, not a trailing stop. A None trail_pp
         # crashed the tick with `float - NoneType` here once a position hit TP1.)
-        if p.tp1_hit and not decisions and self.config.trail_pp is not None:
-            trail_threshold = p.peak_pnl_pct - self.config.trail_pp
+        _trail_pp = self.config.trail_pp
+        if _peel_on:
+            # PEEL runner: wider giveback (default 5pp) replaces the tight
+            # trail; the hard stop (-12) below still floors catastrophe.
+            _trail_pp = float(getattr(self.config, "peel_giveback_pp", 5.0) or 5.0)
+        if p.tp1_hit and not decisions and _trail_pp is not None:
+            trail_threshold = p.peak_pnl_pct - _trail_pp
             if pnl_pct <= trail_threshold:
                 decisions.append(ExitDecision(
                     token=token, kind="POST_TP1_TRAIL",
                     reason=(
-                        f"trail pnl={pnl_pct:.2f}% <= peak({p.peak_pnl_pct:.2f}%)"
-                        f" - {self.config.trail_pp}pp"
+                        f"{'peel-runner ' if _peel_on else ''}trail pnl={pnl_pct:.2f}% "
+                        f"<= peak({p.peak_pnl_pct:.2f}%) - {_trail_pp}pp"
                     ),
                     sell_fraction=1.0,
                 ))

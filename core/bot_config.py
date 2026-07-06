@@ -409,6 +409,16 @@ class BotConfig:
     # live round trip; depth is the one structural live-friction lever.
     liq_exit_floor_enforce: bool = False
 
+    # CONDITIONAL PEEL exit (2026-07-06, TP-peel replay — elite-wallet exit
+    # shape, conservatively replayed: +72pp/4.5d on flush, both halves
+    # positive, loser-harm zero by construction). When the TP1 fill lands
+    # BELOW peel_threshold_pct the remainder becomes an uncapped runner
+    # trailed by peel_giveback_pp (TP2 skipped); wick fills (>= threshold)
+    # keep the standard ladder — the unconditional peel LOSES on those.
+    peel_exit: bool = False
+    peel_threshold_pct: float = 12.0
+    peel_giveback_pp: float = 5.0
+
     # Momentum-continuation mode (2026-06-02, #4.3). When True the bot uses a SEPARATE
     # entry path: it BYPASSES the dip-filter stack + dip triggers (which block 100% of
     # momentum candidates) and enters on the momentum entry_gate (e.g. pc_h1>=20 AND
