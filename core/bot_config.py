@@ -419,6 +419,18 @@ class BotConfig:
     peel_threshold_pct: float = 12.0
     peel_giveback_pp: float = 5.0
 
+    # LOSS-STREAK PAUSE (2026-07-06 session-discipline decode): losses cluster
+    # in time — a market state, not tilt (revenge-tax dissolved within-wallet).
+    # Human winners rotate away from degraded stretches; bots re-fire the same
+    # signal into them. After loss_streak_n consecutive losing FULL closes
+    # (position-level: sum of legs), hold new entries loss_streak_pause_secs.
+    # Fleet join: +1,626pp/9d, 16/17 bots positive, 7/10 days; young lane
+    # EXEMPT (-11.2pp there). Winner-kill 9% — above the 5% bar, flagged;
+    # net savings dominated every cut. Env kill: LOSS_STREAK_PAUSE_MODE=off.
+    loss_streak_pause: bool = False
+    loss_streak_n: int = 3
+    loss_streak_pause_secs: float = 3600.0
+
     # Momentum-continuation mode (2026-06-02, #4.3). When True the bot uses a SEPARATE
     # entry path: it BYPASSES the dip-filter stack + dip triggers (which block 100% of
     # momentum candidates) and enters on the momentum entry_gate (e.g. pc_h1>=20 AND

@@ -86,5 +86,6 @@
   "young_token_probe": true,
   "exclusion_pool": "badday_adolescent_absorb",
   "velbail_pnl_pct": -8.0,
-  "entry_gate_require_data": true
+  "entry_gate_require_data": true,
+  "loss_streak_pause": true
 }

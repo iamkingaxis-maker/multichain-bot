@@ -1688,6 +1688,22 @@ class DipScanner:
                 bot_id, decision.token,
             )
             return
+        # LOSS-STREAK PAUSE (2026-07-06 session-discipline decode): losses
+        # cluster in time; after loss_streak_n consecutive losing closes the
+        # bot holds fire for the pause window instead of re-firing the same
+        # signal into the degraded stretch. Config-gated (young lane exempt),
+        # env kill LOSS_STREAK_PAUSE_MODE=off. Fail-open.
+        try:
+            if pm.in_loss_streak_pause(time.time()):
+                logger.info(
+                    "[loss-streak] PAUSE bot=%s skip %s (streak=%d >= %d losing "
+                    "closes — holding fire %ds from last loss)",
+                    bot_id, decision.token, pm._loss_streak,
+                    int(getattr(pm.config, "loss_streak_n", 3) or 3),
+                    int(getattr(pm.config, "loss_streak_pause_secs", 3600.0) or 3600))
+                return
+        except Exception as _ls_e:
+            logger.debug("[loss-streak] check failed (fail-open): %s", _ls_e)
         # Young-token probe gate (#4.1). When the global YOUNG_TOKEN_PROBE is ON, probe
         # bots trade young-only and production bots skip young tokens. Default OFF -> no-op
         # (young tokens are never surfaced). Checked before reserving capital.

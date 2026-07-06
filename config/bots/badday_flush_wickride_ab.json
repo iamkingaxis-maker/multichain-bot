@@ -90,5 +90,6 @@
   "vol_h1_min": 1000.0,
   "young_token_probe": false,
   "velbail_pnl_pct": -8.0,
-  "exclusion_pool": "badday_flush_wickride_ab"
+  "exclusion_pool": "badday_flush_wickride_ab",
+  "loss_streak_pause": true
 }

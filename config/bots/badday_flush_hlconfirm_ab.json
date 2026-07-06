@@ -90,5 +90,6 @@
   "vol_h1_min": 1000.0,
   "young_token_probe": false,
   "hl_confirm_entry": true,
-  "exclusion_pool": "badday_flush_hlconfirm_ab"
+  "exclusion_pool": "badday_flush_hlconfirm_ab",
+  "loss_streak_pause": true
 }

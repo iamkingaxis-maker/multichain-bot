@@ -154,6 +154,13 @@ class PerBotPositionManager:
         # multi-bot path (no dedup), so this is the *throttle* for churning the
         # same token. Empty/cooldown None = immediate re-entry (default).
         self._last_close_time: dict[str, float] = {}
+        # LOSS-STREAK PAUSE state (2026-07-06): consecutive losing FULL closes
+        # (position-level — legs accumulate in _pos_realized_accum so a TP1
+        # winner with a red runner leg still counts as a WIN) and the ts of
+        # the last streak-extending loss. See in_loss_streak_pause().
+        self._pos_realized_accum: dict[str, float] = {}
+        self._loss_streak: int = 0
+        self._loss_streak_ts: float = 0.0
         # Phase-1 per-token re-entry counter (2026-06-01). token -> count of buys
         # this UTC day; resets at rollover. The death-spiral was SEQUENTIAL re-buys
         # (positions are one-per-(bot,token), so this is the controllable concentration
@@ -371,15 +378,45 @@ class PerBotPositionManager:
         pnl_pct = (ratio - 1.0) * 100.0
         p.remaining_fraction -= frac
         fully_closed = p.remaining_fraction <= 1e-9
+        # LOSS-STREAK accounting: judge the WHOLE position (sum of legs) on
+        # its final close, never a single leg.
+        self._pos_realized_accum[token] = (
+            self._pos_realized_accum.get(token, 0.0) + pnl_usd)
         if fully_closed:
             self._positions.pop(token)
             self._last_close_time[token] = exit_time
+            _total = self._pos_realized_accum.pop(token, 0.0)
+            if _total < 0:
+                self._loss_streak += 1
+                self._loss_streak_ts = exit_time
+            else:
+                self._loss_streak = 0
         return CloseResult(
             token=token, cost_usd=sold_cost, proceeds_usd=proceeds,
             realized_pnl_usd=pnl_usd, pnl_pct=pnl_pct, reason=reason,
             hold_secs=exit_time - p.entry_time, peak_pnl_pct=p.peak_pnl_pct,
             entry_price=p.entry_price, sell_fraction=frac, fully_closed=fully_closed,
         )
+
+    def in_loss_streak_pause(self, now: float) -> bool:
+        """True while entries are paused after loss_streak_n consecutive
+        losing full closes (session-discipline decode 2026-07-06: losses
+        cluster in time; fleet join +1,626pp/9d, 16/17 bots positive).
+        Config-gated per bot (loss_streak_pause, default OFF — young lane
+        exempt) with a global env kill LOSS_STREAK_PAUSE_MODE=off. A winning
+        close resets the streak; after the pause window expires the bot
+        trades again (another loss re-pauses at streak n+1)."""
+        if not getattr(self.config, "loss_streak_pause", False):
+            return False
+        import os
+        if os.environ.get("LOSS_STREAK_PAUSE_MODE", "on").strip().lower() in (
+                "off", "0", "false", "no"):
+            return False
+        n = int(getattr(self.config, "loss_streak_n", 3) or 3)
+        pause = float(getattr(self.config, "loss_streak_pause_secs", 3600.0) or 3600.0)
+        if self._loss_streak < n:
+            return False
+        return (float(now) - self._loss_streak_ts) < pause
 
     def tick(self, token: str, current_price: float, now: float,
              vol_m5_usd: Optional[float] = None) -> list[ExitDecision]:
