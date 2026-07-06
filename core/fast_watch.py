@@ -822,35 +822,56 @@ def tape_cache_put(cache, key, trades, now_mono, max_entries=64):
 # HL 4 min after low) so the window is short. This is the pure state logic;
 # the scanner feeds it fresh samples (2-3s cadence) and reads the state.
 
-def hl_confirm_update(st, price, now_mono):
+def hl_confirm_update(st, price, now_mono, bucket_secs=60.0):
     """Update one token's confirm-window state with a fresh price sample.
 
-    st: mutable dict {} on first call. Tracks running low + its timestamp.
-    Returns st (mutated). Pure besides st; never raises on garbage price."""
+    v2 (2026-07-06): BUCKETED lows. The v1 tick-level 'no new low for 120s'
+    was strictly stronger than the study's bar-level higher-low — any dust
+    wick one tick under the running low reset the clock, so CONFIRMED was
+    unreachable (48/49 real entries stamped TRACKING, mirror never bought).
+    v2 ports the study's exact winning cell: track per-bucket (60s) lows;
+    confirm = last COMPLETED bucket's low > the previous bucket's low.
+    st: mutable dict {} on first call. Never raises on garbage price."""
     try:
         p = float(price)
         if p <= 0 or p != p:
             return st
     except (TypeError, ValueError):
         return st
+    now = float(now_mono)
     if "low" not in st or p < st["low"]:
-        st["low"] = p
-        st["low_ts"] = float(now_mono)
+        st["low"] = p           # running true low (for dist-from-low stamps)
+        st["low_ts"] = now
     if "armed_ts" not in st:
-        st["armed_ts"] = float(now_mono)
+        st["armed_ts"] = now
+    # bucketed lows: rotate when the bucket boundary passes
+    bid = int(now // float(bucket_secs))
+    if st.get("bkt_id") != bid:
+        # completed bucket's low becomes prev (only if it had samples)
+        if st.get("bkt_id") is not None and st.get("bkt_low") is not None:
+            # a gap of >1 bucket means the intervening buckets had no samples;
+            # carry the completed low across the gap (freshness is enforced
+            # separately via stale_secs)
+            st["prev_bkt_low"] = st["bkt_low"]
+        st["bkt_id"] = bid
+        st["bkt_low"] = p
+    else:
+        if p < st["bkt_low"]:
+            st["bkt_low"] = p
     st["last"] = p
-    st["last_ts"] = float(now_mono)
+    st["last_ts"] = now
     return st
 
 
-def hl_confirm_state(st, now_mono, hold_secs=150.0, bounce_frac=0.01,
+def hl_confirm_state(st, now_mono, hold_secs=None, bounce_frac=0.005,
                      expiry_secs=1800.0, stale_secs=30.0):
     """Read a token's confirm state -> 'TRACKING' | 'CONFIRMED' | 'EXPIRED' | 'STALE'.
 
-    CONFIRMED = no new low for >= hold_secs AND last price >= low*(1+bounce_frac).
-    EXPIRED   = armed longer than expiry_secs (flush is old news; re-arm).
-    STALE     = no fresh sample within stale_secs (can't trust the low).
-    Defaults from the study: hold 120-180s (150 middle), bounce +1%, 30min expiry."""
+    v2 CONFIRMED = the current bucket's low is HIGHER than the previous
+    completed bucket's low (the study's c=1 higher-low cell) AND last price
+    >= true_low*(1+bounce_frac) (best cell f=1.005). hold_secs retained in
+    the signature for call-site compatibility; bucket size does the timing.
+    EXPIRED = armed > expiry_secs; STALE = no sample within stale_secs."""
     try:
         if not st or "low" not in st or "last" not in st:
             return "TRACKING"
@@ -858,9 +879,13 @@ def hl_confirm_state(st, now_mono, hold_secs=150.0, bounce_frac=0.01,
             return "EXPIRED"
         if float(now_mono) - float(st.get("last_ts", 0.0)) > float(stale_secs):
             return "STALE"
-        no_new_low = (float(now_mono) - float(st["low_ts"])) >= float(hold_secs)
+        prev = st.get("prev_bkt_low")
+        cur = st.get("bkt_low")
+        if prev is None or cur is None:
+            return "TRACKING"
+        higher_low = float(cur) > float(prev)
         bounced = float(st["last"]) >= float(st["low"]) * (1.0 + float(bounce_frac))
-        return "CONFIRMED" if (no_new_low and bounced) else "TRACKING"
+        return "CONFIRMED" if (higher_low and bounced) else "TRACKING"
     except Exception:
         return "TRACKING"
 

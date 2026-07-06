@@ -2860,7 +2860,7 @@ class DipScanner:
                 _hl_state = _hl_st2(
                     _hl_ent, time.monotonic(),
                     hold_secs=float(os.environ.get("HL_CONFIRM_HOLD_SECS", "120") or 120),
-                    bounce_frac=float(os.environ.get("HL_CONFIRM_BOUNCE", "0.01") or 0.01))
+                    bounce_frac=float(os.environ.get("HL_CONFIRM_BOUNCE", "0.005") or 0.005))
             except Exception:
                 _hl_state = "TRACKING"
             if _hl_state != "CONFIRMED":
@@ -22867,7 +22867,7 @@ class DipScanner:
                 entry_meta_dict["hl_confirm_state"] = _hl_st(
                     _hl, time.monotonic(),
                     hold_secs=float(os.environ.get("HL_CONFIRM_HOLD_SECS", "120") or 120),
-                    bounce_frac=float(os.environ.get("HL_CONFIRM_BOUNCE", "0.01") or 0.01))
+                    bounce_frac=float(os.environ.get("HL_CONFIRM_BOUNCE", "0.005") or 0.005))
                 if _hl and "low" in _hl and _price_usd_f:
                     entry_meta_dict["hl_dist_from_low_pct"] = round(
                         (float(_price_usd_f) / float(_hl["low"]) - 1) * 100, 2)
