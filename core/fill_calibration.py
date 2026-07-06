@@ -322,3 +322,37 @@ def load_calibration() -> dict:
         return calib
     except Exception:
         return {}
+
+
+# SELL-side twin cache (exit-booking fidelity, 2026-07-06). Separate from _CACHE
+# so the buy path stays byte-identical.
+_EXIT_CACHE: dict = {}
+
+
+def load_exit_calibration() -> dict:
+    """SELL-side twin of ``load_calibration``: read DATA_DIR/live_swaps.jsonl,
+    calibrate from the REAL live SELL legs (calibrate_exit_from_live_swaps),
+    cache by file mtime. Sell slip is recorded ADVERSE-POSITIVE
+    (core.probe_instrument.fill_slippage_pct: (mid-fill)/mid*100), so the p50
+    feeds effective_fill's sell drag directly. FAIL-OPEN -> {} (caller's
+    calibrated_slip_pct then returns its default). Never raises."""
+    try:
+        path = _live_swaps_path()
+        try:
+            mtime = os.path.getmtime(path)
+        except OSError:
+            mtime = None  # missing file
+        if _EXIT_CACHE.get("mtime") == mtime and "calib" in _EXIT_CACHE:
+            return _EXIT_CACHE["calib"]
+        if mtime is None:
+            _EXIT_CACHE["mtime"] = None
+            _EXIT_CACHE["calib"] = {}
+            return _EXIT_CACHE["calib"]
+        from core.live_swap_log import read_live_swaps
+        recs = read_live_swaps(path)
+        calib = calibrate_exit_from_live_swaps(recs)
+        _EXIT_CACHE["mtime"] = mtime
+        _EXIT_CACHE["calib"] = calib
+        return calib
+    except Exception:
+        return {}

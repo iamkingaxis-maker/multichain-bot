@@ -284,8 +284,17 @@ def paper_exit_decision(decision_mid, fresh_price, exit_reason, mode, size_usd,
 
     Order, when mode != off:
       reprice to fresh (fresh_price if valid >0 else decision_mid)
-      base = effective_fill(repriced, "sell", slip, fee, size)
-      exit_basis = base * (1 - gap_through_extra_pct(exit_reason)/100)  # stops only
+      basis = repriced * (1 - gap_through_extra_pct(exit_reason)/100)  # stops only
+      basis clamped to the traded low (never above repriced)          # gap only
+      exit_basis = effective_fill(basis, "sell", slip, fee, size)     # friction
+
+    ORDERING FIX (2026-07-06, 公牛 twin): slip+fee friction is applied AFTER the
+    gap haircut + clamp-to-low, so the clamp bounds ONLY the modeled gap-through
+    component and can never erase the execution friction. Pre-fix, the clamp was
+    applied to the post-friction price: every slow-path bail (whose MAE is
+    stamped AT the decision tick == the decision price) booked EXACTLY the
+    decision price with ZERO slip/fee (HANDSEM/ACM/trumplet records: booked pnl
+    == decision pnl to 4dp).
 
     FAIL-OPEN: mode=="off" => (decision_mid, "off"); any exception =>
     (decision_mid, "error_fallback") so this never raises into the sell path.
@@ -301,22 +310,30 @@ def paper_exit_decision(decision_mid, fresh_price, exit_reason, mode, size_usd,
         repriced = fp if fp > 0 else decision_mid
         sp = slip_pct if slip_pct is not None else measured_live_slip_pct()
         fu = fee_usd if fee_usd is not None else paper_fee_usd()
-        base = effective_fill(repriced, "sell", sp, fu, size_usd)
-        exit_basis = base * (1.0 - gap_through_extra_pct(exit_reason) / 100.0)
-        # CLAMP-TO-LOW (2026-06-23): a paper sell can NOT fill below the lowest price
-        # the token actually traded. The flat gap-through haircut was booking exits
-        # ~5pp below the observed low (a -13.35% stop booked -19.1%), inflating the
-        # drawdown beyond reality. Clamp to ``low_price`` (the position's MAE price)
-        # so the haircut still models REAL gap-through (a true rug's MAE is already
-        # deep — QAI MAE -55% still books ~-55%) but can't penalize below what the
-        # token printed. Fail-open: bad/absent low_price -> no clamp.
+        basis = repriced * (1.0 - gap_through_extra_pct(exit_reason) / 100.0)
+        # CLAMP-TO-LOW (2026-06-23): the modeled gap-through can NOT push the fill
+        # basis below the lowest price the token actually traded. The flat haircut
+        # was booking exits ~5pp below the observed low (a -13.35% stop booked
+        # -19.1%), inflating the drawdown beyond reality. Clamp to ``low_price``
+        # (the position's MAE price) so the haircut still models REAL gap-through
+        # (a true rug's MAE is already deep — QAI MAE -55% still books ~-55%) but
+        # can't penalize below what the token printed.
+        # STALE-MAE GUARD (2026-07-06, 公牛 twin): MAE is stamped only on the slow
+        # sweep, so on a fast-path bail it can sit ABOVE the fired decision price
+        # (公牛: slow-tick MAE -2.7% clamped a -9.34% velocity-bail back to -2.7%,
+        # erasing the flush). The decision print itself IS a real traded price, so
+        # the effective low can never sit above ``repriced``.
+        # Fail-open: bad/absent low_price -> no clamp.
         if low_price is not None:
             try:
                 lp = float(low_price)
-                if lp > 0 and exit_basis < lp:
-                    exit_basis = lp
+                if lp > 0:
+                    lp = min(lp, repriced)
+                    if basis < lp:
+                        basis = lp
             except (TypeError, ValueError):
                 pass
+        exit_basis = effective_fill(basis, "sell", sp, fu, size_usd)
         return (exit_basis, "fresh")
     except Exception:
         return (decision_mid, "error_fallback")

@@ -252,6 +252,12 @@ def _set_sell_env(monkeypatch, mode):
     monkeypatch.setenv("PAPER_LIVE_SLIP_PCT", "1.5")
     monkeypatch.setenv("PAPER_FEE_USD_PER_TX", "0.17")
     monkeypatch.setenv("GAP_THROUGH_HAIRCUT_PCT", "5.0")
+    # EXIT-SIDE FILL CALIBRATION (2026-07-06) learns the sell slip from
+    # live_swaps.jsonl, making the booked fill data-dependent; pin it OFF so
+    # this wire test asserts the documented placeholder path (same convention
+    # as _set_buy_env). ULTRA_FEE_MODEL likewise (age None -> 0 anyway).
+    monkeypatch.setenv("FILL_CALIBRATION_ENABLED", "off")
+    monkeypatch.setenv("ULTRA_FEE_MODEL", "off")
 
 
 def test_sell_enforce_hard_stop_applies_gap_haircut(monkeypatch):

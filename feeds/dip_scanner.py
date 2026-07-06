@@ -5855,13 +5855,19 @@ class DipScanner:
                 eff_exit = _lr["exit_price"]
                 _live_sell_instrument = _lr["instrument"]
         else:
-            # PAPER↔LIVE FIDELITY (2026-06-22, SELL side): book the REACHABLE fresh
-            # exit price + real measured slippage + a gap-through haircut on stops
-            # (live stop fills land BELOW the trigger on dumps). A sell NEVER skips
-            # — a held position must always be able to exit. Default mode=shadow =>
-            # log the would-change delta but DON'T alter eff_exit (byte-identical to
-            # today). enforce => book the fidelity value directly (slippage applied
-            # ONCE, bypassing sell_fill_price's separate haircut). off => original.
+            # PAPER↔LIVE FIDELITY (2026-06-22, SELL side; re-based 2026-07-06):
+            # book the DECISION price + real measured slippage + a gap-through
+            # haircut on stops (live stop fills land BELOW the trigger on dumps).
+            # A sell NEVER skips — a held position must always be able to exit.
+            # BOOKING BASIS = current_price, the price the firing rule evaluated
+            # (fast paths pass the fresh ~3s price in; the slow sweep passes its
+            # decision price). The pre-fix re-fetch here booked a post-decision
+            # bounce / lagging source ABOVE the fired bail (公牛 2026-07-06 twin:
+            # decision -9.34% booked -2.70% vs live realized -7.27%; ALYCIACOW
+            # decision -9.69% booked -3.47%). Default mode=shadow => log the
+            # would-change delta but DON'T alter eff_exit. enforce => book the
+            # fidelity value directly (slippage applied ONCE, bypassing
+            # sell_fill_price's separate haircut). off => original.
             # FAIL-OPEN: never raise into the sell path.
             from core.paper_fidelity import paper_fidelity_enabled as _pf_enabled
             _pf_mode = _pf_enabled("PAPER_FIDELITY_MODE", "shadow")
@@ -5875,12 +5881,11 @@ class DipScanner:
                     )
                     _addr = (_pos.address if (_pos and _pos.address) else None) \
                         or getattr(self, "_addr_by_token", {}).get(token, "")
-                    _fresh = await self._get_current_price_for(
-                        token, address=_addr,
-                        pair_address=(_pos.pair_address if _pos else ""))
-                    # CLAMP-TO-LOW: the paper exit can't book below the lowest price
-                    # the token actually traded (the MAE) — stops the flat gap-through
-                    # haircut from inflating losses below reality (2026-06-23 regression).
+                    # CLAMP-TO-LOW: the modeled gap-through can't book below the
+                    # lowest price the token actually traded (the MAE) — stops the
+                    # flat haircut from inflating losses below reality (2026-06-23
+                    # regression). paper_exit_decision bounds it to the decision
+                    # print (stale-MAE guard) and applies friction BELOW the clamp.
                     _low_px = None
                     try:
                         if _pos and _pos.entry_price and _pos.entry_price > 0:
@@ -5889,10 +5894,42 @@ class DipScanner:
                                 _low_px = _pos.entry_price * (1.0 + float(_mae) / 100.0)
                     except Exception:
                         _low_px = None
+                    # EXIT-SIDE FILL CALIBRATION (2026-07-06): learn the sell-leg
+                    # slip from the REAL live SELL fills in live_swaps.jsonl per
+                    # liquidity bucket — the sell twin of the buy-side block
+                    # (~L3252). Thin live sample => conservative 1.0%/leg default
+                    # (PAPER_EXIT_SLIP_DEFAULT_PCT). FILL_CALIBRATION_ENABLED=off
+                    # => the flat placeholder (_mlsp()), same gate as the buy side.
+                    # FAIL-OPEN: any error => placeholder.
+                    _x_slip = _mlsp()
+                    try:
+                        if os.environ.get("FILL_CALIBRATION_ENABLED",
+                                          "on").strip().lower() != "off":
+                            from core.fill_calibration import (
+                                load_exit_calibration as _load_xcal,
+                                calibrated_slip_pct as _cal_slip,
+                                realistic_slip_with_cap as _real_slip,
+                            )
+                            from core.paper_fidelity import (
+                                sell_slippage_cap_pct as _sell_cap,
+                            )
+                            try:
+                                _x_default = float(os.environ.get(
+                                    "PAPER_EXIT_SLIP_DEFAULT_PCT", "1.0"))
+                            except (TypeError, ValueError):
+                                _x_default = 1.0
+                            _x_liq = self._fresh_exit_liquidity(_addr)
+                            _x_slip = _real_slip(
+                                _cal_slip(_load_xcal(), _x_liq, default=_x_default),
+                                ultra_cap_pct=_sell_cap())
+                    except Exception as _xcal_e:
+                        logger.debug("[exit-fill-calibration] fail-open to "
+                                     "placeholder bot=%s token=%s: %s",
+                                     bot_id, token, _xcal_e)
+                        _x_slip = _mlsp()
                     # Ultra platform fee (2026-07-01 P10): +0.5pp on <24h tokens,
                     # per-leg — the exit leg pays it too. Age from the position's
                     # entry stamp when available. Fail-open (unknown age -> 0).
-                    _x_slip = _mlsp()
                     try:
                         from core.paper_fidelity import ultra_platform_fee_pct as _upf
                         _x_age = None
@@ -5902,8 +5939,11 @@ class DipScanner:
                         _x_slip += _upf(_x_age)
                     except Exception:
                         pass
+                    # fresh_price=None => paper_exit_decision books off the
+                    # DECISION price (current_price). No re-fetch: live executes
+                    # at the decision it fired on, so paper must too.
                     _xb, _why = _pxd(
-                        current_price, _fresh, exit_decision.reason,
+                        current_price, None, exit_decision.reason,
                         mode=_pf_mode, size_usd=_sz_sold,
                         slip_pct=_x_slip, fee_usd=_pfee(), low_price=_low_px)
                     if _pf_mode == "enforce":
@@ -5912,10 +5952,11 @@ class DipScanner:
                         eff_exit = _xb
                     else:  # shadow — log delta, do NOT change eff_exit
                         logger.info("[paper-fidelity] SHADOW-SELL bot=%s token=%s addr=%s "
-                                    "decision_mid=%.10g fresh=%s sell_fill=%.10g "
-                                    "would_book=%.10g reason=%s (%s)",
-                                    bot_id, token, _addr, current_price, _fresh,
-                                    eff_exit, _xb, exit_decision.reason, _why)
+                                    "decision_mid=%.10g sell_fill=%.10g "
+                                    "would_book=%.10g slip_pct=%.3f reason=%s (%s)",
+                                    bot_id, token, _addr, current_price,
+                                    eff_exit, _xb, _x_slip,
+                                    exit_decision.reason, _why)
                 except Exception as _pf_e:
                     logger.error("[paper-fidelity] SELL error (%s) — fail-open, original "
                                  "fill bot=%s token=%s", _pf_e, bot_id, token)
