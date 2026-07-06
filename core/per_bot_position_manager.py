@@ -982,14 +982,38 @@ class PerBotPositionManager:
             # PEEL runner: wider giveback (default 5pp) replaces the tight
             # trail; the hard stop (-12) below still floors catastrophe.
             _trail_pp = float(getattr(self.config, "peel_giveback_pp", 5.0) or 5.0)
+        # PEAK-SCALED runner trail (EV model 2026-07-06): widen the giveback in
+        # proportion to how far the runner has already run, so the rare monster
+        # (which carries all the EV) isn't cut at a fixed 5pp. Overrides _trail_pp
+        # ONLY post-TP1; tight base below peak_ref, then base + k*(peak-ref),
+        # capped. Env kill RUNNER_SCALED_TRAIL_MODE=off. Fail-safe: any bad math
+        # falls through to the fixed _trail_pp.
+        _scaled_reason = ""
+        if (p.tp1_hit and _trail_pp is not None
+                and bool(getattr(self.config, "runner_scaled_trail", False))):
+            import os as _os
+            if _os.environ.get("RUNNER_SCALED_TRAIL_MODE", "on").strip().lower() \
+                    not in ("off", "0", "false", "no"):
+                try:
+                    _base = float(getattr(self.config, "runner_trail_base_pp", 5.0) or 5.0)
+                    _ref = float(getattr(self.config, "runner_trail_peak_ref_pp", 10.0) or 10.0)
+                    _k = float(getattr(self.config, "runner_trail_k", 0.2) or 0.0)
+                    _cap = float(getattr(self.config, "runner_trail_cap_pp", 20.0) or 20.0)
+                    _scaled = _base + _k * max(0.0, p.peak_pnl_pct - _ref)
+                    _scaled = min(_cap, max(_base, _scaled))
+                    if _scaled > 0:
+                        _trail_pp = _scaled
+                        _scaled_reason = "scaled-"
+                except Exception:
+                    pass
         if p.tp1_hit and not decisions and _trail_pp is not None:
             trail_threshold = p.peak_pnl_pct - _trail_pp
             if pnl_pct <= trail_threshold:
                 decisions.append(ExitDecision(
                     token=token, kind="POST_TP1_TRAIL",
                     reason=(
-                        f"{'peel-runner ' if _peel_on else ''}trail pnl={pnl_pct:.2f}% "
-                        f"<= peak({p.peak_pnl_pct:.2f}%) - {_trail_pp}pp"
+                        f"{'peel-runner ' if _peel_on else ''}{_scaled_reason}trail "
+                        f"pnl={pnl_pct:.2f}% <= peak({p.peak_pnl_pct:.2f}%) - {_trail_pp:.1f}pp"
                     ),
                     sell_fraction=1.0,
                 ))

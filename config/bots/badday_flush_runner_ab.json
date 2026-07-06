@@ -1,0 +1,100 @@
+{
+  "age_h_max": null,
+  "age_h_min": 6.0,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 100.0,
+  "bot_id": "badday_flush_runner_ab",
+  "btc_macro_h1_block_threshold": null,
+  "daily_loss_limit_usd": 60.0,
+  "display_name": "LET-WINNERS-RUN A/B (2026-07-06 EV model): the EV lever. Model proved the young/flush edge is CONVEX \u2014 2 runners carried 100% of gross EV, median trade negative; breakeven falls below current WR only if the payoff ratio hits ~4:1. Fixed-giveback peel (5pp) caps the exact tail that pays (+70 runner cut at +65). This = conditional peel with a SMALL TP1 slice (0.30) + PEAK-SCALED runner trail (tight <+10, widens k=0.2/pp to a 20pp cap) so monsters breathe. Flush lane (EV model: flush needs 52% WR on entry = not viable, exits MUST carry it). Paper, own pool, loss-streak pause on. Judge per-bot vs badday_flush_peel_ab at n>=20 tokens \u2014 does peak-scaled tail capture beat fixed 5pp?",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "unique_buyers_n",
+      ">=",
+      12
+    ],
+    [
+      "wash_suspected",
+      "<=",
+      0
+    ],
+    [
+      "n_recurring_buyers_3plus",
+      ">=",
+      1
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      15000
+    ],
+    [
+      "pc_h1",
+      "<=",
+      -20
+    ],
+    [
+      "net_flow_15s_imbalance",
+      ">=",
+      0
+    ]
+  ],
+  "entry_stack_exempt": true,
+  "fast_bail_pnl_pct": -9.0,
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_btc_overheat",
+    "filter_consec_red",
+    "filter_huge_wick"
+  ],
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -6.0,
+  "hard_stop_pct": -12.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 3,
+  "mcap_max": 500000.0,
+  "mcap_min": 50000.0,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": true,
+  "never_runner_loss_floor": -6.0,
+  "never_runner_minutes": 60,
+  "never_runner_peak_max": 3.0,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "regime_dial_exempt": true,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": 60,
+  "slow_bleed_pnl_threshold": -8.0,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "tp1_pct": 6.0,
+  "tp1_sell_fraction": 0.3,
+  "tp2_pct": 12.0,
+  "tp2_sell_fraction": 0.25,
+  "trading_hour_utc_end": 3,
+  "trading_hour_utc_start": 8,
+  "trail_pp": 2.0,
+  "triggers_allowed": null,
+  "triggers_disabled": [
+    "demand_bottom_compound"
+  ],
+  "vol_h1_min": 1000.0,
+  "young_token_probe": false,
+  "peel_exit": true,
+  "exclusion_pool": "badday_flush_runner_ab",
+  "loss_streak_pause": true,
+  "runner_scaled_trail": true,
+  "runner_trail_base_pp": 5.0,
+  "runner_trail_peak_ref_pp": 10.0,
+  "runner_trail_k": 0.2,
+  "runner_trail_cap_pp": 20.0
+}

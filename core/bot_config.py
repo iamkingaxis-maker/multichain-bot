@@ -431,6 +431,23 @@ class BotConfig:
     loss_streak_n: int = 3
     loss_streak_pause_secs: float = 3600.0
 
+    # PEAK-SCALED RUNNER TRAIL (2026-07-06 EV model — scratchpad/_ev_model):
+    # the strategy's whole edge is convex (2 runners carried 100% of the young
+    # lane's gross EV; median trade is negative). A FIXED giveback (peel's 5pp)
+    # cuts a +70 runner at +65 — it caps exactly the tail that pays. This trails
+    # TIGHT on small gains and LOOSE on monsters: giveback = base + k*(peak-ref),
+    # capped. peak +10→5pp (exit +5); +40→11pp (exit +29); +80→19pp (exit +61).
+    # Protects small gains from round-trip while letting the rare monster breathe.
+    # Applies post-TP1 (peel runner or plain trail). Default off = no change.
+    # Env kill: RUNNER_SCALED_TRAIL_MODE=off. The fixed-trail replay (8/12pp dead
+    # valleys) does NOT falsify this — those widen the trail UNIFORMLY; this only
+    # widens it in proportion to how far the runner has already run.
+    runner_scaled_trail: bool = False
+    runner_trail_base_pp: float = 5.0
+    runner_trail_peak_ref_pp: float = 10.0
+    runner_trail_k: float = 0.2
+    runner_trail_cap_pp: float = 20.0
+
     # Momentum-continuation mode (2026-06-02, #4.3). When True the bot uses a SEPARATE
     # entry path: it BYPASSES the dip-filter stack + dip triggers (which block 100% of
     # momentum candidates) and enters on the momentum entry_gate (e.g. pc_h1>=20 AND
