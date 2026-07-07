@@ -238,3 +238,60 @@ class TestPreSettlementGuard:
         res = asyncio.run(DipScanner._execute_bot_sell_live(
             stub, "TESTPACK", None, _mk_tp_pos(remaining=1.0), 1.0, _TP_ENTRY))
         assert res == {"empty": True}
+
+
+# ── DOUBLE-BUY guard (TESTPACK 2026-07-07: two $25 bags bought 3s apart) ──────
+# The "already held?" check read the on-chain balance, still 0 because buy #1
+# hadn't settled -> both fired. _claim_live_buy is a synchronous in-flight set +
+# book check, immune to settlement lag.
+import types as _types
+
+
+def _mk_scanner():
+    return DipScanner.__new__(DipScanner)
+
+
+class _PMHeld:
+    def __init__(self, held): self._held = held
+    def get_position(self, token): return object() if self._held else None
+
+
+def _dec(addr="MINTX", token="TOK"):
+    return _types.SimpleNamespace(address=addr, token=token)
+
+
+class TestDoubleBuyGuard:
+    def test_first_claim_succeeds(self):
+        s = _mk_scanner()
+        ok, key = s._claim_live_buy("bot1", _dec(), _PMHeld(False))
+        assert ok is True and key in s._live_buy_inflight
+
+    def test_second_concurrent_claim_rejected(self):
+        """The exact race: claim #1 in-flight (not yet discarded), claim #2 for
+        the SAME token must be rejected — no second swap."""
+        s = _mk_scanner()
+        ok1, _ = s._claim_live_buy("bot1", _dec(), _PMHeld(False))
+        ok2, _ = s._claim_live_buy("bot1", _dec(), _PMHeld(False))
+        assert ok1 is True and ok2 is False
+
+    def test_claim_rejected_when_already_held(self):
+        """Buy #1 already settled + registered in the book -> reject (belt &
+        suspenders with the in-flight set)."""
+        s = _mk_scanner()
+        ok, _ = s._claim_live_buy("bot1", _dec(), _PMHeld(True))
+        assert ok is False
+
+    def test_discard_frees_the_slot(self):
+        """After the first buy completes (finally: discard), a later buy for the
+        same token is allowed again (legit re-entry, subject to the reentry cap)."""
+        s = _mk_scanner()
+        ok1, key = s._claim_live_buy("bot1", _dec(), _PMHeld(False))
+        s._live_buy_inflight.discard(key)
+        ok2, _ = s._claim_live_buy("bot1", _dec(), _PMHeld(False))
+        assert ok1 is True and ok2 is True
+
+    def test_different_tokens_independent(self):
+        s = _mk_scanner()
+        ok1, _ = s._claim_live_buy("bot1", _dec(addr="A", token="TA"), _PMHeld(False))
+        ok2, _ = s._claim_live_buy("bot1", _dec(addr="B", token="TB"), _PMHeld(False))
+        assert ok1 is True and ok2 is True

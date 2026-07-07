@@ -1549,6 +1549,25 @@ class DipScanner:
             logger.debug("[fill-speed] log record failed bot=%s token=%s: %s",
                          bot_id, getattr(decision, "token", "?"), e)
 
+    def _claim_live_buy(self, bot_id, decision, pm):
+        """DOUBLE-BUY guard (TESTPACK 2026-07-07). Atomically claim a live-buy
+        slot for (bot_id, token). Returns (ok, key): ok=False if a buy is
+        already IN-FLIGHT for this token OR the position is already held.
+
+        MUST be synchronous (no await) — in asyncio the check-and-add is then
+        atomic w.r.t. other coroutines, so a concurrent duplicate buy for the
+        same token (whose first buy is mid-swap, on-chain balance still 0) sees
+        the key and is rejected. The caller MUST discard(key) in a finally once
+        the buy completes. Immune to on-chain settlement lag (the reason two
+        TESTPACK bags got bought 3s apart)."""
+        key = (bot_id, str(getattr(decision, "address", None) or decision.token))
+        if not hasattr(self, "_live_buy_inflight"):
+            self._live_buy_inflight = set()
+        if key in self._live_buy_inflight or pm.get_position(decision.token) is not None:
+            return False, key
+        self._live_buy_inflight.add(key)
+        return True, key
+
     async def _execute_bot_buy(self, decision, bundle):
         """Execute a BuyDecision from a single bot.
 
@@ -3193,9 +3212,26 @@ class DipScanner:
             _buy_mcap = (getattr(bundle, "mcap", None)
                          or _ar_meta.get("mcap")
                          or _ar_meta.get("marketCap"))
-            _r = await self._execute_bot_buy_live(
-                decision, pm, _used_size,
-                entry_liquidity_usd=_ar_liq, entry_mcap=_buy_mcap)
+            # DOUBLE-BUY guard (TESTPACK 2026-07-07): a second live buy for a
+            # token whose first buy is MID-SWAP (unsettled) races through — the
+            # "already held?" check reads the on-chain balance, still 0 because
+            # buy #1 hasn't landed, so BOTH fire (TESTPACK got two $25 bags 3s
+            # apart). _claim_live_buy does a synchronous (no-await) check-and-add
+            # on an in-flight set + book, immune to settlement lag.
+            _ok_claim, _live_buy_key = self._claim_live_buy(bot_id, decision, pm)
+            if not _ok_claim:
+                capital.balance_usd += _used_size
+                capital.in_flight_usd -= _used_size
+                logger.warning(
+                    "[Probe] DOUBLE-BUY guard: %s already in-flight/held (bot=%s) — "
+                    "skip duplicate live buy, reservation refunded", decision.token, bot_id)
+                return
+            try:
+                _r = await self._execute_bot_buy_live(
+                    decision, pm, _used_size,
+                    entry_liquidity_usd=_ar_liq, entry_mcap=_buy_mcap)
+            finally:
+                self._live_buy_inflight.discard(_live_buy_key)
             if _r is None:
                 # pre-spend abort -> safe to refund the reservation
                 capital.balance_usd += _used_size
