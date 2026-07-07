@@ -39,6 +39,20 @@ def max_age_hours() -> float:
         return 2.0
 
 
+def reserve_below_h() -> float:
+    """Production bots are RESERVED-OUT of (skip) tokens younger than this — the
+    rug-bait protection. DECOUPLED from max_age_hours (2026-07-07 throughput fix):
+    raising the PROBE pond ceiling to 36h had reserved the ENTIRE 0-36h band for
+    probe bots, starving the whole non-probe family (and the new volume lanes) of
+    the young tokens where the action is. This reserves only the freshest window
+    (default 2h) while production regains 2h-max. The probe's own young-only pond
+    (age <= max_age_hours) is UNCHANGED — the live probe's gating is untouched."""
+    try:
+        return float(os.environ.get("YOUNG_TOKEN_RESERVE_BELOW_H", "2"))
+    except (TypeError, ValueError):
+        return 2.0
+
+
 def min_liq_usd() -> float:
     try:
         return float(os.environ.get("YOUNG_TOKEN_MIN_LIQ_USD", "40000"))
@@ -132,6 +146,37 @@ def buy_gate_skip(is_young_tok: bool, is_probe_bot: bool,
     if is_probe_bot:
         return not is_young_tok      # probe bot: young-only
     return is_young_tok              # production bot: skip young
+
+
+def buy_gate_skip_age(age_hours, is_probe_bot,
+                      reserve_h: Optional[float] = None,
+                      max_h: Optional[float] = None,
+                      probe_on: Optional[bool] = None) -> bool:
+    """DECOUPLED per-bot buy gate (2026-07-07 throughput fix). Returns True if
+    this bot should SKIP this token. Unlike buy_gate_skip (one threshold), this
+    separates the two rules:
+      - PROBE bot: young-only -> skip when age >= max_age_hours (its pond ceiling).
+      - PRODUCTION bot: skip ONLY when age < reserve_below_h (freshest rug-bait);
+        it trades everything older, so raising the probe ceiling no longer
+        starves it. Probe OFF -> never skips here. Unknown age -> preserve the
+        old bias (probe skips, production allows)."""
+    if probe_on is None:
+        probe_on = probe_enabled()
+    if not probe_on:
+        return False
+    if age_hours is None:
+        return bool(is_probe_bot)    # unknown age: probe (young-only) skips; production allows
+    try:
+        a = float(age_hours)
+    except (TypeError, ValueError):
+        return bool(is_probe_bot)
+    if max_h is None:
+        max_h = max_age_hours()
+    if reserve_h is None:
+        reserve_h = reserve_below_h()
+    if is_probe_bot:
+        return a >= float(max_h)     # probe: young-only (skip old)
+    return a < float(reserve_h)      # production: skip ONLY the freshest rug-bait
 
 
 def holder_guard_mode() -> str:

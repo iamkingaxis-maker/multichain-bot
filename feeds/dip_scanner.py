@@ -1726,12 +1726,16 @@ class DipScanner:
         # Young-token probe gate (#4.1). When the global YOUNG_TOKEN_PROBE is ON, probe
         # bots trade young-only and production bots skip young tokens. Default OFF -> no-op
         # (young tokens are never surfaced). Checked before reserving capital.
-        from core.young_token_probe import probe_enabled as _yt_on, is_young as _yt_young, buy_gate_skip as _yt_skip
+        from core.young_token_probe import probe_enabled as _yt_on, buy_gate_skip_age as _yt_skip_age
         if _yt_on():
             _ytm = getattr(bundle, "raw_meta", None) or {}
             _yt_age = (_ytm.get("entry_age_hours") or _ytm.get("lifecycle_age_hours")
                        or _ytm.get("age_hours"))
-            if _yt_skip(_yt_young(_yt_age), bool(getattr(pm.config, "young_token_probe", False))):
+            # DECOUPLED gate (2026-07-07 throughput fix): probe bots stay young-only;
+            # production bots are reserved-out ONLY of the freshest rug-bait
+            # (< YOUNG_TOKEN_RESERVE_BELOW_H), not the whole 0-36h pond. Un-starves
+            # the flush family + non-probe volume lanes; live probe gating UNCHANGED.
+            if _yt_skip_age(_yt_age, bool(getattr(pm.config, "young_token_probe", False))):
                 logger.info("[DipScanner] bot=%s young-probe gate: skip %s (age=%s probe_bot=%s)",
                             bot_id, decision.token, _yt_age, getattr(pm.config, "young_token_probe", False))
                 return
