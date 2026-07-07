@@ -5268,6 +5268,11 @@ class WebDashboard:
                         if _b.get("bot_id") in _probe_ids:
                             _b["realized_pnl_total_usd"] = _real
                             _b["total_pnl_realized"] = _real
+                            # daily has no clean on-chain baseline; show the same
+                            # wallet-delta truth rather than leave a fantasy green
+                            # daily next to the corrected total (2026-07-07).
+                            _b["daily_pnl_usd"] = _real
+                            _b["daily_is_since_baseline"] = True
                             _b["live_onchain_truth"] = True
         except Exception:
             pass
