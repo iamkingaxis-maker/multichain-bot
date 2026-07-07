@@ -5205,10 +5205,72 @@ class WebDashboard:
             "streak_complete_days": streak,
         })
 
+    def _enabled_live_probe_ids(self):
+        """bot_ids of ENABLED live_probe bots (cached 60s). Used to correct the
+        leaderboard's SIMULATED P&L for real-money bots."""
+        import time as _t, pathlib as _pl
+        if (hasattr(self, "_lp_ids_cache")
+                and _t.monotonic() - getattr(self, "_lp_ids_cache_ts", 0.0) <= 60):
+            return self._lp_ids_cache
+        ids = set()
+        try:
+            _cfg_dir = _pl.Path(__file__).resolve().parent.parent / "config" / "bots"
+            for p in _cfg_dir.glob("*.json"):
+                try:
+                    d = json.loads(p.read_text())
+                    if d.get("live_probe") and d.get("enabled"):
+                        ids.add(d.get("bot_id") or p.stem)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        self._lp_ids_cache = ids
+        self._lp_ids_cache_ts = _t.monotonic()
+        return ids
+
+    async def _probe_onchain_pnl_usd(self):
+        """Live probe's REAL realized P&L (USD) = on-chain wallet delta_sol ×
+        sol_price. The authoritative number — it captures manual sells the swap
+        log misses (the TESTPACK 2026-07-07 orphan the operator sold in Phantom).
+        Returns None on any failure -> leave the simulated value untouched."""
+        try:
+            sol_now = await self._read_hot_wallet_sol()
+            if sol_now is None:
+                return None
+            base_path = os.path.join(os.environ.get("DATA_DIR", "/data"),
+                                     "live_wallet_baseline.json")
+            with open(base_path) as f:
+                baseline = json.load(f)
+            delta_sol = float(sol_now) - float(baseline["sol"])
+            sol_price = await self._sol_price_usd_cached()
+            if not sol_price:
+                return None
+            return round(delta_sol * float(sol_price), 2)
+        except Exception:
+            return None
+
     async def _handle_api_leaderboard(self, request):
         """GET /api/leaderboard?sort=X — sortable fleet leaderboard."""
         sort = request.query.get("sort", "total_pnl_realized")
         bots = self._build_bot_rows()
+        # LIVE-PROBE P&L CORRECTION (2026-07-07): the per-bot ledger is SIMULATED
+        # and booked a +$79 fantasy TESTPACK fill that never hit the chain, so it
+        # read +$19 while the wallet was -$13.7. Replace the live probe's row P&L
+        # with the ON-CHAIN wallet delta (authoritative — captures the manual
+        # orphan sell). Only when EXACTLY ONE enabled live_probe exists, so the
+        # single wallet delta attributes cleanly to one bot.
+        try:
+            _probe_ids = self._enabled_live_probe_ids()
+            if len(_probe_ids) == 1:
+                _real = await self._probe_onchain_pnl_usd()
+                if _real is not None:
+                    for _b in bots:
+                        if _b.get("bot_id") in _probe_ids:
+                            _b["realized_pnl_total_usd"] = _real
+                            _b["total_pnl_realized"] = _real
+                            _b["live_onchain_truth"] = True
+        except Exception:
+            pass
         if sort == "throughput_x_pnl":
             bots.sort(
                 key=lambda b: (b["total_trades"] * (b["total_pnl_realized"] / b["total_trades"]))
