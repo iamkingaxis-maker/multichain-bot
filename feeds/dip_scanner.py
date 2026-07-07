@@ -3157,6 +3157,34 @@ class DipScanner:
                                 _used_size, _asz_h24, _asz_h6, decision.token)
             except Exception as _asze:
                 logger.debug("[adaptive-size] error (fail-open, full size): %s", _asze)
+        # LATENCY BREAKDOWN instrument (2026-07-07, AxiS "get to <=2s overall"):
+        # decompose the low->decision detection lag so we know WHERE the ~25s goes
+        # before optimizing. low_ts from the universal _vsnap_low_ts (wall clock);
+        # armed_ts from the HL state (monotonic -> wall via the now-pair). Split:
+        # low->arm (arming reactive-vs-ahead) and arm->decision (confirmation-wait).
+        # decision->fill (execution ~1.5s) is already in the swap log. Pure log.
+        try:
+            _lb_addr = decision.address or self._addr_by_token.get(decision.token, "")
+            _lb_now = time.time(); _lb_mono = time.monotonic()
+            _lb_vts = getattr(self, "_vsnap_low_ts", {}) or {}
+            _lb_lowts = _lb_vts.get(_lb_addr) or _lb_vts.get((_lb_addr or "").lower())
+            _lb_hl = getattr(self, "_hl_confirm", {}) or {}
+            _lb_st = _lb_hl.get(_lb_addr) or _lb_hl.get((_lb_addr or "").lower())
+            _lb_armw = None
+            if _lb_st and _lb_st.get("armed_ts") is not None:
+                _lb_armw = _lb_now - (_lb_mono - float(_lb_st["armed_ts"]))  # mono->wall
+            _lb_lowage = (_lb_now - float(_lb_lowts)) if _lb_lowts is not None else None
+            _lb_l2a = ((float(_lb_lowts) - float(_lb_armw))
+                       if (_lb_armw is not None and _lb_lowts is not None) else None)
+            _lb_a2d = (_lb_now - float(_lb_armw)) if _lb_armw is not None else None
+            logger.info("[LATENCY-BREAKDOWN] bot=%s %s low->decision=%s | armed_for=%s "
+                        "low_since_arm=%s | decision->fill=~1.5s(swaplog)",
+                        bot_id, decision.token,
+                        ("%.1fs" % _lb_lowage) if _lb_lowage is not None else "n/a",
+                        ("%.1fs" % _lb_a2d) if _lb_a2d is not None else "n/a",
+                        ("%.1fs" % _lb_l2a) if _lb_l2a is not None else "n/a")
+        except Exception:
+            pass
         # Record token->address so a later SELL can recover the address if its position
         # object is gone/empty (2026-06-02 sell-join data-bug fix). Buys always have it.
         if decision.address:
