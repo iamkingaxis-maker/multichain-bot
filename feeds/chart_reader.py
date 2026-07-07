@@ -56,6 +56,7 @@ Verdict:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -434,6 +435,7 @@ async def read_chart(
         logger.debug(f"[ChartReader] mtf phase err: {e}")
         ctx.mtf = {}
 
+    await asyncio.sleep(0)  # loop-unstarve (2026-07-07): yield between phases
     # Phase 3 — S/R (5m + 15m)
     try:
         ctx.sr_5m = analyze_sr(cd.candles_5m, pivot_n=3)
@@ -447,6 +449,7 @@ async def read_chart(
     except Exception as e:
         logger.debug(f"[ChartReader] vp phase err: {e}")
 
+    await asyncio.sleep(0)  # loop-unstarve
     # Phase 5 — chart patterns (5m + 15m)
     try:
         ctx.pattern_5m = detect_patterns(cd.candles_5m, min_confidence=40)
@@ -454,6 +457,7 @@ async def read_chart(
     except Exception as e:
         logger.debug(f"[ChartReader] pattern phase err: {e}")
 
+    await asyncio.sleep(0)  # loop-unstarve — before O(pivots^2) trendline fit
     # Phase 7 — trendlines & channels on all 3 timeframes
     try:
         ctx.trendlines_5m = analyze_trendlines(cd.candles_5m, pivot_n=3)
@@ -462,6 +466,7 @@ async def read_chart(
     except Exception as e:
         logger.debug(f"[ChartReader] trendline phase err: {e}")
 
+    await asyncio.sleep(0)  # loop-unstarve — before 3-TF structure analysis
     # Phase 8 — market structure / BOS / CHoCH
     try:
         ctx.structure_5m = analyze_structure(cd.candles_5m, pivot_n=3)
@@ -483,6 +488,7 @@ async def read_chart(
     except Exception as e:
         logger.debug(f"[ChartReader] sweeps phase err: {e}")
 
+    await asyncio.sleep(0)  # loop-unstarve — before O(band^2) stop-cluster scan
     # Phase 10 — stop-cluster level detection
     try:
         ctx.stop_clusters_5m = analyze_stop_clusters(cd.candles_5m, pivot_n=2)
@@ -496,6 +502,7 @@ async def read_chart(
     except Exception as e:
         logger.debug(f"[ChartReader] reaccum phase err: {e}")
 
+    await asyncio.sleep(0)  # loop-unstarve — before composite aggregation
     # Composite
     try:
         score, verdict, reasons = compute_composite(
