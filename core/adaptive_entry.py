@@ -53,6 +53,26 @@ def swing_size_multiplier(pc_h24, pc_h6,
     return float(violent_deep_mult if deep else violent_shallow_mult)
 
 
+def update_recent_low(prev_low, price):
+    """Incremental recent-low tracker feeding the vsnap low-age map. Returns
+    (new_low, restamp): restamp=True when `price` is a new low or seeds the
+    tracker (fresh knife -> caller stamps low_ts=now); False when price sits
+    above the tracked low (grind -> low_ts ages). Bad price -> keep, no stamp."""
+    try:
+        p = float(price)
+    except (TypeError, ValueError):
+        return prev_low, False
+    if prev_low is None:
+        return p, True                          # seed on first sample
+    try:
+        pl = float(prev_low)
+    except (TypeError, ValueError):
+        return p, True
+    if p < pl:
+        return p, True                          # new lower low -> fresh
+    return pl, False                            # above the low -> ages
+
+
 def vsnap_reject(low_age_secs, min_age_secs: float) -> tuple[bool, str]:
     """Reject a fast V-snap: True if the token's recent low is YOUNGER than
     min_age_secs (still knifing / just V-snapped). FAIL-OPEN: low_age_secs None

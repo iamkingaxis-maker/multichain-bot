@@ -2,7 +2,40 @@
 """Adaptive entry levers (2026-07-07). swing_size_multiplier (token-conditional:
 size down violent+shallow dead-cat tail) + vsnap_reject (fleet: reject fast
 V-snaps, take grinds). Both FAIL-OPEN so a lane can never be starved to zero."""
-from core.adaptive_entry import swing_size_multiplier as ssm, vsnap_reject as vsr
+from core.adaptive_entry import (swing_size_multiplier as ssm, vsnap_reject as vsr,
+                                 update_recent_low as url)
+
+
+class TestUpdateRecentLow:
+    def test_seed_on_first_sample(self):
+        low, restamp = url(None, 0.005)
+        assert low == 0.005 and restamp is True     # first sample seeds + stamps
+
+    def test_new_lower_low_restamps(self):
+        low, restamp = url(0.005, 0.004)            # knifes lower
+        assert low == 0.004 and restamp is True
+
+    def test_above_low_ages(self):
+        low, restamp = url(0.004, 0.006)            # recovers above the low
+        assert low == 0.004 and restamp is False    # keep low, ts ages (grind)
+
+    def test_equal_price_ages(self):
+        low, restamp = url(0.004, 0.004)
+        assert low == 0.004 and restamp is False
+
+    def test_grind_sequence_low_stays_fixed(self):
+        # a dip that bases and grinds up: low fixed after the bottom, ts ages
+        low, seq = None, [0.010, 0.006, 0.004, 0.005, 0.007, 0.009]
+        stamps = 0
+        for p in seq:
+            low, restamp = url(low, p)
+            stamps += 1 if restamp else 0
+        assert low == 0.004        # the bottom
+        assert stamps == 3         # 0.010 seed, 0.006 new low, 0.004 new low; then ages
+
+    def test_bad_price_keeps_low(self):
+        low, restamp = url(0.004, "x")
+        assert low == 0.004 and restamp is False
 
 
 class TestSwingSizeMultiplier:

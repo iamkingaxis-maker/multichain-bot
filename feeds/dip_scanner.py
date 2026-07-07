@@ -1749,19 +1749,32 @@ class DipScanner:
                 try:
                     from core.adaptive_entry import vsnap_reject as _vsr
                     _vs_addr = decision.address or self._addr_by_token.get(decision.token, "")
-                    _hlm = getattr(self, "_hl_confirm", {}) or {}
-                    _st = _hlm.get(_vs_addr) or _hlm.get((_vs_addr or "").lower())
                     _low_age = None
-                    if _st and _st.get("low_ts") is not None:
-                        _low_age = time.monotonic() - float(_st["low_ts"])
+                    _low_src = "none"
+                    # PRIMARY: universal batch-poll low-ts (wall clock) — present for
+                    # ANY polled/armed token, so no WS-hot-subset fail-open churn.
+                    _vlts = getattr(self, "_vsnap_low_ts", {}) or {}
+                    _vt = _vlts.get(_vs_addr)
+                    if _vt is None:
+                        _vt = _vlts.get((_vs_addr or "").lower())
+                    if _vt is not None:
+                        _low_age = time.time() - float(_vt)
+                        _low_src = "poll"
+                    else:
+                        # FALLBACK: WS hot-subset HL low_ts (monotonic clock)
+                        _hlm = getattr(self, "_hl_confirm", {}) or {}
+                        _st = _hlm.get(_vs_addr) or _hlm.get((_vs_addr or "").lower())
+                        if _st and _st.get("low_ts") is not None:
+                            _low_age = time.monotonic() - float(_st["low_ts"])
+                            _low_src = "hl"
                     _vs_rej, _vs_why = _vsr(_low_age, _vsnap_thr)
                     if _vs_rej:
-                        logger.info("[DipScanner] bot=%s VSNAP-REJECT skip %s (%s)",
-                                    bot_id, decision.token, _vs_why)
+                        logger.info("[DipScanner] bot=%s VSNAP-REJECT skip %s (%s src=%s)",
+                                    bot_id, decision.token, _vs_why, _low_src)
                         return
                     else:
-                        logger.info("[DipScanner] bot=%s vsnap-gate PASS %s (%s)",
-                                    bot_id, decision.token, _vs_why)
+                        logger.info("[DipScanner] bot=%s vsnap-gate PASS %s (%s src=%s)",
+                                    bot_id, decision.token, _vs_why, _low_src)
                 except Exception as _vse:
                     logger.debug("[vsnap] gate error (fail-open): %s", _vse)
             # Young-lane HOLDER-CONCENTRATION rug guard (2026-07-03). NEVER rugged
@@ -7735,6 +7748,11 @@ class DipScanner:
                 _ts_map = getattr(self, "_fast_samples_ts", None)
                 if _ts_map is not None:
                     _ts_map.pop(addr, None)
+                # keep the vsnap low-age maps bounded with the sample buffers
+                for _vm in (getattr(self, "_vsnap_low", None),
+                            getattr(self, "_vsnap_low_ts", None)):
+                    if _vm is not None:
+                        _vm.pop(addr, None)
         # PRE-WARM DECIMALS (perf, free) — decimals never change, so populate the
         # trader's permanent decimals cache for newly-armed tokens NOW (off the live
         # fire path) so _execute_bot_buy_live's post-swap _get_token_decimals is always
@@ -7961,6 +7979,26 @@ class DipScanner:
             # Stamp last-poll time for the no-fast-price gate freshness check.
             try:
                 self._fast_samples_ts[addr] = now
+            except Exception:
+                pass
+            # VSNAP low-age (2026-07-07 harden): maintain a UNIVERSAL per-token
+            # recent-low wall-clock timestamp on the whole-watchlist batch poll,
+            # so the vsnap gate has a reliable low-age even for tokens OUTSIDE the
+            # WS hot subset (the only thing that feeds _hl_confirm -> the fail-open
+            # churn). New/lower low -> stamp now (fresh knife); price above the low
+            # -> ts ages (grind). A fresh-armed token's first sample seeds it.
+            try:
+                _vlow = getattr(self, "_vsnap_low", None)
+                if _vlow is None:
+                    _vlow = self._vsnap_low = {}
+                _vlts = getattr(self, "_vsnap_low_ts", None)
+                if _vlts is None:
+                    _vlts = self._vsnap_low_ts = {}
+                from core.adaptive_entry import update_recent_low as _url
+                _nl, _restamp = _url(_vlow.get(addr), pr)
+                _vlow[addr] = _nl
+                if _restamp:
+                    _vlts[addr] = now
             except Exception:
                 pass
             # HL-CONFIRM (2026-07-05 trough anatomy): feed the confirm-window
