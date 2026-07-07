@@ -170,3 +170,71 @@ class TestStaleBalanceGuard:
         with pytest.raises(_SwapReached):
             asyncio.run(DipScanner._execute_bot_sell_live(
                 stub, "DONALT", None, _mk_pos(remaining=1.0), 1.0, 0.0002292))
+
+
+# ── PRE-SETTLEMENT guard (TESTPACK 2026-07-07 orphan + fantasy-fill) ──────────
+# A live SELL firing within the settlement window of the BUY reads a stale,
+# pre-settlement balance (bought tokens not landed). TESTPACK: bought 81,198
+# tokens, a sell 2s later read ~225 tokens, sold DUST + closed the book while
+# the real bag bled -58% orphaned. Also: a 0-balance read at buy-time booked a
+# paper-close-EMPTY at a glitch +79% price (fantasy paper win). Both must now
+# STAY OPEN and retry.
+TP_MINT = MINT
+_TP_TOKENS = 81_198.486522          # bag actually bought for $25
+_TP_ENTRY = 25.0 / _TP_TOKENS       # -> _paper_tok ~= 81,198 on a full leg
+
+
+def _mk_tp_pos(remaining=1.0):
+    return types.SimpleNamespace(
+        address=TP_MINT, remaining_fraction=remaining, size_usd=25.0,
+        entry_price=_TP_ENTRY, state_blob={}, strategy="badday_young_absorb_live",
+        pair_address=None)
+
+
+def _stub_with_buy(bal_atomic, buy_secs_ago=2.0):
+    stub = _mk_live_sell_stub(bal_atomic=bal_atomic, recent_sell_mono=None)
+    stub._live_buy_last_mono = {TP_MINT: time.monotonic() - buy_secs_ago}
+    return stub
+
+
+class TestPreSettlementGuard:
+    def test_undersell_within_buy_window_stays_open(self):
+        """The exact TESTPACK orphan: held 81,198 but the read served ~225
+        (pre-settlement). Guard must return None (stay open) — never dust-sell."""
+        stub = _stub_with_buy(bal_atomic=225_170_882)   # ~225 tokens, 6 dp
+        res = asyncio.run(DipScanner._execute_bot_sell_live(
+            stub, "TESTPACK", None, _mk_tp_pos(remaining=1.0), 1.0, _TP_ENTRY))
+        assert res is None
+
+    def test_zero_balance_within_buy_window_stays_open(self):
+        """Bug A: a 0-balance read 0s after buy must NOT paper-close-empty
+        (that booked the +79% fantasy). Stay open, retry."""
+        stub = _stub_with_buy(bal_atomic=0, buy_secs_ago=0.5)
+        res = asyncio.run(DipScanner._execute_bot_sell_live(
+            stub, "TESTPACK", None, _mk_tp_pos(remaining=1.0), 1.0, _TP_ENTRY))
+        assert res is None    # NOT {"empty": True}
+
+    def test_full_balance_within_buy_window_proceeds(self):
+        """A settled, correct balance inside the window must still sell — the
+        guard triggers on STALE (far-below) reads, not on legitimate ones."""
+        stub = _stub_with_buy(bal_atomic=81_198_486_522)   # the real bag
+        with pytest.raises(_SwapReached):
+            asyncio.run(DipScanner._execute_bot_sell_live(
+                stub, "TESTPACK", None, _mk_tp_pos(remaining=1.0), 1.0, _TP_ENTRY))
+
+    def test_undersell_outside_buy_window_proceeds(self):
+        """No recent buy -> a small balance is a real (mostly-sold/drained)
+        position; sell what's there rather than trap it forever."""
+        stub = _mk_live_sell_stub(bal_atomic=225_170_882, recent_sell_mono=None)
+        # no _live_buy_last_mono -> not pre-settlement
+        with pytest.raises(_SwapReached):
+            asyncio.run(DipScanner._execute_bot_sell_live(
+                stub, "TESTPACK", None, _mk_tp_pos(remaining=1.0), 1.0, _TP_ENTRY))
+
+    def test_zero_balance_no_recent_buy_closes_empty(self):
+        """Genuinely empty (no recent buy) still returns empty so the caller
+        can close — must NOT retry forever (the 2026-06-14 inflight clog)."""
+        stub = _mk_live_sell_stub(bal_atomic=0, recent_sell_mono=None)
+        res = asyncio.run(DipScanner._execute_bot_sell_live(
+            stub, "TESTPACK", None, _mk_tp_pos(remaining=1.0), 1.0, _TP_ENTRY))
+        assert res == {"empty": True}

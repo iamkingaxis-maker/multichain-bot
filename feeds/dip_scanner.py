@@ -4068,6 +4068,18 @@ class DipScanner:
         logger.info("[Probe] LIVE BUY token=%s size=$%.0f entry=%.8g slip=%s%% sig=%s",
                     token, size_usd, real_entry, instrument.get("live_slippage_pct"),
                     res.get("signature"))
+        # POST-BUY SETTLEMENT clock (TESTPACK 2026-07-07 orphan+fantasy RCA): a
+        # SELL firing seconds after this buy reads a stale/pre-settlement token
+        # balance (the bought tokens haven't landed). Two failures came from
+        # this: (A) a 0s-after-buy TP hit a 0-balance read -> paper-close-EMPTY
+        # at a glitch +79% price (fantasy paper win); (B) a 2s-after-buy sell
+        # read ~225 tokens vs 81,198 held -> sold DUST + fully closed the book
+        # while the real bag bled -58% orphaned. The sell path guards on this
+        # timestamp: within the settlement window a low/zero balance = stale ->
+        # STAY OPEN, retry (never dust-sell, never paper-close-empty).
+        if not hasattr(self, "_live_buy_last_mono"):
+            self._live_buy_last_mono = {}
+        self._live_buy_last_mono[mint] = time.monotonic()
         # COMPLETE live-swap telemetry (AFTER the fill — cannot delay the swap).
         _sol_after = None
         try:
@@ -4940,6 +4952,24 @@ class DipScanner:
                     "pre-dates the last fill; stays open, retry next tick",
                     sell_tokens, _paper_tok, token)
                 return None
+            # UNDERSELL / PRE-SETTLEMENT guard (TESTPACK 2026-07-07 orphan): a
+            # SELL within the settlement window of the BUY reads a stale,
+            # pre-settlement balance (the bought tokens haven't landed). Selling
+            # that dust and closing the book ORPHANS the real bag (bled -58%).
+            # Within the window, a balance FAR BELOW paper-expected = stale ->
+            # stay open, retry next tick (tokens land within seconds). The other
+            # half of the morning oversell guard; both directions now covered.
+            _last_buy_mono = getattr(self, "_live_buy_last_mono", {}).get(mint)
+            _settle_secs = float(os.environ.get("LIVE_SELL_SETTLE_SECS", "60") or 60)
+            _recently_bought = (_last_buy_mono is not None
+                                and time.monotonic() - _last_buy_mono < _settle_secs)
+            if (_recently_bought and _paper_tok > 0
+                    and sell_tokens < _paper_tok * 0.5):
+                logger.error(
+                    "[Probe] PRE-SETTLEMENT guard: sized %.6g tokens << 0.5x paper-expected "
+                    "%.6g within %.0fs of the BUY (%s) — balance read pre-dates settlement; "
+                    "stays open, retry next tick", sell_tokens, _paper_tok, _settle_secs, token)
+                return None
         except Exception as e:
             logger.error("[Probe] live sell sizing failed (%s): %s", token, e)
             return None
@@ -4948,6 +4978,18 @@ class DipScanner:
                 # transient read failure — leave the position OPEN to retry; never close a
                 # real position (or swap) on an RPC hiccup.
                 logger.error("[Probe] live sell balance read FAILED (%s) — stays open, retry next tick", token)
+                return None
+            # PRE-SETTLEMENT 0-balance (TESTPACK 2026-07-07 fantasy-fill): a 0
+            # read within the settlement window of the BUY is NOT a genuinely
+            # empty position — the bought tokens simply haven't landed. Booking
+            # a paper-close-EMPTY here at the current (possibly glitch) price is
+            # exactly how the +79% fantasy win got recorded. Stay open, retry.
+            _lbm = getattr(self, "_live_buy_last_mono", {}).get(mint)
+            _ss = float(os.environ.get("LIVE_SELL_SETTLE_SECS", "60") or 60)
+            if _lbm is not None and time.monotonic() - _lbm < _ss:
+                logger.error(
+                    "[Probe] PRE-SETTLEMENT 0-balance (%s) within %.0fs of the BUY — stays "
+                    "open, retry (NOT paper-close-empty at a possibly-glitch price)", token, _ss)
                 return None
             # CONFIRMED 0 on-chain: no real tokens back this position (a phantom from a
             # paper-open before an env flip, or an already-exited position). Signal the
