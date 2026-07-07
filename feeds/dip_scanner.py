@@ -1739,6 +1739,31 @@ class DipScanner:
                 logger.info("[DipScanner] bot=%s young-probe gate: skip %s (age=%s probe_bot=%s)",
                             bot_id, decision.token, _yt_age, getattr(pm.config, "young_token_probe", False))
                 return
+            # V-SNAP REJECT (2026-07-07 entry-timing fleet): the reachable held-
+            # vs-dead separator = time-shape of the bottom. Reject fast <Nmin
+            # V-snaps (still knifing); take grinds (based low). "Low age" = how
+            # long since the HL running-low was last set. FAIL-OPEN: unknown low
+            # age -> allow (never dark the lane). Config-gated per bot (0=off).
+            _vsnap_thr = float(getattr(pm.config, "vsnap_reject_min_low_age_secs", 0.0) or 0.0)
+            if _vsnap_thr > 0:
+                try:
+                    from core.adaptive_entry import vsnap_reject as _vsr
+                    _vs_addr = decision.address or self._addr_by_token.get(decision.token, "")
+                    _hlm = getattr(self, "_hl_confirm", {}) or {}
+                    _st = _hlm.get(_vs_addr) or _hlm.get((_vs_addr or "").lower())
+                    _low_age = None
+                    if _st and _st.get("low_ts") is not None:
+                        _low_age = time.monotonic() - float(_st["low_ts"])
+                    _vs_rej, _vs_why = _vsr(_low_age, _vsnap_thr)
+                    if _vs_rej:
+                        logger.info("[DipScanner] bot=%s VSNAP-REJECT skip %s (%s)",
+                                    bot_id, decision.token, _vs_why)
+                        return
+                    else:
+                        logger.info("[DipScanner] bot=%s vsnap-gate PASS %s (%s)",
+                                    bot_id, decision.token, _vs_why)
+                except Exception as _vse:
+                    logger.debug("[vsnap] gate error (fail-open): %s", _vse)
             # Young-lane HOLDER-CONCENTRATION rug guard (2026-07-03). NEVER rugged
             # -83% in 113s on the lane's first day; entry-time holder features
             # (top1>=30 OR top10>=70, LP/insiders excluded) perfectly separated the
@@ -3096,6 +3121,29 @@ class DipScanner:
         _live = should_route_live(getattr(pm.config, "live_probe", False), USE_JUPITER_ULTRA,
                                   bool(getattr(self.trader, "private_key", "")))
         _used_size = decision.size_usd
+        # ADAPTIVE SWING SIZE (2026-07-07 token-conditional decode): flex size by
+        # the token's swing profile — violent+shallow (the dead-cat gap tail)
+        # sizes DOWN, violent+deep keeps most, calm full. pc_h24/pc_h6 are always
+        # present -> never starves. Does NOT gate (fires as often as the base);
+        # pure defensive insurance vs the DONALD -27% tail. Default off.
+        if getattr(pm.config, "adaptive_swing_size", False):
+            try:
+                from core.adaptive_entry import swing_size_multiplier as _ssm
+                _asz_h24 = (getattr(bundle, "pc_h24", None)
+                            if getattr(bundle, "pc_h24", None) is not None
+                            else _ar_meta.get("pc_h24"))
+                _asz_h6 = (getattr(bundle, "pc_h6", None)
+                           if getattr(bundle, "pc_h6", None) is not None
+                           else _ar_meta.get("pc_h6"))
+                _asz_mult = _ssm(_asz_h24, _asz_h6)
+                if _asz_mult < 1.0:
+                    _asz_before = _used_size
+                    _used_size = round(_used_size * _asz_mult, 4)
+                    logger.info("[DipScanner] bot=%s adaptive-swing-size %.2fx: $%.2f->$%.2f "
+                                "(pc_h24=%s pc_h6=%s) %s", bot_id, _asz_mult, _asz_before,
+                                _used_size, _asz_h24, _asz_h6, decision.token)
+            except Exception as _asze:
+                logger.debug("[adaptive-size] error (fail-open, full size): %s", _asze)
         # Record token->address so a later SELL can recover the address if its position
         # object is gone/empty (2026-06-02 sell-join data-bug fix). Buys always have it.
         if decision.address:

@@ -461,6 +461,18 @@ class BotConfig:
     # question: does the fleet's selection edge hold on the 7x-larger set?
     pump_dip_exempt: bool = False
 
+    # ADAPTIVE ENTRY levers (2026-07-07 entry-timing fleet + token-conditional
+    # decode). adaptive_swing_size: flex position size by the token's swing
+    # profile — violent+shallow (dead-cat tail) sizes DOWN, violent+deep keeps
+    # most, calm full (core/adaptive_entry.swing_size_multiplier). Does NOT gate
+    # -> fires exactly as often as the base. vsnap_reject_min_low_age_secs: reject
+    # fast V-snaps whose recent low is younger than this many seconds (0=off);
+    # the fleet's reachable held-vs-dead separator (grinds hold, V-snaps die).
+    # FAIL-OPEN (unknown low-age never rejects). NEVER paired with
+    # hl_confirm_entry (CONFIRMED never fires — the inert-bot trap).
+    adaptive_swing_size: bool = False
+    vsnap_reject_min_low_age_secs: float = 0.0
+
     # Momentum-continuation mode (2026-06-02, #4.3). When True the bot uses a SEPARATE
     # entry path: it BYPASSES the dip-filter stack + dip triggers (which block 100% of
     # momentum candidates) and enters on the momentum entry_gate (e.g. pc_h1>=20 AND
