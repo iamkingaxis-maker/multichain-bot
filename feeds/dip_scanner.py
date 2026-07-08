@@ -7726,7 +7726,39 @@ class DipScanner:
             feed = OnchainWsFeed(get_sol_usd=lambda: getattr(self, "_last_sol_usd", 0.0))
             self._onchain_feed = feed
             # Pass the CALLABLE so the feed refresh loop sees the rotating set.
-            asyncio.create_task(feed.run(get_mints=self._onchain_hot_mints))
+            # STRUCTURAL ISOLATION (2026-07-08, ONCHAIN_WS_ISOLATED): run the feed on
+            # its OWN thread + event loop so its socket reads (per-message json/
+            # base64/curve decode of notification bursts) can NEVER block the main
+            # loop that runs detection. The feed is self-supervising (own reconnect/
+            # heartbeat/refresh) and its only main-path coupling is get_price (atomic)
+            # + get_mints (published snapshot) — both made thread-safe in step 2.
+            # Default OFF -> unchanged create_task path until the flag is flipped.
+            _iso = os.environ.get("ONCHAIN_WS_ISOLATED", "off").strip().lower() in (
+                "on", "1", "true", "yes")
+            if _iso:
+                import threading
+
+                def _run_isolated_feed():
+                    _loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(_loop)
+                    try:
+                        _loop.run_until_complete(
+                            feed.run(get_mints=self._onchain_hot_mints))
+                    except Exception as _te:
+                        logger.warning("[onchain] isolated feed thread exited: %s", _te)
+                    finally:
+                        try:
+                            _loop.close()
+                        except Exception:
+                            pass
+
+                _t = threading.Thread(target=_run_isolated_feed,
+                                      name="onchain-ws-feed", daemon=True)
+                self._onchain_thread = _t
+                _t.start()
+                logger.info("[onchain] WS feed ISOLATED on its own thread/loop")
+            else:
+                asyncio.create_task(feed.run(get_mints=self._onchain_hot_mints))
             if float(getattr(self, "_last_sol_usd", 0.0) or 0.0) <= 0:
                 logger.info("[onchain] waiting for SOL price (sol_usd=0 at spawn)")
             logger.info("[onchain] WS hot-layer spawned mode=%s subset=%d (refresh-tracking)",
