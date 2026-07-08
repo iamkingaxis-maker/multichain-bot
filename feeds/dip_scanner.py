@@ -7086,17 +7086,37 @@ class DipScanner:
                 pass
         return False
 
-    def _onchain_hot_mints(self):
-        """B4: the hot subset for the on-chain WS feed = armed set UNION the
-        open-position addresses (best-effort). The on-chain precision layer is
-        scoped to ONLY the tokens we are actively watching to fire on or hold,
-        never the whole watchlist (public-RPC sub limits)."""
+    def _compute_onchain_hot_mints(self):
+        """The live hot subset = armed set UNION open-position addresses. MUST be
+        called on the MAIN thread only (iterates the live _fast_armed /
+        open_positions_ref dicts)."""
         armed = set((getattr(self, "_fast_armed", {}) or {}).keys())
         try:
             opens = set((getattr(self, "open_positions_ref", {}) or {}).keys())
         except Exception:
             opens = set()
         return list(armed | opens)
+
+    def _publish_onchain_hot_snapshot(self):
+        """THREAD-SAFETY (2026-07-08): publish an IMMUTABLE tuple of the hot subset
+        from the MAIN thread (where the source dicts mutate), so the WS feed —
+        which may run on its own thread — reads a stable snapshot via
+        _onchain_hot_mints() and never iterates a live dict ('dict changed size'
+        race). Called wherever the armed set is rebuilt."""
+        try:
+            self._onchain_hot_snapshot = tuple(self._compute_onchain_hot_mints())
+        except Exception:
+            pass
+
+    def _onchain_hot_mints(self):
+        """B4: the hot subset for the on-chain WS feed = armed set UNION the
+        open-position addresses. Returns the main-thread-published immutable
+        snapshot (race-safe cross-thread); falls back to a live compute only
+        before the first publish (still main-thread at that point)."""
+        snap = getattr(self, "_onchain_hot_snapshot", None)
+        if snap is not None:
+            return list(snap)
+        return self._compute_onchain_hot_mints()
 
     def _append_exit_reprice_shadow(self, rec):
         """Append one EXIT-REPRICE shadow record (would-fire-on-fresh) to
@@ -7789,6 +7809,11 @@ class DipScanner:
             if pair:
                 new_armed[addr] = pair
         self._fast_armed = new_armed
+        # THREAD-SAFETY (2026-07-08): republish the immutable hot-mint snapshot for
+        # the (possibly threaded) WS feed on the SAME main-thread step that rebuilt
+        # the armed set — keeps the feed's subscription target as fresh as the armed
+        # set without the feed ever iterating this live dict.
+        self._publish_onchain_hot_snapshot()
         # Drop sample buffers for tokens no longer armed (bound memory).
         for addr in list(self._fast_samples.keys()):
             if addr not in self._fast_armed:

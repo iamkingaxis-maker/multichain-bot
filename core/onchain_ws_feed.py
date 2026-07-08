@@ -177,13 +177,18 @@ class OnchainWsFeed:
             logger.debug("[onchain-ws] handle error for %s: %s", mint, e)
 
     def get_price(self, mint):
-        """Return (usd, ts) for a mint, or None if not cached."""
+        """Return (usd, ts) for a mint, or None if not cached. THREAD-SAFE
+        (2026-07-08): single .get() instead of `in`+`[]` — the old TOCTOU could
+        raise KeyError when the feed runs on its own thread and _apply_refresh
+        prunes the cache concurrently. Cached prices are always > 0 (writer drops
+        usd<=0), so a None result unambiguously means 'not cached'."""
         if not mint:
             return None
         key = mint.lower()
-        if key in self.price_cache:
-            return (self.price_cache[key], self.ts.get(key, 0.0))
-        return None
+        usd = self.price_cache.get(key)
+        if usd is None:
+            return None
+        return (usd, self.ts.get(key, 0.0))
 
     def stop(self):
         self._stop = True
