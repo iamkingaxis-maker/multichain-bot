@@ -1,4 +1,5 @@
 aiohttp>=3.9.0,<4.0.0
+orjson>=3.9.0,<4.0.0  # GIL-releasing JSON — offload large discovery/history parse off the event loop (2026-07-08 loop-unstarve)
 solders>=0.20.0,<1.0.0
 # web3 removed 2026-06-28: Ethereum lib, never imported in the Solana runtime
 # (verified grep-clean across core/ feeds/ main.py dashboard/). Build/image only.

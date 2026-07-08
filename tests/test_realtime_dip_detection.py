@@ -29,15 +29,49 @@ def test_reprice_none_on_bad_prices():
 
 
 def test_scan_yield_every_default_is_tight(monkeypatch):
-    # The redesign tightens the cooperative-yield default from 8 to 4 so the
-    # sync sweep cannot block the loop long enough to starve a ~3s fast tick.
+    # Tightened 8 -> 4 -> 1 (2026-07-08 loop-unstarve): with read_chart no longer
+    # a single long callback, yield after EVERY token so the per-token tails cannot
+    # stack and starve the ~3s fast tick.
     monkeypatch.delenv("SCAN_YIELD_EVERY", raising=False)
     import feeds.dip_scanner as ds
-    # The default is read inline; assert the literal default in source is 4.
+    # The default is read inline; assert the literal default in source is 1.
     import inspect
     # Scan the module source for the default.
     msrc = inspect.getsource(ds)
-    assert 'os.environ.get("SCAN_YIELD_EVERY", "4")' in msrc
+    assert 'os.environ.get("SCAN_YIELD_EVERY", "1")' in msrc
+
+
+def test_read_chart_yields_between_phases():
+    # LOOP-UNSTARVE (2026-07-08): read_chart is async but its only await is skipped
+    # when pre-fetched chart_data is passed, so its pure-Python analysis phases must
+    # yield between themselves or one call blocks the loop (was the 48s stall). Guard
+    # the cooperative yields against silent removal.
+    import inspect
+    import feeds.chart_reader as cr
+    src = inspect.getsource(cr.read_chart)
+    assert src.count("await asyncio.sleep(0)") >= 5, \
+        "read_chart lost its between-phase cooperative yields (loop-unstarve regression)"
+
+
+def test_fetch_candidates_offloads_discovery_parse():
+    # LOOP-UNSTARVE (2026-07-08): the large gzipped discovery/enrich responses must
+    # NOT be decompressed+parsed on the event loop (was the ~9s _read_ready block).
+    # identity encoding kills on-loop decompress; orjson-in-a-thread frees the parse.
+    import inspect
+    import feeds.dip_scanner as ds
+    src = inspect.getsource(ds.DipScanner._fetch_candidates)
+    assert '"identity"' in src, "discovery fetch lost Accept-Encoding: identity"
+    assert "to_thread(_fast_loads" in src, "discovery parse no longer offloaded to a thread"
+
+
+def test_h24_history_save_is_offloaded():
+    # LOOP-UNSTARVE (2026-07-08): the once-per-cycle history dump must serialize+write
+    # off-loop (was a synchronous json.dump of a large dict on the loop).
+    import inspect
+    import feeds.dip_scanner as ds
+    src = inspect.getsource(ds.DipScanner._save_h24_history)
+    assert "async def" in src, "_save_h24_history must be async to offload its write"
+    assert "to_thread" in src, "_save_h24_history no longer offloads serialize+write"
 
 
 def test_rt_mode_env_default(monkeypatch):

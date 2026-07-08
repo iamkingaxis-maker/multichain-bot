@@ -19,6 +19,26 @@ import json
 import logging
 import os
 import time
+
+# GIL-releasing JSON (2026-07-08 loop-unstarve): orjson releases the GIL during
+# parse/serialize, so `await asyncio.to_thread(_fast_loads, ...)` actually frees
+# the event loop (stdlib json holds the GIL — threading it is useless). Falls
+# back to stdlib json if orjson is unavailable (then to_thread is a no-op win but
+# still correct). _fast_dumps returns bytes.
+try:
+    import orjson as _orjson
+
+    def _fast_loads(_b):
+        return _orjson.loads(_b)
+
+    def _fast_dumps(_o):
+        return _orjson.dumps(_o)
+except Exception:  # pragma: no cover - orjson missing
+    def _fast_loads(_b):
+        return json.loads(_b)
+
+    def _fast_dumps(_o):
+        return json.dumps(_o).encode("utf-8")
 from datetime import datetime, timezone
 import aiohttp
 from collections import Counter, deque, OrderedDict
@@ -24336,9 +24356,12 @@ class DipScanner:
             # bursts. Decision logic / order / cap-break are byte-identical; this only
             # interleaves. Disable via SCAN_YIELD_EVERY=0.
             try:
-                _yield_every = int(os.environ.get("SCAN_YIELD_EVERY", "4"))
+                # LOOP-UNSTARVE (2026-07-08): yield after EVERY token (was 4). With
+                # read_chart no longer a single 48s callback, the residual per-token
+                # tails are what stack between breaths — yield every one.
+                _yield_every = int(os.environ.get("SCAN_YIELD_EVERY", "1"))
             except (TypeError, ValueError):
-                _yield_every = 8
+                _yield_every = 1
             # Phase timing: bracket the whole serial per-token loop AND track the
             # single slowest _evaluate_pair so we can tell "one slow token" from
             # "the loop total is slow". Cheap monotonic diffs only.
@@ -24490,7 +24513,7 @@ class DipScanner:
         # filter survives process restarts.
         if self._h24_history_dirty:
             with _PhaseTimer("save_h24_history"):
-                self._save_h24_history()
+                await self._save_h24_history()
             self._h24_history_dirty = False
 
         # RAM control (2026-06-28): throttled TTL/LRU eviction of unbounded
@@ -24956,19 +24979,27 @@ class DipScanner:
             logger.warning(f"[DipScanner] Could not load h24_history.json: {e}")
             self._h24_history = {}
 
-    def _save_h24_history(self) -> None:
-        """Write history atomically (tmp + rename) in 4-tuple format."""
+    async def _save_h24_history(self) -> None:
+        """Write history atomically (tmp + rename) in 4-tuple format. LOOP-UNSTARVE
+        (2026-07-08): the payload build is a fast on-loop snapshot (copies the data,
+        so it's race-safe to hand to a thread); the serialize + file write run
+        OFF-loop via to_thread so this once-per-cycle dump never blocks the loop."""
         try:
             os.makedirs(os.path.dirname(self._h24_history_path), exist_ok=True)
             tmp_path = self._h24_history_path + ".tmp"
+            final_path = self._h24_history_path
             payload: Dict[str, List[list]] = {
                 addr: [[ts, h24, h1, h6] for ts, h24, h1, h6 in dq]
                 for addr, dq in self._h24_history.items()
                 if dq  # drop empty deques
             }
-            with open(tmp_path, "w") as f:
-                json.dump(payload, f)
-            os.replace(tmp_path, self._h24_history_path)
+
+            def _write():
+                with open(tmp_path, "wb") as f:
+                    f.write(_fast_dumps(payload))   # orjson -> bytes
+                os.replace(tmp_path, final_path)
+
+            await asyncio.to_thread(_write)
         except Exception as e:
             logger.warning(f"[DipScanner] Could not save h24_history.json: {e}")
 
@@ -25030,7 +25061,15 @@ class DipScanner:
         Returns (pairs, source_counts) where source_counts breaks down the
         origin of each token so the cycle log shows where they came from.
         """
-        headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
+        # LOOP-UNSTARVE (2026-07-08): the discovery/enrich responses are large and
+        # gzipped; aiohttp's r.json() decompresses (on the loop, in _read_ready) AND
+        # parses (GIL-held) synchronously = the measured ~9s loop block. Fix, two
+        # decision-neutral moves: (a) Accept-Encoding: identity -> server sends
+        # UNCOMPRESSED so there is NO on-loop gzip decompress (inbound bandwidth,
+        # which Railway does not bill, rises); (b) read the body (awaited) then parse
+        # in a thread with orjson (GIL-releasing) so the parse frees the loop too.
+        headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json",
+                   "Accept-Encoding": "identity"}
         pair_by_addr: dict = {}
         source_by_addr: dict = {}
 
@@ -25040,7 +25079,10 @@ class DipScanner:
                                        timeout=aiohttp.ClientTimeout(total=15)) as r:
                     if r.status != 200:
                         return None
-                    return await r.json()
+                    body = await r.read()          # awaited; identity => no on-loop decompress
+                    if not body:
+                        return None
+                    return await asyncio.to_thread(_fast_loads, body)  # off-loop parse (orjson)
             except Exception:
                 return None
 
