@@ -445,6 +445,13 @@ class OnchainWsFeed:
                     ping_interval=20,
                     ping_timeout=20,
                     max_queue=None,
+                    # LOOP-UNSTARVE (2026-07-08): DISABLE permessage-deflate. The
+                    # websockets lib inflates compressed frames SYNCHRONOUSLY inside
+                    # data_received/_read_ready; a market-wide burst of account
+                    # notifications then inflates+parses in one callback = the ~9.5s
+                    # loop freeze that starves detection. Uncompressed frames cost
+                    # more inbound bandwidth (not billed) but zero on-loop inflate.
+                    compression=None,
                 ) as ws:
                     backoff = 1.0  # reset on a successful connect
                     sub_id_to_pda = await self._subscribe_chunk(ws, mint_chunk)
