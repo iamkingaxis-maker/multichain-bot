@@ -10554,6 +10554,25 @@ class DipScanner:
                     "rt_secs_since_last": round(rt_secs_since_last, 1),
                 }
 
+            # RETRACE MICRO-STRUCTURE (2026-07-09 wiring fix): compute HERE, where
+            # recent_trades is FINAL on BOTH paths (main scan AND the fast-watch
+            # path, whose RT_DEMAND fresh-fetch replaces recent_trades above) —
+            # the original tier3-block site was skipped by fast-watch fires, so
+            # only ~15% of booked buys carried the signal. Unconditional: with
+            # zero/few trades the module fail-opens (block=False) but the keys
+            # are PRESENT, so coverage is 100% and 'absent' no longer aliases
+            # 'not computed'. Merged into entry_meta via recent_trades_features.
+            try:
+                from core.retrace_microstructure import retrace_micro_eval as _rme2
+                _rm2 = _rme2(recent_trades or [], time.time())
+                recent_trades_features["retrace_micro_avoid_block"] = _rm2["avoid_block"]
+                recent_trades_features["retrace_micro_flow_confirm"] = _rm2["flow_confirm"]
+                recent_trades_features["retrace_micro_sell_rate_60"] = _rm2["sell"].get("sell_rate_60")
+                recent_trades_features["retrace_micro_sell_traj"] = _rm2["sell"].get("sell_traj")
+                recent_trades_features["retrace_micro_cum_nf_60"] = _rm2["flow"].get("cum_nf_60")
+            except Exception as _rme2_e:
+                logger.debug("[retrace-micro] compute error (wiring site): %s", _rme2_e)
+
             # Batch 1 entry-meta — anything dip_scanner has at this moment that's
             # nice-to-have for analysis but doesn't merit its own Position field.
             pair_age_hours = (now_ms - created_ms) / 3_600_000 if created_ms > 0 else 0.0
@@ -12476,22 +12495,9 @@ class DipScanner:
                     # TRADE-derived — ALWAYS fresh (net_flow = the nf15 demand gate):
                     _tier3_features.update(compute_freq_derivative(recent_trades or []))
                     _tier3_features.update(compute_net_flow_windows(recent_trades or []))
-                    # RETRACE MICRO-STRUCTURE (2026-07-09 on-chain fleet): the
-                    # separator between a retrace that RESUMES and a distribution
-                    # TOP. Step B (sell-side distribution) = the shippable AVOID
-                    # block; Step C (net-flow persistence) = shadow corroborator.
-                    # Computed here where recent_trades is fresh; ref = now (we fire
-                    # on the dip). Consumed at the entry gate. Fail-open.
-                    try:
-                        from core.retrace_microstructure import retrace_micro_eval as _rme
-                        _rm = _rme(recent_trades or [], time.time())
-                        _tier3_features["retrace_micro_avoid_block"] = _rm["avoid_block"]
-                        _tier3_features["retrace_micro_flow_confirm"] = _rm["flow_confirm"]
-                        _tier3_features["retrace_micro_sell_rate_60"] = _rm["sell"].get("sell_rate_60")
-                        _tier3_features["retrace_micro_sell_traj"] = _rm["sell"].get("sell_traj")
-                        _tier3_features["retrace_micro_cum_nf_60"] = _rm["flow"].get("cum_nf_60")
-                    except Exception as _rme_e:
-                        logger.debug("[retrace-micro] compute error: %s", _rme_e)
+                    # (retrace-micro compute moved to the recent_trades_features
+                    # site, 2026-07-09 — this tier3 block is SKIPPED on fast-watch
+                    # fires, which is where most buys happen; see wiring fix.)
                     _grad_status = (_graduation_dict or {}).get("graduation_status", "?")
                     _tier3_features.update(
                         compute_hours_since_grad(_grad_status, pair_age_hours)
