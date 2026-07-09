@@ -2,7 +2,7 @@
   "age_h_max": null,
   "age_h_min": 0.5,
   "alpha_multiplier": 1.0,
-  "base_position_usd": 100.0,
+  "base_position_usd": 25.0,
   "bot_id": "badday_young_rt",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 40.0,
@@ -89,5 +89,6 @@
   "liq_exit_floor_enforce": true,
   "adaptive_swing_size": true,
   "min_liquidity_usd": 30000.0,
-  "retrace_micro_avoid": true
+  "retrace_micro_avoid": true,
+  "live_probe": true
 }

@@ -313,11 +313,18 @@ def test_no_enabled_live_probe_bot():
     # 2026-07-05: young T1 probe sanctioned — AxiS explicit GO ("probe now
     # then"). badday_young_absorb_live: $25 x2 slots, $25 daily kill,
     # fail-closed demand gates (twin parity verified at flip time).
+    # 2026-07-09: badday_young_rt sanctioned — AxiS explicit GO ("live probe it
+    # now"). Real-time-native full stack ($25 x2, adaptive-size, liq>=30k floor,
+    # retrace-micro AVOID): only candidate with POSITIVE lifetime token-median
+    # (+6.55%) and bounded worst (-30.5%); n=8 distinct, thin-n accepted
+    # explicitly. badday_young_absorb_live simultaneously DISABLED so exactly
+    # one probe routes money.
     INTENDED_LIVE = {"badday_fill_probe_live",
                      "badday_flush_nf15_live",
                      "badday_flush_conviction_live", "badday_flush_live",
                      "deepflush_timebox_live", "timebox_probe_5mgreen_live",
-                     "badday_young_absorb_live"}
+                     "badday_young_absorb_live",
+                     "badday_young_rt"}
     offenders = []
     for p in glob.glob("config/bots/*.json"):
         c = BotConfig.from_json(p)
