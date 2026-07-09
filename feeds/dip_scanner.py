@@ -1902,6 +1902,16 @@ class DipScanner:
                         "BLOCK" if _ar_mode != "shadow" else "SHADOW-would-block", _ar_liq, decision.token)
             if _ar_mode != "shadow":
                 return
+        # ── Per-bot MIN-LIQUIDITY floor (2026-07-09 strategy re-opt, #2 lever) ────
+        # A hard liq floor lifts WR ~+10-12pp AND cuts entry slippage (deeper books
+        # = less friction). Per-bot (min_liquidity_usd); reuses the anti-rug liq
+        # read. FAIL-OPEN on unknown liq (young cached liq unreliable — never dark
+        # the lane on missing data). Applies only when liq is known and below floor.
+        _mlq_floor = float(getattr(pm.config, "min_liquidity_usd", 0.0) or 0.0)
+        if _mlq_floor > 0 and isinstance(_ar_liq, (int, float)) and 0 < _ar_liq < _mlq_floor:
+            logger.info("[DipScanner] bot=%s MIN-LIQ-FLOOR skip %s: liq=$%.0f < $%.0f",
+                        bot_id, decision.token, _ar_liq, _mlq_floor)
+            return
         # ── Negative gate: suppress falling-knife DIP entries in a SOL-pump (#433) ─
         # Dip-buying INVERTS in euphoria (forward WR 0.42 / ~-$341 = the window bleed):
         # a token down hard while SOL pumps is falling on idiosyncratic weakness, not a

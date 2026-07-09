@@ -473,6 +473,14 @@ class BotConfig:
     adaptive_swing_size: bool = False
     vsnap_reject_min_low_age_secs: float = 0.0
 
+    # min_liquidity_usd (2026-07-09 strategy re-opt): per-bot hard entry liquidity
+    # floor. The strategy fleet's #2 lever — a $40k floor lifts WR ~+10-12pp AND
+    # cuts entry slippage (deeper books = less friction, the one lever that attacks
+    # both edges). 0 = off. Fail-OPEN on unknown liq (young cached liq is
+    # unreliable; never dark the lane on missing data). Distinct from the anti-rug
+    # 25k floor (rug-pocket) and liq_exit_floor (exit-cleanliness).
+    min_liquidity_usd: float = 0.0
+
     # Momentum-continuation mode (2026-06-02, #4.3). When True the bot uses a SEPARATE
     # entry path: it BYPASSES the dip-filter stack + dip triggers (which block 100% of
     # momentum candidates) and enters on the momentum entry_gate (e.g. pc_h1>=20 AND
