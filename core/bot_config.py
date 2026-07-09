@@ -473,6 +473,14 @@ class BotConfig:
     adaptive_swing_size: bool = False
     vsnap_reject_min_low_age_secs: float = 0.0
 
+    # retrace_micro_avoid (2026-07-09 on-chain retrace-vs-top fleet): when True,
+    # BLOCK entries whose on-chain trade flow shows sell-side DISTRIBUTION into the
+    # low (heavy + accelerating sells = a top, not a retrace that resumes) — the
+    # one CONFIRMED forward-only whale-robust survivor. Pure skip rule (worst case:
+    # pass on some continuations). The net-flow-persistence corroborator is
+    # SHADOW-only (logged, never blocks) regardless of this flag. Default off.
+    retrace_micro_avoid: bool = False
+
     # min_liquidity_usd (2026-07-09 strategy re-opt): per-bot hard entry liquidity
     # floor. The strategy fleet's #2 lever — a $40k floor lifts WR ~+10-12pp AND
     # cuts entry slippage (deeper books = less friction, the one lever that attacks

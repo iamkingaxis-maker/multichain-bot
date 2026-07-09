@@ -1912,6 +1912,23 @@ class DipScanner:
             logger.info("[DipScanner] bot=%s MIN-LIQ-FLOOR skip %s: liq=$%.0f < $%.0f",
                         bot_id, decision.token, _ar_liq, _mlq_floor)
             return
+        # ── RETRACE MICRO-STRUCTURE gate (2026-07-09 on-chain fleet) ─────────────
+        # Separator between a retrace that RESUMES and a distribution TOP. Signal
+        # computed upstream (retrace_micro_* in raw_meta). Step B (sell distribution)
+        # is the CONFIRMED hard block when retrace_micro_avoid is set; Step C
+        # (flow persistence) is SHADOW only. ALWAYS log for the shadow study.
+        _rm_block = _ar_meta.get("retrace_micro_avoid_block")
+        _rm_conf = _ar_meta.get("retrace_micro_flow_confirm")
+        if _rm_block is not None:  # signal was computable this eval
+            logger.info("[DipScanner] bot=%s RETRACE-MICRO %s %s (sell_rate=%s traj=%s "
+                        "cum_nf=%s flow_confirm=%s)", bot_id,
+                        ("AVOID-BLOCK" if (_rm_block and getattr(pm.config, "retrace_micro_avoid", False))
+                         else ("SHADOW-would-avoid" if _rm_block else "pass")),
+                        decision.token, _ar_meta.get("retrace_micro_sell_rate_60"),
+                        _ar_meta.get("retrace_micro_sell_traj"),
+                        _ar_meta.get("retrace_micro_cum_nf_60"), _rm_conf)
+            if _rm_block and getattr(pm.config, "retrace_micro_avoid", False):
+                return
         # ── Negative gate: suppress falling-knife DIP entries in a SOL-pump (#433) ─
         # Dip-buying INVERTS in euphoria (forward WR 0.42 / ~-$341 = the window bleed):
         # a token down hard while SOL pumps is falling on idiosyncratic weakness, not a
@@ -12430,6 +12447,22 @@ class DipScanner:
                     # TRADE-derived — ALWAYS fresh (net_flow = the nf15 demand gate):
                     _tier3_features.update(compute_freq_derivative(recent_trades or []))
                     _tier3_features.update(compute_net_flow_windows(recent_trades or []))
+                    # RETRACE MICRO-STRUCTURE (2026-07-09 on-chain fleet): the
+                    # separator between a retrace that RESUMES and a distribution
+                    # TOP. Step B (sell-side distribution) = the shippable AVOID
+                    # block; Step C (net-flow persistence) = shadow corroborator.
+                    # Computed here where recent_trades is fresh; ref = now (we fire
+                    # on the dip). Consumed at the entry gate. Fail-open.
+                    try:
+                        from core.retrace_microstructure import retrace_micro_eval as _rme
+                        _rm = _rme(recent_trades or [], time.time())
+                        _tier3_features["retrace_micro_avoid_block"] = _rm["avoid_block"]
+                        _tier3_features["retrace_micro_flow_confirm"] = _rm["flow_confirm"]
+                        _tier3_features["retrace_micro_sell_rate_60"] = _rm["sell"].get("sell_rate_60")
+                        _tier3_features["retrace_micro_sell_traj"] = _rm["sell"].get("sell_traj")
+                        _tier3_features["retrace_micro_cum_nf_60"] = _rm["flow"].get("cum_nf_60")
+                    except Exception as _rme_e:
+                        logger.debug("[retrace-micro] compute error: %s", _rme_e)
                     _grad_status = (_graduation_dict or {}).get("graduation_status", "?")
                     _tier3_features.update(
                         compute_hours_since_grad(_grad_status, pair_age_hours)
