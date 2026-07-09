@@ -481,6 +481,15 @@ class BotConfig:
     # SHADOW-only (logged, never blocks) regardless of this flag. Default off.
     retrace_micro_avoid: bool = False
 
+    # lp_rug_tp1_full (2026-07-09 CLOPY autopsy, AxiS "ship it"): when True and
+    # the ENTRY carried the LP-drain rug flag (lp_event_verdict=REMOVE_15MIN AND
+    # lp_delta_15m_pct<=-15 — present at every doomed CLOPY -98.6% entry), TP1
+    # sells 100% instead of tp1_sell_fraction. Rug INSURANCE with ~-0.3pp carry
+    # that pays ~+26pp/position on a CLOPY-class hit. Exit-side only — the
+    # entry-veto (56% winner-kill) and size-derate (kills fat-tail winners)
+    # variants were adversarially REFUTED. Default off.
+    lp_rug_tp1_full: bool = False
+
     # min_liquidity_usd (2026-07-09 strategy re-opt): per-bot hard entry liquidity
     # floor. The strategy fleet's #2 lever — a $40k floor lifts WR ~+10-12pp AND
     # cuts entry slippage (deeper books = less friction, the one lever that attacks

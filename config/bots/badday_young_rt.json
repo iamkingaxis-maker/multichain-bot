@@ -90,5 +90,6 @@
   "adaptive_swing_size": true,
   "min_liquidity_usd": 30000.0,
   "retrace_micro_avoid": true,
-  "live_probe": true
+  "live_probe": true,
+  "lp_rug_tp1_full": true
 }

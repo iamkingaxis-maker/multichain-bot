@@ -115,6 +115,25 @@ def net_flow_persistence(trades, ref_ts,
                        else "inflow insufficient/not persistent")}
 
 
+def lp_rug_flag(meta) -> bool:
+    """LP-drain rug flag (2026-07-09 CLOPY autopsy fleet). True when the entry
+    meta shows LP was PULLED in the last 15 min: lp_event_verdict==REMOVE_15MIN
+    AND lp_delta_15m_pct <= -15. This signal was present at every doomed CLOPY
+    entry (-98.6% rug). Consumed as EXIT insurance only (TP1 sells 100% instead
+    of 75% on flagged positions) — the entry-veto and size-derate variants were
+    adversarially REFUTED (56% winner-kill / kills fat-tail winners). Pure;
+    fail-CLOSED to False on missing/malformed meta (no flag = normal exits)."""
+    try:
+        if not meta:
+            return False
+        if str(meta.get("lp_event_verdict", "")).upper() != "REMOVE_15MIN":
+            return False
+        d = meta.get("lp_delta_15m_pct")
+        return isinstance(d, (int, float)) and float(d) <= -15.0
+    except Exception:
+        return False
+
+
 def retrace_micro_eval(trades, ref_ts,
                        sell_rate_min: float = 18.0, traj_min: float = 1.0,
                        cum_min: float = 300.0, min_pos_subwins: int = 2) -> Dict[str, Any]:

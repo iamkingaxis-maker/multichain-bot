@@ -958,10 +958,19 @@ class PerBotPositionManager:
                 if (bool(getattr(self.config, "peel_exit", False))
                         and pnl_pct < float(getattr(self.config, "peel_threshold_pct", 12.0) or 12.0)):
                     p.state_blob["peel_active"] = True
+            # LP-RUG EXIT INSURANCE (2026-07-09 CLOPY autopsy): entries stamped
+            # lp_rug_flag (LP pulled 15min pre-entry) sell 100% at TP1 — take the
+            # whole win early on rug-flagged tokens instead of leaving a 25%
+            # runner on a dying pool. state_blob persists -> restore-safe.
+            _tp1_frac = self.config.tp1_sell_fraction
+            _tp1_note = ""
+            if (p.state_blob or {}).get("lp_rug_flag"):
+                _tp1_frac = 1.0
+                _tp1_note = " [lp-rug: full exit]"
             decisions.append(ExitDecision(
                 token=token, kind="TP1",
-                reason=f"TP1 pnl={pnl_pct:.2f}% >= {self.config.tp1_pct}",
-                sell_fraction=self.config.tp1_sell_fraction,
+                reason=f"TP1 pnl={pnl_pct:.2f}% >= {self.config.tp1_pct}{_tp1_note}",
+                sell_fraction=_tp1_frac,
             ))
 
         # 5. TP2 (skipped while a PEEL runner is active — no cap on the tail)

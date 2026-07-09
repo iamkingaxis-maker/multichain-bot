@@ -72,6 +72,61 @@ class TestCombine:
         assert "avoid_block" in r and "flow_confirm" in r and "sell" in r
 
 
+class TestLpRugFlag:
+    def test_clopy_class_flags(self):
+        from core.retrace_microstructure import lp_rug_flag
+        # the exact CLOPY entry signature (-98.6% rug)
+        assert lp_rug_flag({"lp_event_verdict": "REMOVE_15MIN",
+                            "lp_delta_15m_pct": -18.834}) is True
+
+    def test_threshold_boundary(self):
+        from core.retrace_microstructure import lp_rug_flag
+        assert lp_rug_flag({"lp_event_verdict": "REMOVE_15MIN",
+                            "lp_delta_15m_pct": -15.0}) is True
+        assert lp_rug_flag({"lp_event_verdict": "REMOVE_15MIN",
+                            "lp_delta_15m_pct": -14.9}) is False
+
+    def test_wrong_verdict_no_flag(self):
+        from core.retrace_microstructure import lp_rug_flag
+        assert lp_rug_flag({"lp_event_verdict": "ADD_15MIN",
+                            "lp_delta_15m_pct": -50}) is False
+        assert lp_rug_flag({"lp_delta_15m_pct": -50}) is False
+
+    def test_missing_meta_fail_closed(self):
+        from core.retrace_microstructure import lp_rug_flag
+        assert lp_rug_flag({}) is False
+        assert lp_rug_flag(None) is False
+        assert lp_rug_flag({"lp_event_verdict": "REMOVE_15MIN",
+                            "lp_delta_15m_pct": None}) is False
+
+
+class TestLpRugTp1FullExit:
+    def _pm(self):
+        from core.bot_config import BotConfig
+        from core.per_bot_position_manager import PerBotPositionManager
+        cfg = BotConfig(bot_id="t", display_name="t", tp1_pct=5.0,
+                        tp1_sell_fraction=0.75)
+        return PerBotPositionManager(cfg)
+
+    def test_flagged_position_sells_100_at_tp1(self):
+        pm = self._pm()
+        p = pm.open_position(token="X", entry_price=1.0, size_usd=25.0,
+                             entry_time=0.0, address="a1")
+        p.state_blob["lp_rug_flag"] = True
+        d = pm.tick(token="X", current_price=1.06, now=10.0, vol_m5_usd=1000)
+        tp1 = [x for x in d if x.kind == "TP1"]
+        assert tp1 and tp1[0].sell_fraction == 1.0
+        assert "lp-rug" in tp1[0].reason
+
+    def test_unflagged_position_sells_config_fraction(self):
+        pm = self._pm()
+        pm.open_position(token="Y", entry_price=1.0, size_usd=25.0,
+                         entry_time=0.0, address="a2")
+        d = pm.tick(token="Y", current_price=1.06, now=10.0, vol_m5_usd=1000)
+        tp1 = [x for x in d if x.kind == "TP1"]
+        assert tp1 and tp1[0].sell_fraction == 0.75
+
+
 class TestEpoch:
     def test_iso_and_epoch(self):
         assert abs(_epoch(1000.0) - 1000.0) < 1e-6

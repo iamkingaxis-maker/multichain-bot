@@ -3427,6 +3427,18 @@ class DipScanner:
             eff_entry = _r["entry_price"]
             slip_pct = _r["slip_pct"]
             _live_instrument = _r["instrument"]
+            # LP-RUG EXIT INSURANCE (2026-07-09): stamp flagged entries so TP1
+            # sells 100% (state_blob persists across restarts -> restore-safe).
+            try:
+                if getattr(pm.config, "lp_rug_tp1_full", False):
+                    from core.retrace_microstructure import lp_rug_flag as _lprf
+                    if _lprf(_ar_meta):
+                        _pos.state_blob["lp_rug_flag"] = True
+                        logger.info("[DipScanner] bot=%s LP-RUG-FLAG stamped %s "
+                                    "(REMOVE_15MIN lp_delta_15m=%s) -> TP1 sells 100%%",
+                                    bot_id, decision.token, _ar_meta.get("lp_delta_15m_pct"))
+            except Exception:
+                pass
             _epg_key = self._price_key(decision.address, decision.pair_address, decision.token)
             self._exit_price_guard.setdefault(
                 _epg_key, {"last_good": eff_entry, "pending": None},
@@ -3669,6 +3681,17 @@ class DipScanner:
                     pair_address=decision.pair_address,
                 )
                 _pos.state_blob["slip_pct"] = slip_pct
+                # LP-RUG EXIT INSURANCE (2026-07-09): paper twin of the live stamp
+                # (parity — the flag drives TP1 frac=1.0 on flagged entries).
+                try:
+                    if getattr(pm.config, "lp_rug_tp1_full", False):
+                        from core.retrace_microstructure import lp_rug_flag as _lprf2
+                        if _lprf2(_ar_meta):
+                            _pos.state_blob["lp_rug_flag"] = True
+                            logger.info("[DipScanner] bot=%s LP-RUG-FLAG stamped %s "
+                                        "(paper) -> TP1 sells 100%%", bot_id, decision.token)
+                except Exception:
+                    pass
                 # Chameleon tune attribution (2026-06-12 gap hunt): stamp the
                 # geometry this position was OPENED under, so each sell is
                 # judgeable per-tune (which archetype's geometry earned what).
@@ -7617,7 +7640,11 @@ class DipScanner:
                         continue
                     if not getattr(p, "address", "") or getattr(p, "entry_price", 0) <= 0:
                         continue
-                    scoped.append((bot_id, pm, p, tp1, frac))
+                    # LP-RUG EXIT INSURANCE (2026-07-09): flagged entries sell
+                    # 100% at TP1 on the fastfill path too (mirror of the tick).
+                    _p_frac = 1.0 if (getattr(p, "state_blob", None) or {}).get(
+                        "lp_rug_flag") else frac
+                    scoped.append((bot_id, pm, p, tp1, _p_frac))
         except Exception as e:
             logger.debug("[tp1-fastfill] enumerate opens failed: %s", e)
             return
