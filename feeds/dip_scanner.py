@@ -3224,9 +3224,38 @@ class DipScanner:
             _lb_l2a = ((float(_lb_lowts) - float(_lb_armw))
                        if (_lb_armw is not None and _lb_lowts is not None) else None)
             _lb_a2d = (_lb_now - float(_lb_armw)) if _lb_armw is not None else None
-            logger.info("[LATENCY-BREAKDOWN] bot=%s %s low->decision=%s | armed_for=%s "
-                        "low_since_arm=%s | decision->fill=~1.5s(swaplog)",
+            # DETECTION->DECISION (2026-07-09, AxiS "full start-to-finish time"):
+            # the age of the FRESHEST price we acted on, at the decision instant.
+            # Freshest of (a) the fast-poll sample stamp (_fast_samples_ts, wall)
+            # and (b) the on-chain WS tick ts (wall). This is the true detection
+            # leg — universal (no HL dependence). Stamped into raw_meta so every
+            # trade's entry_meta carries the full chain permanently:
+            #   detect(price_age) -> decision -> fire -> fill (swap log).
+            _lb_page = None
+            try:
+                _pts = (getattr(self, "_fast_samples_ts", {}) or {}).get(_lb_addr)
+                _feed = getattr(self, "_onchain_feed", None)
+                _wst = None
+                if _feed is not None:
+                    _got = _feed.get_price(_lb_addr)
+                    if _got:
+                        _wst = _got[1]
+                _fresh_ts = max([t for t in (_pts, _wst) if t], default=None)
+                if _fresh_ts:
+                    _lb_page = max(0.0, _lb_now - float(_fresh_ts))
+            except Exception:
+                pass
+            try:
+                _ar_meta["latency_price_age_secs"] = (
+                    round(_lb_page, 2) if _lb_page is not None else None)
+                _ar_meta["latency_decision_epoch"] = round(_lb_now, 3)
+            except Exception:
+                pass
+            logger.info("[LATENCY-BREAKDOWN] bot=%s %s detect(price_age)=%s | "
+                        "low->decision=%s | armed_for=%s low_since_arm=%s | "
+                        "decision->fill=swaplog",
                         bot_id, decision.token,
+                        ("%.1fs" % _lb_page) if _lb_page is not None else "n/a",
                         ("%.1fs" % _lb_lowage) if _lb_lowage is not None else "n/a",
                         ("%.1fs" % _lb_a2d) if _lb_a2d is not None else "n/a",
                         ("%.1fs" % _lb_l2a) if _lb_l2a is not None else "n/a")
