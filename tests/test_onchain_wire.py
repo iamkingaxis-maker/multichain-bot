@@ -188,3 +188,111 @@ def test_off_does_not_spawn_onchain_feed(monkeypatch):
     asyncio.run(s._maybe_spawn_onchain_feed())
     assert called["n"] == 0           # off -> never constructed
     assert s._onchain_feed is None
+
+
+# --- task #493: WS-MIGRATED shadow logging + enforce serving ------------------
+
+class _FakeAmmFeed(_FakeFeed):
+    """_FakeFeed + a migrated-token AMM cache (get_amm_price)."""
+
+    def __init__(self):
+        super().__init__()
+        self.amm_price_cache = {}
+        self.amm_ts = {}
+
+    def seed_amm(self, mint, usd, ts):
+        self.amm_price_cache[mint.lower()] = usd
+        self.amm_ts[mint.lower()] = ts
+
+    def get_amm_price(self, mint):
+        if not mint:
+            return None
+        k = mint.lower()
+        if k in self.amm_price_cache:
+            return (self.amm_price_cache[k], self.amm_ts.get(k, 0.0))
+        return None
+
+
+def test_ws_migrated_shadow_logs_and_uses_jupiter(monkeypatch, caplog):
+    monkeypatch.setenv("ONCHAIN_WS_MODE", "shadow")
+    monkeypatch.setenv("ONCHAIN_WS_MIGRATED_MODE", "shadow")
+    s = _bare_scanner()
+    f = _FakeAmmFeed()
+    f.seed_amm("MiGmInT", 2.0, time.time())   # fresh AMM price, no curve price
+    s._onchain_feed = f
+    with caplog.at_level(logging.INFO):
+        price, src = s._fast_price_for("MiGmInT", 1.0)
+    assert price == 1.0 and src == "jupiter"          # NEVER served in shadow
+    msgs = [r.getMessage() for r in caplog.records]
+    assert any("WS-MIGRATED shadow" in m for m in msgs)
+    assert any("diff_pct=100.000" in m for m in msgs)  # (2-1)/1 = +100%
+
+
+def test_ws_migrated_mode_off_no_shadow_log(monkeypatch, caplog):
+    monkeypatch.setenv("ONCHAIN_WS_MODE", "shadow")
+    monkeypatch.delenv("ONCHAIN_WS_MIGRATED_MODE", raising=False)  # default off
+    s = _bare_scanner()
+    f = _FakeAmmFeed()
+    f.seed_amm("MiGmInT", 2.0, time.time())
+    s._onchain_feed = f
+    with caplog.at_level(logging.INFO):
+        price, src = s._fast_price_for("MiGmInT", 1.0)
+    assert price == 1.0 and src == "jupiter"
+    assert not any("WS-MIGRATED shadow" in r.getMessage() for r in caplog.records)
+
+
+def test_ws_migrated_shadow_stale_amm_no_log(monkeypatch, caplog):
+    monkeypatch.setenv("ONCHAIN_WS_MODE", "shadow")
+    monkeypatch.setenv("ONCHAIN_WS_MIGRATED_MODE", "shadow")
+    s = _bare_scanner()
+    f = _FakeAmmFeed()
+    f.seed_amm("MiGmInT", 2.0, time.time() - 100.0)   # stale
+    s._onchain_feed = f
+    with caplog.at_level(logging.INFO):
+        price, src = s._fast_price_for("MiGmInT", 1.0)
+    assert price == 1.0 and src == "jupiter"
+    assert not any("WS-MIGRATED shadow" in r.getMessage() for r in caplog.records)
+
+
+def test_ws_migrated_shadow_feed_without_amm_api_safe(monkeypatch, caplog):
+    # Older/fake feed without get_amm_price must not break the price path.
+    monkeypatch.setenv("ONCHAIN_WS_MODE", "shadow")
+    monkeypatch.setenv("ONCHAIN_WS_MIGRATED_MODE", "shadow")
+    s = _bare_scanner()
+    f = _FakeFeed()
+    f.seed("AAA", 2.0, time.time())
+    s._onchain_feed = f
+    with caplog.at_level(logging.INFO):
+        price, src = s._fast_price_for("AAA", 1.0)
+    assert price == 1.0 and src == "jupiter"
+    assert not any("WS-MIGRATED shadow" in r.getMessage() for r in caplog.records)
+
+
+def test_ws_migrated_enforce_serves_amm_via_get_price(monkeypatch):
+    """enforce + ONCHAIN_WS_MODE=on: the REAL feed's get_price falls through to
+    the AMM cache, so a fresh migrated-token price drives the selection."""
+    monkeypatch.setenv("ONCHAIN_WS_MODE", "on")
+    monkeypatch.setenv("ONCHAIN_WS_MIGRATED_MODE", "enforce")
+    from core.onchain_ws_feed import OnchainWsFeed
+
+    feed = OnchainWsFeed(get_sol_usd=lambda: 150.0)
+    feed.amm_price_cache["migmint"] = 9.99
+    feed.amm_ts["migmint"] = time.time()
+    s = _bare_scanner()
+    s._onchain_feed = feed
+    price, src = s._fast_price_for("MigMint", 1.23)
+    assert price == 9.99 and src == "onchain"
+
+
+def test_ws_migrated_shadow_mode_amm_not_served_by_real_feed(monkeypatch):
+    monkeypatch.setenv("ONCHAIN_WS_MODE", "on")
+    monkeypatch.setenv("ONCHAIN_WS_MIGRATED_MODE", "shadow")
+    from core.onchain_ws_feed import OnchainWsFeed
+
+    feed = OnchainWsFeed(get_sol_usd=lambda: 150.0)
+    feed.amm_price_cache["migmint"] = 9.99
+    feed.amm_ts["migmint"] = time.time()
+    s = _bare_scanner()
+    s._onchain_feed = feed
+    price, src = s._fast_price_for("MigMint", 1.23)
+    assert price == 1.23 and src == "jupiter"

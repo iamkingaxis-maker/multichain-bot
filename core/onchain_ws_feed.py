@@ -27,11 +27,22 @@ import logging
 import os
 import time
 
+from core.onchain_amm import (
+    DEFAULT_BASE_DECIMALS,
+    PUMP_AMM_PROGRAM_ID,
+    WSOL_MINT,
+    decode_mint_decimals,
+    decode_pumpswap_pool,
+    decode_token_account,
+    price_sol_from_vaults,
+    pumpswap_pool_pda,
+)
 from core.onchain_price import bonding_curve_pda, resolve_price_account
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_WS_RPC_URL = "wss://api.mainnet-beta.solana.com"
+DEFAULT_HTTP_RPC_URL = "https://api.mainnet-beta.solana.com"
 SUBS_PER_CONN = 90          # <=90 subs/conn (public RPC closes ~100 with code 1013)
 _CLOSE_CODE_TOO_MANY = 1013
 
@@ -61,6 +72,13 @@ class OnchainWsFeed:
             or os.environ.get("WS_RPC_URL")
             or DEFAULT_WS_RPC_URL
         )
+        # HTTP RPC (same free public endpoint family) -- used ONLY by the
+        # migrated-token pool resolver (task #493), a few small batched
+        # getMultipleAccounts calls per refresh. Never a secret.
+        self.rpc_http_url = (
+            os.environ.get("SOLANA_RPC_URL")
+            or DEFAULT_HTTP_RPC_URL
+        )
 
         # address-keyed (lowercased) caches
         self.price_cache = {}   # mint_lower -> usd
@@ -83,11 +101,41 @@ class OnchainWsFeed:
         self.last_run_was_noop = False
         self._stop = False
 
+        # --- migrated-token AMM vault coverage (task #493) --------------------
+        # All keyed by LOWERCASED mint unless noted. Behavior gated by
+        # ONCHAIN_WS_MIGRATED_MODE (off/shadow/enforce, default off).
+        self.amm_price_cache = {}     # mint_lower -> usd (served only in enforce)
+        self.amm_ts = {}              # mint_lower -> epoch seconds
+        self.amm_prices = 0           # count of AMM prices computed (observability)
+        self._amm_pending = {}        # mint_lower -> ORIGINAL-case mint awaiting pool resolution
+        self._amm_checked = set()     # mint_lower whose curve state was classified once
+        self._amm_unsupported = set() # mint_lower with no usable canonical PumpSwap/WSOL pool
+        self._amm_pools = {}          # mint_lower -> {mint, pool, base_vault, quote_vault,
+                                      #                base_decimals, base_amount, quote_amount}
+        self._amm_vault_route = {}    # vault_addr(ORIGINAL case) -> (mint_lower, 'base'|'quote')
+        self._amm_conn_tasks = {}     # chunk key -> AMM vault connection-loop task
+
     # --- mode -----------------------------------------------------------------
 
     @staticmethod
     def _mode():
         return os.environ.get("ONCHAIN_WS_MODE", "off").strip().lower()
+
+    @staticmethod
+    def _migrated_mode():
+        """ONCHAIN_WS_MIGRATED_MODE: off (default) / shadow / enforce.
+
+        off     -- migrated mints only counted (pre-#493 behavior; no HTTP, no
+                   extra subscriptions).
+        shadow  -- AMM prices computed + cached in amm_price_cache for logging/
+                   comparison (dip_scanner logs WS-MIGRATED shadow lines) but
+                   NEVER served by get_price.
+        enforce -- get_price serves AMM prices exactly like curve prices (curve
+                   price wins if both exist; migrated curves stop pushing so in
+                   practice AMM is the only source for migrated mints).
+        """
+        v = os.environ.get("ONCHAIN_WS_MIGRATED_MODE", "off").strip().lower()
+        return v if v in ("off", "shadow", "enforce") else "off"
 
     # --- planning (SYNC, testable) -------------------------------------------
 
@@ -154,6 +202,12 @@ class OnchainWsFeed:
 
             if kind == "migrated":
                 self.migrated_skips += 1
+                # #493: a curve push flipping to migrated (graduation happens
+                # WHILE subscribed) queues the mint for AMM pool resolution.
+                # Already-migrated-at-subscribe mints are caught by the
+                # resolver's one-time curve classification instead (dead
+                # curves never push).
+                self._note_migrated(mint)
                 return
             if kind != "bonding":
                 return
@@ -181,17 +235,209 @@ class OnchainWsFeed:
         (2026-07-08): single .get() instead of `in`+`[]` — the old TOCTOU could
         raise KeyError when the feed runs on its own thread and _apply_refresh
         prunes the cache concurrently. Cached prices are always > 0 (writer drops
-        usd<=0), so a None result unambiguously means 'not cached'."""
+        usd<=0), so a None result unambiguously means 'not cached'.
+
+        #493: in ONCHAIN_WS_MIGRATED_MODE=enforce a curve-cache miss falls
+        through to the AMM cache (migrated mints). In off/shadow the AMM cache
+        is NEVER served here (shadow reads go through get_amm_price)."""
         if not mint:
             return None
         key = mint.lower()
         usd = self.price_cache.get(key)
+        if usd is not None:
+            return (usd, self.ts.get(key, 0.0))
+        if self._migrated_mode() == "enforce":
+            usd = self.amm_price_cache.get(key)
+            if usd is not None:
+                return (usd, self.amm_ts.get(key, 0.0))
+        return None
+
+    def get_amm_price(self, mint):
+        """Return (usd, ts) from the migrated-token AMM cache, or None.
+
+        Mode-independent read for SHADOW validation (dip_scanner compares this
+        to Jupiter and logs; it never drives a decision in shadow). Same
+        thread-safe single-.get() pattern as get_price."""
+        if not mint:
+            return None
+        key = mint.lower()
+        usd = self.amm_price_cache.get(key)
         if usd is None:
             return None
-        return (usd, self.ts.get(key, 0.0))
+        return (usd, self.amm_ts.get(key, 0.0))
 
     def stop(self):
         self._stop = True
+
+    # --- migrated-token AMM coverage (SYNC, testable) -- task #493 ------------
+    #
+    # Offsets/derivation LIVE-VERIFIED 2026-07-10 (see core/onchain_amm.py
+    # docstring + scripts/validate_ws_migrated.py). Flow:
+    #   detect migrated mint -> resolve canonical PumpSwap pool (HTTP, once)
+    #   -> subscribe pool base+quote VAULTS (WS) -> recompute price from the
+    #   latest pair of vault balances on every push.
+    # Raydium-only tokens have no canonical PumpSwap pool -> unsupported (v1).
+
+    def _note_migrated(self, mint):
+        """Queue a migrated mint for AMM pool resolution (exception-safe).
+
+        No-op when ONCHAIN_WS_MIGRATED_MODE=off or the mint is already
+        resolved/known-unsupported/queued."""
+        try:
+            if self._migrated_mode() == "off":
+                return
+            ml = (mint or "").lower()
+            if not ml:
+                return
+            self._amm_checked.add(ml)
+            if ml in self._amm_pools or ml in self._amm_unsupported:
+                return
+            self._amm_pending.setdefault(ml, mint)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("[onchain-ws] note_migrated error for %s: %s", mint, e)
+
+    def _mark_amm_unsupported(self, mint_lower, reason):
+        """Record a mint the AMM layer can't cover (fail-open; logged once)."""
+        try:
+            if mint_lower in self._amm_unsupported:
+                return
+            self._amm_unsupported.add(mint_lower)
+            self._amm_pending.pop(mint_lower, None)
+            logger.info(
+                "[onchain-ws] WS-MIGRATED unsupported mint=%s reason=%s "
+                "(falls back to Jupiter polling)", mint_lower, reason)
+        except Exception:  # pragma: no cover - defensive
+            pass
+
+    def _register_amm_pool(self, mint, pool_addr, pool, base_decimals=None,
+                           base_amount=None, quote_amount=None):
+        """Register a resolved PumpSwap pool: vault routing + balance state.
+
+        `pool` is decode_pumpswap_pool() output. Validates quote==WSOL and
+        base_mint==mint (a mismatch means the derivation/decode is wrong for
+        this token -> unsupported, never a wrong price). Returns True when
+        registered. SYNC + exception-safe."""
+        try:
+            ml = (mint or "").lower()
+            if not ml or not pool:
+                return False
+            if pool.get("quote_mint") != WSOL_MINT:
+                self._mark_amm_unsupported(ml, "quote_mint!=WSOL")
+                return False
+            if pool.get("base_mint") != mint:
+                self._mark_amm_unsupported(ml, "base_mint mismatch")
+                return False
+            base_vault = pool.get("base_vault")
+            quote_vault = pool.get("quote_vault")
+            if not base_vault or not quote_vault:
+                self._mark_amm_unsupported(ml, "missing vaults")
+                return False
+            try:
+                dec = int(base_decimals)
+            except (TypeError, ValueError):
+                dec = DEFAULT_BASE_DECIMALS
+            self._amm_pools[ml] = {
+                "mint": mint,
+                "pool": pool_addr,
+                "base_vault": base_vault,
+                "quote_vault": quote_vault,
+                "base_decimals": dec,
+                "base_amount": base_amount,
+                "quote_amount": quote_amount,
+            }
+            self._amm_vault_route[base_vault] = (ml, "base")
+            self._amm_vault_route[quote_vault] = (ml, "quote")
+            self._amm_pending.pop(ml, None)
+            logger.info(
+                "[onchain-ws] WS-MIGRATED pool resolved mint=%s pool=%s "
+                "base_vault=%s quote_vault=%s dec=%d",
+                mint, pool_addr, base_vault, quote_vault, dec)
+            # Seed a first price when registration came with both balances.
+            self._recompute_amm_price(ml)
+            return True
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("[onchain-ws] register_amm_pool error for %s: %s", mint, e)
+            return False
+
+    def _handle_amm_vault_data(self, vault_addr, b64_data):
+        """Decode one vault-account push and refresh that pool's price.
+
+        Exception-safe like _handle_account_data: any bad frame is dropped,
+        never raises into the socket loop."""
+        try:
+            route = self._amm_vault_route.get(vault_addr)
+            if not route or not b64_data:
+                return
+            mint_lower, role = route
+            state = self._amm_pools.get(mint_lower)
+            if not state:
+                return
+            try:
+                raw = base64.b64decode(b64_data, validate=True)
+            except Exception:
+                return
+            tok = decode_token_account(raw)
+            if not tok:
+                return
+            key = "base_amount" if role == "base" else "quote_amount"
+            state[key] = tok["amount"]
+            self._recompute_amm_price(mint_lower)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("[onchain-ws] amm handle error for %s: %s", vault_addr, e)
+
+    def _recompute_amm_price(self, mint_lower):
+        """Recompute + cache the USD price from the latest vault balances.
+
+        Writes ONLY amm_price_cache/amm_ts -- get_price decides (by mode)
+        whether that is ever served. Same sol_usd>0 and usd>0 gates as the
+        curve path. Exception-safe."""
+        try:
+            state = self._amm_pools.get(mint_lower)
+            if not state:
+                return
+            price_sol = price_sol_from_vaults(
+                state.get("base_amount"), state.get("quote_amount"),
+                state.get("base_decimals"))
+            if not price_sol or price_sol <= 0:
+                return
+            sol_usd = self.get_sol_usd()
+            if not sol_usd or sol_usd <= 0:
+                return
+            usd = price_sol * sol_usd
+            if usd <= 0:
+                return
+            self.amm_price_cache[mint_lower] = usd
+            self.amm_ts[mint_lower] = time.time()
+            self.amm_prices += 1
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("[onchain-ws] amm price error for %s: %s", mint_lower, e)
+
+    def _amm_desired_vault_chunks(self):
+        """Connection plan for the AMM vault subscriptions (sorted for a
+        stable chunk key). Exception-safe -> [] on error."""
+        try:
+            return self._plan_connections(sorted(self._amm_vault_route.keys()))
+        except Exception:  # pragma: no cover - defensive
+            return []
+
+    def _prune_amm_for_dropped(self, dropped):
+        """Prune all migrated-token state for mints that left the hot set.
+
+        `dropped` is a set of LOWERCASED mints. checked/unsupported are also
+        cleared so a re-added mint re-classifies (cheap: one batched RPC)."""
+        try:
+            for ml in dropped:
+                self.amm_price_cache.pop(ml, None)
+                self.amm_ts.pop(ml, None)
+                self._amm_pending.pop(ml, None)
+                self._amm_checked.discard(ml)
+                self._amm_unsupported.discard(ml)
+                state = self._amm_pools.pop(ml, None)
+                if state:
+                    self._amm_vault_route.pop(state.get("base_vault"), None)
+                    self._amm_vault_route.pop(state.get("quote_vault"), None)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("[onchain-ws] amm prune error: %s", e)
 
     # --- refresh / heartbeat (SYNC, testable) --------------------------------
 
@@ -206,8 +452,11 @@ class OnchainWsFeed:
             sol = 0.0
         return (
             "[onchain] heartbeat mode=%s subs=%d cached=%d ws_msgs=%d sol_usd=%.4f"
+            " mig_mode=%s amm_pools=%d amm_cached=%d"
             % (self._mode(), len(self._tracked), len(self.price_cache),
-               int(self.ws_msgs), sol)
+               int(self.ws_msgs), sol,
+               self._migrated_mode(), len(self._amm_pools),
+               len(self.amm_price_cache))
         )
 
     def _apply_refresh(self, new_mints):
@@ -241,6 +490,8 @@ class OnchainWsFeed:
                 if k in dropped:
                     self.price_cache.pop(k, None)
                     self.ts.pop(k, None)
+            # #493: migrated-token AMM state tracks the same hot set.
+            self._prune_amm_for_dropped(dropped)
 
         self._tracked = new_lower
         return (added, dropped)
@@ -314,6 +565,11 @@ class OnchainWsFeed:
         supervisors = [self._heartbeat_loop()]
         if callable(get_mints):
             supervisors.append(self._refresh_loop(get_mints))
+        # #493: migrated-token AMM resolver (classify curves once, resolve
+        # PumpSwap pools, keep vault subscriptions reconciled). Only spawned
+        # when the flag is on -- mode off costs literally nothing.
+        if self._migrated_mode() != "off":
+            supervisors.append(self._amm_resolver_loop())
 
         try:
             await asyncio.gather(*supervisors, return_exceptions=True)
@@ -325,6 +581,12 @@ class OnchainWsFeed:
                 except Exception:
                     pass
             self._conn_tasks = {}
+            for key, task in list(self._amm_conn_tasks.items()):
+                try:
+                    task.cancel()
+                except Exception:
+                    pass
+            self._amm_conn_tasks = {}
 
     def _apply_chunk_reconcile(self, desired_chunks):
         """Reconcile live connection tasks toward `desired_chunks` (best-effort).
@@ -430,6 +692,299 @@ class OnchainWsFeed:
             except Exception:
                 continue
         self._pda_to_mint = routing
+
+    # --- migrated-token AMM resolver + vault connections (async) -- task #493 -
+
+    async def _rpc_get_multiple_accounts(self, addrs):
+        """getMultipleAccounts over the free public HTTP RPC, run OFF-LOOP in
+        a worker thread so a slow response can never stall the feed loop.
+
+        Returns a list aligned with `addrs` (None per missing account) or None
+        on transport/parse error. Fail-open; never raises."""
+        if not addrs:
+            return []
+
+        def _post():
+            import requests  # lazy: keep module import light
+            payload = {
+                "jsonrpc": "2.0", "id": 1,
+                "method": "getMultipleAccounts",
+                "params": [list(addrs),
+                           {"encoding": "base64", "commitment": "confirmed"}],
+            }
+            r = requests.post(self.rpc_http_url, json=payload, timeout=10)
+            r.raise_for_status()
+            return (r.json().get("result") or {}).get("value")
+
+        try:
+            return await asyncio.to_thread(_post)
+        except Exception as e:
+            logger.debug("[onchain-ws] getMultipleAccounts failed (%d addrs): %s",
+                         len(addrs), e)
+            return None
+
+    async def _amm_resolver_loop(self):
+        """Periodic migrated-token resolution + AMM connection reconcile.
+
+        Best-effort: every ONCHAIN_MIGRATED_RESOLVE_SECS it (1) classifies
+        not-yet-checked hot mints' bonding curves ONCE via one batched RPC
+        call (dead/migrated curves never push, so WS alone can't detect them),
+        (2) resolves queued migrated mints to their canonical PumpSwap pool +
+        vaults (2 more batched calls), (3) reconciles the vault subscription
+        connections. Any error is caught -- never crashes the feed."""
+        secs = _env_int("ONCHAIN_MIGRATED_RESOLVE_SECS", 15)
+        while not self._stop:
+            try:
+                await self._amm_resolve_once()
+            except Exception as e:  # pragma: no cover - defensive
+                logger.debug("[onchain-ws] amm resolver error: %s", e)
+            await asyncio.sleep(secs)
+
+    async def _amm_resolve_once(self):
+        """One resolver pass (classify -> resolve -> reconcile). Fail-open."""
+        if self._migrated_mode() == "off":
+            return
+
+        # (1) One-time curve classification for unchecked hot mints: a token
+        # that migrated BEFORE we subscribed has a dead curve that never
+        # pushes, so probe once over HTTP. <=90 per pass (RPC caps at 100).
+        pairs = [(pda, m) for pda, m in list(self._pda_to_mint.items())
+                 if m.lower() not in self._amm_checked][:90]
+        if pairs:
+            vals = await self._rpc_get_multiple_accounts([p for p, _ in pairs])
+            if vals is not None and len(vals) == len(pairs):
+                for (_pda, mint), v in zip(pairs, vals):
+                    ml = mint.lower()
+                    self._amm_checked.add(ml)
+                    try:
+                        if not v:
+                            continue  # no curve account -> not a pump.fun token
+                        data = v.get("data")
+                        b64 = data[0] if isinstance(data, (list, tuple)) and data else data
+                        raw = base64.b64decode(b64 or "")
+                        if resolve_price_account(mint, raw).get("kind") == "migrated":
+                            self._amm_pending.setdefault(ml, mint)
+                    except Exception:
+                        continue
+
+        # (2) Resolve queued migrated mints -> canonical PumpSwap pool.
+        pending = [(ml, m) for ml, m in list(self._amm_pending.items())
+                   if ml not in self._amm_pools
+                   and ml not in self._amm_unsupported][:20]
+        if pending:
+            pool_addrs = []
+            for ml, mint in pending:
+                try:
+                    pool_addrs.append(pumpswap_pool_pda(mint))
+                except Exception:
+                    pool_addrs.append(None)
+                    self._mark_amm_unsupported(ml, "pool pda derive failed")
+            fetchable = [(i, a) for i, a in enumerate(pool_addrs) if a]
+            vals = await self._rpc_get_multiple_accounts([a for _, a in fetchable])
+            if vals is not None and len(vals) == len(fetchable):
+                staged = []  # (ml, mint, pool_addr, decoded_pool)
+                for (i, pool_addr), v in zip(fetchable, vals):
+                    ml, mint = pending[i]
+                    if not v:
+                        # No canonical PumpSwap pool -> Raydium-only or odd
+                        # migration; explicit v1 skip.
+                        self._mark_amm_unsupported(ml, "no canonical pumpswap pool")
+                        continue
+                    if v.get("owner") != PUMP_AMM_PROGRAM_ID:
+                        self._mark_amm_unsupported(ml, "pool owner mismatch")
+                        continue
+                    try:
+                        data = v.get("data")
+                        b64 = data[0] if isinstance(data, (list, tuple)) and data else data
+                        decoded = decode_pumpswap_pool(base64.b64decode(b64 or ""))
+                    except Exception:
+                        decoded = None
+                    if not decoded:
+                        self._mark_amm_unsupported(ml, "pool decode failed")
+                        continue
+                    staged.append((ml, mint, pool_addr, decoded))
+
+                # (2b) Seed vault balances + base decimals in ONE batched call
+                # so the FIRST WS push already yields a complete price.
+                if staged:
+                    flat = []
+                    for _ml, mint, _pa, dec_pool in staged:
+                        flat += [dec_pool["base_vault"], dec_pool["quote_vault"], mint]
+                    seed = await self._rpc_get_multiple_accounts(flat)
+                    for idx, (ml, mint, pool_addr, dec_pool) in enumerate(staged):
+                        base_amount = quote_amount = None
+                        decimals = None
+                        if seed is not None and len(seed) == len(flat):
+                            base_amount, quote_amount, decimals = \
+                                self._decode_amm_seed(seed[idx * 3:idx * 3 + 3])
+                        self._register_amm_pool(
+                            mint, pool_addr, dec_pool,
+                            base_decimals=decimals,
+                            base_amount=base_amount, quote_amount=quote_amount)
+
+        # (3) Keep the vault subscription connections reconciled (also picks
+        # up prunes done by _apply_refresh).
+        self._apply_amm_chunk_reconcile(self._amm_desired_vault_chunks())
+
+    @staticmethod
+    def _decode_amm_seed(triple):
+        """Decode a [base_vault, quote_vault, base_mint] getMultipleAccounts
+        slice -> (base_amount, quote_amount, decimals); Nones on any miss.
+        SYNC + exception-safe (pure decode -> testable)."""
+        base_amount = quote_amount = decimals = None
+        try:
+            def _raw(v):
+                if not v:
+                    return None
+                data = v.get("data")
+                b64 = data[0] if isinstance(data, (list, tuple)) and data else data
+                return base64.b64decode(b64 or "")
+
+            bv, qv, mint_acct = (list(triple) + [None, None, None])[:3]
+            tok = decode_token_account(_raw(bv))
+            if tok:
+                base_amount = tok["amount"]
+            tok = decode_token_account(_raw(qv))
+            if tok:
+                quote_amount = tok["amount"]
+            decimals = decode_mint_decimals(_raw(mint_acct))
+        except Exception:  # pragma: no cover - defensive
+            pass
+        return (base_amount, quote_amount, decimals)
+
+    def _apply_amm_chunk_reconcile(self, desired_chunks):
+        """Reconcile AMM vault connection tasks (mirror of
+        _apply_chunk_reconcile, separate task table + loop fn). Fail-open."""
+        try:
+            for key in list(self._amm_conn_tasks.keys()):
+                t = self._amm_conn_tasks.get(key)
+                if t is not None and t.done():
+                    self._amm_conn_tasks.pop(key, None)
+
+            to_start, to_cancel = self._reconcile_connection_chunks(
+                desired_chunks, set(self._amm_conn_tasks.keys())
+            )
+            for key in to_cancel:
+                task = self._amm_conn_tasks.pop(key, None)
+                if task is not None:
+                    try:
+                        task.cancel()
+                    except Exception:
+                        pass
+            for chunk in to_start:
+                key = self._chunk_key(chunk)
+                if not key or key in self._amm_conn_tasks:
+                    continue
+                try:
+                    self._amm_conn_tasks[key] = asyncio.ensure_future(
+                        self._amm_connection_loop(list(chunk))
+                    )
+                except Exception as e:  # pragma: no cover - defensive
+                    logger.debug("[onchain-ws] start amm chunk failed: %s", e)
+            if to_start or to_cancel:
+                logger.info(
+                    "[onchain-ws] amm connection reconcile +%d -%d live=%d",
+                    len(to_start), len(to_cancel), len(self._amm_conn_tasks),
+                )
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("[onchain-ws] amm chunk reconcile error: %s", e)
+
+    async def _amm_connection_loop(self, vault_chunk):
+        """Maintain one WS connection subscribed to AMM vault accounts.
+
+        Same shape/backoff as _connection_loop; frames route to
+        _handle_amm_vault_data via the vault address."""
+        try:
+            import websockets
+        except Exception:  # pragma: no cover - dependency note
+            logger.warning("[onchain-ws] `websockets` not importable -- "
+                           "migrated AMM coverage disabled.")
+            return
+
+        backoff = 1.0
+        while not self._stop:
+            try:
+                async with websockets.connect(
+                    self.rpc_ws_url,
+                    ping_interval=20,
+                    ping_timeout=20,
+                    max_queue=None,
+                    compression=None,  # same loop-unstarve rationale as curve loop
+                ) as ws:
+                    backoff = 1.0
+                    sub_id_to_addr = await self._subscribe_addresses(ws, vault_chunk)
+                    await self._consume_amm(ws, sub_id_to_addr)
+            except Exception as e:
+                code = getattr(e, "code", None)
+                if code == _CLOSE_CODE_TOO_MANY:
+                    logger.warning(
+                        "[onchain-ws] code 1013 (too many subs) -- reconnecting "
+                        "amm chunk(%d)", len(vault_chunk))
+                else:
+                    logger.debug("[onchain-ws] amm connection error (chunk=%d): %s",
+                                 len(vault_chunk), e)
+            if self._stop:
+                break
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 30.0)
+
+    async def _subscribe_addresses(self, ws, addrs):
+        """accountSubscribe raw addresses (no PDA derive). Returns sub_id->addr."""
+        import json
+
+        pending = {}   # request_id -> addr
+        sub_id_to_addr = {}
+        req_id = 1
+        for addr in addrs:
+            msg = {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "method": "accountSubscribe",
+                "params": [addr, {"encoding": "base64", "commitment": _COMMITMENT}],
+            }
+            pending[req_id] = addr
+            await ws.send(json.dumps(msg))
+            req_id += 1
+
+        for _ in range(len(pending)):
+            try:
+                raw = await asyncio.wait_for(ws.recv(), timeout=10.0)
+            except Exception:
+                break
+            try:
+                resp = json.loads(raw)
+            except Exception:
+                continue
+            rid = resp.get("id")
+            if rid in pending and "result" in resp:
+                sub_id_to_addr[resp["result"]] = pending[rid]
+        return sub_id_to_addr
+
+    async def _consume_amm(self, ws, sub_id_to_addr):
+        """Read accountNotification frames and route to _handle_amm_vault_data."""
+        import json
+
+        while not self._stop:
+            raw = await ws.recv()
+            self.ws_msgs += 1
+            try:
+                msg = json.loads(raw)
+            except Exception:
+                continue
+            if msg.get("method") != "accountNotification":
+                continue
+            params = msg.get("params") or {}
+            sub = params.get("subscription")
+            addr = sub_id_to_addr.get(sub)
+            if addr is None:
+                continue
+            try:
+                value = (params.get("result") or {}).get("value") or {}
+                data = value.get("data")
+                b64 = data[0] if isinstance(data, (list, tuple)) and data else data
+            except Exception:
+                continue
+            self._handle_amm_vault_data(addr, b64)
 
     async def _connection_loop(self, mint_chunk):
         """Maintain one WS connection for a chunk; reconnect on close/1013/error."""

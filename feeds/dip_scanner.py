@@ -7778,6 +7778,10 @@ class DipScanner:
         feed = getattr(self, "_onchain_feed", None)
         if feed is None:
             return (jupiter_price, "jupiter")
+        # WS-MIGRATED shadow (task #493): validate AMM vault prices for
+        # migrated mints against Jupiter WITHOUT serving them (mirrors the B4
+        # curve shadow). In enforce mode get_price serves them directly below.
+        self._log_ws_migrated_shadow(feed, addr, jupiter_price)
         try:
             got = feed.get_price(addr)
         except Exception:
@@ -7813,6 +7817,44 @@ class DipScanner:
         if mode == "on":
             return (onchain_usd, "onchain")
         return (jupiter_price, "jupiter")
+
+    def _log_ws_migrated_shadow(self, feed, addr, jupiter_price):
+        """#493 shadow validation (SYNC, testable): when
+        ONCHAIN_WS_MIGRATED_MODE=shadow and the WS feed holds a FRESH
+        AMM-vault price for `addr` (a migrated pump.fun mint), log the
+        WS-vs-Jupiter delta. NEVER changes the served price; never raises."""
+        try:
+            mig = os.environ.get(
+                "ONCHAIN_WS_MIGRATED_MODE", "off").strip().lower()
+            if mig != "shadow":
+                return
+            get_amm = getattr(feed, "get_amm_price", None)
+            if get_amm is None:
+                return
+            got = get_amm(addr)
+            if not got:
+                return
+            ws_usd, ts = got
+            if not ws_usd or ws_usd <= 0:
+                return
+            try:
+                fresh_secs = float(os.environ.get("ONCHAIN_FRESH_SECS",
+                                                  ONCHAIN_FRESH_SECS_DEFAULT))
+            except (TypeError, ValueError):
+                fresh_secs = ONCHAIN_FRESH_SECS_DEFAULT
+            if (time.time() - (ts or 0.0)) > fresh_secs:
+                return
+            try:
+                jp = float(jupiter_price) if jupiter_price is not None else 0.0
+                diff_pct = ((ws_usd - jp) / jp * 100.0) if jp else float("nan")
+            except (TypeError, ValueError, ZeroDivisionError):
+                diff_pct = float("nan")
+            logger.info(
+                "[onchain] WS-MIGRATED shadow: mint=%s ws_price=$%.8g "
+                "vs jupiter=$%.8g diff_pct=%.3f",
+                addr, ws_usd, (jupiter_price or 0.0), diff_pct)
+        except Exception:
+            pass  # shadow-only: never let logging break the price path
 
     async def _maybe_spawn_onchain_feed(self):
         """B4: spawn the on-chain WS hot-layer feed (best-effort, never breaks
