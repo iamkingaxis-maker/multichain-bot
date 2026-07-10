@@ -22051,18 +22051,23 @@ class DipScanner:
                 _filter_verdicts.append(("filter_knife_catch_peak", _filter_kcp_verdict, ""))
             except Exception:
                 pass
+            # RESCUE DEMOTED TO SHADOW (2026-07-10): the big_buyer carve-out went
+            # 0-for-29 realized (zero winners rescued, -192pp of losses let
+            # through, 9 tokens / 5 days) AND it bypassed per-bot allowlist
+            # enforcement (per-bot reads filters_block, which the rescue edited —
+            # so the probe's just-shipped knife_catch_peak opt-in was leaky).
+            # BLOCK verdict now always lands in filters_block; the would-rescue
+            # is logged so the carve-out keeps accruing evidence for potential
+            # re-instatement if a regime appears where it saves winners.
             _kcp_rescued, _kcp_lvh1 = _big_buyer_rescued()
-            if _filter_kcp_verdict == "BLOCK" and not _kcp_rescued:
+            if _filter_kcp_verdict == "BLOCK":
                 logger.info(
                     f"[DipScanner] BLOCKED by filter_knife_catch_peak: "
                     f"{token_symbol} reasons={','.join(_filter_kcp_block_reasons)}"
+                    + (f" [big_buyer would-rescue (shadow) lvh1=${_kcp_lvh1:.0f}]"
+                       if _kcp_rescued else "")
                 )
                 _filters_block.append("filter_knife_catch_peak")
-            elif _filter_kcp_verdict == "BLOCK" and _kcp_rescued:
-                logger.info(
-                    f"[DipScanner] filter_knife_catch_peak rescued by big_buyer: "
-                    f"{token_symbol} liq_velocity_h1=${_kcp_lvh1:.0f}/txn>=115"
-                )
 
             # ── filter_reviving_lifecycle ENFORCED 2026-05-14 PM (Commit B) ──
             # Block when lifecycle_stage == "reviving". Mined on n=36:
