@@ -48,7 +48,12 @@ LEDGER = os.path.join(OUT_DIR, "rh_paper_trades.jsonl")
 # ── lane config (mirrors the Solana young probe where meaningful) ───────────
 ENTRY_USD = 25.0            # probe sizing
 MAX_CONCURRENT = 2          # probe cap
-DAILY_LOSS_STOP_USD = -25.0  # probe kill
+# PAPER = DATA (AxiS 2026-07-10: "whats the point of having a loss limit on
+# paper? we need data"): a live-style daily stop starves the sample — any
+# stop level can be applied to collected data retrospectively, but unsampled
+# trades are gone forever. The remaining halt is a RUNAWAY-BUG backstop
+# (broken loop machine-gunning losses), not a market-risk control.
+DAILY_LOSS_STOP_USD = float(os.environ.get("RH_PAPER_DAILY_STOP", "-250"))
 # Rug-guard port (2026-07-10 session-1 autopsy: Halp -90% + TREAT -17% = rugs
 # that passed the unguarded v1 gates; the Solana probe's edge IS its guards):
 MIN_LIQ_USD = 30_000.0      # PARITY with the live probe (was 10k -> rug pond)
