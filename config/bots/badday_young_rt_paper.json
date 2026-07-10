@@ -5,7 +5,7 @@
   "base_position_usd": 25.0,
   "bot_id": "badday_young_rt_paper",
   "btc_macro_h1_block_threshold": null,
-  "daily_loss_limit_usd": 40.0,
+  "daily_loss_limit_usd": 25.0,
   "display_name": "YOUNG_RT PAPER PARITY TWIN (2026-07-10): byte-identical config to the LIVE probe badday_young_rt (RT-native + 30k liq floor + adaptive size + retrace-micro AVOID + LP insurance, $25x2) but paper. Purpose: per-token live-vs-paper fidelity \u2014 same signals, one real fill + one paper fill -> the honest live=paper gap (slippage/reachability) measured continuously on the probe's own strategy. Judge fills pairwise by token. NEVER route live (live_probe=false).",
   "enabled": true,
   "entry_gate": [
