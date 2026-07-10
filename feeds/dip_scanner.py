@@ -981,6 +981,14 @@ class DipScanner:
             asyncio.create_task(self._tape_sampler_loop())
         except Exception as e:
             logger.error("[tape-sampler] failed to spawn: %s", e)
+        # Hold-tape recorder (2026-07-10 runner-signature mine): accumulates
+        # the maker-level trade tape for OPEN positions so runner_score can
+        # be stamped on every exit (monster-vs-regular shadow decode). True
+        # no-op when HOLD_TAPE_MODE=off.
+        try:
+            asyncio.create_task(self._hold_tape_loop())
+        except Exception as e:
+            logger.error("[hold-tape] failed to spawn: %s", e)
         # HL WS pump: on-chain WS ticks -> HL-confirm states at sub-second
         # resolution (the trough study's oracle gap). No-op when
         # HL_WS_PUMP_MODE=off.
@@ -5734,6 +5742,70 @@ class DipScanner:
             except Exception as e:
                 logger.debug(f"[tape-sampler] cycle error: {str(e)[:80]}")
 
+    async def _hold_tape_loop(self):
+        """Hold-tape recorder (2026-07-10 runner-signature mine, SHADOW).
+
+        The monster-vs-regular decode (scratchpad/_runner_signature_report.md,
+        token AUC 0.84) needs a maker-level trade tape covering the DECISION
+        window at exit time — single decision-time fetches reach back ~2 min
+        on hot tokens, so the tape must be ACCUMULATED while holding. Every
+        HOLD_TAPE_INTERVAL_SECS (default 45) this loop polls recent trades
+        (DexScreener primary — it carries maker; GT fallback strips it and
+        runner_score degrades to the 3-feature subset) for every pair with an
+        OPEN position in ANY bot, deduped by (ts, maker, volume) into a
+        bounded per-pair buffer (core/runner_signal.HoldTape, cap ~2000 rows,
+        kept until 30 min after the position closes so trailing exit legs
+        still stamp). _execute_bot_sell reads the buffer to stamp
+        runner_score/runner_reasons on the sell record. HOLD_TAPE_MODE=off
+        disables. Fail-open everywhere: any error skips that pair; the loop
+        never dies; no tape just means no stamp."""
+        if os.environ.get("HOLD_TAPE_MODE", "on").strip().lower() in (
+                "off", "0", "false", "no"):
+            logger.info("[hold-tape] HOLD_TAPE_MODE=off — not running")
+            return
+        from core.runner_signal import HoldTape
+        self._hold_tape = getattr(self, "_hold_tape", None) or HoldTape()
+        logger.info("[hold-tape] recorder up (open positions, ~45s poll)")
+        while True:
+            try:
+                interval = 45.0
+                try:
+                    interval = float(os.environ.get(
+                        "HOLD_TAPE_INTERVAL_SECS", "45") or 45)
+                except (TypeError, ValueError):
+                    pass
+                await asyncio.sleep(max(10.0, interval))
+                if self.dexs_client is None:
+                    continue
+                now = time.time()
+                open_pairs = set()
+                for _pm in (self.bot_position_managers or {}).values():
+                    try:
+                        for _pos in _pm.iter_positions():
+                            _pa = str(getattr(_pos, "pair_address", "") or "")
+                            if _pa:
+                                open_pairs.add(_pa)
+                    except Exception:
+                        continue
+                # retention bookkeeping runs even with zero opens (it expires
+                # the 30-min-after-close buffers)
+                self._hold_tape.sync_open(open_pairs, now)
+                for _pa in list(open_pairs)[:12]:
+                    try:
+                        trades = await asyncio.wait_for(
+                            self.dexs_client.fetch_recent_trades(_pa, limit=100),
+                            timeout=5.0,
+                        )
+                        if trades:
+                            self._hold_tape.add(_pa, trades, now)
+                    except Exception:
+                        pass
+                    await asyncio.sleep(0.4)   # throttle-friendly pacing
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.debug(f"[hold-tape] cycle error: {str(e)[:80]}")
+
     async def _hl_ws_pump_loop(self):
         """WS-tick pump for HL-confirm (2026-07-06, AxiS 'wire the HL state
         machine to WS ticks'). The poll path feeds HL states every 2-3s; the
@@ -6699,6 +6771,22 @@ class DipScanner:
             cost_usd=result.cost_usd,
             proceeds_usd=result.proceeds_usd,
         )
+        # RUNNER-SCORE SHADOW (2026-07-10 monster-vs-regular decode): score
+        # the last 10 min of this position's hold-tape (pre-run = the 10 min
+        # before that when buffered) at THIS exit. Measure-only — nothing
+        # reads it until >=30 stamped exits validate vs realized peak.
+        # Fail-open: no hold-tape / thin tape -> None stamp, never a raise.
+        _runner_sc, _runner_rs = None, None
+        try:
+            _ht = getattr(self, "_hold_tape", None)
+            _rt_pa = str((_pos.pair_address if _pos else "") or "")
+            if _ht is not None and _rt_pa:
+                _rt_rows = _ht.get(_rt_pa)
+                if _rt_rows:
+                    from core.runner_signal import score_at_exit as _runner_sae
+                    _runner_sc, _runner_rs = _runner_sae(_rt_rows, time.time())
+        except Exception:
+            _runner_sc, _runner_rs = None, None
         if self.trade_store is not None:
             # Offload the per-fill ledger write off the event loop (2026-06-19
             # loop-freeze fix). Order preserved: the SELL is recorded, THEN the
@@ -6792,6 +6880,13 @@ class DipScanner:
                 # MFE is peak_pnl_pct (recorded elsewhere). For future stop/exit mining.
                 "mae_pct": ((_pos.state_blob or {}).get("mae_pct") if _pos else None),
                 "mae_at_secs": ((_pos.state_blob or {}).get("mae_at_secs") if _pos else None),
+                # RUNNER-SCORE SHADOW stamp (2026-07-10): monster-vs-regular
+                # tape-shape score at this exit, from the hold-tape recorder
+                # (_hold_tape_loop). None = no/thin tape (never 0). Offline
+                # validation: median realized peak_pnl_pct for score >=0.6 vs
+                # <0.6 at n>=30 gates any future moonbag-hold rule.
+                "runner_score": _runner_sc,
+                "runner_reasons": _runner_rs,
                 # Phase-2a TRAJECTORY SHADOW (measure-only, 2026-06-02): the +8min demand-
                 # shape (peak_position/minutes_to_peak/frac_above_entry/higher_low_n/
                 # vol_sustain_ratio/n) for positions that survived to +8min. Scored OFFLINE

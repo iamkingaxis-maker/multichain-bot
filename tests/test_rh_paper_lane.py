@@ -250,6 +250,93 @@ class TestStatePersistence:
         assert lane.pos_meta == {} and lane.daily_pnl_usd == 0.0
 
 
+class TestRunnerScoreStamp:
+    """Shadow stamp (2026-07-10 monster-vs-regular decode): every SELL ledger
+    row carries runner_score/runner_reasons computed from the pool's live
+    tape. Shadow only — no decision reads it."""
+
+    def _lane(self, tmp_path, monkeypatch):
+        import rh_paper_lane as mod
+        monkeypatch.setattr(mod, "STATE", str(tmp_path / "state.json"))
+        monkeypatch.setattr(mod, "LEDGER", str(tmp_path / "ledger.jsonl"))
+        monkeypatch.setattr(mod, "POSTEXIT_PENDING", str(tmp_path / "pe.jsonl"))
+
+        class FakeQuote:
+            amount_out = int(0.005 * 1e18)
+
+        class FakeExec:
+            def quote_sell(self, token, qty):
+                return FakeQuote()
+
+            def token_decimals(self, token):
+                return 18
+
+        class FakeFeed:
+            watch = {}
+            eth_price = 2000.0
+        return mod.PaperLane(FakeFeed(), executor=FakeExec(), registry={})
+
+    def _sell(self, lane, pool, now, tape_rows):
+        from types import SimpleNamespace
+        lane.pm.open_position(token=pool, entry_price=1e-8, size_usd=25.0,
+                              entry_time=now - 1200, address="0xtok")
+        meta = {"qty_orig": 1000.0, "remaining_frac": 1.0, "token": "0xtok",
+                "sym": "T", "entry_px": 1e-8, "entry_ts": now - 1200}
+        lane.pos_meta[pool] = meta
+        lane.tape[pool] = tape_rows
+        lane._paper_sell(pool, meta, SimpleNamespace(
+            kind="TP1", sell_fraction=0.75, reason="tp1"), now)
+
+    def _sell_rows(self, tmp_path):
+        import json
+        out = []
+        with open(tmp_path / "ledger.jsonl", encoding="utf-8") as f:
+            for line in f:
+                r = json.loads(line)
+                if r.get("ev") == "sell":
+                    out.append(r)
+        return out
+
+    def test_sell_row_carries_runner_score(self, tmp_path, monkeypatch):
+        lane = self._lane(tmp_path, monkeypatch)
+        now = 1_000_000.0
+        # monster-shaped fake tape: pre-run baseline + accelerating upsized
+        # fresh-maker buys in the last 10 min (firehose row shape: maker
+        # SURVIVES into the buffer via on_row -> _drain)
+        rows = [{"kind": "buy", "volume_usd": 20.0, "maker": f"p{i}",
+                 "_epoch": now - 620 - 20 * i} for i in range(20)]
+        rows += [{"kind": "buy", "volume_usd": 30.0, "maker": f"p{i}",
+                  "_epoch": now - 580 + 25 * i} for i in range(10)]
+        rows += [{"kind": "buy", "volume_usd": 40.0, "maker": f"m{i}",
+                  "_epoch": now - 290 + 14 * i} for i in range(20)]
+        self._sell(lane, "0xpool", now, rows)
+        sells = self._sell_rows(tmp_path)
+        assert len(sells) == 1
+        assert sells[0]["runner_score"] is not None
+        assert 0.0 <= sells[0]["runner_score"] <= 1.0
+        assert sells[0]["runner_score"] >= 0.9          # monster shape
+        assert isinstance(sells[0]["runner_reasons"], dict)
+        assert set(sells[0]["runner_reasons"]["subs"]) == {
+            "flow", "accel", "size", "fresh"}
+
+    def test_thin_tape_stamps_none_not_zero(self, tmp_path, monkeypatch):
+        lane = self._lane(tmp_path, monkeypatch)
+        now = 1_000_000.0
+        rows = [{"kind": "buy", "volume_usd": 20.0, "maker": "m",
+                 "_epoch": now - 100}]                   # 1 trade = unreadable
+        self._sell(lane, "0xpool", now, rows)
+        sells = self._sell_rows(tmp_path)
+        assert sells[0]["runner_score"] is None          # never 0
+        assert sells[0]["runner_reasons"]["reason"] == "thin_tape"
+
+    def test_no_tape_fails_open(self, tmp_path, monkeypatch):
+        lane = self._lane(tmp_path, monkeypatch)
+        self._sell(lane, "0xpool", 1_000_000.0, [])
+        sells = self._sell_rows(tmp_path)
+        assert sells[0]["runner_score"] is None
+        assert sells[0]["pnl_usd"] is not None           # sell itself booked
+
+
 class TestExitEngineParity:
     """The lane must use the probe's exit semantics (shared engine)."""
 

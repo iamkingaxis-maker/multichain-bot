@@ -39,6 +39,7 @@ from rh_firehose_feed import (  # noqa: E402
 )
 from rh_chain_feed import Feed, _append, iso_utc, pctl  # noqa: E402
 from core.retrace_microstructure import retrace_micro_eval  # noqa: E402
+from core.runner_signal import score_at_exit  # noqa: E402
 from core.bot_config import BotConfig  # noqa: E402
 from core.per_bot_position_manager import PerBotPositionManager  # noqa: E402
 
@@ -288,8 +289,11 @@ class PaperLane:
             row["_epoch"] = now  # seen time; good enough for 30s flow windows
             buf = self.tape.setdefault(pool, [])
             buf.append(row)
-            if len(buf) > 400:
-                del buf[:200]
+            # 2000-row cap (was 400): the runner_score exit stamp reads a
+            # 10-min decision window + 10-min pre-run baseline — hot pools
+            # burn >400 rows in that span and the stamp would go blind.
+            if len(buf) > 2000:
+                del buf[:1000]
             self.last_trade[pool] = now
 
     def _quote_hot(self, now: float):
@@ -510,12 +514,29 @@ class PaperLane:
                 "exit_pnl_pct": round(pnl_pct, 2), "close_ts": now,
                 "due_ts": now + POSTEXIT_DELAY_S})
         self.save_state()
+        # RUNNER-SCORE SHADOW stamp (2026-07-10 monster-vs-regular decode):
+        # tape-shape score over the last 10 min of this pool's live tape
+        # (pre-run = the 10 min before that when buffered). Stamped on EVERY
+        # exit leg; NO decision reads it — validation is offline against
+        # realized peak at n>=30. Fail-open: no/thin tape -> None.
+        runner_sc, runner_rs = None, None
+        try:
+            rows = self.tape.get(pool) or []
+            runner_sc, runner_rs = score_at_exit(
+                [{"kind": r.get("kind"), "volume_usd": r.get("volume_usd"),
+                  "ts": (r.get("_epoch") if r.get("_epoch") is not None
+                         else r.get("ts")),
+                  "maker": r.get("maker")} for r in rows], now)
+        except Exception:
+            runner_sc, runner_rs = None, None
         _append(LEDGER, {"ev": "sell", "ts": iso_utc(now), "pool": pool,
                          "sym": meta["sym"], "kind": decision.kind,
                          "reason": decision.reason[:100], "frac": frac,
                          "usd_out": round(usd_out, 2),
                          "pnl_usd": round(pnl_usd, 2),
                          "pnl_pct": round(pnl_pct, 2), "fully": fully,
+                         "runner_score": runner_sc,
+                         "runner_reasons": runner_rs,
                          "daily_pnl_usd": round(self.daily_pnl_usd, 2)})
         print(f"[rh-paper] SELL {meta['sym']:<12} {decision.kind} "
               f"{frac*100:.0f}% pnl={pnl_pct:+.1f}% "
