@@ -71,6 +71,11 @@ LP_DRAIN_WINDOW_S = 900.0   # liq-delta lookback (mirrors lp_delta_15m_pct)
 LP_DRAIN_ENTRY_PCT = -15.0  # recent drain >= 15% -> no entry (RH v1: no data
                             # yet to refute a veto here, unlike Solana)
 LP_DRAIN_EXIT_PCT = -30.0   # liq collapses while holding -> immediate full exit
+# Exit-impact leak fix (AxiS 2026-07-10: winners netted +5-15 after sell
+# impact, losers realized -9..-23 on -5..-11 decisions — we decide on
+# buy-side prices and fill on sell-side into dying books):
+MAX_RT_COST_PCT = 6.0       # entry gate: quoted round-trip (buy->sell NOW)
+                            # charging more than this = friction eats the edge
 DIP_TRIGGER_PCT = -12.0     # entry: price >=12% off the 10-min high
 PRICE_WINDOW_S = 600.0
 DEMAND_WINDOW_S = 30.0      # demand turn: net inflow over last 30s
@@ -304,6 +309,27 @@ class PaperLane:
             if not token:
                 continue
             try:
+                meta = self.pos_meta.get(pool)
+                if meta:
+                    # EXIT-IMPACT FIX (2026-07-10): held pools tick on the
+                    # SELL-side EXECUTABLE price of our actual remaining size
+                    # — TP/stop/bail thresholds then fire on what we'd GET,
+                    # not on an optimistic buy-side probe (decisions were
+                    # landing 3-14pp above fills in thin books).
+                    dec = self._token_decimals(token)
+                    rem_qty = meta["qty_orig"] * meta["remaining_frac"]
+                    q = self._executor().quote_sell(
+                        token, int(rem_qty * 10 ** dec))
+                    px = ((q.amount_out / 1e18) / rem_qty
+                          if (q and q.amount_out and rem_qty > 0) else 0.0)
+                    if q and q.amount_out:
+                        self.n_quotes += 1
+                    if px > 0:
+                        s = self.prices.setdefault(pool, [])
+                        s.append((now, px))
+                        if len(s) > 600:
+                            del s[:300]
+                    continue
                 q = self._executor().quote_buy(token, int(ENTRY_USD / max(
                     self.feed.eth_price or 1e9, 1e-9) * 1e18))
                 if q and q.amount_out:
@@ -380,6 +406,22 @@ class PaperLane:
             print(f"[rh-paper] buy-quote failed {pool[:10]}: {e}", flush=True)
             return
         if not q or not q.amount_out:
+            return
+        # ROUND-TRIP COST GATE (exit-impact leak): quote the sell of exactly
+        # what this buy returns, NOW. If the pool charges > MAX_RT_COST_PCT
+        # for the round trip, friction eats the edge — no entry. Uses real
+        # quotes (fee + impact both ways), not heuristics. Fail-closed on a
+        # reverted sell quote (one-way pool = honeypot signature anyway).
+        try:
+            sq = self._executor().quote_sell(token, q.amount_out)
+            eth_back = (sq.amount_out if (sq and sq.amount_out) else 0)
+            rt_cost = (1.0 - eth_back / q.amount_in) * 100.0
+        except Exception:
+            rt_cost = 100.0
+        if rt_cost > MAX_RT_COST_PCT:
+            self.block_hist["rt_cost"] = self.block_hist.get("rt_cost", 0) + 1
+            print(f"[rh-paper] RT-COST BLOCK {pool[:10]} "
+                  f"round-trip {rt_cost:.1f}% > {MAX_RT_COST_PCT:g}%", flush=True)
             return
         t_fill = time.time()
         dec = self._token_decimals(token)
