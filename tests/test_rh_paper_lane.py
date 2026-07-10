@@ -184,6 +184,41 @@ class TestTokenResolution:
         assert lane._token_for("0xp1") == "0xheld"
 
 
+class TestStatePersistence:
+    """Open paper positions must survive restarts (parity with the Solana
+    bot_state stores — a crash mid-hold must never orphan a position)."""
+
+    def _lane(self, tmp_path, monkeypatch):
+        import rh_paper_lane as mod
+        monkeypatch.setattr(mod, "STATE", str(tmp_path / "state.json"))
+
+        class FakeFeed:
+            watch = {}
+        return mod.PaperLane(FakeFeed(), executor=object(), registry={})
+
+    def test_roundtrip_open_position(self, tmp_path, monkeypatch):
+        import rh_paper_lane as mod
+        lane = self._lane(tmp_path, monkeypatch)
+        lane.pm.open_position(token="0xp1", entry_price=1e-8, size_usd=25.0,
+                              entry_time=100.0, address="0xtok")
+        lane.pos_meta["0xp1"] = {"qty_orig": 5000.0, "remaining_frac": 1.0,
+                                 "token": "0xtok", "sym": "T",
+                                 "entry_px": 1e-8, "entry_ts": 100.0}
+        lane.daily_pnl_usd = -3.5
+        lane.save_state()
+        lane2 = self._lane(tmp_path, monkeypatch)
+        lane2.restore_state()
+        assert "0xp1" in lane2.pos_meta
+        assert lane2.pos_meta["0xp1"]["qty_orig"] == 5000.0
+        assert lane2.pm.get_position("0xp1") is not None
+        assert abs(lane2.daily_pnl_usd - (-3.5)) < 1e-9
+
+    def test_no_state_file_clean_start(self, tmp_path, monkeypatch):
+        lane = self._lane(tmp_path, monkeypatch)
+        lane.restore_state()
+        assert lane.pos_meta == {} and lane.daily_pnl_usd == 0.0
+
+
 class TestExitEngineParity:
     """The lane must use the probe's exit semantics (shared engine)."""
 

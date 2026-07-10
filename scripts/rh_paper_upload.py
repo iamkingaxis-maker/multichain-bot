@@ -33,7 +33,9 @@ def main():
         print("[rh-upload] ledger empty")
         return
     req = urllib.request.Request(
-        BASE + "/api/rh-paper/ingest",
+        # full-sync: the LOCAL ledger is the source of truth — corrections
+        # (e.g. audited row fixes) propagate instead of being dedupe-skipped
+        BASE + "/api/rh-paper/ingest?replace=1",
         data=json.dumps(rows).encode(),
         headers={"Content-Type": "application/json",
                  "Authorization": "Basic " + base64.b64encode(AUTH.encode()).decode()},

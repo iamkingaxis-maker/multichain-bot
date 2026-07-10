@@ -44,6 +44,7 @@ from core.per_bot_position_manager import PerBotPositionManager  # noqa: E402
 
 OUT_DIR = os.path.join("scratchpad", "robinhood_tapes")
 LEDGER = os.path.join(OUT_DIR, "rh_paper_trades.jsonl")
+STATE = os.path.join(OUT_DIR, "rh_lane_state.json")   # open positions survive restarts
 
 # ── lane config (mirrors the Solana young probe where meaningful) ───────────
 ENTRY_USD = 25.0            # probe sizing
@@ -191,6 +192,42 @@ class PaperLane:
         self.pm = PerBotPositionManager(cfg)
         self.pos_meta = {}          # pool -> {qty, token, sym, entry stamps}
         self.stop = threading.Event()
+
+    # ── durable open positions (parity with the Solana bot_state stores:
+    # a crash/restart mid-hold must never orphan a position) ────────────────
+    def save_state(self):
+        try:
+            tmp = STATE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump({"pos_meta": self.pos_meta,
+                           "daily_pnl_usd": self.daily_pnl_usd,
+                           "day": time.strftime("%Y-%m-%d", time.gmtime()),
+                           "pm_state": self.pm.to_state_list()}, f)
+            os.replace(tmp, STATE)
+        except Exception as e:
+            print(f"[rh-paper] state save failed: {e}", flush=True)
+
+    def restore_state(self):
+        """Reload open positions from a prior session/crash. Same-day daily
+        P&L carries over (it's a day counter, not a session counter)."""
+        try:
+            if not os.path.exists(STATE):
+                return
+            st = json.load(open(STATE, encoding="utf-8"))
+            self.pos_meta = st.get("pos_meta") or {}
+            if st.get("day") == time.strftime("%Y-%m-%d", time.gmtime()):
+                self.daily_pnl_usd = float(st.get("daily_pnl_usd") or 0.0)
+            n = self.pm.load_state_list(st.get("pm_state") or [])
+            # drop meta whose pm twin didn't restore (and vice versa)
+            self.pos_meta = {p: m for p, m in self.pos_meta.items()
+                             if self.pm.get_position(p) is not None}
+            if self.pos_meta or n:
+                print(f"[rh-paper] restored {len(self.pos_meta)} open "
+                      f"position(s), day_pnl={self.daily_pnl_usd:+.2f}",
+                      flush=True)
+        except Exception as e:
+            print(f"[rh-paper] state restore failed (starting clean): {e}",
+                  flush=True)
 
     # firehose hook (ws thread) — cheap, non-blocking
     def on_row(self, pool: str, row: dict):
@@ -352,6 +389,7 @@ class PaperLane:
                "lat_quote_s": round(t_fill - t_decide, 3),
                "lat_total_s": lat_total, "fee_tier": q.fee}
         _append(LEDGER, rec)
+        self.save_state()
         print(f"[rh-paper] BUY  {w['sym']:<12} ${ENTRY_USD:.0f} dip={dip:.1f}% "
               f"lat_total={lat_total}s (trigger {trigger_lag}s + "
               f"quote {rec['lat_quote_s']}s)", flush=True)
@@ -412,6 +450,7 @@ class PaperLane:
             self.pos_meta.pop(pool, None)
             self.last_exit[pool] = now
             self.n_exits += 1
+        self.save_state()
         _append(LEDGER, {"ev": "sell", "ts": iso_utc(now), "pool": pool,
                          "sym": meta["sym"], "kind": decision.kind,
                          "reason": decision.reason[:100], "frac": frac,
@@ -491,6 +530,7 @@ def main():
     feed.backfill_discovery(lookback)
     fh = Firehose(feed)
     lane = PaperLane(feed, registry=fh.registry)
+    lane.restore_state()
     fh.on_row = lane.on_row
     print(f"[rh-paper] chain {cid} eth=${feed.eth_price:,.2f} "
           f"candidates={len(feed.cand)} PAPER-ONLY (no key, quotes only)",

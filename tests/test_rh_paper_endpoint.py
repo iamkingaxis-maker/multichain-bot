@@ -146,3 +146,23 @@ class TestIngestMerge:
     def test_dedup_key_shape(self):
         r = _buy(pool="A")
         assert rh_paper_dedup_key(r) == (r["ts"], "buy", "A")
+
+
+class TestReplaceSemantics:
+    """?replace=1 full-sync: merge from empty — corrections with the same
+    (ts, ev, pool) key overwrite instead of being dedupe-skipped (the BILLY
+    slice-cost phantom could never be fixed in append mode, 2026-07-10)."""
+
+    def test_replace_is_merge_from_empty_with_corrected_row(self):
+        bad = _sell(pool="A")
+        bad["pnl_usd"] = -18.8
+        merged, _ = merge_rh_paper_rows([], [bad])
+        fixed = dict(bad)
+        fixed["pnl_usd"] = -0.04
+        fixed["corrected"] = "slice-cost bug"
+        # append mode: correction is SKIPPED (same dedupe key)
+        appended, added = merge_rh_paper_rows(merged, [fixed])
+        assert added == 0 and appended[0]["pnl_usd"] == -18.8
+        # replace mode = merge from empty: correction wins
+        replaced, _ = merge_rh_paper_rows([], [fixed])
+        assert replaced[0]["pnl_usd"] == -0.04

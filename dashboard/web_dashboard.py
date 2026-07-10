@@ -5827,10 +5827,17 @@ class WebDashboard:
                 {"ok": False, "error": "expected a JSON array of ledger rows"},
                 status=400)
         path = self._rh_paper_ledger_path()
+        # ?replace=1 — FULL-SYNC: the posted array becomes the ledger (still
+        # de-duped/validated through the same merge, just from empty). Needed
+        # for corrections: append-mode dedupe on (ts,ev,pool) means a fixed
+        # row (same key, new values) can never overwrite its bad original
+        # (BILLY slice-cost phantom, 2026-07-10). Auth'd like every write.
+        replace = str(request.query.get("replace", "")).lower() in ("1", "true")
 
         def _merge_and_write():
-            existing = (self._rh_paper_read_rows(path)
-                        if os.path.exists(path) else [])
+            existing = ([] if replace else
+                        (self._rh_paper_read_rows(path)
+                         if os.path.exists(path) else []))
             merged, added = merge_rh_paper_rows(existing, incoming)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             tmp = path + ".tmp"
