@@ -277,10 +277,41 @@ async def run() -> None:
 
 def maybe_spawn() -> None:
     """Spawn the loop once (best-effort, no-op when disabled). Mirrors the
-    scanner's other _maybe_spawn_* helpers — never raises into run()."""
+    scanner's other _maybe_spawn_* helpers — never raises into run().
+
+    THREAD ISOLATION (2026-07-10, SHADOW_PNL_ISOLATED=on): the scorer's
+    compute_filter_pnl scoring pass held the MAIN loop ~58s every 3h cycle
+    (cadence-attributed: 21:02 initial run + 3h + runtime = 00:07 block) — a
+    measurement job starving live trade detection. Same fix as the on-chain WS
+    feed: run the whole scorer on its OWN thread + event loop. Self-contained
+    (reads the shadow jsonl, paced candle fetches on its own session, writes
+    filter_shadow_pnl.json / gate_rollback.json — all file-based, no shared
+    loop state) -> nil blast radius. Default off = unchanged create_task path."""
     try:
         if not _enabled():
             logger.info("[shadow-pnl] SHADOW_PNL_SCORER_MODE=off — not spawned")
+            return
+        _iso = os.environ.get("SHADOW_PNL_ISOLATED", "off").strip().lower() in (
+            "on", "1", "true", "yes")
+        if _iso:
+            import threading
+
+            def _run_isolated():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(run())
+                except Exception as e:  # pragma: no cover - defensive
+                    logger.warning("[shadow-pnl] isolated thread exited: %s", e)
+                finally:
+                    try:
+                        loop.close()
+                    except Exception:
+                        pass
+
+            threading.Thread(target=_run_isolated, name="shadow-pnl-scorer",
+                             daemon=True).start()
+            logger.info("[shadow-pnl] spawned ISOLATED on its own thread/loop")
             return
         asyncio.create_task(run())
         logger.info("[shadow-pnl] spawned")

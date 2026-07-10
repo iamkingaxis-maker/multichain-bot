@@ -1,0 +1,95 @@
+{
+  "age_h_max": null,
+  "age_h_min": 0.5,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 25.0,
+  "bot_id": "badday_young_rt_paper",
+  "btc_macro_h1_block_threshold": null,
+  "daily_loss_limit_usd": 40.0,
+  "display_name": "YOUNG_RT PAPER PARITY TWIN (2026-07-10): byte-identical config to the LIVE probe badday_young_rt (RT-native + 30k liq floor + adaptive size + retrace-micro AVOID + LP insurance, $25x2) but paper. Purpose: per-token live-vs-paper fidelity \u2014 same signals, one real fill + one paper fill -> the honest live=paper gap (slippage/reachability) measured continuously on the probe's own strategy. Judge fills pairwise by token. NEVER route live (live_probe=false).",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "unique_buyers_n",
+      ">=",
+      10
+    ],
+    [
+      "wash_suspected",
+      "<=",
+      0
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      25000
+    ],
+    [
+      "pc_h1",
+      "<=",
+      -30
+    ],
+    [
+      "net_flow_15s_imbalance",
+      ">=",
+      0
+    ]
+  ],
+  "entry_stack_exempt": true,
+  "fast_bail_pnl_pct": -9.0,
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_btc_overheat",
+    "filter_consec_red",
+    "filter_huge_wick"
+  ],
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -6.0,
+  "hard_stop_pct": -12.0,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 2,
+  "mcap_max": 1000000.0,
+  "mcap_min": 100000.0,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_triggers_to_fire": 1,
+  "never_runner_exit_enabled": true,
+  "never_runner_loss_floor": -6.0,
+  "never_runner_minutes": 45,
+  "never_runner_peak_max": 3.0,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "regime_dial_exempt": true,
+  "require_alpha_trigger": false,
+  "slow_bleed_minutes": 45,
+  "slow_bleed_pnl_threshold": -8.0,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "tp1_pct": 6.0,
+  "tp1_sell_fraction": 0.75,
+  "tp2_pct": 12.0,
+  "tp2_sell_fraction": 0.25,
+  "trading_hour_utc_end": 3,
+  "trading_hour_utc_start": 8,
+  "trail_pp": 2.0,
+  "triggers_allowed": null,
+  "triggers_disabled": [
+    "demand_bottom_compound"
+  ],
+  "vol_h1_min": 50000.0,
+  "young_token_probe": true,
+  "exclusion_pool": "badday_young_rt_paper",
+  "entry_gate_require_data": true,
+  "liq_exit_floor_enforce": true,
+  "adaptive_swing_size": true,
+  "min_liquidity_usd": 30000.0,
+  "retrace_micro_avoid": true,
+  "live_probe": false,
+  "lp_rug_tp1_full": true
+}
