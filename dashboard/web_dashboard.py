@@ -5664,6 +5664,15 @@ class WebDashboard:
                 out["deployed_usd"] = round(dep_usd, 2)
             except Exception:
                 pass
+            # SELL-PATH CANARY status (2026-07-10 incident): positive,
+            # queryable evidence the exit path can size sells — mirrored onto
+            # the trader by the canary loop. None = canary not armed (paper /
+            # spawn failed) — visibly distinct from "healthy".
+            try:
+                out["sell_canary"] = getattr(self._trader,
+                                             "_sell_canary_status", None)
+            except Exception:
+                pass
             self._wt_cache = (_t.monotonic(), out)
         except Exception as e:
             out = dict((cache[1] if cache else {"ok": False}),

@@ -1008,6 +1008,7 @@ class DipScanner:
 
                     async def _canary_loop():
                         was_healthy = True
+                        _n = 0
                         while True:
                             try:
                                 bal = await self.trader._get_token_balance_atomic(
@@ -1015,6 +1016,18 @@ class DipScanner:
                                 ok = bal is not None and bal >= 0
                                 self._sell_canary.record(ok)
                                 now_healthy = self._sell_canary.healthy()
+                                # positive observability (2026-07-10 lesson:
+                                # absence of errors is never evidence of
+                                # health): mirror for /api + 10-min heartbeat
+                                try:
+                                    self.trader._sell_canary_status = (
+                                        self._sell_canary.status_line())
+                                except Exception:
+                                    pass
+                                _n += 1
+                                if _n % 10 == 1:
+                                    logger.info("[CANARY] heartbeat %s",
+                                                self._sell_canary.status_line())
                                 if was_healthy and not now_healthy:
                                     logger.error(
                                         "[CANARY] SELL PATH BROKEN — live buys "
