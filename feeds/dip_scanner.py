@@ -994,6 +994,48 @@ class DipScanner:
             await self._maybe_spawn_onchain_feed()
         except Exception as e:
             logger.error("[onchain] failed to spawn WS feed: %s", e)
+        # SELL-PATH CANARY loop (2026-07-10 incident): real balance read via
+        # the exact sell-path code every ~60s; unhealthy -> live-buy bridge
+        # refuses new live entries. Only spawned when a key is present.
+        try:
+            if bool(getattr(self.trader, "private_key", "")):
+                from core.sell_path_canary import (
+                    SellPathCanary, CANARY_MINT, canary_mode_on)
+                if canary_mode_on():
+                    self._sell_canary = SellPathCanary(
+                        interval_secs=float(os.environ.get(
+                            "SELL_PATH_CANARY_SECS", "60") or 60))
+
+                    async def _canary_loop():
+                        was_healthy = True
+                        while True:
+                            try:
+                                bal = await self.trader._get_token_balance_atomic(
+                                    CANARY_MINT)
+                                ok = bal is not None and bal >= 0
+                                self._sell_canary.record(ok)
+                                now_healthy = self._sell_canary.healthy()
+                                if was_healthy and not now_healthy:
+                                    logger.error(
+                                        "[CANARY] SELL PATH BROKEN — live buys "
+                                        "HALTED (%s)", self._sell_canary.status_line())
+                                elif not was_healthy and now_healthy:
+                                    logger.info(
+                                        "[CANARY] sell path recovered — live "
+                                        "buys resume (%s)", self._sell_canary.status_line())
+                                was_healthy = now_healthy
+                            except Exception as _ce:
+                                self._sell_canary.record(False)
+                                logger.error("[CANARY] probe error (counted as "
+                                             "FAIL): %s", _ce)
+                            await asyncio.sleep(self._sell_canary.interval_secs)
+
+                    asyncio.get_running_loop().create_task(_canary_loop())
+                    logger.info("[CANARY] sell-path canary armed (every %.0fs, "
+                                "mint=%s...)", self._sell_canary.interval_secs,
+                                CANARY_MINT[:8])
+        except Exception as e:
+            logger.error("[CANARY] failed to spawn (live buys NOT gated): %s", e)
         # Telemetry log rotator: caps the growing append-only .jsonl logs on
         # the /data volume (allowlist-only — NEVER touches trade state). True
         # no-op when LOG_ROTATE_MODE=off. Best-effort; never breaks the scanner.
@@ -3207,6 +3249,18 @@ class DipScanner:
         from core.probe_instrument import should_route_live
         _live = should_route_live(getattr(pm.config, "live_probe", False), USE_JUPITER_ULTRA,
                                   bool(getattr(self.trader, "private_key", "")))
+        # SELL-PATH CANARY (2026-07-10 incident): NO NEW LIVE ENTRIES while the
+        # sell path can't prove it can size an exit. The probe bought SMOLE 14
+        # minutes after the first failed mogdog sell — never again. Blocks the
+        # BUY only; sells are never gated (exits must always be free to try).
+        if _live:
+            _canary = getattr(self, "_sell_canary", None)
+            if _canary is not None and not _canary.healthy():
+                logger.error(
+                    "[CANARY] LIVE BUY BLOCKED bot=%s token=%s — sell path "
+                    "unhealthy (%s); no new live entries until a canary read passes",
+                    bot_id, decision.token, _canary.status_line())
+                return
         _used_size = decision.size_usd
         # ADAPTIVE SWING SIZE (2026-07-07 token-conditional decode): flex size by
         # the token's swing profile — violent+shallow (the dead-cat gap tail)
