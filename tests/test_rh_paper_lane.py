@@ -8,8 +8,9 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 from rh_paper_lane import (  # noqa: E402
     price_from_quote, dip_pct, demand_turn, entry_verdict, sell_slice,
+    lp_drain_pct,
     DIP_TRIGGER_PCT, MIN_LIQ_USD, MAX_CONCURRENT, DAILY_LOSS_STOP_USD,
-    DEMAND_MIN_BUY_USD,
+    DEMAND_MIN_BUY_USD, MIN_POOL_AGE_H, LP_DRAIN_ENTRY_PCT,
 )
 
 NOW = 1_000_000.0
@@ -99,9 +100,41 @@ class TestEntryVerdict:
         assert "daily_loss_stop" in self._ok(
             daily_pnl_usd=DAILY_LOSS_STOP_USD)["blocks"]
 
+    def test_rug_guard_gates(self):
+        # pool-age floor (rug-guard port)
+        assert "age_floor" in self._ok(age_h=MIN_POOL_AGE_H - 0.1)["blocks"]
+        assert self._ok(age_h=MIN_POOL_AGE_H + 0.1)["enter"] is True
+        assert self._ok(age_h=None)["enter"] is True     # unknown age: no signal
+        # lp-drain entry veto
+        assert "lp_drain" in self._ok(drain_pct=LP_DRAIN_ENTRY_PCT - 1)["blocks"]
+        assert self._ok(drain_pct=-5.0)["enter"] is True  # mild wobble ok
+        assert self._ok(drain_pct=None)["enter"] is True  # no series yet
+
     def test_blocks_accumulate(self):
         v = self._ok(dip=None, demand=False, honeypot_ok=False)
         assert v["enter"] is False and len(v["blocks"]) == 3
+
+
+class TestLpDrainPct:
+    """Keyless LP-drain signal: pct off the 15-min liq high (mirrors the
+    Solana lp_delta_15m_pct that flagged every doomed CLOPY-class entry)."""
+
+    def test_drain_measured_from_window_high(self):
+        s = [(NOW - 600, 40000.0), (NOW - 300, 42000.0), (NOW - 10, 21000.0)]
+        assert abs(lp_drain_pct(s, NOW) - (-50.0)) < 0.01
+
+    def test_stable_liq_no_drain(self):
+        s = [(NOW - 300, 30000.0), (NOW - 10, 30000.0)]
+        assert abs(lp_drain_pct(s, NOW)) < 1e-9
+
+    def test_thin_series_none(self):
+        assert lp_drain_pct([(NOW - 10, 30000.0)], NOW) is None
+        assert lp_drain_pct([], NOW) is None
+
+    def test_old_samples_excluded(self):
+        s = [(NOW - 5000, 100000.0), (NOW - 200, 30000.0), (NOW - 10, 29000.0)]
+        # the 100k sample is outside the window -> only ~3% drain
+        assert lp_drain_pct(s, NOW) > -5.0
 
 
 class TestSellSlice:

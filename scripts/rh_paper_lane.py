@@ -49,7 +49,14 @@ LEDGER = os.path.join(OUT_DIR, "rh_paper_trades.jsonl")
 ENTRY_USD = 25.0            # probe sizing
 MAX_CONCURRENT = 2          # probe cap
 DAILY_LOSS_STOP_USD = -25.0  # probe kill
-MIN_LIQ_USD = 10_000.0      # young habitat floor (RH pools run thinner)
+# Rug-guard port (2026-07-10 session-1 autopsy: Halp -90% + TREAT -17% = rugs
+# that passed the unguarded v1 gates; the Solana probe's edge IS its guards):
+MIN_LIQ_USD = 30_000.0      # PARITY with the live probe (was 10k -> rug pond)
+MIN_POOL_AGE_H = 1.0        # dev-armed launch window: no fresh-pool entries
+LP_DRAIN_WINDOW_S = 900.0   # liq-delta lookback (mirrors lp_delta_15m_pct)
+LP_DRAIN_ENTRY_PCT = -15.0  # recent drain >= 15% -> no entry (RH v1: no data
+                            # yet to refute a veto here, unlike Solana)
+LP_DRAIN_EXIT_PCT = -30.0   # liq collapses while holding -> immediate full exit
 DIP_TRIGGER_PCT = -12.0     # entry: price >=12% off the 10-min high
 PRICE_WINDOW_S = 600.0
 DEMAND_WINDOW_S = 30.0      # demand turn: net inflow over last 30s
@@ -109,8 +116,23 @@ def sell_slice(remaining_frac: float, req_frac: float):
     return f, remaining_frac - f
 
 
+def lp_drain_pct(liq_series, now: float, window_s: float = LP_DRAIN_WINDOW_S):
+    """[(ts, liq_usd)] -> pct change from the window's max liq to the latest
+    sample (0 or negative = drain). None when <2 in-window samples (fail-OPEN
+    for the entry stamp, but the entry gate then simply has no drain signal)."""
+    pts = [(t, x) for t, x in liq_series if now - t <= window_s and x and x > 0]
+    if len(pts) < 2:
+        return None
+    hi = max(x for _, x in pts)
+    cur = pts[-1][1]
+    if hi <= 0:
+        return None
+    return (cur - hi) / hi * 100.0
+
+
 def entry_verdict(dip, demand, micro, liq_usd, honeypot_ok,
-                  open_count, cooldown_ok, daily_pnl_usd) -> dict:
+                  open_count, cooldown_ok, daily_pnl_usd,
+                  age_h=None, drain_pct=None) -> dict:
     """Combine every gate -> {enter: bool, blocks: [..]} (all reasons kept
     so the ledger shows WHY, not just whether)."""
     blocks = []
@@ -122,6 +144,10 @@ def entry_verdict(dip, demand, micro, liq_usd, honeypot_ok,
         blocks.append("retrace_micro_avoid")
     if liq_usd < MIN_LIQ_USD:
         blocks.append("liq_floor")
+    if age_h is not None and age_h < MIN_POOL_AGE_H:
+        blocks.append("age_floor")
+    if drain_pct is not None and drain_pct <= LP_DRAIN_ENTRY_PCT:
+        blocks.append("lp_drain")
     if not honeypot_ok:
         blocks.append("honeypot")
     if open_count >= MAX_CONCURRENT:
@@ -144,6 +170,7 @@ class PaperLane:
         self.q = queue.Queue()      # (pool, row) from the firehose hook
         self.tape = {}              # pool -> [rows] (rolling)
         self.prices = {}            # pool -> [(ts, price_eth)]
+        self.liq_hist = {}          # pool -> [(ts, liq_usd)] (lp-drain guard)
         self.last_trade = {}        # pool -> ts (hot tracking)
         self.decimals = {}          # token -> int
         self.honeypot = {}          # token -> verdict dict
@@ -238,6 +265,27 @@ class PaperLane:
                 print(f"[rh-paper] quote {pool[:10]} {type(e).__name__}",
                       flush=True)
 
+    def _sample_liq(self, now: float):
+        """Feed the lp-drain tracker from the maintenance liq refresher."""
+        for pool in set(list(self.last_trade) + list(self.pos_meta)):
+            w = self.feed.watch.get(pool)
+            if not w:
+                continue
+            liq = float(w.get("liq") or 0)
+            if liq <= 0:
+                continue
+            h = self.liq_hist.setdefault(pool, [])
+            if not h or h[-1][1] != liq or now - h[-1][0] > 60:
+                h.append((now, liq))
+                if len(h) > 200:
+                    del h[:100]
+
+    def _pool_age_h(self, w):
+        try:
+            return self.feed.age_h(w["created_block"])
+        except Exception:
+            return None  # unknown age -> gate has no signal (fail-open)
+
     def _consider_entries(self, now: float):
         for pool, series in list(self.prices.items()):
             if pool in self.pos_meta:
@@ -254,7 +302,10 @@ class PaperLane:
             liq = float(w.get("liq") or 0)
             # honeypot LAST (network call) and only when everything else passes
             v = entry_verdict(d, demand_turn(rows, now), micro, liq, True,
-                              len(self.pos_meta), cooldown_ok, self.daily_pnl_usd)
+                              len(self.pos_meta), cooldown_ok, self.daily_pnl_usd,
+                              age_h=self._pool_age_h(w),
+                              drain_pct=lp_drain_pct(
+                                  self.liq_hist.get(pool, []), now))
             self.n_evals += 1
             if not v["enter"]:
                 for b in v["blocks"]:
@@ -307,6 +358,16 @@ class PaperLane:
                 continue
             px = series[-1][1]
             rows = self.tape.get(pool, [])
+            # LP-DRAIN EXIT (rug-guard port): pool liquidity collapsing under
+            # us = get out NOW, don't wait for the price path to confirm.
+            _drain = lp_drain_pct(self.liq_hist.get(pool, []), now)
+            if _drain is not None and _drain <= LP_DRAIN_EXIT_PCT:
+                from types import SimpleNamespace
+                self._paper_sell(pool, meta, SimpleNamespace(
+                    kind="LP_DRAIN", sell_fraction=1.0,
+                    reason="lp drain %.1f%% in %ds (liq collapse)" % (
+                        _drain, int(LP_DRAIN_WINDOW_S))), now)
+                continue
             vol_m5 = sum(float(r.get("volume_usd") or 0) for r in rows
                          if now - (r.get("_epoch") or 0) <= 300)
             for d in self.pm.tick(token=pool, current_price=px, now=now,
@@ -367,6 +428,7 @@ class PaperLane:
             try:
                 now = self.feed.rpc.now()
                 self._drain(now)
+                self._sample_liq(now)
                 self._quote_hot(now)
                 self._manage_exits(now)
                 self._consider_entries(now)
