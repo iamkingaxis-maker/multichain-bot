@@ -464,6 +464,7 @@ class Firehose:
         self.n_backlog_skipped = 0
         self.n_est_rows = 0
         self.n_reconnects = 0
+        self.on_row = None               # optional callback(pool, row) — paper-lane hook
         os.makedirs(OUT_DIR, exist_ok=True)
         self.debug_path = os.path.join(OUT_DIR, "fh_debug.jsonl")
 
@@ -559,6 +560,11 @@ class Firehose:
             _append(os.path.join(OUT_DIR, f"tape_{pool[:12]}.jsonl"), row)
             taped_any = True
             self.total_taped += 1
+            if self.on_row is not None:
+                try:
+                    self.on_row(pool, dict(row))
+                except Exception:
+                    pass  # strategy hook must never break taping
             if self.caught_up:
                 self.lags.append(row["lag_secs"])
             print(f"[fh-tape] {w['sym']:<14} {kind:<4} "
