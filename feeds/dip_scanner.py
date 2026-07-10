@@ -1056,6 +1056,13 @@ class DipScanner:
             self._maybe_spawn_log_rotator()
         except Exception as e:
             logger.error("[log-rotator] failed to spawn: %s", e)
+        # Post-exit tail tracker sweep (2026-07-10): completes the +6h follow-up
+        # price checks queued on every FULL close (monster-frequency telemetry,
+        # trail-width instrumentation). Idles when POST_EXIT_TRACK_MODE=off.
+        try:
+            asyncio.create_task(self._post_exit_sweep_loop())
+        except Exception as e:
+            logger.error("[post-exit] failed to spawn sweep: %s", e)
         # Shadow-P&L scorers: low-cadence in-bot task that writes the precomputed
         # filter_shadow_pnl.json + shadow_gate_pnl.json the /api/filter-shadow
         # endpoint reads. Off-loop + egress-bounded; true no-op when
@@ -1097,6 +1104,99 @@ class DipScanner:
             logger.info("[log-rotator] spawned for %s", data_dir)
         except Exception as e:
             logger.error("[log-rotator] spawn error: %s", e)
+
+    async def _post_exit_sweep_loop(self):
+        """Post-exit tail tracker sweep (2026-07-10, mirrors rh_paper_lane's
+        _check_postexit). Every ~10 min: load pending rows (off-loop), take the
+        due ones (+6h past their FULL close), fetch fresh prices with ONE
+        batched call (_fast_batch_prices — Jupiter lite primary or DexScreener
+        per JUPITER_PRICE_PRIMARY; a direct DexScreener token-endpoint batch
+        backstops addresses the primary missed), write post6h_price /
+        post6h_vs_exit_pct / died to post_exit_results.jsonl, rewrite pending.
+        ONE price lookup per due row. Fail-open everywhere (debug log);
+        POST_EXIT_TRACK_MODE=off = the loop idles. File I/O runs off-loop via
+        asyncio.to_thread (scanner-loop safety)."""
+        from core.post_exit_tracker import (
+            track_mode_on, read_rows, due_rows, result_row, append_row,
+            rewrite_rows, pending_path, results_path, SWEEP_SECS)
+        while True:
+            try:
+                await asyncio.sleep(SWEEP_SECS)
+                if not track_mode_on():
+                    continue
+                rows = await asyncio.to_thread(read_rows, pending_path())
+                if not rows:
+                    continue
+                now = time.time()
+                due, keep = due_rows(rows, now)
+                if not due:
+                    continue
+                addrs = sorted({str(r.get("address") or "") for r in due
+                                if r.get("address")})
+                prices = {}
+                if addrs:
+                    try:
+                        prices = await self._fast_batch_prices(addrs[:200]) or {}
+                    except Exception as _pe:
+                        logger.debug("[post-exit] batch price failed: %s", _pe)
+                    # DexScreener token-endpoint fallback for addresses the
+                    # primary (possibly Jupiter) missed — one bounded batch
+                    # (chunk 30, same endpoint as _fast_batch_prices' legacy
+                    # path; NOT via env-flipping, which would race concurrent
+                    # fast-watch price calls).
+                    missing = [a for a in addrs[:200] if a.lower() not in prices]
+                    if missing:
+                        try:
+                            extra = await self._post_exit_ds_prices(missing[:60])
+                            prices.update(extra or {})
+                        except Exception as _fe:
+                            logger.debug("[post-exit] ds fallback failed: %s", _fe)
+                for r in due:
+                    px = prices.get(str(r.get("address") or "").lower())
+                    out = result_row(r, px, now)
+                    await asyncio.to_thread(append_row, results_path(), out)
+                await asyncio.to_thread(rewrite_rows, pending_path(), keep)
+                logger.info("[post-exit] swept %d due rows (%d still pending)",
+                            len(due), len(keep))
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.debug("[post-exit] sweep error (fail-open): %s", e)
+
+    async def _post_exit_ds_prices(self, addrs):
+        """DexScreener token-endpoint batch fallback for the post-exit sweep:
+        {addr_lower: priceUsd}. Best-effort (partial/{} on failure) — a token
+        with no DexScreener pair at +6h is genuinely dead for our purposes."""
+        out = {}
+        if not addrs:
+            return out
+        import aiohttp
+        from core.fast_watch import chunk_addrs
+        timeout = aiohttp.ClientTimeout(total=8.0)
+        try:
+            async with aiohttp.ClientSession() as session:
+                for chunk in chunk_addrs(list(addrs), 30):
+                    url = ("https://api.dexscreener.com/latest/dex/tokens/"
+                           + ",".join(chunk))
+                    try:
+                        async with session.get(url, timeout=timeout) as resp:
+                            if resp.status != 200:
+                                continue
+                            data = await resp.json(content_type=None)
+                        for p in (data or {}).get("pairs") or []:
+                            base = ((p.get("baseToken") or {}).get("address")
+                                    or "").lower()
+                            pr = p.get("priceUsd")
+                            if base and pr and base not in out:
+                                try:
+                                    out[base] = float(pr)
+                                except (TypeError, ValueError):
+                                    pass
+                    except Exception as e:
+                        logger.debug("[post-exit] ds chunk failed: %s", e)
+        except Exception as e:
+            logger.debug("[post-exit] ds session failed: %s", e)
+        return out
 
     async def _fetch_cycle_sol_features(self) -> None:
         """Fetch SOL price+regime ONCE per cycle and cache on self.
@@ -6775,6 +6875,29 @@ class DipScanner:
                     })
             except Exception:
                 pass
+        # POST-EXIT TAIL TRACKER (2026-07-10, mirrors the RH lane's POSTEXIT_*):
+        # on every FULL close queue a +6h follow-up price check so monster
+        # frequency past our exits is measured CONTINUOUSLY (trail-width
+        # instrumentation). Durable pending row; the ~10-min sweep
+        # (_post_exit_sweep_loop) completes it with ONE batched price lookup.
+        # Fail-soft (debug log); POST_EXIT_TRACK_MODE=off disables.
+        if result.fully_closed:
+            try:
+                from core.post_exit_tracker import (
+                    track_mode_on as _pet_on, queue_row as _pet_row,
+                    append_row as _pet_append, pending_path as _pet_path)
+                if _pet_on():
+                    _pet_addr = (getattr(_pos, "address", "") if _pos else "") \
+                        or getattr(self, "_addr_by_token", {}).get(token, "")
+                    await asyncio.to_thread(
+                        _pet_append, _pet_path(),
+                        _pet_row(bot_id=bot_id, token=token, address=_pet_addr,
+                                 exit_price=eff_exit,
+                                 exit_pnl_pct=float(result.pnl_pct or 0.0),
+                                 exit_kind=str(getattr(exit_decision, "kind", "") or ""),
+                                 close_ts=now))
+            except Exception as _pet_e:
+                logger.debug("[post-exit] queue failed (fail-open): %s", _pet_e)
         logger.info(
             "[DipScanner] SELL bot=%s token=%s frac=%.2f pnl=$%.2f reason=%s%s",
             bot_id, token, result.sell_fraction, result.realized_pnl_usd,
@@ -7605,6 +7728,13 @@ class DipScanner:
                     trail_pp = 2.0
                 for p in pm.iter_positions():
                     if not getattr(p, "tp1_hit", False):
+                        continue
+                    # HOUSE-MONEY MOONBAG (2026-07-10): post-TP2 a moonbag bot's
+                    # position is ONLY the moonbag, managed by its own floor/
+                    # trail in pm.tick() — the fast trail-reprice must never
+                    # sell it at the tight trail_pp.
+                    if (getattr(p, "tp2_hit", False)
+                            and float(getattr(pcfg, "moonbag_fraction", 0) or 0) > 0):
                         continue
                     if not getattr(p, "address", "") or getattr(p, "entry_price", 0) <= 0:
                         continue

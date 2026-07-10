@@ -481,6 +481,23 @@ class BotConfig:
     # SHADOW-only (logged, never blocks) regardless of this flag. Default off.
     retrace_micro_avoid: bool = False
 
+    # HOUSE-MONEY MOONBAG exit shape (2026-07-10 paper A/B). The ladder's TP2 is
+    # a full-out door, so +244%-class runners (mogdog 2026-07-10) are structurally
+    # uncapturable; wide-trail variants failed the winner-kill bar (33%). When
+    # moonbag_fraction > 0, TP2 sells only (remainder-after-TP1 - moonbag_fraction)
+    # and KEEPS moonbag_fraction of the ORIGINAL position open as a house-money
+    # moonbag: profits already banked at TP1/TP2, floor at ~entry, upside open —
+    # winner-kill ~0 by construction. The moonbag closes in full when pnl_pct <=
+    # moonbag_floor_pct (default 0.0 = breakeven floor) or, when moonbag_trail_pp
+    # is set, when pnl_pct <= peak - moonbag_trail_pp (peak tracked as today).
+    # While the moonbag rides, the tight post-TP1 trail is suppressed (the
+    # moonbag's own floor/trail replace it); hard_stop and an explicitly
+    # configured time_stop still apply as catastrophic backstops. Default 0.0 =
+    # every existing bot byte-identical.
+    moonbag_fraction: float = 0.0
+    moonbag_floor_pct: float = 0.0
+    moonbag_trail_pp: Optional[float] = None
+
     # lp_rug_tp1_full (2026-07-09 CLOPY autopsy, AxiS "ship it"): when True and
     # the ENTRY carried the LP-drain rug flag (lp_event_verdict=REMOVE_15MIN AND
     # lp_delta_15m_pct<=-15 — present at every doomed CLOPY -98.6% entry), TP1
@@ -546,6 +563,19 @@ class BotConfig:
                 f"bot_id={self.bot_id}: tp1_sell_fraction "
                 f"({self.tp1_sell_fraction}) + tp2_sell_fraction "
                 f"({self.tp2_sell_fraction}) must be <= 1.0"
+            )
+        if self.moonbag_fraction < 0:
+            raise ValueError(
+                f"bot_id={self.bot_id}: moonbag_fraction "
+                f"({self.moonbag_fraction}) must be >= 0"
+            )
+        if (self.moonbag_fraction > 0
+                and self.tp1_sell_fraction + self.moonbag_fraction > 1.0 + 1e-9):
+            raise ValueError(
+                f"bot_id={self.bot_id}: tp1_sell_fraction "
+                f"({self.tp1_sell_fraction}) + moonbag_fraction "
+                f"({self.moonbag_fraction}) must be <= 1.0 "
+                "(nothing left after TP1 to keep as a moonbag)"
             )
 
 

@@ -131,7 +131,7 @@ class CloseResult:
 @dataclass
 class ExitDecision:
     token: str
-    kind: Literal["TP1", "TP2", "POST_TP1_TRAIL", "HARD_STOP", "PRE_STOP_BAIL", "FLAT_EXIT", "BREAKEVEN_LOCK"]
+    kind: Literal["TP1", "TP2", "POST_TP1_TRAIL", "HARD_STOP", "PRE_STOP_BAIL", "FLAT_EXIT", "BREAKEVEN_LOCK", "MOONBAG_FLOOR", "MOONBAG_TRAIL"]
     reason: str
     sell_fraction: float  # 0.0 to 1.0; full exit = 1.0
 
@@ -729,6 +729,41 @@ class PerBotPositionManager:
             ))
             return decisions
 
+        # 1c. HOUSE-MONEY MOONBAG (2026-07-10 exit-shape A/B). Once TP2 has
+        # filled on a moonbag bot, the position holds ONLY the moonbag
+        # (remaining_fraction == moonbag_fraction — the TP2 decision below sold
+        # remainder-minus-moonbag). Worst case gives back ~nothing: profits are
+        # banked at TP1/TP2 and the FLOOR closes the moonbag in full at
+        # ~breakeven (pnl <= moonbag_floor_pct, default 0.0); the optional
+        # TRAIL (pnl <= peak - moonbag_trail_pp) harvests a runner that rolls
+        # over — kind tells the analyzer which door closed it. Winner-kill ~0
+        # by construction. While the moonbag rides we RETURN here so the tight
+        # post-TP1 trail (step 6) can never touch it; the catastrophic
+        # hard_stop and an explicitly configured time_stop (both above) still
+        # apply, and every pre-TP1 cutter (flat/stall/slow_bleed/bails) is
+        # already gated off by tp1_hit. No once-fired stamp — a failed/held
+        # sell simply re-fires next tick.
+        _mb_frac = float(getattr(self.config, "moonbag_fraction", 0.0) or 0.0)
+        if _mb_frac > 0 and p.tp2_hit:
+            _mb_floor = float(getattr(self.config, "moonbag_floor_pct", 0.0) or 0.0)
+            _mb_trail = getattr(self.config, "moonbag_trail_pp", None)
+            if pnl_pct <= _mb_floor:
+                decisions.append(ExitDecision(
+                    token=token, kind="MOONBAG_FLOOR",
+                    reason=(f"moonbag floor pnl={pnl_pct:.2f}% <= {_mb_floor:g} "
+                            f"(house-money breakeven floor)"),
+                    sell_fraction=1.0,
+                ))
+            elif (_mb_trail is not None
+                  and pnl_pct <= p.peak_pnl_pct - float(_mb_trail)):
+                decisions.append(ExitDecision(
+                    token=token, kind="MOONBAG_TRAIL",
+                    reason=(f"moonbag trail pnl={pnl_pct:.2f}% <= "
+                            f"peak({p.peak_pnl_pct:.2f}%) - {float(_mb_trail):.1f}pp"),
+                    sell_fraction=1.0,
+                ))
+            return decisions
+
         # 1a. Giveback floor (2026-06-10 gap-through guard, pre-TP1): position
         # already proved demand (peak >= min) then round-tripped — exit at the
         # floor instead of riding to a gapped -15..-22% hard-stop fill
@@ -977,10 +1012,27 @@ class PerBotPositionManager:
         _peel_on = bool((p.state_blob or {}).get("peel_active"))
         if p.tp1_hit and not p.tp2_hit and not _peel_on and pnl_pct >= self.config.tp2_pct:
             p.tp2_hit = True
+            _tp2_frac = self.config.tp2_sell_fraction
+            _mb_note = ""
+            # HOUSE-MONEY MOONBAG (2026-07-10): keep moonbag_fraction of the
+            # ORIGINAL position past TP2 — sell only (remainder-after-TP1 -
+            # moonbag), never MORE than the configured tp2 fraction.
+            # sell_fraction values are fractions of ORIGINAL (close_position
+            # clamps to remaining), so the position stays open with
+            # remaining_fraction == moonbag_fraction; step 1c above then
+            # manages the moonbag's floor/trail exit.
+            if _mb_frac > 0:
+                _rem_after_tp1 = max(0.0, 1.0 - float(self.config.tp1_sell_fraction))
+                _tp2_frac = max(0.0, min(_tp2_frac, _rem_after_tp1 - _mb_frac))
+                if p.state_blob is not None:
+                    p.state_blob["moonbag_active"] = True
+                    p.state_blob["moonbag_fraction"] = _mb_frac
+                    p.state_blob["moonbag_tp2_pnl"] = round(pnl_pct, 4)
+                _mb_note = f" [moonbag {_mb_frac:g} kept]"
             decisions.append(ExitDecision(
                 token=token, kind="TP2",
-                reason=f"TP2 pnl={pnl_pct:.2f}% >= {self.config.tp2_pct}",
-                sell_fraction=self.config.tp2_sell_fraction,
+                reason=f"TP2 pnl={pnl_pct:.2f}% >= {self.config.tp2_pct}{_mb_note}",
+                sell_fraction=_tp2_frac,
             ))
 
         # 6. Post-TP1 trail (skip when trail_pp is None — e.g. probe_swing, a swing
