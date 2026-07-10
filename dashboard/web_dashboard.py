@@ -5,12 +5,18 @@ Access from any device on your network at http://localhost:8080
 
 Serves a single-page dark-mode dashboard with:
   - Server-Sent Events for real-time push updates (no polling)
-  - Cumulative P&L chart (Chart.js)
-  - Open positions with hold time and progress bars
-  - Strategy & chain breakdowns
+  - Wallet truth (on-chain SOL delta) + live swaps — the only honest P&L
+  - Honest book / live-slot race scoreboards + per-bot leaderboard
+  - Robinhood Chain paper-lane card (/api/rh-paper)
   - Full trade history table with search
-  - Security gate stats
   - Live event feed
+
+2026-07-10 cleanup (AxiS): retired the sim-era sections — simulated-ledger
+stat tiles (Total/Daily P&L, Win Rate, Total Trades, Account Balance, DEX WS),
+the simulated cumulative P&L chart, Copy Wallets, Open Positions (Smart
+Wallet), and Security Gate. UI ONLY — the backend API endpoints those
+sections read (/api/seed-wallets*, /api/sell, SSE stats payload) are kept
+untouched for tooling.
 """
 
 import asyncio
@@ -98,7 +104,6 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Heisenberg // Fleet Ops</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   /* ── WEB3 OPS THEME (2026-07-01 redesign) ─────────────────────────
      Dark glass + neon. Accents: cyan #00e5ff -> violet #7c4dff,
@@ -322,24 +327,6 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   .live-sweep { font-size: 11px; color: var(--muted); margin-top: 12px;
     border-top: 1px solid var(--border); padding-top: 8px; }
 
-  /* ── Stat cards ── */
-  .stat-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
-  @media (max-width: 1100px) { .stat-row { grid-template-columns: repeat(3, 1fr); } }
-  @media (max-width: 600px)  { .stat-row { grid-template-columns: repeat(2, 1fr); } }
-  .stat-card {
-    background: var(--glass);
-    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px;
-    transition: border-color .2s, box-shadow .2s;
-  }
-  .stat-card:hover { border-color: var(--border-hi); box-shadow: 0 0 18px rgba(0,229,255,0.07); }
-  .stat-card .label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.4px; margin-bottom: 6px; }
-  .stat-card .value { font-size: 22px; font-weight: 700; line-height: 1.1; }
-  .stat-card .sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
-
-  /* ── Chart ── */
-  .chart-wrap { position: relative; height: 220px; }
-
   /* ── Columns ── */
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
@@ -432,12 +419,6 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   .btn-danger { background: rgba(255,41,101,0.85); color: #fff; }
   .btn-danger:hover { box-shadow: 0 0 14px rgba(255,41,101,0.35); }
 
-  /* ── Security grid ── */
-  .sec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .sec-item { padding: 10px; background: var(--glass2); border: 1px solid var(--border); border-radius: 10px; }
-  .sec-item .k { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 3px; }
-  .sec-item .v { font-size: 17px; font-weight: 700; }
-
   /* ── Utility ── */
   .green  { color: var(--green); }
   .red    { color: var(--red); }
@@ -462,10 +443,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     .hb-stats { gap: 18px; }
     .hb-stat .val { font-size: 19px; }
     .hb-stat .val.big { font-size: 23px; }
-    .stat-card .value { font-size: 17px; }
-    .chart-wrap { height: 180px; }
     .strategies-grid { grid-template-columns: 1fr; gap: 10px; }
-    .sec-grid { grid-template-columns: repeat(2, 1fr); }
     th, td { padding: 6px 6px; font-size: 11px; }
     th { font-size: 8px; }
     #event-feed { height: 240px; }
@@ -658,97 +636,47 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </details>
   </div>
 
-  <!-- ── Simulated-ledger stat cards ── -->
-  <div class="stat-row">
-    <div class="stat-card">
-      <div class="label">Total P&amp;L <span class="sim-tag">sim ledger</span></div>
-      <div class="value" id="sc-total-pnl">$0.00</div>
-      <div class="sub" id="sc-total-pnl-sub">simulated ledger (not live truth)</div>
+  <!-- ── Robinhood Chain (paper lane — ledger pushed from local sessions) ── -->
+  <div class="card" id="rh-paper-panel">
+    <div class="card-title">
+      <span class="dot" style="background:var(--violet);box-shadow:0 0 8px var(--violet);"></span> Robinhood Chain
+      <span class="sim-tag">paper</span>
+      <span style="text-transform:none;letter-spacing:0;color:var(--muted);">&mdash; RH-chain memecoin lane &middot; per-session; ledger pushed via /api/rh-paper/ingest</span>
     </div>
-    <div class="stat-card">
-      <div class="label">Daily P&amp;L <span class="sim-tag">sim ledger</span></div>
-      <div class="value" id="sc-daily-pnl">$0.00</div>
-      <div class="sub">today (UTC)</div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:baseline;padding:6px 2px;">
+      <div><div style="color:var(--muted);font-size:11px;">day P&amp;L (paper)</div>
+        <div id="rh-day-pnl" style="font-size:26px;font-weight:700;">&mdash;</div></div>
+      <div><div style="color:var(--muted);font-size:11px;">entries</div>
+        <div id="rh-entries" style="font-size:16px;">&mdash;</div></div>
+      <div><div style="color:var(--muted);font-size:11px;">exits</div>
+        <div id="rh-exits" style="font-size:16px;">&mdash;</div></div>
+      <div><div style="color:var(--muted);font-size:11px;">median detect&rarr;fill</div>
+        <div id="rh-lag" style="font-size:16px;">&mdash;</div></div>
+      <div id="rh-note" style="color:var(--muted);font-size:12px;align-self:center;"></div>
     </div>
-    <div class="stat-card">
-      <div class="label">Win Rate</div>
-      <div class="value" id="sc-win-rate">0%</div>
-      <div class="sub" id="sc-wr-sub">0 wins / 0 trades</div>
-    </div>
-    <div class="stat-card">
-      <div class="label">Total Trades</div>
-      <div class="value" id="sc-trades">0</div>
-      <div class="sub" id="sc-trades-sub">0 open</div>
-    </div>
-    <div class="stat-card">
-      <div class="label">Account Balance</div>
-      <div class="value" id="sc-balance">$0</div>
-      <div class="sub" id="sc-balance-sub">&mdash;</div>
-    </div>
-    <div class="stat-card">
-      <div class="label">DEX WS</div>
-      <div class="value" id="sc-dex-ws" style="font-size:17px;">&mdash;</div>
-      <div class="sub" id="sc-dex-ws-sub">checking...</div>
+    <div class="tbl-wrap">
+      <table class="num-table" id="rh-table">
+        <thead><tr>
+          <th>time (UTC)</th><th>ev</th><th>sym</th><th>usd</th><th>P&amp;L $</th><th>P&amp;L %</th><th>lat s</th>
+        </tr></thead>
+        <tbody><tr><td colspan="7" class="empty">Loading RH ledger&hellip;</td></tr></tbody>
+      </table>
     </div>
   </div>
 
-  <!-- ── Cumulative P&L chart (simulated ledger) ── -->
+  <!-- ── Live Event Feed ── -->
   <div class="card">
-    <div class="card-title"><span class="dot"></span> Cumulative P&amp;L
-      <span class="sim-tag">simulated ledger &mdash; not live truth</span>
-    </div>
-    <div class="chart-wrap"><canvas id="pnl-chart"></canvas></div>
-  </div>
-
-  <!-- ── Positions + Feed ── -->
-  <div class="two-col">
-    <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--green);box-shadow:0 0 8px var(--green);"></span> Open Positions &mdash; Smart Wallet</div>
-      <div class="tbl-wrap">
-        <table id="positions-table">
-          <thead><tr>
-            <th>Token</th><th>Chain</th><th>Strategy</th>
-            <th>Entry</th><th>Size</th><th>Unrealized</th><th>Hold</th><th>TP</th><th></th>
-          </tr></thead>
-          <tbody id="positions-body">
-            <tr><td colspan="9" class="empty">No open smart-wallet positions</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--amber);box-shadow:0 0 8px var(--amber);"></span> Live Event Feed</div>
-      <div id="event-feed">
-        <div class="feed-item feed-info">
-          <span class="feed-time">&mdash;</span>
-          <span class="feed-msg">Waiting for events...</span>
-        </div>
+    <div class="card-title"><span class="dot" style="background:var(--amber);box-shadow:0 0 8px var(--amber);"></span> Live Event Feed</div>
+    <div id="event-feed">
+      <div class="feed-item feed-info">
+        <span class="feed-time">&mdash;</span>
+        <span class="feed-msg">Waiting for events...</span>
       </div>
     </div>
   </div>
 
-  <!-- ── Copy wallets + curator watchlist ── -->
-  <div class="two-col">
-    <div class="card">
-      <div class="card-title" style="justify-content:space-between;">
-        <span><span class="dot" style="background:var(--green);box-shadow:0 0 8px var(--green);"></span> Copy Wallets <span style="text-transform:none;letter-spacing:0;color:var(--muted);">&mdash; add/remove live</span></span>
-        <span id="seed-wallet-count" style="text-transform:none;letter-spacing:0;">0 wallets</span>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-        <input id="seed-wallet-address" type="text" placeholder="Solana wallet address…" class="txt-input" style="flex:2;min-width:180px;" />
-        <input id="seed-wallet-score" type="number" min="0" max="100" value="75" placeholder="Score" class="txt-input" style="width:70px;" />
-        <button onclick="addSeedWallet()" class="btn btn-grad">+ Add</button>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Wallet</th><th>Quality</th><th>Solscan</th><th></th></tr></thead>
-          <tbody id="seed-wallets-body">
-            <tr><td colspan="4" class="empty">No seed wallets yet</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div class="card">
+  <!-- ── Curator watchlist ── -->
+  <div class="card">
       <div class="card-title" style="justify-content:space-between;">
         <span><span class="dot" style="background:var(--cyan);"></span> My Watchlist <span style="text-transform:none;letter-spacing:0;color:var(--muted);">&mdash; curator picks, bypasses buying-high filters, hot-reload</span></span>
         <span id="user-watchlist-count" style="text-transform:none;letter-spacing:0;">0 tokens</span>
@@ -766,7 +694,6 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         </table>
       </div>
     </div>
-  </div>
 
   <!-- ── Active Strategies ── -->
   <div class="card">
@@ -804,29 +731,16 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- ── Security gate + operator tools ── -->
-  <div class="two-col">
-    <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--red);box-shadow:0 0 8px var(--red);"></span> Security Gate</div>
-      <div class="sec-grid">
-        <div class="sec-item"><div class="k">Total Checks</div><div class="v blue" id="sec-total">0</div></div>
-        <div class="sec-item"><div class="k">Honeypots Blocked</div><div class="v red" id="sec-honeypot">0</div></div>
-        <div class="sec-item"><div class="k">Tax Blocks</div><div class="v yellow" id="sec-tax">0</div></div>
-        <div class="sec-item"><div class="k">Block Rate</div><div class="v red" id="sec-rate">0%</div></div>
-        <div class="sec-item"><div class="k">Cache Size</div><div class="v muted" id="sec-cache">0</div></div>
-        <div class="sec-item"><div class="k">Price Feed Ticks</div><div class="v green" id="feed-ticks">0</div></div>
-      </div>
+  <!-- ── Operator tools ── -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--muted);"></span> Operator &mdash; re-baseline a bot</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <input id="reset-bot-id" placeholder="bot_id (e.g. badday_flush)" class="txt-input" style="width:240px;" />
+      <button onclick="resetBot()" class="btn btn-danger">Flatten + zero ledger</button>
+      <span id="reset-result" style="font-size:11px;color:var(--muted);"></span>
     </div>
-    <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--muted);"></span> Operator &mdash; re-baseline a bot</div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <input id="reset-bot-id" placeholder="bot_id (e.g. badday_flush)" class="txt-input" style="width:240px;" />
-        <button onclick="resetBot()" class="btn btn-danger">Flatten + zero ledger</button>
-        <span id="reset-result" style="font-size:11px;color:var(--muted);"></span>
-      </div>
-      <div style="font-size:10px;color:var(--muted);margin-top:10px;">
-        Destructive: flattens open positions and zeros the bot's paper ledger. bot_state is backed up first. Requires dashboard login.
-      </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:10px;">
+      Destructive: flattens open positions and zeros the bot's paper ledger. bot_state is backed up first. Requires dashboard login.
     </div>
   </div>
 
@@ -836,7 +750,6 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 // ── State ──────────────────────────────────────────────────────────────────
 let allTrades = [];
 let feedLog   = [];
-let pnlChart  = null;
 let connected = false;
 
 // ── Clock ──────────────────────────────────────────────────────────────────
@@ -845,54 +758,6 @@ function updateClock() {
 }
 setInterval(updateClock, 1000);
 updateClock();
-
-// ── Chart setup ────────────────────────────────────────────────────────────
-(function initChart() {
-  const ctx = document.getElementById('pnl-chart').getContext('2d');
-  pnlChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [{
-        label: 'Cumulative P&L ($)',
-        data: [],
-        borderColor: '#00ff9d',
-        backgroundColor: 'transparent',
-        borderWidth: 2,
-        pointRadius: 2,
-        pointBackgroundColor: '#00ff9d',
-        tension: 0.3,
-        fill: false,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: { duration: 300 },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#0d1220',
-          borderColor: 'rgba(0,229,255,0.3)',
-          borderWidth: 1,
-          titleColor: '#6b7a99',
-          bodyColor: '#dbe4f5',
-          callbacks: { label: ctx => ' $' + ctx.parsed.y.toFixed(2) }
-        }
-      },
-      scales: {
-        x: {
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: { color: '#6b7a99', maxTicksLimit: 12, font: { size: 10 } }
-        },
-        y: {
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: { color: '#6b7a99', font: { size: 10 }, callback: v => '$' + v.toFixed(0) }
-        }
-      }
-    }
-  });
-})();
 
 // ── Formatting helpers ─────────────────────────────────────────────────────
 function fmtUsd(v) {
@@ -966,14 +831,13 @@ connect();
 
 // ── Main SSE update ────────────────────────────────────────────────────────
 function updateDashboard(d) {
+  // 2026-07-10 cleanup: sim-era renderers (stat cards, cumulative chart,
+  // smart-wallet positions, security gate, DEX WS) retired — the SSE payload
+  // still carries those fields for API consumers; the UI just ignores them.
   updateUptime(d.uptime);
   updateModeAndPause(d);
-  updateStatCards(d);
-  updatePnlChart(d.cumulative_pnl || []);
-  updatePositions(d.positions || []);
   updateFeed(d.new_alerts || []);
   updateActiveStrategies(d.active_strategies || {});
-  updateSecurity(d.security || {}, d.price_feed || {});
 }
 
 function updateUptime(u) {
@@ -1183,129 +1047,6 @@ async function updateGates() {
 updateGates();
 setInterval(updateGates, 60000);
 
-// ── Simulated-ledger stat cards (SSE) ────────────────────────────────────────
-function updateStatCards(d) {
-  const ov = d.overall || {};
-  const pnl = ov.total_pnl || 0;
-  const daily = d.daily_pnl || 0;
-  const positions = d.positions || [];
-
-  const totalPnlEl = document.getElementById('sc-total-pnl');
-  totalPnlEl.textContent = fmtUsd(pnl);
-  totalPnlEl.className = 'value ' + pnlClass(pnl);
-
-  const dailyEl = document.getElementById('sc-daily-pnl');
-  dailyEl.textContent = fmtUsd(daily);
-  dailyEl.className = 'value ' + pnlClass(daily);
-
-  const wr = ov.win_rate || 0;
-  const wrEl = document.getElementById('sc-win-rate');
-  wrEl.textContent = wr.toFixed(1) + '%';
-  wrEl.className = 'value ' + (wr >= 50 ? 'green' : wr >= 35 ? 'yellow' : 'red');
-  document.getElementById('sc-wr-sub').textContent =
-    (ov.wins || 0) + ' wins / ' + (ov.total_trades || 0) + ' trades';
-
-  document.getElementById('sc-trades').textContent = ov.total_trades || 0;
-  document.getElementById('sc-trades-sub').textContent = positions.length + ' open';
-
-  const cap = d.capital || {};
-  const totalCap  = cap.total     || 0;
-  const available = cap.available || totalCap;
-  const deployed  = cap.deployed  || 0;
-  document.getElementById('sc-balance').textContent = '$' + totalCap.toFixed(0);
-  document.getElementById('sc-balance-sub').textContent =
-    '$' + deployed.toFixed(0) + ' deployed • $' + available.toFixed(0) + ' available';
-
-  const ws = d.dexscreener_ws || {};
-  const wsEl = document.getElementById('sc-dex-ws');
-  const wsSubEl = document.getElementById('sc-dex-ws-sub');
-  if (wsEl && wsSubEl) {
-    if (ws.status === 'ok') {
-      wsEl.textContent = 'LIVE'; wsEl.style.color = 'var(--green)';
-      wsSubEl.textContent = 'connected';
-    } else if (ws.status === 'broken') {
-      wsEl.textContent = 'DOWN'; wsEl.style.color = 'var(--red)';
-      wsSubEl.textContent = (ws.consecutive_failures || 0) + ' failures';
-    } else if (ws.status === 'reconnecting') {
-      wsEl.textContent = 'RETRY'; wsEl.style.color = 'var(--amber)';
-      wsSubEl.textContent = 'attempt ' + (ws.consecutive_failures || 0);
-    } else {
-      wsEl.textContent = '—'; wsEl.style.color = 'var(--muted)';
-      wsSubEl.textContent = 'polling only';
-    }
-  }
-}
-
-// ── P&L Chart ──────────────────────────────────────────────────────────────
-function updatePnlChart(series) {
-  if (!pnlChart || !series.length) return;
-  pnlChart.data.labels = series.map(p => '#' + p.trade_num);
-  pnlChart.data.datasets[0].data = series.map(p => p.cumulative);
-  const last = series[series.length - 1].cumulative;
-  const color = last >= 0 ? '#00ff9d' : '#ff2965';
-  pnlChart.data.datasets[0].borderColor = color;
-  pnlChart.data.datasets[0].pointBackgroundColor = color;
-  pnlChart.update('none');
-}
-
-// ── Open Positions (smart wallet only) ───────────────────────────────────────
-function updatePositions(positions) {
-  const tbody = document.getElementById('positions-body');
-  // AxiS 2026-06-11: this card shows SMART WALLET only — fleet bots' paper
-  // probes live in /api/bots/{id}/positions; mixing probes with follow
-  // positions made the card unreadable.
-  positions = (positions || []).filter(p => String(p.strategy || '').startsWith('smart_follow'));
-  if (!positions.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">No open smart-wallet positions</td></tr>';
-    return;
-  }
-  tbody.innerHTML = positions.map(p => {
-    const pnlCls = pnlClass(p.pnl_usd);
-    const mult = p.multiplier || 1;
-    const pct = Math.min(((mult - 1) / 1.5) * 100, 100);
-    const tpCls = mult >= 2.5 ? 'tp3' : mult >= 2 ? 'tp2' : 'tp1';
-    const addr = p.token_address || '';
-    const chartAddr = p.pair_address || addr;
-    const chartUrl = chartAddr ? `https://dexscreener.com/solana/${chartAddr}` : '';
-    return `<tr>
-      <td style="font-weight:600">${chartUrl
-        ? `<a href="${chartUrl}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" title="View chart">$${p.symbol||'?'} ↗</a>`
-        : `$${p.symbol||'?'}`}</td>
-      <td>${chainBadge(p.chain)}</td>
-      <td>${stratBadge(p.strategy)}</td>
-      <td class="muted">$${(p.entry_price||0).toFixed(6)}</td>
-      <td class="muted">$${(p.amount_usd||0).toFixed(0)}</td>
-      <td class="${pnlCls}">${fmtUsd(p.pnl_usd)}</td>
-      <td class="muted">${fmtHold(p.hold_secs)}</td>
-      <td>
-        <div class="progress-wrap" title="${mult.toFixed(2)}x">
-          <div class="progress-fill ${tpCls}" style="width:${pct.toFixed(0)}%"></div>
-        </div>
-      </td>
-      <td><button onclick="manualSell('${addr}')" class="btn btn-danger" style="padding:4px 10px;font-size:11px;">Sell</button></td>
-    </tr>`;
-  }).join('');
-}
-
-// ── Manual Sell ──────────────────────────────────────────────────────────
-const _sellInFlight = new Set();
-async function manualSell(tokenAddress) {
-  if (!tokenAddress) return;
-  if (_sellInFlight.has(tokenAddress)) return;
-  if (!confirm('Sell 100% of this position?')) return;
-  _sellInFlight.add(tokenAddress);
-  try {
-    const res = await fetch('/api/sell', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({token_address: tokenAddress, pct: 1.0})
-    });
-    const data = await res.json();
-    if (data.ok) alert('Sell order sent for ' + (data.symbol || 'token'));
-    else alert('Sell failed: ' + (data.error || 'Unknown error'));
-  } catch(e) { alert('Request failed: ' + e); }
-  finally { _sellInFlight.delete(tokenAddress); }
-}
-
 // ── Trade history ──────────────────────────────────────────────────────────
 async function loadTradeHistory() {
   try {
@@ -1469,92 +1210,6 @@ function updateActiveStrategies(strategies) {
     </div>`;
   }).join('');
 }
-
-// ── Security stats ─────────────────────────────────────────────────────────
-function updateSecurity(sec, feed) {
-  document.getElementById('sec-total').textContent   = sec.total_checks || 0;
-  document.getElementById('sec-honeypot').textContent = sec.honeypot_blocked || sec.blocked || 0;
-  document.getElementById('sec-tax').textContent     = sec.tax_blocked || 0;
-  document.getElementById('sec-rate').textContent    = (sec.block_rate || 0).toFixed(1) + '%';
-  document.getElementById('sec-cache').textContent   = sec.cache_size || 0;
-  document.getElementById('feed-ticks').textContent  = feed.total_ticks || 0;
-}
-
-// ── Seed Wallets ────────────────────────────────────────────────────────────
-async function loadSeedWallets() {
-  try {
-    const res  = await fetch('/api/seed-wallets');
-    const data = await res.json();
-    const wallets = data.wallets || {};
-    const body  = document.getElementById('seed-wallets-body');
-    if (!body) return;
-    const count = document.getElementById('seed-wallet-count');
-    const entries = Object.entries(wallets);
-    if (count) count.textContent = `${entries.length} wallet${entries.length !== 1 ? 's' : ''}`;
-    if (!entries.length) {
-      body.innerHTML = '<tr><td colspan="4" class="empty">No seed wallets — add one above</td></tr>';
-      return;
-    }
-    body.innerHTML = entries.map(([addr, score]) => `
-      <tr>
-        <td style="font-size:12px;">${addr.slice(0,8)}…${addr.slice(-6)}</td>
-        <td>
-          <input type="number" min="0" max="100" value="${score}" class="txt-input"
-            style="width:56px;padding:2px 6px;font-size:12px;text-align:center;"
-            onchange="updateSeedWalletScore('${addr}', this.value)"
-            onkeydown="if(event.key==='Enter')this.blur()" />
-          <span class="muted" style="font-size:11px;">/100</span>
-        </td>
-        <td><a href="https://solscan.io/account/${addr}" target="_blank" style="font-size:11px;">Solscan ↗</a></td>
-        <td><button onclick="removeSeedWallet('${addr}')"
-              style="background:transparent;color:var(--muted);border:none;cursor:pointer;font-size:14px;padding:2px 6px;">×</button></td>
-      </tr>`).join('');
-  } catch(e) { console.warn('Seed wallets load error', e); }
-}
-
-async function addSeedWallet() {
-  const addr  = document.getElementById('seed-wallet-address').value.trim();
-  const score = parseFloat(document.getElementById('seed-wallet-score').value) || 75;
-  if (!addr) { alert('Paste a wallet address first'); return; }
-  if (addr.length < 32) { alert("That doesn't look like a valid Solana address"); return; }
-  try {
-    const res  = await fetch('/api/seed-wallets/add', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({address: addr, score})
-    });
-    const data = await res.json();
-    if (data.ok) {
-      document.getElementById('seed-wallet-address').value = '';
-      await loadSeedWallets();
-    } else { alert(`Error: ${data.error}`); }
-  } catch(e) { alert('Request failed'); }
-}
-
-async function removeSeedWallet(addr) {
-  try {
-    const res  = await fetch('/api/seed-wallets/remove', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({address: addr})
-    });
-    const data = await res.json();
-    if (data.ok) { await loadSeedWallets(); }
-    else { alert(`Error: ${data.error}`); }
-  } catch(e) { alert('Request failed'); }
-}
-
-async function updateSeedWalletScore(addr, newScore) {
-  const score = parseFloat(newScore);
-  if (isNaN(score) || score < 0 || score > 100) return;
-  try {
-    await fetch('/api/seed-wallets/add', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({address: addr, score})
-    });
-  } catch(e) {}
-}
-
-loadSeedWallets();
-setInterval(loadSeedWallets, 60000);
 
 // ── User Watchlist (curator-driven, hot-reload) ──────────────────────────
 async function loadUserWatchlist() {
@@ -1794,6 +1449,59 @@ async function updateLive() {
 }
 setInterval(updateLive, 45000);
 updateLive();
+
+// ── Robinhood Chain (paper lane — /api/rh-paper) ─────────────────────────────
+async function updateRhPaper() {
+  try {
+    const r = await fetch('/api/rh-paper');
+    if (!r.ok) return;
+    const d = await r.json();
+    const tbody = document.querySelector('#rh-table tbody');
+    const note = document.getElementById('rh-note');
+    if (!d.available) {
+      document.getElementById('rh-day-pnl').textContent = '—';
+      document.getElementById('rh-entries').textContent = '—';
+      document.getElementById('rh-exits').textContent = '—';
+      document.getElementById('rh-lag').textContent = '—';
+      if (note) note.textContent = d.note || 'no data yet';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty">No RH paper ledger yet</td></tr>';
+      return;
+    }
+    const pnl = Number(d.day_pnl_usd) || 0;
+    const el = document.getElementById('rh-day-pnl');
+    el.textContent = (pnl < 0 ? '-$' : '$') + Math.abs(pnl).toFixed(2);
+    el.style.color = pnl > 0 ? 'var(--green)' : (pnl < 0 ? 'var(--red)' : 'var(--text)');
+    document.getElementById('rh-entries').textContent = d.entries || 0;
+    document.getElementById('rh-exits').textContent = d.exits || 0;
+    const lag = (d.lag || {}).median_lat_total_s;
+    document.getElementById('rh-lag').textContent =
+      (lag === null || lag === undefined) ? '—' : Number(lag).toFixed(2) + 's';
+    if (note) note.textContent =
+      'day = ' + (d.day_utc || 'UTC') + ' · paper fills (real pool quotes), not live';
+    const rows = (d.trades || []).slice(-8).reverse();
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No trades in ledger yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(t => {
+      const isSell = t.ev === 'sell';
+      const pnlU = (isSell && typeof t.pnl_usd === 'number') ? t.pnl_usd : null;
+      const usd = typeof t.usd === 'number' ? t.usd
+        : (typeof t.usd_out === 'number' ? t.usd_out : null);
+      return `<tr>
+        <td class="muted">${escHtml(String(t.ts || '').slice(5, 16).replace('T', ' '))}</td>
+        <td class="${isSell ? 'red' : 'green'}">${escHtml(t.ev || '?')}</td>
+        <td style="font-weight:600">$${escHtml(t.sym || '?')}</td>
+        <td class="muted">${usd === null ? '—' : '$' + usd.toFixed(2)}</td>
+        <td class="${pnlU === null ? 'muted' : pnlClass(pnlU)}">${pnlU === null ? '—' : fmtUsd(pnlU)}</td>
+        <td class="${typeof t.pnl_pct === 'number' ? pnlClass(t.pnl_pct) : 'muted'}">${typeof t.pnl_pct === 'number' ? fmtPct(t.pnl_pct) : '—'}</td>
+        <td class="muted">${typeof t.lat_total_s === 'number' ? t.lat_total_s.toFixed(2) : '—'}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) { console.warn('rh-paper fetch failed', e); }
+}
+updateRhPaper();
+setInterval(updateRhPaper, 120000);
 
 // ── Per-bot re-baseline (flatten + zero ledger) ─────────────────────────────
 async function resetBot() {
@@ -2089,6 +1797,89 @@ def compute_race(trades: list, enabled_ids=None, days: int = 7,
     }
 
 
+# ── Robinhood Chain paper lane (/api/rh-paper) ────────────────────────────────
+
+RH_PAPER_MAX_LINES = 50_000
+
+
+def rh_paper_dedup_key(row: dict) -> tuple:
+    """De-dup identity for an RH paper ledger row: (ts, ev, pool)."""
+    return (str(row.get("ts", "")), str(row.get("ev", "")),
+            str(row.get("pool", "")))
+
+
+def merge_rh_paper_rows(existing: list, incoming: list,
+                        max_lines: int = RH_PAPER_MAX_LINES) -> tuple:
+    """Pure merge for POST /api/rh-paper/ingest. Appends incoming ledger rows
+    to existing, de-duped on (ts, ev, pool) — re-pushing the same session
+    ledger is idempotent. Non-dict rows and rows missing ev or ts are
+    skipped. Result is capped at max_lines by truncating the OLDEST (front),
+    matching the append-order file. Returns (merged_rows, added_count).
+    Never raises on malformed rows."""
+    merged = [r for r in (existing or []) if isinstance(r, dict)]
+    seen = {rh_paper_dedup_key(r) for r in merged}
+    added = 0
+    for r in (incoming or []):
+        if not isinstance(r, dict) or not r.get("ev") or not r.get("ts"):
+            continue
+        k = rh_paper_dedup_key(r)
+        if k in seen:
+            continue
+        seen.add(k)
+        merged.append(r)
+        added += 1
+    if len(merged) > max_lines:
+        merged = merged[-max_lines:]
+    return merged, added
+
+
+def compute_rh_paper_summary(rows: list, last_n: int = 20,
+                             today_utc: str = None) -> dict:
+    """Pure aggregation for GET /api/rh-paper over the RH paper-lane ledger
+    (scripts/rh_paper_lane.py events: ev=buy|sell). Reports:
+      - entries / exits: total buy / sell events in the ledger
+      - day_pnl_usd: sum of sell pnl_usd for today's UTC date
+      - trades: the last `last_n` events (raw rows, for the dashboard table)
+      - lag.median_lat_total_s: median detect->fill latency across buys
+    Skips malformed rows; never raises."""
+    import statistics as _st
+    if today_utc is None:
+        today_utc = datetime.now(timezone.utc).date().isoformat()
+    entries = exits = 0
+    day_pnl = 0.0
+    lats = []
+    clean = []
+    for r in rows or []:
+        if not isinstance(r, dict):
+            continue
+        ev = r.get("ev")
+        if ev == "buy":
+            entries += 1
+            lat = r.get("lat_total_s")
+            if isinstance(lat, (int, float)):
+                lats.append(float(lat))
+        elif ev == "sell":
+            exits += 1
+            if str(r.get("ts", ""))[:10] == today_utc:
+                p = r.get("pnl_usd")
+                if isinstance(p, (int, float)):
+                    day_pnl += float(p)
+        else:
+            continue
+        clean.append(r)
+    return {
+        "available": True,
+        "entries": entries,
+        "exits": exits,
+        "day_utc": today_utc,
+        "day_pnl_usd": round(day_pnl, 2),
+        "trades": clean[-last_n:],
+        "lag": {"median_lat_total_s":
+                round(_st.median(lats), 2) if lats else None,
+                "n": len(lats)},
+    }
+
+
 # ── Dashboard Server ──────────────────────────────────────────────────────────
 
 class WebDashboard:
@@ -2218,6 +2009,11 @@ class WebDashboard:
         self.app.router.add_get("/api/race",                  self._handle_api_race)
         self.app.router.add_get("/api/wallet-truth",          self._handle_api_wallet_truth)
         self.app.router.add_post("/api/wallet-truth/rebase",  self._handle_api_wallet_truth_rebase)
+        # 2026-07-10: Robinhood Chain paper lane — read + push its session
+        # ledger (GET public like other reads; POST behind Basic auth via the
+        # app-wide middleware, same as every write endpoint).
+        self.app.router.add_get("/api/rh-paper",              self._handle_api_rh_paper)
+        self.app.router.add_post("/api/rh-paper/ingest",      self._handle_api_rh_paper_ingest)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -5950,6 +5746,100 @@ class WebDashboard:
                                       "bots": []})
         self._race_cache = (_t.monotonic(), payload)
         return web.json_response(payload)
+
+    # ── Robinhood Chain paper lane ────────────────────────────────────────
+
+    def _rh_paper_ledger_path(self) -> str:
+        """bot_state/rh_paper_trades.jsonl under the same data dir the fleet
+        bot_state stores use (trade_store.data_dir on Railway = DATA_DIR)."""
+        if self.trade_store is not None:
+            try:
+                return str(self.trade_store.data_dir / "bot_state"
+                           / "rh_paper_trades.jsonl")
+            except Exception:
+                pass
+        return os.path.join(os.environ.get("DATA_DIR", "/data"),
+                            "bot_state", "rh_paper_trades.jsonl")
+
+    @staticmethod
+    def _rh_paper_read_rows(path: str) -> list:
+        """BLOCKING jsonl read (run off the loop). Skips malformed lines."""
+        rows = []
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    r = json.loads(line)
+                except Exception:
+                    continue
+                if isinstance(r, dict):
+                    rows.append(r)
+        return rows
+
+    async def _handle_api_rh_paper(self, request):
+        """GET /api/rh-paper — Robinhood Chain paper-lane summary.
+
+        The RH lane (scripts/rh_paper_lane.py) runs per-session on the local
+        machine and pushes its ledger here via /api/rh-paper/ingest; gaps
+        between sessions are normal. Reads bot_state/rh_paper_trades.jsonl
+        and returns aggregates + the last 20 events. available:false (not an
+        error) when no ledger has been pushed yet."""
+        path = self._rh_paper_ledger_path()
+        if not os.path.exists(path):
+            return web.json_response({
+                "available": False,
+                "note": "RH paper lane runs per-session; no data uploaded yet",
+            })
+        try:
+            rows = await asyncio.to_thread(self._rh_paper_read_rows, path)
+            payload = await asyncio.to_thread(compute_rh_paper_summary, rows)
+        except Exception as e:
+            logger.warning("api/rh-paper failed: %s", e)
+            return web.json_response({"available": False,
+                                      "note": "ledger read failed",
+                                      "error": str(e)[:200]}, status=500)
+        return web.json_response(payload)
+
+    async def _handle_api_rh_paper_ingest(self, request):
+        """POST /api/rh-paper/ingest — append a JSON array of RH paper-lane
+        ledger rows to bot_state/rh_paper_trades.jsonl, de-duped on
+        (ts, ev, pool) so re-pushing a whole session ledger is idempotent.
+        File capped at RH_PAPER_MAX_LINES (oldest truncated). Basic-auth
+        protected like every write endpoint (app-wide middleware)."""
+        try:
+            incoming = await request.json()
+        except Exception:
+            return web.json_response({"ok": False, "error": "invalid JSON"},
+                                     status=400)
+        if not isinstance(incoming, list):
+            return web.json_response(
+                {"ok": False, "error": "expected a JSON array of ledger rows"},
+                status=400)
+        path = self._rh_paper_ledger_path()
+
+        def _merge_and_write():
+            existing = (self._rh_paper_read_rows(path)
+                        if os.path.exists(path) else [])
+            merged, added = merge_rh_paper_rows(existing, incoming)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                for r in merged:
+                    f.write(json.dumps(r, separators=(",", ":")) + "\n")
+            os.replace(tmp, path)
+            return added, len(merged)
+
+        try:
+            added, total = await asyncio.to_thread(_merge_and_write)
+        except Exception as e:
+            logger.warning("api/rh-paper/ingest failed: %s", e)
+            return web.json_response({"ok": False, "error": str(e)[:200]},
+                                     status=500)
+        return web.json_response({"ok": True, "added": added,
+                                  "skipped": len(incoming) - added,
+                                  "total_lines": total})
 
     async def _handle_api_gates(self, request):
         """GET /api/gates — compact status-strip payload: PAPER/LIVE mode, SOL
