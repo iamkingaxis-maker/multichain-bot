@@ -45,6 +45,14 @@ from core.per_bot_position_manager import PerBotPositionManager  # noqa: E402
 OUT_DIR = os.path.join("scratchpad", "robinhood_tapes")
 LEDGER = os.path.join(OUT_DIR, "rh_paper_trades.jsonl")
 STATE = os.path.join(OUT_DIR, "rh_lane_state.json")   # open positions survive restarts
+# post-exit tail instrumentation (2026-07-10 trail-width analysis ask):
+# every full close queues a +6h price check; results let the abandoned-tail
+# question rerun from LOCAL data (no GT dependence). Pending file is durable —
+# checks due after a session ends complete in the NEXT session.
+POSTEXIT_PENDING = os.path.join(OUT_DIR, "rh_postexit_pending.jsonl")
+POSTEXIT_RESULTS = os.path.join(OUT_DIR, "rh_postexit.jsonl")
+POSTEXIT_DELAY_S = 6 * 3600.0
+POSTEXIT_SWEEP_S = 600.0
 
 # ── lane config (mirrors the Solana young probe where meaningful) ───────────
 ENTRY_USD = 25.0            # probe sizing
@@ -280,14 +288,18 @@ class PaperLane:
             self.last_trade[pool] = now
 
     def _quote_hot(self, now: float):
-        """Refresh quote-derived price for the hottest pools (budgeted)."""
+        """Refresh quote-derived price: OPEN POSITIONS FIRST and unbudgeted
+        (exit-blindness fix, 2026-07-10 trail-width analysis: positions were
+        sorted into the shared budget by trade recency, so a quiet position
+        could be crowded out of quotes exactly when its exit mattered —
+        LOCKIN gapped through its trail to the hard stop). Entry candidates
+        then fill the remaining budget."""
         hot = [p for p, t in self.last_trade.items()
-               if now - t <= HOT_TTL_S and p in self.feed.watch]
-        for p in self.pos_meta:      # open positions always quoted
-            if p not in hot:
-                hot.append(p)
+               if now - t <= HOT_TTL_S and p in self.feed.watch
+               and p not in self.pos_meta]
         hot.sort(key=lambda p: -(self.last_trade.get(p, 0)))
-        for pool in hot[:MAX_HOT_QUOTES]:
+        budget = max(0, MAX_HOT_QUOTES - len(self.pos_meta))
+        for pool in list(self.pos_meta) + hot[:budget]:
             token = self._token_for(pool)
             if not token:
                 continue
@@ -450,6 +462,11 @@ class PaperLane:
             self.pos_meta.pop(pool, None)
             self.last_exit[pool] = now
             self.n_exits += 1
+            _append(POSTEXIT_PENDING, {
+                "pool": pool, "token": token, "sym": meta["sym"],
+                "exit_px_eth": exit_px, "exit_kind": decision.kind,
+                "exit_pnl_pct": round(pnl_pct, 2), "close_ts": now,
+                "due_ts": now + POSTEXIT_DELAY_S})
         self.save_state()
         _append(LEDGER, {"ev": "sell", "ts": iso_utc(now), "pool": pool,
                          "sym": meta["sym"], "kind": decision.kind,
@@ -462,6 +479,55 @@ class PaperLane:
               f"{frac*100:.0f}% pnl={pnl_pct:+.1f}% "
               f"(day {self.daily_pnl_usd:+.2f}) {decision.reason[:50]}",
               flush=True)
+
+    def _check_postexit(self, now: float):
+        """Complete due +6h post-exit checks: one quote per due token, result
+        row written, pending rewritten. Unquotable at +6h = died (post_px 0)."""
+        try:
+            if not os.path.exists(POSTEXIT_PENDING):
+                return
+            rows = []
+            with open(POSTEXIT_PENDING, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            rows.append(json.loads(line))
+                        except ValueError:
+                            pass
+            keep = []
+            for r in rows:
+                if now < float(r.get("due_ts") or 0):
+                    keep.append(r)
+                    continue
+                post_px = 0.0
+                try:
+                    q = self._executor().quote_buy(
+                        r["token"], int(ENTRY_USD / max(
+                            self.feed.eth_price or 1e9, 1e-9) * 1e18))
+                    if q and q.amount_out:
+                        post_px = price_from_quote(
+                            q.amount_in, q.amount_out,
+                            self._token_decimals(r["token"]))
+                except Exception:
+                    pass
+                ex = float(r.get("exit_px_eth") or 0)
+                vs = ((post_px - ex) / ex * 100.0) if (ex > 0 and post_px > 0) else None
+                _append(POSTEXIT_RESULTS, {**r, "post6h_px_eth": post_px,
+                                           "post6h_vs_exit_pct": (round(vs, 1)
+                                                                  if vs is not None else None),
+                                           "died": post_px <= 0,
+                                           "checked_ts": now})
+                print(f"[rh-paper] post-exit +6h {r['sym']}: "
+                      f"{'DEAD' if post_px <= 0 else '%+.1f%% vs exit' % vs}",
+                      flush=True)
+            tmp = POSTEXIT_PENDING + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                for r in keep:
+                    f.write(json.dumps(r, separators=(",", ":")) + "\n")
+            os.replace(tmp, POSTEXIT_PENDING)
+        except Exception as e:
+            print(f"[rh-paper] post-exit sweep failed: {e}", flush=True)
 
     def strategy_loop(self):
         print(f"[rh-paper] lane armed: ${ENTRY_USD:.0f}/entry, max {MAX_CONCURRENT}, "
@@ -476,6 +542,9 @@ class PaperLane:
                 self._quote_hot(now)
                 self._manage_exits(now)
                 self._consider_entries(now)
+                if now - getattr(self, "_last_pe_sweep", 0) > POSTEXIT_SWEEP_S:
+                    self._last_pe_sweep = now
+                    self._check_postexit(now)
             except Exception as e:
                 print(f"[rh-paper] loop {type(e).__name__}: {e}", flush=True)
             self.stop.wait(max(0.2, STRAT_TICK_S - (time.time() - t0)))

@@ -184,6 +184,37 @@ class TestTokenResolution:
         assert lane._token_for("0xp1") == "0xheld"
 
 
+class TestQuotePriority:
+    """Exit-blindness regression (trail-width analysis 2026-07-10): open
+    positions must be quoted FIRST and outside the entry-candidate budget —
+    LOCKIN gapped through its trail because a quiet position got crowded out
+    of the shared quote budget during busy ticks."""
+
+    def test_positions_precede_hot_and_survive_budget(self, monkeypatch):
+        import rh_paper_lane as mod
+
+        class FakeFeed:
+            watch = {}
+            eth_price = 2000.0
+        lane = mod.PaperLane(FakeFeed(), executor=object(), registry={})
+        now = 1_000_000.0
+        # 10 loud entry candidates + 1 quiet open position
+        for i in range(10):
+            p = f"0xhot{i}"
+            lane.last_trade[p] = now - i
+            FakeFeed.watch[p] = {"sym": f"H{i}", "liq": 50000.0}
+        lane.pos_meta["0xquiet"] = {"qty_orig": 1.0, "remaining_frac": 1.0,
+                                    "token": "0xtok", "sym": "Q",
+                                    "entry_px": 1.0, "entry_ts": now - 900}
+        # no recent trade for 0xquiet, and it's NOT in feed.watch
+        quoted = []
+        monkeypatch.setattr(lane, "_token_for",
+                            lambda pool: quoted.append(pool) or None)
+        lane._quote_hot(now)
+        assert quoted[0] == "0xquiet"                 # position first
+        assert len(quoted) <= mod.MAX_HOT_QUOTES      # budget respected overall
+
+
 class TestStatePersistence:
     """Open paper positions must survive restarts (parity with the Solana
     bot_state stores — a crash mid-hold must never orphan a position)."""
