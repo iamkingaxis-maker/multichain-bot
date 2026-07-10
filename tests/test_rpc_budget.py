@@ -116,6 +116,69 @@ class TestBalanceReadRetry:
         assert len(calls) == 1
 
 
+class TestPostRpcErrorBodyFailover:
+    """Regression: a provider answering HTTP 200 with a JSON-RPC error body
+    (how public Solana nodes report rate-limits) was returned as-is, silently
+    skipping every healthy fallback URL — the SMOLE hard stop and mogdog trail
+    could not size their sells (2026-07-10 18:07). Error bodies must fail over."""
+
+    def _trader_with_urls(self, responses):
+        import aiohttp  # noqa: F401 (mirrors runtime import context)
+        t = Trader.__new__(Trader)
+        t.rpc_urls = [f"http://u{i}" for i in range(len(responses))]
+        return t
+
+    def test_error_body_fails_over_to_next_url(self, monkeypatch):
+        # url0: 200 + error body; url1: healthy answer
+        seq = [{"error": {"code": 429, "message": "rate limited"}},
+               {"result": {"value": []}}]
+        calls = []
+
+        class FakeResp:
+            def __init__(self, body): self.status, self._body = 200, body
+            async def json(self): return self._body
+            async def __aenter__(self): return self
+            async def __aexit__(self, *a): return False
+
+        class FakeSession:
+            async def __aenter__(self): return self
+            async def __aexit__(self, *a): return False
+            def post(self, url, json=None, timeout=None):
+                calls.append(url)
+                return FakeResp(seq[len(calls) - 1])
+
+        import core.trader as tr
+        monkeypatch.setattr(tr.aiohttp, "ClientSession", lambda: FakeSession())
+        t = self._trader_with_urls(seq)
+        data = _run(t._post_rpc({"method": "getTokenAccountsByOwner"}))
+        assert len(calls) == 2                      # failed over
+        assert data == {"result": {"value": []}}    # healthy answer returned
+
+    def test_all_urls_error_body_returns_none(self, monkeypatch):
+        seq = [{"error": {"message": "rate limited"}},
+               {"error": {"message": "rate limited"}}]
+        calls = []
+
+        class FakeResp:
+            def __init__(self, body): self.status, self._body = 200, body
+            async def json(self): return self._body
+            async def __aenter__(self): return self
+            async def __aexit__(self, *a): return False
+
+        class FakeSession:
+            async def __aenter__(self): return self
+            async def __aexit__(self, *a): return False
+            def post(self, url, json=None, timeout=None):
+                calls.append(url)
+                return FakeResp(seq[len(calls) - 1])
+
+        import core.trader as tr
+        monkeypatch.setattr(tr.aiohttp, "ClientSession", lambda: FakeSession())
+        t = self._trader_with_urls(seq)
+        assert _run(t._post_rpc({"method": "x"})) is None
+        assert len(calls) == 2
+
+
 class TestPrewarmGated:
     def test_prewarm_skipped_while_tripped(self, monkeypatch):
         import core.rpc_budget as rb

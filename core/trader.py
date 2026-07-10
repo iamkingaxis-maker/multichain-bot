@@ -477,7 +477,28 @@ class Trader:
                     async with session.post(url, json=payload,
                                             timeout=aiohttp.ClientTimeout(total=total_timeout)) as resp:
                         if resp.status == 200:
-                            return await resp.json()
+                            data = await resp.json()
+                            # HTTP 200 + JSON-RPC error body (public nodes
+                            # report rate-limits/degradation this way) is a
+                            # FAILURE of this url, not an answer: returning it
+                            # here silently skipped every healthy fallback and
+                            # blocked live exits (SMOLE hard stop, 2026-07-10
+                            # 18:07). Failover like any other error.
+                            if isinstance(data, dict) and data.get("error") is not None:
+                                _err = data.get("error") or {}
+                                _msg = str(_err.get("message", ""))[:80]
+                                if "rate" in _msg.lower() or _err.get("code") == 429:
+                                    try:
+                                        from core.rpc_budget import GLOBAL as _rpc_budget
+                                        _rpc_budget.report_429()
+                                    except Exception:
+                                        pass
+                                logger.warning(
+                                    f"[Trader] RPC {idx} 200-with-error for "
+                                    f"{payload.get('method','?')}: {_msg} — trying next..."
+                                )
+                                continue
+                            return data
                         if resp.status == 429:
                             try:
                                 from core.rpc_budget import GLOBAL as _rpc_budget
