@@ -743,6 +743,21 @@ class Trader:
                 return _cached
         except Exception:
             pass
+        # NEGATIVE cache (2026-07-10 429-storm postmortem): a failed lookup must
+        # NOT retry every tick. Restart + big armed set -> 50 prewarm misses/tick
+        # x 4 RPC URLs = ~100 req/s -> 429 everywhere -> nothing ever caches ->
+        # self-sustaining storm that starved the whole HTTP stack (polled=0,
+        # fleet drought). Failures wait DECIMALS_NEG_TTL_SECS before retrying.
+        try:
+            _neg = getattr(self, "_token_decimals_neg", None)
+            if _neg is None:
+                _neg = self._token_decimals_neg = {}
+            _ttl = float(os.getenv("DECIMALS_NEG_TTL_SECS", "600") or 600)
+            _nts = _neg.get(mint)
+            if _nts is not None and (time.time() - _nts) < _ttl:
+                return 6  # recent failure: pump.fun fallback, no RPC
+        except Exception:
+            pass
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -762,7 +777,19 @@ class Trader:
                 return decimals
         except Exception as e:
             logger.debug(f"[Trader] _get_token_decimals failed for {mint[:8]}…: {e}")
-        return 6  # fallback: pump.fun is the most common case (NOT cached — retry next time)
+        # Failure: stamp the negative cache so the next DECIMALS_NEG_TTL_SECS
+        # of lookups skip the RPC entirely (429-storm regression guard).
+        try:
+            _neg = getattr(self, "_token_decimals_neg", None)
+            if _neg is None:
+                _neg = self._token_decimals_neg = {}
+            _neg[mint] = time.time()
+            if len(_neg) > 4096:  # bound: drop oldest half
+                for _k in sorted(_neg, key=_neg.get)[:2048]:
+                    _neg.pop(_k, None)
+        except Exception:
+            pass
+        return 6  # fallback: pump.fun convention (neg-cached above, retries after TTL)
 
     async def prewarm_decimals(self, mint: str) -> None:
         """Pre-populate the decimals cache for an ARMED token so the live fire path's
