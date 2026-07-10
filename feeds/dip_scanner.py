@@ -1927,6 +1927,33 @@ class DipScanner:
                         decision.token, _ar_meta.get("retrace_micro_sell_rate_60"),
                         _ar_meta.get("retrace_micro_sell_traj"),
                         _ar_meta.get("retrace_micro_cum_nf_60"), _rm_conf)
+            # DURABLE BLOCK LEDGER (2026-07-10): blocked tokens never trade, so
+            # without this their features live only in rolling logs and the
+            # flow-override decision depends on manual tallying. Record the flag
+            # into the shadow recorder (forward-candle scored automatically),
+            # split by cell: _conflict = heavy sells BUT sustained inflow (the
+            # Bullscan-ripped-+67% cell — the override candidate) vs _pure.
+            # Dedup per (addr, filter) via should_record_verdict. Fail-open.
+            if _rm_block:
+                try:
+                    from feeds.filter_shadow_recorder import (
+                        should_record_verdict as _rm_should,
+                        record_verdict as _rm_rv,
+                    )
+                    _rm_addr = decision.address or self._addr_by_token.get(decision.token, "")
+                    _rm_cell = ("retrace_micro_avoid_conflict" if _rm_conf
+                                else "retrace_micro_avoid_pure")
+                    if _rm_should(_rm_addr, _rm_cell, "BLOCK", sample_n=1):
+                        _rm_rv(token_address=_rm_addr, token_symbol=decision.token,
+                               pair={"pairAddress": getattr(decision, "pair_address", "") or "",
+                                     "liquidity": {"usd": _ar_liq}},
+                               filter_name=_rm_cell, verdict="BLOCK",
+                               reasons="sell_rate=%s traj=%s cum_nf=%s flow=%s" % (
+                                   _ar_meta.get("retrace_micro_sell_rate_60"),
+                                   _ar_meta.get("retrace_micro_sell_traj"),
+                                   _ar_meta.get("retrace_micro_cum_nf_60"), _rm_conf))
+                except Exception:
+                    pass
             if _rm_block and getattr(pm.config, "retrace_micro_avoid", False):
                 return
         # ── Negative gate: suppress falling-knife DIP entries in a SOL-pump (#433) ─
