@@ -41,7 +41,8 @@
   "filters_enforced": [
     "filter_btc_overheat",
     "filter_consec_red",
-    "filter_huge_wick"
+    "filter_huge_wick",
+    "filter_knife_catch_peak"
   ],
   "giveback_floor_peak_min": 4.0,
   "giveback_floor_pnl_pct": -6.0,
