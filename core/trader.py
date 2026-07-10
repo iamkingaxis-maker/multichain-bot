@@ -478,6 +478,12 @@ class Trader:
                                             timeout=aiohttp.ClientTimeout(total=total_timeout)) as resp:
                         if resp.status == 200:
                             return await resp.json()
+                        if resp.status == 429:
+                            try:
+                                from core.rpc_budget import GLOBAL as _rpc_budget
+                                _rpc_budget.report_429()
+                            except Exception:
+                                pass
                         logger.warning(
                             f"[Trader] RPC {idx} HTTP {resp.status} for "
                             f"{payload.get('method','?')}, trying next..."
@@ -799,6 +805,13 @@ class Trader:
         try:
             if not mint or mint in self._token_decimals_cache:
                 return
+            # BACKGROUND consumer: when the shared RPC quota is tripped (429
+            # storm), skip the warm entirely — the live fire path falls back to
+            # a fresh RPC (or the 6-decimals pump.fun default) and the saved
+            # quota goes to critical calls (sell-path reads, tx sends).
+            from core.rpc_budget import GLOBAL as _rpc_budget
+            if not _rpc_budget.background_allowed():
+                return
             await self._get_token_decimals(mint)  # populates the cache on success
         except Exception:
             pass
@@ -1022,6 +1035,22 @@ class Trader:
         owner = self._get_public_key()
         if not owner:
             return -1
+        # CRITICAL-path retry (2026-07-10 mogdog): this read gates live SELLS.
+        # One failed rotation used to punt the exit a whole tick; now a failure
+        # gets two short-backoff retries in-call (the rpc-budget breaker has
+        # already paused background consumers, so retries hit a draining quota).
+        attempts = 3
+        for _attempt in range(attempts):
+            got = await self._read_token_balance_once(owner, mint)
+            if got >= 0:
+                return got
+            if _attempt < attempts - 1:
+                await asyncio.sleep(0.5 * (_attempt + 1))
+        return -1
+
+    async def _read_token_balance_once(self, owner: str, mint: str) -> int:
+        """One getTokenAccountsByOwner rotation -> atomic units, 0 (genuine
+        empty), or -1 (FAILED read — caller must not treat as empty)."""
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
