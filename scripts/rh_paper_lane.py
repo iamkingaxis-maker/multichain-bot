@@ -1,5 +1,14 @@
 # scripts/rh_paper_lane.py
-"""Robinhood Chain PAPER lane v1 — the young-dip strategy on RH rails.
+"""Robinhood Chain PAPER lane — the young-dip strategy on RH rails.
+
+FLEET v1 (AxiS 2026-07-11): like the Solana fleet, this lane is a SELECTION
+INSTRUMENT — N configs (ROSTER, 8 racers) run CONCURRENTLY over the SAME
+firehose feed and quote budget in one process. Per-POOL facts (tape, quote
+prices, liq history, honeypot verdicts, dip/demand/micro/age/drain/rt-cost)
+are computed ONCE and shared; each LaneBot config then applies its OWN
+thresholds and trades independently (its own PerBotPositionManager, daily
+P&L, cooldowns, block histogram). Ledger rows carry bot_id so the analysis
+splits per racer; the dashboard's /api/rh-paper aggregates all rows as-is.
 
 Wires the three shipped RH components into one per-session paper trader:
   detection  = sequencer firehose (scripts/rh_firehose_feed.py, ~0.9s lag)
@@ -29,6 +38,8 @@ import queue
 import sys
 import threading
 import time
+from dataclasses import dataclass
+from typing import Optional
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
@@ -88,6 +99,100 @@ REENTRY_COOLDOWN_S = 300.0
 GAS_USD_PER_SIDE = 0.01     # measured RH gas ~ $0.005; round up
 
 
+# ── fleet configs (the RACING ROSTER — selection instrument) ─────────────────
+@dataclass(frozen=True)
+class LaneBot:
+    """One racer's config. Entry thresholds gate the SHARED per-pool facts;
+    exit params feed its own PerBotPositionManager (the probe exit engine).
+    Defaults = the current single-config lane verbatim, so
+    LaneBot(bot_id="rh_young_v1") IS the control."""
+    bot_id: str
+    # entry MODE: "dip" = the young-dip trigger (dip + demand-turn);
+    # "launch_strength" = the 2026-07-11 wallet-decode repeat-winner profile
+    # (fresh pool, positive 120s net inflow, price ABOVE its 10-min open —
+    # strength, not dip). The guard stack (micro/liq/age/drain/honeypot/
+    # rt-cost/cooldown/bites/hours) applies identically to both modes.
+    entry_mode: str = "dip"
+    # entry thresholds (applied to shared pool facts)
+    dip_trigger_pct: float = DIP_TRIGGER_PCT
+    min_liq_usd: float = MIN_LIQ_USD
+    min_pool_age_h: float = MIN_POOL_AGE_H
+    max_pool_age_h: Optional[float] = None      # None = no ceiling (launch
+                                                # scalp caps at 20 min)
+    demand_min_buy_usd: float = DEMAND_MIN_BUY_USD
+    launch_min_inflow_usd: float = 150.0        # launch_strength: 120s net
+    max_rt_cost_pct: float = MAX_RT_COST_PCT
+    reentry_cooldown_s: float = REENTRY_COOLDOWN_S
+    max_bites_per_token: Optional[int] = None   # None = uncapped re-entries
+    first_touch_only: bool = False              # never re-enter a token
+    allowed_hours_utc: Optional[tuple] = None   # None = 24/7; else UTC hours
+    max_concurrent: int = MAX_CONCURRENT
+    # exit ladder (PerBotPositionManager via BotConfig)
+    tp1_pct: float = 6.0
+    tp1_sell_fraction: float = 0.75
+    tp2_pct: float = 12.0
+    tp2_sell_fraction: float = 0.25
+    hard_stop_pct: float = -15.0
+    time_stop_minutes: Optional[float] = None
+    moonbag_fraction: float = 0.0
+    moonbag_floor_pct: float = 0.0
+    moonbag_trail_pp: Optional[float] = None
+
+    def bot_config(self) -> BotConfig:
+        return BotConfig(
+            bot_id=self.bot_id, display_name=self.bot_id,
+            tp1_pct=self.tp1_pct, tp1_sell_fraction=self.tp1_sell_fraction,
+            tp2_pct=self.tp2_pct, tp2_sell_fraction=self.tp2_sell_fraction,
+            hard_stop_pct=self.hard_stop_pct,
+            time_stop_minutes=self.time_stop_minutes,
+            moonbag_fraction=self.moonbag_fraction,
+            moonbag_floor_pct=self.moonbag_floor_pct,
+            moonbag_trail_pp=self.moonbag_trail_pp,
+            max_concurrent_positions=self.max_concurrent,
+        )
+
+
+LEGACY_BOT_ID = "rh_young_v1"   # pre-fleet single-config state migrates here
+
+# The 8 racers (2026-07-11): control + the hypotheses the 07-10 ledger raised.
+ROSTER = (
+    # 1. control — the shipped config verbatim; inherits the legacy state.
+    LaneBot(bot_id="rh_young_v1"),
+    # 2. deep flushes only — today's deep entries outperformed the shallow.
+    LaneBot(bot_id="rh_deep_only", dip_trigger_pct=-25.0),
+    # 3. one bite per token ever — the repeat-bite decay hypothesis.
+    LaneBot(bot_id="rh_first_touch", first_touch_only=True),
+    # 4. bite-curve cap: at most 2 entries per token.
+    LaneBot(bot_id="rh_bites2", max_bites_per_token=2),
+    # 5. friction-adjusted ladder — RH round trip costs 2-3x Solana, so the
+    #    exits need more room than the Solana-parity +6/+12.
+    LaneBot(bot_id="rh_wide_ladder", tp1_pct=10.0, tp1_sell_fraction=0.75,
+            tp2_pct=20.0),
+    # 6. house-money moonbag shape on RH (young_v1 + 10% moonbag, breakeven
+    #    floor, 20pp trail).
+    LaneBot(bot_id="rh_moonbag", moonbag_fraction=0.10, moonbag_floor_pct=0.0,
+            moonbag_trail_pp=20.0),
+    # 7. stronger demand confirmation — tonight's fades were weak-demand entries.
+    LaneBot(bot_id="rh_demand_heavy", demand_min_buy_usd=150.0),
+    # 8. does depth pay for itself via cheaper exits?
+    LaneBot(bot_id="rh_liq40", min_liq_usd=40_000.0),
+    # 9. prime hours only (2026-07-11 hour rulebook: 17-21 UTC green; the
+    #    22:00-01:00 stretch flipped the SAME tokens +0.60 -> -0.70/trip).
+    LaneBot(bot_id="rh_prime_hours", allowed_hours_utc=(17, 18, 19, 20, 21)),
+    # 10. launch-strength scalp (2026-07-11 wallet decode: the AUDITED
+    #     repeat-winner profile — fresh-pool strength buyers, 4.4 min median
+    #     holds). Different ENTRY MODE, same guard stack: age 0.5-20 min,
+    #     120s net inflow >= $150, price above its 10-min open. Tight exits:
+    #     tp1 +5/0.90, hard stop -8, 10-min time box.
+    LaneBot(bot_id="rh_launch_scalp", entry_mode="launch_strength",
+            min_pool_age_h=0.5 / 60.0, max_pool_age_h=20.0 / 60.0,
+            launch_min_inflow_usd=150.0,
+            tp1_pct=5.0, tp1_sell_fraction=0.90,
+            tp2_pct=10.0, tp2_sell_fraction=0.10,
+            hard_stop_pct=-8.0, time_stop_minutes=10.0),
+)
+
+
 # ── pure signal logic (unit-tested, no network) ─────────────────────────────
 def price_from_quote(amount_in_wei: int, amount_out_atomic: int,
                      token_decimals: int) -> float:
@@ -110,10 +215,11 @@ def dip_pct(series: list, now: float, window_s: float = PRICE_WINDOW_S):
     return (cur - hi) / hi * 100.0
 
 
-def demand_turn(rows: list, now: float, window_s: float = DEMAND_WINDOW_S,
-                min_buy_usd: float = DEMAND_MIN_BUY_USD) -> bool:
-    """Tape rows -> True when recent flow is net-positive AND buys are real
-    dollars (a dip nobody is buying is a knife, not an entry)."""
+def flow_sums(rows: list, now: float,
+              window_s: float = DEMAND_WINDOW_S) -> tuple:
+    """Tape rows -> (buy_usd, sell_usd) over the window. The SHARED demand
+    fact: summed once per pool per tick; each config then applies its own
+    demand_min_buy_usd threshold to the same sums."""
     buys = sells = 0.0
     for r in rows:
         ts = r.get("_epoch")
@@ -124,7 +230,70 @@ def demand_turn(rows: list, now: float, window_s: float = DEMAND_WINDOW_S,
             buys += v
         elif r.get("kind") == "sell":
             sells += v
+    return buys, sells
+
+
+def demand_turn(rows: list, now: float, window_s: float = DEMAND_WINDOW_S,
+                min_buy_usd: float = DEMAND_MIN_BUY_USD) -> bool:
+    """Tape rows -> True when recent flow is net-positive AND buys are real
+    dollars (a dip nobody is buying is a knife, not an entry)."""
+    buys, sells = flow_sums(rows, now, window_s)
     return buys >= min_buy_usd and (buys - sells) > 0
+
+
+def rise_from_open_pct(series: list, now: float,
+                       window_s: float = PRICE_WINDOW_S):
+    """[(ts, price)] -> pct of the latest point vs the FIRST in-window point
+    (the 10-min 'open') — the launch-strength trigger reads price ABOVE its
+    open, the mirror image of dip_pct's off-the-high read. None when the
+    window has <3 points (same no-basis rule as dip_pct)."""
+    pts = [(t, p) for t, p in series if now - t <= window_s and p > 0]
+    if len(pts) < 3:
+        return None
+    o = pts[0][1]
+    if o <= 0:
+        return None
+    return (pts[-1][1] - o) / o * 100.0
+
+
+def launch_trigger_blocks(rise_open_pct, net_inflow_usd,
+                          min_inflow_usd: float = 150.0) -> list:
+    """launch_strength trigger -> block reasons ([] = trigger fires).
+    Replaces the dip-mode (no_dip, no_demand_turn) pair; the rest of the
+    guard stack still applies via entry_verdict(trigger_blocks=...)."""
+    blocks = []
+    if rise_open_pct is None or rise_open_pct <= 0.0:
+        blocks.append("no_strength")
+    if net_inflow_usd < min_inflow_usd:
+        blocks.append("weak_inflow")
+    return blocks
+
+
+def bite_gate(first_touch_only: bool, max_bites: Optional[int],
+              prior_bites: int) -> Optional[str]:
+    """Repeat-bite policy -> block reason or None (enter allowed).
+    first_touch_only: a token is entered at most ONCE ever (persisted).
+    max_bites: lifetime entry cap per token (None = uncapped)."""
+    if first_touch_only and prior_bites >= 1:
+        return "first_touch"
+    if max_bites is not None and prior_bites >= max_bites:
+        return "bites_cap"
+    return None
+
+
+def hour_allowed(allowed_hours_utc, hour_utc: int) -> bool:
+    """None = 24/7; else the UTC hour must be in the allowed set."""
+    return allowed_hours_utc is None or int(hour_utc) in allowed_hours_utc
+
+
+def ledger_iso(now: float, seq: int) -> str:
+    """iso_utc + a synthetic .%03d millisecond field. The dashboard ingest
+    de-dups rows on (ts, ev, pool) — bot_id is NOT part of that key — so two
+    racers trading the same pool in the same second MUST NOT share a ts
+    string. seq is a lane-global monotonic counter; the date-prefix day-P&L
+    aggregation (ts[:10]) and the dashboard table are unaffected."""
+    base = iso_utc(now)                       # %Y-%m-%dT%H:%M:%S+00:00
+    return f"{base[:19]}.{seq % 1000:03d}{base[19:]}"
 
 
 def sell_slice(remaining_frac: float, req_frac: float):
@@ -152,36 +321,79 @@ def lp_drain_pct(liq_series, now: float, window_s: float = LP_DRAIN_WINDOW_S):
 
 def entry_verdict(dip, demand, micro, liq_usd, honeypot_ok,
                   open_count, cooldown_ok, daily_pnl_usd,
-                  age_h=None, drain_pct=None) -> dict:
+                  age_h=None, drain_pct=None,
+                  dip_trigger_pct=DIP_TRIGGER_PCT,
+                  min_liq_usd=MIN_LIQ_USD,
+                  min_pool_age_h=MIN_POOL_AGE_H,
+                  max_pool_age_h=None,
+                  max_concurrent=MAX_CONCURRENT,
+                  daily_loss_stop_usd=DAILY_LOSS_STOP_USD,
+                  hour_ok=True, bite_block=None,
+                  trigger_blocks=None) -> dict:
     """Combine every gate -> {enter: bool, blocks: [..]} (all reasons kept
-    so the ledger shows WHY, not just whether)."""
+    so the ledger shows WHY, not just whether). Thresholds default to the
+    module constants (= rh_young_v1); the fleet passes each racer's own
+    (dip/liq/age/concurrency come from its LaneBot). hour_ok/bite_block are
+    the per-config trading-window and repeat-bite verdicts, pre-computed by
+    the caller (hour_allowed / bite_gate). trigger_blocks replaces the
+    dip-mode trigger pair (no_dip/no_demand_turn) for alternate entry modes
+    (launch_trigger_blocks); the guard stack below applies either way."""
     blocks = []
-    if dip is None or dip > DIP_TRIGGER_PCT:
-        blocks.append("no_dip")
-    if not demand:
-        blocks.append("no_demand_turn")
+    if trigger_blocks is None:
+        if dip is None or dip > dip_trigger_pct:
+            blocks.append("no_dip")
+        if not demand:
+            blocks.append("no_demand_turn")
+    else:
+        blocks.extend(trigger_blocks)
     if micro and micro.get("avoid_block"):
         blocks.append("retrace_micro_avoid")
-    if liq_usd < MIN_LIQ_USD:
+    if liq_usd < min_liq_usd:
         blocks.append("liq_floor")
-    if age_h is not None and age_h < MIN_POOL_AGE_H:
+    if age_h is not None and age_h < min_pool_age_h:
         blocks.append("age_floor")
+    if (max_pool_age_h is not None and age_h is not None
+            and age_h > max_pool_age_h):
+        blocks.append("age_ceiling")
     if drain_pct is not None and drain_pct <= LP_DRAIN_ENTRY_PCT:
         blocks.append("lp_drain")
     if not honeypot_ok:
         blocks.append("honeypot")
-    if open_count >= MAX_CONCURRENT:
+    if open_count >= max_concurrent:
         blocks.append("max_concurrent")
     if not cooldown_ok:
         blocks.append("cooldown")
-    if daily_pnl_usd <= DAILY_LOSS_STOP_USD:
+    if not hour_ok:
+        blocks.append("hour_window")
+    if bite_block:
+        blocks.append(bite_block)
+    if daily_pnl_usd <= daily_loss_stop_usd:
         blocks.append("daily_loss_stop")
     return {"enter": not blocks, "blocks": blocks}
 
 
+# ── per-config trading state ─────────────────────────────────────────────────
+class BotState:
+    """Everything that must differ per RACER. Per-POOL facts (tape, quote
+    prices, liq history, honeypot verdicts, decimals) stay on the lane —
+    they are facts about the pool, not about any config."""
+
+    def __init__(self, bot: LaneBot):
+        self.bot = bot
+        self.pm = PerBotPositionManager(bot.bot_config())
+        self.pos_meta = {}       # pool -> {qty, token, sym, entry stamps}
+        self.daily_pnl_usd = 0.0
+        self.n_entries = 0
+        self.n_exits = 0
+        self.block_hist = {}     # block reason -> count (why it isn't firing)
+        self.last_exit = {}      # pool -> ts (re-entry cooldown)
+        self.bites = {}          # pool -> lifetime entry count (persisted;
+                                 # drives first_touch_only / max_bites_per_token)
+
+
 # ── the lane ─────────────────────────────────────────────────────────────────
 class PaperLane:
-    def __init__(self, feed: Feed, executor=None, registry=None):
+    def __init__(self, feed: Feed, executor=None, registry=None, bots=None):
         self.feed = feed
         self.ex = executor          # RhExecutor (lazy if None)
         # pool -> {token, fee, ...}: feed.watch does NOT carry the token
@@ -194,51 +406,137 @@ class PaperLane:
         self.last_trade = {}        # pool -> ts (hot tracking)
         self.decimals = {}          # token -> int
         self.honeypot = {}          # token -> verdict dict
-        self.last_exit = {}         # pool -> ts (re-entry cooldown)
-        self.daily_pnl_usd = 0.0
-        self.n_entries = 0
-        self.n_exits = 0
         self.n_quotes = 0           # fire-evidence: quotes actually made
         self.n_evals = 0            # fire-evidence: entry gates actually run
-        self.block_hist = {}        # block reason -> count (why we're not firing)
-        cfg = BotConfig(bot_id="rh_paper_young", display_name="RH paper young",
-                        tp1_pct=6.0, tp1_sell_fraction=0.75, tp2_pct=12.0)
-        self.pm = PerBotPositionManager(cfg)
-        self.pos_meta = {}          # pool -> {qty, token, sym, entry stamps}
+        self._ledger_seq = 0        # ledger ts uniquifier (see ledger_iso)
+        # FLEET: default = single-config control (back-compat for callers/
+        # tests that predate the fleet); main() passes the full ROSTER.
+        self.bots = tuple(bots) if bots else (LaneBot(bot_id=LEGACY_BOT_ID),)
+        assert len({b.bot_id for b in self.bots}) == len(self.bots), \
+            "duplicate bot_id in roster"
+        self.state = {b.bot_id: BotState(b) for b in self.bots}
         self.stop = threading.Event()
+
+    # ── single-config back-compat surface (the FIRST roster entry is the
+    # lane's "primary"; pre-fleet tests and callers read these) ─────────────
+    @property
+    def _st0(self) -> BotState:
+        return self.state[self.bots[0].bot_id]
+
+    @property
+    def pm(self):
+        return self._st0.pm
+
+    @property
+    def pos_meta(self):
+        return self._st0.pos_meta
+
+    @property
+    def block_hist(self):
+        return self._st0.block_hist
+
+    @property
+    def last_exit(self):
+        return self._st0.last_exit
+
+    @property
+    def daily_pnl_usd(self):
+        return self._st0.daily_pnl_usd
+
+    @daily_pnl_usd.setter
+    def daily_pnl_usd(self, v):
+        self._st0.daily_pnl_usd = float(v)
+
+    @property
+    def n_entries(self):
+        return sum(st.n_entries for st in self.state.values())
+
+    @property
+    def n_exits(self):
+        return sum(st.n_exits for st in self.state.values())
+
+    def _ledger_ts(self, now: float) -> str:
+        self._ledger_seq += 1
+        return ledger_iso(now, self._ledger_seq)
+
+    def _held_pools(self) -> dict:
+        """UNION of held pools across configs -> largest remaining qty. The
+        sell-exec ticking quotes each held pool ONCE; when two configs hold
+        the same pool the quote is sized by the LARGER remaining qty and the
+        price is shared (approximation: the smaller holder's own sell would
+        fill at an equal-or-better price, so its shared tick is slightly
+        conservative — never optimistic)."""
+        held = {}
+        for st in self.state.values():
+            for pool, meta in st.pos_meta.items():
+                rem = meta["qty_orig"] * meta["remaining_frac"]
+                if rem > held.get(pool, 0.0):
+                    held[pool] = rem
+        return held
 
     # ── durable open positions (parity with the Solana bot_state stores:
     # a crash/restart mid-hold must never orphan a position) ────────────────
     def save_state(self):
+        """Per-config keyed state file: {"day": ..., "bots": {bot_id: {...}}}.
+        bites (lifetime per-token entry counts) persist so first_touch/
+        bites-cap policies survive restarts."""
         try:
             tmp = STATE + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
-                json.dump({"pos_meta": self.pos_meta,
-                           "daily_pnl_usd": self.daily_pnl_usd,
-                           "day": time.strftime("%Y-%m-%d", time.gmtime()),
-                           "pm_state": self.pm.to_state_list()}, f)
+                json.dump({
+                    "day": time.strftime("%Y-%m-%d", time.gmtime()),
+                    "bots": {bid: {"pos_meta": st.pos_meta,
+                                   "daily_pnl_usd": st.daily_pnl_usd,
+                                   "pm_state": st.pm.to_state_list(),
+                                   "bites": st.bites}
+                             for bid, st in self.state.items()},
+                }, f)
             os.replace(tmp, STATE)
         except Exception as e:
             print(f"[rh-paper] state save failed: {e}", flush=True)
 
     def restore_state(self):
         """Reload open positions from a prior session/crash. Same-day daily
-        P&L carries over (it's a day counter, not a session counter)."""
+        P&L carries over (it's a day counter, not a session counter).
+        LEGACY MIGRATION: the pre-fleet single-config file (top-level
+        pos_meta/pm_state/daily_pnl_usd) belongs to rh_young_v1 — the control
+        IS that config, so it inherits the state verbatim."""
         try:
             if not os.path.exists(STATE):
                 return
-            st = json.load(open(STATE, encoding="utf-8"))
-            self.pos_meta = st.get("pos_meta") or {}
-            if st.get("day") == time.strftime("%Y-%m-%d", time.gmtime()):
-                self.daily_pnl_usd = float(st.get("daily_pnl_usd") or 0.0)
-            n = self.pm.load_state_list(st.get("pm_state") or [])
-            # drop meta whose pm twin didn't restore (and vice versa)
-            self.pos_meta = {p: m for p, m in self.pos_meta.items()
-                             if self.pm.get_position(p) is not None}
-            if self.pos_meta or n:
-                print(f"[rh-paper] restored {len(self.pos_meta)} open "
-                      f"position(s), day_pnl={self.daily_pnl_usd:+.2f}",
-                      flush=True)
+            raw = json.load(open(STATE, encoding="utf-8"))
+            same_day = raw.get("day") == time.strftime("%Y-%m-%d", time.gmtime())
+            per_bot = raw.get("bots")
+            if per_bot is None:  # legacy single-config shape
+                per_bot = {LEGACY_BOT_ID: {
+                    "pos_meta": raw.get("pos_meta") or {},
+                    "daily_pnl_usd": raw.get("daily_pnl_usd") or 0.0,
+                    "pm_state": raw.get("pm_state") or [],
+                    "bites": {}}}
+                print(f"[rh-paper] legacy single-config state -> "
+                      f"{LEGACY_BOT_ID}", flush=True)
+            n_restored = 0
+            for bid, blob in per_bot.items():
+                st = self.state.get(bid)
+                if st is None:
+                    print(f"[rh-paper] state for unknown bot '{bid}' ignored",
+                          flush=True)
+                    continue
+                if not isinstance(blob, dict):
+                    continue
+                st.pos_meta = blob.get("pos_meta") or {}
+                if same_day:
+                    st.daily_pnl_usd = float(blob.get("daily_pnl_usd") or 0.0)
+                st.bites = {k: int(v) for k, v in (blob.get("bites") or {}).items()
+                            if isinstance(v, (int, float))}
+                st.pm.load_state_list(blob.get("pm_state") or [])
+                # drop meta whose pm twin didn't restore (and vice versa)
+                st.pos_meta = {p: m for p, m in st.pos_meta.items()
+                               if st.pm.get_position(p) is not None}
+                n_restored += len(st.pos_meta)
+            if n_restored:
+                print(f"[rh-paper] restored {n_restored} open position(s) "
+                      f"across {len(self.state)} config(s)", flush=True)
         except Exception as e:
             print(f"[rh-paper] state restore failed (starting clean): {e}",
                   flush=True)
@@ -249,10 +547,15 @@ class PaperLane:
 
     def _token_for(self, pool: str):
         """Token address for a pool: firehose registry first (authoritative),
-        then open-position meta, then feed.watch (future-proof fallback)."""
-        return ((self.registry.get(pool) or {}).get("token")
-                or (self.pos_meta.get(pool) or {}).get("token")
-                or (self.feed.watch.get(pool) or {}).get("token"))
+        then any config's open-position meta, then feed.watch (fallback)."""
+        tok = (self.registry.get(pool) or {}).get("token")
+        if tok:
+            return tok
+        for st in self.state.values():
+            tok = (st.pos_meta.get(pool) or {}).get("token")
+            if tok:
+                return tok
+        return (self.feed.watch.get(pool) or {}).get("token")
 
     def _executor(self):
         if self.ex is None:
@@ -302,26 +605,31 @@ class PaperLane:
         sorted into the shared budget by trade recency, so a quiet position
         could be crowded out of quotes exactly when its exit mattered —
         LOCKIN gapped through its trail to the hard stop). Entry candidates
-        then fill the remaining budget."""
+        then fill the remaining budget.
+
+        FLEET: held pools = the UNION across configs, quoted ONCE each (see
+        _held_pools for the shared-price approximation when two configs hold
+        the same pool). Entry candidates are also quoted once for the whole
+        fleet — the quote budget does NOT scale with the roster size."""
+        held = self._held_pools()   # pool -> largest remaining qty
         hot = [p for p, t in self.last_trade.items()
                if now - t <= HOT_TTL_S and p in self.feed.watch
-               and p not in self.pos_meta]
+               and p not in held]
         hot.sort(key=lambda p: -(self.last_trade.get(p, 0)))
-        budget = max(0, MAX_HOT_QUOTES - len(self.pos_meta))
-        for pool in list(self.pos_meta) + hot[:budget]:
+        budget = max(0, MAX_HOT_QUOTES - len(held))
+        for pool in list(held) + hot[:budget]:
             token = self._token_for(pool)
             if not token:
                 continue
             try:
-                meta = self.pos_meta.get(pool)
-                if meta:
+                rem_qty = held.get(pool)
+                if rem_qty is not None:
                     # EXIT-IMPACT FIX (2026-07-10): held pools tick on the
                     # SELL-side EXECUTABLE price of our actual remaining size
                     # — TP/stop/bail thresholds then fire on what we'd GET,
                     # not on an optimistic buy-side probe (decisions were
                     # landing 3-14pp above fills in thin books).
                     dec = self._token_decimals(token)
-                    rem_qty = meta["qty_orig"] * meta["remaining_frac"]
                     q = self._executor().quote_sell(
                         token, int(rem_qty * 10 ** dec))
                     px = ((q.amount_out / 1e18) / rem_qty
@@ -351,7 +659,7 @@ class PaperLane:
 
     def _sample_liq(self, now: float):
         """Feed the lp-drain tracker from the maintenance liq refresher."""
-        for pool in set(list(self.last_trade) + list(self.pos_meta)):
+        for pool in set(list(self.last_trade) + list(self._held_pools())):
             w = self.feed.watch.get(pool)
             if not w:
                 continue
@@ -371,36 +679,79 @@ class PaperLane:
             return None  # unknown age -> gate has no signal (fail-open)
 
     def _consider_entries(self, now: float):
+        hour = time.gmtime(now).tm_hour
         for pool, series in list(self.prices.items()):
-            if pool in self.pos_meta:
-                continue
             w = self.feed.watch.get(pool)
             if not w:
                 continue
+            states = [st for st in self.state.values()
+                      if pool not in st.pos_meta]
+            if not states:
+                continue
+            # ── shared per-POOL facts: computed at most ONCE per candidate,
+            # regardless of roster size (the quote/CPU budget invariant) ────
             rows = self.tape.get(pool, [])
             d = dip_pct(series, now)
             micro = retrace_micro_eval(
                 [{"kind": r.get("kind"), "volume_usd": r.get("volume_usd"),
                   "ts": r.get("_epoch")} for r in rows], now)
-            cooldown_ok = (now - self.last_exit.get(pool, 0)) > REENTRY_COOLDOWN_S
+            buys, sells = flow_sums(rows, now)
             liq = float(w.get("liq") or 0)
-            # honeypot LAST (network call) and only when everything else passes
-            v = entry_verdict(d, demand_turn(rows, now), micro, liq, True,
-                              len(self.pos_meta), cooldown_ok, self.daily_pnl_usd,
-                              age_h=self._pool_age_h(w),
-                              drain_pct=lp_drain_pct(
-                                  self.liq_hist.get(pool, []), now))
+            age_h = self._pool_age_h(w)
+            drain = lp_drain_pct(self.liq_hist.get(pool, []), now)
+            # launch_strength shared facts (pure CPU on in-memory data)
+            rise_open = rise_from_open_pct(series, now)
+            b120, s120 = flow_sums(rows, now, window_s=120.0)
+            inflow_120s = b120 - s120
             self.n_evals += 1
-            if not v["enter"]:
-                for b in v["blocks"]:
-                    self.block_hist[b] = self.block_hist.get(b, 0) + 1
+            # ── per-CONFIG thresholds against those shared facts ────────────
+            entering = []
+            for st in states:
+                bot = st.bot
+                demand = (buys >= bot.demand_min_buy_usd
+                          and (buys - sells) > 0)
+                cooldown_ok = ((now - st.last_exit.get(pool, 0))
+                               > bot.reentry_cooldown_s)
+                trig = (launch_trigger_blocks(rise_open, inflow_120s,
+                                              bot.launch_min_inflow_usd)
+                        if bot.entry_mode == "launch_strength" else None)
+                # honeypot LAST (network call), only when a config passes
+                v = entry_verdict(
+                    d, demand, micro, liq, True,
+                    len(st.pos_meta), cooldown_ok, st.daily_pnl_usd,
+                    age_h=age_h, drain_pct=drain,
+                    dip_trigger_pct=bot.dip_trigger_pct,
+                    min_liq_usd=bot.min_liq_usd,
+                    min_pool_age_h=bot.min_pool_age_h,
+                    max_pool_age_h=bot.max_pool_age_h,
+                    max_concurrent=bot.max_concurrent,
+                    hour_ok=hour_allowed(bot.allowed_hours_utc, hour),
+                    bite_block=bite_gate(bot.first_touch_only,
+                                         bot.max_bites_per_token,
+                                         st.bites.get(pool, 0)),
+                    trigger_blocks=trig)
+                if v["enter"]:
+                    entering.append(st)
+                else:
+                    for b in v["blocks"]:
+                        st.block_hist[b] = st.block_hist.get(b, 0) + 1
+            if not entering:
                 continue
             token = self._token_for(pool)
             if not token or not self._honeypot_ok(token):
                 continue
-            self._paper_buy(pool, token, w, d, micro, now, rows)
+            self._paper_buy(pool, token, w, d, micro, now, rows,
+                            states=entering)
 
-    def _paper_buy(self, pool, token, w, dip, micro, now, rows):
+    def _paper_buy(self, pool, token, w, dip, micro, now, rows, states=None):
+        """Fill the entry for every entering config off ONE buy quote + ONE
+        rt-cost sell quote: the fill price is a per-POOL fact (every racer
+        bets the same $25), so the fleet does not multiply QuoterV2 calls."""
+        if states is None:   # pre-fleet call shape (tests): all non-holders
+            states = [st for st in self.state.values()
+                      if pool not in st.pos_meta]
+        if not states:
+            return
         t_decide = time.time()
         trigger_lag = rows[-1].get("lag_secs") if rows else None
         try:
@@ -412,9 +763,10 @@ class PaperLane:
         if not q or not q.amount_out:
             return
         # ROUND-TRIP COST GATE (exit-impact leak): quote the sell of exactly
-        # what this buy returns, NOW. If the pool charges > MAX_RT_COST_PCT
-        # for the round trip, friction eats the edge — no entry. Uses real
-        # quotes (fee + impact both ways), not heuristics. Fail-closed on a
+        # what this buy returns, NOW. If the pool charges more than a config's
+        # max_rt_cost_pct for the round trip, friction eats the edge — no
+        # entry for THAT config. Uses real quotes (fee + impact both ways),
+        # not heuristics; quoted ONCE, gated per config. Fail-closed on a
         # reverted sell quote (one-way pool = honeypot signature anyway).
         try:
             sq = self._executor().quote_sell(token, q.amount_out)
@@ -422,62 +774,80 @@ class PaperLane:
             rt_cost = (1.0 - eth_back / q.amount_in) * 100.0
         except Exception:
             rt_cost = 100.0
-        if rt_cost > MAX_RT_COST_PCT:
-            self.block_hist["rt_cost"] = self.block_hist.get("rt_cost", 0) + 1
+        takers = []
+        for st in states:
+            if rt_cost > st.bot.max_rt_cost_pct:
+                st.block_hist["rt_cost"] = st.block_hist.get("rt_cost", 0) + 1
+            else:
+                takers.append(st)
+        if not takers:
             print(f"[rh-paper] RT-COST BLOCK {pool[:10]} "
-                  f"round-trip {rt_cost:.1f}% > {MAX_RT_COST_PCT:g}%", flush=True)
+                  f"round-trip {rt_cost:.1f}%", flush=True)
             return
         t_fill = time.time()
         dec = self._token_decimals(token)
         px = price_from_quote(q.amount_in, q.amount_out, dec)
         qty = q.amount_out / 10 ** dec
-        self.pm.open_position(token=pool, entry_price=px, size_usd=ENTRY_USD,
-                              entry_time=now, address=token)
-        self.pos_meta[pool] = {"qty_orig": qty, "remaining_frac": 1.0,
-                               "token": token, "sym": w["sym"],
-                               "entry_px": px, "entry_ts": now}
-        self.n_entries += 1
         lat_total = (None if trigger_lag is None
                      else round(trigger_lag + (t_fill - t_decide), 2))
-        rec = {"ev": "buy", "ts": iso_utc(now), "pool": pool, "token": token,
-               "sym": w["sym"], "usd": ENTRY_USD, "price_eth": px, "qty": qty,
-               "dip_pct": round(dip, 2), "liq": w.get("liq"),
-               "micro": {k: micro.get(k) for k in ("avoid_block", "flow_confirm")},
-               "lat_trigger_lag_s": trigger_lag,
-               "lat_quote_s": round(t_fill - t_decide, 3),
-               "lat_total_s": lat_total, "fee_tier": q.fee}
-        _append(LEDGER, rec)
+        lat_quote = round(t_fill - t_decide, 3)
+        for st in takers:
+            st.pm.open_position(token=pool, entry_price=px,
+                                size_usd=ENTRY_USD, entry_time=now,
+                                address=token)
+            st.pos_meta[pool] = {"qty_orig": qty, "remaining_frac": 1.0,
+                                 "token": token, "sym": w["sym"],
+                                 "entry_px": px, "entry_ts": now}
+            st.n_entries += 1
+            st.bites[pool] = st.bites.get(pool, 0) + 1
+            rec = {"ev": "buy", "ts": self._ledger_ts(now),
+                   "bot_id": st.bot.bot_id, "pool": pool, "token": token,
+                   "sym": w["sym"], "usd": ENTRY_USD, "price_eth": px,
+                   "qty": qty,
+                   "dip_pct": (round(dip, 2) if dip is not None else None),
+                   "entry_mode": st.bot.entry_mode, "liq": w.get("liq"),
+                   "micro": {k: micro.get(k)
+                             for k in ("avoid_block", "flow_confirm")},
+                   "lat_trigger_lag_s": trigger_lag,
+                   "lat_quote_s": lat_quote,
+                   "lat_total_s": lat_total, "fee_tier": q.fee}
+            _append(LEDGER, rec)
+            print(f"[rh-paper] BUY  {st.bot.bot_id:<16} {w['sym']:<12} "
+                  f"${ENTRY_USD:.0f} "
+                  f"dip={('%.1f%%' % dip) if dip is not None else '-'} "
+                  f"lat_total={lat_total}s "
+                  f"(trigger {trigger_lag}s + quote {lat_quote}s)", flush=True)
         self.save_state()
-        print(f"[rh-paper] BUY  {w['sym']:<12} ${ENTRY_USD:.0f} dip={dip:.1f}% "
-              f"lat_total={lat_total}s (trigger {trigger_lag}s + "
-              f"quote {rec['lat_quote_s']}s)", flush=True)
 
     def _manage_exits(self, now: float):
-        for pool, meta in list(self.pos_meta.items()):
-            series = self.prices.get(pool) or []
-            if not series:
-                continue
-            px = series[-1][1]
-            rows = self.tape.get(pool, [])
-            # LP-DRAIN EXIT (rug-guard port): pool liquidity collapsing under
-            # us = get out NOW, don't wait for the price path to confirm.
-            _drain = lp_drain_pct(self.liq_hist.get(pool, []), now)
-            if _drain is not None and _drain <= LP_DRAIN_EXIT_PCT:
-                from types import SimpleNamespace
-                self._paper_sell(pool, meta, SimpleNamespace(
-                    kind="LP_DRAIN", sell_fraction=1.0,
-                    reason="lp drain %.1f%% in %ds (liq collapse)" % (
-                        _drain, int(LP_DRAIN_WINDOW_S))), now)
-                continue
-            vol_m5 = sum(float(r.get("volume_usd") or 0) for r in rows
-                         if now - (r.get("_epoch") or 0) <= 300)
-            for d in self.pm.tick(token=pool, current_price=px, now=now,
-                                  vol_m5_usd=vol_m5):
-                self._paper_sell(pool, meta, d, now)
-                if pool not in self.pos_meta:
-                    break
+        for st in self.state.values():
+            for pool, meta in list(st.pos_meta.items()):
+                series = self.prices.get(pool) or []
+                if not series:
+                    continue
+                px = series[-1][1]
+                rows = self.tape.get(pool, [])
+                # LP-DRAIN EXIT (rug-guard port): pool liquidity collapsing
+                # under us = get out NOW, don't wait for the price path.
+                _drain = lp_drain_pct(self.liq_hist.get(pool, []), now)
+                if _drain is not None and _drain <= LP_DRAIN_EXIT_PCT:
+                    from types import SimpleNamespace
+                    self._paper_sell(pool, meta, SimpleNamespace(
+                        kind="LP_DRAIN", sell_fraction=1.0,
+                        reason="lp drain %.1f%% in %ds (liq collapse)" % (
+                            _drain, int(LP_DRAIN_WINDOW_S))), now, st=st)
+                    continue
+                vol_m5 = sum(float(r.get("volume_usd") or 0) for r in rows
+                             if now - (r.get("_epoch") or 0) <= 300)
+                for d in st.pm.tick(token=pool, current_price=px, now=now,
+                                    vol_m5_usd=vol_m5):
+                    self._paper_sell(pool, meta, d, now, st=st)
+                    if pool not in st.pos_meta:
+                        break
 
-    def _paper_sell(self, pool, meta, decision, now):
+    def _paper_sell(self, pool, meta, decision, now, st=None):
+        if st is None:           # pre-fleet call shape (tests): the primary
+            st = self._st0
         token, dec = meta["token"], self._token_decimals(meta["token"])
         frac, new_remaining = sell_slice(meta["remaining_frac"],
                                          decision.sell_fraction)
@@ -495,21 +865,22 @@ class PaperLane:
         else:
             usd_out = eth_out * self.feed.eth_price
             exit_px = (eth_out / sell_qty) if sell_qty else 0.0
-        res = self.pm.close_position(pool, exit_price=max(exit_px, 1e-18),
-                                     exit_time=now, reason=decision.reason,
-                                     sell_fraction=decision.sell_fraction)
+        res = st.pm.close_position(pool, exit_price=max(exit_px, 1e-18),
+                                   exit_time=now, reason=decision.reason,
+                                   sell_fraction=decision.sell_fraction)
         cost = ENTRY_USD * frac
         pnl_usd = usd_out - cost - 2 * GAS_USD_PER_SIDE * frac
         pnl_pct = pnl_usd / cost * 100 if cost else 0.0
-        self.daily_pnl_usd += pnl_usd
+        st.daily_pnl_usd += pnl_usd
         meta["remaining_frac"] = new_remaining
         fully = getattr(res, "fully_closed", new_remaining <= 1e-9)
         if fully:
-            self.pos_meta.pop(pool, None)
-            self.last_exit[pool] = now
-            self.n_exits += 1
+            st.pos_meta.pop(pool, None)
+            st.last_exit[pool] = now
+            st.n_exits += 1
             _append(POSTEXIT_PENDING, {
                 "pool": pool, "token": token, "sym": meta["sym"],
+                "bot_id": st.bot.bot_id,
                 "exit_px_eth": exit_px, "exit_kind": decision.kind,
                 "exit_pnl_pct": round(pnl_pct, 2), "close_ts": now,
                 "due_ts": now + POSTEXIT_DELAY_S})
@@ -529,7 +900,8 @@ class PaperLane:
                   "maker": r.get("maker")} for r in rows], now)
         except Exception:
             runner_sc, runner_rs = None, None
-        _append(LEDGER, {"ev": "sell", "ts": iso_utc(now), "pool": pool,
+        _append(LEDGER, {"ev": "sell", "ts": self._ledger_ts(now),
+                         "bot_id": st.bot.bot_id, "pool": pool,
                          "sym": meta["sym"], "kind": decision.kind,
                          "reason": decision.reason[:100], "frac": frac,
                          "usd_out": round(usd_out, 2),
@@ -537,10 +909,10 @@ class PaperLane:
                          "pnl_pct": round(pnl_pct, 2), "fully": fully,
                          "runner_score": runner_sc,
                          "runner_reasons": runner_rs,
-                         "daily_pnl_usd": round(self.daily_pnl_usd, 2)})
-        print(f"[rh-paper] SELL {meta['sym']:<12} {decision.kind} "
-              f"{frac*100:.0f}% pnl={pnl_pct:+.1f}% "
-              f"(day {self.daily_pnl_usd:+.2f}) {decision.reason[:50]}",
+                         "daily_pnl_usd": round(st.daily_pnl_usd, 2)})
+        print(f"[rh-paper] SELL {st.bot.bot_id:<16} {meta['sym']:<12} "
+              f"{decision.kind} {frac*100:.0f}% pnl={pnl_pct:+.1f}% "
+              f"(day {st.daily_pnl_usd:+.2f}) {decision.reason[:50]}",
               flush=True)
 
     def _check_postexit(self, now: float):
@@ -593,9 +965,11 @@ class PaperLane:
             print(f"[rh-paper] post-exit sweep failed: {e}", flush=True)
 
     def strategy_loop(self):
-        print(f"[rh-paper] lane armed: ${ENTRY_USD:.0f}/entry, max {MAX_CONCURRENT}, "
-              f"dip<={DIP_TRIGGER_PCT}%, liq>=${MIN_LIQ_USD:,.0f}, "
-              f"daily stop {DAILY_LOSS_STOP_USD}", flush=True)
+        print(f"[rh-paper] fleet armed: {len(self.bots)} racer(s) "
+              f"[{', '.join(b.bot_id for b in self.bots)}] — "
+              f"${ENTRY_USD:.0f}/entry, max {MAX_CONCURRENT}/config, "
+              f"daily stop {DAILY_LOSS_STOP_USD}, shared quote budget "
+              f"{MAX_HOT_QUOTES}/cycle", flush=True)
         while not self.stop.is_set():
             t0 = time.time()
             try:
@@ -613,12 +987,19 @@ class PaperLane:
             self.stop.wait(max(0.2, STRAT_TICK_S - (time.time() - t0)))
 
     def summary(self):
-        top = sorted(self.block_hist.items(), key=lambda kv: -kv[1])[:4]
-        blocks = " ".join(f"{k}={v}" for k, v in top) or "-"
-        return (f"[rh-paper] session: entries={self.n_entries} "
-                f"exits={self.n_exits} open={len(self.pos_meta)} "
-                f"day_pnl=${self.daily_pnl_usd:+.2f} | quotes={self.n_quotes} "
-                f"evals={self.n_evals} blocks: {blocks}")
+        """Fleet header + one line per racer (printed every 60s cycle)."""
+        open_total = sum(len(st.pos_meta) for st in self.state.values())
+        lines = [f"[rh-paper] session: entries={self.n_entries} "
+                 f"exits={self.n_exits} open={open_total} | "
+                 f"quotes={self.n_quotes} evals={self.n_evals}"]
+        for bot in self.bots:
+            st = self.state[bot.bot_id]
+            top = sorted(st.block_hist.items(), key=lambda kv: -kv[1])[:4]
+            blocks = " ".join(f"{k}={v}" for k, v in top) or "-"
+            lines.append(f"[rh-paper] {bot.bot_id}: entries={st.n_entries} "
+                         f"exits={st.n_exits} day=${st.daily_pnl_usd:+.2f} | "
+                         f"blocks: {blocks}")
+        return "\n".join(lines)
 
 
 async def orchestrate(fh: Firehose, lane: PaperLane, max_minutes: float):
@@ -661,7 +1042,7 @@ def main():
     lookback = int(LOOKBACK_H * 3600 / max(feed.spb, 0.02))
     feed.backfill_discovery(lookback)
     fh = Firehose(feed)
-    lane = PaperLane(feed, registry=fh.registry)
+    lane = PaperLane(feed, registry=fh.registry, bots=ROSTER)
     lane.restore_state()
     fh.on_row = lane.on_row
     print(f"[rh-paper] chain {cid} eth=${feed.eth_price:,.2f} "
