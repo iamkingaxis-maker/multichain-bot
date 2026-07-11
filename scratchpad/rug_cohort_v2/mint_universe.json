@@ -1,0 +1,5706 @@
+[
+{
+"mint": "22oWMe4xmvS5TogkbMLKALnUhgXxB2KYB8TRG9YRpump",
+"entry_ts": 1783561821.55875,
+"entry_price": 0.0001324141237,
+"token": "SERIOUS",
+"pair_address": "HFMLGxje4YrmbFnFWKFwihjcgTLzzDu2zM1PMbDnUeKd",
+"src": "_full_trades.json"
+},
+{
+"mint": "4ko5tSr5o3H4v1sFtjTSd9MPUW7yx5AFCpkNPoL6pump",
+"entry_ts": 1783554030.021593,
+"entry_price": 0.0003748785304,
+"token": "febu",
+"pair_address": "68nVMrVPyxGJGbGH2P92E93SYhJcbe6QociZrqoqdjcB",
+"src": "_full_trades.json"
+},
+{
+"mint": "9aphy3k9HgPReHBCzBajqQmWSjT8yQrXrm3FzVhrpump",
+"entry_ts": 1783559175.57034,
+"entry_price": 0.00013862432505,
+"token": "beluga",
+"pair_address": "3PPHocWRGfSK5JUxAvCKE2tCrRJJLJgwaUpmUAKjnHYQ",
+"src": "_full_trades.json"
+},
+{
+"mint": "9YBcdwtDor6B4acqFLFX47PPkg6k729ZMDHRh3zEpump",
+"entry_ts": 1783561576.10383,
+"entry_price": 0.0002434862744,
+"token": "okwif",
+"pair_address": "6w8ac18ij6bxenrt6jRn8gsHSYw7htmgtgg1tr1FuNU8",
+"src": "_full_trades.json"
+},
+{
+"mint": "9motHbNmm4Km8u7VYGhg6xJWN5Ro9XDKYmEkaMMYpump",
+"entry_ts": 1783532752.602678,
+"entry_price": 0.0002072507538,
+"token": "HOODRAT",
+"pair_address": "78A8FTPcyyZghVn8QiSL1Uo5nRGZjFFYskJbLoW67UbH",
+"src": "_full_trades.json"
+},
+{
+"mint": "DrCjaUaVCGSfFEu8i4Gje1CwogUF7nwKFV9Bov5Dpump",
+"entry_ts": 1783558859.847538,
+"entry_price": 0.00013294041195,
+"token": "Bullcat",
+"pair_address": "2GooAQVXhpi1abDZfu3kuvTrmgU5exu1sfpSFD3RFEm2",
+"src": "_full_trades.json"
+},
+{
+"mint": "F612mB7c9pXAQjGysAeh4vesxauKtjqi7QFmzxJQpump",
+"entry_ts": 1783561169.467161,
+"entry_price": 0.0001690437859,
+"token": "BULLHOOD",
+"pair_address": "Bg6obSF8aprQXnGyqHtJFVvQie3oQhtDKVKdVj2zbV2P",
+"src": "_full_trades.json"
+},
+{
+"mint": "9firESEtMrb4hqFxtb7xCAXp4jAuoW8mz5MZwjJ2pump",
+"entry_ts": 1783551827.577194,
+"entry_price": 0.00013872958270000002,
+"token": "BATON",
+"pair_address": "6E8U1HUdov2d1zqRbthb1myRBxxGnHF6XBaHHJVGNS2E",
+"src": "_full_trades.json"
+},
+{
+"mint": "Hkn3cPPRnqsv54CdA8dGFZMmT26vCtGaKWBgtdvfZ74d",
+"entry_ts": 1783539512.50371,
+"entry_price": 0.0002790032436,
+"token": "SUSCAT",
+"pair_address": "4bKH5GTVYqhfwHDBigb4rPPVZ51fkQ4gGdhAEJF48cyi",
+"src": "_full_trades.json"
+},
+{
+"mint": "wnquaSmAtk5T3azdAgNmSQRNfrmEnymAKkrmzTgpump",
+"entry_ts": 1783552345.155054,
+"entry_price": 0.00014609761820000001,
+"token": "FUCKYEA",
+"pair_address": "F2CyWDLn3itmhBSwpkKLx2iZqoiBn8aSTfnkoPStdQaA",
+"src": "_full_trades.json"
+},
+{
+"mint": "C7mc2LvSuThi1rjx9XC1ofLsx5bFgR93JHCpyquTpump",
+"entry_ts": 1783557673.242715,
+"entry_price": 0.0002411253198,
+"token": "HOODSEY",
+"pair_address": "E1wnbdVV2xWkaUBjPJ1BbtkGWCeyEbqbDgo2EA6JU2sa",
+"src": "_full_trades.json"
+},
+{
+"mint": "7AJ9sdZW6Sodb8ajnEkESeWtQVVHyZ4Gg85H3c1Ypump",
+"entry_ts": 1783468107.429401,
+"entry_price": 0.0002927583704,
+"token": "Rizzler",
+"pair_address": "7H9bF3SYRHNPRuCCBnjyFTchCLifnb9i87sGxEznvtPd",
+"src": "_full_trades.json"
+},
+{
+"mint": "G7zeUXZzTUa8iXeUcW5J8oK9zoK4WY75fzmwFMe5pump",
+"entry_ts": 1783518900.056166,
+"entry_price": 0.0001231514505,
+"token": "RIF",
+"pair_address": "PAn7XphfksZCYWTGg6k3NxGjx9zTR91LNQSwQfKE4Qw",
+"src": "_full_trades.json"
+},
+{
+"mint": "7NcMKMrXPBVCWPcs9SSqnF6ZGy5neAtzTZpFqZqLquaP",
+"entry_ts": 1783542613.635107,
+"entry_price": 0.00015083421245,
+"token": "GB",
+"pair_address": "3tAQF4Y79pnTSpX2QFgXuQyK4RjfTwWUpY1VDTuSQirz",
+"src": "_full_trades.json"
+},
+{
+"mint": "8B3UJbbPWfg2DLF7iWzm9WnXH9y5jhYUUoZaLhqvpump",
+"entry_ts": 1783549490.391632,
+"entry_price": 0.0003603859056,
+"token": "ANSEMWIFE",
+"pair_address": "3nwzFjN3s1hE8CgqQED7S5JtREcCLStdkhRvLJvf7Uwp",
+"src": "_full_trades.json"
+},
+{
+"mint": "8NGpdSE1tZqUrvpUVqsn5Revncc6yUafk8mnAyK9fNCE",
+"entry_ts": 1783178653.030787,
+"entry_price": 0.00040502257600000003,
+"token": "Chud",
+"pair_address": "5GbZpQvW2H7SmZgkmwNkGwz53WqTVyFNwVGh5muzU87z",
+"src": "_full_trades.json"
+},
+{
+"mint": "8LZKRa3f23CrCTwLFRY9jQWRjFQwGiuP46Mk9jytpump",
+"entry_ts": 1783455040.655185,
+"entry_price": 0.00012870925199999999,
+"token": "MARVIN",
+"pair_address": "36wRqESg6BpkAyfDwBwk7gjQp2wKzqCFs3y4Qwz6rQR8",
+"src": "_full_trades.json"
+},
+{
+"mint": "D2XvLipYuPFgJ42kB6U4ihmHENStT7h2BS2iN5NtzZKg",
+"entry_ts": 1783411438.988597,
+"entry_price": 0.0001481776164,
+"token": "HOOD",
+"pair_address": "BsiPx7jgY87q8HuAACq4kPgmcDRuX3RBRxeKej2moe4a",
+"src": "_full_trades.json"
+},
+{
+"mint": "5RyeWfbjVw6Ktj6j8SmTiAnVXWvmV8YxGtTebNsU2dBo",
+"entry_ts": 1783262531.592433,
+"entry_price": 0.0004117559488,
+"token": "Pauly",
+"pair_address": "8SEg9BokNM79SvFzwfg72QbdsJi8A9SWPrPcY5Zk7bZW",
+"src": "_full_trades.json"
+},
+{
+"mint": "6gTh1jtU9fUyCuEvngcgFaFM5Wax1bcbRkFZZGCCpump",
+"entry_ts": 1783083781.698122,
+"entry_price": 0.0001402452835,
+"token": "BongoCat",
+"pair_address": "52moU7JTiu7We47M7yaHP7xfSXDG5FX7myLpoNAUTsxV",
+"src": "_full_trades.json"
+},
+{
+"mint": "WjZoPoUsMy8TzwQQdevCVB867YHC9EQNcCUN7kDpump",
+"entry_ts": 1783273127.216134,
+"entry_price": 0.0002277104256,
+"token": "sidelined",
+"pair_address": "4jpnFUkUzM8NrnY14yMF8yEg1b4oEJBFDEvgqeio1Qe4",
+"src": "_full_trades.json"
+},
+{
+"mint": "4gqUH4qMtkZTjeenrtVmcQXKEYg9aBUC8j2kQao2pump",
+"entry_ts": 1783547807.013583,
+"entry_price": 0.000421892322,
+"token": "MASON",
+"pair_address": "6Adx5qhm4iwEE39nik8cAmbb3sjdGSLW7VgPomy2Vqwz",
+"src": "_full_trades.json"
+},
+{
+"mint": "9EQSeWY7pDB7MYoSFr8QJ19onGS1ehDmLbSGT2b3pump",
+"entry_ts": 1783546519.419071,
+"entry_price": 0.00042852008899999997,
+"token": "monke ",
+"pair_address": "6Wi1NKZecquGoi41DwgidU8Sk7YDAjMjcULf22xSz3TJ",
+"src": "_full_trades.json"
+},
+{
+"mint": "FY9yQSFokAyuKm33HBAUCYjvjmEbeXfDTpSiVZNUpump",
+"entry_ts": 1783507071.661403,
+"entry_price": 0.0001500974089,
+"token": "Binface ",
+"pair_address": "BgwnT6xbzqY6JzCvVucDUJ1q816SamfoiWNa9EBPtLv2",
+"src": "_full_trades.json"
+},
+{
+"mint": "Hk8qqvyYU5gfAB5QCZCcJq3gR3TZ8LtvNmA1EM3bpump",
+"entry_ts": 1783464747.413838,
+"entry_price": 0.0002264463412,
+"token": "BabyCupsey",
+"pair_address": "4dtPPur4Cp7eKsn57BS2cNxAY3E98fJTz5KCe8V5juu2",
+"src": "_full_trades.json"
+},
+{
+"mint": "2Gt16sPz97kjvVXAz7aRbKG718hmY9HiyboieZKBpump",
+"entry_ts": 1783435626.843274,
+"entry_price": 0.0001712205336,
+"token": "DEGEN",
+"pair_address": "EZcZi9p43EGYrUwcLjN1CCA8kCaPnbkwppVtZf4yV2y8",
+"src": "_full_trades.json"
+},
+{
+"mint": "22deNCri9bBae1GWZxdaDxipMWdwAUQ2ddvxdSmgpump",
+"entry_ts": 1783517371.532364,
+"entry_price": 0.00022258528579999998,
+"token": "CASHCAT",
+"pair_address": "DsA3Zsbjt5wa5esiWotLceUX1LfcicfocRKApySR5YAu",
+"src": "_full_trades.json"
+},
+{
+"mint": "3gDAjymqTF19GVw4TcB8sAKd3yLR2dfEzJ4Wztm2pump",
+"entry_ts": 1783426039.331879,
+"entry_price": 0.00026595732659999996,
+"token": "TCAR",
+"pair_address": "CRTZqiVLUdQGA8oDCWFz5pJVLig8MvhxoG26DcMKkwWA",
+"src": "_full_trades.json"
+},
+{
+"mint": "JCKJviubAbCSztaGnKGqaiKhmpsE9uDTxcENXZrLpump",
+"entry_ts": 1783474386.332535,
+"entry_price": 0.000259705006,
+"token": "StareCat",
+"pair_address": "Eg3fTYZEyLYx9Vgkd4EmtYDbmVzKAkfRvEKZRA1kekeT",
+"src": "_full_trades.json"
+},
+{
+"mint": "5ECDHLSRpMiyW9wNY5YVZXUst3xTvngWSLmzYvLFpump",
+"entry_ts": 1783521395.242142,
+"entry_price": 0.00014822688880000002,
+"token": "BlackWhale",
+"pair_address": "9cove4xkhWWyXwcTudZoHaxshsRD8YcmgBasjipoUVfu",
+"src": "_full_trades.json"
+},
+{
+"mint": "CgnQ8a1u99Gk7qoySMd2wrGPMPm9bdcSJNhqMEkYpump",
+"entry_ts": 1783497678.749268,
+"entry_price": 0.000211459412,
+"token": "Loom",
+"pair_address": "CyoCg3Bh5MFxK8mHubLYciXpbfNnU2qxMwfD1TMfkQ7k",
+"src": "_full_trades.json"
+},
+{
+"mint": "5whR534GcEEmrVPedDPZgWLXKQX3shhHMcdZ1FXCAMzi",
+"entry_ts": 1783426272.821649,
+"entry_price": 0.00021152898315,
+"token": "bcat",
+"pair_address": "HpGgM1iQiY2waKTzV7d4RcAU4Vrxvc9sfXMLncq7q6LS",
+"src": "_full_trades.json"
+},
+{
+"mint": "APyxSKzs5Whmte8zynYePEhqAkme6XGLEWDQx31YFVbA",
+"entry_ts": 1783525875.946158,
+"entry_price": 0.00011910944804999999,
+"token": "Theo",
+"pair_address": "4pow6Evm7cwH3d6ARiiqRpTSuQDajs5aGE6F7jvMT5Y9",
+"src": "_full_trades.json"
+},
+{
+"mint": "CtuShQdgEYN7S3raAxJi2QBnpobWea3pv9PaGyRgpump",
+"entry_ts": 1783478357.847554,
+"entry_price": 0.0003476762274,
+"token": "Hex",
+"pair_address": "4N2pE1UCuR3ELp5C7vsRW6d44wqgBc12VduBGNkAKpzj",
+"src": "_full_trades.json"
+},
+{
+"mint": "BDdzUjksj1J4bSnMveQ5tV9Up8A9c6YS1tHrxNw3pump",
+"entry_ts": 1782936252.742919,
+"entry_price": 9.96087668e-05,
+"token": "FOMO",
+"pair_address": "9QwpxCSEssoY6NacsYivMptPeYqXa8Hwd2oFpJd4vrXp",
+"src": "_full_trades.json"
+},
+{
+"mint": "77x1fCskDLaiZmm2uZKEhARSCD2B86VaahTkK2Vfpump",
+"entry_ts": 1783529573.606084,
+"entry_price": 0.00044293561300000003,
+"token": "NIGGABULL",
+"pair_address": "985nRFKE9yHRwmPVPW7GCje1Jr7WtDdnyzb4QCNZEq15",
+"src": "_full_trades.json"
+},
+{
+"mint": "2MHbpKfxrnzT1tpmQzWizzc3RfZENRqsK8Vaq4kHpump",
+"entry_ts": 1783520636.505215,
+"entry_price": 0.00019370092740000002,
+"token": "TTB",
+"pair_address": "G9QPNJfpnHnpEqsRr5RoZr4YjKMGio6ahsxri4dwKjbe",
+"src": "_full_trades.json"
+},
+{
+"mint": "DkmmVCUaBAcYjecqMdX7NdNQFCfb6uh1yQq9HEP8pump",
+"entry_ts": 1783380024.114773,
+"entry_price": 0.0006393010637999999,
+"token": "ANSEMIUS",
+"pair_address": "4LxUmvpXvhDEaC3c2LvJj9KgMU94PYV4iNfLhCqc6LiT",
+"src": "_full_trades.json"
+},
+{
+"mint": "96X4zg5T4NFWzTVFXHsadvYbxbzFX2Rqt3GXUv92pump",
+"entry_ts": 1783238755.977009,
+"entry_price": 9.810876115e-05,
+"token": "Balloon",
+"pair_address": "B2dXjWyVj6urw8pPjGQq9yMAbfPsuvZQ8cZEQ6WxLyph",
+"src": "_full_trades.json"
+},
+{
+"mint": "7pncD23yVtmVRRa4fLFsi3pGotbUxrFvR13wTGNCpump",
+"entry_ts": 1783527653.728845,
+"entry_price": 0.0001885684174,
+"token": "GM\ud83d\udc02\ud83c\udc04\ufe0f",
+"pair_address": "C7Q2MQRC3cCM8vBjob3nhJC18fx4nznowgk4nPNTkcS",
+"src": "_full_trades.json"
+},
+{
+"mint": "ECHFvPRtUDDTg53V5k45pLk6E5zCunk5RYXrL1qopump",
+"entry_ts": 1783523260.407244,
+"entry_price": 0.00013588762615,
+"token": "okdog",
+"pair_address": "AT16PfD2jYY8S2kectuAqMXgcCUH62xePsHB9bwaiHFC",
+"src": "_full_trades.json"
+},
+{
+"mint": "6UGNg119LV6YjSCQ5K6Z6jsLLLetpMJ1vPdhiU8qpump",
+"entry_ts": 1783510999.197996,
+"entry_price": 0.0002877571134,
+"token": "CURB",
+"pair_address": "8LVi23yKtg2daMhyNYBoggnFLnPHrhLkveU2irqVSCgG",
+"src": "_full_trades.json"
+},
+{
+"mint": "9Pfync3ejPC9eHqVzq3nYQJAhyhjqpnB9UsaSfLxpump",
+"entry_ts": 1783453110.528418,
+"entry_price": 0.0005054495848,
+"token": "KET",
+"pair_address": "Fex8CSkNXfaxAPRqQARKGchYAMVfwDg28sfmBXXGkNGX",
+"src": "_full_trades.json"
+},
+{
+"mint": "hhB7CZU8rtKgaNoQu8a4DoBkQJTuUZy8Z1nB9CSEASY",
+"entry_ts": 1783431079.588963,
+"entry_price": 0.00011618185780000001,
+"token": "$COLD",
+"pair_address": "7XtHCxoV94rSLLPz6fCUoM3U4BLagjXjdZ5wqCfGM5sg",
+"src": "_full_trades.json"
+},
+{
+"mint": "8mTu8AW8co1QzHHRnvVZnknUaRsEmxdhjCTCJFeZpump",
+"entry_ts": 1783521345.401858,
+"entry_price": 0.00012278454039999997,
+"token": "Zeus",
+"pair_address": "HFu4wM862Fyw9AjVa75CRM818zVuXpUmMYmguYfxixx4",
+"src": "_full_trades.json"
+},
+{
+"mint": "9ePRJbEfvSEeJnRLStENnZeNAEoA3E3EE6Vfzd6cpump",
+"entry_ts": 1783269872.197529,
+"entry_price": 0.00012230815300000002,
+"token": "Jcat",
+"pair_address": "5cZWvSGmWjXHyN2883p7ThdJHVQqCce6ws5xVWbhh7WN",
+"src": "_full_trades.json"
+},
+{
+"mint": "EYvkcWB5S4DFv7gJqR8D2W76U9n7kD3jvYcbSXdppump",
+"entry_ts": 1783330761.05895,
+"entry_price": 0.0002007769344,
+"token": "HAALAND",
+"pair_address": "6G7TLAsDmZDTAk182uK6K6h8Vd3yWFN3AQ8zRuTRN3DN",
+"src": "_full_trades.json"
+},
+{
+"mint": "2SX3prnhH7b147eiMqooiD9tq4NYy598reVZwUam9iq5",
+"entry_ts": 1783517372.214795,
+"entry_price": 0.0001216778434,
+"token": "happi",
+"pair_address": "GYRAm2zUK4dgKMb8BgvekU3TY47HReuB8czMpN5mXjr3",
+"src": "_full_trades.json"
+},
+{
+"mint": "HEpnawcnjTBKk1Vi5krT3S6C9waMJjp5g2rhJ2hYpump",
+"entry_ts": 1783428873.448117,
+"entry_price": 0.000300274401,
+"token": "PUB",
+"pair_address": "Hj39YH5TUeMtm1nrDGxGHgFpgVPmM79JYV4SShZq3bYZ",
+"src": "_full_trades.json"
+},
+{
+"mint": "8YFpCz4pxkNQxowNDyQrPmDizXQLhFF5xn87oG14pump",
+"entry_ts": 1783510762.702934,
+"entry_price": 0.0001311510319,
+"token": "CASHDOG",
+"pair_address": "61qaPD5BiRqSN4i3pPnS8sY8NRGSWXGppLaZuYQx6A87",
+"src": "_full_trades.json"
+},
+{
+"mint": "E9Y4rvdqvZHpp2jTdd1oVBQsQuk1M9FweUebqmaRKhMS",
+"entry_ts": 1783516032.569969,
+"entry_price": 1.5140904500000001e-06,
+"token": "MENSA",
+"pair_address": "46TKcuqzZenBHz5Qrmg1WXoFgVXVzxZFbiRXvKJaijGd",
+"src": "_full_trades.json"
+},
+{
+"mint": "24Kko3VWwMKtkB9CVct2ZAZgJzb2R2iNrYxCpTYFpump",
+"entry_ts": 1780706199.238547,
+"entry_price": 0.0001924478,
+"token": "APU",
+"pair_address": "7abF5yhUCp6spgYfuCu4tKkWTM5TWnUWabzity6qSxSG",
+"src": "_full_trades.json"
+},
+{
+"mint": "BDbNwA95183CdqUhx2P6R3fWXbefubVbx2wNnCp6pump",
+"entry_ts": 1783263789.71958,
+"entry_price": 0.0003891073312,
+"token": "FROGBULL",
+"pair_address": "GKgWPmTt7JCwZf4pxtZqq4ZjcryEpPz2mMj4y3xegzRB",
+"src": "_full_trades.json"
+},
+{
+"mint": "DVBWGn5TZWcazmRBpfMghmFCbyEPWB55uyV73z51pump",
+"entry_ts": 1783440528.136823,
+"entry_price": 0.00016783307699999998,
+"token": "BAR",
+"pair_address": "5ajuzE8uhnnwZGpB5SDXYbDE8Mypy1MZZ7e4AWqq9qNX",
+"src": "_full_trades.json"
+},
+{
+"mint": "H58UUPjiqJ9ZbK3eGUJNhcjwj9fDaBSKGaDryNJjpump",
+"entry_ts": 1783508607.385014,
+"entry_price": 0.000215052169,
+"token": "BULLBOA",
+"pair_address": "8myZRovNxd532rbFJwDCcPMYixUsE8u9orNaEe9HD7in",
+"src": "_full_trades.json"
+},
+{
+"mint": "98uPGgTeZRhuCtERzBdsjR9oLkNvvqexmNMy7b1hNQi8",
+"entry_ts": 1783501346.5897,
+"entry_price": 0.0001225199046,
+"token": "LOOM",
+"pair_address": "CoGyP87CLt7cSMzsujcydUw6aNPTck7CWXeiV8KEurhE",
+"src": "_full_trades.json"
+},
+{
+"mint": "3oBRGPMpvR1TpHRx9oMEeJwSgwv7Fo7ndshuu2rQpump",
+"entry_ts": 1783447723.567557,
+"entry_price": 0.0002112466136,
+"token": "Potato",
+"pair_address": "Fd35pvzQWUHjD1EPDVH9U85vpgZrxuN9LMjx7SPtEvMg",
+"src": "_full_trades.json"
+},
+{
+"mint": "swA5DdNU2HC9Uab2SEeJ3etuDRz8LvVDPWCgRc3pump",
+"entry_ts": 1783018104.803999,
+"entry_price": 0.00011716827350000002,
+"token": "popeyes",
+"pair_address": "45acsB9DR1pN7me74rxUzp6yrVDRdxpcG2iZXoib8xZW",
+"src": "_full_trades.json"
+},
+{
+"mint": "ERPtViqckt1zqpS2abUx67CgLcP54CkhBPYz3yRUpump",
+"entry_ts": 1782926221.885208,
+"entry_price": 0.0003051442128,
+"token": "yep",
+"pair_address": "By5FJ8SXGtfUgxQfyedbLPeFUvDaEbMy2dmG2mbe7ynd",
+"src": "_full_trades.json"
+},
+{
+"mint": "7thY5PzYdH311NXYE6mecBjUs7wcosk1bWw2qfH4pump",
+"entry_ts": 1783429332.739917,
+"entry_price": 0.00044438568665,
+"token": "Sapijiju",
+"pair_address": "2wC4qzATB6L7HLoqgLM253K18g3qZ2qoNCkPLzG6oXeb",
+"src": "_full_trades.json"
+},
+{
+"mint": "HtEy3hN87RvDcW5RMa8XuC56JwXELcfKRm8HLwSHpump",
+"entry_ts": 1783429737.109447,
+"entry_price": 0.0001494353224,
+"token": "Goob",
+"pair_address": "55Ei8LZshFrdLHFdp7twTq1r3RUk678toMqmonuTvadd",
+"src": "_full_trades.json"
+},
+{
+"mint": "ByJW8mYxC63m72t53u3PpmWbuFunw5nHeucFokHzpump",
+"entry_ts": 1783429940.317279,
+"entry_price": 0.000100095934575,
+"token": "emilio",
+"pair_address": "GmtgkbPeYVxc346kZvQkyufytZScK4SQyCXMZQh4pKnw",
+"src": "_full_trades.json"
+},
+{
+"mint": "7LNFZcNigZay5U9e2sq6n2Z4iM8BC2Dd53L14pwvpump",
+"entry_ts": 1782302115.737671,
+"entry_price": 0.00010100338688,
+"token": "Miu",
+"pair_address": "HQVzP7hXhCoVjysnp6foFy5adCFiGj1cdwt8gppAPNBV",
+"src": "_full_trades.json"
+},
+{
+"mint": "8oQEW25mcVzeWvcjkGup9ob3KafVMNdzAi8XXmmWpump",
+"entry_ts": 1783331147.301777,
+"entry_price": 0.0004895978192,
+"token": "Fro",
+"pair_address": "4s4cAwsgMZQPm7HnwHadwUYCw9B3dMZQKVVcqm4Qai53",
+"src": "_full_trades.json"
+},
+{
+"mint": "GRnVdzDbv4hn1p4PotEPYZW5TknE9UuHPMAuiYt3pump",
+"entry_ts": 1783466356.145578,
+"entry_price": 0.0002698808284,
+"token": "Tate",
+"pair_address": "HVy1sHrEmHu31Z5C3KKn9DujnHpDs5v7Sx2HqcW79WhA",
+"src": "_full_trades.json"
+},
+{
+"mint": "8EnmgofrT5zp6uUiNfECkUMBnYA42pMqPj35vVXUpump",
+"entry_ts": 1783460183.242764,
+"entry_price": 0.0002493486382,
+"token": "Nigel",
+"pair_address": "9KTUE5oYgjwxrBLseaSdDFG6JvvyVySQxnKHpt7DBWrE",
+"src": "_full_trades.json"
+},
+{
+"mint": "9WHXEcGp8FVRZhBinBj6pUr3FzpXhDNBkxXVhHk5pump",
+"entry_ts": 1783437465.429806,
+"entry_price": 0.00012851959065000003,
+"token": "BULLTARDIO",
+"pair_address": "4q9ZrBtY2q2vHdmANof4kXA4rPGZMcAdvH2csGPanFWZ",
+"src": "_full_trades.json"
+},
+{
+"mint": "5MeesVjRfJ3nnkESNFjT6y4RyzvN7NX5Qf3mihSUpump",
+"entry_ts": 1783471490.791314,
+"entry_price": 0.00010936269835000001,
+"token": "Cupsem",
+"pair_address": "EsHZfaEH6P4py4DG5VFfcPbYB3rhoeWRgF2JMbbkUm5X",
+"src": "_full_trades.json"
+},
+{
+"mint": "DbqbFSSBEDaX9F6hnySDHKmKSE9PU1KTyJ7jwcd3xViS",
+"entry_ts": 1783198985.041922,
+"entry_price": 0.00012283263050000002,
+"token": "trenchies",
+"pair_address": "DP6oFNuSE9XEp37jn2witbEvGgDtMvTnHmJogC1LA14t",
+"src": "_full_trades.json"
+},
+{
+"mint": "73jj6SFe9FKn6qqpaGwbSd7TL1sHheh3HqDo9RwA7BHB",
+"entry_ts": 1782432247.797462,
+"entry_price": 0.0001867577364,
+"token": "Pork",
+"pair_address": "9rPogiERgqQPCYJ5hbXu7LsUjXA5G9DcA3d9pX1bvUox",
+"src": "_full_trades.json"
+},
+{
+"mint": "penks6cQFUQtfytirZowyr6rjxoZ2mSxa5sA7Czpump",
+"entry_ts": 1783461962.52208,
+"entry_price": 0.00040604704499999997,
+"token": "FIW",
+"pair_address": "AGaURrgEoBTXUweKWVsC4GCFGx4UD7RMrkjFhoH5UAtG",
+"src": "_full_trades.json"
+},
+{
+"mint": "2x6NENv5H3bsQ1sVKKsh2wndDNR7vLQtRJXVKzjipump",
+"entry_ts": 1783453096.730966,
+"entry_price": 0.0001595705974,
+"token": "ape",
+"pair_address": "8UCQ2haQxKKLkKTcSBpJTkmgrY5j6mDSUP2LR8w9WJPf",
+"src": "_full_trades.json"
+},
+{
+"mint": "8N1xPzwZtuRQSdRMnbjAjdd2tK9V8nF7Wrw8gGeLpump",
+"entry_ts": 1783459718.502094,
+"entry_price": 0.000250466488,
+"token": "WSB",
+"pair_address": "B48sVr95gjVT6ZzXrcGrxJkMunALgRidRUPpKUf4AXxp",
+"src": "_full_trades.json"
+},
+{
+"mint": "4PRz3EwhbjrrX6YksMDuUzrXT51pr7CQtXNCravhpump",
+"entry_ts": 1783249039.428692,
+"entry_price": 0.0009332468423999999,
+"token": "ACM",
+"pair_address": "HKSDMJ6KThscZXMVVuS24wvK3WGzfuepQhwdKCjHKEpZ",
+"src": "_full_trades.json"
+},
+{
+"mint": "6CVd9hqv9sBHAEiCVXNyiNrG3CzxXbMDGJ9MA6Mgpump",
+"entry_ts": 1783461054.729062,
+"entry_price": 0.00023668201339999996,
+"token": "PAGO",
+"pair_address": "Fx1CQNPPQthYzcvbLcsrW5gnEnjEJFHQTpsoQMFZ9cxr",
+"src": "_full_trades.json"
+},
+{
+"mint": "7wrMK4WD5qK8GLLhQkkFesNJEss59PonxeqgJfpWpump",
+"entry_ts": 1783443243.085691,
+"entry_price": 0.00012883536359999998,
+"token": "NMO",
+"pair_address": "HZaH9xsPZFd1rArqppo7AKNJq9gcE1NK5km9kC4DLzb7",
+"src": "_full_trades.json"
+},
+{
+"mint": "BwAU6gsimrFhJrRcZqKxQJayfnkyyan63WNCJRWYpump",
+"entry_ts": 1782765454.55587,
+"entry_price": 0.00014538867440000002,
+"token": "CUPSEY",
+"pair_address": "5xKxYzu4UdRKQ7Q1LFYivCDgRwdGhZC5UrDza8WEdDKx",
+"src": "_full_trades.json"
+},
+{
+"mint": "B5BPVt7uZyycC2fKTUM4KYoFsK9WBuX6UhpvqPVbG5YT",
+"entry_ts": 1783427442.162077,
+"entry_price": 0.0001275948177,
+"token": "MAYO",
+"pair_address": "FtUS1hVim2K5q1RnUCthVYHo6SLxSknY1kTjbQjZsVp4",
+"src": "_full_trades.json"
+},
+{
+"mint": "BWH6gtE5MSCS1GUoRpM5HrqQnV97oi8g8dDHAi41pump",
+"entry_ts": 1783448738.111253,
+"entry_price": 0.0004253824288,
+"token": "Shadow",
+"pair_address": "5qUidv1HbxGf4yqKpzAKd1ePojA3WZeRE4fGT5PbBq3P",
+"src": "_full_trades.json"
+},
+{
+"mint": "2jz9E5JrEbxLg1RhU68aaSikDvpQurCEZz9BBF9rpump",
+"entry_ts": 1783445660.830887,
+"entry_price": 0.0005330197436,
+"token": "PATTYICE",
+"pair_address": "9EkXWQ8PXYsiqDDWawUW6knybYaPiB7Ga3iyLoxATCBz",
+"src": "_full_trades.json"
+},
+{
+"mint": "iB1umQs5Jzq6ysaRk5yRKaJ4XJcWgqHDxsdVtjipump",
+"entry_ts": 1782813782.036903,
+"entry_price": 0.00010126967116000002,
+"token": "BABYANSEM",
+"pair_address": "CKB2oH5RWERUvNZHGxBGGs5mPMSofRxHgCz7MtAfyXQX",
+"src": "_full_trades.json"
+},
+{
+"mint": "9vciqoMDquKyjEEtLkenQ4TxSjDEUNxcQdjhHXNHpump",
+"entry_ts": 1783390016.04866,
+"entry_price": 0.0003305422173,
+"token": "bullpen",
+"pair_address": "62e2uxnsRKLj9Uen7ez2Sf6s86KgjF1rqJEsNsg2GeUe",
+"src": "_full_trades.json"
+},
+{
+"mint": "32e2Rpw2ZLLhSaoVwMn4Vyx3vkHG6xCPRiyXrPJYpump",
+"entry_ts": 1783431553.835759,
+"entry_price": 0.00042191617364999997,
+"token": "LR",
+"pair_address": "DkzqNvk3wMPmz8DPxYxDQSmf5cym2i6kcrXEupwTpFLq",
+"src": "_full_trades.json"
+},
+{
+"mint": "Cwty9S8KTpnvUU9Z5pkLjamNqjUiYe3RbUHFfpWwpump",
+"entry_ts": 1783450679.01677,
+"entry_price": 0.00012494083055,
+"token": "bullcoin",
+"pair_address": "FNjUA99BBuRggf395UhcNWBdqSEhGxaAzAysGJqaJr9o",
+"src": "_full_trades.json"
+},
+{
+"mint": "ABDR768zqomnEPkHT4y1p1W3JTsLwpJxRhbSSWKcpump",
+"entry_ts": 1783450317.605332,
+"entry_price": 9.2700044485e-05,
+"token": "Miku",
+"pair_address": "Er2VcdAwcRpTj6nVF2dujFZW6bU1svA4Xx5dBCVq1xKP",
+"src": "_full_trades.json"
+},
+{
+"mint": "VXjDEv3EeJgg5J88uNasoMwaryCtdfKw5YNkAoJBpwU",
+"entry_ts": 1783411342.843802,
+"entry_price": 0.00013623699680000002,
+"token": "PUMPLON",
+"pair_address": "2kjgBRhzHsTDd47AZkS8QXZxZr82h7M1VzL45iKfmCJP",
+"src": "_full_trades.json"
+},
+{
+"mint": "9j4sMShA1UBHbaJFXJUTjGLCQe8zcsZAd7bWNFKKpump",
+"entry_ts": 1783203465.454513,
+"entry_price": 0.0002114891184,
+"token": "\ud83d\udc02\ud83c\udc04\ufe0f",
+"pair_address": "7nV7eHFeLDnpVJRi4sjg9frA5PWeHK94irkpUhqyYSaP",
+"src": "_full_trades.json"
+},
+{
+"mint": "F5hqdbykXuksp8P78CAZenSvpPShAYKrP2U2MiZMdgFN",
+"entry_ts": 1783021698.429475,
+"entry_price": 0.0001855758352,
+"token": "bop",
+"pair_address": "BmnhQDLEMv8quHYZgKe86g1Tbpo4LXwvb29zNzoKQ5Sw",
+"src": "_full_trades.json"
+},
+{
+"mint": "E2ueKQ3EDTTmCkUA17j3KeTb2u6VT91xiyECdKRzpump",
+"entry_ts": 1783448545.625942,
+"entry_price": 0.0006524333273999999,
+"token": "tolywifhat",
+"pair_address": "Gdc11VQJFq6isPtw1AvoQoWxNd7Eq3JeTJWh1LTT4qT8",
+"src": "_full_trades.json"
+},
+{
+"mint": "6iaD6zDopsRs23DP99T4bey27DxmRPmJqYs5bnJBpump",
+"entry_ts": 1783432764.32779,
+"entry_price": 0.0002143181664,
+"token": "ANSEMBOT",
+"pair_address": "4uY4h9rnWWz725jJ8MMUnMPHoVQUkHx2eLirhyk3uW55",
+"src": "_full_trades.json"
+},
+{
+"mint": "J2Yv2umBhjP2Q7xT5tkYK4cceogqgkVrGXvb3a35pump",
+"entry_ts": 1783441261.352351,
+"entry_price": 0.0005962950117999999,
+"token": "MESSIGOAT",
+"pair_address": "53Sjhii65wo3ToVwHbfYNaWoEJZdmjoWyutXL6LjkBtZ",
+"src": "_full_trades.json"
+},
+{
+"mint": "BuK3BYo79xiJz8A11LCf2qtbNzQXEoHTsbiHNFgJpump",
+"entry_ts": 1783444644.344479,
+"entry_price": 0.00010032640140499999,
+"token": "Xavier",
+"pair_address": "B4yc4Mh2zEpCGNZKRbEHQHBfktJ3TaqDUGgDRa2mTHsL",
+"src": "_full_trades.json"
+},
+{
+"mint": "Dc6GW8TmGquTsLBwtrYgGMwGMY3HckT79iVCn8jmpump",
+"entry_ts": 1783028493.647308,
+"entry_price": 0.0001575201152,
+"token": "BANKS",
+"pair_address": "GhpMDuD5V837N77GKLnB4zqi2dKdTtN7opSCu4fQG3VA",
+"src": "_full_trades.json"
+},
+{
+"mint": "22oesKQuMBmxUTWfeFDjNnYS19VujFcBmi4EL8gWpump",
+"entry_ts": 1783443092.73249,
+"entry_price": 0.00014350497960000002,
+"token": "GCAT",
+"pair_address": "3YrCqCgtRKDop9ftUDQtwPDG5gts4KJfTh1Udr9pRXjN",
+"src": "_full_trades.json"
+},
+{
+"mint": "5V1uDUcnPvY1YmQEmhgyQLgSqh1nZgkExx7LwzoNpump",
+"entry_ts": 1783442576.54038,
+"entry_price": 0.00011188888195,
+"token": "Underdog",
+"pair_address": "446tnxCfWe9Wc2e3QHWJMT46dEG94XuL1bJDwShhTASN",
+"src": "_full_trades.json"
+},
+{
+"mint": "9E2Q4KKxLS5Y4bu6RKvjg5wQ2kzaLkiVsMt7zwMZpump",
+"entry_ts": 1782937234.142879,
+"entry_price": 0.00027035512,
+"token": "WYNN",
+"pair_address": "77WQKX8D7e89LZXLk3qus2Xmqn4tNQjJrL6kwjDpj91L",
+"src": "_full_trades.json"
+},
+{
+"mint": "EC1TMMg4shn1XrYNy5Y5a98LT6kjNcFtgnav11jSpump",
+"entry_ts": 1783442393.795295,
+"entry_price": 0.00010817706179999999,
+"token": "ROBO",
+"pair_address": "EyZfvHdCkauuJVeDFPZoVkCQVNAuCp5XN6JfTqtQPWcb",
+"src": "_full_trades.json"
+},
+{
+"mint": "7LNfxxMAu5sNbg4uY5Kuu5Tvg6CsQGUo4ASkD79Xpump",
+"entry_ts": 1783391911.239135,
+"entry_price": 0.0001409836661,
+"token": "2he",
+"pair_address": "tr86UtGqssLx5asFzbLt3kUUJxLDRLBjkgGdXCVJjAN",
+"src": "_full_trades.json"
+},
+{
+"mint": "t2Ypujv3uK12PYBDkZKznCcHvEfGmjbyNKRXe2Ppump",
+"entry_ts": 1783420062.804769,
+"entry_price": 0.00042049211255,
+"token": "BEGGY",
+"pair_address": "ADro7bx39vGQV3NMubXffgJjGEWDDH688XF4StFSEFpE",
+"src": "_full_trades.json"
+},
+{
+"mint": "GgRYByJSNdRJo26LHeudCEPhwK6aVriktipYomHDpump",
+"entry_ts": 1783437202.933512,
+"entry_price": 0.0003909946118,
+"token": "PUMPLON",
+"pair_address": "98JDNQbKPzqaMm7HkhNhoDzEtNavvxVPYnjfLgCWtdQy",
+"src": "_full_trades.json"
+},
+{
+"mint": "45xssbMNpEBQ3EMJFFFaKC97HV6uNqXUZigexKgNpump",
+"entry_ts": 1783362287.660165,
+"entry_price": 0.0001476673629,
+"token": "trust",
+"pair_address": "C6Z3YaDcHV3YRAAsMKr2fv8B7Zpv1T7o8Vot7owNY4EE",
+"src": "_full_trades.json"
+},
+{
+"mint": "95bAE5K5SeqpQ4veagLGRi5qfK83rtCeK9SxjBvNpump",
+"entry_ts": 1783437198.617357,
+"entry_price": 0.00013536133790000002,
+"token": "inu",
+"pair_address": "EwWcmAxrfKfFMJGN5j75qPpbbGsv6eFdA4iuPmYnGXes",
+"src": "_full_trades.json"
+},
+{
+"mint": "5bZEJTjh7gy16P4jUVkD1ALPdvVNMUG73VW4AyLHpump",
+"entry_ts": 1783416282.607939,
+"entry_price": 0.00044271137189999993,
+"token": "TESTPACK",
+"pair_address": "2r5atNmysLzYPmDbrzv8oE2ASJ4gDp4BpBfrasrGrAL5",
+"src": "_full_trades.json"
+},
+{
+"mint": "J9fVUSrsGYpuyXggAFJpf8WGkVsjqjCpBzyBxh6spump",
+"entry_ts": 1783430428.293808,
+"entry_price": 0.00040058108745,
+"token": "DONALD",
+"pair_address": "4VoD1W5isENdXTYJrrPxat9z9T22X52AvSsSxoC5NnKy",
+"src": "_full_trades.json"
+},
+{
+"mint": "2LxfJRRo39Ch6y65UMHUdSpdVHaiAYtHNraq563Cpump",
+"entry_ts": 1783433576.97927,
+"entry_price": 0.00015293936545,
+"token": "Json",
+"pair_address": "3vpVMeZoVV1XAApCyNThqdd7gPaKTHFRxGWR7KxxbVvS",
+"src": "_full_trades.json"
+},
+{
+"mint": "D6sA8hKpreRfWEqLRo2fyx5UpmcHeEmGsQ1UndLWpump",
+"entry_ts": 1783432172.388014,
+"entry_price": 0.0005043384327,
+"token": "COBRA",
+"pair_address": "9nrjcZ8aRsDUjx5bL7rWnNpPSiWfhmEpvWDHB9cQ2eAV",
+"src": "_full_trades.json"
+},
+{
+"mint": "72FkeF1cpBMtbordhTVNVbBGdaN5DfHcchstHwPWpump",
+"entry_ts": 1783431631.044992,
+"entry_price": 0.00038106251364999997,
+"token": "PUMPVILLE",
+"pair_address": "9mDRoWdHmJ7Q4Fj8zMhzKuVfdXgYTckABwGRWxhuyvg5",
+"src": "_full_trades.json"
+},
+{
+"mint": "DoWCif6MaQEMuMRDDu6PRWr6JQH7SFqm33eZa8jwpump",
+"entry_ts": 1783430974.135292,
+"entry_price": 0.00035614178105,
+"token": "PORTNOY",
+"pair_address": "7YbttTQzRZcZ3MxQh2WhPHXuGzF3w5tc4cPuv53Euq2C",
+"src": "_full_trades.json"
+},
+{
+"mint": "jymBeC2kKKnmoVnZowYiqe7d85ifEueYjVkvjwYpump",
+"entry_ts": 1783430433.797347,
+"entry_price": 0.0001138887773,
+"token": "530A",
+"pair_address": "E3BHdoehZbZxQiuaedqnwi7csnwcNRdjPvUum5rweRcs",
+"src": "_full_trades.json"
+},
+{
+"mint": "J5p7z5dZew83HwpFnUqr1HL2S29sn8i7S8eFNwDUpump",
+"entry_ts": 1783427911.34912,
+"entry_price": 0.00016188262774999998,
+"token": "MIKE",
+"pair_address": "ET5qjSuRWYjQFwSUyix4yW8JhoxS466JiccYtP7tsiy7",
+"src": "_full_trades.json"
+},
+{
+"mint": "4eKYoR1hBHnRaYyg2d57H36uUatRNyZr1NRP9ScNpump",
+"entry_ts": 1783333437.1299,
+"entry_price": 0.0002515860432,
+"token": "DONALT",
+"pair_address": "8yVUMPPWyJZQhSr2B5MuoULuGj8gRuSqM7YdDsWthgJU",
+"src": "_full_trades.json"
+},
+{
+"mint": "AyafwyhUhZW4L9bdeG2nBjTpQkt5ek1aA1A78XGopump",
+"entry_ts": 1783417703.452239,
+"entry_price": 0.0004572735713,
+"token": "PUMPBULL",
+"pair_address": "AhWWZYGz8R93bnGhoGP8J31ZworRmwSNfWgt3JamKeEo",
+"src": "_full_trades.json"
+},
+{
+"mint": "5sTUgEVTcRvPNK6CFpHBgVfDm6Vb7yKhb9ovMbvUpump",
+"entry_ts": 1783021261.587524,
+"entry_price": 0.0001888405008,
+"token": "GOON",
+"pair_address": "2rC2rhyHDQE3SsRd2kMmTbZJj4bu7c912ZqRgYisxJsb",
+"src": "_full_trades.json"
+},
+{
+"mint": "6uYAQyXYMQ5sTNPRZmYSVMGTAzgkTrK5mGtHpPYCpump",
+"entry_ts": 1783391590.997235,
+"entry_price": 0.00013926385059999998,
+"token": "Vaaland",
+"pair_address": "31A3uVUVZhjJ8SoPJ8G3QZUHA6eBk8andGMoKpx3KFdF",
+"src": "_full_trades.json"
+},
+{
+"mint": "CgnudNWM6Se7mfkGHFGZ4A1YPqjpYmd8bW3nsAEKpump",
+"entry_ts": 1783121648.404445,
+"entry_price": 0.000193329416,
+"token": "ice",
+"pair_address": "BS3MyQReereuKzAvkfQscvHHLhi4bsFL3X3Zw55oMu2e",
+"src": "_full_trades.json"
+},
+{
+"mint": "cvkarf1CtN3tbLRk961vsaEf4T8QbnihDkCHa93pump",
+"entry_ts": 1783071497.866012,
+"entry_price": 0.00037686483519999996,
+"token": "NEIL",
+"pair_address": "Gerz5Vw4sxUZkR4dAtnYT5ChgX47GCYLE5Z3oeZinyFJ",
+"src": "_full_trades.json"
+},
+{
+"mint": "HdPwxMu9R2sD8ZU8CoP3JuqUBRX3UpPb2oTc8TZkpump",
+"entry_ts": 1783348302.236538,
+"entry_price": 0.00014330846519999997,
+"token": "SEMAN",
+"pair_address": "6SmSohU4F8dybszeRGkQ2h1AUrm9b6pVffb1F1S5gVav",
+"src": "_full_trades.json"
+},
+{
+"mint": "6YZm2PVLBozyfvGrMTrZbZHxYQz8aFG3sm6rCfw3pump",
+"entry_ts": 1783384779.088843,
+"entry_price": 0.0002682726312,
+"token": "Bullius",
+"pair_address": "E2Wqb4KG7DZgZ95mvEfApszS6Fu5nYRnrdRu7GwEuQxV",
+"src": "_full_trades.json"
+},
+{
+"mint": "nVhTvcZXm2DQLoMhyrC5nw2noTvbGf7nsapiehtpump",
+"entry_ts": 1783378575.837491,
+"entry_price": 0.00010049401364499998,
+"token": "MUTUMBO",
+"pair_address": "2ByNFTipyr9P58rGTnxXD9jbtGShR9eR9AkPB2PLnagS",
+"src": "_full_trades.json"
+},
+{
+"mint": "7AJ1KjzjstMnQGzZk1HAKx2atmvvRqWvmRbdYmnviryq",
+"entry_ts": 1783380154.788342,
+"entry_price": 0.0001617503595,
+"token": "XWH",
+"pair_address": "F6L22zNLPUV2uQjENLnBN89NUay1pyMXhVxa3HT3XUEz",
+"src": "_full_trades.json"
+},
+{
+"mint": "BcdMeuTYP9RUztiUsRDyqCzNoL8AGhwjjEaS3c3fQ2Ei",
+"entry_ts": 1783380090.25108,
+"entry_price": 0.00011345253495,
+"token": "SAPIJIJU",
+"pair_address": "2tPJByFDZt181HtqBfHtvuFGqYc6NAsd5BgbiVcuDwUR",
+"src": "_full_trades.json"
+},
+{
+"mint": "6KmwvVo8gDUVAnoAftMuyUTojfx6xtgm2xkHp2ixpump",
+"entry_ts": 1783377042.066492,
+"entry_price": 0.0001623626637,
+"token": "delusional",
+"pair_address": "Frn5m8m1iSjmVqUmt2L38u2RL8Z4n5ZFm5LMs24BmhN7",
+"src": "_full_trades.json"
+},
+{
+"mint": "6gkrxBbpzBvnH1oGhqdsMGPbHwAnFA6T1Xq5Cubupump",
+"entry_ts": 1783377401.241916,
+"entry_price": 0.000136184945,
+"token": "$SBTV",
+"pair_address": "95Bnj3QYmZu1ijBcnJXTUXgDjBKfLUnXm73UYq3jjcXa",
+"src": "_full_trades.json"
+},
+{
+"mint": "3R51JJP2TZosMTHszJxbB4KCshVL67LU4Q8cynVMpump",
+"entry_ts": 1783193442.124512,
+"entry_price": 0.0002015931008,
+"token": "CITH",
+"pair_address": "4Tu8ne3DiiD5NCe4Ue7XGU3zniGpX8KwLo8mnZGpT6Pe",
+"src": "_full_trades.json"
+},
+{
+"mint": "7X84qLj14hs5j1YNGimWfhMEVMrnrCtkMUDnkWyk8jKA",
+"entry_ts": 1783377999.823723,
+"entry_price": 0.0002009378283,
+"token": "GOAT",
+"pair_address": "C9q4Mo1jKkz7Sg1guw9B39DWBD6opBD8cByVHnHDBKDm",
+"src": "_full_trades.json"
+},
+{
+"mint": "ExbN9KVhLMZT1Pt6uEQ5eMyWdfbTAvdLP9cBTwaK8EHL",
+"entry_ts": 1783377041.423952,
+"entry_price": 8.956779075e-05,
+"token": "$SORANA",
+"pair_address": "81kFmWDGhtKequR6XnPsjHcyWmRkDfdmuCgCxkqFEjVv",
+"src": "_full_trades.json"
+},
+{
+"mint": "84eYhZRCr8ZWaocYvCw7NUsPh8f4VeYEohfozeFwpump",
+"entry_ts": 1783377815.494277,
+"entry_price": 0.0001386869013,
+"token": "PORTNOY",
+"pair_address": "78VT8UhKvRXH7i4E2Hw1orN8mxKYQ2FhxVRu2efDrRFT",
+"src": "_full_trades.json"
+},
+{
+"mint": "6hpfrxQb2kn9iprcJcZ6uXruGAwDe12W9zT4y4WSpump",
+"entry_ts": 1783017464.835989,
+"entry_price": 9.881734688000001e-05,
+"token": "Goofreck",
+"pair_address": "LjvUBiEWWjxbShc6DBLnAiNupZuPahUwH1YChdB8yKX",
+"src": "_full_trades.json"
+},
+{
+"mint": "48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump",
+"entry_ts": 1783083460.218806,
+"entry_price": 0.00018023156639999997,
+"token": "SEMAN",
+"pair_address": "6C3m9Gc8UmJBPxgT4TuT7FcdpVqeSThtTTSvQEGGUZSB",
+"src": "_full_trades.json"
+},
+{
+"mint": "CMx1EUTXhnUKYF5xYMCSkDmJfvRSD7a4iwayW1DVpump",
+"entry_ts": 1783281073.118731,
+"entry_price": 0.00034713542879999995,
+"token": "0x",
+"pair_address": "3fGANHkT84ZLgg449h1BguQtDdp1NMBXCb1oohAp32Ui",
+"src": "_full_trades.json"
+},
+{
+"mint": "3SHBdvwb953JpAuFDE8rssJABFwPV88a9Kn5q6kepump",
+"entry_ts": 1783348749.772839,
+"entry_price": 0.0001957332426,
+"token": "Richard",
+"pair_address": "CodvRvRWgvMUEfXtTCV7SXbbjur8XvVUaLYM6dkyi7Fp",
+"src": "_full_trades.json"
+},
+{
+"mint": "5UQNY2hk4fgaDYL8Cq2SgVZ97q7Uvb95aAuSG18dpump",
+"entry_ts": 1783325020.103312,
+"entry_price": 0.0002155383627,
+"token": "ANIMEBULL",
+"pair_address": "B5mWdsPWqC6rjfKH6rXR1PhXk2sEW4qeiUL9VFZzkdj3",
+"src": "_full_trades.json"
+},
+{
+"mint": "Ghf7EUahsRf1YgfFsHGEaN75CA8HDJkWw8h5cM41pump",
+"entry_ts": 1783194309.783956,
+"entry_price": 0.000109162256,
+"token": "greg",
+"pair_address": "43FraAvpHEcGfqMS9qw3aqCN2aMR3Yff318VGZTHaL5f",
+"src": "_full_trades.json"
+},
+{
+"mint": "B6MtubZSVPqekiNBmPjFPWRnP1ee4BwCHkmWbsMRpump",
+"entry_ts": 1783306172.876445,
+"entry_price": 0.00012251235599999998,
+"token": "\u516c\u725b",
+"pair_address": "CJnQBvScnAQb8d9bfgDZfoppG6pd22Wj7tRqsDz9p6H4",
+"src": "_full_trades.json"
+},
+{
+"mint": "4UKhvqXNsb1zfnCH4kf8VWkFCC7KBDFZwg4TyVVYpump",
+"entry_ts": 1783293481.939777,
+"entry_price": 0.0001665999664,
+"token": "TOLY",
+"pair_address": "7iLsHWeU6CDzeiE6jPodRuXrhKXgtYpKwizD8eBdMoGh",
+"src": "_full_trades.json"
+},
+{
+"mint": "DXXcq4tY5e4PbXybyBMnxZjHVmzv1GVrAXoW5TcC5kbu",
+"entry_ts": 1782531593.399345,
+"entry_price": 0.00018653387025,
+"token": "piss",
+"pair_address": "5EBtmZf6jxeuMCLeW59mu2S34cttep2wnCQdS2WJbrFH",
+"src": "_full_trades.json"
+},
+{
+"mint": "HAs8hvTB8ZH6dBG26KQGik4fxitNYi41jnYd49bvtime",
+"entry_ts": 1782648195.201771,
+"entry_price": 1.21404752,
+"token": "Ansem",
+"pair_address": "CExPZUmwAdu6dDZFGQmkxM8UFu1zVkGwk3tDVHWMifR9",
+"src": "_full_trades.json"
+},
+{
+"mint": "MsGDybWRSNdNXkdDZhEksgzugT5CbVWUG2wkhwgpump",
+"entry_ts": 1782947775.222506,
+"entry_price": 0.0002870865312,
+"token": "MeiMei",
+"pair_address": "DtDfaWqhCEaeFXJUHjGC8Xo9XxH52ENVhA1XoJ9F4d8Y",
+"src": "_full_trades.json"
+},
+{
+"mint": "HEU5mPDm5jCyn4AjQKjvWuvttACKvitgpAdwfmu2DoiA",
+"entry_ts": 1782663917.467177,
+"entry_price": 0.0004267705658980585,
+"token": "CLIVE",
+"pair_address": "B1GFLecDJbYgDDSkKQMDp8xz5TTiCgdW7ADDVqqSUUFe",
+"src": "_full_trades.json"
+},
+{
+"mint": "7szutJHnYxPLxUgJrtXxzAiA5fYU5rmWQ47nT1Epump",
+"entry_ts": 1783164076.916262,
+"entry_price": 0.00029423469599999997,
+"token": "Bullcoin",
+"pair_address": "6PwxnJzftUuEVM4oYW7FChmHm7yN5LTn96UFeMbV1sLJ",
+"src": "_full_trades.json"
+},
+{
+"mint": "5NgaVXHoikb9e326MSCwo44DXKGuPiKVt9q9Tm51pump",
+"entry_ts": 1783178247.185157,
+"entry_price": 0.0002068869744,
+"token": "PUNK",
+"pair_address": "HRfDQge1tAXCf6iZX7PRMBzDmoWeCa7CjSdRmeGTTqCx",
+"src": "_full_trades.json"
+},
+{
+"mint": "A8wXmAgVy3peeHtifXNvYUUirGdNu4ezJoDno9trpump",
+"entry_ts": 1783277650.652165,
+"entry_price": 0.000108346574,
+"token": "BLACKOUT",
+"pair_address": "EgaVcDBgnhHSJnsPYBVpNKP4xCKQBkkoXaLYhb8SjLhE",
+"src": "_full_trades.json"
+},
+{
+"mint": "HzzbJAY1YThLuwNwx3xjuqrQdd1RUtqUqnNawAhDpump",
+"entry_ts": 1783278125.459011,
+"entry_price": 0.0001410037969,
+"token": "DIICOCK",
+"pair_address": "4iyEjH7ESMw95XyTzASNZFKnP7GBjVGu1BKWCMPFEG3B",
+"src": "_full_trades.json"
+},
+{
+"mint": "DYpHuMiNHrfAaWKj5Y3iQL8ydZ9oJy2ANCH4c7DApump",
+"entry_ts": 1783131139.138102,
+"entry_price": 0.00024420454559999995,
+"token": "ALYCIA",
+"pair_address": "7gyh664YHBS2TdWmxJDWRF6trc2Mp2ScukHauo7Au4Ac",
+"src": "_full_trades.json"
+},
+{
+"mint": "71HtXHfexjKgem92Y5sPLPb6qkmtqWmPUzdKAcU9pump",
+"entry_ts": 1783244134.755211,
+"entry_price": 0.00044791337519999995,
+"token": "trumplet",
+"pair_address": "2Yb9DcH2vHExr3rWDtwvHFnEEA2B5jK2WHh9a2fQZNdZ",
+"src": "_full_trades.json"
+},
+{
+"mint": "gjafwwjj3vntsrqvabjbvk2tyb1ytrcqxrdfdgunpump",
+"entry_ts": 1782663879.595207,
+"entry_price": null,
+"token": "?",
+"pair_address": "B4PHSkL6CeZbxVqm1aUPQuVpc5ERFcaZj7u9dhtphmVX",
+"src": "_full_trades.json"
+},
+{
+"mint": "heu5mpdm5jcyn4ajqkjvwuvttackvitgpadwfmu2doia",
+"entry_ts": 1783260921.982119,
+"entry_price": null,
+"token": "?",
+"pair_address": "B1GFLecDJbYgDDSkKQMDp8xz5TTiCgdW7ADDVqqSUUFe",
+"src": "_full_trades.json"
+},
+{
+"mint": "48MBbzvBUKjVFB97jyg1YnwC8VbfKik4ry6hKDezpump",
+"entry_ts": 1782663433.499043,
+"entry_price": 0.000255052,
+"token": "RTM",
+"pair_address": "DtnW4aadcFK7jxK9D6fHWzSGEKZeLavWn8oXuEJe6nTc",
+"src": "_full_trades.json"
+},
+{
+"mint": "9qwxahBxcgKyn5X7kZvkN7qxKZg6pkVD8Lo4URtopump",
+"entry_ts": 1783256194.210939,
+"entry_price": 0.0001656817792,
+"token": "CS",
+"pair_address": "C3HAJo5hfxWCgsoXZEqsqzbTFhCDxuJb4QNA4AQPq6XG",
+"src": "_full_trades.json"
+},
+{
+"mint": "7vLT9GmU7iH4JT2NBDRTejm1StqZocfSDqCzfMvzpump",
+"entry_ts": 1783218201.587901,
+"entry_price": 0.0007235918063999999,
+"token": "Bullmerica250",
+"pair_address": "FvTXwZTVGsDCnmNmAz8hFwCCP4WyDZYyg8zRQpAoB4M9",
+"src": "_full_trades.json"
+},
+{
+"mint": "Bm5hU3iYP9syzZHte1Ubv5GjSkMjFsCqaVyWcBdpump",
+"entry_ts": 1783158277.775095,
+"entry_price": 9.74486793e-05,
+"token": "sultan",
+"pair_address": "6iTqzwvs1yEXr7i9snUntNTTBiak2saTWc3Ek1r1aNT4",
+"src": "_full_trades.json"
+},
+{
+"mint": "DiiTPZdpd9t3XorHiuZUu4E1FoSaQ7uGN4q9YkQupump",
+"entry_ts": 1783218196.331513,
+"entry_price": 0.00025892879039999997,
+"token": "ELIZABETH",
+"pair_address": "61k5vCzCbDxPDD8EvK6kQ4eFDGxC7ktrnEYB4zWeTTSX",
+"src": "_full_trades.json"
+},
+{
+"mint": "dUaSdZm38CStjhp1VSJWGFQqSxf6DQB2hfjMXmVpump",
+"entry_ts": 1783157667.414087,
+"entry_price": 0.00027902688799999996,
+"token": "\ud83d\udc02\ud83c\udc04\ufe0f",
+"pair_address": "95UU5jkxhfEtsS32kxFwwcuzzEahNEEuX984BLW5GsfX",
+"src": "_full_trades.json"
+},
+{
+"mint": "AN1JkjeZVRauM8RLSXZSLiAAXpNMyWzqDPWWdaBSpump",
+"entry_ts": 1783250013.973712,
+"entry_price": 0.0003077967536,
+"token": "SCAPE",
+"pair_address": "DGA5TgZFR2zyJaNLE6KTAb4wKaj4oy3WkjBF3jQa8NgX",
+"src": "_full_trades.json"
+},
+{
+"mint": "ATBR4i19gcQ31Rfr7ymA2XvkCQEAkNFGBtVKTmdqpump",
+"entry_ts": 1782641328.883707,
+"entry_price": 0.0005482932280471989,
+"token": "Machi",
+"pair_address": "7cmefCYxzK6yfBcmB4j234A3EKY2w13GfEdB3DJvNWzx",
+"src": "_full_trades.json"
+},
+{
+"mint": "EThNYWZ73vdtnRtrdwDKq9nKkQgRwjcNppjDTqGopump",
+"entry_ts": 1783092530.174676,
+"entry_price": 0.00020546989119999998,
+"token": "Martolexx",
+"pair_address": "7DvWfEjcg6Dxq2jj5x5W9pMdci2XQWaVtCXUpBrXM66z",
+"src": "_full_trades.json"
+},
+{
+"mint": "E7wbcQSGnuC29vNeDX8SrosiD46piaUnBHTg5X8apump",
+"entry_ts": 1783216367.825975,
+"entry_price": 0.000132116936,
+"token": "Meep",
+"pair_address": "Ac5snsr7QawrsDkxpUgBe3ohY9zU9Dr2cjUxar3nts7y",
+"src": "_full_trades.json"
+},
+{
+"mint": "7AuZpVnXtYZBYqp2oZ7DjA7BZLwbgWJDUk2SYpHppump",
+"entry_ts": 1782594751.335609,
+"entry_price": 0.0001368210928,
+"token": "Tsunami",
+"pair_address": "4rCTpebXepGJXLTKQGtgurJDAN627a6tsBKTdZQRh38p",
+"src": "_full_trades.json"
+},
+{
+"mint": "7LVWaPUkAsRX7AGwhvX3Q9sYpTTSnafzq5ABFwAapump",
+"entry_ts": 1783034767.32642,
+"entry_price": 0.000391249768,
+"token": "MURAD",
+"pair_address": "7UDDrS72QDwX6ChwZNseeuvJoWna3m6R86Zgpy93PMxX",
+"src": "_full_trades.json"
+},
+{
+"mint": "F7bFfkHxLuXuuoeX3SQDM9PDhBABVEVFmter8nnRpump",
+"entry_ts": 1783217071.781515,
+"entry_price": 0.000125455018,
+"token": "shitcoin",
+"pair_address": "6QXG9hCvvFDEoQ9ywXT7RJ4WELVGM46mCr61Y7kbrtit",
+"src": "_full_trades.json"
+},
+{
+"mint": "AMCHpR1F5gKt6msk9j9aDBjKUSmgyAxhymbZhjkypump",
+"entry_ts": 1783098330.961961,
+"entry_price": 0.0001114067136,
+"token": "FROGE",
+"pair_address": "3Up5Za139LNiLabSVGnKoEhYVMqx4GWTRKVDNiVYvR9B",
+"src": "_full_trades.json"
+},
+{
+"mint": "9HSMssrVecFSs494Zw1QBZL5m3Wjtnic4o1nX6u7pump",
+"entry_ts": 1783212814.253493,
+"entry_price": 8.85527811e-05,
+"token": "$TOPG",
+"pair_address": "5DrXmbFoRofb4BAC8qDH1wd8ehCvkt1b2VZApDJuSReV",
+"src": "_full_trades.json"
+},
+{
+"mint": "3VkUe5T9uAuU6EqmEMqQcuTRqEcqU86NAfwbFZKxpump",
+"entry_ts": 1783211635.888367,
+"entry_price": 0.00029453404960000005,
+"token": "elchef",
+"pair_address": "DwzRr47yKMAxm5LYdneyrBMLe3Fo2r4DhHUsJyYJw54f",
+"src": "_full_trades.json"
+},
+{
+"mint": "9bW5KYuuutJ8usQ8gzQ7J5fSzMWCuQ8qPkvRNh8ypump",
+"entry_ts": 1783210538.539838,
+"entry_price": 0.00011308937150000001,
+"token": "HANDSEM",
+"pair_address": "YnsYsogTAE9WmJTBQig9QijEc5Habw3xuPd1rpW4vKZ",
+"src": "_full_trades.json"
+},
+{
+"mint": "HMSPnngim78o9t2KVfGBEg79NGS1s3c1AyRFu8z3pump",
+"entry_ts": 1783132129.606473,
+"entry_price": 0.0003051442128,
+"token": "FABLE",
+"pair_address": "D29JTbfBpMaYqBhsVhckc5WBnQmf8YKcnAUA5Rqqs3Vi",
+"src": "_full_trades.json"
+},
+{
+"mint": "6MTctU7s7xJvJN3QPgEQi8zrP6od89DvXHVEbJh4pump",
+"entry_ts": 1783203009.590133,
+"entry_price": 0.00013699352300000002,
+"token": "TOLY",
+"pair_address": "5AQW3rmgqauLXKeCjuuxJHjVV5GSfhe4QWhJ19TBr2gT",
+"src": "_full_trades.json"
+},
+{
+"mint": "36CvCWVMgSgpZNFu2JVuaaJVEcKtqySpS9hD2kxUpump",
+"entry_ts": 1782587356.088074,
+"entry_price": 0.0001139238353,
+"token": "gato",
+"pair_address": "7hEL7Yfs6s1BjeShnD65yTao2gtiFYRZXkA8GvbccT91",
+"src": "_full_trades.json"
+},
+{
+"mint": "FJSKRhn5ZGtv66HtgaqVY9oNsV2KeynngLTq6PX4pump",
+"entry_ts": 1783129065.908127,
+"entry_price": 0.0001257368315,
+"token": "\u68f1\u89d2\u732b",
+"pair_address": "9vNdjfw5wwFDXmiAa7UBvGMJwaSWa6bbUFoHivyDfvSW",
+"src": "_full_trades.json"
+},
+{
+"mint": "56ZtvzDWCwPq2tFg2ZuifbJh7AZL9VpUTRp1854fpump",
+"entry_ts": 1783127102.653637,
+"entry_price": 0.0002368922976,
+"token": "bean",
+"pair_address": "Grk2W6a5kyeYzCZtutUNpsvC8gk8CFiij2KaWi6kYoj1",
+"src": "_full_trades.json"
+},
+{
+"mint": "32eFDwQXfnj5ULY2b71cLuy5HJuhsRHSYTw3qCcKpump",
+"entry_ts": 1783183700.042712,
+"entry_price": 0.0002896370512,
+"token": "1",
+"pair_address": "BQbTiZJ9D9ADe97Up94n2RSC6iP9sCeaKpt81VdWriN1",
+"src": "_full_trades.json"
+},
+{
+"mint": "ESAYabnPzfaZGcwNtTL5RL1RBaoW7vYUNx5n6QfTpump",
+"entry_ts": 1783188805.323957,
+"entry_price": 0.000147063491,
+"token": "Pigeon",
+"pair_address": "C3YT6tSJngFB5DSvirD3yQseqXxJV2g148Gf8EnSwRRr",
+"src": "_full_trades.json"
+},
+{
+"mint": "CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump",
+"entry_ts": 1783016020.28351,
+"entry_price": 0.00012807740550000002,
+"token": "SHROOM",
+"pair_address": "DVs2KGyiPAhQN7J9kfb33Syk6ppHwv8QAizduFUoG5Ti",
+"src": "_full_trades.json"
+},
+{
+"mint": "V1qBxZ72Ae5eDCP3MVdgW8S8RBUtcJfk6pzdimspump",
+"entry_ts": 1783178257.906322,
+"entry_price": 0.0004311399008,
+"token": "BitBoy",
+"pair_address": "8TpjM3AfmMREYCFqzP9QvfC5GAziGxwAdfr3z8Qghfqs",
+"src": "_full_trades.json"
+},
+{
+"mint": "B642ubQRSmy2wW4UcaTsL3skSP9abPLGyi8qenDWpump",
+"entry_ts": 1783176528.74654,
+"entry_price": 0.00025107318880000003,
+"token": "MUTUMBO",
+"pair_address": "7rBZJ2obiEUqEtxQkrXMgda6g3yVCP1Xt3CSHBeSg3xk",
+"src": "_full_trades.json"
+},
+{
+"mint": "Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump",
+"entry_ts": 1783040315.011708,
+"entry_price": 0.0003436497216,
+"token": "ELON",
+"pair_address": "53LbgEdVdbeQmvhzpZYbjbkBfLZKKLWSZ5FzgKCXBYj7",
+"src": "_full_trades.json"
+},
+{
+"mint": "EPD8jj7bVhNh3o7Wx1XZ39aaacSki8p2ABaN61yhUnBh",
+"entry_ts": 1783132143.95344,
+"entry_price": 0.00021199922240000001,
+"token": "\ud83d\udc02\ud83c\udc04\ufe0f",
+"pair_address": "C2X7vGNyeja4TSHs9DRbVjSek7Z3h2kPRoWM7YQFrSPq",
+"src": "_full_trades.json"
+},
+{
+"mint": "7jrazSKnCU2vbyVPJ8dfEF2TMYLcUiDBsFaEGvqopump",
+"entry_ts": 1782927249.039785,
+"entry_price": 8.464017895e-05,
+"token": "\ud83d\udc02\ud83c\udc04",
+"pair_address": "J8c2wQCZiLoc38GL1uqWsABznXDXgKpxo7Dm4Pnpu311",
+"src": "_full_trades.json"
+},
+{
+"mint": "3L3ub2FBz15NeNgQVYpowANzANTNUiyKW5bfGVxYpump",
+"entry_ts": 1783175544.85424,
+"entry_price": 0.0001750676928,
+"token": "WIF",
+"pair_address": "9EhdVwJukvSTrJrpXobT3xmE8H9mpA1d6WcciXJScDgb",
+"src": "_full_trades.json"
+},
+{
+"mint": "PDqSePtjwXYaruFX7hdujV9wf4X7Z4fu5d2iVMCpump",
+"entry_ts": 1783170841.299097,
+"entry_price": 0.0001179360448,
+"token": "Speedrun",
+"pair_address": "C93iMB1xHF9A2KZGaA5kzAkHKm3xsRGf9PZHhkHGQiNY",
+"src": "_full_trades.json"
+},
+{
+"mint": "8R3eqFSPYa5Gs3PJCha6qv9VTpWmRgdmphXsHFjkpump",
+"entry_ts": 1783168942.436286,
+"entry_price": 8.526955195000001e-05,
+"token": "Indy",
+"pair_address": "HfjGf8VkGsQ8KkJVKaU51Q8Atn8YsTvjhUNoKW3zWCVy",
+"src": "_full_trades.json"
+},
+{
+"mint": "6bqvwKH6Q8SnTSooLR1ikBawcPAuUxitfyqwM9azpump",
+"entry_ts": 1783171231.173152,
+"entry_price": 0.00012052492950000001,
+"token": "skew",
+"pair_address": "3GYnk6vJ2vvwDGD4xeukCqeRVeVQqQc436ubh7oB1ZCe",
+"src": "_full_trades.json"
+},
+{
+"mint": "3oX9emrqYRGzFEDPP3jA6tYnUBML4QSr3DfgD2r5pump",
+"entry_ts": 1782235024.200894,
+"entry_price": 0.0001903089696,
+"token": "\u6ed1\u308b\u732b",
+"pair_address": "2ZSxtiKPkD9Ei2iN3WpUGgn2Ue1NiBMsFxsLSQVQ4PZW",
+"src": "_full_trades.json"
+},
+{
+"mint": "9kwT8gUEMKQhnmc4mVb2iUAybfjzvVMM5LwffKFcpump",
+"entry_ts": 1782136941.181283,
+"entry_price": 0.00040048593263999996,
+"token": "AFKHERO",
+"pair_address": "DgX9YGesb5Ac7JtU9iMjtf8kmrRzDfPBMfeNmdkFCv4U",
+"src": "_full_trades.json"
+},
+{
+"mint": "GYPB3McmpMpeLQcckoSTQ6KKAE8NL6QvkYaocy48pump",
+"entry_ts": 1783078573.320733,
+"entry_price": 0.0001389523296,
+"token": "JELLYCAT",
+"pair_address": "HDdUE9Sz1FGKs7XLxDNZF261HHDv1NdF66zH7YP8d3n6",
+"src": "_full_trades.json"
+},
+{
+"mint": "9MoGGUj79ZoSfumCpD7m7SnXVinR2sAp2FGAe5Atpump",
+"entry_ts": 1783155816.920538,
+"entry_price": 0.00019837774799999995,
+"token": "ALYCIACOW",
+"pair_address": "7AmH47zDCdHQXYyaTDsJB3Vc8tJcN7u3nwLUMdojdUm9",
+"src": "_full_trades.json"
+},
+{
+"mint": "FZQJUoWEMRCNTnWj2aAizsFrYL6JUJFBy9zaJex3pump",
+"entry_ts": 1783154042.149085,
+"entry_price": 0.0002360028816,
+"token": "\u9ed1\u725b",
+"pair_address": "EcM6bqt3gWjRz7yoDDbQATnDzCPTn32o5VSD7fPQrJ36",
+"src": "_full_trades.json"
+},
+{
+"mint": "62yzpmKJB6XiVtZcQZhUkUXhqwN3UgCbffUi4JM9pump",
+"entry_ts": 1782602964.135755,
+"entry_price": 0.000333127925,
+"token": "world",
+"pair_address": "3b96syjAEJ1YXNSDMiEANTgshk3s2HkE9mjSUhM1cnYh",
+"src": "_full_trades.json"
+},
+{
+"mint": "J9xS5vH4W9WnxtbJD4AshJsmHLniPFDq8vXa556apump",
+"entry_ts": 1783131207.488185,
+"entry_price": 0.00020442647519999997,
+"token": "FREEDOM250",
+"pair_address": "3HnBkzi1rNmzrm7hirQdDMci3uMLpeeDojhDB1cUW46F",
+"src": "_full_trades.json"
+},
+{
+"mint": "61qNX1UoKDMypgDJzNGFra3Mb6DQPyUmf6zDayZ7bonk",
+"entry_ts": 1783123151.413211,
+"entry_price": 0.0001233431472,
+"token": "Bepe",
+"pair_address": "81RM4fW51f9YeSBiyq99r8E6qZfKYFShRzX8LRaJfPi8",
+"src": "_full_trades.json"
+},
+{
+"mint": "2aQKC1xiKpEyAWvzSDrULnYLVuybWyx7qrsnpP8hpump",
+"entry_ts": 1783043399.402208,
+"entry_price": 0.0002131214512,
+"token": "Udin",
+"pair_address": "6YismmnYSgxCw9aWgf3h2GxMr1GDkvWq7oo76RjQ1i6v",
+"src": "_full_trades.json"
+},
+{
+"mint": "HS4DWjgJ2h51PCnhh95saqgLQ21Zps6VABK1vi9gpump",
+"entry_ts": 1783013282.474395,
+"entry_price": 0.0008039681135999999,
+"token": "LojakPaul",
+"pair_address": "BfVhUY3Y2FuvzQZUPpyyHsaoh8CiYdVAXJ25zystWURu",
+"src": "_full_trades.json"
+},
+{
+"mint": "BBhHEEs8bCPchS8S8EX744ExVrMD9xjGy8CXepctpump",
+"entry_ts": 1783102671.592053,
+"entry_price": 0.000107081828,
+"token": "ansemwifhat",
+"pair_address": "ED9mpCkq3F3ZtRdbaGVJRboU6ygvXPvUrxrddFMS75aB",
+"src": "_full_trades.json"
+},
+{
+"mint": "HmTi3CQfKfXWbn1tNoiAxH7GzMV7L3tDAmPWabZEBAGS",
+"entry_ts": 1782982028.532696,
+"entry_price": 0.0002653561008,
+"token": "P0",
+"pair_address": "i1qCVUTpV37H6WnqZQ3etAC3oYe9ksjjs7RXa4J7pRP",
+"src": "_full_trades.json"
+},
+{
+"mint": "BUG9jJ6MZcxbXaDVqq199HvWafMSP4pYHVFrZfLmpump",
+"entry_ts": 1783112523.881913,
+"entry_price": 0.00012946439519999998,
+"token": "250",
+"pair_address": "C3W4oqFjiFEKLdqUpa23htx1HZ7byK4HsCgnetP2gwmU",
+"src": "_full_trades.json"
+},
+{
+"mint": "7zzgorZ2hcDNvrCujLaww9qQuqtbxXx3UjAuxUYGpump",
+"entry_ts": 1780286011.89573,
+"entry_price": 0.0010465153333333332,
+"token": "USA250",
+"pair_address": "3oDzq3rGQbWaKYdVShgJU1WBh6bhhmaV9y4A11ji3yHB",
+"src": "_full_trades.json"
+},
+{
+"mint": "C5vxPUKsg8w4QwKqJQYaV8XNJ5XSPKbtxrrs4zHvpump",
+"entry_ts": 1783029816.212269,
+"entry_price": 8.40422746e-05,
+"token": "PEACE",
+"pair_address": "GSGMBFWNVHrGYtYebfYDCz82KRXUavxznXqV5NfgsBBz",
+"src": "_full_trades.json"
+},
+{
+"mint": "9BVn3Y8tPghbnGuuuxoj2mGekqgSQV1M7nALF7brpump",
+"entry_ts": 1783098532.622898,
+"entry_price": 0.0003534000512,
+"token": "NYAN",
+"pair_address": "EaRqg8VQP8xrJx9HpKk46rbWPK3b55UyQKzWU9b4rdK2",
+"src": "_full_trades.json"
+},
+{
+"mint": "CGp3TrYCxF3xNhAPYnBYKAuBHxuDzL1zF62oxYD7pump",
+"entry_ts": 1783092485.284986,
+"entry_price": 0.0007853093279999999,
+"token": "POKERBULL",
+"pair_address": "DXHP8PLgZCxVndw8RrnWeuoBXX4uuXQ3VySRKx2gUJZd",
+"src": "_full_trades.json"
+},
+{
+"mint": "DTiG8SMN6RHYLAtLkFdrzKixnb3Dr8gy9gCrCXxmpump",
+"entry_ts": 1783086345.538082,
+"entry_price": 0.0002476044816,
+"token": "BINDY",
+"pair_address": "3zcxJQpstffNbRMyTayJRLnvZ4vVDyXvHPqcGpNg7tey",
+"src": "_full_trades.json"
+},
+{
+"mint": "98uHBngN8bXyEpuUxkiBVsasPXMHYyfqymeYAuHTpump",
+"entry_ts": 1783088432.695831,
+"entry_price": 0.00011308937150000001,
+"token": "Fatcoin",
+"pair_address": "GE2DoNFMBENxstbNfWAMJLjVbFq3yBKTfWQ6dYHwyecd",
+"src": "_full_trades.json"
+},
+{
+"mint": "3Q1Lu5TGWPvoA95HwTu7uPkjNLXj498moxfko2Pkpump",
+"entry_ts": 1783084381.949343,
+"entry_price": 0.00015890723999999998,
+"token": "Catfish",
+"pair_address": "6F2MLMroii9HqKwf2N3g2iG5CRMsUBNmm3uNPDuD7HCm",
+"src": "_full_trades.json"
+},
+{
+"mint": "CmQJNJ185pjzQoebPbcqZu1kTykHxJbn4gER1Af7pump",
+"entry_ts": 1783066862.415986,
+"entry_price": 0.00022587405119999998,
+"token": "REX",
+"pair_address": "8XzxTTCfQ49N5awdmtLAoK7MKmZ65AAaTpqryD9M1jL7",
+"src": "_full_trades.json"
+},
+{
+"mint": "DLvuaz18bKnh1hEaCZsZ5NgJi7wYFm5RvgZVA2M5pump",
+"entry_ts": 1783078169.311365,
+"entry_price": 0.00042894702719999995,
+"token": "BABYANSEM",
+"pair_address": "47PkNd3JK4MMyCKwPszbxBnsHbzqHQtLcH71fKnTBnLB",
+"src": "_full_trades.json"
+},
+{
+"mint": "5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump",
+"entry_ts": 1782929901.262168,
+"entry_price": 0.0003216715824,
+"token": "BULLWIF",
+"pair_address": "FXfmL53naPn8w5L7xQgaxAchU7Akfqo96eztnqJKi59M",
+"src": "_full_trades.json"
+},
+{
+"mint": "BgKtxB44DWf2zMtQpjwVNwjWCjKgAupoVdGVDuR9pump",
+"entry_ts": 1783073241.578269,
+"entry_price": 0.00022954407119999998,
+"token": "LIQENG",
+"pair_address": "6YuT2RW3ArSZr1tA9EbrjUR5aPKKv6kKnVupQtSh1Aef",
+"src": "_full_trades.json"
+},
+{
+"mint": "3DyWrAQZ6MmAcQxC1q22N1V3ucPHwEsWk8U68pBnpump",
+"entry_ts": 1783074144.52595,
+"entry_price": 0.0001556837408,
+"token": "Mitch",
+"pair_address": "5brh8zdbxoWaowcmAJN6NNGqXdX8kMRnGsTEezAkHBf3",
+"src": "_full_trades.json"
+},
+{
+"mint": "2b93RPW315VQP7RHWthbcgjrR477YqbSu9tXnBjppump",
+"entry_ts": 1783068052.436446,
+"entry_price": 0.00016054757279999998,
+"token": "CA",
+"pair_address": "BEqgia2tccaEx14jbQtSoW1YfccJaMDVPvixUDFrevEA",
+"src": "_full_trades.json"
+},
+{
+"mint": "8vExdwvPa6YN6BWZ2encM73G4rZhuH9kpzEr6gXjpump",
+"entry_ts": 1783047174.171796,
+"entry_price": 8.006896135e-05,
+"token": "RUSH",
+"pair_address": "9g7CFp1yhjdoSJjUcMbCKZC5DKRHVHMxeaV6HLtDf53Z",
+"src": "_full_trades.json"
+},
+{
+"mint": "CnqFjUb8Y9fj8DhokJuADKhSz9p2kwbsiujrPeu1pump",
+"entry_ts": 1783045375.207049,
+"entry_price": 0.00015080809679999998,
+"token": "paging",
+"pair_address": "Ed75xUfnd67YG3cDDTmoHsCzbNkqvKux7MtcssBk5Tkn",
+"src": "_full_trades.json"
+},
+{
+"mint": "8LFTmtdqQKHk7xJxSgFiPMdn2cRgxyinGv61M6Z5pump",
+"entry_ts": 1783045656.587044,
+"entry_price": 0.00012251794400000002,
+"token": "TRENCH",
+"pair_address": "FiTk5J7S92A5dCcuC1jxPWKkmUSEMg2X2Vj4b5HCJcCR",
+"src": "_full_trades.json"
+},
+{
+"mint": "66pQgfLHEfbHSBgYSZSrKEdJHHaGiYbgCtNbz48Apump",
+"entry_ts": 1782398910.474213,
+"entry_price": 0.00041406316575,
+"token": "WEN",
+"pair_address": "HZyqZRuAUCLdJaHqBfnoFHVBwXmuH3Sm1LyXnWu8Ee15",
+"src": "_full_trades.json"
+},
+{
+"mint": "AviKHWoXAHcpRnCX3cH38fHtjjn11aL9Pqjid3sZpump",
+"entry_ts": 1783040584.142075,
+"entry_price": 0.000181597024,
+"token": "zazu",
+"pair_address": "FojgqTwVMQ9rUe1G9T7ttGyxE3m19rPPevzsAxPHh5dR",
+"src": "_full_trades.json"
+},
+{
+"mint": "Bqs76KADGDkiwskqdqTu1jaNrpJyzV5ZxpvJrL5npump",
+"entry_ts": 1782607398.733801,
+"entry_price": 0.00035452228,
+"token": "Hobbes",
+"pair_address": "55HjYFDTgkP2dMJ7AzykXoP3FgrnW9DyQewWQ3Sg7Qdo",
+"src": "_full_trades.json"
+},
+{
+"mint": "CFPkPq1eYPR8GLzEo59wUbbMioX4bshaTQiSGzTSpump",
+"entry_ts": 1783036858.124719,
+"entry_price": 0.0004286394648,
+"token": "MENSA",
+"pair_address": "E8RJG3srQBiSFMxDwrKG2DkwpWGyK7UYcFjkaTs9tbrS",
+"src": "_full_trades.json"
+},
+{
+"mint": "35B4vyZzEHQmL7Mg9Am8KpuTcNxEUW4Qdw8xiMhipump",
+"entry_ts": 1783036986.112609,
+"entry_price": 0.00034795559519999996,
+"token": "KEVIN",
+"pair_address": "6v9pxkb7A41CDqtSnzk8Rj16UzZ1kp9N4a8XLcbniN77",
+"src": "_full_trades.json"
+},
+{
+"mint": "EwD4QKULxrTDdVNYJRqfnC9M8CAGPA6aZcdS7bqrpump",
+"entry_ts": 1783037089.796308,
+"entry_price": 0.0001704767568,
+"token": "OSCAR",
+"pair_address": "CZZuvkp2kbnGUJJHXXrwxvZMkRqVJBRukgpA1ahCvvkL",
+"src": "_full_trades.json"
+},
+{
+"mint": "3NhrBt7oZVdU2mqRxGygz9nf42A3dppquZHSrd7Bpump",
+"entry_ts": 1783032597.724198,
+"entry_price": 0.0001388131632,
+"token": "COTORO",
+"pair_address": "BbB23FDN89XBT6gJYMj8z87qKxNjFf8nv6FS2DoZkByf",
+"src": "_full_trades.json"
+},
+{
+"mint": "G5TD7vXeoQEXq7C9tc65Fr1QsTPeau6R6KNsowjMpump",
+"entry_ts": 1783032942.990932,
+"entry_price": 0.00010376186974999999,
+"token": "NEVER",
+"pair_address": "5XXQ2qB1E9v8k6eRWkWtUcGAa7zVHoRJNBL2bcAchkQC",
+"src": "_full_trades.json"
+},
+{
+"mint": "FamUNkepHXkVxjWHeMSpJmD4xVhCSyNnUG9GVsdmR2xQ",
+"entry_ts": 1782160822.717581,
+"entry_price": 0.00041430524999999993,
+"token": "MANLET",
+"pair_address": "AEUMT6aofX5egAdStd1fTDWXN5zH1JVSp9AxeM3tiZUb",
+"src": "_full_trades.json"
+},
+{
+"mint": "5KrvwhPnVgUaMdyqEy78PZXjLzdXUNTAjaLA7Zx9pump",
+"entry_ts": 1783030065.11701,
+"entry_price": 0.000140386806,
+"token": "Mymo",
+"pair_address": "EWNLAgrs1HmLTLxU9r8wvpgwSfHhCy8CR2bP7wretNxu",
+"src": "_full_trades.json"
+},
+{
+"mint": "D78NGAjigMXaX52u5wvvLoNWuDZW98DayCxVtM9Fpump",
+"entry_ts": 1782941965.991196,
+"entry_price": 0.00010025911890000001,
+"token": "VITALY",
+"pair_address": "DcqXnSNSDv7tE2itNGsMjxhGhk56nMpLUpmZbpcDNthV",
+"src": "_full_trades.json"
+},
+{
+"mint": "GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump",
+"entry_ts": 1782954567.030732,
+"entry_price": 0.00021454974239999998,
+"token": "Horseradish",
+"pair_address": "2pcBimRfLVUkLgb394XMMfrcB82BU7UtLuPhS8WBw6VZ",
+"src": "_full_trades.json"
+},
+{
+"mint": "5rL1QdzSskB5WUnXeEuvK8qgi2uv9EXG7XgB9EBtpump",
+"entry_ts": 1783021687.286379,
+"entry_price": 0.0001173051915,
+"token": "Luffy",
+"pair_address": "4uD5u9CoMVhwzanTNswxRcdMSukwKG9zxTnLsGmiKV1i",
+"src": "_full_trades.json"
+},
+{
+"mint": "5xPnm4sG1Waq1uLxHfHvbmMEKCFogimiwGbCsSV4pump",
+"entry_ts": 1783021565.435739,
+"entry_price": 0.00030346156799999994,
+"token": "NEXRUNE",
+"pair_address": "AnHG4meF4c2w4936WTEM5ZN9qUkrK2zgbwnY84zWNAyL",
+"src": "_full_trades.json"
+},
+{
+"mint": "qPorq2UQuP6g1KZnGKMQEfVxN87BYvaYdqVy3KVpump",
+"entry_ts": 1783019322.576227,
+"entry_price": 0.00031258591919999996,
+"token": "1",
+"pair_address": "mv9nmq9cM1koYNzkJtZnbsUievTDKH8cBnXhQmMcs37",
+"src": "_full_trades.json"
+},
+{
+"mint": "CzigqJ9h9mnfXq3G3jKBVcApKu8Kh8JtZGxarzY2pump",
+"entry_ts": 1782941758.133674,
+"entry_price": 0.0003839042704,
+"token": "SUPERMAN",
+"pair_address": "9u8KnTGmGUTHviN8EuJEdT2gWTu1gQvc3SpdmGaqUQiy",
+"src": "_full_trades.json"
+},
+{
+"mint": "7kkQU6AhUadtoszttEKprirvpgBihJHPoHVczebvi7i3",
+"entry_ts": 1782418835.626105,
+"entry_price": 0.00028653485235,
+"token": "Chaton",
+"pair_address": "3t1yZ52QvVWjNofVK3VU52qmt1kV1Xup4UCegciWhjFV",
+"src": "_full_trades.json"
+},
+{
+"mint": "AP6vhUNmXXPiccsRBVj3Gct5khAU1ytjwBV7vuNFbonk",
+"entry_ts": 1782940019.151757,
+"entry_price": 0.00018955669079999998,
+"token": "HOPE",
+"pair_address": "GDw5CQz7La499fXE8RNUeFT4MByFUuZoWLP4w1DsLXr7",
+"src": "_ev_trades.json"
+},
+{
+"mint": "CuGJf6cfDfMh4UxVgNJ5KFQ6v8Wv3qrqop6cFKsGpump",
+"entry_ts": 1783019680.343598,
+"entry_price": 0.0001190563925,
+"token": "TATE",
+"pair_address": "B9c9dVwSNvM8q2v1CdmymXtsWBWS7U1VjG2Z3aLjLzpX",
+"src": "_ev_trades.json"
+},
+{
+"mint": "F23GvgK5TvSA78FmibZot7gtU3yfAiPb4BkD4RrZc18B",
+"entry_ts": 1782936504.025221,
+"entry_price": 0.0001582342608,
+"token": "Ansem",
+"pair_address": "3nYtfzvrkGWUdZi9JRdQbVfKd3Nkc3NBnEFrGEhBR7CL",
+"src": "_ev_trades.json"
+},
+{
+"mint": "EJUosQZjpcY8pa93vfRGmUMvFJGG4WV2mE2twREzpump",
+"entry_ts": 1783015366.670053,
+"entry_price": 0.0001293202785,
+"token": "Way up",
+"pair_address": "x9B5R1WNpJMZ3frUKmMGARVJ8gSfpavb7ERkqhHAGik",
+"src": "_ev_trades.json"
+},
+{
+"mint": "3y3X6Bk6zpZpaFJ1KYJ7b33HbFM7ip5TqQPYLWJhpump",
+"entry_ts": 1779566339.825824,
+"entry_price": 0.0008052,
+"token": "GAPLA",
+"pair_address": "2FxX1awKLyAaiWZSa4pL9bYcLzmEtie6JpuoCu8HTzRo",
+"src": "_ev_trades.json"
+},
+{
+"mint": "Cz1nNU1XsBKWPfD9aGNSxxp7EmTCBjEFH4eprKtxpump",
+"entry_ts": 1782922718.403002,
+"entry_price": 0.00021097901440000002,
+"token": "Scamcoin",
+"pair_address": "HDB1D9FpzQF4VVJ8gMnbWf4tBk1DxGAAMYnoGE93Rwvu",
+"src": "_ev_trades.json"
+},
+{
+"mint": "498DeYRS7AtLdE5wbwXbpFtinMTDTJxuvfXMraDDpump",
+"entry_ts": 1782979392.31529,
+"entry_price": 0.0001512968464,
+"token": "FABLE",
+"pair_address": "29X7bKWUqYDJsTrJSPmwVJo5QRpoDLdEyDLEA6soWSW9",
+"src": "_ev_trades.json"
+},
+{
+"mint": "Ns6PhWqLDTexho3aiU42TZM7af5bsyEsqQffT4Bpump",
+"entry_ts": 1782929261.752184,
+"entry_price": 0.0001718030272,
+"token": "bull",
+"pair_address": "9PgDHSmcmH674Lst6GtrLyVVei4HR8WDGtJSgcRpMC2",
+"src": "_ev_trades.json"
+},
+{
+"mint": "HnXDnwTa68tRhLRZdJkVRLAeYrUkCYgFgDavtwD1pump",
+"entry_ts": 1782954564.254807,
+"entry_price": 0.000174965672,
+"token": "Fartcoin",
+"pair_address": "eUsB7o5HXb4xj3RD4eZjumRV6T65PQELbhd8mNFRjk6",
+"src": "_ev_trades.json"
+},
+{
+"mint": "Ed1yisBEAo8UXToSswvVFgzyJKpF48HEdq5kvz2zpump",
+"entry_ts": 1782952730.422384,
+"entry_price": 0.000171394944,
+"token": "vibes",
+"pair_address": "GeZGtZTXuCtVJ8nBQZoeqmRfCN8SVtRtDZYLgCinJhKM",
+"src": "_ev_trades.json"
+},
+{
+"mint": "wCtiCRJz69a5Mqkk2nHmvQwBGQCrUvM8fELoFGqpump",
+"entry_ts": 1782951046.938307,
+"entry_price": 0.00014925643040000002,
+"token": "BILLBOARD",
+"pair_address": "6gUKXnsEq6dsRp8RNUfU9wFadbmYRv8D1UictDemKGRa",
+"src": "_ev_trades.json"
+},
+{
+"mint": "Hnv13n2QUnaZm4a54o96Nx6e9Ysr2t3qB3CVauD8pump",
+"entry_ts": 1782947433.861053,
+"entry_price": 0.00010237800800000001,
+"token": "SON",
+"pair_address": "EkrznrcYhFH1NYRysbNW5bC1CoxCTt21FJ7SjyesLVue",
+"src": "_ev_trades.json"
+},
+{
+"mint": "9smMJxtru37j29w7pfcQZfpKXdsUohuDXqHFaLJcpump",
+"entry_ts": 1782942614.233282,
+"entry_price": 0.00019873651839999999,
+"token": "BRIM",
+"pair_address": "9hXD8sti6UmCzAcYw1DjcyhsuHtry5MW8GPrx7rMMyJ7",
+"src": "_ev_trades.json"
+},
+{
+"mint": "42cXQvAAr7hcPBPWAS4ocVtDyeJ4Fa6gRR2uG4gppump",
+"entry_ts": 1782938357.598544,
+"entry_price": 0.00023786680799999999,
+"token": "TBB",
+"pair_address": "6unnG2hL8udPjDpu3TchvAtptu3dq8AS7tymrWDN2LLC",
+"src": "_ev_trades.json"
+},
+{
+"mint": "FpzZHtp5tbvz6xndEtoJHoGEWcT7cFEuscdCh9RApump",
+"entry_ts": 1782939696.294546,
+"entry_price": 0.000183127336,
+"token": "VOICEBOX",
+"pair_address": "5ukdRdkEY8takptjBTgS7vfmoWhKJoRLV8zexF1XFs6p",
+"src": "_ev_trades.json"
+},
+{
+"mint": "DS5XsrtgCfeVtnVFY4bxoexU6FPczaBXQTjuNz5Gpump",
+"entry_ts": 1782922823.841479,
+"entry_price": 0.0001584383024,
+"token": "#fairs",
+"pair_address": "FyrKjDf1gbNH8WaqRepvxTDfx8gr1eirazKAq2J5xARc",
+"src": "_ev_trades.json"
+},
+{
+"mint": "3fGoNjPohYRVPk9iJuwEW5WuURU5gmAdSRgNgeaanexQ",
+"entry_ts": 1782921491.126646,
+"entry_price": 9.178811375999999e-05,
+"token": "KEYDOG",
+"pair_address": "FBNKwRG7DgurthvUmStyQVF1J62jNFfBWnFY6skpFYfg",
+"src": "_ev_trades.json"
+},
+{
+"mint": "GuSborgzpo6Hc7msoRouQyPJ3psxgAHm4amC9iDhpump",
+"entry_ts": 1782463185.285556,
+"entry_price": 0.00047617683144999997,
+"token": "Chameleon",
+"pair_address": "145oMsfrPcfPv3BR6HYfvbCB8jwn3z6Fo4LSprRho71W",
+"src": "_ev_trades.json"
+},
+{
+"mint": "FtPqJ2YTKmPyBxp3Npg18RE9Z77SQu9jrkRVYLzpump",
+"entry_ts": 1782801286.159186,
+"entry_price": 0.0001559816856,
+"token": "Murad ",
+"pair_address": "6Cq3AMNb9PLi4RKVpqEgza9Lwt5XEVup8hNB5iF8GGtp",
+"src": "_ev_trades.json"
+},
+{
+"mint": "86CQ5gYV7tJSD2EEAyGtPhes2Z9iit5jhiEtYEr8pump",
+"entry_ts": 1782602997.859939,
+"entry_price": 0.00013481282884321395,
+"token": "POINT",
+"pair_address": "HgeKwSQVPf4KmApNocikwXcGQmnenR7hj6d1cY5MBAnH",
+"src": "_ev_trades.json"
+},
+{
+"mint": "AxhcwfutahyDCSDaY2TCSJsm7Fu9dnCsQwSN2N4nFouR",
+"entry_ts": 1780143084.616773,
+"entry_price": 0.030907813920000003,
+"token": "FOUR",
+"pair_address": "AaCgA74kYnZY8bGFqpHufpVSaPGDs3RnzSUpeZVMspkN",
+"src": "_ev_trades.json"
+},
+{
+"mint": "AWGCDT2gd8JadbYbYyZy1iKxfWokPNgrEQoU24zUpump",
+"entry_ts": 1780161116.360654,
+"entry_price": 0.0034852509517846156,
+"token": "Clude",
+"pair_address": "7udbgT6w6X5VpdZuEm4UHbkuUaULYFZmKhntbNuNmaUt",
+"src": "_ev_trades.json"
+},
+{
+"mint": "55DtQ9ma7CBZNFtJD5vvd2yqqiT6BEQzZ6Nt7K48pump",
+"entry_ts": 1782770345.915189,
+"entry_price": 8.085887666666666e-05,
+"token": "MEELO",
+"pair_address": "2qXCvZ3tFgHnmQWNWBxpH3xxMSGwwuUBHcChAx3Ld5T1",
+"src": "_ev_trades.json"
+},
+{
+"mint": "G9ds9rppyJVZs4ZiRv6jVEq4Tq7kRcXxFgbhz232pump",
+"entry_ts": 1782766815.288961,
+"entry_price": 0.0003302770104,
+"token": "WYNN",
+"pair_address": "FqRiBboRyiY8Lyq5hn8CTn8LGTCQYoknK6K2MSKwwD1q",
+"src": "_ev_trades.json"
+},
+{
+"mint": "9ZkArkhhDMe19ToEUWnUiM75XWJxcTSF2vmKHM2Spump",
+"entry_ts": 1782692010.751417,
+"entry_price": 0.00037483721326745355,
+"token": "GOKHSHTEIN",
+"pair_address": "EUAFY6JjqxaTZSW65bez9387R8HkRZdZqYfy5Z8A5Rjz",
+"src": "_ev_trades.json"
+},
+{
+"mint": "SmsAPocWT66xxXEbTakqC1SDyYpeUoNYCk82gLB9wrd",
+"entry_ts": 1782764334.797029,
+"entry_price": 0.00012596620750000002,
+"token": "world",
+"pair_address": "AvyZJxQhYdQRnKVU64ZgN8xUp5BAzLhv4nn2KXp3umbS",
+"src": "_ev_trades.json"
+},
+{
+"mint": "HRJLkc6vDysVHdrUpCsQ5EBx6fPM15TZRKAhfUBnpump",
+"entry_ts": 1782704739.355458,
+"entry_price": 0.0001865,
+"token": "WIF2",
+"pair_address": "GJA8ec4mGb79zP3cNiz92VDoZP4KHCSQPJ1xKNKaBHW1",
+"src": "_ev_trades.json"
+},
+{
+"mint": "CkAuhMagnem2iukGwApsfw1ypWETWDdKFD1Xrrtspump",
+"entry_ts": 1782698252.329066,
+"entry_price": 0.0003668,
+"token": "BULLCAT",
+"pair_address": "Hh6ajgHBw5eRr8Rj9kC51zAZvrChjVvrAnc2w8Sy6G7j",
+"src": "_ev_trades.json"
+},
+{
+"mint": "FKU9nHsdwcn9VePxtV9bd2rccetqKP2KeZzh73SdWm6M",
+"entry_ts": 1782693835.512113,
+"entry_price": 4.313600021575823e-06,
+"token": "TRADE",
+"pair_address": "CKTx3P9ndxocHccm3p3kNq6sZ65bPdPwdxaa9NeMMTUE",
+"src": "_ev_trades.json"
+},
+{
+"mint": "5iDAk3xqPCAupe7F9N38sF2S8iduFLv399LFH4Jzpump",
+"entry_ts": 1782670382.815339,
+"entry_price": 0.0001846099032,
+"token": "DSCRIBE",
+"pair_address": "DJRREEBS5gRBchuNhDmFzBibUGDsPjYJWJrzb2FfRno",
+"src": "_ev_trades.json"
+},
+{
+"mint": "FDEF2U9geiWS7sdGPCUo2r1wGswkJr2mmVTECiH6pump",
+"entry_ts": 1782665681.767793,
+"entry_price": 0.0008311,
+"token": "MITCH",
+"pair_address": "AtPXzwvpNuXzeJUcFZGWZ6cK14NpE6UwmmbBTqnDc8un",
+"src": "_ev_trades.json"
+},
+{
+"mint": "EJu78KrhDyaLn3p8Y89dgVGDgLKxU4rzSE7fER5yNVDA",
+"entry_ts": 1782656128.488367,
+"entry_price": 0.0005003100032,
+"token": "\u82f1\u4f1f\u8fbe",
+"pair_address": "CfoU9W8NQPt615XAoyPnxg1Qqs5j2paVcrYQ11REEL4V",
+"src": "_ev_trades.json"
+},
+{
+"mint": "B6f27ETGcjgGNB1fqULJbXVmw9FnL8HgBp7R83hmpump",
+"entry_ts": 1782665435.79427,
+"entry_price": 0.001112,
+"token": "drooling",
+"pair_address": "2mQYy3LfJCnauyfufYnLGtLCXmb6M2shXQGV2mHx7Mpy",
+"src": "_ev_trades.json"
+},
+{
+"mint": "GJAFwWjJ3vnTsrQVabjBVK2TYB1YtRCQXRDfDgUnpump",
+"entry_ts": 1782661769.780336,
+"entry_price": 0.012349864637454364,
+"token": "ACT",
+"pair_address": "B4PHSkL6CeZbxVqm1aUPQuVpc5ERFcaZj7u9dhtphmVX",
+"src": "_ev_trades.json"
+},
+{
+"mint": "4wNsn7WNtct8kAhRyPX1qTovYPjFBiJFfoktDWt4pump",
+"entry_ts": 1782232269.350578,
+"entry_price": 0.00030962558399999995,
+"token": "ALBERT",
+"pair_address": "2oM5aT7KLgg9zZJkNSvwAkE2WRAPBfbr3quKF2keCMhB",
+"src": "_ev_trades.json"
+},
+{
+"mint": "gddvatrxe41tofhduzlkbgkjnbfvzqm8qbsv24hjexbc",
+"entry_ts": 1782663882.269665,
+"entry_price": null,
+"token": "?",
+"pair_address": "6zUaA19MqBuxGBLBLP9pQ6sHZpFKbv3BcLQZrirKQHxG",
+"src": "_ev_trades.json"
+},
+{
+"mint": "2esacze7z3u2pa1vrsflvmspf2mxxcfmagti4ptzpump",
+"entry_ts": 1782663876.851126,
+"entry_price": null,
+"token": "?",
+"pair_address": "GugheXrBa5Kxu2map58kietXCAU7c8zJJghAo6nwEnAY",
+"src": "_ev_trades.json"
+},
+{
+"mint": "bjb7vdusxmgmglsyglmhqnpnuhwvtbkxdcoyodk9pump",
+"entry_ts": 1782663873.9799,
+"entry_price": null,
+"token": "?",
+"pair_address": "52E4d6nGGgh3j5hVHhaGmxWVTUCvZ3Anooqp4FXkfGR3",
+"src": "_ev_trades.json"
+},
+{
+"mint": "atbr4i19gcq31rfr7yma2xvkcqeaknfgbtvktmdqpump",
+"entry_ts": 1782663871.404406,
+"entry_price": null,
+"token": "?",
+"pair_address": "7cmefCYxzK6yfBcmB4j234A3EKY2w13GfEdB3DJvNWzx",
+"src": "_ev_trades.json"
+},
+{
+"mint": "b6f27etgcjggnb1fquljbxvmw9fnl8hgbp7r83hmpump",
+"entry_ts": 1782663868.943577,
+"entry_price": null,
+"token": "?",
+"pair_address": "2mQYy3LfJCnauyfufYnLGtLCXmb6M2shXQGV2mHx7Mpy",
+"src": "_ev_trades.json"
+},
+{
+"mint": "cqi44layrcgazcbpkqtcp4xtpjkpcyj5trlfwvrcxck",
+"entry_ts": 1782663866.351111,
+"entry_price": null,
+"token": "?",
+"pair_address": "6Nb2RCmDEkeap5CgTL3porPwpAyKAiiNKDgPsH4VXW69",
+"src": "_ev_trades.json"
+},
+{
+"mint": "61qnx1uokdmypgdjzngfra3mb6dqpyumf6zdayz7bonk",
+"entry_ts": 1782663863.788059,
+"entry_price": null,
+"token": "?",
+"pair_address": "81RM4fW51f9YeSBiyq99r8E6qZfKYFShRzX8LRaJfPi8",
+"src": "_ev_trades.json"
+},
+{
+"mint": "63lfdmnb3mq8mw9mtz2to9bea2m71kzuugq5tijxcqj9",
+"entry_ts": 1782663861.310515,
+"entry_price": null,
+"token": "?",
+"pair_address": "4xxM4cdb6MEsCxM52xvYqkNbzvdeWWsPDZrBcTqVGUar",
+"src": "_ev_trades.json"
+},
+{
+"mint": "fgnzuzwqulduzk3wx4cgdkeeziswp9khqkl5hgefpump",
+"entry_ts": 1782663859.663757,
+"entry_price": null,
+"token": "?",
+"pair_address": "9HLXx5HqJgJJSVE1xsDJJjsnZmNhvAfXimQG7cBtNPp6",
+"src": "_ev_trades.json"
+},
+{
+"mint": "2kcdBw85q4qMVCjUkEynTnZ3bGbBeCqZRDRNLpeWpump",
+"entry_ts": 1782219779.51532,
+"entry_price": 0.00022008660479999996,
+"token": "traindog",
+"pair_address": "rG3bs2yMYgptgyvfnmvBdLBjwizY9HCDDVQGpxuyoUx",
+"src": "_ev_trades.json"
+},
+{
+"mint": "GdDVAtrxe41TofhDuzLkBgKjnbfvzQM8qBsv24hJExBC",
+"entry_ts": 1782662267.231909,
+"entry_price": 1.4202292355028904e-05,
+"token": "SEA",
+"pair_address": "6zUaA19MqBuxGBLBLP9pQ6sHZpFKbv3BcLQZrirKQHxG",
+"src": "_ev_trades.json"
+},
+{
+"mint": "44eFuquSFU8aC6Nn3LWmNapFn8f5WzwxrYEnJXjspump",
+"entry_ts": 1782495844.933024,
+"entry_price": 0.0002383079475,
+"token": "GROYPER",
+"pair_address": "8KWX4gscS8P32GW4u9wW2Fs3EvPNVQAf7QxgXjp2XoeR",
+"src": "_ev_trades.json"
+},
+{
+"mint": "6gN6wXB3nQ6FfmR1shJ6cfh6NeL8w7RVL3GCBvDVpump",
+"entry_ts": 1782653495.520539,
+"entry_price": 0.00026073582440000004,
+"token": "BANKS",
+"pair_address": "9iwJiXuudLZVnDf5Z9brdXh4HNGhJ1h2xsL9pqfJDSxi",
+"src": "_ev_trades.json"
+},
+{
+"mint": "CqrdKzJciuoXgSrc4wtxG2iXDgGBSgHggxwvCRzhpump",
+"entry_ts": 1782635905.213402,
+"entry_price": 0.0003889032896,
+"token": "Cobie",
+"pair_address": "8Nj6AA6u9R27dYVTRcEQokesoe7YZLwjWwJSpPYxdkQk",
+"src": "_ev_trades.json"
+},
+{
+"mint": "5pYB12kEhfhSFXJjZ7JtyqDpt6uUqhsF6iu6Ee9spump",
+"entry_ts": 1782208240.416456,
+"entry_price": 0.0003035464128,
+"token": "CATWIF",
+"pair_address": "4DYTbLYbDQyqJavJLrHt4XtQkVm7qAYzUTtjfsicRomP",
+"src": "_ev_trades.json"
+},
+{
+"mint": "AzsiFNsZniJXuB1v6mxYCY9dDVUXm5EC57iDCbV6pump",
+"entry_ts": 1782637142.991677,
+"entry_price": 0.0001199764608,
+"token": "Assem",
+"pair_address": "HcPJMJfJwYSGt9RnNuoLG8kqWEC3PzdVWRGgEX88QEZa",
+"src": "_ev_trades.json"
+},
+{
+"mint": "9Cn7or8TVicZYjSUEmgRk4A9XdXFzkBS8vn1ebt6pump",
+"entry_ts": 1782552456.964907,
+"entry_price": 0.0003600577575,
+"token": "liquititty",
+"pair_address": "7QV8SyY4z5w1irKzExWZGYL7qiEXLBDUUarXwgRyQrry",
+"src": "_ev_trades.json"
+},
+{
+"mint": "2esAcZE7Z3u2pa1vRsfLvMsPf2mXXCfMAgti4Ptzpump",
+"entry_ts": 1782648854.561309,
+"entry_price": 0.00020173166303215785,
+"token": "AnsemMeme",
+"pair_address": "GugheXrBa5Kxu2map58kietXCAU7c8zJJghAo6nwEnAY",
+"src": "_ev_trades.json"
+},
+{
+"mint": "Dm8g1s9t28bynXtGizmCTrJkWHk3UrriwRX2QChRpump",
+"entry_ts": 1782645104.797495,
+"entry_price": 0.0003107708548,
+"token": "Goku",
+"pair_address": "H7nxGJbGafpCf2rp8wzqTMkz8aboW5znhVQF18AxtuQp",
+"src": "_ev_trades.json"
+},
+{
+"mint": "NpqoucNKKJ62PwikH4NBvTm3R7mgREXoTtv7nJSGLUE",
+"entry_ts": 1782644728.425451,
+"entry_price": 0.00014276277550000002,
+"token": "GLUE",
+"pair_address": "6JJGvo9PrGqihrLKpTpiowPfsHEA3i5CLPrMzVXyYwVH",
+"src": "_ev_trades.json"
+},
+{
+"mint": "BJb7vDusXmgMGLSYgLmhQNPNuHwVTBKxDcoYodk9pump",
+"entry_ts": 1782642967.358366,
+"entry_price": 0.0014775024883782054,
+"token": "Groyper",
+"pair_address": "52E4d6nGGgh3j5hVHhaGmxWVTUCvZ3Anooqp4FXkfGR3",
+"src": "_ev_trades.json"
+},
+{
+"mint": "EpVHyKK8oxcLmp2C2NhAos1oDxgBNriw3wSLSozYpump",
+"entry_ts": 1782450840.825393,
+"entry_price": 0.00038381012285,
+"token": "GTAVI",
+"pair_address": "3jTCvdJp9Cszn9mjGXwLw37M48AUbSrY5eS6wFCZnQLm",
+"src": "_ev_trades.json"
+},
+{
+"mint": "yMJPZbnhoHib3ib8n8PfiVcp9yauk1vnaGKLx7epump",
+"entry_ts": 1782507157.406785,
+"entry_price": 0.00043829862475,
+"token": "FARM",
+"pair_address": "frxrS52rLF45nYwiMjEoqUH4g7CRry7NY13fxn6T4Dd",
+"src": "_ev_trades.json"
+},
+{
+"mint": "2q68mqEbjwmnMjs1o3KZDNZVyMv6RZKkHcm64iinpump",
+"entry_ts": 1782616145.422277,
+"entry_price": 0.00043309009920000006,
+"token": "RETARD",
+"pair_address": "4FsJvbRPUs55eXoR2mLdbAKhceusQxSyK5NDu62ntQme",
+"src": "_ev_trades.json"
+},
+{
+"mint": "2dJniDEAGCG7zWKseCkyrML3W23WLjDf1CGxpNv3pump",
+"entry_ts": 1782614407.193977,
+"entry_price": 9.208397408e-05,
+"token": "TURTLE",
+"pair_address": "Gpmo9o1me6Se9nRooGSRv9odpjkVUrctiBPp33H6sf3v",
+"src": "_ev_trades.json"
+},
+{
+"mint": "FaL1PFQhNo4JAGaQKSnKurWeNtpexqEAduQjR4H6pump",
+"entry_ts": 1783626310.089201,
+"entry_price": 0.00011680477974999999,
+"token": "DeFlock",
+"pair_address": "4coidAfPR7EKFTisiTQcnQawVmqWXPDsHguk4DZ59AhW",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "G8bNZABJLB6A1iKyuQdJWXGtgo6UxwQ2DC7gZXWQpump",
+"entry_ts": 1783612184.875449,
+"entry_price": 9.122680525499999e-05,
+"token": "fatcat",
+"pair_address": "ecMLugdZenwkrb3hcBRdPyPvFUMV9ZxfhVoMBRJHtAK",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "5pDbcXKVk9FMCz7P31iaezva7iR3rGWhJz6TQU6Qpump",
+"entry_ts": 1783609857.149466,
+"entry_price": 0.0003365900058,
+"token": "GAYU",
+"pair_address": "EwGHDVwQfH4vhPuhEZLvvoFzQco17vas2XNmWAi9L79W",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "GMuQjK3KLzdyZTn7fLS99vxD8YGfXeHhLzzb7Dcepump",
+"entry_ts": 1783639875.873972,
+"entry_price": 0.0001942141784,
+"token": "GINNAN",
+"pair_address": "65hzPL3cJBS3TEFm1yJAeqocFAhBBgfKK4npprntrnfx",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "EUFdqYcKPrNrraJuKjHGtAahxmG9Y5NM8voqSbp1pump",
+"entry_ts": 1783638242.826296,
+"entry_price": 0.00010517344388000001,
+"token": "CASHLESS",
+"pair_address": "GkUvaMG5UhxGwc7FghyFEzAJUk5qhUY3xg4obKfP8JFP",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "gCETSgf89gXTMZGSDWamDvmjoxypsJL55rjf2o4pump",
+"entry_ts": 1783608372.993794,
+"entry_price": 0.0001913399728,
+"token": "GEORGE",
+"pair_address": "E2bHG558um6zNHg79oejStSHtMUTjWSbFb41Avosbx7G",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "Ct4UqNTR5zfMGbMH68NeNeAB4cuFznX6ikHd88PXpump",
+"entry_ts": 1783631732.509762,
+"entry_price": 0.00012662495295,
+"token": "memer",
+"pair_address": "9gGGqeL5PELkKwDGm4rxMkmcmmy8te5MGu7kTpTpkpVr",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "2awqPMds8Zi7WMWZ3nPTmoarWVGpeVzkKA1Q6ws6pump",
+"entry_ts": 1783592502.97933,
+"entry_price": 0.00012999319774999998,
+"token": "pendu",
+"pair_address": "6th25RJGYrMMd9VGzCJySk75CuVSs1sHh8XRerY2corb",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "CizcDa22HJjXybKLriibqP167GcJjqiDHDPtuiMmpump",
+"entry_ts": 1783633013.131876,
+"entry_price": 0.00047305757619999997,
+"token": "ok",
+"pair_address": "7Uc5BJ9AY4qa5f93Pe6NuqgeeKusQpA32Rxt9jwszup5",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "GJekZotFz1ojfH6dYDWNaQTnuX5fHen9VBYNL6zcpump",
+"entry_ts": 1783631738.819397,
+"entry_price": 0.0004938501122,
+"token": "GRUGSEM",
+"pair_address": "Gd8asQ8Xde8MbQWkmvoSnvfLGyMKxWSJYdzTDuT8Krcr",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "ErM8VTSUfpvToPuRNf5mEJAvLc7oh7KqGLqrzj8bpump",
+"entry_ts": 1783565992.056138,
+"entry_price": 0.0001419652266,
+"token": "GOTCHA",
+"pair_address": "44VdETuwPYXUpqYhh5otJf8TLBkQS7HzA5yTXuVd2jKw",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "GaZb3DE2U3Jcjx7ddAVwobsBKnCaDoJWLbzTvJYhpump",
+"entry_ts": 1783630278.998625,
+"entry_price": 0.00045936944939999996,
+"token": "ANSUM",
+"pair_address": "3jEQBiQCWSABEGEmAPFJfr8UEbhfNT7wVEDAcDyuJ1oL",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "J5ZognFJEepsWsCQPmqVchvEvsUMomEkxd8LbMrH2J7",
+"entry_ts": 1783618669.561568,
+"entry_price": 0.00014704493705000002,
+"token": "Bullscan",
+"pair_address": "6WVuh3BuoGhU4sXdgx1VyArjrBjaUKnJPL6Hwr8UY5xX",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "3KHMZhpthXuiCcgfTv7vVu9PpEz64KAEURFwi6Lopump",
+"entry_ts": 1777550890.433149,
+"entry_price": 0.0014611752454115295,
+"token": "Goblin",
+"pair_address": "BJt1j9BqcGGHLmFMmCwYvD5aapSEut1MvFCR64xmrAYV",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "B4VfwB9RqfDoPDBteFiz9hPKyraNdzBdLf9pf658pump",
+"entry_ts": 1783625199.769698,
+"entry_price": 0.000309490353,
+"token": "$REDSOL",
+"pair_address": "Hi4aYXqebzS6uk8HgfcL2Nf9SUYXCSi9KjK2yqaaDEaV",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "3TYgKwkE2Y3rxdw9osLRSpxpXmSC1C1oo19W9KHspump",
+"entry_ts": 1777494877.888103,
+"entry_price": 0.006309660931901447,
+"token": "BULL",
+"pair_address": "HNGjLLZkWx2mNwhWdKFYcMowz8FTh2bXxdpJ1vBVkjNB",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "9zvFpDR7u3NFnCZUkZzxJNuFSF2gnHC4xJ1bMdZ5pump",
+"entry_ts": 1783611439.408827,
+"entry_price": 0.0007726480554,
+"token": "Bullchuriki",
+"pair_address": "3oBFWZy21cexKNFS84PBtb5VvQ5MijVErnGHWSHCMirY",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "7eeh3GhM2onqZdnBPzKwfdqcKxmYEtxEHwYFT8ZRpump",
+"entry_ts": 1783620206.56721,
+"entry_price": 0.00011020504779999998,
+"token": "J-Space",
+"pair_address": "A1AnxpPsbXwWjJyS5FiSsFPdgF6vCcAsTjqkckGU2Esj",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "uKBanBA3CLAoctJr6GHT6WbvWKX1uaGsveD9SjHpump",
+"entry_ts": 1783617734.875873,
+"entry_price": 0.0001273617565,
+"token": "Cuckerberg",
+"pair_address": "GSrP4h93nCGYbxqMviKLyAN2QbZ615j3kSzwAKNKDCKt",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "G6cHLEwYHyZJXBhKpSWMU6RUtcq9HM9UTn2cTEdKpump",
+"entry_ts": 1783589136.240846,
+"entry_price": 0.0004756810268,
+"token": "ARROW",
+"pair_address": "2kgp6eoGqJUEvXTmMmMow45syg3mBvq9TdLXc34uJJ9M",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "ArEvdUzDBrxd6WZZZyV7zMemwij65M6JfAFF9PuPpump",
+"entry_ts": 1783618997.134739,
+"entry_price": 0.0001378875215,
+"token": "bro",
+"pair_address": "BbMCA8UmaBjbEhUiiUx1modzgKVCCckY5fMseFxyQCow",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "56TtBKG8mvaHn7V4kS7GqXtf8A7S1NT5bw4iKUMBpump",
+"entry_ts": 1783617749.859228,
+"entry_price": 0.0002635030634,
+"token": "$1MGROK",
+"pair_address": "FnHP9nmyaxKF46AokNmHC1WbY4ubYu6vQfMAQjEzLcnJ",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "J5bTgnS76LGWt7rQuSi29NCCsT6JqLLxXcPSDGk1pump",
+"entry_ts": 1783615908.567707,
+"entry_price": 0.00013429930729999998,
+"token": "SPAZ",
+"pair_address": "4uXf3BuRN2P5YWrQcu916QX2PiSguvbiwYQkviBZe47s",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "uBLGz81CGT7sncb4ft5Dn2Ty4H6siH8yuhABBaDpump",
+"entry_ts": 1783613179.877296,
+"entry_price": 0.0002485161342,
+"token": "LADY",
+"pair_address": "34uTGsRNaVFAYo5SLyXubVgmiiGAGqVXUecEy3p2tgXo",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "9QNz5x4wmUWgpaF2zx7UtLvzvgyDzzVznpdJ85cNayZC",
+"entry_ts": 1783605901.140394,
+"entry_price": 0.000287933811,
+"token": "Dab67",
+"pair_address": "Hx64vH7Yzq2c9UWqLvfpBtb3HhEFYbMELDyFnecCcGJ3",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "aN7NoiFg1sJTEBcmXTn9CzidgrTLaNoLCrXz1Repump",
+"entry_ts": 1783611008.875439,
+"entry_price": 0.000175018591,
+"token": "BILLCOIN",
+"pair_address": "EGf1RhbTdeLs13oFi9vcBQF89FUQpieJeb8zNQx6uYM4",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "B8dM5qotpr5ajfgZgprXKahSW4VbrY8mZSNkFxzQpump",
+"entry_ts": 1783611445.363821,
+"entry_price": 0.00012830907535,
+"token": "ALONSEM",
+"pair_address": "4nHHmf6PbJomjxTHFePoREgaYp6vxG8GpcMad22hRnPF",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "87FN4VjHdYWD42risxZA8i1LPzTPpjWmScEy7ULCpump",
+"entry_ts": 1783609027.733327,
+"entry_price": 7.710122862500001e-05,
+"token": "BULL",
+"pair_address": "44ubnaUPJeBtK5HEnumpuZt8PNMNsRVACcUikKnfw8mj",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "G2L8j6Vr2xziHCh9dhhV9J72SMpirtNYZXGV1s68pump",
+"entry_ts": 1783606992.354745,
+"entry_price": 0.000695968356,
+"token": "BIH",
+"pair_address": "FbxLafJSQyEc3QH1P6EKvzL39wPPdcKDe8o68YCXXLEj",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "31mMFCFe3V5tx319s5kNfnPrYCzc8SuxPofGcyfepump",
+"entry_ts": 1783586621.424799,
+"entry_price": 0.00043975345680000004,
+"token": "EVERMEADOW",
+"pair_address": "AfZmaLhPhZYx6YRmJhhdzV5fSVKy5a4Qox55MQXicMfi",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "CCn51M9N7u8wUv5yEpK1H6EKdJiAc514Nbm9xXWNpump",
+"entry_ts": 1783592012.45969,
+"entry_price": 0.0002302443986,
+"token": "CLOPY",
+"pair_address": "4Kz3QJfgCm65a1vrzzugH9XsgDYxA1RJ1NQZGaVeg1mv",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "8jayQDfRc3GYxftBJ2VAwjqmRBdYPC9KnjY15rc9pump",
+"entry_ts": 1783600457.008713,
+"entry_price": 0.0004175900176,
+"token": "SAPIJIJU",
+"pair_address": "G1Dza1PDoDb91tFamu5TpnYHvmn7R4Wz3rmop93AKoZh",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "HnkB6cP2fEZE6KwdHwLEdEEDT8J5kUGPL1wFRqd4pump",
+"entry_ts": 1783584391.435654,
+"entry_price": 0.0006721535096,
+"token": "AVAJAK",
+"pair_address": "CW3K643XAzZFLHTUyGKdq1Zx2eTeTTnu4bUs73WhaZc5",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "H7SNSAFv2CBznaFpszU443Q7raLCgjnEEtZniHynCH9k",
+"entry_ts": 1783587726.600519,
+"entry_price": 0.00020293944540000002,
+"token": "gasmask",
+"pair_address": "ASjbwtWeUz28nBspQrxFJyydZUEARDixyyqo87WMUmSc",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "2A9bscgi4N8gQxpMsR5HdgzN25q5setem8du8TD5pump",
+"entry_ts": 1783593963.344637,
+"entry_price": 0.0001300984554,
+"token": "NARC",
+"pair_address": "CNgYhQVm3mdwNsZeaf9NgnBxf5gWbxsDCrrg4qL48J2A",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "HHmh4bSYBXsPQiSQ6mdRqWLvSowPY5s4rNCaL8mspump",
+"entry_ts": 1783584235.868385,
+"entry_price": 0.0002995332836,
+"token": "TOLYHOOD",
+"pair_address": "FBdVvFJkviAYP6Kw6SuNxWpofkZ7zyHMXUJj3acvjmYC",
+"src": "_trades_fresh.json"
+},
+{
+"mint": "3d1qHSAkQhoN7kN1C6tvpAArCkXWxwYdBng6taXCDM6u",
+"entry_ts": 1782092346.975424,
+"entry_price": 0.0002293578,
+"token": "RTM",
+"pair_address": "EBNUexqpB5WjKXJsfm3ruFt7zb7ZbXHZGR7YdhYuvuyy",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "EA6jvQhjR2iMkRaVy9P9drM2ExowaFZWGn3Uo8FPpump",
+"entry_ts": 1782092814.226176,
+"entry_price": 5.074128e-05,
+"token": "USBC",
+"pair_address": "E98EyyBMtmBKXWYCNRDbCDKj6hFAS3hzxG2Lkdq1Htd",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "8jvtfeVTJQsrQ3L4kjQmRcXJ1iSFQMmkjkCqPUe3pump",
+"entry_ts": 1782098003.310308,
+"entry_price": 0.0002804598,
+"token": "MEEP",
+"pair_address": "CGVKaKBHnm93UL9tDDWnFEyjt7d7qZTCtSYvkznEvUEM",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "2nZNHm3Lr9umG3DVrzYwHgktwkuKuJRXqqRqs3ewpump",
+"entry_ts": 1782101140.389503,
+"entry_price": 0.00015691320000000002,
+"token": "Osiris",
+"pair_address": "G3rchnZ2WLsBDZSrVME4fTyzFP57F3yvvqWMxAy2b4ce",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "4yum7nfMZ3WtXgFfdWg4FKciktmd1ep6M8tjKw38R2Mq",
+"entry_ts": 1782105129.641013,
+"entry_price": 0.00011751739999999998,
+"token": "spooder",
+"pair_address": "BLb3mxeTYhReLdHAfjbhPbnr6bMhM8B1Kg8iJNnHNnqf",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "bS532krUcXBMNqXURPtGqYA7dhEsenYe2z9QKkcEASY",
+"entry_ts": 1782111282.416652,
+"entry_price": 0.000336672,
+"token": "CPX",
+"pair_address": "CRHCWU3y44NuNXZsRh2Bx1Szkvxj7WUu7XvjjbtfZArw",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "cY435H7F4wcZ4NgWQFM3wUjBDffdb3qdsQST2EVpump",
+"entry_ts": 1782114559.939518,
+"entry_price": 0.0001931856,
+"token": "SPEEDYCAT",
+"pair_address": "8bhT6mBtSrY1KpUHLX4MVkNMfbJ9xDgKVheb7cYn6Cku",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "67ipDsgK6D7bqTW89H8T1KTxUvVuaFy92GX7Q2XFVdev",
+"entry_ts": 1782115979.733381,
+"entry_price": 0.00013491312960000002,
+"token": "BMT",
+"pair_address": "8iKWAfkacV9MNAQpBdARfM41SxqtqaSt6YdQzwjK994C",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "3bBQrzzq9DRXXFfC9nUno9m1MBm9Y7dVnBBK44bVpump",
+"entry_ts": 1782116572.922092,
+"entry_price": 0.0001438872,
+"token": "BTL",
+"pair_address": "9gpmKoBtUHaaCrhevZCLwsXPyXgkwHU1a1pfDtNuYvbp",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "3HVEvoduJ4NKyLk4jUE3sjDX2L6sSDNHmcoJzUTipump",
+"entry_ts": 1782117824.095743,
+"entry_price": 0.00013891234500000002,
+"token": "json",
+"pair_address": "HhaMN1NTdeiEq9G174bbQosbr2TEboqkbDXrxw3ZzQfn",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "CNBuoZWcqAvVZJCrPFF1XQXeeXJsZKj7SUKZoE6Vpump",
+"entry_ts": 1782128011.384926,
+"entry_price": 0.0001742478,
+"token": "leverageIT",
+"pair_address": "GaneYo6ufFD1z2yDFa3NyMMc2ARnZhdVBu6sfb8PbKbF",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "y4JiNFzBPofqiCpuDTcVq11nhUDQoDzeK1UBCoXxF9y",
+"entry_ts": 1782134485.230219,
+"entry_price": 0.0005328636,
+"token": "CVT",
+"pair_address": "4sF3sXJh4yEr3Gn58dgBFfG2Y4grUtvxLMJao9oCSRew",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "FhwV2wZicstWLnULi7dXZYaCRRv17AtQ9RcmJSngpump",
+"entry_ts": 1782136759.89162,
+"entry_price": 0.00018697320000000001,
+"token": "Stickman",
+"pair_address": "87QZaobfELi5qDm6wzmGpb5W8PPqG7h5nR2z2z4gs2tD",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "DQjXSW2MrNqKfq2aLXTpw47atLnkdm877gRHPWMVpump",
+"entry_ts": 1782137747.102061,
+"entry_price": 0.0001637268,
+"token": "ORBRYN",
+"pair_address": "3xx6mojJQeGDTQHcJG35EgcW2harQusyJ4uBxHJh7b3q",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "iu3A7azWTm3zQSk81SUC1JctB4zPYnxLmcmqq71EASY",
+"entry_ts": 1782140941.002969,
+"entry_price": 6.412799999999999e-05,
+"token": "BITAGENTS",
+"pair_address": "EXtg1FC4FEBuPvPmj4Eh5jGJf9eTUiC6zRPCeAFdSKz7",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "5NgDxD1en3YXvS9amAtgb15nc4oRfuGxomcAfu4wpump",
+"entry_ts": 1782141585.749817,
+"entry_price": 0.000122745,
+"token": "glippy",
+"pair_address": "Ad5krvNLCkJcbGvSEu2Nht5TtyiZUE1BQ8r5ZzuD6bwE",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "HdeAPoHivsm9MZfeY5tW7apJEprc8Fs594bWmnzfpump",
+"entry_ts": 1782143185.349823,
+"entry_price": 0.0003419826,
+"token": "ICPX",
+"pair_address": "2fbNjGAR8dmWLVVBiGoZk5RVCN1A95C2JtiAB8DTrL3o",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "E8UXwqhNiiMwVRRV4F81rUBUYXNUd4bA78ZxpQxZpump",
+"entry_ts": 1782145262.172388,
+"entry_price": 0.00015691320000000002,
+"token": "JAMESON",
+"pair_address": "HFSywti5xPHqKNUW4xYsGiyPqLrTB2nbxgBy4Go1x7cK",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "9wY6TJtK8H56d2sQFKwrhFoZDz22z2vEQxUciAFTU3aE",
+"entry_ts": 1782171723.301468,
+"entry_price": 0.00012065609279999999,
+"token": "GOAT",
+"pair_address": "3kSqqP9eCUBxF7VmeUTu1SZEYgs8pkPdpDBggsjroymR",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "9spN3Lrz4tnFXaXfR9QzKdiMd2hE4AUbAJntui21pump",
+"entry_ts": 1782185616.112714,
+"entry_price": 8.718974015999999e-05,
+"token": "XP",
+"pair_address": "6QsLU1hfNa915yE8pXnM1hgouVNfgYSLWC7amE6SeHAK",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "AzdSZX3bGj2FGR8rEeH4fhrUpQhLAxvypUJMX3BDpump",
+"entry_ts": 1782188787.097123,
+"entry_price": 0.0001568220096,
+"token": "POK\u00c9FIGHT",
+"pair_address": "7AeowDHefqotCDwRydN8bxjUsNdvLCaG3Xmc6nczsVBm",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "9qpDk7hGSHqyfMGDT7p4zFQ35aGff248Qes48CgLpump",
+"entry_ts": 1782208916.606018,
+"entry_price": 8.43871392e-05,
+"token": "SPCX",
+"pair_address": "4zBjVLjGqjt8PKzJdPhsET2C2rvNZ1Ws76tBc4kVAXwT",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "7bK4jRMa3aY85wJMQEQqWsmY9mmrRT32AFWZ23cBpump",
+"entry_ts": 1780156254.465977,
+"entry_price": 0.000484786091026,
+"token": "TinyWorld",
+"pair_address": "HXFDxwervt35vNJq91y57P8vzfpocK3Qm8dC8kmBLwiH",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "FtgKs1pyNhgGZmhywZUmgwtKR9SQnQgD9L1cnqKFpump",
+"entry_ts": 1782218085.574886,
+"entry_price": 0.00036464723519999995,
+"token": "MrAsteroid",
+"pair_address": "FrGruVuG2KJMNHJfjCDYQNUzG2BqUHKx96r5PboEeCPd",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "HeC2xWqGT9gPfdvaMuqxPo2bUQ1XgY5wRtnrwTEHpump",
+"entry_ts": 1782220099.970381,
+"entry_price": 0.0002003035392,
+"token": "BELIEVE",
+"pair_address": "EBBGBx2L4UyANypmZ1xTsLY84EWcbDMCcRzSvV6Kj4A3",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "9mM1Mc4Ta9UJJ32v5qsHef91PiXi7EWyiSsqF5WXpump",
+"entry_ts": 1780455415.737459,
+"entry_price": 0.00051415113144,
+"token": "CLASH",
+"pair_address": "GT7Ac2YdrtbMfbWVhr2Au1RvyMp7KrERsoYjoxZTHvoF",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "BSj8BynArVXrY1dJECgPAwTcAKTuQRYAXH8S61H3pump",
+"entry_ts": 1782221919.088126,
+"entry_price": 0.00011869839359999999,
+"token": "PLOTZ",
+"pair_address": "7oTaC4JZSVxh1ZyqrXUVsgb8oAYd47z2JxZBDhTBJnxF",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "6Tavwkgy9kXAEom9fcHeG2wetdJhN856j9NGW8fqRUST",
+"entry_ts": 1782239646.286265,
+"entry_price": 0.0001625920704,
+"token": "RUST",
+"pair_address": "Fq4S1spF7s9wK5Fo7psy76QcjnpYQKxcjQFqCDT4aZPY",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "7RDvypx3p9EWq4nZZKux1ZQAc7DUWXpHTVKxCCnupump",
+"entry_ts": 1782242680.861631,
+"entry_price": 0.00026202258239999996,
+"token": "KNOT",
+"pair_address": "6oEQVz2F5YunU9PpdQEiKSyvoNDVVq8h7UC2TrpYzQAb",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "BQnsQ7LrcKVUqB33cqkVmbN1GNvqCCVYqGLLG5fLpump",
+"entry_ts": 1782247996.777162,
+"entry_price": 0.00030921343679999995,
+"token": "CONDOR",
+"pair_address": "E9tbv5w2iquEsyVaoSjiivMdFuSRJmw8zYFjEyX1nR3N",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "Et3nNiuGyhQxwVW3W8pLTvsMXcSKiyogHrNjdr4wpoke",
+"entry_ts": 1782250089.593636,
+"entry_price": 0.00042172962239999995,
+"token": "QUEST",
+"pair_address": "8qifgHNXegzE5T6qGQdmAs9dHCBWGeQMwzT2jRtx7gia",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "dFybjfpAbTxjen9Ux2Q2dQSFTmrbcVRzYsGoiV5pump",
+"entry_ts": 1782251063.035149,
+"entry_price": 0.00015919185599999998,
+"token": "MBGA",
+"pair_address": "26GLCdWX5668yEQ7hHhLZfdnaRkSNWxtguV7duFnzR7V",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "3eNUB8ZLroF9PJR9bbvzwhnFTCTTn84rNPFfhyumpump",
+"entry_ts": 1782259993.331882,
+"entry_price": 0.0001046853888,
+"token": "Lasse",
+"pair_address": "H2JYvxJG2gLhPs92wjY9zMDMv5bhTzafchAFffL3Tu8h",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "6bTQPMctA5V8RNJnUc59mP1tAJB5dzLpUep4JuFEASY",
+"entry_ts": 1782263185.280014,
+"entry_price": 0.0003082861056,
+"token": "ANT",
+"pair_address": "57NMbVt2tpNLzEZrbjkGZm53qFze5HeBn4LfqunUQ5Uh",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "7newJUjH7LGsGPDfEq83gxxy2d1q39A84SeUKha8pump",
+"entry_ts": 1782268258.979533,
+"entry_price": 0.00036968013495,
+"token": "ATELIER",
+"pair_address": "5BFaLxKRG5T9P9LvvL1nawsLw1zcZcKkrtqzC1Rawv6Z",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "CvXyWJRq3ZxqifMzAuyUomDvJ8PF8NitXx8HxRLGpump",
+"entry_ts": 1779558946.867611,
+"entry_price": 0.0008165,
+"token": "WYNN",
+"pair_address": "5gP2NMgddgx48QJsRJ54mhLLjvxxkmK5gYvdyQH2DAe2",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "J7nejjwUAxiSbX3DpvTkURscfFSrK33saNoU2ovHpump",
+"entry_ts": 1782272935.26723,
+"entry_price": 0.0002097536364,
+"token": "CASHBACK",
+"pair_address": "92xphy2aJyosodbwsTtDp64KoT5AXMQr1CLUVXkSkLEq",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "B2jVg7mdwzUGDeS63ZMHs6wHKchpTwBwZmuBJUZQEF3q",
+"entry_ts": 1782277852.13378,
+"entry_price": 0.0004119485832,
+"token": "$CWIF",
+"pair_address": "Dm2j2t2aqgoZZqzxqbuvNFrLDWfEcW5b1TNEp1exYN1z",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "AE7gr74vQqdYhMEGQCdZRZjHn5TovkCJbWwirgDkpump",
+"entry_ts": 1782314639.323296,
+"entry_price": 0.000269944576,
+"token": "ALPACAS",
+"pair_address": "HCGVhwaU61UWipP9Ngamg2Rnd3L4XGdMzrTZT7JJeonR",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "B4Y82ba22eF5KLhaRBfGHkfnxAM2UzLxfHcLWH3epump",
+"entry_ts": 1782314831.80768,
+"entry_price": 0.000214687781,
+"token": "CPU",
+"pair_address": "DTH6E1yogK2f8mWogC1NJBzaT2K4GFzPsauiMoKeresV",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "124Yn3UCD4YBb8JcyW6A2g9jjgG4Ykp8VBp7XQNQpump",
+"entry_ts": 1778028111.150268,
+"entry_price": 0.0006018192527350048,
+"token": "SELLOR",
+"pair_address": "HDui6KTfJ3FTkfTie3VhwPDPDaFmZNkQwXoUYcHWd2DW",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "31989YsfUahV66TGiMvdSyTj1AQNvcdT327Uiu9mpump",
+"entry_ts": 1782333965.660214,
+"entry_price": 0.0002336607144,
+"token": "WBET",
+"pair_address": "ApzDirX3ee11c5PpaPNY5ecz29cDhGua76YoC1s7Bs3e",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "45Kt1mykq7kQWq2kLs1mfEHJmDLiiTk2rFKvkYX9pump",
+"entry_ts": 1782338702.423474,
+"entry_price": 0.0002672462576,
+"token": "STARMIND",
+"pair_address": "8om26igF4agAcitfB8mPS9ossmhDVnPt4pPxnuo2SsxN",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "AvxFBjWydMYWD7C8pHzSkGxNYAFWr7aNBbAKm84bpump",
+"entry_ts": 1782357747.442996,
+"entry_price": 0.00047737982080000007,
+"token": "Merlin",
+"pair_address": "CQCiNRqQohijwKxxHvTzbpFvpKNFWtxeshCWqEJrgbEB",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "AXLmMWkRmSPdPxkuMqAD4nzYBK7QRssNkYZ6RXzLpump",
+"entry_ts": 1782383797.311058,
+"entry_price": 0.000119372994,
+"token": "EAGLE250",
+"pair_address": "3Qhv2Z6n5aknNzx56A2n4qvqUZ4CvbCkUh24KcK9T9qY",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "qgDCvvaY2jAEdFwujKhYqoJ7bVkShhi3BL8hyRBpump",
+"entry_ts": 1782386619.601551,
+"entry_price": 0.0004850484122,
+"token": "Groyper",
+"pair_address": "DhZnNNDDdr1vzr1nmcNkfVNG7WarUdXBNSqmeBhZJJs3",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "EhR8t2Hd9KikSPiRHdHs8WidCLa3T1VEPFpnCsRRpump",
+"entry_ts": 1782414653.887947,
+"entry_price": 0.0001228990345,
+"token": "HTML",
+"pair_address": "jtJr25qL3RSkDxgJT5unwpKvYgEbvWLxMfs5Zbtudiz",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "C1mg2ddme7Hpwjmxngr1AfrwRSmLqL1CVHPzUmapEory",
+"entry_ts": 1782429161.029418,
+"entry_price": 0.6285839224499999,
+"token": "FLKR",
+"pair_address": "Bq5xCCaJduwoNo6A8dq9HjMTz4ar5a8ZiLYaTpYPzNmT",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "y1Jx8x2yQCJbJ8xm6MDuahELaiBmb6KeNoXqTAspump",
+"entry_ts": 1782430133.821599,
+"entry_price": 0.00026249566814999997,
+"token": "GTA",
+"pair_address": "J7AKAAUZiwDP7Rbt27Myr3YwapnFdogkrLYwpPBv9s7b",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "EnTu4xYmd49b6drs6FwTodxcJW1sHFurbvueyk9Kpump",
+"entry_ts": 1782430350.780651,
+"entry_price": 0.00021261779,
+"token": "\ud835\udd4fMoney",
+"pair_address": "EFNDannBFANGABPEjUNZ9H6LjhNa3cTgVVQ8P23iWZYv",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "29Mcsn4JUQjnxX6gNiVC31WjffJC57MpLnFGGGPGpump",
+"entry_ts": 1782435115.978905,
+"entry_price": 0.00019140611040000002,
+"token": "LAZARUS",
+"pair_address": "AWNqzmoEX9YGbF5fxMpNsxjJRjfmhrZHhxCvCKaoyAiX",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "FKshTXX4wUcirV9b4LhLrNP4cxAsA2VBAFdMEw5EASY",
+"entry_ts": 1782439154.074051,
+"entry_price": 9.747095503500002e-05,
+"token": "EASY",
+"pair_address": "9xjMfmvLCUjeUbLnfSPNwnySNL2CddGDBndfhXMU9tuA",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "6gnvghh8LKoM59p1WZSuTgYmdJrnZnhU7BzCcEaEASY",
+"entry_ts": 1782440064.626078,
+"entry_price": 0.000200143332,
+"token": "SWCH",
+"pair_address": "2PBwRFq5omijBHpaarY2LENJfqe17v2tbZt7FZiUjee2",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "HqhumkTH3YNup3Q2e8Rf8Mo5WuAXmu7afe7PySw4pump",
+"entry_ts": 1782474464.193752,
+"entry_price": 0.000136212474,
+"token": "Greenland",
+"pair_address": "GxMyU7CYPzctAnKtHuHUu4mpeCFdSXZUd1AqTSkFFEn7",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "H7uiPQTTq7d8Rhuqw4V6ntroZhakbLCw9PWzuLyXpump",
+"entry_ts": 1782477405.459912,
+"entry_price": 0.000309872626,
+"token": "WENDU",
+"pair_address": "DifSa6XdSwCeYxDdexGMV9WipLradmVDjGGSDHeVr834",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "6KDh3wLSZMg37nnU7prtKZr7Rut7WQGSf33Vp1G7pump",
+"entry_ts": 1782489143.098747,
+"entry_price": 0.00037392235239999997,
+"token": "ANSEM",
+"pair_address": "EDEXqSN8ndyUduSndnGmyBr9czEvkBvXJb2vpfmvo6x3",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "4vpf4qNtNVkvz2dm5qL2mT6jBXH9gDY8qH2QsHN5pump",
+"entry_ts": 1782495393.578796,
+"entry_price": 0.00043754503099999994,
+"token": "Daemon",
+"pair_address": "7DHJUvZ2xrAFY1kZtibHrXtLiutJ7VkivH9zHwm4tyQ9",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "CSbGtm9xGbUvDpM6G163xA1qgTDxcU7wHhAnC8Jrpump",
+"entry_ts": 1782496102.268689,
+"entry_price": 0.00019345383925000001,
+"token": "HEISTED",
+"pair_address": "EnVpF8LAMZSwv22pkJAMWYkMw4kRX2BkArPwYAdir7CF",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "FP2e4AjzakmLxs4vwrqtbAB4eazJ5YTiBEGiWp8orYPA",
+"entry_ts": 1782514609.805759,
+"entry_price": 0.00010511733750000001,
+"token": "JALAPE\u00d1O",
+"pair_address": "2yFBJELZga6YPTv1z77mcdxYf9uDFK8UutyeEJoXAWRd",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "3gTUTGGWnZ4r6vP9L96Mw5s6Awvu9s6jRwJ8F3Dmpump",
+"entry_ts": 1782573262.860339,
+"entry_price": 0.00011296824299999998,
+"token": "Gems",
+"pair_address": "8UKg25pGbHiqNH1QuMceT6aEgssjpte4CCBn79okg1Z6",
+"src": "_ng_trades_badday_flush.json"
+},
+{
+"mint": "jk1t35ewk41mbmm8awoyvanbjheeqzmdettsfnqpump",
+"entry_ts": 1776559912.008679,
+"entry_price": 0.001040537449041128,
+"token": "SOL",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "hon2rhaiqkcdtuzl5ga2vjxpr7t1mpck2ut2ahkcpump",
+"entry_ts": 1776560059.822259,
+"entry_price": 0.000852917136805594,
+"token": "MAGA",
+"pair_address": "HVimk99ygSSDnWz9eSqumdThrFz4DADE7j6phmFms6at",
+"src": "live_trades.json"
+},
+{
+"mint": "ger3mpsoqqiqsxykuh8gzqymconyjsnz3uvrl9bmpump",
+"entry_ts": 1776563331.726667,
+"entry_price": 0.0003572185130649655,
+"token": "$ASTR",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "6hwcfjahkszfhmk4numtg4zuxyqzjnyvevwhf8kopump",
+"entry_ts": 1776563412.038886,
+"entry_price": 0.0001535910697485184,
+"token": "Sob",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "bnxwvsvzygbxtudydqhzjvfbqgvezeipy4zdmqcbpump",
+"entry_ts": 1776564153.738173,
+"entry_price": 0.00023892102416919487,
+"token": "assface",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "f1ppshedbsggwekh78jvgoqr4xkqhswtsgglpgm7bcp2",
+"entry_ts": 1776564295.415777,
+"entry_price": 0.0021932122575424574,
+"token": "ASTEROID",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "hx38toqhzzxxey82uvshvgfbp77awqk3mv4ztwevpump",
+"entry_ts": 1776564327.252052,
+"entry_price": 8.059199666709903e-05,
+"token": "Sharon",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "8nwtzwgm4cv8hm4fjxr69ac1mxdyusan3a9hvyikpump",
+"entry_ts": 1776565122.946967,
+"entry_price": 0.0015986419988338113,
+"token": "ASTROID",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "5yx8bsgm4aenu8sbsjmeezssdcvnt5sx96mxgf69pump",
+"entry_ts": 1776565215.199703,
+"entry_price": 0.0004586872164667371,
+"token": "XRP",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "cajtthvc878f8cz4zewdvgjkjfm7rbyn8mb1go1cpump",
+"entry_ts": 1776567706.862294,
+"entry_price": 0.004394515849424955,
+"token": "DUMBMONEY",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "sgei8pavjjlwvryup9pwnxk6hmp5tphqd2hr4yxpump",
+"entry_ts": 1776573532.281413,
+"entry_price": 0.001181,
+"token": "GREKT",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "3tygkwke2y3rxdw9oslrspxpxmsc1c1oo19w9khspump",
+"entry_ts": 1776577260.965186,
+"entry_price": 0.003657955642435254,
+"token": "BULL",
+"pair_address": "HNGjLLZkWx2mNwhWdKFYcMowz8FTh2bXxdpJ1vBVkjNB",
+"src": "live_trades.json"
+},
+{
+"mint": "bibmg42brmvje5gy5ucxlurrogr6tbc1gfcybzuepump",
+"entry_ts": 1776582661.49712,
+"entry_price": 0.005512332341432864,
+"token": "UNCEROID",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "gmqnbizrjxvdtdvwfdq8vu9c8maeolsonnua2z5nhsu9",
+"entry_ts": 1776583820.220604,
+"entry_price": 6.16290854096e-05,
+"token": "RCSC",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "go1kzcgwwbzk2cx5mn8npfyht7debk6nrckru4krpump",
+"entry_ts": 1776593517.661638,
+"entry_price": 3.6251541399905575e-05,
+"token": "LP",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "dezxaz8z7pnrnrjjz3wxborgixca6xjnb7yab1ppb263",
+"entry_ts": 1776605579.448945,
+"entry_price": 6.1796288886063975e-06,
+"token": "Bonk",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "cpfjrfyq32wae2bt36heauwzdyt29wwvlpzmydf7pump",
+"entry_ts": 1776605584.829088,
+"entry_price": 0.00011855470328979084,
+"token": "Rise",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "hxebwt7pih23yh8bsmpkybntrmfcjpqwzjweumqypump",
+"entry_ts": 1776613575.195136,
+"entry_price": 0.00020817890611941916,
+"token": "DOGE",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "7udhnymvhjfgrygbeaioqnfzd95jtgtujrrwne8vcog4",
+"entry_ts": 1776615548.913554,
+"entry_price": 0.003193746922521861,
+"token": "FOF",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "7dsaxucdbxzht8pejvflvc7owbjhqbuqzfc8vbz3pump",
+"entry_ts": 1776621850.890693,
+"entry_price": 0.0001644661722237548,
+"token": "Crashout",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "hqm27breu9a4hkusbd5gedw1clbbvvrzku36rmripump",
+"entry_ts": 1776638740.315889,
+"entry_price": 3.195391805385315e-05,
+"token": "fuckface",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "6ppx433gurtgfyzdqrcsuhneghgu8hkq1gfcd6ncpump",
+"entry_ts": 1776639265.944301,
+"entry_price": 0.00010946612150901117,
+"token": "Retardoid",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "5hxglvz89exhdtberliqysvqmyox9sxzxaubdl7cpump",
+"entry_ts": 1776641359.590605,
+"entry_price": 2.8427480551341735e-05,
+"token": "DATA",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "4jbeo37fkhestxp6ptayktyrndaa8dcxzaz4ttuppump",
+"entry_ts": 1776642332.085659,
+"entry_price": 0.001189,
+"token": "TARDI",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "8wnxkttvmgzjuvrqfktakmapseppygjjowtshd97pump",
+"entry_ts": 1776647794.457845,
+"entry_price": 0.0010200424304779364,
+"token": "CHL",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "g2sy22mdnmhhaz8pnfejiziwpasqoxpd6x3dokc4pump",
+"entry_ts": 1776652590.880854,
+"entry_price": 0.0001735913732186118,
+"token": "HIGHER",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "93fqqoxdr5h9plchbuln6johubt71w98vu4khrykpump",
+"entry_ts": 1776655587.215378,
+"entry_price": 2.232e-05,
+"token": "Diana",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "5vrkl81u2dfjewon5z5hyivtkcvijrxagqshnkxtpump",
+"entry_ts": 1776655862.717648,
+"entry_price": 0.00012200190237842888,
+"token": "HOLD",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "bkkhdmm5ejmekbe7yjsh1hxrht3wshrkudgqsxcbpump",
+"entry_ts": 1776679142.566817,
+"entry_price": 0.001063,
+"token": "SCHIZO",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "gqfh94prwfx5xspxlqgtpecun94g2zm65s2xh2khpump",
+"entry_ts": 1776680996.183894,
+"entry_price": 0.0002112501546486999,
+"token": "KICAU",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "haqyjrixokh8fshxk6pi8xlwss2jkdtxwpplysppump",
+"entry_ts": 1776684729.806612,
+"entry_price": 3.406e-05,
+"token": "BANJO",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "crc5ca5tfnsqmxffgfv4wboaazkoxktqoperj913pump",
+"entry_ts": 1776688068.730545,
+"entry_price": 0.0003886,
+"token": "PDM",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "fcbkxpemkrjlw8kikxn6vwtzbkzvuwrdqclabpz6pump",
+"entry_ts": 1776691403.046565,
+"entry_price": 0.00021074332859535535,
+"token": "RAM900",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "a1u5bnjq8gpueu5makjclxxpr5aaahtg18oijtyupump",
+"entry_ts": 1776693690.399311,
+"entry_price": 0.0004563,
+"token": "MLG",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "cm6fnnmk7nfzstp9czpsqa2v3jjzbcygaxdjysmhpump",
+"entry_ts": 1776696761.60792,
+"entry_price": 0.007604572498072852,
+"token": "Buttcoin",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "5ozubpb1vbpqocghmwccfzpvjlxdc4ckkg3mmyvypump",
+"entry_ts": 1776701810.317136,
+"entry_price": 8.748e-05,
+"token": "GROVE",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "rh9b4cvazmugxmpvvdyz5daiybblxzpzljqeopfpump",
+"entry_ts": 1776704286.558047,
+"entry_price": 9.288866459046407e-07,
+"token": "ITSOVER",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "apxdsrtbf8ensg45ievc3bjwgbjvrtxssjjctn29pump",
+"entry_ts": 1776710028.080911,
+"entry_price": 0.0007487935278754536,
+"token": "hijabunc",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "hekvx7cxn4afidkw56swjgxzje7wvbmhzhfzdqjapump",
+"entry_ts": 1776716745.586612,
+"entry_price": 0.00011271123463012663,
+"token": "SAEP",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "eapn7x2kqcz5gdjecgqccvghzurylarkdqrkv6ghpump",
+"entry_ts": 1776721274.939549,
+"entry_price": 0.0002431,
+"token": "STC",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "pumpcmxqmfrsakq5r49wcjnrayyrqmxz6ae8h7h9dfn",
+"entry_ts": 1776721588.079122,
+"entry_price": 0.001835,
+"token": "PUMP",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "dczcshb6uu5ua2jmatscghqx4ojd5bxfgejdzzvjpump",
+"entry_ts": 1776732622.416639,
+"entry_price": 0.000390477720047999,
+"token": "Peptides",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "bfiguxnidogqczapvpdzrcfhx3nxnflyqpquaugpump",
+"entry_ts": 1776734822.846628,
+"entry_price": 0.008938675105888732,
+"token": "SPIKE",
+"pair_address": "DeSYSGeEj9ytT55E9AmdFs9p2cm5fryXt61kGCammCrB",
+"src": "live_trades.json"
+},
+{
+"mint": "4uelcrqarmfb6e6kqijtiktqqxuxbfk6jzng7dhubags",
+"entry_ts": 1776768458.188741,
+"entry_price": 0.0016824973509507583,
+"token": "ASTEROID",
+"pair_address": "CEZRNzf1zRyBayGRiHHLAiVm53BieuTXGyyj2HWEsZqd",
+"src": "live_trades.json"
+},
+{
+"mint": "njixgurygrpwqutcgvzy2czjkzz5plcthafs675pump",
+"entry_ts": 1776810206.027393,
+"entry_price": 0.00034153758758755825,
+"token": "TERMINAL",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "9kcgjplub1twq6nwhd51jgqjsd8lgc1xzvyiocawpump",
+"entry_ts": 1776956593.733153,
+"entry_price": 0.00014013746407852892,
+"token": "FCS",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "6gdyr2j1fhmsgfuoqopjrd5rgnjug1j5pzdbtrzzx5gu",
+"entry_ts": 1776977723.341159,
+"entry_price": 0.0011442579088659422,
+"token": "WIFE",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "9avytnukslxpxfhfqs6vlxaxt5p6bhynr53sd2chpump",
+"entry_ts": 1776982378.921861,
+"entry_price": 0.0023736802557159263,
+"token": "67",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "dfh5dzrgsvvcfdoyc2citkmrbdfrkyba4sofbpmapump",
+"entry_ts": 1776982380.507148,
+"entry_price": 0.025105627959710206,
+"token": "pippin",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "5uuh9rtdispq6hks6bp4ndu9pnjpxrxuiw6shbtbhgh2",
+"entry_ts": 1776982562.571848,
+"entry_price": 0.02226299904379349,
+"token": "TROLL",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "hthknhf3sfpmneyz8eszvvjgs4pu8ffzxuqtn5c5pump",
+"entry_ts": 1776998386.163822,
+"entry_price": 0.001507614734586974,
+"token": "LARP",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "ccld8htaklwtqhatqpwbqjtuca72fnb9e1ckrtezpump",
+"entry_ts": 1777002838.981927,
+"entry_price": 0.002848928383212928,
+"token": "ALTSZN",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "j8psdnp3qewkq2z1jjjfdmaqf7kcaijhr7gbr5kzpump",
+"entry_ts": 1777007198.686348,
+"entry_price": 0.0040354450034988856,
+"token": "TripleT",
+"pair_address": "3KFCgJ5R3zshW8hTDbzjSrrKSRYmKvsMfhc4Vo4iddxD",
+"src": "live_trades.json"
+},
+{
+"mint": "2ra5idczucqhde1u5d52g8rms6hzhuhetqp51fdhpump",
+"entry_ts": 1777014649.424759,
+"entry_price": 0.0004476216422725789,
+"token": "chloe",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "ggielnjhjwywsvscvnc2xb2qn1k3yhjypngzy9c2bonk",
+"entry_ts": 1777027227.844132,
+"entry_price": 0.0002403,
+"token": "AIB",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "dgmyqyvqq4zyefzv8zlekxgd88ctka9ihkv4gnlzpump",
+"entry_ts": 1777030107.252526,
+"entry_price": 9.668420151967409e-05,
+"token": "Gas City",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "24hstcapvextvasjrtay8bz5ac7lngd3ge9exv3ppump",
+"entry_ts": 1777035137.235153,
+"entry_price": 0.0002122,
+"token": "uncvwance",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "hgxywhhdngfh7fpojtuwgnub7vahtpebvbo1u73tpump",
+"entry_ts": 1777063079.644549,
+"entry_price": 0.01452715467122701,
+"token": "mexicanunc",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "222ctdtovgjwflfmzlvxkj1pwfdbhyfpzzewfqlypump",
+"entry_ts": 1777065262.457221,
+"entry_price": 0.0016775349513769786,
+"token": "AINI",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "7wrx5qgurlhgcjszpqjymw6ihb6z8krdaehquhgjpump",
+"entry_ts": 1777071028.252719,
+"entry_price": 0.0011355489430934084,
+"token": "SAM",
+"pair_address": "Dt6EtrQcXjGPy9Rdw77Rf7WVxJ9FH6dxTpRYdUQ3GDNg",
+"src": "live_trades.json"
+},
+{
+"mint": "32cdqdbuxbcsly5auhwmyidfwhggur9n573nburdpump",
+"entry_ts": 1777095558.769684,
+"entry_price": 0.0025626701682597056,
+"token": "maxxing",
+"pair_address": "DMnTidVC8dMxRxUzFyZ4StQkbS4R8ACwxhNsEyi6u3Lx",
+"src": "live_trades.json"
+},
+{
+"mint": "8lgdbaqfhm6hax6immm4egelwt1gfcs91akdhh9vpump",
+"entry_ts": 1777100661.127659,
+"entry_price": 0.01153578576165071,
+"token": "ELONCOIN",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "actfuwtgvaxrqgnmiohtusi5jcx5rjf5zwu9aaxkpump",
+"entry_ts": 1777126885.24197,
+"entry_price": 0.007458,
+"token": "unc",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "cgedt9qzdvvh5gmvkwjh2bximjqmjysc9ihwyr7spump",
+"entry_ts": 1777127887.769486,
+"entry_price": 0.016631664119248084,
+"token": "BURNIE",
+"pair_address": "5tYFviFWQRKV9BJSTHGitbdqEYC1BGUgRUDnSADUXqJP",
+"src": "live_trades.json"
+},
+{
+"mint": "34ayng5nxbzzkk3vnkuaderkubjffextymchgsdxnkcr",
+"entry_ts": 1777129915.557583,
+"entry_price": 0.0034673190899275545,
+"token": "baby",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "avf9f4c4j8b1kh4bmnhqybdahgnzpj7w7ylvl7hupump",
+"entry_ts": 1777131361.889991,
+"entry_price": 0.001985402770002279,
+"token": "Lobstar",
+"pair_address": "AADJrfmWoHVXZhF1UkbHvNC5tqrBpkGdSaxtMYteDm2x",
+"src": "live_trades.json"
+},
+{
+"mint": "amsyblucwymbzc8g9gtensn2dsljszivemxmqvcupump",
+"entry_ts": 1777147683.787501,
+"entry_price": 0.0017427848169296529,
+"token": "LASTMAN",
+"pair_address": "AkxYXNs4pfxgmzk7sccZvG2jtYjNN1iiVkRGaKpaVu3o",
+"src": "live_trades.json"
+},
+{
+"mint": "c8lwj83fbz9bpksuxnlec2qklf7ovkv7ja9uksflbrrr",
+"entry_ts": 1777148300.028064,
+"entry_price": 0.0023243808706972075,
+"token": "ROTUS",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "2kxjzauh3vvnr1edfbh97lme7stv7pxqf4qc1eefpump",
+"entry_ts": 1777149692.469146,
+"entry_price": 0.0012334969704025616,
+"token": "Barron",
+"pair_address": null,
+"src": "live_trades.json"
+},
+{
+"mint": "5gtpspc2ricugwiyq4ghausg8fsq7ucrggsvacatcoin",
+"entry_ts": 1777150322.601191,
+"entry_price": 0.001477,
+"token": "CATCOIN",
+"pair_address": "6fNWjfFN6kDKybWK5PFLWqZnpTmoBAswUWvxiG3g5D2D",
+"src": "live_trades.json"
+},
+{
+"mint": "5ohbqlgmccjstrhrfskitbya7dtwq13hzmfzh8wepump",
+"entry_ts": 1777152449.734729,
+"entry_price": 0.0015186950800457556,
+"token": "BOAR",
+"pair_address": "y48T97pT9f9q9WoXfdts53AoFUi3anE1gGbjTM8gAZZ",
+"src": "live_trades.json"
+},
+{
+"mint": "6qdjbehykw8ltaakie6psq8so599kkcwxnxzkbehpump",
+"entry_ts": 1777159735.650674,
+"entry_price": 0.0011635172409923396,
+"token": "GENAI",
+"pair_address": "4L5CgVjN1zJ7uLr4KaUj3NhiVYyjfzeBbyZ5eAC6PXiX",
+"src": "live_trades.json"
+},
+{
+"mint": "34q2kmcvapecjgr6zrtbctrzzvtkt3a5mhea3tueswyb",
+"entry_ts": 1777164474.655371,
+"entry_price": 0.0019696033972777284,
+"token": "LOL",
+"pair_address": "Dx5wFoszXvND6XYYAjAjUQrGLqDAUrTVH2JmHz6eJDNt",
+"src": "live_trades.json"
+},
+{
+"mint": "hmbdm8vbisabujkxms6zunoaxbfwfm6ymxshwfaenaoi",
+"entry_ts": 1777165926.922258,
+"entry_price": 0.13421919340144522,
+"token": "EITHER",
+"pair_address": "4C47JJgDHztupNHeU9da7MroH676eXbPoUhEvx3FpfR3",
+"src": "live_trades.json"
+},
+{
+"mint": "dvvhwb71pgiqqfdr7j6vxzrgdqqdm5d9m2zlyb6ypump",
+"entry_ts": 1777172013.81249,
+"entry_price": 0.0020244623988355257,
+"token": "TrumpGod",
+"pair_address": "917BrPiGcj1MGPsN8FRyGsWHzRuPMqQRreV81QN5vNyr",
+"src": "live_trades.json"
+},
+{
+"mint": "4df1wzoygsynez6xmpcoabrvwv7nbgjhlycns5xapump",
+"entry_ts": 1777172437.684229,
+"entry_price": 0.001247773069769574,
+"token": "BELKA",
+"pair_address": "2RMm8BoXPAMwuLwouAcxJym5rAra5FsuGc3Fe4k76qJ8",
+"src": "live_trades.json"
+},
+{
+"mint": "29cwsqh84tykhddwa6dtetutxqpukbvgkcmxtkbsbrrr",
+"entry_ts": 1777185886.531621,
+"entry_price": 0.012875037949787563,
+"token": "BELIEF",
+"pair_address": "HehzrczPii9azd1QzPLjsjwsnygHvHpfBYPcmEp3gugG",
+"src": "live_trades.json"
+},
+{
+"mint": "57dyauq7y4hicsdab7ibdg4gcyfq7heuaes3xnnkbrrr",
+"entry_ts": 1777215177.184714,
+"entry_price": 0.0024616367319396,
+"token": "\u53d1\u8d22",
+"pair_address": "Dbc5hNaA9VatXYiYT5Vg4PpfvXLXM17wbUCABFjfP8wi",
+"src": "live_trades.json"
+},
+{
+"mint": "cjurendausm4fxxziugftnujqqxjm4vl1zhjgwxupump",
+"entry_ts": 1777228108.368112,
+"entry_price": 0.0021348896867564326,
+"token": "HENRY",
+"pair_address": "5JSMSd7NSp2iLZNAJo9H2oewxEewqphR1skL65F9Uywt",
+"src": "live_trades.json"
+},
+{
+"mint": "2np9ykqnsgqy851iyawdvbkzkk2r2aqkarqckc2gpump",
+"entry_ts": 1777251346.6267,
+"entry_price": 0.00399877455140964,
+"token": "PsyopAnime",
+"pair_address": "FpyosQzp5ijfrxqqBVNm67rfam7VsbVNAm7PUf8Yvt1c",
+"src": "live_trades.json"
+},
+{
+"mint": "orcaektdk7lkz57vaayr9qensvepfiu6qemu1kektze",
+"entry_ts": 1777253149.34731,
+"entry_price": 1.3202731036228164,
+"token": "ORCA",
+"pair_address": "Hxw77h9fEx598afiiZunwHaX3vYu9UskDk9EpPNZp1mG",
+"src": "live_trades.json"
+},
+{
+"mint": "cardsccumfkoprzxt5vt3ksubxefecnz3h2pd3dkxyjp",
+"entry_ts": 1777270006.993846,
+"entry_price": 0.09686798783288726,
+"token": "CARDS",
+"pair_address": "HnhpJPJgBG2KwniMTNW8cVBHvk1hFog3RC3kjnyc23tD",
+"src": "live_trades.json"
+},
+{
+"mint": "6avauka9uxqpruhzuinfecpxeh1usrvtzqwk8n2wpump",
+"entry_ts": 1777324102.102103,
+"entry_price": 0.006551,
+"token": "SCAM",
+"pair_address": "B5K3qfft5ALRJBskL7qJPDzbbW76TXLkfKSd1mP4MtgN",
+"src": "live_trades.json"
+},
+{
+"mint": "g6mnzn8o16qbctqfuex6fzjiwa94b1xwhfydxjdibrrr",
+"entry_ts": 1777398545.044589,
+"entry_price": 0.006475899603762399,
+"token": "ooo",
+"pair_address": "BBmuX7b7sBjvxqtv3PKaoSPNv9Nzq7zxFfH4fmdtXc3w",
+"src": "live_trades.json"
+},
+{
+"mint": "5jr9hgmjgxbrjjf8xgcggqzxudsbpznnmpigev8wpump",
+"entry_ts": 1777404284.192968,
+"entry_price": 0.002664340407738012,
+"token": "MUSHU",
+"pair_address": "HXH2Wp1NQ2iCo2RV5hQzmcirh7tvjsGWYKchY8ZjbbR7",
+"src": "live_trades.json"
+},
+{
+"mint": "57kFRAk9EH57rLcW3XoHa8ATr5zNahoQAS8NNAoKpump",
+"entry_ts": 1777494780.572541,
+"entry_price": 0.0018768383675211758,
+"token": "EVA",
+"pair_address": "FkjfTBn1cmjkeiCEtuDjeaRNKMPWfe71eKaqX8ksxu3b",
+"src": "live_trades.json"
+},
+{
+"mint": "4df1wZoygsynEZ6XmpcoabrVwv7nBgjHLyCns5xApump",
+"entry_ts": 1777496331.622206,
+"entry_price": 0.0026578212426641894,
+"token": "BELKA",
+"pair_address": "2RMm8BoXPAMwuLwouAcxJym5rAra5FsuGc3Fe4k76qJ8",
+"src": "live_trades.json"
+},
+{
+"mint": "E8syR4zsgQG2zo9YyiyfX4ujubByR4z6qj9stjASpump",
+"entry_ts": 1777499825.53422,
+"entry_price": 0.0013486133216829579,
+"token": "STJUDE",
+"pair_address": "DJpdHs4wbm1XqRruM1NPHnSfpnSztUEeFW3bcaDEeg7H",
+"src": "live_trades.json"
+},
+{
+"mint": "e8syr4zsgqg2zo9yyiyfx4ujubbyr4z6qj9stjaspump",
+"entry_ts": 1777500244.417708,
+"entry_price": null,
+"token": "?",
+"pair_address": "DJpdHs4wbm1XqRruM1NPHnSfpnSztUEeFW3bcaDEeg7H",
+"src": "live_trades.json"
+},
+{
+"mint": "2ssMotVbTUfRJev2UnibHzHsoeszPzgwbfsTZPSHpump",
+"entry_ts": 1777546975.345682,
+"entry_price": 0.0024176787458740226,
+"token": "Wish",
+"pair_address": "BkWwDKcMjDx5Xs7vd11Zv8YyP2dL8Dmc6Z2CRujMHKks",
+"src": "live_trades.json"
+},
+{
+"mint": "3vH3NzuHafRNvwKKzoGTWNuLtg5Kc38BxsmfUwgPpump",
+"entry_ts": 1777546979.063471,
+"entry_price": 0.0012798258934683588,
+"token": "LUNCHMONEY",
+"pair_address": "gcuVk6YH2VW7CP6DzKoAnsVUM23x6xAsyPrMxaYFQBq",
+"src": "live_trades.json"
+},
+{
+"mint": "Hon2rHAiqkcDtUzL5gA2vjXPr7T1MPCK2UT2AHKCpump",
+"entry_ts": 1777547621.814244,
+"entry_price": 0.01389149444125564,
+"token": "MAGA",
+"pair_address": "HVimk99ygSSDnWz9eSqumdThrFz4DADE7j6phmFms6at",
+"src": "live_trades.json"
+},
+{
+"mint": "Ha5Z2DfRv6Ar2nAeBLCGWHqzwXKL3of4DqKwzzwpump",
+"entry_ts": 1777549882.120011,
+"entry_price": 0.0010487287764788722,
+"token": "FOFAR",
+"pair_address": "DjR81DfUo2VEHb7cRBwGtXXidPg3BsSQFRfqwhYfhQLS",
+"src": "live_trades.json"
+},
+{
+"mint": "8x5VqbHA8D7NkD52uNuS5nnt3PwA8pLD34ymskeSo2Wn",
+"entry_ts": 1777570777.836948,
+"entry_price": 0.026948706402199193,
+"token": "ZEREBRO",
+"pair_address": "3sjNoCnkkhWPVXYGDtem8rCciHSGc9jSFZuUAzKbvRVp",
+"src": "live_trades.json"
+},
+{
+"mint": "bioJ9JTqW62MLz7UKHU69gtKhPpGi1BQhccj2kmSvUJ",
+"entry_ts": 1777593793.892767,
+"entry_price": 0.041426596699431786,
+"token": "BIO",
+"pair_address": "4LuGwek6Jv4xpGvsQwZXonmLuRhrpHtmKVs95bN9EkTm",
+"src": "live_trades.json"
+},
+{
+"mint": "ACtfUWtgvaXrQGNMiohTusi5jcx5RJf5zwu9aAxkpump",
+"entry_ts": 1777595059.622848,
+"entry_price": 0.00437083157221329,
+"token": "unc",
+"pair_address": "BWFZkx1pMpvwxammwTrizvoWzZZGiFEYUYW6Ee51SHLy",
+"src": "live_trades.json"
+},
+{
+"mint": "6AVAUKa9uxQpruHZUinFECpXEh1usRVtzQWK8N2wpump",
+"entry_ts": 1777603767.786749,
+"entry_price": 0.0012152389011882382,
+"token": "SCAM",
+"pair_address": "B5K3qfft5ALRJBskL7qJPDzbbW76TXLkfKSd1mP4MtgN",
+"src": "live_trades.json"
+},
+{
+"mint": "HmBdm8vbisABUjkxms6ZUnoaXbfwFM6ymxShWfAENaoi",
+"entry_ts": 1777608275.13907,
+"entry_price": 0.2384634145670413,
+"token": "EITHER",
+"pair_address": "4C47JJgDHztupNHeU9da7MroH676eXbPoUhEvx3FpfR3",
+"src": "live_trades.json"
+},
+{
+"mint": "8c3JdTcEqy9XdUJ36NAns7XVDfh356nWxvwcMYKNpump",
+"entry_ts": 1777646913.215839,
+"entry_price": 0.0013099228302008651,
+"token": "Scribbli",
+"pair_address": "5EeqPYqca9hj5vqBKVmf5yRHp85A8DggBU5jXhWNU1jz",
+"src": "live_trades.json"
+},
+{
+"mint": "CARDSccUMFKoPRZxt5vt3ksUbxEFEcnZ3H2pd3dKxYjp",
+"entry_ts": 1777653246.803033,
+"entry_price": 0.12401123132518743,
+"token": "CARDS",
+"pair_address": "HnhpJPJgBG2KwniMTNW8cVBHvk1hFog3RC3kjnyc23tD",
+"src": "live_trades.json"
+},
+{
+"mint": "9EZ8N5ukVzSQJGu2K38f1ZydTK6JrqCx57j8yTipump",
+"entry_ts": 1777684173.68285,
+"entry_price": 0.0015278370227988906,
+"token": "SCRIBBELON",
+"pair_address": "FMFmJHbsM3eKG5vXwF4JAHJ97e5RcgDdsidPUg47F8A4",
+"src": "live_trades.json"
+},
+{
+"mint": "iBcavzgHdvaHHEM6Tdm9UsRqEJu2iQRac3cjinbpump",
+"entry_ts": 1777687478.766106,
+"entry_price": 0.0016203847592932605,
+"token": "NKT",
+"pair_address": "CpmyJCaQ7esp5gdnEAWgC62ZT8vokA3UPgz6ka2WJQsu",
+"src": "live_trades.json"
+},
+{
+"mint": "21EZ83KVV3YqhXiAuEwsWsUF8C2EkNVZC3ejV29Hpump",
+"entry_ts": 1777700585.785274,
+"entry_price": 0.0010207502276031854,
+"token": "GRUMP",
+"pair_address": "HXGMvjriDQLYQYTFEHgPqH6A4vfvnpbYmKsRhP5WLNTA",
+"src": "live_trades.json"
+},
+{
+"mint": "9gBzMZ1oJ9wDTvzVrhaA7tKMmtWqg9SEmc1UuBPbpump",
+"entry_ts": 1777759490.346511,
+"entry_price": 0.0015761702455849072,
+"token": "MOGMAN",
+"pair_address": "BahGZnvmiisnXgxvf8WrZtsjH9PeionArL3Yopo4GoEN",
+"src": "live_trades.json"
+},
+{
+"mint": "G6mNZN8o16QBcTqfuEx6FzjiWa94B1XWhfyDxjDibrrr",
+"entry_ts": 1777760388.622448,
+"entry_price": 0.008382238971806538,
+"token": "ooo",
+"pair_address": "BBmuX7b7sBjvxqtv3PKaoSPNv9Nzq7zxFfH4fmdtXc3w",
+"src": "live_trades.json"
+},
+{
+"mint": "8wXtPeU6557ETkp9WHFY1n1EcU6NxDvbAggHGsMYiHsB",
+"entry_ts": 1777776699.527556,
+"entry_price": 0.0008463123421671726,
+"token": "GME",
+"pair_address": "9tz6vYKiBDLYx2RnGWC5tESu4pyVE4jD6Tm56352UGte",
+"src": "live_trades.json"
+},
+{
+"mint": "5UUH9RTDiSpq6HKS6bp4NdU9PNJpXRXuiw6ShBTBhgH2",
+"entry_ts": 1777776899.810589,
+"entry_price": 0.02556028561786925,
+"token": "TROLL",
+"pair_address": "4w2cysotX6czaUGmmWg13hDpY4QEMG2CzeKYEQyK9Ama",
+"src": "live_trades.json"
+},
+{
+"mint": "BJyqZdnN8ymSVwKmWSFPpUb4mpoXoxzwmgv8rf6bajje",
+"entry_ts": 1777777857.705998,
+"entry_price": 0.0006084000015250655,
+"token": "CHONKERS",
+"pair_address": "CMgAwHPGxSNUV1tQf68zmSwUrY4rDpHHbQA268PFYjUX",
+"src": "live_trades.json"
+},
+{
+"mint": "q7oDiKKY8j5FecGwvUR5Eyv7se9sh2DSaUD7aXEpump",
+"entry_ts": 1777778061.930939,
+"entry_price": 0.0008137166716048209,
+"token": "HDD",
+"pair_address": "2EioKFNgCzKdCxXfbRKN3rMX5QhXYtDLeooBSbt51nws",
+"src": "live_trades.json"
+},
+{
+"mint": "Dfh5DzRgSvvCFDoYc2ciTkMrbDfRKybA4SoFbPmApump",
+"entry_ts": 1777778157.332053,
+"entry_price": 0.02542,
+"token": "pippin",
+"pair_address": "8WwcNqdZjCY5Pt7AkhupAFknV2txca9sq6YBkGzLbvdt",
+"src": "live_trades.json"
+},
+{
+"mint": "Df6yfrKC8kZE3KNkrHERKzAetSxbrWeniQfyJY4Jpump",
+"entry_ts": 1777778214.226635,
+"entry_price": 0.015430233699358559,
+"token": "CHILLGUY",
+"pair_address": "93tjgwff5Ac5ThyMi8C4WejVVQq4tuMeMuYW1LEYZ7bu",
+"src": "live_trades.json"
+},
+{
+"mint": "GBvoABT1MH7CogLm46JEy15h3qiKqnmgKZq69BTdpump",
+"entry_ts": 1777783654.982323,
+"entry_price": 0.0005986512732641119,
+"token": "TrumpCoin",
+"pair_address": "AHB5dGFTEz4KjhtKxFfjNTv6dv1zyp6CGLUGy9yZL9hs",
+"src": "live_trades.json"
+},
+{
+"mint": "HDG8Ng6YLpiYXzBASD1Zd5Wh7T8DHRYFcbf4YGuvpump",
+"entry_ts": 1777786770.818132,
+"entry_price": 0.0006589,
+"token": "Octopus",
+"pair_address": "5EwUpAnCX1Dv6YAZtzQu7L3e248p4trp9tFc7EncqgQ2",
+"src": "live_trades.json"
+},
+{
+"mint": "CGEDT9QZDvvH5GmVkWJH2BXiMJqMJySC9ihWyr7Spump",
+"entry_ts": 1777788229.515985,
+"entry_price": 0.014532875527847223,
+"token": "BURNIE",
+"pair_address": "5tYFviFWQRKV9BJSTHGitbdqEYC1BGUgRUDnSADUXqJP",
+"src": "live_trades.json"
+},
+{
+"mint": "3B1ijcocM5EDga6XxQ7JLW7weocQPWWjuhBYG8Vepump",
+"entry_ts": 1777795254.015963,
+"entry_price": 0.0033909837574770296,
+"token": "BP",
+"pair_address": "GYwaQP8Lb3vqG7q2c58ZGueVYfF8hYogg8BeSa1FNcpZ",
+"src": "live_trades.json"
+},
+{
+"mint": "3wL2KuTsaDUX33VvpwCn7st7yxGhY6KKqPkZtMQzpump",
+"entry_ts": 1777802432.224126,
+"entry_price": 0.0005123992153044338,
+"token": "TEMPO",
+"pair_address": "8WDxqnNj2WUDXS3oqXrQsRuiuCaAyuf9qTgmd43XDdDv",
+"src": "live_trades.json"
+},
+{
+"mint": "DACYVx34V5aQaehN3MZGYxPfoyQYHZSnFAFw3T2Vbonk",
+"entry_ts": 1777810103.962256,
+"entry_price": 0.001021,
+"token": "IMOUT",
+"pair_address": "2i1CtveDHPVVyrdyZT26vSAVD17H6Ctqs9EQ9xoYXFMR",
+"src": "live_trades.json"
+},
+{
+"mint": "32CdQdBUxbCsLy5AUHWmyidfwhgGUr9N573NBUrDpump",
+"entry_ts": 1777818614.205016,
+"entry_price": 0.0039922666696817245,
+"token": "maxxing",
+"pair_address": "DMnTidVC8dMxRxUzFyZ4StQkbS4R8ACwxhNsEyi6u3Lx",
+"src": "live_trades.json"
+},
+{
+"mint": "HXzqEEUjQ6JevbrJiMBAwoiCVikZb93XHmYtde4iCA3G",
+"entry_ts": 1777827364.049564,
+"entry_price": 0.0005140813211858338,
+"token": "Spirit",
+"pair_address": "2sKZvNPfUEyff79HkCEW2Va4waSNV3a2F3ZrstWHKVn2",
+"src": "live_trades.json"
+},
+{
+"mint": "3XwDQHMKcner1GhXRqLKojrWWwNdMaruQs7g7riDpump",
+"entry_ts": 1777830998.872914,
+"entry_price": 0.0005485,
+"token": "Trollpface",
+"pair_address": "9drCPQWTu1NHrVai3bxZBx1tzQN5Q7dPZ5PW4YebiXNL",
+"src": "live_trades.json"
+},
+{
+"mint": "63LfDmNb3MQ8mw9MtZ2To9bEA2M71kZUUGq5tiJxcqj9",
+"entry_ts": 1777836382.423027,
+"entry_price": 0.001888,
+"token": "GIGA",
+"pair_address": "4xxM4cdb6MEsCxM52xvYqkNbzvdeWWsPDZrBcTqVGUar",
+"src": "live_trades.json"
+},
+{
+"mint": "8J69rbLTzWWgUJziFY8jeu5tDwEPBwUz4pKBMr5rpump",
+"entry_ts": 1777841016.302933,
+"entry_price": 0.006114,
+"token": "WOJAK",
+"pair_address": "FDrY5i5kuadZ1ik8gPS26qjj9Rw9mpufXMegGC2HNSP7",
+"src": "live_trades.json"
+},
+{
+"mint": "C29ebrgYjYoJPMGPnPSGY1q3mMGk4iDSqnQeQQA7moon",
+"entry_ts": 1777842247.080887,
+"entry_price": 0.006788177346266672,
+"token": "NOBODY",
+"pair_address": "7rQd8FhC1rimV3v9edCRZ6RNFsJN1puXM9UmjaURJRNj",
+"src": "live_trades.json"
+},
+{
+"mint": "J8PSdNP3QewKq2Z1JJJFDMaqF7KcaiJhR7gbr5KZpump",
+"entry_ts": 1777851707.013767,
+"entry_price": 0.005677344272223757,
+"token": "TripleT",
+"pair_address": "3KFCgJ5R3zshW8hTDbzjSrrKSRYmKvsMfhc4Vo4iddxD",
+"src": "live_trades.json"
+},
+{
+"mint": "H8xQ6poBjB9DTPMDTKWzWPrnxu4bDEhybxiouF8Ppump",
+"entry_ts": 1777854505.650023,
+"entry_price": 0.0030392543237452306,
+"token": "Tokabu",
+"pair_address": "Ekv9HdumWqnXZgq5G6ge6bk1ZRHKXYC2WnSFL94sQmLJ",
+"src": "live_trades.json"
+},
+{
+"mint": "H3fneDN1q6vepZajtx9iFiXMRdnVBCcJ3vkmrSEyGMAR",
+"entry_ts": 1777872599.392075,
+"entry_price": 0.04556,
+"token": "GMAR",
+"pair_address": "9jmBLzwbjPjX9u1oS7FtU27yC1p7A1mF4mtDK8dAjBDt",
+"src": "live_trades.json"
+},
+{
+"mint": "7KbbL7HF2EF31t7TUzjNU515tvspC6JbXaZsDXvopump",
+"entry_ts": 1777881016.863313,
+"entry_price": 0.0005092,
+"token": "1SHOT",
+"pair_address": "8ErmPWdBhwpt5CvYpocHUgYZKso5FcJvn2wRmyBMTxyb",
+"src": "live_trades.json"
+},
+{
+"mint": "2bpT3ksMdwdZ6DuHyq3FDUr7HDwvZ5DRZoT1fUPALJaH",
+"entry_ts": 1777885797.908805,
+"entry_price": 0.01903861753290603,
+"token": "RIV",
+"pair_address": "9B8xXGabWeEfCLzwHAwwbjZjQamiFsh7WC8Y5bkvPbqP",
+"src": "live_trades.json"
+},
+{
+"mint": "5Jr9hGmJgxBRjjF8XGcGgQzXUdsbpZNNMpigEv8Wpump",
+"entry_ts": 1777889078.280147,
+"entry_price": 0.00983859291441447,
+"token": "MUSHU",
+"pair_address": "HXH2Wp1NQ2iCo2RV5hQzmcirh7tvjsGWYKchY8ZjbbR7",
+"src": "live_trades.json"
+},
+{
+"mint": "BLVxek8YMXUQhcKmMvrFTrzh5FXg8ec88Crp6otEaCMf",
+"entry_ts": 1777890504.066139,
+"entry_price": 0.00523695983642473,
+"token": "BELIEVE",
+"pair_address": "BJsSymifLkwUq8r3KMSiFH6t5JbLLBd1VJDgzD7qYNxF",
+"src": "live_trades.json"
+},
+{
+"mint": "Cm6fNnMk7NfzStP9CZpsQA2v3jjzbcYGAxdJySmHpump",
+"entry_ts": 1777897441.6211,
+"entry_price": 0.00972338984483187,
+"token": "Buttcoin",
+"pair_address": "FFcYgSSgWHforA9rXXkA48p8YFoz8TSW85Jpo3CQHDyS",
+"src": "live_trades.json"
+},
+{
+"mint": "A8C3xuqscfmyLrte3VmTqrAq8kgMASius9AFNANwpump",
+"entry_ts": 1777899935.27068,
+"entry_price": 0.0061660844877272514,
+"token": "FWOG",
+"pair_address": "AB1eu2L1Jr3nfEft85AuD2zGksUbam1Kr8MR3uM2sjwt",
+"src": "live_trades.json"
+},
+{
+"mint": "ziffq43QSCC95DUjVc7cULKYttEHyA1pops25gDpump",
+"entry_ts": 1777902609.765309,
+"entry_price": 0.0006102868078923998,
+"token": "CARDS",
+"pair_address": "A7XaHsvuqvfwx6AsyVG3jYK1c1QbkWVGeB9K7WrGMvqA",
+"src": "live_trades.json"
+},
+{
+"mint": "21rKrtBzibPAZHAHQRzGiGDSh7XimCKB2a8VgsjZpump",
+"entry_ts": 1777906062.028244,
+"entry_price": 0.003187847704911784,
+"token": "CHUD",
+"pair_address": "GyqM8Pe9FUbkk5hCw7ffpeUt6F6WcHnc8pPdMYcnShiS",
+"src": "live_trades.json"
+},
+{
+"mint": "34q2KmCvapecJgR6ZrtbCTrzZVtkt3a5mHEA3TuEsWYb",
+"entry_ts": 1777907713.269757,
+"entry_price": 0.002253,
+"token": "LOL",
+"pair_address": "Dx5wFoszXvND6XYYAjAjUQrGLqDAUrTVH2JmHz6eJDNt",
+"src": "live_trades.json"
+},
+{
+"mint": "Aw5SxKyYhXFdZj2BHCqs11UaV5ohwpFQjauB9jFhpump",
+"entry_ts": 1777936591.536193,
+"entry_price": 0.0005043292478887545,
+"token": "Apple",
+"pair_address": "4AKhvqWzJ2B4eWdFxyiYPGbfoCkLkkHMVbea18YpLLuM",
+"src": "live_trades.json"
+},
+{
+"mint": "F7uxGqWuB7KdXxjf6hc8Ats33YZMF7p8mEC2pho7pump",
+"entry_ts": 1777947823.256409,
+"entry_price": 0.00277,
+"token": "pep",
+"pair_address": "C5JWNeMA1pHEzL3RJaQEjCjrPw7pJCCx89NBxoPGsEXM",
+"src": "live_trades.json"
+},
+{
+"mint": "4nV5gNwwP68zUDat26ySChREqVaQaLudfJBkSgEzpump",
+"entry_ts": 1777953543.525694,
+"entry_price": 0.010740841188608796,
+"token": "BOBO",
+"pair_address": "31ZmTzEufRDBGKsJ7NicCkEKxtPQgAEMQvdbCuUfE6GX",
+"src": "live_trades.json"
+},
+{
+"mint": "jk1T35eWK41MBMM8AWoYVaNbjHEEQzMDetTsfnqpump",
+"entry_ts": 1777970315.959927,
+"entry_price": 0.001899178554650978,
+"token": "SOL",
+"pair_address": "CcYbXbMHr2o9Vyz2wmJcRvi59wh42xkXf6qrzChbHPN5",
+"src": "live_trades.json"
+},
+{
+"mint": "4XTaitDjvAAvHM1F8ZiiiWq3mCDdvQ7RfbKQ1wdVpump",
+"entry_ts": 1777973086.86261,
+"entry_price": 0.0005590914713201206,
+"token": "CHIMP",
+"pair_address": "DFw7GbWEfsddAKMjkxz8M39aCdWPvGdoGLoT9T1i46As",
+"src": "live_trades.json"
+},
+{
+"mint": "C4egP1mBDHKsu4CcQbrTsWsSH7GQ9BNfQcdKJnvZpump",
+"entry_ts": 1777976487.287816,
+"entry_price": 0.0005794411818060452,
+"token": "TROLLUDI",
+"pair_address": "5HEx33MivzbCoKjb9zahBF1FTgteMqhxoT8uSYGEDwzj",
+"src": "live_trades.json"
+},
+{
+"mint": "35Lod8esDj2c1QuzceUYMRhBwTJuEzoYD4fqttk1pump",
+"entry_ts": 1778027834.080344,
+"entry_price": 0.0005251127735924664,
+"token": "GME",
+"pair_address": "B7mTszdcWpnqLMDWACmfoYDQgoB8xEQaFbfYmZGCNTDb",
+"src": "live_trades.json"
+},
+{
+"mint": "PAYmo6moDF3Ro3X6bU2jwe2UdBnBhv8YjLgL1j4DxGu",
+"entry_ts": 1778071466.656541,
+"entry_price": 0.007953264173242665,
+"token": "PAYAI",
+"pair_address": "dAVkU4eGCj9qzEV2pDFynpF3nwL97odmbFHfDBKDvLz",
+"src": "live_trades.json"
+},
+{
+"mint": "CDsvrN5KXi3qbgJzAmvuWcF7mhofH9E4VQt4JM94pump",
+"entry_ts": 1778084476.488447,
+"entry_price": 0.0006418715406747368,
+"token": "USAPL",
+"pair_address": "3Dds9EVHLmBn4Tk6hiMwKJBgCQKJWZaG7Zk7yQRsFywx",
+"src": "live_trades.json"
+},
+{
+"mint": "Gv2i54czMSYbkygCKhLRYc59JNVtfrofFwd9mPqZpump",
+"entry_ts": 1778123690.729051,
+"entry_price": 0.0003530322134365411,
+"token": "AI",
+"pair_address": "CtrgfRpVy77tZXq27L94GXRgVDur1qkxGJxtQLyuur8L",
+"src": "live_trades.json"
+},
+{
+"mint": "BiywH8Eq2CbGhwMHKwCnfTiccWJwN7r1Q4Qn9hsypump",
+"entry_ts": 1779500064.457508,
+"entry_price": 0.002759,
+"token": "VIRL",
+"pair_address": "8PX97NP5WY871SmsZwHqYL9z97k3vzHGjvKFvAT7cARz",
+"src": "ms_trades.json"
+},
+{
+"mint": "FmjijgwEHpe32VPvHy1s7u7TLthh9yu1j75djVbWpump",
+"entry_ts": 1779500935.45846,
+"entry_price": 0.001294,
+"token": "DEGEN",
+"pair_address": "G4s53aDUjuKYZ5HiKyrcTbgfNsroixPp12yXy8qM4tJc",
+"src": "ms_trades.json"
+},
+{
+"mint": "322bSL6UaDju2B4Nv1XAKJorRNRBFnW3pRkHxzMopump",
+"entry_ts": 1779506476.028227,
+"entry_price": 0.002409,
+"token": "UFO",
+"pair_address": "6tJUdLtx2UYedAC6xjKCqwfC15fvWovs3EVECKDS5GRN",
+"src": "ms_trades.json"
+},
+{
+"mint": "B5xwCQUKfx8BJZsgvuBvW6XgrxtkqLTrDEAYjpLJpump",
+"entry_ts": 1779548696.743129,
+"entry_price": 0.001433,
+"token": "PAC",
+"pair_address": "Atx6zyC1WkbBpCwhZG8UZ2n51184Ps78zTQMzsMV2uDy",
+"src": "ms_trades.json"
+},
+{
+"mint": "HxWrnZznqF5iYf3ckMw3FTaZQvubB53ohzpjPSNUpump",
+"entry_ts": 1779550417.888768,
+"entry_price": 0.001229,
+"token": "FWC",
+"pair_address": "J56DqS7mhjtRrruP6H7qi4ftuyXmqVE2pLXtVWM84hwx",
+"src": "ms_trades.json"
+},
+{
+"mint": "FADNLNo4xc8ot3bcgbHFQuuSKg93jKfpR8pcCR76pump",
+"entry_ts": 1779552901.307032,
+"entry_price": 0.0007431,
+"token": "POKE",
+"pair_address": "JADhb4hLquHuwwksptRJthNLP4bQ1tk2ii5e7xJYirgt",
+"src": "ms_trades.json"
+},
+{
+"mint": "E6ifp2mJy8cYQehUGUtFvrXriRKxRuonLmrvTFypump",
+"entry_ts": 1779554860.350667,
+"entry_price": 0.001509,
+"token": "SPCX",
+"pair_address": "DZxWcyPpTyr2NTfmEN2xAUSCb77t1ZLpkg63PbpbKmbC",
+"src": "ms_trades.json"
+},
+{
+"mint": "6qdzMx4c9rL2X3Ns3SwZ8uEo4zReDPjdXpAEmpo7pump",
+"entry_ts": 1779559838.829338,
+"entry_price": 0.0006485,
+"token": "BABYTROLL",
+"pair_address": "34UtPx3zyYfC5GVqDXWJqLf77BU5Ebb6o3C2XynpKtzL",
+"src": "ms_trades.json"
+},
+{
+"mint": "NV2RYH954cTJ3ckFUpvfqaQXU4ARqqDH3562nFSpump",
+"entry_ts": 1779570968.631877,
+"entry_price": 0.002139,
+"token": "Punch",
+"pair_address": "A6KHMiFzn9AM7VKBtVP4fZNY9bCo2jP63R9dphaW1vrq",
+"src": "ms_trades.json"
+},
+{
+"mint": "SarosY6Vscao718M4A778z4CGtvcwcGef5M9MEH1LGL",
+"entry_ts": 1779582753.678788,
+"entry_price": 0.0005715,
+"token": "SAROS",
+"pair_address": "3G2itp6ERsvSs2UhfYMTEdX21uxVdKc71ipGQG8oGtom",
+"src": "ms_trades.json"
+},
+{
+"mint": "AGWmh5GfPKqEtWoXXpo43p3SGr4CKxB5XYfEvBjMpump",
+"entry_ts": 1779585070.325329,
+"entry_price": 0.000785,
+"token": "ENHA",
+"pair_address": "5coEQAc7jdUBc9eqGnPWNTKMc6SUy9FFkbkEWNao4NPZ",
+"src": "ms_trades.json"
+},
+{
+"mint": "HfAFNsnjmbWMMRkwNeUUoHJ8V6UnUGFzkpu3Seajpump",
+"entry_ts": 1779605603.538909,
+"entry_price": 0.0006335,
+"token": "HENRY",
+"pair_address": "5qKYxnzYi6hoKzZsjHqqJgBSDDK9ZFfo6VXZ8C6vvj6h",
+"src": "ms_trades.json"
+},
+{
+"mint": "8Jx8AAHj86wbQgUTjGuj6GTTL5Ps3cqxKRTvpaJApump",
+"entry_ts": 1779613125.767544,
+"entry_price": 0.002947,
+"token": "PENGUIN",
+"pair_address": "DRAf8QxQY86h7yeHdo9GytXAF6GoTTT8oZjknwXV6dCS",
+"src": "ms_trades.json"
+},
+{
+"mint": "CotmxNNE85WeyFr5xvzJksEZhLctqhD9uzFFbkHCpump",
+"entry_ts": 1780171304.288154,
+"entry_price": 0.001072628,
+"token": "MONEY",
+"pair_address": "4eqkDY4CsvzLeX85GEhnt2RPzCf2p2TiX8j8hNgQYmtb",
+"src": "all.json"
+},
+{
+"mint": "4rWuWZei2iFNHYpnz5wjMeSvimsJcj5EgpSNvNS1pump",
+"entry_ts": 1780145164.617268,
+"entry_price": 0.0008070131999999999,
+"token": "SAID",
+"pair_address": "BoeHYU42BxAvZQa5WmhygWXofzveUHfNLigKUS8XV1Ju",
+"src": "all.json"
+},
+{
+"mint": "HJ4LhZwi4uro4ZFnsk4PBroCJz2KnEs8NwRhowoxpump",
+"entry_ts": 1780450253.982992,
+"entry_price": 0.000632628661808,
+"token": "JARS",
+"pair_address": "GA8mG4rLxBvZoiDyLcTjRi7FuRcjWgvgfbk33h1UPrin",
+"src": "all.json"
+},
+{
+"mint": "ECYKYuRtgwXPkFu2tfUR8fD18sYz9Y2AyuvsAAnZ5USA",
+"entry_ts": 1780480480.420832,
+"entry_price": 0.0007140912819069231,
+"token": "DREAM",
+"pair_address": "AnGFTTaFBxri6T85wtaej7C2JzZLRXgrP4KwN4w3AX3z",
+"src": "all.json"
+},
+{
+"mint": "33eum82LaAhtv5YkUq1BdwEviSErH5CnFxqVNLT5pump",
+"entry_ts": 1780141896.139553,
+"entry_price": 0.0050467059984,
+"token": "WORLDCUP",
+"pair_address": "8UYCgRrxZc3XKY8PBJDSKubAUP4mpbxoj1EZJ7A5G9wy",
+"src": "all.json"
+},
+{
+"mint": "6ehEcTMCc85aNF4x9CWx8HuvWGhxQtvKdhKVf2HDpump",
+"entry_ts": 1780141826.803979,
+"entry_price": 0.011321412714145327,
+"token": "TOESCOIN",
+"pair_address": "EE3zk9Fxp9guair2xeReFxf4TsEXeZFFuWETRna2PkcV",
+"src": "all.json"
+},
+{
+"mint": "Tqj8yFmagrg7oorpQkVGYR52r96RFTamvWfth9bpump",
+"entry_ts": 1780186654.46844,
+"entry_price": 0.0015405145265000003,
+"token": "KINS",
+"pair_address": "F42tZnKPavq1VUcrL6ymhc6YqVpt84fWwgzbNTv2wb3W",
+"src": "all.json"
+},
+{
+"mint": "J3UojqFT5JCYQHLTWWcumvBuEcWDpaRRmEGYMjfppump",
+"entry_ts": 1780462305.557114,
+"entry_price": 0.0012013277162,
+"token": "PDEX",
+"pair_address": "RNto6js1ik4xFQwE2xwwkneABvYK6NzqcDqbXngntLm",
+"src": "all.json"
+},
+{
+"mint": "Hkpi2SkNWm5LogyY1Bz4zYTq5REVvco2aYWd1tYppump",
+"entry_ts": 1780142026.155037,
+"entry_price": 0.002898286,
+"token": "FCM",
+"pair_address": "rxFKDunvinPubDZdYN68Rtm3bh2T9S5JYTpai8E4ZBi",
+"src": "all.json"
+},
+{
+"mint": "EhHyfjRwj2jhmSE7GW5uJfizaLcNDa5C4HWPiSqjpump",
+"entry_ts": 1780143091.642534,
+"entry_price": 0.0008029644999999999,
+"token": "LOA",
+"pair_address": "EnYMBPWxnVJ7EBaV3D9sTtiCmiDtM658LorfqVLwvSCF",
+"src": "all.json"
+},
+{
+"mint": "FeMrhDeddUvuzo25RZriZD6Te8xy3tdyKLLXBhEEpump",
+"entry_ts": 1780485119.285942,
+"entry_price": 0.0005649104999999999,
+"token": "DOGEUS",
+"pair_address": "EYsDErowTsFTm1X5ABW5hWUhrvmv88goZSVDeCPar38f",
+"src": "all.json"
+},
+{
+"mint": "EabfXkmwb5a4yVoZtdna8Qu4dP44x14hVMoG29Yqpump",
+"entry_ts": 1780458676.861393,
+"entry_price": 0.000987742173312,
+"token": "ISOR",
+"pair_address": "Gfin5shaTr9ar6TpGwNDWR8MUp53Pd5oGKESR69zadbM",
+"src": "all.json"
+},
+{
+"mint": "5vAExw5RGMqsxUTUoX2UByh1vi4U4UoLL4fguaMEpump",
+"entry_ts": 1780272459.857051,
+"entry_price": 0.00083125673892,
+"token": "DATBIHGAH",
+"pair_address": "JDNctrko6VABAbDKq2A1XMQYv3LYhDjpQii8KWuajHop",
+"src": "all.json"
+},
+{
+"mint": "Gqqdgfkn7bcsuBQZEk9oMBkqCv1bRXvPmTLs3sQ9pump",
+"entry_ts": 1780265607.149121,
+"entry_price": 0.0007915208,
+"token": "PEPONK",
+"pair_address": "GZMszWrSGJfK7aeEML2UcinaLguG6GWmpnh5R7Y6vQPu",
+"src": "all.json"
+},
+{
+"mint": "FeMbDoX7R1Psc4GEcvJdsbNbZA3bfztcyDCatJVJpump",
+"entry_ts": 1780335961.851493,
+"entry_price": 0.002373239666666667,
+"token": "three",
+"pair_address": "CnK82s8exdsK9nwqQ55kd9wcxoA22NwTchZJCBdu8LDa",
+"src": "all.json"
+},
+{
+"mint": "D2WtV5Jpb1yVcDfJLAhUaS5DLN1J3Rb3LDFYrRBrpump",
+"entry_ts": 1780436421.264512,
+"entry_price": 0.00048037559999266667,
+"token": "TREND",
+"pair_address": "CxX9yodvKkUDykdVs1ptq3gWZgbUC9PGtvM4RXTtjmT3",
+"src": "all.json"
+},
+{
+"mint": "6AJcP7wuLwmRYLBNbi825wgguaPsWzPBEHcHndpRpump",
+"entry_ts": 1780182415.355927,
+"entry_price": 0.0159597264928,
+"token": "VINE",
+"pair_address": "58fzJMbX5PatnfJPqWWsqkVFPRKptkbb5r2vCw4Qq3z9",
+"src": "all.json"
+},
+{
+"mint": "4NBTf8PfLH4oLFnwf3knv46FY9i5oXjDxffCetXRpump",
+"entry_ts": 1780373840.751218,
+"entry_price": 0.00271224241824,
+"token": "YzY",
+"pair_address": "969wmqydp6mc8jEL2v7tmpv5PwzWBfqzkmiENne2JBfe",
+"src": "all.json"
+},
+{
+"mint": "9MTge3duPkUwN3x9ZPQaLzJnzf9cTZzpj98F4VJANPpr",
+"entry_ts": 1780470479.288283,
+"entry_price": 0.0007595490078760001,
+"token": "WLM",
+"pair_address": "6UrpjYjee3u5DjD83brPY7G5v2GCbkvcqViw1wrN5HwB",
+"src": "all.json"
+},
+{
+"mint": "9gnq7qkXgKAsTwFCLrX76PvtYtRtrNaBYEVBBP7gjupx",
+"entry_ts": 1780477195.297169,
+"entry_price": 0.00031613100000000004,
+"token": "NEAN",
+"pair_address": "Hdh5jVfUktswc5cZwR7ZDcATCQLpXKUnXqeb4eKxkSxq",
+"src": "all.json"
+},
+{
+"mint": "2GXmB95pGD3pHV4mzNq7YsmyiEmVYWQLptbwYqgdpump",
+"entry_ts": 1780462543.787431,
+"entry_price": 0.00145005657784,
+"token": "WNTV",
+"pair_address": "AjBm4BBsZFoSndhwEb5KqjxaBzEBgh1CRCo3E8wF43cv",
+"src": "all.json"
+},
+{
+"mint": "DMU6LRnRBV7URLdpCYadHNKxXxyf4MRkdqSqC2tkpump",
+"entry_ts": 1780411771.163241,
+"entry_price": 0.0004685169016733333,
+"token": "DATBIHGAH",
+"pair_address": "5uabDKJgQ8muVmWgfCaXXCbuecxK5EcsPQuPUs2JL9Rh",
+"src": "all.json"
+},
+{
+"mint": "FThrNpdic79XRV6i9aCWQ2UTp7oRQuCXAgUWtZR2cs42",
+"entry_ts": 1780434918.458949,
+"entry_price": 0.0012252866666666667,
+"token": "KM",
+"pair_address": "C3KrnLguJ59pEwpTC3BHhqLu7RNvSLhy8CpnpQAeP61X",
+"src": "all.json"
+},
+{
+"mint": "GMvCfcZg8YvkkQmwDaAzCtHDrrEtgE74nQpQ7xNabonk",
+"entry_ts": 1780150344.036013,
+"entry_price": 0.0012093938461538462,
+"token": "1",
+"pair_address": "6sEkZ73vph5AFYmQTzaV6H5vAQQLZ2C8WqeCQ6MhLqFk",
+"src": "all.json"
+},
+{
+"mint": "AKUYQxitb6GqqJnoSbwgzJJphRW5emgn2ykEiPpKpump",
+"entry_ts": 1780342127.094153,
+"entry_price": 0.000579959,
+"token": "Berries",
+"pair_address": "4vZbS2q6HfXnjYC58wc21qrgd48nFGVjZMcN7rGcZuGX",
+"src": "all.json"
+},
+{
+"mint": "vRseBFqTy9QLmmo5qGiwo74AVpdqqMTnxPqWoWMpump",
+"entry_ts": 1780254409.809021,
+"entry_price": 0.024314196298000003,
+"token": "Verse",
+"pair_address": "6LtBM9GxMtmff1VY6jEV5U3UrMCSGtSuquhfnwWTmTLi",
+"src": "all.json"
+},
+{
+"mint": "5Jng6jkLKU1o8BNrCzTEMXMFvPjNJZTpdWR3Hq4RHJb6",
+"entry_ts": 1780145139.537628,
+"entry_price": 1.3280431492800001e-09,
+"token": "SHIKOKU",
+"pair_address": "FyQuZLz6LLJxKhSwXkMpZ5Po6G8bcRv8Ub2s3paU74pC",
+"src": "all.json"
+},
+{
+"mint": "8ZHE4ow1a2jjxuoMfyExuNamQNALv5ekZhsBn5nMDf5e",
+"entry_ts": 1780145917.251964,
+"entry_price": 0.00897352,
+"token": "MORI",
+"pair_address": "9nxAnMD7K78a9RMd2L3w8kQT5u9i7gsvV5aHiZ78sCC2",
+"src": "all.json"
+},
+{
+"mint": "Cxtd4j9mVysEoE8JRiiyhPoqa59mfU6JW58jy34GPump",
+"entry_ts": 1780435998.172281,
+"entry_price": 0.0003193674969,
+"token": "KEKIUS",
+"pair_address": "3SFXHSTxpVyLTg9GQpnLKsd7CergRgULgki8V5XxE6RF",
+"src": "all.json"
+},
+{
+"mint": "6gwoNDv86bDCmJWZPyvYyhor1en1YxS13sbBo6zdpump",
+"entry_ts": 1780435843.15554,
+"entry_price": 0.000573171240803077,
+"token": "nyoro",
+"pair_address": "GT6A3tL3kjcVTGp2q3pP9eNBzyyXMQ51mTfzQiKhYgNW",
+"src": "all.json"
+},
+{
+"mint": "AVA8YuCsD2YgUSpdv3Hb2cjpdf8XAhGwyXmchxwopump",
+"entry_ts": 1780142240.799827,
+"entry_price": 0.0008542989842559999,
+"token": "AMERICA",
+"pair_address": "E9Pq8h8CN2cK3uZxsQ6LhkwGbyaAnLgAh4YwczNqdU3f",
+"src": "all.json"
+},
+{
+"mint": "463SK47VkB7uE7XenTHKiVcMtxRsfNE2X4Q9wByaURVA",
+"entry_ts": 1780253769.429419,
+"entry_price": 0.006332770000000001,
+"token": "TSUKI",
+"pair_address": "7yMhxapzceFUo24KNgP77mGj1crdAv8ayYfqGvB5skZf",
+"src": "all.json"
+},
+{
+"mint": "EN2nnxrg8uUi6x2sJkzNPd2eT6rB9rdSoQNNaENA4RZA",
+"entry_ts": 1780142744.215583,
+"entry_price": 0.005944819149,
+"token": "SQUIRE",
+"pair_address": "4CPVihvjKUUsXq3HFrS8wniUKffbpDqz2h6jHKjeXoYD",
+"src": "all.json"
+},
+{
+"mint": "5hiLgyybrAYPpUwNFa38agfZ8iEtnahWKAPixcfspump",
+"entry_ts": 1780258814.731616,
+"entry_price": 0.000949378820284,
+"token": "RICH",
+"pair_address": "3hCWyGJyuvjxrgLvu6QQgrTeDWYfUvvdPNk6SHXiP1Hj",
+"src": "all.json"
+},
+{
+"mint": "9VY2rDbtsBmTsBxoRF8hWSEUKGqnoQoe9V6W3JnjNgfm",
+"entry_ts": 1780188708.304799,
+"entry_price": 0.0005145199666666667,
+"token": "JTVO",
+"pair_address": "EcL9YDP3PsViKs2aDzDeTYdNXUCPLDodcKTbS4ayqf4N",
+"src": "all.json"
+},
+{
+"mint": "BCdwQBAn8dYB5YjTsoB6TdHAWokxv28k2oZUodERpump",
+"entry_ts": 1780141674.997327,
+"entry_price": 0.02808236538461538,
+"token": "MANIFEST",
+"pair_address": "2DVbU5h8JCd37gaXAJUZ4t77HsjJW22LLduTZk7GSa43",
+"src": "all.json"
+},
+{
+"mint": "oqU4DdYCbdSf9j74vnEgvCn1YzNfYQEPWaC6pu6pump",
+"entry_ts": 1780142762.747184,
+"entry_price": 0.001346551923076923,
+"token": "CUM",
+"pair_address": "GKDdjR8Nm4Y1m4KTWb9LYLMpvTH48W1tEdx85oqD1Wcu",
+"src": "all.json"
+},
+{
+"mint": "BhTPX3YwwVff8F16ujjwvD9pqjCM8pa648Bchognpump",
+"entry_ts": 1780336135.834016,
+"entry_price": 0.0009214423912199999,
+"token": "SPCX",
+"pair_address": "6QE7q37ZEnf74F1NYwCx1mtqiBQJhRAGPE5NVhkaBDgz",
+"src": "all.json"
+},
+{
+"mint": "Hh3oTaqDCKKfdBgsQEvxp9sUwyNf8x9qmKqEMLBWpump",
+"entry_ts": 1780146372.01023,
+"entry_price": 0.003824812,
+"token": "HODL",
+"pair_address": "DTdtHUx79bmNMnesv3au7pzBKAkB3mUUi8GwUdZ6Suw",
+"src": "all.json"
+},
+{
+"mint": "DnnmrZnCTqQn7bYbVAiWdJLreqrhg7HaSTkmhtzu8THy",
+"entry_ts": 1780160550.102647,
+"entry_price": 0.0007636801538461538,
+"token": "GACHA",
+"pair_address": "9bL8Pptpb8M2jEAb63EoarA6Po6Akarpha3JPzQfXGS3",
+"src": "all.json"
+},
+{
+"mint": "Ce2gx9KGXJ6C9Mp5b5x1sn9Mg87JwEbrQby4Zqo3pump",
+"entry_ts": 1780187768.938426,
+"entry_price": 0.037477843154399997,
+"token": "neet",
+"pair_address": "5wNu5QhdpRGrL37ffcd6TMMqZugQgxwafgz477rShtHy",
+"src": "all.json"
+},
+{
+"mint": "C3fawupKrXdn3X7KPTmmnkwzJQ9qycMNag55ZzQ8pump",
+"entry_ts": 1780279747.794109,
+"entry_price": 0.0005036036,
+"token": "SPETTRO",
+"pair_address": "CDQAkPCbP6TykEz1UwwEpQtBcEXo6mZZH652JRiPwW6r",
+"src": "all.json"
+},
+{
+"mint": "3twLAdLHgkuxBE6WnAeJgeUfdZ5MDz44pW2rSYPApump",
+"entry_ts": 1780369549.077464,
+"entry_price": 0.0006727753846153845,
+"token": "ISOR",
+"pair_address": "9NJbC2iRjcXhCLHfuvKaGJcMNNFNgJbxQjP7kw4Y4nn9",
+"src": "all.json"
+},
+{
+"mint": "GkyPYa7NnCFbduLknCfBfP7p8564X1VZhwZYJ6CZpump",
+"entry_ts": 1780349035.447646,
+"entry_price": 0.0024695386606799997,
+"token": "CHILLHOUSE",
+"pair_address": "35TqQMeiRwEbK6FR5qiPwastuAAvo32VjnULJpxVSxUK",
+"src": "all.json"
+},
+{
+"mint": "CFj8o1y9636Q4RAZm86EkR54CMGPAFQa8KkDn4Fbpump",
+"entry_ts": 1780170860.427844,
+"entry_price": 0.000985535846153846,
+"token": "SYFR",
+"pair_address": "2Td5KYUTPHsBSDcNH2PsrN5uXDk477Dsn72o7HAJpzCN",
+"src": "all.json"
+},
+{
+"mint": "3x6apzqJKgf33zet8CbkAx7LogqkRhNX6FiRzVA5pump",
+"entry_ts": 1780281314.733214,
+"entry_price": 0.00105866678268,
+"token": "grail",
+"pair_address": "UvN1ZVZJom7D4CPuhjJrbD6y82k5TSefRQMZHHXjjfM",
+"src": "all.json"
+},
+{
+"mint": "H2yHLoC24dM5v1Vjh2Poqx7fZ9mp8EfR2MYseXScpump",
+"entry_ts": 1780283250.735714,
+"entry_price": 0.0008826778392707693,
+"token": "BOXABL",
+"pair_address": "9shHp1YwJQ2Jb4dUp2upv96txAyCbdjKCssqD8THQhxt",
+"src": "all.json"
+},
+{
+"mint": "GnHpRsrcyfHSMZNzmpjAzTFQA26vnbRMzbKQ11ZKpump",
+"entry_ts": 1780346999.998235,
+"entry_price": 0.0007214026,
+"token": "ACE",
+"pair_address": "6FEUgxZHVy2Zh4rTnoaret4Hyh1wXa3E3isouFBSSakJ",
+"src": "all.json"
+},
+{
+"mint": "8PzFWyLpCVEmbZmVJcaRTU5r69XKJx1rd7YGpWvnpump",
+"entry_ts": 1780337462.846072,
+"entry_price": 0.0050995894796,
+"token": "Percolator",
+"pair_address": "Ebs3mXAzqZfzHfsdinTNw7gPy4uNyEAywcCiJxzLRrBW",
+"src": "all.json"
+},
+{
+"mint": "8A295DWFRHFBbMMmeTJQwXJSdnUe3wfh6QX6gK4Tpump",
+"entry_ts": 1780283372.476588,
+"entry_price": 0.0017754847413000003,
+"token": "tbh",
+"pair_address": "Aus1BKxzUxuPptAskoxsJ2JUCpVssT7RNvJvh1BGMhaR",
+"src": "all.json"
+},
+{
+"mint": "aqQRs3UJmHs7ktoLo46HZAzvG9P3oCoZ41nENqFbory",
+"entry_ts": 1780269856.170032,
+"entry_price": 2.3099666666666665,
+"token": "PIE",
+"pair_address": "H1HkFYy8ga3oYBkxK4hTieZFPBSdh8ot5BsbRjJqj79V",
+"src": "all.json"
+},
+{
+"mint": "HfMbPyDdZH6QMaDDUokjYCkHxzjoGBMpgaUvpLWGbF5p",
+"entry_ts": 1780155180.547977,
+"entry_price": 0.7364768319384616,
+"token": "PBTC",
+"pair_address": "ATH32pbLRupjq8YNUHQWaJbgBbGPRbrw2GZw5jdZXiRr",
+"src": "all.json"
+},
+{
+"mint": "AUdUEc98MGfEHJiJfCgMaW8gKdcfNDio8BFzGKBwjztC",
+"entry_ts": 1780254776.622029,
+"entry_price": 8.014802e-08,
+"token": "Digi",
+"pair_address": "68vHUSKj8LZSWnvvjtSmgNMoiNwR7vS8t8t1DTaA1f53",
+"src": "all.json"
+},
+{
+"mint": "Fch1oixTPri8zxBnmdCEADoJW2toyFHxqDZacQkwdvSP",
+"entry_ts": 1780259307.635273,
+"entry_price": 0.0007057206173639999,
+"token": "HARAMBE",
+"pair_address": "2BJKy9pnzTDvMPdHJhv8qbWejKiLzebD7i2taTyJxAze",
+"src": "all.json"
+},
+{
+"mint": "9voQQTTdfbqfXwc9rZAdJEeXXjUWjHnB4wkShMT8pump",
+"entry_ts": 1780161986.26456,
+"entry_price": 0.0024328046072,
+"token": "LAYOFF",
+"pair_address": "HdTXiwhqPTFFriGDndoaFAaPNGSERXSFUDirxj1m8N42",
+"src": "all.json"
+},
+{
+"mint": "CcLd8HTAKLWtQHatqPwBQjtuCA72FNB9E1ckRTEzpump",
+"entry_ts": 1780158766.42684,
+"entry_price": 0.007643054113706667,
+"token": "ALTSZN",
+"pair_address": "89XnvgGVKvtx5trrLtkrPZ6G2tD2TrSgPHXEWQPs5iN9",
+"src": "all.json"
+},
+{
+"mint": "7HgfXftRBBqsYtAEYcqjGLQrNJLL6Tww9ek4rE3Apump",
+"entry_ts": 1780178268.234997,
+"entry_price": 0.0029754292307692305,
+"token": "RKC",
+"pair_address": "FzbYhPcoCuA2qSrV1s3j38RcQhP6c943p3KHYb6C5rCq",
+"src": "all.json"
+},
+{
+"mint": "8wxkvAfEns76yBzu4MnbV7VnXWjg3iDPA9uwAQ6cpump",
+"entry_ts": 1780205417.175763,
+"entry_price": 0.0005393166,
+"token": "SOLANGELES",
+"pair_address": "Ak7hDCxDSocD2ZgJBCa1ZwLcuDQz5F6n747a7rQtpXE3",
+"src": "all.json"
+},
+{
+"mint": "FjgXCL8ov5BkvZGoY2QthvhUmx82mVkSmhni6nCJpump",
+"entry_ts": 1780158163.188758,
+"entry_price": 0.0002588983846153846,
+"token": "TOLYBOT",
+"pair_address": "EH5FYz1qcRhrs6VivDNfYjaxuN76HZc1oNWK6AHW43KL",
+"src": "all.json"
+},
+{
+"mint": "7bKEdBip23yFo6ZFA6KbQm9NP5uNgkRhC13bRwzEpump",
+"entry_ts": 1780267903.572609,
+"entry_price": 0.0005811488739653333,
+"token": "GAYBRO",
+"pair_address": "3hK2PJtLVXrF9h8xMzHSiinTkUNvThLbmDzyi1UTsA4e",
+"src": "all.json"
+},
+{
+"mint": "SLXdx4BUt2v9uJQNzWqSfzTJ9UKLUDsvxHFMEEdrfgq",
+"entry_ts": 1780205465.297552,
+"entry_price": 0.20492096808000002,
+"token": "SLX",
+"pair_address": "Sgo6roPnWxZUtDHKBeJkxVyUVWYcGwZh5hgX6w6pXHH",
+"src": "all.json"
+},
+{
+"mint": "2MLH1Cqkc3VYvgvNB8wF3aQdDBxPLeeQdwUEqwKUpump",
+"entry_ts": 1780235319.075451,
+"entry_price": 0.0005534378461538461,
+"token": "TRUMP",
+"pair_address": "9J8TrjE5vpr3kN4rLijHs1oxxCa637QBFtv711pjX6WP",
+"src": "all.json"
+},
+{
+"mint": "HFq1GAEfsFamEQYVccRemH37qWR1VgSJZPxdVGYVpump",
+"entry_ts": 1780260656.181552,
+"entry_price": 0.0007016549612946667,
+"token": "10m",
+"pair_address": "ARiCuaL3Sqb1BnKi6xYmiSUG7nbbrvNHd6TJV9atKVu7",
+"src": "all.json"
+},
+{
+"mint": "26YRpwvWhTSBSAkQbhNP6AXBNrJe8uRxibAn7ZXXpump",
+"entry_ts": 1780260939.86541,
+"entry_price": 0.000582115882124,
+"token": "SPCX",
+"pair_address": "7JiKNarb6cwr6ZaGMG2DbJEUwEy65mvHwmpZmjeuR5yt",
+"src": "all.json"
+},
+{
+"mint": "AjLhrxN2yrCe45Y2KGPMZCkBm6NpN43jWqPkdZq6pump",
+"entry_ts": 1780143154.359611,
+"entry_price": 0.0008989743127399999,
+"token": "IDLE",
+"pair_address": "DnAG61iCsCEfsqBeiR9Fcdkq92LayZMYewiSzw3ASWmN",
+"src": "all.json"
+},
+{
+"mint": "GDaQVH7GoHCRJWHpH7vXfQg2Vrb7kkhCoQ545w4Dhyc3",
+"entry_ts": 1780271762.782774,
+"entry_price": 0.0007768831969920001,
+"token": "POKERX",
+"pair_address": "7GjEFwhvNfZ2W4wsTHZEbMYaTRfgeAp5ARC4BD4FPyvB",
+"src": "all.json"
+},
+{
+"mint": "6SjVTj1VGwFSXn7wEjwFm77LvACeTqB7sQUebYKX8Ds5",
+"entry_ts": 1780272050.517637,
+"entry_price": 0.0023827675417133335,
+"token": "ROUTER",
+"pair_address": "DJ8qzBm3ZoRi4YiVmpiLBBuc67cq737vqaTNbMRJGcvZ",
+"src": "all.json"
+},
+{
+"mint": "4TWm7LhQo9VLTHNrNFRBH8Wi7AhLiJudz1NxLP2EXaft",
+"entry_ts": 1780145977.057343,
+"entry_price": 0.00041698057692307687,
+"token": "PAYNE",
+"pair_address": "2EEwxk8fVBy3khquUYp886tHvSuSvFFq6Mhg9n5rSrm1",
+"src": "all.json"
+},
+{
+"mint": "9AvytnUKsLxPxFHFqS6VLxaxt5p6BhYNr53SD2Chpump",
+"entry_ts": 1780204306.565164,
+"entry_price": 0.004445514,
+"token": "67",
+"pair_address": "DMAFL613XTipuA3jFNYczavWT7XsiYf9cR3qmRMZQhB6",
+"src": "all.json"
+},
+{
+"mint": "GWedCE4fHTMVKo1gj4mRh63NYREYx9gJwDErsYTGpump",
+"entry_ts": 1780229716.786316,
+"entry_price": 0.0005126657627692307,
+"token": "SCATS",
+"pair_address": "EwfoyeWUYWv4HbHpZd929uWSYtZvWjFUT3oQ3KaWv692",
+"src": "all.json"
+},
+{
+"mint": "H74CYmXgMkYHYuSRsZt6RJb4NYp2u72Vw8BS5huApump",
+"entry_ts": 1780142364.864954,
+"entry_price": 0.003311192666666667,
+"token": "LMAO!",
+"pair_address": "AFaYrFH7hUYnkv5mbvbnRHwX29M9JzUL3ySGtQz69AUv",
+"src": "trades_fresh.json"
+},
+{
+"mint": "9DVozM5bvUTDSRNAn1WvePxfAqw6oYmYRRw5LAqCpump",
+"entry_ts": 1780191552.077796,
+"entry_price": 0.0006730757307692307,
+"token": "ATTENTION",
+"pair_address": "52xfJnaHZzxAddm74SVyxmdyLJ6qrrW8WN2U3SjmxaVB",
+"src": "trades_fresh.json"
+},
+{
+"mint": "DLGRpmkMGr7J4KD1xR5x2XjaGeQH64PLFQkyxNNSpump",
+"entry_ts": 1780143313.232686,
+"entry_price": 0.009006717999999999,
+"token": "TCG",
+"pair_address": "9NcS7HT3tfw35PXBhG9JKPqHQnHvTUabQtJiDSMmpVV",
+"src": "trades_fresh.json"
+},
+{
+"mint": "CmGsBfi3Zbsygpt1FcvFcQa3mD2drYGX6w5WdsWZpump",
+"entry_ts": 1780172858.301606,
+"entry_price": 0.0005475076988446153,
+"token": "ballish",
+"pair_address": "6ZfY55nrvu2bpcHEX1ZfpcUkPyvqGWWiy5iL3YQz7Qr7",
+"src": "trades_fresh.json"
+},
+{
+"mint": "6PuC6gyVfZAATJwoArT49ajY9dibXc3YX9WyfXZbpmrQ",
+"entry_ts": 1780169483.010376,
+"entry_price": 0.0006538535769230768,
+"token": "NO",
+"pair_address": "HXHTLcG2Zqu9zYC4Uye1rx7vHepXQ4UAga6N7ShSou45",
+"src": "trades_fresh.json"
+},
+{
+"mint": "HtTYHz1Kf3rrQo6AqDLmss7gq5WrkWAaXn3tupUZbonk",
+"entry_ts": 1780151704.667999,
+"entry_price": 0.0027992042798,
+"token": "KORI",
+"pair_address": "J28smrHeDLYHPZCJLVHExsiMifEDswFHobHpEQrYHdjL",
+"src": "trades_fresh.json"
+},
+{
+"mint": "Gsks4bWgKUCaBA6yzQSrBCAmbLbEtLEHXMMaUshxpump",
+"entry_ts": 1780142883.503782,
+"entry_price": 0.0006253701473461538,
+"token": "MOMO",
+"pair_address": "D6QWD4ybnMByDweu1px76UDGoxUkc9KuZbcuFqbQk83F",
+"src": "trades_fresh.json"
+},
+{
+"mint": "N9Curnf2ZQWBZWrjBkzP6xBe6n5WRhBhouRfiSqpump",
+"entry_ts": 1780887590.4804,
+"entry_price": 0.0001401358,
+"token": "POKETCG",
+"pair_address": "74P4ay5xozZdETrBygZ8jugM3bDMbNb5c2eR6kMSz6Xa",
+"src": "_overall_trades.json"
+},
+{
+"mint": "BcHEaaTCvycPwwsJ9yQTXdHP9X2gCLkznDbZ8VySpump",
+"entry_ts": 1780831012.538764,
+"entry_price": 0.00011981696666666667,
+"token": "Jotchua",
+"pair_address": "AKQyQgEifBBhQmANuKzrRuRGoKSkKBv8NVdccc87FrR8",
+"src": "_overall_trades.json"
+},
+{
+"mint": "J8cXU1EFi1SCTJ9XYpBnjqQ7nVLETNLFaRaHCP3RLiFE",
+"entry_ts": 1780885038.44033,
+"entry_price": 0.0004357698,
+"token": "LIFE",
+"pair_address": "EYCeumVC1vw9DwSQeh6RgMdD7pLQwjNk3zMVLZJDLCdN",
+"src": "_overall_trades.json"
+},
+{
+"mint": "J4x1EMmQjF6WEzXq2tUtzY89x5aMhYz5CzfevcJEpump",
+"entry_ts": 1780594504.95807,
+"entry_price": 0.001053102,
+"token": "Bountywork",
+"pair_address": "2C1XgnTarjmMNZpup44BL3rjsuWLPgsF3pHjzwRiXthS",
+"src": "_overall_trades.json"
+},
+{
+"mint": "6eEQtGNoQ7VaPFy3iUZBxNHU5LfvYZRep6umdbfpump",
+"entry_ts": 1780880186.540513,
+"entry_price": 0.0002963916,
+"token": "BOUTYJAK",
+"pair_address": "CFMcfkgMyRUdk8dqJQWTcoH2NXh5SJQNXuJ4DV9QMyYe",
+"src": "_overall_trades.json"
+},
+{
+"mint": "VtwGKv7dcpY7aFb8H7MvZfEtUAKwtsHcXSkejCAparq",
+"entry_ts": 1780779671.612212,
+"entry_price": 0.0003962480581326667,
+"token": "PARQ",
+"pair_address": "8joL92GpGiuya3Vv5TMtQzzaMWBMVsPzBUUveTP4o8KU",
+"src": "_overall_trades.json"
+},
+{
+"mint": "EmcxFTNVDqyLHp11NvwvLZ4D7LKGbG9i7B8RF7dwpump",
+"entry_ts": 1780605274.914169,
+"entry_price": 0.00018778759999999998,
+"token": "ZERO",
+"pair_address": "GN9whJWrkgU8jBRpM5oa4iwSzYw1LivjB397DSyvbVG",
+"src": "_overall_trades.json"
+},
+{
+"mint": "CW5sVPgJKh1p22CzQS7csFCPHZTtq5X9PWB3pbvopump",
+"entry_ts": 1780637523.022332,
+"entry_price": 0.000548595,
+"token": "OUTLIER",
+"pair_address": "ApLSY63mkS8hUNDhRQGS8vVxCvmTy5CX3AxpokCWRMod",
+"src": "_overall_trades.json"
+},
+{
+"mint": "8pNiw1yRRvTLQ3uSgdKVwtXgq4TBvzsRvJncW1JHpump",
+"entry_ts": 1780870623.772727,
+"entry_price": 0.00060702699456,
+"token": "BOUNTYHOUSE",
+"pair_address": "GwoJ89j58vM69JajJHSAWsTsBfEDuw8MLS47pmAXDQZv",
+"src": "_overall_trades.json"
+},
+{
+"mint": "9UuLsJ3jf8ViBNeRcwXD53re5G3ypgfKK3s2EiMMpump",
+"entry_ts": 1780589936.627893,
+"entry_price": 0.0009554477133953845,
+"token": "Magpie",
+"pair_address": "9QPMfSvFMutRxr9F6cDw9jWSyV6hNdosbNEnRqUQ1uQK",
+"src": "_overall_trades.json"
+},
+{
+"mint": "BHSKdQQ8mrjtSkMwpgzGedEbTMWuHwXq7x5VSkispump",
+"entry_ts": 1780754835.647443,
+"entry_price": 0.00043348540000000003,
+"token": "1",
+"pair_address": "FqAdwWUzaGEE3TA8caeiZcvRkdAr7yPm4eJEUgbwqeM6",
+"src": "_overall_trades.json"
+},
+{
+"mint": "3oL99tu2qnxka3HnxY8g1cXNpgBJ5ojoSWWFiDMopump",
+"entry_ts": 1780833436.7389,
+"entry_price": 0.000517084,
+"token": "BOUTYWORK",
+"pair_address": "FMe1KjhZtCTo67vdVXZB1scuefpmgaKrxBeZ2cMkjyYi",
+"src": "_overall_trades.json"
+},
+{
+"mint": "3G8zFxHAnuWXiiC9MobE9EUUqV6m6MjL51YnN6tGpump",
+"entry_ts": 1780696123.970457,
+"entry_price": 0.00029668467582,
+"token": "$tupid",
+"pair_address": "CSSMwhnHtxh3sKz5ihbaYKhCFiawFJbdEq6nEPg1ouBr",
+"src": "_overall_trades.json"
+},
+{
+"mint": "8avjtjHAHFqp4g2RR9ALAGBpSTqKPZR8nRbzSTwZERA",
+"entry_ts": 1780761822.098585,
+"entry_price": 0.0028601427890000003,
+"token": "ZERA",
+"pair_address": "6oUJD1EHNVBNMeTpytmY2NxKWicz5C2JUbByUrHEsjhc",
+"src": "_overall_trades.json"
+},
+{
+"mint": "uuxWwFL6G9UjiYRZvWxJrSB18V1oKBgYrmueamREK57",
+"entry_ts": 1780591742.39183,
+"entry_price": 0.0005647445999999999,
+"token": "HONTER",
+"pair_address": "EKALmxf1JWVJ5LL3fp4KeUrQXeirHjeLomBLCNBTZbSZ",
+"src": "_overall_trades.json"
+},
+{
+"mint": "SV151D5pjygAKA8aJJcKzm4wFnRX5G92Fye94jQJk7g",
+"entry_ts": 1780616772.989235,
+"entry_price": 1.4250371565333333,
+"token": "SV151",
+"pair_address": "KKyUyWncRfakBZh2M318BFfdR6332WWu1NePd9amQtj",
+"src": "_overall_trades.json"
+},
+{
+"mint": "HHkBcNjodLJHSzbVsWZ9VbMe79qpt8T6nsmn35nxpump",
+"entry_ts": 1780810542.720363,
+"entry_price": 0.00023012039527615385,
+"token": "WORLDKUP",
+"pair_address": "B3TmuuMues5Uz7VciLwetXjpGTXwEYJPsFgxFNsAqnGM",
+"src": "_overall_trades.json"
+},
+{
+"mint": "236ziZWiNPWeNk8aNB7abJpv4A6vHNP2XpxHH9VUpump",
+"entry_ts": 1780737847.121958,
+"entry_price": 0.0001403504432,
+"token": "DUCK",
+"pair_address": "GHGUZj6AfC8MaLKA4FARYdEuvntJubgBg8RDDwUQS6fq",
+"src": "_overall_trades.json"
+},
+{
+"mint": "3FDvp4d7RVqU1Ng6DQXBpVnyG844CeJYx8WW5PBHpump",
+"entry_ts": 1780802217.599988,
+"entry_price": 0.0006121218,
+"token": "YETZY",
+"pair_address": "77tvWRRKv5i2PzRQcvj6pXmTFHWzTbj2k1Dimrdzrpc3",
+"src": "_overall_trades.json"
+},
+{
+"mint": "6RXiM7kFbVhqNnS12m8gUjNrvzUdL9kRTsYGJWHEFQTc",
+"entry_ts": 1780671440.557063,
+"entry_price": 0.0006695021916199999,
+"token": "SLAB",
+"pair_address": "HU92r1WaiLq6GMeymyNcdyRSjo7fzzTu9AUuA5EouFaD",
+"src": "_overall_trades.json"
+},
+{
+"mint": "F9fAvYaLqyicibAynqZp2ZtaMs5BUecQexMw1rgupump",
+"entry_ts": 1780751821.494828,
+"entry_price": 0.00029092410628799996,
+"token": "Hunterius",
+"pair_address": "F1ZdMfyJj3e9V1S5wi6iVLEhzQdLKjfXzfRyErvR4FRJ",
+"src": "_overall_trades.json"
+},
+{
+"mint": "BgJb11D5NG9h8hTxDxxSnFZ3xMns5XeC1trY4kBSpump",
+"entry_ts": 1780801133.393639,
+"entry_price": 0.00024032423982,
+"token": "PHOTO",
+"pair_address": "645MkaEHyxhwFdsTqCjPhy9khvsAeJTW1bDYCD6dQEV2",
+"src": "_overall_trades.json"
+},
+{
+"mint": "kzahvEPRcHoTmKH1PYobzTT6pB3mMwHzGV7nQtYpump",
+"entry_ts": 1780802933.879324,
+"entry_price": 0.00037431823239999996,
+"token": "DONARUTO",
+"pair_address": "CdwyykpceJ5SsJ9b8wrMAWAYNgyndakPvJWX6jMrXNMH",
+"src": "_overall_trades.json"
+},
+{
+"mint": "12JPYuF5tvXbCPy7KLmEoqB53Mbpxre2L6yCteXEpump",
+"entry_ts": 1780783073.317477,
+"entry_price": 0.00034284249999999995,
+"token": "First",
+"pair_address": "6H9TgjP8URRfeCH9JmURECZRBnHNJSh9rsG2ayUwY33Z",
+"src": "_overall_trades.json"
+},
+{
+"mint": "4b1iHmUmwa4JUGFVJbiL7JYUCvdYkFdDjwKb58vNpump",
+"entry_ts": 1780594296.90649,
+"entry_price": 0.0001542078,
+"token": "BEAR",
+"pair_address": "8MMepb44sCN6UQmhHrcju7e6j3dHAaFqhcXAqJJoYyqJ",
+"src": "_overall_trades.json"
+},
+{
+"mint": "7E1yp2J8HxTGkYnyemcEBjAVpeT3tpwKWtJYTqyJpump",
+"entry_ts": 1780705041.260489,
+"entry_price": 0.00015337624059999998,
+"token": "Lifemaxxing",
+"pair_address": "6vYYwaWrTeYGSGvEHbW6E4VeGNENbbeSQUDEivkSVYd5",
+"src": "_overall_trades.json"
+},
+{
+"mint": "89tYegEbCb6oDfxeRyKV6qgwLWmo2S9ur7Sw81zpump",
+"entry_ts": 1780727686.450521,
+"entry_price": 0.0001518517,
+"token": "CWAB",
+"pair_address": "6PkwGk2nNjU98XmmbD69gjQ2VnY1yZx8apwdnPfruDoT",
+"src": "_overall_trades.json"
+},
+{
+"mint": "2gp9TZWCfNwHFFW6uzZs9f3PixTKtaH3EhLCFFpopump",
+"entry_ts": 1780704966.922477,
+"entry_price": 0.0005455352224000001,
+"token": "POKEHUB",
+"pair_address": "9WbgT4anw3ZxhU6KZaeXRWf6FHfiHFfpUy5LWxYUDHZ1",
+"src": "_overall_trades.json"
+},
+{
+"mint": "2z9E4rpkQMJ5BwbdWXG7rk5c6CiYVop37yQWaV4cpump",
+"entry_ts": 1780707475.492145,
+"entry_price": 0.00011782433448,
+"token": "MURKAI",
+"pair_address": "7bAXeFWtctTbnmpX7NAoFH1seE3bqRbyboczopuU1y4A",
+"src": "_overall_trades.json"
+},
+{
+"mint": "9zwhS3b1oYuUEqWNpu2SPkEH24JMVWFEVQvHuYXZpump",
+"entry_ts": 1780625330.586535,
+"entry_price": 0.0007875375717761539,
+"token": "HUNTER",
+"pair_address": "HXmUVCxsVvCnpyM86a4xtsjXVegVqqbuXopusWR13S6X",
+"src": "_overall_trades.json"
+},
+{
+"mint": "oreoU2P8bN6jkk3jbaiVxYnG1dCXcYxwhwyK9jSybcp",
+"entry_ts": 1780697083.020808,
+"entry_price": 63.654646666666665,
+"token": "ORE",
+"pair_address": "C7hF6MvQwErhsf1KrFvnKzdArb9PsofFiwZdipo9c7cz",
+"src": "_overall_trades.json"
+},
+{
+"mint": "Hjj93YiyaFYY8zY2EW6FM2i2gd4rxzhoLCLFabrRpump",
+"entry_ts": 1780678828.041904,
+"entry_price": 7.538830261199998e-05,
+"token": "WIF",
+"pair_address": "9DEWXPxzbJgsQb5nAPkVHpaxQSZUCevoR5dY4WKVLCw6",
+"src": "_overall_trades.json"
+},
+{
+"mint": "8jyUQyUuHMua72KebwnyJ5hybycjTPSkB3b8zqjHpump",
+"entry_ts": 1780650968.872666,
+"entry_price": 0.0006412493679999999,
+"token": "NINJA",
+"pair_address": "CD9MRu7WiWbuQj5CHe9m3KMMTuqVMZd9G6RymeqSNy6M",
+"src": "_overall_trades.json"
+},
+{
+"mint": "61aNNrrRp81a3ZztDL69dNyrcshBsqWZdWVSrpYpump",
+"entry_ts": 1780491666.852371,
+"entry_price": 0.0008517751,
+"token": "PEPTI",
+"pair_address": "5JawvtvVnvs46sFjMeJTKv183hiscyFC4j941HGcM55X",
+"src": "_overall_trades.json"
+},
+{
+"mint": "C1rAh55ejiET9cT8mzRbzjo1Yd7HLsJzSZGfypezpump",
+"entry_ts": 1780643480.22764,
+"entry_price": 0.0001255506,
+"token": "SPACES",
+"pair_address": "9fMMwyM4uxET7kzxonBrFccHVfugjBbyeRP6r95XDdZk",
+"src": "_overall_trades.json"
+},
+{
+"mint": "9L1tgYt2XpSvdQTfCS1oRKrvRpekvrumXbNJjAZHpump",
+"entry_ts": 1780632942.438571,
+"entry_price": 0.0013443429999999998,
+"token": "SOLDONTRUG",
+"pair_address": "Cnz3aQDaMKtDozqhHMy2ygREahreQA4VZREzqhTu67f",
+"src": "_overall_trades.json"
+},
+{
+"mint": "3GDrBbgzMfokcYChDqBZijXS3ppwhEEmosFQbgbPpump",
+"entry_ts": 1780595631.398814,
+"entry_price": 0.00010619997509333334,
+"token": "peg",
+"pair_address": "HnJ5Ny2mxxwAodk7w7MHGTRkzodkKTfrVCKFDpS3SWd8",
+"src": "_overall_trades.json"
+},
+{
+"mint": "gLEXZ2kAfuYkpeeSzrEMbakiNeqAAZ3TsKiY9Can8pE",
+"entry_ts": 1780597791.056245,
+"entry_price": 0.001387274,
+"token": "SPARQ",
+"pair_address": "E8rhZvawtATXbWgsgMdmhUgVdt6PUUfqfiF3XYgCYWZd",
+"src": "_overall_trades.json"
+},
+{
+"mint": "8RRojEU8nGWoCh5N11LLK2GJBNRUzPoH4rUz8ibCpump",
+"entry_ts": 1780542102.053592,
+"entry_price": 0.0001817628,
+"token": "TODE",
+"pair_address": "D631NgdEifGuxfHMAhQiJiKfLcjZPNK8eRCkghzJE3LZ",
+"src": "_overall_trades.json"
+},
+{
+"mint": "HxP7JrxQaBriaGTJ6PRWRnNfwEt7vzFmh5XmQY8Qpump",
+"entry_ts": 1780588879.27588,
+"entry_price": 0.000199463892766,
+"token": "AHS",
+"pair_address": "2USRe8a82jo5fw5W1YBWK2xVZ8P4CHfugnxetdt4PVed",
+"src": "_overall_trades.json"
+},
+{
+"mint": "2fmneaNnfqMDiqZ5uSbbHz5BzJ4CCDfbqRFMcYs3pump",
+"entry_ts": 1780595793.211159,
+"entry_price": 0.00025940430232,
+"token": "APM",
+"pair_address": "2cxv9Qrr9VakDnPSLA1pkmv29zkr5uwCPb1WrZ1XePF7",
+"src": "_overall_trades.json"
+},
+{
+"mint": "sboHWA31FBc5nHVTcFGxh6GwsZdXH7w6qUQTWNeycfk",
+"entry_ts": 1780612675.039803,
+"entry_price": 0.0001939872,
+"token": "$CFK",
+"pair_address": "9aQSa24u1qnLYv8qDUtFXaB1t3uMRrMk1DJuhggsJ1ux",
+"src": "_overall_trades.json"
+},
+{
+"mint": "65cfxaWYK368Jk6RbKLRwsgk9TY3N4JNT1K9cBMqpump",
+"entry_ts": 1780603300.998926,
+"entry_price": 0.0004217418,
+"token": "corgi baby",
+"pair_address": "2nepKdnbnvKeTe8i91zxeCQCQjaLnvrbdoiesDCrxsiF",
+"src": "_overall_trades.json"
+},
+{
+"mint": "8G5ayEsJF4Q7FEWEGeF4jtnUWZBEKCqhySTFQf9Ppump",
+"entry_ts": 1780536156.940061,
+"entry_price": 0.002040072,
+"token": "HeavyPulp",
+"pair_address": "3LHYwhm61rVwPxHJwnkV7zB7tmknAoa6scHXX4nCZfQY",
+"src": "_overall_trades.json"
+},
+{
+"mint": "EeSHyt1ahSvm91CSa8ASqvenmxxQn2WU5VeNhdmepump",
+"entry_ts": 1780525569.046728,
+"entry_price": 0.0006913174124999999,
+"token": "GYM",
+"pair_address": "CSPp3UTUVabFuoXZko66eJxmV2HgFuoe8hDFcPA8spRx",
+"src": "trades_full.json"
+},
+{
+"mint": "BHiVUHns5sR4JE9tYXagBLEeSZ9sEVsJ5Qmpyterpump",
+"entry_ts": 1780507431.732245,
+"entry_price": 0.0013060661459999999,
+"token": "Maa",
+"pair_address": "69XA6cVnRNecPpxjxXhXjtFX6johgz3NuTnGTr7uxaZE",
+"src": "trades_full.json"
+},
+{
+"mint": "6hKk9ymYMejWURC1GhKj66Rwcn6VNnHHe1E3JgE4pump",
+"entry_ts": 1783756925.976748,
+"entry_price": 0.000179111686,
+"token": "GHOSTI",
+"pair_address": "5Xq1qzHBb3Gu8Bas7SdmtNnnxJuYfFkoEYhX5ZHhBvbu",
+"src": "_trades_today"
+},
+{
+"mint": "3grmULXrnQyN2A5LFStKFeSQsWvZjzNDsDVVLknFpump",
+"entry_ts": 1783644146.443886,
+"entry_price": 0.0004094716478,
+"token": "CASHCAT",
+"pair_address": "9ASrux6BowiVF5mJfBuuS1BPSzQVoAJMFtKHpdqVKojx",
+"src": "_trades_today"
+},
+{
+"mint": "CLGkHAUpMFBDZjzcLPnrA5BwtXF2sCUkxpCzB7Ze42n9",
+"entry_ts": 1783799526.087218,
+"entry_price": 0.00012015087,
+"token": "CRAT",
+"pair_address": "GNFXyvQjvFkg1ndmdWt1qBBYJBQuTZ2DNq6mzQBPSQ5y",
+"src": "_trades_today"
+},
+{
+"mint": "DUYw2p3NC6zDdsSrazV4JdDFKtRk2K4mw764EWs2pump",
+"entry_ts": 1783784259.334562,
+"entry_price": 0.00033461552799999997,
+"token": "Hoppy",
+"pair_address": "AoXFMDQMaevMEJgKuMTHbptoeoCjW8bDYKniXMhkNDpc",
+"src": "_trades_today"
+},
+{
+"mint": "7VQ6eFe6A1s8MExTpAbBon2piEgpitDho4nzbuCEjsEy",
+"entry_ts": 1783791439.420927,
+"entry_price": 0.000122891153,
+"token": "HOMEBOY",
+"pair_address": "HWkmP7RxUq5yFjxnrZj89p1a6KTvAQAfRcjo5YnVB2gX",
+"src": "_trades_today"
+},
+{
+"mint": "BtUiqGdsW3H47yvtyKSLhQfzVpwov3wyYY6qssU9pump",
+"entry_ts": 1783670614.426659,
+"entry_price": 0.00035837768159999997,
+"token": "reptilecoin",
+"pair_address": "2sfWTARfymBdSEGZ7NQTSsuRamaqcyi1oapkDyisR8Xy",
+"src": "_trades_today"
+},
+{
+"mint": "Bu3hbyUd9qgDWv4vrrKDk3mWR8LDcs7tiZrmjRrzpump",
+"entry_ts": 1783790534.38993,
+"entry_price": 0.0002511669316,
+"token": "bebu",
+"pair_address": "BFq1LpwAN5M7fTwtqVaN4LgmaSWK7x3G4uDt14UGYEgw",
+"src": "_trades_today"
+},
+{
+"mint": "5NUHtG49aGZL5kEC9phNKsgw28BmkDWGWfeQGMTRpump",
+"entry_ts": 1783797686.809984,
+"entry_price": 0.0001471683865,
+"token": "AGR",
+"pair_address": "5US92wEpjqEJtJtQcWGPiLybHGjirQn1hcNJHjQSV25a",
+"src": "_trades_today"
+},
+{
+"mint": "262pzfxPWFnQRBg3SdTxok9x45RJt3dEgAX8EQghpump",
+"entry_ts": 1783789786.345309,
+"entry_price": 0.0005576583323999999,
+"token": "ANSUM",
+"pair_address": "7sYmC3QNRPoMoMqC4HnyqyxCyvxpN3isn4F8YvU5C8wT",
+"src": "_trades_today"
+},
+{
+"mint": "HCkhfdDNF2dqMxxtL51AzgWU26MBNkUkEzGAHtqkpump",
+"entry_ts": 1783646275.583034,
+"entry_price": 0.00015020266655,
+"token": "BatCat",
+"pair_address": "9pju7scVfBaH7y6xD9jEvaAXzggu7CQyW5Pq5bxcHaMy",
+"src": "_trades_today"
+},
+{
+"mint": "7NTs9FPw7tP2Bfjcn8eAJZUr4ApG8n9ZbXkT7Adwpump",
+"entry_ts": 1783766246.81958,
+"entry_price": 0.00014872941719999998,
+"token": "LIZARD",
+"pair_address": "5SGH3r8p76VcHzzY1pxRwcELbehZxBRX1DBNZvLvdfsh",
+"src": "_trades_today"
+},
+{
+"mint": "4i7AHzGkMRfuq7dsDtDYRJhNPWJox4Lgh5kN2Awhpump",
+"entry_ts": 1783790163.442993,
+"entry_price": 0.000298690548,
+"token": "MemesAI",
+"pair_address": "BqQdBZEkGmagYxob9WChXS9TvrTa3cugsUdBUMS45QmN",
+"src": "_trades_today"
+},
+{
+"mint": "5u83eeMKS5drqAdchhJQeUpt7x4DNaU7ZBnaMZjUpump",
+"entry_ts": 1783790328.395485,
+"entry_price": 0.0004852804428,
+"token": "ARRR",
+"pair_address": "82w46CR86SCD766uXkvEtnWZaEwxzo636ohSwaEqeEh6",
+"src": "_trades_today"
+},
+{
+"mint": "BUkEFLzmyrhA8wtwG9Xk2VBxsvQx5H49ovahrV1Ppump",
+"entry_ts": 1783793036.738057,
+"entry_price": 0.00010657382800000001,
+"token": "ALYCIA",
+"pair_address": "Cb4xnddDSWtGLRnpYcaGP2SLoEi15PxSP1QogTTjAYLR",
+"src": "_trades_today"
+},
+{
+"mint": "AcBFpes1zvKPmsPTSMXaZWiEFpWZ5KZ7SmnbZbgepump",
+"entry_ts": 1783787893.586634,
+"entry_price": 0.0001270015775,
+"token": "67febu",
+"pair_address": "8R9gp3GasVqpaS34cL4WQAy59rEmVAHWJwHAQGrs3EXP",
+"src": "_trades_today"
+},
+{
+"mint": "3Tf3RD5t45wQJF8uEYVXpR2M4wBiCaSNwUWENzVGpump",
+"entry_ts": 1783789853.442989,
+"entry_price": 0.000135315195,
+"token": "Meowpin",
+"pair_address": "ZJeKPJT1kuCpYamE9i92jH6d5gRPKRbrDjRbFzyg22t",
+"src": "_trades_today"
+},
+{
+"mint": "BmSjM7C7VRhznMMVzXidgyuE5ehvTHbRr1uGe2xFpump",
+"entry_ts": 1783702400.550204,
+"entry_price": 0.00021578627519999998,
+"token": "mogdog",
+"pair_address": "2mkZkLecSeJjyAPenuRF9LZPpQEUrpRr6LAcNQh59V39",
+"src": "_trades_today"
+},
+{
+"mint": "GuRMbsnbMEVExssm6D9VqoaggtMB5xpSxhMj4WvcNjTw",
+"entry_ts": 1783707982.72101,
+"entry_price": 0.000151682058,
+"token": "Grumpy",
+"pair_address": "EsaPYB7JsBtt3VfCCaKnTq3ZSbcnkyeYwiio7ptUgN1E",
+"src": "_trades_today"
+},
+{
+"mint": "ERSGe4BXyeSWe2bW1VyNARes9GfS1UAyCWCYRpR6pump",
+"entry_ts": 1783788274.594636,
+"entry_price": 0.00010908434249999999,
+"token": "MCJAK",
+"pair_address": "gdEBLCb7gKRNDtXK6uv4KmfmHFm8uies1sehcNntx2R",
+"src": "_trades_today"
+},
+{
+"mint": "8y8K7tR7G2WgYydqCyVfsNpHQ2pJ4B3e8ANXCtf5pump",
+"entry_ts": 1783702390.890903,
+"entry_price": 0.0002020301568,
+"token": "IQ",
+"pair_address": "7MyqSJvbiKLWPgbNT8bHbDa9da4hN34LAhitoRZjf2rX",
+"src": "_trades_today"
+},
+{
+"mint": "D4pi5eJNqT5mCzQcxAGfMavgVYLspfYkAQKKvQ8Xpump",
+"entry_ts": 1783784543.51773,
+"entry_price": 0.00016012276799999998,
+"token": "POINTLESS",
+"pair_address": "7p1LD2vWkRCDBXNHWAk3fKDJ7fcAKUbSZmeAuCgivNgQ",
+"src": "_trades_today"
+},
+{
+"mint": "6xCtR2Eq1VumsoRdNutcfSQfLMk7xUa2BrMx18tqpump",
+"entry_ts": 1783727881.053352,
+"entry_price": 0.0005187832812,
+"token": "DEXBULL",
+"pair_address": "9x3m3XwFFZeJdSjB9zNSQdw5pooQ5Q7wurB3rSmbmcoj",
+"src": "_trades_today"
+},
+{
+"mint": "7RJiGtMVxih75Z4EKY9NdyhRmDPBChzuEfQatZ4Spump",
+"entry_ts": 1783764595.670975,
+"entry_price": 0.0001778799724,
+"token": "blackfebu",
+"pair_address": "7wMNEijYFC1FuAPYveZkd9ddCbkoXAPFsRY3zD2tv8Jp",
+"src": "_trades_today"
+},
+{
+"mint": "HyrcSV3oQkS763vWNdqP5vhDcfvnesCFqqe37nXpump",
+"entry_ts": 1783778901.125732,
+"entry_price": 0.0001379627095,
+"token": "CASHDOG",
+"pair_address": "Cj8VGMqRqW3NWsAAD9kPypMuRwRm1XygmXpoXTfkeSed",
+"src": "_trades_today"
+},
+{
+"mint": "cEVB54GaMohQf8GwE79ckFbSMSZvWPL27Z2nj7apump",
+"entry_ts": 1783775406.171752,
+"entry_price": 0.0001215210115,
+"token": "agentx402",
+"pair_address": "3GS25gGKbgrFdvqVLYuqbU54cZyjEFJ56ifUWNiqU8m5",
+"src": "_trades_today"
+},
+{
+"mint": "88TjA2vDP57jnoFKFZMvW6Rd5gmtpQ8kDzCxnEbzpump",
+"entry_ts": 1783720650.414455,
+"entry_price": 0.0001423083428,
+"token": "Jacob",
+"pair_address": "41UrcaV2aonLSkJZwfhtzkkfTKjoUydmhYJshTS1AWzf",
+"src": "_trades_today"
+},
+{
+"mint": "9y6hXFBFN1fJGfAAYgkXVVfQATG1mEJsmTrCXcT6pump",
+"entry_ts": 1783702470.022142,
+"entry_price": 9.455425488999999e-05,
+"token": "Silk",
+"pair_address": "B5p1EDQmTRPWy5ubMghMYUfvWVeqk3YExuenrPsKrhuV",
+"src": "_trades_today"
+},
+{
+"mint": "Db3FyrbovdsJWXaCBvE24P31uheKQH58cfpqWsXcpump",
+"entry_ts": 1783727477.34044,
+"entry_price": 0.000176545616,
+"token": "PROPHECY",
+"pair_address": "H1iCZ3R1GTLEz26gPXEkuzwHy5ThLbH7GLqJqbDDDmZZ",
+"src": "_trades_today"
+},
+{
+"mint": "G7iP9CR4fmCxUpoe3oAQgz2NQErwEFrjZMLZq8Czpump",
+"entry_ts": 1783707698.730635,
+"entry_price": 0.00013157206250000001,
+"token": "ubef",
+"pair_address": "4jTQrFWVBSaG2agzGYkFtibBzx9qHp7Y9vEnvwKnve5G",
+"src": "_trades_today"
+},
+{
+"mint": "DW6B6DRR4HvrX42rqYA7zdNvgRUAuXhECPrAMgL1pump",
+"entry_ts": 1783735770.028976,
+"entry_price": 0.00011104682075000001,
+"token": "LIZARDCOIN",
+"pair_address": "6ksXnxaNLZeMtGSZecbuXcw26Tukev6Kig8r4WcHSJe4",
+"src": "_trades_today"
+},
+{
+"mint": "Fjc4SdpzXBdmSchmnpAtCLwpS8VobzSAVrMmy5YNpump",
+"entry_ts": 1783735478.454997,
+"entry_price": 0.00022119523399999997,
+"token": "SMIRKCAT",
+"pair_address": "HSecGj5LTHcFuRnw5XrkbCt1srWSVmCQbHvVCN68oqRY",
+"src": "_trades_today"
+},
+{
+"mint": "C4TFLdu1f2iGmKVv7crWVwQfRLApTgUFupxsvwvApump",
+"entry_ts": 1783734575.286579,
+"entry_price": 0.00013715071795,
+"token": "HOODLANA",
+"pair_address": "F6KmxYyuMDUUN2YBTGxFCirwaTXCS8TQopRvi2GCQps1",
+"src": "_trades_today"
+},
+{
+"mint": "7Hn6wAEgdjiz1Ca9eebxJo2G91uBKCmLkdShfnZupump",
+"entry_ts": 1783703006.082697,
+"entry_price": 0.000504012482,
+"token": "SMOLE",
+"pair_address": "Ed8TRTpcsvu4Q3pnAEnwbeSwERZr2542PzdNAKCn5b1s",
+"src": "_trades_today"
+},
+{
+"mint": "ASTRAyet6YguMVPJ9WkfHkz9t7gNzpRiiB9fAANJu9vz",
+"entry_ts": 1783722716.872641,
+"entry_price": 0.00023207537079999996,
+"token": "ASTRA",
+"pair_address": "7pFZtaARNwpz5nVYXYWNN1zMjaMRtQNBWxqbZMbwKc9C",
+"src": "_trades_today"
+},
+{
+"mint": "3iNciPaCxxPXaR92BRz8xRJP1bLpA8cVEWMKMSkupump",
+"entry_ts": 1783715716.960488,
+"entry_price": 0.0004593265299999999,
+"token": "bog",
+"pair_address": "4RBF9JgX6DFXgLQsJBEaQBtC6owfNZEc1udpRvpnEZ71",
+"src": "_trades_today"
+},
+{
+"mint": "7LkxLUhdFJeyCor9tEK8fKdvPgqGm4Z9mWpR45yvpump",
+"entry_ts": 1783714582.359825,
+"entry_price": 0.0001279933024,
+"token": "CRYPTODOG",
+"pair_address": "DUDeg7hFJAn9STz6CpWTrmrF4qpbUrthHfZFTbb8sX27",
+"src": "_trades_today"
+},
+{
+"mint": "6RhD69zL61vW8cqsa1iMentAmb3bQynh9Wf5LmK5pump",
+"entry_ts": 1783715215.809799,
+"entry_price": 0.00018434646879999999,
+"token": "MOGTROLL",
+"pair_address": "GQEo4H8GbmeGCJmVrwH6opQszkv9r9NstChyuMnhPwk7",
+"src": "_trades_today"
+},
+{
+"mint": "G6k4tuNCWh4AkNGVnUbqDrJoce4AdrQmJTRZWUnhpump",
+"entry_ts": 1783710194.944179,
+"entry_price": 0.0001767509016,
+"token": "MOGSEM",
+"pair_address": "Ga8zBKFuDWXbS2uCA1YnhvwhHVmuncdiKyty8uqeXFsi",
+"src": "_trades_today"
+},
+{
+"mint": "J7DBGxjJnp67it4TubeMMBZGus4LUhBbnNA3GCDgpump",
+"entry_ts": 1783711008.854895,
+"entry_price": 0.00028442319879999996,
+"token": "bullishsol",
+"pair_address": "46tf5VLq3eaart8se1iym7kHhQm4ByXFiFGSpq4qYzGu",
+"src": "_trades_today"
+},
+{
+"mint": "FrtbBAaSZksfh4oV46E7Pvb43QiiUmYLD3dcGS6gpump",
+"entry_ts": 1783709722.47537,
+"entry_price": 0.00018527025399999998,
+"token": "RIBBIT",
+"pair_address": "Ak9J6xqrsdPXGMQrscv67yrJYbbvhjqu6TWePikc6N6o",
+"src": "_trades_today"
+},
+{
+"mint": "3syyL4zGjQzWFtvT5THVD9n9CgHDK152jDbeKeXQpump",
+"entry_ts": 1783708321.955068,
+"entry_price": 0.00017685354439999997,
+"token": "Pumpius",
+"pair_address": "AKKr1fPdcswaEaCr8FCTiW9pfHUavZSAjsuW6NWi5d1J",
+"src": "_trades_today"
+},
+{
+"mint": "EVHtwfyWoHmUM5RHi3td31sNKCc8f83XKT44ZDqnpump",
+"entry_ts": 1783708061.445207,
+"entry_price": 0.00013314697314999998,
+"token": "$RIBBIT",
+"pair_address": "ExWWQ8hLYSF2nzkYeUHQM4rne1SurKAWUS9DfVVGr7VY",
+"src": "_trades_today"
+},
+{
+"mint": "Hxxn5yVPP3wEUF8mJJR88cTCJeAT82kKE1aYTTaDpump",
+"entry_ts": 1783707112.913255,
+"entry_price": 0.0004128611976,
+"token": "vibeshift",
+"pair_address": "E1pFAygbnnXhi8gCg2jeitvEGSSvCM1T8oSpStHyhViC",
+"src": "_trades_today"
+},
+{
+"mint": "9Hoc6LmvUvEMUvNwp8qY8xv6uUSXz6ZupJkWQdeUpump",
+"entry_ts": 1783707059.414319,
+"entry_price": 0.00013315092725000002,
+"token": "SPINY",
+"pair_address": "5EsUmLJf5zF8MjosRsm4gvQpjHbQYKi5dzEPG4WTmBWa",
+"src": "_trades_today"
+},
+{
+"mint": "ACTjVqo7yeoDHExgLNhSXPV87pYqM8z2z8Xq9Y3ipump",
+"entry_ts": 1783647329.304855,
+"entry_price": 0.0001338877308,
+"token": "ROBINDROP",
+"pair_address": "Aauca1FcmhYwHYkuTqs8TPmZBLVQcfz8GGdyeBwksnHa",
+"src": "_trades_today"
+},
+{
+"mint": "FtxMtQmupaXuMX14EA8esBp13qWF4xfgij2BG6U3pump",
+"entry_ts": 1783686708.838326,
+"entry_price": 0.00014809751355,
+"token": "Jamey",
+"pair_address": "7EqPhj6jd4SQpMjhFdToHThfu5atddTPwYXEM4h5psnJ",
+"src": "_trades_today"
+},
+{
+"mint": "9r2Xhzz1KUJL2hWaeLeSNsjy7S7pLv18HFou3eaUpump",
+"entry_ts": 1783670824.511736,
+"entry_price": 0.00012767752945,
+"token": "CAPTOLY",
+"pair_address": "94cEBQ3xJ5hcn8aPHR7pm4CHC4Hk5kaXT4pRFCGZ4N2x",
+"src": "_trades_today"
+},
+{
+"mint": "5CEjpFuP5QHLTS2DA4AP7BabK87Rp6x6iy9UW2Ddpump",
+"entry_ts": 1783651029.33176,
+"entry_price": 0.00016451770695000002,
+"token": "HOODCAT",
+"pair_address": "B1AW2Ph8z3grwFExJXJNgr3Ro2MFsFTuBYXYtdExPahd",
+"src": "_trades_today"
+},
+{
+"mint": "DGqcaiEscD7A7JkyunA84UDCwc9t7krQhDk3XAKXpump",
+"entry_ts": 1783646202.077713,
+"entry_price": 0.0008799809472,
+"token": "Bullji",
+"pair_address": "GnMogBPLEygMpgqFmZhoSiJFWUcbGwWSDFeicoSsXMxv",
+"src": "_trades_today"
+}
+]

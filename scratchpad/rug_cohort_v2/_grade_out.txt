@@ -1,0 +1,85 @@
+current-state cohorts: alive_winners_any n=132  strict n=75  alive_universe n=265  catastrophic(post-rug) n=121
+
+post-rug catastrophic signature: pool_pct med=89.9 p25=79.2 p75=95.4; pool>=80% in 87/121 (72%) — HOODLANA-class hidden-supply-dump share
+post-rug holders: med=801
+
+at-entry stamped slice n=27: catastrophic=2 (['ANSUM', 'bebu']), same-day-winners(ret>=+20)=5 ([('MemesAI', 33.98), ('ANSEMWIFE', 26.0), ('HAALAND', 21.85), ('ok', 20.2), ('Hoppy', 49.28)])
+
+cell                        S:cat S:winKill  S:blk  LIZ     killA%     killS%    uniBlk%  HOOD
+----------------------------------------------------------------------------------------------
+hid>=55 hold<  500        0/2   0/5      1/27   no   2.3(  3)   1.3(  1)   2.6(  7)   YES
+hid>=55 hold<  700        0/2   0/5      4/27   no   3.8(  5)   2.7(  2)   4.5( 12)   YES
+hid>=55 hold< 1000        0/2   0/5      4/27   no   6.8(  9)   8.0(  6)   8.3( 22)   YES
+hid>=55 hold< 1500        1/2   1/5      8/27  YES  11.4( 15)  12.0(  9)  13.2( 35)   YES
+hid>=55 hold< 2000        1/2   1/5      9/27  YES  17.4( 23)  18.7( 14)  18.9( 50)   YES
+hid>=55 hold< 2500        2/2   2/5     13/27  YES  20.5( 27)  21.3( 16)  21.9( 58)   YES
+hid>=55 hold< 3000        2/2   2/5     14/27  YES  24.2( 32)  25.3( 19)  24.9( 66)   YES
+hid>=55 hold< none        2/2   3/5     20/27  YES  62.9( 83)  50.7( 38)  54.3(144)   YES
+hid>=60 hold<  500        0/2   0/5      1/27   no   1.5(  2)   0.0(  0)   1.9(  5)   YES
+hid>=60 hold<  700        0/2   0/5      4/27   no   3.0(  4)   1.3(  1)   3.8( 10)   YES
+hid>=60 hold< 1000        0/2   0/5      4/27   no   4.5(  6)   4.0(  3)   5.3( 14)   YES
+hid>=60 hold< 1500        1/2   1/5      8/27  YES   6.1(  8)   6.7(  5)   6.8( 18)   YES
+hid>=60 hold< 2000        1/2   1/5      9/27  YES  11.4( 15)  12.0(  9)  11.3( 30)   YES
+hid>=60 hold< 2500        2/2   2/5     13/27  YES  14.4( 19)  14.7( 11)  13.6( 36)   YES
+hid>=60 hold< 3000        2/2   2/5     14/27  YES  17.4( 23)  17.3( 13)  16.2( 43)   YES
+hid>=60 hold< none        2/2   3/5     18/27  YES  51.5( 68)  40.0( 30)  40.8(108)   YES
+hid>=65 hold<  500        0/2   0/5      0/27   no   1.5(  2)   0.0(  0)   1.1(  3)   YES
+hid>=65 hold<  700        0/2   0/5      3/27   no   1.5(  2)   0.0(  0)   1.5(  4)   YES
+hid>=65 hold< 1000        0/2   0/5      3/27   no   1.5(  2)   0.0(  0)   2.3(  6)   YES
+hid>=65 hold< 1500        1/2   1/5      7/27  YES   1.5(  2)   0.0(  0)   2.6(  7)   YES
+hid>=65 hold< 2000        1/2   1/5      8/27  YES   5.3(  7)   4.0(  3)   5.3( 14)   YES
+hid>=65 hold< 2500        2/2   2/5     11/27  YES   7.6( 10)   5.3(  4)   6.8( 18)   YES
+hid>=65 hold< 3000        2/2   2/5     11/27  YES   9.1( 12)   6.7(  5)   7.9( 21)   YES
+hid>=65 hold< none        2/2   3/5     14/27  YES  37.9( 50)  25.3( 19)  26.4( 70)   YES
+hid>=70 hold<  500        0/2   0/5      0/27   no   0.0(  0)   0.0(  0)   0.4(  1)   YES
+hid>=70 hold<  700        0/2   0/5      2/27   no   0.0(  0)   0.0(  0)   0.8(  2)   YES
+hid>=70 hold< 1000        0/2   0/5      2/27   no   0.0(  0)   0.0(  0)   1.1(  3)   YES
+hid>=70 hold< 1500        1/2   1/5      5/27  YES   0.0(  0)   0.0(  0)   1.5(  4)   YES
+hid>=70 hold< 2000        1/2   1/5      6/27  YES   0.8(  1)   0.0(  0)   1.9(  5)   YES
+hid>=70 hold< 2500        2/2   2/5      8/27  YES   1.5(  2)   0.0(  0)   2.3(  6)   YES
+hid>=70 hold< 3000        2/2   2/5      8/27  YES   2.3(  3)   0.0(  0)   2.6(  7)   YES
+hid>=70 hold< none        2/2   2/5      9/27  YES  25.8( 34)  17.3( 13)  16.6( 44)   YES
+hid>=75 hold<  500        0/2   0/5      0/27   no   0.0(  0)   0.0(  0)   0.4(  1)    no
+hid>=75 hold<  700        0/2   0/5      1/27   no   0.0(  0)   0.0(  0)   0.4(  1)    no
+hid>=75 hold< 1000        0/2   0/5      1/27   no   0.0(  0)   0.0(  0)   0.4(  1)    no
+hid>=75 hold< 1500        1/2   0/5      2/27   no   0.0(  0)   0.0(  0)   0.4(  1)    no
+hid>=75 hold< 2000        1/2   0/5      2/27   no   0.8(  1)   0.0(  0)   0.8(  2)    no
+hid>=75 hold< 2500        2/2   0/5      3/27   no   0.8(  1)   0.0(  0)   0.8(  2)    no
+hid>=75 hold< 3000        2/2   0/5      3/27   no   1.5(  2)   0.0(  0)   1.1(  3)    no
+hid>=75 hold< none        2/2   0/5      3/27   no  13.6( 18)   9.3(  7)   7.9( 21)    no
+hid>=80 hold<  500        0/2   0/5      0/27   no   0.0(  0)   0.0(  0)   0.0(  0)    no
+hid>=80 hold<  700        0/2   0/5      0/27   no   0.0(  0)   0.0(  0)   0.0(  0)    no
+hid>=80 hold< 1000        0/2   0/5      0/27   no   0.0(  0)   0.0(  0)   0.0(  0)    no
+hid>=80 hold< 1500        1/2   0/5      1/27   no   0.0(  0)   0.0(  0)   0.0(  0)    no
+hid>=80 hold< 2000        1/2   0/5      1/27   no   0.0(  0)   0.0(  0)   0.0(  0)    no
+hid>=80 hold< 2500        2/2   0/5      2/27   no   0.0(  0)   0.0(  0)   0.0(  0)    no
+hid>=80 hold< 3000        2/2   0/5      2/27   no   0.0(  0)   0.0(  0)   0.0(  0)    no
+hid>=80 hold< none        2/2   0/5      2/27   no   8.3( 11)   6.7(  5)   4.5( 12)    no
+
+--- two-branch composites: hid>=Y2(any holders) OR hid>=60 & hold<Z ---
+Y2=80 Z=500: S_cat 2/2 S_winKill=[] LIZ=no killA=9.8%(13/132) killS=6.7% uniBlk=6.4% HOOD=YES
+Y2=80 Z=700: S_cat 2/2 S_winKill=[] LIZ=no killA=11.4%(15/132) killS=8.0% uniBlk=8.3% HOOD=YES
+Y2=80 Z=1000: S_cat 2/2 S_winKill=[] LIZ=no killA=12.9%(17/132) killS=10.7% uniBlk=9.8% HOOD=YES
+Y2=75 Z=500: S_cat 2/2 S_winKill=[] LIZ=no killA=15.2%(20/132) killS=9.3% uniBlk=9.4% HOOD=YES
+Y2=75 Z=700: S_cat 2/2 S_winKill=[] LIZ=no killA=16.7%(22/132) killS=10.7% uniBlk=11.3% HOOD=YES
+Y2=75 Z=1000: S_cat 2/2 S_winKill=[] LIZ=no killA=18.2%(24/132) killS=13.3% uniBlk=12.8% HOOD=YES
+
+--- alive-winner kills, cell hid>=60 & hold<1000 (current state) ---
+  44eFuquSFU hidden=64.98 holders=656 ret=-1.14
+  8G5ayEsJF4 hidden=69.8 holders=0 ret=-24.46
+  8LZKRa3f23 hidden=63.21 holders=910 ret=-11.04
+  CFj8o1y963 hidden=64.28 holders=631 ret=-73.53
+  Fjc4SdpzXB hidden=60.02 holders=954 ret=-71.09
+  J5bTgnS76L hidden=66.09 holders=471 ret=21.07
+--- alive-winner kills, branch hid>=80 any-holders (current state) ---
+  4ko5tSr5o3 hidden=83.18 holders=10696 ret=1675.78
+  4NBTf8PfLH hidden=82.23 holders=31625 ret=207.46
+  5Jng6jkLKU hidden=80.08 holders=179927 ret=-49.4
+  5pDbcXKVk9 hidden=81.23 holders=3059 ret=-49.64
+  BCdwQBAn8d hidden=87.3 holders=15957 ret=-40.71
+  BcHEaaTCvy hidden=81.5 holders=19256 ret=3630.69
+  CcLd8HTAKL hidden=82.56 holders=5581 ret=-63.44
+  Ce2gx9KGXJ hidden=80.39 holders=43836 ret=-45.43
+  Cm6fNnMk7N hidden=83.29 holders=36369 ret=14.16
+  J8PSdNP3Qe hidden=82.87 holders=18382 ret=195.74
+  Tqj8yFmagr hidden=82.13 holders=36629 ret=511.74

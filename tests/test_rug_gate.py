@@ -253,3 +253,28 @@ def test_rug_gate_block_parented_fleet_wide():
     assert direct, (
         "fleet-wide rug gate is NESTED (not a direct child of _execute_bot_buy "
         "body) — it will silently skip when its parent branch is off")
+
+
+# ── hidden-supply branch 2 (2026-07-11 v2 regrade: bebu/ANSUM class) ──
+def test_branch2_catches_bebu_and_ansum():
+    # bebu -99.2% @ hidden 88.4 / holders 2057; ANSUM -99.5% @ 82.0 / 1194 —
+    # both passed branch 1 (holders>1000); branch 2 must catch both.
+    for hid, hold in ((88.4, 2057), (82.0, 1194)):
+        v, r = rug_gate_verdict({"lp_locked_pct": 100.0, "lp_burned": False,
+                                 "hidden_supply_share_pct": hid, "total_holders": hold})
+        assert v == "BLOCK" and "bebu/ANSUM class" in r[-1]
+
+
+def test_branch2_holders_cap_spares_retail_monsters():
+    # +1675%/+3630% winners: extreme hidden mass but WIDE retail base -> PASS.
+    assert rug_gate_verdict({"lp_locked_pct": 100.0, "lp_burned": False,
+                             "hidden_supply_share_pct": 85.0,
+                             "total_holders": 5000})[0] == "PASS"
+
+
+def test_branch2_lizard_still_passes():
+    # LIZARD (hidden 73.1 / holders 1241): correctly passed by BOTH branches —
+    # fleet netted +$258 on it; blocking its cluster kills HAALAND/Hoppy.
+    assert rug_gate_verdict({"lp_locked_pct": 100.0, "lp_burned": False,
+                             "hidden_supply_share_pct": 73.1,
+                             "total_holders": 1241})[0] == "PASS"

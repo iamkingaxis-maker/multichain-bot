@@ -69,6 +69,19 @@ def rug_gate_verdict(meta: Dict[str, Any]) -> Tuple[str, List[str]]:
             reasons.append(
                 f"hidden_supply={hidden:.1f}%>={h_min:.0f} with holders={int(holders)}<{h_max_holders:.0f} "
                 f"(dump-capable supply below the top10 line — HOODLANA class)")
+        # Branch 2 (2026-07-11 v2 regrade, scratchpad/_rug_gate_v2_grade.md):
+        # extreme hidden mass in a mid-thin base. Caught 2/2 same-day live
+        # catastrophics (bebu -99.2% @ 88.4/2057, ANSUM -99.5% @ 82.0/1194 —
+        # both passed branch 1 on holders>1000) at 0.0% winner-kill on every
+        # plane (0/132 winners, 0/265 universe). The holders cap is MANDATORY:
+        # uncapped hid>=80 kills 8.3% of winners incl. +1675%/+3630% monsters
+        # whose sub-top10 mass is wide retail, not a stash.
+        h2_min = _env_f("RUG_GATE_HIDDEN2_MIN", 80.0)
+        h2_max_holders = _env_f("RUG_GATE_HIDDEN2_MAX_HOLDERS", 3000.0)
+        if hidden >= h2_min and holders < h2_max_holders:
+            reasons.append(
+                f"hidden_supply={hidden:.1f}%>={h2_min:.0f} with holders={int(holders)}<{h2_max_holders:.0f} "
+                f"(extreme hidden mass — bebu/ANSUM class)")
     if reasons:
         return "BLOCK", reasons
     return ("PASS" if known else "NEUTRAL"), []
