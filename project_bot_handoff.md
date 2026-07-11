@@ -1,3 +1,43 @@
+# Session Handoff — 2026-07-11 ~23:10 UTC — LIVE RESUMED + THE FABLE SPRINT
+
+## STATE: LIVE TRADING RESUMED (PAPER_MODE=false, 3 bots routing). Wallet 2.116 SOL baseline (AxiS deposited +1.221 SOL 07-11; baseline REBASED at 2.115936 — delta measures trading only). Canary healthy, Alchemy-primary RPC (publics demoted; drpc dropped — it 400s getTokenAccountsByOwner).
+
+## LIVE MANDATE (AxiS "promote both", allowlisted in test_pre_live_invariants.py):
+- badday_young_rt (the original probe), badday_young_absorb (FULL — n=146, +$478, green-on-red-day), badday_young_vsnap_ab (THIN n=37 — pre-registered KILL: first 10 live closes token-mean negative AND >5pp under its paper record -> live_probe=false + redeploy).
+- LIVE_PER_TOKEN_MAX_POSITIONS=1 (tightened from 2): distinct tokens serve the mission, halves correlated rug tail. Sizing $11.25-22.5 nominal (fleet layer + derates).
+- Day 1 back: 9 round-trips (~-0.03 SOL trading; HOMEBOY +18.6% blended winner; ANSUM & bebu went -99% AFTER our exits — containment held, and gate branch 2 now catches both at entry).
+
+## RUG GATES (both ENFORCED live, core/rug_gate.py, all thresholds env-tunable):
+- Branch 1: hidden_supply>=60 AND holders<1000 (HOODLANA class; kill 4.0-4.5%).
+- Branch 2 (ff840aa): hidden>=80 AND holders<3000 (bebu/ANSUM class; 0.0% kill on every plane; holders cap MANDATORY — uncapped kills +1675%/+3630% retail-wide monsters).
+- LP-unlock branch (MENSA class). Verdict stamped per-buy (rug_gate_buy). LIZARD correctly passes (fleet +$258 on it).
+- Pool identification = VAULT JOIN (rugcheck dropped topHolders tag): markets[].pubkey+liquidityA/B+Raydium V4 auth.
+
+## RH CHAIN — 24/7 ON RAILWAY (rh-paper-lane service, ~$2-3/mo, SERVICE_ROLE dispatch in main.py + supervise loop — F3 fix; lane exits 0 every 300min and restarts):
+- 13 racers: 10 scalps (pinned <=24h universe) + 3 AGED (rh_aged_hold/derisk/deep; thresholds data-pinned from the >24h band: n=335 trips 73% win). Feed aged mode: RH_FEED_MAX_AGE_H=72, liq-ranked audition queue, ~50k candidates.
+- Quote latency FIXED: batched fee-tier quoting 1.9s -> 0.14s (parity <=2s restored).
+- Rug-defense stamps live (core/rh_rug_signals.py): RH rugs = hidden-supply DUMPS (LP unpullable — launchpad custodian owns all LP NFTs); joint_dump_shape 5/5 retro catch; absorption>=+15pp = the rug labeler. Grade at n>=30 rugged: scratchpad/rh_rug_port/grade_stamps.py.
+- Regime v1 (core/rh_regime.py, four-half validated): aged avoid 19-21 UTC (the ONE gate, aged racers only); young lanes GATELESS by design (AxiS hypothesis CONFIRMED — young regime-flat; bot-era discovery bursts ~2x rug rate = stamp only); overnight 02-07 UTC is PRIME (v0 dead-zone refuted). Full regime dict stamped per buy.
+- RH LIVE EXECUTION BUILT DORMANT (core/rh_live_execution.py; 64+15 tests): triple gate (RH_LIVE_CONFIRMED+RH_PAPER_MODE=false+key), canary analog, wallet-truth, $25/$25 caps, router provenance VERIFIED on-chain. Flip sequence in scratchpad/rh_live_exec/PROGRESS.md — Phase-1 bar + AxiS first.
+
+## INFRA: memory cuts LIVE (ae724f8: ledger>21d rotates to archive at boot — 44,965 rows archived, base 70,124->25,159; entry_meta trims past newest 6000; leaderboard totals IDENTITY-pinned). Bill trajectory ~$30 -> ~$13-16/mo incl RH. Research endpoints = trailing-21d views (archive on disk).
+
+## PRE-REGISTERED DECISION RUNBOOK (post-Fable sessions: execute, don't decide)
+1. vsnap kill rule (above) — check at 10 live closes via /api/trades.
+2. Rug-gate regrade at n>=10 at-entry-stamped catastrophics (~5 days @ current rates): rerun scratchpad/rug_cohort_v2/grade_v2.py. Bar: winner-kill<=5% + catches all known cases (HOODLANA 72.84/82ish, bebu 88.4/2057, ANSUM 82.0/1194).
+3. Session ritual: wallet-truth delta FIRST (baseline 2.115936); python scripts/rug_cohort_label.py (needs DASHBOARD_USER/PASSWORD env; NEVER trust the DexScreener 30-mint batch for gone-mints — requery individually; NEVER urllib for DexScreener).
+4. RH aged racers: grade at n>=30 closes each vs scalp control (tokmed, distinct tokens; pre-reg in _rh_aged_pool_racer_spec_notes.md).
+5. RH Phase-1 bar (project_rh_mission): n>=20 distinct tok, tokmed green ex-top2, >=5 days, cat<=1/20, <=2s -> then Phase-2 flip sequence (rh_live_exec) + AxiS.
+6. Sol young 03-08 mine (agent in flight at handoff time -> scratchpad/_sol_young_regime_mine.md): if verdict LIFT with 4/4 halves -> propose config change to AxiS (5h/day more live fills).
+7. Mission: 20 fills / 4 distinct days -> AxiS funding talk. Count via scripts/probe_rate_report.py.
+8. NEVER: `pytest | tail` before a deploy (swallowed exit code shipped a boot-crashing config today — invariant caught it); assume market prices from memory (SOL=$78, memory feedback_fetch_market_prices); cross-apply regime rules between chains without native four-half validation.
+
+## MONITORS ARMED THIS SESSION (die with it — re-arm at next session): live wallet-truth change-monitor, live probe fills, Railway RH lane log tail (deduped). RH lane state is EPHEMERAL on Railway (no volume) — resets on redeploy; acceptable paper-v1.
+
+## COMMITS TODAY: 405e73e..ff840aa (12 — gates, RH build x4, memory cuts, live exec, adversarial fixes, promotions, branch 2). All deploys verified; suite 2658 passing.
+
+---
+
 # Session Handoff — 2026-07-11 (~03:30 UTC) — LIVE PAUSED
 
 ## STATE: LIVE TRADING PAUSED (PAPER_MODE=true, verified). Wallet delta +0.0712 SOL since go-live (still green after HOODLANA rug). Book flat.
