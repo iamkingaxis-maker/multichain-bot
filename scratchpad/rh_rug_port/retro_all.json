@@ -1,0 +1,314 @@
+[
+ {
+  "name": "Ape",
+  "label": "SURVIVOR",
+  "pool": "0x8b35e235e9c9da99bce1f64e13e3a9ef8766084d",
+  "token": "0x6ab24d36fa76395142e05cb622e81ae2d3cd4d73",
+  "dex": "v3",
+  "created_block": 6190849,
+  "entry_ts": "2026-07-10T21:33:12",
+  "entry_block": 6406302,
+  "creator": "0xd9ec2db5f3d1b236843925949fe5bd8a3836fccb",
+  "creator_is_contract": true,
+  "creator_pct_at_entry": 0.0,
+  "creator_pct_at_head": 0.0,
+  "n_transfer_logs_at_entry": 3585,
+  "n_transfer_logs_total": 4915,
+  "n_lp_event_logs": 1,
+  "holders_at_entry": {
+   "pool_pct_of_supply": 14.9,
+   "token_contract_pct": 0.0,
+   "dead_pct": 0.0,
+   "n_holders": 276,
+   "top1_pct": 4.43,
+   "top10_pct": 21.9,
+   "shoulder_11_20_pct": 13.16,
+   "top10_addrs": [
+    "0xa06fa392360b0923163ebcdd35c64efb92dfa07f",
+    "0x0172a16e49ad60aa6bae140a9be3b94ef35f8c67",
+    "0x0ef4c0324c5715b0809116bca5e3a27bd5df1250",
+    "0x930af2576a5f5859e32ea67a77aae55c61befd39",
+    "0xf1cfde2d5f6d45e8fc15a3bd2b1c6dcd56a792dd",
+    "0x76334a0612da2a798a9653fbf7d0993968c61fab",
+    "0x57e08020732cdcaf90b6246ab2d7febafa44311d",
+    "0xac3b4dfc6d99387e76fd72d8d222452133d6a92f",
+    "0xd874259110c6e086f1d2fee474b73e69b8f5dab0",
+    "0x77bc78e61c8eeede989b33bdb25e24bfa9ec7335"
+   ]
+  },
+  "holders_at_head": {
+   "pool_pct_of_supply": 16.04,
+   "token_contract_pct": 0.0,
+   "dead_pct": 0.0,
+   "n_holders": 261,
+   "top1_pct": 3.55,
+   "top10_pct": 23.07,
+   "shoulder_11_20_pct": 13.21,
+   "top10_addrs": [
+    "0xa06fa392360b0923163ebcdd35c64efb92dfa07f",
+    "0x0ef4c0324c5715b0809116bca5e3a27bd5df1250",
+    "0x812eccd97727db8180a6191eaa59a88d8959f344",
+    "0x0172a16e49ad60aa6bae140a9be3b94ef35f8c67",
+    "0x6d75bd1c110f0f69ee7525b3f04438bef71b518e",
+    "0x76334a0612da2a798a9653fbf7d0993968c61fab",
+    "0x57e08020732cdcaf90b6246ab2d7febafa44311d",
+    "0xfc1a7716136cae629dac9bd91b4187e826083f72",
+    "0x4752fb1af43b91702630610b625fba73dbaa2804",
+    "0xd874259110c6e086f1d2fee474b73e69b8f5dab0"
+   ]
+  },
+  "lp_custody_at_entry": [
+   {
+    "owner": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+    "net_liquidity": "36819258015569838458222",
+    "is_contract": true
+   }
+  ],
+  "lp_custody_at_head": [
+   {
+    "owner": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+    "net_liquidity": "36819258015569838458222",
+    "is_contract": true
+   }
+  ],
+  "cost": {
+   "rpc_calls": 34,
+   "logs": 4917,
+   "secs": 19.6
+  }
+ },
+ {
+  "name": "RANGER",
+  "label": "SURVIVOR",
+  "pool": "0x9e9038860b777b977eb08421eeaf99bc8673bacf",
+  "token": "0xf132bd1d1770d42cf4ec8659b9077d0d1c197cc1",
+  "dex": "v3",
+  "created_block": 6260712,
+  "entry_ts": "2026-07-10T21:33:12",
+  "entry_block": 6406302,
+  "creator": "0xd9ec2db5f3d1b236843925949fe5bd8a3836fccb",
+  "creator_is_contract": true,
+  "creator_pct_at_entry": 0.0,
+  "creator_pct_at_head": 0.0,
+  "n_transfer_logs_at_entry": 13853,
+  "n_transfer_logs_total": 32440,
+  "n_lp_event_logs": 5,
+  "holders_at_entry": {
+   "pool_pct_of_supply": 6.8,
+   "token_contract_pct": 0.0,
+   "dead_pct": 2.43,
+   "n_holders": 965,
+   "top1_pct": 5.0,
+   "top10_pct": 18.32,
+   "shoulder_11_20_pct": 9.25,
+   "top10_addrs": [
+    "0x3068bf0522d721e674ab9a252fdc50bb614b3cae",
+    "0x6b23d9b4f538e5a9bbf55f29be835fd8ee2dd741",
+    "0x69a47ca9b99414c602dd1ffb2fdb6d6305301676",
+    "0x69c5fb51dd3668799a7a0f80d805a4700000dead",
+    "0xa8c6bdae9ba7e6371d839f4bdab94085b32c8c39",
+    "0xfd08c106fe5aaa41752258602a007c7f0e33637a",
+    "0x3615806df97401386252fc174472e09514341d60",
+    "0x5cac1660f009db264a7f689b0bf17626bb9fb187",
+    "0xd5722ff52c5b67c7ab0cf14c4402c1967bb168ef",
+    "0x156d7df5cf587b8649c58bfdfb7edcc561d12995"
+   ]
+  },
+  "holders_at_head": {
+   "pool_pct_of_supply": 6.79,
+   "token_contract_pct": 0.0,
+   "dead_pct": 3.45,
+   "n_holders": 1688,
+   "top1_pct": 5.0,
+   "top10_pct": 18.33,
+   "shoulder_11_20_pct": 9.06,
+   "top10_addrs": [
+    "0x3068bf0522d721e674ab9a252fdc50bb614b3cae",
+    "0x6b23d9b4f538e5a9bbf55f29be835fd8ee2dd741",
+    "0x5f9eb115e2222a11dae4472a00e368323ee40cc4",
+    "0x01631851eec178d4067c5953c0d36212230919e6",
+    "0xe9e6f7ef73c977e5f8e1a8399be65b30ba7b5820",
+    "0xfd08c106fe5aaa41752258602a007c7f0e33637a",
+    "0xa8c6bdae9ba7e6371d839f4bdab94085b32c8c39",
+    "0xe85c78e05b4acf5cb0484f169b31e3cebd6576a3",
+    "0xcd81917ff5313d02d7da3d47a9afcd3f635c36e3",
+    "0x9963597a9246b39b13330992f571f8378c18c262"
+   ]
+  },
+  "lp_custody_at_entry": [
+   {
+    "owner": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+    "net_liquidity": "36819258015569838458222",
+    "is_contract": true
+   }
+  ],
+  "lp_custody_at_head": [
+   {
+    "owner": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+    "net_liquidity": "38187126622863546052645",
+    "is_contract": true
+   }
+  ],
+  "cost": {
+   "rpc_calls": 56,
+   "logs": 32479,
+   "secs": 75.8
+  }
+ },
+ {
+  "name": "hehe",
+  "label": "SURVIVOR",
+  "pool": "0xed30eadbc93277aff0a349f22198207fb79c3539",
+  "token": "0xa675bd4a20ad3380916900db443a2468e90fecda",
+  "dex": "v3",
+  "created_block": 6198119,
+  "entry_ts": "2026-07-10T21:33:12",
+  "entry_block": 6406302,
+  "creator": "0xd9ec2db5f3d1b236843925949fe5bd8a3836fccb",
+  "creator_is_contract": true,
+  "creator_pct_at_entry": 0.0,
+  "creator_pct_at_head": 0.0,
+  "n_transfer_logs_at_entry": 5262,
+  "n_transfer_logs_total": 6016,
+  "n_lp_event_logs": 2,
+  "holders_at_entry": {
+   "pool_pct_of_supply": 66.59,
+   "token_contract_pct": 0.0,
+   "dead_pct": 3.92,
+   "n_holders": 147,
+   "top1_pct": 1.89,
+   "top10_pct": 12.92,
+   "shoulder_11_20_pct": 6.84,
+   "top10_addrs": [
+    "0x3c86d511803afb9b7478a15527274f9b464bab89",
+    "0x5638484ba2d2f1d1d35020572b0aa439a9869192",
+    "0xb76a90efa79789c721f2049873d773bf17ccbd18",
+    "0xf578b20020678ea4d5ee3700a03e7da6eacc6303",
+    "0x46befd69428076edeafb7c165f913ac0357231d0",
+    "0xfd6e86cf9aeca787cffb198bca859d459a44a847",
+    "0x1a873df96893839059cf13d0df649682830e6ac6",
+    "0x65c3537aefc52d848d31a49fc02573cb40c4202c",
+    "0x71f2f1c2dc94cdabfe29cb355119f8683ae0969b",
+    "0x3bbe5daaf6703d8713828d5fc6e22c58cc8ad9c3"
+   ]
+  },
+  "holders_at_head": {
+   "pool_pct_of_supply": 42.51,
+   "token_contract_pct": 0.0,
+   "dead_pct": 4.35,
+   "n_holders": 137,
+   "top1_pct": 5.63,
+   "top10_pct": 23.97,
+   "shoulder_11_20_pct": 12.26,
+   "top10_addrs": [
+    "0xdb6d4c680783d75565ae21227da1f0128f0e4e60",
+    "0x5965fadba739b3a8d41575bf541f1b48957c5167",
+    "0x354e6dc9c563080436a42b38ebb71acf1f13f695",
+    "0x22f344c852225dd8d44eed16d1495b7c590a6ba6",
+    "0x3c86d511803afb9b7478a15527274f9b464bab89",
+    "0x9ef1e53ff682c662f8d7bcf3651805b2cbd460a9",
+    "0x46befd69428076edeafb7c165f913ac0357231d0",
+    "0x610fc37b599357984e117d61ed51bdf88230c80a",
+    "0x5638484ba2d2f1d1d35020572b0aa439a9869192",
+    "0x061825a9195a2fb526735032fcac4ef58c6e52e4"
+   ]
+  },
+  "lp_custody_at_entry": [
+   {
+    "owner": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+    "net_liquidity": "36819258015569838458222",
+    "is_contract": true
+   }
+  ],
+  "lp_custody_at_head": [
+   {
+    "owner": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+    "net_liquidity": "36819258015569838458222",
+    "is_contract": true
+   }
+  ],
+  "cost": {
+   "rpc_calls": 34,
+   "logs": 6021,
+   "secs": 22.9
+  }
+ },
+ {
+  "name": "BILLY",
+  "label": "SURVIVOR",
+  "pool": "0xd60990c1d9b9612d0e7b7351d83e36a0356e3b20",
+  "token": "0x341ef165ed0715b4887de4642afc64f39fe144e7",
+  "dex": "v3",
+  "created_block": 6218345,
+  "entry_ts": "2026-07-10T21:33:12",
+  "entry_block": 6406302,
+  "creator": "0xd9ec2db5f3d1b236843925949fe5bd8a3836fccb",
+  "creator_is_contract": true,
+  "creator_pct_at_entry": 0.0,
+  "creator_pct_at_head": 0.0,
+  "n_transfer_logs_at_entry": 2571,
+  "n_transfer_logs_total": 3509,
+  "n_lp_event_logs": 2,
+  "holders_at_entry": {
+   "pool_pct_of_supply": 53.22,
+   "token_contract_pct": 0.0,
+   "dead_pct": 2.92,
+   "n_holders": 86,
+   "top1_pct": 5.45,
+   "top10_pct": 21.3,
+   "shoulder_11_20_pct": 11.28,
+   "top10_addrs": [
+    "0xb77ff07c239cdea2f4161540c3a1168bfb651a96",
+    "0xd301b0e21acb392c488c4604a05fd3a97da63441",
+    "0xe939cbe168e1b4a157659accbfc2e29e4d22a500",
+    "0x9324c8352165455c94f4ea42f1437b24e38a165d",
+    "0x745d81601ab13c63ef200848003d548514c9eeb9",
+    "0x38e47fece3ea323e864c65410f6458c820eaa897",
+    "0x56dae1a8e6a61979c0e8c4bf246c940b8d88cfd5",
+    "0xdc96b7b74e8589ffd5cc7ead3a48b9d3a6615329",
+    "0xf7c7969950ea5276df694a4e6f64aeabd0dd569a",
+    "0x9ad4d2ec19dbff27cd78571553966619a56ed858"
+   ]
+  },
+  "holders_at_head": {
+   "pool_pct_of_supply": 41.0,
+   "token_contract_pct": 0.0,
+   "dead_pct": 5.2,
+   "n_holders": 99,
+   "top1_pct": 5.45,
+   "top10_pct": 25.99,
+   "shoulder_11_20_pct": 12.05,
+   "top10_addrs": [
+    "0xb77ff07c239cdea2f4161540c3a1168bfb651a96",
+    "0xd41feaa24dede516a501862cf1f376defb811772",
+    "0x3b130ec3428b0f3f316fce20c83cacaa90e40b84",
+    "0x745d81601ab13c63ef200848003d548514c9eeb9",
+    "0xb94b77fb8dd2d3747e1311ca575aa2ab95a084fa",
+    "0x7a97a06254c4301cc9a101283c5127c53a83a4b9",
+    "0x383fa6d9069e2d1cce8a33ca9bf26b1a670fed8b",
+    "0x38e47fece3ea323e864c65410f6458c820eaa897",
+    "0x836ee236c4b204fa670a2ea50ae0af78b93faeea",
+    "0xf7c7969950ea5276df694a4e6f64aeabd0dd569a"
+   ]
+  },
+  "lp_custody_at_entry": [
+   {
+    "owner": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+    "net_liquidity": "36819258015569838458222",
+    "is_contract": true
+   }
+  ],
+  "lp_custody_at_head": [
+   {
+    "owner": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+    "net_liquidity": "36819258015569838458222",
+    "is_contract": true
+   }
+  ],
+  "cost": {
+   "rpc_calls": 34,
+   "logs": 3515,
+   "secs": 20.5
+  }
+ }
+]

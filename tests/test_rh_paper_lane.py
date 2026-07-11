@@ -355,3 +355,102 @@ class TestExitEngineParity:
                           reason="tp1", sell_fraction=0.75)
         d2 = pm.tick(token="P", current_price=1.13, now=20.0, vol_m5_usd=1000)
         assert any(x.kind == "TP2" for x in d2)
+
+
+class TestRugSignalStamp:
+    """Rug-defense SHADOW stamp (2026-07-11 HOODLANA port): every booked entry
+    queues an {"ev":"rug_signals"} ledger row computed AFTER the fill on a
+    background thread. Shadow only — no decision reads it; fail-open always."""
+
+    def _lane(self, tmp_path, monkeypatch):
+        import rh_paper_lane as mod
+        monkeypatch.setattr(mod, "LEDGER", str(tmp_path / "ledger.jsonl"))
+
+        class FakeRpc:
+            url = "http://fake"
+
+        class FakeFeed:
+            watch = {}
+            latest_block = 123
+            rpc = FakeRpc()
+        lane = mod.PaperLane(FakeFeed(), executor=object(), registry={})
+        lane._rug_rpc = object()   # skip real Rpc construction in the worker
+        return mod, lane
+
+    def _rows(self, mod):
+        import json
+        with open(mod.LEDGER, encoding="utf-8") as f:
+            return [json.loads(x) for x in f if x.strip()]
+
+    def test_row_appended_then_cache_reused(self, tmp_path, monkeypatch):
+        mod, lane = self._lane(tmp_path, monkeypatch)
+        computed = []
+
+        def fake_stamp(rpc, pool, token, created_block, head_block, dex="v3"):
+            computed.append(pool)
+            return {"pool": pool, "token": token, "pool_pct_of_supply": 12.3,
+                    "top1_pct": 25.4, "err": None, "cost": {"rpc_calls": 9}}
+        monkeypatch.setattr(mod, "compute_entry_stamp", fake_stamp)
+        lane._rug_stamp_row("0xp", "0xt", "SYM", 1000.0, ["bot_a"], 5, "v3", 123)
+        lane._rug_stamp_row("0xp", "0xt", "SYM", 1001.0, ["bot_b"], 5, "v3", 123)
+        rows = self._rows(mod)
+        assert len(rows) == 2
+        assert all(r["ev"] == "rug_signals" for r in rows)
+        assert rows[0]["cached"] is False and rows[1]["cached"] is True
+        assert computed == ["0xp"]          # second entry reused the cache
+        assert rows[0]["bot_ids"] == ["bot_a"]
+        assert rows[1]["bot_ids"] == ["bot_b"]  # join stays per-entry
+        assert rows[0]["pool_pct_of_supply"] == 12.3
+
+    def test_fail_open_on_compute_error(self, tmp_path, monkeypatch):
+        mod, lane = self._lane(tmp_path, monkeypatch)
+
+        def boom(*a, **k):
+            raise RuntimeError("rpc exploded")
+        monkeypatch.setattr(mod, "compute_entry_stamp", boom)
+        # must not raise (and must not write a broken row)
+        lane._rug_stamp_row("0xp", "0xt", "SYM", 1000.0, ["b"], 5, "v3", 123)
+        import os
+        assert not os.path.exists(mod.LEDGER)
+
+    def test_kill_switch_spawns_nothing(self, tmp_path, monkeypatch):
+        mod, lane = self._lane(tmp_path, monkeypatch)
+        monkeypatch.setattr(mod, "RUG_STAMP_ENABLED", False)
+        spawned = []
+        monkeypatch.setattr(mod.threading, "Thread",
+                            lambda *a, **k: spawned.append(k))
+        lane._stamp_rug_signals("0xp", "0xt", {"sym": "S"}, 1.0, ["b"])
+        assert spawned == []
+
+    def test_entry_path_spawns_worker(self, tmp_path, monkeypatch):
+        """_paper_buy wires the stamp with the pool's feed facts."""
+        mod, lane = self._lane(tmp_path, monkeypatch)
+        seen = {}
+
+        def fake_spawn(pool, token, w, entry_ts, bot_ids):
+            seen.update(pool=pool, token=token, bot_ids=bot_ids)
+        monkeypatch.setattr(lane, "_stamp_rug_signals", fake_spawn)
+        monkeypatch.setattr(mod, "STATE", str(tmp_path / "state.json"))
+
+        class FakeQuote:
+            amount_in = int(0.01 * 1e18)
+            amount_out = 10 ** 21
+            fee = 10000
+
+        class FakeExec:
+            def quote_buy(self, token, wei):
+                return FakeQuote()
+
+            def quote_sell(self, token, qty):
+                q = FakeQuote()
+                q.amount_out = int(0.0099 * 1e18)   # ~1% rt cost, passes gate
+                return q
+
+            def token_decimals(self, token):
+                return 18
+        lane.ex = FakeExec()
+        lane.feed.eth_price = 2000.0
+        w = {"sym": "T", "liq": 50000.0, "created_block": 5, "dex": "v3"}
+        lane._paper_buy("0xpool", "0xtok", w, -15.0, {}, 1_000_000.0, [])
+        assert seen["pool"] == "0xpool" and seen["token"] == "0xtok"
+        assert len(seen["bot_ids"]) >= 1

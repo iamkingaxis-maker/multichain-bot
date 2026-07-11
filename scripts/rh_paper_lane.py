@@ -52,7 +52,7 @@ from rh_firehose_feed import (  # noqa: E402
 from rh_chain_feed import Feed, Rpc, _append, iso_utc, pctl  # noqa: E402
 from core.retrace_microstructure import retrace_micro_eval  # noqa: E402
 from core.rh_regime import (  # noqa: E402
-    CompositionTracker, expectancy_dial, regime_stamp,
+    CompositionTracker, aged_hour_gate_ok, expectancy_dial, regime_stamp,
 )
 from core.rh_rug_signals import compute_entry_stamp  # noqa: E402
 from core.runner_signal import score_at_exit  # noqa: E402
@@ -175,13 +175,20 @@ SIBLING_STOP_WINDOW_S = 1200.0  # cross-sibling exclusion window after a
                                 # fleet-stopping token within minutes).
 REGIME_BOT_ERA_POOLS_H = 200.0  # decode chain facts: human era 800-2,600
                                 # pools/day (33-108/h) vs bot era 14k-20k/day
-                                # (583-833/h); 200/h splits the gap.
-REGIME_HUMAN_HOURS = tuple(range(14, 24))  # hour_rulebook.json: human-era
-                                # volume is broad 14-23 UTC; bot era runs hot
-                                # ALL 24 hours -> no hour block in bot era.
+                                # (583-833/h); 200/h splits the gap. Feeds
+                                # the discovery-regime STAMP (core/rh_regime
+                                # .discovery_regime; rulebook v1: young-band
+                                # bot-burst windows carry ~2x rug rate in all
+                                # four halves — stamped, NOT paper-gated).
+# REGIME v1 (2026-07-11, scratchpad/_rh_regime_system.md): the v0 human-era
+# 14-23 UTC hour block is REFUTED by outcomes — 39,132 mined dip trips show
+# human-era 02-07 UTC was the BEST young cell (volume != outcome; the v0 rule
+# gated on volume). The one hour rule that passed the two-window bar is the
+# aged-band 19-21 UTC block (core/rh_regime.aged_hour_gate_ok, provenance on
+# the constant). regime_hours racers now enforce THAT, era-unconditional.
 REGIME_MIN_UPTIME_S = 600.0     # discovery-rate warm-up: unknown rate for
-                                # the first 10 min -> fail OPEN to 24/7 (the
-                                # chain's CURRENT era is the bot era).
+                                # the first 10 min -> stamp reads None (the
+                                # v1 hour gate no longer consumes the rate).
 
 
 # ── fleet configs (the RACING ROSTER — selection instrument) ─────────────────
@@ -241,8 +248,10 @@ class LaneBot:
     # down to derisk_max_frac (per-position catastrophe cap). None = off.
     derisk_after_s: Optional[float] = None
     derisk_max_frac: float = DERISK_MAX_FRAC
-    # regime-conditional hour gate (decode: hour gating must be REGIME-gated,
-    # not fixed): bot-era discovery rate -> 24/7; human-era -> 14-23 UTC only.
+    # regime hour gate v1 (2026-07-11 mine; replaces the REFUTED v0
+    # human-era-14-23 rule): aged-band (>24h) pools blocked 19-21 UTC — the
+    # one hour rule that passed the two-window bar. Opt-in per racer: aged
+    # racers default ON, scalp racers stay OFF (their A/B is mid-flight).
     regime_hours: bool = False
 
     def bot_config(self) -> BotConfig:
@@ -331,7 +340,7 @@ ROSTER = (
     #                    re-buys paid, shallow slaughtered — session-7 live).
     # All three: cross-sibling token exclusion (exclusion_group="aged",
     # MONSIEUR defect #1 — one racer per token, never the whole cohort) and
-    # the regime-conditional hour gate (decode hour rulebook). Thresholds:
+    # the v1 regime hour gate (aged-band 19-21 UTC block). Thresholds:
     # see the AGED_*/DERISK_*/REENTRY_*/REGIME_* constants — each cites its
     # data source. trail_pp=10.0 is the one partly-judgment number (flagged
     # above); NO time box on any of the three — winning-trip holds are
@@ -455,17 +464,15 @@ def hour_allowed(allowed_hours_utc, hour_utc: int) -> bool:
     return allowed_hours_utc is None or int(hour_utc) in allowed_hours_utc
 
 
-def regime_hour_ok(hour_utc: int, new_pools_per_hour,
-                   bot_era_rate: float = REGIME_BOT_ERA_POOLS_H,
-                   human_hours: tuple = REGIME_HUMAN_HOURS) -> bool:
-    """REGIME-conditional hour gate (decode hour rulebook: the fixed clock
-    only fit launch day). Bot-era regime (pool-creation rate >= bot_era_rate,
-    volume hot all 24h) -> no hour block; human-era regime -> 14-23 UTC only.
-    None rate (warm-up / unknown) fails OPEN to 24/7 — the chain's current
-    era is the bot era."""
-    if new_pools_per_hour is None or new_pools_per_hour >= bot_era_rate:
-        return True
-    return int(hour_utc) in human_hours
+def regime_hour_ok(hour_utc: int, age_h) -> bool:
+    """Regime hour gate v1 (2026-07-11 full-history mine, replaces the
+    REFUTED v0 human-era-14-23 rule — see the REGIME v1 comment block by the
+    constants): block ONLY aged-band (>24h) pools in 19-21 UTC — the one
+    hour rule that held in BOTH chrono halves AND BOTH day-parity halves of
+    the 10.36M-swap history. Young/mid pools and unknown age/hour pass
+    (fail-OPEN). Thin wrapper over core.rh_regime.aged_hour_gate_ok so the
+    rule, its numbers and its provenance live in ONE place."""
+    return aged_hour_gate_ok(hour_utc, age_h)
 
 
 def reentry_depth_gate(had_recent_loss: bool, dip, vol_m5_usd,
@@ -1054,8 +1061,8 @@ class PaperLane:
                     st.block_hist.get(canary_block, 0) + 1)
             return
         hour = time.gmtime(now).tm_hour
-        self._track_new_pools(now)
-        npph = self.new_pools_per_hour(now)
+        self._track_new_pools(now)   # discovery-rate tracker (regime STAMP;
+        # the v1 hour gate is age-band keyed and no longer consumes the rate)
         # cross-sibling exclusion sets, built ONCE per tick per grouped racer
         excl_keys = {b.bot_id: sibling_exclusion_keys(
                          list(self.state.values()), b.bot_id,
@@ -1118,7 +1125,7 @@ class PaperLane:
                                             bot.reentry_min_vol_m5_usd)
                     if rb:
                         extra.append(rb)
-                if bot.regime_hours and not regime_hour_ok(hour, npph):
+                if bot.regime_hours and not regime_hour_ok(hour, age_h):
                     extra.append("hour_regime")
                 # honeypot LAST (network call), only when a config passes
                 v = entry_verdict(

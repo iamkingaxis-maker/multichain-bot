@@ -1,0 +1,78 @@
+{
+ "name": "Halp",
+ "label": "RUG(-90%)",
+ "pool": "0x8fe3889cbec2af20df0982556c40deadad707bfb",
+ "token": "0x1746a62bb1425633635f41b08bf1713f5f128239",
+ "dex": "v3",
+ "created_block": 6232574,
+ "entry_ts": "2026-07-10T16:52:51",
+ "entry_block": 6238271,
+ "creator": "0xd9ec2db5f3d1b236843925949fe5bd8a3836fccb",
+ "creator_is_contract": true,
+ "creator_pct_at_entry": 0.0,
+ "creator_pct_at_head": 0.0,
+ "n_transfer_logs_at_entry": 849,
+ "n_transfer_logs_total": 1175,
+ "n_lp_event_logs": 1,
+ "holders_at_entry": {
+  "pool_pct_of_supply": 24.52,
+  "token_contract_pct": 0.0,
+  "dead_pct": 0.0,
+  "n_holders": 177,
+  "top1_pct": 1.6,
+  "top10_pct": 12.05,
+  "shoulder_11_20_pct": 8.52,
+  "top10_addrs": [
+   "0x8a494ed488c5bc157e0fb2983fdfb90e2d63b691",
+   "0x6749c8e2cf3feca809314338e68489fdcd250ff8",
+   "0xd0a04847c79cf7320e703d89bb44db118cb617db",
+   "0x00d78daf782921b27a6b407d34f19842c10a4a6b",
+   "0x8d5de408de617d147c590dab744e62eb48d92d75",
+   "0x75ed6ca2b6f6127b4d8d42539bae54f2895fcd68",
+   "0x3e56f58ae623d1f7b97fa003461c67a41629111e",
+   "0x2da5deaece1c2806b48edabef2563bfb4c9ed708",
+   "0x4e7b18f3d732400d07981c1d334d00d14a48e7a5",
+   "0xc348dd0240f966189756ac1a6e1f7bb4c342d169"
+  ]
+ },
+ "holders_at_head": {
+  "pool_pct_of_supply": 87.99,
+  "token_contract_pct": 0.0,
+  "dead_pct": 1.99,
+  "n_holders": 33,
+  "top1_pct": 1.95,
+  "top10_pct": 9.74,
+  "shoulder_11_20_pct": 0.26,
+  "top10_addrs": [
+   "0x8004ce0fc1d60da4ebc15c8e0557532f44cdba9b",
+   "0x5638484ba2d2f1d1d35020572b0aa439a9869192",
+   "0xc7ea727095266741e48a949dd14a102d123b4e52",
+   "0xfb5ea923b63f2dfd2dd609bf56511d0cb28b91c3",
+   "0x3c86d511803afb9b7478a15527274f9b464bab89",
+   "0x71f2f1c2dc94cdabfe29cb355119f8683ae0969b",
+   "0x78432edeb463945b10cebcce47341f8c923815cf",
+   "0x3d064008d286c3581e5a74ab678f421d6e6fd881",
+   "0xa32b8ca2e112444b2b3469b572420e19503d5384",
+   "0x6ae4f65b23d32d4eecc72703a12bef0394151bf3"
+  ]
+ },
+ "lp_custody_at_entry": [
+  {
+   "owner": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+   "net_liquidity": "36819258015569838458222",
+   "is_contract": true
+  }
+ ],
+ "lp_custody_at_head": [
+  {
+   "owner": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+   "net_liquidity": "36819258015569838458222",
+   "is_contract": true
+  }
+ ],
+ "cost": {
+  "rpc_calls": 33,
+  "logs": 1178,
+  "secs": 10.6
+ }
+}
