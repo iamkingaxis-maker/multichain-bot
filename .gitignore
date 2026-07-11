@@ -156,3 +156,9 @@ analysis/
 
 # RPC key (free tier) — never commit
 alchemy_key.txt
+
+# 2026-07-11: keep RH decode reports in git, exclude the 628MB raw dumps
+scratchpad/rh_history/*.jsonl
+scratchpad/rh_history/*.jsonl.gz
+scratchpad/rh_history/hist_*
+scratchpad/rug_forensics/*.jsonl
