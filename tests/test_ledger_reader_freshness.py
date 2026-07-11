@@ -19,6 +19,11 @@ from core.multi_bot_persistence import MultiBotTradeStore
 @pytest.fixture
 def append_mode(monkeypatch):
     monkeypatch.setenv("LEDGER_APPEND_MODE", "on")
+    # These tests pin READER FRESHNESS with fixed 2026-06 trade times; once
+    # those dates aged past LEDGER_ROTATE_DAYS the boot rotation (2026-07-11,
+    # #496 memory cut — pinned in test_ledger_rotation.py) correctly archives
+    # them out of the base. Rotation is off here so the fixture rows persist.
+    monkeypatch.setenv("LEDGER_ROTATE_DAYS", "0")
 
 
 def _trade(symbol, bot="badday_flush_nf15_live", pnl=1.0):

@@ -25,6 +25,73 @@ def _append_enabled() -> bool:
         "on", "1", "true", "yes")
 
 
+def _rotate_days() -> float:
+    """LEDGER_ROTATE_DAYS knob (default 21). Rows whose trade time is older than
+    this many days are rotated OUT of the loaded base at boot compaction into
+    trades_multi_archive.jsonl (append-only, NEVER loaded at boot) — the #1
+    Railway RAM cut (memory re-audit #496: the parsed ledger IS the service's
+    ~3GB RSS). 0 / off / no / false / empty disables rotation entirely.
+    Fail-open: an unparseable value disables rotation (= load everything)."""
+    raw = os.environ.get("LEDGER_ROTATE_DAYS", "21").strip().lower()
+    if raw in ("off", "no", "false", ""):
+        return 0.0
+    try:
+        return max(0.0, float(raw))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _meta_keep_rows() -> int:
+    """LEDGER_META_KEEP_ROWS knob (default 6000). In-memory cache rows older
+    than the newest N keep every scalar field but have their ~15KB entry_meta
+    dict slimmed to _META_TRIM_KEEP_KEYS (disk stays lossless) — the #2 RAM cut.
+    N is aligned above /api/trades?full=1's 5000-newest cap so every row that
+    endpoint can serve still carries full meta. <=0 / off disables trimming.
+    Fail-open: an unparseable value disables trimming."""
+    raw = os.environ.get("LEDGER_META_KEEP_ROWS", "6000").strip().lower()
+    if raw in ("off", "no", "false", ""):
+        return 0
+    try:
+        return int(float(raw))
+    except (TypeError, ValueError):
+        return 0
+
+
+# entry_meta keys preserved by the in-memory trim. core/live_faithful_pnl.py
+# reads these two booleans from EVERY closed buy (full-history), so dropping
+# them would silently flip old would-block trades to "not blocked". Keeping
+# two booleans costs ~100B/row vs the ~15KB full dict.
+_META_TRIM_KEEP_KEYS = ("daily_halt_would_block", "reentry_cap_would_block")
+
+
+def _parse_trade_time(ts):
+    """ISO trade time -> aware UTC datetime, or None when missing/unparseable.
+    Rotation treats None as NOT old (fail-safe: never archive a row whose age
+    is unknown)."""
+    from datetime import timezone as _tz
+    from datetime import datetime as _dt
+    if not ts:
+        return None
+    try:
+        d = _dt.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=_tz.utc)
+        return d
+    except (TypeError, ValueError):
+        return None
+
+
+def _trade_sig(t: dict) -> tuple:
+    """Stable identity signature for a trade row (crash-recovery dedup between
+    the base ledger and the rotation archive). Specific enough that two DISTINCT
+    real fills can't collide: bot+token+type+microsecond time+prices+pnl."""
+    return (
+        t.get("bot_id"), t.get("time"), t.get("type"), t.get("token"),
+        t.get("address"), t.get("pair_address"), repr(t.get("entry_price")),
+        repr(t.get("pnl")), repr(t.get("pnl_pct")), repr(t.get("amount_usd")),
+    )
+
+
 class MultiBotTradeStore:
     """Bot-aware trade persistence.
 
@@ -50,6 +117,11 @@ class MultiBotTradeStore:
         (self.data_dir / "bot_state").mkdir(exist_ok=True)
         self._trades_path = self.data_dir / "trades_multi.json"
         self._trades_jsonl_path = self.data_dir / "trades_multi.jsonl"
+        # Ledger rotation (memory re-audit #496): rows older than
+        # LEDGER_ROTATE_DAYS live here, append-only, NEVER loaded at boot.
+        self._trades_archive_path = self.data_dir / "trades_multi_archive.jsonl"
+        # Per-bot aggregates of the archived rows (leaderboard fold source).
+        self._rotation_stats_path = self.data_dir / "ledger_rotation_stats.json"
         self._trades_loaded = False   # append-mode: boot-compaction-done flag
         self._lock = threading.Lock()
         self._maybe_split_legacy()
@@ -383,17 +455,209 @@ class MultiBotTradeStore:
                             had_jsonl = True
                 except Exception:
                     pass
+            # Ledger ROTATION (memory re-audit #496, cut #1): fold rows older
+            # than LEDGER_ROTATE_DAYS out of the base into the append-only
+            # archive, so the resident _base_cache (and every boot re-parse)
+            # holds only the active window. Fail-open: ANY error -> log loudly
+            # and keep the full ledger (current behavior).
+            rotated = False
+            try:
+                mem, rotated = self._rotate_ledger(mem)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(
+                    "[LedgerRotation] rotation FAILED — fail-open, loading the "
+                    "FULL ledger (%d rows): %s", len(mem), e)
             # Boot compaction: fold prior-session JSONL appends into the base
             # array + truncate the sidecar so it never grows across restarts.
-            if had_jsonl:
+            # STREAMED write (cut #3): per-row dumps into the temp file instead
+            # of one whole-ledger json.dumps string (a ~file-size GIL-held
+            # transient that glibc never returned to the OS).
+            if had_jsonl or rotated:
                 try:
-                    self._atomic_write(self._trades_path, json.dumps(mem))
+                    self._atomic_write_stream(self._trades_path, mem)
                     self._trades_jsonl_path.write_text("")
                 except Exception:
                     pass
             # Mark done and release the local ledger copy (do not retain).
             self._trades_loaded = True
             mem = None
+
+    def _rotate_ledger(self, mem: list) -> tuple:
+        """Boot-time ledger rotation (#496 cut #1). Returns (active_rows, changed).
+
+        Rows older than LEDGER_ROTATE_DAYS move to trades_multi_archive.jsonl
+        (append-only, never loaded at boot); per-bot aggregates of everything
+        archived are re-derived and written to ledger_rotation_stats.json so
+        stat readers (dashboard leaderboard via core/ledger_stats.sell_stats)
+        report IDENTICAL since-inception totals before/after rotation.
+
+        Safety properties:
+          • NO-STRADDLE: a (bot_id, token) group is archived only when EVERY
+            row of it is older than the cutoff — position joins (leaderboard
+            (token, entry_price) groups, restore_positions, live_faithful lots)
+            never split across base/archive. Open-position tokens (bot_state
+            books = holdings truth) are additionally protected outright.
+          • IDEMPOTENT/CRASH-SAFE: stats are ALWAYS re-derived from the archive
+            file itself (streamed line-by-line, per-line dedup by row signature),
+            and any base row whose signature already exists in the archive is a
+            crash leftover — dropped from base, counted exactly once.
+          • Daily circuit breakers unaffected: boot daily-pnl re-derivation
+            needs only TODAY's rows, far inside any sane LEDGER_ROTATE_DAYS.
+
+        Caller wraps in try/except (fail-open -> full ledger). Runs under
+        self._lock at boot, before any reader is served."""
+        from datetime import datetime, timedelta, timezone
+        days = _rotate_days()
+        if days <= 0 or not mem:
+            return mem, False
+        cutoff_dt = datetime.now(timezone.utc) - timedelta(days=days)
+
+        def _is_old(t):
+            d = _parse_trade_time(t.get("time"))
+            return d is not None and d < cutoff_dt
+
+        # (bot_id, token) groups that must STAY in the base: any group with a
+        # recent/unparseable-time row, plus every open position (paranoia —
+        # open positions are recent by construction, but bot_state is truth).
+        keep_keys = set()
+        for t in mem:
+            if not _is_old(t):
+                keep_keys.add((t.get("bot_id"), t.get("token")))
+        try:
+            for p in (self.data_dir / "bot_state").glob("*.json"):
+                try:
+                    st = json.loads(p.read_text())
+                    bid = st.get("bot_id") or p.stem
+                    for pos in (st.get("open_positions") or []):
+                        keep_keys.add((bid, pos.get("token")))
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+        # Leaderboard-mirror filters for the stats snapshot (must match
+        # dashboard _build_bot_rows / core/ledger_stats.sell_stats population).
+        try:
+            import sys
+            root = str(Path(__file__).resolve().parent.parent)
+            if root not in sys.path:
+                sys.path.insert(0, root)
+            from scripts.sp4_common import MIN_TRADE_TIMESTAMP as _min_ts
+        except Exception:
+            _min_ts = ""
+
+        group_pnl: dict = {}     # (bot, token, entry_price) -> summed sell pnl
+        latest_by_bot: dict = {}  # bot -> newest archived row time (reset guard)
+
+        def _count(t):
+            bid = t.get("bot_id", "baseline_v1")
+            tm = t.get("time") or ""
+            if tm > latest_by_bot.get(bid, ""):
+                latest_by_bot[bid] = tm
+            if t.get("type") != "sell":
+                return
+            if _min_ts and tm < _min_ts:
+                return
+            if "cancelled on restart" in (t.get("reason") or ""):
+                return
+            k = (bid, t.get("token"), t.get("entry_price"))
+            group_pnl[k] = group_pnl.get(k, 0.0) + float(t.get("pnl") or 0)
+
+        # Stream the existing archive once: signature set (dedup) + aggregates.
+        arch_sigs = set()
+        if self._trades_archive_path.exists():
+            with open(self._trades_archive_path, encoding="utf-8") as fh:
+                for ln in fh:
+                    ln = ln.strip()
+                    if not ln:
+                        continue
+                    try:
+                        t = json.loads(ln)
+                    except Exception:
+                        continue
+                    if not isinstance(t, dict):
+                        continue
+                    sig = _trade_sig(t)
+                    if sig in arch_sigs:
+                        continue  # crash-duplicated line — count once
+                    arch_sigs.add(sig)
+                    _count(t)
+
+        to_archive, active, changed = [], [], False
+        for t in mem:
+            if _trade_sig(t) in arch_sigs:
+                changed = True  # crash leftover: already archived — drop it
+                continue
+            if _is_old(t) and (t.get("bot_id"), t.get("token")) not in keep_keys:
+                to_archive.append(t)
+                changed = True
+            else:
+                active.append(t)
+        if not changed:
+            return mem, False
+
+        # 1) Append new archive lines durably (fsync — the base rewrite that
+        #    follows must never outrun the archive of the rows it drops).
+        if to_archive:
+            with open(self._trades_archive_path, "a", encoding="utf-8") as fh:
+                for t in to_archive:
+                    fh.write(json.dumps(t) + "\n")
+                fh.flush()
+                os.fsync(fh.fileno())
+            for t in to_archive:
+                _count(t)
+
+        # 2) Reduce to per-bot aggregates + atomic snapshot write.
+        bots: dict = {}
+
+        def _bot(bid):
+            return bots.setdefault(
+                bid, {"pnl": 0.0, "positions": 0, "wins": 0, "latest_time": ""})
+
+        for (bid, _tok, _ep), pnl in group_pnl.items():
+            b = _bot(bid)
+            b["pnl"] = round(b["pnl"] + pnl, 6)
+            b["positions"] += 1
+            if pnl > 0:
+                b["wins"] += 1
+        for bid, tm in latest_by_bot.items():
+            _bot(bid)["latest_time"] = tm
+        snapshot = {
+            "version": 1,
+            "rotate_days": days,
+            "rotated_at": datetime.now(timezone.utc).isoformat(),
+            "note": ("per-bot aggregates of rows archived to "
+                     "trades_multi_archive.jsonl; folded into leaderboard "
+                     "stats via core/ledger_stats.sell_stats"),
+            "bots": bots,
+        }
+        self._atomic_write(self._rotation_stats_path, json.dumps(snapshot))
+        self._rotation_stats_cache = None  # invalidate reader cache
+        import logging
+        logging.getLogger(__name__).warning(
+            "[LedgerRotation] archived %d rows older than %.0fd (base %d -> %d "
+            "rows; archive+stats updated: %s bots)",
+            len(to_archive), days, len(mem), len(active), len(bots))
+        return active, True
+
+    def load_rotation_stats(self) -> dict:
+        """Read ledger_rotation_stats.json (per-bot aggregates of archived rows).
+        {} when never rotated / unreadable. mtime-cached (dashboard polls)."""
+        try:
+            p = self._rotation_stats_path
+            if not p.exists():
+                return {}
+            mt = p.stat().st_mtime
+            c = getattr(self, "_rotation_stats_cache", None)
+            if c is not None and c[0] == mt:
+                return c[1]
+            d = json.loads(p.read_text())
+            d = d if isinstance(d, dict) else {}
+            self._rotation_stats_cache = (mt, d)
+            return d
+        except Exception:
+            return {}
 
     def record_trade(self, trade: dict, bot_id: str) -> None:
         record = dict(trade)
@@ -437,6 +701,9 @@ class MultiBotTradeStore:
                     for t in base:
                         if "bot_id" not in t:
                             t["bot_id"] = "baseline_v1"
+                    # #496 cut #2: cache old rows entry_meta-slim (disk lossless;
+                    # trades_multi.json is append-ordered so [:-keep] = oldest).
+                    self._trim_entry_meta(base)
                     self._base_cache = (mt, base)
                 out.extend(base)
         except Exception:
@@ -491,6 +758,9 @@ class MultiBotTradeStore:
             for t in data:
                 if "bot_id" not in t:
                     t["bot_id"] = "baseline_v1"
+            # #496 cut #2 (read-cache only; record_trade re-parses the file
+            # directly before appending, so disk writes stay lossless).
+            self._trim_entry_meta(data)
             self._trades_cache = (mtime, data)
         if bot_id is None:
             return data
@@ -506,6 +776,46 @@ class MultiBotTradeStore:
         tmp = path.with_name(path.name + ".tmp")
         tmp.write_text(text)
         os.replace(tmp, path)
+
+    @staticmethod
+    def _atomic_write_stream(path, rows) -> None:
+        """Atomic JSON-array write, STREAMED per row (#496 cut #3): the boot
+        compaction's whole-ledger json.dumps built a ~file-size Python string
+        (a 0.5-1.0GB transient on the deployed ledger) that fragmented the heap
+        floor. Per-row dumps straight into the temp file keep the peak at one
+        row. Same output file semantics (temp + os.replace) as _atomic_write;
+        byte-diff only in separators (',' vs ', '), JSON-identical."""
+        import os
+        path = Path(path)
+        tmp = path.with_name(path.name + ".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write("[")
+            for i, r in enumerate(rows):
+                if i:
+                    f.write(",")
+                f.write(json.dumps(r))
+            f.write("]")
+        os.replace(tmp, path)
+
+    @staticmethod
+    def _trim_entry_meta(rows: list) -> None:
+        """#496 cut #2: slim the ~15KB entry_meta dict off IN-MEMORY cache rows
+        older than the newest LEDGER_META_KEEP_ROWS (disk stays lossless — this
+        runs only on freshly parsed read-cache rows, never on anything written
+        back). The whitelist keys survive (live_faithful_pnl reads them across
+        full history); '_meta_trimmed' marks the slim dict for consumers."""
+        keep = _meta_keep_rows()
+        if keep <= 0 or len(rows) <= keep:
+            return
+        for t in rows[:-keep]:
+            if not isinstance(t, dict):
+                continue
+            em = t.get("entry_meta")
+            if not isinstance(em, dict) or em.get("_meta_trimmed"):
+                continue
+            slim = {k: em[k] for k in _META_TRIM_KEEP_KEYS if k in em}
+            slim["_meta_trimmed"] = True
+            t["entry_meta"] = slim
 
     def save_bot_state(self, bot_id: str, state: dict) -> None:
         path = self.data_dir / "bot_state" / f"{bot_id}.json"

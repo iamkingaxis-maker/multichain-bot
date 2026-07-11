@@ -25266,6 +25266,30 @@ class DipScanner:
                         n_over -= 1
             except Exception:
                 pass
+
+            # 4) _h24_history — a token's deque self-prunes only on RE-APPEND
+            #    (append-then-trim at the eval site), so a token never scanned
+            #    again keeps its last <=6h of samples forever: unbounded KEY
+            #    growth (memory re-audit #496 item 5). Evict keys whose NEWEST
+            #    sample is older than the filter's own 6h window — semantics
+            #    are identical by construction (the next append would drop
+            #    every sample before any read). Open-position addresses are
+            #    protected anyway. Mark dirty so h24_history.json sheds them too.
+            try:
+                win = float(getattr(self, "_h24_history_window_secs", 6 * 3600))
+                stale = []
+                for _addr, _dq in self._h24_history.items():
+                    if str(_addr).lower() in protected_addrs:
+                        continue
+                    newest = _dq[-1][0] if _dq else 0.0
+                    if (now - newest) > win:
+                        stale.append(_addr)
+                for _addr in stale:
+                    self._h24_history.pop(_addr, None)
+                if stale:
+                    self._h24_history_dirty = True
+            except Exception:
+                pass
         except Exception:
             pass
 

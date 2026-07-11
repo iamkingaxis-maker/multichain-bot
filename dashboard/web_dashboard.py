@@ -566,7 +566,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
     <div class="live-grid">
       <div class="live-stat"><div class="lbl">Wallet</div><div class="val" id="live-wallet">&mdash;</div></div>
-      <div class="live-stat"><div class="lbl">Floor (working capital)</div><div class="val" id="live-floor">&mdash;</div></div>
+      <div class="live-stat"><div class="lbl">Sweep floor (config target &mdash; not a balance; sweep idle until wallet exceeds it)</div><div class="val" id="live-floor">&mdash;</div></div>
       <div class="live-stat"><div class="lbl">Above floor (sweepable)</div><div class="val" id="live-abovefloor">&mdash;</div></div>
       <div class="live-stat"><div class="lbl">Open positions</div><div class="val" id="live-open">0</div></div>
     </div>
@@ -4582,7 +4582,6 @@ class WebDashboard:
                     trades = [t for t in trades if (t.get("time") or "") >= _ra]
                 buys = [t for t in trades if t.get("type") == "buy"]
                 sells = [t for t in trades if t.get("type") == "sell"]
-                total_pnl = sum(s.get("pnl", 0) for s in sells)
                 # Open positions: per-token (num_buys - num_sells), clamped
                 # to >= 0. Old approach used (token, entry_price) matching
                 # but sell records store entry_price=None (only buys carry
@@ -4619,12 +4618,19 @@ class WebDashboard:
                 # (token, entry_price) into one position with one net outcome. (Sells
                 # now carry entry_price; re-entries at an identical price can still
                 # merge — rare given price precision.)
-                from collections import defaultdict as _dd
-                _pos_pnl = _dd(float)
-                for s in sells:
-                    _pos_pnl[(s.get("token"), s.get("entry_price"))] += (s.get("pnl") or 0)
-                n_positions = len(_pos_pnl)
-                n_wins = sum(1 for v in _pos_pnl.values() if v > 0)
+                # Extracted to core/ledger_stats.sell_stats (2026-07-11, #496
+                # ledger rotation): rows older than LEDGER_ROTATE_DAYS live in
+                # trades_multi_archive.jsonl; their per-bot aggregates
+                # (ledger_rotation_stats.json) are folded in here so the
+                # leaderboard's since-inception totals are IDENTICAL before and
+                # after rotation. Fail-open: no stats file -> plain sells math.
+                from core.ledger_stats import sell_stats as _sell_stats
+                try:
+                    _arch = ((self.trade_store.load_rotation_stats().get("bots")
+                              or {}).get(bot_id) or {})
+                except Exception:
+                    _arch = {}
+                total_pnl, n_positions, n_wins = _sell_stats(sells, _arch, _ra)
                 bots.append({
                     "bot_id": bot_id,
                     "balance_usd": state["balance_usd"],
