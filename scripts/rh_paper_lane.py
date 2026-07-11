@@ -49,11 +49,19 @@ sys.path.insert(0, _HERE)
 from rh_firehose_feed import (  # noqa: E402
     Firehose, WS_URL, RH_CHAIN_ID, RPC_DEFAULT, LOOKBACK_H, MAINT_SECS,
 )
-from rh_chain_feed import Feed, _append, iso_utc, pctl  # noqa: E402
+from rh_chain_feed import Feed, Rpc, _append, iso_utc, pctl  # noqa: E402
 from core.retrace_microstructure import retrace_micro_eval  # noqa: E402
+from core.rh_regime import (  # noqa: E402
+    CompositionTracker, expectancy_dial, regime_stamp,
+)
+from core.rh_rug_signals import compute_entry_stamp  # noqa: E402
 from core.runner_signal import score_at_exit  # noqa: E402
 from core.bot_config import BotConfig  # noqa: E402
 from core.per_bot_position_manager import PerBotPositionManager  # noqa: E402
+# sell-path canary (never-buys-while-sells-broken, 2026-07-10 incident rule).
+# PAPER DEFAULT = canary mode OFF -> both hooks below are no-ops and the lane
+# is byte-identical; RH_SELL_CANARY=auto turns it ON when RH_PAPER_MODE=false.
+import core.rh_live_execution as rh_live  # noqa: E402
 
 OUT_DIR = os.path.join("scratchpad", "robinhood_tapes")
 LEDGER = os.path.join(OUT_DIR, "rh_paper_trades.jsonl")
@@ -98,6 +106,22 @@ MAX_HOT_QUOTES = 8          # quote budget per cycle (~130ms/call)
 STRAT_TICK_S = 2.0
 REENTRY_COOLDOWN_S = 300.0
 GAS_USD_PER_SIDE = 0.01     # measured RH gas ~ $0.005; round up
+# ── Rug-defense SHADOW stamps (2026-07-11 HOODLANA port) ─────────────────────
+# core/rh_rug_signals per-entry stamp: pool share of supply, top-holder
+# structure (top1/top10/shoulder_11_20/visible float) and LP custody, appended
+# as {"ev":"rug_signals"} ledger rows. SHADOW ONLY — no decision reads them;
+# the labeled-outcome pipeline (post-exit +6h checks / cohort labeler) grades
+# them offline at n>=30 rugs before any gate promotion (winner-kill<=5% bar,
+# AxiS approval). Zero latency budget: computed on a daemon thread AFTER the
+# paper fill books; single-flight lock + internal pacing so the stamper never
+# contends with the strategy loop for the shared public RPC. Retro-validated
+# on CASHCATGAME/MONSIEUR/Halp/TREAT/KUNA vs 4 aged survivors (costs measured
+# 15-40 RPC calls/stamp; scratchpad/_rh_rug_port.md).
+RUG_STAMP_ENABLED = os.environ.get("RH_RUG_STAMP", "1") != "0"
+RUG_STAMP_CACHE_S = 600.0   # re-entries within 10 min reuse the computation
+                            # (a row is still written per entry, flagged
+                            # cached=True — the outcome join stays per-entry
+                            # while the RPC cost stays per-pool)
 
 # ── AGED-POOL cohort thresholds (2026-07-11) — every number set FROM DATA ────
 # Sources: scratchpad/_rh_history_decode.md + scratchpad/rh_history/
@@ -641,6 +665,11 @@ class BotState:
                                  # gate + cross-sibling loss-stop exclusion.
                                  # In-memory only: both windows are 20 min,
                                  # so a restart fails OPEN (like last_exit).
+        self.recent_realized = []  # last <=50 FULL-close realized $ (regime
+                                 # layer: rolling-expectancy DIAL stamp —
+                                 # STAMP ONLY, never a paper buy-halt;
+                                 # persisted so the dial's record survives
+                                 # restarts)
 
 
 # ── the lane ─────────────────────────────────────────────────────────────────
@@ -667,6 +696,16 @@ class PaperLane:
         self._regime_known = None   # set of pool addrs already seen
         self._regime_seen = []      # discovery timestamps (rolling 1h)
         self._regime_t0 = None      # first-tick ts (warm-up clock)
+        # sell-path canary (live-mode only; see _canary_tick)
+        self._canary = None
+        self._last_canary_ts = 0.0
+        # rug-signal SHADOW stamper (see _stamp_rug_signals)
+        self._rug_lock = threading.Lock()   # single-flight on the RPC
+        self._rug_cache = {}                # pool -> (computed_ts, stamp)
+        self._rug_rpc = None                # dedicated Rpc (lazy)
+        # regime layer (core/rh_regime): feed-wide 30-min demand-composition
+        # window, fed from the tape drain; stamped on every entry ledger row.
+        self.comp = CompositionTracker()
         # FLEET: default = single-config control (back-compat for callers/
         # tests that predate the fleet); main() passes the full ROSTER.
         self.bots = tuple(bots) if bots else (LaneBot(bot_id=LEGACY_BOT_ID),)
@@ -746,7 +785,8 @@ class PaperLane:
                     "bots": {bid: {"pos_meta": st.pos_meta,
                                    "daily_pnl_usd": st.daily_pnl_usd,
                                    "pm_state": st.pm.to_state_list(),
-                                   "bites": st.bites}
+                                   "bites": st.bites,
+                                   "recent_realized": st.recent_realized}
                              for bid, st in self.state.items()},
                 }, f)
             os.replace(tmp, STATE)
@@ -787,6 +827,9 @@ class PaperLane:
                     st.daily_pnl_usd = float(blob.get("daily_pnl_usd") or 0.0)
                 st.bites = {k: int(v) for k, v in (blob.get("bites") or {}).items()
                             if isinstance(v, (int, float))}
+                st.recent_realized = [
+                    float(x) for x in (blob.get("recent_realized") or [])
+                    if isinstance(x, (int, float))][-50:]
                 st.pm.load_state_list(blob.get("pm_state") or [])
                 # drop meta whose pm twin didn't restore (and vice versa)
                 st.pos_meta = {p: m for p, m in st.pos_meta.items()
@@ -848,6 +891,10 @@ class PaperLane:
             except queue.Empty:
                 return
             row["_epoch"] = now  # seen time; good enough for 30s flow windows
+            # regime layer: feed-wide demand-composition window sees EVERY
+            # tape row (O(1) ingest, pure in-memory)
+            self.comp.ingest(now, pool, row.get("kind"),
+                             row.get("volume_usd"))
             buf = self.tape.setdefault(pool, [])
             buf.append(row)
             # 2000-row cap (was 400): the runner_score exit stamp reads a
@@ -969,7 +1016,43 @@ class PaperLane:
         window = min(3600.0, uptime)
         return len(self._regime_seen) * 3600.0 / max(window, 1.0)
 
+    # ── sell-path canary (RH analog of the Solana 07-10 incident rule) ──────
+    def _canary_tick(self, now: float):
+        """Periodic exit-quote health probe through the EXACT sell-path code
+        (quote_sell -> batch quoter) on every open position (transport probe
+        when flat). Writes the cross-process halt flag the entry path and
+        core.rh_live_execution.RhLiveExecutor.buys_halted both read. Canary
+        mode OFF (paper default) -> pure no-op (byte-identical lane)."""
+        if not rh_live.canary_mode_on():
+            return
+        if now - self._last_canary_ts < rh_live.canary_interval_s():
+            return
+        self._last_canary_ts = now
+        if self._canary is None:
+            self._canary = rh_live.RhSellCanary()
+        holdings = []
+        for pool, qty in self._held_pools().items():
+            token = self._token_for(pool)
+            if token and qty > 0:
+                holdings.append(
+                    (token, int(qty * 10 ** self._token_decimals(token))))
+        ok = rh_live.probe_exit_quotes(self._executor(), holdings)
+        self._canary.record(ok, now)
+        self._canary.write_flag()
+        if not self._canary.healthy(now):
+            print(f"[rh-paper] SELL-CANARY RED — buys halted "
+                  f"({self._canary.status_line(now)})", flush=True)
+
     def _consider_entries(self, now: float):
+        # sell-path canary halt: no working exit -> no new entries (buys
+        # only; exits in _manage_exits are NEVER gated by this). Paper
+        # default: rh_canary_entry_block() is None (canary mode off).
+        canary_block = rh_live.rh_canary_entry_block(now)
+        if canary_block:
+            for st in self.state.values():
+                st.block_hist[canary_block] = (
+                    st.block_hist.get(canary_block, 0) + 1)
+            return
         hour = time.gmtime(now).tm_hour
         self._track_new_pools(now)
         npph = self.new_pools_per_hour(now)
@@ -1119,6 +1202,13 @@ class PaperLane:
         lat_total = (None if trigger_lag is None
                      else round(trigger_lag + (t_fill - t_decide), 2))
         lat_quote = round(t_fill - t_decide, 3)
+        # REGIME STAMP (core/rh_regime, fleet-wide ALWAYS): the shared parts
+        # (hour, discovery rate, 30-min feed composition, ETH px, age band)
+        # are per-POOL/tick facts computed once; the expectancy DIAL is
+        # per-racer (its own realized record). Pure in-memory — no RPC.
+        comp_snap = self.comp.snapshot(now)
+        npph = self.new_pools_per_hour(now)
+        hour_utc = time.gmtime(now).tm_hour
         for st in takers:
             st.pm.open_position(token=pool, entry_price=px,
                                 size_usd=ENTRY_USD, entry_time=now,
@@ -1139,7 +1229,11 @@ class PaperLane:
                              for k in ("avoid_block", "flow_confirm")},
                    "lat_trigger_lag_s": trigger_lag,
                    "lat_quote_s": lat_quote,
-                   "lat_total_s": lat_total, "fee_tier": q.fee}
+                   "lat_total_s": lat_total, "fee_tier": q.fee,
+                   "regime": regime_stamp(
+                       hour_utc, npph, comp_snap,
+                       dial=expectancy_dial(st.recent_realized),
+                       eth_usd=self.feed.eth_price, age_h=age_h)}
             _append(LEDGER, rec)
             print(f"[rh-paper] BUY  {st.bot.bot_id:<16} {w['sym']:<12} "
                   f"${ENTRY_USD:.0f} "
@@ -1147,6 +1241,60 @@ class PaperLane:
                   f"lat_total={lat_total}s "
                   f"(trigger {trigger_lag}s + quote {lat_quote}s)", flush=True)
         self.save_state()
+        # SHADOW rug-signal stamp: AFTER every fill is booked and persisted —
+        # the entry path above never waits on it (fail-open, background).
+        self._stamp_rug_signals(pool, token, w, now,
+                                [st.bot.bot_id for st in takers])
+
+    # ── rug-defense SHADOW stamper (2026-07-11 HOODLANA port) ───────────────
+    def _rug_stamp_row(self, pool, token, sym, entry_ts, bot_ids,
+                       created_block, dex, head_block):
+        """Compute (or reuse a fresh cached) stamp and append the ledger row.
+        Runs on the stamper thread; synchronous-callable in tests. FAIL-OPEN:
+        any error prints and returns — never into a trading path."""
+        try:
+            cached = self._rug_cache.get(pool)
+            if cached and (time.time() - cached[0]) < RUG_STAMP_CACHE_S:
+                stamp, is_cached = cached[1], True
+            else:
+                with self._rug_lock:   # single-flight on the shared RPC
+                    if self._rug_rpc is None:
+                        self._rug_rpc = Rpc(self.feed.rpc.url)
+                    stamp = compute_entry_stamp(
+                        self._rug_rpc, pool, token,
+                        created_block=created_block,
+                        head_block=head_block, dex=dex)
+                self._rug_cache[pool] = (time.time(), stamp)
+                is_cached = False
+            _append(LEDGER, {"ev": "rug_signals",
+                             "ts": self._ledger_ts(time.time()),
+                             "sym": sym, "bot_ids": list(bot_ids),
+                             "entry_ts": iso_utc(entry_ts),
+                             "cached": is_cached, **stamp})
+            print(f"[rh-paper] rug-stamp {sym}: pool={stamp.get('pool_pct_of_supply')}% "
+                  f"top1={stamp.get('top1_pct')}% top10={stamp.get('top10_pct')}% "
+                  f"shoulder={stamp.get('shoulder_11_20_pct')}% "
+                  f"lpEOA={stamp.get('lp_any_eoa_owner')} "
+                  f"cost={stamp.get('cost')}{' (cached)' if is_cached else ''}",
+                  flush=True)
+        except Exception as e:
+            print(f"[rh-paper] rug-stamp failed {pool[:10]}: "
+                  f"{type(e).__name__}: {e}", flush=True)
+
+    def _stamp_rug_signals(self, pool, token, w, entry_ts, bot_ids):
+        """Spawn the SHADOW stamp worker for one booked entry. Never blocks:
+        all RPC work happens on the daemon thread behind _rug_lock."""
+        if not RUG_STAMP_ENABLED:
+            return
+        try:
+            threading.Thread(
+                target=self._rug_stamp_row,
+                args=(pool, token, w.get("sym"), entry_ts, bot_ids,
+                      w.get("created_block"), w.get("dex") or "v3",
+                      self.feed.latest_block),
+                daemon=True, name=f"rug-stamp-{pool[:8]}").start()
+        except Exception as e:   # thread-spawn failure must not touch entries
+            print(f"[rh-paper] rug-stamp spawn failed: {e}", flush=True)
 
     def _manage_exits(self, now: float):
         for st in self.state.values():
@@ -1232,6 +1380,10 @@ class PaperLane:
             st.exit_book[pool] = {"ts": now,
                                   "loss": meta["realized_usd"] < 0.0,
                                   "token": token}
+            # expectancy-DIAL record (regime layer): position-level realized,
+            # newest last; capped at 50 (the dial reads the last 20)
+            st.recent_realized.append(round(meta["realized_usd"], 2))
+            del st.recent_realized[:-50]
             st.n_exits += 1
             _append(POSTEXIT_PENDING, {
                 "pool": pool, "token": token, "sym": meta["sym"],
@@ -1333,6 +1485,7 @@ class PaperLane:
                 self._sample_liq(now)
                 self._quote_hot(now)
                 self._manage_exits(now)
+                self._canary_tick(now)
                 self._consider_entries(now)
                 if now - getattr(self, "_last_pe_sweep", 0) > POSTEXIT_SWEEP_S:
                     self._last_pe_sweep = now

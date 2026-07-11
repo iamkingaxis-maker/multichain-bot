@@ -47,8 +47,14 @@ if (_os.environ.get("SERVICE_ROLE") or "").strip().lower() == "rh_paper_lane":
         "    subprocess.run([sys.executable,'scripts/rh_paper_upload.py'])\n"
         "    time.sleep(180)\n",
     ])
-    _os.execv(_sys.executable,
-              [_sys.executable, "scripts/rh_paper_lane.py", "300"])
+    # SUPERVISE, don't exec (adversarial review F3): the lane runs 300 min then
+    # exits 0, and railway.toml restartPolicy=ON_FAILURE never restarts exit-0 —
+    # the 24/7 service died 5h after every deploy. Loop restarts it forever
+    # (state restores from its own persistence); brief pause guards a crashloop.
+    import time as _t
+    while True:
+        _sp.run([_sys.executable, "scripts/rh_paper_lane.py", "300"])
+        _t.sleep(10)
 
 import asyncio
 import logging

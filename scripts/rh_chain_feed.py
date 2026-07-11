@@ -319,6 +319,10 @@ def rank_watch_keep(items: list, watch_max: int, aged_max=None) -> set:
     if aged_max is None:
         keep = sorted(items, key=lambda x: -x[1])[:watch_max]
         return {p for p, _, _ in keep}
+    # clamp: an env-misconfigured aged_max > watch_max would make the young
+    # slice below NEGATIVE (young[:watch_max - len(keep)] keeps almost all
+    # young) and the returned set exceed watch_max — the cap silently dies.
+    aged_max = min(aged_max, watch_max)
     aged = sorted([x for x in items if x[2]], key=lambda x: -x[1])
     young = sorted([x for x in items if not x[2]], key=lambda x: -x[1])
     keep = aged[:aged_max]

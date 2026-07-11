@@ -410,3 +410,12 @@ class TestFreshPoolQueueJump:
         f._ingest_creation(self._log())
         assert POOL in f.cand
         assert f.liq_queue == ["0xexisting"]  # legacy behavior untouched
+
+    def test_misconfigured_aged_max_is_clamped(self):
+        # env-misconfig guard (2026-07-11 adversarial review): aged_max >
+        # watch_max used to make the young slice NEGATIVE and the keep set
+        # exceed watch_max (the cap silently died). Must clamp.
+        items = [("a1", 100.0, True), ("a2", 90.0, True),
+                 ("y1", 10.0, False), ("y2", 9.0, False), ("y3", 8.0, False)]
+        keep = rank_watch_keep(items, 2, aged_max=50)
+        assert len(keep) == 2 and keep == {"a1", "a2"}

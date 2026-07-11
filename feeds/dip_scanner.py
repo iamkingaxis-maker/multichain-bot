@@ -2009,51 +2009,56 @@ class DipScanner:
                     if _yts_pair:
                         asyncio.create_task(self._young_tape_shadow(
                             bot_id, decision.token, decision.address, _yts_pair))
-            # FLEET-WIDE RUG GATE — ENFORCE (2026-07-11, AxiS-approved). The 06-04
-            # shadow stamp never fired (scan-time meta predates the rugcheck fetch,
-            # so every verdict was NEUTRAL — the ordering bug that let it sleep for
-            # 5 weeks). Evaluated HERE, pre-buy, on the same 30-min holder cache the
-            # young guard already awaits. 5-week replay on populated buy-side data:
-            # BLOCK rate 0.2% of buys (4/2210, all MENSA rugcheck_score=52),
-            # winner-kill 0.00% (0/546 winning closes, 0/74 winning tokens).
-            # NOTE: does NOT catch HOODLANA-class (its rugcheck read lp=100/score=1
-            # — hidden-supply dump, not LP unlock); that gate is graded separately.
-            # Fail-open: NEUTRAL on missing/timeout, exactly trader.buy's posture.
-            _rg_mode = (os.environ.get("RUG_GATE_MODE", "enforce") or "enforce").lower()
-            if _rg_mode in ("shadow", "enforce"):
+        # FLEET-WIDE RUG GATE — ENFORCE (2026-07-11, AxiS-approved). The 06-04
+        # shadow stamp never fired (scan-time meta predates the rugcheck fetch,
+        # so every verdict was NEUTRAL — the ordering bug that let it sleep for
+        # 5 weeks). Evaluated HERE, pre-buy, on the same 30-min holder cache the
+        # young guard already awaits. 5-week replay on populated buy-side data:
+        # BLOCK rate 0.2% of buys (4/2210, all MENSA rugcheck_score=52),
+        # winner-kill 0.00% (0/546 winning closes, 0/74 winning tokens).
+        # NOTE: does NOT catch HOODLANA-class (its rugcheck read lp=100/score=1
+        # — hidden-supply dump, not LP unlock); that gate is graded separately.
+        # Fail-open: NEUTRAL on missing/timeout, exactly trader.buy's posture.
+        # MIS-PARENT FIX (2026-07-11 adversarial review): this block previously
+        # sat INSIDE `if _yt_on():`, so the "fleet-wide" gate silently died
+        # whenever YOUNG_TOKEN_PROBE was off — the same sleeping-gate class it
+        # was shipped to fix. It must be parented to the method body (runs for
+        # EVERY bot, every buy). Guarded by test_rug_gate_block_parented_fleet_wide.
+        _rg_mode = (os.environ.get("RUG_GATE_MODE", "enforce") or "enforce").lower()
+        if _rg_mode in ("shadow", "enforce"):
+            try:
+                _rg_hf = await asyncio.wait_for(
+                    self._holder_features_cached(decision.address or decision.token),
+                    timeout=float(os.environ.get("RUG_GATE_FETCH_TIMEOUT_S", "2.5") or 2.5),
+                ) or {}
+            except Exception:
+                _rg_hf = {}
+            try:
+                from core.rug_gate import rug_gate_verdict as _rg_v2
+                _rg_bv, _rg_br = _rg_v2(_rg_hf)
+            except Exception:
+                _rg_bv, _rg_br = "NEUTRAL", []
+            if _rg_bv == "BLOCK":
+                logger.info(
+                    "[DipScanner] bot=%s RUG-GATE %s: %s %s",
+                    bot_id, _rg_mode.upper(), decision.token, ";".join(_rg_br))
                 try:
-                    _rg_hf = await asyncio.wait_for(
-                        self._holder_features_cached(decision.address or decision.token),
-                        timeout=float(os.environ.get("RUG_GATE_FETCH_TIMEOUT_S", "2.5") or 2.5),
-                    ) or {}
+                    self._append_exit_reprice_shadow({
+                        "kind": "rug_gate_buy", "mode": _rg_mode,
+                        "ts": time.time(), "bot_id": bot_id,
+                        "token": decision.token, "address": decision.address,
+                        "lp_locked_pct": _rg_hf.get("lp_locked_pct"),
+                        "lp_burned": _rg_hf.get("lp_burned"),
+                        "rugcheck_score": _rg_hf.get("rugcheck_score"),
+                        "hidden_supply_share_pct": _rg_hf.get("hidden_supply_share_pct"),
+                        "total_holders": _rg_hf.get("total_holders"),
+                        "pool_topholder_pct": _rg_hf.get("pool_topholder_pct"),
+                        "reasons": _rg_br,
+                    })
                 except Exception:
-                    _rg_hf = {}
-                try:
-                    from core.rug_gate import rug_gate_verdict as _rg_v2
-                    _rg_bv, _rg_br = _rg_v2(_rg_hf)
-                except Exception:
-                    _rg_bv, _rg_br = "NEUTRAL", []
-                if _rg_bv == "BLOCK":
-                    logger.info(
-                        "[DipScanner] bot=%s RUG-GATE %s: %s %s",
-                        bot_id, _rg_mode.upper(), decision.token, ";".join(_rg_br))
-                    try:
-                        self._append_exit_reprice_shadow({
-                            "kind": "rug_gate_buy", "mode": _rg_mode,
-                            "ts": time.time(), "bot_id": bot_id,
-                            "token": decision.token, "address": decision.address,
-                            "lp_locked_pct": _rg_hf.get("lp_locked_pct"),
-                            "lp_burned": _rg_hf.get("lp_burned"),
-                            "rugcheck_score": _rg_hf.get("rugcheck_score"),
-                            "hidden_supply_share_pct": _rg_hf.get("hidden_supply_share_pct"),
-                            "total_holders": _rg_hf.get("total_holders"),
-                            "pool_topholder_pct": _rg_hf.get("pool_topholder_pct"),
-                            "reasons": _rg_br,
-                        })
-                    except Exception:
-                        pass
-                    if _rg_mode == "enforce":
-                        return
+                    pass
+                if _rg_mode == "enforce":
+                    return
         # Low-mcap probe gate (2026-06-02). When LOW_MCAP_PROBE on, probe bots trade the
         # [floor,$1M) band only and production bots skip sub-$1M tokens. Default OFF -> no-op.
         from core.low_mcap_probe import probe_enabled as _lm_on, is_low_mcap as _lm_is, buy_gate_skip as _lm_skip

@@ -106,6 +106,25 @@ def _ds_batch(mints: list) -> dict:
     return out
 
 
+def _ts_float(ts):
+    """Trade timestamp -> epoch seconds. /api/trades `time` is an ISO-8601
+    STRING (e.g. '2026-07-01T19:28:22.765486+00:00') — float() on it raised
+    for EVERY trade, so entry_ts was None across the board and the 24h
+    maturation gate never applied (day-one cohort was labeled immediately,
+    2026-07-11 adversarial review). Accept epoch numbers too. None on junk."""
+    if ts is None:
+        return None
+    try:
+        return float(ts)
+    except (TypeError, ValueError):
+        pass
+    try:
+        from datetime import datetime
+        return datetime.fromisoformat(str(ts).replace("Z", "+00:00")).timestamp()
+    except (TypeError, ValueError):
+        return None
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--cache", default=None, help="local trades JSON instead of API")
@@ -124,10 +143,11 @@ def main() -> None:
         ts = t.get("time") or t.get("timestamp")
         if not (mint and em and ep):
             continue
-        try:
-            ts_f = float(ts) if ts is not None else None
-        except (TypeError, ValueError):
-            ts_f = None
+        ts_f = _ts_float(ts)
+        # unknown-ts rows must never HIJACK the first-buy anchor ((None or 0)
+        # compared below-everything); they only seed when nothing better exists
+        if mint in first and ts_f is None:
+            continue
         if mint not in first or (ts_f or 0) < (first[mint]["entry_ts"] or 1e18):
             first[mint] = {
                 "mint": mint, "token": t.get("token"), "entry_price": float(ep),
@@ -135,9 +155,12 @@ def main() -> None:
                 "features": {k: em.get(k) for k in FEATURES if em.get(k) is not None},
             }
 
+    # entry_ts unknown = no maturation evidence -> NOT due (a premature label
+    # is permanent; skipping just retries next run once the ts parses).
     due = [v for m, v in first.items()
            if m not in labeled
-           and (v["entry_ts"] is None or now - v["entry_ts"] >= LABEL_AFTER_H * 3600)]
+           and v["entry_ts"] is not None
+           and now - v["entry_ts"] >= LABEL_AFTER_H * 3600]
     if not due:
         print(f"nothing due (labeled={len(labeled)}, tracked={len(first)})")
     else:

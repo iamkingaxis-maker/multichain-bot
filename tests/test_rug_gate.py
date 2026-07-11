@@ -213,3 +213,43 @@ def test_raydium_v4_authority_counts_as_pool():
           "totalHolders": 200}
     f = compute_holder_features(rc)
     assert f["pool_topholder_pct"] == 40.0 and f["top10_holder_pct"] == 5.0
+
+
+# ── gate PARENTING guard (2026-07-11 adversarial review) ──
+def test_rug_gate_block_parented_fleet_wide():
+    """The fleet-wide rug gate in _execute_bot_buy must be parented to the
+    METHOD body, not nested under `if _yt_on():` — nested, the "fleet-wide"
+    gate silently dies whenever YOUNG_TOKEN_PROBE is off (the same
+    sleeping-gate ordering-bug class it shipped to fix; this mis-parent
+    actually happened on 2026-07-11 and is why this AST guard exists).
+    The gate statement (`_rg_mode = os.environ.get("RUG_GATE_MODE"...)`)
+    must sit at the same indent as the buy-path statements (col 8, direct
+    child of the async method body), and NOT inside any If block."""
+    import ast
+    import os as _os
+    src_path = _os.path.join(_os.path.dirname(_os.path.dirname(
+        _os.path.abspath(__file__))), "feeds", "dip_scanner.py")
+    with open(src_path, encoding="utf-8") as f:
+        tree = ast.parse(f.read())
+    fn = None
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.AsyncFunctionDef)
+                and node.name == "_execute_bot_buy"):
+            fn = node
+            break
+    assert fn is not None, "_execute_bot_buy not found"
+    # find the `_rg_mode = ...` assignment anywhere in the function
+    rg_nodes = [n for n in ast.walk(fn)
+                if isinstance(n, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == "_rg_mode"
+                        for t in n.targets)]
+    assert rg_nodes, "_rg_mode assignment (rug gate) not found in _execute_bot_buy"
+    # it must be a DIRECT child of the method body (fleet-wide), i.e. present
+    # in fn.body — not buried inside an If (young-probe) block
+    direct = [n for n in fn.body
+              if isinstance(n, ast.Assign)
+              and any(isinstance(t, ast.Name) and t.id == "_rg_mode"
+                      for t in n.targets)]
+    assert direct, (
+        "fleet-wide rug gate is NESTED (not a direct child of _execute_bot_buy "
+        "body) — it will silently skip when its parent branch is off")
