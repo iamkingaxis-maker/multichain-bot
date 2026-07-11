@@ -87,5 +87,7 @@
   "exclusion_pool": "badday_young_vsnap_ab",
   "entry_gate_require_data": true,
   "liq_exit_floor_enforce": true,
-  "vsnap_reject_min_low_age_secs": 240.0
+  "vsnap_reject_min_low_age_secs": 240.0,
+  "live_probe": true,
+  "position_size_usd": 11.25
 }

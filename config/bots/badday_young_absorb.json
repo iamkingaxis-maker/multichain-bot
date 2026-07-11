@@ -86,5 +86,6 @@
   "young_token_probe": true,
   "exclusion_pool": "badday_young_absorb",
   "entry_gate_require_data": true,
-  "liq_exit_floor_enforce": true
+  "liq_exit_floor_enforce": true,
+  "live_probe": true
 }
