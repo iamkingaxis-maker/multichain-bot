@@ -43,6 +43,26 @@ def compute_holder_features(rc_full: dict) -> dict:
             out["topholder_insider_n"] = sum(
                 1 for h in th if isinstance(h, dict) and h.get("insider", False) is True
             )
+            # HOODLANA-class instrumentation (2026-07-11 forensics). HOODLANA's
+            # -98% was a HIDDEN-SUPPLY DUMP: ~70% of supply sat in wallets ranked
+            # 11+ (each small enough to evade the top10 check) and was dumped into
+            # the pool, draining the SOL side — while lp_locked_pct read a clean
+            # 100 the whole time. These stamps make that shape visible at entry
+            # so the labeled-cohort grade can set thresholds on real outcomes.
+            out["shoulder_11_20_pct"] = round(
+                sum(float(h.get("pct", 0) or 0) for h in real[10:20]), 2)
+            out["pool_topholder_pct"] = round(sum(
+                float(h.get("pct", 0) or 0) for h in th
+                if isinstance(h, dict)
+                and (h.get("tag", "") or "").lower().strip() in _LP_TAGS
+            ), 2)
+            out["topholder_insider_pct"] = round(sum(
+                float(h.get("pct", 0) or 0) for h in th
+                if isinstance(h, dict) and h.get("insider", False) is True
+            ), 2)
+        _tot_h = rc_full.get("totalHolders")
+        if isinstance(_tot_h, (int, float)) and not isinstance(_tot_h, bool):
+            out["total_holders"] = int(_tot_h)
     except Exception as e:
         logger.debug(f"[holder_features] topHolders parse failed: {e}")
     # ---- dev / creator holdings --------------------------------------------

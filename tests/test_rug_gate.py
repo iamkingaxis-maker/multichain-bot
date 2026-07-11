@@ -121,3 +121,37 @@ def test_bundle_spread_threshold_env(monkeypatch):
     assert _rug_bundle_spread_max() == 40.0
     assert _rug_bundle_blocks(_B(n_recurring_buyers_3plus=0, top10_buyer_time_spread_sec=35))[0] is True   # 35<=40
     assert _rug_bundle_blocks(_B(n_recurring_buyers_3plus=0, top10_buyer_time_spread_sec=45))[0] is False  # 45>40
+
+
+# ── HOODLANA-class holder-structure stamps (2026-07-11 forensics) ──
+def _th(pct, tag="", insider=False):
+    return {"address": "x", "pct": pct, "tag": tag, "insider": insider}
+
+
+def test_shoulder_11_20_extracted():
+    # 10 holders @2% then 8 @5% (the HOODLANA fat-shoulder shape)
+    th = [_th(2.0) for _ in range(10)] + [_th(5.0) for _ in range(8)]
+    f = compute_holder_features({"topHolders": th})
+    assert f["shoulder_11_20_pct"] == 40.0
+    assert f["top10_holder_pct"] == 20.0
+
+
+def test_pool_and_insider_pct_extracted():
+    th = [_th(60.0, tag="AMM"), _th(9.0, insider=True), _th(3.0), _th(2.0, insider=True)]
+    f = compute_holder_features({"topHolders": th, "totalHolders": 82})
+    assert f["pool_topholder_pct"] == 60.0
+    assert f["topholder_insider_pct"] == 11.0
+    assert f["total_holders"] == 82
+    # pool + insiders excluded from top10 as before (only the 3.0 holder is "real")
+    assert f["top10_holder_pct"] == 3.0
+
+
+def test_total_holders_bool_rejected():
+    f = compute_holder_features({"topHolders": [_th(1.0)], "totalHolders": True})
+    assert "total_holders" not in f
+
+
+def test_hoodlana_entry_shape_passes_lp_gate():
+    # HOODLANA at entry: lp_locked 100 not burned, rugcheck 1.0 -> LP gate PASSES
+    # (documented: this gate does NOT catch the hidden-supply-dump class).
+    assert rug_gate_verdict({"lp_locked_pct": 100.0, "lp_burned": False})[0] == "PASS"
