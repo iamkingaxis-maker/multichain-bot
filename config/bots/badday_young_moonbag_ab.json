@@ -89,7 +89,7 @@
   "entry_gate_require_data": true,
   "liq_exit_floor_enforce": true,
   "adaptive_swing_size": true,
-  "min_liquidity_usd": 30000.0,
+  "min_liquidity_usd": 25000,
   "retrace_micro_avoid": true,
   "live_probe": false,
   "lp_rug_tp1_full": true,
