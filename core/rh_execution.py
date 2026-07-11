@@ -176,6 +176,7 @@ class RhSwapError(RhExecutionError):
 _codec = Web3()  # provider-less Web3, used only for offline ABI encoding
 _ROUTER_CODEC = _codec.eth.contract(abi=SWAP_ROUTER02_ABI)
 _ERC20_CODEC = _codec.eth.contract(abi=ERC20_ABI)
+_QUOTER_CODEC = _codec.eth.contract(abi=QUOTER_V2_ABI)
 
 
 def _encode_abi(contract, fn_name: str, args) -> str:
@@ -183,6 +184,75 @@ def _encode_abi(contract, fn_name: str, args) -> str:
     if hasattr(contract, "encode_abi"):  # web3 >= 7
         return contract.encode_abi(abi_element_identifier=fn_name, args=args)
     return contract.encodeABI(fn_name=fn_name, args=args)  # web3 6.x
+
+
+def encode_quoter_calldata(token_in: str, token_out: str, amount_in: int,
+                           fee: int) -> str:
+    """Calldata (hex str) for QuoterV2.quoteExactInputSingle. Pure."""
+    return _encode_abi(_QUOTER_CODEC, "quoteExactInputSingle", [(
+        Web3.to_checksum_address(token_in),
+        Web3.to_checksum_address(token_out),
+        int(amount_in), int(fee), 0)])
+
+
+def build_tier_quote_batch(token_in: str, token_out: str, amount_in: int,
+                           fee_tiers=FEE_TIERS) -> list:
+    """JSON-RPC batch payload quoting EVERY fee tier in ONE HTTP round trip.
+    Pure. id == index into fee_tiers (parse_tier_quote_batch relies on it).
+
+    WHY (quote-leg latency root cause, measured 2026-07-11): each QuoterV2
+    eth_call costs ~185ms server-side on the public RH RPC (raw RTT ~55ms),
+    so the sequential 4-tier sweep is ~750ms per quote side and a paper fill
+    (buy sweep + rt-cost sell sweep + decimals) ran 1.9-2.9s — over the 2s
+    Solana-parity budget. One batched POST answers all 4 tiers in ~160ms
+    (the server evaluates them concurrently; rh_chain_feed.Rpc.batch already
+    proved this RPC supports batching)."""
+    return [{"jsonrpc": "2.0", "id": i, "method": "eth_call",
+             "params": [{"to": QUOTER_V2,
+                         "data": encode_quoter_calldata(
+                             token_in, token_out, amount_in, fee)},
+                        "latest"]}
+            for i, fee in enumerate(fee_tiers)]
+
+
+def decode_quoted_amount_out(result_hex) -> Optional[int]:
+    """QuoterV2.quoteExactInputSingle eth_call result -> amountOut (first
+    32-byte word) or None on anything undecodable. Pure, never raises."""
+    try:
+        h = str(result_hex)
+        if h.startswith("0x"):
+            h = h[2:]
+        if len(h) < 64:
+            return None
+        return int(h[:64], 16)
+    except Exception:
+        return None
+
+
+def parse_tier_quote_batch(response, fee_tiers=FEE_TIERS) -> Optional[dict]:
+    """Batch response -> {fee: amount_out} (insertion order = fee_tiers order,
+    matching the sequential sweep's tie-break). Semantics per tier mirror
+    _quote_single: an "error" entry (revert = no pool at that tier) or a
+    zero/undecodable result is skipped. Returns None when the response shape
+    is wrong or ANY tier is missing (unknown state -> caller must fall back
+    to the sequential path; FAIL-OPEN, never guess a quote). Pure."""
+    if not isinstance(response, list):
+        return None
+    by_id = {}
+    for o in response:
+        if isinstance(o, dict) and isinstance(o.get("id"), int):
+            by_id[o["id"]] = o
+    out = {}
+    for i, fee in enumerate(fee_tiers):
+        entry = by_id.get(i)
+        if entry is None:
+            return None  # tier unaccounted for — transport problem
+        if entry.get("error") is not None:
+            continue     # revert = no pool at this tier (same as sequential)
+        amt = decode_quoted_amount_out(entry.get("result"))
+        if amt:
+            out[fee] = amt
+    return out
 
 
 def min_out_after_slippage(quoted_out: int, max_slippage_bps: int) -> int:
@@ -399,6 +469,13 @@ class RhExecutor:
         self.receipt_timeout_s = receipt_timeout_s
         self.w3: Optional[Web3] = None
         self._send_lock = threading.Lock()  # serialize nonce use
+        # quote-leg latency fixes (2026-07-11, measured on the public RPC):
+        # ERC20 decimals are immutable -> memoize (each uncached read is a
+        # ~185ms eth_call, and quote_buy/quote_sell each made one per call).
+        self._decimals_cache: dict = {}
+        # keep-alive session for the batched tier sweep (lazy; requests is a
+        # web3 dependency so it is always importable).
+        self._batch_session = None
 
     def __repr__(self) -> str:  # NEVER expose key material
         mode = "paper-only" if self.paper_only else f"live wallet={self.wallet_address}"
@@ -449,12 +526,21 @@ class RhExecutor:
 
     def token_decimals(self, token_addr: str) -> int:
         """ERC20 decimals; FAIL-OPEN to 18 (only affects price REPORTING —
-        all trade math stays in atomic units)."""
+        all trade math stays in atomic units). MEMOIZED (2026-07-11 quote-leg
+        latency fix): decimals are immutable, and the uncached read is a
+        ~185ms eth_call paid on EVERY quote_buy/quote_sell. Failures are NOT
+        cached (a transient RPC error must not pin 18 forever)."""
+        key = token_addr.lower()
+        cached = self._decimals_cache.get(key)
+        if cached is not None:
+            return cached
         try:
             w3 = self._require_w3()
             c = w3.eth.contract(address=Web3.to_checksum_address(token_addr),
                                 abi=ERC20_ABI)
-            return int(c.functions.decimals().call())
+            val = int(c.functions.decimals().call())
+            self._decimals_cache[key] = val
+            return val
         except Exception:
             return 18
 
@@ -473,16 +559,41 @@ class RhExecutor:
         except Exception:
             return None
 
+    def _quote_all_tiers_batched(self, token_in: str, token_out: str,
+                                 amount_in: int) -> Optional[dict]:
+        """All fee tiers in ONE JSON-RPC batch POST (~160ms vs ~750ms
+        sequential, measured 2026-07-11). Returns {fee: amount_out} or None
+        on ANY transport/shape problem — the caller falls back to the
+        sequential per-tier path. FAIL-OPEN by design: batching is a latency
+        optimization, never a dependency."""
+        try:
+            import requests
+            if self._batch_session is None:
+                self._batch_session = requests.Session()
+            payload = build_tier_quote_batch(token_in, token_out, amount_in)
+            r = self._batch_session.post(
+                self.rpc_url, json=payload, timeout=10,
+                headers={"Content-Type": "application/json",
+                         "User-Agent": "Mozilla/5.0"})
+            if r.status_code != 200:
+                return None
+            return parse_tier_quote_batch(r.json())
+        except Exception:
+            return None
+
     def _best_quote(self, token_in: str, token_out: str,
                     amount_in: int) -> Optional[tuple]:
+        by_fee = self._quote_all_tiers_batched(token_in, token_out, amount_in)
+        if by_fee is None:  # batch unavailable -> sequential sweep (fallback)
+            by_fee = {}
+            for fee in FEE_TIERS:
+                out = self._quote_single(token_in, token_out, amount_in, fee)
+                if out:
+                    by_fee[fee] = out
         best = None
-        by_fee = {}
-        for fee in FEE_TIERS:
-            out = self._quote_single(token_in, token_out, amount_in, fee)
-            if out:
-                by_fee[fee] = out
-                if best is None or out > best[1]:
-                    best = (fee, out)
+        for fee, out in by_fee.items():  # insertion order == FEE_TIERS order
+            if best is None or out > best[1]:
+                best = (fee, out)
         if best is None:
             return None
         return best[0], best[1], by_fee

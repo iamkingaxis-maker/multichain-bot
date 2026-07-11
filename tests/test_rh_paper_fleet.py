@@ -75,9 +75,11 @@ def _ledger_rows(tmp_path):
 
 
 class TestRoster:
-    def test_ten_racers_unique_ids(self):
-        assert len(ROSTER) == 10
-        assert len({b.bot_id for b in ROSTER}) == 10
+    def test_thirteen_racers_unique_ids(self):
+        # 10 scalp-fleet racers (mid-flight A/B, unchanged) + 3 aged-pool
+        # racers (2026-07-11 decode-thesis cohort)
+        assert len(ROSTER) == 13
+        assert len({b.bot_id for b in ROSTER}) == 13
 
     def test_control_is_current_config_verbatim(self):
         c = ROSTER[0]
@@ -265,13 +267,19 @@ class TestFleetEntryRouting:
         lane._consider_entries(NOW)
         entered = {bid for bid, st in lane.state.items()
                    if "0xp1" in st.pos_meta}
-        # dip -20, buys $65, liq 50k, hour 13 (NOW is deterministic)
+        # dip -20, buys $65, liq 50k, hour 13 (NOW is deterministic).
+        # Pool age is UNKNOWN (FakeFeed has no age_h) -> age gates fail open,
+        # so the aged cohort qualifies too — but the exclusion group lets
+        # only ONE aged racer take the token (roster order on the tie).
         assert entered == {"rh_young_v1", "rh_first_touch", "rh_bites2",
-                           "rh_wide_ladder", "rh_moonbag", "rh_liq40"}
+                           "rh_wide_ladder", "rh_moonbag", "rh_liq40",
+                           "rh_aged_hold"}
         assert "no_dip" in lane.state["rh_deep_only"].block_hist
         assert "no_demand_turn" in lane.state["rh_demand_heavy"].block_hist
         assert "hour_window" in lane.state["rh_prime_hours"].block_hist
         assert "no_strength" in lane.state["rh_launch_scalp"].block_hist
+        assert "sibling_excl" in lane.state["rh_aged_derisk"].block_hist
+        assert "sibling_excl" in lane.state["rh_aged_deep"].block_hist
 
     def test_quote_budget_not_multiplied(self, tmp_path, monkeypatch):
         # 6 configs enter the same pool off ONE buy quote + ONE rt sell quote
@@ -287,11 +295,11 @@ class TestFleetEntryRouting:
         self._dip_facts(lane)
         lane._consider_entries(NOW)
         buys = [r for r in _ledger_rows(tmp_path) if r["ev"] == "buy"]
-        assert len(buys) == 6
+        assert len(buys) == 7        # 6 scalp racers + 1 aged (group-deduped)
         assert all(r.get("bot_id") for r in buys)
         # dashboard ingest de-dups on (ts, ev, pool): keys must be distinct
         keys = {(r["ts"], r["ev"], r["pool"]) for r in buys}
-        assert len(keys) == 6
+        assert len(keys) == 7
 
     def test_launch_scalp_enters_on_strength_not_dip(self, tmp_path,
                                                      monkeypatch):

@@ -2,7 +2,8 @@
 """Robinhood Chain PAPER lane — the young-dip strategy on RH rails.
 
 FLEET v1 (AxiS 2026-07-11): like the Solana fleet, this lane is a SELECTION
-INSTRUMENT — N configs (ROSTER, 8 racers) run CONCURRENTLY over the SAME
+INSTRUMENT — N configs (ROSTER: 10 scalp racers + 3 aged-pool racers) run
+CONCURRENTLY over the SAME
 firehose feed and quote budget in one process. Per-POOL facts (tape, quote
 prices, liq history, honeypot verdicts, dip/demand/micro/age/drain/rt-cost)
 are computed ONCE and shared; each LaneBot config then applies its OWN
@@ -98,6 +99,66 @@ STRAT_TICK_S = 2.0
 REENTRY_COOLDOWN_S = 300.0
 GAS_USD_PER_SIDE = 0.01     # measured RH gas ~ $0.005; round up
 
+# ── AGED-POOL cohort thresholds (2026-07-11) — every number set FROM DATA ────
+# Sources: scratchpad/_rh_history_decode.md + scratchpad/rh_history/
+# {decode_results,hour_rulebook}.json, plus a trip-level distribution rerun
+# over the same decode dataset (details in _rh_aged_pool_racer_spec_notes.md):
+# audited day-robust winners' per-(maker,pool) CLOSED trips by entry pool age:
+#   age<1h: n=91  win 88%            1-6h:  n=26  win 62%  (weakest band)
+#   6-24h:  n=9   win 78%            >24h:  n=335 win 73%  sum +$12,950
+#   >24h WINNING trips: ret p25 +5.9 / p50 +15.6 / p75 +46.5
+#                       hold_m p50 18.9 / p75 924 (fat tail)
+AGED_MIN_POOL_AGE_H = 6.0       # decode actionable #2 band (6-24h+, the
+                                # Solana adolescent_absorb mirror); sits above
+                                # the LOSER cohort's median entry age 3.7h
+                                # (decode_results profile_losers.med_age_m
+                                # 223.5) and above the weakest trip band
+                                # (1-6h). NOTE: the feed prunes pools >24h
+                                # (rh_chain_feed MAX_AGE_H=24) so the >24h
+                                # band — where the trips concentrate — needs a
+                                # feed widen first (spec notes, follow-up).
+AGED_TP1_PCT = 6.0              # p25 of >24h winning-trip returns (+5.9)
+AGED_TP2_PCT = 16.0             # p50 of >24h winning-trip returns (+15.6)
+AGED_TRAIL_PP = 10.0            # ride toward the p75 tail (+46.5); the 3pp
+                                # BotConfig default trail is scalp-timescale
+                                # (77s median holds — the wrong clock for this
+                                # thesis). Partly judgment — flagged in the
+                                # pre-registration for its own A/B.
+DERISK_AFTER_S = 1200.0         # population census: median pool time-to-
+                                # death 20 min (p25 5m / p75 80m, n=1129,
+                                # _rh_history_decode.md) — bank down BEFORE
+                                # the long-hold window starts.
+DERISK_MAX_FRAC = 0.25          # post-window exposure cap (rug-tail defense):
+                                # one -98% LP pull costs <=0.25*$25=$6.25
+                                # (~4 median wins), not the -$24.4/position
+                                # rh_wide_ladder paid on CASHCATGAME.
+REENTRY_MIN_DIP_PCT = -26.0     # live boundary (session-7 MONSIEUR/QUANT):
+                                # -12..-25% re-buys were slaughtered (-5.9..
+                                # -18.8); -26..-38% paid +8..+15 (deepest
+                                # live re-buy -31.6% took TP1 +15.1%).
+REENTRY_MIN_VOL_M5 = 500.0      # the EXISTING bail floor (BotConfig
+                                # pre_stop_bail_vol_m5_max=500); MONSIEUR's
+                                # dead tape at the cascade was vol_m5 $109.
+REENTRY_LOSS_WINDOW_S = 1200.0  # depth gate applies within 20 min of a
+                                # LOSING exit (the observed re-entry cascade
+                                # was minutes; the 20-min median-death clock
+                                # bounds the danger episode) — NO flat
+                                # cooldown (it would have blocked the deep
+                                # winner; spec notes defect #2).
+SIBLING_STOP_WINDOW_S = 1200.0  # cross-sibling exclusion window after a
+                                # LOSING stop = the same 20-min median-death
+                                # clock (MONSIEUR: 5+ racers re-entered the
+                                # fleet-stopping token within minutes).
+REGIME_BOT_ERA_POOLS_H = 200.0  # decode chain facts: human era 800-2,600
+                                # pools/day (33-108/h) vs bot era 14k-20k/day
+                                # (583-833/h); 200/h splits the gap.
+REGIME_HUMAN_HOURS = tuple(range(14, 24))  # hour_rulebook.json: human-era
+                                # volume is broad 14-23 UTC; bot era runs hot
+                                # ALL 24 hours -> no hour block in bot era.
+REGIME_MIN_UPTIME_S = 600.0     # discovery-rate warm-up: unknown rate for
+                                # the first 10 min -> fail OPEN to 24/7 (the
+                                # chain's CURRENT era is the bot era).
+
 
 # ── fleet configs (the RACING ROSTER — selection instrument) ─────────────────
 @dataclass(frozen=True)
@@ -137,8 +198,33 @@ class LaneBot:
     moonbag_fraction: float = 0.0
     moonbag_floor_pct: float = 0.0
     moonbag_trail_pp: Optional[float] = None
+    trail_pp: Optional[float] = None            # None = BotConfig default
+                                                # (3.0, the scalp trail)
+    # ── AGED-POOL racer machinery (2026-07-11; all default OFF so every
+    # pre-existing racer is byte-identical — their A/B is mid-flight) ────────
+    # cross-sibling token exclusion (Solana young_pond mirror): racers sharing
+    # an exclusion_group take DISTINCT tokens — a token held, or LOSS-stopped
+    # within sibling_stop_window_s, by any sibling is off-limits.
+    exclusion_group: Optional[str] = None
+    sibling_stop_window_s: float = SIBLING_STOP_WINDOW_S
+    # depth+volume re-entry gate: after a LOSING exit on a pool, re-entry is
+    # allowed ONLY on a dip at/below reentry_min_dip_pct with vol_m5 alive.
+    # None = gate off. Racers using it should set reentry_cooldown_s=0 (the
+    # flat cooldown would block the deep winners the gate exists to catch).
+    reentry_min_dip_pct: Optional[float] = None
+    reentry_min_vol_m5_usd: float = REENTRY_MIN_VOL_M5
+    # rug-tail defense: derisk_after_s into a hold, force remaining exposure
+    # down to derisk_max_frac (per-position catastrophe cap). None = off.
+    derisk_after_s: Optional[float] = None
+    derisk_max_frac: float = DERISK_MAX_FRAC
+    # regime-conditional hour gate (decode: hour gating must be REGIME-gated,
+    # not fixed): bot-era discovery rate -> 24/7; human-era -> 14-23 UTC only.
+    regime_hours: bool = False
 
     def bot_config(self) -> BotConfig:
+        kw = {}
+        if self.trail_pp is not None:
+            kw["trail_pp"] = self.trail_pp
         return BotConfig(
             bot_id=self.bot_id, display_name=self.bot_id,
             tp1_pct=self.tp1_pct, tp1_sell_fraction=self.tp1_sell_fraction,
@@ -149,6 +235,7 @@ class LaneBot:
             moonbag_floor_pct=self.moonbag_floor_pct,
             moonbag_trail_pp=self.moonbag_trail_pp,
             max_concurrent_positions=self.max_concurrent,
+            **kw,
         )
 
 
@@ -190,6 +277,49 @@ ROSTER = (
             tp1_pct=5.0, tp1_sell_fraction=0.90,
             tp2_pct=10.0, tp2_sell_fraction=0.10,
             hard_stop_pct=-8.0, time_stop_minutes=10.0),
+    # ── AGED-POOL RACERS (2026-07-11) — the full-history-decode thesis:
+    # launch-scalp RETRACTED (66 vs 65%); the day-robust edge = AGED/
+    # established pools + LONGER holds (winners med hold 19.2m vs losers
+    # 2.6m; trip-level: >24h pools n=335 trips, 73% win, +$12,950).
+    # PRE-REGISTRATION: grade each racer at n>=30 CLOSES vs the 10-racer
+    # scalp fleet above as CONTROL; DISTINCT-TOKEN count is the throughput
+    # metric; judge per-token medians (tokmed), not sums. Axes under test:
+    #   rh_aged_hold   = the pure thesis (aged admission + long-hold ladder);
+    #   rh_aged_derisk = + principal-banking TP1 slice (0.75 @ +6 banks 79.5%
+    #                    of principal early) + 20-min exposure cap (rug-tail
+    #                    defense — does giving up tail size pay for itself?);
+    #   rh_aged_deep   = + depth-gated loss re-entry, NO flat cooldown (deep
+    #                    re-buys paid, shallow slaughtered — session-7 live).
+    # All three: cross-sibling token exclusion (exclusion_group="aged",
+    # MONSIEUR defect #1 — one racer per token, never the whole cohort) and
+    # the regime-conditional hour gate (decode hour rulebook). Thresholds:
+    # see the AGED_*/DERISK_*/REENTRY_*/REGIME_* constants — each cites its
+    # data source. trail_pp=10.0 is the one partly-judgment number (flagged
+    # above); NO time box on any of the three — winning-trip holds are
+    # fat-tailed (p50 18.9m, p75 924m) and a box would amputate the tail
+    # that carries the p75 (+46.5) return; tail RISK is handled by the
+    # derisk cap + LP-drain guard + hard stop instead.
+    LaneBot(bot_id="rh_aged_hold",
+            min_pool_age_h=AGED_MIN_POOL_AGE_H,
+            tp1_pct=AGED_TP1_PCT, tp1_sell_fraction=0.50,
+            tp2_pct=AGED_TP2_PCT, tp2_sell_fraction=0.30,
+            trail_pp=AGED_TRAIL_PP,
+            exclusion_group="aged", regime_hours=True),
+    LaneBot(bot_id="rh_aged_derisk",
+            min_pool_age_h=AGED_MIN_POOL_AGE_H,
+            tp1_pct=AGED_TP1_PCT, tp1_sell_fraction=0.75,
+            tp2_pct=AGED_TP2_PCT, tp2_sell_fraction=0.15,
+            trail_pp=AGED_TRAIL_PP,
+            derisk_after_s=DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
+            exclusion_group="aged", regime_hours=True),
+    LaneBot(bot_id="rh_aged_deep",
+            min_pool_age_h=AGED_MIN_POOL_AGE_H,
+            tp1_pct=AGED_TP1_PCT, tp1_sell_fraction=0.50,
+            tp2_pct=AGED_TP2_PCT, tp2_sell_fraction=0.30,
+            trail_pp=AGED_TRAIL_PP,
+            reentry_cooldown_s=0.0,
+            reentry_min_dip_pct=REENTRY_MIN_DIP_PCT,
+            exclusion_group="aged", regime_hours=True),
 )
 
 
@@ -286,6 +416,102 @@ def hour_allowed(allowed_hours_utc, hour_utc: int) -> bool:
     return allowed_hours_utc is None or int(hour_utc) in allowed_hours_utc
 
 
+def regime_hour_ok(hour_utc: int, new_pools_per_hour,
+                   bot_era_rate: float = REGIME_BOT_ERA_POOLS_H,
+                   human_hours: tuple = REGIME_HUMAN_HOURS) -> bool:
+    """REGIME-conditional hour gate (decode hour rulebook: the fixed clock
+    only fit launch day). Bot-era regime (pool-creation rate >= bot_era_rate,
+    volume hot all 24h) -> no hour block; human-era regime -> 14-23 UTC only.
+    None rate (warm-up / unknown) fails OPEN to 24/7 — the chain's current
+    era is the bot era."""
+    if new_pools_per_hour is None or new_pools_per_hour >= bot_era_rate:
+        return True
+    return int(hour_utc) in human_hours
+
+
+def reentry_depth_gate(had_recent_loss: bool, dip, vol_m5_usd,
+                       min_dip_pct: float = REENTRY_MIN_DIP_PCT,
+                       min_vol_m5_usd: float = REENTRY_MIN_VOL_M5):
+    """Depth+volume re-entry gate -> block reason or None (enter allowed).
+    Applies ONLY to re-entries after a recent LOSING exit (had_recent_loss);
+    first entries and post-win re-entries pass untouched. Deep flushes with
+    live tape re-enter; shallow dips and dead tape are blocked (session-7
+    live: -12..-25% re-buys slaughtered, -26..-38% paid; MONSIEUR's dead
+    tape was vol_m5 $109). No dip reading = no depth evidence = block."""
+    if not had_recent_loss:
+        return None
+    if dip is None or dip > min_dip_pct:
+        return "reentry_shallow"
+    if vol_m5_usd is None or vol_m5_usd < min_vol_m5_usd:
+        return "reentry_dead_tape"
+    return None
+
+
+def derisk_slice(remaining_frac: float, age_s: float, derisk_after_s,
+                 derisk_max_frac: float = DERISK_MAX_FRAC) -> float:
+    """Rug-tail defense: fraction of the ORIGINAL position to sell so that
+    exposure past the derisk window is capped at derisk_max_frac. 0.0 while
+    inside the window, when the cap is already satisfied (e.g. TP1 sold
+    more), or when the feature is off (derisk_after_s None)."""
+    if derisk_after_s is None or age_s < derisk_after_s:
+        return 0.0
+    return max(0.0, remaining_frac - derisk_max_frac)
+
+
+def sibling_exclusion_keys(states, self_bot_id: str, group: str, now: float,
+                           stop_window_s: float = SIBLING_STOP_WINDOW_S) -> set:
+    """Cross-sibling token exclusion (Solana young_pond mirror): the set of
+    pool AND token addresses that are off-limits to `self_bot_id` because a
+    SIBLING in the same exclusion group (a) currently holds them, or (b)
+    LOSS-stopped them within stop_window_s. Winning exits free the token
+    immediately; the racer's OWN history never excludes it (its re-entry is
+    governed by its own cooldown/depth gates)."""
+    keys = set()
+    for st in states:
+        b = st.bot
+        if b.bot_id == self_bot_id or b.exclusion_group != group:
+            continue
+        for pool, meta in st.pos_meta.items():
+            keys.add(pool)
+            tok = meta.get("token")
+            if tok:
+                keys.add(tok)
+        for pool, info in st.exit_book.items():
+            if (info.get("loss")
+                    and (now - float(info.get("ts") or 0)) <= stop_window_s):
+                keys.add(pool)
+                tok = info.get("token")
+                if tok:
+                    keys.add(tok)
+    return keys
+
+
+def dedupe_group_entries(entering_states):
+    """Same-tick exclusion-group arbitration: when several racers of ONE
+    exclusion group pass the gates on the SAME pool in the same tick, only
+    one may take it (siblings hold DISTINCT tokens). Winner = fewest open
+    positions (balances sample collection), tie -> roster order. Returns
+    (kept_states, blocked_states); racers without a group always pass."""
+    kept, blocked = [], []
+    winner_by_group = {}
+    for st in entering_states:
+        g = st.bot.exclusion_group
+        if not g:
+            kept.append(st)
+            continue
+        cur = winner_by_group.get(g)
+        if cur is None:
+            winner_by_group[g] = st
+            kept.append(st)
+        elif len(st.pos_meta) < len(cur.pos_meta):
+            kept[kept.index(cur)] = st
+            blocked.append(cur)
+            winner_by_group[g] = st
+        else:
+            blocked.append(st)
+    return kept, blocked
+
+
 def ledger_iso(now: float, seq: int) -> str:
     """iso_utc + a synthetic .%03d millisecond field. The dashboard ingest
     de-dups rows on (ts, ev, pool) — bot_id is NOT part of that key — so two
@@ -329,7 +555,7 @@ def entry_verdict(dip, demand, micro, liq_usd, honeypot_ok,
                   max_concurrent=MAX_CONCURRENT,
                   daily_loss_stop_usd=DAILY_LOSS_STOP_USD,
                   hour_ok=True, bite_block=None,
-                  trigger_blocks=None) -> dict:
+                  trigger_blocks=None, extra_blocks=None) -> dict:
     """Combine every gate -> {enter: bool, blocks: [..]} (all reasons kept
     so the ledger shows WHY, not just whether). Thresholds default to the
     module constants (= rh_young_v1); the fleet passes each racer's own
@@ -337,7 +563,10 @@ def entry_verdict(dip, demand, micro, liq_usd, honeypot_ok,
     the per-config trading-window and repeat-bite verdicts, pre-computed by
     the caller (hour_allowed / bite_gate). trigger_blocks replaces the
     dip-mode trigger pair (no_dip/no_demand_turn) for alternate entry modes
-    (launch_trigger_blocks); the guard stack below applies either way."""
+    (launch_trigger_blocks); the guard stack below applies either way.
+    extra_blocks appends caller-computed per-racer verdicts (sibling
+    exclusion / re-entry depth gate / regime hour gate) without changing the
+    shared guard stack."""
     blocks = []
     if trigger_blocks is None:
         if dip is None or dip > dip_trigger_pct:
@@ -367,6 +596,8 @@ def entry_verdict(dip, demand, micro, liq_usd, honeypot_ok,
         blocks.append("hour_window")
     if bite_block:
         blocks.append(bite_block)
+    if extra_blocks:
+        blocks.extend(extra_blocks)
     if daily_pnl_usd <= daily_loss_stop_usd:
         blocks.append("daily_loss_stop")
     return {"enter": not blocks, "blocks": blocks}
@@ -389,6 +620,12 @@ class BotState:
         self.last_exit = {}      # pool -> ts (re-entry cooldown)
         self.bites = {}          # pool -> lifetime entry count (persisted;
                                  # drives first_touch_only / max_bites_per_token)
+        self.exit_book = {}      # pool -> {ts, loss, token} of the last FULL
+                                 # close (position-level realized sign, all
+                                 # legs summed). Drives the depth re-entry
+                                 # gate + cross-sibling loss-stop exclusion.
+                                 # In-memory only: both windows are 20 min,
+                                 # so a restart fails OPEN (like last_exit).
 
 
 # ── the lane ─────────────────────────────────────────────────────────────────
@@ -409,6 +646,12 @@ class PaperLane:
         self.n_quotes = 0           # fire-evidence: quotes actually made
         self.n_evals = 0            # fire-evidence: entry gates actually run
         self._ledger_seq = 0        # ledger ts uniquifier (see ledger_iso)
+        # regime detection (regime-conditional hour gate): observed pool-
+        # discovery rate. Initialized lazily on the first tick so the startup
+        # backfill flood (6h of pre-existing candidates) doesn't count.
+        self._regime_known = None   # set of pool addrs already seen
+        self._regime_seen = []      # discovery timestamps (rolling 1h)
+        self._regime_t0 = None      # first-tick ts (warm-up clock)
         # FLEET: default = single-config control (back-compat for callers/
         # tests that predate the fleet); main() passes the full ROSTER.
         self.bots = tuple(bots) if bots else (LaneBot(bot_id=LEGACY_BOT_ID),)
@@ -678,8 +921,48 @@ class PaperLane:
         except Exception:
             return None  # unknown age -> gate has no signal (fail-open)
 
+    # ── regime detection (pool-discovery rate -> bot era vs human era) ──────
+    def _track_new_pools(self, now: float):
+        """Count NEWLY-discovered candidate/watched pools. First call seeds
+        the known set from the startup backfill (those are not fresh
+        discoveries) and starts the warm-up clock."""
+        pools = (list(getattr(self.feed, "cand", None) or {})
+                 + list(self.feed.watch))
+        if self._regime_known is None:
+            self._regime_known = set(pools)
+            self._regime_t0 = now
+            return
+        for p in pools:
+            if p not in self._regime_known:
+                self._regime_known.add(p)
+                self._regime_seen.append(now)
+        cutoff = now - 3600.0
+        i = 0
+        while i < len(self._regime_seen) and self._regime_seen[i] < cutoff:
+            i += 1
+        if i:
+            del self._regime_seen[:i]
+
+    def new_pools_per_hour(self, now: float):
+        """Observed discovery rate extrapolated to /hour; None during the
+        REGIME_MIN_UPTIME_S warm-up (regime_hour_ok fails open on None)."""
+        if self._regime_t0 is None:
+            return None
+        uptime = now - self._regime_t0
+        if uptime < REGIME_MIN_UPTIME_S:
+            return None
+        window = min(3600.0, uptime)
+        return len(self._regime_seen) * 3600.0 / max(window, 1.0)
+
     def _consider_entries(self, now: float):
         hour = time.gmtime(now).tm_hour
+        self._track_new_pools(now)
+        npph = self.new_pools_per_hour(now)
+        # cross-sibling exclusion sets, built ONCE per tick per grouped racer
+        excl_keys = {b.bot_id: sibling_exclusion_keys(
+                         list(self.state.values()), b.bot_id,
+                         b.exclusion_group, now, b.sibling_stop_window_s)
+                     for b in self.bots if b.exclusion_group}
         for pool, series in list(self.prices.items()):
             w = self.feed.watch.get(pool)
             if not w:
@@ -703,6 +986,10 @@ class PaperLane:
             rise_open = rise_from_open_pct(series, now)
             b120, s120 = flow_sums(rows, now, window_s=120.0)
             inflow_120s = b120 - s120
+            # vol_m5 (tape liveness) — shared fact for the depth re-entry gate
+            vol_m5 = sum(float(r.get("volume_usd") or 0) for r in rows
+                         if now - (r.get("_epoch") or 0) <= 300)
+            cand_token = self._token_for(pool)  # dict lookups only (cheap)
             self.n_evals += 1
             # ── per-CONFIG thresholds against those shared facts ────────────
             entering = []
@@ -715,6 +1002,26 @@ class PaperLane:
                 trig = (launch_trigger_blocks(rise_open, inflow_120s,
                                               bot.launch_min_inflow_usd)
                         if bot.entry_mode == "launch_strength" else None)
+                # per-racer aged-cohort verdicts (all default-off for the
+                # pre-existing scalp fleet)
+                extra = []
+                if bot.exclusion_group:
+                    ek = excl_keys.get(bot.bot_id) or set()
+                    if pool in ek or (cand_token and cand_token in ek):
+                        extra.append("sibling_excl")
+                if bot.reentry_min_dip_pct is not None:
+                    info = st.exit_book.get(pool) or {}
+                    had_loss = bool(
+                        info.get("loss")
+                        and (now - float(info.get("ts") or 0))
+                        <= REENTRY_LOSS_WINDOW_S)
+                    rb = reentry_depth_gate(had_loss, d, vol_m5,
+                                            bot.reentry_min_dip_pct,
+                                            bot.reentry_min_vol_m5_usd)
+                    if rb:
+                        extra.append(rb)
+                if bot.regime_hours and not regime_hour_ok(hour, npph):
+                    extra.append("hour_regime")
                 # honeypot LAST (network call), only when a config passes
                 v = entry_verdict(
                     d, demand, micro, liq, True,
@@ -729,21 +1036,27 @@ class PaperLane:
                     bite_block=bite_gate(bot.first_touch_only,
                                          bot.max_bites_per_token,
                                          st.bites.get(pool, 0)),
-                    trigger_blocks=trig)
+                    trigger_blocks=trig, extra_blocks=extra)
                 if v["enter"]:
                     entering.append(st)
                 else:
                     for b in v["blocks"]:
                         st.block_hist[b] = st.block_hist.get(b, 0) + 1
+            # same-tick sibling arbitration: one racer per token per group
+            entering, dropped = dedupe_group_entries(entering)
+            for st in dropped:
+                st.block_hist["sibling_excl"] = (
+                    st.block_hist.get("sibling_excl", 0) + 1)
             if not entering:
                 continue
-            token = self._token_for(pool)
+            token = cand_token
             if not token or not self._honeypot_ok(token):
                 continue
             self._paper_buy(pool, token, w, d, micro, now, rows,
-                            states=entering)
+                            states=entering, age_h=age_h)
 
-    def _paper_buy(self, pool, token, w, dip, micro, now, rows, states=None):
+    def _paper_buy(self, pool, token, w, dip, micro, now, rows, states=None,
+                   age_h=None):
         """Fill the entry for every entering config off ONE buy quote + ONE
         rt-cost sell quote: the fill price is a per-POOL fact (every racer
         bets the same $25), so the fleet does not multiply QuoterV2 calls."""
@@ -805,6 +1118,7 @@ class PaperLane:
                    "sym": w["sym"], "usd": ENTRY_USD, "price_eth": px,
                    "qty": qty,
                    "dip_pct": (round(dip, 2) if dip is not None else None),
+                   "age_h": (round(age_h, 2) if age_h is not None else None),
                    "entry_mode": st.bot.entry_mode, "liq": w.get("liq"),
                    "micro": {k: micro.get(k)
                              for k in ("avoid_block", "flow_confirm")},
@@ -837,6 +1151,26 @@ class PaperLane:
                         reason="lp drain %.1f%% in %ds (liq collapse)" % (
                             _drain, int(LP_DRAIN_WINDOW_S))), now, st=st)
                     continue
+                # DERISK CAP (rug-tail defense, aged cohort): past the 20-min
+                # median-death window, cap remaining exposure so one -98% LP
+                # pull can't erase many +6% wins. Fires at most the slice
+                # that exceeds the cap; a TP1 that already banked more is a
+                # no-op (derisk_slice returns 0).
+                if st.bot.derisk_after_s is not None:
+                    dfrac = derisk_slice(meta["remaining_frac"],
+                                         now - meta["entry_ts"],
+                                         st.bot.derisk_after_s,
+                                         st.bot.derisk_max_frac)
+                    if dfrac > 1e-9:
+                        from types import SimpleNamespace
+                        self._paper_sell(pool, meta, SimpleNamespace(
+                            kind="DERISK_CAP", sell_fraction=dfrac,
+                            reason="derisk cap %.0fs held: exposure -> "
+                                   "%.2f of original (rug-tail defense)" % (
+                                       now - meta["entry_ts"],
+                                       st.bot.derisk_max_frac)), now, st=st)
+                        if pool not in st.pos_meta:
+                            continue
                 vol_m5 = sum(float(r.get("volume_usd") or 0) for r in rows
                              if now - (r.get("_epoch") or 0) <= 300)
                 for d in st.pm.tick(token=pool, current_price=px, now=now,
@@ -873,10 +1207,16 @@ class PaperLane:
         pnl_pct = pnl_usd / cost * 100 if cost else 0.0
         st.daily_pnl_usd += pnl_usd
         meta["remaining_frac"] = new_remaining
+        # position-level realized (legs summed) — the depth re-entry gate and
+        # sibling loss-stop exclusion judge the WHOLE position, never one leg
+        meta["realized_usd"] = meta.get("realized_usd", 0.0) + pnl_usd
         fully = getattr(res, "fully_closed", new_remaining <= 1e-9)
         if fully:
             st.pos_meta.pop(pool, None)
             st.last_exit[pool] = now
+            st.exit_book[pool] = {"ts": now,
+                                  "loss": meta["realized_usd"] < 0.0,
+                                  "token": token}
             st.n_exits += 1
             _append(POSTEXIT_PENDING, {
                 "pool": pool, "token": token, "sym": meta["sym"],
