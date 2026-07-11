@@ -1,0 +1,140 @@
+{
+ "n_pools": 506,
+ "n_hist_pools": 25,
+ "n_recorder_pools": 481,
+ "n_rows": 97280,
+ "n_nomaker": 0,
+ "n_makers": 29343,
+ "n_ledgers": 39147,
+ "winners_all": 279,
+ "winners_dayrobust": 140,
+ "winners_by_class_dayrobust": {
+  "pure_ontape": 91,
+  "mixed": 34,
+  "pure_sell_only": 15
+ },
+ "winners_by_class_all": {
+  "pure_ontape": 153,
+  "mixed": 69,
+  "pure_sell_only": 57
+ },
+ "audited_dayrobust_n": 91,
+ "audited_all_n": 153,
+ "profile_winners": {
+  "n": 91,
+  "strength_pct": 66.10915492957747,
+  "dip_pct": 36.9453044375645,
+  "med_hold_m": 19.25,
+  "med_buy": 65.98,
+  "med_age_m": 13292.75
+ },
+ "profile_losers": {
+  "n": 58,
+  "strength_pct": 64.86880466472303,
+  "dip_pct": 44.49877750611247,
+  "med_hold_m": 2.5833333333333335,
+  "med_buy": 89.27,
+  "med_age_m": 223.48333333333332
+ },
+ "dip_majority_winners": 27,
+ "top_audited": [
+  [
+   "0xf79c95d5919c2b70ee0a2709a28b0a73eca00a28",
+   1886.0,
+   5,
+   2
+  ],
+  [
+   "0x65d29c1b32fd361d57c6c4647bd48f01d49741c5",
+   1668.0,
+   3,
+   3
+  ],
+  [
+   "0x711067eaf55873bfc0a7e1ef06ae74f75b977e2c",
+   1296.0,
+   3,
+   2
+  ],
+  [
+   "0x0eab5ea1dbf9aa97fc39b9a32f2f6f735f7af2d6",
+   1234.0,
+   4,
+   2
+  ],
+  [
+   "0x1b30f0a3e7fb54211ab31741a2dc58725157b039",
+   829.0,
+   4,
+   4
+  ],
+  [
+   "0x36d915bdde36de9e062526ba46a171afa8768f90",
+   806.0,
+   3,
+   2
+  ],
+  [
+   "0xb6e434475a9303e8349adc138e4362cd68b91163",
+   778.0,
+   4,
+   2
+  ],
+  [
+   "0x416e3d327bd59140e35592f0ba0ca0a964e3770a",
+   676.0,
+   3,
+   2
+  ],
+  [
+   "0x836072e338dbab939be128ae774eb8ae396f41c0",
+   598.0,
+   3,
+   2
+  ],
+  [
+   "0xec2474db603ed04464009ea015a8980dcee37418",
+   527.0,
+   3,
+   2
+  ],
+  [
+   "0x5b7ea016cf02435fe63290f878e87fa1afb369eb",
+   453.0,
+   3,
+   3
+  ],
+  [
+   "0xe81045351138d7b2abdb53fcb4c650098ac46378",
+   445.0,
+   4,
+   3
+  ],
+  [
+   "0xd8ba9e5886b7000bace2c9dbdd0be98ac77d4a28",
+   445.0,
+   5,
+   5
+  ],
+  [
+   "0x9e7b8fe784127d5a31a1f61fb118806583a5216a",
+   442.0,
+   3,
+   2
+  ],
+  [
+   "0x347ffc6db9acc54ac2019795173b9599e8b82bd9",
+   372.0,
+   5,
+   2
+  ]
+ ],
+ "collapsed_pools": 3,
+ "repeat_rug_actors": {},
+ "sell_only": {
+  "n": 2807,
+  "resolved": 469,
+  "unresolved_usd": 950204.0,
+  "resolved_usd": 93437.0
+ }
+}
