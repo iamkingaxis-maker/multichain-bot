@@ -30,6 +30,26 @@ Dashboard: http://localhost:8080
 Backtest:  python backtest/run_backtest.py
 """
 
+# ── SERVICE_ROLE dispatch (2026-07-11, AxiS-approved RH Railway lane) ────────
+# railway.toml pins startCommand="python main.py" for EVERY service deployed
+# from this repo. The rh-paper-lane service sets SERVICE_ROLE=rh_paper_lane and
+# this dispatch (BEFORE the heavy bot imports — the whole point is a ~70MB
+# service) execs the paper lane instead, with the dashboard uploader as a
+# child loop. Unset/other SERVICE_ROLE = byte-identical main bot.
+import os as _os
+if (_os.environ.get("SERVICE_ROLE") or "").strip().lower() == "rh_paper_lane":
+    import subprocess as _sp
+    import sys as _sys
+    _sp.Popen([
+        _sys.executable, "-c",
+        "import subprocess,time,sys\n"
+        "while True:\n"
+        "    subprocess.run([sys.executable,'scripts/rh_paper_upload.py'])\n"
+        "    time.sleep(180)\n",
+    ])
+    _os.execv(_sys.executable,
+              [_sys.executable, "scripts/rh_paper_lane.py", "300"])
+
 import asyncio
 import logging
 import os
