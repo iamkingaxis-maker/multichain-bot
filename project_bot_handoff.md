@@ -1,3 +1,37 @@
+# Session Handoff — 2026-07-11 (~01:50 UTC)
+
+## Wallet truth (Solana, LIVE)
+- delta_sol **+0.3900** (baseline 0.8284), open=0, canary healthy, PAPER_MODE=false.
+- Mission: fills **3/20**, days **1/4**. All 4 round-trips accounted; exec 1.44s med, fill_vs_mid +1.48% med.
+- Probe liq floor lowered 30k->25k (ffa9296, AxiS-approved: "liquidity does not mean rug") — first fill under new floor pending.
+
+## First actions next session
+1. Wallet-truth delta FIRST (rule).
+2. Restart RH fleet lane: `python scripts/rh_paper_lane.py 300` (state restores incl. open positions + day pnl; 10 racers). Re-arm monitors: fill relay (polls /api/live-swaps + wallet-truth every 30s), lane log tail, uploader loop (`scripts/rh_paper_upload.py` every ~3min).
+3. Restart RH tape recorder (`python scripts/robinhood_tape_recorder.py 300`) or rely on rh_chain_feed.
+4. Check/resume the FULL-HISTORY DECODE: scratchpad/rh_history/ (sweep DONE to head 6,522,384; sweep_counts/anchors/lane_pools/hour_rulebook present; backfill pass mid-flight — resume-safe; deliverable scratchpad/_rh_history_decode.md).
+5. Solana prime window 13-22 UTC: watch probe fill rate under 25k floor; clean-dry-prime -> next ladder rung = RT_DEMAND to shadow (needs AxiS).
+
+## Today shipped (all pushed through 6eae0a3)
+- Sell-path canary (halts live buys if exits cannot size) + 3-layer RPC failover (neg-cache, breaker, 200-with-error) + Helius REMOVED (keyless publics + backups).
+- Incident postmortem: buys-outliving-sells class dead; memory feedback_sell_path_canary.
+- RH: fleet v1 (10 racers, 6969015), rug guards, exit-impact fix (sell-side ticking + rt-cost gate), persistence, post-exit +6h checks, runner_score shadow stamps (af383b8), moonbag A/B live on Railway (badday_young_moonbag_ab) + Solana post-exit tracker + hold-tape (HOLD_TAPE_MODE=on).
+- Dashboard: sim-era sections removed; RH card + fleet leaderboard (26043ac; deploy was blocked by 1.6GB scratchpad upload -> .railwayignore fixed 6eae0a3; VERIFY the card serves `bots` key next session).
+- Trail-width verdict: ladder stays; flush_runner_ab A/B accrues (enforce if positive w/ >=3 monsters or >=100 diverged pairs).
+
+## Live observations (accrual-stage)
+- QUANT case: rounds 1-2 + deep re-entries paid, shallow re-entries slaughtered — first_touch/bites2 racers green vs control -$18 day. Re-entry gate spec forming.
+- rh_wide_ladder: 2 burns holding for +10 (RH pops die early) — early laggard.
+- Moonbag lifecycle proven in the wild (TP2 15% + 10% kept -> floor exit ~breakeven).
+- RH hour rulebook v0: 19-21 UTC prime, 22-01 dead (causal), 08-10 whale session unexplored.
+- RH wallet decode v0: audited winners = launch-strength scalpers (rh_launch_scalp racer ships this); full-history decode will firm/refute.
+- runner_score coverage: thin RH pools often <20 trades/10min -> Solana provides most of the validation sample.
+
+## Open tasks: #490 (dev-not-dumped shadow), #495 (RH Phase-1 bar), #496 (memory re-audit ~$54/mo RAM -> unlocks Railway 24/7 RH lane), #497 (runner_score validation n>=30)
+## Standing rules refreshed today: paper=data (no small paper daily stops); RH co-equal chain; RH latency parity (<=2s); never buys-while-sells-broken.
+
+---
+
 # Session Handoff — Smart-Wallet Rescue + Sustainability Day (2026-06-11)
 
 **Bot URL**: https://gracious-inspiration-production.up.railway.app
