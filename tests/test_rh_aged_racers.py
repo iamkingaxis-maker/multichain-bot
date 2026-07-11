@@ -17,7 +17,6 @@ from rh_paper_lane import (  # noqa: E402
     sibling_exclusion_keys, dedupe_group_entries,
     AGED_MIN_POOL_AGE_H, AGED_TP1_PCT, AGED_TP2_PCT, AGED_TRAIL_PP,
     DERISK_AFTER_S, DERISK_MAX_FRAC, REENTRY_MIN_DIP_PCT, REENTRY_MIN_VOL_M5,
-    REGIME_BOT_ERA_POOLS_H, REGIME_HUMAN_HOURS,
     DIP_TRIGGER_PCT, MIN_LIQ_USD, MIN_POOL_AGE_H, REENTRY_COOLDOWN_S,
 )
 
@@ -151,20 +150,27 @@ class TestRosterWiring:
 
 
 class TestRegimeHourOk:
-    def test_warmup_fails_open(self):
-        assert regime_hour_ok(3, None) is True
+    """v1 (2026-07-11 full-history mine): the gate is AGE-BAND keyed — aged
+    (>24h) pools blocked 19-21 UTC, the one hour rule that held in both
+    chrono halves AND both day-parity halves. The v0 human-era-14-23 rule is
+    REFUTED (human-era 02-07 was the BEST young cell; volume != outcome)."""
 
-    def test_bot_era_24_7(self):
-        for h in (0, 3, 13, 22):
-            assert regime_hour_ok(h, 800.0) is True
-        assert regime_hour_ok(3, REGIME_BOT_ERA_POOLS_H) is True  # boundary
+    def test_unknown_age_fails_open(self):
+        for h in range(24):
+            assert regime_hour_ok(h, None) is True
 
-    def test_human_era_gates_to_14_23(self):
-        assert regime_hour_ok(15, 50.0) is True
-        assert regime_hour_ok(23, 50.0) is True
-        assert regime_hour_ok(13, 50.0) is False
-        assert regime_hour_ok(3, 50.0) is False
-        assert REGIME_HUMAN_HOURS == tuple(range(14, 24))
+    def test_young_and_mid_pass_all_hours(self):
+        for h in range(24):
+            assert regime_hour_ok(h, 2.0) is True    # young band
+            assert regime_hour_ok(h, 12.0) is True   # mid band
+
+    def test_aged_blocked_19_21_only(self):
+        for h in range(24):
+            assert regime_hour_ok(h, 30.0) is (h not in (19, 20, 21))
+
+    def test_band_boundary_24h(self):
+        assert regime_hour_ok(20, 23.99) is True     # mid band passes
+        assert regime_hour_ok(20, 24.0) is False     # aged band blocked
 
 
 class TestReentryDepthGate:
@@ -281,11 +287,13 @@ class TestLaneIntegration:
         lane._regime_t0 = NOW
         return lane, ex
 
-    def _dip_facts(self, lane, dip_hi=1.25, vol_usd=600.0):
+    def _dip_facts(self, lane, dip_hi=1.25, vol_usd=600.0, t=NOW):
         # latest 1.0 vs window high dip_hi: dip = (1-dip_hi)/dip_hi
-        lane.prices["0xp1"] = [(NOW - 300, 1.0), (NOW - 200, dip_hi),
-                               (NOW - 10, 1.0)]
-        lane.tape["0xp1"] = [_row("buy", vol_usd, -20), _row("sell", 5, -5)]
+        lane.prices["0xp1"] = [(t - 300, 1.0), (t - 200, dip_hi),
+                               (t - 10, 1.0)]
+        lane.tape["0xp1"] = [
+            {"kind": "buy", "volume_usd": vol_usd, "_epoch": t - 20},
+            {"kind": "sell", "volume_usd": 5, "_epoch": t - 5}]
 
     def test_age_floor_blocks_young_pool(self, tmp_path, monkeypatch):
         lane, _ = self._lane(tmp_path, monkeypatch, AGED,
@@ -376,23 +384,35 @@ class TestLaneIntegration:
         lane._consider_entries(NOW)
         assert "0xp1" in st.pos_meta            # stale loss: normal entry
 
-    def test_regime_human_era_blocks_off_hours(self, tmp_path, monkeypatch):
-        lane, _ = self._lane(tmp_path, monkeypatch, (AGED[0],))
-        # human-era rate: 50 discoveries over a full observed hour
-        lane._regime_t0 = NOW - 3600.0
-        lane._regime_seen = [NOW - i for i in range(50)]
-        self._dip_facts(lane)
-        lane._consider_entries(NOW)             # hour 13 not in 14-23
+    # v1 regime hour gate (aged-band 19-21 UTC): NOW is 13:46 UTC; T19 lands
+    # in the mined block (19:46 UTC).
+    T19 = NOW + 6 * 3600.0
+
+    def test_regime_v1_blocks_aged_band_in_19_21(self, tmp_path, monkeypatch):
+        lane, _ = self._lane(tmp_path, monkeypatch, (AGED[0],),
+                             watch={"0xp1": {"sym": "T", "liq": 50_000.0,
+                                             "created_block": 30.0}})  # 30h
+        self._dip_facts(lane, t=self.T19)
+        lane._consider_entries(self.T19)
         st = lane.state["rh_aged_hold"]
         assert "0xp1" not in st.pos_meta
         assert st.block_hist.get("hour_regime")
 
-    def test_regime_bot_era_trades_any_hour(self, tmp_path, monkeypatch):
+    def test_regime_v1_mid_band_passes_in_19_21(self, tmp_path, monkeypatch):
+        # default watch pool is 8h old (mid band): no consistent hour rule
+        # was mined for it -> trades through 19-21
         lane, _ = self._lane(tmp_path, monkeypatch, (AGED[0],))
-        lane._regime_t0 = NOW - 3600.0
-        lane._regime_seen = [NOW - i for i in range(800)]  # bot-era rate
+        self._dip_facts(lane, t=self.T19)
+        lane._consider_entries(self.T19)
+        assert "0xp1" in lane.state["rh_aged_hold"].pos_meta
+
+    def test_regime_v1_aged_band_passes_off_block_hours(self, tmp_path,
+                                                        monkeypatch):
+        lane, _ = self._lane(tmp_path, monkeypatch, (AGED[0],),
+                             watch={"0xp1": {"sym": "T", "liq": 50_000.0,
+                                             "created_block": 30.0}})
         self._dip_facts(lane)
-        lane._consider_entries(NOW)
+        lane._consider_entries(NOW)             # 13:46 UTC — not blocked
         assert "0xp1" in lane.state["rh_aged_hold"].pos_meta
 
     def test_derisk_cap_fires_after_window(self, tmp_path, monkeypatch):

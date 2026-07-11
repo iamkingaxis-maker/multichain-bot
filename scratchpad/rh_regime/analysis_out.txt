@@ -1,0 +1,499 @@
+trips: dip=39132 pop=31208 days 2026-07-01..2026-07-11
+
+=== hour_block x age band (dip trips) ===
+  chrono W1   young  02-07: n=  673 win= 65.8% (base  59.6 d= +6.2) med=+15.80 rug= 5.9%
+  chrono W1   young  08-10: n=  284 win= 65.5% (base  59.6 d= +5.9) med=+14.46 rug= 2.8%
+  chrono W1   young  11-13: n=  375 win= 59.2% (base  59.6 d= -0.4) med=+16.68 rug= 7.5%
+  chrono W1   young  14-18: n= 1097 win= 58.6% (base  59.6 d= -1.0) med= +8.87 rug= 3.6%
+  chrono W1   young  19-21: n=  690 win= 55.8% (base  59.6 d= -3.8) med= +6.75 rug= 3.6%
+  chrono W1   young  22-01: n=  560 win= 56.1% (base  59.6 d= -3.5) med= +7.20 rug= 3.0%
+  chrono W2   young  02-07: n= 3528 win= 51.5% (base  49.5 d= +2.0) med= +1.50 rug= 8.6%
+  chrono W2   young  08-10: n= 1894 win= 49.8% (base  49.5 d= +0.3) med= -0.14 rug= 7.7%
+  chrono W2   young  11-13: n= 2364 win= 49.2% (base  49.5 d= -0.3) med= -1.21 rug=10.0%
+  chrono W2   young  14-18: n= 4691 win= 48.1% (base  49.5 d= -1.4) med= -2.11 rug= 8.2%
+  chrono W2   young  19-21: n= 2475 win= 48.6% (base  49.5 d= -0.9) med= -1.79 rug= 9.3%
+  chrono W2   young  22-01: n= 2706 win= 50.5% (base  49.5 d= +1.0) med= +0.79 rug=10.5%
+  chrono W1   mid    02-07: n=  195 win= 49.7% (base  53.5 d= -3.8) med= -0.04 rug= 5.6%
+  chrono W1   mid    08-10: n=  157 win= 61.1% (base  53.5 d= +7.6) med= +2.49 rug= 6.4%
+  chrono W1   mid    11-13: n=  123 win= 52.8% (base  53.5 d= -0.7) med= +2.04 rug= 6.5%
+  chrono W1   mid    14-18: n=  142 win= 57.7% (base  53.5 d= +4.2) med= +2.54 rug= 2.1%
+  chrono W1   mid    19-21: n=  104 win= 50.0% (base  53.5 d= -3.5) med= -0.02 rug= 8.7%
+  chrono W1   mid    22-01: n=  117 win= 47.9% (base  53.5 d= -5.6) med= -0.43 rug= 6.0%
+  chrono W2   mid    02-07: n= 1037 win= 53.9% (base  49.6 d= +4.3) med= +1.29 rug= 4.7%
+  chrono W2   mid    08-10: n=  570 win= 49.8% (base  49.6 d= +0.2) med= -0.32 rug= 4.4%
+  chrono W2   mid    11-13: n=  802 win= 47.6% (base  49.6 d= -2.0) med= -1.04 rug= 5.2%
+  chrono W2   mid    14-18: n= 1157 win= 45.2% (base  49.6 d= -4.4) med= -2.58 rug= 2.2%
+  chrono W2   mid    19-21: n=  687 win= 49.9% (base  49.6 d= +0.3) med= -0.14 rug= 0.7%
+  chrono W2   mid    22-01: n=  780 win= 51.9% (base  49.6 d= +2.3) med= +0.94 rug= 2.7%
+  chrono W1   aged   02-07: n=  138 win= 62.3% (base  55.8 d= +6.5) med= +3.27 rug= 0.0%
+  chrono W1   aged   08-10: n=  131 win= 59.5% (base  55.8 d= +3.7) med= +2.28 rug= 0.0%
+  chrono W1   aged   11-13: n=   85 win= 61.2% (base  55.8 d= +5.4) med= +2.15 rug= 0.0%
+  chrono W1   aged   14-18: n=  217 win= 58.5% (base  55.8 d= +2.7) med= +3.84 rug= 0.5%
+  chrono W1   aged   19-21: n=  340 win= 48.5% (base  55.8 d= -7.3) med= -0.83 rug= 0.6%
+  chrono W1   aged   22-01: n=  149 win= 55.7% (base  55.8 d= -0.1) med= +1.80 rug= 0.0%
+  chrono W2   aged   02-07: n= 2892 win= 52.5% (base  50.6 d= +1.9) med= +1.29 rug= 0.7%
+  chrono W2   aged   08-10: n= 1137 win= 53.0% (base  50.6 d= +2.4) med= +1.61 rug= 0.3%
+  chrono W2   aged   11-13: n= 1549 win= 48.4% (base  50.6 d= -2.2) med= -0.71 rug= 0.7%
+  chrono W2   aged   14-18: n= 2521 win= 47.7% (base  50.6 d= -2.9) med= -0.91 rug= 0.3%
+  chrono W2   aged   19-21: n= 1421 win= 49.3% (base  50.6 d= -1.3) med= -0.23 rug= 0.3%
+  chrono W2   aged   22-01: n= 1344 win= 53.4% (base  50.6 d= +2.8) med= +0.92 rug= 0.1%
+  parity even young  02-07: n= 2934 win= 52.2% (base  50.0 d= +2.2) med= +2.44 rug= 8.2%
+  parity even young  08-10: n= 1551 win= 50.4% (base  50.0 d= +0.4) med= +0.26 rug= 5.9%
+  parity even young  11-13: n= 1883 win= 49.9% (base  50.0 d= -0.1) med= -0.26 rug= 9.2%
+  parity even young  14-18: n= 3752 win= 48.0% (base  50.0 d= -2.0) med= -2.46 rug= 7.8%
+  parity even young  19-21: n= 1952 win= 50.3% (base  50.0 d= +0.3) med= +0.32 rug= 8.4%
+  parity even young  22-01: n= 1905 win= 50.3% (base  50.0 d= +0.3) med= +0.47 rug= 9.4%
+  parity odd  young  02-07: n= 1267 win= 57.5% (base  53.7 d= +3.8) med= +8.22 rug= 8.1%
+  parity odd  young  08-10: n=  627 win= 55.7% (base  53.7 d= +2.0) med= +5.48 rug= 9.7%
+  parity odd  young  11-13: n=  856 win= 52.1% (base  53.7 d= -1.6) med= +2.62 rug=10.5%
+  parity odd  young  14-18: n= 2036 win= 53.9% (base  53.7 d= +0.2) med= +3.46 rug= 6.4%
+  parity odd  young  19-21: n= 1213 win= 50.0% (base  53.7 d= -3.7) med= +0.05 rug= 7.5%
+  parity odd  young  22-01: n= 1361 win= 53.0% (base  53.7 d= -0.7) med= +3.69 rug= 8.9%
+  parity even mid    02-07: n=  775 win= 51.7% (base  50.2 d= +1.5) med= +0.74 rug= 4.8%
+  parity even mid    08-10: n=  442 win= 54.8% (base  50.2 d= +4.6) med= +1.46 rug= 4.5%
+  parity even mid    11-13: n=  589 win= 50.6% (base  50.2 d= +0.4) med= +0.18 rug= 3.2%
+  parity even mid    14-18: n=  913 win= 45.5% (base  50.2 d= -4.7) med= -2.14 rug= 0.8%
+  parity even mid    19-21: n=  468 win= 50.2% (base  50.2 d= +0.0) med= +0.04 rug= 1.3%
+  parity even mid    22-01: n=  481 win= 51.8% (base  50.2 d= +1.6) med= +0.96 rug= 3.7%
+  parity odd  mid    02-07: n=  457 win= 55.8% (base  50.1 d= +5.7) med= +1.89 rug= 5.0%
+  parity odd  mid    08-10: n=  285 win= 48.4% (base  50.1 d= -1.7) med= -0.49 rug= 5.3%
+  parity odd  mid    11-13: n=  336 win= 44.3% (base  50.1 d= -5.8) med= -1.65 rug= 9.2%
+  parity odd  mid    14-18: n=  386 win= 49.2% (base  50.1 d= -0.9) med= -0.92 rug= 5.4%
+  parity odd  mid    19-21: n=  323 win= 49.5% (base  50.1 d= -0.6) med= -0.20 rug= 2.5%
+  parity odd  mid    22-01: n=  416 win= 51.0% (base  50.1 d= +0.9) med= +0.46 rug= 2.4%
+  parity even aged   02-07: n= 2719 win= 52.1% (base  50.6 d= +1.5) med= +1.21 rug= 0.7%
+  parity even aged   08-10: n= 1031 win= 51.8% (base  50.6 d= +1.2) med= +1.08 rug= 0.3%
+  parity even aged   11-13: n= 1260 win= 48.3% (base  50.6 d= -2.3) med= -0.89 rug= 0.7%
+  parity even aged   14-18: n= 1930 win= 47.5% (base  50.6 d= -3.1) med= -1.02 rug= 0.2%
+  parity even aged   19-21: n=  776 win= 49.9% (base  50.6 d= -0.7) med= -0.10 rug= 0.5%
+  parity even aged   22-01: n=  928 win= 54.7% (base  50.6 d= +4.1) med= +1.46 rug= 0.1%
+  parity odd  aged   02-07: n=  311 win= 60.1% (base  52.2 d= +7.9) med= +2.78 rug= 0.0%
+  parity odd  aged   08-10: n=  237 win= 62.0% (base  52.2 d= +9.8) med= +3.37 rug= 0.0%
+  parity odd  aged   11-13: n=  374 win= 51.9% (base  52.2 d= -0.3) med= +0.48 rug= 0.5%
+  parity odd  aged   14-18: n=  808 win= 51.1% (base  52.2 d= -1.1) med= +0.45 rug= 0.6%
+  parity odd  aged   19-21: n=  985 win= 48.6% (base  52.2 d= -3.6) med= -0.66 rug= 0.2%
+  parity odd  aged   22-01: n=  565 win= 51.9% (base  52.2 d= -0.3) med= +0.58 rug= 0.0%
+
+=== hour x age band (dip trips) ===
+  chrono W1   young      0: n=  104 win= 55.8% (base  59.6 d= -3.8) med= +6.68 rug= 3.8%
+  chrono W1   young      1: n=  126 win= 64.3% (base  59.6 d= +4.7) med=+16.08 rug= 0.0%
+  chrono W1   young      2: n=  114 win= 72.8% (base  59.6 d=+13.2) med=+17.26 rug= 0.9%
+  chrono W1   young      3: n=  108 win= 70.4% (base  59.6 d=+10.8) med=+19.86 rug= 4.6%
+  chrono W1   young      4: n=  132 win= 61.4% (base  59.6 d= +1.8) med=+11.91 rug=12.1%
+  chrono W1   young      5: n=  111 win= 65.8% (base  59.6 d= +6.2) med=+13.76 rug= 3.6%
+  chrono W1   young      6: n=  105 win= 63.8% (base  59.6 d= +4.2) med=+13.99 rug= 9.5%
+  chrono W1   young      7: n=  103 win= 61.2% (base  59.6 d= +1.6) med=+20.50 rug= 3.9%
+  chrono W1   young      8: n=   98 win= 63.3% (base  59.6 d= +3.7) med=+14.63 rug= 0.0%
+  chrono W1   young      9: n=   95 win= 58.9% (base  59.6 d= -0.7) med= +6.89 rug= 4.2%
+  chrono W1   young     10: n=   91 win= 74.7% (base  59.6 d=+15.1) med=+25.20 rug= 4.4%
+  chrono W1   young     11: n=   89 win= 57.3% (base  59.6 d= -2.3) med=+10.08 rug= 7.9%
+  chrono W1   young     12: n=  110 win= 54.5% (base  59.6 d= -5.1) med= +8.81 rug= 8.2%
+  chrono W1   young     13: n=  176 win= 63.1% (base  59.6 d= +3.5) med=+19.16 rug= 6.8%
+  chrono W1   young     14: n=  202 win= 60.9% (base  59.6 d= +1.3) med=+10.09 rug= 4.0%
+  chrono W1   young     15: n=  227 win= 60.8% (base  59.6 d= +1.2) med=+12.95 rug= 4.4%
+  chrono W1   young     16: n=  235 win= 54.0% (base  59.6 d= -5.6) med= +4.80 rug= 2.6%
+  chrono W1   young     17: n=  209 win= 58.9% (base  59.6 d= -0.7) med= +8.87 rug= 4.3%
+  chrono W1   young     18: n=  224 win= 58.9% (base  59.6 d= -0.7) med=+10.16 rug= 3.1%
+  chrono W1   young     19: n=  213 win= 59.6% (base  59.6 d= +0.0) med=+10.89 rug= 6.1%
+  chrono W1   young     20: n=  255 win= 54.9% (base  59.6 d= -4.7) med= +5.53 rug= 2.7%
+  chrono W1   young     21: n=  222 win= 53.2% (base  59.6 d= -6.4) med= +3.39 rug= 2.3%
+  chrono W1   young     22: n=  188 win= 48.4% (base  59.6 d=-11.2) med= -1.68 rug= 2.1%
+  chrono W1   young     23: n=  142 win= 59.2% (base  59.6 d= -0.4) med=+10.62 rug= 6.3%
+  chrono W2   young      0: n=  634 win= 52.7% (base  49.5 d= +3.2) med= +1.79 rug=10.1%
+  chrono W2   young      1: n=  498 win= 50.0% (base  49.5 d= +0.5) med= +0.63 rug=13.5%
+  chrono W2   young      2: n=  495 win= 51.3% (base  49.5 d= +1.8) med= +1.05 rug=11.1%
+  chrono W2   young      3: n=  548 win= 50.4% (base  49.5 d= +0.9) med= +0.98 rug= 9.5%
+  chrono W2   young      4: n=  569 win= 51.3% (base  49.5 d= +1.8) med= +1.06 rug= 8.8%
+  chrono W2   young      5: n=  605 win= 53.6% (base  49.5 d= +4.1) med= +4.38 rug= 7.9%
+  chrono W2   young      6: n=  640 win= 50.3% (base  49.5 d= +0.8) med= +0.21 rug= 8.1%
+  chrono W2   young      7: n=  671 win= 52.0% (base  49.5 d= +2.5) med= +2.61 rug= 7.0%
+  chrono W2   young      8: n=  696 win= 47.6% (base  49.5 d= -1.9) med= -2.51 rug= 7.2%
+  chrono W2   young      9: n=  621 win= 50.1% (base  49.5 d= +0.6) med= +0.03 rug= 9.3%
+  chrono W2   young     10: n=  577 win= 52.3% (base  49.5 d= +2.8) med= +1.84 rug= 6.4%
+  chrono W2   young     11: n=  706 win= 49.3% (base  49.5 d= -0.2) med= -0.60 rug= 9.9%
+  chrono W2   young     12: n=  806 win= 46.9% (base  49.5 d= -2.6) med= -3.05 rug=11.5%
+  chrono W2   young     13: n=  852 win= 51.3% (base  49.5 d= +1.8) med= +1.15 rug= 8.6%
+  chrono W2   young     14: n= 1007 win= 50.3% (base  49.5 d= +0.8) med= +0.36 rug= 8.8%
+  chrono W2   young     15: n=  993 win= 45.2% (base  49.5 d= -4.3) med= -5.25 rug= 9.2%
+  chrono W2   young     16: n=  887 win= 46.9% (base  49.5 d= -2.6) med= -2.57 rug= 6.1%
+  chrono W2   young     17: n=  909 win= 51.2% (base  49.5 d= +1.7) med= +1.32 rug= 6.9%
+  chrono W2   young     18: n=  895 win= 46.7% (base  49.5 d= -2.8) med= -3.01 rug= 9.7%
+  chrono W2   young     19: n=  877 win= 49.7% (base  49.5 d= +0.2) med= -0.20 rug= 7.4%
+  chrono W2   young     20: n=  810 win= 46.5% (base  49.5 d= -3.0) med= -3.98 rug= 9.9%
+  chrono W2   young     21: n=  788 win= 49.5% (base  49.5 d= +0.0) med= -0.41 rug=10.7%
+  chrono W2   young     22: n=  797 win= 47.3% (base  49.5 d= -2.2) med= -3.96 rug=10.4%
+  chrono W2   young     23: n=  777 win= 52.4% (base  49.5 d= +2.9) med= +2.14 rug= 8.9%
+  chrono W1   mid        0: n=   27 win= 59.3% (base  53.5 d= +5.8) med= +2.79 rug= 0.0%
+  chrono W1   mid        1: n=   25 win= 48.0% (base  53.5 d= -5.5) med= -0.33 rug=20.0%
+  chrono W1   mid        2: n=   21 win= 47.6% (base  53.5 d= -5.9) med= -1.27 rug= 0.0%
+  chrono W1   mid        3: n=   27 win= 63.0% (base  53.5 d= +9.5) med= +2.29 rug= 7.4%
+  chrono W1   mid        4: n=   25 win= 32.0% (base  53.5 d=-21.5) med= -6.44 rug= 0.0%
+  chrono W1   mid        5: n=   31 win= 45.2% (base  53.5 d= -8.3) med= -1.53 rug= 0.0%
+  chrono W1   mid        6: n=   49 win= 49.0% (base  53.5 d= -4.5) med= -0.25 rug=12.2%
+  chrono W1   mid        7: n=   42 win= 57.1% (base  53.5 d= +3.6) med= +3.31 rug= 7.1%
+  chrono W1   mid        8: n=   51 win= 58.8% (base  53.5 d= +5.3) med= +1.77 rug= 9.8%
+  chrono W1   mid        9: n=   53 win= 58.5% (base  53.5 d= +5.0) med= +3.33 rug= 5.7%
+  chrono W1   mid       10: n=   53 win= 66.0% (base  53.5 d=+12.5) med= +4.70 rug= 3.8%
+  chrono W1   mid       11: n=   39 win= 56.4% (base  53.5 d= +2.9) med= +1.24 rug= 2.6%
+  chrono W1   mid       12: n=   46 win= 47.8% (base  53.5 d= -5.7) med= -3.38 rug=15.2%
+  chrono W1   mid       13: n=   38 win= 55.3% (base  53.5 d= +1.8) med= +5.58 rug= 0.0%
+  chrono W1   mid       14: n=   42 win= 50.0% (base  53.5 d= -3.5) med= -0.35 rug= 0.0%
+  chrono W1   mid       15: n=   42 win= 52.4% (base  53.5 d= -1.1) med= +0.84 rug= 2.4%
+  chrono W1   mid       16: n=   21 win= 76.2% (base  53.5 d=+22.7) med=+11.40 rug= 0.0%
+  chrono W1   mid       17: n=   17 win= 76.5% (base  53.5 d=+23.0) med=+10.74 rug= 0.0%
+  chrono W1   mid       18: n=   20 win= 50.0% (base  53.5 d= -3.5) med= -2.13 rug=10.0%
+  chrono W1   mid       19: n=   27 win= 59.3% (base  53.5 d= +5.8) med= +5.49 rug= 0.0%
+  chrono W1   mid       20: n=   44 win= 40.9% (base  53.5 d=-12.6) med= -6.30 rug= 9.1%
+  chrono W1   mid       21: n=   33 win= 54.5% (base  53.5 d= +1.0) med= +1.80 rug=15.2%
+  chrono W1   mid       22: n=   27 win= 33.3% (base  53.5 d=-20.2) med= -4.73 rug= 0.0%
+  chrono W1   mid       23: n=   38 win= 50.0% (base  53.5 d= -3.5) med= +0.18 rug= 5.3%
+  chrono W2   mid        0: n=  220 win= 59.5% (base  49.6 d= +9.9) med= +5.71 rug= 0.5%
+  chrono W2   mid        1: n=  144 win= 54.2% (base  49.6 d= +4.6) med= +2.66 rug= 4.2%
+  chrono W2   mid        2: n=  164 win= 58.5% (base  49.6 d= +8.9) med= +3.42 rug= 4.9%
+  chrono W2   mid        3: n=  170 win= 54.7% (base  49.6 d= +5.1) med= +2.52 rug= 3.5%
+  chrono W2   mid        4: n=  161 win= 49.7% (base  49.6 d= +0.1) med= -0.17 rug= 3.1%
+  chrono W2   mid        5: n=  180 win= 53.3% (base  49.6 d= +3.7) med= +2.70 rug= 5.0%
+  chrono W2   mid        6: n=  198 win= 52.0% (base  49.6 d= +2.4) med= +0.51 rug= 5.1%
+  chrono W2   mid        7: n=  164 win= 55.5% (base  49.6 d= +5.9) med= +2.08 rug= 6.7%
+  chrono W2   mid        8: n=  176 win= 47.7% (base  49.6 d= -1.9) med= -1.48 rug= 4.0%
+  chrono W2   mid        9: n=  165 win= 52.1% (base  49.6 d= +2.5) med= +0.51 rug= 5.5%
+  chrono W2   mid       10: n=  229 win= 49.8% (base  49.6 d= +0.2) med= -0.28 rug= 3.9%
+  chrono W2   mid       11: n=  267 win= 49.8% (base  49.6 d= +0.2) med= -0.16 rug= 5.6%
+  chrono W2   mid       12: n=  269 win= 48.0% (base  49.6 d= -1.6) med= -0.56 rug= 4.5%
+  chrono W2   mid       13: n=  266 win= 45.1% (base  49.6 d= -4.5) med= -2.01 rug= 5.6%
+  chrono W2   mid       14: n=  304 win= 41.8% (base  49.6 d= -7.8) med= -4.87 rug= 2.0%
+  chrono W2   mid       15: n=  251 win= 45.4% (base  49.6 d= -4.2) med= -2.14 rug= 2.8%
+  chrono W2   mid       16: n=  191 win= 48.2% (base  49.6 d= -1.4) med= -0.81 rug= 1.6%
+  chrono W2   mid       17: n=  203 win= 46.8% (base  49.6 d= -2.8) med= -0.97 rug= 3.0%
+  chrono W2   mid       18: n=  208 win= 45.7% (base  49.6 d= -3.9) med= -3.63 rug= 1.4%
+  chrono W2   mid       19: n=  242 win= 48.8% (base  49.6 d= -0.8) med= -0.53 rug= 0.4%
+  chrono W2   mid       20: n=  231 win= 49.8% (base  49.6 d= +0.2) med= -0.35 rug= 0.4%
+  chrono W2   mid       21: n=  214 win= 51.4% (base  49.6 d= +1.8) med= +1.13 rug= 1.4%
+  chrono W2   mid       22: n=  197 win= 46.2% (base  49.6 d= -3.4) med= -1.23 rug= 4.1%
+  chrono W2   mid       23: n=  219 win= 47.9% (base  49.6 d= -1.7) med= -0.98 rug= 2.7%
+  chrono W1   aged       0: n=   29 win= 48.3% (base  55.8 d= -7.5) med= -0.28 rug= 0.0%
+  chrono W1   aged       1: n=   20 win= 55.0% (base  55.8 d= -0.8) med= +3.17 rug= 0.0%
+  chrono W1   aged       2: n=   16 win= 75.0% (base  55.8 d=+19.2) med= +2.68 rug= 0.0%
+  chrono W1   aged       3: n=   12 win= 66.7% (base  55.8 d=+10.9) med= +3.75 rug= 0.0%
+  chrono W1   aged       4: n=   18 win= 66.7% (base  55.8 d=+10.9) med=+11.71 rug= 0.0%
+  chrono W1   aged       5: n=   29 win= 72.4% (base  55.8 d=+16.6) med= +8.69 rug= 0.0%
+  chrono W1   aged       6: n=   31 win= 51.6% (base  55.8 d= -4.2) med= +1.01 rug= 0.0%
+  chrono W1   aged       7: n=   32 win= 53.1% (base  55.8 d= -2.7) med= +1.26 rug= 0.0%
+  chrono W1   aged       8: n=   38 win= 57.9% (base  55.8 d= +2.1) med= +2.06 rug= 0.0%
+  chrono W1   aged       9: n=   46 win= 71.7% (base  55.8 d=+15.9) med= +6.00 rug= 0.0%
+  chrono W1   aged      10: n=   47 win= 48.9% (base  55.8 d= -6.9) med= -0.16 rug= 0.0%
+  chrono W1   aged      11: n=   35 win= 54.3% (base  55.8 d= -1.5) med= +1.23 rug= 0.0%
+  chrono W1   aged      12: n=   30 win= 63.3% (base  55.8 d= +7.5) med= +1.40 rug= 0.0%
+  chrono W1   aged      13: n=   20 win= 70.0% (base  55.8 d=+14.2) med= +5.72 rug= 0.0%
+  chrono W1   aged      14: n=   35 win= 60.0% (base  55.8 d= +4.2) med= +7.28 rug= 0.0%
+  chrono W1   aged      15: n=   33 win= 54.5% (base  55.8 d= -1.3) med= +1.52 rug= 3.0%
+  chrono W1   aged      16: n=   39 win= 69.2% (base  55.8 d=+13.4) med= +4.33 rug= 0.0%
+  chrono W1   aged      17: n=   56 win= 51.8% (base  55.8 d= -4.0) med= +0.74 rug= 0.0%
+  chrono W1   aged      18: n=   54 win= 59.3% (base  55.8 d= +3.5) med= +4.33 rug= 0.0%
+  chrono W1   aged      19: n=  103 win= 56.3% (base  55.8 d= +0.5) med= +4.63 rug= 1.0%
+  chrono W1   aged      20: n=  153 win= 40.5% (base  55.8 d=-15.3) med= -5.67 rug= 0.7%
+  chrono W1   aged      21: n=   84 win= 53.6% (base  55.8 d= -2.2) med= +1.90 rug= 0.0%
+  chrono W1   aged      22: n=   61 win= 55.7% (base  55.8 d= -0.1) med= +1.80 rug= 0.0%
+  chrono W1   aged      23: n=   39 win= 61.5% (base  55.8 d= +5.7) med= +3.65 rug= 0.0%
+  chrono W2   aged       0: n=  341 win= 55.7% (base  50.6 d= +5.1) med= +1.28 rug= 0.0%
+  chrono W2   aged       1: n=  312 win= 53.5% (base  50.6 d= +2.9) med= +2.22 rug= 0.0%
+  chrono W2   aged       2: n=  360 win= 54.4% (base  50.6 d= +3.8) med= +2.00 rug= 0.3%
+  chrono W2   aged       3: n=  420 win= 56.4% (base  50.6 d= +5.8) med= +4.27 rug= 0.2%
+  chrono W2   aged       4: n=  522 win= 55.2% (base  50.6 d= +4.6) med= +2.88 rug= 1.1%
+  chrono W2   aged       5: n=  583 win= 52.3% (base  50.6 d= +1.7) med= +1.43 rug= 0.7%
+  chrono W2   aged       6: n=  546 win= 49.8% (base  50.6 d= -0.8) med= -0.16 rug= 1.3%
+  chrono W2   aged       7: n=  461 win= 47.7% (base  50.6 d= -2.9) med= -1.23 rug= 0.0%
+  chrono W2   aged       8: n=  396 win= 49.2% (base  50.6 d= -1.4) med= -0.39 rug= 0.0%
+  chrono W2   aged       9: n=  362 win= 58.3% (base  50.6 d= +7.7) med= +3.46 rug= 0.0%
+  chrono W2   aged      10: n=  379 win= 52.0% (base  50.6 d= +1.4) med= +1.14 rug= 0.8%
+  chrono W2   aged      11: n=  538 win= 49.6% (base  50.6 d= -1.0) med= -0.29 rug= 0.9%
+  chrono W2   aged      12: n=  493 win= 47.1% (base  50.6 d= -3.5) med= -0.78 rug= 0.2%
+  chrono W2   aged      13: n=  518 win= 48.5% (base  50.6 d= -2.1) med= -0.80 rug= 1.0%
+  chrono W2   aged      14: n=  567 win= 44.4% (base  50.6 d= -6.2) med= -1.53 rug= 0.0%
+  chrono W2   aged      15: n=  524 win= 46.9% (base  50.6 d= -3.7) med= -1.61 rug= 0.2%
+  chrono W2   aged      16: n=  451 win= 51.4% (base  50.6 d= +0.8) med= +0.31 rug= 0.2%
+  chrono W2   aged      17: n=  486 win= 47.9% (base  50.6 d= -2.7) med= -0.70 rug= 0.4%
+  chrono W2   aged      18: n=  493 win= 48.5% (base  50.6 d= -2.1) med= -0.52 rug= 0.6%
+  chrono W2   aged      19: n=  449 win= 48.8% (base  50.6 d= -1.8) med= -0.59 rug= 0.0%
+  chrono W2   aged      20: n=  531 win= 46.9% (base  50.6 d= -3.7) med= -1.08 rug= 0.2%
+  chrono W2   aged      21: n=  441 win= 52.8% (base  50.6 d= +2.2) med= +1.14 rug= 0.7%
+  chrono W2   aged      22: n=  371 win= 51.2% (base  50.6 d= +0.6) med= +0.58 rug= 0.3%
+  chrono W2   aged      23: n=  320 win= 53.4% (base  50.6 d= +2.8) med= +0.96 rug= 0.0%
+
+=== discovery_regime x age band (dip trips) ===
+  chrono W1   young    bot: n=  101 win= 54.5% (base  59.6 d= -5.1) med= +6.66 rug= 9.9%
+  chrono W1   young  human: n= 3578 win= 59.8% (base  59.6 d= +0.2) med=+11.26 rug= 4.1%
+  chrono W2   young    bot: n=16249 win= 48.9% (base  49.5 d= -0.6) med= -1.32 rug= 9.3%
+  chrono W2   young  human: n= 1409 win= 57.6% (base  49.5 d= +8.1) med= +8.25 rug= 5.2%
+  chrono W1   mid      bot: n=    6 win= 83.3% (base  53.5 d=+29.8) med=+19.40 rug= 0.0%
+  chrono W1   mid    human: n=  832 win= 53.2% (base  53.5 d= -0.3) med= +1.06 rug= 5.8%
+  chrono W2   mid      bot: n= 4743 win= 49.4% (base  49.6 d= -0.2) med= -0.35 rug= 3.5%
+  chrono W2   mid    human: n=  290 win= 52.4% (base  49.6 d= +2.8) med= +1.33 rug= 0.3%
+  chrono W1   aged     bot: n=   13 win= 53.8% (base  55.8 d= -2.0) med= +4.36 rug= 0.0%
+  chrono W1   aged   human: n= 1047 win= 55.8% (base  55.8 d= +0.0) med= +1.99 rug= 0.3%
+  chrono W2   aged     bot: n= 9888 win= 50.1% (base  50.6 d= -0.5) med= +0.04 rug= 0.4%
+  chrono W2   aged   human: n=  976 win= 55.0% (base  50.6 d= +4.4) med= +2.00 rug= 0.2%
+  parity even young    bot: n=11201 win= 47.9% (base  50.0 d= -2.1) med= -2.37 rug= 8.9%
+  parity even young  human: n= 2776 win= 58.8% (base  50.0 d= +8.8) med= +9.55 rug= 5.2%
+  parity odd  young    bot: n= 5149 win= 51.1% (base  53.7 d= -2.6) med= +0.98 rug=10.1%
+  parity odd  young  human: n= 2211 win= 59.6% (base  53.7 d= +5.9) med=+10.98 rug= 3.5%
+  parity even mid      bot: n= 3070 win= 49.7% (base  50.2 d= -0.5) med= -0.26 rug= 2.5%
+  parity even mid    human: n=  598 win= 52.3% (base  50.2 d= +2.1) med= +1.19 rug= 5.0%
+  parity odd  mid      bot: n= 1679 win= 49.0% (base  50.1 d= -1.1) med= -0.41 rug= 5.3%
+  parity odd  mid    human: n=  524 win= 53.8% (base  50.1 d= +3.7) med= +0.90 rug= 3.6%
+  parity even aged     bot: n= 7556 win= 49.8% (base  50.6 d= -0.8) med= -0.10 rug= 0.5%
+  parity even aged   human: n= 1088 win= 56.0% (base  50.6 d= +5.4) med= +2.71 rug= 0.2%
+  parity odd  aged     bot: n= 2345 win= 51.2% (base  52.2 d= -1.0) med= +0.44 rug= 0.3%
+  parity odd  aged   human: n=  935 win= 54.8% (base  52.2 d= +2.6) med= +1.37 rug= 0.3%
+
+=== buy_share_prior30m x age band (dip trips) ===
+  chrono W1   young  50-55: n= 2834 win= 60.9% (base  59.6 d= +1.3) med=+12.88 rug= 4.0%
+  chrono W1   young  55-62: n=   53 win= 64.2% (base  59.6 d= +4.6) med= +6.34 rug= 1.9%
+  chrono W1   young    <50: n=  775 win= 55.1% (base  59.6 d= -4.5) med= +5.94 rug= 5.3%
+  chrono W1   young    >62: n=   17 win= 41.2% (base  59.6 d=-18.4) med= -4.01 rug=11.8%
+  chrono W2   young  50-55: n=12835 win= 50.1% (base  49.5 d= +0.6) med= +0.09 rug= 8.8%
+  chrono W2   young  55-62: n=  115 win= 45.2% (base  49.5 d= -4.3) med= -5.72 rug= 7.8%
+  chrono W2   young    <50: n= 4708 win= 48.1% (base  49.5 d= -1.4) med= -2.05 rug= 9.5%
+  chrono W1   mid    50-55: n=  620 win= 52.9% (base  53.5 d= -0.6) med= +0.88 rug= 6.3%
+  chrono W1   mid    55-62: n=   13 win= 61.5% (base  53.5 d= +8.0) med= +7.29 rug= 0.0%
+  chrono W1   mid      <50: n=  202 win= 54.5% (base  53.5 d= +1.0) med= +1.89 rug= 4.5%
+  chrono W1   mid      >62: n=    3 win= 66.7% (base  53.5 d=+13.2) med=+18.56 rug= 0.0%
+  chrono W2   mid    50-55: n= 3669 win= 49.2% (base  49.6 d= -0.4) med= -0.44 rug= 3.5%
+  chrono W2   mid    55-62: n=   28 win= 57.1% (base  49.6 d= +7.5) med= +4.79 rug= 0.0%
+  chrono W2   mid      <50: n= 1336 win= 50.5% (base  49.6 d= +0.9) med= +0.14 rug= 3.0%
+  chrono W1   aged   50-55: n=  729 win= 56.7% (base  55.8 d= +0.9) med= +2.19 rug= 0.4%
+  chrono W1   aged   55-62: n=   47 win= 46.8% (base  55.8 d= -9.0) med= -1.64 rug= 0.0%
+  chrono W1   aged     <50: n=  250 win= 52.4% (base  55.8 d= -3.4) med= +0.75 rug= 0.0%
+  chrono W1   aged     >62: n=   34 win= 73.5% (base  55.8 d=+17.7) med=+22.53 rug= 0.0%
+  chrono W2   aged   50-55: n= 8175 win= 50.5% (base  50.6 d= -0.1) med= +0.21 rug= 0.5%
+  chrono W2   aged   55-62: n=   59 win= 61.0% (base  50.6 d=+10.4) med= +3.61 rug= 0.0%
+  chrono W2   aged     <50: n= 2630 win= 50.5% (base  50.6 d= -0.1) med= +0.23 rug= 0.3%
+  parity even young  50-55: n= 9973 win= 50.7% (base  50.0 d= +0.7) med= +0.76 rug= 8.1%
+  parity even young  55-62: n=  148 win= 50.0% (base  50.0 d= +0.0) med= +0.38 rug= 6.8%
+  parity even young    <50: n= 3856 win= 48.2% (base  50.0 d= -1.8) med= -1.85 rug= 8.5%
+  parity odd  young  50-55: n= 5696 win= 54.4% (base  53.7 d= +0.7) med= +4.86 rug= 7.6%
+  parity odd  young  55-62: n=   20 win= 60.0% (base  53.7 d= +6.3) med= +4.73 rug= 0.0%
+  parity odd  young    <50: n= 1627 win= 51.1% (base  53.7 d= -2.6) med= +1.03 rug= 9.8%
+  parity odd  young    >62: n=   17 win= 41.2% (base  53.7 d=-12.5) med= -4.01 rug=11.8%
+  parity even mid    50-55: n= 2630 win= 50.0% (base  50.2 d= -0.2) med= -0.07 rug= 3.2%
+  parity even mid    55-62: n=   35 win= 62.9% (base  50.2 d=+12.7) med= +8.12 rug= 0.0%
+  parity even mid      <50: n= 1003 win= 50.2% (base  50.2 d= +0.0) med= +0.14 rug= 2.4%
+  parity odd  mid    50-55: n= 1659 win= 49.4% (base  50.1 d= -0.7) med= -0.21 rug= 5.0%
+  parity odd  mid    55-62: n=    6 win= 33.3% (base  50.1 d=-16.8) med= -6.72 rug= 0.0%
+  parity odd  mid      <50: n=  535 win= 52.5% (base  50.1 d= +2.4) med= +0.58 rug= 4.7%
+  parity odd  mid      >62: n=    3 win= 66.7% (base  50.1 d=+16.6) med=+18.56 rug= 0.0%
+  parity even aged   50-55: n= 6457 win= 50.7% (base  50.6 d= +0.1) med= +0.36 rug= 0.5%
+  parity even aged   55-62: n=   87 win= 57.5% (base  50.6 d= +6.9) med= +2.15 rug= 0.0%
+  parity even aged     <50: n= 2100 win= 49.9% (base  50.6 d= -0.7) med= -0.01 rug= 0.3%
+  parity odd  aged   50-55: n= 2447 win= 51.9% (base  52.2 d= -0.3) med= +0.68 rug= 0.3%
+  parity odd  aged   55-62: n=   19 win= 42.1% (base  52.2 d=-10.1) med= -1.64 rug= 0.0%
+  parity odd  aged     <50: n=  780 win= 52.6% (base  52.2 d= +0.4) med= +1.04 rug= 0.3%
+  parity odd  aged     >62: n=   34 win= 73.5% (base  52.2 d=+21.3) med=+22.53 rug= 0.0%
+
+=== distinct_pools_prior30m x age band (dip trips) ===
+  chrono W1   young     lo: n= 3679 win= 59.6% (base  59.6 d= +0.0) med=+10.98 rug= 4.3%
+  chrono W2   young     hi: n= 7016 win= 48.9% (base  49.5 d= -0.6) med= -1.21 rug=10.2%
+  chrono W2   young     lo: n= 3612 win= 53.2% (base  49.5 d= +3.7) med= +3.36 rug= 7.5%
+  chrono W2   young    mid: n= 7030 win= 48.3% (base  49.5 d= -1.2) med= -1.97 rug= 8.4%
+  chrono W1   mid       lo: n=  838 win= 53.5% (base  53.5 d= +0.0) med= +1.11 rug= 5.7%
+  chrono W2   mid       hi: n= 2033 win= 49.4% (base  49.6 d= -0.2) med= -0.46 rug= 2.3%
+  chrono W2   mid       lo: n= 1000 win= 51.5% (base  49.6 d= +1.9) med= +0.58 rug= 4.3%
+  chrono W2   mid      mid: n= 2000 win= 48.9% (base  49.6 d= -0.7) med= -0.49 rug= 3.9%
+  chrono W1   aged      lo: n= 1060 win= 55.8% (base  55.8 d= +0.0) med= +2.00 rug= 0.3%
+  chrono W2   aged      hi: n= 4244 win= 50.3% (base  50.6 d= -0.3) med= +0.09 rug= 0.4%
+  chrono W2   aged      lo: n= 2838 win= 53.1% (base  50.6 d= +2.5) med= +1.54 rug= 0.6%
+  chrono W2   aged     mid: n= 3782 win= 49.0% (base  50.6 d= -1.6) med= -0.46 rug= 0.3%
+  parity even young     hi: n= 5700 win= 47.9% (base  50.0 d= -2.1) med= -2.19 rug=10.5%
+  parity even young     lo: n= 3817 win= 56.0% (base  50.0 d= +6.0) med= +6.67 rug= 5.3%
+  parity even young    mid: n= 4460 win= 47.6% (base  50.0 d= -2.4) med= -2.62 rug= 7.7%
+  parity odd  young     hi: n= 1316 win= 53.3% (base  53.7 d= -0.4) med= +3.33 rug= 9.2%
+  parity odd  young     lo: n= 3474 win= 56.9% (base  53.7 d= +3.2) med= +7.58 rug= 6.4%
+  parity odd  young    mid: n= 2570 win= 49.5% (base  53.7 d= -4.2) med= -0.55 rug= 9.8%
+  parity even mid       hi: n= 1675 win= 49.9% (base  50.2 d= -0.3) med= -0.12 rug= 1.6%
+  parity even mid       lo: n=  776 win= 52.6% (base  50.2 d= +2.4) med= +1.27 rug= 5.2%
+  parity even mid      mid: n= 1217 win= 49.1% (base  50.2 d= -1.1) med= -0.42 rug= 3.3%
+  parity odd  mid       hi: n=  358 win= 47.2% (base  50.1 d= -2.9) med= -1.56 rug= 5.3%
+  parity odd  mid       lo: n= 1062 win= 52.3% (base  50.1 d= +2.2) med= +0.58 rug= 4.8%
+  parity odd  mid      mid: n=  783 win= 48.5% (base  50.1 d= -1.6) med= -0.54 rug= 4.9%
+  parity even aged      hi: n= 3537 win= 50.0% (base  50.6 d= -0.6) med= +0.00 rug= 0.5%
+  parity even aged      lo: n= 2598 win= 53.0% (base  50.6 d= +2.4) med= +1.74 rug= 0.6%
+  parity even aged     mid: n= 2509 win= 48.8% (base  50.6 d= -1.8) med= -0.56 rug= 0.3%
+  parity odd  aged      hi: n=  707 win= 51.8% (base  52.2 d= -0.4) med= +0.74 rug= 0.1%
+  parity odd  aged      lo: n= 1300 win= 55.4% (base  52.2 d= +3.2) med= +1.58 rug= 0.2%
+  parity odd  aged     mid: n= 1273 win= 49.3% (base  52.2 d= -2.9) med= -0.26 rug= 0.4%
+  distinct_pools cuts: (841, 1272)
+
+=== eth_1h_move x age band (dip trips) ===
+  chrono W2   young     hi: n= 4374 win= 49.3% (base  49.5 d= -0.2) med= -0.70 rug=10.7%
+  chrono W2   young     lo: n= 4188 win= 49.0% (base  49.5 d= -0.5) med= -1.35 rug= 9.5%
+  chrono W2   young    mid: n= 4489 win= 49.7% (base  49.5 d= +0.2) med= -0.33 rug=10.1%
+  chrono W2   mid       hi: n= 1271 win= 51.0% (base  49.6 d= +1.4) med= +0.13 rug= 3.5%
+  chrono W2   mid       lo: n= 1408 win= 48.9% (base  49.6 d= -0.7) med= -0.45 rug= 3.3%
+  chrono W2   mid      mid: n= 1362 win= 50.2% (base  49.6 d= +0.6) med= +0.26 rug= 3.5%
+  chrono W2   aged      hi: n= 2374 win= 51.1% (base  50.6 d= +0.5) med= +0.62 rug= 0.3%
+  chrono W2   aged      lo: n= 2317 win= 48.5% (base  50.6 d= -2.1) med= -0.54 rug= 0.5%
+  chrono W2   aged     mid: n= 2159 win= 52.2% (base  50.6 d= +1.6) med= +1.13 rug= 0.3%
+  parity even young     hi: n= 2992 win= 48.4% (base  50.0 d= -1.6) med= -1.67 rug=11.2%
+  parity even young     lo: n= 2146 win= 47.9% (base  50.0 d= -2.1) med= -2.44 rug= 8.7%
+  parity even young    mid: n= 2786 win= 48.3% (base  50.0 d= -1.7) med= -1.77 rug=10.1%
+  parity odd  young     hi: n= 1382 win= 51.4% (base  53.7 d= -2.3) med= +1.06 rug= 9.6%
+  parity odd  young     lo: n= 2042 win= 50.2% (base  53.7 d= -3.5) med= +0.24 rug=10.3%
+  parity odd  young    mid: n= 1703 win= 52.0% (base  53.7 d= -1.7) med= +2.39 rug=10.3%
+  parity even mid       hi: n=  869 win= 50.4% (base  50.2 d= +0.2) med= +0.03 rug= 2.9%
+  parity even mid       lo: n=  653 win= 50.7% (base  50.2 d= +0.5) med= +0.23 rug= 1.4%
+  parity even mid      mid: n=  842 win= 51.1% (base  50.2 d= +0.9) med= +0.69 rug= 1.9%
+  parity odd  mid       hi: n=  402 win= 52.2% (base  50.1 d= +2.1) med= +0.57 rug= 4.7%
+  parity odd  mid       lo: n=  755 win= 47.4% (base  50.1 d= -2.7) med= -0.83 rug= 5.0%
+  parity odd  mid      mid: n=  520 win= 48.8% (base  50.1 d= -1.3) med= -0.48 rug= 6.2%
+  parity even aged      hi: n= 1748 win= 51.4% (base  50.6 d= +0.8) med= +0.71 rug= 0.2%
+  parity even aged      lo: n= 1275 win= 47.1% (base  50.6 d= -3.5) med= -1.19 rug= 0.6%
+  parity even aged     mid: n= 1497 win= 51.8% (base  50.6 d= +1.2) med= +0.94 rug= 0.5%
+  parity odd  aged      hi: n=  626 win= 50.2% (base  52.2 d= -2.0) med= +0.20 rug= 0.5%
+  parity odd  aged      lo: n= 1042 win= 50.3% (base  52.2 d= -1.9) med= +0.07 rug= 0.3%
+  parity odd  aged     mid: n=  662 win= 53.3% (base  52.2 d= +1.1) med= +1.32 rug= 0.0%
+  eth1h cuts: (-0.08065484872926687, 0.17822622998446835)
+
+=== eth_24h_move x age band (dip trips) ===
+  chrono W2   young     hi: n= 2709 win= 47.5% (base  49.5 d= -2.0) med= -2.65 rug=10.1%
+  chrono W2   young     lo: n= 2763 win= 51.7% (base  49.5 d= +2.2) med= +1.91 rug=10.6%
+  chrono W2   young    mid: n= 3083 win= 48.7% (base  49.5 d= -0.8) med= -1.34 rug=10.8%
+  chrono W2   mid       hi: n=  880 win= 50.2% (base  49.6 d= +0.6) med= +0.03 rug= 1.5%
+  chrono W2   mid       lo: n=  792 win= 52.4% (base  49.6 d= +2.8) med= +1.12 rug= 3.0%
+  chrono W2   mid      mid: n=  831 win= 50.8% (base  49.6 d= +1.2) med= +0.30 rug= 2.3%
+  chrono W2   aged      hi: n= 1892 win= 48.8% (base  50.6 d= -1.8) med= -0.49 rug= 0.3%
+  chrono W2   aged      lo: n= 1714 win= 48.8% (base  50.6 d= -1.8) med= -0.34 rug= 0.3%
+  chrono W2   aged     mid: n= 1652 win= 52.5% (base  50.6 d= +1.9) med= +1.22 rug= 0.6%
+  parity even young     hi: n= 2553 win= 47.1% (base  50.0 d= -2.9) med= -2.94 rug=10.1%
+  parity even young     lo: n= 1184 win= 50.8% (base  50.0 d= +0.8) med= +0.68 rug=10.9%
+  parity even young    mid: n= 3083 win= 48.7% (base  50.0 d= -1.3) med= -1.34 rug=10.8%
+  parity odd  young     hi: n=  156 win= 53.2% (base  53.7 d= -0.5) med= +2.35 rug=10.3%
+  parity odd  young     lo: n= 1579 win= 52.4% (base  53.7 d= -1.3) med= +2.98 rug=10.3%
+  parity even mid       hi: n=  822 win= 49.4% (base  50.2 d= -0.8) med= -0.54 rug= 1.6%
+  parity even mid       lo: n=  317 win= 58.0% (base  50.2 d= +7.8) med= +4.15 rug= 2.8%
+  parity even mid      mid: n=  831 win= 50.8% (base  50.2 d= +0.6) med= +0.30 rug= 2.3%
+  parity odd  mid       hi: n=   58 win= 62.1% (base  50.1 d=+12.0) med= +2.78 rug= 0.0%
+  parity odd  mid       lo: n=  475 win= 48.6% (base  50.1 d= -1.5) med= -0.59 rug= 3.2%
+  parity even aged      hi: n= 1839 win= 48.8% (base  50.6 d= -1.8) med= -0.62 rug= 0.3%
+  parity even aged      lo: n=  606 win= 49.2% (base  50.6 d= -1.4) med= -0.31 rug= 0.3%
+  parity even aged     mid: n= 1652 win= 52.5% (base  50.6 d= +1.9) med= +1.22 rug= 0.6%
+  parity odd  aged      hi: n=   53 win= 50.9% (base  52.2 d= -1.3) med= +0.37 rug= 0.0%
+  parity odd  aged      lo: n= 1108 win= 48.6% (base  52.2 d= -3.6) med= -0.43 rug= 0.3%
+  eth24h cuts: (1.7915487763416449, 2.66105633070155)
+
+=== POP follow-through: hour_block x band ===
+
+=== pop_hour_block x age band (dip trips) ===
+  chrono W1   young  02-07: n=  684 win= 65.2% (base  59.2 d= +6.0) med=+19.25 rug= 6.1%
+  chrono W1   young  08-10: n=  330 win= 62.7% (base  59.2 d= +3.5) med=+21.77 rug= 3.9%
+  chrono W1   young  11-13: n=  401 win= 58.1% (base  59.2 d= -1.1) med=+14.71 rug=10.0%
+  chrono W1   young  14-18: n= 1056 win= 58.5% (base  59.2 d= -0.7) med=+13.70 rug= 5.5%
+  chrono W1   young  19-21: n=  658 win= 55.9% (base  59.2 d= -3.3) med= +8.32 rug= 4.7%
+  chrono W1   young  22-01: n=  519 win= 55.5% (base  59.2 d= -3.7) med= +7.51 rug= 5.4%
+  chrono W2   young  02-07: n= 3203 win= 49.2% (base  48.6 d= +0.6) med= -0.89 rug= 9.6%
+  chrono W2   young  08-10: n= 1659 win= 48.3% (base  48.6 d= -0.3) med= -1.39 rug= 9.8%
+  chrono W2   young  11-13: n= 2155 win= 48.3% (base  48.6 d= -0.3) med= -3.03 rug=11.8%
+  chrono W2   young  14-18: n= 4328 win= 47.7% (base  48.6 d= -0.9) med= -3.19 rug= 9.8%
+  chrono W2   young  19-21: n= 2300 win= 48.0% (base  48.6 d= -0.6) med= -2.99 rug=10.1%
+  chrono W2   young  22-01: n= 2539 win= 50.1% (base  48.6 d= +1.5) med= +0.12 rug=11.1%
+  chrono W1   mid    02-07: n=  128 win= 57.8% (base  44.8 d=+13.0) med= +5.18 rug= 5.5%
+  chrono W1   mid    08-10: n=   88 win= 43.2% (base  44.8 d= -1.6) med= -2.22 rug= 2.3%
+  chrono W1   mid    11-13: n=   72 win= 43.1% (base  44.8 d= -1.7) med= -5.88 rug= 8.3%
+  chrono W1   mid    14-18: n=   86 win= 33.7% (base  44.8 d=-11.1) med= -9.73 rug= 5.8%
+  chrono W1   mid    19-21: n=   53 win= 39.6% (base  44.8 d= -5.2) med= -7.56 rug= 3.8%
+  chrono W1   mid    22-01: n=   55 win= 41.8% (base  44.8 d= -3.0) med= -5.50 rug= 3.6%
+  chrono W2   mid    02-07: n=  651 win= 43.5% (base  40.7 d= +2.8) med= -4.11 rug= 5.8%
+  chrono W2   mid    08-10: n=  401 win= 43.1% (base  40.7 d= +2.4) med= -5.01 rug= 5.0%
+  chrono W2   mid    11-13: n=  532 win= 40.0% (base  40.7 d= -0.7) med= -7.02 rug= 5.6%
+  chrono W2   mid    14-18: n=  706 win= 34.6% (base  40.7 d= -6.1) med=-10.44 rug= 3.0%
+  chrono W2   mid    19-21: n=  474 win= 41.4% (base  40.7 d= +0.7) med= -6.13 rug= 1.3%
+  chrono W2   mid    22-01: n=  448 win= 44.2% (base  40.7 d= +3.5) med= -2.92 rug= 3.6%
+  chrono W1   aged   02-07: n=  120 win= 51.7% (base  44.5 d= +7.2) med= +0.68 rug= 1.7%
+  chrono W1   aged   08-10: n=   82 win= 39.0% (base  44.5 d= -5.5) med= -6.33 rug= 0.0%
+  chrono W1   aged   11-13: n=   37 win= 27.0% (base  44.5 d=-17.5) med= -9.05 rug= 0.0%
+  chrono W1   aged   14-18: n=  133 win= 46.6% (base  44.5 d= +2.1) med= -2.11 rug= 0.0%
+  chrono W1   aged   19-21: n=  241 win= 47.3% (base  44.5 d= +2.8) med= -3.22 rug= 0.4%
+  chrono W1   aged   22-01: n=   72 win= 34.7% (base  44.5 d= -9.8) med= -9.41 rug= 0.0%
+  chrono W2   aged   02-07: n= 2053 win= 40.9% (base  39.8 d= +1.1) med= -5.44 rug= 1.2%
+  chrono W2   aged   08-10: n=  780 win= 38.8% (base  39.8 d= -1.0) med= -6.16 rug= 1.0%
+  chrono W2   aged   11-13: n=  914 win= 37.9% (base  39.8 d= -1.9) med= -7.29 rug= 1.2%
+  chrono W2   aged   14-18: n= 1488 win= 38.6% (base  39.8 d= -1.2) med= -6.88 rug= 1.4%
+  chrono W2   aged   19-21: n=  892 win= 39.8% (base  39.8 d= +0.0) med= -7.42 rug= 1.3%
+  chrono W2   aged   22-01: n=  870 win= 42.2% (base  39.8 d= +2.4) med= -6.13 rug= 1.1%
+  parity even young  02-07: n= 2677 win= 50.2% (base  49.2 d= +1.0) med= +0.79 rug= 9.0%
+  parity even young  08-10: n= 1400 win= 48.9% (base  49.2 d= -0.3) med= -0.86 rug= 8.1%
+  parity even young  11-13: n= 1746 win= 49.0% (base  49.2 d= -0.2) med= -2.46 rug=11.2%
+  parity even young  14-18: n= 3477 win= 48.0% (base  49.2 d= -1.2) med= -3.17 rug= 9.4%
+  parity even young  19-21: n= 1811 win= 49.8% (base  49.2 d= +0.6) med= -0.31 rug= 9.9%
+  parity even young  22-01: n= 1780 win= 50.1% (base  49.2 d= +0.9) med= +0.17 rug=10.7%
+  parity odd  young  02-07: n= 1210 win= 56.0% (base  52.9 d= +3.1) med= +8.00 rug= 9.0%
+  parity odd  young  08-10: n=  589 win= 55.0% (base  52.9 d= +2.1) med= +7.44 rug=10.5%
+  parity odd  young  11-13: n=  810 win= 51.7% (base  52.9 d= -1.2) med= +2.41 rug=12.3%
+  parity odd  young  14-18: n= 1907 win= 53.2% (base  52.9 d= +0.3) med= +3.74 rug= 8.2%
+  parity odd  young  19-21: n= 1147 win= 49.8% (base  52.9 d= -3.1) med= -0.64 rug= 7.4%
+  parity odd  young  22-01: n= 1278 win= 52.2% (base  52.9 d= -0.7) med= +3.29 rug= 9.4%
+  parity even mid    02-07: n=  522 win= 42.5% (base  39.8 d= +2.7) med= -5.86 rug= 5.2%
+  parity even mid    08-10: n=  308 win= 42.2% (base  39.8 d= +2.4) med= -3.60 rug= 3.9%
+  parity even mid    11-13: n=  390 win= 37.9% (base  39.8 d= -1.9) med= -8.83 rug= 3.3%
+  parity even mid    14-18: n=  558 win= 32.6% (base  39.8 d= -7.2) med=-11.40 rug= 0.9%
+  parity even mid    19-21: n=  287 win= 42.9% (base  39.8 d= +3.1) med= -6.30 rug= 0.3%
+  parity even mid    22-01: n=  289 win= 46.0% (base  39.8 d= +6.2) med= -1.44 rug= 3.5%
+  parity odd  mid    02-07: n=  257 win= 52.5% (base  43.7 d= +8.8) med= +1.24 rug= 7.0%
+  parity odd  mid    08-10: n=  181 win= 44.8% (base  43.7 d= +1.1) med= -5.01 rug= 5.5%
+  parity odd  mid    11-13: n=  214 win= 44.9% (base  43.7 d= +1.2) med= -4.71 rug=10.7%
+  parity odd  mid    14-18: n=  234 win= 38.9% (base  43.7 d= -4.8) med= -6.32 rug= 9.0%
+  parity odd  mid    19-21: n=  240 win= 39.2% (base  43.7 d= -4.5) med= -6.00 rug= 2.9%
+  parity odd  mid    22-01: n=  214 win= 41.1% (base  43.7 d= -2.6) med= -6.37 rug= 3.7%
+  parity even aged   02-07: n= 1968 win= 41.8% (base  39.8 d= +2.0) med= -5.00 rug= 1.3%
+  parity even aged   08-10: n=  701 win= 37.7% (base  39.8 d= -2.1) med= -6.63 rug= 1.1%
+  parity even aged   11-13: n=  728 win= 38.6% (base  39.8 d= -1.2) med= -6.97 rug= 1.1%
+  parity even aged   14-18: n= 1095 win= 37.1% (base  39.8 d= -2.7) med= -7.70 rug= 0.8%
+  parity even aged   19-21: n=  445 win= 40.4% (base  39.8 d= +0.6) med= -7.51 rug= 2.0%
+  parity even aged   22-01: n=  601 win= 41.3% (base  39.8 d= +1.5) med= -6.55 rug= 1.2%
+  parity odd  aged   02-07: n=  205 win= 38.5% (base  41.5 d= -3.0) med= -5.51 rug= 1.0%
+  parity odd  aged   08-10: n=  161 win= 44.1% (base  41.5 d= +2.6) med= -4.59 rug= 0.0%
+  parity odd  aged   11-13: n=  223 win= 33.6% (base  41.5 d= -7.9) med= -8.52 rug= 1.3%
+  parity odd  aged   14-18: n=  526 win= 43.9% (base  41.5 d= +2.4) med= -3.80 rug= 2.3%
+  parity odd  aged   19-21: n=  688 win= 42.0% (base  41.5 d= +0.5) med= -6.04 rug= 0.6%
+  parity odd  aged   22-01: n=  341 win= 42.2% (base  41.5 d= +0.7) med= -6.26 rug= 0.9%
+
+=== pop_discovery_regime x age band (dip trips) ===
+  chrono W1   young    bot: n=   98 win= 57.1% (base  59.2 d= -2.1) med= +9.17 rug= 8.2%
+  chrono W1   young  human: n= 3550 win= 59.3% (base  59.2 d= +0.1) med=+13.74 rug= 5.7%
+  chrono W2   young    bot: n=14869 win= 47.9% (base  48.6 d= -0.7) med= -2.91 rug=10.7%
+  chrono W2   young  human: n= 1315 win= 56.3% (base  48.6 d= +7.7) med= +8.56 rug= 5.9%
+  chrono W1   mid      bot: n=    7 win= 57.1% (base  44.8 d=+12.3) med= +4.83 rug= 0.0%
+  chrono W1   mid    human: n=  475 win= 44.6% (base  44.8 d= -0.2) med= -3.72 rug= 5.1%
+  chrono W2   mid      bot: n= 3073 win= 40.6% (base  40.7 d= -0.1) med= -6.09 rug= 4.3%
+  chrono W2   mid    human: n=  139 win= 43.2% (base  40.7 d= +2.5) med= -4.76 rug= 0.0%
+  chrono W1   aged     bot: n=    6 win= 50.0% (base  44.5 d= +5.5) med= -2.35 rug= 0.0%
+  chrono W1   aged   human: n=  679 win= 44.5% (base  44.5 d= +0.0) med= -3.45 rug= 0.4%
+  chrono W2   aged     bot: n= 6216 win= 39.7% (base  39.8 d= -0.1) med= -6.47 rug= 1.2%
+  chrono W2   aged   human: n=  781 win= 40.5% (base  39.8 d= +0.7) med= -6.54 rug= 1.7%
+  parity even young    bot: n=10205 win= 46.8% (base  49.2 d= -2.4) med= -4.40 rug=10.4%
+  parity even young  human: n= 2686 win= 58.5% (base  49.2 d= +9.3) med=+11.28 rug= 6.8%
+  parity odd  young    bot: n= 4762 win= 50.4% (base  52.9 d= -2.5) med= +0.49 rug=11.2%
+  parity odd  young  human: n= 2179 win= 58.5% (base  52.9 d= +5.6) med=+13.26 rug= 4.6%
+  parity even mid      bot: n= 1980 win= 39.3% (base  39.8 d= -0.5) med= -6.97 rug= 2.9%
+  parity even mid    human: n=  374 win= 42.5% (base  39.8 d= +2.7) med= -4.49 rug= 2.9%
+  parity odd  mid      bot: n= 1100 win= 42.9% (base  43.7 d= -0.8) med= -4.32 rug= 6.7%
+  parity odd  mid    human: n=  240 win= 47.1% (base  43.7 d= +3.4) med= -3.00 rug= 5.4%
+  parity even aged     bot: n= 4731 win= 39.4% (base  39.8 d= -0.4) med= -6.59 rug= 1.1%
+  parity even aged   human: n=  807 win= 42.1% (base  39.8 d= +2.3) med= -5.16 rug= 1.5%
+  parity odd  aged     bot: n= 1491 win= 41.0% (base  41.5 d= -0.5) med= -5.91 rug= 1.3%
+  parity odd  aged   human: n=  653 win= 42.6% (base  41.5 d= +1.1) med= -5.62 rug= 0.6%
+
+=== base rates: band x half ===
+  chrono W1   young: n= 3679 win=59.6% med=+10.98 rug=4.3%
+  chrono W2   young: n=17658 win=49.5% med=-0.52 rug=9.0%
+  chrono W1   mid  : n=  838 win=53.5% med=+1.11 rug=5.7%
+  chrono W2   mid  : n= 5033 win=49.6% med=-0.24 rug=3.3%
+  chrono W1   aged : n= 1060 win=55.8% med=+2.00 rug=0.3%
+  chrono W2   aged : n=10864 win=50.6% med=+0.23 rug=0.4%
+  parity even young: n=13977 win=50.0% med=+0.04 rug=8.2%
+  parity odd  young: n= 7360 win=53.7% med=+3.91 rug=8.1%
+  parity even mid  : n= 3668 win=50.2% med=+0.03 rug=2.9%
+  parity odd  mid  : n= 2203 win=50.1% med=+0.05 rug=4.9%
+  parity even aged : n= 8644 win=50.6% med=+0.24 rug=0.5%
+  parity odd  aged : n= 3280 win=52.2% med=+0.83 rug=0.3%
+
+wrote rulebook_v1_tables.json
