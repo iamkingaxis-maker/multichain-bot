@@ -655,6 +655,14 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       <div id="rh-note" style="color:var(--muted);font-size:12px;align-self:center;"></div>
     </div>
     <div class="tbl-wrap">
+      <table class="num-table" id="rh-fleet-table">
+        <thead><tr>
+          <th>racer</th><th>in/out</th><th>WR</th><th>day P&amp;L</th><th>total P&amp;L</th>
+        </tr></thead>
+        <tbody><tr><td colspan="5" class="empty">Loading fleet&hellip;</td></tr></tbody>
+      </table>
+    </div>
+    <div class="tbl-wrap">
       <table class="num-table" id="rh-table">
         <thead><tr>
           <th>time (UTC)</th><th>ev</th><th>sym</th><th>usd</th><th>P&amp;L $</th><th>P&amp;L %</th><th>lat s</th>
@@ -1478,6 +1486,21 @@ async function updateRhPaper() {
       (lag === null || lag === undefined) ? '—' : Number(lag).toFixed(2) + 's';
     if (note) note.textContent =
       'day = ' + (d.day_utc || 'UTC') + ' · paper fills (real pool quotes), not live';
+    // FLEET v1 (2026-07-11): per-racer leaderboard
+    const fbody = document.querySelector('#rh-fleet-table tbody');
+    if (fbody) {
+      const bots = Object.entries(d.bots || {});
+      fbody.innerHTML = bots.length ? bots.map(([id, b]) => {
+        const wr = b.exits ? Math.round(100 * b.wins / b.exits) : null;
+        return `<tr>
+          <td style="font-weight:600">${escHtml(id)}</td>
+          <td class="muted">${b.entries}/${b.exits}</td>
+          <td class="${wr === null ? 'muted' : (wr >= 50 ? 'green' : 'red')}">${wr === null ? '—' : wr + '%'}</td>
+          <td class="${pnlClass(b.day_pnl_usd)}">${fmtUsd(b.day_pnl_usd)}</td>
+          <td class="${pnlClass(b.total_pnl_usd)}">${fmtUsd(b.total_pnl_usd)}</td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="5" class="empty">No racer data yet</td></tr>';
+    }
     const rows = (d.trades || []).slice(-8).reverse();
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="empty">No trades in ledger yet</td></tr>';
@@ -1867,6 +1890,27 @@ def compute_rh_paper_summary(rows: list, last_n: int = 20,
         else:
             continue
         clean.append(r)
+    # Per-racer rollup (RH FLEET v1 2026-07-11): rows carry bot_id; legacy
+    # pre-fleet rows fall under "rh_young_v1" (they were that config).
+    bots = {}
+    for r in clean:
+        b = bots.setdefault(r.get("bot_id") or "rh_young_v1",
+                            {"entries": 0, "exits": 0, "wins": 0,
+                             "day_pnl_usd": 0.0, "total_pnl_usd": 0.0})
+        if r.get("ev") == "buy":
+            b["entries"] += 1
+        else:
+            b["exits"] += 1
+            p = r.get("pnl_usd")
+            if isinstance(p, (int, float)):
+                b["total_pnl_usd"] += float(p)
+                if p > 0:
+                    b["wins"] += 1
+                if str(r.get("ts", ""))[:10] == today_utc:
+                    b["day_pnl_usd"] += float(p)
+    for b in bots.values():
+        b["day_pnl_usd"] = round(b["day_pnl_usd"], 2)
+        b["total_pnl_usd"] = round(b["total_pnl_usd"], 2)
     return {
         "available": True,
         "entries": entries,
@@ -1874,6 +1918,8 @@ def compute_rh_paper_summary(rows: list, last_n: int = 20,
         "day_utc": today_utc,
         "day_pnl_usd": round(day_pnl, 2),
         "trades": clean[-last_n:],
+        "bots": dict(sorted(bots.items(),
+                            key=lambda kv: -kv[1]["day_pnl_usd"])),
         "lag": {"median_lat_total_s":
                 round(_st.median(lats), 2) if lats else None,
                 "n": len(lats)},
