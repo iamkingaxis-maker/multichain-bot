@@ -74,3 +74,13 @@ _*.err
 _full_trades.json
 _df_full.json.gz
 _df_trades.json.gz
+
+# 2026-07-11: scratchpad hit 1.6GB (rh_history backfill + tapes) -> uploads
+# 413'd again (FAILED build de78fe31 + silent up errors). Never upload scratch.
+scratchpad/
+_*.txt
+_*.json
+_*.json.gz
+scratch_*.py
+scratch_*.txt
+out.txt
