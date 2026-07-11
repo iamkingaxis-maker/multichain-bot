@@ -241,31 +241,46 @@ class LaneBot:
 
 LEGACY_BOT_ID = "rh_young_v1"   # pre-fleet single-config state migrates here
 
+# SCALP-FLEET UNIVERSE PIN (phase 2, 2026-07-11): the 10 pre-aged racers were
+# tuned on a feed that structurally capped pool age at 24h (rh_chain_feed
+# MAX_AGE_H default ages pools out of the watch set). When the feed widens
+# for the aged cohort (RH_FEED_MAX_AGE_H > 24, aged-mode liq ranking) their
+# candidate universe must NOT silently widen mid-A/B — the previously
+# implicit ceiling is now EXPLICIT on each racer. Zero behavior change while
+# the feed default (24h) is in force.
+SCALP_MAX_POOL_AGE_H = 24.0
+
 # The 8 racers (2026-07-11): control + the hypotheses the 07-10 ledger raised.
 ROSTER = (
     # 1. control — the shipped config verbatim; inherits the legacy state.
-    LaneBot(bot_id="rh_young_v1"),
+    LaneBot(bot_id="rh_young_v1", max_pool_age_h=SCALP_MAX_POOL_AGE_H),
     # 2. deep flushes only — today's deep entries outperformed the shallow.
-    LaneBot(bot_id="rh_deep_only", dip_trigger_pct=-25.0),
+    LaneBot(bot_id="rh_deep_only", dip_trigger_pct=-25.0,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H),
     # 3. one bite per token ever — the repeat-bite decay hypothesis.
-    LaneBot(bot_id="rh_first_touch", first_touch_only=True),
+    LaneBot(bot_id="rh_first_touch", first_touch_only=True,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H),
     # 4. bite-curve cap: at most 2 entries per token.
-    LaneBot(bot_id="rh_bites2", max_bites_per_token=2),
+    LaneBot(bot_id="rh_bites2", max_bites_per_token=2,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H),
     # 5. friction-adjusted ladder — RH round trip costs 2-3x Solana, so the
     #    exits need more room than the Solana-parity +6/+12.
     LaneBot(bot_id="rh_wide_ladder", tp1_pct=10.0, tp1_sell_fraction=0.75,
-            tp2_pct=20.0),
+            tp2_pct=20.0, max_pool_age_h=SCALP_MAX_POOL_AGE_H),
     # 6. house-money moonbag shape on RH (young_v1 + 10% moonbag, breakeven
     #    floor, 20pp trail).
     LaneBot(bot_id="rh_moonbag", moonbag_fraction=0.10, moonbag_floor_pct=0.0,
-            moonbag_trail_pp=20.0),
+            moonbag_trail_pp=20.0, max_pool_age_h=SCALP_MAX_POOL_AGE_H),
     # 7. stronger demand confirmation — tonight's fades were weak-demand entries.
-    LaneBot(bot_id="rh_demand_heavy", demand_min_buy_usd=150.0),
+    LaneBot(bot_id="rh_demand_heavy", demand_min_buy_usd=150.0,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H),
     # 8. does depth pay for itself via cheaper exits?
-    LaneBot(bot_id="rh_liq40", min_liq_usd=40_000.0),
+    LaneBot(bot_id="rh_liq40", min_liq_usd=40_000.0,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H),
     # 9. prime hours only (2026-07-11 hour rulebook: 17-21 UTC green; the
     #    22:00-01:00 stretch flipped the SAME tokens +0.60 -> -0.70/trip).
-    LaneBot(bot_id="rh_prime_hours", allowed_hours_utc=(17, 18, 19, 20, 21)),
+    LaneBot(bot_id="rh_prime_hours", allowed_hours_utc=(17, 18, 19, 20, 21),
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H),
     # 10. launch-strength scalp (2026-07-11 wallet decode: the AUDITED
     #     repeat-winner profile — fresh-pool strength buyers, 4.4 min median
     #     holds). Different ENTRY MODE, same guard stack: age 0.5-20 min,

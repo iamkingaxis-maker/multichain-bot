@@ -105,6 +105,20 @@ class TestRosterWiring:
             assert b.trail_pp is None          # BotConfig default 3.0 kept
             assert b.bot_config().trail_pp == 3.0
 
+    def test_scalp_fleet_universe_pinned(self):
+        # phase-2 pin: when the feed widens (RH_FEED_MAX_AGE_H > 24, aged
+        # mode) the scalp A/B universe must NOT silently widen with it — the
+        # previously implicit 24h feed ceiling is now explicit per racer.
+        # Identical behavior while the feed default (24h) is in force.
+        for b in ROSTER[:9]:
+            assert b.max_pool_age_h == mod.SCALP_MAX_POOL_AGE_H == 24.0
+        assert ROSTER[9].bot_id == "rh_launch_scalp"
+        assert ROSTER[9].max_pool_age_h == 20.0 / 60.0   # its own 20-min box
+        # the aged racers stay UNCAPPED — they extend into the >24h band
+        # (n=335 trips / 73% win / +$12,950) the moment the feed widens
+        for b in AGED:
+            assert b.max_pool_age_h is None
+
     def test_aged_shared_thresholds(self):
         for b in AGED:
             assert b.min_pool_age_h == AGED_MIN_POOL_AGE_H == 6.0

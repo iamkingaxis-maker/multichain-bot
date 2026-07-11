@@ -104,8 +104,28 @@ LOOKBACK_H = float(os.environ.get("RH_FEED_LOOKBACK_H", "6"))
 WATCH_MAX = int(os.environ.get("RH_FEED_WATCH_MAX", "150"))
 MIN_LIQ = float(os.environ.get("RH_FEED_MIN_LIQ", "5000"))
 MAX_AGE_H = float(os.environ.get("RH_FEED_MAX_AGE_H", "24"))
-CAND_MAX = 5000           # candidate pools kept for liq recheck (age-pruned)
-LIQ_PER_CYCLE = 25        # balanceOf liq checks piggybacked on each cycle batch
+CAND_MAX = int(os.environ.get("RH_FEED_CAND_MAX", "5000"))
+                          # candidate pools kept for liq recheck (age-pruned)
+LIQ_PER_CYCLE = int(os.environ.get("RH_FEED_LIQ_PER_CYCLE", "25"))
+                          # balanceOf liq checks piggybacked on each cycle batch
+# ── AGED MODE (2026-07-11, opt-in via RH_FEED_MAX_AGE_H > 24) ────────────────
+# The RH full-history decode found the day-robust edge in ESTABLISHED pools
+# (>24h band: 335 audited-winner trips, 73% win, +$12,950 — see
+# scratchpad/_rh_aged_pool_racer_spec_notes.md). The default feed can't see
+# them: newest-first candidate pruning + the watch cap crowd aged pools out
+# before their liq is ever checked. With MAX_AGE_H > 24 the feed switches to
+# LIQ-RANKED candidate handling (rank_candidates / rank_watch_keep below).
+# DEFAULT BEHAVIOR IS IDENTICAL when MAX_AGE_H <= 24 (every aged branch inert).
+AGED_MODE = MAX_AGE_H > 24.0
+YOUNG_AGE_H = 24.0        # the legacy universe boundary (scalp racers are
+                          # pinned to it lane-side; young discovery keeps its
+                          # newest-first priority inside aged mode too)
+WATCH_AGED_MAX = int(os.environ.get("RH_FEED_WATCH_AGED_MAX",
+                                    str(max(1, WATCH_MAX // 2))))
+                          # aged-mode watch quota: established pools may take
+                          # at most this many of the WATCH_MAX slots, so they
+                          # can never evict the whole young universe (the
+                          # scalp fleet's A/B keeps its candidate flow)
 META_EVERY_CYCLES = 120   # pools_meta snapshot cadence (~3 min at 1.5s)
 ETH_PRICE_REFRESH_S = 300.0
 BATCH_CHUNK = 80          # max requests per JSON-RPC batch POST (public-RPC safe)
@@ -250,6 +270,62 @@ def pctl(sorted_vals: list, q: float) -> float:
         return 0.0
     i = min(len(sorted_vals) - 1, max(0, int(q * len(sorted_vals))))
     return sorted_vals[i]
+
+
+def rank_candidates(items: list, min_liq: float = MIN_LIQ,
+                    young_age_h: float = YOUNG_AGE_H) -> list:
+    """AGED-MODE candidate ordering (keep-first for the CAND_MAX prune AND
+    check-first for the liq queue). items: [(pool, age_h, liq)] where liq is
+    None until the pool's first balanceOf check (candidates carry no liq at
+    discovery). Priority tiers:
+      1. promotable knowns (liq >= min_liq), highest liq first — one recheck
+         away from a watch slot: surface the established pools fastest;
+      2. young pools (age < young_age_h, or age unknown), youngest first —
+         the legacy newest-first behavior, so live launch discovery latency
+         is UNAFFECTED by the widen;
+      3. aged unknowns, youngest first — the audition queue for the aged
+         band (never silently pruned before their first check, which is
+         exactly what newest-first pruning did);
+      4. aged knowns below the floor, highest liq first — checked and failed
+         (an established pool below the liq floor had its whole life to
+         accrue liq): re-checked last, pruned first.
+    Pure; never raises on None fields."""
+    promotable, young, unknown_aged, failed_aged = [], [], [], []
+    for pool, age_h, liq in items:
+        if liq is not None and liq >= min_liq:
+            promotable.append((pool, liq))
+        elif age_h is None or age_h < young_age_h:
+            young.append((pool, age_h if age_h is not None else 0.0))
+        elif liq is None:
+            unknown_aged.append((pool, age_h))
+        else:
+            failed_aged.append((pool, liq))
+    promotable.sort(key=lambda x: -x[1])
+    young.sort(key=lambda x: x[1])
+    unknown_aged.sort(key=lambda x: x[1])
+    failed_aged.sort(key=lambda x: -x[1])
+    return ([p for p, _ in promotable] + [p for p, _ in young]
+            + [p for p, _ in unknown_aged] + [p for p, _ in failed_aged])
+
+
+def rank_watch_keep(items: list, watch_max: int, aged_max=None) -> set:
+    """Watch-cap eviction policy -> the set of pools to KEEP.
+    items: [(pool, liq, is_aged)].
+    aged_max None -> pure highest-liq ranking (today's behavior, byte-for-
+    byte). Else (aged mode): aged pools compete for at most aged_max of the
+    watch_max slots so established high-liq pools can never evict the whole
+    young universe; slots either side leaves unused are backfilled by the
+    other side's next-best (capacity is never wasted). Pure."""
+    if aged_max is None:
+        keep = sorted(items, key=lambda x: -x[1])[:watch_max]
+        return {p for p, _, _ in keep}
+    aged = sorted([x for x in items if x[2]], key=lambda x: -x[1])
+    young = sorted([x for x in items if not x[2]], key=lambda x: -x[1])
+    keep = aged[:aged_max]
+    keep += young[:watch_max - len(keep)]
+    if len(keep) < watch_max:  # young side underfilled -> more aged, by liq
+        keep += aged[aged_max:aged_max + (watch_max - len(keep))]
+    return {p for p, _, _ in keep}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -461,6 +537,13 @@ class Feed:
             "created_block": info["block"],
             "fee": info["fee"],
         }
+        # AGED MODE: a full liq-queue pass over the widened candidate set can
+        # take tens of minutes — fresh launches jump the queue so YOUNG
+        # discovery latency is unchanged by the widen. Gated on a non-empty
+        # queue: during the startup backfill the queue is empty (the first
+        # refill covers everything) and O(n^2) inserts are avoided.
+        if AGED_MODE and self.liq_queue:
+            self.liq_queue.insert(0, pool)
 
     def backfill_discovery(self, lookback_blocks: int):
         """Trailing-window PoolCreated/PairCreated scan, chunked with
@@ -513,11 +596,37 @@ class Feed:
                   flush=True)
             del self.watch[p]
         if len(self.watch) > WATCH_MAX:
-            keep = sorted(self.watch.items(), key=lambda kv: -kv[1]["liq"])[:WATCH_MAX]
-            dropped = set(self.watch) - {k for k, _ in keep}
-            self.watch = dict(keep)
+            if AGED_MODE:
+                # quota'd eviction: aged pools take at most WATCH_AGED_MAX
+                # slots (rank_watch_keep) so the young universe survives
+                keep_set = rank_watch_keep(
+                    [(p, w.get("liq") or 0.0,
+                      self.age_h(w["created_block"]) >= YOUNG_AGE_H)
+                     for p, w in self.watch.items()],
+                    WATCH_MAX, aged_max=WATCH_AGED_MAX)
+                dropped = set(self.watch) - keep_set
+                self.watch = {p: w for p, w in self.watch.items()
+                              if p in keep_set}
+            else:
+                keep = sorted(self.watch.items(),
+                              key=lambda kv: -kv[1]["liq"])[:WATCH_MAX]
+                dropped = set(self.watch) - {k for k, _ in keep}
+                self.watch = dict(keep)
             print(f"[disc] watch cap {WATCH_MAX}: dropped {len(dropped)} "
-                  f"lowest-liq pools", flush=True)
+                  f"lowest-liq pools"
+                  f"{' (aged quota %d)' % WATCH_AGED_MAX if AGED_MODE else ''}",
+                  flush=True)
+        if AGED_MODE:
+            ranked = rank_candidates(
+                [(p, self.age_h(c["created_block"]), c.get("liq"))
+                 for p, c in self.cand.items()])
+            if len(ranked) > CAND_MAX:
+                keep_set = set(ranked[:CAND_MAX])
+                self.cand = {p: c for p, c in self.cand.items()
+                             if p in keep_set}
+                ranked = ranked[:CAND_MAX]
+            self.liq_queue = list(self.watch) + ranked
+            return
         if len(self.cand) > CAND_MAX:
             keep = sorted(self.cand.items(),
                           key=lambda kv: -kv[1]["created_block"])[:CAND_MAX]
@@ -658,6 +767,10 @@ class Feed:
                 liq = int(r, 16) / 1e18 * 2.0 * self.eth_price
             except (ValueError, TypeError):
                 continue
+            if pool in self.cand:
+                # stamp last-known liq on the candidate: drives the aged-mode
+                # liq ranking (rank_candidates); inert in default mode
+                self.cand[pool]["liq"] = liq
             if pool in self.watch:
                 self.watch[pool]["liq"] = liq
             elif liq >= MIN_LIQ and pool not in self.pending_sym:

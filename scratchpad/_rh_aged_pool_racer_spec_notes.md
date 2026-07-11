@@ -155,3 +155,78 @@ judgment number.
   (8 quotes: ~7.2s -> ~1.4s), so exit ticks land on time.
 - Latency stamps unchanged (lat_trigger_lag_s / lat_quote_s / lat_total_s);
   buy rows now also stamp **age_h** for cohort grading.
+
+---
+
+# PHASE 2 (2026-07-11, same subagent) — FEED WIDEN so the racers reach >24h
+
+Phase 1 committed as 278ae83; phase 2 in working tree (NOT committed).
+Goal: surface the >24h band (n=335 trips / 73% win / +$12,950) that the
+default feed structurally hides. Opt-in only — **default behavior is
+byte-identical until RH_FEED_MAX_AGE_H > 24** (every aged branch inert; the
+running session-7 feed/lane unaffected).
+
+## scripts/rh_chain_feed.py — AGED MODE (active iff MAX_AGE_H > 24)
+Why raising the ceiling alone fails: candidates carry NO liq until their
+amortized balanceOf check, CAND_MAX pruning was newest-first (bot era mints
+14-20k pools/day, so the 5,000 newest ≈ 6-8h — week-old pools were pruned
+before their first check), and the WATCH_MAX=150 liq-only eviction would let
+aged high-liq pools evict the whole young universe. Changes:
+1. **CAND_MAX / LIQ_PER_CYCLE env-ified** (RH_FEED_CAND_MAX=5000,
+   RH_FEED_LIQ_PER_CYCLE=25 — defaults unchanged, guarded by test).
+2. **Candidate liq stamping**: every balanceOf result is stamped onto the
+   candidate (`cand[pool]["liq"]`) so ranking has a signal (inert in
+   default mode).
+3. **rank_candidates() (pure)** — one ordering for BOTH the CAND_MAX prune
+   (keep-first) and the liq-check queue (check-first): (1) promotable
+   knowns (liq >= MIN_LIQ) by liq desc — established pools surface fastest;
+   (2) YOUNG pools newest-first — legacy launch-discovery latency untouched;
+   (3) aged unknowns (the audition queue — never pruned pre-check anymore);
+   (4) aged checked-below-floor last / pruned first (an established pool
+   below the floor had its whole life to accrue liq). Young below-floor
+   pools stay in the young tier (they grow liq later).
+4. **rank_watch_keep() (pure) watch quota** — aged pools compete for at
+   most RH_FEED_WATCH_AGED_MAX slots (default WATCH_MAX//2 = 75); unused
+   slots backfill either direction. The scalp fleet's young candidate flow
+   survives the widen.
+5. **Fresh-pool queue jump** — in aged mode a full liq-queue pass over the
+   widened candidate set takes ~an hour, so newly-created pools insert at
+   the queue FRONT (gated on non-empty queue: the startup backfill flood
+   can't trigger O(n^2) inserts). Default mode: no insert (legacy).
+
+## scripts/rh_paper_lane.py — scalp-fleet universe pin
+`SCALP_MAX_POOL_AGE_H = 24.0` now EXPLICIT on the 9 dip/strength scalp
+racers (launch_scalp keeps its own 20-min ceiling). Zero behavior change at
+the current feed default; locks their A/B universe when the feed widens.
+The 3 aged racers remain uncapped by design.
+
+## Tests (all passing)
+- tests/test_rh_chain_feed.py +13: rank_candidates tier ordering +
+  boundaries, rank_watch_keep quota + backfill both directions,
+  defaults-inert guard, Feed-level default-mode identity (newest-first cap
+  + age prune), aged-mode queue/prune/watch-quota behavior, fresh-pool
+  queue jump (+ backfill-flood and default-mode negative cases).
+- tests/test_rh_aged_racers.py +1: scalp pin (ROSTER[:9] == 24.0,
+  launch_scalp 20min, aged uncapped).
+- Full RH suites: **248 passed, 2 skipped** (149 feed/lane/fleet/aged +
+  99 exec/exit-impact/honeypot/firehose/endpoint).
+
+## Recommended lane+feed restart invocation (main session, opt-in)
+```
+RH_FEED_MAX_AGE_H=72 RH_FEED_LOOKBACK_H=72 RH_FEED_CAND_MAX=60000 \
+RH_FEED_LIQ_PER_CYCLE=40 python scripts/rh_paper_lane.py 300
+```
+- **72 not 168**: captures the whole >24h evidence band with 3 days of
+  pools; 168h in the bot era means ~100-140k candidates and a 2-4x longer
+  audition sweep for little extra band coverage. Widen further only after
+  the 72h cohort grades.
+- **LOOKBACK_H must match MAX_AGE_H** (discovery reaches only as far back
+  as the backfill window; ~29 chunked getLogs windows at 72h, fine).
+- **CAND_MAX=60000** >= 72h of bot-era creations so aged unknowns survive
+  to their first check; **LIQ_PER_CYCLE=40** makes the first full audition
+  sweep ~60-65 min at the firehose 2.5s maintenance cadence (at the default
+  25 it is ~100 min). RH_FEED_WATCH_AGED_MAX default (75) is fine.
+- Expect: aged pools start PROMOTING within ~15 min (promotable knowns
+  re-rank to the queue front after their first check); full aged coverage
+  after the first sweep (~1h). Scalp racers see the identical young
+  universe (pin + quota + newest-first young tier + queue jump).

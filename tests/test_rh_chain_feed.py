@@ -210,3 +210,203 @@ class TestUtils:
         vals = sorted([0.5, 1.0, 1.5, 2.0, 9.9])
         assert pctl(vals, 0.5) == 1.5
         assert pctl(vals, 0.95) == 9.9
+
+
+# ── AGED MODE (phase 2, 2026-07-11): liq-ranked candidate handling ───────────
+import os as _os  # noqa: E402
+
+import scripts.rh_chain_feed as mod  # noqa: E402
+from scripts.rh_chain_feed import Feed, rank_candidates, rank_watch_keep  # noqa: E402
+
+
+class TestRankCandidates:
+    """Pure aged-mode candidate ordering: promotable knowns -> young
+    (newest-first, legacy behavior) -> aged unknowns -> failed aged."""
+
+    def test_tier_ordering(self):
+        items = [
+            ("failed_aged", 30.0, 100.0),      # checked, below floor
+            ("young_new", 1.0, None),
+            ("aged_unknown_older", 50.0, None),
+            ("promotable_small", 30.0, 6000.0),
+            ("young_old", 2.0, None),
+            ("aged_unknown", 40.0, None),
+            ("promotable_big", 48.0, 90000.0),
+        ]
+        assert rank_candidates(items, min_liq=5000.0, young_age_h=24.0) == [
+            "promotable_big", "promotable_small",     # liq desc
+            "young_new", "young_old",                 # newest first (legacy)
+            "aged_unknown", "aged_unknown_older",     # audition queue
+            "failed_aged",                            # checked & failed: last
+        ]
+
+    def test_boundaries(self):
+        # liq exactly at the floor = promotable; age exactly at the boundary
+        # = aged; unknown age = treated young (fail-open, rare)
+        out = rank_candidates([("at_floor", 30.0, 5000.0),
+                               ("at_age_boundary", 24.0, None),
+                               ("no_age", None, None)],
+                              min_liq=5000.0, young_age_h=24.0)
+        assert out == ["at_floor", "no_age", "at_age_boundary"]
+
+    def test_young_below_floor_stays_young_not_failed(self):
+        # a checked young pool below the floor keeps its newest-first slot
+        # (young pools grow liq later — today's feed rechecks them)
+        out = rank_candidates([("young_checked_low", 2.0, 100.0),
+                               ("aged_checked_low", 30.0, 100.0)],
+                              min_liq=5000.0, young_age_h=24.0)
+        assert out == ["young_checked_low", "aged_checked_low"]
+
+
+class TestRankWatchKeep:
+    def test_none_quota_is_legacy_top_liq(self):
+        items = [("a", 10.0, False), ("b", 30.0, True), ("c", 20.0, False)]
+        assert rank_watch_keep(items, 2, aged_max=None) == {"b", "c"}
+
+    def test_aged_quota_protects_young(self):
+        # 3 aged pools all out-liq the young ones, but only 2 aged slots
+        items = [("a1", 100.0, True), ("a2", 90.0, True), ("a3", 80.0, True),
+                 ("y1", 10.0, False), ("y2", 9.0, False), ("y3", 8.0, False)]
+        assert rank_watch_keep(items, 4, aged_max=2) == {"a1", "a2",
+                                                         "y1", "y2"}
+
+    def test_unused_young_slots_backfilled_by_aged(self):
+        items = [("a1", 100.0, True), ("a2", 90.0, True), ("a3", 80.0, True),
+                 ("y1", 10.0, False)]
+        assert rank_watch_keep(items, 4, aged_max=2) == {"a1", "a2",
+                                                         "y1", "a3"}
+
+    def test_unused_aged_slots_go_to_young(self):
+        items = [("a1", 100.0, True),
+                 ("y1", 10.0, False), ("y2", 9.0, False), ("y3", 8.0, False)]
+        assert rank_watch_keep(items, 4, aged_max=2) == {"a1", "y1",
+                                                         "y2", "y3"}
+
+
+class TestAgedModeDefaultsInert:
+    def test_defaults_identical_when_env_unset(self):
+        for var in ("RH_FEED_MAX_AGE_H", "RH_FEED_CAND_MAX",
+                    "RH_FEED_LIQ_PER_CYCLE", "RH_FEED_WATCH_AGED_MAX"):
+            if _os.environ.get(var):
+                pytest.skip(f"{var} set in env")
+        assert mod.AGED_MODE is False        # every aged branch inert
+        assert mod.MAX_AGE_H == 24.0
+        assert mod.CAND_MAX == 5000          # env-ified, defaults unchanged
+        assert mod.LIQ_PER_CYCLE == 25
+        assert mod.WATCH_AGED_MAX == mod.WATCH_MAX // 2
+
+
+def _feed(monkeypatch):
+    f = Feed("http://127.0.0.1:1")           # Rpc constructed, never called
+    f.latest_block = 1_000_000
+    f.latest_ts = 2_000_000
+    f.spb = 1.0                               # 1 block/s -> 3600 blocks/hour
+    f.eth_price = 2000.0
+    return f
+
+
+def _blk(age_h, latest=1_000_000):
+    return int(latest - age_h * 3600)
+
+
+def _cand(age_h, liq=None):
+    c = {"dex": "v3", "weth0": True, "token": "0xt",
+         "created_block": _blk(age_h), "fee": 10000}
+    if liq is not None:
+        c["liq"] = liq
+    return c
+
+
+def _watch(sym, liq, age_h):
+    return {"sym": sym, "dex": "v3", "weth0": True, "liq": liq,
+            "created_block": _blk(age_h), "seen": set()}
+
+
+class TestRefillLiqQueueDefaultMode:
+    def test_newest_first_and_cap_unchanged(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", False)
+        monkeypatch.setattr(mod, "CAND_MAX", 3)
+        f = _feed(monkeypatch)
+        f.cand = {"p5h": _cand(5.0), "p1h": _cand(1.0), "p3h": _cand(3.0),
+                  "p2h": _cand(2.0)}
+        f._refill_liq_queue()
+        assert set(f.cand) == {"p1h", "p2h", "p3h"}      # newest 3 kept
+        assert f.liq_queue == ["p1h", "p2h", "p3h"]      # newest first
+
+    def test_age_prune_at_env_ceiling(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", False)
+        f = _feed(monkeypatch)
+        f.cand = {"young": _cand(5.0), "old": _cand(25.0)}
+        f.watch = {"wold": _watch("W", 50_000.0, 25.0)}
+        f._refill_liq_queue()
+        assert set(f.cand) == {"young"} and f.watch == {}
+
+
+class TestRefillLiqQueueAgedMode:
+    def test_liq_ranked_queue_and_prune(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)
+        monkeypatch.setattr(mod, "CAND_MAX", 4)
+        f = _feed(monkeypatch)
+        f.cand = {"aged_promotable": _cand(30.0, liq=90_000.0),
+                  "young_new": _cand(1.0),
+                  "young_old": _cand(2.0),
+                  "aged_unknown": _cand(40.0),
+                  "aged_failed": _cand(30.0, liq=100.0),
+                  "too_old": _cand(80.0)}                 # > 72h: age-pruned
+        f._refill_liq_queue()
+        # queue: promotable known -> young newest-first -> aged unknown;
+        # cap 4 dropped the checked-and-failed aged pool first
+        assert f.liq_queue == ["aged_promotable", "young_new", "young_old",
+                               "aged_unknown"]
+        assert set(f.cand) == {"aged_promotable", "young_new", "young_old",
+                               "aged_unknown"}
+
+    def test_watch_quota_protects_young_universe(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)
+        monkeypatch.setattr(mod, "WATCH_MAX", 4)
+        monkeypatch.setattr(mod, "WATCH_AGED_MAX", 2)
+        f = _feed(monkeypatch)
+        f.watch = {"a1": _watch("A1", 100_000.0, 30.0),
+                   "a2": _watch("A2", 90_000.0, 40.0),
+                   "a3": _watch("A3", 80_000.0, 50.0),
+                   "y1": _watch("Y1", 10_000.0, 2.0),
+                   "y2": _watch("Y2", 9_000.0, 3.0),
+                   "y3": _watch("Y3", 8_000.0, 4.0)}
+        f._refill_liq_queue()
+        # aged high-liq pools would evict ALL young under pure liq ranking;
+        # the quota keeps the young universe (scalp fleet) alive
+        assert set(f.watch) == {"a1", "a2", "y1", "y2"}
+
+
+class TestFreshPoolQueueJump:
+    def _log(self):
+        return {"topics": [TOPIC_POOL_CREATED, _pad_topic(WETH),
+                           _pad_topic(TOKEN), "0x" + _u256(10000)],
+                "data": "0x" + _u256(200) + "0" * 24 + POOL[2:],
+                "blockNumber": hex(999_990)}
+
+    def test_aged_mode_fresh_pool_jumps_queue(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        f = _feed(monkeypatch)
+        f.liq_queue = ["0xexisting"]
+        f._ingest_creation(self._log())
+        assert POOL in f.cand
+        assert f.liq_queue[0] == POOL         # checked next cycle
+
+    def test_backfill_flood_does_not_insert(self, monkeypatch):
+        # during startup backfill the queue is empty -> no O(n^2) inserts
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        f = _feed(monkeypatch)
+        f.liq_queue = []
+        f._ingest_creation(self._log())
+        assert POOL in f.cand and f.liq_queue == []
+
+    def test_default_mode_no_insert(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", False)
+        f = _feed(monkeypatch)
+        f.liq_queue = ["0xexisting"]
+        f._ingest_creation(self._log())
+        assert POOL in f.cand
+        assert f.liq_queue == ["0xexisting"]  # legacy behavior untouched
