@@ -1,3 +1,27 @@
+# Session Handoff — 2026-07-11 (~03:30 UTC) — LIVE PAUSED
+
+## STATE: LIVE TRADING PAUSED (PAPER_MODE=true, verified). Wallet delta +0.0712 SOL since go-live (still green after HOODLANA rug). Book flat.
+- Paused after HOODLANA (mint C4TFLdu1f2iGmKVv7crWVwQfRLApTgUFupxsvwvApump) rugged -98% despite passing ALL guards. Containment held (-$24.6 = the $25 cap). See memory project_live_paused_hoodlana.
+- RESUME GATE (do NOT flip PAPER_MODE=false until): rug-forensics actor-behavior entry gate (catch HOODLANA-class vs winner-kill <=5%) + explicit AxiS approval + pre-live invariants.
+
+## SAVED / DURABLE (all committed to git through a89a15b, survive /clear + scratch cleanup):
+- RH decode reports: scratchpad/_rh_history_decode.md, _rh_wallet_decode.md, _rh_hour_rulebook.md, _runner_signature_report.md, _trail_width_analysis.md
+- RH decode data: scratchpad/rh_history/{decode_results,population_stats,hour_rulebook,backfill_manifest}.json
+- Memory: reference_rh_history_decode_2026_07_11 (key findings), project_live_paused_hoodlana (resume gate), project_rh_mission, feedback_sell_path_canary.
+- NOT in git (local, resume-safe): scratchpad/rh_history/*.jsonl.gz (628MB raw sweep) + hist_*.jsonl tapes; continue via rh_history/scripts/hist_backfill2.py.
+
+## RH DECODE HEADLINES (full detail in reference_rh_history_decode memory):
+- Launch-scalper thesis RETRACTED (66% vs 65%). Real edge = AGED pools + longer holds -> build RH aged-pool racer (candidate). Dip lane still legit. Rug rate 8%, 20-min median death. Hour gate must be regime-conditional.
+
+## STILL RUNNING when this session ended (a FRESH session cannot see these background agents — check their OUTPUT FILES on disk):
+- RUG FORENSICS agent (the resume-gate work): deliverable scratchpad/_rug_forensics.md + scratchpad/rug_forensics/ — NOT yet on disk when handoff written = still crawling. If absent next session, re-launch the deployer/funder/insider-cluster forensic mine over confirmed rugs (see task #490 dev-not-dumped).
+- RH paper fleet (10 racers) local: `python scripts/rh_paper_lane.py 300` (state restores). Uploader `scripts/rh_paper_upload.py`. Dashboard fleet card live (bots key).
+
+## OPEN DECISIONS: build RH aged-pool racer (paper, parallel-safe); fold rug-forensics signature into #490 (serves BOTH chains — HOODLANA proved Solana has the 8% class too).
+## Note: Fable5 safeguards intermittently flag this session's forensics vocabulary -> auto-switches to Opus 4.8; user re-selects Fable5 via /model. Cosmetic; nothing in the bot affected.
+
+---
+
 # Session Handoff — 2026-07-11 (~01:50 UTC)
 
 ## Wallet truth (Solana, LIVE)
