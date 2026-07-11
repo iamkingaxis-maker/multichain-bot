@@ -319,12 +319,23 @@ def test_no_enabled_live_probe_bot():
     # (+6.55%) and bounded worst (-30.5%); n=8 distinct, thin-n accepted
     # explicitly. badday_young_absorb_live simultaneously DISABLED so exactly
     # one probe routes money.
+    # 2026-07-11: MULTI-BOT live mandate sanctioned — AxiS explicit GO
+    # ("promote both" after "it fires like twice a day.... we cant work like
+    # this"). The single-probe era ends: proving the 20-fill/4-day rate needs
+    # the strongest paper performers routing live, not one bot's trickle.
+    # badday_young_absorb (n=146, +$478 lifetime, +$94 on the -$1.3k fleet
+    # day) full mandate; badday_young_vsnap_ab (n=37 THIN — accepted
+    # explicitly) at MINIMUM size $11.25 with a pre-registered kill: first 10
+    # live closes materially below its paper record -> live_probe=false.
+    # Wallet funded +1.221 SOL by AxiS same hour; baseline rebased 2.115936.
     INTENDED_LIVE = {"badday_fill_probe_live",
                      "badday_flush_nf15_live",
                      "badday_flush_conviction_live", "badday_flush_live",
                      "deepflush_timebox_live", "timebox_probe_5mgreen_live",
                      "badday_young_absorb_live",
-                     "badday_young_rt"}
+                     "badday_young_rt",
+                     "badday_young_absorb",
+                     "badday_young_vsnap_ab"}
     offenders = []
     for p in glob.glob("config/bots/*.json"):
         c = BotConfig.from_json(p)
