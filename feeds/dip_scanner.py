@@ -2045,6 +2045,9 @@ class DipScanner:
                             "lp_locked_pct": _rg_hf.get("lp_locked_pct"),
                             "lp_burned": _rg_hf.get("lp_burned"),
                             "rugcheck_score": _rg_hf.get("rugcheck_score"),
+                            "hidden_supply_share_pct": _rg_hf.get("hidden_supply_share_pct"),
+                            "total_holders": _rg_hf.get("total_holders"),
+                            "pool_topholder_pct": _rg_hf.get("pool_topholder_pct"),
                             "reasons": _rg_br,
                         })
                     except Exception:

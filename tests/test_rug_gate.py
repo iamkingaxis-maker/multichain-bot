@@ -155,3 +155,61 @@ def test_hoodlana_entry_shape_passes_lp_gate():
     # HOODLANA at entry: lp_locked 100 not burned, rugcheck 1.0 -> LP gate PASSES
     # (documented: this gate does NOT catch the hidden-supply-dump class).
     assert rug_gate_verdict({"lp_locked_pct": 100.0, "lp_burned": False})[0] == "PASS"
+
+
+# ── hidden-supply (HOODLANA-class) gate + vault-join pool identification ──
+def test_pool_identified_by_vault_join_without_tags():
+    # rugcheck dropped topHolders `tag` (2026-07) — pool must be found via
+    # markets[].pubkey/liquidityA/B address join.
+    rc = {
+        "markets": [{"pubkey": "PAIR1", "liquidityA": "VAULTA", "liquidityB": "VAULTB",
+                     "mintLP": "reallp", "lp": {"baseUSD": 100, "quoteUSD": 100, "lpLockedPct": 100.0}}],
+        "topHolders": [
+            {"address": "VAULTA", "owner": "POOLPDA", "pct": 12.45},
+            {"address": "h1", "owner": "w1", "pct": 8.0},
+            {"address": "h2", "owner": "w2", "pct": 6.71},
+        ],
+        "totalHolders": 82,
+    }
+    f = compute_holder_features(rc)
+    assert f["pool_topholder_pct"] == 12.45          # vault excluded from real
+    assert f["top10_holder_pct"] == 14.71            # only w1+w2
+    assert f["hidden_supply_share_pct"] == 72.84     # 100 - 12.45 - 14.71
+
+
+def test_hoodlana_entry_shape_now_BLOCKS():
+    # The chain-reconstructed HOODLANA entry state: hidden 72.84, thin holder base.
+    v, r = rug_gate_verdict({"lp_locked_pct": 100.0, "lp_burned": False,
+                             "hidden_supply_share_pct": 72.84, "total_holders": 82})
+    assert v == "BLOCK" and "HOODLANA class" in r[0]
+
+
+def test_burned_lp_does_not_bypass_hidden_check():
+    v, _ = rug_gate_verdict({"lp_burned": True,
+                             "hidden_supply_share_pct": 72.84, "total_holders": 82})
+    assert v == "BLOCK"
+
+
+def test_hidden_supply_needs_both_conditions():
+    # big hidden share but broad holder base -> PASS (distributed retail, not a cluster)
+    assert rug_gate_verdict({"hidden_supply_share_pct": 75.0, "total_holders": 5000,
+                             "lp_locked_pct": 100.0, "lp_burned": False})[0] == "PASS"
+    # thin base but low hidden share -> PASS
+    assert rug_gate_verdict({"hidden_supply_share_pct": 30.0, "total_holders": 82,
+                             "lp_locked_pct": 100.0, "lp_burned": False})[0] == "PASS"
+
+
+def test_hidden_supply_missing_fails_open():
+    # neither signal's inputs -> NEUTRAL (fail-open, unchanged posture)
+    assert rug_gate_verdict({})[0] == "NEUTRAL"
+    # lp known-clean, hidden unknown -> PASS (not NEUTRAL)
+    assert rug_gate_verdict({"lp_locked_pct": 100.0, "lp_burned": False})[0] == "PASS"
+
+
+def test_raydium_v4_authority_counts_as_pool():
+    rc = {"markets": [{"mintLP": "x", "lp": {"baseUSD": 1, "quoteUSD": 1, "lpLockedPct": 100.0}}],
+          "topHolders": [{"address": "v", "owner": "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1", "pct": 40.0},
+                         {"address": "h", "owner": "w", "pct": 5.0}],
+          "totalHolders": 200}
+    f = compute_holder_features(rc)
+    assert f["pool_topholder_pct"] == 40.0 and f["top10_holder_pct"] == 5.0

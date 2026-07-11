@@ -17,6 +17,31 @@ logger = logging.getLogger(__name__)
 _LP_TAGS = {"lp", "liquidity", "liquiditypool", "pool", "amm", "bonding curve"}
 
 
+# Raydium V4 pool authority — owns V4 pool token vaults (topHolders.owner).
+_RAY_V4_AUTH = "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1"
+
+
+def _pool_account_set(rc_full: dict) -> set:
+    """Every account that identifies a pool vault for this token: markets[].pubkey
+    (the pair) + liquidityA/B vault addresses (+ *Account variants). Rugcheck
+    DROPPED the topHolders `tag` field (2026-07 — verified on HOODLANA), so
+    tag-only pool exclusion silently reads pool vaults as real holders; the
+    vault-address join is the reliable identification (tag kept as fallback)."""
+    s: set = set()
+    try:
+        for m in (rc_full.get("markets") or []):
+            if not isinstance(m, dict):
+                continue
+            for k in ("pubkey", "liquidityA", "liquidityB",
+                      "liquidityAAccount", "liquidityBAccount"):
+                v = m.get(k)
+                if isinstance(v, str) and v:
+                    s.add(v)
+    except Exception:
+        pass
+    return s
+
+
 def compute_holder_features(rc_full: dict) -> dict:
     out: dict = {}
     if not isinstance(rc_full, dict):
@@ -25,11 +50,18 @@ def compute_holder_features(rc_full: dict) -> dict:
     try:
         th = rc_full.get("topHolders") or []
         if isinstance(th, list) and th:
+            _pools = _pool_account_set(rc_full)
+
+            def _is_pool(h: dict) -> bool:
+                return (h.get("owner") in _pools or h.get("address") in _pools
+                        or h.get("owner") == _RAY_V4_AUTH
+                        or (h.get("tag", "") or "").lower().strip() in _LP_TAGS)
+
             real = [
                 h for h in th
                 if isinstance(h, dict)
                 and h.get("insider", False) is not True
-                and (h.get("tag", "") or "").lower().strip() not in _LP_TAGS
+                and not _is_pool(h)
             ]
             # topHolders `pct` is already a percent (e.g. 12.5).
             top10 = sum(float(h.get("pct", 0) or 0) for h in real[:10])
@@ -44,22 +76,24 @@ def compute_holder_features(rc_full: dict) -> dict:
                 1 for h in th if isinstance(h, dict) and h.get("insider", False) is True
             )
             # HOODLANA-class instrumentation (2026-07-11 forensics). HOODLANA's
-            # -98% was a HIDDEN-SUPPLY DUMP: ~70% of supply sat in wallets ranked
-            # 11+ (each small enough to evade the top10 check) and was dumped into
-            # the pool, draining the SOL side — while lp_locked_pct read a clean
-            # 100 the whole time. These stamps make that shape visible at entry
-            # so the labeled-cohort grade can set thresholds on real outcomes.
+            # -98% was a HIDDEN-SUPPLY DUMP: at entry the pool held only 12.45%
+            # of supply (chain-reconstructed) and top10 read 14.71 — leaving
+            # hidden_supply_share_pct = 72.84 in sub-top10 wallets, which was
+            # dumped into the pool in one 5-min window (SOL side -87%) while
+            # lp_locked_pct read a clean 100 throughout. hidden share = the
+            # graded gate axis (shoulder_11_20 measured NON-discriminative).
             out["shoulder_11_20_pct"] = round(
                 sum(float(h.get("pct", 0) or 0) for h in real[10:20]), 2)
-            out["pool_topholder_pct"] = round(sum(
+            _pool_pct = sum(
                 float(h.get("pct", 0) or 0) for h in th
-                if isinstance(h, dict)
-                and (h.get("tag", "") or "").lower().strip() in _LP_TAGS
-            ), 2)
-            out["topholder_insider_pct"] = round(sum(
+                if isinstance(h, dict) and _is_pool(h))
+            out["pool_topholder_pct"] = round(_pool_pct, 2)
+            _insider_pct = sum(
                 float(h.get("pct", 0) or 0) for h in th
-                if isinstance(h, dict) and h.get("insider", False) is True
-            ), 2)
+                if isinstance(h, dict) and h.get("insider", False) is True)
+            out["topholder_insider_pct"] = round(_insider_pct, 2)
+            out["hidden_supply_share_pct"] = round(
+                100.0 - _pool_pct - top10 - _insider_pct, 2)
         _tot_h = rc_full.get("totalHolders")
         if isinstance(_tot_h, (int, float)) and not isinstance(_tot_h, bool):
             out["total_holders"] = int(_tot_h)
