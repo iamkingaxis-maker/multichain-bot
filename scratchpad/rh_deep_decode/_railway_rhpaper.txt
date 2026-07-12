@@ -1,0 +1,11 @@
+[rh-paper] BUY  rh_f_popret      CASHCATWIF   $25.00 dip=-83.9% lat_total=1.57s (trigger 1.4s + quote 0.165s)
+[rh-paper] SELL rh_f_popret      CASHCATWIF   TP1 75% pnl=+173.7% (day +30.51) TP1 pnl=167.44% >= 6.0
+[rh-paper] SELL rh_f_popret      CASHCATWIF   TP2 25% pnl=+174.1% (day +41.39) TP2 pnl=167.44% >= 12.0
+[rh-paper] rh_fill_probe: entries=4 exits=4 day=$-0.70 | blocks: no_demand_turn=237282 no_dip=227656 daily_buys_cap=182677 age_ceiling=156356
+[rh-paper] rh_fill_probe: entries=4 exits=4 day=$-0.70 | blocks: no_demand_turn=239482 no_dip=229783 daily_buys_cap=185064 age_ceiling=157772
+[rh-paper] BUY  rh_aged_derisk   WALLET       $25.00 dip=-20.1% lat_total=1.12s (trigger 0.93s + quote 0.186s)
+[rh-paper] SELL rh_young_v1      BNKR         PRE_STOP_BAIL 100% pnl=-7.2% (day -7.04) pre-stop bail pnl=-7.16% vol_m5=$464 <= 500.0
+[rh-paper] SELL rh_bites2        BNKR         PRE_STOP_BAIL 100% pnl=-7.2% (day +1.01) pre-stop bail pnl=-7.16% vol_m5=$464 <= 500.0
+[rh-paper] SELL rh_wide_ladder   BNKR         PRE_STOP_BAIL 100% pnl=-7.2% (day -11.40) pre-stop bail pnl=-7.16% vol_m5=$464 <= 500.0
+[rh-paper] SELL rh_moonbag       BNKR         PRE_STOP_BAIL 100% pnl=-7.2% (day -5.90) pre-stop bail pnl=-7.16% vol_m5=$464 <= 500.0
+[rh-paper] SELL rh_liq40         BNKR         PRE_STOP_BAIL 100% pnl=-7.2% (day -6.56) pre-stop bail pnl=-7.16% vol_m5=$464 <= 500.0

@@ -75,17 +75,26 @@ def _ledger_rows(tmp_path):
 
 
 class TestRoster:
-    def test_nineteen_racers_unique_ids(self):
+    def test_roster_racers_unique_ids(self):
         # 10 scalp-fleet racers (mid-flight A/B, unchanged) + 3 aged-pool
         # racers (2026-07-11 decode-thesis cohort) + 5 candidate-factory
         # racers (2026-07-12 full-history mine, exclusion_group="factory")
         # + 1 LIVE FILL PROBE (2026-07-12, exclusion_group="fill_probe")
-        assert len(ROSTER) == 19
-        assert len({b.bot_id for b in ROSTER}) == 19
+        # + 2 low-variance racers (2026-07-12, exclusion_group="lowvar")
+        # + 1 deep-synth consolidated (2026-07-12 deep-decode, "deepsynth")
+        # + 1 deep-exit barbell (2026-07-12 deep-cohort exit opt, "deepexit")
+        assert len(ROSTER) == 23
+        assert len({b.bot_id for b in ROSTER}) == 23
         assert sum(1 for b in ROSTER
                    if b.exclusion_group == "factory") == 5
         assert sum(1 for b in ROSTER
                    if b.exclusion_group == "fill_probe") == 1
+        assert sum(1 for b in ROSTER
+                   if b.exclusion_group == "lowvar") == 2
+        assert sum(1 for b in ROSTER
+                   if b.exclusion_group == "deepsynth") == 1
+        assert sum(1 for b in ROSTER
+                   if b.exclusion_group == "deepexit") == 1
 
     def test_control_is_current_config_verbatim(self):
         c = ROSTER[0]
@@ -279,10 +288,15 @@ class TestFleetEntryRouting:
         # only ONE aged racer take the token (roster order on the tie).
         # rh_fill_probe (2026-07-12): permissive gates pass here too — its
         # own exclusion_group, so it enters alongside (dormant = paper fill).
+        # rh_lowvar_catstop (2026-07-12): control admission -> enters; its
+        # sibling rh_lowvar_box is group-deduped out (one per token, roster
+        # order breaks the tie). rh_deep_consolidated stays out: dip -20 is
+        # shallower than its -25 capitulation trigger (no_dip below).
         assert entered == {"rh_young_v1", "rh_first_touch", "rh_bites2",
                            "rh_wide_ladder", "rh_moonbag", "rh_liq40",
-                           "rh_aged_hold", "rh_fill_probe"}
+                           "rh_aged_hold", "rh_fill_probe", "rh_lowvar_catstop"}
         assert "no_dip" in lane.state["rh_deep_only"].block_hist
+        assert "no_dip" in lane.state["rh_deep_consolidated"].block_hist
         assert "no_demand_turn" in lane.state["rh_demand_heavy"].block_hist
         assert "hour_window" in lane.state["rh_prime_hours"].block_hist
         assert "no_strength" in lane.state["rh_launch_scalp"].block_hist
@@ -304,11 +318,12 @@ class TestFleetEntryRouting:
         lane._consider_entries(NOW)
         buys = [r for r in _ledger_rows(tmp_path) if r["ev"] == "buy"]
         # 6 scalp racers + 1 aged (group-deduped) + the fill probe (paper)
-        assert len(buys) == 8
+        # + 1 lowvar (group-deduped: catstop, not box) = 9
+        assert len(buys) == 9
         assert all(r.get("bot_id") for r in buys)
         # dashboard ingest de-dups on (ts, ev, pool): keys must be distinct
         keys = {(r["ts"], r["ev"], r["pool"]) for r in buys}
-        assert len(keys) == 8
+        assert len(keys) == 9
 
     def test_launch_scalp_enters_on_strength_not_dip(self, tmp_path,
                                                      monkeypatch):

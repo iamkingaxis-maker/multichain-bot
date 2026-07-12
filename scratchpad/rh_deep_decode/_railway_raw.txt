@@ -1,0 +1,400 @@
+[fh-tape] CASHCATWIF     buy  $    158.71 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     49.15 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    133.74 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     46.69 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     37.30 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    174.62 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     43.75 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     86.30 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    126.40 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     88.92 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     97.41 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    154.02 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     42.55 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    155.46 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    168.71 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    115.87 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     72.47 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     82.96 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     90.71 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     83.20 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     44.60 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    162.79 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     37.82 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    169.39 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     37.16 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     54.21 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    106.62 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    115.22 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    133.68 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    172.15 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     85.50 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    107.70 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     35.89 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     59.62 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     79.06 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     36.25 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     56.88 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     88.92 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     34.75 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     96.68 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    172.65 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     64.15 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     68.50 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    115.90 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     59.19 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $     78.27 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    130.24 lag=1.37s
+[fh-tape] CASHCATWIF     buy  $    147.98 lag=2.49s
+[fh-tape] CASHCATWIF     buy  $     91.61 lag=2.49s
+[fh-tape] Harris         sell $      0.00 lag=2.51s est
+[fh-tape] GENESIS        buy  $     55.97 lag=1.52s
+[rh-paper] SELL rh_f_popret      CASHCATWIF   TP1 75% pnl=+173.7% (day +30.51) TP1 pnl=167.44% >= 6.0
+[rh-paper] SELL rh_f_popret      CASHCATWIF   TP2 25% pnl=+174.1% (day +41.39) TP2 pnl=167.44% >= 12.0
+[fh-tape] GENESIS        buy  $     18.00 lag=0.72s
+[fh-tape] SCATMAN        sell $    117.88 lag=1.52s est
+[fh-tape] GENESIS        buy  $     32.41 lag=0.62s
+[fh-tape] HOOT           sell $      4.69 lag=0.83s est
+[fh-tape] GENESIS        buy  $     37.35 lag=0.36s
+[fh-tape] GENESIS        buy  $     90.02 lag=0.18s
+[fh-tape] ?              buy  $     91.80 lag=0.85s
+[fh] 123.4min: frames=74102 msgs=74593 txs=657095 router_txs=64277 taped=15842 (est=11457) watch=156 lag med=0.69s p95=1.33s n=15842 reconnects=0
+[rh-paper] session: entries=129 exits=123 open=6 | quotes=21021 evals=245874
+[rh-paper] rh_young_v1: entries=17 exits=16 day=$-5.23 | blocks: no_demand_turn=236894 no_dip=227547 age_ceiling=156356 liq_floor=124412
+[rh-paper] rh_deep_only: entries=8 exits=8 day=$+3.68 | blocks: no_dip=239018 no_demand_turn=237282 age_ceiling=156356 liq_floor=124412
+[rh-paper] rh_first_touch: entries=3 exits=3 day=$-2.40 | blocks: no_demand_turn=237814 no_dip=228061 age_ceiling=156356 liq_floor=124412
+[rh-paper] rh_bites2: entries=6 exits=5 day=$+2.81 | blocks: no_demand_turn=237308 no_dip=227655 age_ceiling=156356 liq_floor=124412
+[rh-paper] rh_wide_ladder: entries=17 exits=16 day=$-9.59 | blocks: no_demand_turn=236744 no_dip=227530 age_ceiling=156356 liq_floor=124412
+[rh-paper] rh_moonbag: entries=17 exits=16 day=$-4.09 | blocks: no_demand_turn=236868 no_dip=227506 age_ceiling=156356 liq_floor=124412
+[rh-paper] rh_demand_heavy: entries=13 exits=13 day=$-18.93 | blocks: no_demand_turn=240234 no_dip=227949 age_ceiling=156356 liq_floor=124412
+[rh-paper] rh_liq40: entries=17 exits=16 day=$-4.75 | blocks: no_demand_turn=236894 no_dip=227547 liq_floor=158868 age_ceiling=156356
+[rh-paper] rh_prime_hours: entries=13 exits=13 day=$+0.24 | blocks: no_demand_turn=236975 no_dip=227552 age_ceiling=156356 liq_floor=124412
+[rh-paper] rh_launch_scalp: entries=2 exits=2 day=$+6.11 | blocks: weak_inflow=230784 age_ceiling=226093 no_strength=180290 liq_floor=124412
+[rh-paper] rh_aged_hold: entries=3 exits=2 day=$-5.98 | blocks: no_demand_turn=237553 no_dip=227861 hour_regime=144183 liq_floor=124412
+[rh-paper] rh_aged_derisk: entries=0 exits=0 day=$+0.00 | blocks: no_demand_turn=237814 no_dip=228064 hour_regime=144183 liq_floor=124412
+[rh-paper] rh_aged_deep: entries=0 exits=0 day=$+0.00 | blocks: no_demand_turn=237814 no_dip=228064 hour_regime=144183 liq_floor=124412
+[rh-paper] rh_f_pullback: entries=1 exits=1 day=$-5.08 | blocks: age_ceiling=236456 no_demand_turn=235200 no_dip=218460 untracked_session=181859
+[rh-paper] rh_f_arc_scalp: entries=1 exits=1 day=$+3.08 | blocks: age_ceiling=236456 no_demand_turn=235200 no_dip=218460 untracked_session=181859
+[rh-paper] rh_f_popret: entries=6 exits=6 day=$+41.39 | blocks: no_demand_turn=237814 age_ceiling=236456 no_dip=228045 no_recent_pop=200717
+[rh-paper] rh_f_reload24: entries=0 exits=0 day=$+0.00 | blocks: no_dip=239549 no_demand_turn=235200 thin_session_vol=209186 age_floor=89518
+[rh-paper] rh_f_reload_mid: entries=1 exits=1 day=$-1.06 | blocks: no_dip=239549 no_demand_turn=237814 age_ceiling=156356 thin_session_vol=106964
+[rh-paper] rh_fill_probe: entries=4 exits=4 day=$-0.70 | blocks: no_demand_turn=237282 no_dip=227656 daily_buys_cap=182677 age_ceiling=156356
+[fh-tape] Harris         sell $      0.00 lag=0.07s est
+[fh-tape] GENESIS        buy  $    540.14 lag=0.49s
+[fh-tape] GENESIS        buy  $     18.00 lag=0.09s
+[fh-tape] GENESIS        buy  $     43.21 lag=0.47s
+[fh-tape] Harris         sell $      0.00 lag=-0.01s est
+[fh-tape] FOX            buy  $    324.08 lag=0.69s
+[fh-tape] Harris         buy  $      0.18 lag=0.59s
+[fh-tape] ?              buy  $     17.91 lag=0.59s
+[fh-tape] Harris         sell $      0.00 lag=0.02s est
+[fh-tape] BYCOCKET       sell $      2.42 lag=0.02s est
+[fh-tape] ?              buy  $     46.43 lag=0.03s
+[fh-tape] CASH           sell $     18.86 lag=0.45s est
+[fh-tape] ?              sell $      4.48 lag=0.54s est
+[fh-tape] GENESIS        sell $     37.75 lag=0.65s est
+[fh-tape] ?              buy  $     26.92 lag=0.55s
+[fh-tape] GENESIS        buy  $    162.04 lag=0.05s
+[fh-tape] Harris         sell $      0.00 lag=0.07s est
+[fh-tape] seedcoin       buy  $      2.00 lag=0.27s
+[fh-tape] MOONDOGE       sell $      3.63 lag=0.39s est
+[fh-tape] ?              buy  $     23.33 lag=0.48s
+[fh-tape] seedcoin       sell $      1.90 lag=0.59s est
+[fh-tape] ?              buy  $     15.79 lag=0.59s
+[fh-tape] GENESIS        buy  $      0.09 lag=0.50s
+[fh-tape] GENESIS        buy  $      0.09 lag=0.50s
+[fh-tape] Harris         sell $      0.00 lag=0.49s est
+[fh-tape] GENESIS        buy  $      0.02 lag=0.90s
+[fh-tape] CASHCATWIF     buy  $     19.92 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $     62.39 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $     49.13 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $     77.16 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $     12.23 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $      5.65 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $    509.14 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $     51.31 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $     32.28 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $     12.38 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $     76.28 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $    725.75 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $      2.37 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $    229.67 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $    179.34 lag=0.11s
+[fh-tape] CASHCATWIF     buy  $    168.30 lag=0.27s
+[fh-tape] CASHCATWIF     buy  $     68.04 lag=0.27s
+[fh-tape] CASHCATWIF     buy  $     41.35 lag=0.27s
+[fh-tape] ?              sell $      6.73 lag=0.41s est
+[fh-tape] RANGER         buy  $    540.14 lag=0.73s
+[fh-tape] WSB            buy  $     44.44 lag=0.64s est
+[fh-tape] GENESIS        buy  $    144.04 lag=0.06s
+[fh-tape] RANGER         sell $     42.47 lag=0.53s est
+[fh-tape] GENESIS        sell $      0.02 lag=0.82s est
+[fh-tape] CASHCATWIF     buy  $    102.82 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     64.22 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     98.45 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     71.49 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     76.42 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     39.35 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     65.17 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     34.60 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    178.95 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     86.39 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     45.77 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     39.53 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     90.68 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     74.45 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    106.12 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    148.18 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    179.29 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     45.05 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     85.05 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     43.30 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     37.35 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    138.85 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     58.93 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     74.40 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     41.84 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     92.89 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     64.05 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     86.84 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     36.15 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     85.80 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     35.58 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     72.02 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     35.66 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     53.04 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     58.40 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    102.26 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     42.85 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     74.39 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     87.84 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    158.76 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     86.26 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    117.61 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     54.01 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     40.41 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     40.86 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    114.93 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    123.97 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    165.51 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     46.21 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     85.57 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    133.74 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     73.14 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    119.32 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     97.86 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     67.46 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     59.68 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     89.35 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     83.25 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    158.34 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     53.60 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    142.25 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    105.36 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    124.90 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     88.61 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    107.07 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    101.85 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     45.22 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     32.92 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     64.76 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     99.44 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     54.58 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     32.75 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     84.72 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     70.44 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     70.01 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    159.86 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     39.82 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     85.32 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    165.92 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     54.74 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $    136.29 lag=0.54s
+[fh-tape] CASHCATWIF     buy  $     42.54 lag=1.50s
+[fh-tape] CASHCATWIF     buy  $     98.71 lag=1.50s
+[fh-tape] CASHCATWIF     buy  $     33.54 lag=1.50s
+[fh-tape] CASHCATWIF     buy  $     60.21 lag=1.50s
+[fh-tape] CASHCATWIF     buy  $     34.09 lag=1.50s
+[fh-tape] CASHCATWIF     buy  $     51.53 lag=1.50s
+[fh-tape] CASHCATWIF     buy  $     31.55 lag=1.50s
+[fh-tape] CASHCATWIF     buy  $     31.93 lag=1.50s
+[fh-tape] CASHCATWIF     buy  $    116.18 lag=1.50s
+[fh-tape] CashDog        buy  $    179.81 lag=0.60s
+[fh-tape] ?              buy  $      6.51 lag=0.06s
+[fh-tape] Harris         sell $      0.00 lag=0.66s est
+[fh-tape] ?              buy  $      7.01 lag=0.25s
+[fh-tape] OG             buy  $    150.15 lag=0.66s
+[fh-tape] GENESIS        buy  $      0.02 lag=0.66s
+[fh-tape] RELOAD         buy  $      3.00 lag=0.46s
+[fh-tape] GENESIS        sell $      0.01 lag=0.46s est
+[disc] audition: cycles=2280 checked=88650 ok=84032 promoted=485 queue=34988 recheck=37 pending_sym=0
+[fh-tape] Harris         sell $      0.00 lag=0.78s est
+[fh-tape] CASHCATWIF     buy  $      1.80 lag=0.89s
+[fh-tape] ?              sell $     17.31 lag=0.09s est
+[fh-tape] GENESIS        buy  $     18.00 lag=0.19s
+[fh-tape] ?              buy  $     49.54 lag=0.60s
+[fh-tape] ?              buy  $      2.53 lag=0.09s
+[fh-tape] Pointless      buy  $  1,530.38 lag=0.81s
+[fh-tape] GENESIS        sell $      0.01 lag=0.62s est
+[fh-tape] GENESIS        buy  $    450.11 lag=0.93s
+[fh-tape] GENESIS        sell $      0.01 lag=0.23s est
+[fh-tape] Harris         sell $      0.00 lag=0.23s est
+[fh-tape] ?              sell $     19.85 lag=0.55s est
+[fh-tape] ?              sell $      0.63 lag=0.21s est
+[fh-tape] ROBIN          sell $      7.95 lag=0.79s est
+[fh-tape] ?              buy  $     10.17 lag=0.85s
+[fh-tape] GENESIS        sell $      0.01 lag=0.05s est
+[fh-tape] GENESIS        buy  $     18.00 lag=0.85s
+[fh-tape] Harris         sell $      0.00 lag=0.85s est
+[fh-tape] ?              buy  $     18.00 lag=0.47s
+[fh-tape] HOPPY          buy  $    990.25 lag=0.37s
+[fh-tape] robin          sell $      5.96 lag=0.33s est
+[fh-tape] GENESIS        buy  $    180.05 lag=0.51s
+[rh-paper] rh_first_touch: entries=3 exits=3 day=$-2.40 | blocks: no_demand_turn=240014 no_dip=230188 age_ceiling=157772 liq_floor=125466
+[rh-paper] rh_bites2: entries=6 exits=5 day=$+2.81 | blocks: no_demand_turn=239477 no_dip=229782 age_ceiling=157772 liq_floor=125466
+[rh-paper] rh_wide_ladder: entries=17 exits=16 day=$-9.59 | blocks: no_demand_turn=238913 no_dip=229657 age_ceiling=157772 liq_floor=125466
+[rh-paper] rh_moonbag: entries=17 exits=16 day=$-4.09 | blocks: no_demand_turn=239037 no_dip=229633 age_ceiling=157772 liq_floor=125466
+[disc] +GENESIS (v3) liq=$9,089 age=0.0h
+[rh-paper] rh_demand_heavy: entries=13 exits=13 day=$-18.93 | blocks: no_demand_turn=242477 no_dip=230076 age_ceiling=157772 liq_floor=125466
+[fh] 124.4min: frames=74721 msgs=75209 txs=664402 router_txs=64930 taped=16012 (est=11485) watch=157 lag med=0.69s p95=1.33s n=16012 reconnects=0
+[rh-paper] session: entries=129 exits=123 open=6 | quotes=21250 evals=248261
+[rh-paper] rh_liq40: entries=17 exits=16 day=$-4.75 | blocks: no_demand_turn=239063 no_dip=229674 liq_floor=160325 age_ceiling=157772
+[rh-paper] rh_young_v1: entries=17 exits=16 day=$-5.23 | blocks: no_demand_turn=239063 no_dip=229674 age_ceiling=157772 liq_floor=125466
+[rh-paper] rh_deep_only: entries=8 exits=8 day=$+3.68 | blocks: no_dip=241278 no_demand_turn=239482 age_ceiling=157772 liq_floor=125466
+[rh-paper] rh_prime_hours: entries=13 exits=13 day=$+0.24 | blocks: no_demand_turn=239175 no_dip=229679 age_ceiling=157772 liq_floor=125466
+[rh-paper] rh_launch_scalp: entries=2 exits=2 day=$+6.11 | blocks: weak_inflow=232861 age_ceiling=228308 no_strength=182020 liq_floor=125466
+[rh-paper] rh_aged_hold: entries=3 exits=2 day=$-5.98 | blocks: no_demand_turn=239722 no_dip=229957 hour_regime=144183 liq_floor=125466
+[rh-paper] rh_aged_derisk: entries=0 exits=0 day=$+0.00 | blocks: no_demand_turn=240014 no_dip=230191 hour_regime=144183 liq_floor=125466
+[rh-paper] rh_aged_deep: entries=0 exits=0 day=$+0.00 | blocks: no_demand_turn=240014 no_dip=230191 hour_regime=144183 liq_floor=125466
+[rh-paper] rh_f_pullback: entries=1 exits=1 day=$-5.08 | blocks: age_ceiling=238711 no_demand_turn=237382 no_dip=220486 untracked_session=183657
+[rh-paper] rh_f_arc_scalp: entries=1 exits=1 day=$+3.08 | blocks: age_ceiling=238711 no_demand_turn=237382 no_dip=220486 untracked_session=183657
+[rh-paper] rh_f_popret: entries=6 exits=6 day=$+41.39 | blocks: no_demand_turn=240014 age_ceiling=238711 no_dip=230172 no_recent_pop=202691
+[rh-paper] rh_fill_probe: entries=4 exits=4 day=$-0.70 | blocks: no_demand_turn=239482 no_dip=229783 daily_buys_cap=185064 age_ceiling=157772
+[rh-paper] rh_f_reload24: entries=0 exits=0 day=$+0.00 | blocks: no_dip=241809 no_demand_turn=237382 thin_session_vol=211108 age_floor=90489
+[fh-tape] CASHCATWIF     buy  $    212.20 lag=0.86s
+[rh-paper] rh_f_reload_mid: entries=1 exits=1 day=$-1.06 | blocks: no_dip=241809 no_demand_turn=240014 age_ceiling=157772 thin_session_vol=107770
+[fh-tape] CASHCATWIF     buy  $  1,464.79 lag=0.86s
+[fh-tape] CASHCATWIF     buy  $     71.85 lag=0.86s
+[fh-tape] CASHCATWIF     buy  $      8.64 lag=0.86s
+[fh-tape] CASHCATWIF     buy  $    388.37 lag=0.86s
+[fh-tape] CASHCATWIF     buy  $     17.40 lag=0.86s
+[fh-tape] CASHCATWIF     buy  $     42.17 lag=0.86s
+[fh-tape] CASHCATWIF     buy  $    126.87 lag=0.86s
+[fh-tape] CASHCATWIF     buy  $    841.41 lag=0.86s
+[fh-tape] CASHCATWIF     buy  $      9.90 lag=0.86s
+[fh-tape] CASHCATWIF     buy  $     50.28 lag=0.86s
+[fh-tape] CASHCATWIF     buy  $     85.27 lag=0.86s
+[fh-tape] CASHCATWIF     buy  $    159.15 lag=0.86s
+[fh-tape] CASHCATWIF     buy  $      1.96 lag=0.86s
+[fh-tape] GENESIS        buy  $      1.80 lag=0.13s
+[fh-tape] ?              sell $      2.54 lag=0.64s est
+[fh-tape] ?              buy  $    382.60 lag=0.91s
+[fh-tape] OG             buy  $     18.00 lag=0.15s
+[fh-tape] Harris         sell $      0.00 lag=0.52s est
+[fh-tape] GENESIS        buy  $    151.24 lag=0.43s
+[fh-tape] BYCOCKET       sell $      7.62 lag=0.25s est
+[fh-tape] CASHCATWIF     buy  $    165.60 lag=0.95s
+[fh-tape] CASHCATWIF     buy  $     68.75 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     96.19 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     90.17 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     61.71 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     94.75 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     32.65 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     31.76 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $    105.07 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     61.10 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     57.35 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     69.56 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     40.37 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $    103.03 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $    100.46 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $    100.80 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $    122.54 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     45.58 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     53.18 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     86.71 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     87.13 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     48.39 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     92.68 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $    143.12 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     46.32 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $    173.14 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     94.41 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     46.26 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $    129.04 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $    110.91 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     66.49 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     88.79 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     33.84 lag=1.08s
+[fh-tape] CASHCATWIF     buy  $     36.57 lag=0.40s
+[fh-tape] CASHCATWIF     buy  $     87.82 lag=0.40s
+[fh-tape] CASHCATWIF     buy  $    124.38 lag=0.40s
+[fh-tape] CASHCATWIF     buy  $     98.52 lag=0.40s
+[fh-tape] CASHCATWIF     buy  $    139.26 lag=0.40s
+[fh-tape] CASHCATWIF     buy  $     41.33 lag=0.40s
+[fh-tape] CASHCATWIF     buy  $     99.69 lag=0.40s
+[fh-tape] CASHCATWIF     buy  $     74.80 lag=0.40s
+[fh-tape] CASHCATWIF     buy  $     32.87 lag=0.40s
+[fh-tape] CASHCATWIF     buy  $     44.85 lag=0.40s
+[fh-tape] CASHCATWIF     buy  $     47.33 lag=0.50s
+[fh-tape] CASHCATWIF     buy  $    117.57 lag=0.50s
+[fh-tape] CASHCATWIF     buy  $     73.32 lag=0.50s
+[fh-tape] CASHCATWIF     buy  $     39.53 lag=0.50s
+[fh-tape] CASHCATWIF     buy  $     33.66 lag=0.50s
+[fh-tape] CASHCATWIF     buy  $     76.00 lag=0.55s
+[fh-tape] CASHCATWIF     buy  $     31.85 lag=0.55s
+[fh-tape] GENESIS        buy  $     72.23 lag=0.34s
+[fh-tape] CASHCATWIF     buy  $     74.78 lag=0.55s
+[fh-tape] CASHCATWIF     buy  $    107.14 lag=0.55s
+[fh-tape] CASHCATWIF     buy  $    161.39 lag=0.55s
+[fh-tape] CASHCATWIF     buy  $    134.77 lag=0.60s
+[fh-tape] CASHCATWIF     buy  $    134.55 lag=0.61s
+[fh-tape] CASHCATWIF     buy  $     56.49 lag=0.61s
+[fh-tape] CASHCATWIF     buy  $     88.21 lag=0.61s
+[fh-tape] CASHCATWIF     buy  $     42.51 lag=0.61s
+[fh-tape] CASHCATWIF     buy  $     50.19 lag=0.66s
+[fh-tape] CASHCATWIF     buy  $     36.93 lag=0.66s
+[fh-tape] CASHCATWIF     buy  $     72.73 lag=0.66s
+[fh-tape] CASHCATWIF     buy  $    136.93 lag=0.66s
+[fh-tape] CASHCATWIF     buy  $     63.19 lag=0.66s
+[fh-tape] CASHCATWIF     buy  $     97.36 lag=0.66s
+[fh-tape] CASHCATWIF     buy  $     83.90 lag=0.66s
+[fh-tape] CASHCATWIF     buy  $     61.57 lag=0.66s
+[fh-tape] CASHCATWIF     buy  $     49.50 lag=0.66s
+[fh-tape] CASHCATWIF     buy  $    113.76 lag=0.75s
+[fh-tape] CASHCATWIF     buy  $     53.53 lag=0.75s
+[fh-tape] CASHCATWIF     buy  $     40.04 lag=0.75s
+[fh-tape] GENESIS        buy  $    126.03 lag=0.57s
+[fh-tape] ?              buy  $     27.01 lag=0.49s
+[fh-tape] ?              buy  $     12.67 lag=1.00s
+[fh-tape] COMPUTE        buy  $     52.56 lag=0.22s
+[fh-tape] Harris         sell $      0.00 lag=0.20s est
+[fh-tape] KALEIDO        buy  $     24.77 lag=0.21s
+[fh-tape] ?              buy  $     43.35 lag=0.61s
+[fh-tape] Harris         sell $      0.00 lag=0.91s est
+[fh-tape] Robin          buy  $     90.02 lag=0.53s
+[fh-tape] ?              buy  $      2.98 lag=0.63s
+[fh-tape] GENESIS        buy  $     36.01 lag=0.44s
+[fh-tape] ?              buy  $      7.06 lag=0.45s
+[fh-tape] CASH           buy  $     13.71 lag=0.55s
+[fh-tape] ?              sell $     10.84 lag=0.56s est
+[fh-tape] GENESIS        buy  $     18.00 lag=0.28s
+[fh-tape] ?              buy  $      4.74 lag=0.89s
+[fh-tape] GENESIS        sell $     37.21 lag=0.39s est
+[fh-tape] Harris         sell $      0.00 lag=0.39s est
+[fh-tape] ?              buy  $      5.36 lag=0.19s
+[fh-tape] WALLET         buy  $     54.01 lag=0.53s
+[fh-tape] HOPPY          buy  $    100.83 lag=1.20s
+[fh-tape] WALLET         buy  $  1,978.67 lag=0.31s
+[fh-tape] WALLET         buy  $    360.09 lag=0.41s
+[fh-tape] WALLET         buy  $  1,978.67 lag=0.24s
+[fh-tape] WALLET         buy  $  1,800.45 lag=0.41s
+[fh-tape] WALLET         buy  $      4.03 lag=0.41s
+[fh-tape] ?              buy  $     16.94 lag=1.03s
+[fh-tape] WALLET         buy  $    360.09 lag=0.93s
+[fh-tape] GENESIS        buy  $     36.01 lag=0.32s
+[rh-paper] BUY  rh_aged_derisk   WALLET       $25.00 dip=-20.1% lat_total=1.12s (trigger 0.93s + quote 0.186s)
+[fh-tape] ?              sell $      1.19 lag=0.72s est
+[fh-tape] GENESIS        buy  $     90.02 lag=0.92s
+[fh-tape] KALEIDO        buy  $  2,700.68 lag=0.23s
+[fh-tape] Harris         sell $      0.00 lag=0.23s est

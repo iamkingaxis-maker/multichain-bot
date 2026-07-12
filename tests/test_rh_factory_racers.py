@@ -226,6 +226,92 @@ class TestFactoryRoster:
                 assert b.reentry_cooldown_s == 600.0
 
 
+class TestDeepConsolidatedRacer:
+    """rh_deep_consolidated (2026-07-12 deep-decode; _rh_deep_decode.md): the
+    fusion of today's three GREEN racers. Deep-capitulation entry + proven-vol
+    floor + 2-bite cap, and — decisively — the SHARED scalp exit verbatim, with
+    demand left at the DEFAULT (never raised: raising it is what sank the RED
+    demand_heavy). Pure composition of already-tested knobs; this spec pins it."""
+
+    def _bot(self):
+        return {b.bot_id: b for b in ROSTER}["rh_deep_consolidated"]
+
+    def test_in_own_exclusion_group(self):
+        b = self._bot()
+        assert b.exclusion_group == "deepsynth"
+        # sole member of the group (the label is intentional, per instruction)
+        assert [x.bot_id for x in ROSTER
+                if x.exclusion_group == "deepsynth"] == ["rh_deep_consolidated"]
+
+    def test_entry_is_deep_capitulation_plus_proven_vol(self):
+        b = self._bot()
+        assert b.dip_trigger_pct == -25.0            # deep_only's capitulation
+        assert b.min_session_vol_usd == 4_800.0      # f_arc_scalp's vol floor
+        # anchor OFF -> proven-vol gate reads OBSERVED lifetime volume, a
+        # conservative lower bound (rh_f_reload24 rationale), not untracked block
+        assert b.require_session_anchor is False
+        assert b.max_bites_per_token == 2            # bites2's re-entry cap
+
+    def test_does_not_chase_demand_strength(self):
+        # THE anti-chase lesson: demand floor stays at the lane default ($50);
+        # raising it to $150 is precisely what made demand_heavy the worst racer.
+        assert self._bot().demand_min_buy_usd == mod.DEMAND_MIN_BUY_USD
+
+    def test_exit_is_the_shared_scalp_ladder(self):
+        b = self._bot()
+        # LaneBot defaults verbatim = the ladder all three greens share
+        assert (b.tp1_pct, b.tp1_sell_fraction) == (6.0, 0.75)
+        assert (b.tp2_pct, b.tp2_sell_fraction) == (12.0, 0.25)
+        assert b.hard_stop_pct == -15.0
+        assert b.trail_pp is None                    # BotConfig default 3pp
+        assert b.moonbag_fraction == 0.0             # NO bleeding tail
+        assert b.time_stop_minutes is None           # NO time box
+        assert b.max_pool_age_h == mod.SCALP_MAX_POOL_AGE_H
+        assert b.bot_config().bot_id == "rh_deep_consolidated"
+
+
+class TestDeepBarbellRacer:
+    """rh_deep_barbell (2026-07-12, scratchpad/_deep_exit_optimization.md): the
+    EXIT-SHAPE deliverable. Deep-flush entry (dip<=-25) + a BARBELL exit
+    (fast-harvest the bulk to lock the robust-green median + a house-money
+    moonbag runner for the fat bounce tail that RISES with depth)."""
+
+    def _bot(self):
+        m = [x for x in ROSTER if x.bot_id == "rh_deep_barbell"]
+        assert len(m) == 1
+        return m[0]
+
+    def test_in_roster_own_exclusion_group(self):
+        b = self._bot()
+        assert b.exclusion_group == "deepexit"          # distinct from "factory"
+        assert [x.bot_id for x in ROSTER
+                if x.exclusion_group == "deepexit"] == ["rh_deep_barbell"]
+
+    def test_deep_flush_entry(self):
+        b = self._bot()
+        assert b.dip_trigger_pct == -25.0               # the deep cohort trigger
+        assert b.min_liq_usd == 5_000.0                 # feed watch floor
+        assert b.demand_min_buy_usd == 25.0             # study admission
+        assert b.reentry_cooldown_s == 600.0
+
+    def test_barbell_exit_shape(self):
+        b = self._bot()
+        # fast-harvest the BULK (locks the robust-green median)
+        assert (b.tp1_pct, b.tp1_sell_fraction) == (5.0, 0.60)
+        assert b.tp2_pct == 12.0
+        # HOUSE-MONEY runner for the fat tail: breakeven floor, wide trail
+        assert b.moonbag_fraction == 0.30
+        assert b.moonbag_floor_pct == 0.0               # breakeven = house money
+        assert b.moonbag_trail_pp == 12.0
+        assert b.hard_stop_pct == -15.0
+        # the harvested-fast fraction is the majority
+        assert b.tp1_sell_fraction >= 0.5
+        # config plumbs the moonbag through to the PM
+        cfg = b.bot_config()
+        assert (cfg.moonbag_fraction, cfg.moonbag_floor_pct,
+                cfg.moonbag_trail_pp) == (0.30, 0.0, 12.0)
+
+
 class TestFactoryEntryRouting:
     """A fresh popped pool routes to rh_f_popret while the proven-volume
     factory racers block for their stated reasons (shared-facts contract)."""

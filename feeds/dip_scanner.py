@@ -24097,6 +24097,136 @@ class DipScanner:
             except Exception as _e:
                 logger.debug(f"[DipScanner] p1_lbls shadow err: {_e}")
 
+            # deep_capitulation — SHADOW stamp 2026-07-12 (young-lane SELECTION
+            # mine, scratchpad/_sol_selection_mine.md; 955 realized young trips
+            # 07-02..12, 151 tokens, post-scrub, ex-top2 token-median). The ONE
+            # entry-time axis that separates less-red from more-red OUT-OF-SAMPLE
+            # (positive tokmed gap in ALL FOUR halves — chrono1/2 AND odd/even):
+            # DEEP 1h capitulation. pc_h1<=-45 -> ex2 tokmed -3.0 (wr 51, p90
+            # +28) vs pc_h1>-45 -> -6.3 (wr 44). Neighborhood robust: every
+            # threshold -35..-60 shows +1.3..+3.3 gap (not a lone spike). It is
+            # a SELECTION effect not an exit artifact (deep bucket med_peak +1.2
+            # vs 0.0, med_mae -2.5 vs -2.8). It BEATS all prior young-lane
+            # baselines, which FAIL the 4-half test here: pc_h6>=0|liq>=48k
+            # (gap~0), mean_buy>=$34 (INVERTS), mtf<0 (fails odd half). The RH
+            # "moderate-pullback + early-arc + proven-volume" signature does NOT
+            # port — it INVERTS (RH-port cohort -6.7 vs -5.6; proven-volume flat
+            # -6.3..-4.9 across all bands). Consistent with falling_knife memory
+            # (steep flush bounces more). CAVEAT: least-red, NOT green (pass side
+            # still -3.0); underpowered in thin halves (n 10-15 tok/side < 20
+            # bar). MEASURE-ONLY: stamp forward for the realized join, prove
+            # green + n>=20/side/half on fresh tape before any enforce/de-size.
+            # Fail-open on missing (isinstance guard, read-as-zero rule).
+            try:
+                _dc = entry_meta_dict.get("pc_h1")
+                if isinstance(_dc, (int, float)) and not isinstance(_dc, bool):
+                    _dc_v = "DEEP" if float(_dc) <= -45.0 else "SHALLOW"
+                    entry_meta_dict["deep_capitulation_shadow"] = _dc_v
+                    entry_meta_dict["deep_capitulation_pc_h1"] = float(_dc)
+                    if _dc_v == "DEEP":
+                        c["deep_capitulation_shadow_deep"] = c.get(
+                            "deep_capitulation_shadow_deep", 0) + 1
+                        logger.info(
+                            f"[DipScanner] deep_capitulation SHADOW favored: "
+                            f"{token_symbol} pc_h1={float(_dc):.1f}<=-45 "
+                            f"(deep-flush = less-red young cohort)")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] deep_capitulation shadow err: {_e}")
+
+            # deep_combo — SHADOW stamp 2026-07-12 (young-lane SELECTION combo
+            # hunt, scratchpad/_sol_deep_gate.md; same 955-trip dataset). The
+            # deep_capitulation stamp above is LESS-RED but still -3.0 ex2
+            # token-median. This combo turns it GREEN by adding a second axis:
+            # a LIQUIDITY FLOOR on top of the deep 1h flush.
+            #   DEEP (pc_h1<=-45) AND liquidity_usd>=30k  ->  ex2 tokmed +4.6
+            #   (wr 56, p90 +32.5) vs deep-alone -3.0 vs baseline -5.8.
+            # It is a GENUINE INTERACTION, not liquidity masquerading: liq>=30k
+            # ALONE is -5.0, DEEP ALONE is -3.0, but DEEP+liq>=30k is +4.6;
+            # SHALLOW(pc_h1>-45)+liq>=30k is the WORST at -6.3. i.e. a liquidity
+            # floor only pays on the deep-flush side — liquid pools that got
+            # flushed hard bounce; liquid pools still near their high are traps.
+            # OUT-OF-SAMPLE: GREEN in 3/4 halves (CH1 +3.9, CH2 +10.1, EVEN
+            # +8.0; ODD -2.2, shallow). Liq-floor NEIGHBORHOOD monotone/robust
+            # (28k +0.5, 30k +4.6, 32k +5.4[4/4], 35k +6.0[4/4]) — 30k is the
+            # max-volume choice; 32-35k flips ODD green at a volume cost.
+            # WINNER-PRESERVING: combo p90 +32.5 EXCEEDS deep-alone +28.3 — it
+            # concentrates the fat tail, does not clip it. VOLUME: keeps 68% of
+            # the deep cohort = ~19% of ALL young-lane fills (deep itself is 28%
+            # of fills). So as a HARD gate it guts lane volume ~5x — enforce is
+            # therefore written env-gated + DEFAULT-OFF, intended as a soft
+            # preference / dedicated-sleeve tilt, NOT a blanket block. CAVEAT:
+            # still underpowered in the thin halves (CH2 9 tok, EVEN 12 tok <20
+            # bar) — prove n>=20/side/half + sustained green on fresh tape before
+            # AxiS approves any live enforce. MEASURE-ONLY here; fail-open on
+            # missing (isinstance guard, read-as-zero rule => not favored).
+            try:
+                _pc1 = entry_meta_dict.get("pc_h1")
+                _liqv = entry_meta_dict.get("liquidity_usd")
+                if (isinstance(_pc1, (int, float)) and not isinstance(_pc1, bool)
+                        and isinstance(_liqv, (int, float))
+                        and not isinstance(_liqv, bool)):
+                    _combo_v = ("FAVOR" if (float(_pc1) <= -45.0
+                                            and float(_liqv) >= 30000.0)
+                                else "SKIP")
+                    entry_meta_dict["deep_combo_shadow"] = _combo_v
+                    entry_meta_dict["deep_combo_liq"] = float(_liqv)
+                    if _combo_v == "FAVOR":
+                        c["deep_combo_shadow_favor"] = c.get(
+                            "deep_combo_shadow_favor", 0) + 1
+                        logger.info(
+                            f"[DipScanner] deep_combo SHADOW favored: "
+                            f"{token_symbol} pc_h1={float(_pc1):.1f}<=-45 "
+                            f"AND liq=${float(_liqv):,.0f}>=30k "
+                            f"(deep-flush on a liquid pool = GREEN cohort +4.6)")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] deep_combo shadow err: {_e}")
+
+            # deep_exit_spec — SHADOW stamp 2026-07-12 (deep-cohort EXIT
+            # optimization, scratchpad/_deep_exit_optimization.md). The
+            # deep_capitulation / deep_combo stamps above are ENTRY selectors;
+            # THIS one records the recommended EXIT ladder for the deep-flush
+            # cohort so forward realized trips carry the recommendation for the
+            # exit-shape join. MEASURE-ONLY: the live exit ladder is UNCHANGED
+            # (no AxiS approval to touch live exits). Provenance: the RH real-
+            # forward-tape sweep (33,557 deep-dip entries) showed the deep-flush
+            # BOUNCE TAIL rises with depth (MFE>=50: 30%->39% as dip deepens;
+            # p90 +148->+260) -> the expectancy-optimal deep exit is a BARBELL
+            # (fast-harvest the bulk to lock the robust-green median + a
+            # house-money runner for the tail), NOT a faster harvest. On SOL the
+            # tail is present but THINNER (deep-cohort MFE p90 +29) and the
+            # summary-stat replay is INCONCLUSIVE (observed MFE is truncated by
+            # the live exit, which already banks the gap-tail), so SOL ships this
+            # as a forward-grading HYPOTHESIS, not an enforce. Sub-band split
+            # matches SOL's own fat-tail location: the deepest flushes (<=-60)
+            # carry the fattest bounces and warrant the larger runner. Fail-open
+            # on missing pc_h1 (isinstance guard, read-as-zero => no stamp).
+            try:
+                _pce = entry_meta_dict.get("pc_h1")
+                if (isinstance(_pce, (int, float)) and not isinstance(_pce, bool)
+                        and float(_pce) <= -45.0):
+                    _band = "vdeep" if float(_pce) <= -60.0 else "deep"
+                    # runner grows with depth (fatter tail deeper); house-money
+                    # breakeven floor + wide trail. tp1 harvests the bulk fast.
+                    _spec = ({"tp1": 5.0, "tp1_frac": 0.50, "tp2": 12.0,
+                              "moonbag_frac": 0.35, "moonbag_floor": 0.0,
+                              "moonbag_trail_pp": 15.0, "hard_stop": -15.0}
+                             if _band == "vdeep" else
+                             {"tp1": 5.0, "tp1_frac": 0.60, "tp2": 12.0,
+                              "moonbag_frac": 0.25, "moonbag_floor": 0.0,
+                              "moonbag_trail_pp": 12.0, "hard_stop": -15.0})
+                    entry_meta_dict["deep_exit_spec_shadow"] = "BARBELL_" + _band.upper()
+                    entry_meta_dict["deep_exit_spec_band"] = _band
+                    entry_meta_dict["deep_exit_spec"] = _spec
+                    c["deep_exit_spec_shadow_n"] = c.get(
+                        "deep_exit_spec_shadow_n", 0) + 1
+                    logger.info(
+                        f"[DipScanner] deep_exit_spec SHADOW: {token_symbol} "
+                        f"pc_h1={float(_pce):.1f} band={_band} "
+                        f"-> barbell(mb={_spec['moonbag_frac']}) "
+                        f"[measure-only; live exit unchanged]")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] deep_exit_spec shadow err: {_e}")
+
             # hl_confirm — SHADOW stamp 2026-07-05 (trough anatomy study,
             # scratchpad/_trough_anatomy.md): we fire MID-KNIFE (median fill
             # +14.8% above the eventual low; low still ahead in 54% of

@@ -1,0 +1,6 @@
+[mb] 2000000 rows 51s cands=6913 written=5064 pending=971
+[mb] 4000000 rows 130s cands=12085 written=9695 pending=1340
+[mb] 6000000 rows 206s cands=16817 written=13368 pending=1928
+[mb] 8000000 rows 280s cands=21735 written=17550 pending=2382
+[mb] 10000000 rows 361s cands=26587 written=21739 pending=2812
+[mb] DONE rows=10188262 in 367s cands=26998 written=26881

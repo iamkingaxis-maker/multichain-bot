@@ -1,0 +1,6 @@
+[deepexit] 2000000 rows 85s cands=8742 written=6540 pending=1079
+[deepexit] 4000000 rows 225s cands=15210 written=12404 pending=1510
+[deepexit] 6000000 rows 355s cands=21043 written=17033 pending=2154
+[deepexit] 8000000 rows 483s cands=27172 written=22275 pending=2698
+[deepexit] 10000000 rows 619s cands=33172 written=27579 pending=3123
+[deepexit] DONE rows=10188262 in 628s | cands=33689 written=33557

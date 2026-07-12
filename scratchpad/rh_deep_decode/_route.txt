@@ -1,0 +1,84 @@
+C:\Users\jcole\AppData\Local\Programs\Python\Python312\Lib\site-packages\pytest_asyncio\plugin.py:247: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+FF                                                                       [100%]
+================================== FAILURES ===================================
+___________ TestFleetEntryRouting.test_same_facts_route_per_config ____________
+
+self = <test_rh_paper_fleet.TestFleetEntryRouting object at 0x000002473DE296A0>
+tmp_path = WindowsPath('C:/Users/jcole/AppData/Local/Temp/pytest-of-jcole/pytest-923/test_same_facts_route_per_conf0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002473DEF4E30>
+
+    def test_same_facts_route_per_config(self, tmp_path, monkeypatch):
+        lane, ex = self._lane(tmp_path, monkeypatch)
+        self._dip_facts(lane)
+        lane._consider_entries(NOW)
+        entered = {bid for bid, st in lane.state.items()
+                   if "0xp1" in st.pos_meta}
+        # dip -20, buys $65, liq 50k, hour 13 (NOW is deterministic).
+        # Pool age is UNKNOWN (FakeFeed has no age_h) -> age gates fail open,
+        # so the aged cohort qualifies too — but the exclusion group lets
+        # only ONE aged racer take the token (roster order on the tie).
+        # rh_fill_probe (2026-07-12): permissive gates pass here too — its
+        # own exclusion_group, so it enters alongside (dormant = paper fill).
+>       assert entered == {"rh_young_v1", "rh_first_touch", "rh_bites2",
+                           "rh_wide_ladder", "rh_moonbag", "rh_liq40",
+                           "rh_aged_hold", "rh_fill_probe"}
+E       AssertionError: assert {'rh_aged_hol...catstop', ...} == {'rh_aged_hol...moonbag', ...}
+E         
+E         Extra items in the left set:
+E         'rh_lowvar_catstop'
+E         Use -v to get more diff
+
+tests\test_rh_paper_fleet.py:282: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[rh-paper] BUY  rh_young_v1      T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_first_touch   T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_bites2        T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_wide_ladder   T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_moonbag       T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_liq40         T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_aged_hold     T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_fill_probe    T            $7.50 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_lowvar_catstop T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] rug-stamp spawn failed: 'FakeFeed' object has no attribute 'latest_block'
+______ TestFleetEntryRouting.test_ledger_rows_carry_bot_id_and_unique_ts ______
+
+self = <test_rh_paper_fleet.TestFleetEntryRouting object at 0x000002473DEF4230>
+tmp_path = WindowsPath('C:/Users/jcole/AppData/Local/Temp/pytest-of-jcole/pytest-923/test_ledger_rows_carry_bot_id_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002473DEF7E30>
+
+    def test_ledger_rows_carry_bot_id_and_unique_ts(self, tmp_path,
+                                                    monkeypatch):
+        lane, _ = self._lane(tmp_path, monkeypatch)
+        self._dip_facts(lane)
+        lane._consider_entries(NOW)
+        buys = [r for r in _ledger_rows(tmp_path) if r["ev"] == "buy"]
+        # 6 scalp racers + 1 aged (group-deduped) + the fill probe (paper)
+>       assert len(buys) == 8
+E       AssertionError: assert 9 == 8
+E        +  where 9 = len([{'age_h': None, 'bot_id': 'rh_young_v1', 'dip_pct': -20.0, 'entry_mode': 'dip', ...}, {'age_h': None, 'bot_id': 'rh_f...0.0, 'entry_mode': 'dip', ...}, {'age_h': None, 'bot_id': 'rh_liq40', 'dip_pct': -20.0, 'entry_mode': 'dip', ...}, ...])
+
+tests\test_rh_paper_fleet.py:307: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[rh-paper] BUY  rh_young_v1      T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_first_touch   T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_bites2        T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_wide_ladder   T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_moonbag       T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_liq40         T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_aged_hold     T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_fill_probe    T            $7.50 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_lowvar_catstop T            $25.00 dip=-20.0% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] rug-stamp spawn failed: 'FakeFeed' object has no attribute 'latest_block'
+============================== warnings summary ===============================
+..\AppData\Local\Programs\Python\Python312\Lib\site-packages\websockets\legacy\__init__.py:6
+  C:\Users\jcole\AppData\Local\Programs\Python\Python312\Lib\site-packages\websockets\legacy\__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_rh_paper_fleet.py::TestFleetEntryRouting::test_same_facts_route_per_config
+FAILED tests/test_rh_paper_fleet.py::TestFleetEntryRouting::test_ledger_rows_carry_bot_id_and_unique_ts
+2 failed, 1 warning in 1.41s

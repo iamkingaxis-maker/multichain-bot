@@ -707,6 +707,38 @@ class PerBotPositionManager:
             except Exception:
                 pass
 
+        # 0d. VARIANCE-LEVER SHADOW (2026-07-12 variance-reduction mine,
+        # scratchpad/_variance_reduction.md). STAMP-ONLY — never appends a
+        # decision, never enforces (live SOL bots must not change behaviour).
+        # Records, once per position, the moment each low-variance lever WOULD
+        # have fired so forward realized data can grade them against the actual
+        # exit the enforced ladder produced:
+        #   Lever 2 (catastrophe cap): pnl would breach a floor tighter than the
+        #     -12 hard stop (VARSHADOW_CAT_FLOOR, default -20) — measures how
+        #     often an earlier de-risk would have mattered and at what pnl.
+        #   Lever 3 (hold-time box): held past VARSHADOW_BOX_MIN (default 10min)
+        #     — the higher-variance / negative-edge long-hold cohort.
+        # VARIANCE_SHADOW=off disables. Never raises (fail-open).
+        if os.environ.get("VARIANCE_SHADOW", "on").strip().lower() != "off":
+            try:
+                sb = p.state_blob
+                if sb is not None:
+                    _held_s = int(now - p.entry_time)
+                    _cat_floor = float(os.environ.get("VARSHADOW_CAT_FLOOR", "-20.0"))
+                    if pnl_pct <= _cat_floor and not sb.get("varshadow_cat_fired"):
+                        sb["varshadow_cat_fired"] = True
+                        sb["varshadow_cat_pnl_at_fire"] = round(pnl_pct, 4)
+                        sb["varshadow_cat_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+                        sb["varshadow_cat_secs"] = _held_s
+                    _box_min = float(os.environ.get("VARSHADOW_BOX_MIN", "10.0"))
+                    if _held_s >= _box_min * 60 and not sb.get("varshadow_box_fired"):
+                        sb["varshadow_box_fired"] = True
+                        sb["varshadow_box_pnl_at_fire"] = round(pnl_pct, 4)
+                        sb["varshadow_box_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+                        sb["varshadow_box_secs"] = _held_s
+            except Exception:
+                pass
+
         # 1. Hard stop (highest priority)
         if pnl_pct <= self.config.hard_stop_pct:
             decisions.append(ExitDecision(

@@ -182,6 +182,22 @@ DERISK_MAX_FRAC = 0.25          # post-window exposure cap (rug-tail defense):
                                 # one -98% LP pull costs <=0.25*$25=$6.25
                                 # (~4 median wins), not the -$24.4/position
                                 # rh_wide_ladder paid on CASHCATGAME.
+# ── LOW-VARIANCE cohort (2026-07-12 variance-reduction mine) — the two levers
+# that cut per-trip P&L variance WITHOUT dropping trades or touching entry size
+# (provenance: scratchpad/_variance_reduction.md). Both are already-built
+# machinery re-pointed at the SCALP (young) admission, where the tail lives:
+#   Lever 2 (catastrophe cap): force exposure down to 25% EARLY (5 min, not the
+#     aged cohort's 20 min) so a later LP-drain/rug gap hits a quarter position.
+#     RH realized: flooring the left tail at -20 cut per-trip stdev 20% AND
+#     lifted mean -0.12 -> +0.63 (100% of trades kept — it reshapes the EXIT).
+#   Lever 3 (hold-time box): the >10-min-hold scalp cohort carries higher stdev
+#     (RH 18.7 vs 12.6, Solana 21.4 vs 17.3) and NEGATIVE edge — boxing it cuts
+#     stdev ~6-10% and LIFTS mean, at ~8-19% volume cost.
+LOWVAR_DERISK_AFTER_S = 300.0   # 5 min: scalp pops die ~20-min median but the
+                                # rug/LP-drain tail lands later — bank to 25%
+                                # well before it. (vs aged cohort's 1200s.)
+LOWVAR_BOX_MINUTES = 10.0       # hold-box on the scalp cohort (Lever 3).
+
 REENTRY_MIN_DIP_PCT = -26.0     # live boundary (session-7 MONSIEUR/QUANT):
                                 # -12..-25% re-buys were slaughtered (-5.9..
                                 # -18.8); -26..-38% paid +8..+15 (deepest
@@ -539,6 +555,52 @@ ROSTER = (
             tp1_pct=6.0, tp1_sell_fraction=0.50,
             tp2_pct=16.0, tp2_sell_fraction=0.30, trail_pp=10.0,
             exclusion_group="factory"),
+    # ── DEEP-EXIT racer (2026-07-12; scratchpad/_deep_exit_optimization.md) —
+    # the EXIT-SHAPE deliverable for the deep-capitulation cohort. Same full-
+    # history replay harness (scratchpad/deep_exit/rh_deepexit_sweep.py: real
+    # forward tape, PM-mirrored ladders, +1%/-1% haircuts, dead pools -90),
+    # restricted to DEEP-flush entries (dip<=-20) and swept over 22 exit
+    # ladders x 3 depth bands x 4 halves (33,557 candidate entries, 7,024
+    # pools). The finding that shapes this racer:
+    #   The deep-flush BOUNCE TAIL rises with depth (MFE>=50: 30.4% at -20..-30
+    #   -> 38.9% at <=-45; p90 MFE +148 -> +260). So on real tape the
+    #   EXPECTANCY-optimal exit gets MORE patient with depth (patient mean beats
+    #   fast by +4.5pp in <=-45), REFUTING the prior "deeper -> faster harvest"
+    #   intuition — giveback risk does rise with depth, but bounce magnitude
+    #   rises FASTER. The ROBUST median still favors fast harvest at every depth
+    #   (the median trade never reaches the tail: fast5_all tokmed_ex2 +5.0).
+    #   The BARBELL resolves the tension: harvest the bulk fast (locks the
+    #   green robust median) + keep a HOUSE-MONEY runner (moonbag, breakeven
+    #   floor => ~zero giveback after TP2) for the fat tail. This EXACT shape
+    #   was re-simulated with the runtime moonbag floor (rh_moonbag_sweep.py,
+    #   26,881 dip<=-25 entries): tokmed_ex2 +2.51 (min-half +2.33, GREEN 4/4),
+    #   mean -1.18, med +4.53, wr 62%, cat 2.2% — DOMINATES the scalp exit on
+    #   BOTH axes (scalp tokmed +1.93 / mean -2.51) and recovers +1.9pp of the
+    #   expectancy a pure fast harvest (fast5_all tokmed +4.90 / mean -3.09)
+    #   discards by clipping the +150..+260 tail. The floor is STRICTLY better
+    #   than a -15 runner stop (a first-pass proxy scored only +2.19/-1.74), so
+    #   the live moonbag (runner rides live quotes past the tape sample end) is
+    #   at least this good. Harvest 0.60 @ +5, 0.10 @ +12 (tp2 sells remainder-
+    #   minus-moonbag), moonbag 0.30 rides breakeven-floored with a 12pp trail.
+    # PRE-REGISTERED (same bar as the factory racers): earns a RACE seat, never
+    # a live seat — CONFIRM at n>=30 closes (tokmed ex-top2 green, cat<=1/20,
+    # direction = the barbell cell: median green + a fat-tail lift over a pure
+    # scalp control) or it retires to the kills list. exclusion_group="deepexit"
+    # (one racer per token; distinct from "factory"). CAVEAT: replay cannot
+    # model continuation perfectly (the runtime runner rides live quotes past
+    # where the tape sample ended); the moonbag's breakeven floor bounds the
+    # downside of that uncertainty.
+    LaneBot(bot_id="rh_deep_barbell",
+            dip_trigger_pct=-25.0,
+            min_pool_age_h=0.0, max_pool_age_h=SCALP_MAX_POOL_AGE_H,
+            min_liq_usd=5_000.0,
+            demand_min_buy_usd=25.0,
+            reentry_cooldown_s=600.0,
+            tp1_pct=5.0, tp1_sell_fraction=0.60,
+            tp2_pct=12.0, tp2_sell_fraction=0.10,
+            moonbag_fraction=0.30, moonbag_floor_pct=0.0, moonbag_trail_pp=12.0,
+            hard_stop_pct=-15.0,
+            exclusion_group="deepexit"),
     # ── LIVE FILL PROBE (2026-07-12) — measures EXECUTION, not edge: the
     # standard young dip trigger with PERMISSIVE gates (min_liq 30k and the
     # always-on guard stack only — no vol/arc/pop/breadth extras), $7.50
@@ -554,6 +616,61 @@ ROSTER = (
             entry_usd=PROBE_SIZE_USD,
             max_buys_per_day=PROBE_MAX_BUYS_DAY,
             exclusion_group="fill_probe"),
+    # ── LOW-VARIANCE RACERS (2026-07-12 variance-reduction mine) — control
+    # (young_v1) admission, entry size UNTOUCHED ($25 default), every signal
+    # still taken (volume kept). exclusion_group="lowvar" adds cross-sibling
+    # de-clustering (Lever 4 lite: the two never pile the SAME token, so a
+    # single-token rug can't hit both at once) on top of each racer's own
+    # variance lever. PRE-REGISTERED: grade at n>=30 closes vs rh_young_v1 as
+    # CONTROL — WIN = lower per-trip stdev AND lower worst-trip with mean not
+    # worse; judge stdev/downside-stdev, not sums.
+    # A. catastrophe cap (Lever 2): 5-min derisk to 25% + tighter -12 hard stop.
+    LaneBot(bot_id="rh_lowvar_catstop",
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H,
+            derisk_after_s=LOWVAR_DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
+            hard_stop_pct=-12.0,
+            exclusion_group="lowvar"),
+    # B. hold-time box (Lever 3): full close at 10 min regardless of pnl.
+    LaneBot(bot_id="rh_lowvar_box",
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H,
+            time_stop_minutes=LOWVAR_BOX_MINUTES,
+            exclusion_group="lowvar"),
+    # ── DEEP-SYNTH CONSOLIDATED (2026-07-12; scratchpad/_rh_deep_decode.md) —
+    # the decode of today's GREEN racers (rh_deep_only +4.65, rh_bites2 +4.56,
+    # rh_f_arc_scalp +3.08) vs the RED (rh_demand_heavy -14.61 WORST,
+    # rh_wide_ladder -4.38, rh_moonbag -2.49). CAUSAL LEVER is NOT entry depth
+    # (green bites2's -15 median dip is SHALLOWER than red demand_heavy's -18):
+    # it is (1) the tight SCALP EXIT all three greens share verbatim (bank
+    # +6/0.75, +12/0.25, -15 stop, 3pp trail, NO moonbag, NO time box) and
+    # (2) selecting entries by PRICE STRUCTURE, never chasing demand strength.
+    # The three RED racers each BREAK exactly one of those: wide_ladder loosens
+    # the exit to +10/+20 (RH fades revert before +10 -> winners become
+    # trail/stop; observed TP2-reach 13% vs greens' ~21%); moonbag holds a 10%
+    # residual on a 0%-floor 20pp trail (the tail bleeds toward the rug, giving
+    # back the banked TP1); demand_heavy raises demand_min_buy 50->150, filtering
+    # DEMAND-AT-THE-MOMENT — which the RH winner-delta says does NOT separate
+    # winners/losers and the SOL selection mine says INVERTS (bigger buyers =
+    # MORE red = chasing strength). This racer fuses the three GREEN edges and
+    # keeps the anti-chase discipline:
+    #   entry = deep_only's capitulation dip (-25, the cross-chain "deep beats
+    #           chasing strength" thesis) + f_arc_scalp's PROVEN-VOLUME floor
+    #           ($4.8k; require_session_anchor OFF so it reads OBSERVED lifetime
+    #           volume, a conservative lower bound like rh_f_reload24 — defends
+    #           the thin-flush LOSER profile) + bites2's 2-bite cap. demand_min
+    #           stays at the DEFAULT $50, never raised (the anti-chase lesson).
+    #   exit  = THE shared scalp ladder (LaneBot defaults verbatim).
+    # No new gate logic — every gate here is an already-tested existing knob.
+    # PRE-REGISTERED (backtest earns a RACE seat, never a live seat): grade at
+    # n>=30 CLOSED positions vs the scalp fleet as control, per-token medians
+    # (ex-top-2), never sums. CONFIRM = tokmed ex-top2 green AND cat<=1/20 AND
+    # direction = deep-capitulation; FAIL = retire to the kills list, no re-tune
+    # on the same tape. CUT-CANDIDATE flagged by this decode: rh_demand_heavy.
+    LaneBot(bot_id="rh_deep_consolidated",
+            dip_trigger_pct=-25.0,
+            min_session_vol_usd=4_800.0,
+            max_bites_per_token=2,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H,
+            exclusion_group="deepsynth"),
 )
 
 
