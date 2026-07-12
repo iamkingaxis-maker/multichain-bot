@@ -1,3 +1,24 @@
+# Session Handoff — 2026-07-12 ~14:45 UTC — FABLE DAY 2 (shipping sprint continued)
+
+## LIVE (Solana): 3 bots @ $22.50 VERIFIED (config field = base_position_usd; absorb/vsnap had shipped at their paper $100 — fixed ee8a899, confirmed by live fill deployed=$22.5). Delta -0.025 SOL since the 2.115936 baseline (~breakeven through the shakeout). Canary healthy. LIVE_PER_TOKEN_MAX_USD=60, MAX_POSITIONS=1.
+
+## Shipped today (all deployed + verified; suite 2722):
+- 7a808ce post-TP1 FAST-WATCH (the 07-01 mine's +300-450 tok-pp lever): remainders ride the 2s loop through their OWN pm.tick; exit_cadence stamped -> grade at n>=50/arm (KPI fired-below-line <1pp vs 2.21pp systematic). Cleared by adversarial r2 + sell-serialization shim.
+- d4923d7: r2 review fixes (leaderboard pre-reset P&L resurrection FIXED — authoritative-P&L class; allowlist glob anchored; _trade_sig collision; loud rotation failure) + RUG-GATE PREWARM (fire-time gate = dict read; the timing fix for buy drift med +3.4pp/p90 +14pp) + RH COLD-START fix (liq seed config/rh_liq_seed.json + burst + recheck ladder + interleave + AIMD throttle; cloud lane watch=0 all night -> watch=120 in 5 min).
+- Young 03-08 lift (70a870e + moonbag twin in 7a808ce): four-half mine verdict — block was band-blind; young band regime-flat, KEEP block for older band. Guard: re-block if young 03-08 cat > rest+10pp @ n>=10.
+
+## RH STATUS (the "need robinhood soon" push):
+- CLOUD LANE FULLY OPERATIONAL 24/7: watch=183, 14k trades taped, lag p95 1.3s. AGED RACERS TRADING: aged_hold 41 closes day +$14.31 (first green for the thesis!), derisk -$8.91, deep -$1.21. Judge on the PRE-REG bar (tokmed n>=30, >=5 days, cat<=1/20) not day-$.
+- CANDIDATE FACTORY agent (resumable): backtests configs over the 10.36M-swap replay vs the Phase-1 bar (four-half); 64k candidates mined; wires top 3-5 as "factory" racers. Backtest = race seat, NEVER live seat (paper confirms at n>=30).
+- LIVE EXEC DORMANT + flip sequence ready. FILL PROBE offer standing: $5-10 live probe ~1 day after AxiS funds an RH wallet (mirrors Solana's badday_fill_probe_live history).
+- Fill-quality data: bad fills are TIMING not size (worst +14.7% at $22-size); size impact ~+1.5-2pp per $100 on 25-30k pools -> scaling headroom to $50-75 on >=30k-liq pools when AxiS wants it (liquidity-scaled, after clean days).
+
+## RESUME-ON-LIMIT NOTE: Fable session limits killed agents twice (both times resumed clean from checkpoints via SendMessage). If the factory agent is dead at session start: resume it; its checkpoints are scratchpad/rh_factory/PROGRESS.md.
+
+## Monitors this session (re-arm on new session): live wallet-truth v2 (change-only), fills monitor, cloud-lane log tail. Local RH lane session 10 running (expires ~300min; cloud is primary now — local optional).
+
+---
+
 # Session Handoff — 2026-07-11 ~23:10 UTC — LIVE RESUMED + THE FABLE SPRINT
 
 ## STATE: LIVE TRADING RESUMED (PAPER_MODE=false, 3 bots routing). Wallet 2.116 SOL baseline (AxiS deposited +1.221 SOL 07-11; baseline REBASED at 2.115936 — delta measures trading only). Canary healthy, Alchemy-primary RPC (publics demoted; drpc dropped — it 400s getTokenAccountsByOwner).
