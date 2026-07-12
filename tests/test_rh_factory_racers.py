@@ -285,7 +285,7 @@ class TestDeepBarbellRacer:
         b = self._bot()
         assert b.exclusion_group == "deepexit"          # distinct from "factory"
         assert [x.bot_id for x in ROSTER
-                if x.exclusion_group == "deepexit"] == ["rh_deep_barbell"]
+                if x.exclusion_group == "deepexit"] == ["rh_deep_barbell", "rh_deep_barbell_capped"]
 
     def test_deep_flush_entry(self):
         b = self._bot()

@@ -601,6 +601,27 @@ ROSTER = (
             moonbag_fraction=0.30, moonbag_floor_pct=0.0, moonbag_trail_pp=12.0,
             hard_stop_pct=-15.0,
             exclusion_group="deepexit"),
+    # rh_deep_barbell_capped (2026-07-12) — the FULL synthesis: the barbell
+    # bled live (NOXA -20.1% gap-through-stop, n=9) because it took deep flushes
+    # on THIN pools ($5k) with only a price stop. This merges all three fleet
+    # findings the split racers each had only ONE of: (1) DEEP entry (-25),
+    # (2) LIQUID pool min_liq 30k — the SOL combo mine proved deep+liq=GREEN /
+    # deep+thin=WORST cell, (3) BARBELL exit (floored runner captures the depth-
+    # growing bounce tail), (4) CATASTROPHE CAP (early de-risk to 25% so a
+    # gap-through stop can't hit full size — the variance mine's #1 lever).
+    # Pre-registered n>=30 vs rh_deep_barbell (the un-capped/thin control).
+    LaneBot(bot_id="rh_deep_barbell_capped",
+            dip_trigger_pct=-25.0,
+            min_pool_age_h=0.0, max_pool_age_h=SCALP_MAX_POOL_AGE_H,
+            min_liq_usd=30_000.0,
+            demand_min_buy_usd=25.0,
+            reentry_cooldown_s=600.0,
+            tp1_pct=5.0, tp1_sell_fraction=0.60,
+            tp2_pct=12.0, tp2_sell_fraction=0.10,
+            moonbag_fraction=0.30, moonbag_floor_pct=0.0, moonbag_trail_pp=12.0,
+            hard_stop_pct=-15.0,
+            derisk_after_s=LOWVAR_DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
+            exclusion_group="deepexit"),
     # ── LIVE FILL PROBE (2026-07-12) — measures EXECUTION, not edge: the
     # standard young dip trigger with PERMISSIVE gates (min_liq 30k and the
     # always-on guard stack only — no vol/arc/pop/breadth extras), $7.50
