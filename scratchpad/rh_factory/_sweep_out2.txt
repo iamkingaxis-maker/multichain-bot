@@ -1,0 +1,61 @@
+[sweep] 63473 candidates loaded (2026-07-01..2026-07-11)
+[sweep] primary grid (540 cells)
+[sweep] primary cells graded=531; refining 60 seeds
+[sweep] 4/4 SURVIVORS: 562
+  u10m|sh|v3|d25|aged+arc<=300                     n=  658 pools= 658 tokmed_ex2=$+2.46 (min-half $+1.97) cat=0.6% med_ret=+9.89 net=$+738 stale=3.5% dead=21.6%
+  u10m|vdeep|v.3|d50n|scalp+popret                 n=  405 pools= 405 tokmed_ex2=$+1.96 (min-half $+1.94) cat=0.0% med_ret=+7.86 net=$+154 stale=2.5% dead=18.0%
+  u10m|deep|v.3|d50n|scalp+popret                  n=  976 pools= 976 tokmed_ex2=$+1.94 (min-half $+1.92) cat=0.0% med_ret=+7.75 net=$+142 stale=1.9% dead=17.8%
+  u10m|deep|v.3|d50x2|scalp+popret                 n=  411 pools= 411 tokmed_ex2=$+2.01 (min-half $+1.90) cat=0.0% med_ret=+8.08 net=$+132 stale=2.2% dead=23.1%
+  u10m|sh|v3|d25|scalp+arc<=300                    n=  658 pools= 658 tokmed_ex2=$+1.97 (min-half $+1.85) cat=0.6% med_ret=+7.86 net=$+244 stale=3.5% dead=21.6%
+  u10m|mod|v3|d25|scalp+arc<=300                   n= 1025 pools=1025 tokmed_ex2=$+1.97 (min-half $+1.85) cat=0.4% med_ret=+7.86 net=$+337 stale=2.7% dead=20.7%
+  u10m|deep|v3|d50n|scalp+arc<=1000                n=  749 pools= 749 tokmed_ex2=$+1.84 (min-half $+1.74) cat=0.7% med_ret=+7.42 net=$-29 stale=2.0% dead=14.0%
+  u10m|vdeep|v.3|d50n|scalp                        n=  606 pools= 606 tokmed_ex2=$+1.79 (min-half $+1.73) cat=3.1% med_ret=+7.21 net=$-324 stale=2.3% dead=20.5%
+  u10m|vdeep|v.3|d50n|scalp+arc<=1000              n=  572 pools= 572 tokmed_ex2=$+1.73 (min-half $+1.71) cat=3.3% med_ret=+6.99 net=$-354 stale=2.4% dead=20.1%
+  u1h|vdeep|v.3|d50x2|scalp                        n= 1515 pools=1313 tokmed_ex2=$+1.85 (min-half $+1.70) cat=1.8% med_ret=+7.58 net=$-210 stale=1.5% dead=14.9%
+  u10m|sh|v3|d50n|scalp+arc<=300                   n=  485 pools= 485 tokmed_ex2=$+1.93 (min-half $+1.69) cat=0.6% med_ret=+7.74 net=$+136 stale=3.7% dead=21.0%
+  u10m|sh|v.3|d50n|scalp+arc<=300                  n= 1274 pools=1274 tokmed_ex2=$+1.84 (min-half $+1.67) cat=1.8% med_ret=+7.41 net=$-529 stale=2.7% dead=19.9%
+  u1h|mod|v3|d50n|scalp+arc<=300                   n= 1348 pools=1158 tokmed_ex2=$+1.70 (min-half $+1.66) cat=0.8% med_ret=+6.71 net=$-125 stale=1.8% dead=15.6%
+  u10m|deep|v3|d50n|scalp+athdd>=-40               n=  623 pools= 623 tokmed_ex2=$+1.84 (min-half $+1.66) cat=0.0% med_ret=+7.38 net=$+2 stale=1.9% dead=16.4%
+  u10m|mod|v3|d50n|scalp+arc<=300                  n=  708 pools= 708 tokmed_ex2=$+1.88 (min-half $+1.65) cat=0.4% med_ret=+7.51 net=$+173 stale=2.8% dead=20.1%
+  u10m|deep|v3|d50n|scalp+arc<=300                 n=  531 pools= 531 tokmed_ex2=$+1.62 (min-half $+1.60) cat=0.9% med_ret=+6.54 net=$-137 stale=1.3% dead=14.5%
+  u10m|mod|v.3|d50n|scalp+arc<=300                 n= 1763 pools=1763 tokmed_ex2=$+1.67 (min-half $+1.60) cat=2.2% med_ret=+6.71 net=$-932 stale=2.4% dead=20.3%
+  u10m|deep|v.3|d50n|scalp+arc<=1000               n= 1218 pools=1218 tokmed_ex2=$+1.72 (min-half $+1.60) cat=2.8% med_ret=+6.89 net=$-664 stale=2.1% dead=19.5%
+  u10m|mod|v3|d25|scalp+arc<=1000                  n= 1665 pools=1665 tokmed_ex2=$+1.79 (min-half $+1.60) cat=0.4% med_ret=+7.21 net=$+43 stale=2.7% dead=21.5%
+  u10m|deep|v.3|d50n|scalp+nb30>=3                 n=  993 pools= 993 tokmed_ex2=$+1.62 (min-half $+1.60) cat=1.3% med_ret=+6.50 net=$-429 stale=2.2% dead=18.4%
+  u10m|mod|v3|d25|scalp+h13-22                     n=  961 pools= 961 tokmed_ex2=$+1.65 (min-half $+1.59) cat=0.2% med_ret=+6.60 net=$-108 stale=2.8% dead=22.8%
+  u10m|vdeep|v.3|d50x2|tbox+popret                 n=  184 pools= 184 tokmed_ex2=$+1.69 (min-half $+1.59) cat=0.0% med_ret=+6.78 net=$+140 stale=2.7% dead=28.3%
+  u10m|deep|v.3|d50n|scalp                         n= 1314 pools=1314 tokmed_ex2=$+1.68 (min-half $+1.57) cat=2.6% med_ret=+6.72 net=$-764 stale=2.1% dead=20.5%
+  u10m|mod|v.3|d50n|scalp+popret                   n= 2195 pools=2195 tokmed_ex2=$+1.65 (min-half $+1.57) cat=0.2% med_ret=+6.60 net=$-416 stale=2.4% dead=20.4%
+  u10m|sh|v.3|d25|scalp+arc<=300                   n= 1941 pools=1941 tokmed_ex2=$+1.71 (min-half $+1.55) cat=2.9% med_ret=+6.84 net=$-1386 stale=2.4% dead=20.9%
+  u10m|sh|v.3|d50x2|scalp+arc<=300                 n=  724 pools= 724 tokmed_ex2=$+1.75 (min-half $+1.55) cat=2.4% med_ret=+7.06 net=$-490 stale=2.2% dead=18.9%
+  u10m|mod|v.3|d50n|scalp+arc<=1000                n= 2329 pools=2329 tokmed_ex2=$+1.61 (min-half $+1.55) cat=1.7% med_ret=+6.48 net=$-1115 stale=2.4% dead=20.9%
+  u10m|mod|v3|d50n|scalp+arc<=1000                 n= 1190 pools=1190 tokmed_ex2=$+1.65 (min-half $+1.55) cat=0.3% med_ret=+6.62 net=$-4 stale=2.9% dead=21.7%
+  u10m|mod|v3|d25|scalp                            n= 1892 pools=1892 tokmed_ex2=$+1.64 (min-half $+1.54) cat=0.3% med_ret=+6.59 net=$-240 stale=2.6% dead=22.6%
+  u10m|mod|v3|d25|scalp+popret                     n= 1879 pools=1879 tokmed_ex2=$+1.63 (min-half $+1.54) cat=0.3% med_ret=+6.54 net=$-248 stale=2.7% dead=22.7%
+  u10m|mod|v3|d25|scalp+athdd>=-40                 n= 1892 pools=1892 tokmed_ex2=$+1.64 (min-half $+1.54) cat=0.3% med_ret=+6.59 net=$-240 stale=2.6% dead=22.6%
+  u10m|sh|v3|d25|scalp+h13-22                      n=  619 pools= 619 tokmed_ex2=$+1.62 (min-half $+1.53) cat=0.3% med_ret=+6.49 net=$-79 stale=3.4% dead=23.7%
+  u10m|deep|v.3|d50x2|tbox+popret                  n=  411 pools= 411 tokmed_ex2=$+1.54 (min-half $+1.53) cat=0.0% med_ret=+6.18 net=$+145 stale=2.2% dead=23.1%
+  u10m|sh|v.3|d50n|scalp+h13-22                    n=  938 pools= 938 tokmed_ex2=$+1.54 (min-half $+1.53) cat=1.2% med_ret=+6.19 net=$-434 stale=2.7% dead=21.9%
+  u10m|deep|v.3|d50x2|scalp+arc<=1000              n=  638 pools= 638 tokmed_ex2=$+1.78 (min-half $+1.53) cat=4.7% med_ret=+7.17 net=$-572 stale=2.7% dead=24.5%
+  u1h|vdeep|v.3|d50n|scalp                         n= 2390 pools=1876 tokmed_ex2=$+1.71 (min-half $+1.52) cat=1.6% med_ret=+7.24 net=$-431 stale=1.5% dead=14.5%
+  u10m|mod|v3|d50x2|scalp+arc<=300                 n=  283 pools= 283 tokmed_ex2=$+1.99 (min-half $+1.52) cat=1.1% med_ret=+7.95 net=$+33 stale=2.8% dead=21.9%
+  u10m|mod|v3|d25|scalp+nb30>=3                    n= 1792 pools=1792 tokmed_ex2=$+1.61 (min-half $+1.50) cat=0.3% med_ret=+6.45 net=$-251 stale=2.7% dead=22.3%
+  u10m|mod|v.3|d50x2|scalp+arc<=300                n=  991 pools= 991 tokmed_ex2=$+1.57 (min-half $+1.50) cat=2.9% med_ret=+6.30 net=$-830 stale=2.3% dead=19.9%
+  u10m|mod|v.3|d50n|scalp                          n= 2506 pools=2506 tokmed_ex2=$+1.55 (min-half $+1.50) cat=1.6% med_ret=+6.21 net=$-1344 stale=2.4% dead=21.5%
+[sweep] near misses (3/4):
+  u10m|deep|v3|d50x2|scalp                         n=  331 pools= 331 tokmed_ex2=$+1.90 cat=1.5% FAIL=['chrono:W1']
+  u10m|vdeep|v.3|d50n|scalp+athdd>=-40             n=  311 pools= 311 tokmed_ex2=$+1.82 cat=2.2% FAIL=['chrono:W1']
+  u10m|vdeep|v3|d50x2|scalp                        n=  186 pools= 186 tokmed_ex2=$+1.78 cat=2.7% FAIL=['chrono:W1']
+  u10m|vdeep|v.3|d50n|scalp+h13-22                 n=  332 pools= 332 tokmed_ex2=$+1.76 cat=2.7% FAIL=['chrono:W1']
+  u10m|vdeep|v3|d50n|scalp                         n=  413 pools= 413 tokmed_ex2=$+1.72 cat=1.2% FAIL=['chrono:W1']
+  u10m|deep|v10|d50n|scalp                         n=  269 pools= 269 tokmed_ex2=$+1.72 cat=0.0% FAIL=['chrono:W1']
+  u10m|deep|v3|d50n|scalp+h02-10                   n=  259 pools= 259 tokmed_ex2=$+1.70 cat=0.8% FAIL=['chrono:W1']
+  u10m|vdeep|v.3|d50n|scalp+nb30>=3                n=  420 pools= 420 tokmed_ex2=$+1.63 cat=1.7% FAIL=['chrono:W1']
+  u10m|vdeep|v.3|d50n|scalp+arc<=300               n=  477 pools= 477 tokmed_ex2=$+1.60 cat=4.0% FAIL=['chrono:W1']
+  u10m|vdeep|v3|d50x2|tbox                         n=  186 pools= 186 tokmed_ex2=$+1.51 cat=1.1% FAIL=['chrono:W1']
+  u10m|deep|v3|d50x2|tbox                          n=  331 pools= 331 tokmed_ex2=$+1.49 cat=0.6% FAIL=['chrono:W1']
+  u10m|vdeep|v.3|d50x2|tbox+athdd>=-40             n=  161 pools= 161 tokmed_ex2=$+1.44 cat=0.6% FAIL=['chrono:W1']
+  u10m|deep|v.3|d50x2|tbox+athdd>=-40              n=  497 pools= 497 tokmed_ex2=$+1.44 cat=1.2% FAIL=['chrono:W1']
+  u10m|vdeep|v.3|d50n|tbox+h13-22                  n=  332 pools= 332 tokmed_ex2=$+1.43 cat=0.3% FAIL=['chrono:W1']
+  u10m|vdeep|v.3|d50n|tbox+athdd>=-40              n=  311 pools= 311 tokmed_ex2=$+1.43 cat=0.3% FAIL=['chrono:W1']
+[sweep] wrote sweep_results.json 983 cells

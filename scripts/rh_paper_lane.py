@@ -253,6 +253,31 @@ class LaneBot:
     # one hour rule that passed the two-window bar. Opt-in per racer: aged
     # racers default ON, scalp racers stay OFF (their A/B is mid-flight).
     regime_hours: bool = False
+    # ── CANDIDATE-FACTORY gates (2026-07-12 full-history mine; all default
+    # OFF so every pre-existing racer is byte-identical). Provenance:
+    # scratchpad/_rh_candidate_factory.md + rh_factory/{winner_delta.json,
+    # sweep_results.json} ─────────────────────────────────────────────────
+    # dip DEPTH CAP (winner-delta: <1h winners buy MODERATE pullbacks, p50
+    # -8.6; losers buy deep flushes, p50 -15.6 — a dip deeper than the cap
+    # is the LOSER profile, not a better entry): dip must be AT OR ABOVE
+    # this (e.g. -25.0 blocks dip=-30). None = no cap.
+    dip_max_depth_pct: Optional[float] = None
+    # demand BREADTH floor: >= this many buy prints in the 30s demand window
+    # (sweep nb30 axis; tape-count proxy for distinct buyers). None = off.
+    min_buys_30s: Optional[int] = None
+    # launch-ARC cap (winner-delta: losers buy LATE in the arc — px already
+    # 12x+ off first print): px vs the lane's FIRST-SEEN quote px for the
+    # pool must be <= this pct. Fail-OPEN when no first px (pool discovered
+    # mid-life — the signal doesn't exist). None = off.
+    max_arc_pct: Optional[float] = None
+    # POP-RETRACE family: entry allowed ONLY within this many seconds after
+    # a detected pop (latest px >= 1.35x the 10-min window min, 600s pop
+    # cooldown — the mine's detector verbatim). None = off.
+    require_pop_within_s: Optional[float] = None
+    # PROVEN-VOLUME floor (winner-delta: winners buy pools with ~$16k median
+    # volume BEFORE entry; losers ~$6.6k): lifetime observed USD volume for
+    # the pool must be >= this. None = off.
+    min_session_vol_usd: Optional[float] = None
 
     def bot_config(self) -> BotConfig:
         kw = {}
@@ -368,6 +393,85 @@ ROSTER = (
             reentry_cooldown_s=0.0,
             reentry_min_dip_pct=REENTRY_MIN_DIP_PCT,
             exclusion_group="aged", regime_hours=True),
+    # ── CANDIDATE-FACTORY RACERS (2026-07-12) — mined from the FULL
+    # replayable history (10.36M swaps, 07-01..11) with REALISTIC exits
+    # (ladder sims mirroring the PM, entry +1%/exit -1% haircuts, dead pools
+    # booked -90) and graded per half of the four-half discipline (chrono
+    # W1/W2 x odd/even) against the Phase-1 bar (n>=20 distinct pools/half,
+    # tokmed ex-top2 green, cat<=1/20). Each racer mirrors ONE 4/4-surviving
+    # cell VERBATIM (incl. min_liq_usd=5k = the mined substrate's feed floor
+    # — the cell's cat rate priced its rug tail with NO liq gate; honeypot/
+    # rt-cost/LP-drain still guard). All five: neighborhood-GREEN in every
+    # perturbation notch, >=5 distinct days, exclusion_group "factory" (one
+    # racer per token), 600s cooldown = the mine's per-pool trigger cooldown.
+    # Provenance + per-half tables: scratchpad/_rh_candidate_factory.md;
+    # rh_factory/{sweep_results,adversarial,winner_delta}.json.
+    # PRE-REGISTERED: backtest earned the RACE seat, never a live seat —
+    # each racer must CONFIRM at n>=30 closes (tokmed ex-top2 green,
+    # cat<=1/20, direction = its cell) or it retires to the kills list.
+    # 1. THE winner-delta cell: <10min pools, SHALLOW pullback (-6..-12,
+    #    deeper = the loser profile), proven volume >=$4.8k, EARLY arc
+    #    (<=+300% of first-seen px), wide aged ladder. Backtest: 658 pools,
+    #    tokmed_ex2 +$2.46 (min-half +$1.97), cat 0.6%, net +$738.
+    LaneBot(bot_id="rh_f_pullback",
+            dip_trigger_pct=-6.0, dip_max_depth_pct=-12.0,
+            min_pool_age_h=0.0, max_pool_age_h=10.0 / 60.0,
+            min_liq_usd=5_000.0, min_session_vol_usd=4_800.0,
+            demand_min_buy_usd=25.0, max_arc_pct=300.0,
+            reentry_cooldown_s=600.0,
+            tp1_pct=6.0, tp1_sell_fraction=0.50,
+            tp2_pct=16.0, tp2_sell_fraction=0.30, trail_pp=10.0,
+            exclusion_group="factory"),
+    # 2. Same admission shape, MODERATE band (-6..-25) + scalp ladder:
+    #    1,025 pools, tokmed_ex2 +$1.97 (min-half +$1.85), cat 0.4%, +$337.
+    LaneBot(bot_id="rh_f_arc_scalp",
+            dip_trigger_pct=-6.0, dip_max_depth_pct=-25.0,
+            min_pool_age_h=0.0, max_pool_age_h=10.0 / 60.0,
+            min_liq_usd=5_000.0, min_session_vol_usd=4_800.0,
+            demand_min_buy_usd=25.0, max_arc_pct=300.0,
+            reentry_cooldown_s=600.0,
+            exclusion_group="factory"),
+    # 3. POP-RETRACE family (the 31,208-pop mine): deep dip within 30 min
+    #    of a detected pop on a fresh pool, scalp ladder. 976 pools,
+    #    tokmed_ex2 +$1.94 (min-half +$1.92), cat 0.0% — the cleanest
+    #    catastrophe profile of the sweep; stale-stress green 4/4.
+    LaneBot(bot_id="rh_f_popret",
+            dip_trigger_pct=-12.0,
+            min_pool_age_h=0.0, max_pool_age_h=10.0 / 60.0,
+            min_liq_usd=5_000.0, min_session_vol_usd=480.0,
+            demand_min_buy_usd=50.0, require_pop_within_s=1800.0,
+            reentry_cooldown_s=600.0,
+            exclusion_group="factory"),
+    # 4. AGED RELOAD (>24h band — the decode thesis under realistic exits):
+    #    deep flush (<=-25) on PROVEN aged pools (>=$16k lifetime volume =
+    #    the winners' vol_pre median), aged ladder. 605 pools, tokmed_ex2
+    #    +$1.78 (min-half +$1.08), cat 0.0%, net +$1,285, dead 0.2%.
+    #    DORMANT until RH_FEED_MAX_AGE_H widens past 24h (feed prunes the
+    #    band); arms automatically when it does. regime_hours deliberately
+    #    OFF: the cell passed 4/4 WITH 19-21 UTC included (cell-verbatim;
+    #    the hour gate is the existing aged racers' A/B, not this one's).
+    LaneBot(bot_id="rh_f_reload24",
+            dip_trigger_pct=-25.0,
+            min_pool_age_h=24.0,
+            min_liq_usd=5_000.0, min_session_vol_usd=16_000.0,
+            demand_min_buy_usd=25.0,
+            reentry_cooldown_s=600.0,
+            tp1_pct=6.0, tp1_sell_fraction=0.50,
+            tp2_pct=16.0, tp2_sell_fraction=0.30, trail_pp=10.0,
+            exclusion_group="factory"),
+    # 5. MID-BAND reload (6-24h — reachable on TODAY'S feed): same deep-
+    #    flush trigger, $50-net demand. 362 pools, tokmed_ex2 +$0.93
+    #    (min-half +$0.76), cat 0.5%, net +$214 — the weakest of the five
+    #    but the only aged-thesis cell that fires before the feed widens.
+    LaneBot(bot_id="rh_f_reload_mid",
+            dip_trigger_pct=-25.0,
+            min_pool_age_h=6.0, max_pool_age_h=24.0,
+            min_liq_usd=5_000.0, min_session_vol_usd=480.0,
+            demand_min_buy_usd=50.0,
+            reentry_cooldown_s=600.0,
+            tp1_pct=6.0, tp1_sell_fraction=0.50,
+            tp2_pct=16.0, tp2_sell_fraction=0.30, trail_pp=10.0,
+            exclusion_group="factory"),
 )
 
 
@@ -473,6 +577,81 @@ def regime_hour_ok(hour_utc: int, age_h) -> bool:
     (fail-OPEN). Thin wrapper over core.rh_regime.aged_hour_gate_ok so the
     rule, its numbers and its provenance live in ONE place."""
     return aged_hour_gate_ok(hour_utc, age_h)
+
+
+def dip_depth_block(dip, max_depth_pct) -> Optional[str]:
+    """CANDIDATE-FACTORY depth cap -> block reason or None. A dip DEEPER
+    (more negative) than max_depth_pct is the <1h LOSER profile (winner-delta
+    2026-07-12: winners p50 -8.6 vs losers -15.6; our old all-buys p50 -17.2
+    sat on the loser side). No dip reading = the trigger already blocks
+    (no_dip) — this gate only rules on a real reading. None = gate off."""
+    if max_depth_pct is None or dip is None:
+        return None
+    return "dip_too_deep" if dip < max_depth_pct else None
+
+
+def buys_breadth_block(n_buys_30s: int, min_buys) -> Optional[str]:
+    """Demand-breadth floor (sweep nb30 axis) -> block reason or None.
+    Tape buy-print count over the 30s demand window; a $50 'demand turn'
+    made of ONE print is a single actor, not demand. None = gate off."""
+    if min_buys is None:
+        return None
+    return "demand_breadth" if n_buys_30s < int(min_buys) else None
+
+
+def arc_pct(first_px, px_now):
+    """Launch-arc position: pct of px_now vs the FIRST price the lane ever
+    saw for this pool. None when either side is missing/invalid (pool
+    discovered mid-life -> the signal doesn't exist; gates fail OPEN)."""
+    if not first_px or not px_now or first_px <= 0:
+        return None
+    return (px_now / first_px - 1.0) * 100.0
+
+
+def arc_block(arc, max_arc_pct) -> Optional[str]:
+    """Arc cap -> block reason or None (winner-delta: losers buy LATE in the
+    launch arc — median +1240% vs winners +540%). Fail-OPEN on no reading."""
+    if max_arc_pct is None or arc is None:
+        return None
+    return "arc_late" if arc > max_arc_pct else None
+
+
+POP_FRAC = 1.35             # pop detector: latest px >= 1.35x the window min
+POP_COOLDOWN_S = 600.0      # one pop event per pool per 10 min (mine parity)
+
+
+def pop_fired(series, now: float, window_s: float = PRICE_WINDOW_S,
+              pop_frac: float = POP_FRAC):
+    """Pop detector (the factory mine's, verbatim semantics): the LATEST
+    in-window price at/above pop_frac x the window MIN -> pop magnitude pct;
+    else None. <3 in-window points = no basis (same rule as dip_pct)."""
+    pts = [(t, p) for t, p in series if now - t <= window_s and p > 0]
+    if len(pts) < 3:
+        return None
+    lo = min(p for _, p in pts)
+    cur = pts[-1][1]
+    if lo <= 0 or cur < lo * pop_frac:
+        return None
+    return (cur / lo - 1.0) * 100.0
+
+
+def proven_vol_block(cum_vol_usd: float, min_usd) -> Optional[str]:
+    """PROVEN-VOLUME floor -> block reason or None. Lifetime observed USD
+    volume (lane cum_vol, persisted) vs the racer's floor. None = gate off."""
+    if min_usd is None:
+        return None
+    return "thin_session_vol" if (cum_vol_usd or 0.0) < min_usd else None
+
+
+def pop_recency_block(last_pop_ts, now: float,
+                      require_within_s) -> Optional[str]:
+    """POP-RETRACE gate -> block reason or None: entry allowed only within
+    require_within_s of the pool's last detected pop. None = gate off."""
+    if require_within_s is None:
+        return None
+    if last_pop_ts is None or (now - last_pop_ts) > require_within_s:
+        return "no_recent_pop"
+    return None
 
 
 def reentry_depth_gate(had_recent_loss: bool, dip, vol_m5_usd,
@@ -690,6 +869,14 @@ class PaperLane:
         self.q = queue.Queue()      # (pool, row) from the firehose hook
         self.tape = {}              # pool -> [rows] (rolling)
         self.prices = {}            # pool -> [(ts, price_eth)]
+        # candidate-factory shared facts (2026-07-12):
+        self.first_px = {}          # pool -> first quote px ever seen (arc
+                                    # basis; persisted — see save_state)
+        self.cum_vol = {}           # pool -> lifetime observed USD volume
+                                    # (proven-volume gate basis; persisted)
+        self.pop_book = {}          # pool -> (ts, mag_pct) of last detected
+                                    # pop (pop-retrace gate; in-memory, the
+                                    # gate window is minutes-scale)
         self.liq_hist = {}          # pool -> [(ts, liq_usd)] (lp-drain guard)
         self.last_trade = {}        # pool -> ts (hot tracking)
         self.decimals = {}          # token -> int
@@ -789,6 +976,12 @@ class PaperLane:
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump({
                     "day": time.strftime("%Y-%m-%d", time.gmtime()),
+                    # lane-level facts (candidate-factory): the arc gate's
+                    # first-seen px basis must survive restarts or the gate
+                    # silently fails open on every pre-existing pool.
+                    "first_px": self.first_px,
+                    "cum_vol": {k: round(v, 2)
+                                for k, v in self.cum_vol.items()},
                     "bots": {bid: {"pos_meta": st.pos_meta,
                                    "daily_pnl_usd": st.daily_pnl_usd,
                                    "pm_state": st.pm.to_state_list(),
@@ -811,6 +1004,12 @@ class PaperLane:
                 return
             raw = json.load(open(STATE, encoding="utf-8"))
             same_day = raw.get("day") == time.strftime("%Y-%m-%d", time.gmtime())
+            self.first_px = {k: float(v) for k, v in
+                             (raw.get("first_px") or {}).items()
+                             if isinstance(v, (int, float)) and v > 0}
+            self.cum_vol = {k: float(v) for k, v in
+                            (raw.get("cum_vol") or {}).items()
+                            if isinstance(v, (int, float)) and v >= 0}
             per_bot = raw.get("bots")
             if per_bot is None:  # legacy single-config shape
                 per_bot = {LEGACY_BOT_ID: {
@@ -902,6 +1101,12 @@ class PaperLane:
             # tape row (O(1) ingest, pure in-memory)
             self.comp.ingest(now, pool, row.get("kind"),
                              row.get("volume_usd"))
+            # candidate-factory PROVEN-VOLUME fact: lifetime observed USD
+            # volume per pool (persisted). For pools discovered at creation
+            # (the young bands) this IS session-from-launch volume -- the
+            # winner-delta's vol_pre / the mine's cum_eth axis.
+            self.cum_vol[pool] = (self.cum_vol.get(pool, 0.0)
+                                  + float(row.get("volume_usd") or 0))
             buf = self.tape.setdefault(pool, [])
             buf.append(row)
             # 2000-row cap (was 400): the runner_score exit stamp reads a
@@ -949,10 +1154,7 @@ class PaperLane:
                     if q and q.amount_out:
                         self.n_quotes += 1
                     if px > 0:
-                        s = self.prices.setdefault(pool, [])
-                        s.append((now, px))
-                        if len(s) > 600:
-                            del s[:300]
+                        self._note_px(pool, now, px)
                     continue
                 q = self._executor().quote_buy(token, int(ENTRY_USD / max(
                     self.feed.eth_price or 1e9, 1e-9) * 1e18))
@@ -961,13 +1163,26 @@ class PaperLane:
                     px = price_from_quote(q.amount_in, q.amount_out,
                                           self._token_decimals(token))
                     if px > 0:
-                        s = self.prices.setdefault(pool, [])
-                        s.append((now, px))
-                        if len(s) > 600:
-                            del s[:300]
+                        self._note_px(pool, now, px)
             except Exception as e:
                 print(f"[rh-paper] quote {pool[:10]} {type(e).__name__}",
                       flush=True)
+
+    def _note_px(self, pool: str, now: float, px: float):
+        """Record one quote-derived price sample: rolling series (600-cap),
+        FIRST-SEEN px (arc basis, candidate-factory) and pop detection over
+        the refreshed series (one pop event per POP_COOLDOWN_S)."""
+        s = self.prices.setdefault(pool, [])
+        s.append((now, px))
+        if len(s) > 600:
+            del s[:300]
+        if pool not in self.first_px:
+            self.first_px[pool] = px
+        mag = pop_fired(s, now)
+        if mag is not None:
+            last = self.pop_book.get(pool)
+            if last is None or (now - last[0]) > POP_COOLDOWN_S:
+                self.pop_book[pool] = (now, round(mag, 1))
 
     def _sample_liq(self, now: float):
         """Feed the lp-drain tracker from the maintenance liq refresher."""
@@ -1091,6 +1306,18 @@ class PaperLane:
             rise_open = rise_from_open_pct(series, now)
             b120, s120 = flow_sums(rows, now, window_s=120.0)
             inflow_120s = b120 - s120
+            # candidate-factory shared facts (2026-07-12): demand breadth
+            # (buy prints in the 30s window), launch-arc position vs the
+            # first-seen quote px, last detected pop (pop_book fed by
+            # _note_px on every quote sample)
+            n_buys_30s = sum(1 for r in rows
+                             if r.get("kind") == "buy"
+                             and now - (r.get("_epoch") or 0)
+                             <= DEMAND_WINDOW_S)
+            arc = arc_pct(self.first_px.get(pool),
+                          series[-1][1] if series else None)
+            pop_last = self.pop_book.get(pool)
+            pop_ts = pop_last[0] if pop_last else None
             # vol_m5 (tape liveness) — shared fact for the depth re-entry gate
             vol_m5 = sum(float(r.get("volume_usd") or 0) for r in rows
                          if now - (r.get("_epoch") or 0) <= 300)
@@ -1127,6 +1354,17 @@ class PaperLane:
                         extra.append(rb)
                 if bot.regime_hours and not regime_hour_ok(hour, age_h):
                     extra.append("hour_regime")
+                # candidate-factory per-racer gates (all None = no-ops)
+                for blk in (dip_depth_block(d, bot.dip_max_depth_pct),
+                            buys_breadth_block(n_buys_30s,
+                                               bot.min_buys_30s),
+                            arc_block(arc, bot.max_arc_pct),
+                            proven_vol_block(self.cum_vol.get(pool, 0.0),
+                                             bot.min_session_vol_usd),
+                            pop_recency_block(pop_ts, now,
+                                              bot.require_pop_within_s)):
+                    if blk:
+                        extra.append(blk)
                 # honeypot LAST (network call), only when a config passes
                 v = entry_verdict(
                     d, demand, micro, liq, True,

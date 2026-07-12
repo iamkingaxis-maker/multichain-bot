@@ -1,0 +1,467 @@
+[
+ {
+  "cell": "u10m|sh|v3|d25|aged+arc<=300",
+  "nbr_green": "10/10",
+  "nbrs": [
+   [
+    "dip_lo-3",
+    782,
+    true
+   ],
+   [
+    "dip_lo+3",
+    440,
+    true
+   ],
+   [
+    "dip_hi-3",
+    218,
+    true
+   ],
+   [
+    "dip_hi+3",
+    658,
+    true
+   ],
+   [
+    "vol_x0.5",
+    1123,
+    true
+   ],
+   [
+    "vol_x2",
+    272,
+    true
+   ],
+   [
+    "b30_x0.5",
+    658,
+    true
+   ],
+   [
+    "b30_x1.5",
+    655,
+    true
+   ],
+   [
+    "arc<=300@200.0",
+    511,
+    true
+   ],
+   [
+    "arc<=300@450.0",
+    811,
+    true
+   ]
+  ],
+  "stale": {
+   "base": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 658,
+     "pools": 658,
+     "tokmed_ex2": 2.462,
+     "tokmed": 2.473,
+     "cat": 0.0061,
+     "net_usd": 737.85,
+     "med_ret": 9.89,
+     "days": 10,
+     "stale_pct": 3.5,
+     "dead_pct": 21.6
+    }
+   },
+   "drop_staleend": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 635,
+     "pools": 635,
+     "tokmed_ex2": 2.417,
+     "tokmed": 2.442,
+     "cat": 0.0063,
+     "net_usd": 666.04,
+     "med_ret": 9.77,
+     "days": 10,
+     "stale_pct": 0.0,
+     "dead_pct": 22.4
+    }
+   },
+   "staleend=-90": {
+    "pass_halves": 2,
+    "overall": {
+     "n": 658,
+     "pools": 658,
+     "tokmed_ex2": 1.936,
+     "tokmed": 1.962,
+     "cat": 0.041,
+     "net_usd": 148.54,
+     "med_ret": 7.85,
+     "days": 10,
+     "stale_pct": 3.5,
+     "dead_pct": 21.6
+    }
+   }
+  }
+ },
+ {
+  "cell": "u10m|deep|v.3|d50n|scalp+popret",
+  "nbr_green": "8/8",
+  "nbrs": [
+   [
+    "dip_hi-3",
+    778,
+    true
+   ],
+   [
+    "dip_hi+3",
+    1393,
+    true
+   ],
+   [
+    "vol_x0.5",
+    976,
+    true
+   ],
+   [
+    "vol_x2",
+    972,
+    true
+   ],
+   [
+    "b30_x0.5",
+    1062,
+    true
+   ],
+   [
+    "b30_x1.5",
+    920,
+    true
+   ],
+   [
+    "popret@1200.0",
+    976,
+    true
+   ],
+   [
+    "popret@2700.0",
+    976,
+    true
+   ]
+  ],
+  "stale": {
+   "base": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 976,
+     "pools": 976,
+     "tokmed_ex2": 1.938,
+     "tokmed": 1.939,
+     "cat": 0.0,
+     "net_usd": 141.62,
+     "med_ret": 7.75,
+     "days": 11,
+     "stale_pct": 1.9,
+     "dead_pct": 17.8
+    }
+   },
+   "drop_staleend": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 957,
+     "pools": 957,
+     "tokmed_ex2": 1.925,
+     "tokmed": 1.927,
+     "cat": 0.0,
+     "net_usd": 125.27,
+     "med_ret": 7.71,
+     "days": 11,
+     "stale_pct": 0.0,
+     "dead_pct": 18.2
+    }
+   },
+   "staleend=-90": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 976,
+     "pools": 976,
+     "tokmed_ex2": 1.895,
+     "tokmed": 1.899,
+     "cat": 0.0195,
+     "net_usd": -302.24,
+     "med_ret": 7.6,
+     "days": 11,
+     "stale_pct": 1.9,
+     "dead_pct": 17.8
+    }
+   }
+  }
+ },
+ {
+  "cell": "u10m|mod|v3|d25|scalp+arc<=300",
+  "nbr_green": "10/10",
+  "nbrs": [
+   [
+    "dip_lo-3",
+    1074,
+    true
+   ],
+   [
+    "dip_lo+3",
+    958,
+    true
+   ],
+   [
+    "dip_hi-3",
+    585,
+    true
+   ],
+   [
+    "dip_hi+3",
+    1025,
+    true
+   ],
+   [
+    "vol_x0.5",
+    1694,
+    true
+   ],
+   [
+    "vol_x2",
+    437,
+    true
+   ],
+   [
+    "b30_x0.5",
+    1025,
+    true
+   ],
+   [
+    "b30_x1.5",
+    1016,
+    true
+   ],
+   [
+    "arc<=300@200.0",
+    784,
+    true
+   ],
+   [
+    "arc<=300@450.0",
+    1286,
+    true
+   ]
+  ],
+  "stale": {
+   "base": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 1025,
+     "pools": 1025,
+     "tokmed_ex2": 1.965,
+     "tokmed": 1.965,
+     "cat": 0.0039,
+     "net_usd": 337.45,
+     "med_ret": 7.86,
+     "days": 11,
+     "stale_pct": 2.7,
+     "dead_pct": 20.7
+    }
+   },
+   "drop_staleend": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 997,
+     "pools": 997,
+     "tokmed_ex2": 1.948,
+     "tokmed": 1.95,
+     "cat": 0.004,
+     "net_usd": 282.5,
+     "med_ret": 7.8,
+     "days": 11,
+     "stale_pct": 0.0,
+     "dead_pct": 21.3
+    }
+   },
+   "staleend=-90": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 1025,
+     "pools": 1025,
+     "tokmed_ex2": 1.91,
+     "tokmed": 1.918,
+     "cat": 0.0312,
+     "net_usd": -347.5,
+     "med_ret": 7.67,
+     "days": 11,
+     "stale_pct": 2.7,
+     "dead_pct": 20.7
+    }
+   }
+  }
+ },
+ {
+  "cell": ">24h|vdeep|v10|d25|aged",
+  "nbr_green": "6/6",
+  "nbrs": [
+   [
+    "dip_hi-3",
+    1895,
+    true
+   ],
+   [
+    "dip_hi+3",
+    3453,
+    true
+   ],
+   [
+    "vol_x0.5",
+    2748,
+    true
+   ],
+   [
+    "vol_x2",
+    2330,
+    true
+   ],
+   [
+    "b30_x0.5",
+    2593,
+    true
+   ],
+   [
+    "b30_x1.5",
+    2191,
+    true
+   ]
+  ],
+  "stale": {
+   "base": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 2593,
+     "pools": 605,
+     "tokmed_ex2": 1.785,
+     "tokmed": 1.868,
+     "cat": 0.0004,
+     "net_usd": 1284.59,
+     "med_ret": 3.82,
+     "days": 11,
+     "stale_pct": 0.4,
+     "dead_pct": 0.2
+    }
+   },
+   "drop_staleend": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 2582,
+     "pools": 603,
+     "tokmed_ex2": 1.785,
+     "tokmed": 1.868,
+     "cat": 0.0004,
+     "net_usd": 1269.21,
+     "med_ret": 3.81,
+     "days": 11,
+     "stale_pct": 0.0,
+     "dead_pct": 0.2
+    }
+   },
+   "staleend=-90": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 2593,
+     "pools": 605,
+     "tokmed_ex2": 1.643,
+     "tokmed": 1.647,
+     "cat": 0.0046,
+     "net_usd": 1021.71,
+     "med_ret": 3.76,
+     "days": 11,
+     "stale_pct": 0.4,
+     "dead_pct": 0.2
+    }
+   }
+  }
+ },
+ {
+  "cell": "6-24h|vdeep|v.3|d50n|aged",
+  "nbr_green": "6/6",
+  "nbrs": [
+   [
+    "dip_hi-3",
+    495,
+    true
+   ],
+   [
+    "dip_hi+3",
+    835,
+    true
+   ],
+   [
+    "vol_x0.5",
+    630,
+    true
+   ],
+   [
+    "vol_x2",
+    629,
+    true
+   ],
+   [
+    "b30_x0.5",
+    838,
+    true
+   ],
+   [
+    "b30_x1.5",
+    560,
+    true
+   ]
+  ],
+  "stale": {
+   "base": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 630,
+     "pools": 362,
+     "tokmed_ex2": 0.925,
+     "tokmed": 0.958,
+     "cat": 0.0048,
+     "net_usd": 213.94,
+     "med_ret": 3.2,
+     "days": 11,
+     "stale_pct": 0.2,
+     "dead_pct": 1.3
+    }
+   },
+   "drop_staleend": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 629,
+     "pools": 361,
+     "tokmed_ex2": 0.94,
+     "tokmed": 0.975,
+     "cat": 0.0048,
+     "net_usd": 215.86,
+     "med_ret": 3.24,
+     "days": 11,
+     "stale_pct": 0.0,
+     "dead_pct": 1.3
+    }
+   },
+   "staleend=-90": {
+    "pass_halves": 4,
+    "overall": {
+     "n": 630,
+     "pools": 362,
+     "tokmed_ex2": 0.925,
+     "tokmed": 0.958,
+     "cat": 0.0063,
+     "net_usd": 193.36,
+     "med_ret": 3.2,
+     "days": 11,
+     "stale_pct": 0.2,
+     "dead_pct": 1.3
+    }
+   }
+  }
+ }
+]

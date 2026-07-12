@@ -1,0 +1,6 @@
+[factory] 2000000 rows 76s cands=16765 pops=9111 written=13585 pending=1285
+[factory] 4000000 rows 208s cands=28664 pops=14883 written=24747 pending=1826
+[factory] 6000000 rows 329s cands=39606 pops=20450 written=33971 pending=2578
+[factory] 8000000 rows 447s cands=51661 pops=26514 written=44746 pending=3260
+[factory] 10000000 rows 575s cands=63181 pops=32085 written=55445 pending=3782
+[factory] DONE rows=10188262 in 583s | cands=64164 pops=32568 written=63972
