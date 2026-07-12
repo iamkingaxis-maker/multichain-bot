@@ -160,6 +160,21 @@ LIQ_BURST = int(os.environ.get("RH_FEED_LIQ_BURST", "120"))
 LIQ_BURST_CYCLES = int(os.environ.get("RH_FEED_LIQ_BURST_CYCLES", "240"))
 LIQ_RECHECK_LADDER_S = (60.0, 180.0, 600.0)
 LIQ_RECHECK_MAX_AGE_H = 1.0
+# ── SESSION BACKFILL (2026-07-12, factory no-fire fix) ───────────────────────
+# The candidate factory mined its session facts (cum volume, dip basis, launch
+# arc) from the FULL swap tape since pool CREATION; the lane's trackers start
+# at watch PROMOTION (liq audit + symbol), which lands at median ~4-7 min of
+# pool age — AFTER the u10m cells' median trigger (2.4 min). Measured 07-10/11:
+# 0 of 110 young-promoted qualifying pools could ever satisfy the gates on
+# promotion-onward facts (scratchpad/_rh_factory_nofire.md). Fix: ONE bounded
+# per-pool eth_getLogs at promotion (young pools only) decodes the missed
+# creation->promotion swaps so the lane's session facts are creation-faithful.
+# Failure (throttle/timeout) -> no seed -> the lane blocks the pool with the
+# EXPLICIT `untracked_session` reason instead of silently-wrong values.
+SESSION_BACKFILL_MAX_AGE_H = float(
+    os.environ.get("RH_FEED_SESSION_BACKFILL_MAX_AGE_H", "1.0"))
+SESSION_BACKFILL_ROWS_MAX = 1200   # tail kept for the lane's 600s dip window
+                                   # (first px + cum volume computed over ALL)
 META_EVERY_CYCLES = 120   # pools_meta snapshot cadence (~3 min at 1.5s)
 ETH_PRICE_REFRESH_S = 300.0
 BATCH_CHUNK = 80          # max requests per JSON-RPC batch POST (public-RPC safe)
@@ -240,6 +255,44 @@ def classify_v2_swap(data_hex: str, weth_is_token0: bool):
         return ("buy", net)
     if net < 0:
         return ("sell", -net)
+    return None
+
+
+def decode_swap_px(topic0: str, data_hex: str, weth_is_token0: bool):
+    """Swap log -> (kind, weth_wei, px_rel) | None. px_rel = token price in
+    WETH, ATOMIC-relative (no decimals adjustment — callers that mix it with
+    decimals-adjusted quote prices must rescale; the ratio-based dip/arc math
+    cancels the constant). Port of the history sweep's decode_row px logic
+    (scratchpad/rh_history/scripts/hist_sweep.py) so the SESSION BACKFILL
+    (below) prices pools with the SAME formula the candidate factory mined.
+    V3: (sqrtP/2^96)^2 = token1/token0 atomic; V2: |weth_net|/|token_net|.
+    Pure; returns None on zero-WETH legs / degenerate amounts."""
+    try:
+        if topic0 == TOPIC_V3_SWAP:
+            res = classify_v3_swap(data_hex, weth_is_token0)
+            if res is None:
+                return None
+            sp = int(_word(data_hex, 2), 16)
+            raw = (sp / 2 ** 96) ** 2          # token1/token0 atomic
+            if raw <= 0:
+                return None
+            px = (1.0 / raw) if weth_is_token0 else raw
+            return (res[0], res[1], px)
+        if topic0 == TOPIC_V2_SWAP:
+            res = classify_v2_swap(data_hex, weth_is_token0)
+            if res is None:
+                return None
+            a0_in = int(_word(data_hex, 0), 16)
+            a1_in = int(_word(data_hex, 1), 16)
+            a0_out = int(_word(data_hex, 2), 16)
+            a1_out = int(_word(data_hex, 3), 16)
+            wnet = (a0_in - a0_out) if weth_is_token0 else (a1_in - a1_out)
+            tnet = (a1_in - a1_out) if weth_is_token0 else (a0_in - a0_out)
+            if not wnet or not tnet:
+                return None
+            return (res[0], res[1], abs(wnet) / abs(tnet))
+    except (ValueError, IndexError):
+        return None
     return None
 
 
@@ -759,15 +812,25 @@ class Feed:
         if AGED_MODE:
             items = [(p, self.age_h(c["created_block"]), c.get("liq"))
                      for p, c in self.cand.items()]
-            ranked = rank_candidates(items)
-            if len(ranked) > CAND_MAX:
-                keep_set = set(ranked[:CAND_MAX])
+            # PRUNE BY AUDITION ORDER (adversarial r3, 2026-07-12): the prune
+            # used rank_candidates order (promotable + ALL young + aged), so
+            # any cold start with len(young) > CAND_MAX deleted the ENTIRE
+            # aged-unknown cohort from self.cand before the interleave could
+            # give it budget — fix #4 was vacuous at the default CAND_MAX
+            # (5000 vs ~16k+ young at a 72h backfill; Railway's explicit
+            # 60000 masked it). Pruning on the same interleaved order keeps
+            # the young/aged 1:1 share under CAND_MAX pressure; identical
+            # set + order whenever no prune triggers.
+            order = audition_order(items)
+            if len(order) > CAND_MAX:
+                keep_set = set(order[:CAND_MAX])
                 self.cand = {p: c for p, c in self.cand.items()
                              if p in keep_set}
                 items = [x for x in items if x[0] in keep_set]
+                order = order[:CAND_MAX]
             # queue order = interleaved audition (cold-start fix #4): same
             # set as the prune above, but young/aged unknowns alternate
-            self.liq_queue = list(self.watch) + audition_order(items)
+            self.liq_queue = list(self.watch) + order
             pr, yg, au, fa = candidate_tiers(items)
             print(f"[disc] audition refill: queue={len(self.liq_queue)} "
                   f"(promotable={len(pr)} young={len(yg)} "

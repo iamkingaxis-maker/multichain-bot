@@ -8607,12 +8607,42 @@ class DipScanner:
                      if c["addr"] in new_armed
                      and isinstance(c.get("pc_h1"), (int, float))),
                     key=lambda c: c["pc_h1"])[:_pw_n]
+                # SERIAL + IN-FLIGHT DEDUPED (adversarial r3, 2026-07-12): the
+                # original per-token create_task burst fired up to 12 rugcheck
+                # fetches CONCURRENTLY per rebuild, and (no single-flight in
+                # _holder_features_cached) re-spawned duplicates on every
+                # rebuild until the first fetch cached — a boot-time 429 herd
+                # that poisons the 30-min cache with {} (gate NEUTRAL) for
+                # exactly the most-fire-likely tokens. One background task
+                # fetches sequentially; the inflight set stops cross-rebuild
+                # duplicates; still fire-and-forget + fail-open.
+                _pw_inflight = self.__dict__.setdefault("_pw_inflight", set())
+                _pw_todo = []
                 for _pw_c in _pw_dippers:
                     _pw_hit = _pw_cache.get(_pw_c["addr"])
                     if _pw_hit and (_pw_now - _pw_hit[0]) < 1500:
                         continue  # still warm — no fetch
-                    asyncio.create_task(
-                        self._holder_features_cached(_pw_c["addr"]))
+                    if _pw_c["addr"] in _pw_inflight:
+                        continue  # already being warmed — no duplicate
+                    _pw_todo.append(_pw_c["addr"])
+                asyncio.get_running_loop()   # no loop -> RuntimeError ->
+                #                              outer except (sync contexts:
+                #                              no coroutine created, no
+                #                              never-awaited warning noise)
+                if _pw_todo:
+                    async def _pw_run(addrs=tuple(_pw_todo)):
+                        try:
+                            for _a in addrs:
+                                try:
+                                    await self._holder_features_cached(_a)
+                                except Exception:
+                                    pass
+                        finally:
+                            for _a in addrs:
+                                _pw_inflight.discard(_a)
+                    _pw_task = asyncio.create_task(_pw_run())
+                    _pw_inflight.update(_pw_todo)
+                    self._pw_task = _pw_task  # keep a ref (task-GC pitfall)
             except Exception:
                 pass
         # THREAD-SAFETY (2026-07-08): republish the immutable hot-mint snapshot for

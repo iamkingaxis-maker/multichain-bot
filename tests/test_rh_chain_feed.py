@@ -364,6 +364,28 @@ class TestRefillLiqQueueAgedMode:
         assert set(f.cand) == {"aged_promotable", "young_new", "young_old",
                                "aged_unknown"}
 
+    def test_prune_keeps_aged_unknowns_under_young_flood(self, monkeypatch):
+        """Adversarial r3 (2026-07-12): cold start with more YOUNG unknowns
+        than CAND_MAX must not delete the aged-unknown cohort. The prune
+        used rank_candidates order (promotable + ALL young + aged), so any
+        young flood > CAND_MAX wiped the aged thesis cohort from self.cand
+        before the 1:1 interleave (cold-start fix #4) could give it budget
+        — vacuous at the default CAND_MAX=5000 vs ~16k+ young at a 72h
+        backfill. The prune must keep the interleaved prefix instead."""
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)
+        monkeypatch.setattr(mod, "CAND_MAX", 6)
+        f = _feed(monkeypatch)
+        f.cand = {f"young{i}": _cand(0.1 * (i + 1)) for i in range(8)}
+        f.cand.update({f"aged{i}": _cand(30.0 + i) for i in range(4)})
+        f._refill_liq_queue()
+        # interleaved prefix y0 a0 y1 a1 y2 a2 — aged unknowns keep their
+        # 1:1 budget share through the prune (previously: 6 young, 0 aged)
+        assert f.liq_queue == ["young0", "aged0", "young1", "aged1",
+                               "young2", "aged2"]
+        assert set(f.cand) == {"young0", "young1", "young2",
+                               "aged0", "aged1", "aged2"}
+
     def test_watch_quota_protects_young_universe(self, monkeypatch):
         monkeypatch.setattr(mod, "AGED_MODE", True)
         monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)

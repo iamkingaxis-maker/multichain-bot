@@ -820,6 +820,47 @@ def test_fast_arm_subset_caps_at_30_when_flag_off(monkeypatch):
     assert len(s._fast_armed) == 30    # capped at armed_max
 
 
+def test_rug_gate_prewarm_serial_and_deduped(monkeypatch):
+    """Adversarial r3 (2026-07-12): the rug-gate prewarm must fetch
+    SEQUENTIALLY in one background task and never duplicate an in-flight
+    fetch across back-to-back arm rebuilds. The original per-token
+    create_task tail was a 12-concurrent rugcheck herd at boot, re-spawned
+    on every rebuild until the first fetch cached (no single-flight in
+    _holder_features_cached) — 429'd fetches poison the 30-min holder cache
+    with {} (gate NEUTRAL) for exactly the most-fire-likely tokens."""
+    monkeypatch.delenv("JUPITER_PRICE_PRIMARY", raising=False)
+    monkeypatch.delenv("RUG_GATE_PREWARM_N", raising=False)
+    from core.fast_watch import FastWatchConfig
+    cfg = FastWatchConfig(mode="shadow", interval_secs=3.0, dip_pct=3.0,
+                          rise_pct=3.0, eval_cooldown_secs=60.0,
+                          bot_allowlist=frozenset({"x"}), armed_max=30,
+                          sample_window=40, arm_band_pp=15.0,
+                          hot_max=50, full_poll_every=3)
+    s, now_ms = _scanner_for_arm(5)
+    calls, concurrent, peak = [], [0], [0]
+
+    async def fake_fetch(addr):
+        concurrent[0] += 1
+        peak[0] = max(peak[0], concurrent[0])
+        calls.append(addr)
+        await asyncio.sleep(0.02)
+        concurrent[0] -= 1
+        return {}
+
+    s._holder_features_cached = fake_fetch
+
+    async def run():
+        s._fast_arm_subset(cfg, now_ms)
+        s._fast_arm_subset(cfg, now_ms)   # rebuild while fetches in flight
+        await asyncio.sleep(0.5)          # let the prewarm task drain
+
+    asyncio.run(run())
+    assert calls                            # prewarm actually warmed tokens
+    assert len(calls) == len(set(calls))    # in-flight dedupe across rebuilds
+    assert peak[0] == 1                     # serial — never a concurrent burst
+    assert not s._pw_inflight               # released after the run
+
+
 def _scanner_for_pinned_tick(pinned_return):
     """Single-armed DIP scanner whose trader._get_token_price returns
     `pinned_return` (a float, None, or a callable(addr, pair_address)).
