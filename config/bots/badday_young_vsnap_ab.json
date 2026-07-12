@@ -2,7 +2,7 @@
   "age_h_max": null,
   "age_h_min": 0.5,
   "alpha_multiplier": 1.0,
-  "base_position_usd": 100.0,
+  "base_position_usd": 22.5,
   "bot_id": "badday_young_vsnap_ab",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 40.0,
