@@ -1,3 +1,30 @@
+# Session Handoff — 2026-07-12 (evening) — DEEP/STABILITY FLEET + RH PROBE INFRA PROVEN
+
+## STATE: SOL live 3 bots @ $22.5 (canary green, ~breakeven/-0.09 SOL day, churn+friction is the known drag). RH lane 23 racers PAPER 24/7. RH LIVE INFRA PROVEN (dust test passed) but probe OFF by AxiS decision ("stabilize + be green first").
+
+## THE UNIFYING THESIS (5-agent fleet, commit 2c7d5f2, all shadow/paper, suite 2858):
+"Buy structural capitulation, NEVER chase momentary demand strength, harvest base fast + keep a BREAKEVEN-FLOORED runner for the tail, cap catastrophe by early DE-RISK (not price stops — they gap through rug pulls). All volume-preserving."
+- SELECTION (SOL shadow): deep(pc_h1<=-45) AND liq>=30k = ex2 tokmed +4.6 GREEN 3/4 halves. Chasing demand strength INVERTS. Hard-block cuts 80% vol -> SOFT-SLEEVE path. Stamps deep_capitulation_shadow + deep_combo_shadow; DEEP_COMBO_MODE enforce written+OFF (needs fwd n>=20 + AxiS).
+- VARIANCE (both, #1 lever): CATASTROPHE CAP (early de-risk to ~25%) = -20% RH / -7.4% SOL per-trip stdev at 100% VOLUME, edge UP both chains. Rug-signal-as-entry-veto REFUTED (defense belongs in exit). VARIANCE_SHADOW (SOL) + rh_lowvar_catstop/box. ⭐ HIGHEST-LEVERAGE LIVE CHANGE when its fwd record confirms.
+- RH DECODE: green racers = tight scalp exit (+6/0.75, no moonbag/box) + never raise demand floor. rh_deep_consolidated shipped. CUT candidate: demand_heavy (worst -$14.61, chases strength).
+- DEEP EXIT: deep-flush bounce tail GROWS w/ depth (p90 +148->+260); BARBELL (60%@+5 + breakeven-floored 30% runner) beats scalp +1.3pp/deep-trade; time-box HURTS. rh_deep_barbell + deep_exit_spec_shadow.
+- rh_f_popret (new factory racer, AxiS-spotted) = early top earner +$46/n=8 BUT that's fat-tail over +$1.94 backtest tokmed. GROW to n>=30 (fix pop_book restart-wipe), don't bank the $.
+
+## RH LIVE PROBE — infra PROVEN, held OFF:
+- Wallet 0xa454C67853A5Ac88Ad45af9E9A41870F30039c05 (AxiS's MetaMask key, funded 0.022 ETH ~$39 on Robinhood Chain; key in gitignored rh_wallet_key.txt). DUST TEST PASSED: $2 buy+sell round-trip, buy 2.3s / sell 3.6s decision->landed, cost -$0.07, rc=0. Sell path proven end-to-end.
+- Probe rh_fill_probe ($7.50, 4/day, $25 stop) built + dormant (commit e1f78f3). ARM = RH_PRIVATE_KEY + RH_LIVE_CONFIRMED=true + RH_PAPER_MODE=false + RH_LIVE_PROBE_BOTS=rh_fill_probe on rh-paper-lane. Dust cmd: `python scripts/rh_dust_test.py --token 0x<lane-traded-deep-token>` (use a token the lane recently BOUGHT = V3-quotable; pools_meta liq-rank includes non-V3 pools that fail "no V3 route").
+- AxiS DECISION: probe stays OFF until SOL+RH configs prove GREEN + stable. Then arm.
+
+## DECISION PATH (self-executing shadows; AxiS pulls triggers):
+1. deep+liq green shadow hits fwd n>=20 green -> propose SOFT-SLEEVE enforce (AxiS go).
+2. catastrophe-cap shadow fwd record confirms -> ENFORCE on live SOL bots = the stabilize-and-green move (AxiS go). ⭐ do this first, it's highest leverage.
+3. RH racers auto-grade n>=30: deepsynth/lowvar/deepexit/popret earn seats; demand_heavy earns retirement.
+4. Once SOL live is green+stable under the cap+tilt -> THAT is when the RH probe turns on.
+
+## Fable credits exhausted mid-session -> finished on Opus 4.8 (re-verified suites myself). Agents that died on limits were resumed from checkpoints via SendMessage; all fleet work landed.
+
+---
+
 # Session Handoff — 2026-07-12 ~14:45 UTC — FABLE DAY 2 (shipping sprint continued)
 
 ## LIVE (Solana): 3 bots @ $22.50 VERIFIED (config field = base_position_usd; absorb/vsnap had shipped at their paper $100 — fixed ee8a899, confirmed by live fill deployed=$22.5). Delta -0.025 SOL since the 2.115936 baseline (~breakeven through the shakeout). Canary healthy. LIVE_PER_TOKEN_MAX_USD=60, MAX_POSITIONS=1.
