@@ -13,6 +13,8 @@
 - LIVE EXEC DORMANT + flip sequence ready. FILL PROBE offer standing: $5-10 live probe ~1 day after AxiS funds an RH wallet (mirrors Solana's badday_fill_probe_live history).
 - Fill-quality data: bad fills are TIMING not size (worst +14.7% at $22-size); size impact ~+1.5-2pp per $100 on 25-30k pools -> scaling headroom to $50-75 on >=30k-liq pools when AxiS wants it (liquidity-scaled, after clean days).
 
+## FACTORY RACERS SHIPPED (523fe21, roster 18): 5 backtest-mined configs vs the Phase-1 bar (four-half, 562/983 cells passed; dead pools booked -90% after self-caught survivorship bug). WINNER-DELTA: winners buy MODERATE pullbacks (-8.6%) EARLY in arc (+540%) on PROVEN-vol pools ($16k/200 swaps); losers buy deep flushes late on thin pools; our age floor had walled off the 88%-win <1h band (0/345 buys). Racers: rh_f_pullback (the winner cell, +$2.46 tokmed), rh_f_arc_scalp, rh_f_popret (cat 0%), rh_f_reload24 (net +$1,285, dormant til feed>24h), rh_f_reload_mid. PRE-REG: each confirms at n>=30 closes (tokmed ex-top2 green, cat<=1/20) or retires.
+
 ## RESUME-ON-LIMIT NOTE: Fable session limits killed agents twice (both times resumed clean from checkpoints via SendMessage). If the factory agent is dead at session start: resume it; its checkpoints are scratchpad/rh_factory/PROGRESS.md.
 
 ## Monitors this session (re-arm on new session): live wallet-truth v2 (change-only), fills monitor, cloud-lane log tail. Local RH lane session 10 running (expires ~300min; cloud is primary now — local optional).
