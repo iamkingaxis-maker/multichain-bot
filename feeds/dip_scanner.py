@@ -6449,7 +6449,8 @@ class DipScanner:
             except Exception:
                 pass
 
-    async def _execute_bot_sell(self, bot_id, token, exit_decision, current_price, now):
+    async def _execute_bot_sell(self, bot_id, token, exit_decision, current_price, now,
+                                exit_cadence="main"):
         """Execute an ExitDecision from a single bot's position tick.
 
         Honors exit_decision.sell_fraction (P1, 2026-05-25): TP1 sells
@@ -6457,6 +6458,14 @@ class DipScanner:
         later TP2 / trail / stop sells what's left. Each partial is its own
         sell record (carrying fully_closed=False until the final leg). Skips
         zero-fraction decisions (e.g. tp2_sell_fraction=0.0 configs).
+
+        exit_cadence (2026-07-12, post-TP1 fast-watch grade): which read cadence
+        SERVED this exit — "main" (slow-sweep decision loop, the default for all
+        legacy call sites) or "fastwatch" (the ~2s fast-tick paths: post-TP1
+        fast-watch, exit-reprice, trail-reprice, tp1-fastfill). Stamped on the
+        sell record so forward analysis can compare post-TP1 remainder outcomes
+        fastwatch-served vs main-served (pre-registered bar: n>=50 each arm).
+        Purely a label — it never changes execution.
         """
         sell_fraction = getattr(exit_decision, "sell_fraction", 1.0)
         if sell_fraction <= 0:
@@ -6866,6 +6875,14 @@ class DipScanner:
                 "entry_price": result.entry_price,
                 "exit_price": eff_exit,
                 "exit_mid_price": current_price,
+                # POST-TP1 FAST-WATCH cadence stamp (2026-07-12): which read
+                # cadence served THIS exit leg ("fastwatch" = ~2s fast tick,
+                # "main" = slow sweep) + whether the position was ever enrolled
+                # in the post-TP1 watch. Forward grade: post-TP1 remainder legs
+                # fastwatch-served vs main-served at n>=50 each.
+                "exit_cadence": exit_cadence,
+                "post_tp1_fw_enrolled": ((_pos.state_blob or {}).get("ptfw_enrolled") if _pos else None),
+                "post_tp1_fw_fire_pnl": ((_pos.state_blob or {}).get("ptfw_fire_pnl") if _pos else None),
                 # SOL-bail SHADOW (no action): the P&L we'd have bailed at on the
                 # SOL-macro downturn, vs this actual exit. saved_pp>0 = bailing
                 # earlier would have helped; <0 = it recovered (would've killed).
@@ -7839,7 +7856,8 @@ class DipScanner:
                     logger.info(
                         "[exit-reprice] ENFORCE sell bot=%s token=%s fresh_pnl=%.2f floor=%.1f",
                         bot_id, p.token, fresh_pnl, floor_pct)
-                    await self._execute_bot_sell(bot_id, p.token, d, fresh_price, now)
+                    await self._execute_bot_sell(bot_id, p.token, d, fresh_price, now,
+                                                 exit_cadence="fastwatch")
             except Exception as e:
                 logger.debug("[exit-reprice] position eval failed bot=%s: %s", bot_id, e)
 
@@ -7973,7 +7991,8 @@ class DipScanner:
                         "[trail-reprice] ENFORCE sell bot=%s token=%s fresh_pnl=%.2f "
                         "eff_peak=%.2f trail=%.1f",
                         bot_id, p.token, fresh_pnl, eff_peak, trail_pp)
-                    await self._execute_bot_sell(bot_id, p.token, d, fresh_price, now)
+                    await self._execute_bot_sell(bot_id, p.token, d, fresh_price, now,
+                                                 exit_cadence="fastwatch")
             except Exception as e:
                 logger.debug("[trail-reprice] position eval failed bot=%s: %s", bot_id, e)
 
@@ -8104,9 +8123,198 @@ class DipScanner:
                         "[tp1-fastfill] ENFORCE sell bot=%s token=%s "
                         "fresh_pnl=%.2f tp1=%.1f frac=%.2f",
                         bot_id, p.token, fresh_pnl, tp1, frac)
-                    await self._execute_bot_sell(bot_id, p.token, d, fresh_price, now)
+                    await self._execute_bot_sell(bot_id, p.token, d, fresh_price, now,
+                                                 exit_cadence="fastwatch")
             except Exception as e:
                 logger.debug("[tp1-fastfill] position eval failed bot=%s: %s", bot_id, e)
+
+    async def _post_tp1_fastwatch(self, cfg, prices, now):
+        """POST-TP1 FAST-WATCH (2026-07-12; family re-mine 2026-07-01 item #2).
+
+        After TP1 banks the first slice, the REMAINDER's exits (trail/TP2/stop/
+        moonbag) used to run only on the slow ~150s sweep: 393 trail closers
+        booked peak-7.29pp vs the peak-2pp config — 3.42pp median fired-below-
+        line was pure scan-cadence latency (~+300-450 token-pp/8.5d pool, zero
+        volume cost). This enrolls every open post-TP1 position (ANY bot, paper
+        or live) onto the ~2s fast tick and re-runs the position's OWN
+        pm.tick() exit rules on the freshest sample — NO new exit rules, no
+        threshold changes; fires route through the SAME _execute_bot_sell.
+
+        Safety contract:
+        - POST_TP1_FASTWATCH=off kills it (default on; paper/live wiring is the
+          identical shared sell path).
+        - Cap POST_TP1_FASTWATCH_MAX (default 10, FIFO by enrollment) + TTL
+          POST_TP1_FASTWATCH_TTL_SECS (default 0 = position lifetime; eviction
+          on close is automatic — enrollment is derived from open positions).
+        - Wick guard: the newest CONFIRM_TICKS (default 2) fresh samples must
+          each produce the IDENTICAL non-empty decision set on a THROWAWAY
+          clone (deepcopy position -> clone pm.tick — the exit-arm/recon
+          pattern) before the REAL pm.tick is called. The real tick therefore
+          only ever runs when its decisions WILL be executed, so a TP2 tier
+          flag can never be burned on an unconfirmed print (DONALT class).
+        - Peak freshness: the recorded peak ratchets from fresh samples via
+          confirmed_peak_ratchet (min of the newest 2, both above peak) — the
+          trail line can't lag fresh highs, and a single glitch print can't
+          inflate it.
+        - FAIL-OPEN everywhere: any error -> the position simply stays on the
+          main-scan cadence (which never stopped). Never a new blocking path.
+        - Cadence stamp: fires pass exit_cadence="fastwatch" so the forward
+          grade (fastwatch-served vs main-served remainders, n>=50 each) is
+          measurable from the sell records.
+        """
+        from core.fast_watch import (
+            post_tp1_fastwatch_enabled, post_tp1_fastwatch_max,
+            post_tp1_fastwatch_ttl_secs, post_tp1_fastwatch_confirm_ticks,
+            select_post_tp1_watches, confirmed_peak_ratchet)
+        if not post_tp1_fastwatch_enabled():
+            return
+        pms = getattr(self, "bot_position_managers", None)
+        if not pms:
+            return
+        confirm_ticks = post_tp1_fastwatch_confirm_ticks()
+        # 1. ENROLLMENT — derived each tick from the live books (restart-safe:
+        # tp1_hit + state_blob round-trip through bot_state persistence; a
+        # closed position vanishes from iter_positions = eviction on close).
+        cand = {}   # (bot_id, token) -> (pm, position, enrolled_ts)
+        try:
+            for bot_id, pm in pms.items():
+                for p in pm.iter_positions():
+                    if not getattr(p, "tp1_hit", False):
+                        continue
+                    if not getattr(p, "address", "") or getattr(p, "entry_price", 0) <= 0:
+                        continue
+                    sb = getattr(p, "state_blob", None)
+                    ets = None
+                    if sb is not None:
+                        ets = sb.get("ptfw_enrolled_ts")
+                        if ets is None:
+                            ets = sb["ptfw_enrolled_ts"] = round(float(now), 3)
+                            sb["ptfw_enrolled"] = True
+                    cand[(bot_id, getattr(p, "token", ""))] = (
+                        pm, p, ets if ets is not None else now)
+        except Exception as e:
+            logger.debug("[post-tp1-fw] enumerate opens failed: %s", e)
+            return
+        if not cand:
+            return
+        # 2. CAP + TTL — pure selection; overflow/TTL'd positions fall back to
+        # the main-scan cadence (natural controls for the forward grade).
+        kept_keys, ttl_evicted = select_post_tp1_watches(
+            [(k, v[2]) for k, v in cand.items()],
+            post_tp1_fastwatch_max(), post_tp1_fastwatch_ttl_secs(), now)
+        for k in ttl_evicted:
+            try:
+                _pm, _p, _ = cand[k]
+                _sb = getattr(_p, "state_blob", None)
+                if _sb is not None and not _sb.get("ptfw_ttl_evicted"):
+                    _sb["ptfw_ttl_evicted"] = True
+                    logger.info("[post-tp1-fw] TTL evict bot=%s token=%s "
+                                "(falls back to main cadence)", k[0], k[1])
+            except Exception:
+                pass
+        watched = [(k, cand[k]) for k in kept_keys if k in cand]
+        if not watched:
+            return
+        # 3. FRESH READS — opens-union (mirror _reprice_trail_exits): a held
+        # winner may not be in the armed/polled set; ONE extra <=50-id batch.
+        prices = dict(prices or {})
+        sw = int(getattr(cfg, "sample_window", 20) or 20)
+        try:
+            missing = []
+            for _k, (_pm, p, _ets) in watched:
+                if p.address.lower() not in prices:
+                    missing.append(p.address)
+            missing = missing[:50]
+            if missing:
+                extra = await self._fast_batch_prices(missing) or {}
+                for _k, (_pm, p, _ets) in watched:
+                    pr = extra.get(p.address.lower())
+                    if pr is None:
+                        continue
+                    prices[p.address.lower()] = pr
+                    buf = self._fast_samples.setdefault(
+                        p.address, deque(maxlen=sw))
+                    buf.append(pr)
+        except Exception as e:
+            logger.debug("[post-tp1-fw] opens batch price failed: %s", e)
+        # 4. PER-POSITION: confirmed clone-fire -> REAL tick -> shared sell path.
+        inflight = getattr(self, "_ptfw_inflight", None)
+        if inflight is None:
+            inflight = self._ptfw_inflight = set()
+        from core.per_bot_position_manager import PerBotPositionManager
+        for (bot_id, token), (pm, p, _ets) in watched:
+            try:
+                if (bot_id, token) in inflight:
+                    continue   # a prior fire on this position is mid-await
+                buf = self._fast_samples.get(p.address)
+                seq = [s for s in list(buf or []) if isinstance(s, (int, float)) and s > 0]
+                if len(seq) < confirm_ticks:
+                    continue   # not enough fresh reads yet — main sweep covers it
+                # 4a. Peak freshness (conservative confirmed ratchet — pm.tick's
+                # own peak formula, min of the newest confirmed samples).
+                try:
+                    new_peak = confirmed_peak_ratchet(
+                        seq, p.entry_price, p.peak_pnl_pct, confirm_ticks)
+                    if new_peak is not None:
+                        p.peak_pnl_pct = round(new_peak, 10)
+                        p.peak_pnl_at_secs = int(now - p.entry_time)
+                except Exception:
+                    pass
+                # 4b. Wick guard: every one of the newest confirm_ticks samples
+                # must yield the IDENTICAL non-empty decision set on a throwaway
+                # clone. Clone + real tick run back-to-back with no await between
+                # them, so the state they see is atomic within the event loop.
+                kinds_per_sample = []
+                confirm_prices = seq[-confirm_ticks:]
+                ok = True
+                for px in confirm_prices:
+                    try:
+                        snap = copy.deepcopy(p)
+                    except Exception:
+                        ok = False
+                        break
+                    clone = PerBotPositionManager(pm.config)
+                    clone._ohlcv_capture = False
+                    clone._positions = {token: snap}
+                    kinds_per_sample.append(tuple(sorted(
+                        getattr(d, "kind", "") for d in
+                        (clone.tick(token=token, current_price=px, now=now) or []))))
+                if not ok or not kinds_per_sample:
+                    continue
+                confirmed = kinds_per_sample[-1]
+                if not confirmed or any(k != confirmed for k in kinds_per_sample):
+                    continue   # unconfirmed — wait for the next fast tick (~2s)
+                fresh_price = confirm_prices[-1]
+                # 4c. REAL tick on the confirmed fresh price — the position's
+                # own rules emit the decisions AND set tier flags pre-sell
+                # exactly as the slow sweep does (same contract, fresher read).
+                decisions = pm.tick(token=token, current_price=fresh_price,
+                                    now=now, vol_m5_usd=None)
+                if not decisions:
+                    continue   # defensive: clone/real divergence — do nothing
+                sb = getattr(p, "state_blob", None)
+                if sb is not None:
+                    sb["ptfw_served"] = True
+                    sb["ptfw_fire_pnl"] = round(
+                        (fresh_price / p.entry_price - 1.0) * 100.0, 4)
+                    sb["ptfw_fire_kinds"] = ",".join(
+                        getattr(d, "kind", "") for d in decisions)
+                logger.info(
+                    "[post-tp1-fw] FIRE bot=%s token=%s kinds=%s fresh_price=%.10g "
+                    "(confirmed x%d)", bot_id, token,
+                    [getattr(d, "kind", "") for d in decisions],
+                    fresh_price, confirm_ticks)
+                inflight.add((bot_id, token))
+                try:
+                    for d in decisions:
+                        await self._execute_bot_sell(
+                            bot_id, token, d, fresh_price, now,
+                            exit_cadence="fastwatch")
+                finally:
+                    inflight.discard((bot_id, token))
+            except Exception as e:
+                logger.debug("[post-tp1-fw] position eval failed bot=%s token=%s: %s",
+                             bot_id, token, e)
 
     def _fast_price_for(self, addr, jupiter_price):
         """B4 price-selection (SYNC, testable). Returns (price, source).
@@ -8655,6 +8863,15 @@ class DipScanner:
             await self._reprice_tp1_fastfill(cfg, prices, now)
         except Exception as _trp_e:
             logger.debug("[trail-reprice] tick hook failed: %s", _trp_e)
+        # POST-TP1 FAST-WATCH (family re-mine 2026-07-01 item #2, built
+        # 2026-07-12): enroll post-TP1 remainders onto this ~2s tick and re-run
+        # their OWN pm.tick() exit rules (trail/TP2/stop/moonbag) on the fresh
+        # sample — cadence/freshness upgrade only, no new exit rules. Default
+        # POST_TP1_FASTWATCH=on; fail-open (any error -> slow-sweep behavior).
+        try:
+            await self._post_tp1_fastwatch(cfg, prices, now)
+        except Exception as _ptfw_e:
+            logger.debug("[post-tp1-fw] tick hook failed: %s", _ptfw_e)
         snapshot = [(addr, armed[addr]) for addr in addrs]
         survivors = shortlist(
             snapshot,

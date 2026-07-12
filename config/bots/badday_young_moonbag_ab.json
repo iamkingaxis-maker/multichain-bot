@@ -6,7 +6,7 @@
   "bot_id": "badday_young_moonbag_ab",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 25.0,
-  "display_name": "YOUNG MOONBAG A/B (2026-07-10): byte-identical twin of badday_young_rt_paper except the house-money MOONBAG exit shape — TP2 keeps 10% of the ORIGINAL position as a moonbag with a breakeven floor (moonbag_floor_pct=0) + 20pp peak-trail. Worst case gives back ~nothing (profits banked at TP1/TP2, floor at entry); upside open — the +244%-class runner (mogdog 2026-07-10) capture test. Winner-kill ~0 by construction. Judge vs the paper twin pairwise by token. NEVER route live (live_probe=false).",
+  "display_name": "YOUNG MOONBAG A/B (2026-07-10): byte-identical twin of badday_young_rt_paper except the house-money MOONBAG exit shape \u00e2\u20ac\u201d TP2 keeps 10% of the ORIGINAL position as a moonbag with a breakeven floor (moonbag_floor_pct=0) + 20pp peak-trail. Worst case gives back ~nothing (profits banked at TP1/TP2, floor at entry); upside open \u00e2\u20ac\u201d the +244%-class runner (mogdog 2026-07-10) capture test. Winner-kill ~0 by construction. Judge vs the paper twin pairwise by token. NEVER route live (live_probe=false).",
   "enabled": true,
   "entry_gate": [
     [
@@ -76,8 +76,8 @@
   "tp1_sell_fraction": 0.75,
   "tp2_pct": 12.0,
   "tp2_sell_fraction": 0.25,
-  "trading_hour_utc_end": 3,
-  "trading_hour_utc_start": 8,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
   "trail_pp": 2.0,
   "triggers_allowed": null,
   "triggers_disabled": [

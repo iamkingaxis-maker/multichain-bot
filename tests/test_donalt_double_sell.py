@@ -46,7 +46,9 @@ def _mk_scanner_stub(pm, prices_above_tp1):
     stub._fast_samples = {MINT: deque(prices_above_tp1, maxlen=20)}
     stub.sells = []
 
-    async def _fake_sell(bot_id, token, decision, price, now):
+    async def _fake_sell(bot_id, token, decision, price, now, exit_cadence="main"):
+        # exit_cadence: fast-tick paths stamp "fastwatch" (post-TP1 fast-watch
+        # forward grade, 2026-07-12) — the stub mirrors the widened signature.
         stub.sells.append((bot_id, token, decision, price))
 
     async def _fake_batch(addrs):

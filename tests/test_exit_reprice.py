@@ -119,7 +119,9 @@ def _scanner_with_position(entry=1.0, samples=(0.92, 0.91), tp1_hit=False,
         sc._exit_reprice_shadow_recs.append(rec)
     sc._append_exit_reprice_shadow = _append
 
-    async def _sell(bot_id, token, decision, price, now):
+    async def _sell(bot_id, token, decision, price, now, exit_cadence="main"):
+        # exit_cadence: the fast-tick enforce path stamps "fastwatch" (post-TP1
+        # fast-watch forward grade, 2026-07-12) — the stub mirrors the signature.
         sc._sell_calls.append((bot_id, token, decision, price, now))
     sc._execute_bot_sell = _sell
 

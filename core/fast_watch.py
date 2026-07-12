@@ -779,6 +779,112 @@ def tp1_fastfill_would_fire(samples, entry_price, tp1_pct, confirm_ticks=2):
     return False, fresh_pnl, ""
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# POST-TP1 FAST-WATCH (2026-07-12; family re-mine 2026-07-01 item #2).
+# After TP1 banks the first slice, the REMAINDER's exits (trail/TP2/stop) used to
+# run only on the slow ~150s sweep with stale prices — 393 trail closers booked
+# peak-7.29pp vs the peak-2pp config (3.42pp median fired-below-line = pure
+# scan-cadence latency, ~+300-450 token-pp/8.5d pool). These pure helpers define
+# the enrollment/cap/TTL contract for routing post-TP1 remainders onto the ~2s
+# fast tick, where the scanner re-runs the SAME pm.tick() exit rules on fresh
+# samples (NO new exit rules — a cadence/freshness upgrade only). Fail-open by
+# construction: any miss/error means the position just stays on the slow sweep.
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def post_tp1_fastwatch_enabled() -> bool:
+    """Kill switch: POST_TP1_FASTWATCH, default 'on' (paper AND live — the fire
+    path is the identical shared _execute_bot_sell, which routes live per bot via
+    should_route_live, so the wiring is genuinely the same). off/0/false/no
+    disables (positions fall back to the main-scan cadence — prior behavior)."""
+    v = os.environ.get("POST_TP1_FASTWATCH", "on").strip().lower()
+    return v not in ("off", "0", "false", "no")
+
+
+def post_tp1_fastwatch_max() -> int:
+    """Cap on CONCURRENT post-TP1 watches (POST_TP1_FASTWATCH_MAX, default 10,
+    floor 1). Bounds the extra per-tick price/eval cost; the fleet historically
+    holds ~3 post-TP1 positions at a time so 10 is generous headroom. Overflow
+    positions stay on the main-scan cadence until a slot frees (FIFO)."""
+    return max(1, _i("POST_TP1_FASTWATCH_MAX", 10))
+
+
+def post_tp1_fastwatch_ttl_secs() -> float:
+    """Per-watch TTL in seconds (POST_TP1_FASTWATCH_TTL_SECS, default 0 = the
+    position's own lifetime: watch until close, evict on close). >0 => a watch
+    older than TTL is evicted and the position falls back to the slow sweep."""
+    v = _f("POST_TP1_FASTWATCH_TTL_SECS", 0.0)
+    return max(0.0, v)
+
+
+def post_tp1_fastwatch_confirm_ticks() -> int:
+    """Wick guard width (POST_TP1_FASTWATCH_CONFIRM_TICKS, default 2, floor 1):
+    the newest N fresh samples must ALL produce the identical decision set before
+    the fast path fires — the same confirm-tick pattern as exit_reprice/
+    trail_reprice/tp1_fastfill (a single glitch print can't trip a sell)."""
+    return max(1, _i("POST_TP1_FASTWATCH_CONFIRM_TICKS", 2))
+
+
+def select_post_tp1_watches(candidates, max_n, ttl_secs, now):
+    """Pick which enrolled post-TP1 positions get the fast watch this tick.
+
+    candidates: iterable of (key, enrolled_ts). Returns (kept_keys, ttl_evicted)
+    where ttl_evicted = keys whose watch age exceeded ttl_secs (only when
+    ttl_secs > 0; 0 = lifetime, never TTL-evicted). Survivors are ranked FIFO by
+    enrolled_ts (stable, key tie-break) and capped to max_n — oldest watches keep
+    their slots; a closed position frees a slot for the next in line. Pure;
+    deterministic; never raises."""
+    kept, evicted = [], []
+    try:
+        ttl = float(ttl_secs or 0.0)
+        rows = []
+        for key, ts in candidates or ():
+            try:
+                ets = float(ts)
+            except (TypeError, ValueError):
+                ets = float(now)
+            if ttl > 0 and (float(now) - ets) > ttl:
+                evicted.append(key)
+                continue
+            rows.append((ets, str(key), key))
+        rows.sort(key=lambda r: (r[0], r[1]))
+        n = int(max_n) if max_n else 0
+        if n <= 0:
+            n = len(rows)
+        kept = [r[2] for r in rows[:n]]
+    except Exception:
+        return kept, evicted
+    return kept, evicted
+
+
+def confirmed_peak_ratchet(samples, entry_price, peak_pnl_pct, confirm_ticks=2):
+    """Conservative fresh-sample peak update for a HELD position.
+
+    pm.tick() ratchets peak_pnl_pct from the slow sweep's price; fresh fast
+    samples can see highs the sweep misses, so the post-TP1 trail line lags
+    (trail_reprice's eff_peak insight). This returns the CONFIRMED fresh peak:
+    the MINIMUM of the newest `confirm_ticks` samples' pnl, and only when ALL of
+    them exceed the recorded peak — so a single glitch high print can never
+    inflate the trail line. Returns the new peak pnl (percent) or None (no
+    update). Pure; never raises."""
+    try:
+        ep = float(entry_price)
+        pk = float(peak_pnl_pct)
+        n = max(int(confirm_ticks), 1)
+    except (TypeError, ValueError):
+        return None
+    if ep <= 0 or ep != ep:
+        return None
+    seq = [s for s in list(samples or []) if isinstance(s, (int, float)) and s > 0]
+    if len(seq) < n:
+        return None
+    newest = [(s / ep - 1.0) * 100.0 for s in seq[-n:]]
+    lo = min(newest)
+    if all(x > pk for x in newest):
+        return lo
+    return None
+
+
 # ── warm tape cache (2026-07-05 structural fix for None-tape) ───────────────
 # Decision-time tape fetches race a throttled client queue and lose exactly
 # when the market is busiest (adverse selection into the never-green class).
