@@ -44,7 +44,9 @@ crash the loop.
 Usage: python scripts/rh_chain_feed.py [max_minutes]
 Env:   RH_FEED_RPC (default public RPC), RH_FEED_POLL_SECS (1.5),
        RH_FEED_LOOKBACK_H (6), RH_FEED_WATCH_MAX (150),
-       RH_FEED_MIN_LIQ (5000), RH_FEED_MAX_AGE_H (24)
+       RH_FEED_MIN_LIQ (5000), RH_FEED_MAX_AGE_H (24);
+       aged-mode cold start: RH_FEED_LIQ_SEED (config/rh_liq_seed.json),
+       RH_FEED_LIQ_BURST (120), RH_FEED_LIQ_BURST_CYCLES (240)
 """
 from __future__ import annotations
 
@@ -126,6 +128,38 @@ WATCH_AGED_MAX = int(os.environ.get("RH_FEED_WATCH_AGED_MAX",
                           # at most this many of the WATCH_MAX slots, so they
                           # can never evict the whole young universe (the
                           # scalp fleet's A/B keeps its candidate flow)
+# ── COLD-START audition (2026-07-12, aged-mode only — cloud-lane fix) ────────
+# The Railway lane boots with ZERO known liq (no scratchpad ships in the
+# deploy) and a 72h backfill of ~49k candidates. The audition queue refills
+# only when EMPTY, so one sweep = 49k/LIQ_PER_CYCLE cycles ≈ 60-90+ min at the
+# lane's ~2.5s maintenance cadence: the queue front is youngest-first bot-era
+# spam (checked minutes after creation, before LP is added), fresh pools
+# queue-jump but get their single check at age≈0 and are never re-checked
+# until the sweep drains, and the aged/established cohort sits ~16k deep.
+# Measured cold: watch=0 for 31+ min (Railway) and 10 min (local repro).
+# Four bounded fixes, ALL inert in default mode (MAX_AGE_H <= 24):
+#   1. liq seed: config/rh_liq_seed.json ships in the deployable with last-known
+#      liq per pool (scripts/rh_liq_seed_export.py regenerates it); stamped
+#      onto backfilled candidates so known-liq pools rank tier-1. ORDER ONLY —
+#      promotion still requires a fresh passing balanceOf check;
+#   2. burst budget: LIQ_BURST checks/cycle for the first LIQ_BURST_CYCLES
+#      cycles, then back to LIQ_PER_CYCLE (amortized, chunk-paced — NOT the
+#      blocking full sweep that earned TLS resets on 2026-07-10);
+#   3. recheck ladder: a below-floor check on a pool younger than
+#      LIQ_RECHECK_MAX_AGE_H re-audits at +60/+180/+600s (LP lands minutes
+#      after creation — one age-0 check is not a verdict);
+#   4. interleaved audition order (audition_order): young and aged unknowns
+#      alternate 1:1 so the aged thesis cohort gets budget from cycle 1.
+LIQ_SEED_PATH = os.environ.get(
+    "RH_FEED_LIQ_SEED",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                 "config", "rh_liq_seed.json"))
+                          # config/ (tracked) — data/ is the gitignored
+                          # Railway volume and would never ship in a deploy
+LIQ_BURST = int(os.environ.get("RH_FEED_LIQ_BURST", "120"))
+LIQ_BURST_CYCLES = int(os.environ.get("RH_FEED_LIQ_BURST_CYCLES", "240"))
+LIQ_RECHECK_LADDER_S = (60.0, 180.0, 600.0)
+LIQ_RECHECK_MAX_AGE_H = 1.0
 META_EVERY_CYCLES = 120   # pools_meta snapshot cadence (~3 min at 1.5s)
 ETH_PRICE_REFRESH_S = 300.0
 BATCH_CHUNK = 80          # max requests per JSON-RPC batch POST (public-RPC safe)
@@ -290,6 +324,15 @@ def rank_candidates(items: list, min_liq: float = MIN_LIQ,
          (an established pool below the liq floor had its whole life to
          accrue liq): re-checked last, pruned first.
     Pure; never raises on None fields."""
+    promotable, young, unknown_aged, failed_aged = candidate_tiers(
+        items, min_liq, young_age_h)
+    return promotable + young + unknown_aged + failed_aged
+
+
+def candidate_tiers(items: list, min_liq: float = MIN_LIQ,
+                    young_age_h: float = YOUNG_AGE_H) -> tuple:
+    """rank_candidates' tier split -> (promotable, young, unknown_aged,
+    failed_aged) as sorted pool lists (same ordering rules). Pure."""
     promotable, young, unknown_aged, failed_aged = [], [], [], []
     for pool, age_h, liq in items:
         if liq is not None and liq >= min_liq:
@@ -304,8 +347,62 @@ def rank_candidates(items: list, min_liq: float = MIN_LIQ,
     young.sort(key=lambda x: x[1])
     unknown_aged.sort(key=lambda x: x[1])
     failed_aged.sort(key=lambda x: -x[1])
-    return ([p for p, _ in promotable] + [p for p, _ in young]
-            + [p for p, _ in unknown_aged] + [p for p, _ in failed_aged])
+    return ([p for p, _ in promotable], [p for p, _ in young],
+            [p for p, _ in unknown_aged], [p for p, _ in failed_aged])
+
+
+def audition_order(items: list, min_liq: float = MIN_LIQ,
+                   young_age_h: float = YOUNG_AGE_H) -> list:
+    """COLD-START audition queue order (aged mode): same tiers and SAME SET
+    as rank_candidates, but the young and aged-unknown tiers are interleaved
+    1:1 instead of concatenated — cold (zero known liq) the aged/established
+    cohort otherwise sits behind the entire young tier (~16k pools at a 72h
+    lookback) and is never audited within a session. Promotable knowns still
+    lead; checked-and-failed aged pools still trail. Pure."""
+    promotable, young, unknown_aged, failed_aged = candidate_tiers(
+        items, min_liq, young_age_h)
+    merged = []
+    for i in range(max(len(young), len(unknown_aged))):
+        if i < len(young):
+            merged.append(young[i])
+        if i < len(unknown_aged):
+            merged.append(unknown_aged[i])
+    return promotable + merged + failed_aged
+
+
+def liq_budget(cycle_idx: int, aged=None, base=None, burst=None,
+               burst_cycles=None) -> int:
+    """Liq checks allowed this cycle. Cold-start burst (aged mode only):
+    the first burst_cycles cycles get the larger burst budget so the 49k
+    backlog is dented while the session is young; after that (and always in
+    default mode) the steady LIQ_PER_CYCLE applies. Pure; None args read the
+    module knobs at call time (monkeypatch-friendly)."""
+    aged = AGED_MODE if aged is None else aged
+    base = LIQ_PER_CYCLE if base is None else base
+    if not aged:
+        return base
+    burst = LIQ_BURST if burst is None else burst
+    burst_cycles = LIQ_BURST_CYCLES if burst_cycles is None else burst_cycles
+    return max(base, burst) if cycle_idx <= burst_cycles else base
+
+
+def schedule_recheck(age_h, tries: int, liq: float, now: float,
+                     min_liq=None, ladder=LIQ_RECHECK_LADDER_S,
+                     max_age_h=None):
+    """Fresh-pool liq recheck ladder -> due_ts | None (no recheck).
+    A below-floor result on a pool younger than max_age_h earns another
+    audition at now + ladder[tries] — LP typically lands minutes AFTER
+    PoolCreated, and the queue-jump check fires at age≈0. Bounded: len(ladder)
+    tries per pool, young-window only. Pure."""
+    min_liq = MIN_LIQ if min_liq is None else min_liq
+    max_age_h = LIQ_RECHECK_MAX_AGE_H if max_age_h is None else max_age_h
+    if liq is None or liq >= min_liq:
+        return None
+    if age_h is None or age_h > max_age_h:
+        return None
+    if tries >= len(ladder):
+        return None
+    return now + ladder[tries]
 
 
 def rank_watch_keep(items: list, watch_max: int, aged_max=None) -> set:
@@ -461,6 +558,12 @@ class Feed:
         self.eth_price_ts = 0.0
         self.spb = 0.1        # sec/block, calibrated live
         self.liq_queue = []   # pools awaiting a liq check (amortized per cycle)
+        self.liq_recheck = [] # (due_ts, pool): fresh-pool recheck ladder (aged)
+        self.liq_cycles = 0   # process_cycle count (cold-start burst window)
+        self.liq_dyn = None   # adaptive budget cap while the RPC throttles
+        self.liq_checked = 0  # audition telemetry (throttling was SILENT:
+        self.liq_ok = 0       # 429'd batches return {} and looked like idle)
+        self.n_promoted = 0
         self.pending_sym = {} # pool -> [liq, tries]: promotion awaiting symbol()
         self.latest_block = 0
         self.latest_ts = 0
@@ -583,6 +686,39 @@ class Feed:
                 time.sleep(1.0)
         print(f"[disc] backfill: {n_logs} creations -> {len(self.cand)} "
               f"WETH-quoted candidates", flush=True)
+        self.load_liq_seed()
+
+    def load_liq_seed(self, path=None) -> int:
+        """COLD-START seed (aged mode only): stamp last-known liq from the
+        shipped config/rh_liq_seed.json onto backfilled candidates, so
+        known-liq pools rank tier-1 (promotable) in the audition instead of
+        drowning behind ~49k unknowns. ORDER ONLY — promotion still requires
+        a fresh passing balanceOf, so a stale seed can never promote a dead
+        pool. No-op in default mode, on a missing/malformed file, and for
+        pools that aren't discovered candidates. Returns #stamped."""
+        if not AGED_MODE:
+            return 0
+        try:
+            with open(path or LIQ_SEED_PATH, encoding="utf-8") as f:
+                raw = json.load(f)
+            pools = raw.get("pools") or {}
+        except Exception:
+            return 0
+        n = 0
+        for pool, liq in pools.items():
+            c = self.cand.get(str(pool).lower())
+            if c is None or c.get("liq") is not None:
+                continue
+            try:
+                c["liq"] = float(liq)
+            except (TypeError, ValueError):
+                continue
+            n += 1
+        if n:
+            print(f"[disc] liq seed: {n}/{len(pools)} known-liq pools "
+                  f"stamped -> audition front (order only; promotion still "
+                  f"needs a fresh check)", flush=True)
+        return n
 
     def _refill_liq_queue(self):
         """Rebuild the amortized liq-check queue: age-prune, cap sets, then
@@ -621,15 +757,23 @@ class Feed:
                   f"{' (aged quota %d)' % WATCH_AGED_MAX if AGED_MODE else ''}",
                   flush=True)
         if AGED_MODE:
-            ranked = rank_candidates(
-                [(p, self.age_h(c["created_block"]), c.get("liq"))
-                 for p, c in self.cand.items()])
+            items = [(p, self.age_h(c["created_block"]), c.get("liq"))
+                     for p, c in self.cand.items()]
+            ranked = rank_candidates(items)
             if len(ranked) > CAND_MAX:
                 keep_set = set(ranked[:CAND_MAX])
                 self.cand = {p: c for p, c in self.cand.items()
                              if p in keep_set}
-                ranked = ranked[:CAND_MAX]
-            self.liq_queue = list(self.watch) + ranked
+                items = [x for x in items if x[0] in keep_set]
+            # queue order = interleaved audition (cold-start fix #4): same
+            # set as the prune above, but young/aged unknowns alternate
+            self.liq_queue = list(self.watch) + audition_order(items)
+            pr, yg, au, fa = candidate_tiers(items)
+            print(f"[disc] audition refill: queue={len(self.liq_queue)} "
+                  f"(promotable={len(pr)} young={len(yg)} "
+                  f"aged_unknown={len(au)} failed_aged={len(fa)}) "
+                  f"budget={liq_budget(self.liq_cycles + 1)}/cycle",
+                  flush=True)
             return
         if len(self.cand) > CAND_MAX:
             keep = sorted(self.cand.items(),
@@ -724,14 +868,34 @@ class Feed:
                             "tx": key[0],
                             "fallback_maker": _topic_addr(lg["topics"][2])
                             if len(lg.get("topics") or []) >= 3 else ""})
-        # amortized liq checks: LIQ_PER_CYCLE pools per cycle, newest first
+        # amortized liq checks: budget pools per cycle (cold-start burst for
+        # the first LIQ_BURST_CYCLES cycles in aged mode, else LIQ_PER_CYCLE)
+        self.liq_cycles += 1
+        budget = liq_budget(self.liq_cycles)
+        if AGED_MODE and self.liq_dyn is not None:
+            budget = min(budget, self.liq_dyn)   # throttle backoff in force
         if not self.liq_queue:
             self._refill_liq_queue()
         liq_pools = []
-        while self.liq_queue and len(liq_pools) < LIQ_PER_CYCLE:
+        # due fresh-pool rechecks jump everything (aged mode; ladder-bounded)
+        if AGED_MODE and self.liq_recheck:
+            now_w = time.time()
+            due = [p for t, p in self.liq_recheck if t <= now_w]
+            self.liq_recheck = [(t, p) for t, p in self.liq_recheck
+                                if t > now_w]
+            for j, p in enumerate(due):
+                if len(liq_pools) >= budget:   # over budget: keep for next
+                    self.liq_recheck.extend((0.0, x) for x in due[j:])
+                    break
+                if (p in self.cand and p not in self.watch
+                        and p not in self.pending_sym):
+                    liq_pools.append(p)
+        taken = set(liq_pools)
+        while self.liq_queue and len(liq_pools) < budget:
             p = self.liq_queue.pop(0)
-            if p in self.cand or p in self.watch:
+            if (p in self.cand or p in self.watch) and p not in taken:
                 liq_pools.append(p)
+                taken.add(p)
         sym_pools = [p for p in list(self.pending_sym) if p in self.cand]
 
         # ONE combined batched round. Maker + exact block ts both come from
@@ -763,9 +927,23 @@ class Feed:
 
         # liq results -> refresh watched / stage promotions
         base = len(blocks)
+        n_liq_ok = 0
         for i, pool in enumerate(liq_pools):
             r = res.get(base + i)
+            if r is not None:
+                n_liq_ok += 1
             if r is None:
+                # aged mode: a throttled/failed batch must not orphan the
+                # audit until the (hour-scale) sweep refill — requeue it.
+                # Known-liq pools (seed/prior check) retry at the FRONT:
+                # they are one passing check from a watch slot and must not
+                # sink behind the ~45k unknown backlog on a throttled cycle.
+                if AGED_MODE and (pool in self.cand or pool in self.watch):
+                    c = self.cand.get(pool)
+                    if c is not None and (c.get("liq") or 0.0) >= MIN_LIQ:
+                        self.liq_queue.insert(0, pool)
+                    else:
+                        self.liq_queue.append(pool)
                 continue
             try:
                 liq = int(r, 16) / 1e18 * 2.0 * self.eth_price
@@ -775,10 +953,41 @@ class Feed:
                 # stamp last-known liq on the candidate: drives the aged-mode
                 # liq ranking (rank_candidates); inert in default mode
                 self.cand[pool]["liq"] = liq
+                if AGED_MODE:
+                    # fresh-pool recheck ladder (cold-start fix #3): the
+                    # queue-jump check fires at age≈0, before LP lands
+                    tries = int(self.cand[pool].get("liq_tries", 0))
+                    due = schedule_recheck(
+                        self.age_h(self.cand[pool]["created_block"]),
+                        tries, liq, time.time())
+                    if due is not None:
+                        self.cand[pool]["liq_tries"] = tries + 1
+                        self.liq_recheck.append((due, pool))
             if pool in self.watch:
                 self.watch[pool]["liq"] = liq
             elif liq >= MIN_LIQ and pool not in self.pending_sym:
                 self.pending_sym[pool] = [liq, 0]
+
+        # audition telemetry + adaptive throttle backoff (aged mode). The
+        # public RPC answers a throttled batch with {} — before 2026-07-12
+        # that was SILENT: the audition looked idle while every check failed.
+        self.liq_checked += len(liq_pools)
+        self.liq_ok += n_liq_ok
+        if AGED_MODE and liq_pools:
+            if n_liq_ok == 0:
+                self.liq_dyn = max(10, (self.liq_dyn or budget) // 2)
+                print(f"[disc] audition throttled: 0/{len(liq_pools)} liq "
+                      f"results — budget -> {self.liq_dyn}/cycle", flush=True)
+            elif self.liq_dyn is not None:
+                self.liq_dyn += 10   # additive recovery toward configured
+                if self.liq_dyn >= liq_budget(self.liq_cycles):
+                    self.liq_dyn = None
+        if AGED_MODE and self.liq_cycles % 40 == 0:
+            print(f"[disc] audition: cycles={self.liq_cycles} "
+                  f"checked={self.liq_checked} ok={self.liq_ok} "
+                  f"promoted={self.n_promoted} queue={len(self.liq_queue)} "
+                  f"recheck={len(self.liq_recheck)} "
+                  f"pending_sym={len(self.pending_sym)}", flush=True)
 
         # symbol results -> complete promotions
         base += len(liq_pools)
@@ -804,6 +1013,7 @@ class Feed:
                 "ev": "discovered", "pool": pool, "sym": sym,
                 "liq": round(liq, 2), "age_h": round(age, 2),
                 "dex": c["dex"], "fee": c["fee"], "ts": iso_utc(time.time())})
+            self.n_promoted += 1
             print(f"[disc] +{sym} ({c['dex']}) liq=${liq:,.0f} "
                   f"age={age:.1f}h", flush=True)
 

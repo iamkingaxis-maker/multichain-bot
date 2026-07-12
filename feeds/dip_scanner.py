@@ -6451,6 +6451,35 @@ class DipScanner:
 
     async def _execute_bot_sell(self, bot_id, token, exit_decision, current_price, now,
                                 exit_cadence="main"):
+        """PER-POSITION SELL SERIALIZATION shim (adversarial review r2,
+        2026-07-12). The post-TP1 fast-watch (POST_TP1_FASTWATCH default ON)
+        fires exits from the ~2s fast tick while the slow sweep can tick the
+        SAME open position during the live swap's multi-second await —
+        pm.tick() re-emits un-flagged kinds (trail/stop/moonbag carry no
+        once-only tier flag) and the duplicate live sell sizes off a
+        not-yet-decremented balance (DONALT 2026-07-06 class). Serialize per
+        (bot_id, token): a concurrent duplicate SKIPS and the position simply
+        retries next tick — an exit is never gated, only deduped. try/finally
+        guarantees release (a wedged key would silently block this position's
+        exits — the 2026-07-10 incident class — so release is unconditional)."""
+        key = (bot_id, token)
+        held = getattr(self, "_bot_sell_inflight", None)
+        if held is None:
+            held = self._bot_sell_inflight = set()
+        if key in held:
+            logger.info("[DipScanner] sell already in flight bot=%s token=%s "
+                        "(cadence=%s) — skip duplicate, position retries next tick",
+                        bot_id, token, exit_cadence)
+            return
+        held.add(key)
+        try:
+            return await self._execute_bot_sell_inner(
+                bot_id, token, exit_decision, current_price, now, exit_cadence)
+        finally:
+            held.discard(key)
+
+    async def _execute_bot_sell_inner(self, bot_id, token, exit_decision,
+                                      current_price, now, exit_cadence="main"):
         """Execute an ExitDecision from a single bot's position tick.
 
         Honors exit_decision.sell_fraction (P1, 2026-05-25): TP1 sells
@@ -8554,6 +8583,38 @@ class DipScanner:
             if pair:
                 new_armed[addr] = pair
         self._fast_armed = new_armed
+        # RUG-GATE PREWARM (2026-07-12, AxiS "timing — you need to fix that"):
+        # the fleet rug gate awaits the 30-min holder cache PRE-BUY; on a
+        # first-touch token the cold rugcheck fetch burns up to
+        # RUG_GATE_FETCH_TIMEOUT_S (2.5s) exactly on the freshest tapes — the
+        # measured buy drift (fill_vs_mid med +3.4%, p90 +14%) is timing, not
+        # size impact. Warm the cache at ARM time for the most-fire-likely
+        # armed tokens (deepest live dips) so the fire-time gate is a dict
+        # read. Bounded: top RUG_GATE_PREWARM_N per rebuild (default 12); the
+        # 25-min freshness guard means steady state adds ~zero fetches per
+        # rebuild (only NEW deep dippers fetch). Fire-and-forget, fail-open —
+        # prewarm can never block arming or a buy.
+        try:
+            _pw_n = int(os.environ.get("RUG_GATE_PREWARM_N", "12") or 12)
+        except (TypeError, ValueError):
+            _pw_n = 12
+        if _pw_n > 0:
+            try:
+                _pw_cache = self.__dict__.setdefault("_holder_cache", {})
+                _pw_now = time.time()
+                _pw_dippers = sorted(
+                    (c for c in cands
+                     if c["addr"] in new_armed
+                     and isinstance(c.get("pc_h1"), (int, float))),
+                    key=lambda c: c["pc_h1"])[:_pw_n]
+                for _pw_c in _pw_dippers:
+                    _pw_hit = _pw_cache.get(_pw_c["addr"])
+                    if _pw_hit and (_pw_now - _pw_hit[0]) < 1500:
+                        continue  # still warm — no fetch
+                    asyncio.create_task(
+                        self._holder_features_cached(_pw_c["addr"]))
+            except Exception:
+                pass
         # THREAD-SAFETY (2026-07-08): republish the immutable hot-mint snapshot for
         # the (possibly threaded) WS feed on the SAME main-thread step that rebuilt
         # the armed set — keeps the feed's subscription target as fresh as the armed

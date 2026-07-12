@@ -336,8 +336,15 @@ def test_no_enabled_live_probe_bot():
                      "badday_young_rt",
                      "badday_young_absorb",
                      "badday_young_vsnap_ab"}
+    # Anchor to the repo root (adversarial review r2): a CWD-relative glob
+    # from any other directory matched ZERO files and the invariant passed
+    # VACUOUSLY — a deploy gate must never be satisfiable by an empty scan.
+    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cfg_files = glob.glob(os.path.join(_root, "config", "bots", "*.json"))
+    assert cfg_files, ("no bot configs found under config/bots/ — the "
+                       "allowlist scan is vacuous; refusing to pass")
     offenders = []
-    for p in glob.glob("config/bots/*.json"):
+    for p in cfg_files:
         c = BotConfig.from_json(p)
         if (getattr(c, "live_probe", False) and c.enabled
                 and c.bot_id not in INTENDED_LIVE):

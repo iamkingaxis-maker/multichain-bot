@@ -155,6 +155,54 @@ def test_rotation_crash_leftover_never_double_counts(tmp_path, monkeypatch):
     assert len(base) == len(recent)
 
 
+def test_rotation_respects_bot_reset_after_iso(tmp_path, monkeypatch):
+    """Adversarial review r2 F1: a bot with a dashboard re-baseline
+    (bot_state reset_after_iso) whose OLD history spans the reset. The
+    dashboard drops the bot's pre-reset rows per-row; the archived aggregate
+    must exclude them too, or rotation folds the PRE-reset P&L back into
+    /api/leaderboard. Identity is checked the dashboard's way (per-row reset
+    filter on active sells + archive fold with reset_after_iso)."""
+    monkeypatch.setenv("LEDGER_APPEND_MODE", "on")
+    monkeypatch.setenv("LEDGER_ROTATE_DAYS", "21")
+    reset_iso = _iso(35)   # re-baseline between the two OLD positions
+    rows = [
+        # pre-reset OLD position (+100): must NOT reach the archived aggregate
+        _buy("b1", "PRERESET", 0.01, 40),
+        _sell("b1", "PRERESET", 0.01, 100.0, 40, fully_closed=True),
+        # post-reset OLD position (+10): archived AND counted
+        _buy("b1", "POSTRESET", 0.02, 30),
+        _sell("b1", "POSTRESET", 0.02, 10.0, 30, fully_closed=True),
+        # recent position (+2): stays in the base
+        _buy("b1", "NEWTOK", 0.03, 1),
+        _sell("b1", "NEWTOK", 0.03, 2.0, 0.9, fully_closed=True),
+    ]
+    _write_base(tmp_path, rows)
+    (tmp_path / "bot_state").mkdir(exist_ok=True)
+    (tmp_path / "bot_state" / "b1.json").write_text(json.dumps(
+        {"bot_id": "b1", "reset_after_iso": reset_iso}))
+
+    # the un-rotated leaderboard truth: per-row reset filter, no fold
+    raw_sells = [t for t in rows if t.get("type") == "sell"
+                 and (t.get("time") or "") >= reset_iso]
+    pre = sell_stats(raw_sells, None, None)
+    assert pre == (pytest.approx(12.0), 2, 2)   # +10 +2; the +100 is pre-reset
+
+    store = MultiBotTradeStore(data_dir=tmp_path)
+    store.load_trades()   # trigger boot compaction/rotation
+
+    arch = (store.load_rotation_stats().get("bots") or {}).get("b1") or {}
+    assert arch.get("pnl") == pytest.approx(10.0), (
+        "archived aggregate must exclude pre-reset rows")
+    assert arch.get("positions") == 1 and arch.get("wins") == 1
+
+    active_sells = [t for t in store.load_trades(bot_id="b1")
+                    if t.get("type") == "sell"
+                    and (t.get("time") or "") >= reset_iso]
+    post = sell_stats(active_sells, arch, reset_iso)
+    assert post[0] == pytest.approx(pre[0]), "reset bot total_pnl drifted"
+    assert post[1:] == pre[1:]
+
+
 def test_rotation_no_straddle_group_stays(tmp_path, monkeypatch):
     """A (bot_id, token) group with ANY recent row is kept whole in the base —
     position joins (leaderboard groups, restore_positions) never split."""
@@ -362,3 +410,17 @@ def test_sell_stats_reset_after_iso_skips_stale_archive():
         pytest.approx(12.0), 4, 3)
     # no archive at all
     assert sell_stats(sells, None, None) == (pytest.approx(2.0), 1, 1)
+
+
+def test_trade_sig_distinguishes_same_second_ladder_legs():
+    """Adversarial review r2: two REAL same-second sell legs with identical
+    size/pnl (TP ladder split fills) must never collide in the crash-recovery
+    dedup signature — a collision silently drops one leg from the base at the
+    next boot. A true crash duplicate is byte-identical (same reason too)."""
+    from core.multi_bot_persistence import _trade_sig
+    leg = {"bot_id": "b1", "time": "2026-07-01T10:00:00+00:00", "type": "sell",
+           "token": "X", "entry_price": 1.0, "pnl": 5.0, "pnl_pct": 5.0,
+           "amount_usd": 10.0, "reason": "tp1 slice"}
+    twin = dict(leg, reason="tp2 slice")
+    assert _trade_sig(leg) != _trade_sig(twin)
+    assert _trade_sig(leg) == _trade_sig(dict(leg))   # true duplicate matches

@@ -117,7 +117,14 @@ class TestScannerWiring:
     def test_full_close_queues_pending(self):
         import inspect
         import feeds.dip_scanner as ds
-        src = inspect.getsource(ds.DipScanner._execute_bot_sell)
+        # _execute_bot_sell is now a per-position serialization shim
+        # (adversarial review r2, 2026-07-12); the sell body — and this
+        # wiring — lives in _execute_bot_sell_inner. Guard the body, plus
+        # the shim's delegation so the body is actually reachable.
+        shim = inspect.getsource(ds.DipScanner._execute_bot_sell)
+        assert "_execute_bot_sell_inner" in shim, \
+            "_execute_bot_sell no longer delegates to the sell body"
+        src = inspect.getsource(ds.DipScanner._execute_bot_sell_inner)
         assert "post_exit_tracker" in src, \
             "_execute_bot_sell lost the post-exit queue wiring"
         i = src.index("post_exit_tracker")

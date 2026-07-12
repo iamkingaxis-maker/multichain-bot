@@ -84,11 +84,15 @@ def _parse_trade_time(ts):
 def _trade_sig(t: dict) -> tuple:
     """Stable identity signature for a trade row (crash-recovery dedup between
     the base ledger and the rotation archive). Specific enough that two DISTINCT
-    real fills can't collide: bot+token+type+microsecond time+prices+pnl."""
+    real fills can't collide: bot+token+type+time+prices+pnl+reason. A true
+    crash duplicate is a byte-identical copy of the same row, so adding fields
+    only REDUCES false-positive dedup (two same-second identical-size ladder
+    legs must never be collapsed into one)."""
     return (
         t.get("bot_id"), t.get("time"), t.get("type"), t.get("token"),
         t.get("address"), t.get("pair_address"), repr(t.get("entry_price")),
         repr(t.get("pnl")), repr(t.get("pnl_pct")), repr(t.get("amount_usd")),
+        t.get("reason"), repr(t.get("exit_price")),
     )
 
 
@@ -477,8 +481,19 @@ class MultiBotTradeStore:
                 try:
                     self._atomic_write_stream(self._trades_path, mem)
                     self._trades_jsonl_path.write_text("")
-                except Exception:
-                    pass
+                except Exception as e:
+                    # LOUD (adversarial review r2): if the base rewrite fails
+                    # AFTER a rotation wrote stats, the archived rows are still
+                    # in the base AND counted in the stats fold — the
+                    # leaderboard double-counts them for this whole session
+                    # (self-heals at next boot via signature dedup). Never
+                    # swallow that silently.
+                    import logging
+                    logging.getLogger(__name__).error(
+                        "[LedgerCompaction] base rewrite FAILED after "
+                        "%s — leaderboard may DOUBLE-COUNT archived rows "
+                        "until next restart: %s",
+                        "rotation" if rotated else "sidecar fold", e)
             # Mark done and release the local ledger copy (do not retain).
             self._trades_loaded = True
             mem = None
@@ -524,11 +539,15 @@ class MultiBotTradeStore:
         for t in mem:
             if not _is_old(t):
                 keep_keys.add((t.get("bot_id"), t.get("token")))
+        resets: dict = {}   # bot_id -> reset_after_iso (dashboard re-baseline)
         try:
             for p in (self.data_dir / "bot_state").glob("*.json"):
                 try:
                     st = json.loads(p.read_text())
                     bid = st.get("bot_id") or p.stem
+                    ra = st.get("reset_after_iso")
+                    if ra:
+                        resets[bid] = str(ra)
                     for pos in (st.get("open_positions") or []):
                         keep_keys.add((bid, pos.get("token")))
                 except Exception:
@@ -560,6 +579,14 @@ class MultiBotTradeStore:
             if _min_ts and tm < _min_ts:
                 return
             if "cancelled on restart" in (t.get("reason") or ""):
+                return
+            # Per-bot dashboard re-baseline (adversarial review r2 F1): the
+            # leaderboard drops this bot's rows with time < reset_after_iso,
+            # so the archived aggregate must too — otherwise rotating a mixed
+            # pre/post-reset history folds the PRE-reset P&L back into
+            # /api/leaderboard (identity break for any reset bot).
+            _ra = resets.get(bid)
+            if _ra and tm < _ra:
                 return
             k = (bid, t.get("token"), t.get("entry_price"))
             group_pnl[k] = group_pnl.get(k, 0.0) + float(t.get("pnl") or 0)

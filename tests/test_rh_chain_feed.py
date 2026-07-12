@@ -355,10 +355,12 @@ class TestRefillLiqQueueAgedMode:
                   "aged_failed": _cand(30.0, liq=100.0),
                   "too_old": _cand(80.0)}                 # > 72h: age-pruned
         f._refill_liq_queue()
-        # queue: promotable known -> young newest-first -> aged unknown;
+        # queue: promotable known -> young/aged-unknown INTERLEAVED 1:1
+        # (cold-start fix 2026-07-12: aged unknowns used to trail the whole
+        # young tier and were never audited cold within a session);
         # cap 4 dropped the checked-and-failed aged pool first
-        assert f.liq_queue == ["aged_promotable", "young_new", "young_old",
-                               "aged_unknown"]
+        assert f.liq_queue == ["aged_promotable", "young_new", "aged_unknown",
+                               "young_old"]
         assert set(f.cand) == {"aged_promotable", "young_new", "young_old",
                                "aged_unknown"}
 
@@ -419,3 +421,347 @@ class TestFreshPoolQueueJump:
                  ("y1", 10.0, False), ("y2", 9.0, False), ("y3", 8.0, False)]
         keep = rank_watch_keep(items, 2, aged_max=50)
         assert len(keep) == 2 and keep == {"a1", "a2"}
+
+
+# ── COLD-START audition fixes (2026-07-12): seed / burst / recheck ladder /
+# interleaved order. Root cause: the cloud lane ships no scratchpad state, so
+# aged mode boots with ~49k liq-unknown candidates; the queue refills only
+# when EMPTY (60-90+ min/sweep), the front is age~0 spam checked before LP
+# lands, and nothing ever promotes (watch=0 for 31+ min on Railway).
+from scripts.rh_chain_feed import (  # noqa: E402
+    audition_order,
+    candidate_tiers,
+    liq_budget,
+    schedule_recheck,
+)
+
+
+class TestAuditionOrder:
+    ITEMS = [
+        ("failed_aged", 30.0, 100.0),
+        ("young_1h", 1.0, None),
+        ("young_2h", 2.0, None),
+        ("young_3h", 3.0, None),
+        ("aged_40h", 40.0, None),
+        ("aged_50h", 50.0, None),
+        ("promotable", 48.0, 90000.0),
+    ]
+
+    def test_interleaves_young_and_aged_unknowns(self):
+        assert audition_order(self.ITEMS, min_liq=5000.0,
+                              young_age_h=24.0) == [
+            "promotable",                       # knowns still lead
+            "young_1h", "aged_40h",             # 1:1 interleave
+            "young_2h", "aged_50h",
+            "young_3h",                         # longer tier finishes
+            "failed_aged",                      # checked-and-failed still last
+        ]
+
+    def test_same_set_as_rank_candidates(self):
+        # the CAND_MAX prune uses rank_candidates; the queue uses
+        # audition_order — they MUST be permutations of each other
+        assert (set(audition_order(self.ITEMS, 5000.0, 24.0))
+                == set(rank_candidates(self.ITEMS, 5000.0, 24.0)))
+
+    def test_candidate_tiers_split(self):
+        pr, yg, au, fa = candidate_tiers(self.ITEMS, 5000.0, 24.0)
+        assert pr == ["promotable"]
+        assert yg == ["young_1h", "young_2h", "young_3h"]
+        assert au == ["aged_40h", "aged_50h"]
+        assert fa == ["failed_aged"]
+
+
+class TestLiqBudget:
+    def test_burst_then_steady_in_aged_mode(self):
+        assert liq_budget(1, aged=True, base=25, burst=120,
+                          burst_cycles=240) == 120
+        assert liq_budget(240, aged=True, base=25, burst=120,
+                          burst_cycles=240) == 120
+        assert liq_budget(241, aged=True, base=25, burst=120,
+                          burst_cycles=240) == 25
+
+    def test_default_mode_always_base(self):
+        assert liq_budget(1, aged=False, base=25, burst=120,
+                          burst_cycles=240) == 25
+
+    def test_burst_never_below_base(self):
+        # env-misconfig guard: burst smaller than base must not SHRINK budget
+        assert liq_budget(1, aged=True, base=25, burst=5,
+                          burst_cycles=240) == 25
+
+
+class TestScheduleRecheck:
+    def test_fresh_below_floor_walks_the_ladder(self):
+        assert schedule_recheck(0.01, 0, 100.0, 1000.0,
+                                min_liq=5000.0) == 1060.0
+        assert schedule_recheck(0.05, 1, 100.0, 1000.0,
+                                min_liq=5000.0) == 1180.0
+        assert schedule_recheck(0.2, 2, 100.0, 1000.0,
+                                min_liq=5000.0) == 1600.0
+
+    def test_bounded(self):
+        # ladder exhausted / too old / already above floor / no liq -> None
+        assert schedule_recheck(0.3, 3, 100.0, 1000.0, min_liq=5000.0) is None
+        assert schedule_recheck(2.0, 0, 100.0, 1000.0, min_liq=5000.0) is None
+        assert schedule_recheck(0.1, 0, 9000.0, 1000.0, min_liq=5000.0) is None
+        assert schedule_recheck(None, 0, 100.0, 1000.0, min_liq=5000.0) is None
+        assert schedule_recheck(0.1, 0, None, 1000.0, min_liq=5000.0) is None
+
+
+class TestLiqSeed:
+    POOL_A = "0xaaaa000000000000000000000000000000000001"
+
+    def _seed_file(self, tmp_path, pools):
+        p = tmp_path / "rh_liq_seed.json"
+        p.write_text(json.dumps({"pools": pools}), encoding="utf-8")
+        return str(p)
+
+    def test_stamps_known_candidates_only(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        f = _feed(monkeypatch)
+        f.cand = {self.POOL_A: _cand(30.0)}
+        path = self._seed_file(tmp_path, {
+            self.POOL_A: 50000.0,
+            "0xdead000000000000000000000000000000000002": 70000.0})
+        assert f.load_liq_seed(path) == 1
+        assert f.cand[self.POOL_A]["liq"] == 50000.0
+
+    def test_never_overwrites_a_fresh_check(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        f = _feed(monkeypatch)
+        f.cand = {self.POOL_A: _cand(30.0, liq=123.0)}
+        path = self._seed_file(tmp_path, {self.POOL_A: 50000.0})
+        assert f.load_liq_seed(path) == 0
+        assert f.cand[self.POOL_A]["liq"] == 123.0
+
+    def test_default_mode_inert(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(mod, "AGED_MODE", False)
+        f = _feed(monkeypatch)
+        f.cand = {self.POOL_A: _cand(3.0)}
+        path = self._seed_file(tmp_path, {self.POOL_A: 50000.0})
+        assert f.load_liq_seed(path) == 0
+        assert "liq" not in f.cand[self.POOL_A]
+
+    def test_missing_and_malformed_files_noop(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        f = _feed(monkeypatch)
+        f.cand = {self.POOL_A: _cand(30.0)}
+        assert f.load_liq_seed(str(tmp_path / "nope.json")) == 0
+        bad = tmp_path / "bad.json"
+        bad.write_text("{not json", encoding="utf-8")
+        assert f.load_liq_seed(str(bad)) == 0
+        garbage = self._seed_file(tmp_path, {self.POOL_A: "not-a-number"})
+        assert f.load_liq_seed(garbage) == 0
+
+    def test_shipped_seed_file_is_valid(self):
+        # the deployable artifact itself: config/rh_liq_seed.json must parse
+        # and carry lowercase-0x pools with numeric liq (Railway relies on it)
+        path = _os.path.join(_os.path.dirname(_os.path.dirname(
+            _os.path.abspath(__file__))), "config", "rh_liq_seed.json")
+        d = json.load(open(path, encoding="utf-8"))
+        pools = d["pools"]
+        assert len(pools) > 0
+        for pool, liq in pools.items():
+            assert pool == pool.lower() and pool.startswith("0x")
+            assert float(liq) >= 0
+
+
+class _FakeRpc:
+    """Batch stub: returns result_hex for every request (None -> no results,
+    the throttled-batch case). Records the request lists it saw."""
+
+    def __init__(self, result_hex=None):
+        self.result_hex = result_hex
+        self.calls = []
+
+    def now(self):
+        return 4_000_000.0
+
+    def batch(self, reqs):
+        self.calls.append(list(reqs))
+        if self.result_hex is None:
+            return {}
+        return {i: self.result_hex for i in range(len(reqs))}
+
+
+def _wei_hex(liq_usd, eth_price=2000.0):
+    """balanceOf answer producing the given liq (liq = wei/1e18*2*price)."""
+    return "0x" + format(int(liq_usd / (2.0 * eth_price) * 1e18), "064x")
+
+
+class TestColdStartProcessCycle:
+    """Integration of the process_cycle wiring: burst budget consumption,
+    fresh-pool recheck scheduling + re-audit, aged requeue-on-missing, and
+    default-mode identity."""
+
+    def test_seeded_promotable_promotes_within_two_cycles(self, monkeypatch,
+                                                          tmp_path):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)
+        f = _feed(monkeypatch)
+        # promotion appends a meta row — NEVER into the real relative
+        # OUT_DIR (pytest cwd = repo root -> the live pools_meta.jsonl)
+        f.meta_path = str(tmp_path / "pools_meta.jsonl")
+        f.rpc = _FakeRpc(result_hex=_wei_hex(8000.0))
+        f.cand = {"0xseeded": _cand(30.0, liq=50000.0)}   # seed-stamped
+        f.process_cycle([])                                # cycle 1: liq check
+        assert "0xseeded" in f.pending_sym                 # staged
+        f.process_cycle([])                                # cycle 2: symbol
+        assert "0xseeded" in f.watch                       # promoted
+        assert f.watch["0xseeded"]["liq"] == 8000.0        # FRESH check value
+
+    def test_stale_seed_cannot_promote_dead_pool(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)
+        f = _feed(monkeypatch)
+        f.rpc = _FakeRpc(result_hex=_wei_hex(10.0))        # rugged since seed
+        f.cand = {"0xseeded": _cand(30.0, liq=50000.0)}
+        f.process_cycle([])
+        assert "0xseeded" not in f.pending_sym and "0xseeded" not in f.watch
+        assert f.cand["0xseeded"]["liq"] == 10.0           # truth restamped
+
+    def test_fresh_pool_recheck_ladder_reaudits(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)
+        f = _feed(monkeypatch)
+        f.rpc = _FakeRpc(result_hex=_wei_hex(100.0))       # pre-LP: below floor
+        f.cand = {"0xfresh": _cand(0.05)}                  # 3 min old
+        f.process_cycle([])
+        assert f.cand["0xfresh"]["liq_tries"] == 1
+        assert len(f.liq_recheck) == 1                     # +60s scheduled
+        f.liq_recheck = [(0.0, "0xfresh")]                 # make it due now
+        f.process_cycle([])
+        assert f.cand["0xfresh"]["liq_tries"] == 2         # re-audited
+        assert len(f.liq_recheck) == 1                     # +180s scheduled
+        # a due recheck must be audited exactly once even when the refilled
+        # queue also contains the pool (dedupe via the taken-set)
+        assert sum(1 for r in f.rpc.calls[-1]
+                   if r[0] == "eth_call"
+                   and "0xfresh"[2:] in r[1][0]["data"]) == 1
+
+    def test_aged_pool_gets_no_recheck_ladder(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)
+        f = _feed(monkeypatch)
+        f.rpc = _FakeRpc(result_hex=_wei_hex(100.0))
+        f.cand = {"0xaged": _cand(30.0)}                   # had its whole life
+        f.process_cycle([])
+        assert f.liq_recheck == []
+
+    def test_missing_batch_result_requeues_in_aged_mode(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)
+        f = _feed(monkeypatch)
+        f.rpc = _FakeRpc(result_hex=None)                  # throttled batch
+        f.cand = {"0xpool": _cand(30.0)}
+        f.process_cycle([])
+        assert "0xpool" in f.liq_queue                     # audit not orphaned
+
+    def test_throttled_promotable_requeues_at_front(self, monkeypatch):
+        # a known-liq pool is one passing check from a watch slot — a
+        # throttled cycle must NOT sink it behind the ~45k unknown backlog
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)
+        monkeypatch.setattr(mod, "LIQ_PER_CYCLE", 2)
+        monkeypatch.setattr(mod, "LIQ_BURST", 2)
+        f = _feed(monkeypatch)
+        f.rpc = _FakeRpc(result_hex=None)
+        f.cand = {"0xknown": _cand(30.0, liq=50000.0),     # seed-stamped
+                  "0xunknown": _cand(20.0),
+                  "0xidle1": _cand(40.0), "0xidle2": _cand(41.0)}
+        f.process_cycle([])   # audits 0xknown + one more; both throttled
+        assert f.liq_queue[0] == "0xknown"                 # retry FIRST
+        assert f.liq_queue[-1] != "0xknown"
+
+    def test_throttled_cycles_halve_budget_then_recover(self, monkeypatch):
+        # the public RPC answers throttled batches with {} — the audition
+        # must back off (protect the shared budget) and RECOVER, visibly
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)
+        monkeypatch.setattr(mod, "LIQ_PER_CYCLE", 40)
+        monkeypatch.setattr(mod, "LIQ_BURST", 40)          # flat budget
+        f = _feed(monkeypatch)
+        f.rpc = _FakeRpc(result_hex=None)                  # every batch fails
+        f.cand = {"0xp%02d" % i: _cand(30.0 + i) for i in range(60)}
+        f.process_cycle([])
+        assert f.liq_dyn == 20                             # 40 -> 20
+        f.process_cycle([])
+        assert f.liq_dyn == 10                             # 20 -> 10 (floor)
+        f.process_cycle([])
+        assert f.liq_dyn == 10                             # never below floor
+        f.rpc = _FakeRpc(result_hex=_wei_hex(100.0))       # RPC recovers
+        f.process_cycle([])
+        assert f.liq_dyn == 20                             # +10 additive
+        f.process_cycle([])
+        f.process_cycle([])
+        assert f.liq_dyn is None                           # back to configured
+
+    def test_default_mode_never_adapts_budget(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", False)
+        f = _feed(monkeypatch)
+        f.rpc = _FakeRpc(result_hex=None)
+        f.cand = {"0xpool": _cand(3.0)}
+        f.process_cycle([])
+        assert f.liq_dyn is None
+
+    def test_burst_budget_consumed_then_steady(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)
+        monkeypatch.setattr(mod, "LIQ_PER_CYCLE", 2)
+        monkeypatch.setattr(mod, "LIQ_BURST", 4)
+        monkeypatch.setattr(mod, "LIQ_BURST_CYCLES", 1)
+        f = _feed(monkeypatch)
+        f.rpc = _FakeRpc(result_hex=_wei_hex(100.0))
+        f.cand = {"0xp%d" % i: _cand(10.0 + i) for i in range(8)}
+        f.process_cycle([])                                # burst cycle
+        assert len(f.rpc.calls[0]) == 4                    # 4 liq checks
+        f.process_cycle([])                                # steady cycle
+        assert len(f.rpc.calls[1]) == 2
+
+    def test_default_mode_wiring_identical(self, monkeypatch):
+        monkeypatch.setattr(mod, "AGED_MODE", False)
+        f = _feed(monkeypatch)
+        f.rpc = _FakeRpc(result_hex=None)                  # missing results
+        f.cand = {"0xyoung": _cand(0.05)}
+        f.process_cycle([])
+        assert f.liq_queue == []                           # no aged requeue
+        assert f.liq_recheck == []                         # no ladder
+        f.rpc = _FakeRpc(result_hex=_wei_hex(100.0))
+        f.liq_queue = ["0xyoung"]
+        f.process_cycle([])
+        assert f.liq_recheck == []                         # still no ladder
+        assert "liq_tries" not in f.cand["0xyoung"]
+
+
+class TestSeedExporter:
+    def test_build_seed_filters_and_caps(self):
+        from scripts.rh_liq_seed_export import build_seed
+        now = 1_000_000.0
+        iso_fresh = iso_utc(now - 3600.0)                  # 1h ago
+        good = "0x" + "a1" * 20
+        low = "0x" + "b2" * 20
+        old = "0x" + "c3" * 20
+        bad = "0x" + "d4" * 20
+        rows = [
+            {"pool": good, "liq": 9000.0, "age_h": 5.0, "ts": iso_fresh},
+            {"pool": good, "liq": 12000.0, "age_h": 6.0,
+             "ts": iso_utc(now - 60.0)},                   # newer row wins
+            {"pool": low, "liq": 100.0, "age_h": 5.0, "ts": iso_fresh},
+            {"pool": old, "liq": 90000.0, "age_h": 200.0,
+             "ts": iso_fresh},                             # over age ceiling
+            {"pool": bad, "liq": None, "age_h": 5.0, "ts": iso_fresh},
+            {"pool": "not-an-addr", "liq": 9000.0, "age_h": 5.0,
+             "ts": iso_fresh},
+            {"pool": "0xseeded", "liq": 9000.0, "age_h": 5.0,
+             "ts": iso_fresh},   # synthetic test-row shape: must be dropped
+        ]
+        out = build_seed(rows, now, min_liq=5000.0, max_age_h=96.0, cap=10)
+        assert out == {good: 12000.0}
+
+    def test_build_seed_cap_keeps_top_liq(self):
+        from scripts.rh_liq_seed_export import build_seed
+        now = 1_000_000.0
+        rows = [{"pool": "0x%040x" % i, "liq": 5000.0 + i, "age_h": 5.0,
+                 "ts": iso_utc(now - 60.0)} for i in range(5)]
+        out = build_seed(rows, now, min_liq=5000.0, max_age_h=96.0, cap=2)
+        assert set(out.values()) == {5003.0, 5004.0}
