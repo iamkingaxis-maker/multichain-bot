@@ -23,8 +23,13 @@ Wires the three shipped RH components into one per-session paper trader:
                eth_call: real pool state, fee + impact included) — the honest
                paper fill, and the exact call the live path would make.
 
-PAPER ONLY: RhExecutor without RH_PRIVATE_KEY cannot sign (RhPaperModeError);
-this script never calls the swap methods at all — quotes only.
+PAPER BY DEFAULT: RhExecutor without RH_PRIVATE_KEY cannot sign
+(RhPaperModeError); the shared quote machinery is quotes only. The ONE
+exception is the LIVE FILL PROBE (2026-07-12): racers listed in
+RH_LIVE_PROBE_BOTS route their fills through
+core.rh_live_execution.RhLiveExecutor.live_buy/live_sell — and only while
+the triple gate (RH_LIVE_CONFIRMED + RH_PAPER_MODE=false + RH_PRIVATE_KEY)
+is open. Four conditions or pure paper; see the LIVE FILL PROBE block.
 
 Latency parity mandate (AxiS 2026-07-10): every paper fill records the full
 chain detect->fill: trigger lag_secs (firehose) + decision + quote round-trip.
@@ -36,6 +41,7 @@ import asyncio
 import json
 import os
 import queue
+import re
 import sys
 import threading
 import time
@@ -106,6 +112,26 @@ MAX_HOT_QUOTES = 8          # quote budget per cycle (~130ms/call)
 STRAT_TICK_S = 2.0
 REENTRY_COOLDOWN_S = 300.0
 GAS_USD_PER_SIDE = 0.01     # measured RH gas ~ $0.005; round up
+# ── LIVE FILL PROBE (2026-07-12, AxiS: establish live buy+sell infra with
+# fill times TODAY). One racer (rh_fill_probe) measures EXECUTION, not edge:
+# $7.50 entries, <=4 buys/UTC-day, one position at a time, permissive
+# young-dip gates, the standard exit ladder — real fills on BOTH legs are
+# the deliverable. Its entries/exits route through
+# core.rh_live_execution.RhLiveExecutor when and ONLY when FOUR conditions
+# hold (env read at CALL time, never cached — see live_route_open):
+#   RH_LIVE_CONFIRMED=true AND RH_PAPER_MODE=false AND RH_PRIVATE_KEY set
+#   (the triple gate) AND the bot_id is listed in RH_LIVE_PROBE_BOTS.
+# Any leg missing -> the racer is PURE PAPER and the whole lane is
+# byte-identical. Live legs still book the normal paper ledger row (marked
+# live=true) so every analysis reads both modes the same way; per-leg
+# fill-time telemetry lands on the row AND in rh_live_fills.jsonl.
+PROBE_SIZE_USD = float(os.environ.get("RH_PROBE_SIZE_USD", "7.50"))
+PROBE_MAX_BUYS_DAY = int(os.environ.get("RH_PROBE_MAX_BUYS_DAY", "4"))
+LIVE_FILLS = os.path.join(OUT_DIR, "rh_live_fills.jsonl")
+LIVE_SELL_RETRY_COOLDOWN_S = 60.0   # a failed live exit retries no faster
+                                    # than this (a reverted retry costs real
+                                    # gas every attempt; the sell canary owns
+                                    # halting BUYS on a broken sell path)
 # ── Rug-defense SHADOW stamps (2026-07-11 HOODLANA port) ─────────────────────
 # core/rh_rug_signals per-entry stamp: pool share of supply, top-holder
 # structure (top1/top10/shoulder_11_20/visible float) and LP custody, appended
@@ -278,6 +304,27 @@ class LaneBot:
     # volume BEFORE entry; losers ~$6.6k): lifetime observed USD volume for
     # the pool must be >= this. None = off.
     min_session_vol_usd: Optional[float] = None
+    # ── FACTORY NO-FIRE FIX (2026-07-12, scratchpad/_rh_factory_nofire.md) ──
+    # demand-turn NET requirement: the shared dip-mode demand gate demands
+    # buys >= floor AND (buys - sells) > 0. The net>0 leg is NOT part of the
+    # mined d25 cells (factory_sweep DEMANDS: d25 = b30 only; ~26-30% of the
+    # mined triggers had net <= 0) — cell-verbatim racers switch it off.
+    # Default True = every pre-existing racer byte-identical.
+    demand_net_required: bool = True
+    # session-anchor requirement: the u10m factory cells' session facts
+    # (cum volume from launch, arc vs first print) only EXIST for pools whose
+    # tape is creation-anchored (session_seed backfill, or first tape row at
+    # age <= SESSION_ANCHOR_MAX_AGE_H). A pool promoted mid-arc reads
+    # cum_vol~0 (structurally wrong thin_session_vol) and arc~0 (silently
+    # ADMITS the late-arc loser profile the cell excluded — measured 07-10/11:
+    # 22 of 69 promotion-onward "passes" were true-arc>300 false admits).
+    # True -> unanchored pools block with the EXPLICIT `untracked_session`
+    # reason and their arc/vol gates are not consulted. Default False.
+    require_session_anchor: bool = False
+    # ── LIVE FILL PROBE plumbing (2026-07-12; both default None = every
+    # pre-existing racer is byte-identical) ──────────────────────────────────
+    entry_usd: Optional[float] = None           # None = lane ENTRY_USD ($25)
+    max_buys_per_day: Optional[int] = None      # UTC-day entry cap; None=off
 
     def bot_config(self) -> BotConfig:
         kw = {}
@@ -399,8 +446,10 @@ ROSTER = (
     # booked -90) and graded per half of the four-half discipline (chrono
     # W1/W2 x odd/even) against the Phase-1 bar (n>=20 distinct pools/half,
     # tokmed ex-top2 green, cat<=1/20). Each racer mirrors ONE 4/4-surviving
-    # cell VERBATIM (incl. min_liq_usd=5k = the mined substrate's feed floor
-    # — the cell's cat rate priced its rug tail with NO liq gate; honeypot/
+    # cell VERBATIM. min_liq_usd=5k = the FEED's watch floor (RH_FEED_MIN_LIQ)
+    # — NOT a mined axis: the substrate (rh_history sweep) was the chain-wide
+    # unfiltered swap log; the cell's cat rate priced its rug tail with NO liq
+    # gate, and the lane can only trade watched pools anyway (honeypot/
     # rt-cost/LP-drain still guard). All five: neighborhood-GREEN in every
     # perturbation notch, >=5 distinct days, exclusion_group "factory" (one
     # racer per token), 600s cooldown = the mine's per-pool trigger cooldown.
@@ -409,15 +458,28 @@ ROSTER = (
     # PRE-REGISTERED: backtest earned the RACE seat, never a live seat —
     # each racer must CONFIRM at n>=30 closes (tokmed ex-top2 green,
     # cat<=1/20, direction = its cell) or it retires to the kills list.
+    # NO-FIRE DIAGNOSIS (2026-07-12, scratchpad/_rh_factory_nofire.md): the
+    # sweep's 65-100 qualifying pools/day are measured on the chain-wide tape
+    # from pool CREATION; the lane sees a pool only from watch PROMOTION
+    # (median ~4-7 min age vs the cells' median trigger at 2.4 min) and its
+    # feed ever watches ~53-83% of qualifying pools. Measured reachable
+    # throughput for the u10m cells: ~0.8 fires/lane-hour (~18 pools per
+    # 22 lane-hours, 07-10/11) — NOT the sweep's ~3-4/hour. The n>=30 confirm
+    # bar stands; only the time-to-n expectation changes.
     # 1. THE winner-delta cell: <10min pools, SHALLOW pullback (-6..-12,
     #    deeper = the loser profile), proven volume >=$4.8k, EARLY arc
     #    (<=+300% of first-seen px), wide aged ladder. Backtest: 658 pools,
     #    tokmed_ex2 +$2.46 (min-half +$1.97), cat 0.6%, net +$738.
+    #    demand_net_required=False: cell-verbatim d25 (b30>=$25, NO net leg).
+    #    require_session_anchor: session facts must be creation-anchored
+    #    (seed backfill / early first tape row) or the pool blocks with the
+    #    explicit untracked_session reason.
     LaneBot(bot_id="rh_f_pullback",
             dip_trigger_pct=-6.0, dip_max_depth_pct=-12.0,
             min_pool_age_h=0.0, max_pool_age_h=10.0 / 60.0,
             min_liq_usd=5_000.0, min_session_vol_usd=4_800.0,
-            demand_min_buy_usd=25.0, max_arc_pct=300.0,
+            demand_min_buy_usd=25.0, demand_net_required=False,
+            max_arc_pct=300.0, require_session_anchor=True,
             reentry_cooldown_s=600.0,
             tp1_pct=6.0, tp1_sell_fraction=0.50,
             tp2_pct=16.0, tp2_sell_fraction=0.30, trail_pp=10.0,
@@ -428,7 +490,8 @@ ROSTER = (
             dip_trigger_pct=-6.0, dip_max_depth_pct=-25.0,
             min_pool_age_h=0.0, max_pool_age_h=10.0 / 60.0,
             min_liq_usd=5_000.0, min_session_vol_usd=4_800.0,
-            demand_min_buy_usd=25.0, max_arc_pct=300.0,
+            demand_min_buy_usd=25.0, demand_net_required=False,
+            max_arc_pct=300.0, require_session_anchor=True,
             reentry_cooldown_s=600.0,
             exclusion_group="factory"),
     # 3. POP-RETRACE family (the 31,208-pop mine): deep dip within 30 min
@@ -450,11 +513,15 @@ ROSTER = (
     #    band); arms automatically when it does. regime_hours deliberately
     #    OFF: the cell passed 4/4 WITH 19-21 UTC included (cell-verbatim;
     #    the hour gate is the existing aged racers' A/B, not this one's).
+    #    demand_net_required=False: cell-verbatim d25. NO session anchor:
+    #    a >24h pool is never creation-anchored on practical uptimes — its
+    #    vol floor reads OBSERVED lifetime volume, a conservative lower
+    #    bound of the mined cum_eth (under-fires, never falsely admits).
     LaneBot(bot_id="rh_f_reload24",
             dip_trigger_pct=-25.0,
             min_pool_age_h=24.0,
             min_liq_usd=5_000.0, min_session_vol_usd=16_000.0,
-            demand_min_buy_usd=25.0,
+            demand_min_buy_usd=25.0, demand_net_required=False,
             reentry_cooldown_s=600.0,
             tp1_pct=6.0, tp1_sell_fraction=0.50,
             tp2_pct=16.0, tp2_sell_fraction=0.30, trail_pp=10.0,
@@ -472,6 +539,21 @@ ROSTER = (
             tp1_pct=6.0, tp1_sell_fraction=0.50,
             tp2_pct=16.0, tp2_sell_fraction=0.30, trail_pp=10.0,
             exclusion_group="factory"),
+    # ── LIVE FILL PROBE (2026-07-12) — measures EXECUTION, not edge: the
+    # standard young dip trigger with PERMISSIVE gates (min_liq 30k and the
+    # always-on guard stack only — no vol/arc/pop/breadth extras), $7.50
+    # entries (RH_PROBE_SIZE_USD), <=4 buys/day (RH_PROBE_MAX_BUYS_DAY), one
+    # position at a time, the full normal exit ladder (TP1/TP2/trail/stop)
+    # so BOTH legs produce live fills. Routes through RhLiveExecutor only
+    # when the triple gate is open AND RH_LIVE_PROBE_BOTS lists this bot_id
+    # (see the LIVE FILL PROBE constants block); otherwise pure paper.
+    LaneBot(bot_id="rh_fill_probe",
+            min_liq_usd=30_000.0,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H,
+            max_concurrent=1,
+            entry_usd=PROBE_SIZE_USD,
+            max_buys_per_day=PROBE_MAX_BUYS_DAY,
+            exclusion_group="fill_probe"),
 )
 
 
@@ -643,6 +725,62 @@ def proven_vol_block(cum_vol_usd: float, min_usd) -> Optional[str]:
     return "thin_session_vol" if (cum_vol_usd or 0.0) < min_usd else None
 
 
+# ── session anchoring (2026-07-12 factory no-fire fix) ───────────────────────
+# A pool's session facts (cum volume / arc / dip basis) are CREATION-FAITHFUL
+# only when the lane's view is anchored at (or backfilled to) pool creation.
+# Natural anchor: first tape row lands within this age (missed volume bounded
+# to <=2 min of a launch). Otherwise the feed's session_seed backfill anchors
+# retroactively; with neither, anchor-requiring racers block explicitly.
+SESSION_ANCHOR_MAX_AGE_H = 120.0 / 3600.0
+
+
+def session_anchor_block(anchored: bool, required: bool) -> Optional[str]:
+    """Session-anchor gate -> "untracked_session" | None. Named EXPLICIT
+    block for pools discovered mid-life: their cum_vol reads ~0 and their
+    arc basis starts mid-arc — wrong values, not weak signals. Racers that
+    don't require the anchor (require_session_anchor=False) never see it."""
+    return None if (anchored or not required) else "untracked_session"
+
+
+def demand_ok(buys_usd: float, sells_usd: float, min_buy_usd: float,
+              net_required: bool = True) -> bool:
+    """Dip-mode demand turn. net_required mirrors the pre-fix shared gate
+    (buys >= floor AND net inflow positive); the mined d25 factory cells
+    gate on the buy-side sum ONLY (factory_sweep.py DEMANDS['d25'])."""
+    if buys_usd < min_buy_usd:
+        return False
+    return (buys_usd - sells_usd) > 0 if net_required else True
+
+
+def merge_session_seed(seed, first_quote_px: float, now: float,
+                       window_s: float = PRICE_WINDOW_S):
+    """Feed session_seed + the pool's FIRST live quote px ->
+    (first_px_scaled, recent_pts, cum_eth) | None.
+
+    Seed prices are swap-derived and ATOMIC-relative; quote prices are
+    decimals-adjusted ETH/token. The constant factor between them cancels in
+    ratio math, so everything is rescaled onto the quote basis via
+    scale = first_quote_px / median(last 3 seed px) (median = phantom-print
+    guard: V2 |wnet|/|tnet| glitch rows print 1e6x). recent_pts = the seed
+    points inside the live dip window, ready to prepend to the quote series;
+    first_px_scaled = the pool's FIRST print on the quote basis (the mine's
+    arc anchor, verbatim). None = unusable seed (caller stays unanchored)."""
+    rows = [r for r in ((seed or {}).get("rows") or [])
+            if r and len(r) >= 4 and r[3] and r[3] > 0]
+    if not rows or not first_quote_px or first_quote_px <= 0:
+        return None
+    tail = sorted(r[3] for r in rows[-3:])
+    ref = tail[len(tail) // 2]
+    if ref <= 0:
+        return None
+    scale = first_quote_px / ref
+    fp = float((seed.get("first_px") or 0.0)) * scale
+    pts = [(float(r[0]), r[3] * scale) for r in rows
+           if now - float(r[0]) <= window_s and float(r[0]) < now]
+    return (fp if fp > 0 else None, pts,
+            float(seed.get("cum_eth") or 0.0))
+
+
 def pop_recency_block(last_pop_ts, now: float,
                       require_within_s) -> Optional[str]:
     """POP-RETRACE gate -> block reason or None: entry allowed only within
@@ -756,6 +894,93 @@ def sell_slice(remaining_frac: float, req_frac: float):
     return f, remaining_frac - f
 
 
+# ── LIVE FILL PROBE routing glue (2026-07-12) — pure, unit-tested ────────────
+def live_probe_bots() -> set:
+    """RH_LIVE_PROBE_BOTS env (comma-separated bot_ids) -> set. Read at CALL
+    time, exactly like the triple gate — never cached at import."""
+    raw = os.environ.get("RH_LIVE_PROBE_BOTS", "") or ""
+    return {s.strip() for s in raw.split(",") if s.strip()}
+
+
+def live_route_open(bot_id: str) -> bool:
+    """FOUR conditions or nothing: the rh_live triple gate (RH_LIVE_CONFIRMED
+    =true AND RH_PAPER_MODE=false AND RH_PRIVATE_KEY present) AND this bot_id
+    opted in via RH_LIVE_PROBE_BOTS. Any condition missing -> False -> the
+    racer books pure paper (dormant default). FAIL-CLOSED both ways."""
+    if bot_id not in live_probe_bots():
+        return False
+    ok, _ = rh_live.rh_live_gate()
+    return bool(ok)
+
+
+def daily_buys_block(n_today: int, cap) -> Optional[str]:
+    """Per-UTC-day entry cap -> block reason or None. None cap = gate off
+    (every pre-existing racer). Feeds entry_verdict via extra_blocks."""
+    if cap is None:
+        return None
+    return "daily_buys_cap" if int(n_today) >= int(cap) else None
+
+
+_LIVE_TX_RE = re.compile(r"tx=(0x[0-9a-fA-F]{64})")
+
+
+def classify_live_error(err: Exception) -> str:
+    """Live-exec failure -> what actually happened to the MONEY:
+      'pre_send'      — refused before any tx (gate / containment / no route
+                        / paper-only executor): nothing spent, safe to skip.
+      'reverted'      — a tx MINED and reverted (swap or approve): gas spent,
+                        NO position change; safe to skip booking and retry.
+      'unknown_spend' — a tx was broadcast and its outcome is UNKNOWN
+                        (receipt timeout / transport loss after send): the
+                        Solana E1b class (dip_scanner 2026-06-02 audit) —
+                        money may be gone in an untrackable position. Callers
+                        MUST log LOUDLY + flag manual reconcile.
+    RhExecutor wraps every post-quote failure in RhSwapError whose message
+    ends 'tx=<hash>' ('tx=None' when signing/sending never happened), so the
+    hash presence is the send/no-send discriminator. Non-executor exception
+    types can only arise before any send (the executor's money path always
+    wraps) -> pre_send."""
+    if isinstance(err, (rh_live.RhLiveGateError, rh_live.RhContainmentError)):
+        return "pre_send"
+    if isinstance(err, rh_live.RhSwapError):
+        msg = str(err)
+        if _LIVE_TX_RE.search(msg) is None:
+            return "pre_send"          # no tx was ever broadcast
+        if "revert (status=0)" in msg or "approve reverted" in msg:
+            return "reverted"          # mined + reverted: state is KNOWN
+        return "unknown_spend"         # broadcast, outcome unknown (E1b)
+    return "pre_send"
+
+
+def fill_telemetry(rec: dict, decision_ts, quote_ts, order_sent_ts,
+                   landed_wall_ts, tx_landed_ts=None) -> dict:
+    """Per-leg fill-time telemetry: wall-clock stamps for every hop of the
+    live leg plus the executor's own numbers. rec = the
+    RhLiveExecutor.live_buy/live_sell return record (rh_live_swaps.jsonl
+    shape). tx_landed_ts = the RECEIPT BLOCK timestamp (chain truth, seconds
+    resolution); decision_to_landed_ms uses the wall clocks (ms resolution).
+    Pure; never raises (telemetry must never block a booking)."""
+    try:
+        total_ms = round((float(landed_wall_ts) - float(decision_ts))
+                         * 1000.0, 1)
+    except Exception:
+        total_ms = None
+    return {
+        "decision_ts": decision_ts,
+        "quote_ts": quote_ts,
+        "order_sent_ts": order_sent_ts,
+        "landed_wall_ts": landed_wall_ts,
+        "tx_landed_ts": tx_landed_ts,
+        "decision_to_landed_ms": total_ms,
+        "exec_latency_ms": rec.get("total_latency_ms"),
+        "fill_vs_quote_pct": rec.get("fill_vs_mid_slippage_pct"),
+        "gas_cost_eth": rec.get("gas_cost_eth"),
+        "route": rec.get("route"),
+        "fee_tier": rec.get("fee_tier"),
+        "tx": rec.get("tx_signature"),
+    }
+
+
 def lp_drain_pct(liq_series, now: float, window_s: float = LP_DRAIN_WINDOW_S):
     """[(ts, liq_usd)] -> pct change from the window's max liq to the latest
     sample (0 or negative = drain). None when <2 in-window samples (fail-OPEN
@@ -851,6 +1076,9 @@ class BotState:
                                  # gate + cross-sibling loss-stop exclusion.
                                  # In-memory only: both windows are 20 min,
                                  # so a restart fails OPEN (like last_exit).
+        self.day_buys = 0        # entries booked this UTC day (persisted
+                                 # same-day like daily_pnl_usd; drives the
+                                 # fill probe's max_buys_per_day cap)
         self.recent_realized = []  # last <=50 FULL-close realized $ (regime
                                  # layer: rolling-expectancy DIAL stamp —
                                  # STAMP ONLY, never a paper buy-halt;
@@ -874,6 +1102,15 @@ class PaperLane:
                                     # basis; persisted — see save_state)
         self.cum_vol = {}           # pool -> lifetime observed USD volume
                                     # (proven-volume gate basis; persisted)
+        self.session_anchor = {}    # pool -> True when session facts are
+                                    # creation-anchored (seed backfill applied
+                                    # or first tape row at age <= 2 min);
+                                    # persisted — require_session_anchor
+                                    # racers block unanchored pools with the
+                                    # explicit untracked_session reason
+        self.first_tape_age = {}    # pool -> age_h at FIRST tape row (natural
+                                    # -anchor test; in-memory: the persisted
+                                    # session_anchor carries the verdict)
         self.pop_book = {}          # pool -> (ts, mag_pct) of last detected
                                     # pop (pop-retrace gate; in-memory, the
                                     # gate window is minutes-scale)
@@ -893,6 +1130,9 @@ class PaperLane:
         # sell-path canary (live-mode only; see _canary_tick)
         self._canary = None
         self._last_canary_ts = 0.0
+        # LIVE FILL PROBE executor (lazy: constructed only when a live route
+        # actually opens — a dormant lane never touches rh_live executors)
+        self._live = None
         # rug-signal SHADOW stamper (see _stamp_rug_signals)
         self._rug_lock = threading.Lock()   # single-flight on the RPC
         self._rug_cache = {}                # pool -> (computed_ts, stamp)
@@ -982,8 +1222,11 @@ class PaperLane:
                     "first_px": self.first_px,
                     "cum_vol": {k: round(v, 2)
                                 for k, v in self.cum_vol.items()},
+                    "session_anchor": [k for k, v in
+                                       self.session_anchor.items() if v],
                     "bots": {bid: {"pos_meta": st.pos_meta,
                                    "daily_pnl_usd": st.daily_pnl_usd,
+                                   "day_buys": st.day_buys,
                                    "pm_state": st.pm.to_state_list(),
                                    "bites": st.bites,
                                    "recent_realized": st.recent_realized}
@@ -1010,6 +1253,9 @@ class PaperLane:
             self.cum_vol = {k: float(v) for k, v in
                             (raw.get("cum_vol") or {}).items()
                             if isinstance(v, (int, float)) and v >= 0}
+            self.session_anchor = {k: True for k in
+                                   (raw.get("session_anchor") or [])
+                                   if isinstance(k, str)}
             per_bot = raw.get("bots")
             if per_bot is None:  # legacy single-config shape
                 per_bot = {LEGACY_BOT_ID: {
@@ -1031,6 +1277,7 @@ class PaperLane:
                 st.pos_meta = blob.get("pos_meta") or {}
                 if same_day:
                     st.daily_pnl_usd = float(blob.get("daily_pnl_usd") or 0.0)
+                    st.day_buys = int(blob.get("day_buys") or 0)
                 st.bites = {k: int(v) for k, v in (blob.get("bites") or {}).items()
                             if isinstance(v, (int, float))}
                 st.recent_realized = [
@@ -1071,6 +1318,90 @@ class PaperLane:
             self.ex.connect()
         return self.ex
 
+    # ── LIVE FILL PROBE plumbing (2026-07-12) ────────────────────────────────
+    def _live_executor(self):
+        """The rh_live policy executor (gas cap + canary + caps + daily stop
+        live inside it). Lazy — only ever constructed when live_route_open
+        already said yes, or when a live-bought position needs its exit."""
+        if self._live is None:
+            self._live = rh_live.RhLiveExecutor()
+        return self._live
+
+    def _tx_landed_ts(self, tx_hash):
+        """RECEIPT BLOCK timestamp (chain truth) for a landed tx. FAIL-OPEN:
+        telemetry only — any problem returns None, never raises, never
+        blocks a booking."""
+        try:
+            if not tx_hash:
+                return None
+            w3 = self._live_executor()._executor().w3
+            rcpt = w3.eth.get_transaction_receipt(tx_hash)
+            blk = w3.eth.get_block(rcpt["blockNumber"])
+            return int(blk["timestamp"])
+        except Exception:
+            return None
+
+    def _log_live_error(self, leg: str, bot_id: str, pool: str, token,
+                        err: Exception, cls: str, now: float):
+        """Named ledger event for ANY live-exec failure (FAIL-SAFE clause).
+        unknown_spend = the Solana E1b class: money may be gone and the
+        position is untrackable -> LOUD print + manual_reconcile flag."""
+        try:
+            _append(LEDGER, {"ev": "rh_live_exec_error",
+                             "ts": self._ledger_ts(now), "leg": leg,
+                             "bot_id": bot_id, "pool": pool, "token": token,
+                             "err_type": type(err).__name__,
+                             "err": str(err)[:300], "class": cls,
+                             "manual_reconcile": cls == "unknown_spend"})
+        except Exception as e:
+            print(f"[rh-paper] live-error ledger append failed: {e}",
+                  flush=True)
+        if cls == "unknown_spend":
+            print(f"[rh-paper] *** LIVE {leg.upper()} MONEY MAY BE SPENT but "
+                  f"untrackable (bot={bot_id} token={token} "
+                  f"err={str(err)[:120]}) — MANUAL RECONCILE (E1b class) ***",
+                  flush=True)
+        else:
+            print(f"[rh-paper] LIVE {leg.upper()} FAILED ({cls}) "
+                  f"bot={bot_id} {str(err)[:120]}", flush=True)
+
+    def _live_buy_leg(self, bot_id, pool, token, size_usd, t_decide, t_quote,
+                      now):
+        """Execute ONE live buy through RhLiveExecutor (routing glue). The
+        paper decision machinery upstream is untouched — this replaces only
+        the FILL. Returns {px, qty, tel, gas_usd} on a decoded landed fill,
+        else None (the error is already ledgered via _log_live_error and the
+        caller books NOTHING for this racer)."""
+        t_sent = time.time()
+        try:
+            rec = self._live_executor().live_buy(token, size_usd,
+                                                 self.feed.eth_price)
+        except Exception as e:
+            self._log_live_error("buy", bot_id, pool, token, e,
+                                 classify_live_error(e), now)
+            return None
+        t_landed = time.time()
+        tel = fill_telemetry(rec, t_decide, t_quote, t_sent, t_landed,
+                             self._tx_landed_ts(rec.get("tx_signature")))
+        qty_atomic = rec.get("amount_out") or rec.get("quoted_out") or 0
+        px = rec.get("real_fill_price") or rec.get("decision_mid_price")
+        if not qty_atomic or not px:
+            # tx LANDED but the fill is undecodable: money spent, position
+            # untrackable — the E1b class again (never book a guess).
+            self._log_live_error(
+                "buy", bot_id, pool, token,
+                RuntimeError("landed fill undecodable "
+                             f"tx={rec.get('tx_signature')}"),
+                "unknown_spend", now)
+            return None
+        gas_usd = (float(rec.get("gas_cost_eth") or 0.0)
+                   * float(self.feed.eth_price or 0.0))
+        _append(LIVE_FILLS, {"leg": "buy", "ts": iso_utc(now),
+                             "bot_id": bot_id, "pool": pool, "token": token,
+                             "usd": size_usd, **tel})
+        return {"px": px, "qty": qty_atomic / 10 ** self._token_decimals(token),
+                "tel": tel, "gas_usd": gas_usd}
+
     def _token_decimals(self, token: str) -> int:
         if token not in self.decimals:
             try:
@@ -1107,6 +1438,18 @@ class PaperLane:
             # winner-delta's vol_pre / the mine's cum_eth axis.
             self.cum_vol[pool] = (self.cum_vol.get(pool, 0.0)
                                   + float(row.get("volume_usd") or 0))
+            # session-anchor test at FIRST tape row: a pool whose tape starts
+            # within SESSION_ANCHOR_MAX_AGE_H of creation is naturally
+            # creation-anchored (missed volume bounded to that window even
+            # when the seed backfill failed). Later anchoring can still come
+            # from the seed in _note_px.
+            if pool not in self.first_tape_age:
+                w0 = self.feed.watch.get(pool)
+                a0 = self._pool_age_h(w0) if w0 else None
+                self.first_tape_age[pool] = a0
+                if (a0 is not None and a0 <= SESSION_ANCHOR_MAX_AGE_H
+                        and pool not in self.session_anchor):
+                    self.session_anchor[pool] = True
             buf = self.tape.setdefault(pool, [])
             buf.append(row)
             # 2000-row cap (was 400): the runner_score exit stamp reads a
@@ -1171,8 +1514,30 @@ class PaperLane:
     def _note_px(self, pool: str, now: float, px: float):
         """Record one quote-derived price sample: rolling series (600-cap),
         FIRST-SEEN px (arc basis, candidate-factory) and pop detection over
-        the refreshed series (one pop event per POP_COOLDOWN_S)."""
+        the refreshed series (one pop event per POP_COOLDOWN_S).
+
+        SESSION SEED (2026-07-12 factory no-fire fix): on the pool's FIRST
+        live quote, the feed's creation-backfill (watch[pool]['session_seed'])
+        is merged in — first_px becomes the pool's true first print (the
+        mine's arc anchor), the dip window is pre-loaded with the rescaled
+        creation-era prints, and cum_vol gains the creation->promotion volume
+        the watch filter never taped (tiny same-cycle overlap with the first
+        polled swaps accepted as bounded). `pool not in first_px` is the
+        once-guard: first_px persists, so a restart never re-applies the seed."""
         s = self.prices.setdefault(pool, [])
+        if pool not in self.first_px:
+            seed = (self.feed.watch.get(pool) or {}).get("session_seed")
+            m = merge_session_seed(seed, px, now) if seed else None
+            if m:
+                fp, pts, cum_eth = m
+                if pts and not s:
+                    s.extend(pts)
+                if fp:
+                    self.first_px[pool] = fp
+                self.cum_vol[pool] = (
+                    self.cum_vol.get(pool, 0.0)
+                    + cum_eth * float(self.feed.eth_price or 0.0))
+                self.session_anchor[pool] = True
         s.append((now, px))
         if len(s) > 600:
             del s[:300]
@@ -1316,6 +1681,7 @@ class PaperLane:
                              <= DEMAND_WINDOW_S)
             arc = arc_pct(self.first_px.get(pool),
                           series[-1][1] if series else None)
+            anchored = bool(self.session_anchor.get(pool))
             pop_last = self.pop_book.get(pool)
             pop_ts = pop_last[0] if pop_last else None
             # vol_m5 (tape liveness) — shared fact for the depth re-entry gate
@@ -1327,8 +1693,8 @@ class PaperLane:
             entering = []
             for st in states:
                 bot = st.bot
-                demand = (buys >= bot.demand_min_buy_usd
-                          and (buys - sells) > 0)
+                demand = demand_ok(buys, sells, bot.demand_min_buy_usd,
+                                   bot.demand_net_required)
                 cooldown_ok = ((now - st.last_exit.get(pool, 0))
                                > bot.reentry_cooldown_s)
                 trig = (launch_trigger_blocks(rise_open, inflow_120s,
@@ -1354,15 +1720,27 @@ class PaperLane:
                         extra.append(rb)
                 if bot.regime_hours and not regime_hour_ok(hour, age_h):
                     extra.append("hour_regime")
-                # candidate-factory per-racer gates (all None = no-ops)
-                for blk in (dip_depth_block(d, bot.dip_max_depth_pct),
-                            buys_breadth_block(n_buys_30s,
-                                               bot.min_buys_30s),
-                            arc_block(arc, bot.max_arc_pct),
-                            proven_vol_block(self.cum_vol.get(pool, 0.0),
-                                             bot.min_session_vol_usd),
-                            pop_recency_block(pop_ts, now,
-                                              bot.require_pop_within_s)):
+                db = daily_buys_block(st.day_buys, bot.max_buys_per_day)
+                if db:
+                    extra.append(db)
+                # candidate-factory per-racer gates (all None = no-ops).
+                # Session-anchored facts (arc / cum-vol) are consulted ONLY
+                # when the pool is creation-anchored or the racer doesn't
+                # require it; an unanchored pool under require_session_anchor
+                # blocks with the single EXPLICIT untracked_session reason
+                # (its arc/vol values are structurally wrong, not weak).
+                sa = session_anchor_block(anchored, bot.require_session_anchor)
+                gates = [dip_depth_block(d, bot.dip_max_depth_pct),
+                         buys_breadth_block(n_buys_30s, bot.min_buys_30s),
+                         pop_recency_block(pop_ts, now,
+                                           bot.require_pop_within_s)]
+                if sa:
+                    gates.append(sa)
+                else:
+                    gates += [arc_block(arc, bot.max_arc_pct),
+                              proven_vol_block(self.cum_vol.get(pool, 0.0),
+                                               bot.min_session_vol_usd)]
+                for blk in gates:
                     if blk:
                         extra.append(blk)
                 # honeypot LAST (network call), only when a config passes
@@ -1455,18 +1833,38 @@ class PaperLane:
         npph = self.new_pools_per_hour(now)
         hour_utc = time.gmtime(now).tm_hour
         for st in takers:
-            st.pm.open_position(token=pool, entry_price=px,
-                                size_usd=ENTRY_USD, entry_time=now,
+            # LIVE FILL PROBE routing: when the four conditions hold for this
+            # racer, the FILL comes from RhLiveExecutor (real tx); the paper
+            # decision machinery above is identical either way. Paper racers
+            # book the shared quote fill (scaled to their entry size).
+            size_usd = (st.bot.entry_usd if st.bot.entry_usd is not None
+                        else ENTRY_USD)
+            bot_px, bot_qty, live_leg = px, qty * (size_usd / ENTRY_USD), None
+            if live_route_open(st.bot.bot_id):
+                live_leg = self._live_buy_leg(st.bot.bot_id, pool, token,
+                                              size_usd, t_decide, t_fill, now)
+                if live_leg is None:
+                    continue    # live leg refused/failed: book NOTHING
+                bot_px, bot_qty = live_leg["px"], live_leg["qty"]
+            st.pm.open_position(token=pool, entry_price=bot_px,
+                                size_usd=size_usd, entry_time=now,
                                 address=token)
-            st.pos_meta[pool] = {"qty_orig": qty, "remaining_frac": 1.0,
-                                 "token": token, "sym": w["sym"],
-                                 "entry_px": px, "entry_ts": now}
+            meta = {"qty_orig": bot_qty, "remaining_frac": 1.0,
+                    "token": token, "sym": w["sym"],
+                    "entry_px": bot_px, "entry_ts": now,
+                    "usd_size": size_usd}
+            if live_leg is not None:
+                meta["live"] = True
+                meta["tx_buy"] = live_leg["tel"].get("tx")
+                meta["buy_gas_usd"] = live_leg["gas_usd"]
+            st.pos_meta[pool] = meta
             st.n_entries += 1
+            st.day_buys += 1
             st.bites[pool] = st.bites.get(pool, 0) + 1
             rec = {"ev": "buy", "ts": self._ledger_ts(now),
                    "bot_id": st.bot.bot_id, "pool": pool, "token": token,
-                   "sym": w["sym"], "usd": ENTRY_USD, "price_eth": px,
-                   "qty": qty,
+                   "sym": w["sym"], "usd": size_usd, "price_eth": bot_px,
+                   "qty": bot_qty,
                    "dip_pct": (round(dip, 2) if dip is not None else None),
                    "age_h": (round(age_h, 2) if age_h is not None else None),
                    "entry_mode": st.bot.entry_mode, "liq": w.get("liq"),
@@ -1479,9 +1877,13 @@ class PaperLane:
                        hour_utc, npph, comp_snap,
                        dial=expectancy_dial(st.recent_realized),
                        eth_usd=self.feed.eth_price, age_h=age_h)}
+            if live_leg is not None:   # keys only on live rows: paper rows
+                rec["live"] = True     # stay byte-identical to pre-probe
+                rec["fill"] = live_leg["tel"]
             _append(LEDGER, rec)
-            print(f"[rh-paper] BUY  {st.bot.bot_id:<16} {w['sym']:<12} "
-                  f"${ENTRY_USD:.0f} "
+            print(f"[rh-paper] BUY{' LIVE' if live_leg else ''}  "
+                  f"{st.bot.bot_id:<16} {w['sym']:<12} "
+                  f"${size_usd:.2f} "
                   f"dip={('%.1f%%' % dip) if dip is not None else '-'} "
                   f"lat_total={lat_total}s "
                   f"(trigger {trigger_lag}s + quote {lat_quote}s)", flush=True)
@@ -1596,11 +1998,56 @@ class PaperLane:
         if frac <= 0:
             return
         sell_qty = meta["qty_orig"] * frac
+        t_decide = time.time()
         try:
             q = self._executor().quote_sell(token, int(sell_qty * 10 ** dec))
             eth_out = (q.amount_out / 1e18) if (q and q.amount_out) else 0.0
         except Exception:
             eth_out = 0.0
+        t_quote = time.time()
+        # ── LIVE FILL PROBE exit leg: a live-bought position exits through
+        # RhLiveExecutor.live_sell (triple gate only — sells are never gated
+        # by canary/caps; the RH_LIVE_PROBE_BOTS opt-in was consumed at buy
+        # time via meta["live"]). Partial legs sell the exact atomic amount;
+        # a FULL close sells "all" (sweeps rounding dust so no corpse ERC20
+        # sits in the wallet). FAIL-SAFE per the executor's actual state:
+        #   pre_send/reverted -> nothing changed on-chain: book NOTHING,
+        #     keep the position, retry next ladder tick (>=60s apart);
+        #   unknown_spend (E1b) -> tx broadcast, outcome unknown: book the
+        #     close on the paper-quote ESTIMATE, LOUD manual_reconcile flag
+        #     (wallet-truth is the honest number; keeping it open would
+        #     machine-gun 'nothing to sell' if the tx actually landed).
+        live_tel, live_unconfirmed, live_gas_usd = None, False, 0.0
+        if meta.get("live"):
+            if now - meta.get("live_sell_fail_ts", 0) < \
+                    LIVE_SELL_RETRY_COOLDOWN_S:
+                return
+            amount = ("all" if new_remaining <= 1e-9
+                      else int(sell_qty * 10 ** dec))
+            t_sent = time.time()
+            try:
+                lrec = self._live_executor().live_sell(token, amount)
+            except Exception as e:
+                cls = classify_live_error(e)
+                self._log_live_error("sell", st.bot.bot_id, pool, token, e,
+                                     cls, now)
+                if cls != "unknown_spend":
+                    meta["live_sell_fail_ts"] = now
+                    return
+                live_unconfirmed = True   # book on the quote estimate below
+            else:
+                t_landed = time.time()
+                live_tel = fill_telemetry(
+                    lrec, t_decide, t_quote, t_sent, t_landed,
+                    self._tx_landed_ts(lrec.get("tx_signature")))
+                out_wei = lrec.get("amount_out") or lrec.get("quoted_out") or 0
+                eth_out = out_wei / 1e18   # REAL proceeds override the quote
+                live_gas_usd = (float(lrec.get("gas_cost_eth") or 0.0)
+                                * float(self.feed.eth_price or 0.0))
+                _append(LIVE_FILLS, {"leg": "sell", "ts": iso_utc(now),
+                                     "bot_id": st.bot.bot_id, "pool": pool,
+                                     "token": token, "kind": decision.kind,
+                                     "frac": frac, **live_tel})
         if eth_out <= 0:  # unquotable at exit = rug/honeypot turned on: mark 0
             usd_out = 0.0
             exit_px = meta["entry_px"] * 1e-9
@@ -1610,8 +2057,14 @@ class PaperLane:
         res = st.pm.close_position(pool, exit_price=max(exit_px, 1e-18),
                                    exit_time=now, reason=decision.reason,
                                    sell_fraction=decision.sell_fraction)
-        cost = ENTRY_USD * frac
-        pnl_usd = usd_out - cost - 2 * GAS_USD_PER_SIDE * frac
+        cost = meta.get("usd_size", ENTRY_USD) * frac
+        if meta.get("live"):
+            # real friction on live legs: this leg's real sell gas + the
+            # buy leg's real gas amortized by the fraction sold
+            gas_usd = meta.get("buy_gas_usd", 0.0) * frac + live_gas_usd
+        else:
+            gas_usd = 2 * GAS_USD_PER_SIDE * frac
+        pnl_usd = usd_out - cost - gas_usd
         pnl_pct = pnl_usd / cost * 100 if cost else 0.0
         st.daily_pnl_usd += pnl_usd
         meta["remaining_frac"] = new_remaining
@@ -1652,17 +2105,31 @@ class PaperLane:
                   "maker": r.get("maker")} for r in rows], now)
         except Exception:
             runner_sc, runner_rs = None, None
-        _append(LEDGER, {"ev": "sell", "ts": self._ledger_ts(now),
-                         "bot_id": st.bot.bot_id, "pool": pool,
-                         "sym": meta["sym"], "kind": decision.kind,
-                         "reason": decision.reason[:100], "frac": frac,
-                         "usd_out": round(usd_out, 2),
-                         "pnl_usd": round(pnl_usd, 2),
-                         "pnl_pct": round(pnl_pct, 2), "fully": fully,
-                         "runner_score": runner_sc,
-                         "runner_reasons": runner_rs,
-                         "daily_pnl_usd": round(st.daily_pnl_usd, 2)})
-        print(f"[rh-paper] SELL {st.bot.bot_id:<16} {meta['sym']:<12} "
+        sell_rec = {"ev": "sell", "ts": self._ledger_ts(now),
+                    "bot_id": st.bot.bot_id, "pool": pool,
+                    "sym": meta["sym"], "kind": decision.kind,
+                    "reason": decision.reason[:100], "frac": frac,
+                    "usd_out": round(usd_out, 2),
+                    "pnl_usd": round(pnl_usd, 2),
+                    "pnl_pct": round(pnl_pct, 2), "fully": fully,
+                    "runner_score": runner_sc,
+                    "runner_reasons": runner_rs,
+                    "daily_pnl_usd": round(st.daily_pnl_usd, 2)}
+        if meta.get("live"):        # keys only on live rows (see buy path)
+            sell_rec["live"] = True
+            if live_tel is not None:
+                sell_rec["fill"] = live_tel
+            if live_unconfirmed:
+                sell_rec["live_unconfirmed"] = True
+                sell_rec["manual_reconcile"] = True
+            try:   # realized live P&L feeds the executor's $25 daily stop
+                self._live_executor().record_realized(pnl_usd)
+            except Exception as e:
+                print(f"[rh-paper] live daily-pnl record failed: {e}",
+                      flush=True)
+        _append(LEDGER, sell_rec)
+        print(f"[rh-paper] SELL{' LIVE' if meta.get('live') else ''} "
+              f"{st.bot.bot_id:<16} {meta['sym']:<12} "
               f"{decision.kind} {frac*100:.0f}% pnl={pnl_pct:+.1f}% "
               f"(day {st.daily_pnl_usd:+.2f}) {decision.reason[:50]}",
               flush=True)

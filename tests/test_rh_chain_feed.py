@@ -787,3 +787,114 @@ class TestSeedExporter:
                  "ts": iso_utc(now - 60.0)} for i in range(5)]
         out = build_seed(rows, now, min_liq=5000.0, max_age_h=96.0, cap=2)
         assert set(out.values()) == {5003.0, 5004.0}
+
+
+# ── SESSION BACKFILL (2026-07-12 factory no-fire fix) ────────────────────────
+from scripts.rh_chain_feed import (  # noqa: E402
+    TOPIC_V2_SWAP, TOPIC_V3_SWAP, decode_swap_px,
+)
+
+
+class TestDecodeSwapPx:
+    """Swap log -> (kind, weth_wei, px_rel). px formula = the history
+    sweep's decode_row (the candidate factory's mining substrate)."""
+
+    def _v3(self, amount0, amount1, sqrt_price_x96):
+        return "0x" + _i256(amount0) + _i256(amount1) + \
+            _u256(sqrt_price_x96) + _u256(0) + _u256(0)
+
+    def _v2(self, a0_in, a1_in, a0_out, a1_out):
+        return "0x" + _u256(a0_in) + _u256(a1_in) + \
+            _u256(a0_out) + _u256(a1_out)
+
+    def test_v3_buy_weth0_px_inverts_raw(self):
+        # sqrtP = 2^96 -> raw = token1/token0 = 1.0; weth0 -> px = 1/raw
+        data = self._v3(10 ** 18, -(4 * 10 ** 18), 2 ** 96)
+        kind, wei, px = decode_swap_px(TOPIC_V3_SWAP, data, True)
+        assert (kind, wei) == ("buy", 10 ** 18)
+        assert px == 1.0
+
+    def test_v3_sell_weth1_px_is_raw(self):
+        # weth = token1; pool pays out WETH -> sell; px = raw
+        data = self._v3(4 * 10 ** 18, -(10 ** 18), 2 * 2 ** 96)  # raw = 4.0
+        kind, wei, px = decode_swap_px(TOPIC_V3_SWAP, data, False)
+        assert (kind, wei) == ("sell", 10 ** 18)
+        assert px == 4.0
+
+    def test_v2_buy_px_is_weth_over_token(self):
+        # pool receives 2 WETH (token0), pays 4 tokens -> buy at 0.5
+        data = self._v2(2 * 10 ** 18, 0, 0, 4 * 10 ** 18)
+        kind, wei, px = decode_swap_px(TOPIC_V2_SWAP, data, True)
+        assert (kind, wei) == ("buy", 2 * 10 ** 18)
+        assert px == 0.5
+
+    def test_degenerate_rows_none(self):
+        # zero WETH leg
+        assert decode_swap_px(TOPIC_V3_SWAP,
+                              self._v3(0, 10 ** 18, 2 ** 96), True) is None
+        # V2 zero token net (px undefined)
+        assert decode_swap_px(TOPIC_V2_SWAP,
+                              self._v2(10 ** 18, 0, 0, 0), True) is None
+        # unknown topic
+        assert decode_swap_px("0xdead", self._v3(1, 1, 2 ** 96), True) is None
+
+
+class TestSessionBackfill:
+    def _v3_log(self, block, amount0, amount1, sqrt_price_x96):
+        data = "0x" + _i256(amount0) + _i256(amount1) + \
+            _u256(sqrt_price_x96) + _u256(0) + _u256(0)
+        return {"topics": [TOPIC_V3_SWAP], "data": data,
+                "blockNumber": hex(block)}
+
+    def test_backfill_builds_seed(self, monkeypatch):
+        f = _feed(monkeypatch)
+
+        class _CallRpc:
+            def call(self, method, params, tries=5):
+                assert method == "eth_getLogs"
+                assert params[0]["address"] == "0xpool"
+                return [  # two buys at px 1.0 then 4.0
+                    {"topics": [TOPIC_V3_SWAP],
+                     "data": "0x" + _i256(10 ** 18) + _i256(-10 ** 18)
+                             + _u256(2 ** 96) + _u256(0) + _u256(0),
+                     "blockNumber": hex(999_990)},
+                    {"topics": [TOPIC_V3_SWAP],
+                     "data": "0x" + _i256(2 * 10 ** 18) + _i256(-10 ** 18)
+                             + _u256(2 ** 96 // 2) + _u256(0) + _u256(0),
+                     "blockNumber": hex(999_995)},
+                ]
+        f.rpc = _CallRpc()
+        seed = f.session_backfill("0xpool", 999_980, True)
+        assert seed is not None
+        assert seed["first_px"] == 1.0
+        assert seed["cum_eth"] == 3.0
+        assert len(seed["rows"]) == 2
+        assert seed["rows"][1][3] == 4.0        # px = 1/raw, raw = 0.25
+
+    def test_backfill_failure_returns_none(self, monkeypatch):
+        f = _feed(monkeypatch)
+
+        class _BoomRpc:
+            def call(self, method, params, tries=5):
+                raise RuntimeError("throttled")
+        f.rpc = _BoomRpc()
+        assert f.session_backfill("0xpool", 999_980, True) is None
+
+    def test_young_promotion_gets_seed_old_does_not(self, monkeypatch,
+                                                    tmp_path):
+        monkeypatch.setattr(mod, "AGED_MODE", True)
+        monkeypatch.setattr(mod, "MAX_AGE_H", 72.0)
+        sentinel = {"first_px": 1.0, "cum_eth": 1.0, "rows": []}
+        for age_h, expect_seed in ((0.4, True), (30.0, False)):
+            f = _feed(monkeypatch)
+            f.meta_path = str(tmp_path / "pools_meta.jsonl")
+            f.rpc = _FakeRpc(result_hex=_wei_hex(8000.0))
+            f.session_backfill = lambda *a, **k: dict(sentinel)
+            f.cand = {"0xseeded": _cand(age_h, liq=50000.0)}
+            f.process_cycle([])                 # liq check -> staged
+            f.process_cycle([])                 # symbol -> promoted
+            assert "0xseeded" in f.watch
+            if expect_seed:
+                assert f.watch["0xseeded"]["session_seed"] == sentinel
+            else:
+                assert "session_seed" not in f.watch["0xseeded"]

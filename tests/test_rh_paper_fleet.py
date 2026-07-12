@@ -75,11 +75,17 @@ def _ledger_rows(tmp_path):
 
 
 class TestRoster:
-    def test_thirteen_racers_unique_ids(self):
+    def test_nineteen_racers_unique_ids(self):
         # 10 scalp-fleet racers (mid-flight A/B, unchanged) + 3 aged-pool
-        # racers (2026-07-11 decode-thesis cohort)
-        assert len(ROSTER) == 13
-        assert len({b.bot_id for b in ROSTER}) == 13
+        # racers (2026-07-11 decode-thesis cohort) + 5 candidate-factory
+        # racers (2026-07-12 full-history mine, exclusion_group="factory")
+        # + 1 LIVE FILL PROBE (2026-07-12, exclusion_group="fill_probe")
+        assert len(ROSTER) == 19
+        assert len({b.bot_id for b in ROSTER}) == 19
+        assert sum(1 for b in ROSTER
+                   if b.exclusion_group == "factory") == 5
+        assert sum(1 for b in ROSTER
+                   if b.exclusion_group == "fill_probe") == 1
 
     def test_control_is_current_config_verbatim(self):
         c = ROSTER[0]
@@ -271,9 +277,11 @@ class TestFleetEntryRouting:
         # Pool age is UNKNOWN (FakeFeed has no age_h) -> age gates fail open,
         # so the aged cohort qualifies too — but the exclusion group lets
         # only ONE aged racer take the token (roster order on the tie).
+        # rh_fill_probe (2026-07-12): permissive gates pass here too — its
+        # own exclusion_group, so it enters alongside (dormant = paper fill).
         assert entered == {"rh_young_v1", "rh_first_touch", "rh_bites2",
                            "rh_wide_ladder", "rh_moonbag", "rh_liq40",
-                           "rh_aged_hold"}
+                           "rh_aged_hold", "rh_fill_probe"}
         assert "no_dip" in lane.state["rh_deep_only"].block_hist
         assert "no_demand_turn" in lane.state["rh_demand_heavy"].block_hist
         assert "hour_window" in lane.state["rh_prime_hours"].block_hist
@@ -295,11 +303,12 @@ class TestFleetEntryRouting:
         self._dip_facts(lane)
         lane._consider_entries(NOW)
         buys = [r for r in _ledger_rows(tmp_path) if r["ev"] == "buy"]
-        assert len(buys) == 7        # 6 scalp racers + 1 aged (group-deduped)
+        # 6 scalp racers + 1 aged (group-deduped) + the fill probe (paper)
+        assert len(buys) == 8
         assert all(r.get("bot_id") for r in buys)
         # dashboard ingest de-dups on (ts, ev, pool): keys must be distinct
         keys = {(r["ts"], r["ev"], r["pool"]) for r in buys}
-        assert len(keys) == 7
+        assert len(keys) == 8
 
     def test_launch_scalp_enters_on_strength_not_dip(self, tmp_path,
                                                      monkeypatch):

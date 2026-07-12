@@ -157,6 +157,9 @@ analysis/
 # RPC key (free tier) — never commit
 alchemy_key.txt
 
+# RH probe hot-wallet key (scripts/rh_make_wallet.py) — NEVER commit
+rh_wallet_key.txt
+
 # 2026-07-11: keep RH decode reports in git, exclude the 628MB raw dumps
 scratchpad/rh_history/*.jsonl
 scratchpad/rh_history/*.jsonl.gz

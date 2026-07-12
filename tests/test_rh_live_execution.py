@@ -184,13 +184,32 @@ class TestDormancy:
         assert not os.path.exists(rl.rh_canary_flag_path())
 
     def test_paper_lane_never_calls_swap_methods_static(self):
-        """The lane is QUOTES ONLY: no code path reaches sign/send."""
+        """2026-07-12 LIVE FILL PROBE update: the lane may now reach
+        live_buy/live_sell, but ONLY through the four-condition routing glue
+        (triple gate + RH_LIVE_PROBE_BOTS opt-in). The raw RhExecutor money
+        methods are still never referenced; .live_buy( has exactly ONE call
+        site (inside _live_buy_leg, whose single caller sits directly behind
+        live_route_open) and .live_sell( exactly ONE (inside _paper_sell,
+        behind meta.get("live") — set only by a live-routed buy)."""
         p = os.path.join(os.path.dirname(__file__), "..", "scripts",
                          "rh_paper_lane.py")
         src = open(p, encoding="utf-8").read()
         assert "quote_and_swap_buy" not in src
-        assert "swap_sell" not in src
-        assert "live_buy" not in src and "live_sell" not in src
+        assert "swap_sell" not in src           # raw executor sell: never
+        # ONE live_buy call site, inside _live_buy_leg
+        assert src.count(".live_buy(") == 1
+        leg = src[src.index("def _live_buy_leg"):]
+        assert ".live_buy(" in leg[:leg.index("\n    def ")]
+        # _live_buy_leg's ONLY caller is gated by live_route_open
+        callers = [i for i in range(len(src))
+                   if src.startswith("self._live_buy_leg(", i)]
+        assert len(callers) == 1
+        assert "if live_route_open(st.bot.bot_id):" in \
+            src[callers[0] - 400:callers[0]]
+        # ONE live_sell call site, behind the meta live flag
+        assert src.count(".live_sell(") == 1
+        i = src.index(".live_sell(")
+        assert 'if meta.get("live"):' in src[i - 2000:i]
 
     def test_wallet_truth_dormant_never_arms_baseline(self, tmp_path):
         ex = _mock_executor()

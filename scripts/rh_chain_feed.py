@@ -845,6 +845,45 @@ class Feed:
         self.liq_queue = list(self.watch) + sorted(
             self.cand, key=lambda p: -self.cand[p]["created_block"])
 
+    def session_backfill(self, pool: str, created_block: int,
+                         weth_is_token0: bool):
+        """Creation->now swap history for ONE young pool (bounded getLogs) ->
+        {"first_px", "cum_eth", "rows": [(ts, kind, eth, px_rel)...]} | None.
+        px_rel is ATOMIC-relative (decode_swap_px) — the lane rescales it
+        against its first live quote (ratio math cancels the decimals factor).
+        None on RPC failure/empty answer: the caller ships NO seed and the
+        lane's `untracked_session` block names the gap explicitly."""
+        try:
+            logs = self.rpc.call("eth_getLogs", [{
+                "fromBlock": hex(created_block), "toBlock": "latest",
+                "address": pool,
+                "topics": [[TOPIC_V3_SWAP, TOPIC_V2_SWAP]]}])
+        except Exception as e:
+            print(f"[disc] session backfill failed {pool[:10]} "
+                  f"{type(e).__name__}", flush=True)
+            return None
+        if not isinstance(logs, list):
+            return None
+        first_px = None
+        cum_eth = 0.0
+        rows = []
+        for lg in logs:
+            t0 = (lg.get("topics") or [""])[0].lower()
+            d = decode_swap_px(t0, lg.get("data") or "0x", weth_is_token0)
+            if d is None or d[2] <= 0:
+                continue
+            kind, weth_wei, px = d
+            if first_px is None:
+                first_px = px
+            cum_eth += weth_wei / 1e18
+            rows.append((float(self.est_block_ts(int(lg["blockNumber"], 16))),
+                         kind, weth_wei / 1e18, px))
+        if first_px is None:
+            return None
+        if len(rows) > SESSION_BACKFILL_ROWS_MAX:
+            rows = rows[-SESSION_BACKFILL_ROWS_MAX:]
+        return {"first_px": first_px, "cum_eth": cum_eth, "rows": rows}
+
     def snapshot_meta(self):
         for pool, w in self.watch.items():
             _append(self.meta_path, {
@@ -1072,6 +1111,14 @@ class Feed:
                                 "weth0": c["weth0"], "liq": liq,
                                 "created_block": c["created_block"],
                                 "seen": set()}
+            # SESSION BACKFILL (young promotions only): recover the
+            # creation->promotion tape the watch filter never saw, so the
+            # lane's factory gates rule on creation-faithful session facts.
+            # One bounded per-pool getLogs; failure -> no seed (the lane
+            # then blocks with the explicit `untracked_session` reason).
+            if age <= SESSION_BACKFILL_MAX_AGE_H:
+                self.watch[pool]["session_seed"] = self.session_backfill(
+                    pool, c["created_block"], c["weth0"])
             _append(self.meta_path, {
                 "ev": "discovered", "pool": pool, "sym": sym,
                 "liq": round(liq, 2), "age_h": round(age, 2),

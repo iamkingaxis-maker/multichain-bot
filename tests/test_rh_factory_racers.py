@@ -18,6 +18,8 @@ from rh_paper_lane import (  # noqa: E402
     LaneBot, PaperLane, ROSTER,
     dip_depth_block, buys_breadth_block, arc_pct, arc_block,
     pop_fired, pop_recency_block, POP_COOLDOWN_S,
+    SESSION_ANCHOR_MAX_AGE_H, demand_ok, merge_session_seed,
+    session_anchor_block,
 )
 
 NOW = 1_000_000.0
@@ -150,6 +152,10 @@ class TestFactoryDefaultsInert:
             assert b.min_buys_30s is None
             assert b.max_arc_pct is None
             assert b.require_pop_within_s is None
+            # 2026-07-12 no-fire fix: both new fields default to the pre-fix
+            # shared-gate behavior — every pre-factory racer byte-identical
+            assert b.demand_net_required is True
+            assert b.require_session_anchor is False
 
 
 class TestFactoryRoster:
@@ -168,6 +174,9 @@ class TestFactoryRoster:
         assert (b.min_pool_age_h, b.max_pool_age_h) == (0.0, 10.0 / 60.0)
         assert b.min_session_vol_usd == 4_800.0
         assert b.max_arc_pct == 300.0
+        # cell-verbatim d25 (b30 only, NO net leg) + creation-anchored facts
+        assert b.demand_net_required is False
+        assert b.require_session_anchor is True
         assert (b.tp1_pct, b.tp1_sell_fraction, b.tp2_pct,
                 b.tp2_sell_fraction, b.trail_pp) == (6.0, 0.50, 16.0,
                                                      0.30, 10.0)
@@ -176,6 +185,8 @@ class TestFactoryRoster:
         b = self._by_id()["rh_f_arc_scalp"]
         assert (b.dip_trigger_pct, b.dip_max_depth_pct) == (-6.0, -25.0)
         assert b.max_arc_pct == 300.0
+        assert b.demand_net_required is False   # cell-verbatim d25
+        assert b.require_session_anchor is True
         # scalp ladder = LaneBot defaults (the control's exits)
         assert (b.tp1_pct, b.tp1_sell_fraction, b.tp2_pct) == (6.0, 0.75, 12.0)
         assert b.trail_pp is None
@@ -186,6 +197,9 @@ class TestFactoryRoster:
         assert b.dip_trigger_pct == -12.0 and b.dip_max_depth_pct is None
         assert b.min_session_vol_usd == 480.0
         assert b.demand_min_buy_usd == 50.0
+        assert b.demand_net_required is True    # cell-verbatim d50n
+        assert b.require_session_anchor is False  # no arc gate; $480 floor is
+        #                                         reachable post-promotion
 
     def test_reload_specs(self):
         r24 = self._by_id()["rh_f_reload24"]
@@ -193,9 +207,13 @@ class TestFactoryRoster:
         assert r24.min_session_vol_usd == 16_000.0
         assert r24.dip_trigger_pct == -25.0
         assert r24.regime_hours is False        # cell-verbatim (see roster)
+        assert r24.demand_net_required is False  # cell-verbatim d25
+        assert r24.require_session_anchor is False  # aged pools are never
+        #                                        creation-anchored in practice
         rm = self._by_id()["rh_f_reload_mid"]
         assert (rm.min_pool_age_h, rm.max_pool_age_h) == (6.0, 24.0)
         assert rm.dip_trigger_pct == -25.0
+        assert rm.demand_net_required is True   # cell-verbatim d50n
 
     def test_all_factory_bot_configs_construct(self):
         for b in ROSTER:
@@ -255,8 +273,12 @@ class TestFactoryEntryRouting:
         lane._consider_entries(NOW)
         st = lane.state["rh_f_popret"]
         assert "0xp1" in st.pos_meta
-        # proven-volume racers blocked: $1k < their $4.8k floor
-        assert "thin_session_vol" in lane.state["rh_f_arc_scalp"].block_hist
+        # anchor-requiring racers block EXPLICITLY on the unanchored pool
+        # (2026-07-12 no-fire fix): untracked_session, never a silently-wrong
+        # thin_session_vol/arc_late reading
+        assert "untracked_session" in lane.state["rh_f_arc_scalp"].block_hist
+        assert ("thin_session_vol"
+                not in lane.state["rh_f_arc_scalp"].block_hist)
         # pullback additionally sees a TOO-DEEP dip (-23 < its -12 cap)
         assert "dip_too_deep" in lane.state["rh_f_pullback"].block_hist
 
@@ -280,3 +302,224 @@ class TestFactoryEntryRouting:
         lane2.restore_state()
         assert lane2.cum_vol["0xp1"] == 1234.56
         assert lane2.first_px["0xp1"] == 2.5
+
+
+# ── 2026-07-12 factory NO-FIRE fix (scratchpad/_rh_factory_nofire.md) ────────
+class TestSessionAnchorBlock:
+    def test_not_required_never_blocks(self):
+        assert session_anchor_block(False, False) is None
+        assert session_anchor_block(True, False) is None
+
+    def test_required_blocks_unanchored_only(self):
+        assert session_anchor_block(False, True) == "untracked_session"
+        assert session_anchor_block(True, True) is None
+
+
+class TestDemandOk:
+    def test_floor_always_applies(self):
+        assert not demand_ok(20.0, 0.0, 25.0, net_required=False)
+        assert not demand_ok(20.0, 0.0, 25.0, net_required=True)
+
+    def test_net_leg_only_when_required(self):
+        # buys above floor, sells heavier (the dip reality: ~26-30% of the
+        # mined d25 triggers had net<=0)
+        assert demand_ok(30.0, 100.0, 25.0, net_required=False)
+        assert not demand_ok(30.0, 100.0, 25.0, net_required=True)
+
+    def test_net_positive_passes_both(self):
+        assert demand_ok(60.0, 10.0, 25.0, net_required=True)
+        assert demand_ok(60.0, 10.0, 25.0, net_required=False)
+
+
+class TestMergeSessionSeed:
+    """Seed px is swap-derived ATOMIC-relative; the merge rescales onto the
+    quote basis so the decimals factor cancels (ratio math)."""
+
+    def _seed(self):
+        # atomic-relative prints, ~1e-12 scale (18-6 decimals apart)
+        return {"first_px": 1e-12, "cum_eth": 2.5,
+                "rows": [(NOW - 500, "buy", 1.0, 1e-12),
+                         (NOW - 400, "buy", 0.5, 2e-12),
+                         (NOW - 90, "sell", 1.0, 4e-12)]}
+
+    def test_rescale_cancels_decimals_factor(self):
+        # median of the last-3 seed px = 2e-12; first live quote 8.0
+        # -> scale = 4e12
+        fp, pts, cum = merge_session_seed(self._seed(), 8.0, NOW)
+        assert fp == 1e-12 * 4e12 == 4.0
+        assert [p for _, p in pts] == [4.0, 8.0, 16.0]
+        assert cum == 2.5
+
+    def test_window_filter_drops_stale_points(self):
+        seed = self._seed()
+        seed["rows"].insert(0, (NOW - 5_000, "buy", 1.0, 1e-12))
+        fp, pts, cum = merge_session_seed(seed, 8.0, NOW)
+        assert all(NOW - ts <= 600.0 for ts, _ in pts)
+
+    def test_unusable_seed_returns_none(self):
+        assert merge_session_seed(None, 8.0, NOW) is None
+        assert merge_session_seed({"rows": []}, 8.0, NOW) is None
+        assert merge_session_seed(self._seed(), 0.0, NOW) is None
+        assert merge_session_seed(
+            {"first_px": 1.0, "cum_eth": 1.0, "rows": [(NOW, "buy", 1, 0.0)]},
+            8.0, NOW) is None
+
+
+class TestNotePxSessionSeed:
+    def _lane(self, seed):
+        class FakeFeed:
+            watch = {"0xp": {"sym": "T", "liq": 50_000.0,
+                             "session_seed": seed}}
+            eth_price = 2000.0
+        return PaperLane(FakeFeed(), executor=object(),
+                         bots=(LaneBot(bot_id="x"),))
+
+    def test_seed_applied_on_first_quote(self):
+        seed = {"first_px": 0.5e-12, "cum_eth": 2.0,
+                "rows": [(NOW - 500, "buy", 1.0, 1e-12),
+                         (NOW - 400, "buy", 0.5, 1e-12),
+                         (NOW - 90, "sell", 1.0, 1e-12)]}
+        lane = self._lane(seed)
+        lane._note_px("0xp", NOW, 2.0)          # first live quote
+        # scale = 2.0 / 1e-12 -> first_px = 0.5e-12 * scale = 1.0
+        assert lane.first_px["0xp"] == 1.0
+        # creation-era prints preloaded ahead of the live sample
+        assert len(lane.prices["0xp"]) == 4
+        assert lane.prices["0xp"][-1] == (NOW, 2.0)
+        # creation->promotion volume credited: 2.0 ETH * $2000
+        assert lane.cum_vol["0xp"] == 4_000.0
+        assert lane.session_anchor["0xp"] is True
+
+    def test_seed_applied_exactly_once(self):
+        seed = {"first_px": 1e-12, "cum_eth": 1.0,
+                "rows": [(NOW - 90, "buy", 1.0, 1e-12)]}
+        lane = self._lane(seed)
+        lane._note_px("0xp", NOW, 2.0)
+        v = lane.cum_vol["0xp"]
+        lane._note_px("0xp", NOW + 2, 2.1)
+        assert lane.cum_vol["0xp"] == v          # no re-application
+
+    def test_restored_first_px_blocks_reapplication(self):
+        seed = {"first_px": 1e-12, "cum_eth": 1.0,
+                "rows": [(NOW - 90, "buy", 1.0, 1e-12)]}
+        lane = self._lane(seed)
+        lane.first_px["0xp"] = 3.0               # persisted from a prior run
+        lane.cum_vol["0xp"] = 500.0
+        lane._note_px("0xp", NOW, 2.0)
+        assert lane.first_px["0xp"] == 3.0
+        assert lane.cum_vol["0xp"] == 500.0
+
+    def test_no_seed_keeps_prefix_behavior(self):
+        lane = self._lane(None)
+        lane._note_px("0xp", NOW, 2.0)
+        assert lane.first_px["0xp"] == 2.0
+        assert lane.prices["0xp"] == [(NOW, 2.0)]
+        assert "0xp" not in lane.session_anchor
+
+
+class TestDrainNaturalAnchor:
+    def _lane(self, age):
+        class FakeFeed:
+            watch = {"0xp": {"sym": "T", "liq": 50_000.0,
+                             "created_block": 100}}
+            eth_price = 2000.0
+
+            def age_h(self, created_block):
+                if age is None:
+                    raise ValueError("unknown age")
+                return age
+        return PaperLane(FakeFeed(), executor=object(),
+                         bots=(LaneBot(bot_id="x"),))
+
+    def _push(self, lane):
+        lane.q.put(("0xp", {"kind": "buy", "volume_usd": 10.0}))
+        lane._drain(NOW)
+
+    def test_first_tape_row_young_anchors(self):
+        lane = self._lane(60.0 / 3600.0)        # first row at 1 min age
+        self._push(lane)
+        assert lane.session_anchor.get("0xp") is True
+        assert lane.first_tape_age["0xp"] == 60.0 / 3600.0
+
+    def test_first_tape_row_old_does_not_anchor(self):
+        lane = self._lane(SESSION_ANCHOR_MAX_AGE_H * 3)
+        self._push(lane)
+        assert "0xp" not in lane.session_anchor
+
+    def test_unknown_age_does_not_anchor(self):
+        lane = self._lane(None)
+        self._push(lane)
+        assert "0xp" not in lane.session_anchor
+
+
+class TestAnchoredEntryRouting:
+    """End-to-end: an ANCHORED young pool with creation-faithful facts routes
+    into rh_f_pullback; the same pool unanchored blocks with the single
+    explicit untracked_session reason (never wrong-value vol/arc verdicts)."""
+
+    def _lane(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(mod, "STATE", str(tmp_path / "state.json"))
+        monkeypatch.setattr(mod, "LEDGER", str(tmp_path / "ledger.jsonl"))
+        monkeypatch.setattr(mod, "POSTEXIT_PENDING",
+                            str(tmp_path / "pe.jsonl"))
+
+        class FakeQuote:
+            def __init__(self, amount_in, amount_out):
+                self.amount_in, self.amount_out = amount_in, amount_out
+                self.fee = 10000
+
+        class FakeExecutor:
+            def quote_sell(self, token, amount):
+                return FakeQuote(amount, int(25.0 / 2000.0 * 1e18 * 0.97))
+
+            def quote_buy(self, token, wei):
+                return FakeQuote(wei, 10 ** 21)
+
+            def token_decimals(self, token):
+                return 18
+
+        class FakeFeed:
+            watch = {"0xp1": {"sym": "T", "liq": 50_000.0}}
+            eth_price = 2000.0
+
+        lane = PaperLane(FakeFeed(), executor=FakeExecutor(),
+                         registry={"0xp1": {"token": "0xtok"}}, bots=ROSTER)
+        lane.honeypot["0xtok"] = {"sellable": True}
+        # a -8.3% dip off the window high (in pullback's -6..-12 band),
+        # $65 of 30s buys vs $5 sells, $5k session volume, arc +100%
+        lane.prices["0xp1"] = [(NOW - 300, 1.0), (NOW - 200, 1.09),
+                               (NOW - 10, 1.0)]
+        lane.tape["0xp1"] = [
+            {"kind": "buy", "volume_usd": 40, "_epoch": NOW - 20},
+            {"kind": "buy", "volume_usd": 25, "_epoch": NOW - 10},
+            {"kind": "sell", "volume_usd": 5, "_epoch": NOW - 5}]
+        lane.cum_vol["0xp1"] = 5_000.0
+        lane.first_px["0xp1"] = 0.5
+        return lane
+
+    def test_anchored_pool_enters_pullback(self, tmp_path, monkeypatch):
+        lane = self._lane(tmp_path, monkeypatch)
+        lane.session_anchor["0xp1"] = True
+        lane._consider_entries(NOW)
+        assert "0xp1" in lane.state["rh_f_pullback"].pos_meta
+        assert ("untracked_session"
+                not in lane.state["rh_f_pullback"].block_hist)
+
+    def test_unanchored_pool_blocks_explicitly(self, tmp_path, monkeypatch):
+        lane = self._lane(tmp_path, monkeypatch)
+        lane._consider_entries(NOW)
+        for bid in ("rh_f_pullback", "rh_f_arc_scalp"):
+            st = lane.state[bid]
+            assert "0xp1" not in st.pos_meta
+            assert st.block_hist.get("untracked_session", 0) >= 1
+            # the wrong-value verdicts are NOT consulted while unanchored
+            assert "thin_session_vol" not in st.block_hist
+            assert "arc_late" not in st.block_hist
+
+    def test_anchor_survives_restart(self, tmp_path, monkeypatch):
+        lane = self._lane(tmp_path, monkeypatch)
+        lane.session_anchor["0xp1"] = True
+        lane.save_state()
+        lane2 = self._lane(tmp_path, monkeypatch)
+        lane2.restore_state()
+        assert lane2.session_anchor.get("0xp1") is True

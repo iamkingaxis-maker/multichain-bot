@@ -271,13 +271,30 @@ def test_caps_enforced():
         assert ex.swap_sell.called
 
 
-@_t("Paper lane is QUOTES-ONLY: no swap/sign call sites (static)")
+@_t("Paper lane money reach is GATE-WRAPPED (static)")
 def test_lane_never_swaps():
+    """2026-07-12 LIVE FILL PROBE update: the lane may reach live_buy/
+    live_sell, but ONLY through the four-condition routing glue (triple gate
+    + RH_LIVE_PROBE_BOTS opt-in). The raw RhExecutor money methods and
+    _sign_and_send stay unreferenced; each live_* has exactly ONE call site
+    sitting behind its gate (live_route_open / meta['live'])."""
     src = _src(os.path.join("scripts", "rh_paper_lane.py"))
-    for forbidden in ("quote_and_swap_buy", "swap_sell", "live_buy",
-                      "live_sell", "_sign_and_send"):
+    for forbidden in ("quote_and_swap_buy", "swap_sell", "_sign_and_send"):
         assert forbidden not in src, \
-            f"paper lane must never reference {forbidden} (quotes only)"
+            f"paper lane must never reference {forbidden}"
+    assert src.count(".live_buy(") == 1, "exactly ONE live_buy call site"
+    leg = src[src.index("def _live_buy_leg"):]
+    assert ".live_buy(" in leg[:leg.index("\n    def ")], \
+        "live_buy must live inside _live_buy_leg"
+    callers = [i for i in range(len(src))
+               if src.startswith("self._live_buy_leg(", i)]
+    assert len(callers) == 1 and "if live_route_open(st.bot.bot_id):" in \
+        src[callers[0] - 400:callers[0]], \
+        "_live_buy_leg's only caller must sit behind live_route_open"
+    assert src.count(".live_sell(") == 1, "exactly ONE live_sell call site"
+    i = src.index(".live_sell(")
+    assert 'if meta.get("live"):' in src[i - 2000:i], \
+        "live_sell must sit behind the position's live flag"
 
 
 # ═══ 4. WALLET-TRUTH ═════════════════════════════════════════════════════════
