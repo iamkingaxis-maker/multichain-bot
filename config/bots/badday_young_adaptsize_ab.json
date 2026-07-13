@@ -6,7 +6,7 @@
   "bot_id": "badday_young_adaptsize_ab",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 40.0,
-  "display_name": "ADAPTIVE-SIZE A/B (2026-07-07 token-conditional decode): exact young_absorb clone + adaptive_swing_size \u2014 flex position size by the token SWING profile (violent+shallow dead-cat tail -> 0.45x, violent+deep -> 0.7x, calm -> 1.0x; pc_h24/pc_h6 always present so it NEVER starves). Does NOT gate -> fires exactly as often as young_absorb. Pure downside insurance vs the DONALD -27%/NEVER -52% gap tail. NO hl_confirm (the CONFIRMED-never-fires trap). Paper, own pool. Judge vs badday_young_absorb (uniform size) at n>=20: does adaptive size cut the $-loss tail?",
+  "display_name": "ADAPTIVE-SIZE A/B (2026-07-07 token-conditional decode): exact young_absorb clone + adaptive_swing_size — flex position size by the token SWING profile (violent+shallow dead-cat tail -> 0.45x, violent+deep -> 0.7x, calm -> 1.0x; pc_h24/pc_h6 always present so it NEVER starves). Does NOT gate -> fires exactly as often as young_absorb. Pure downside insurance vs the DONALD -27%/NEVER -52% gap tail. NO hl_confirm (the CONFIRMED-never-fires trap). Paper, own pool. Judge vs badday_young_absorb (uniform size) at n>=20: does adaptive size cut the $-loss tail?",
   "enabled": true,
   "entry_gate": [
     [
@@ -88,5 +88,5 @@
   "entry_gate_require_data": true,
   "liq_exit_floor_enforce": true,
   "adaptive_swing_size": true,
-  "live_probe": true
+  "live_probe": false
 }
