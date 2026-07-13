@@ -6,7 +6,7 @@
   "bot_id": "badday_adolescent_absorb",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 40.0,
-  "display_name": "ADOLESCENT ABSORB (2026-07-03 current-regime winner decode): young_absorb mechanics on the winners' pond \u2014 6-24h-old tokens (the ONLY age band positive for regime winners, +15.1%, and even for baseline +2.7%; <2h is the worst crowd band), hours WIDENED to family 8-3 on 2026-07-05 (daily decode: the pond premise HELD +17.4 vs +6.5 base, but the hours leg went NEUTRAL \u2014 winners no longer concentrate 14-22; the 9h window was throttling a 2.5-fire/day bot whose 5 lifetime entries avg pc_h1 -40 and opened 2-for-2 +46.8/tok). Same demand/absorption entry (deep dip + buyers + nf15 turn + liq floor), young-style TP1/TP2 + timestops, wick-tolerant in-flight (velocity leg off, -7 MAE floor kept). young_token_probe=TRUE (required: YOUNG_TOKEN_MAX_AGE_H=24 means production bots SKIP all <24h tokens \u2014 without the flag this bot is dead on arrival; its own age_h_min=6 keeps it off the <6h launches, and the young holder rug guard applies). Judge vs badday_flush AND vs badday_young_absorb at n>=30 distinct tokens scrubbed.",
+  "display_name": "ADOLESCENT ABSORB (2026-07-03 current-regime winner decode): young_absorb mechanics on the winners' pond — 6-24h-old tokens (the ONLY age band positive for regime winners, +15.1%, and even for baseline +2.7%; <2h is the worst crowd band), hours WIDENED to family 8-3 on 2026-07-05 (daily decode: the pond premise HELD +17.4 vs +6.5 base, but the hours leg went NEUTRAL — winners no longer concentrate 14-22; the 9h window was throttling a 2.5-fire/day bot whose 5 lifetime entries avg pc_h1 -40 and opened 2-for-2 +46.8/tok). Same demand/absorption entry (deep dip + buyers + nf15 turn + liq floor), young-style TP1/TP2 + timestops, wick-tolerant in-flight (velocity leg off, -7 MAE floor kept). young_token_probe=TRUE (required: YOUNG_TOKEN_MAX_AGE_H=24 means production bots SKIP all <24h tokens — without the flag this bot is dead on arrival; its own age_h_min=6 keeps it off the <6h launches, and the young holder rug guard applies). Judge vs badday_flush AND vs badday_young_absorb at n>=30 distinct tokens scrubbed.",
   "enabled": true,
   "entry_gate": [
     [
@@ -88,5 +88,5 @@
   "velbail_pnl_pct": -8.0,
   "entry_gate_require_data": true,
   "loss_streak_pause": true,
-  "live_probe": true
+  "live_probe": false
 }

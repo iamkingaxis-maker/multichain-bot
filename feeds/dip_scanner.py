@@ -3173,6 +3173,68 @@ class DipScanner:
                 if _gd_mode == "enforce" and not bool(
                         getattr(pm.config, "pump_dip_exempt", False)):
                     return
+        # ── GREEN-COHORT positive selector (SOL young-lane sweep 2026-07-12) ─────
+        # Measure-forward stamp of the validated higher-VOLUME green ex-top-2 entry
+        # cohorts found by the 07-12 2-axis sweep (955 trips, drop-top-2 token-
+        # median, 4-half OOS). Records which green cohort a candidate is in so we
+        # can validate the expanded-volume routing FORWARD on realized fills:
+        #   base     = deep(pc_h1<=-45) & liq>=30k  (19.1% vol, +4.6 ex2med, 3/4)
+        #   liq_bsh1 = liq>=45k & bs_h1>=1.6         (UNION w/ base -> 28.1% vol
+        #              @ +4.9 ex2med, 4/4 halves — EDGE-PRESERVING orthogonal add)
+        #   liq_ubuy = liq>=35k & unique_buyers>=50  (UNION -> 30.7% vol @ +2.5,
+        #              4/4, MAX VOLUME +11.6pp but dilutes edge)
+        # SHADOW-ONLY / measure-forward: this is an ADDITIVE selection option, not
+        # a block. GREEN_COHORT_MODE=shadow(default)|off. An 'enforce' spec is
+        # written below but INTENTIONALLY OFF (would restrict entries to green-
+        # cohort members only) — flip only after AxiS review + forward realized
+        # validation (n>=15 distinct tok, ex2med>0, 3/4 halves on the UNION).
+        # FAIL-OPEN by construction (records only; never returns/blocks in shadow).
+        _gc_mode = os.environ.get("GREEN_COHORT_MODE", "shadow").lower()
+        if _gc_mode != "off" and str(bot_id).startswith("badday_"):
+            from core.bot_evaluator import green_cohort_membership as _gcm
+            def _gc_get(name):
+                v = getattr(bundle, name, None)
+                return v if v is not None else _ar_meta.get(name)
+            try:
+                _gc_label, _gc_why = _gcm(
+                    _gc_get("pc_h1"), _gc_get("liquidity_usd") or _gc_get("liq"),
+                    _gc_get("bs_h1"), _gc_get("unique_buyers_n"))
+            except Exception:
+                _gc_label, _gc_why = ("", "green_cohort eval error -> unclassified")
+            _gc_taddr = (decision.address
+                         or self._addr_by_token.get(decision.token, ""))
+            try:
+                _gc_seen = getattr(self, "_gc_shadow_seen", None)
+                if _gc_seen is None:
+                    _gc_seen = set()
+                    self._gc_shadow_seen = _gc_seen
+                _gc_key = (_gc_taddr or decision.token or "").lower()
+                if _gc_key not in _gc_seen:
+                    _gc_seen.add(_gc_key)
+                    from feeds.filter_shadow_recorder import record_verdict as _rvgc
+                    # Positive-selector convention (mirrors oversold_held /
+                    # full_thesis_cohort): PASS = in a green cohort (would-keep
+                    # under enforce, the scorer's kept bucket); BLOCK = not in any
+                    # green cohort (would-skip under enforce). The forward scorer
+                    # normalizes non-PASS -> BLOCK, so this keeps the green cohort
+                    # in the PASS bucket for a clean kept-vs-skipped realized diff.
+                    _rvgc(token_address=_gc_taddr, token_symbol=decision.token,
+                          pair={"pairAddress": getattr(decision, "pair_address", "") or ""},
+                          filter_name="green_cohort",
+                          verdict=("PASS" if _gc_label else "BLOCK"),
+                          reasons=_gc_why)
+            except Exception:
+                pass
+            if _gc_label:
+                logger.info("[DipScanner] bot=%s GREEN-COHORT in-cohort (%s): %s %s",
+                            bot_id, _gc_label, _gc_why, decision.token)
+            # ENFORCE SPEC (WRITTEN-BUT-OFF): restrict entries to green-cohort
+            # members. Deliberately gated on 'enforce' which is NOT a documented
+            # mode here (default shadow) so it stays dormant until AxiS approves.
+            if _gc_mode == "enforce" and not _gc_label:
+                logger.info("[DipScanner] bot=%s GREEN-COHORT would-skip (no cohort): %s %s",
+                            bot_id, _gc_why, decision.token)
+                # return  # <-- enforce path intentionally disabled (no live enforce)
         # ── NF5M TOXIC-ZONE gate (wallet-flow mine 2026-07-02): block the
         # 'weak bounce already fizzled' band net_flow_5m_usd in [0,+300) —
         # most robust losing cell in the study (27 tok, -3.37 mean, 11% win,
@@ -24226,6 +24288,68 @@ class DipScanner:
                         f"[measure-only; live exit unchanged]")
             except Exception as _e:
                 logger.debug(f"[DipScanner] deep_exit_spec shadow err: {_e}")
+
+            # aged_pond_absorb — SHADOW stamp 2026-07-13 (aged-pond mine,
+            # scratchpad/_sol_aged_pond_mine.md). PROVENANCE: adolescent_absorb
+            # (young_absorb mechanics on 6-24h tokens) is the fleet's least-red
+            # bot; a rebuild on the wider 07-02..13 realized join (68 legs / 29
+            # tok) puts its ex-top2 token-median at only +0.6 (plainMed +2.2,
+            # 55% tok-green) with a FRAGILE OOS (chrono-early -5.8) — the +4.3
+            # figure was the narrower n=19 window. What IS robust and
+            # reproducible is the AGE x ABSORB-GATE interaction: pooling the
+            # absorb family (young_absorb + live + adolescent, SAME entry
+            # mechanics) and splitting by pool age gives a MONOTONIC ex-top2
+            # gradient  <2h -5.1 | 2-6h -5.1 | 6-12h -2.2 | 12-24h -0.1 |
+            # 24-48h +2.3 . The same age split on the 955-trip GENERIC young
+            # lane is FLAT (all bands -5..-6), and neither pc_h6<0 nor age>=6h
+            # (nor both, -4.6) rescues generic selection -> age alone is NOT the
+            # lever; it only pays UNDER the absorb gate (deep 1h capitulation +
+            # live buy-side absorption + liq floor + buyers). CAUSAL SIGNATURE
+            # vs the bleeding young-dip lane: adolescent buys pc_h6=-48 (the
+            # launch pump is OVER, price mean-reverted, a settled 6-24h holder
+            # base absorbs the flush) whereas young_pump_dip buys pc_h6=+205
+            # (still MID-LAUNCH, much further to dump). BEST NEW COHORT within
+            # the 6-24h absorb pond = a STRONGER live-absorption floor:
+            #   net_flow_15s_imbalance>=0.4  -> ex-top2 +2.7 (n=22 tok, 85 legs,
+            #   64% tok-green) vs pond base -2.5; 3/4 OOS halves green
+            #   (chrono-E +2.1, odd +1.0, even +2.6; only chrono-L -3.9).
+            # This TIGHTENS the bot's own net_flow_15s_imbalance>=0 gate. It is
+            # the absorb thesis itself: an aged pool only pays when the tape
+            # shows real buyers EATING the dip right now, not merely neutral
+            # flow. Companion floors also clear the bar (liq>=35k +1.7 n=23;
+            # entry_vol_h24>=1M +1.8 n=30) but nf15>=0.4 is highest ex2 +
+            # highest tok-green + best OOS. CAVEAT: chrono-late red + n~22 is
+            # near the powered floor -> MEASURE-ONLY; prove sustained green +
+            # n>=20/side/half on fresh tape before AxiS considers a paper racer
+            # promote. Fail-open on missing (isinstance guard, read-as-zero
+            # rule => not favored). Only stamps aged 6-24h post-pump tokens.
+            try:
+                _ap_age = entry_meta_dict.get("lifecycle_age_hours")
+                _ap_nf = entry_meta_dict.get("net_flow_15s_imbalance")
+                _ap_h6 = entry_meta_dict.get("pc_h6")
+                if (isinstance(_ap_age, (int, float)) and not isinstance(_ap_age, bool)
+                        and isinstance(_ap_nf, (int, float))
+                        and not isinstance(_ap_nf, bool)):
+                    _ap_aged = (6.0 <= float(_ap_age) < 24.0)
+                    _ap_postpump = (isinstance(_ap_h6, (int, float))
+                                    and not isinstance(_ap_h6, bool)
+                                    and float(_ap_h6) < 0.0)
+                    _ap_v = ("FAVOR" if (_ap_aged and float(_ap_nf) >= 0.4)
+                             else "SKIP")
+                    entry_meta_dict["aged_pond_absorb_shadow"] = _ap_v
+                    entry_meta_dict["aged_pond_absorb_nf15"] = float(_ap_nf)
+                    entry_meta_dict["aged_pond_absorb_postpump"] = bool(_ap_postpump)
+                    if _ap_v == "FAVOR":
+                        c["aged_pond_absorb_shadow_favor"] = c.get(
+                            "aged_pond_absorb_shadow_favor", 0) + 1
+                        logger.info(
+                            f"[DipScanner] aged_pond_absorb SHADOW favored: "
+                            f"{token_symbol} age={float(_ap_age):.1f}h in 6-24h "
+                            f"AND nf15_imbal={float(_ap_nf):.2f}>=0.4 "
+                            f"(strong live absorption on aged pond = +2.7 ex2 "
+                            f"cohort) [measure-only]")
+            except Exception as _e:
+                logger.debug(f"[DipScanner] aged_pond_absorb shadow err: {_e}")
 
             # hl_confirm — SHADOW stamp 2026-07-05 (trough anatomy study,
             # scratchpad/_trough_anatomy.md): we fire MID-KNIFE (median fill

@@ -953,6 +953,73 @@ def oversold_held_blocks(rsi_15m, dev_pct_remaining,
     return True, "BLOCK (not oversold-held): " + ", ".join(why) + f" (need rsi<={rmax:g} & dev>={dmin:g})"
 
 
+def green_cohort_membership(pc_h1, liq, bs_h1, unique_buyers_n) -> tuple[str, str]:
+    """GREEN ENTRY-COHORT classifier (SOL young-lane sweep 2026-07-12).
+
+    A measure-forward POSITIVE selector: reports which validated green ex-top-2
+    cohort a candidate falls in. The 07-12 2-axis sweep (955 trips, ex-top-2
+    token-median, drop-top-2, 4-half OOS) found deep(pc_h1<=-45)+liq>=30k is the
+    single highest-VOLUME green cell (19.1% of fills, +4.6 ex2med, 3/4 halves).
+    Two ORTHOGONAL green cells expand covered volume while staying green in ALL
+    4 halves when UNIONed with the base:
+
+      * cohort A 'liq_bsh1'  = liq>=45k AND bs_h1>=1.6
+            standalone +2.1 ex2med / 59% grn / 4-of-4 halves; incremental slice
+            (\\ base) +2.1 / 4-of-4 -> genuine NEW green volume. UNION w/ base =
+            28.1% vol @ +4.9 ex2med (EDGE-PRESERVING: +4.6 -> +4.9), p90 +31.2.
+      * cohort B 'liq_ubuy'  = liq>=35k AND unique_buyers_n>=50
+            UNION w/ base = 30.7% vol @ +2.5 ex2med (MAX VOLUME +11.6pp, but
+            DILUTES edge), 4-of-4 halves, n=58 tokens, p90 +31.2.
+
+    Returns (cohort_label, why). cohort_label is one of 'base'/'liq_bsh1'/
+    'liq_ubuy'/'' (empty = in no green cohort). When multiple match, the
+    highest-edge label wins (base > liq_bsh1 > liq_ubuy). Env-tunable thresholds.
+    Pure; never raises (a non-numeric/NaN signal is treated as absent)."""
+    def _num(x):
+        try:
+            v = None if (x is None or isinstance(x, bool)) else float(x)
+        except (TypeError, ValueError):
+            return None
+        return None if (v is None or v != v) else v
+
+    def _thr(name, default):
+        try:
+            return float(os.environ.get(name, str(default)))
+        except (TypeError, ValueError):
+            return default
+
+    base_h1 = _thr("GREEN_COHORT_BASE_H1_MAX", -45.0)
+    base_liq = _thr("GREEN_COHORT_BASE_LIQ_MIN", 30000.0)
+    a_liq = _thr("GREEN_COHORT_A_LIQ_MIN", 45000.0)
+    a_bs = _thr("GREEN_COHORT_A_BSH1_MIN", 1.6)
+    b_liq = _thr("GREEN_COHORT_B_LIQ_MIN", 35000.0)
+    b_ubuy = _thr("GREEN_COHORT_B_UBUY_MIN", 50.0)
+
+    h1 = _num(pc_h1)
+    lq = _num(liq)
+    bs = _num(bs_h1)
+    ub = _num(unique_buyers_n)
+
+    matched = []
+    if h1 is not None and lq is not None and h1 <= base_h1 and lq >= base_liq:
+        matched.append(("base", f"deep pc_h1={h1:.0f}<={base_h1:g} & liq={lq:.0f}>={base_liq:g}"))
+    if lq is not None and bs is not None and lq >= a_liq and bs >= a_bs:
+        matched.append(("liq_bsh1", f"liq={lq:.0f}>={a_liq:g} & bs_h1={bs:.2f}>={a_bs:g}"))
+    if lq is not None and ub is not None and lq >= b_liq and ub >= b_ubuy:
+        matched.append(("liq_ubuy", f"liq={lq:.0f}>={b_liq:g} & unique_buyers={ub:.0f}>={b_ubuy:g}"))
+
+    if matched:
+        label, why = matched[0]  # highest-edge label wins (insertion order)
+        extra = (" [+%d more]" % (len(matched) - 1)) if len(matched) > 1 else ""
+        return label, f"green-cohort {label}: {why}{extra}"
+    parts = []
+    parts.append(f"pc_h1={h1:.0f}" if h1 is not None else "pc_h1 missing")
+    parts.append(f"liq={lq:.0f}" if lq is not None else "liq missing")
+    parts.append(f"bs_h1={bs:.2f}" if bs is not None else "bs_h1 missing")
+    parts.append(f"ubuy={ub:.0f}" if ub is not None else "ubuy missing")
+    return "", "no green cohort: " + ", ".join(parts)
+
+
 def _falling_day_flush_h1_max() -> float:
     """pc_h1 ceiling for the falling-day-flush gate (default -35.0%). At/below this
     extreme flush, combined with a down day, the token is in freefall. Tunable via

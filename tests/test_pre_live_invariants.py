@@ -335,13 +335,14 @@ def test_no_enabled_live_probe_bot():
                      "badday_young_absorb_live",
                      "badday_young_rt",
                      "badday_young_absorb",
-                     "badday_young_vsnap_ab",
-                     # 2026-07-12: throughput promotion. adolescent_absorb is
-                     # genuinely profitable (ex-top2 token-median +4.3%, 58%
-                     # token-green). young_adaptsize_ab was DEMOTED same day (AxiS
-                     # "are those even profitable?"): its +$122 lifetime was pure
-                     # fat tail (ex-top2 median -6.4%, 42% green) -> back to paper.
-                     "badday_adolescent_absorb"}
+                     "badday_young_vsnap_ab"}
+    # 2026-07-12 throughput-promotion post-mortem: BOTH same-day promotions
+    # were reverted to paper on the honest wide-window ex-top2 metric.
+    # young_adaptsize_ab was fat-tail red (ex-top2 -6.4%, 42% green).
+    # adolescent_absorb was quoted +4.3% on a NARROW n=19 window but is only
+    # +0.6% / fragile OOS on the wide n=29 window -- too marginal for live.
+    # The durable edge is the post-pump+absorption MECHANISM (nf15_imbal>=0.4),
+    # proving forward in paper/shadow before any bot earns a live seat.
     # Anchor to the repo root (adversarial review r2): a CWD-relative glob
     # from any other directory matched ZERO files and the invariant passed
     # VACUOUSLY — a deploy gate must never be satisfiable by an empty scan.
