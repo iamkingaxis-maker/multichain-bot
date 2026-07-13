@@ -853,6 +853,18 @@ ROSTER = (
 )
 
 
+# ── quote-leg latency levers (2026-07-13; all env-gated, default = current) ──
+def _rt_combined() -> bool:
+    """RH_RT_COMBINED: fold the buy quote + RT-cost sell quote into ONE batched
+    POST (halves the quote-leg round trips). Default OFF -> the exact two-POST
+    path. See _paper_buy / core.rh_execution.build_roundtrip_quote_batch. The
+    OTHER two levers live in rh_execution and need no lane flag: RH_QUOTE_TIMEOUT_S
+    (fast-fail the RPC tail) and RH_QUOTE_FALLBACK=none (skip the slow sequential
+    sweep on a batch miss)."""
+    return str(os.environ.get("RH_RT_COMBINED", "0")).strip().lower() \
+        in ("1", "true", "on", "yes")
+
+
 # ── pure signal logic (unit-tested, no network) ─────────────────────────────
 def price_from_quote(amount_in_wei: int, amount_out_atomic: int,
                      token_decimals: int) -> float:
@@ -1706,6 +1718,24 @@ class PaperLane:
                 self.decimals[token] = 18
         return self.decimals[token]
 
+    def _est_token_out(self, pool: str, token: str, eth_in_wei: int):
+        """Estimated atomic token output for eth_in_wei, from the pool's most
+        recent quote px (ETH/token). Feeds the RH_RT_COMBINED single-POST
+        round trip's SELL leg only (the rt-cost gate input) — never the booked
+        fill. None when there is no px basis (caller uses the exact path)."""
+        s = self.prices.get(pool)
+        if not s:
+            return None
+        px = s[-1][1]
+        if not px or px <= 0:
+            return None
+        try:
+            dec = self._token_decimals(token)
+            est = int((eth_in_wei / 1e18) / px * (10 ** dec))
+            return est if est > 0 else None
+        except Exception:
+            return None
+
     def _honeypot_ok(self, token: str) -> bool:
         v = self.honeypot.get(token)
         if v is None:
@@ -2084,26 +2114,60 @@ class PaperLane:
             return
         t_decide = time.time()
         trigger_lag = rows[-1].get("lag_secs") if rows else None
-        try:
-            eth_in = ENTRY_USD / self.feed.eth_price
-            q = self._executor().quote_buy(token, int(eth_in * 1e18))
-        except Exception as e:
-            print(f"[rh-paper] buy-quote failed {pool[:10]}: {e}", flush=True)
-            return
+        eth_in_wei = int((ENTRY_USD / self.feed.eth_price) * 1e18)
+        # QUOTE-LEG LATENCY (2026-07-13): the stamped lat_quote_s (median
+        # ~1.06s, the leg that pushes 51% of fills over the 1.71s Solana-parity
+        # budget) is TWO sequential batched QuoterV2 POSTs — the buy quote then
+        # the RT-cost sell quote of the buy's EXACT output. They are dependent,
+        # so RH_RT_COMBINED collapses them to ONE POST via an estimated sell
+        # amount (the booked fill still uses the exact buy quote; only the
+        # rt-cost gate reads the estimate). Default OFF = the exact two-POST
+        # path below, byte-identical to before. t_buy_done splits the two legs
+        # for the ledger (lat_quote_buy_s / lat_quote_rt_s attribution).
+        q = None
+        rt_cost = 100.0
+        t_buy_done = None
+        quote_mode = "split"
+        if _rt_combined():
+            est = self._est_token_out(pool, token, eth_in_wei)
+            rr = None
+            if est:
+                try:
+                    rr = self._executor().quote_roundtrip_batched(
+                        token, eth_in_wei, est)
+                except Exception:
+                    rr = None
+            if rr is not None:
+                q, eth_back = rr
+                t_buy_done = time.time()
+                quote_mode = "combined"
+                if q and q.amount_in:
+                    rt_cost = (1.0 - eth_back / q.amount_in) * 100.0
+        if q is None:   # combined OFF or unavailable -> exact two-quote path
+            try:
+                q = self._executor().quote_buy(token, eth_in_wei)
+            except Exception as e:
+                print(f"[rh-paper] buy-quote failed {pool[:10]}: {e}",
+                      flush=True)
+                return
+            if not q or not q.amount_out:
+                return
+            t_buy_done = time.time()
+            # ROUND-TRIP COST GATE (exit-impact leak): quote the sell of exactly
+            # what this buy returns, NOW. If the pool charges more than a
+            # config's max_rt_cost_pct for the round trip, friction eats the
+            # edge — no entry for THAT config. Uses real quotes (fee + impact
+            # both ways), not heuristics; quoted ONCE, gated per config.
+            # Fail-closed on a reverted sell quote (one-way pool = honeypot
+            # signature anyway).
+            try:
+                sq = self._executor().quote_sell(token, q.amount_out)
+                eth_back = (sq.amount_out if (sq and sq.amount_out) else 0)
+                rt_cost = (1.0 - eth_back / q.amount_in) * 100.0
+            except Exception:
+                rt_cost = 100.0
         if not q or not q.amount_out:
             return
-        # ROUND-TRIP COST GATE (exit-impact leak): quote the sell of exactly
-        # what this buy returns, NOW. If the pool charges more than a config's
-        # max_rt_cost_pct for the round trip, friction eats the edge — no
-        # entry for THAT config. Uses real quotes (fee + impact both ways),
-        # not heuristics; quoted ONCE, gated per config. Fail-closed on a
-        # reverted sell quote (one-way pool = honeypot signature anyway).
-        try:
-            sq = self._executor().quote_sell(token, q.amount_out)
-            eth_back = (sq.amount_out if (sq and sq.amount_out) else 0)
-            rt_cost = (1.0 - eth_back / q.amount_in) * 100.0
-        except Exception:
-            rt_cost = 100.0
         takers = []
         for st in states:
             if rt_cost > st.bot.max_rt_cost_pct:
@@ -2121,6 +2185,12 @@ class PaperLane:
         lat_total = (None if trigger_lag is None
                      else round(trigger_lag + (t_fill - t_decide), 2))
         lat_quote = round(t_fill - t_decide, 3)
+        # per-leg attribution (2026-07-13): buy quote vs RT-cost sell quote.
+        # combined mode books both in one POST -> the rt leg reads ~0.
+        lat_quote_buy = (round(t_buy_done - t_decide, 3)
+                         if t_buy_done is not None else None)
+        lat_quote_rt = (round(t_fill - t_buy_done, 3)
+                        if t_buy_done is not None else None)
         # REGIME STAMP (core/rh_regime, fleet-wide ALWAYS): the shared parts
         # (hour, discovery rate, 30-min feed composition, ETH px, age band)
         # are per-POOL/tick facts computed once; the expectancy DIAL is
@@ -2172,6 +2242,9 @@ class PaperLane:
                              for k in ("avoid_block", "flow_confirm")},
                    "lat_trigger_lag_s": trigger_lag,
                    "lat_quote_s": lat_quote,
+                   "lat_quote_buy_s": lat_quote_buy,
+                   "lat_quote_rt_s": lat_quote_rt,
+                   "quote_mode": quote_mode,
                    "lat_total_s": lat_total, "fee_tier": q.fee,
                    "regime": regime_stamp(
                        hour_utc, npph, comp_snap,

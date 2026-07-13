@@ -215,6 +215,76 @@ def build_tier_quote_batch(token_in: str, token_out: str, amount_in: int,
             for i, fee in enumerate(fee_tiers)]
 
 
+def _quote_timeout_s(default: float = 10.0) -> float:
+    """HTTP timeout (secs) for the batched quote POST. Env RH_QUOTE_TIMEOUT_S
+    (default 10.0 = pre-2026-07-13 behavior). LOWER it (e.g. 2.5) to fast-fail
+    the RPC-latency tail: a hung quote should miss the fill, never fire it
+    3-18s late. FAIL-SAFE — a timeout returns None (no quote -> no trade)."""
+    try:
+        v = float(os.environ.get("RH_QUOTE_TIMEOUT_S", default))
+        return v if v > 0 else default
+    except Exception:
+        return default
+
+
+def build_roundtrip_quote_batch(token_in: str, eth_in_wei: int,
+                                est_token_out: int, fee_tiers=FEE_TIERS) -> list:
+    """ONE JSON-RPC batch quoting the BUY (WETH->token, eth_in_wei) across all
+    tiers AND the RT-COST SELL (token->WETH, est_token_out) across all tiers in
+    a SINGLE HTTP round trip. Buy tiers get ids 0..N-1, sell tiers ids N..2N-1
+    (parse_roundtrip_quote_batch relies on the split). Pure.
+
+    WHY (2026-07-13 quote-leg latency mine): a paper fill's stamped lat_quote_s
+    (median ~1.06s, p90 ~2.1s, the leg that pushes 51% of fills over the 1.71s
+    Solana-parity budget) is TWO sequential batched POSTs — quote_buy then the
+    RT-cost quote_sell of the buy's exact output. They are dependent (the sell
+    amount is the buy's output), so they cannot be parallelized as-is. This
+    collapses them to ONE POST by quoting the sell of an ESTIMATED token amount
+    (from the pool's last quote px). The caller uses the sell leg ONLY for the
+    friction (rt-cost) gate — the booked fill price always comes from the EXACT
+    buy quote in this same response — so the only approximation is a small error
+    in the rt-cost gate input, bounded by the gate's several-pp threshold.
+    Opt-in behind RH_RT_COMBINED; the exact two-POST path is the default."""
+    n = len(fee_tiers)
+    buys = [{"jsonrpc": "2.0", "id": i, "method": "eth_call",
+             "params": [{"to": QUOTER_V2,
+                         "data": encode_quoter_calldata(
+                             WETH9, token_in, eth_in_wei, fee)}, "latest"]}
+            for i, fee in enumerate(fee_tiers)]
+    sells = [{"jsonrpc": "2.0", "id": n + i, "method": "eth_call",
+              "params": [{"to": QUOTER_V2,
+                          "data": encode_quoter_calldata(
+                              token_in, WETH9, est_token_out, fee)}, "latest"]}
+             for i, fee in enumerate(fee_tiers)]
+    return buys + sells
+
+
+def parse_roundtrip_quote_batch(response, fee_tiers=FEE_TIERS) -> Optional[tuple]:
+    """Combined batch response -> ({fee: buy_out}, {fee: sell_out}), same
+    per-tier semantics as parse_tier_quote_batch (error entry = no pool at that
+    tier, skipped; zero/undecodable skipped). None when the shape is wrong or
+    ANY tier id is missing (transport problem -> caller falls back). Pure."""
+    if not isinstance(response, list):
+        return None
+    n = len(fee_tiers)
+    by_id = {}
+    for o in response:
+        if isinstance(o, dict) and isinstance(o.get("id"), int):
+            by_id[o["id"]] = o
+    buys, sells = {}, {}
+    for i, fee in enumerate(fee_tiers):
+        for base, out in ((0, buys), (n, sells)):
+            entry = by_id.get(base + i)
+            if entry is None:
+                return None          # tier unaccounted for — transport problem
+            if entry.get("error") is not None:
+                continue             # revert = no pool at this tier
+            amt = decode_quoted_amount_out(entry.get("result"))
+            if amt:
+                out[fee] = amt
+    return buys, sells
+
+
 def decode_quoted_amount_out(result_hex) -> Optional[int]:
     """QuoterV2.quoteExactInputSingle eth_call result -> amountOut (first
     32-byte word) or None on anything undecodable. Pure, never raises."""
@@ -572,7 +642,7 @@ class RhExecutor:
                 self._batch_session = requests.Session()
             payload = build_tier_quote_batch(token_in, token_out, amount_in)
             r = self._batch_session.post(
-                self.rpc_url, json=payload, timeout=10,
+                self.rpc_url, json=payload, timeout=_quote_timeout_s(),
                 headers={"Content-Type": "application/json",
                          "User-Agent": "Mozilla/5.0"})
             if r.status_code != 200:
@@ -585,6 +655,13 @@ class RhExecutor:
                     amount_in: int) -> Optional[tuple]:
         by_fee = self._quote_all_tiers_batched(token_in, token_out, amount_in)
         if by_fee is None:  # batch unavailable -> sequential sweep (fallback)
+            # RH_QUOTE_FALLBACK=none: skip the slow per-tier sweep (4 eth_calls
+            # at the 15s provider timeout each — the quote-leg tail) and
+            # fast-fail. FAIL-SAFE: a missed quote is a missed fill, never a
+            # bad one. Default "seq" = pre-2026-07-13 behavior.
+            if str(os.environ.get("RH_QUOTE_FALLBACK", "seq")).strip().lower() \
+                    == "none":
+                return None
             by_fee = {}
             for fee in FEE_TIERS:
                 out = self._quote_single(token_in, token_out, amount_in, fee)
@@ -622,6 +699,47 @@ class RhExecutor:
         return RhQuote(token=token_addr, side="sell", amount_in=token_amount,
                        amount_out=out, fee=fee, mid_price_eth_per_token=mid,
                        quotes_by_fee=by_fee)
+
+    def quote_roundtrip_batched(self, token_addr: str, eth_amount_wei: int,
+                                est_token_out: int) -> Optional[tuple]:
+        """Buy quote + RT-cost sell quote in ONE batched POST (~½ the round
+        trips of quote_buy-then-quote_sell). Returns (RhQuote buy, eth_back_wei)
+        where eth_back_wei is the best sell output for est_token_out (the
+        rt-cost numerator), or None on ANY problem so the caller falls back to
+        the exact two-quote path. The buy RhQuote is EXACT (real pool state) —
+        only est_token_out (the rt-cost gate input) is an estimate. FAIL-OPEN."""
+        if not est_token_out or int(est_token_out) <= 0:
+            return None
+        try:
+            import requests
+            if self._batch_session is None:
+                self._batch_session = requests.Session()
+            payload = build_roundtrip_quote_batch(
+                token_addr, int(eth_amount_wei), int(est_token_out))
+            r = self._batch_session.post(
+                self.rpc_url, json=payload, timeout=_quote_timeout_s(),
+                headers={"Content-Type": "application/json",
+                         "User-Agent": "Mozilla/5.0"})
+            if r.status_code != 200:
+                return None
+            parsed = parse_roundtrip_quote_batch(r.json())
+            if parsed is None:
+                return None
+            buy_by_fee, sell_by_fee = parsed
+            if not buy_by_fee:
+                return None
+            bfee, bout = max(buy_by_fee.items(), key=lambda kv: kv[1])
+            dec = self.token_decimals(token_addr)
+            mid = ((eth_amount_wei / 1e18) / (bout / (10 ** dec))
+                   if bout else None)
+            buy_q = RhQuote(token=token_addr, side="buy",
+                            amount_in=int(eth_amount_wei), amount_out=bout,
+                            fee=bfee, mid_price_eth_per_token=mid,
+                            quotes_by_fee=buy_by_fee)
+            eth_back = max(sell_by_fee.values()) if sell_by_fee else 0
+            return buy_q, int(eth_back)
+        except Exception:
+            return None
 
     # ── optional 1inch v6 routing (keyed; falls back to direct V3) ───────
     def _oneinch_swap_tx(self, src: str, dst: str, amount: int,
