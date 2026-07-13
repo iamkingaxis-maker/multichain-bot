@@ -6,7 +6,7 @@
   "bot_id": "badday_young_rt",
   "btc_macro_h1_block_threshold": null,
   "daily_loss_limit_usd": 25.0,
-  "display_name": "YOUNG-RT (2026-07-09 real-time-native, AxiS \"adapt to real-time\"): young_absorb clone built for the post-latency-fix world. Runs under GLOBAL RT_ARM_MODE=enforce (arm from the live universe each fast tick, not after a scan cycle) + RT_DEMAND_TURN_MODE=enforce (fire on the FRESH net-flow turn, not the windowed lag) \u2014 the levers the loop-unstarve just unblocked. Plus the two latency-INDEPENDENT fleet wins: adaptive_swing_size (violent+shallow 0.45x tail-cut) + min_liquidity_usd=30000 (40k blocks 65% of young median-$36k liq -> throughput-fatal; 30k keeps ~70% firing while dropping the thin rug-adjacent band) (WR +10-12pp AND cuts entry slippage). NO hl_confirm (CONFIRMED never fires = trap). Paper, own pool. CONTROL = badday_young_absorb (same global RT, WITHOUT liq/size) -> isolates the config delta; whole RT-native fleet measured FORWARD vs the old broken-latency regime (the only honest way to price real-time). WATCH fills/day >=20 (liq floor drops throughput; RT_ARM adds it back).",
+  "display_name": "YOUNG-RT (2026-07-09 real-time-native, AxiS \"adapt to real-time\"): young_absorb clone built for the post-latency-fix world. Runs under GLOBAL RT_ARM_MODE=enforce (arm from the live universe each fast tick, not after a scan cycle) + RT_DEMAND_TURN_MODE=enforce (fire on the FRESH net-flow turn, not the windowed lag) — the levers the loop-unstarve just unblocked. Plus the two latency-INDEPENDENT fleet wins: adaptive_swing_size (violent+shallow 0.45x tail-cut) + min_liquidity_usd=30000 (40k blocks 65% of young median-$36k liq -> throughput-fatal; 30k keeps ~70% firing while dropping the thin rug-adjacent band) (WR +10-12pp AND cuts entry slippage). NO hl_confirm (CONFIRMED never fires = trap). Paper, own pool. CONTROL = badday_young_absorb (same global RT, WITHOUT liq/size) -> isolates the config delta; whole RT-native fleet measured FORWARD vs the old broken-latency regime (the only honest way to price real-time). WATCH fills/day >=20 (liq floor drops throughput; RT_ARM adds it back).",
   "enabled": true,
   "entry_gate": [
     [
@@ -92,5 +92,7 @@
   "min_liquidity_usd": 25000,
   "retrace_micro_avoid": true,
   "live_probe": true,
-  "lp_rug_tp1_full": true
+  "lp_rug_tp1_full": true,
+  "min_hold_floor_secs": 120.0,
+  "min_hold_floor_rug_pct": -25.0
 }
