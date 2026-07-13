@@ -145,11 +145,16 @@ class TestNotePx:
 
 class TestFactoryDefaultsInert:
     def test_all_prefactory_racers_have_gates_off(self):
+        # rh_demand_broad (2026-07-13 deep+demand decode) intentionally uses the
+        # breadth gate (min_buys_30s) — a demand-QUALITY racer, not a factory
+        # cell. Exempt it from the "factory gates off" invariant.
+        BREADTH_GATE_USERS = {"rh_demand_broad"}
         for b in ROSTER:
             if (b.exclusion_group or "") == "factory":
                 continue
             assert b.dip_max_depth_pct is None
-            assert b.min_buys_30s is None
+            if b.bot_id not in BREADTH_GATE_USERS:
+                assert b.min_buys_30s is None
             assert b.max_arc_pct is None
             assert b.require_pop_within_s is None
             # 2026-07-12 no-fire fix: both new fields default to the pre-fix

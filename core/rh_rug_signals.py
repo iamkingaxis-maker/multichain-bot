@@ -97,6 +97,75 @@ def _blockscout_merge(token: str, pool: str) -> dict:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# RUG GATE v2 — TOP-HOLDER CONCENTRATION (2026-07-13; SHADOW by default)
+# ══════════════════════════════════════════════════════════════════════════════
+# The ONE pre-buy holder-distribution signal that graded clean on the RH paper
+# ledger (scratchpad/_rh_rug_v2_0713.md). Over the combined ledger-stamped +
+# retro at-entry set (3 labeled catastrophic rugs / 22 winners / 4 losses):
+#
+#     top1_pct >= 9   OR   top10_pct >= 30
+#
+# caught the TWO catastrophic dump-class rugs (CASHCATWIF -100%, CASHCATGAME
+# -98% realized) with 0/22 winner-kill and 0/4 loss-hit — inside the Solana
+# rug-gate's <=5% winner-kill bar. This is the DUMP-class tell: a whale sits
+# positioned to sell its oversized stake into the pool. Every RH rug seen so far
+# is dump-class (LP is launchpad-custodied on hood.fun; see RQ2 in
+# _rh_rug_port.md), so concentration — not LP-pull custody — is the leading tell.
+#
+# WHAT IT MISSES (honest): the low-concentration LP-pull class. Halp (-90%) reads
+# top1 1.6 / top10 12.1 at entry — indistinguishable from winners on holder
+# distribution. Every predicate that caught Halp (nhold<250, fat shoulder,
+# float>=60, pool<25) killed 2-20 of 22 winners. Halp is therefore left to the
+# LP-custody stamp (lp_any_eoa_owner), which fires 0 on today's launchpad-
+# custodied pools but is the mechanism-defense for the non-hood.fun EOA-LP class.
+#
+# LOW-N: 3 labeled rugs. This ships SHADOW — it stamps a verdict onto the
+# rug_signals row and forward-grades; it does NOT block. Promotion to an
+# enforcing PREWARM gate needs n>=30 rugged stamped entries + AxiS approval
+# (same bar as the Solana resume gate). The block flag exists so a future
+# arm-time prewarm can consume it; the practical prewarm source is the
+# Blockscout bs_top1/bs_top10 (2 calls, ~1-6s, cacheable — inside the RH
+# detect->fill <=2s budget when prewarmed at arm-time, unlike the 90s replay).
+RUG_GATE_TOP1_PCT = float(os.environ.get("RH_RUG_GATE_TOP1", "9"))
+RUG_GATE_TOP10_PCT = float(os.environ.get("RH_RUG_GATE_TOP10", "30"))
+
+
+def _rug_gate_mode() -> str:
+    """shadow (default) = stamp the verdict, never block. block = the verdict is
+    authoritative (for a future prewarm gate). off = no rug_gate_* keys."""
+    return os.environ.get("RH_RUG_GATE", "shadow").lower()
+
+
+def rug_gate_verdict(stamp: dict, *, top1_thr: Optional[float] = None,
+                     top10_thr: Optional[float] = None) -> dict:
+    """PURE. Read a rug/Blockscout stamp -> concentration rug verdict. Prefers
+    the Blockscout bs_* concentration (the practical PREWARM source) and falls
+    back to the eth_getLogs reconstruction top1/top10. FAIL-OPEN: neither source
+    present -> block=False, source='none' (never vetoes on absent data)."""
+    t1 = RUG_GATE_TOP1_PCT if top1_thr is None else top1_thr
+    t10 = RUG_GATE_TOP10_PCT if top10_thr is None else top10_thr
+    top1 = stamp.get("bs_top1_pct")
+    top10 = stamp.get("bs_top10_pct")
+    src = "bs"
+    if top1 is None and top10 is None:
+        top1, top10, src = stamp.get("top1_pct"), stamp.get("top10_pct"), "recon"
+    base = {"rug_gate_top1": top1, "rug_gate_top10": top10,
+            "rug_gate_thr": [t1, t10], "rug_gate_mode": _rug_gate_mode()}
+    if top1 is None and top10 is None:
+        return {"rug_gate_block": False, "rug_gate_reason": None,
+                "rug_gate_source": "none", **base}
+    reasons = []
+    if top1 is not None and float(top1) >= t1:
+        reasons.append("top1_%.2f>=%.1f" % (float(top1), t1))
+    if top10 is not None and float(top10) >= t10:
+        reasons.append("top10_%.2f>=%.1f" % (float(top10), t10))
+    return {"rug_gate_block": bool(reasons),
+            "rug_gate_reason": ("concentration:" + ",".join(reasons)
+                                if reasons else None),
+            "rug_gate_source": src, **base}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # PURE decode/aggregation (no network — unit-tested in tests/test_rh_rug_signals)
 # ══════════════════════════════════════════════════════════════════════════════
 def _topic_addr(topic: str) -> str:
@@ -448,4 +517,12 @@ def compute_entry_stamp(rpc, pool: str, token: str,
     # SHADOW: stamp Blockscout-derived features alongside the reconstruction
     # (default on; off = byte-identical). Fail-open — never raises.
     stamp.update(_blockscout_merge(token_l, pool_l))
+    # RUG GATE v2 (2026-07-13): stamp the concentration verdict so it
+    # forward-grades. SHADOW by default (mode=shadow) — the block flag is
+    # recorded, never acted on here (this runs post-fill anyway). off = no keys.
+    if _rug_gate_mode() != "off":
+        try:
+            stamp.update(rug_gate_verdict(stamp))
+        except Exception:
+            pass
     return stamp

@@ -14,9 +14,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 from core.rh_regime import (  # noqa: E402
-    AGED_BLOCK_HOURS_UTC, DISC_BOT_ERA_POOLS_H, HOUR_BLOCKS,
-    CompositionTracker, age_band, aged_hour_gate_ok, discovery_regime,
-    expectancy_dial, hour_block, regime_stamp,
+    AGED_BLOCK_HOURS_UTC, CRASH_BUY_SHARE_FLOOR, DISC_BOT_ERA_POOLS_H,
+    HOUR_BLOCKS, CompositionTracker, age_band, aged_hour_gate_ok,
+    crash_regime_block, discovery_regime, expectancy_dial, hour_block,
+    regime_stamp,
 )
 import rh_paper_lane as mod  # noqa: E402
 from rh_paper_lane import LaneBot, PaperLane  # noqa: E402
@@ -141,6 +142,68 @@ class TestRegimeStamp:
         assert s["disc"] is None and s["band"] is None
         assert s["dial"] is None and s["eth_usd"] is None
         assert s["n_swaps_30m"] == 0
+
+
+# ── LOOSE crash-only regime gate (2026-07-13, SHADOW) ────────────────────────
+class TestCrashRegimeGate:
+    def _clear(self):
+        os.environ.pop("RH_CRASH_GATE", None)
+
+    def test_normal_tape_never_blocks(self):
+        self._clear()
+        # observed 07-10..12 range: buy_share 0.76-1.0, netflow > 0 always.
+        d = crash_regime_block(0.89, 52909.0, age_h=30.0)
+        assert d["block"] is False and d["reason"] is None
+
+    def test_young_is_exempt_even_in_cascade(self):
+        self._clear()
+        # a genuine cascade reading, but on a YOUNG pool -> never block
+        d = crash_regime_block(0.20, -10000.0, age_h=2.0)
+        assert d["block"] is False and d["reason"] == "young_exempt"
+
+    def test_true_cascade_on_aged_blocks(self):
+        self._clear()
+        # both legs: buy_share below floor AND net OUTFLOW, non-young band
+        d = crash_regime_block(0.20, -10000.0, age_h=30.0)
+        assert d["block"] is True and d["reason"] == "crash_cascade"
+
+    def test_one_weak_leg_alone_never_blocks(self):
+        self._clear()
+        # low buy_share but net still POSITIVE -> loose gate stays open
+        assert crash_regime_block(0.20, 5000.0, age_h=30.0)["block"] is False
+        # net outflow but buy_share above floor -> stays open
+        assert crash_regime_block(0.80, -5000.0, age_h=30.0)["block"] is False
+
+    def test_floor_below_observed_range(self):
+        # the loose-by-design invariant: floor sits under the observed min 0.76
+        assert CRASH_BUY_SHARE_FLOOR < 0.76
+
+    def test_missing_inputs_fail_open(self):
+        self._clear()
+        assert crash_regime_block(None, 100.0, age_h=30.0)["block"] is False
+        assert crash_regime_block(0.2, None, age_h=30.0)["block"] is False
+        assert crash_regime_block(0.2, -1.0, age_h=None)["block"] is False
+
+    def test_off_mode_disables_stamp(self):
+        os.environ["RH_CRASH_GATE"] = "off"
+        try:
+            assert crash_regime_block(0.20, -10000.0, age_h=30.0) is None
+        finally:
+            self._clear()
+
+    def test_stamp_carries_shadow_decision(self):
+        self._clear()   # default shadow
+        comp = {"buy_share": 0.20, "netflow_usd": -10000.0,
+                "distinct_pools": 44, "n_buys": 30, "n_sells": 70}
+        s = regime_stamp(19, 850.0, comp, age_h=30.0)
+        assert s["crash_gate"] == "shadow"
+        assert s["crash_block"] is True
+        assert s["crash_reason"] == "crash_cascade"
+        # normal tape -> stamp present, decision False
+        comp2 = {"buy_share": 0.89, "netflow_usd": 52909.0,
+                 "distinct_pools": 44, "n_buys": 70, "n_sells": 30}
+        s2 = regime_stamp(19, 850.0, comp2, age_h=30.0)
+        assert s2["crash_block"] is False
 
 
 # ── lane integration: stamp on every buy row; dial record persists ──────────

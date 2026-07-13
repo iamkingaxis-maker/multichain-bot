@@ -740,6 +740,70 @@ ROSTER = (
             strength_trail_gap_pp=3.0,
             hard_stop_pct=-15.0,
             exclusion_group="strengthexit"),
+    # ── DEEP+DEMAND STACK (2026-07-13; scratchpad/_rh_winner_decode2_0713.md) —
+    # the decode of the ACCUMULATED (append-mode-fixed) ledger. Reverses the
+    # 07-12 one-day snapshot call: with n grown, rh_demand_heavy is now the
+    # BEST ex-top-2 racer (+$8.54 ex2, 70% green, 12 tokens) and rh_deep_only is
+    # green-ish (62% green, retMed +6.0, 10 tokens). The two GREEN racers isolate
+    # TWO INDEPENDENT, STACKING entry levers vs the red control (rh_young_v1,
+    # -$13.60 ex2, 52% green) — the shared SCALP EXIT is NOT the lever (the
+    # control runs it verbatim and is red):
+    #   (1) DEMAND confirmation: demand_heavy = young_v1 at the SAME median entry
+    #       depth (-18.2 vs -18.8) and the SAME exit, differing ONLY in the
+    #       demand floor ($150 vs $50) -> green. Mechanism: the $150 buy-side
+    #       floor selects dips with real follow-through (demand_heavy TP2-reach
+    #       38%, the highest in the fleet) instead of dead-cat knives. This
+    #       DIRECTLY CONTRADICTS the 07-12 decode ("demand-at-the-moment is
+    #       non-separating/inverting"); the larger accumulated sample refutes it.
+    #   (2) DEPTH: pooled across all six scalp-exit racers, deeper entries are
+    #       monotonically greener (dip<=-25: retMed +6.0 / 63% green; -12..-18:
+    #       -1.3 / 48%). deep_only's -25 trigger IS this lever.
+    #   The levers STACK: within demand_heavy, the deep subset (dip<=-18) is
+    #   +$8.42 ex2 / 76% green vs the shallow subset -$2.04 / 64%.
+    # HONEST LOW-N / DIRECTIONAL: 10-12 distinct tokens each; ex-top-2 is FRAGILE
+    # (odd/even OOS flips one half negative for BOTH greens). The signals that
+    # SURVIVE the OOS split are green-RATE (64-76%) and retMed (~+6), not ex2 —
+    # so these push the DIRECTION, graded at n>=30 on green-rate + tokmed.
+    # All three: SCALP exit verbatim (the proven exit — LaneBot defaults, NO
+    # moonbag / NO time box), default liq 30k, max_pool_age 24h, no new gate
+    # logic (every knob already tested/wired), all facts inside the <=2s
+    # detect->fill budget (dip off 10-min high + 30s buy sums/prints). Own
+    # exclusion_group=None like their scalp PARENTS (demand_heavy/deep_only) so
+    # each accrues INDEPENDENT n toward the confirm bar fastest.
+    # PRE-REGISTERED (paper race seat, never a live seat): grade at n>=30 CLOSED
+    # positions vs the scalp fleet as control, per-token medians (ex-top-2) AND
+    # green-rate, NEVER sums. CONFIRM = tokmed ex-top2 green (or clearly beats
+    # rh_young_v1) AND green-rate >= the parent's AND cat<=1/20 AND direction =
+    # deep/demand; FAIL = retire to the documented-kills list, no re-tune on the
+    # same tape. Throughput caveat: the deep+demand cell is ~1/5 of demand_heavy's
+    # rate (10 of 50 demand_heavy trips were dip<=-25) — time-to-n is longer.
+    # 1. THE combined stack: deep_only's -25 capitulation + demand_heavy's $150
+    #    demand floor. The direct "push both proven levers together."
+    LaneBot(bot_id="rh_deepdemand",
+            dip_trigger_pct=-25.0,
+            demand_min_buy_usd=150.0,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H),
+    # 2. DEMAND QUALITY: demand_heavy's $150 floor + a BREADTH floor (>=3 buy
+    #    prints in the 30s window) so the $150 is real demand from multiple
+    #    buyers, not a single whale print (the "one big buy = late-arc top" trap
+    #    the 07-12 decode warned of). Keeps the shallow -12 trigger for
+    #    throughput (breadth, not depth, is the lever under test here).
+    LaneBot(bot_id="rh_demand_broad",
+            demand_min_buy_usd=150.0,
+            min_buys_30s=3,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H),
+    # 3. TAIL-DEFENDED STACK: the #1 racer + the variance mine's #1 lever
+    #    (early catastrophe cap: 5-min derisk to 25%) + a 2-bite cap. Deep
+    #    flushes carry the gap-through-stop / rug left tail (demand_heavy booked
+    #    6 HARD_STOP + 7 PRE_STOP_BAIL of 50; the deep bands still show a red ex2
+    #    tail) — this tests whether flooring that tail lifts the FRAGILE ex-top-2
+    #    the OOS split exposed, without touching the green median.
+    LaneBot(bot_id="rh_deepdemand_capped",
+            dip_trigger_pct=-25.0,
+            demand_min_buy_usd=150.0,
+            max_bites_per_token=2,
+            derisk_after_s=LOWVAR_DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H),
 )
 
 

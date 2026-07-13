@@ -21,6 +21,7 @@ pools, 2026-07-01..11) — synthetic dip trips (the lane's own trigger replayed
 maker-less) resolved at +20m, rug = trough <= 0.2x entry within 60m.
 Headline numbers are cited next to each constant below.
 """
+import os
 from collections import deque
 from typing import Optional
 
@@ -179,6 +180,68 @@ def expectancy_dial(recent_pnls, min_n: int = DIAL_MIN_N,
             "exp_usd": round(exp, 2), "n": len(pnls)}
 
 
+# ── LOOSE crash-only regime gate (2026-07-13, SHADOW) ────────────────────────
+# AxiS goals: (1) RH wants a regime gate, but LOOSE — block ONLY clearly-bad
+# tape (a market-wide sell cascade), never over-gate young/small tokens; (2)
+# built with strict OOS discipline after the Solana demand-signal OVERFIT.
+#
+# Provenance: scratchpad/_rh_regime_0713.md (+ _rh_regime_analysis.py). Over the
+# 07-10..12 paper tape (223 regime-stamped closed trips), market-wide 30-min
+# buy_share never fell below 0.76 (median 0.89) and netflow_30m was POSITIVE in
+# every trip — the tape captured NO crash window, so a crash gate CANNOT be
+# validated on outcomes yet. This gate is therefore SHADOW-ONLY: it stamps the
+# would-block decision on every entry so a real cascade forward-grades it, and
+# it never halts a paper buy.
+#
+# Two design rules are DATA-BACKED even without a crash sample:
+#   1. YOUNG EXEMPT. Per-band split (07-13): in the YOUNG band, LOW market
+#      buy_share trips OUTPERFORMED high-share (rawMean +10.96 vs +3.61, spread
+#      -7.35) — young/small tokens are regime-flat/inverted, exactly AxiS's
+#      thesis. So the gate never touches young pools.
+#   2. FLOOR SET BELOW THE OBSERVED RANGE. 0.45 sits far under the normal
+#      0.76-1.0 band → 0% in-sample block. Loose by construction, mirroring the
+#      Solana SOL-macro crash-only gate (fires only on a washout).
+CRASH_BUY_SHARE_FLOOR = 0.45   # 30-min market buy_share below this = cascade
+CRASH_NETFLOW_FLOOR_USD = 0.0  # market-wide 30-min net OUTFLOW (buys < sells)
+
+
+def crash_gate_mode() -> str:
+    """RH_CRASH_GATE env: 'off' (no stamp), 'shadow' (stamp only — DEFAULT,
+    never blocks), 'enforce' (records intent='enforce' but the entry path still
+    does NOT consult this — no code blocks on it; promotion is a separate,
+    approved step). Default shadow so the decision forward-grades for free."""
+    return os.environ.get("RH_CRASH_GATE", "shadow").strip().lower()
+
+
+def crash_regime_block(buy_share_30m, netflow_30m_usd, age_h,
+                       floor: float = CRASH_BUY_SHARE_FLOOR,
+                       netflow_floor: float = CRASH_NETFLOW_FLOOR_USD
+                       ) -> Optional[dict]:
+    """LOOSE crash-only regime decision (pure; forward-peek-free). Returns
+    {'block': bool, 'reason': str|None} or None when disabled/inapplicable.
+
+    Blocks ONLY when the pool is NOT young AND market-wide 30-min demand has
+    collapsed: buy_share < floor (a genuine sell cascade) AND net 30-min flow is
+    an OUTFLOW. Both legs required = deliberately loose (one weak reading alone
+    never blocks). YOUNG pools and unknown age/inputs fail OPEN (never block).
+
+    SHADOW by default — this is a STAMP; no caller halts a buy on it."""
+    if crash_gate_mode() == "off":
+        return None
+    if buy_share_30m is None or netflow_30m_usd is None:
+        return {"block": False, "reason": "no_data"}       # fail-open
+    band = age_band(age_h)
+    if band == "young" or band is None:
+        # young/small tokens are regime-flat (AxiS looseness); unknown age
+        # fails OPEN too (same precedent as aged_hour_gate_ok) — never gate
+        # what you can't age.
+        return {"block": False,
+                "reason": "young_exempt" if band == "young" else "no_age"}
+    cascade = (buy_share_30m < floor) and (netflow_30m_usd < netflow_floor)
+    return {"block": bool(cascade),
+            "reason": "crash_cascade" if cascade else None}
+
+
 # ── the per-entry stamp (fleet-wide, always) ─────────────────────────────────
 def regime_stamp(hour_utc: int, new_pools_per_hour, comp: dict,
                  dial: Optional[dict] = None, eth_usd=None,
@@ -187,16 +250,23 @@ def regime_stamp(hour_utc: int, new_pools_per_hour, comp: dict,
     every field is decision-time observable (no forward peeking)."""
     npph = (round(float(new_pools_per_hour), 1)
             if new_pools_per_hour is not None else None)
+    buy_share = comp.get("buy_share")
+    netflow = comp.get("netflow_usd")
+    crash = crash_regime_block(buy_share, netflow, age_h)
     return {
         "hour_utc": int(hour_utc),
         "npph": npph,
         "disc": discovery_regime(new_pools_per_hour),
         "band": age_band(age_h),
-        "buy_share_30m": comp.get("buy_share"),
-        "netflow_30m_usd": comp.get("netflow_usd"),
+        "buy_share_30m": buy_share,
+        "netflow_30m_usd": netflow,
         "distinct_pools_30m": comp.get("distinct_pools"),
         "n_swaps_30m": comp.get("n_buys", 0) + comp.get("n_sells", 0),
         "dial": (dial or {}).get("state"),
         "dial_exp_usd": (dial or {}).get("exp_usd"),
         "eth_usd": (round(float(eth_usd), 2) if eth_usd else None),
+        # LOOSE crash-only gate (SHADOW; never enforced here — forward-grades):
+        "crash_gate": (crash_gate_mode() if crash else None),
+        "crash_block": (crash.get("block") if crash else None),
+        "crash_reason": (crash.get("reason") if crash else None),
     }

@@ -10,6 +10,7 @@ from core.rh_rug_signals import (
     TOPIC_TRANSFER, TOPIC_V3_MINT, TOPIC_V3_BURN, ZERO_ADDR, DEAD_ADDR,
     replay_transfers, holder_structure, lp_owners_from_events, summarize_lp,
     hidden_supply_readout, assemble_stamp, compute_entry_stamp,
+    rug_gate_verdict,
 )
 
 A = "0x" + "aa" * 20
@@ -211,6 +212,49 @@ class TestFailOpen(unittest.TestCase):
                                     created_block=100, head_block=200,
                                     max_secs=1.0)
         self.assertFalse(any(k.startswith("bs_") for k in stamp))
+
+
+class TestRugGateVerdict(unittest.TestCase):
+    """The concentration rug gate (2026-07-13, SHADOW): PURE verdict logic."""
+
+    def test_top1_over_threshold_blocks(self):
+        # CASHCATGAME-shape: top1 11.9 >= 9
+        v = rug_gate_verdict({"top1_pct": 11.9, "top10_pct": 22.7})
+        self.assertTrue(v["rug_gate_block"])
+        self.assertIn("top1", v["rug_gate_reason"])
+        self.assertEqual(v["rug_gate_source"], "recon")
+
+    def test_top10_over_threshold_blocks(self):
+        # CASHCATWIF-shape: top10 50.56 >= 30
+        v = rug_gate_verdict({"top1_pct": 10.61, "top10_pct": 50.56})
+        self.assertTrue(v["rug_gate_block"])
+
+    def test_clean_winner_shape_passes(self):
+        # typical survivor: top1 ~3 / top10 ~20 -> no block, no winner-kill
+        v = rug_gate_verdict({"top1_pct": 3.19, "top10_pct": 19.4})
+        self.assertFalse(v["rug_gate_block"])
+        self.assertIsNone(v["rug_gate_reason"])
+
+    def test_low_concentration_lp_pull_class_passes(self):
+        # Halp-shape (top1 1.6 / top10 12.1) is INTENTIONALLY not caught by
+        # concentration — that class is left to the LP-custody stamp.
+        v = rug_gate_verdict({"top1_pct": 1.6, "top10_pct": 12.1})
+        self.assertFalse(v["rug_gate_block"])
+
+    def test_blockscout_source_preferred(self):
+        v = rug_gate_verdict({"bs_top1_pct": 12.0, "bs_top10_pct": 15.0,
+                              "top1_pct": 2.0, "top10_pct": 18.0})
+        self.assertEqual(v["rug_gate_source"], "bs")
+        self.assertTrue(v["rug_gate_block"])   # bs_top1 12 >= 9
+
+    def test_fail_open_when_no_features(self):
+        v = rug_gate_verdict({})
+        self.assertFalse(v["rug_gate_block"])
+        self.assertEqual(v["rug_gate_source"], "none")
+
+    def test_custom_thresholds(self):
+        v = rug_gate_verdict({"top1_pct": 8.0}, top1_thr=8.0, top10_thr=99.0)
+        self.assertTrue(v["rug_gate_block"])
 
 
 if __name__ == "__main__":
