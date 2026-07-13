@@ -336,10 +336,9 @@ def test_no_enabled_live_probe_bot():
                      "badday_young_rt",
                      "badday_young_absorb",
                      "badday_young_vsnap_ab",
-                     # 2026-07-12: throughput promotion (AxiS "need bots firing
-                     # more / more candidates — cant make progress like this").
-                     # Both green lifetime at real n, $22.5, adolescent adds a
-                     # DIFFERENT entry class (aged pond) for distinct-token cover.
+                     # 2026-07-12: throughput promotion (AxiS: bots firing more).
+                     # Both green lifetime at real n; adolescent adds the aged-pond
+                     # class for distinct-token coverage.
                      "badday_adolescent_absorb",
                      "badday_young_adaptsize_ab"}
     # Anchor to the repo root (adversarial review r2): a CWD-relative glob
