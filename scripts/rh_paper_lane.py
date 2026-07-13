@@ -60,7 +60,9 @@ from core.retrace_microstructure import retrace_micro_eval  # noqa: E402
 from core.rh_regime import (  # noqa: E402
     CompositionTracker, aged_hour_gate_ok, expectancy_dial, regime_stamp,
 )
-from core.rh_rug_signals import compute_entry_stamp  # noqa: E402
+from core.rh_rug_signals import (  # noqa: E402
+    compute_entry_stamp, fast_liq_bail_verdict, _fast_liq_bail_mode,
+)
 from core.runner_signal import score_at_exit  # noqa: E402
 from core.bot_config import BotConfig  # noqa: E402
 from core.per_bot_position_manager import PerBotPositionManager  # noqa: E402
@@ -804,6 +806,50 @@ ROSTER = (
             max_bites_per_token=2,
             derisk_after_s=LOWVAR_DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
             max_pool_age_h=SCALP_MAX_POOL_AGE_H),
+    # ── HARVEST-FASTER exit (2026-07-13; scratchpad/_rh_exit_rug_0713.md) — the
+    # EXIT-side deliverable of the capture-efficiency + abandoned-tail analysis.
+    # Findings that shape it:
+    #   (1) Capture efficiency (realized / peak-proxy) is ~0.73 median across the
+    #       WHOLE fleet (greens 0.76-0.80, control 0.73) — the exit engine is NOT
+    #       the greens' edge (they win on ENTRY: more dips reach TP1/TP2). The
+    #       ~27% leak is fleet-wide and shared.
+    #   (2) The leak is NOT recoverable by riding MORE of the position: a FAITHFUL
+    #       fraction reallocation (price paths fixed, only the held fraction
+    #       varies) leaves ex-top-2 tokmed FLAT (-4.72) across TP1 fracs 0.0-0.90,
+    #       and trip-median IMPROVES as you bank MORE (f=0.90 tripMed -0.96 vs
+    #       f=0.50 -1.76). The value of riding more lives entirely in the top-2
+    #       fat tail that ex-top-2 discards.
+    #   (3) ABANDONED-TAIL (+6h post-exit price, n=270): the median token is DOWN
+    #       -56% six hours after we exit (only 27% run up); POST_TP1_TRAIL exits
+    #       are followed by a -59% median further fall. So fast harvest is CORRECT
+    #       — the position is not left early; it dies. The only exit-side money
+    #       left is the rare fat tail (mean +58%, MOONBAG_TRAIL cases +690%).
+    # This racer isolates "harvest FASTER + keep a floored lotto for the tail":
+    # a VERBATIM rh_deep_only entry clone (deep -25 capitulation, SCALP_MAX age,
+    # default $50 demand, all shared guards — so it is measured against deep_only
+    # as CONTROL), differing ONLY in the exit — bank 0.90 at TP1 +6 (the robust-
+    # median-best bank fraction from the reallocation) and ride a small 0.10
+    # BREAKEVEN-FLOORED moonbag on a 12pp trail (captures the +690% tail with ~0
+    # giveback after TP1, since the floor bounds it at breakeven). Distinct from
+    # rh_deep_barbell (0.30 runner) and rh_strength_trail (all-out) — it is the
+    # BANK-HEAVY end of the harvest-aggressiveness axis, the end the abandoned-
+    # tail finding favors. bite cap 2 (re-entry is a modest fat-tail add).
+    # HONEST: the reallocation shows fraction does NOT lift ex-top-2 (flat) — so
+    # this is a DIRECTIONAL fat-tail-vs-robust-median test, NOT a proven ex-top-2
+    # lift. PRE-REGISTERED (paper race seat, never a live seat): grade at n>=30
+    # CLOSED positions vs rh_deep_only, per-token medians (ex-top-2) AND
+    # green-rate, NEVER sums. CONFIRM = tokmed ex-top2 >= deep_only's AND
+    # green-rate >= deep_only's AND the fat tail (mean / p90) is recovered AND
+    # cat<=1/20; FAIL = retire to the documented-kills list, no re-tune.
+    LaneBot(bot_id="rh_bankfast",
+            dip_trigger_pct=-25.0,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H,
+            max_bites_per_token=2,
+            tp1_pct=6.0, tp1_sell_fraction=0.90,
+            tp2_pct=12.0, tp2_sell_fraction=0.0,
+            moonbag_fraction=0.10, moonbag_floor_pct=0.0, moonbag_trail_pp=12.0,
+            hard_stop_pct=-15.0,
+            exclusion_group="bankfast"),
 )
 
 
@@ -2102,7 +2148,11 @@ class PaperLane:
             meta = {"qty_orig": bot_qty, "remaining_frac": 1.0,
                     "token": token, "sym": w["sym"],
                     "entry_px": bot_px, "entry_ts": now,
-                    "usd_size": size_usd}
+                    "usd_size": size_usd,
+                    # fast LP-pull bail baseline (2026-07-13): liquidity AT
+                    # ENTRY — the fixed reference the per-tick fast_liq_bail
+                    # verdict compares current reserves against.
+                    "entry_liq": w.get("liq")}
             if live_leg is not None:
                 meta["live"] = True
                 meta["tx_buy"] = live_leg["tel"].get("tx")
@@ -2211,6 +2261,30 @@ class PaperLane:
                         reason="lp drain %.1f%% in %ds (liq collapse)" % (
                             _drain, int(LP_DRAIN_WINDOW_S))), now, st=st)
                     continue
+                # FAST LP-PULL BAIL (2026-07-13, scratchpad/_rh_exit_rug_0713.md):
+                # per-tick reserves vs the AT-ENTRY baseline — the fast complement
+                # to LP_DRAIN (which needs a 900s window + 2 samples). SHADOW by
+                # default: stamps a would-fire row ONCE per position and changes
+                # nothing; RH_FAST_LIQ_BAIL=block makes it an immediate full exit.
+                if (_fast_liq_bail_mode() != "off"
+                        and meta.get("entry_liq") and not meta.get("_flb_stamped")):
+                    _w = self.feed.watch.get(pool) or {}
+                    _fv = fast_liq_bail_verdict(meta.get("entry_liq"),
+                                                float(_w.get("liq") or 0))
+                    if _fv.get("fast_liq_bail_block"):
+                        meta["_flb_stamped"] = True
+                        _append(LEDGER, {"ev": "fast_liq_bail",
+                                         "ts": self._ledger_ts(now),
+                                         "bot_id": st.bot.bot_id, "pool": pool,
+                                         "sym": meta.get("sym"),
+                                         "held_s": round(now - meta["entry_ts"], 1),
+                                         **_fv})
+                        if _fv.get("fast_liq_bail_mode") == "block":
+                            from types import SimpleNamespace
+                            self._paper_sell(pool, meta, SimpleNamespace(
+                                kind="FAST_LIQ_BAIL", sell_fraction=1.0,
+                                reason=_fv.get("fast_liq_bail_reason")), now, st=st)
+                            continue
                 # DERISK CAP (rug-tail defense, aged cohort): past the 20-min
                 # median-death window, cap remaining exposure so one -98% LP
                 # pull can't erase many +6% wins. Fires at most the slice

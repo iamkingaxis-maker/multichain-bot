@@ -165,6 +165,64 @@ def rug_gate_verdict(stamp: dict, *, top1_thr: Optional[float] = None,
             "rug_gate_source": src, **base}
 
 
+# ── FAST LP-PULL EXIT BAIL (2026-07-13, scratchpad/_rh_exit_rug_0713.md) ──────
+# The Halp lesson made concrete: Halp -90% was a SINGLE-BLOCK TOTAL LP pull
+# (buy -> HARD_STOP in 10s), invisible to holder concentration (top1 1.6 /
+# top10 12.1 — a winner shape) and UNSTOPPABLE by any exit (the first sell
+# quote after the pull is already ~ -84%). The pre-buy defense for that class
+# is LP CUSTODY (rug_gate / lp_any_eoa_owner), not distribution. What an EXIT
+# bail CAN defend is the STAGED / partial-drain class (liquidity bled over
+# seconds-to-minutes) — where reserves fall meaningfully BEFORE the price path
+# fully collapses, so a bail that reads reserves (not price) exits while there
+# is still a book to sell into. The lane's existing LP_DRAIN exit uses a 900s
+# rolling window that needs >=2 in-window samples and is fed at MAINTENANCE
+# cadence (min-60s liq refresh) — structurally too slow for a fast pull. This
+# verdict is the fast complement: compare CURRENT reserves to the FIXED
+# AT-ENTRY baseline (no window, no 2-sample requirement) and fire on the FIRST
+# tick a >=thr collapse is observed. SHADOW by default (stamps a would-fire
+# ledger row, changes NOTHING about trading); RH_FAST_LIQ_BAIL=block makes it
+# an authoritative immediate full exit. UNVALIDATED: 0 staged pulls observed in
+# the ledger yet (Halp was single-block), so this ACCRUES would-fire+outcome
+# data in shadow — winner-kill (a big v3 swap can transiently move concentrated
+# reserves) must be measured before any promotion.
+FAST_LIQ_BAIL_PCT = float(os.environ.get("RH_FAST_LIQ_BAIL_PCT", "-35"))
+
+
+def _fast_liq_bail_mode() -> str:
+    """shadow (default) = stamp the would-fire, never sell. block = the verdict
+    is an authoritative immediate full exit. off = no fast_liq_bail_* keys."""
+    return os.environ.get("RH_FAST_LIQ_BAIL", "shadow").lower()
+
+
+def fast_liq_bail_verdict(entry_liq, cur_liq, *,
+                          thr_pct: Optional[float] = None) -> dict:
+    """PURE. Fast per-tick LP-pull EXIT bail. Compares CURRENT pool liquidity
+    to the liquidity AT ENTRY (a fixed baseline — NO rolling window and NO
+    2-sample requirement, unlike lp_drain_pct) and fires on the first observed
+    >=thr collapse. FAIL-OPEN: missing/invalid liq on either side ->
+    block=False (never bails on absent data). Cannot save a single-block TOTAL
+    pull (the sell quote is already ~0 before any bail can act); it defends the
+    STAGED / partial-drain class, and its edge is exiting one-or-more ticks
+    ahead of the price stop while a book still exists."""
+    thr = FAST_LIQ_BAIL_PCT if thr_pct is None else thr_pct
+    base = {"fast_liq_bail_thr": thr, "fast_liq_bail_mode": _fast_liq_bail_mode(),
+            "fast_liq_bail_entry": entry_liq, "fast_liq_bail_cur": cur_liq}
+    try:
+        el = float(entry_liq) if entry_liq is not None else 0.0
+        cl = float(cur_liq) if cur_liq is not None else 0.0
+    except (TypeError, ValueError):
+        el = cl = 0.0
+    if el <= 0 or cl <= 0:
+        return {"fast_liq_bail_block": False, "fast_liq_bail_drop": None,
+                "fast_liq_bail_reason": None, **base}
+    drop = (cl - el) / el * 100.0
+    block = drop <= thr
+    return {"fast_liq_bail_block": bool(block), "fast_liq_bail_drop": round(drop, 2),
+            "fast_liq_bail_reason": ("liq %.0f->%.0f (%.1f%%) <= %.0f%%"
+                                     % (el, cl, drop, thr)) if block else None,
+            **base}
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PURE decode/aggregation (no network — unit-tested in tests/test_rh_rug_signals)
 # ══════════════════════════════════════════════════════════════════════════════

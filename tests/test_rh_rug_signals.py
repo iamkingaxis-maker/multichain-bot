@@ -10,7 +10,7 @@ from core.rh_rug_signals import (
     TOPIC_TRANSFER, TOPIC_V3_MINT, TOPIC_V3_BURN, ZERO_ADDR, DEAD_ADDR,
     replay_transfers, holder_structure, lp_owners_from_events, summarize_lp,
     hidden_supply_readout, assemble_stamp, compute_entry_stamp,
-    rug_gate_verdict,
+    rug_gate_verdict, fast_liq_bail_verdict,
 )
 
 A = "0x" + "aa" * 20
@@ -255,6 +255,48 @@ class TestRugGateVerdict(unittest.TestCase):
     def test_custom_thresholds(self):
         v = rug_gate_verdict({"top1_pct": 8.0}, top1_thr=8.0, top10_thr=99.0)
         self.assertTrue(v["rug_gate_block"])
+
+
+class TestFastLiqBailVerdict(unittest.TestCase):
+    """Fast per-tick LP-pull exit bail (2026-07-13, _rh_exit_rug_0713.md)."""
+
+    def test_collapse_blocks(self):
+        v = fast_liq_bail_verdict(30_000.0, 15_000.0)   # -50% vs -35 thr
+        self.assertTrue(v["fast_liq_bail_block"])
+        self.assertAlmostEqual(v["fast_liq_bail_drop"], -50.0)
+        self.assertIsNotNone(v["fast_liq_bail_reason"])
+
+    def test_stable_liq_passes(self):
+        v = fast_liq_bail_verdict(30_000.0, 29_000.0)   # -3.3%
+        self.assertFalse(v["fast_liq_bail_block"])
+        self.assertIsNone(v["fast_liq_bail_reason"])
+
+    def test_liq_up_passes(self):
+        v = fast_liq_bail_verdict(30_000.0, 45_000.0)   # +50% (a big buy)
+        self.assertFalse(v["fast_liq_bail_block"])
+
+    def test_boundary_at_threshold(self):
+        v = fast_liq_bail_verdict(100.0, 65.0)          # exactly -35%
+        self.assertTrue(v["fast_liq_bail_block"])       # <= thr is inclusive
+
+    def test_fail_open_missing_entry(self):
+        v = fast_liq_bail_verdict(None, 10_000.0)
+        self.assertFalse(v["fast_liq_bail_block"])
+        self.assertIsNone(v["fast_liq_bail_drop"])
+
+    def test_fail_open_zero_current(self):
+        # a TOTAL pull reads cur_liq 0 -> fail-open (cannot act; the price stop
+        # owns this case) rather than a divide/false-positive.
+        v = fast_liq_bail_verdict(30_000.0, 0.0)
+        self.assertFalse(v["fast_liq_bail_block"])
+
+    def test_fail_open_bad_types(self):
+        v = fast_liq_bail_verdict("nan", "oops")
+        self.assertFalse(v["fast_liq_bail_block"])
+
+    def test_custom_threshold(self):
+        v = fast_liq_bail_verdict(100.0, 80.0, thr_pct=-15.0)   # -20% vs -15
+        self.assertTrue(v["fast_liq_bail_block"])
 
 
 if __name__ == "__main__":
