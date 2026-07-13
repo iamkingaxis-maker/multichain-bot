@@ -33,9 +33,16 @@ def main():
         print("[rh-upload] ledger empty")
         return
     req = urllib.request.Request(
-        # full-sync: the LOCAL ledger is the source of truth — corrections
-        # (e.g. audited row fixes) propagate instead of being dedupe-skipped
-        BASE + "/api/rh-paper/ingest?replace=1",
+        # APPEND/MERGE (2026-07-13 fix): the RH lane runs on an EPHEMERAL
+        # Railway container — its local ledger resets to empty on every
+        # redeploy. The old replace=1 (full-sync) therefore OVERWROTE the
+        # persistent accumulated history with just the current session on
+        # each redeploy, so racers could never reach n>=30 (grading clock
+        # reset every deploy). Append-mode dedups on (ts,ev,pool) — re-sending
+        # a session is idempotent AND cross-session rows accumulate. (No row
+        # corrections happen on the autonomous lane, so the replace=1
+        # correction-propagation use case does not apply here.)
+        BASE + "/api/rh-paper/ingest",
         data=json.dumps(rows).encode(),
         headers={"Content-Type": "application/json",
                  "Authorization": "Basic " + base64.b64encode(AUTH.encode()).decode()},
