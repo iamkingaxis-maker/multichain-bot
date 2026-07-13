@@ -850,6 +850,100 @@ ROSTER = (
             moonbag_fraction=0.10, moonbag_floor_pct=0.0, moonbag_trail_pp=12.0,
             hard_stop_pct=-15.0,
             exclusion_group="bankfast"),
+    # ── STABLE-3 (2026-07-13; scratchpad/_rh_stable3_0713.md) — the STABILITY
+    # deliverable. AxiS: "both sides show extreme volatility with profit AND loss
+    # from each individual bot; we need stability." The diagnosis, confirmed on the
+    # accumulated ledger: the top-WR racers ALREADY bank small wins consistently
+    # (per-sell-leg WR demand_heavy 78% / deep_only 72% / aged_deep 71%; trip-WR
+    # 70/63/55%). Their instability is the LEFT TAIL — a few big-loser/rug tokens
+    # dominate the per-TOKEN return and blow up cumulative P&L (aged_deep = 71%
+    # leg-WR but −4.7 token-median; deep_only booked a CASHCATWIF −100 that alone
+    # drove its trip-return stdev to 23.0). So the stability lever is CAPPING THE
+    # LEFT TAIL on the already-high-WR entries, NOT changing entries.
+    #
+    # THE QUANTIFIED CAP (ledger decomposition, _rh_stable3_0713.md): a hard
+    # downside cap floored at −15 is a PURE stability win — it cut trip-return stdev
+    # (deep_only 23.0→10.2, demand_heavy 11.7→10.1, control 14.0→10.3), zeroed the
+    # catastrophic-token rate (all racers <-20% tok → 0), and left win-rate,
+    # token-median AND throughput UNCHANGED (medians ignore tail magnitude; the cap
+    # only compresses losers already past the floor). Dispersion DOWN + catastrophic
+    # DOWN while WR/median HOLD = exactly the stability signature, and it is FREE.
+    #
+    # WHAT IS BAKED IN (all latency-free config knobs, no new gate logic):
+    #   1. hard_stop_pct=−15 — the price stop (realizes the floor for the staged/
+    #      bleed class, where a book still exists to sell into).
+    #   2. derisk_after_s + derisk_max_frac=0.25 — the catastrophe cap (variance
+    #      mine's #1 lever): force exposure to 25% EARLY so a LATER rug/LP-drain gap
+    #      hits a quarter position. This is the ONLY realizable defense against
+    #      gap-through (a −90 rug at t>window → ~−22.5% on position, ≈ floor@−20).
+    #      SCALP racers use the 5-min window (LOWVAR_DERISK_AFTER_S); the AGED racer
+    #      uses 20 min (DERISK_AFTER_S) so it does NOT amputate the fat-tailed aged
+    #      holds (p75 924m) the aged thesis rides.
+    #   3. max_bites_per_token=2 — bounds single-token concentration. demand_heavy
+    #      put 17 of 50 trips (34%) into ONE concentrated token (CASHCATWIF, rug-gate
+    #      flagged top1 10.6/top10 50.6); a bot that can dump a third of its activity
+    #      into one token is structurally capable of the extreme swing AxiS named.
+    #      HONEST in-sample cost (flagged for the confirm): on the token-poor ledger
+    #      the cap cuts n hard and nudges deep_only's token-median negative — a
+    #      low-n artifact (forward, more distinct tokens = diversification, not
+    #      starvation); demand_heavy stays green (+5.37 tokmed).
+    #   4. exclusion_group="stable" — cross-sibling de-cluster: the three never pile
+    #      the SAME token, so one rug can't hit all three at once (fleet stability;
+    #      ~zero n-cost given distinct triggers).
+    # RUG-GATE REFERENCE (NOT enforced inline — latency): the pre-buy defense for
+    # the concentrated-DUMP class (CASHCATWIF/CASHCATGAME) is core.rh_rug_signals
+    # .rug_gate_verdict (top1>=9 OR top10>=30; 0/22 winner-kill), and the STAGED-
+    # drain exit defense is fast_liq_bail_verdict — BOTH already stamp SHADOW on
+    # every rug_signals / held-position row and forward-grade. Enforcement, once
+    # promoted (n>=30 rugs + AxiS), lands as an arm-time Blockscout PREWARM (0 added
+    # latency), NEVER the 90s eth_getLogs recon. The single-block LP-pull class
+    # (Halp −90, 10s) is unfixable by any stop/gate here — holder-invisible; already
+    # fenced by MIN_LIQ 30k + MIN_POOL_AGE 1h (Halp was $17k/7min).
+    #
+    # PRE-REGISTERED (paper race seat, never a live seat): grade each at n>=30 CLOSED
+    # positions vs its PARENT (demand_heavy / deep_only / aged_deep) as control. The
+    # STABILITY bar (not a higher ceiling): trip-return stdev DOWN vs parent AND
+    # catastrophic-token rate (<-20%) <= 5% AND token-median NOT worse AND green in a
+    # MAJORITY of OOS windows (odd/even by DISTINCT TOKEN). HONEST LOW-N: 7-12 tokens
+    # per parent today — DIRECTIONAL. All levers are computed from tape already in
+    # hand each tick (<=2s detect->fill budget); the cap adds ZERO latency.
+    # 1. demand $150 entry (demand_heavy) + tail-cap. The healthiest parent
+    #    (tokmed +5.5 / 75% green); the cap protects its 34%-single-token exposure.
+    LaneBot(bot_id="rh_stable_demand",
+            demand_min_buy_usd=150.0,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H,
+            max_bites_per_token=2,
+            hard_stop_pct=-15.0,
+            derisk_after_s=LOWVAR_DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
+            exclusion_group="stable"),
+    # 2. deep −25 entry (deep_only) + tail-cap. The racer the cap helps MOST:
+    #    parent trip-return stdev 23.0 (CASHCATWIF −100) → ~10 capped, worst → −15.
+    LaneBot(bot_id="rh_stable_deep",
+            dip_trigger_pct=-25.0,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H,
+            max_bites_per_token=2,
+            hard_stop_pct=-15.0,
+            derisk_after_s=LOWVAR_DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
+            exclusion_group="stable"),
+    # 3. aged-deep entry (aged_deep: 6-24h pools, aged exit ladder, depth-gated
+    #    loss re-entry) + tail-cap with the AGED (20-min) derisk window so the
+    #    fat-tailed aged holds are preserved. HONEST: this is the weakest/most-
+    #    directional parent (n=11, 43% token-green, red median) and it has NO
+    #    catastrophic tail to cap today — its instability is thin-n + a red median,
+    #    which the tail-cap does NOT fix; the cap is forward insurance for when it
+    #    eventually hits a deep-aged rug. Needs the most n before any read.
+    LaneBot(bot_id="rh_stable_ageddeep",
+            min_pool_age_h=AGED_MIN_POOL_AGE_H,
+            tp1_pct=AGED_TP1_PCT, tp1_sell_fraction=0.50,
+            tp2_pct=AGED_TP2_PCT, tp2_sell_fraction=0.30,
+            trail_pp=AGED_TRAIL_PP,
+            reentry_cooldown_s=0.0,
+            reentry_min_dip_pct=REENTRY_MIN_DIP_PCT,
+            max_bites_per_token=2,
+            hard_stop_pct=-15.0,
+            derisk_after_s=DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
+            regime_hours=True,
+            exclusion_group="stable"),
 )
 
 

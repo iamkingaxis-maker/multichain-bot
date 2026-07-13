@@ -296,9 +296,14 @@ class TestFleetEntryRouting:
         # sibling rh_lowvar_box is group-deduped out (one per token, roster
         # order breaks the tie). rh_deep_consolidated stays out: dip -20 is
         # shallower than its -25 capitulation trigger (no_dip below).
+        # rh_stable_ageddeep (2026-07-13 stable-3): dip -12 trigger + default
+        # $50 demand pass, 6h age gate fails OPEN on unknown age -> enters in its
+        # OWN "stable" group (its two siblings are blocked: rh_stable_demand needs
+        # $150 demand, rh_stable_deep needs a -25 dip).
         assert entered == {"rh_young_v1", "rh_first_touch", "rh_bites2",
                            "rh_wide_ladder", "rh_moonbag", "rh_liq40",
-                           "rh_aged_hold", "rh_fill_probe", "rh_lowvar_catstop"}
+                           "rh_aged_hold", "rh_fill_probe", "rh_lowvar_catstop",
+                           "rh_stable_ageddeep"}
         assert "no_dip" in lane.state["rh_deep_only"].block_hist
         assert "no_dip" in lane.state["rh_deep_consolidated"].block_hist
         assert "no_demand_turn" in lane.state["rh_demand_heavy"].block_hist
@@ -322,12 +327,13 @@ class TestFleetEntryRouting:
         lane._consider_entries(NOW)
         buys = [r for r in _ledger_rows(tmp_path) if r["ev"] == "buy"]
         # 6 scalp racers + 1 aged (group-deduped) + the fill probe (paper)
-        # + 1 lowvar (group-deduped: catstop, not box) = 9
-        assert len(buys) == 9
+        # + 1 lowvar (group-deduped: catstop, not box) + 1 stable (ageddeep;
+        # its two "stable" siblings are demand/dip-blocked) = 10
+        assert len(buys) == 10
         assert all(r.get("bot_id") for r in buys)
         # dashboard ingest de-dups on (ts, ev, pool): keys must be distinct
         keys = {(r["ts"], r["ev"], r["pool"]) for r in buys}
-        assert len(keys) == 9
+        assert len(keys) == 10
 
     def test_launch_scalp_enters_on_strength_not_dip(self, tmp_path,
                                                      monkeypatch):
