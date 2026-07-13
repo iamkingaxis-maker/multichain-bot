@@ -97,10 +97,39 @@ def ex_top2(trips):
     kept = meds[:-2] if n > 2 else meds       # <=2 tokens: nothing to drop
     ex2 = statistics.median(kept) if kept else statistics.median(meds)
     green = sum(1 for m in pt.values() if m > 0)
+    # STABILITY dimension (2026-07-13 goal: "clearly profitable AND stable —
+    # both sides show extreme per-bot P&L volatility"). Stability = low tail +
+    # low dispersion, judged on per-token medians (not per-trip, so a few rug
+    # tokens can't hide behind many small banked wins).
+    catastrophic = sum(1 for m in pt.values() if m < -20.0)
+    dispersion = statistics.pstdev(meds) if n > 1 else 0.0
     return {"n_tokens": n,
             "ex2_median": round(ex2, 2),
             "pct_green": round(100.0 * green / n, 1),
-            "plain_median": round(statistics.median(meds), 2)}
+            "plain_median": round(statistics.median(meds), 2),
+            "pct_catastrophic": round(100.0 * catastrophic / n, 1),
+            "dispersion": round(dispersion, 1)}
+
+
+def stability_verdict(metrics, n_bar, green_floor=55.0):
+    """'clearly profitable AND stable' bar (2026-07-13 goal). STABLE requires all:
+    ex2>=0 (not fat-tail-dependent), >=green_floor% tokens green (consistency),
+    <=5% catastrophic tokens (tail capped). Below n_bar -> ACCRUING. This is a
+    SEPARATE, STRICTER lens than verdict()'s PROMOTE — a bot can PROMOTE on median
+    yet be UNSTABLE (fat tail). Cross-window OOS consistency is graded elsewhere."""
+    n = metrics.get("n_tokens") or 0
+    if n == 0:
+        return "NO-DATA"
+    if n < n_bar:
+        return "ACCRUING"
+    ex2 = metrics.get("ex2_median")
+    grn = metrics.get("pct_green")
+    cat = metrics.get("pct_catastrophic")
+    if ex2 is None or grn is None or cat is None:
+        return "NO-DATA"
+    if ex2 >= 0 and grn >= green_floor and cat <= 5.0:
+        return "STABLE"
+    return "UNSTABLE"
 
 
 def verdict(metrics, n_bar):
@@ -505,6 +534,28 @@ def _render(rows, notes, rug_counts, rug_sep, rug_note, bs_out, bs_err):
         print("  ⭐ CLEARED THE BAR (bring to AxiS): " + ", ".join(promotes))
     else:
         print("  nothing has cleared its bar yet — forward tape still accruing.")
+
+    # ── STABILITY panel (2026-07-13 goal: 3 clearly-profitable+STABLE bots/side) ──
+    # Stricter than PROMOTE: ex2>=0 AND >=55% green AND <=5% catastrophic tokens.
+    # Shows the per-bot tail/dispersion so "stable" is measurable, not vibes.
+    print(f"\n  ── STABILITY (goal: 3 stable+profitable per chain) ──")
+    print(f"  {'stability':<11}{'chain':<8}{'bot':<30}"
+          f"{'n':>4}{'ex2':>7}{'%grn':>6}{'cat%':>6}{'disp':>6}")
+    stab_rows = [(c, nm, m) for c, nm, m, _ in rows_sorted
+                 if c in ("RH", "SOL-A/B", "SOL")
+                 and (m.get("n_tokens") or 0) > 0]
+    stable_hits = {"SOL": [], "RH": []}
+    for chain, name, m in stab_rows:
+        sv = stability_verdict(m, m.get("n_bar", 30))
+        if sv == "NO-DATA":
+            continue
+        print(f"  {sv:<11}{chain:<8}{name[:29]:<30}"
+              f"{m['n_tokens']:>4}{_fmt(m['ex2_median']):>7}{_fmt(m['pct_green']):>6}"
+              f"{_fmt(m.get('pct_catastrophic')):>6}{_fmt(m.get('dispersion')):>6}")
+        if sv == "STABLE":
+            stable_hits["RH" if chain == "RH" else "SOL"].append(name)
+    print(f"  STABLE count -> SOL: {len(stable_hits['SOL'])}/3  RH: {len(stable_hits['RH'])}/3  "
+          f"(goal: 3 each, n>=bar + green in majority of OOS windows)")
     print(f"\n  full table -> {os.path.relpath(OUT_MD, REPO)}")
 
 
