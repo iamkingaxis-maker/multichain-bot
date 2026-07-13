@@ -83,8 +83,9 @@ class TestRoster:
         # + 2 low-variance racers (2026-07-12, exclusion_group="lowvar")
         # + 1 deep-synth consolidated (2026-07-12 deep-decode, "deepsynth")
         # + 2 deep-exit barbell racers (2026-07-12 deep-cohort exit opt, "deepexit": un-capped control + _capped synthesis)
-        assert len(ROSTER) == 24
-        assert len({b.bot_id for b in ROSTER}) == 24
+        # + 1 strength-trail exit racer (2026-07-12 winner-behavior decode, "strengthexit")
+        assert len(ROSTER) == 25
+        assert len({b.bot_id for b in ROSTER}) == 25
         assert sum(1 for b in ROSTER
                    if b.exclusion_group == "factory") == 5
         assert sum(1 for b in ROSTER
@@ -95,6 +96,8 @@ class TestRoster:
                    if b.exclusion_group == "deepsynth") == 1
         assert sum(1 for b in ROSTER
                    if b.exclusion_group == "deepexit") == 2
+        assert sum(1 for b in ROSTER
+                   if b.exclusion_group == "strengthexit") == 1
 
     def test_control_is_current_config_verbatim(self):
         c = ROSTER[0]

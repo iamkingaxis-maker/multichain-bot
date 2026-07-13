@@ -44,6 +44,7 @@ FAIL-OPEN EVERYWHERE: any RPC/decode failure yields a partial stamp with an
 """
 from __future__ import annotations
 
+import os
 import time
 from typing import Optional
 
@@ -73,6 +74,26 @@ MAX_BACK_EXTENDS = 2          # extend-back attempts hunting the genesis mint
 LP_OWNER_CODE_CHECKS = 4      # eth_getCode budget for LP owners
 
 STAMP_VERSION = 1
+
+# ── Blockscout SHADOW source (2026-07-12; core/rh_blockscout.py) ─────────────
+# RH_BLOCKSCOUT=on (default) merges the cheap free-API holder features (bs_*)
+# ALONGSIDE this eth_getLogs reconstruction so the grader can measure which is
+# more accurate. off = byte-identical (no bs_ keys). FAIL-OPEN: the client never
+# raises; a failure yields a bs_source_ok=False sub-stamp.
+def _blockscout_enabled() -> bool:
+    return os.environ.get("RH_BLOCKSCOUT", "on").lower() != "off"
+
+
+def _blockscout_merge(token: str, pool: str) -> dict:
+    """Fetch the bs_ shadow fields (or {} when disabled / on any error).
+    Never raises."""
+    if not _blockscout_enabled():
+        return {}
+    try:
+        from core.rh_blockscout import blockscout_stamp
+        return blockscout_stamp(token, pool_addr=pool)
+    except Exception:
+        return {}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -421,6 +442,10 @@ def compute_entry_stamp(rpc, pool: str, token: str,
                     creator_pct = round(bal.get(creator, 0) / base * 100.0, 2)
     except Exception as e:
         err = f"{type(e).__name__}: {e}"[:200]
-    return assemble_stamp(pool_l, token_l, quick=quick, holders=holders,
-                          lp=lp, creator=creator, creator_pct=creator_pct,
-                          cost=budget.cost(), truncated=truncated, err=err)
+    stamp = assemble_stamp(pool_l, token_l, quick=quick, holders=holders,
+                           lp=lp, creator=creator, creator_pct=creator_pct,
+                           cost=budget.cost(), truncated=truncated, err=err)
+    # SHADOW: stamp Blockscout-derived features alongside the reconstruction
+    # (default on; off = byte-identical). Fail-open — never raises.
+    stamp.update(_blockscout_merge(token_l, pool_l))
+    return stamp

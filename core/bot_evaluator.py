@@ -323,6 +323,56 @@ def in_flight_floor_fires(pnl_pct, peak_pnl_pct, secs_from_peak,
     return False, ""
 
 
+def min_hold_floor_active(hold_secs, tp1_hit, floor_secs) -> bool:
+    """MIN-HOLD "no-panic" FLOOR (2026-07-12 winner-behavior decode,
+    scratchpad/_sol_winner_behavior.md).
+
+    True while a PRE-TP1 position is younger than ``floor_secs`` (default off at 0).
+    In this window the caller SUPPRESSES every soft cutter (in-flight/velocity floor,
+    giveback floor, fast-dump bail, pre-stop bail, ng_faststop, never_runner) AND the
+    -12 hard stop, keeping ONLY the hard-rug price tripwire (min_hold_rug_tripwire_fires).
+
+    The leak this attacks: 48% of young-lane trips exit <2min RED at a 25-47% win rate
+    on shallow noise dips, before the absorption/mean-reversion thesis reaches the
+    120-300s sweet spot (56% WR, +4.5% median). Same-token union: holding beat cutting
+    on 73% of tokens (+10pp median). It is a FLOOR, not a longer target -- the upper
+    time-box (slow_bleed/never_runner 45min) resumes the instant it expires; 600s+ is
+    the WORST bucket. Winner-safe: TP1/TP2 gains still fire during the window.
+
+    Pure, FAIL-SAFE: non-numeric/NaN or tp1_hit -> False (never suppress on bad data)."""
+    if tp1_hit:
+        return False
+    try:
+        fs = float(floor_secs)
+        h = float(hold_secs)
+    except (TypeError, ValueError):
+        return False
+    if fs != fs or h != h or fs <= 0:  # NaN guard / disabled
+        return False
+    return h < fs
+
+
+def min_hold_rug_tripwire_fires(pnl_pct, rug_pct: float = -25.0) -> tuple[bool, str]:
+    """Hard-rug price tripwire that STILL fires during the min-hold floor window
+    (2026-07-12). While soft cutters + the -12 hard stop are suppressed, a real
+    liquidity pull / capitulation (pnl_pct <= rug_pct, default -25%) must still exit
+    so the floor never rides a genuine rug straight down. Catastrophic (<=-25%) losses
+    are rare in the first 2min (0.5-3.8% by hold bucket) -- the shallow -8 noise cuts
+    are the leak, not the rug tail (which lives in the 600s+ holds at 11.7%).
+
+    Returns (fires, why). Pure, FAIL-SAFE: non-numeric/NaN -> (False, "")."""
+    try:
+        p = float(pnl_pct)
+        rp = float(rug_pct)
+    except (TypeError, ValueError):
+        return False, ""
+    if p != p or rp != rp:  # NaN guard
+        return False, ""
+    if p <= rp:
+        return True, f"min-hold rug tripwire pnl={p:.2f}%<={rp:.0f}%"
+    return False, ""
+
+
 def breakeven_lock_fires(peak_pnl_pct, pnl_pct, tp1_hit,
                          peak_min: float = 7.0) -> tuple[bool, str]:
     """Peak-anchored breakeven-arm for PRE-TP1 legs (winner-comparison 2026-06-26).

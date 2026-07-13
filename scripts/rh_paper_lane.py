@@ -273,6 +273,15 @@ class LaneBot:
     moonbag_trail_pp: Optional[float] = None
     trail_pp: Optional[float] = None            # None = BotConfig default
                                                 # (3.0, the scalp trail)
+    # STRENGTH-TRAIL exit (2026-07-12 RH winner-behavior decode,
+    # scratchpad/_rh_winner_behavior.md): replace the partial TP ladder with an
+    # ALL-OUT peak trail armed from a LOW threshold — the shape the 93 audited
+    # RH winners run (all-out single-leg sell into strength; 55% of their trips
+    # never peak past +6, so the scalp's fixed +6 TP1 misses the median mover).
+    # See BotConfig.strength_trail_exit. Default OFF = byte-identical.
+    strength_trail_exit: bool = False
+    strength_trail_arm_pct: float = 2.0
+    strength_trail_gap_pp: float = 3.0
     # ── AGED-POOL racer machinery (2026-07-11; all default OFF so every
     # pre-existing racer is byte-identical — their A/B is mid-flight) ────────
     # cross-sibling token exclusion (Solana young_pond mirror): racers sharing
@@ -355,6 +364,9 @@ class LaneBot:
             moonbag_fraction=self.moonbag_fraction,
             moonbag_floor_pct=self.moonbag_floor_pct,
             moonbag_trail_pp=self.moonbag_trail_pp,
+            strength_trail_exit=self.strength_trail_exit,
+            strength_trail_arm_pct=self.strength_trail_arm_pct,
+            strength_trail_gap_pp=self.strength_trail_gap_pp,
             max_concurrent_positions=self.max_concurrent,
             **kw,
         )
@@ -692,6 +704,42 @@ ROSTER = (
             max_bites_per_token=2,
             max_pool_age_h=SCALP_MAX_POOL_AGE_H,
             exclusion_group="deepsynth"),
+    # ── STRENGTH-TRAIL EXIT (2026-07-12; scratchpad/_rh_winner_behavior.md) —
+    # the EXIT-shape deliverable of the winner-BEHAVIOR decode. Reconstructing
+    # 846 closed trips across the 93 audited day-robust winners found the #1
+    # thing our racers lack is the exit SHAPE, not entry/breadth/re-entry:
+    #   - 55.4% of winner trips NEVER peak past +6% (max-favorable-excursion
+    #     p50 = +3.6%) — so the scalp's FIXED +6 TP1 sits ABOVE the median RH
+    #     mover and misses it entirely (then rides the fade to trail/stop).
+    #   - winners bank those movers by selling ALL-OUT in a SINGLE leg (n_sells
+    #     p50=1; first sell banks 100%) into RISING price (74.2% of sells) near
+    #     the local top (median sell = 97.4% of the trip peak; ~2.6% give-back).
+    #   - realized per-trip p50 +3.7% / p75 +19.8% / p90 +57% — small fast median
+    #     win with an INTACT fat tail because the whole position rides one trail.
+    # This racer ISOLATES that one lever: entry/universe = a VERBATIM rh_deep_only
+    # clone (deep -25 capitulation, SCALP_MAX_POOL_AGE_H, default $50 demand, all
+    # shared guards), differing ONLY in the exit engine — an ALL-OUT single-leg
+    # peak trail armed from +2% (~breakeven+fees, NOT +6) with a 3pp give-back
+    # (matches the winners' 2.6% median), catastrophic hard stop -15 kept, bite
+    # cap 2 (re-entry is a modest fat-tail add — median re-entry trip ≈ breakeven,
+    # 24% of winner profit — so cap, don't build a re-entry strategy). No new gate
+    # logic; strength_trail_exit owns the ladder. Own exclusion_group so it takes
+    # DISTINCT tokens from the scalp control it is measured against.
+    # PRE-REGISTERED (backtest/decode earns a RACE seat, never a live seat): grade
+    # at n>=30 CLOSED positions vs the scalp fleet (rh_deep_only) as CONTROL,
+    # per-token medians (ex-top-2), NEVER sums. CONFIRM = tokmed ex-top2 GREEN AND
+    # beats the scalp control's tokmed AND cat<=1/20 AND direction = the sub-+6
+    # movers the scalp misses get banked; FAIL = retire to the documented-kills
+    # list, no re-tune on the same tape.
+    LaneBot(bot_id="rh_strength_trail",
+            dip_trigger_pct=-25.0,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H,
+            max_bites_per_token=2,
+            strength_trail_exit=True,
+            strength_trail_arm_pct=2.0,
+            strength_trail_gap_pp=3.0,
+            hard_stop_pct=-15.0,
+            exclusion_group="strengthexit"),
 )
 
 

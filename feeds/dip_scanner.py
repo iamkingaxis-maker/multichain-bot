@@ -7139,6 +7139,16 @@ class DipScanner:
                     })
             except Exception:
                 pass
+        # TRAILING-HEAT REGIME feed (2026-07-12, scratchpad/_sol_hot_market.md): feed
+        # every FULL close's realized peak into the fleet-wide rolling window that drives
+        # the heat-gated runner lift (regime_runner_lift bots read is_high() at entry).
+        # Fail-soft; HEAT_REGIME_MODE=off disables inside record_close.
+        if result.fully_closed:
+            try:
+                from core.heat_regime import record_close as _heat_record
+                _heat_record(result.peak_pnl_pct)
+            except Exception:
+                pass
         # POST-EXIT TAIL TRACKER (2026-07-10, mirrors the RH lane's POSTEXIT_*):
         # on every FULL close queue a +6h follow-up price check so monster
         # frequency past our exits is measured CONTINUOUSLY (trail-width

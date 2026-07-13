@@ -3,6 +3,7 @@
 
 The RPC-side compute_entry_stamp is exercised only for its fail-open contract
 (bad rpc object -> stamp with err set, never a raise)."""
+import os
 import unittest
 
 from core.rh_rug_signals import (
@@ -177,6 +178,18 @@ class TestReadoutAndAssemble(unittest.TestCase):
 
 
 class TestFailOpen(unittest.TestCase):
+    def setUp(self):
+        # keep this pure-RPC test network-free: the Blockscout shadow merge
+        # (RH_BLOCKSCOUT default on) would otherwise fire a real HTTP call.
+        self._prev = os.environ.get("RH_BLOCKSCOUT")
+        os.environ["RH_BLOCKSCOUT"] = "off"
+
+    def tearDown(self):
+        if self._prev is None:
+            os.environ.pop("RH_BLOCKSCOUT", None)
+        else:
+            os.environ["RH_BLOCKSCOUT"] = self._prev
+
     def test_compute_entry_stamp_never_raises(self):
         class BoomRpc:
             def call(self, method, params, tries=2):
@@ -188,6 +201,16 @@ class TestFailOpen(unittest.TestCase):
         self.assertIn("rpc down", stamp["err"])
         self.assertEqual(stamp["pool"], POOL)
         self.assertIn("cost", stamp)
+
+    def test_blockscout_merge_off_is_byte_identical(self):
+        # off -> no bs_ keys leak into the stamp
+        class BoomRpc:
+            def call(self, method, params, tries=2):
+                raise RuntimeError("rpc down")
+        stamp = compute_entry_stamp(BoomRpc(), POOL, TOKEN,
+                                    created_block=100, head_block=200,
+                                    max_secs=1.0)
+        self.assertFalse(any(k.startswith("bs_") for k in stamp))
 
 
 if __name__ == "__main__":

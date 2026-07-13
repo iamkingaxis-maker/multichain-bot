@@ -1,0 +1,100 @@
+{
+ "n_audited": 93,
+ "n_closed_trips": 846,
+ "n_reentry_trips": 412,
+ "pct_makers_reenter": 77.4,
+ "EXIT": {
+  "hold_m_p25_p50_p75": [
+   0.55,
+   3.44,
+   20.63
+  ],
+  "hold_m_p90": 201.38,
+  "n_sells_per_trip_p50_p75_p90": [
+   1.0,
+   1,
+   2
+  ],
+  "scaleout_frac_trips_ge2_sells": 0.126,
+  "exit_mult_p25_p50_p75_p90": [
+   0.975,
+   1.037,
+   1.198,
+   1.574
+  ],
+  "exit_px_over_entry_p50_p75_p90": [
+   1.012,
+   1.18,
+   1.539
+  ],
+  "sell_into_strength_pct": 74.2,
+  "sell_vs_triphigh_p25_p50_p75": [
+   0.873,
+   0.974,
+   1.0
+  ],
+  "first_sell_bank_frac_p50": 1.0,
+  "tbox_15_22m_hits": 22,
+  "tbox_share": 0.026,
+  "mfe_peak_over_entry_p25_p50_p75_p90": [
+   1.0,
+   1.036,
+   1.208,
+   1.642
+  ],
+  "trip_peak_under_plus6_pct": 55.4,
+  "trip_peak_over_plus6_pct": 44.6,
+  "trip_peak_over_plus12_pct": 35.5
+ },
+ "REENTRY": {
+  "reentry_depth_px_over_priorsell_p25_p50_p75": [
+   0.906,
+   1.084,
+   1.346
+  ],
+  "reentry_net_median": -0.01,
+  "reentry_net_mean": 11.6,
+  "firsttrip_net_median": 5.61,
+  "n_reentry": 412,
+  "deep_reentry_below_prior_sell": {
+   "n": 153,
+   "net_median": -0.16,
+   "net_mean": 13.45,
+   "net_sum": 2058.0
+  },
+  "chase_reentry_above_prior_sell": {
+   "n": 259,
+   "net_median": 0.09,
+   "net_mean": 10.51,
+   "net_sum": 2722.0
+  },
+  "realized_sum_firsttrip": 15702.0,
+  "realized_sum_reentry": 4821.0,
+  "reentry_share_of_realized": 0.235
+ },
+ "BREADTH": {
+  "pools_per_maker_day_p50_p75_p90_max": [
+   1,
+   2,
+   3,
+   12
+  ],
+  "buys_per_maker_day_p50_p75_p90": [
+   2,
+   4,
+   7
+  ],
+  "n_maker_days": 383
+ },
+ "HONEST_COHORT_upperbound": {
+  "n_tokens": 437,
+  "token_realized_median": 8.34,
+  "token_realized_median_ex_top2": 8.25,
+  "token_realized_sum": 20523.0,
+  "top2_share_of_sum": 0.109
+ },
+ "trips_per_maker_p50_p90": [
+  6,
+  15
+ ]
+}

@@ -131,7 +131,7 @@ class CloseResult:
 @dataclass
 class ExitDecision:
     token: str
-    kind: Literal["TP1", "TP2", "POST_TP1_TRAIL", "HARD_STOP", "PRE_STOP_BAIL", "FLAT_EXIT", "BREAKEVEN_LOCK", "MOONBAG_FLOOR", "MOONBAG_TRAIL"]
+    kind: Literal["TP1", "TP2", "POST_TP1_TRAIL", "HARD_STOP", "PRE_STOP_BAIL", "FLAT_EXIT", "BREAKEVEN_LOCK", "MOONBAG_FLOOR", "MOONBAG_TRAIL", "STRENGTH_TRAIL"]
     reason: str
     sell_fraction: float  # 0.0 to 1.0; full exit = 1.0
 
@@ -605,6 +605,65 @@ class PerBotPositionManager:
 
         decisions: list[ExitDecision] = []
 
+        # 0-HEAT. TRAILING-HEAT-GATED RUNNER LIFT (2026-07-12, scratchpad/_sol_hot_market.md).
+        # Fix the universe-heat regime AT ENTRY (first observation) so the TP2 lift is
+        # decision-time and stable across the hold. HIGH regime (rolling reach20 >= 0.20)
+        # lifts the runner/TP2 target from tp2_pct to tp2_pct_hot at step 5 (TP1 + stop
+        # UNCHANGED). Stamp-once; fail-open. Env kill HEAT_REGIME_MODE=off.
+        if (getattr(self.config, "regime_runner_lift", False)
+                and p.state_blob is not None
+                and p.state_blob.get("heat_high_at_entry") is None):
+            try:
+                from core.heat_regime import is_high as _heat_high, reach20_roll as _heat_r
+                p.state_blob["heat_high_at_entry"] = bool(_heat_high())
+                p.state_blob["heat_reach20_at_entry"] = round(float(_heat_r()), 4)
+            except Exception:
+                p.state_blob["heat_high_at_entry"] = False
+
+        # 0-FLOOR. MIN-HOLD "no-panic" FLOOR (2026-07-12, scratchpad/_sol_winner_behavior.md).
+        # While a PRE-TP1 position is younger than min_hold_floor_secs, SUPPRESS every soft
+        # cutter (in-flight/velocity floor, giveback floor, fast-dump bail, pre-stop bail,
+        # ng_faststop, never_runner) AND the -12 hard stop -- keeping ONLY the hard-rug price
+        # tripwire (pnl <= min_hold_floor_rug_pct, default -25) so a real liquidity pull still
+        # exits. FLOOR not target: the upper time-box resumes the instant it expires. TP1/TP2
+        # gains still fire (winner-safe). MIN_HOLD_FLOOR_MODE=off|shadow|enforce (default
+        # enforce for opt-in bots; shadow stamps the would-suppress without acting).
+        _mhf_mode = os.environ.get("MIN_HOLD_FLOOR_MODE", "enforce").strip().lower()
+        _in_min_hold_floor = False
+        _mhf_suppress = False
+        if _mhf_mode != "off":
+            try:
+                from core.bot_evaluator import (
+                    min_hold_floor_active as _mhfa,
+                    min_hold_rug_tripwire_fires as _mhrt,
+                )
+                _mhf_secs = float(getattr(self.config, "min_hold_floor_secs", 0.0) or 0.0)
+                _in_min_hold_floor = _mhfa(now - p.entry_time, p.tp1_hit, _mhf_secs)
+            except Exception:
+                _in_min_hold_floor = False
+            if _in_min_hold_floor:
+                # stamp the counterfactual entry (first suppression) for forward grading
+                if p.state_blob is not None and not p.state_blob.get("mhf_active"):
+                    p.state_blob["mhf_active"] = True
+                    p.state_blob["mhf_mode"] = _mhf_mode
+                    p.state_blob["mhf_first_pnl"] = round(pnl_pct, 4)
+                    p.state_blob["mhf_first_secs"] = int(now - p.entry_time)
+                # hard-rug tripwire ALWAYS fires during the floor (in enforce mode)
+                _rug_fire, _rug_why = _mhrt(
+                    pnl_pct, float(getattr(self.config, "min_hold_floor_rug_pct", -25.0)))
+                if _rug_fire:
+                    if p.state_blob is not None:
+                        p.state_blob["mhf_rug_fired"] = True
+                        p.state_blob["mhf_rug_pnl"] = round(pnl_pct, 4)
+                    if _mhf_mode == "enforce":
+                        decisions.append(ExitDecision(
+                            token=token, kind="HARD_STOP",
+                            reason=f"{_rug_why} (min-hold floor active)",
+                            sell_fraction=1.0,
+                        ))
+                        return decisions
+                _mhf_suppress = (_mhf_mode == "enforce")
+
         # 0. In-flight loss-floor (badday gap audit 2026-06-22, 35-agent verify) —
         # the flagship loss-cut. PRE-TP1 doomed legs currently ride the -9 fast-bail
         # /-12 hard-stop down to a mean -12.3%; a -7% MAE floor exits them ~5pp
@@ -642,7 +701,7 @@ class PerBotPositionManager:
                     p.state_blob["iff_pnl_at_fire"] = round(pnl_pct, 4)
                     p.state_blob["iff_peak_at_fire"] = round(p.peak_pnl_pct, 4)
                     p.state_blob["iff_secs"] = int(now - p.entry_time)
-                if _iff_mode == "enforce":
+                if _iff_mode == "enforce" and not _mhf_suppress:
                     decisions.append(ExitDecision(
                         token=token, kind="IN_FLIGHT_FLOOR",
                         reason=f"in-flight {_iff_why} (floor {_iff_floor:.0f})",
@@ -739,8 +798,9 @@ class PerBotPositionManager:
             except Exception:
                 pass
 
-        # 1. Hard stop (highest priority)
-        if pnl_pct <= self.config.hard_stop_pct:
+        # 1. Hard stop (highest priority). Suppressed inside the min-hold floor
+        # (the -25 rug tripwire above is the only catastrophe exit during the floor).
+        if pnl_pct <= self.config.hard_stop_pct and not _mhf_suppress:
             decisions.append(ExitDecision(
                 token=token, kind="HARD_STOP",
                 reason=f"hard stop pnl={pnl_pct:.2f}% <= {self.config.hard_stop_pct}",
@@ -759,6 +819,35 @@ class PerBotPositionManager:
                         f"(pnl={pnl_pct:+.2f}%)"),
                 sell_fraction=1.0,
             ))
+            return decisions
+
+        # 1s. STRENGTH-TRAIL exit (2026-07-12 RH winner-behavior decode,
+        # scratchpad/_rh_winner_behavior.md). The all-out peak-trail the 93
+        # audited RH winners run: they sell 100% in ONE leg into strength near
+        # the local top, and 55.4% of their trips never peak past +6% — so the
+        # scalp's fixed +6 TP1 sits ABOVE the median mover and misses it. When
+        # strength_trail_exit is on, this branch OWNS the whole exit: the
+        # catastrophic hard_stop (above) and a configured time_stop (above) still
+        # fire first; everything else (pre_stop_bail, slow_bleed, never_runner,
+        # TP1/TP2, post-TP1 trail, moonbag) is BYPASSED — we return here every
+        # tick. Once peak_pnl_pct crosses the LOW arm (+2%, ~breakeven+fees, not
+        # +6), sell the full remainder the moment pnl gives back gap_pp (3pp,
+        # matching the winners' 2.6% median give-back from the peak). Before the
+        # arm engages the position simply rides (only the hard stop protects it,
+        # exactly as the winner sits through the early wobble). This is the
+        # single lever under test vs the scalp control (identical entry).
+        if bool(getattr(self.config, "strength_trail_exit", False)):
+            _st_arm = float(getattr(self.config, "strength_trail_arm_pct", 2.0) or 0.0)
+            _st_gap = float(getattr(self.config, "strength_trail_gap_pp", 3.0) or 3.0)
+            if (p.peak_pnl_pct >= _st_arm
+                    and pnl_pct <= p.peak_pnl_pct - _st_gap):
+                decisions.append(ExitDecision(
+                    token=token, kind="STRENGTH_TRAIL",
+                    reason=(f"strength-trail all-out pnl={pnl_pct:.2f}% <= "
+                            f"peak({p.peak_pnl_pct:.2f}%)-{_st_gap:.1f}pp "
+                            f"(armed>=+{_st_arm:g}%)"),
+                    sell_fraction=1.0,
+                ))
             return decisions
 
         # 1c. HOUSE-MONEY MOONBAG (2026-07-10 exit-shape A/B). Once TP2 has
@@ -802,6 +891,7 @@ class PerBotPositionManager:
         # (momentum_shadow: 8/13 gap-stops peaked +3.8..+9.9 first).
         if (
             not p.tp1_hit
+            and not _mhf_suppress
             and self.config.giveback_floor_pnl_pct is not None
             and self.config.giveback_floor_peak_min is not None
             and p.peak_pnl_pct >= self.config.giveback_floor_peak_min
@@ -820,6 +910,7 @@ class PerBotPositionManager:
         # dumps, which gap the poll cadence straight through the hard stop.
         if (
             not p.tp1_hit
+            and not _mhf_suppress
             and self.config.fast_bail_pnl_pct is not None
             and pnl_pct <= self.config.fast_bail_pnl_pct
         ):
@@ -834,6 +925,7 @@ class PerBotPositionManager:
         # 2. Pre-stop bail (volume-aware, only pre-TP1)
         if (
             not p.tp1_hit
+            and not _mhf_suppress
             and vol_m5_usd is not None
             and pnl_pct <= self.config.pre_stop_bail_pnl_pct
             and vol_m5_usd <= self.config.pre_stop_bail_vol_m5_max
@@ -860,6 +952,7 @@ class PerBotPositionManager:
         if (
             self.config.ng_faststop_exit_enabled
             and not p.tp1_hit
+            and not _mhf_suppress
             and p.peak_pnl_pct < 2.0
             and pnl_pct <= -4.0
         ):
@@ -892,7 +985,7 @@ class PerBotPositionManager:
             p.state_blob["never_runner_pnl_at_fire"] = round(pnl_pct, 4)
             p.state_blob["never_runner_peak_at_fire"] = round(p.peak_pnl_pct, 4)
             p.state_blob["never_runner_secs"] = int(now - p.entry_time)
-        if _nr_cond and self.config.never_runner_exit_enabled:
+        if _nr_cond and self.config.never_runner_exit_enabled and not _mhf_suppress:
             decisions.append(ExitDecision(
                 token=token, kind="NEVER_RUNNER",
                 reason=(
@@ -1040,9 +1133,18 @@ class PerBotPositionManager:
                 sell_fraction=_tp1_frac,
             ))
 
-        # 5. TP2 (skipped while a PEEL runner is active — no cap on the tail)
+        # 5. TP2 (skipped while a PEEL runner is active — no cap on the tail).
+        # TRAILING-HEAT RUNNER LIFT (2026-07-12): when regime_runner_lift is on AND the
+        # universe-heat regime was HIGH at entry (stamped heat_high_at_entry), lift the
+        # runner/TP2 target from tp2_pct to tp2_pct_hot so the fat hot tail isn't capped
+        # at +12 (given +12, 55-62% reach +20). TP1 + stop are untouched. Cold tape and
+        # non-opted bots keep tp2_pct exactly.
+        _tp2_target = self.config.tp2_pct
+        if (getattr(self.config, "regime_runner_lift", False)
+                and (p.state_blob or {}).get("heat_high_at_entry")):
+            _tp2_target = float(getattr(self.config, "tp2_pct_hot", self.config.tp2_pct))
         _peel_on = bool((p.state_blob or {}).get("peel_active"))
-        if p.tp1_hit and not p.tp2_hit and not _peel_on and pnl_pct >= self.config.tp2_pct:
+        if p.tp1_hit and not p.tp2_hit and not _peel_on and pnl_pct >= _tp2_target:
             p.tp2_hit = True
             _tp2_frac = self.config.tp2_sell_fraction
             _mb_note = ""
@@ -1061,9 +1163,10 @@ class PerBotPositionManager:
                     p.state_blob["moonbag_fraction"] = _mb_frac
                     p.state_blob["moonbag_tp2_pnl"] = round(pnl_pct, 4)
                 _mb_note = f" [moonbag {_mb_frac:g} kept]"
+            _hot_note = "" if _tp2_target == self.config.tp2_pct else " [heat-lift]"
             decisions.append(ExitDecision(
                 token=token, kind="TP2",
-                reason=f"TP2 pnl={pnl_pct:.2f}% >= {self.config.tp2_pct}{_mb_note}",
+                reason=f"TP2 pnl={pnl_pct:.2f}% >= {_tp2_target}{_mb_note}{_hot_note}",
                 sell_fraction=_tp2_frac,
             ))
 

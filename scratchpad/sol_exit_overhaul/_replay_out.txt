@@ -1,0 +1,46 @@
+trips: 955  tokens: 150
+
+=== LADDER REPLAY (MFE-based; runner leg = LOWER bound, forward-confirm) ===
+variant                       mean     med      ex2  minhalf   wr%  cat%    oos [W1/W2/odd/even ex2]
+control(6/.75,12,2pp)        -0.55   +0.42    -5.69    -6.57    50   1.5      - [-2.2/-6.4/-4.4/-6.6]
+barbell(6/.60,12,mb.30/12)   -0.14   -1.20    -5.69    -6.57    49   1.5      - [-2.2/-6.4/-4.4/-6.6]
+hot_tuned(6/.5,20,4pp)       +0.19   -2.13    -5.69    -6.57    49   1.5      - [-2.2/-6.4/-4.4/-6.6]
+hot_barbell(6/.5,18,mb.35/15)   +0.29   -2.13    -5.69    -6.57    49   1.5      - [-2.2/-6.4/-4.4/-6.6]
+
+captured-pp (mean) and ex2 vs control:
+  control(6/.75,12,2pp)        dmean=+0.00pp  dex2=+0.00pp
+  barbell(6/.60,12,mb.30/12)   dmean=+0.42pp  dex2=+0.00pp
+  hot_tuned(6/.5,20,4pp)       dmean=+0.74pp  dex2=+0.00pp
+  hot_barbell(6/.5,18,mb.35/15) dmean=+0.84pp  dex2=+0.00pp
+
+=== BOUNCE DISTRIBUTION (MFE of trips that reached TP1 +6) ===
+trips reaching +6 (TP1): 325/955 (34%)
+  MFE|reached-TP1: med=+16.7 p75=+27.7 p90=+41.0 p95=+44.0 max=+244.1
+  trips reaching +12:  229 (24.0% of all)
+  trips reaching +18:  153 (16.0% of all)
+  trips reaching +20:  132 (13.8% of all)
+  trips reaching +30:   61 (6.4% of all)
+  trips reaching +50:   10 (1.0% of all)
+
+=== MIN-HOLD FLOOR (~120s), SOFT cutters gated pre-TP1 (rug tripwire stays) ===
+panic-cut cohort (hold<120,red,peak<6,mae>-25): 279 trips (29% of vol), 98 tokens
+  panic med ret=-8.2  mean=-10.0
+  120-300s held bucket: n=297 med ret=+4.5 WR=56%
+
+same-token union (both a <120 cut AND a >=120 hold): 62 tokens
+  median cut ret=-7.9  ->  median held ret=+1.1
+  holding beat cutting on 45/62 = 73% of tokens
+  median improvement from holding = +10.2 pp
+
+min-hold bounded replay (panic-cuts RE-PRICED to 120-300 held median; UPPER bound):
+upper: reprice->+held_med    +5.72   +4.54    +4.54    +4.54    75   1.9 GREEN4 [+4.5/+4.5/+4.5/+4.5]
+conservative: cut+union_im   +4.42   +3.88    +2.85    +1.36    67   2.3 GREEN4 [+3.7/+1.4/+3.6/+1.4]
+variant                       mean     med      ex2  minhalf   wr%  cat%    oos [W1/W2/odd/even ex2]
+live-realized(all trips)     +1.48   -3.38    -5.78    -6.57    46   2.8      - [-3.7/-6.5/-4.6/-6.6]
+
+=== COMBINED min_hold+barbell (median lift AND tail capture) ===
+variant                       mean     med      ex2  minhalf   wr%  cat%    oos [W1/W2/odd/even ex2]
+combined UPPER               +4.05   +4.54    +4.54    +4.54    79   0.6 GREEN4 [+4.5/+4.5/+4.5/+4.5]
+combined CONSERVATIVE        +2.76   +4.54    +3.49    +1.43    70   1.0 GREEN4 [+4.3/+1.8/+3.8/+1.4]
+
+DONE. Ranking only; runner legs are lower bounds; min_hold via union + bound.

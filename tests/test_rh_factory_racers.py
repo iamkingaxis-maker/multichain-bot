@@ -312,6 +312,119 @@ class TestDeepBarbellRacer:
                 cfg.moonbag_trail_pp) == (0.30, 0.0, 12.0)
 
 
+class TestStrengthTrailRacer:
+    """rh_strength_trail (2026-07-12 winner-behavior decode;
+    scratchpad/_rh_winner_behavior.md): the EXIT-shape lever the 93 audited RH
+    winners run and our scalp lacks — all-out single-leg peak trail armed from a
+    LOW +2% (not +6), 3pp give-back, hard stop -15. Entry = a verbatim
+    rh_deep_only clone so the racer isolates the exit. Pins the roster spec + the
+    exit-engine mechanics (arm gate, all-out, hard-stop precedence, ladder bypass)."""
+
+    def _bot(self):
+        m = [x for x in ROSTER if x.bot_id == "rh_strength_trail"]
+        assert len(m) == 1
+        return m[0]
+
+    def test_in_roster_own_exclusion_group(self):
+        b = self._bot()
+        assert b.exclusion_group == "strengthexit"
+        assert [x.bot_id for x in ROSTER
+                if x.exclusion_group == "strengthexit"] == ["rh_strength_trail"]
+
+    def test_entry_is_verbatim_deep_only_clone(self):
+        # entry/universe must match rh_deep_only exactly (the isolate-the-exit
+        # contract): deep -25 capitulation, scalp age ceiling, default demand.
+        b = self._bot()
+        deep = {x.bot_id: x for x in ROSTER}["rh_deep_only"]
+        assert b.dip_trigger_pct == deep.dip_trigger_pct == -25.0
+        assert b.max_pool_age_h == deep.max_pool_age_h == mod.SCALP_MAX_POOL_AGE_H
+        assert b.min_liq_usd == deep.min_liq_usd
+        assert b.demand_min_buy_usd == deep.demand_min_buy_usd == mod.DEMAND_MIN_BUY_USD
+        assert b.entry_mode == deep.entry_mode
+        assert b.max_bites_per_token == 2      # modest re-entry cap (fat-tail add)
+
+    def test_strength_trail_exit_config(self):
+        b = self._bot()
+        assert b.strength_trail_exit is True
+        assert b.strength_trail_arm_pct == 2.0
+        assert b.strength_trail_gap_pp == 3.0
+        assert b.hard_stop_pct == -15.0
+        cfg = b.bot_config()
+        assert cfg.strength_trail_exit is True
+        assert (cfg.strength_trail_arm_pct, cfg.strength_trail_gap_pp) == (2.0, 3.0)
+        assert cfg.bot_id == "rh_strength_trail"
+
+    # ── exit-engine mechanics (the lever under test) ──────────────────────────
+    def _pm(self):
+        from core.per_bot_position_manager import PerBotPositionManager
+        return PerBotPositionManager(self._bot().bot_config())
+
+    def _open(self, pm, entry=1.0):
+        pm.open_position("0xtok", entry_price=entry, size_usd=25.0,
+                         entry_time=0.0, bypass_max_concurrent=True)
+
+    def test_no_exit_before_arm(self):
+        # below the +2% arm the position rides — a small dip is NOT a trail exit
+        # (only the hard stop protects it, exactly like the winner sits through
+        # the early wobble).
+        pm = self._pm(); self._open(pm)
+        # peak +1.5% (< arm), then dips to +0.5% (gave back 1pp): no exit
+        assert pm.tick("0xtok", 1.015, now=10.0) == []
+        assert pm.tick("0xtok", 1.005, now=20.0) == []
+
+    def test_all_out_trail_after_arm(self):
+        # arm at +2%, run to +8% peak, then give back 3pp -> ALL-OUT single leg
+        pm = self._pm(); self._open(pm)
+        assert pm.tick("0xtok", 1.03, now=10.0) == []       # +3% arms, still rising
+        assert pm.tick("0xtok", 1.08, now=20.0) == []       # +8% new peak, no give-back
+        out = pm.tick("0xtok", 1.049, now=30.0)             # +4.9% <= 8 - 3 -> fire
+        assert len(out) == 1
+        assert out[0].kind == "STRENGTH_TRAIL"
+        assert out[0].sell_fraction == 1.0                  # all-out, single leg
+
+    def test_no_partial_tp_ladder(self):
+        # the +6 TP1 must NEVER fire on this racer — even sitting well past +6,
+        # the only exit is the peak trail (a +6.5% peak that never gives back 3pp
+        # produces NO sell), proving the fixed ladder is bypassed.
+        pm = self._pm(); self._open(pm)
+        for i, px in enumerate((1.02, 1.05, 1.065)):        # arm, then hold >+6
+            out = pm.tick("0xtok", px, now=10.0 * (i + 1))
+            assert out == [], f"unexpected exit at px={px}: {out}"
+        pos = pm.get_position("0xtok")
+        assert pos is not None and pos.tp1_hit is False     # ladder never engaged
+
+    def test_hard_stop_precedes_strength_trail(self):
+        # catastrophe first: a never-armed position that craters to -15 books the
+        # HARD_STOP (the strength trail never armed, so it cannot mask the stop).
+        pm = self._pm(); self._open(pm)
+        out = pm.tick("0xtok", 0.85, now=10.0)
+        assert len(out) == 1 and out[0].kind == "HARD_STOP"
+
+    def test_gap_boundary(self):
+        # exactly peak - gap fires (<=), one tick shallower does not.
+        pm = self._pm(); self._open(pm)
+        pm.tick("0xtok", 1.10, now=10.0)                    # +10% peak (armed)
+        assert pm.tick("0xtok", 1.071, now=20.0) == []      # +7.1% > 10-3, hold
+        out = pm.tick("0xtok", 1.07, now=30.0)              # +7.0% == 10-3, fire
+        assert len(out) == 1 and out[0].kind == "STRENGTH_TRAIL"
+
+
+class TestStrengthTrailInertForOtherBots:
+    """The new exit branch must not change any bot that leaves it OFF (default)."""
+
+    def test_default_config_bypasses_strength_trail(self):
+        from core.per_bot_position_manager import PerBotPositionManager
+        from core.bot_config import BotConfig
+        pm = PerBotPositionManager(BotConfig(bot_id="ctrl", display_name="ctrl"))
+        assert pm.config.strength_trail_exit is False
+        pm.open_position("0xt", entry_price=1.0, size_usd=25.0, entry_time=0.0,
+                         bypass_max_concurrent=True)
+        # a control bot at +6 fires the NORMAL TP1 ladder, not a strength trail
+        out = pm.tick("0xt", 1.06, now=10.0)
+        assert len(out) == 1 and out[0].kind == "TP1"
+        assert out[0].sell_fraction == pm.config.tp1_sell_fraction
+
+
 class TestFactoryEntryRouting:
     """A fresh popped pool routes to rh_f_popret while the proven-volume
     factory racers block for their stated reasons (shared-facts contract)."""

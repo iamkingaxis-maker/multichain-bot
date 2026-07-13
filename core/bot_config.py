@@ -498,6 +498,58 @@ class BotConfig:
     moonbag_floor_pct: float = 0.0
     moonbag_trail_pp: Optional[float] = None
 
+    # MIN-HOLD "no-panic" FLOOR (2026-07-12 winner-behavior decode,
+    # scratchpad/_sol_winner_behavior.md). The #1 young-lane leak is that we PANIC-CUT
+    # winners: 48% of trips exit <2min RED at a 25-47% win rate on shallow noise dips,
+    # before the absorption/mean-reversion thesis reaches the 120-300s sweet spot (56%
+    # WR, +4.5% median). While a PRE-TP1 position is younger than min_hold_floor_secs,
+    # SUPPRESS every soft cutter (in-flight/velocity floor, giveback floor, fast-dump
+    # bail, pre-stop bail, ng_faststop, never_runner) AND the -12 hard stop, keeping ONLY
+    # a hard-rug price tripwire (pnl <= min_hold_floor_rug_pct, default -25) so a real
+    # liquidity pull still exits. It is a FLOOR not a longer target -- the existing upper
+    # time-box (slow_bleed/never_runner 45min) resumes the instant the floor expires
+    # (600s+ is the WORST bucket, 11.7% catastrophic; do NOT over-hold). TP1/TP2 gains
+    # still fire during the window (winner-safe). Same-token union: holding beat cutting
+    # on 73% of tokens (+10pp median); bounded replay ex-top-2 token-median -5.8 -> +2.9..
+    # +4.5, GREEN 4/4. Env kill MIN_HOLD_FLOOR_MODE=off|shadow|enforce (shadow stamps the
+    # would-cut counterfactual without acting). Default 0 secs = off = byte-identical.
+    # PAPER A/B first; no live enforce without AxiS + forward-green.
+    min_hold_floor_secs: float = 0.0
+    min_hold_floor_rug_pct: float = -25.0
+
+    # TRAILING-HEAT-GATED RUNNER LIFT (2026-07-12, scratchpad/_sol_hot_market.md). The
+    # market's heat is in the right tail (reach>=30 21% recent vs 9% prior; reach>=50 7.7%
+    # vs 0). A fixed +12 TP2 caps exactly the trips that now run further (given a token
+    # reaches +12, 55-62% reach +20). When the trailing universe-heat regime is HIGH
+    # (core.heat_regime: rolling fraction of the last 25 fleet fills reaching >=+20% is
+    # >= 0.20), lift the RUNNER/TP2 target from tp2_pct to tp2_pct_hot (~+18-20). TP1 (+6)
+    # and the stop are UNCHANGED -- raising TP1 LOSES, most on hot trips (the early scalp
+    # is the reliable money); only the runner tranche rides. Regime-gated, NEVER blanket
+    # (4-half OOS: +0.08/+0.37/+0.21/+0.20 per trip). The regime is fixed AT ENTRY (decision
+    # -time knowable, past closes only, no leakage). NO size-up (exit lever only, ruin-math).
+    # Env kill HEAT_REGIME_MODE=off. Default False = no change.
+    regime_runner_lift: bool = False
+    tp2_pct_hot: float = 18.0
+
+    # STRENGTH-TRAIL exit (2026-07-12 RH winner-behavior decode,
+    # scratchpad/_rh_winner_behavior.md). Replaces the partial TP ladder with an
+    # ALL-OUT, single-leg peak-anchored trail that arms from a LOW threshold —
+    # the shape the 93 audited RH winners actually run: 55.4% of their trips
+    # never peak past +6% (so a fixed +6 TP1 sits ABOVE the median mover), they
+    # sell 100% in a single leg (n_sells p50=1) into rising price (74.2%) near
+    # the local top (median sell = 97.4% of trip peak). When True the exit engine
+    # bypasses TP1/TP2/post-TP1-trail/pre-TP1 cutters and manages the position
+    # with exactly two doors: the catastrophic hard_stop (still -15) and this
+    # strength trail — once peak_pnl_pct >= strength_trail_arm_pct, sell the FULL
+    # remainder when pnl_pct <= peak_pnl_pct - strength_trail_gap_pp. arm at +2%
+    # (~breakeven+fees, NOT +6) so the sub-+6 movers our scalp misses are banked;
+    # gap 3pp matches the winners' 2.6% median give-back from the peak. A
+    # configured time_stop_minutes still applies as a backstop. Default False =
+    # every existing bot byte-identical (the whole branch is skipped).
+    strength_trail_exit: bool = False
+    strength_trail_arm_pct: float = 2.0
+    strength_trail_gap_pp: float = 3.0
+
     # lp_rug_tp1_full (2026-07-09 CLOPY autopsy, AxiS "ship it"): when True and
     # the ENTRY carried the LP-drain rug flag (lp_event_verdict=REMOVE_15MIN AND
     # lp_delta_15m_pct<=-15 — present at every doomed CLOPY -98.6% entry), TP1
