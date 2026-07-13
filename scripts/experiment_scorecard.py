@@ -177,6 +177,9 @@ def load_sol_trips(cache_path):
             "address": s.get("address"), "ret": ret, "hold": hold,
             "time": best.get("time"), "sell_time": s.get("time"),
             "entry_meta": best.get("entry_meta") or {},
+            # sell-side (exit) shadow flags carried onto the trip so the SOL_SHADOW
+            # grader can cohort on them via a "sell:<field>" key (2026-07-13).
+            "bleed_cut_shadow_would_cut": bool(s.get("bleed_cut_shadow_would_cut")),
         })
     newest = max((t.get("sell_time") or "" for t in trips), default="")
     note = f"{len(trips)} trips, newest {newest[:19] or 'n/a'}"
@@ -303,6 +306,14 @@ SOL_SHADOW = [
      "_deep_exit_optimization.md — deep-cohort barbell exit (measure-only)"),
     ("rug_gate_buy", "rug_gate_buy", None, 30,
      "rug_cohort_labels.jsonl — hidden-supply / rug gate cohort"),
+    # EXIT shadow (sell-side flag, not entry_meta): cohort = positions the slow-bleed
+    # rule WOULD cut at ~120s (still making new lows AND peak-so-far<+2%). Graded on
+    # FINAL held-to-close return: a RED cohort here means cutting is CORRECT (these
+    # bleed further), so the normal PROMOTE=green verdict is INVERTED and relabelled
+    # SHADOW-EXIT below — read the ex2 as "counterfactual loss if NOT cut". Offline
+    # (badday >=07-03): saves losers 4/4 OOS qtrs, ~25% winner-kill (deep-V tail).
+    ("bleed_cut_would_cut", "sell:bleed_cut_shadow_would_cut", {True}, 30,
+     "_sol_bleed_detector_0713.md — slow-bleed cut@120s (would-cut cohort; red=cut-correct)"),
 ]
 
 # SOL exit-ladder A/B family (byte-identical entry, exit-only delta), n>=30 vs control
@@ -347,7 +358,10 @@ def main():
     sol_trips, sol_note = load_sol_trips(args.sol_cache)
     notes.append(f"SOL trades: {sol_note}")
     for name, key, favor, n_bar, preg in SOL_SHADOW:
-        if favor is None:      # presence-of-key stamp (rug_gate_buy)
+        if key.startswith("sell:"):   # sell-side (exit) shadow flag on the trip
+            skey = key[5:]
+            sub = [t for t in sol_trips if t.get(skey) in favor]
+        elif favor is None:    # presence-of-key stamp (rug_gate_buy)
             sub = [t for t in sol_trips if key in (t.get("entry_meta") or {})]
         else:
             sub = [t for t in sol_trips
@@ -357,6 +371,10 @@ def main():
             # population-health stamp, NOT a promote/retire lever: a red number
             # here means the recent fleet is red, never "disable this gate".
             m["verdict"] = "BASELINE"
+        if key.startswith("sell:") and m.get("verdict") not in ("NO-DATA", "ACCRUING"):
+            # exit-cut shadow: PROMOTE=green is INVERTED (a red would-cut cohort =
+            # cutting is correct). Relabel so nobody misreads red as a failure.
+            m["verdict"] = "SHADOW-EXIT"
         rows.append(("SOL", name, m, preg))
 
     # A/B exit bots (grade each bot's own trips; control's ex2 shown for context)

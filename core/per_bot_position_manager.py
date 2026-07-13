@@ -446,6 +446,52 @@ class PerBotPositionManager:
             if _prev is None or pnl_pct < _prev:
                 _sb_mae["mae_pct"] = round(pnl_pct, 4)
                 _sb_mae["mae_at_secs"] = int(now - p.entry_time)
+
+        # SLOW-BLEED-vs-V-BOUNCER SHADOW (measure-only, 2026-07-13, badday exit-lever mine).
+        # THESIS (offline, badday_ sells >=07-03, n=980 post-scrub): the TIMING of a
+        # position's max-adverse-excursion sorts outcomes hard — positions that bottom
+        # FAST recover; slow grind-downs are doomed. Ex-post winrate by mae_at_secs:
+        #   <=60s  -> 49.4% (V-bouncer)   >60s -> 27.4% (slow bleeder)
+        #   [30,60)=66%  [300,inf)=11%  (monotone, OOS-stable across 4 chrono x odd/even qtrs).
+        # DECISION-TIME RULE tested: at ~120s, CUT if the position is STILL making new
+        # lows AND has not shown +3 strength. That rule SAVES LOSERS in 4/4 held-out
+        # quarters (loser-save 74-77%) BUT its winner-kill is ~25% (uniform across qtrs):
+        # the cut set's forgone upside is median +9.7% / tail +24% — i.e. the deep-V
+        # dip-buy recovery, which at 120s is NOT separable from the doomed grind using
+        # only summary fields (same V-recovery tail ng_faststop documents above). The
+        # cache lacks intrabar peak-SO-FAR timing, so the true winner-kill can only be
+        # resolved FORWARD. Hence: shadow-only, stamping the TRUE decision-time signals
+        # (peak-so-far, running-trough state, drop velocity) so a later audit can decide
+        # whether real-time info tightens the separation. NO ExitDecision. Fires once at
+        # the first tick reaching the ~120s decision point; persists in state_blob;
+        # stamped onto the sell record in _execute_bot_sell. Graded by experiment_scorecard.
+        if (
+            _sb_mae is not None
+            and not p.tp1_hit
+            and not _sb_mae.get("bleed_cut_shadow_fired")
+        ):
+            _bc_secs = int(now - p.entry_time)
+            if _bc_secs >= 120:
+                _run_mae = _sb_mae.get("mae_pct")
+                if _run_mae is None:
+                    _run_mae = pnl_pct
+                # still making new lows: currently at/near the running trough
+                _still_low = pnl_pct <= (_run_mae + 0.25)
+                # never showed strength: peak-SO-FAR (TRUE decision-time value) < +2%
+                _weak = p.peak_pnl_pct < 2.0
+                _sb_mae["bleed_cut_shadow_fired"] = True
+                _sb_mae["bleed_cut_shadow_would_cut"] = bool(_still_low and _weak)
+                _sb_mae["bleed_cut_shadow_secs"] = _bc_secs
+                _sb_mae["bleed_cut_shadow_pnl_at_fire"] = round(pnl_pct, 4)
+                _sb_mae["bleed_cut_shadow_peak_at_fire"] = round(p.peak_pnl_pct, 4)
+                _sb_mae["bleed_cut_shadow_mae_at_fire"] = round(_run_mae, 4)
+                _sb_mae["bleed_cut_shadow_still_low"] = bool(_still_low)
+                # drop velocity (pp/s from peak) — fast-flush V vs slow-grind death miner
+                _bc_from_peak = max(_bc_secs - p.peak_pnl_at_secs, 1)
+                _sb_mae["bleed_cut_shadow_drop_vel_pp_s"] = round(
+                    (p.peak_pnl_pct - pnl_pct) / _bc_from_peak, 5
+                )
+
         # OHLCV-capture sidecar (#4.4): accumulate the per-cycle price path (zero extra
         # fetch — this is the price the tick loop already pulled) for deterministic backtest
         # replay. Sampled + capped in accumulate_point. Persisted on close in _execute_bot_sell.

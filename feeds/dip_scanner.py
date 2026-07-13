@@ -7049,6 +7049,25 @@ class DipScanner:
                 # MFE is peak_pnl_pct (recorded elsewhere). For future stop/exit mining.
                 "mae_pct": ((_pos.state_blob or {}).get("mae_pct") if _pos else None),
                 "mae_at_secs": ((_pos.state_blob or {}).get("mae_at_secs") if _pos else None),
+                # SLOW-BLEED-vs-V-BOUNCER SHADOW (measure-only, 2026-07-13): at the ~120s
+                # decision point, would_cut = still making new lows AND peak-so-far < +2%.
+                # Offline (badday): saves losers in 4/4 OOS qtrs but ~25% winner-kill (deep-V
+                # dip-buy tail) — forward-graded here to test if real-time signals separate
+                # doomed grinds from late-bottoming V's. saved_pp>0 = cut would've helped.
+                "bleed_cut_shadow_fired": ((_pos.state_blob or {}).get("bleed_cut_shadow_fired") if _pos else None),
+                "bleed_cut_shadow_would_cut": ((_pos.state_blob or {}).get("bleed_cut_shadow_would_cut") if _pos else None),
+                "bleed_cut_shadow_secs": ((_pos.state_blob or {}).get("bleed_cut_shadow_secs") if _pos else None),
+                "bleed_cut_shadow_pnl_at_fire": ((_pos.state_blob or {}).get("bleed_cut_shadow_pnl_at_fire") if _pos else None),
+                "bleed_cut_shadow_peak_at_fire": ((_pos.state_blob or {}).get("bleed_cut_shadow_peak_at_fire") if _pos else None),
+                "bleed_cut_shadow_mae_at_fire": ((_pos.state_blob or {}).get("bleed_cut_shadow_mae_at_fire") if _pos else None),
+                "bleed_cut_shadow_still_low": ((_pos.state_blob or {}).get("bleed_cut_shadow_still_low") if _pos else None),
+                "bleed_cut_shadow_drop_vel_pp_s": ((_pos.state_blob or {}).get("bleed_cut_shadow_drop_vel_pp_s") if _pos else None),
+                "bleed_cut_shadow_saved_pp": (
+                    round((_pos.state_blob or {}).get("bleed_cut_shadow_pnl_at_fire") - result.pnl_pct, 3)
+                    if (_pos and (_pos.state_blob or {}).get("bleed_cut_shadow_pnl_at_fire") is not None
+                        and (_pos.state_blob or {}).get("bleed_cut_shadow_would_cut"))
+                    else None
+                ),
                 # RUNNER-SCORE SHADOW stamp (2026-07-10): monster-vs-regular
                 # tape-shape score at this exit, from the hold-tape recorder
                 # (_hold_tape_loop). None = no/thin tape (never 0). Offline

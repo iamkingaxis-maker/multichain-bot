@@ -1,0 +1,101 @@
+{
+  "adaptive_swing_size": true,
+  "age_h_max": null,
+  "age_h_min": 0.5,
+  "alpha_multiplier": 1.0,
+  "base_position_usd": 25.0,
+  "bot_id": "badday_young_capture_ab",
+  "btc_macro_h1_block_threshold": null,
+  "daily_loss_limit_usd": 25.0,
+  "display_name": "CAPTURE A/B (2026-07-13, scratchpad/_sol_capture_exit_0713.md). Entry byte-identical to badday_young_rt_paper -> ONLY the EXIT ladder differs. PAPER, own singleton pool (full token stream, paired-by-token grading), live_probe=false, NEVER routes live. ADDITIVE to the deployed exit-A/B family (control/minhold/barbell/heatrunner/minhold_heat): targets the CAPTURE leak measured on the 07-11..13 tape (277 young-lane positions) = the 25% post-TP1 REMAINDER round-tripping to -9..-13 on small winners ([6,12) capture-eff 0.41, leak 5.3pp) and a few monster reversals ([30+] leak 8.9pp). Fix = TIGHT peak-tracked runner instead of a fixed +12 full-out: bank 0.60 @ TP1 +6 (the reliable scalp, unchanged), small 0.10 @ +12, keep a 0.30 house-money moonbag with a BREAKEVEN floor (0%, can never round-trip to a loss) and a TIGHT 3pp peak-trail (= the winners' ~2.6% median give-back; trail_reprice_shadow recovered +2.7pp median on this tape). This is the SAFE-direction bet vs a fat moonbag (moonbag_ab caught the most tail, 16.7% reached +30, yet had the WORST median -7.7 -> a wide bag BLEEDS). Combined with the min-hold 120s floor (the ONLY proven ex-top-2 mover: replay ex2 -5.69->+3.53 GREEN 4/4, cat 1.0%). Replay combined: ex2 +3.53 GREEN 4/4 (min-half +1.43), mean +3.37; the moonbag/trail leg is an MFE-truncated LOWER bound -> forward-confirm the capture add. Grade vs exit_control at n>=30 closes, ex-top-2 AND captured-pp, OOS 3/4 halves, cat<=1/20.",
+  "enabled": true,
+  "entry_gate": [
+    [
+      "unique_buyers_n",
+      ">=",
+      10
+    ],
+    [
+      "wash_suspected",
+      "<=",
+      0
+    ],
+    [
+      "liquidity_usd",
+      ">=",
+      25000
+    ],
+    [
+      "pc_h1",
+      "<=",
+      -30
+    ],
+    [
+      "net_flow_15s_imbalance",
+      ">=",
+      0
+    ]
+  ],
+  "entry_gate_require_data": true,
+  "entry_stack_exempt": true,
+  "exclusion_pool": "badday_young_capture_ab",
+  "fast_bail_pnl_pct": -9.0,
+  "filters_disabled": [],
+  "filters_enforced": [
+    "filter_btc_overheat",
+    "filter_consec_red",
+    "filter_huge_wick",
+    "filter_knife_catch_peak"
+  ],
+  "giveback_floor_peak_min": 4.0,
+  "giveback_floor_pnl_pct": -6.0,
+  "hard_stop_pct": -12.0,
+  "liq_exit_floor_enforce": true,
+  "live_probe": false,
+  "lp_rug_tp1_full": true,
+  "macro_up_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "max_concurrent_positions": 2,
+  "mcap_max": 1000000.0,
+  "mcap_min": 100000.0,
+  "mcap_psych_pc_h24_max": 80.0,
+  "min_hold_floor_rug_pct": -25.0,
+  "min_hold_floor_secs": 120.0,
+  "min_liquidity_usd": 25000,
+  "min_triggers_to_fire": 1,
+  "moonbag_floor_pct": 0.0,
+  "moonbag_fraction": 0.3,
+  "moonbag_trail_pp": 3.0,
+  "never_runner_exit_enabled": true,
+  "never_runner_loss_floor": -6.0,
+  "never_runner_minutes": 45,
+  "never_runner_peak_max": 3.0,
+  "ng_scorer_gate": false,
+  "paper_capital_usd": 2000.0,
+  "pc_h1_max": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "premium_runner_multiplier": 1.0,
+  "regime_dial_exempt": true,
+  "require_alpha_trigger": false,
+  "retrace_micro_avoid": true,
+  "slow_bleed_minutes": 45,
+  "slow_bleed_pnl_threshold": -8.0,
+  "sol_macro_h1_block_threshold": null,
+  "sol_macro_h6_block_threshold": null,
+  "tp1_pct": 6.0,
+  "tp1_sell_fraction": 0.6,
+  "tp2_pct": 12.0,
+  "tp2_sell_fraction": 0.25,
+  "trading_hour_utc_end": 24,
+  "trading_hour_utc_start": 0,
+  "trail_pp": 2.0,
+  "triggers_allowed": null,
+  "triggers_disabled": [
+    "demand_bottom_compound"
+  ],
+  "vol_h1_min": 50000.0,
+  "young_token_probe": true
+}
