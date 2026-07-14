@@ -5951,6 +5951,12 @@ class WebDashboard:
             })
         try:
             rows = await asyncio.to_thread(self._rh_paper_read_rows, path)
+            bot = request.query.get("bot")
+            if bot and request.query.get("raw"):
+                sel = [r for r in rows if isinstance(r, dict)
+                       and r.get("bot_id") == bot]
+                return web.json_response({"available": True, "bot_id": bot,
+                                          "n": len(sel), "rows": sel})
             payload = await asyncio.to_thread(compute_rh_paper_summary, rows)
         except Exception as e:
             logger.warning("api/rh-paper failed: %s", e)
