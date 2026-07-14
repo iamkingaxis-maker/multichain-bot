@@ -55,6 +55,11 @@ Would turn fleet −$9 (all-in) → ~+$216. Real-time computable, mechanisticall
 - **RH MOMENTUM IS UNTESTED (real gap):** 100% of RH entries are dip-buys, into a tape that is 76-90% BUY-dominated with 47-55% of volume in the first pool-hour. The one strength racer (rh_launch_scalp) is mis-windowed (0.5-20min slot) and has fired 0 times. We insist on buying WEAKNESS in a market structurally BUYING. The specific momentum prescription failed verification, but the DIAGNOSIS is bulletproof — fix launch_scalp's window to actually fire + shadow-test buying RH strength.
 - **Refuted (don't chase):** SOL freshness/<2h pond (survivorship — fresh pond also dies more), SOL mcap pond (OOS-fails, realized cap ~0), RH moonbag-holding (un-catchable; holding for tail = −38% ex2), SOL momentum (strictly worse), SOL entry selection (no signature, 3 ways).
 
+## RH MOMENTUM — untested, diagnosed, ready decision (NOT shipped — AxiS call)
+- `rh_launch_scalp` (entry_mode=launch_strength, buys STRENGTH) has fired **0 times**: its window is 30s-20min (`min_pool_age_h=0.5/60`, `max_pool_age_h=20/60`) but the FEED can't surface pools that fresh — by the time a hood.fun pool has 30k liq + enough tape to be watchable, it's already >20min old. Age gate is per-bot (rh_paper_lane.py:1459), NOT a global block — so it's a WINDOW mismatch, not a floor.
+- So 100% of RH entries are dips; we have NEVER tested buying strength, in a tape that's 76-90% buy-dominated with 47-55% of volume in the first pool-hour.
+- CONCRETE FIX (one-word greenlight): re-window a strength racer to the REACHABLE **15-60min band** (min_pool_age_h=0.25, max_pool_age_h=1.0) + launch_strength entry + rug guards + tight scalp exit (tp1 +5/0.9, stop -8, 10min timebox). Paper/shadow to GENERATE the momentum-test data. CAVEAT: the workflow's momentum PRESCRIPTION failed adversarial verification (survives=false) — so this is a DATA-GENERATING test, not an expected win. Held for AxiS because it's a new strategy DIRECTION + involves fresher (rug-riskier) pools.
+
 ## Conclusion / levers toward the goal
 The honest answer: RH net is **regime-beta** — worth-the-risk requires trading ONLY the paying windows, not always-on. Levers, in order:
 1. **Tail-cap** (mechanical net lift; deployed in rh_stable_*).
