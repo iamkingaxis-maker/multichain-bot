@@ -536,6 +536,18 @@ class TestWalletTruth:
             str(tmp_path), "rh_wallet_truth.json")))
         assert status["delta_eth"] == pytest.approx(-0.10)
 
+    def test_paper_mode_stamps_total_usd_without_baseline(self, tmp_path):
+        # PAPER mode (gate closed): no baseline/delta arms, but the snapshot
+        # still carries total_usd from the passed ETH price so the dashboard
+        # wallet card renders the USD balance NOW, pre-live (2026-07-13).
+        ex = self._ex(eth=1.5, weth_wei=int(0.25 * 1e18))
+        out = rh_wallet_truth(executor=ex, eth_price_usd=1600.0)
+        assert out["ok"] is True and out["live_gate"] is False
+        assert out["total_eth"] == pytest.approx(1.75)
+        assert out["eth_price_usd"] == 1600.0
+        assert out["total_usd"] == pytest.approx(2800.0)      # 1.75 * 1600
+        assert "delta_eth" not in out                         # baseline unarmed
+
     def test_read_error_never_fabricates_or_arms(self, monkeypatch, tmp_path):
         _open_gates(monkeypatch)
         ex = _mock_executor()

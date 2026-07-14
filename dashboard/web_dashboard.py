@@ -536,6 +536,29 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- ── RH WALLET (on-chain ETH+WETH, keyless via RH_WALLET_ADDRESS) ── -->
+  <!-- Hidden until the paper lane pushes a snapshot (feature dormant until
+       RH_WALLET_ADDRESS is set) — mirrors the SOL WALLET TRUTH card above. -->
+  <div class="card" id="rh-wallet-panel" style="display:none;">
+    <div class="card-title">
+      <span class="dot" style="background:var(--violet);box-shadow:0 0 8px var(--violet);"></span> RH WALLET
+      <span style="text-transform:none;letter-spacing:0;color:var(--muted);">&mdash; on-chain Robinhood-Chain hot wallet &middot; native ETH + WETH, delta since baseline &middot; keyless read, nothing simulated</span>
+    </div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:baseline;padding:6px 2px;">
+      <div><div style="color:var(--muted);font-size:11px;">total (USD)</div>
+        <div id="rhw-usd" style="font-size:26px;font-weight:700;">&mdash;</div></div>
+      <div><div style="color:var(--muted);font-size:11px;">&Delta; since baseline</div>
+        <div id="rhw-delta" style="font-size:16px;">&mdash;</div></div>
+      <div><div style="color:var(--muted);font-size:11px;">ETH</div>
+        <div id="rhw-eth" style="font-size:16px;">&mdash;</div></div>
+      <div><div style="color:var(--muted);font-size:11px;">WETH</div>
+        <div id="rhw-weth" style="font-size:16px;">&mdash;</div></div>
+      <div><div style="color:var(--muted);font-size:11px;">total (ETH)</div>
+        <div id="rhw-total" style="font-size:16px;">&mdash;</div></div>
+      <div id="rhw-note" style="color:var(--muted);font-size:12px;align-self:center;"></div>
+    </div>
+  </div>
+
   <!-- ── LIVE-SLOT RACE (per-bot — who earns the live slot) ── -->
   <div class="card" id="race-panel">
     <div class="card-title">
@@ -970,6 +993,53 @@ async function updateWalletTruth() {
 }
 setInterval(updateWalletTruth, 60000);
 updateWalletTruth();
+
+// ── RH WALLET (on-chain ETH+WETH keyless via RH_WALLET_ADDRESS) ─────────────
+// Mirrors the SOL WALLET TRUTH card. The panel stays hidden until the lane
+// pushes a snapshot (available:false) — a clean no-op while the feature is off.
+async function updateRhWallet() {
+  const panel = document.getElementById('rh-wallet-panel');
+  try {
+    const r = await fetch('/api/rh-wallet-truth');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d || d.available === false) {
+      if (panel) panel.style.display = 'none';
+      return;
+    }
+    if (panel) panel.style.display = '';
+    const usd = document.getElementById('rhw-usd');
+    if (!usd) return;
+    usd.textContent = (typeof d.total_usd === 'number')
+      ? '$' + d.total_usd.toFixed(2) : '—';
+    const delta = document.getElementById('rhw-delta');
+    if (typeof d.delta_usd === 'number') {
+      const s = d.delta_usd;
+      delta.textContent = (s >= 0 ? '+$' : '-$') + Math.abs(s).toFixed(2) +
+        (typeof d.delta_eth === 'number'
+          ? ' (' + (d.delta_eth >= 0 ? '+' : '') + d.delta_eth.toFixed(6) + ' ETH)' : '');
+      delta.style.color = s >= 0 ? 'var(--green, #2ecc71)' : 'var(--red, #e74c3c)';
+    } else if (typeof d.delta_eth === 'number') {
+      const s = d.delta_eth;
+      delta.textContent = (s >= 0 ? '+' : '') + s.toFixed(6) + ' ETH';
+      delta.style.color = s >= 0 ? 'var(--green, #2ecc71)' : 'var(--red, #e74c3c)';
+    } else {
+      delta.textContent = '—';
+      delta.style.color = 'var(--muted)';
+    }
+    document.getElementById('rhw-eth').textContent =
+      (typeof d.eth_now === 'number') ? d.eth_now.toFixed(6) + ' ETH' : '—';
+    document.getElementById('rhw-weth').textContent =
+      (typeof d.weth_now === 'number') ? d.weth_now.toFixed(6) + ' WETH' : '—';
+    document.getElementById('rhw-total').textContent =
+      (typeof d.total_eth === 'number') ? d.total_eth.toFixed(6) + ' ETH' : '—';
+    document.getElementById('rhw-note').textContent =
+      (d.error ? 'read error: ' + String(d.error).slice(0, 60) + ' · ' : '') +
+      (d.note ? d.note + ' · ' : '') + (d.wallet || '');
+  } catch (e) {}
+}
+setInterval(updateRhWallet, 60000);
+updateRhWallet();
 
 // ── LIVE-SLOT RACE (per-bot scrubbed 7d scoreboard) ─────────────────────────
 async function updateRace() {
@@ -1856,6 +1926,25 @@ def merge_rh_paper_rows(existing: list, incoming: list,
     return merged, added
 
 
+def rh_wallet_truth_view(raw: dict) -> dict:
+    """Pure shaping for GET /api/rh-wallet-truth: takes the stored RH wallet-
+    truth snapshot (written by core.rh_live_execution.rh_wallet_truth and pushed
+    by the lane's uploader) and returns the API payload — flags available and
+    derives total_usd from the ETH price captured WITH the reading (the lane's
+    live feed price at read time, the honest number for this snapshot). Mirrors
+    /api/wallet-truth for Solana. Never raises; a malformed snapshot returns
+    available:false so the card stays a clean no-op."""
+    if not isinstance(raw, dict):
+        return {"available": False, "note": "wallet-truth malformed"}
+    out = dict(raw)
+    out["available"] = True
+    px = out.get("eth_price_usd")
+    total = out.get("total_eth")
+    if isinstance(px, (int, float)) and px > 0 and isinstance(total, (int, float)):
+        out["total_usd"] = round(total * px, 2)
+    return out
+
+
 def compute_rh_paper_summary(rows: list, last_n: int = 20,
                              today_utc: str = None) -> dict:
     """Pure aggregation for GET /api/rh-paper over the RH paper-lane ledger
@@ -2060,6 +2149,12 @@ class WebDashboard:
         # app-wide middleware, same as every write endpoint).
         self.app.router.add_get("/api/rh-paper",              self._handle_api_rh_paper)
         self.app.router.add_post("/api/rh-paper/ingest",      self._handle_api_rh_paper_ingest)
+        # 2026-07-13: RH hot-wallet on-chain truth (native ETH + WETH, delta vs
+        # baseline) — the Solana /api/wallet-truth analog for the RH chain. The
+        # paper lane reads the balance KEYLESS via RH_WALLET_ADDRESS on its
+        # status cadence and pushes the snapshot here; GET serves the last one.
+        self.app.router.add_get("/api/rh-wallet-truth",         self._handle_api_rh_wallet_truth)
+        self.app.router.add_post("/api/rh-wallet-truth/ingest", self._handle_api_rh_wallet_truth_ingest)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -5909,6 +6004,79 @@ class WebDashboard:
         return web.json_response({"ok": True, "added": added,
                                   "skipped": len(incoming) - added,
                                   "total_lines": total})
+
+    def _rh_wallet_truth_path(self) -> str:
+        """bot_state/rh_wallet_truth.json under the same data dir the RH paper
+        ledger uses (persists across dashboard redeploys like the ledger)."""
+        if self.trade_store is not None:
+            try:
+                return str(self.trade_store.data_dir / "bot_state"
+                           / "rh_wallet_truth.json")
+            except Exception:
+                pass
+        return os.path.join(os.environ.get("DATA_DIR", "/data"),
+                            "bot_state", "rh_wallet_truth.json")
+
+    async def _handle_api_rh_wallet_truth(self, request):
+        """GET /api/rh-wallet-truth — the RH hot-wallet ON-CHAIN truth (native
+        ETH + WETH now, delta vs baseline), the Solana /api/wallet-truth analog.
+
+        The RH paper lane reads the balance KEYLESS via RH_WALLET_ADDRESS (no
+        private key, read-only) on its ~5-min status cadence and pushes the
+        snapshot here via /api/rh-wallet-truth/ingest; this endpoint serves the
+        last pushed snapshot verbatim (adds available + total_usd). available:
+        false (NOT an error) when nothing has been pushed — the whole feature is
+        dormant until RH_WALLET_ADDRESS is set on the lane."""
+        path = self._rh_wallet_truth_path()
+        if not os.path.exists(path):
+            return web.json_response({
+                "available": False,
+                "note": "RH wallet-truth is pushed by the paper lane when "
+                        "RH_WALLET_ADDRESS is set; none uploaded yet",
+            })
+
+        def _read():
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+
+        try:
+            raw = await asyncio.to_thread(_read)
+        except Exception as e:
+            logger.warning("api/rh-wallet-truth failed: %s", e)
+            return web.json_response({"available": False,
+                                      "note": "wallet-truth read failed",
+                                      "error": str(e)[:200]}, status=500)
+        return web.json_response(rh_wallet_truth_view(raw))
+
+    async def _handle_api_rh_wallet_truth_ingest(self, request):
+        """POST /api/rh-wallet-truth/ingest — persist the latest RH wallet-truth
+        JSON snapshot pushed by the paper lane's uploader. Overwrites the single
+        stored snapshot (it is a point-in-time balance, not an appendable log).
+        Basic-auth protected like every write endpoint (app-wide middleware)."""
+        try:
+            wt = await request.json()
+        except Exception:
+            return web.json_response({"ok": False, "error": "invalid JSON"},
+                                     status=400)
+        if not isinstance(wt, dict):
+            return web.json_response(
+                {"ok": False, "error": "expected a JSON object"}, status=400)
+        path = self._rh_wallet_truth_path()
+
+        def _write():
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(wt, f)
+            os.replace(tmp, path)
+
+        try:
+            await asyncio.to_thread(_write)
+        except Exception as e:
+            logger.warning("api/rh-wallet-truth/ingest failed: %s", e)
+            return web.json_response({"ok": False, "error": str(e)[:200]},
+                                     status=500)
+        return web.json_response({"ok": True})
 
     async def _handle_api_gates(self, request):
         """GET /api/gates — compact status-strip payload: PAPER/LIVE mode, SOL

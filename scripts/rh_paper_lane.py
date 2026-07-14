@@ -83,6 +83,17 @@ POSTEXIT_PENDING = os.path.join(OUT_DIR, "rh_postexit_pending.jsonl")
 POSTEXIT_RESULTS = os.path.join(OUT_DIR, "rh_postexit.jsonl")
 POSTEXIT_DELAY_S = 6 * 3600.0
 POSTEXIT_SWEEP_S = 600.0
+# ── WALLET-TRUTH refresh (2026-07-13, AxiS: the RH hot wallet should ALWAYS
+# show its on-chain balance on the dashboard, exactly like the SOL wallet) ────
+# core.rh_live_execution.rh_wallet_truth() reads native ETH + WETH KEYLESS via
+# env RH_WALLET_ADDRESS (no private key) and writes rh_wallet_truth.json to the
+# rh_state_dir (= OUT_DIR by default). The lane refreshes it on the status
+# cadence REGARDLESS of paper/live mode so the balance shows NOW, pre-live; the
+# dashboard uploader (scripts/rh_paper_upload.py) ships the file to
+# /api/rh-wallet-truth/ingest. ENV-DRIVEN + FAIL-OPEN: a clean no-op when
+# RH_WALLET_ADDRESS is unset or a read errors — never blocks the hot path
+# (called off the event loop from orchestrate's maintenance cadence).
+WALLET_TRUTH_REFRESH_S = 300.0
 
 # ── lane config (mirrors the Solana young probe where meaningful) ───────────
 ENTRY_USD = 25.0            # probe sizing
@@ -2981,6 +2992,31 @@ class PaperLane:
                          f"blocks: {blocks}")
         return "\n".join(lines)
 
+    def refresh_wallet_truth(self):
+        """Keyless on-chain hot-wallet balance read on the status cadence
+        (~5 min). NO-OP unless RH_WALLET_ADDRESS is set — the whole feature is
+        env-driven and dormant until AxiS sets the address. Runs REGARDLESS of
+        paper/live mode (read-only; no private key, no signing) so the balance
+        shows in paper mode today, pre-live. rh_wallet_truth() writes
+        rh_wallet_truth.json to the rh_state_dir (= OUT_DIR by default); the
+        dashboard uploader ships it. FAIL-OPEN: any error is logged and
+        swallowed. Called OFF the event loop from orchestrate's maintenance
+        cadence, so it never contends with the strategy loop."""
+        if not os.environ.get("RH_WALLET_ADDRESS"):
+            return
+        try:
+            wt = rh_live.rh_wallet_truth(eth_price_usd=self.feed.eth_price)
+            if wt.get("ok"):
+                tot = wt.get("total_eth")
+                print(f"[rh-paper] wallet-truth {wt.get('wallet')} "
+                      f"total={tot} ETH delta={wt.get('delta_eth')}", flush=True)
+            else:
+                print(f"[rh-paper] wallet-truth read: {wt.get('error')}",
+                      flush=True)
+        except Exception as e:
+            print(f"[rh-paper] wallet-truth refresh failed: "
+                  f"{type(e).__name__}: {e}", flush=True)
+
 
 async def orchestrate(fh: Firehose, lane: PaperLane, max_minutes: float):
     t_end = time.time() + max_minutes * 60
@@ -2990,6 +3026,7 @@ async def orchestrate(fh: Firehose, lane: PaperLane, max_minutes: float):
     last_scanned = fh.feed.latest_block
     t0 = time.time()
     last_stats = t0
+    last_wt = 0.0    # wallet-truth refresh clock (fires immediately, then ~5min)
     try:
         while time.time() < t_end and not ws_task.done():
             last_scanned = await asyncio.to_thread(fh.maintenance, last_scanned)
@@ -2997,6 +3034,12 @@ async def orchestrate(fh: Firehose, lane: PaperLane, max_minutes: float):
                 print(fh.stats_line(time.time() - t0), flush=True)
                 print(lane.summary(), flush=True)
                 last_stats = time.time()
+            # keyless on-chain wallet-truth refresh (no-op unless
+            # RH_WALLET_ADDRESS is set); OFF the event loop so a slow RPC
+            # balance read never stalls firehose maintenance.
+            if time.time() - last_wt > WALLET_TRUTH_REFRESH_S:
+                last_wt = time.time()
+                await asyncio.to_thread(lane.refresh_wallet_truth)
             await asyncio.sleep(MAINT_SECS)
     finally:
         lane.stop.set()

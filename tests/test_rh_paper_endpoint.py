@@ -11,6 +11,7 @@ from dashboard.web_dashboard import (
     compute_rh_paper_summary,
     merge_rh_paper_rows,
     rh_paper_dedup_key,
+    rh_wallet_truth_view,
 )
 
 
@@ -166,3 +167,55 @@ class TestReplaceSemantics:
         # replace mode = merge from empty: correction wins
         replaced, _ = merge_rh_paper_rows([], [fixed])
         assert replaced[0]["pnl_usd"] == -0.04
+
+
+# ── rh_wallet_truth_view (GET /api/rh-wallet-truth shaping) ──────────────────
+
+class TestWalletTruthView:
+    """The RH hot-wallet on-chain truth payload — the Solana /api/wallet-truth
+    analog: flags available and derives total_usd from the ETH price captured
+    with the reading. Pure; never raises."""
+
+    def _snap(self, **kw):
+        # a realistic keyless snapshot as rh_wallet_truth() writes it
+        s = {"ok": True, "chain": "robinhood", "wallet": "0x1234…cdef",
+             "eth_now": 0.02, "weth_now": 0.005, "total_eth": 0.025,
+             "baseline_eth": 0.03, "delta_eth": -0.005,
+             "eth_price_usd": 1600.0, "delta_usd": -8.0}
+        s.update(kw)
+        return s
+
+    def test_flags_available_and_derives_total_usd(self):
+        out = rh_wallet_truth_view(self._snap())
+        assert out["available"] is True
+        assert out["total_usd"] == 40.0            # 0.025 * 1600
+        assert out["delta_usd"] == -8.0            # passed through untouched
+        assert out["eth_now"] == 0.02 and out["weth_now"] == 0.005
+
+    def test_no_price_means_no_total_usd(self):
+        out = rh_wallet_truth_view(self._snap(eth_price_usd=None, delta_usd=None))
+        assert out["available"] is True
+        assert "total_usd" not in out             # cannot fabricate a USD number
+
+    def test_zero_or_bad_price_skipped(self):
+        assert "total_usd" not in rh_wallet_truth_view(self._snap(eth_price_usd=0))
+        assert "total_usd" not in rh_wallet_truth_view(
+            self._snap(eth_price_usd="oops"))
+
+    def test_error_snapshot_still_available_no_total(self):
+        # a read error writes ok:False + error and NO balances — the card shows
+        # the error, never a stale/zero number (2026-07-10 incident class)
+        out = rh_wallet_truth_view(
+            {"ok": False, "error": "RpcError: boom", "wallet": "0x1234…cdef"})
+        assert out["available"] is True
+        assert out["error"] == "RpcError: boom"
+        assert "total_usd" not in out
+
+    def test_malformed_snapshot_unavailable(self):
+        assert rh_wallet_truth_view(None)["available"] is False
+        assert rh_wallet_truth_view("not a dict")["available"] is False
+
+    def test_does_not_mutate_input(self):
+        snap = self._snap()
+        rh_wallet_truth_view(snap)
+        assert "available" not in snap and "total_usd" not in snap

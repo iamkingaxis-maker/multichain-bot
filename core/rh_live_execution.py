@@ -564,6 +564,14 @@ def rh_wallet_truth(executor: Optional[RhExecutor] = None,
         out.update({"ok": True, "eth_now": round(eth_now, 8),
                     "weth_now": round(weth_now, 8),
                     "total_eth": round(total, 8)})
+        # Stamp the live ETH price + USD valuation whenever a price is passed,
+        # INDEPENDENT of the baseline (which only arms in live). This lets the
+        # dashboard wallet card render total USD in PAPER mode too — the whole
+        # point of the always-on balance display (2026-07-13). delta_usd below
+        # still layers on once the baseline exists.
+        if eth_price_usd and eth_price_usd > 0:
+            out["eth_price_usd"] = eth_price_usd
+            out["total_usd"] = round(total * eth_price_usd, 2)
         baseline = _read_json(baseline_path)
         if baseline is None and gate_open:
             baseline = {"total_eth": total, "eth": eth_now, "weth": weth_now,
