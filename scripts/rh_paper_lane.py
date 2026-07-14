@@ -1910,6 +1910,11 @@ class PaperLane:
         _append(LIVE_FILLS, {"leg": "buy", "ts": iso_utc(now),
                              "bot_id": bot_id, "pool": pool, "token": token,
                              "usd": size_usd, **tel})
+        print(f"[rh-live] BUY {bot_id} {token[:10]} ${size_usd:.0f} "
+              f"discovery->fill={tel.get('decision_to_landed_ms')}ms "
+              f"fill_vs_quote={tel.get('fill_vs_quote_pct')}% "
+              f"gas=${gas_usd:.3f} exec_lat={tel.get('exec_latency_ms')}ms "
+              f"tx={tel.get('tx')}", flush=True)
         return {"px": px, "qty": qty_atomic / 10 ** self._token_decimals(token),
                 "tel": tel, "gas_usd": gas_usd}
 
@@ -2815,6 +2820,12 @@ class PaperLane:
                                      "bot_id": st.bot.bot_id, "pool": pool,
                                      "token": token, "kind": decision.kind,
                                      "frac": frac, **live_tel})
+                print(f"[rh-live] SELL {st.bot.bot_id} {token[:10]} "
+                      f"frac={frac:.2f} {decision.kind} "
+                      f"discovery->fill={live_tel.get('decision_to_landed_ms')}ms "
+                      f"fill_vs_quote={live_tel.get('fill_vs_quote_pct')}% "
+                      f"gas=${live_gas_usd:.3f} tx={live_tel.get('tx')}",
+                      flush=True)
         if eth_out <= 0:  # unquotable at exit = rug/honeypot turned on: mark 0
             usd_out = 0.0
             exit_px = meta["entry_px"] * 1e-9
@@ -3068,8 +3079,14 @@ def main():
     lane = PaperLane(feed, registry=fh.registry, bots=ROSTER)
     lane.restore_state()
     fh.on_row = lane.on_row
+    _gate_open, _gate_reason = rh_live.rh_live_gate()
+    _probe_bots = os.environ.get("RH_LIVE_PROBE_BOTS", "").strip()
+    if _gate_open and _probe_bots:
+        _mode = f"LIVE PROBE [{_probe_bots}] — {_gate_reason}"
+    else:
+        _mode = f"PAPER-ONLY ({_gate_reason})"
     print(f"[rh-paper] chain {cid} eth=${feed.eth_price:,.2f} "
-          f"candidates={len(feed.cand)} PAPER-ONLY (no key, quotes only)",
+          f"candidates={len(feed.cand)} {_mode}",
           flush=True)
     asyncio.run(orchestrate(fh, lane, max_minutes))
     print(lane.summary(), flush=True)
