@@ -1909,6 +1909,20 @@ class PaperLane:
             return (True, hc, f"holders={hc}<{RH_MIN_HOLDERS}")
         return (False, hc, f"holders={hc}")
 
+    def _token_gone(self, token) -> bool:
+        """True iff the wallet now holds ~0 of `token` — the position was
+        SIPHONED away (a honeypot backdoor drained it right after the buy, the
+        CCPEPE class). Keyless on-chain read via the shared quote executor.
+        FAIL to FALSE: an unverifiable balance keeps the normal retry behaviour
+        (never force a false total-loss booking on a read we couldn't make)."""
+        try:
+            w = os.environ.get("RH_WALLET_ADDRESS")
+            if not w:
+                return False
+            return float(self._executor().token_balance(token, w)) <= 0
+        except Exception:
+            return False
+
     def _live_buy_leg(self, bot_id, pool, token, size_usd, t_decide, t_quote,
                       now):
         """Execute ONE live buy through RhLiveExecutor (routing glue). The
@@ -2848,9 +2862,24 @@ class PaperLane:
                 self._log_live_error("sell", st.bot.bot_id, pool, token, e,
                                      cls, now)
                 if cls != "unknown_spend":
-                    meta["live_sell_fail_ts"] = now
-                    return
-                live_unconfirmed = True   # book on the quote estimate below
+                    # A pre_send revert normally means "nothing changed on-chain,
+                    # retry on a later ladder tick". BUT if the wallet now holds
+                    # ~0 of the token, the position was SIPHONED away (honeypot
+                    # backdoor — the CCPEPE class) and will NEVER be sellable.
+                    # Book it as a TOTAL LOSS now (eth_out=0 -> the eth_out<=0
+                    # branch below) instead of leaving a phantom open position
+                    # that silently under-counts realized P&L until a state-wipe
+                    # erases it (the -$4.83-reported-vs--$27-real bug).
+                    if self._token_gone(token):
+                        print(f"[rh-live] SIPHONED {st.bot.bot_id} "
+                              f"{token[:10]}: balance=0 after sell revert — "
+                              f"booking TOTAL LOSS", flush=True)
+                        eth_out = 0.0
+                    else:
+                        meta["live_sell_fail_ts"] = now
+                        return
+                else:
+                    live_unconfirmed = True   # book on the quote estimate below
             else:
                 t_landed = time.time()
                 live_tel = fill_telemetry(
