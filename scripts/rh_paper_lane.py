@@ -494,7 +494,7 @@ ROSTER = (
             tp2_pct=AGED_TP2_PCT, tp2_sell_fraction=0.15,
             trail_pp=AGED_TRAIL_PP,
             derisk_after_s=DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
-            exclusion_group="aged", regime_hours=True),
+            exclusion_group="aged", regime_hours=True, max_concurrent=1),
     LaneBot(bot_id="rh_aged_deep",
             min_pool_age_h=AGED_MIN_POOL_AGE_H,
             tp1_pct=AGED_TP1_PCT, tp1_sell_fraction=0.50,
@@ -647,7 +647,7 @@ ROSTER = (
             tp2_pct=12.0, tp2_sell_fraction=0.10,
             moonbag_fraction=0.30, moonbag_floor_pct=0.0, moonbag_trail_pp=12.0,
             hard_stop_pct=-15.0,
-            exclusion_group="deepexit"),
+            exclusion_group="deepexit", max_concurrent=1),
     # rh_deep_barbell_capped (2026-07-12) — the FULL synthesis: the barbell
     # bled live (NOXA -20.1% gap-through-stop, n=9) because it took deep flushes
     # on THIN pools ($5k) with only a price stop. This merges all three fleet
