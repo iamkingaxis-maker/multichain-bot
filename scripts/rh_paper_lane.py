@@ -183,6 +183,15 @@ RUG_PREWARM_FAIL_TTL_S = 45.0    # an empty/failed fetch re-arms sooner so a
                                  # pool for the full 10 min
 MAX_BS_PREWARM_INFLIGHT = 4      # bound concurrent Blockscout prewarm threads
                                  # (candidate set is small; this caps a burst)
+# ── ANTI-RUG holder-base floor (2026-07-14) ──────────────────────────────────
+# Tokens with fewer than this many on-chain holders are rug-prone tiny bases.
+# Validated on barbell's full history: blocks 4/6 rugs at only 6/44 winner cost
+# (+$30 -> +$65 net). The other 2 rugs are LP-pulls that look like winners on
+# holders (best handled by an exit-side LP-drain bail, not a pre-buy gate).
+# Enforced FAIL-CLOSED on the LIVE buy path ONLY: a live buy that cannot verify
+# holders >= floor is REFUSED (this is the GOATAI hole — fail-open on a fresh
+# unprewarmed token let a 25-holder / 58%-top1 rug through). Paper is untouched.
+RH_MIN_HOLDERS = int(os.environ.get("RH_MIN_HOLDERS", "50"))
 
 # ── AGED-POOL cohort thresholds (2026-07-11) — every number set FROM DATA ────
 # Sources: scratchpad/_rh_history_decode.md + scratchpad/rh_history/
@@ -1876,6 +1885,30 @@ class PaperLane:
             print(f"[rh-paper] LIVE {leg.upper()} FAILED ({cls}) "
                   f"bot={bot_id} {str(err)[:120]}", flush=True)
 
+    def _holder_floor_verdict(self, token, pool):
+        """(blocked, holders, reason) — the anti-rug holder-base floor for LIVE
+        buys. Prefers the arm-time prewarm stamp; on a MISS (fresh token) does a
+        SYNCHRONOUS Blockscout fetch (~1s, affordable for a live buy — this is
+        the fix for the GOATAI fail-open hole). FAIL-CLOSED: an unverifiable
+        holder count REFUSES the buy. RH_MIN_HOLDERS<=0 disables it."""
+        if RH_MIN_HOLDERS <= 0:
+            return (False, None, "disabled")
+        def _hc(s):
+            hc = (s or {}).get("bs_holders_count")
+            return hc if hc is not None else (s or {}).get("bs_n_holders_ranked")
+        hc = _hc(self._bs_prewarm_read(token))
+        if hc is None:                       # prewarm miss -> synchronous verify
+            try:
+                from core.rh_blockscout import blockscout_stamp
+                hc = _hc(blockscout_stamp(token, pool_addr=pool) or {})
+            except Exception as e:
+                return (True, None, f"verify-failed:{type(e).__name__}")
+        if hc is None:
+            return (True, None, "unverifiable(fail-closed)")
+        if hc < RH_MIN_HOLDERS:
+            return (True, hc, f"holders={hc}<{RH_MIN_HOLDERS}")
+        return (False, hc, f"holders={hc}")
+
     def _live_buy_leg(self, bot_id, pool, token, size_usd, t_decide, t_quote,
                       now):
         """Execute ONE live buy through RhLiveExecutor (routing glue). The
@@ -1883,6 +1916,17 @@ class PaperLane:
         the FILL. Returns {px, qty, tel, gas_usd} on a decoded landed fill,
         else None (the error is already ledgered via _log_live_error and the
         caller books NOTHING for this racer)."""
+        # ── ANTI-RUG holder-base floor: REFUSE tiny-holder-base rugs (fail-
+        # closed). The single highest-value pre-buy rug filter (see RH_MIN_
+        # HOLDERS). Runs before any money moves.
+        h_block, h_n, h_reason = self._holder_floor_verdict(token, pool)
+        if h_block:
+            self._log_live_error("buy", bot_id, pool, token,
+                                 RuntimeError(f"holder-floor {h_reason}"),
+                                 "holder_floor_block", now)
+            print(f"[rh-live] BUY BLOCKED {bot_id} {token[:10]} "
+                  f"rug-gate holder-floor ({h_reason})", flush=True)
+            return None
         t_sent = time.time()
         try:
             rec = self._live_executor().live_buy(token, size_usd,
