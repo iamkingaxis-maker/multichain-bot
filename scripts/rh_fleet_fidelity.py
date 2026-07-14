@@ -120,18 +120,21 @@ def main():
 
     # push the fidelity-corrected per-bot P&L to the dashboard so its DISPLAYED
     # numbers are honest, not the quote-illusion paper P&L.
-    if USER and PW:
-        payload = {b: round(fid, 2) for b, raw, fid, gap, flip in results}
-        payload["_ts"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        payload["_dead_rate"] = round(len(dead_tokens) / max(1, len(tokens)), 3)
-        try:
-            r = subprocess.run(["curl", "-s", "--max-time", "20", "-u",
-                f"{USER}:{PW}", "-X", "POST", "-H",
-                "Content-Type: application/json", "-d", json.dumps(payload),
-                f"{BASE}/api/rh-fidelity/ingest"], capture_output=True, text=True)
-            print(f"pushed fidelity to dashboard: {r.stdout[:140]}")
-        except Exception as e:
-            print(f"dashboard push failed: {e}")
+    # dashboard READS are public but WRITES need the DASH_AUTH cred (not the
+    # read user/pass) — that's why an earlier push got 'Invalid credentials'.
+    dash_auth = os.environ.get(
+        "DASH_AUTH", "jcole:pMIwPSmRmoPfteWViuGgjaTdnx5JfO-g-e6-_zjdlmo")
+    payload = {b: round(fid, 2) for b, raw, fid, gap, flip in results}
+    payload["_ts"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    payload["_dead_rate"] = round(len(dead_tokens) / max(1, len(tokens)), 3)
+    try:
+        r = subprocess.run(["curl", "-s", "--max-time", "20", "-u", dash_auth,
+            "-X", "POST", "-H", "Content-Type: application/json",
+            "-d", json.dumps(payload),
+            f"{BASE}/api/rh-fidelity/ingest"], capture_output=True, text=True)
+        print(f"pushed fidelity to dashboard: {r.stdout[:140]}")
+    except Exception as e:
+        print(f"dashboard push failed: {e}")
 
 
 if __name__ == "__main__":

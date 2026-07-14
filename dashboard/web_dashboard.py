@@ -680,7 +680,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     <div class="tbl-wrap">
       <table class="num-table" id="rh-fleet-table">
         <thead><tr>
-          <th>racer</th><th>in/out</th><th>WR</th><th>day P&amp;L</th><th>total P&amp;L</th>
+          <th>racer</th><th>in/out</th><th>WR</th><th>day P&amp;L</th><th title="fidelity-corrected: dead/unsellable-token sells re-booked as losses. * = fidelity not run yet (raw paper)">real P&amp;L</th>
         </tr></thead>
         <tbody><tr><td colspan="5" class="empty">Loading fleet&hellip;</td></tr></tbody>
       </table>
@@ -1567,7 +1567,7 @@ async function updateRhPaper() {
           <td class="muted">${b.entries}/${b.exits}</td>
           <td class="${wr === null ? 'muted' : (wr >= 50 ? 'green' : 'red')}">${wr === null ? '—' : wr + '%'}</td>
           <td class="${pnlClass(b.day_pnl_usd)}">${fmtUsd(b.day_pnl_usd)}</td>
-          <td class="${pnlClass(b.total_pnl_usd)}">${fmtUsd(b.total_pnl_usd)}</td>
+          <td class="${pnlClass(b.fidelity_pnl_usd != null ? b.fidelity_pnl_usd : b.total_pnl_usd)}" title="paper-booked ${fmtUsd(b.total_pnl_usd)}${b.fidelity_pnl_usd != null ? ' → fidelity-corrected ' + fmtUsd(b.fidelity_pnl_usd) + ' (dead-token sells re-booked as losses)' : ' — fidelity not run yet'}">${b.fidelity_pnl_usd != null ? fmtUsd(b.fidelity_pnl_usd) : fmtUsd(b.total_pnl_usd) + '*'}</td>
         </tr>`;
       }).join('') : '<tr><td colspan="5" class="empty">No racer data yet</td></tr>';
     }
@@ -2018,7 +2018,10 @@ def compute_rh_paper_summary(rows: list, last_n: int = 20,
         "fidelity_ts": (fidelity or {}).get("_ts"),
         "trades": clean[-last_n:],
         "bots": dict(sorted(bots.items(),
-                            key=lambda kv: -kv[1]["day_pnl_usd"])),
+                            key=lambda kv: -(kv[1].get("fidelity_pnl_usd")
+                                             if kv[1].get("fidelity_pnl_usd")
+                                             is not None
+                                             else kv[1]["total_pnl_usd"]))),
         "lag": {"median_lat_total_s":
                 round(_st.median(lats), 2) if lats else None,
                 "n": len(lats)},
