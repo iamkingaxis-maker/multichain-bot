@@ -84,3 +84,21 @@ _*.json.gz
 scratch_*.py
 scratch_*.txt
 out.txt
+
+# 2026-07-13: today's analysis dumps (sync cache + agent fan-out) bloated the
+# working tree to 12G — railway up would 413. All local analysis scratch, never
+# read by the deployed service. Root-anchored so package files are unaffected.
+/analysis/
+/_trades_cache.json
+/_*.json
+/_*.json.gz
+/_*.txt
+/out.txt
+/scratch_*.txt
+/scratch_*.py
+/*_full.txt
+/*_out.txt
+/*_err.txt
+# Hidden root-level data dumps (.hist_trades, .tmp_*, .uni_*, .now.json, etc.)
+/.*.json
+/.*.txt
