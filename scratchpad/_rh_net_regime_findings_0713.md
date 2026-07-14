@@ -35,6 +35,22 @@ Fleet-wide per regime-day:
 - `flow_confirm`: known single-token leak.
 - Finer selection keeps overfitting. Only demand_heavy + deep_only survive per-token OOS, but regime-fragile in $.
 
+## ⭐ HEADLINE LEAD: adaptive "is-today-working?" regime gate (3/3 on the tape)
+Sample-then-commit: trade a small probe batch each day; if the first-10 positions' WR < 60%, SIT OUT the rest of the day.
+| day | first-10 WR | gate | full-day net | result |
+|---|---|---|---|---|
+| 07-10 | 30% | SIT OUT | −$50 | ✓ avoided |
+| 07-11 | 50% | SIT OUT | −$212 | ✓ avoided the big loss |
+| 07-12 | 100% | TRADE | +$253 | ✓ caught winner |
+Would turn fleet −$9 (all-in) → ~+$216. Real-time computable, mechanistically sound (sample the regime before committing capital). CAVEAT: n=3 days (3/3 could be luck), 60% threshold fit to 3 days, probe trades still lose a bit on bad days. NEEDS forward validation — building as a SHADOW gate (regime-signal agent). This is the strongest lever found for "sustainable across regimes + worth the risk."
+
+## whats-missing workflow (11 agents, adversarial) — cross-confirms + adds
+- **4 of 5 "what are we missing" angles FAILED adversarial verification.** The apparent "money printing" is largely unrealizable MFE (peak) + paper-wick illusions, not realized $.
+- **The ONE survivor: RH `demand_heavy` entry composition** (+5.37 ex2 vs −4.3 pooled; buy demand-heavy FLOW not dips). But n=12-13, OOS-fragile (H1 −2.3 / H2 +7.6), green concentrated in ONE token family (CASHCAT). GO/NO-GO gate: grade to n≥30 distinct tokens, four-half OOS, cat≤1/20, AND survive dropping the top token family. This is the first real edge the program has produced — fragile, needs the gate.
+- **RH net is REAL (not wick-inflated):** RH ledger has only 5 legit >+30% sells; unlike SOL's fabricated $7,884 SPCX (43s +3913% paper-wick glitch). Fleet net −$9 over 3 days, carried by a few tail wins. SOL paper P&L IS inflated by wick fills → SOL needs a wick-fill sanity guard (realized%>>TP or hold<120s+extreme → flag). RH is clean.
+- **RH MOMENTUM IS UNTESTED (real gap):** 100% of RH entries are dip-buys, into a tape that is 76-90% BUY-dominated with 47-55% of volume in the first pool-hour. The one strength racer (rh_launch_scalp) is mis-windowed (0.5-20min slot) and has fired 0 times. We insist on buying WEAKNESS in a market structurally BUYING. The specific momentum prescription failed verification, but the DIAGNOSIS is bulletproof — fix launch_scalp's window to actually fire + shadow-test buying RH strength.
+- **Refuted (don't chase):** SOL freshness/<2h pond (survivorship — fresh pond also dies more), SOL mcap pond (OOS-fails, realized cap ~0), RH moonbag-holding (un-catchable; holding for tail = −38% ex2), SOL momentum (strictly worse), SOL entry selection (no signature, 3 ways).
+
 ## Conclusion / levers toward the goal
 The honest answer: RH net is **regime-beta** — worth-the-risk requires trading ONLY the paying windows, not always-on. Levers, in order:
 1. **Tail-cap** (mechanical net lift; deployed in rh_stable_*).
