@@ -555,8 +555,11 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         <div id="rhw-weth" style="font-size:16px;">&mdash;</div></div>
       <div><div style="color:var(--muted);font-size:11px;">total (ETH)</div>
         <div id="rhw-total" style="font-size:16px;">&mdash;</div></div>
+      <div><div style="color:var(--muted);font-size:11px;">open positions (real $)</div>
+        <div id="rhw-pos-usd" style="font-size:16px;">&mdash;</div></div>
       <div id="rhw-note" style="color:var(--muted);font-size:12px;align-self:center;"></div>
     </div>
+    <div id="rhw-positions" style="padding:0 2px 8px;font-size:12px;color:var(--muted);">&mdash; the bot's held tokens (MetaMask can't show these on a custom chain)</div>
   </div>
 
   <!-- ── LIVE-SLOT RACE (per-bot — who earns the live slot) ── -->
@@ -1033,6 +1036,25 @@ async function updateRhWallet() {
       (typeof d.weth_now === 'number') ? d.weth_now.toFixed(6) + ' WETH' : '—';
     document.getElementById('rhw-total').textContent =
       (typeof d.total_eth === 'number') ? d.total_eth.toFixed(6) + ' ETH' : '—';
+    // OPEN POSITIONS — held meme tokens marked to real sell value (the view
+    // MetaMask can't render on a custom-added chain).
+    const posUsd = document.getElementById('rhw-pos-usd');
+    if (posUsd) posUsd.textContent = (typeof d.positions_usd === 'number')
+      ? '$' + d.positions_usd.toFixed(2) : '—';
+    const posDiv = document.getElementById('rhw-positions');
+    if (posDiv) {
+      const ps = d.positions || [];
+      posDiv.innerHTML = !ps.length
+        ? '<span style="color:var(--muted)">no open positions — flat</span>'
+        : ps.map(p => {
+            const v = (typeof p.value_usd === 'number') ? '$' + p.value_usd.toFixed(2) : '?';
+            const dead = !p.sellable;
+            return '<span style="display:inline-block;margin:2px 12px 2px 0;padding:2px 7px;'
+              + 'border-radius:4px;background:rgba(255,255,255,0.05);'
+              + (dead ? 'color:var(--red,#e74c3c)' : 'color:var(--green,#2ecc71)') + '">'
+              + escHtml(p.sym) + ' &middot; ' + v + (dead ? ' (dead)' : '') + '</span>';
+          }).join('');
+    }
     document.getElementById('rhw-note').textContent =
       (d.error ? 'read error: ' + String(d.error).slice(0, 60) + ' · ' : '') +
       (d.note ? d.note + ' · ' : '') + (d.wallet || '');

@@ -530,6 +530,49 @@ def _mask(addr: Optional[str]) -> Optional[str]:
     return addr[:6] + "…" + addr[-4:]
 
 
+# Off-limits PERSONAL holdings — never shown/counted as bot positions (AxiS rule).
+_OFF_LIMITS_SYMS = {"GFOF"}
+_OFF_LIMITS_SUBSTR = ("cmoon",)
+
+
+def _held_meme_positions(wallet: str, ex, eth_price_usd) -> list:
+    """Enumerate the wallet's held meme tokens (open positions) marked to their
+    REAL sell quote — the visibility MetaMask can't give on a custom-added chain.
+    Personal holdings (GFOF/Cmoon) excluded; unsellable (honeypot/rug) -> $0 (no
+    quote-price illusion). FAIL to [] — never blocks wallet-truth."""
+    try:
+        from core.rh_blockscout import _get_json
+        data = _get_json(f"/api/v2/addresses/{wallet.lower()}/tokens?type=ERC-20")
+    except Exception:
+        return []
+    positions = []
+    for t in ((data.get("items") if isinstance(data, dict) else []) or []):
+        tok = t.get("token", {}) or {}
+        sym = tok.get("symbol") or "?"
+        addr = tok.get("address_hash") or tok.get("address")
+        dec = int(tok.get("decimals") or 18)
+        raw = int(t.get("value") or 0)
+        if raw <= 0 or not addr:
+            continue
+        if sym in _OFF_LIMITS_SYMS or any(s in sym.lower()
+                                          for s in _OFF_LIMITS_SUBSTR):
+            continue
+        val_usd = 0.0
+        try:
+            q = ex.quote_sell(addr, raw)
+            eth_out = (q.amount_out / 1e18) if (q and getattr(
+                q, "amount_out", None)) else 0.0
+            if eth_price_usd and eth_price_usd > 0:
+                val_usd = round(eth_out * eth_price_usd, 2)
+        except Exception:
+            val_usd = 0.0   # unsellable -> $0 (honeypot/rug), honest not illusion
+        positions.append({"sym": sym, "token": addr,
+                          "qty": round(raw / 10 ** dec, 4),
+                          "value_usd": val_usd,
+                          "sellable": bool(val_usd and val_usd > 0.5)})
+    return positions
+
+
 def rh_wallet_truth(executor: Optional[RhExecutor] = None,
                     eth_price_usd: Optional[float] = None,
                     baseline_path: Optional[str] = None,
@@ -572,6 +615,12 @@ def rh_wallet_truth(executor: Optional[RhExecutor] = None,
         if eth_price_usd and eth_price_usd > 0:
             out["eth_price_usd"] = eth_price_usd
             out["total_usd"] = round(total * eth_price_usd, 2)
+        # OPEN POSITIONS (2026-07-14): held meme tokens marked to their REAL sell
+        # quote — the view MetaMask can't render on a custom-added chain. Personal
+        # holdings (GFOF/Cmoon) excluded; unsellable (honeypot/rug) -> $0.
+        out["positions"] = _held_meme_positions(wallet, ex, eth_price_usd)
+        out["positions_usd"] = round(
+            sum((p.get("value_usd") or 0) for p in out["positions"]), 2)
         baseline = _read_json(baseline_path)
         if baseline is None and gate_open:
             baseline = {"total_eth": total, "eth": eth_now, "weth": weth_now,
