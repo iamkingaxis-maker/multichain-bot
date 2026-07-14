@@ -2369,8 +2369,22 @@ class PaperLane:
                    "dip_pct": (round(dip, 2) if dip is not None else None),
                    "age_h": (round(age_h, 2) if age_h is not None else None),
                    "entry_mode": st.bot.entry_mode, "liq": w.get("liq"),
-                   "micro": {k: micro.get(k)
-                             for k in ("avoid_block", "flow_confirm")},
+                   # Stamp the RAW demand-trajectory, not just the binary flags
+                   # (2026-07-13, AxiS "you can always tell them apart"): the
+                   # HOODBIRD-dies vs PONS-runs tell is the trade-flow SHAPE at
+                   # entry (sell acceleration + net-flow persistence). We compute
+                   # it and were discarding the gradient — keeping only the leaky
+                   # binaries. Stamp the raw values so the runner/topper separator
+                   # can be built and OOS-graded forward.
+                   "micro": {
+                       "avoid_block": micro.get("avoid_block"),
+                       "flow_confirm": micro.get("flow_confirm"),
+                       "sell_rate_60": (micro.get("sell") or {}).get("sell_rate_60"),
+                       "sell_traj": (micro.get("sell") or {}).get("sell_traj"),
+                       "n_trades_60": (micro.get("sell") or {}).get("n_trades_60"),
+                       "cum_nf_60": (micro.get("flow") or {}).get("cum_nf_60"),
+                       "pos_subwins": (micro.get("flow") or {}).get("pos_subwins"),
+                   },
                    "lat_trigger_lag_s": trigger_lag,
                    "lat_quote_s": lat_quote,
                    "lat_quote_buy_s": lat_quote_buy,
