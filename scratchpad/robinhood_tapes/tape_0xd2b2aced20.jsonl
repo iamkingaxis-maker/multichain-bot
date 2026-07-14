@@ -1,0 +1,8 @@
+{"kind":"buy","volume_usd":89.59,"ts":"2026-07-10T20:29:20+00:00","maker":"0x2682b78210c5e19fbb473f799f5e7ca8d8f86c2b","pair":"0xd2b2aced205e408e998ef3ca215e7e85000442ac","sym":"SWOOD","lag_secs":1.07,"pre_conf":true}
+{"kind":"buy","volume_usd":200.01,"ts":"2026-07-10T20:29:29+00:00","maker":"0xecfd5d707231275745337e261297777bed2d1546","pair":"0xd2b2aced205e408e998ef3ca215e7e85000442ac","sym":"SWOOD","lag_secs":0.71,"pre_conf":true}
+{"kind":"buy","volume_usd":143.34,"ts":"2026-07-10T20:30:07+00:00","maker":"0x2682b78210c5e19fbb473f799f5e7ca8d8f86c2b","pair":"0xd2b2aced205e408e998ef3ca215e7e85000442ac","sym":"SWOOD","lag_secs":-0.08,"pre_conf":true}
+{"kind":"buy","volume_usd":134.38,"ts":"2026-07-10T20:30:18+00:00","maker":"0x2682b78210c5e19fbb473f799f5e7ca8d8f86c2b","pair":"0xd2b2aced205e408e998ef3ca215e7e85000442ac","sym":"SWOOD","lag_secs":-0.02,"pre_conf":true}
+{"kind":"buy","volume_usd":15.95,"ts":"2026-07-10T20:30:42+00:00","maker":"0x1ee49a166907d4f19890d8b7783005229cf77a0a","pair":"0xd2b2aced205e408e998ef3ca215e7e85000442ac","sym":"SWOOD","lag_secs":0.95,"pre_conf":true}
+{"kind":"buy","volume_usd":5.37,"ts":"2026-07-10T20:37:13+00:00","maker":"0x25858419bd3e19ca0503de50a997884bdf64a8fd","pair":"0xd2b2aced205e408e998ef3ca215e7e85000442ac","sym":"SWOOD","lag_secs":1.07,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-10T20:41:21+00:00","maker":"0xbeaf18d6993c402b71e06d87fb9820dd675dff38","pair":"0xd2b2aced205e408e998ef3ca215e7e85000442ac","sym":"SWOOD","lag_secs":0.66,"pre_conf":true}
+{"kind":"sell","volume_usd":0.73,"ts":"2026-07-10T22:25:15+00:00","maker":"0xbeaf18d6993c402b71e06d87fb9820dd675dff38","pair":"0xd2b2aced205e408e998ef3ca215e7e85000442ac","sym":"SWOOD","lag_secs":1.12,"pre_conf":true,"vol_est":true}

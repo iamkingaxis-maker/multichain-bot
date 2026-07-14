@@ -1,0 +1,4 @@
+{"kind":"buy","volume_usd":17.93,"ts":"2026-07-10T22:25:08+00:00","maker":"0x6b66e10080b3fa2abd08ec31a0d0a2879dd84e8d","pair":"0x42c620d1eb676c8020c6da8996e245ea3c31059d","sym":"ROBERTO","lag_secs":0.99,"pre_conf":true}
+{"kind":"buy","volume_usd":24.11,"ts":"2026-07-10T22:25:25+00:00","maker":"0x6b66e10080b3fa2abd08ec31a0d0a2879dd84e8d","pair":"0x42c620d1eb676c8020c6da8996e245ea3c31059d","sym":"ROBERTO","lag_secs":0.76,"pre_conf":true}
+{"kind":"buy","volume_usd":26.0,"ts":"2026-07-10T22:25:35+00:00","maker":"0x6b66e10080b3fa2abd08ec31a0d0a2879dd84e8d","pair":"0x42c620d1eb676c8020c6da8996e245ea3c31059d","sym":"ROBERTO","lag_secs":0.93,"pre_conf":true}
+{"kind":"sell","volume_usd":6.38,"ts":"2026-07-10T22:25:58+00:00","maker":"0xfc78968f91200892f42125bf71da6c97fd0ae4a3","pair":"0x42c620d1eb676c8020c6da8996e245ea3c31059d","sym":"ROBERTO","lag_secs":0.58,"pre_conf":true,"vol_est":true}

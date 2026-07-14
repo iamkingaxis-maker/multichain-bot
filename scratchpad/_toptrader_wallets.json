@@ -1,0 +1,893 @@
+[
+ {
+  "address": "2fg5QD1eD7rzNNCsvnhmXFm5hqNgwTTG8p7kQ6f3rx6f",
+  "src": "pnl7d",
+  "tags": [
+   "gmgn",
+   "wash_trader",
+   "kol",
+   "top_followed",
+   "top_renamed",
+   "axiom"
+  ],
+  "realized_profit_7d": 729383.0934779935,
+  "winrate_7d": 0.5170532060027285,
+  "txs_7d": 5489,
+  "avg_cost_7d": 76.06737362062994,
+  "avg_holding_period_7d": 37282.12389380531
+ },
+ {
+  "address": "5t9xBNuDdGTGpjaPTx6hKd7sdRJbvtKS8Mhq6qVbo8Qz",
+  "src": "pnl7d",
+  "tags": [
+   "trojan",
+   "kol",
+   "app_smart_money",
+   "axiom",
+   "photon",
+   "top_followed",
+   "top_renamed",
+   "padre"
+  ],
+  "realized_profit_7d": 293934.6812747351,
+  "winrate_7d": 0.3684210526315789,
+  "txs_7d": 316,
+  "avg_cost_7d": 649.0841844879147,
+  "avg_holding_period_7d": 59563.19801980198
+ },
+ {
+  "address": "CyaE1VxvBrahnPWkqm5VsdCvyS2QmNht2UFrKJHga54o",
+  "src": "pnl7d",
+  "tags": [
+   "photon",
+   "kol",
+   "wash_trader",
+   "padre",
+   "top_followed",
+   "top_renamed",
+   "axiom"
+  ],
+  "realized_profit_7d": 237264.89135178342,
+  "winrate_7d": 0.6574585635359116,
+  "txs_7d": 6789,
+  "avg_cost_7d": 123.04943520272218,
+  "avg_holding_period_7d": 105596.65329052969
+ },
+ {
+  "address": "Bi4rd5FH5bYEN8scZ7wevxNZyNmKHdaBcvewdPFxYdLt",
+  "src": "pnl7d",
+  "tags": [
+   "photon",
+   "kol",
+   "padre",
+   "axiom",
+   "top_followed",
+   "top_renamed",
+   "gmgn"
+  ],
+  "realized_profit_7d": 53636.75396793037,
+  "winrate_7d": 0.6006787330316742,
+  "txs_7d": 5309,
+  "avg_cost_7d": 82.23117629853682,
+  "avg_holding_period_7d": 22225.290288153683
+ },
+ {
+  "address": "GvmgmxkE7ed9b74YigRuNeAS6rSnpCAUbjtK4Wc8ed4S",
+  "src": "pnl7d",
+  "tags": [
+   "photon",
+   "gmgn",
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 48909.21880796803,
+  "winrate_7d": 0.4199134199134199,
+  "txs_7d": 2221,
+  "avg_cost_7d": 377.95269637996216,
+  "avg_holding_period_7d": 32580.987234042554
+ },
+ {
+  "address": "4vw54BmAogeRV3vPKWyFet5yf8DTLcREzdSzx4rw9Ud9",
+  "src": "pnl7d",
+  "tags": [
+   "photon",
+   "kol",
+   "padre",
+   "top_followed",
+   "top_renamed",
+   "axiom"
+  ],
+  "realized_profit_7d": 48183.120354544575,
+  "winrate_7d": 0.6143790849673203,
+  "txs_7d": 3745,
+  "avg_cost_7d": 75.84606324037568,
+  "avg_holding_period_7d": 30220.76577669903
+ },
+ {
+  "address": "B9kJYdzb4gB9AC3aFChReDhJ2D5YDCaR4UrEoen2NcyC",
+  "src": "pnl7d",
+  "tags": [
+   "gmgn",
+   "padre",
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 45161.21259870298,
+  "winrate_7d": 0.5923566878980892,
+  "txs_7d": 1600,
+  "avg_cost_7d": 346.337192566711,
+  "avg_holding_period_7d": 6039.371951219512
+ },
+ {
+  "address": "2p2mgFLmzN82sShZeAaBGmj9zFpam4xu8g4g3wqx2ks6",
+  "src": "pnl7d",
+  "tags": [
+   "smart_degen",
+   "axiom"
+  ],
+  "realized_profit_7d": 40488.07667013778,
+  "winrate_7d": 0.47802197802197804,
+  "txs_7d": 868,
+  "avg_cost_7d": 278.43385036888304,
+  "avg_holding_period_7d": 138543.28723404257
+ },
+ {
+  "address": "9iaawVBEsFG35PSwd4PahwT8fYNQe9XYuRdWm872dUqY",
+  "src": "pnl7d",
+  "tags": [
+   "kol",
+   "padre",
+   "top_followed",
+   "top_renamed",
+   "axiom"
+  ],
+  "realized_profit_7d": 38487.40765685584,
+  "winrate_7d": 0.4057971014492754,
+  "txs_7d": 271,
+  "avg_cost_7d": 161.30754992441973,
+  "avg_holding_period_7d": 62239.73563218391
+ },
+ {
+  "address": "AoZ74CzdUHekKGsmLkaLnJjjkjgZsS57HXXyvUT8rMrE",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 37894.95374938852,
+  "winrate_7d": 0.5306122448979592,
+  "txs_7d": 1259,
+  "avg_cost_7d": 130.76581835196632,
+  "avg_holding_period_7d": 47870.92452830189
+ },
+ {
+  "address": "As7HjL7dzzvbRbaD3WCun47robib2kmAKRXMvjHkSMB5",
+  "src": "pnl7d",
+  "tags": [
+   "bullx",
+   "kol",
+   "app_smart_money",
+   "axiom",
+   "gmgn",
+   "top_followed",
+   "top_renamed",
+   "padre"
+  ],
+  "realized_profit_7d": 30649.80669772772,
+  "winrate_7d": 0.2926829268292683,
+  "txs_7d": 1499,
+  "avg_cost_7d": 235.07066128519915,
+  "avg_holding_period_7d": 6883697.56
+ },
+ {
+  "address": "J23qr98GjGJJqKq9CBEnyRhHbmkaVxtTJNNxKu597wsA",
+  "src": "pnl7d",
+  "tags": [
+   "padre",
+   "kol",
+   "app_smart_money",
+   "top_followed",
+   "top_renamed",
+   "axiom"
+  ],
+  "realized_profit_7d": 27762.864212164626,
+  "winrate_7d": 0.6046511627906976,
+  "txs_7d": 106,
+  "avg_cost_7d": 381.6702790210634,
+  "avg_holding_period_7d": 198224.90625
+ },
+ {
+  "address": "HmBmSYwYEgEZuBUYuDs9xofyqBAkw4ywugB1d7R7sTGh",
+  "src": "pnl7d",
+  "tags": [
+   "kol",
+   "wash_trader",
+   "photon",
+   "top_followed",
+   "top_renamed",
+   "axiom"
+  ],
+  "realized_profit_7d": 26058.024842584342,
+  "winrate_7d": 0.463768115942029,
+  "txs_7d": 634,
+  "avg_cost_7d": 80.55938596244127,
+  "avg_holding_period_7d": 104428.56842105264
+ },
+ {
+  "address": "ardinRsN1mNYVeoJWTBsWeYeXvuR9UUDGMsCDKpb6AT",
+  "src": "pnl7d",
+  "tags": [
+   "kol",
+   "wash_trader",
+   "top_followed",
+   "launchpad_smart",
+   "axiom"
+  ],
+  "realized_profit_7d": 24939.00509108237,
+  "winrate_7d": 0.5899280575539568,
+  "txs_7d": 2097,
+  "avg_cost_7d": 77.57429477943016,
+  "avg_holding_period_7d": 107583.85025817556
+ },
+ {
+  "address": "6S8GezkxYUfZy9JPtYnanbcZTMB87Wjt1qx3c6ELajKC",
+  "src": "pnl7d",
+  "tags": [
+   "photon",
+   "kol",
+   "axiom",
+   "top_followed",
+   "top_renamed",
+   "padre"
+  ],
+  "realized_profit_7d": 23505.391447911446,
+  "winrate_7d": 0.6105769230769231,
+  "txs_7d": 1386,
+  "avg_cost_7d": 235.35071681078705,
+  "avg_holding_period_7d": 50040.2379032258
+ },
+ {
+  "address": "89HbgWduLwoxcofWpmn1EiF9wEdpgkNDEyPjzZ72mkDi",
+  "src": "pnl7d",
+  "tags": [
+   "kol",
+   "gmgn",
+   "axiom",
+   "top_followed",
+   "top_renamed",
+   "padre"
+  ],
+  "realized_profit_7d": 19261.723452798542,
+  "winrate_7d": 0.4817813765182186,
+  "txs_7d": 980,
+  "avg_cost_7d": 141.93024796261537,
+  "avg_holding_period_7d": 108952.72826086957
+ },
+ {
+  "address": "F72vY99ihQsYwqEDCfz7igKXA5me6vN2zqVsVUTpw6qL",
+  "src": "pnl7d",
+  "tags": [
+   "bullx",
+   "kol",
+   "axiom",
+   "top_followed",
+   "top_renamed"
+  ],
+  "realized_profit_7d": 16260.613821654508,
+  "winrate_7d": 0.5,
+  "txs_7d": 18,
+  "avg_cost_7d": 703.3598504930571,
+  "avg_holding_period_7d": 1278925.5833333333
+ },
+ {
+  "address": "CwvYUDGo4x7TYonn9qLb1c9rnUu5k3s4FN5hT38rnbsq",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 15453.190968324225,
+  "winrate_7d": 0.5412371134020618,
+  "txs_7d": 748,
+  "avg_cost_7d": 344.3654480031025,
+  "avg_holding_period_7d": 470.1948717948718
+ },
+ {
+  "address": "BtMBMPkoNbnLF9Xn552guQq528KKXcsNBNNBre3oaQtr",
+  "src": "pnl7d",
+  "tags": [
+   "trojan",
+   "kol",
+   "app_smart_money",
+   "photon",
+   "axiom",
+   "top_followed",
+   "top_renamed",
+   "gmgn"
+  ],
+  "realized_profit_7d": 15431.381447338796,
+  "winrate_7d": 0.36018957345971564,
+  "txs_7d": 1416,
+  "avg_cost_7d": 121.43998757065498,
+  "avg_holding_period_7d": 48866.94715447154
+ },
+ {
+  "address": "AmdAbVa17PbsL8kqPmL4A1PyxnLveRfjM5eLrCMz3nKY",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "launchpad_smart"
+  ],
+  "realized_profit_7d": 15154.942777969622,
+  "winrate_7d": 0.428246013667426,
+  "txs_7d": 1421,
+  "avg_cost_7d": 235.97963006223964,
+  "avg_holding_period_7d": 9054.755102040815
+ },
+ {
+  "address": "EP5mvfhGv6x1XR33Fd8eioiYjtRXAawafPmkz9xBpDvG",
+  "src": "pnl7d",
+  "tags": [
+   "photon",
+   "kol",
+   "gmgn",
+   "padre",
+   "top_followed",
+   "axiom"
+  ],
+  "realized_profit_7d": 14575.746873569133,
+  "winrate_7d": 0.4235294117647059,
+  "txs_7d": 313,
+  "avg_cost_7d": 300.48258504759195,
+  "avg_holding_period_7d": 50844.41747572816
+ },
+ {
+  "address": "2gSzFCwozvNBHH3sDNHAJxwqbAXvL93brVapmSWTExU3",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "launchpad_smart"
+  ],
+  "realized_profit_7d": 14431.353562606771,
+  "winrate_7d": 0.43735763097949887,
+  "txs_7d": 1427,
+  "avg_cost_7d": 231.03163588774504,
+  "avg_holding_period_7d": 63759.91460674157
+ },
+ {
+  "address": "BbwF4wSwmxMVp7xubA7qigCUU6RMcvK2soMu8VrDHjDH",
+  "src": "pnl7d",
+  "tags": [
+   "launchpad_smart",
+   "axiom"
+  ],
+  "realized_profit_7d": 14227.190849843717,
+  "winrate_7d": 0.35909090909090907,
+  "txs_7d": 3100,
+  "avg_cost_7d": 73.45502115994438,
+  "avg_holding_period_7d": 3027.0272314674735
+ },
+ {
+  "address": "AvHAW2AjZeCKANNfv7nLSkSKLdhy8rDUhJDmodbQiM4d",
+  "src": "pnl7d",
+  "tags": [
+   "fresh_wallet",
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 14205.97231722192,
+  "winrate_7d": 0.44545454545454544,
+  "txs_7d": 691,
+  "avg_cost_7d": 185.07551541201258,
+  "avg_holding_period_7d": 17527.721739130433
+ },
+ {
+  "address": "YupUTKEjAFwSbq33FquSfm5JLvumxADaqwQHPgAZpPS",
+  "src": "pnl7d",
+  "tags": [
+   "fresh_wallet",
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 13013.06424064788,
+  "winrate_7d": 0.4090909090909091,
+  "txs_7d": 689,
+  "avg_cost_7d": 185.3802325049589,
+  "avg_holding_period_7d": 13625.929824561403
+ },
+ {
+  "address": "A8L9o7RYGreuRLyo3VRrso3K4gVvCn9bJLZK9DhzaCru",
+  "src": "pnl7d",
+  "tags": [
+   "launchpad_smart",
+   "axiom"
+  ],
+  "realized_profit_7d": 12552.997491588116,
+  "winrate_7d": 0.6410256410256411,
+  "txs_7d": 1010,
+  "avg_cost_7d": 131.3473322312431,
+  "avg_holding_period_7d": 38004.45
+ },
+ {
+  "address": "BQVz7fQ1WsQmSTMY3umdPEPPTm1sdcBcX9sP7o6kPRmB",
+  "src": "pnl7d",
+  "tags": [
+   "kol",
+   "bullx",
+   "top_followed",
+   "top_renamed",
+   "launchpad_smart",
+   "axiom"
+  ],
+  "realized_profit_7d": 12510.447879967653,
+  "winrate_7d": 0.39801980198019804,
+  "txs_7d": 2945,
+  "avg_cost_7d": 60.03181719297564,
+  "avg_holding_period_7d": 38461.348230912474
+ },
+ {
+  "address": "8KQriAKQrWJY2CPMLGmxwMz2sEhKjq6hEd3Rwx1B5Zu6",
+  "src": "pnl7d",
+  "tags": [
+   "gmgn",
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 12020.973853673271,
+  "winrate_7d": 0.5168539325842697,
+  "txs_7d": 549,
+  "avg_cost_7d": 197.19546072126062,
+  "avg_holding_period_7d": 131715.16304347827
+ },
+ {
+  "address": "DZAa55HwXgv5hStwaTEJGXZz1DhHejvpb7Yr762urXam",
+  "src": "pnl7d",
+  "tags": [
+   "bullx",
+   "kol",
+   "axiom"
+  ],
+  "realized_profit_7d": 11928.454910550616,
+  "winrate_7d": 0.4280155642023346,
+  "txs_7d": 1046,
+  "avg_cost_7d": 126.61941721097557,
+  "avg_holding_period_7d": 31623.956043956045
+ },
+ {
+  "address": "8MaVa9kdt3NW4Q5HyNAm1X5LbR8PQRVDc1W8NMVK88D5",
+  "src": "pnl7d",
+  "tags": [
+   "photon",
+   "kol",
+   "app_smart_money",
+   "axiom",
+   "wash_trader",
+   "padre",
+   "top_followed",
+   "top_renamed"
+  ],
+  "realized_profit_7d": 11901.663352727443,
+  "winrate_7d": 0.5862068965517241,
+  "txs_7d": 693,
+  "avg_cost_7d": 155.4236324445934,
+  "avg_holding_period_7d": 239980.37647058823
+ },
+ {
+  "address": "4GRmWbexi223JwXBvvD7aHQWGn4WBqV5YSqMoqQpmz5o",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 11739.75575335518,
+  "winrate_7d": 0.5476190476190477,
+  "txs_7d": 343,
+  "avg_cost_7d": 310.1026525276942,
+  "avg_holding_period_7d": 21477.113636363636
+ },
+ {
+  "address": "4R28qJGVSb8qky5GE3WCgSdjUfrwxVZnNLdzkYRqKqAg",
+  "src": "pnl7d",
+  "tags": [
+   "launchpad_smart",
+   "axiom"
+  ],
+  "realized_profit_7d": 11341.19383989108,
+  "winrate_7d": 0.6395348837209303,
+  "txs_7d": 237,
+  "avg_cost_7d": 131.25036030943053,
+  "avg_holding_period_7d": 65943.47126436782
+ },
+ {
+  "address": "34xr8uUhRkeB4LFCutLmpceq57tTDT7MDkBa6P3jRLJk",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 11141.653866020131,
+  "winrate_7d": 0.3472222222222222,
+  "txs_7d": 388,
+  "avg_cost_7d": 216.65641205557256,
+  "avg_holding_period_7d": 17378.86111111111
+ },
+ {
+  "address": "5bvKKEVpC6m8JAccHuw6Cb4PT4KETttv7Q9HNHWsQyyZ",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 10707.85237174155,
+  "winrate_7d": 0.37254901960784315,
+  "txs_7d": 1428,
+  "avg_cost_7d": 118.25634710476287,
+  "avg_holding_period_7d": 216688.558685446
+ },
+ {
+  "address": "GNrmKZCxYyNiSUsjduwwPJzhed3LATjciiKVuSGrsHEC",
+  "src": "pnl7d",
+  "tags": [
+   "gmgn",
+   "padre",
+   "axiom",
+   "top_followed",
+   "top_renamed",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 10700.902607387306,
+  "winrate_7d": 0.547486033519553,
+  "txs_7d": 664,
+  "avg_cost_7d": 161.47238785209592,
+  "avg_holding_period_7d": 150863.29292929292
+ },
+ {
+  "address": "BwrUsUUMoFFpYY4pf3eXLwxi3foecucjBH3Gzn1693Qb",
+  "src": "pnl7d",
+  "tags": [
+   "launchpad_smart",
+   "axiom"
+  ],
+  "realized_profit_7d": 10179.216855144241,
+  "winrate_7d": 0.4934210526315789,
+  "txs_7d": 465,
+  "avg_cost_7d": 178.34717776964067,
+  "avg_holding_period_7d": 18400.53896103896
+ },
+ {
+  "address": "CtPxvpWo1pk7HtL6KwpCLMMdsXHC6fdqAN1bPiracaQq",
+  "src": "pnl7d",
+  "tags": [
+   "photon",
+   "top_followed",
+   "top_renamed",
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 10132.197150526525,
+  "winrate_7d": 0.4827586206896552,
+  "txs_7d": 537,
+  "avg_cost_7d": 110.9649565636492,
+  "avg_holding_period_7d": 16684.591666666667
+ },
+ {
+  "address": "9Q5Jd6W2YgUoPCw3ytau37o9yt5VpCTLrAkEPNUg9tke",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 9947.355390542674,
+  "winrate_7d": 0.5733333333333334,
+  "txs_7d": 466,
+  "avg_cost_7d": 109.82736787656553,
+  "avg_holding_period_7d": 3151.8
+ },
+ {
+  "address": "HXDGjZZU2oFwajVGGWeQ4QPxsEem2oAvxR2vhSHxbXKu",
+  "src": "pnl7d",
+  "tags": [
+   "smart_degen",
+   "axiom"
+  ],
+  "realized_profit_7d": 9830.94457646764,
+  "winrate_7d": 0.4,
+  "txs_7d": 431,
+  "avg_cost_7d": 329.88856004480715,
+  "avg_holding_period_7d": 91835.96907216495
+ },
+ {
+  "address": "BunY1tQd2UD6TzYUgK35LRVEfiNMZk5sq25ZVnSK7Li9",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 9429.685553473946,
+  "winrate_7d": 0.53125,
+  "txs_7d": 239,
+  "avg_cost_7d": 189.0186227491073,
+  "avg_holding_period_7d": 5575.3538461538465
+ },
+ {
+  "address": "Hv2xzYAQo2cEQDpEqLDfg6Kx2VKbiqf4VpeJGQtxtcAN",
+  "src": "pnl7d",
+  "tags": [
+   "padre",
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 9108.842194952658,
+  "winrate_7d": 0.4722222222222222,
+  "txs_7d": 255,
+  "avg_cost_7d": 679.5531468628834,
+  "avg_holding_period_7d": 15731.46511627907
+ },
+ {
+  "address": "A1jmc6mZGgCEJSSyj2BULXgYTHvAEShZERSiDQmnkufX",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "launchpad_smart"
+  ],
+  "realized_profit_7d": 8924.716762616139,
+  "winrate_7d": 0.2598870056497175,
+  "txs_7d": 1747,
+  "avg_cost_7d": 71.85579884261305,
+  "avg_holding_period_7d": 26271.309392265193
+ },
+ {
+  "address": "suqh5sHtr8HyJ7q8scBimULPkPpA557prMG47xCHQfK",
+  "src": "pnl7d",
+  "tags": [
+   "kol",
+   "photon",
+   "top_followed",
+   "top_renamed",
+   "axiom"
+  ],
+  "realized_profit_7d": 8712.839256323738,
+  "winrate_7d": 0.4362549800796813,
+  "txs_7d": 2801,
+  "avg_cost_7d": 32.1021342451107,
+  "avg_holding_period_7d": 58791.04752851711
+ },
+ {
+  "address": "27KnsCtPQP3QvALzcc4dpiSi5NA51weN8dubpBb4qCgt",
+  "src": "pnl7d",
+  "tags": [
+   "launchpad_smart",
+   "axiom"
+  ],
+  "realized_profit_7d": 8643.444457981388,
+  "winrate_7d": 0.3475177304964539,
+  "txs_7d": 1558,
+  "avg_cost_7d": 126.77114182078323,
+  "avg_holding_period_7d": 10195.752650176679
+ },
+ {
+  "address": "HwscN55CCJBjdGBCfZyL8Nqv991VVzwCTdjsFu197vnz",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 8347.257174597678,
+  "winrate_7d": 0.5166666666666667,
+  "txs_7d": 270,
+  "avg_cost_7d": 529.9653950150143,
+  "avg_holding_period_7d": 11890.838709677419
+ },
+ {
+  "address": "2h6WT2yEMhpdLQRRX5tm58bEt174sbNZq7tMqzVtm3PW",
+  "src": "pnl7d",
+  "tags": [
+   "bullx",
+   "photon",
+   "launchpad_smart",
+   "axiom"
+  ],
+  "realized_profit_7d": 8242.568284428668,
+  "winrate_7d": 0.42578125,
+  "txs_7d": 1060,
+  "avg_cost_7d": 139.1720379128076,
+  "avg_holding_period_7d": 15864.124513618677
+ },
+ {
+  "address": "52NUhyYcpwwycY2To1bLMtp6pjDjtUMFeUqQxZfBJgAt",
+  "src": "pnl7d",
+  "tags": [
+   "padre",
+   "launchpad_smart",
+   "axiom"
+  ],
+  "realized_profit_7d": 8174.121708176275,
+  "winrate_7d": 0.39416058394160586,
+  "txs_7d": 931,
+  "avg_cost_7d": 192.2712410060389,
+  "avg_holding_period_7d": 1600.6527272727274
+ },
+ {
+  "address": "Gwk2S8xumrwaWQCKf1rwoGg3RS2rUx2GUCfiiE7Mm3QA",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 8034.607348944568,
+  "winrate_7d": 0.4431818181818182,
+  "txs_7d": 538,
+  "avg_cost_7d": 189.1171898422597,
+  "avg_holding_period_7d": 17611.922222222223
+ },
+ {
+  "address": "2xxaEn5sHX19G3V1bcTHSFDJtk9YbMiEkJWkqmZJBVBz",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "launchpad_smart"
+  ],
+  "realized_profit_7d": 7935.147065341814,
+  "winrate_7d": 0.536741214057508,
+  "txs_7d": 1775,
+  "avg_cost_7d": 62.64716061337408,
+  "avg_holding_period_7d": 3360.503125
+ },
+ {
+  "address": "9RGtj3DiZY1YJYLEQ2b56kX7W2ffsy3yeyb86DBCzGK9",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "launchpad_smart"
+  ],
+  "realized_profit_7d": 7746.261400680901,
+  "winrate_7d": 0.39593908629441626,
+  "txs_7d": 561,
+  "avg_cost_7d": 206.10717413337164,
+  "avg_holding_period_7d": 177.1919191919192
+ },
+ {
+  "address": "Fyr3eVTySpfyczEzUFcJ3SPtEKRwWKhxsmAWLghwP3FL",
+  "src": "pnl7d",
+  "tags": [
+   "launchpad_smart",
+   "axiom"
+  ],
+  "realized_profit_7d": 7546.766434265293,
+  "winrate_7d": 0.4593967517401392,
+  "txs_7d": 1343,
+  "avg_cost_7d": 80.92653313464812,
+  "avg_holding_period_7d": 6930.76267281106
+ },
+ {
+  "address": "5GGqDQVr2LasfmWFXSH54V6ryVrXGwkZSjkK6xR473XJ",
+  "src": "pnl7d",
+  "tags": [
+   "launchpad_smart",
+   "axiom"
+  ],
+  "realized_profit_7d": 7056.031818366128,
+  "winrate_7d": 0.6156351791530945,
+  "txs_7d": 693,
+  "avg_cost_7d": 173.92593448431992,
+  "avg_holding_period_7d": 15138.520900321544
+ },
+ {
+  "address": "BXNiM7pqt9Ld3b2Hc8iT3mA5bSwoe9CRrtkSUs15SLWN",
+  "src": "pnl7d",
+  "tags": [
+   "photon",
+   "kol",
+   "arbitrager",
+   "axiom",
+   "top_followed",
+   "top_renamed"
+  ],
+  "realized_profit_7d": 7040.235467643105,
+  "winrate_7d": 0.2753623188405797,
+  "txs_7d": 290,
+  "avg_cost_7d": 255.22603460100413,
+  "avg_holding_period_7d": 44319.90243902439
+ },
+ {
+  "address": "sAdNbe1cKNMDqDsa4npB3TfL62T14uAo2MsUQfLvzLT",
+  "src": "pnl7d",
+  "tags": [
+   "kol",
+   "app_smart_money",
+   "axiom",
+   "gmgn",
+   "padre",
+   "top_followed",
+   "top_renamed"
+  ],
+  "realized_profit_7d": 6765.250973336742,
+  "winrate_7d": 0.3875968992248062,
+  "txs_7d": 716,
+  "avg_cost_7d": 161.92425391555622,
+  "avg_holding_period_7d": 67309.01398601399
+ },
+ {
+  "address": "3CkrBd2cN4oN4VanUR7tE1EMHngeVVKz5GUQi9zHExPw",
+  "src": "pnl7d",
+  "tags": [
+   "launchpad_smart",
+   "axiom"
+  ],
+  "realized_profit_7d": 6695.06743749227,
+  "winrate_7d": 0.359375,
+  "txs_7d": 315,
+  "avg_cost_7d": 82.23235399819161,
+  "avg_holding_period_7d": 11559.723076923077
+ },
+ {
+  "address": "45tKsjwZTrAya79gtQhut3x8tGZhkZSBcadAVTADiySP",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "padre",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 6613.569375307398,
+  "winrate_7d": 0.41935483870967744,
+  "txs_7d": 163,
+  "avg_cost_7d": 140.63185911859017,
+  "avg_holding_period_7d": 1136.2903225806451
+ },
+ {
+  "address": "98T65wcMEjoNLDTJszBHGZEX75QRe8QaANXokv4yw3Mp",
+  "src": "pnl7d",
+  "tags": [
+   "bullx",
+   "kol",
+   "padre",
+   "axiom",
+   "top_followed",
+   "top_renamed"
+  ],
+  "realized_profit_7d": 6541.687092502445,
+  "winrate_7d": 0.43333333333333335,
+  "txs_7d": 190,
+  "avg_cost_7d": 277.9407830218351,
+  "avg_holding_period_7d": 113220.93333333333
+ },
+ {
+  "address": "CQ4n79cjiQ3tRSMFTGzKPSYoCaazfuCGu2Y7Hzd1aUj2",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 6463.721060030257,
+  "winrate_7d": 0.45454545454545453,
+  "txs_7d": 541,
+  "avg_cost_7d": 189.4035480873757,
+  "avg_holding_period_7d": 5022.534090909091
+ },
+ {
+  "address": "FHGL93a95byonJbk8PzZFhCNuxDwgqRwUXcUkdkfeMNA",
+  "src": "pnl7d",
+  "tags": [
+   "smart_degen",
+   "axiom"
+  ],
+  "realized_profit_7d": 6396.183444162248,
+  "winrate_7d": 0.46825396825396826,
+  "txs_7d": 419,
+  "avg_cost_7d": 308.8704925003365,
+  "avg_holding_period_7d": 47866.359375
+ },
+ {
+  "address": "BfCP1ncxu7ZWp4B6TvQEcXGVSCiM2LhAzyYjG7zWyKdY",
+  "src": "pnl7d",
+  "tags": [
+   "axiom",
+   "smart_degen"
+  ],
+  "realized_profit_7d": 6203.422314063606,
+  "winrate_7d": 0.5772532188841202,
+  "txs_7d": 1781,
+  "avg_cost_7d": 121.31619178295622,
+  "avg_holding_period_7d": 405.8580508474576
+ }
+]

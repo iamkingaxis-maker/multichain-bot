@@ -1,0 +1,7 @@
+{"kind":"buy","volume_usd":23.21,"ts":"2026-07-10T19:11:20+00:00","maker":"0xc033e73c4ee13fa8422dc0dfb8062ab1f595aa02","pair":"0xaa4ee5f79e4bd77c6a6c0df8ec127b0fa6dd5c96","sym":"wDOG","lag_secs":0.13,"pre_conf":true}
+{"kind":"buy","volume_usd":23.21,"ts":"2026-07-10T19:11:45+00:00","maker":"0xc033e73c4ee13fa8422dc0dfb8062ab1f595aa02","pair":"0xaa4ee5f79e4bd77c6a6c0df8ec127b0fa6dd5c96","sym":"wDOG","lag_secs":0.26,"pre_conf":true}
+{"kind":"sell","volume_usd":15.62,"ts":"2026-07-10T19:12:05+00:00","maker":"0xfb5fe3f22237c6481c089c8ee1ef70a117f4b172","pair":"0xaa4ee5f79e4bd77c6a6c0df8ec127b0fa6dd5c96","sym":"wDOG","lag_secs":0.58,"pre_conf":true,"vol_est":true}
+{"kind":"sell","volume_usd":3.97,"ts":"2026-07-10T19:14:09+00:00","maker":"0xcbd094cb3e2d07908c0f96d113a93d0bc25bf4fe","pair":"0xaa4ee5f79e4bd77c6a6c0df8ec127b0fa6dd5c96","sym":"wDOG","lag_secs":0.8,"pre_conf":true,"vol_est":true}
+{"kind":"sell","volume_usd":4.26,"ts":"2026-07-10T19:14:51+00:00","maker":"0xfb5fe3f22237c6481c089c8ee1ef70a117f4b172","pair":"0xaa4ee5f79e4bd77c6a6c0df8ec127b0fa6dd5c96","sym":"wDOG","lag_secs":0.81,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":125.02,"ts":"2026-07-10T19:25:28+00:00","maker":"0x311cdebbe67a02e4aa209b3d20a081e9f1bbab84","pair":"0xaa4ee5f79e4bd77c6a6c0df8ec127b0fa6dd5c96","sym":"wDOG","lag_secs":1.01,"pre_conf":true}
+{"kind":"buy","volume_usd":1.79,"ts":"2026-07-10T19:25:48+00:00","maker":"0xec2b99e16a52a89690fe6eb4468a165c64d3492b","pair":"0xaa4ee5f79e4bd77c6a6c0df8ec127b0fa6dd5c96","sym":"wDOG","lag_secs":0.92,"pre_conf":true}

@@ -1,0 +1,3793 @@
+{
+ "n": 240,
+ "n_tape_pos2": 36,
+ "n_tape_pos3": 13,
+ "n_multi_source": 16,
+ "wallets": [
+  {
+   "wallet": "2tgUbS9UMoQD6GkDZBiqKYCURnGrSb6ocYwRABrSJUvY",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent"
+   ],
+   "tape": {
+    "n_tokens_traded": 57,
+    "n_pos": 21,
+    "n_neg": 35,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": -181.96
+   },
+   "fulltrades": {
+    "n_tokens": 4,
+    "vol_usd": 222.08
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent"
+   ],
+   "tape": {
+    "n_tokens_traded": 41,
+    "n_pos": 15,
+    "n_neg": 23,
+    "n_open_bags": 3,
+    "covered_net_closed_usd": -2225.04
+   },
+   "fulltrades": {
+    "n_tokens": 17,
+    "vol_usd": 33980.39
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "2Jy2VdYU6YmSKL2fAk59iTBHavGUu41HNRMekdwcVUVg",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent"
+   ],
+   "tape": {
+    "n_tokens_traded": 15,
+    "n_pos": 7,
+    "n_neg": 6,
+    "n_open_bags": 2,
+    "covered_net_closed_usd": -161.9
+   },
+   "fulltrades": {
+    "n_tokens": 3,
+    "vol_usd": 1974.65
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "AeBgCFnkSWMAwv3zjaJPB93hxEBUEVkhEyKVFaxT84pJ",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent"
+   ],
+   "tape": {
+    "n_tokens_traded": 18,
+    "n_pos": 5,
+    "n_neg": 6,
+    "n_open_bags": 7,
+    "covered_net_closed_usd": -654.06
+   },
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 712.7
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "3gubYnreSffR5qRqmkoCTketmCXj3jMQu4UdiqRGy13t",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 11,
+    "n_pos": 5,
+    "n_neg": 5,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": -99.65
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "1eveYYxZ2mDiAnmCh3fnAbJwjgErzokRA1b6UrRybSM",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent",
+    "watchlist"
+   ],
+   "tape": {
+    "n_tokens_traded": 11,
+    "n_pos": 4,
+    "n_neg": 5,
+    "n_open_bags": 2,
+    "covered_net_closed_usd": -282.43
+   },
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 1895.88
+   },
+   "greenday": null,
+   "on_watchlist": true
+  },
+  {
+   "wallet": "FYX5JQ2kP7TD8gWb9WP1tjmwWWUAzi8edEZTr5Z8F1ck",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent"
+   ],
+   "tape": {
+    "n_tokens_traded": 10,
+    "n_pos": 4,
+    "n_neg": 2,
+    "n_open_bags": 4,
+    "covered_net_closed_usd": -120.63
+   },
+   "fulltrades": {
+    "n_tokens": 3,
+    "vol_usd": 3475.33
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "kEFiAX3jo5NmemysQov342TZ9mGh6yp92GDRjhA8XDf",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent"
+   ],
+   "tape": {
+    "n_tokens_traded": 4,
+    "n_pos": 3,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 291.78
+   },
+   "fulltrades": {
+    "n_tokens": 5,
+    "vol_usd": 3497.86
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "8zkgFGVZrDLieViwqiXFCydSX6WL5hsxmUu55yBdsNsZ",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent"
+   ],
+   "tape": {
+    "n_tokens_traded": 8,
+    "n_pos": 3,
+    "n_neg": 3,
+    "n_open_bags": 2,
+    "covered_net_closed_usd": -87.65
+   },
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 1447.28
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "J1sfMsbxGNXDPMUPXyGs5D6oCEe7fSYgdPMRyVzZuZUW",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 3,
+    "n_pos": 3,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 9.66
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "BGzLYcFcUZkW5GPZZAYK4Jxyf1W7aigyHQbvmKsQeeuq",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 7,
+    "n_pos": 3,
+    "n_neg": 3,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 1.68
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "HzA15vYiFgqYnjbGe1kYS2zhLbyAYmCU8KbLaJx9cDaZ",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 12,
+    "n_pos": 3,
+    "n_neg": 9,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -322.77
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "gasTzr94Pmp4Gf8vknQnqxeYxdgwFjbgdJa4msYRpnB",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 34,
+    "n_pos": 3,
+    "n_neg": 13,
+    "n_open_bags": 18,
+    "covered_net_closed_usd": -1210.21
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "6FYgn2apNXSqNVyXHTV8CFHiRQhw5TPdDUEHrBMyR8og",
+   "sources": [
+    "io_tape",
+    "greenday_winner"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 2,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 21.5
+   },
+   "fulltrades": null,
+   "greenday": {
+    "trips": 21,
+    "wr_pct": 76,
+    "net_sol": 3.172
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "hnu5iBK8UoHb51UFsH1RYTUAYdrhjHvV5YMTf9T1CYN",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent"
+   ],
+   "tape": {
+    "n_tokens_traded": 13,
+    "n_pos": 2,
+    "n_neg": 11,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -1703.57
+   },
+   "fulltrades": {
+    "n_tokens": 3,
+    "vol_usd": 8043.75
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DJocqRPK2uKWvmR5WnWcd7m8fDw6az1L54R4UuH3GrGN",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 3,
+    "n_pos": 2,
+    "n_neg": 0,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 488.23
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7JCe3GHwkEr3feHgtLXnmuJ1yB3A7coSeyynxTBgdG8k",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 14,
+    "n_pos": 2,
+    "n_neg": 6,
+    "n_open_bags": 6,
+    "covered_net_closed_usd": 308.76
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DF8tRgFkt1JSuqqtVmG2maiEY92mfFWBHNpMeRBK4fEo",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 2,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 174.25
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "4MB2yiq54PHkJ11YPoZGYgVzew9zFRRms41PAFoXaevg",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 3,
+    "n_pos": 2,
+    "n_neg": 0,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 167.49
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "CAP9q6SmwGufYWTKupGA5uGzkjqirkRRuz6YEGhumjyi",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 5,
+    "n_pos": 2,
+    "n_neg": 0,
+    "n_open_bags": 3,
+    "covered_net_closed_usd": 39.46
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "8P1msjLVVaZdwtHke9Ly9GSkQzDtwEjAr9UDyTiJBJuP",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 2,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 29.27
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "B9D6JC5QB8nTmVQTa97BSV1soVE7VB8k7Q41our5y9FT",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 6,
+    "n_pos": 2,
+    "n_neg": 3,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 27.73
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DkULcixfUQygPfgD6jzfTW7onvyrS3kpdm2EdomLDDZd",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 2,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 16.43
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DZcyYa9aPRFnbkDPn3HYvfpiRH9GBz3EjTB5fLjk8Vge",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 4,
+    "n_pos": 2,
+    "n_neg": 1,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 6.19
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "6LrfU8zuraSEwP28ph4hgz2rjJwzR3s9L9uYm1bbpe6A",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 4,
+    "n_pos": 2,
+    "n_neg": 2,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 4.12
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7fV3dWwDm2UNiSjB6YGtjsAePRfMW3N8h8HmozbQHnAy",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 2,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 2.64
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "ENzTgCnX1BFo4PnMqNBiEAMbn4KxBgo493sKnaVEuZpt",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 6,
+    "n_pos": 2,
+    "n_neg": 3,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 2.57
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "3AoQmpHaVTV3tcZqWAFrYgtCPqkMkdgxib9MjtvDRsom",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 5,
+    "n_pos": 2,
+    "n_neg": 2,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 2.48
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DZbgq3yE3r41EFszV3XastvyS8j8QnmNT37nsq7sxR66",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 7,
+    "n_pos": 2,
+    "n_neg": 5,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -7.33
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "4EH92iYK8wua8MyqNExVeiXy5VJUAweXqJPuTWqCvNB8",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 8,
+    "n_pos": 2,
+    "n_neg": 2,
+    "n_open_bags": 4,
+    "covered_net_closed_usd": -11.2
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "BxvBZdNAedk9bgZwmEGDnsAZdGfjpKVRudVXsar1eC4f",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 5,
+    "n_pos": 2,
+    "n_neg": 3,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -25.07
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "BXJHvNs6R6N621SfVPv62ACvtNe1WK5mNWMUFdX3mzSA",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 4,
+    "n_pos": 2,
+    "n_neg": 2,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -28.41
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "24sFm6tqpCE695dQ3EpVauwRvppAJUXhw8v9RwPvJNZX",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 5,
+    "n_pos": 2,
+    "n_neg": 2,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": -30.89
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "wJDv8gqP8TFqUJdLGdrVpEA1vJ8sdMWiqkHT9ubCEmn",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 5,
+    "n_pos": 2,
+    "n_neg": 3,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -57.32
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Em8J3gBWapfVBGVhVipwQnLrqCvnWBnLajw6XFsFECPF",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 17,
+    "n_pos": 2,
+    "n_neg": 7,
+    "n_open_bags": 8,
+    "covered_net_closed_usd": -155.76
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "iK7BmyUoFm2GDXfXSi61u94kJXSFyknFnGFQukbF2bb",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 12,
+    "n_pos": 2,
+    "n_neg": 3,
+    "n_open_bags": 7,
+    "covered_net_closed_usd": -213.08
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "AgTM7bcPQo2kkru8o2igeiwbAjJY2bubEHHZUQPRhyqG",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent",
+    "greenday_winner"
+   ],
+   "tape": {
+    "n_tokens_traded": 5,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 4,
+    "covered_net_closed_usd": 69.37
+   },
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 1020.37
+   },
+   "greenday": {
+    "trips": 22,
+    "wr_pct": 77,
+    "net_sol": 3.489
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "45Sn4KL1MHqwnpvcyjLnQnCtJDmw6zDeBnPevs5b4ZyG",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent"
+   ],
+   "tape": {
+    "n_tokens_traded": 4,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 2,
+    "covered_net_closed_usd": 5.58
+   },
+   "fulltrades": {
+    "n_tokens": 3,
+    "vol_usd": 2302.56
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "2Zhd5xxv6mnLwkThX8EdRrWTSL5BSJumBrT97xUytSB1",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent"
+   ],
+   "tape": {
+    "n_tokens_traded": 4,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 3,
+    "covered_net_closed_usd": 4.17
+   },
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 1964.14
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Ar2Y6o1QmrRAskjii1cRfijeKugHH13ycxW5cd7rro1x",
+   "sources": [
+    "io_tape",
+    "greenday_winner"
+   ],
+   "tape": {
+    "n_tokens_traded": 5,
+    "n_pos": 1,
+    "n_neg": 4,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -9.91
+   },
+   "fulltrades": null,
+   "greenday": {
+    "trips": 28,
+    "wr_pct": 54,
+    "net_sol": 1.753
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "CcMC5E8UZFW8sLoagxtJEFnxjZ4XwM2xGhpF1e79sj9M",
+   "sources": [
+    "io_tape",
+    "fulltrades_recurrent"
+   ],
+   "tape": {
+    "n_tokens_traded": 6,
+    "n_pos": 1,
+    "n_neg": 5,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -225.27
+   },
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 1508.56
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "E5xuA1DUCEc8D6e5i9BSAh3sa1JNqA6q15eTBMsxkXsV",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1162.3
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GxaD7UUmfjZRATpxXNnWaxvzJWo4atW6ry8ZNb58E4PU",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 524.44
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "5LXVwVdKzt2tq2hZNfG9kSYHy1sb7krrcGp6fLMK4GjS",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 447.49
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GbDirALDjHKnwR7RXBu38FRPSr3ABLAkYaxDA2qJ668g",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 429.42
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "SiKsjqWzhH1xA9GNnJbuqx2HzgoB6yzWHv2GJvpTu3t",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 404.86
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "9yYDGQ5M2EARnwZDGz9iF1uZymf9DtCVeNy9M6v9ErNF",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 355.35
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "FagF8Q97g1a4S4VUtnatWNYWE1CgFgXcD3mmasPB1jZs",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 343.69
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "142atEs3EiaWHdjY994HpJgwfJN2D6dj5rYvgZtuKbDx",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 342.57
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DXH1AWqmrngy1HYLneh2HLvz85RtQXYnUYiP4C1S7g1S",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 197.96
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "A16qosovQiNReSWf97BDoQba6YCye3Mik4mJeqnWKfVM",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 178.38
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "FRfChuMRiXwXw4GvYkfcht1oi3qLBs7D3JBHvUbYC56u",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 131.66
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "26xDRL9STtaguBVH658RHPrvNi75pqh6wDsX6sBZRnqe",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 121.49
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DF4gGnFVnbnmhRiCopDSbKYL3oTKDVoij5neCvStAMNv",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 115.82
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "D2AMrLUWS1KX7nUTJdMfaxBmdXBTYUwCTadNJv7mrdN8",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 114.58
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "HmVaXWrATTGQmKzbDHuwcdMgvwBoFCjJRX9mTvCHYEvf",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 113.65
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "53jFkdAXzTv8pFxUKLWndynFg5Kh2FXfKZKdKVLkLkFs",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 103.58
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DvJsd51yG2guQTAU6J6pvXVfFfXLrqkGihi2ERJjt36r",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 97.45
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "5j4oVSnogZy5CV4ZJ5Yf1crdtd7q7ynsh4EPh3ZcYeNb",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 96.88
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "2ygBtVChvNx19yu6DUqUkVPoJMrES7Hwp4gzTLsGxyeD",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 96.42
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "FCbKqL59Pg1vD4askombrnpHioNWvKfSVwEtp7d6eBYH",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 90.75
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "9ghTaxKZ88wW8vh5aiqy168AdGzAm9xegRzSPdubciLD",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 89.52
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "HnvrtCjWnDKJcWFG8APb6ZTo6LEb2ChgUruQuKWFDN6R",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 85.12
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "KZTzKBrKRW8m9vgHRzCHrSJYLpePq8VmGngSncinvGQ",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 79.84
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Hx43ADUwneMUnbmqiLw6kUxpLpeCkmrX59HKfYWgtra9",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 77.44
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "79MNRLxytvvGSgr5p72S7JsPh8KM586p57DiSmtSR7fc",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 74.17
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "fahpNWQiuaSMV2n4W4AJSaqDEZZ2uEVJcpHzdESivoU",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 72.92
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "ebZRtCmGBefPCrj5kJMZBUSDYrsjTweT5EVspfLMuPA",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 72.51
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "AJvNGoMSKoA7J1hVhy24oJqXFpbv3sSPki4qmAHvvWi7",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 68.66
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "xVfGwtsGW4xPkSxKoz25fHurDrTq7Jqc3Vhqf2Z1FDc",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 67.93
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "5sYqEtZVjPCRPWVnuX9VXKY1uutMyH5gvnR8YHsmMhK",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 66.71
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "AyQftmXh8NUS7q3pqi8nJb14fMtVmVEY1Jf13GzAmdBG",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 61.06
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "BQPeLpYh76CTuBw9mz63hpvEYT1ypNvUjtEgotw3yLYW",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 56.48
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "4EkTGHy8KgCKaffXer4MDcX6MgrxKrKvF16SRP4hn7HN",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 56.34
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7ZyQe6gNgZgeDTFQYY9LcjN4iuVoDsdN6njf4qDXEiUL",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 55.09
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "8MQzjmREPQhrdPTwt9k2e29yTosFdRZ4gdcESdNzyFxx",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 52.01
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GJj9uk7411kEsfBXmNtsYjv6LrH4XHuP7MQdHo4Y6MZC",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 51.66
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "58XJTz3ncfEUJpJHH4mo9T3TLH9oah2pZT4jpdbQLkwU",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 48.39
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "5UT9GZCn2H7NLvnFWiz16Dr1UuYZWmy9mRs65EgLZ96u",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 47.65
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "HqmoKv1yNV9imL8zSYNP4kRggGmDxZVeR39ZnmRuRQNt",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 43.41
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GV6A2WrDxsGqxk7Q7CSK76xLtvwUTS2vpU9qwmadkLd6",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 42.97
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "9Kpq91sb9ZHsGZ1GfTYXGs1vtukE1GuaUyvFFE9EKqi8",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 42.35
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "5LVpqP5cniQhzTXSCwy3zgYbYbqXTPXLJPtpAvaReVpz",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 40.05
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Ea6Z2Ueh6ZbaJfSHkk4Ws7usfTAQmCMjAf3KQkpDJgsA",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 39.47
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "4s4XYesf6tHbKtvGKofM78azXxVtj6Y3d8aqg1xik3Lb",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 38.08
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "3NFkrGEyhGXcvrY8oeNrHkwHt9UEwgy9jN6TAzCmBQiN",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 3,
+    "n_pos": 1,
+    "n_neg": 2,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 37.46
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "CBfqrqJcSTizTxiDF2NvGUPBFvG35wzxSAV7TQcZn2Fy",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 35.78
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "3yRL5zyLdxErcVULb3Lzby2qLoA5A15Qn2Ccue9zpYEv",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 35.35
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GD9VYcDDKWrFJ9SaDSAHxgvsU5SuxKk4yGF24p3opnP1",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 33.69
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "9ZAopSabE77oVFFgXZdynXvLQZet1u6yct9aSCkzgsn8",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 30.83
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DpAb64ks21wLkoKGSvxvrByoXbXBcap7EWS9bZ5AumBs",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 28.65
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "59zbXqHomeLYvhYCbgT5mYcX2oE4Zs5GumL6Hz5Euqqv",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 26.23
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "5kL62sHRzwpFhjFmLgYgNN1paSK2oWZTzzieovxz2ayW",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 25.09
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "hnu69n6P5CgYXCtUKii9wgamqtDeTVHY3TVJ6HKt7wC",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 23.99
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "4mssXWLPVQkgAatzX1FUoY9Q7VJZQvUCUfceDFiH5ZMi",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 23.83
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "6emFAodQJSno5vmPJY3piqinJgmb4wC9qmsQyLqAWD85",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 23.33
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "HC8EWBghd22xFPZJKciNeeHnD5KRt6WzFgaWd3nAheLR",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 22.77
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "9bh68CX7yQ4bKBZdYqkWxS5WPzAMCyA7bJaFFddwbMZd",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 3,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 2,
+    "covered_net_closed_usd": 20.77
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "9mUaSC47Q74qnPJLn8jQVpeL28xJRuiaPGZshpVG18eK",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 20.77
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "515iFCwG877ftAZ6S7FEbZfSKrQwpnGPeuWKJKDyDbRE",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 20.69
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "BBmW7H2biS2CDQmQDamyw6kGhXN3jZVtFKX8M9yr7jWG",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 16.87
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "CaZk18MHh79oAohmCdfnBvtokj593f34pEFWUxPZn5gN",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 15.37
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "8n3m7Mj5zmaa7kA1apaBUyDiS8HGwLPVmpAXcSG8Ngp5",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 14.22
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "BkC8T3b8y67ALXkbjK9sqwzyWaqa8b3nWkfhkiKsLoaY",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 13.98
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "ALtx4FNEdXpSG23jCkUMMfwD5iAmTU7qzi9cEEFzn1qM",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 13.9
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "63q8bBXTRGPsgrQkPZdWghf2JzEhcq8KuoLSWiFDuMXc",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 13.46
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "CskAmpNFACaFELbVHdgezJu1uda2ivLvH2xFoiKdmPCS",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 3,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 2,
+    "covered_net_closed_usd": 13.02
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "A81SA3gjmzNaHfoTXq3Q9tkt6sSL7AmLnFwfZ9LuxyXE",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 12.74
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "3cuSDs1g5aUbfduNqwWS74kgBqTZ5cU1HAwzMFcAdahN",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 11.99
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "BvSsF5AKmngcRZBZ9Re7bxWaE4eZLT5YsNgZQf5kmD9o",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 11.89
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "894hqLVLhHmDkV6hEjaVgZDNLwrm6ZUFE1yiQJRsdSTt",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 11.26
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "56S29mZ3wqvw8hATuUUFqKhGcSGYFASRRFNT38W8q7G3",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 11.15
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "EcjkecrCZax9EF6doev7ZoXtyp42U7NHci8adG6jr2SZ",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 11.04
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "D1S9ypMH6kWw6cRy2fbfpcgV9fsGR4Z9KpZGprgcfZuT",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 9.23
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Dgmc1QZdDKgZJbWVyJvMahKANrQsL3LiAJ8iFo6kvq2G",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 9.01
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Hiy9bRViouzRncznpfWbwLbdpwkSsZDdu3BpkYKRhoDw",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 9.0
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Vzq4MrN5addX1BXh27wj2jRYvxGtmFKNa9yqPxFSRgL",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 8.71
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "5LomTGNTUtUsetN4nJq2q4XWKHanFTEkpR5aAuDoUJaw",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 8.66
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7X44bS8uq2PBGVGzWKiF5BAe3ZvKCaNnSDPK6d4CArmo",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 8.27
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "F73LAQ3x3dYETwQqFbKe3i1QHc9JLptAubAKAX9NVDsK",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 7.73
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "CXBvMEPUKxwq16rnnxz7dYcr9pNaQ57PkNGchsamWHqa",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 7.63
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "D2UapmimsetDZY3wJp4YCWrsavqmLVNgeYjXH7shGnvW",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 7.61
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "fGyU4QNAjZTHoouyzXXYWkRK4tDgcb893v3oDuVRYpj",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 7.5
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "5ybc1VKjD6oN6yt2XdAjzjbDEq9Qudne4dU29FA7jQgE",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 7.37
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "3v6nskYhAkA2poKU3BJDMWdg65MvT2xvFT4HtsmsChes",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 7.29
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "E9FshL3iy2G69VF64f4JNJ4GMK2rjnQv8TGMceKkxcmj",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 6.71
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GGwZCj55FoMWdEMiCNXmXbCbad4pqvgtYWBgd2UmMnmH",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 6.7
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "2BzussT2kug9dGg2RLLDDASbWBMvgiwt5QUb69fKDdMv",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 6.61
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "HBD8BG8dzemz7JQ89xZYUkRRGDoeB9Hzo195zySzbMWg",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 6.56
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7EJxpg566uQmucZfUSXhSjaUU6ZUe3zoGvxGnvbuxqdy",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 6.35
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Aqytbp8o2UvfGaqbkKbw6stT9Tku5zM7vSmFuSopxasa",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 5.75
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Hj8yc1QPSw1j75wSDEwgbs2nkgtL5xTww8nCGrtBABeU",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 5.65
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "79CRdiUhJb1SsqqHDeTQHHEZ6d67ADjXmx6ktFDTwun1",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 5.41
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "2mDufMWHhAbyjamEMDXiciVkKJqy1sDJk9rxCdGJfA2H",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 4.76
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "C86oRMyUqzsXKXEAsCUbrhJuYuMbqXxE886s9MpUFF88",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 4.56
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GiM49p7h5ENwMzk9SahiQM9tVQnzH2e39Z1FBiJnGbaA",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 4.52
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "4EtbNzWupXXYC7VrL4nsZ4M8DmPiFZ3afmiUgoQdgYGR",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 4.1
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "9WiTjoTe4LgzNF1AZWsTobw2DkQSKvtLRkK57zrPaghe",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 4.04
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Hq1kMKt3w6sJ9pgj6ChYV3hAJoUY1UBcBgx2n8VqcCqH",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 3.85
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "8LUtQLSVoKewkXXHSsWJA9sio9cH7Q4hSfKVm5cRk7QY",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 3.68
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7o2ZxFLFdNu85361XMPQcxmyP7BYNUk4pFKAC4Zj9acy",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 3.44
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "ATDqZZCNDYKHtEzhhJhVXzfeEm3k8P2ndbLY6xXkzJYi",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 4,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 3,
+    "covered_net_closed_usd": 3.19
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "BPpqgQwB771CAaq2yXi1MqorGc73RbtbJhGoiHkmMw5Q",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 3.06
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GnRZH7J9eiAWMxn3Xe8j6JzqZjtwexv28dSiqUFiXgwW",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 2.93
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7bFA7U1TbZJL6DhwGu4NVp98RMAoJ5w5niRHudhMUj3f",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 2.89
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "2BToBFsSwBMHMwPLb8UaNoKWF3JPEkwSPFmBqDv8juWP",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 2.69
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "EDTm6vomTSaFJD5nsY55XchmeaXGtJfXgEEdCXMidyoL",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 4,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 3,
+    "covered_net_closed_usd": 2.69
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "3gw9qKR2CqEFSxSSuPJbRfVknHq7WSgbRhf9f9MQdjMu",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 2.59
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Ffx672XkvbAQArS75iguC78H2X5QwvPFGCeWGo4XYMEq",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 2.56
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "BKD4A74M2ZAPtx7NzCcfVM57ZgwFa2vnf3TMqY74c8AW",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 2.18
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "8ye8pkkJowEwFBSdgRALWoc9mAoHUuHmPNKwMpXB68WP",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 2.14
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "46xRAGDTw5BLGMgePVbKo73abT6Kw9o9vHiNRZQDirDB",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 2.02
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "9xADmmJbJ4AfrnCy3RDW6c5on8GPvhjdL5SHiWA9Z1EF",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 1.93
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "A3dVrZvjhHEsbmVBoBmpKMVWw4kXEhGpMmh1SeFfUEdQ",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1.86
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7gVf2p9LuQ1biNcAAr8a4iPPRkybdbjbBMtt9emZcYxD",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1.67
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Eko1pMVyhaFvwsRMHMafW5pe3taPgPY2bVu5xC7fKyRB",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1.61
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "8u4LViTRfwoCNNM46n9RnCMq3EweLM8PwbsFYx35g3pX",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1.56
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "9LUH6U5x33wmYnZs4JjjJuUwYbeLRNTYxmmNScVR5fBL",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1.5
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "6sAFaCPkdUgC3MG6XRF6ubmVhk6Wx6WsYJWUNj4RwqPJ",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1.36
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "CainuxeseQvvGiG5d7ZJPnFetCuVzZmpXrvpMB92Md89",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1.2
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "HfaqqnkRYnL1v9uoeKorfwpKc4JcaYD7hpqZAaDbDVE5",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1.17
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Co6qnh3eHYd8FjyS5N6YXutUb3Z2GyKNPQHPURHaCK7T",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1.12
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "5xykY2MaUMXkc6Q5YTZNPANbJV757PfcVrMg6ca9FFUb",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1.1
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "AEMJqxite3B8SYftMJtyFemqFDoukTdRh2dbi1yakhV8",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1.03
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GJENMMzM7DshXMYYXTDBisZ13FW6Lrh2JVU8ULXRR7KQ",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 1.0
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DPgf4qUKCeSu79ecBe8H79Mk83Cg4wq92b6NxRRo5Av8",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.99
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "F82QowCiuwxxPzoqqdpQEiqLSfqrpE8vrNkgssi8avt2",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.9
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DGX3UYhLTVpJ4dnbKDJxTBSXP14yd5UXL55uAJ2aHyjP",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.88
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "rHxWTdGTUV3tjYgUcmND3ttY4nnzSByYRu56FFVpvW5",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.82
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "9SB8yCeS6aCohhGvrXcmZcV8iziFEa84767UCPLu5HsW",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.75
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "CyTpCraD8F1qpQ4uQgvQVCJKyaBKrjqjNzqq4xtyGdHG",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.75
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7BtwAHaXCki5BKFQz2fKQQAjmNWiq6JkmTS6GwTX5kfi",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.66
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "C36aXSTfi9HUkbyLiDeJJKdVBCZnqnoKhA94nn8sMxF8",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 1,
+    "covered_net_closed_usd": 0.44
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GWGxnkYQzYGsQEhJSrsxTdTGHSP4G7UzQzP2XEWWwKKX",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.44
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GeBSXAm3RtC9PQETtEA1jhfHB7ZAtZdTVXhRbriB3UwT",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.43
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "JB1jKxrpEJMfpRxdZAfybY8rBq6ExznNQGBQ4kKepU8w",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.38
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "EapgJND69z5sH2ZpvPajyLkCUSBo47AdvBj7P6yk6o7u",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.36
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "HuUFSFi2a2WgkCQHjtegXobTGCLLTyLfoDLtMMi8afv",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.33
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "6Hf2UHfZiBxqa18QMgB8KrUkTn4QVy6pkRq7AwpHcL6v",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.31
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Nrbnr9oVENWcyPG2S11BNbEomzvAbFswEwXsQQEp6qg",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.27
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "HwLUyAPykbPgkotArMazDsNUn7uMyCSBMjm3drDHSBfw",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.26
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7EUmfKYCark8GPt27GkC8tM1xfGsHhAcWgTC46zBwJum",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.24
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "3DmRFTZ69ZEK28nLosxK77fSbH6i1ZU8JmQsQgTAzzqi",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.23
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Gy4yHRxb2TgJ62zdJwEoobViqVS3AjNQb9AAmtf3Ugvk",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.17
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "9Jah7W3Cwca7XgadbWMicsxjbWoEqUHqdR3AtLzKFMxg",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.16
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "HJzopmmEpWb2tVsxcmQShEXA633KGQ269yJ2NYu7biLb",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.14
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "xTsPSUTVeWDmTKEmkfqaSk8Ea3WELJG4hQwbsVTyjdZ",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.13
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7LKk2DZ1fScogubd1NfBggcfFbGhFgKxNqhuTkki1cmU",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.13
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "5H4N8o4aP8Lw6tkoTwuSm1svR5nmRRRiwwYjCxaE5PNT",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.12
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "5AVpxpSEJJhy9gCPTtyEBK6pHqYrdjwn8hkLxMPC1NPe",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 1,
+    "n_pos": 1,
+    "n_neg": 0,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": 0.1
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Fgej4SPuW282TdrQRfizRHAeRasNqCtAWZizL3jDqMdS",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 8,
+    "n_pos": 1,
+    "n_neg": 2,
+    "n_open_bags": 5,
+    "covered_net_closed_usd": -4.74
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "AhYw6XSpS3HRdz7Dn2BRgvDqPmTeqZBYZ7bggv3T2Svj",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -5.03
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "FtajsLdtMUtygaqgEne9wunL1n7ex1JcmU6i1aU2UBcY",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -21.02
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "4o1Po3pTUmWkNp6JNpjNQoiuPsYmMPfyHS6EVsWHjfuZ",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -26.28
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Gj8DM8DLBXvQ6x1DdALbCHWSrtybwtNQtVJ7XuPPCgU5",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -56.09
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Fu5os3QNdgoSuWcoid933agFYb6GyhxYD9NHogbKkdcK",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 2,
+    "n_pos": 1,
+    "n_neg": 1,
+    "n_open_bags": 0,
+    "covered_net_closed_usd": -69.66
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7iVCXQn4u6tiTEfNVqbWSEsRdEi69E9oYsSMiepuECwi",
+   "sources": [
+    "io_tape"
+   ],
+   "tape": {
+    "n_tokens_traded": 11,
+    "n_pos": 1,
+    "n_neg": 7,
+    "n_open_bags": 3,
+    "covered_net_closed_usd": -744.29
+   },
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "HmP3TxuVWkiJjS6mii9WPzRFeF9hnUjs1YMHCAB4AZm4",
+   "sources": [
+    "fulltrades_recurrent",
+    "watchlist"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 14.3
+   },
+   "greenday": null,
+   "on_watchlist": true
+  },
+  {
+   "wallet": "BSHdFzWq6BfXpTx49LcCuvF4FVZakEZTibkKgjBcJqLD",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 4,
+    "vol_usd": 3705.9
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DtvmxrTACskMG2W8a6KXgSemUfvyNVeQTgfpJoGvMVKx",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 4,
+    "vol_usd": 381.71
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "6cLLbTznubDDA284PfnEZYzxKiNgzMcf1RFjY8ehE5zK",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 3,
+    "vol_usd": 3402.33
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "gtagyESa99t49VmUqnnfsuowYnigSNKuYXdXWyXWNdd",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 3,
+    "vol_usd": 1196.05
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "MRiYA4oN3158fCV8evhuCofrDzbHyYvYnGZUDJvoCsa",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 3,
+    "vol_usd": 798.22
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7BNaxx6KdUYrjACNQZ9He26NBFoFxujQMAfNLnArLGH5",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 2787.0
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Cz7MxubwfqFgSuSZb7CruiUbkRuLE6dJgbqiWcZPMAbw",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 2601.15
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "7dGrdJRYtsNR8UYxZ3TnifXGjGc9eRYLq9sELwYpuuUu",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 1496.34
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "HHCjV9pmsnEo5GoMKGnTSDNEvHzTKCaLXk4BcjLX3kHg",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 1463.56
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "BngjgLBxZkq7ArLptZDdRmDCJrdfpWwo2CFd4gf8QKXt",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 1180.59
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GxDC9e7SP9mzhDo4re5HbpLa2RW7gB9DtmThx4i4pXSq",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 1129.74
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "FRAmHq1Ak2Uh4ou3cSvUi99z9Xs4HYxfbKrLbZtb2h4P",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 1050.83
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GCvHhEUYQwTJ8jyf8Lc4bv8jBXyZU4LMMsZCobwEPzvM",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 668.3
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "ERBVcqUW8CyLF26CpZsMzi1Fq3pB8d8q5LswRiWk7jwT",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 668.2
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "4j1cxNuc3ReuDpSFSma6jw94wQ8RLiMpP7Hi6eBXPa1K",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 662.81
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "6TJCchCKGyXuymWKZvkrzDvZPtCycAQ8SegMnz1PpHhY",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 658.55
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "3kYrKeXhU4dozhGVFZ4MgpPBTZTb4RuztvbCRM6fY4wk",
+   "sources": [
+    "fulltrades_recurrent"
+   ],
+   "tape": null,
+   "fulltrades": {
+    "n_tokens": 2,
+    "vol_usd": 602.96
+   },
+   "greenday": null,
+   "on_watchlist": false
+  },
+  {
+   "wallet": "4nsNd4YvKi7CaSqwCA1vRToZYz4QcW6itx5yJCtuJAUM",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 19,
+    "wr_pct": 11,
+    "net_sol": 92.324
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "Ejp2S85hfMXwjKkAYYKDPhdN91AHQuscmRSwDiUWWHc1",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 11,
+    "wr_pct": 64,
+    "net_sol": 50.111
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "CaajBntpFoNuZZsWySQ2ER9BpCe7czS51t7r9QW132dL",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 18,
+    "wr_pct": 72,
+    "net_sol": 22.845
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "B7VerjrZbjz9khqKGhTTGiveC5dTCcCVvmj8U97q52hA",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 5,
+    "wr_pct": 40,
+    "net_sol": 18.981
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "GZ3TfSYi5Cv6ywvPYZvdansestqqcoCAyEA5gCWKdqUf",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 5,
+    "wr_pct": 100,
+    "net_sol": 18.616
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "BiqeYSDoic38ptXkxJMgWqK4rCSJmdVKrWnyVJ6kCuEe",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 7,
+    "wr_pct": 57,
+    "net_sol": 15.722
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "333mjD4KxAC1LCR29xYMztmWRyLP3mJEbKfjnPe8AEoc",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 26,
+    "wr_pct": 54,
+    "net_sol": 12.791
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "gSGVUyFwkrw7UxfKqmNxXCM8ZF5xx55WwR5fLFr5qs5",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 6,
+    "wr_pct": 33,
+    "net_sol": 11.417
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "B8LoP7D7XWHrW3H8qtzf5gdmuJVkMgfnBRNTDyDgRuv5",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 3,
+    "wr_pct": 67,
+    "net_sol": 11.074
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DMdbb784EUaorYrC34LE4jbUM3ovYjJnNTwV7r4EH2eP",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 3,
+    "wr_pct": 100,
+    "net_sol": 9.566
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "5uez2R1fXyJ6YW1wVPqFoEq91WJufuWceVQy647qVYHF",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 28,
+    "wr_pct": 61,
+    "net_sol": 9.367
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "EqK3ZmQKAVe2cxyw81QAYfR2pB4dXLPCNPbX6xWmJfFt",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 20,
+    "wr_pct": 40,
+    "net_sol": 7.313
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "3YFawWJV2CCRdW8SvFFj9S1PmKLpZGUy3WT6pZmnaKRu",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 10,
+    "wr_pct": 70,
+    "net_sol": 4.897
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "EwecAnTceDJY7U41AbZbPebrFvcyC7FUeMpz5TijxFNw",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 4,
+    "wr_pct": 75,
+    "net_sol": 3.27
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "BB2SSRNoS32YkqDTPyu1C2bPZ5pv6oaDz54pjoyGcxe5",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 7,
+    "wr_pct": 57,
+    "net_sol": 2.13
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "DG8nTNQxu44GQHHYNQyFoXpq9DV2L6SnsoroQ2S7nER1",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 18,
+    "wr_pct": 44,
+    "net_sol": 1.736
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "2fLcT3MNmKT418KQxo2GF1pDJqQx6GfxVAk6G8wkPMeF",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 14,
+    "wr_pct": 43,
+    "net_sol": 1.475
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "6dzn1gFuWrNeV9oByVeVmAZhMaVWSheA6HjpNU9xputR",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 10,
+    "wr_pct": 40,
+    "net_sol": 1.155
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "72QUWNCwsmYUMwkCGqvagCKAmq7Ng5mfG7yCeUYSLzEc",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 30,
+    "wr_pct": 60,
+    "net_sol": 0.745
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "4mdpm59apd6PktGhSwu1385Kr4X9KTvM1rxxSrUBHA6C",
+   "sources": [
+    "greenday_winner"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": {
+    "trips": 31,
+    "wr_pct": 58,
+    "net_sol": 0.34
+   },
+   "on_watchlist": false
+  },
+  {
+   "wallet": "2qnHs8fZZLUJFVCkTCEXXZnEZTgfu7HFVBFmbUmXiYiW",
+   "sources": [
+    "watchlist"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": true
+  },
+  {
+   "wallet": "AKprbkX7HKoSFYtKshbGPxwM1hyrg3AxEAVhLNSqyyEB",
+   "sources": [
+    "watchlist"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": true
+  },
+  {
+   "wallet": "7Gi3RNdV3nZU9fhnLodZ6p662dQgQDe5ck2VWn9d45Tn",
+   "sources": [
+    "watchlist"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": true
+  },
+  {
+   "wallet": "2x99WSHDpwes7d3Qqhdcnpx8Mt6WmGPaeNkX9eR6Tamh",
+   "sources": [
+    "watchlist"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": true
+  },
+  {
+   "wallet": "EGwERj1nadcGQhwnJsMmfmDeH51D1G1kMsdYG3e9V1Dp",
+   "sources": [
+    "watchlist"
+   ],
+   "tape": null,
+   "fulltrades": null,
+   "greenday": null,
+   "on_watchlist": true
+  }
+ ]
+}

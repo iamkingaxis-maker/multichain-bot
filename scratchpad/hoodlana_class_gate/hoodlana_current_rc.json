@@ -1,0 +1,47 @@
+{
+ "totalHolders": 82,
+ "graphInsidersDetected": 0,
+ "lpLockedPct": null,
+ "top5": [
+  {
+   "pct": 98.86719404284491,
+   "owner": "F6KmxYyuMDUUN2YBTGxFCirwaTXCS8TQopRvi2GCQps1",
+   "address": "EpuNPqcautVFhgcjaLsjCTB9pVgkurxZ7DjLwPT5WagU",
+   "insider": false
+  },
+  {
+   "pct": 0.5839654113919076,
+   "owner": "7nX2HkF2hCEir1pL4W3i764XVvWXq3dHdRw8Fekghye",
+   "address": "F8d3VziiSwoJQKRKZAcUmBBRYhRcLR8yWmu6o25Nz9vh",
+   "insider": false
+  },
+  {
+   "pct": 0.10919241458386392,
+   "owner": "F1CHxzidCiMk6Gjxy4sPto3uezmbbTVTWuPR2cd6PUeM",
+   "address": "DQmExo9eNJvPCKnGt26bTtc1D5scBKK3wQzY9ULhRd2F",
+   "insider": false
+  },
+  {
+   "pct": 0.05839070250252803,
+   "owner": "6Dws6CzieU3pKJ98ZKFCK7pViz5kVjcbnpnYZ5MBACCQ",
+   "address": "6EqFHpkgPT3HmAzi9jdKpv6WsuFJVqzSa5k7riBayXEZ",
+   "insider": false
+  },
+  {
+   "pct": 0.037379572078255166,
+   "owner": "5Z6KuE8bWswi1MTHj68P9p8Xa8vywgr67HsSksrisviz",
+   "address": "Fi7HfWDTHSffjZEJp5C9KPfhixsdoB5JqwaEYr5zjPSJ",
+   "insider": false
+  }
+ ],
+ "markets": [
+  {
+   "pubkey": "F6KmxYyuMDUUN2YBTGxFCirwaTXCS8TQopRvi2GCQps1",
+   "marketType": "pump_fun_amm"
+  },
+  {
+   "pubkey": "GFxDy5vJJqxJjEQhC5bAit687ERRtzXg2M1r8xg5DXnp",
+   "marketType": "meteora_damm_v2"
+  }
+ ]
+}

@@ -2002,7 +2002,12 @@ class PaperLane:
         except Exception:
             return None
 
-    def _honeypot_ok(self, token: str) -> bool:
+    def _honeypot_ok(self, token: str, pool: str = None) -> bool:
+        # NOTE (2026-07-14): a transfer-graph "siphon drainer" signal was tried
+        # and REJECTED — the top high-fan-in receiver on CCPEPE was the legit
+        # UniversalRouter, so the signal flags routers, not siphons (false
+        # positives that would block good tokens). Do NOT re-add without a
+        # feature that separates routers/pools from real drainers.
         v = self.honeypot.get(token)
         if v is None:
             from core.rh_honeypot import simulate_sell
@@ -2383,7 +2388,7 @@ class PaperLane:
                 self._log_rug_block(pool, token, w, rug_v, now,
                                     [st.bot.bot_id for st in entering])
                 continue
-            if not token or not self._honeypot_ok(token):
+            if not token or not self._honeypot_ok(token, pool):
                 continue
             self._paper_buy(pool, token, w, d, micro, now, rows,
                             states=entering, age_h=age_h, rug_v=rug_v)

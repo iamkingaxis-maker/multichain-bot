@@ -1,0 +1,6 @@
+{"kind":"buy","volume_usd":2.7,"ts":"2026-07-12T09:22:19+00:00","maker":"0xafed24954e1db43e8cc66ac5e2f4911111f5f112","pair":"0x7d58f22bf9d1e467bd3ffe92c4c91d0c85dc132c","sym":"DEBTCAT","lag_secs":15.68,"pre_conf":true}
+{"kind":"sell","volume_usd":18.97,"ts":"2026-07-12T09:45:14+00:00","maker":"0xb8ca72e87a976405cde8374aec706403cc81560d","pair":"0x7d58f22bf9d1e467bd3ffe92c4c91d0c85dc132c","sym":"DEBTCAT","lag_secs":0.17,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":107.99,"ts":"2026-07-12T10:16:37+00:00","maker":"0x8b2857bc5a130865838a5ac23ef22b84a54b22b5","pair":"0x7d58f22bf9d1e467bd3ffe92c4c91d0c85dc132c","sym":"DEBTCAT","lag_secs":0.04,"pre_conf":true}
+{"kind":"buy","volume_usd":17.97,"ts":"2026-07-12T10:53:40+00:00","maker":"0x5eb1f5fac5de83e11437ef1ae49baf5586e8421e","pair":"0x7d58f22bf9d1e467bd3ffe92c4c91d0c85dc132c","sym":"DEBTCAT","lag_secs":0.81,"pre_conf":true}
+{"kind":"buy","volume_usd":17.98,"ts":"2026-07-12T11:04:26+00:00","maker":"0x5eb1f5fac5de83e11437ef1ae49baf5586e8421e","pair":"0x7d58f22bf9d1e467bd3ffe92c4c91d0c85dc132c","sym":"DEBTCAT","lag_secs":0.97,"pre_conf":true}
+{"kind":"buy","volume_usd":12.31,"ts":"2026-07-12T11:07:01+00:00","maker":"0x8ba84650bb9269b7862b6e0727019a7a9af6b161","pair":"0x7d58f22bf9d1e467bd3ffe92c4c91d0c85dc132c","sym":"DEBTCAT","lag_secs":0.02,"pre_conf":true,"vol_est":true}

@@ -1,0 +1,3 @@
+{"kind":"buy","volume_usd":18.06,"ts":"2026-07-12T12:50:59+00:00","maker":"0x5eb1f5fac5de83e11437ef1ae49baf5586e8421e","pair":"0xc1c5be720e772e03c8a38066d20867dbda426fd8","sym":"CryptoBro","lag_secs":0.84,"pre_conf":true}
+{"kind":"buy","volume_usd":90.31,"ts":"2026-07-12T12:51:09+00:00","maker":"0xc21715596ec2ea551dbc7c9c549df103b3dd0d42","pair":"0xc1c5be720e772e03c8a38066d20867dbda426fd8","sym":"CryptoBro","lag_secs":0.25,"pre_conf":true}
+{"kind":"sell","volume_usd":72.21,"ts":"2026-07-12T12:53:04+00:00","maker":"0xc21715596ec2ea551dbc7c9c549df103b3dd0d42","pair":"0xc1c5be720e772e03c8a38066d20867dbda426fd8","sym":"CryptoBro","lag_secs":1.37,"pre_conf":true,"vol_est":true}

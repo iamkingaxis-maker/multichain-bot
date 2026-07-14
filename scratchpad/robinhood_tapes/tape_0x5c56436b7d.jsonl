@@ -1,0 +1,5 @@
+{"kind":"buy","volume_usd":78.9,"ts":"2026-07-12T09:20:26+00:00","maker":"0x70dc676a7c380e21714abcbc0de0df37dfcf7631","pair":"0x5c56436b7df9cfacf16bc8d4989a8fbcd5668a71","sym":"CASHDOG","lag_secs":0.22,"pre_conf":true}
+{"kind":"buy","volume_usd":35.97,"ts":"2026-07-12T10:46:35+00:00","maker":"0xa779ce177555284baf953de8a3246ba2444a2d34","pair":"0x5c56436b7df9cfacf16bc8d4989a8fbcd5668a71","sym":"CASHDOG","lag_secs":0.43,"pre_conf":true}
+{"kind":"buy","volume_usd":53.95,"ts":"2026-07-12T10:47:01+00:00","maker":"0xa779ce177555284baf953de8a3246ba2444a2d34","pair":"0x5c56436b7df9cfacf16bc8d4989a8fbcd5668a71","sym":"CASHDOG","lag_secs":0.47,"pre_conf":true}
+{"kind":"buy","volume_usd":63.17,"ts":"2026-07-12T14:02:31+00:00","maker":"0x8030b5d942af374f085e2d5ecd5f7344e970edbe","pair":"0x5c56436b7df9cfacf16bc8d4989a8fbcd5668a71","sym":"CASHDOG","lag_secs":0.83,"pre_conf":true}
+{"kind":"buy","volume_usd":63.17,"ts":"2026-07-12T14:02:56+00:00","maker":"0x8030b5d942af374f085e2d5ecd5f7344e970edbe","pair":"0x5c56436b7df9cfacf16bc8d4989a8fbcd5668a71","sym":"CASHDOG","lag_secs":1.08,"pre_conf":true}

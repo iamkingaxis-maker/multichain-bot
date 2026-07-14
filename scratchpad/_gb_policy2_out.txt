@@ -1,0 +1,46 @@
+== (a') PRE-TP1-ONLY trail: applies only to rounds where TP1 never filled
+TP1-unhit rounds n=191; runners (realized>=10) among them n=0
+  X=1.5 Y=3: fires n=25 rec_OPT=  253pp rec_PESS=  203pp ( 29.0pp/day)
+  X=1.5 Y=4: fires n=19 rec_OPT=  223pp rec_PESS=  185pp ( 26.5pp/day)
+  X=1.5 Y=5: fires n=15 rec_OPT=  185pp rec_PESS=  155pp ( 22.1pp/day)
+  X=1.5 Y=6: fires n=12 rec_OPT=  141pp rec_PESS=  117pp ( 16.7pp/day)
+  X=2 Y=3: fires n=24 rec_OPT=  241pp rec_PESS=  193pp ( 27.5pp/day)
+  X=2 Y=4: fires n=19 rec_OPT=  214pp rec_PESS=  176pp ( 25.1pp/day)
+  X=2 Y=5: fires n=15 rec_OPT=  177pp rec_PESS=  147pp ( 21.0pp/day)
+  X=2 Y=6: fires n=12 rec_OPT=  135pp rec_PESS=  111pp ( 15.8pp/day)
+  X=3 Y=3: fires n=24 rec_OPT=  217pp rec_PESS=  169pp ( 24.1pp/day)
+  X=3 Y=4: fires n=19 rec_OPT=  195pp rec_PESS=  157pp ( 22.4pp/day)
+  X=3 Y=5: fires n=15 rec_OPT=  162pp rec_PESS=  132pp ( 18.9pp/day)
+  X=3 Y=6: fires n=12 rec_OPT=  123pp rec_PESS=   99pp ( 14.1pp/day)
+
+runner exposure: TP1-hit rounds n=74 total realized=774pp -- harsh bound if ALL wicked pre-TP1 at Y=5,X=2: cut@+1 -> forfeit 700pp; at mid-cut +3: 552pp
+path-observed FULL round-trip-to-0 pre-TP1 among eventual TP1-hitters (shadow-live rounds): 3/3
+
+== reprice-gap cohort (peak >= 6, TP1 unfilled) — NEIL/FABLE class
+control-ladder (TP1=6): n=0 giveback=0pp realized_sum=0pp
+allday ladder (TP1=13): peak>=13 unfilled n=0 giveback=0pp
+allday peak 6-13 TP1-unreachable-by-design: n=12 giveback=159pp
+   trail X=2,Y=4 on this cohort: rec_PESS=0pp
+   trail X=2,Y=5 on this cohort: rec_PESS=0pp
+   trail X=3,Y=5 on this cohort: rec_PESS=0pp
+
+== giveback by day (deduped, peak>=3):
+   2026-06-27: n= 10 giveback=    48pp
+   2026-06-28: n= 15 giveback=   102pp
+   2026-06-29: n=  2 giveback=    16pp
+   2026-06-30: n=  2 giveback=    13pp
+   2026-07-01: n=  7 giveback=    56pp
+   2026-07-02: n= 32 giveback=   219pp
+   2026-07-03: n= 23 giveback=   111pp
+   2026-07-04: n=  9 giveback=    69pp
+
+== known cases:
+   NEIL: peak=+9.3 realized=-1.8 tp1=False final=breakeven-lock peak=+9.3%>=3% pnl=-0.15%<=0 (lock ~breakeven bot=badday_allday
+   SEMAN: peak=+4.3 realized=-2.2 tp1=False final=breakeven-lock peak=+4.3%>=3% pnl=-0.52%<=0 (lock ~breakeven bot=badday_young_absorb
+   SEMAN: peak=-999.0 realized=-6.2 tp1=False final=in-flight velocity-bail pnl=-6.21% vel=0.0467pp/s (floor -7) bot=badday_young_absorb
+   SEMAN: peak=+22.1 realized=+19.9 tp1=True final=TP2 pnl=22.12% >= 12.0 bot=badday_young_absorb
+   FABLE: peak=-999.0 realized=-8.0 tp1=False final=in-flight velocity-bail pnl=-7.98% vel=0.0191pp/s (floor -7) bot=badday_flush
+   FABLE: peak=+20.6 realized=+14.1 tp1=True final=trail pnl=14.34% <= peak(20.56%) - 6.0pp bot=badday_allday
+   FABLE: peak=+6.7 realized=-6.3 tp1=False final=breakeven-lock peak=+6.7%>=3% pnl=-6.27%<=0 (lock ~breakeven bot=badday_allday
+
+absolute ceiling (every peak>=3 round exits at peak-2, optimistic, zero runner cost): 446pp/7d = 64pp/day

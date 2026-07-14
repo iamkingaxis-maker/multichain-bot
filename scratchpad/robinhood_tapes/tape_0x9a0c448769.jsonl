@@ -1,0 +1,4 @@
+{"kind":"buy","volume_usd":62.98,"ts":"2026-07-10T17:23:21+00:00","maker":"0xc23766318be6f6ba72beec30eac9675fdb28c15c","pair":"0x9a0c448769f2e63428be05f172f91c218bde7c03","sym":"HOODRAT","lag_secs":1.54,"pre_conf":true}
+{"kind":"buy","volume_usd":62.98,"ts":"2026-07-10T17:24:00+00:00","maker":"0xc23766318be6f6ba72beec30eac9675fdb28c15c","pair":"0x9a0c448769f2e63428be05f172f91c218bde7c03","sym":"HOODRAT","lag_secs":0.8,"pre_conf":true}
+{"kind":"buy","volume_usd":12.51,"ts":"2026-07-10T17:25:31+00:00","maker":"0x88ba7c96cba77a916318406b50269c51ab57ab6d","pair":"0x9a0c448769f2e63428be05f172f91c218bde7c03","sym":"HOODRAT","lag_secs":1.45,"pre_conf":true}
+{"kind":"buy","volume_usd":1.07,"ts":"2026-07-10T17:55:23+00:00","maker":"0xa12e0c9e7ab45c099668404fffed853aa070a661","pair":"0x9a0c448769f2e63428be05f172f91c218bde7c03","sym":"HOODRAT","lag_secs":0.59,"pre_conf":true}

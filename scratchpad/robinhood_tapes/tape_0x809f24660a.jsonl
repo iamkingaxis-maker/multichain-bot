@@ -1,0 +1,5 @@
+{"kind":"buy","volume_usd":0.5,"ts":"2026-07-11T05:14:38+00:00","maker":"0x992c15a960716cea3931245ce386abc9f02b86a2","pair":"0x809f24660a73febd34a18248010fee2bd283e156","sym":"CashDog","lag_secs":1.36,"pre_conf":true}
+{"kind":"buy","volume_usd":0.5,"ts":"2026-07-11T05:15:00+00:00","maker":"0x992c15a960716cea3931245ce386abc9f02b86a2","pair":"0x809f24660a73febd34a18248010fee2bd283e156","sym":"CashDog","lag_secs":0.89,"pre_conf":true}
+{"kind":"buy","volume_usd":0.8,"ts":"2026-07-11T05:15:53+00:00","maker":"0x992c15a960716cea3931245ce386abc9f02b86a2","pair":"0x809f24660a73febd34a18248010fee2bd283e156","sym":"CashDog","lag_secs":0.51,"pre_conf":true}
+{"kind":"buy","volume_usd":1.98,"ts":"2026-07-11T05:38:17+00:00","maker":"0x5e3a5b06b53df2cd6dcacc6e70521cc8ec06241d","pair":"0x809f24660a73febd34a18248010fee2bd283e156","sym":"CashDog","lag_secs":0.94,"pre_conf":true}
+{"kind":"buy","volume_usd":4.66,"ts":"2026-07-11T05:40:23+00:00","maker":"0x718781f4d9b9a6b16f912d9c77856ac4bf08ed0d","pair":"0x809f24660a73febd34a18248010fee2bd283e156","sym":"CashDog","lag_secs":1.29,"pre_conf":true}

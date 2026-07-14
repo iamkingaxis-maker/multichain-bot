@@ -1,0 +1,1370 @@
+{
+ "284V4cX2JKuYSCuwC6eor6iKkxP5qeevC2L886oc5rPs": {
+  "token": "EhB1sbSiFVw8XYb8NJUcKEJocGsa4KGxxrS3LsvFpump",
+  "sym": "ALON",
+  "file": "tape_284V4cX2.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T12:37:53+00:00",
+  "newest": "2026-07-01T20:37:44+00:00"
+ },
+ "29NLp52REoJ3VoNQeq2fFPnE7rihB9QVRgPBw3BK6ofN": {
+  "token": "7B4o7Htqi7Rxh135TAouEemN1Hx9xXeKYysRPfPupump",
+  "sym": "\u25ce",
+  "file": "tape_29NLp52R.jsonl",
+  "n_trades": 98,
+  "sweeps": null,
+  "oldest": "2026-07-01T03:51:47+00:00",
+  "newest": "2026-07-01T20:40:32+00:00"
+ },
+ "29X7bKWUqYDJsTrJSPmwVJo5QRpoDLdEyDLEA6soWSW9": {
+  "token": "498DeYRS7AtLdE5wbwXbpFtinMTDTJxuvfXMraDDpump",
+  "sym": "FABLE",
+  "file": "tape_29X7bKWU.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:44:16+00:00",
+  "newest": "2026-07-01T21:21:20+00:00"
+ },
+ "2CFxbGwfp277LtPxxnyWUi11zXEjn3sJC3mFdVdU2Yth": {
+  "token": "HGGBJQpERkzjF38LNfE7FFdpLit4zpyWszoyyu3jpump",
+  "sym": "ANSOM",
+  "file": "tape_2CFxbGwf.jsonl",
+  "n_trades": 99,
+  "sweeps": null,
+  "oldest": "2026-06-30T19:31:47+00:00",
+  "newest": "2026-07-01T19:44:00+00:00"
+ },
+ "2DmFrVtHmqSw86GwQg1pJhxH1gwjyFDCWmpRFub7EdvK": {
+  "token": "HPtvwF828pcv9SLGyAoWiBcZdmbR8hg5JMbFg1Sjpump",
+  "sym": "\u3164",
+  "file": "tape_2DmFrVtH.jsonl",
+  "n_trades": 102,
+  "sweeps": null,
+  "oldest": "2026-07-01T14:48:24+00:00",
+  "newest": "2026-07-01T21:06:41+00:00"
+ },
+ "2PFPAv4yaS75kc4xZhP2jHkUbXT9RuQTP25BSLJ2pbfz": {
+  "token": "5RHcxXfioc5gRCESQrDCeTa3oCbTRgGpA7U5W2itpump",
+  "sym": "CC\u00a9",
+  "file": "tape_2PFPAv4y.jsonl",
+  "n_trades": 126,
+  "sweeps": null,
+  "oldest": "2026-07-01T16:59:42+00:00",
+  "newest": "2026-07-01T21:12:10+00:00"
+ },
+ "2QDDXrbXQspKkJZzQCGpGqyUuS1qeVBbjVzw6tTPtAmd": {
+  "token": "BvBe291ns3Uo8G8PWpaWzy8Hz85fsmRnGaipbK46pump",
+  "sym": "ANSEMIQ",
+  "file": "tape_2QDDXrbX.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T06:01:55+00:00",
+  "newest": "2026-07-01T14:45:58+00:00"
+ },
+ "2S5SFgwim3rRsCgMMdG5S5vPBh6U872DWGJDdb3jurMd": {
+  "token": "14BixSfQkgRr5Z7uqNR5P3dQBZshBC3q1MZrmEd9pump",
+  "sym": "Broots",
+  "file": "tape_2S5SFgwi.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T15:36:17+00:00",
+  "newest": "2026-07-01T18:25:57+00:00"
+ },
+ "2VSPEewK7yU8a4XPwaRhZLNMTzAzHrU4gkEygarDnuNH": {
+  "token": "CXwcR1oPSRwHKnPPEVwWuWxDuHezQPD2tEwn4rvnpump",
+  "sym": "ANSOME",
+  "file": "tape_2VSPEewK.jsonl",
+  "n_trades": 106,
+  "sweeps": null,
+  "oldest": "2026-07-01T16:43:46+00:00",
+  "newest": "2026-07-01T21:21:26+00:00"
+ },
+ "2XHrhkxfXweUpNRZAaS6tBAGUGVa6vTEyi4nPXUi8sfU": {
+  "token": "XkeTXo1125vz5H9svJpGiw4JvLbN8VmMu9cmMvspump",
+  "sym": "DREGG",
+  "file": "tape_2XHrhkxf.jsonl",
+  "n_trades": 199,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:56:31+00:00",
+  "newest": "2026-07-01T21:22:53+00:00"
+ },
+ "2cz2GC3UkwKaFomL8uHAcSgRW6gLHBDx5viRMPVykics": {
+  "token": "JCKwsT8UAbygnFkZ7u3amDUM7BXRtwUhCsHQv2khpump",
+  "sym": "CHANCE",
+  "file": "tape_2cz2GC3U.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:45:42+00:00",
+  "newest": "2026-07-01T20:54:52+00:00"
+ },
+ "2gSSKamSzBF5zEfaJWFD26t8EkGpyAx1aXXQipprwNHv": {
+  "token": "27b3yPhPVJQzCSDtML8XTNVYQcNa2urnMZXgzGhfpump",
+  "sym": "PATRIOTS",
+  "file": "tape_2gSSKamS.jsonl",
+  "n_trades": 99,
+  "sweeps": null,
+  "oldest": "2026-06-30T19:38:44+00:00",
+  "newest": "2026-07-01T19:31:07+00:00"
+ },
+ "2k2swhDxhcG63cMiZwptr8yUbf87rLmN93kAfRkQceF8": {
+  "token": "A37jiDn7ANorAGj6NVVdwUFmxDK2D6zLxMKFcRGSpump",
+  "sym": "BBF",
+  "file": "tape_2k2swhDx.jsonl",
+  "n_trades": 132,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:25:43+00:00",
+  "newest": "2026-07-01T21:22:21+00:00"
+ },
+ "2kobuN8PU5xG9A5oU257TsTd82r4h5Ax8TgiBykqCxn3": {
+  "token": "4jxEPvtcHMukMJ24RKpyX3Y6Et3mPv5sr6U9J9Xhpump",
+  "sym": "Belmar",
+  "file": "tape_2kobuN8P.jsonl",
+  "n_trades": 109,
+  "sweeps": null,
+  "oldest": "2026-07-01T11:38:35+00:00",
+  "newest": "2026-07-01T21:14:36+00:00"
+ },
+ "2pcBimRfLVUkLgb394XMMfrcB82BU7UtLuPhS8WBw6VZ": {
+  "token": "GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump",
+  "sym": "Horseradish",
+  "file": "tape_2pcBimRf.jsonl",
+  "n_trades": 195,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:43:24+00:00",
+  "newest": "2026-07-01T21:20:47+00:00"
+ },
+ "2xzWQTQi26TS3CyPxoLSS51PNaCyHUKpmootgvtjwyrC": {
+  "token": "AGpsaUA2cZnhUFeFDKAiv2TXZc1UWqnaijf6ms2ypump",
+  "sym": "BIGTROUT",
+  "file": "tape_2xzWQTQi.jsonl",
+  "n_trades": 104,
+  "sweeps": null,
+  "oldest": "2026-07-01T16:22:15+00:00",
+  "newest": "2026-07-01T21:22:01+00:00"
+ },
+ "36hr1chy8tVmiG6W6T6nVzTXMy7Z2W9iYexGEHd4qaws": {
+  "token": "7B4yqEiat3pU2Cdfunri5LP6GNVJPcSM4AwAq87fpump",
+  "sym": "WOA",
+  "file": "tape_36hr1chy.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T19:45:25+00:00",
+  "newest": "2026-07-01T17:21:14+00:00"
+ },
+ "36wRqESg6BpkAyfDwBwk7gjQp2wKzqCFs3y4Qwz6rQR8": {
+  "token": "8LZKRa3f23CrCTwLFRY9jQWRjFQwGiuP46Mk9jytpump",
+  "sym": "MARVIN",
+  "file": "tape_36wRqESg.jsonl",
+  "n_trades": 102,
+  "sweeps": null,
+  "oldest": "2026-07-01T18:59:44+00:00",
+  "newest": "2026-07-01T20:53:13+00:00"
+ },
+ "3DH4ju9dfuGBoUBnALunfDaDFSEm4HCzvogp3Xb8449t": {
+  "token": "GTQJCBLiNVG3zjPfz3VAM7pRPoaULP88xH8P6m7kpump",
+  "sym": "DARKY",
+  "file": "tape_3DH4ju9d.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T06:50:55+00:00",
+  "newest": "2026-07-01T20:32:58+00:00"
+ },
+ "3GYnk6vJ2vvwDGD4xeukCqeRVeVQqQc436ubh7oB1ZCe": {
+  "token": "6bqvwKH6Q8SnTSooLR1ikBawcPAuUxitfyqwM9azpump",
+  "sym": "skew",
+  "file": "tape_3GYnk6vJ.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:19:30+00:00",
+  "newest": "2026-07-01T21:20:47+00:00"
+ },
+ "3nYtfzvrkGWUdZi9JRdQbVfKd3Nkc3NBnEFrGEhBR7CL": {
+  "token": "F23GvgK5TvSA78FmibZot7gtU3yfAiPb4BkD4RrZc18B",
+  "sym": "Ansem",
+  "file": "tape_3nYtfzvr.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:43:32+00:00",
+  "newest": "2026-07-01T21:22:42+00:00"
+ },
+ "3o73Ts3pSYQwkBUNwCV6ESRMor5WnAGKYA8CXNHpB2Va": {
+  "token": "8uaVkhc4hrZHZB3GaJmzKHA7vWRrebMv5QQ82C1WtoFu",
+  "sym": "QBX",
+  "file": "tape_3o73Ts3p.jsonl",
+  "n_trades": 99,
+  "sweeps": null,
+  "oldest": "2026-07-01T16:11:33+00:00",
+  "newest": "2026-07-01T20:04:29+00:00"
+ },
+ "3pHEkB3RMMZCmso25KBEboniasrLCEuZqvkQWnYgqKPa": {
+  "token": "67mUDZxgXBGhuwPpb4aYLHpKZfQQdx1a87ykH5Ngpump",
+  "sym": "TREVV",
+  "file": "tape_3pHEkB3R.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T18:59:16+00:00",
+  "newest": "2026-07-01T20:48:12+00:00"
+ },
+ "3sC4omR4fqjdemxNKNwxVXo4tyaNghfz7ajeiYevrhJG": {
+  "token": "DgubzCb3hfrDQzQNZwqTGvEYCBmm3gJoZXzKmqRapump",
+  "sym": "ALEX",
+  "file": "tape_3sC4omR4.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T06:53:42+00:00",
+  "newest": "2026-07-01T19:54:01+00:00"
+ },
+ "3vpjuHaeMcpp1uhk6m2PaSvejymBXWeGndU8ZqWMaQ1z": {
+  "token": "BJYbq7654XAuXwb4W1YEa496PBR8gX31c2N2btYQpump",
+  "sym": "BULLMAO",
+  "file": "tape_3vpjuHae.jsonl",
+  "n_trades": 101,
+  "sweeps": null,
+  "oldest": "2026-07-01T15:10:26+00:00",
+  "newest": "2026-07-01T20:55:54+00:00"
+ },
+ "3zcxJQpstffNbRMyTayJRLnvZ4vVDyXvHPqcGpNg7tey": {
+  "token": "DTiG8SMN6RHYLAtLkFdrzKixnb3Dr8gy9gCrCXxmpump",
+  "sym": "BINDY",
+  "file": "tape_3zcxJQps.jsonl",
+  "n_trades": 193,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:22:47+00:00",
+  "newest": "2026-07-01T21:20:34+00:00"
+ },
+ "4DYTbLYbDQyqJavJLrHt4XtQkVm7qAYzUTtjfsicRomP": {
+  "token": "5pYB12kEhfhSFXJjZ7JtyqDpt6uUqhsF6iu6Ee9spump",
+  "sym": "CATWIF",
+  "file": "tape_4DYTbLYb.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:47:27+00:00",
+  "newest": "2026-07-01T21:22:59+00:00"
+ },
+ "4EqYAxS2ssXftQ18TBkDyR37bAjLfSLY56DaecCSrp2i": {
+  "token": "2GKyVqZz1pyWFMsQNQ9bWRfKFug9fFnxAP67dMSmpump",
+  "sym": "b40",
+  "file": "tape_4EqYAxS2.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T04:29:47+00:00",
+  "newest": "2026-07-01T20:35:43+00:00"
+ },
+ "4KhRsYF4FCrawd1h3GjGwffufmPLjVazGtTvk6JVfRnf": {
+  "token": "8bZai1tbW3zF8PS9rj3zC5AGQccqe6ap3EFnEiGQpump",
+  "sym": "TRADING",
+  "file": "tape_4KhRsYF4.jsonl",
+  "n_trades": 99,
+  "sweeps": null,
+  "oldest": "2026-07-01T17:19:09+00:00",
+  "newest": "2026-07-01T21:10:21+00:00"
+ },
+ "4PAZrRgRChXukqcE51Urkq98qhTnWDW6S7NCsF8TvEZN": {
+  "token": "ApANnyv1KP6uZaPmqhaCruMqZHHxQCACKDGCcjU5pump",
+  "sym": "BIGGER",
+  "file": "tape_4PAZrRgR.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T00:45:54+00:00",
+  "newest": "2026-07-01T17:42:29+00:00"
+ },
+ "4PXkZypf1ioB61wp5Dyu4E6KoYqV7ATyQZofyG1HqDp6": {
+  "token": "DqFRdmWd8P3FC8c6XDk64eY1hFHjJ56N9dhZS3jUpump",
+  "sym": "DAVINCI",
+  "file": "tape_4PXkZypf.jsonl",
+  "n_trades": 105,
+  "sweeps": null,
+  "oldest": "2026-07-01T18:52:29+00:00",
+  "newest": "2026-07-01T21:15:50+00:00"
+ },
+ "4emYNwKf8JReoeuKWwr3jfa4dECaSJsRcU8PEn5mtDuP": {
+  "token": "EXRZszRg5abT7TXvJ1YpVz6znoBkZ9f8EjkxZixpump",
+  "sym": "AIRDROP",
+  "file": "tape_4emYNwKf.jsonl",
+  "n_trades": 176,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:16:52+00:00",
+  "newest": "2026-07-01T21:19:54+00:00"
+ },
+ "4fq2E5Een15nc3CarmgWGyoEtp5ajy86sEsZNG3gfjgn": {
+  "token": "8pGWyByG8J42RrMuaG9tDYTjwDPcVwXeTo8dLfAjpump",
+  "sym": "Becker",
+  "file": "tape_4fq2E5Ee.jsonl",
+  "n_trades": 98,
+  "sweeps": null,
+  "oldest": "2026-07-01T07:27:08+00:00",
+  "newest": "2026-07-01T19:53:29+00:00"
+ },
+ "4mDZjRSzc1PpvgPEU5bsWk2SooKwNPgKnP2ATh8AtduT": {
+  "token": "BERChQArew5Q4a9so8EmYCnLooehpzS2fZSSdU8tpump",
+  "sym": "PORK",
+  "file": "tape_4mDZjRSz.jsonl",
+  "n_trades": 136,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:10:49+00:00",
+  "newest": "2026-07-01T21:22:14+00:00"
+ },
+ "4pX9cEpKTaofS9q3SJjPtjtiZqQzXvz7efKgyYZ9Lfwi": {
+  "token": "USAyjsvuR5A8YPTZy1vnG59soGWJgk6AzPWmeqX2k1B",
+  "sym": "America250",
+  "file": "tape_4pX9cEpK.jsonl",
+  "n_trades": 98,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:30:11+00:00",
+  "newest": "2026-07-01T20:37:34+00:00"
+ },
+ "4yn8vaBS7zwmfqfqnAPWf5D1rQZDqeGuWbMsMgqg9XbK": {
+  "token": "5YvsYQA4b49TW7yRa2PGmV3sh8AEd7kB4LJSXgfapump",
+  "sym": "BullBank",
+  "file": "tape_4yn8vaBS.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T00:33:24+00:00",
+  "newest": "2026-07-01T20:45:56+00:00"
+ },
+ "598dEWWRBu5Y4Na6yi9c6ieBrxCVk58ixv3e72NZcqSE": {
+  "token": "DYxPtxp3c2CWRoKtHx2q81kcNxidXMrQAkGwVcn6pump",
+  "sym": "DOLAN ",
+  "file": "tape_598dEWWR.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T09:42:36+00:00",
+  "newest": "2026-07-01T20:53:23+00:00"
+ },
+ "5Cu8SkrUTJDGiyX3f6npJTXSYuhHSwsZQmrR1mBmuwhN": {
+  "token": "Fugm7Zq3Sku9KK7AWgw7nr4A8K3ro2SHif6Ai3qLpump",
+  "sym": "AIRSEM",
+  "file": "tape_5Cu8SkrU.jsonl",
+  "n_trades": 101,
+  "sweeps": null,
+  "oldest": "2026-06-30T21:55:14+00:00",
+  "newest": "2026-07-01T20:54:17+00:00"
+ },
+ "5UypVaeAEi7R8cUvhsxHkd1DNhv47siXsr792WApUEnN": {
+  "token": "81H84f84mmTXcPZ4fVu5dz1LAVGhBtfCGrmxSmTQpump",
+  "sym": "BARRON",
+  "file": "tape_5UypVaeA.jsonl",
+  "n_trades": 99,
+  "sweeps": null,
+  "oldest": "2026-07-01T10:33:40+00:00",
+  "newest": "2026-07-01T20:54:20+00:00"
+ },
+ "5YMyRMK8xxnpf89yPeqfn1ECgYFjyDGgahj9zeypjBxe": {
+  "token": "83Z2tZyjgLrC2pFXKUiaxkzCTiWi68KkK6FEwNLKpump",
+  "sym": "SOLS",
+  "file": "tape_5YMyRMK8.jsonl",
+  "n_trades": 137,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:25:59+00:00",
+  "newest": "2026-07-01T21:22:55+00:00"
+ },
+ "5fL9AFwwBhWyrngMoAAdvr3CH3RJFqUGNKwywgLihwsa": {
+  "token": "HULaBKR1eK3SA18FpfEav8Z2t7TJ1qEC775YHTLNpump",
+  "sym": "DAVID",
+  "file": "tape_5fL9AFww.jsonl",
+  "n_trades": 185,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:32:38+00:00",
+  "newest": "2026-07-01T21:22:12+00:00"
+ },
+ "5xKxYzu4UdRKQ7Q1LFYivCDgRwdGhZC5UrDza8WEdDKx": {
+  "token": "BwAU6gsimrFhJrRcZqKxQJayfnkyyan63WNCJRWYpump",
+  "sym": "CUPSEY",
+  "file": "tape_5xKxYzu4.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T18:40:26+00:00",
+  "newest": "2026-07-01T20:51:55+00:00"
+ },
+ "64uYz2gdsTVZ7hC6gfPGWDBXKdCJubtEv463rrnXmSg3": {
+  "token": "4xyyYHkzbhpqkR6scme8soyybBtBYDPg2N6yN5cfpump",
+  "sym": "Guardians",
+  "file": "tape_64uYz2gd.jsonl",
+  "n_trades": 118,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:00:08+00:00",
+  "newest": "2026-07-01T21:18:22+00:00"
+ },
+ "6YismmnYSgxCw9aWgf3h2GxMr1GDkvWq7oo76RjQ1i6v": {
+  "token": "2aQKC1xiKpEyAWvzSDrULnYLVuybWyx7qrsnpP8hpump",
+  "sym": "Udin",
+  "file": "tape_6YismmnY.jsonl",
+  "n_trades": 181,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:51:43+00:00",
+  "newest": "2026-07-01T21:21:46+00:00"
+ },
+ "6b6SS84o6dq9oM2Nc17yLwEeS1YxfZbBGq3X4ZXYPoUE": {
+  "token": "A1mcjzsXNT5nvFsYwyQFqbv9KmxogDT3S65qCYP5pump",
+  "sym": "ANSEMSTIMMY",
+  "file": "tape_6b6SS84o.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T13:52:18+00:00",
+  "newest": "2026-07-01T10:58:58+00:00"
+ },
+ "6cax1sgJueGBopP85GvoibbDxF8b4ragN2aYvHndjazH": {
+  "token": "3JHgosXW8pm1JsraMvtFhaxYjfaqowFPibM74WZypump",
+  "sym": "DAVINCI",
+  "file": "tape_6cax1sgJ.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T16:42:15+00:00",
+  "newest": "2026-07-01T20:53:07+00:00"
+ },
+ "6pdREYRQde6R2mHSd3aY6BQT6r7c97aBGB5YAERfb8SR": {
+  "token": "UcRtytWGPPkiJDx8AtJEtAu1Yt26AkaZZRPA1pJdwnd",
+  "sym": "dwnd",
+  "file": "tape_6pdREYRQ.jsonl",
+  "n_trades": 102,
+  "sweeps": null,
+  "oldest": "2026-07-01T10:18:33+00:00",
+  "newest": "2026-07-01T21:15:19+00:00"
+ },
+ "6tbpWLeRnNkESWwwt6RwA5LXJfEKpuVfKZYRgmckUEsS": {
+  "token": "41y7bEjuidUJTZJ7mbfqzKjNcBiecYvjnyPwCb2gpump",
+  "sym": "OCCAM",
+  "file": "tape_6tbpWLeR.jsonl",
+  "n_trades": 199,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:38:24+00:00",
+  "newest": "2026-07-01T21:21:48+00:00"
+ },
+ "6unnG2hL8udPjDpu3TchvAtptu3dq8AS7tymrWDN2LLC": {
+  "token": "42cXQvAAr7hcPBPWAS4ocVtDyeJ4Fa6gRR2uG4gppump",
+  "sym": "TBB",
+  "file": "tape_6unnG2hL.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T18:45:48+00:00",
+  "newest": "2026-07-01T20:55:11+00:00"
+ },
+ "77WQKX8D7e89LZXLk3qus2Xmqn4tNQjJrL6kwjDpj91L": {
+  "token": "9E2Q4KKxLS5Y4bu6RKvjg5wQ2kzaLkiVsMt7zwMZpump",
+  "sym": "WYNN",
+  "file": "tape_77WQKX8D.jsonl",
+  "n_trades": 99,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:37:44+00:00",
+  "newest": "2026-07-01T20:55:29+00:00"
+ },
+ "78VT8UhKvRXH7i4E2Hw1orN8mxKYQ2FhxVRu2efDrRFT": {
+  "token": "84eYhZRCr8ZWaocYvCw7NUsPh8f4VeYEohfozeFwpump",
+  "sym": "PORTNOY",
+  "file": "tape_78VT8UhK.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T07:53:39+00:00",
+  "newest": "2026-07-01T20:43:10+00:00"
+ },
+ "7WKt831KnuXsADyGubFfyoPJUGpuSP1H2T22jwPn2fgR": {
+  "token": "7ZD9DsoJXj2gEP3BSuq9miUtgAN45zWodKrHfJqHpump",
+  "sym": "DARKY",
+  "file": "tape_7WKt831K.jsonl",
+  "n_trades": 103,
+  "sweeps": null,
+  "oldest": "2026-06-30T17:07:49+00:00",
+  "newest": "2026-07-01T21:14:18+00:00"
+ },
+ "7Ww3YihMX63nKeM3n68MAHvRMnZAmtYq5Rshb6WzYPkX": {
+  "token": "2NsN1aS6LYzuoSFSDFq7CekcSyKSyA3qYoKngNWepump",
+  "sym": "ANSEMBULL",
+  "file": "tape_7Ww3YihM.jsonl",
+  "n_trades": 104,
+  "sweeps": null,
+  "oldest": "2026-07-01T15:19:22+00:00",
+  "newest": "2026-07-01T21:19:05+00:00"
+ },
+ "7YbttTQzRZcZ3MxQh2WhPHXuGzF3w5tc4cPuv53Euq2C": {
+  "token": "DoWCif6MaQEMuMRDDu6PRWr6JQH7SFqm33eZa8jwpump",
+  "sym": "PORTNOY",
+  "file": "tape_7YbttTQz.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:09:06+00:00",
+  "newest": "2026-07-01T20:52:56+00:00"
+ },
+ "7a2DnDLCfMVVa9PFbCREfvcwgN85vLVpFwd5YiPXd3wr": {
+  "token": "8M8ykoAbwcK3RkVTB2Q2Q8dbZabMTjYPpYVxWykMpump",
+  "sym": "hansem",
+  "file": "tape_7a2DnDLC.jsonl",
+  "n_trades": 105,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:16:39+00:00",
+  "newest": "2026-07-01T21:16:33+00:00"
+ },
+ "7joYMddmc1Cud5AzpnwJm9oXX6KB2CuSraiCdvSzgGR6": {
+  "token": "JAqfTRmYJff6RqMyGTGayqPx2cYiGVBdrL3DQMKGbonk",
+  "sym": "Saviour",
+  "file": "tape_7joYMddm.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T18:46:03+00:00",
+  "newest": "2026-07-01T20:53:37+00:00"
+ },
+ "81RM4fW51f9YeSBiyq99r8E6qZfKYFShRzX8LRaJfPi8": {
+  "token": "61qNX1UoKDMypgDJzNGFra3Mb6DQPyUmf6zDayZ7bonk",
+  "sym": "Bepe",
+  "file": "tape_81RM4fW5.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:41:47+00:00",
+  "newest": "2026-07-01T20:53:38+00:00"
+ },
+ "8GU4TY8ZXZdgUTqn79h2cuSd65u73oFmXY25RAVtvZ45": {
+  "token": "9qeN746oRit785W9xs69XR4Tzm2i4vjaxUikNYYFpump",
+  "sym": "Bullshit",
+  "file": "tape_8GU4TY8Z.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:45:58+00:00",
+  "newest": "2026-07-01T20:53:22+00:00"
+ },
+ "8Nj6AA6u9R27dYVTRcEQokesoe7YZLwjWwJSpPYxdkQk": {
+  "token": "CqrdKzJciuoXgSrc4wtxG2iXDgGBSgHggxwvCRzhpump",
+  "sym": "Cobie",
+  "file": "tape_8Nj6AA6u.jsonl",
+  "n_trades": 105,
+  "sweeps": null,
+  "oldest": "2026-07-01T15:22:00+00:00",
+  "newest": "2026-07-01T21:08:35+00:00"
+ },
+ "8T7NjEKecmfUv545HjgS2e3kjTpiY3Sk9R56YKe4NGT5": {
+  "token": "J23oV9NtPy13q7XPuC9VpmBhHQYviArX9uCvg4KXpump",
+  "sym": "Bool",
+  "file": "tape_8T7NjEKe.jsonl",
+  "n_trades": 181,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:26:31+00:00",
+  "newest": "2026-07-01T21:20:52+00:00"
+ },
+ "8f1c5ScMVq1JaMNuFzbrPCirasSBbtEuyFgoXAczLkTQ": {
+  "token": "HKvuvfLFN2skaXPmzvvYUbZ68sPRrHLoDAGL2Lojpump",
+  "sym": "ANSEM",
+  "file": "tape_8f1c5ScM.jsonl",
+  "n_trades": 104,
+  "sweeps": null,
+  "oldest": "2026-07-01T18:45:30+00:00",
+  "newest": "2026-07-01T21:12:18+00:00"
+ },
+ "8imenxcQAGZapaWz2BaWMrjH9Geio7mQnJz4ugdfCmhw": {
+  "token": "3h6df28x45T5rLfmusok7YsZunT7TX2Y1qB5DZLNpump",
+  "sym": "TJR",
+  "file": "tape_8imenxcQ.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:46:03+00:00",
+  "newest": "2026-07-01T21:21:27+00:00"
+ },
+ "8jpRBNmgrQm4dYhVUF18emhmkvaV3tdUpDz2CF6PdzwU": {
+  "token": "C6kWVdLGAE3Eb8Xc6VRZbs9ZvouHhBMYbhd4BVagD4Da",
+  "sym": "TESTIBULL",
+  "file": "tape_8jpRBNmg.jsonl",
+  "n_trades": 98,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:40:00+00:00",
+  "newest": "2026-07-01T20:53:15+00:00"
+ },
+ "8o6xnJsYoRvD751e969vapxhwQTfT7s4UtkcuPTnUxwQ": {
+  "token": "42AkFX59LK7bR974qZc7N5RcnikxrffFPQ4PQVympump",
+  "sym": "ONBOARD",
+  "file": "tape_8o6xnJsY.jsonl",
+  "n_trades": 99,
+  "sweeps": null,
+  "oldest": "2026-07-01T16:45:31+00:00",
+  "newest": "2026-07-01T20:50:28+00:00"
+ },
+ "8pdvatckoFSPgqTMwib7cBkUTPXYdQERXw11NrafgTSK": {
+  "token": "2kcyNdr5C49ihFviFxa8hGv4AHTVp9W3ZZPt2WV2pump",
+  "sym": "PI",
+  "file": "tape_8pdvatck.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T13:02:21+00:00",
+  "newest": "2026-07-01T20:50:47+00:00"
+ },
+ "8uFDjyTuwvJWgtiE8zXBa9ZyU6bJzCLJDPCDrTcLYntt": {
+  "token": "GFZErV4qFZk6GCZ38C4VGXGyiHJ627UWHvVB2bzypump",
+  "sym": "ANSEM",
+  "file": "tape_8uFDjyTu.jsonl",
+  "n_trades": 179,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:14:19+00:00",
+  "newest": "2026-07-01T21:18:39+00:00"
+ },
+ "9EkXWQ8PXYsiqDDWawUW6knybYaPiB7Ga3iyLoxATCBz": {
+  "token": "2jz9E5JrEbxLg1RhU68aaSikDvpQurCEZz9BBF9rpump",
+  "sym": "PATTYICE",
+  "file": "tape_9EkXWQ8P.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:34:09+00:00",
+  "newest": "2026-07-01T20:54:50+00:00"
+ },
+ "9PgDHSmcmH674Lst6GtrLyVVei4HR8WDGtJSgcRpMC2": {
+  "token": "Ns6PhWqLDTexho3aiU42TZM7af5bsyEsqQffT4Bpump",
+  "sym": "bull",
+  "file": "tape_9PgDHSmc.jsonl",
+  "n_trades": 98,
+  "sweeps": null,
+  "oldest": "2026-07-01T18:10:45+00:00",
+  "newest": "2026-07-01T20:53:54+00:00"
+ },
+ "9QwpxCSEssoY6NacsYivMptPeYqXa8Hwd2oFpJd4vrXp": {
+  "token": "BDdzUjksj1J4bSnMveQ5tV9Up8A9c6YS1tHrxNw3pump",
+  "sym": "FOMO",
+  "file": "tape_9QwpxCSE.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:11:58+00:00",
+  "newest": "2026-07-01T20:52:47+00:00"
+ },
+ "9Z4pCzKZNP9gbRtCQoZVQXczb8RHHZcFhG5cNXtRLfWT": {
+  "token": "GLdhqrRriPGbK2qko1rkBcNWcqaBk1Mv4EN8SUdFpump",
+  "sym": "AVA",
+  "file": "tape_9Z4pCzKZ.jsonl",
+  "n_trades": 139,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:55:45+00:00",
+  "newest": "2026-07-01T21:20:15+00:00"
+ },
+ "9fdFYnW6pBCE6b9CjnJwdp6RJG3cEfRuf8rcJcP5nyUR": {
+  "token": "2ZAm1ekz9WWAx7BJxfNnfCrQe7KWNYECqfNDFdxPpump",
+  "sym": "CATerpillar",
+  "file": "tape_9fdFYnW6.jsonl",
+  "n_trades": 154,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:03:00+00:00",
+  "newest": "2026-07-01T21:21:44+00:00"
+ },
+ "9q2C9bkiNFkx7rvynPw2Yk53ufCKgSHbYkAPmqM1p9TK": {
+  "token": "FMTG5DSNYSS6Wv6d6bWG8MnK9ncdgVnkUFRj3ksdpump",
+  "sym": "ALBEMARLE",
+  "file": "tape_9q2C9bki.jsonl",
+  "n_trades": 199,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:39:47+00:00",
+  "newest": "2026-07-01T21:20:22+00:00"
+ },
+ "9u8KnTGmGUTHviN8EuJEdT2gWTu1gQvc3SpdmGaqUQiy": {
+  "token": "CzigqJ9h9mnfXq3G3jKBVcApKu8Kh8JtZGxarzY2pump",
+  "sym": "SUPERMAN",
+  "file": "tape_9u8KnTGm.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:27:39+00:00",
+  "newest": "2026-07-01T21:21:55+00:00"
+ },
+ "9xHAvrmtRVqKCYuYmvhpcbzApvh56m5Y6oy5AKs37gtb": {
+  "token": "591UdL6WMaEMEf641uJUwUTq1utX6zhBrjaiTqVCpump",
+  "sym": "BULLEMOJI",
+  "file": "tape_9xHAvrmt.jsonl",
+  "n_trades": 101,
+  "sweeps": null,
+  "oldest": "2026-07-01T09:11:29+00:00",
+  "newest": "2026-07-01T20:58:44+00:00"
+ },
+ "AJfwQvZpumVVSsehVXgUJqWP271E9nz2mB6er6DBwdqe": {
+  "token": "hZ5KWowmySGbKVuGDhRTsPPrYCRfzk7BxLKwpg7pump",
+  "sym": "Vulland",
+  "file": "tape_AJfwQvZp.jsonl",
+  "n_trades": 107,
+  "sweeps": null,
+  "oldest": "2026-07-01T17:37:44+00:00",
+  "newest": "2026-07-01T21:21:17+00:00"
+ },
+ "ATcT3GWNpF4YoS68dmT4XiQJEeNvn38RdxeBqFfNBBWo": {
+  "token": "51xtAhpY7QAULARF8dAs33r7xX95Ja6WFwaVEULKpump",
+  "sym": "MURAD",
+  "file": "tape_ATcT3GWN.jsonl",
+  "n_trades": 136,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:42:19+00:00",
+  "newest": "2026-07-01T21:21:51+00:00"
+ },
+ "ATgJNxTjWBS7s5gpEJ1XNVp5K2TaTYwAhTKzpaKKHXXP": {
+  "token": "AYbQQ5oictsFufCmCE579ah1MHBLj2y1XDdr3MKxpump",
+  "sym": "NOAH",
+  "file": "tape_ATgJNxTj.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T05:18:36+00:00",
+  "newest": "2026-07-01T20:48:42+00:00"
+ },
+ "Ab6btBEjpUL8WXPnMXgo8DAki429FLdM4RjuRKcEWSUc": {
+  "token": "e9GLqEo9J1LDXbExtf2HC363wdYoGNmLteSt49Zpump",
+  "sym": "GOU",
+  "file": "tape_Ab6btBEj.jsonl",
+  "n_trades": 299,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:44:25+00:00",
+  "newest": "2026-07-01T21:20:47+00:00"
+ },
+ "AhDYT3JFydsjD4kwF5aTSsjSxdzsx2z5ykxaQ8c2XdYb": {
+  "token": "66PiKgkEPtDCzSnTJds8sf6JAUTnzqCnDAzRSaA1pump",
+  "sym": "TRENCHER",
+  "file": "tape_AhDYT3JF.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T05:13:28+00:00",
+  "newest": "2026-07-01T20:37:59+00:00"
+ },
+ "AiEhqZZe7kbk3c1nNPWrsJgEMoeSGz7BXq9UbpiE3y52": {
+  "token": "FVPyD6dBeyTamNcNb4Q8isPw3Z51187k4vn9KEngZPQ3",
+  "sym": "FIFA",
+  "file": "tape_AiEhqZZe.jsonl",
+  "n_trades": 99,
+  "sweeps": null,
+  "oldest": "2026-07-01T08:34:15+00:00",
+  "newest": "2026-07-01T08:34:40+00:00"
+ },
+ "AmABoKqAGgFKHb9FRkjSMfeYeh7G522fU8qDLmfc7JmD": {
+  "token": "C9546c2s3cqqgys9MbMgq6D58bACKBpjoW4AwQaWpump",
+  "sym": "Coursebull",
+  "file": "tape_AmABoKqA.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T02:42:37+00:00",
+  "newest": "2026-07-01T17:55:56+00:00"
+ },
+ "AtPXzwvpNuXzeJUcFZGWZ6cK14NpE6UwmmbBTqnDc8un": {
+  "token": "FDEF2U9geiWS7sdGPCUo2r1wGswkJr2mmVTECiH6pump",
+  "sym": "MITCH",
+  "file": "tape_AtPXzwvp.jsonl",
+  "n_trades": 198,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:39:27+00:00",
+  "newest": "2026-07-01T21:21:21+00:00"
+ },
+ "AxXPwQPMJt8hRgTDirQ5r8zkaaZ11cYQ976tShqChiqy": {
+  "token": "B7DTbYbpfyK9BBtpFAQj8dtz8BdVf7taHo9TsDuDpump",
+  "sym": "REDBULL",
+  "file": "tape_AxXPwQPM.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T07:41:14+00:00",
+  "newest": "2026-07-01T20:48:11+00:00"
+ },
+ "B1GFLecDJbYgDDSkKQMDp8xz5TTiCgdW7ADDVqqSUUFe": {
+  "token": "HEU5mPDm5jCyn4AjQKjvWuvttACKvitgpAdwfmu2DoiA",
+  "sym": "CLIVE",
+  "file": "tape_B1GFLecD.jsonl",
+  "n_trades": 201,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:18:06+00:00",
+  "newest": "2026-07-01T21:23:00+00:00"
+ },
+ "B9c9dVwSNvM8q2v1CdmymXtsWBWS7U1VjG2Z3aLjLzpX": {
+  "token": "CuGJf6cfDfMh4UxVgNJ5KFQ6v8Wv3qrqop6cFKsGpump",
+  "sym": "TATE",
+  "file": "tape_B9c9dVwS.jsonl",
+  "n_trades": 120,
+  "sweeps": null,
+  "oldest": "2026-07-01T18:43:18+00:00",
+  "newest": "2026-07-01T21:22:01+00:00"
+ },
+ "BHZZtmYFhMg4PtSecNifJaQQLRL6Vjyyhqm19J12xQgT": {
+  "token": "AKvo9h7sKSW8je7psL4nZLCGpTK2ZSKQD2AFNDR9pump",
+  "sym": "relax",
+  "file": "tape_BHZZtmYF.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:32:19+00:00",
+  "newest": "2026-07-01T21:21:30+00:00"
+ },
+ "BNGcs51k4GWcvzp5DYSGjscQxCydjL3pKo5VV5JnkSwu": {
+  "token": "BZ8SLQP9zCK93zUdYj7XzUKHgVj71PCBXVYKtVSLpump",
+  "sym": "bopdog",
+  "file": "tape_BNGcs51k.jsonl",
+  "n_trades": 136,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:57:29+00:00",
+  "newest": "2026-07-01T21:21:46+00:00"
+ },
+ "BV3LZbAyzwTsdr6MziPbz7suV1wBLapmAYCvtok7bdPk": {
+  "token": "sbuHkAQXG46jH9onGKRV9h4ckb9b2PQFd6aWTQ4pump",
+  "sym": "COPPERINU",
+  "file": "tape_BV3LZbAy.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T14:30:54+00:00",
+  "newest": "2026-07-01T20:53:28+00:00"
+ },
+ "BZzhW8UMq2YHGHMngPxZJGvjbBUqMjnANZeD7fz4Gy1V": {
+  "token": "PAco91BgYqnfVXasTC1p5h7GccdeWjoNhSdUUpdpump",
+  "sym": "$PUMPGIRL",
+  "file": "tape_BZzhW8UM.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:29:24+00:00",
+  "newest": "2026-07-01T19:31:01+00:00"
+ },
+ "BvG8Layx1cpGbQoyviwqgZ4t8gRB3HrU2XeRogA7QHtE": {
+  "token": "DAW7qFqQ4jnWeVPgzeNZzEKgxWr9nNXo7dKSZPQ1pump",
+  "sym": "Elf",
+  "file": "tape_BvG8Layx.jsonl",
+  "n_trades": 157,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:19:40+00:00",
+  "newest": "2026-07-01T21:21:35+00:00"
+ },
+ "By5FJ8SXGtfUgxQfyedbLPeFUvDaEbMy2dmG2mbe7ynd": {
+  "token": "ERPtViqckt1zqpS2abUx67CgLcP54CkhBPYz3yRUpump",
+  "sym": "yep",
+  "file": "tape_By5FJ8SX.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:25:22+00:00",
+  "newest": "2026-07-01T21:21:07+00:00"
+ },
+ "C1KHGdzEh3DVr7iE8tUiqUuox9eYigLFBhikpU3rbjwD": {
+  "token": "8RzLtzrucoKMoYAFUtfu6Tcg7LZSAGar78VWREeGpump",
+  "sym": "ANSOM",
+  "file": "tape_C1KHGdzE.jsonl",
+  "n_trades": 132,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:40:55+00:00",
+  "newest": "2026-07-01T21:22:50+00:00"
+ },
+ "C6gBMDLG57vm4FgE5rfbVkEAfPB2TsFuPbnCcg39JhxS": {
+  "token": "4tC6gtLswUcHydP2uwUBU3C5TLYFuAjouY2uUGMZpump",
+  "sym": "OLYMP",
+  "file": "tape_C6gBMDLG.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T13:47:30+00:00",
+  "newest": "2026-07-01T20:18:00+00:00"
+ },
+ "C93iMB1xHF9A2KZGaA5kzAkHKm3xsRGf9PZHhkHGQiNY": {
+  "token": "PDqSePtjwXYaruFX7hdujV9wf4X7Z4fu5d2iVMCpump",
+  "sym": "Speedrun",
+  "file": "tape_C93iMB1x.jsonl",
+  "n_trades": 123,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:39:00+00:00",
+  "newest": "2026-07-01T21:22:25+00:00"
+ },
+ "CKB2oH5RWERUvNZHGxBGGs5mPMSofRxHgCz7MtAfyXQX": {
+  "token": "iB1umQs5Jzq6ysaRk5yRKaJ4XJcWgqHDxsdVtjipump",
+  "sym": "BABYANSEM",
+  "file": "tape_CKB2oH5R.jsonl",
+  "n_trades": 121,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:16:32+00:00",
+  "newest": "2026-07-01T21:22:25+00:00"
+ },
+ "CaWb9btThMoGpUQPnGz46XbGsCnxFuYBXnPvbDVPS3ua": {
+  "token": "HmfsXTkyDQA7ecmJHgCEVUGz2W29E4uJHzyVFXvqpump",
+  "sym": "\tuniverse",
+  "file": "tape_CaWb9btT.jsonl",
+  "n_trades": 96,
+  "sweeps": null,
+  "oldest": "2026-06-30T18:57:32+00:00",
+  "newest": "2026-07-01T19:20:09+00:00"
+ },
+ "CcspXXLaaceTXUF4kg1JjChd3CYDcNZj7bNrPqTVGsKo": {
+  "token": "Aso39cjyYg1oPJdABSaFDZd6gQEa2E2ffogVfmvfpump",
+  "sym": "ANTOT",
+  "file": "tape_CcspXXLa.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T18:34:31+00:00",
+  "newest": "2026-07-01T19:19:14+00:00"
+ },
+ "CyTMmm817GD2fZFwPN31gJc8fHFUDpdzEPLwQyQ97jxN": {
+  "token": "CH2amwcGDKTDcNy29nk5dhykPtB1Ls2nNqrMm4LHpump",
+  "sym": "Pompliano",
+  "file": "tape_CyTMmm81.jsonl",
+  "n_trades": 104,
+  "sweeps": null,
+  "oldest": "2026-07-01T16:44:56+00:00",
+  "newest": "2026-07-01T21:14:12+00:00"
+ },
+ "DEAtFrFhDz1J5D2KB9pzQCDHj5bT7tBCcWcBHwYzV4LU": {
+  "token": "EGg56E1YtL5YapzkF7vkRThHR8i5FeRvm2LLuySdYory",
+  "sym": "NAVE",
+  "file": "tape_DEAtFrFh.jsonl",
+  "n_trades": 133,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:46:15+00:00",
+  "newest": "2026-07-01T21:22:23+00:00"
+ },
+ "DNgkdXiA2MwPxx7EKP58yVTEGApX26on2PZSjPxRuBhX": {
+  "token": "CjLsNU3cwma3ZQ42bqnaMyznhpaNo8a9Gr5mqeqYpump",
+  "sym": "DAVE",
+  "file": "tape_DNgkdXiA.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T03:08:06+00:00",
+  "newest": "2026-07-01T20:25:09+00:00"
+ },
+ "DP6oFNuSE9XEp37jn2witbEvGgDtMvTnHmJogC1LA14t": {
+  "token": "DbqbFSSBEDaX9F6hnySDHKmKSE9PU1KTyJ7jwcd3xViS",
+  "sym": "trenchies",
+  "file": "tape_DP6oFNuS.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T18:19:58+00:00",
+  "newest": "2026-07-01T20:52:00+00:00"
+ },
+ "DUzj8NzbNeqLj7Y8YYCWZdV29LmPGs84bSxxtvUADgXD": {
+  "token": "3wbaKwr76GnRcRmNaiyqhR8XyAtcdkcv4FRMaPcFpump",
+  "sym": "SHIH",
+  "file": "tape_DUzj8Nzb.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:31:56+00:00",
+  "newest": "2026-07-01T21:21:14+00:00"
+ },
+ "DVs2KGyiPAhQN7J9kfb33Syk6ppHwv8QAizduFUoG5Ti": {
+  "token": "CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump",
+  "sym": "SHROOM",
+  "file": "tape_DVs2KGyi.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:27:07+00:00",
+  "newest": "2026-07-01T21:20:58+00:00"
+ },
+ "DcqXnSNSDv7tE2itNGsMjxhGhk56nMpLUpmZbpcDNthV": {
+  "token": "D78NGAjigMXaX52u5wvvLoNWuDZW98DayCxVtM9Fpump",
+  "sym": "VITALY",
+  "file": "tape_DcqXnSNS.jsonl",
+  "n_trades": 174,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:10:22+00:00",
+  "newest": "2026-07-01T21:22:07+00:00"
+ },
+ "DqivdBJjRvyfLyXHnw87V8q7EAqQNSmjeZDZtRsQzzoF": {
+  "token": "5E99gcH7gxMCf7X2igMxT3zJUW6GAXn7zU61SQjbpump",
+  "sym": "SEXY",
+  "file": "tape_DqivdBJj.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:34:30+00:00",
+  "newest": "2026-07-01T21:19:29+00:00"
+ },
+ "DwzRr47yKMAxm5LYdneyrBMLe3Fo2r4DhHUsJyYJw54f": {
+  "token": "3VkUe5T9uAuU6EqmEMqQcuTRqEcqU86NAfwbFZKxpump",
+  "sym": "elchef",
+  "file": "tape_DwzRr47y.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T18:33:22+00:00",
+  "newest": "2026-07-01T20:49:19+00:00"
+ },
+ "DxHJzF4L7p5B91nLiu8CRNLQHA7VrQcmgMqpmovZVR7t": {
+  "token": "E3UBW6jjbmTUWAkLo1zKNmtKH2DG8nCKEqaEEFxpump",
+  "sym": "CREDIBULL",
+  "file": "tape_DxHJzF4L.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T18:39:00+00:00",
+  "newest": "2026-07-01T18:18:26+00:00"
+ },
+ "E7VswuHUKUp9TZJb5tgQspV45YidnBJCo6v9UhyQ4sVm": {
+  "token": "vD4gAaQdJb3T3E4233vS4ix41ppSxQa7pGbfLtJpump",
+  "sym": "LIFE",
+  "file": "tape_E7VswuHU.jsonl",
+  "n_trades": 96,
+  "sweeps": null,
+  "oldest": "2026-07-01T08:03:05+00:00",
+  "newest": "2026-07-01T20:05:59+00:00"
+ },
+ "EBNUexqpB5WjKXJsfm3ruFt7zb7ZbXHZGR7YdhYuvuyy": {
+  "token": "3d1qHSAkQhoN7kN1C6tvpAArCkXWxwYdBng6taXCDM6u",
+  "sym": "RTM",
+  "file": "tape_EBNUexqp.jsonl",
+  "n_trades": 101,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:27:32+00:00",
+  "newest": "2026-07-01T20:55:05+00:00"
+ },
+ "EDyBHd8zQVFuq6zucpi1DXyUQbCA3dBaVgZNCRfWVyFg": {
+  "token": "DjBhmw2YjXnU5sXKNcBJbLovsiQVc6Eojuq3TNTVpump",
+  "sym": "jotchua",
+  "file": "tape_EDyBHd8z.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T06:20:08+00:00",
+  "newest": "2026-07-01T19:35:29+00:00"
+ },
+ "EMx5ytM4rZchJ9gwJTNs2jd4qievETiiVkRKSazkwSh5": {
+  "token": "7Gc1mPtjdxNtPwQT4EMpR46CCmqPZRvRLA79gv2jpump",
+  "sym": "FARTCOIN 2",
+  "file": "tape_EMx5ytM4.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T11:05:53+00:00",
+  "newest": "2026-07-01T20:48:42+00:00"
+ },
+ "EQgsxMGscUpw5ngiyCByU7uMzSDbFaJThHjgL4Ymh964": {
+  "token": "C9VPkF8MeGc81mnFjLq1kfzn3KAeQgkKrG4iwE9hpump",
+  "sym": "BULLMAR",
+  "file": "tape_EQgsxMGs.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T04:22:09+00:00",
+  "newest": "2026-07-01T20:45:46+00:00"
+ },
+ "EUAFY6JjqxaTZSW65bez9387R8HkRZdZqYfy5Z8A5Rjz": {
+  "token": "9ZkArkhhDMe19ToEUWnUiM75XWJxcTSF2vmKHM2Spump",
+  "sym": "GOKHSHTEIN",
+  "file": "tape_EUAFY6Jj.jsonl",
+  "n_trades": 144,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:06:48+00:00",
+  "newest": "2026-07-01T21:22:51+00:00"
+ },
+ "Eg2SxQ3zkT3ZjQmnXg318aVUR8eo4YfUPUVzeU6riGJN": {
+  "token": "4U4U8oXwDyVXGeTffMXds4NAgBgLFwq3wNvTCRTSpump",
+  "sym": "TJR",
+  "file": "tape_Eg2SxQ3z.jsonl",
+  "n_trades": 168,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:57:30+00:00",
+  "newest": "2026-07-01T21:22:37+00:00"
+ },
+ "EkPVEbbQHg8RLPAr5UDXGTtBnCpvYZN5wwrFLkrLv8cu": {
+  "token": "6eDqAxts3AZ3cMBPQd3c4D1jzjX1uAQ4Lo53d6dUpump",
+  "sym": "MMGA",
+  "file": "tape_EkPVEbbQ.jsonl",
+  "n_trades": 105,
+  "sweeps": null,
+  "oldest": "2026-07-01T18:50:34+00:00",
+  "newest": "2026-07-01T21:22:03+00:00"
+ },
+ "EwRxs61YB2sWiANgQCbG9vgeRKWDZ3FxXWtYZ2kFVbM8": {
+  "token": "FMqh9mqR6drPZqqW6wPqLHxX4rqNDWGhYLaMfoaJpump",
+  "sym": "world",
+  "file": "tape_EwRxs61Y.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:46:46+00:00",
+  "newest": "2026-07-01T21:21:36+00:00"
+ },
+ "F1Q7rvMJQ7KFGutSpmVqJab1yG1vw5kEfNWNNXziH5Mn": {
+  "token": "6XUkLa8fbTzRUkGotni7UtkG4EHtUFe8qPhJU5THpump",
+  "sym": "ZAYED",
+  "file": "tape_F1Q7rvMJ.jsonl",
+  "n_trades": 127,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:29:45+00:00",
+  "newest": "2026-07-01T21:20:54+00:00"
+ },
+ "F3k8rD5CSNMbXyD8UBShcn7rBkGdGiJcukvwxRGHS7Tc": {
+  "token": "5roz8AK6ewzM9te6ZE6XAoeTgTeQHtms7BMFWaEjpump",
+  "sym": "YEN",
+  "file": "tape_F3k8rD5C.jsonl",
+  "n_trades": 99,
+  "sweeps": null,
+  "oldest": "2026-07-01T17:35:28+00:00",
+  "newest": "2026-07-01T20:54:40+00:00"
+ },
+ "F3zKnVo4dG8ughj2MWseTGvHXqF1D8LUTm6PXJWSxnqA": {
+  "token": "2b27LMa8FbkWbHt8C5JzHciFyeKejFkCRyZ434Axpump",
+  "sym": "SAVIOURS",
+  "file": "tape_F3zKnVo4.jsonl",
+  "n_trades": 99,
+  "sweeps": null,
+  "oldest": "2026-07-01T05:48:26+00:00",
+  "newest": "2026-07-01T19:50:56+00:00"
+ },
+ "FXfmL53naPn8w5L7xQgaxAchU7Akfqo96eztnqJKi59M": {
+  "token": "5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump",
+  "sym": "BULLWIF",
+  "file": "tape_FXfmL53n.jsonl",
+  "n_trades": 190,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:29:05+00:00",
+  "newest": "2026-07-01T21:19:51+00:00"
+ },
+ "FavBQ8cTSVS7e7g8qgSXDywTuqQfqF1UHA9L87vBYeFA": {
+  "token": "EBrsfGrqd2wPhWhNpgcTsnJAyft6RTVpYzffJ4Q7pump",
+  "sym": "RICHES",
+  "file": "tape_FavBQ8cT.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T12:44:00+00:00",
+  "newest": "2026-07-01T05:29:45+00:00"
+ },
+ "Fd35pvzQWUHjD1EPDVH9U85vpgZrxuN9LMjx7SPtEvMg": {
+  "token": "3oBRGPMpvR1TpHRx9oMEeJwSgwv7Fo7ndshuu2rQpump",
+  "sym": "Potato",
+  "file": "tape_Fd35pvzQ.jsonl",
+  "n_trades": 199,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:46:07+00:00",
+  "newest": "2026-07-01T21:21:51+00:00"
+ },
+ "FqRiBboRyiY8Lyq5hn8CTn8LGTCQYoknK6K2MSKwwD1q": {
+  "token": "G9ds9rppyJVZs4ZiRv6jVEq4Tq7kRcXxFgbhz232pump",
+  "sym": "WYNN",
+  "file": "tape_FqRiBboR.jsonl",
+  "n_trades": 133,
+  "sweeps": null,
+  "oldest": "2026-07-01T18:57:08+00:00",
+  "newest": "2026-07-01T21:21:39+00:00"
+ },
+ "Fs2Juq2822tZTDz1j66DQuMg6psWowQjgAMe8qw7QrUn": {
+  "token": "7SoBgBncbcC8U6fmdGJPfi7dNM26aTJPxfhAGoLPpump",
+  "sym": "ANSEMTRENCH",
+  "file": "tape_Fs2Juq28.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-29T22:43:45+00:00",
+  "newest": "2026-07-01T16:20:18+00:00"
+ },
+ "G6EPiJGRTQ6oZj3MzTnmD5GUFVxKbukJeL4Hksz4qS3X": {
+  "token": "3cqKLiB6bFoUyUdmM7zmBu7goRu77y9a7VqicQDNpump",
+  "sym": "POKE",
+  "file": "tape_G6EPiJGR.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T04:34:32+00:00",
+  "newest": "2026-07-01T20:39:12+00:00"
+ },
+ "GB6tPWYBr8T2gvpW2Nx68uYSWHqPtUgfVA5cVnTkdzrH": {
+  "token": "AJj2ksDDHK3Pe7DBhW2bgQVSTP8q7pLbQRVXJQBJaSpV",
+  "sym": "STOCHASTIC",
+  "file": "tape_GB6tPWYB.jsonl",
+  "n_trades": 118,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:13:45+00:00",
+  "newest": "2026-07-01T21:18:01+00:00"
+ },
+ "GHsvMr1hUT6TsvLzjd58LmcBw6gWwdnSRVfitnAkTFRK": {
+  "token": "5ZUHgzZW127LgXCPd25NTcttGiSxjepM9Dz42xyxpump",
+  "sym": "AnsemAnthem",
+  "file": "tape_GHsvMr1h.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T03:00:12+00:00",
+  "newest": "2026-07-01T14:43:21+00:00"
+ },
+ "GJA8ec4mGb79zP3cNiz92VDoZP4KHCSQPJ1xKNKaBHW1": {
+  "token": "HRJLkc6vDysVHdrUpCsQ5EBx6fPM15TZRKAhfUBnpump",
+  "sym": "WIF2",
+  "file": "tape_GJA8ec4m.jsonl",
+  "n_trades": 199,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:41:57+00:00",
+  "newest": "2026-07-01T21:23:23+00:00"
+ },
+ "GKgWPmTt7JCwZf4pxtZqq4ZjcryEpPz2mMj4y3xegzRB": {
+  "token": "BDbNwA95183CdqUhx2P6R3fWXbefubVbx2wNnCp6pump",
+  "sym": "FROGBULL",
+  "file": "tape_GKgWPmTt.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:40:40+00:00",
+  "newest": "2026-07-01T21:21:23+00:00"
+ },
+ "GLWqZoMkXQFG2EY8ujcN1iMiAYG4xD5dLt1dqMmckBWe": {
+  "token": "7BMCFNmTmV5rhPQB8amN77255ndYX5gbF7K9gnb6pump",
+  "sym": "\ud83d\udfe5\ud83d\udfe9",
+  "file": "tape_GLWqZoMk.jsonl",
+  "n_trades": 99,
+  "sweeps": null,
+  "oldest": "2026-07-01T14:32:32+00:00",
+  "newest": "2026-07-01T20:45:08+00:00"
+ },
+ "GSGMBFWNVHrGYtYebfYDCz82KRXUavxznXqV5NfgsBBz": {
+  "token": "C5vxPUKsg8w4QwKqJQYaV8XNJ5XSPKbtxrrs4zHvpump",
+  "sym": "PEACE",
+  "file": "tape_GSGMBFWN.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:46:35+00:00",
+  "newest": "2026-07-01T21:20:57+00:00"
+ },
+ "Gh6HDSh1fchK35Jk8JF1qjyKz68deZyZfU4Xv3HieXVC": {
+  "token": "2838azpak6PsqVWC5UQYbSe675M2FkMS9e1Qa1ZMpump",
+  "sym": "TJR",
+  "file": "tape_Gh6HDSh1.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T13:42:10+00:00",
+  "newest": "2026-07-01T19:39:26+00:00"
+ },
+ "GnfJavqDzrifzLNVG1t5G2JRP9XiwFdnxdqYUbzfnzhD": {
+  "token": "6JVpLGkXrcNz7XBBjP2uHc29ZnKa57nmSpewGzqgsNQx",
+  "sym": "TOLY",
+  "file": "tape_GnfJavqD.jsonl",
+  "n_trades": 97,
+  "sweeps": null,
+  "oldest": "2026-06-30T03:57:14+00:00",
+  "newest": "2026-07-01T18:56:35+00:00"
+ },
+ "GrUqhnde1Rn9JBvdw9xVx5hjja9uNMWKrMvXDvgcPcFU": {
+  "token": "86CFcbZBJAqGVnfgnLNcw3tPmfaTigAR2UxbUPYTpump",
+  "sym": "LUKE",
+  "file": "tape_GrUqhnde.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:36:16+00:00",
+  "newest": "2026-07-01T20:52:25+00:00"
+ },
+ "Gu2xGVua4JNSzgDKeqoSd7Uy7QzUUmdHsKmezZyKfPMA": {
+  "token": "DeGXmkzhwrfhW5fSMDs2tfBPN5Jwwq247zjeJ8bHpump",
+  "sym": "DEADSEM",
+  "file": "tape_Gu2xGVua.jsonl",
+  "n_trades": 102,
+  "sweeps": null,
+  "oldest": "2026-07-01T06:00:28+00:00",
+  "newest": "2026-07-01T20:56:36+00:00"
+ },
+ "HBXrPXKJzUZeJTYepVQ9izCXytJP8RPoSRHsgpG7CCcv": {
+  "token": "2ZvFgTyLMrgyLmoPHtD5KsTyALh14ffzxJoni4oPpump",
+  "sym": "BOGE",
+  "file": "tape_HBXrPXKJ.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:04:21+00:00",
+  "newest": "2026-07-01T20:52:09+00:00"
+ },
+ "HDB1D9FpzQF4VVJ8gMnbWf4tBk1DxGAAMYnoGE93Rwvu": {
+  "token": "Cz1nNU1XsBKWPfD9aGNSxxp7EmTCBjEFH4eprKtxpump",
+  "sym": "Scamcoin",
+  "file": "tape_HDB1D9Fp.jsonl",
+  "n_trades": 99,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:09:37+00:00",
+  "newest": "2026-07-01T20:53:24+00:00"
+ },
+ "HHXQfx5i2cez4WcBwXjai7TtnZTk5Byp3od6thPhETNe": {
+  "token": "9gAVAtdnsrniW3GCwsvDeRPf5eJDjtT9S5bu1j7tpump",
+  "sym": "dog",
+  "file": "tape_HHXQfx5i.jsonl",
+  "n_trades": 198,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:21:25+00:00",
+  "newest": "2026-07-01T21:20:28+00:00"
+ },
+ "HUNPMqBEp5RoZproidt3Ujfhbo29SLGWU97xkAxX1UKu": {
+  "token": "AhHuDSNubYsSJwYvCocWANQPMTNzVe7WbxLS6mnwpump",
+  "sym": "BOOM",
+  "file": "tape_HUNPMqBE.jsonl",
+  "n_trades": 145,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:54:44+00:00",
+  "newest": "2026-07-01T21:21:22+00:00"
+ },
+ "HYs13Dh2N6UytznnaAwQhQdbfE1xBZyzakK9f2zvcHvA": {
+  "token": "HnVDCRts3FttnKBdCMQisnsciHpDdMTL6uUc3tghpump",
+  "sym": "DIAMOND",
+  "file": "tape_HYs13Dh2.jsonl",
+  "n_trades": 102,
+  "sweeps": null,
+  "oldest": "2026-07-01T03:54:40+00:00",
+  "newest": "2026-07-01T21:01:14+00:00"
+ },
+ "HgeKwSQVPf4KmApNocikwXcGQmnenR7hj6d1cY5MBAnH": {
+  "token": "86CQ5gYV7tJSD2EEAyGtPhes2Z9iit5jhiEtYEr8pump",
+  "sym": "POINT",
+  "file": "tape_HgeKwSQV.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:27:50+00:00",
+  "newest": "2026-07-01T21:22:45+00:00"
+ },
+ "Hh6ajgHBw5eRr8Rj9kC51zAZvrChjVvrAnc2w8Sy6G7j": {
+  "token": "CkAuhMagnem2iukGwApsfw1ypWETWDdKFD1Xrrtspump",
+  "sym": "BULLCAT",
+  "file": "tape_Hh6ajgHB.jsonl",
+  "n_trades": 113,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:21:10+00:00",
+  "newest": "2026-07-01T21:19:08+00:00"
+ },
+ "HkgY8Zqvo1MasppdeXXpnbnoxYzR1oDDEiD1vXWmmxZH": {
+  "token": "7VzxJDpkd1EAUoTifsaDRo6q35CJPYMBBU8UdoqApump",
+  "sym": "ANSEM BLKGT",
+  "file": "tape_HkgY8Zqv.jsonl",
+  "n_trades": 95,
+  "sweeps": null,
+  "oldest": "2026-07-01T12:00:49+00:00",
+  "newest": "2026-07-01T14:39:34+00:00"
+ },
+ "J7HdS6Hi2HejMLLpkpRerVQHjHiCDYXy4LK18p1zyYVk": {
+  "token": "7XSmrerjGbVi9uVW8qVHfp7SN1GU1vnxHguzUEt1pump",
+  "sym": "ALON",
+  "file": "tape_J7HdS6Hi.jsonl",
+  "n_trades": 137,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:44:24+00:00",
+  "newest": "2026-07-01T21:21:40+00:00"
+ },
+ "J8c2wQCZiLoc38GL1uqWsABznXDXgKpxo7Dm4Pnpu311": {
+  "token": "7jrazSKnCU2vbyVPJ8dfEF2TMYLcUiDBsFaEGvqopump",
+  "sym": "\ud83d\udc02\ud83c\udc04",
+  "file": "tape_J8c2wQCZ.jsonl",
+  "n_trades": 177,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:50:10+00:00",
+  "newest": "2026-07-01T21:23:23+00:00"
+ },
+ "XjcB2D4ph8jYgMxXZjstRGD466E4MFoNXXsgD94uBxp": {
+  "token": "7wBNDH3dTELdmJ4utxyJKjkNhcLdmxMj2TJCFvVaqGz",
+  "sym": "TYLER",
+  "file": "tape_XjcB2D4p.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-06-30T18:13:37+00:00",
+  "newest": "2026-07-01T18:10:35+00:00"
+ },
+ "a2uaeSyEuVowBmnEV91pbDmcZDscXPrUvQG1DGz7BaB": {
+  "token": "FfpUuXzXcZAg2Lrk9PAd9DKbvvUdPREniyHgXyR6pump",
+  "sym": "HIM",
+  "file": "tape_a2uaeSyE.jsonl",
+  "n_trades": 168,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:24:27+00:00",
+  "newest": "2026-07-01T21:20:22+00:00"
+ },
+ "eAVVVCtbsDq5YCi9V2LSZnhN8Zv5xc2vhBwfsDPSSaT": {
+  "token": "27bY6JvU9XheKgXTJi6z2BcaqRXXSYuVrgTajg84pump",
+  "sym": "EDWARD",
+  "file": "tape_eAVVVCtb.jsonl",
+  "n_trades": 176,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:05:48+00:00",
+  "newest": "2026-07-01T21:20:22+00:00"
+ },
+ "jpqfphDxnEjSAguhGCeTZ74PU5A5ef1FBoV5u3an16b": {
+  "token": "J4Y92jy5Lr9ho1aV41bhguytnzBbsPhZJahmaVszpump",
+  "sym": "FRAG",
+  "file": "tape_jpqfphDx.jsonl",
+  "n_trades": 103,
+  "sweeps": null,
+  "oldest": "2026-07-01T14:45:25+00:00",
+  "newest": "2026-07-01T21:14:02+00:00"
+ },
+ "jtJr25qL3RSkDxgJT5unwpKvYgEbvWLxMfs5Zbtudiz": {
+  "token": "EhR8t2Hd9KikSPiRHdHs8WidCLa3T1VEPFpnCsRRpump",
+  "sym": "HTML",
+  "file": "tape_jtJr25qL.jsonl",
+  "n_trades": 100,
+  "sweeps": null,
+  "oldest": "2026-07-01T19:10:04+00:00",
+  "newest": "2026-07-01T20:51:15+00:00"
+ },
+ "rG3bs2yMYgptgyvfnmvBdLBjwizY9HCDDVQGpxuyoUx": {
+  "token": "2kcdBw85q4qMVCjUkEynTnZ3bGbBeCqZRDRNLpeWpump",
+  "sym": "traindog",
+  "file": "tape_rG3bs2yM.jsonl",
+  "n_trades": 200,
+  "sweeps": null,
+  "oldest": "2026-07-01T20:41:03+00:00",
+  "newest": "2026-07-01T21:21:40+00:00"
+ },
+ "rSyt64cs33cvfqXQ2KvnY13A7isRkkE3DBMUc8T9PL8": {
+  "token": "skDGuSDyKYGbYTWnMCNcPeDd4vHUxAsMNVVxxUfpump",
+  "sym": "ADA",
+  "file": "tape_rSyt64cs.jsonl",
+  "n_trades": 107,
+  "sweeps": null,
+  "oldest": "2026-07-01T15:30:11+00:00",
+  "newest": "2026-07-01T21:17:13+00:00"
+ }
+}

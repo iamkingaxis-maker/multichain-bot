@@ -1,0 +1,4 @@
+{"kind":"buy","volume_usd":24.0,"ts":"2026-07-12T10:29:55+00:00","maker":"0xffeb4ca57735c38ee6bf89f78ad0f30d96eca2fa","pair":"0x47d4da247ea887248448aaa8528c556b2399bc31","sym":"ARCHR","lag_secs":0.16,"pre_conf":true}
+{"kind":"sell","volume_usd":7.93,"ts":"2026-07-12T11:37:49+00:00","maker":"0xa8e73a289666d4ca7d16e35e9523f4c249e9f131","pair":"0x47d4da247ea887248448aaa8528c556b2399bc31","sym":"ARCHR","lag_secs":4.35,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":360.53,"ts":"2026-07-12T12:11:24+00:00","maker":"0x35d64017f121e2662f78fbb08edc95b700e0aa9d","pair":"0x47d4da247ea887248448aaa8528c556b2399bc31","sym":"ARCHR","lag_secs":1.15,"pre_conf":true}
+{"kind":"buy","volume_usd":50.53,"ts":"2026-07-12T14:14:00+00:00","maker":"0xfd9d919c7057d66ec6a3329c8d061e6340baa3d5","pair":"0x47d4da247ea887248448aaa8528c556b2399bc31","sym":"ARCHR","lag_secs":0.56,"pre_conf":true}

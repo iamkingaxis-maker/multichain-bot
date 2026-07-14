@@ -1,0 +1,3 @@
+{"kind":"buy","volume_usd":1.08,"ts":"2026-07-11T23:56:11+00:00","maker":"0x191706b15b4c3778ce742a5264884b07fe430dba","pair":"0xe25294d97a9c996b19f4bb4986000b311990f5ef","sym":"Trader","lag_secs":0.85,"pre_conf":true}
+{"kind":"buy","volume_usd":3.57,"ts":"2026-07-12T00:23:21+00:00","maker":"0xc327aed10380a9ccf12727796d0d4553001edc13","pair":"0xe25294d97a9c996b19f4bb4986000b311990f5ef","sym":"Trader","lag_secs":0.76,"pre_conf":true}
+{"kind":"buy","volume_usd":3.58,"ts":"2026-07-12T00:32:28+00:00","maker":"0xe421dc83e5a80f3323b949c01f7694ea230c0beb","pair":"0xe25294d97a9c996b19f4bb4986000b311990f5ef","sym":"Trader","lag_secs":0.17,"pre_conf":true}

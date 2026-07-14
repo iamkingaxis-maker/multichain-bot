@@ -1,0 +1,129 @@
+launch_arc.py run 2026-07-03 04:52 UTC
+new_pools refresh: +140 pools (cache 267)
+
+birth cohort (age 6-30h now): 127 pools
+screen: 45 fetch-bars candidates, 82 no-life (skipped as no-traction)
+
+NO-ARC / NO-TRACTION SHARE (full birth cohort n=127):
+  reached tradeable floor (peak mcap>=100k AND best-liq>=25k): 7 (6%)
+  peak mcap>=100k regardless of liq: 10 (8%)
+  never any traction: 117 (92%)
+  [caveat: liq history unavailable; liq_best = max(birth reserve, current DS liq) -> traction slightly undercounted]
+
+== ARC PREVALENCE: GT unbiased, peak-mcap>=100k (incl. liq<25k) ==
+scored: 7 (excluded: {})
+  arc_recovered    0  (0%)
+  arc_corpse       2  (29%)
+  arc_censored     1  (14%)
+  up_only          1  (14%)
+  slow_fade        0  (0%)
+  never_pumped     3  (43%)
+  pump->dump arc rate: 3/7 = 43% ; recovery rate among resolved arcs: 0/2 = 0%
+  med timings: launch->peak 4m | peak->trough 362m | trough->+20%   -  
+  med dd@trough: rec   -   | corpse -83.9% ; terminal-vs-peak: rec   -   | corpse -83.7%
+
+== ARC PREVALENCE: GT unbiased, FULL tradeable floor (mcap>=100k & liq>=25k) ==
+scored: 4 (excluded: {})
+  arc_recovered    0  (0%)
+  arc_corpse       2  (50%)
+  arc_censored     1  (25%)
+  up_only          1  (25%)
+  slow_fade        0  (0%)
+  never_pumped     0  (0%)
+  pump->dump arc rate: 3/4 = 75% ; recovery rate among resolved arcs: 0/2 = 0%
+  med timings: launch->peak 4m | peak->trough 362m | trough->+20%   -  
+  med dd@trough: rec   -   | corpse -83.9% ; terminal-vs-peak: rec   -   | corpse -83.7%
+
+== Q2 TROUGH DISCRIMINATOR (GT unbiased traction cohort) ==
+n: recoverer 0, corpse 2
+feature (median)    recoverer     corpse
+dd                        -        -0.84
+min_since_peak            -       181.50
+vol_tr15                  -      2705.42
+vol_peak15                -    156510.46
+vol_ratio                 -         0.45
+green_share_tr15          -         0.00
+bars_tr15                 -         1.00
+threshold sweep -> recov-precision | recall | corpses passed:
+  vol_ratio >= 0.05    -> prec 0% (0/1) | recall 0% | corpses 1/2
+  vol_ratio >= 0.1     -> prec 0% (0/1) | recall 0% | corpses 1/2
+  vol_ratio >= 0.25    -> prec 0% (0/1) | recall 0% | corpses 1/2
+  dd <= -0.85   -> prec 0% (0/1) | recall 0% | corpses 1/2
+  dd <= -0.75   -> prec 0% (0/1) | recall 0% | corpses 1/2
+  min_since_peak <= 30      -> prec 0% (0/1) | recall 0% | corpses 1/2
+  min_since_peak <= 60      -> prec 0% (0/1) | recall 0% | corpses 1/2
+
+== ENTRY TOURNAMENT (GT unbiased traction cohort) — exit stack TP1+6/TP2+12/stop-12/45m ==
+rule                n  fill   age@e     mean   median   win%  stop%   worst
+knife_pch1-30       3  100%   0.31h    -4.0%    -0.1%     0%    33%  -12.0%
+higher_low_10m      2   67%   0.54h    -1.5%    -1.5%     0%    50%   -3.0%
+trough_hold_30m     2   67%   1.70h    -0.2%    -0.2%     0%     0%   -0.3%
+
+== Q4 AGE BAND (entry age, all rules pooled and per rule) ==
+rule             band        n     mean   win%
+knife_pch1-30    <2h         3    -4.0%     0%
+knife_pch1-30    2-8h        0        -      -
+knife_pch1-30    >8h         0        -      -
+higher_low_10m   <2h         2    -1.5%     0%
+higher_low_10m   2-8h        0        -      -
+higher_low_10m   >8h         0        -      -
+trough_hold_30m  <2h         1    +0.0%     0%
+trough_hold_30m  2-8h        1    -0.3%     0%
+trough_hold_30m  >8h         0        -      -
+
+---------- SUPPLEMENTARY: local recorded 172-pair set (runner-biased) ----------
+
+== ARC PREVALENCE: local runner-biased (coverage from launch only) ==
+scored: 14 (excluded: {'late_coverage': 100, 'no_launch_ts': 58})
+  arc_recovered    4  (29%)
+  arc_corpse       1  (7%)
+  arc_censored     0  (0%)
+  up_only          0  (0%)
+  slow_fade        0  (0%)
+  never_pumped     9  (64%)
+  pump->dump arc rate: 5/14 = 36% ; recovery rate among resolved arcs: 4/5 = 80%
+  med timings: launch->peak 53m | peak->trough 5m | trough->+20% 4m
+  med dd@trough: rec -65.1% | corpse -99.3% ; terminal-vs-peak: rec -99.2% | corpse -99.3%
+
+== Q2 TROUGH DISCRIMINATOR (local runner-biased) ==
+n: recoverer 4, corpse 1
+feature (median)    recoverer     corpse
+dd                      -0.65      -0.99
+min_since_peak           3.50     587.00
+vol_tr15             69658.39       0.24
+vol_peak15          101035.43   78848.25
+vol_ratio                0.84       0.00
+green_share_tr15         0.25       0.00
+bars_tr15               15.00       1.00
+threshold sweep -> recov-precision | recall | corpses passed:
+  vol_ratio >= 0.05    -> prec 100% (3/3) | recall 75% | corpses 0/1
+  vol_ratio >= 0.1     -> prec 100% (3/3) | recall 75% | corpses 0/1
+  vol_ratio >= 0.25    -> prec 100% (3/3) | recall 75% | corpses 0/1
+  green_share_tr15 >= 0.4     -> prec 100% (1/1) | recall 25% | corpses 0/1
+  green_share_tr15 >= 0.5     -> prec 100% (1/1) | recall 25% | corpses 0/1
+  bars_tr15 >= 8       -> prec 100% (3/3) | recall 75% | corpses 0/1
+  bars_tr15 >= 12      -> prec 100% (3/3) | recall 75% | corpses 0/1
+  dd <= -0.85   -> prec 50% (1/2) | recall 25% | corpses 1/1
+  dd <= -0.75   -> prec 67% (2/3) | recall 50% | corpses 1/1
+  min_since_peak <= 30      -> prec 100% (3/3) | recall 75% | corpses 0/1
+  min_since_peak <= 60      -> prec 100% (3/3) | recall 75% | corpses 0/1
+
+== ENTRY TOURNAMENT (local runner-biased) — exit stack TP1+6/TP2+12/stop-12/45m ==
+rule                n  fill   age@e     mean   median   win%  stop%   worst
+knife_pch1-30       5  100%   1.20h    -6.5%    -9.1%    20%    60%  -12.0%
+higher_low_10m      5  100%   1.61h    -1.9%    -2.9%    20%     0%   -7.6%
+trough_hold_30m     5  100%   2.09h    -3.3%    -2.1%    20%     0%   -9.4%
+
+== Q4 AGE BAND (entry age, all rules pooled and per rule) ==
+rule             band        n     mean   win%
+knife_pch1-30    <2h         4    -5.8%    25%
+knife_pch1-30    2-8h        1    -9.1%     0%
+knife_pch1-30    >8h         0        -      -
+higher_low_10m   <2h         4    -2.0%    25%
+higher_low_10m   2-8h        1    -1.4%     0%
+higher_low_10m   >8h         0        -      -
+trough_hold_30m  <2h         2    -3.4%     0%
+trough_hold_30m  2-8h        3    -3.2%    33%
+trough_hold_30m  >8h         0        -      -
+
+saved: _launch_arc_results.json

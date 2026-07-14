@@ -1,0 +1,4322 @@
+{
+ "29X7bKWUqYDJsTrJSPmwVJo5QRpoDLdEyDLEA6soWSW9": {
+  "name": "FABLE / SOL",
+  "pool_created_at": "2026-07-01T07:31:02Z",
+  "reserve_usd": "32580.1796",
+  "fdv_usd": "148610.3678",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000148303233820786012066079458181090506336584092286028959659909369",
+  "vol_h24": "2081573.58716796",
+  "txns": {
+   "m5": {
+    "buys": 34,
+    "sells": 28,
+    "buyers": 29,
+    "sellers": 25
+   },
+   "m15": {
+    "buys": 92,
+    "sells": 80,
+    "buyers": 74,
+    "sellers": 67
+   },
+   "m30": {
+    "buys": 230,
+    "sells": 183,
+    "buyers": 177,
+    "sellers": 148
+   },
+   "h1": {
+    "buys": 596,
+    "sells": 488,
+    "buyers": 400,
+    "sellers": 332
+   },
+   "h6": {
+    "buys": 6019,
+    "sells": 4999,
+    "buyers": 2162,
+    "sellers": 2318
+   },
+   "h24": {
+    "buys": 20015,
+    "sells": 17017,
+    "buyers": 5488,
+    "sellers": 5381
+   }
+  }
+ },
+ "2DmFrVtHmqSw86GwQg1pJhxH1gwjyFDCWmpRFub7EdvK": {
+  "name": "\u3164 / SOL",
+  "pool_created_at": "2026-07-01T06:10:20Z",
+  "reserve_usd": "3908.6479",
+  "fdv_usd": "2625.26539",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000026252653897685881140948615223386569784691422045643672431957016",
+  "vol_h24": "540717.404953354",
+  "txns": {
+   "m5": {
+    "buys": 1,
+    "sells": 0,
+    "buyers": 1,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 1,
+    "sells": 1,
+    "buyers": 1,
+    "sellers": 1
+   },
+   "m30": {
+    "buys": 1,
+    "sells": 1,
+    "buyers": 1,
+    "sellers": 1
+   },
+   "h1": {
+    "buys": 2,
+    "sells": 3,
+    "buyers": 2,
+    "sellers": 3
+   },
+   "h6": {
+    "buys": 25,
+    "sells": 58,
+    "buyers": 16,
+    "sellers": 57
+   },
+   "h24": {
+    "buys": 6581,
+    "sells": 5225,
+    "buyers": 2117,
+    "sellers": 1948
+   }
+  }
+ },
+ "2PFPAv4yaS75kc4xZhP2jHkUbXT9RuQTP25BSLJ2pbfz": {
+  "name": "CC\u00a9 / SOL",
+  "pool_created_at": "2026-07-01T04:28:42Z",
+  "reserve_usd": "4953.6384",
+  "fdv_usd": "4088.291341",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000408829134052356435279103055185861294621395530689629759420213321",
+  "vol_h24": "466407.190617903",
+  "txns": {
+   "m5": {
+    "buys": 2,
+    "sells": 1,
+    "buyers": 2,
+    "sellers": 1
+   },
+   "m15": {
+    "buys": 12,
+    "sells": 11,
+    "buyers": 6,
+    "sellers": 5
+   },
+   "m30": {
+    "buys": 12,
+    "sells": 11,
+    "buyers": 6,
+    "sellers": 5
+   },
+   "h1": {
+    "buys": 13,
+    "sells": 20,
+    "buyers": 7,
+    "sellers": 13
+   },
+   "h6": {
+    "buys": 63,
+    "sells": 89,
+    "buyers": 26,
+    "sellers": 56
+   },
+   "h24": {
+    "buys": 5416,
+    "sells": 7261,
+    "buyers": 2165,
+    "sellers": 1913
+   }
+  }
+ },
+ "2VSPEewK7yU8a4XPwaRhZLNMTzAzHrU4gkEygarDnuNH": {
+  "name": "ANSOME / SOL",
+  "pool_created_at": "2026-06-30T02:02:07Z",
+  "reserve_usd": "8190.0466",
+  "fdv_usd": "7950.2027478857",
+  "market_cap_usd": "7950.2027478857",
+  "dex": "pumpswap",
+  "price_usd": "0.0000079513849176686859397501190369294211235255489537220989157805422",
+  "vol_h24": "687494.03045919",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "m30": {
+    "buys": 3,
+    "sells": 4,
+    "buyers": 3,
+    "sellers": 4
+   },
+   "h1": {
+    "buys": 5,
+    "sells": 10,
+    "buyers": 4,
+    "sellers": 10
+   },
+   "h6": {
+    "buys": 69,
+    "sells": 75,
+    "buyers": 37,
+    "sellers": 53
+   },
+   "h24": {
+    "buys": 6486,
+    "sells": 5998,
+    "buyers": 1780,
+    "sellers": 2045
+   }
+  }
+ },
+ "2XHrhkxfXweUpNRZAaS6tBAGUGVa6vTEyi4nPXUi8sfU": {
+  "name": "DREGG / SOL",
+  "pool_created_at": "2026-06-27T15:20:47Z",
+  "reserve_usd": "80585.8113",
+  "fdv_usd": "968413.700719767",
+  "market_cap_usd": "968413.700719767",
+  "dex": "pumpswap",
+  "price_usd": "0.00095827300504236674551134282638239726706925784915592474190637328",
+  "vol_h24": "467451.939103433",
+  "txns": {
+   "m5": {
+    "buys": 4,
+    "sells": 5,
+    "buyers": 2,
+    "sellers": 5
+   },
+   "m15": {
+    "buys": 5,
+    "sells": 14,
+    "buyers": 3,
+    "sellers": 11
+   },
+   "m30": {
+    "buys": 27,
+    "sells": 23,
+    "buyers": 22,
+    "sellers": 14
+   },
+   "h1": {
+    "buys": 63,
+    "sells": 51,
+    "buyers": 49,
+    "sellers": 27
+   },
+   "h6": {
+    "buys": 376,
+    "sells": 517,
+    "buyers": 226,
+    "sellers": 318
+   },
+   "h24": {
+    "buys": 2680,
+    "sells": 2596,
+    "buyers": 969,
+    "sellers": 933
+   }
+  }
+ },
+ "2gSSKamSzBF5zEfaJWFD26t8EkGpyAx1aXXQipprwNHv": {
+  "name": "PATRIOTS / SOL",
+  "pool_created_at": "2026-06-29T22:20:59Z",
+  "reserve_usd": "32277.8525",
+  "fdv_usd": "188459.209",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000188459209012916447556862908207738429538573525201524063389753748",
+  "vol_h24": "2471.7486548919",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h6": {
+    "buys": 20,
+    "sells": 27,
+    "buyers": 16,
+    "sellers": 20
+   },
+   "h24": {
+    "buys": 43,
+    "sells": 52,
+    "buyers": 28,
+    "sellers": 38
+   }
+  }
+ },
+ "2k2swhDxhcG63cMiZwptr8yUbf87rLmN93kAfRkQceF8": {
+  "name": "BBF / SOL",
+  "pool_created_at": "2026-06-29T19:32:06Z",
+  "reserve_usd": "12210.4869",
+  "fdv_usd": "23556.96213",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000023556962127998127722792518631821012304697582306208902927322584",
+  "vol_h24": "64058.7006290855",
+  "txns": {
+   "m5": {
+    "buys": 1,
+    "sells": 2,
+    "buyers": 1,
+    "sellers": 2
+   },
+   "m15": {
+    "buys": 8,
+    "sells": 5,
+    "buyers": 7,
+    "sellers": 5
+   },
+   "m30": {
+    "buys": 14,
+    "sells": 14,
+    "buyers": 13,
+    "sellers": 13
+   },
+   "h1": {
+    "buys": 27,
+    "sells": 28,
+    "buyers": 26,
+    "sellers": 26
+   },
+   "h6": {
+    "buys": 211,
+    "sells": 206,
+    "buyers": 95,
+    "sellers": 99
+   },
+   "h24": {
+    "buys": 1892,
+    "sells": 1542,
+    "buyers": 731,
+    "sellers": 750
+   }
+  }
+ },
+ "2kobuN8PU5xG9A5oU257TsTd82r4h5Ax8TgiBykqCxn3": {
+  "name": "Belmar / SOL",
+  "pool_created_at": "2026-06-30T17:40:46Z",
+  "reserve_usd": "3844.0651",
+  "fdv_usd": "2469.357237",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000246935723668861603902804471622952287262699601012763989280756524",
+  "vol_h24": "563751.944184746",
+  "txns": {
+   "m5": {
+    "buys": 3,
+    "sells": 1,
+    "buyers": 2,
+    "sellers": 1
+   },
+   "m15": {
+    "buys": 3,
+    "sells": 1,
+    "buyers": 2,
+    "sellers": 1
+   },
+   "m30": {
+    "buys": 3,
+    "sells": 1,
+    "buyers": 2,
+    "sellers": 1
+   },
+   "h1": {
+    "buys": 4,
+    "sells": 2,
+    "buyers": 3,
+    "sellers": 2
+   },
+   "h6": {
+    "buys": 55,
+    "sells": 33,
+    "buyers": 37,
+    "sellers": 26
+   },
+   "h24": {
+    "buys": 2621,
+    "sells": 2143,
+    "buyers": 795,
+    "sellers": 923
+   }
+  }
+ },
+ "2pcBimRfLVUkLgb394XMMfrcB82BU7UtLuPhS8WBw6VZ": {
+  "name": "Horseradish / SOL",
+  "pool_created_at": "2026-07-01T00:01:04Z",
+  "reserve_usd": "27992.721",
+  "fdv_usd": "105025.7441",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000105025744062141345230022473131183423075080936572962526041133408",
+  "vol_h24": "2748703.02609997",
+  "txns": {
+   "m5": {
+    "buys": 33,
+    "sells": 17,
+    "buyers": 29,
+    "sellers": 15
+   },
+   "m15": {
+    "buys": 125,
+    "sells": 120,
+    "buyers": 86,
+    "sellers": 92
+   },
+   "m30": {
+    "buys": 259,
+    "sells": 254,
+    "buyers": 157,
+    "sellers": 153
+   },
+   "h1": {
+    "buys": 494,
+    "sells": 429,
+    "buyers": 259,
+    "sellers": 254
+   },
+   "h6": {
+    "buys": 3380,
+    "sells": 2945,
+    "buyers": 1092,
+    "sellers": 1191
+   },
+   "h24": {
+    "buys": 22858,
+    "sells": 19061,
+    "buyers": 4964,
+    "sellers": 4855
+   }
+  }
+ },
+ "2xzWQTQi26TS3CyPxoLSS51PNaCyHUKpmootgvtjwyrC": {
+  "name": "BIGTROUT / SOL",
+  "pool_created_at": "2026-06-30T19:22:56Z",
+  "reserve_usd": "6498.4459",
+  "fdv_usd": "6737.057055",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000067370570554814763683851719704876361045462966432566975687512116",
+  "vol_h24": "644756.684971223",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 2,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 3,
+    "buyers": 0,
+    "sellers": 3
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 9,
+    "buyers": 0,
+    "sellers": 9
+   },
+   "h6": {
+    "buys": 62,
+    "sells": 87,
+    "buyers": 40,
+    "sellers": 68
+   },
+   "h24": {
+    "buys": 6252,
+    "sells": 5500,
+    "buyers": 1417,
+    "sellers": 1897
+   }
+  }
+ },
+ "3GYnk6vJ2vvwDGD4xeukCqeRVeVQqQc436ubh7oB1ZCe": {
+  "name": "skew / SOL",
+  "pool_created_at": "2026-07-01T10:27:43Z",
+  "reserve_usd": "20749.2069",
+  "fdv_usd": "70632.61166",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000070632611659359848473261085136992647107597743659339944769840856",
+  "vol_h24": "631135.677012444",
+  "txns": {
+   "m5": {
+    "buys": 6,
+    "sells": 19,
+    "buyers": 4,
+    "sellers": 15
+   },
+   "m15": {
+    "buys": 46,
+    "sells": 59,
+    "buyers": 37,
+    "sellers": 45
+   },
+   "m30": {
+    "buys": 74,
+    "sells": 92,
+    "buyers": 52,
+    "sellers": 62
+   },
+   "h1": {
+    "buys": 124,
+    "sells": 144,
+    "buyers": 81,
+    "sellers": 85
+   },
+   "h6": {
+    "buys": 1590,
+    "sells": 1358,
+    "buyers": 592,
+    "sellers": 622
+   },
+   "h24": {
+    "buys": 6782,
+    "sells": 5941,
+    "buyers": 2188,
+    "sellers": 1925
+   }
+  }
+ },
+ "3nYtfzvrkGWUdZi9JRdQbVfKd3Nkc3NBnEFrGEhBR7CL": {
+  "name": "Ansem / SOL",
+  "pool_created_at": "2024-04-03T04:13:08Z",
+  "reserve_usd": "38184.0168",
+  "fdv_usd": "175061.650869005",
+  "market_cap_usd": null,
+  "dex": "raydium",
+  "price_usd": "0.000179082635786153358085705000252582841169510912",
+  "vol_h24": "190909.28286116",
+  "txns": {
+   "m5": {
+    "buys": 52,
+    "sells": 4,
+    "buyers": 52,
+    "sellers": 4
+   },
+   "m15": {
+    "buys": 183,
+    "sells": 17,
+    "buyers": 180,
+    "sellers": 14
+   },
+   "m30": {
+    "buys": 368,
+    "sells": 20,
+    "buyers": 361,
+    "sellers": 17
+   },
+   "h1": {
+    "buys": 747,
+    "sells": 45,
+    "buyers": 724,
+    "sellers": 38
+   },
+   "h6": {
+    "buys": 4334,
+    "sells": 243,
+    "buyers": 4172,
+    "sellers": 146
+   },
+   "h24": {
+    "buys": 18204,
+    "sells": 866,
+    "buyers": 17625,
+    "sellers": 380
+   }
+  }
+ },
+ "3sC4omR4fqjdemxNKNwxVXo4tyaNghfz7ajeiYevrhJG": {
+  "name": "ALEX / SOL",
+  "pool_created_at": "2026-07-01T05:20:27Z",
+  "reserve_usd": "3031.9368",
+  "fdv_usd": "1583.565854",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000015835658544712349510885176738179174374110222172970902260615832",
+  "vol_h24": "331099.724909787",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h6": {
+    "buys": 0,
+    "sells": 5,
+    "buyers": 0,
+    "sellers": 5
+   },
+   "h24": {
+    "buys": 8645,
+    "sells": 6435,
+    "buyers": 2826,
+    "sellers": 2820
+   }
+  }
+ },
+ "3vpjuHaeMcpp1uhk6m2PaSvejymBXWeGndU8ZqWMaQ1z": {
+  "name": "BULLMAO / SOL",
+  "pool_created_at": "2026-07-01T12:47:35Z",
+  "reserve_usd": "3179.6101",
+  "fdv_usd": "1626.946348",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000162694634841619896748648479036363163657110034463486506801780128",
+  "vol_h24": "952937.93342926",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "h6": {
+    "buys": 23,
+    "sells": 557,
+    "buyers": 14,
+    "sellers": 554
+   },
+   "h24": {
+    "buys": 14074,
+    "sells": 12203,
+    "buyers": 5337,
+    "sellers": 5099
+   }
+  }
+ },
+ "3zcxJQpstffNbRMyTayJRLnvZ4vVDyXvHPqcGpNg7tey": {
+  "name": "BINDY / SOL",
+  "pool_created_at": "2026-07-01T18:16:29Z",
+  "reserve_usd": "49464.9459",
+  "fdv_usd": "411991.8741",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000412206874116965889441677261705095637165546625441402831709159684",
+  "vol_h24": "920885.963394513",
+  "txns": {
+   "m5": {
+    "buys": 11,
+    "sells": 5,
+    "buyers": 8,
+    "sellers": 5
+   },
+   "m15": {
+    "buys": 27,
+    "sells": 20,
+    "buyers": 16,
+    "sellers": 19
+   },
+   "m30": {
+    "buys": 47,
+    "sells": 47,
+    "buyers": 34,
+    "sellers": 37
+   },
+   "h1": {
+    "buys": 94,
+    "sells": 130,
+    "buyers": 58,
+    "sellers": 72
+   },
+   "h6": {
+    "buys": 3018,
+    "sells": 2923,
+    "buyers": 1337,
+    "sellers": 1215
+   },
+   "h24": {
+    "buys": 3018,
+    "sells": 2923,
+    "buyers": 1337,
+    "sellers": 1215
+   }
+  }
+ },
+ "4DYTbLYbDQyqJavJLrHt4XtQkVm7qAYzUTtjfsicRomP": {
+  "name": "CATWIF / USDC",
+  "pool_created_at": "2026-06-22T07:00:21Z",
+  "reserve_usd": "155610.2531",
+  "fdv_usd": "1229481.05819826",
+  "market_cap_usd": "1180302.32571245",
+  "dex": "pumpswap",
+  "price_usd": "0.00122820233799358189683526194483197062469238909065906721588408993",
+  "vol_h24": "2422607.36317043",
+  "txns": {
+   "m5": {
+    "buys": 64,
+    "sells": 49,
+    "buyers": 63,
+    "sellers": 48
+   },
+   "m15": {
+    "buys": 197,
+    "sells": 184,
+    "buyers": 191,
+    "sellers": 131
+   },
+   "m30": {
+    "buys": 361,
+    "sells": 371,
+    "buyers": 326,
+    "sellers": 252
+   },
+   "h1": {
+    "buys": 760,
+    "sells": 736,
+    "buyers": 630,
+    "sellers": 403
+   },
+   "h6": {
+    "buys": 5780,
+    "sells": 5115,
+    "buyers": 2435,
+    "sellers": 2157
+   },
+   "h24": {
+    "buys": 13822,
+    "sells": 12599,
+    "buyers": 3981,
+    "sellers": 4149
+   }
+  }
+ },
+ "4KhRsYF4FCrawd1h3GjGwffufmPLjVazGtTvk6JVfRnf": {
+  "name": "TRADING / SOL",
+  "pool_created_at": "2026-07-01T16:18:09Z",
+  "reserve_usd": "3430.0483",
+  "fdv_usd": "1831.170184",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000183117018357195250514409770349002234179136828849874559291368795",
+  "vol_h24": "754415.454596791",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 3,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 4,
+    "buyers": 0,
+    "sellers": 3
+   },
+   "h6": {
+    "buys": 3851,
+    "sells": 3635,
+    "buyers": 1681,
+    "sellers": 1614
+   },
+   "h24": {
+    "buys": 3851,
+    "sells": 3635,
+    "buyers": 1681,
+    "sellers": 1614
+   }
+  }
+ },
+ "4PXkZypf1ioB61wp5Dyu4E6KoYqV7ATyQZofyG1HqDp6": {
+  "name": "DAVINCI / SOL",
+  "pool_created_at": "2026-07-01T12:33:08Z",
+  "reserve_usd": "5904.0855",
+  "fdv_usd": "5719.167378",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000571916737801555759877898607115194543540092733681416309357987128",
+  "vol_h24": "1291613.66751012",
+  "txns": {
+   "m5": {
+    "buys": 2,
+    "sells": 0,
+    "buyers": 2,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 3,
+    "sells": 1,
+    "buyers": 3,
+    "sellers": 1
+   },
+   "m30": {
+    "buys": 4,
+    "sells": 2,
+    "buyers": 4,
+    "sellers": 2
+   },
+   "h1": {
+    "buys": 6,
+    "sells": 4,
+    "buyers": 6,
+    "sellers": 4
+   },
+   "h6": {
+    "buys": 218,
+    "sells": 357,
+    "buyers": 118,
+    "sellers": 275
+   },
+   "h24": {
+    "buys": 3055,
+    "sells": 2494,
+    "buyers": 1428,
+    "sellers": 1212
+   }
+  }
+ },
+ "4emYNwKf8JReoeuKWwr3jfa4dECaSJsRcU8PEn5mtDuP": {
+  "name": "AIRDROP / SOL",
+  "pool_created_at": "2026-07-01T16:09:39Z",
+  "reserve_usd": "85379.532",
+  "fdv_usd": "1252179.886",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00125217988565675389895019152572126521801965947527542111916387014",
+  "vol_h24": "2807193.04095414",
+  "txns": {
+   "m5": {
+    "buys": 1,
+    "sells": 5,
+    "buyers": 1,
+    "sellers": 5
+   },
+   "m15": {
+    "buys": 11,
+    "sells": 21,
+    "buyers": 8,
+    "sellers": 21
+   },
+   "m30": {
+    "buys": 32,
+    "sells": 37,
+    "buyers": 22,
+    "sellers": 36
+   },
+   "h1": {
+    "buys": 88,
+    "sells": 98,
+    "buyers": 47,
+    "sellers": 90
+   },
+   "h6": {
+    "buys": 15088,
+    "sells": 11588,
+    "buyers": 4209,
+    "sellers": 3872
+   },
+   "h24": {
+    "buys": 15088,
+    "sells": 11588,
+    "buyers": 4209,
+    "sellers": 3872
+   }
+  }
+ },
+ "4mDZjRSzc1PpvgPEU5bsWk2SooKwNPgKnP2ATh8AtduT": {
+  "name": "PORK / SOL",
+  "pool_created_at": "2026-07-01T01:17:36Z",
+  "reserve_usd": "20359.9255",
+  "fdv_usd": "71755.09688",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000071755096882179541801298994603474381367515272699029214364784062",
+  "vol_h24": "300572.51091369",
+  "txns": {
+   "m5": {
+    "buys": 6,
+    "sells": 2,
+    "buyers": 6,
+    "sellers": 2
+   },
+   "m15": {
+    "buys": 12,
+    "sells": 5,
+    "buyers": 12,
+    "sellers": 5
+   },
+   "m30": {
+    "buys": 21,
+    "sells": 10,
+    "buyers": 21,
+    "sellers": 10
+   },
+   "h1": {
+    "buys": 64,
+    "sells": 57,
+    "buyers": 55,
+    "sellers": 44
+   },
+   "h6": {
+    "buys": 422,
+    "sells": 351,
+    "buyers": 259,
+    "sellers": 218
+   },
+   "h24": {
+    "buys": 4337,
+    "sells": 3521,
+    "buyers": 2010,
+    "sellers": 1351
+   }
+  }
+ },
+ "5Cu8SkrUTJDGiyX3f6npJTXSYuhHSwsZQmrR1mBmuwhN": {
+  "name": "AIRSEM / SOL",
+  "pool_created_at": "2026-06-29T21:32:04Z",
+  "reserve_usd": "364905.7354",
+  "fdv_usd": "6782.593213",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000678259321293294403661609543738201546473474712181076056602388408",
+  "vol_h24": "2013.7939943516",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h6": {
+    "buys": 10,
+    "sells": 8,
+    "buyers": 7,
+    "sellers": 6
+   },
+   "h24": {
+    "buys": 47,
+    "sells": 54,
+    "buyers": 22,
+    "sellers": 43
+   }
+  }
+ },
+ "5YMyRMK8xxnpf89yPeqfn1ECgYFjyDGgahj9zeypjBxe": {
+  "name": "SOLS / SOL",
+  "pool_created_at": "2026-06-29T12:44:07Z",
+  "reserve_usd": "37659.5341",
+  "fdv_usd": "228977.3285",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00022897732846248949026767161671083366876715742384563680094949758",
+  "vol_h24": "96724.3910107034",
+  "txns": {
+   "m5": {
+    "buys": 8,
+    "sells": 7,
+    "buyers": 5,
+    "sellers": 6
+   },
+   "m15": {
+    "buys": 12,
+    "sells": 14,
+    "buyers": 7,
+    "sellers": 8
+   },
+   "m30": {
+    "buys": 18,
+    "sells": 25,
+    "buyers": 11,
+    "sellers": 12
+   },
+   "h1": {
+    "buys": 34,
+    "sells": 42,
+    "buyers": 23,
+    "sellers": 17
+   },
+   "h6": {
+    "buys": 282,
+    "sells": 318,
+    "buyers": 138,
+    "sellers": 140
+   },
+   "h24": {
+    "buys": 691,
+    "sells": 801,
+    "buyers": 311,
+    "sellers": 288
+   }
+  }
+ },
+ "5fL9AFwwBhWyrngMoAAdvr3CH3RJFqUGNKwywgLihwsa": {
+  "name": "DAVID / SOL",
+  "pool_created_at": "2026-06-28T21:14:50Z",
+  "reserve_usd": "116175.2785",
+  "fdv_usd": "2129247.211",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00212395263596764878230058105679581037064586494194367825686",
+  "vol_h24": "729159.30162281",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 3,
+    "buyers": 0,
+    "sellers": 3
+   },
+   "m15": {
+    "buys": 16,
+    "sells": 19,
+    "buyers": 12,
+    "sellers": 16
+   },
+   "m30": {
+    "buys": 53,
+    "sells": 47,
+    "buyers": 36,
+    "sellers": 39
+   },
+   "h1": {
+    "buys": 121,
+    "sells": 151,
+    "buyers": 74,
+    "sellers": 72
+   },
+   "h6": {
+    "buys": 699,
+    "sells": 702,
+    "buyers": 289,
+    "sellers": 277
+   },
+   "h24": {
+    "buys": 2565,
+    "sells": 2488,
+    "buyers": 752,
+    "sellers": 651
+   }
+  }
+ },
+ "64uYz2gdsTVZ7hC6gfPGWDBXKdCJubtEv463rrnXmSg3": {
+  "name": "Guardians / SOL",
+  "pool_created_at": "2026-06-25T21:31:47Z",
+  "reserve_usd": "4358.5872",
+  "fdv_usd": "2935.984321",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000293598432103931356599625900166692393019305335341666362209224",
+  "vol_h24": "2560096.62619784",
+  "txns": {
+   "m5": {
+    "buys": 1,
+    "sells": 4,
+    "buyers": 1,
+    "sellers": 4
+   },
+   "m15": {
+    "buys": 7,
+    "sells": 10,
+    "buyers": 4,
+    "sellers": 9
+   },
+   "m30": {
+    "buys": 8,
+    "sells": 13,
+    "buyers": 5,
+    "sellers": 12
+   },
+   "h1": {
+    "buys": 21,
+    "sells": 34,
+    "buyers": 15,
+    "sellers": 32
+   },
+   "h6": {
+    "buys": 25778,
+    "sells": 6761,
+    "buyers": 2654,
+    "sellers": 2579
+   },
+   "h24": {
+    "buys": 25778,
+    "sells": 6762,
+    "buyers": 2654,
+    "sellers": 2580
+   }
+  }
+ },
+ "6YismmnYSgxCw9aWgf3h2GxMr1GDkvWq7oo76RjQ1i6v": {
+  "name": "Udin / SOL",
+  "pool_created_at": "2026-06-30T05:42:13Z",
+  "reserve_usd": "22099.7545",
+  "fdv_usd": "77475.47832",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000774754783247471916505088958053817627422731359295633378453359204",
+  "vol_h24": "346753.648799525",
+  "txns": {
+   "m5": {
+    "buys": 1,
+    "sells": 2,
+    "buyers": 1,
+    "sellers": 1
+   },
+   "m15": {
+    "buys": 7,
+    "sells": 8,
+    "buyers": 5,
+    "sellers": 4
+   },
+   "m30": {
+    "buys": 32,
+    "sells": 22,
+    "buyers": 20,
+    "sellers": 12
+   },
+   "h1": {
+    "buys": 44,
+    "sells": 53,
+    "buyers": 29,
+    "sellers": 28
+   },
+   "h6": {
+    "buys": 583,
+    "sells": 620,
+    "buyers": 251,
+    "sellers": 255
+   },
+   "h24": {
+    "buys": 3310,
+    "sells": 3460,
+    "buyers": 957,
+    "sellers": 946
+   }
+  }
+ },
+ "6pdREYRQde6R2mHSd3aY6BQT6r7c97aBGB5YAERfb8SR": {
+  "name": "dwnd / SOL",
+  "pool_created_at": "2026-07-01T01:13:18Z",
+  "reserve_usd": "4860.3903",
+  "fdv_usd": "3849.203054",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000384920305418515855549604371006959724128402203006512851770645976",
+  "vol_h24": "767625.241997405",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h6": {
+    "buys": 2,
+    "sells": 26,
+    "buyers": 2,
+    "sellers": 26
+   },
+   "h24": {
+    "buys": 5456,
+    "sells": 4855,
+    "buyers": 1753,
+    "sellers": 1734
+   }
+  }
+ },
+ "6tbpWLeRnNkESWwwt6RwA5LXJfEKpuVfKZYRgmckUEsS": {
+  "name": "OCCAM / SOL",
+  "pool_created_at": "2026-06-30T20:12:19Z",
+  "reserve_usd": "170650.2439",
+  "fdv_usd": "4102048.73616528",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00409114041723476267262013135035396484874293235622084615272677152",
+  "vol_h24": "1357624.11506977",
+  "txns": {
+   "m5": {
+    "buys": 14,
+    "sells": 12,
+    "buyers": 11,
+    "sellers": 10
+   },
+   "m15": {
+    "buys": 42,
+    "sells": 42,
+    "buyers": 18,
+    "sellers": 16
+   },
+   "m30": {
+    "buys": 96,
+    "sells": 100,
+    "buyers": 28,
+    "sellers": 32
+   },
+   "h1": {
+    "buys": 134,
+    "sells": 129,
+    "buyers": 42,
+    "sellers": 47
+   },
+   "h6": {
+    "buys": 1292,
+    "sells": 1266,
+    "buyers": 172,
+    "sellers": 196
+   },
+   "h24": {
+    "buys": 8432,
+    "sells": 7811,
+    "buyers": 1068,
+    "sellers": 982
+   }
+  }
+ },
+ "7WKt831KnuXsADyGubFfyoPJUGpuSP1H2T22jwPn2fgR": {
+  "name": "DARKY / SOL",
+  "pool_created_at": "2026-06-28T17:29:56Z",
+  "reserve_usd": "3790.4313",
+  "fdv_usd": "2313.124122",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000229944329507968398589579645508898399888306626065431949352830548",
+  "vol_h24": "313.6294437681",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m30": {
+    "buys": 1,
+    "sells": 3,
+    "buyers": 1,
+    "sellers": 3
+   },
+   "h1": {
+    "buys": 1,
+    "sells": 3,
+    "buyers": 1,
+    "sellers": 3
+   },
+   "h6": {
+    "buys": 2,
+    "sells": 13,
+    "buyers": 1,
+    "sellers": 12
+   },
+   "h24": {
+    "buys": 21,
+    "sells": 52,
+    "buyers": 11,
+    "sellers": 46
+   }
+  }
+ },
+ "7Ww3YihMX63nKeM3n68MAHvRMnZAmtYq5Rshb6WzYPkX": {
+  "name": "ANSEMBULL / SOL",
+  "pool_created_at": "2026-06-29T18:06:19Z",
+  "reserve_usd": "6098.494",
+  "fdv_usd": "6409.537249",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000640953724909131998473685348443880452597516977590841643571684887",
+  "vol_h24": "13790.484827576",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 2,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 5,
+    "buyers": 0,
+    "sellers": 5
+   },
+   "h1": {
+    "buys": 1,
+    "sells": 11,
+    "buyers": 1,
+    "sellers": 9
+   },
+   "h6": {
+    "buys": 56,
+    "sells": 72,
+    "buyers": 21,
+    "sellers": 45
+   },
+   "h24": {
+    "buys": 344,
+    "sells": 301,
+    "buyers": 116,
+    "sellers": 176
+   }
+  }
+ },
+ "7a2DnDLCfMVVa9PFbCREfvcwgN85vLVpFwd5YiPXd3wr": {
+  "name": "hansem / SOL",
+  "pool_created_at": "2026-07-01T18:04:22Z",
+  "reserve_usd": "7989.8313",
+  "fdv_usd": "11177.9662",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000111779662035248897320155467235898270450665829316392918155011442",
+  "vol_h24": "189118.265661844",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 2,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 2,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 4,
+    "buyers": 0,
+    "sellers": 4
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 8,
+    "buyers": 0,
+    "sellers": 8
+   },
+   "h6": {
+    "buys": 1092,
+    "sells": 1213,
+    "buyers": 615,
+    "sellers": 556
+   },
+   "h24": {
+    "buys": 1092,
+    "sells": 1213,
+    "buyers": 615,
+    "sellers": 556
+   }
+  }
+ },
+ "8Nj6AA6u9R27dYVTRcEQokesoe7YZLwjWwJSpPYxdkQk": {
+  "name": "Cobie / SOL",
+  "pool_created_at": "2025-10-21T22:27:37Z",
+  "reserve_usd": "42999.6001",
+  "fdv_usd": "289173.276215273",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0002891750804042623189037009329940429017229350786791224598935578",
+  "vol_h24": "80555.3198893403",
+  "txns": {
+   "m5": {
+    "buys": 2,
+    "sells": 1,
+    "buyers": 2,
+    "sellers": 1
+   },
+   "m15": {
+    "buys": 2,
+    "sells": 2,
+    "buyers": 2,
+    "sellers": 2
+   },
+   "m30": {
+    "buys": 3,
+    "sells": 4,
+    "buyers": 3,
+    "sellers": 4
+   },
+   "h1": {
+    "buys": 32,
+    "sells": 15,
+    "buyers": 32,
+    "sellers": 13
+   },
+   "h6": {
+    "buys": 60,
+    "sells": 46,
+    "buyers": 54,
+    "sellers": 37
+   },
+   "h24": {
+    "buys": 571,
+    "sells": 594,
+    "buyers": 382,
+    "sellers": 393
+   }
+  }
+ },
+ "8T7NjEKecmfUv545HjgS2e3kjTpiY3Sk9R56YKe4NGT5": {
+  "name": "Bool / SOL",
+  "pool_created_at": "2026-07-01T04:02:50Z",
+  "reserve_usd": "6130.2584",
+  "fdv_usd": "5807.710035",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000580771003483112853867496956525538283692564944977738499856382511",
+  "vol_h24": "900354.591369083",
+  "txns": {
+   "m5": {
+    "buys": 9,
+    "sells": 13,
+    "buyers": 3,
+    "sellers": 7
+   },
+   "m15": {
+    "buys": 25,
+    "sells": 20,
+    "buyers": 15,
+    "sellers": 14
+   },
+   "m30": {
+    "buys": 46,
+    "sells": 53,
+    "buyers": 25,
+    "sellers": 45
+   },
+   "h1": {
+    "buys": 116,
+    "sells": 138,
+    "buyers": 51,
+    "sellers": 98
+   },
+   "h6": {
+    "buys": 1311,
+    "sells": 1230,
+    "buyers": 455,
+    "sellers": 612
+   },
+   "h24": {
+    "buys": 10115,
+    "sells": 8798,
+    "buyers": 2888,
+    "sellers": 2937
+   }
+  }
+ },
+ "8f1c5ScMVq1JaMNuFzbrPCirasSBbtEuyFgoXAczLkTQ": {
+  "name": "ANSEM / SOL",
+  "pool_created_at": "2026-07-01T17:55:30Z",
+  "reserve_usd": "3207.5105",
+  "fdv_usd": "1669.677274",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000016696772735572162378066558706769026313660609431012131480587291",
+  "vol_h24": "809054.772362797",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 3,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 3,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 5,
+    "buyers": 0,
+    "sellers": 4
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 6,
+    "buyers": 0,
+    "sellers": 5
+   },
+   "h6": {
+    "buys": 4158,
+    "sells": 3708,
+    "buyers": 2035,
+    "sellers": 1749
+   },
+   "h24": {
+    "buys": 4158,
+    "sells": 3708,
+    "buyers": 2035,
+    "sellers": 1749
+   }
+  }
+ },
+ "8imenxcQAGZapaWz2BaWMrjH9Geio7mQnJz4ugdfCmhw": {
+  "name": "TJR / SOL",
+  "pool_created_at": "2026-07-01T12:25:48Z",
+  "reserve_usd": "32388.7578",
+  "fdv_usd": "165944.02",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00016779353878285339264018790250517837222073179869836997675212239",
+  "vol_h24": "1170944.71236701",
+  "txns": {
+   "m5": {
+    "buys": 133,
+    "sells": 74,
+    "buyers": 120,
+    "sellers": 63
+   },
+   "m15": {
+    "buys": 387,
+    "sells": 237,
+    "buyers": 314,
+    "sellers": 177
+   },
+   "m30": {
+    "buys": 732,
+    "sells": 406,
+    "buyers": 559,
+    "sellers": 293
+   },
+   "h1": {
+    "buys": 1569,
+    "sells": 858,
+    "buyers": 977,
+    "sellers": 506
+   },
+   "h6": {
+    "buys": 10717,
+    "sells": 6204,
+    "buyers": 2556,
+    "sellers": 1913
+   },
+   "h24": {
+    "buys": 18683,
+    "sells": 11865,
+    "buyers": 5439,
+    "sellers": 4845
+   }
+  }
+ },
+ "8uFDjyTuwvJWgtiE8zXBa9ZyU6bJzCLJDPCDrTcLYntt": {
+  "name": "ANSEM / SOL",
+  "pool_created_at": "2026-07-01T17:52:39Z",
+  "reserve_usd": "17327.2007",
+  "fdv_usd": "54888.76141",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000054888761414900050368097606512012036010039554537770792678123812",
+  "vol_h24": "463726.186836195",
+  "txns": {
+   "m5": {
+    "buys": 13,
+    "sells": 9,
+    "buyers": 9,
+    "sellers": 6
+   },
+   "m15": {
+    "buys": 32,
+    "sells": 12,
+    "buyers": 19,
+    "sellers": 9
+   },
+   "m30": {
+    "buys": 37,
+    "sells": 24,
+    "buyers": 22,
+    "sellers": 20
+   },
+   "h1": {
+    "buys": 94,
+    "sells": 87,
+    "buyers": 49,
+    "sellers": 62
+   },
+   "h6": {
+    "buys": 4668,
+    "sells": 3367,
+    "buyers": 1912,
+    "sellers": 1741
+   },
+   "h24": {
+    "buys": 4668,
+    "sells": 3367,
+    "buyers": 1912,
+    "sellers": 1741
+   }
+  }
+ },
+ "9Z4pCzKZNP9gbRtCQoZVQXczb8RHHZcFhG5cNXtRLfWT": {
+  "name": "AVA / SOL",
+  "pool_created_at": "2026-06-29T00:33:02Z",
+  "reserve_usd": "20203.9824",
+  "fdv_usd": "62562.5829316308",
+  "market_cap_usd": "62562.5829316308",
+  "dex": "pumpswap",
+  "price_usd": "0.000063256008041349056722492898051231018691932500198081710527963494",
+  "vol_h24": "226765.89014569",
+  "txns": {
+   "m5": {
+    "buys": 3,
+    "sells": 4,
+    "buyers": 3,
+    "sellers": 3
+   },
+   "m15": {
+    "buys": 7,
+    "sells": 12,
+    "buyers": 6,
+    "sellers": 7
+   },
+   "m30": {
+    "buys": 17,
+    "sells": 27,
+    "buyers": 9,
+    "sellers": 14
+   },
+   "h1": {
+    "buys": 48,
+    "sells": 57,
+    "buyers": 26,
+    "sellers": 27
+   },
+   "h6": {
+    "buys": 618,
+    "sells": 705,
+    "buyers": 290,
+    "sellers": 305
+   },
+   "h24": {
+    "buys": 2871,
+    "sells": 2997,
+    "buyers": 816,
+    "sellers": 914
+   }
+  }
+ },
+ "9fdFYnW6pBCE6b9CjnJwdp6RJG3cEfRuf8rcJcP5nyUR": {
+  "name": "CATerpillar / SOL",
+  "pool_created_at": "2026-06-25T06:48:49Z",
+  "reserve_usd": "19715.0992",
+  "fdv_usd": "56031.393510182",
+  "market_cap_usd": "56031.393510182",
+  "dex": "pumpswap",
+  "price_usd": "0.0000560408396539242977171174698665002056049901334436771900535608805",
+  "vol_h24": "152419.503567492",
+  "txns": {
+   "m5": {
+    "buys": 2,
+    "sells": 3,
+    "buyers": 2,
+    "sellers": 3
+   },
+   "m15": {
+    "buys": 11,
+    "sells": 14,
+    "buyers": 9,
+    "sellers": 9
+   },
+   "m30": {
+    "buys": 15,
+    "sells": 26,
+    "buyers": 12,
+    "sellers": 14
+   },
+   "h1": {
+    "buys": 48,
+    "sells": 55,
+    "buyers": 42,
+    "sellers": 28
+   },
+   "h6": {
+    "buys": 340,
+    "sells": 424,
+    "buyers": 141,
+    "sellers": 127
+   },
+   "h24": {
+    "buys": 1399,
+    "sells": 1712,
+    "buyers": 369,
+    "sellers": 346
+   }
+  }
+ },
+ "9q2C9bkiNFkx7rvynPw2Yk53ufCKgSHbYkAPmqM1p9TK": {
+  "name": "ALBEMARLE / SOL",
+  "pool_created_at": "2026-07-01T16:43:42Z",
+  "reserve_usd": "73094.7725",
+  "fdv_usd": "823071.3024",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0008230713023952249297287732698283852178133167997065686646225383",
+  "vol_h24": "3632798.99421703",
+  "txns": {
+   "m5": {
+    "buys": 12,
+    "sells": 13,
+    "buyers": 9,
+    "sellers": 12
+   },
+   "m15": {
+    "buys": 90,
+    "sells": 52,
+    "buyers": 49,
+    "sellers": 38
+   },
+   "m30": {
+    "buys": 173,
+    "sells": 141,
+    "buyers": 92,
+    "sellers": 98
+   },
+   "h1": {
+    "buys": 360,
+    "sells": 357,
+    "buyers": 178,
+    "sellers": 220
+   },
+   "h6": {
+    "buys": 16147,
+    "sells": 14462,
+    "buyers": 4758,
+    "sellers": 3971
+   },
+   "h24": {
+    "buys": 16147,
+    "sells": 14462,
+    "buyers": 4758,
+    "sellers": 3971
+   }
+  }
+ },
+ "9u8KnTGmGUTHviN8EuJEdT2gWTu1gQvc3SpdmGaqUQiy": {
+  "name": "SUPERMAN / SOL",
+  "pool_created_at": "2026-06-30T04:17:21Z",
+  "reserve_usd": "65043.979",
+  "fdv_usd": "475530.3516",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0004758040008586966630995440190911436012806662311157687721980644",
+  "vol_h24": "1119762.68800003",
+  "txns": {
+   "m5": {
+    "buys": 6,
+    "sells": 8,
+    "buyers": 6,
+    "sellers": 8
+   },
+   "m15": {
+    "buys": 52,
+    "sells": 92,
+    "buyers": 50,
+    "sellers": 65
+   },
+   "m30": {
+    "buys": 76,
+    "sells": 116,
+    "buyers": 67,
+    "sellers": 84
+   },
+   "h1": {
+    "buys": 210,
+    "sells": 239,
+    "buyers": 129,
+    "sellers": 173
+   },
+   "h6": {
+    "buys": 1734,
+    "sells": 1738,
+    "buyers": 681,
+    "sellers": 975
+   },
+   "h24": {
+    "buys": 10379,
+    "sells": 9113,
+    "buyers": 3022,
+    "sellers": 3693
+   }
+  }
+ },
+ "9xHAvrmtRVqKCYuYmvhpcbzApvh56m5Y6oy5AKs37gtb": {
+  "name": "BULLEMOJI / SOL",
+  "pool_created_at": "2026-07-01T06:43:31Z",
+  "reserve_usd": "3264.6261",
+  "fdv_usd": "1660.332038",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000166033203780146745412603298758202530689271386608038990324526037",
+  "vol_h24": "1024679.73044353",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "h6": {
+    "buys": 1,
+    "sells": 10,
+    "buyers": 1,
+    "sellers": 10
+   },
+   "h24": {
+    "buys": 16342,
+    "sells": 15443,
+    "buyers": 6775,
+    "sellers": 6714
+   }
+  }
+ },
+ "AJfwQvZpumVVSsehVXgUJqWP271E9nz2mB6er6DBwdqe": {
+  "name": "Vulland / SOL",
+  "pool_created_at": "2026-06-30T22:15:01Z",
+  "reserve_usd": "4671.9826",
+  "fdv_usd": "2934.794806",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000293479480576442091288658966741736337227178944550261070807652544",
+  "vol_h24": "3814411.3979577",
+  "txns": {
+   "m5": {
+    "buys": 1,
+    "sells": 0,
+    "buyers": 1,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 1,
+    "sells": 2,
+    "buyers": 1,
+    "sellers": 2
+   },
+   "m30": {
+    "buys": 2,
+    "sells": 4,
+    "buyers": 2,
+    "sellers": 4
+   },
+   "h1": {
+    "buys": 2,
+    "sells": 6,
+    "buyers": 2,
+    "sellers": 6
+   },
+   "h6": {
+    "buys": 463,
+    "sells": 10980,
+    "buyers": 284,
+    "sellers": 10901
+   },
+   "h24": {
+    "buys": 61039,
+    "sells": 32935,
+    "buyers": 16738,
+    "sellers": 16439
+   }
+  }
+ },
+ "ATcT3GWNpF4YoS68dmT4XiQJEeNvn38RdxeBqFfNBBWo": {
+  "name": "MURAD / SOL",
+  "pool_created_at": "2026-06-30T12:10:11Z",
+  "reserve_usd": "14973.6591",
+  "fdv_usd": "25069.00243",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000250690024254382143209563877431975505216052638998416029632834766",
+  "vol_h24": "679741.759284491",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 3,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "m15": {
+    "buys": 1,
+    "sells": 9,
+    "buyers": 1,
+    "sellers": 4
+   },
+   "m30": {
+    "buys": 2,
+    "sells": 23,
+    "buyers": 2,
+    "sellers": 13
+   },
+   "h1": {
+    "buys": 28,
+    "sells": 59,
+    "buyers": 7,
+    "sellers": 32
+   },
+   "h6": {
+    "buys": 305,
+    "sells": 402,
+    "buyers": 115,
+    "sellers": 200
+   },
+   "h24": {
+    "buys": 7035,
+    "sells": 6285,
+    "buyers": 1769,
+    "sellers": 2187
+   }
+  }
+ },
+ "Ab6btBEjpUL8WXPnMXgo8DAki429FLdM4RjuRKcEWSUc": {
+  "name": "GOU / SOL",
+  "pool_created_at": "2026-07-01T18:10:27Z",
+  "reserve_usd": "22957.3788",
+  "fdv_usd": "77408.77542",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000762830435057755390998231854858692099402109271094109338934376924",
+  "vol_h24": "1245856.6518664",
+  "txns": {
+   "m5": {
+    "buys": 76,
+    "sells": 54,
+    "buyers": 51,
+    "sellers": 51
+   },
+   "m15": {
+    "buys": 241,
+    "sells": 134,
+    "buyers": 133,
+    "sellers": 110
+   },
+   "m30": {
+    "buys": 471,
+    "sells": 327,
+    "buyers": 217,
+    "sellers": 218
+   },
+   "h1": {
+    "buys": 1462,
+    "sells": 1138,
+    "buyers": 523,
+    "sellers": 505
+   },
+   "h6": {
+    "buys": 13584,
+    "sells": 11163,
+    "buyers": 3322,
+    "sellers": 2940
+   },
+   "h24": {
+    "buys": 13584,
+    "sells": 11163,
+    "buyers": 3322,
+    "sellers": 2940
+   }
+  }
+ },
+ "AiEhqZZe7kbk3c1nNPWrsJgEMoeSGz7BXq9UbpiE3y52": {
+  "name": "FVPyD6dBeyTamNcNb4Q8isPw3Z51187k4vn9KEngZPQ3 / SOL",
+  "pool_created_at": "2026-07-01T00:03:11Z",
+  "reserve_usd": "0.000000418727691",
+  "fdv_usd": "1273967.965",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000012824520503089251446980907737856644945133348948684417091884244",
+  "vol_h24": "36874467.6255319",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h6": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h24": {
+    "buys": 60939,
+    "sells": 56698,
+    "buyers": 3051,
+    "sellers": 96
+   }
+  }
+ },
+ "AmABoKqAGgFKHb9FRkjSMfeYeh7G522fU8qDLmfc7JmD": {
+  "name": "Coursebull / SOL",
+  "pool_created_at": "2026-06-29T18:59:37Z",
+  "reserve_usd": "3854.1208",
+  "fdv_usd": "2043.238773",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000204323877337856338334006914882218629281762914779746913966770304",
+  "vol_h24": "77.2185852183",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h6": {
+    "buys": 0,
+    "sells": 3,
+    "buyers": 0,
+    "sellers": 3
+   },
+   "h24": {
+    "buys": 6,
+    "sells": 13,
+    "buyers": 5,
+    "sellers": 12
+   }
+  }
+ },
+ "AtPXzwvpNuXzeJUcFZGWZ6cK14NpE6UwmmbBTqnDc8un": {
+  "name": "MITCH / SOL",
+  "pool_created_at": "2025-09-02T21:54:08Z",
+  "reserve_usd": "178908.3881",
+  "fdv_usd": "3235069.03968595",
+  "market_cap_usd": "3235160.66653335",
+  "dex": "pumpswap",
+  "price_usd": "0.00324632370666899124377670336886410418777082478101339010616793364",
+  "vol_h24": "3420009.4137078",
+  "txns": {
+   "m5": {
+    "buys": 6,
+    "sells": 15,
+    "buyers": 5,
+    "sellers": 14
+   },
+   "m15": {
+    "buys": 22,
+    "sells": 36,
+    "buyers": 19,
+    "sellers": 31
+   },
+   "m30": {
+    "buys": 51,
+    "sells": 123,
+    "buyers": 34,
+    "sellers": 111
+   },
+   "h1": {
+    "buys": 329,
+    "sells": 363,
+    "buyers": 214,
+    "sellers": 290
+   },
+   "h6": {
+    "buys": 4731,
+    "sells": 3983,
+    "buyers": 1816,
+    "sellers": 1961
+   },
+   "h24": {
+    "buys": 12239,
+    "sells": 10299,
+    "buyers": 3714,
+    "sellers": 3391
+   }
+  }
+ },
+ "B1GFLecDJbYgDDSkKQMDp8xz5TTiCgdW7ADDVqqSUUFe": {
+  "name": "CLIVE / SOL",
+  "pool_created_at": "2026-06-28T04:35:55Z",
+  "reserve_usd": "46008.931",
+  "fdv_usd": "250153.8328",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00025015383281633079787359903591290442946104531744395174398001802",
+  "vol_h24": "402693.154313356",
+  "txns": {
+   "m5": {
+    "buys": 11,
+    "sells": 6,
+    "buyers": 10,
+    "sellers": 4
+   },
+   "m15": {
+    "buys": 19,
+    "sells": 23,
+    "buyers": 17,
+    "sellers": 17
+   },
+   "m30": {
+    "buys": 53,
+    "sells": 43,
+    "buyers": 45,
+    "sellers": 24
+   },
+   "h1": {
+    "buys": 94,
+    "sells": 92,
+    "buyers": 66,
+    "sellers": 51
+   },
+   "h6": {
+    "buys": 791,
+    "sells": 750,
+    "buyers": 313,
+    "sellers": 273
+   },
+   "h24": {
+    "buys": 5242,
+    "sells": 4716,
+    "buyers": 2870,
+    "sellers": 1840
+   }
+  }
+ },
+ "B9c9dVwSNvM8q2v1CdmymXtsWBWS7U1VjG2Z3aLjLzpX": {
+  "name": "TATE / SOL",
+  "pool_created_at": "2026-06-28T18:58:12Z",
+  "reserve_usd": "53348.128",
+  "fdv_usd": "430552.0017",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000430552001669381624281162627658340278900947253756464156322655721",
+  "vol_h24": "266975.14524442",
+  "txns": {
+   "m5": {
+    "buys": 8,
+    "sells": 2,
+    "buyers": 7,
+    "sellers": 2
+   },
+   "m15": {
+    "buys": 9,
+    "sells": 5,
+    "buyers": 8,
+    "sellers": 5
+   },
+   "m30": {
+    "buys": 9,
+    "sells": 11,
+    "buyers": 8,
+    "sellers": 11
+   },
+   "h1": {
+    "buys": 13,
+    "sells": 24,
+    "buyers": 11,
+    "sellers": 23
+   },
+   "h6": {
+    "buys": 139,
+    "sells": 183,
+    "buyers": 105,
+    "sellers": 144
+   },
+   "h24": {
+    "buys": 1479,
+    "sells": 1776,
+    "buyers": 621,
+    "sellers": 662
+   }
+  }
+ },
+ "BHZZtmYFhMg4PtSecNifJaQQLRL6Vjyyhqm19J12xQgT": {
+  "name": "relax / SOL",
+  "pool_created_at": "2026-07-01T11:16:27Z",
+  "reserve_usd": "15023.0918",
+  "fdv_usd": "33547.37651",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000033547376506517874137929736727733525460686014175519500675017241",
+  "vol_h24": "995164.66848783",
+  "txns": {
+   "m5": {
+    "buys": 62,
+    "sells": 39,
+    "buyers": 49,
+    "sellers": 28
+   },
+   "m15": {
+    "buys": 89,
+    "sells": 69,
+    "buyers": 60,
+    "sellers": 48
+   },
+   "m30": {
+    "buys": 139,
+    "sells": 111,
+    "buyers": 85,
+    "sellers": 65
+   },
+   "h1": {
+    "buys": 274,
+    "sells": 263,
+    "buyers": 133,
+    "sellers": 108
+   },
+   "h6": {
+    "buys": 2378,
+    "sells": 2116,
+    "buyers": 716,
+    "sellers": 764
+   },
+   "h24": {
+    "buys": 11888,
+    "sells": 9929,
+    "buyers": 3158,
+    "sellers": 2823
+   }
+  }
+ },
+ "BNGcs51k4GWcvzp5DYSGjscQxCydjL3pKo5VV5JnkSwu": {
+  "name": "bopdog / SOL",
+  "pool_created_at": "2026-06-29T10:47:50Z",
+  "reserve_usd": "27648.5931",
+  "fdv_usd": "105561.914278629",
+  "market_cap_usd": "105561.914278629",
+  "dex": "pumpswap",
+  "price_usd": "0.00010556390923355383704777065496267883206231486604169865871580696",
+  "vol_h24": "284881.727957238",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 5,
+    "buyers": 0,
+    "sellers": 4
+   },
+   "m15": {
+    "buys": 4,
+    "sells": 17,
+    "buyers": 4,
+    "sellers": 13
+   },
+   "m30": {
+    "buys": 8,
+    "sells": 29,
+    "buyers": 8,
+    "sellers": 20
+   },
+   "h1": {
+    "buys": 29,
+    "sells": 63,
+    "buyers": 25,
+    "sellers": 40
+   },
+   "h6": {
+    "buys": 414,
+    "sells": 615,
+    "buyers": 229,
+    "sellers": 302
+   },
+   "h24": {
+    "buys": 2418,
+    "sells": 2804,
+    "buyers": 939,
+    "sellers": 1028
+   }
+  }
+ },
+ "BZzhW8UMq2YHGHMngPxZJGvjbBUqMjnANZeD7fz4Gy1V": {
+  "name": "$PUMPGIRL / SOL",
+  "pool_created_at": "2026-07-01T17:00:38Z",
+  "reserve_usd": "13695.1113",
+  "fdv_usd": "7380.907778",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000695568989424011803529593922206977074547193187191662446411268496",
+  "vol_h24": "269576.308525775",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h6": {
+    "buys": 2312,
+    "sells": 1984,
+    "buyers": 586,
+    "sellers": 505
+   },
+   "h24": {
+    "buys": 2312,
+    "sells": 1984,
+    "buyers": 586,
+    "sellers": 505
+   }
+  }
+ },
+ "BvG8Layx1cpGbQoyviwqgZ4t8gRB3HrU2XeRogA7QHtE": {
+  "name": "Elf / SOL",
+  "pool_created_at": "2026-06-09T21:15:28Z",
+  "reserve_usd": "17087.1734",
+  "fdv_usd": "48975.87293",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000483079102205208191862238473547420865062428467012919918487814955",
+  "vol_h24": "556453.348459226",
+  "txns": {
+   "m5": {
+    "buys": 5,
+    "sells": 4,
+    "buyers": 3,
+    "sellers": 4
+   },
+   "m15": {
+    "buys": 15,
+    "sells": 15,
+    "buyers": 8,
+    "sellers": 12
+   },
+   "m30": {
+    "buys": 23,
+    "sells": 32,
+    "buyers": 14,
+    "sellers": 21
+   },
+   "h1": {
+    "buys": 136,
+    "sells": 127,
+    "buyers": 66,
+    "sellers": 85
+   },
+   "h6": {
+    "buys": 1173,
+    "sells": 1018,
+    "buyers": 414,
+    "sellers": 439
+   },
+   "h24": {
+    "buys": 7440,
+    "sells": 6809,
+    "buyers": 1824,
+    "sellers": 1546
+   }
+  }
+ },
+ "By5FJ8SXGtfUgxQfyedbLPeFUvDaEbMy2dmG2mbe7ynd": {
+  "name": "yep / SOL",
+  "pool_created_at": "2026-06-29T13:12:23Z",
+  "reserve_usd": "47393.6712",
+  "fdv_usd": "325964.009993736",
+  "market_cap_usd": "325964.009993737",
+  "dex": "pumpswap",
+  "price_usd": "0.000322042576285340689511545014723654877558040222260486652964907243",
+  "vol_h24": "1206216.27176063",
+  "txns": {
+   "m5": {
+    "buys": 15,
+    "sells": 44,
+    "buyers": 8,
+    "sellers": 19
+   },
+   "m15": {
+    "buys": 71,
+    "sells": 72,
+    "buyers": 46,
+    "sellers": 38
+   },
+   "m30": {
+    "buys": 110,
+    "sells": 102,
+    "buyers": 62,
+    "sellers": 59
+   },
+   "h1": {
+    "buys": 243,
+    "sells": 228,
+    "buyers": 133,
+    "sellers": 116
+   },
+   "h6": {
+    "buys": 1678,
+    "sells": 1551,
+    "buyers": 503,
+    "sellers": 573
+   },
+   "h24": {
+    "buys": 9400,
+    "sells": 9013,
+    "buyers": 2185,
+    "sellers": 2471
+   }
+  }
+ },
+ "C1KHGdzEh3DVr7iE8tUiqUuox9eYigLFBhikpU3rbjwD": {
+  "name": "ANSOM / SOL",
+  "pool_created_at": "2026-06-28T12:29:46Z",
+  "reserve_usd": "13323.3746",
+  "fdv_usd": "23439.105346972",
+  "market_cap_usd": "23439.1093228317",
+  "dex": "pumpswap",
+  "price_usd": "0.000023440306070538460015003746712948500963422650620575159513491134",
+  "vol_h24": "195097.879996189",
+  "txns": {
+   "m5": {
+    "buys": 1,
+    "sells": 2,
+    "buyers": 1,
+    "sellers": 2
+   },
+   "m15": {
+    "buys": 6,
+    "sells": 4,
+    "buyers": 5,
+    "sellers": 4
+   },
+   "m30": {
+    "buys": 15,
+    "sells": 9,
+    "buyers": 11,
+    "sellers": 9
+   },
+   "h1": {
+    "buys": 39,
+    "sells": 34,
+    "buyers": 28,
+    "sellers": 30
+   },
+   "h6": {
+    "buys": 303,
+    "sells": 230,
+    "buyers": 169,
+    "sellers": 136
+   },
+   "h24": {
+    "buys": 3538,
+    "sells": 2812,
+    "buyers": 2225,
+    "sellers": 1711
+   }
+  }
+ },
+ "C93iMB1xHF9A2KZGaA5kzAkHKm3xsRGf9PZHhkHGQiNY": {
+  "name": "Speedrun / SOL",
+  "pool_created_at": "2026-06-29T04:26:37Z",
+  "reserve_usd": "11317.1828",
+  "fdv_usd": "16900.12723",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000169001272300560313985099290389232253433727967524308521443017088",
+  "vol_h24": "51322.1837420049",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 3,
+    "sells": 2,
+    "buyers": 3,
+    "sellers": 2
+   },
+   "m30": {
+    "buys": 22,
+    "sells": 8,
+    "buyers": 21,
+    "sellers": 8
+   },
+   "h1": {
+    "buys": 28,
+    "sells": 21,
+    "buyers": 25,
+    "sellers": 19
+   },
+   "h6": {
+    "buys": 207,
+    "sells": 177,
+    "buyers": 107,
+    "sellers": 130
+   },
+   "h24": {
+    "buys": 994,
+    "sells": 1046,
+    "buyers": 375,
+    "sellers": 505
+   }
+  }
+ },
+ "CKB2oH5RWERUvNZHGxBGGs5mPMSofRxHgCz7MtAfyXQX": {
+  "name": "BABYANSEM / USDC",
+  "pool_created_at": "2026-06-28T23:43:00Z",
+  "reserve_usd": "14651.5905",
+  "fdv_usd": "19342.46768",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000193424676804047548685727741964871096531662380371631023894097344",
+  "vol_h24": "66418.8958535712",
+  "txns": {
+   "m5": {
+    "buys": 4,
+    "sells": 4,
+    "buyers": 3,
+    "sellers": 2
+   },
+   "m15": {
+    "buys": 10,
+    "sells": 7,
+    "buyers": 5,
+    "sellers": 5
+   },
+   "m30": {
+    "buys": 25,
+    "sells": 16,
+    "buyers": 20,
+    "sellers": 13
+   },
+   "h1": {
+    "buys": 31,
+    "sells": 25,
+    "buyers": 26,
+    "sellers": 21
+   },
+   "h6": {
+    "buys": 151,
+    "sells": 136,
+    "buyers": 88,
+    "sellers": 90
+   },
+   "h24": {
+    "buys": 567,
+    "sells": 509,
+    "buyers": 262,
+    "sellers": 325
+   }
+  }
+ },
+ "CyTMmm817GD2fZFwPN31gJc8fHFUDpdzEPLwQyQ97jxN": {
+  "name": "Pompliano / SOL",
+  "pool_created_at": "2026-06-29T22:04:11Z",
+  "reserve_usd": "4951.1472",
+  "fdv_usd": "2825.482059",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000028384111141614435481945996039606039238311318205796597776509741",
+  "vol_h24": "1635568.34040914",
+  "txns": {
+   "m5": {
+    "buys": 1,
+    "sells": 1,
+    "buyers": 1,
+    "sellers": 1
+   },
+   "m15": {
+    "buys": 1,
+    "sells": 1,
+    "buyers": 1,
+    "sellers": 1
+   },
+   "m30": {
+    "buys": 2,
+    "sells": 1,
+    "buyers": 2,
+    "sellers": 1
+   },
+   "h1": {
+    "buys": 3,
+    "sells": 5,
+    "buyers": 3,
+    "sellers": 4
+   },
+   "h6": {
+    "buys": 128,
+    "sells": 12732,
+    "buyers": 59,
+    "sellers": 12714
+   },
+   "h24": {
+    "buys": 20881,
+    "sells": 22613,
+    "buyers": 8260,
+    "sellers": 17377
+   }
+  }
+ },
+ "DEAtFrFhDz1J5D2KB9pzQCDHj5bT7tBCcWcBHwYzV4LU": {
+  "name": "NAVE / USDC",
+  "pool_created_at": "2026-06-29T19:42:57Z",
+  "reserve_usd": "30600.2231",
+  "fdv_usd": "79934.4856158404",
+  "market_cap_usd": "0.0",
+  "dex": "meteora-damm-v2",
+  "price_usd": "0.159869255451408078906569600520448499558290402554098148878681384",
+  "vol_h24": "88088.8892079909",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "m15": {
+    "buys": 14,
+    "sells": 6,
+    "buyers": 8,
+    "sellers": 6
+   },
+   "m30": {
+    "buys": 17,
+    "sells": 10,
+    "buyers": 11,
+    "sellers": 10
+   },
+   "h1": {
+    "buys": 56,
+    "sells": 50,
+    "buyers": 36,
+    "sellers": 40
+   },
+   "h6": {
+    "buys": 226,
+    "sells": 143,
+    "buyers": 108,
+    "sellers": 90
+   },
+   "h24": {
+    "buys": 742,
+    "sells": 494,
+    "buyers": 279,
+    "sellers": 241
+   }
+  }
+ },
+ "DUzj8NzbNeqLj7Y8YYCWZdV29LmPGs84bSxxtvUADgXD": {
+  "name": "SHIH / SOL",
+  "pool_created_at": "2026-07-01T16:18:48Z",
+  "reserve_usd": "18382.9766",
+  "fdv_usd": "54203.16209",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000526220240439634413555132993161773223115846616267325224516248406",
+  "vol_h24": "275641.712304595",
+  "txns": {
+   "m5": {
+    "buys": 2,
+    "sells": 4,
+    "buyers": 2,
+    "sellers": 3
+   },
+   "m15": {
+    "buys": 15,
+    "sells": 34,
+    "buyers": 12,
+    "sellers": 20
+   },
+   "m30": {
+    "buys": 67,
+    "sells": 86,
+    "buyers": 43,
+    "sellers": 56
+   },
+   "h1": {
+    "buys": 152,
+    "sells": 186,
+    "buyers": 75,
+    "sellers": 104
+   },
+   "h6": {
+    "buys": 3037,
+    "sells": 2771,
+    "buyers": 1085,
+    "sellers": 964
+   },
+   "h24": {
+    "buys": 3037,
+    "sells": 2771,
+    "buyers": 1085,
+    "sellers": 964
+   }
+  }
+ },
+ "DVs2KGyiPAhQN7J9kfb33Syk6ppHwv8QAizduFUoG5Ti": {
+  "name": "SHROOM / SOL",
+  "pool_created_at": "2026-07-01T13:34:29Z",
+  "reserve_usd": "30351.7372",
+  "fdv_usd": "150129.9393",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00014990762326841745146670883429670632792100717560405399725684371",
+  "vol_h24": "1219719.895046",
+  "txns": {
+   "m5": {
+    "buys": 6,
+    "sells": 5,
+    "buyers": 5,
+    "sellers": 5
+   },
+   "m15": {
+    "buys": 11,
+    "sells": 34,
+    "buyers": 10,
+    "sellers": 27
+   },
+   "m30": {
+    "buys": 70,
+    "sells": 62,
+    "buyers": 45,
+    "sellers": 50
+   },
+   "h1": {
+    "buys": 189,
+    "sells": 223,
+    "buyers": 97,
+    "sellers": 142
+   },
+   "h6": {
+    "buys": 4212,
+    "sells": 3714,
+    "buyers": 1234,
+    "sellers": 1546
+   },
+   "h24": {
+    "buys": 11549,
+    "sells": 8639,
+    "buyers": 3769,
+    "sellers": 3353
+   }
+  }
+ },
+ "DcqXnSNSDv7tE2itNGsMjxhGhk56nMpLUpmZbpcDNthV": {
+  "name": "VITALY / SOL",
+  "pool_created_at": "2026-06-30T11:07:40Z",
+  "reserve_usd": "28441.0809",
+  "fdv_usd": "114580.140467123",
+  "market_cap_usd": "114580.140467123",
+  "dex": "pumpswap",
+  "price_usd": "0.000114585977564533573532601509434871242807609338854742526541879508",
+  "vol_h24": "475781.013076859",
+  "txns": {
+   "m5": {
+    "buys": 11,
+    "sells": 10,
+    "buyers": 10,
+    "sellers": 9
+   },
+   "m15": {
+    "buys": 14,
+    "sells": 26,
+    "buyers": 13,
+    "sellers": 16
+   },
+   "m30": {
+    "buys": 21,
+    "sells": 38,
+    "buyers": 19,
+    "sellers": 23
+   },
+   "h1": {
+    "buys": 72,
+    "sells": 75,
+    "buyers": 47,
+    "sellers": 46
+   },
+   "h6": {
+    "buys": 457,
+    "sells": 532,
+    "buyers": 232,
+    "sellers": 246
+   },
+   "h24": {
+    "buys": 3885,
+    "sells": 3838,
+    "buyers": 1137,
+    "sellers": 1206
+   }
+  }
+ },
+ "DqivdBJjRvyfLyXHnw87V8q7EAqQNSmjeZDZtRsQzzoF": {
+  "name": "SEXY / SOL",
+  "pool_created_at": "2026-07-01T18:34:22Z",
+  "reserve_usd": "47767.7494",
+  "fdv_usd": "401501.4302",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00040150143017615873685176725953238143416072057723099006230253856",
+  "vol_h24": "465538.774855945",
+  "txns": {
+   "m5": {
+    "buys": 3,
+    "sells": 10,
+    "buyers": 3,
+    "sellers": 10
+   },
+   "m15": {
+    "buys": 19,
+    "sells": 50,
+    "buyers": 17,
+    "sellers": 21
+   },
+   "m30": {
+    "buys": 52,
+    "sells": 196,
+    "buyers": 32,
+    "sellers": 44
+   },
+   "h1": {
+    "buys": 156,
+    "sells": 367,
+    "buyers": 93,
+    "sellers": 87
+   },
+   "h6": {
+    "buys": 1260,
+    "sells": 1892,
+    "buyers": 737,
+    "sellers": 525
+   },
+   "h24": {
+    "buys": 1260,
+    "sells": 1892,
+    "buyers": 737,
+    "sellers": 525
+   }
+  }
+ },
+ "EUAFY6JjqxaTZSW65bez9387R8HkRZdZqYfy5Z8A5Rjz": {
+  "name": "GOKHSHTEIN / SOL",
+  "pool_created_at": "2026-06-28T07:06:20Z",
+  "reserve_usd": "21226.2429",
+  "fdv_usd": "54480.8229559594",
+  "market_cap_usd": "54480.8229559594",
+  "dex": "pumpswap",
+  "price_usd": "0.000054483061535538132802243899319352371537593618707769318036924905",
+  "vol_h24": "106601.147467784",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 3,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "m15": {
+    "buys": 3,
+    "sells": 13,
+    "buyers": 2,
+    "sellers": 7
+   },
+   "m30": {
+    "buys": 22,
+    "sells": 30,
+    "buyers": 18,
+    "sellers": 15
+   },
+   "h1": {
+    "buys": 34,
+    "sells": 45,
+    "buyers": 21,
+    "sellers": 25
+   },
+   "h6": {
+    "buys": 194,
+    "sells": 266,
+    "buyers": 106,
+    "sellers": 114
+   },
+   "h24": {
+    "buys": 1429,
+    "sells": 1645,
+    "buyers": 491,
+    "sellers": 515
+   }
+  }
+ },
+ "Eg2SxQ3zkT3ZjQmnXg318aVUR8eo4YfUPUVzeU6riGJN": {
+  "name": "TJR / SOL",
+  "pool_created_at": "2026-06-29T13:08:45Z",
+  "reserve_usd": "65508.1774",
+  "fdv_usd": "471350.2713",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000478619635043621258649121593503052768248820263710003358179894046",
+  "vol_h24": "247624.728620781",
+  "txns": {
+   "m5": {
+    "buys": 6,
+    "sells": 2,
+    "buyers": 6,
+    "sellers": 2
+   },
+   "m15": {
+    "buys": 20,
+    "sells": 7,
+    "buyers": 14,
+    "sellers": 3
+   },
+   "m30": {
+    "buys": 30,
+    "sells": 16,
+    "buyers": 21,
+    "sellers": 7
+   },
+   "h1": {
+    "buys": 55,
+    "sells": 43,
+    "buyers": 27,
+    "sellers": 23
+   },
+   "h6": {
+    "buys": 416,
+    "sells": 382,
+    "buyers": 140,
+    "sellers": 185
+   },
+   "h24": {
+    "buys": 2571,
+    "sells": 2463,
+    "buyers": 905,
+    "sellers": 1291
+   }
+  }
+ },
+ "EkPVEbbQHg8RLPAr5UDXGTtBnCpvYZN5wwrFLkrLv8cu": {
+  "name": "MMGA / SOL",
+  "pool_created_at": "2026-06-29T19:27:01Z",
+  "reserve_usd": "13784.0327",
+  "fdv_usd": "20961.15665",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000020961156650417657460585001315189012822898720998873895804472355",
+  "vol_h24": "63081.2960882039",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "m15": {
+    "buys": 1,
+    "sells": 1,
+    "buyers": 1,
+    "sellers": 1
+   },
+   "m30": {
+    "buys": 2,
+    "sells": 9,
+    "buyers": 2,
+    "sellers": 8
+   },
+   "h1": {
+    "buys": 10,
+    "sells": 13,
+    "buyers": 8,
+    "sellers": 12
+   },
+   "h6": {
+    "buys": 139,
+    "sells": 114,
+    "buyers": 73,
+    "sellers": 81
+   },
+   "h24": {
+    "buys": 1298,
+    "sells": 1314,
+    "buyers": 516,
+    "sellers": 637
+   }
+  }
+ },
+ "EwRxs61YB2sWiANgQCbG9vgeRKWDZ3FxXWtYZ2kFVbM8": {
+  "name": "world / SOL",
+  "pool_created_at": "2026-06-23T14:53:13Z",
+  "reserve_usd": "261897.137",
+  "fdv_usd": "5389892.407",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00538989240741876564293708213153231918785333093962356376501918066",
+  "vol_h24": "7960041.04189363",
+  "txns": {
+   "m5": {
+    "buys": 42,
+    "sells": 37,
+    "buyers": 34,
+    "sellers": 36
+   },
+   "m15": {
+    "buys": 175,
+    "sells": 175,
+    "buyers": 123,
+    "sellers": 142
+   },
+   "m30": {
+    "buys": 433,
+    "sells": 376,
+    "buyers": 283,
+    "sellers": 282
+   },
+   "h1": {
+    "buys": 1102,
+    "sells": 868,
+    "buyers": 580,
+    "sellers": 626
+   },
+   "h6": {
+    "buys": 9480,
+    "sells": 8043,
+    "buyers": 3104,
+    "sellers": 3465
+   },
+   "h24": {
+    "buys": 25962,
+    "sells": 25464,
+    "buyers": 6472,
+    "sellers": 6704
+   }
+  }
+ },
+ "F1Q7rvMJQ7KFGutSpmVqJab1yG1vw5kEfNWNNXziH5Mn": {
+  "name": "ZAYED / SOL",
+  "pool_created_at": "2026-06-30T16:52:39Z",
+  "reserve_usd": "8066.0208",
+  "fdv_usd": "8904.378409045",
+  "market_cap_usd": "8904.3925359621",
+  "dex": "pumpswap",
+  "price_usd": "0.0000089044939152995555518023668426428794028317762616422392348204081",
+  "vol_h24": "834340.836943945",
+  "txns": {
+   "m5": {
+    "buys": 3,
+    "sells": 2,
+    "buyers": 2,
+    "sellers": 2
+   },
+   "m15": {
+    "buys": 6,
+    "sells": 7,
+    "buyers": 4,
+    "sellers": 6
+   },
+   "m30": {
+    "buys": 8,
+    "sells": 18,
+    "buyers": 6,
+    "sellers": 17
+   },
+   "h1": {
+    "buys": 22,
+    "sells": 27,
+    "buyers": 16,
+    "sellers": 23
+   },
+   "h6": {
+    "buys": 1811,
+    "sells": 1729,
+    "buyers": 798,
+    "sellers": 839
+   },
+   "h24": {
+    "buys": 7226,
+    "sells": 6522,
+    "buyers": 1847,
+    "sellers": 1866
+   }
+  }
+ },
+ "FXfmL53naPn8w5L7xQgaxAchU7Akfqo96eztnqJKi59M": {
+  "name": "BULLWIF / USDC",
+  "pool_created_at": "2026-06-29T01:37:23Z",
+  "reserve_usd": "72868.2938",
+  "fdv_usd": "397436.863542177",
+  "market_cap_usd": "397441.5078",
+  "dex": "pumpswap",
+  "price_usd": "0.000397441507771863931959137365581118465115447696905714514577358936",
+  "vol_h24": "383713.045357452",
+  "txns": {
+   "m5": {
+    "buys": 6,
+    "sells": 4,
+    "buyers": 5,
+    "sellers": 4
+   },
+   "m15": {
+    "buys": 20,
+    "sells": 14,
+    "buyers": 17,
+    "sellers": 14
+   },
+   "m30": {
+    "buys": 73,
+    "sells": 34,
+    "buyers": 51,
+    "sellers": 30
+   },
+   "h1": {
+    "buys": 191,
+    "sells": 96,
+    "buyers": 100,
+    "sellers": 76
+   },
+   "h6": {
+    "buys": 909,
+    "sells": 850,
+    "buyers": 371,
+    "sellers": 339
+   },
+   "h24": {
+    "buys": 3918,
+    "sells": 2759,
+    "buyers": 1310,
+    "sellers": 1021
+   }
+  }
+ },
+ "Fd35pvzQWUHjD1EPDVH9U85vpgZrxuN9LMjx7SPtEvMg": {
+  "name": "Potato / SOL",
+  "pool_created_at": "2026-06-28T21:34:14Z",
+  "reserve_usd": "62405.9446",
+  "fdv_usd": "534354.056",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000536209942121627681948358984129836977381395080614725900624306906",
+  "vol_h24": "689712.982071369",
+  "txns": {
+   "m5": {
+    "buys": 5,
+    "sells": 13,
+    "buyers": 4,
+    "sellers": 12
+   },
+   "m15": {
+    "buys": 16,
+    "sells": 46,
+    "buyers": 14,
+    "sellers": 36
+   },
+   "m30": {
+    "buys": 106,
+    "sells": 227,
+    "buyers": 70,
+    "sellers": 155
+   },
+   "h1": {
+    "buys": 210,
+    "sells": 321,
+    "buyers": 144,
+    "sellers": 216
+   },
+   "h6": {
+    "buys": 998,
+    "sells": 1102,
+    "buyers": 448,
+    "sellers": 595
+   },
+   "h24": {
+    "buys": 3623,
+    "sells": 4882,
+    "buyers": 1282,
+    "sellers": 1798
+   }
+  }
+ },
+ "FqRiBboRyiY8Lyq5hn8CTn8LGTCQYoknK6K2MSKwwD1q": {
+  "name": "WYNN / SOL",
+  "pool_created_at": "2026-06-28T12:27:26Z",
+  "reserve_usd": "12771.5353",
+  "fdv_usd": "18940.56671",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000189405667120542715145579753396532811704385410787279593605924448",
+  "vol_h24": "41799.720303321",
+  "txns": {
+   "m5": {
+    "buys": 2,
+    "sells": 3,
+    "buyers": 2,
+    "sellers": 3
+   },
+   "m15": {
+    "buys": 10,
+    "sells": 7,
+    "buyers": 10,
+    "sellers": 6
+   },
+   "m30": {
+    "buys": 13,
+    "sells": 8,
+    "buyers": 12,
+    "sellers": 7
+   },
+   "h1": {
+    "buys": 31,
+    "sells": 16,
+    "buyers": 19,
+    "sellers": 13
+   },
+   "h6": {
+    "buys": 205,
+    "sells": 218,
+    "buyers": 88,
+    "sellers": 104
+   },
+   "h24": {
+    "buys": 836,
+    "sells": 1174,
+    "buyers": 342,
+    "sellers": 421
+   }
+  }
+ },
+ "Fs2Juq2822tZTDz1j66DQuMg6psWowQjgAMe8qw7QrUn": {
+  "name": "ANSEMTRENCH / SOL",
+  "pool_created_at": "2026-06-29T18:10:33Z",
+  "reserve_usd": "3118.8986",
+  "fdv_usd": "1572.145193",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000015721451925351159813113435306342935077193779148038861429453888",
+  "vol_h24": "2.5517077224",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "h6": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "h24": {
+    "buys": 2,
+    "sells": 3,
+    "buyers": 1,
+    "sellers": 3
+   }
+  }
+ },
+ "G6EPiJGRTQ6oZj3MzTnmD5GUFVxKbukJeL4Hksz4qS3X": {
+  "name": "POKE / SOL",
+  "pool_created_at": "2026-07-01T03:21:05Z",
+  "reserve_usd": "3317.7107",
+  "fdv_usd": "1803.343486",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000180334348589621189377386957537832919694619697698381791117023574",
+  "vol_h24": "469317.71171301",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 2,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 2,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "h6": {
+    "buys": 8,
+    "sells": 18,
+    "buyers": 8,
+    "sellers": 18
+   },
+   "h24": {
+    "buys": 5349,
+    "sells": 4832,
+    "buyers": 1927,
+    "sellers": 1870
+   }
+  }
+ },
+ "GB6tPWYBr8T2gvpW2Nx68uYSWHqPtUgfVA5cVnTkdzrH": {
+  "name": "STOCHASTIC / SOL",
+  "pool_created_at": "2026-07-01T06:03:02Z",
+  "reserve_usd": "6347.4879",
+  "fdv_usd": "6516.003416",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00000651600341559882060844105406230025387046376940953624752108352862",
+  "vol_h24": "858368.145830001",
+  "txns": {
+   "m5": {
+    "buys": 1,
+    "sells": 0,
+    "buyers": 1,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 5,
+    "sells": 2,
+    "buyers": 4,
+    "sellers": 2
+   },
+   "m30": {
+    "buys": 10,
+    "sells": 8,
+    "buyers": 8,
+    "sellers": 7
+   },
+   "h1": {
+    "buys": 18,
+    "sells": 17,
+    "buyers": 14,
+    "sellers": 16
+   },
+   "h6": {
+    "buys": 311,
+    "sells": 274,
+    "buyers": 120,
+    "sellers": 158
+   },
+   "h24": {
+    "buys": 10603,
+    "sells": 8794,
+    "buyers": 2772,
+    "sellers": 2618
+   }
+  }
+ },
+ "GJA8ec4mGb79zP3cNiz92VDoZP4KHCSQPJ1xKNKaBHW1": {
+  "name": "WIF2 / SOL",
+  "pool_created_at": "2026-06-28T08:21:02Z",
+  "reserve_usd": "64425.1074",
+  "fdv_usd": "633865.0521",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000628116765824689356287440250083869401022958730329814265571143808",
+  "vol_h24": "865662.841336184",
+  "txns": {
+   "m5": {
+    "buys": 10,
+    "sells": 9,
+    "buyers": 10,
+    "sellers": 9
+   },
+   "m15": {
+    "buys": 23,
+    "sells": 48,
+    "buyers": 22,
+    "sellers": 47
+   },
+   "m30": {
+    "buys": 63,
+    "sells": 134,
+    "buyers": 54,
+    "sellers": 121
+   },
+   "h1": {
+    "buys": 187,
+    "sells": 280,
+    "buyers": 145,
+    "sellers": 228
+   },
+   "h6": {
+    "buys": 1397,
+    "sells": 1606,
+    "buyers": 713,
+    "sellers": 929
+   },
+   "h24": {
+    "buys": 6114,
+    "sells": 6090,
+    "buyers": 1899,
+    "sellers": 2236
+   }
+  }
+ },
+ "GKgWPmTt7JCwZf4pxtZqq4ZjcryEpPz2mMj4y3xegzRB": {
+  "name": "FROGBULL / SOL",
+  "pool_created_at": "2026-07-01T14:30:56Z",
+  "reserve_usd": "69942.7255",
+  "fdv_usd": "819658.7899",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00078527125402612347799946196643941492026356148210491607506110538",
+  "vol_h24": "1319963.06510105",
+  "txns": {
+   "m5": {
+    "buys": 64,
+    "sells": 65,
+    "buyers": 55,
+    "sellers": 50
+   },
+   "m15": {
+    "buys": 202,
+    "sells": 135,
+    "buyers": 128,
+    "sellers": 102
+   },
+   "m30": {
+    "buys": 359,
+    "sells": 235,
+    "buyers": 194,
+    "sellers": 173
+   },
+   "h1": {
+    "buys": 611,
+    "sells": 432,
+    "buyers": 308,
+    "sellers": 295
+   },
+   "h6": {
+    "buys": 9074,
+    "sells": 6464,
+    "buyers": 2769,
+    "sellers": 2253
+   },
+   "h24": {
+    "buys": 10227,
+    "sells": 7255,
+    "buyers": 3190,
+    "sellers": 2497
+   }
+  }
+ },
+ "GSGMBFWNVHrGYtYebfYDCz82KRXUavxznXqV5NfgsBBz": {
+  "name": "PEACE / SOL",
+  "pool_created_at": "2026-07-01T16:21:23Z",
+  "reserve_usd": "48996.9879",
+  "fdv_usd": "298516.916",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00029129254188613337023245548512836563371368625542480899056611391",
+  "vol_h24": "3562582.73303749",
+  "txns": {
+   "m5": {
+    "buys": 142,
+    "sells": 110,
+    "buyers": 94,
+    "sellers": 83
+   },
+   "m15": {
+    "buys": 587,
+    "sells": 386,
+    "buyers": 309,
+    "sellers": 246
+   },
+   "m30": {
+    "buys": 1084,
+    "sells": 755,
+    "buyers": 474,
+    "sellers": 441
+   },
+   "h1": {
+    "buys": 2292,
+    "sells": 1902,
+    "buyers": 866,
+    "sellers": 824
+   },
+   "h6": {
+    "buys": 26136,
+    "sells": 21925,
+    "buyers": 6009,
+    "sellers": 5235
+   },
+   "h24": {
+    "buys": 26136,
+    "sells": 21925,
+    "buyers": 6009,
+    "sellers": 5235
+   }
+  }
+ },
+ "GrUqhnde1Rn9JBvdw9xVx5hjja9uNMWKrMvXDvgcPcFU": {
+  "name": "LUKE / SOL",
+  "pool_created_at": "2026-06-30T06:18:29Z",
+  "reserve_usd": "40865.167",
+  "fdv_usd": "195513.4681",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00019551346807196193668641408082500838155678520444609178327840389",
+  "vol_h24": "705866.025118747",
+  "txns": {
+   "m5": {
+    "buys": 2,
+    "sells": 1,
+    "buyers": 2,
+    "sellers": 1
+   },
+   "m15": {
+    "buys": 9,
+    "sells": 6,
+    "buyers": 4,
+    "sellers": 5
+   },
+   "m30": {
+    "buys": 22,
+    "sells": 14,
+    "buyers": 12,
+    "sellers": 13
+   },
+   "h1": {
+    "buys": 37,
+    "sells": 27,
+    "buyers": 20,
+    "sellers": 26
+   },
+   "h6": {
+    "buys": 379,
+    "sells": 315,
+    "buyers": 147,
+    "sellers": 210
+   },
+   "h24": {
+    "buys": 5136,
+    "sells": 5133,
+    "buyers": 1587,
+    "sellers": 2453
+   }
+  }
+ },
+ "Gu2xGVua4JNSzgDKeqoSd7Uy7QzUUmdHsKmezZyKfPMA": {
+  "name": "DEADSEM / SOL",
+  "pool_created_at": "2026-06-29T16:29:43Z",
+  "reserve_usd": "6429.2459",
+  "fdv_usd": "7093.064493",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000070930644934687884547841776782773014060081961448291915158481177",
+  "vol_h24": "2767.590199847",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 2,
+    "sells": 1,
+    "buyers": 2,
+    "sellers": 1
+   },
+   "m30": {
+    "buys": 2,
+    "sells": 3,
+    "buyers": 2,
+    "sellers": 3
+   },
+   "h1": {
+    "buys": 2,
+    "sells": 3,
+    "buyers": 2,
+    "sellers": 3
+   },
+   "h6": {
+    "buys": 16,
+    "sells": 36,
+    "buyers": 11,
+    "sellers": 31
+   },
+   "h24": {
+    "buys": 58,
+    "sells": 108,
+    "buyers": 35,
+    "sellers": 84
+   }
+  }
+ },
+ "HHXQfx5i2cez4WcBwXjai7TtnZTk5Byp3od6thPhETNe": {
+  "name": "dog / SOL",
+  "pool_created_at": "2026-06-30T05:19:51Z",
+  "reserve_usd": "101768.1351",
+  "fdv_usd": "1369815.49503252",
+  "market_cap_usd": "1369815.5397547",
+  "dex": "pumpswap",
+  "price_usd": "0.00136981990772403895124918579878089822975101073555227555496361776",
+  "vol_h24": "1581856.91523859",
+  "txns": {
+   "m5": {
+    "buys": 16,
+    "sells": 14,
+    "buyers": 10,
+    "sellers": 8
+   },
+   "m15": {
+    "buys": 24,
+    "sells": 36,
+    "buyers": 16,
+    "sellers": 27
+   },
+   "m30": {
+    "buys": 49,
+    "sells": 65,
+    "buyers": 33,
+    "sellers": 47
+   },
+   "h1": {
+    "buys": 174,
+    "sells": 149,
+    "buyers": 130,
+    "sellers": 122
+   },
+   "h6": {
+    "buys": 1466,
+    "sells": 1019,
+    "buyers": 638,
+    "sellers": 669
+   },
+   "h24": {
+    "buys": 8229,
+    "sells": 6526,
+    "buyers": 2556,
+    "sellers": 2721
+   }
+  }
+ },
+ "HUNPMqBEp5RoZproidt3Ujfhbo29SLGWU97xkAxX1UKu": {
+  "name": "BOOM / SOL",
+  "pool_created_at": "2026-06-30T18:16:51Z",
+  "reserve_usd": "22610.5749",
+  "fdv_usd": "88209.14272",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00008820914272449922843012561115895511598249158247404492597325932",
+  "vol_h24": "160369.660273042",
+  "txns": {
+   "m5": {
+    "buys": 5,
+    "sells": 5,
+    "buyers": 4,
+    "sellers": 3
+   },
+   "m15": {
+    "buys": 10,
+    "sells": 13,
+    "buyers": 7,
+    "sellers": 8
+   },
+   "m30": {
+    "buys": 11,
+    "sells": 22,
+    "buyers": 8,
+    "sellers": 11
+   },
+   "h1": {
+    "buys": 23,
+    "sells": 43,
+    "buyers": 16,
+    "sellers": 20
+   },
+   "h6": {
+    "buys": 549,
+    "sells": 532,
+    "buyers": 210,
+    "sellers": 180
+   },
+   "h24": {
+    "buys": 1661,
+    "sells": 1459,
+    "buyers": 362,
+    "sellers": 363
+   }
+  }
+ },
+ "HYs13Dh2N6UytznnaAwQhQdbfE1xBZyzakK9f2zvcHvA": {
+  "name": "DIAMOND / SOL",
+  "pool_created_at": "2026-06-28T19:31:47Z",
+  "reserve_usd": "17578.5268",
+  "fdv_usd": "48982.02845",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000048982028446145304533116899942179152104308549164920280947075573",
+  "vol_h24": "18464.9765361706",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 0,
+    "buyers": 0,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 0,
+    "sells": 2,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "m30": {
+    "buys": 0,
+    "sells": 2,
+    "buyers": 0,
+    "sellers": 2
+   },
+   "h1": {
+    "buys": 0,
+    "sells": 4,
+    "buyers": 0,
+    "sellers": 4
+   },
+   "h6": {
+    "buys": 2,
+    "sells": 16,
+    "buyers": 2,
+    "sellers": 15
+   },
+   "h24": {
+    "buys": 146,
+    "sells": 271,
+    "buyers": 88,
+    "sellers": 107
+   }
+  }
+ },
+ "HgeKwSQVPf4KmApNocikwXcGQmnenR7hj6d1cY5MBAnH": {
+  "name": "POINT / SOL",
+  "pool_created_at": "2026-06-25T15:31:16Z",
+  "reserve_usd": "20863.3298",
+  "fdv_usd": "54820.02915",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.0000548200291454971876623176004607989759173075934445555260114460512",
+  "vol_h24": "337890.332386274",
+  "txns": {
+   "m5": {
+    "buys": 3,
+    "sells": 14,
+    "buyers": 3,
+    "sellers": 14
+   },
+   "m15": {
+    "buys": 11,
+    "sells": 27,
+    "buyers": 9,
+    "sellers": 21
+   },
+   "m30": {
+    "buys": 35,
+    "sells": 50,
+    "buyers": 22,
+    "sellers": 36
+   },
+   "h1": {
+    "buys": 163,
+    "sells": 133,
+    "buyers": 76,
+    "sellers": 80
+   },
+   "h6": {
+    "buys": 716,
+    "sells": 597,
+    "buyers": 221,
+    "sellers": 217
+   },
+   "h24": {
+    "buys": 2712,
+    "sells": 2526,
+    "buyers": 638,
+    "sellers": 610
+   }
+  }
+ },
+ "Hh6ajgHBw5eRr8Rj9kC51zAZvrChjVvrAnc2w8Sy6G7j": {
+  "name": "BULLCAT / SOL",
+  "pool_created_at": "2026-06-29T01:32:02Z",
+  "reserve_usd": "44836.4278",
+  "fdv_usd": "237254.646571191",
+  "market_cap_usd": "237254.646571191",
+  "dex": "pumpswap",
+  "price_usd": "0.0002372552992346470017379246102200697338119385974777528055428103",
+  "vol_h24": "63401.9888116826",
+  "txns": {
+   "m5": {
+    "buys": 0,
+    "sells": 1,
+    "buyers": 0,
+    "sellers": 1
+   },
+   "m15": {
+    "buys": 1,
+    "sells": 5,
+    "buyers": 1,
+    "sellers": 5
+   },
+   "m30": {
+    "buys": 1,
+    "sells": 7,
+    "buyers": 1,
+    "sellers": 7
+   },
+   "h1": {
+    "buys": 8,
+    "sells": 12,
+    "buyers": 7,
+    "sellers": 11
+   },
+   "h6": {
+    "buys": 144,
+    "sells": 99,
+    "buyers": 69,
+    "sellers": 79
+   },
+   "h24": {
+    "buys": 855,
+    "sells": 635,
+    "buyers": 287,
+    "sellers": 349
+   }
+  }
+ },
+ "J7HdS6Hi2HejMLLpkpRerVQHjHiCDYXy4LK18p1zyYVk": {
+  "name": "ALON / SOL",
+  "pool_created_at": "2026-06-30T16:35:48Z",
+  "reserve_usd": "58549.8693",
+  "fdv_usd": "575237.9815",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000575237981542031816211711444590039400728072824437439171822778076",
+  "vol_h24": "268863.51336554",
+  "txns": {
+   "m5": {
+    "buys": 5,
+    "sells": 4,
+    "buyers": 3,
+    "sellers": 3
+   },
+   "m15": {
+    "buys": 6,
+    "sells": 10,
+    "buyers": 3,
+    "sellers": 5
+   },
+   "m30": {
+    "buys": 26,
+    "sells": 22,
+    "buyers": 20,
+    "sellers": 11
+   },
+   "h1": {
+    "buys": 42,
+    "sells": 53,
+    "buyers": 30,
+    "sellers": 27
+   },
+   "h6": {
+    "buys": 408,
+    "sells": 409,
+    "buyers": 184,
+    "sellers": 218
+   },
+   "h24": {
+    "buys": 2043,
+    "sells": 1900,
+    "buyers": 678,
+    "sellers": 825
+   }
+  }
+ },
+ "J8c2wQCZiLoc38GL1uqWsABznXDXgKpxo7Dm4Pnpu311": {
+  "name": "\ud83d\udc02\ud83c\udc04 / SOL",
+  "pool_created_at": "2026-06-28T12:42:05Z",
+  "reserve_usd": "24090.3847",
+  "fdv_usd": "72767.71778",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000072746931486884006079156248555158655485537857249445076850612687",
+  "vol_h24": "140649.077969917",
+  "txns": {
+   "m5": {
+    "buys": 2,
+    "sells": 10,
+    "buyers": 2,
+    "sellers": 10
+   },
+   "m15": {
+    "buys": 16,
+    "sells": 28,
+    "buyers": 16,
+    "sellers": 25
+   },
+   "m30": {
+    "buys": 53,
+    "sells": 45,
+    "buyers": 50,
+    "sellers": 40
+   },
+   "h1": {
+    "buys": 69,
+    "sells": 58,
+    "buyers": 60,
+    "sellers": 50
+   },
+   "h6": {
+    "buys": 252,
+    "sells": 299,
+    "buyers": 144,
+    "sellers": 218
+   },
+   "h24": {
+    "buys": 1097,
+    "sells": 1353,
+    "buyers": 419,
+    "sellers": 793
+   }
+  }
+ },
+ "a2uaeSyEuVowBmnEV91pbDmcZDscXPrUvQG1DGz7BaB": {
+  "name": "HIM / SOL",
+  "pool_created_at": "2026-06-30T15:11:05Z",
+  "reserve_usd": "56172.1492",
+  "fdv_usd": "473915.941",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000473592693985085682937077583533943883552312509108185158768409994",
+  "vol_h24": "702188.569588138",
+  "txns": {
+   "m5": {
+    "buys": 7,
+    "sells": 10,
+    "buyers": 6,
+    "sellers": 7
+   },
+   "m15": {
+    "buys": 9,
+    "sells": 17,
+    "buyers": 8,
+    "sellers": 12
+   },
+   "m30": {
+    "buys": 30,
+    "sells": 44,
+    "buyers": 29,
+    "sellers": 31
+   },
+   "h1": {
+    "buys": 365,
+    "sells": 367,
+    "buyers": 273,
+    "sellers": 257
+   },
+   "h6": {
+    "buys": 917,
+    "sells": 904,
+    "buyers": 497,
+    "sellers": 545
+   },
+   "h24": {
+    "buys": 4632,
+    "sells": 4502,
+    "buyers": 1535,
+    "sellers": 1760
+   }
+  }
+ },
+ "eAVVVCtbsDq5YCi9V2LSZnhN8Zv5xc2vhBwfsDPSSaT": {
+  "name": "EDWARD / SOL",
+  "pool_created_at": "2026-07-01T00:48:59Z",
+  "reserve_usd": "9327.3148",
+  "fdv_usd": "14451.75831",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000014451758311481076326166164929111334162107041137806397134936608",
+  "vol_h24": "688639.879773542",
+  "txns": {
+   "m5": {
+    "buys": 8,
+    "sells": 2,
+    "buyers": 8,
+    "sellers": 2
+   },
+   "m15": {
+    "buys": 19,
+    "sells": 19,
+    "buyers": 14,
+    "sellers": 13
+   },
+   "m30": {
+    "buys": 31,
+    "sells": 34,
+    "buyers": 22,
+    "sellers": 22
+   },
+   "h1": {
+    "buys": 66,
+    "sells": 74,
+    "buyers": 43,
+    "sellers": 42
+   },
+   "h6": {
+    "buys": 1034,
+    "sells": 868,
+    "buyers": 319,
+    "sellers": 345
+   },
+   "h24": {
+    "buys": 9141,
+    "sells": 7233,
+    "buyers": 2888,
+    "sellers": 2628
+   }
+  }
+ },
+ "jpqfphDxnEjSAguhGCeTZ74PU5A5ef1FBoV5u3an16b": {
+  "name": "FRAG / SOL",
+  "pool_created_at": "2026-06-15T02:37:23Z",
+  "reserve_usd": "15532.0945",
+  "fdv_usd": "23043.9986656744",
+  "market_cap_usd": "23044.8744338331",
+  "dex": "pumpswap",
+  "price_usd": "0.000023090733620698087182487366567088325491599345165775081031465729",
+  "vol_h24": "23914.2018497852",
+  "txns": {
+   "m5": {
+    "buys": 1,
+    "sells": 0,
+    "buyers": 1,
+    "sellers": 0
+   },
+   "m15": {
+    "buys": 1,
+    "sells": 2,
+    "buyers": 1,
+    "sellers": 2
+   },
+   "m30": {
+    "buys": 2,
+    "sells": 2,
+    "buyers": 2,
+    "sellers": 2
+   },
+   "h1": {
+    "buys": 5,
+    "sells": 6,
+    "buyers": 4,
+    "sellers": 6
+   },
+   "h6": {
+    "buys": 42,
+    "sells": 51,
+    "buyers": 27,
+    "sellers": 46
+   },
+   "h24": {
+    "buys": 351,
+    "sells": 380,
+    "buyers": 196,
+    "sellers": 257
+   }
+  }
+ },
+ "rG3bs2yMYgptgyvfnmvBdLBjwizY9HCDDVQGpxuyoUx": {
+  "name": "traindog / SOL",
+  "pool_created_at": "2026-06-16T17:42:14Z",
+  "reserve_usd": "130717.7716",
+  "fdv_usd": "1817040.341",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.00181945594705053451014124807118978180547946595612870450887512444",
+  "vol_h24": "1160351.01366496",
+  "txns": {
+   "m5": {
+    "buys": 24,
+    "sells": 27,
+    "buyers": 20,
+    "sellers": 25
+   },
+   "m15": {
+    "buys": 56,
+    "sells": 119,
+    "buyers": 41,
+    "sellers": 104
+   },
+   "m30": {
+    "buys": 99,
+    "sells": 198,
+    "buyers": 69,
+    "sellers": 153
+   },
+   "h1": {
+    "buys": 194,
+    "sells": 307,
+    "buyers": 136,
+    "sellers": 224
+   },
+   "h6": {
+    "buys": 980,
+    "sells": 994,
+    "buyers": 487,
+    "sellers": 575
+   },
+   "h24": {
+    "buys": 4650,
+    "sells": 4435,
+    "buyers": 1437,
+    "sellers": 1646
+   }
+  }
+ },
+ "rSyt64cs33cvfqXQ2KvnY13A7isRkkE3DBMUc8T9PL8": {
+  "name": "ADA / SOL",
+  "pool_created_at": "2025-12-19T05:18:28Z",
+  "reserve_usd": "94773.4297",
+  "fdv_usd": "546542.0732",
+  "market_cap_usd": null,
+  "dex": "pumpswap",
+  "price_usd": "0.000546542073237294981402639794399692647904225678325799957065433828",
+  "vol_h24": "204510.710898197",
+  "txns": {
+   "m5": {
+    "buys": 3,
+    "sells": 1,
+    "buyers": 3,
+    "sellers": 1
+   },
+   "m15": {
+    "buys": 3,
+    "sells": 2,
+    "buyers": 3,
+    "sellers": 2
+   },
+   "m30": {
+    "buys": 3,
+    "sells": 6,
+    "buyers": 3,
+    "sellers": 4
+   },
+   "h1": {
+    "buys": 6,
+    "sells": 9,
+    "buyers": 6,
+    "sellers": 6
+   },
+   "h6": {
+    "buys": 47,
+    "sells": 62,
+    "buyers": 30,
+    "sellers": 52
+   },
+   "h24": {
+    "buys": 768,
+    "sells": 783,
+    "buyers": 415,
+    "sellers": 409
+   }
+  }
+ }
+}

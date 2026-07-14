@@ -1,0 +1,3 @@
+{"kind":"buy","volume_usd":35.93,"ts":"2026-07-10T23:44:02+00:00","maker":"0xa25682e7a114045b24756d85e2737a490194396a","pair":"0x48f2c4a87e06133e5b2d99715b1b2ca8961ef8ce","sym":"CTYPTO MINERS","lag_secs":0.47,"pre_conf":true}
+{"kind":"buy","volume_usd":3.13,"ts":"2026-07-11T00:11:03+00:00","maker":"0x7f19fb5d2580c568071319cb36ba4b840dbf80c9","pair":"0x48f2c4a87e06133e5b2d99715b1b2ca8961ef8ce","sym":"CTYPTO MINERS","lag_secs":0.7,"pre_conf":true}
+{"kind":"buy","volume_usd":5.39,"ts":"2026-07-11T00:11:59+00:00","maker":"0x1a7074e61325cf7f6405e73fafdb4157a98ca9e4","pair":"0x48f2c4a87e06133e5b2d99715b1b2ca8961ef8ce","sym":"CTYPTO MINERS","lag_secs":0.5,"pre_conf":true}

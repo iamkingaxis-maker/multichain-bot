@@ -1,0 +1,3 @@
+{"kind":"buy","volume_usd":31.09,"ts":"2026-07-10T22:11:04+00:00","maker":"0x253b8bfd180a5e64d9bdb35b5b764ee90e13dc1c","pair":"0x2b9bc8cdfbdd512766ac9bb4c4d877b76636cc75","sym":"ALLIN","lag_secs":0.61,"pre_conf":true}
+{"kind":"buy","volume_usd":0.9,"ts":"2026-07-10T22:17:39+00:00","maker":"0x5b4f5887acb667ab437a7d05bf3c382a33d04151","pair":"0x2b9bc8cdfbdd512766ac9bb4c4d877b76636cc75","sym":"ALLIN","lag_secs":1.05,"pre_conf":true}
+{"kind":"buy","volume_usd":8.97,"ts":"2026-07-10T22:18:00+00:00","maker":"0x5b4f5887acb667ab437a7d05bf3c382a33d04151","pair":"0x2b9bc8cdfbdd512766ac9bb4c4d877b76636cc75","sym":"ALLIN","lag_secs":1.06,"pre_conf":true}

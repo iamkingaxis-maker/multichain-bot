@@ -1,0 +1,439 @@
+{
+ "source": "_greenday_winners_out.txt (06-29 greenday, 30 runners/116 buyers)",
+ "n": 54,
+ "n_winners": 23,
+ "wallets": [
+  {
+   "wallet": "4nsNd4YvKi7CaSqwCA1vRToZYz4QcW6itx5yJCtuJAUM",
+   "hits": 1,
+   "trips": 19,
+   "wr_pct": 11,
+   "net_sol": 92.324,
+   "winner": true
+  },
+  {
+   "wallet": "Ejp2S85hfMXwjKkAYYKDPhdN91AHQuscmRSwDiUWWHc1",
+   "hits": 1,
+   "trips": 11,
+   "wr_pct": 64,
+   "net_sol": 50.111,
+   "winner": true
+  },
+  {
+   "wallet": "CaajBntpFoNuZZsWySQ2ER9BpCe7czS51t7r9QW132dL",
+   "hits": 1,
+   "trips": 18,
+   "wr_pct": 72,
+   "net_sol": 22.845,
+   "winner": true
+  },
+  {
+   "wallet": "B7VerjrZbjz9khqKGhTTGiveC5dTCcCVvmj8U97q52hA",
+   "hits": 1,
+   "trips": 5,
+   "wr_pct": 40,
+   "net_sol": 18.981,
+   "winner": true
+  },
+  {
+   "wallet": "GZ3TfSYi5Cv6ywvPYZvdansestqqcoCAyEA5gCWKdqUf",
+   "hits": 1,
+   "trips": 5,
+   "wr_pct": 100,
+   "net_sol": 18.616,
+   "winner": true
+  },
+  {
+   "wallet": "BiqeYSDoic38ptXkxJMgWqK4rCSJmdVKrWnyVJ6kCuEe",
+   "hits": 2,
+   "trips": 7,
+   "wr_pct": 57,
+   "net_sol": 15.722,
+   "winner": true
+  },
+  {
+   "wallet": "333mjD4KxAC1LCR29xYMztmWRyLP3mJEbKfjnPe8AEoc",
+   "hits": 1,
+   "trips": 26,
+   "wr_pct": 54,
+   "net_sol": 12.791,
+   "winner": true
+  },
+  {
+   "wallet": "gSGVUyFwkrw7UxfKqmNxXCM8ZF5xx55WwR5fLFr5qs5",
+   "hits": 1,
+   "trips": 6,
+   "wr_pct": 33,
+   "net_sol": 11.417,
+   "winner": true
+  },
+  {
+   "wallet": "B8LoP7D7XWHrW3H8qtzf5gdmuJVkMgfnBRNTDyDgRuv5",
+   "hits": 1,
+   "trips": 3,
+   "wr_pct": 67,
+   "net_sol": 11.074,
+   "winner": true
+  },
+  {
+   "wallet": "DMdbb784EUaorYrC34LE4jbUM3ovYjJnNTwV7r4EH2eP",
+   "hits": 1,
+   "trips": 3,
+   "wr_pct": 100,
+   "net_sol": 9.566,
+   "winner": true
+  },
+  {
+   "wallet": "5uez2R1fXyJ6YW1wVPqFoEq91WJufuWceVQy647qVYHF",
+   "hits": 1,
+   "trips": 28,
+   "wr_pct": 61,
+   "net_sol": 9.367,
+   "winner": true
+  },
+  {
+   "wallet": "EqK3ZmQKAVe2cxyw81QAYfR2pB4dXLPCNPbX6xWmJfFt",
+   "hits": 1,
+   "trips": 20,
+   "wr_pct": 40,
+   "net_sol": 7.313,
+   "winner": true
+  },
+  {
+   "wallet": "3YFawWJV2CCRdW8SvFFj9S1PmKLpZGUy3WT6pZmnaKRu",
+   "hits": 1,
+   "trips": 10,
+   "wr_pct": 70,
+   "net_sol": 4.897,
+   "winner": true
+  },
+  {
+   "wallet": "AgTM7bcPQo2kkru8o2igeiwbAjJY2bubEHHZUQPRhyqG",
+   "hits": 1,
+   "trips": 22,
+   "wr_pct": 77,
+   "net_sol": 3.489,
+   "winner": true
+  },
+  {
+   "wallet": "EwecAnTceDJY7U41AbZbPebrFvcyC7FUeMpz5TijxFNw",
+   "hits": 1,
+   "trips": 4,
+   "wr_pct": 75,
+   "net_sol": 3.27,
+   "winner": true
+  },
+  {
+   "wallet": "6FYgn2apNXSqNVyXHTV8CFHiRQhw5TPdDUEHrBMyR8og",
+   "hits": 1,
+   "trips": 21,
+   "wr_pct": 76,
+   "net_sol": 3.172,
+   "winner": true
+  },
+  {
+   "wallet": "BB2SSRNoS32YkqDTPyu1C2bPZ5pv6oaDz54pjoyGcxe5",
+   "hits": 1,
+   "trips": 7,
+   "wr_pct": 57,
+   "net_sol": 2.13,
+   "winner": true
+  },
+  {
+   "wallet": "Ar2Y6o1QmrRAskjii1cRfijeKugHH13ycxW5cd7rro1x",
+   "hits": 1,
+   "trips": 28,
+   "wr_pct": 54,
+   "net_sol": 1.753,
+   "winner": true
+  },
+  {
+   "wallet": "DG8nTNQxu44GQHHYNQyFoXpq9DV2L6SnsoroQ2S7nER1",
+   "hits": 1,
+   "trips": 18,
+   "wr_pct": 44,
+   "net_sol": 1.736,
+   "winner": true
+  },
+  {
+   "wallet": "2fLcT3MNmKT418KQxo2GF1pDJqQx6GfxVAk6G8wkPMeF",
+   "hits": 1,
+   "trips": 14,
+   "wr_pct": 43,
+   "net_sol": 1.475,
+   "winner": true
+  },
+  {
+   "wallet": "6dzn1gFuWrNeV9oByVeVmAZhMaVWSheA6HjpNU9xputR",
+   "hits": 1,
+   "trips": 10,
+   "wr_pct": 40,
+   "net_sol": 1.155,
+   "winner": true
+  },
+  {
+   "wallet": "72QUWNCwsmYUMwkCGqvagCKAmq7Ng5mfG7yCeUYSLzEc",
+   "hits": 1,
+   "trips": 30,
+   "wr_pct": 60,
+   "net_sol": 0.745,
+   "winner": true
+  },
+  {
+   "wallet": "4mdpm59apd6PktGhSwu1385Kr4X9KTvM1rxxSrUBHA6C",
+   "hits": 1,
+   "trips": 31,
+   "wr_pct": 58,
+   "net_sol": 0.34,
+   "winner": true
+  },
+  {
+   "wallet": "DJp7VSdGBhEZyRf28qhi4vgaPb7Q3ReU9rXBSzoNSxao",
+   "hits": 1,
+   "trips": 3,
+   "wr_pct": 0,
+   "net_sol": -0.009,
+   "winner": false
+  },
+  {
+   "wallet": "FqAbMhxsqoMJbegM6bJqzez6eZi2ucaBWH5HaZ3SVHvD",
+   "hits": 1,
+   "trips": 14,
+   "wr_pct": 43,
+   "net_sol": -0.274,
+   "winner": false
+  },
+  {
+   "wallet": "4xRTi1DzmmhE3LRHZTAoB9gYQHeKVpQ8TY6KKb2TwXfE",
+   "hits": 1,
+   "trips": 9,
+   "wr_pct": 11,
+   "net_sol": -0.797,
+   "winner": false
+  },
+  {
+   "wallet": "4gb4LnVC5QPQf528RcTWAeMbtQuiVyoq6SgiCTH5CNpY",
+   "hits": 1,
+   "trips": 19,
+   "wr_pct": 37,
+   "net_sol": -0.876,
+   "winner": false
+  },
+  {
+   "wallet": "CFKqWiCW4XvpHPH4jYcFQHh6mbwZTPS4PumYbdrWjqWD",
+   "hits": 1,
+   "trips": 10,
+   "wr_pct": 40,
+   "net_sol": -1.953,
+   "winner": false
+  },
+  {
+   "wallet": "7iDwUGUDLccKdWN5hUppoqxLeUMjw7BieQAFdTwj3F5V",
+   "hits": 1,
+   "trips": 11,
+   "wr_pct": 36,
+   "net_sol": -2.258,
+   "winner": false
+  },
+  {
+   "wallet": "EnWxknTfAan8MP8hyq2hJoLkFtcDCKKchaziBMiZv9oa",
+   "hits": 1,
+   "trips": 8,
+   "wr_pct": 0,
+   "net_sol": -2.323,
+   "winner": false
+  },
+  {
+   "wallet": "7FvHAAquMQC9x9bA5zHDcqtMr8JrhFzFX8EQHhV85RLW",
+   "hits": 1,
+   "trips": 15,
+   "wr_pct": 33,
+   "net_sol": -2.542,
+   "winner": false
+  },
+  {
+   "wallet": "2zLp47h4pCJ9qENRbn9muZyvw2fcNYzrDUmAvvsQfPrF",
+   "hits": 1,
+   "trips": 36,
+   "wr_pct": 19,
+   "net_sol": -2.952,
+   "winner": false
+  },
+  {
+   "wallet": "7JJ3dTqPxTDRi6WfQc3t8eLC5ziqqP61vxBKxt39EWgM",
+   "hits": 1,
+   "trips": 14,
+   "wr_pct": 29,
+   "net_sol": -3.005,
+   "winner": false
+  },
+  {
+   "wallet": "GMtYKFu9VpdnnGSNktsQBdDQjRhaBVCihydbNND7DxXQ",
+   "hits": 1,
+   "trips": 3,
+   "wr_pct": 33,
+   "net_sol": -3.645,
+   "winner": false
+  },
+  {
+   "wallet": "HPeu4ZqALw6rFDrmzFyzBM3w3xSzzcwVgSv4tR5ndMfN",
+   "hits": 1,
+   "trips": 3,
+   "wr_pct": 67,
+   "net_sol": -3.846,
+   "winner": false
+  },
+  {
+   "wallet": "4ykEYw751pfu2K5UUTrt5pHiwYcm1d9bTZk3ooLag9ob",
+   "hits": 1,
+   "trips": 10,
+   "wr_pct": 30,
+   "net_sol": -5.132,
+   "winner": false
+  },
+  {
+   "wallet": "3rZfCtGn8eDsrd3HXHEEoxo3YCrcE4xQ3L3Vj6EKRuJk",
+   "hits": 1,
+   "trips": 12,
+   "wr_pct": 17,
+   "net_sol": -5.334,
+   "winner": false
+  },
+  {
+   "wallet": "Hm25qfNNH2bFaVH3TX6VDbpy2NCdE7dVJPvQKMXMcm1z",
+   "hits": 1,
+   "trips": 20,
+   "wr_pct": 30,
+   "net_sol": -5.886,
+   "winner": false
+  },
+  {
+   "wallet": "pxGcrgdVKEDbxHTMtq263hbnYLheBgkjjC4f7GZ1Zd4",
+   "hits": 1,
+   "trips": 7,
+   "wr_pct": 29,
+   "net_sol": -6.223,
+   "winner": false
+  },
+  {
+   "wallet": "6LBkLBfPiNcagiVZrWbQzVSxzWSvjLFtSesuVAnxPA3H",
+   "hits": 1,
+   "trips": 7,
+   "wr_pct": 14,
+   "net_sol": -6.442,
+   "winner": false
+  },
+  {
+   "wallet": "Do8ykaAZB2aG1NhZPVUSnuHN2d7jWiFpdsb6tu8CSyNW",
+   "hits": 1,
+   "trips": 27,
+   "wr_pct": 19,
+   "net_sol": -6.704,
+   "winner": false
+  },
+  {
+   "wallet": "971oGgkdyWaPWFDvtrfrYfTt7Z7GoZMhdyjZNU7gerHg",
+   "hits": 1,
+   "trips": 18,
+   "wr_pct": 11,
+   "net_sol": -9.393,
+   "winner": false
+  },
+  {
+   "wallet": "FmLpjJJb4dJEKRFbhZdce5SHMRbgNccNe4fsav96BS4N",
+   "hits": 1,
+   "trips": 10,
+   "wr_pct": 10,
+   "net_sol": -12.414,
+   "winner": false
+  },
+  {
+   "wallet": "6yXMmFz4b8La9tZsGKnxHMCqWRm2Kjh6qg1wVwoJjVqR",
+   "hits": 1,
+   "trips": 23,
+   "wr_pct": 13,
+   "net_sol": -12.482,
+   "winner": false
+  },
+  {
+   "wallet": "5egQAF7CMXkNQjj3pzEiTKjhJ1je1ap4g6Pn6J42SVpE",
+   "hits": 1,
+   "trips": 15,
+   "wr_pct": 47,
+   "net_sol": -13.512,
+   "winner": false
+  },
+  {
+   "wallet": "C3rX1hE233HjMeZYy7QMTX2DNBAoYgS5zNskzbe2k7qN",
+   "hits": 1,
+   "trips": 22,
+   "wr_pct": 9,
+   "net_sol": -14.084,
+   "winner": false
+  },
+  {
+   "wallet": "HehYZoGCgF2gTTuUumxuPCtb8kLjWajdgyt9NLJakLTm",
+   "hits": 1,
+   "trips": 29,
+   "wr_pct": 24,
+   "net_sol": -15.105,
+   "winner": false
+  },
+  {
+   "wallet": "EWiQrHDiniZkec6T7JMcqDJz5bGQ6sUkTAG548VrfE99",
+   "hits": 1,
+   "trips": 13,
+   "wr_pct": 15,
+   "net_sol": -15.264,
+   "winner": false
+  },
+  {
+   "wallet": "7oBwpZkS3fhvNQReQBpK2QH2kiqUR4q7Bpc2C5jWoND6",
+   "hits": 1,
+   "trips": 18,
+   "wr_pct": 28,
+   "net_sol": -15.585,
+   "winner": false
+  },
+  {
+   "wallet": "6Eb8bkKJsJZfbFY6vRWZim2mUNt3SbbWBLFz8EQ4HC54",
+   "hits": 1,
+   "trips": 5,
+   "wr_pct": 80,
+   "net_sol": -18.475,
+   "winner": false
+  },
+  {
+   "wallet": "6fAc9AS5HJcSpPqZvv7X3Z7AVaL72ycyPQLHZ7vw1rt",
+   "hits": 1,
+   "trips": 14,
+   "wr_pct": 50,
+   "net_sol": -20.772,
+   "winner": false
+  },
+  {
+   "wallet": "9hrK93qNY81XXtZYQbURBMTdaJzRf7Gv6YnXzEJgooP9",
+   "hits": 1,
+   "trips": 20,
+   "wr_pct": 20,
+   "net_sol": -23.129,
+   "winner": false
+  },
+  {
+   "wallet": "GgDGFZzrweSj3yRQUQnDpnmPFMP3zK54Pzogm4WF3GW1",
+   "hits": 1,
+   "trips": 28,
+   "wr_pct": 32,
+   "net_sol": -32.276,
+   "winner": false
+  },
+  {
+   "wallet": "EyQJKAEDKeJQXtRKT55dKeKa9My6busGTTMEmnqHaZP2",
+   "hits": 1,
+   "trips": 3,
+   "wr_pct": 67,
+   "net_sol": -33.604,
+   "winner": false
+  }
+ ]
+}

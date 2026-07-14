@@ -1,0 +1,1658 @@
+{
+ "22deNCri9bBae1GWZxdaDxipMWdwAUQ2ddvxdSmgpump": {
+  "found": true,
+  "price_now": 0.0004326,
+  "liq_now": 64307.53,
+  "fdv": 430623,
+  "entry_price": 0.00022258528579999998,
+  "dd_from_entry_pct": 94.35246963660705,
+  "sym": "CASHCAT"
+ },
+ "22oWMe4xmvS5TogkbMLKALnUhgXxB2KYB8TRG9YRpump": {
+  "found": true,
+  "price_now": 3.559e-05,
+  "liq_now": 15300.75,
+  "fdv": 35594,
+  "entry_price": 0.0001324141237,
+  "dd_from_entry_pct": -73.12220252226764,
+  "sym": "SERIOUS"
+ },
+ "22oesKQuMBmxUTWfeFDjNnYS19VujFcBmi4EL8gWpump": {
+  "found": false,
+  "entry_price": 0.00014350497960000002
+ },
+ "24Kko3VWwMKtkB9CVct2ZAZgJzb2R2iNrYxCpTYFpump": {
+  "found": true,
+  "price_now": 0.0003237,
+  "liq_now": 74752.56,
+  "fdv": 323698,
+  "entry_price": 0.00032059840269999993,
+  "dd_from_entry_pct": 0.9674400352213854,
+  "sym": "APU"
+ },
+ "2Gt16sPz97kjvVXAz7aRbKG718hmY9HiyboieZKBpump": {
+  "found": true,
+  "price_now": 7.144e-05,
+  "liq_now": 22266.85,
+  "fdv": 71436,
+  "entry_price": 0.0002202358312,
+  "dd_from_entry_pct": -67.56204491760286,
+  "sym": "DEGEN"
+ },
+ "2LxfJRRo39Ch6y65UMHUdSpdVHaiAYtHNraq563Cpump": {
+  "found": true,
+  "price_now": 4.195e-05,
+  "liq_now": 15741.83,
+  "fdv": 41951,
+  "entry_price": 0.00015293936545,
+  "dd_from_entry_pct": -72.57082904942835,
+  "sym": "Json"
+ },
+ "2MHbpKfxrnzT1tpmQzWizzc3RfZENRqsK8Vaq4kHpump": {
+  "found": false,
+  "entry_price": 0.00014457138227499998
+ },
+ "2SX3prnhH7b147eiMqooiD9tq4NYy598reVZwUam9iq5": {
+  "found": true,
+  "price_now": 3.634e-05,
+  "liq_now": 15307.57,
+  "fdv": 36340,
+  "entry_price": 0.00014804488472500003,
+  "dd_from_entry_pct": -75.45339032314209,
+  "sym": "happi"
+ },
+ "2aQKC1xiKpEyAWvzSDrULnYLVuybWyx7qrsnpP8hpump": {
+  "found": true,
+  "price_now": 0.0001412,
+  "liq_now": 33053.51,
+  "fdv": 141211,
+  "entry_price": 0.00021294388620000002,
+  "dd_from_entry_pct": -33.6914515275715,
+  "sym": "Udin"
+ },
+ "2b93RPW315VQP7RHWthbcgjrR477YqbSu9tXnBjppump": {
+  "found": false,
+  "entry_price": 0.0001579845528
+ },
+ "2jz9E5JrEbxLg1RhU68aaSikDvpQurCEZz9BBF9rpump": {
+  "found": true,
+  "price_now": 0.0001488,
+  "liq_now": 32327.64,
+  "fdv": 148850,
+  "entry_price": 0.0003822460484,
+  "dd_from_entry_pct": -61.07219404285671,
+  "sym": "PATTYICE"
+ },
+ "2x6NENv5H3bsQ1sVKKsh2wndDNR7vLQtRJXVKzjipump": {
+  "found": true,
+  "price_now": 2.802e-05,
+  "liq_now": 12992.85,
+  "fdv": 28026,
+  "entry_price": 0.000131624691325,
+  "dd_from_entry_pct": -78.71220079003669,
+  "sym": "ape"
+ },
+ "32e2Rpw2ZLLhSaoVwMn4Vyx3vkHG6xCPRiyXrPJYpump": {
+  "found": true,
+  "price_now": 0.0003582,
+  "liq_now": 53968.7,
+  "fdv": 353213,
+  "entry_price": 0.000419753095625,
+  "dd_from_entry_pct": -14.664119518487231,
+  "sym": "LR"
+ },
+ "32eFDwQXfnj5ULY2b71cLuy5HJuhsRHSYTw3qCcKpump": {
+  "found": true,
+  "price_now": 9.701e-05,
+  "liq_now": 33047.77,
+  "fdv": 96966,
+  "entry_price": 0.00030147146400000003,
+  "dd_from_entry_pct": -67.82116664945774,
+  "sym": "1"
+ },
+ "35B4vyZzEHQmL7Mg9Am8KpuTcNxEUW4Qdw8xiMhipump": {
+  "found": true,
+  "price_now": 2.704e-05,
+  "liq_now": 13046.22,
+  "fdv": 27047,
+  "entry_price": 0.00034795559519999996,
+  "dd_from_entry_pct": -92.2288934642773,
+  "sym": "KEVIN"
+ },
+ "36CvCWVMgSgpZNFu2JVuaaJVEcKtqySpS9hD2kxUpump": {
+  "found": true,
+  "price_now": 1.722e-05,
+  "liq_now": 14462.71,
+  "fdv": 17225,
+  "entry_price": 0.0001389523296,
+  "dd_from_entry_pct": -87.60726067020902,
+  "sym": "gato"
+ },
+ "3DyWrAQZ6MmAcQxC1q22N1V3ucPHwEsWk8U68pBnpump": {
+  "found": false,
+  "entry_price": 0.0001556837408
+ },
+ "3L3ub2FBz15NeNgQVYpowANzANTNUiyKW5bfGVxYpump": {
+  "found": false,
+  "entry_price": 0.0001750676928
+ },
+ "3NhrBt7oZVdU2mqRxGygz9nf42A3dppquZHSrd7Bpump": {
+  "found": false,
+  "entry_price": 0.00026142803999999997
+ },
+ "3Q1Lu5TGWPvoA95HwTu7uPkjNLXj498moxfko2Pkpump": {
+  "found": false,
+  "entry_price": 0.00015583161599999997
+ },
+ "3R51JJP2TZosMTHszJxbB4KCshVL67LU4Q8cynVMpump": {
+  "found": true,
+  "price_now": 2.342e-05,
+  "liq_now": 12907.96,
+  "fdv": 23424,
+  "entry_price": 0.0001625191344,
+  "dd_from_entry_pct": -85.58938915933581,
+  "sym": "CITH"
+ },
+ "3SHBdvwb953JpAuFDE8rssJABFwPV88a9Kn5q6kepump": {
+  "found": false,
+  "entry_price": 0.0001957332426
+ },
+ "3VkUe5T9uAuU6EqmEMqQcuTRqEcqU86NAfwbFZKxpump": {
+  "found": true,
+  "price_now": 0.0001104,
+  "liq_now": 28816.61,
+  "fdv": 103944,
+  "entry_price": 0.00029453404960000005,
+  "dd_from_entry_pct": -62.5170671608489,
+  "sym": "elchef"
+ },
+ "3gDAjymqTF19GVw4TcB8sAKd3yLR2dfEzJ4Wztm2pump": {
+  "found": true,
+  "price_now": 0.0001401,
+  "liq_now": 30366.96,
+  "fdv": 140107,
+  "entry_price": 0.0001427038294,
+  "dd_from_entry_pct": -1.8246387717469454,
+  "sym": "TCAR"
+ },
+ "3oBRGPMpvR1TpHRx9oMEeJwSgwv7Fo7ndshuu2rQpump": {
+  "found": true,
+  "price_now": 0.0001011,
+  "liq_now": 30279.78,
+  "fdv": 101126,
+  "entry_price": 9.167341951499998e-05,
+  "dd_from_entry_pct": 10.282784840874847,
+  "sym": "Potato"
+ },
+ "3oX9emrqYRGzFEDPP3jA6tYnUBML4QSr3DfgD2r5pump": {
+  "found": true,
+  "price_now": 3.749e-05,
+  "liq_now": 20796.36,
+  "fdv": 37493,
+  "entry_price": 0.00017639396320000001,
+  "dd_from_entry_pct": -78.7464381887645,
+  "sym": "\u6ed1\u308b\u732b"
+ },
+ "45xssbMNpEBQ3EMJFFFaKC97HV6uNqXUZigexKgNpump": {
+  "found": true,
+  "price_now": 8.79e-05,
+  "liq_now": 23428.19,
+  "fdv": 87904,
+  "entry_price": 0.0001476673629,
+  "dd_from_entry_pct": -40.47432128958267,
+  "sym": "trust"
+ },
+ "48MBbzvBUKjVFB97jyg1YnwC8VbfKik4ry6hKDezpump": {
+  "found": true,
+  "price_now": 5.557e-05,
+  "liq_now": 20178.81,
+  "fdv": 55573,
+  "entry_price": 0.0001383402048,
+  "dd_from_entry_pct": -59.83091099197216,
+  "sym": "RTM"
+ },
+ "48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump": {
+  "found": false,
+  "entry_price": 0.0001373602422
+ },
+ "4PRz3EwhbjrrX6YksMDuUzrXT51pr7CQtXNCravhpump": {
+  "found": true,
+  "price_now": 0.0002079,
+  "liq_now": 39765.83,
+  "fdv": 207903,
+  "entry_price": 0.0003952517188,
+  "dd_from_entry_pct": -47.40060824246566,
+  "sym": "ACM"
+ },
+ "4UKhvqXNsb1zfnCH4kf8VWkFCC7KBDFZwg4TyVVYpump": {
+  "found": false,
+  "entry_price": 0.0001665999664
+ },
+ "4eKYoR1hBHnRaYyg2d57H36uUatRNyZr1NRP9ScNpump": {
+  "found": true,
+  "price_now": 7.206e-06,
+  "liq_now": 8745.7,
+  "fdv": 7206,
+  "entry_price": 0.00024557569510836317,
+  "dd_from_entry_pct": -97.06567052703637,
+  "sym": "DONALT"
+ },
+ "4gqUH4qMtkZTjeenrtVmcQXKEYg9aBUC8j2kQao2pump": {
+  "found": true,
+  "price_now": 8.908e-05,
+  "liq_now": 26057.74,
+  "fdv": 39300,
+  "entry_price": 0.000421892322,
+  "dd_from_entry_pct": -78.88560768830489,
+  "sym": "MASON"
+ },
+ "4ko5tSr5o3H4v1sFtjTSd9MPUW7yx5AFCpkNPoL6pump": {
+  "found": true,
+  "price_now": 0.005735,
+  "liq_now": 323016.64,
+  "fdv": 5735282,
+  "entry_price": 0.0003748785304,
+  "dd_from_entry_pct": 1429.8288738703397,
+  "sym": "febu"
+ },
+ "56ZtvzDWCwPq2tFg2ZuifbJh7AZL9VpUTRp1854fpump": {
+  "found": true,
+  "price_now": 0.0001374,
+  "liq_now": 31963.25,
+  "fdv": 137419,
+  "entry_price": 0.0002368922976,
+  "dd_from_entry_pct": -41.998958432998876,
+  "sym": "bean"
+ },
+ "5ECDHLSRpMiyW9wNY5YVZXUst3xTvngWSLmzYvLFpump": {
+  "found": false,
+  "entry_price": 0.0001260986647
+ },
+ "5KrvwhPnVgUaMdyqEy78PZXjLzdXUNTAjaLA7Zx9pump": {
+  "found": false,
+  "entry_price": 0.000140386806
+ },
+ "5MeesVjRfJ3nnkESNFjT6y4RyzvN7NX5Qf3mihSUpump": {
+  "found": false,
+  "entry_price": 0.00010936269835000001
+ },
+ "5NgaVXHoikb9e326MSCwo44DXKGuPiKVt9q9Tm51pump": {
+  "found": true,
+  "price_now": 0.0001306,
+  "liq_now": 30514.1,
+  "fdv": 130660,
+  "entry_price": 0.0003094290864,
+  "dd_from_entry_pct": -57.79323737162416,
+  "sym": "PUNK"
+ },
+ "5RyeWfbjVw6Ktj6j8SmTiAnVXWvmV8YxGtTebNsU2dBo": {
+  "found": true,
+  "price_now": 0.0007015,
+  "liq_now": 98849.23,
+  "fdv": 701407,
+  "entry_price": 0.000384618416,
+  "dd_from_entry_pct": 82.3885624863059,
+  "sym": "Pauly"
+ },
+ "5UQNY2hk4fgaDYL8Cq2SgVZ97q7Uvb95aAuSG18dpump": {
+  "found": false,
+  "entry_price": 0.0002155383627
+ },
+ "5V1uDUcnPvY1YmQEmhgyQLgSqh1nZgkExx7LwzoNpump": {
+  "found": false,
+  "entry_price": 0.00011188888195
+ },
+ "5bZEJTjh7gy16P4jUVkD1ALPdvVNMUG73VW4AyLHpump": {
+  "found": false,
+  "entry_price": 0.0002131780718
+ },
+ "5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump": {
+  "found": true,
+  "price_now": 7.797e-05,
+  "liq_now": 32303.69,
+  "fdv": 77741,
+  "entry_price": 0.0001466038896,
+  "dd_from_entry_pct": -46.81587220316152,
+  "sym": "BULLWIF"
+ },
+ "5rL1QdzSskB5WUnXeEuvK8qgi2uv9EXG7XgB9EBtpump": {
+  "found": false,
+  "entry_price": 0.000107924992
+ },
+ "5sTUgEVTcRvPNK6CFpHBgVfDm6Vb7yKhb9ovMbvUpump": {
+  "found": true,
+  "price_now": 0.0001008,
+  "liq_now": 35883.68,
+  "fdv": 100810,
+  "entry_price": 0.0001975122688,
+  "dd_from_entry_pct": -48.96519562434392,
+  "sym": "GOON"
+ },
+ "5whR534GcEEmrVPedDPZgWLXKQX3shhHMcdZ1FXCAMzi": {
+  "found": true,
+  "price_now": 6.166e-05,
+  "liq_now": 22392.78,
+  "fdv": 61414,
+  "entry_price": 0.00016910965609999998,
+  "dd_from_entry_pct": -63.53845107251684,
+  "sym": "bcat"
+ },
+ "5xPnm4sG1Waq1uLxHfHvbmMEKCFogimiwGbCsSV4pump": {
+  "found": false,
+  "entry_price": 0.00022134240719999998
+ },
+ "61qNX1UoKDMypgDJzNGFra3Mb6DQPyUmf6zDayZ7bonk": {
+  "found": true,
+  "price_now": 6.912e-05,
+  "liq_now": 31188.03,
+  "fdv": 69124,
+  "entry_price": 0.0001233431472,
+  "dd_from_entry_pct": -43.9612158688294,
+  "sym": "Bepe"
+ },
+ "62yzpmKJB6XiVtZcQZhUkUXhqwN3UgCbffUi4JM9pump": {
+  "found": true,
+  "price_now": 0.0001199,
+  "liq_now": 39649.39,
+  "fdv": 119941,
+  "entry_price": 0.0001097743808,
+  "dd_from_entry_pct": 9.22402761574038,
+  "sym": "world"
+ },
+ "66pQgfLHEfbHSBgYSZSrKEdJHHaGiYbgCtNbz48Apump": {
+  "found": true,
+  "price_now": 3.305e-05,
+  "liq_now": 22400.53,
+  "fdv": 33050,
+  "entry_price": 0.0001386462672,
+  "dd_from_entry_pct": -76.16235859251465,
+  "sym": "WEN"
+ },
+ "6CVd9hqv9sBHAEiCVXNyiNrG3CzxXbMDGJ9MA6Mgpump": {
+  "found": true,
+  "price_now": 4.155e-05,
+  "liq_now": 19891.71,
+  "fdv": 41555,
+  "entry_price": 0.00023668201339999996,
+  "dd_from_entry_pct": -82.44480034493402,
+  "sym": "PAGO"
+ },
+ "6KmwvVo8gDUVAnoAftMuyUTojfx6xtgm2xkHp2ixpump": {
+  "found": true,
+  "price_now": 9.306e-05,
+  "liq_now": 29611.74,
+  "fdv": 93043,
+  "entry_price": 0.00014833069245000002,
+  "dd_from_entry_pct": -37.26180437580774,
+  "sym": "delusional"
+ },
+ "6MTctU7s7xJvJN3QPgEQi8zrP6od89DvXHVEbJh4pump": {
+  "found": false,
+  "entry_price": 0.00013699352300000002
+ },
+ "6UGNg119LV6YjSCQ5K6Z6jsLLLetpMJ1vPdhiU8qpump": {
+  "found": true,
+  "price_now": 0.0002457,
+  "liq_now": 40503.38,
+  "fdv": 245723,
+  "entry_price": 0.00022534334119999998,
+  "dd_from_entry_pct": 9.033618961890157,
+  "sym": "CURB"
+ },
+ "6YZm2PVLBozyfvGrMTrZbZHxYQz8aFG3sm6rCfw3pump": {
+  "found": false,
+  "entry_price": 0.0002682726312
+ },
+ "6bqvwKH6Q8SnTSooLR1ikBawcPAuUxitfyqwM9azpump": {
+  "found": false,
+  "entry_price": 0.00012052492950000001
+ },
+ "6gTh1jtU9fUyCuEvngcgFaFM5Wax1bcbRkFZZGCCpump": {
+  "found": true,
+  "price_now": 2.048e-05,
+  "liq_now": 11984.89,
+  "fdv": 20481,
+  "entry_price": 0.0001339515535,
+  "dd_from_entry_pct": -84.7108902697422,
+  "sym": "BongoCat"
+ },
+ "6gkrxBbpzBvnH1oGhqdsMGPbHwAnFA6T1Xq5Cubupump": {
+  "found": true,
+  "price_now": 4.713e-05,
+  "liq_now": 16683.68,
+  "fdv": 47122,
+  "entry_price": 0.0001797112827,
+  "dd_from_entry_pct": -73.77460152088715,
+  "sym": "$SBTV"
+ },
+ "6hpfrxQb2kn9iprcJcZ6uXruGAwDe12W9zT4y4WSpump": {
+  "found": true,
+  "price_now": 7.636e-05,
+  "liq_now": 27515.72,
+  "fdv": 76270,
+  "entry_price": 0.00021192977765,
+  "dd_from_entry_pct": -63.969197322469796,
+  "sym": "Goofreck"
+ },
+ "6iaD6zDopsRs23DP99T4bey27DxmRPmJqYs5bnJBpump": {
+  "found": false,
+  "entry_price": 0.0002116569868
+ },
+ "6uYAQyXYMQ5sTNPRZmYSVMGTAzgkTrK5mGtHpPYCpump": {
+  "found": false,
+  "entry_price": 0.0001392892452
+ },
+ "71HtXHfexjKgem92Y5sPLPb6qkmtqWmPUzdKAcU9pump": {
+  "found": false,
+  "entry_price": 0.0002548479584
+ },
+ "72FkeF1cpBMtbordhTVNVbBGdaN5DfHcchstHwPWpump": {
+  "found": true,
+  "price_now": 0.0001806,
+  "liq_now": 39321.22,
+  "fdv": 179326,
+  "entry_price": 0.00038106251364999997,
+  "dd_from_entry_pct": -52.606201468067184,
+  "sym": "PUMPVILLE"
+ },
+ "73jj6SFe9FKn6qqpaGwbSd7TL1sHheh3HqDo9RwA7BHB": {
+  "found": true,
+  "price_now": 0.0001392,
+  "liq_now": 39053.67,
+  "fdv": 139278,
+  "entry_price": 0.00012523614519999998,
+  "dd_from_entry_pct": 11.150019651036033,
+  "sym": "Pork"
+ },
+ "77x1fCskDLaiZmm2uZKEhARSCD2B86VaahTkK2Vfpump": {
+  "found": true,
+  "price_now": 0.000642,
+  "liq_now": 69744.83,
+  "fdv": 642016,
+  "entry_price": 0.00044293561300000003,
+  "dd_from_entry_pct": 44.942059558439695,
+  "sym": "NIGGABULL"
+ },
+ "7AJ1KjzjstMnQGzZk1HAKx2atmvvRqWvmRbdYmnviryq": {
+  "found": true,
+  "price_now": 7.728e-05,
+  "liq_now": 37719.51,
+  "fdv": 77103,
+  "entry_price": 0.0001617503595,
+  "dd_from_entry_pct": -52.22267187603994,
+  "sym": "XWH"
+ },
+ "7AJ9sdZW6Sodb8ajnEkESeWtQVVHyZ4Gg85H3c1Ypump": {
+  "found": true,
+  "price_now": 9.285e-05,
+  "liq_now": 24875.87,
+  "fdv": 92839,
+  "entry_price": 0.00016413766980000001,
+  "dd_from_entry_pct": -43.43163265742914,
+  "sym": "Rizzler"
+ },
+ "7AuZpVnXtYZBYqp2oZ7DjA7BZLwbgWJDUk2SYpHppump": {
+  "found": true,
+  "price_now": 1.41e-05,
+  "liq_now": 11013.87,
+  "fdv": 14084,
+  "entry_price": 8.76716589e-05,
+  "dd_from_entry_pct": -83.91726565128334,
+  "sym": "Tsunami"
+ },
+ "7LNFZcNigZay5U9e2sq6n2Z4iM8BC2Dd53L14pwvpump": {
+  "found": true,
+  "price_now": 8.732e-05,
+  "liq_now": 33454.92,
+  "fdv": 87036,
+  "entry_price": 0.0001698757826,
+  "dd_from_entry_pct": -48.59773496637301,
+  "sym": "Miu"
+ },
+ "7LNfxxMAu5sNbg4uY5Kuu5Tvg6CsQGUo4ASkD79Xpump": {
+  "found": true,
+  "price_now": 8.361e-05,
+  "liq_now": 25759.32,
+  "fdv": 83606,
+  "entry_price": 0.00012687874345,
+  "dd_from_entry_pct": -34.10243692005921,
+  "sym": "2he"
+ },
+ "7LVWaPUkAsRX7AGwhvX3Q9sYpTTSnafzq5ABFwAapump": {
+  "found": true,
+  "price_now": 6.342e-05,
+  "liq_now": 20640.66,
+  "fdv": 63414,
+  "entry_price": 0.0003910457264,
+  "dd_from_entry_pct": -83.78194780854662,
+  "sym": "MURAD"
+ },
+ "7NcMKMrXPBVCWPcs9SSqnF6ZGy5neAtzTZpFqZqLquaP": {
+  "found": true,
+  "price_now": 6.509e-05,
+  "liq_now": 19971.04,
+  "fdv": 65089,
+  "entry_price": 0.00015083421245,
+  "dd_from_entry_pct": -56.846660354608424,
+  "sym": "GB"
+ },
+ "7X84qLj14hs5j1YNGimWfhMEVMrnrCtkMUDnkWyk8jKA": {
+  "found": true,
+  "price_now": 4.542e-05,
+  "liq_now": 23954.14,
+  "fdv": 45350,
+  "entry_price": 0.0002009378283,
+  "dd_from_entry_pct": -77.39599338548241,
+  "sym": "GOAT"
+ },
+ "7jrazSKnCU2vbyVPJ8dfEF2TMYLcUiDBsFaEGvqopump": {
+  "found": true,
+  "price_now": 2.793e-05,
+  "liq_now": 15838.45,
+  "fdv": 27789,
+  "entry_price": 0.00012466941759999999,
+  "dd_from_entry_pct": -77.5967510415321,
+  "sym": "\ud83d\udc02\ud83c\udc04"
+ },
+ "7pncD23yVtmVRRa4fLFsi3pGotbUxrFvR13wTGNCpump": {
+  "found": false,
+  "entry_price": 0.0001885684174
+ },
+ "7szutJHnYxPLxUgJrtXxzAiA5fYU5rmWQ47nT1Epump": {
+  "found": true,
+  "price_now": 2.445e-05,
+  "liq_now": 13469.74,
+  "fdv": 24451,
+  "entry_price": 0.0001740474848,
+  "dd_from_entry_pct": -85.95210954752045,
+  "sym": "Bullcoin"
+ },
+ "7thY5PzYdH311NXYE6mecBjUs7wcosk1bWw2qfH4pump": {
+  "found": true,
+  "price_now": 0.0001284,
+  "liq_now": 36660.62,
+  "fdv": 128443,
+  "entry_price": 0.0003441920855,
+  "dd_from_entry_pct": -62.69524913291477,
+  "sym": "Sapijiju"
+ },
+ "7vLT9GmU7iH4JT2NBDRTejm1StqZocfSDqCzfMvzpump": {
+  "found": false,
+  "entry_price": 0.0002515860432
+ },
+ "7wrMK4WD5qK8GLLhQkkFesNJEss59PonxeqgJfpWpump": {
+  "found": false,
+  "entry_price": 0.00010183491156499998
+ },
+ "7zzgorZ2hcDNvrCujLaww9qQuqtbxXx3UjAuxUYGpump": {
+  "found": true,
+  "price_now": 0.0001606,
+  "liq_now": 33814.87,
+  "fdv": 160616,
+  "entry_price": 0.0002063880784,
+  "dd_from_entry_pct": -22.185427935066237,
+  "sym": "USA250"
+ },
+ "84eYhZRCr8ZWaocYvCw7NUsPh8f4VeYEohfozeFwpump": {
+  "found": true,
+  "price_now": 3.512e-05,
+  "liq_now": 15242.41,
+  "fdv": 35126,
+  "entry_price": 0.0001386869013,
+  "dd_from_entry_pct": -74.6767721603136,
+  "sym": "PORTNOY"
+ },
+ "8B3UJbbPWfg2DLF7iWzm9WnXH9y5jhYUUoZaLhqvpump": {
+  "found": true,
+  "price_now": 0.0002299,
+  "liq_now": 43003.15,
+  "fdv": 229949,
+  "entry_price": 0.00033995586559999996,
+  "dd_from_entry_pct": -32.37357455379054,
+  "sym": "ANSEMWIFE"
+ },
+ "8EnmgofrT5zp6uUiNfECkUMBnYA42pMqPj35vVXUpump": {
+  "found": true,
+  "price_now": 3.238e-05,
+  "liq_now": 18889.6,
+  "fdv": 32372,
+  "entry_price": 0.0001891821704,
+  "dd_from_entry_pct": -82.88422215923578,
+  "sym": "Nigel"
+ },
+ "8LFTmtdqQKHk7xJxSgFiPMdn2cRgxyinGv61M6Z5pump": {
+  "found": true,
+  "price_now": 3.912e-05,
+  "liq_now": 16402.61,
+  "fdv": 39116,
+  "entry_price": 0.00012251794400000002,
+  "dd_from_entry_pct": -68.06998328342827,
+  "sym": "TRENCH"
+ },
+ "8LZKRa3f23CrCTwLFRY9jQWRjFQwGiuP46Mk9jytpump": {
+  "found": true,
+  "price_now": 0.0001383,
+  "liq_now": 39395.25,
+  "fdv": 125055,
+  "entry_price": 0.0001446446832,
+  "dd_from_entry_pct": -4.386392268029107,
+  "sym": "MARVIN"
+ },
+ "8N1xPzwZtuRQSdRMnbjAjdd2tK9V8nF7Wrw8gGeLpump": {
+  "found": false,
+  "entry_price": 0.0003143212112
+ },
+ "8NGpdSE1tZqUrvpUVqsn5Revncc6yUafk8mnAyK9fNCE": {
+  "found": true,
+  "price_now": 0.0002183,
+  "liq_now": 38410.8,
+  "fdv": 218323,
+  "entry_price": 0.0003893113728,
+  "dd_from_entry_pct": -43.9266316753231,
+  "sym": "Chud"
+ },
+ "8R3eqFSPYa5Gs3PJCha6qv9VTpWmRgdmphXsHFjkpump": {
+  "found": false,
+  "entry_price": 8.606675775000002e-05
+ },
+ "8YFpCz4pxkNQxowNDyQrPmDizXQLhFF5xn87oG14pump": {
+  "found": false,
+  "entry_price": 0.0001311510319
+ },
+ "8mTu8AW8co1QzHHRnvVZnknUaRsEmxdhjCTCJFeZpump": {
+  "found": true,
+  "price_now": 0.0001036,
+  "liq_now": 29098.98,
+  "fdv": 103596,
+  "entry_price": 0.00012278454039999997,
+  "dd_from_entry_pct": -15.624556916939014,
+  "sym": "Zeus"
+ },
+ "8oQEW25mcVzeWvcjkGup9ob3KafVMNdzAi8XXmmWpump": {
+  "found": true,
+  "price_now": 0.0001109,
+  "liq_now": 29335.03,
+  "fdv": 110876,
+  "entry_price": 0.0002978859933,
+  "dd_from_entry_pct": -62.77099209283299,
+  "sym": "Fro"
+ },
+ "8vExdwvPa6YN6BWZ2encM73G4rZhuH9kpzEr6gXjpump": {
+  "found": false,
+  "entry_price": 8.0140162e-05
+ },
+ "95bAE5K5SeqpQ4veagLGRi5qfK83rtCeK9SxjBvNpump": {
+  "found": false,
+  "entry_price": 0.00013536133790000002
+ },
+ "96X4zg5T4NFWzTVFXHsadvYbxbzFX2Rqt3GXUv92pump": {
+  "found": true,
+  "price_now": 0.0001613,
+  "liq_now": 36599.5,
+  "fdv": 161338,
+  "entry_price": 9.810876115e-05,
+  "dd_from_entry_pct": 64.40937395324553,
+  "sym": "Balloon"
+ },
+ "98uHBngN8bXyEpuUxkiBVsasPXMHYyfqymeYAuHTpump": {
+  "found": false,
+  "entry_price": 0.00011308937150000001
+ },
+ "98uPGgTeZRhuCtERzBdsjR9oLkNvvqexmNMy7b1hNQi8": {
+  "found": true,
+  "price_now": 1.611e-05,
+  "liq_now": 9955.56,
+  "fdv": 16102,
+  "entry_price": 0.0001225199046,
+  "dd_from_entry_pct": -86.85111610836171,
+  "sym": "LOOM"
+ },
+ "9BVn3Y8tPghbnGuuuxoj2mGekqgSQV1M7nALF7brpump": {
+  "found": true,
+  "price_now": 0.0003663,
+  "liq_now": 69641.33,
+  "fdv": 325252,
+  "entry_price": 0.0003534000512,
+  "dd_from_entry_pct": 3.6502396522573055,
+  "sym": "NYAN"
+ },
+ "9E2Q4KKxLS5Y4bu6RKvjg5wQ2kzaLkiVsMt7zwMZpump": {
+  "found": true,
+  "price_now": 0.0002924,
+  "liq_now": 44474.39,
+  "fdv": 292438,
+  "entry_price": 0.0004818424933999999,
+  "dd_from_entry_pct": -39.316269526842014,
+  "sym": "WYNN"
+ },
+ "9EQSeWY7pDB7MYoSFr8QJ19onGS1ehDmLbSGT2b3pump": {
+  "found": true,
+  "price_now": 0.0002479,
+  "liq_now": 71452.11,
+  "fdv": 247878,
+  "entry_price": 0.00042852008899999997,
+  "dd_from_entry_pct": -42.14973664863585,
+  "sym": "monke "
+ },
+ "9HSMssrVecFSs494Zw1QBZL5m3Wjtnic4o1nX6u7pump": {
+  "found": true,
+  "price_now": 5.274e-05,
+  "liq_now": 20104.85,
+  "fdv": 52736,
+  "entry_price": 8.85527811e-05,
+  "dd_from_entry_pct": -40.4422996716023,
+  "sym": "$TOPG"
+ },
+ "9MoGGUj79ZoSfumCpD7m7SnXVinR2sAp2FGAe5Atpump": {
+  "found": false,
+  "entry_price": 0.00019837774799999995
+ },
+ "9Pfync3ejPC9eHqVzq3nYQJAhyhjqpnB9UsaSfLxpump": {
+  "found": true,
+  "price_now": 0.0004289,
+  "liq_now": 49368.62,
+  "fdv": 428915,
+  "entry_price": 0.0005054495848,
+  "dd_from_entry_pct": -15.144850664045892,
+  "sym": "KET"
+ },
+ "9WHXEcGp8FVRZhBinBj6pUr3FzpXhDNBkxXVhHk5pump": {
+  "found": false,
+  "entry_price": 0.00010809960655
+ },
+ "9YBcdwtDor6B4acqFLFX47PPkg6k729ZMDHRh3zEpump": {
+  "found": false,
+  "entry_price": 0.0002434862744
+ },
+ "9aphy3k9HgPReHBCzBajqQmWSjT8yQrXrm3FzVhrpump": {
+  "found": true,
+  "price_now": 1.706e-05,
+  "liq_now": 10599.94,
+  "fdv": 17068,
+  "entry_price": 0.00012560340350000002,
+  "dd_from_entry_pct": -86.41756550808752,
+  "sym": "beluga"
+ },
+ "9bW5KYuuutJ8usQ8gzQ7J5fSzMWCuQ8qPkvRNh8ypump": {
+  "found": false,
+  "entry_price": 0.00011308937150000001
+ },
+ "9ePRJbEfvSEeJnRLStENnZeNAEoA3E3EE6Vfzd6cpump": {
+  "found": true,
+  "price_now": 3.218e-05,
+  "liq_now": 15800.27,
+  "fdv": 32167,
+  "entry_price": 0.0001243167934,
+  "dd_from_entry_pct": -74.11451894800884,
+  "sym": "Jcat"
+ },
+ "9firESEtMrb4hqFxtb7xCAXp4jAuoW8mz5MZwjJ2pump": {
+  "found": true,
+  "price_now": 5.704e-05,
+  "liq_now": 20570.79,
+  "fdv": 57036,
+  "entry_price": 0.000124572428775,
+  "dd_from_entry_pct": -54.2113768183613,
+  "sym": "BATON"
+ },
+ "9j4sMShA1UBHbaJFXJUTjGLCQe8zcsZAd7bWNFKKpump": {
+  "found": true,
+  "price_now": 8.457e-05,
+  "liq_now": 23812.61,
+  "fdv": 84574,
+  "entry_price": 0.00011423119950000001,
+  "dd_from_entry_pct": -25.9659354272998,
+  "sym": "\ud83d\udc02\ud83c\udc04\ufe0f"
+ },
+ "9kwT8gUEMKQhnmc4mVb2iUAybfjzvVMM5LwffKFcpump": {
+  "found": true,
+  "price_now": 8.558e-05,
+  "liq_now": 24914.24,
+  "fdv": 80868,
+  "entry_price": 0.00010510529100000001,
+  "dd_from_entry_pct": -18.576886866713497,
+  "sym": "AFKHERO"
+ },
+ "9motHbNmm4Km8u7VYGhg6xJWN5Ro9XDKYmEkaMMYpump": {
+  "found": true,
+  "price_now": 2.191e-05,
+  "liq_now": 12128.68,
+  "fdv": 21907,
+  "entry_price": 0.0001254671188,
+  "dd_from_entry_pct": -82.53725740293321,
+  "sym": "HOODRAT"
+ },
+ "9qwxahBxcgKyn5X7kZvkN7qxKZg6pkVD8Lo4URtopump": {
+  "found": true,
+  "price_now": 5.102e-05,
+  "liq_now": 24174.12,
+  "fdv": 51015,
+  "entry_price": 0.0001656817792,
+  "dd_from_entry_pct": -69.2060284200521,
+  "sym": "CS"
+ },
+ "9vciqoMDquKyjEEtLkenQ4TxSjDEUNxcQdjhHXNHpump": {
+  "found": true,
+  "price_now": 8.644e-05,
+  "liq_now": 24546.82,
+  "fdv": 86440,
+  "entry_price": 0.00025237348464999995,
+  "dd_from_entry_pct": -65.7491752273905,
+  "sym": "bullpen"
+ },
+ "A8wXmAgVy3peeHtifXNvYUUirGdNu4ezJoDno9trpump": {
+  "found": false,
+  "entry_price": 0.000108346574
+ },
+ "ABDR768zqomnEPkHT4y1p1W3JTsLwpJxRhbSSWKcpump": {
+  "found": true,
+  "price_now": 4.633e-05,
+  "liq_now": 18914.93,
+  "fdv": 46327,
+  "entry_price": 9.2700044485e-05,
+  "dd_from_entry_pct": -50.02159895673323,
+  "sym": "Miku"
+ },
+ "AMCHpR1F5gKt6msk9j9aDBjKUSmgyAxhymbZhjkypump": {
+  "found": true,
+  "price_now": 6.893e-05,
+  "liq_now": 30739.43,
+  "fdv": 68923,
+  "entry_price": 0.00011732392,
+  "dd_from_entry_pct": -41.24812740658511,
+  "sym": "FROGE"
+ },
+ "AN1JkjeZVRauM8RLSXZSLiAAXpNMyWzqDPWWdaBSpump": {
+  "found": true,
+  "price_now": 7.376e-05,
+  "liq_now": 24541.9,
+  "fdv": 73759,
+  "entry_price": 0.0003077967536,
+  "dd_from_entry_pct": -76.0361345149678,
+  "sym": "SCAPE"
+ },
+ "APyxSKzs5Whmte8zynYePEhqAkme6XGLEWDQx31YFVbA": {
+  "found": true,
+  "price_now": 5.179e-05,
+  "liq_now": 19563.04,
+  "fdv": 51785,
+  "entry_price": 9.2532432245e-05,
+  "dd_from_entry_pct": -44.030434796229535,
+  "sym": "Theo"
+ },
+ "ATBR4i19gcQ31Rfr7ymA2XvkCQEAkNFGBtVKTmdqpump": {
+  "found": true,
+  "price_now": 0.0004301,
+  "liq_now": 82179.88,
+  "fdv": 422923,
+  "entry_price": 0.00053815972,
+  "dd_from_entry_pct": -20.07948866927462,
+  "sym": "Machi"
+ },
+ "AviKHWoXAHcpRnCX3cH38fHtjjn11aL9Pqjid3sZpump": {
+  "found": true,
+  "price_now": 0.000103,
+  "liq_now": 29387.86,
+  "fdv": 102640,
+  "entry_price": 0.0001807808576,
+  "dd_from_entry_pct": -43.02494115394661,
+  "sym": "zazu"
+ },
+ "AyafwyhUhZW4L9bdeG2nBjTpQkt5ek1aA1A78XGopump": {
+  "found": false,
+  "entry_price": 0.0004572735713
+ },
+ "B5BPVt7uZyycC2fKTUM4KYoFsK9WBuX6UhpvqPVbG5YT": {
+  "found": true,
+  "price_now": 2.143e-05,
+  "liq_now": 11456.68,
+  "fdv": 20528,
+  "entry_price": 0.00013094706249999999,
+  "dd_from_entry_pct": -83.63460806919589,
+  "sym": "MAYO"
+ },
+ "B642ubQRSmy2wW4UcaTsL3skSP9abPLGyi8qenDWpump": {
+  "found": false,
+  "entry_price": 0.00020103198640000002
+ },
+ "B6MtubZSVPqekiNBmPjFPWRnP1ee4BwCHkmWbsMRpump": {
+  "found": false,
+  "entry_price": 0.00012251235599999998
+ },
+ "BBhHEEs8bCPchS8S8EX744ExVrMD9xjGy8CXepctpump": {
+  "found": false,
+  "entry_price": 0.00014414424479999998
+ },
+ "BDbNwA95183CdqUhx2P6R3fWXbefubVbx2wNnCp6pump": {
+  "found": true,
+  "price_now": 7.36e-05,
+  "liq_now": 23326.87,
+  "fdv": 70460,
+  "entry_price": 0.00014525758439999997,
+  "dd_from_entry_pct": -49.331389266858814,
+  "sym": "FROGBULL"
+ },
+ "BDdzUjksj1J4bSnMveQ5tV9Up8A9c6YS1tHrxNw3pump": {
+  "found": true,
+  "price_now": 0.0001566,
+  "liq_now": 40741.37,
+  "fdv": 156660,
+  "entry_price": 0.0004420039154,
+  "dd_from_entry_pct": -64.57044959470963,
+  "sym": "FOMO"
+ },
+ "BUG9jJ6MZcxbXaDVqq199HvWafMSP4pYHVFrZfLmpump": {
+  "found": false,
+  "entry_price": 0.00012946439519999998
+ },
+ "BWH6gtE5MSCS1GUoRpM5HrqQnV97oi8g8dDHAi41pump": {
+  "found": true,
+  "price_now": 0.0002202,
+  "liq_now": 39792.65,
+  "fdv": 220171,
+  "entry_price": 0.00038119151769999996,
+  "dd_from_entry_pct": -42.233761829585426,
+  "sym": "Shadow"
+ },
+ "BcdMeuTYP9RUztiUsRDyqCzNoL8AGhwjjEaS3c3fQ2Ei": {
+  "found": true,
+  "price_now": 4.98e-05,
+  "liq_now": 17790.19,
+  "fdv": 49801,
+  "entry_price": 0.00011345253495,
+  "dd_from_entry_pct": -56.10499137639585,
+  "sym": "SAPIJIJU"
+ },
+ "BgKtxB44DWf2zMtQpjwVNwjWCjKgAupoVdGVDuR9pump": {
+  "found": true,
+  "price_now": 0.08718,
+  "liq_now": 3784648.33,
+  "fdv": 87181960,
+  "entry_price": 0.00022954407119999998,
+  "dd_from_entry_pct": 37879.63482317116,
+  "sym": "LIQENG"
+ },
+ "Bm5hU3iYP9syzZHte1Ubv5GjSkMjFsCqaVyWcBdpump": {
+  "found": false,
+  "entry_price": 7.891288465e-05
+ },
+ "Bqs76KADGDkiwskqdqTu1jaNrpJyzV5ZxpvJrL5npump": {
+  "found": true,
+  "price_now": 0.0002322,
+  "liq_now": 48001.05,
+  "fdv": 232175,
+  "entry_price": 0.0004128781776,
+  "dd_from_entry_pct": -43.76065081721093,
+  "sym": "Hobbes"
+ },
+ "BuK3BYo79xiJz8A11LCf2qtbNzQXEoHTsbiHNFgJpump": {
+  "found": true,
+  "price_now": 9.717e-05,
+  "liq_now": 26600.59,
+  "fdv": 96199,
+  "entry_price": 0.0001085132117525,
+  "dd_from_entry_pct": -10.45330017359721,
+  "sym": "Xavier"
+ },
+ "BwAU6gsimrFhJrRcZqKxQJayfnkyyan63WNCJRWYpump": {
+  "found": true,
+  "price_now": 2.898e-05,
+  "liq_now": 16041.73,
+  "fdv": 28962,
+  "entry_price": 9.604181351999999e-05,
+  "dd_from_entry_pct": -69.82564266764378,
+  "sym": "CUPSEY"
+ },
+ "ByJW8mYxC63m72t53u3PpmWbuFunw5nHeucFokHzpump": {
+  "found": false,
+  "entry_price": 0.00010379387961999998
+ },
+ "C5vxPUKsg8w4QwKqJQYaV8XNJ5XSPKbtxrrs4zHvpump": {
+  "found": false,
+  "entry_price": 7.073660645000001e-05
+ },
+ "C7mc2LvSuThi1rjx9XC1ofLsx5bFgR93JHCpyquTpump": {
+  "found": false,
+  "entry_price": 0.0002411253198
+ },
+ "CFPkPq1eYPR8GLzEo59wUbbMioX4bshaTQiSGzTSpump": {
+  "found": true,
+  "price_now": 0.001515,
+  "liq_now": 122413.63,
+  "fdv": 1515293,
+  "entry_price": 0.0003648715271999999,
+  "dd_from_entry_pct": 315.2146405136105,
+  "sym": "MENSA"
+ },
+ "CGp3TrYCxF3xNhAPYnBYKAuBHxuDzL1zF62oxYD7pump": {
+  "found": false,
+  "entry_price": 0.0007853093279999999
+ },
+ "CMx1EUTXhnUKYF5xYMCSkDmJfvRSD7a4iwayW1DVpump": {
+  "found": true,
+  "price_now": 5.646e-05,
+  "liq_now": 21920.29,
+  "fdv": 56429,
+  "entry_price": 0.00011198592784999999,
+  "dd_from_entry_pct": -49.582951104690956,
+  "sym": "0x"
+ },
+ "CgnQ8a1u99Gk7qoySMd2wrGPMPm9bdcSJNhqMEkYpump": {
+  "found": true,
+  "price_now": 0.0007866,
+  "liq_now": 87885.67,
+  "fdv": 786465,
+  "entry_price": 0.00013162798786666666,
+  "dd_from_entry_pct": 497.59327233414155,
+  "sym": "Loom"
+ },
+ "CgnudNWM6Se7mfkGHFGZ4A1YPqjpYmd8bW3nsAEKpump": {
+  "found": true,
+  "price_now": 2.104e-05,
+  "liq_now": 12022.67,
+  "fdv": 21045,
+  "entry_price": 0.0001543006584,
+  "dd_from_entry_pct": -86.364283718442,
+  "sym": "ice"
+ },
+ "CmQJNJ185pjzQoebPbcqZu1kTykHxJbn4gER1Af7pump": {
+  "found": true,
+  "price_now": 0.0002577,
+  "liq_now": 39384.77,
+  "fdv": 257725,
+  "entry_price": 0.00022587405119999998,
+  "dd_from_entry_pct": 14.090130597524784,
+  "sym": "REX"
+ },
+ "CnqFjUb8Y9fj8DhokJuADKhSz9p2kwbsiujrPeu1pump": {
+  "found": false,
+  "entry_price": 0.00015080809679999998
+ },
+ "CtuShQdgEYN7S3raAxJi2QBnpobWea3pv9PaGyRgpump": {
+  "found": true,
+  "price_now": 8.931e-05,
+  "liq_now": 22886.31,
+  "fdv": 89314,
+  "entry_price": 0.00017866069979999999,
+  "dd_from_entry_pct": -50.01139024979907,
+  "sym": "Hex"
+ },
+ "Cwty9S8KTpnvUU9Z5pkLjamNqjUiYe3RbUHFfpWwpump": {
+  "found": false,
+  "entry_price": 0.00012494083055
+ },
+ "CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump": {
+  "found": true,
+  "price_now": 5.836e-05,
+  "liq_now": 19637.9,
+  "fdv": 58361,
+  "entry_price": 0.0002706611824,
+  "dd_from_entry_pct": -78.43798675432078,
+  "sym": "SHROOM"
+ },
+ "CzigqJ9h9mnfXq3G3jKBVcApKu8Kh8JtZGxarzY2pump": {
+  "found": true,
+  "price_now": 4.979e-05,
+  "liq_now": 21515.67,
+  "fdv": 49781,
+  "entry_price": 9.768917915e-05,
+  "dd_from_entry_pct": -49.03222605284835,
+  "sym": "SUPERMAN"
+ },
+ "D2XvLipYuPFgJ42kB6U4ihmHENStT7h2BS2iN5NtzZKg": {
+  "found": true,
+  "price_now": 5.248e-05,
+  "liq_now": 21289.91,
+  "fdv": 52439,
+  "entry_price": 0.0001518973474,
+  "dd_from_entry_pct": -65.45035124161754,
+  "sym": "HOOD"
+ },
+ "D6sA8hKpreRfWEqLRo2fyx5UpmcHeEmGsQ1UndLWpump": {
+  "found": true,
+  "price_now": 0.0004563,
+  "liq_now": 59375.56,
+  "fdv": 456312,
+  "entry_price": 0.0005043384327,
+  "dd_from_entry_pct": -9.52503905816258,
+  "sym": "COBRA"
+ },
+ "D78NGAjigMXaX52u5wvvLoNWuDZW98DayCxVtM9Fpump": {
+  "found": false,
+  "entry_price": 9.47206365e-05
+ },
+ "DLvuaz18bKnh1hEaCZsZ5NgJi7wYFm5RvgZVA2M5pump": {
+  "found": true,
+  "price_now": 0.0008773,
+  "liq_now": 100252.66,
+  "fdv": 877331,
+  "entry_price": 0.00042894702719999995,
+  "dd_from_entry_pct": 104.52408907614412,
+  "sym": "BABYANSEM"
+ },
+ "DTiG8SMN6RHYLAtLkFdrzKixnb3Dr8gy9gCrCXxmpump": {
+  "found": false,
+  "entry_price": 0.000178026296
+ },
+ "DVBWGn5TZWcazmRBpfMghmFCbyEPWB55uyV73z51pump": {
+  "found": true,
+  "price_now": 3.943e-05,
+  "liq_now": 14951.92,
+  "fdv": 30698,
+  "entry_price": 0.00021747777579999997,
+  "dd_from_entry_pct": -81.86941178014384,
+  "sym": "BAR"
+ },
+ "DXXcq4tY5e4PbXybyBMnxZjHVmzv1GVrAXoW5TcC5kbu": {
+  "found": true,
+  "price_now": 6.872e-05,
+  "liq_now": 55977.16,
+  "fdv": 68689,
+  "entry_price": 0.000174965672,
+  "dd_from_entry_pct": -60.72372413715531,
+  "sym": "piss"
+ },
+ "DYpHuMiNHrfAaWKj5Y3iQL8ydZ9oJy2ANCH4c7DApump": {
+  "found": false,
+  "entry_price": 0.00010846194700000001
+ },
+ "DbqbFSSBEDaX9F6hnySDHKmKSE9PU1KTyJ7jwcd3xViS": {
+  "found": true,
+  "price_now": 0.0001115,
+  "liq_now": 28765.16,
+  "fdv": 111576,
+  "entry_price": 0.00011748296000000001,
+  "dd_from_entry_pct": -5.092619389228881,
+  "sym": "trenchies"
+ },
+ "Dc6GW8TmGquTsLBwtrYgGMwGMY3HckT79iVCn8jmpump": {
+  "found": true,
+  "price_now": 8.693e-05,
+  "liq_now": 24762.43,
+  "fdv": 86934,
+  "entry_price": 0.0001574544952,
+  "dd_from_entry_pct": -44.79039808321713,
+  "sym": "BANKS"
+ },
+ "DiiTPZdpd9t3XorHiuZUu4E1FoSaQ7uGN4q9YkQupump": {
+  "found": true,
+  "price_now": 7.126e-05,
+  "liq_now": 33931.35,
+  "fdv": 50247,
+  "entry_price": 0.0001720070688,
+  "dd_from_entry_pct": -58.571470058095656,
+  "sym": "ELIZABETH"
+ },
+ "DkmmVCUaBAcYjecqMdX7NdNQFCfb6uh1yQq9HEP8pump": {
+  "found": true,
+  "price_now": 2.656e-05,
+  "liq_now": 14451.77,
+  "fdv": 26564,
+  "entry_price": 0.00020021439199999997,
+  "dd_from_entry_pct": -86.73422038511598,
+  "sym": "ANSEMIUS"
+ },
+ "DoWCif6MaQEMuMRDDu6PRWr6JQH7SFqm33eZa8jwpump": {
+  "found": true,
+  "price_now": 6.27e-05,
+  "liq_now": 19499.38,
+  "fdv": 62695,
+  "entry_price": 0.00035614178105,
+  "dd_from_entry_pct": -82.3946519795729,
+  "sym": "PORTNOY"
+ },
+ "DrCjaUaVCGSfFEu8i4Gje1CwogUF7nwKFV9Bov5Dpump": {
+  "found": true,
+  "price_now": 2.245e-05,
+  "liq_now": 12844.6,
+  "fdv": 22457,
+  "entry_price": 0.00013294041195,
+  "dd_from_entry_pct": -83.1127347428082,
+  "sym": "Bullcat"
+ },
+ "E2ueKQ3EDTTmCkUA17j3KeTb2u6VT91xiyECdKRzpump": {
+  "found": true,
+  "price_now": 0.0007891,
+  "liq_now": 98554.72,
+  "fdv": 789103,
+  "entry_price": 0.0006524333273999999,
+  "dd_from_entry_pct": 20.947224315567688,
+  "sym": "tolywifhat"
+ },
+ "E7wbcQSGnuC29vNeDX8SrosiD46piaUnBHTg5X8apump": {
+  "found": false,
+  "entry_price": 0.00011066475250000001
+ },
+ "E9Y4rvdqvZHpp2jTdd1oVBQsQuk1M9FweUebqmaRKhMS": {
+  "found": false,
+  "entry_price": 1.5140904500000001e-06
+ },
+ "EC1TMMg4shn1XrYNy5Y5a98LT6kjNcFtgnav11jSpump": {
+  "found": true,
+  "price_now": 4.54e-05,
+  "liq_now": 20093.36,
+  "fdv": 45396,
+  "entry_price": 0.00010817706179999999,
+  "dd_from_entry_pct": -58.03176824682439,
+  "sym": "ROBO"
+ },
+ "ECHFvPRtUDDTg53V5k45pLk6E5zCunk5RYXrL1qopump": {
+  "found": false,
+  "entry_price": 0.00013588762615
+ },
+ "EPD8jj7bVhNh3o7Wx1XZ39aaacSki8p2ABaN61yhUnBh": {
+  "found": true,
+  "price_now": 4.116e-05,
+  "liq_now": 21670.79,
+  "fdv": 41161,
+  "entry_price": 0.0002279144672,
+  "dd_from_entry_pct": -81.94059354561236,
+  "sym": "\ud83d\udc02\ud83c\udc04\ufe0f"
+ },
+ "ERPtViqckt1zqpS2abUx67CgLcP54CkhBPYz3yRUpump": {
+  "found": true,
+  "price_now": 0.0002064,
+  "liq_now": 44322.1,
+  "fdv": 206201,
+  "entry_price": 0.0002756012396,
+  "dd_from_entry_pct": -25.109190256341645,
+  "sym": "yep"
+ },
+ "ESAYabnPzfaZGcwNtTL5RL1RBaoW7vYUNx5n6QfTpump": {
+  "found": true,
+  "price_now": 0.0008738,
+  "liq_now": 73577.51,
+  "fdv": 873844,
+  "entry_price": 0.000147063491,
+  "dd_from_entry_pct": 494.16514191139396,
+  "sym": "Pigeon"
+ },
+ "EThNYWZ73vdtnRtrdwDKq9nKkQgRwjcNppjDTqGopump": {
+  "found": true,
+  "price_now": 2.484e-05,
+  "liq_now": 12294.59,
+  "fdv": 24841,
+  "entry_price": 0.00011748296000000001,
+  "dd_from_entry_pct": -78.85650821191432,
+  "sym": "Martolexx"
+ },
+ "EYvkcWB5S4DFv7gJqR8D2W76U9n7kD3jvYcbSXdppump": {
+  "found": true,
+  "price_now": 0.0003462,
+  "liq_now": 50728.37,
+  "fdv": 346130,
+  "entry_price": 0.00042943944079999996,
+  "dd_from_entry_pct": -19.383278034484615,
+  "sym": "HAALAND"
+ },
+ "Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump": {
+  "found": false,
+  "entry_price": 0.00017874044160000002
+ },
+ "EwD4QKULxrTDdVNYJRqfnC9M8CAGPA6aZcdS7bqrpump": {
+  "found": false,
+  "entry_price": 0.0001704767568
+ },
+ "ExbN9KVhLMZT1Pt6uEQ5eMyWdfbTAvdLP9cBTwaK8EHL": {
+  "found": false,
+  "entry_price": 0.000121117818975
+ },
+ "F5hqdbykXuksp8P78CAZenSvpPShAYKrP2U2MiZMdgFN": {
+  "found": true,
+  "price_now": 0.0001148,
+  "liq_now": 55592.24,
+  "fdv": 114718,
+  "entry_price": 0.00014752241139999998,
+  "dd_from_entry_pct": -22.181315428253626,
+  "sym": "bop"
+ },
+ "F612mB7c9pXAQjGysAeh4vesxauKtjqi7QFmzxJQpump": {
+  "found": false,
+  "entry_price": 0.0001690437859
+ },
+ "F7bFfkHxLuXuuoeX3SQDM9PDhBABVEVFmter8nnRpump": {
+  "found": false,
+  "entry_price": 0.00012771027125
+ },
+ "FJSKRhn5ZGtv66HtgaqVY9oNsV2KeynngLTq6PX4pump": {
+  "found": false,
+  "entry_price": 0.000180576816
+ },
+ "FY9yQSFokAyuKm33HBAUCYjvjmEbeXfDTpSiVZNUpump": {
+  "found": true,
+  "price_now": 5.957e-05,
+  "liq_now": 19352.25,
+  "fdv": 59572,
+  "entry_price": 0.0001680383774,
+  "dd_from_entry_pct": -64.54976480866685,
+  "sym": "Binface "
+ },
+ "FZQJUoWEMRCNTnWj2aAizsFrYL6JUJFBy9zaJex3pump": {
+  "found": false,
+  "entry_price": 0.0002360028816
+ },
+ "FamUNkepHXkVxjWHeMSpJmD4xVhCSyNnUG9GVsdmR2xQ": {
+  "found": true,
+  "price_now": 2.798e-05,
+  "liq_now": 19080.61,
+  "fdv": 27967,
+  "entry_price": 0.0001175279616,
+  "dd_from_entry_pct": -76.1928994435993,
+  "sym": "MANLET"
+ },
+ "G5TD7vXeoQEXq7C9tc65Fr1QsTPeau6R6KNsowjMpump": {
+  "found": false,
+  "entry_price": 0.00010376186974999999
+ },
+ "G7zeUXZzTUa8iXeUcW5J8oK9zoK4WY75fzmwFMe5pump": {
+  "found": true,
+  "price_now": 1.255e-05,
+  "liq_now": 9027.41,
+  "fdv": 11959,
+  "entry_price": 0.00015623360440000003,
+  "dd_from_entry_pct": -91.96715709901396,
+  "sym": "RIF"
+ },
+ "GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump": {
+  "found": false,
+  "entry_price": 8.868914525e-05
+ },
+ "GRnVdzDbv4hn1p4PotEPYZW5TknE9UuHPMAuiYt3pump": {
+  "found": true,
+  "price_now": 0.000216,
+  "liq_now": 39325.99,
+  "fdv": 216080,
+  "entry_price": 0.0002698808284,
+  "dd_from_entry_pct": -19.96467430437159,
+  "sym": "Tate"
+ },
+ "GYPB3McmpMpeLQcckoSTQ6KKAE8NL6QvkYaocy48pump": {
+  "found": true,
+  "price_now": 1.104e-05,
+  "liq_now": 8833.34,
+  "fdv": 11041,
+  "entry_price": 0.00012433651130000002,
+  "dd_from_entry_pct": -91.12087038266449,
+  "sym": "JELLYCAT"
+ },
+ "GgRYByJSNdRJo26LHeudCEPhwK6aVriktipYomHDpump": {
+  "found": false,
+  "entry_price": 0.0003909946118
+ },
+ "Ghf7EUahsRf1YgfFsHGEaN75CA8HDJkWw8h5cM41pump": {
+  "found": false,
+  "entry_price": 0.000109162256
+ },
+ "H58UUPjiqJ9ZbK3eGUJNhcjwj9fDaBSKGaDryNJjpump": {
+  "found": false,
+  "entry_price": 0.000215052169
+ },
+ "HAs8hvTB8ZH6dBG26KQGik4fxitNYi41jnYd49bvtime": {
+  "found": true,
+  "price_now": 0.6976,
+  "liq_now": 44378.44,
+  "fdv": 69763,
+  "entry_price": 1.54051408,
+  "dd_from_entry_pct": -54.71641518524777,
+  "sym": "Ansem"
+ },
+ "HEU5mPDm5jCyn4AjQKjvWuvttACKvitgpAdwfmu2DoiA": {
+  "found": true,
+  "price_now": 0.0001393,
+  "liq_now": 36367.2,
+  "fdv": 139374,
+  "entry_price": 0.0002070002032,
+  "dd_from_entry_pct": -32.7053800689216,
+  "sym": "CLIVE"
+ },
+ "HEpnawcnjTBKk1Vi5krT3S6C9waMJjp5g2rhJ2hYpump": {
+  "found": true,
+  "price_now": 0.0002385,
+  "liq_now": 39937.01,
+  "fdv": 238547,
+  "entry_price": 0.00017748597249999998,
+  "dd_from_entry_pct": 34.376816736883264,
+  "sym": "PUB"
+ },
+ "HMSPnngim78o9t2KVfGBEg79NGS1s3c1AyRFu8z3pump": {
+  "found": true,
+  "price_now": 1.23e-05,
+  "liq_now": 10528.38,
+  "fdv": 12306,
+  "entry_price": 0.0002041436208,
+  "dd_from_entry_pct": -93.97483009667476,
+  "sym": "FABLE"
+ },
+ "HS4DWjgJ2h51PCnhh95saqgLQ21Zps6VABK1vi9gpump": {
+  "found": true,
+  "price_now": 1.182e-05,
+  "liq_now": 12552.25,
+  "fdv": 11822,
+  "entry_price": 0.0004314459632,
+  "dd_from_entry_pct": -97.26037534055666,
+  "sym": "LojakPaul"
+ },
+ "HdPwxMu9R2sD8ZU8CoP3JuqUBRX3UpPb2oTc8TZkpump": {
+  "found": true,
+  "price_now": 3.444e-05,
+  "liq_now": 15077.63,
+  "fdv": 34441,
+  "entry_price": 0.00010551714296249998,
+  "dd_from_entry_pct": -67.36075387082863,
+  "sym": "SEMAN"
+ },
+ "Hk8qqvyYU5gfAB5QCZCcJq3gR3TZ8LtvNmA1EM3bpump": {
+  "found": true,
+  "price_now": 2.073e-05,
+  "liq_now": 12326.72,
+  "fdv": 20733,
+  "entry_price": 0.0001609555136,
+  "dd_from_entry_pct": -87.12066487419789,
+  "sym": "BabyCupsey"
+ },
+ "Hkn3cPPRnqsv54CdA8dGFZMmT26vCtGaKWBgtdvfZ74d": {
+  "found": true,
+  "price_now": 1.998e-05,
+  "liq_now": 11101.27,
+  "fdv": 19970,
+  "entry_price": 0.000167988510575,
+  "dd_from_entry_pct": -88.10632945573992,
+  "sym": "SUSCAT"
+ },
+ "HmTi3CQfKfXWbn1tNoiAxH7GzMV7L3tDAmPWabZEBAGS": {
+  "found": true,
+  "price_now": 0.002127,
+  "liq_now": 100415.61,
+  "fdv": 2127721,
+  "entry_price": 0.000468785576,
+  "dd_from_entry_pct": 353.72556428655986,
+  "sym": "P0"
+ },
+ "HtEy3hN87RvDcW5RMa8XuC56JwXELcfKRm8HLwSHpump": {
+  "found": true,
+  "price_now": 2.128e-05,
+  "liq_now": 12377.41,
+  "fdv": 21280,
+  "entry_price": 0.0001039876812725,
+  "dd_from_entry_pct": -79.53603759638057,
+  "sym": "Goob"
+ },
+ "HzzbJAY1YThLuwNwx3xjuqrQdd1RUtqUqnNawAhDpump": {
+  "found": true,
+  "price_now": 3.152e-05,
+  "liq_now": 13552.99,
+  "fdv": 31522,
+  "entry_price": 0.0001410037969,
+  "dd_from_entry_pct": -77.64599202789269,
+  "sym": "DIICOCK"
+ },
+ "J2Yv2umBhjP2Q7xT5tkYK4cceogqgkVrGXvb3a35pump": {
+  "found": false,
+  "entry_price": 0.0005323952622999999
+ },
+ "J5p7z5dZew83HwpFnUqr1HL2S29sn8i7S8eFNwDUpump": {
+  "found": true,
+  "price_now": 2.442e-05,
+  "liq_now": 12194.43,
+  "fdv": 24427,
+  "entry_price": 0.000197272110725,
+  "dd_from_entry_pct": -87.62115946838436,
+  "sym": "MIKE"
+ },
+ "J9fVUSrsGYpuyXggAFJpf8WGkVsjqjCpBzyBxh6spump": {
+  "found": false,
+  "entry_price": 0.0006727226279014125
+ },
+ "J9xS5vH4W9WnxtbJD4AshJsmHLniPFDq8vXa556apump": {
+  "found": false,
+  "entry_price": 0.00020442647519999997
+ },
+ "JCKJviubAbCSztaGnKGqaiKhmpsE9uDTxcENXZrLpump": {
+  "found": false,
+  "entry_price": 0.0002327080034
+ },
+ "MsGDybWRSNdNXkdDZhEksgzugT5CbVWUG2wkhwgpump": {
+  "found": true,
+  "price_now": 5.404e-05,
+  "liq_now": 21368.96,
+  "fdv": 54040,
+  "entry_price": 0.0001417068912,
+  "dd_from_entry_pct": -61.864945633639024,
+  "sym": "MeiMei"
+ },
+ "PDqSePtjwXYaruFX7hdujV9wf4X7Z4fu5d2iVMCpump": {
+  "found": true,
+  "price_now": 2.704e-05,
+  "liq_now": 14717.25,
+  "fdv": 26926,
+  "entry_price": 0.00010947520565,
+  "dd_from_entry_pct": -75.30034327001056,
+  "sym": "Speedrun"
+ },
+ "V1qBxZ72Ae5eDCP3MVdgW8S8RBUtcJfk6pzdimspump": {
+  "found": true,
+  "price_now": 0.0001262,
+  "liq_now": 27814.79,
+  "fdv": 126239,
+  "entry_price": 0.0004311399008,
+  "dd_from_entry_pct": -70.72875886322976,
+  "sym": "BitBoy"
+ },
+ "VXjDEv3EeJgg5J88uNasoMwaryCtdfKw5YNkAoJBpwU": {
+  "found": true,
+  "price_now": 6.246e-06,
+  "liq_now": 7497.08,
+  "fdv": 6245,
+  "entry_price": 0.0001212298862,
+  "dd_from_entry_pct": -94.84780511160787,
+  "sym": "PUMPLON"
+ },
+ "WjZoPoUsMy8TzwQQdevCVB867YHC9EQNcCUN7kDpump": {
+  "found": true,
+  "price_now": 0.0002486,
+  "liq_now": 41170.2,
+  "fdv": 248609,
+  "entry_price": 0.0002277104256,
+  "dd_from_entry_pct": 9.173745270976303,
+  "sym": "sidelined"
+ },
+ "cvkarf1CtN3tbLRk961vsaEf4T8QbnihDkCHa93pump": {
+  "found": true,
+  "price_now": 5.876e-05,
+  "liq_now": 25713.14,
+  "fdv": 58763,
+  "entry_price": 0.0003711516704,
+  "dd_from_entry_pct": -84.16819734728048,
+  "sym": "NEIL"
+ },
+ "dUaSdZm38CStjhp1VSJWGFQqSxf6DQB2hfjMXmVpump": {
+  "found": true,
+  "price_now": 6.062e-05,
+  "liq_now": 21226.5,
+  "fdv": 60621,
+  "entry_price": 0.00019678638699999998,
+  "dd_from_entry_pct": -69.19502363748362,
+  "sym": "\ud83d\udc02\ud83c\udc04\ufe0f"
+ },
+ "hhB7CZU8rtKgaNoQu8a4DoBkQJTuUZy8Z1nB9CSEASY": {
+  "found": true,
+  "price_now": 8.414e-05,
+  "liq_now": 30079.77,
+  "fdv": 84143,
+  "entry_price": 8.998411117999999e-05,
+  "dd_from_entry_pct": -6.494603439833618,
+  "sym": "$COLD"
+ },
+ "iB1umQs5Jzq6ysaRk5yRKaJ4XJcWgqHDxsdVtjipump": {
+  "found": true,
+  "price_now": 1.737e-05,
+  "liq_now": 14650.08,
+  "fdv": 17368,
+  "entry_price": 0.00011899111620000001,
+  "dd_from_entry_pct": -85.40227156890894,
+  "sym": "BABYANSEM"
+ },
+ "jymBeC2kKKnmoVnZowYiqe7d85ifEueYjVkvjwYpump": {
+  "found": true,
+  "price_now": 5.084e-06,
+  "liq_now": 5877.85,
+  "fdv": 5084,
+  "entry_price": 0.0001138887773,
+  "dd_from_entry_pct": -95.53599562614674,
+  "sym": "530A"
+ },
+ "nVhTvcZXm2DQLoMhyrC5nw2noTvbGf7nsapiehtpump": {
+  "found": true,
+  "price_now": 3.244e-05,
+  "liq_now": 14314.01,
+  "fdv": 32442,
+  "entry_price": 0.00010049401364499998,
+  "dd_from_entry_pct": -67.71947022178269,
+  "sym": "MUTUMBO"
+ },
+ "penks6cQFUQtfytirZowyr6rjxoZ2mSxa5sA7Czpump": {
+  "found": true,
+  "price_now": 7.121e-05,
+  "liq_now": 20961.44,
+  "fdv": 71212,
+  "entry_price": 0.0003347972804999999,
+  "dd_from_entry_pct": -78.73041265638356,
+  "sym": "FIW"
+ },
+ "qPorq2UQuP6g1KZnGKMQEfVxN87BYvaYdqVy3KVpump": {
+  "found": true,
+  "price_now": 5.393e-06,
+  "liq_now": 6480.14,
+  "fdv": 5391,
+  "entry_price": 0.00018863827199999998,
+  "dd_from_entry_pct": -97.14108916349701,
+  "sym": "1"
+ },
+ "swA5DdNU2HC9Uab2SEeJ3etuDRz8LvVDPWCgRc3pump": {
+  "found": true,
+  "price_now": 3.872e-05,
+  "liq_now": 17837.59,
+  "fdv": 38725,
+  "entry_price": 0.00012288072344999998,
+  "dd_from_entry_pct": -68.48976884828065,
+  "sym": "popeyes"
+ },
+ "t2Ypujv3uK12PYBDkZKznCcHvEfGmjbyNKRXe2Ppump": {
+  "found": true,
+  "price_now": 0.0002608,
+  "liq_now": 42117.96,
+  "fdv": 260860,
+  "entry_price": 0.000497923241775,
+  "dd_from_entry_pct": -47.62244898022867,
+  "sym": "BEGGY"
+ },
+ "wnquaSmAtk5T3azdAgNmSQRNfrmEnymAKkrmzTgpump": {
+  "found": true,
+  "price_now": 5.667e-06,
+  "liq_now": 5856.94,
+  "fdv": 5667,
+  "entry_price": 0.00014162416807500001,
+  "dd_from_entry_pct": -95.99856431495581,
+  "sym": "FUCKYEA"
+ }
+}

@@ -1,0 +1,2 @@
+{"kind":"sell","volume_usd":14.12,"ts":"2026-07-12T13:01:19+00:00","maker":"0xaeb26d5c14f7269aebca9ffddbbe7775818eed18","pair":"0x221a545c21c383e56b5a3867b9165cb47f809a1d","sym":"thinking","lag_secs":0.76,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":180.6,"ts":"2026-07-12T13:09:30+00:00","maker":"0x5caf0bc394825ee459aceca9f14b029952044d03","pair":"0x221a545c21c383e56b5a3867b9165cb47f809a1d","sym":"thinking","lag_secs":0.74,"pre_conf":true}

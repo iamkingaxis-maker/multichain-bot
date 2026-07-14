@@ -1,0 +1,5 @@
+{"kind":"buy","volume_usd":1.64,"ts":"2026-07-10T20:58:11+00:00","maker":"0xcec5b0c270b147f7d4084bffa366734f334cf0cd","pair":"0x5e308f15e04050029d4f6fbd910d7abfacd4d386","sym":"BREAD","lag_secs":0.45,"pre_conf":true}
+{"kind":"buy","volume_usd":1.79,"ts":"2026-07-10T21:16:50+00:00","maker":"0xcec5b0c270b147f7d4084bffa366734f334cf0cd","pair":"0x5e308f15e04050029d4f6fbd910d7abfacd4d386","sym":"BREAD","lag_secs":0.63,"pre_conf":true}
+{"kind":"buy","volume_usd":1.79,"ts":"2026-07-10T21:17:21+00:00","maker":"0xcec5b0c270b147f7d4084bffa366734f334cf0cd","pair":"0x5e308f15e04050029d4f6fbd910d7abfacd4d386","sym":"BREAD","lag_secs":1.2,"pre_conf":true}
+{"kind":"buy","volume_usd":2.69,"ts":"2026-07-10T21:18:59+00:00","maker":"0xcec5b0c270b147f7d4084bffa366734f334cf0cd","pair":"0x5e308f15e04050029d4f6fbd910d7abfacd4d386","sym":"BREAD","lag_secs":0.48,"pre_conf":true}
+{"kind":"buy","volume_usd":35.64,"ts":"2026-07-10T21:25:32+00:00","maker":"0x365d94b0f4449ba7b22d268cd911cd06edfe7e4a","pair":"0x5e308f15e04050029d4f6fbd910d7abfacd4d386","sym":"BREAD","lag_secs":0.69,"pre_conf":true}

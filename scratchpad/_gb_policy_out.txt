@@ -1,0 +1,56 @@
+deduped rounds n=265
+
+== (a) PEAK-ARMED TRAIL grid — delta vs current realized, deduped, pp total (7d) and pp/day
+   X   Y | n_legs_fire  rec_OPT  rec_PESS | runner_rounds>=10 harsh-forfeit PESS
+(runner rounds realized>=10: n=18, total realized=426pp)
+ 1.5   3 |         164     374pp      189pp ( 27.0/day) | harsh=   435pp on n=18 (visible cost=0)
+ 1.5   4 |         158     345pp      171pp ( 24.5/day) | harsh=   417pp on n=18 (visible cost=0)
+ 1.5   5 |         154     306pp      141pp ( 20.1/day) | harsh=   399pp on n=18 (visible cost=0)
+ 1.5   6 |         151     262pp      103pp ( 14.7/day) | harsh=   381pp on n=18 (visible cost=0)
+   2   3 |         107     333pp      233pp ( 33.3/day) | harsh=   444pp on n=18 (visible cost=0)
+   2   4 |         102     307pp      216pp ( 30.9/day) | harsh=   426pp on n=18 (visible cost=0)
+   2   5 |          98     270pp      187pp ( 26.8/day) | harsh=   408pp on n=18 (visible cost=0)
+   2   6 |          95     228pp      151pp ( 21.6/day) | harsh=   390pp on n=18 (visible cost=0)
+   3   3 |          68     290pp      214pp ( 30.6/day) | harsh=   462pp on n=18 (visible cost=0)
+   3   4 |          63     269pp      202pp ( 28.9/day) | harsh=   444pp on n=18 (visible cost=0)
+   3   5 |          59     236pp      178pp ( 25.4/day) | harsh=   426pp on n=18 (visible cost=0)
+   3   6 |          56     197pp      144pp ( 20.6/day) | harsh=   408pp on n=18 (visible cost=0)
+
+empirical 2pp-wick rate post-TP1 (control ladder): TP1-hit rounds n=66: trailed out before TP2 34 (52%), reached TP2 32
+middle-estimate runner cost = wick_rate * harsh_forfeit (rough):
+  X=1.5 Y=3: net_PESS_mid = 189 - 0.52*435 =    -35pp ( -5.0pp/day)
+  X=1.5 Y=4: net_PESS_mid = 171 - 0.52*417 =    -44pp ( -6.2pp/day)
+  X=1.5 Y=5: net_PESS_mid = 141 - 0.52*399 =    -65pp ( -9.3pp/day)
+  X=1.5 Y=6: net_PESS_mid = 103 - 0.52*381 =    -93pp (-13.4pp/day)
+  X=2 Y=3: net_PESS_mid = 233 - 0.52*444 =      4pp (  0.6pp/day)
+  X=2 Y=4: net_PESS_mid = 216 - 0.52*426 =     -3pp ( -0.5pp/day)
+  X=2 Y=5: net_PESS_mid = 187 - 0.52*408 =    -23pp ( -3.2pp/day)
+  X=2 Y=6: net_PESS_mid = 151 - 0.52*390 =    -50pp ( -7.1pp/day)
+  X=3 Y=3: net_PESS_mid = 214 - 0.52*462 =    -24pp ( -3.4pp/day)
+  X=3 Y=4: net_PESS_mid = 202 - 0.52*444 =    -26pp ( -3.7pp/day)
+  X=3 Y=5: net_PESS_mid = 178 - 0.52*426 =    -41pp ( -5.9pp/day)
+  X=3 Y=6: net_PESS_mid = 144 - 0.52*408 =    -66pp ( -9.4pp/day)
+
+== (b) winner-decode scratch: exit if <+1% @30min and TP1 unhit
+fires n=12; benefit if exit@0 = 48pp (6.8/day); ceiling(exit@+1)=60pp; floor=0 (pnl@30min unobservable)
+  note: never_runner (peak<3, ~44min floor) already live and covers part of this cohort
+
+== (c) BE-LOCK@Y (pre-TP1, slip modeled) — delta vs current realized (lock@3 already ENFORCED since ~07-02)
+  Y=5 slip=1: n_fires=15 recovered=   63pp ( 9.0/day)
+  Y=5 slip=2: n_fires=13 recovered=   48pp ( 6.9/day)
+  Y=6 slip=1: n_fires=12 recovered=   34pp ( 4.9/day)
+  Y=6 slip=2: n_fires=10 recovered=   22pp ( 3.2/day)
+  Y=7 slip=1: n_fires=11 recovered=   29pp ( 4.1/day)
+  Y=7 slip=2: n_fires=9 recovered=   18pp ( 2.6/day)
+
+== gb_shadow path-observed lock counterfactual (peak>=3 then crossed <=0):
+   RUNNER-KILL traindog     lock@-0.3(peak@fire +3.3) but round realized +4.0
+   RUNNER-KILL #fairs       lock@-1.9(peak@fire +7.2) but round realized +12.8
+   RUNNER-KILL bull         lock@-3.0(peak@fire +7.4) but round realized +24.8
+   saves n=23 +22pp | runner-kills n=3 -51pp | net -29pp (7d, deduped, THIN)
+
+== best-config decomposition:
+  X=2,Y=4 PESS by peak band:  {'13+': 19, '3-6': 65, '6-9': 63, '9-13': 69}
+  X=2,Y=5 PESS by peak band:  {'13+': 19, '3-6': 36, '6-9': 63, '9-13': 69}
+  X=3,Y=5 PESS by peak band:  {'13+': 30, '3-6': 33, '6-9': 50, '9-13': 64}
+  X=1.5,Y=4 PESS by peak band:  {'13+': 25, '3-6': 69, '6-9': 27, '9-13': 51}

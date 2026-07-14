@@ -1,0 +1,500 @@
+2026-07-11 00:05:31,142 [INFO] [DipScanner] bot=badday_young_adaptsize_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,144 [INFO] [DipScanner] bot=badday_young_adaptsize_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,145 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_adaptsize_ab)
+2026-07-11 00:05:31,145 [INFO] [DipScanner] bot=badday_young_adaptsize_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,145 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=ubef armed=True
+2026-07-11 00:05:31,145 [INFO] [DipScanner] bot=badday_young_bounce_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,147 [INFO] [DipScanner] bot=badday_young_bounce_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,147 [INFO] [DipScanner] bot=badday_young_bounce_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,148 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_bounce_ab)
+2026-07-11 00:05:31,148 [INFO] [DipScanner] bot=badday_young_bounce_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,149 [INFO] [fast-watch] hit-rate buy bot=badday_young_hlconfirm_ab token=ubef armed=True
+2026-07-11 00:05:31,149 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,149 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,150 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,150 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_hlconfirm_ab)
+2026-07-11 00:05:31,150 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,151 [INFO] [fast-watch] hit-rate buy bot=badday_young_moonbag_ab token=ubef armed=True
+2026-07-11 00:05:31,151 [INFO] [DipScanner] bot=badday_young_moonbag_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,152 [INFO] [DipScanner] bot=badday_young_moonbag_ab MIN-LIQ-FLOOR skip ubef: liq=$28217 < $30000
+2026-07-11 00:05:31,152 [INFO] [fast-watch] hit-rate buy bot=badday_young_pump_dip_ab token=ubef armed=True
+2026-07-11 00:05:31,152 [INFO] [DipScanner] bot=badday_young_pump_dip_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,157 [INFO] [DipScanner] bot=badday_young_pump_dip_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,158 [INFO] [DipScanner] bot=badday_young_pump_dip_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,159 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_pump_dip_ab)
+2026-07-11 00:05:31,159 [INFO] [DipScanner] bot=badday_young_pump_dip_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,159 [INFO] [fast-watch] hit-rate buy bot=badday_young_rt token=ubef armed=True
+2026-07-11 00:05:31,160 [INFO] [DipScanner] bot=badday_young_rt REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,161 [INFO] [DipScanner] bot=badday_young_rt MIN-LIQ-FLOOR skip ubef: liq=$28217 < $30000
+2026-07-11 00:05:31,161 [INFO] [fast-watch] hit-rate buy bot=badday_young_rt_paper token=ubef armed=True
+2026-07-11 00:05:31,161 [INFO] [DipScanner] bot=badday_young_rt_paper REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,162 [INFO] [DipScanner] bot=badday_young_rt_paper MIN-LIQ-FLOOR skip ubef: liq=$28217 < $30000
+2026-07-11 00:05:31,162 [INFO] [fast-watch] hit-rate buy bot=badday_young_vsnap_ab token=ubef armed=True
+2026-07-11 00:05:31,162 [INFO] [DipScanner] bot=badday_young_vsnap_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,162 [INFO] [DipScanner] bot=badday_young_vsnap_ab VSNAP-REJECT skip ubef (vsnap: low is 226s old < 240s (fresh V-snap/knife) src=poll)
+2026-07-11 00:05:31,227 [INFO] [DipScanner] SHADOW filter_5m_downtrend would BLOCK: ubef reasons=5m_consec_red=6>=4 (20+ min of sustained 5m decline — dip not bottomed)
+2026-07-11 00:05:31,191 [INFO] [DipScanner] BLOCKED by filter_no_signatures: ubef sigs_hit=0/6 available=6
+2026-07-11 00:05:31,228 [INFO] [DipScanner] BLOCKED by filter_lp_drain: ubef reasons=lp_delta_15m=-7.0%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-11 00:05:31,192 [INFO] [DipScanner] SHADOW filter_5m_downtrend would BLOCK: ubef reasons=5m_consec_red=6>=4 (20+ min of sustained 5m decline — dip not bottomed)
+2026-07-11 00:05:31,230 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: ubef reasons=net_flow_5m_usd=$-173<0 (sellers winning 5m USD flow)
+2026-07-11 00:05:31,233 [INFO] [DipScanner] regime_size SHADOW 0.5x: ubef broad_red(h1neg=40)
+2026-07-11 00:05:31,193 [INFO] [DipScanner] BLOCKED by filter_lp_drain: ubef reasons=lp_delta_15m=-7.0%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-11 00:05:31,237 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for ubef triggers=['deep_1h_dip', 'power_dip_runner', 'whale_conviction']
+2026-07-11 00:05:31,194 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: ubef reasons=net_flow_5m_usd=$-173<0 (sellers winning 5m USD flow)
+2026-07-11 00:05:31,196 [INFO] [DipScanner] regime_size SHADOW 0.5x: ubef broad_red(h1neg=40)
+2026-07-11 00:05:31,200 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for ubef triggers=['deep_1h_dip', 'power_dip_runner', 'whale_conviction']
+2026-07-11 00:05:31,226 [INFO] [DipScanner] BLOCKED by filter_no_signatures: ubef sigs_hit=0/6 available=6
+2026-07-11 00:05:31,258 [INFO] [DipScanner] BLOCKED by filter_no_signatures: ubef sigs_hit=0/6 available=6
+2026-07-11 00:05:31,259 [INFO] [DipScanner] SHADOW filter_5m_downtrend would BLOCK: ubef reasons=5m_consec_red=6>=4 (20+ min of sustained 5m decline — dip not bottomed)
+2026-07-11 00:05:31,260 [INFO] [DipScanner] BLOCKED by filter_lp_drain: ubef reasons=lp_delta_15m=-7.0%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-11 00:05:31,262 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: ubef reasons=net_flow_5m_usd=$-173<0 (sellers winning 5m USD flow)
+2026-07-11 00:05:31,263 [INFO] [DipScanner] regime_size SHADOW 0.5x: ubef broad_red(h1neg=40)
+2026-07-11 00:05:31,267 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for ubef triggers=['deep_1h_dip', 'power_dip_runner', 'whale_conviction']
+2026-07-11 00:05:31,287 [INFO] [DipScanner] BLOCKED by filter_no_signatures: ubef sigs_hit=0/6 available=6
+2026-07-11 00:05:31,288 [INFO] [DipScanner] SHADOW filter_5m_downtrend would BLOCK: ubef reasons=5m_consec_red=6>=4 (20+ min of sustained 5m decline — dip not bottomed)
+2026-07-11 00:05:31,288 [INFO] [DipScanner] BLOCKED by filter_lp_drain: ubef reasons=lp_delta_15m=-7.0%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-11 00:05:31,290 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: ubef reasons=net_flow_5m_usd=$-173<0 (sellers winning 5m USD flow)
+2026-07-11 00:05:31,292 [INFO] [DipScanner] regime_size SHADOW 0.5x: ubef broad_red(h1neg=40)
+2026-07-11 00:05:31,295 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for ubef triggers=['deep_1h_dip', 'power_dip_runner', 'whale_conviction']
+2026-07-11 00:05:31,328 [INFO] [loss-streak] PAUSE bot=badday_allday skip ubef (streak=7 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,328 [INFO] [fast-watch] hit-rate buy bot=badday_flush token=ubef armed=True
+2026-07-11 00:05:31,328 [INFO] [DipScanner] bot=badday_flush REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,317 [INFO] [DipScanner] BLOCKED by filter_seller_imbalance: HAAL9K reasons=net_flow_5m_imbalance=-0.537<-0.2 (sellers dominating 5m dollar flow)
+2026-07-11 00:05:31,329 [INFO] [loss-streak] PAUSE bot=badday_flush skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,329 [INFO] [fast-watch] hit-rate buy bot=badday_flush_hlconfirm_ab token=ubef armed=True
+2026-07-11 00:05:31,318 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: HAAL9K reasons=net_flow_5m_usd=$-859<0 (sellers winning 5m USD flow)
+2026-07-11 00:05:31,320 [INFO] [DipScanner] regime_size SHADOW 0.5x: HAAL9K broad_red(h1neg=40)
+2026-07-11 00:05:31,320 [INFO] [DipScanner] stale_drift SHADOW would-de-size: HAAL9K stale_drift: age=203h>168 AND pc_h24=25.8 in [-20,60) (old middling-drift bleed)
+2026-07-11 00:05:31,324 [INFO] [DipScanner] Position size tier: standard $2 (base $5) for HAAL9K triggers=['small_pump_shallow_retrace']
+2026-07-11 00:05:31,328 [INFO] [fast-watch] hit-rate buy bot=badday_allday token=ubef armed=True
+2026-07-11 00:05:31,328 [INFO] [DipScanner] bot=badday_allday REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,329 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,329 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,329 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab LIQ-EXIT-FLOOR SHADOW-would-block: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,329 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,330 [INFO] [fast-watch] hit-rate buy bot=badday_flush_nf15 token=ubef armed=True
+2026-07-11 00:05:31,330 [INFO] [DipScanner] bot=badday_flush_nf15 REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,330 [INFO] [DipScanner] bot=badday_flush_nf15 RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,330 [INFO] [DipScanner] bot=badday_flush_nf15 LIQ-EXIT-FLOOR SHADOW-would-block: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,330 [INFO] [DipScanner] bot=badday_flush_nf15 FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,330 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=ubef armed=True
+2026-07-11 00:05:31,331 [INFO] [DipScanner] bot=badday_flush_peel_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,332 [INFO] [DipScanner] bot=badday_pump_dip_ab LIQ-EXIT-FLOOR SHADOW-would-block: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,332 [INFO] [DipScanner] bot=badday_pump_dip_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,331 [INFO] [loss-streak] PAUSE bot=badday_flush_peel_ab skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,331 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=ubef armed=True
+2026-07-11 00:05:31,331 [INFO] [DipScanner] bot=badday_flush_runner_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,331 [INFO] [loss-streak] PAUSE bot=badday_flush_runner_ab skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,331 [INFO] [fast-watch] hit-rate buy bot=badday_flush_wickride_ab token=ubef armed=True
+2026-07-11 00:05:31,331 [INFO] [DipScanner] bot=badday_flush_wickride_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,332 [INFO] [loss-streak] PAUSE bot=badday_flush_wickride_ab skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,332 [INFO] [fast-watch] hit-rate buy bot=badday_pump_dip_ab token=ubef armed=True
+2026-07-11 00:05:31,332 [INFO] [DipScanner] bot=badday_pump_dip_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,332 [INFO] [DipScanner] bot=badday_pump_dip_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,332 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb token=ubef armed=True
+2026-07-11 00:05:31,332 [INFO] [DipScanner] bot=badday_young_absorb REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,333 [INFO] [DipScanner] bot=badday_young_absorb RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,333 [INFO] [DipScanner] bot=badday_young_absorb LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,333 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_absorb)
+2026-07-11 00:05:31,333 [INFO] [DipScanner] bot=badday_young_absorb FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,333 [INFO] [fast-watch] hit-rate buy bot=badday_young_adaptsize_ab token=ubef armed=True
+2026-07-11 00:05:31,333 [INFO] [DipScanner] bot=badday_young_adaptsize_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,334 [INFO] [DipScanner] bot=badday_young_adaptsize_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,334 [INFO] [DipScanner] bot=badday_young_adaptsize_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,334 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_adaptsize_ab)
+2026-07-11 00:05:31,334 [INFO] [DipScanner] bot=badday_young_adaptsize_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,334 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=ubef armed=True
+2026-07-11 00:05:31,334 [INFO] [DipScanner] bot=badday_young_bounce_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,334 [INFO] [DipScanner] bot=badday_young_bounce_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,334 [INFO] [DipScanner] bot=badday_young_bounce_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,335 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_bounce_ab)
+2026-07-11 00:05:31,335 [INFO] [DipScanner] bot=badday_young_bounce_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,335 [INFO] [fast-watch] hit-rate buy bot=badday_young_hlconfirm_ab token=ubef armed=True
+2026-07-11 00:05:31,335 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,335 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,335 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,336 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_hlconfirm_ab)
+2026-07-11 00:05:31,336 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,336 [INFO] [fast-watch] hit-rate buy bot=badday_young_moonbag_ab token=ubef armed=True
+2026-07-11 00:05:31,336 [INFO] [DipScanner] bot=badday_young_moonbag_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,336 [INFO] [DipScanner] bot=badday_young_moonbag_ab MIN-LIQ-FLOOR skip ubef: liq=$28217 < $30000
+2026-07-11 00:05:31,336 [INFO] [fast-watch] hit-rate buy bot=badday_young_pump_dip_ab token=ubef armed=True
+2026-07-11 00:05:31,336 [INFO] [DipScanner] bot=badday_young_pump_dip_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,337 [INFO] [DipScanner] bot=badday_young_pump_dip_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,337 [INFO] [DipScanner] bot=badday_young_pump_dip_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,337 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_pump_dip_ab)
+2026-07-11 00:05:31,337 [INFO] [DipScanner] bot=badday_young_pump_dip_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,337 [INFO] [fast-watch] hit-rate buy bot=badday_young_rt token=ubef armed=True
+2026-07-11 00:05:31,337 [INFO] [DipScanner] bot=badday_young_rt REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,337 [INFO] [DipScanner] bot=badday_young_rt MIN-LIQ-FLOOR skip ubef: liq=$28217 < $30000
+2026-07-11 00:05:31,337 [INFO] [fast-watch] hit-rate buy bot=badday_young_rt_paper token=ubef armed=True
+2026-07-11 00:05:31,338 [INFO] [DipScanner] bot=badday_young_rt_paper REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,338 [INFO] [DipScanner] bot=badday_young_rt_paper MIN-LIQ-FLOOR skip ubef: liq=$28217 < $30000
+2026-07-11 00:05:31,338 [INFO] [fast-watch] hit-rate buy bot=badday_young_vsnap_ab token=ubef armed=True
+2026-07-11 00:05:31,338 [INFO] [DipScanner] bot=badday_young_vsnap_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,338 [INFO] [DipScanner] bot=badday_young_vsnap_ab VSNAP-REJECT skip ubef (vsnap: low is 226s old < 240s (fresh V-snap/knife) src=poll)
+2026-07-11 00:05:31,340 [INFO] [fast-watch] hit-rate buy bot=badday_allday token=ubef armed=True
+2026-07-11 00:05:31,340 [INFO] [DipScanner] bot=badday_allday REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,340 [INFO] [loss-streak] PAUSE bot=badday_allday skip ubef (streak=7 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,340 [INFO] [fast-watch] hit-rate buy bot=badday_flush token=ubef armed=True
+2026-07-11 00:05:31,340 [INFO] [DipScanner] bot=badday_flush REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,341 [INFO] [loss-streak] PAUSE bot=badday_flush skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,341 [INFO] [fast-watch] hit-rate buy bot=badday_flush_hlconfirm_ab token=ubef armed=True
+2026-07-11 00:05:31,341 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,341 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,341 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab LIQ-EXIT-FLOOR SHADOW-would-block: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,341 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,341 [INFO] [fast-watch] hit-rate buy bot=badday_flush_nf15 token=ubef armed=True
+2026-07-11 00:05:31,342 [INFO] [DipScanner] bot=badday_flush_nf15 REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,342 [INFO] [DipScanner] bot=badday_flush_nf15 RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,342 [INFO] [DipScanner] bot=badday_flush_nf15 LIQ-EXIT-FLOOR SHADOW-would-block: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,342 [INFO] [DipScanner] bot=badday_flush_nf15 FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,342 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=ubef armed=True
+2026-07-11 00:05:31,342 [INFO] [DipScanner] bot=badday_flush_peel_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,343 [INFO] [loss-streak] PAUSE bot=badday_flush_peel_ab skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,343 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=ubef armed=True
+2026-07-11 00:05:31,343 [INFO] [DipScanner] bot=badday_flush_runner_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,343 [INFO] [loss-streak] PAUSE bot=badday_flush_runner_ab skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,343 [INFO] [fast-watch] hit-rate buy bot=badday_flush_wickride_ab token=ubef armed=True
+2026-07-11 00:05:31,343 [INFO] [DipScanner] bot=badday_flush_wickride_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,343 [INFO] [loss-streak] PAUSE bot=badday_flush_wickride_ab skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,344 [INFO] [fast-watch] hit-rate buy bot=badday_pump_dip_ab token=ubef armed=True
+2026-07-11 00:05:31,344 [INFO] [DipScanner] bot=badday_pump_dip_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,344 [INFO] [DipScanner] bot=badday_pump_dip_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,344 [INFO] [DipScanner] bot=badday_pump_dip_ab LIQ-EXIT-FLOOR SHADOW-would-block: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,344 [INFO] [DipScanner] bot=badday_pump_dip_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,344 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb token=ubef armed=True
+2026-07-11 00:05:31,344 [INFO] [DipScanner] bot=badday_young_absorb REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,345 [INFO] [DipScanner] bot=badday_young_absorb RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,345 [INFO] [DipScanner] bot=badday_young_absorb LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,345 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_absorb)
+2026-07-11 00:05:31,345 [INFO] [DipScanner] bot=badday_young_absorb FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,345 [INFO] [fast-watch] hit-rate buy bot=badday_young_adaptsize_ab token=ubef armed=True
+2026-07-11 00:05:31,345 [INFO] [DipScanner] bot=badday_young_adaptsize_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,346 [INFO] [DipScanner] bot=badday_young_adaptsize_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,346 [INFO] [DipScanner] bot=badday_young_adaptsize_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,346 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_adaptsize_ab)
+2026-07-11 00:05:31,346 [INFO] [DipScanner] bot=badday_young_adaptsize_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,346 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=ubef armed=True
+2026-07-11 00:05:31,347 [INFO] [DipScanner] bot=badday_young_bounce_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,347 [INFO] [DipScanner] bot=badday_young_bounce_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,347 [INFO] [DipScanner] bot=badday_young_bounce_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,347 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_bounce_ab)
+2026-07-11 00:05:31,347 [INFO] [DipScanner] bot=badday_young_bounce_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,347 [INFO] [fast-watch] hit-rate buy bot=badday_young_hlconfirm_ab token=ubef armed=True
+2026-07-11 00:05:31,347 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,348 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,348 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,348 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_hlconfirm_ab)
+2026-07-11 00:05:31,348 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,348 [INFO] [fast-watch] hit-rate buy bot=badday_young_moonbag_ab token=ubef armed=True
+2026-07-11 00:05:31,348 [INFO] [DipScanner] bot=badday_young_moonbag_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,348 [INFO] [DipScanner] bot=badday_young_moonbag_ab MIN-LIQ-FLOOR skip ubef: liq=$28217 < $30000
+2026-07-11 00:05:31,349 [INFO] [fast-watch] hit-rate buy bot=badday_young_pump_dip_ab token=ubef armed=True
+2026-07-11 00:05:31,349 [INFO] [DipScanner] bot=badday_young_pump_dip_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,349 [INFO] [DipScanner] bot=badday_young_pump_dip_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,349 [INFO] [DipScanner] bot=badday_young_pump_dip_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,349 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_pump_dip_ab)
+2026-07-11 00:05:31,349 [INFO] [DipScanner] bot=badday_young_pump_dip_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,350 [INFO] [fast-watch] hit-rate buy bot=badday_young_rt token=ubef armed=True
+2026-07-11 00:05:31,350 [INFO] [DipScanner] bot=badday_young_rt REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,350 [INFO] [DipScanner] bot=badday_young_rt MIN-LIQ-FLOOR skip ubef: liq=$28217 < $30000
+2026-07-11 00:05:31,350 [INFO] [fast-watch] hit-rate buy bot=badday_young_rt_paper token=ubef armed=True
+2026-07-11 00:05:31,350 [INFO] [DipScanner] bot=badday_young_rt_paper REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,350 [INFO] [DipScanner] bot=badday_young_rt_paper MIN-LIQ-FLOOR skip ubef: liq=$28217 < $30000
+2026-07-11 00:05:31,350 [INFO] [fast-watch] hit-rate buy bot=badday_young_vsnap_ab token=ubef armed=True
+2026-07-11 00:05:31,350 [INFO] [DipScanner] bot=badday_young_vsnap_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,351 [INFO] [DipScanner] bot=badday_young_vsnap_ab VSNAP-REJECT skip ubef (vsnap: low is 226s old < 240s (fresh V-snap/knife) src=poll)
+2026-07-11 00:05:31,352 [INFO] [fast-watch] hit-rate buy bot=badday_allday token=ubef armed=True
+2026-07-11 00:05:31,352 [INFO] [DipScanner] bot=badday_allday REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,353 [INFO] [loss-streak] PAUSE bot=badday_allday skip ubef (streak=7 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,353 [INFO] [fast-watch] hit-rate buy bot=badday_flush token=ubef armed=True
+2026-07-11 00:05:31,353 [INFO] [DipScanner] bot=badday_flush REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,353 [INFO] [loss-streak] PAUSE bot=badday_flush skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,353 [INFO] [fast-watch] hit-rate buy bot=badday_flush_hlconfirm_ab token=ubef armed=True
+2026-07-11 00:05:31,353 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,353 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,354 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab LIQ-EXIT-FLOOR SHADOW-would-block: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,354 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,354 [INFO] [fast-watch] hit-rate buy bot=badday_flush_nf15 token=ubef armed=True
+2026-07-11 00:05:31,354 [INFO] [DipScanner] bot=badday_flush_nf15 REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,354 [INFO] [DipScanner] bot=badday_flush_nf15 RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,354 [INFO] [DipScanner] bot=badday_flush_nf15 LIQ-EXIT-FLOOR SHADOW-would-block: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,354 [INFO] [DipScanner] bot=badday_flush_nf15 FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,355 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=ubef armed=True
+2026-07-11 00:05:31,355 [INFO] [DipScanner] bot=badday_flush_peel_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,355 [INFO] [loss-streak] PAUSE bot=badday_flush_peel_ab skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,355 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=ubef armed=True
+2026-07-11 00:05:31,355 [INFO] [DipScanner] bot=badday_flush_runner_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,355 [INFO] [loss-streak] PAUSE bot=badday_flush_runner_ab skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,356 [INFO] [fast-watch] hit-rate buy bot=badday_flush_wickride_ab token=ubef armed=True
+2026-07-11 00:05:31,356 [INFO] [DipScanner] bot=badday_flush_wickride_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,356 [INFO] [loss-streak] PAUSE bot=badday_flush_wickride_ab skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,356 [INFO] [fast-watch] hit-rate buy bot=badday_pump_dip_ab token=ubef armed=True
+2026-07-11 00:05:31,356 [INFO] [DipScanner] bot=badday_pump_dip_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,356 [INFO] [DipScanner] bot=badday_pump_dip_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,356 [INFO] [DipScanner] bot=badday_pump_dip_ab LIQ-EXIT-FLOOR SHADOW-would-block: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,356 [INFO] [DipScanner] bot=badday_pump_dip_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,357 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb token=ubef armed=True
+2026-07-11 00:05:31,357 [INFO] [DipScanner] bot=badday_young_absorb REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,357 [INFO] [DipScanner] bot=badday_young_absorb RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,357 [INFO] [DipScanner] bot=badday_young_absorb LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,357 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_absorb)
+2026-07-11 00:05:31,357 [INFO] [DipScanner] bot=badday_young_absorb FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,358 [INFO] [fast-watch] hit-rate buy bot=badday_young_adaptsize_ab token=ubef armed=True
+2026-07-11 00:05:31,358 [INFO] [DipScanner] bot=badday_young_adaptsize_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,358 [INFO] [DipScanner] bot=badday_young_adaptsize_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,358 [INFO] [DipScanner] bot=badday_young_adaptsize_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,358 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_adaptsize_ab)
+2026-07-11 00:05:31,358 [INFO] [DipScanner] bot=badday_young_adaptsize_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,358 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=ubef armed=True
+2026-07-11 00:05:31,358 [INFO] [DipScanner] bot=badday_young_bounce_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,359 [INFO] [DipScanner] bot=badday_young_bounce_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,359 [INFO] [DipScanner] bot=badday_young_bounce_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,359 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_bounce_ab)
+2026-07-11 00:05:31,359 [INFO] [DipScanner] bot=badday_young_bounce_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,359 [INFO] [fast-watch] hit-rate buy bot=badday_young_hlconfirm_ab token=ubef armed=True
+2026-07-11 00:05:31,359 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,359 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,360 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,360 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_hlconfirm_ab)
+2026-07-11 00:05:31,360 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,360 [INFO] [fast-watch] hit-rate buy bot=badday_young_moonbag_ab token=ubef armed=True
+2026-07-11 00:05:31,360 [INFO] [DipScanner] bot=badday_young_moonbag_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,361 [INFO] [DipScanner] bot=badday_young_moonbag_ab MIN-LIQ-FLOOR skip ubef: liq=$28217 < $30000
+2026-07-11 00:05:31,361 [INFO] [fast-watch] hit-rate buy bot=badday_young_pump_dip_ab token=ubef armed=True
+2026-07-11 00:05:31,361 [INFO] [DipScanner] bot=badday_young_pump_dip_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,361 [INFO] [DipScanner] bot=badday_young_pump_dip_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,361 [INFO] [DipScanner] bot=badday_young_pump_dip_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,361 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_pump_dip_ab)
+2026-07-11 00:05:31,361 [INFO] [DipScanner] bot=badday_young_pump_dip_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,362 [INFO] [fast-watch] hit-rate buy bot=badday_young_rt token=ubef armed=True
+2026-07-11 00:05:31,362 [INFO] [DipScanner] bot=badday_young_rt REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,362 [INFO] [DipScanner] bot=badday_young_rt MIN-LIQ-FLOOR skip ubef: liq=$28217 < $30000
+2026-07-11 00:05:31,362 [INFO] [fast-watch] hit-rate buy bot=badday_young_rt_paper token=ubef armed=True
+2026-07-11 00:05:31,362 [INFO] [DipScanner] bot=badday_young_rt_paper REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,362 [INFO] [DipScanner] bot=badday_young_rt_paper MIN-LIQ-FLOOR skip ubef: liq=$28217 < $30000
+2026-07-11 00:05:31,362 [INFO] [fast-watch] hit-rate buy bot=badday_young_vsnap_ab token=ubef armed=True
+2026-07-11 00:05:31,362 [INFO] [DipScanner] bot=badday_young_vsnap_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,363 [INFO] [DipScanner] bot=badday_young_vsnap_ab VSNAP-REJECT skip ubef (vsnap: low is 226s old < 240s (fresh V-snap/knife) src=poll)
+2026-07-11 00:05:31,364 [INFO] [fast-watch] hit-rate buy bot=badday_allday token=ubef armed=True
+2026-07-11 00:05:31,364 [INFO] [DipScanner] bot=badday_allday REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,364 [INFO] [loss-streak] PAUSE bot=badday_allday skip ubef (streak=7 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,364 [INFO] [fast-watch] hit-rate buy bot=badday_flush token=ubef armed=True
+2026-07-11 00:05:31,364 [INFO] [DipScanner] bot=badday_flush REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,364 [INFO] [loss-streak] PAUSE bot=badday_flush skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,364 [INFO] [fast-watch] hit-rate buy bot=badday_flush_hlconfirm_ab token=ubef armed=True
+2026-07-11 00:05:31,364 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,365 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,365 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab LIQ-EXIT-FLOOR SHADOW-would-block: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,365 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,365 [INFO] [fast-watch] hit-rate buy bot=badday_flush_nf15 token=ubef armed=True
+2026-07-11 00:05:31,365 [INFO] [DipScanner] bot=badday_flush_nf15 REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,366 [INFO] [DipScanner] bot=badday_flush_nf15 RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,366 [INFO] [DipScanner] bot=badday_flush_nf15 LIQ-EXIT-FLOOR SHADOW-would-block: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,366 [INFO] [DipScanner] bot=badday_flush_nf15 FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,366 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=ubef armed=True
+2026-07-11 00:05:31,366 [INFO] [DipScanner] bot=badday_flush_peel_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,366 [INFO] [loss-streak] PAUSE bot=badday_flush_peel_ab skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,367 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=ubef armed=True
+2026-07-11 00:05:31,367 [INFO] [DipScanner] bot=badday_flush_runner_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,367 [INFO] [loss-streak] PAUSE bot=badday_flush_runner_ab skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,367 [INFO] [fast-watch] hit-rate buy bot=badday_flush_wickride_ab token=ubef armed=True
+2026-07-11 00:05:31,367 [INFO] [DipScanner] bot=badday_flush_wickride_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,368 [INFO] [loss-streak] PAUSE bot=badday_flush_wickride_ab skip ubef (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:31,368 [INFO] [fast-watch] hit-rate buy bot=badday_pump_dip_ab token=ubef armed=True
+2026-07-11 00:05:31,368 [INFO] [DipScanner] bot=badday_pump_dip_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,368 [INFO] [DipScanner] bot=badday_pump_dip_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,368 [INFO] [DipScanner] bot=badday_pump_dip_ab LIQ-EXIT-FLOOR SHADOW-would-block: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,368 [INFO] [DipScanner] bot=badday_pump_dip_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,369 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb token=ubef armed=True
+2026-07-11 00:05:31,369 [INFO] [DipScanner] bot=badday_young_absorb REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,369 [INFO] [DipScanner] bot=badday_young_absorb RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,369 [INFO] [DipScanner] bot=badday_young_absorb LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,369 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_absorb)
+2026-07-11 00:05:31,370 [INFO] [DipScanner] bot=badday_young_absorb FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,370 [INFO] [fast-watch] hit-rate buy bot=badday_young_adaptsize_ab token=ubef armed=True
+2026-07-11 00:05:31,370 [INFO] [DipScanner] bot=badday_young_adaptsize_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,370 [INFO] [DipScanner] bot=badday_young_adaptsize_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,370 [INFO] [DipScanner] bot=badday_young_adaptsize_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,371 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_adaptsize_ab)
+2026-07-11 00:05:31,371 [INFO] [DipScanner] bot=badday_young_adaptsize_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,371 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=ubef armed=True
+2026-07-11 00:05:31,371 [INFO] [DipScanner] bot=badday_young_bounce_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,371 [INFO] [DipScanner] bot=badday_young_bounce_ab RETRACE-MICRO pass ubef (sell_rate=None traj=None cum_nf=None flow_confirm=False)
+2026-07-11 00:05:31,372 [INFO] [DipScanner] bot=badday_young_bounce_ab LIQ-EXIT-FLOOR BLOCK: liq=$28217 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) ubef
+2026-07-11 00:05:31,372 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_bounce_ab)
+2026-07-11 00:05:31,372 [INFO] [DipScanner] bot=badday_young_bounce_ab FALLING-KNIFE BLOCK: mtf_score=-1.0<=-1 AND 1m_last_close=-0.55%<0 (falling knife — no green confirmation candle yet) ubef
+2026-07-11 00:05:31,373 [INFO] [fast-watch] hit-rate buy bot=badday_young_moonbag_ab token=ubef armed=True
+2026-07-11 00:05:31,373 [INFO] [DipScanner] bot=badday_young_moonbag_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) ubef
+2026-07-11 00:05:31,375 [INFO] [fast-watch] hit-rate buy bot=badday_young_rt_paper token=ubef armed=True
+2026-07-11 00:05:31,634 [INFO] [DipScanner] CHART_READER: RIBBIT score=51.7 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=symmetrical_triangle
+2026-07-11 00:05:31,636 [INFO] [UptrendScanner] WOULD-BLOCK: RIBBIT gates=G1 mtf=mixed not in (bull, strong_bull)
+2026-07-11 00:05:31,641 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: RIBBIT reasons=cycles_seen=386>15 (stale watch — fresh dips beat stale ones)
+2026-07-11 00:05:31,642 [INFO] [DipScanner] TRIGGER_FEATURES: RIBBIT top10_60s=1.000 vwap_1h=-16.740 min_peak=306.100 hr_grad=23.590 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.451
+2026-07-11 00:05:31,883 [INFO] [DipScanner] BLOCKED by filter_above_vwap_chase: RIBBIT reasons=pct_above_vwap_h24=+11.5%∈[+10,+30) (chasing local strength)
+2026-07-11 00:05:31,885 [INFO] [DipScanner] filter_no_demand_entry SHADOW would-block: RIBBIT arms=chase (pc_m5=3.32,smart_wallet=0,higher_low=False,bs_m5=2.3333333333333335)
+2026-07-11 00:05:32,025 [INFO] [rt-trigger] FrtbBA mode=enforce snap_pc_h1=-29.3 fresh_pc_h1=-27.013521 snap_px=0.00010170 fresh_px=0.00010499
+2026-07-11 00:05:32,029 [INFO] [DipScanner] Signal: RIBBIT mcap=$0.1M | 24h=+224.2% 1h=-33.2% 5m=+0.0% vol24h=$391k bs_h6=1.57 bs_h1=1.40 bs_m5=2.33
+2026-07-11 00:05:32,032 [INFO] [rt-trigger] FrtbBA mode=enforce snap_pc_h1=-29.3 fresh_pc_h1=-27.013521 snap_px=0.00010170 fresh_px=0.00010499
+2026-07-11 00:05:32,139 [INFO] [DipScanner] CHART_READER: RIBBIT score=51.7 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=symmetrical_triangle
+2026-07-11 00:05:32,147 [WARNING] [DipScanner] OBSERVATIONAL: RIBBIT cycles_seen=391 (>=60 historically -EV; not blocking)
+2026-07-11 00:05:32,178 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: RIBBIT reasons=pc_h24=+224%>=200 (already pumped on the day),pct_above_vwap_h24=+11.5%>=10 (extended above VWAP)
+2026-07-11 00:05:32,217 [INFO] [DipScanner] FILTER_1M_SHADOW: RIBBIT 1m_cum3=4.101 1m_vol_spike=1.127 verdict=PASS
+2026-07-11 00:05:32,220 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: RIBBIT reason=neither A nor B [1h_rng=0.10 h24_r=0.47 red=0]
+2026-07-11 00:05:32,264 [INFO] [DipScanner] CHART_READER: RIBBIT score=51.7 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=symmetrical_triangle
+2026-07-11 00:05:32,295 [INFO] [DipScanner] filter_mtf_strong_downtrend SHADOW-would-block: RIBBIT reasons=chart_mtf_score=-2.0<=-2.0 (strong multi-tf downtrend)
+2026-07-11 00:05:32,328 [INFO] [DipScanner] TRIGGER_FEATURES: RIBBIT top10_60s=1.000 vwap_1h=-16.740 min_peak=306.100 hr_grad=23.600 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.472
+2026-07-11 00:05:32,340 [INFO] [DipScanner] TRIGGER_FEATURES: RIBBIT top10_60s=1.000 vwap_1h=-16.740 min_peak=306.100 hr_grad=23.600 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.472
+2026-07-11 00:05:32,344 [INFO] [DipScanner] ENTRY via active_dip_deep_1h_dip_power_dip_runner_calm_buyer_demand_bullish_engulfing_5m_net_flow_5m_demand (clean_break BLOCKed): RIBBIT pc_h1=-33.2%<=-8 (deep 1h dip),pc_h24=+224.2%>=40 AND pc_h1=-33.2%<=-8 (power dip on hot runner),1m_consec_red=0 AND net_flow_15s_imbalance=+0.01>=0 AND 1m_last_close_pct=+3.85%>=0 (calm 1m, positive 15s flow, green confirmation),vwap_1h_dist=-16.7%<=-3 AND min_since_peak=306>=60,hours_since_grad=23.6 in [6,24) AND vwap_1h_dist=-16.7%<=-3,5m_bullish_engulfing: prior_red_body=0.000000 -> current_green_body=0.000000 (ratio=1.09x),net_flow_5m_usd=$+309>=300 (sustained 5m net buy pressure)
+2026-07-11 00:05:32,350 [INFO] [DipScanner] ENTRY via active_dip_deep_1h_dip_power_dip_runner_calm_buyer_demand_bullish_engulfing_5m_net_flow_5m_demand (clean_break BLOCKed): RIBBIT pc_h1=-33.2%<=-8 (deep 1h dip),pc_h24=+224.2%>=40 AND pc_h1=-33.2%<=-8 (power dip on hot runner),1m_consec_red=0 AND net_flow_15s_imbalance=+0.01>=0 AND 1m_last_close_pct=+3.85%>=0 (calm 1m, positive 15s flow, green confirmation),vwap_1h_dist=-16.7%<=-3 AND min_since_peak=306>=60,hours_since_grad=23.6 in [6,24) AND vwap_1h_dist=-16.7%<=-3,5m_bullish_engulfing: prior_red_body=0.000000 -> current_green_body=0.000000 (ratio=1.09x),net_flow_5m_usd=$+309>=300 (sustained 5m net buy pressure)
+2026-07-11 00:05:32,375 [INFO] [DipScanner] filter_lower_low RESCUED by breakthrough_late: RIBBIT trigs=['active_dip', 'deep_1h_dip', 'power_dip_runner', 'calm_buyer_demand', 'bullish_engulfing_5m', 'net_flow_5m_demand']
+2026-07-11 00:05:32,413 [INFO] [DipScanner] BLOCKED by filter_above_vwap_chase: RIBBIT reasons=pct_above_vwap_h24=+11.5%∈[+10,+30) (chasing local strength)
+2026-07-11 00:05:32,451 [INFO] [no-fast-price] SHADOW-would-block bot=badday_allday token=RIBBIT (no fresh Jupiter price)
+2026-07-11 00:05:32,456 [INFO] [DipScanner] bot=badday_flush_nf15 REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) RIBBIT
+2026-07-11 00:05:32,460 [INFO] [loss-streak] PAUSE bot=badday_flush_runner_ab skip RIBBIT (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:32,489 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for RIBBIT triggers=['active_dip', 'deep_1h_dip', 'power_dip_runner', 'calm_buyer_demand', 'bullish_engulfing_5m', 'net_flow_5m_demand']
+2026-07-11 00:05:32,490 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: RIBBIT fired=R4(pc_h1=-33.19<-22.1,poc=-22.81<16.6),R6(pc_h1=-33.19<-8.2,poc=-22.81<-7.5)
+2026-07-11 00:05:32,515 [INFO] [loss-streak] PAUSE bot=badday_allday skip RIBBIT (streak=7 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:32,518 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=RIBBIT armed=True
+2026-07-11 00:05:32,520 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_wickride_ab token=RIBBIT (no fresh Jupiter price)
+2026-07-11 00:05:32,520 [INFO] [DipScanner] bot=badday_flush_wickride_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) RIBBIT
+2026-07-11 00:05:32,527 [INFO] [DipScanner] bot=badday_flush REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) RIBBIT
+2026-07-11 00:05:32,529 [INFO] [loss-streak] PAUSE bot=badday_flush_peel_ab skip RIBBIT (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:32,531 [INFO] [loss-streak] PAUSE bot=badday_flush_wickride_ab skip RIBBIT (streak=5 >= 3 losing closes — holding fire 3600s from last loss)
+2026-07-11 00:05:32,539 [INFO] [fast-watch] hit-rate buy bot=badday_flush_hlconfirm_ab token=RIBBIT armed=True
+2026-07-11 00:05:32,539 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_hlconfirm_ab token=RIBBIT (no fresh Jupiter price)
+2026-07-11 00:05:32,540 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_rsi_ab token=RIBBIT (no fresh Jupiter price)
+2026-07-11 00:05:32,542 [INFO] [no-fast-price] SHADOW-would-block bot=badday_pump_dip_ab token=RIBBIT (no fresh Jupiter price)
+2026-07-11 00:05:32,545 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab REGIME BUY-GATE SHADOW-would-block (breadth=40>=40) RIBBIT
+2026-07-11 00:05:32,546 [INFO] [DipScanner] bot=badday_flush_rsi_ab ANTI-RUG BLOCK: liq=$24469 < floor RIBBIT
+2026-07-11 00:05:32,546 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=RIBBIT armed=True
+2026-07-11 00:05:32,547 [INFO] [DipScanner] bot=badday_pump_dip_ab ANTI-RUG BLOCK: liq=$24469 < floor RIBBIT
+2026-07-11 00:05:32,578 [INFO] [DipScanner] BLOCKED by filter_chasing_bounce: PROPHECY reasons=pc_m5=+11.7%>+5 (5m bounce already in progress — chasing, not dipping)
+2026-07-11 00:05:32,580 [INFO] [DipScanner] BLOCKED by filter_topping: PROPHECY reasons=macro30=+35.1%>+5 (price already up >5% in 30m — knife-catch zone)
+2026-07-11 00:05:32,580 [INFO] [DipScanner] BLOCKED by filter_knife_catch_peak: PROPHECY reasons=h24_ratio_to_peak=0.97∈[0.85,1.0) (knife-catching local peak)
+2026-07-11 00:05:32,618 [INFO] 100.64.0.18 [11/Jul/2026:00:05:32 +0000] "POST /api/rh-paper/ingest?replace=1 HTTP/1.1" 200 219 "-" "Python-urllib/3.12"
+2026-07-11 00:05:32,723 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: RIBBIT reason=neither A nor B [1h_rng=0.10 h24_r=0.47 red=0]
+2026-07-11 00:05:32,772 [INFO] [rt-trigger] Db3Fyr mode=enforce snap_pc_h1=138 fresh_pc_h1=130.490033 snap_px=0.00020000 fresh_px=0.00019369
+2026-07-11 00:05:32,858 [INFO] [rt-trigger] CizcDa mode=enforce snap_pc_h1=-9.64 fresh_pc_h1=-11.333245 snap_px=0.00068900 fresh_px=0.00067609
+2026-07-11 00:05:32,883 [INFO] [DipScanner] TRIGGER_FEATURES: RIBBIT top10_60s=1.000 vwap_1h=-16.740 min_peak=306.100 hr_grad=23.600 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.472
+2026-07-11 00:05:32,889 [INFO] [DipScanner] CHART_READER: RIBBIT score=51.7 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=symmetrical_triangle
+Railway rate limit reached for deployment, update your application to reduce the logging rate. Messages dropped: 201
+2026-07-11 00:05:37,471 [WARNING] [DipScanner] OBSERVATIONAL: SAYLOR cycles_seen=199 (>=60 historically -EV; not blocking)
+2026-07-11 00:05:37,471 [INFO] [DipScanner] filter_weak_bounce_v2 SHADOW would-block: SAYLOR reasons=body/range=0.00<0.20 AND 1m_vol_spike=0.40<0.50 (weak bounce on dead 1m volume)
+2026-07-11 00:05:37,472 [INFO] [DipScanner] real-dip-3 EXEMPT (big-cap): SAYLOR mcap=$5.2M>$10M 5m=-0.16% 1h=-1.28%
+2026-07-11 00:05:37,472 [INFO] [DipScanner] FILTER_1M_SHADOW: SAYLOR 1m_cum3=-0.194 1m_vol_spike=0.395 verdict=BLOCK reasons=1m_vol_spike=0.40<0.40
+2026-07-11 00:05:37,488 [INFO] [DipScanner] CHART_READER: SAYLOR score=46.3 verdict=neutral mtf=bear sr_5m_supp=False pattern_5m=double_top
+2026-07-11 00:05:37,490 [INFO] [UptrendScanner] WOULD-BLOCK: SAYLOR gates=G1 mtf=bear not in (bull, strong_bull),G5 chart_score=46.3<50
+2026-07-11 00:05:37,490 [INFO] [DipScanner] BLOCKED by filter_turn: SAYLOR reasons=pct_in_5m_range=0.071<0.5 (catching knife)
+2026-07-11 00:05:37,497 [INFO] [DipScanner] filter_weak_bounce SHADOW would-block: SAYLOR reasons=body/range=0.00<0.20 (weak commitment in 5m candle)
+2026-07-11 00:05:37,497 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: SAYLOR reasons=cycles_seen=199>15 (stale watch — fresh dips beat stale ones)
+2026-07-11 00:05:37,498 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: SAYLOR reasons=1m_last_close=+0.01%<0.3 (no real green confirmation),1m_vol_spike=0.40<1.0 (bounce on weak volume)
+2026-07-11 00:05:37,498 [INFO] [DipScanner] BLOCKED by filter_fusion_floor: SAYLOR reasons=fusion_score=0.365<0.40 (ML model disagrees with entry)
+2026-07-11 00:05:37,498 [INFO] [DipScanner] BLOCKED by filter_huge_wick: SAYLOR reasons=wick_body_5m_avg=35.6>10 (manipulated/illiquid wick — corpse signature)
+2026-07-11 00:05:37,500 [INFO] [DipScanner] TRIGGER_FEATURES: SAYLOR top10_60s=2.000 vwap_1h=-0.570 min_peak=359.700 hr_grad=287.880 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.712
+2026-07-11 00:05:37,502 [INFO] [DipScanner] filter_mtf_strong_downtrend RESCUED by calm_seller: SAYLOR sells_h1=306 mcap=$5,209,483 (universe 100% loose-WR on n=192)
+2026-07-11 00:05:37,502 [INFO] [DipScanner] filter_mtf_strong_downtrend RESCUED by pc_h1: SAYLOR pc_h1=-1.3%>-20 (realistic sim d=+0.65, winners avg -15.6 vs losers -24.4)
+2026-07-11 00:05:37,503 [INFO] [DipScanner] mcap_psych_level GATED (pc_h24=92.6% >= 80): SAYLOR
+2026-07-11 00:05:37,504 [INFO] [DipScanner] ENTRY via hot_runner_shallow_1h_calm_buyer_demand (clean_break BLOCKed): SAYLOR bs_h1=1.39>1.29 AND pc_h24=+92.6%>30.2 AND pc_h1=-1.3%>-6.4 (hot runner, shallow 1h dip),1m_consec_red=0 AND net_flow_15s_imbalance=+0.63>=0 AND 1m_last_close_pct=+0.01%>=0 (calm 1m, positive 15s flow, green confirmation),mcap_near_psych_level=True (lvl=$5000000, dist=4.2%)
+2026-07-11 00:05:38,290 [INFO] [DipScanner] Signal: Silk mcap=$0.1M | 24h=+687.0% 1h=+36.6% 5m=+20.2% vol24h=$650k bs_h6=1.49 bs_h1=3.07 bs_m5=2.76
+2026-07-11 00:05:37,755 [INFO] [DipScanner] SHADOW filter_dying_volume would-block: SAYLOR reasons=1s_vol_decay_120s=0.241<0.30
+2026-07-11 00:05:37,756 [INFO] [DipScanner] BLOCKED by filter_low_volatility: SAYLOR reasons=p90_body=0.71%<1.0 (token too flat — TP1 essentially unreachable)
+2026-07-11 00:05:37,758 [INFO] [DipScanner] filter_double_bottom SHADOW would-block: SAYLOR reasons=p5m=0.071<0.10 AND p1h=0.050<0.10 (rock-bottom in both timeframes)
+2026-07-11 00:05:37,758 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: SAYLOR reasons=net_flow_5m_usd=$-2<0 (sellers winning 5m USD flow)
+2026-07-11 00:05:37,760 [INFO] [DipScanner] regime_size SHADOW 0.5x: SAYLOR broad_red(h1neg=40)
+2026-07-11 00:05:37,764 [INFO] [DipScanner] medbuy_sub8 SHADOW would-block: SAYLOR median_buy=$5.63<8 (crowd-quality cliff)
+2026-07-11 00:05:37,764 [INFO] [DipScanner] Position size tier: standard $2 (base $5) for SAYLOR triggers=['hot_runner_shallow_1h', 'calm_buyer_demand', 'low_buy_slip']
+2026-07-11 00:05:37,765 [INFO] [DipScanner] BLOCKED by filter_lazy_fade_buy: SAYLOR bs_m5=1.50∈[1.5,3.0) AND pc_h1=-1.28%>-8 (lazy fade — no real dip)
+2026-07-11 00:05:37,998 [INFO] [fast-watch] tick hot=50 full=0 polled=50 fired=0 mode=enforce
+2026-07-11 00:05:38,886 [INFO] [AxiomPriceFeed] Subscribed: 9y6hxfbf…
+2026-07-11 00:05:39,537 [WARNING] [DipScanner] OBSERVATIONAL: Silk cycles_seen=96 (>=60 historically -EV; not blocking)
+2026-07-11 00:05:39,537 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: Silk reasons=pc_h24=+687%>=200 (already pumped on the day),shape_90m_chg=+24.6%>=5 (90m up-chase, not a dip)
+2026-07-11 00:05:39,538 [INFO] [DipScanner] real-dip-3 EXEMPT (big-cap): Silk mcap=$0.1M>$10M 5m=+20.23% 1h=+36.65%
+2026-07-11 00:05:39,538 [INFO] [DipScanner] FILTER_1M_SHADOW: Silk 1m_cum3=9.217 1m_vol_spike=0.312 verdict=BLOCK reasons=1m_vol_spike=0.31<0.40
+2026-07-11 00:05:39,545 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: Silk reason=neither A nor B [1h_rng=0.98 h24_r=0.37 red=0]
+2026-07-11 00:05:39,559 [INFO] [DipScanner] CHART_READER: Silk score=76.6 verdict=strong_bullish mtf=strong_bull sr_5m_supp=True pattern_5m=double_bottom
+2026-07-11 00:05:39,579 [INFO] [DipScanner] BLOCKED by filter_vp_poc: Silk reasons=chart_vp_poc_distance_pct=+32.3%>20 AND 1m_volume_spike=0.31<1.0 (extreme above POC on dead volume = clear chase)
+2026-07-11 00:05:39,581 [INFO] [DipScanner] filter_rsi_overbought SHADOW would-block: Silk reasons=rsi_5m=67.2>=55 (5m momentum reset, not oversold)
+2026-07-11 00:05:39,585 [INFO] [DipScanner] SHADOW filter_chasing_top would-block: Silk 5m_state=uptrend AND mtf=strong_bull (DOWNGRADED 05-16, see audit)
+2026-07-11 00:05:39,586 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: Silk reasons=cycles_seen=96>15 (stale watch — fresh dips beat stale ones)
+2026-07-11 00:05:39,586 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: Silk reasons=1m_vol_spike=0.31<1.0 (bounce on weak volume)
+2026-07-11 00:05:39,586 [INFO] [DipScanner] BLOCKED by filter_dead_volume: Silk reasons=vol_h1_accel_vs_h6=0.70<0.70 (dead/declining volume — dip won't bounce)
+2026-07-11 00:05:39,589 [INFO] [DipScanner] TRIGGER_FEATURES: Silk top10_60s=3.000 vwap_1h=19.070 min_peak=275.100 hr_grad=62.720 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.372
+2026-07-11 00:05:39,591 [INFO] [DipScanner] trigger_swing_structure_rsi FIRED: Silk swing_count=31>=28 AND rsi_15m=57.7>=51.61 AND pct_to_support=33.92%>=2.15
+2026-07-11 00:05:39,592 [INFO] [DipScanner] ENTRY via swing_structure_rsi_hot_runner_calm_5m_hot_runner_shallow_1h_calm_buyer_demand_calm_at_support_net_flow_5m_demand_whale_conviction (clean_break BLOCKed): Silk bs_h1=3.07>1.56 AND pc_h24=+687.0%>30.2 AND pc_m5=+20.2%>-2.7 (hot runner, calm 5m),bs_h1=3.07>1.29 AND pc_h24=+687.0%>30.2 AND pc_h1=+36.6%>-6.4 (hot runner, shallow 1h dip),1m_consec_red=0 AND net_flow_15s_imbalance=+1.00>=0 AND 1m_last_close_pct=+1.11%>=0 (calm 1m, positive 15s flow, green confirmation),1m_consec_red=0 AND chart_sr_5m_at_support=True (calm 1m at 5m support — 93% WR mined precision),5m_normal_greens_in_last_8=5>=4 (body/range<0.80) AND peak_h24_6h=1847%>=200 AND last_5m_green=True,net_flow_5m_usd=$+854>=300 (sustained 5m net buy pressure),top10_buyer_within_60s_count=3>=3 (clustered top-10 buyers)
+2026-07-11 00:05:39,823 [INFO] [DipScanner] SHADOW filter_dying_volume would-block: Silk reasons=1s_vol_decay_120s=0.147<0.30
+2026-07-11 00:05:39,824 [INFO] [DipScanner] BLOCKED by filter_chasing_bounce: Silk reasons=pc_m5=+20.2%>+5 (5m bounce already in progress — chasing, not dipping)
+2026-07-11 00:05:39,825 [INFO] [DipScanner] BLOCKED by filter_blowoff_top: Silk reasons=pc_h24=687%>=500 (blow-off top — universe avg_exit -5.9%)
+2026-07-11 00:05:39,826 [INFO] [DipScanner] BLOCKED by filter_topping: Silk reasons=macro30=+25.7%>+5 (price already up >5% in 30m — knife-catch zone)
+2026-07-11 00:05:39,827 [INFO] [DipScanner] regime_size SHADOW 0.5x: Silk broad_red(h1neg=40)
+2026-07-11 00:05:39,832 [INFO] [DipScanner] medbuy_sub8 SHADOW would-block: Silk median_buy=$0.00<8 (crowd-quality cliff)
+2026-07-11 00:05:39,833 [INFO] [DipScanner] Position size tier: standard $2 (base $5) for Silk triggers=['swing_structure_rsi', 'hot_runner_calm_5m', 'hot_runner_shallow_1h', 'calm_buyer_demand', 'calm_at_support', 'net_flow_5m_demand', 'whale_conviction']
+2026-07-11 00:05:39,833 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: Silk fired=R3(pc_m5=+20.23>3.20,bs_h1=3.07>1.30)
+2026-07-11 00:05:39,834 [INFO] [DipScanner] BLOCKED by filter_lazy_fade_buy: Silk bs_m5=2.76∈[1.5,3.0) AND pc_h1=+36.65%>-8 (lazy fade — no real dip)
+2026-07-11 00:05:39,835 [INFO] [entry_stack] token=Silk dip_shallow(-0.4>-16);flow_weak(-3<100);mcap_out(0.15M) mode=enforce block=True (1/token/hr)
+2026-07-11 00:05:39,840 [INFO] [DipScanner] FRESHNESS GATE blocked: P0 vol_m5=$87<$200 AND txns_m5=2<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-07-11 00:05:39,857 [INFO] [DipScanner] FRESHNESS GATE blocked: GAYU vol_m5=$34<$200 AND txns_m5=3<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-07-11 00:05:39,859 [INFO] [DipScanner] Signal: DEXBULL mcap=$0.5M | 24h=-82.1% 1h=-31.3% 5m=-1.5% vol24h=$1178k bs_h6=1.21 bs_h1=1.41 bs_m5=1.25
+2026-07-11 00:05:40,091 [INFO] [SmartFollow] cycle: buys_window=40 active_tokens=17 max_consensus=2 fired_total=51
+2026-07-11 00:05:40,349 [INFO] [fast-watch] tick hot=50 full=489 polled=407 fired=93 mode=enforce
+2026-07-11 00:05:40,352 [INFO] [fast-watch] capped survivors 93->20
+2026-07-11 00:05:40,352 [INFO] [rt-trigger] 5gTPsp mode=enforce snap_pc_h1=-0.02 fresh_pc_h1=1.673603 snap_px=0.00023830 fresh_px=0.00024234
+2026-07-11 00:05:40,352 [INFO] [rt-trigger] 6KqRZw mode=enforce snap_pc_h1=-4.88 fresh_pc_h1=-4.75621 snap_px=0.00001085 fresh_px=0.00001086
+2026-07-11 00:05:40,353 [INFO] [rt-trigger] 6ESBdU mode=enforce snap_pc_h1=-41.05 fresh_pc_h1=-44.067116 snap_px=0.00000490 fresh_px=0.00000465
+2026-07-11 00:05:40,353 [INFO] [rt-trigger] GuRMbs mode=enforce snap_pc_h1=-5.18 fresh_pc_h1=-5.167351 snap_px=0.00015530 fresh_px=0.00015532
+2026-07-11 00:05:40,353 [INFO] [rt-trigger] HCkhfd mode=enforce snap_pc_h1=-6.34 fresh_pc_h1=-6.394861 snap_px=0.00011930 fresh_px=0.00011923
+2026-07-11 00:05:42,902 [INFO] [onchain] heartbeat mode=on subs=461 cached=102 ws_msgs=55967 sol_usd=78.1470 mig_mode=off amm_pools=0 amm_cached=0
+Railway rate limit of 500 logs/sec reached for replica, update your application to reduce the logging rate. Messages dropped: 658
+2026-07-11 00:05:44,092 [WARNING] [DipScanner] OBSERVATIONAL: DEXBULL cycles_seen=335 (>=60 historically -EV; not blocking)
+2026-07-11 00:05:44,123 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: DEXBULL reasons=bs_m5=1.25<1.40 (sellers dominating 5m order flow)
+2026-07-11 00:05:44,092 [INFO] [DipScanner] filter_peak_floor SHADOW would-block: DEXBULL peak_h24_6h=-71.1% < +5%
+2026-07-11 00:05:44,093 [INFO] [DipScanner] FILTER_1M_SHADOW: DEXBULL 1m_cum3=-2.494 1m_vol_spike=0.57 verdict=BLOCK reasons=1m_cum3=-2.49%<-1.0%
+2026-07-11 00:05:44,097 [INFO] [DipScanner] filter_1m_steep_fall SHADOW-would-block: DEXBULL reasons=1m_cum3=-2.49%<-1.5% (steep 3min fall)
+2026-07-11 00:05:44,123 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: DEXBULL reasons=cycles_seen=335>15 (stale watch — fresh dips beat stale ones)
+2026-07-11 00:05:44,112 [INFO] [DipScanner] CHART_READER: DEXBULL score=47.0 verdict=neutral mtf=strong_bear sr_5m_supp=False pattern_5m=None
+2026-07-11 00:05:44,123 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: DEXBULL reasons=1m_vol_spike=0.57<1.0 (bounce on weak volume)
+2026-07-11 00:05:44,115 [INFO] [UptrendScanner] WOULD-BLOCK: DEXBULL gates=G1 mtf=strong_bear not in (bull, strong_bull),G5 chart_score=47.0<50
+2026-07-11 00:05:44,123 [INFO] [DipScanner] BLOCKED by filter_fusion_floor: DEXBULL reasons=fusion_score=0.279<0.40 (ML model disagrees with entry)
+2026-07-11 00:05:44,116 [INFO] [DipScanner] BLOCKED by filter_turn: DEXBULL reasons=pct_in_5m_range=0.371<0.5 (catching knife)
+2026-07-11 00:05:44,122 [INFO] [DipScanner] filter_weak_bounce SHADOW would-block: DEXBULL reasons=body/range=0.19<0.20 (weak commitment in 5m candle)
+2026-07-11 00:05:44,124 [INFO] [DipScanner] TRIGGER_FEATURES: DEXBULL top10_60s=None vwap_1h=-11.520 min_peak=357.200 hr_grad=60.450 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=1.000
+2026-07-11 00:05:44,129 [INFO] [DipScanner] filter_mtf_strong_downtrend SHADOW-would-block: DEXBULL reasons=chart_mtf_score=-4.0<=-2.0 (strong multi-tf downtrend)
+2026-07-11 00:05:44,129 [INFO] [DipScanner] clean_break SUPPRESSED: DEXBULL lp_delta_15m=-2.4%<-1.0 (LP draining — smart-money exit, no follow-through)
+2026-07-11 00:05:44,131 [INFO] [DipScanner] trigger_active_dip FIRED: DEXBULL buys_h1=303>=200 AND pc_h1=-31.3%<=-15 AND 1m_vol_spike=0.57>=0.40 AND 1m_cum_3m=-2.49%>=-3
+2026-07-11 00:05:44,131 [INFO] [DipScanner] ENTRY via active_dip_deep_1h_dip_calm_buyer_demand (clean_break BLOCKed): DEXBULL pc_h1=-31.3%<=-8 (deep 1h dip),1m_consec_red=0 AND net_flow_15s_imbalance=+0.75>=0 AND 1m_last_close_pct=+0.30%>=0 (calm 1m, positive 15s flow, green confirmation),vwap_1h_dist=-11.5%<=-3 AND min_since_peak=357>=60
+2026-07-11 00:05:44,424 [INFO] [DipScanner] SHADOW filter_5m_downtrend would BLOCK: DEXBULL reasons=5m_consec_red=4>=4 (20+ min of sustained 5m decline — dip not bottomed)
+2026-07-11 00:05:44,426 [INFO] [DipScanner] BLOCKED by filter_stale_h1_peak: DEXBULL reasons=time_since_h1_peak=3548s∈[3000,3600) (stale h1 peak — 50-60min fade)
+2026-07-11 00:05:44,428 [INFO] [DipScanner] regime_size SHADOW 0.5x: DEXBULL broad_red(h1neg=40)
+2026-07-11 00:05:44,433 [INFO] [DipScanner] medbuy_sub8 SHADOW would-block: DEXBULL median_buy=$6.29<8 (crowd-quality cliff)
+2026-07-11 00:05:44,433 [INFO] [DipScanner] mtf_textbook_pullback CONVICTION shadow (upsize candidate): DEXBULL
+2026-07-11 00:05:44,435 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: DEXBULL fired=R4(pc_h1=-31.31<-22.1,poc=+7.96<16.6)
+2026-07-11 00:05:44,440 [INFO] [main-scan->arm] 8 would-buy decision(s) for DEXBULL ARMED+force-eval for fresh-path decision (MAIN_SCAN_BUY_MODE=arm_only) — stale main-scan price NOT committed
+2026-07-11 00:05:44,434 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for DEXBULL triggers=['active_dip', 'deep_1h_dip', 'calm_buyer_demand', '1s_capit_reversal', 'demand_burst_no_crash', '1s_demand_compound']
+2026-07-11 00:05:44,440 [WARNING] [phase-timing] subop-breakdown sym=DEXBULL fast=False sum=4.19s recent_trades_dexs=3.00s recent_trades_gt=1.16s feature_compute=0.02s feat_triggers_c=0.00s evaluate_all=0.00s feat_triggers_b=0.00s feat_fusion=0.00s feat_triggers_a=0.00s cluster_classify=0.00s cnn_predict=0.00s feat_tier3=0.00s feat_tier2=0.00s dev_wallet_rpc=0.00s btc_klines=0.00s meme_sector=0.00s
+2026-07-11 00:05:44,550 [INFO] [rt-trigger] 6xCtR2 mode=enforce snap_pc_h1=-31.31 fresh_pc_h1=-30.48908 snap_px=0.00049680 fresh_px=0.00050274
+2026-07-11 00:05:44,552 [INFO] [rt-trigger] 6xCtR2 mode=enforce snap_pc_h1=-31.31 fresh_pc_h1=-30.48908 snap_px=0.00049680 fresh_px=0.00050274
+2026-07-11 00:05:44,599 [INFO] [rt-trigger] 6xCtR2 mode=enforce snap_pc_h1=-31.31 fresh_pc_h1=-30.48908 snap_px=0.00049680 fresh_px=0.00050274
+2026-07-11 00:05:44,603 [INFO] [rt-trigger] 6xCtR2 mode=enforce snap_pc_h1=-31.31 fresh_pc_h1=-30.48908 snap_px=0.00049680 fresh_px=0.00050274
+2026-07-11 00:05:44,567 [INFO] [rt-trigger] 6xCtR2 mode=enforce snap_pc_h1=-31.31 fresh_pc_h1=-30.48908 snap_px=0.00049680 fresh_px=0.00050274
+2026-07-11 00:05:44,569 [INFO] [rt-trigger] 6xCtR2 mode=enforce snap_pc_h1=-31.31 fresh_pc_h1=-30.48908 snap_px=0.00049680 fresh_px=0.00050274
+2026-07-11 00:05:44,571 [INFO] [rt-trigger] 6xCtR2 mode=enforce snap_pc_h1=-31.31 fresh_pc_h1=-30.48908 snap_px=0.00049680 fresh_px=0.00050274
+2026-07-11 00:05:44,597 [INFO] [rt-trigger] 6xCtR2 mode=enforce snap_pc_h1=-31.31 fresh_pc_h1=-30.48908 snap_px=0.00049680 fresh_px=0.00050274
+2026-07-11 00:05:47,111 [INFO] [rt-trigger] QTgWQu mode=enforce snap_pc_h1=178 fresh_pc_h1=178.674326 snap_px=0.00000614 fresh_px=0.00000615
+2026-07-11 00:05:47,112 [INFO] [rt-trigger] 3TYgKw mode=enforce snap_pc_h1=2.94 fresh_pc_h1=2.969199 snap_px=0.00020010 fresh_px=0.00020016
+2026-07-11 00:05:47,112 [INFO] [rt-trigger] 8B3UJb mode=enforce snap_pc_h1=-7.58 fresh_pc_h1=-8.756223 snap_px=0.00024690 fresh_px=0.00024376
+2026-07-11 00:05:47,113 [INFO] [DipScanner] FRESHNESS GATE blocked: ANSEMWIFE vol_m5=$12<$200 AND txns_m5=2<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-07-11 00:05:47,113 [INFO] [rt-trigger] FaL1PF mode=enforce snap_pc_h1=-10.3 fresh_pc_h1=-10.208992 snap_px=0.00010130 fresh_px=0.00010140
+2026-07-11 00:05:50,326 [INFO] [rt-trigger] 7XdCaK mode=enforce snap_pc_h1=8.8 fresh_pc_h1=8.761191 snap_px=0.00025640 fresh_px=0.00025631
+2026-07-11 00:05:50,330 [INFO] [rt-trigger] 3fYRWs mode=enforce snap_pc_h1=-14.84 fresh_pc_h1=-11.577971 snap_px=0.00000401 fresh_px=0.00000416
+2026-07-11 00:05:50,330 [INFO] [rt-trigger] J5pfKi mode=enforce snap_pc_h1=-37.09 fresh_pc_h1=-37.071724 snap_px=0.00000545 fresh_px=0.00000545
+2026-07-11 00:05:50,331 [INFO] [rt-trigger] Fe3ptg mode=enforce snap_pc_h1=1.56 fresh_pc_h1=2.726511 snap_px=0.00000385 fresh_px=0.00000389
+2026-07-11 00:05:50,331 [INFO] [rt-trigger] BvRUcg mode=enforce snap_pc_h1=-35.19 fresh_pc_h1=-35.495554 snap_px=0.00000340 fresh_px=0.00000339
+2026-07-11 00:05:50,454 [INFO] [rt-trigger] A95kXp mode=enforce snap_pc_h1=13.55 fresh_pc_h1=13.61133 snap_px=0.00002561 fresh_px=0.00002562
+2026-07-11 00:05:50,455 [INFO] [rt-trigger] 9mM1Mc mode=enforce snap_pc_h1=-8.68 fresh_pc_h1=-8.713722 snap_px=0.00025720 fresh_px=0.00025711
+2026-07-11 00:05:50,455 [INFO] [rt-trigger] FnRkQR mode=enforce snap_pc_h1=-10.34 fresh_pc_h1=-7.063479 snap_px=0.00001264 fresh_px=0.00001310
+Railway rate limit of 500 logs/sec reached for replica, update your application to reduce the logging rate. Messages dropped: 339
+2026-07-11 00:05:53,864 [INFO] [rt-trigger] FY9yQS mode=enforce snap_pc_h1=-26.45 fresh_pc_h1=-26.500886 snap_px=0.00009692 fresh_px=0.00009685
+2026-07-11 00:05:53,866 [INFO] [rt-trigger] E2ueKQ mode=enforce snap_pc_h1=6.86 fresh_pc_h1=10.588796 snap_px=0.00088000 fresh_px=0.00091071
+2026-07-11 00:05:53,866 [INFO] [rt-trigger] 7X84qL mode=enforce snap_pc_h1=-7.08 fresh_pc_h1=-7.99832 snap_px=0.00005025 fresh_px=0.00004975
+2026-07-11 00:05:57,450 [INFO] 100.64.0.4 [11/Jul/2026:00:05:57 +0000] "GET /api/trades?limit=800 HTTP/1.1" 200 39398 "-" "curl/8.18.0"

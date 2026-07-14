@@ -1,0 +1,11 @@
+{"kind":"buy","volume_usd":176.71,"ts":"2026-07-10T09:10:12+00:00","maker":"0x7860021835a2f49706feada97a42a5713f8ae697","pair":"0x400b384c7438f02486588d3a06dd7f2930260833","sym":"WHLR","lag_secs":2.08}
+{"kind":"buy","volume_usd":267.75,"ts":"2026-07-10T09:10:25+00:00","maker":"0x733be210294480d158bdb6ab3b9e67d020e31b94","pair":"0x400b384c7438f02486588d3a06dd7f2930260833","sym":"WHLR","lag_secs":1.11}
+{"kind":"buy","volume_usd":176.71,"ts":"2026-07-10T09:10:32+00:00","maker":"0x7eca36aa43d4ff79d19bd22dd85199a6658f92eb","pair":"0x400b384c7438f02486588d3a06dd7f2930260833","sym":"WHLR","lag_secs":1.61}
+{"kind":"buy","volume_usd":159.04,"ts":"2026-07-10T09:10:59+00:00","maker":"0x8586a0ce3aa1a7b1bccb9025b1b9964254ee8885","pair":"0x400b384c7438f02486588d3a06dd7f2930260833","sym":"WHLR","lag_secs":1.56}
+{"kind":"sell","volume_usd":1.87,"ts":"2026-07-10T09:11:19+00:00","maker":"0x07aba514eece3a68e6a0d7c3bb14598ad21ab39d","pair":"0x400b384c7438f02486588d3a06dd7f2930260833","sym":"WHLR","lag_secs":2.57}
+{"kind":"buy","volume_usd":5.3,"ts":"2026-07-10T09:11:21+00:00","maker":"0x08e05c927914af5ea1d70e340268e4cc8872df72","pair":"0x400b384c7438f02486588d3a06dd7f2930260833","sym":"WHLR","lag_secs":2.07}
+{"kind":"buy","volume_usd":5.72,"ts":"2026-07-10T09:11:40+00:00","maker":"0x7e7d37088e58c68b873563bfdc945c39ec132c68","pair":"0x400b384c7438f02486588d3a06dd7f2930260833","sym":"WHLR","lag_secs":2.6}
+{"kind":"buy","volume_usd":10.6,"ts":"2026-07-10T09:11:43+00:00","maker":"0xb8811662e3e5c7c41a64448fa6b0b38b2ac604a8","pair":"0x400b384c7438f02486588d3a06dd7f2930260833","sym":"WHLR","lag_secs":2.59}
+{"kind":"buy","volume_usd":176.66,"ts":"2026-07-10T09:11:45+00:00","maker":"0x7eca36aa43d4ff79d19bd22dd85199a6658f92eb","pair":"0x400b384c7438f02486588d3a06dd7f2930260833","sym":"WHLR","lag_secs":2.23}
+{"kind":"sell","volume_usd":193.94,"ts":"2026-07-10T09:17:37+00:00","maker":"0x890f1e7863d46fb8677c295b80a5fccbc7a7aa7a","pair":"0x400b384c7438f02486588d3a06dd7f2930260833","sym":"WHLR","lag_secs":1.43}
+{"kind":"buy","volume_usd":178.55,"ts":"2026-07-10T09:17:40+00:00","maker":"0x37f75fe582983f23a57961ec6ddd07fefc3e905b","pair":"0x400b384c7438f02486588d3a06dd7f2930260833","sym":"WHLR","lag_secs":2.42}

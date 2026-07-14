@@ -1,0 +1,316 @@
+{
+ "tok": {
+  "2cz2GC3UkwKaFomL8uHAcSgRW6gLHBDx5viRMPVykics": {
+   "sym": "CHANCE",
+   "n": 3,
+   "px_vs_entry": 17.72153598873789,
+   "ret_meas": 2.9027113237639552,
+   "ret_now": 2.9027113237639552,
+   "px_vs_meas": 3.3006826630965547,
+   "liq": 208679.06,
+   "vol24": 1527650.47
+  },
+  "2rC2rhyHDQE3SsRd2kMmTbZJj4bu7c912ZqRgYisxJsb": {
+   "sym": "GOON",
+   "n": 15,
+   "px_vs_entry": -13.045116107033083,
+   "ret_meas": 3.640311661770341,
+   "ret_now": 3.640311661770341,
+   "px_vs_meas": 9.853324088495796,
+   "liq": 59329.41,
+   "vol24": 555687.3
+  },
+  "55HjYFDTgkP2dMJ7AzykXoP3FgrnW9DyQewWQ3Sg7Qdo": {
+   "sym": "Hobbes",
+   "n": 12,
+   "px_vs_entry": 63.47252853080314,
+   "ret_meas": 5.580925618319549,
+   "ret_now": 5.377031081486841,
+   "px_vs_meas": -1.4607758024086315,
+   "liq": 113627.07,
+   "vol24": 1495990.89
+  },
+  "6YismmnYSgxCw9aWgf3h2GxMr1GDkvWq7oo76RjQ1i6v": {
+   "sym": "Udin",
+   "n": 15,
+   "px_vs_entry": -11.487956258746657,
+   "ret_meas": 12.842757234561825,
+   "ret_now": -4.4336086949919125,
+   "px_vs_meas": -35.90064689335385,
+   "liq": 29958.06,
+   "vol24": 148450.39
+  },
+  "7DvWfEjcg6Dxq2jj5x5W9pMdci2XQWaVtCXUpBrXM66z": {
+   "sym": "Martolexx",
+   "n": 11,
+   "px_vs_entry": -6.169860596150611,
+   "ret_meas": 0.5056398288603656,
+   "ret_now": 0.4966254934419967,
+   "px_vs_meas": -34.438867609847414,
+   "liq": 24382.5,
+   "vol24": 65469.27
+  },
+  "8qDidAKuyNYKaR4dh2ZFZZVG5gBTUfyJcwQPgwt9FS1Y": {
+   "sym": "manlet",
+   "n": 11,
+   "px_vs_entry": 127.57053369815816,
+   "ret_meas": 258.5244267198405,
+   "ret_now": 116.91520284053824,
+   "px_vs_meas": -39.49778964152952,
+   "liq": 331994.33,
+   "vol24": 20897506.26
+  },
+  "9QwpxCSEssoY6NacsYivMptPeYqXa8Hwd2oFpJd4vrXp": {
+   "sym": "FOMO",
+   "n": 1,
+   "px_vs_entry": -58.662053442933804,
+   "ret_meas": 10.238681819385944,
+   "ret_now": 10.238681819385944,
+   "px_vs_meas": null,
+   "liq": 25883.13,
+   "vol24": 138581.46
+  },
+  "AtPXzwvpNuXzeJUcFZGWZ6cK14NpE6UwmmbBTqnDc8un": {
+   "sym": "MITCH",
+   "n": 1,
+   "px_vs_entry": -32.92931679486032,
+   "ret_meas": -0.8409506398537476,
+   "ret_now": -0.8409506398537476,
+   "px_vs_meas": null,
+   "liq": 143991.81,
+   "vol24": 391886.59
+  },
+  "B9c9dVwSNvM8q2v1CdmymXtsWBWS7U1VjG2Z3aLjLzpX": {
+   "sym": "TATE",
+   "n": 30,
+   "px_vs_entry": -67.4439889069355,
+   "ret_meas": 5.339809774704017,
+   "ret_now": -17.63920727795176,
+   "px_vs_meas": -76.986703416833,
+   "liq": 47613.59,
+   "vol24": 1743456.73
+  },
+  "C2X7vGNyeja4TSHs9DRbVjSek7Z3h2kPRoWM7YQFrSPq": {
+   "sym": "???",
+   "n": 8,
+   "px_vs_entry": -38.88556307396252,
+   "ret_meas": 0.8162140604069126,
+   "ret_now": -0.5117375383624025,
+   "px_vs_meas": -40.40732040633698,
+   "liq": 35670.44,
+   "vol24": 305104.27
+  },
+  "DCmraCrumoQ1geBcYoRQmbw2qjCtveMmr8C2G1wbZ49": {
+   "sym": "TMB",
+   "n": 1,
+   "px_vs_entry": -70.0002716400743,
+   "ret_meas": -26.810616284300494,
+   "ret_now": -70.0002716400743,
+   "px_vs_meas": -59.01081982537503,
+   "liq": 138315.65,
+   "vol24": 5536328.72
+  },
+  "Gerz5Vw4sxUZkR4dAtnYT5ChgX47GCYLE5Z3oeZinyFJ": {
+   "sym": "NEIL",
+   "n": 21,
+   "px_vs_entry": -32.39110803775206,
+   "ret_meas": 32.79701922262681,
+   "ret_now": -13.262593022746064,
+   "px_vs_meas": -57.73598652154275,
+   "liq": 68755.39,
+   "vol24": 880404.75
+  },
+  "HFu4wM862Fyw9AjVa75CRM818zVuXpUmMYmguYfxixx4": {
+   "sym": "Zeus",
+   "n": 2,
+   "px_vs_entry": 51.239818559822595,
+   "ret_meas": 11.760706627134368,
+   "ret_now": 11.760706627134368,
+   "px_vs_meas": null,
+   "liq": 52718.64,
+   "vol24": 411190.69
+  }
+ },
+ "fwd": [
+  {
+   "pair": "2cz2GC3UkwKaFomL8uHAcSgRW6gLHBDx5viRMPVykics",
+   "sym": "CHANCE",
+   "day": "07-03",
+   "hrs": 50.67480269610882,
+   "now": 75.65171165955755,
+   "maxc": 104.5642131540085,
+   "minc": -12.325299361025799
+  },
+  {
+   "pair": "2rC2rhyHDQE3SsRd2kMmTbZJj4bu7c912ZqRgYisxJsb",
+   "sym": "GOON",
+   "day": "07-03",
+   "hrs": 49.67480269610882,
+   "now": -16.540398387491905,
+   "maxc": 35.87514491374013,
+   "minc": -31.212961642134097
+  },
+  {
+   "pair": "Gerz5Vw4sxUZkR4dAtnYT5ChgX47GCYLE5Z3oeZinyFJ",
+   "sym": "NEIL",
+   "day": "07-03",
+   "hrs": 45.67480269610882,
+   "now": 81.3373243463818,
+   "maxc": 347.8815808000648,
+   "minc": 15.525249631566007
+  },
+  {
+   "pair": "B9c9dVwSNvM8q2v1CdmymXtsWBWS7U1VjG2Z3aLjLzpX",
+   "sym": "TATE",
+   "day": "07-03",
+   "hrs": 37.67480269610882,
+   "now": -25.39769197453906,
+   "maxc": 340.24747498403656,
+   "minc": -28.405220054640456
+  },
+  {
+   "pair": "DCmraCrumoQ1geBcYoRQmbw2qjCtveMmr8C2G1wbZ49",
+   "sym": "TMB",
+   "day": "07-03",
+   "hrs": 37.67480269610882,
+   "now": -36.965536944018,
+   "maxc": 146.55268860405008,
+   "minc": -46.06438412864009
+  },
+  {
+   "pair": "HFu4wM862Fyw9AjVa75CRM818zVuXpUmMYmguYfxixx4",
+   "sym": "Zeus",
+   "day": "07-03",
+   "hrs": 36.67480269610882,
+   "now": 56.596625115695765,
+   "maxc": 169.6046830719216,
+   "minc": 3.5972234602312803
+  },
+  {
+   "pair": "8qDidAKuyNYKaR4dh2ZFZZVG5gBTUfyJcwQPgwt9FS1Y",
+   "sym": "manlet",
+   "day": "07-03",
+   "hrs": 33.67480269610882,
+   "now": 225.86065615561407,
+   "maxc": 587.4863402457516,
+   "minc": 14.622070389167874
+  },
+  {
+   "pair": "55HjYFDTgkP2dMJ7AzykXoP3FgrnW9DyQewWQ3Sg7Qdo",
+   "sym": "Hobbes",
+   "day": "07-03",
+   "hrs": 32.67480269610882,
+   "now": 96.51415366274409,
+   "maxc": 192.60166606171808,
+   "minc": -2.6076712919997247
+  },
+  {
+   "pair": "9QwpxCSEssoY6NacsYivMptPeYqXa8Hwd2oFpJd4vrXp",
+   "sym": "FOMO",
+   "day": "07-03",
+   "hrs": 32.67480269610882,
+   "now": -41.74004218638691,
+   "maxc": 44.17457700173819,
+   "minc": -42.40526934861285
+  },
+  {
+   "pair": "AtPXzwvpNuXzeJUcFZGWZ6cK14NpE6UwmmbBTqnDc8un",
+   "sym": "MITCH",
+   "day": "07-03",
+   "hrs": 30.674802696108816,
+   "now": -27.02261164656461,
+   "maxc": 36.40664164744607,
+   "minc": -27.883412218839077
+  },
+  {
+   "pair": "C2X7vGNyeja4TSHs9DRbVjSek7Z3h2kPRoWM7YQFrSPq",
+   "sym": "???",
+   "day": "07-03",
+   "hrs": 30.674802696108816,
+   "now": -62.748021112907004,
+   "maxc": 3.6443177427591955,
+   "minc": -63.23774214846265
+  },
+  {
+   "pair": "6YismmnYSgxCw9aWgf3h2GxMr1GDkvWq7oo76RjQ1i6v",
+   "sym": "Udin",
+   "day": "07-04",
+   "hrs": 27.674802696108816,
+   "now": -18.85597976427157,
+   "maxc": 30.319054976508554,
+   "minc": -24.420186517940813
+  },
+  {
+   "pair": "8SEg9BokNM79SvFzwfg72QbdsJi8A9SWPrPcY5Zk7bZW",
+   "sym": "Pauly",
+   "day": "07-04",
+   "hrs": 25.674802696108816,
+   "now": 1.214127322273728,
+   "maxc": 103.59065651005315,
+   "minc": -1.1475771200671891
+  },
+  {
+   "pair": "CKB2oH5RWERUvNZHGxBGGs5mPMSofRxHgCz7MtAfyXQX",
+   "sym": "BABYANSEM",
+   "day": "07-04",
+   "hrs": 24.674802696108816,
+   "now": -33.37422867811749,
+   "maxc": 50.518639505692576,
+   "minc": -42.01885863382109
+  }
+ ],
+ "cov": {
+  "CHANCE": {
+   "n": 166,
+   "max_gap_h": 22.323055555555555
+  },
+  "GOON": {
+   "n": 99,
+   "max_gap_h": 22.802222222222223
+  },
+  "Hobbes": {
+   "n": 1333,
+   "max_gap_h": 12.766388888888889
+  },
+  "Udin": {
+   "n": 100,
+   "max_gap_h": 21.93722222222222
+  },
+  "Martolexx": {
+   "n": 100,
+   "max_gap_h": 19.968055555555555
+  },
+  "manlet": {
+   "n": 1369,
+   "max_gap_h": 12.880833333333333
+  },
+  "FOMO": {
+   "n": 100,
+   "max_gap_h": 22.0925
+  },
+  "MITCH": {
+   "n": 100,
+   "max_gap_h": 21.32638888888889
+  },
+  "TATE": {
+   "n": 102,
+   "max_gap_h": 22.555833333333332
+  },
+  "???": {
+   "n": 99,
+   "max_gap_h": 22.116666666666667
+  },
+  "TMB": {
+   "n": 300,
+   "max_gap_h": 22.664444444444445
+  },
+  "NEIL": {
+   "n": 168,
+   "max_gap_h": 22.267777777777777
+  },
+  "Zeus": {
+   "n": 100,
+   "max_gap_h": 22.21527777777778
+  }
+ }
+}

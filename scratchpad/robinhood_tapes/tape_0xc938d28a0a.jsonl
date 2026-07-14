@@ -1,0 +1,3 @@
+{"kind":"buy","volume_usd":18.16,"ts":"2026-07-12T09:26:10+00:00","maker":"0x3c27ae2a0f0198d3d7cc20441b991e84ecbee6a7","pair":"0xc938d28a0a27f2dabc6980e73dd3bea611559a44","sym":"SNOO","lag_secs":0.81,"pre_conf":true}
+{"kind":"sell","volume_usd":3.02,"ts":"2026-07-12T11:57:46+00:00","maker":"0xb3619987be0173f22182bb95d65509e609950865","pair":"0xc938d28a0a27f2dabc6980e73dd3bea611559a44","sym":"SNOO","lag_secs":0.24,"pre_conf":true,"vol_est":true}
+{"kind":"sell","volume_usd":1.03,"ts":"2026-07-12T12:24:41+00:00","maker":"0xa0f5cfa619fe7f2423cc3e70c1c70480fda690bd","pair":"0xc938d28a0a27f2dabc6980e73dd3bea611559a44","sym":"SNOO","lag_secs":1.01,"pre_conf":true,"vol_est":true}

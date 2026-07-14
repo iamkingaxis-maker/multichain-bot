@@ -1,0 +1,34 @@
+# CAPTURE REPORT — 2026-07-06 (UTC)
+bars: 94 pairs, latest bar 16:00Z; trades: _trades_full_2026_07_06.json
+fleet buys today: 106 across 19 pairs
+
+bounce events today (resolved): n=710  [unresolved troughs near tape end: 28]
+BASE tier (rise >= +10%): capture 1.5%  (captured 11 / near-miss 150 / untouched 549; n=710, median rise 27.0%)
+WIDE tier (rise >= +20%): capture 2.2%  (captured 10 / near-miss 96 / untouched 355; n=461, median rise 39.9%)
+
+## Top-10 UNTOUCHED bounces by rise% (n untouched = 549)
+sym           pair8     trough(UTC)    rise%   decl%  liq/mcap (last fleet-buy meta)
+Miku          Er2VcdAw  09:12        1166.7   -56.1  UNKNOWN (never bought)
+SPYZER        J89ppGTD  07:09        1060.3   -52.1  UNKNOWN (never bought)
+ANSEM'D       3jMoFqRN  05:13         824.0   -70.4  UNKNOWN (never bought)
+CEEZEE        CkFH3yws  01:12         782.9   -51.8  UNKNOWN (never bought)
+BULLISH       AMyRQnka  05:00         715.8   -73.5  UNKNOWN (never bought)
+BIF           6wjSpKYM  11:09         582.5   -41.6  UNKNOWN (never bought)
+LEVI          EqMxjt3v  01:09         496.5   -26.3  UNKNOWN (never bought)
+wifout        5nFRogAy  07:07         483.7   -39.6  UNKNOWN (never bought)
+Manga         36kbwjSt  07:15         442.9   -66.9  UNKNOWN (never bought)
+wifout        7iozyKas  08:13         383.8   -56.2  UNKNOWN (never bought)
+
+## NEAR-MISS detail (n=150)
+  TOLY          13:56Z rise 517.3%  bots: badday_allday, badday_flush_nf15
+  DONALT        05:25Z rise 319.8%  bots: badday_adolescent_absorb, badday_young_absorb, badday_young_absorb_live
+  Fro           01:58Z rise 271.6%  bots: badday_allday, badday_flush, badday_flush_nf15, badday_flush_peel_ab, badday_flu
+  popeyes       00:20Z rise 168.2%  bots: badday_allday, badday_flush, badday_flush_nf15, badday_flush_peel_ab, badday_flu
+  公牛            02:22Z rise 158.2%  bots: badday_adolescent_absorb, badday_young_absorb, badday_young_absorb_live
+  Fro           01:09Z rise 152.3%  bots: badday_allday, badday_flush, badday_flush_nf15, badday_flush_peel_ab, badday_flu
+  HAALAND       06:46Z rise 140.3%  bots: badday_flush, badday_flush_peel_ab, badday_flush_wickride_ab
+  Fro           00:24Z rise 137.3%  bots: badday_allday, badday_flush, badday_flush_nf15, badday_flush_peel_ab, badday_flu
+  ANIMEBULL     00:36Z rise 134.9%  bots: badday_adolescent_absorb, badday_young_absorb, badday_young_absorb_live
+  SEMAN         05:20Z rise 126.0%  bots: badday_allday, badday_flush, badday_flush_peel_ab, badday_flush_rsi_ab, badday_f
+
+caveats: universe = cached-bars pairs only (not the full scanner universe); liq/mcap only known for pairs the fleet ever bought; bounces whose 45m window ran past the last bar and had not yet bounced are excluded from the denominator.

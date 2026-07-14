@@ -1,0 +1,7 @@
+{"kind":"buy","volume_usd":70.78,"ts":"2026-07-10T08:51:28+00:00","maker":"0x92e9902497aa5eaca9309eb5db5f00bf05ea5b7a","pair":"0x20d0f9937bef89a5a00ced055e1deb43745d631a","sym":"LILHOOD","lag_secs":-2.79}
+{"kind":"buy","volume_usd":70.78,"ts":"2026-07-10T08:51:28+00:00","maker":"0x534c6e5e62f127b1bd6e13594aec7473a16c82ec","pair":"0x20d0f9937bef89a5a00ced055e1deb43745d631a","sym":"LILHOOD","lag_secs":-2.79}
+{"kind":"buy","volume_usd":17.7,"ts":"2026-07-10T08:51:38+00:00","maker":"0x07aba514eece3a68e6a0d7c3bb14598ad21ab39d","pair":"0x20d0f9937bef89a5a00ced055e1deb43745d631a","sym":"LILHOOD","lag_secs":28.91}
+{"kind":"sell","volume_usd":17.34,"ts":"2026-07-10T08:52:08+00:00","maker":"0x07aba514eece3a68e6a0d7c3bb14598ad21ab39d","pair":"0x20d0f9937bef89a5a00ced055e1deb43745d631a","sym":"LILHOOD","lag_secs":-1.09}
+{"kind":"buy","volume_usd":17.7,"ts":"2026-07-10T08:53:17+00:00","maker":"0x9ec2f5e65548f87e107aa61bec0a4c13ce6ba663","pair":"0x20d0f9937bef89a5a00ced055e1deb43745d631a","sym":"LILHOOD","lag_secs":22.67}
+{"kind":"buy","volume_usd":30.37,"ts":"2026-07-10T09:04:13+00:00","maker":"0xde571d62b23080ec48b6488e9acced2ba4cb22ae","pair":"0x20d0f9937bef89a5a00ced055e1deb43745d631a","sym":"LILHOOD","lag_secs":8.57}
+{"kind":"buy","volume_usd":28.41,"ts":"2026-07-10T09:16:50+00:00","maker":"0x6c200e8853d9bd56ac060f244f21873bb012cb2b","pair":"0x20d0f9937bef89a5a00ced055e1deb43745d631a","sym":"LILHOOD","lag_secs":1.8}

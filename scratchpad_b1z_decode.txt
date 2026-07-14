@@ -1,0 +1,21 @@
+=== DECODE B1zhrWqDoJdZ9pai… | 71 tokens, 34 closed, 32 open ===
+SIZING: median 0.60 SOL/token | variable (conviction sizer)
+HOLDS: median 34min | p25 14m | p75 146m
+  loser exits dispersed (price/discretion-stopped, not time-boxed)
+RETURNS: WR 32% | win med +56.4% | loss med -21.7% | best +1525.3%
+OVERLAP: our scanner saw 0/71 of its tokens (0%) | we traded 1/71
+  ** DISCOVERY GAP: most of its pond is invisible to our feeds
+
+last 12 closed trips:
+  06-17 23:45 -> 06-17 23:59 hold=    14min ret= +843.6%  9sunKMkrMq
+  06-20 15:16 -> 06-20 15:33 hold=    17min ret=  -36.1%  8WagYzgk8B
+  06-20 15:44 -> 06-20 16:13 hold=    29min ret= +117.2%  2vCwDJesf1
+  06-21 13:55 -> 06-21 14:04 hold=    10min ret=  -11.3%  8f2hFDz6Hx
+  06-21 14:10 -> 06-22 05:39 hold=   930min ret=  -98.6%  HQWFsoBehq
+  06-21 14:25 -> 06-21 14:41 hold=    15min ret=  -44.6%  3THLFCKHhT
+  06-21 14:46 -> 06-21 15:08 hold=    22min ret=+1525.3%  9zns6X1tPC
+  06-27 18:38 -> 06-27 18:48 hold=    10min ret=  -21.7%  AukWVkFod4
+  06-27 18:43 -> 06-27 20:36 hold=   113min ret=   -5.3%  EyxoZCcwUk
+  06-27 18:59 -> 06-27 19:08 hold=     9min ret=  +26.8%  3i6JXygrsA
+  06-27 21:56 -> 06-27 23:06 hold=    69min ret=  -34.6%  ANzzcRYAsn
+  06-28 15:55 -> 06-28 15:58 hold=     3min ret=  +41.9%  6BPGDRd4Nn

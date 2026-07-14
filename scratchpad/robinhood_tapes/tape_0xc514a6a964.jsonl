@@ -1,0 +1,6 @@
+{"kind":"buy","volume_usd":0.94,"ts":"2026-07-12T00:45:17+00:00","maker":"0x1ce711d1af838ab37c4c98a0dd3b92a9898e83dc","pair":"0xc514a6a9647f2da238ffb3ea80f25cffe67811cc","sym":"CASHBEAR","lag_secs":0.16,"pre_conf":true}
+{"kind":"buy","volume_usd":1.79,"ts":"2026-07-12T00:50:10+00:00","maker":"0x1ce711d1af838ab37c4c98a0dd3b92a9898e83dc","pair":"0xc514a6a9647f2da238ffb3ea80f25cffe67811cc","sym":"CASHBEAR","lag_secs":0.69,"pre_conf":true}
+{"kind":"buy","volume_usd":0.89,"ts":"2026-07-12T00:51:53+00:00","maker":"0x9e07b2c8df3e3dd167a687a3880e305f28456243","pair":"0xc514a6a9647f2da238ffb3ea80f25cffe67811cc","sym":"CASHBEAR","lag_secs":0.9,"pre_conf":true}
+{"kind":"buy","volume_usd":1.22,"ts":"2026-07-12T00:56:00+00:00","maker":"0x1ce711d1af838ab37c4c98a0dd3b92a9898e83dc","pair":"0xc514a6a9647f2da238ffb3ea80f25cffe67811cc","sym":"CASHBEAR","lag_secs":1.23,"pre_conf":true}
+{"kind":"buy","volume_usd":3.88,"ts":"2026-07-12T00:57:29+00:00","maker":"0x1ce711d1af838ab37c4c98a0dd3b92a9898e83dc","pair":"0xc514a6a9647f2da238ffb3ea80f25cffe67811cc","sym":"CASHBEAR","lag_secs":0.78,"pre_conf":true}
+{"kind":"buy","volume_usd":65.7,"ts":"2026-07-12T00:59:22+00:00","maker":"0xc83e47fc771a54297460b5a77097339d83504800","pair":"0xc514a6a9647f2da238ffb3ea80f25cffe67811cc","sym":"CASHBEAR","lag_secs":0.38,"pre_conf":true}

@@ -1,0 +1,242 @@
+[
+ {
+  "wallet": "AvHAW2AjZeCKANNfv7nLSkSKLdhy8rDUhJDmodbQiM4d",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "YupUTKEjAFwSbq33FquSfm5JLvumxADaqwQHPgAZpPS",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "AoZ74CzdUHekKGsmLkaLnJjjkjgZsS57HXXyvUT8rMrE",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "B9kJYdzb4gB9AC3aFChReDhJ2D5YDCaR4UrEoen2NcyC",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "BtMBMPkoNbnLF9Xn552guQq528KKXcsNBNNBre3oaQtr",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "Hv2xzYAQo2cEQDpEqLDfg6Kx2VKbiqf4VpeJGQtxtcAN",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "45tKsjwZTrAya79gtQhut3x8tGZhkZSBcadAVTADiySP",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "2p2mgFLmzN82sShZeAaBGmj9zFpam4xu8g4g3wqx2ks6",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "2xxaEn5sHX19G3V1bcTHSFDJtk9YbMiEkJWkqmZJBVBz",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "3CkrBd2cN4oN4VanUR7tE1EMHngeVVKz5GUQi9zHExPw",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "F72vY99ihQsYwqEDCfz7igKXA5me6vN2zqVsVUTpw6qL",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "9Q5Jd6W2YgUoPCw3ytau37o9yt5VpCTLrAkEPNUg9tke",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "4GRmWbexi223JwXBvvD7aHQWGn4WBqV5YSqMoqQpmz5o",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "6S8GezkxYUfZy9JPtYnanbcZTMB87Wjt1qx3c6ELajKC",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "CwvYUDGo4x7TYonn9qLb1c9rnUu5k3s4FN5hT38rnbsq",
+  "class": "IN-POND"
+ },
+ {
+  "wallet": "CtPxvpWo1pk7HtL6KwpCLMMdsXHC6fdqAN1bPiracaQq",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "8KQriAKQrWJY2CPMLGmxwMz2sEhKjq6hEd3Rwx1B5Zu6",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "Gwk2S8xumrwaWQCKf1rwoGg3RS2rUx2GUCfiiE7Mm3QA",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "FHGL93a95byonJbk8PzZFhCNuxDwgqRwUXcUkdkfeMNA",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "AmdAbVa17PbsL8kqPmL4A1PyxnLveRfjM5eLrCMz3nKY",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "GNrmKZCxYyNiSUsjduwwPJzhed3LATjciiKVuSGrsHEC",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "A8L9o7RYGreuRLyo3VRrso3K4gVvCn9bJLZK9DhzaCru",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "2gSzFCwozvNBHH3sDNHAJxwqbAXvL93brVapmSWTExU3",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "9RGtj3DiZY1YJYLEQ2b56kX7W2ffsy3yeyb86DBCzGK9",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "HXDGjZZU2oFwajVGGWeQ4QPxsEem2oAvxR2vhSHxbXKu",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "J23qr98GjGJJqKq9CBEnyRhHbmkaVxtTJNNxKu597wsA",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "As7HjL7dzzvbRbaD3WCun47robib2kmAKRXMvjHkSMB5",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "CQ4n79cjiQ3tRSMFTGzKPSYoCaazfuCGu2Y7Hzd1aUj2",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "5bvKKEVpC6m8JAccHuw6Cb4PT4KETttv7Q9HNHWsQyyZ",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "BbwF4wSwmxMVp7xubA7qigCUU6RMcvK2soMu8VrDHjDH",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "BfCP1ncxu7ZWp4B6TvQEcXGVSCiM2LhAzyYjG7zWyKdY",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "98T65wcMEjoNLDTJszBHGZEX75QRe8QaANXokv4yw3Mp",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "sAdNbe1cKNMDqDsa4npB3TfL62T14uAo2MsUQfLvzLT",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "GvmgmxkE7ed9b74YigRuNeAS6rSnpCAUbjtK4Wc8ed4S",
+  "class": "ADJACENT"
+ },
+ {
+  "wallet": "BXNiM7pqt9Ld3b2Hc8iT3mA5bSwoe9CRrtkSUs15SLWN",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "EP5mvfhGv6x1XR33Fd8eioiYjtRXAawafPmkz9xBpDvG",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "2h6WT2yEMhpdLQRRX5tm58bEt174sbNZq7tMqzVtm3PW",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "DZAa55HwXgv5hStwaTEJGXZz1DhHejvpb7Yr762urXam",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "CyaE1VxvBrahnPWkqm5VsdCvyS2QmNht2UFrKJHga54o",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "A1jmc6mZGgCEJSSyj2BULXgYTHvAEShZERSiDQmnkufX",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "8MaVa9kdt3NW4Q5HyNAm1X5LbR8PQRVDc1W8NMVK88D5",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "HwscN55CCJBjdGBCfZyL8Nqv991VVzwCTdjsFu197vnz",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "5t9xBNuDdGTGpjaPTx6hKd7sdRJbvtKS8Mhq6qVbo8Qz",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "HmBmSYwYEgEZuBUYuDs9xofyqBAkw4ywugB1d7R7sTGh",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "BunY1tQd2UD6TzYUgK35LRVEfiNMZk5sq25ZVnSK7Li9",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "BQVz7fQ1WsQmSTMY3umdPEPPTm1sdcBcX9sP7o6kPRmB",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "Fyr3eVTySpfyczEzUFcJ3SPtEKRwWKhxsmAWLghwP3FL",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "52NUhyYcpwwycY2To1bLMtp6pjDjtUMFeUqQxZfBJgAt",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "BwrUsUUMoFFpYY4pf3eXLwxi3foecucjBH3Gzn1693Qb",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "5GGqDQVr2LasfmWFXSH54V6ryVrXGwkZSjkK6xR473XJ",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "4vw54BmAogeRV3vPKWyFet5yf8DTLcREzdSzx4rw9Ud9",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "2fg5QD1eD7rzNNCsvnhmXFm5hqNgwTTG8p7kQ6f3rx6f",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "suqh5sHtr8HyJ7q8scBimULPkPpA557prMG47xCHQfK",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "Bi4rd5FH5bYEN8scZ7wevxNZyNmKHdaBcvewdPFxYdLt",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "9iaawVBEsFG35PSwd4PahwT8fYNQe9XYuRdWm872dUqY",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "ardinRsN1mNYVeoJWTBsWeYeXvuR9UUDGMsCDKpb6AT",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "89HbgWduLwoxcofWpmn1EiF9wEdpgkNDEyPjzZ72mkDi",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "4R28qJGVSb8qky5GE3WCgSdjUfrwxVZnNLdzkYRqKqAg",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "34xr8uUhRkeB4LFCutLmpceq57tTDT7MDkBa6P3jRLJk",
+  "class": "OUT/MIXED"
+ },
+ {
+  "wallet": "27KnsCtPQP3QvALzcc4dpiSi5NA51weN8dubpBb4qCgt",
+  "class": "OUT/MIXED"
+ }
+]

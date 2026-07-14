@@ -1,0 +1,7 @@
+{"kind":"buy","volume_usd":23.28,"ts":"2026-07-12T12:15:59+00:00","maker":"0x75c0c1290f8e45af35599575a81e9036a270a127","pair":"0xf63642f78784a3d862f0f175fef40a53a80baa6d","sym":"401k","lag_secs":1.32,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":902.48,"ts":"2026-07-12T12:30:45+00:00","maker":"0x10d0711e9ca4d08c940aa787a3fdcb8cad5b44ea","pair":"0xf63642f78784a3d862f0f175fef40a53a80baa6d","sym":"401k","lag_secs":0.68,"pre_conf":true}
+{"kind":"buy","volume_usd":9.02,"ts":"2026-07-12T12:30:47+00:00","maker":"0x815411c197deeb6049217f31674804296e4dd0d1","pair":"0xf63642f78784a3d862f0f175fef40a53a80baa6d","sym":"401k","lag_secs":1.24,"pre_conf":true}
+{"kind":"buy","volume_usd":1994.9,"ts":"2026-07-12T12:35:12+00:00","maker":"0xccd342a9f468bab376488e5a40cb0018bc44433b","pair":"0xf63642f78784a3d862f0f175fef40a53a80baa6d","sym":"401k","lag_secs":0.67,"pre_conf":true}
+{"kind":"buy","volume_usd":180.62,"ts":"2026-07-12T12:47:35+00:00","maker":"0x55d734b58fedc09d9f212cfb8557d912039e9fbf","pair":"0xf63642f78784a3d862f0f175fef40a53a80baa6d","sym":"401k","lag_secs":0.46,"pre_conf":true}
+{"kind":"buy","volume_usd":866.68,"ts":"2026-07-12T12:58:02+00:00","maker":"0xa84724b45ad16abed8dcac38db33918a8df535f3","pair":"0xf63642f78784a3d862f0f175fef40a53a80baa6d","sym":"401k","lag_secs":6.8,"pre_conf":true}
+{"kind":"buy","volume_usd":523.93,"ts":"2026-07-12T13:13:16+00:00","maker":"0x657e4c0ea1d21f1a04ab380a5fb3aa117ec32920","pair":"0xf63642f78784a3d862f0f175fef40a53a80baa6d","sym":"401k","lag_secs":0.7,"pre_conf":true}

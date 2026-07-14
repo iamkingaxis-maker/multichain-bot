@@ -1,0 +1,4 @@
+{"kind":"buy","volume_usd":0.5,"ts":"2026-07-10T20:56:28+00:00","maker":"0xa92df02512126e1d03adfdda7a393eab1c8aae4f","pair":"0x85ec4faaf58606c70e22a156eec0c6f391d71d57","sym":"CHOOD","lag_secs":0.21,"pre_conf":true}
+{"kind":"buy","volume_usd":0.9,"ts":"2026-07-10T21:27:28+00:00","maker":"0x5b4f5887acb667ab437a7d05bf3c382a33d04151","pair":"0x85ec4faaf58606c70e22a156eec0c6f391d71d57","sym":"CHOOD","lag_secs":1.0,"pre_conf":true}
+{"kind":"buy","volume_usd":51.83,"ts":"2026-07-10T21:38:42+00:00","maker":"0x44a79015f864e67946cb02ed5b59ece767fcfcb1","pair":"0x85ec4faaf58606c70e22a156eec0c6f391d71d57","sym":"CHOOD","lag_secs":1.08,"pre_conf":true}
+{"kind":"buy","volume_usd":39.61,"ts":"2026-07-10T21:50:48+00:00","maker":"0xc1865b5327a4c6d652463b0e3ba95fd05a3fa974","pair":"0x85ec4faaf58606c70e22a156eec0c6f391d71d57","sym":"CHOOD","lag_secs":0.83,"pre_conf":true,"vol_est":true}

@@ -1,0 +1,7 @@
+{"day": "2026-07-03", "ts": 1783085625.4427407, "med_nf60": null, "n_nf60": 0, "n_early_tokens": 4, "call_v1": "no_signal"}
+{"day": "2026-07-04", "ts": 1783167309.3904262, "med_nf60": null, "n_nf60": 0, "n_early_tokens": 2, "call_v1": "no_signal"}
+{"day": "2026-07-03", "ts": 1783223629.5245473, "outcome_rest_mean_per_token": 6.204, "n_tokens": 32, "outcome": "green"}
+{"day": "2026-07-04", "ts": 1783223629.5275388, "outcome_rest_mean_per_token": 7.613, "n_tokens": 43, "outcome": "green"}
+{"day": "2026-07-04", "ts": 1783238752.8853416, "outcome_rest_mean_per_token": 7.61286690453334, "n_tokens": 43, "outcome": "green"}
+{"day": "2026-07-05", "ts": 1783245691.583455, "med_nf60": -221.65, "n_nf60": 3, "n_early_tokens": 4, "call_v1": "green"}
+{"day": "2026-07-06", "ts": 1783335977.495122, "med_nf60": 54.66, "n_nf60": 1, "n_early_tokens": 3, "call_v1": "red"}

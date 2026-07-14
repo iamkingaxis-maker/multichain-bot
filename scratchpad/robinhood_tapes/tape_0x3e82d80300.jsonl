@@ -1,0 +1,3 @@
+{"kind":"buy","volume_usd":6.5,"ts":"2026-07-11T22:17:35+00:00","maker":"0xe47a81705f2e46756e5950b5eadfab0e71081ca6","pair":"0x3e82d803008a8df6b7cfd26a6548842974d36353","sym":"AGI","lag_secs":0.63,"pre_conf":true}
+{"kind":"sell","volume_usd":6.06,"ts":"2026-07-11T22:18:42+00:00","maker":"0xe47a81705f2e46756e5950b5eadfab0e71081ca6","pair":"0x3e82d803008a8df6b7cfd26a6548842974d36353","sym":"AGI","lag_secs":0.29,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":18.05,"ts":"2026-07-12T12:41:56+00:00","maker":"0x75dad027a17600b113d9cdd1172339ef72d43d34","pair":"0x3e82d803008a8df6b7cfd26a6548842974d36353","sym":"AGI","lag_secs":1.11,"pre_conf":true}

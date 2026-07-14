@@ -1,0 +1,6 @@
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-11T04:24:23+00:00","maker":"0x7510b780e76a10936d421f1673be5879f7c868c8","pair":"0xef43c3fe705ef12ad3d3675a09864d080504fb14","sym":"GOOGL","lag_secs":0.13,"pre_conf":true}
+{"kind":"sell","volume_usd":3.8,"ts":"2026-07-11T04:25:21+00:00","maker":"0x34f50872d3dfeba40db15ee52e27b89cbeb4f518","pair":"0xef43c3fe705ef12ad3d3675a09864d080504fb14","sym":"GOOGL","lag_secs":0.78,"pre_conf":true,"vol_est":true}
+{"kind":"sell","volume_usd":3.8,"ts":"2026-07-11T04:25:22+00:00","maker":"0xc19fbd87b9d31e9eb638f6150ef2be88c300aa2d","pair":"0xef43c3fe705ef12ad3d3675a09864d080504fb14","sym":"GOOGL","lag_secs":1.33,"pre_conf":true,"vol_est":true}
+{"kind":"sell","volume_usd":0.0,"ts":"2026-07-11T04:25:25+00:00","maker":"0x60b46f79fbd8d24dca064a1f02ac59ba485d6d7e","pair":"0xef43c3fe705ef12ad3d3675a09864d080504fb14","sym":"GOOGL","lag_secs":1.46,"pre_conf":true,"vol_est":true}
+{"kind":"sell","volume_usd":19.79,"ts":"2026-07-11T04:25:29+00:00","maker":"0xfb5fe3f22237c6481c089c8ee1ef70a117f4b172","pair":"0xef43c3fe705ef12ad3d3675a09864d080504fb14","sym":"GOOGL","lag_secs":1.27,"pre_conf":true,"vol_est":true}
+{"kind":"sell","volume_usd":0.3,"ts":"2026-07-11T04:26:14+00:00","maker":"0x7510b780e76a10936d421f1673be5879f7c868c8","pair":"0xef43c3fe705ef12ad3d3675a09864d080504fb14","sym":"GOOGL","lag_secs":0.46,"pre_conf":true,"vol_est":true}

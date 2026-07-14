@@ -1,0 +1,36 @@
+##### W1 6dzn
+WALLET 6dzn1gFuWrNe | 22 bought tokens; sampling up to 6
+  CQQdwAGCpp spent=0.68SOL dip90m=-1.9% age=29.0h fdv=$0.01M fwd6h_max=+24.5% -> MOM(strength)
+  DNQ6KoKjvb spent=0.28SOL dip90m=-28.4% age=58.1h fdv=$0.01M fwd6h_max=+0.4% -> DIP
+  Fv23pDm8HM spent=0.43SOL dip90m=-2.7% age=71.1h fdv=$0.02M fwd6h_max=+218.3% -> MOM(strength)
+  FWHC6wXLNV spent=0.73SOL dip90m=-59.1% age=13.8h fdv=$0.01M fwd6h_max=+61.8% -> DIP
+  5MJqj523dK spent=0.46SOL dip90m=+0.0% age=11.8h fdv=$0.00M fwd6h_max=+3.2% -> MOM(strength)
+  CfGvmmqNW5 spent=0.87SOL dip90m=+0.0% age=56.5h fdv=$0.00M fwd6h_max=+5.4% -> MOM(strength)
+
+ENTRY-STATE: n=6 | dip90m median -2.3% (p25 -28.4 / p75 +0.0) | MOM=4 DIP=2
+AGE: median 42.8h (p25 13.8 / p75 58.1)
+FDV: median $0.01M
+##### W2 72QU
+WALLET 72QUWNCwsmYU | 33 bought tokens; sampling up to 6
+  J4Y92jy5Lr spent=0.34SOL dip90m=-22.8% age=355.8h fdv=$0.05M fwd6h_max=+1.1% -> DIP
+  BJb7vDusXm spent=0.06SOL dip90m=-24.3% age=50.0h fdv=$1.04M fwd6h_max=+22.6% -> DIP
+  5roz8AK6ew spent=0.81SOL dip90m=-46.7% age=28.3h fdv=$0.11M fwd6h_max=+12.9% -> DIP
+  3oBRGPMpvR spent=1.81SOL dip90m=-27.2% age=23.3h fdv=$0.66M fwd6h_max=+76.5% -> DIP
+  991L48va9r spent=0.57SOL dip90m=-25.0% age=2008.5h fdv=$0.46M fwd6h_max=+22.5% -> DIP
+  3KHMZhpthX spent=0.18SOL dip90m=+0.0% age=1418.2h fdv=$3.24M fwd6h_max=+0.0% -> MOM(strength)
+
+ENTRY-STATE: n=6 | dip90m median -24.6% (p25 -27.2 / p75 -22.8) | MOM=1 DIP=5
+AGE: median 202.9h (p25 28.3 / p75 1418.2)
+FDV: median $0.56M
+##### W3 4mdpm
+WALLET 4mdpm59apd6P | 36 bought tokens; sampling up to 6
+  Ewswnwrzzh spent=0.83SOL dip90m=-34.0% age=216.8h fdv=$0.02M fwd6h_max=+53.7% -> DIP
+  4LEydtM5te spent=0.61SOL dip90m=-19.6% age=1143.6h fdv=$0.02M fwd6h_max=+3.1% -> DIP
+  J4Y92jy5Lr spent=0.07SOL dip90m=-79.2% age=355.9h fdv=$0.05M fwd6h_max=+21.5% -> DIP
+  ACpzkGJV3D spent=0.48SOL dip90m=-32.1% age=757.7h fdv=$1.57M fwd6h_max=+12.4% -> DIP
+  6gN6wXB3nQ spent=1.26SOL dip90m=-22.4% age=194.8h fdv=$0.17M fwd6h_max=+109.8% -> DIP
+  GsR6Z8sxiz spent=1.83SOL dip90m=-29.9% age=2684.0h fdv=$0.02M fwd6h_max=+4.5% -> DIP
+
+ENTRY-STATE: n=6 | dip90m median -31.0% (p25 -34.0 / p75 -22.4) | MOM=0 DIP=6
+AGE: median 556.8h (p25 216.8 / p75 1143.6)
+FDV: median $0.03M

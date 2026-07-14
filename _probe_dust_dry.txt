@@ -1,0 +1,9 @@
+DRY RUN — mocked executor, no gate, no network
+wallet-truth before: {"ok": true, "wallet": "0xDRY\u2026RUN", "eth_now": 0.01, "weth_now": 0.0, "total_eth": 0.01, "delta_eth": 0.0}
+BUY ~$2.00 of 0xdddddddddd…
+  [dust_buy] decision->landed 0.0ms (exec 420.0ms) fill_vs_quote -0.4% gas 1.6e-06 ETH tier 10000 tx 0xabababababababababababababababababababababababababababababababab
+SELL it all back…
+  [dust_sell] decision->landed 0.0ms (exec 420.0ms) fill_vs_quote -0.4% gas 1.6e-06 ETH tier 10000 tx 0xcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd
+wallet-truth after: {"ok": true, "wallet": "0xDRY\u2026RUN", "eth_now": 0.01, "weth_now": 0.0, "total_eth": 0.01, "delta_eth": 0.0}
+round-trip cost: +0.00000000 ETH (~$+0.0000)
+DUST TEST PASSED — buy AND sell paths proven end-to-end.

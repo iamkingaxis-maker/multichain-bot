@@ -1,0 +1,2 @@
+{"kind":"buy","volume_usd":106.09,"ts":"2026-07-11T04:33:27+00:00","maker":"0x64006cb9029016fdf08401f05018cf5cd6c83c18","pair":"0x1da8307fb3138565ce54717a76398d9df48a6ce8","sym":"hooddog","lag_secs":0.93,"pre_conf":true}
+{"kind":"buy","volume_usd":1.8,"ts":"2026-07-11T05:00:11+00:00","maker":"0x64006cb9029016fdf08401f05018cf5cd6c83c18","pair":"0x1da8307fb3138565ce54717a76398d9df48a6ce8","sym":"hooddog","lag_secs":1.32,"pre_conf":true}

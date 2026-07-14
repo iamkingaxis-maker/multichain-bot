@@ -1,0 +1,5 @@
+{"kind":"sell","volume_usd":13.7,"ts":"2026-07-10T21:07:32+00:00","maker":"0xfb5fe3f22237c6481c089c8ee1ef70a117f4b172","pair":"0xffec349ace9bddbe1b55fde680f565332b526da8","sym":"HOOD","lag_secs":0.09,"pre_conf":true,"vol_est":true}
+{"kind":"sell","volume_usd":3.71,"ts":"2026-07-10T21:09:52+00:00","maker":"0xfb5fe3f22237c6481c089c8ee1ef70a117f4b172","pair":"0xffec349ace9bddbe1b55fde680f565332b526da8","sym":"HOOD","lag_secs":0.1,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":23.45,"ts":"2026-07-10T21:10:44+00:00","maker":"0x28daebb3b3ed863fa84f4fca01871dabc30fb6ec","pair":"0xffec349ace9bddbe1b55fde680f565332b526da8","sym":"HOOD","lag_secs":0.26,"pre_conf":true}
+{"kind":"sell","volume_usd":3.45,"ts":"2026-07-10T21:15:23+00:00","maker":"0xcbd094cb3e2d07908c0f96d113a93d0bc25bf4fe","pair":"0xffec349ace9bddbe1b55fde680f565332b526da8","sym":"HOOD","lag_secs":-0.17,"pre_conf":true,"vol_est":true}
+{"kind":"sell","volume_usd":2.45,"ts":"2026-07-10T21:16:21+00:00","maker":"0x6e275b93aec4b44de7e3ded035a587c25904c917","pair":"0xffec349ace9bddbe1b55fde680f565332b526da8","sym":"HOOD","lag_secs":0.1,"pre_conf":true,"vol_est":true}

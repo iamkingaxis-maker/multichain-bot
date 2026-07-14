@@ -46,6 +46,69 @@ logger = logging.getLogger(__name__)
 DEFAULT_MAX_EXCESS_LOSS_PCT = 15.0
 DEFAULT_PROBE_ETH = 0.01
 
+# ── SIPHON-HONEYPOT drainer detection (2026-07-14, the CCPEPE class) ──────────
+# QuoterV2 / round-trip sim models POOL math only, so it CANNOT see a token
+# whose contract lets a backdoor drain every buyer's balance to one wallet in a
+# SEPARATE tx after the buy (CCPEPE: address 0x8876.. pulled the full balance
+# from 17 DISTINCT buyers). The pre-buy tell is in the transfer graph: a single
+# non-pool / non-router / non-burn address that has RECEIVED the token from many
+# DISTINCT holders. A legit token has no such address — sellers send to the pool
+# or router only, so those (and zero/dead) are excluded.
+SWAP_ROUTER02_ADDR = "0xCaf681a66D020601342297493863E78C959E5cb2"
+WETH9_ADDR = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73"
+_SIPHON_INFRA = {a.lower() for a in (
+    SWAP_ROUTER02_ADDR, WETH9_ADDR,
+    "0x0000000000000000000000000000000000000000",
+    "0x000000000000000000000000000000000000dead")}
+DEFAULT_SIPHON_MIN_SENDERS = int(os.environ.get("RH_SIPHON_MIN_SENDERS", "4"))
+
+
+def detect_siphon_drainer(transfers, pool_addr=None,
+                          min_distinct_senders: int = DEFAULT_SIPHON_MIN_SENDERS) -> dict:
+    """PURE. Flag the siphon-honeypot pattern from a token's recent transfers: a
+    single non-pool/non-router/non-burn address that RECEIVED the token from
+    >= min_distinct_senders DISTINCT senders (a backdoor pulling every buyer's
+    balance to one drainer). Returns {siphon, drainer, n_senders}."""
+    exclude = set(_SIPHON_INFRA)
+    if pool_addr:
+        exclude.add(str(pool_addr).lower())
+    senders_to: dict = {}
+    for t in transfers or []:
+        if not isinstance(t, dict):
+            continue
+        frm = (((t.get("from") or {}).get("hash")) or "").lower()
+        to = (((t.get("to") or {}).get("hash")) or "").lower()
+        if not frm or not to or to in exclude or frm == to:
+            continue
+        senders_to.setdefault(to, set()).add(frm)
+    drainer, n = None, 0
+    for addr, senders in senders_to.items():
+        if len(senders) > n:
+            drainer, n = addr, len(senders)
+    hit = n >= min_distinct_senders
+    return {"siphon": hit, "drainer": drainer if hit else None, "n_senders": n}
+
+
+def siphon_check(token_addr: str, pool_addr: Optional[str] = None, fetch=None) -> dict:
+    """Fetch the token's recent transfers + run detect_siphon_drainer. Returns
+    the verdict with a 'checked' flag. FAILS to checked=False/siphon=False on a
+    fetch error (the round-trip sim + bounded per-position size cover the
+    residual; halting every buy on a Blockscout hiccup would stop the bot). A
+    CONFIRMED drainer is a hard block."""
+    try:
+        if fetch is None:
+            from core.rh_blockscout import _get_json
+            data = _get_json(f"/api/v2/tokens/{str(token_addr).lower()}/transfers")
+        else:
+            data = fetch(token_addr)
+        items = data.get("items") if isinstance(data, dict) else data
+        v = detect_siphon_drainer(items, pool_addr=pool_addr)
+        v["checked"] = True
+        return v
+    except Exception as e:
+        return {"siphon": False, "drainer": None, "n_senders": 0,
+                "checked": False, "error": str(e)[:80]}
+
 
 def _fee_keep_fraction(fee_bps_buy: Optional[int], fee_bps_sell: Optional[int]) -> float:
     """Fraction of value a clean round trip keeps after the two POOL fee legs.

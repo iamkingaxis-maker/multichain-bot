@@ -1,0 +1,2 @@
+{"kind":"buy","volume_usd":179.85,"ts":"2026-07-11T05:09:59+00:00","maker":"0x2e209a99c4529106fec78fbeadce0c4991d8955a","pair":"0x954d943063fb8e7c741d958690e0d6ea2779b4db","sym":"REAL","lag_secs":0.19,"pre_conf":true}
+{"kind":"sell","volume_usd":149.86,"ts":"2026-07-11T05:10:14+00:00","maker":"0x2e209a99c4529106fec78fbeadce0c4991d8955a","pair":"0x954d943063fb8e7c741d958690e0d6ea2779b4db","sym":"REAL","lag_secs":0.77,"pre_conf":true,"vol_est":true}

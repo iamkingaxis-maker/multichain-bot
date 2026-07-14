@@ -1,0 +1,8 @@
+{"kind":"buy","volume_usd":50.26,"ts":"2026-07-11T03:19:25+00:00","maker":"0xec8d998df5deee9a9b5795d86728f9b273be4bfe","pair":"0x76f67d656ea413e6e026c1335144aafb8c79c039","sym":"PEPECAT","lag_secs":0.55,"pre_conf":true}
+{"kind":"buy","volume_usd":48.47,"ts":"2026-07-11T03:21:55+00:00","maker":"0xec8d998df5deee9a9b5795d86728f9b273be4bfe","pair":"0x76f67d656ea413e6e026c1335144aafb8c79c039","sym":"PEPECAT","lag_secs":0.82,"pre_conf":true}
+{"kind":"buy","volume_usd":125.0,"ts":"2026-07-11T03:37:14+00:00","maker":"0x434c9e2b15ec7a45224bec46e4c2056405516396","pair":"0x76f67d656ea413e6e026c1335144aafb8c79c039","sym":"PEPECAT","lag_secs":0.26,"pre_conf":true}
+{"kind":"buy","volume_usd":6.33,"ts":"2026-07-11T03:40:15+00:00","maker":"0xa7d24a38cb13a74ac6f95d52845085f16f17e99b","pair":"0x76f67d656ea413e6e026c1335144aafb8c79c039","sym":"PEPECAT","lag_secs":0.98,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-11T04:07:34+00:00","maker":"0xbeaf18d6993c402b71e06d87fb9820dd675dff38","pair":"0x76f67d656ea413e6e026c1335144aafb8c79c039","sym":"PEPECAT","lag_secs":1.0,"pre_conf":true}
+{"kind":"buy","volume_usd":2.97,"ts":"2026-07-11T04:07:45+00:00","maker":"0x1664cc403908ba2e07ff55ee15d57ec1ab2bbd1b","pair":"0x76f67d656ea413e6e026c1335144aafb8c79c039","sym":"PEPECAT","lag_secs":0.58,"pre_conf":true}
+{"kind":"buy","volume_usd":4.84,"ts":"2026-07-11T04:54:28+00:00","maker":"0x7596bdb198d88fcdec7e47539fa841b0c60bf55a","pair":"0x76f67d656ea413e6e026c1335144aafb8c79c039","sym":"PEPECAT","lag_secs":0.35,"pre_conf":true}
+{"kind":"buy","volume_usd":1.04,"ts":"2026-07-11T05:34:28+00:00","maker":"0x41894b3b140590a11617a6490d924024b8bd282c","pair":"0x76f67d656ea413e6e026c1335144aafb8c79c039","sym":"PEPECAT","lag_secs":0.56,"pre_conf":true}

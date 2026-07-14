@@ -1,0 +1,5 @@
+{"kind":"buy","volume_usd":0.9,"ts":"2026-07-10T21:46:59+00:00","maker":"0x5b4f5887acb667ab437a7d05bf3c382a33d04151","pair":"0xfd410d77fde6b95d26bca0a4ca1695cf18e70dff","sym":"BOWBO","lag_secs":0.01,"pre_conf":true}
+{"kind":"buy","volume_usd":8.97,"ts":"2026-07-10T21:47:20+00:00","maker":"0x5b4f5887acb667ab437a7d05bf3c382a33d04151","pair":"0xfd410d77fde6b95d26bca0a4ca1695cf18e70dff","sym":"BOWBO","lag_secs":0.36,"pre_conf":true}
+{"kind":"sell","volume_usd":4.33,"ts":"2026-07-10T21:48:50+00:00","maker":"0x5b4f5887acb667ab437a7d05bf3c382a33d04151","pair":"0xfd410d77fde6b95d26bca0a4ca1695cf18e70dff","sym":"BOWBO","lag_secs":0.91,"pre_conf":true,"vol_est":true}
+{"kind":"sell","volume_usd":4.33,"ts":"2026-07-10T21:48:51+00:00","maker":"0x5b4f5887acb667ab437a7d05bf3c382a33d04151","pair":"0xfd410d77fde6b95d26bca0a4ca1695cf18e70dff","sym":"BOWBO","lag_secs":0.63,"pre_conf":true,"vol_est":true}
+{"kind":"sell","volume_usd":3.19,"ts":"2026-07-10T21:50:27+00:00","maker":"0x5b4f5887acb667ab437a7d05bf3c382a33d04151","pair":"0xfd410d77fde6b95d26bca0a4ca1695cf18e70dff","sym":"BOWBO","lag_secs":0.71,"pre_conf":true,"vol_est":true}

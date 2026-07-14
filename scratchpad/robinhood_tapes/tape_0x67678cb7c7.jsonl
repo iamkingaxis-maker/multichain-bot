@@ -1,0 +1,3 @@
+{"kind":"buy","volume_usd":3.59,"ts":"2026-07-10T23:06:48+00:00","maker":"0x22450c3cc408d61bee6debecda9829c6a8e41dea","pair":"0x67678cb7c7c0a58a815072ed54287554b2dd1858","sym":"MFERS","lag_secs":0.23,"pre_conf":true}
+{"kind":"buy","volume_usd":0.5,"ts":"2026-07-10T23:08:10+00:00","maker":"0xa92df02512126e1d03adfdda7a393eab1c8aae4f","pair":"0x67678cb7c7c0a58a815072ed54287554b2dd1858","sym":"MFERS","lag_secs":0.12,"pre_conf":true}
+{"kind":"buy","volume_usd":5.38,"ts":"2026-07-10T23:11:02+00:00","maker":"0xcba69bf5ffb17b6ca16aecd7475a953d84ee4ee3","pair":"0x67678cb7c7c0a58a815072ed54287554b2dd1858","sym":"MFERS","lag_secs":1.44,"pre_conf":true}

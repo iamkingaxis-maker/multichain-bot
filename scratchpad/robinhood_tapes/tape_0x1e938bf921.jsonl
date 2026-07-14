@@ -1,0 +1,10 @@
+{"kind":"buy","volume_usd":5.36,"ts":"2026-07-12T00:39:59+00:00","maker":"0xba334681a8e1f55b8f49bb8a287aa83f6fd5637f","pair":"0x1e938bf921455525fa4a35fbea1bbf8e5edf9250","sym":"DIH","lag_secs":4.4,"pre_conf":true}
+{"kind":"buy","volume_usd":93.78,"ts":"2026-07-12T00:44:33+00:00","maker":"0x38b4538609978226fc62bc3fad5307ab2470975f","pair":"0x1e938bf921455525fa4a35fbea1bbf8e5edf9250","sym":"DIH","lag_secs":1.59,"pre_conf":true}
+{"kind":"buy","volume_usd":89.32,"ts":"2026-07-12T00:45:45+00:00","maker":"0x737b6711e4863d996d40f50c908483d2a1930948","pair":"0x1e938bf921455525fa4a35fbea1bbf8e5edf9250","sym":"DIH","lag_secs":0.41,"pre_conf":true}
+{"kind":"buy","volume_usd":81.74,"ts":"2026-07-12T00:49:46+00:00","maker":"0xa64d4efa77f48f400688ee81c696043a742d902e","pair":"0x1e938bf921455525fa4a35fbea1bbf8e5edf9250","sym":"DIH","lag_secs":0.67,"pre_conf":true}
+{"kind":"buy","volume_usd":59.43,"ts":"2026-07-12T00:50:11+00:00","maker":"0xb051433712f4163b3d8b9b7808a68ab4a39e29dc","pair":"0x1e938bf921455525fa4a35fbea1bbf8e5edf9250","sym":"DIH","lag_secs":0.6,"pre_conf":true}
+{"kind":"buy","volume_usd":76.18,"ts":"2026-07-12T00:51:22+00:00","maker":"0x407d6bd28291f4b7d59a2e11b2aa9fbdadeac293","pair":"0x1e938bf921455525fa4a35fbea1bbf8e5edf9250","sym":"DIH","lag_secs":0.73,"pre_conf":true}
+{"kind":"buy","volume_usd":125.13,"ts":"2026-07-12T00:55:26+00:00","maker":"0x9ce497257d674ffa8149d410ad0b916cf095ae74","pair":"0x1e938bf921455525fa4a35fbea1bbf8e5edf9250","sym":"DIH","lag_secs":0.41,"pre_conf":true}
+{"kind":"buy","volume_usd":89.38,"ts":"2026-07-12T00:58:03+00:00","maker":"0x737b6711e4863d996d40f50c908483d2a1930948","pair":"0x1e938bf921455525fa4a35fbea1bbf8e5edf9250","sym":"DIH","lag_secs":0.68,"pre_conf":true}
+{"kind":"buy","volume_usd":151.94,"ts":"2026-07-12T00:59:09+00:00","maker":"0x49f46b4391177cd8dbdf7bb96153a000633d7dec","pair":"0x1e938bf921455525fa4a35fbea1bbf8e5edf9250","sym":"DIH","lag_secs":0.7,"pre_conf":true}
+{"kind":"buy","volume_usd":55.91,"ts":"2026-07-12T01:02:51+00:00","maker":"0x6380d956572c9666f0992933a2c4e9dfaa619410","pair":"0x1e938bf921455525fa4a35fbea1bbf8e5edf9250","sym":"DIH","lag_secs":0.98,"pre_conf":true}

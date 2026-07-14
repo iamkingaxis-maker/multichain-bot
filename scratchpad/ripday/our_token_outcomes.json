@@ -1,0 +1,570 @@
+{
+ "48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump": {
+  "sym": "SEMAN",
+  "pair": "6C3m9Gc8UmJBPxgT4TuT7FcdpVqeSThtTTSvQEGGUZSB",
+  "pnl": 11.5,
+  "n": 4,
+  "wins": 2,
+  "med_hold": 556.5092036724091
+ },
+ "3Q1Lu5TGWPvoA95HwTu7uPkjNLXj498moxfko2Pkpump": {
+  "sym": "Catfish",
+  "pair": "6F2MLMroii9HqKwf2N3g2iG5CRMsUBNmm3uNPDuD7HCm",
+  "pnl": -4.6,
+  "n": 3,
+  "wins": 1,
+  "med_hold": 1159.2212028503418
+ },
+ "DTiG8SMN6RHYLAtLkFdrzKixnb3Dr8gy9gCrCXxmpump": {
+  "sym": "BINDY",
+  "pair": "3zcxJQpstffNbRMyTayJRLnvZ4vVDyXvHPqcGpNg7tey",
+  "pnl": -10.4,
+  "n": 2,
+  "wins": 0,
+  "med_hold": 167.37112998962402
+ },
+ "6gTh1jtU9fUyCuEvngcgFaFM5Wax1bcbRkFZZGCCpump": {
+  "sym": "BongoCat",
+  "pair": "52moU7JTiu7We47M7yaHP7xfSXDG5FX7myLpoNAUTsxV",
+  "pnl": -29.6,
+  "n": 6,
+  "wins": 0,
+  "med_hold": 9.86111831665039
+ },
+ "GYPB3McmpMpeLQcckoSTQ6KKAE8NL6QvkYaocy48pump": {
+  "sym": "JELLYCAT",
+  "pair": "HDdUE9Sz1FGKs7XLxDNZF261HHDv1NdF66zH7YP8d3n6",
+  "pnl": 23.0,
+  "n": 14,
+  "wins": 8,
+  "med_hold": 574.932321190834
+ },
+ "CmQJNJ185pjzQoebPbcqZu1kTykHxJbn4gER1Af7pump": {
+  "sym": "REX",
+  "pair": "8XzxTTCfQ49N5awdmtLAoK7MKmZ65AAaTpqryD9M1jL7",
+  "pnl": -39.2,
+  "n": 5,
+  "wins": 0,
+  "med_hold": 398.1568214893341
+ },
+ "DLvuaz18bKnh1hEaCZsZ5NgJi7wYFm5RvgZVA2M5pump": {
+  "sym": "BABYANSEM",
+  "pair": "47PkNd3JK4MMyCKwPszbxBnsHbzqHQtLcH71fKnTBnLB",
+  "pnl": -15.6,
+  "n": 3,
+  "wins": 0,
+  "med_hold": 10.10088562965393
+ },
+ "5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump": {
+  "sym": "BULLWIF",
+  "pair": "FXfmL53naPn8w5L7xQgaxAchU7Akfqo96eztnqJKi59M",
+  "pnl": 24.2,
+  "n": 61,
+  "wins": 34,
+  "med_hold": 558.7423777580261
+ },
+ "Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump": {
+  "sym": "ELON",
+  "pair": "53LbgEdVdbeQmvhzpZYbjbkBfLZKKLWSZ5FzgKCXBYj7",
+  "pnl": 21.9,
+  "n": 7,
+  "wins": 5,
+  "med_hold": 267.42079520225525
+ },
+ "BgKtxB44DWf2zMtQpjwVNwjWCjKgAupoVdGVDuR9pump": {
+  "sym": "LIQENG",
+  "pair": "6YuT2RW3ArSZr1tA9EbrjUR5aPKKv6kKnVupQtSh1Aef",
+  "pnl": -4.5,
+  "n": 1,
+  "wins": 0,
+  "med_hold": 1235.5024473667145
+ },
+ "3DyWrAQZ6MmAcQxC1q22N1V3ucPHwEsWk8U68pBnpump": {
+  "sym": "Mitch",
+  "pair": "5brh8zdbxoWaowcmAJN6NNGqXdX8kMRnGsTEezAkHBf3",
+  "pnl": -12.1,
+  "n": 1,
+  "wins": 0,
+  "med_hold": 48.195547103881836
+ },
+ "cvkarf1CtN3tbLRk961vsaEf4T8QbnihDkCHa93pump": {
+  "sym": "NEIL",
+  "pair": "Gerz5Vw4sxUZkR4dAtnYT5ChgX47GCYLE5Z3oeZinyFJ",
+  "pnl": -1.8,
+  "n": 1,
+  "wins": 0,
+  "med_hold": 1657.6518275737762
+ },
+ "2b93RPW315VQP7RHWthbcgjrR477YqbSu9tXnBjppump": {
+  "sym": "CA",
+  "pair": "BEqgia2tccaEx14jbQtSoW1YfccJaMDVPvixUDFrevEA",
+  "pnl": 1.6,
+  "n": 4,
+  "wins": 2,
+  "med_hold": 86.6026703119278
+ },
+ "5sTUgEVTcRvPNK6CFpHBgVfDm6Vb7yKhb9ovMbvUpump": {
+  "sym": "GOON",
+  "pair": "2rC2rhyHDQE3SsRd2kMmTbZJj4bu7c912ZqRgYisxJsb",
+  "pnl": -74.7,
+  "n": 10,
+  "wins": 0,
+  "med_hold": 65.40951883792877
+ },
+ "8vExdwvPa6YN6BWZ2encM73G4rZhuH9kpzEr6gXjpump": {
+  "sym": "RUSH",
+  "pair": "9g7CFp1yhjdoSJjUcMbCKZC5DKRHVHMxeaV6HLtDf53Z",
+  "pnl": -71.3,
+  "n": 14,
+  "wins": 0,
+  "med_hold": 5.269916296005249
+ },
+ "CnqFjUb8Y9fj8DhokJuADKhSz9p2kwbsiujrPeu1pump": {
+  "sym": "paging",
+  "pair": "Ed75xUfnd67YG3cDDTmoHsCzbNkqvKux7MtcssBk5Tkn",
+  "pnl": 6.8,
+  "n": 2,
+  "wins": 2,
+  "med_hold": 226.96204209327698
+ },
+ "8LFTmtdqQKHk7xJxSgFiPMdn2cRgxyinGv61M6Z5pump": {
+  "sym": "TRENCH",
+  "pair": "FiTk5J7S92A5dCcuC1jxPWKkmUSEMg2X2Vj4b5HCJcCR",
+  "pnl": -24.7,
+  "n": 3,
+  "wins": 0,
+  "med_hold": 4.819098234176636
+ },
+ "66pQgfLHEfbHSBgYSZSrKEdJHHaGiYbgCtNbz48Apump": {
+  "sym": "WEN",
+  "pair": "HZyqZRuAUCLdJaHqBfnoFHVBwXmuH3Sm1LyXnWu8Ee15",
+  "pnl": -10.6,
+  "n": 3,
+  "wins": 0,
+  "med_hold": 1133.2099497318268
+ },
+ "2aQKC1xiKpEyAWvzSDrULnYLVuybWyx7qrsnpP8hpump": {
+  "sym": "Udin",
+  "pair": "6YismmnYSgxCw9aWgf3h2GxMr1GDkvWq7oo76RjQ1i6v",
+  "pnl": -74.0,
+  "n": 8,
+  "wins": 0,
+  "med_hold": 155.9367436170578
+ },
+ "AviKHWoXAHcpRnCX3cH38fHtjjn11aL9Pqjid3sZpump": {
+  "sym": "zazu",
+  "pair": "FojgqTwVMQ9rUe1G9T7ttGyxE3m19rPPevzsAxPHh5dR",
+  "pnl": -64.8,
+  "n": 9,
+  "wins": 0,
+  "med_hold": 2264.097307443619
+ },
+ "Bqs76KADGDkiwskqdqTu1jaNrpJyzV5ZxpvJrL5npump": {
+  "sym": "Hobbes",
+  "pair": "55HjYFDTgkP2dMJ7AzykXoP3FgrnW9DyQewWQ3Sg7Qdo",
+  "pnl": -10.1,
+  "n": 2,
+  "wins": 0,
+  "med_hold": 2525.9181859493256
+ },
+ "CFPkPq1eYPR8GLzEo59wUbbMioX4bshaTQiSGzTSpump": {
+  "sym": "MENSA",
+  "pair": "E8RJG3srQBiSFMxDwrKG2DkwpWGyK7UYcFjkaTs9tbrS",
+  "pnl": -13.2,
+  "n": 3,
+  "wins": 0,
+  "med_hold": 61.4511022567749
+ },
+ "35B4vyZzEHQmL7Mg9Am8KpuTcNxEUW4Qdw8xiMhipump": {
+  "sym": "KEVIN",
+  "pair": "6v9pxkb7A41CDqtSnzk8Rj16UzZ1kp9N4a8XLcbniN77",
+  "pnl": -5.9,
+  "n": 1,
+  "wins": 0,
+  "med_hold": 282.1474003791809
+ },
+ "EwD4QKULxrTDdVNYJRqfnC9M8CAGPA6aZcdS7bqrpump": {
+  "sym": "OSCAR",
+  "pair": "CZZuvkp2kbnGUJJHXXrwxvZMkRqVJBRukgpA1ahCvvkL",
+  "pnl": -35.0,
+  "n": 3,
+  "wins": 0,
+  "med_hold": 177.3681092262268
+ },
+ "7LVWaPUkAsRX7AGwhvX3Q9sYpTTSnafzq5ABFwAapump": {
+  "sym": "MURAD",
+  "pair": "7UDDrS72QDwX6ChwZNseeuvJoWna3m6R86Zgpy93PMxX",
+  "pnl": -20.5,
+  "n": 4,
+  "wins": 0,
+  "med_hold": 139.31390941143036
+ },
+ "3NhrBt7oZVdU2mqRxGygz9nf42A3dppquZHSrd7Bpump": {
+  "sym": "COTORO",
+  "pair": "BbB23FDN89XBT6gJYMj8z87qKxNjFf8nv6FS2DoZkByf",
+  "pnl": 12.8,
+  "n": 3,
+  "wins": 1,
+  "med_hold": 90.21947383880615
+ },
+ "C5vxPUKsg8w4QwKqJQYaV8XNJ5XSPKbtxrrs4zHvpump": {
+  "sym": "PEACE",
+  "pair": "GSGMBFWNVHrGYtYebfYDCz82KRXUavxznXqV5NfgsBBz",
+  "pnl": -53.3,
+  "n": 17,
+  "wins": 2,
+  "med_hold": 128.58927011489868
+ },
+ "G5TD7vXeoQEXq7C9tc65Fr1QsTPeau6R6KNsowjMpump": {
+  "sym": "NEVER",
+  "pair": "5XXQ2qB1E9v8k6eRWkWtUcGAa7zVHoRJNBL2bcAchkQC",
+  "pnl": -52.5,
+  "n": 1,
+  "wins": 0,
+  "med_hold": 113.01363205909729
+ },
+ "HEU5mPDm5jCyn4AjQKjvWuvttACKvitgpAdwfmu2DoiA": {
+  "sym": "CLIVE",
+  "pair": "B1GFLecDJbYgDDSkKQMDp8xz5TTiCgdW7ADDVqqSUUFe",
+  "pnl": -23.5,
+  "n": 6,
+  "wins": 0,
+  "med_hold": 1198.8838905096054
+ },
+ "Dc6GW8TmGquTsLBwtrYgGMwGMY3HckT79iVCn8jmpump": {
+  "sym": "BANKS",
+  "pair": "GhpMDuD5V837N77GKLnB4zqi2dKdTtN7opSCu4fQG3VA",
+  "pnl": -44.7,
+  "n": 10,
+  "wins": 2,
+  "med_hold": 151.60371220111847
+ },
+ "FamUNkepHXkVxjWHeMSpJmD4xVhCSyNnUG9GVsdmR2xQ": {
+  "sym": "MANLET",
+  "pair": "AEUMT6aofX5egAdStd1fTDWXN5zH1JVSp9AxeM3tiZUb",
+  "pnl": -18.7,
+  "n": 3,
+  "wins": 0,
+  "med_hold": 43.54034233093262
+ },
+ "5KrvwhPnVgUaMdyqEy78PZXjLzdXUNTAjaLA7Zx9pump": {
+  "sym": "Mymo",
+  "pair": "EWNLAgrs1HmLTLxU9r8wvpgwSfHhCy8CR2bP7wretNxu",
+  "pnl": -6.7,
+  "n": 1,
+  "wins": 0,
+  "med_hold": 3.1388580799102783
+ },
+ "D78NGAjigMXaX52u5wvvLoNWuDZW98DayCxVtM9Fpump": {
+  "sym": "VITALY",
+  "pair": "DcqXnSNSDv7tE2itNGsMjxhGhk56nMpLUpmZbpcDNthV",
+  "pnl": -44.7,
+  "n": 26,
+  "wins": 10,
+  "med_hold": 1194.744955778122
+ },
+ "GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump": {
+  "sym": "Horseradish",
+  "pair": "2pcBimRfLVUkLgb394XMMfrcB82BU7UtLuPhS8WBw6VZ",
+  "pnl": 19.8,
+  "n": 54,
+  "wins": 29,
+  "med_hold": 593.4983192682266
+ },
+ "5rL1QdzSskB5WUnXeEuvK8qgi2uv9EXG7XgB9EBtpump": {
+  "sym": "Luffy",
+  "pair": "4uD5u9CoMVhwzanTNswxRcdMSukwKG9zxTnLsGmiKV1i",
+  "pnl": -18.0,
+  "n": 3,
+  "wins": 0,
+  "med_hold": 3.846001625061035
+ },
+ "5xPnm4sG1Waq1uLxHfHvbmMEKCFogimiwGbCsSV4pump": {
+  "sym": "NEXRUNE",
+  "pair": "AnHG4meF4c2w4936WTEM5ZN9qUkrK2zgbwnY84zWNAyL",
+  "pnl": 0.8,
+  "n": 3,
+  "wins": 2,
+  "med_hold": 21.616597414016724
+ },
+ "F5hqdbykXuksp8P78CAZenSvpPShAYKrP2U2MiZMdgFN": {
+  "sym": "bop",
+  "pair": "BmnhQDLEMv8quHYZgKe86g1Tbpo4LXwvb29zNzoKQ5Sw",
+  "pnl": -30.4,
+  "n": 6,
+  "wins": 0,
+  "med_hold": 596.3569387197495
+ },
+ "qPorq2UQuP6g1KZnGKMQEfVxN87BYvaYdqVy3KVpump": {
+  "sym": "1",
+  "pair": "mv9nmq9cM1koYNzkJtZnbsUievTDKH8cBnXhQmMcs37",
+  "pnl": 0.5,
+  "n": 3,
+  "wins": 1,
+  "med_hold": 159.75707030296326
+ },
+ "CzigqJ9h9mnfXq3G3jKBVcApKu8Kh8JtZGxarzY2pump": {
+  "sym": "SUPERMAN",
+  "pair": "9u8KnTGmGUTHviN8EuJEdT2gWTu1gQvc3SpdmGaqUQiy",
+  "pnl": -44.6,
+  "n": 47,
+  "wins": 12,
+  "med_hold": 182.41444897651672
+ },
+ "7kkQU6AhUadtoszttEKprirvpgBihJHPoHVczebvi7i3": {
+  "sym": "Chaton",
+  "pair": "3t1yZ52QvVWjNofVK3VU52qmt1kV1Xup4UCegciWhjFV",
+  "pnl": 27.6,
+  "n": 22,
+  "wins": 15,
+  "med_hold": 1543.8314725160599
+ },
+ "AP6vhUNmXXPiccsRBVj3Gct5khAU1ytjwBV7vuNFbonk": {
+  "sym": "HOPE",
+  "pair": "GDw5CQz7La499fXE8RNUeFT4MByFUuZoWLP4w1DsLXr7",
+  "pnl": 74.1,
+  "n": 48,
+  "wins": 30,
+  "med_hold": 1256.5313470363617
+ },
+ "CuGJf6cfDfMh4UxVgNJ5KFQ6v8Wv3qrqop6cFKsGpump": {
+  "sym": "TATE",
+  "pair": "B9c9dVwSNvM8q2v1CdmymXtsWBWS7U1VjG2Z3aLjLzpX",
+  "pnl": -37.6,
+  "n": 8,
+  "wins": 0,
+  "med_hold": 6.497719407081604
+ },
+ "F23GvgK5TvSA78FmibZot7gtU3yfAiPb4BkD4RrZc18B": {
+  "sym": "Ansem",
+  "pair": "3nYtfzvrkGWUdZi9JRdQbVfKd3Nkc3NBnEFrGEhBR7CL",
+  "pnl": 12.3,
+  "n": 5,
+  "wins": 4,
+  "med_hold": 1657.7926669120789
+ },
+ "swA5DdNU2HC9Uab2SEeJ3etuDRz8LvVDPWCgRc3pump": {
+  "sym": "popeyes",
+  "pair": "45acsB9DR1pN7me74rxUzp6yrVDRdxpcG2iZXoib8xZW",
+  "pnl": -19.1,
+  "n": 4,
+  "wins": 0,
+  "med_hold": 4.36070454120636
+ },
+ "6hpfrxQb2kn9iprcJcZ6uXruGAwDe12W9zT4y4WSpump": {
+  "sym": "Goofreck",
+  "pair": "LjvUBiEWWjxbShc6DBLnAiNupZuPahUwH1YChdB8yKX",
+  "pnl": -33.2,
+  "n": 5,
+  "wins": 0,
+  "med_hold": 128.932608127594
+ },
+ "CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump": {
+  "sym": "SHROOM",
+  "pair": "DVs2KGyiPAhQN7J9kfb33Syk6ppHwv8QAizduFUoG5Ti",
+  "pnl": -50.7,
+  "n": 10,
+  "wins": 0,
+  "med_hold": 250.48139071464539
+ },
+ "EJUosQZjpcY8pa93vfRGmUMvFJGG4WV2mE2twREzpump": {
+  "sym": "Way up",
+  "pair": "x9B5R1WNpJMZ3frUKmMGARVJ8gSfpavb7ERkqhHAGik",
+  "pnl": 9.5,
+  "n": 2,
+  "wins": 1,
+  "med_hold": 3.577794909477234
+ },
+ "HS4DWjgJ2h51PCnhh95saqgLQ21Zps6VABK1vi9gpump": {
+  "sym": "LojakPaul",
+  "pair": "BfVhUY3Y2FuvzQZUPpyyHsaoh8CiYdVAXJ25zystWURu",
+  "pnl": 9.1,
+  "n": 2,
+  "wins": 2,
+  "med_hold": 1906.0473693609238
+ },
+ "MsGDybWRSNdNXkdDZhEksgzugT5CbVWUG2wkhwgpump": {
+  "sym": "MeiMei",
+  "pair": "DtDfaWqhCEaeFXJUHjGC8Xo9XxH52ENVhA1XoJ9F4d8Y",
+  "pnl": 12.5,
+  "n": 21,
+  "wins": 14,
+  "med_hold": 838.6454985141754
+ },
+ "3y3X6Bk6zpZpaFJ1KYJ7b33HbFM7ip5TqQPYLWJhpump": {
+  "sym": "GAPLA",
+  "pair": "2FxX1awKLyAaiWZSa4pL9bYcLzmEtie6JpuoCu8HTzRo",
+  "pnl": -55.2,
+  "n": 7,
+  "wins": 0,
+  "med_hold": 90.17896294593811
+ },
+ "Cz1nNU1XsBKWPfD9aGNSxxp7EmTCBjEFH4eprKtxpump": {
+  "sym": "Scamcoin",
+  "pair": "HDB1D9FpzQF4VVJ8gMnbWf4tBk1DxGAAMYnoGE93Rwvu",
+  "pnl": -64.9,
+  "n": 8,
+  "wins": 0,
+  "med_hold": 86.99014639854431
+ },
+ "24Kko3VWwMKtkB9CVct2ZAZgJzb2R2iNrYxCpTYFpump": {
+  "sym": "APU",
+  "pair": "7abF5yhUCp6spgYfuCu4tKkWTM5TWnUWabzity6qSxSG",
+  "pnl": 1.7,
+  "n": 13,
+  "wins": 5,
+  "med_hold": 758.6870727539062
+ },
+ "73jj6SFe9FKn6qqpaGwbSd7TL1sHheh3HqDo9RwA7BHB": {
+  "sym": "Pork",
+  "pair": "9rPogiERgqQPCYJ5hbXu7LsUjXA5G9DcA3d9pX1bvUox",
+  "pnl": -1.8,
+  "n": 1,
+  "wins": 0,
+  "med_hold": 3723.552508831024
+ },
+ "HmTi3CQfKfXWbn1tNoiAxH7GzMV7L3tDAmPWabZEBAGS": {
+  "sym": "P0",
+  "pair": "i1qCVUTpV37H6WnqZQ3etAC3oYe9ksjjs7RXa4J7pRP",
+  "pnl": -9.0,
+  "n": 9,
+  "wins": 0,
+  "med_hold": 420.3815438747406
+ },
+ "498DeYRS7AtLdE5wbwXbpFtinMTDTJxuvfXMraDDpump": {
+  "sym": "FABLE",
+  "pair": "29X7bKWUqYDJsTrJSPmwVJo5QRpoDLdEyDLEA6soWSW9",
+  "pnl": 14.1,
+  "n": 2,
+  "wins": 2,
+  "med_hold": 262.13137447834015
+ },
+ "Ns6PhWqLDTexho3aiU42TZM7af5bsyEsqQffT4Bpump": {
+  "sym": "bull",
+  "pair": "9PgDHSmcmH674Lst6GtrLyVVei4HR8WDGtJSgcRpMC2",
+  "pnl": 27.6,
+  "n": 7,
+  "wins": 5,
+  "med_hold": 5623.617800951004
+ },
+ "HnXDnwTa68tRhLRZdJkVRLAeYrUkCYgFgDavtwD1pump": {
+  "sym": "Fartcoin",
+  "pair": "eUsB7o5HXb4xj3RD4eZjumRV6T65PQELbhd8mNFRjk6",
+  "pnl": -9.7,
+  "n": 5,
+  "wins": 0,
+  "med_hold": 3600.5755524635315
+ },
+ "36CvCWVMgSgpZNFu2JVuaaJVEcKtqySpS9hD2kxUpump": {
+  "sym": "gato",
+  "pair": "7hEL7Yfs6s1BjeShnD65yTao2gtiFYRZXkA8GvbccT91",
+  "pnl": 71.2,
+  "n": 13,
+  "wins": 12,
+  "med_hold": 1539.859126329422
+ },
+ "Ed1yisBEAo8UXToSswvVFgzyJKpF48HEdq5kvz2zpump": {
+  "sym": "vibes",
+  "pair": "GeZGtZTXuCtVJ8nBQZoeqmRfCN8SVtRtDZYLgCinJhKM",
+  "pnl": -22.7,
+  "n": 13,
+  "wins": 4,
+  "med_hold": 169.4256615638733
+ },
+ "wCtiCRJz69a5Mqkk2nHmvQwBGQCrUvM8fELoFGqpump": {
+  "sym": "BILLBOARD",
+  "pair": "6gUKXnsEq6dsRp8RNUfU9wFadbmYRv8D1UictDemKGRa",
+  "pnl": -28.7,
+  "n": 9,
+  "wins": 0,
+  "med_hold": 676.3120970726013
+ },
+ "62yzpmKJB6XiVtZcQZhUkUXhqwN3UgCbffUi4JM9pump": {
+  "sym": "world",
+  "pair": "3b96syjAEJ1YXNSDMiEANTgshk3s2HkE9mjSUhM1cnYh",
+  "pnl": -70.6,
+  "n": 17,
+  "wins": 0,
+  "med_hold": 6.817127227783203
+ },
+ "Hnv13n2QUnaZm4a54o96Nx6e9Ysr2t3qB3CVauD8pump": {
+  "sym": "SON",
+  "pair": "EkrznrcYhFH1NYRysbNW5bC1CoxCTt21FJ7SjyesLVue",
+  "pnl": -4.6,
+  "n": 19,
+  "wins": 11,
+  "med_hold": 1666.6007611751556
+ },
+ "9smMJxtru37j29w7pfcQZfpKXdsUohuDXqHFaLJcpump": {
+  "sym": "BRIM",
+  "pair": "9hXD8sti6UmCzAcYw1DjcyhsuHtry5MW8GPrx7rMMyJ7",
+  "pnl": -6.4,
+  "n": 1,
+  "wins": 0,
+  "med_hold": 556.3398878574371
+ },
+ "42cXQvAAr7hcPBPWAS4ocVtDyeJ4Fa6gRR2uG4gppump": {
+  "sym": "TBB",
+  "pair": "6unnG2hL8udPjDpu3TchvAtptu3dq8AS7tymrWDN2LLC",
+  "pnl": -20.5,
+  "n": 5,
+  "wins": 0,
+  "med_hold": 681.0786561965942
+ },
+ "FpzZHtp5tbvz6xndEtoJHoGEWcT7cFEuscdCh9RApump": {
+  "sym": "VOICEBOX",
+  "pair": "5ukdRdkEY8takptjBTgS7vfmoWhKJoRLV8zexF1XFs6p",
+  "pnl": -19.2,
+  "n": 7,
+  "wins": 0,
+  "med_hold": 1170.564133644104
+ },
+ "9E2Q4KKxLS5Y4bu6RKvjg5wQ2kzaLkiVsMt7zwMZpump": {
+  "sym": "WYNN",
+  "pair": "77WQKX8D7e89LZXLk3qus2Xmqn4tNQjJrL6kwjDpj91L",
+  "pnl": 95.4,
+  "n": 26,
+  "wins": 23,
+  "med_hold": 972.3667293787003
+ },
+ "BDdzUjksj1J4bSnMveQ5tV9Up8A9c6YS1tHrxNw3pump": {
+  "sym": "FOMO",
+  "pair": "9QwpxCSEssoY6NacsYivMptPeYqXa8Hwd2oFpJd4vrXp",
+  "pnl": -5.8,
+  "n": 1,
+  "wins": 0,
+  "med_hold": 157.80890560150146
+ },
+ "7jrazSKnCU2vbyVPJ8dfEF2TMYLcUiDBsFaEGvqopump": {
+  "sym": "\ud83d\udc02\ud83c\udc04",
+  "pair": "J8c2wQCZiLoc38GL1uqWsABznXDXgKpxo7Dm4Pnpu311",
+  "pnl": -4.7,
+  "n": 1,
+  "wins": 0,
+  "med_hold": 10.228102207183838
+ },
+ "DS5XsrtgCfeVtnVFY4bxoexU6FPczaBXQTjuNz5Gpump": {
+  "sym": "#fairs",
+  "pair": "FyrKjDf1gbNH8WaqRepvxTDfx8gr1eirazKAq2J5xARc",
+  "pnl": 12.8,
+  "n": 2,
+  "wins": 2,
+  "med_hold": 3965.941730618477
+ },
+ "ERPtViqckt1zqpS2abUx67CgLcP54CkhBPYz3yRUpump": {
+  "sym": "yep",
+  "pair": "By5FJ8SXGtfUgxQfyedbLPeFUvDaEbMy2dmG2mbe7ynd",
+  "pnl": -5.2,
+  "n": 1,
+  "wins": 0,
+  "med_hold": 120.65071105957031
+ },
+ "3fGoNjPohYRVPk9iJuwEW5WuURU5gmAdSRgNgeaanexQ": {
+  "sym": "KEYDOG",
+  "pair": "FBNKwRG7DgurthvUmStyQVF1J62jNFfBWnFY6skpFYfg",
+  "pnl": -4.8,
+  "n": 1,
+  "wins": 0,
+  "med_hold": 2018.101937532425
+ }
+}

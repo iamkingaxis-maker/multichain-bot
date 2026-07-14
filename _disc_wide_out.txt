@@ -1,0 +1,27 @@
+
+cross-token recurrent (>= 2 distinct runners): 10
+  AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51  hits=6
+  7JCe3GHwkEr3feHgtLXnmuJ1yB3A7coSeyynxTBgdG8k  hits=5
+  7iVCXQn4u6tiTEfNVqbWSEsRdEi69E9oYsSMiepuECwi  hits=4
+  MRiYA4oN3158fCV8evhuCofrDzbHyYvYnGZUDJvoCsa  hits=2
+  3gubYnreSffR5qRqmkoCTketmCXj3jMQu4UdiqRGy13t  hits=2
+  2Jy2VdYU6YmSKL2fAk59iTBHavGUu41HNRMekdwcVUVg  hits=2
+  DJocqRPK2uKWvmR5WnWcd7m8fDw6az1L54R4UuH3GrGN  hits=2
+  2uo3aPCrr7uMm6syMLjJSd5oTgpZGRDgrvvUrrkDrB11  hits=2
+  Em8J3gBWapfVBGVhVipwQnLrqCvnWBnLajw6XFsFECPF  hits=2
+  2tYcXQCfTtQg5dKLEpQn26DjrfhTXhGB8Rh1oiv69DJc  hits=2
+
+wallet       hits ndist rtrips  rWR  netSOL  class  daily(last days)
+  AgmLJBMDCqWy    6     0      0  n/a   +0.00  WEAK     
+  7JCe3GHwkEr3    5     0      0  n/a   +0.00  WEAK     
+  7iVCXQn4u6ti    4     0      0  n/a   +0.00  WEAK     
+  MRiYA4oN3158    2     0      0  n/a   +0.00  WEAK     
+  3gubYnreSffR    2    22      0  n/a   +0.00  WEAK     
+  2Jy2VdYU6YmS    2    18      0  n/a   +0.00  WEAK     
+  DJocqRPK2uKW    2    12      0  n/a   +0.00  WEAK     
+  2uo3aPCrr7uM    2    11      6  33%   -0.38  WEAK     
+  Em8J3gBWapfV    2     0      0  n/a   +0.00  WEAK     
+  2tYcXQCfTtQg    2    64     12  67%   +2.68  SELECTOR NET+ recent
+
+FINAL daily-positive SELECTOR candidates: 1 -> _daily_positive_candidates.json
+next: forward-shadow 24-48h (fire-quality on their would-be fires) before any watchlist add.

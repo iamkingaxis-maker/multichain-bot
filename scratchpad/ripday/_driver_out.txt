@@ -1,0 +1,6 @@
+20:53:00 --- phase3 GT-first run ---
+20:53:00 phase3: GT ohlc todo 94
+20:55:26 phase3: ohlc 15/94
+20:58:19 phase3: ohlc 30/94
+21:00:34 phase3: ohlc 45/94
+21:01:46 phase3: budget out during ohlc (55 done, 39 left)

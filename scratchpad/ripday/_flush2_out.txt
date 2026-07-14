@@ -1,0 +1,20 @@
+DD=-20% FWD=15m MINTR=3 -> flushes=13 tokens=13 bounced=9 died=4
+DD=-15% FWD=15m MINTR=3 -> flushes=14 tokens=14 bounced=9 died=5
+DD=-12% FWD=15m MINTR=3 -> flushes=14 tokens=14 bounced=9 died=5
+DD=-15% FWD=30m MINTR=3 -> flushes=6 tokens=6 bounced=3 died=3
+
+DETAIL (DD-15 FWD15):
+3wbaKwr7 SHIH       07-01T20:38 dd=-33.8 pk=   5.8 died   ntr=45 imb=0.38 nbuy=15 maxp=   162 rep=0 gd=0 sm=0 tp=0 kill=2 harv
+4xyyYHkz Guardians  07-01T19:59 dd=-99.9 pk=  61.6 BOUNCE ntr=32 imb=0.9 nbuy=22 maxp=    79 rep=0 gd=0 sm=0 tp=0 kill=1 harv
+591UdL6W BULLEMOJI  07-01T09:12 dd=-99.1 pk=  46.3 BOUNCE ntr=30 imb=0.87 nbuy= 6 maxp=   122 rep=0 gd=0 sm=0 tp=0 kill=0 harv
+5npesGsn BULLWIF    07-01T20:29 dd=-19.4 pk=   1.3 died   ntr=17 imb=0.68 nbuy=10 maxp=   141 rep=0 gd=0 sm=0 tp=0 kill=1 harv
+7SoBgBnc ANSEMTRENC 06-29T22:43 dd=-99.1 pk=  44.7 BOUNCE ntr=49 imb=0.39 nbuy= 1 maxp=     3 rep=0 gd=0 sm=0 tp=0 kill=0 harv
+8M8ykoAb hansem     07-01T19:30 dd=-87.1 pk=  20.8 BOUNCE ntr=56 imb=0.61 nbuy= 4 maxp=   378 rep=1 gd=0 sm=0 tp=0 kill=1 live
+8bZai1tb TRADING    07-01T17:19 dd=-98.6 pk=   4.1 died   ntr=111 imb=0.66 nbuy=21 maxp=    57 rep=0 gd=0 sm=0 tp=0 kill=0 live
+BJYbq765 BULLMAO    07-01T15:10 dd=-99.1 pk=   8.1 died   ntr=50 imb=0.82 nbuy= 4 maxp=    26 rep=0 gd=0 sm=0 tp=0 kill=0 harv
+DgubzCb3 ALEX       07-01T06:52 dd=-99.3 pk=  21.6 BOUNCE ntr=59 imb=0.49 nbuy= 4 maxp=    54 rep=0 gd=0 sm=0 tp=0 kill=0 harv
+FMTG5DSN ALBEMARLE  07-01T20:41 dd=-27.6 pk=  23.6 BOUNCE ntr=68 imb=0.65 nbuy=27 maxp=  1527 rep=0 gd=0 sm=0 tp=0 kill=2 harv
+FfpUuXzX HIM        07-01T20:25 dd=-72.5 pk=  17.2 BOUNCE ntr=36 imb=0.39 nbuy=12 maxp=   301 rep=0 gd=0 sm=0 tp=0 kill=1 harv
+GAefbsZe Horseradis 07-01T20:39 dd=-35.5 pk=  31.7 BOUNCE ntr=14 imb=0.64 nbuy= 7 maxp=   233 rep=0 gd=0 sm=0 tp=0 kill=1 harv
+GFZErV4q ANSEM      07-01T20:13 dd=-52.4 pk=  18.0 BOUNCE ntr=35 imb=0.58 nbuy= 7 maxp=   226 rep=0 gd=0 sm=0 tp=0 kill=1 harv
+HKvuvfLF ANSEM      07-01T18:45 dd=-99.3 pk=   7.8 died   ntr=75 imb=0.49 nbuy=12 maxp=    77 rep=0 gd=0 sm=0 tp=0 kill=0 live

@@ -1,0 +1,3 @@
+{"kind":"buy","volume_usd":0.54,"ts":"2026-07-10T16:31:48+00:00","maker":"0x3be9ec4e7b63efb3b70dad6c6b738aa2ac248182","pair":"0x798acfb4ff6d5cba16fa009c5332faf1c49c399d","sym":"GAINZ","lag_secs":1.21,"pre_conf":true}
+{"kind":"buy","volume_usd":5.37,"ts":"2026-07-10T16:33:51+00:00","maker":"0x010accf8c7c085770bd531f9ffb2ba7112ab957b","pair":"0x798acfb4ff6d5cba16fa009c5332faf1c49c399d","sym":"GAINZ","lag_secs":0.35,"pre_conf":true}
+{"kind":"buy","volume_usd":52.36,"ts":"2026-07-10T16:34:07+00:00","maker":"0xfb5fe3f22237c6481c089c8ee1ef70a117f4b172","pair":"0x798acfb4ff6d5cba16fa009c5332faf1c49c399d","sym":"GAINZ","lag_secs":0.65,"pre_conf":true}

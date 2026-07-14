@@ -1,0 +1,7 @@
+{"kind":"buy","volume_usd":8.88,"ts":"2026-07-12T11:18:00+00:00","maker":"0xac3afd2c591e049ef71684d72dc8dab9a2437674","pair":"0x6cf9ed2ffc55bcd95cae3f334d2271fa5ed7d866","sym":"arcR","lag_secs":0.09,"pre_conf":true}
+{"kind":"buy","volume_usd":0.67,"ts":"2026-07-12T11:20:41+00:00","maker":"0x136db5b076ca9b79e7fdc4e66f8786f353c89b88","pair":"0x6cf9ed2ffc55bcd95cae3f334d2271fa5ed7d866","sym":"arcR","lag_secs":-0.15,"pre_conf":true}
+{"kind":"buy","volume_usd":67.59,"ts":"2026-07-12T11:29:29+00:00","maker":"0x7d9825bbd1ef2c6b06255876194c53502546f09b","pair":"0x6cf9ed2ffc55bcd95cae3f334d2271fa5ed7d866","sym":"arcR","lag_secs":-0.02,"pre_conf":true}
+{"kind":"buy","volume_usd":6.92,"ts":"2026-07-12T11:36:22+00:00","maker":"0x9a3ea52ddb247b88fd74f44c4fc98beb7ff5a2bf","pair":"0x6cf9ed2ffc55bcd95cae3f334d2271fa5ed7d866","sym":"arcR","lag_secs":0.42,"pre_conf":true}
+{"kind":"buy","volume_usd":5.06,"ts":"2026-07-12T12:19:52+00:00","maker":"0xa29924a6fe3a24006abfefe846df029ee1757b2b","pair":"0x6cf9ed2ffc55bcd95cae3f334d2271fa5ed7d866","sym":"arcR","lag_secs":-0.02,"pre_conf":true}
+{"kind":"buy","volume_usd":2.4,"ts":"2026-07-12T12:36:23+00:00","maker":"0x860e3761d40e264cbb0eb2bee70f8ca845f952b6","pair":"0x6cf9ed2ffc55bcd95cae3f334d2271fa5ed7d866","sym":"arcR","lag_secs":0.47,"pre_conf":true}
+{"kind":"buy","volume_usd":36.12,"ts":"2026-07-12T13:09:50+00:00","maker":"0xf174b9d7e9487042dacb488989fa364a2befe5ee","pair":"0x6cf9ed2ffc55bcd95cae3f334d2271fa5ed7d866","sym":"arcR","lag_secs":0.82,"pre_conf":true}

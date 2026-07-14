@@ -1,0 +1,2 @@
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-11T03:59:45+00:00","maker":"0x992c15a960716cea3931245ce386abc9f02b86a2","pair":"0x3ae9f3fd4b7c0ac8fc6f2808d2ebeeabeb67b8dd","sym":"MICROCAP","lag_secs":0.4,"pre_conf":true}
+{"kind":"buy","volume_usd":10.07,"ts":"2026-07-11T04:00:04+00:00","maker":"0x68cde4d8dd60cca6bfbaa1f93917c554dcc27144","pair":"0x3ae9f3fd4b7c0ac8fc6f2808d2ebeeabeb67b8dd","sym":"MICROCAP","lag_secs":0.69,"pre_conf":true}

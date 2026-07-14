@@ -1,0 +1,2 @@
+[rh-feed] chain 4663 head=5942965 eth=$1,785.95 poll=1.5s liq>=$5000 age<=24h watch<=150
+[disc] backfill: 4160 creations -> 4078 WETH-quoted candidates

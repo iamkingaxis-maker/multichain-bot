@@ -1,0 +1,7 @@
+{"kind":"buy","volume_usd":1.01,"ts":"2026-07-10T19:52:24+00:00","maker":"0x7ef011c7a60852d9d728ca62bbeb6de66d577ce6","pair":"0xad2e9f0ad82f504eeff49001eb9b788b4404192d","sym":"FLYWHEEL","lag_secs":0.61,"pre_conf":true}
+{"kind":"buy","volume_usd":1.01,"ts":"2026-07-10T19:53:03+00:00","maker":"0x7ef011c7a60852d9d728ca62bbeb6de66d577ce6","pair":"0xad2e9f0ad82f504eeff49001eb9b788b4404192d","sym":"FLYWHEEL","lag_secs":0.5,"pre_conf":true}
+{"kind":"buy","volume_usd":1.43,"ts":"2026-07-10T20:14:11+00:00","maker":"0x2f79c0851e0f3e51fa43685f39e232ee15fc3a62","pair":"0xad2e9f0ad82f504eeff49001eb9b788b4404192d","sym":"FLYWHEEL","lag_secs":0.43,"pre_conf":true}
+{"kind":"buy","volume_usd":1.43,"ts":"2026-07-10T20:14:48+00:00","maker":"0x2f79c0851e0f3e51fa43685f39e232ee15fc3a62","pair":"0xad2e9f0ad82f504eeff49001eb9b788b4404192d","sym":"FLYWHEEL","lag_secs":-0.17,"pre_conf":true}
+{"kind":"buy","volume_usd":1.79,"ts":"2026-07-10T20:16:22+00:00","maker":"0x2f79c0851e0f3e51fa43685f39e232ee15fc3a62","pair":"0xad2e9f0ad82f504eeff49001eb9b788b4404192d","sym":"FLYWHEEL","lag_secs":0.16,"pre_conf":true}
+{"kind":"buy","volume_usd":2.69,"ts":"2026-07-10T20:16:49+00:00","maker":"0x2f79c0851e0f3e51fa43685f39e232ee15fc3a62","pair":"0xad2e9f0ad82f504eeff49001eb9b788b4404192d","sym":"FLYWHEEL","lag_secs":-0.21,"pre_conf":true}
+{"kind":"buy","volume_usd":716.49,"ts":"2026-07-10T20:48:05+00:00","maker":"0x0aafcb51a9a3c0c811c089df34f91f79622327a1","pair":"0xad2e9f0ad82f504eeff49001eb9b788b4404192d","sym":"FLYWHEEL","lag_secs":0.77,"pre_conf":true}

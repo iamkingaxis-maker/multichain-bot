@@ -1,0 +1,8 @@
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-12T10:10:06+00:00","maker":"0x49cb9434a8cc07a6204bf535e2906a0690a6da42","pair":"0xdbbbd2fc8d2565783751d6a8bb54091d9c278fe9","sym":"FMTM","lag_secs":0.36,"pre_conf":true}
+{"kind":"buy","volume_usd":1.02,"ts":"2026-07-12T10:13:39+00:00","maker":"0x7360ecae6ef94341c0f3f0a66898bb7b128c3ab1","pair":"0xdbbbd2fc8d2565783751d6a8bb54091d9c278fe9","sym":"FMTM","lag_secs":0.9,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-12T10:15:51+00:00","maker":"0x49cb9434a8cc07a6204bf535e2906a0690a6da42","pair":"0xdbbbd2fc8d2565783751d6a8bb54091d9c278fe9","sym":"FMTM","lag_secs":-0.11,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-12T10:21:33+00:00","maker":"0x49cb9434a8cc07a6204bf535e2906a0690a6da42","pair":"0xdbbbd2fc8d2565783751d6a8bb54091d9c278fe9","sym":"FMTM","lag_secs":1.26,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-12T10:27:11+00:00","maker":"0x49cb9434a8cc07a6204bf535e2906a0690a6da42","pair":"0xdbbbd2fc8d2565783751d6a8bb54091d9c278fe9","sym":"FMTM","lag_secs":1.03,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-12T10:32:57+00:00","maker":"0x49cb9434a8cc07a6204bf535e2906a0690a6da42","pair":"0xdbbbd2fc8d2565783751d6a8bb54091d9c278fe9","sym":"FMTM","lag_secs":0.81,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-12T10:37:50+00:00","maker":"0x49cb9434a8cc07a6204bf535e2906a0690a6da42","pair":"0xdbbbd2fc8d2565783751d6a8bb54091d9c278fe9","sym":"FMTM","lag_secs":0.64,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-12T10:43:24+00:00","maker":"0x49cb9434a8cc07a6204bf535e2906a0690a6da42","pair":"0xdbbbd2fc8d2565783751d6a8bb54091d9c278fe9","sym":"FMTM","lag_secs":0.6,"pre_conf":true}

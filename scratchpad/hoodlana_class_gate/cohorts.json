@@ -1,0 +1,428 @@
+{
+ "winners_all": [
+  "24Kko3VWwMKtkB9CVct2ZAZgJzb2R2iNrYxCpTYFpump",
+  "2Gt16sPz97kjvVXAz7aRbKG718hmY9HiyboieZKBpump",
+  "2b93RPW315VQP7RHWthbcgjrR477YqbSu9tXnBjppump",
+  "32eFDwQXfnj5ULY2b71cLuy5HJuhsRHSYTw3qCcKpump",
+  "36CvCWVMgSgpZNFu2JVuaaJVEcKtqySpS9hD2kxUpump",
+  "3NhrBt7oZVdU2mqRxGygz9nf42A3dppquZHSrd7Bpump",
+  "3oX9emrqYRGzFEDPP3jA6tYnUBML4QSr3DfgD2r5pump",
+  "48MBbzvBUKjVFB97jyg1YnwC8VbfKik4ry6hKDezpump",
+  "4PRz3EwhbjrrX6YksMDuUzrXT51pr7CQtXNCravhpump",
+  "4eKYoR1hBHnRaYyg2d57H36uUatRNyZr1NRP9ScNpump",
+  "5RyeWfbjVw6Ktj6j8SmTiAnVXWvmV8YxGtTebNsU2dBo",
+  "5V1uDUcnPvY1YmQEmhgyQLgSqh1nZgkExx7LwzoNpump",
+  "5xPnm4sG1Waq1uLxHfHvbmMEKCFogimiwGbCsSV4pump",
+  "61qNX1UoKDMypgDJzNGFra3Mb6DQPyUmf6zDayZ7bonk",
+  "62yzpmKJB6XiVtZcQZhUkUXhqwN3UgCbffUi4JM9pump",
+  "6MTctU7s7xJvJN3QPgEQi8zrP6od89DvXHVEbJh4pump",
+  "6UGNg119LV6YjSCQ5K6Z6jsLLLetpMJ1vPdhiU8qpump",
+  "6gkrxBbpzBvnH1oGhqdsMGPbHwAnFA6T1Xq5Cubupump",
+  "6hpfrxQb2kn9iprcJcZ6uXruGAwDe12W9zT4y4WSpump",
+  "71HtXHfexjKgem92Y5sPLPb6qkmtqWmPUzdKAcU9pump",
+  "7LNfxxMAu5sNbg4uY5Kuu5Tvg6CsQGUo4ASkD79Xpump",
+  "7X84qLj14hs5j1YNGimWfhMEVMrnrCtkMUDnkWyk8jKA",
+  "7vLT9GmU7iH4JT2NBDRTejm1StqZocfSDqCzfMvzpump",
+  "8EnmgofrT5zp6uUiNfECkUMBnYA42pMqPj35vVXUpump",
+  "8LZKRa3f23CrCTwLFRY9jQWRjFQwGiuP46Mk9jytpump",
+  "8N1xPzwZtuRQSdRMnbjAjdd2tK9V8nF7Wrw8gGeLpump",
+  "8YFpCz4pxkNQxowNDyQrPmDizXQLhFF5xn87oG14pump",
+  "98uHBngN8bXyEpuUxkiBVsasPXMHYyfqymeYAuHTpump",
+  "9HSMssrVecFSs494Zw1QBZL5m3Wjtnic4o1nX6u7pump",
+  "9Pfync3ejPC9eHqVzq3nYQJAhyhjqpnB9UsaSfLxpump",
+  "AyafwyhUhZW4L9bdeG2nBjTpQkt5ek1aA1A78XGopump",
+  "B5BPVt7uZyycC2fKTUM4KYoFsK9WBuX6UhpvqPVbG5YT",
+  "B642ubQRSmy2wW4UcaTsL3skSP9abPLGyi8qenDWpump",
+  "BUG9jJ6MZcxbXaDVqq199HvWafMSP4pYHVFrZfLmpump",
+  "BWH6gtE5MSCS1GUoRpM5HrqQnV97oi8g8dDHAi41pump",
+  "Bm5hU3iYP9syzZHte1Ubv5GjSkMjFsCqaVyWcBdpump",
+  "BuK3BYo79xiJz8A11LCf2qtbNzQXEoHTsbiHNFgJpump",
+  "C7mc2LvSuThi1rjx9XC1ofLsx5bFgR93JHCpyquTpump",
+  "CnqFjUb8Y9fj8DhokJuADKhSz9p2kwbsiujrPeu1pump",
+  "CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump",
+  "D2XvLipYuPFgJ42kB6U4ihmHENStT7h2BS2iN5NtzZKg",
+  "DiiTPZdpd9t3XorHiuZUu4E1FoSaQ7uGN4q9YkQupump",
+  "ECHFvPRtUDDTg53V5k45pLk6E5zCunk5RYXrL1qopump",
+  "Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump",
+  "F612mB7c9pXAQjGysAeh4vesxauKtjqi7QFmzxJQpump",
+  "G7zeUXZzTUa8iXeUcW5J8oK9zoK4WY75fzmwFMe5pump",
+  "GRnVdzDbv4hn1p4PotEPYZW5TknE9UuHPMAuiYt3pump",
+  "HmTi3CQfKfXWbn1tNoiAxH7GzMV7L3tDAmPWabZEBAGS",
+  "J5p7z5dZew83HwpFnUqr1HL2S29sn8i7S8eFNwDUpump",
+  "JCKJviubAbCSztaGnKGqaiKhmpsE9uDTxcENXZrLpump",
+  "MsGDybWRSNdNXkdDZhEksgzugT5CbVWUG2wkhwgpump",
+  "VXjDEv3EeJgg5J88uNasoMwaryCtdfKw5YNkAoJBpwU",
+  "hhB7CZU8rtKgaNoQu8a4DoBkQJTuUZy8Z1nB9CSEASY",
+  "qPorq2UQuP6g1KZnGKMQEfVxN87BYvaYdqVy3KVpump",
+  "swA5DdNU2HC9Uab2SEeJ3etuDRz8LvVDPWCgRc3pump"
+ ],
+ "winners_alive": [
+  "24Kko3VWwMKtkB9CVct2ZAZgJzb2R2iNrYxCpTYFpump",
+  "2Gt16sPz97kjvVXAz7aRbKG718hmY9HiyboieZKBpump",
+  "32eFDwQXfnj5ULY2b71cLuy5HJuhsRHSYTw3qCcKpump",
+  "3oX9emrqYRGzFEDPP3jA6tYnUBML4QSr3DfgD2r5pump",
+  "48MBbzvBUKjVFB97jyg1YnwC8VbfKik4ry6hKDezpump",
+  "4PRz3EwhbjrrX6YksMDuUzrXT51pr7CQtXNCravhpump",
+  "5RyeWfbjVw6Ktj6j8SmTiAnVXWvmV8YxGtTebNsU2dBo",
+  "61qNX1UoKDMypgDJzNGFra3Mb6DQPyUmf6zDayZ7bonk",
+  "62yzpmKJB6XiVtZcQZhUkUXhqwN3UgCbffUi4JM9pump",
+  "6UGNg119LV6YjSCQ5K6Z6jsLLLetpMJ1vPdhiU8qpump",
+  "6gkrxBbpzBvnH1oGhqdsMGPbHwAnFA6T1Xq5Cubupump",
+  "6hpfrxQb2kn9iprcJcZ6uXruGAwDe12W9zT4y4WSpump",
+  "7LNfxxMAu5sNbg4uY5Kuu5Tvg6CsQGUo4ASkD79Xpump",
+  "7X84qLj14hs5j1YNGimWfhMEVMrnrCtkMUDnkWyk8jKA",
+  "8LZKRa3f23CrCTwLFRY9jQWRjFQwGiuP46Mk9jytpump",
+  "9HSMssrVecFSs494Zw1QBZL5m3Wjtnic4o1nX6u7pump",
+  "9Pfync3ejPC9eHqVzq3nYQJAhyhjqpnB9UsaSfLxpump",
+  "BWH6gtE5MSCS1GUoRpM5HrqQnV97oi8g8dDHAi41pump",
+  "BuK3BYo79xiJz8A11LCf2qtbNzQXEoHTsbiHNFgJpump",
+  "CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump",
+  "D2XvLipYuPFgJ42kB6U4ihmHENStT7h2BS2iN5NtzZKg",
+  "DiiTPZdpd9t3XorHiuZUu4E1FoSaQ7uGN4q9YkQupump",
+  "GRnVdzDbv4hn1p4PotEPYZW5TknE9UuHPMAuiYt3pump",
+  "HmTi3CQfKfXWbn1tNoiAxH7GzMV7L3tDAmPWabZEBAGS",
+  "MsGDybWRSNdNXkdDZhEksgzugT5CbVWUG2wkhwgpump",
+  "hhB7CZU8rtKgaNoQu8a4DoBkQJTuUZy8Z1nB9CSEASY",
+  "swA5DdNU2HC9Uab2SEeJ3etuDRz8LvVDPWCgRc3pump"
+ ],
+ "winners_dead": [
+  "2b93RPW315VQP7RHWthbcgjrR477YqbSu9tXnBjppump",
+  "36CvCWVMgSgpZNFu2JVuaaJVEcKtqySpS9hD2kxUpump",
+  "3NhrBt7oZVdU2mqRxGygz9nf42A3dppquZHSrd7Bpump",
+  "4eKYoR1hBHnRaYyg2d57H36uUatRNyZr1NRP9ScNpump",
+  "5V1uDUcnPvY1YmQEmhgyQLgSqh1nZgkExx7LwzoNpump",
+  "5xPnm4sG1Waq1uLxHfHvbmMEKCFogimiwGbCsSV4pump",
+  "6MTctU7s7xJvJN3QPgEQi8zrP6od89DvXHVEbJh4pump",
+  "71HtXHfexjKgem92Y5sPLPb6qkmtqWmPUzdKAcU9pump",
+  "7vLT9GmU7iH4JT2NBDRTejm1StqZocfSDqCzfMvzpump",
+  "8EnmgofrT5zp6uUiNfECkUMBnYA42pMqPj35vVXUpump",
+  "8N1xPzwZtuRQSdRMnbjAjdd2tK9V8nF7Wrw8gGeLpump",
+  "8YFpCz4pxkNQxowNDyQrPmDizXQLhFF5xn87oG14pump",
+  "98uHBngN8bXyEpuUxkiBVsasPXMHYyfqymeYAuHTpump",
+  "AyafwyhUhZW4L9bdeG2nBjTpQkt5ek1aA1A78XGopump",
+  "B5BPVt7uZyycC2fKTUM4KYoFsK9WBuX6UhpvqPVbG5YT",
+  "B642ubQRSmy2wW4UcaTsL3skSP9abPLGyi8qenDWpump",
+  "BUG9jJ6MZcxbXaDVqq199HvWafMSP4pYHVFrZfLmpump",
+  "Bm5hU3iYP9syzZHte1Ubv5GjSkMjFsCqaVyWcBdpump",
+  "C7mc2LvSuThi1rjx9XC1ofLsx5bFgR93JHCpyquTpump",
+  "CnqFjUb8Y9fj8DhokJuADKhSz9p2kwbsiujrPeu1pump",
+  "ECHFvPRtUDDTg53V5k45pLk6E5zCunk5RYXrL1qopump",
+  "Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump",
+  "F612mB7c9pXAQjGysAeh4vesxauKtjqi7QFmzxJQpump",
+  "G7zeUXZzTUa8iXeUcW5J8oK9zoK4WY75fzmwFMe5pump",
+  "J5p7z5dZew83HwpFnUqr1HL2S29sn8i7S8eFNwDUpump",
+  "JCKJviubAbCSztaGnKGqaiKhmpsE9uDTxcENXZrLpump",
+  "VXjDEv3EeJgg5J88uNasoMwaryCtdfKw5YNkAoJBpwU",
+  "qPorq2UQuP6g1KZnGKMQEfVxN87BYvaYdqVy3KVpump"
+ ],
+ "winners_not_in_split": [],
+ "net_pnl_usd": {
+  "24Kko3VWwMKtkB9CVct2ZAZgJzb2R2iNrYxCpTYFpump": 10.71,
+  "2Gt16sPz97kjvVXAz7aRbKG718hmY9HiyboieZKBpump": 89.41,
+  "2b93RPW315VQP7RHWthbcgjrR477YqbSu9tXnBjppump": 1.63,
+  "32eFDwQXfnj5ULY2b71cLuy5HJuhsRHSYTw3qCcKpump": 29.02,
+  "36CvCWVMgSgpZNFu2JVuaaJVEcKtqySpS9hD2kxUpump": 41.9,
+  "3NhrBt7oZVdU2mqRxGygz9nf42A3dppquZHSrd7Bpump": 65.52,
+  "3oX9emrqYRGzFEDPP3jA6tYnUBML4QSr3DfgD2r5pump": 10.83,
+  "48MBbzvBUKjVFB97jyg1YnwC8VbfKik4ry6hKDezpump": 56.0,
+  "4PRz3EwhbjrrX6YksMDuUzrXT51pr7CQtXNCravhpump": 53.02,
+  "4eKYoR1hBHnRaYyg2d57H36uUatRNyZr1NRP9ScNpump": 10.17,
+  "5RyeWfbjVw6Ktj6j8SmTiAnVXWvmV8YxGtTebNsU2dBo": 28.89,
+  "5V1uDUcnPvY1YmQEmhgyQLgSqh1nZgkExx7LwzoNpump": 11.48,
+  "5xPnm4sG1Waq1uLxHfHvbmMEKCFogimiwGbCsSV4pump": 0.8,
+  "61qNX1UoKDMypgDJzNGFra3Mb6DQPyUmf6zDayZ7bonk": 95.95,
+  "62yzpmKJB6XiVtZcQZhUkUXhqwN3UgCbffUi4JM9pump": 58.32,
+  "6MTctU7s7xJvJN3QPgEQi8zrP6od89DvXHVEbJh4pump": 137.32,
+  "6UGNg119LV6YjSCQ5K6Z6jsLLLetpMJ1vPdhiU8qpump": 22.14,
+  "6gkrxBbpzBvnH1oGhqdsMGPbHwAnFA6T1Xq5Cubupump": 16.51,
+  "6hpfrxQb2kn9iprcJcZ6uXruGAwDe12W9zT4y4WSpump": 29.21,
+  "71HtXHfexjKgem92Y5sPLPb6qkmtqWmPUzdKAcU9pump": 93.5,
+  "7LNfxxMAu5sNbg4uY5Kuu5Tvg6CsQGUo4ASkD79Xpump": 5.57,
+  "7X84qLj14hs5j1YNGimWfhMEVMrnrCtkMUDnkWyk8jKA": 19.36,
+  "7vLT9GmU7iH4JT2NBDRTejm1StqZocfSDqCzfMvzpump": 7.79,
+  "8EnmgofrT5zp6uUiNfECkUMBnYA42pMqPj35vVXUpump": 59.15,
+  "8LZKRa3f23CrCTwLFRY9jQWRjFQwGiuP46Mk9jytpump": 13.86,
+  "8N1xPzwZtuRQSdRMnbjAjdd2tK9V8nF7Wrw8gGeLpump": 87.66,
+  "8YFpCz4pxkNQxowNDyQrPmDizXQLhFF5xn87oG14pump": 35.64,
+  "98uHBngN8bXyEpuUxkiBVsasPXMHYyfqymeYAuHTpump": 37.94,
+  "9HSMssrVecFSs494Zw1QBZL5m3Wjtnic4o1nX6u7pump": 3.14,
+  "9Pfync3ejPC9eHqVzq3nYQJAhyhjqpnB9UsaSfLxpump": 51.66,
+  "AyafwyhUhZW4L9bdeG2nBjTpQkt5ek1aA1A78XGopump": 12.2,
+  "B5BPVt7uZyycC2fKTUM4KYoFsK9WBuX6UhpvqPVbG5YT": 25.28,
+  "B642ubQRSmy2wW4UcaTsL3skSP9abPLGyi8qenDWpump": 305.88,
+  "BUG9jJ6MZcxbXaDVqq199HvWafMSP4pYHVFrZfLmpump": 1.98,
+  "BWH6gtE5MSCS1GUoRpM5HrqQnV97oi8g8dDHAi41pump": 321.78,
+  "Bm5hU3iYP9syzZHte1Ubv5GjSkMjFsCqaVyWcBdpump": 49.55,
+  "BuK3BYo79xiJz8A11LCf2qtbNzQXEoHTsbiHNFgJpump": 2.95,
+  "C7mc2LvSuThi1rjx9XC1ofLsx5bFgR93JHCpyquTpump": 8.16,
+  "CnqFjUb8Y9fj8DhokJuADKhSz9p2kwbsiujrPeu1pump": 6.75,
+  "CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump": 70.15,
+  "D2XvLipYuPFgJ42kB6U4ihmHENStT7h2BS2iN5NtzZKg": 45.0,
+  "DiiTPZdpd9t3XorHiuZUu4E1FoSaQ7uGN4q9YkQupump": 197.48,
+  "ECHFvPRtUDDTg53V5k45pLk6E5zCunk5RYXrL1qopump": 6.82,
+  "Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump": 45.84,
+  "F612mB7c9pXAQjGysAeh4vesxauKtjqi7QFmzxJQpump": 10.78,
+  "G7zeUXZzTUa8iXeUcW5J8oK9zoK4WY75fzmwFMe5pump": 25.15,
+  "GRnVdzDbv4hn1p4PotEPYZW5TknE9UuHPMAuiYt3pump": 25.96,
+  "HmTi3CQfKfXWbn1tNoiAxH7GzMV7L3tDAmPWabZEBAGS": 9.21,
+  "J5p7z5dZew83HwpFnUqr1HL2S29sn8i7S8eFNwDUpump": 37.6,
+  "JCKJviubAbCSztaGnKGqaiKhmpsE9uDTxcENXZrLpump": 14.71,
+  "MsGDybWRSNdNXkdDZhEksgzugT5CbVWUG2wkhwgpump": 224.57,
+  "VXjDEv3EeJgg5J88uNasoMwaryCtdfKw5YNkAoJBpwU": 223.34,
+  "hhB7CZU8rtKgaNoQu8a4DoBkQJTuUZy8Z1nB9CSEASY": 13.15,
+  "qPorq2UQuP6g1KZnGKMQEfVxN87BYvaYdqVy3KVpump": 44.54,
+  "swA5DdNU2HC9Uab2SEeJ3etuDRz8LvVDPWCgRc3pump": 101.4
+ },
+ "universe_recent50": [
+  {
+   "mint": "22oWMe4xmvS5TogkbMLKALnUhgXxB2KYB8TRG9YRpump",
+   "token": "SERIOUS",
+   "buy_time": "2026-07-09T02:04:14.561979+00:00"
+  },
+  {
+   "mint": "4ko5tSr5o3H4v1sFtjTSd9MPUW7yx5AFCpkNPoL6pump",
+   "token": "febu",
+   "buy_time": "2026-07-09T02:00:46.801922+00:00"
+  },
+  {
+   "mint": "9aphy3k9HgPReHBCzBajqQmWSjT8yQrXrm3FzVhrpump",
+   "token": "beluga",
+   "buy_time": "2026-07-09T01:57:20.062985+00:00"
+  },
+  {
+   "mint": "9motHbNmm4Km8u7VYGhg6xJWN5Ro9XDKYmEkaMMYpump",
+   "token": "HOODRAT",
+   "buy_time": "2026-07-09T01:51:59.511433+00:00"
+  },
+  {
+   "mint": "DrCjaUaVCGSfFEu8i4Gje1CwogUF7nwKFV9Bov5Dpump",
+   "token": "Bullcat",
+   "buy_time": "2026-07-09T01:48:17.925270+00:00"
+  },
+  {
+   "mint": "9YBcdwtDor6B4acqFLFX47PPkg6k729ZMDHRh3zEpump",
+   "token": "okwif",
+   "buy_time": "2026-07-09T01:46:16.103830+00:00"
+  },
+  {
+   "mint": "F612mB7c9pXAQjGysAeh4vesxauKtjqi7QFmzxJQpump",
+   "token": "BULLHOOD",
+   "buy_time": "2026-07-09T01:39:29.467161+00:00"
+  },
+  {
+   "mint": "9firESEtMrb4hqFxtb7xCAXp4jAuoW8mz5MZwjJ2pump",
+   "token": "BATON",
+   "buy_time": "2026-07-09T01:17:13.854730+00:00"
+  },
+  {
+   "mint": "Hkn3cPPRnqsv54CdA8dGFZMmT26vCtGaKWBgtdvfZ74d",
+   "token": "SUSCAT",
+   "buy_time": "2026-07-09T01:15:30.639185+00:00"
+  },
+  {
+   "mint": "wnquaSmAtk5T3azdAgNmSQRNfrmEnymAKkrmzTgpump",
+   "token": "FUCKYEA",
+   "buy_time": "2026-07-09T00:59:54.257541+00:00"
+  },
+  {
+   "mint": "7AJ9sdZW6Sodb8ajnEkESeWtQVVHyZ4Gg85H3c1Ypump",
+   "token": "Rizzler",
+   "buy_time": "2026-07-09T00:49:26.019986+00:00"
+  },
+  {
+   "mint": "C7mc2LvSuThi1rjx9XC1ofLsx5bFgR93JHCpyquTpump",
+   "token": "HOODSEY",
+   "buy_time": "2026-07-09T00:41:13.242715+00:00"
+  },
+  {
+   "mint": "G7zeUXZzTUa8iXeUcW5J8oK9zoK4WY75fzmwFMe5pump",
+   "token": "RIF",
+   "buy_time": "2026-07-09T00:39:58.343751+00:00"
+  },
+  {
+   "mint": "7NcMKMrXPBVCWPcs9SSqnF6ZGy5neAtzTZpFqZqLquaP",
+   "token": "GB",
+   "buy_time": "2026-07-09T00:12:44.719435+00:00"
+  },
+  {
+   "mint": "8B3UJbbPWfg2DLF7iWzm9WnXH9y5jhYUUoZaLhqvpump",
+   "token": "ANSEMWIFE",
+   "buy_time": "2026-07-08T23:54:48.716144+00:00"
+  },
+  {
+   "mint": "8LZKRa3f23CrCTwLFRY9jQWRjFQwGiuP46Mk9jytpump",
+   "token": "MARVIN",
+   "buy_time": "2026-07-08T23:53:35.045076+00:00"
+  },
+  {
+   "mint": "8NGpdSE1tZqUrvpUVqsn5Revncc6yUafk8mnAyK9fNCE",
+   "token": "Chud",
+   "buy_time": "2026-07-08T23:48:03.662632+00:00"
+  },
+  {
+   "mint": "D2XvLipYuPFgJ42kB6U4ihmHENStT7h2BS2iN5NtzZKg",
+   "token": "HOOD",
+   "buy_time": "2026-07-08T23:24:16.340367+00:00"
+  },
+  {
+   "mint": "5RyeWfbjVw6Ktj6j8SmTiAnVXWvmV8YxGtTebNsU2dBo",
+   "token": "Pauly",
+   "buy_time": "2026-07-08T22:42:16.604651+00:00"
+  },
+  {
+   "mint": "6gTh1jtU9fUyCuEvngcgFaFM5Wax1bcbRkFZZGCCpump",
+   "token": "BongoCat",
+   "buy_time": "2026-07-08T21:58:01.760243+00:00"
+  },
+  {
+   "mint": "WjZoPoUsMy8TzwQQdevCVB867YHC9EQNcCUN7kDpump",
+   "token": "sidelined",
+   "buy_time": "2026-07-08T21:57:57.403661+00:00"
+  },
+  {
+   "mint": "4gqUH4qMtkZTjeenrtVmcQXKEYg9aBUC8j2kQao2pump",
+   "token": "MASON",
+   "buy_time": "2026-07-08T21:56:50.473081+00:00"
+  },
+  {
+   "mint": "9EQSeWY7pDB7MYoSFr8QJ19onGS1ehDmLbSGT2b3pump",
+   "token": "monke ",
+   "buy_time": "2026-07-08T21:35:19.419071+00:00"
+  },
+  {
+   "mint": "FY9yQSFokAyuKm33HBAUCYjvjmEbeXfDTpSiVZNUpump",
+   "token": "Binface ",
+   "buy_time": "2026-07-08T21:00:32.686162+00:00"
+  },
+  {
+   "mint": "Hk8qqvyYU5gfAB5QCZCcJq3gR3TZ8LtvNmA1EM3bpump",
+   "token": "BabyCupsey",
+   "buy_time": "2026-07-08T20:36:36.797145+00:00"
+  },
+  {
+   "mint": "2Gt16sPz97kjvVXAz7aRbKG718hmY9HiyboieZKBpump",
+   "token": "DEGEN",
+   "buy_time": "2026-07-08T20:20:57.157266+00:00"
+  },
+  {
+   "mint": "22deNCri9bBae1GWZxdaDxipMWdwAUQ2ddvxdSmgpump",
+   "token": "CASHCAT",
+   "buy_time": "2026-07-08T19:26:01.040510+00:00"
+  },
+  {
+   "mint": "JCKJviubAbCSztaGnKGqaiKhmpsE9uDTxcENXZrLpump",
+   "token": "StareCat",
+   "buy_time": "2026-07-08T19:05:03.716165+00:00"
+  },
+  {
+   "mint": "3gDAjymqTF19GVw4TcB8sAKd3yLR2dfEzJ4Wztm2pump",
+   "token": "TCAR",
+   "buy_time": "2026-07-08T19:02:57.642911+00:00"
+  },
+  {
+   "mint": "5ECDHLSRpMiyW9wNY5YVZXUst3xTvngWSLmzYvLFpump",
+   "token": "BlackWhale",
+   "buy_time": "2026-07-08T18:51:07.100288+00:00"
+  },
+  {
+   "mint": "CgnQ8a1u99Gk7qoySMd2wrGPMPm9bdcSJNhqMEkYpump",
+   "token": "Loom",
+   "buy_time": "2026-07-08T18:48:35.475875+00:00"
+  },
+  {
+   "mint": "5whR534GcEEmrVPedDPZgWLXKQX3shhHMcdZ1FXCAMzi",
+   "token": "bcat",
+   "buy_time": "2026-07-08T18:15:15.224256+00:00"
+  },
+  {
+   "mint": "APyxSKzs5Whmte8zynYePEhqAkme6XGLEWDQx31YFVbA",
+   "token": "Theo",
+   "buy_time": "2026-07-08T17:50:55.399079+00:00"
+  },
+  {
+   "mint": "CtuShQdgEYN7S3raAxJi2QBnpobWea3pv9PaGyRgpump",
+   "token": "Hex",
+   "buy_time": "2026-07-08T17:19:10.002944+00:00"
+  },
+  {
+   "mint": "BDdzUjksj1J4bSnMveQ5tV9Up8A9c6YS1tHrxNw3pump",
+   "token": "FOMO",
+   "buy_time": "2026-07-08T16:58:35.541369+00:00"
+  },
+  {
+   "mint": "77x1fCskDLaiZmm2uZKEhARSCD2B86VaahTkK2Vfpump",
+   "token": "NIGGABULL",
+   "buy_time": "2026-07-08T16:52:53.606084+00:00"
+  },
+  {
+   "mint": "2MHbpKfxrnzT1tpmQzWizzc3RfZENRqsK8Vaq4kHpump",
+   "token": "TTB",
+   "buy_time": "2026-07-08T16:52:48.403442+00:00"
+  },
+  {
+   "mint": "DkmmVCUaBAcYjecqMdX7NdNQFCfb6uh1yQq9HEP8pump",
+   "token": "ANSEMIUS",
+   "buy_time": "2026-07-08T16:28:25.097972+00:00"
+  },
+  {
+   "mint": "7pncD23yVtmVRRa4fLFsi3pGotbUxrFvR13wTGNCpump",
+   "token": "GM\ud83d\udc02\ud83c\udc04\ufe0f",
+   "buy_time": "2026-07-08T16:20:53.728845+00:00"
+  },
+  {
+   "mint": "ECHFvPRtUDDTg53V5k45pLk6E5zCunk5RYXrL1qopump",
+   "token": "okdog",
+   "buy_time": "2026-07-08T15:07:40.407244+00:00"
+  },
+  {
+   "mint": "6UGNg119LV6YjSCQ5K6Z6jsLLLetpMJ1vPdhiU8qpump",
+   "token": "CURB",
+   "buy_time": "2026-07-08T15:00:29.601329+00:00"
+  },
+  {
+   "mint": "96X4zg5T4NFWzTVFXHsadvYbxbzFX2Rqt3GXUv92pump",
+   "token": "Balloon",
+   "buy_time": "2026-07-08T14:58:32.586436+00:00"
+  },
+  {
+   "mint": "9ePRJbEfvSEeJnRLStENnZeNAEoA3E3EE6Vfzd6cpump",
+   "token": "Jcat",
+   "buy_time": "2026-07-08T14:39:14.232734+00:00"
+  },
+  {
+   "mint": "8mTu8AW8co1QzHHRnvVZnknUaRsEmxdhjCTCJFeZpump",
+   "token": "Zeus",
+   "buy_time": "2026-07-08T14:35:45.401858+00:00"
+  },
+  {
+   "mint": "HEpnawcnjTBKk1Vi5krT3S6C9waMJjp5g2rhJ2hYpump",
+   "token": "PUB",
+   "buy_time": "2026-07-08T14:09:36.309272+00:00"
+  },
+  {
+   "mint": "2SX3prnhH7b147eiMqooiD9tq4NYy598reVZwUam9iq5",
+   "token": "happi",
+   "buy_time": "2026-07-08T14:09:34.142840+00:00"
+  },
+  {
+   "mint": "9Pfync3ejPC9eHqVzq3nYQJAhyhjqpnB9UsaSfLxpump",
+   "token": "KET",
+   "buy_time": "2026-07-08T14:04:35.620773+00:00"
+  },
+  {
+   "mint": "8YFpCz4pxkNQxowNDyQrPmDizXQLhFF5xn87oG14pump",
+   "token": "CASHDOG",
+   "buy_time": "2026-07-08T13:59:44.136150+00:00"
+  },
+  {
+   "mint": "EYvkcWB5S4DFv7gJqR8D2W76U9n7kD3jvYcbSXdppump",
+   "token": "HAALAND",
+   "buy_time": "2026-07-08T13:56:33.304792+00:00"
+  },
+  {
+   "mint": "hhB7CZU8rtKgaNoQu8a4DoBkQJTuUZy8Z1nB9CSEASY",
+   "token": "$COLD",
+   "buy_time": "2026-07-08T13:13:50.742792+00:00"
+  }
+ ]
+}

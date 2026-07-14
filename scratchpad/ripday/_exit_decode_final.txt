@@ -1,0 +1,269 @@
+winner wallets: 49 | realized core: 14
+winner trades: 1768 on pairs: 117
+pairs w/ trades that have bars: 110 / 117
+tokens spanning >1 pair among winner-traded pairs: 0
+episodes (buy>=20, in-window): all-winner=287, core=77
+core wallets w/ episodes: 14
+
+======================================================================
+Q1 EXIT SHAPE (core realized winners)
+======================================================================
+core episodes: 77 | with >=1 covered sell: 73 | open bags (0 sells): 4
+n_sells/episode n=73 p10=1.0 p25=1.0 med=1.0 p75=2.0 p90=4.0 mean=2.1
+single full-clip exits: 37 | single partial: 1 | scale-out (>=2 sells): 35
+first-sell frac_of_pos n=73 p10=50.3 p25=96.4 med=100.0 p75=100.0 p90=100.0 mean=88.8
+all-sell frac_of_pos n=155 p10=34.4 p25=53.5 med=99.7 p75=100.0 p90=100.0 mean=83.5
+gap between sells (min) n=82 p10=0.0 p25=0.1 med=11.6 p75=25.9 p90=52.6 mean=27.4
+px change between consecutive sells (%) n=82 p10=-30.1 p25=-7.9 med=0.0 p75=2.9 p90=20.2 mean=-0.9
+
+per-wallet exit style (core):
+wallet      eps  sold scale% medsells medret1st medretvwap  real$sum wr(closed)
+A4CTMw1HjR    3     3    67%      2.0      14.8        7.9        42     2/2
+G5qe62M5Hn    3     2    50%      1.5       6.7       17.3        39     1/2
+5tySgpR3iH    8     8    75%      2.5      -0.9        0.0        36     3/7
+13VK7ZrRrx    3     3     0%      1.0       4.2        4.2        30     3/3
+8CQMEutzxQ    3     3     0%      1.0      12.3       12.3        18     3/3
+Hd7LuFb8vP    4     4    50%      1.5      -2.7       -2.7        14     2/4
+HvLi4xBRLC    3     3    33%      1.0       0.9        1.0         7     3/3
+14rK2GBgNk    3     3    33%      1.0       1.5        2.7         3     3/3
+popo3Rj6ar   10    10   100%      2.0       0.0        0.0         0    6/10
+C86oRMyUqz    7     7     0%      1.0       0.0        0.0        -2     0/6
+96Fzr9Wt4s    4     3    33%      1.0       4.4        2.6       -11     2/3
+Ar2Y6o1Qmr   12    11    27%      1.0      -7.5       -5.0       -24    2/11
+2mDufMWHhA    8     7    43%      1.0      -1.7       -1.8       -50     2/7
+Eko1pMVyha    6     6    83%      3.0       0.0        0.0       -59     2/5
+
+======================================================================
+Q2 WHERE THEY SELL (core; per covered sell, usd-weighted noted)
+======================================================================
+sell ret vs entry VWAP (%) n=155 p10=-12.1 p25=-1.9 med=0.0 p75=4.2 p90=17.0 mean=1.1
+sell ret vs first entry (%) n=155 p10=-49.3 p25=-21.7 med=0.0 p75=3.1 p90=15.3 mean=-6.9
+sell px vs running peak since entry (%) n=155 p10=-67.6 p25=-32.7 med=-11.6 p75=-6.9 p90=-2.6 mean=-22.8
+mom5 into sell (%; + = selling into strength) n=155 p10=-15.2 p25=-7.2 med=-1.6 p75=3.4 p90=15.3 mean=-1.1
+sell px vs local 30m peak (%) n=155 p10=-40.6 p25=-20.8 med=-14.0 p75=-9.3 p90=-4.9 mean=-18.3
+sells within 3% of LOCAL 30m peak: 11/155 (7%)
+sells with RISING 5m tape (mom5>+1): 50/155 (32%) | falling (<-1): 87 (56%)
+fwd_max60 after sell (%) n=150 p10=1.4 p25=7.2 med=14.7 p75=41.0 p90=66.8 mean=30.3
+fwd_min60 after sell (%) n=150 p10=-47.7 p25=-29.9 med=-16.2 p75=-7.4 p90=-3.3 mean=-21.5
+
+sell buckets vs entry VWAP (count | usd share):
+  <-12      16    6.5%
+  -12..0    38   23.7%
+  0..+6     68   48.0%
+  +6..+12   13   10.3%
+  >=+12     20   11.5%
+sells within 2% of running peak: 13/155 (8%) | >10% below peak (retrace/capitulation): 88 (57%)
+
+closed core episodes (>=80% of buy USD exited): n=69
+episode realized %% (closed) n=69 p10=-9.2 p25=-2.1 med=0.0 p75=1.5 p90=9.5 mean=0.1
+
+======================================================================
+Q2c OUR LADDER (+6/75%, +12/25%, trail2pp, stop-12, 240m timestop) on their entries
+======================================================================
+closed core episodes with bar coverage for sim: n=69
+THEIR realized % n=69 p10=-9.2 p25=-2.1 med=0.0 p75=1.5 p90=9.5 mean=0.1
+OUR ladder cf % n=69 p10=-12.0 p25=-12.0 med=5.7 p75=6.6 p90=7.5 mean=-0.5
+delta (ours - theirs) pp n=69 p10=-13.1 p25=-10.5 med=1.4 p75=6.4 p90=11.7 mean=-0.5
+episodes where OUR ladder beats them: 36/69
+their total realized on these (usd): 94 | our-ladder total (same buy usd, single entry at first buy): 238
+cf exit reasons: {'stop-12': 25, 'trail': 29, 'tp2': 13, 'timestop': 2}
+OUR ladder cf % (all core eps) n=77 p10=-12.0 p25=-12.0 med=5.7 p75=6.6 p90=7.5 mean=-0.5
+
+======================================================================
+Q3 +4..+9 PEAK BAND (peak120 after their first buy in [+4,+9))
+======================================================================
+CORE: eps w/ peak data=77, in band=6
+  Horseradis w=14rK2G.. peak120= +4.8 trough120= -27.5 n_sells=1 1st-sell@ +1.5%(vwap) t=1m realized%=1.5 closed=True unreal=-0
+  Udin       w=popo3R.. peak120= +4.2 trough120= -17.4 n_sells=2 1st-sell@ -0.0%(vwap) t=0m realized%=-0.0 closed=True unreal=0
+  HIM        w=Hd7LuF.. peak120= +5.6 trough120= -11.4 n_sells=1 1st-sell@ -4.3%(vwap) t=22m realized%=-4.3 closed=True unreal=0
+  GNOCCHI    w=Ar2Y6o.. peak120= +7.7 trough120= -79.1 n_sells=0 1st-sell@ +nan%(vwap) t=- realized%=- closed=False unreal=-84
+  LR         w=Hd7LuF.. peak120= +7.3 trough120= -14.8 n_sells=1 1st-sell@ -6.4%(vwap) t=124m realized%=-6.4 closed=True unreal=0
+  dog        w=G5qe62.. peak120= +6.2 trough120= -41.4 n_sells=0 1st-sell@ +nan%(vwap) t=- realized%=- closed=False unreal=-179
+  band realized %% (closed) n=4 p10=-6.4 p25=-4.3 med=-2.2 p75=1.5 p90=1.5 mean=-2.3
+  band OUR-ladder cf %% n=4 p10=-12.0 p25=-12.0 med=-12.0 p75=5.8 p90=5.8 mean=-7.5
+OTHER 35 WINNERS (corroboration): eps w/ peak data=210, in band=28
+  world      w=1eveYY.. peak120= +5.0 trough120=  -5.6 n_sells=1 1st-sell@ +1.3%(vwap) t=60m realized%=1.3 closed=True unreal=1
+  DAVID      w=CatyeC.. peak120= +5.5 trough120= -10.6 n_sells=0 1st-sell@ +nan%(vwap) t=- realized%=- closed=False unreal=3
+  DAVID      w=CTAz3o.. peak120= +5.8 trough120=  -4.8 n_sells=2 1st-sell@+22.2%(vwap) t=248m realized%=21.6 closed=False unreal=28
+  SEMAN      w=CcMC5E.. peak120= +7.0 trough120=  -6.1 n_sells=0 1st-sell@ +nan%(vwap) t=- realized%=- closed=False unreal=5
+  Udin       w=J1sfMs.. peak120= +4.6 trough120=  -3.0 n_sells=1 1st-sell@ +0.3%(vwap) t=15m realized%=0.3 closed=True unreal=0
+  Udin       w=ARqJ18.. peak120= +4.6 trough120=  -3.0 n_sells=1 1st-sell@ +0.3%(vwap) t=15m realized%=0.3 closed=True unreal=0
+  manlet     w=D5Nei2.. peak120= +7.1 trough120= -17.6 n_sells=1 1st-sell@ -6.0%(vwap) t=9m realized%=-6.0 closed=True unreal=-0
+  RUSH       w=FMLXLt.. peak120= +8.2 trough120= -27.0 n_sells=0 1st-sell@ +nan%(vwap) t=- realized%=- closed=False unreal=-12
+  MITCH      w=Bo6hgN.. peak120= +6.6 trough120=  -8.6 n_sells=0 1st-sell@ +nan%(vwap) t=- realized%=- closed=False unreal=3
+  bopdog     w=EHuUKJ.. peak120= +5.1 trough120= -34.7 n_sells=0 1st-sell@ +nan%(vwap) t=- realized%=- closed=False unreal=-3
+  ice        w=HC8EWB.. peak120= +7.3 trough120= -45.1 n_sells=1 1st-sell@ -2.4%(vwap) t=2m realized%=-2.4 closed=True unreal=-0
+  0.2        w=CcMC5E.. peak120= +8.8 trough120= -49.2 n_sells=1 1st-sell@ -1.3%(vwap) t=6m realized%=-1.3 closed=False unreal=-68
+  0.2        w=J1sfMs.. peak120= +8.8 trough120= -49.2 n_sells=4 1st-sell@ +4.7%(vwap) t=5m realized%=0.3 closed=False unreal=-32
+  BAG        w=ARqJ18.. peak120= +6.4 trough120= -70.9 n_sells=1 1st-sell@-19.7%(vwap) t=15m realized%=-19.7 closed=False unreal=-37
+  BAG        w=J1sfMs.. peak120= +6.4 trough120= -70.9 n_sells=1 1st-sell@ +0.0%(vwap) t=1m realized%=0.0 closed=True unreal=-1
+  elchef     w=1eveYY.. peak120= +6.9 trough120=  -9.5 n_sells=1 1st-sell@ -1.5%(vwap) t=20m realized%=-1.5 closed=True unreal=-0
+  vibeshift  w=3LqPHF.. peak120= +6.6 trough120= -59.8 n_sells=1 1st-sell@ -0.0%(vwap) t=0m realized%=-0.0 closed=False unreal=-2
+  Potato     w=1eveYY.. peak120= +7.7 trough120=  -5.6 n_sells=1 1st-sell@ +4.2%(vwap) t=13m realized%=4.2 closed=True unreal=0
+  TAKEOFF    w=2mqbVk.. peak120= +8.7 trough120= -31.1 n_sells=1 1st-sell@ +6.5%(vwap) t=41m realized%=6.5 closed=True unreal=0
+  PEACE      w=FMLXLt.. peak120= +6.5 trough120= -40.5 n_sells=1 1st-sell@ -5.5%(vwap) t=37m realized%=-5.5 closed=True unreal=0
+  BullBank   w=CBDswN.. peak120= +5.7 trough120=  -5.0 n_sells=0 1st-sell@ +nan%(vwap) t=- realized%=- closed=False unreal=12
+  CUPSEY     w=1eveYY.. peak120= +6.4 trough120=  -2.1 n_sells=1 1st-sell@ +4.5%(vwap) t=11m realized%=4.5 closed=True unreal=0
+  Bepe       w=6oqxLH.. peak120= +7.6 trough120= -16.1 n_sells=0 1st-sell@ +nan%(vwap) t=- realized%=- closed=False unreal=7
+  CLIVE      w=1eveYY.. peak120= +6.1 trough120= -17.3 n_sells=0 1st-sell@ +nan%(vwap) t=- realized%=- closed=False unreal=-16
+  TATE       w=7fV3dW.. peak120= +4.5 trough120= -16.5 n_sells=1 1st-sell@ -0.3%(vwap) t=4m realized%=-0.3 closed=True unreal=0
+  relax      w=CcMC5E.. peak120= +7.9 trough120= -29.9 n_sells=1 1st-sell@ -7.4%(vwap) t=4m realized%=-7.4 closed=False unreal=29
+  ANSOM      w=1eveYY.. peak120= +7.6 trough120= -10.7 n_sells=1 1st-sell@ -7.2%(vwap) t=60m realized%=-7.2 closed=False unreal=3
+  BULLCAT    w=G3zuTG.. peak120= +5.9 trough120=  -2.4 n_sells=0 1st-sell@ +nan%(vwap) t=- realized%=- closed=False unreal=0
+  band realized %% (closed) n=12 p10=-5.5 p25=-1.5 med=0.1 p75=4.2 p90=4.5 mean=0.1
+  band OUR-ladder cf %% n=12 p10=-12.0 p25=-12.0 med=2.9 p75=5.8 p90=5.9 mean=-0.9
+
+======================================================================
+Q4 RE-ENTRY after a profitable sell (core)
+======================================================================
+re-entry events (first buy after a profitable sell): 27, in 15 episodes / 73 sold episodes
+re-entry gap (min) n=27 p10=0.0 p25=0.3 med=11.5 p75=34.7 p90=60.7 mean=20.6
+re-entry px vs prior exit px (%) n=27 p10=-33.2 p25=-12.3 med=-2.0 p75=1.3 p90=21.2 mean=-1.7
+round-2 fwd_max60 (%) n=25 p10=1.3 p25=6.7 med=11.5 p75=31.0 p90=54.1 mean=20.1
+round-2 fwd_min60 (%) n=25 p10=-58.1 p25=-38.4 med=-29.1 p75=-12.6 p90=-7.2 mean=-29.4
+
+======================================================================
+Q5 LOSS EXITS (core closed episodes with realized<0)
+======================================================================
+closed losing episodes: 30 / 69 closed
+loser realized % n=30 p10=-12.4 p25=-8.8 med=-3.0 p75=-0.9 p90=-0.0 mean=-6.7
+loser LAST-sell ret vs vwap (%) n=30 p10=-21.7 p25=-8.8 med=-3.9 p75=-0.0 p90=0.1 mean=-5.8
+loser worst-sell ret vs vwap (%) n=30 p10=-21.7 p25=-12.1 med=-6.3 p75=-1.9 p90=-0.0 mean=-9.6
+loser hold to last sell (min) n=30 p10=0.0 p25=6.1 med=15.1 p75=59.9 p90=218.1 mean=69.6
+loss depth buckets: {'0..-8': 22, '-8..-16': 5, '-16..-30': 1, '<-30': 2}
+non-closed core episodes: 8, of which net-red (mark-to-last, UNREALIZED): 5
+
+======================================================================
+A: MONEY-WEIGHTED VIEW (all core episodes with covered sells)
+======================================================================
+core reconstruction: sum realized=$40, sum unreal=$-381 (winners_current realized sum ~ $1628; delta = accounting method + capped pre-window inventory)
+
+top episodes by |realized usd|:
+sym        wallet      real$     buy$ closed  nsell   real%      cf% cfreason
+DR TRUMP   5tySgpR3       79     1163      Y     10     8.3      6.4    trail
+FROGBULL   G5qe62M5       50      280      Y      2    18.0      7.5      tp2
+FABLE      A4CTMw1H       41      159      Y      3    28.1      7.5      tp2
+FABLE      Ar2Y6o1Q       34      383      Y      2     9.0      5.7    trail
+DR TRUMP   Eko1pMVy      -32     1543      Y     17    -2.1      7.5      tp2
+DR TRUMP   Ar2Y6o1Q      -30      244      Y      1   -12.4      6.4    trail
+ALBEMARLE  Ar2Y6o1Q       30      315      Y      1     9.5      7.5      tp2
+0.2        5tySgpR3      -27      198      n      2   -21.7    -12.0  stop-12
+0.2        Eko1pMVy      -27      255      n      5   -13.6    -12.0  stop-12
+popeyes    2mDufMWH      -25      482      Y      3    -5.1    -12.0  stop-12
+ice        13VK7ZrR       24      110      Y      1    21.5    -12.0  stop-12
+PEACE      Ar2Y6o1Q      -19      160      Y      2   -11.7      5.9    trail
+
+USD-weighted (covered cost) over 73 sold core episodes: THEIRS +0.25% vs OUR LADDER +1.30%
+USD-weighted over 220 sold ALL-WINNER episodes: THEIRS +2.40% vs OUR LADDER +2.70%
+
+cross-tab (closed core eps): our cf reason vs their realized
+  cf=stop-12  n=25 their realized med   -0.0% mean   -4.4% | they were green on 8/25
+  cf=timestop n= 2 their realized med   -1.8% mean   -1.8% | they were green on 0/2
+  cf=tp2      n=13 their realized med   +3.4% mean   +7.2% | they were green on 9/13
+  cf=trail    n=29 their realized med   +0.0% mean   +0.9% | they were green on 17/29
+  of THEIR green episodes (n=34), our ladder stopped out -12 on 8 (24%)
+
+======================================================================
+B: LADDER PARAMETER GRID simulated on winner first-buys (worst-case intrabar)
+======================================================================
+
+CORE 14-wallet episodes (n=77 episodes w/ bars):
+tp1/frac/tp2/trail/stop          mean%    med%   win%
+tp1=13 f=0.50 tp2=30 tr=2 st=-18     1.54   12.29    60% n=77
+tp1=13 f=0.50 tp2=20 tr=2 st=-18     1.27   12.29    60% n=77
+tp1=13 f=0.50 tp2=30 tr=4 st=-18     1.26   11.44    60% n=77
+tp1=13 f=0.50 tp2=30 tr=2 st=-12     1.23    0.74    51% n=77
+tp1=13 f=0.75 tp2=30 tr=2 st=-18     1.09   12.65    60% n=77
+tp1=13 f=0.50 tp2=20 tr=4 st=-18     1.05   11.44    60% n=77
+tp1=13 f=0.50 tp2=30 tr=4 st=-12     1.03    0.74    51% n=77
+tp1=13 f=0.50 tp2=20 tr=2 st=-12     0.98    0.74    51% n=77
+CURRENT tp1=6 f=0.75 tp2=12 tr=2 st=-12: mean -0.46 med 5.67 win 62% n=77 (rank 160/198)
+
+ALL 49-winner episodes (corroboration) (n=287 episodes w/ bars):
+tp1/frac/tp2/trail/stop          mean%    med%   win%
+tp1=13 f=0.50 tp2=30 tr=2 st=-18     3.22   12.44    65% n=285
+tp1=13 f=0.50 tp2=30 tr=4 st=-18     3.09   11.54    65% n=285
+tp1=13 f=0.50 tp2=30 tr=6 st=-18     2.90   10.84    65% n=285
+tp1=13 f=0.50 tp2=20 tr=2 st=-18     2.84   12.44    65% n=285
+tp1=13 f=0.50 tp2=20 tr=4 st=-18     2.73   11.54    65% n=285
+tp1= 9 f=0.50 tp2=30 tr=6 st=-18     2.72    7.30    72% n=285
+tp1= 9 f=0.50 tp2=30 tr=2 st=-18     2.71    8.58    72% n=285
+tp1= 9 f=0.50 tp2=30 tr=4 st=-18     2.70    7.91    72% n=285
+CURRENT tp1=6 f=0.75 tp2=12 tr=2 st=-12: mean 0.70 med 5.77 win 68% n=285 (rank 130/198)
+
+focused configs (ALL-winner set):
+  (6, 0.75, 12, 2, -12)        mean  +0.70 med  +5.77 win  68% n=285
+  (13, 0.5, 30, 2, -12)        mean  +1.99 med  +3.14 win  54% n=285
+  (13, 0.5, 30, 2, -18)        mean  +3.22 med +12.44 win  65% n=285
+  (13, 0.3, 30, 2, -12)        mean  +2.36 med  +3.14 win  54% n=285
+  (9, 0.5, 20, 2, -12)         mean  +1.62 med  +8.27 win  61% n=285
+  (4, 0.5, 12, 2, -12)         mean  +0.70 med  +3.83 win  74% n=285
+  (6, 0.5, 20, 4, -12)         mean  +1.20 med  +4.64 win  68% n=285
+  (13, 0.5, 20, 4, -12)        mean  +1.64 med  +3.14 win  54% n=285
+focused configs (CORE set):
+  (6, 0.75, 12, 2, -12)        mean  -0.46 med  +5.67 win  62% n=77
+  (13, 0.5, 30, 2, -12)        mean  +1.23 med  +0.74 win  51% n=77
+  (13, 0.5, 30, 2, -18)        mean  +1.54 med +12.29 win  60% n=77
+  (9, 0.5, 20, 2, -12)         mean  +0.37 med  +8.22 win  56% n=77
+
+BREAKEVEN-ARM variants (arm floor once peak tags arm_at, pre-TP1):
+  ALL tp1=6  f=0.75 tp2=12 tr=2 st=-12 be=None     mean  +0.70 med  +5.77 win  68% n=285
+  ALL tp1=6  f=0.75 tp2=12 tr=2 st=-12 be=(4, 0)   mean  +0.47 med  +5.60 win  55% n=285
+  ALL tp1=13 f=0.50 tp2=30 tr=2 st=-12 be=None     mean  +1.99 med  +3.14 win  54% n=285
+  ALL tp1=13 f=0.50 tp2=30 tr=2 st=-12 be=(4, 0)   mean  +1.13 med  +0.00 win  29% n=285
+  ALL tp1=13 f=0.50 tp2=30 tr=2 st=-12 be=(4, -2)  mean  +1.31 med  -2.00 win  36% n=285
+  ALL tp1=13 f=0.50 tp2=30 tr=2 st=-12 be=(6, 0)   mean  +1.66 med  +0.00 win  38% n=285
+  ALL tp1=13 f=0.50 tp2=30 tr=4 st=-12 be=(4, 0)   mean  +1.21 med  +0.00 win  29% n=285
+  ALL tp1=13 f=0.30 tp2=30 tr=2 st=-12 be=(4, 0)   mean  +1.35 med  +0.00 win  29% n=285
+  CORE tp1=6  f=0.75 tp2=12 tr=2 st=-12 be=None     mean  -0.46 med  +5.67 win  62% n=77
+  CORE tp1=6  f=0.75 tp2=12 tr=2 st=-12 be=(4, 0)   mean  -0.39 med  +0.00 win  48% n=77
+  CORE tp1=13 f=0.50 tp2=30 tr=2 st=-12 be=None     mean  +1.23 med  +0.74 win  51% n=77
+  CORE tp1=13 f=0.50 tp2=30 tr=2 st=-12 be=(4, 0)   mean  -0.13 med  +0.00 win  23% n=77
+  CORE tp1=13 f=0.50 tp2=30 tr=2 st=-12 be=(4, -2)  mean  +0.30 med  -2.00 win  32% n=77
+  CORE tp1=13 f=0.50 tp2=30 tr=2 st=-12 be=(6, 0)   mean  +0.01 med  +0.00 win  32% n=77
+  CORE tp1=13 f=0.50 tp2=30 tr=4 st=-12 be=(4, 0)   mean  -0.14 med  +0.00 win  23% n=77
+  CORE tp1=13 f=0.30 tp2=30 tr=2 st=-12 be=(4, 0)   mean  +0.01 med  +0.00 win  23% n=77
+
+FAILED-BOUNCE SCRATCH variants (after T min, if TP1 unhit and close<thresh, exit at close):
+  ALL tp1=6  f=0.75 tp2=12 tr=2 st=-12 scr=None      mean  +0.70 med  +5.77 win  68% n=285
+  ALL tp1=6  f=0.75 tp2=12 tr=2 st=-12 scr=(30, 1)   mean  +0.34 med  +5.67 win  64% n=285
+  ALL tp1=13 f=0.50 tp2=30 tr=2 st=-12 scr=(30, 1)   mean  +1.76 med  +0.18 win  50% n=285
+  ALL tp1=13 f=0.50 tp2=30 tr=2 st=-18 scr=None      mean  +3.22 med +12.44 win  65% n=285
+  ALL tp1=13 f=0.50 tp2=30 tr=2 st=-18 scr=(20, 1)   mean  +2.50 med  +0.68 win  55% n=285
+  ALL tp1=13 f=0.50 tp2=30 tr=2 st=-18 scr=(30, 1)   mean  +2.48 med  +0.98 win  56% n=285
+  ALL tp1=13 f=0.50 tp2=30 tr=2 st=-18 scr=(45, 1)   mean  +2.71 med +12.09 win  59% n=285
+  ALL tp1=13 f=0.50 tp2=30 tr=2 st=-18 scr=(30, -3)  mean  +2.22 med +11.98 win  53% n=285
+  ALL tp1=13 f=0.50 tp2=30 tr=2 st=-25 scr=(30, 1)   mean  +2.49 med +11.98 win  58% n=285
+  CORE tp1=6  f=0.75 tp2=12 tr=2 st=-12 scr=None      mean  -0.46 med  +5.67 win  62% n=77
+  CORE tp1=6  f=0.75 tp2=12 tr=2 st=-12 scr=(30, 1)   mean  -0.27 med  +5.67 win  60% n=77
+  CORE tp1=13 f=0.50 tp2=30 tr=2 st=-12 scr=(30, 1)   mean  +2.14 med  +0.79 win  53% n=77
+  CORE tp1=13 f=0.50 tp2=30 tr=2 st=-18 scr=None      mean  +1.54 med +12.29 win  60% n=77
+  CORE tp1=13 f=0.50 tp2=30 tr=2 st=-18 scr=(20, 1)   mean  +2.73 med  +0.84 win  57% n=77
+  CORE tp1=13 f=0.50 tp2=30 tr=2 st=-18 scr=(30, 1)   mean  +2.89 med +11.98 win  60% n=77
+  CORE tp1=13 f=0.50 tp2=30 tr=2 st=-18 scr=(45, 1)   mean  +2.85 med +12.29 win  62% n=77
+  CORE tp1=13 f=0.50 tp2=30 tr=2 st=-18 scr=(30, -3)  mean  +2.46 med +12.09 win  55% n=77
+  CORE tp1=13 f=0.50 tp2=30 tr=2 st=-25 scr=(30, 1)   mean  +2.50 med +12.09 win  61% n=77
+
++4..+9-band episodes under candidate ladders (peak120 in [4,9), ALL winners):
+  tp1=6  f=0.75 tp2=12 tr=2 st=-12 be=None     mean  -1.72 med  +3.29 win  59% n=34
+  tp1=13 f=0.50 tp2=30 tr=2 st=-12 be=None     mean  -6.69 med -12.00 win  29% n=34
+  tp1=13 f=0.50 tp2=30 tr=2 st=-12 be=(4, 0)   mean  -2.52 med  +0.00 win  15% n=34
+
+======================================================================
+C: band split (peak120)
+======================================================================
+peak120 [4,6): n=12 (core 3) | closed real%: 0.3 (n=7) | first-sell@vwap med 0.3 | our-cf med -1.9
+peak120 [6,9): n=22 (core 3) | closed real%: -1.5 (n=9) | first-sell@vwap med -1.5 | our-cf med 5.6
+peak120 [9,15): n=53 (core 16) | closed real%: -0.0 (n=39) | first-sell@vwap med 0.0 | our-cf med 5.7
+
+======================================================================
+D: ROUND-2 REALIZED (sells after re-entry vs re-entry px, core)
+======================================================================
+round-2 realized on later sells vs re-entry px (%) n=25 p10=-19.3 p25=-12.8 med=-6.6 p75=0.0 p90=14.2 mean=-6.5
+re-entries with no later covered sell (open round-2): 2/27
+
+--- honesty ---
+px-missing events skipped (core eps): 0
+pre-window/uncovered sells excluded (core eps): 46
+episodes w/o bar coverage: 0
+saved exit_decode_rows.json

@@ -1,0 +1,3 @@
+{"kind":"sell","volume_usd":1.39,"ts":"2026-07-10T09:11:18+00:00","maker":"0x507b16613ed90c8dca530179a0137d87ce098df5","pair":"0xc3cffa36fc0a81389359f6bdb96dc9cf6d1e567e","sym":"CATFATHER","lag_secs":2.07}
+{"kind":"buy","volume_usd":17.67,"ts":"2026-07-10T09:12:29+00:00","maker":"0x4470656a6eced4c473c4346f80656f702232daa6","pair":"0xc3cffa36fc0a81389359f6bdb96dc9cf6d1e567e","sym":"CATFATHER","lag_secs":5.05}
+{"kind":"buy","volume_usd":115.37,"ts":"2026-07-12T12:30:49+00:00","maker":"0x26777592719855e69473153d6656f23e2571e035","pair":"0xc3cffa36fc0a81389359f6bdb96dc9cf6d1e567e","sym":"CATFATHER","lag_secs":1.15,"pre_conf":true}

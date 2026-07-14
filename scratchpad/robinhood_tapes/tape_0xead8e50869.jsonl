@@ -1,0 +1,8 @@
+{"kind":"buy","volume_usd":893.06,"ts":"2026-07-10T17:23:53+00:00","maker":"0xb8f68076f85140390f84caec41db14b717031167","pair":"0xead8e50869fd80a05796bd2cbb9429940eb0db83","sym":"SEED","lag_secs":1.2,"pre_conf":true}
+{"kind":"buy","volume_usd":39.36,"ts":"2026-07-10T17:28:54+00:00","maker":"0x105b6b93a93781d1925a7445d6e63b77deaf579f","pair":"0xead8e50869fd80a05796bd2cbb9429940eb0db83","sym":"SEED","lag_secs":1.06,"pre_conf":true}
+{"kind":"buy","volume_usd":8.53,"ts":"2026-07-10T17:30:22+00:00","maker":"0xe34c705432c689a8c4b6f10afa5453649ab6dc0a","pair":"0xead8e50869fd80a05796bd2cbb9429940eb0db83","sym":"SEED","lag_secs":0.35,"pre_conf":true}
+{"kind":"buy","volume_usd":15.21,"ts":"2026-07-10T17:30:28+00:00","maker":"0x306bd90fa8c1563f4f887123bb6b369000de9d8b","pair":"0xead8e50869fd80a05796bd2cbb9429940eb0db83","sym":"SEED","lag_secs":0.68,"pre_conf":true}
+{"kind":"buy","volume_usd":15.21,"ts":"2026-07-10T17:30:53+00:00","maker":"0x306bd90fa8c1563f4f887123bb6b369000de9d8b","pair":"0xead8e50869fd80a05796bd2cbb9429940eb0db83","sym":"SEED","lag_secs":0.41,"pre_conf":true}
+{"kind":"buy","volume_usd":8.26,"ts":"2026-07-10T17:31:15+00:00","maker":"0xe34c705432c689a8c4b6f10afa5453649ab6dc0a","pair":"0xead8e50869fd80a05796bd2cbb9429940eb0db83","sym":"SEED","lag_secs":0.03,"pre_conf":true}
+{"kind":"buy","volume_usd":15.21,"ts":"2026-07-10T17:31:18+00:00","maker":"0x306bd90fa8c1563f4f887123bb6b369000de9d8b","pair":"0xead8e50869fd80a05796bd2cbb9429940eb0db83","sym":"SEED","lag_secs":0.34,"pre_conf":true}
+{"kind":"buy","volume_usd":5.37,"ts":"2026-07-10T17:31:22+00:00","maker":"0xc3e35ddd2c1648c46dd26b54940a28f11594c766","pair":"0xead8e50869fd80a05796bd2cbb9429940eb0db83","sym":"SEED","lag_secs":0.87,"pre_conf":true}

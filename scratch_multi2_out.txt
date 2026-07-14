@@ -1,0 +1,50 @@
+
+##### B1zhrW B1zhrWqDoJdZ9paihqcLN3UY1LzXxxch1zLBzgoaQnKz #####
+tokens with buys: 31
+  HPKw4iAk 06-22 14:23 cum3= -21.5% maxdrop= -23.1% cr=1 FLUSH-BUY  STEEP
+  D8Rk9rug 06-22 14:04 cum3= +36.3% maxdrop=  -1.8% cr=0 stable   
+  mXtkRMiX 06-22 14:01 cum3= +26.1% maxdrop=  +1.7% cr=0 stable   
+  B9zXbXYP buy 06-22 12:09  NO POOL
+  G5KEWAsh 06-21 15:13 cum3=  +6.5% maxdrop=  -4.2% cr=0 stable   
+  9zns6X1t 06-21 14:46 cum3= +23.7% maxdrop=  -5.3% cr=1 stable   
+  HQWFsoBe buy 06-21 14:10  NO POOL
+  3THLFCKH buy 06-21 14:25  no candles
+  8f2hFDz6 buy 06-21 13:55  NO POOL
+  CXx2Guk4 buy 06-20 21:30  NO POOL
+  5evviXP6 06-20 21:14 cum3=  -0.2% maxdrop= -10.4% cr=1 stable   STEEP
+  2vCwDJes 06-20 15:44 cum3=  +9.2% maxdrop=  -8.7% cr=0 stable   
+  8WagYzgk buy 06-20 15:16  NO POOL
+  5fw64tvG buy 06-20 15:16  NO POOL
+  DgVJZqmc buy 06-18 12:41  NO POOL
+  HPPAVYNo buy 06-18 11:30  NO POOL
+  EhYBNftD 06-17 22:38 cum3= -53.5% maxdrop= -34.9% cr=3 FLUSH-BUY KNIFE STEEP
+  9sunKMkr buy 06-17 23:45  NO POOL
+  8ZkRj5aH buy 06-17 21:42  NO POOL
+  4bswCHRQ buy 06-15 14:12  NO POOL
+  BNkdcde8 buy 06-15 13:53  NO POOL
+  AcshJpoV buy 06-15 13:54  NO POOL
+  9XmpdkMe buy 06-15 13:27  NO POOL
+  adTviJVn 06-15 13:21 cum3=  +2.8% maxdrop=  -0.8% cr=0 stable   
+  4B4NkRh4 buy 06-15 08:57  NO POOL
+  7yLkBTAz 06-15 01:25 cum3=  +3.0% maxdrop=  -0.2% cr=0 stable   
+  5VaefRVb buy 06-15 02:14  NO POOL
+  C7r7kvYb buy 06-15 02:05  NO POOL
+  HwpTKQFe buy 06-15 02:05  no candles
+  2vx5rqcM buy 06-15 00:41  NO POOL
+  92tqixwA 06-15 01:17 cum3=  +7.9% maxdrop=  -0.9% cr=0 stable   
+  SUMMARY B1zhrW: n=11 flush-buys(cum3<=-1.5)=2 (18%) knife(cr>=3)=1 steep(maxdrop<=-10)=3 | median cum3=+6.5%
+
+##### jStURX jStURX8S5RX8iVvV9ajQ2nkSdzakc4hFpn7RFY6fMYz #####
+tokens with buys: 11
+  1zJX5gRn 06-26 02:56 cum3=  -0.9% maxdrop=  -1.1% cr=2 stable   
+  FP2e4Ajz 06-26 21:18 cum3= -13.4% maxdrop=  -8.8% cr=4 FLUSH-BUY KNIFE 
+  Ha1JzNcM 06-26 02:11 cum3= +22.3% maxdrop=  +1.0% cr=0 stable   
+  25wyr6L1 buy 06-26 07:27  no candles
+  44eFuquS 06-25 22:25 cum3=  +5.0% maxdrop=  -3.2% cr=0 stable   
+  SV151D5p 06-26 06:18 cum3=  -0.1% maxdrop=  -0.0% cr=4 stable  KNIFE 
+  EwdmRdyL 06-26 01:27 cum3=  -0.4% maxdrop=  -6.1% cr=1 stable   
+  EmcxFTNV buy 06-24 15:46  no candles
+  NpqoucNK 06-25 11:35 cum3=  -1.5% maxdrop=  -1.7% cr=1 FLUSH-BUY  
+  6pyrvvkY buy 06-25 10:50  NO POOL
+  PAFwaS3E 06-25 01:01 cum3= +23.4% maxdrop=  -0.9% cr=1 stable   
+  SUMMARY jStURX: n=8 flush-buys(cum3<=-1.5)=2 (25%) knife(cr>=3)=2 steep(maxdrop<=-10)=0 | median cum3=-0.2%

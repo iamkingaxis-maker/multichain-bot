@@ -1,0 +1,6 @@
+{"kind":"buy","volume_usd":6.44,"ts":"2026-07-12T00:25:49+00:00","maker":"0x611a8ee521aecf7b6b517d853e8bd008e738631a","pair":"0x25418c286498eb111511cda7d8b91228068deabf","sym":"CASHWHALE","lag_secs":0.59,"pre_conf":true}
+{"kind":"buy","volume_usd":1.98,"ts":"2026-07-12T11:51:11+00:00","maker":"0x2dd271e5eb910db542faffaec34808f887902124","pair":"0x25418c286498eb111511cda7d8b91228068deabf","sym":"CASHWHALE","lag_secs":1.29,"pre_conf":true}
+{"kind":"buy","volume_usd":36.07,"ts":"2026-07-12T11:55:25+00:00","maker":"0x3aeedcd329e91e352d6c3d42c2b90d4e33a9e7d5","pair":"0x25418c286498eb111511cda7d8b91228068deabf","sym":"CASHWHALE","lag_secs":0.66,"pre_conf":true}
+{"kind":"buy","volume_usd":21.63,"ts":"2026-07-12T12:08:45+00:00","maker":"0xc370106d7eebb34618d58861ebad60cf9d6ee2e6","pair":"0x25418c286498eb111511cda7d8b91228068deabf","sym":"CASHWHALE","lag_secs":0.57,"pre_conf":true}
+{"kind":"buy","volume_usd":72.2,"ts":"2026-07-12T12:27:43+00:00","maker":"0x476bca2f71af8f43539f1a72b6b099ee4c16cd22","pair":"0x25418c286498eb111511cda7d8b91228068deabf","sym":"CASHWHALE","lag_secs":0.89,"pre_conf":true}
+{"kind":"buy","volume_usd":36.1,"ts":"2026-07-12T12:28:26+00:00","maker":"0x6b5cd2033eca2d0155b7f621f12d6d2bbd56a359","pair":"0x25418c286498eb111511cda7d8b91228068deabf","sym":"CASHWHALE","lag_secs":0.31,"pre_conf":true}

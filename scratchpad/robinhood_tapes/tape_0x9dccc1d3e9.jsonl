@@ -1,0 +1,5 @@
+{"kind":"buy","volume_usd":1.19,"ts":"2026-07-12T09:18:56+00:00","maker":"0xdd3cea75bc0b79412d7dc8119aa51a97520af68d","pair":"0x9dccc1d3e928e8789f2866d1874c45e7286f6c23","sym":"VROG","lag_secs":0.78,"pre_conf":true}
+{"kind":"buy","volume_usd":1.02,"ts":"2026-07-12T10:54:32+00:00","maker":"0x7360ecae6ef94341c0f3f0a66898bb7b128c3ab1","pair":"0x9dccc1d3e928e8789f2866d1874c45e7286f6c23","sym":"VROG","lag_secs":1.01,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-12T11:39:44+00:00","maker":"0x49cb9434a8cc07a6204bf535e2906a0690a6da42","pair":"0x9dccc1d3e928e8789f2866d1874c45e7286f6c23","sym":"VROG","lag_secs":0.68,"pre_conf":true}
+{"kind":"sell","volume_usd":0.21,"ts":"2026-07-12T11:45:21+00:00","maker":"0x49cb9434a8cc07a6204bf535e2906a0690a6da42","pair":"0x9dccc1d3e928e8789f2866d1874c45e7286f6c23","sym":"VROG","lag_secs":0.02,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":10.85,"ts":"2026-07-12T11:50:24+00:00","maker":"0x665231be9ed3dc8ee0c3f2da37d164298c74053e","pair":"0x9dccc1d3e928e8789f2866d1874c45e7286f6c23","sym":"VROG","lag_secs":0.63,"pre_conf":true}

@@ -1,0 +1,83 @@
+
+############ 2026-07-01: winner eps=67 base eps=972 ############
+F1 WIN  dd_before_first_sell n=46 p10=-23.1 p25=-9.4 med=-6.4 p75=-4.7 p90=-2.9 mean=-8.8
+F1 BASE dd_before_first_sell n=603 p10=-43.0 p25=-15.0 med=-6.8 p75=-3.7 p90=-1.8 mean=-15.0
+F2 WIN age bands: <2h: n=0 ret=+0.0% | 2-6h: n=2 ret=-5.7% | 6-24h: n=12 ret=-0.9% | 24-72h: n=22 ret=+74.7% | >72h: n=31 ret=+7.0% | unk: n=0 ret=+0.0%
+F2 WIN hours: buys=107  14-22UTC=87%  04-13=1.9%  23-01=4.7%
+F2 BASE age bands: <2h: n=29 ret=+27.0% | 2-6h: n=165 ret=-15.7% | 6-24h: n=196 ret=-9.2% | 24-72h: n=342 ret=-2.3% | >72h: n=240 ret=+3.7% | unk: n=0 ret=+0.0%
+F2 BASE hours: buys=4832  14-22UTC=74%  04-13=2.7%  23-01=8.9%
+F3 WIN sell ret vs entry VWAP (covered, dust<$2 excl) n=78 p10=-11.3 p25=-4.3 med=3.5 p75=10.4 p90=73.0 mean=23.9
+F3 USD-weighted: <-12: 11% | -12..0: 14% | 0..+6: 19% | +6..+12: 8% | >=+12: 48%
+F3 closed win eps=36, losers=13
+F3 WIN loss-cut depth (realized %) n=13 p10=-12.9 p25=-5.3 med=-4.7 p75=-2.9 p90=-2.2 mean=-5.4
+F3 WIN loss-cut time first-buy->last-sell (min) n=13 p10=9.8 p25=14.5 med=60.0 p75=65.2 p90=1236.1 mean=230.6
+F3 WIN closed realized ret% n=36 p10=-5.3 p25=-2.9 med=1.3 p75=6.6 p90=13.3 mean=4.0
+F3 WIN closed WR: 23/36 = 64%
+RX WIN dip60 n=67 p10=-38.0 p25=-30.0 med=-19.8 p75=-14.5 p90=-9.7 mean=-24.1
+RX WIN mom10 n=67 p10=-15.2 p25=-9.5 med=-5.5 p75=-3.5 p90=9.2 mean=-7.0
+RX WIN nf5m n=67 p10=-1019.7 p25=-605.4 med=-368.3 p75=19.8 p90=81.4 mean=-368.8
+RX WIN fwd_max60 n=67 p10=0.6 p25=1.7 med=6.8 p75=20.7 p90=36.2 mean=15.0
+RX BASE dip60 n=972 p10=-44.9 p25=-24.8 med=-16.1 p75=-7.4 p90=-0.7 mean=-20.3
+RX BASE mom10 n=972 p10=-12.5 p25=-7.0 med=-1.2 p75=4.2 p90=10.3 mean=-1.3
+RX BASE nf5m n=972 p10=-967.8 p25=-422.8 med=6.4 p75=181.9 p90=524.7 mean=-108.0
+RX BASE fwd_max60 n=971 p10=0.2 p25=2.1 med=8.1 p75=19.5 p90=37.1 mean=15.9
+RX WIN n_buys/ep n=67 p10=1.0 p25=1.0 med=1.0 p75=2.0 p90=3.0 mean=1.6
+RX WIN n_sells/ep n=67 p10=0.0 p25=0.0 med=1.0 p75=2.0 p90=4.0 mean=1.4
+RX WIN hold to first sell (min) n=46 p10=7.3 p25=9.8 med=22.5 p75=61.0 p90=95.0 mean=240.8
+RX WIN rebuy-after-sell: 19/46 = 41%  open bags: 21/67
+
+############ 2026-07-02: winner eps=174 base eps=2451 ############
+F1 WIN  dd_before_first_sell n=130 p10=-32.3 p25=-18.6 med=-8.9 p75=-4.7 p90=-2.6 mean=-14.3
+F1 BASE dd_before_first_sell n=1464 p10=-49.4 p25=-25.9 med=-11.2 p75=-5.1 p90=-2.5 mean=-19.0
+F2 WIN age bands: <2h: n=16 ret=-20.2% | 2-6h: n=37 ret=+2.7% | 6-24h: n=63 ret=+5.5% | 24-72h: n=32 ret=+52.6% | >72h: n=26 ret=+3.7% | unk: n=0 ret=+0.0%
+F2 WIN hours: buys=482  14-22UTC=84%  04-13=0.4%  23-01=4.1%
+F2 BASE age bands: <2h: n=294 ret=-36.3% | 2-6h: n=696 ret=-8.5% | 6-24h: n=744 ret=-12.0% | 24-72h: n=458 ret=+63.9% | >72h: n=259 ret=-8.7% | unk: n=0 ret=+0.0%
+F2 BASE hours: buys=9811  14-22UTC=83%  04-13=1.3%  23-01=5.4%
+F3 WIN sell ret vs entry VWAP (covered, dust<$2 excl) n=405 p10=-22.4 p25=-7.2 med=4.3 p75=22.5 p90=44.4 mean=10.3
+F3 USD-weighted: <-12: 17% | -12..0: 16% | 0..+6: 12% | +6..+12: 10% | >=+12: 45%
+F3 closed win eps=95, losers=24
+F3 WIN loss-cut depth (realized %) n=24 p10=-15.5 p25=-10.0 med=-3.7 p75=-1.0 p90=-0.5 mean=-6.7
+F3 WIN loss-cut time first-buy->last-sell (min) n=24 p10=2.0 p25=22.9 med=91.3 p75=257.1 p90=1668.8 mean=346.9
+F3 WIN closed realized ret% n=95 p10=-6.9 p25=-0.1 med=4.6 p75=11.6 p90=21.1 mean=7.4
+F3 WIN closed WR: 68/95 = 72%
+RX WIN dip60 n=174 p10=-54.6 p25=-43.0 med=-27.8 p75=-16.8 p90=-8.6 mean=-31.0
+RX WIN mom10 n=174 p10=-25.0 p25=-19.5 med=-10.1 p75=-3.0 p90=4.5 mean=-10.4
+RX WIN nf5m n=174 p10=-1355.6 p25=-848.6 med=-494.8 p75=-113.8 p90=232.9 mean=-513.9
+RX WIN fwd_max60 n=174 p10=2.1 p25=7.3 med=13.1 p75=34.8 p90=71.4 mean=31.8
+RX BASE dip60 n=2449 p10=-60.6 p25=-38.1 med=-22.8 p75=-11.4 p90=-4.4 mean=-27.9
+RX BASE mom10 n=2449 p10=-22.8 p25=-12.6 med=-2.2 p75=8.7 p90=24.3 mean=-1.0
+RX BASE nf5m n=2449 p10=-1052.4 p25=-477.5 med=-53.7 p75=327.2 p90=898.0 mean=-73.0
+RX BASE fwd_max60 n=2445 p10=1.3 p25=5.6 med=15.5 p75=38.4 p90=72.1 mean=30.0
+RX WIN n_buys/ep n=174 p10=1.0 p25=1.0 med=2.0 p75=3.0 p90=6.0 mean=2.8
+RX WIN n_sells/ep n=174 p10=0.0 p25=1.0 med=1.5 p75=3.0 p90=6.0 mean=2.7
+RX WIN hold to first sell (min) n=130 p10=0.3 p25=4.8 med=14.8 p75=56.7 p90=86.7 mean=64.1
+RX WIN rebuy-after-sell: 65/130 = 50%  open bags: 44/174
+
+############ 2026-07-03: winner eps=359 base eps=3267 ############
+F1 WIN  dd_before_first_sell n=269 p10=-30.4 p25=-20.9 med=-11.0 p75=-5.1 p90=-2.2 mean=-14.2
+F1 BASE dd_before_first_sell n=2091 p10=-46.7 p25=-28.0 med=-13.7 p75=-5.9 p90=-2.8 mean=-20.1
+F2 WIN age bands: <2h: n=18 ret=-3.6% | 2-6h: n=39 ret=-0.9% | 6-24h: n=94 ret=+17.4% | 24-72h: n=77 ret=+0.6% | >72h: n=131 ret=+16.6% | unk: n=0 ret=+0.0%
+F2 WIN hours: buys=1066  14-22UTC=67%  04-13=3.4%  23-01=21.8%
+F2 BASE age bands: <2h: n=407 ret=+6.1% | 2-6h: n=588 ret=-4.2% | 6-24h: n=973 ret=+6.5% | 24-72h: n=612 ret=-12.7% | >72h: n=687 ret=+18.4% | unk: n=0 ret=+0.0%
+F2 BASE hours: buys=15002  14-22UTC=67%  04-13=2.5%  23-01=24.2%
+F3 WIN sell ret vs entry VWAP (covered, dust<$2 excl) n=806 p10=-17.6 p25=-7.5 med=1.6 p75=13.6 p90=28.1 mean=4.6
+F3 USD-weighted: <-12: 10% | -12..0: 33% | 0..+6: 15% | +6..+12: 15% | >=+12: 26%
+F3 closed win eps=196, losers=70
+F3 WIN loss-cut depth (realized %) n=70 p10=-18.0 p25=-12.8 med=-6.8 p75=-3.0 p90=-1.4 mean=-9.5
+F3 WIN loss-cut time first-buy->last-sell (min) n=70 p10=10.0 p25=35.6 med=110.4 p75=271.7 p90=441.2 mean=169.8
+F3 WIN closed realized ret% n=196 p10=-11.8 p25=-4.2 med=2.1 p75=7.0 p90=19.3 mean=2.1
+F3 WIN closed WR: 125/196 = 64%
+RX WIN dip60 n=359 p10=-52.6 p25=-35.6 med=-25.4 p75=-18.7 p90=-11.5 mean=-29.1
+RX WIN mom10 n=359 p10=-19.7 p25=-13.0 med=-8.3 p75=-3.3 p90=10.3 mean=-7.3
+RX WIN nf5m n=359 p10=-1900.6 p25=-1123.3 med=-443.1 p75=-68.8 p90=327.2 mean=-653.6
+RX WIN fwd_max60 n=359 p10=3.2 p25=7.2 med=16.9 p75=34.9 p90=57.0 mean=32.2
+RX BASE dip60 n=3267 p10=-53.6 p25=-36.4 med=-22.2 p75=-11.3 p90=-5.0 mean=-26.3
+RX BASE mom10 n=3267 p10=-20.6 p25=-11.6 med=-2.8 p75=7.2 p90=21.0 mean=-1.5
+RX BASE nf5m n=3267 p10=-1284.3 p25=-634.6 med=-100.1 p75=355.4 p90=939.5 mean=-143.6
+RX BASE fwd_max60 n=3267 p10=1.5 p25=6.0 med=16.5 p75=34.7 p90=61.9 mean=32.5
+RX WIN n_buys/ep n=359 p10=1.0 p25=1.0 med=2.0 p75=3.0 p90=6.0 mean=3.0
+RX WIN n_sells/ep n=359 p10=0.0 p25=1.0 med=1.0 p75=3.0 p90=6.0 mean=2.7
+RX WIN hold to first sell (min) n=269 p10=1.0 p25=8.7 med=24.0 p75=108.1 p90=216.1 mean=74.8
+RX WIN rebuy-after-sell: 150/269 = 56%  open bags: 90/359
+
+DONE

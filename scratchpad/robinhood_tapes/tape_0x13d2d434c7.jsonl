@@ -1,0 +1,8 @@
+{"kind":"buy","volume_usd":89.76,"ts":"2026-07-11T03:21:16+00:00","maker":"0x3c5c4461063a25d51f1907cf3a45a064fbbfa5a3","pair":"0x13d2d434c7eb05a9823234c82cd1c57ef1e0c0c3","sym":"AVOCADO","lag_secs":0.84,"pre_conf":true}
+{"kind":"buy","volume_usd":148.21,"ts":"2026-07-11T04:04:53+00:00","maker":"0x6e7dd1e60c6dbd376540ca82c01c67d554f837bd","pair":"0x13d2d434c7eb05a9823234c82cd1c57ef1e0c0c3","sym":"AVOCADO","lag_secs":-0.04,"pre_conf":true}
+{"kind":"buy","volume_usd":1204.57,"ts":"2026-07-11T04:14:21+00:00","maker":"0x4c3c34e0688e1006571df923f0b45b6b48075871","pair":"0x13d2d434c7eb05a9823234c82cd1c57ef1e0c0c3","sym":"AVOCADO","lag_secs":0.47,"pre_conf":true}
+{"kind":"buy","volume_usd":0.19,"ts":"2026-07-11T04:15:26+00:00","maker":"0x48257949d5ab9d144f78d875962706813b89c67b","pair":"0x13d2d434c7eb05a9823234c82cd1c57ef1e0c0c3","sym":"AVOCADO","lag_secs":0.67,"pre_conf":true}
+{"kind":"buy","volume_usd":269.81,"ts":"2026-07-11T04:44:53+00:00","maker":"0x200e5dd048354b3268d87c206951f451d70d2329","pair":"0x13d2d434c7eb05a9823234c82cd1c57ef1e0c0c3","sym":"AVOCADO","lag_secs":0.25,"pre_conf":true}
+{"kind":"buy","volume_usd":413.85,"ts":"2026-07-11T04:53:31+00:00","maker":"0xaf4c0a5e418ce920c3104e4ec09fe556f98dff87","pair":"0x13d2d434c7eb05a9823234c82cd1c57ef1e0c0c3","sym":"AVOCADO","lag_secs":0.76,"pre_conf":true}
+{"kind":"buy","volume_usd":6.76,"ts":"2026-07-11T05:39:41+00:00","maker":"0x76405bb254aa544a535095aac8a09ad3bab009e5","pair":"0x13d2d434c7eb05a9823234c82cd1c57ef1e0c0c3","sym":"AVOCADO","lag_secs":-0.05,"pre_conf":true}
+{"kind":"buy","volume_usd":126.31,"ts":"2026-07-12T13:55:40+00:00","maker":"0x200e5dd048354b3268d87c206951f451d70d2329","pair":"0x13d2d434c7eb05a9823234c82cd1c57ef1e0c0c3","sym":"AVOCADO","lag_secs":0.19,"pre_conf":true}

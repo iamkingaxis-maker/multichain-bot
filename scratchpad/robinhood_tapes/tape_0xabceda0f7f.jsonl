@@ -1,0 +1,5 @@
+{"kind":"buy","volume_usd":1.8,"ts":"2026-07-10T23:24:48+00:00","maker":"0x10f433f136681c903f4cad011567e0d679cc4d1b","pair":"0xabceda0f7f2f4e45fb342a452d58de4aa941ccd2","sym":"MARA","lag_secs":0.79,"pre_conf":true}
+{"kind":"buy","volume_usd":8.99,"ts":"2026-07-10T23:27:53+00:00","maker":"0x711c2afa2a959dc00dfbcfdf592bc49a87507779","pair":"0xabceda0f7f2f4e45fb342a452d58de4aa941ccd2","sym":"MARA","lag_secs":-0.08,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-10T23:30:34+00:00","maker":"0xbeaf18d6993c402b71e06d87fb9820dd675dff38","pair":"0xabceda0f7f2f4e45fb342a452d58de4aa941ccd2","sym":"MARA","lag_secs":0.97,"pre_conf":true}
+{"kind":"sell","volume_usd":0.77,"ts":"2026-07-10T23:39:42+00:00","maker":"0xbeaf18d6993c402b71e06d87fb9820dd675dff38","pair":"0xabceda0f7f2f4e45fb342a452d58de4aa941ccd2","sym":"MARA","lag_secs":0.04,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":0.81,"ts":"2026-07-10T23:45:01+00:00","maker":"0x9a9ba2a09a9abd80cfcb3bef38d0d73ccb1c740d","pair":"0xabceda0f7f2f4e45fb342a452d58de4aa941ccd2","sym":"MARA","lag_secs":0.88,"pre_conf":true}

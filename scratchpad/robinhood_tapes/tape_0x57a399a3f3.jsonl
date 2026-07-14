@@ -1,0 +1,5 @@
+{"kind":"buy","volume_usd":0.41,"ts":"2026-07-12T00:06:19+00:00","maker":"0x0e233fc659519a431170d4e08ec231658dace3fc","pair":"0x57a399a3f349a4f838fafb702fe0a88c82f62750","sym":"SMUGCAT","lag_secs":0.56,"pre_conf":true}
+{"kind":"buy","volume_usd":53.52,"ts":"2026-07-12T00:10:39+00:00","maker":"0x110b8e677d5842277f0c68246f3f686e944f6e17","pair":"0x57a399a3f349a4f838fafb702fe0a88c82f62750","sym":"SMUGCAT","lag_secs":0.54,"pre_conf":true}
+{"kind":"buy","volume_usd":2.61,"ts":"2026-07-12T11:41:43+00:00","maker":"0xebe84dd94bbd3c6999daf0690d52b99e5ddcadc5","pair":"0x57a399a3f349a4f838fafb702fe0a88c82f62750","sym":"SMUGCAT","lag_secs":1.2,"pre_conf":true}
+{"kind":"buy","volume_usd":0.18,"ts":"2026-07-12T11:53:41+00:00","maker":"0xebe84dd94bbd3c6999daf0690d52b99e5ddcadc5","pair":"0x57a399a3f349a4f838fafb702fe0a88c82f62750","sym":"SMUGCAT","lag_secs":0.74,"pre_conf":true}
+{"kind":"buy","volume_usd":270.84,"ts":"2026-07-12T12:59:01+00:00","maker":"0xbe9a500cd173b0c024557cabfa92ff18a4d13ad4","pair":"0x57a399a3f349a4f838fafb702fe0a88c82f62750","sym":"SMUGCAT","lag_secs":0.61,"pre_conf":true}

@@ -1,0 +1,265 @@
+{
+ "cohort_sizes": {
+  "winners_any_alive": 45,
+  "winners_strict_alive": 27,
+  "universe": 50,
+  "universe_alive": 32
+ },
+ "hoodlana_entry": {
+  "pool_pct": 12.45,
+  "top10": 14.71,
+  "hidden_share": 72.84
+ },
+ "rules": [
+  {
+   "rule": "hidden_share >= 40",
+   "winner_kill_any_pct": 71.1,
+   "kill_any_n": 32,
+   "winner_kill_strict_pct": 66.7,
+   "kill_strict_n": 18,
+   "universe_block_pct": 58.0,
+   "universe_alive_block_pct": 81.2,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden_share >= 50",
+   "winner_kill_any_pct": 55.6,
+   "kill_any_n": 25,
+   "winner_kill_strict_pct": 44.4,
+   "kill_strict_n": 12,
+   "universe_block_pct": 44.0,
+   "universe_alive_block_pct": 68.8,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden_share >= 60",
+   "winner_kill_any_pct": 24.4,
+   "kill_any_n": 11,
+   "winner_kill_strict_pct": 14.8,
+   "kill_strict_n": 4,
+   "universe_block_pct": 24.0,
+   "universe_alive_block_pct": 37.5,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden_share >= 65",
+   "winner_kill_any_pct": 15.6,
+   "kill_any_n": 7,
+   "winner_kill_strict_pct": 7.4,
+   "kill_strict_n": 2,
+   "universe_block_pct": 16.0,
+   "universe_alive_block_pct": 25.0,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden_share >= 70",
+   "winner_kill_any_pct": 11.1,
+   "kill_any_n": 5,
+   "winner_kill_strict_pct": 3.7,
+   "kill_strict_n": 1,
+   "universe_block_pct": 12.0,
+   "universe_alive_block_pct": 18.8,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden >= 50 AND total_holders < 1000",
+   "winner_kill_any_pct": 11.1,
+   "kill_any_n": 5,
+   "winner_kill_strict_pct": 14.8,
+   "kill_strict_n": 4,
+   "universe_block_pct": 18.0,
+   "universe_alive_block_pct": 28.1,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden >= 50 AND total_holders < 2000",
+   "winner_kill_any_pct": 28.9,
+   "kill_any_n": 13,
+   "winner_kill_strict_pct": 29.6,
+   "kill_strict_n": 8,
+   "universe_block_pct": 26.0,
+   "universe_alive_block_pct": 40.6,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden >= 50 AND total_holders < 5000",
+   "winner_kill_any_pct": 44.4,
+   "kill_any_n": 20,
+   "winner_kill_strict_pct": 40.7,
+   "kill_strict_n": 11,
+   "universe_block_pct": 36.0,
+   "universe_alive_block_pct": 56.2,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden >= 60 AND total_holders < 1000",
+   "winner_kill_any_pct": 4.4,
+   "kill_any_n": 2,
+   "winner_kill_strict_pct": 3.7,
+   "kill_strict_n": 1,
+   "universe_block_pct": 6.0,
+   "universe_alive_block_pct": 9.4,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden >= 60 AND total_holders < 2000",
+   "winner_kill_any_pct": 11.1,
+   "kill_any_n": 5,
+   "winner_kill_strict_pct": 11.1,
+   "kill_strict_n": 3,
+   "universe_block_pct": 10.0,
+   "universe_alive_block_pct": 15.6,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden >= 60 AND total_holders < 5000",
+   "winner_kill_any_pct": 22.2,
+   "kill_any_n": 10,
+   "winner_kill_strict_pct": 14.8,
+   "kill_strict_n": 4,
+   "universe_block_pct": 18.0,
+   "universe_alive_block_pct": 28.1,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden >= 70 AND total_holders < 1000",
+   "winner_kill_any_pct": 2.2,
+   "kill_any_n": 1,
+   "winner_kill_strict_pct": 0.0,
+   "kill_strict_n": 0,
+   "universe_block_pct": 2.0,
+   "universe_alive_block_pct": 3.1,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden >= 70 AND total_holders < 2000",
+   "winner_kill_any_pct": 4.4,
+   "kill_any_n": 2,
+   "winner_kill_strict_pct": 3.7,
+   "kill_strict_n": 1,
+   "universe_block_pct": 2.0,
+   "universe_alive_block_pct": 3.1,
+   "hood_caught": true
+  },
+  {
+   "rule": "hidden >= 70 AND total_holders < 5000",
+   "winner_kill_any_pct": 8.9,
+   "kill_any_n": 4,
+   "winner_kill_strict_pct": 3.7,
+   "kill_strict_n": 1,
+   "universe_block_pct": 8.0,
+   "universe_alive_block_pct": 12.5,
+   "hood_caught": true
+  },
+  {
+   "rule": "shoulder_11_20 >= 5",
+   "winner_kill_any_pct": 84.4,
+   "kill_any_n": 38,
+   "winner_kill_strict_pct": 77.8,
+   "kill_strict_n": 21,
+   "universe_block_pct": 86.0,
+   "universe_alive_block_pct": 93.8,
+   "hood_caught": null
+  },
+  {
+   "rule": "shoulder_11_20 >= 10",
+   "winner_kill_any_pct": 48.9,
+   "kill_any_n": 22,
+   "winner_kill_strict_pct": 51.9,
+   "kill_strict_n": 14,
+   "universe_block_pct": 56.0,
+   "universe_alive_block_pct": 62.5,
+   "hood_caught": null
+  },
+  {
+   "rule": "shoulder_11_20 >= 15",
+   "winner_kill_any_pct": 2.2,
+   "kill_any_n": 1,
+   "winner_kill_strict_pct": 0.0,
+   "kill_strict_n": 0,
+   "universe_block_pct": 8.0,
+   "universe_alive_block_pct": 9.4,
+   "hood_caught": null
+  },
+  {
+   "rule": "shoulder_11_20 >= 20",
+   "winner_kill_any_pct": 0.0,
+   "kill_any_n": 0,
+   "winner_kill_strict_pct": 0.0,
+   "kill_strict_n": 0,
+   "universe_block_pct": 2.0,
+   "universe_alive_block_pct": 0.0,
+   "hood_caught": null
+  },
+  {
+   "rule": "insider_pct >= 5",
+   "winner_kill_any_pct": 0.0,
+   "kill_any_n": 0,
+   "winner_kill_strict_pct": 0.0,
+   "kill_strict_n": 0,
+   "universe_block_pct": 0.0,
+   "universe_alive_block_pct": 0.0,
+   "hood_caught": null
+  },
+  {
+   "rule": "insider_pct >= 10",
+   "winner_kill_any_pct": 0.0,
+   "kill_any_n": 0,
+   "winner_kill_strict_pct": 0.0,
+   "kill_strict_n": 0,
+   "universe_block_pct": 0.0,
+   "universe_alive_block_pct": 0.0,
+   "hood_caught": null
+  },
+  {
+   "rule": "insider_pct >= 20",
+   "winner_kill_any_pct": 0.0,
+   "kill_any_n": 0,
+   "winner_kill_strict_pct": 0.0,
+   "kill_strict_n": 0,
+   "universe_block_pct": 0.0,
+   "universe_alive_block_pct": 0.0,
+   "hood_caught": null
+  },
+  {
+   "rule": "graph_insiders >= 20",
+   "winner_kill_any_pct": 37.8,
+   "kill_any_n": 17,
+   "winner_kill_strict_pct": 33.3,
+   "kill_strict_n": 9,
+   "universe_block_pct": 26.0,
+   "universe_alive_block_pct": 25.0,
+   "hood_caught": null
+  },
+  {
+   "rule": "graph_insiders >= 50",
+   "winner_kill_any_pct": 13.3,
+   "kill_any_n": 6,
+   "winner_kill_strict_pct": 14.8,
+   "kill_strict_n": 4,
+   "universe_block_pct": 14.0,
+   "universe_alive_block_pct": 15.6,
+   "hood_caught": null
+  },
+  {
+   "rule": "graph_insiders >= 100",
+   "winner_kill_any_pct": 6.7,
+   "kill_any_n": 3,
+   "winner_kill_strict_pct": 7.4,
+   "kill_strict_n": 2,
+   "universe_block_pct": 6.0,
+   "universe_alive_block_pct": 6.2,
+   "hood_caught": null
+  },
+  {
+   "rule": "pool<20 AND top10<25 (both small => mass hidden)",
+   "winner_kill_any_pct": 24.4,
+   "kill_any_n": 11,
+   "winner_kill_strict_pct": 14.8,
+   "kill_strict_n": 4,
+   "universe_block_pct": 26.0,
+   "universe_alive_block_pct": 40.6,
+   "hood_caught": true
+  }
+ ]
+}

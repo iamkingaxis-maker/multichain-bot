@@ -1,0 +1,3 @@
+{"kind":"buy","volume_usd":80.94,"ts":"2026-07-11T03:54:57+00:00","maker":"0x5eca355539121c1708876eafa564c2d837cf629f","pair":"0x3380d23f77793643dcd6d7774248187ab665e28e","sym":"LMEOW","lag_secs":1.26,"pre_conf":true}
+{"kind":"buy","volume_usd":5.39,"ts":"2026-07-11T04:19:12+00:00","maker":"0x5eca355539121c1708876eafa564c2d837cf629f","pair":"0x3380d23f77793643dcd6d7774248187ab665e28e","sym":"LMEOW","lag_secs":1.08,"pre_conf":true}
+{"kind":"buy","volume_usd":6.29,"ts":"2026-07-11T04:20:05+00:00","maker":"0x5eca355539121c1708876eafa564c2d837cf629f","pair":"0x3380d23f77793643dcd6d7774248187ab665e28e","sym":"LMEOW","lag_secs":0.39,"pre_conf":true}

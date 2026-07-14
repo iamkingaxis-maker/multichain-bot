@@ -1,0 +1,2 @@
+{"kind":"buy","volume_usd":0.0,"ts":"2026-07-10T09:05:11+00:00","maker":"0x301223065ad8cdc0356d205f2c4e6db1c72c7ac6","pair":"0x7e6a615ef2cc0ce7d08452ff468ba45b0444b933","sym":"PRED","lag_secs":14.7}
+{"kind":"buy","volume_usd":105.35,"ts":"2026-07-10T09:07:01+00:00","maker":"0xf70da97812cb96acdf810712aa562db8dfa3dbef","pair":"0x7e6a615ef2cc0ce7d08452ff468ba45b0444b933","sym":"PRED","lag_secs":1.93}

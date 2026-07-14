@@ -1,0 +1,1080 @@
+{
+ "bar": "covered_net>0 on >=2 tokens, buy_usd>=20/token",
+ "n": 36,
+ "winners": [
+  {
+   "wallet": "2tgUbS9UMoQD6GkDZBiqKYCURnGrSb6ocYwRABrSJUvY",
+   "n_pos": 21,
+   "n_neg": 35,
+   "n_open_bags": 1,
+   "covered_net_closed_usd": -181.96,
+   "pos_tokens": [
+    {
+     "token": "5RHcxXfioc5gRCESQrDCeTa3oCbTRgGpA7U5W2itpump",
+     "sym": "CC\u00a9",
+     "net": 12.25,
+     "buy_usd": 54.3
+    },
+    {
+     "token": "CXwcR1oPSRwHKnPPEVwWuWxDuHezQPD2tEwn4rvnpump",
+     "sym": "ANSOME",
+     "net": 1.5,
+     "buy_usd": 39.05
+    },
+    {
+     "token": "6bqvwKH6Q8SnTSooLR1ikBawcPAuUxitfyqwM9azpump",
+     "sym": "skew",
+     "net": 12.39,
+     "buy_usd": 109.07
+    },
+    {
+     "token": "DTiG8SMN6RHYLAtLkFdrzKixnb3Dr8gy9gCrCXxmpump",
+     "sym": "BINDY",
+     "net": 0.33,
+     "buy_usd": 23.33
+    },
+    {
+     "token": "BERChQArew5Q4a9so8EmYCnLooehpzS2fZSSdU8tpump",
+     "sym": "PORK",
+     "net": 9.88,
+     "buy_usd": 23.07
+    },
+    {
+     "token": "83Z2tZyjgLrC2pFXKUiaxkzCTiWi68KkK6FEwNLKpump",
+     "sym": "SOLS",
+     "net": 0.68,
+     "buy_usd": 46.47
+    },
+    {
+     "token": "BwAU6gsimrFhJrRcZqKxQJayfnkyyan63WNCJRWYpump",
+     "sym": "CUPSEY",
+     "net": 1.49,
+     "buy_usd": 23.2
+    },
+    {
+     "token": "3JHgosXW8pm1JsraMvtFhaxYjfaqowFPibM74WZypump",
+     "sym": "DAVINCI",
+     "net": 0.31,
+     "buy_usd": 46.94
+    },
+    {
+     "token": "UcRtytWGPPkiJDx8AtJEtAu1Yt26AkaZZRPA1pJdwnd",
+     "sym": "dwnd",
+     "net": 0.09,
+     "buy_usd": 22.56
+    },
+    {
+     "token": "DoWCif6MaQEMuMRDDu6PRWr6JQH7SFqm33eZa8jwpump",
+     "sym": "PORTNOY",
+     "net": 1.11,
+     "buy_usd": 23.25
+    },
+    {
+     "token": "9qeN746oRit785W9xs69XR4Tzm2i4vjaxUikNYYFpump",
+     "sym": "Bullshit",
+     "net": 1.17,
+     "buy_usd": 30.84
+    },
+    {
+     "token": "Ns6PhWqLDTexho3aiU42TZM7af5bsyEsqQffT4Bpump",
+     "sym": "bull",
+     "net": 19.9,
+     "buy_usd": 69.54
+    },
+    {
+     "token": "BDdzUjksj1J4bSnMveQ5tV9Up8A9c6YS1tHrxNw3pump",
+     "sym": "FOMO",
+     "net": 1.5,
+     "buy_usd": 30.76
+    },
+    {
+     "token": "e9GLqEo9J1LDXbExtf2HC363wdYoGNmLteSt49Zpump",
+     "sym": "GOU",
+     "net": 44.4,
+     "buy_usd": 31.09
+    },
+    {
+     "token": "3wbaKwr76GnRcRmNaiyqhR8XyAtcdkcv4FRMaPcFpump",
+     "sym": "SHIH",
+     "net": 6.0,
+     "buy_usd": 372.3
+    },
+    {
+     "token": "CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump",
+     "sym": "SHROOM",
+     "net": 10.59,
+     "buy_usd": 46.66
+    },
+    {
+     "token": "6eDqAxts3AZ3cMBPQd3c4D1jzjX1uAQ4Lo53d6dUpump",
+     "sym": "MMGA",
+     "net": 7.11,
+     "buy_usd": 23.42
+    },
+    {
+     "token": "6XUkLa8fbTzRUkGotni7UtkG4EHtUFe8qPhJU5THpump",
+     "sym": "ZAYED",
+     "net": 0.56,
+     "buy_usd": 61.94
+    },
+    {
+     "token": "AJj2ksDDHK3Pe7DBhW2bgQVSTP8q7pLbQRVXJQBJaSpV",
+     "sym": "STOCHASTIC",
+     "net": 10.0,
+     "buy_usd": 63.5
+    },
+    {
+     "token": "9gAVAtdnsrniW3GCwsvDeRPf5eJDjtT9S5bu1j7tpump",
+     "sym": "dog",
+     "net": 7.62,
+     "buy_usd": 23.26
+    },
+    {
+     "token": "HnVDCRts3FttnKBdCMQisnsciHpDdMTL6uUc3tghpump",
+     "sym": "DIAMOND",
+     "net": 0.45,
+     "buy_usd": 22.41
+    }
+   ]
+  },
+  {
+   "wallet": "AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51",
+   "n_pos": 15,
+   "n_neg": 23,
+   "n_open_bags": 3,
+   "covered_net_closed_usd": -2225.04,
+   "pos_tokens": [
+    {
+     "token": "XkeTXo1125vz5H9svJpGiw4JvLbN8VmMu9cmMvspump",
+     "sym": "DREGG",
+     "net": 1719.49,
+     "buy_usd": 169.27
+    },
+    {
+     "token": "GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump",
+     "sym": "Horseradish",
+     "net": 147.15,
+     "buy_usd": 89.81
+    },
+    {
+     "token": "2GKyVqZz1pyWFMsQNQ9bWRfKFug9fFnxAP67dMSmpump",
+     "sym": "b40",
+     "net": 369.99,
+     "buy_usd": 53.39
+    },
+    {
+     "token": "BwAU6gsimrFhJrRcZqKxQJayfnkyyan63WNCJRWYpump",
+     "sym": "CUPSEY",
+     "net": 70.23,
+     "buy_usd": 107.55
+    },
+    {
+     "token": "C6kWVdLGAE3Eb8Xc6VRZbs9ZvouHhBMYbhd4BVagD4Da",
+     "sym": "TESTIBULL",
+     "net": 965.11,
+     "buy_usd": 1405.53
+    },
+    {
+     "token": "42AkFX59LK7bR974qZc7N5RcnikxrffFPQ4PQVympump",
+     "sym": "ONBOARD",
+     "net": 199.5,
+     "buy_usd": 139.08
+    },
+    {
+     "token": "2jz9E5JrEbxLg1RhU68aaSikDvpQurCEZz9BBF9rpump",
+     "sym": "PATTYICE",
+     "net": 9.47,
+     "buy_usd": 629.52
+    },
+    {
+     "token": "BDdzUjksj1J4bSnMveQ5tV9Up8A9c6YS1tHrxNw3pump",
+     "sym": "FOMO",
+     "net": 796.73,
+     "buy_usd": 170.52
+    },
+    {
+     "token": "ERPtViqckt1zqpS2abUx67CgLcP54CkhBPYz3yRUpump",
+     "sym": "yep",
+     "net": 534.39,
+     "buy_usd": 533.56
+    },
+    {
+     "token": "D78NGAjigMXaX52u5wvvLoNWuDZW98DayCxVtM9Fpump",
+     "sym": "VITALY",
+     "net": 61.13,
+     "buy_usd": 98.18
+    },
+    {
+     "token": "3oBRGPMpvR1TpHRx9oMEeJwSgwv7Fo7ndshuu2rQpump",
+     "sym": "Potato",
+     "net": 309.55,
+     "buy_usd": 759.86
+    },
+    {
+     "token": "2838azpak6PsqVWC5UQYbSe675M2FkMS9e1Qa1ZMpump",
+     "sym": "TJR",
+     "net": 59.08,
+     "buy_usd": 350.78
+    },
+    {
+     "token": "6JVpLGkXrcNz7XBBjP2uHc29ZnKa57nmSpewGzqgsNQx",
+     "sym": "TOLY",
+     "net": 254.64,
+     "buy_usd": 100.16
+    },
+    {
+     "token": "Cz1nNU1XsBKWPfD9aGNSxxp7EmTCBjEFH4eprKtxpump",
+     "sym": "Scamcoin",
+     "net": 505.04,
+     "buy_usd": 227.11
+    },
+    {
+     "token": "7jrazSKnCU2vbyVPJ8dfEF2TMYLcUiDBsFaEGvqopump",
+     "sym": "\ud83d\udc02\ud83c\udc04",
+     "net": 303.23,
+     "buy_usd": 1353.87
+    }
+   ]
+  },
+  {
+   "wallet": "2Jy2VdYU6YmSKL2fAk59iTBHavGUu41HNRMekdwcVUVg",
+   "n_pos": 7,
+   "n_neg": 6,
+   "n_open_bags": 2,
+   "covered_net_closed_usd": -161.9,
+   "pos_tokens": [
+    {
+     "token": "498DeYRS7AtLdE5wbwXbpFtinMTDTJxuvfXMraDDpump",
+     "sym": "FABLE",
+     "net": 6.17,
+     "buy_usd": 76.78
+    },
+    {
+     "token": "PDqSePtjwXYaruFX7hdujV9wf4X7Z4fu5d2iVMCpump",
+     "sym": "Speedrun",
+     "net": 3.13,
+     "buy_usd": 27.35
+    },
+    {
+     "token": "CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump",
+     "sym": "SHROOM",
+     "net": 4.05,
+     "buy_usd": 147.29
+    },
+    {
+     "token": "D78NGAjigMXaX52u5wvvLoNWuDZW98DayCxVtM9Fpump",
+     "sym": "VITALY",
+     "net": 5.22,
+     "buy_usd": 71.54
+    },
+    {
+     "token": "6eDqAxts3AZ3cMBPQd3c4D1jzjX1uAQ4Lo53d6dUpump",
+     "sym": "MMGA",
+     "net": 2.99,
+     "buy_usd": 31.63
+    },
+    {
+     "token": "C5vxPUKsg8w4QwKqJQYaV8XNJ5XSPKbtxrrs4zHvpump",
+     "sym": "PEACE",
+     "net": 3.14,
+     "buy_usd": 115.54
+    },
+    {
+     "token": "86CQ5gYV7tJSD2EEAyGtPhes2Z9iit5jhiEtYEr8pump",
+     "sym": "POINT",
+     "net": 1.01,
+     "buy_usd": 105.63
+    }
+   ]
+  },
+  {
+   "wallet": "3gubYnreSffR5qRqmkoCTketmCXj3jMQu4UdiqRGy13t",
+   "n_pos": 5,
+   "n_neg": 5,
+   "n_open_bags": 1,
+   "covered_net_closed_usd": -99.65,
+   "pos_tokens": [
+    {
+     "token": "GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump",
+     "sym": "Horseradish",
+     "net": 7.99,
+     "buy_usd": 63.83
+    },
+    {
+     "token": "3JHgosXW8pm1JsraMvtFhaxYjfaqowFPibM74WZypump",
+     "sym": "DAVINCI",
+     "net": 1.23,
+     "buy_usd": 31.79
+    },
+    {
+     "token": "GFZErV4qFZk6GCZ38C4VGXGyiHJ627UWHvVB2bzypump",
+     "sym": "ANSEM",
+     "net": 1.99,
+     "buy_usd": 84.46
+    },
+    {
+     "token": "ERPtViqckt1zqpS2abUx67CgLcP54CkhBPYz3yRUpump",
+     "sym": "yep",
+     "net": 9.32,
+     "buy_usd": 115.56
+    },
+    {
+     "token": "CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump",
+     "sym": "SHROOM",
+     "net": 2.24,
+     "buy_usd": 76.89
+    }
+   ]
+  },
+  {
+   "wallet": "AeBgCFnkSWMAwv3zjaJPB93hxEBUEVkhEyKVFaxT84pJ",
+   "n_pos": 5,
+   "n_neg": 6,
+   "n_open_bags": 7,
+   "covered_net_closed_usd": -654.06,
+   "pos_tokens": [
+    {
+     "token": "BERChQArew5Q4a9so8EmYCnLooehpzS2fZSSdU8tpump",
+     "sym": "PORK",
+     "net": 6.19,
+     "buy_usd": 93.99
+    },
+    {
+     "token": "BDdzUjksj1J4bSnMveQ5tV9Up8A9c6YS1tHrxNw3pump",
+     "sym": "FOMO",
+     "net": 2.16,
+     "buy_usd": 123.62
+    },
+    {
+     "token": "3wbaKwr76GnRcRmNaiyqhR8XyAtcdkcv4FRMaPcFpump",
+     "sym": "SHIH",
+     "net": 7.75,
+     "buy_usd": 85.97
+    },
+    {
+     "token": "AhHuDSNubYsSJwYvCocWANQPMTNzVe7WbxLS6mnwpump",
+     "sym": "BOOM",
+     "net": 14.33,
+     "buy_usd": 100.02
+    },
+    {
+     "token": "7jrazSKnCU2vbyVPJ8dfEF2TMYLcUiDBsFaEGvqopump",
+     "sym": "\ud83d\udc02\ud83c\udc04",
+     "net": 5.98,
+     "buy_usd": 112.39
+    }
+   ]
+  },
+  {
+   "wallet": "FYX5JQ2kP7TD8gWb9WP1tjmwWWUAzi8edEZTr5Z8F1ck",
+   "n_pos": 4,
+   "n_neg": 2,
+   "n_open_bags": 4,
+   "covered_net_closed_usd": -120.63,
+   "pos_tokens": [
+    {
+     "token": "83Z2tZyjgLrC2pFXKUiaxkzCTiWi68KkK6FEwNLKpump",
+     "sym": "SOLS",
+     "net": 332.7,
+     "buy_usd": 215.57
+    },
+    {
+     "token": "2aQKC1xiKpEyAWvzSDrULnYLVuybWyx7qrsnpP8hpump",
+     "sym": "Udin",
+     "net": 21.39,
+     "buy_usd": 122.98
+    },
+    {
+     "token": "3wbaKwr76GnRcRmNaiyqhR8XyAtcdkcv4FRMaPcFpump",
+     "sym": "SHIH",
+     "net": 38.3,
+     "buy_usd": 152.46
+    },
+    {
+     "token": "FfpUuXzXcZAg2Lrk9PAd9DKbvvUdPREniyHgXyR6pump",
+     "sym": "HIM",
+     "net": 1.88,
+     "buy_usd": 569.55
+    }
+   ]
+  },
+  {
+   "wallet": "1eveYYxZ2mDiAnmCh3fnAbJwjgErzokRA1b6UrRybSM",
+   "n_pos": 4,
+   "n_neg": 5,
+   "n_open_bags": 2,
+   "covered_net_closed_usd": -282.43,
+   "pos_tokens": [
+    {
+     "token": "BwAU6gsimrFhJrRcZqKxQJayfnkyyan63WNCJRWYpump",
+     "sym": "CUPSEY",
+     "net": 4.2,
+     "buy_usd": 97.37
+    },
+    {
+     "token": "42AkFX59LK7bR974qZc7N5RcnikxrffFPQ4PQVympump",
+     "sym": "ONBOARD",
+     "net": 4.88,
+     "buy_usd": 119.99
+    },
+    {
+     "token": "5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump",
+     "sym": "BULLWIF",
+     "net": 19.45,
+     "buy_usd": 343.53
+    },
+    {
+     "token": "G9ds9rppyJVZs4ZiRv6jVEq4Tq7kRcXxFgbhz232pump",
+     "sym": "WYNN",
+     "net": 3.72,
+     "buy_usd": 61.92
+    }
+   ]
+  },
+  {
+   "wallet": "kEFiAX3jo5NmemysQov342TZ9mGh6yp92GDRjhA8XDf",
+   "n_pos": 3,
+   "n_neg": 1,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": 291.78,
+   "pos_tokens": [
+    {
+     "token": "6bqvwKH6Q8SnTSooLR1ikBawcPAuUxitfyqwM9azpump",
+     "sym": "skew",
+     "net": 31.85,
+     "buy_usd": 192.47
+    },
+    {
+     "token": "e9GLqEo9J1LDXbExtf2HC363wdYoGNmLteSt49Zpump",
+     "sym": "GOU",
+     "net": 11.19,
+     "buy_usd": 108.05
+    },
+    {
+     "token": "C5vxPUKsg8w4QwKqJQYaV8XNJ5XSPKbtxrrs4zHvpump",
+     "sym": "PEACE",
+     "net": 255.19,
+     "buy_usd": 256.39
+    }
+   ]
+  },
+  {
+   "wallet": "J1sfMsbxGNXDPMUPXyGs5D6oCEe7fSYgdPMRyVzZuZUW",
+   "n_pos": 3,
+   "n_neg": 0,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": 9.66,
+   "pos_tokens": [
+    {
+     "token": "GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump",
+     "sym": "Horseradish",
+     "net": 0.01,
+     "buy_usd": 74.3
+    },
+    {
+     "token": "BERChQArew5Q4a9so8EmYCnLooehpzS2fZSSdU8tpump",
+     "sym": "PORK",
+     "net": 5.9,
+     "buy_usd": 47.69
+    },
+    {
+     "token": "6eDqAxts3AZ3cMBPQd3c4D1jzjX1uAQ4Lo53d6dUpump",
+     "sym": "MMGA",
+     "net": 3.75,
+     "buy_usd": 31.4
+    }
+   ]
+  },
+  {
+   "wallet": "BGzLYcFcUZkW5GPZZAYK4Jxyf1W7aigyHQbvmKsQeeuq",
+   "n_pos": 3,
+   "n_neg": 3,
+   "n_open_bags": 1,
+   "covered_net_closed_usd": 1.68,
+   "pos_tokens": [
+    {
+     "token": "DoWCif6MaQEMuMRDDu6PRWr6JQH7SFqm33eZa8jwpump",
+     "sym": "PORTNOY",
+     "net": 20.6,
+     "buy_usd": 278.46
+    },
+    {
+     "token": "GFZErV4qFZk6GCZ38C4VGXGyiHJ627UWHvVB2bzypump",
+     "sym": "ANSEM",
+     "net": 0.42,
+     "buy_usd": 164.42
+    },
+    {
+     "token": "2kcdBw85q4qMVCjUkEynTnZ3bGbBeCqZRDRNLpeWpump",
+     "sym": "traindog",
+     "net": 7.63,
+     "buy_usd": 220.15
+    }
+   ]
+  },
+  {
+   "wallet": "8zkgFGVZrDLieViwqiXFCydSX6WL5hsxmUu55yBdsNsZ",
+   "n_pos": 3,
+   "n_neg": 3,
+   "n_open_bags": 2,
+   "covered_net_closed_usd": -87.65,
+   "pos_tokens": [
+    {
+     "token": "HULaBKR1eK3SA18FpfEav8Z2t7TJ1qEC775YHTLNpump",
+     "sym": "DAVID",
+     "net": 48.79,
+     "buy_usd": 1099.74
+    },
+    {
+     "token": "2ZvFgTyLMrgyLmoPHtD5KsTyALh14ffzxJoni4oPpump",
+     "sym": "BOGE",
+     "net": 43.81,
+     "buy_usd": 219.42
+    },
+    {
+     "token": "AhHuDSNubYsSJwYvCocWANQPMTNzVe7WbxLS6mnwpump",
+     "sym": "BOOM",
+     "net": 48.37,
+     "buy_usd": 202.04
+    }
+   ]
+  },
+  {
+   "wallet": "HzA15vYiFgqYnjbGe1kYS2zhLbyAYmCU8KbLaJx9cDaZ",
+   "n_pos": 3,
+   "n_neg": 9,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": -322.77,
+   "pos_tokens": [
+    {
+     "token": "3JHgosXW8pm1JsraMvtFhaxYjfaqowFPibM74WZypump",
+     "sym": "DAVINCI",
+     "net": 0.76,
+     "buy_usd": 31.32
+    },
+    {
+     "token": "GFZErV4qFZk6GCZ38C4VGXGyiHJ627UWHvVB2bzypump",
+     "sym": "ANSEM",
+     "net": 0.64,
+     "buy_usd": 41.46
+    },
+    {
+     "token": "C5vxPUKsg8w4QwKqJQYaV8XNJ5XSPKbtxrrs4zHvpump",
+     "sym": "PEACE",
+     "net": 1.18,
+     "buy_usd": 115.57
+    }
+   ]
+  },
+  {
+   "wallet": "gasTzr94Pmp4Gf8vknQnqxeYxdgwFjbgdJa4msYRpnB",
+   "n_pos": 3,
+   "n_neg": 13,
+   "n_open_bags": 18,
+   "covered_net_closed_usd": -1210.21,
+   "pos_tokens": [
+    {
+     "token": "9E2Q4KKxLS5Y4bu6RKvjg5wQ2kzaLkiVsMt7zwMZpump",
+     "sym": "WYNN",
+     "net": 52.93,
+     "buy_usd": 23.8
+    },
+    {
+     "token": "FDEF2U9geiWS7sdGPCUo2r1wGswkJr2mmVTECiH6pump",
+     "sym": "MITCH",
+     "net": 7.82,
+     "buy_usd": 170.73
+    },
+    {
+     "token": "iB1umQs5Jzq6ysaRk5yRKaJ4XJcWgqHDxsdVtjipump",
+     "sym": "BABYANSEM",
+     "net": 73.04,
+     "buy_usd": 37.92
+    }
+   ]
+  },
+  {
+   "wallet": "DJocqRPK2uKWvmR5WnWcd7m8fDw6az1L54R4UuH3GrGN",
+   "n_pos": 2,
+   "n_neg": 0,
+   "n_open_bags": 1,
+   "covered_net_closed_usd": 488.23,
+   "pos_tokens": [
+    {
+     "token": "CqrdKzJciuoXgSrc4wtxG2iXDgGBSgHggxwvCRzhpump",
+     "sym": "Cobie",
+     "net": 362.32,
+     "buy_usd": 43.82
+    },
+    {
+     "token": "Aso39cjyYg1oPJdABSaFDZd6gQEa2E2ffogVfmvfpump",
+     "sym": "ANTOT",
+     "net": 125.91,
+     "buy_usd": 42.84
+    }
+   ]
+  },
+  {
+   "wallet": "7JCe3GHwkEr3feHgtLXnmuJ1yB3A7coSeyynxTBgdG8k",
+   "n_pos": 2,
+   "n_neg": 6,
+   "n_open_bags": 6,
+   "covered_net_closed_usd": 308.76,
+   "pos_tokens": [
+    {
+     "token": "5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump",
+     "sym": "BULLWIF",
+     "net": 381.6,
+     "buy_usd": 112.61
+    },
+    {
+     "token": "BDbNwA95183CdqUhx2P6R3fWXbefubVbx2wNnCp6pump",
+     "sym": "FROGBULL",
+     "net": 311.84,
+     "buy_usd": 44.0
+    }
+   ]
+  },
+  {
+   "wallet": "DF8tRgFkt1JSuqqtVmG2maiEY92mfFWBHNpMeRBK4fEo",
+   "n_pos": 2,
+   "n_neg": 0,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": 174.25,
+   "pos_tokens": [
+    {
+     "token": "7B4o7Htqi7Rxh135TAouEemN1Hx9xXeKYysRPfPupump",
+     "sym": "\u25ce",
+     "net": 1.33,
+     "buy_usd": 145.09
+    },
+    {
+     "token": "vD4gAaQdJb3T3E4233vS4ix41ppSxQa7pGbfLtJpump",
+     "sym": "LIFE",
+     "net": 172.92,
+     "buy_usd": 96.65
+    }
+   ]
+  },
+  {
+   "wallet": "4MB2yiq54PHkJ11YPoZGYgVzew9zFRRms41PAFoXaevg",
+   "n_pos": 2,
+   "n_neg": 0,
+   "n_open_bags": 1,
+   "covered_net_closed_usd": 167.49,
+   "pos_tokens": [
+    {
+     "token": "FMTG5DSNYSS6Wv6d6bWG8MnK9ncdgVnkUFRj3ksdpump",
+     "sym": "ALBEMARLE",
+     "net": 62.49,
+     "buy_usd": 70.25
+    },
+    {
+     "token": "86CQ5gYV7tJSD2EEAyGtPhes2Z9iit5jhiEtYEr8pump",
+     "sym": "POINT",
+     "net": 105.0,
+     "buy_usd": 299.79
+    }
+   ]
+  },
+  {
+   "wallet": "CAP9q6SmwGufYWTKupGA5uGzkjqirkRRuz6YEGhumjyi",
+   "n_pos": 2,
+   "n_neg": 0,
+   "n_open_bags": 3,
+   "covered_net_closed_usd": 39.46,
+   "pos_tokens": [
+    {
+     "token": "BDdzUjksj1J4bSnMveQ5tV9Up8A9c6YS1tHrxNw3pump",
+     "sym": "FOMO",
+     "net": 23.7,
+     "buy_usd": 128.36
+    },
+    {
+     "token": "2ZvFgTyLMrgyLmoPHtD5KsTyALh14ffzxJoni4oPpump",
+     "sym": "BOGE",
+     "net": 15.76,
+     "buy_usd": 105.51
+    }
+   ]
+  },
+  {
+   "wallet": "8P1msjLVVaZdwtHke9Ly9GSkQzDtwEjAr9UDyTiJBJuP",
+   "n_pos": 2,
+   "n_neg": 0,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": 29.27,
+   "pos_tokens": [
+    {
+     "token": "GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump",
+     "sym": "Horseradish",
+     "net": 6.54,
+     "buy_usd": 123.97
+    },
+    {
+     "token": "AKvo9h7sKSW8je7psL4nZLCGpTK2ZSKQD2AFNDR9pump",
+     "sym": "relax",
+     "net": 22.73,
+     "buy_usd": 91.16
+    }
+   ]
+  },
+  {
+   "wallet": "B9D6JC5QB8nTmVQTa97BSV1soVE7VB8k7Q41our5y9FT",
+   "n_pos": 2,
+   "n_neg": 3,
+   "n_open_bags": 1,
+   "covered_net_closed_usd": 27.73,
+   "pos_tokens": [
+    {
+     "token": "6bqvwKH6Q8SnTSooLR1ikBawcPAuUxitfyqwM9azpump",
+     "sym": "skew",
+     "net": 36.05,
+     "buy_usd": 26.47
+    },
+    {
+     "token": "BERChQArew5Q4a9so8EmYCnLooehpzS2fZSSdU8tpump",
+     "sym": "PORK",
+     "net": 1.47,
+     "buy_usd": 28.63
+    }
+   ]
+  },
+  {
+   "wallet": "6FYgn2apNXSqNVyXHTV8CFHiRQhw5TPdDUEHrBMyR8og",
+   "n_pos": 2,
+   "n_neg": 0,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": 21.5,
+   "pos_tokens": [
+    {
+     "token": "8uaVkhc4hrZHZB3GaJmzKHA7vWRrebMv5QQ82C1WtoFu",
+     "sym": "QBX",
+     "net": 12.88,
+     "buy_usd": 33.57
+    },
+    {
+     "token": "EGg56E1YtL5YapzkF7vkRThHR8i5FeRvm2LLuySdYory",
+     "sym": "NAVE",
+     "net": 8.62,
+     "buy_usd": 33.12
+    }
+   ]
+  },
+  {
+   "wallet": "DkULcixfUQygPfgD6jzfTW7onvyrS3kpdm2EdomLDDZd",
+   "n_pos": 2,
+   "n_neg": 0,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": 16.43,
+   "pos_tokens": [
+    {
+     "token": "ApANnyv1KP6uZaPmqhaCruMqZHHxQCACKDGCcjU5pump",
+     "sym": "BIGGER",
+     "net": 6.9,
+     "buy_usd": 58.95
+    },
+    {
+     "token": "DjBhmw2YjXnU5sXKNcBJbLovsiQVc6Eojuq3TNTVpump",
+     "sym": "jotchua",
+     "net": 9.53,
+     "buy_usd": 59.19
+    }
+   ]
+  },
+  {
+   "wallet": "DZcyYa9aPRFnbkDPn3HYvfpiRH9GBz3EjTB5fLjk8Vge",
+   "n_pos": 2,
+   "n_neg": 1,
+   "n_open_bags": 1,
+   "covered_net_closed_usd": 6.19,
+   "pos_tokens": [
+    {
+     "token": "8uaVkhc4hrZHZB3GaJmzKHA7vWRrebMv5QQ82C1WtoFu",
+     "sym": "QBX",
+     "net": 6.76,
+     "buy_usd": 29.2
+    },
+    {
+     "token": "3VkUe5T9uAuU6EqmEMqQcuTRqEcqU86NAfwbFZKxpump",
+     "sym": "elchef",
+     "net": 0.59,
+     "buy_usd": 74.73
+    }
+   ]
+  },
+  {
+   "wallet": "6LrfU8zuraSEwP28ph4hgz2rjJwzR3s9L9uYm1bbpe6A",
+   "n_pos": 2,
+   "n_neg": 2,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": 4.12,
+   "pos_tokens": [
+    {
+     "token": "BDdzUjksj1J4bSnMveQ5tV9Up8A9c6YS1tHrxNw3pump",
+     "sym": "FOMO",
+     "net": 2.68,
+     "buy_usd": 26.85
+    },
+    {
+     "token": "2ZvFgTyLMrgyLmoPHtD5KsTyALh14ffzxJoni4oPpump",
+     "sym": "BOGE",
+     "net": 3.63,
+     "buy_usd": 26.93
+    }
+   ]
+  },
+  {
+   "wallet": "7fV3dWwDm2UNiSjB6YGtjsAePRfMW3N8h8HmozbQHnAy",
+   "n_pos": 2,
+   "n_neg": 0,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": 2.64,
+   "pos_tokens": [
+    {
+     "token": "CqrdKzJciuoXgSrc4wtxG2iXDgGBSgHggxwvCRzhpump",
+     "sym": "Cobie",
+     "net": 0.83,
+     "buy_usd": 76.02
+    },
+    {
+     "token": "CuGJf6cfDfMh4UxVgNJ5KFQ6v8Wv3qrqop6cFKsGpump",
+     "sym": "TATE",
+     "net": 1.81,
+     "buy_usd": 61.85
+    }
+   ]
+  },
+  {
+   "wallet": "ENzTgCnX1BFo4PnMqNBiEAMbn4KxBgo493sKnaVEuZpt",
+   "n_pos": 2,
+   "n_neg": 3,
+   "n_open_bags": 1,
+   "covered_net_closed_usd": 2.57,
+   "pos_tokens": [
+    {
+     "token": "BDdzUjksj1J4bSnMveQ5tV9Up8A9c6YS1tHrxNw3pump",
+     "sym": "FOMO",
+     "net": 2.23,
+     "buy_usd": 24.61
+    },
+    {
+     "token": "2ZvFgTyLMrgyLmoPHtD5KsTyALh14ffzxJoni4oPpump",
+     "sym": "BOGE",
+     "net": 3.04,
+     "buy_usd": 24.43
+    }
+   ]
+  },
+  {
+   "wallet": "3AoQmpHaVTV3tcZqWAFrYgtCPqkMkdgxib9MjtvDRsom",
+   "n_pos": 2,
+   "n_neg": 2,
+   "n_open_bags": 1,
+   "covered_net_closed_usd": 2.48,
+   "pos_tokens": [
+    {
+     "token": "8uaVkhc4hrZHZB3GaJmzKHA7vWRrebMv5QQ82C1WtoFu",
+     "sym": "QBX",
+     "net": 6.79,
+     "buy_usd": 29.2
+    },
+    {
+     "token": "BJYbq7654XAuXwb4W1YEa496PBR8gX31c2N2btYQpump",
+     "sym": "BULLMAO",
+     "net": 0.19,
+     "buy_usd": 25.75
+    }
+   ]
+  },
+  {
+   "wallet": "DZbgq3yE3r41EFszV3XastvyS8j8QnmNT37nsq7sxR66",
+   "n_pos": 2,
+   "n_neg": 5,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": -7.33,
+   "pos_tokens": [
+    {
+     "token": "41y7bEjuidUJTZJ7mbfqzKjNcBiecYvjnyPwCb2gpump",
+     "sym": "OCCAM",
+     "net": 19.38,
+     "buy_usd": 219.3
+    },
+    {
+     "token": "AhHuDSNubYsSJwYvCocWANQPMTNzVe7WbxLS6mnwpump",
+     "sym": "BOOM",
+     "net": 5.59,
+     "buy_usd": 214.79
+    }
+   ]
+  },
+  {
+   "wallet": "4EH92iYK8wua8MyqNExVeiXy5VJUAweXqJPuTWqCvNB8",
+   "n_pos": 2,
+   "n_neg": 2,
+   "n_open_bags": 4,
+   "covered_net_closed_usd": -11.2,
+   "pos_tokens": [
+    {
+     "token": "BDdzUjksj1J4bSnMveQ5tV9Up8A9c6YS1tHrxNw3pump",
+     "sym": "FOMO",
+     "net": 3.03,
+     "buy_usd": 32.03
+    },
+    {
+     "token": "AJj2ksDDHK3Pe7DBhW2bgQVSTP8q7pLbQRVXJQBJaSpV",
+     "sym": "STOCHASTIC",
+     "net": 4.34,
+     "buy_usd": 32.19
+    }
+   ]
+  },
+  {
+   "wallet": "BxvBZdNAedk9bgZwmEGDnsAZdGfjpKVRudVXsar1eC4f",
+   "n_pos": 2,
+   "n_neg": 3,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": -25.07,
+   "pos_tokens": [
+    {
+     "token": "2ZAm1ekz9WWAx7BJxfNnfCrQe7KWNYECqfNDFdxPpump",
+     "sym": "CATerpillar",
+     "net": 0.23,
+     "buy_usd": 26.15
+    },
+    {
+     "token": "2ZvFgTyLMrgyLmoPHtD5KsTyALh14ffzxJoni4oPpump",
+     "sym": "BOGE",
+     "net": 3.01,
+     "buy_usd": 26.93
+    }
+   ]
+  },
+  {
+   "wallet": "BXJHvNs6R6N621SfVPv62ACvtNe1WK5mNWMUFdX3mzSA",
+   "n_pos": 2,
+   "n_neg": 2,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": -28.41,
+   "pos_tokens": [
+    {
+     "token": "AGpsaUA2cZnhUFeFDKAiv2TXZc1UWqnaijf6ms2ypump",
+     "sym": "BIGTROUT",
+     "net": 2.11,
+     "buy_usd": 76.11
+    },
+    {
+     "token": "8M8ykoAbwcK3RkVTB2Q2Q8dbZabMTjYPpYVxWykMpump",
+     "sym": "hansem",
+     "net": 9.87,
+     "buy_usd": 64.67
+    }
+   ]
+  },
+  {
+   "wallet": "24sFm6tqpCE695dQ3EpVauwRvppAJUXhw8v9RwPvJNZX",
+   "n_pos": 2,
+   "n_neg": 2,
+   "n_open_bags": 1,
+   "covered_net_closed_usd": -30.89,
+   "pos_tokens": [
+    {
+     "token": "3wbaKwr76GnRcRmNaiyqhR8XyAtcdkcv4FRMaPcFpump",
+     "sym": "SHIH",
+     "net": 3.46,
+     "buy_usd": 33.62
+    },
+    {
+     "token": "CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump",
+     "sym": "SHROOM",
+     "net": 3.04,
+     "buy_usd": 33.61
+    }
+   ]
+  },
+  {
+   "wallet": "wJDv8gqP8TFqUJdLGdrVpEA1vJ8sdMWiqkHT9ubCEmn",
+   "n_pos": 2,
+   "n_neg": 3,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": -57.32,
+   "pos_tokens": [
+    {
+     "token": "3wbaKwr76GnRcRmNaiyqhR8XyAtcdkcv4FRMaPcFpump",
+     "sym": "SHIH",
+     "net": 3.62,
+     "buy_usd": 30.57
+    },
+    {
+     "token": "CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump",
+     "sym": "SHROOM",
+     "net": 3.07,
+     "buy_usd": 30.56
+    }
+   ]
+  },
+  {
+   "wallet": "Em8J3gBWapfVBGVhVipwQnLrqCvnWBnLajw6XFsFECPF",
+   "n_pos": 2,
+   "n_neg": 7,
+   "n_open_bags": 8,
+   "covered_net_closed_usd": -155.76,
+   "pos_tokens": [
+    {
+     "token": "Fugm7Zq3Sku9KK7AWgw7nr4A8K3ro2SHif6Ai3qLpump",
+     "sym": "AIRSEM",
+     "net": 129.72,
+     "buy_usd": 49.88
+    },
+    {
+     "token": "DeGXmkzhwrfhW5fSMDs2tfBPN5Jwwq247zjeJ8bHpump",
+     "sym": "DEADSEM",
+     "net": 1.7,
+     "buy_usd": 86.9
+    }
+   ]
+  },
+  {
+   "wallet": "iK7BmyUoFm2GDXfXSi61u94kJXSFyknFnGFQukbF2bb",
+   "n_pos": 2,
+   "n_neg": 3,
+   "n_open_bags": 7,
+   "covered_net_closed_usd": -213.08,
+   "pos_tokens": [
+    {
+     "token": "2aQKC1xiKpEyAWvzSDrULnYLVuybWyx7qrsnpP8hpump",
+     "sym": "Udin",
+     "net": 11.95,
+     "buy_usd": 68.77
+    },
+    {
+     "token": "2ZvFgTyLMrgyLmoPHtD5KsTyALh14ffzxJoni4oPpump",
+     "sym": "BOGE",
+     "net": 12.32,
+     "buy_usd": 119.57
+    }
+   ]
+  },
+  {
+   "wallet": "hnu5iBK8UoHb51UFsH1RYTUAYdrhjHvV5YMTf9T1CYN",
+   "n_pos": 2,
+   "n_neg": 11,
+   "n_open_bags": 0,
+   "covered_net_closed_usd": -1703.57,
+   "pos_tokens": [
+    {
+     "token": "DbqbFSSBEDaX9F6hnySDHKmKSE9PU1KTyJ7jwcd3xViS",
+     "sym": "trenchies",
+     "net": 19.12,
+     "buy_usd": 93.95
+    },
+    {
+     "token": "C5vxPUKsg8w4QwKqJQYaV8XNJ5XSPKbtxrrs4zHvpump",
+     "sym": "PEACE",
+     "net": 1.54,
+     "buy_usd": 347.76
+    }
+   ]
+  }
+ ]
+}

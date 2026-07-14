@@ -1,0 +1,6 @@
+{"kind":"buy","volume_usd":56.07,"ts":"2026-07-12T01:13:38+00:00","maker":"0x6380d956572c9666f0992933a2c4e9dfaa619410","pair":"0x9794fee99d0622b251c85a9dd3f2bc401d31e383","sym":"CONFETTI","lag_secs":1.37,"pre_conf":true}
+{"kind":"buy","volume_usd":225.07,"ts":"2026-07-12T01:22:23+00:00","maker":"0x6380d956572c9666f0992933a2c4e9dfaa619410","pair":"0x9794fee99d0622b251c85a9dd3f2bc401d31e383","sym":"CONFETTI","lag_secs":8.03,"pre_conf":true}
+{"kind":"buy","volume_usd":71.94,"ts":"2026-07-12T11:28:42+00:00","maker":"0x6c36057ab870297618a0ae1363f6019b26223d27","pair":"0x9794fee99d0622b251c85a9dd3f2bc401d31e383","sym":"CONFETTI","lag_secs":0.24,"pre_conf":true}
+{"kind":"buy","volume_usd":167.88,"ts":"2026-07-12T13:19:29+00:00","maker":"0x2200477e37294a03cafb5372a28d6fe809e9c805","pair":"0x9794fee99d0622b251c85a9dd3f2bc401d31e383","sym":"CONFETTI","lag_secs":0.08,"pre_conf":true}
+{"kind":"buy","volume_usd":25.27,"ts":"2026-07-12T14:04:46+00:00","maker":"0x8f3652e9e6fbb9cf49d21d203a11a1f33bbd447d","pair":"0x9794fee99d0622b251c85a9dd3f2bc401d31e383","sym":"CONFETTI","lag_secs":0.57,"pre_conf":true}
+{"kind":"buy","volume_usd":433.11,"ts":"2026-07-12T14:13:17+00:00","maker":"0x6c2df7e3b6732aed266fc0fe0f56803b47dfc51e","pair":"0x9794fee99d0622b251c85a9dd3f2bc401d31e383","sym":"CONFETTI","lag_secs":0.26,"pre_conf":true}

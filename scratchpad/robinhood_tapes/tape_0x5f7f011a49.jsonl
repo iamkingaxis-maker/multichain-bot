@@ -1,0 +1,9 @@
+{"kind":"buy","volume_usd":178.61,"ts":"2026-07-10T17:25:05+00:00","maker":"0x135e710100cf75d8b7d0e086b5cdb283e9edc0de","pair":"0x5f7f011a49fe8b6caeb729684d160227222267a9","sym":"CRUMBS","lag_secs":1.41,"pre_conf":true}
+{"kind":"buy","volume_usd":17.89,"ts":"2026-07-10T17:31:54+00:00","maker":"0x2de9481bae36573ea2a7b949260470c6c044867c","pair":"0x5f7f011a49fe8b6caeb729684d160227222267a9","sym":"CRUMBS","lag_secs":0.53,"pre_conf":true}
+{"kind":"buy","volume_usd":110.69,"ts":"2026-07-10T17:39:19+00:00","maker":"0xe5c557d66d064c7ce4046882205cdd3b306f26fc","pair":"0x5f7f011a49fe8b6caeb729684d160227222267a9","sym":"CRUMBS","lag_secs":0.25,"pre_conf":true}
+{"kind":"buy","volume_usd":110.59,"ts":"2026-07-10T17:39:57+00:00","maker":"0xe5c557d66d064c7ce4046882205cdd3b306f26fc","pair":"0x5f7f011a49fe8b6caeb729684d160227222267a9","sym":"CRUMBS","lag_secs":0.65,"pre_conf":true}
+{"kind":"buy","volume_usd":2.01,"ts":"2026-07-10T17:41:45+00:00","maker":"0x0317c42b34400df7723ddc4545105d09b1af6a11","pair":"0x5f7f011a49fe8b6caeb729684d160227222267a9","sym":"CRUMBS","lag_secs":1.14,"pre_conf":true}
+{"kind":"buy","volume_usd":535.65,"ts":"2026-07-10T17:57:49+00:00","maker":"0x3d13a3ca8f5378f45cbce6bc85106cb4944562c9","pair":"0x5f7f011a49fe8b6caeb729684d160227222267a9","sym":"CRUMBS","lag_secs":-0.19,"pre_conf":true}
+{"kind":"buy","volume_usd":1.07,"ts":"2026-07-10T18:00:28+00:00","maker":"0xa12e0c9e7ab45c099668404fffed853aa070a661","pair":"0x5f7f011a49fe8b6caeb729684d160227222267a9","sym":"CRUMBS","lag_secs":1.05,"pre_conf":true}
+{"kind":"buy","volume_usd":1.07,"ts":"2026-07-10T18:01:09+00:00","maker":"0xa12e0c9e7ab45c099668404fffed853aa070a661","pair":"0x5f7f011a49fe8b6caeb729684d160227222267a9","sym":"CRUMBS","lag_secs":1.05,"pre_conf":true}
+{"kind":"buy","volume_usd":1.07,"ts":"2026-07-10T18:01:58+00:00","maker":"0xa12e0c9e7ab45c099668404fffed853aa070a661","pair":"0x5f7f011a49fe8b6caeb729684d160227222267a9","sym":"CRUMBS","lag_secs":0.48,"pre_conf":true}

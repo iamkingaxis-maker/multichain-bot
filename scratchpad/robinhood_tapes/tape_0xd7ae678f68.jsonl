@@ -1,0 +1,14 @@
+{"kind":"buy","volume_usd":17.67,"ts":"2026-07-10T09:08:21+00:00","maker":"0x96736d70932d4621afff1b574c8704ed041cda3e","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":1.96}
+{"kind":"sell","volume_usd":7.5,"ts":"2026-07-10T09:09:31+00:00","maker":"0x355aa8cace437ce7022bd82d3c2358b30e5947cf","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":2.59}
+{"kind":"buy","volume_usd":58.9,"ts":"2026-07-10T09:10:17+00:00","maker":"0x58b861394abd6fa53ade76826f022c12c4ddcaae","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":3.1}
+{"kind":"buy","volume_usd":58.9,"ts":"2026-07-10T09:10:17+00:00","maker":"0xbc652e6f0ec2670cd1cee69fae5d3f637948a999","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":3.1}
+{"kind":"buy","volume_usd":58.9,"ts":"2026-07-10T09:10:17+00:00","maker":"0x85ad0244aee4b92080455d0e7a849fd0f781b541","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":3.1}
+{"kind":"buy","volume_usd":29.45,"ts":"2026-07-10T09:10:33+00:00","maker":"0x85ad0244aee4b92080455d0e7a849fd0f781b541","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":2.11}
+{"kind":"buy","volume_usd":29.45,"ts":"2026-07-10T09:10:33+00:00","maker":"0x58b861394abd6fa53ade76826f022c12c4ddcaae","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":2.11}
+{"kind":"buy","volume_usd":29.45,"ts":"2026-07-10T09:10:33+00:00","maker":"0xbc652e6f0ec2670cd1cee69fae5d3f637948a999","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":2.11}
+{"kind":"buy","volume_usd":17.67,"ts":"2026-07-10T09:11:25+00:00","maker":"0xb0ce8bc4bae952ce3a5bc7312091bf814f48485d","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":1.1}
+{"kind":"buy","volume_usd":17.84,"ts":"2026-07-10T09:11:47+00:00","maker":"0x8dfff0fee226c00778abead27c5e4a78d10fbb03","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":3.06}
+{"kind":"buy","volume_usd":35.33,"ts":"2026-07-10T09:12:18+00:00","maker":"0x4e4b53e80052bcb5aaf9d1adb7ea59f72786dfb5","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":6.05}
+{"kind":"sell","volume_usd":20.24,"ts":"2026-07-10T09:16:22+00:00","maker":"0xc3ba3cf8bbb2766a517779882ae50f29e38d4e08","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":3.39}
+{"kind":"sell","volume_usd":23.4,"ts":"2026-07-10T09:16:54+00:00","maker":"0x6ca59e1e1a2d17be3734124b148f3bdc62095fed","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":1.57}
+{"kind":"buy","volume_usd":5.3,"ts":"2026-07-10T09:16:58+00:00","maker":"0xa07389150160966b3bba15bd563836daf7885cda","pair":"0xd7ae678f681382239a39d4ebc1bb4ab3bffde767","sym":"HAPPYCAT","lag_secs":1.58}

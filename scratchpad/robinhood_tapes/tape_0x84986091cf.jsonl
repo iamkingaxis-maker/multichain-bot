@@ -1,0 +1,6 @@
+{"kind":"buy","volume_usd":19.87,"ts":"2026-07-12T13:11:49+00:00","maker":"0x9cd0d66c2068f1f1db05c207f6bab1b95aa05054","pair":"0x84986091cf1d696569ad08ea2922ac83ccd72dab","sym":"InkFeather","lag_secs":0.74,"pre_conf":true}
+{"kind":"buy","volume_usd":36.13,"ts":"2026-07-12T13:18:00+00:00","maker":"0xd50565c5000f74a1e3f669fd637262a332f82799","pair":"0x84986091cf1d696569ad08ea2922ac83ccd72dab","sym":"InkFeather","lag_secs":0.7,"pre_conf":true}
+{"kind":"buy","volume_usd":36.1,"ts":"2026-07-12T13:19:22+00:00","maker":"0xd50565c5000f74a1e3f669fd637262a332f82799","pair":"0x84986091cf1d696569ad08ea2922ac83ccd72dab","sym":"InkFeather","lag_secs":0.2,"pre_conf":true}
+{"kind":"buy","volume_usd":9.03,"ts":"2026-07-12T13:19:47+00:00","maker":"0x9cd0d66c2068f1f1db05c207f6bab1b95aa05054","pair":"0x84986091cf1d696569ad08ea2922ac83ccd72dab","sym":"InkFeather","lag_secs":0.7,"pre_conf":true}
+{"kind":"buy","volume_usd":270.81,"ts":"2026-07-12T13:25:55+00:00","maker":"0xb9fb1c87d81944263633f981b3e13222afc0a2ca","pair":"0x84986091cf1d696569ad08ea2922ac83ccd72dab","sym":"InkFeather","lag_secs":-0.16,"pre_conf":true}
+{"kind":"buy","volume_usd":36.11,"ts":"2026-07-12T13:30:06+00:00","maker":"0xd50565c5000f74a1e3f669fd637262a332f82799","pair":"0x84986091cf1d696569ad08ea2922ac83ccd72dab","sym":"InkFeather","lag_secs":0.69,"pre_conf":true}

@@ -1,0 +1,80 @@
+
+##### C3zP C3zPgDxqJYN4Gf9RotKuHTbBMfpKEsAFSY7hSbFWdSdQ #####
+tokens with buys: 28
+  SPCXwBHV 06-26 11:40 cum3=  -1.0% maxdrop=  -1.0% cr=1 stable   
+  EpVHyKK8 06-26 10:44 cum3=  +0.3% maxdrop=  -1.8% cr=1 stable   
+  VmdfNPzd 06-26 10:41 cum3=  +0.6% maxdrop=  -2.6% cr=0 stable   
+  124Yn3UC 06-24 01:50 cum3=  -5.0% maxdrop=  -5.6% cr=0 FLUSH-BUY  
+  EhR8t2Hd 06-26 05:46 cum3=  +3.9% maxdrop=  +0.3% cr=0 stable   
+  7zzgorZ2 06-26 03:35 cum3=  +0.7% maxdrop=  +0.0% cr=0 stable   
+  EJu78Krh buy 06-26 00:31  no candles
+  GDJDynz2 06-26 02:47 cum3=  -3.2% maxdrop=  -3.6% cr=2 FLUSH-BUY  
+  EnTu4xYm 06-25 23:45 cum3= +14.4% maxdrop=  +2.6% cr=0 stable   
+  GuSborgz buy 06-25 23:10  no candles
+  y1Jx8x2y 06-25 23:45 cum3=  -0.2% maxdrop=  -0.6% cr=0 stable   
+  AE7gr74v buy 06-26 00:14  no candles
+  HdeAPoHi 06-24 12:04 cum3=  -0.5% maxdrop=  -2.9% cr=0 stable   
+  Et3nNiuG 06-23 19:23 cum3=  +2.0% maxdrop=  -1.5% cr=1 stable   
+  33eum82L 06-23 19:30 cum3=  -0.4% maxdrop=  -1.8% cr=1 stable   
+  6KDh3wLS buy 06-24 04:48  no candles
+  AtJ351dU 06-24 08:14 cum3= +11.8% maxdrop=  +0.6% cr=0 stable   
+  yoA2CoHk 06-24 05:34 cum3=  +3.5% maxdrop=  -0.7% cr=1 stable   
+  AjLhrxN2 buy 06-24 03:41  no candles
+  12z7AWnW 06-23 19:41 cum3=  -3.1% maxdrop=  -6.2% cr=1 FLUSH-BUY  
+  Tqj8yFma 06-23 23:01 cum3=  +2.2% maxdrop=  -0.3% cr=0 stable   
+  9smMJxtr 06-23 20:15 cum3=  -4.9% maxdrop=  -6.1% cr=0 FLUSH-BUY  
+  9qwxahBx buy 06-23 21:08  no candles
+  AzdSZX3b 06-23 18:33 cum3=  +4.1% maxdrop=  -0.7% cr=0 stable   
+  9ufM9TJd 06-23 20:35 cum3=  +6.3% maxdrop=  -0.3% cr=0 stable   
+  AKUYQxit buy 06-23 19:43  no candles
+  4wNsn7WN 06-23 17:44 cum3=  -1.3% maxdrop=  -0.9% cr=0 stable   
+  w9Fh8VWm 06-23 18:44 cum3=  -0.4% maxdrop=  -1.5% cr=2 stable   
+  SUMMARY C3zP: n=21 flush-buys(cum3<=-1.5)=4 (19%) knife(cr>=3)=0 steep(maxdrop<=-10)=0 | median cum3=+0.3%
+
+##### Zsp75 Zsp75pPCt115MgZZwAgmKyDq8vZ94cjBNnLPhwJespQ #####
+tokens with buys: 30
+  31989Ysf 06-24 22:00 cum3= +10.7% maxdrop=  -0.2% cr=0 stable   
+  FMk6FhiZ 06-25 13:33 cum3=  -1.3% maxdrop=  -1.8% cr=0 stable   
+  EpVHyKK8 06-25 13:30 cum3=  +1.6% maxdrop=  -2.2% cr=0 stable   
+  AvxFBjWy 06-25 05:05 cum3=  -6.6% maxdrop=  -3.1% cr=4 FLUSH-BUY KNIFE 
+  Et3nNiuG buy 06-24 21:32  no candles
+  3sxs9n6W 06-25 12:30 cum3=  +2.6% maxdrop=  +0.0% cr=0 stable   
+  HKHBrJGc 06-25 03:36 cum3=  -3.1% maxdrop=  -4.6% cr=0 FLUSH-BUY  
+  4vZMrPEi buy 06-25 12:14  no candles
+  6ZDiSZ8D 06-25 06:00 cum3=  -1.8% maxdrop= -23.1% cr=1 FLUSH-BUY  STEEP
+  6h9LYVfx 06-25 03:52 cum3= -12.3% maxdrop= -15.2% cr=0 FLUSH-BUY  STEEP
+  qgDCvvaY 06-24 20:13 cum3=  +0.2% maxdrop=  -0.7% cr=2 stable   
+  cY435H7F buy 06-24 23:03  no candles
+  AXLmMWkR 06-25 00:30 cum3=  -0.6% maxdrop=  -2.0% cr=1 stable   
+  B6f27ETG 06-25 04:32 cum3=  -7.2% maxdrop=  -5.2% cr=3 FLUSH-BUY KNIFE 
+  Azc1VBsq 06-25 08:03 cum3=  -1.3% maxdrop=  -4.8% cr=1 stable   
+  61SeAN5J buy 06-25 06:00  no candles
+  9af7PmWR 06-25 05:47 cum3=  -2.8% maxdrop=  -3.1% cr=0 FLUSH-BUY  
+  4BftRTrk 06-24 21:42 cum3=  -7.4% maxdrop=  -5.9% cr=4 FLUSH-BUY KNIFE 
+  B4Y82ba2 buy 06-25 05:41  no candles
+  GDShNPDh 06-25 03:26 cum3=  -1.7% maxdrop=  -1.7% cr=0 FLUSH-BUY  
+  3ygrwk5L 06-24 21:48 cum3=  +4.7% maxdrop=  -9.6% cr=0 stable   
+  9qwxahBx 06-25 04:35 cum3=  -1.4% maxdrop=  -6.0% cr=0 stable   
+  8jvtfeVT buy 06-24 22:50  no candles
+  Eav7v75y 06-24 21:30 cum3=  -5.5% maxdrop=  -3.7% cr=4 FLUSH-BUY KNIFE 
+  dFybjfpA 06-25 02:22 cum3=  -0.3% maxdrop=  -1.3% cr=1 stable   
+  DS5Xsrtg 06-24 23:37 cum3= -11.9% maxdrop= -16.4% cr=0 FLUSH-BUY  STEEP
+  9kwT8gUE buy 06-24 23:01  no candles
+  9spN3Lrz 06-24 21:31 cum3=  +0.2% maxdrop=  -0.5% cr=0 stable   
+  124Yn3UC 06-24 20:14 cum3=  -4.6% maxdrop=  -3.1% cr=1 FLUSH-BUY  
+  3eNUB8ZL buy 06-24 20:10  no candles
+  SUMMARY Zsp75: n=22 flush-buys(cum3<=-1.5)=11 (50%) knife(cr>=3)=4 steep(maxdrop<=-10)=3 | median cum3=-1.5%
+
+##### B1zhrW B1zhrWqDoJdZ9paihqcLN3UY1LzXxxch1zLBzgoaQnKz #####
+tokens with buys: 40
+  HPKw4iAk 06-22 14:23 cum3= -21.5% maxdrop= -23.1% cr=1 FLUSH-BUY  STEEP
+  D8Rk9rug 06-22 14:04 cum3= +36.3% maxdrop=  -1.8% cr=0 stable   
+  mXtkRMiX 06-22 14:01 cum3= +26.1% maxdrop=  +1.7% cr=0 stable   
+  B9zXbXYP buy 06-22 12:09  NO POOL
+  G5KEWAsh 06-21 15:13 cum3=  +6.5% maxdrop=  -4.2% cr=0 stable   
+  9zns6X1t 06-21 14:46 cum3= +23.7% maxdrop=  -5.3% cr=1 stable   
+  HQWFsoBe buy 06-21 14:10  NO POOL
+  3THLFCKH buy 06-21 14:25  no candles
+  8f2hFDz6 buy 06-21 13:55  NO POOL
+  CXx2Guk4 buy 06-20 21:30  NO POOL
+  5evviXP6 06-20 21:14 cum3=  -0.2% maxdrop= -10.4% cr=1 stable   STEEP

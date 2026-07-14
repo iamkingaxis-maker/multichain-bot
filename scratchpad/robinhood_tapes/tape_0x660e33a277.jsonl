@@ -1,0 +1,7 @@
+{"kind":"buy","volume_usd":5.38,"ts":"2026-07-10T21:54:38+00:00","maker":"0x25858419bd3e19ca0503de50a997884bdf64a8fd","pair":"0x660e33a2770cb35867db74955c50730bc49a20d5","sym":"CORTEX","lag_secs":0.17,"pre_conf":true}
+{"kind":"buy","volume_usd":19.72,"ts":"2026-07-10T21:56:13+00:00","maker":"0xb1bddc26de38e6c481582692e8f277f0205124e5","pair":"0x660e33a2770cb35867db74955c50730bc49a20d5","sym":"CORTEX","lag_secs":0.57,"pre_conf":true}
+{"kind":"buy","volume_usd":32.72,"ts":"2026-07-10T22:07:03+00:00","maker":"0x47e282d7b1737592b034fef7b427cef8f5a820e6","pair":"0x660e33a2770cb35867db74955c50730bc49a20d5","sym":"CORTEX","lag_secs":0.75,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-10T22:08:44+00:00","maker":"0xbeaf18d6993c402b71e06d87fb9820dd675dff38","pair":"0x660e33a2770cb35867db74955c50730bc49a20d5","sym":"CORTEX","lag_secs":0.8,"pre_conf":true}
+{"kind":"buy","volume_usd":3.93,"ts":"2026-07-10T22:37:03+00:00","maker":"0x78ddd0ecfd2fe965972371da0cb79b25af743570","pair":"0x660e33a2770cb35867db74955c50730bc49a20d5","sym":"CORTEX","lag_secs":0.77,"pre_conf":true}
+{"kind":"buy","volume_usd":0.36,"ts":"2026-07-10T22:40:09+00:00","maker":"0x063e7f979025ce951c8274a3b1098343f5e21eee","pair":"0x660e33a2770cb35867db74955c50730bc49a20d5","sym":"CORTEX","lag_secs":0.16,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-10T23:07:04+00:00","maker":"0xbeaf18d6993c402b71e06d87fb9820dd675dff38","pair":"0x660e33a2770cb35867db74955c50730bc49a20d5","sym":"CORTEX","lag_secs":0.23,"pre_conf":true}

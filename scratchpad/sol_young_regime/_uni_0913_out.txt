@@ -1,0 +1,142 @@
+union events: 50125
+rows 50125  days 2026-05-16 -> 2026-07-05 (27)  chrono split 2026-05-29
+
+== UNIVERSE raw young: 09-13 vs rest, four halves ==
+W1   09-13: n=  730 tok= 110 wr= 49.7% med= -0.10 tokmed= -1.39 peak10= 68.6% cat30=25.8%
+     rest : n= 4235 tok= 525 wr= 43.9% med= -5.55 tokmed=-16.00 peak10= 65.1% cat30=29.5%
+     delta: wr  +5.8pp tokmed +14.61 cat30 -3.7pp
+W2   09-13: n= 1140 tok= 161 wr= 47.1% med= -2.48 tokmed= -9.27 peak10= 66.4% cat30=24.8%
+     rest : n= 6628 tok= 682 wr= 42.7% med= -5.33 tokmed=-15.01 peak10= 63.8% cat30=27.7%
+     delta: wr  +4.4pp tokmed  +5.74 cat30 -2.9pp
+even 09-13: n=  979 tok= 140 wr= 46.7% med= -2.28 tokmed= -7.18 peak10= 65.8% cat30=24.8%
+     rest : n= 5544 tok= 646 wr= 42.6% med= -5.86 tokmed=-14.77 peak10= 63.6% cat30=29.7%
+     delta: wr  +4.1pp tokmed  +7.58 cat30 -4.8pp
+odd  09-13: n=  891 tok= 131 wr= 49.7% med= -0.14 tokmed= -2.82 peak10= 68.9% cat30=25.6%
+     rest : n= 5319 tok= 645 wr= 43.8% med= -4.99 tokmed=-11.31 peak10= 65.1% cat30=27.1%
+     delta: wr  +5.9pp tokmed  +8.49 cat30 -1.5pp
+  => 09-13-WORSE agreement: wr 0/4 tokmed 0/4 cat30-higher 0/4
+
+== UNIVERSE GATED young (liq>=25k, pc_h1<=-30, bs_m5>=1): 09-13 vs rest, four halves ==
+W1   09-13: n=   45 tok=  17 wr= 46.7% med= -4.90 tokmed= +2.02 peak10= 66.7% cat30=20.0%
+     rest : n=  370 tok= 103 wr= 43.8% med= -5.25 tokmed= -6.64 peak10= 68.6% cat30=25.7%
+     delta: wr  +2.9pp tokmed  +8.66 cat30 -5.7pp
+W2   09-13: n=   58 tok=  21 wr= 74.1% med=+21.07 tokmed=+16.65 peak10= 87.9% cat30=22.4%
+     rest : n=  437 tok= 126 wr= 38.4% med=-13.35 tokmed=-14.48 peak10= 62.9% cat30=36.8%
+     delta: wr +35.7pp tokmed +31.13 cat30 -14.4pp
+even 09-13: n=   57 tok=  21 wr= 59.6% med= +2.46 tokmed= +9.53 peak10= 73.7% cat30=15.8%
+     rest : n=  438 tok= 125 wr= 36.1% med=-13.75 tokmed=-13.35 peak10= 62.6% cat30=36.1%
+     delta: wr +23.6pp tokmed +22.88 cat30 -20.3pp
+odd  09-13: n=   46 tok=  17 wr= 65.2% med=+22.00 tokmed=+28.13 peak10= 84.8% cat30=28.3%
+     rest : n=  369 tok= 109 wr= 46.6% med= -2.36 tokmed= -4.46 peak10= 69.1% cat30=26.6%
+     delta: wr +18.6pp tokmed +32.59 cat30 +1.7pp
+  => 09-13-WORSE agreement: wr 0/4 tokmed 0/4 cat30-higher 1/4
+
+== young by single hour (raw | gated), all data ==
+h00 RAW  n=  554 tok= 128 wr= 52.5% med= +1.23 tokmed= +2.33 peak10= 68.6% cat30=24.7%
+     GATE n=   33 tok=  14 wr= 60.6% med= +1.87 tokmed= +4.95 peak10= 63.6% cat30=24.2%
+h01 RAW  n=  567 tok= 136 wr= 43.6% med= -3.93 tokmed= -2.39 peak10= 63.1% cat30=26.6%
+     GATE n=   31 tok=  13 wr= 35.5% med=-13.52 tokmed= -2.91 peak10= 61.3% cat30=35.5%
+h02 RAW  n=  481 tok= 128 wr= 41.4% med= -5.89 tokmed= -2.55 peak10= 60.7% cat30=26.2%
+     GATE n=   20 tok=  12 wr= 45.0% med=-12.02 tokmed= +2.92 peak10= 55.0% cat30=45.0%
+h03 RAW  n=  533 tok= 123 wr= 46.2% med= -2.85 tokmed= +0.32 peak10= 63.6% cat30=26.1%
+     GATE n=   30 tok=  14 wr= 43.3% med= -4.97 tokmed=-31.46 peak10= 56.7% cat30=33.3%
+h04 RAW  n=  616 tok= 137 wr= 45.1% med= -5.37 tokmed= +2.40 peak10= 66.9% cat30=24.8%
+     GATE n=   37 tok=  16 wr= 54.1% med= +3.79 tokmed= +2.82 peak10= 78.4% cat30=18.9%
+h05 RAW  n=  529 tok= 126 wr= 46.9% med= -2.86 tokmed= -2.41 peak10= 64.1% cat30=22.1%
+     GATE n=   46 tok=  17 wr= 65.2% med= +7.33 tokmed=+15.15 peak10= 84.8% cat30=17.4%
+h06 RAW  n=  518 tok= 123 wr= 40.9% med= -7.03 tokmed= -5.49 peak10= 65.1% cat30=26.4%
+     GATE n=   56 tok=  20 wr= 33.9% med=-13.41 tokmed=-10.59 peak10= 67.9% cat30=26.8%
+h07 RAW  n=  456 tok= 110 wr= 45.8% med= -4.73 tokmed= -2.01 peak10= 69.7% cat30=27.9%
+     GATE n=   77 tok=  18 wr= 32.5% med=-12.51 tokmed= -8.93 peak10= 70.1% cat30=32.5%
+h08 RAW  n=  446 tok= 111 wr= 41.9% med= -5.87 tokmed= -4.20 peak10= 67.0% cat30=25.1%
+     GATE n=   42 tok=  15 wr= 33.3% med=-14.84 tokmed= -3.05 peak10= 71.4% cat30=19.0%
+h09 RAW  n=  483 tok= 120 wr= 51.6% med= +0.56 tokmed= +1.08 peak10= 70.6% cat30=22.4%
+     GATE n=   27 tok=  12 wr= 51.9% med= +1.92 tokmed=+10.13 peak10= 74.1% cat30=14.8%
+h10 RAW  n=  457 tok= 122 wr= 49.7% med= -0.36 tokmed= +1.09 peak10= 70.7% cat30=25.2%
+     GATE n=   34 tok=  12 wr= 67.6% med=+10.97 tokmed=+19.66 peak10= 88.2% cat30=26.5%
+h11 RAW  n=  487 tok= 121 wr= 47.4% med= -1.83 tokmed= -3.05 peak10= 62.2% cat30=23.2%
+     GATE n=   24 tok=  14 wr= 70.8% med=+21.27 tokmed=+20.27 peak10= 79.2% cat30=16.7%
+h12 RAW  n=  443 tok= 118 wr= 43.6% med= -7.51 tokmed= -3.14 peak10= 65.7% cat30=30.5%
+     GATE n=   18 tok=   9 wr= 55.6% med= +0.58 tokmed= +2.46 peak10= 66.7% cat30=27.8%
+h13 RAW  n=  503 tok= 128 wr= 36.8% med=-12.74 tokmed=-11.80 peak10= 61.6% cat30=35.4%
+     GATE n=   34 tok=  14 wr= 26.5% med=-23.80 tokmed=-23.30 peak10= 50.0% cat30=44.1%
+h14 RAW  n=  527 tok= 131 wr= 36.6% med=-13.49 tokmed=-13.18 peak10= 63.4% cat30=36.8%
+     GATE n=   49 tok=  18 wr= 40.8% med= -7.97 tokmed=-12.16 peak10= 69.4% cat30=30.6%
+h15 RAW  n=  549 tok= 156 wr= 43.2% med= -6.26 tokmed= -7.62 peak10= 61.9% cat30=31.0%
+     GATE n=   41 tok=  18 wr= 31.7% med=-22.08 tokmed=-12.52 peak10= 36.6% cat30=39.0%
+h16 RAW  n=  580 tok= 149 wr= 44.0% med= -4.83 tokmed= -2.53 peak10= 64.3% cat30=35.5%
+     GATE n=   60 tok=  23 wr= 38.3% med=-18.11 tokmed=-17.96 peak10= 68.3% cat30=43.3%
+h17 RAW  n=  587 tok= 143 wr= 43.8% med= -4.99 tokmed= -3.47 peak10= 62.5% cat30=24.4%
+     GATE n=   36 tok=  17 wr= 38.9% med= -6.54 tokmed= -4.29 peak10= 55.6% cat30=33.3%
+h18 RAW  n=  520 tok= 140 wr= 51.5% med= +1.72 tokmed= +3.24 peak10= 68.5% cat30=22.9%
+     GATE n=   25 tok=  13 wr= 56.0% med= +8.88 tokmed=+11.24 peak10= 76.0% cat30=28.0%
+h19 RAW  n=  538 tok= 141 wr= 42.0% med= -6.96 tokmed= -6.05 peak10= 66.5% cat30=28.4%
+     GATE n=   35 tok=  14 wr= 57.1% med= +1.06 tokmed= +8.48 peak10= 74.3% cat30= 8.6%
+h20 RAW  n=  545 tok= 152 wr= 40.6% med= -9.31 tokmed= -8.45 peak10= 66.4% cat30=33.2%
+     GATE n=   43 tok=  22 wr= 46.5% med= -2.52 tokmed= +1.71 peak10= 81.4% cat30=27.9%
+h21 RAW  n=  606 tok= 167 wr= 38.1% med=-10.30 tokmed= -6.71 peak10= 60.2% cat30=33.8%
+     GATE n=   35 tok=  19 wr= 31.4% med=-24.34 tokmed=-28.56 peak10= 51.4% cat30=45.7%
+h22 RAW  n=  569 tok= 150 wr= 44.6% med= -3.52 tokmed= -3.93 peak10= 64.1% cat30=24.1%
+     GATE n=   38 tok=  15 wr= 34.2% med=-17.67 tokmed= -6.62 peak10= 55.3% cat30=42.1%
+h23 RAW  n=  639 tok= 145 wr= 38.7% med= -9.19 tokmed= -3.66 peak10= 59.9% cat30=31.3%
+     GATE n=   39 tok=  18 wr= 30.8% med=-18.69 tokmed=-11.07 peak10= 64.1% cat30=43.6%
+
+== boundary cell 08-09 vs rest-excl-09-13, four halves (raw young) ==
+W1   08-09: n=  123 tok=  40 wr= 46.3% med= -2.51 tokmed= +3.94 peak10= 74.8% cat30=26.8%
+     rest : n= 4112 tok= 508 wr= 43.8% med= -5.64 tokmed=-16.51 peak10= 64.9% cat30=29.6%
+     delta: wr  +2.5pp tokmed +20.45
+W2   08-09: n=  323 tok=  71 wr= 40.2% med= -6.90 tokmed= -9.49 peak10= 64.1% cat30=24.5%
+     rest : n= 6305 tok= 664 wr= 42.9% med= -5.28 tokmed=-14.60 peak10= 63.8% cat30=27.9%
+     delta: wr  -2.6pp tokmed  +5.12
+even 08-09: n=  202 tok=  49 wr= 41.1% med= -5.56 tokmed= -9.49 peak10= 72.3% cat30=26.2%
+     rest : n= 5342 tok= 634 wr= 42.6% med= -5.89 tokmed=-14.77 peak10= 63.3% cat30=29.8%
+     delta: wr  -1.6pp tokmed  +5.28
+odd  08-09: n=  244 tok=  62 wr= 42.6% med= -6.11 tokmed= -0.92 peak10= 62.7% cat30=24.2%
+     rest : n= 5075 tok= 622 wr= 43.9% med= -4.95 tokmed=-11.43 peak10= 65.2% cat30=27.2%
+     delta: wr  -1.2pp tokmed +10.51
+  => 08-09-WORSE agreement: wr 3/4 tokmed 0/4
+
+== boundary cell 13-14 vs rest-excl-09-13, four halves (raw young) ==
+W1   13-14: n=  230 tok=  66 wr= 38.7% med=-13.36 tokmed=-13.58 peak10= 61.3% cat30=34.8%
+     rest : n= 4005 tok= 501 wr= 44.2% med= -5.33 tokmed=-15.37 peak10= 65.4% cat30=29.2%
+     delta: wr  -5.5pp tokmed  +1.79
+W2   13-14: n=  273 tok=  62 wr= 35.2% med=-12.59 tokmed=-11.04 peak10= 61.9% cat30=35.9%
+     rest : n= 6355 tok= 655 wr= 43.1% med= -5.11 tokmed=-14.75 peak10= 63.9% cat30=27.3%
+     delta: wr  -7.9pp tokmed  +3.71
+even 13-14: n=  272 tok=  68 wr= 37.5% med=-12.40 tokmed=-10.63 peak10= 59.9% cat30=34.9%
+     rest : n= 5272 tok= 618 wr= 42.8% med= -5.67 tokmed=-13.92 peak10= 63.8% cat30=29.4%
+     delta: wr  -5.3pp tokmed  +3.29
+odd  13-14: n=  231 tok=  60 wr= 35.9% med=-14.08 tokmed=-13.30 peak10= 63.6% cat30=35.9%
+     rest : n= 5088 tok= 622 wr= 44.2% med= -4.70 tokmed=-11.02 peak10= 65.1% cat30=26.7%
+     delta: wr  -8.2pp tokmed  -2.29
+  => 13-14-WORSE agreement: wr 4/4 tokmed 1/4
+
+== composition: per-hour young events / gated-pass-rate / distinct gated tokens per day ==
+h00 events=  554 gated=  33 pass= 6.0% gated-tok/day med=1.0 (days w/ any: 10)
+h01 events=  567 gated=  31 pass= 5.5% gated-tok/day med=1 (days w/ any: 11)
+h02 events=  481 gated=  20 pass= 4.2% gated-tok/day med=1 (days w/ any: 11)
+h03 events=  533 gated=  30 pass= 5.6% gated-tok/day med=1.0 (days w/ any: 12)
+h04 events=  616 gated=  37 pass= 6.0% gated-tok/day med=1 (days w/ any: 13)
+h05 events=  529 gated=  46 pass= 8.7% gated-tok/day med=1 (days w/ any: 13)
+h06 events=  518 gated=  56 pass=10.8% gated-tok/day med=1 (days w/ any: 13)
+h07 events=  456 gated=  77 pass=16.9% gated-tok/day med=2.0 (days w/ any: 10)
+h08 events=  446 gated=  42 pass= 9.4% gated-tok/day med=1.0 (days w/ any: 10)
+h09 events=  483 gated=  27 pass= 5.6% gated-tok/day med=1.0 (days w/ any: 10)
+h10 events=  457 gated=  34 pass= 7.4% gated-tok/day med=2 (days w/ any: 7)
+h11 events=  487 gated=  24 pass= 4.9% gated-tok/day med=2 (days w/ any: 9)
+h12 events=  443 gated=  18 pass= 4.1% gated-tok/day med=1.0 (days w/ any: 6)
+h13 events=  503 gated=  34 pass= 6.8% gated-tok/day med=1 (days w/ any: 11)
+h14 events=  527 gated=  49 pass= 9.3% gated-tok/day med=1 (days w/ any: 13)
+h15 events=  549 gated=  41 pass= 7.5% gated-tok/day med=1 (days w/ any: 13)
+h16 events=  580 gated=  60 pass=10.3% gated-tok/day med=1.5 (days w/ any: 12)
+h17 events=  587 gated=  36 pass= 6.1% gated-tok/day med=2.0 (days w/ any: 8)
+h18 events=  520 gated=  25 pass= 4.8% gated-tok/day med=1.0 (days w/ any: 10)
+h19 events=  538 gated=  35 pass= 6.5% gated-tok/day med=1 (days w/ any: 9)
+h20 events=  545 gated=  43 pass= 7.9% gated-tok/day med=1.0 (days w/ any: 14)
+h21 events=  606 gated=  35 pass= 5.8% gated-tok/day med=1.0 (days w/ any: 14)
+h22 events=  569 gated=  38 pass= 6.7% gated-tok/day med=1 (days w/ any: 13)
+h23 events=  639 gated=  39 pass= 6.1% gated-tok/day med=1 (days w/ any: 13)
+
+== JULY slice young 09-13 vs rest (raw) ==
+09-13: n=  168 tok=  28 wr= 58.3% med= +3.40 tokmed= +3.15 peak10= 67.9% cat30=16.7%
+rest : n= 1340 tok= 176 wr= 41.6% med= -5.59 tokmed=-14.05 peak10= 62.5% cat30=26.2%

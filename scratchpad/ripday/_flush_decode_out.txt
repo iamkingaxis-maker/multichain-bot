@@ -1,0 +1,27 @@
+pairs w tape: 163 pairs w both: 88
+flushes detected: 517 usable (>=5 tape trades in window): 0 coverage-fail: 517
+bounced: 0 died: 0
+BOUNCED n= 0
+  maxp     med=None mean=None
+  nbuyers  med=None mean=None
+  imb      med=None mean=None
+  busd     med=None mean=None
+  nrep     med=None mean=None
+  gdwin    med=None mean=None
+  smart    med=None mean=None
+  tprof    med=None mean=None
+  nb       med=None mean=None
+  ns       med=None mean=None
+  kill     med=None mean=None
+DIED n= 0
+  maxp     med=None mean=None
+  nbuyers  med=None mean=None
+  imb      med=None mean=None
+  busd     med=None mean=None
+  nrep     med=None mean=None
+  gdwin    med=None mean=None
+  smart    med=None mean=None
+  tprof    med=None mean=None
+  nb       med=None mean=None
+  ns       med=None mean=None
+  kill     med=None mean=None

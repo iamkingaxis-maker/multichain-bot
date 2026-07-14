@@ -1,0 +1,5 @@
+{"kind":"buy","volume_usd":17.98,"ts":"2026-07-11T01:33:06+00:00","maker":"0x5eb1f5fac5de83e11437ef1ae49baf5586e8421e","pair":"0x175b20de245d8a5061e9d4c4fc0a08480f2447cf","sym":"SIDELINED","lag_secs":0.54,"pre_conf":true}
+{"kind":"buy","volume_usd":17.98,"ts":"2026-07-11T01:33:06+00:00","maker":"0x5eb1f5fac5de83e11437ef1ae49baf5586e8421e","pair":"0x175b20de245d8a5061e9d4c4fc0a08480f2447cf","sym":"SIDELINED","lag_secs":0.66,"pre_conf":true}
+{"kind":"buy","volume_usd":17.98,"ts":"2026-07-11T01:35:36+00:00","maker":"0x5eb1f5fac5de83e11437ef1ae49baf5586e8421e","pair":"0x175b20de245d8a5061e9d4c4fc0a08480f2447cf","sym":"SIDELINED","lag_secs":0.85,"pre_conf":true}
+{"kind":"buy","volume_usd":33.64,"ts":"2026-07-11T01:35:44+00:00","maker":"0xfb5fe3f22237c6481c089c8ee1ef70a117f4b172","pair":"0x175b20de245d8a5061e9d4c4fc0a08480f2447cf","sym":"SIDELINED","lag_secs":0.69,"pre_conf":true}
+{"kind":"sell","volume_usd":9.82,"ts":"2026-07-11T01:44:21+00:00","maker":"0xfb5fe3f22237c6481c089c8ee1ef70a117f4b172","pair":"0x175b20de245d8a5061e9d4c4fc0a08480f2447cf","sym":"SIDELINED","lag_secs":1.02,"pre_conf":true,"vol_est":true}

@@ -1,0 +1,10 @@
+{"kind":"buy","volume_usd":17.85,"ts":"2026-07-10T09:10:47+00:00","maker":"0xf99d6ffe282336e7ad6e4d6da82542aef05f672a","pair":"0x84426049f2ab8c2637368eac2100426f66c45a16","sym":"DREAM","lag_secs":3.11}
+{"kind":"buy","volume_usd":178.5,"ts":"2026-07-10T09:11:25+00:00","maker":"0x82bc9f4358b2dfd95d187b9609201399c189b7b6","pair":"0x84426049f2ab8c2637368eac2100426f66c45a16","sym":"DREAM","lag_secs":2.6}
+{"kind":"sell","volume_usd":13.5,"ts":"2026-07-10T09:11:26+00:00","maker":"0x72f91b2657ff5b750a4ea4895c216219769ce0ae","pair":"0x84426049f2ab8c2637368eac2100426f66c45a16","sym":"DREAM","lag_secs":1.6}
+{"kind":"sell","volume_usd":344.03,"ts":"2026-07-10T09:11:48+00:00","maker":"0xd23aee4c72e5f37b5140238c68f0fdd7aeb4098e","pair":"0x84426049f2ab8c2637368eac2100426f66c45a16","sym":"DREAM","lag_secs":2.06}
+{"kind":"buy","volume_usd":706.65,"ts":"2026-07-10T09:12:05+00:00","maker":"0x01a55230aa6c26cb7558347be37e9ddd67a6b4bb","pair":"0x84426049f2ab8c2637368eac2100426f66c45a16","sym":"DREAM","lag_secs":3.11}
+{"kind":"sell","volume_usd":43.86,"ts":"2026-07-10T09:12:05+00:00","maker":"0x8cc2becdcc3ec5d7ed692f86672ab793178f2d40","pair":"0x84426049f2ab8c2637368eac2100426f66c45a16","sym":"DREAM","lag_secs":3.11}
+{"kind":"buy","volume_usd":282.84,"ts":"2026-07-10T09:12:31+00:00","maker":"0xb1b4f5232df640acf1c978420979ec3a0018cac1","pair":"0x84426049f2ab8c2637368eac2100426f66c45a16","sym":"DREAM","lag_secs":3.05}
+{"kind":"sell","volume_usd":162.0,"ts":"2026-07-10T09:12:32+00:00","maker":"0xf99d6ffe282336e7ad6e4d6da82542aef05f672a","pair":"0x84426049f2ab8c2637368eac2100426f66c45a16","sym":"DREAM","lag_secs":2.05}
+{"kind":"sell","volume_usd":439.15,"ts":"2026-07-10T09:12:33+00:00","maker":"0xae208ba414cb3d7629b530aa365de1193d6b931c","pair":"0x84426049f2ab8c2637368eac2100426f66c45a16","sym":"DREAM","lag_secs":11.08}
+{"kind":"buy","volume_usd":186.48,"ts":"2026-07-10T09:12:39+00:00","maker":"0x72f91b2657ff5b750a4ea4895c216219769ce0ae","pair":"0x84426049f2ab8c2637368eac2100426f66c45a16","sym":"DREAM","lag_secs":5.08}

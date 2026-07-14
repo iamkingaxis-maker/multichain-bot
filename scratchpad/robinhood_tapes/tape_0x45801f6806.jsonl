@@ -1,0 +1,2 @@
+{"kind":"buy","volume_usd":32.38,"ts":"2026-07-12T11:10:51+00:00","maker":"0x9cd0d66c2068f1f1db05c207f6bab1b95aa05054","pair":"0x45801f6806c9be10895a6e15d3da131a125e1c3a","sym":"HET","lag_secs":0.27,"pre_conf":true}
+{"kind":"buy","volume_usd":138.98,"ts":"2026-07-12T12:29:57+00:00","maker":"0x75cace0baba984f721f40443ce4acb6bb229a9b0","pair":"0x45801f6806c9be10895a6e15d3da131a125e1c3a","sym":"HET","lag_secs":0.69,"pre_conf":true}

@@ -1,0 +1,3 @@
+{"kind":"buy","volume_usd":7.19,"ts":"2026-07-11T01:42:04+00:00","maker":"0xf2e97b922e00f9e3ea83966a6d798eb9ff57d122","pair":"0x2edbf2c5aac1c526a79243bc7f3975623d9911f1","sym":"Sunshine","lag_secs":0.99,"pre_conf":true}
+{"kind":"buy","volume_usd":7.19,"ts":"2026-07-11T01:42:27+00:00","maker":"0xf2e97b922e00f9e3ea83966a6d798eb9ff57d122","pair":"0x2edbf2c5aac1c526a79243bc7f3975623d9911f1","sym":"Sunshine","lag_secs":0.93,"pre_conf":true}
+{"kind":"buy","volume_usd":143.41,"ts":"2026-07-11T01:53:11+00:00","maker":"0x6988eb78c281aa6a125d4eca5284fc206f5bdde5","pair":"0x2edbf2c5aac1c526a79243bc7f3975623d9911f1","sym":"Sunshine","lag_secs":1.25,"pre_conf":true}

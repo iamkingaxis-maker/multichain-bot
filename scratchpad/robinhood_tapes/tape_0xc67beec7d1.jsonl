@@ -1,0 +1,2 @@
+{"kind":"buy","volume_usd":32.21,"ts":"2026-07-12T09:33:43+00:00","maker":"0x5c75ed5beb9a43b68fae73706908b2fdf497f4a0","pair":"0xc67beec7d108da260b7aaf8f04c0a95121da582e","sym":"RVLAD","lag_secs":-0.06,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-12T11:36:35+00:00","maker":"0x8bde5f3691e438ae15cf2d74123530a8c74a2ead","pair":"0xc67beec7d108da260b7aaf8f04c0a95121da582e","sym":"RVLAD","lag_secs":-0.24,"pre_conf":true}

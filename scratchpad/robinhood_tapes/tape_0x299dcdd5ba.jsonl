@@ -1,0 +1,2 @@
+{"kind":"buy","volume_usd":36.48,"ts":"2026-07-11T22:18:41+00:00","maker":"0x7a54fb2579ed5bbb8784033ee59ec7ce337635ea","pair":"0x299dcdd5ba4bcfd38940e306d7945f68e0dd1c43","sym":"CASHCATSTR","lag_secs":1.11,"pre_conf":true}
+{"kind":"buy","volume_usd":111.92,"ts":"2026-07-12T13:45:41+00:00","maker":"0x6b422465b5124344608c9d33b27bfb88bce09558","pair":"0x299dcdd5ba4bcfd38940e306d7945f68e0dd1c43","sym":"CASHCATSTR","lag_secs":0.23,"pre_conf":true,"vol_est":true}

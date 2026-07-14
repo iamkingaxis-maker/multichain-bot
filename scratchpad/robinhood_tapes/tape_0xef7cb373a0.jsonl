@@ -1,0 +1,9 @@
+{"kind":"buy","volume_usd":17.99,"ts":"2026-07-11T05:17:33+00:00","maker":"0xe59728fc512c3bb1d6795a42e40ac5a7f99ee041","pair":"0xef7cb373a062ac243f743bd7712c7a085b6cec95","sym":"Leaf","lag_secs":0.18,"pre_conf":true}
+{"kind":"buy","volume_usd":5.4,"ts":"2026-07-11T05:27:32+00:00","maker":"0x718781f4d9b9a6b16f912d9c77856ac4bf08ed0d","pair":"0xef7cb373a062ac243f743bd7712c7a085b6cec95","sym":"Leaf","lag_secs":0.53,"pre_conf":true}
+{"kind":"buy","volume_usd":36.0,"ts":"2026-07-11T05:27:37+00:00","maker":"0x76b936143e38ebae9c11e854aa8125adde9c07c8","pair":"0xef7cb373a062ac243f743bd7712c7a085b6cec95","sym":"Leaf","lag_secs":1.17,"pre_conf":true}
+{"kind":"buy","volume_usd":27.26,"ts":"2026-07-11T05:28:43+00:00","maker":"0x97b0fbbc81044442fdcd88b2be36b3df190fe411","pair":"0xef7cb373a062ac243f743bd7712c7a085b6cec95","sym":"Leaf","lag_secs":-0.06,"pre_conf":true}
+{"kind":"buy","volume_usd":57.62,"ts":"2026-07-11T05:33:59+00:00","maker":"0xca0abc8775f2a72df173e8ed91e3d00284ab0f51","pair":"0xef7cb373a062ac243f743bd7712c7a085b6cec95","sym":"Leaf","lag_secs":0.92,"pre_conf":true}
+{"kind":"buy","volume_usd":28.84,"ts":"2026-07-11T05:34:43+00:00","maker":"0x8b35d4ded12a22fecbffb3d6d4e1f8330a1d15fe","pair":"0xef7cb373a062ac243f743bd7712c7a085b6cec95","sym":"Leaf","lag_secs":1.13,"pre_conf":true}
+{"kind":"buy","volume_usd":32.44,"ts":"2026-07-11T05:35:04+00:00","maker":"0x8b35d4ded12a22fecbffb3d6d4e1f8330a1d15fe","pair":"0xef7cb373a062ac243f743bd7712c7a085b6cec95","sym":"Leaf","lag_secs":1.24,"pre_conf":true}
+{"kind":"buy","volume_usd":0.67,"ts":"2026-07-11T05:38:19+00:00","maker":"0x76b936143e38ebae9c11e854aa8125adde9c07c8","pair":"0xef7cb373a062ac243f743bd7712c7a085b6cec95","sym":"Leaf","lag_secs":0.24,"pre_conf":true}
+{"kind":"buy","volume_usd":36.05,"ts":"2026-07-11T05:39:00+00:00","maker":"0x640246af4c3889f35549e1e26cebd43c3c479056","pair":"0xef7cb373a062ac243f743bd7712c7a085b6cec95","sym":"Leaf","lag_secs":0.64,"pre_conf":true}

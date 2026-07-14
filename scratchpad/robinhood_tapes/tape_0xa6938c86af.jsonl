@@ -1,0 +1,8 @@
+{"kind":"buy","volume_usd":0.36,"ts":"2026-07-12T13:37:37+00:00","maker":"0xef91ca04b76d383cf0e72a25cb3eec941d9842e9","pair":"0xa6938c86af7ee56a5115ae770d3c3420bd6ec08f","sym":"RSC","lag_secs":0.27,"pre_conf":true}
+{"kind":"buy","volume_usd":1.44,"ts":"2026-07-12T13:37:47+00:00","maker":"0xef91ca04b76d383cf0e72a25cb3eec941d9842e9","pair":"0xa6938c86af7ee56a5115ae770d3c3420bd6ec08f","sym":"RSC","lag_secs":0.44,"pre_conf":true}
+{"kind":"buy","volume_usd":9.83,"ts":"2026-07-12T13:47:31+00:00","maker":"0x52feef648c20d1616d07317a21a9f8947ef30976","pair":"0xa6938c86af7ee56a5115ae770d3c3420bd6ec08f","sym":"RSC","lag_secs":1.25,"pre_conf":true}
+{"kind":"buy","volume_usd":0.9,"ts":"2026-07-12T13:48:48+00:00","maker":"0x081f2ae5c575fceff210154b6f9d4a6b8af6a057","pair":"0xa6938c86af7ee56a5115ae770d3c3420bd6ec08f","sym":"RSC","lag_secs":0.73,"pre_conf":true}
+{"kind":"buy","volume_usd":90.02,"ts":"2026-07-12T13:49:38+00:00","maker":"0xeb0dfcc0b110804f451df2b5de9c5e3299029648","pair":"0xa6938c86af7ee56a5115ae770d3c3420bd6ec08f","sym":"RSC","lag_secs":0.41,"pre_conf":true}
+{"kind":"buy","volume_usd":141.72,"ts":"2026-07-12T14:07:53+00:00","maker":"0x42a27bf367056932aebee0c37725374de475e494","pair":"0xa6938c86af7ee56a5115ae770d3c3420bd6ec08f","sym":"RSC","lag_secs":0.12,"pre_conf":true}
+{"kind":"buy","volume_usd":3.61,"ts":"2026-07-12T14:14:00+00:00","maker":"0x53924596c5b022f093177710e898183662daf196","pair":"0xa6938c86af7ee56a5115ae770d3c3420bd6ec08f","sym":"RSC","lag_secs":0.43,"pre_conf":true}
+{"kind":"buy","volume_usd":3.61,"ts":"2026-07-12T14:14:28+00:00","maker":"0x53924596c5b022f093177710e898183662daf196","pair":"0xa6938c86af7ee56a5115ae770d3c3420bd6ec08f","sym":"RSC","lag_secs":0.94,"pre_conf":true}

@@ -1,0 +1,23 @@
+shadow-live deduped rounds n=232; TP1-hit among them n=66
+TP1-hitters that FULL-round-tripped to <=0 pre-TP1 first (path-observed): 3/66 = 5%
+   traindog     zero-cross at pnl=-0.3 after peak +3.3 -> later realized +4.0
+   #fairs       zero-cross at pnl=-1.9 after peak +7.2 -> later realized +12.8
+   bull         zero-cross at pnl=-3.0 after peak +7.4 -> later realized +24.8
+
+== shadow-window net: pre-TP1 trail recovery (PESS) minus OBSERVED kills (lower-bound kills: only zero-crossers seen)
+  X=2 Y=3: rec_PESS=  193pp (fires n=24) - observed_kills=  36pp (n=3) = NET  +157pp over shadow window (KILLS ARE LOWER BOUND)
+  X=2 Y=4: rec_PESS=  176pp (fires n=19) - observed_kills=  31pp (n=2) = NET  +145pp over shadow window (KILLS ARE LOWER BOUND)
+  X=2 Y=5: rec_PESS=  147pp (fires n=15) - observed_kills=  31pp (n=2) = NET  +116pp over shadow window (KILLS ARE LOWER BOUND)
+  X=2 Y=6: rec_PESS=  111pp (fires n=12) - observed_kills=  31pp (n=2) = NET   +80pp over shadow window (KILLS ARE LOWER BOUND)
+  X=3 Y=5: rec_PESS=  132pp (fires n=15) - observed_kills=  33pp (n=2) = NET   +99pp over shadow window (KILLS ARE LOWER BOUND)
+  X=1.5 Y=4: rec_PESS=  185pp (fires n=19) - observed_kills=  30pp (n=2) = NET  +155pp over shadow window (KILLS ARE LOWER BOUND)
+
+wick multiplier hint: post-TP1 2pp-wick rate 52%; pre-TP1 zero-cross rate 5% -> 2pp-wick pre-TP1 likely between these
+  scaled kill estimate @wick-rate 30%: ~143pp over shadow window (avg TP1-hit realized +9.2, cut@+2.0)
+  scaled kill estimate @wick-rate 50%: ~239pp over shadow window (avg TP1-hit realized +9.2, cut@+2.0)
+  scaled kill estimate @wick-rate 70%: ~334pp over shadow window (avg TP1-hit realized +9.2, cut@+2.0)
+
+== allday 6-13 window (FABLE/NEIL class): n=12 giveback=159pp; trail X=2,Y=5 rec_PESS=111pp
+   allday TP1(+13)-hit rounds n=8 realized=122pp (these all transit the 6-13 zone armed)
+
+== lock fills: n=17 median realized=-2.7; gap-throughs (<-3): n=7 [-4.6, -3.1, -5.8, -5.6, -3.6, -6.5, -6.3]

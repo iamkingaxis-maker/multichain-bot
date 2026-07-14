@@ -1,0 +1,12 @@
+
+############ 2026-07-01: winner eps=67 base eps=972 ############
+F1 WIN  dd_before_first_sell n=46 p10=-23.1 p25=-9.4 med=-6.4 p75=-4.7 p90=-2.9 mean=-8.8
+F1 BASE dd_before_first_sell n=603 p10=-43.0 p25=-15.0 med=-6.8 p75=-3.7 p90=-1.8 mean=-15.0
+F2 WIN age bands: <2h: n=0 ret=+0.0% | 2-6h: n=2 ret=-5.7% | 6-24h: n=12 ret=-0.9% | 24-72h: n=22 ret=+74.7% | >72h: n=31 ret=+7.0% | unk: n=0 ret=+0.0%
+F2 WIN hours: buys=107  14-22UTC=87%  04-13=1.9%  23-01=4.7%
+F2 BASE age bands: <2h: n=29 ret=+27.0% | 2-6h: n=165 ret=-15.7% | 6-24h: n=196 ret=-9.2% | 24-72h: n=342 ret=-2.3% | >72h: n=240 ret=+3.7% | unk: n=0 ret=+0.0%
+F2 BASE hours: buys=4832  14-22UTC=74%  04-13=2.7%  23-01=8.9%
+F3 WIN sell ret vs entry VWAP (covered, dust<$2 excl) n=78 p10=-11.3 p25=-4.3 med=3.5 p75=10.4 p90=73.0 mean=23.9
+F3 USD-weighted: <-12: 11% | -12..0: 14% | 0..+6: 19% | +6..+12: 8% | >=+12: 48%
+F3 closed win eps=36, losers=13
+F3 WIN loss-cut depth (realized %) n=13 p10=-12.9 p25=-5.3 med=-4.7 p75=-2.9 p90=-2.2 mean=-5.4

@@ -1,0 +1,6 @@
+{"kind":"buy","volume_usd":179.38,"ts":"2026-07-10T21:45:35+00:00","maker":"0x6b66e10080b3fa2abd08ec31a0d0a2879dd84e8d","pair":"0x8d2559cd4046c24bf0b995432a6f68999c043429","sym":"SENTAI","lag_secs":0.7,"pre_conf":true}
+{"kind":"buy","volume_usd":157.85,"ts":"2026-07-10T21:45:58+00:00","maker":"0x6b66e10080b3fa2abd08ec31a0d0a2879dd84e8d","pair":"0x8d2559cd4046c24bf0b995432a6f68999c043429","sym":"SENTAI","lag_secs":0.62,"pre_conf":true}
+{"kind":"buy","volume_usd":116.6,"ts":"2026-07-10T21:46:11+00:00","maker":"0x6b66e10080b3fa2abd08ec31a0d0a2879dd84e8d","pair":"0x8d2559cd4046c24bf0b995432a6f68999c043429","sym":"SENTAI","lag_secs":-0.13,"pre_conf":true}
+{"kind":"buy","volume_usd":143.5,"ts":"2026-07-10T21:46:45+00:00","maker":"0x6b66e10080b3fa2abd08ec31a0d0a2879dd84e8d","pair":"0x8d2559cd4046c24bf0b995432a6f68999c043429","sym":"SENTAI","lag_secs":0.25,"pre_conf":true}
+{"kind":"buy","volume_usd":116.6,"ts":"2026-07-10T21:47:07+00:00","maker":"0x6b66e10080b3fa2abd08ec31a0d0a2879dd84e8d","pair":"0x8d2559cd4046c24bf0b995432a6f68999c043429","sym":"SENTAI","lag_secs":-0.15,"pre_conf":true}
+{"kind":"buy","volume_usd":71.75,"ts":"2026-07-10T21:47:29+00:00","maker":"0x6b66e10080b3fa2abd08ec31a0d0a2879dd84e8d","pair":"0x8d2559cd4046c24bf0b995432a6f68999c043429","sym":"SENTAI","lag_secs":0.09,"pre_conf":true}

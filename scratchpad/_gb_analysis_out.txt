@@ -1,0 +1,42 @@
+7d window 2026-06-27T12:17:00+00:00 -> 2026-07-04T12:17:00+00:00
+legs kept=510 scrubbed(pnl>0&hold<10)=12
+rounds=389 (frac-sum outside 0.6-1.4: 10)
+deduped rounds=265 (raw 389)
+rounds/bot: {'badday_flush': 155, 'badday_allday': 135, 'badday_flush_rsi_ab': 50, 'badday_young_absorb': 49}
+
+== Q1 DEDUPED: rounds peak>=3 n=100  total giveback=634pp  = 91pp/day
+   peak   3-6: n= 14 giveback=    132pp ( 18.8pp/day)
+   peak   6-9: n= 31 giveback=    149pp ( 21.3pp/day)
+   peak  9-13: n= 24 giveback=    150pp ( 21.4pp/day)
+   peak   13+: n= 31 giveback=    203pp ( 29.0pp/day)
+   pre-TP1-band (peak<6): 132pp = 21%  post (peak>=6): 502pp = 79%
+   by TP1-hit: unhit rounds give 290pp (46%), hit rounds 343pp
+   by final exit reason:
+     trail           n= 42 giveback=    198pp
+     breakeven-lock  n= 17 giveback=    186pp
+     TP2             n= 32 giveback=    145pp
+     MAE-floor       n=  9 giveback=    105pp
+
+== Q1 RAW-ALL-BOTS: rounds peak>=3 n=145  total giveback=999pp  = 143pp/day
+   peak   3-6: n= 19 giveback=    166pp ( 23.6pp/day)
+   peak   6-9: n= 42 giveback=    218pp ( 31.1pp/day)
+   peak  9-13: n= 33 giveback=    215pp ( 30.7pp/day)
+   peak   13+: n= 51 giveback=    401pp ( 57.3pp/day)
+   pre-TP1-band (peak<6): 166pp = 17%  post (peak>=6): 833pp = 83%
+   by TP1-hit: unhit rounds give 416pp (42%), hit rounds 583pp
+   by final exit reason:
+     trail           n= 65 giveback=    386pp
+     breakeven-lock  n= 29 giveback=    297pp
+     TP2             n= 41 giveback=    197pp
+     MAE-floor       n= 10 giveback=    118pp
+
+== measured exit slip (decision-pnl minus realized), median [n]:
+   MAE-floor       -2.61pp  mean -4.19  [n=24]
+   TP1             +1.88pp  mean +1.88  [n=106]
+   TP2             +2.50pp  mean +2.33  [n=46]
+   breakeven-lock  +0.90pp  mean +0.79  [n=29]
+   never_runner    +0.00pp  mean +0.64  [n=13]
+   trail           +2.00pp  mean +1.70  [n=65]
+   velocity-bail   -0.00pp  mean -2.35  [n=227]
+
+wrote scratchpad/_gb_rounds_dedup.json

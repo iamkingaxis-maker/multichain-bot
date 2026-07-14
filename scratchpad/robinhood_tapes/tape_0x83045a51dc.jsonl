@@ -1,0 +1,6 @@
+{"kind":"buy","volume_usd":263.55,"ts":"2026-07-12T01:08:35+00:00","maker":"0xd43fa584078e4252244d4a2a29dea662e606f90a","pair":"0x83045a51dceb8ea20fee402855790e23109e058a","sym":"MORTGAGE","lag_secs":-0.06,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":138.39,"ts":"2026-07-12T01:09:07+00:00","maker":"0xd43fa584078e4252244d4a2a29dea662e606f90a","pair":"0x83045a51dceb8ea20fee402855790e23109e058a","sym":"MORTGAGE","lag_secs":0.39,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":3.05,"ts":"2026-07-12T01:19:04+00:00","maker":"0x4eebf594adbcae9b2fd6a8f70ffa298afefc3b16","pair":"0x83045a51dceb8ea20fee402855790e23109e058a","sym":"MORTGAGE","lag_secs":0.3,"pre_conf":true}
+{"kind":"buy","volume_usd":37.87,"ts":"2026-07-12T11:40:46+00:00","maker":"0x04a5d6659b66b277a314c0473e8463ce370f9c7a","pair":"0x83045a51dceb8ea20fee402855790e23109e058a","sym":"MORTGAGE","lag_secs":0.69,"pre_conf":true}
+{"kind":"buy","volume_usd":13.52,"ts":"2026-07-12T11:42:12+00:00","maker":"0x04a5d6659b66b277a314c0473e8463ce370f9c7a","pair":"0x83045a51dceb8ea20fee402855790e23109e058a","sym":"MORTGAGE","lag_secs":0.53,"pre_conf":true}
+{"kind":"buy","volume_usd":8.84,"ts":"2026-07-12T11:42:25+00:00","maker":"0x04a5d6659b66b277a314c0473e8463ce370f9c7a","pair":"0x83045a51dceb8ea20fee402855790e23109e058a","sym":"MORTGAGE","lag_secs":0.5,"pre_conf":true}

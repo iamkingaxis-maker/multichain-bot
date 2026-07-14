@@ -1,0 +1,6 @@
+WALLET 7iVCXQn4u6tiTEfNVqbWSEsRdEi69E9oYsSMiepuECwi  | 0 distinct traded tokens (sigs=150)
+token        first_buy       spent     recv  nb  ns     ret%  cat
+
+CATEGORIES: win=0 loss=0 RUG(<=-85%)=0 OPEN(unsold bag)=0
+TOTAL spent=0.00 SOL | recv(closed)=0.00 SOL | realized P&L(closed)=+0.00 SOL
+OPEN bag cost basis still at risk = 0.00 SOL across 0 tokens

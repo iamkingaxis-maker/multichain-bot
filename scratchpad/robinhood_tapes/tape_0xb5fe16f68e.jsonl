@@ -1,0 +1,4 @@
+{"kind":"buy","volume_usd":71.93,"ts":"2026-07-11T04:01:07+00:00","maker":"0xdfe45e4d36342244fbf41fb17653f290ae799d7c","pair":"0xb5fe16f68e601afce43a06df84fce43203b12615","sym":"HOODGASS","lag_secs":0.15,"pre_conf":true}
+{"kind":"sell","volume_usd":59.49,"ts":"2026-07-11T04:04:08+00:00","maker":"0xdfe45e4d36342244fbf41fb17653f290ae799d7c","pair":"0xb5fe16f68e601afce43a06df84fce43203b12615","sym":"HOODGASS","lag_secs":0.43,"pre_conf":true,"vol_est":true}
+{"kind":"sell","volume_usd":23.6,"ts":"2026-07-11T04:24:00+00:00","maker":"0x6e275b93aec4b44de7e3ded035a587c25904c917","pair":"0xb5fe16f68e601afce43a06df84fce43203b12615","sym":"HOODGASS","lag_secs":0.51,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":54.07,"ts":"2026-07-11T05:34:53+00:00","maker":"0xbf4d647af358c89295a2e19b064ff953ec7ee1ff","pair":"0xb5fe16f68e601afce43a06df84fce43203b12615","sym":"HOODGASS","lag_secs":0.92,"pre_conf":true}

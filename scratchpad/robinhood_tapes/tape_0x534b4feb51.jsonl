@@ -1,0 +1,6 @@
+{"kind":"sell","volume_usd":47.94,"ts":"2026-07-11T00:43:51+00:00","maker":"0xfc78968f91200892f42125bf71da6c97fd0ae4a3","pair":"0x534b4feb51874c111bd95dc96d0cae963182c179","sym":"WALLETCAT","lag_secs":-0.25,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":17.93,"ts":"2026-07-11T00:43:59+00:00","maker":"0x5eb1f5fac5de83e11437ef1ae49baf5586e8421e","pair":"0x534b4feb51874c111bd95dc96d0cae963182c179","sym":"WALLETCAT","lag_secs":0.09,"pre_conf":true}
+{"kind":"sell","volume_usd":4.29,"ts":"2026-07-11T00:45:49+00:00","maker":"0xcbd094cb3e2d07908c0f96d113a93d0bc25bf4fe","pair":"0x534b4feb51874c111bd95dc96d0cae963182c179","sym":"WALLETCAT","lag_secs":0.49,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":17.93,"ts":"2026-07-11T00:55:04+00:00","maker":"0x5eb1f5fac5de83e11437ef1ae49baf5586e8421e","pair":"0x534b4feb51874c111bd95dc96d0cae963182c179","sym":"WALLETCAT","lag_secs":1.2,"pre_conf":true}
+{"kind":"buy","volume_usd":17.94,"ts":"2026-07-11T00:58:17+00:00","maker":"0x51b45e5c1b59510e26908bf988c3e1a86b2cc5f4","pair":"0x534b4feb51874c111bd95dc96d0cae963182c179","sym":"WALLETCAT","lag_secs":2.76,"pre_conf":true}
+{"kind":"sell","volume_usd":1.62,"ts":"2026-07-11T01:02:41+00:00","maker":"0x51b45e5c1b59510e26908bf988c3e1a86b2cc5f4","pair":"0x534b4feb51874c111bd95dc96d0cae963182c179","sym":"WALLETCAT","lag_secs":1.1,"pre_conf":true,"vol_est":true}

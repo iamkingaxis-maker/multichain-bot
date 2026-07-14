@@ -1,0 +1,4 @@
+{"kind":"buy","volume_usd":10.13,"ts":"2026-07-12T12:09:41+00:00","maker":"0xf0db8576d61574aa0388a525d36db13ade58ad35","pair":"0xe365b92239097ed3322131411dbe15a5c4068eff","sym":"SLVR","lag_secs":1.44,"pre_conf":true}
+{"kind":"buy","volume_usd":180.64,"ts":"2026-07-12T13:41:04+00:00","maker":"0xb087088f00da9d75026dce817b6dde5d14f4beee","pair":"0xe365b92239097ed3322131411dbe15a5c4068eff","sym":"SLVR","lag_secs":0.05,"pre_conf":true}
+{"kind":"buy","volume_usd":541.32,"ts":"2026-07-12T13:56:35+00:00","maker":"0x1111c020ebca29dd1c2a52f380631bef0476ad11","pair":"0xe365b92239097ed3322131411dbe15a5c4068eff","sym":"SLVR","lag_secs":0.55,"pre_conf":true}
+{"kind":"buy","volume_usd":90.22,"ts":"2026-07-12T13:58:03+00:00","maker":"0x9eb69c9a690923c50366c409534f8df5958c6335","pair":"0xe365b92239097ed3322131411dbe15a5c4068eff","sym":"SLVR","lag_secs":1.08,"pre_conf":true}

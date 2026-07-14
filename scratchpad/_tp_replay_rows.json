@@ -1,0 +1,6122 @@
+[
+ {
+  "pid": "badday_flush|42cXQvAAr7hcPBPWAS4ocVtDyeJ4Fa6gRR2uG4gppump|2026-07-01T20:39:17.681629+00:00",
+  "bot": "badday_flush",
+  "token": "TBB",
+  "winner": false,
+  "entry_time": "2026-07-01T20:39:17.681629+00:00",
+  "peak_rec": 0,
+  "realized": -6.447999999999999,
+  "cov": true,
+  "span_h": 5.95,
+  "cur": 7.5,
+  "p8": 5.053930695666965,
+  "p5": 6.553930695666965,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.10786139133393,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    4.10786139133393
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|9E2Q4KKxLS5Y4bu6RKvjg5wQ2kzaLkiVsMt7zwMZpump|2026-07-01T20:44:24.337439+00:00",
+  "bot": "badday_flush",
+  "token": "WYNN",
+  "winner": true,
+  "entry_time": "2026-07-01T20:44:24.337439+00:00",
+  "peak_rec": 12.2343020393,
+  "realized": 8.315312683835586,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 11.658679968499465,
+  "p5": 5.0767518294494325,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 15.844810620296478,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    17.31735993699893
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|FpzZHtp5tbvz6xndEtoJHoGEWcT7cFEuscdCh9RApump|2026-07-01T21:01:38.609507+00:00",
+  "bot": "badday_flush",
+  "token": "VOICEBOX",
+  "winner": false,
+  "entry_time": "2026-07-01T21:01:38.609507+00:00",
+  "peak_rec": 1.4048497926,
+  "realized": -3.291299999999997,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 1.3867310812522682,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|AP6vhUNmXXPiccsRBVj3Gct5khAU1ytjwBV7vuNFbonk|2026-07-01T21:06:59.583461+00:00",
+  "bot": "badday_flush",
+  "token": "HOPE",
+  "winner": false,
+  "entry_time": "2026-07-01T21:06:59.583461+00:00",
+  "peak_rec": 0.7404719672,
+  "realized": -4.266599999999999,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 7.5,
+  "p8": 8.759953045771342,
+  "p5": 4.660665414646614,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 19.519906091542683,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    11.519906091542683
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CzigqJ9h9mnfXq3G3jKBVcApKu8Kh8JtZGxarzY2pump|2026-07-01T21:35:58.300443+00:00",
+  "bot": "badday_flush",
+  "token": "SUPERMAN",
+  "winner": false,
+  "entry_time": "2026-07-01T21:35:58.300443+00:00",
+  "peak_rec": 0,
+  "realized": -5.888000000000004,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 7.644818414621057,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|AP6vhUNmXXPiccsRBVj3Gct5khAU1ytjwBV7vuNFbonk|2026-07-01T21:38:27.787165+00:00",
+  "bot": "badday_flush",
+  "token": "HOPE",
+  "winner": false,
+  "entry_time": "2026-07-01T21:38:27.787165+00:00",
+  "peak_rec": 0,
+  "realized": -4.280099999999997,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.5,
+  "p8": 3.884077223576833,
+  "p5": 5.384077223576833,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 9.768154447153666,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    1.768154447153666
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CzigqJ9h9mnfXq3G3jKBVcApKu8Kh8JtZGxarzY2pump|2026-07-01T21:39:10.175194+00:00",
+  "bot": "badday_flush",
+  "token": "SUPERMAN",
+  "winner": false,
+  "entry_time": "2026-07-01T21:39:10.175194+00:00",
+  "peak_rec": 0,
+  "realized": -6.020399999999992,
+  "cov": true,
+  "span_h": 5.96,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|D78NGAjigMXaX52u5wvvLoNWuDZW98DayCxVtM9Fpump|2026-07-01T21:39:26.144467+00:00",
+  "bot": "badday_flush",
+  "token": "VITALY",
+  "winner": false,
+  "entry_time": "2026-07-01T21:39:26.144467+00:00",
+  "peak_rec": 0.3400000955,
+  "realized": -5.534800000000006,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.32189603116472565,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|62yzpmKJB6XiVtZcQZhUkUXhqwN3UgCbffUi4JM9pump|2026-07-01T23:39:27.267481+00:00",
+  "bot": "badday_flush",
+  "token": "world",
+  "winner": false,
+  "entry_time": "2026-07-01T23:39:27.267481+00:00",
+  "peak_rec": 0,
+  "realized": -3.617693646785758,
+  "cov": true,
+  "span_h": 5.91,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.46939684877301,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|62yzpmKJB6XiVtZcQZhUkUXhqwN3UgCbffUi4JM9pump|2026-07-01T23:39:31.312874+00:00",
+  "bot": "badday_flush",
+  "token": "world",
+  "winner": false,
+  "entry_time": "2026-07-01T23:39:31.312874+00:00",
+  "peak_rec": 0,
+  "realized": -3.617693646785758,
+  "cov": true,
+  "span_h": 5.91,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.46939684877301,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|Hnv13n2QUnaZm4a54o96Nx6e9Ysr2t3qB3CVauD8pump|2026-07-01T23:11:37.783205+00:00",
+  "bot": "badday_flush",
+  "token": "SON",
+  "winner": true,
+  "entry_time": "2026-07-01T23:11:37.783205+00:00",
+  "peak_rec": 9.0165066292,
+  "realized": 6.496111935853927,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 7.804454626307978,
+  "p5": 9.304454626307978,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 17.608909252615955,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    9.608909252615955
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|62yzpmKJB6XiVtZcQZhUkUXhqwN3UgCbffUi4JM9pump|2026-07-01T23:44:35.017033+00:00",
+  "bot": "badday_flush",
+  "token": "world",
+  "winner": false,
+  "entry_time": "2026-07-01T23:44:35.017033+00:00",
+  "peak_rec": 0,
+  "realized": -3.5725000000000007,
+  "cov": true,
+  "span_h": 5.92,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|wCtiCRJz69a5Mqkk2nHmvQwBGQCrUvM8fELoFGqpump|2026-07-02T00:11:46.270145+00:00",
+  "bot": "badday_flush",
+  "token": "BILLBOARD",
+  "winner": true,
+  "entry_time": "2026-07-02T00:11:46.270145+00:00",
+  "peak_rec": 4.9954341502,
+  "realized": -2.3011847893371074,
+  "cov": true,
+  "span_h": 5.87,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 5.311391518959874,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|Ed1yisBEAo8UXToSswvVFgzyJKpF48HEdq5kvz2zpump|2026-07-02T00:38:50.600084+00:00",
+  "bot": "badday_flush",
+  "token": "vibes",
+  "winner": true,
+  "entry_time": "2026-07-02T00:38:50.600084+00:00",
+  "peak_rec": 7.1793576361,
+  "realized": 4.508114895151161,
+  "cov": true,
+  "span_h": 5.85,
+  "cur": 4.5,
+  "p8": 2.7103204216542562,
+  "p5": 4.210320421654256,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 11.96713149817712,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -0.5793591566914875
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump|2026-07-02T00:43:14.739985+00:00",
+  "bot": "badday_flush",
+  "token": "BULLWIF",
+  "winner": true,
+  "entry_time": "2026-07-02T00:43:14.739985+00:00",
+  "peak_rec": 12.8904340173,
+  "realized": 9.921930375225502,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 7.5,
+  "p8": 5.778073127967488,
+  "p5": 7.278073127967488,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 13.556146255934976,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    5.556146255934976
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|36CvCWVMgSgpZNFu2JVuaaJVEcKtqySpS9hD2kxUpump|2026-07-02T00:32:41.522913+00:00",
+  "bot": "badday_flush",
+  "token": "gato",
+  "winner": true,
+  "entry_time": "2026-07-02T00:32:41.522913+00:00",
+  "peak_rec": 19.138281246,
+  "realized": 8.150225281706996,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 2.6660696878568433,
+  "p5": 4.166069687856844,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 19.221669002335084,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -0.6678606242863134
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|Ed1yisBEAo8UXToSswvVFgzyJKpF48HEdq5kvz2zpump|2026-07-02T01:00:13.918301+00:00",
+  "bot": "badday_flush",
+  "token": "vibes",
+  "winner": false,
+  "entry_time": "2026-07-02T01:00:13.918301+00:00",
+  "peak_rec": 0,
+  "realized": -4.427628994291755,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump|2026-07-02T01:19:38.111431+00:00",
+  "bot": "badday_flush",
+  "token": "Horseradish",
+  "winner": false,
+  "entry_time": "2026-07-02T01:19:38.111431+00:00",
+  "peak_rec": 0,
+  "realized": -7.808700000000002,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 3.4288719921769975,
+  "p5": 4.9288719921769975,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 13.681916634336888,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    0.8577439843539949
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump|2026-07-02T01:21:58.660062+00:00",
+  "bot": "badday_flush",
+  "token": "Horseradish",
+  "winner": true,
+  "entry_time": "2026-07-02T01:21:58.660062+00:00",
+  "peak_rec": 16.4589723365,
+  "realized": 14.316127245532456,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 7.5,
+  "p8": 7.014007273098834,
+  "p5": 8.514007273098834,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 16.028014546197667,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    8.028014546197667
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CzigqJ9h9mnfXq3G3jKBVcApKu8Kh8JtZGxarzY2pump|2026-07-02T01:30:31.645257+00:00",
+  "bot": "badday_flush",
+  "token": "SUPERMAN",
+  "winner": true,
+  "entry_time": "2026-07-02T01:30:31.645257+00:00",
+  "peak_rec": 8.3662454677,
+  "realized": 5.421312778047887,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": 7.5,
+  "p8": 8.11963858698639,
+  "p5": 9.61963858698639,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 14.454949982339738,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    10.23927717397278
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|HnXDnwTa68tRhLRZdJkVRLAeYrUkCYgFgDavtwD1pump|2026-07-02T01:09:24.496410+00:00",
+  "bot": "badday_flush",
+  "token": "Fartcoin",
+  "winner": false,
+  "entry_time": "2026-07-02T01:09:24.496410+00:00",
+  "peak_rec": 1.7913959717,
+  "realized": -1.5383086117601308,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.1085440132404774,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump|2026-07-02T02:04:24.361631+00:00",
+  "bot": "badday_flush",
+  "token": "BULLWIF",
+  "winner": true,
+  "entry_time": "2026-07-02T02:04:24.361631+00:00",
+  "peak_rec": 3.7797697445,
+  "realized": -2.9096509922166947,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 4.330776004049319,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|HmTi3CQfKfXWbn1tNoiAxH7GzMV7L3tDAmPWabZEBAGS|2026-07-02T08:47:09.364531+00:00",
+  "bot": "badday_flush",
+  "token": "P0",
+  "winner": false,
+  "entry_time": "2026-07-02T08:47:09.364531+00:00",
+  "peak_rec": 0.7325624676,
+  "realized": -0.7372000000000045,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 5.491222395656203,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump|2026-07-02T08:57:13.329396+00:00",
+  "bot": "badday_flush",
+  "token": "BULLWIF",
+  "winner": false,
+  "entry_time": "2026-07-02T08:57:13.329396+00:00",
+  "peak_rec": 0,
+  "realized": -5.296299999999999,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 4.5,
+  "p8": 3.5259216760786263,
+  "p5": 5.025921676078626,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 9.051843352157253,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    1.0518433521572526
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|24Kko3VWwMKtkB9CVct2ZAZgJzb2R2iNrYxCpTYFpump|2026-07-02T12:38:22.870501+00:00",
+  "bot": "badday_flush",
+  "token": "APU",
+  "winner": true,
+  "entry_time": "2026-07-02T12:38:22.870501+00:00",
+  "peak_rec": 6.9535405966,
+  "realized": 3.3349070967374885,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.5,
+  "p8": 2.45930755807603,
+  "p5": 3.95930755807603,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 8.596582739418634,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -1.0813848838479396
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|Cz1nNU1XsBKWPfD9aGNSxxp7EmTCBjEFH4eprKtxpump|2026-07-02T14:17:05.276203+00:00",
+  "bot": "badday_flush",
+  "token": "Scamcoin",
+  "winner": false,
+  "entry_time": "2026-07-02T14:17:05.276203+00:00",
+  "peak_rec": 0,
+  "realized": -8.364984300433264,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CzigqJ9h9mnfXq3G3jKBVcApKu8Kh8JtZGxarzY2pump|2026-07-02T15:36:37.178400+00:00",
+  "bot": "badday_flush",
+  "token": "SUPERMAN",
+  "winner": false,
+  "entry_time": "2026-07-02T15:36:37.178400+00:00",
+  "peak_rec": 0,
+  "realized": -0.7272999999999974,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 1.7000278419178505,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CzigqJ9h9mnfXq3G3jKBVcApKu8Kh8JtZGxarzY2pump|2026-07-02T15:41:14.025328+00:00",
+  "bot": "badday_flush",
+  "token": "SUPERMAN",
+  "winner": true,
+  "entry_time": "2026-07-02T15:41:14.025328+00:00",
+  "peak_rec": 3.3495781892,
+  "realized": -0.20400000000000418,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 5.012053060388788,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|AP6vhUNmXXPiccsRBVj3Gct5khAU1ytjwBV7vuNFbonk|2026-07-02T15:35:01.609690+00:00",
+  "bot": "badday_flush",
+  "token": "HOPE",
+  "winner": true,
+  "entry_time": "2026-07-02T15:35:01.609690+00:00",
+  "peak_rec": 13.6605935344,
+  "realized": 8.494980247665818,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 7.5,
+  "p8": 2.3051651234100587,
+  "p5": 3.8051651234100587,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.718914681415372,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -1.3896697531798825
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump|2026-07-02T16:47:30.579940+00:00",
+  "bot": "badday_flush",
+  "token": "Horseradish",
+  "winner": false,
+  "entry_time": "2026-07-02T16:47:30.579940+00:00",
+  "peak_rec": 0,
+  "realized": -4.895000000000016,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|MsGDybWRSNdNXkdDZhEksgzugT5CbVWUG2wkhwgpump|2026-07-02T16:51:25.835810+00:00",
+  "bot": "badday_flush",
+  "token": "MeiMei",
+  "winner": true,
+  "entry_time": "2026-07-02T16:51:25.835810+00:00",
+  "peak_rec": 6.9148795382,
+  "realized": 4.406341148902337,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 5.116579350852057,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|3y3X6Bk6zpZpaFJ1KYJ7b33HbFM7ip5TqQPYLWJhpump|2026-07-02T17:12:04.060211+00:00",
+  "bot": "badday_flush",
+  "token": "GAPLA",
+  "winner": false,
+  "entry_time": "2026-07-02T17:12:04.060211+00:00",
+  "peak_rec": 0,
+  "realized": -17.09711017010671,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|3y3X6Bk6zpZpaFJ1KYJ7b33HbFM7ip5TqQPYLWJhpump|2026-07-02T17:14:55.110313+00:00",
+  "bot": "badday_flush",
+  "token": "GAPLA",
+  "winner": false,
+  "entry_time": "2026-07-02T17:14:55.110313+00:00",
+  "peak_rec": 0,
+  "realized": -1.219664971968959,
+  "cov": true,
+  "span_h": 5.92,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.830617356339916,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|D78NGAjigMXaX52u5wvvLoNWuDZW98DayCxVtM9Fpump|2026-07-02T17:05:29.376327+00:00",
+  "bot": "badday_flush",
+  "token": "VITALY",
+  "winner": true,
+  "entry_time": "2026-07-02T17:05:29.376327+00:00",
+  "peak_rec": 9.2728167819,
+  "realized": 6.422492584010514,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.4449271834284145,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump|2026-07-02T17:28:05.427743+00:00",
+  "bot": "badday_flush",
+  "token": "BULLWIF",
+  "winner": true,
+  "entry_time": "2026-07-02T17:28:05.427743+00:00",
+  "peak_rec": 8.43303493,
+  "realized": 3.4386610128440407,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 4.5,
+  "p8": 3.2558064889417153,
+  "p5": 4.755806488941715,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 8.51161297788343,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    0.5116129778834306
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|AP6vhUNmXXPiccsRBVj3Gct5khAU1ytjwBV7vuNFbonk|2026-07-02T17:41:38.331685+00:00",
+  "bot": "badday_flush",
+  "token": "HOPE",
+  "winner": true,
+  "entry_time": "2026-07-02T17:41:38.331685+00:00",
+  "peak_rec": 8.2360136358,
+  "realized": 5.593342817417013,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": 7.5,
+  "p8": 3.921692572222513,
+  "p5": 5.421692572222513,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 13.80472494035141,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    1.8433851444450262
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|7kkQU6AhUadtoszttEKprirvpgBihJHPoHVczebvi7i3|2026-07-02T17:28:18.846037+00:00",
+  "bot": "badday_flush",
+  "token": "Chaton",
+  "winner": true,
+  "entry_time": "2026-07-02T17:28:18.846037+00:00",
+  "peak_rec": 7.087740406,
+  "realized": 4.172074737962206,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.5,
+  "p8": 4.2079259431472185,
+  "p5": 5.7079259431472185,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 10.415851886294437,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    2.415851886294437
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump|2026-07-02T18:13:40.452841+00:00",
+  "bot": "badday_flush",
+  "token": "SHROOM",
+  "winner": false,
+  "entry_time": "2026-07-02T18:13:40.452841+00:00",
+  "peak_rec": 0,
+  "realized": -4.510899999999996,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 1.5020595779571266,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump|2026-07-02T18:30:50.552651+00:00",
+  "bot": "badday_flush",
+  "token": "SHROOM",
+  "winner": false,
+  "entry_time": "2026-07-02T18:30:50.552651+00:00",
+  "peak_rec": 0,
+  "realized": -6.232400000000005,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|6hpfrxQb2kn9iprcJcZ6uXruGAwDe12W9zT4y4WSpump|2026-07-02T18:37:45.330001+00:00",
+  "bot": "badday_flush",
+  "token": "Goofreck",
+  "winner": false,
+  "entry_time": "2026-07-02T18:37:45.330001+00:00",
+  "peak_rec": 0,
+  "realized": -6.5751000000000115,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|swA5DdNU2HC9Uab2SEeJ3etuDRz8LvVDPWCgRc3pump|2026-07-02T18:48:25.709113+00:00",
+  "bot": "badday_flush",
+  "token": "popeyes",
+  "winner": false,
+  "entry_time": "2026-07-02T18:48:25.709113+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999999,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.0662306948125773,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump|2026-07-02T18:31:52.800669+00:00",
+  "bot": "badday_flush",
+  "token": "Horseradish",
+  "winner": true,
+  "entry_time": "2026-07-02T18:31:52.800669+00:00",
+  "peak_rec": 12.5076186274,
+  "realized": 7.275637986835365,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 5.710565346503693,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump|2026-07-02T19:02:20.399889+00:00",
+  "bot": "badday_flush",
+  "token": "BULLWIF",
+  "winner": false,
+  "entry_time": "2026-07-02T19:02:20.399889+00:00",
+  "peak_rec": 0,
+  "realized": -0.058800000000003294,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 1.9153647590055334,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CuGJf6cfDfMh4UxVgNJ5KFQ6v8Wv3qrqop6cFKsGpump|2026-07-02T19:14:41.334031+00:00",
+  "bot": "badday_flush",
+  "token": "TATE",
+  "winner": false,
+  "entry_time": "2026-07-02T19:14:41.334031+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999999,
+  "cov": true,
+  "span_h": 5.96,
+  "cur": 7.5,
+  "p8": 5.433718629467555,
+  "p5": 6.933718629467555,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.86743725893511,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    4.8674372589351105
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CzigqJ9h9mnfXq3G3jKBVcApKu8Kh8JtZGxarzY2pump|2026-07-02T19:30:11.688806+00:00",
+  "bot": "badday_flush",
+  "token": "SUPERMAN",
+  "winner": false,
+  "entry_time": "2026-07-02T19:30:11.688806+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999999,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.006789223219461071,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|5sTUgEVTcRvPNK6CFpHBgVfDm6Vb7yKhb9ovMbvUpump|2026-07-02T19:41:02.489662+00:00",
+  "bot": "badday_flush",
+  "token": "GOON",
+  "winner": false,
+  "entry_time": "2026-07-02T19:41:02.489662+00:00",
+  "peak_rec": 0,
+  "realized": -11.517168203192064,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|F5hqdbykXuksp8P78CAZenSvpPShAYKrP2U2MiZMdgFN|2026-07-02T19:48:18.593177+00:00",
+  "bot": "badday_flush",
+  "token": "bop",
+  "winner": false,
+  "entry_time": "2026-07-02T19:48:18.593177+00:00",
+  "peak_rec": 0,
+  "realized": -4.998400000000003,
+  "cov": true,
+  "span_h": 5.94,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|GAefbsZef5zGjacXf65ioie8gzHEnS9xzSWNZsxFpump|2026-07-02T20:24:16.895041+00:00",
+  "bot": "badday_flush",
+  "token": "Horseradish",
+  "winner": false,
+  "entry_time": "2026-07-02T20:24:16.895041+00:00",
+  "peak_rec": 0,
+  "realized": -4.485160206231676,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|D78NGAjigMXaX52u5wvvLoNWuDZW98DayCxVtM9Fpump|2026-07-02T21:00:17.028304+00:00",
+  "bot": "badday_flush",
+  "token": "VITALY",
+  "winner": false,
+  "entry_time": "2026-07-02T21:00:17.028304+00:00",
+  "peak_rec": 0,
+  "realized": -8.182599999999995,
+  "cov": true,
+  "span_h": 5.91,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.438533659048626,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|Dc6GW8TmGquTsLBwtrYgGMwGMY3HckT79iVCn8jmpump|2026-07-02T21:41:34.042790+00:00",
+  "bot": "badday_flush",
+  "token": "BANKS",
+  "winner": false,
+  "entry_time": "2026-07-02T21:41:34.042790+00:00",
+  "peak_rec": 0,
+  "realized": -4.774099999999992,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": 4.5,
+  "p8": 3.854145973450885,
+  "p5": 5.354145973450885,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 9.70829194690177,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    1.7082919469017703
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|HEU5mPDm5jCyn4AjQKjvWuvttACKvitgpAdwfmu2DoiA|2026-07-02T21:49:05.344299+00:00",
+  "bot": "badday_flush",
+  "token": "CLIVE",
+  "winner": false,
+  "entry_time": "2026-07-02T21:49:05.344299+00:00",
+  "peak_rec": 0,
+  "realized": -4.106399999999999,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 2.0344545710398343,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|C5vxPUKsg8w4QwKqJQYaV8XNJ5XSPKbtxrrs4zHvpump|2026-07-02T22:03:36.212269+00:00",
+  "bot": "badday_flush",
+  "token": "PEACE",
+  "winner": false,
+  "entry_time": "2026-07-02T22:03:36.212269+00:00",
+  "peak_rec": 0,
+  "realized": -2.3348999999999953,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|C5vxPUKsg8w4QwKqJQYaV8XNJ5XSPKbtxrrs4zHvpump|2026-07-02T22:18:13.785542+00:00",
+  "bot": "badday_flush",
+  "token": "PEACE",
+  "winner": false,
+  "entry_time": "2026-07-02T22:18:13.785542+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999987,
+  "cov": true,
+  "span_h": 5.78,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|C5vxPUKsg8w4QwKqJQYaV8XNJ5XSPKbtxrrs4zHvpump|2026-07-02T22:18:21.786789+00:00",
+  "bot": "badday_flush",
+  "token": "PEACE",
+  "winner": false,
+  "entry_time": "2026-07-02T22:18:21.786789+00:00",
+  "peak_rec": 0,
+  "realized": -6.016566939890788,
+  "cov": true,
+  "span_h": 5.78,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|FamUNkepHXkVxjWHeMSpJmD4xVhCSyNnUG9GVsdmR2xQ|2026-07-02T22:19:47.478804+00:00",
+  "bot": "badday_flush",
+  "token": "MANLET",
+  "winner": false,
+  "entry_time": "2026-07-02T22:19:47.478804+00:00",
+  "peak_rec": 0,
+  "realized": -6.2351000000000045,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|7LVWaPUkAsRX7AGwhvX3Q9sYpTTSnafzq5ABFwAapump|2026-07-02T23:26:07.884899+00:00",
+  "bot": "badday_flush",
+  "token": "MURAD",
+  "winner": false,
+  "entry_time": "2026-07-02T23:26:07.884899+00:00",
+  "peak_rec": 0,
+  "realized": -4.077699999999995,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 4.5,
+  "p8": 2.7188631592672494,
+  "p5": 4.218863159267249,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 7.437726318534499,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -0.5622736814655012
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|EwD4QKULxrTDdVNYJRqfnC9M8CAGPA6aZcdS7bqrpump|2026-07-03T00:04:49.869990+00:00",
+  "bot": "badday_flush",
+  "token": "OSCAR",
+  "winner": false,
+  "entry_time": "2026-07-03T00:04:49.869990+00:00",
+  "peak_rec": 0,
+  "realized": -10.017100000000001,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|AviKHWoXAHcpRnCX3cH38fHtjjn11aL9Pqjid3sZpump|2026-07-03T01:03:04.221916+00:00",
+  "bot": "badday_flush",
+  "token": "zazu",
+  "winner": false,
+  "entry_time": "2026-07-03T01:03:04.221916+00:00",
+  "peak_rec": 0,
+  "realized": -5.174699999999999,
+  "cov": true,
+  "span_h": 5.93,
+  "cur": 4.5,
+  "p8": 2.550708181722595,
+  "p5": 4.0507081817225945,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 7.10141636344519,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -0.8985836365548101
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|AviKHWoXAHcpRnCX3cH38fHtjjn11aL9Pqjid3sZpump|2026-07-03T01:09:58.347275+00:00",
+  "bot": "badday_flush",
+  "token": "zazu",
+  "winner": false,
+  "entry_time": "2026-07-03T01:09:58.347275+00:00",
+  "peak_rec": 0,
+  "realized": -6.184800000000001,
+  "cov": true,
+  "span_h": 5.82,
+  "cur": 4.5,
+  "p8": 2.7924721012788987,
+  "p5": 4.292472101278898,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 7.584944202557797,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -0.41505579744220267
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|2aQKC1xiKpEyAWvzSDrULnYLVuybWyx7qrsnpP8hpump|2026-07-03T01:49:59.795478+00:00",
+  "bot": "badday_flush",
+  "token": "Udin",
+  "winner": false,
+  "entry_time": "2026-07-03T01:49:59.795478+00:00",
+  "peak_rec": 0,
+  "realized": -6.766799999999995,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 7.5,
+  "p8": 2.647496073124501,
+  "p5": 4.1474960731245005,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.824482919764325,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -0.7050078537509981
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|8LFTmtdqQKHk7xJxSgFiPMdn2cRgxyinGv61M6Z5pump|2026-07-03T02:27:36.673554+00:00",
+  "bot": "badday_flush",
+  "token": "TRENCH",
+  "winner": false,
+  "entry_time": "2026-07-03T02:27:36.673554+00:00",
+  "peak_rec": 0,
+  "realized": -6.259086424107818,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|8vExdwvPa6YN6BWZ2encM73G4rZhuH9kpzEr6gXjpump|2026-07-03T02:52:54.758316+00:00",
+  "bot": "badday_flush",
+  "token": "RUSH",
+  "winner": false,
+  "entry_time": "2026-07-03T02:52:54.758316+00:00",
+  "peak_rec": 0,
+  "realized": -5.119300000000004,
+  "cov": true,
+  "span_h": 5.95,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|8vExdwvPa6YN6BWZ2encM73G4rZhuH9kpzEr6gXjpump|2026-07-03T02:55:26.833011+00:00",
+  "bot": "badday_flush",
+  "token": "RUSH",
+  "winner": false,
+  "entry_time": "2026-07-03T02:55:26.833011+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999999,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|8vExdwvPa6YN6BWZ2encM73G4rZhuH9kpzEr6gXjpump|2026-07-03T02:55:33.986095+00:00",
+  "bot": "badday_flush",
+  "token": "RUSH",
+  "winner": false,
+  "entry_time": "2026-07-03T02:55:33.986095+00:00",
+  "peak_rec": 0,
+  "realized": -5.727699999999992,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CmQJNJ185pjzQoebPbcqZu1kTykHxJbn4gER1Af7pump|2026-07-03T08:21:02.860954+00:00",
+  "bot": "badday_flush",
+  "token": "REX",
+  "winner": false,
+  "entry_time": "2026-07-03T08:21:02.860954+00:00",
+  "peak_rec": 0,
+  "realized": -5.611100000000002,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.4986108648019183,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump|2026-07-03T09:06:59.517149+00:00",
+  "bot": "badday_flush",
+  "token": "BULLWIF",
+  "winner": false,
+  "entry_time": "2026-07-03T09:06:59.517149+00:00",
+  "peak_rec": 0,
+  "realized": -4.029700000000014,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 7.5,
+  "p8": 5.073411291504705,
+  "p5": 6.573411291504705,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.086174888557677,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    4.14682258300941
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump|2026-07-03T09:16:19.104965+00:00",
+  "bot": "badday_flush",
+  "token": "BULLWIF",
+  "winner": true,
+  "entry_time": "2026-07-03T09:16:19.104965+00:00",
+  "peak_rec": 13.980604782,
+  "realized": 9.067965683769946,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 6.868384791441541,
+  "p5": 8.36838479144154,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.835330351096852,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    7.736769582883081
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|5npesGsnVhcQbh6oVcsLtn5UKqdgYeipgDKsGaappump|2026-07-03T10:41:29.002346+00:00",
+  "bot": "badday_flush",
+  "token": "BULLWIF",
+  "winner": false,
+  "entry_time": "2026-07-03T10:41:29.002346+00:00",
+  "peak_rec": 0,
+  "realized": -4.056800000000004,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.5,
+  "p8": 3.575137370986715,
+  "p5": 5.075137370986715,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 9.15027474197343,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    1.1502747419734298
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|GYPB3McmpMpeLQcckoSTQ6KKAE8NL6QvkYaocy48pump|2026-07-03T11:36:13.755174+00:00",
+  "bot": "badday_flush",
+  "token": "JELLYCAT",
+  "winner": false,
+  "entry_time": "2026-07-03T11:36:13.755174+00:00",
+  "peak_rec": 0,
+  "realized": -5.291299999999999,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CmQJNJ185pjzQoebPbcqZu1kTykHxJbn4gER1Af7pump|2026-07-03T11:52:23.869667+00:00",
+  "bot": "badday_flush",
+  "token": "REX",
+  "winner": false,
+  "entry_time": "2026-07-03T11:52:23.869667+00:00",
+  "peak_rec": 0,
+  "realized": -11.17434031947293,
+  "cov": true,
+  "span_h": 5.89,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|GYPB3McmpMpeLQcckoSTQ6KKAE8NL6QvkYaocy48pump|2026-07-03T12:09:31.999891+00:00",
+  "bot": "badday_flush",
+  "token": "JELLYCAT",
+  "winner": true,
+  "entry_time": "2026-07-03T12:09:31.999891+00:00",
+  "peak_rec": 22.7317021693,
+  "realized": 11.034640653980759,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 4.345484545135449,
+  "p5": 5.845484545135449,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 28.85002029707644,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    2.6909690902708974
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|6gTh1jtU9fUyCuEvngcgFaFM5Wax1bcbRkFZZGCCpump|2026-07-03T13:03:01.877421+00:00",
+  "bot": "badday_flush",
+  "token": "BongoCat",
+  "winner": false,
+  "entry_time": "2026-07-03T13:03:01.877421+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999999,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|6gTh1jtU9fUyCuEvngcgFaFM5Wax1bcbRkFZZGCCpump|2026-07-03T13:04:24.674762+00:00",
+  "bot": "badday_flush",
+  "token": "BongoCat",
+  "winner": false,
+  "entry_time": "2026-07-03T13:04:24.674762+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999999,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|6gTh1jtU9fUyCuEvngcgFaFM5Wax1bcbRkFZZGCCpump|2026-07-03T13:06:26.615961+00:00",
+  "bot": "badday_flush",
+  "token": "BongoCat",
+  "winner": false,
+  "entry_time": "2026-07-03T13:06:26.615961+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999999,
+  "cov": true,
+  "span_h": 5.94,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|GYPB3McmpMpeLQcckoSTQ6KKAE8NL6QvkYaocy48pump|2026-07-03T13:11:49.966505+00:00",
+  "bot": "badday_flush",
+  "token": "JELLYCAT",
+  "winner": false,
+  "entry_time": "2026-07-03T13:11:49.966505+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999999,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.247629504364391,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DTiG8SMN6RHYLAtLkFdrzKixnb3Dr8gy9gCrCXxmpump|2026-07-03T13:45:45.609953+00:00",
+  "bot": "badday_flush",
+  "token": "BINDY",
+  "winner": false,
+  "entry_time": "2026-07-03T13:45:45.609953+00:00",
+  "peak_rec": 0,
+  "realized": -5.211699999999997,
+  "cov": true,
+  "span_h": 5.92,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DTiG8SMN6RHYLAtLkFdrzKixnb3Dr8gy9gCrCXxmpump|2026-07-03T14:50:22.798831+00:00",
+  "bot": "badday_flush",
+  "token": "BINDY",
+  "winner": false,
+  "entry_time": "2026-07-03T14:50:22.798831+00:00",
+  "peak_rec": 0,
+  "realized": -1.812299999999989,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 2.3895475868473293,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DTiG8SMN6RHYLAtLkFdrzKixnb3Dr8gy9gCrCXxmpump|2026-07-03T15:13:33.571862+00:00",
+  "bot": "badday_flush",
+  "token": "BINDY",
+  "winner": false,
+  "entry_time": "2026-07-03T15:13:33.571862+00:00",
+  "peak_rec": 0,
+  "realized": -19.754061351984685,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|F5hqdbykXuksp8P78CAZenSvpPShAYKrP2U2MiZMdgFN|2026-07-03T14:40:57.734859+00:00",
+  "bot": "badday_flush",
+  "token": "bop",
+  "winner": true,
+  "entry_time": "2026-07-03T14:40:57.734859+00:00",
+  "peak_rec": 7.3865083626,
+  "realized": 3.9537759886225157,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 4.274424161454049,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|EThNYWZ73vdtnRtrdwDKq9nKkQgRwjcNppjDTqGopump|2026-07-03T15:28:50.572326+00:00",
+  "bot": "badday_flush",
+  "token": "Martolexx",
+  "winner": false,
+  "entry_time": "2026-07-03T15:28:50.572326+00:00",
+  "peak_rec": 0,
+  "realized": -5.923,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump|2026-07-03T15:31:08.505131+00:00",
+  "bot": "badday_flush",
+  "token": "ELON",
+  "winner": true,
+  "entry_time": "2026-07-03T15:31:08.505131+00:00",
+  "peak_rec": 13.6544679805,
+  "realized": 7.645734314129621,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 7.5,
+  "p8": 8.473658702515564,
+  "p5": 7.401307695648818,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 13.802615391297635,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    10.947317405031129
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump|2026-07-03T15:55:45.660265+00:00",
+  "bot": "badday_flush",
+  "token": "ELON",
+  "winner": true,
+  "entry_time": "2026-07-03T15:55:45.660265+00:00",
+  "peak_rec": 13.0130362171,
+  "realized": 10.933596350698497,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -1.295283766479649,
+  "p8": -1.295283766479649,
+  "p5": -1.295283766479649,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 11.523803421399359,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    -1.295283766479649
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|F5hqdbykXuksp8P78CAZenSvpPShAYKrP2U2MiZMdgFN|2026-07-03T16:56:40.072375+00:00",
+  "bot": "badday_flush",
+  "token": "bop",
+  "winner": true,
+  "entry_time": "2026-07-03T16:56:40.072375+00:00",
+  "peak_rec": 17.623072942,
+  "realized": 7.1998355777179555,
+  "cov": true,
+  "span_h": 5.91,
+  "cur": 7.5,
+  "p8": 6.121091962640069,
+  "p5": 7.621091962640069,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 14.242183925280138,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    6.242183925280138
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|AMCHpR1F5gKt6msk9j9aDBjKUSmgyAxhymbZhjkypump|2026-07-03T17:05:31.350747+00:00",
+  "bot": "badday_flush",
+  "token": "FROGE",
+  "winner": false,
+  "entry_time": "2026-07-03T17:05:31.350747+00:00",
+  "peak_rec": 0,
+  "realized": -12.82390000000001,
+  "cov": true,
+  "span_h": 5.84,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 1.271976541272557,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|2aQKC1xiKpEyAWvzSDrULnYLVuybWyx7qrsnpP8hpump|2026-07-03T17:15:10.908635+00:00",
+  "bot": "badday_flush",
+  "token": "Udin",
+  "winner": true,
+  "entry_time": "2026-07-03T17:15:10.908635+00:00",
+  "peak_rec": 5.6849859001,
+  "realized": -4.6080000000000005,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 4.5,
+  "p8": 2.074907448988562,
+  "p5": 3.574907448988562,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 6.149814897977124,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    -1.8501851020228761
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|C5vxPUKsg8w4QwKqJQYaV8XNJ5XSPKbtxrrs4zHvpump|2026-07-03T18:43:18.027896+00:00",
+  "bot": "badday_flush",
+  "token": "PEACE",
+  "winner": false,
+  "entry_time": "2026-07-03T18:43:18.027896+00:00",
+  "peak_rec": 0,
+  "realized": -7.1363594059892455,
+  "cov": true,
+  "span_h": 5.96,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.2897310930687125,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump|2026-07-03T19:51:06.257110+00:00",
+  "bot": "badday_flush",
+  "token": "ELON",
+  "winner": false,
+  "entry_time": "2026-07-03T19:51:06.257110+00:00",
+  "peak_rec": 0,
+  "realized": -3.617693646785758,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|36CvCWVMgSgpZNFu2JVuaaJVEcKtqySpS9hD2kxUpump|2026-07-03T20:37:34.101296+00:00",
+  "bot": "badday_flush",
+  "token": "gato",
+  "winner": true,
+  "entry_time": "2026-07-03T20:37:34.101296+00:00",
+  "peak_rec": 15.6551193406,
+  "realized": 9.900864640094287,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 10.224924806202674,
+  "p5": 10.483925644176626,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 20.438792844244013,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    14.449849612405348
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|7zzgorZ2hcDNvrCujLaww9qQuqtbxXx3UjAuxUYGpump|2026-07-03T20:57:42.640873+00:00",
+  "bot": "badday_flush",
+  "token": "USA250",
+  "winner": false,
+  "entry_time": "2026-07-03T20:57:42.640873+00:00",
+  "peak_rec": 0,
+  "realized": -7.262100000000005,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 5.9577057176251955,
+  "p5": 5.089033869233273,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.310477913544315,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    5.915411435250391
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|BUG9jJ6MZcxbXaDVqq199HvWafMSP4pYHVFrZfLmpump|2026-07-03T21:04:05.150367+00:00",
+  "bot": "badday_flush",
+  "token": "250",
+  "winner": true,
+  "entry_time": "2026-07-03T21:04:05.150367+00:00",
+  "peak_rec": 9.9143898059,
+  "realized": 4.952821036312249,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.2179173785293225,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|HmTi3CQfKfXWbn1tNoiAxH7GzMV7L3tDAmPWabZEBAGS|2026-07-03T21:27:52.725356+00:00",
+  "bot": "badday_flush",
+  "token": "P0",
+  "winner": true,
+  "entry_time": "2026-07-03T21:27:52.725356+00:00",
+  "peak_rec": 8.7064163425,
+  "realized": 5.250767143910589,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": 4.5,
+  "p8": 3.4042431835543017,
+  "p5": 4.904243183554302,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 8.808486367108603,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    0.8084863671086033
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|MsGDybWRSNdNXkdDZhEksgzugT5CbVWUG2wkhwgpump|2026-07-03T22:30:57.295567+00:00",
+  "bot": "badday_flush",
+  "token": "MeiMei",
+  "winner": true,
+  "entry_time": "2026-07-03T22:30:57.295567+00:00",
+  "peak_rec": 40.5516772534,
+  "realized": 37.96552639196221,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 7.5,
+  "p8": 2.6487530663618317,
+  "p5": 4.148753066361832,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 48.78401759464739,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -0.7024938672763366
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CgnudNWM6Se7mfkGHFGZ4A1YPqjpYmd8bW3nsAEKpump|2026-07-03T23:34:08.809190+00:00",
+  "bot": "badday_flush",
+  "token": "ice",
+  "winner": false,
+  "entry_time": "2026-07-03T23:34:08.809190+00:00",
+  "peak_rec": 0.9158378671,
+  "realized": -4.6705,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 2.556165624527962,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|36CvCWVMgSgpZNFu2JVuaaJVEcKtqySpS9hD2kxUpump|2026-07-04T00:02:55.251008+00:00",
+  "bot": "badday_flush",
+  "token": "gato",
+  "winner": false,
+  "entry_time": "2026-07-04T00:02:55.251008+00:00",
+  "peak_rec": 0,
+  "realized": -6.298799999999993,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|HS4DWjgJ2h51PCnhh95saqgLQ21Zps6VABK1vi9gpump|2026-07-04T00:25:46.109959+00:00",
+  "bot": "badday_flush",
+  "token": "LojakPaul",
+  "winner": false,
+  "entry_time": "2026-07-04T00:25:46.109959+00:00",
+  "peak_rec": 0,
+  "realized": -1.8855926104073495,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.8283157185267731,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|61qNX1UoKDMypgDJzNGFra3Mb6DQPyUmf6zDayZ7bonk|2026-07-03T23:59:11.916806+00:00",
+  "bot": "badday_flush",
+  "token": "Bepe",
+  "winner": true,
+  "entry_time": "2026-07-03T23:59:11.916806+00:00",
+  "peak_rec": 15.4502728628,
+  "realized": 7.350382251313265,
+  "cov": true,
+  "span_h": 5.93,
+  "cur": 7.5,
+  "p8": 18.77224209455185,
+  "p5": 20.27224209455185,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 13.780351550045445,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    31.5444841891037
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|56ZtvzDWCwPq2tFg2ZuifbJh7AZL9VpUTRp1854fpump|2026-07-04T01:05:02.733766+00:00",
+  "bot": "badday_flush",
+  "token": "bean",
+  "winner": false,
+  "entry_time": "2026-07-04T01:05:02.733766+00:00",
+  "peak_rec": 0,
+  "realized": -0.292199999999998,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|iB1umQs5Jzq6ysaRk5yRKaJ4XJcWgqHDxsdVtjipump|2026-07-04T01:41:43.282932+00:00",
+  "bot": "badday_flush",
+  "token": "BABYANSEM",
+  "winner": false,
+  "entry_time": "2026-07-04T01:41:43.282932+00:00",
+  "peak_rec": 0,
+  "realized": -3.617693646785769,
+  "cov": true,
+  "span_h": 5.95,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|MsGDybWRSNdNXkdDZhEksgzugT5CbVWUG2wkhwgpump|2026-07-04T01:19:36.131382+00:00",
+  "bot": "badday_flush",
+  "token": "MeiMei",
+  "winner": false,
+  "entry_time": "2026-07-04T01:19:36.131382+00:00",
+  "peak_rec": 0,
+  "realized": -6.078799999999996,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.5,
+  "p8": 2.305382242815458,
+  "p5": 3.805382242815458,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 9.754803747793805,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -1.3892355143690844
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|HMSPnngim78o9t2KVfGBEg79NGS1s3c1AyRFu8z3pump|2026-07-04T02:40:12.501765+00:00",
+  "bot": "badday_flush",
+  "token": "FABLE",
+  "winner": false,
+  "entry_time": "2026-07-04T02:40:12.501765+00:00",
+  "peak_rec": 0,
+  "realized": -7.979899999999985,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.8520271714825611,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|62yzpmKJB6XiVtZcQZhUkUXhqwN3UgCbffUi4JM9pump|2026-07-04T02:36:34.969318+00:00",
+  "bot": "badday_flush",
+  "token": "world",
+  "winner": true,
+  "entry_time": "2026-07-04T02:36:34.969318+00:00",
+  "peak_rec": 15.6918390926,
+  "realized": 9.131720103494317,
+  "cov": false,
+  "span_h": 5.83,
+  "cur": 7.5,
+  "p8": 9.24494283217633,
+  "p5": 10.74494283217633,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 18.539553532889276,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    12.48988566435266
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|GYPB3McmpMpeLQcckoSTQ6KKAE8NL6QvkYaocy48pump|2026-07-04T09:14:21.400818+00:00",
+  "bot": "badday_flush",
+  "token": "JELLYCAT",
+  "winner": false,
+  "entry_time": "2026-07-04T09:14:21.400818+00:00",
+  "peak_rec": 0,
+  "realized": -6.0554,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|dUaSdZm38CStjhp1VSJWGFQqSxf6DQB2hfjMXmVpump|2026-07-04T09:34:27.485268+00:00",
+  "bot": "badday_flush",
+  "token": "\ud83d\udc02\ud83c\udc04\ufe0f",
+  "winner": false,
+  "entry_time": "2026-07-04T09:34:27.485268+00:00",
+  "peak_rec": 0,
+  "realized": -6.675700000000006,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 2.7556961094759913,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|3oX9emrqYRGzFEDPP3jA6tYnUBML4QSr3DfgD2r5pump|2026-07-04T11:49:54.097935+00:00",
+  "bot": "badday_flush",
+  "token": "\u6ed1\u308b\u732b",
+  "winner": true,
+  "entry_time": "2026-07-04T11:49:54.097935+00:00",
+  "peak_rec": 7.03314137,
+  "realized": 4.1872518467577615,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 4.091444938561173,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump|2026-07-04T14:16:51.101527+00:00",
+  "bot": "badday_flush",
+  "token": "SEMAN",
+  "winner": true,
+  "entry_time": "2026-07-04T14:16:51.101527+00:00",
+  "peak_rec": 3.3381002591,
+  "realized": 3.3381000000000105,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 5.6296914373728635,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|3L3ub2FBz15NeNgQVYpowANzANTNUiyKW5bfGVxYpump|2026-07-04T14:32:24.932535+00:00",
+  "bot": "badday_flush",
+  "token": "WIF",
+  "winner": false,
+  "entry_time": "2026-07-04T14:32:24.932535+00:00",
+  "peak_rec": 0,
+  "realized": -7.350100000000004,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|EPD8jj7bVhNh3o7Wx1XZ39aaacSki8p2ABaN61yhUnBh|2026-07-04T14:15:27.239625+00:00",
+  "bot": "badday_flush",
+  "token": "\ud83d\udc02\ud83c\udc04\ufe0f",
+  "winner": true,
+  "entry_time": "2026-07-04T14:15:27.239625+00:00",
+  "peak_rec": 5.4559619552,
+  "realized": -1.9808000000000159,
+  "cov": true,
+  "span_h": 5.94,
+  "cur": 4.5,
+  "p8": 3.0168105071775155,
+  "p5": 4.5168105071775155,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 8.033621014355031,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    0.033621014355031065
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|7jrazSKnCU2vbyVPJ8dfEF2TMYLcUiDBsFaEGvqopump|2026-07-04T14:43:30.770283+00:00",
+  "bot": "badday_flush",
+  "token": "\ud83d\udc02\ud83c\udc04",
+  "winner": false,
+  "entry_time": "2026-07-04T14:43:30.770283+00:00",
+  "peak_rec": 0,
+  "realized": -1.9807999999999937,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.5,
+  "p8": 2.375093551249786,
+  "p5": 3.875093551249786,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 6.750187102499572,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    -1.2498128975004281
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|B642ubQRSmy2wW4UcaTsL3skSP9abPLGyi8qenDWpump|2026-07-04T14:48:48.842539+00:00",
+  "bot": "badday_flush",
+  "token": "MUTUMBO",
+  "winner": false,
+  "entry_time": "2026-07-04T14:48:48.842539+00:00",
+  "peak_rec": 0,
+  "realized": -1.3932000000000166,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": 1.5,
+  "p8": 2.0918602464872547,
+  "p5": 3.5918602464872547,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 6.183720492974509,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -1.8162795070254907
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump|2026-07-04T15:05:37.516518+00:00",
+  "bot": "badday_flush",
+  "token": "SEMAN",
+  "winner": false,
+  "entry_time": "2026-07-04T15:05:37.516518+00:00",
+  "peak_rec": 0,
+  "realized": -1.0165999999999897,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.2543241928818523,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|EPD8jj7bVhNh3o7Wx1XZ39aaacSki8p2ABaN61yhUnBh|2026-07-04T15:07:43.580565+00:00",
+  "bot": "badday_flush",
+  "token": "\ud83d\udc02\ud83c\udc04\ufe0f",
+  "winner": false,
+  "entry_time": "2026-07-04T15:07:43.580565+00:00",
+  "peak_rec": 0,
+  "realized": -4.605800000000015,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|B642ubQRSmy2wW4UcaTsL3skSP9abPLGyi8qenDWpump|2026-07-04T15:15:00.447799+00:00",
+  "bot": "badday_flush",
+  "token": "MUTUMBO",
+  "winner": true,
+  "entry_time": "2026-07-04T15:15:00.447799+00:00",
+  "peak_rec": 63.9670779282,
+  "realized": 63.96709999999999,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump|2026-07-04T15:18:39.948901+00:00",
+  "bot": "badday_flush",
+  "token": "ELON",
+  "winner": false,
+  "entry_time": "2026-07-04T15:18:39.948901+00:00",
+  "peak_rec": 0,
+  "realized": -1.9808000000000048,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|ERPtViqckt1zqpS2abUx67CgLcP54CkhBPYz3yRUpump|2026-07-04T16:13:12.851820+00:00",
+  "bot": "badday_flush",
+  "token": "yep",
+  "winner": false,
+  "entry_time": "2026-07-04T16:13:12.851820+00:00",
+  "peak_rec": 0,
+  "realized": -4.801999999999995,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|FJSKRhn5ZGtv66HtgaqVY9oNsV2KeynngLTq6PX4pump|2026-07-04T16:57:03.866577+00:00",
+  "bot": "badday_flush",
+  "token": "\u68f1\u89d2\u732b",
+  "winner": false,
+  "entry_time": "2026-07-04T16:57:03.866577+00:00",
+  "peak_rec": 0,
+  "realized": -13.389645731690091,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump|2026-07-04T16:50:53.524189+00:00",
+  "bot": "badday_flush",
+  "token": "SEMAN",
+  "winner": false,
+  "entry_time": "2026-07-04T16:50:53.524189+00:00",
+  "peak_rec": 0,
+  "realized": -9.887999999999996,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 2.322697562228604,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CyiCycxr3JLcr9vKkDMm6uYM6y8Gzjuks4C9ebsrpump|2026-07-04T16:53:32.231409+00:00",
+  "bot": "badday_flush",
+  "token": "SHROOM",
+  "winner": true,
+  "entry_time": "2026-07-04T16:53:32.231409+00:00",
+  "peak_rec": 14.5343404071,
+  "realized": 9.649299307871512,
+  "cov": true,
+  "span_h": 5.96,
+  "cur": 7.5,
+  "p8": 5.476791292802819,
+  "p5": 6.976791292802819,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.953582585605638,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    4.953582585605638
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|iB1umQs5Jzq6ysaRk5yRKaJ4XJcWgqHDxsdVtjipump|2026-07-04T17:33:10.883119+00:00",
+  "bot": "badday_flush",
+  "token": "BABYANSEM",
+  "winner": false,
+  "entry_time": "2026-07-04T17:33:10.883119+00:00",
+  "peak_rec": 0,
+  "realized": -3.7011000000000016,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|iB1umQs5Jzq6ysaRk5yRKaJ4XJcWgqHDxsdVtjipump|2026-07-04T17:51:39.041584+00:00",
+  "bot": "badday_flush",
+  "token": "BABYANSEM",
+  "winner": false,
+  "entry_time": "2026-07-04T17:51:39.041584+00:00",
+  "peak_rec": 0,
+  "realized": -6.280600000000003,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|iB1umQs5Jzq6ysaRk5yRKaJ4XJcWgqHDxsdVtjipump|2026-07-04T18:21:35.829317+00:00",
+  "bot": "badday_flush",
+  "token": "BABYANSEM",
+  "winner": false,
+  "entry_time": "2026-07-04T18:21:35.829317+00:00",
+  "peak_rec": 0,
+  "realized": -5.943100000000001,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DXXcq4tY5e4PbXybyBMnxZjHVmzv1GVrAXoW5TcC5kbu|2026-07-04T19:00:12.029560+00:00",
+  "bot": "badday_flush",
+  "token": "piss",
+  "winner": false,
+  "entry_time": "2026-07-04T19:00:12.029560+00:00",
+  "peak_rec": 0,
+  "realized": -2.4725999999999915,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.5317168961588985,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|32eFDwQXfnj5ULY2b71cLuy5HJuhsRHSYTw3qCcKpump|2026-07-04T18:42:47.421460+00:00",
+  "bot": "badday_flush",
+  "token": "1",
+  "winner": true,
+  "entry_time": "2026-07-04T18:42:47.421460+00:00",
+  "peak_rec": 4.6201838858,
+  "realized": -2.769659817620429,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 4.679498919355729,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|MsGDybWRSNdNXkdDZhEksgzugT5CbVWUG2wkhwgpump|2026-07-04T19:08:53.709898+00:00",
+  "bot": "badday_flush",
+  "token": "MeiMei",
+  "winner": true,
+  "entry_time": "2026-07-04T19:08:53.709898+00:00",
+  "peak_rec": 10.5097985524,
+  "realized": 4.838916965810908,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 4.360631991700416,
+  "p5": 5.860631991700416,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.821031443132869,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    2.7212639834008314
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|Ghf7EUahsRf1YgfFsHGEaN75CA8HDJkWw8h5cM41pump|2026-07-04T19:45:10.274157+00:00",
+  "bot": "badday_flush",
+  "token": "greg",
+  "winner": false,
+  "entry_time": "2026-07-04T19:45:10.274157+00:00",
+  "peak_rec": 0,
+  "realized": -6.835899999999995,
+  "cov": true,
+  "span_h": 5.96,
+  "cur": 7.5,
+  "p8": 9.502001170089304,
+  "p5": 3.7926399412830154,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 14.999182092489338,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    13.004002340178609
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|7szutJHnYxPLxUgJrtXxzAiA5fYU5rmWQ47nT1Epump|2026-07-04T20:24:26.596156+00:00",
+  "bot": "badday_flush",
+  "token": "Bullcoin",
+  "winner": false,
+  "entry_time": "2026-07-04T20:24:26.596156+00:00",
+  "peak_rec": 2.3336247035,
+  "realized": 0.15220000000000233,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.971827413514095,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|56ZtvzDWCwPq2tFg2ZuifbJh7AZL9VpUTRp1854fpump|2026-07-04T20:07:06.316837+00:00",
+  "bot": "badday_flush",
+  "token": "bean",
+  "winner": false,
+  "entry_time": "2026-07-04T20:07:06.316837+00:00",
+  "peak_rec": 0,
+  "realized": -6.527899999999997,
+  "cov": true,
+  "span_h": 5.95,
+  "cur": 7.5,
+  "p8": 6.308819445079518,
+  "p5": 7.808819445079518,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 14.617638890159036,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    6.617638890159036
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|7szutJHnYxPLxUgJrtXxzAiA5fYU5rmWQ47nT1Epump|2026-07-04T20:37:10.308184+00:00",
+  "bot": "badday_flush",
+  "token": "Bullcoin",
+  "winner": false,
+  "entry_time": "2026-07-04T20:37:10.308184+00:00",
+  "peak_rec": 0,
+  "realized": -6.691700000000001,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|Dc6GW8TmGquTsLBwtrYgGMwGMY3HckT79iVCn8jmpump|2026-07-04T20:39:41.147507+00:00",
+  "bot": "badday_flush",
+  "token": "BANKS",
+  "winner": false,
+  "entry_time": "2026-07-04T20:39:41.147507+00:00",
+  "peak_rec": 0,
+  "realized": -5.745699999999998,
+  "cov": true,
+  "span_h": 5.92,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|HMSPnngim78o9t2KVfGBEg79NGS1s3c1AyRFu8z3pump|2026-07-04T20:45:34.472386+00:00",
+  "bot": "badday_flush",
+  "token": "FABLE",
+  "winner": false,
+  "entry_time": "2026-07-04T20:45:34.472386+00:00",
+  "peak_rec": 0,
+  "realized": -5.407200000000012,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|7szutJHnYxPLxUgJrtXxzAiA5fYU5rmWQ47nT1Epump|2026-07-04T20:50:55.520573+00:00",
+  "bot": "badday_flush",
+  "token": "Bullcoin",
+  "winner": false,
+  "entry_time": "2026-07-04T20:50:55.520573+00:00",
+  "peak_rec": 0,
+  "realized": -5.990528855950473,
+  "cov": true,
+  "span_h": 5.77,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.646440756797409,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DbqbFSSBEDaX9F6hnySDHKmKSE9PU1KTyJ7jwcd3xViS|2026-07-04T21:03:05.451699+00:00",
+  "bot": "badday_flush",
+  "token": "trenchies",
+  "winner": false,
+  "entry_time": "2026-07-04T21:03:05.451699+00:00",
+  "peak_rec": 0,
+  "realized": -4.585600000000001,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|FJSKRhn5ZGtv66HtgaqVY9oNsV2KeynngLTq6PX4pump|2026-07-04T21:04:40.544563+00:00",
+  "bot": "badday_flush",
+  "token": "\u68f1\u89d2\u732b",
+  "winner": true,
+  "entry_time": "2026-07-04T21:04:40.544563+00:00",
+  "peak_rec": 4.7753549935,
+  "realized": 4.775400000000007,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 5.542261241715907,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|36CvCWVMgSgpZNFu2JVuaaJVEcKtqySpS9hD2kxUpump|2026-07-04T20:48:18.427639+00:00",
+  "bot": "badday_flush",
+  "token": "gato",
+  "winner": true,
+  "entry_time": "2026-07-04T20:48:18.427639+00:00",
+  "peak_rec": 11.5883736927,
+  "realized": 8.952983631962631,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 7.5,
+  "p8": 5.073008556335335,
+  "p5": 6.573008556335335,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.14601711267067,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    4.14601711267067
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DbqbFSSBEDaX9F6hnySDHKmKSE9PU1KTyJ7jwcd3xViS|2026-07-04T21:17:08.431901+00:00",
+  "bot": "badday_flush",
+  "token": "trenchies",
+  "winner": false,
+  "entry_time": "2026-07-04T21:17:08.431901+00:00",
+  "peak_rec": 0,
+  "realized": -5.8586999999999945,
+  "cov": true,
+  "span_h": 5.78,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|FJSKRhn5ZGtv66HtgaqVY9oNsV2KeynngLTq6PX4pump|2026-07-04T21:18:38.483825+00:00",
+  "bot": "badday_flush",
+  "token": "\u68f1\u89d2\u732b",
+  "winner": false,
+  "entry_time": "2026-07-04T21:18:38.483825+00:00",
+  "peak_rec": 0,
+  "realized": -4.773899999999998,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 1.0242274566662157,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DbqbFSSBEDaX9F6hnySDHKmKSE9PU1KTyJ7jwcd3xViS|2026-07-04T21:40:51.013219+00:00",
+  "bot": "badday_flush",
+  "token": "trenchies",
+  "winner": false,
+  "entry_time": "2026-07-04T21:40:51.013219+00:00",
+  "peak_rec": 0,
+  "realized": -4.697300000000004,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.8177639173987616,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|HMSPnngim78o9t2KVfGBEg79NGS1s3c1AyRFu8z3pump|2026-07-04T21:36:56.010457+00:00",
+  "bot": "badday_flush",
+  "token": "FABLE",
+  "winner": true,
+  "entry_time": "2026-07-04T21:36:56.010457+00:00",
+  "peak_rec": 18.7889188257,
+  "realized": 16.603202719327886,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 4.156755763733646,
+  "p8": 2.408842158083647,
+  "p5": 3.908842158083647,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 7.50213782932263,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -1.182315683832706
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|HMSPnngim78o9t2KVfGBEg79NGS1s3c1AyRFu8z3pump|2026-07-04T21:49:35.021531+00:00",
+  "bot": "badday_flush",
+  "token": "FABLE",
+  "winner": false,
+  "entry_time": "2026-07-04T21:49:35.021531+00:00",
+  "peak_rec": 0,
+  "realized": -9.043000000000012,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -1.7576343341538014,
+  "p8": -1.7576343341538014,
+  "p5": -1.7576343341538014,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 4.518552660224273,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    -1.7576343341538014
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|3R51JJP2TZosMTHszJxbB4KCshVL67LU4Q8cynVMpump|2026-07-04T21:56:52.471368+00:00",
+  "bot": "badday_flush",
+  "token": "CITH",
+  "winner": true,
+  "entry_time": "2026-07-04T21:56:52.471368+00:00",
+  "peak_rec": 11.4483523779,
+  "realized": 7.411972344875684,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 3.2143833354511333,
+  "p5": 4.714383335451133,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.479723673663766,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    0.4287666709022666
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|6MTctU7s7xJvJN3QPgEQi8zrP6od89DvXHVEbJh4pump|2026-07-04T22:10:09.749375+00:00",
+  "bot": "badday_flush",
+  "token": "TOLY",
+  "winner": true,
+  "entry_time": "2026-07-04T22:10:09.749375+00:00",
+  "peak_rec": 29.3491809828,
+  "realized": 14.245742209346641,
+  "cov": true,
+  "span_h": 5.95,
+  "cur": 7.5,
+  "p8": 6.087360071911631,
+  "p5": 7.587360071911631,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 14.174720143823262,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    6.1747201438232615
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|6MTctU7s7xJvJN3QPgEQi8zrP6od89DvXHVEbJh4pump|2026-07-04T22:17:54.088972+00:00",
+  "bot": "badday_flush",
+  "token": "TOLY",
+  "winner": false,
+  "entry_time": "2026-07-04T22:17:54.088972+00:00",
+  "peak_rec": 0,
+  "realized": -1.9808000000000048,
+  "cov": true,
+  "span_h": 5.93,
+  "cur": -1.9671106286449969,
+  "p8": -1.9671106286449969,
+  "p5": -1.9671106286449969,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.2178075461664957,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    -1.9671106286449969
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|6MTctU7s7xJvJN3QPgEQi8zrP6od89DvXHVEbJh4pump|2026-07-04T22:48:02.145392+00:00",
+  "bot": "badday_flush",
+  "token": "TOLY",
+  "winner": true,
+  "entry_time": "2026-07-04T22:48:02.145392+00:00",
+  "peak_rec": 17.4023116573,
+  "realized": 17.402300000000004,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DXXcq4tY5e4PbXybyBMnxZjHVmzv1GVrAXoW5TcC5kbu|2026-07-04T22:47:54.456450+00:00",
+  "bot": "badday_flush",
+  "token": "piss",
+  "winner": false,
+  "entry_time": "2026-07-04T22:47:54.456450+00:00",
+  "peak_rec": 0,
+  "realized": -4.162799999999988,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 1.382032236368369,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|9HSMssrVecFSs494Zw1QBZL5m3Wjtnic4o1nX6u7pump|2026-07-05T00:53:34.253493+00:00",
+  "bot": "badday_flush",
+  "token": "$TOPG",
+  "winner": false,
+  "entry_time": "2026-07-05T00:53:34.253493+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999999,
+  "cov": true,
+  "span_h": 5.94,
+  "cur": 7.5,
+  "p8": 69.00374772443428,
+  "p5": 70.50374772443428,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 140.00749544886855,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    132.00749544886855
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|CgnudNWM6Se7mfkGHFGZ4A1YPqjpYmd8bW3nsAEKpump|2026-07-05T00:29:47.519374+00:00",
+  "bot": "badday_flush",
+  "token": "ice",
+  "winner": true,
+  "entry_time": "2026-07-05T00:29:47.519374+00:00",
+  "peak_rec": 7.591844169,
+  "realized": 4.980177724139151,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.564986941239945,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|AMCHpR1F5gKt6msk9j9aDBjKUSmgyAxhymbZhjkypump|2026-07-05T01:13:50.485708+00:00",
+  "bot": "badday_flush",
+  "token": "FROGE",
+  "winner": false,
+  "entry_time": "2026-07-05T01:13:50.485708+00:00",
+  "peak_rec": 0,
+  "realized": -24.1722251452156,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|AMCHpR1F5gKt6msk9j9aDBjKUSmgyAxhymbZhjkypump|2026-07-05T01:45:22.855890+00:00",
+  "bot": "badday_flush",
+  "token": "FROGE",
+  "winner": true,
+  "entry_time": "2026-07-05T01:45:22.855890+00:00",
+  "peak_rec": 26.2159174289,
+  "realized": 26.215900000000026,
+  "cov": true,
+  "span_h": 5.93,
+  "cur": 4.5,
+  "p8": 3.1039700738096148,
+  "p5": 4.603970073809615,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 8.20794014761923,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    0.20794014761922952
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|AMCHpR1F5gKt6msk9j9aDBjKUSmgyAxhymbZhjkypump|2026-07-05T01:45:40.593093+00:00",
+  "bot": "badday_flush",
+  "token": "FROGE",
+  "winner": true,
+  "entry_time": "2026-07-05T01:45:40.593093+00:00",
+  "peak_rec": 7.3097455319,
+  "realized": 3.640072944255529,
+  "cov": true,
+  "span_h": 5.92,
+  "cur": 4.5,
+  "p8": 3.1039700738096148,
+  "p5": 4.603970073809615,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 8.20794014761923,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    0.20794014761922952
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|F7bFfkHxLuXuuoeX3SQDM9PDhBABVEVFmter8nnRpump|2026-07-05T02:04:31.859763+00:00",
+  "bot": "badday_flush",
+  "token": "shitcoin",
+  "winner": false,
+  "entry_time": "2026-07-05T02:04:31.859763+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999999,
+  "cov": true,
+  "span_h": 5.97,
+  "cur": 7.5,
+  "p8": 5.927581171247055,
+  "p5": 5.5737716761724005,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.930113505009121,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    5.8551623424941095
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|E7wbcQSGnuC29vNeDX8SrosiD46piaUnBHTg5X8apump|2026-07-05T01:54:11.102306+00:00",
+  "bot": "badday_flush",
+  "token": "Meep",
+  "winner": false,
+  "entry_time": "2026-07-05T01:54:11.102306+00:00",
+  "peak_rec": 0.0645724868,
+  "realized": -3.3181000000000127,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.49858185230673424,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DiiTPZdpd9t3XorHiuZUu4E1FoSaQ7uGN4q9YkQupump|2026-07-05T02:23:16.440605+00:00",
+  "bot": "badday_flush",
+  "token": "ELIZABETH",
+  "winner": true,
+  "entry_time": "2026-07-05T02:23:16.440605+00:00",
+  "peak_rec": 9.9530104629,
+  "realized": 6.248721733494811,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 7.5,
+  "p8": 2.8091173249451438,
+  "p5": 4.309117324945143,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 15.34184975829509,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -0.38176535010971246
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DiiTPZdpd9t3XorHiuZUu4E1FoSaQ7uGN4q9YkQupump|2026-07-05T02:31:06.801136+00:00",
+  "bot": "badday_flush",
+  "token": "ELIZABETH",
+  "winner": true,
+  "entry_time": "2026-07-05T02:31:06.801136+00:00",
+  "peak_rec": 13.7589968522,
+  "realized": 7.927121364644401,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 7.5,
+  "p8": 4.241283374338279,
+  "p5": 5.741283374338279,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 13.11133369792843,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    2.4825667486765575
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|F7bFfkHxLuXuuoeX3SQDM9PDhBABVEVFmter8nnRpump|2026-07-05T02:52:40.720178+00:00",
+  "bot": "badday_flush",
+  "token": "shitcoin",
+  "winner": false,
+  "entry_time": "2026-07-05T02:52:40.720178+00:00",
+  "peak_rec": 0,
+  "realized": -4.6670000000000105,
+  "cov": true,
+  "span_h": 5.85,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DiiTPZdpd9t3XorHiuZUu4E1FoSaQ7uGN4q9YkQupump|2026-07-05T02:58:06.588225+00:00",
+  "bot": "badday_flush",
+  "token": "ELIZABETH",
+  "winner": true,
+  "entry_time": "2026-07-05T02:58:06.588225+00:00",
+  "peak_rec": 7.5911533898,
+  "realized": 4.676804658040368,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 4.5,
+  "p8": 2.4186291468326857,
+  "p5": 3.9186291468326857,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 7.595869106262021,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -1.1627417063346286
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|5sTUgEVTcRvPNK6CFpHBgVfDm6Vb7yKhb9ovMbvUpump|2026-07-05T02:58:06.513685+00:00",
+  "bot": "badday_flush",
+  "token": "GOON",
+  "winner": true,
+  "entry_time": "2026-07-05T02:58:06.513685+00:00",
+  "peak_rec": 5.1122551836,
+  "realized": -1.9807999999999937,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 4.5,
+  "p8": 3.966554250248101,
+  "p5": 5.466554250248101,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 9.933108500496202,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    1.9331085004962016
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|96X4zg5T4NFWzTVFXHsadvYbxbzFX2Rqt3GXUv92pump|2026-07-05T08:05:56.065116+00:00",
+  "bot": "badday_flush",
+  "token": "Balloon",
+  "winner": false,
+  "entry_time": "2026-07-05T08:05:56.065116+00:00",
+  "peak_rec": 0,
+  "realized": -4.677200000000004,
+  "cov": true,
+  "span_h": 5.63,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.39993681345922294,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump|2026-07-05T09:02:04.183355+00:00",
+  "bot": "badday_flush",
+  "token": "SEMAN",
+  "winner": true,
+  "entry_time": "2026-07-05T09:02:04.183355+00:00",
+  "peak_rec": 3.9766359272,
+  "realized": -2.139599999999986,
+  "cov": true,
+  "span_h": 4.3,
+  "cur": 4.5,
+  "p8": 2.014264895318697,
+  "p5": 3.514264895318697,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 6.028529790637394,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    -1.9714702093626064
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|E7wbcQSGnuC29vNeDX8SrosiD46piaUnBHTg5X8apump|2026-07-05T10:03:01.981283+00:00",
+  "bot": "badday_flush",
+  "token": "Meep",
+  "winner": false,
+  "entry_time": "2026-07-05T10:03:01.981283+00:00",
+  "peak_rec": 0,
+  "realized": -4.119799999999996,
+  "cov": true,
+  "span_h": 3.67,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|ATBR4i19gcQ31Rfr7ymA2XvkCQEAkNFGBtVKTmdqpump|2026-07-05T10:36:20.793873+00:00",
+  "bot": "badday_flush",
+  "token": "Machi",
+  "winner": false,
+  "entry_time": "2026-07-05T10:36:20.793873+00:00",
+  "peak_rec": 0,
+  "realized": -5.771500000000007,
+  "cov": true,
+  "span_h": 3.14,
+  "cur": 7.5,
+  "p8": 4.396340539609923,
+  "p5": 5.896340539609923,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 15.043644550649727,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    2.7926810792198467
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|EThNYWZ73vdtnRtrdwDKq9nKkQgRwjcNppjDTqGopump|2026-07-05T10:17:30.440929+00:00",
+  "bot": "badday_flush",
+  "token": "Martolexx",
+  "winner": true,
+  "entry_time": "2026-07-05T10:17:30.440929+00:00",
+  "peak_rec": 5.2711607502,
+  "realized": -1.906399999999997,
+  "cov": true,
+  "span_h": 3.02,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 5.39266938677796,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump|2026-07-05T10:59:17.424342+00:00",
+  "bot": "badday_flush",
+  "token": "SEMAN",
+  "winner": false,
+  "entry_time": "2026-07-05T10:59:17.424342+00:00",
+  "peak_rec": 0,
+  "realized": -6.259086424107818,
+  "cov": true,
+  "span_h": 2.75,
+  "cur": 4.5,
+  "p8": 2.800260595889293,
+  "p5": 4.300260595889293,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 7.600521191778586,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    -0.3994788082214136
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|8NGpdSE1tZqUrvpUVqsn5Revncc6yUafk8mnAyK9fNCE|2026-07-05T11:04:51.326487+00:00",
+  "bot": "badday_flush",
+  "token": "Chud",
+  "winner": false,
+  "entry_time": "2026-07-05T11:04:51.326487+00:00",
+  "peak_rec": 0,
+  "realized": -4.818,
+  "cov": true,
+  "span_h": 2.64,
+  "cur": 4.5,
+  "p8": 10.226115862989584,
+  "p5": 3.5489999779825805,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 6.614912308817922,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    14.452231725979168
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|3R51JJP2TZosMTHszJxbB4KCshVL67LU4Q8cynVMpump|2026-07-05T11:06:22.427558+00:00",
+  "bot": "badday_flush",
+  "token": "CITH",
+  "winner": false,
+  "entry_time": "2026-07-05T11:06:22.427558+00:00",
+  "peak_rec": 0,
+  "realized": -4.768300000000014,
+  "cov": true,
+  "span_h": 2.64,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.5236824764246251,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump|2026-07-05T11:15:22.754484+00:00",
+  "bot": "badday_flush",
+  "token": "SEMAN",
+  "winner": false,
+  "entry_time": "2026-07-05T11:15:22.754484+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999999,
+  "cov": true,
+  "span_h": 2.49,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DiiTPZdpd9t3XorHiuZUu4E1FoSaQ7uGN4q9YkQupump|2026-07-05T11:21:01.867774+00:00",
+  "bot": "badday_flush",
+  "token": "ELIZABETH",
+  "winner": false,
+  "entry_time": "2026-07-05T11:21:01.867774+00:00",
+  "peak_rec": 0,
+  "realized": -7.562165259105901,
+  "cov": true,
+  "span_h": 2.4,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|3R51JJP2TZosMTHszJxbB4KCshVL67LU4Q8cynVMpump|2026-07-05T11:33:50.857384+00:00",
+  "bot": "badday_flush",
+  "token": "CITH",
+  "winner": false,
+  "entry_time": "2026-07-05T11:33:50.857384+00:00",
+  "peak_rec": 0,
+  "realized": -6.534100000000009,
+  "cov": true,
+  "span_h": 2.2,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|dUaSdZm38CStjhp1VSJWGFQqSxf6DQB2hfjMXmVpump|2026-07-05T11:43:02.970670+00:00",
+  "bot": "badday_flush",
+  "token": "\ud83d\udc02\ud83c\udc04\ufe0f",
+  "winner": false,
+  "entry_time": "2026-07-05T11:43:02.970670+00:00",
+  "peak_rec": 0,
+  "realized": -6.063799999999997,
+  "cov": true,
+  "span_h": 2.05,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DiiTPZdpd9t3XorHiuZUu4E1FoSaQ7uGN4q9YkQupump|2026-07-05T11:54:05.120234+00:00",
+  "bot": "badday_flush",
+  "token": "ELIZABETH",
+  "winner": true,
+  "entry_time": "2026-07-05T11:54:05.120234+00:00",
+  "peak_rec": 33.0730198611,
+  "realized": 33.07299999999999,
+  "cov": true,
+  "span_h": 1.17,
+  "cur": 4.5,
+  "p8": 2.5430702166477035,
+  "p5": 4.0430702166477035,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 7.086140433295407,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -0.913859566704593
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|DiiTPZdpd9t3XorHiuZUu4E1FoSaQ7uGN4q9YkQupump|2026-07-05T12:08:07.553794+00:00",
+  "bot": "badday_flush",
+  "token": "ELIZABETH",
+  "winner": true,
+  "entry_time": "2026-07-05T12:08:07.553794+00:00",
+  "peak_rec": 10.4062726791,
+  "realized": 6.6363249999999985,
+  "cov": true,
+  "span_h": 1.06,
+  "cur": 7.5,
+  "p8": 5.455436482371857,
+  "p5": 6.955436482371857,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.910872964743714,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    4.910872964743714
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|9j4sMShA1UBHbaJFXJUTjGLCQe8zcsZAd7bWNFKKpump|2026-07-05T12:39:55.893552+00:00",
+  "bot": "badday_flush",
+  "token": "\ud83d\udc02\ud83c\udc04\ufe0f",
+  "winner": false,
+  "entry_time": "2026-07-05T12:39:55.893552+00:00",
+  "peak_rec": 0,
+  "realized": -4.666999999999999,
+  "cov": true,
+  "span_h": 1.1,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_flush|Bm5hU3iYP9syzZHte1Ubv5GjSkMjFsCqaVyWcBdpump|2026-07-05T12:35:46.391723+00:00",
+  "bot": "badday_flush",
+  "token": "sultan",
+  "winner": false,
+  "entry_time": "2026-07-05T12:35:46.391723+00:00",
+  "peak_rec": 0,
+  "realized": -4.1854999999999976,
+  "cov": true,
+  "span_h": 1.17,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 1.0445691394934453,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|HS4DWjgJ2h51PCnhh95saqgLQ21Zps6VABK1vi9gpump|2026-07-02T17:28:02.474395+00:00",
+  "bot": "badday_young_absorb",
+  "token": "LojakPaul",
+  "winner": true,
+  "entry_time": "2026-07-02T17:28:02.474395+00:00",
+  "peak_rec": 12.0193680278,
+  "realized": 9.123955311055525,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.1627670967076638,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|EJUosQZjpcY8pa93vfRGmUMvFJGG4WV2mE2twREzpump|2026-07-02T18:02:46.670053+00:00",
+  "bot": "badday_young_absorb",
+  "token": "Way up",
+  "winner": false,
+  "entry_time": "2026-07-02T18:02:46.670053+00:00",
+  "peak_rec": 0,
+  "realized": -6.7037966516596885,
+  "cov": true,
+  "span_h": 5.5,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|EJUosQZjpcY8pa93vfRGmUMvFJGG4WV2mE2twREzpump|2026-07-02T18:10:43.008594+00:00",
+  "bot": "badday_young_absorb",
+  "token": "Way up",
+  "winner": false,
+  "entry_time": "2026-07-02T18:10:43.008594+00:00",
+  "peak_rec": 0,
+  "realized": 0,
+  "cov": true,
+  "span_h": 5.37,
+  "cur": 4.5,
+  "p8": 4.443155062383642,
+  "p5": 5.943155062383642,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 17.328186699595214,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    2.8863101247672844
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|qPorq2UQuP6g1KZnGKMQEfVxN87BYvaYdqVy3KVpump|2026-07-02T19:08:42.576227+00:00",
+  "bot": "badday_young_absorb",
+  "token": "1",
+  "winner": false,
+  "entry_time": "2026-07-02T19:08:42.576227+00:00",
+  "peak_rec": 0,
+  "realized": -9.848800000000013,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 5.018049758492049,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|qPorq2UQuP6g1KZnGKMQEfVxN87BYvaYdqVy3KVpump|2026-07-02T19:31:31.738703+00:00",
+  "bot": "badday_young_absorb",
+  "token": "1",
+  "winner": true,
+  "entry_time": "2026-07-02T19:31:31.738703+00:00",
+  "peak_rec": 45.5884801682,
+  "realized": 45.58850000000001,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 3.1045225522578117,
+  "p8": 2.0825941557305447,
+  "p5": 3.5825941557305447,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 6.1651883114610895,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -1.8348116885389105
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|qPorq2UQuP6g1KZnGKMQEfVxN87BYvaYdqVy3KVpump|2026-07-02T19:33:11.686500+00:00",
+  "bot": "badday_young_absorb",
+  "token": "1",
+  "winner": false,
+  "entry_time": "2026-07-02T19:33:11.686500+00:00",
+  "peak_rec": 0,
+  "realized": -1.0436,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 4.5,
+  "p8": 4.748885255658031,
+  "p5": 6.248885255658031,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 11.690343426216465,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    3.4977705113160624
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|5rL1QdzSskB5WUnXeEuvK8qgi2uv9EXG7XgB9EBtpump|2026-07-02T19:48:07.286379+00:00",
+  "bot": "badday_young_absorb",
+  "token": "Luffy",
+  "winner": false,
+  "entry_time": "2026-07-02T19:48:07.286379+00:00",
+  "peak_rec": 0,
+  "realized": -6.2008521592158194,
+  "cov": true,
+  "span_h": 5.95,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|5xPnm4sG1Waq1uLxHfHvbmMEKCFogimiwGbCsSV4pump|2026-07-02T19:46:05.435739+00:00",
+  "bot": "badday_young_absorb",
+  "token": "NEXRUNE",
+  "winner": true,
+  "entry_time": "2026-07-02T19:46:05.435739+00:00",
+  "peak_rec": 4.6590519166,
+  "realized": 4.659100000000005,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 7.5,
+  "p8": 5.443311854480682,
+  "p5": 6.943311854480682,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.886623708961364,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    4.886623708961364
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|5rL1QdzSskB5WUnXeEuvK8qgi2uv9EXG7XgB9EBtpump|2026-07-02T19:56:39.035403+00:00",
+  "bot": "badday_young_absorb",
+  "token": "Luffy",
+  "winner": false,
+  "entry_time": "2026-07-02T19:56:39.035403+00:00",
+  "peak_rec": 0,
+  "realized": -6.70379665165971,
+  "cov": true,
+  "span_h": 5.89,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 7.370457648278084,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|5xPnm4sG1Waq1uLxHfHvbmMEKCFogimiwGbCsSV4pump|2026-07-02T19:56:38.562728+00:00",
+  "bot": "badday_young_absorb",
+  "token": "NEXRUNE",
+  "winner": false,
+  "entry_time": "2026-07-02T19:56:38.562728+00:00",
+  "peak_rec": 0,
+  "realized": 2.84244798797868,
+  "cov": true,
+  "span_h": 5.81,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 17.105775382167465,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|5xPnm4sG1Waq1uLxHfHvbmMEKCFogimiwGbCsSV4pump|2026-07-02T19:58:18.741290+00:00",
+  "bot": "badday_young_absorb",
+  "token": "NEXRUNE",
+  "winner": false,
+  "entry_time": "2026-07-02T19:58:18.741290+00:00",
+  "peak_rec": 0,
+  "realized": -6.703796651659699,
+  "cov": true,
+  "span_h": 5.78,
+  "cur": -31.981116000257447,
+  "p8": -31.981116000257447,
+  "p5": -31.981116000257447,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -31.981116000257447
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|5rL1QdzSskB5WUnXeEuvK8qgi2uv9EXG7XgB9EBtpump|2026-07-02T19:59:23.484567+00:00",
+  "bot": "badday_young_absorb",
+  "token": "Luffy",
+  "winner": false,
+  "entry_time": "2026-07-02T19:59:23.484567+00:00",
+  "peak_rec": 0,
+  "realized": -5.119300000000004,
+  "cov": true,
+  "span_h": 5.84,
+  "cur": 1.5,
+  "p8": 4.481403319605949,
+  "p5": 5.981403319605949,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 10.962806639211898,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    2.962806639211898
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|5KrvwhPnVgUaMdyqEy78PZXjLzdXUNTAjaLA7Zx9pump|2026-07-02T22:07:45.117010+00:00",
+  "bot": "badday_young_absorb",
+  "token": "Mymo",
+  "winner": false,
+  "entry_time": "2026-07-02T22:07:45.117010+00:00",
+  "peak_rec": 0,
+  "realized": -6.7037966516596885,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 1.71825531046077,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|3NhrBt7oZVdU2mqRxGygz9nf42A3dppquZHSrd7Bpump|2026-07-02T22:49:57.724198+00:00",
+  "bot": "badday_young_absorb",
+  "token": "COTORO",
+  "winner": true,
+  "entry_time": "2026-07-02T22:49:57.724198+00:00",
+  "peak_rec": 70.3008522754,
+  "realized": 70.3009,
+  "cov": true,
+  "span_h": 5.92,
+  "cur": 7.5,
+  "p8": 7.594220443563227,
+  "p5": 9.094220443563227,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 17.188440887126454,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    9.188440887126454
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|G5TD7vXeoQEXq7C9tc65Fr1QsTPeau6R6KNsowjMpump|2026-07-02T22:55:42.990932+00:00",
+  "bot": "badday_young_absorb",
+  "token": "NEVER",
+  "winner": false,
+  "entry_time": "2026-07-02T22:55:42.990932+00:00",
+  "peak_rec": 0,
+  "realized": -52.53218054120501,
+  "cov": true,
+  "span_h": 5.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 15.471306700905485,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|3NhrBt7oZVdU2mqRxGygz9nf42A3dppquZHSrd7Bpump|2026-07-02T23:17:33.592787+00:00",
+  "bot": "badday_young_absorb",
+  "token": "COTORO",
+  "winner": false,
+  "entry_time": "2026-07-02T23:17:33.592787+00:00",
+  "peak_rec": 0,
+  "realized": -2.3234210266353084,
+  "cov": true,
+  "span_h": 5.86,
+  "cur": 4.5,
+  "p8": 2.984863891242152,
+  "p5": 4.484863891242152,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 9.341586766475697,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -0.030272217515696198
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|3NhrBt7oZVdU2mqRxGygz9nf42A3dppquZHSrd7Bpump|2026-07-02T23:22:12.757248+00:00",
+  "bot": "badday_young_absorb",
+  "token": "COTORO",
+  "winner": false,
+  "entry_time": "2026-07-02T23:22:12.757248+00:00",
+  "peak_rec": 0,
+  "realized": -2.4587999999999943,
+  "cov": true,
+  "span_h": 5.78,
+  "cur": -17.322330870142032,
+  "p8": -17.322330870142032,
+  "p5": -17.322330870142032,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -17.322330870142032
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|CFPkPq1eYPR8GLzEo59wUbbMioX4bshaTQiSGzTSpump|2026-07-03T00:00:58.124719+00:00",
+  "bot": "badday_young_absorb",
+  "token": "MENSA",
+  "winner": false,
+  "entry_time": "2026-07-03T00:00:58.124719+00:00",
+  "peak_rec": 0,
+  "realized": -3.858600000000001,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.5133765635717769,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|35B4vyZzEHQmL7Mg9Am8KpuTcNxEUW4Qdw8xiMhipump|2026-07-03T00:03:06.112609+00:00",
+  "bot": "badday_young_absorb",
+  "token": "KEVIN",
+  "winner": false,
+  "entry_time": "2026-07-03T00:03:06.112609+00:00",
+  "peak_rec": 0,
+  "realized": -5.936300000000017,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 7.5,
+  "p8": 24.25063089825509,
+  "p5": 25.75063089825509,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 50.50126179651018,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    42.50126179651018
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|CFPkPq1eYPR8GLzEo59wUbbMioX4bshaTQiSGzTSpump|2026-07-03T00:04:45.146837+00:00",
+  "bot": "badday_young_absorb",
+  "token": "MENSA",
+  "winner": false,
+  "entry_time": "2026-07-03T00:04:45.146837+00:00",
+  "peak_rec": 0,
+  "realized": -6.871300000000002,
+  "cov": true,
+  "span_h": 5.95,
+  "cur": -1.660561158921714,
+  "p8": -1.660561158921714,
+  "p5": -1.660561158921714,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 4.078866245236301,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    -1.660561158921714
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|CFPkPq1eYPR8GLzEo59wUbbMioX4bshaTQiSGzTSpump|2026-07-03T00:25:14.798243+00:00",
+  "bot": "badday_young_absorb",
+  "token": "MENSA",
+  "winner": false,
+  "entry_time": "2026-07-03T00:25:14.798243+00:00",
+  "peak_rec": 0,
+  "realized": -2.4587999999999943,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 7.5,
+  "p8": 7.288980506341115,
+  "p5": 8.788980506341115,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 16.57796101268223,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    8.57796101268223
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump|2026-07-03T00:58:35.011708+00:00",
+  "bot": "badday_young_absorb",
+  "token": "ELON",
+  "winner": true,
+  "entry_time": "2026-07-03T00:58:35.011708+00:00",
+  "peak_rec": 12.1490796517,
+  "realized": 10.085536586100352,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 7.060506983140725,
+  "p5": 7.935491610878087,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 14.870983221756173,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    8.12101396628145
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|CnqFjUb8Y9fj8DhokJuADKhSz9p2kwbsiujrPeu1pump|2026-07-03T02:22:55.207049+00:00",
+  "bot": "badday_young_absorb",
+  "token": "paging",
+  "winner": true,
+  "entry_time": "2026-07-03T02:22:55.207049+00:00",
+  "peak_rec": 10.2062843618,
+  "realized": 6.7514831206331,
+  "cov": true,
+  "span_h": 5.93,
+  "cur": 7.5,
+  "p8": 4.4727671913202265,
+  "p5": 5.9727671913202265,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 19.534268868699822,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    2.945534382640453
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump|2026-07-03T02:40:56.855233+00:00",
+  "bot": "badday_young_absorb",
+  "token": "ELON",
+  "winner": false,
+  "entry_time": "2026-07-03T02:40:56.855233+00:00",
+  "peak_rec": 0,
+  "realized": -2.4588000000000054,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump|2026-07-03T02:42:18.228996+00:00",
+  "bot": "badday_young_absorb",
+  "token": "ELON",
+  "winner": true,
+  "entry_time": "2026-07-03T02:42:18.228996+00:00",
+  "peak_rec": 8.6230678348,
+  "realized": 4.449675904309981,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 5.406995844194496,
+  "p5": 5.520658591676364,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.813991688388992,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    4.813991688388992
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|2b93RPW315VQP7RHWthbcgjrR477YqbSu9tXnBjppump|2026-07-03T08:40:52.436446+00:00",
+  "bot": "badday_young_absorb",
+  "token": "CA",
+  "winner": false,
+  "entry_time": "2026-07-03T08:40:52.436446+00:00",
+  "peak_rec": 0,
+  "realized": -5.759999999999998,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.074004661384011,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|2b93RPW315VQP7RHWthbcgjrR477YqbSu9tXnBjppump|2026-07-03T08:46:34.274751+00:00",
+  "bot": "badday_young_absorb",
+  "token": "CA",
+  "winner": true,
+  "entry_time": "2026-07-03T08:46:34.274751+00:00",
+  "peak_rec": 11.2222827231,
+  "realized": 9.971349999999996,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 5.885865863416685,
+  "p5": 7.385865863416685,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 13.77173172683337,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    5.771731726833369
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|2b93RPW315VQP7RHWthbcgjrR477YqbSu9tXnBjppump|2026-07-03T08:53:00.029438+00:00",
+  "bot": "badday_young_absorb",
+  "token": "CA",
+  "winner": false,
+  "entry_time": "2026-07-03T08:53:00.029438+00:00",
+  "peak_rec": 0,
+  "realized": -2.5854000000000155,
+  "cov": true,
+  "span_h": 5.82,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.46658312607192887,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|BgKtxB44DWf2zMtQpjwVNwjWCjKgAupoVdGVDuR9pump|2026-07-03T10:07:21.578269+00:00",
+  "bot": "badday_young_absorb",
+  "token": "LIQENG",
+  "winner": false,
+  "entry_time": "2026-07-03T10:07:21.578269+00:00",
+  "peak_rec": 1.157045262,
+  "realized": -4.506399999999999,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -1.4214727161958929,
+  "p8": -1.4214727161958929,
+  "p5": -1.4214727161958929,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.0423813651457854,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    -1.4214727161958929
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|Egmh8vWLRrZE5AByuD43KYQjKWkcC4W68bz6jisApump|2026-07-03T10:22:11.446381+00:00",
+  "bot": "badday_young_absorb",
+  "token": "ELON",
+  "winner": true,
+  "entry_time": "2026-07-03T10:22:11.446381+00:00",
+  "peak_rec": 12.5507699103,
+  "realized": 9.79425272777995,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 7.5,
+  "p8": 3.6073234163237835,
+  "p5": 5.1073234163237835,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 14.421883665426293,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    1.214646832647567
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|DLvuaz18bKnh1hEaCZsZ5NgJi7wYFm5RvgZVA2M5pump|2026-07-03T11:29:29.311365+00:00",
+  "bot": "badday_young_absorb",
+  "token": "BABYANSEM",
+  "winner": false,
+  "entry_time": "2026-07-03T11:29:29.311365+00:00",
+  "peak_rec": 0,
+  "realized": -7.377800000000001,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 4.209184403088207,
+  "p5": 3.8980309279232235,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 13.873303591403952,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    2.4183688061764137
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|DLvuaz18bKnh1hEaCZsZ5NgJi7wYFm5RvgZVA2M5pump|2026-07-03T11:39:20.962517+00:00",
+  "bot": "badday_young_absorb",
+  "token": "BABYANSEM",
+  "winner": false,
+  "entry_time": "2026-07-03T11:39:20.962517+00:00",
+  "peak_rec": 0,
+  "realized": -2.4588000000000054,
+  "cov": true,
+  "span_h": 5.86,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|DLvuaz18bKnh1hEaCZsZ5NgJi7wYFm5RvgZVA2M5pump|2026-07-03T11:43:38.573753+00:00",
+  "bot": "badday_young_absorb",
+  "token": "BABYANSEM",
+  "winner": false,
+  "entry_time": "2026-07-03T11:43:38.573753+00:00",
+  "peak_rec": 0,
+  "realized": -5.785599999999991,
+  "cov": true,
+  "span_h": 5.79,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 2.7588303077881626,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump|2026-07-03T12:57:40.218806+00:00",
+  "bot": "badday_young_absorb",
+  "token": "SEMAN",
+  "winner": true,
+  "entry_time": "2026-07-03T12:57:40.218806+00:00",
+  "peak_rec": 4.254767216,
+  "realized": -2.1782401820150787,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.5,
+  "p8": 2.788493184658781,
+  "p5": 4.2884931846587815,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 7.576986369317562,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    -0.4230136306824379
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump|2026-07-03T13:06:33.527325+00:00",
+  "bot": "badday_young_absorb",
+  "token": "SEMAN",
+  "winner": false,
+  "entry_time": "2026-07-03T13:06:33.527325+00:00",
+  "peak_rec": 0,
+  "realized": -6.2064,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.5,
+  "p8": 4.72162754840444,
+  "p5": 6.22162754840444,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 11.44325509680888,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    3.4432550968088798
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|3Q1Lu5TGWPvoA95HwTu7uPkjNLXj498moxfko2Pkpump|2026-07-03T13:13:01.949343+00:00",
+  "bot": "badday_young_absorb",
+  "token": "Catfish",
+  "winner": false,
+  "entry_time": "2026-07-03T13:13:01.949343+00:00",
+  "peak_rec": 0,
+  "realized": -7.115600000000011,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 5.769957934099756,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|3Q1Lu5TGWPvoA95HwTu7uPkjNLXj498moxfko2Pkpump|2026-07-03T13:22:43.675443+00:00",
+  "bot": "badday_young_absorb",
+  "token": "Catfish",
+  "winner": true,
+  "entry_time": "2026-07-03T13:22:43.675443+00:00",
+  "peak_rec": 6.771589032,
+  "realized": 2.557574696038126,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.5,
+  "p8": 2.0408522854781905,
+  "p5": 3.5408522854781905,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 10.029150871043392,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -1.918295429043619
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump|2026-07-03T13:35:25.317180+00:00",
+  "bot": "badday_young_absorb",
+  "token": "SEMAN",
+  "winner": true,
+  "entry_time": "2026-07-03T13:35:25.317180+00:00",
+  "peak_rec": 22.1164926481,
+  "realized": 19.8695491834055,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 7.174254972245853,
+  "p5": 5.865255699798843,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 16.348509944491706,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    8.348509944491706
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|CGp3TrYCxF3xNhAPYnBYKAuBHxuDzL1zF62oxYD7pump|2026-07-03T15:28:05.721412+00:00",
+  "bot": "badday_young_absorb",
+  "token": "POKERBULL",
+  "winner": false,
+  "entry_time": "2026-07-03T15:28:05.721412+00:00",
+  "peak_rec": 0,
+  "realized": -4.318,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|BBhHEEs8bCPchS8S8EX744ExVrMD9xjGy8CXepctpump|2026-07-03T18:17:51.592053+00:00",
+  "bot": "badday_young_absorb",
+  "token": "ansemwifhat",
+  "winner": false,
+  "entry_time": "2026-07-03T18:17:51.592053+00:00",
+  "peak_rec": 0,
+  "realized": -5.119299999999994,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 15.86415774627319,
+  "p5": 17.36415774627319,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 33.72831549254638,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    25.72831549254638
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|BBhHEEs8bCPchS8S8EX744ExVrMD9xjGy8CXepctpump|2026-07-03T22:19:49.947620+00:00",
+  "bot": "badday_young_absorb",
+  "token": "ansemwifhat",
+  "winner": true,
+  "entry_time": "2026-07-03T22:19:49.947620+00:00",
+  "peak_rec": 6.0743009283,
+  "realized": 4.981649999999998,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.464588124077597,
+  "p8": 3.209264417943026,
+  "p5": 4.709264417943026,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.499818105923733,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    0.41852883588605216
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|BBhHEEs8bCPchS8S8EX744ExVrMD9xjGy8CXepctpump|2026-07-03T22:50:56.550890+00:00",
+  "bot": "badday_young_absorb",
+  "token": "ansemwifhat",
+  "winner": false,
+  "entry_time": "2026-07-03T22:50:56.550890+00:00",
+  "peak_rec": 0,
+  "realized": -2.4588000000000054,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 7.5,
+  "p8": 5.3691671833170815,
+  "p5": 6.8691671833170815,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 12.738334366634163,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    4.738334366634163
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|FJSKRhn5ZGtv66HtgaqVY9oNsV2KeynngLTq6PX4pump|2026-07-04T01:37:45.908127+00:00",
+  "bot": "badday_young_absorb",
+  "token": "\u68f1\u89d2\u732b",
+  "winner": false,
+  "entry_time": "2026-07-04T01:37:45.908127+00:00",
+  "peak_rec": 0,
+  "realized": -6.709900000000002,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 4.266469359475067,
+  "p5": 5.766469359475067,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 14.19214446202135,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    2.5329387189501347
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|DYpHuMiNHrfAaWKj5Y3iQL8ydZ9oJy2ANCH4c7DApump|2026-07-04T02:12:19.138102+00:00",
+  "bot": "badday_young_absorb",
+  "token": "ALYCIA",
+  "winner": false,
+  "entry_time": "2026-07-04T02:12:19.138102+00:00",
+  "peak_rec": 0,
+  "realized": -4.087755850520081,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": -17.30263163959609,
+  "p8": -17.30263163959609,
+  "p5": -17.30263163959609,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -17.30263163959609
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|J9xS5vH4W9WnxtbJD4AshJsmHLniPFDq8vXa556apump|2026-07-04T02:13:27.488185+00:00",
+  "bot": "badday_young_absorb",
+  "token": "FREEDOM250",
+  "winner": false,
+  "entry_time": "2026-07-04T02:13:27.488185+00:00",
+  "peak_rec": 0,
+  "realized": -0.9423999999999988,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 4.975966485000494,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|FZQJUoWEMRCNTnWj2aAizsFrYL6JUJFBy9zaJex3pump|2026-07-04T08:34:02.149085+00:00",
+  "bot": "badday_young_absorb",
+  "token": "\u9ed1\u725b",
+  "winner": false,
+  "entry_time": "2026-07-04T08:34:02.149085+00:00",
+  "peak_rec": 0,
+  "realized": -22.920220818185133,
+  "cov": true,
+  "span_h": 5.55,
+  "cur": -16.303172624862285,
+  "p8": -16.303172624862285,
+  "p5": -16.303172624862285,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -16.303172624862285
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|9MoGGUj79ZoSfumCpD7m7SnXVinR2sAp2FGAe5Atpump|2026-07-04T09:03:36.920538+00:00",
+  "bot": "badday_young_absorb",
+  "token": "ALYCIACOW",
+  "winner": false,
+  "entry_time": "2026-07-04T09:03:36.920538+00:00",
+  "peak_rec": 0,
+  "realized": -3.466999999999998,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.5,
+  "p8": 3.752418925622626,
+  "p5": 5.252418925622626,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 10.534808777098315,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    1.5048378512452523
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|Bm5hU3iYP9syzZHte1Ubv5GjSkMjFsCqaVyWcBdpump|2026-07-04T09:44:37.775095+00:00",
+  "bot": "badday_young_absorb",
+  "token": "sultan",
+  "winner": false,
+  "entry_time": "2026-07-04T09:44:37.775095+00:00",
+  "peak_rec": 0,
+  "realized": -5.119299999999994,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 8.64534210280098,
+  "p5": 10.14534210280098,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 19.29068420560196,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    11.29068420560196
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|7szutJHnYxPLxUgJrtXxzAiA5fYU5rmWQ47nT1Epump|2026-07-04T11:21:16.916262+00:00",
+  "bot": "badday_young_absorb",
+  "token": "Bullcoin",
+  "winner": true,
+  "entry_time": "2026-07-04T11:21:16.916262+00:00",
+  "peak_rec": 6.2417193654,
+  "realized": 3.148210977810728,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -1.1514861302867274,
+  "p8": -1.1514861302867274,
+  "p5": -1.1514861302867274,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 3.128492821392248,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    -1.1514861302867274
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|5NgaVXHoikb9e326MSCwo44DXKGuPiKVt9q9Tm51pump|2026-07-04T15:17:27.484493+00:00",
+  "bot": "badday_young_absorb",
+  "token": "PUNK",
+  "winner": true,
+  "entry_time": "2026-07-04T15:17:27.484493+00:00",
+  "peak_rec": 10.6401215755,
+  "realized": 7.800551797329602,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -0.7013446976910864,
+  "p8": -0.7013446976910864,
+  "p5": -0.7013446976910864,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 4.071936732431847,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    -0.7013446976910864
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|Bm5hU3iYP9syzZHte1Ubv5GjSkMjFsCqaVyWcBdpump|2026-07-04T16:46:36.015409+00:00",
+  "bot": "badday_young_absorb",
+  "token": "sultan",
+  "winner": true,
+  "entry_time": "2026-07-04T16:46:36.015409+00:00",
+  "peak_rec": 31.1293879433,
+  "realized": 28.716607205098033,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.5,
+  "p8": 3.269065762563029,
+  "p5": 4.769065762563029,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 8.538131525126058,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    0.5381315251260581
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|Bm5hU3iYP9syzZHte1Ubv5GjSkMjFsCqaVyWcBdpump|2026-07-04T21:16:56.501126+00:00",
+  "bot": "badday_young_absorb",
+  "token": "sultan",
+  "winner": true,
+  "entry_time": "2026-07-04T21:16:56.501126+00:00",
+  "peak_rec": 14.7235168273,
+  "realized": 10.994461040126897,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 7.5,
+  "p8": 5.510282519043975,
+  "p5": 7.010282519043975,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 13.02056503808795,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    5.02056503808795
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|9bW5KYuuutJ8usQ8gzQ7J5fSzMWCuQ8qPkvRNh8ypump|2026-07-05T00:15:38.539838+00:00",
+  "bot": "badday_young_absorb",
+  "token": "HANDSEM",
+  "winner": false,
+  "entry_time": "2026-07-05T00:15:38.539838+00:00",
+  "peak_rec": 0,
+  "realized": -5.119300000000004,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 7.5,
+  "p8": 7.114117099313379,
+  "p5": 8.614117099313379,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 16.228234198626758,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    8.228234198626758
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|7vLT9GmU7iH4JT2NBDRTejm1StqZocfSDqCzfMvzpump|2026-07-05T02:23:21.587901+00:00",
+  "bot": "badday_young_absorb",
+  "token": "Bullmerica250",
+  "winner": false,
+  "entry_time": "2026-07-05T02:23:21.587901+00:00",
+  "peak_rec": 2.2952434581,
+  "realized": -0.8280999999999983,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 4.244752727080492,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|7vLT9GmU7iH4JT2NBDRTejm1StqZocfSDqCzfMvzpump|2026-07-05T09:02:54.385409+00:00",
+  "bot": "badday_young_absorb",
+  "token": "Bullmerica250",
+  "winner": true,
+  "entry_time": "2026-07-05T09:02:54.385409+00:00",
+  "peak_rec": 16.1072591212,
+  "realized": 9.554180310793704,
+  "cov": true,
+  "span_h": 4.07,
+  "cur": 7.699484651695162,
+  "p8": 5.987279196184614,
+  "p5": 7.487279196184614,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 13.974558392369229,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    5.974558392369229
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|71HtXHfexjKgem92Y5sPLPb6qkmtqWmPUzdKAcU9pump|2026-07-05T09:35:34.755211+00:00",
+  "bot": "badday_young_absorb",
+  "token": "trumplet",
+  "winner": false,
+  "entry_time": "2026-07-05T09:35:34.755211+00:00",
+  "peak_rec": 0,
+  "realized": -6.4551000000000025,
+  "cov": true,
+  "span_h": 4.29,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 5.345435404830323,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|7vLT9GmU7iH4JT2NBDRTejm1StqZocfSDqCzfMvzpump|2026-07-05T09:53:52.242167+00:00",
+  "bot": "badday_young_absorb",
+  "token": "Bullmerica250",
+  "winner": true,
+  "entry_time": "2026-07-05T09:53:52.242167+00:00",
+  "peak_rec": 16.8586286666,
+  "realized": 10.870635529753425,
+  "cov": true,
+  "span_h": 3.22,
+  "cur": 7.5,
+  "p8": 5.516238251125972,
+  "p5": 7.016238251125972,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 13.032476502251944,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    5.032476502251944
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|4PRz3EwhbjrrX6YksMDuUzrXT51pr7CQtXNCravhpump|2026-07-05T10:57:19.428692+00:00",
+  "bot": "badday_young_absorb",
+  "token": "ACM",
+  "winner": false,
+  "entry_time": "2026-07-05T10:57:19.428692+00:00",
+  "peak_rec": 0,
+  "realized": -5.351899999999999,
+  "cov": true,
+  "span_h": 2.91,
+  "cur": 4.5,
+  "p8": 2.702924729563606,
+  "p5": 4.202924729563605,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 7.405849459127212,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    -0.5941505408727883
+   ]
+  ]
+ },
+ {
+  "pid": "badday_young_absorb|4PRz3EwhbjrrX6YksMDuUzrXT51pr7CQtXNCravhpump|2026-07-05T11:03:44.435983+00:00",
+  "bot": "badday_young_absorb",
+  "token": "ACM",
+  "winner": true,
+  "entry_time": "2026-07-05T11:03:44.435983+00:00",
+  "peak_rec": 14.7217964403,
+  "realized": 12.610915385770632,
+  "cov": true,
+  "span_h": 2.09,
+  "cur": 7.5,
+  "p8": 8.813141557442517,
+  "p5": 10.313141557442517,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 19.626283114885034,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    11.626283114885034
+   ]
+  ]
+ },
+ {
+  "pid": "badday_adolescent_absorb|CGp3TrYCxF3xNhAPYnBYKAuBHxuDzL1zF62oxYD7pump|2026-07-03T15:28:05.284986+00:00",
+  "bot": "badday_adolescent_absorb",
+  "token": "POKERBULL",
+  "winner": false,
+  "entry_time": "2026-07-03T15:28:05.284986+00:00",
+  "peak_rec": 0,
+  "realized": -6.36810000000001,
+  "cov": true,
+  "span_h": 6.0,
+  "cur": -12.0,
+  "p8": -12.0,
+  "p5": -12.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 0.0,
+  "p8_legs": [
+   [
+    "stop",
+    1.0,
+    -12.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_adolescent_absorb|48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump|2026-07-03T18:54:27.866808+00:00",
+  "bot": "badday_adolescent_absorb",
+  "token": "SEMAN",
+  "winner": true,
+  "entry_time": "2026-07-03T18:54:27.866808+00:00",
+  "peak_rec": 45.2132210177,
+  "realized": 42.54129775099692,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 0.0,
+  "p8": 0.0,
+  "p5": 0.0,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 4.27133819490817,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "pid": "badday_adolescent_absorb|5NgaVXHoikb9e326MSCwo44DXKGuPiKVt9q9Tm51pump|2026-07-04T15:17:27.185157+00:00",
+  "bot": "badday_adolescent_absorb",
+  "token": "PUNK",
+  "winner": true,
+  "entry_time": "2026-07-04T15:17:27.185157+00:00",
+  "peak_rec": 10.6401215755,
+  "realized": 7.800551797329602,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": -0.7013446976910864,
+  "p8": -0.7013446976910864,
+  "p5": -0.7013446976910864,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 4.071936732431847,
+  "p8_legs": [
+   [
+    "belock",
+    1.0,
+    -0.7013446976910864
+   ]
+  ]
+ },
+ {
+  "pid": "badday_adolescent_absorb|Bm5hU3iYP9syzZHte1Ubv5GjSkMjFsCqaVyWcBdpump|2026-07-04T16:46:35.413954+00:00",
+  "bot": "badday_adolescent_absorb",
+  "token": "sultan",
+  "winner": true,
+  "entry_time": "2026-07-04T16:46:35.413954+00:00",
+  "peak_rec": 31.1293879433,
+  "realized": 28.716607205098033,
+  "cov": true,
+  "span_h": 5.99,
+  "cur": 4.5,
+  "p8": 3.269065762563029,
+  "p5": 4.769065762563029,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 8.538131525126058,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail",
+    0.5,
+    0.5381315251260581
+   ]
+  ]
+ },
+ {
+  "pid": "badday_adolescent_absorb|Bm5hU3iYP9syzZHte1Ubv5GjSkMjFsCqaVyWcBdpump|2026-07-04T21:16:56.068852+00:00",
+  "bot": "badday_adolescent_absorb",
+  "token": "sultan",
+  "winner": true,
+  "entry_time": "2026-07-04T21:16:56.068852+00:00",
+  "peak_rec": 14.7235168273,
+  "realized": 10.994461040126897,
+  "cov": true,
+  "span_h": 5.98,
+  "cur": 7.5,
+  "p8": 5.510282519043975,
+  "p5": 7.010282519043975,
+  "cur_to": false,
+  "p8_to": false,
+  "peak_bar": 13.02056503808795,
+  "p8_legs": [
+   [
+    "tp1",
+    0.5,
+    6.0
+   ],
+   [
+    "trail_samebar",
+    0.5,
+    5.02056503808795
+   ]
+  ]
+ }
+]

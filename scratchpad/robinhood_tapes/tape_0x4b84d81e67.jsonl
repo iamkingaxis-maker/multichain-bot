@@ -1,0 +1,7 @@
+{"kind":"buy","volume_usd":1.8,"ts":"2026-07-12T09:19:04+00:00","maker":"0x9ee5d7e3271585a7f788f9a891889ba6aae652c8","pair":"0x4b84d81e67f2ff6df9b7c5665c2b97d0ebe61ba7","sym":"HOODPIG","lag_secs":0.41,"pre_conf":true}
+{"kind":"buy","volume_usd":2.7,"ts":"2026-07-12T09:35:08+00:00","maker":"0x678e1b4640c8cb162c4681bbfb27e80085b1de5e","pair":"0x4b84d81e67f2ff6df9b7c5665c2b97d0ebe61ba7","sym":"HOODPIG","lag_secs":0.4,"pre_conf":true}
+{"kind":"buy","volume_usd":0.4,"ts":"2026-07-12T09:40:42+00:00","maker":"0x678e1b4640c8cb162c4681bbfb27e80085b1de5e","pair":"0x4b84d81e67f2ff6df9b7c5665c2b97d0ebe61ba7","sym":"HOODPIG","lag_secs":1.01,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":30.55,"ts":"2026-07-12T09:53:22+00:00","maker":"0x47c36a35618a81616838397ade7b44766fb6c60c","pair":"0x4b84d81e67f2ff6df9b7c5665c2b97d0ebe61ba7","sym":"HOODPIG","lag_secs":0.88,"pre_conf":true}
+{"kind":"buy","volume_usd":30.54,"ts":"2026-07-12T09:56:27+00:00","maker":"0x47c36a35618a81616838397ade7b44766fb6c60c","pair":"0x4b84d81e67f2ff6df9b7c5665c2b97d0ebe61ba7","sym":"HOODPIG","lag_secs":0.17,"pre_conf":true}
+{"kind":"buy","volume_usd":1.02,"ts":"2026-07-12T12:38:47+00:00","maker":"0x7360ecae6ef94341c0f3f0a66898bb7b128c3ab1","pair":"0x4b84d81e67f2ff6df9b7c5665c2b97d0ebe61ba7","sym":"HOODPIG","lag_secs":0.66,"pre_conf":true}
+{"kind":"sell","volume_usd":0.04,"ts":"2026-07-12T13:29:14+00:00","maker":"0x7360ecae6ef94341c0f3f0a66898bb7b128c3ab1","pair":"0x4b84d81e67f2ff6df9b7c5665c2b97d0ebe61ba7","sym":"HOODPIG","lag_secs":0.0,"pre_conf":true,"vol_est":true}

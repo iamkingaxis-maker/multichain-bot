@@ -1,0 +1,500 @@
+2026-07-10 18:18:57,978 [INFO] [SmartFollow] cycle: buys_window=18 active_tokens=12 max_consensus=2 fired_total=8
+2026-07-10 18:18:57,979 [WARNING] [Trader] RPC 0 HTTP 429 for getAccountInfo, trying next...
+2026-07-10 18:18:57,901 [INFO] [GeckoOHLCV] 83v8iPyZihDE: HTTP 429
+2026-07-10 18:18:57,922 [INFO] [DipScanner] SOL macro via Kraken fallback: h1=-0.077 h6=-2.07
+2026-07-10 18:18:57,921 [INFO] [GeckoOHLCV] 83v8iPyZihDE: HTTP 429
+2026-07-10 18:18:57,922 [INFO] [DipScanner] BUY-GATE would-block [shadow]: breadth=42>=40 (breadth=41.7 sol_h24=-0.945)
+2026-07-10 18:18:57,930 [INFO] [DipScanner] Signal: Loom mcap=$0.6M | 24h=+1511.0% 1h=-15.1% 5m=-6.7% vol24h=$1645k bs_h6=1.23 bs_h1=1.28 bs_m5=2.11
+2026-07-10 18:18:57,365 [INFO] [fast-watch] tick hot=50 full=481 polled=0 fired=4 mode=enforce
+2026-07-10 18:18:57,880 [WARNING] [phase-timing] fetch_candidates took 6.92s
+2026-07-10 18:18:57,982 [WARNING] [Trader] RPC 0 HTTP 429 for getAccountInfo, trying next...
+2026-07-10 18:18:57,982 [WARNING] [Trader] RPC 0 HTTP 429 for getAccountInfo, trying next...
+2026-07-10 18:18:57,986 [WARNING] [Trader] RPC 0 HTTP 429 for getAccountInfo, trying next...
+2026-07-10 18:18:58,594 [WARNING] [DipScanner] OBSERVATIONAL: Loom cycles_seen=363 (>=60 historically -EV; not blocking)
+2026-07-10 18:18:58,595 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: Loom reasons=pc_h24=+1511%>=200 (already pumped on the day),pct_above_vwap_h24=+16.8%>=10 (extended above VWAP)
+2026-07-10 18:18:58,596 [INFO] [DipScanner] FILTER_1M_SHADOW: Loom 1m_cum3=-4.493 1m_vol_spike=0.009 verdict=BLOCK reasons=1m_cum3=-4.49%<-1.0%,1m_vol_spike=0.01<0.40
+2026-07-10 18:18:58,596 [INFO] [DipScanner] FILTER_1M_DEAD_VOL_SHADOW: Loom reasons=1m_vol_spike=0.009<0.20 (dead 1m volume) -- shadow only
+2026-07-10 18:18:58,598 [INFO] [DipScanner] BLOCKED by filter_dead_vol_with_cnn_carveout: Loom reasons=1m_vol_spike=0.009<=0.115 AND cnn_outcome_prob=None < 0.265 (dead-vol AND no cnn rescue)
+2026-07-10 18:18:58,604 [INFO] [DipScanner] filter_1m_steep_fall SHADOW-would-block: Loom reasons=1m_cum3=-4.49%<-1.5% (steep 3min fall)
+2026-07-10 18:18:58,605 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: Loom reason=neither A nor B [1h_rng=0.11 h24_r=0.41 red=1]
+2026-07-10 18:18:58,623 [INFO] [DipScanner] CHART_READER: Loom score=64.5 verdict=bullish mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-07-10 18:18:58,628 [INFO] [UptrendScanner] WOULD-BLOCK: Loom gates=G1 mtf=mixed not in (bull, strong_bull)
+2026-07-10 18:18:58,696 [INFO] [DipScanner] ENTRY via deep_1h_dip_power_dip_runner_demand_bottom_compound_vol_surge_recent (clean_break BLOCKed): Loom pc_h1=-15.1%<=-8 (deep 1h dip),pc_h24=+1511.0%>=40 AND pc_h1=-15.1%<=-8 (power dip on hot runner),vwap_1h_dist=-12.4%<=-3 AND min_since_peak=80>=60,B3 BULLISH_SWEEP AND peak24=3671%>=500 AND chart_score=64>=50,vol_recent_8h_avg/vol_prior_40h_avg=15.04>=3.0 (recent 8h volume 15.0x longer baseline)
+2026-07-10 18:18:58,631 [INFO] [DipScanner] WATCHLIST BYPASS filter_vp_poc: Loom
+2026-07-10 18:18:58,631 [INFO] [DipScanner] filter_sweep_too_recent SHADOW would-block: Loom reasons=chart_sweep_5m_low_candles_ago=0<=2 (sweep still unfolding — knife-catch)
+2026-07-10 18:18:58,691 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: Loom reasons=1m_last_close=-1.33%<0.3 (no real green confirmation),1m_vol_spike=0.01<1.0 (bounce on weak volume)
+2026-07-10 18:18:58,691 [INFO] [DipScanner] filter_sol_macro_down strict-would-block (loose mode active, NOT enforced): Loom reasons=sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down)
+2026-07-10 18:18:58,690 [INFO] [DipScanner] filter_big_trade_size SHADOW would-block: Loom reasons=avg_trade_size_h1=$83>$80 (whale-sized trades preceding dip)
+2026-07-10 18:18:58,691 [INFO] [DipScanner] filter_sol_macro_loose SHADOW would-ALLOW: Loom (strict blocked on sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down); loose crash-gate passes)
+2026-07-10 18:18:58,690 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: Loom reasons=cycles_seen=363>15 (stale watch — fresh dips beat stale ones)
+2026-07-10 18:18:58,692 [INFO] [DipScanner] TRIGGER_FEATURES: Loom top10_60s=2.000 vwap_1h=-12.440 min_peak=80.500 hr_grad=65.310 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.412
+2026-07-10 18:18:58,630 [INFO] [DipScanner] BLOCKED by filter_vp_poc: Loom reasons=chart_vp_poc_distance_pct=+131.8%>20 AND 1m_volume_spike=0.01<1.0 (extreme above POC on dead volume = clear chase)
+2026-07-10 18:18:58,967 [INFO] [DipScanner] WATCHLIST BYPASS filter_blowoff_top: Loom
+2026-07-10 18:18:58,968 [INFO] [DipScanner] SHADOW filter_high_activity_fomo would BLOCK: Loom reasons=buys_per_min_recent=19>=10 (FOMO peak — n=20 lifetime, 15% WR, -$4.63 avg)
+2026-07-10 18:18:58,968 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: Loom reasons=net_flow_5m_usd=$-550<0 (sellers winning 5m USD flow)
+2026-07-10 18:18:58,962 [INFO] [DipScanner] BLOCKED by filter_no_signatures: Loom sigs_hit=0/6 available=6
+2026-07-10 18:18:58,965 [INFO] [DipScanner] SHADOW filter_15s_dump would BLOCK: Loom reasons=net_flow_15s=$-738<-500 (heavy net selling in last 15s — knife catch)
+2026-07-10 18:18:58,965 [INFO] [DipScanner] BLOCKED by filter_lp_drain: Loom reasons=lp_delta_15m=-9.1%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-10 18:18:58,967 [INFO] [DipScanner] BLOCKED by filter_blowoff_top: Loom reasons=pc_h24=1511%>=500 (blow-off top — universe avg_exit -5.9%)
+2026-07-10 18:18:58,970 [INFO] [DipScanner] SHADOW filter_already_mooned would BLOCK: Loom peak_h24=3671%
+2026-07-10 18:18:58,972 [INFO] [DipScanner] regime_size SHADOW 0.5x: Loom broad_red(h1neg=42)
+2026-07-10 18:18:58,987 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for Loom triggers=['deep_1h_dip', 'power_dip_runner', 'demand_bottom_compound', 'vol_surge_recent', 'cnn_cluster_10']
+2026-07-10 18:18:58,969 [INFO] [DipScanner] BLOCKED by filter_above_vwap_chase: Loom reasons=pct_above_vwap_h24=+16.8%∈[+10,+30) (chasing local strength)
+2026-07-10 18:18:58,969 [INFO] [DipScanner] BLOCKED by filter_reviving_lifecycle: Loom
+2026-07-10 18:18:59,460 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=0 mode=enforce
+2026-07-10 18:18:59,510 [INFO] [onchain] refresh +24 -27 tracked=465
+2026-07-10 18:18:59,521 [INFO] [onchain-ws] connection reconcile +6 -6 live=6
+2026-07-10 18:18:59,521 [INFO] [onchain] heartbeat mode=on subs=465 cached=0 ws_msgs=0 sol_usd=77.6000 mig_mode=off amm_pools=0 amm_cached=0
+2026-07-10 18:18:59,541 [INFO] [DipScanner] Signal: SMOLE mcap=$0.1M | 24h=+274.0% 1h=-27.8% 5m=-3.9% vol24h=$811k bs_h6=1.64 bs_h1=1.67 bs_m5=1.35
+2026-07-10 18:18:59,789 [WARNING] [DipScanner] OBSERVATIONAL: SMOLE cycles_seen=86 (>=60 historically -EV; not blocking)
+2026-07-10 18:18:59,789 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: SMOLE reasons=pc_h24=+274%>=200 (already pumped on the day)
+2026-07-10 18:18:59,790 [INFO] [DipScanner] FILTER_1M_SHADOW: SMOLE 1m_cum3=10.355 1m_vol_spike=0.918 verdict=PASS
+2026-07-10 18:18:59,793 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: SMOLE reason=neither A nor B [1h_rng=0.12 h24_r=0.10 red=0]
+2026-07-10 18:18:59,806 [INFO] [DipScanner] CHART_READER: SMOLE score=50.9 verdict=neutral mtf=bear sr_5m_supp=False pattern_5m=None
+2026-07-10 18:18:59,813 [INFO] [UptrendScanner] WOULD-BLOCK: SMOLE gates=G1 mtf=bear not in (bull, strong_bull),G2 5m_state=undefined != uptrend
+2026-07-10 18:18:59,855 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: SMOLE reasons=bs_m5=1.35<1.40 (sellers dominating 5m order flow)
+2026-07-10 18:18:59,855 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: SMOLE reasons=cycles_seen=86>15 (stale watch — fresh dips beat stale ones)
+2026-07-10 18:18:59,856 [INFO] [DipScanner] BLOCKED by filter_fusion_floor: SMOLE reasons=fusion_score=0.323<0.40 (ML model disagrees with entry)
+2026-07-10 18:18:59,856 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: SMOLE reasons=1m_vol_spike=0.92<1.0 (bounce on weak volume)
+2026-07-10 18:18:59,857 [INFO] [DipScanner] high_regime SUPPRESSED: SMOLE dev_pct=missing<2.0 AND mtf_vol_align=0<1 (no tf vol spike) AND clean_break=BLOCK (no green confirmation candle yet)
+2026-07-10 18:18:59,856 [INFO] [DipScanner] filter_sol_macro_down strict-would-block (loose mode active, NOT enforced): SMOLE reasons=sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down)
+2026-07-10 18:18:59,858 [INFO] [DipScanner] TRIGGER_FEATURES: SMOLE top10_60s=7.000 vwap_1h=-36.340 min_peak=84.500 hr_grad=2.580 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.095
+2026-07-10 18:18:59,856 [INFO] [DipScanner] filter_sol_macro_loose SHADOW would-ALLOW: SMOLE (strict blocked on sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down); loose crash-gate passes)
+2026-07-10 18:18:59,861 [INFO] [DipScanner] filter_mtf_strong_downtrend SHADOW-would-block: SMOLE reasons=chart_mtf_score=-2.0<=-2.0 (strong multi-tf downtrend)
+2026-07-10 18:18:59,862 [INFO] [DipScanner] trigger_active_dip FIRED: SMOLE buys_h1=2270>=200 AND pc_h1=-27.8%<=-15 AND 1m_vol_spike=0.92>=0.40 AND 1m_cum_3m=+10.36%>=-3
+2026-07-10 18:18:59,862 [INFO] [DipScanner] trigger_high_activity_runner FIRED: SMOLE vol_h1=$186148>=31.6k AND buys_h1=2270>=2000 AND 1m_vol_spike=0.92>=0.40 AND 1m_cum_3m=+10.36%>=-3
+2026-07-10 18:18:59,863 [INFO] [DipScanner] trigger_low_liq_active_dip FIRED: SMOLE buys_h1=2270>=1000 AND liq=$26991<=30k AND range_pct=6.52%>=1 AND 1m_vol_spike=0.92>=0.40 AND 1m_cum_3m=+10.36%>=-3
+2026-07-10 18:18:59,863 [INFO] [DipScanner] trigger_high_churn_microcap FIRED: SMOLE vol_h1/mcap=1.53>=0.25 AND vol_h6/liq=30.1>=10 AND age=2.58h<=6 AND 1m_vol_spike=0.92>=0.40 AND 1m_cum_3m=+10.36%>=-3
+2026-07-10 18:18:59,863 [INFO] [DipScanner] ENTRY via active_dip_high_activity_runner_low_liq_active_dip_high_churn_microcap_deep_1h_dip_power_dip_runner_calm_buyer_demand_informed_cluster_net_flow_5m_demand_whale_conviction (clean_break BLOCKed): SMOLE pc_h1=-27.8%<=-8 (deep 1h dip),pc_h24=+274.0%>=40 AND pc_h1=-27.8%<=-8 (power dip on hot runner),1m_consec_red=0 AND net_flow_15s_imbalance=+0.98>=0 AND 1m_last_close_pct=+1.90%>=0 (calm 1m, positive 15s flow, green confirmation),vwap_1h_dist=-36.3%<=-3 AND min_since_peak=84>=60,top10_60s=7>=5 AND vwap_1h_dist=-36.3%<=-3,net_flow_5m_usd=$+758>=300 (sustained 5m net buy pressure),top10_buyer_within_60s_count=7>=3 (clustered top-10 buyers)
+2026-07-10 18:19:00,121 [INFO] [DipScanner] BLOCKED by filter_lp_drain: SMOLE reasons=lp_delta_15m=-5.3%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-10 18:19:00,124 [INFO] [DipScanner] SHADOW filter_high_activity_fomo would BLOCK: SMOLE reasons=buys_per_min_recent=11>=10 (FOMO peak — n=20 lifetime, 15% WR, -$4.63 avg)
+2026-07-10 18:19:00,124 [INFO] [DipScanner] filter_wide_range_entry SHADOW would-block: SMOLE reasons=entry_range=6.61%>3.0 (panicky-volatility candle — likely reversal)
+2026-07-10 18:19:00,128 [INFO] [DipScanner] regime_size SHADOW 0.5x: SMOLE broad_red(h1neg=42)
+2026-07-10 18:19:00,132 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for SMOLE triggers=['active_dip', 'high_activity_runner', 'low_liq_active_dip', 'high_churn_microcap', 'deep_1h_dip', 'power_dip_runner', 'calm_buyer_demand', 'informed_cluster', 'net_flow_5m_demand', 'whale_conviction']
+2026-07-10 18:19:00,133 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: SMOLE fired=R4(pc_h1=-27.84<-22.1,poc=-22.20<16.6),R6(pc_h1=-27.84<-8.2,poc=-22.20<-7.5)
+2026-07-10 18:19:00,136 [INFO] [AxiomPriceFeed] Subscribed: 7hn6waeg…
+2026-07-10 18:19:00,137 [INFO] [entry_stack] token=SMOLE age_young(2.6h<24);mcap_out(0.12M) mode=enforce block=True (1/token/hr)
+2026-07-10 18:19:00,138 [INFO] [main-scan->arm] 2 would-buy decision(s) for SMOLE ARMED+force-eval for fresh-path decision (MAIN_SCAN_BUY_MODE=arm_only) — stale main-scan price NOT committed
+2026-07-10 18:19:00,146 [INFO] [DipScanner] Signal: NIGGABULL mcap=$0.2M | 24h=-77.9% 1h=-71.7% 5m=-8.8% vol24h=$1318k bs_h6=1.15 bs_h1=1.15 bs_m5=1.01
+2026-07-10 18:19:00,147 [WARNING] [DipScanner] OBSERVATIONAL: NIGGABULL cycles_seen=176 (>=60 historically -EV; not blocking)
+2026-07-10 18:19:00,148 [INFO] [DipScanner] FILTER_1M_SHADOW: NIGGABULL 1m_cum3=1.231 1m_vol_spike=0.902 verdict=PASS
+2026-07-10 18:19:00,152 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: NIGGABULL reason=neither A nor B [1h_rng=0.10 h24_r=-1.54 red=1]
+2026-07-10 18:19:00,169 [INFO] [DipScanner] CHART_READER: NIGGABULL score=30.1 verdict=bearish mtf=strong_bear sr_5m_supp=False pattern_5m=double_top
+2026-07-10 18:19:00,174 [INFO] [UptrendScanner] WOULD-BLOCK: NIGGABULL gates=G1 mtf=strong_bear not in (bull, strong_bull),G2 5m_state=ranging != uptrend,G5 chart_score=30.1<50
+2026-07-10 18:19:00,175 [INFO] [DipScanner] filter_turn rescued by bs_h6 carve-out: NIGGABULL bs_h6=1.15<=1.20 (64% won_10pct on n=295 in 4d mining)
+2026-07-10 18:19:00,199 [INFO] [arm-instant-fire] no fresh price for 7Hn6wA -> deferring to fast-tick drain
+2026-07-10 18:19:00,202 [INFO] [arm-instant-fire] no fresh price for 7Hn6wA -> deferring to fast-tick drain
+2026-07-10 18:19:00,223 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: NIGGABULL reasons=bs_m5=1.01<1.40 (sellers dominating 5m order flow)
+2026-07-10 18:19:00,224 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: NIGGABULL reasons=cycles_seen=176>15 (stale watch — fresh dips beat stale ones)
+2026-07-10 18:19:00,224 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: NIGGABULL reasons=1m_last_close=-8.10%<0.3 (no real green confirmation),1m_vol_spike=0.90<1.0 (bounce on weak volume)
+2026-07-10 18:19:00,224 [INFO] [DipScanner] filter_sol_macro_down strict-would-block (loose mode active, NOT enforced): NIGGABULL reasons=sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down)
+2026-07-10 18:19:00,225 [INFO] [DipScanner] filter_sol_macro_loose SHADOW would-ALLOW: NIGGABULL (strict blocked on sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down); loose crash-gate passes)
+2026-07-10 18:19:00,225 [INFO] [DipScanner] BLOCKED by filter_fusion_floor: NIGGABULL reasons=fusion_score=0.311<0.40 (ML model disagrees with entry)
+2026-07-10 18:19:00,226 [INFO] [DipScanner] high_regime SUPPRESSED: NIGGABULL dev_pct=missing<2.0 AND mtf_vol_align=0<1 (no tf vol spike) AND clean_break=BLOCK (no green confirmation candle yet)
+2026-07-10 18:19:00,226 [INFO] [DipScanner] TRIGGER_FEATURES: NIGGABULL top10_60s=5.000 vwap_1h=-42.470 min_peak=335.900 hr_grad=62.040 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=-1.541
+2026-07-10 18:19:00,230 [INFO] [DipScanner] SHADOW filter_falling_knife would BLOCK: NIGGABULL reasons=mtf_score=-4.0<=-1 AND 1m_last_close=-8.10%<0 (falling knife — no green confirmation)
+2026-07-10 18:19:00,231 [INFO] [DipScanner] trigger_active_dip FIRED: NIGGABULL buys_h1=634>=200 AND pc_h1=-71.7%<=-15 AND 1m_vol_spike=0.90>=0.40 AND 1m_cum_3m=+1.23%>=-3
+2026-07-10 18:19:00,231 [INFO] [DipScanner] trigger_confirmed_dip FIRED: NIGGABULL pc_m5=-8.8%<=-5 AND pc_h1=-71.7%<=-15 AND 1m_vol_spike=0.90>=0.40 AND 1m_cum_3m=+1.23%>=-3
+2026-07-10 18:19:00,232 [INFO] [DipScanner] ENTRY via active_dip_confirmed_dip_deep_1h_dip_informed_cluster_whale_conviction_modest_pump_deep_retrace (clean_break BLOCKed): NIGGABULL pc_h24=-77.9%<=-7.48 AND peak_h24_6h=50.5%>=7.2 (deep dip from 6h peak) [RETIRED],pc_h1=-71.7%<=-8 (deep 1h dip),vwap_1h_dist=-42.5%<=-3 AND min_since_peak=336>=60,top10_60s=5>=5 AND vwap_1h_dist=-42.5%<=-3,top10_buyer_within_60s_count=5>=3 (clustered top-10 buyers),peak_h24_6h=51% in [50,150) AND h24_ratio=-1.541<0.10 (modest pump deeply retraced)
+2026-07-10 18:19:00,530 [INFO] [DipScanner] filter_quote_asymmetry RESCUED by breakthrough_late: NIGGABULL trigs=['active_dip', 'confirmed_dip', 'deep_1h_dip', 'informed_cluster', 'whale_conviction', 'modest_pump_deep_retrace']
+2026-07-10 18:19:00,531 [INFO] [DipScanner] filter_lower_low RESCUED by breakthrough_late: NIGGABULL trigs=['active_dip', 'confirmed_dip', 'deep_1h_dip', 'informed_cluster', 'whale_conviction', 'modest_pump_deep_retrace']
+2026-07-10 18:19:00,531 [INFO] [DipScanner] BLOCKED by filter_lp_drain: NIGGABULL reasons=lp_delta_15m=-36.2%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-10 18:19:00,229 [INFO] [DipScanner] filter_mtf_strong_downtrend SHADOW-would-block: NIGGABULL reasons=chart_mtf_score=-4.0<=-2.0 (strong multi-tf downtrend)
+2026-07-10 18:19:00,535 [INFO] [DipScanner] regime_size SHADOW 0.5x: NIGGABULL broad_red(h1neg=42)
+2026-07-10 18:19:00,541 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: NIGGABULL fired=R4(pc_h1=-71.68<-22.1,poc=-80.61<16.6),R6(pc_h1=-71.68<-8.2,poc=-80.61<-7.5)
+2026-07-10 18:19:00,533 [INFO] [DipScanner] BLOCKED by filter_terminal_collapse: NIGGABULL pc_h6=-76.5%<=-60% (terminal 6h collapse — corpse, not a dip)
+2026-07-10 18:19:00,540 [INFO] [DipScanner] medbuy_sub8 SHADOW would-block: NIGGABULL median_buy=$0.00<8 (crowd-quality cliff)
+2026-07-10 18:19:00,544 [INFO] [main-scan->arm] 10 would-buy decision(s) for NIGGABULL ARMED+force-eval for fresh-path decision (MAIN_SCAN_BUY_MODE=arm_only) — stale main-scan price NOT committed
+2026-07-10 18:19:00,533 [INFO] [DipScanner] filter_wide_range_entry SHADOW would-block: NIGGABULL reasons=entry_range=10.48%>3.0 (panicky-volatility candle — likely reversal)
+2026-07-10 18:19:00,560 [INFO] [DipScanner] Signal: IQ mcap=$0.1M | 24h=+275.0% 1h=-38.7% 5m=+0.5% vol24h=$541k bs_h6=1.30 bs_h1=1.25 bs_m5=1.33
+2026-07-10 18:19:00,541 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for NIGGABULL triggers=['active_dip', 'confirmed_dip', 'deep_1h_dip', 'informed_cluster', 'whale_conviction', 'modest_pump_deep_retrace']
+2026-07-10 18:19:00,554 [INFO] [DipScanner] 1m gate: RIBBIT — no green close in last 3 min AND cum_3min=-5.0%<-2 — skipping
+2026-07-10 18:19:00,593 [INFO] [arm-instant-fire] no fresh price for 77x1fC -> deferring to fast-tick drain
+2026-07-10 18:19:00,593 [INFO] [arm-instant-fire] no fresh price for 77x1fC -> deferring to fast-tick drain
+2026-07-10 18:19:00,926 [INFO] [DipScanner] filter_1m_steep_fall SHADOW-would-block: IQ reasons=1m_cum3=-3.22%<-1.5% (steep 3min fall)
+2026-07-10 18:19:00,599 [INFO] [arm-instant-fire] no fresh price for 77x1fC -> deferring to fast-tick drain
+2026-07-10 18:19:00,599 [INFO] [arm-instant-fire] no fresh price for 77x1fC -> deferring to fast-tick drain
+2026-07-10 18:19:00,599 [INFO] [arm-instant-fire] no fresh price for 77x1fC -> deferring to fast-tick drain
+2026-07-10 18:19:00,621 [INFO] [arm-instant-fire] no fresh price for 77x1fC -> deferring to fast-tick drain
+2026-07-10 18:19:00,623 [INFO] [arm-instant-fire] no fresh price for 77x1fC -> deferring to fast-tick drain
+2026-07-10 18:19:00,627 [INFO] [arm-instant-fire] no fresh price for 77x1fC -> deferring to fast-tick drain
+2026-07-10 18:19:00,629 [INFO] [arm-instant-fire] no fresh price for 77x1fC -> deferring to fast-tick drain
+2026-07-10 18:19:00,629 [INFO] [arm-instant-fire] no fresh price for 77x1fC -> deferring to fast-tick drain
+2026-07-10 18:19:00,922 [WARNING] [DipScanner] OBSERVATIONAL: IQ cycles_seen=260 (>=60 historically -EV; not blocking)
+2026-07-10 18:19:00,923 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: IQ reasons=pc_h24=+275%>=200 (already pumped on the day)
+2026-07-10 18:19:00,923 [INFO] [DipScanner] FILTER_1M_SHADOW: IQ 1m_cum3=-3.224 1m_vol_spike=0.163 verdict=BLOCK reasons=1m_cum3=-3.22%<-1.0%,1m_vol_spike=0.16<0.40
+2026-07-10 18:19:00,924 [INFO] [DipScanner] FILTER_1M_DEAD_VOL_SHADOW: IQ reasons=1m_vol_spike=0.163<0.20 (dead 1m volume) -- shadow only
+2026-07-10 18:19:00,940 [INFO] [DipScanner] BLOCKED by filter_vp_poc: IQ reasons=chart_vp_poc_distance_pct=+206.2%>20 AND 1m_volume_spike=0.16<1.0 (extreme above POC on dead volume = clear chase)
+2026-07-10 18:19:00,980 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: IQ reasons=1m_vol_spike=0.16<1.0 (bounce on weak volume)
+2026-07-10 18:19:00,980 [INFO] [DipScanner] filter_sol_macro_down strict-would-block (loose mode active, NOT enforced): IQ reasons=sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down)
+2026-07-10 18:19:00,940 [INFO] [DipScanner] filter_sweep_too_recent SHADOW would-block: IQ reasons=chart_sweep_5m_low_candles_ago=1<=2 (sweep still unfolding — knife-catch)
+2026-07-10 18:19:00,979 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: IQ reasons=bs_m5=1.33<1.40 (sellers dominating 5m order flow)
+2026-07-10 18:19:00,980 [INFO] [DipScanner] filter_sol_macro_loose SHADOW would-ALLOW: IQ (strict blocked on sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down); loose crash-gate passes)
+2026-07-10 18:19:00,979 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: IQ reasons=cycles_seen=260>15 (stale watch — fresh dips beat stale ones)
+2026-07-10 18:19:00,926 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: IQ reason=neither A nor B [1h_rng=0.15 h24_r=0.37 red=0]
+2026-07-10 18:19:00,936 [INFO] [DipScanner] CHART_READER: IQ score=46.3 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=symmetrical_triangle
+2026-07-10 18:19:00,938 [INFO] [UptrendScanner] WOULD-BLOCK: IQ gates=G1 mtf=mixed not in (bull, strong_bull),G2 5m_state=downtrend != uptrend,G5 chart_score=46.3<50
+2026-07-10 18:19:00,939 [INFO] [DipScanner] BLOCKED by filter_turn: IQ reasons=pct_in_5m_range=0.156<0.5 (catching knife)
+2026-07-10 18:19:00,981 [INFO] [DipScanner] TRIGGER_FEATURES: IQ top10_60s=1.000 vwap_1h=-7.750 min_peak=116.500 hr_grad=10.730 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.369
+2026-07-10 18:19:00,984 [INFO] [DipScanner] ENTRY via deep_1h_dip_power_dip_runner_calm_buyer_demand_extreme_sweep_1m (clean_break BLOCKed): IQ pc_h1=-38.7%<=-8 (deep 1h dip),pc_h24=+275.0%>=40 AND pc_h1=-38.7%<=-8 (power dip on hot runner),1m_consec_red=0 AND net_flow_15s_imbalance=+1.00>=0 AND 1m_last_close_pct=+0.66%>=0 (calm 1m, positive 15s flow, green confirmation),vwap_1h_dist=-7.8%<=-3 AND min_since_peak=116>=60,hours_since_grad=10.7 in [6,24) AND vwap_1h_dist=-7.8%<=-3,1m_max_wick_body_ratio=12.3>=10 (bar -4) AND peak_h24_6h=746%>=200
+2026-07-10 18:19:01,240 [INFO] [DipScanner] SHADOW filter_buyer_fomo would BLOCK: IQ reasons=net_flow_60s_imb=1.00>0.9 (>90% of 60s flow is buys — late FOMO chase)
+2026-07-10 18:19:01,242 [INFO] [DipScanner] BLOCKED by filter_reviving_lifecycle: IQ
+2026-07-10 18:19:01,244 [INFO] [DipScanner] filter_no_demand_entry SHADOW would-block: IQ arms=chase (pc_m5=0.5,smart_wallet=0,higher_low=False,bs_m5=1.3333333333333333)
+2026-07-10 18:19:01,244 [INFO] [DipScanner] regime_size SHADOW 0.5x: IQ broad_red(h1neg=42)
+2026-07-10 18:19:01,248 [INFO] [DipScanner] mtf_textbook_pullback CONVICTION shadow (upsize candidate): IQ
+2026-07-10 18:19:01,249 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for IQ triggers=['deep_1h_dip', 'power_dip_runner', 'calm_buyer_demand', 'extreme_sweep_1m', 'cnn_cluster_10', 'textbook_pullback_vol_accel', 'textbook_pullback_big_buyer', 'trigger_stable_compound_quality']
+2026-07-10 18:19:01,313 [INFO] [main-scan->arm] 18 would-buy decision(s) for IQ ARMED+force-eval for fresh-path decision (MAIN_SCAN_BUY_MODE=arm_only) — stale main-scan price NOT committed
+2026-07-10 18:19:01,395 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,336 [INFO] [DipScanner] FRESHNESS GATE blocked: RTM vol_m5=$64<$200 AND txns_m5=2<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-07-10 18:19:01,343 [INFO] [DipScanner] Signal: three mcap=$1.3M | 24h=+5.3% 1h=-3.4% 5m=-0.1% vol24h=$652k bs_h6=2.54 bs_h1=2.53 bs_m5=2.79
+2026-07-10 18:19:01,397 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,397 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,396 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,401 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,422 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,423 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,422 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,429 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,429 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,441 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,548 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:01,889 [WARNING] [DipScanner] OBSERVATIONAL: three cycles_seen=274 (>=60 historically -EV; not blocking)
+2026-07-10 18:19:01,448 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,891 [INFO] [DipScanner] FILTER_1M_SHADOW: three 1m_cum3=-0.059 1m_vol_spike=0.692 verdict=PASS
+2026-07-10 18:19:01,451 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,485 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,451 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,894 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: three reason=neither A nor B [1h_rng=0.21 h24_r=0.19 red=0]
+2026-07-10 18:19:01,486 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,910 [INFO] [DipScanner] CHART_READER: three score=31.0 verdict=bearish mtf=strong_bear sr_5m_supp=False pattern_5m=double_top
+2026-07-10 18:19:01,487 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,911 [INFO] [UptrendScanner] WOULD-BLOCK: three gates=G1 mtf=strong_bear not in (bull, strong_bull),G2 5m_state=downtrend != uptrend,G5 chart_score=31.0<50
+2026-07-10 18:19:01,448 [INFO] [arm-instant-fire] no fresh price for 8y8K7t -> deferring to fast-tick drain
+2026-07-10 18:19:01,923 [INFO] [DipScanner] filter_weak_bounce SHADOW would-block: three reasons=body/range=0.05<0.20 (weak commitment in 5m candle)
+2026-07-10 18:19:01,923 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: three reasons=cycles_seen=274>15 (stale watch — fresh dips beat stale ones)
+2026-07-10 18:19:01,924 [INFO] [DipScanner] filter_sol_macro_down strict-would-block (loose mode active, NOT enforced): three reasons=sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down)
+2026-07-10 18:19:01,924 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: three reasons=1m_vol_spike=0.69<1.0 (bounce on weak volume)
+2026-07-10 18:19:01,924 [INFO] [DipScanner] filter_sol_macro_loose SHADOW would-ALLOW: three (strict blocked on sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down); loose crash-gate passes)
+2026-07-10 18:19:01,924 [INFO] [DipScanner] BLOCKED by filter_fusion_floor: three reasons=fusion_score=0.321<0.40 (ML model disagrees with entry)
+2026-07-10 18:19:01,925 [INFO] [DipScanner] BLOCKED by filter_huge_wick: three reasons=wick_body_5m_avg=14.8>10 (manipulated/illiquid wick — corpse signature)
+2026-07-10 18:19:01,925 [INFO] [DipScanner] TRIGGER_FEATURES: three top10_60s=2.000 vwap_1h=-1.770 min_peak=357.500 hr_grad=1739.170 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.191
+2026-07-10 18:19:01,928 [INFO] [DipScanner] filter_mtf_strong_downtrend RESCUED by pc_h1: three pc_h1=-3.4%>-20 (realistic sim d=+0.65, winners avg -15.6 vs losers -24.4)
+2026-07-10 18:19:01,928 [INFO] [DipScanner] clean_break SUPPRESSED: three mtf=-3 or chart_score=31.0 fails compound gate (need mtf>=0 AND chart_score>=48)
+2026-07-10 18:19:02,203 [INFO] Cycle done: 0 new dips detected, 41 skipped, 63 pending outcomes
+2026-07-10 18:19:01,929 [INFO] [DipScanner] new-triggers WASH-GUARDED: three mean_buy_size=$0.20<$10 (wash-trade signature; clearing 9 new on-chain triggers)
+2026-07-10 18:19:02,311 [INFO] [Cycle 2] Total resolved events on disk: 16641
+2026-07-10 18:19:01,930 [INFO] [DipScanner] ENTRY via calm_buyer_demand_chart_channel_strong (clean_break BLOCKed): three 1m_consec_red=0 AND net_flow_15s_imbalance=+0.02>=0 AND 1m_last_close_pct=+1.14%>=0 (calm 1m, positive 15s flow, green confirmation)
+2026-07-10 18:19:03,042 [INFO] 100.64.0.16 [10/Jul/2026:18:19:02 +0000] "GET /api/live HTTP/1.1" 200 730 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+2026-07-10 18:19:03,045 [INFO] 100.64.0.5 [10/Jul/2026:18:19:02 +0000] "GET /api/leaderboard?sort=throughput_x_pnl HTTP/1.1" 200 1469 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+2026-07-10 18:19:03,046 [INFO] 100.64.0.12 [10/Jul/2026:18:19:03 +0000] "GET /api/wallet-truth HTTP/1.1" 200 374 "-" "curl/8.18.0"
+2026-07-10 18:19:03,655 [INFO] [fast-watch] tick hot=50 full=465 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:03,898 [INFO] [DipScanner] SHADOW filter_high_activity_fomo would BLOCK: three reasons=buys_per_min_recent=17>=10 (FOMO peak — n=20 lifetime, 15% WR, -$4.63 avg)
+2026-07-10 18:19:03,899 [INFO] [DipScanner] BLOCKED by filter_seller_imbalance: three reasons=net_flow_5m_imbalance=-0.425<-0.2 (sellers dominating 5m dollar flow)
+2026-07-10 18:19:03,899 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: three reasons=net_flow_5m_usd=$-22<0 (sellers winning 5m USD flow)
+2026-07-10 18:19:03,902 [INFO] [DipScanner] regime_size SHADOW 0.5x: three broad_red(h1neg=42)
+2026-07-10 18:19:03,902 [INFO] [DipScanner] stale_drift SHADOW would-de-size: three stale_drift: age=1739h>168 AND pc_h24=5.3 in [-20,60) (old middling-drift bleed)
+2026-07-10 18:19:03,907 [INFO] [DipScanner] medbuy_sub8 SHADOW would-block: three median_buy=$0.04<8 (crowd-quality cliff)
+2026-07-10 18:19:03,908 [INFO] [DipScanner] p1_lbls SHADOW would-block: three lbls=0.27<0.3 (no big buyer meeting the dump)
+2026-07-10 18:19:03,908 [INFO] [DipScanner] mtf_textbook_pullback CONVICTION shadow (upsize candidate): three
+2026-07-10 18:19:03,909 [INFO] [DipScanner] Position size tier: standard $2 (base $5) for three triggers=['calm_buyer_demand', 'chart_channel_strong']
+2026-07-10 18:19:03,909 [INFO] [DipScanner] BLOCKED by filter_lazy_fade_buy: three bs_m5=2.79∈[1.5,3.0) AND pc_h1=-3.41%>-8 (lazy fade — no real dip)
+2026-07-10 18:19:03,927 [INFO] [DipScanner] FRESHNESS GATE blocked: MARVIN vol_m5=$124<$200 AND txns_m5=4<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-07-10 18:19:03,929 [INFO] [DipScanner] 1m gate: vibeshift — no green close in last 3 min AND cum_3min=-2.1%<-2 — skipping
+2026-07-10 18:19:03,929 [INFO] [DipScanner] FRESHNESS GATE blocked: BEGGY vol_m5=$77<$200 AND txns_m5=4<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-07-10 18:19:03,931 [INFO] [DipScanner] Signal: EVERMEADOW mcap=$0.3M | 24h=-40.9% 1h=-2.9% 5m=-5.0% vol24h=$4225k bs_h6=1.03 bs_h1=0.99 bs_m5=1.09
+2026-07-10 18:19:04,056 [INFO] [DipScanner] filter_sweep_too_recent SHADOW would-block: EVERMEADOW reasons=chart_sweep_5m_low_candles_ago=0<=2 (sweep still unfolding — knife-catch)
+2026-07-10 18:19:04,064 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: EVERMEADOW reasons=bs_m5=1.09<1.40 (sellers dominating 5m order flow)
+2026-07-10 18:19:04,064 [INFO] [DipScanner] filter_big_trade_size SHADOW would-block: EVERMEADOW reasons=avg_trade_size_h1=$96>$80 (whale-sized trades preceding dip)
+2026-07-10 18:19:04,064 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: EVERMEADOW reasons=cycles_seen=396>15 (stale watch — fresh dips beat stale ones)
+2026-07-10 18:19:04,004 [WARNING] [DipScanner] OBSERVATIONAL: EVERMEADOW cycles_seen=396 (>=60 historically -EV; not blocking)
+2026-07-10 18:19:04,005 [INFO] [DipScanner] FILTER_1M_SHADOW: EVERMEADOW 1m_cum3=-2.312 1m_vol_spike=0.235 verdict=BLOCK reasons=1m_cum3=-2.31%<-1.0%,1m_vol_spike=0.23<0.40
+2026-07-10 18:19:04,010 [INFO] [DipScanner] filter_1m_steep_fall SHADOW-would-block: EVERMEADOW reasons=1m_cum3=-2.31%<-1.5% (steep 3min fall)
+2026-07-10 18:19:04,010 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: EVERMEADOW reason=neither A nor B [1h_rng=0.23 h24_r=-0.83 red=1]
+2026-07-10 18:19:04,024 [INFO] [DipScanner] CHART_READER: EVERMEADOW score=39.4 verdict=bearish mtf=strong_bear sr_5m_supp=False pattern_5m=symmetrical_triangle
+2026-07-10 18:19:04,055 [INFO] [UptrendScanner] WOULD-BLOCK: EVERMEADOW gates=G1 mtf=strong_bear not in (bull, strong_bull),G5 chart_score=39.4<50
+2026-07-10 18:19:04,056 [INFO] [DipScanner] filter_turn rescued by bs_h6 carve-out: EVERMEADOW bs_h6=1.03<=1.20 (64% won_10pct on n=295 in 4d mining)
+2026-07-10 18:19:04,065 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: EVERMEADOW reasons=1m_last_close=-0.77%<0.3 (no real green confirmation),1m_vol_spike=0.23<1.0 (bounce on weak volume)
+2026-07-10 18:19:04,065 [INFO] [DipScanner] filter_sol_macro_down strict-would-block (loose mode active, NOT enforced): EVERMEADOW reasons=sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down)
+2026-07-10 18:19:04,065 [INFO] [DipScanner] filter_sol_macro_loose SHADOW would-ALLOW: EVERMEADOW (strict blocked on sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down); loose crash-gate passes)
+2026-07-10 18:19:04,065 [INFO] [DipScanner] BLOCKED by filter_fusion_floor: EVERMEADOW reasons=fusion_score=0.264<0.40 (ML model disagrees with entry)
+2026-07-10 18:19:04,066 [INFO] [DipScanner] TRIGGER_FEATURES: EVERMEADOW top10_60s=5.000 vwap_1h=-3.480 min_peak=321.400 hr_grad=34.970 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=-0.828
+2026-07-10 18:19:04,068 [INFO] [DipScanner] filter_mtf_strong_downtrend RESCUED by pc_h1: EVERMEADOW pc_h1=-2.9%>-20 (realistic sim d=+0.65, winners avg -15.6 vs losers -24.4)
+2026-07-10 18:19:04,069 [INFO] [DipScanner] SHADOW filter_falling_knife would BLOCK: EVERMEADOW reasons=mtf_score=-4.0<=-1 AND 1m_last_close=-0.77%<0 (falling knife — no green confirmation)
+2026-07-10 18:19:04,070 [INFO] [DipScanner] ENTRY via informed_cluster_whale_conviction (clean_break BLOCKed): EVERMEADOW pc_h24=-40.9%<=-7.48 AND peak_h24_6h=49.3%>=7.2 (deep dip from 6h peak) [RETIRED],vwap_1h_dist=-3.5%<=-3 AND min_since_peak=321>=60,top10_60s=5>=5 AND vwap_1h_dist=-3.5%<=-3,top10_buyer_within_60s_count=5>=3 (clustered top-10 buyers)
+2026-07-10 18:19:04,435 [INFO] [DipScanner] filter_wide_range_entry SHADOW would-block: EVERMEADOW reasons=entry_range=3.79%>3.0 (panicky-volatility candle — likely reversal)
+2026-07-10 18:19:04,449 [WARNING] [phase-timing] slowest token=three _evaluate_pair=2.57s (n_tokens=465)
+2026-07-10 18:19:04,453 [INFO] [DipScanner] Cycle: fetched=465 (ds_stub=1 ds_search=11 axiom_trending=15 axiom_enriched=26 sticky_watchlist=29 sticky_enriched=349 user_watchlist=34) signals=6 | rejects: mcap_low=248 mcap_high=40 vol=121 low_turnover=21 vol_m5_zero=1 vol_h1_decay=8 filter_turn_block=3 red_h24=17 trend_reversal=3 top_exhaustion=3 no_dip=5 m5_dip_over=6 mega_pump_middle=2 seller_h1_red_m5=1 no_1m_reversal=2 top_consolidation=1 bs_h6=4 obs_high_cycles=6 filter_falling_knife_block=2 filter_sweep_too_recent_block=3 filter_15s_dump_block=1 filter_lp_drain_block=3 filter_buyer_fomo_block=1 filter_vp_poc_block=4 filter_two_pattern_block=6 filter_zero_winner_compound_block=2 filter_lazy_fade_buy_block=1 filter_1m_steep_fall_block=3 filter_weak_bounce_block=1 filter_bs_m5_low_block=4 filter_big_trade_size_block=2 filter_stale_watch_block=6 filter_confirmation_candle_block=6 filter_clean_break_block=5 filter_no_signatures_block=1 | trend_reversal_tokens: ANIF(-57%/peak1075%/h6-76%), ARROW(52%/peak502%/h6-13%), Bullscan(36%/peak353%/h6-21%)
+2026-07-10 18:19:04,435 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: EVERMEADOW reasons=net_flow_5m_usd=$-201<0 (sellers winning 5m USD flow)
+2026-07-10 18:19:04,437 [INFO] [DipScanner] regime_size SHADOW 0.5x: EVERMEADOW broad_red(h1neg=42)
+2026-07-10 18:19:04,440 [INFO] [DipScanner] Position size tier: marginal $2 (base $5) for EVERMEADOW triggers=['informed_cluster', 'whale_conviction']
+2026-07-10 18:19:04,446 [INFO] [DipScanner] top_consolidation: NEST — h1=+10.4% but cum_3m=-0.22% (stuck at top) — skipping
+2026-07-10 18:19:04,449 [WARNING] [phase-timing] per_token_loop took 6.52s
+2026-07-10 18:19:05,693 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:06,218 [WARNING] [rpc-budget] TRIPPED: 8+ RPC 429s in 30s — background RPC consumers paused so critical calls (sells/sends) get the quota
+2026-07-10 18:19:06,219 [WARNING] [Trader] RPC 0 HTTP 429 for getTokenAccountsByOwner, trying next...
+2026-07-10 18:19:04,639 [INFO] [DipScanner] SELL bot=badday_flush_wickride_ab token=vibeshift frac=1.00 pnl=$-7.53 reason=never_runner peak=0.00%<3.0 pnl=-6.24% hold=7min (floor)
+2026-07-10 18:19:06,221 [WARNING] [Probe] live sell balance 0 != paper 52737.8 (transfer-tax/suspect-entry?) mogdog
+2026-07-10 18:19:04,639 [INFO] [exit-recon] bot=badday_young_rt token=mogdog addr=BmSjM7C7VRhznMMVzXidgyuE5ehvTHbRr1uGe2xFpump stale_reason=POST_TP1_TRAIL stale_pnl=232.3652 fresh_reason=HOLD fresh_pnl=251.5106 agree=False pnl_delta=19.1454 secs_stale=76.0
+2026-07-10 18:19:04,661 [INFO] [exit-arm] SHADOW bot=badday_young_rt token=mogdog kind=POST_TP1_TRAIL class=profit confirm stale_pnl=232.3652 fresh_pnl=232.3652 (books stale-tick exit unchanged)
+2026-07-10 18:19:04,669 [WARNING] [Trader] RPC 0 HTTP 429 for getTokenAccountsByOwner, trying next...
+2026-07-10 18:19:05,192 [WARNING] [Trader] RPC 0 HTTP 429 for getTokenAccountsByOwner, trying next...
+2026-07-10 18:19:04,454 [INFO] [DipScanner] FRESH60 funnel: seen=33 mcap_low=32 vol=0 liq_below_25k=5
+2026-07-10 18:19:04,633 [INFO] [exit-arm] SHADOW bot=badday_flush_wickride_ab token=vibeshift kind=NEVER_RUNNER class=loss confirm stale_pnl=-6.2397 fresh_pnl=-6.2397 (books stale-tick exit unchanged)
+2026-07-10 18:19:07,815 [WARNING] [phase-timing] slowest position token=SMOLE tick=1.59s (n_positions=3)
+2026-07-10 18:19:07,815 [WARNING] [phase-timing] tick_all_bots_positions took 3.34s
+2026-07-10 18:19:06,222 [ERROR] [Probe] live sell balance read FAILED (mogdog) — stays open, retry next tick
+2026-07-10 18:19:06,222 [INFO] [DipScanner] bot=badday_young_rt LIVE sell aborted; position stays open
+2026-07-10 18:19:06,248 [INFO] [exit-arm] SHADOW bot=badday_young_rt token=SMOLE kind=HARD_STOP class=loss confirm stale_pnl=-31.3308 fresh_pnl=-31.3308 (books stale-tick exit unchanged)
+2026-07-10 18:19:06,251 [WARNING] [Trader] RPC 0 HTTP 429 for getTokenAccountsByOwner, trying next...
+2026-07-10 18:19:06,782 [WARNING] [Trader] RPC 0 HTTP 429 for getTokenAccountsByOwner, trying next...
+2026-07-10 18:19:07,734 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=1 mode=enforce
+2026-07-10 18:19:07,736 [INFO] [DipScanner] Signal: NIGGABULL mcap=$0.2M | 24h=-77.9% 1h=-71.7% 5m=-8.8% vol24h=$1318k bs_h6=1.15 bs_h1=1.15 bs_m5=1.01
+2026-07-10 18:19:07,812 [WARNING] [Trader] RPC 0 HTTP 429 for getTokenAccountsByOwner, trying next...
+2026-07-10 18:19:07,814 [WARNING] [Probe] live sell balance 0 != paper 62603.6 (transfer-tax/suspect-entry?) SMOLE
+2026-07-10 18:19:07,815 [ERROR] [Probe] live sell balance read FAILED (SMOLE) — stays open, retry next tick
+2026-07-10 18:19:07,815 [INFO] [DipScanner] bot=badday_young_rt LIVE sell aborted; position stays open
+2026-07-10 18:19:07,815 [WARNING] [phase-timing] tick_decision_loop took 3.20s
+2026-07-10 18:19:07,830 [INFO] [rt-demand-turn] NIGGABULL mode=enforce fetch_ok=True fresh_imb=0.951 turn_ok=True n=100
+2026-07-10 18:19:07,832 [WARNING] [DipScanner] OBSERVATIONAL: NIGGABULL cycles_seen=177 (>=60 historically -EV; not blocking)
+2026-07-10 18:19:07,833 [INFO] [DipScanner] FILTER_1M_SHADOW: NIGGABULL 1m_cum3=1.231 1m_vol_spike=0.902 verdict=PASS
+2026-07-10 18:19:07,836 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: NIGGABULL reason=neither A nor B [1h_rng=0.10 h24_r=-1.54 red=1]
+2026-07-10 18:19:07,850 [INFO] [DipScanner] CHART_READER: NIGGABULL score=30.1 verdict=bearish mtf=strong_bear sr_5m_supp=False pattern_5m=double_top
+2026-07-10 18:19:07,851 [INFO] [DipScanner] filter_turn rescued by bs_h6 carve-out: NIGGABULL bs_h6=1.15<=1.20 (64% won_10pct on n=295 in 4d mining)
+2026-07-10 18:19:07,859 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: NIGGABULL reasons=bs_m5=1.01<1.40 (sellers dominating 5m order flow)
+2026-07-10 18:19:07,859 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: NIGGABULL reasons=cycles_seen=177>15 (stale watch — fresh dips beat stale ones)
+2026-07-10 18:19:07,859 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: NIGGABULL reasons=1m_last_close=-8.10%<0.3 (no real green confirmation),1m_vol_spike=0.90<1.0 (bounce on weak volume)
+2026-07-10 18:19:07,860 [INFO] [DipScanner] filter_sol_macro_down strict-would-block (loose mode active, NOT enforced): NIGGABULL reasons=sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down)
+2026-07-10 18:19:07,860 [INFO] [DipScanner] filter_sol_macro_loose SHADOW would-ALLOW: NIGGABULL (strict blocked on sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down); loose crash-gate passes)
+2026-07-10 18:19:07,860 [INFO] [DipScanner] BLOCKED by filter_fusion_floor: NIGGABULL reasons=fusion_score=0.311<0.40 (ML model disagrees with entry)
+2026-07-10 18:19:07,861 [INFO] [DipScanner] high_regime SUPPRESSED: NIGGABULL dev_pct=missing<2.0 AND mtf_vol_align=0<1 (no tf vol spike) AND clean_break=BLOCK (no green confirmation candle yet)
+2026-07-10 18:19:07,861 [INFO] [DipScanner] TRIGGER_FEATURES: NIGGABULL top10_60s=5.000 vwap_1h=-42.470 min_peak=336.000 hr_grad=62.040 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=-1.541
+2026-07-10 18:19:07,863 [INFO] [DipScanner] filter_mtf_strong_downtrend SHADOW-would-block: NIGGABULL reasons=chart_mtf_score=-4.0<=-2.0 (strong multi-tf downtrend)
+2026-07-10 18:19:07,864 [INFO] [DipScanner] SHADOW filter_falling_knife would BLOCK: NIGGABULL reasons=mtf_score=-4.0<=-1 AND 1m_last_close=-8.10%<0 (falling knife — no green confirmation)
+2026-07-10 18:19:07,864 [INFO] [DipScanner] trigger_active_dip FIRED: NIGGABULL buys_h1=634>=200 AND pc_h1=-71.7%<=-15 AND 1m_vol_spike=0.90>=0.40 AND 1m_cum_3m=+1.23%>=-3
+2026-07-10 18:19:07,865 [INFO] [DipScanner] trigger_confirmed_dip FIRED: NIGGABULL pc_m5=-8.8%<=-5 AND pc_h1=-71.7%<=-15 AND 1m_vol_spike=0.90>=0.40 AND 1m_cum_3m=+1.23%>=-3
+2026-07-10 18:19:07,865 [INFO] [DipScanner] ENTRY via active_dip_confirmed_dip_whale_conviction_modest_pump_deep_retrace (clean_break BLOCKed): NIGGABULL top10_buyer_within_60s_count=5>=3 (clustered top-10 buyers),peak_h24_6h=51% in [50,150) AND h24_ratio=-1.541<0.10 (modest pump deeply retraced)
+2026-07-10 18:19:08,120 [INFO] [DipScanner] SHADOW filter_dying_volume would-block: NIGGABULL reasons=1s_vol_decay_120s=0.243<0.30
+2026-07-10 18:19:08,124 [INFO] [DipScanner] filter_wide_range_entry SHADOW would-block: NIGGABULL reasons=entry_range=10.48%>3.0 (panicky-volatility candle — likely reversal)
+2026-07-10 18:19:08,124 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: NIGGABULL reasons=net_flow_5m_usd=$-202<0 (sellers winning 5m USD flow)
+2026-07-10 18:19:08,123 [INFO] [DipScanner] SHADOW filter_high_activity_fomo would BLOCK: NIGGABULL reasons=buys_per_min_recent=19>=10 (FOMO peak — n=20 lifetime, 15% WR, -$4.63 avg)
+2026-07-10 18:19:08,123 [INFO] [DipScanner] BLOCKED by filter_terminal_collapse: NIGGABULL pc_h6=-76.5%<=-60% (terminal 6h collapse — corpse, not a dip)
+2026-07-10 18:19:08,120 [INFO] [DipScanner] filter_quote_asymmetry RESCUED by breakthrough_late: NIGGABULL trigs=['active_dip', 'confirmed_dip', 'whale_conviction', 'modest_pump_deep_retrace']
+2026-07-10 18:19:08,121 [INFO] [DipScanner] filter_lower_low RESCUED by breakthrough_late: NIGGABULL trigs=['active_dip', 'confirmed_dip', 'whale_conviction', 'modest_pump_deep_retrace']
+2026-07-10 18:19:08,121 [INFO] [DipScanner] BLOCKED by filter_lp_drain: NIGGABULL reasons=lp_delta_15m=-36.2%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-10 18:19:08,126 [INFO] [DipScanner] regime_size SHADOW 0.5x: NIGGABULL broad_red(h1neg=42)
+2026-07-10 18:19:08,130 [INFO] [DipScanner] medbuy_sub8 SHADOW would-block: NIGGABULL median_buy=$7.61<8 (crowd-quality cliff)
+2026-07-10 18:19:08,130 [INFO] [DipScanner] Position size tier: standard $2 (base $5) for NIGGABULL triggers=['active_dip', 'confirmed_dip', 'whale_conviction', 'modest_pump_deep_retrace']
+2026-07-10 18:19:08,136 [INFO] [fast-watch] hit-rate buy bot=badday_flush_hlconfirm_ab token=NIGGABULL armed=True
+2026-07-10 18:19:08,131 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: NIGGABULL fired=R4(pc_h1=-71.68<-22.1,poc=-80.61<16.6),R6(pc_h1=-71.68<-8.2,poc=-80.61<-7.5)
+2026-07-10 18:19:08,134 [INFO] [fast-watch] hit-rate buy bot=badday_allday token=NIGGABULL armed=True
+2026-07-10 18:19:08,134 [INFO] [no-fast-price] SHADOW-would-block bot=badday_allday token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,134 [INFO] [DipScanner] bot=badday_allday REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,135 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,135 [INFO] [DipScanner] bot=badday_allday RETRACE-MICRO pass NIGGABULL (sell_rate=20.52 traj=0.01 cum_nf=-638.06 flow_confirm=False)
+2026-07-10 18:19:08,135 [INFO] [DipScanner] bot=badday_flush REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,135 [INFO] [DipScanner] bot=badday_allday FALLING-DAY-FLUSH BLOCK: pc_h24=-78%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) NIGGABULL
+2026-07-10 18:19:08,136 [INFO] [DipScanner] bot=badday_flush RETRACE-MICRO pass NIGGABULL (sell_rate=20.52 traj=0.01 cum_nf=-638.06 flow_confirm=False)
+2026-07-10 18:19:08,135 [INFO] [fast-watch] hit-rate buy bot=badday_flush token=NIGGABULL armed=True
+2026-07-10 18:19:08,136 [INFO] [DipScanner] bot=badday_flush FALLING-DAY-FLUSH BLOCK: pc_h24=-78%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) NIGGABULL
+2026-07-10 18:19:08,138 [INFO] [DipScanner] bot=badday_flush_nf15 FALLING-DAY-FLUSH BLOCK: pc_h24=-78%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) NIGGABULL
+2026-07-10 18:19:08,138 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=NIGGABULL armed=True
+2026-07-10 18:19:08,138 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_peel_ab token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,136 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_hlconfirm_ab token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,136 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,137 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab RETRACE-MICRO pass NIGGABULL (sell_rate=20.52 traj=0.01 cum_nf=-638.06 flow_confirm=False)
+2026-07-10 18:19:08,137 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab FALLING-DAY-FLUSH BLOCK: pc_h24=-78%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) NIGGABULL
+2026-07-10 18:19:08,137 [INFO] [fast-watch] hit-rate buy bot=badday_flush_nf15 token=NIGGABULL armed=True
+2026-07-10 18:19:08,137 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_nf15 token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,138 [INFO] [DipScanner] bot=badday_flush_peel_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,137 [INFO] [DipScanner] bot=badday_flush_nf15 REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,137 [INFO] [DipScanner] bot=badday_flush_nf15 RETRACE-MICRO pass NIGGABULL (sell_rate=20.52 traj=0.01 cum_nf=-638.06 flow_confirm=False)
+2026-07-10 18:19:08,140 [INFO] [DipScanner] bot=badday_flush_runner_ab RETRACE-MICRO pass NIGGABULL (sell_rate=20.52 traj=0.01 cum_nf=-638.06 flow_confirm=False)
+2026-07-10 18:19:08,139 [INFO] [DipScanner] bot=badday_flush_rsi_ab FALLING-DAY-FLUSH BLOCK: pc_h24=-78%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) NIGGABULL
+2026-07-10 18:19:08,139 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=NIGGABULL armed=True
+2026-07-10 18:19:08,139 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_runner_ab token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,139 [INFO] [DipScanner] bot=badday_flush_runner_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,139 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_rsi_ab token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,139 [INFO] [DipScanner] bot=badday_flush_rsi_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,139 [INFO] [DipScanner] bot=badday_flush_rsi_ab RETRACE-MICRO pass NIGGABULL (sell_rate=20.52 traj=0.01 cum_nf=-638.06 flow_confirm=False)
+2026-07-10 18:19:08,138 [INFO] [DipScanner] bot=badday_flush_peel_ab RETRACE-MICRO pass NIGGABULL (sell_rate=20.52 traj=0.01 cum_nf=-638.06 flow_confirm=False)
+2026-07-10 18:19:08,138 [INFO] [DipScanner] bot=badday_flush_peel_ab FALLING-DAY-FLUSH BLOCK: pc_h24=-78%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) NIGGABULL
+2026-07-10 18:19:08,139 [INFO] [fast-watch] hit-rate buy bot=badday_flush_rsi_ab token=NIGGABULL armed=True
+2026-07-10 18:19:08,140 [INFO] [DipScanner] bot=badday_flush_runner_ab FALLING-DAY-FLUSH BLOCK: pc_h24=-78%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) NIGGABULL
+2026-07-10 18:19:08,140 [INFO] [fast-watch] hit-rate buy bot=badday_flush_wickride_ab token=NIGGABULL armed=True
+2026-07-10 18:19:08,140 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_wickride_ab token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,140 [INFO] [DipScanner] bot=badday_flush_wickride_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,140 [INFO] [DipScanner] bot=badday_flush_wickride_ab RETRACE-MICRO pass NIGGABULL (sell_rate=20.52 traj=0.01 cum_nf=-638.06 flow_confirm=False)
+2026-07-10 18:19:08,140 [INFO] [DipScanner] bot=badday_flush_wickride_ab FALLING-DAY-FLUSH BLOCK: pc_h24=-78%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) NIGGABULL
+2026-07-10 18:19:08,141 [INFO] [fast-watch] hit-rate buy bot=badday_pump_dip_ab token=NIGGABULL armed=True
+2026-07-10 18:19:08,141 [INFO] [no-fast-price] SHADOW-would-block bot=badday_pump_dip_ab token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,141 [INFO] [DipScanner] bot=badday_pump_dip_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,141 [INFO] [DipScanner] bot=badday_pump_dip_ab RETRACE-MICRO pass NIGGABULL (sell_rate=20.52 traj=0.01 cum_nf=-638.06 flow_confirm=False)
+2026-07-10 18:19:08,141 [INFO] [DipScanner] bot=badday_pump_dip_ab FALLING-DAY-FLUSH BLOCK: pc_h24=-78%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) NIGGABULL
+2026-07-10 18:19:08,142 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb token=NIGGABULL armed=True
+2026-07-10 18:19:08,142 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,142 [INFO] [DipScanner] bot=badday_young_absorb REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,142 [INFO] [DipScanner] bot=badday_young_absorb young-probe gate: skip NIGGABULL (age=62.04 probe_bot=True)
+2026-07-10 18:19:08,142 [INFO] [fast-watch] hit-rate buy bot=badday_young_adaptsize_ab token=NIGGABULL armed=True
+2026-07-10 18:19:08,142 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_adaptsize_ab token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,142 [INFO] [DipScanner] bot=badday_young_adaptsize_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,142 [INFO] [DipScanner] bot=badday_young_adaptsize_ab young-probe gate: skip NIGGABULL (age=62.04 probe_bot=True)
+2026-07-10 18:19:08,143 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=NIGGABULL armed=True
+2026-07-10 18:19:08,143 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_bounce_ab token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,143 [INFO] [DipScanner] bot=badday_young_bounce_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,143 [INFO] [DipScanner] bot=badday_young_bounce_ab young-probe gate: skip NIGGABULL (age=62.04 probe_bot=True)
+2026-07-10 18:19:08,143 [INFO] [fast-watch] hit-rate buy bot=badday_young_hlconfirm_ab token=NIGGABULL armed=True
+2026-07-10 18:19:08,143 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_hlconfirm_ab token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,143 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,143 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab young-probe gate: skip NIGGABULL (age=62.04 probe_bot=True)
+2026-07-10 18:19:08,143 [INFO] [fast-watch] hit-rate buy bot=badday_young_pump_dip_ab token=NIGGABULL armed=True
+2026-07-10 18:19:08,143 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_pump_dip_ab token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,143 [INFO] [DipScanner] bot=badday_young_pump_dip_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,144 [INFO] [DipScanner] bot=badday_young_pump_dip_ab young-probe gate: skip NIGGABULL (age=62.04 probe_bot=True)
+2026-07-10 18:19:08,144 [INFO] [fast-watch] hit-rate buy bot=badday_young_rt token=NIGGABULL armed=True
+2026-07-10 18:19:08,144 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_rt token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,144 [INFO] [DipScanner] bot=badday_young_rt REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,144 [INFO] [DipScanner] bot=badday_young_rt young-probe gate: skip NIGGABULL (age=62.04 probe_bot=True)
+2026-07-10 18:19:08,144 [INFO] [fast-watch] hit-rate buy bot=badday_young_rt_paper token=NIGGABULL armed=True
+2026-07-10 18:19:08,144 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_rt_paper token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,144 [INFO] [DipScanner] bot=badday_young_rt_paper REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,144 [INFO] [DipScanner] bot=badday_young_rt_paper young-probe gate: skip NIGGABULL (age=62.04 probe_bot=True)
+2026-07-10 18:19:08,145 [INFO] [fast-watch] hit-rate buy bot=badday_young_vsnap_ab token=NIGGABULL armed=True
+2026-07-10 18:19:08,145 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_vsnap_ab token=NIGGABULL (no fresh Jupiter price)
+2026-07-10 18:19:08,145 [INFO] [DipScanner] bot=badday_young_vsnap_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) NIGGABULL
+2026-07-10 18:19:08,145 [INFO] [DipScanner] bot=badday_young_vsnap_ab young-probe gate: skip NIGGABULL (age=62.04 probe_bot=True)
+2026-07-10 18:19:10,204 [INFO] [fast-watch] tick hot=50 full=465 polled=0 fired=6 mode=enforce
+2026-07-10 18:19:12,247 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:14,286 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:16,336 [INFO] [fast-watch] tick hot=50 full=465 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:18,384 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=19 mode=enforce
+2026-07-10 18:19:20,470 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:22,524 [INFO] [fast-watch] tick hot=50 full=465 polled=0 fired=1 mode=enforce
+2026-07-10 18:19:22,526 [INFO] [DipScanner] Signal: RIBBIT mcap=$0.1M | 24h=+290.0% 1h=-2.0% 5m=-4.8% vol24h=$258k bs_h6=1.56 bs_h1=1.80 bs_m5=0.89
+2026-07-10 18:19:23,055 [INFO] [rt-demand-turn] RIBBIT mode=enforce fetch_ok=True fresh_imb=-0.558 turn_ok=False n=100
+2026-07-10 18:19:23,060 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: RIBBIT reason=fail-closed (1h_rng missing)
+2026-07-10 18:19:23,057 [WARNING] [DipScanner] OBSERVATIONAL: RIBBIT cycles_seen=147 (>=60 historically -EV; not blocking)
+2026-07-10 18:19:23,057 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: RIBBIT reasons=pc_h24=+290%>=200 (already pumped on the day)
+2026-07-10 18:19:23,058 [INFO] [DipScanner] FILTER_1M_SHADOW: RIBBIT 1m_cum3=n/a 1m_vol_spike=n/a verdict=PASS
+2026-07-10 18:19:23,643 [INFO] [GeckoOHLCV] Ak9J6xqrsdPX: HTTP 429
+2026-07-10 18:19:24,723 [INFO] [DipScanner] filter_sol_macro_loose SHADOW would-ALLOW: RIBBIT (strict blocked on sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down); loose crash-gate passes)
+2026-07-10 18:19:24,723 [INFO] [DipScanner] TRIGGER_FEATURES: RIBBIT top10_60s=2.000 vwap_1h=None min_peak=47.800 hr_grad=17.830 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.819
+2026-07-10 18:19:24,726 [INFO] [DipScanner] clean_break SUPPRESSED: RIBBIT lp_delta_15m=-1.5%<-1.0 (LP draining — smart-money exit, no follow-through)
+2026-07-10 18:19:24,727 [INFO] [DipScanner] BLOCKED by all triggers: RIBBIT cb_reasons=
+2026-07-10 18:19:24,716 [INFO] [DipScanner] filter_sweep_too_recent SHADOW would-block: RIBBIT reasons=chart_sweep_5m_low_candles_ago=0<=2 (sweep still unfolding — knife-catch)
+2026-07-10 18:19:24,722 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: RIBBIT reasons=bs_m5=0.89<1.40 (sellers dominating 5m order flow)
+2026-07-10 18:19:24,722 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: RIBBIT reasons=cycles_seen=147>15 (stale watch — fresh dips beat stale ones)
+2026-07-10 18:19:24,723 [INFO] [DipScanner] filter_sol_macro_down strict-would-block (loose mode active, NOT enforced): RIBBIT reasons=sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down)
+2026-07-10 18:19:24,163 [INFO] [GeckoOHLCV] Ak9J6xqrsdPX: HTTP 429
+2026-07-10 18:19:24,180 [INFO] [GeckoOHLCV] Ak9J6xqrsdPX: HTTP 429
+2026-07-10 18:19:24,706 [INFO] [GeckoOHLCV] Ak9J6xqrsdPX: HTTP 429
+2026-07-10 18:19:24,715 [INFO] [DipScanner] CHART_READER: RIBBIT score=55.0 verdict=neutral mtf=flat sr_5m_supp=True pattern_5m=None
+2026-07-10 18:19:24,727 [WARNING] [phase-timing] fastwatch_eval_loop took 2.20s (n_survivors=1)
+2026-07-10 18:19:24,727 [WARNING] [phase-timing] fastwatch slowest survivor=RIBBIT _evaluate_pair=2.20s (n_survivors=1)
+2026-07-10 18:19:25,563 [INFO] 100.64.0.14 [10/Jul/2026:18:19:25 +0000] "GET /api/live-swaps HTTP/1.1" 200 99614 "-" "Python-urllib/3.12"
+2026-07-10 18:19:25,876 [INFO] 100.64.0.9 [10/Jul/2026:18:19:25 +0000] "GET /api/wallet-truth HTTP/1.1" 200 374 "-" "Python-urllib/3.12"
+2026-07-10 18:19:26,767 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=6 mode=enforce
+2026-07-10 18:19:26,769 [INFO] [DipScanner] Signal: SMOLE mcap=$0.1M | 24h=+274.0% 1h=-27.8% 5m=-3.9% vol24h=$811k bs_h6=1.64 bs_h1=1.67 bs_m5=1.35
+2026-07-10 18:19:26,839 [INFO] [rt-demand-turn] SMOLE mode=enforce fetch_ok=True fresh_imb=0.979 turn_ok=True n=100
+2026-07-10 18:19:26,840 [WARNING] [DipScanner] OBSERVATIONAL: SMOLE cycles_seen=87 (>=60 historically -EV; not blocking)
+2026-07-10 18:19:26,841 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: SMOLE reasons=pc_h24=+274%>=200 (already pumped on the day)
+2026-07-10 18:19:26,842 [INFO] [DipScanner] FILTER_1M_SHADOW: SMOLE 1m_cum3=n/a 1m_vol_spike=n/a verdict=PASS
+2026-07-10 18:19:26,844 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: SMOLE reason=fail-closed (1h_rng missing)
+2026-07-10 18:19:26,896 [INFO] [GeckoOHLCV] Ed8TRTpcsvu4: HTTP 429
+2026-07-10 18:19:28,023 [INFO] [GeckoOHLCV] Ed8TRTpcsvu4: HTTP 429
+2026-07-10 18:19:27,420 [INFO] [GeckoOHLCV] Ed8TRTpcsvu4: HTTP 429
+2026-07-10 18:19:27,445 [INFO] [GeckoOHLCV] Ed8TRTpcsvu4: HTTP 429
+2026-07-10 18:19:27,995 [INFO] [GeckoOHLCV] Ed8TRTpcsvu4: HTTP 429
+2026-07-10 18:19:29,114 [INFO] [DipScanner] ENTRY via sustained_accumulation_net_flow_5m_demand_whale_conviction (clean_break BLOCKed): SMOLE net_flow_5m_usd=$+758>=300 (sustained 5m net buy pressure),top10_buyer_within_60s_count=7>=3 (clustered top-10 buyers)
+2026-07-10 18:19:28,554 [INFO] [GeckoOHLCV] Ed8TRTpcsvu4: HTTP 429
+2026-07-10 18:19:29,098 [INFO] [DipScanner] CHART_READER: SMOLE score=50.0 verdict=neutral mtf=flat sr_5m_supp=False pattern_5m=None
+2026-07-10 18:19:28,573 [INFO] [GeckoOHLCV] Ed8TRTpcsvu4: HTTP 429
+2026-07-10 18:19:29,109 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: SMOLE reasons=bs_m5=1.35<1.40 (sellers dominating 5m order flow)
+2026-07-10 18:19:29,110 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: SMOLE reasons=cycles_seen=87>15 (stale watch — fresh dips beat stale ones)
+2026-07-10 18:19:29,097 [INFO] [GeckoOHLCV] Ed8TRTpcsvu4: HTTP 429
+2026-07-10 18:19:29,110 [INFO] [DipScanner] filter_sol_macro_down strict-would-block (loose mode active, NOT enforced): SMOLE reasons=sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down)
+2026-07-10 18:19:29,110 [INFO] [DipScanner] filter_sol_macro_loose SHADOW would-ALLOW: SMOLE (strict blocked on sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down); loose crash-gate passes)
+2026-07-10 18:19:29,110 [INFO] [DipScanner] TRIGGER_FEATURES: SMOLE top10_60s=7.000 vwap_1h=None min_peak=85.000 hr_grad=2.590 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.095
+2026-07-10 18:19:29,113 [INFO] [DipScanner] clean_break SUPPRESSED: SMOLE lp_delta_15m=-5.3%<-1.0 (LP draining — smart-money exit, no follow-through)
+2026-07-10 18:19:29,113 [INFO] [DipScanner] trigger_sustained_accumulation FIRED: SMOLE net_flow_60s=$+134>0 AND bs_h1=1.67>=1.5 AND bs_h6=1.64>=1.2 AND mtf=0.0>=0
+2026-07-10 18:19:29,361 [INFO] [DipScanner] filter_lp_drain rescued by high-WR trigger: SMOLE reasons=lp_delta_15m=-5.3%<=-5 (LP draining fast — pool dying, exit will be expensive) trigs=['sustained_accumulation', 'net_flow_5m_demand', 'whale_conviction']
+2026-07-10 18:19:29,368 [INFO] [DipScanner] bot=badday_young_bounce_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) SMOLE
+2026-07-10 18:19:29,363 [INFO] [DipScanner] regime_size SHADOW 0.5x: SMOLE broad_red(h1neg=42)
+2026-07-10 18:19:29,538 [INFO] [onchain] heartbeat mode=on subs=465 cached=0 ws_msgs=0 sol_usd=77.6000 mig_mode=off amm_pools=0 amm_cached=0
+2026-07-10 18:19:29,366 [INFO] [DipScanner] Position size tier: standard $2 (base $5) for SMOLE triggers=['sustained_accumulation', 'net_flow_5m_demand', 'whale_conviction']
+2026-07-10 18:19:29,799 [INFO] [DipScanner] bot=badday_young_bounce_ab LIQ-EXIT-FLOOR BLOCK: liq=$26991 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) SMOLE
+2026-07-10 18:19:29,798 [INFO] [DipScanner] bot=badday_young_bounce_ab RETRACE-MICRO pass SMOLE (sell_rate=3.76 traj=0.0 cum_nf=-144.41 flow_confirm=False)
+2026-07-10 18:19:29,368 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=SMOLE armed=True
+2026-07-10 18:19:29,799 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_bounce_ab)
+2026-07-10 18:19:29,800 [INFO] [DipScanner] bot=badday_young_bounce_ab FULL-THESIS-COHORT SHADOW-would-block: BLOCK: pc_h6=+274.0>0 pump-retrace, buyer$10.0<34.3 SMOLE
+2026-07-10 18:19:29,368 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_bounce_ab token=SMOLE (no fresh Jupiter price)
+2026-07-10 18:19:29,801 [INFO] [DipScanner] bot=badday_young_bounce_ab SHALLOW-DIP SHADOW-would-block: BLOCK: pc_h6=+274.0 > -30 (shallow dip / pump-retrace — not a deep decline) SMOLE
+2026-07-10 18:19:29,801 [INFO] [DipScanner] bot=badday_young_bounce_ab OVERSOLD-HELD SHADOW-would-block: BLOCK (not oversold-held): rsi missing, dev missing (need rsi<=44 & dev>=10) SMOLE
+2026-07-10 18:19:29,801 [INFO] [DipScanner] bot=badday_young_bounce_ab HL-CONFIRM skip SMOLE (state=STALE)
+2026-07-10 18:19:29,802 [INFO] [fast-watch] hit-rate buy bot=badday_young_pump_dip_ab token=SMOLE armed=True
+2026-07-10 18:19:29,802 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_pump_dip_ab token=SMOLE (no fresh Jupiter price)
+2026-07-10 18:19:29,802 [INFO] [DipScanner] bot=badday_young_pump_dip_ab REGIME BUY-GATE SHADOW-would-block (breadth=42>=40) SMOLE
+2026-07-10 18:19:29,802 [INFO] [DipScanner] bot=badday_young_pump_dip_ab RETRACE-MICRO pass SMOLE (sell_rate=3.76 traj=0.0 cum_nf=-144.41 flow_confirm=False)
+2026-07-10 18:19:29,802 [INFO] [DipScanner] bot=badday_young_pump_dip_ab LIQ-EXIT-FLOOR BLOCK: liq=$26991 below exit-floor $30000 (too thin to exit cleanly — gap-through tail risk) SMOLE
+2026-07-10 18:19:29,802 [WARNING] [DipScanner] GATE-ROLLED-BACK (lef): latched OFF by gate_rollback — the BLOCK above did NOT enforce (bot=badday_young_pump_dip_ab)
+2026-07-10 18:19:29,803 [INFO] [DipScanner] bot=badday_young_pump_dip_ab FULL-THESIS-COHORT SHADOW-would-block: BLOCK: buyer$10.0<34.3 SMOLE
+2026-07-10 18:19:29,803 [INFO] [DipScanner] bot=badday_young_pump_dip_ab SHALLOW-DIP SHADOW-would-block: BLOCK: pc_h6=+274.0 > -30 (shallow dip / pump-retrace — not a deep decline) SMOLE
+2026-07-10 18:19:32,021 [INFO] [rt-demand-turn] EVERMEADOW mode=enforce fetch_ok=True fresh_imb=-0.221 turn_ok=False n=100
+2026-07-10 18:19:32,023 [WARNING] [DipScanner] OBSERVATIONAL: EVERMEADOW cycles_seen=397 (>=60 historically -EV; not blocking)
+2026-07-10 18:19:32,024 [INFO] [DipScanner] FILTER_1M_SHADOW: EVERMEADOW 1m_cum3=n/a 1m_vol_spike=n/a verdict=PASS
+2026-07-10 18:19:32,026 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: EVERMEADOW reason=fail-closed (1h_rng missing)
+2026-07-10 18:19:29,803 [INFO] [DipScanner] bot=badday_young_pump_dip_ab daily-loss floor SHADOW-would-block (daily=$-53.45 <= -$40.00) SMOLE
+2026-07-10 18:19:29,804 [INFO] [DipScanner] bot=badday_young_pump_dip_ab reentry-cap floor BLOCK (3 buys of SMOLE today >= 3)
+2026-07-10 18:19:29,805 [WARNING] [phase-timing] fastwatch_eval_loop took 3.04s (n_survivors=6)
+2026-07-10 18:19:29,806 [WARNING] [phase-timing] fastwatch slowest survivor=SMOLE _evaluate_pair=3.04s (n_survivors=6)
+2026-07-10 18:19:29,803 [INFO] [DipScanner] bot=badday_young_pump_dip_ab OVERSOLD-HELD SHADOW-would-block: BLOCK (not oversold-held): rsi missing, dev missing (need rsi<=44 & dev>=10) SMOLE
+2026-07-10 18:19:30,973 [INFO] [SmartFollow] cycle: buys_window=16 active_tokens=11 max_consensus=2 fired_total=8
+2026-07-10 18:19:31,860 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=14 mode=enforce
+2026-07-10 18:19:31,863 [INFO] [DipScanner] Signal: EVERMEADOW mcap=$0.3M | 24h=-40.9% 1h=-2.9% 5m=-5.0% vol24h=$4225k bs_h6=1.03 bs_h1=0.99 bs_m5=1.09
+2026-07-10 18:19:32,361 [INFO] 100.64.0.11 [10/Jul/2026:18:19:32 +0000] "POST /api/sell HTTP/1.1" 404 242 "-" "curl/8.18.0"
+2026-07-10 18:19:32,429 [INFO] [GeckoOHLCV] AfZmaLhPhZYx: HTTP 429
+2026-07-10 18:19:32,953 [INFO] [GeckoOHLCV] AfZmaLhPhZYx: HTTP 429
+2026-07-10 18:19:32,975 [INFO] [GeckoOHLCV] AfZmaLhPhZYx: HTTP 429
+2026-07-10 18:19:33,496 [INFO] [GeckoOHLCV] AfZmaLhPhZYx: HTTP 429
+2026-07-10 18:19:33,520 [INFO] [GeckoOHLCV] AfZmaLhPhZYx: HTTP 429
+2026-07-10 18:19:34,050 [INFO] [DipScanner] clean_break SUPPRESSED: EVERMEADOW lp_delta_15m=-2.4%<-1.0 (LP draining — smart-money exit, no follow-through)
+2026-07-10 18:19:34,051 [INFO] [DipScanner] ENTRY via whale_conviction (clean_break BLOCKed): EVERMEADOW top10_buyer_within_60s_count=3>=3 (clustered top-10 buyers)
+2026-07-10 18:19:34,039 [INFO] [GeckoOHLCV] AfZmaLhPhZYx: HTTP 429
+2026-07-10 18:19:34,040 [INFO] [DipScanner] CHART_READER: EVERMEADOW score=48.1 verdict=neutral mtf=flat sr_5m_supp=False pattern_5m=None
+2026-07-10 18:19:34,398 [INFO] [DipScanner] BLOCKED by filter_solo_dropouts: EVERMEADOW — whale_conviction alone (poor solo WR on 7d)
+2026-07-10 18:19:34,047 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: EVERMEADOW reasons=bs_m5=1.09<1.40 (sellers dominating 5m order flow)
+2026-07-10 18:19:34,047 [INFO] [DipScanner] filter_big_trade_size SHADOW would-block: EVERMEADOW reasons=avg_trade_size_h1=$96>$80 (whale-sized trades preceding dip)
+2026-07-10 18:19:34,047 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: EVERMEADOW reasons=cycles_seen=397>15 (stale watch — fresh dips beat stale ones)
+2026-07-10 18:19:34,047 [INFO] [DipScanner] filter_sol_macro_down strict-would-block (loose mode active, NOT enforced): EVERMEADOW reasons=sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down)
+2026-07-10 18:19:34,048 [INFO] [DipScanner] filter_sol_macro_loose SHADOW would-ALLOW: EVERMEADOW (strict blocked on sol_pc_h6=-2.07%<-0.3 (SOL 6h drift down); loose crash-gate passes)
+2026-07-10 18:19:34,048 [INFO] [DipScanner] TRIGGER_FEATURES: EVERMEADOW top10_60s=3.000 vwap_1h=None min_peak=321.900 hr_grad=34.980 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=-0.828
+2026-07-10 18:19:34,399 [INFO] [DipScanner] WATCHLIST BYPASS filter_solo_dropouts: EVERMEADOW
+2026-07-10 18:19:34,400 [INFO] [DipScanner] SHADOW filter_high_activity_fomo would BLOCK: EVERMEADOW reasons=buys_per_min_recent=13>=10 (FOMO peak — n=20 lifetime, 15% WR, -$4.63 avg)
+2026-07-10 18:19:34,400 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: EVERMEADOW reasons=net_flow_5m_usd=$-498<0 (sellers winning 5m USD flow)
+2026-07-10 18:19:34,402 [INFO] [DipScanner] regime_size SHADOW 0.5x: EVERMEADOW broad_red(h1neg=42)
+2026-07-10 18:19:34,407 [INFO] [DipScanner] Position size tier: marginal $2 (base $5) for EVERMEADOW triggers=['whale_conviction']
+2026-07-10 18:19:34,410 [WARNING] [phase-timing] fastwatch_eval_loop took 2.55s (n_survivors=14)
+2026-07-10 18:19:34,410 [WARNING] [phase-timing] fastwatch slowest survivor=EVERMEADOW _evaluate_pair=2.55s (n_survivors=14)
+2026-07-10 18:19:36,468 [INFO] [fast-watch] tick hot=50 full=465 polled=0 fired=3 mode=enforce
+2026-07-10 18:19:37,871 [INFO] [AxiomDiscovery] direct https://api2.axiom.trade returned HTTP 404
+2026-07-10 18:19:37,887 [INFO] [AxiomDiscovery] direct https://api3.axiom.trade returned HTTP 404
+2026-07-10 18:19:37,949 [INFO] [AxiomDiscovery] direct https://api4.axiom.trade failed: Cannot connect to host api4.axiom.trade:443 ssl:default [No address associated with hostname]
+2026-07-10 18:19:37,950 [INFO] [AxiomDiscovery] direct all failed (last=404) — trying Worker proxy
+2026-07-10 18:19:38,010 [INFO] [AxiomDiscovery] Worker proxy: 38 raw / 38 normalized
+2026-07-10 18:19:38,025 [INFO] [AxiomDiscovery] Worker proxy: 38 raw / 38 normalized
+2026-07-10 18:19:38,025 [INFO] [DipScanner] Axiom feeds: top=38 + trending=38 = 76 pairs
+2026-07-10 18:19:38,506 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:40,547 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:41,743 [INFO] 100.64.0.14 [10/Jul/2026:18:19:41 +0000] "GET /api/wallet-truth HTTP/1.1" 200 374 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+2026-07-10 18:19:41,873 [INFO] 100.64.0.5 [10/Jul/2026:18:19:41 +0000] "GET /api/live HTTP/1.1" 200 730 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+2026-07-10 18:19:41,876 [INFO] 100.64.0.16 [10/Jul/2026:18:19:41 +0000] "GET /api/gates HTTP/1.1" 200 585 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+2026-07-10 18:19:42,103 [INFO] 100.64.0.7 [10/Jul/2026:18:19:41 +0000] "GET /api/leaderboard?sort=throughput_x_pnl HTTP/1.1" 200 1460 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+2026-07-10 18:19:41,998 [INFO] 100.64.0.17 [10/Jul/2026:18:19:41 +0000] "GET /api/seed-wallets HTTP/1.1" 200 715 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+2026-07-10 18:19:42,055 [INFO] 100.64.0.9 [10/Jul/2026:18:19:41 +0000] "GET /api/race HTTP/1.1" 200 1702 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+2026-07-10 18:19:42,175 [INFO] 100.64.0.9 [10/Jul/2026:18:19:41 +0000] "GET /api/goal HTTP/1.1" 200 680 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+2026-07-10 18:19:42,407 [INFO] 100.64.0.11 [10/Jul/2026:18:19:41 +0000] "GET /api/user-watchlist HTTP/1.1" 200 4441 "https://gracious-inspiration-production.up.railway.app/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0"
+2026-07-10 18:19:42,597 [INFO] [fast-watch] tick hot=50 full=465 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:44,665 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:46,702 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:48,316 [INFO] 100.64.0.15 [10/Jul/2026:18:19:48 +0000] "GET /api/wallet-truth HTTP/1.1" 200 374 "-" "curl/8.18.0"
+2026-07-10 18:19:48,752 [INFO] [fast-watch] tick hot=50 full=465 polled=0 fired=0 mode=enforce
+2026-07-10 18:19:50,790 [INFO] [fast-watch] tick hot=50 full=0 polled=0 fired=0 mode=enforce

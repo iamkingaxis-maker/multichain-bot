@@ -1,0 +1,6 @@
+{"kind":"buy","volume_usd":8.82,"ts":"2026-07-12T09:34:06+00:00","maker":"0x20112cf286f268066c8136f9f941eb3daf97dcd0","pair":"0x4d7365fcceccfcd693624583e86cdf35407efbe0","sym":"COMPOUND","lag_secs":3.03,"pre_conf":true}
+{"kind":"buy","volume_usd":89.96,"ts":"2026-07-12T09:46:55+00:00","maker":"0x20112cf286f268066c8136f9f941eb3daf97dcd0","pair":"0x4d7365fcceccfcd693624583e86cdf35407efbe0","sym":"COMPOUND","lag_secs":0.78,"pre_conf":true}
+{"kind":"buy","volume_usd":180.09,"ts":"2026-07-12T09:49:29+00:00","maker":"0x20112cf286f268066c8136f9f941eb3daf97dcd0","pair":"0x4d7365fcceccfcd693624583e86cdf35407efbe0","sym":"COMPOUND","lag_secs":14.16,"pre_conf":true}
+{"kind":"buy","volume_usd":360.24,"ts":"2026-07-12T09:51:13+00:00","maker":"0x20112cf286f268066c8136f9f941eb3daf97dcd0","pair":"0x4d7365fcceccfcd693624583e86cdf35407efbe0","sym":"COMPOUND","lag_secs":0.04,"pre_conf":true}
+{"kind":"buy","volume_usd":6.89,"ts":"2026-07-12T11:56:18+00:00","maker":"0x307b50fa0cd6b9a7fd04668adc3eb47b54194107","pair":"0x4d7365fcceccfcd693624583e86cdf35407efbe0","sym":"COMPOUND","lag_secs":0.81,"pre_conf":true}
+{"kind":"buy","volume_usd":322.66,"ts":"2026-07-12T13:50:23+00:00","maker":"0x00e21414d0079768e0c12e20e6aabfaaa57cf418","pair":"0x4d7365fcceccfcd693624583e86cdf35407efbe0","sym":"COMPOUND","lag_secs":1.11,"pre_conf":true}

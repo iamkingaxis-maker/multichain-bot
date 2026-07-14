@@ -1,0 +1,20 @@
+RH pre-live invariant suite — 15 checks
+
+  PASS  Triple gate: shipped default (no flags, no key) is fully dormant
+  PASS  Triple gate: every single leg is required (no two-leg bypass)
+  PASS  Triple gate: RH_PAPER_MODE=true beats confirmed+key (fail-to-paper)
+  PASS  Chain-id mismatch fails CLOSED before any order (wrong-RPC guard)
+  PASS  Canary: lane entry path reads the halt flag; exits never do (static)
+  PASS  Canary: defaults ON when live is attempted (RH_PAPER_MODE=false)
+  PASS  Canary: red canary refuses live_buy, never gates live_sell
+  PASS  Canary: a never-started probe loop fails CLOSED after boot grace
+  PASS  Caps: defaults $25 position / $25 daily stop; ceiling + gas cap set
+  PASS  Caps: position cap + daily loss halt ENFORCED in the live buy path
+  PASS  Paper lane money reach is GATE-WRAPPED (static)
+  PASS  Wallet-truth: read errors report, never fabricate, never arm baseline
+  PASS  Wallet-truth: baseline arms ONLY while the triple gate is open
+  PASS  Wallet-truth REACHABLE: real RPC balance read (read-only, no key)
+  PASS  Sell-path canary probe REACHABLE: quote pipe answers (read-only)
+
+All 15 passed.
+RH pre-live invariants OK. The live flip STILL requires explicit AxiS approval + the sell-path end-to-end dust test.

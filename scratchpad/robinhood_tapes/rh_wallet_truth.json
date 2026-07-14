@@ -1,0 +1,1 @@
+{"ok": true, "chain": "robinhood", "chain_id": 4663, "paper_mode": false, "live_gate": true, "gate_reason": "live gate open", "ts": "2026-07-12T22:10:41.654216+00:00", "wallet": "0xa454\u20269c05", "eth_now": 0.021956, "weth_now": 0.0, "total_eth": 0.021956, "baseline_eth": 0.02199589, "baseline_ts": 1783893985.9761066, "delta_eth": -3.989e-05}

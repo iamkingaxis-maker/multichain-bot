@@ -1,0 +1,54 @@
+C:\Users\jcole\AppData\Local\Programs\Python\Python312\Lib\site-packages\pytest_asyncio\plugin.py:247: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+..............................ss........................................ [ 25%]
+........................................................................ [ 50%]
+........................................................................ [ 76%]
+................................................................F..      [100%]
+================================== FAILURES ===================================
+_________ TestFactoryEntryRouting.test_popret_enters_on_pop_then_dip __________
+
+self = <test_rh_factory_racers.TestFactoryEntryRouting object at 0x000001E4A97FF620>
+tmp_path = WindowsPath('C:/Users/jcole/AppData/Local/Temp/pytest-of-jcole/pytest-910/test_popret_enters_on_pop_then0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001E4A992F320>
+
+    def test_popret_enters_on_pop_then_dip(self, tmp_path, monkeypatch):
+        lane = self._lane(tmp_path, monkeypatch)
+        lane.prices["0xp1"] = [(NOW - 300, 1.0), (NOW - 200, 1.3),
+                               (NOW - 10, 1.0)]          # -23% off high
+        lane.tape["0xp1"] = [
+            {"kind": "buy", "volume_usd": 40, "_epoch": NOW - 20},
+            {"kind": "buy", "volume_usd": 25, "_epoch": NOW - 10},
+            {"kind": "sell", "volume_usd": 5, "_epoch": NOW - 5}]
+        lane.pop_book["0xp1"] = (NOW - 300, 42.0)        # pop 5 min ago
+        lane.cum_vol["0xp1"] = 1_000.0                   # > popret's 480
+        lane._consider_entries(NOW)
+        st = lane.state["rh_f_popret"]
+        assert "0xp1" in st.pos_meta
+        # proven-volume racers blocked: $1k < their $4.8k floor
+>       assert "thin_session_vol" in lane.state["rh_f_arc_scalp"].block_hist
+E       AssertionError: assert 'thin_session_vol' in {'untracked_session': 1}
+E        +  where {'untracked_session': 1} = <rh_paper_lane.BotState object at 0x000001E4A992E9C0>.block_hist
+
+tests\test_rh_factory_racers.py:259: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[rh-paper] BUY  rh_young_v1      T            $25.00 dip=-23.1% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_first_touch   T            $25.00 dip=-23.1% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_bites2        T            $25.00 dip=-23.1% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_wide_ladder   T            $25.00 dip=-23.1% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_moonbag       T            $25.00 dip=-23.1% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_liq40         T            $25.00 dip=-23.1% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_aged_hold     T            $25.00 dip=-23.1% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_f_popret      T            $25.00 dip=-23.1% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] BUY  rh_fill_probe    T            $7.50 dip=-23.1% lat_total=Nones (trigger Nones + quote 0.0s)
+[rh-paper] rug-stamp spawn failed: 'FakeFeed' object has no attribute 'latest_block'
+============================== warnings summary ===============================
+..\AppData\Local\Programs\Python\Python312\Lib\site-packages\websockets\legacy\__init__.py:6
+  C:\Users\jcole\AppData\Local\Programs\Python\Python312\Lib\site-packages\websockets\legacy\__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_rh_factory_racers.py::TestFactoryEntryRouting::test_popret_enters_on_pop_then_dip
+1 failed, 280 passed, 2 skipped, 1 warning in 19.43s

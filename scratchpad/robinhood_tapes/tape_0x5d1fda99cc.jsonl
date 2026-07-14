@@ -1,0 +1,5 @@
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-11T03:18:43+00:00","maker":"0x992c15a960716cea3931245ce386abc9f02b86a2","pair":"0x5d1fda99cc81ec401b8e29fbc85ea2265eb375d3","sym":"KUNA","lag_secs":0.98,"pre_conf":true}
+{"kind":"buy","volume_usd":0.5,"ts":"2026-07-11T03:19:14+00:00","maker":"0xa92df02512126e1d03adfdda7a393eab1c8aae4f","pair":"0x5d1fda99cc81ec401b8e29fbc85ea2265eb375d3","sym":"KUNA","lag_secs":0.49,"pre_conf":true}
+{"kind":"buy","volume_usd":1.8,"ts":"2026-07-11T03:24:21+00:00","maker":"0x2b4aa4b7f1623c598de2274f397eb9a83b60b1e4","pair":"0x5d1fda99cc81ec401b8e29fbc85ea2265eb375d3","sym":"KUNA","lag_secs":0.93,"pre_conf":true}
+{"kind":"buy","volume_usd":26.98,"ts":"2026-07-11T03:52:57+00:00","maker":"0x1ca4c54a31fd7a4f6dbd4c091f7b3cbaf365c5dd","pair":"0x5d1fda99cc81ec401b8e29fbc85ea2265eb375d3","sym":"KUNA","lag_secs":0.75,"pre_conf":true}
+{"kind":"buy","volume_usd":791.41,"ts":"2026-07-11T03:57:39+00:00","maker":"0x1ca4c54a31fd7a4f6dbd4c091f7b3cbaf365c5dd","pair":"0x5d1fda99cc81ec401b8e29fbc85ea2265eb375d3","sym":"KUNA","lag_secs":0.35,"pre_conf":true}

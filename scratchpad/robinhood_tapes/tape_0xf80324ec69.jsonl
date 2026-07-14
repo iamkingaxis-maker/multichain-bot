@@ -1,0 +1,2 @@
+{"kind":"buy","volume_usd":0.5,"ts":"2026-07-10T23:47:04+00:00","maker":"0xa92df02512126e1d03adfdda7a393eab1c8aae4f","pair":"0xf80324ec69bc33a89d4d5461130a6ec9caab9347","sym":"RPP402","lag_secs":-0.05,"pre_conf":true}
+{"kind":"buy","volume_usd":122.15,"ts":"2026-07-10T23:54:26+00:00","maker":"0x38086b09042587f4935ffc467e7fdac35e4cc6e8","pair":"0xf80324ec69bc33a89d4d5461130a6ec9caab9347","sym":"RPP402","lag_secs":0.54,"pre_conf":true}

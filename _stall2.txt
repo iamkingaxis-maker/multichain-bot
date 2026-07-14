@@ -1,0 +1,500 @@
+2026-07-06 20:42:03,722 [INFO] [DipScanner] bot=badday_flush_nf15 PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,722 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=Balloon armed=True
+2026-07-06 20:42:03,722 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_peel_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,722 [INFO] [DipScanner] bot=badday_flush_peel_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,723 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=Balloon armed=True
+2026-07-06 20:42:03,723 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_runner_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,723 [INFO] [DipScanner] bot=badday_flush_runner_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,723 [INFO] [fast-watch] hit-rate buy bot=badday_flush_wickride_ab token=Balloon armed=True
+2026-07-06 20:42:03,723 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_wickride_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,723 [INFO] [DipScanner] bot=badday_flush_wickride_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,724 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb token=Balloon armed=True
+2026-07-06 20:42:03,724 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,724 [INFO] [DipScanner] bot=badday_young_absorb young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:03,724 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb_live token=Balloon armed=True
+2026-07-06 20:42:03,724 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb_live token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,724 [INFO] [DipScanner] bot=badday_young_absorb_live young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:03,724 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=Balloon armed=True
+2026-07-06 20:42:03,724 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_bounce_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,724 [INFO] [DipScanner] bot=badday_young_bounce_ab young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:03,724 [INFO] [fast-watch] hit-rate buy bot=badday_young_hlconfirm_ab token=Balloon armed=True
+2026-07-06 20:42:03,724 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_hlconfirm_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,725 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:03,726 [INFO] [fast-watch] hit-rate buy bot=badday_allday token=Balloon armed=True
+2026-07-06 20:42:03,726 [INFO] [no-fast-price] SHADOW-would-block bot=badday_allday token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,727 [INFO] [DipScanner] bot=badday_allday PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,727 [INFO] [fast-watch] hit-rate buy bot=badday_flush token=Balloon armed=True
+2026-07-06 20:42:03,727 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,727 [INFO] [DipScanner] bot=badday_flush PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,727 [INFO] [fast-watch] hit-rate buy bot=badday_flush_hlconfirm_ab token=Balloon armed=True
+2026-07-06 20:42:03,728 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_runner_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,727 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_hlconfirm_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,728 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_peel_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,728 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,729 [INFO] [DipScanner] bot=badday_flush_runner_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,728 [INFO] [fast-watch] hit-rate buy bot=badday_flush_nf15 token=Balloon armed=True
+2026-07-06 20:42:03,728 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_nf15 token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,729 [INFO] [fast-watch] hit-rate buy bot=badday_flush_wickride_ab token=Balloon armed=True
+2026-07-06 20:42:03,728 [INFO] [DipScanner] bot=badday_flush_nf15 PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,728 [INFO] [DipScanner] bot=badday_flush_peel_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,728 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=Balloon armed=True
+2026-07-06 20:42:03,728 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=Balloon armed=True
+2026-07-06 20:42:03,729 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_wickride_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,729 [INFO] [DipScanner] bot=badday_flush_wickride_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,729 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb token=Balloon armed=True
+2026-07-06 20:42:03,729 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,729 [INFO] [DipScanner] bot=badday_young_absorb young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:03,729 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb_live token=Balloon armed=True
+2026-07-06 20:42:03,729 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb_live token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,730 [INFO] [DipScanner] bot=badday_young_absorb_live young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:03,730 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=Balloon armed=True
+2026-07-06 20:42:03,730 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_bounce_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,730 [INFO] [DipScanner] bot=badday_young_bounce_ab young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:03,730 [INFO] [fast-watch] hit-rate buy bot=badday_young_hlconfirm_ab token=Balloon armed=True
+2026-07-06 20:42:03,730 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_hlconfirm_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,730 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:03,732 [INFO] [fast-watch] hit-rate buy bot=badday_allday token=Balloon armed=True
+2026-07-06 20:42:03,732 [INFO] [no-fast-price] SHADOW-would-block bot=badday_allday token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,732 [INFO] [DipScanner] bot=badday_allday PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,732 [INFO] [fast-watch] hit-rate buy bot=badday_flush token=Balloon armed=True
+2026-07-06 20:42:03,732 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,732 [INFO] [DipScanner] bot=badday_flush PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,733 [INFO] [fast-watch] hit-rate buy bot=badday_flush_hlconfirm_ab token=Balloon armed=True
+2026-07-06 20:42:03,733 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_hlconfirm_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,733 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,733 [INFO] [fast-watch] hit-rate buy bot=badday_flush_nf15 token=Balloon armed=True
+2026-07-06 20:42:03,733 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_nf15 token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,733 [INFO] [DipScanner] bot=badday_flush_nf15 PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,733 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=Balloon armed=True
+2026-07-06 20:42:03,734 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_peel_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,734 [INFO] [DipScanner] bot=badday_flush_peel_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,734 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=Balloon armed=True
+2026-07-06 20:42:03,734 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_runner_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,734 [INFO] [DipScanner] bot=badday_flush_runner_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,734 [INFO] [fast-watch] hit-rate buy bot=badday_flush_wickride_ab token=Balloon armed=True
+2026-07-06 20:42:03,734 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_wickride_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,734 [INFO] [DipScanner] bot=badday_flush_wickride_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:03,735 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb token=Balloon armed=True
+2026-07-06 20:42:03,767 [INFO] [rt-trigger] 96X4zg mode=enforce snap_pc_h1=-26.63 fresh_pc_h1=-26.58853 snap_px=0.00032930 fresh_px=0.00032949
+2026-07-06 20:42:03,735 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,735 [INFO] [DipScanner] bot=badday_young_absorb young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:03,735 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb_live token=Balloon armed=True
+2026-07-06 20:42:03,735 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb_live token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,735 [INFO] [DipScanner] bot=badday_young_absorb_live young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:03,735 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=Balloon armed=True
+2026-07-06 20:42:03,735 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_bounce_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,735 [INFO] [DipScanner] bot=badday_young_bounce_ab young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:03,735 [INFO] [fast-watch] hit-rate buy bot=badday_young_hlconfirm_ab token=Balloon armed=True
+2026-07-06 20:42:03,735 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_hlconfirm_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:03,736 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:03,769 [INFO] [DipScanner] Signal: Balloon mcap=$0.3M | 24h=+422.3% 1h=-34.6% 5m=-2.8% vol24h=$824k bs_h6=1.11 bs_h1=1.16 bs_m5=2.14
+2026-07-06 20:42:03,772 [INFO] [rt-trigger] 96X4zg mode=enforce snap_pc_h1=-26.63 fresh_pc_h1=-26.58853 snap_px=0.00032930 fresh_px=0.00032949
+2026-07-06 20:42:03,775 [INFO] [DipScanner] Signal: Balloon mcap=$0.3M | 24h=+422.3% 1h=-34.6% 5m=-2.8% vol24h=$824k bs_h6=1.11 bs_h1=1.16 bs_m5=2.14
+2026-07-06 20:42:03,778 [INFO] [rt-trigger] 96X4zg mode=enforce snap_pc_h1=-26.63 fresh_pc_h1=-26.58853 snap_px=0.00032930 fresh_px=0.00032949
+2026-07-06 20:42:03,781 [INFO] [DipScanner] Signal: Balloon mcap=$0.3M | 24h=+422.3% 1h=-34.6% 5m=-2.8% vol24h=$824k bs_h6=1.11 bs_h1=1.16 bs_m5=2.14
+2026-07-06 20:42:03,849 [WARNING] [DipScanner] OBSERVATIONAL: Balloon cycles_seen=87 (>=60 historically -EV; not blocking)
+2026-07-06 20:42:03,850 [INFO] [DipScanner] filter_round_trip RESCUED by vol_h24=$824k<=1396k: Balloon
+2026-07-06 20:42:03,850 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: Balloon reasons=pc_h24=+422%>=200 (already pumped on the day),shape_90m_chg=+243.3%>=5 (90m up-chase, not a dip)
+2026-07-06 20:42:03,851 [INFO] [DipScanner] FILTER_1M_SHADOW: Balloon 1m_cum3=-3.011 1m_vol_spike=2.588 verdict=BLOCK reasons=1m_cum3=-3.01%<-1.0%
+2026-07-06 20:42:03,853 [INFO] [DipScanner] filter_1m_steep_fall SHADOW-would-block: Balloon reasons=1m_cum3=-3.01%<-1.5% (steep 3min fall)
+2026-07-06 20:42:03,854 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: Balloon reason=neither A nor B [1h_rng=0.13 h24_r=0.53 red=1]
+2026-07-06 20:42:03,861 [INFO] [DipScanner] CHART_READER: Balloon score=56.3 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-07-06 20:42:03,862 [WARNING] [DipScanner] OBSERVATIONAL: Balloon cycles_seen=87 (>=60 historically -EV; not blocking)
+2026-07-06 20:42:03,862 [INFO] [DipScanner] filter_round_trip RESCUED by vol_h24=$824k<=1396k: Balloon
+2026-07-06 20:42:03,862 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: Balloon reasons=pc_h24=+422%>=200 (already pumped on the day),shape_90m_chg=+243.3%>=5 (90m up-chase, not a dip)
+2026-07-06 20:42:03,863 [INFO] [DipScanner] FILTER_1M_SHADOW: Balloon 1m_cum3=-3.011 1m_vol_spike=2.588 verdict=BLOCK reasons=1m_cum3=-3.01%<-1.0%
+2026-07-06 20:42:03,865 [INFO] [DipScanner] filter_1m_steep_fall SHADOW-would-block: Balloon reasons=1m_cum3=-3.01%<-1.5% (steep 3min fall)
+2026-07-06 20:42:03,865 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: Balloon reason=neither A nor B [1h_rng=0.13 h24_r=0.53 red=1]
+2026-07-06 20:42:03,872 [INFO] [DipScanner] CHART_READER: Balloon score=56.3 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-07-06 20:42:03,874 [WARNING] [DipScanner] OBSERVATIONAL: Balloon cycles_seen=87 (>=60 historically -EV; not blocking)
+2026-07-06 20:42:03,874 [INFO] [DipScanner] filter_round_trip RESCUED by vol_h24=$824k<=1396k: Balloon
+2026-07-06 20:42:03,874 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: Balloon reasons=pc_h24=+422%>=200 (already pumped on the day),shape_90m_chg=+243.3%>=5 (90m up-chase, not a dip)
+2026-07-06 20:42:03,875 [INFO] [DipScanner] FILTER_1M_SHADOW: Balloon 1m_cum3=-3.011 1m_vol_spike=2.588 verdict=BLOCK reasons=1m_cum3=-3.01%<-1.0%
+2026-07-06 20:42:03,877 [INFO] [DipScanner] filter_1m_steep_fall SHADOW-would-block: Balloon reasons=1m_cum3=-3.01%<-1.5% (steep 3min fall)
+2026-07-06 20:42:03,877 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: Balloon reason=neither A nor B [1h_rng=0.13 h24_r=0.53 red=1]
+2026-07-06 20:42:03,884 [INFO] [DipScanner] CHART_READER: Balloon score=56.3 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-07-06 20:42:03,892 [INFO] [DipScanner] filter_weak_bounce SHADOW would-block: Balloon reasons=body/range=0.10<0.20 (weak commitment in 5m candle)
+2026-07-06 20:42:03,892 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: Balloon reasons=dev_pct_remaining=7.7%<50 (creator dumped >half pre-entry)
+2026-07-06 20:42:03,892 [INFO] [DipScanner] filter_big_trade_size SHADOW would-block: Balloon reasons=avg_trade_size_h1=$124>$80 (whale-sized trades preceding dip)
+2026-07-06 20:42:03,892 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: Balloon reasons=cycles_seen=87>15 (stale watch — fresh dips beat stale ones)
+2026-07-06 20:42:03,892 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: Balloon reasons=1m_last_close=-3.95%<0.3 (no real green confirmation)
+2026-07-06 20:42:03,895 [INFO] [DipScanner] TRIGGER_FEATURES: Balloon top10_60s=2.000 vwap_1h=-27.850 min_peak=49.000 hr_grad=80.240 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.531
+2026-07-06 20:42:03,899 [INFO] [DipScanner] filter_weak_bounce SHADOW would-block: Balloon reasons=body/range=0.10<0.20 (weak commitment in 5m candle)
+2026-07-06 20:42:03,899 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: Balloon reasons=dev_pct_remaining=7.7%<50 (creator dumped >half pre-entry)
+2026-07-06 20:42:03,900 [INFO] [DipScanner] filter_big_trade_size SHADOW would-block: Balloon reasons=avg_trade_size_h1=$124>$80 (whale-sized trades preceding dip)
+2026-07-06 20:42:03,900 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: Balloon reasons=cycles_seen=87>15 (stale watch — fresh dips beat stale ones)
+2026-07-06 20:42:03,900 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: Balloon reasons=1m_last_close=-3.95%<0.3 (no real green confirmation)
+2026-07-06 20:42:03,903 [INFO] [DipScanner] TRIGGER_FEATURES: Balloon top10_60s=2.000 vwap_1h=-27.850 min_peak=49.000 hr_grad=80.240 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.531
+2026-07-06 20:42:03,905 [INFO] [DipScanner] ENTRY via deep_1h_dip_power_dip_runner_vol_surge_recent (clean_break BLOCKed): Balloon pc_h1=-34.6%<=-8 (deep 1h dip),pc_h24=+422.3%>=40 AND pc_h1=-34.6%<=-8 (power dip on hot runner),vol_recent_8h_avg/vol_prior_40h_avg=10.13>=3.0 (recent 8h volume 10.1x longer baseline)
+2026-07-06 20:42:03,906 [INFO] [DipScanner] filter_weak_bounce SHADOW would-block: Balloon reasons=body/range=0.10<0.20 (weak commitment in 5m candle)
+2026-07-06 20:42:03,906 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: Balloon reasons=dev_pct_remaining=7.7%<50 (creator dumped >half pre-entry)
+2026-07-06 20:42:03,906 [INFO] [DipScanner] filter_big_trade_size SHADOW would-block: Balloon reasons=avg_trade_size_h1=$124>$80 (whale-sized trades preceding dip)
+2026-07-06 20:42:03,907 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: Balloon reasons=cycles_seen=87>15 (stale watch — fresh dips beat stale ones)
+2026-07-06 20:42:03,930 [INFO] [DipScanner] filter_1m_steep_fall SHADOW-would-block: POORON reasons=1m_cum3=-36.62%<-1.5% (steep 3min fall)
+2026-07-06 20:42:03,907 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: Balloon reasons=1m_last_close=-3.95%<0.3 (no real green confirmation)
+2026-07-06 20:42:03,930 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: POORON reason=neither A nor B [1h_rng=0.03 h24_r=0.36 red=1]
+2026-07-06 20:42:03,908 [INFO] [DipScanner] TRIGGER_FEATURES: Balloon top10_60s=2.000 vwap_1h=-27.850 min_peak=49.000 hr_grad=80.240 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.531
+2026-07-06 20:42:03,928 [INFO] [DipScanner] FILTER_1M_SHADOW: POORON 1m_cum3=-36.622 1m_vol_spike=0.79 verdict=BLOCK reasons=1m_cum3=-36.62%<-1.0%
+2026-07-06 20:42:03,910 [INFO] [DipScanner] ENTRY via deep_1h_dip_power_dip_runner_vol_surge_recent (clean_break BLOCKed): Balloon pc_h1=-34.6%<=-8 (deep 1h dip),pc_h24=+422.3%>=40 AND pc_h1=-34.6%<=-8 (power dip on hot runner),vol_recent_8h_avg/vol_prior_40h_avg=10.13>=3.0 (recent 8h volume 10.1x longer baseline)
+2026-07-06 20:42:03,918 [INFO] [DipScanner] ENTRY via deep_1h_dip_power_dip_runner_vol_surge_recent (clean_break BLOCKed): Balloon pc_h1=-34.6%<=-8 (deep 1h dip),pc_h24=+422.3%>=40 AND pc_h1=-34.6%<=-8 (power dip on hot runner),vol_recent_8h_avg/vol_prior_40h_avg=10.13>=3.0 (recent 8h volume 10.1x longer baseline)
+2026-07-06 20:42:03,927 [WARNING] [DipScanner] OBSERVATIONAL: POORON cycles_seen=67 (>=60 historically -EV; not blocking)
+2026-07-06 20:42:03,927 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: POORON reasons=pc_h24=+222%>=200 (already pumped on the day)
+2026-07-06 20:42:03,932 [INFO] [DipScanner] CHART_READER: POORON score=48.3 verdict=neutral mtf=bear sr_5m_supp=False pattern_5m=None
+2026-07-06 20:42:03,936 [INFO] [UptrendScanner] WOULD-BLOCK: POORON gates=G1 mtf=bear not in (bull, strong_bull),G5 chart_score=48.3<50
+2026-07-06 20:42:03,936 [INFO] [DipScanner] filter_turn rescued by bs_h6 carve-out: POORON bs_h6=1.06<=1.20 (64% won_10pct on n=295 in 4d mining)
+2026-07-06 20:42:03,940 [INFO] [DipScanner] filter_weak_bounce SHADOW would-block: POORON reasons=body/range=0.03<0.20 (weak commitment in 5m candle)
+2026-07-06 20:42:03,941 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: POORON reasons=dev_pct_remaining=17.3%<50 (creator dumped >half pre-entry)
+2026-07-06 20:42:03,941 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: POORON reasons=bs_m5=0.89<1.40 (sellers dominating 5m order flow)
+2026-07-06 20:42:03,941 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: POORON reasons=cycles_seen=67>15 (stale watch — fresh dips beat stale ones)
+2026-07-06 20:42:03,941 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: POORON reasons=1m_last_close=-11.56%<0.3 (no real green confirmation),1m_vol_spike=0.79<1.0 (bounce on weak volume)
+2026-07-06 20:42:03,942 [INFO] [DipScanner] BLOCKED by filter_dead_volume: POORON reasons=vol_h1_accel_vs_h6=0.64<0.70 (dead/declining volume — dip won't bounce)
+2026-07-06 20:42:03,942 [INFO] [DipScanner] BLOCKED by filter_huge_wick: POORON reasons=wick_body_5m_avg=11.3>10 (manipulated/illiquid wick — corpse signature)
+2026-07-06 20:42:03,942 [INFO] [DipScanner] TRIGGER_FEATURES: POORON top10_60s=1.000 vwap_1h=-38.110 min_peak=56.000 hr_grad=2.100 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.356
+2026-07-06 20:42:03,944 [INFO] [DipScanner] filter_mtf_strong_downtrend SHADOW-would-block: POORON reasons=chart_mtf_score=-2.0<=-2.0 (strong multi-tf downtrend)
+2026-07-06 20:42:03,944 [INFO] [DipScanner] SHADOW filter_falling_knife would BLOCK: POORON reasons=mtf_score=-2.0<=-1 AND 1m_last_close=-11.56%<0 (falling knife — no green confirmation)
+2026-07-06 20:42:03,945 [INFO] [DipScanner] ENTRY via pullback_in_uptrend (clean_break BLOCKed): POORON 1h_last3_n_green=2>=2 AND 5m_last5_n_green=2<=2 AND last_5m_green=True AND 1m_vol_spike=0.79>=0.30
+2026-07-06 20:42:03,979 [INFO] [DipScanner] SHADOW filter_high_activity_fomo would BLOCK: Balloon reasons=buys_per_min_recent=16>=10 (FOMO peak — n=20 lifetime, 15% WR, -$4.63 avg)
+2026-07-06 20:42:03,979 [INFO] [DipScanner] filter_wide_range_entry SHADOW would-block: Balloon reasons=entry_range=7.66%>3.0 (panicky-volatility candle — likely reversal)
+2026-07-06 20:42:03,980 [INFO] [DipScanner] filter_negative_net_flow_5m rescued by big_buyer: Balloon liq_velocity_h1=$124/txn>=115
+2026-07-06 20:42:03,980 [INFO] [DipScanner] filter_reviving_lifecycle rescued by big_buyer: Balloon liq_velocity_h1=$124/txn>=115
+2026-07-06 20:42:03,985 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for Balloon triggers=['deep_1h_dip', 'power_dip_runner', 'vol_surge_recent', '1s_demand_compound', 'cnn_cluster_10']
+2026-07-06 20:42:03,986 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: Balloon fired=R4(pc_h1=-34.59<-22.1,poc=-12.35<16.6),R6(pc_h1=-34.59<-8.2,poc=-12.35<-7.5)
+2026-07-06 20:42:04,013 [INFO] [DipScanner] SHADOW filter_high_activity_fomo would BLOCK: Balloon reasons=buys_per_min_recent=16>=10 (FOMO peak — n=20 lifetime, 15% WR, -$4.63 avg)
+2026-07-06 20:42:04,013 [INFO] [DipScanner] filter_wide_range_entry SHADOW would-block: Balloon reasons=entry_range=7.66%>3.0 (panicky-volatility candle — likely reversal)
+2026-07-06 20:42:04,014 [INFO] [DipScanner] filter_negative_net_flow_5m rescued by big_buyer: Balloon liq_velocity_h1=$124/txn>=115
+2026-07-06 20:42:04,014 [INFO] [DipScanner] filter_reviving_lifecycle rescued by big_buyer: Balloon liq_velocity_h1=$124/txn>=115
+2026-07-06 20:42:04,019 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for Balloon triggers=['deep_1h_dip', 'power_dip_runner', 'vol_surge_recent', '1s_demand_compound', 'cnn_cluster_10']
+2026-07-06 20:42:04,020 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: Balloon fired=R4(pc_h1=-34.59<-22.1,poc=-12.35<16.6),R6(pc_h1=-34.59<-8.2,poc=-12.35<-7.5)
+2026-07-06 20:42:04,046 [INFO] [DipScanner] SHADOW filter_high_activity_fomo would BLOCK: Balloon reasons=buys_per_min_recent=16>=10 (FOMO peak — n=20 lifetime, 15% WR, -$4.63 avg)
+2026-07-06 20:42:04,046 [INFO] [DipScanner] filter_wide_range_entry SHADOW would-block: Balloon reasons=entry_range=7.66%>3.0 (panicky-volatility candle — likely reversal)
+2026-07-06 20:42:04,047 [INFO] [DipScanner] filter_negative_net_flow_5m rescued by big_buyer: Balloon liq_velocity_h1=$124/txn>=115
+2026-07-06 20:42:04,047 [INFO] [DipScanner] filter_reviving_lifecycle rescued by big_buyer: Balloon liq_velocity_h1=$124/txn>=115
+2026-07-06 20:42:04,053 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for Balloon triggers=['deep_1h_dip', 'power_dip_runner', 'vol_surge_recent', '1s_demand_compound', 'cnn_cluster_10']
+2026-07-06 20:42:04,053 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: Balloon fired=R4(pc_h1=-34.59<-22.1,poc=-12.35<16.6),R6(pc_h1=-34.59<-8.2,poc=-12.35<-7.5)
+2026-07-06 20:42:04,056 [INFO] [fast-watch] hit-rate buy bot=badday_allday token=Balloon armed=True
+2026-07-06 20:42:04,059 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=Balloon armed=True
+2026-07-06 20:42:04,056 [INFO] [no-fast-price] SHADOW-would-block bot=badday_allday token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,056 [INFO] [DipScanner] bot=badday_allday PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,057 [INFO] [fast-watch] hit-rate buy bot=badday_flush token=Balloon armed=True
+2026-07-06 20:42:04,057 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,057 [INFO] [DipScanner] bot=badday_flush PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,057 [INFO] [fast-watch] hit-rate buy bot=badday_flush_hlconfirm_ab token=Balloon armed=True
+2026-07-06 20:42:04,057 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_hlconfirm_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,058 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,058 [INFO] [fast-watch] hit-rate buy bot=badday_flush_nf15 token=Balloon armed=True
+2026-07-06 20:42:04,058 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_nf15 token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,058 [INFO] [DipScanner] bot=badday_flush_nf15 PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,059 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_peel_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,061 [INFO] [DipScanner] bot=badday_young_absorb young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:04,059 [INFO] [DipScanner] bot=badday_flush_peel_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,061 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb_live token=Balloon armed=True
+2026-07-06 20:42:04,059 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=Balloon armed=True
+2026-07-06 20:42:04,059 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_runner_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,060 [INFO] [DipScanner] bot=badday_flush_runner_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,060 [INFO] [fast-watch] hit-rate buy bot=badday_flush_wickride_ab token=Balloon armed=True
+2026-07-06 20:42:04,060 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_wickride_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,060 [INFO] [DipScanner] bot=badday_flush_wickride_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,060 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb token=Balloon armed=True
+2026-07-06 20:42:04,060 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,061 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb_live token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,061 [INFO] [DipScanner] bot=badday_young_absorb_live young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:04,062 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=Balloon armed=True
+2026-07-06 20:42:04,062 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_bounce_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,062 [INFO] [DipScanner] bot=badday_young_bounce_ab young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:04,062 [INFO] [fast-watch] hit-rate buy bot=badday_young_hlconfirm_ab token=Balloon armed=True
+2026-07-06 20:42:04,062 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_hlconfirm_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,063 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:04,066 [INFO] [fast-watch] hit-rate buy bot=badday_allday token=Balloon armed=True
+2026-07-06 20:42:04,067 [INFO] [no-fast-price] SHADOW-would-block bot=badday_allday token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,067 [INFO] [DipScanner] bot=badday_allday PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,067 [INFO] [fast-watch] hit-rate buy bot=badday_flush token=Balloon armed=True
+2026-07-06 20:42:04,067 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,067 [INFO] [DipScanner] bot=badday_flush PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,068 [INFO] [fast-watch] hit-rate buy bot=badday_flush_hlconfirm_ab token=Balloon armed=True
+2026-07-06 20:42:04,068 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_hlconfirm_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,068 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,068 [INFO] [fast-watch] hit-rate buy bot=badday_flush_nf15 token=Balloon armed=True
+2026-07-06 20:42:04,068 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_nf15 token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,068 [INFO] [DipScanner] bot=badday_flush_nf15 PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,069 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=Balloon armed=True
+2026-07-06 20:42:04,069 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_peel_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,069 [INFO] [DipScanner] bot=badday_flush_peel_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,069 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=Balloon armed=True
+2026-07-06 20:42:04,069 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_runner_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,070 [INFO] [DipScanner] bot=badday_flush_runner_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,070 [INFO] [fast-watch] hit-rate buy bot=badday_flush_wickride_ab token=Balloon armed=True
+2026-07-06 20:42:04,070 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_wickride_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,070 [INFO] [DipScanner] bot=badday_flush_wickride_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,070 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb token=Balloon armed=True
+2026-07-06 20:42:04,070 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,071 [INFO] [DipScanner] bot=badday_young_absorb young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:04,074 [INFO] [fast-watch] hit-rate buy bot=badday_allday token=Balloon armed=True
+2026-07-06 20:42:04,071 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb_live token=Balloon armed=True
+2026-07-06 20:42:04,074 [INFO] [no-fast-price] SHADOW-would-block bot=badday_allday token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,071 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb_live token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,074 [INFO] [DipScanner] bot=badday_allday PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,071 [INFO] [DipScanner] bot=badday_young_absorb_live young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:04,074 [INFO] [fast-watch] hit-rate buy bot=badday_flush token=Balloon armed=True
+2026-07-06 20:42:04,071 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=Balloon armed=True
+2026-07-06 20:42:04,071 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_bounce_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,071 [INFO] [DipScanner] bot=badday_young_bounce_ab young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:04,072 [INFO] [fast-watch] hit-rate buy bot=badday_young_hlconfirm_ab token=Balloon armed=True
+2026-07-06 20:42:04,072 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_hlconfirm_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,072 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:04,076 [INFO] [DipScanner] bot=badday_flush_peel_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,077 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=Balloon armed=True
+2026-07-06 20:42:04,075 [INFO] [fast-watch] hit-rate buy bot=badday_flush_hlconfirm_ab token=Balloon armed=True
+2026-07-06 20:42:04,075 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_hlconfirm_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,075 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,076 [INFO] [fast-watch] hit-rate buy bot=badday_flush_nf15 token=Balloon armed=True
+2026-07-06 20:42:04,076 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_nf15 token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,076 [INFO] [DipScanner] bot=badday_flush_nf15 PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,076 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=Balloon armed=True
+2026-07-06 20:42:04,076 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_peel_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,074 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,075 [INFO] [DipScanner] bot=badday_flush PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,078 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,078 [INFO] [DipScanner] bot=badday_young_absorb young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:04,078 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb_live token=Balloon armed=True
+2026-07-06 20:42:04,078 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_absorb_live token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,078 [INFO] [DipScanner] bot=badday_young_absorb_live young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:04,077 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_runner_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,079 [INFO] [fast-watch] hit-rate buy bot=badday_young_bounce_ab token=Balloon armed=True
+2026-07-06 20:42:04,077 [INFO] [DipScanner] bot=badday_flush_runner_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,077 [INFO] [fast-watch] hit-rate buy bot=badday_flush_wickride_ab token=Balloon armed=True
+2026-07-06 20:42:04,077 [INFO] [no-fast-price] SHADOW-would-block bot=badday_flush_wickride_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,078 [INFO] [DipScanner] bot=badday_flush_wickride_ab PUMP-RETRACE BLOCK: pc_h6=198%>+50% (fresh-pump retrace/distribution, not a capitulation dip) Balloon
+2026-07-06 20:42:04,078 [INFO] [fast-watch] hit-rate buy bot=badday_young_absorb token=Balloon armed=True
+2026-07-06 20:42:04,092 [INFO] [rt-trigger] B1Ygr9 mode=enforce snap_pc_h1=0 fresh_pc_h1=-42.283296 snap_px=0.00002146 fresh_px=0.00001239
+2026-07-06 20:42:04,095 [INFO] [rt-trigger] Ae9k4V mode=enforce snap_pc_h1=132 fresh_pc_h1=129.987869 snap_px=0.00000787 fresh_px=0.00000780
+2026-07-06 20:42:04,079 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_bounce_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,079 [INFO] [DipScanner] bot=badday_young_bounce_ab young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:04,079 [INFO] [fast-watch] hit-rate buy bot=badday_young_hlconfirm_ab token=Balloon armed=True
+2026-07-06 20:42:04,093 [INFO] [rt-trigger] CgMb98 mode=enforce snap_pc_h1=-81.32 fresh_pc_h1=-80.552867 snap_px=0.00000637 fresh_px=0.00000663
+2026-07-06 20:42:04,079 [INFO] [no-fast-price] SHADOW-would-block bot=badday_young_hlconfirm_ab token=Balloon (no fresh Jupiter price)
+2026-07-06 20:42:04,079 [INFO] [DipScanner] bot=badday_young_hlconfirm_ab young-probe gate: skip Balloon (age=80.24 probe_bot=True)
+2026-07-06 20:42:04,093 [INFO] [rt-trigger] DHqd8W mode=enforce snap_pc_h1=916 fresh_pc_h1=926.161633 snap_px=0.00002648 fresh_px=0.00002674
+2026-07-06 20:42:04,090 [INFO] [fast-watch] tick hot=50 full=0 polled=50 fired=29 mode=enforce
+2026-07-06 20:42:04,091 [INFO] [fast-watch] capped survivors 29->20
+2026-07-06 20:42:04,095 [INFO] [rt-trigger] C6kWVd mode=enforce snap_pc_h1=57.26 fresh_pc_h1=53.168746 snap_px=0.00172700 fresh_px=0.00168207
+2026-07-06 20:42:04,092 [INFO] [rt-trigger] EuSAvM mode=enforce snap_pc_h1=-8.97 fresh_pc_h1=-8.935064 snap_px=0.00000245 fresh_px=0.00000245
+2026-07-06 20:42:04,209 [INFO] [DipScanner] BLOCKED by filter_lp_drain: POORON reasons=lp_delta_15m=-32.6%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-06 20:42:04,211 [INFO] [DipScanner] BLOCKED by filter_post_pump_corpse: POORON reasons=pc_h24=222%>=200 AND buys_per_min_recent=2<=2 (post-pump corpse: pumped + currently calm)
+2026-07-06 20:42:04,211 [INFO] [DipScanner] filter_wide_range_entry SHADOW would-block: POORON reasons=entry_range=17.53%>3.0 (panicky-volatility candle — likely reversal)
+2026-07-06 20:42:04,212 [INFO] [DipScanner] BLOCKED by filter_seller_imbalance: POORON reasons=net_flow_5m_imbalance=-0.365<-0.2 (sellers dominating 5m dollar flow)
+2026-07-06 20:42:04,212 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: POORON reasons=net_flow_5m_usd=$-3655<0 (sellers winning 5m USD flow)
+2026-07-06 20:42:04,218 [INFO] [DipScanner] Position size tier: standard $2 (base $5) for POORON triggers=['pullback_in_uptrend']
+2026-07-06 20:42:04,219 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: POORON fired=R4(pc_h1=-48.43<-22.1,poc=-27.17<16.6),R6(pc_h1=-48.43<-8.2,poc=-27.17<-7.5)
+2026-07-06 20:42:04,221 [INFO] [rt-trigger] 89ZvFe mode=enforce snap_pc_h1=510 fresh_pc_h1=494.576479 snap_px=0.00001572 fresh_px=0.00001532
+2026-07-06 20:42:04,221 [INFO] [rt-trigger] EyUeTX mode=enforce snap_pc_h1=-15.49 fresh_pc_h1=-56.1306 snap_px=0.00000512 fresh_px=0.00000266
+2026-07-06 20:42:04,221 [INFO] [entry_stack] token=POORON flow_weak(-887<100);age_young(2.1h<24);mcap_out(0.11M) mode=enforce block=True (1/token/hr)
+2026-07-06 20:42:04,226 [INFO] [DipScanner] 1m gate: tolywifhat — no green close in last 3 min AND cum_3min=-6.3%<-2 — skipping
+2026-07-06 20:42:04,227 [INFO] [DipScanner] FRESHNESS GATE blocked: PUNK vol_m5=$54<$200 AND txns_m5=3<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-07-06 20:42:04,233 [INFO] [rt-trigger] GiSTEP mode=enforce snap_pc_h1=113 fresh_pc_h1=117.282784 snap_px=0.00006383 fresh_px=0.00006511
+2026-07-06 20:42:04,235 [INFO] [rt-trigger] 75Vmhk mode=enforce snap_pc_h1=-61.26 fresh_pc_h1=-63.610032 snap_px=0.00001244 fresh_px=0.00001169
+2026-07-06 20:42:04,329 [INFO] [DipScanner] Signal: TESTIBULL mcap=$1.7M | 24h=+104.5% 1h=-7.1% 5m=-7.1% vol24h=$301k bs_h6=0.96 bs_h1=1.00 bs_m5=1.00
+2026-07-06 20:42:04,338 [INFO] [rt-trigger] 58XBn4 mode=enforce snap_pc_h1=70.53 fresh_pc_h1=69.401148 snap_px=0.00001671 fresh_px=0.00001660
+2026-07-06 20:42:04,342 [INFO] [rt-trigger] DbY3rQ mode=enforce snap_pc_h1=-48.43 fresh_pc_h1=-47.424157 snap_px=0.00010960 fresh_px=0.00011174
+2026-07-06 20:42:04,358 [INFO] [rt-trigger] 5WLNHF mode=enforce snap_pc_h1=230 fresh_pc_h1=240.918312 snap_px=0.00000768 fresh_px=0.00000793
+2026-07-06 20:42:04,373 [INFO] [DipScanner] Signal: JNF mcap=$0.1M | 24h=+1833.0% 1h=-27.9% 5m=-7.8% vol24h=$514k bs_h6=1.12 bs_h1=1.14 bs_m5=1.00
+2026-07-06 20:42:04,403 [INFO] [DipScanner] FILTER_1M_SHADOW: TESTIBULL 1m_cum3=n/a 1m_vol_spike=n/a verdict=PASS
+2026-07-06 20:42:04,405 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: TESTIBULL reason=fail-closed (1h_rng missing)
+2026-07-06 20:42:04,428 [INFO] [GeckoOHLCV] 8jpRBNmgrQm4: HTTP 429
+2026-07-06 20:42:04,446 [INFO] [rt-trigger] wyTR9h mode=enforce snap_pc_h1=811 fresh_pc_h1=842.642127 snap_px=0.00002204 fresh_px=0.00002281
+2026-07-06 20:42:04,454 [INFO] [onchain] token=FeJZCLsq5Aw7LtmpRa9J9sjFsgUVHE96GBpz4fVfpump onchain=$7.5779065e-06 jupiter=$7.6432434e-06 delta=-0.855% mode=on used=onchain
+2026-07-06 20:42:04,454 [INFO] [rt-trigger] FeJZCL mode=enforce snap_pc_h1=192 fresh_pc_h1=169.781601 snap_px=0.00000820 fresh_px=0.00000758
+2026-07-06 20:42:04,463 [INFO] [rt-trigger] GbaLKw mode=enforce snap_pc_h1=47.88 fresh_pc_h1=47.359301 snap_px=0.00000370 fresh_px=0.00000369
+2026-07-06 20:42:04,483 [INFO] [rt-trigger] 4nu5cR mode=enforce snap_pc_h1=62.82 fresh_pc_h1=63.160072 snap_px=0.00000374 fresh_px=0.00000375
+2026-07-06 20:42:04,546 [INFO] [rt-trigger] 6xYU3r mode=enforce snap_pc_h1=0 fresh_pc_h1=-50.73375 snap_px=0.00005056 fresh_px=0.00002491
+2026-07-06 20:42:04,582 [INFO] [rt-trigger] HJvNER mode=enforce snap_pc_h1=35.06 fresh_pc_h1=36.934919 snap_px=0.00010220 fresh_px=0.00010362
+2026-07-06 20:42:04,586 [INFO] [rt-trigger] swA5Dd mode=enforce snap_pc_h1=40.13 fresh_pc_h1=40.650534 snap_px=0.00022680 fresh_px=0.00022764
+2026-07-06 20:42:04,613 [WARNING] [DipScanner] OBSERVATIONAL: JNF cycles_seen=81 (>=60 historically -EV; not blocking)
+2026-07-06 20:42:04,613 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: JNF reasons=pc_h24=+1833%>=200 (already pumped on the day),pct_above_vwap_h24=+10.6%>=10 (extended above VWAP)
+2026-07-06 20:42:04,614 [INFO] [DipScanner] FILTER_1M_SHADOW: JNF 1m_cum3=-9.707 1m_vol_spike=2.547 verdict=BLOCK reasons=1m_cum3=-9.71%<-1.0%
+2026-07-06 20:42:04,616 [INFO] [DipScanner] filter_1m_steep_fall SHADOW-would-block: JNF reasons=1m_cum3=-9.71%<-1.5% (steep 3min fall)
+2026-07-06 20:42:04,617 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: JNF reason=neither A nor B [1h_rng=0.04 h24_r=0.64 red=3]
+2026-07-06 20:42:04,626 [INFO] [DipScanner] CHART_READER: JNF score=55.2 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-07-06 20:42:04,627 [INFO] [UptrendScanner] WOULD-BLOCK: JNF gates=G1 mtf=mixed not in (bull, strong_bull)
+2026-07-06 20:42:04,628 [INFO] [DipScanner] filter_turn rescued by bs_h6 carve-out: JNF bs_h6=1.12<=1.20 (64% won_10pct on n=295 in 4d mining)
+2026-07-06 20:42:04,628 [INFO] [DipScanner] filter_sweep_too_recent SHADOW would-block: JNF reasons=chart_sweep_5m_low_candles_ago=2<=2 (sweep still unfolding — knife-catch)
+2026-07-06 20:42:04,633 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: JNF reasons=dev_pct_remaining=11.3%<50 (creator dumped >half pre-entry)
+2026-07-06 20:42:04,634 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: JNF reasons=bs_m5=1.00<1.40 (sellers dominating 5m order flow)
+2026-07-06 20:42:04,634 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: JNF reasons=cycles_seen=81>15 (stale watch — fresh dips beat stale ones)
+2026-07-06 20:42:04,634 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: JNF reasons=1m_last_close=-5.23%<0.3 (no real green confirmation)
+2026-07-06 20:42:04,635 [INFO] [DipScanner] BLOCKED by filter_fusion_floor: JNF reasons=fusion_score=0.350<0.40 (ML model disagrees with entry)
+2026-07-06 20:42:04,635 [INFO] [DipScanner] TRIGGER_FEATURES: JNF top10_60s=4.000 vwap_1h=-25.610 min_peak=119.900 hr_grad=72.560 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.637
+2026-07-06 20:42:04,637 [INFO] [DipScanner] SHADOW filter_falling_knife would BLOCK: JNF reasons=mtf_score=-1.0<=-1 AND 1m_last_close=-5.23%<0 (falling knife — no green confirmation)
+2026-07-06 20:42:04,638 [INFO] [DipScanner] ENTRY via demand_bottom_compound_vol_surge_recent_whale_conviction (clean_break BLOCKed): JNF B3 BULLISH_SWEEP AND peak24=2878%>=500 AND chart_score=55>=50,vol_recent_8h_avg/vol_prior_40h_avg=10.40>=3.0 (recent 8h volume 10.4x longer baseline),top10_buyer_within_60s_count=4>=3 (clustered top-10 buyers)
+2026-07-06 20:42:04,827 [INFO] [DipScanner] Signal: Silas mcap=$0.1M | 24h=+63.0% 1h=+36.9% 5m=-14.3% vol24h=$1800k bs_h6=1.08 bs_h1=1.25 bs_m5=1.13
+2026-07-06 20:42:04,857 [INFO] [DipScanner] BLOCKED by filter_no_signatures: JNF sigs_hit=0/6 available=6
+2026-07-06 20:42:04,858 [INFO] [DipScanner] BLOCKED by filter_lp_drain: JNF reasons=lp_delta_15m=-6.0%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-06 20:42:04,860 [INFO] [DipScanner] BLOCKED by filter_blowoff_top: JNF reasons=pc_h24=1833%>=500 (blow-off top — universe avg_exit -5.9%)
+2026-07-06 20:42:04,860 [INFO] [DipScanner] SHADOW filter_high_activity_fomo would BLOCK: JNF reasons=buys_per_min_recent=10>=10 (FOMO peak — n=20 lifetime, 15% WR, -$4.63 avg)
+2026-07-06 20:42:04,861 [INFO] [DipScanner] filter_wide_range_entry SHADOW would-block: JNF reasons=entry_range=5.44%>3.0 (panicky-volatility candle — likely reversal)
+2026-07-06 20:42:04,861 [INFO] [DipScanner] BLOCKED by filter_seller_imbalance: JNF reasons=net_flow_5m_imbalance=-0.263<-0.2 (sellers dominating 5m dollar flow)
+2026-07-06 20:42:04,861 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: JNF reasons=net_flow_5m_usd=$-549<0 (sellers winning 5m USD flow)
+2026-07-06 20:42:04,862 [INFO] [DipScanner] BLOCKED by filter_above_vwap_chase: JNF reasons=pct_above_vwap_h24=+10.6%∈[+10,+30) (chasing local strength)
+2026-07-06 20:42:04,866 [INFO] [DipScanner] Position size tier: standard $2 (base $5) for JNF triggers=['demand_bottom_compound', 'vol_surge_recent', 'whale_conviction']
+2026-07-06 20:42:04,874 [INFO] [main-scan->arm] 1 would-buy decision(s) for JNF ARMED+force-eval for fresh-path decision (MAIN_SCAN_BUY_MODE=arm_only) — stale main-scan price NOT committed
+2026-07-06 20:42:04,878 [INFO] [DipScanner] FRESHNESS GATE blocked: Chud vol_m5=$102<$200 AND txns_m5=1<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-07-06 20:42:04,880 [INFO] [DipScanner] FRESHNESS GATE blocked: ARRR vol_m5=$7<$200 AND txns_m5=2<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-07-06 20:42:04,882 [INFO] [DipScanner] 1m gate: CURB — no green close in last 3 min AND cum_3min=-10.7%<-2 — skipping
+2026-07-06 20:42:04,884 [INFO] [DipScanner] FRESHNESS GATE blocked: Fro vol_m5=$42<$200 AND txns_m5=1<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-07-06 20:42:04,885 [INFO] [DipScanner] FRESHNESS GATE blocked: SEMAN vol_m5=$14<$200 AND txns_m5=3<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-07-06 20:42:04,886 [INFO] [DipScanner] FRESHNESS GATE blocked: dog vol_m5=$16<$200 AND txns_m5=2<=4 (dying volume — refuses stale-cache breakthrough fires)
+2026-07-06 20:42:04,889 [INFO] [DipScanner] Signal: BULLCAT mcap=$0.1M | 24h=-6.3% 1h=-59.6% 5m=-0.2% vol24h=$111k bs_h6=1.02 bs_h1=1.20 bs_m5=0.67
+2026-07-06 20:42:04,938 [WARNING] [DipScanner] OBSERVATIONAL: Silas cycles_seen=125 (>=60 historically -EV; not blocking)
+2026-07-06 20:42:04,939 [INFO] [DipScanner] FILTER_1M_SHADOW: Silas 1m_cum3=n/a 1m_vol_spike=n/a verdict=PASS
+2026-07-06 20:42:04,941 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: Silas reason=fail-closed (1h_rng missing)
+2026-07-06 20:42:04,996 [INFO] [rt-trigger] gFDnD8 mode=enforce snap_pc_h1=-27.92 fresh_pc_h1=-28.860615 snap_px=0.00010810 fresh_px=0.00010669
+2026-07-06 20:42:05,001 [INFO] [DipScanner] Signal: JNF mcap=$0.1M | 24h=+1807.8% 1h=-42.9% 5m=-4.3% vol24h=$514k bs_h6=1.12 bs_h1=1.14 bs_m5=1.00
+2026-07-06 20:42:05,075 [WARNING] [DipScanner] OBSERVATIONAL: JNF cycles_seen=82 (>=60 historically -EV; not blocking)
+2026-07-06 20:42:05,076 [INFO] [DipScanner] filter_extended_chase SHADOW would-block: JNF reasons=pc_h24=+1808%>=200 (already pumped on the day),pct_above_vwap_h24=+10.6%>=10 (extended above VWAP)
+2026-07-06 20:42:05,076 [INFO] [DipScanner] FILTER_1M_SHADOW: JNF 1m_cum3=-9.707 1m_vol_spike=2.547 verdict=BLOCK reasons=1m_cum3=-9.71%<-1.0%
+2026-07-06 20:42:05,078 [INFO] [DipScanner] filter_1m_steep_fall SHADOW-would-block: JNF reasons=1m_cum3=-9.71%<-1.5% (steep 3min fall)
+2026-07-06 20:42:05,079 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: JNF reason=neither A nor B [1h_rng=0.04 h24_r=0.63 red=3]
+2026-07-06 20:42:05,088 [INFO] [DipScanner] CHART_READER: JNF score=55.2 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-07-06 20:42:05,089 [INFO] [DipScanner] filter_turn rescued by bs_h6 carve-out: JNF bs_h6=1.12<=1.20 (64% won_10pct on n=295 in 4d mining)
+2026-07-06 20:42:05,090 [INFO] [DipScanner] filter_sweep_too_recent SHADOW would-block: JNF reasons=chart_sweep_5m_low_candles_ago=2<=2 (sweep still unfolding — knife-catch)
+2026-07-06 20:42:05,094 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: JNF reasons=dev_pct_remaining=11.3%<50 (creator dumped >half pre-entry)
+2026-07-06 20:42:05,094 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: JNF reasons=bs_m5=1.00<1.40 (sellers dominating 5m order flow)
+2026-07-06 20:42:05,095 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: JNF reasons=cycles_seen=82>15 (stale watch — fresh dips beat stale ones)
+2026-07-06 20:42:05,095 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: JNF reasons=1m_last_close=-5.23%<0.3 (no real green confirmation)
+2026-07-06 20:42:05,096 [INFO] [DipScanner] BLOCKED by filter_fusion_floor: JNF reasons=fusion_score=0.380<0.40 (ML model disagrees with entry)
+2026-07-06 20:42:05,096 [INFO] [DipScanner] TRIGGER_FEATURES: JNF top10_60s=4.000 vwap_1h=-25.610 min_peak=119.900 hr_grad=72.560 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=0.628
+2026-07-06 20:42:05,098 [INFO] [DipScanner] SHADOW filter_falling_knife would BLOCK: JNF reasons=mtf_score=-1.0<=-1 AND 1m_last_close=-5.23%<0 (falling knife — no green confirmation)
+2026-07-06 20:42:05,099 [INFO] [DipScanner] ENTRY via demand_bottom_compound_vol_surge_recent_whale_conviction (clean_break BLOCKed): JNF B3 BULLISH_SWEEP AND peak24=2878%>=500 AND chart_score=55>=50,vol_recent_8h_avg/vol_prior_40h_avg=10.40>=3.0 (recent 8h volume 10.4x longer baseline),top10_buyer_within_60s_count=4>=3 (clustered top-10 buyers)
+2026-07-06 20:42:05,145 [INFO] [DipScanner] FILTER_1M_SHADOW: BULLCAT 1m_cum3=1.196 1m_vol_spike=0.733 verdict=PASS
+2026-07-06 20:42:05,148 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: BULLCAT reason=neither A nor B [1h_rng=0.01 h24_r=-0.06 red=0]
+2026-07-06 20:42:05,157 [INFO] [DipScanner] CHART_READER: BULLCAT score=42.9 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-07-06 20:42:05,176 [INFO] [DipScanner] BLOCKED by filter_no_signatures: JNF sigs_hit=0/6 available=6
+2026-07-06 20:42:05,177 [INFO] [DipScanner] BLOCKED by filter_lp_drain: JNF reasons=lp_delta_15m=-6.0%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-06 20:42:05,178 [INFO] [DipScanner] BLOCKED by filter_blowoff_top: JNF reasons=pc_h24=1808%>=500 (blow-off top — universe avg_exit -5.9%)
+2026-07-06 20:42:05,179 [INFO] [DipScanner] SHADOW filter_high_activity_fomo would BLOCK: JNF reasons=buys_per_min_recent=10>=10 (FOMO peak — n=20 lifetime, 15% WR, -$4.63 avg)
+2026-07-06 20:42:05,179 [INFO] [DipScanner] filter_wide_range_entry SHADOW would-block: JNF reasons=entry_range=5.44%>3.0 (panicky-volatility candle — likely reversal)
+2026-07-06 20:42:05,180 [INFO] [DipScanner] BLOCKED by filter_seller_imbalance: JNF reasons=net_flow_5m_imbalance=-0.263<-0.2 (sellers dominating 5m dollar flow)
+2026-07-06 20:42:05,180 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: JNF reasons=net_flow_5m_usd=$-549<0 (sellers winning 5m USD flow)
+2026-07-06 20:42:05,180 [INFO] [DipScanner] BLOCKED by filter_above_vwap_chase: JNF reasons=pct_above_vwap_h24=+10.6%∈[+10,+30) (chasing local strength)
+2026-07-06 20:42:05,186 [INFO] [DipScanner] Position size tier: standard $2 (base $5) for JNF triggers=['demand_bottom_compound', 'vol_surge_recent', 'whale_conviction']
+2026-07-06 20:42:05,188 [INFO] [fast-watch] hit-rate buy bot=badday_allday token=JNF armed=True
+2026-07-06 20:42:05,188 [INFO] [no-fast-price] SHADOW-would-block bot=badday_allday token=JNF (no fresh Jupiter price)
+2026-07-06 20:42:05,188 [INFO] [DipScanner] bot=badday_allday PUMP-RETRACE BLOCK: pc_h6=196%>+50% (fresh-pump retrace/distribution, not a capitulation dip) JNF
+2026-07-06 20:42:05,191 [INFO] [UptrendScanner] WOULD-BLOCK: BULLCAT gates=G1 mtf=mixed not in (bull, strong_bull),G2 5m_state=ranging != uptrend,G5 chart_score=42.9<50
+2026-07-06 20:42:05,196 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: BULLCAT reasons=dev_pct_remaining=10.9%<50 (creator dumped >half pre-entry)
+2026-07-06 20:42:05,196 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: BULLCAT reasons=bs_m5=0.67<1.40 (sellers dominating 5m order flow)
+2026-07-06 20:42:05,197 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: BULLCAT reasons=cycles_seen=51>15 (stale watch — fresh dips beat stale ones)
+2026-07-06 20:42:05,197 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: BULLCAT reasons=1m_vol_spike=0.73<1.0 (bounce on weak volume)
+2026-07-06 20:42:05,198 [INFO] [DipScanner] high_regime SUPPRESSED: BULLCAT mtf_vol_align=0<1 (no tf vol spike)
+2026-07-06 20:42:05,198 [INFO] [DipScanner] TRIGGER_FEATURES: BULLCAT top10_60s=2.000 vwap_1h=-51.690 min_peak=21.800 hr_grad=187.170 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=-0.057
+2026-07-06 20:42:05,200 [INFO] [DipScanner] clean_break SUPPRESSED: BULLCAT lp_delta_15m=-24.5%<-1.0 (LP draining — smart-money exit, no follow-through)
+2026-07-06 20:42:05,201 [INFO] [DipScanner] trigger_active_dip FIRED: BULLCAT buys_h1=542>=200 AND pc_h1=-59.6%<=-15 AND 1m_vol_spike=0.73>=0.40 AND 1m_cum_3m=+1.20%>=-3
+2026-07-06 20:42:05,202 [INFO] [DipScanner] ENTRY via active_dip_deep_1h_dip_pullback_in_uptrend_vol_surge_recent_modest_pump_deep_retrace (clean_break BLOCKed): BULLCAT pc_h1=-59.6%<=-8 (deep 1h dip),1h_last3_n_green=2>=2 AND 5m_last5_n_green=1<=2 AND last_5m_green=True AND 1m_vol_spike=0.73>=0.30,vol_recent_8h_avg/vol_prior_40h_avg=7.26>=3.0 (recent 8h volume 7.3x longer baseline),peak_h24_6h=112% in [50,150) AND h24_ratio=-0.057<0.10 (modest pump deeply retraced)
+2026-07-06 20:42:05,509 [INFO] [DipScanner] SHADOW filter_double_bear would BLOCK: BULLCAT reasons=bs_m5=0.67<0.70 AND p1h_rng=0.006<0.10 (stacked bearish context)
+2026-07-06 20:42:05,509 [INFO] [DipScanner] filter_lower_low RESCUED by breakthrough_late: BULLCAT trigs=['active_dip', 'deep_1h_dip', 'pullback_in_uptrend', 'vol_surge_recent', 'modest_pump_deep_retrace', 'cnn_cluster_10']
+2026-07-06 20:42:05,509 [INFO] [DipScanner] BLOCKED by filter_lp_drain: BULLCAT reasons=lp_delta_15m=-24.5%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-06 20:42:05,510 [INFO] [DipScanner] SHADOW filter_buyer_fomo would BLOCK: BULLCAT reasons=net_flow_60s_imb=0.90>0.9 (>90% of 60s flow is buys — late FOMO chase)
+2026-07-06 20:42:05,511 [INFO] [DipScanner] BLOCKED by filter_seller_imbalance: BULLCAT reasons=net_flow_5m_imbalance=-0.543<-0.2 (sellers dominating 5m dollar flow)
+2026-07-06 20:42:05,512 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: BULLCAT reasons=net_flow_5m_usd=$-143<0 (sellers winning 5m USD flow)
+2026-07-06 20:42:05,513 [INFO] [DipScanner] stale_drift SHADOW would-de-size: BULLCAT stale_drift: age=187h>168 AND pc_h24=-6.3 in [-20,60) (old middling-drift bleed)
+2026-07-06 20:42:05,516 [INFO] [DipScanner] medbuy_sub8 SHADOW would-block: BULLCAT median_buy=$0.81<8 (crowd-quality cliff)
+2026-07-06 20:42:05,516 [INFO] [DipScanner] p1_lbls SHADOW would-block: BULLCAT lbls=0.14<0.3 (no big buyer meeting the dump)
+2026-07-06 20:42:05,517 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for BULLCAT triggers=['active_dip', 'deep_1h_dip', 'pullback_in_uptrend', 'vol_surge_recent', 'modest_pump_deep_retrace', 'cnn_cluster_10']
+2026-07-06 20:42:05,517 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: BULLCAT fired=R4(pc_h1=-59.65<-22.1,poc=-2.40<16.6)
+2026-07-06 20:42:05,520 [INFO] [main-scan->arm] 6 would-buy decision(s) for BULLCAT ARMED+force-eval for fresh-path decision (MAIN_SCAN_BUY_MODE=arm_only) — stale main-scan price NOT committed
+2026-07-06 20:42:05,628 [INFO] [rt-trigger] CkAuhM mode=enforce snap_pc_h1=-59.65 fresh_pc_h1=-59.657763 snap_px=0.00008329 fresh_px=0.00008327
+2026-07-06 20:42:05,635 [INFO] [DipScanner] Signal: BULLCAT mcap=$0.1M | 24h=-6.3% 1h=-71.9% 5m=-0.2% vol24h=$111k bs_h6=1.02 bs_h1=1.20 bs_m5=0.67
+2026-07-06 20:42:05,638 [INFO] [rt-trigger] CkAuhM mode=enforce snap_pc_h1=-59.65 fresh_pc_h1=-59.657763 snap_px=0.00008329 fresh_px=0.00008327
+2026-07-06 20:42:05,642 [INFO] [DipScanner] Signal: BULLCAT mcap=$0.1M | 24h=-6.3% 1h=-71.9% 5m=-0.2% vol24h=$111k bs_h6=1.02 bs_h1=1.20 bs_m5=0.67
+2026-07-06 20:42:05,652 [INFO] [rt-trigger] CkAuhM mode=enforce snap_pc_h1=-59.65 fresh_pc_h1=-59.657763 snap_px=0.00008329 fresh_px=0.00008327
+2026-07-06 20:42:05,654 [INFO] [DipScanner] Signal: BULLCAT mcap=$0.1M | 24h=-6.3% 1h=-71.9% 5m=-0.2% vol24h=$111k bs_h6=1.02 bs_h1=1.20 bs_m5=0.67
+2026-07-06 20:42:05,655 [INFO] [rt-trigger] CkAuhM mode=enforce snap_pc_h1=-59.65 fresh_pc_h1=-59.657763 snap_px=0.00008329 fresh_px=0.00008327
+2026-07-06 20:42:05,658 [INFO] [DipScanner] Signal: BULLCAT mcap=$0.1M | 24h=-6.3% 1h=-71.9% 5m=-0.2% vol24h=$111k bs_h6=1.02 bs_h1=1.20 bs_m5=0.67
+2026-07-06 20:42:05,659 [INFO] [rt-trigger] CkAuhM mode=enforce snap_pc_h1=-59.65 fresh_pc_h1=-59.657763 snap_px=0.00008329 fresh_px=0.00008327
+2026-07-06 20:42:05,661 [INFO] [DipScanner] Signal: BULLCAT mcap=$0.1M | 24h=-6.3% 1h=-71.9% 5m=-0.2% vol24h=$111k bs_h6=1.02 bs_h1=1.20 bs_m5=0.67
+2026-07-06 20:42:05,735 [INFO] [DipScanner] FILTER_1M_SHADOW: BULLCAT 1m_cum3=1.196 1m_vol_spike=0.733 verdict=PASS
+2026-07-06 20:42:05,737 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: BULLCAT reason=neither A nor B [1h_rng=0.01 h24_r=-0.06 red=0]
+2026-07-06 20:42:05,744 [INFO] [DipScanner] CHART_READER: BULLCAT score=42.9 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-07-06 20:42:05,751 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: BULLCAT reasons=dev_pct_remaining=10.9%<50 (creator dumped >half pre-entry)
+2026-07-06 20:42:05,752 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: BULLCAT reasons=bs_m5=0.67<1.40 (sellers dominating 5m order flow)
+2026-07-06 20:42:05,752 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: BULLCAT reasons=cycles_seen=56>15 (stale watch — fresh dips beat stale ones)
+2026-07-06 20:42:05,752 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: BULLCAT reasons=1m_vol_spike=0.73<1.0 (bounce on weak volume)
+2026-07-06 20:42:05,753 [INFO] [DipScanner] FILTER_1M_SHADOW: BULLCAT 1m_cum3=1.196 1m_vol_spike=0.733 verdict=PASS
+2026-07-06 20:42:05,757 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: BULLCAT reason=neither A nor B [1h_rng=0.01 h24_r=-0.06 red=0]
+2026-07-06 20:42:05,765 [INFO] [DipScanner] CHART_READER: BULLCAT score=42.9 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-07-06 20:42:05,766 [INFO] [DipScanner] high_regime SUPPRESSED: BULLCAT mtf_vol_align=0<1 (no tf vol spike)
+2026-07-06 20:42:05,766 [INFO] [DipScanner] TRIGGER_FEATURES: BULLCAT top10_60s=2.000 vwap_1h=-51.690 min_peak=21.800 hr_grad=187.170 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=-0.057
+2026-07-06 20:42:05,769 [INFO] [DipScanner] FILTER_1M_SHADOW: BULLCAT 1m_cum3=1.196 1m_vol_spike=0.733 verdict=PASS
+2026-07-06 20:42:05,771 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: BULLCAT reason=neither A nor B [1h_rng=0.01 h24_r=-0.06 red=0]
+2026-07-06 20:42:05,779 [INFO] [DipScanner] CHART_READER: BULLCAT score=42.9 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-07-06 20:42:05,780 [INFO] [DipScanner] FILTER_1M_SHADOW: BULLCAT 1m_cum3=1.196 1m_vol_spike=0.733 verdict=PASS
+2026-07-06 20:42:05,782 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: BULLCAT reason=neither A nor B [1h_rng=0.01 h24_r=-0.06 red=0]
+2026-07-06 20:42:05,790 [INFO] [DipScanner] CHART_READER: BULLCAT score=42.9 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-07-06 20:42:05,791 [INFO] [DipScanner] FILTER_1M_SHADOW: BULLCAT 1m_cum3=1.196 1m_vol_spike=0.733 verdict=PASS
+2026-07-06 20:42:05,793 [INFO] [DipScanner] filter_two_pattern SHADOW would-block: BULLCAT reason=neither A nor B [1h_rng=0.01 h24_r=-0.06 red=0]
+2026-07-06 20:42:05,800 [INFO] [DipScanner] CHART_READER: BULLCAT score=42.9 verdict=neutral mtf=mixed sr_5m_supp=False pattern_5m=None
+2026-07-06 20:42:05,800 [INFO] [DipScanner] clean_break SUPPRESSED: BULLCAT lp_delta_15m=-24.5%<-1.0 (LP draining — smart-money exit, no follow-through)
+2026-07-06 20:42:05,801 [INFO] [DipScanner] trigger_active_dip FIRED: BULLCAT buys_h1=542>=200 AND pc_h1=-71.9%<=-15 AND 1m_vol_spike=0.73>=0.40 AND 1m_cum_3m=+1.20%>=-3
+2026-07-06 20:42:05,802 [INFO] [DipScanner] ENTRY via active_dip_deep_1h_dip_pullback_in_uptrend_vol_surge_recent_modest_pump_deep_retrace (clean_break BLOCKed): BULLCAT pc_h1=-71.9%<=-8 (deep 1h dip),1h_last3_n_green=2>=2 AND 5m_last5_n_green=1<=2 AND last_5m_green=True AND 1m_vol_spike=0.73>=0.30,vol_recent_8h_avg/vol_prior_40h_avg=7.26>=3.0 (recent 8h volume 7.3x longer baseline),peak_h24_6h=112% in [50,150) AND h24_ratio=-0.057<0.10 (modest pump deeply retraced)
+2026-07-06 20:42:05,818 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: BULLCAT reasons=dev_pct_remaining=10.9%<50 (creator dumped >half pre-entry)
+2026-07-06 20:42:05,819 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: BULLCAT reasons=cycles_seen=56>15 (stale watch — fresh dips beat stale ones)
+2026-07-06 20:42:05,818 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: BULLCAT reasons=bs_m5=0.67<1.40 (sellers dominating 5m order flow)
+2026-07-06 20:42:05,820 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: BULLCAT reasons=1m_vol_spike=0.73<1.0 (bounce on weak volume)
+2026-07-06 20:42:05,818 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: BULLCAT reasons=cycles_seen=56>15 (stale watch — fresh dips beat stale ones)
+2026-07-06 20:42:05,818 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: BULLCAT reasons=1m_vol_spike=0.73<1.0 (bounce on weak volume)
+2026-07-06 20:42:05,819 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: BULLCAT reasons=dev_pct_remaining=10.9%<50 (creator dumped >half pre-entry)
+2026-07-06 20:42:05,819 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: BULLCAT reasons=bs_m5=0.67<1.40 (sellers dominating 5m order flow)
+2026-07-06 20:42:05,827 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: BULLCAT reasons=dev_pct_remaining=10.9%<50 (creator dumped >half pre-entry)
+2026-07-06 20:42:05,828 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: BULLCAT reasons=bs_m5=0.67<1.40 (sellers dominating 5m order flow)
+2026-07-06 20:42:05,828 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: BULLCAT reasons=cycles_seen=56>15 (stale watch — fresh dips beat stale ones)
+2026-07-06 20:42:05,828 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: BULLCAT reasons=1m_vol_spike=0.73<1.0 (bounce on weak volume)
+2026-07-06 20:42:05,831 [INFO] [DipScanner] high_regime SUPPRESSED: BULLCAT mtf_vol_align=0<1 (no tf vol spike)
+2026-07-06 20:42:05,831 [INFO] [DipScanner] TRIGGER_FEATURES: BULLCAT top10_60s=2.000 vwap_1h=-51.690 min_peak=21.800 hr_grad=187.170 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=-0.057
+2026-07-06 20:42:05,833 [INFO] [DipScanner] high_regime SUPPRESSED: BULLCAT mtf_vol_align=0<1 (no tf vol spike)
+2026-07-06 20:42:05,833 [INFO] [DipScanner] TRIGGER_FEATURES: BULLCAT top10_60s=2.000 vwap_1h=-51.690 min_peak=21.800 hr_grad=187.170 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=-0.057
+2026-07-06 20:42:05,836 [INFO] [DipScanner] high_regime SUPPRESSED: BULLCAT mtf_vol_align=0<1 (no tf vol spike)
+2026-07-06 20:42:05,836 [INFO] [DipScanner] TRIGGER_FEATURES: BULLCAT top10_60s=2.000 vwap_1h=-51.690 min_peak=21.800 hr_grad=187.170 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=-0.057
+2026-07-06 20:42:05,847 [INFO] [DipScanner] high_regime SUPPRESSED: BULLCAT mtf_vol_align=0<1 (no tf vol spike)
+2026-07-06 20:42:05,840 [INFO] [DipScanner] filter_dev_dumping SHADOW would-block: BULLCAT reasons=dev_pct_remaining=10.9%<50 (creator dumped >half pre-entry)
+2026-07-06 20:42:05,840 [INFO] [DipScanner] filter_bs_m5_low SHADOW would-block: BULLCAT reasons=bs_m5=0.67<1.40 (sellers dominating 5m order flow)
+2026-07-06 20:42:05,841 [INFO] [DipScanner] filter_stale_watch SHADOW would-block: BULLCAT reasons=cycles_seen=56>15 (stale watch — fresh dips beat stale ones)
+2026-07-06 20:42:05,841 [INFO] [DipScanner] filter_confirmation_candle SHADOW would-block: BULLCAT reasons=1m_vol_spike=0.73<1.0 (bounce on weak volume)
+2026-07-06 20:42:05,842 [INFO] [DipScanner] clean_break SUPPRESSED: BULLCAT lp_delta_15m=-24.5%<-1.0 (LP draining — smart-money exit, no follow-through)
+2026-07-06 20:42:05,844 [INFO] [DipScanner] trigger_active_dip FIRED: BULLCAT buys_h1=542>=200 AND pc_h1=-71.9%<=-15 AND 1m_vol_spike=0.73>=0.40 AND 1m_cum_3m=+1.20%>=-3
+2026-07-06 20:42:05,844 [INFO] [DipScanner] clean_break SUPPRESSED: BULLCAT lp_delta_15m=-24.5%<-1.0 (LP draining — smart-money exit, no follow-through)
+2026-07-06 20:42:05,845 [INFO] [DipScanner] trigger_active_dip FIRED: BULLCAT buys_h1=542>=200 AND pc_h1=-71.9%<=-15 AND 1m_vol_spike=0.73>=0.40 AND 1m_cum_3m=+1.20%>=-3
+2026-07-06 20:42:05,845 [INFO] [DipScanner] clean_break SUPPRESSED: BULLCAT lp_delta_15m=-24.5%<-1.0 (LP draining — smart-money exit, no follow-through)
+2026-07-06 20:42:05,846 [INFO] [DipScanner] trigger_active_dip FIRED: BULLCAT buys_h1=542>=200 AND pc_h1=-71.9%<=-15 AND 1m_vol_spike=0.73>=0.40 AND 1m_cum_3m=+1.20%>=-3
+2026-07-06 20:42:05,848 [INFO] [DipScanner] TRIGGER_FEATURES: BULLCAT top10_60s=2.000 vwap_1h=-51.690 min_peak=21.800 hr_grad=187.170 grad_status=None nfi_60s=None bp_60s=None buy_max_trend=None liq_vel_h1=None h24_ratio=-0.057
+2026-07-06 20:42:05,851 [INFO] [DipScanner] ENTRY via active_dip_deep_1h_dip_pullback_in_uptrend_vol_surge_recent_modest_pump_deep_retrace (clean_break BLOCKed): BULLCAT pc_h1=-71.9%<=-8 (deep 1h dip),1h_last3_n_green=2>=2 AND 5m_last5_n_green=1<=2 AND last_5m_green=True AND 1m_vol_spike=0.73>=0.30,vol_recent_8h_avg/vol_prior_40h_avg=7.26>=3.0 (recent 8h volume 7.3x longer baseline),peak_h24_6h=112% in [50,150) AND h24_ratio=-0.057<0.10 (modest pump deeply retraced)
+2026-07-06 20:42:05,851 [INFO] [DipScanner] ENTRY via active_dip_deep_1h_dip_pullback_in_uptrend_vol_surge_recent_modest_pump_deep_retrace (clean_break BLOCKed): BULLCAT pc_h1=-71.9%<=-8 (deep 1h dip),1h_last3_n_green=2>=2 AND 5m_last5_n_green=1<=2 AND last_5m_green=True AND 1m_vol_spike=0.73>=0.30,vol_recent_8h_avg/vol_prior_40h_avg=7.26>=3.0 (recent 8h volume 7.3x longer baseline),peak_h24_6h=112% in [50,150) AND h24_ratio=-0.057<0.10 (modest pump deeply retraced)
+2026-07-06 20:42:05,852 [INFO] [DipScanner] ENTRY via active_dip_deep_1h_dip_pullback_in_uptrend_vol_surge_recent_modest_pump_deep_retrace (clean_break BLOCKed): BULLCAT pc_h1=-71.9%<=-8 (deep 1h dip),1h_last3_n_green=2>=2 AND 5m_last5_n_green=1<=2 AND last_5m_green=True AND 1m_vol_spike=0.73>=0.30,vol_recent_8h_avg/vol_prior_40h_avg=7.26>=3.0 (recent 8h volume 7.3x longer baseline),peak_h24_6h=112% in [50,150) AND h24_ratio=-0.057<0.10 (modest pump deeply retraced)
+2026-07-06 20:42:05,852 [INFO] [DipScanner] clean_break SUPPRESSED: BULLCAT lp_delta_15m=-24.5%<-1.0 (LP draining — smart-money exit, no follow-through)
+2026-07-06 20:42:05,853 [INFO] [DipScanner] trigger_active_dip FIRED: BULLCAT buys_h1=542>=200 AND pc_h1=-71.9%<=-15 AND 1m_vol_spike=0.73>=0.40 AND 1m_cum_3m=+1.20%>=-3
+2026-07-06 20:42:05,882 [INFO] [DipScanner] p1_lbls SHADOW would-block: BULLCAT lbls=0.14<0.3 (no big buyer meeting the dump)
+2026-07-06 20:42:05,882 [INFO] [DipScanner] Position size tier: alpha_trigger $8 (base $5) for BULLCAT triggers=['active_dip', 'deep_1h_dip', 'pullback_in_uptrend', 'vol_surge_recent', 'modest_pump_deep_retrace', 'cnn_cluster_10']
+2026-07-06 20:42:05,874 [INFO] [DipScanner] SHADOW filter_double_bear would BLOCK: BULLCAT reasons=bs_m5=0.67<0.70 AND p1h_rng=0.006<0.10 (stacked bearish context)
+2026-07-06 20:42:05,874 [INFO] [DipScanner] filter_lower_low RESCUED by breakthrough_late: BULLCAT trigs=['active_dip', 'deep_1h_dip', 'pullback_in_uptrend', 'vol_surge_recent', 'modest_pump_deep_retrace', 'cnn_cluster_10']
+2026-07-06 20:42:05,875 [INFO] [DipScanner] BLOCKED by filter_lp_drain: BULLCAT reasons=lp_delta_15m=-24.5%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-06 20:42:05,875 [INFO] [DipScanner] SHADOW filter_buyer_fomo would BLOCK: BULLCAT reasons=net_flow_60s_imb=0.90>0.9 (>90% of 60s flow is buys — late FOMO chase)
+2026-07-06 20:42:05,877 [INFO] [DipScanner] BLOCKED by filter_seller_imbalance: BULLCAT reasons=net_flow_5m_imbalance=-0.543<-0.2 (sellers dominating 5m dollar flow)
+2026-07-06 20:42:05,877 [INFO] [DipScanner] BLOCKED by filter_negative_net_flow_5m: BULLCAT reasons=net_flow_5m_usd=$-143<0 (sellers winning 5m USD flow)
+2026-07-06 20:42:05,879 [INFO] [DipScanner] stale_drift SHADOW would-de-size: BULLCAT stale_drift: age=187h>168 AND pc_h24=-6.3 in [-20,60) (old middling-drift bleed)
+2026-07-06 20:42:05,882 [INFO] [DipScanner] medbuy_sub8 SHADOW would-block: BULLCAT median_buy=$0.81<8 (crowd-quality cliff)
+2026-07-06 20:42:05,883 [INFO] [DipScanner] BLOCKED by filter_zero_winner_compound: BULLCAT fired=R4(pc_h1=-71.92<-22.1,poc=-2.40<16.6)
+2026-07-06 20:42:05,884 [INFO] [DipScanner] ENTRY via active_dip_deep_1h_dip_pullback_in_uptrend_vol_surge_recent_modest_pump_deep_retrace (clean_break BLOCKed): BULLCAT pc_h1=-71.9%<=-8 (deep 1h dip),1h_last3_n_green=2>=2 AND 5m_last5_n_green=1<=2 AND last_5m_green=True AND 1m_vol_spike=0.73>=0.30,vol_recent_8h_avg/vol_prior_40h_avg=7.26>=3.0 (recent 8h volume 7.3x longer baseline),peak_h24_6h=112% in [50,150) AND h24_ratio=-0.057<0.10 (modest pump deeply retraced)
+2026-07-06 20:42:05,887 [INFO] [fast-watch] hit-rate buy bot=badday_allday token=BULLCAT armed=True
+2026-07-06 20:42:05,887 [INFO] [DipScanner] bot=badday_allday FALLING-DAY-FLUSH BLOCK: pc_h24=-6%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) BULLCAT
+2026-07-06 20:42:05,887 [INFO] [fast-watch] hit-rate buy bot=badday_flush token=BULLCAT armed=True
+2026-07-06 20:42:05,888 [INFO] [DipScanner] bot=badday_flush FALLING-DAY-FLUSH BLOCK: pc_h24=-6%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) BULLCAT
+2026-07-06 20:42:05,888 [INFO] [fast-watch] hit-rate buy bot=badday_flush_hlconfirm_ab token=BULLCAT armed=True
+2026-07-06 20:42:05,888 [INFO] [DipScanner] bot=badday_flush_hlconfirm_ab FALLING-DAY-FLUSH BLOCK: pc_h24=-6%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) BULLCAT
+2026-07-06 20:42:05,889 [INFO] [fast-watch] hit-rate buy bot=badday_flush_peel_ab token=BULLCAT armed=True
+2026-07-06 20:42:05,889 [INFO] [DipScanner] bot=badday_flush_peel_ab FALLING-DAY-FLUSH BLOCK: pc_h24=-6%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) BULLCAT
+2026-07-06 20:42:05,889 [INFO] [fast-watch] hit-rate buy bot=badday_flush_runner_ab token=BULLCAT armed=True
+2026-07-06 20:42:05,889 [INFO] [DipScanner] bot=badday_flush_runner_ab FALLING-DAY-FLUSH BLOCK: pc_h24=-6%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) BULLCAT
+2026-07-06 20:42:05,889 [INFO] [fast-watch] hit-rate buy bot=badday_flush_wickride_ab token=BULLCAT armed=True
+2026-07-06 20:42:05,890 [INFO] [DipScanner] bot=badday_flush_wickride_ab FALLING-DAY-FLUSH BLOCK: pc_h24=-6%<0 AND pc_h1=-72%<=-35% (dying-token freefall, not a pullback) BULLCAT
+2026-07-06 20:42:05,939 [INFO] [DipScanner] SHADOW filter_double_bear would BLOCK: BULLCAT reasons=bs_m5=0.67<0.70 AND p1h_rng=0.006<0.10 (stacked bearish context)
+2026-07-06 20:42:05,940 [INFO] [DipScanner] filter_lower_low RESCUED by breakthrough_late: BULLCAT trigs=['active_dip', 'deep_1h_dip', 'pullback_in_uptrend', 'vol_surge_recent', 'modest_pump_deep_retrace', 'cnn_cluster_10']
+2026-07-06 20:42:05,940 [INFO] [DipScanner] BLOCKED by filter_lp_drain: BULLCAT reasons=lp_delta_15m=-24.5%<=-5 (LP draining fast — pool dying, exit will be expensive)
+2026-07-06 20:42:05,941 [INFO] [DipScanner] SHADOW filter_buyer_fomo would BLOCK: BULLCAT reasons=net_flow_60s_imb=0.90>0.9 (>90% of 60s flow is buys — late FOMO chase)

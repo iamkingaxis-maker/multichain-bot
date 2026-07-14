@@ -1,0 +1,20 @@
+
+total buys=10 | distinct tokens=10
+
+=== ENTRY-STATE DISTRIBUTIONS (10 reconstructed entries) ===
+  dip_90m %      p25=-25.3  median=-20.0  p75=-16.9
+  age_h          p25=63.1  median=577.8  p75=3098.7
+  fwd_max %      p25=13.1  median=25.4  p75=44.7
+  liq $          p25=9,673  median=26,927  p75=45,955
+  fdv/mcap $     p25=14,133  median=147,557  p75=343,813
+  buy_size SOL   p25=0.640  median=0.640  p75=0.640
+
+  entry win-rate (fwd_max>=+15%): 7/10 = 70%
+
+=== vs OUR CURRENT GATES ===
+  DIP: our gate buys at <= -16% off 90m high. They buy at median -20.0% (8/10 = 80% would pass our gate).
+  AGE: our gate requires >= 24h. They buy median 577.8h; 1/10 = 10% are YOUNGER than our floor (would be BLOCKED).
+  MCAP: our band 500k-10M. 1/10 = 10% of their entries fall in-band.
+  TIME-OF-DAY (CT) top hours: 14:00(9), 15:00(1)
+
+wrote _wallet_entry_feats.json

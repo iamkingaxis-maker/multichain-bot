@@ -1,0 +1,6 @@
+{"kind":"buy","volume_usd":89.68,"ts":"2026-07-10T20:01:39+00:00","maker":"0xf4c54d002ac128e9b96c3e0c13c72712765635be","pair":"0xa32475da4d714ccb4a7587aee98766dc181b388a","sym":"SCAT","lag_secs":1.27,"pre_conf":true}
+{"kind":"buy","volume_usd":179.12,"ts":"2026-07-10T20:20:04+00:00","maker":"0x478d8c1e4aaded2f9bba74800a3501173f57e79c","pair":"0xa32475da4d714ccb4a7587aee98766dc181b388a","sym":"SCAT","lag_secs":0.23,"pre_conf":true}
+{"kind":"buy","volume_usd":92.35,"ts":"2026-07-10T20:20:46+00:00","maker":"0x8ed66b9153c6f12602897b8f3e5c7792ef57a697","pair":"0xa32475da4d714ccb4a7587aee98766dc181b388a","sym":"SCAT","lag_secs":0.87,"pre_conf":true}
+{"kind":"buy","volume_usd":0.92,"ts":"2026-07-10T20:28:00+00:00","maker":"0x2f79c0851e0f3e51fa43685f39e232ee15fc3a62","pair":"0xa32475da4d714ccb4a7587aee98766dc181b388a","sym":"SCAT","lag_secs":-0.1,"pre_conf":true}
+{"kind":"buy","volume_usd":1.0,"ts":"2026-07-10T21:14:13+00:00","maker":"0xbeaf18d6993c402b71e06d87fb9820dd675dff38","pair":"0xa32475da4d714ccb4a7587aee98766dc181b388a","sym":"SCAT","lag_secs":0.04,"pre_conf":true}
+{"kind":"buy","volume_usd":1.07,"ts":"2026-07-10T21:14:49+00:00","maker":"0x2f79c0851e0f3e51fa43685f39e232ee15fc3a62","pair":"0xa32475da4d714ccb4a7587aee98766dc181b388a","sym":"SCAT","lag_secs":0.16,"pre_conf":true}

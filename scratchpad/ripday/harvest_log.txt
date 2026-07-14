@@ -1,0 +1,47 @@
+20:46:23 === harvest driver start ===
+20:47:07 recorder refresh: rip runners now 89 (+0 new)
+20:47:07 sweep1: 176 pairs (full universe)
+20:51:27 --- phase2 continuation run ---
+20:51:27 phase2: sweep1 remainder 93 pairs (doing 93)
+20:53:00 --- phase3 GT-first run ---
+20:53:00 phase3: GT ohlc todo 94
+20:55:26 phase3: ohlc 15/94
+20:58:09 --- phase3 GT-first run ---
+20:58:09 phase3: GT ohlc todo 65
+20:58:19 phase3: ohlc 30/94
+21:00:23 phase3: ohlc 15/65
+21:00:34 phase3: ohlc 45/94
+21:00:35 --- phase3 GT-first run ---
+21:00:35 phase3: GT ohlc todo 47
+21:01:46 phase3: budget out during ohlc (55 done, 39 left)
+21:02:35 phase3: ohlc 30/65
+21:02:55 phase3: ohlc 15/47
+21:05:52 --- phase3 GT-first run ---
+21:05:52 phase3: GT ohlc todo 16
+21:05:55 phase3: ohlc 30/47
+21:08:10 phase3: ohlc 15/16
+21:08:22 phase3: GT ohlc done (16)
+21:08:22 phase3: pool meta
+21:08:34   pool meta chunk 0-30: 30 resolved
+21:08:46   pool meta chunk 30-60: 60 resolved
+21:08:58   pool meta chunk 60-90: 90 resolved
+21:08:58 phase3: sol/usd minute history
+21:09:11   sol minute page 0: 1000 bars, oldest 07-01 04:29
+21:09:23   sol minute page 1: 1000 bars, oldest 06-30 11:50
+21:09:35   sol minute page 2: 1000 bars, oldest 06-29 19:10
+21:09:47   sol minute page 3: 1000 bars, oldest 06-29 02:30
+21:10:00   sol minute page 4: 1000 bars, oldest 06-28 09:51
+21:10:12   sol minute page 5: 1000 bars, oldest 06-27 17:12
+21:10:24   sol minute page 6: 1000 bars, oldest 06-27 00:33
+21:10:36   sol minute page 7: 1000 bars, oldest 06-26 07:53
+21:10:49   sol minute page 8: 1000 bars, oldest 06-25 15:14
+21:11:01   sol minute page 9: 1000 bars, oldest 06-24 22:35
+21:11:13   sol minute page 10: 1000 bars, oldest 06-24 05:55
+21:11:25   sol minute page 11: 1000 bars, oldest 06-23 13:15
+21:11:25 sol minute: 11994 bars total
+21:11:25 phase3: ALL GT DONE
+21:11:25 phase3: active sweep 73/87 pairs
+21:19:14 phase4: final active sweep 87 pairs
+21:19:29 phase4: final active sweep 87 pairs
+21:22:20 sweepF done: 87 pairs, +4259 new trades, 171s
+21:22:20 phase4: complete

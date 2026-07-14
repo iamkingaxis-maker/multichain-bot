@@ -1,0 +1,6 @@
+{"kind":"buy","volume_usd":178.93,"ts":"2026-07-12T00:02:04+00:00","maker":"0x55aee996fcb1b5cb4d047c75bbcca775322e9caf","pair":"0x522116cf29e301e5ef4eadfb547cb56e20ab003c","sym":"BANANA","lag_secs":0.47,"pre_conf":true}
+{"kind":"buy","volume_usd":53.68,"ts":"2026-07-12T00:02:34+00:00","maker":"0xfec4732a8ae2aca4677b27b5753058aef68529e8","pair":"0x522116cf29e301e5ef4eadfb547cb56e20ab003c","sym":"BANANA","lag_secs":0.73,"pre_conf":true}
+{"kind":"buy","volume_usd":53.68,"ts":"2026-07-12T00:03:58+00:00","maker":"0x7a54fb2579ed5bbb8784033ee59ec7ce337635ea","pair":"0x522116cf29e301e5ef4eadfb547cb56e20ab003c","sym":"BANANA","lag_secs":0.47,"pre_conf":true}
+{"kind":"buy","volume_usd":89.49,"ts":"2026-07-12T00:08:09+00:00","maker":"0x55aee996fcb1b5cb4d047c75bbcca775322e9caf","pair":"0x522116cf29e301e5ef4eadfb547cb56e20ab003c","sym":"BANANA","lag_secs":0.06,"pre_conf":true}
+{"kind":"buy","volume_usd":179.02,"ts":"2026-07-12T00:27:56+00:00","maker":"0x55aee996fcb1b5cb4d047c75bbcca775322e9caf","pair":"0x522116cf29e301e5ef4eadfb547cb56e20ab003c","sym":"BANANA","lag_secs":0.95,"pre_conf":true}
+{"kind":"buy","volume_usd":357.51,"ts":"2026-07-12T00:56:07+00:00","maker":"0x55aee996fcb1b5cb4d047c75bbcca775322e9caf","pair":"0x522116cf29e301e5ef4eadfb547cb56e20ab003c","sym":"BANANA","lag_secs":0.48,"pre_conf":true}

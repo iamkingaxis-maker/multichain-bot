@@ -1,0 +1,5 @@
+{"kind":"buy","volume_usd":225.41,"ts":"2026-07-12T12:13:25+00:00","maker":"0xabef9f7b25433d67936d8ee1557431813e134cbd","pair":"0x6270ae40df577b4aea86528bd1beb3453173b58b","sym":"BROTHER","lag_secs":0.02,"pre_conf":true,"vol_est":true}
+{"kind":"buy","volume_usd":90.27,"ts":"2026-07-12T13:25:28+00:00","maker":"0xd2163351d43a213fda93e874e3dd95c72804ff03","pair":"0x6270ae40df577b4aea86528bd1beb3453173b58b","sym":"BROTHER","lag_secs":-0.2,"pre_conf":true}
+{"kind":"buy","volume_usd":220.01,"ts":"2026-07-12T13:28:43+00:00","maker":"0x277284c9e9d52fee66594e5fc80165881b6369b0","pair":"0x6270ae40df577b4aea86528bd1beb3453173b58b","sym":"BROTHER","lag_secs":0.89,"pre_conf":true}
+{"kind":"buy","volume_usd":144.35,"ts":"2026-07-12T13:54:49+00:00","maker":"0x277284c9e9d52fee66594e5fc80165881b6369b0","pair":"0x6270ae40df577b4aea86528bd1beb3453173b58b","sym":"BROTHER","lag_secs":1.21,"pre_conf":true}
+{"kind":"buy","volume_usd":180.53,"ts":"2026-07-12T14:07:51+00:00","maker":"0x3a6d8cc36700ee1184b5352f95b6b5926c299c9f","pair":"0x6270ae40df577b4aea86528bd1beb3453173b58b","sym":"BROTHER","lag_secs":0.22,"pre_conf":true}

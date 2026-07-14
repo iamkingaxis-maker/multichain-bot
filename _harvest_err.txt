@@ -1,0 +1,7 @@
+PHONEBLACK   pair=2ayaVpFx buys=2 window=1
+Moonlake     pair=59XdiyMn buys=4 window=2
+RDR2         pair=4oGhdThS buys=5 window=2
+MrAsteroid   pair=FrGruVuG buys=7 window=3
+QUEST        pair=8qifgHNX buys=6 window=3
+Schrödinger  pair=HecPTUb5 buys=5 window=2
+UFOBEAT      pair=2AHfcdye buys=6 window=3
