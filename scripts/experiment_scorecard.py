@@ -439,7 +439,7 @@ def main():
         else run_bs_compare(BS_COMPARE)
     notes.append("bs_ compare: " + (bs_err or "ran (see section below)"))
 
-    _render(rows, notes, rug_counts, rug_sep, rug_note, bs_out, bs_err)
+    _render(rows, notes, rug_counts, rug_sep, rug_note, bs_out, bs_err, rh_by_bot)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -455,7 +455,7 @@ def _fmt(x):
     return f"{x:+.1f}" if isinstance(x, (int, float)) else "—"
 
 
-def _render(rows, notes, rug_counts, rug_sep, rug_note, bs_out, bs_err):
+def _render(rows, notes, rug_counts, rug_sep, rug_note, bs_out, bs_err, rh_by_bot=None):
     rows_sorted = sorted(rows, key=lambda r: (_RANK.get(r[2]["verdict"], 9),
                                               -(r[2]["n_tokens"] or 0)))
     from datetime import datetime, timezone
@@ -556,6 +556,40 @@ def _render(rows, notes, rug_counts, rug_sep, rug_note, bs_out, bs_err):
             stable_hits["RH" if chain == "RH" else "SOL"].append(name)
     print(f"  STABLE count -> SOL: {len(stable_hits['SOL'])}/3  RH: {len(stable_hits['RH'])}/3  "
           f"(goal: 3 each, n>=bar + green in majority of OOS windows)")
+
+    # ── RH REGIME-NET panel (2026-07-13 goal: net-$/pos higher AND regime-robust) ──
+    # The honest dollar metric. median-% HID that every RH bot lost on the bad
+    # regime day (07-11) and won on the good one (07-12) — beta to regime, not an
+    # edge. Here: net-$/position AFTER friction, split PER DAY. REGIME-ROBUST =
+    # net-positive on EVERY day seen (the bar AxiS set: "sustainable across regimes").
+    RH_FRICTION_USD = 0.20   # ~round-trip gas+slippage floor on a $25 position
+    if not rh_by_bot:
+        rh_by_bot = {}
+    print(f"\n  ── RH REGIME-NET (net-$/pos after ~${RH_FRICTION_USD} friction, per regime-day) ──")
+    print(f"  {'bot':<20}{'n':>4}{'net$/pos':>9}{'total$':>8}{'days+':>7}  per-day net$/pos")
+    regime_robust = []
+    for bot in sorted(rh_by_bot, key=lambda b: -sum(
+            (t.get("ret") or 0) / 100.0 * RH_ENTRY_USD for t in rh_by_bot[b])):
+        trips = rh_by_bot[bot]
+        if len(trips) < 8:
+            continue
+        byday = defaultdict(list)
+        for t in trips:
+            net = (t.get("ret") or 0.0) / 100.0 * RH_ENTRY_USD - RH_FRICTION_USD
+            byday[(t.get("sell_time") or "")[:10]].append(net)
+        allnet = [n for v in byday.values() for n in v]
+        tot = sum(allnet)
+        npos = len(allnet)
+        dplus = sum(1 for v in byday.values() if sum(v) > 0)
+        robust = dplus == len(byday) and len(byday) >= 2
+        perday = " ".join(f"{d[5:]}:{sum(v)/len(v):+.2f}" for d, v in sorted(byday.items()))
+        flag = "  <== REGIME-ROBUST" if robust else ""
+        print(f"  {bot[:19]:<20}{npos:>4}{tot/npos:>+9.2f}{tot:>+8.1f}"
+              f"{dplus:>4}/{len(byday)}  {perday}{flag}")
+        if robust:
+            regime_robust.append(bot)
+    print(f"  REGIME-ROBUST (net+ every day) -> {regime_robust or 'NONE — RH net is regime-beta; levers = tail-cap + regime-sizing gate + more tape'}")
+
     print(f"\n  full table -> {os.path.relpath(OUT_MD, REPO)}")
 
 
