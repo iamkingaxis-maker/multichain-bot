@@ -74,8 +74,12 @@ def sell_distribution_flag(trades, ref_ts,
         return {"block": False, "reason": "no ref ts (fail-open)"}
     w60 = _window(trades, ref, -60.0, 0.0)
     if len(w60) < 3:
+        # fail-open, but STAMP the count: a dead/near-dead tape at entry (0-2
+        # trades in the last 60s) is itself the only regime-robust runner/dier
+        # separator found (2026-07-13 tape-recon study) — losing n_trades_60
+        # here would blind the dead-tape shadow gate to exactly the case it grades.
         return {"block": False, "reason": "too few trades (fail-open)",
-                "sell_rate_60": None, "sell_traj": None}
+                "sell_rate_60": None, "sell_traj": None, "n_trades_60": len(w60)}
     sell60 = _sum_usd(w60, "sell")
     sell_rate_60 = sell60 / 60.0
     early = _sum_usd(_window(trades, ref, -60.0, -30.0), "sell")

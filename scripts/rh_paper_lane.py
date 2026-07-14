@@ -984,6 +984,35 @@ def _rt_combined() -> bool:
         in ("1", "true", "on", "yes")
 
 
+def _deadtape_shadow() -> bool:
+    """RH_DEADTAPE_SHADOW: forward-grade the DEAD-TAPE entry gate in shadow.
+
+    The 2026-07-13 tape-reconstruction study (10 RH paper sessions, 07-10..07-12,
+    228 entry events, features rebuilt on interpolated per-line timestamps and fed
+    through the EXACT core.retrace_microstructure windows) found that the confirmed
+    Solana sell-distribution / net-flow-persistence signals do NOT transfer to the
+    RH lane: sell_rate_60/sell_traj/cum_nf_60/pos_subwins flip sign or go flat
+    across the three regime days (pooled AUC is a magnitude confound). The ONE
+    entry-time separator that pointed the SAME way on all three days was cruder:
+    whether there was live trade flow at all in the 60s pre-entry window
+    (n_trades_60). Dip into a LIVE tape -> higher run-rate (07-10 +17pp, 07-11
+    +32pp, 07-12 +46pp); dip into a DEAD tape (HOODBIRD signature: attention/
+    liquidity already gone) -> tends to die. A ~15-45pp odds-shift, i.e. a
+    SIZE/downsize lever, NOT a deterministic filter. SHADOW-ONLY: stamps
+    deadtape_would_skip on the entry; never blocks or resizes."""
+    return str(os.environ.get("RH_DEADTAPE_SHADOW", "0")).strip().lower() \
+        in ("1", "true", "on", "yes")
+
+
+def _deadtape_min_trades() -> int:
+    """RH_DEADTAPE_MIN_TRADES: n_trades_60 floor below which the shadow gate marks
+    would_skip (default 3 = the retrace_microstructure fail-open cutoff)."""
+    try:
+        return int(os.environ.get("RH_DEADTAPE_MIN_TRADES", "3"))
+    except (TypeError, ValueError):
+        return 3
+
+
 # ── pure signal logic (unit-tested, no network) ─────────────────────────────
 def price_from_quote(amount_in_wei: int, amount_out_atomic: int,
                      token_decimals: int) -> float:
@@ -2329,6 +2358,20 @@ class PaperLane:
         comp_snap = self.comp.snapshot(now)
         npph = self.new_pools_per_hour(now)
         hour_utc = time.gmtime(now).tm_hour
+        # DEAD-TAPE shadow gate (2026-07-13): the only regime-robust runner/dier
+        # entry separator found was n_trades_60 (live vs dead tape in the 60s
+        # pre-entry window). SHADOW-ONLY — computed once per entry event, stamped
+        # on every racer's row, NEVER blocks or resizes. Forward-grades on the
+        # exact stamped value as outcomes accrue. See _deadtape_shadow().
+        dt_shadow = _deadtape_shadow()
+        dt_min = _deadtape_min_trades()
+        nt60 = (micro.get("sell") or {}).get("n_trades_60")
+        deadtape_skip = (bool(nt60 < dt_min)
+                         if (dt_shadow and nt60 is not None) else None)
+        if dt_shadow and deadtape_skip:
+            print(f"[rh-shadow] deadtape would_skip {w['sym']:<12} "
+                  f"n_trades_60={nt60} < {dt_min} (dip={dip:.1f}% "
+                  f"liq=${w.get('liq') or 0:,.0f})", flush=True)
         for st in takers:
             # LIVE FILL PROBE routing: when the four conditions hold for this
             # racer, the FILL comes from RhLiveExecutor (real tx); the paper
@@ -2384,6 +2427,12 @@ class PaperLane:
                        "n_trades_60": (micro.get("sell") or {}).get("n_trades_60"),
                        "cum_nf_60": (micro.get("flow") or {}).get("cum_nf_60"),
                        "pos_subwins": (micro.get("flow") or {}).get("pos_subwins"),
+                       # DEAD-TAPE shadow gate (never blocks): would_skip = live
+                       # tape flow (n_trades_60) below the floor. Only stamped
+                       # when RH_DEADTAPE_SHADOW is on so paper rows stay
+                       # byte-identical by default.
+                       "deadtape_would_skip": deadtape_skip,
+                       "deadtape_min_trades": (dt_min if dt_shadow else None),
                    },
                    "lat_trigger_lag_s": trigger_lag,
                    "lat_quote_s": lat_quote,
