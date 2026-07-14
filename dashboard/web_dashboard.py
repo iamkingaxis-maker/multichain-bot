@@ -1946,7 +1946,8 @@ def rh_wallet_truth_view(raw: dict) -> dict:
 
 
 def compute_rh_paper_summary(rows: list, last_n: int = 20,
-                             today_utc: str = None) -> dict:
+                             today_utc: str = None,
+                             fidelity: dict = None) -> dict:
     """Pure aggregation for GET /api/rh-paper over the RH paper-lane ledger
     (scripts/rh_paper_lane.py events: ev=buy|sell). Reports:
       - entries / exits: total buy / sell events in the ledger
@@ -1997,15 +1998,24 @@ def compute_rh_paper_summary(rows: list, last_n: int = 20,
                     b["wins"] += 1
                 if str(r.get("ts", ""))[:10] == today_utc:
                     b["day_pnl_usd"] += float(p)
-    for b in bots.values():
+    # FIDELITY CORRECTION (2026-07-14): raw total_pnl_usd over-counts because
+    # paper booked sells at the quote even for tokens that are now dead/
+    # unsellable (honeypot/rug). rh_fleet_fidelity.py re-books those at a total
+    # loss and pushes the corrected per-bot P&L here; surface it so the
+    # dashboard shows the HONEST number, not the illusion. None = not yet run.
+    fidelity = fidelity or {}
+    for bid, b in bots.items():
         b["day_pnl_usd"] = round(b["day_pnl_usd"], 2)
         b["total_pnl_usd"] = round(b["total_pnl_usd"], 2)
+        fv = fidelity.get(bid)
+        b["fidelity_pnl_usd"] = round(float(fv), 2) if fv is not None else None
     return {
         "available": True,
         "entries": entries,
         "exits": exits,
         "day_utc": today_utc,
         "day_pnl_usd": round(day_pnl, 2),
+        "fidelity_ts": (fidelity or {}).get("_ts"),
         "trades": clean[-last_n:],
         "bots": dict(sorted(bots.items(),
                             key=lambda kv: -kv[1]["day_pnl_usd"])),
@@ -2149,6 +2159,7 @@ class WebDashboard:
         # app-wide middleware, same as every write endpoint).
         self.app.router.add_get("/api/rh-paper",              self._handle_api_rh_paper)
         self.app.router.add_post("/api/rh-paper/ingest",      self._handle_api_rh_paper_ingest)
+        self.app.router.add_post("/api/rh-fidelity/ingest",   self._handle_api_rh_fidelity_ingest)
         # 2026-07-13: RH hot-wallet on-chain truth (native ETH + WETH, delta vs
         # baseline) — the Solana /api/wallet-truth analog for the RH chain. The
         # paper lane reads the balance KEYLESS via RH_WALLET_ADDRESS on its
@@ -5918,6 +5929,27 @@ class WebDashboard:
         return os.path.join(os.environ.get("DATA_DIR", "/data"),
                             "bot_state", "rh_paper_trades.jsonl")
 
+    def _rh_fidelity_path(self) -> str:
+        """bot_state/rh_fidelity.json — fidelity-corrected per-bot P&L map pushed
+        by scripts/rh_fleet_fidelity.py (which has the RH RPC to check real
+        sellability and re-book dead-token sells as losses)."""
+        base = os.path.join(os.environ.get("DATA_DIR", "/data"), "bot_state")
+        if self.trade_store is not None:
+            try:
+                base = str(self.trade_store.data_dir / "bot_state")
+            except Exception:
+                pass
+        return os.path.join(base, "rh_fidelity.json")
+
+    def _rh_fidelity_read(self) -> dict:
+        """{bot_id: fidelity_pnl_usd, '_ts': iso, '_dead_rate': f} or {}."""
+        try:
+            with open(self._rh_fidelity_path(), encoding="utf-8") as f:
+                d = json.load(f)
+            return d if isinstance(d, dict) else {}
+        except Exception:
+            return {}
+
     @staticmethod
     def _rh_paper_read_rows(path: str) -> list:
         """BLOCKING jsonl read (run off the loop). Skips malformed lines."""
@@ -5957,13 +5989,45 @@ class WebDashboard:
                        and r.get("bot_id") == bot]
                 return web.json_response({"available": True, "bot_id": bot,
                                           "n": len(sel), "rows": sel})
-            payload = await asyncio.to_thread(compute_rh_paper_summary, rows)
+            fid = self._rh_fidelity_read()
+            payload = await asyncio.to_thread(compute_rh_paper_summary,
+                                              rows, 20, None, fid)
         except Exception as e:
             logger.warning("api/rh-paper failed: %s", e)
             return web.json_response({"available": False,
                                       "note": "ledger read failed",
                                       "error": str(e)[:200]}, status=500)
         return web.json_response(payload)
+
+    async def _handle_api_rh_fidelity_ingest(self, request):
+        """POST /api/rh-fidelity/ingest — store the fidelity-corrected per-bot
+        P&L map from scripts/rh_fleet_fidelity.py (which has the RH RPC to check
+        real sellability). Body: {bot_id: pnl_usd, '_ts': iso, '_dead_rate': f}.
+        Latest run overwrites. Auth'd by the app-wide write middleware."""
+        try:
+            body = await request.json()
+        except Exception:
+            return web.json_response({"ok": False, "error": "invalid JSON"},
+                                     status=400)
+        if not isinstance(body, dict):
+            return web.json_response({"ok": False, "error": "expected object"},
+                                     status=400)
+        path = self._rh_fidelity_path()
+
+        def _write():
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(body, f)
+            os.replace(tmp, path)
+        try:
+            await asyncio.to_thread(_write)
+        except Exception as e:
+            return web.json_response({"ok": False, "error": str(e)[:200]},
+                                     status=500)
+        return web.json_response({"ok": True,
+                                  "n_bots": len([k for k in body
+                                                 if not k.startswith("_")])})
 
     async def _handle_api_rh_paper_ingest(self, request):
         """POST /api/rh-paper/ingest — append a JSON array of RH paper-lane

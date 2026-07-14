@@ -118,6 +118,21 @@ def main():
           f"illusion=${tfid-traw:+.2f}")
     print(f"bots that FLIP profit->loss: {sum(1 for r in results if r[4])}/{len(results)}")
 
+    # push the fidelity-corrected per-bot P&L to the dashboard so its DISPLAYED
+    # numbers are honest, not the quote-illusion paper P&L.
+    if USER and PW:
+        payload = {b: round(fid, 2) for b, raw, fid, gap, flip in results}
+        payload["_ts"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        payload["_dead_rate"] = round(len(dead_tokens) / max(1, len(tokens)), 3)
+        try:
+            r = subprocess.run(["curl", "-s", "--max-time", "20", "-u",
+                f"{USER}:{PW}", "-X", "POST", "-H",
+                "Content-Type: application/json", "-d", json.dumps(payload),
+                f"{BASE}/api/rh-fidelity/ingest"], capture_output=True, text=True)
+            print(f"pushed fidelity to dashboard: {r.stdout[:140]}")
+        except Exception as e:
+            print(f"dashboard push failed: {e}")
+
 
 if __name__ == "__main__":
     main()
