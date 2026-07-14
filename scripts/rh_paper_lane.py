@@ -2269,12 +2269,15 @@ class PaperLane:
                 tok = (pos.get("token") or "").lower()
                 if not tok or tok in open_tokens:
                     continue                        # active position — never sweep
-                if not pos.get("sellable"):
+                # ROUTELESS (quote returned $0 -> dead rug, e.g. GOATAI) can't be
+                # sold; skip-list it once. ANY routed value (even $0.01 bcat dust)
+                # IS cleared — a clean wallet, not a "reduced to a penny" wallet
+                # (RH gas is ~free). Failed low-value sells just retry next cycle.
+                if (pos.get("value_usd") or 0) <= 0:
                     if tok not in self._dust_skip:
                         self._dust_skip.add(tok)
                         print(f"[rh-paper] DUST-SWEEP skip {pos.get('sym')} "
-                              f"routeless/dead (~${pos.get('value_usd')})",
-                              flush=True)
+                              f"routeless/dead ($0)", flush=True)
                     continue
                 try:
                     rec = self._live_executor().live_sell(
