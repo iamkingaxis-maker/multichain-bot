@@ -3132,6 +3132,26 @@ def main():
     print(f"[rh-paper] chain {cid} eth=${feed.eth_price:,.2f} "
           f"candidates={len(feed.cand)} {_mode}",
           flush=True)
+    # ── ONE-SHOT ORPHAN-TOKEN RECOVERY (2026-07-14): sell a stranded token
+    # (e.g. a live position orphaned when a kill-redeploy wiped lane state) via
+    # the live executor. Set RH_SELL_ORPHAN=<addr>; triple-gated like any live
+    # sell; generous 10% slippage so it FILLS (the lane's default 3% reverted).
+    # UNSET the env once it succeeds so it does not retry on future restarts.
+    _orphan = os.environ.get("RH_SELL_ORPHAN", "").strip()
+    if _orphan:
+        try:
+            print(f"[rh-paper] ORPHAN-SELL: selling FULL balance of {_orphan} "
+                  f"@ 10% max slippage...", flush=True)
+            _rec = rh_live.RhLiveExecutor().live_sell(_orphan, "all",
+                                                      max_slippage_bps=1000)
+            _out = (_rec.get("amount_out") or _rec.get("quoted_out") or 0) \
+                if isinstance(_rec, dict) else 0
+            _tx = _rec.get("tx_signature") if isinstance(_rec, dict) else "?"
+            print(f"[rh-paper] ORPHAN-SELL DONE: recovered "
+                  f"~{float(_out)/1e18:.6f} ETH  tx={_tx}", flush=True)
+        except Exception as _e:
+            print(f"[rh-paper] ORPHAN-SELL FAILED: {type(_e).__name__}: "
+                  f"{str(_e)[:160]}", flush=True)
     asyncio.run(orchestrate(fh, lane, max_minutes))
     print(lane.summary(), flush=True)
 
