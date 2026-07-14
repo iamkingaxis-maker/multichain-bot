@@ -62,6 +62,7 @@ from core.rh_regime import (  # noqa: E402
 )
 from core.rh_rug_signals import (  # noqa: E402
     compute_entry_stamp, fast_liq_bail_verdict, _fast_liq_bail_mode,
+    rug_gate_verdict, rug_gate_enforcing, _rug_gate_mode,
 )
 from core.runner_signal import score_at_exit  # noqa: E402
 from core.bot_config import BotConfig  # noqa: E402
@@ -137,12 +138,15 @@ LIVE_SELL_RETRY_COOLDOWN_S = 60.0   # a failed live exit retries no faster
 # ── Rug-defense SHADOW stamps (2026-07-11 HOODLANA port) ─────────────────────
 # core/rh_rug_signals per-entry stamp: pool share of supply, top-holder
 # structure (top1/top10/shoulder_11_20/visible float) and LP custody, appended
-# as {"ev":"rug_signals"} ledger rows. SHADOW ONLY — no decision reads them;
-# the labeled-outcome pipeline (post-exit +6h checks / cohort labeler) grades
-# them offline at n>=30 rugs before any gate promotion (winner-kill<=5% bar,
-# AxiS approval). Zero latency budget: computed on a daemon thread AFTER the
-# paper fill books; single-flight lock + internal pacing so the stamper never
-# contends with the strategy loop for the shared public RPC. Retro-validated
+# as {"ev":"rug_signals"} ledger rows. SHADOW forensics — the buy DECISION does
+# not read these rows (they are computed post-fill for offline grading). The
+# ENFORCED concentration gate reads a SEPARATE arm-time Blockscout PREWARM (see
+# RUG_PREWARM_ENABLED / _prewarm_rug); this full eth_getLogs stamp stays shadow
+# because it is up to 90s (unusable inline). The labeled-outcome pipeline
+# (post-exit +6h checks / cohort labeler) grades the stamps offline. Zero latency
+# budget: computed on a daemon thread AFTER the paper fill books; single-flight
+# lock + internal pacing so the stamper never contends with the strategy loop for
+# the shared public RPC. Retro-validated
 # on CASHCATGAME/MONSIEUR/Halp/TREAT/KUNA vs 4 aged survivors (costs measured
 # 15-40 RPC calls/stamp; scratchpad/_rh_rug_port.md).
 RUG_STAMP_ENABLED = os.environ.get("RH_RUG_STAMP", "1") != "0"
@@ -150,6 +154,24 @@ RUG_STAMP_CACHE_S = 600.0   # re-entries within 10 min reuse the computation
                             # (a row is still written per entry, flagged
                             # cached=True — the outcome join stays per-entry
                             # while the RPC cost stays per-pool)
+# ── ARM-TIME RUG-GATE PREWARM (2026-07-13; scratchpad/_rh_rug_enforce_0713.md)
+# The ENFORCE path for the concentration dump-class gate (rug_gate_verdict). The
+# eth_getLogs holder replay is up to 90s (unusable inline), so instead the lane
+# fires the CHEAP Blockscout holder fetch (core.rh_blockscout.blockscout_stamp,
+# 2 calls / ~1-6s cold, 0 on cache hit) ON A DAEMON THREAD when a pool ARMS into
+# the quoted watch set (_quote_hot). The result lands in self._bs_prewarm; the
+# entry decision (_consider_entries) reads that warm verdict from a pure dict —
+# ZERO added latency on the detect->fill path. FAIL-OPEN: no warm data yet ->
+# the verdict blocks nothing (rug_gate_verdict({}) => block=False, source none).
+# Kill switch RH_RUG_PREWARM=0 (default on); the gate mode is RH_RUG_GATE.
+RUG_PREWARM_ENABLED = os.environ.get("RH_RUG_PREWARM", "1") != "0"
+RUG_PREWARM_TTL_S = 600.0        # a warm bs_ verdict is good for 10 min (= the
+                                 # Blockscout per-token cache TTL)
+RUG_PREWARM_FAIL_TTL_S = 45.0    # an empty/failed fetch re-arms sooner so a
+                                 # transient Blockscout blip doesn't fail-open a
+                                 # pool for the full 10 min
+MAX_BS_PREWARM_INFLIGHT = 4      # bound concurrent Blockscout prewarm threads
+                                 # (candidate set is small; this caps a burst)
 
 # ── AGED-POOL cohort thresholds (2026-07-11) — every number set FROM DATA ────
 # Sources: scratchpad/_rh_history_decode.md + scratchpad/rh_history/
@@ -906,15 +928,18 @@ ROSTER = (
     #   4. exclusion_group="stable" — cross-sibling de-cluster: the three never pile
     #      the SAME token, so one rug can't hit all three at once (fleet stability;
     #      ~zero n-cost given distinct triggers).
-    # RUG-GATE REFERENCE (NOT enforced inline — latency): the pre-buy defense for
-    # the concentrated-DUMP class (CASHCATWIF/CASHCATGAME) is core.rh_rug_signals
-    # .rug_gate_verdict (top1>=9 OR top10>=30; 0/22 winner-kill), and the STAGED-
-    # drain exit defense is fast_liq_bail_verdict — BOTH already stamp SHADOW on
-    # every rug_signals / held-position row and forward-grade. Enforcement, once
-    # promoted (n>=30 rugs + AxiS), lands as an arm-time Blockscout PREWARM (0 added
-    # latency), NEVER the 90s eth_getLogs recon. The single-block LP-pull class
-    # (Halp −90, 10s) is unfixable by any stop/gate here — holder-invisible; already
-    # fenced by MIN_LIQ 30k + MIN_POOL_AGE 1h (Halp was $17k/7min).
+    # RUG-GATE (ENFORCED 2026-07-13 per AxiS — RH_RUG_GATE=enforce default): the
+    # pre-buy defense for the concentrated-DUMP class (CASHCATWIF/CASHCATGAME) is
+    # core.rh_rug_signals.rug_gate_verdict (top1>=9 OR top10>=30; catches the two
+    # catastrophic dumps at 0/22 winner-kill / 0/4 loss-hit). It BLOCKS the entry
+    # via the arm-time Blockscout PREWARM (_prewarm_rug/_rug_gate_lookup): the
+    # cheap holder verdict is warmed on a daemon thread when a pool arms into the
+    # quoted set, and the entry reads it from cache (0 added latency; NEVER the
+    # 90s eth_getLogs recon). FAIL-OPEN — no warm data blocks nothing. Reversible
+    # with RH_RUG_GATE=shadow (stamp-only). The STAGED-drain exit defense is
+    # fast_liq_bail_verdict (still SHADOW). The single-block LP-pull class (Halp
+    # −90, 10s) is OUT OF SCOPE here — holder-invisible (top1 1.6), fenced instead
+    # by MIN_LIQ 30k + MIN_POOL_AGE 1h (Halp was $17k/7min) / the LP-custody stamp.
     #
     # PRE-REGISTERED (paper race seat, never a live seat): grade each at n>=30 CLOSED
     # positions vs its PARENT (demand_heavy / deep_only / aged_deep) as control. The
@@ -1593,6 +1618,13 @@ class PaperLane:
         self._rug_lock = threading.Lock()   # single-flight on the RPC
         self._rug_cache = {}                # pool -> (computed_ts, stamp)
         self._rug_rpc = None                # dedicated Rpc (lazy)
+        # ARM-TIME RUG-GATE PREWARM (see _prewarm_rug / _rug_gate_lookup): the
+        # warm Blockscout verdict cache the ENFORCE gate reads at 0 latency.
+        self._bs_lock = threading.Lock()    # guards _bs_prewarm + _bs_inflight
+        self._bs_prewarm = {}               # token -> (fetched_ts, bs_stamp)
+        self._bs_inflight = set()           # tokens with a prewarm thread live
+        self._rug_blocked_pools = set()     # pools already logged as gate-blocked
+                                            # (dedupe the per-tick block ledger row)
         # regime layer (core/rh_regime): feed-wide 30-min demand-composition
         # window, fed from the tape drain; stamped on every entry ledger row.
         self.comp = CompositionTracker()
@@ -1985,6 +2017,12 @@ class PaperLane:
                     if px > 0:
                         self._note_px(pool, now, px)
                     continue
+                # ARM-TIME RUG-GATE PREWARM: this pool is a live entry
+                # candidate (recently traded, watched, not held) — kick the
+                # cheap Blockscout holder prewarm on a daemon thread so the
+                # concentration verdict is warm BEFORE the entry can fire.
+                # Deduped/bounded/fail-open; adds ZERO latency to this quote.
+                self._prewarm_rug(pool, token, now)
                 q = self._executor().quote_buy(token, int(ENTRY_USD / max(
                     self.feed.eth_price or 1e9, 1e-9) * 1e18))
                 if q and q.amount_out:
@@ -2257,13 +2295,27 @@ class PaperLane:
             if not entering:
                 continue
             token = cand_token
+            # RUG GATE (concentration dump-class, CASHCATWIF/CASHCATGAME): a
+            # 0-latency read of the arm-time Blockscout prewarm verdict. ENFORCE
+            # -> block the whole pool for every entering config (it is a per-TOKEN
+            # property); SHADOW -> stamp the verdict on the fill only. FAIL-OPEN:
+            # no warm bs_ data -> block=False (never a veto on absent data).
+            rug_v = self._rug_gate_lookup(token)
+            if (rug_v is not None and rug_v.get("rug_gate_block")
+                    and rug_gate_enforcing()):
+                for st in entering:
+                    st.block_hist["rug_gate"] = (
+                        st.block_hist.get("rug_gate", 0) + 1)
+                self._log_rug_block(pool, token, w, rug_v, now,
+                                    [st.bot.bot_id for st in entering])
+                continue
             if not token or not self._honeypot_ok(token):
                 continue
             self._paper_buy(pool, token, w, d, micro, now, rows,
-                            states=entering, age_h=age_h)
+                            states=entering, age_h=age_h, rug_v=rug_v)
 
     def _paper_buy(self, pool, token, w, dip, micro, now, rows, states=None,
-                   age_h=None):
+                   age_h=None, rug_v=None):
         """Fill the entry for every entering config off ONE buy quote + ONE
         rt-cost sell quote: the fill price is a per-POOL fact (every racer
         bets the same $25), so the fleet does not multiply QuoterV2 calls."""
@@ -2448,6 +2500,19 @@ class PaperLane:
             if live_leg is not None:   # keys only on live rows: paper rows
                 rec["live"] = True     # stay byte-identical to pre-probe
                 rec["fill"] = live_leg["tel"]
+            # RUG-GATE verdict on the fill (grading): present only when the gate
+            # is not off (rug_v is None -> byte-identical). In ENFORCE mode a
+            # booked fill always carries block=False (a blocking verdict never
+            # reaches _paper_buy); in SHADOW mode it may carry block=True (the
+            # would-block the grader scores) since shadow does not skip.
+            if rug_v is not None:
+                rec["rug_gate"] = {
+                    "block": rug_v.get("rug_gate_block"),
+                    "reason": rug_v.get("rug_gate_reason"),
+                    "source": rug_v.get("rug_gate_source"),
+                    "top1": rug_v.get("rug_gate_top1"),
+                    "top10": rug_v.get("rug_gate_top10"),
+                    "mode": rug_v.get("rug_gate_mode")}
             _append(LEDGER, rec)
             print(f"[rh-paper] BUY{' LIVE' if live_leg else ''}  "
                   f"{st.bot.bot_id:<16} {w['sym']:<12} "
@@ -2510,6 +2575,105 @@ class PaperLane:
                 daemon=True, name=f"rug-stamp-{pool[:8]}").start()
         except Exception as e:   # thread-spawn failure must not touch entries
             print(f"[rh-paper] rug-stamp spawn failed: {e}", flush=True)
+
+    # ── ARM-TIME RUG-GATE PREWARM + ENFORCE (2026-07-13) ────────────────────
+    # OFF the hot path: the prewarm fetches the cheap Blockscout holder verdict
+    # on a daemon thread when a pool arms into the quoted watch set, so the
+    # entry decision reads a WARM verdict from a pure dict (0 added latency).
+    def _prewarm_fresh(self, hit, now) -> bool:
+        """A cached prewarm entry is 'fresh' (skip re-fetch) if it is a good
+        stamp within the 10-min TTL, or an empty/failed stamp still inside the
+        short fail-retry window (so a Blockscout blip re-arms, not fails-open
+        for the full TTL)."""
+        if not hit:
+            return False
+        age = now - hit[0]
+        ttl = (RUG_PREWARM_TTL_S if hit[1].get("bs_source_ok")
+               else RUG_PREWARM_FAIL_TTL_S)
+        return age < ttl
+
+    def _prewarm_rug(self, pool, token, now):
+        """ARM a Blockscout holder prewarm for one watch candidate. Non-blocking,
+        deduped (per-token in-flight + TTL cache), and concurrency-bounded. No-op
+        when the gate is off or prewarm is disabled. NEVER touches the hot path."""
+        if not RUG_PREWARM_ENABLED or _rug_gate_mode() == "off" or not token:
+            return
+        k = token.lower()
+        with self._bs_lock:
+            if self._prewarm_fresh(self._bs_prewarm.get(k), now):
+                return
+            if k in self._bs_inflight:
+                return
+            if len(self._bs_inflight) >= MAX_BS_PREWARM_INFLIGHT:
+                return
+            self._bs_inflight.add(k)
+        try:
+            threading.Thread(target=self._prewarm_rug_worker, args=(pool, k),
+                             daemon=True, name=f"rug-prewarm-{k[:8]}").start()
+        except Exception as e:   # spawn failure must never touch the arm loop
+            with self._bs_lock:
+                self._bs_inflight.discard(k)
+            print(f"[rh-paper] rug-prewarm spawn failed: {e}", flush=True)
+
+    def _prewarm_rug_worker(self, pool, token):
+        """Daemon worker: fetch the Blockscout bs_ stamp (fail-open — never
+        raises) and store it as the warm verdict source. Also warms the
+        blockscout_stamp internal cache the post-fill shadow stamper reuses."""
+        stamp = {}
+        try:
+            from core.rh_blockscout import blockscout_stamp
+            stamp = blockscout_stamp(token, pool_addr=pool) or {}
+        except Exception as e:
+            print(f"[rh-paper] rug-prewarm {token[:10]} "
+                  f"{type(e).__name__}", flush=True)
+        with self._bs_lock:
+            self._bs_prewarm[token] = (time.time(), stamp)
+            self._bs_inflight.discard(token)
+
+    def _bs_prewarm_read(self, token) -> dict:
+        """Pure, 0-latency read of the warm bs_ stamp for `token` ({} if absent
+        or stale). This is the ONLY thing the entry path calls — never network."""
+        if not token:
+            return {}
+        with self._bs_lock:
+            hit = self._bs_prewarm.get(token.lower())
+        if hit and (time.time() - hit[0]) < RUG_PREWARM_TTL_S:
+            return dict(hit[1])
+        return {}
+
+    def _rug_gate_lookup(self, token):
+        """The concentration rug verdict for a candidate token, read from the
+        arm-time prewarm cache (0 latency, no network). None when the gate is
+        off. FAIL-OPEN: no warm data -> rug_gate_verdict({}) => block=False."""
+        if _rug_gate_mode() == "off":
+            return None
+        try:
+            return rug_gate_verdict(self._bs_prewarm_read(token))
+        except Exception:
+            return None   # never let the gate raise into the entry path
+
+    def _log_rug_block(self, pool, token, w, rug_v, now, bot_ids):
+        """Emit the ENFORCED-block ledger row ONCE per pool (the entry re-arms
+        every ~2s; one row per blocked pool keeps the grader join clean)."""
+        if pool in self._rug_blocked_pools:
+            return
+        self._rug_blocked_pools.add(pool)
+        try:
+            _append(LEDGER, {"ev": "rug_gate_block",
+                             "ts": self._ledger_ts(now), "pool": pool,
+                             "token": token, "sym": w.get("sym"),
+                             "bot_ids": list(bot_ids),
+                             "rug_gate_block": rug_v.get("rug_gate_block"),
+                             "rug_gate_reason": rug_v.get("rug_gate_reason"),
+                             "rug_gate_source": rug_v.get("rug_gate_source"),
+                             "rug_gate_top1": rug_v.get("rug_gate_top1"),
+                             "rug_gate_top10": rug_v.get("rug_gate_top10"),
+                             "rug_gate_thr": rug_v.get("rug_gate_thr")})
+        except Exception as e:
+            print(f"[rh-paper] rug-gate ledger append failed: {e}", flush=True)
+        print(f"[rh-paper] RUG-GATE BLOCK {w.get('sym')} "
+              f"({rug_v.get('rug_gate_reason')}) src={rug_v.get('rug_gate_source')} "
+              f"bots={list(bot_ids)}", flush=True)
 
     def _manage_exits(self, now: float):
         for st in self.state.values():

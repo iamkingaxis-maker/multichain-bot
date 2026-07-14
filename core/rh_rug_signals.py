@@ -119,21 +119,37 @@ def _blockscout_merge(token: str, pool: str) -> dict:
 # LP-custody stamp (lp_any_eoa_owner), which fires 0 on today's launchpad-
 # custodied pools but is the mechanism-defense for the non-hood.fun EOA-LP class.
 #
-# LOW-N: 3 labeled rugs. This ships SHADOW — it stamps a verdict onto the
-# rug_signals row and forward-grades; it does NOT block. Promotion to an
-# enforcing PREWARM gate needs n>=30 rugged stamped entries + AxiS approval
-# (same bar as the Solana resume gate). The block flag exists so a future
-# arm-time prewarm can consume it; the practical prewarm source is the
-# Blockscout bs_top1/bs_top10 (2 calls, ~1-6s, cacheable — inside the RH
-# detect->fill <=2s budget when prewarmed at arm-time, unlike the 90s replay).
+# LOW-N: 3 labeled rugs. AxiS directed SHIP-ENFORCE (2026-07-13) on the clean
+# grade — the gate BLOCKS the two catastrophic dump-class rugs at 0/22 winner-
+# kill (and 0/4 loss-hit), which clears the Solana <=5% bar, and it is fully
+# env-reversible (RH_RUG_GATE=shadow downgrades to stamp-only with no deploy).
+# Enforcement is LATENCY-SAFE because it NEVER runs the 90s eth_getLogs replay
+# inline: the lane PREWARMS the Blockscout bs_top1/bs_top10 (2 calls, ~1-6s
+# cold / 0 on cache hit, 10-min TTL) when a pool arms into the watch set, and
+# the entry decision reads the warm verdict from cache (0 added latency on the
+# detect->fill path; FAIL-OPEN on absent data — never a veto without data). The
+# eth_getLogs recon top1/top10 remains the offline-graded shadow fallback.
 RUG_GATE_TOP1_PCT = float(os.environ.get("RH_RUG_GATE_TOP1", "9"))
 RUG_GATE_TOP10_PCT = float(os.environ.get("RH_RUG_GATE_TOP10", "30"))
 
 
 def _rug_gate_mode() -> str:
-    """shadow (default) = stamp the verdict, never block. block = the verdict is
-    authoritative (for a future prewarm gate). off = no rug_gate_* keys."""
-    return os.environ.get("RH_RUG_GATE", "shadow").lower()
+    """RH_RUG_GATE mode. enforce (DEFAULT, shipped 2026-07-13 per AxiS on the
+    0/22-winner-kill grade) = the verdict BLOCKS the entry (consumed by the
+    lane's arm-time Blockscout prewarm gate). shadow = stamp the verdict, never
+    block. off = no rug_gate_* keys at all. 'block' is a legacy alias for
+    enforce. Env-reversible with no deploy (RH_RUG_GATE=shadow to downgrade)."""
+    m = os.environ.get("RH_RUG_GATE", "enforce").strip().lower()
+    if m == "block":
+        m = "enforce"
+    return m if m in ("off", "shadow", "enforce") else "enforce"
+
+
+def rug_gate_enforcing() -> bool:
+    """True when the concentration rug gate should BLOCK entries (not merely
+    stamp them). The RH paper lane reads this at the entry decision; the
+    post-fill shadow stamper ignores it (it only records the verdict)."""
+    return _rug_gate_mode() == "enforce"
 
 
 def rug_gate_verdict(stamp: dict, *, top1_thr: Optional[float] = None,
@@ -576,8 +592,9 @@ def compute_entry_stamp(rpc, pool: str, token: str,
     # (default on; off = byte-identical). Fail-open — never raises.
     stamp.update(_blockscout_merge(token_l, pool_l))
     # RUG GATE v2 (2026-07-13): stamp the concentration verdict so it
-    # forward-grades. SHADOW by default (mode=shadow) — the block flag is
-    # recorded, never acted on here (this runs post-fill anyway). off = no keys.
+    # forward-grades. This runs POST-FILL, so it only RECORDS the verdict —
+    # the block flag is never acted on here regardless of mode (enforcement is
+    # the lane's arm-time prewarm gate). off = no keys.
     if _rug_gate_mode() != "off":
         try:
             stamp.update(rug_gate_verdict(stamp))

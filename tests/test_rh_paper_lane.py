@@ -454,3 +454,143 @@ class TestRugSignalStamp:
         lane._paper_buy("0xpool", "0xtok", w, -15.0, {}, 1_000_000.0, [])
         assert seen["pool"] == "0xpool" and seen["token"] == "0xtok"
         assert len(seen["bot_ids"]) >= 1
+
+
+class TestRugGatePrewarmEnforce:
+    """Arm-time Blockscout PREWARM + ENFORCED concentration gate (2026-07-13,
+    scratchpad/_rh_rug_enforce_0713.md). The prewarm runs OFF the hot path; the
+    entry decision reads a warm verdict from a pure dict (0 added latency);
+    fail-open on absent data; env-reversible (RH_RUG_GATE)."""
+
+    def _lane(self, tmp_path, monkeypatch):
+        import rh_paper_lane as mod
+        monkeypatch.setattr(mod, "LEDGER", str(tmp_path / "ledger.jsonl"))
+
+        class FakeFeed:
+            watch = {}
+            latest_block = 123
+        return mod, mod.PaperLane(FakeFeed(), executor=object(), registry={})
+
+    def _rows(self, mod):
+        import json
+        with open(mod.LEDGER, encoding="utf-8") as f:
+            return [json.loads(x) for x in f if x.strip()]
+
+    # ── prewarm plumbing ────────────────────────────────────────────────────
+    def test_prewarm_populates_cache_off_hot_path(self, tmp_path, monkeypatch):
+        import threading
+        mod, lane = self._lane(tmp_path, monkeypatch)
+        calls = []
+
+        def fake_stamp(token, pool_addr=None, use_cache=True):
+            calls.append((token, pool_addr))
+            return {"bs_source_ok": True, "bs_top1_pct": 3.0,
+                    "bs_top10_pct": 20.0}
+        import core.rh_blockscout as bs
+        monkeypatch.setattr(bs, "blockscout_stamp", fake_stamp)
+        lane._prewarm_rug("0xpool", "0xTok", 1_000_000.0)
+        # worker runs on a daemon thread — join the named prewarm thread
+        for t in threading.enumerate():
+            if t.name.startswith("rug-prewarm"):
+                t.join(timeout=5)
+        assert calls == [("0xtok", "0xpool")]
+        v = lane._rug_gate_lookup("0xTok")
+        assert v is not None and v["rug_gate_source"] == "bs"
+        assert v["rug_gate_block"] is False   # clean shape
+
+    def test_prewarm_deduped_by_inflight_and_cache(self, tmp_path, monkeypatch):
+        mod, lane = self._lane(tmp_path, monkeypatch)
+        spawned = []
+        monkeypatch.setattr(mod.threading, "Thread",
+                            lambda *a, **k: spawned.append(k.get("name")) or
+                            type("T", (), {"start": lambda self: None})())
+        lane._prewarm_rug("0xp", "0xt", 1_000.0)     # arms in-flight
+        lane._prewarm_rug("0xp", "0xt", 1_000.0)     # dup while in-flight
+        assert len(spawned) == 1
+        # a fresh good cache entry also blocks a re-fetch
+        lane._bs_inflight.clear()
+        lane._bs_prewarm["0xt"] = (1_000.0, {"bs_source_ok": True,
+                                             "bs_top1_pct": 2.0})
+        lane._prewarm_rug("0xp", "0xt", 1_010.0)
+        assert len(spawned) == 1                       # still no new spawn
+
+    def test_prewarm_noop_when_gate_off(self, tmp_path, monkeypatch):
+        mod, lane = self._lane(tmp_path, monkeypatch)
+        monkeypatch.setenv("RH_RUG_GATE", "off")
+        spawned = []
+        monkeypatch.setattr(mod.threading, "Thread",
+                            lambda *a, **k: spawned.append(k) or
+                            type("T", (), {"start": lambda self: None})())
+        lane._prewarm_rug("0xp", "0xt", 1_000.0)
+        assert spawned == []
+
+    # ── enforce vs shadow vs fail-open at the entry decision ────────────────
+    def test_enforce_blocks_concentrated_dump(self, tmp_path, monkeypatch):
+        import time as _t
+        mod, lane = self._lane(tmp_path, monkeypatch)
+        monkeypatch.setenv("RH_RUG_GATE", "enforce")
+        # CASHCATWIF-shape warm verdict (top1 10.6 / top10 45.9 -> both trip)
+        lane._bs_prewarm["0xtok"] = (_t.time(), {
+            "bs_source_ok": True, "bs_top1_pct": 10.6, "bs_top10_pct": 45.9})
+        v = lane._rug_gate_lookup("0xtok")
+        assert v["rug_gate_block"] is True
+        assert mod.rug_gate_enforcing() is True
+        # the block ledger row is written once, keyed to the pool
+        w = {"sym": "CASHCATWIF"}
+        lane._log_rug_block("0xpool", "0xtok", w, v, 1_000_000.0, ["b1"])
+        lane._log_rug_block("0xpool", "0xtok", w, v, 1_000_001.0, ["b1"])
+        rows = [r for r in self._rows(mod) if r["ev"] == "rug_gate_block"]
+        assert len(rows) == 1                          # deduped per pool
+        assert rows[0]["sym"] == "CASHCATWIF"
+        assert "top1" in rows[0]["rug_gate_reason"]
+
+    def test_shadow_does_not_enforce(self, tmp_path, monkeypatch):
+        import time as _t
+        mod, lane = self._lane(tmp_path, monkeypatch)
+        monkeypatch.setenv("RH_RUG_GATE", "shadow")
+        lane._bs_prewarm["0xtok"] = (_t.time(), {
+            "bs_source_ok": True, "bs_top1_pct": 10.6, "bs_top10_pct": 45.9})
+        v = lane._rug_gate_lookup("0xtok")
+        assert v["rug_gate_block"] is True             # verdict still computed
+        assert mod.rug_gate_enforcing() is False       # but never enforced
+
+    def test_fail_open_absent_data(self, tmp_path, monkeypatch):
+        mod, lane = self._lane(tmp_path, monkeypatch)
+        monkeypatch.setenv("RH_RUG_GATE", "enforce")
+        v = lane._rug_gate_lookup("0xunknown")         # nothing prewarmed
+        assert v["rug_gate_block"] is False            # never veto on no data
+        assert v["rug_gate_source"] == "none"
+
+    def test_winner_shape_passes(self, tmp_path, monkeypatch):
+        import time as _t
+        mod, lane = self._lane(tmp_path, monkeypatch)
+        monkeypatch.setenv("RH_RUG_GATE", "enforce")
+        # PONS-shape (top1 2.49 / top10 19.67) — a winner, must PASS
+        lane._bs_prewarm["0xpons"] = (_t.time(), {
+            "bs_source_ok": True, "bs_top1_pct": 2.49, "bs_top10_pct": 19.67})
+        assert lane._rug_gate_lookup("0xpons")["rug_gate_block"] is False
+
+    def test_gate_off_returns_none(self, tmp_path, monkeypatch):
+        mod, lane = self._lane(tmp_path, monkeypatch)
+        monkeypatch.setenv("RH_RUG_GATE", "off")
+        assert lane._rug_gate_lookup("0xtok") is None
+
+    def test_stale_prewarm_fails_open(self, tmp_path, monkeypatch):
+        import time as _t
+        mod, lane = self._lane(tmp_path, monkeypatch)
+        monkeypatch.setenv("RH_RUG_GATE", "enforce")
+        # older than the TTL -> read returns {} -> fail-open
+        old = _t.time() - mod.RUG_PREWARM_TTL_S - 1
+        lane._bs_prewarm["0xtok"] = (old, {"bs_source_ok": True,
+                                           "bs_top1_pct": 10.6})
+        assert lane._bs_prewarm_read("0xtok") == {}
+
+    def test_mode_default_is_enforce_and_block_alias(self, monkeypatch):
+        from core.rh_rug_signals import _rug_gate_mode, rug_gate_enforcing
+        monkeypatch.delenv("RH_RUG_GATE", raising=False)
+        assert _rug_gate_mode() == "enforce"           # AxiS ship-enforce
+        assert rug_gate_enforcing() is True
+        monkeypatch.setenv("RH_RUG_GATE", "block")      # legacy alias
+        assert _rug_gate_mode() == "enforce"
+        monkeypatch.setenv("RH_RUG_GATE", "shadow")
+        assert rug_gate_enforcing() is False

@@ -320,6 +320,42 @@ class TestFleetEntryRouting:
         assert len([c for c in ex.calls if c[0] == "buy"]) == 1
         assert len([c for c in ex.calls if c[0] == "sell"]) == 1
 
+    def test_rug_gate_enforce_blocks_whole_pool(self, tmp_path, monkeypatch):
+        # ENFORCE + a warm CASHCATWIF-shape verdict -> NO config enters the pool,
+        # NO buy/sell quote is spent, every entering config records rug_gate, and
+        # one rug_gate_block ledger row is written. (0-latency dict read.)
+        import time as _t
+        monkeypatch.setenv("RH_RUG_GATE", "enforce")
+        lane, ex = self._lane(tmp_path, monkeypatch)
+        self._dip_facts(lane)
+        lane._bs_prewarm["0xtok"] = (_t.time(), {
+            "bs_source_ok": True, "bs_top1_pct": 10.6, "bs_top10_pct": 45.9})
+        lane._consider_entries(NOW)
+        entered = {bid for bid, st in lane.state.items()
+                   if "0xp1" in st.pos_meta}
+        assert entered == set()                              # whole pool blocked
+        assert ex.calls == []                                # no quote spent
+        assert any("rug_gate" in st.block_hist
+                   for st in lane.state.values())
+        rows = [r for r in _ledger_rows(tmp_path) if r["ev"] == "rug_gate_block"]
+        assert len(rows) == 1 and rows[0]["token"] == "0xtok"
+
+    def test_rug_gate_shadow_allows_entry_with_stamp(self, tmp_path, monkeypatch):
+        # SHADOW + the same concentrated verdict -> entries STILL fire, and the
+        # would-block verdict is stamped on the buy rows for grading.
+        import time as _t
+        monkeypatch.setenv("RH_RUG_GATE", "shadow")
+        lane, ex = self._lane(tmp_path, monkeypatch)
+        self._dip_facts(lane)
+        lane._bs_prewarm["0xtok"] = (_t.time(), {
+            "bs_source_ok": True, "bs_top1_pct": 10.6, "bs_top10_pct": 45.9})
+        lane._consider_entries(NOW)
+        entered = {bid for bid, st in lane.state.items()
+                   if "0xp1" in st.pos_meta}
+        assert entered                                       # shadow does NOT skip
+        buys = [r for r in _ledger_rows(tmp_path) if r["ev"] == "buy"]
+        assert buys and all(b["rug_gate"]["block"] is True for b in buys)
+
     def test_ledger_rows_carry_bot_id_and_unique_ts(self, tmp_path,
                                                     monkeypatch):
         lane, _ = self._lane(tmp_path, monkeypatch)
