@@ -206,14 +206,14 @@ class TestDormancy:
         assert len(callers) == 1
         assert "if live_route_open(st.bot.bot_id):" in \
             src[callers[0] - 400:callers[0]]
-        # TWO sanctioned live_sell sites: the position-EXIT path (behind
-        # meta["live"]) and the one-shot ORPHAN recovery (behind RH_SELL_ORPHAN
-        # + rh_live_gate, added 2026-07-14 to clear a stranded live position).
-        assert src.count(".live_sell(") == 2
-        i = src.index(".live_sell(")                       # 1st = exit path
-        assert 'if meta.get("live"):' in src[i - 2000:i]
-        j = src.index(".live_sell(", i + 1)                # 2nd = orphan recovery
-        assert 'RH_SELL_ORPHAN' in src[j - 1500:j]
+        # THREE sanctioned live_sell sites, each behind a live gate: position
+        # EXIT (meta["live"]), one-shot ORPHAN recovery (RH_SELL_ORPHAN), and the
+        # periodic DUST-SWEEP of orphaned bags (rh_live_gate). Order-independent.
+        sites = [k for k in range(len(src)) if src.startswith(".live_sell(", k)]
+        assert len(sites) == 3
+        _GATES = ('if meta.get("live"):', 'RH_SELL_ORPHAN', 'rh_live_gate(')
+        for s in sites:
+            assert any(g in src[max(0, s - 2500):s] for g in _GATES)
 
     def test_wallet_truth_dormant_never_arms_baseline(self, tmp_path):
         ex = _mock_executor()

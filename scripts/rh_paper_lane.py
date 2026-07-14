@@ -83,6 +83,7 @@ POSTEXIT_PENDING = os.path.join(OUT_DIR, "rh_postexit_pending.jsonl")
 POSTEXIT_RESULTS = os.path.join(OUT_DIR, "rh_postexit.jsonl")
 POSTEXIT_DELAY_S = 6 * 3600.0
 POSTEXIT_SWEEP_S = 600.0
+DUST_SWEEP_S = 300.0        # sweep orphaned on-chain bags every 5 min (live only)
 # ── WALLET-TRUTH refresh (2026-07-13, AxiS: the RH hot wallet should ALWAYS
 # show its on-chain balance on the dashboard, exactly like the SOL wallet) ────
 # core.rh_live_execution.rh_wallet_truth() reads native ETH + WETH KEYLESS via
@@ -2233,6 +2234,65 @@ class PaperLane:
             print(f"[rh-paper] SELL-CANARY RED — buys halted "
                   f"({self._canary.status_line(now)})", flush=True)
 
+    def _sweep_orphan_dust(self, now: float):
+        """Sweep any on-chain token the lane holds NO open position in — the
+        RESIDUAL/DUST class: a mid-ladder tail orphaned when a redeploy re-arm
+        loses lane state (Railway ephemeral FS), or a partial close left behind.
+        Nothing else clears it, so it piles up in the hot wallet (bcat kept
+        reappearing, 2026-07-14). Live-gated. Open positions are NEVER touched
+        (excluded via _held_pools, which restore_state() populates before the
+        loop). Each SELLABLE orphan is sold "all" through the exact live path @
+        10% slippage so it fills; routeless/dead bags (rugs, e.g. GOATAI) are
+        skipped and logged once. GFOF/Cmoon excluded by the enumerator. Never
+        raises — a sweep error must not break the strategy loop."""
+        try:
+            gate_open, _ = rh_live.rh_live_gate()
+            if not gate_open:
+                return                              # paper = no on-chain bags
+            ex = self._executor()
+            wallet = getattr(ex, "wallet_address", None) or \
+                os.environ.get("RH_WALLET_ADDRESS")
+            if not wallet:
+                return
+            held = rh_live._held_meme_positions(wallet, ex, self.feed.eth_price)
+            if not held:
+                return
+            open_tokens = set()
+            for pool in self._held_pools():
+                tok = self._token_for(pool)
+                if tok:
+                    open_tokens.add(tok.lower())
+            if not hasattr(self, "_dust_skip"):
+                self._dust_skip = set()             # routeless bags already logged
+            swept = 0
+            for pos in held:
+                tok = (pos.get("token") or "").lower()
+                if not tok or tok in open_tokens:
+                    continue                        # active position — never sweep
+                if not pos.get("sellable"):
+                    if tok not in self._dust_skip:
+                        self._dust_skip.add(tok)
+                        print(f"[rh-paper] DUST-SWEEP skip {pos.get('sym')} "
+                              f"routeless/dead (~${pos.get('value_usd')})",
+                              flush=True)
+                    continue
+                try:
+                    rec = self._live_executor().live_sell(
+                        pos["token"], "all", max_slippage_bps=1000)
+                    tx = rec.get("tx_signature") if isinstance(rec, dict) else "?"
+                    print(f"[rh-paper] DUST-SWEEP sold orphan {pos.get('sym')} "
+                          f"~${pos.get('value_usd')} tx={tx}", flush=True)
+                    swept += 1
+                except Exception as e:
+                    print(f"[rh-paper] DUST-SWEEP {pos.get('sym')} failed: "
+                          f"{type(e).__name__}: {str(e)[:100]}", flush=True)
+            if swept:
+                print(f"[rh-paper] DUST-SWEEP: {swept} orphan bag(s) cleared",
+                      flush=True)
+        except Exception as e:
+            print(f"[rh-paper] DUST-SWEEP error: {type(e).__name__}: "
+                  f"{str(e)[:100]}", flush=True)
+
     def _consider_entries(self, now: float):
         # sell-path canary halt: no working exit -> no new entries (buys
         # only; exits in _manage_exits are NEVER gated by this). Paper
@@ -3059,6 +3119,9 @@ class PaperLane:
                 self._manage_exits(now)
                 self._canary_tick(now)
                 self._consider_entries(now)
+                if now - getattr(self, "_last_dust_sweep", 0) > DUST_SWEEP_S:
+                    self._last_dust_sweep = now
+                    self._sweep_orphan_dust(now)
                 if now - getattr(self, "_last_pe_sweep", 0) > POSTEXIT_SWEEP_S:
                     self._last_pe_sweep = now
                     self._check_postexit(now)

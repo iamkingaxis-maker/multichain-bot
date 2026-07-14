@@ -291,17 +291,17 @@ def test_lane_never_swaps():
     assert len(callers) == 1 and "if live_route_open(st.bot.bot_id):" in \
         src[callers[0] - 400:callers[0]], \
         "_live_buy_leg's only caller must sit behind live_route_open"
-    # TWO sanctioned live_sell sites: the position-EXIT path (behind
-    # meta["live"]) and the one-shot ORPHAN recovery (behind RH_SELL_ORPHAN +
-    # rh_live_gate, added 2026-07-14 to clear a stranded live position).
-    assert src.count(".live_sell(") == 2, \
-        "exactly TWO sanctioned live_sell sites (exit + orphan-recovery)"
-    i = src.index(".live_sell(")                          # 1st = exit path
-    assert 'if meta.get("live"):' in src[i - 2000:i], \
-        "the exit live_sell must sit behind the position's live flag"
-    j = src.index(".live_sell(", i + 1)                   # 2nd = orphan recovery
-    assert 'RH_SELL_ORPHAN' in src[j - 1500:j], \
-        "the orphan-recovery live_sell must sit behind RH_SELL_ORPHAN"
+    # THREE sanctioned live_sell sites, each behind a live gate: the position
+    # EXIT (meta["live"]), the one-shot ORPHAN recovery (RH_SELL_ORPHAN), and the
+    # periodic DUST-SWEEP of orphaned on-chain bags (rh_live_gate). Order-
+    # independent: every live_sell must sit behind one of the sanctioned gates.
+    _sites = [k for k in range(len(src)) if src.startswith(".live_sell(", k)]
+    assert len(_sites) == 3, \
+        "exactly THREE sanctioned live_sell sites (exit + orphan + dust-sweep)"
+    _GATES = ('if meta.get("live"):', 'RH_SELL_ORPHAN', 'rh_live_gate(')
+    for _s in _sites:
+        assert any(g in src[max(0, _s - 2500):_s] for g in _GATES), \
+            "every live_sell must sit behind a sanctioned live gate"
 
 
 # ═══ 4. WALLET-TRUTH ═════════════════════════════════════════════════════════
