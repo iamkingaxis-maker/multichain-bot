@@ -206,10 +206,14 @@ class TestDormancy:
         assert len(callers) == 1
         assert "if live_route_open(st.bot.bot_id):" in \
             src[callers[0] - 400:callers[0]]
-        # ONE live_sell call site, behind the meta live flag
-        assert src.count(".live_sell(") == 1
-        i = src.index(".live_sell(")
+        # TWO sanctioned live_sell sites: the position-EXIT path (behind
+        # meta["live"]) and the one-shot ORPHAN recovery (behind RH_SELL_ORPHAN
+        # + rh_live_gate, added 2026-07-14 to clear a stranded live position).
+        assert src.count(".live_sell(") == 2
+        i = src.index(".live_sell(")                       # 1st = exit path
         assert 'if meta.get("live"):' in src[i - 2000:i]
+        j = src.index(".live_sell(", i + 1)                # 2nd = orphan recovery
+        assert 'RH_SELL_ORPHAN' in src[j - 1500:j]
 
     def test_wallet_truth_dormant_never_arms_baseline(self, tmp_path):
         ex = _mock_executor()
@@ -364,19 +368,33 @@ class TestCanaryStateMachine:
 class TestCanaryProbe:
     def test_open_positions_all_quotable_passes(self):
         ex = MagicMock()
+        ex._quote_all_tiers_batched.return_value = {}     # transport alive
         q = MagicMock()
         q.amount_out = 12345
         ex.quote_sell.return_value = q
         assert probe_exit_quotes(ex, [(TOKEN, 10 ** 18)]) is True
         ex.quote_sell.assert_called_once_with(TOKEN, 10 ** 18)
 
-    def test_any_unquotable_position_fails(self):
+    def test_dead_bag_with_transport_ok_does_not_halt(self):
+        # 2026-07-14 incident fix: transport ALIVE + one unquotable (dead/rug)
+        # holding must NOT freeze the lane — a dead bag is a write-off, not a
+        # broken sell path. Was False (froze all live buys on a GOATAI rug).
         ex = MagicMock()
+        ex._quote_all_tiers_batched.return_value = {}     # transport alive
         good = MagicMock()
         good.amount_out = 1
-        ex.quote_sell.side_effect = [good, None]
+        ex.quote_sell.side_effect = [good, None]          # 2nd holding is dead
         assert probe_exit_quotes(
-            ex, [(TOKEN, 10 ** 18), (WETH9, 5)]) is False
+            ex, [(TOKEN, 10 ** 18), (WETH9, 5)]) is True
+
+    def test_unquotable_holding_but_transport_down_still_fails(self):
+        # transport DEAD is the real disaster -> RED regardless of holdings.
+        ex = MagicMock()
+        ex._quote_all_tiers_batched.return_value = None
+        w3 = MagicMock()
+        w3.eth.chain_id = 1                               # wrong chain = pipe dead
+        ex._require_w3.return_value = w3
+        assert probe_exit_quotes(ex, [(TOKEN, 10 ** 18)]) is False
 
     def test_no_positions_wellformed_batch_passes(self):
         ex = MagicMock()

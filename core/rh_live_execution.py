@@ -418,24 +418,42 @@ def probe_exit_quotes(executor: RhExecutor, holdings) -> bool:
     """One canary probe through the EXACT sell-path code (QuoterV2 via the
     batch quoter inside quote_sell). holdings: [(token_addr, atomic_amount)].
 
-    With open positions: EVERY position must produce a live exit quote —
-    an unquotable open position is precisely the disaster the canary exists
-    to catch. With no positions: prove the quote PIPE end-to-end with a
-    WETH->WETH tier batch — a well-formed per-tier revert IS a pass (the
-    read worked; mirrors the Solana USDC zero-balance-is-a-pass rule).
-    Returns True=healthy, False=sell path cannot quote. Never raises."""
+    The canary's job is to catch a BROKEN SELL PATH (RPC/quoter/transport
+    dead), NOT an individual unsellable bag. Health is anchored on the
+    TRANSPORT probe — a WETH->WETH tier batch through the same batch quoter
+    (a well-formed per-tier revert IS a pass; mirrors the Solana USDC
+    zero-balance-is-a-pass rule). Transport dead -> RED (the real disaster).
+
+    With the transport proven ALIVE, an open position that STILL can't quote
+    is a DEAD/no-route bag (rug or dust), not a path failure — and halting
+    buys forever cannot make it sellable. (2026-07-14 incident: a GOATAI rug
+    stranded as an open position by the abandoned barbell live probe made the
+    canary RED every tick and froze the whole lane's live buys, including the
+    healthy green aged_derisk.) So a dead bag is LOGGED as a write-off
+    candidate but does NOT poison the canary. Transport dead is still RED.
+    Returns True=healthy (path can quote), False=sell path is broken."""
     try:
-        if holdings:
-            for token, amount in holdings:
-                q = executor.quote_sell(token, int(amount))
-                if q is None or not q.amount_out:
-                    return False
-            return True
+        # transport health: the same batch-quoter pipe every real sell uses.
+        transport_ok = False
         batch = executor._quote_all_tiers_batched(WETH9, WETH9, 10 ** 15)
-        if batch is not None:      # well-formed response (even all-revert = {})
+        if batch is not None:          # well-formed response (even all-revert = {})
+            transport_ok = True
+        else:
+            w3 = executor._require_w3()
+            transport_ok = int(w3.eth.chain_id) == RH_CHAIN_ID
+        if not transport_ok:
+            return False               # broken pipe = the disaster the canary is for
+        if not holdings:
             return True
-        w3 = executor._require_w3()
-        return int(w3.eth.chain_id) == RH_CHAIN_ID
+        # transport is alive; per-position quotes are now diagnostic only.
+        for token, amount in holdings:
+            q = executor.quote_sell(token, int(amount))
+            if q is None or not q.amount_out:
+                logger.warning(
+                    "[rh-canary] holding %s unquotable but transport OK -> "
+                    "dead/no-route bag (write-off candidate), NOT halting buys",
+                    token)
+        return True
     except Exception as e:
         logger.warning("[rh-canary] probe failed: %s", e)
         return False

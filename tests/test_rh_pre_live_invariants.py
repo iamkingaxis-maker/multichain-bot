@@ -291,10 +291,17 @@ def test_lane_never_swaps():
     assert len(callers) == 1 and "if live_route_open(st.bot.bot_id):" in \
         src[callers[0] - 400:callers[0]], \
         "_live_buy_leg's only caller must sit behind live_route_open"
-    assert src.count(".live_sell(") == 1, "exactly ONE live_sell call site"
-    i = src.index(".live_sell(")
+    # TWO sanctioned live_sell sites: the position-EXIT path (behind
+    # meta["live"]) and the one-shot ORPHAN recovery (behind RH_SELL_ORPHAN +
+    # rh_live_gate, added 2026-07-14 to clear a stranded live position).
+    assert src.count(".live_sell(") == 2, \
+        "exactly TWO sanctioned live_sell sites (exit + orphan-recovery)"
+    i = src.index(".live_sell(")                          # 1st = exit path
     assert 'if meta.get("live"):' in src[i - 2000:i], \
-        "live_sell must sit behind the position's live flag"
+        "the exit live_sell must sit behind the position's live flag"
+    j = src.index(".live_sell(", i + 1)                   # 2nd = orphan recovery
+    assert 'RH_SELL_ORPHAN' in src[j - 1500:j], \
+        "the orphan-recovery live_sell must sit behind RH_SELL_ORPHAN"
 
 
 # ═══ 4. WALLET-TRUTH ═════════════════════════════════════════════════════════
