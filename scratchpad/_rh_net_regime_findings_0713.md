@@ -35,7 +35,11 @@ Fleet-wide per regime-day:
 - `flow_confirm`: known single-token leak.
 - Finer selection keeps overfitting. Only demand_heavy + deep_only survive per-token OOS, but regime-fragile in $.
 
-## ⭐ HEADLINE LEAD: adaptive "is-today-working?" regime gate (3/3 on the tape)
+## ⭐⭐ REGIME-SIZING GATE — BUILT (shadow), the regime-sustainability lever
+Agent result (rigorous, verified): the winning regime signal is NOT first-N-WR (under-flags 07-11 — its early trips looked fine) NOR market buy_share (inverted/pre-stamp). It's the **fleet-wide rolling expectancy dial** = mean net-$/pos of last 20 closed positions across ALL racers (REUSES the existing `expectancy_dial`, no new tuned constant). Ranks days cleanly: frac-entries-while-dial-negative = 07-12 0.28 < 07-10 0.67 < 07-11 0.87. Causal (only closed-before-entry), self-referential (every day), ~92s refresh, catches 87% of bad-day entries.
+Gate: `would_size = 0.3x if last-20-fleet-dial<0 else 1.0x`. Causal shadow sim: 3-day net **−$43 → +$31 (Δ +$75)**, saves $126 on bad day for $53 cost on good day. Every sweep combo improved (+$45..+$133); pause-on-defense = +$133. SHIPPED SHADOW: core/rh_regime.py `regime_size()`/`regime_size_mode()` (RH_REGIME_SIZE env, default shadow), stamps regime_score+would_size; rh_paper_lane fleet_realized series. +10 tests. CAVEAT: 3 days ≈ 2-3 regime samples, can't validate — shadow-only, pre-reg promotion bar = ≥2 more bad-regime days with would_size<1 entries materially worse at n≥40. Reflexivity: keep stamping full-size counterfactual when enforced.
+
+## (superseded) adaptive "is-today-working?" gate — first-N-WR under-flags the bad day
 Sample-then-commit: trade a small probe batch each day; if the first-10 positions' WR < 60%, SIT OUT the rest of the day.
 | day | first-10 WR | gate | full-day net | result |
 |---|---|---|---|---|

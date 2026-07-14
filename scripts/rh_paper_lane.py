@@ -870,8 +870,24 @@ ROSTER = (
     # DOWN while WR/median HOLD = exactly the stability signature, and it is FREE.
     #
     # WHAT IS BAKED IN (all latency-free config knobs, no new gate logic):
-    #   1. hard_stop_pct=−15 — the price stop (realizes the floor for the staged/
-    #      bleed class, where a book still exists to sell into).
+    #   1. hard_stop_pct=−10 (SCALP racers; aged racer keeps −15) — the price stop.
+    #      TAIL-CAP NET OPTIMIZATION (2026-07-13, scratchpad/_rh_tailcap_net_0713.md):
+    #      swept the stop over −8/−10/−12/−15/−20 on the accumulated ledger and
+    #      measured net-$/position PER DAY (07-10/11/12 = regime robustness). A
+    #      TIGHTER stop monotonically lifts net with ~$0 measurable winner-kill —
+    #      the partial-TP ladder banks 0.75 on any pop BEFORE the drawdown, so a
+    #      tighter stop only clips the underwater remainder (the deepest observed
+    #      NON-terminal exit is POST_TP1_TRAIL −7.0, so nothing green is stopped).
+    #      Realistic (slip-aware, reproduces the actual ledger at −15) fleet net:
+    #      −15 −$12 → −12 +$29 → −10 +$74 → −8 +$135, and the BAD day (07-11)
+    #      −213 → −183 → −154 → −116; the GOOD day (07-12) is NEVER worse. The
+    #      −10 win is DIVERSIFIED (222 saved trades, top token only 26% of the
+    #      gain — NOT one-token overfit). Chose −10 (not the higher-net −8): it
+    #      clears the bar on ALL 3 days in both the idealized and slip bounds, and
+    #      keeps a 2pp buffer vs the UNMEASURABLE pre-TP1 knife-through (the ledger
+    #      has no intra-trip price path; deep −25 entries wiggle inside an −8 band).
+    #      Pre-registered: watch forward winner-kill at n≥30 — if it stays ~0,
+    #      tighten toward −8; −12 (= lowvar_catstop) is the conservative fallback.
     #   2. derisk_after_s + derisk_max_frac=0.25 — the catastrophe cap (variance
     #      mine's #1 lever): force exposure to 25% EARLY so a LATER rug/LP-drain gap
     #      hits a quarter position. This is the ONLY realizable defense against
@@ -909,20 +925,29 @@ ROSTER = (
     # hand each tick (<=2s detect->fill budget); the cap adds ZERO latency.
     # 1. demand $150 entry (demand_heavy) + tail-cap. The healthiest parent
     #    (tokmed +5.5 / 75% green); the cap protects its 34%-single-token exposure.
+    #    hard_stop −10 (tightened from −15, 2026-07-13 net optimization): realistic
+    #    net +$36→+$47, BAD-day 07-11 −12.8→−1.9, GOOD-day 07-12 unchanged. Its tail
+    #    is STAGED QUANT bleeds (savable by the stop), diversified across trades.
     LaneBot(bot_id="rh_stable_demand",
             demand_min_buy_usd=150.0,
             max_pool_age_h=SCALP_MAX_POOL_AGE_H,
             max_bites_per_token=2,
-            hard_stop_pct=-15.0,
+            hard_stop_pct=-10.0,
             derisk_after_s=LOWVAR_DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
             exclusion_group="stable"),
-    # 2. deep −25 entry (deep_only) + tail-cap. The racer the cap helps MOST:
-    #    parent trip-return stdev 23.0 (CASHCATWIF −100) → ~10 capped, worst → −15.
+    # 2. deep −25 entry (deep_only) + tail-cap. hard_stop −10 (from −15) adds the
+    #    staged-bleed savings; its real catastrophe (CASHCATWIF −100 LP_DRAIN @ 109m)
+    #    is a SINGLE-BLOCK pull the stop CANNOT catch — the DERISK-to-25% cap owns
+    #    that (−100 → ~−25 on a quarter position). HONEST CONCENTRATION FLAG: the
+    #    parent's whole observed tail benefit is that ONE token on ONE day, so the
+    #    deep racer's $ lift is NOT projectable — the mechanism is sound, the
+    #    magnitude is one-trade. This is also the highest pre-TP1 knife-through risk
+    #    of the two (−25 entries wiggle deep) → the −10 stop is the one to watch.
     LaneBot(bot_id="rh_stable_deep",
             dip_trigger_pct=-25.0,
             max_pool_age_h=SCALP_MAX_POOL_AGE_H,
             max_bites_per_token=2,
-            hard_stop_pct=-15.0,
+            hard_stop_pct=-10.0,
             derisk_after_s=LOWVAR_DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
             exclusion_group="stable"),
     # 3. aged-deep entry (aged_deep: 6-24h pools, aged exit ladder, depth-gated
@@ -1542,6 +1567,13 @@ class PaperLane:
         # regime layer (core/rh_regime): feed-wide 30-min demand-composition
         # window, fed from the tape drain; stamped on every entry ledger row.
         self.comp = CompositionTracker()
+        # FLEET-WIDE realized record (regime-SIZING read, 2026-07-13): last <=50
+        # FULL-close realized $ across ALL racers, in close order. The rolling
+        # expectancy dial over THIS is the real-time "is today working?" regime
+        # read (per-racer dials are too sparse to warm up within a bad day). Fed
+        # to regime_stamp as size_dial; SHADOW-stamps regime_score + would_size.
+        # Lane-level (not per-bot); persisted in save_state.
+        self.fleet_realized = []
         # FLEET: default = single-config control (back-compat for callers/
         # tests that predate the fleet); main() passes the full ROSTER.
         self.bots = tuple(bots) if bots else (LaneBot(bot_id=LEGACY_BOT_ID),)
@@ -1626,6 +1658,8 @@ class PaperLane:
                                 for k, v in self.cum_vol.items()},
                     "session_anchor": [k for k, v in
                                        self.session_anchor.items() if v],
+                    # fleet-wide realized record for the regime-SIZING dial
+                    "fleet_realized": self.fleet_realized[-50:],
                     "bots": {bid: {"pos_meta": st.pos_meta,
                                    "daily_pnl_usd": st.daily_pnl_usd,
                                    "day_buys": st.day_buys,
@@ -1658,6 +1692,9 @@ class PaperLane:
             self.session_anchor = {k: True for k in
                                    (raw.get("session_anchor") or [])
                                    if isinstance(k, str)}
+            self.fleet_realized = [
+                float(x) for x in (raw.get("fleet_realized") or [])
+                if isinstance(x, (int, float))][-50:]
             per_bot = raw.get("bots")
             if per_bot is None:  # legacy single-config shape
                 per_bot = {LEGACY_BOT_ID: {
@@ -2343,7 +2380,8 @@ class PaperLane:
                    "regime": regime_stamp(
                        hour_utc, npph, comp_snap,
                        dial=expectancy_dial(st.recent_realized),
-                       eth_usd=self.feed.eth_price, age_h=age_h)}
+                       eth_usd=self.feed.eth_price, age_h=age_h,
+                       size_dial=expectancy_dial(self.fleet_realized))}
             if live_leg is not None:   # keys only on live rows: paper rows
                 rec["live"] = True     # stay byte-identical to pre-probe
                 rec["fill"] = live_leg["tel"]
@@ -2573,6 +2611,10 @@ class PaperLane:
             # newest last; capped at 50 (the dial reads the last 20)
             st.recent_realized.append(round(meta["realized_usd"], 2))
             del st.recent_realized[:-50]
+            # FLEET-WIDE realized record (regime-SIZING dial): same value into the
+            # lane-level series, in close order across all racers.
+            self.fleet_realized.append(round(meta["realized_usd"], 2))
+            del self.fleet_realized[:-50]
             st.n_exits += 1
             _append(POSTEXIT_PENDING, {
                 "pool": pool, "token": token, "sym": meta["sym"],

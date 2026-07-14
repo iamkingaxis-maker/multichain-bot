@@ -15,9 +15,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 from core.rh_regime import (  # noqa: E402
     AGED_BLOCK_HOURS_UTC, CRASH_BUY_SHARE_FLOOR, DISC_BOT_ERA_POOLS_H,
-    HOUR_BLOCKS, CompositionTracker, age_band, aged_hour_gate_ok,
-    crash_regime_block, discovery_regime, expectancy_dial, hour_block,
-    regime_stamp,
+    HOUR_BLOCKS, RH_DEFENSE_SIZE_MULT, RH_FULL_SIZE_MULT, CompositionTracker,
+    age_band, aged_hour_gate_ok, crash_regime_block, discovery_regime,
+    expectancy_dial, hour_block, regime_size, regime_stamp,
 )
 import rh_paper_lane as mod  # noqa: E402
 from rh_paper_lane import LaneBot, PaperLane  # noqa: E402
@@ -206,6 +206,68 @@ class TestCrashRegimeGate:
         assert s2["crash_block"] is False
 
 
+# ── regime-SIZING read (2026-07-13, SHADOW) ──────────────────────────────────
+class TestRegimeSize:
+    def _clear(self):
+        os.environ.pop("RH_REGIME_SIZE", None)
+
+    def test_defense_downsizes_on_negative_dial(self):
+        self._clear()   # default shadow
+        s = regime_size({"state": "defense", "exp_usd": -0.84, "n": 20})
+        assert s["state"] == "defense"
+        assert s["would_size"] == RH_DEFENSE_SIZE_MULT
+        assert s["score"] == -0.84
+
+    def test_full_size_on_positive_dial(self):
+        self._clear()
+        s = regime_size({"state": "offense", "exp_usd": 1.03, "n": 20})
+        assert s["state"] == "offense" and s["would_size"] == RH_FULL_SIZE_MULT
+
+    def test_zero_expectancy_is_full_size(self):
+        # threshold is strict < 0: breakeven regime keeps full size
+        self._clear()
+        s = regime_size({"state": "offense", "exp_usd": 0.0, "n": 20})
+        assert s["would_size"] == RH_FULL_SIZE_MULT and s["state"] == "offense"
+
+    def test_warmup_fails_to_full_size(self):
+        self._clear()
+        for d in (None, {}, {"state": None, "exp_usd": None, "n": 5}):
+            s = regime_size(d)
+            assert s["state"] == "warmup"
+            assert s["would_size"] == RH_FULL_SIZE_MULT and s["score"] is None
+
+    def test_off_mode_disables_stamp(self):
+        os.environ["RH_REGIME_SIZE"] = "off"
+        try:
+            assert regime_size({"exp_usd": -1.0}) is None
+        finally:
+            self._clear()
+
+    def test_defense_mult_is_a_downsize(self):
+        assert 0.0 <= RH_DEFENSE_SIZE_MULT < RH_FULL_SIZE_MULT
+
+    def test_stamp_carries_sizing_read(self):
+        self._clear()   # default shadow
+        comp = {"buy_share": 0.89, "netflow_usd": 52909.0,
+                "distinct_pools": 44, "n_buys": 70, "n_sells": 30}
+        # negative fleet dial -> defense -> would_size 0.3x
+        s = regime_stamp(19, 850.0, comp, age_h=30.0,
+                         size_dial={"state": "defense", "exp_usd": -1.33,
+                                    "n": 20})
+        assert s["regime_size_mode"] == "shadow"
+        assert s["regime_size_state"] == "defense"
+        assert s["regime_score"] == -1.33
+        assert s["would_size"] == RH_DEFENSE_SIZE_MULT
+
+    def test_stamp_falls_back_to_dial_when_no_size_dial(self):
+        # single-dial callers still get a sizing stamp from `dial`
+        self._clear()
+        s = regime_stamp(3, None, {}, dial={"state": "offense", "exp_usd": 0.5,
+                                            "n": 20})
+        assert s["regime_score"] == 0.5
+        assert s["would_size"] == RH_FULL_SIZE_MULT
+
+
 # ── lane integration: stamp on every buy row; dial record persists ──────────
 class FakeQuote:
     def __init__(self, amount_in, amount_out):
@@ -309,3 +371,31 @@ class TestLaneStamp:
             kind="HARD_STOP", sell_fraction=1.0, reason="test"), NOW + 60,
             st=st)
         assert len(st.recent_realized) == 1
+        # fleet-wide realized record also grew (regime-sizing dial)
+        assert len(lane.fleet_realized) == 1
+        assert lane.fleet_realized[-1] == st.recent_realized[-1]
+
+    def test_buy_row_carries_sizing_stamp_from_fleet_dial(self, tmp_path,
+                                                          monkeypatch):
+        os.environ.pop("RH_REGIME_SIZE", None)   # default shadow
+        lane = _lane(tmp_path, monkeypatch, (LaneBot(bot_id="rh_young_v1"),))
+        # fleet is bleeding -> negative rolling dial -> defense would_size
+        lane.fleet_realized = [-1.0] * 12
+        self._enter(lane)
+        buys = [r for r in _rows(tmp_path) if r["ev"] == "buy"]
+        assert len(buys) == 1
+        rg = buys[0]["regime"]
+        assert rg["regime_size_mode"] == "shadow"
+        assert rg["regime_size_state"] == "defense"
+        assert rg["would_size"] == 0.3          # RH_DEFENSE_SIZE_MULT
+        assert rg["regime_score"] == -1.0
+        # SHADOW: the buy still books full $25 — nothing resized
+        assert buys[0]["usd"] == 25.0
+
+    def test_fleet_realized_persists_across_restart(self, tmp_path, monkeypatch):
+        lane = _lane(tmp_path, monkeypatch, (LaneBot(bot_id="rh_young_v1"),))
+        lane.fleet_realized = [-1.0, 0.5, -2.0]
+        lane.save_state()
+        lane2 = _lane(tmp_path, monkeypatch, (LaneBot(bot_id="rh_young_v1"),))
+        lane2.restore_state()
+        assert lane2.fleet_realized == [-1.0, 0.5, -2.0]

@@ -242,17 +242,91 @@ def crash_regime_block(buy_share_30m, netflow_30m_usd, age_h,
             "reason": "crash_cascade" if cascade else None}
 
 
+# ── regime-SIZING read (2026-07-13, SHADOW) ──────────────────────────────────
+# AxiS goal: make RH net-$/position SUSTAINABLE ACROSS REGIMES. The critical
+# finding: EVERY RH racer lost on the bad day (07-11, fleet net -$215) and won on
+# the good day (07-12, +$222) — the racers are BETA to the RH market regime, not a
+# standalone edge. We need a REAL-TIME "is today working?" read so we size down on
+# bad days and the bad days stop erasing the good ones.
+#
+# Signal picked (provenance: scratchpad/_rh_regime_signal_0713.{md,py}, 447 closed
+# trips over 07-10..12): the FLEET-WIDE ROLLING REALIZED expectancy dial — the mean
+# net-$/position of the last DIAL_WINDOW_N CLOSED positions (this is the existing
+# expectancy_dial, REUSED as a decision-time sizing read — NO new tuned constant).
+# It is the one signal that cleanly ranked the days. The fraction of entries made
+# while the dial was NEGATIVE separated them:
+#     07-12 (good) 0.28  <  07-10 0.67  <  07-11 (bad) 0.87
+# The external market buy_share_30m / netflow_30m did NOT rank them (the GOOD day
+# 07-12 had LOWER buy_share than 07-11's few stamped trips — inverted — and 07-11
+# is mostly pre-stamp), so the self-referential realized dial, not the feed-flow
+# stamp, is the regime read. Causal by construction: expectancy_dial only sees
+# positions CLOSED before this entry (no forward peek). Median hold ~92s (p90
+# ~8min), so on a persistent bad day the dial goes negative within the first ~1-2h
+# of closes and stays there — catching 87% of the bad day's entries in-sample.
+#
+# SIZING MAP (binary, non-tuned): dial exp_usd < 0 -> DEFENSE (0.3x); dial >= 0 or
+# warm-up -> FULL (1.0x). Threshold 0 = breakeven (untuned); 0.3x is AxiS's
+# suggested defensive size. Robust: over the sweep, EVERY (threshold, downsize,
+# window) combo improved the 3-day total (delta +$45..+$133).
+#
+# HONEST LOW-N: 3 days ~= 2-3 regime samples — a sizing gate CANNOT be validated on
+# 3 days, so this is SHADOW-ONLY. It stamps regime_score (the dial value) and
+# would_size on every entry; NO code path changes real size on it. It forward-grades
+# until more regime samples land. Projected (strictly-causal shadow sim over the
+# 07-10..12 tape, reusing the shipped dial window): 0.3x-on-defense would have moved
+# the 3-day net from -$43.37 to +$31.40 (delta +$74.77) — SAVING $125.82 on the bad
+# day (07-11) at a cost of $53.07 on the good day (07-12). Directional only.
+RH_DEFENSE_SIZE_MULT = 0.3     # size multiplier when the rolling dial says defense
+RH_FULL_SIZE_MULT = 1.0        # normal / good-regime / warm-up size
+
+
+def regime_size_mode() -> str:
+    """RH_REGIME_SIZE env: 'off' (no stamp), 'shadow' (stamp only — DEFAULT, never
+    resizes), 'enforce' (records intent='enforce' but the entry path does NOT
+    consult this — no code resizes on it; promotion is a separate approved step).
+    Default shadow so the sizing decision forward-grades for free."""
+    return os.environ.get("RH_REGIME_SIZE", "shadow").strip().lower()
+
+
+def regime_size(dial: Optional[dict],
+                defense_mult: float = RH_DEFENSE_SIZE_MULT,
+                full_mult: float = RH_FULL_SIZE_MULT) -> Optional[dict]:
+    """Real-time regime SIZING read from the fleet rolling expectancy dial (pure;
+    forward-peek-free — the dial only ever sees CLOSED positions). Returns
+    {'score': float|None, 'would_size': float, 'state': str} or None when off.
+
+    would_size = defense_mult when the dial's realized expectancy is NEGATIVE ("the
+    day isn't working"), else full_mult. Warm-up (dial None / exp None) fails to
+    FULL size — you cannot judge a regime before enough positions have closed.
+    SHADOW by default — this is a STAMP; no caller changes real size on it."""
+    if regime_size_mode() == "off":
+        return None
+    exp = (dial or {}).get("exp_usd")
+    if exp is None:
+        return {"score": None, "would_size": full_mult, "state": "warmup"}
+    defense = float(exp) < 0.0
+    return {"score": round(float(exp), 3),
+            "would_size": defense_mult if defense else full_mult,
+            "state": "defense" if defense else "offense"}
+
+
 # ── the per-entry stamp (fleet-wide, always) ─────────────────────────────────
 def regime_stamp(hour_utc: int, new_pools_per_hour, comp: dict,
                  dial: Optional[dict] = None, eth_usd=None,
-                 age_h=None) -> dict:
+                 age_h=None, size_dial: Optional[dict] = None) -> dict:
     """Assemble the regime STAMP for one entry ledger row. Pure dict shaping;
-    every field is decision-time observable (no forward peeking)."""
+    every field is decision-time observable (no forward peeking).
+
+    `dial` = the per-racer expectancy dial (the offense/defense STAMP, unchanged).
+    `size_dial` = the FLEET-WIDE rolling dial that drives the regime-SIZING read;
+    when None it falls back to `dial` so single-dial callers still get a sizing
+    stamp."""
     npph = (round(float(new_pools_per_hour), 1)
             if new_pools_per_hour is not None else None)
     buy_share = comp.get("buy_share")
     netflow = comp.get("netflow_usd")
     crash = crash_regime_block(buy_share, netflow, age_h)
+    size = regime_size(size_dial if size_dial is not None else dial)
     return {
         "hour_utc": int(hour_utc),
         "npph": npph,
@@ -269,4 +343,9 @@ def regime_stamp(hour_utc: int, new_pools_per_hour, comp: dict,
         "crash_gate": (crash_gate_mode() if crash else None),
         "crash_block": (crash.get("block") if crash else None),
         "crash_reason": (crash.get("reason") if crash else None),
+        # regime-SIZING read (SHADOW; never resizes here — forward-grades):
+        "regime_size_mode": (regime_size_mode() if size else None),
+        "regime_score": (size.get("score") if size else None),
+        "would_size": (size.get("would_size") if size else None),
+        "regime_size_state": (size.get("state") if size else None),
     }
