@@ -562,7 +562,11 @@ def _render(rows, notes, rug_counts, rug_sep, rug_note, bs_out, bs_err, rh_by_bo
     # regime day (07-11) and won on the good one (07-12) — beta to regime, not an
     # edge. Here: net-$/position AFTER friction, split PER DAY. REGIME-ROBUST =
     # net-positive on EVERY day seen (the bar AxiS set: "sustainable across regimes").
-    RH_FRICTION_USD = 0.20   # ~round-trip gas+slippage floor on a $25 position
+    # Paper pnl_usd ALREADY nets the 1% pool fee + price impact + gas (real
+    # eth_call quotes, rh_paper_lane.py:23). This friction is the estimated
+    # LIVE-EXTRA on top: latency-slippage (price moves during the ~1.2s fill the
+    # paper quote doesn't model). So net-after-this ~= a conservative LIVE net.
+    RH_FRICTION_USD = 0.20
     if not rh_by_bot:
         rh_by_bot = {}
     print(f"\n  ── RH REGIME-NET (net-$/pos after ~${RH_FRICTION_USD} friction, per regime-day) ──")
