@@ -27,6 +27,7 @@ import json
 import os
 import subprocess
 import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 WALLET = os.environ.get("RH_WALLET_ADDRESS",
                         "0xa454C67853A5Ac88Ad45af9E9A41870F30039c05")
