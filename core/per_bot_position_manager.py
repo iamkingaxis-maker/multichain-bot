@@ -755,6 +755,36 @@ class PerBotPositionManager:
                     ))
                     return decisions
 
+        # 0a2. SOL-MACRO BAIL — enforce path for the sol_bail shadow (2026-07-14
+        # exit-leak mine). The sol_bail shadow (feeds/dip_scanner._stamp_sol_bail_
+        # shadow) fires when a PRE-TP1 leg is red (pnl<1%) while SOL macro is
+        # dumping (sol_h6<-0.3 / sol_h1<-0.7) and stamps sol_bail_shadow_pnl_pct at
+        # that moment. HONEST realized forward grade on 84 recent closes: sol_bail
+        # = +46.3pp saved, ZERO winner-kills (n=7) — the single CLEAN bail lever on
+        # the never-green bleed cohort (the 38 IN_FLIGHT_FLOOR riders that peak
+        # +0.7% and realize -9.68%). bleed_cut recovers more gross but winner-kills
+        # 22 -> stays shadow. Winner-safe here by the shadow's own not-green gate.
+        # Acts at first-fire (same tick the stamp lands, before pm.tick's ladder) to
+        # replicate the graded save. SOL_BAIL_MODE=shadow (default, no-op / byte-
+        # identical) | enforce. n=7 is thin (<my n>=30 bar) but clean + PAPER, so
+        # enforce = the measurement to realized. Records once; fail-open.
+        if (os.environ.get("SOL_BAIL_MODE", "shadow").strip().lower() == "enforce"
+                and not p.tp1_hit
+                and pnl_pct < 1.0                      # winner-safe: never bail a green leg
+                and p.state_blob is not None
+                and p.state_blob.get("sol_bail_shadow_pnl_pct") is not None
+                and not p.state_blob.get("sol_bail_enforced")):
+            p.state_blob["sol_bail_enforced"] = True
+            p.state_blob["sol_bail_enforced_pnl"] = round(pnl_pct, 4)
+            p.state_blob["sol_bail_enforced_secs"] = int(now - p.entry_time)
+            decisions.append(ExitDecision(
+                token=token, kind="SOL_MACRO_BAIL",
+                reason=(f"sol-macro bail pnl={pnl_pct:+.2f}% (macro-down pre-TP1 red; "
+                        f"shadow +46pp/0-kill n=7)"),
+                sell_fraction=1.0,
+            ))
+            return decisions
+
         # 0b. PEAK-ANCHORED BREAKEVEN-LOCK (winner-comparison 2026-06-26). A PRE-TP1 leg
         # that CONFIRMED green (peak>=+7%) then round-tripped to <=0 is a give-back loser
         # the post-TP1 trail can't protect — lock ~breakeven instead of riding to the -7
