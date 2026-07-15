@@ -73,23 +73,42 @@ def _push_ledger():
     if not rows:
         print("[rh-upload] ledger empty")
         return
-    req = urllib.request.Request(
-        # APPEND/MERGE (2026-07-13 fix): the RH lane runs on an EPHEMERAL
-        # Railway container — its local ledger resets to empty on every
-        # redeploy. The old replace=1 (full-sync) therefore OVERWROTE the
-        # persistent accumulated history with just the current session on
-        # each redeploy, so racers could never reach n>=30 (grading clock
-        # reset every deploy). Append-mode dedups on (ts,ev,pool) — re-sending
-        # a session is idempotent AND cross-session rows accumulate. (No row
-        # corrections happen on the autonomous lane, so the replace=1
-        # correction-propagation use case does not apply here.)
-        BASE + "/api/rh-paper/ingest",
-        data=json.dumps(rows).encode(),
-        headers={"Content-Type": "application/json",
-                 "Authorization": _auth_header()},
-        method="POST")
-    with urllib.request.urlopen(req, timeout=30) as r:
-        print("[rh-upload]", r.read().decode()[:200])
+    # CHUNKED (2026-07-15 fix — the SECOND ledger-blackout cause). This POSTed
+    # the WHOLE ledger in ONE body. aiohttp's default client_max_size is 1MB and
+    # the dashboard sets none; once the ledger outgrew that, request.json() threw
+    # and the handler's except returned **HTTP 400** — so EVERY upload failed
+    # forever and the book silently froze mid-session (07-15: died at 14:48 with
+    # the lane still trading). An unbounded-and-growing payload is a guaranteed
+    # future outage, so send bounded batches instead of raising the cap. Safe to
+    # chunk: the endpoint appends + de-dups on (ts,ev,pool), so batches and
+    # re-sends are idempotent. A failed batch is logged and does NOT abort the
+    # rest — partial progress beats another all-or-nothing blackout.
+    #
+    # APPEND/MERGE (2026-07-13): the RH lane runs on an EPHEMERAL Railway
+    # container — its local ledger resets on every redeploy. The old replace=1
+    # (full-sync) OVERWROTE accumulated history with just the current session, so
+    # racers could never reach n>=30. Append-mode dedups on (ts,ev,pool) —
+    # re-sending a session is idempotent AND cross-session rows accumulate.
+    CHUNK = 300
+    sent = failed = 0
+    for i in range(0, len(rows), CHUNK):
+        batch = rows[i:i + CHUNK]
+        req = urllib.request.Request(
+            BASE + "/api/rh-paper/ingest",
+            data=json.dumps(batch).encode(),
+            headers={"Content-Type": "application/json",
+                     "Authorization": _auth_header()},
+            method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                r.read()
+            sent += len(batch)
+        except Exception as e:
+            failed += len(batch)
+            print(f"[rh-upload] batch {i//CHUNK} ({len(batch)} rows) failed: "
+                  f"{type(e).__name__}: {str(e)[:100]}")
+    print(f"[rh-upload] ledger: {sent}/{len(rows)} rows pushed"
+          + (f", {failed} FAILED" if failed else ""))
 
 
 def main():

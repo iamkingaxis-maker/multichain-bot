@@ -2064,7 +2064,15 @@ class WebDashboard:
         self._tracker = tracker          # optional direct tracker ref
         self.trade_store = trade_store   # optional multi-bot TradeStore
         from dashboard.auth import basic_auth_middleware
-        self.app = web.Application(middlewares=[basic_auth_middleware, gzip_middleware])
+        # client_max_size: aiohttp defaults to 1MB and we set none, so once the RH
+        # ledger outgrew 1MB EVERY /api/rh-paper/ingest POST failed — and because
+        # the handler wraps request.json() in a try/except it reported the overflow
+        # as "invalid JSON" (HTTP 400), which silently froze the trade book
+        # mid-session on 07-15 while the lane kept trading. The uploader now chunks
+        # (the real fix); this is margin so a big body can never re-break ingest.
+        self.app = web.Application(
+            middlewares=[basic_auth_middleware, gzip_middleware],
+            client_max_size=32 * 1024 ** 2)
         self._stats_providers = []
         self._alert_buffer: list = []
         self._start_time = datetime.now(timezone.utc)
@@ -6062,9 +6070,19 @@ class WebDashboard:
         protected like every write endpoint (app-wide middleware)."""
         try:
             incoming = await request.json()
-        except Exception:
-            return web.json_response({"ok": False, "error": "invalid JSON"},
-                                     status=400)
+        except Exception as e:
+            # DON'T report every body failure as "invalid JSON" — an over-size
+            # body did exactly that on 07-15 and cost hours: the ledger silently
+            # froze at 14:48 while the lane traded, and the uploader only ever saw
+            # a generic 400. Name the real cause (2026-07-15).
+            _too_big = isinstance(e, ValueError) is False and (
+                "large" in str(e).lower() or "size" in str(e).lower()
+                or e.__class__.__name__ == "ClientPayloadError")
+            _err = ("payload too large for client_max_size"
+                    if _too_big else f"invalid JSON ({type(e).__name__})")
+            logger.warning("[rh-paper/ingest] body read failed: %s: %s",
+                           type(e).__name__, str(e)[:200])
+            return web.json_response({"ok": False, "error": _err}, status=400)
         if not isinstance(incoming, list):
             return web.json_response(
                 {"ok": False, "error": "expected a JSON array of ledger rows"},
