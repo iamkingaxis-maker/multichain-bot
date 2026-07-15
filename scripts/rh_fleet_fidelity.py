@@ -23,8 +23,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 BASE = os.environ.get("RH_DASH_BASE",
                       "https://gracious-inspiration-production.up.railway.app")
-USER = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("RH_DASH_USER", "")
-PW = sys.argv[2] if len(sys.argv) > 2 else os.environ.get("RH_DASH_PW", "")
+# ENV-FIRST (argv only as a CLI fallback): this module is imported by the RH lane
+# for its periodic auto-refresh, where sys.argv belongs to the LANE — reading argv
+# first would smuggle the lane's own flags in as dashboard creds. Reads are public
+# anyway (only the WRITE needs DASH_AUTH), so these are effectively optional.
+_ARGV = sys.argv[1:] if (sys.argv and sys.argv[0].endswith("rh_fleet_fidelity.py")) else []
+USER = os.environ.get("RH_DASH_USER", "") or (_ARGV[0] if len(_ARGV) > 0 else "")
+PW = os.environ.get("RH_DASH_PW", "") or (_ARGV[1] if len(_ARGV) > 1 else "")
 ENTRY_USD = 25.0
 
 BOTS = ["rh_young_v1","rh_deep_only","rh_first_touch","rh_bites2","rh_wide_ladder",

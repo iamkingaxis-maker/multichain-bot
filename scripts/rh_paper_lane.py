@@ -84,6 +84,13 @@ POSTEXIT_RESULTS = os.path.join(OUT_DIR, "rh_postexit.jsonl")
 POSTEXIT_DELAY_S = 6 * 3600.0
 POSTEXIT_SWEEP_S = 600.0
 DUST_SWEEP_S = 300.0        # sweep orphaned on-chain bags every 5 min (live only)
+# ── FLEET-FIDELITY auto-refresh (2026-07-15). The dashboard's "real P&L" column
+# was fed by a MANUAL run of scripts/rh_fleet_fidelity.py — it froze for 20h and
+# read as "we haven't traded in 16 hours" while the lane was trading fine. A
+# dashboard that silently serves stale numbers is worse than one that shows none,
+# so the lane now refreshes it itself. Heavy-ish (quotes every unique token, paced
+# 0.4s) -> 30 min cadence, OFF the event loop. FIDELITY_REFRESH_S=0 disables.
+FIDELITY_REFRESH_S = float(os.environ.get("FIDELITY_REFRESH_S", "1800") or 0)
 # ── WALLET-TRUTH refresh (2026-07-13, AxiS: the RH hot wallet should ALWAYS
 # show its on-chain balance on the dashboard, exactly like the SOL wallet) ────
 # core.rh_live_execution.rh_wallet_truth() reads native ETH + WETH KEYLESS via
@@ -3173,6 +3180,26 @@ class PaperLane:
                   f"{type(e).__name__}: {e}", flush=True)
 
 
+def _refresh_fleet_fidelity():
+    """Re-run the fleet FIDELITY correction and push it to the dashboard so the
+    displayed 'real P&L' is honest instead of frozen at the last hand-run.
+
+    2026-07-15: the column had been stale for 20h and read as 'we haven't traded
+    in 16 hours' while the lane was trading normally — a dashboard that silently
+    serves stale numbers actively misleads. Runs OFF the event loop (it quotes
+    every unique token, paced), reads are public, the WRITE uses DASH_AUTH.
+    FAIL-OPEN: a refresh error must never touch trading."""
+    try:
+        t0 = time.time()
+        from scripts import rh_fleet_fidelity as _fid
+        _fid.main()
+        print(f"[rh-paper] FIDELITY-REFRESH ok in {time.time() - t0:.0f}s",
+              flush=True)
+    except Exception as e:
+        print(f"[rh-paper] FIDELITY-REFRESH failed: {type(e).__name__}: "
+              f"{str(e)[:140]}", flush=True)
+
+
 async def orchestrate(fh: Firehose, lane: PaperLane, max_minutes: float):
     t_end = time.time() + max_minutes * 60
     ws_task = asyncio.create_task(fh.run_ws(t_end))
@@ -3182,6 +3209,7 @@ async def orchestrate(fh: Firehose, lane: PaperLane, max_minutes: float):
     t0 = time.time()
     last_stats = t0
     last_wt = 0.0    # wallet-truth refresh clock (fires immediately, then ~5min)
+    last_fid = 0.0   # fleet-fidelity refresh clock (fires immediately, then ~30min)
     try:
         while time.time() < t_end and not ws_task.done():
             last_scanned = await asyncio.to_thread(fh.maintenance, last_scanned)
@@ -3195,6 +3223,13 @@ async def orchestrate(fh: Firehose, lane: PaperLane, max_minutes: float):
             if time.time() - last_wt > WALLET_TRUTH_REFRESH_S:
                 last_wt = time.time()
                 await asyncio.to_thread(lane.refresh_wallet_truth)
+            # fleet-fidelity auto-refresh: keeps the dashboard's "real P&L" column
+            # HONEST instead of frozen at whenever it was last hand-run. OFF the
+            # event loop (it quotes every unique token) and fail-open.
+            if FIDELITY_REFRESH_S > 0 and \
+                    time.time() - last_fid > FIDELITY_REFRESH_S:
+                last_fid = time.time()
+                await asyncio.to_thread(_refresh_fleet_fidelity)
             await asyncio.sleep(MAINT_SECS)
     finally:
         lane.stop.set()
