@@ -1010,6 +1010,14 @@ ROSTER = (
     #    catastrophic tail to cap today — its instability is thin-n + a red median,
     #    which the tail-cap does NOT fix; the cap is forward insurance for when it
     #    eventually hits a deep-aged rug. Needs the most n before any read.
+    # LIVE SEAT (2026-07-15, AxiS: "swap live to rh_stable_ageddeep"). Chosen on
+    # FIDELITY-honest numbers: +$17.24 real with ZERO illusion over 56 entries —
+    # the only clean, positive, non-thin bot in the fleet (only 4/32 are honest-
+    # positive; the incumbent rh_aged_derisk is -$0.06 real, its +$23.90 paper is
+    # pure illusion). max_concurrent=1 is a LIVE-SAFETY cap, not a thesis change:
+    # the hot wallet is ~$38 total (~$13 free + an open position), so the default
+    # MAX_CONCURRENT=2 x $25 = $50 would just bounce off insufficient balance.
+    # Mirrors the same cap put on rh_aged_derisk when IT held the live seat.
     LaneBot(bot_id="rh_stable_ageddeep",
             min_pool_age_h=AGED_MIN_POOL_AGE_H,
             tp1_pct=AGED_TP1_PCT, tp1_sell_fraction=0.50,
@@ -1020,7 +1028,7 @@ ROSTER = (
             max_bites_per_token=2,
             hard_stop_pct=-15.0,
             derisk_after_s=DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
-            regime_hours=True,
+            regime_hours=True, max_concurrent=1,
             exclusion_group="stable"),
 )
 
