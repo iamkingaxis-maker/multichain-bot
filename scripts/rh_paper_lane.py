@@ -91,6 +91,16 @@ DUST_SWEEP_S = 300.0        # sweep orphaned on-chain bags every 5 min (live onl
 # so the lane now refreshes it itself. Heavy-ish (quotes every unique token, paced
 # 0.4s) -> 30 min cadence, OFF the event loop. FIDELITY_REFRESH_S=0 disables.
 FIDELITY_REFRESH_S = float(os.environ.get("FIDELITY_REFRESH_S", "1800") or 0)
+# ── LEDGER auto-upload (2026-07-15). THE root cause of "we havent traded in 16
+# hours": scripts/rh_paper_upload.py says "Run per-session" — it was HAND-RUN, and
+# nothing in the codebase calls it (main.py:47 is a string, not an invocation). So
+# when a session ended the ledger froze while the lane kept trading for real (07-15:
+# 50 on-chain txs / 24 live buys / $603 deployed vs ZERO ledger rows). WORSE: the
+# lane's local ledger is EPHEMERAL (Railway) and resets on every redeploy, so rows
+# not yet uploaded are LOST FOREVER — today's live fills were wiped that way. Upload
+# is stdlib-only, append-mode and dedups on (ts,ev,pool) = idempotent + safe to run
+# often, so run it OFTEN to shrink the loss window. LEDGER_UPLOAD_S=0 disables.
+LEDGER_UPLOAD_S = float(os.environ.get("LEDGER_UPLOAD_S", "120") or 0)
 # ── WALLET-TRUTH refresh (2026-07-13, AxiS: the RH hot wallet should ALWAYS
 # show its on-chain balance on the dashboard, exactly like the SOL wallet) ────
 # core.rh_live_execution.rh_wallet_truth() reads native ETH + WETH KEYLESS via
@@ -3188,6 +3198,29 @@ class PaperLane:
                   f"{type(e).__name__}: {e}", flush=True)
 
 
+def _upload_ledger():
+    """Ship the lane's ledger + wallet-truth to the dashboard.
+
+    2026-07-15 ROOT-CAUSE FIX. scripts/rh_paper_upload.py was documented "run
+    per-session" and NOTHING called it, so the dashboard's RH ledger froze the
+    moment a human session ended — on 07-15 it showed ZERO rows while the lane
+    did 50 on-chain txs / 24 live $25 buys / $603 deployed. Every downstream
+    number (fidelity, n_closed, entries, block counts) is computed on that book,
+    so a dead uploader silently corrupts EVERY decision made from it — including
+    'which bot holds live money'. The lane's local ledger is also EPHEMERAL and
+    resets on redeploy, so un-uploaded rows are lost FOREVER; running this often
+    is what bounds the loss window. Idempotent (append-mode, dedups on ts/ev/pool).
+    FAIL-OPEN: an upload error must never touch trading."""
+    try:
+        t0 = time.time()
+        from scripts import rh_paper_upload as _up
+        _up.main()
+        print(f"[rh-paper] LEDGER-UPLOAD ok in {time.time() - t0:.1f}s", flush=True)
+    except Exception as e:
+        print(f"[rh-paper] LEDGER-UPLOAD failed: {type(e).__name__}: "
+              f"{str(e)[:140]}", flush=True)
+
+
 def _refresh_fleet_fidelity():
     """Re-run the fleet FIDELITY correction and push it to the dashboard so the
     displayed 'real P&L' is honest instead of frozen at the last hand-run.
@@ -3218,6 +3251,7 @@ async def orchestrate(fh: Firehose, lane: PaperLane, max_minutes: float):
     last_stats = t0
     last_wt = 0.0    # wallet-truth refresh clock (fires immediately, then ~5min)
     last_fid = 0.0   # fleet-fidelity refresh clock (fires immediately, then ~30min)
+    last_up = 0.0    # ledger upload clock (fires immediately, then ~2min)
     try:
         while time.time() < t_end and not ws_task.done():
             last_scanned = await asyncio.to_thread(fh.maintenance, last_scanned)
@@ -3231,6 +3265,12 @@ async def orchestrate(fh: Firehose, lane: PaperLane, max_minutes: float):
             if time.time() - last_wt > WALLET_TRUTH_REFRESH_S:
                 last_wt = time.time()
                 await asyncio.to_thread(lane.refresh_wallet_truth)
+            # ledger -> dashboard. The local ledger is EPHEMERAL (resets on every
+            # redeploy), so anything not yet uploaded is lost for good; upload
+            # often to bound that window. Idempotent, off the event loop.
+            if LEDGER_UPLOAD_S > 0 and time.time() - last_up > LEDGER_UPLOAD_S:
+                last_up = time.time()
+                await asyncio.to_thread(_upload_ledger)
             # fleet-fidelity auto-refresh: keeps the dashboard's "real P&L" column
             # HONEST instead of frozen at whenever it was last hand-run. OFF the
             # event loop (it quotes every unique token) and fail-open.
@@ -3241,6 +3281,11 @@ async def orchestrate(fh: Firehose, lane: PaperLane, max_minutes: float):
             await asyncio.sleep(MAINT_SECS)
     finally:
         lane.stop.set()
+        # FINAL FLUSH before the container dies: the local ledger is EPHEMERAL and
+        # a redeploy wipes it, so any rows since the last upload would be lost for
+        # good (that is exactly how 07-15's 24 live fills vanished from the book).
+        # Best-effort — _upload_ledger never raises.
+        _upload_ledger()
         ws_task.cancel()
         try:
             await ws_task
