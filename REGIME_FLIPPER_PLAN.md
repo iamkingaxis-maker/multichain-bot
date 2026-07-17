@@ -38,6 +38,14 @@ the metric (AxiS: "i dont care about overall fleet volume").
 - **Disarm-first bias:** on any doubt (stale sensor, instrument anomaly), the correct
   flip is to `__disabled__`. Standing down is always safe.
 
+## 4b. THE OFF TRIGGERS (AxiS: "how will we know when to flip it off?") — three time-scales + a blindness guard
+| scale | trigger | mechanism |
+|---|---|---|
+| **minutes** | realized damage, regime be damned | the ENVELOPE: 3 consecutive live losses → 1h stand-down (the fast OFF); daily stop 1.5×position → day over; canary red → buys halt. The money itself overrules the regime call. |
+| **hours** | the regime dies | sensor flips SICK, held 2 consecutive reads (hysteresis) → STAND_DOWN → disarm. Symmetric with the ON. |
+| **days** | the mapping rots | daily re-mine drops a family that lost its healthy-window green (e.g. 17-22 UTC flipping best→worst). NEVER short-window bot P&L — refuted, mean-reverting. |
+| **any** | the sensor goes blind | held state EXPIRES after 2 windows (8h) without a real read → UNKNOWN → STAND_DOWN. Doubt disarms; certainty arms. |
+
 ## 5. Validation gates (what must be true before money follows the router)
 - **Gate A — routing works forward:** recorded decisions vs the windows that FOLLOWED
   them, n≥30 windows, TRADE-windows minus STAND_DOWN-windows spread positive.
