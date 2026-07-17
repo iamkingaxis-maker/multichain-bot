@@ -6038,6 +6038,42 @@ class WebDashboard:
         except Exception as e:
             out["chains"]["sol"] = {"state": "UNKNOWN", "error": str(e)[:80]}
 
+        # ── THE ROUTER DECISION (recommend-only; ARM stays human) ──────────
+        # First-pass mapping from the 07-17 family x regime mine (4d, IN-
+        # SAMPLE, provisional until out-of-sample re-mine holds >=5 days):
+        # healthy RH -> the healthy-green families in $-order; sick/unknown ->
+        # STAND DOWN (nothing was green in sick windows). Every 15-min
+        # snapshot records the decision, so router calls are GRADEABLE
+        # against the windows that followed them — that grading (trailing,
+        # n>=30) is the bar before any decision touches the live seat.
+        ROUTE_MAP = {
+            "rh": {"HEALTHY": ["rh_strength_trail", "rh_deep_barbell_capped",
+                               "rh_aged_hold", "rh_f_reload_mid"]},
+            "sol": {"HEALTHY": ["admission_x_liqdemand", "admission_x_liq"]},
+        }
+        route = {}
+        for chain, h in out["chains"].items():
+            st_ = h.get("state")
+            cands = (ROUTE_MAP.get(chain) or {}).get(st_) or []
+            if st_ == "HEALTHY" and cands:
+                route[chain] = {
+                    "action": "TRADE", "families": cands,
+                    "live_seat": "NOT_ARMED (no bot past the live bar yet; "
+                                 "arm = human, via the safe-live checklist)",
+                    "reason": f"tape {st_} "
+                              f"({h.get('median_drift_pct')}% median drift)"}
+            else:
+                route[chain] = {
+                    "action": "STAND_DOWN", "families": [],
+                    "reason": f"tape {st_} — nothing was green in sick "
+                              f"windows (07-17 mine); volume in a sick tape "
+                              f"is volume that loses"}
+        out["route"] = route
+        out["route_note"] = ("recommend-only: mapping is PROVISIONAL "
+                             "(in-sample 4d) until the out-of-sample re-mine "
+                             "holds; decisions are recorded for trailing "
+                             "n>=30 grading before live routing")
+
         # persist a snapshot every >=15min — the router-validation dataset
         try:
             hist = os.path.join(os.path.dirname(self._rh_paper_ledger_path()),
