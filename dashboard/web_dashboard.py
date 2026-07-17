@@ -6038,6 +6038,35 @@ class WebDashboard:
         except Exception as e:
             out["chains"]["sol"] = {"state": "UNKNOWN", "error": str(e)[:80]}
 
+        # ── SENSOR HYSTERESIS (2026-07-17, the sol_bail flapping lesson):
+        # a raw state change must hold 2 CONSECUTIVE reads before the
+        # EFFECTIVE state (what the route uses) changes — otherwise a tape
+        # wobbling across the -3% line would flip the seat on the up-wobble
+        # and dump it on the down-wobble. UNKNOWN never overwrites a held
+        # state (a data gap is not a regime change).
+        prev = getattr(self, "_regime_eff", {})
+        pend = getattr(self, "_regime_pend", {})
+        eff = {}
+        for chain, h in out["chains"].items():
+            raw = h.get("state")
+            held = prev.get(chain)
+            if held is None:
+                eff[chain] = raw if raw != "UNKNOWN" else "UNKNOWN"
+            elif raw in (held, "UNKNOWN"):
+                eff[chain] = held
+                pend.pop(chain, None)
+            elif pend.get(chain) == raw:
+                eff[chain] = raw          # confirmed on 2nd consecutive read
+                pend.pop(chain, None)
+            else:
+                pend[chain] = raw         # candidate — needs confirmation
+                eff[chain] = held
+            h["raw_state"] = raw
+            h["state"] = eff[chain]
+            if pend.get(chain):
+                h["pending_state"] = pend[chain]
+        self._regime_eff, self._regime_pend = eff, pend
+
         # ── THE ROUTER DECISION (recommend-only; ARM stays human) ──────────
         # First-pass mapping from the 07-17 family x regime mine (4d, IN-
         # SAMPLE, provisional until out-of-sample re-mine holds >=5 days):
