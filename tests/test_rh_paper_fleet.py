@@ -95,8 +95,10 @@ class TestRoster:
                    if b.exclusion_group == "lowvar") == 2
         assert sum(1 for b in ROSTER
                    if b.exclusion_group == "deepsynth") == 1
+        # deepexit: 1 (was 2 — rh_deep_barbell RETIRED 2026-07-17 by AxiS:
+        # fidelity −$1,031 behind a +$16 paper mask; the capped synthesis stays)
         assert sum(1 for b in ROSTER
-                   if b.exclusion_group == "deepexit") == 2
+                   if b.exclusion_group == "deepexit") == 1
         assert sum(1 for b in ROSTER
                    if b.exclusion_group == "strengthexit") == 1
 

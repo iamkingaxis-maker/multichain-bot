@@ -275,46 +275,20 @@ class TestDeepConsolidatedRacer:
         assert b.bot_config().bot_id == "rh_deep_consolidated"
 
 
-class TestDeepBarbellRacer:
-    """rh_deep_barbell (2026-07-12, scratchpad/_deep_exit_optimization.md): the
-    EXIT-SHAPE deliverable. Deep-flush entry (dip<=-25) + a BARBELL exit
-    (fast-harvest the bulk to lock the robust-green median + a house-money
-    moonbag runner for the fat bounce tail that RISES with depth)."""
+class TestDeepBarbellRetirement:
+    """rh_deep_barbell RETIRED 2026-07-17 (AxiS call). Fidelity-honest
+    −$1,031 lifetime behind a +$16 paper mask (the fleet's biggest illusion);
+    deep flushes on THIN pools = the deep+thin worst cell; drew the GOATAI rug
+    live. The thesis survives in rh_deep_barbell_capped (deep+LIQUID+cat-cap),
+    which stays racing. These tests pin the retirement so it can't silently
+    resurrect."""
 
-    def _bot(self):
-        m = [x for x in ROSTER if x.bot_id == "rh_deep_barbell"]
-        assert len(m) == 1
-        return m[0]
+    def test_retired_not_in_roster(self):
+        assert not [x for x in ROSTER if x.bot_id == "rh_deep_barbell"]
 
-    def test_in_roster_own_exclusion_group(self):
-        b = self._bot()
-        assert b.exclusion_group == "deepexit"          # distinct from "factory"
+    def test_capped_successor_still_races(self):
         assert [x.bot_id for x in ROSTER
-                if x.exclusion_group == "deepexit"] == ["rh_deep_barbell", "rh_deep_barbell_capped"]
-
-    def test_deep_flush_entry(self):
-        b = self._bot()
-        assert b.dip_trigger_pct == -25.0               # the deep cohort trigger
-        assert b.min_liq_usd == 5_000.0                 # feed watch floor
-        assert b.demand_min_buy_usd == 25.0             # study admission
-        assert b.reentry_cooldown_s == 600.0
-
-    def test_barbell_exit_shape(self):
-        b = self._bot()
-        # fast-harvest the BULK (locks the robust-green median)
-        assert (b.tp1_pct, b.tp1_sell_fraction) == (5.0, 0.60)
-        assert b.tp2_pct == 12.0
-        # HOUSE-MONEY runner for the fat tail: breakeven floor, wide trail
-        assert b.moonbag_fraction == 0.30
-        assert b.moonbag_floor_pct == 0.0               # breakeven = house money
-        assert b.moonbag_trail_pp == 12.0
-        assert b.hard_stop_pct == -15.0
-        # the harvested-fast fraction is the majority
-        assert b.tp1_sell_fraction >= 0.5
-        # config plumbs the moonbag through to the PM
-        cfg = b.bot_config()
-        assert (cfg.moonbag_fraction, cfg.moonbag_floor_pct,
-                cfg.moonbag_trail_pp) == (0.30, 0.0, 12.0)
+                if x.exclusion_group == "deepexit"] == ["rh_deep_barbell_capped"]
 
 
 class TestStrengthTrailRacer:

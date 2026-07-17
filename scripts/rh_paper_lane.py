@@ -677,17 +677,14 @@ ROSTER = (
     # model continuation perfectly (the runtime runner rides live quotes past
     # where the tape sample ended); the moonbag's breakeven floor bounds the
     # downside of that uncertainty.
-    LaneBot(bot_id="rh_deep_barbell",
-            dip_trigger_pct=-25.0,
-            min_pool_age_h=0.0, max_pool_age_h=SCALP_MAX_POOL_AGE_H,
-            min_liq_usd=5_000.0,
-            demand_min_buy_usd=25.0,
-            reentry_cooldown_s=600.0,
-            tp1_pct=5.0, tp1_sell_fraction=0.60,
-            tp2_pct=12.0, tp2_sell_fraction=0.10,
-            moonbag_fraction=0.30, moonbag_floor_pct=0.0, moonbag_trail_pp=12.0,
-            hard_stop_pct=-15.0,
-            exclusion_group="deepexit", max_concurrent=1),
+    # rh_deep_barbell RETIRED 2026-07-17 (AxiS: "retire"). The cautionary
+    # control served its purpose: fidelity-honest −$1,031 lifetime (+$16 paper
+    # = the fleet's biggest illusion, $1,047), −$65 on its final day — it
+    # single-handedly flipped the fleet's daily sign (fleet −$22, ex-barbell
+    # +$43). Root cause was always ADMISSION: deep flushes on THIN pools
+    # ($5k floor) = the deep+thin WORST cell; it live-bled (NOXA gap-through)
+    # and drew the GOATAI rug. Its thesis survives in rh_deep_barbell_capped
+    # (deep+LIQUID+catastrophe-cap), which stays racing as the fixed version.
     # rh_deep_barbell_capped (2026-07-12) — the FULL synthesis: the barbell
     # bled live (NOXA -20.1% gap-through-stop, n=9) because it took deep flushes
     # on THIN pools ($5k) with only a price stop. This merges all three fleet
