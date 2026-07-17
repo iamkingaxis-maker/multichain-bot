@@ -474,6 +474,34 @@ class TestContainment:
         assert live.max_position_usd == 50.0
         live.live_buy(TOKEN, 40.0, 4000.0)                # allowed under 50
 
+    # ── 2026-07-17 WALLET-BOUND TRAP PROBE (audit finding #4, the last one):
+    # ── a quote is wallet-blind; transfer-from-wallet is not ────────────────
+    def test_trap_probe_downgrades_sellable(self, monkeypatch):
+        import core.rh_blockscout as bs
+        monkeypatch.setattr(bs, "_get_json", lambda p: {"items": [{
+            "token": {"symbol": "TRAP", "address_hash": TOKEN,
+                      "decimals": "18"}, "value": str(10 ** 20)}]})
+        ex = _mock_executor()
+        q = MagicMock(); q.amount_out = int(0.01 * 1e18)   # quotes ALIVE ($20)
+        ex.quote_sell.return_value = q
+        ex.token_transferable.return_value = False          # but wallet TRAPPED
+        pos = rl._held_meme_positions(WALLET, ex, eth_price_usd=2000.0)
+        assert pos[0]["sellable"] is False and pos[0]["trapped"] is True
+        assert pos[0]["value_usd"] == 0.0                   # honest $0, no illusion
+
+    def test_trap_probe_unknown_keeps_quote_verdict(self, monkeypatch):
+        import core.rh_blockscout as bs
+        monkeypatch.setattr(bs, "_get_json", lambda p: {"items": [{
+            "token": {"symbol": "OK", "address_hash": TOKEN,
+                      "decimals": "18"}, "value": str(10 ** 20)}]})
+        ex = _mock_executor()
+        q = MagicMock(); q.amount_out = int(0.01 * 1e18)
+        ex.quote_sell.return_value = q
+        ex.token_transferable.return_value = None           # RPC unknown
+        pos = rl._held_meme_positions(WALLET, ex, eth_price_usd=2000.0)
+        assert pos[0]["sellable"] is True                   # quote verdict kept
+        assert pos[0]["trapped"] is None
+
     # ── 2026-07-17 SAFETY ENVELOPE (goal: safe live, no severe losses, ──────
     # ── no coinflip bleed): fractional cap + loss-streak breaker ────────────
     def test_fractional_cap_bounds_severe_loss(self, monkeypatch):

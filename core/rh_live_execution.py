@@ -607,10 +607,28 @@ def _held_meme_positions(wallet: str, ex, eth_price_usd) -> list:
                 val_usd = round(eth_out * eth_price_usd, 2)
         except Exception:
             val_usd = 0.0   # unsellable -> $0 (honeypot/rug), honest not illusion
+        sellable = bool(val_usd and val_usd > 0.5)
+        trapped = None
+        # WALLET-BOUND trap probe (2026-07-17): a quote is wallet-blind — a
+        # blacklisted wallet still quotes 'alive'. Only run when the quote
+        # says sellable (probe can only DOWNGRADE, never fabricate); None
+        # (RPC unknown) keeps the quote verdict.
+        if sellable:
+            try:
+                trapped_res = ex.token_transferable(addr, raw)
+                if trapped_res is False:
+                    sellable = False
+                    val_usd = 0.0            # trapped = $0 real value, honestly
+                    trapped = True
+                elif trapped_res is True:
+                    trapped = False
+            except Exception:
+                trapped = None
         positions.append({"sym": sym, "token": addr,
                           "qty": round(raw / 10 ** dec, 4),
                           "value_usd": val_usd,
-                          "sellable": bool(val_usd and val_usd > 0.5)})
+                          "sellable": sellable,
+                          "trapped": trapped})
     return positions
 
 

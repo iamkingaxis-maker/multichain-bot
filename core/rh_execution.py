@@ -59,6 +59,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from web3 import Web3
+from web3.exceptions import ContractLogicError
 from eth_account import Account
 
 from core.probe_instrument import fill_slippage_pct
@@ -110,6 +111,10 @@ ERC20_ABI = [
      "outputs": [{"name": "", "type": "uint256"}]},
     {"name": "approve", "type": "function", "stateMutability": "nonpayable",
      "inputs": [{"name": "spender", "type": "address"},
+                {"name": "amount", "type": "uint256"}],
+     "outputs": [{"name": "", "type": "bool"}]},
+    {"name": "transfer", "type": "function", "stateMutability": "nonpayable",
+     "inputs": [{"name": "to", "type": "address"},
                 {"name": "amount", "type": "uint256"}],
      "outputs": [{"name": "", "type": "bool"}]},
 ]
@@ -593,6 +598,33 @@ class RhExecutor:
                             abi=ERC20_ABI)
         a = Web3.to_checksum_address(addr or self.wallet_address)
         return int(c.functions.balanceOf(a).call())
+
+    def token_transferable(self, token_addr: str, amount: int,
+                           to_addr: Optional[str] = None) -> Optional[bool]:
+        """WALLET-BOUND trap probe (2026-07-17, 07-15 audit finding #4):
+        QuoterV2 quotes are wallet-BLIND — a token whose contract blacklists
+        this wallet (or blocks transfers entirely) still quotes 'alive', so
+        quote-based sellability is an UPPER bound (3 of 4 known-stuck tokens
+        quoted fine). eth_call token.transfer(to, amount) with from=WALLET
+        exercises the actual transfer path a sell must traverse, and needs NO
+        allowance (unlike simulating the router swap, which would need a
+        state-override for approve). Returns True=transfer path open,
+        False=REVERTED (trapped/blacklisted), None=unknown (RPC error — the
+        caller keeps the quote-based verdict; this probe only ever DOWNGRADES
+        sellability, never fabricates it)."""
+        try:
+            w3 = self._require_w3()
+            c = w3.eth.contract(address=Web3.to_checksum_address(token_addr),
+                                abi=ERC20_ABI)
+            to = Web3.to_checksum_address(
+                to_addr or SWAP_ROUTER02)
+            c.functions.transfer(to, int(amount)).call(
+                {"from": Web3.to_checksum_address(self.wallet_address)})
+            return True
+        except ContractLogicError:
+            return False                     # reverted = trapped for THIS wallet
+        except Exception:
+            return None                      # RPC/unknown: no verdict
 
     def token_decimals(self, token_addr: str) -> int:
         """ERC20 decimals; FAIL-OPEN to 18 (only affects price REPORTING —
