@@ -6046,10 +6046,22 @@ class WebDashboard:
         # state (a data gap is not a regime change).
         prev = getattr(self, "_regime_eff", {})
         pend = getattr(self, "_regime_pend", {})
+        seen = getattr(self, "_regime_seen_ts", {})
         eff = {}
         for chain, h in out["chains"].items():
             raw = h.get("state")
             held = prev.get(chain)
+            if raw != "UNKNOWN":
+                seen[chain] = now         # sensor has real data for this chain
+            # BLIND-SENSOR EXPIRY (2026-07-17, AxiS: "how will we know when to
+            # flip it off?"): a data GAP holds the last state (a blip is not a
+            # regime change) — but a PROLONGED blind sensor must not keep a
+            # seat armed on stale information. Held state expires after 2
+            # windows (8h) without a real read -> UNKNOWN -> STAND_DOWN.
+            # Doubt disarms; certainty arms.
+            if held is not None and now - seen.get(chain, 0) > 2 * 4 * 3600:
+                held = None
+                h["state_expired"] = True
             if held is None:
                 eff[chain] = raw if raw != "UNKNOWN" else "UNKNOWN"
             elif raw in (held, "UNKNOWN"):
@@ -6066,6 +6078,7 @@ class WebDashboard:
             if pend.get(chain):
                 h["pending_state"] = pend[chain]
         self._regime_eff, self._regime_pend = eff, pend
+        self._regime_seen_ts = seen
 
         # ── THE ROUTER DECISION (recommend-only; ARM stays human) ──────────
         # First-pass mapping from the 07-17 family x regime mine (4d, IN-
