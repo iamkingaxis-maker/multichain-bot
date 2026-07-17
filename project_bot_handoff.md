@@ -1,3 +1,45 @@
+# Session Handoff — 2026-07-17 ~10:50 UTC — OVERNIGHT AUTONOMOUS SHIFT (AxiS asleep 9h)
+
+## ⚠️ FIRST THING TO KNOW: a PHANTOM FILL is poisoning admission_x_liqdemand's number
+Leaderboard shows +$491 today — FAKE. CASHBULL booked TP1+TP2 at **+2,531% / 39-second hold**
+(quote-spike illusion; the 10s scrub threshold missed a 39s phantom). Honest day ≈ −$12.
+=> (a) EXCLUDE this trade when grading the admission race (it alone corrupts n≥30);
+   (b) TODO: widen the illusion scrub — sanity-cap paper fills (e.g. >+100% in <5min = phantom;
+   memory: $1-100M FDV rarely sustains +30%). Lane-side quote-sanity guard = the real fix.
+
+## WALLET: $40.71, untouched all night (live paused both chains — verified on-chain).
+
+## DELIVERED OVERNIGHT
+1. **RH wallet decode (AxiS's ask) — done, committed (b3bda31), repeatable instrument.**
+   Two DISJOINT windows (9.7k + 9.4k trades, ~3.4k makers each), healthy-tape regime.
+   CROSS-WINDOW STABLE: extraction dominance (~$0.5M/window by sell-only wallets — the big
+   RH money EXTRACTS, doesn't trade); winner exits = SINGLE-LEG all-out (4th window;
+   supports strength_trail); **EXTRACTOR-BUYER PENALTY replicated** (~6pp win-rate loss for
+   buyers entering ≤10min after an extractor sell, n≈380/window) → candidate lane veto,
+   needs cross-DAY revalidation + maker registry in the lane feed.
+   NOISE (flipped between windows): winner hold-time + buy-size contrasts — AxiS's
+   "structure changes day to day" demonstrated intra-night.
+   Tape banked: 27.6k maker-level trades (4h collector session, clean exit).
+2. **sol_bail flap fix CONFIRMED in production**: 4 macro-bails all day vs 84/3.7h pre-fix;
+   exit-kind mix normalized. Hysteresis (SOL_BAIL_HYST=0.2) + turn-only + min-hold all live.
+3. **SL1 race firing at volume**: slcut_agedhold 59 sells / 14 SL1 fires. MECHANISM CONFIRMED:
+   loss legs consistently smaller than parents' (−$0.90 vs −$1.94 ageddeep; −$1.14 vs −$1.28
+   agedhold). NET verdict correctly open (slcut −$5.29/−$1.11/+$7.60 vs parents mixed) — n≥30
+   full-closes will decide. DO NOT read day-1 nets as the answer.
+4. **admission_x arms**: 13 trades each. liq arm −$8.72; liqdemand honest ≈ −$12 (see phantom).
+   Both outperformed the SOL fleet's red day (−$690 fleet total). Entry-exit coherence working
+   (they correctly stood down while macro hovered at the threshold).
+
+## OPEN / NEXT
+- Grade races at n≥30 full-closes (slcut first — closest), with the phantom excluded and
+  tape-benchmarked. Then the safe-live re-arm checklist (project_safe_live_framework) if a
+  candidate clears the bar.
+- Scrub-rule widening (phantom class above) — small, do before any grading.
+- Extractor-veto: revalidate in a different regime (run the collector+decode another day).
+- Tape-health sensor build still queued (n=7 windows accruing toward n≥30 retest).
+
+---
+
 # Session Handoff — 2026-07-17 — RACES ARMED + INSTRUMENTS HONEST + LIVE RAILS HARDENED
 
 ## STATE
