@@ -136,6 +136,14 @@ class BotConfig:
     tp2_sell_fraction: float = 0.25
     trail_pp: float = 3.0
     hard_stop_pct: float = -15.0
+    # SL1 loss-side ladder (2026-07-17, ported from RH after the 10.36M-swap
+    # replay: n=63,972 paired candidates, mean +0.44-0.66pp/trade, loss-tail
+    # p05 -21.6% -> -15.4%). Mirror of TP1 downward: first touch of sl1_pct
+    # pre-TP1 sells sl1_sell_fraction; only the tail rides to the stop. SOL
+    # has the same asymmetry it fixes (IN_FLIGHT_FLOOR closes full-size at
+    # -9.68% while TP1 banks partials). None = OFF (byte-identical default).
+    sl1_pct: Optional[float] = None
+    sl1_sell_fraction: float = 0.75
     pre_stop_bail_pnl_pct: float = -3.0
     pre_stop_bail_vol_m5_max: float = 500.0
     slow_bleed_minutes: int = 60

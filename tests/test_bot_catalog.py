@@ -91,7 +91,10 @@ def test_catalog_active_bot_count(catalog):
     # admission_gated_hivol (07-14 stack-gated arms) + admission_x_liq/
     # admission_x_liqdemand (07-17 stack-EXEMPT arms; the volume unlock:
     # the gated pair starved at 3/13 trades in 2.5d behind the entry stack).
-    assert len(catalog.configs) == 46, (
+    # 2026-07-17 (evening): +admission_x_liq_sl1 (the SL1 A/B on the volume
+    # arm — RH-replay-validated loss-ladder port) -> 47. (badday_absorb_sl1_ab
+    # is excluded by the fixture like all badday_*.)
+    assert len(catalog.configs) == 47, (
         f"Expected 42 active bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )

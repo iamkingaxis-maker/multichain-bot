@@ -14,8 +14,10 @@ from core.bot_evaluator import in_flight_floor_fires
 
 
 def _cfg(name):
+    # flush family RETIRED 2026-07-17 — archived configs still pin the jersey
+
     return BotConfig(**json.loads(
-        pathlib.Path(f"config/bots/{name}.json").read_text()))
+        (pathlib.Path(f"config/bots/{name}.json") if pathlib.Path(f"config/bots/{name}.json").exists() else pathlib.Path(f"config/bots/{name}.json.off")).read_text()))
 
 
 class TestVelbailOverride:

@@ -76,9 +76,9 @@ class TestPeelOff:
 
 def test_jersey_integrity():
     cfg = BotConfig(**json.loads(pathlib.Path(
-        "config/bots/badday_flush_peel_ab.json").read_text()))
+        "config/bots/badday_flush_peel_ab.json.off").read_text()))  # RETIRED 2026-07-17 — jersey pinned on the archive
     flush = BotConfig(**json.loads(pathlib.Path(
-        "config/bots/badday_flush.json").read_text()))
+        "config/bots/badday_flush.json.off").read_text()))  # RETIRED 2026-07-17
     assert cfg.enabled is True and cfg.peel_exit is True
     assert cfg.tp1_sell_fraction == 0.5 and cfg.hard_stop_pct == -12.0
     assert [tuple(x) for x in cfg.entry_gate] == [tuple(x) for x in flush.entry_gate]

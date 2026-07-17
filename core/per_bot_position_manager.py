@@ -131,7 +131,7 @@ class CloseResult:
 @dataclass
 class ExitDecision:
     token: str
-    kind: Literal["TP1", "TP2", "POST_TP1_TRAIL", "HARD_STOP", "PRE_STOP_BAIL", "FLAT_EXIT", "BREAKEVEN_LOCK", "MOONBAG_FLOOR", "MOONBAG_TRAIL", "STRENGTH_TRAIL"]
+    kind: Literal["TP1", "TP2", "POST_TP1_TRAIL", "HARD_STOP", "PRE_STOP_BAIL", "FLAT_EXIT", "BREAKEVEN_LOCK", "MOONBAG_FLOOR", "MOONBAG_TRAIL", "STRENGTH_TRAIL", "SL1_DERISK", "SOL_MACRO_BAIL", "IN_FLIGHT_FLOOR", "TIME_STOP"]
     reason: str
     sell_fraction: float  # 0.0 to 1.0; full exit = 1.0
 
@@ -995,6 +995,30 @@ class PerBotPositionManager:
                 reason=(f"fast-dump bail pnl={pnl_pct:.2f}% <= "
                         f"{self.config.fast_bail_pnl_pct} (any volume, gap-through guard)"),
                 sell_fraction=1.0,
+            ))
+            return decisions
+
+        # 1c. SL1 loss-side ladder (2026-07-17 RH-replay-validated port, n=64k:
+        # mean +0.44-0.66pp/trade, loss-tail p05 -21.6->-15.4). The mirror of
+        # TP1 downward: first touch of sl1_pct pre-TP1 banks sl1_sell_fraction;
+        # only the tail rides to the stop. Fires ONCE (state_blob latch);
+        # sl1_pct=None default = byte-identical for every unconfigured bot.
+        if (
+            getattr(self.config, "sl1_pct", None) is not None
+            and not p.tp1_hit
+            and not _mhf_suppress
+            and pnl_pct <= self.config.sl1_pct
+            and p.state_blob is not None
+            and not p.state_blob.get("sl1_fired")
+        ):
+            p.state_blob["sl1_fired"] = True
+            p.state_blob["sl1_pnl_at_fire"] = round(pnl_pct, 4)
+            decisions.append(ExitDecision(
+                token=token, kind="SL1_DERISK",
+                reason=(f"sl1 loss-ladder pnl={pnl_pct:+.2f}% <= "
+                        f"{self.config.sl1_pct:+.1f} (bank "
+                        f"{100*self.config.sl1_sell_fraction:.0f}%, tail rides)"),
+                sell_fraction=self.config.sl1_sell_fraction,
             ))
             return decisions
 
