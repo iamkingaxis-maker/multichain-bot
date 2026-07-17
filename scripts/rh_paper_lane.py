@@ -344,6 +344,19 @@ class LaneBot:
     strength_trail_exit: bool = False
     strength_trail_arm_pct: float = 2.0
     strength_trail_gap_pp: float = 3.0
+    # LOSS-SIDE LADDER "SL1" (2026-07-17 dollar-conversion mine). The fleet's
+    # leak is STRUCTURAL, not regime: median trade beats the tape every day yet
+    # net $ is red every day (07-13/-15/-16: -$195/-$187/-$404), because wins
+    # bank in partials (+$1,739) while losses close FULL-SIZE (-$2,525;
+    # HARD_STOP alone -$1,641 at -$5.18/leg = 4.5x the avg win leg). SL1
+    # mirrors TP1 on the way DOWN: pre-TP1 (nothing sold yet), first touch of
+    # sl1_pct sells sl1_sell_fraction; only the tail rides to the hard stop.
+    # Napkin on the 317 hard-stops: saves ~$1.13/trade; the cost — sl1-touchers
+    # that would have recovered to TP — is unmeasurable from the ledger (no
+    # mae), so it is priced by A/B RACE vs the parent, never assumed.
+    # None = OFF (byte-identical for every other bot).
+    sl1_pct: Optional[float] = None
+    sl1_sell_fraction: float = 0.75
     # ── AGED-POOL racer machinery (2026-07-11; all default OFF so every
     # pre-existing racer is byte-identical — their A/B is mid-flight) ────────
     # cross-sibling token exclusion (Solana young_pond mirror): racers sharing
@@ -1040,6 +1053,44 @@ ROSTER = (
             derisk_after_s=DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
             regime_hours=True, max_concurrent=1,
             exclusion_group="stable"),
+    # ── SL1 LOSS-LADDER A/B RACERS (2026-07-17 dollar-conversion mine).
+    # PRE-REGISTRATION: each clones a ZERO-ILLUSION parent verbatim and differs
+    # ONLY in sl1 (bank 0.75 at -6% pre-TP1; tail rides the parent's stop).
+    # Parents (fidelity 07-15): stable_ageddeep +$17.24/56e, aged_hold -$3.46
+    # flat at the fleet's highest honest throughput (121e — the rescue test),
+    # stable_demand +$8.07/51e. Own exclusion_group ("slcut") so racer and
+    # parent CAN hold the same token = paired A/B on the same tape. Grade at
+    # n>=30 closes vs the parent as control: net $/entry + avg loss-leg $ +
+    # win-rate (does SL1 kill recoverers?). Kill whichever side loses.
+    LaneBot(bot_id="rh_slcut_ageddeep",
+            min_pool_age_h=AGED_MIN_POOL_AGE_H,
+            tp1_pct=AGED_TP1_PCT, tp1_sell_fraction=0.50,
+            tp2_pct=AGED_TP2_PCT, tp2_sell_fraction=0.30,
+            trail_pp=AGED_TRAIL_PP,
+            reentry_cooldown_s=0.0,
+            reentry_min_dip_pct=REENTRY_MIN_DIP_PCT,
+            max_bites_per_token=2,
+            hard_stop_pct=-15.0,
+            derisk_after_s=DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
+            regime_hours=True, max_concurrent=1,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            exclusion_group="slcut"),
+    LaneBot(bot_id="rh_slcut_agedhold",
+            min_pool_age_h=AGED_MIN_POOL_AGE_H,
+            tp1_pct=AGED_TP1_PCT, tp1_sell_fraction=0.50,
+            tp2_pct=AGED_TP2_PCT, tp2_sell_fraction=0.30,
+            trail_pp=AGED_TRAIL_PP,
+            regime_hours=True,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            exclusion_group="slcut"),
+    LaneBot(bot_id="rh_slcut_demand",
+            demand_min_buy_usd=150.0,
+            max_pool_age_h=SCALP_MAX_POOL_AGE_H,
+            max_bites_per_token=2,
+            hard_stop_pct=-10.0,
+            derisk_after_s=LOWVAR_DERISK_AFTER_S, derisk_max_frac=DERISK_MAX_FRAC,
+            sl1_pct=-6.0, sl1_sell_fraction=0.75,
+            exclusion_group="slcut"),
 )
 
 
@@ -2902,6 +2953,29 @@ class PaperLane:
                                    "%.2f of original (rug-tail defense)" % (
                                        now - meta["entry_ts"],
                                        st.bot.derisk_max_frac)), now, st=st)
+                        if pool not in st.pos_meta:
+                            continue
+                # SL1 LOSS-SIDE LADDER: pre-TP1 (nothing sold yet), first touch
+                # of sl1_pct banks sl1_sell_fraction — the DOWN-side mirror of
+                # TP1, so losses stop riding full-size to the hard stop. Fires
+                # ONCE (latched), only while remaining_frac is still ~1.0 (any
+                # prior partial — TP1/DERISK — stands down; first partial wins).
+                if (st.bot.sl1_pct is not None
+                        and not meta.get("_sl1_done")
+                        and meta.get("remaining_frac", 1.0) >= 0.999
+                        and meta.get("entry_px")):
+                    _sl1_pnl = (px / meta["entry_px"] - 1.0) * 100.0
+                    if _sl1_pnl <= st.bot.sl1_pct:
+                        meta["_sl1_done"] = True
+                        from types import SimpleNamespace
+                        self._paper_sell(pool, meta, SimpleNamespace(
+                            kind="SL1_DERISK",
+                            sell_fraction=st.bot.sl1_sell_fraction,
+                            reason="sl1 loss-ladder pnl=%.2f%% <= %.1f%% "
+                                   "(bank %.0f%%, tail rides)" % (
+                                       _sl1_pnl, st.bot.sl1_pct,
+                                       100 * st.bot.sl1_sell_fraction)),
+                            now, st=st)
                         if pool not in st.pos_meta:
                             continue
                 vol_m5 = sum(float(r.get("volume_usd") or 0) for r in rows
