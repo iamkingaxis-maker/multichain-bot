@@ -1,3 +1,33 @@
+# Session Handoff — 2026-07-17 — RACES ARMED + INSTRUMENTS HONEST + LIVE RAILS HARDENED
+
+## STATE
+- **RH live: PAUSED** (RH_PAPER_MODE=true + RH_LIVE_PROBE_BOTS=__disabled__), wallet 0xa454…9c05 = **$40.71 flat** (only dead routeless rugs: GOATAI/Feather/GROKHOOD/$HPEPE). Live-probe lifetime wallet-truth: −$0.46 over 2.55d / 62 fills — FLAT, through a brutal tape (= relative outperformance per the market-context rule).
+- **SOL: PAPER** (wallet withdrawn 07-13). 40 evaluators incl 4 admission bots.
+- **RH paper lane: 35 racers** incl 3 slcut (SL1 loss-ladder A/B).
+
+## THE RACES (pre-registered; grade at n>=30 closes vs control)
+1. **RH SL1 loss-ladder** (rh_slcut_ageddeep/agedhold/demand vs zero-illusion parents; own exclusion group so racer+parent hold the SAME token = paired A/B). Thesis: RH leak = DOLLAR-CONVERSION, not selection — bots beat the tape's median EVERY day but bank wins in partials while losses ride full-size (HARD_STOP −$1,641 at −$5.18/leg vs +$1.15 avg win). SL1 = bank 0.75 @ −6% pre-TP1. Grade: net $/entry, avg loss-leg $, win-rate delta.
+2. **SOL stack-exempt admission** (admission_x_liq = liq>=34k volume arm; admission_x_liqdemand = +buy_pressure>=0.6 quality arm) vs the STARVED stack-gated pair (admission_gated_v1/hivol: 3/13 trades in 2.5d — the entry stack ate the validated edge). These are the SOL LIVE-SEAT candidates (AxiS: live bot must be HIGH-VOLUME). Grade: NG-rate, win-rate, $/entry, **buys/day**.
+3. **Tape-health live-gating** (surviving form of AxiS's paper-leads-live idea): retest at n>=30 4h-windows. Bot-P&L green-gating REFUTED (mean-reverts; INVERTED at 12h — arms the top). Data accrues automatically.
+
+## FIXED THIS SESSION (07-16/17)
+- **sol_bail churn** (a7073cf): enforced bail became 86% of closes at 5s holds in a sustained dump (buy→spread-red→bail→re-buy grinder, −$167/3.7h). Now TURN-ONLY + 90s min-hold. LESSON: enforcement changes the population the shadow grade measured.
+- **Live-buy hardening** (8c48d45): balance check (gas reserve) + concurrency cap (wallet-truth snapshot, fail-closed if stale >10min) — the live path had NEITHER.
+- **Fidelity honesty** (8c48d45+50b99b9): re-entry overwrite fixed (N re-buys into a dead token = N stakes lost) + SOL scrub rule ported (drop <10s positive phantom fills). Next refresh grades STRICTER — expected, not a regression.
+- **⭐ Slippage MEASURED** (50b99b9, scripts/rh_slippage_study.py): 160 on-chain fills — **median slip vs quote 0.000% both sides at $25; buys +0.4% mean (improvement)**. Paper's fill assumption VALID on RH at $25. Real friction = 4.8% failed-tx rate. Re-run on size-up.
+- Earlier this week: ledger auto-upload (chunked + shutdown flush), fidelity auto-refresh 30min, dust-sweep 5min, sell-canary transport-anchored, SL1 mechanism + racers.
+
+## OPEN
+1. **Wallet-bound sellability probe** (LAST audit finding): quote_sell blind to blacklist/wallet traps → fidelity = upper bound. Design: eth_call the real swap from=wallet — works for HELD tokens; unheld need state-override (node-dependent). Fresh-session build.
+2. **Live sizing policy** (AxiS at re-arm): daily stop ($25) == max position ($25) → stop fires only AFTER a max loss; $25 = 61% of wallet.
+3. **Regime detection** — the big open; tape-health gate is the candidate.
+4. RH live bar: >=20 tokens / >=5 days / drop-top-2 positive / fidelity-honest / tape-benchmarked + volume requirement.
+
+## NEXT SESSION FIRST MOVES
+freshness check → tape context → race n's (`/api/rh-paper?bot=rh_slcut_*&raw=1`; leaderboard for admission_x_*) → grades only if n>=30.
+
+---
+
 # Session Handoff — 2026-07-12 (evening) — DEEP/STABILITY FLEET + RH PROBE INFRA PROVEN
 
 ## STATE: SOL live 3 bots @ $22.5 (canary green, ~breakeven/-0.09 SOL day, churn+friction is the known drag). RH lane 23 racers PAPER 24/7. RH LIVE INFRA PROVEN (dust test passed) but probe OFF by AxiS decision ("stabilize + be green first").
