@@ -2191,6 +2191,7 @@ class WebDashboard:
         # ledger (GET public like other reads; POST behind Basic auth via the
         # app-wide middleware, same as every write endpoint).
         self.app.router.add_get("/api/rh-paper",              self._handle_api_rh_paper)
+        self.app.router.add_get("/api/regime",                self._handle_api_regime)
         self.app.router.add_post("/api/rh-paper/ingest",      self._handle_api_rh_paper_ingest)
         self.app.router.add_post("/api/rh-fidelity/ingest",   self._handle_api_rh_fidelity_ingest)
         # 2026-07-13: RH hot-wallet on-chain truth (native ETH + WETH, delta vs
@@ -5961,6 +5962,94 @@ class WebDashboard:
                 pass
         return os.path.join(os.environ.get("DATA_DIR", "/data"),
                             "bot_state", "rh_paper_trades.jsonl")
+
+    async def _handle_api_regime(self, request):
+        """GET /api/regime — THE REGIME ROUTER'S SENSOR (2026-07-17, AxiS:
+        'flip flop to sol or rh and flip flop to the correct paper bot each
+        time. i dont think we will ever have one true bot').
+
+        Trailing tape-health per chain, computed from data the dashboard
+        already holds (no new pipes): median per-token price drift between our
+        own buys inside the trailing window, plus breadth. WHY-NOT-GREEN mine
+        (07-17, 4 days x 4h windows): 67% of the RH fleet bleed came from
+        trading SICK windows (dip bots fire MORE when everything falls — the
+        volume concentrates exactly where it loses); route 'healthy windows x
+        green families' flips -$401 -> +$67 on the same data. Each call also
+        appends a snapshot (throttled 15min) to bot_state/regime_history.jsonl
+        — the accruing dataset that validates TRAILING-health gating at n>=30
+        windows before it ever touches the live seat."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        import statistics as _st
+        from collections import defaultdict as _dd
+        now = time.time()
+        out = {"ts": datetime.now(timezone.utc).isoformat(),
+               "window_h": 4.0, "chains": {}}
+
+        def _health(buys, price_key, tok_key, ts_key):
+            px = _dd(list)
+            for r in buys:
+                p = r.get(price_key)
+                if p:
+                    px[r.get(tok_key)].append((str(r.get(ts_key)), float(p)))
+            drift = []
+            for tok, v in px.items():
+                if len(v) < 2:
+                    continue
+                v.sort()
+                if v[0][1]:
+                    drift.append((v[-1][1] / v[0][1] - 1.0) * 100.0)
+            if len(drift) < 3:
+                return {"state": "UNKNOWN", "n_tokens": len(drift)}
+            med = _st.median(drift)
+            return {"state": "HEALTHY" if med > -3.0 else "SICK",
+                    "median_drift_pct": round(med, 2),
+                    "pct_down": round(100 * sum(1 for d in drift if d < 0)
+                                      / len(drift)),
+                    "n_tokens": len(drift)}
+
+        # RH: from the paper-lane ledger (buys carry price_eth)
+        try:
+            cut = (datetime.now(timezone.utc)
+                   - timedelta(hours=4)).isoformat()
+            rh_buys = []
+            with open(self._rh_paper_ledger_path(), encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        r = json.loads(line)
+                    except ValueError:
+                        continue
+                    if r.get("ev") == "buy" and str(r.get("ts", "")) >= cut:
+                        rh_buys.append(r)
+            out["chains"]["rh"] = _health(rh_buys, "price_eth", "token", "ts")
+        except Exception as e:
+            out["chains"]["rh"] = {"state": "UNKNOWN", "error": str(e)[:80]}
+        # SOL: from the trade store (buys carry entry_price)
+        try:
+            sol_buys = []
+            if self.trade_store is not None:
+                cut = (datetime.now(timezone.utc)
+                       - timedelta(hours=4)).isoformat()
+                for t in self.trade_store.load_trades():
+                    if (t.get("type") == "buy"
+                            and str(t.get("time", "")) >= cut):
+                        sol_buys.append(t)
+            out["chains"]["sol"] = _health(sol_buys, "entry_price",
+                                           "address", "time")
+        except Exception as e:
+            out["chains"]["sol"] = {"state": "UNKNOWN", "error": str(e)[:80]}
+
+        # persist a snapshot every >=15min — the router-validation dataset
+        try:
+            hist = os.path.join(os.path.dirname(self._rh_paper_ledger_path()),
+                                "regime_history.jsonl")
+            last = getattr(self, "_regime_hist_ts", 0.0)
+            if now - last >= 900:
+                self._regime_hist_ts = now
+                with open(hist, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(out, separators=(",", ":")) + "\n")
+        except Exception:
+            pass
+        return web.json_response(out, headers=cors)
 
     def _rh_fidelity_path(self) -> str:
         """bot_state/rh_fidelity.json — fidelity-corrected per-bot P&L map pushed
