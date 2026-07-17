@@ -6042,26 +6042,56 @@ class DipScanner:
             logger.debug(f"[DipScanner] young_tape_shadow err: {e}")
 
     def _stamp_sol_bail_shadow(self, position, price, now):
-        """SHADOW (no action, 2026-05-29): if SOL macro is down while this
-        position is pre-TP1 AND not green, record the P&L we WOULD have bailed
-        at — stamped once, on first fire. At close the sell record carries it so
-        we can measure save-vs-lose (bail P&L vs actual exit) on real paths
-        before enforcing a live SOL-bail exit. Winner-safe by the not-green gate.
-        Mirrors the entry gate's SOL thresholds (sol_h6<-0.3 / sol_h1<-0.7)."""
+        """SOL-bail stamp: if SOL macro TURNS down while this position is
+        pre-TP1 AND not green, record the P&L we would bail at. The enforce
+        gate (SOL_BAIL_MODE=enforce, PerBotPositionManager 0a2) acts on this
+        stamp, so its guards live HERE.
+
+        ⚠ CHURN FIX (2026-07-17). As originally written this stamped ANY red
+        pre-TP1 position while macro was down — and the +46pp/0-kill shadow
+        grade (n=7) came from a MIXED window where that was rare. In a
+        SUSTAINED macro dump the fleet kept buying dips and every entry showed
+        instant spread-red -> stamped+bailed at median 5s hold -> re-bought
+        the same signal: 98 buys on 10 tokens, 84 bails, 4% win rate, -$167
+        in 3.7h — a round-trip-friction grinder, not a de-risk. Two guards
+        restore the ORIGINAL graded thesis ('the macro TURN beat the exit'):
+          1. MIN-HOLD (SOL_BAIL_MIN_HOLD_S, default 90s): a seconds-old
+             position's red is entry spread, not information.
+          2. TURN-ONLY: capture macro on the FIRST evaluation as the entry
+             proxy; stamp only if macro was OK then and is down NOW. A
+             position ENTERED during a dump knew the macro at entry — bailing
+             it for that same macro is churn, and the entry-side macro gate
+             (sol_macro_*_block_threshold) is the right tool for that case.
+        Winner-safe by the not-green gate, as before."""
         try:
             sb = position.state_blob
             if sb is None or "sol_bail_shadow_pnl_pct" in sb:
                 return  # first-fire only
             if position.tp1_hit or position.entry_price <= 0 or price <= 0:
                 return
+            sf = getattr(self, "_cycle_sol_features", {}) or {}
+            sol_h6, sol_h1 = sf.get("sol_pc_h6"), sf.get("sol_pc_h1")
+
+            def _down(h6, h1):
+                return ((h6 is not None and h6 < -0.3) or
+                        (h1 is not None and h1 < -0.7))
+            # first evaluation = entry-macro proxy (one cycle after open)
+            if "sol_bail_entry_h6" not in sb:
+                sb["sol_bail_entry_h6"] = sol_h6
+                sb["sol_bail_entry_h1"] = sol_h1
+                return
+            # guard 1: min-hold — seconds-old red is spread, not signal
+            _min_hold = float(os.environ.get("SOL_BAIL_MIN_HOLD_S", "90"))
+            if (now - position.entry_time) < _min_hold:
+                return
+            # guard 2: TURN-only — entered-in-a-dump positions are the entry
+            # gate's problem, not the bail's
+            if _down(sb.get("sol_bail_entry_h6"), sb.get("sol_bail_entry_h1")):
+                return
             pnl_pct = (price / position.entry_price - 1.0) * 100.0
             if pnl_pct >= 1.0:
                 return  # green-ish → exempt (winner-safe)
-            sf = getattr(self, "_cycle_sol_features", {}) or {}
-            sol_h6, sol_h1 = sf.get("sol_pc_h6"), sf.get("sol_pc_h1")
-            macro_down = ((sol_h6 is not None and sol_h6 < -0.3) or
-                          (sol_h1 is not None and sol_h1 < -0.7))
-            if not macro_down:
+            if not _down(sol_h6, sol_h1):
                 return
             sb["sol_bail_shadow_pnl_pct"] = round(pnl_pct, 3)
             sb["sol_bail_shadow_secs"] = int(now - position.entry_time)

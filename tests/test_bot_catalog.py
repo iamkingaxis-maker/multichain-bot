@@ -87,7 +87,11 @@ def test_catalog_active_bot_count(catalog):
     # 2026-07-01 deliberate update: +badday_allday (loose all-day volume bot)
     # +badday_flush_wideexit_ab (wide-stop/let-run exit A/B) landed without
     # bumping this count -> observed 42 with the fixture's exclusions applied.
-    assert len(catalog.configs) == 42, (
+    # 2026-07-17 deliberate update: +4 admission bots — admission_gated_v1/
+    # admission_gated_hivol (07-14 stack-gated arms) + admission_x_liq/
+    # admission_x_liqdemand (07-17 stack-EXEMPT arms; the volume unlock:
+    # the gated pair starved at 3/13 trades in 2.5d behind the entry stack).
+    assert len(catalog.configs) == 46, (
         f"Expected 42 active bots, got {len(catalog.configs)}: "
         f"{[c.bot_id for c in catalog.configs]}"
     )

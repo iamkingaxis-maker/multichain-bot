@@ -1,0 +1,63 @@
+{
+  "bot_id": "admission_x_liqdemand",
+  "display_name": "ADMISSION-EXEMPT LIQ+DEMAND (2026-07-17). QUALITY arm of the stack-exempt admission A/B (see admission_x_liq for the volume story). Same stack-exempt wiring; gate = the FULL held-out-validated combo: liq>=34k AND buy_pressure_60s>=0.6 (train n=2159: NG 59->45 win 21->29; held-out n=80: NG 42->17 win 24->50 — the strongest validated entry edge SOL has). Fires less than the liq-only arm but each entry is demand-dominant. Entry-exit coherence: sol_macro block matches the turn-fixed sol_bail. A/B question: does demand-quality per entry beat liq-only volume in $/day? Grade n>=30 closes vs admission_x_liq + stack-gated v1/hivol controls. PAPER $20.",
+  "enabled": true,
+  "paper_capital_usd": 2000.0,
+  "base_position_usd": 20.0,
+  "max_concurrent_positions": 3,
+  "alpha_multiplier": 1.0,
+  "macro_up_multiplier": 1.0,
+  "premium_runner_multiplier": 1.0,
+  "marginal_multiplier": 1.0,
+  "sol_macro_h6_block_threshold": -0.3,
+  "sol_macro_h1_block_threshold": -0.7,
+  "btc_macro_h1_block_threshold": null,
+  "pc_h24_max": null,
+  "pc_h24_min": null,
+  "pc_h1_max": null,
+  "age_h_min": null,
+  "age_h_max": null,
+  "mcap_min": null,
+  "mcap_max": null,
+  "vol_h1_min": 1000.0,
+  "filters_enforced": [
+    "filter_btc_overheat",
+    "filter_consec_red",
+    "filter_huge_wick"
+  ],
+  "filters_disabled": [],
+  "triggers_allowed": null,
+  "triggers_disabled": [],
+  "min_triggers_to_fire": 1,
+  "require_alpha_trigger": false,
+  "mcap_psych_pc_h24_max": 80.0,
+  "entry_stack_exempt": true,
+  "regime_dial_exempt": true,
+  "entry_gate": [
+    [
+      "liquidity_usd",
+      ">=",
+      34000
+    ],
+    [
+      "buy_pressure_60s",
+      ">=",
+      0.6
+    ]
+  ],
+  "entry_gate_require_data": true,
+  "tp1_pct": 5.0,
+  "tp1_sell_fraction": 0.75,
+  "tp2_pct": 10.0,
+  "tp2_sell_fraction": 0.25,
+  "trail_pp": 3.0,
+  "hard_stop_pct": -12.0,
+  "pre_stop_bail_pnl_pct": -3.0,
+  "pre_stop_bail_vol_m5_max": 500.0,
+  "slow_bleed_minutes": 60,
+  "slow_bleed_pnl_threshold": -8.0,
+  "trading_hour_utc_start": 0,
+  "trading_hour_utc_end": 24,
+  "loss_streak_pause": true,
+  "exclusion_pool": "admission_x_liqdemand"
+}
