@@ -101,7 +101,12 @@ logger = logging.getLogger(__name__)
 
 # ── containment defaults (task-specified) ────────────────────────────────────
 DEFAULT_MAX_POSITION_USD = 25.0
-DEFAULT_DAILY_STOP_USD = 25.0
+# 1.5x the position cap (2026-07-17 safety envelope; was == position, so the
+# stop could only ever engage AFTER a max-size loss and then blocked the whole
+# day on one normal stop-out. At 1.5x: one max loss (-1.0x) leaves room to
+# keep trading; a second bad one halts the day. The stop becomes a real
+# circuit, not a post-mortem.)
+DEFAULT_DAILY_STOP_USD = 37.5
 DEFAULT_SLIPPAGE_BPS = 300
 SLIPPAGE_BPS_CEILING = 1000          # >10% slippage bound is never sane here
 DEFAULT_MAX_GAS_COST_ETH = 0.0005    # runaway bound; measured gas ~1.5e-6 ETH
@@ -513,12 +518,30 @@ class RhDailyPnl:
                                  "realized_usd": 0.0, "n": 0}
         st["realized_usd"] = float(st.get("realized_usd") or 0.0) + float(pnl_usd)
         st["n"] = int(st.get("n") or 0) + 1
+        # LOSS-STREAK tracking (2026-07-17 live safety envelope): consecutive
+        # losing closes + when the last one landed. N losses in a row = the
+        # edge is NOT present in the current tape (coinflip conditions) — the
+        # streak breaker in buys_halted() stands live buys down for a cooldown
+        # instead of donating a 4th/5th position to a tape that's refusing us.
+        if float(pnl_usd) < 0:
+            st["streak"] = int(st.get("streak") or 0) + 1
+            st["last_loss_ts"] = time.time() if now is None else now
+        else:
+            st["streak"] = 0
         self._mem = dict(st)
         try:
             _atomic_write_json(self.path, st)
         except Exception as e:      # in-memory copy still counts (fallback)
             logger.warning("[rh-live] daily-pnl persist failed: %s", e)
         return st
+
+    def streak_state(self, now: Optional[float] = None) -> tuple:
+        """(consecutive_losses, last_loss_ts) for the streak breaker; (0, 0)
+        on fresh/no state (a fresh day genuinely has no streak)."""
+        st = self._load(now)
+        if not st:
+            return 0, 0.0
+        return int(st.get("streak") or 0), float(st.get("last_loss_ts") or 0)
 
     def today_usd(self, now: Optional[float] = None) -> Optional[float]:
         """Realized USD today; 0.0 when no state has ever existed (a fresh
@@ -717,6 +740,19 @@ class RhLiveExecutor:
         # wipes that caused past incidents.
         self.max_concurrent = int(_env_float("RH_LIVE_MAX_CONCURRENT", 1))
         self.gas_reserve_eth = _env_float("RH_LIVE_GAS_RESERVE_ETH", 0.001)
+        # 2026-07-17 live SAFETY ENVELOPE (AxiS goal: "safe live mode without
+        # worry of severe losses and coinflip trades"):
+        # - max_position_frac BOUNDS THE WORST CASE structurally: a rug is
+        #   -100% of the position, so position <= frac x wallet means no
+        #   single trade can ever cost more than frac of the bankroll —
+        #   regardless of which bot holds the seat or how wrong it is.
+        #   Effective cap = min(RH_LIVE_MAX_POSITION_USD, frac x wallet).
+        # - loss_streak_n: the coinflip damage limiter (see buys_halted).
+        # Defaults bind at the NEXT arm (live is paused); AxiS can override
+        # the envs at re-arm if he explicitly wants more exposure.
+        self.max_position_frac = _env_float("RH_LIVE_MAX_POSITION_FRAC", 0.35)
+        self.loss_streak_n = int(_env_float("RH_LIVE_LOSS_STREAK_N", 3))
+        self.streak_cooldown_s = _env_float("RH_LIVE_STREAK_COOLDOWN_S", 3600)
         self.daily = daily or RhDailyPnl()
         self._ex = executor
 
@@ -759,6 +795,18 @@ class RhLiveExecutor:
             return "daily_pnl_unreadable"
         if pnl <= -self.daily_stop_usd:
             return f"daily_loss_stop ({pnl:+.2f} <= -{self.daily_stop_usd:.2f})"
+        # LOSS-STREAK BREAKER (2026-07-17 live safety envelope): N consecutive
+        # losing closes = the edge is not present in the current tape — stand
+        # down for the cooldown rather than keep flipping coins. Resets on any
+        # winning close or at UTC day roll; RH_LIVE_LOSS_STREAK_N=0 disables.
+        if self.loss_streak_n > 0:
+            streak, last_loss = self.daily.streak_state(now)
+            tnow = time.time() if now is None else now
+            if (streak >= self.loss_streak_n
+                    and (tnow - last_loss) < self.streak_cooldown_s):
+                left = int(self.streak_cooldown_s - (tnow - last_loss))
+                return (f"loss_streak_breaker ({streak} consecutive losses; "
+                        f"cooldown {left}s left)")
         cb = rh_canary_entry_block(now)
         if cb:
             return cb
@@ -801,6 +849,20 @@ class RhLiveExecutor:
             raise RhContainmentError(
                 f"balance check: buy needs {eth_amount:.6f} ETH but wallet has "
                 f"{bal:.6f} - {self.gas_reserve_eth:.4f} gas reserve")
+        # FRACTIONAL POSITION CAP (2026-07-17 safety envelope): the worst case
+        # on a memecoin chain is a rug = -100% of the position, so the only
+        # STRUCTURAL bound on "severe loss" is position size as a fraction of
+        # the bankroll. frac=0.35 -> no single trade can cost more than 35%
+        # of the wallet, no matter what. 0 disables (explicit opt-out).
+        if self.max_position_frac > 0:
+            wallet_usd = bal * float(eth_price_usd)
+            frac_cap = self.max_position_frac * wallet_usd
+            if usd_size > frac_cap:
+                raise RhContainmentError(
+                    f"fractional cap: ${usd_size:.2f} > "
+                    f"{self.max_position_frac:.0%} of ${wallet_usd:.2f} wallet "
+                    f"(= ${frac_cap:.2f}); severe-loss bound "
+                    f"(RH_LIVE_MAX_POSITION_FRAC)")
         # CONCURRENCY CAP (2026-07-17): count OPEN live positions from the
         # WALLET-TRUTH snapshot (sellable non-dust bags), not lane state — a
         # state wipe must not let a re-armed bot stack positions. The snapshot

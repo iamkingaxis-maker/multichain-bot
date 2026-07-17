@@ -240,7 +240,13 @@ def test_cap_defaults():
     with _env():
         live = RhLiveExecutor(executor=_mock_ex())
         assert live.max_position_usd == DEFAULT_MAX_POSITION_USD == 25.0
-        assert live.daily_stop_usd == DEFAULT_DAILY_STOP_USD == 25.0
+        # 2026-07-17 safety envelope: the stop must EXCEED the position cap
+        # (was ==, so it could only engage after a max-size loss) and the
+        # fractional cap + streak breaker must be armed by default.
+        assert live.daily_stop_usd == DEFAULT_DAILY_STOP_USD == 37.5
+        assert live.daily_stop_usd >= 1.2 * live.max_position_usd
+        assert live.max_position_frac == 0.35
+        assert live.loss_streak_n == 3 and live.streak_cooldown_s == 3600
         assert 0 < live.default_slippage_bps <= SLIPPAGE_BPS_CEILING
         assert live.max_gas_cost_eth > 0, "gas-cost cap must be armed"
 

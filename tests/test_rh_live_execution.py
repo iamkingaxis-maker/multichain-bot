@@ -474,6 +474,66 @@ class TestContainment:
         assert live.max_position_usd == 50.0
         live.live_buy(TOKEN, 40.0, 4000.0)                # allowed under 50
 
+    # ── 2026-07-17 SAFETY ENVELOPE (goal: safe live, no severe losses, ──────
+    # ── no coinflip bleed): fractional cap + loss-streak breaker ────────────
+    def test_fractional_cap_bounds_severe_loss(self, monkeypatch):
+        # wallet = 0.01 ETH x $4000 = $40; frac 0.35 -> cap $14: a $25 buy
+        # (62% of bankroll — the exact config that worried the audit) refuses
+        _open_gates(monkeypatch)
+        ex = _mock_executor()
+        ex.eth_balance.return_value = 0.01
+        live = RhLiveExecutor(executor=ex)
+        with pytest.raises(RhContainmentError, match="fractional cap"):
+            live.live_buy(TOKEN, 25.0, 4000.0)
+        live.live_buy(TOKEN, 10.0, 4000.0)             # 25% of wallet: fine
+
+    def test_fractional_cap_opt_out(self, monkeypatch):
+        _open_gates(monkeypatch)
+        monkeypatch.setenv("RH_LIVE_MAX_POSITION_FRAC", "0")
+        ex = _mock_executor()
+        ex.eth_balance.return_value = 0.01             # $40 wallet
+        live = RhLiveExecutor(executor=ex)
+        live.live_buy(TOKEN, 25.0, 4000.0)             # explicit opt-out: passes
+
+    def test_loss_streak_breaker_halts_then_cooldown_clears(self, monkeypatch):
+        _open_gates(monkeypatch)
+        live = RhLiveExecutor(executor=_mock_executor())
+        t0 = time.time()
+        for i in range(3):
+            live.record_realized(-4.0, now=t0 + i)
+        halt = live.buys_halted(now=t0 + 10)
+        assert halt and "loss_streak_breaker" in halt
+        with pytest.raises(RhContainmentError, match="loss_streak"):
+            live.live_buy(TOKEN, 10.0, 4000.0)
+        # cooldown (default 3600s) expires -> buys allowed again
+        assert live.buys_halted(now=t0 + 3700) is None
+
+    def test_loss_streak_resets_on_win(self, monkeypatch):
+        _open_gates(monkeypatch)
+        live = RhLiveExecutor(executor=_mock_executor())
+        t0 = time.time()
+        live.record_realized(-4.0, now=t0)
+        live.record_realized(-4.0, now=t0 + 1)
+        live.record_realized(+2.0, now=t0 + 2)         # win resets the streak
+        live.record_realized(-4.0, now=t0 + 3)         # streak=1, not 3
+        assert live.buys_halted(now=t0 + 4) is None
+
+    def test_loss_streak_disabled_by_env(self, monkeypatch):
+        _open_gates(monkeypatch)
+        monkeypatch.setenv("RH_LIVE_LOSS_STREAK_N", "0")
+        live = RhLiveExecutor(executor=_mock_executor())
+        t0 = time.time()
+        for i in range(5):
+            live.record_realized(-4.0, now=t0 + i)
+        halt = live.buys_halted(now=t0 + 10)
+        assert not (halt and "loss_streak" in halt)
+
+    def test_daily_stop_default_exceeds_position_cap(self):
+        # the stop must be a circuit, not a post-mortem: default stop 1.5x the
+        # position cap (was ==, so it could only fire AFTER a max-size loss
+        # and then killed the whole day on one normal stop-out)
+        assert rl.DEFAULT_DAILY_STOP_USD >= 1.2 * rl.DEFAULT_MAX_POSITION_USD
+
     # ── 2026-07-17 live-buy hardening (07-15 audit): balance + concurrency ──
     def test_balance_check_refuses_overspend(self, monkeypatch):
         # buy must leave the gas reserve intact — a wallet-draining buy is
