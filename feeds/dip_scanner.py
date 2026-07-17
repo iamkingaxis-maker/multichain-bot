@@ -6072,9 +6072,9 @@ class DipScanner:
             sf = getattr(self, "_cycle_sol_features", {}) or {}
             sol_h6, sol_h1 = sf.get("sol_pc_h6"), sf.get("sol_pc_h1")
 
-            def _down(h6, h1):
-                return ((h6 is not None and h6 < -0.3) or
-                        (h1 is not None and h1 < -0.7))
+            def _down(h6, h1, margin=0.0):
+                return ((h6 is not None and h6 < -0.3 - margin) or
+                        (h1 is not None and h1 < -0.7 - margin))
             # first evaluation = entry-macro proxy (one cycle after open)
             if "sol_bail_entry_h6" not in sb:
                 sb["sol_bail_entry_h6"] = sol_h6
@@ -6091,7 +6091,16 @@ class DipScanner:
             pnl_pct = (price / position.entry_price - 1.0) * 100.0
             if pnl_pct >= 1.0:
                 return  # green-ish → exempt (winner-safe)
-            if not _down(sol_h6, sol_h1):
+            # guard 3: HYSTERESIS (2026-07-17 flapping fix). The entry macro
+            # gate and this bail shared the SAME -0.3/-0.7 line, so when SOL
+            # hovered near it the fleet bought on the up-flicker and batch-
+            # bailed the whole book on the down-flicker minutes later
+            # (admission_x: 5 positions bailed at 00:55:44, 3 more at
+            # 01:25:55 — every close a synchronized SOL_MACRO_BAIL). A TURN
+            # must be a real move THROUGH a deeper line, not a wobble across
+            # the entry threshold: bail only below entry-threshold - HYST.
+            _hyst = float(os.environ.get("SOL_BAIL_HYST", "0.2"))
+            if not _down(sol_h6, sol_h1, margin=_hyst):
                 return
             sb["sol_bail_shadow_pnl_pct"] = round(pnl_pct, 3)
             sb["sol_bail_shadow_secs"] = int(now - position.entry_time)

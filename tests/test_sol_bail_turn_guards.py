@@ -73,6 +73,22 @@ def test_winner_safe_green_never_stamped():
     assert "sol_bail_shadow_pnl_pct" not in pos.state_blob
 
 
+def test_hysteresis_blocks_threshold_flicker():
+    # the admission_x incident class: macro OK at entry (h6 +0.1), then
+    # flickers to -0.4 — BELOW the -0.3 entry line but NOT below the
+    # -0.5 hysteresis line. A wobble across the shared threshold must NOT
+    # batch-bail the book; only a real move THROUGH -0.5 (h6) may.
+    pos = _Pos(entry_time=0.0)
+    ok = _scanner(sol_h6=0.1, sol_h1=0.0)
+    _stamp(ok, pos, price=1.0, now=30.0)             # entry proxy = OK
+    flicker = _scanner(sol_h6=-0.4, sol_h1=-0.75)    # past entry line only
+    _stamp(flicker, pos, price=0.95, now=200.0)
+    assert "sol_bail_shadow_pnl_pct" not in pos.state_blob
+    real_turn = _scanner(sol_h6=-0.6, sol_h1=-1.2)   # through the hyst line
+    _stamp(real_turn, pos, price=0.95, now=260.0)
+    assert pos.state_blob.get("sol_bail_shadow_pnl_pct") is not None
+
+
 def test_stamp_is_once_only():
     pos = _Pos(entry_time=0.0)
     ok = _scanner(sol_h6=0.5, sol_h1=0.1)
