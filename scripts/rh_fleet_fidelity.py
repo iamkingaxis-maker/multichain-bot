@@ -132,6 +132,16 @@ def main():
                 if (r["pnl_usd"] > 0 and bts is not None and sts is not None
                         and (sts - bts) < 10.0):
                     continue
+                # WIDENED (2026-07-17, CASHBULL class): a +2,531% "win" at a
+                # 39s hold sailed past the 10s scrub. No $25 position honestly
+                # 25x's in minutes — a >+100% win inside 5min is a stale-quote
+                # phantom (guard re-seed fixed the SOURCE; this is grade-time
+                # defense-in-depth). Fast LOSSES stay — dumps are real.
+                _pct = r.get("pnl_pct")
+                if (r["pnl_usd"] > 0 and bts is not None and sts is not None
+                        and (sts - bts) < 300.0
+                        and isinstance(_pct, (int, float)) and _pct > 100.0):
+                    continue
                 pos[k]["sp"].append(r["pnl_usd"])
         raw = fid = 0.0
         for k, v in pos.items():
