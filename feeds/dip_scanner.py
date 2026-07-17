@@ -3754,9 +3754,17 @@ class DipScanner:
             except Exception:
                 pass
             _epg_key = self._price_key(decision.address, decision.pair_address, decision.token)
-            self._exit_price_guard.setdefault(
-                _epg_key, {"last_good": eff_entry, "pending": None},
-            )
+            # RE-SEED, not setdefault (2026-07-17 CASHBULL +2,531% phantom).
+            # setdefault kept WARM guard state from before this position — for
+            # CASHBULL that was a pre-crash last_good 26x above our fill, so at
+            # exit the guard rejected the REAL price as a "suspect drop"
+            # (drop_deferred_temporal) and served the stale price -> TP1+TP2
+            # booked +$503 phantom at 39s hold (past the 10s scrub). Our fill
+            # IS the newest real print by definition — always re-anchor
+            # last_good to it at open (also correct for sibling holders: a
+            # fresh real fill is the best current-price evidence for them too).
+            self._exit_price_guard[_epg_key] = {
+                "last_good": eff_entry, "pending": None}
             self._exit_price_guard_ts[_epg_key] = time.time()
         else:
             # P2 (2026-05-25): fill at a realistic slippage+fee-adjusted price, not
@@ -4030,14 +4038,17 @@ class DipScanner:
                     if _flk1h >= 3:
                         _pos.state_blob["defer_scale_in"] = True
                 # Seed the glitch guard with the real entry mid so the FIRST exit
-                # tick already has a known-good baseline (a glitch on the very first
-                # post-buy read would otherwise have nothing to compare against).
-                # setdefault: don't clobber a fresher last_good from an earlier buyer.
-                # Keyed by ADDRESS (same-symbol ≠ same-token; see _price_key).
+                # tick already has a known-good baseline. RE-SEED unconditionally
+                # (2026-07-17 CASHBULL phantom): the old "setdefault: don't clobber
+                # a fresher last_good from an earlier buyer" rationale was BACKWARDS
+                # — pre-existing guard state can be STALER than the new fill (pre-
+                # crash watch/prior-position state 26x above reality), and the fill
+                # is by definition the newest REAL print. Anchoring to the fill is
+                # correct for sibling holders too. Keyed by ADDRESS (same-symbol ≠
+                # same-token; see _price_key).
                 _epg_key2 = self._price_key(decision.address, decision.pair_address, decision.token)
-                self._exit_price_guard.setdefault(
-                    _epg_key2, {"last_good": decision.entry_price, "pending": None},
-                )
+                self._exit_price_guard[_epg_key2] = {
+                    "last_good": decision.entry_price, "pending": None}
                 self._exit_price_guard_ts[_epg_key2] = time.time()
             except ValueError as e:
                 # max_concurrent or duplicate token; refund capital
