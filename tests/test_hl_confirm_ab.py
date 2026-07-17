@@ -1,6 +1,23 @@
-# tests/test_hl_confirm_ab.py — HL-confirm A/B jersey integrity (2026-07-05)
-import json, pathlib
+# tests/test_hl_confirm_ab.py — RETIREMENT PIN (2026-07-17)
+# Originally the HL-confirm A/B jersey-integrity tests (2026-07-05). The
+# flush/knife family — including both sides of that A/B — was RETIRED by AxiS
+# ("yes retire") after the 3.4-day family x regime mine: -$2,217 across BOTH
+# regimes on 947 entries (~80% of the SOL bleed, half the fleet's volume, no
+# green exception among the 10 measured bleeders). Configs archived as
+# .json.off; these tests now pin the retirement so it can't silently undo.
+# (The surviving liq-floor semantics they also covered are pinned on the
+# still-active young_absorb probe twins.)
+import json
+import pathlib
+
 from core.bot_config import BotConfig
+
+RETIRED = [
+    "badday_flush", "badday_flush_hlconfirm_ab", "badday_flush_nf15",
+    "badday_flush_rsi_ab", "badday_flush_peel_ab", "badday_flush_runner_ab",
+    "badday_flush_wickride_ab", "badday_allday", "badday_pump_dip_ab",
+    "badday_young_pump_dip_ab",
+]
 
 
 def _cfg(name):
@@ -8,27 +25,14 @@ def _cfg(name):
         pathlib.Path(f"config/bots/{name}.json").read_text()))
 
 
-def test_clone_matches_flush_except_hl():
-    h, f = _cfg("badday_flush_hlconfirm_ab"), _cfg("badday_flush")
-    assert h.enabled is True and not getattr(h, "live_probe", None)
-    assert h.hl_confirm_entry is True and f.hl_confirm_entry is False
-    # A/B integrity: identical entry gates + exits; own exclusion pool
-    assert [tuple(x) for x in h.entry_gate] == [tuple(x) for x in f.entry_gate]
-    assert (h.tp1_pct, h.tp2_pct, h.hard_stop_pct) == (f.tp1_pct, f.tp2_pct, f.hard_stop_pct)
-    assert h.exclusion_pool == "badday_flush_hlconfirm_ab"
-    assert h.entry_gate_require_data == f.entry_gate_require_data
+def test_flush_knife_family_retired():
+    for name in RETIRED:
+        live = pathlib.Path(f"config/bots/{name}.json")
+        archived = pathlib.Path(f"config/bots/{name}.json.off")
+        assert not live.exists(), f"{name} resurrected — retirement violated"
+        assert archived.exists(), f"{name} archive missing"
 
 
-def test_default_off_everywhere_else():
-    for name in ("badday_flush", "badday_young_absorb", "badday_allday"):
-        assert _cfg(name).hl_confirm_entry is False
-
-
-def test_liq_floor_enforced_on_probe_twins_only():
-    # 2026-07-06: thin books priced ~2.45% RT on the first live round trip —
-    # the probe + its paper twin (parity) refuse sub-floor books; family A/Bs
-    # stay on the fleet-wide shadow mode.
+def test_liq_floor_still_enforced_on_probe_twins():
     assert _cfg("badday_young_absorb").liq_exit_floor_enforce is True
     assert _cfg("badday_young_absorb_live").liq_exit_floor_enforce is True
-    for name in ("badday_flush", "badday_flush_nf15", "badday_allday"):
-        assert _cfg(name).liq_exit_floor_enforce is False
