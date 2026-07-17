@@ -6053,9 +6053,16 @@ class WebDashboard:
         # in every state until a family earns green out-of-sample — the paper
         # fleet keeps racing to find it (absorb +$92 in SICK windows, n=18,
         # is the accruing candidate).
+        # Ordered by AxiS's live-seat metric: PER-BOT buys/day x healthy-window
+        # edge ("i dont care about overall fleet volume. i care about individual
+        # bot volume"). rh_slcut_agedhold leads: the SL1 arm (replay n=64k:
+        # +0.44-0.66pp/trade mean, loss tail p05 -21.6 -> -15.4) at 66 buys/day
+        # — 2.5x its parent's rate. strength_trail/barbell_capped keep seats on
+        # edge but fail the per-bot volume bar alone (~9/day) — pairable, not
+        # primary. Parents stay racing as clean A/B controls, never modified.
         ROUTE_MAP = {
-            "rh": {"HEALTHY": ["rh_strength_trail", "rh_deep_barbell_capped",
-                               "rh_aged_hold", "rh_f_reload_mid"]},
+            "rh": {"HEALTHY": ["rh_slcut_agedhold", "rh_strength_trail",
+                               "rh_deep_barbell_capped", "rh_f_reload_mid"]},
             "sol": {},
         }
         route = {}
