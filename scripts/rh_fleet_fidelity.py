@@ -105,6 +105,14 @@ def main():
         # lost, not one.
         pos = defaultdict(lambda: {"buy": None, "n_buys": 0, "usd": 0.0,
                                    "sp": []})
+
+        def _ts(row):
+            try:
+                from datetime import datetime
+                return datetime.fromisoformat(
+                    str(row.get("ts")).replace("Z", "+00:00")).timestamp()
+            except Exception:
+                return None
         for r in rows:
             k = r.get("pool")
             if r.get("ev") == "buy":
@@ -112,6 +120,18 @@ def main():
                 pos[k]["n_buys"] += 1
                 pos[k]["usd"] += abs(r.get("usd") or ENTRY_USD)
             elif r.get("ev") == "sell" and isinstance(r.get("pnl_usd"), (int, float)):
+                # SOL SCRUB RULE ported (2026-07-17, audit finding #4 /
+                # reference_spike_illusion_rebaseline_2026_07_01): a POSITIVE
+                # sell within 10s of the buy is a stale-price phantom fill
+                # (the spike-illusion class), not an executable win — SOL's
+                # live=paper reconciliation proved these never fill at the
+                # booked price. Drop the WIN legs only; fast losses are real
+                # (you can always sell into a dump, just not into a phantom
+                # spike).
+                bts, sts = _ts(pos[k]["buy"] or {}), _ts(r)
+                if (r["pnl_usd"] > 0 and bts is not None and sts is not None
+                        and (sts - bts) < 10.0):
+                    continue
                 pos[k]["sp"].append(r["pnl_usd"])
         raw = fid = 0.0
         for k, v in pos.items():
