@@ -6046,10 +6046,17 @@ class WebDashboard:
         # snapshot records the decision, so router calls are GRADEABLE
         # against the windows that followed them — that grading (trailing,
         # n>=30) is the bar before any decision touches the live seat.
+        # SOL mapping EMPTIED 2026-07-17 after the 3.4-day family x regime
+        # mine: NO SOL family was green in healthy windows (flush/knife
+        # -$1,465H/-$752S on 947 entries = ~80% of the bleed, red BOTH
+        # regimes; admission -$142H; young red both). SOL routes STAND_DOWN
+        # in every state until a family earns green out-of-sample — the paper
+        # fleet keeps racing to find it (absorb +$92 in SICK windows, n=18,
+        # is the accruing candidate).
         ROUTE_MAP = {
             "rh": {"HEALTHY": ["rh_strength_trail", "rh_deep_barbell_capped",
                                "rh_aged_hold", "rh_f_reload_mid"]},
-            "sol": {"HEALTHY": ["admission_x_liqdemand", "admission_x_liq"]},
+            "sol": {},
         }
         route = {}
         for chain, h in out["chains"].items():
