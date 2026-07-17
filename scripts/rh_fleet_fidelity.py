@@ -97,11 +97,20 @@ def main():
     print(f"{'bot':26} {'raw_paper$':>11} {'fidelity$':>11} {'gap$':>9}  {'flip?':>6}")
     results = []
     for b, rows in per_bot.items():
-        pos = defaultdict(lambda: {"buy": None, "sp": []})
+        # RE-ENTRY FIX (2026-07-17, 07-15 audit finding): this keyed by pool
+        # and OVERWROTE the buy on every re-entry, so a dead token was booked
+        # as ONE -$25 no matter how many times the bot re-bought it — which
+        # flattered exactly the re-entry-heavy bots. Track the buy COUNT and
+        # TOTAL $ deployed per pool: N re-buys into a dead token = N stakes
+        # lost, not one.
+        pos = defaultdict(lambda: {"buy": None, "n_buys": 0, "usd": 0.0,
+                                   "sp": []})
         for r in rows:
             k = r.get("pool")
             if r.get("ev") == "buy":
                 pos[k]["buy"] = r
+                pos[k]["n_buys"] += 1
+                pos[k]["usd"] += abs(r.get("usd") or ENTRY_USD)
             elif r.get("ev") == "sell" and isinstance(r.get("pnl_usd"), (int, float)):
                 pos[k]["sp"].append(r["pnl_usd"])
         raw = fid = 0.0
@@ -111,9 +120,9 @@ def main():
             paper_pnl = sum(v["sp"])
             raw += paper_pnl
             tok = v["buy"].get("token")
-            usd = v["buy"].get("usd", ENTRY_USD)
-            # fidelity: if the token is dead now, the paper sell was an illusion
-            fid += (-abs(usd) if tok in dead_tokens else paper_pnl)
+            # fidelity: dead token -> EVERY stake deployed into it was an
+            # illusion-booked loss, not just the last one
+            fid += (-v["usd"] if tok in dead_tokens else paper_pnl)
         flip = "FLIP" if (raw > 0 and fid <= 0) else ""
         results.append((b, raw, fid, fid - raw, flip))
     for b, raw, fid, gap, flip in sorted(results, key=lambda x: x[1], reverse=True):

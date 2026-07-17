@@ -708,6 +708,15 @@ class RhLiveExecutor:
                                                    DEFAULT_SLIPPAGE_BPS))
         self.max_gas_cost_eth = _env_float("RH_LIVE_MAX_GAS_COST_ETH",
                                            DEFAULT_MAX_GAS_COST_ETH)
+        # 2026-07-17 live-side hardening (07-15 audit findings): the paper
+        # lane's max_concurrent cap does NOT protect the live path — this
+        # executor had NO concurrency cap and NO balance check, so a lane bug
+        # (or a state wipe re-arming a bot) could stack live positions or spend
+        # the wallet to zero. Both guards are ON-CHAIN-TRUTH based (wallet
+        # enumeration, not lane state) so they survive exactly the ephemeral-FS
+        # wipes that caused past incidents.
+        self.max_concurrent = int(_env_float("RH_LIVE_MAX_CONCURRENT", 1))
+        self.gas_reserve_eth = _env_float("RH_LIVE_GAS_RESERVE_ETH", 0.001)
         self.daily = daily or RhDailyPnl()
         self._ex = executor
 
@@ -782,10 +791,67 @@ class RhLiveExecutor:
             raise RhContainmentError(f"live buy refused: {halt}")
         eth_amount = float(usd_size) / float(eth_price_usd)
         ex = self._executor()
+        # BALANCE CHECK (2026-07-17): the buy must leave the gas reserve
+        # intact. Without this, a lane bug could spend the wallet to zero and
+        # strand every open position unsellable (no gas). eth_balance is
+        # FAIL-CLOSED (raises on read error -> no buy on unknown balance).
+        wallet = ex.wallet_address
+        bal = float(ex.eth_balance(wallet))
+        if eth_amount > bal - self.gas_reserve_eth:
+            raise RhContainmentError(
+                f"balance check: buy needs {eth_amount:.6f} ETH but wallet has "
+                f"{bal:.6f} - {self.gas_reserve_eth:.4f} gas reserve")
+        # CONCURRENCY CAP (2026-07-17): count OPEN live positions from the
+        # WALLET-TRUTH snapshot (sellable non-dust bags), not lane state — a
+        # state wipe must not let a re-armed bot stack positions. The snapshot
+        # is the lane's 5-min keyless refresh (zero buy-path latency; an
+        # in-path Blockscout+quotes enumeration would cost 1.5-2.5s and bust
+        # the <=2s latency-parity budget). Missing/stale snapshot = unknown
+        # risk state = FAIL CLOSED (RhDailyPnl convention) — wallet-truth
+        # running is a go-live prerequisite anyway. A same-window double-buy
+        # (snapshot lag) is caught by the balance check above at current
+        # wallet scale; revisit the bump bookkeeping if positions ever get
+        # small relative to the wallet.
+        if self.max_concurrent > 0:
+            n_open = self._open_position_count_from_snapshot()
+            if n_open is None:
+                raise RhContainmentError(
+                    "concurrency check: wallet-truth snapshot missing/stale "
+                    "(>10min) — unknown open-position count, refusing buy "
+                    "(is the lane's wallet-truth refresher running?)")
+            if n_open >= self.max_concurrent:
+                raise RhContainmentError(
+                    f"concurrency cap: wallet holds {n_open} open "
+                    f"position(s) >= RH_LIVE_MAX_CONCURRENT "
+                    f"{self.max_concurrent}")
         try:
             return ex.quote_and_swap_buy(token_addr, eth_amount, bps)
         except RhSwapError as e:
             raise RhSwapError(explain_swap_error(ex, e)) from e
+
+    def _open_position_count_from_snapshot(self) -> Optional[int]:
+        """Open live positions per the lane's wallet-truth snapshot: sellable
+        bags worth >= $2 (dust and dead/routeless rugs are $0/valueless there
+        and don't count). None = snapshot missing or older than 10 min —
+        caller must FAIL CLOSED on unknown risk state. Read-only, no RPC."""
+        try:
+            blob = _read_json(_state_path(WALLET_TRUTH_BASENAME)) or {}
+            ts = blob.get("ts")
+            if not ts:
+                return None
+            dt = datetime.fromisoformat(str(ts))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if (datetime.now(timezone.utc) - dt).total_seconds() > 600:
+                return None
+            pos = blob.get("positions")
+            if not isinstance(pos, list):
+                return None
+            return sum(1 for p in pos
+                       if isinstance(p, dict)
+                       and (p.get("value_usd") or 0) >= 2.0)
+        except Exception:
+            return None
 
     def live_sell(self, token_addr: str, token_amount="all",
                   max_slippage_bps: Optional[int] = None) -> dict:

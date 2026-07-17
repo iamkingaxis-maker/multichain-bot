@@ -72,6 +72,19 @@ def _open_gates(monkeypatch):
     # live mode auto-enables the canary; pin it OFF here so containment tests
     # don't depend on the module boot-grace clock — canary tests turn it ON.
     monkeypatch.setenv("RH_SELL_CANARY", "off")
+    # live-buy hardening (2026-07-17): armed buys now pass a balance check +
+    # a concurrency cap fed by the wallet-truth snapshot. Give every armed
+    # test a FRESH flat-wallet snapshot (0 open positions); hardening tests
+    # overwrite it to exercise the guards.
+    _write_wallet_truth(positions=[])
+
+
+def _write_wallet_truth(positions, age_s=0.0):
+    from datetime import datetime, timedelta, timezone
+    ts = (datetime.now(timezone.utc) - timedelta(seconds=age_s)).isoformat()
+    path = rl._state_path(rl.WALLET_TRUTH_BASENAME)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"ts": ts, "positions": positions}, f)
 
 
 def _mock_executor(**kw):
@@ -81,6 +94,7 @@ def _mock_executor(**kw):
     ex.wallet_address = WALLET
     ex.quote_and_swap_buy.return_value = {"success": True, "side": "buy"}
     ex.swap_sell.return_value = {"success": True, "side": "sell"}
+    ex.eth_balance.return_value = 1.0  # buy-hardening balance check (07-17)
     for k, v in kw.items():
         setattr(ex, k, v)
     return ex
@@ -459,6 +473,51 @@ class TestContainment:
         live = RhLiveExecutor(executor=_mock_executor())
         assert live.max_position_usd == 50.0
         live.live_buy(TOKEN, 40.0, 4000.0)                # allowed under 50
+
+    # ── 2026-07-17 live-buy hardening (07-15 audit): balance + concurrency ──
+    def test_balance_check_refuses_overspend(self, monkeypatch):
+        # buy must leave the gas reserve intact — a wallet-draining buy is
+        # refused BEFORE the swap (would strand every position gasless).
+        _open_gates(monkeypatch)
+        ex = _mock_executor()
+        ex.eth_balance.return_value = 0.005        # buy needs 0.005 ETH
+        live = RhLiveExecutor(executor=ex)
+        with pytest.raises(RhContainmentError, match="balance check"):
+            live.live_buy(TOKEN, 20.0, 4000.0)     # 20/4000 = 0.005 ETH
+        ex.quote_and_swap_buy.assert_not_called()
+
+    def test_concurrency_cap_refuses_open_position(self, monkeypatch):
+        # wallet-truth snapshot shows an open sellable bag -> cap=1 refuses
+        _open_gates(monkeypatch)
+        _write_wallet_truth(positions=[{"sym": "X", "value_usd": 24.0,
+                                        "sellable": True}])
+        live = RhLiveExecutor(executor=_mock_executor())
+        with pytest.raises(RhContainmentError, match="concurrency cap"):
+            live.live_buy(TOKEN, 20.0, 4000.0)
+
+    def test_concurrency_dust_and_dead_bags_dont_count(self, monkeypatch):
+        # $0 routeless rugs + sub-$2 dust are NOT open positions
+        _open_gates(monkeypatch)
+        _write_wallet_truth(positions=[
+            {"sym": "GOATAI", "value_usd": 0.0, "sellable": False},
+            {"sym": "dust", "value_usd": 0.4, "sellable": True}])
+        live = RhLiveExecutor(executor=_mock_executor())
+        live.live_buy(TOKEN, 20.0, 4000.0)         # passes
+
+    def test_concurrency_fails_closed_on_stale_snapshot(self, monkeypatch):
+        # snapshot older than 10min = unknown open-position count = NO buy
+        _open_gates(monkeypatch)
+        _write_wallet_truth(positions=[], age_s=1200.0)
+        live = RhLiveExecutor(executor=_mock_executor())
+        with pytest.raises(RhContainmentError, match="missing/stale"):
+            live.live_buy(TOKEN, 20.0, 4000.0)
+
+    def test_concurrency_fails_closed_on_missing_snapshot(self, monkeypatch):
+        _open_gates(monkeypatch)
+        os.remove(rl._state_path(rl.WALLET_TRUTH_BASENAME))
+        live = RhLiveExecutor(executor=_mock_executor())
+        with pytest.raises(RhContainmentError, match="missing/stale"):
+            live.live_buy(TOKEN, 20.0, 4000.0)
 
     def test_buy_converts_usd_to_eth_and_passes_bps(self, monkeypatch):
         _open_gates(monkeypatch)
