@@ -5991,21 +5991,46 @@ class WebDashboard:
                 p = r.get(price_key)
                 if p:
                     px[r.get(tok_key)].append((str(r.get(ts_key)), float(p)))
-            drift = []
+            drift, bounced, dipped = [], 0, 0
             for tok, v in px.items():
                 if len(v) < 2:
                     continue
                 v.sort()
-                if v[0][1]:
-                    drift.append((v[-1][1] / v[0][1] - 1.0) * 100.0)
+                if not v[0][1]:
+                    continue
+                drift.append((v[-1][1] / v[0][1] - 1.0) * 100.0)
+                # DIP BOUNCE RATE (2026-07-18, the why-RH-wins-and-SOL-doesn't
+                # driver): both fleets BUY DIPS, so the decision-relevant tape
+                # property is not "are tokens down" (drift) but "do dips
+                # RECOVER". A chain can drift SICK while bouncing beautifully
+                # (RH 07-18 morning: drift -6% yet the deep family made +$400
+                # on V-bounces) — drift alone would stand us down from the
+                # best dip-buying tape. Per token with >=3 points: a >=8%
+                # drawdown counts as a dip; recovering >=half of it by the
+                # window's end counts as a bounce.
+                if len(v) >= 3:
+                    first = v[0][1]
+                    lo_i = min(range(len(v)), key=lambda i: v[i][1])
+                    lo = v[lo_i][1]
+                    dd = (lo / first - 1.0) * 100.0
+                    if dd <= -8.0:
+                        dipped += 1
+                        if lo_i < len(v) - 1 and first > lo:
+                            rec = (v[-1][1] - lo) / (first - lo)
+                            if rec >= 0.5:
+                                bounced += 1
             if len(drift) < 3:
                 return {"state": "UNKNOWN", "n_tokens": len(drift)}
             med = _st.median(drift)
-            return {"state": "HEALTHY" if med > -3.0 else "SICK",
-                    "median_drift_pct": round(med, 2),
-                    "pct_down": round(100 * sum(1 for d in drift if d < 0)
-                                      / len(drift)),
-                    "n_tokens": len(drift)}
+            out = {"state": "HEALTHY" if med > -3.0 else "SICK",
+                   "median_drift_pct": round(med, 2),
+                   "pct_down": round(100 * sum(1 for d in drift if d < 0)
+                                     / len(drift)),
+                   "n_tokens": len(drift),
+                   "dips_observed": dipped}
+            if dipped >= 3:
+                out["dip_bounce_rate"] = round(100 * bounced / dipped)
+            return out
 
         # RH: from the paper-lane ledger (buys carry price_eth)
         try:
