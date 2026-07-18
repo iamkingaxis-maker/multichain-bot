@@ -6153,7 +6153,15 @@ class WebDashboard:
             # fidelity-corrected $ is queued). Only the slcut pair stays,
             # pending their FIRST fidelity measurement (they were invisible to
             # the fidelity job until its hardcoded bot list was made dynamic).
-            "rh": {"HEALTHY": ["rh_slcut_agedhold", "rh_slcut_ageddeep"]},
+            # 2026-07-18 20:14: the slcut pair's FIRST fidelity measurement
+            # (dynamic list) failed the same screen that purged the others
+            # (agedhold -$64.73, ageddeep -$49.40 real). NO RH bot currently
+            # holds a fidelity-clean green record -> the honest route is EMPTY
+            # until the family map is re-mined on FIDELITY dollars. Note:
+            # SL1's PAIRED verdicts stand (relative, same-token) — this is an
+            # ABSOLUTE screen. rh_phoenix is the only fidelity-surviving newer
+            # bot (+$0.31 flat) but is sub-bar (drop-top-2 negative).
+            "rh": {},
             "sol": {},
         }
         route = {}
