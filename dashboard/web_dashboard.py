@@ -2192,6 +2192,7 @@ class WebDashboard:
         # app-wide middleware, same as every write endpoint).
         self.app.router.add_get("/api/rh-paper",              self._handle_api_rh_paper)
         self.app.router.add_get("/api/regime",                self._handle_api_regime)
+        self.app.router.add_get("/api/regime/history",        self._handle_api_regime_history)
         self.app.router.add_post("/api/rh-paper/ingest",      self._handle_api_rh_paper_ingest)
         self.app.router.add_post("/api/rh-fidelity/ingest",   self._handle_api_rh_fidelity_ingest)
         # 2026-07-13: RH hot-wallet on-chain truth (native ETH + WETH, delta vs
@@ -6168,6 +6169,36 @@ class WebDashboard:
         except Exception:
             pass
         return web.json_response(out, headers=cors)
+
+    async def _handle_api_regime_history(self, request):
+        """GET /api/regime/history?n=200 — tail of regime_history.jsonl (the
+        15-min decision snapshots). Feeds scripts/flip_simulator.py: the shadow
+        flipper that replays every recorded ARM/DISARM decision into simulated
+        seat P&L + the counterfactual on both sides of each flip (2026-07-18,
+        AxiS: 'simulate when we would choose to flip on the live bot and how
+        it would do... same for turning it off vs if you didnt')."""
+        cors = {"Access-Control-Allow-Origin": "*"}
+        try:
+            n = min(2000, int(request.query.get("n", 500)))
+        except ValueError:
+            n = 500
+        path = os.path.join(os.path.dirname(self._rh_paper_ledger_path()),
+                            "regime_history.jsonl")
+        rows = []
+        try:
+            with open(path, encoding="utf-8") as f:
+                lines = f.readlines()[-n:]
+            for line in lines:
+                line = line.strip()
+                if line:
+                    try:
+                        rows.append(json.loads(line))
+                    except ValueError:
+                        pass
+        except OSError:
+            pass
+        return web.json_response({"n": len(rows), "snapshots": rows},
+                                 headers=cors)
 
     def _rh_fidelity_path(self) -> str:
         """bot_state/rh_fidelity.json — fidelity-corrected per-bot P&L map pushed
