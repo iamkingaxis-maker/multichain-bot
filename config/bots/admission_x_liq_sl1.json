@@ -1,6 +1,6 @@
 {
   "bot_id": "admission_x_liq_sl1",
-  "display_name": "ADMISSION-EXEMPT LIQ + SL1 (2026-07-17). Verbatim clone of admission_x_liq (stack-exempt liq>=34k volume arm, ~72 buys/day = passes the PER-BOT volume bar) + the RH-replay-validated SL1 loss-ladder (bank 0.75 @ -6% pre-TP1). The strongest SOL live-seat candidate shape: validated admission x high per-bot volume x validated loss-conversion. Own exclusion pool = paired A/B vs admission_x_liq. Grade n>=30.",
+  "display_name": "ADMISSION-EXEMPT LIQ + SL1 (2026-07-17). Verbatim clone of admission_x_liq (stack-exempt liq>=34k volume arm, ~72 buys/day = passes the PER-BOT volume bar) + the RH-replay-validated SL1 loss-ladder (bank 0.75 @ -6% pre-TP1). The strongest SOL live-seat candidate shape: validated admission x high per-bot volume x validated loss-conversion. Own exclusion pool = paired A/B vs admission_x_liq. Grade n>=30. +BASE-CONFIRM GATE (2026-07-18, forward-graded on n=1,466: confirmed entries win 27% vs 14% unconfirmed \u2014 the unconfirmed half was donation; applied to BOTH sides of the SL1 pair so the A/B stays clean).",
   "enabled": true,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
@@ -38,6 +38,11 @@
       "liquidity_usd",
       ">=",
       34000
+    ],
+    [
+      "1s_base_confirmed_at_entry",
+      ">=",
+      1
     ]
   ],
   "entry_gate_require_data": true,

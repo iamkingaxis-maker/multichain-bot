@@ -1,6 +1,6 @@
 {
   "bot_id": "admission_x_liqdemand",
-  "display_name": "ADMISSION-EXEMPT LIQ+DEMAND (2026-07-17). QUALITY arm of the stack-exempt admission A/B (see admission_x_liq for the volume story). Same stack-exempt wiring; gate = the FULL held-out-validated combo: liq>=34k AND buy_pressure_60s>=0.6 (train n=2159: NG 59->45 win 21->29; held-out n=80: NG 42->17 win 24->50 — the strongest validated entry edge SOL has). Fires less than the liq-only arm but each entry is demand-dominant. Entry-exit coherence: sol_macro block matches the turn-fixed sol_bail. A/B question: does demand-quality per entry beat liq-only volume in $/day? Grade n>=30 closes vs admission_x_liq + stack-gated v1/hivol controls. PAPER $20.",
+  "display_name": "ADMISSION-EXEMPT LIQ+DEMAND (2026-07-17). QUALITY arm of the stack-exempt admission A/B (see admission_x_liq for the volume story). Same stack-exempt wiring; gate = the FULL held-out-validated combo: liq>=34k AND buy_pressure_60s>=0.6 (train n=2159: NG 59->45 win 21->29; held-out n=80: NG 42->17 win 24->50 \u00e2\u20ac\u201d the strongest validated entry edge SOL has). Fires less than the liq-only arm but each entry is demand-dominant. Entry-exit coherence: sol_macro block matches the turn-fixed sol_bail. A/B question: does demand-quality per entry beat liq-only volume in $/day? Grade n>=30 closes vs admission_x_liq + stack-gated v1/hivol controls. PAPER $20. +BASE-CONFIRM GATE (2026-07-18, forward-graded on n=1,466: confirmed entries win 27% vs 14% unconfirmed \u2014 the unconfirmed half was donation; applied to BOTH sides of the SL1 pair so the A/B stays clean).",
   "enabled": true,
   "paper_capital_usd": 2000.0,
   "base_position_usd": 20.0,
@@ -43,6 +43,11 @@
       "buy_pressure_60s",
       ">=",
       0.6
+    ],
+    [
+      "1s_base_confirmed_at_entry",
+      ">=",
+      1
     ]
   ],
   "entry_gate_require_data": true,
